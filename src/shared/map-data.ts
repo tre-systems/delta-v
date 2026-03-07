@@ -1,0 +1,316 @@
+import {
+  type HexCoord,
+  hexKey,
+  hexNeighbor,
+  hexRing,
+  hexDistance,
+  hexDirectionToward,
+} from './hex';
+import type { MapHex, CelestialBody, SolarSystemMap, ScenarioDefinition } from './types';
+
+// --- Body definitions ---
+// Coordinates approximate the Delta-V board layout.
+// The map is oriented with Sol near center, planets spread outward.
+// Flat-top hex grid, q increases right, r increases down-right.
+
+interface BodyDefinition {
+  name: string;
+  center: HexCoord;
+  surfaceRadius: number; // hexes covered by the body (0 = single hex)
+  gravityRings: number;  // rings of gravity hexes around the surface
+  gravityStrength: 'full' | 'weak';
+  destructive: boolean;  // contact = destruction (Sol)
+  color: string;
+  renderRadius: number;  // visual radius as multiplier of hex size
+  baseDirections: number[]; // which of the 6 directions have bases (on outermost surface ring)
+}
+
+const BODY_DEFS: BodyDefinition[] = [
+  {
+    name: 'Sol',
+    center: { q: 0, r: 0 },
+    surfaceRadius: 2,
+    gravityRings: 2,
+    gravityStrength: 'full',
+    destructive: true,
+    color: '#ffcc00',
+    renderRadius: 2.5,
+    baseDirections: [],
+  },
+  {
+    name: 'Mercury',
+    center: { q: 7, r: -2 },
+    surfaceRadius: 0,
+    gravityRings: 1,
+    gravityStrength: 'full',
+    destructive: false,
+    color: '#b0a090',
+    renderRadius: 0.6,
+    baseDirections: [0, 3], // E and W
+  },
+  {
+    name: 'Venus',
+    center: { q: -5, r: -7 },
+    surfaceRadius: 1,
+    gravityRings: 1,
+    gravityStrength: 'full',
+    destructive: false,
+    color: '#e8c87a',
+    renderRadius: 1.2,
+    baseDirections: [0, 1, 2, 3, 4, 5], // all 6 sides
+  },
+  {
+    name: 'Terra',
+    center: { q: -12, r: 5 },
+    surfaceRadius: 1,
+    gravityRings: 1,
+    gravityStrength: 'full',
+    destructive: false,
+    color: '#4488cc',
+    renderRadius: 1.2,
+    baseDirections: [1, 4], // NE and SW
+  },
+  {
+    name: 'Luna',
+    center: { q: -14, r: 5 },
+    surfaceRadius: 0,
+    gravityRings: 1,
+    gravityStrength: 'weak',
+    destructive: false,
+    color: '#cccccc',
+    renderRadius: 0.45,
+    baseDirections: [3], // W (facing Terra)
+  },
+  {
+    name: 'Mars',
+    center: { q: 10, r: 8 },
+    surfaceRadius: 0,
+    gravityRings: 1,
+    gravityStrength: 'full',
+    destructive: false,
+    color: '#cc4422',
+    renderRadius: 0.7,
+    baseDirections: [1, 4], // NE and SW
+  },
+  {
+    name: 'Ceres',
+    center: { q: -3, r: 18 },
+    surfaceRadius: 0,
+    gravityRings: 0,
+    gravityStrength: 'full',
+    destructive: false,
+    color: '#888888',
+    renderRadius: 0.35,
+    baseDirections: [0], // E
+  },
+  {
+    name: 'Jupiter',
+    center: { q: 8, r: -22 },
+    surfaceRadius: 2,
+    gravityRings: 2,
+    gravityStrength: 'full',
+    destructive: false,
+    color: '#cc9966',
+    renderRadius: 2.8,
+    baseDirections: [],
+  },
+  {
+    name: 'Io',
+    center: { q: 5, r: -20 },
+    surfaceRadius: 0,
+    gravityRings: 1,
+    gravityStrength: 'weak',
+    destructive: false,
+    color: '#cccc44',
+    renderRadius: 0.4,
+    baseDirections: [0], // E
+  },
+  {
+    name: 'Callisto',
+    center: { q: 12, r: -24 },
+    surfaceRadius: 0,
+    gravityRings: 1,
+    gravityStrength: 'weak',
+    destructive: false,
+    color: '#998877',
+    renderRadius: 0.4,
+    baseDirections: [3], // W
+  },
+  {
+    name: 'Ganymede',
+    center: { q: 6, r: -24 },
+    surfaceRadius: 0,
+    gravityRings: 1,
+    gravityStrength: 'weak',
+    destructive: false,
+    color: '#aaa099',
+    renderRadius: 0.45,
+    baseDirections: [],
+  },
+];
+
+// --- Asteroid belt hexes (scattered between Mars and Jupiter orbits) ---
+// These are approximate positions; a full implementation would trace the belt more accurately
+
+function generateAsteroidHexes(): HexCoord[] {
+  const asteroids: HexCoord[] = [];
+  // Scatter some asteroid hexes in the belt region
+  const beltHexes: HexCoord[] = [
+    { q: -6, r: 14 }, { q: -4, r: 15 }, { q: -2, r: 16 }, { q: 0, r: 16 },
+    { q: 2, r: 15 }, { q: 4, r: 14 }, { q: 6, r: 13 }, { q: 8, r: 12 },
+    { q: -8, r: 15 }, { q: -5, r: 16 }, { q: -1, r: 17 }, { q: 1, r: 17 },
+    { q: 3, r: 16 }, { q: 5, r: 15 }, { q: 7, r: 14 }, { q: 9, r: 13 },
+    { q: -7, r: 16 }, { q: -3, r: 17 }, { q: 3, r: 17 }, { q: 6, r: 15 },
+  ];
+  asteroids.push(...beltHexes);
+  return asteroids;
+}
+
+// --- Map builder ---
+
+export function buildSolarSystemMap(): SolarSystemMap {
+  const hexes = new Map<string, MapHex>();
+  const bodies: CelestialBody[] = [];
+
+  let minQ = Infinity, maxQ = -Infinity, minR = Infinity, maxR = -Infinity;
+
+  function trackBounds(h: HexCoord) {
+    minQ = Math.min(minQ, h.q);
+    maxQ = Math.max(maxQ, h.q);
+    minR = Math.min(minR, h.r);
+    maxR = Math.max(maxR, h.r);
+  }
+
+  function ensureHex(coord: HexCoord): MapHex {
+    const key = hexKey(coord);
+    let hex = hexes.get(key);
+    if (!hex) {
+      hex = { terrain: 'space' };
+      hexes.set(key, hex);
+    }
+    trackBounds(coord);
+    return hex;
+  }
+
+  for (const def of BODY_DEFS) {
+    const surfaceHexes: HexCoord[] = [];
+    const gravityHexes: HexCoord[] = [];
+
+    // Surface hexes (the body itself)
+    if (def.surfaceRadius === 0) {
+      surfaceHexes.push(def.center);
+    } else {
+      surfaceHexes.push(def.center);
+      for (let ring = 1; ring <= def.surfaceRadius; ring++) {
+        surfaceHexes.push(...hexRing(def.center, ring));
+      }
+    }
+
+    // Mark surface hexes
+    for (const sh of surfaceHexes) {
+      const hex = ensureHex(sh);
+      hex.terrain = def.destructive ? 'sunSurface' : 'planetSurface';
+      hex.body = { name: def.name, destructive: def.destructive };
+    }
+
+    // Mark base hexes on the outermost surface ring
+    for (const dir of def.baseDirections) {
+      // For single-hex bodies (surfaceRadius=0), the base IS the body hex
+      // For larger bodies, bases are on the outermost surface hex in that direction
+      let baseHex: HexCoord;
+      if (def.surfaceRadius === 0) {
+        baseHex = def.center;
+      } else {
+        // Walk 'surfaceRadius' steps in the given direction from center
+        baseHex = def.center;
+        for (let i = 0; i < def.surfaceRadius; i++) {
+          baseHex = hexNeighbor(baseHex, dir);
+        }
+      }
+      const hex = ensureHex(baseHex);
+      hex.base = { name: `${def.name} Base`, bodyName: def.name };
+    }
+
+    // Gravity hexes (rings outside the surface)
+    for (let ring = def.surfaceRadius + 1; ring <= def.surfaceRadius + def.gravityRings; ring++) {
+      const ringHexes = hexRing(def.center, ring);
+      for (const gh of ringHexes) {
+        // Don't override another body's surface
+        const existing = hexes.get(hexKey(gh));
+        if (existing && (existing.terrain === 'planetSurface' || existing.terrain === 'sunSurface')) {
+          continue;
+        }
+        const hex = ensureHex(gh);
+        // Direction should point toward the body center
+        const dir = hexDirectionToward(gh, def.center);
+        hex.gravity = {
+          direction: dir,
+          strength: def.gravityStrength,
+          bodyName: def.name,
+        };
+        gravityHexes.push(gh);
+      }
+    }
+
+    bodies.push({
+      name: def.name,
+      center: def.center,
+      surfaceRadius: def.surfaceRadius,
+      color: def.color,
+      renderRadius: def.renderRadius,
+    });
+  }
+
+  // Asteroid hexes
+  for (const ah of generateAsteroidHexes()) {
+    const hex = ensureHex(ah);
+    if (hex.terrain === 'space') {
+      hex.terrain = 'asteroid';
+    }
+  }
+
+  return {
+    hexes,
+    bodies,
+    bounds: { minQ, maxQ, minR, maxR },
+  };
+}
+
+// --- Scenario definitions ---
+
+export const SCENARIOS: Record<string, ScenarioDefinition> = {
+  biplanetary: {
+    name: 'Bi-Planetary',
+    players: [
+      {
+        ships: [{ type: 'corvette', position: { q: 10, r: 8 }, velocity: { dq: 0, dr: 0 } }],
+        targetBody: 'Venus',
+      },
+      {
+        ships: [{ type: 'corvette', position: { q: -5, r: -7 }, velocity: { dq: 0, dr: 0 } }],
+        targetBody: 'Mars',
+      },
+    ],
+  },
+};
+
+// Singleton map instance
+let _map: SolarSystemMap | null = null;
+
+export function getSolarSystemMap(): SolarSystemMap {
+  if (!_map) {
+    _map = buildSolarSystemMap();
+  }
+  return _map;
+}
+
+// Helper: find a base hex for a body (first base found)
+export function findBaseHex(map: SolarSystemMap, bodyName: string): HexCoord | null {
+  for (const [key, hex] of map.hexes) {
+    if (hex.base?.bodyName === bodyName) {
+      const [q, r] = key.split(',').map(Number);
+      return { q, r };
+    }
+  }
+  return null;
+}
