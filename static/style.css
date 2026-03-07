@@ -1,0 +1,212 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #0a0a1a;
+  color: #e0e0e0;
+  font-family: 'Courier New', monospace;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+#gameCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+/* Screens (menu, waiting, game over) */
+.screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  background: rgba(10, 10, 26, 0.85);
+}
+
+.menu-content {
+  text-align: center;
+  max-width: 360px;
+  padding: 2rem;
+}
+
+.title {
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  color: #fff;
+  margin-bottom: 0.2em;
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  letter-spacing: 0.2em;
+  color: #888;
+  text-transform: uppercase;
+  margin-bottom: 2.5rem;
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 0.75rem 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: transparent;
+  color: #e0e0e0;
+  font-family: inherit;
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.btn:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-primary {
+  border-color: #4fc3f7;
+  color: #4fc3f7;
+  width: 100%;
+}
+
+.btn-primary:hover {
+  background: rgba(79, 195, 247, 0.12);
+}
+
+.btn-secondary {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-confirm {
+  border-color: #66bb6a;
+  color: #66bb6a;
+  padding: 0.6rem 2.5rem;
+  font-size: 1rem;
+  letter-spacing: 0.15em;
+}
+
+.btn-confirm:hover {
+  background: rgba(102, 187, 106, 0.15);
+}
+
+.divider {
+  color: #555;
+  margin: 1.2rem 0;
+  font-size: 0.8rem;
+}
+
+.join-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.code-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 1.1rem;
+  letter-spacing: 0.3em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.code-input::placeholder {
+  color: #555;
+  letter-spacing: 0.3em;
+}
+
+.code-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.game-code {
+  font-size: 2.5rem;
+  letter-spacing: 0.5em;
+  color: #4fc3f7;
+  margin: 1.5rem 0;
+  font-weight: 700;
+}
+
+.status-text {
+  color: #888;
+  font-size: 0.85rem;
+  margin-top: 1.5rem;
+}
+
+/* HUD */
+.hud-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  background: rgba(10, 10, 26, 0.7);
+  backdrop-filter: blur(4px);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  z-index: 5;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.hud-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  z-index: 5;
+}
+
+.status-msg {
+  font-size: 0.9rem;
+  color: #aaa;
+  text-align: center;
+}
+
+/* Game Over */
+#gameOver h2 {
+  font-size: 2rem;
+  letter-spacing: 0.3em;
+  margin-bottom: 0.5rem;
+}
+
+#gameOverReason {
+  color: #888;
+  font-size: 0.85rem;
+  margin-bottom: 2rem;
+}
+
+#gameOver .btn {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
