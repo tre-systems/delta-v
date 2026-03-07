@@ -1,0 +1,18 @@
+name = "delta-v"
+main = "src/server/index.ts"
+compatibility_date = "2025-03-01"
+
+[build]
+command = "node esbuild.client.mjs"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+
+[durable_objects]
+bindings = [{ name = "GAME", class_name = "GameDO" }]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["GameDO"]
