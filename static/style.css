@@ -519,6 +519,25 @@ body {
   letter-spacing: 0.08em;
 }
 
+/* Latency indicator in HUD */
+.latency-text {
+  color: #888;
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+}
+
+.latency-good {
+  color: #66bb6a;
+}
+
+.latency-ok {
+  color: #ffb74d;
+}
+
+.latency-bad {
+  color: #ff5252;
+}
+
 /* Help overlay */
 .help-content {
   text-align: left;
