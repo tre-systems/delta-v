@@ -10,6 +10,7 @@ type ClientState =
   | 'connecting'
   | 'waitingForOpponent'
   | 'playing_astrogation'
+  | 'playing_combat'
   | 'playing_movementAnim'
   | 'playing_opponentTurn'
   | 'gameOver';
@@ -40,6 +41,7 @@ class GameClient {
     this.ui.onCreate = () => this.createGame();
     this.ui.onJoin = (code) => this.joinGame(code);
     this.ui.onConfirm = () => this.confirmOrders();
+    this.ui.onSkipCombat = () => this.sendSkipCombat();
     this.ui.onRematch = () => this.sendRematch();
     this.ui.onExit = () => this.exitToMenu();
 
@@ -88,6 +90,11 @@ class GameClient {
           }
         }
         this.renderer.frameOnShips();
+        break;
+
+      case 'playing_combat':
+        this.ui.showHUD();
+        this.updateHUD();
         break;
 
       case 'playing_movementAnim':
@@ -180,16 +187,20 @@ class GameClient {
         });
         break;
 
+      case 'combatResult':
+        this.gameState = this.deserializeState(msg.state);
+        this.renderer.setGameState(this.gameState);
+        this.input.setGameState(this.gameState);
+        // After combat resolves, transition based on new state
+        this.transitionToPhase();
+        break;
+
       case 'stateUpdate':
         this.gameState = this.deserializeState(msg.state);
         this.renderer.setGameState(this.gameState);
         this.input.setGameState(this.gameState);
         if (this.state !== 'playing_movementAnim') {
-          if (this.gameState.activePlayer === this.playerId) {
-            this.setState('playing_astrogation');
-          } else {
-            this.setState('playing_opponentTurn');
-          }
+          this.transitionToPhase();
         }
         break;
 
@@ -241,13 +252,27 @@ class GameClient {
 
   private onAnimationComplete() {
     if (!this.gameState) return;
+    this.transitionToPhase();
+  }
+
+  private transitionToPhase() {
+    if (!this.gameState) return;
     if (this.gameState.phase === 'gameOver') return;
 
-    if (this.gameState.activePlayer === this.playerId) {
+    const isMyTurn = this.gameState.activePlayer === this.playerId;
+
+    if (this.gameState.phase === 'combat' && isMyTurn) {
+      this.setState('playing_combat');
+    } else if (this.gameState.phase === 'astrogation' && isMyTurn) {
       this.setState('playing_astrogation');
     } else {
       this.setState('playing_opponentTurn');
     }
+  }
+
+  private sendSkipCombat() {
+    if (!this.gameState || this.state !== 'playing_combat') return;
+    this.send({ type: 'skipCombat' });
   }
 
   private sendRematch() {

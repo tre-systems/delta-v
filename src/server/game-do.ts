@@ -1,8 +1,8 @@
 import { DurableObject } from 'cloudflare:workers';
-import type { GameState, C2S, S2C, AstrogationOrder } from '../shared/types';
+import type { GameState, C2S, S2C, AstrogationOrder, CombatAttack } from '../shared/types';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { INACTIVITY_TIMEOUT_MS } from '../shared/constants';
-import { createGame, processAstrogation } from '../shared/game-engine';
+import { createGame, processAstrogation, processCombat, skipCombat } from '../shared/game-engine';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -103,6 +103,12 @@ export class GameDO extends DurableObject {
       case 'astrogation':
         await this.handleAstrogation(playerId, ws, msg.orders);
         break;
+      case 'combat':
+        await this.handleCombat(playerId, ws, msg.attacks);
+        break;
+      case 'skipCombat':
+        await this.handleSkipCombat(playerId, ws);
+        break;
       case 'rematch':
         await this.initGame();
         break;
@@ -148,21 +154,47 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    // Broadcast movement results
-    this.broadcast({ type: 'movementResult', movements: result.movements, state: result.state });
+    this.broadcast({ type: 'movementResult', movements: result.movements, events: result.events, state: result.state });
+    this.broadcastEndOrUpdate(result.state);
+    await this.saveGameState(result.state);
+  }
 
-    if (result.state.phase === 'gameOver') {
-      this.broadcast({
-        type: 'gameOver',
-        winner: result.state.winner!,
-        reason: result.state.winReason!,
-      });
+  private async handleCombat(playerId: number, ws: WebSocket, attacks: CombatAttack[]) {
+    const gameState = await this.getGameState();
+    if (!gameState) return;
+
+    const result = processCombat(gameState, playerId, attacks);
+
+    if ('error' in result) {
+      this.send(ws, { type: 'error', message: result.error });
+      return;
     }
 
+    this.broadcast({ type: 'combatResult', results: result.results, state: result.state });
+    this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
+  }
 
-    if (result.state.phase !== 'gameOver') {
-      this.broadcast({ type: 'stateUpdate', state: result.state });
+  private async handleSkipCombat(playerId: number, ws: WebSocket) {
+    const gameState = await this.getGameState();
+    if (!gameState) return;
+
+    const result = skipCombat(gameState, playerId);
+
+    if ('error' in result) {
+      this.send(ws, { type: 'error', message: result.error });
+      return;
+    }
+
+    this.broadcast({ type: 'stateUpdate', state: result.state });
+    await this.saveGameState(result.state);
+  }
+
+  private broadcastEndOrUpdate(state: GameState) {
+    if (state.phase === 'gameOver') {
+      this.broadcast({ type: 'gameOver', winner: state.winner!, reason: state.winReason! });
+    } else {
+      this.broadcast({ type: 'stateUpdate', state });
     }
   }
 

@@ -109,12 +109,47 @@ export interface SolarSystemMap {
   bounds: { minQ: number; maxQ: number; minR: number; maxR: number };
 }
 
+// --- Combat ---
+
+export interface CombatAttack {
+  attackerIds: string[];
+  targetId: string;
+}
+
+export interface CombatResult {
+  attackerIds: string[];
+  targetId: string;
+  odds: string;
+  attackStrength: number;
+  defendStrength: number;
+  rangeMod: number;
+  velocityMod: number;
+  dieRoll: number;
+  modifiedRoll: number;
+  damageType: 'none' | 'disabled' | 'eliminated';
+  disabledTurns: number;
+  counterattack: CombatResult | null;
+}
+
+// --- Movement events (asteroid hazards, etc.) ---
+
+export interface MovementEvent {
+  type: 'asteroidHit' | 'crash';
+  shipId: string;
+  hex: HexCoord;
+  dieRoll: number;
+  damageType: 'none' | 'disabled' | 'eliminated';
+  disabledTurns: number;
+}
+
 // --- Network messages ---
 
 export type C2S =
   | { type: 'join'; code: string }
   | { type: 'ready' }
   | { type: 'astrogation'; orders: AstrogationOrder[] }
+  | { type: 'combat'; attacks: CombatAttack[] }
+  | { type: 'skipCombat' }
   | { type: 'rematch' }
   | { type: 'ping'; t: number };
 
@@ -122,7 +157,8 @@ export type S2C =
   | { type: 'welcome'; playerId: number; code: string }
   | { type: 'matchFound' }
   | { type: 'gameStart'; state: GameState }
-  | { type: 'movementResult'; movements: ShipMovement[]; state: GameState }
+  | { type: 'movementResult'; movements: ShipMovement[]; events: MovementEvent[]; state: GameState }
+  | { type: 'combatResult'; results: CombatResult[]; state: GameState }
   | { type: 'stateUpdate'; state: GameState }
   | { type: 'gameOver'; winner: number; reason: string }
   | { type: 'opponentDisconnected' }
