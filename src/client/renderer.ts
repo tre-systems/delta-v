@@ -331,6 +331,17 @@ export class Renderer {
     }
   }
 
+  showLandingEffect(hex: HexCoord) {
+    const p = hexToPixel(hex, HEX_SIZE);
+    const now = performance.now();
+    this.hexFlashes.push({
+      position: p,
+      startTime: now + MOVEMENT_ANIM_DURATION * 0.9,
+      duration: 2000,
+      color: '#66bb6a',
+    });
+  }
+
   isAnimating(): boolean {
     return this.animState !== null;
   }

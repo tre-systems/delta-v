@@ -1004,6 +1004,8 @@ class GameClient {
       if (!ship) continue;
       const name = SHIP_STATS[ship.type]?.name ?? ship.type;
       this.ui.logLanding(name, m.landedAt);
+      // Show landing visual effect
+      this.renderer.showLandingEffect(m.to);
       // Check if it's at a friendly base (resupply happened)
       const player = this.gameState.players[ship.owner];
       if (player && player.homeBody === m.landedAt) {
