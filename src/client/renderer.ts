@@ -1049,6 +1049,17 @@ export class Renderer {
         ctx.fillText(`D${ship.damage.disabledTurns}`, pos.x, pos.y - 12);
       }
 
+      // Landed indicator
+      if (ship.landed && !this.animState) {
+        ctx.strokeStyle = 'rgba(100, 200, 100, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 12, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
       // Ship label and fuel (only when not animating)
       if (!this.animState) {
         const stats = SHIP_STATS[ship.type];
@@ -1059,7 +1070,8 @@ export class Renderer {
           ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
           ctx.font = '8px monospace';
           ctx.textAlign = 'center';
-          ctx.fillText(`${label} F:${ship.fuel}`, pos.x, pos.y + 18);
+          const landedTag = ship.landed ? ' L' : '';
+          ctx.fillText(`${label} F:${ship.fuel}${landedTag}`, pos.x, pos.y + 18);
         } else if (ship.detected) {
           // Show type letter for detected enemy ships
           ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
