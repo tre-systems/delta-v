@@ -519,6 +519,65 @@ body {
   letter-spacing: 0.08em;
 }
 
+/* Help overlay */
+.help-content {
+  text-align: left;
+  max-width: 320px;
+}
+
+.help-content .scenario-title {
+  text-align: center;
+}
+
+.help-section {
+  margin-bottom: 0.8rem;
+}
+
+.help-section h3 {
+  color: #4fc3f7;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.3rem;
+}
+
+.help-row {
+  font-size: 0.75rem;
+  color: #aaa;
+  padding: 0.1rem 0;
+}
+
+.help-key {
+  display: inline-block;
+  min-width: 110px;
+  color: #ccc;
+  font-size: 0.7rem;
+}
+
+.help-btn {
+  position: fixed;
+  bottom: 4rem;
+  right: 0.5rem;
+  z-index: 5;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(10, 10, 26, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #888;
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ccc;
+}
+
 /* Game Over */
 #gameOver h2 {
   font-size: 2rem;

@@ -421,6 +421,7 @@ export class Renderer {
       this.renderOrdnance(ctx, this.gameState, now);
       this.renderTorpedoGuidance(ctx, this.gameState, now);
       this.renderCombatOverlay(ctx, this.gameState, now);
+      this.renderMovementPaths(ctx, this.gameState, now);
       this.renderShips(ctx, this.gameState, now);
       this.renderHexFlashes(ctx, now);
       this.renderCombatEffects(ctx, now);
@@ -781,6 +782,46 @@ export class Renderer {
             ctx.fillText(`-${course.fuelSpent}`, to.x, to.y - 16);
           }
         }
+      }
+    }
+  }
+
+  private renderMovementPaths(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
+    if (!this.animState) return;
+
+    const progress = Math.min((now - this.animState.startTime) / this.animState.duration, 1);
+
+    for (const movement of this.animState.movements) {
+      const ship = state.ships.find(s => s.id === movement.shipId);
+      if (!ship) continue;
+      // Skip undetected enemy movement paths
+      if (ship.owner !== this.playerId && !ship.detected) continue;
+      if (movement.path.length < 2) continue;
+
+      // Draw faint dotted path line
+      const color = ship.owner === this.playerId ? 'rgba(79, 195, 247, 0.25)' : 'rgba(255, 152, 0, 0.25)';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      const start = hexToPixel(movement.path[0], HEX_SIZE);
+      ctx.moveTo(start.x, start.y);
+      for (let i = 1; i < movement.path.length; i++) {
+        const p = hexToPixel(movement.path[i], HEX_SIZE);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Small dot at each waypoint that's been passed
+      const totalSegs = movement.path.length - 1;
+      const passedSegs = Math.floor(progress * totalSegs);
+      for (let i = 1; i <= passedSegs && i < movement.path.length; i++) {
+        const p = hexToPixel(movement.path[i], HEX_SIZE);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
   }
