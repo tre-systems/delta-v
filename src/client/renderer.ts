@@ -182,6 +182,7 @@ export class Renderer {
   private combatEffects: CombatEffect[] = [];
   private hexFlashes: HexFlash[] = [];
   private movementEvents: { events: MovementEvent[]; showUntil: number } | null = null;
+  private phaseBanner: { text: string; showUntil: number } | null = null;
   private lastTime = 0;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -349,6 +350,13 @@ export class Renderer {
     });
   }
 
+  showPhaseBanner(text: string) {
+    this.phaseBanner = {
+      text,
+      showUntil: performance.now() + 1500,
+    };
+  }
+
   isAnimating(): boolean {
     return this.animState !== null;
   }
@@ -464,6 +472,15 @@ export class Renderer {
         this.movementEvents = null;
       } else {
         this.renderMovementEventsToast(ctx, this.movementEvents.events, now, w);
+      }
+    }
+
+    // Phase banner (screen-space, center)
+    if (this.phaseBanner) {
+      if (now > this.phaseBanner.showUntil) {
+        this.phaseBanner = null;
+      } else {
+        this.renderPhaseBanner(ctx, this.phaseBanner.text, now, this.phaseBanner.showUntil, w, h);
       }
     }
 
@@ -1601,6 +1618,43 @@ export class Renderer {
         y += 24;
       }
     }
+
+    ctx.restore();
+  }
+
+  private renderPhaseBanner(ctx: CanvasRenderingContext2D, text: string, now: number, showUntil: number, screenW: number, screenH: number) {
+    const elapsed = 1500 - (showUntil - now);
+    // Fade in over 200ms, stay for 1000ms, fade out over 300ms
+    let alpha: number;
+    if (elapsed < 200) {
+      alpha = elapsed / 200;
+    } else if (elapsed < 1200) {
+      alpha = 1;
+    } else {
+      alpha = 1 - (elapsed - 1200) / 300;
+    }
+    alpha = Math.max(0, Math.min(1, alpha));
+
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.9;
+    ctx.font = 'bold 22px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Background bar
+    const metrics = ctx.measureText(text);
+    const barW = metrics.width + 60;
+    const barH = 40;
+    const barX = screenW / 2 - barW / 2;
+    const barY = screenH * 0.35 - barH / 2;
+    ctx.fillStyle = 'rgba(10, 10, 40, 0.7)';
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, barW, barH, 6);
+    ctx.fill();
+
+    // Text
+    ctx.fillStyle = '#4fc3f7';
+    ctx.fillText(text, screenW / 2, screenH * 0.35);
 
     ctx.restore();
   }
