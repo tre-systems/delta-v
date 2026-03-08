@@ -11,6 +11,7 @@ export class UIManager {
 
   // Callbacks
   onSelectScenario: ((scenario: string) => void) | null = null;
+  onSinglePlayer: (() => void) | null = null;
   onJoin: ((code: string) => void) | null = null;
   onUndo: (() => void) | null = null;
   onConfirm: (() => void) | null = null;
@@ -33,6 +34,10 @@ export class UIManager {
     // Wire up buttons
     document.getElementById('createBtn')!.addEventListener('click', () => {
       this.showScenarioSelect();
+    });
+
+    document.getElementById('singlePlayerBtn')!.addEventListener('click', () => {
+      this.onSinglePlayer?.();
     });
 
     // Scenario buttons
