@@ -1,7 +1,9 @@
 import type { GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack } from '../shared/types';
 import { canAttack } from '../shared/combat';
-import { getSolarSystemMap } from '../shared/map-data';
+import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
+import { createGame, processAstrogation, processOrdnance, skipOrdnance, processCombat, skipCombat } from '../shared/game-engine';
+import { aiAstrogation, aiOrdnance, aiCombat } from '../shared/ai';
 import { Renderer } from './renderer';
 import { InputHandler } from './input';
 import { UIManager } from './ui';
@@ -22,9 +24,10 @@ class GameClient {
   private state: ClientState = 'menu';
   private ws: WebSocket | null = null;
   private playerId = -1;
-  private gameCode = '';
+  private gameCode: string | null = null;
   private scenario = 'biplanetary';
   private gameState: GameState | null = null;
+  private isLocalGame = false; // true for single player vs AI
 
   private canvas: HTMLCanvasElement;
   renderer: Renderer;
@@ -43,6 +46,7 @@ class GameClient {
 
     // Wire UI callbacks
     this.ui.onSelectScenario = (scenario) => this.createGame(scenario);
+    this.ui.onSinglePlayer = () => this.startLocalGame('biplanetary');
     this.ui.onJoin = (code) => this.joinGame(code);
     this.ui.onUndo = () => this.undoSelectedShipBurn();
     this.ui.onConfirm = () => this.confirmOrders();
@@ -109,7 +113,7 @@ class GameClient {
         break;
 
       case 'waitingForOpponent':
-        this.ui.showWaiting(this.gameCode);
+        this.ui.showWaiting(this.gameCode ?? '');
         break;
 
       case 'playing_astrogation':
@@ -188,6 +192,25 @@ class GameClient {
       this.setState('waitingForOpponent');
     } catch (err) {
       console.error('Failed to create game:', err);
+    }
+  }
+
+  private startLocalGame(scenario: string) {
+    this.isLocalGame = true;
+    this.playerId = 0;
+    this.renderer.setPlayerId(0);
+    this.input.setPlayerId(0);
+
+    const scenarioDef = SCENARIOS[scenario] ?? SCENARIOS.biplanetary;
+    this.gameState = createGame(scenarioDef, this.map, 'LOCAL', findBaseHex);
+    this.renderer.setGameState(this.gameState);
+    this.input.setGameState(this.gameState);
+
+    if (this.gameState.activePlayer === this.playerId) {
+      this.setState('playing_astrogation');
+    } else {
+      this.setState('playing_opponentTurn');
+      this.runAITurn();
     }
   }
 
@@ -372,7 +395,11 @@ class GameClient {
     }
 
     playConfirm();
-    this.send({ type: 'astrogation', orders });
+    if (this.isLocalGame) {
+      this.localProcessAstrogation(orders);
+    } else {
+      this.send({ type: 'astrogation', orders });
+    }
   }
 
   private onAnimationComplete() {
@@ -397,6 +424,10 @@ class GameClient {
       playPhaseChange();
     } else {
       this.setState('playing_opponentTurn');
+      // In local game, trigger AI turn
+      if (this.isLocalGame && this.gameState.activePlayer !== this.playerId) {
+        setTimeout(() => this.runAITurn(), 500);
+      }
     }
   }
 
@@ -412,7 +443,11 @@ class GameClient {
     if (attackerIds.length === 0) return;
 
     const attacks: CombatAttack[] = [{ attackerIds, targetId }];
-    this.send({ type: 'combat', attacks });
+    if (this.isLocalGame) {
+      this.localProcessCombat(attacks);
+    } else {
+      this.send({ type: 'combat', attacks });
+    }
   }
 
   private combatWatchInterval: number | null = null;
@@ -448,20 +483,36 @@ class GameClient {
       launch.torpedoAccel = this.renderer.planningState.torpedoAccel ?? null;
     }
 
-    this.send({ type: 'ordnance', launches: [launch] });
+    if (this.isLocalGame) {
+      this.localProcessOrdnance([launch]);
+    } else {
+      this.send({ type: 'ordnance', launches: [launch] });
+    }
   }
 
   private sendSkipOrdnance() {
     if (!this.gameState || this.state !== 'playing_ordnance') return;
-    this.send({ type: 'skipOrdnance' });
+    if (this.isLocalGame) {
+      this.localSkipOrdnance();
+    } else {
+      this.send({ type: 'skipOrdnance' });
+    }
   }
 
   private sendSkipCombat() {
     if (!this.gameState || this.state !== 'playing_combat') return;
-    this.send({ type: 'skipCombat' });
+    if (this.isLocalGame) {
+      this.localSkipCombat();
+    } else {
+      this.send({ type: 'skipCombat' });
+    }
   }
 
   private sendRematch() {
+    if (this.isLocalGame) {
+      this.startLocalGame(this.scenario);
+      return;
+    }
     this.send({ type: 'rematch' });
   }
 
@@ -469,8 +520,200 @@ class GameClient {
     this.ws?.close();
     this.ws = null;
     this.gameState = null;
+    this.isLocalGame = false;
     history.replaceState(null, '', '/');
     this.setState('menu');
+  }
+
+  // --- Local game (single player) ---
+
+  private localProcessAstrogation(orders: AstrogationOrder[]) {
+    if (!this.gameState) return;
+    const result = processAstrogation(this.gameState, this.playerId, orders, this.map);
+    if ('error' in result) {
+      console.error('Local astrogation error:', result.error);
+      return;
+    }
+    this.gameState = result.state;
+    this.renderer.setGameState(this.gameState);
+    this.input.setGameState(this.gameState);
+    this.setState('playing_movementAnim');
+    playThrust();
+    if (result.events.length > 0) {
+      this.renderer.showMovementEvents(result.events);
+      if (result.events.some(e => e.damageType === 'eliminated' || e.type === 'crash')) {
+        setTimeout(() => playExplosion(), 500);
+      }
+    }
+    this.renderer.animateMovements(result.movements, result.ordnanceMovements, () => {
+      this.localCheckGameEnd();
+      this.onAnimationComplete();
+    });
+  }
+
+  private localProcessOrdnance(launches: OrdnanceLaunch[]) {
+    if (!this.gameState) return;
+    const result = processOrdnance(this.gameState, this.playerId, launches, this.map);
+    if ('error' in result) {
+      console.error('Local ordnance error:', result.error);
+      return;
+    }
+    this.gameState = result.state;
+    this.renderer.setGameState(this.gameState);
+    this.input.setGameState(this.gameState);
+    this.localCheckGameEnd();
+    this.transitionToPhase();
+  }
+
+  private localSkipOrdnance() {
+    if (!this.gameState) return;
+    const result = skipOrdnance(this.gameState, this.playerId);
+    if ('error' in result) return;
+    this.gameState = result.state;
+    this.renderer.setGameState(this.gameState);
+    this.input.setGameState(this.gameState);
+    this.transitionToPhase();
+  }
+
+  private localProcessCombat(attacks: CombatAttack[]) {
+    if (!this.gameState) return;
+    const result = processCombat(this.gameState, this.playerId, attacks, this.map);
+    if ('error' in result) return;
+    this.gameState = result.state;
+    this.renderer.setGameState(this.gameState);
+    this.input.setGameState(this.gameState);
+    this.renderer.showCombatResults(result.results);
+    this.renderer.planningState.combatTargetId = null;
+    playCombat();
+    if (result.results.some(r => r.damageType === 'eliminated')) {
+      setTimeout(() => playExplosion(), 300);
+    }
+    this.localCheckGameEnd();
+    this.transitionToPhase();
+  }
+
+  private localSkipCombat() {
+    if (!this.gameState) return;
+    const result = skipCombat(this.gameState, this.playerId, this.map);
+    if ('error' in result) return;
+    this.gameState = result.state;
+    this.renderer.setGameState(this.gameState);
+    this.input.setGameState(this.gameState);
+    if (result.baseDefenseResults && result.baseDefenseResults.length > 0) {
+      this.renderer.showCombatResults(result.baseDefenseResults);
+    }
+    this.localCheckGameEnd();
+    this.transitionToPhase();
+  }
+
+  private localCheckGameEnd() {
+    if (!this.gameState || this.gameState.phase !== 'gameOver') return;
+    this.setState('gameOver');
+    this.ui.showGameOver(
+      this.gameState.winner === this.playerId,
+      this.gameState.winReason ?? '',
+    );
+    if (this.gameState.winner === this.playerId) {
+      playVictory();
+    } else {
+      playDefeat();
+    }
+  }
+
+  private runAITurn() {
+    if (!this.gameState || this.gameState.phase === 'gameOver') return;
+    const aiPlayer = this.gameState.activePlayer;
+    if (aiPlayer === this.playerId) return; // Not AI's turn
+
+    // Astrogation phase
+    if (this.gameState.phase === 'astrogation') {
+      const orders = aiAstrogation(this.gameState, aiPlayer, this.map);
+      const result = processAstrogation(this.gameState, aiPlayer, orders, this.map);
+      if ('error' in result) {
+        console.error('AI astrogation error:', result.error);
+        return;
+      }
+      this.gameState = result.state;
+      this.renderer.setGameState(this.gameState);
+      this.input.setGameState(this.gameState);
+      this.setState('playing_movementAnim');
+      playThrust();
+      if (result.events.length > 0) {
+        this.renderer.showMovementEvents(result.events);
+        if (result.events.some(e => e.damageType === 'eliminated' || e.type === 'crash')) {
+          setTimeout(() => playExplosion(), 500);
+        }
+      }
+      this.renderer.animateMovements(result.movements, result.ordnanceMovements, () => {
+        this.localCheckGameEnd();
+        this.continueAIAfterAstrogation(aiPlayer);
+      });
+      return;
+    }
+
+    // If we get here with ordnance/combat phase, process them directly
+    this.processAIPhases(aiPlayer);
+  }
+
+  private continueAIAfterAstrogation(aiPlayer: number) {
+    if (!this.gameState || this.gameState.phase === 'gameOver') return;
+    // Process ordnance and combat phases for AI
+    this.processAIPhases(aiPlayer);
+  }
+
+  private processAIPhases(aiPlayer: number) {
+    if (!this.gameState || this.gameState.phase === 'gameOver') return;
+
+    // Ordnance phase
+    if (this.gameState.phase === 'ordnance' && this.gameState.activePlayer === aiPlayer) {
+      const launches = aiOrdnance(this.gameState, aiPlayer, this.map);
+      if (launches.length > 0) {
+        const result = processOrdnance(this.gameState, aiPlayer, launches, this.map);
+        if (!('error' in result)) {
+          this.gameState = result.state;
+        }
+      } else {
+        const result = skipOrdnance(this.gameState, aiPlayer);
+        if (!('error' in result)) {
+          this.gameState = result.state;
+        }
+      }
+      this.renderer.setGameState(this.gameState);
+      this.input.setGameState(this.gameState);
+    }
+
+    // Combat phase
+    if (this.gameState.phase === 'combat' && this.gameState.activePlayer === aiPlayer) {
+      const attacks = aiCombat(this.gameState, aiPlayer);
+      if (attacks.length > 0) {
+        const result = processCombat(this.gameState, aiPlayer, attacks, this.map);
+        if (!('error' in result)) {
+          this.gameState = result.state;
+          this.renderer.showCombatResults(result.results);
+          playCombat();
+          if (result.results.some(r => r.damageType === 'eliminated')) {
+            setTimeout(() => playExplosion(), 300);
+          }
+        }
+      } else {
+        const result = skipCombat(this.gameState, aiPlayer, this.map);
+        if (!('error' in result)) {
+          this.gameState = result.state;
+          if (result.baseDefenseResults && result.baseDefenseResults.length > 0) {
+            this.renderer.showCombatResults(result.baseDefenseResults);
+          }
+        }
+      }
+      this.renderer.setGameState(this.gameState);
+      this.input.setGameState(this.gameState);
+    }
+
+    this.localCheckGameEnd();
+
+    // Transition to the next phase (should be player's turn now)
+    if (this.gameState.phase !== 'gameOver') {
+      this.transitionToPhase();
+    }
   }
 
   private cycleShip(direction: number) {
