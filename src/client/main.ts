@@ -234,6 +234,9 @@ class GameClient {
         this.renderer.setGameState(this.gameState);
         this.input.setGameState(this.gameState);
         this.setState('playing_movementAnim');
+        if (msg.events.length > 0) {
+          this.renderer.showMovementEvents(msg.events);
+        }
         this.renderer.animateMovements(msg.movements, msg.ordnanceMovements, () => {
           this.onAnimationComplete();
         });
