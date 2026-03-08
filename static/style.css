@@ -340,6 +340,37 @@ body {
   margin-top: 0.2rem;
 }
 
+/* AI Difficulty */
+.ai-section {
+  width: 100%;
+}
+
+.difficulty-select {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.btn-difficulty {
+  flex: 1;
+  padding: 0.5rem 0.5rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #999;
+}
+
+.btn-difficulty.active {
+  border-color: #4fc3f7;
+  color: #4fc3f7;
+  background: rgba(79, 195, 247, 0.08);
+}
+
+.btn-difficulty:hover {
+  background: rgba(79, 195, 247, 0.08);
+  border-color: rgba(79, 195, 247, 0.5);
+}
+
 /* Game Over */
 #gameOver h2 {
   font-size: 2rem;

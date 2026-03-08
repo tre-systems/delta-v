@@ -15,7 +15,14 @@
       <h1 class="title">DELTA-V</h1>
       <p class="subtitle">Triplanetary</p>
       <button id="createBtn" class="btn btn-primary">Create Game</button>
-      <button id="singlePlayerBtn" class="btn btn-secondary" style="width:100%;margin-top:0.5rem">Play vs AI</button>
+      <div id="aiSection" class="ai-section">
+        <button id="singlePlayerBtn" class="btn btn-secondary" style="width:100%;margin-top:0.5rem">Play vs AI</button>
+        <div id="difficultySelect" class="difficulty-select" style="display:none">
+          <button class="btn btn-difficulty" data-difficulty="easy">Easy</button>
+          <button class="btn btn-difficulty active" data-difficulty="normal">Normal</button>
+          <button class="btn btn-difficulty" data-difficulty="hard">Hard</button>
+        </div>
+      </div>
       <div class="divider">or</div>
       <div class="join-row">
         <input id="codeInput" class="code-input" maxlength="5" placeholder="CODE" autocapitalize="characters" spellcheck="false">

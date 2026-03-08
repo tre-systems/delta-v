@@ -82,8 +82,8 @@ export function createGame(
     ships,
     ordnance: [],
     players: [
-      { connected: true, ready: true, targetBody: scenario.players[0].targetBody, escapeWins: scenario.players[0].escapeWins },
-      { connected: true, ready: true, targetBody: scenario.players[1].targetBody, escapeWins: scenario.players[1].escapeWins },
+      { connected: true, ready: true, targetBody: scenario.players[0].targetBody, homeBody: scenario.players[0].homeBody, escapeWins: scenario.players[0].escapeWins },
+      { connected: true, ready: true, targetBody: scenario.players[1].targetBody, homeBody: scenario.players[1].homeBody, escapeWins: scenario.players[1].escapeWins },
     ],
     winner: null,
     winReason: null,
@@ -698,8 +698,8 @@ function updateDetection(state: GameState, map: SolarSystemMap): void {
     // Landing at a friendly base clears detection
     if (ship.landed) {
       const hex = map.hexes.get(hexKey(ship.position));
-      if (hex?.base) {
-        // Check if it's a friendly base (bases belonging to the same homeBody)
+      const playerHome = state.players[ship.owner].homeBody;
+      if (hex?.base && hex.base.bodyName === playerHome) {
         ship.detected = false;
         continue;
       }
@@ -720,8 +720,10 @@ function updateDetection(state: GameState, map: SolarSystemMap): void {
     if (ship.detected) continue;
 
     // Check if within range of any opponent base
+    const opponentHome = state.players[1 - ship.owner].homeBody;
     for (const [key, hex] of map.hexes) {
       if (!hex.base) continue;
+      if (hex.base.bodyName !== opponentHome) continue; // Only opponent bases detect
       const [q, r] = key.split(',').map(Number);
       if (hexDistance(ship.position, { q, r }) <= BASE_DETECTION_RANGE) {
         ship.detected = true;

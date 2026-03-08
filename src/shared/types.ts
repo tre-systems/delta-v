@@ -47,6 +47,7 @@ export interface PlayerState {
   connected: boolean;
   ready: boolean;
   targetBody: string; // body name they must land on ('' if no landing target)
+  homeBody: string; // body name for base ownership / resupply
   escapeWins: boolean; // true if this player wins by escaping the map
 }
 
@@ -174,8 +175,6 @@ export interface MovementEvent {
 // --- Network messages ---
 
 export type C2S =
-  | { type: 'join'; code: string }
-  | { type: 'ready' }
   | { type: 'astrogation'; orders: AstrogationOrder[] }
   | { type: 'ordnance'; launches: OrdnanceLaunch[] }
   | { type: 'skipOrdnance' }
