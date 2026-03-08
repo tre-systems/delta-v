@@ -158,6 +158,19 @@
   <!-- Sound toggle button -->
   <button id="soundBtn" class="sound-btn" style="display:none" title="Toggle sound"></button>
 
+  <!-- Reconnection overlay -->
+  <div id="reconnectOverlay" class="reconnect-overlay" style="display:none">
+    <div class="reconnect-content">
+      <div class="reconnect-spinner"></div>
+      <div id="reconnectText" class="reconnect-text">Reconnecting...</div>
+      <div id="reconnectAttempt" class="reconnect-attempt">Attempt 1 of 5</div>
+      <button id="reconnectCancelBtn" class="btn btn-secondary" style="margin-top:1rem">Return to Menu</button>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toastContainer" class="toast-container"></div>
+
   <!-- Ship tooltip -->
   <div id="shipTooltip" class="ship-tooltip" style="display:none"></div>
 

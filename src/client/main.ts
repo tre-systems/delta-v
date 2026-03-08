@@ -280,6 +280,8 @@ class GameClient {
       this.setState('waitingForOpponent');
     } catch (err) {
       console.error('Failed to create game:', err);
+      this.ui.showToast('Failed to create game. Try again.', 'error');
+      this.setState('menu');
     }
   }
 
@@ -351,12 +353,22 @@ class GameClient {
 
   private attemptReconnect() {
     if (!this.gameCode || this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.ui.hideReconnecting();
+      this.ui.showToast('Could not reconnect to game', 'error');
       this.setState('menu');
       return;
     }
     this.reconnectAttempts++;
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 8000);
-    this.ui.showReconnecting(this.reconnectAttempts);
+    this.ui.showReconnecting(this.reconnectAttempts, this.maxReconnectAttempts, () => {
+      // Cancel reconnection and return to menu
+      if (this.reconnectTimer !== null) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      this.reconnectAttempts = 0;
+      this.setState('menu');
+    });
     this.reconnectTimer = window.setTimeout(() => {
       this.connect(this.gameCode!);
     }, delay);
@@ -373,7 +385,11 @@ class GameClient {
       case 'welcome':
         this.playerId = msg.playerId;
         this.gameCode = msg.code;
-        this.reconnectAttempts = 0; // Reset on successful connection
+        if (this.reconnectAttempts > 0) {
+          this.ui.hideReconnecting();
+          this.ui.showToast('Reconnected!', 'success');
+        }
+        this.reconnectAttempts = 0;
         this.renderer.setPlayerId(msg.playerId);
         this.input.setPlayerId(msg.playerId);
         if (this.state === 'connecting') {
@@ -463,6 +479,7 @@ class GameClient {
 
       case 'error':
         console.error('Server error:', msg.message);
+        this.ui.showToast(msg.message, 'error');
         break;
 
       case 'pong':
@@ -571,13 +588,26 @@ class GameClient {
   private sendAttack() {
     if (!this.gameState || this.state !== 'playing_combat') return;
     const targetId = this.renderer.planningState.combatTargetId;
-    if (!targetId) return;
+    if (!targetId) {
+      this.ui.showToast('Select an enemy ship to target', 'info');
+      return;
+    }
+
+    const target = this.gameState.ships.find(s => s.id === targetId);
+    if (!target || target.destroyed) {
+      this.ui.showToast('Target is not valid', 'error');
+      this.renderer.planningState.combatTargetId = null;
+      return;
+    }
 
     const attackerIds = this.gameState.ships
       .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s))
       .map(s => s.id);
 
-    if (attackerIds.length === 0) return;
+    if (attackerIds.length === 0) {
+      this.ui.showToast('No ships available to attack', 'error');
+      return;
+    }
 
     const attacks: CombatAttack[] = [{ attackerIds, targetId }];
     if (this.isLocalGame) {
@@ -605,10 +635,40 @@ class GameClient {
   private sendOrdnanceLaunch(ordType: 'mine' | 'torpedo' | 'nuke') {
     if (!this.gameState || this.state !== 'playing_ordnance') return;
     const selectedId = this.renderer.planningState.selectedShipId;
-    if (!selectedId) return;
+    if (!selectedId) {
+      this.ui.showToast('Select a ship first', 'info');
+      return;
+    }
 
     const ship = this.gameState.ships.find(s => s.id === selectedId);
     if (!ship) return;
+
+    // Client-side validation
+    const stats = SHIP_STATS[ship.type];
+    if (!stats) return;
+    const cargoFree = stats.cargo - ship.cargoUsed;
+
+    if (ship.destroyed) {
+      this.ui.showToast('Ship is destroyed', 'error');
+      return;
+    }
+    if (ship.landed) {
+      this.ui.showToast('Cannot launch ordnance while landed', 'error');
+      return;
+    }
+    if (ship.damage.disabledTurns > 0) {
+      this.ui.showToast('Ship is disabled', 'error');
+      return;
+    }
+    if ((ordType === 'torpedo' || ordType === 'nuke') && !stats.canOverload) {
+      this.ui.showToast('Only warships can launch torpedoes/nukes', 'error');
+      return;
+    }
+    const needed = ORDNANCE_MASS[ordType] ?? 0;
+    if (cargoFree < needed) {
+      this.ui.showToast(`Not enough cargo (need ${needed}, have ${cargoFree})`, 'error');
+      return;
+    }
 
     const launch: OrdnanceLaunch = {
       shipId: selectedId,
@@ -620,7 +680,7 @@ class GameClient {
       launch.torpedoAccel = this.renderer.planningState.torpedoAccel ?? null;
     }
 
-    const shipName = SHIP_STATS[ship.type]?.name ?? ship.type;
+    const shipName = stats.name ?? ship.type;
     this.ui.logText(`${shipName} launched ${ordType}`);
 
     if (this.isLocalGame) {
@@ -900,9 +960,20 @@ class GameClient {
   private setBurnDirection(dir: number) {
     if (!this.gameState || this.state !== 'playing_astrogation') return;
     const shipId = this.renderer.planningState.selectedShipId;
-    if (!shipId) return;
+    if (!shipId) {
+      this.ui.showToast('Select a ship first', 'info');
+      return;
+    }
     const ship = this.gameState.ships.find(s => s.id === shipId);
-    if (!ship || ship.fuel <= 0 || ship.destroyed || ship.damage.disabledTurns > 0) return;
+    if (!ship || ship.destroyed) return;
+    if (ship.damage.disabledTurns > 0) {
+      this.ui.showToast(`Ship disabled for ${ship.damage.disabledTurns} more turn(s)`, 'error');
+      return;
+    }
+    if (ship.fuel <= 0) {
+      this.ui.showToast('No fuel remaining', 'error');
+      return;
+    }
 
     const current = this.renderer.planningState.burns.get(shipId) ?? null;
     // Toggle: same direction = cancel
