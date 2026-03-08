@@ -43,6 +43,7 @@ class GameClient {
     // Wire UI callbacks
     this.ui.onSelectScenario = (scenario) => this.createGame(scenario);
     this.ui.onJoin = (code) => this.joinGame(code);
+    this.ui.onUndo = () => this.undoSelectedShipBurn();
     this.ui.onConfirm = () => this.confirmOrders();
     this.ui.onLaunchOrdnance = (ordType) => this.sendOrdnanceLaunch(ordType);
     this.ui.onSkipOrdnance = () => this.sendSkipOrdnance();
@@ -233,7 +234,7 @@ class GameClient {
         this.renderer.setGameState(this.gameState);
         this.input.setGameState(this.gameState);
         this.setState('playing_movementAnim');
-        this.renderer.animateMovements(msg.movements, () => {
+        this.renderer.animateMovements(msg.movements, msg.ordnanceMovements, () => {
           this.onAnimationComplete();
         });
         break;
@@ -264,6 +265,10 @@ class GameClient {
         );
         break;
 
+      case 'rematchPending':
+        this.ui.showRematchPending();
+        break;
+
       case 'opponentDisconnected':
         this.setState('gameOver');
         this.ui.showGameOver(true, 'Opponent disconnected');
@@ -286,6 +291,17 @@ class GameClient {
   }
 
   // --- Game actions ---
+
+  private undoSelectedShipBurn() {
+    if (!this.gameState || this.state !== 'playing_astrogation') return;
+    const shipId = this.renderer.planningState.selectedShipId;
+    if (shipId) {
+      this.renderer.planningState.burns.delete(shipId);
+      this.renderer.planningState.overloads.delete(shipId);
+      this.renderer.planningState.weakGravityChoices.delete(shipId);
+    }
+    this.updateHUD();
+  }
 
   private confirmOrders() {
     if (!this.gameState || this.state !== 'playing_astrogation') return;
@@ -420,12 +436,15 @@ class GameClient {
     const selectedId = this.renderer.planningState.selectedShipId;
     const selectedShip = myShips.find(s => s.id === selectedId) ?? myShips.find(s => !s.destroyed);
     const stats = selectedShip ? SHIP_STATS[selectedShip.type] : null;
+    // Check if any ship has a burn set (for undo button visibility)
+    const hasBurns = Array.from(this.renderer.planningState.burns.values()).some(b => b !== null);
     this.ui.updateHUD(
       this.gameState.turnNumber,
       this.gameState.phase,
       isMyTurn,
       selectedShip?.fuel ?? 0,
       stats?.fuel ?? 0,
+      hasBurns,
     );
     this.ui.updateShipList(
       myShips,

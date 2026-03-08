@@ -192,6 +192,7 @@ export type S2C =
   | { type: 'combatResult'; results: CombatResult[]; state: GameState }
   | { type: 'stateUpdate'; state: GameState }
   | { type: 'gameOver'; winner: number; reason: string }
+  | { type: 'rematchPending' }
   | { type: 'opponentDisconnected' }
   | { type: 'error'; message: string }
   | { type: 'pong'; t: number };
