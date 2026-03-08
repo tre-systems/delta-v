@@ -194,6 +194,19 @@ export class UIManager {
         <span class="ship-fuel">${ship.destroyed ? '' : `${ship.fuel}/${stats?.fuel ?? '?'}`}</span>
       `;
 
+      // Show expanded details for selected ship
+      if (ship.id === selectedId && !ship.destroyed && stats) {
+        const details = document.createElement('div');
+        details.className = 'ship-details';
+        const combat = stats.combat + (stats.defensiveOnly ? 'D' : '');
+        const cargo = stats.cargo > 0 ? `Cargo: ${stats.cargo - ship.cargoUsed}/${stats.cargo}` : '';
+        const velocity = `Vel: (${ship.velocity.dq},${ship.velocity.dr})`;
+        const dmg = ship.damage.disabledTurns > 0 ? `Dmg: ${ship.damage.disabledTurns}T` : '';
+        const status = ship.landed ? 'Landed' : '';
+        details.innerHTML = `<span>ATK:${combat} ${cargo}</span><span>${velocity} ${dmg} ${status}</span>`;
+        entry.appendChild(details);
+      }
+
       if (!ship.destroyed) {
         entry.addEventListener('click', () => this.onSelectShip?.(ship.id));
       }
