@@ -4,8 +4,20 @@
  */
 
 let ctx: AudioContext | null = null;
+let muted = false;
 
-function getCtx(): AudioContext {
+export function isMuted(): boolean {
+  return muted;
+}
+
+export function setMuted(m: boolean) {
+  muted = m;
+  // Persist preference
+  try { localStorage.setItem('delta-v-mute', m ? '1' : '0'); } catch {}
+}
+
+function getCtx(): AudioContext | null {
+  if (muted) return null;
   if (!ctx) {
     ctx = new AudioContext();
   }
@@ -14,6 +26,12 @@ function getCtx(): AudioContext {
 
 /** Resume audio context after user gesture (required by browsers). */
 export function initAudio() {
+  // Load saved mute preference
+  try {
+    const saved = localStorage.getItem('delta-v-mute');
+    if (saved === '1') muted = true;
+  } catch {}
+
   const resume = () => {
     if (ctx?.state === 'suspended') {
       ctx.resume();
@@ -28,6 +46,7 @@ export function initAudio() {
 /** Short blip for UI interactions (button clicks, selections). */
 export function playSelect() {
   const ac = getCtx();
+  if (!ac) return;
   const osc = ac.createOscillator();
   const gain = ac.createGain();
   osc.connect(gain);
@@ -44,6 +63,7 @@ export function playSelect() {
 /** Confirm/submit sound — ascending tone. */
 export function playConfirm() {
   const ac = getCtx();
+  if (!ac) return;
   const osc = ac.createOscillator();
   const gain = ac.createGain();
   osc.connect(gain);
@@ -60,6 +80,7 @@ export function playConfirm() {
 /** Thruster sound for movement. */
 export function playThrust() {
   const ac = getCtx();
+  if (!ac) return;
   const bufSize = ac.sampleRate * 0.3;
   const buf = ac.createBuffer(1, bufSize, ac.sampleRate);
   const data = buf.getChannelData(0);
@@ -84,6 +105,7 @@ export function playThrust() {
 /** Laser/beam sound for combat. */
 export function playCombat() {
   const ac = getCtx();
+  if (!ac) return;
   const osc = ac.createOscillator();
   const gain = ac.createGain();
   osc.connect(gain);
@@ -100,6 +122,7 @@ export function playCombat() {
 /** Explosion sound for ship destruction or detonation. */
 export function playExplosion() {
   const ac = getCtx();
+  if (!ac) return;
   const bufSize = ac.sampleRate * 0.5;
   const buf = ac.createBuffer(1, bufSize, ac.sampleRate);
   const data = buf.getChannelData(0);
@@ -124,6 +147,7 @@ export function playExplosion() {
 /** Alert tone for phase changes. */
 export function playPhaseChange() {
   const ac = getCtx();
+  if (!ac) return;
   const osc = ac.createOscillator();
   const gain = ac.createGain();
   osc.connect(gain);
@@ -150,6 +174,7 @@ export function playPhaseChange() {
 /** Victory fanfare. */
 export function playVictory() {
   const ac = getCtx();
+  if (!ac) return;
   const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
   notes.forEach((freq, i) => {
     const osc = ac.createOscillator();
@@ -169,6 +194,7 @@ export function playVictory() {
 /** Defeat sound. */
 export function playDefeat() {
   const ac = getCtx();
+  if (!ac) return;
   const notes = [400, 350, 300, 200]; // Descending
   notes.forEach((freq, i) => {
     const osc = ac.createOscillator();

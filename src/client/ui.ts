@@ -146,12 +146,14 @@ export class UIManager {
     this.gameLogEl.style.display = 'none';
     this.logShowBtn.style.display = 'none';
     document.getElementById('helpBtn')!.style.display = 'none';
+    document.getElementById('soundBtn')!.style.display = 'none';
     document.getElementById('helpOverlay')!.style.display = 'none';
   }
 
   showMenu() {
     this.hideAll();
     this.menuEl.style.display = 'flex';
+    document.getElementById('soundBtn')!.style.display = 'flex';
     // Reset state
     document.getElementById('difficultySelect')!.style.display = 'none';
     this.pendingAIGame = false;
@@ -181,6 +183,7 @@ export class UIManager {
     this.hudEl.style.display = 'block';
     this.shipListEl.style.display = 'flex';
     document.getElementById('helpBtn')!.style.display = 'flex';
+    document.getElementById('soundBtn')!.style.display = 'flex';
     if (this.logVisible) {
       this.gameLogEl.style.display = 'flex';
     } else {
