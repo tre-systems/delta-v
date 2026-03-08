@@ -1,10 +1,11 @@
 import type {
-  GameState, Ship, AstrogationOrder, ShipMovement, SolarSystemMap,
+  GameState, Ship, Ordnance, AstrogationOrder, OrdnanceLaunch,
+  ShipMovement, OrdnanceMovement, SolarSystemMap,
   ScenarioDefinition, CombatAttack, CombatResult, MovementEvent,
 } from './types';
 import { computeCourse } from './movement';
-import { SHIP_STATS } from './constants';
-import { hexKey, hexVecLength } from './hex';
+import { SHIP_STATS, ORDNANCE_MASS, ORDNANCE_LIFETIME } from './constants';
+import { hexKey, hexVecLength, hexAdd, hexSubtract, hexLineDraw, HEX_DIRECTIONS, hexEqual } from './hex';
 import {
   resolveCombat, canAttack, lookupOtherDamage, applyDamage, rollD6,
   type CombatResolution,
@@ -12,7 +13,12 @@ import {
 
 export interface MovementResult {
   movements: ShipMovement[];
+  ordnanceMovements: OrdnanceMovement[];
   events: MovementEvent[];
+  state: GameState;
+}
+
+export interface OrdnanceResult {
   state: GameState;
 }
 
@@ -58,6 +64,7 @@ export function createGame(
         position,
         velocity: { ...def.velocity },
         fuel: stats?.fuel ?? 20,
+        cargoUsed: 0,
         landed,
         destroyed: false,
         damage: { disabledTurns: 0 },
@@ -72,6 +79,7 @@ export function createGame(
     phase: 'astrogation',
     activePlayer: 0,
     ships,
+    ordnance: [],
     players: [
       { connected: true, ready: true, targetBody: scenario.players[0].targetBody, escapeWins: scenario.players[0].escapeWins },
       { connected: true, ready: true, targetBody: scenario.players[1].targetBody, escapeWins: scenario.players[1].escapeWins },
@@ -100,6 +108,7 @@ export function processAstrogation(
   }
 
   const movements: ShipMovement[] = [];
+  const ordnanceMovements: OrdnanceMovement[] = [];
   const events: MovementEvent[] = [];
 
   for (const ship of state.ships) {
@@ -165,21 +174,17 @@ export function processAstrogation(
     }
   }
 
+  // Move ordnance (all ordnance, not just active player's)
+  moveOrdnance(state, map, ordnanceMovements, events, rng);
+
   // Check victory/loss after movement
   checkGameEnd(state, map);
 
   if (state.winner === null) {
-    // Advance to combat phase (skip if no enemies in range)
-    const hasTargets = hasCombatTargets(state);
-    if (hasTargets) {
-      state.phase = 'combat';
-    } else {
-      // Skip combat, go to resupply/end turn
-      advanceTurn(state);
-    }
+    advanceAfterAstrogation(state);
   }
 
-  return { movements, events, state };
+  return { movements, ordnanceMovements, events, state };
 }
 
 /**
@@ -244,6 +249,251 @@ export function skipCombat(
 
   advanceTurn(state);
   return { state };
+}
+
+/**
+ * Process ordnance launches for the active player.
+ * Ships can launch mines (from cargo) or torpedoes (warships only, from cargo).
+ */
+export function processOrdnance(
+  state: GameState,
+  playerId: number,
+  launches: OrdnanceLaunch[],
+  map: SolarSystemMap,
+): OrdnanceResult | { error: string } {
+  if (state.phase !== 'ordnance') {
+    return { error: 'Not in ordnance phase' };
+  }
+  if (playerId !== state.activePlayer) {
+    return { error: 'Not your turn' };
+  }
+
+  let nextOrdId = state.ordnance.length;
+
+  for (const launch of launches) {
+    const ship = state.ships.find(s => s.id === launch.shipId);
+    if (!ship || ship.owner !== playerId || ship.destroyed || ship.landed) {
+      return { error: 'Invalid ship for ordnance launch' };
+    }
+    if (ship.damage.disabledTurns > 0) {
+      return { error: 'Disabled ships cannot launch ordnance' };
+    }
+
+    const mass = ORDNANCE_MASS[launch.ordnanceType];
+    if (!mass) return { error: 'Invalid ordnance type' };
+
+    const stats = SHIP_STATS[ship.type];
+    if (!stats) return { error: 'Unknown ship type' };
+
+    // Check cargo capacity
+    if (ship.cargoUsed + mass > stats.cargo) {
+      return { error: 'Insufficient cargo capacity' };
+    }
+
+    // Torpedoes: warships only
+    if (launch.ordnanceType === 'torpedo' && !stats.canOverload) {
+      return { error: 'Only warships can launch torpedoes' };
+    }
+
+    // Validate torpedo acceleration direction
+    if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
+      if (launch.torpedoAccel < 0 || launch.torpedoAccel > 5) {
+        return { error: 'Invalid torpedo acceleration direction' };
+      }
+    }
+
+    // Launch ordnance: inherits ship's velocity
+    let velocity = { ...ship.velocity };
+    if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
+      const accelDir = HEX_DIRECTIONS[launch.torpedoAccel];
+      velocity = {
+        dq: velocity.dq + accelDir.dq,
+        dr: velocity.dr + accelDir.dr,
+      };
+    }
+
+    state.ordnance.push({
+      id: `ord${nextOrdId++}`,
+      type: launch.ordnanceType,
+      owner: playerId,
+      position: { ...ship.position },
+      velocity,
+      turnsRemaining: ORDNANCE_LIFETIME,
+      destroyed: false,
+    });
+
+    ship.cargoUsed += mass;
+  }
+
+  // Advance to combat phase
+  advanceAfterOrdnance(state);
+
+  return { state };
+}
+
+/**
+ * Skip ordnance phase (player has no ordnance to launch).
+ */
+export function skipOrdnance(
+  state: GameState,
+  playerId: number,
+): { state: GameState } | { error: string } {
+  if (state.phase !== 'ordnance') {
+    return { error: 'Not in ordnance phase' };
+  }
+  if (playerId !== state.activePlayer) {
+    return { error: 'Not your turn' };
+  }
+
+  advanceAfterOrdnance(state);
+  return { state };
+}
+
+/**
+ * Move all ordnance, check for detonations against ships.
+ */
+function moveOrdnance(
+  state: GameState,
+  map: SolarSystemMap,
+  ordnanceMovements: OrdnanceMovement[],
+  events: MovementEvent[],
+  rng?: () => number,
+): void {
+  for (const ord of state.ordnance) {
+    if (ord.destroyed) continue;
+
+    const from = { ...ord.position };
+    const dest = hexAdd(ord.position, ord.velocity);
+
+    // Apply gravity along path
+    const path = hexLineDraw(from, dest);
+    let finalDest = dest;
+    for (let i = 0; i < path.length - 1; i++) {
+      const hex = map.hexes.get(hexKey(path[i]));
+      if (hex?.gravity) {
+        finalDest = hexAdd(finalDest, HEX_DIRECTIONS[hex.gravity.direction]);
+      }
+    }
+
+    const finalPath = hexLineDraw(from, finalDest);
+    ord.position = finalDest;
+    ord.velocity = hexSubtract(finalDest, from);
+    ord.turnsRemaining--;
+
+    // Self-destruct
+    if (ord.turnsRemaining <= 0) {
+      ord.destroyed = true;
+    }
+
+    // Crash into celestial bodies
+    for (const pathHex of finalPath) {
+      const hex = map.hexes.get(hexKey(pathHex));
+      if (hex?.body) {
+        ord.destroyed = true;
+        break;
+      }
+    }
+
+    const detonated = !ord.destroyed && checkOrdnanceDetonation(ord, state, finalPath, events, rng);
+
+    ordnanceMovements.push({
+      ordnanceId: ord.id,
+      from,
+      to: finalDest,
+      path: finalPath,
+      detonated,
+    });
+
+    if (detonated) {
+      ord.destroyed = true;
+    }
+  }
+
+  // Clean up expired ordnance
+  state.ordnance = state.ordnance.filter(o => !o.destroyed);
+}
+
+/**
+ * Check if ordnance detonates by contacting ships along its path.
+ * Mines affect all ships in the hex, torpedoes hit single target.
+ */
+function checkOrdnanceDetonation(
+  ord: Ordnance,
+  state: GameState,
+  path: { q: number; r: number }[],
+  events: MovementEvent[],
+  rng?: () => number,
+): boolean {
+  // Check final position for ships
+  for (const ship of state.ships) {
+    if (ship.destroyed) continue;
+    // Don't detonate on owner's ships
+    if (ship.owner === ord.owner) continue;
+
+    if (hexEqual(ship.position, ord.position)) {
+      const dieRoll = rollD6(rng);
+      const result = lookupOtherDamage(dieRoll);
+      const eventType = ord.type === 'mine' ? 'mineDetonation' : 'torpedoHit';
+
+      events.push({
+        type: eventType,
+        shipId: ship.id,
+        hex: ord.position,
+        dieRoll,
+        damageType: result.type,
+        disabledTurns: result.disabledTurns,
+        ordnanceId: ord.id,
+      });
+
+      applyDamage(ship, result);
+
+      // Mines affect all ships in hex, torpedoes hit one target
+      if (ord.type === 'torpedo') return true;
+    }
+  }
+
+  // For mines: if we hit at least one enemy ship, detonate
+  return events.some(e => e.ordnanceId === ord.id);
+}
+
+/**
+ * Advance phase after astrogation: go to ordnance if player has ordnance capability.
+ */
+function advanceAfterAstrogation(state: GameState): void {
+  // Check if player has ships capable of launching ordnance
+  const canLaunch = state.ships.some(s =>
+    s.owner === state.activePlayer && !s.destroyed && !s.landed &&
+    s.damage.disabledTurns === 0 &&
+    hasOrdnanceCapacity(s),
+  );
+
+  if (canLaunch) {
+    state.phase = 'ordnance';
+  } else {
+    advanceAfterOrdnance(state);
+  }
+}
+
+/**
+ * Advance phase after ordnance: go to combat or next turn.
+ */
+function advanceAfterOrdnance(state: GameState): void {
+  const hasTargets = hasCombatTargets(state);
+  if (hasTargets) {
+    state.phase = 'combat';
+  } else {
+    advanceTurn(state);
+  }
+}
+
+/**
+ * Check if a ship has cargo capacity remaining for ordnance.
+ */
+function hasOrdnanceCapacity(ship: Ship): boolean {
+  const stats = SHIP_STATS[ship.type];
+  if (!stats) return false;
+  const minMass = ORDNANCE_MASS.mine; // smallest ordnance
+  return (stats.cargo - ship.cargoUsed) >= minMass;
 }
 
 /**
@@ -328,6 +578,7 @@ function applyResupply(ship: Ship, map: SolarSystemMap): void {
   const stats = SHIP_STATS[ship.type];
   if (stats) {
     ship.fuel = stats.fuel;
+    ship.cargoUsed = 0; // restock ordnance
     ship.damage = { disabledTurns: 0 };
   }
 }

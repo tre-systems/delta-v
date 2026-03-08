@@ -21,6 +21,14 @@ export const SHIP_STATS: Record<string, ShipStats> = {
   torch:       { name: 'Torch',       combat: 8,  defensiveOnly: false, fuel: Infinity, cargo: 10, cost: 400, canOverload: true },
 };
 
+// Ordnance definitions
+export const ORDNANCE_MASS: Record<string, number> = {
+  mine: 10,
+  torpedo: 20,
+};
+
+export const ORDNANCE_LIFETIME = 5; // self-destruct after 5 turns
+
 // Animation durations (ms)
 export const MOVEMENT_ANIM_DURATION = 2000;
 export const CAMERA_LERP_SPEED = 5;
