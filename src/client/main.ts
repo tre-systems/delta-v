@@ -1057,7 +1057,7 @@ class GameClient {
       ? '⬡ Escape the map'
       : player?.targetBody
         ? `⬡ Land on ${player.targetBody}`
-        : '';
+        : '⬡ Destroy all enemies';
     this.ui.updateHUD(
       this.gameState.turnNumber,
       this.gameState.phase,
@@ -1120,6 +1120,8 @@ class GameClient {
       this.ui.logText('Objective: Escape the solar system!', 'log-landed');
     } else if (player.targetBody) {
       this.ui.logText(`Objective: Land on ${player.targetBody}`, 'log-landed');
+    } else {
+      this.ui.logText('Objective: Destroy all enemy ships!', 'log-damage');
     }
     this.ui.logText('Press ? for controls help');
   }
