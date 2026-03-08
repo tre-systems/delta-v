@@ -217,6 +217,7 @@ class GameClient {
         break;
 
       case 'playing_ordnance':
+        this.startTurnTimer();
         this.ui.showHUD();
         this.updateHUD();
         this.renderer.planningState.selectedShipId = null;
@@ -233,6 +234,7 @@ class GameClient {
         break;
 
       case 'playing_combat':
+        this.startTurnTimer();
         this.ui.showHUD();
         this.updateHUD();
         this.renderer.planningState.combatTargetId = null;
@@ -970,11 +972,23 @@ class GameClient {
     const enemyShips = this.gameState.ships.filter(s => s.owner !== this.playerId);
     const myAlive = myShips.filter(s => !s.destroyed).length;
     const enemyAlive = enemyShips.filter(s => !s.destroyed).length;
+    let statusParts: string[] = [];
     if (myShips.length > 1 || enemyShips.length > 1) {
-      fleetEl.textContent = `⚔ ${myAlive}v${enemyAlive}`;
-    } else {
-      fleetEl.textContent = '';
+      statusParts.push(`⚔ ${myAlive}v${enemyAlive}`);
     }
+    // Show active ordnance count
+    const activeOrd = this.gameState.ordnance.filter(o => !o.destroyed);
+    if (activeOrd.length > 0) {
+      const mines = activeOrd.filter(o => o.type === 'mine').length;
+      const torps = activeOrd.filter(o => o.type === 'torpedo').length;
+      const nukes = activeOrd.filter(o => o.type === 'nuke').length;
+      const ordParts: string[] = [];
+      if (mines > 0) ordParts.push(`${mines}M`);
+      if (torps > 0) ordParts.push(`${torps}T`);
+      if (nukes > 0) ordParts.push(`${nukes}N`);
+      statusParts.push(ordParts.join('/'));
+    }
+    fleetEl.textContent = statusParts.join(' ');
     this.ui.updateShipList(
       myShips,
       selectedId,
