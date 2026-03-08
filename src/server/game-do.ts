@@ -1,8 +1,8 @@
 import { DurableObject } from 'cloudflare:workers';
-import type { GameState, C2S, S2C, AstrogationOrder, CombatAttack } from '../shared/types';
+import type { GameState, C2S, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack } from '../shared/types';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { INACTIVITY_TIMEOUT_MS } from '../shared/constants';
-import { createGame, processAstrogation, processCombat, skipCombat } from '../shared/game-engine';
+import { createGame, processAstrogation, processOrdnance, skipOrdnance, processCombat, skipCombat } from '../shared/game-engine';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -109,6 +109,12 @@ export class GameDO extends DurableObject {
       case 'astrogation':
         await this.handleAstrogation(playerId, ws, msg.orders);
         break;
+      case 'ordnance':
+        await this.handleOrdnance(playerId, ws, msg.launches);
+        break;
+      case 'skipOrdnance':
+        await this.handleSkipOrdnance(playerId, ws);
+        break;
       case 'combat':
         await this.handleCombat(playerId, ws, msg.attacks);
         break;
@@ -161,8 +167,40 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    this.broadcast({ type: 'movementResult', movements: result.movements, events: result.events, state: result.state });
+    this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
     this.broadcastEndOrUpdate(result.state);
+    await this.saveGameState(result.state);
+  }
+
+  private async handleOrdnance(playerId: number, ws: WebSocket, launches: OrdnanceLaunch[]) {
+    const gameState = await this.getGameState();
+    if (!gameState) return;
+
+    const map = getSolarSystemMap();
+    const result = processOrdnance(gameState, playerId, launches, map);
+
+    if ('error' in result) {
+      this.send(ws, { type: 'error', message: result.error });
+      return;
+    }
+
+    this.broadcast({ type: 'stateUpdate', state: result.state });
+    this.broadcastEndOrUpdate(result.state);
+    await this.saveGameState(result.state);
+  }
+
+  private async handleSkipOrdnance(playerId: number, ws: WebSocket) {
+    const gameState = await this.getGameState();
+    if (!gameState) return;
+
+    const result = skipOrdnance(gameState, playerId);
+
+    if ('error' in result) {
+      this.send(ws, { type: 'error', message: result.error });
+      return;
+    }
+
+    this.broadcast({ type: 'stateUpdate', state: result.state });
     await this.saveGameState(result.state);
   }
 

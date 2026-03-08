@@ -133,6 +133,7 @@ export interface PlanningState {
   selectedShipId: string | null;
   burns: Map<string, number | null>; // shipId -> burn direction (or null for no burn)
   overloads: Map<string, number | null>; // shipId -> overload direction (warships only, 2 fuel total)
+  torpedoAccel: number | null; // direction for torpedo terminal guidance
   combatTargetId: string | null; // enemy ship targeted for combat
 }
 
@@ -149,7 +150,7 @@ export class Renderer {
   private gameState: GameState | null = null;
   private playerId = -1;
   private animState: AnimationState | null = null;
-  planningState: PlanningState = { selectedShipId: null, burns: new Map(), overloads: new Map(), combatTargetId: null };
+  planningState: PlanningState = { selectedShipId: null, burns: new Map(), overloads: new Map(), torpedoAccel: null, combatTargetId: null };
   private combatResults: { results: CombatResult[]; showUntil: number } | null = null;
   private lastTime = 0;
 
@@ -283,6 +284,7 @@ export class Renderer {
     }
     if (this.gameState && this.map) {
       this.renderCourseVectors(ctx, this.gameState, this.map, now);
+      this.renderOrdnance(ctx, this.gameState, now);
       this.renderCombatOverlay(ctx, this.gameState, now);
       this.renderShips(ctx, this.gameState, now);
     }
@@ -655,6 +657,67 @@ export class Renderer {
       y: from.y + (to.y - from.y) * segT,
     };
   }
+  private renderOrdnance(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
+    if (!state.ordnance || state.ordnance.length === 0) return;
+
+    for (const ord of state.ordnance) {
+      if (ord.destroyed) continue;
+      const p = hexToPixel(ord.position, HEX_SIZE);
+      const color = ord.owner === this.playerId ? '#4fc3f7' : '#ff9800';
+      const pulse = 0.6 + 0.3 * Math.sin(now / 400);
+
+      if (ord.type === 'mine') {
+        // Mine: small diamond shape
+        const s = 4;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = pulse;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y - s);
+        ctx.lineTo(p.x + s, p.y);
+        ctx.lineTo(p.x, p.y + s);
+        ctx.lineTo(p.x - s, p.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      } else {
+        // Torpedo: small triangle pointing in velocity direction
+        const heading = Math.atan2(
+          hexToPixel(hexAdd(ord.position, ord.velocity), HEX_SIZE).y - p.y,
+          hexToPixel(hexAdd(ord.position, ord.velocity), HEX_SIZE).x - p.x,
+        );
+        const s = 5;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(heading);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = pulse;
+        ctx.beginPath();
+        ctx.moveTo(s, 0);
+        ctx.lineTo(-s * 0.6, -s * 0.4);
+        ctx.lineTo(-s * 0.6, s * 0.4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+
+      // Velocity vector for ordnance
+      if (ord.velocity.dq !== 0 || ord.velocity.dr !== 0) {
+        const dest = hexToPixel(hexAdd(ord.position, ord.velocity), HEX_SIZE);
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.3;
+        ctx.lineWidth = 0.5;
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(dest.x, dest.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
   private renderCombatOverlay(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
     if (state.phase !== 'combat' || state.activePlayer !== this.playerId) return;
     if (this.animState) return;

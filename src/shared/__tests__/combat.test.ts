@@ -15,6 +15,7 @@ function makeShip(overrides: Partial<Ship> = {}): Ship {
     position: { q: 0, r: 0 },
     velocity: { dq: 0, dr: 0 },
     fuel: 20,
+    cargoUsed: 0,
     landed: false,
     destroyed: false,
     damage: { disabledTurns: 0 },
