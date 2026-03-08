@@ -45,6 +45,7 @@ class GameClient {
 
   // Turn timer
   private turnStartTime = 0;
+  private turnTimerInterval: number | null = null;
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -192,7 +193,7 @@ class GameClient {
 
       case 'playing_astrogation':
         this.ui.showHUD();
-        this.turnStartTime = Date.now();
+        this.startTurnTimer();
         this.updateHUD();
         // Reset planning state
         this.renderer.planningState.selectedShipId = null;
@@ -234,17 +235,20 @@ class GameClient {
         break;
 
       case 'playing_movementAnim':
+        this.stopTurnTimer();
         this.ui.showHUD();
         this.ui.showMovementStatus();
         break;
 
       case 'playing_opponentTurn':
+        this.stopTurnTimer();
         this.ui.showHUD();
         this.updateHUD();
         this.renderer.frameOnShips();
         break;
 
       case 'gameOver':
+        this.stopTurnTimer();
         // gameOver overlay is shown via showGameOver
         break;
     }
@@ -646,6 +650,7 @@ class GameClient {
 
   private exitToMenu() {
     this.stopPing();
+    this.stopTurnTimer();
     this.ws?.close();
     this.ws = null;
     this.gameState = null;
@@ -941,6 +946,7 @@ class GameClient {
       cargoFree,
       cargoMax,
       objective,
+      stats?.canOverload ?? false,
     );
     // Update latency display (multiplayer only)
     const latencyEl = document.getElementById('latencyInfo')!;
@@ -994,6 +1000,28 @@ class GameClient {
     const m = isMuted();
     btn.textContent = m ? '🔇' : '🔊';
     btn.classList.toggle('muted', m);
+  }
+
+  private startTurnTimer() {
+    this.stopTurnTimer();
+    this.turnStartTime = Date.now();
+    const timerEl = document.getElementById('turnTimer')!;
+    this.turnTimerInterval = window.setInterval(() => {
+      const elapsed = Math.floor((Date.now() - this.turnStartTime) / 1000);
+      const mins = Math.floor(elapsed / 60);
+      const secs = elapsed % 60;
+      timerEl.textContent = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
+      timerEl.className = 'turn-timer' + (elapsed >= 30 ? ' turn-timer-slow' : ' turn-timer-active');
+    }, 1000);
+  }
+
+  private stopTurnTimer() {
+    if (this.turnTimerInterval !== null) {
+      clearInterval(this.turnTimerInterval);
+      this.turnTimerInterval = null;
+    }
+    const timerEl = document.getElementById('turnTimer');
+    if (timerEl) timerEl.textContent = '';
   }
 
   private logLandings(movements: ShipMovement[]) {
