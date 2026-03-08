@@ -1,4 +1,4 @@
-import type { GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack } from '../shared/types';
+import type { GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, ShipMovement } from '../shared/types';
 import { pixelToHex, hexEqual, hexVecLength } from '../shared/hex';
 import { canAttack } from '../shared/combat';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
@@ -348,6 +348,7 @@ class GameClient {
           const hasDestruction = msg.events.some(e => e.damageType === 'eliminated' || e.type === 'crash');
           if (hasDestruction) setTimeout(() => playExplosion(), 500);
         }
+        this.logLandings(msg.movements);
         this.renderer.animateMovements(msg.movements, msg.ordnanceMovements, () => {
           this.onAnimationComplete();
         });
@@ -611,6 +612,7 @@ class GameClient {
         setTimeout(() => playExplosion(), 500);
       }
     }
+    this.logLandings(result.movements);
     this.renderer.animateMovements(result.movements, result.ordnanceMovements, () => {
       this.localCheckGameEnd();
       this.onAnimationComplete();
@@ -713,6 +715,7 @@ class GameClient {
           setTimeout(() => playExplosion(), 500);
         }
       }
+      this.logLandings(result.movements);
       this.renderer.animateMovements(result.movements, result.ordnanceMovements, () => {
         this.localCheckGameEnd();
         this.continueAIAfterAstrogation(aiPlayer);
@@ -868,6 +871,17 @@ class GameClient {
       selectedId,
       this.renderer.planningState.burns,
     );
+  }
+
+  private logLandings(movements: ShipMovement[]) {
+    if (!this.gameState) return;
+    for (const m of movements) {
+      if (!m.landedAt) continue;
+      const ship = this.gameState.ships.find(s => s.id === m.shipId);
+      if (!ship) continue;
+      const name = SHIP_STATS[ship.type]?.name ?? ship.type;
+      this.ui.logLanding(name, m.landedAt);
+    }
   }
 
   private canLaunchOrdnance(ship: { type: string; cargoUsed: number }): boolean {

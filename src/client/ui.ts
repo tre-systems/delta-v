@@ -232,13 +232,13 @@ export class UIManager {
       statusMsg.textContent = 'Waiting for opponent...';
       statusMsg.style.display = 'block';
     } else if (phase === 'astrogation') {
-      statusMsg.textContent = 'Select your ship and set a burn direction, then confirm';
+      statusMsg.textContent = 'Click ship → click direction arrow to burn (1-6 keys) → CONFIRM (Enter)';
       statusMsg.style.display = 'block';
     } else if (phase === 'ordnance') {
-      statusMsg.textContent = 'Launch mines, torpedoes, or nukes — or skip';
+      statusMsg.textContent = 'Select ship, set guidance (click arrows), launch ordnance — or SKIP (Enter)';
       statusMsg.style.display = 'block';
     } else if (phase === 'combat') {
-      statusMsg.textContent = 'Combat phase — skip or engage enemy ships';
+      statusMsg.textContent = 'Click enemy ship to target → ATTACK — or SKIP COMBAT (Enter)';
       statusMsg.style.display = 'block';
     } else {
       statusMsg.style.display = 'none';
