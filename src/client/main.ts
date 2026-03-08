@@ -3,7 +3,7 @@ import { canAttack } from '../shared/combat';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
 import { createGame, processAstrogation, processOrdnance, skipOrdnance, processCombat, skipCombat } from '../shared/game-engine';
-import { aiAstrogation, aiOrdnance, aiCombat } from '../shared/ai';
+import { aiAstrogation, aiOrdnance, aiCombat, type AIDifficulty } from '../shared/ai';
 import { Renderer } from './renderer';
 import { InputHandler } from './input';
 import { UIManager } from './ui';
@@ -28,6 +28,7 @@ class GameClient {
   private scenario = 'biplanetary';
   private gameState: GameState | null = null;
   private isLocalGame = false; // true for single player vs AI
+  private aiDifficulty: AIDifficulty = 'normal';
 
   private canvas: HTMLCanvasElement;
   renderer: Renderer;
@@ -46,7 +47,10 @@ class GameClient {
 
     // Wire UI callbacks
     this.ui.onSelectScenario = (scenario) => this.createGame(scenario);
-    this.ui.onSinglePlayer = () => this.startLocalGame('biplanetary');
+    this.ui.onSinglePlayer = (difficulty) => {
+      this.aiDifficulty = difficulty;
+      this.startLocalGame('biplanetary');
+    };
     this.ui.onJoin = (code) => this.joinGame(code);
     this.ui.onUndo = () => this.undoSelectedShipBurn();
     this.ui.onConfirm = () => this.confirmOrders();
@@ -627,7 +631,7 @@ class GameClient {
 
     // Astrogation phase
     if (this.gameState.phase === 'astrogation') {
-      const orders = aiAstrogation(this.gameState, aiPlayer, this.map);
+      const orders = aiAstrogation(this.gameState, aiPlayer, this.map, this.aiDifficulty);
       const result = processAstrogation(this.gameState, aiPlayer, orders, this.map);
       if ('error' in result) {
         console.error('AI astrogation error:', result.error);
@@ -666,7 +670,7 @@ class GameClient {
 
     // Ordnance phase
     if (this.gameState.phase === 'ordnance' && this.gameState.activePlayer === aiPlayer) {
-      const launches = aiOrdnance(this.gameState, aiPlayer, this.map);
+      const launches = aiOrdnance(this.gameState, aiPlayer, this.map, this.aiDifficulty);
       if (launches.length > 0) {
         const result = processOrdnance(this.gameState, aiPlayer, launches, this.map);
         if (!('error' in result)) {
@@ -684,7 +688,7 @@ class GameClient {
 
     // Combat phase
     if (this.gameState.phase === 'combat' && this.gameState.activePlayer === aiPlayer) {
-      const attacks = aiCombat(this.gameState, aiPlayer);
+      const attacks = aiCombat(this.gameState, aiPlayer, this.aiDifficulty);
       if (attacks.length > 0) {
         const result = processCombat(this.gameState, aiPlayer, attacks, this.map);
         if (!('error' in result)) {

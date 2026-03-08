@@ -65,6 +65,33 @@ export class GameDO extends DurableObject {
     }
 
     const playerCount = this.getPlayerCount();
+    const disconnectedPlayer = await this.ctx.storage.get<number>('disconnectedPlayer');
+
+    // Check if this is a reconnection
+    if (disconnectedPlayer !== undefined && playerCount < 2) {
+      // Reconnecting player takes the disconnected slot
+      const playerId = disconnectedPlayer;
+      await this.ctx.storage.delete('disconnectedPlayer');
+      await this.ctx.storage.delete('disconnectTime');
+
+      const pair = new WebSocketPair();
+      const [client, server] = Object.values(pair);
+      this.ctx.acceptWebSocket(server, [`player:${playerId}`]);
+
+      const code = await this.getGameCode();
+      this.send(server, { type: 'welcome', playerId, code });
+
+      // Send current game state so they can rejoin
+      const gameState = await this.getGameState();
+      if (gameState) {
+        this.send(server, { type: 'gameStart', state: gameState });
+      }
+
+      // Reset inactivity alarm
+      await this.ctx.storage.setAlarm(Date.now() + INACTIVITY_TIMEOUT_MS);
+      return new Response(null, { status: 101, webSocket: client });
+    }
+
     if (playerCount >= 2) {
       return new Response('Game is full', { status: 409 });
     }
@@ -130,11 +157,38 @@ export class GameDO extends DurableObject {
     }
   }
 
-  async webSocketClose(): Promise<void> {
-    this.broadcast({ type: 'opponentDisconnected' });
+  async webSocketClose(ws: WebSocket): Promise<void> {
+    const playerId = this.getPlayerId(ws);
+    const gameState = await this.getGameState();
+
+    // If no game in progress, just clean up
+    if (!gameState || gameState.phase === 'gameOver') {
+      this.broadcast({ type: 'opponentDisconnected' });
+      return;
+    }
+
+    // Grace period: set a 30s alarm for disconnect timeout
+    // The player can reconnect before it fires
+    if (playerId !== null) {
+      await this.ctx.storage.put('disconnectedPlayer', playerId);
+      await this.ctx.storage.put('disconnectTime', Date.now());
+      // Set alarm for 30s — if they don't reconnect, broadcast disconnect
+      await this.ctx.storage.setAlarm(Date.now() + 30_000);
+    }
   }
 
   async alarm(): Promise<void> {
+    const disconnectedPlayer = await this.ctx.storage.get<number>('disconnectedPlayer');
+
+    if (disconnectedPlayer !== undefined) {
+      // Disconnect grace period expired — notify remaining player
+      await this.ctx.storage.delete('disconnectedPlayer');
+      await this.ctx.storage.delete('disconnectTime');
+      this.broadcast({ type: 'opponentDisconnected' });
+      return;
+    }
+
+    // Inactivity timeout — close everything
     for (const ws of this.ctx.getWebSockets()) {
       try { ws.close(1000, 'Inactivity timeout'); } catch {}
     }

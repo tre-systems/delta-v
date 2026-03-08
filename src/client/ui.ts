@@ -1,5 +1,5 @@
 import type { Ship } from '../shared/types';
-import { SHIP_STATS } from '../shared/constants';
+import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
 
 export class UIManager {
   private menuEl: HTMLElement;
@@ -11,7 +11,8 @@ export class UIManager {
 
   // Callbacks
   onSelectScenario: ((scenario: string) => void) | null = null;
-  onSinglePlayer: (() => void) | null = null;
+  onSinglePlayer: ((difficulty: 'easy' | 'normal' | 'hard') => void) | null = null;
+  private aiDifficulty: 'easy' | 'normal' | 'hard' = 'normal';
   onJoin: ((code: string) => void) | null = null;
   onUndo: (() => void) | null = null;
   onConfirm: (() => void) | null = null;
@@ -37,7 +38,28 @@ export class UIManager {
     });
 
     document.getElementById('singlePlayerBtn')!.addEventListener('click', () => {
-      this.onSinglePlayer?.();
+      const diffSelect = document.getElementById('difficultySelect')!;
+      if (diffSelect.style.display === 'none') {
+        // First click: show difficulty options
+        diffSelect.style.display = 'flex';
+      } else {
+        // Second click: start with selected difficulty
+        this.onSinglePlayer?.(this.aiDifficulty);
+      }
+    });
+
+    // Difficulty buttons
+    document.querySelectorAll('.btn-difficulty').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const diff = (btn as HTMLElement).dataset.difficulty as 'easy' | 'normal' | 'hard';
+        this.aiDifficulty = diff;
+        // Update active state
+        document.querySelectorAll('.btn-difficulty').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Start game immediately on difficulty selection
+        this.onSinglePlayer?.(this.aiDifficulty);
+      });
     });
 
     // Scenario buttons
@@ -99,6 +121,8 @@ export class UIManager {
   showMenu() {
     this.hideAll();
     this.menuEl.style.display = 'flex';
+    // Reset difficulty selector
+    document.getElementById('difficultySelect')!.style.display = 'none';
   }
 
   showScenarioSelect() {
@@ -153,9 +177,9 @@ export class UIManager {
     skipOrdnanceBtn.style.display = showOrd ? 'inline-block' : 'none';
     // Disable buttons based on cargo capacity
     if (showOrd) {
-      const canMine = cargoFree >= 10; // mine mass
-      const canTorpedo = cargoFree >= 20; // torpedo mass
-      const canNuke = cargoFree >= 20; // nuke mass
+      const canMine = cargoFree >= ORDNANCE_MASS.mine;
+      const canTorpedo = cargoFree >= ORDNANCE_MASS.torpedo;
+      const canNuke = cargoFree >= ORDNANCE_MASS.nuke;
       launchMineBtn.disabled = !canMine;
       launchTorpedoBtn.disabled = !canTorpedo;
       launchNukeBtn.disabled = !canNuke;
