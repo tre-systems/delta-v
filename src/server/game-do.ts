@@ -167,6 +167,7 @@ export class GameDO extends DurableObject {
           velocity: { ...def.velocity },
           fuel: stats.fuel,
           landed: true,
+          destroyed: false,
         });
       }
     }
@@ -208,6 +209,7 @@ export class GameDO extends DurableObject {
 
     for (const ship of gameState.ships) {
       if (ship.owner !== playerId) continue;
+      if (ship.destroyed) continue;
 
       const order = orders.find(o => o.shipId === ship.id);
       const burn = order?.burn ?? null;
@@ -243,19 +245,35 @@ export class GameDO extends DurableObject {
       ship.fuel -= course.fuelSpent;
       ship.landed = course.landedAt !== null;
 
+      if (course.landedAt) {
+        // Landing: velocity resets to zero (ship docks / sets down)
+        ship.velocity = { dq: 0, dr: 0 };
+      }
+
       if (course.crashed) {
+        ship.destroyed = true;
         ship.velocity = { dq: 0, dr: 0 };
       }
     }
 
-    // Check victory
+    // Check victory: landing on target body
     for (const ship of gameState.ships) {
-      if (!ship.landed) continue;
+      if (ship.destroyed || !ship.landed) continue;
       const targetBody = gameState.players[ship.owner].targetBody;
       const hex = map.hexes.get(`${ship.position.q},${ship.position.r}`);
       if (hex?.base?.bodyName === targetBody || hex?.body?.name === targetBody) {
         gameState.winner = ship.owner;
         gameState.winReason = `Landed on ${targetBody}!`;
+        gameState.phase = 'gameOver';
+      }
+    }
+
+    // Check loss: all ships destroyed
+    for (let p = 0; p < 2; p++) {
+      const alive = gameState.ships.filter(s => s.owner === p && !s.destroyed);
+      if (alive.length === 0) {
+        gameState.winner = 1 - p;
+        gameState.winReason = `Opponent's ship was destroyed!`;
         gameState.phase = 'gameOver';
       }
     }
