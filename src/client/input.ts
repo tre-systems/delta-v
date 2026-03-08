@@ -8,6 +8,7 @@ import {
 } from '../shared/hex';
 import type { GameState, Ship, SolarSystemMap } from '../shared/types';
 import { predictDestination, computeCourse } from '../shared/movement';
+import { SHIP_STATS } from '../shared/constants';
 import { type Camera, type PlanningState, HEX_SIZE } from './renderer';
 
 export class InputHandler {
@@ -152,7 +153,7 @@ export class InputHandler {
 
     if (this.gameState.phase !== 'astrogation') return;
 
-    // Check if clicking a burn direction arrow
+    // Check if clicking a burn or overload direction arrow
     if (this.planningState.selectedShipId) {
       const ship = this.gameState.ships.find(s => s.id === this.planningState.selectedShipId);
       if (ship && ship.fuel > 0) {
@@ -160,6 +161,25 @@ export class InputHandler {
         const predDest = ship.landed
           ? computeCourse(ship, null, this.map).path[0] // launch hex
           : predictDestination(ship);
+
+        // Check overload arrows first (they overlap with burn arrow space)
+        if (currentBurn !== null) {
+          const stats = SHIP_STATS[ship.type];
+          if (stats?.canOverload && ship.fuel >= 2) {
+            const burnDest = hexAdd(predDest, HEX_DIRECTIONS[currentBurn]);
+            const currentOverload = this.planningState.overloads.get(ship.id) ?? null;
+            for (let d = 0; d < 6; d++) {
+              const olTarget = hexAdd(burnDest, HEX_DIRECTIONS[d]);
+              if (hexEqual(clickHex, olTarget)) {
+                this.planningState.overloads.set(
+                  ship.id,
+                  currentOverload === d ? null : d,
+                );
+                return;
+              }
+            }
+          }
+        }
 
         for (let d = 0; d < 6; d++) {
           const burnTarget = hexAdd(predDest, HEX_DIRECTIONS[d]);
@@ -169,6 +189,10 @@ export class InputHandler {
               ship.id,
               currentBurn === d ? null : d,
             );
+            // Clear overload when burn changes
+            if (currentBurn !== d) {
+              this.planningState.overloads.delete(ship.id);
+            }
             return;
           }
         }
