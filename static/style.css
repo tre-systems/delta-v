@@ -512,6 +512,13 @@ body {
   color: #ff9800;
 }
 
+/* Fleet status in HUD */
+.fleet-status {
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: #999;
+}
+
 /* Objective text in HUD */
 .objective-text {
   color: #66bb6a;
