@@ -8,7 +8,7 @@ import {
   HEX_DIRECTIONS,
   hexVecLength,
 } from '../shared/hex';
-import type { GameState, Ship, ShipMovement, OrdnanceMovement, SolarSystemMap, CelestialBody, CombatResult } from '../shared/types';
+import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CelestialBody, CombatResult } from '../shared/types';
 import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS } from '../shared/constants';
 import { computeCourse, predictDestination } from '../shared/movement';
 import { computeOdds, computeRangeMod, computeVelocityMod, getCombatStrength, canAttack } from '../shared/combat';
@@ -128,6 +128,17 @@ export interface AnimationState {
   onComplete: () => void;
 }
 
+// --- Combat visual effects ---
+
+interface CombatEffect {
+  type: 'beam' | 'explosion';
+  from: PixelCoord;
+  to: PixelCoord;
+  startTime: number;
+  duration: number;
+  color: string;
+}
+
 // --- Planning state (controlled by input handler) ---
 
 export interface PlanningState {
@@ -154,6 +165,8 @@ export class Renderer {
   private animState: AnimationState | null = null;
   planningState: PlanningState = { selectedShipId: null, burns: new Map(), overloads: new Map(), weakGravityChoices: new Map(), torpedoAccel: null, combatTargetId: null };
   private combatResults: { results: CombatResult[]; showUntil: number } | null = null;
+  private combatEffects: CombatEffect[] = [];
+  private movementEvents: { events: MovementEvent[]; showUntil: number } | null = null;
   private lastTime = 0;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -202,7 +215,73 @@ export class Renderer {
   }
 
   showCombatResults(results: CombatResult[]) {
-    this.combatResults = { results, showUntil: performance.now() + 3000 };
+    const now = performance.now();
+    this.combatResults = { results, showUntil: now + 3000 };
+
+    // Create visual effects for each combat result
+    for (const r of results) {
+      const target = this.gameState?.ships.find(s => s.id === r.targetId);
+      if (!target) continue;
+      const targetPos = hexToPixel(target.position, HEX_SIZE);
+
+      // Beam from first attacker to target
+      if (r.attackerIds.length > 0 && !r.attackerIds[0].startsWith('base:')) {
+        const attacker = this.gameState?.ships.find(s => s.id === r.attackerIds[0]);
+        if (attacker) {
+          const attackerPos = hexToPixel(attacker.position, HEX_SIZE);
+          this.combatEffects.push({
+            type: 'beam',
+            from: attackerPos,
+            to: targetPos,
+            startTime: now,
+            duration: 600,
+            color: r.damageType === 'eliminated' ? '#ff4444' : r.damageType === 'disabled' ? '#ffaa00' : '#4fc3f7',
+          });
+        }
+      }
+
+      // Explosion at target for damage
+      if (r.damageType !== 'none') {
+        this.combatEffects.push({
+          type: 'explosion',
+          from: targetPos,
+          to: targetPos,
+          startTime: now + 300, // Delay for beam to reach
+          duration: 800,
+          color: r.damageType === 'eliminated' ? '#ff4444' : '#ffaa00',
+        });
+      }
+
+      // Same for counterattack
+      if (r.counterattack && r.counterattack.damageType !== 'none') {
+        const counterTarget = this.gameState?.ships.find(s => s.id === r.counterattack!.targetId);
+        if (counterTarget) {
+          const counterPos = hexToPixel(counterTarget.position, HEX_SIZE);
+          this.combatEffects.push({
+            type: 'beam',
+            from: targetPos,
+            to: counterPos,
+            startTime: now + 500,
+            duration: 600,
+            color: r.counterattack.damageType === 'eliminated' ? '#ff4444' : '#ffaa00',
+          });
+          this.combatEffects.push({
+            type: 'explosion',
+            from: counterPos,
+            to: counterPos,
+            startTime: now + 800,
+            duration: 800,
+            color: r.counterattack.damageType === 'eliminated' ? '#ff4444' : '#ffaa00',
+          });
+        }
+      }
+    }
+  }
+
+  showMovementEvents(events: MovementEvent[]) {
+    if (events.length > 0) {
+      this.movementEvents = { events, showUntil: performance.now() + 4000 };
+    }
   }
 
   isAnimating(): boolean {
@@ -292,6 +371,7 @@ export class Renderer {
       this.renderTorpedoGuidance(ctx, this.gameState, now);
       this.renderCombatOverlay(ctx, this.gameState, now);
       this.renderShips(ctx, this.gameState, now);
+      this.renderCombatEffects(ctx, now);
     }
 
     ctx.restore();
@@ -302,6 +382,15 @@ export class Renderer {
         this.combatResults = null;
       } else {
         this.renderCombatResultsToast(ctx, this.combatResults.results, now, w);
+      }
+    }
+
+    // Movement events toast (screen-space)
+    if (this.movementEvents && this.gameState) {
+      if (now > this.movementEvents.showUntil) {
+        this.movementEvents = null;
+      } else {
+        this.renderMovementEventsToast(ctx, this.movementEvents.events, now, w);
       }
     }
   }
@@ -940,6 +1029,122 @@ export class Renderer {
       ctx.textAlign = 'center';
       ctx.fillText(label, targetPos.x, targetPos.y - 20);
     }
+  }
+
+  private renderCombatEffects(ctx: CanvasRenderingContext2D, now: number) {
+    // Clean up expired effects
+    this.combatEffects = this.combatEffects.filter(e => now < e.startTime + e.duration);
+
+    for (const effect of this.combatEffects) {
+      if (now < effect.startTime) continue; // Not yet started
+      const progress = (now - effect.startTime) / effect.duration;
+
+      if (effect.type === 'beam') {
+        // Beam line from attacker to target
+        const beamAlpha = 1 - progress;
+        const beamProgress = Math.min(progress * 3, 1); // Beam reaches target at 1/3 duration
+
+        ctx.strokeStyle = effect.color;
+        ctx.globalAlpha = beamAlpha * 0.8;
+        ctx.lineWidth = 2 * (1 - progress);
+        ctx.beginPath();
+        ctx.moveTo(effect.from.x, effect.from.y);
+        ctx.lineTo(
+          effect.from.x + (effect.to.x - effect.from.x) * beamProgress,
+          effect.from.y + (effect.to.y - effect.from.y) * beamProgress,
+        );
+        ctx.stroke();
+
+        // Glow line
+        ctx.globalAlpha = beamAlpha * 0.3;
+        ctx.lineWidth = 6 * (1 - progress);
+        ctx.beginPath();
+        ctx.moveTo(effect.from.x, effect.from.y);
+        ctx.lineTo(
+          effect.from.x + (effect.to.x - effect.from.x) * beamProgress,
+          effect.from.y + (effect.to.y - effect.from.y) * beamProgress,
+        );
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else if (effect.type === 'explosion') {
+        // Expanding ring explosion
+        const maxRadius = 20;
+        const radius = maxRadius * progress;
+        const alpha = 1 - progress;
+
+        ctx.strokeStyle = effect.color;
+        ctx.lineWidth = 3 * (1 - progress);
+        ctx.globalAlpha = alpha * 0.8;
+        ctx.beginPath();
+        ctx.arc(effect.from.x, effect.from.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Inner flash
+        if (progress < 0.3) {
+          ctx.fillStyle = effect.color;
+          ctx.globalAlpha = (1 - progress / 0.3) * 0.6;
+          ctx.beginPath();
+          ctx.arc(effect.from.x, effect.from.y, radius * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  private renderMovementEventsToast(ctx: CanvasRenderingContext2D, events: MovementEvent[], now: number, screenW: number) {
+    if (events.length === 0) return;
+    const fadeStart = this.movementEvents!.showUntil - 1000;
+    const alpha = now > fadeStart ? Math.max(0, (this.movementEvents!.showUntil - now) / 1000) : 1;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    let y = 60;
+    for (const ev of events) {
+      const ship = this.gameState?.ships.find(s => s.id === ev.shipId);
+      const shipName = ship ? ship.type : ev.shipId;
+      let text: string;
+      let color: string;
+
+      switch (ev.type) {
+        case 'crash':
+          text = `${shipName}: CRASHED`;
+          color = '#ff4444';
+          break;
+        case 'asteroidHit':
+          text = `${shipName}: Asteroid hit [${ev.dieRoll}] — ${ev.damageType === 'eliminated' ? 'ELIMINATED' : ev.damageType === 'disabled' ? `DISABLED ${ev.disabledTurns}T` : 'MISS'}`;
+          color = ev.damageType === 'eliminated' ? '#ff4444' : ev.damageType === 'disabled' ? '#ffaa00' : '#88ff88';
+          break;
+        case 'mineDetonation':
+          text = `Mine hit ${shipName} [${ev.dieRoll}] — ${ev.damageType === 'eliminated' ? 'ELIMINATED' : ev.damageType === 'disabled' ? `DISABLED ${ev.disabledTurns}T` : 'NO EFFECT'}`;
+          color = ev.damageType === 'eliminated' ? '#ff4444' : ev.damageType === 'disabled' ? '#ffaa00' : '#88ff88';
+          break;
+        case 'torpedoHit':
+          text = `Torpedo hit ${shipName} [${ev.dieRoll}] — ${ev.damageType === 'eliminated' ? 'ELIMINATED' : ev.damageType === 'disabled' ? `DISABLED ${ev.disabledTurns}T` : 'NO EFFECT'}`;
+          color = ev.damageType === 'eliminated' ? '#ff4444' : ev.damageType === 'disabled' ? '#ffaa00' : '#88ff88';
+          break;
+        case 'nukeDetonation':
+          text = `NUKE hit ${shipName} [${ev.dieRoll}] — ${ev.damageType === 'eliminated' ? 'ELIMINATED' : ev.damageType === 'disabled' ? `DISABLED ${ev.disabledTurns}T` : 'NO EFFECT'}`;
+          color = ev.damageType === 'eliminated' ? '#ff4444' : ev.damageType === 'disabled' ? '#ffaa00' : '#88ff88';
+          break;
+        default:
+          continue;
+      }
+
+      ctx.font = 'bold 12px monospace';
+      const w = ctx.measureText(text).width;
+      const x = screenW / 2;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillRect(x - w / 2 - 8, y - 12, w + 16, 20);
+      ctx.fillStyle = color;
+      ctx.textAlign = 'center';
+      ctx.fillText(text, x, y + 2);
+      y += 26;
+    }
+
+    ctx.restore();
   }
 
   private renderCombatResultsToast(ctx: CanvasRenderingContext2D, results: CombatResult[], now: number, screenW: number) {

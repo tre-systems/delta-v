@@ -328,6 +328,18 @@ body {
   vertical-align: middle;
 }
 
+.ship-details {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.6rem;
+  color: #888;
+  padding-top: 0.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 0.2rem;
+}
+
 /* Game Over */
 #gameOver h2 {
   font-size: 2rem;
