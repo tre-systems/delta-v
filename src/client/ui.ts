@@ -191,7 +191,7 @@ export class UIManager {
     }
   }
 
-  updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number, hasBurns = false, cargoFree = 0, cargoMax = 0, objective = '') {
+  updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number, hasBurns = false, cargoFree = 0, cargoMax = 0, objective = '', isWarship = false) {
     document.getElementById('turnInfo')!.textContent = `Turn ${turn}`;
     document.getElementById('phaseInfo')!.textContent = isMyTurn ? phase.toUpperCase() : 'OPPONENT\'S TURN';
     document.getElementById('objective')!.textContent = objective;
@@ -217,17 +217,19 @@ export class UIManager {
     launchTorpedoBtn.style.display = showOrd ? 'inline-block' : 'none';
     launchNukeBtn.style.display = showOrd ? 'inline-block' : 'none';
     skipOrdnanceBtn.style.display = showOrd ? 'inline-block' : 'none';
-    // Disable buttons based on cargo capacity
+    // Disable buttons based on cargo capacity and warship status
     if (showOrd) {
       const canMine = cargoFree >= ORDNANCE_MASS.mine;
-      const canTorpedo = cargoFree >= ORDNANCE_MASS.torpedo;
-      const canNuke = cargoFree >= ORDNANCE_MASS.nuke;
+      const canTorpedo = isWarship && cargoFree >= ORDNANCE_MASS.torpedo;
+      const canNuke = isWarship && cargoFree >= ORDNANCE_MASS.nuke;
       launchMineBtn.disabled = !canMine;
       launchTorpedoBtn.disabled = !canTorpedo;
       launchNukeBtn.disabled = !canNuke;
       launchMineBtn.style.opacity = canMine ? '1' : '0.4';
       launchTorpedoBtn.style.opacity = canTorpedo ? '1' : '0.4';
       launchNukeBtn.style.opacity = canNuke ? '1' : '0.4';
+      launchTorpedoBtn.title = isWarship ? '' : 'Warships only';
+      launchNukeBtn.title = isWarship ? '' : 'Warships only';
     }
 
     const skipCombatBtn = document.getElementById('skipCombatBtn')!;
