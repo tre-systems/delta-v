@@ -37,16 +37,28 @@ export function createGame(
     for (let s = 0; s < scenario.players[p].ships.length; s++) {
       const def = scenario.players[p].ships[s];
       const stats = SHIP_STATS[def.type];
-      const baseHex = findBaseHex(map, scenario.players[p].homeBody);
+      const shouldLand = def.startLanded !== false;
+
+      let position: { q: number; r: number };
+      let landed: boolean;
+
+      if (shouldLand) {
+        const baseHex = findBaseHex(map, scenario.players[p].homeBody);
+        position = baseHex ?? def.position;
+        landed = true;
+      } else {
+        position = { ...def.position };
+        landed = false;
+      }
 
       ships.push({
         id: `p${p}s${s}`,
         type: def.type,
         owner: p,
-        position: baseHex ?? def.position,
+        position,
         velocity: { ...def.velocity },
         fuel: stats?.fuel ?? 20,
-        landed: true,
+        landed,
         destroyed: false,
         damage: { disabledTurns: 0 },
       });
@@ -61,8 +73,8 @@ export function createGame(
     activePlayer: 0,
     ships,
     players: [
-      { connected: true, ready: true, targetBody: scenario.players[0].targetBody },
-      { connected: true, ready: true, targetBody: scenario.players[1].targetBody },
+      { connected: true, ready: true, targetBody: scenario.players[0].targetBody, escapeWins: scenario.players[0].escapeWins },
+      { connected: true, ready: true, targetBody: scenario.players[1].targetBody, escapeWins: scenario.players[1].escapeWins },
     ],
     winner: null,
     winReason: null,
@@ -177,6 +189,7 @@ export function processCombat(
   state: GameState,
   playerId: number,
   attacks: CombatAttack[],
+  map?: SolarSystemMap,
   rng?: () => number,
 ): CombatPhaseResult | { error: string } {
   if (state.phase !== 'combat') {
@@ -205,7 +218,7 @@ export function processCombat(
   }
 
   // Check game end after combat
-  checkGameEnd(state, state.ships[0]?.position ? undefined as unknown as SolarSystemMap : undefined as unknown as SolarSystemMap);
+  checkGameEnd(state, map);
 
   // Advance turn
   if (state.winner === null) {
@@ -328,10 +341,23 @@ function checkGameEnd(state: GameState, map?: SolarSystemMap): void {
     for (const ship of state.ships) {
       if (ship.destroyed || !ship.landed) continue;
       const targetBody = state.players[ship.owner].targetBody;
+      if (!targetBody) continue;
       const hex = map.hexes.get(hexKey(ship.position));
       if (hex?.base?.bodyName === targetBody || hex?.body?.name === targetBody) {
         state.winner = ship.owner;
         state.winReason = `Landed on ${targetBody}!`;
+        state.phase = 'gameOver';
+        return;
+      }
+    }
+
+    // Check escape victory: ship moved beyond map bounds
+    for (const ship of state.ships) {
+      if (ship.destroyed) continue;
+      if (!state.players[ship.owner].escapeWins) continue;
+      if (hasEscaped(ship.position, map.bounds)) {
+        state.winner = ship.owner;
+        state.winReason = 'Escaped the solar system!';
         state.phase = 'gameOver';
         return;
       }
@@ -343,11 +369,23 @@ function checkGameEnd(state: GameState, map?: SolarSystemMap): void {
     const alive = state.ships.filter(s => s.owner === p && !s.destroyed);
     if (alive.length === 0) {
       state.winner = 1 - p;
-      state.winReason = `Opponent's ship was destroyed!`;
+      state.winReason = 'All opponent ships destroyed!';
       state.phase = 'gameOver';
       return;
     }
   }
+}
+
+/**
+ * Check if a ship has escaped the map bounds.
+ */
+function hasEscaped(
+  pos: { q: number; r: number },
+  bounds: { minQ: number; maxQ: number; minR: number; maxR: number },
+): boolean {
+  const margin = 3;
+  return pos.q < bounds.minQ - margin || pos.q > bounds.maxQ + margin ||
+         pos.r < bounds.minR - margin || pos.r > bounds.maxR + margin;
 }
 
 /**

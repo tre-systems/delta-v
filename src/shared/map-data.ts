@@ -274,16 +274,46 @@ export function buildSolarSystemMap(): SolarSystemMap {
 export const SCENARIOS: Record<string, ScenarioDefinition> = {
   biplanetary: {
     name: 'Bi-Planetary',
+    description: '1v1 corvettes race to land on the opponent\'s world',
     players: [
       {
         ships: [{ type: 'corvette', position: { q: 10, r: 8 }, velocity: { dq: 0, dr: 0 } }],
         targetBody: 'Venus',
         homeBody: 'Mars',
+        escapeWins: false,
       },
       {
         ships: [{ type: 'corvette', position: { q: -5, r: -7 }, velocity: { dq: 0, dr: 0 } }],
         targetBody: 'Mars',
         homeBody: 'Venus',
+        escapeWins: false,
+      },
+    ],
+  },
+  escape: {
+    name: 'Escape',
+    description: '3 pilgrim transports flee Terra — enforcers must stop them',
+    players: [
+      {
+        // Pilgrims: 3 transports at Terra, must escape the solar system
+        ships: [
+          { type: 'transport', position: { q: -12, r: 5 }, velocity: { dq: 0, dr: 0 } },
+          { type: 'transport', position: { q: -12, r: 5 }, velocity: { dq: 0, dr: 0 } },
+          { type: 'transport', position: { q: -12, r: 5 }, velocity: { dq: 0, dr: 0 } },
+        ],
+        targetBody: '',
+        homeBody: 'Terra',
+        escapeWins: true,
+      },
+      {
+        // Enforcers: corvette near Terra, corsair near Venus
+        ships: [
+          { type: 'corvette', position: { q: -10, r: 5 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corsair', position: { q: -3, r: -7 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+        ],
+        targetBody: '',
+        homeBody: 'Venus',
+        escapeWins: false,
       },
     ],
   },

@@ -33,7 +33,8 @@ export interface Ship {
 export interface PlayerState {
   connected: boolean;
   ready: boolean;
-  targetBody: string; // body name they must land on
+  targetBody: string; // body name they must land on ('' if no landing target)
+  escapeWins: boolean; // true if this player wins by escaping the map
 }
 
 // --- Movement ---
@@ -171,15 +172,18 @@ export interface ScenarioShip {
   type: string;
   position: HexCoord;
   velocity: HexVec;
+  startLanded?: boolean; // default true — set false for ships in orbit
 }
 
 export interface ScenarioPlayer {
   ships: ScenarioShip[];
   targetBody: string;
   homeBody: string; // body name for base ownership / resupply
+  escapeWins: boolean; // true if this player wins by escaping
 }
 
 export interface ScenarioDefinition {
   name: string;
+  description: string;
   players: ScenarioPlayer[];
 }

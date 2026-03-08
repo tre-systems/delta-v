@@ -23,6 +23,22 @@
     </div>
   </div>
 
+  <!-- Scenario selection -->
+  <div id="scenarioSelect" class="screen" style="display:none">
+    <div class="menu-content">
+      <h2 class="scenario-title">Select Scenario</h2>
+      <button class="btn btn-scenario" data-scenario="biplanetary">
+        <div class="scenario-name">Bi-Planetary</div>
+        <div class="scenario-desc">1v1 corvettes race to land on the opponent's world</div>
+      </button>
+      <button class="btn btn-scenario" data-scenario="escape">
+        <div class="scenario-name">Escape</div>
+        <div class="scenario-desc">3 pilgrim transports flee — enforcers must stop them</div>
+      </button>
+      <button id="backBtn" class="btn btn-secondary" style="margin-top: 1rem">Back</button>
+    </div>
+  </div>
+
   <!-- Waiting for opponent -->
   <div id="waiting" class="screen" style="display:none">
     <div class="menu-content">
@@ -47,6 +63,9 @@
       <div id="statusMsg" class="status-msg"></div>
     </div>
   </div>
+
+  <!-- Ship list panel -->
+  <div id="shipList" class="ship-list" style="display:none"></div>
 
   <!-- Game Over overlay -->
   <div id="gameOver" class="screen" style="display:none">
