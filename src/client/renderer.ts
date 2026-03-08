@@ -754,8 +754,10 @@ export class Renderer {
       const to = hexToPixel(predicted, HEX_SIZE);
 
       // Velocity vector — thin dashed line
+      const speed = hexVecLength(ship.velocity);
       if (predicted.q !== ship.position.q || predicted.r !== ship.position.r) {
-        ctx.strokeStyle = ship.owner === this.playerId
+        const isOwn = ship.owner === this.playerId;
+        ctx.strokeStyle = isOwn
           ? 'rgba(79, 195, 247, 0.3)'
           : 'rgba(255, 152, 0, 0.3)';
         ctx.lineWidth = 1;
@@ -765,6 +767,16 @@ export class Renderer {
         ctx.lineTo(to.x, to.y);
         ctx.stroke();
         ctx.setLineDash([]);
+
+        // Speed label at midpoint for detected enemy ships
+        if (!isOwn && speed >= 1) {
+          const mx = (from.x + to.x) / 2;
+          const my = (from.y + to.y) / 2;
+          ctx.fillStyle = 'rgba(255, 152, 0, 0.5)';
+          ctx.font = '7px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(`v${Math.round(speed)}`, mx, my - 5);
+        }
       }
     }
 
@@ -823,7 +835,7 @@ export class Renderer {
 
           // Ghost ship at destination
           if (!course.crashed) {
-            this.drawShipIcon(ctx, to.x, to.y, ship.owner, 0.4, 0);
+            this.drawShipIcon(ctx, to.x, to.y, ship.owner, 0.4, 0, 0, ship.type);
           }
 
           // Burn direction arrows (when selected)
@@ -1492,6 +1504,10 @@ export class Renderer {
         case 'crash':
           text = `${shipName}: CRASHED`;
           color = '#ff4444';
+          break;
+        case 'ramming':
+          text = `${shipName}: RAMMED [${ev.dieRoll}] — ${ev.damageType === 'eliminated' ? 'ELIMINATED' : ev.damageType === 'disabled' ? `DISABLED ${ev.disabledTurns}T` : 'NO DAMAGE'}`;
+          color = ev.damageType === 'eliminated' ? '#ff4444' : ev.damageType === 'disabled' ? '#ffaa00' : '#88ff88';
           break;
         case 'asteroidHit':
           text = `${shipName}: Asteroid hit [${ev.dieRoll}] — ${ev.damageType === 'eliminated' ? 'ELIMINATED' : ev.damageType === 'disabled' ? `DISABLED ${ev.disabledTurns}T` : 'MISS'}`;

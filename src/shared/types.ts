@@ -163,7 +163,7 @@ export interface CombatResult {
 // --- Movement events (asteroid hazards, etc.) ---
 
 export interface MovementEvent {
-  type: 'asteroidHit' | 'crash' | 'mineDetonation' | 'torpedoHit' | 'nukeDetonation';
+  type: 'asteroidHit' | 'crash' | 'ramming' | 'mineDetonation' | 'torpedoHit' | 'nukeDetonation';
   shipId: string;
   hex: HexCoord;
   dieRoll: number;
