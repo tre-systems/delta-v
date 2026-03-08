@@ -9,7 +9,7 @@ import {
   hexVecLength,
 } from '../shared/hex';
 import type { GameState, Ship, ShipMovement, SolarSystemMap, CelestialBody, CombatResult } from '../shared/types';
-import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED } from '../shared/constants';
+import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS } from '../shared/constants';
 import { computeCourse, predictDestination } from '../shared/movement';
 import { computeOdds, computeRangeMod, computeVelocityMod, getCombatStrength, canAttack } from '../shared/combat';
 
