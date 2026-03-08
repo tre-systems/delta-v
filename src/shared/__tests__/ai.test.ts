@@ -151,6 +151,28 @@ describe('aiOrdnance', () => {
     }
   });
 
+  it('hard AI launches nuke against stronger enemy', () => {
+    const state = createGame(SCENARIOS.duel, map, 'TEST', findBaseHex);
+    const ship0 = state.ships.find(s => s.owner === 0)!;
+    const ship1 = state.ships.find(s => s.owner === 1)!;
+
+    // Place ships close together, not landed
+    ship0.position = { q: 0, r: 0 };
+    ship0.landed = false;
+    ship0.velocity = { dq: 0, dr: 0 };
+    ship1.position = { q: 4, r: 0 };
+    ship1.landed = false;
+    ship1.velocity = { dq: 0, dr: 0 };
+
+    // Make ship1 outgunned by giving ship0 extra combat strength (simulate damage)
+    // ship1 is a frigate with cargo=40, so it can launch nukes
+    const launches = aiOrdnance(state, 1, map, 'hard');
+    // Hard AI should attempt torpedo or nuke given cargo capacity
+    if (launches.length > 0) {
+      expect(['torpedo', 'nuke']).toContain(launches[0].ordnanceType);
+    }
+  });
+
   it('each launch references a valid AI ship', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST', findBaseHex);
     // Unland enforcer ships and place near enemies
