@@ -232,18 +232,41 @@ export class Renderer {
       if (!target) continue;
       const targetPos = hexToPixel(target.position, HEX_SIZE);
 
-      // Beam from first attacker to target
-      if (r.attackerIds.length > 0 && !r.attackerIds[0].startsWith('base:')) {
-        const attacker = this.gameState?.ships.find(s => s.id === r.attackerIds[0]);
-        if (attacker) {
-          const attackerPos = hexToPixel(attacker.position, HEX_SIZE);
+      // Beam from attacker(s) to target
+      if (r.attackerIds.length > 0) {
+        const firstId = r.attackerIds[0];
+        let attackerPos: PixelCoord | null = null;
+
+        if (firstId.startsWith('base:')) {
+          // Base defense fire — find the base hex
+          const bodyName = firstId.slice(5);
+          if (this.map) {
+            for (const [key, hex] of this.map.hexes) {
+              if (hex.base?.bodyName === bodyName) {
+                const [bq, br] = key.split(',').map(Number);
+                attackerPos = hexToPixel({ q: bq, r: br }, HEX_SIZE);
+                break;
+              }
+            }
+          }
+        } else {
+          const attacker = this.gameState?.ships.find(s => s.id === firstId);
+          if (attacker) {
+            attackerPos = hexToPixel(attacker.position, HEX_SIZE);
+          }
+        }
+
+        if (attackerPos) {
+          const beamColor = firstId.startsWith('base:') ? '#66bb6a'
+            : r.damageType === 'eliminated' ? '#ff4444'
+            : r.damageType === 'disabled' ? '#ffaa00' : '#4fc3f7';
           this.combatEffects.push({
             type: 'beam',
             from: attackerPos,
             to: targetPos,
             startTime: now,
             duration: 600,
-            color: r.damageType === 'eliminated' ? '#ff4444' : r.damageType === 'disabled' ? '#ffaa00' : '#4fc3f7',
+            color: beamColor,
           });
         }
       }
@@ -568,7 +591,31 @@ export class Renderer {
 
   private renderLandingTarget(ctx: CanvasRenderingContext2D, map: SolarSystemMap, state: GameState, now: number) {
     const player = state.players[this.playerId];
-    if (!player || !player.targetBody) return;
+    if (!player) return;
+
+    if (player.escapeWins) {
+      // Escape objective: render edge arrows showing "escape" direction
+      const bounds = map.bounds;
+      const pulse = 0.3 + 0.2 * Math.sin(now / 600);
+      ctx.fillStyle = `rgba(100, 255, 100, ${pulse})`;
+      ctx.font = 'bold 9px monospace';
+      ctx.textAlign = 'center';
+
+      // Show arrows at several positions along map edges
+      const edgePositions = [
+        hexToPixel({ q: bounds.maxQ + 2, r: Math.floor((bounds.minR + bounds.maxR) / 2) }, HEX_SIZE),
+        hexToPixel({ q: bounds.minQ - 2, r: Math.floor((bounds.minR + bounds.maxR) / 2) }, HEX_SIZE),
+        hexToPixel({ q: Math.floor((bounds.minQ + bounds.maxQ) / 2), r: bounds.maxR + 2 }, HEX_SIZE),
+        hexToPixel({ q: Math.floor((bounds.minQ + bounds.maxQ) / 2), r: bounds.minR - 2 }, HEX_SIZE),
+      ];
+      const arrows = ['→ ESCAPE', '← ESCAPE', '↓ ESCAPE', '↑ ESCAPE'];
+      for (let i = 0; i < edgePositions.length; i++) {
+        ctx.fillText(arrows[i], edgePositions[i].x, edgePositions[i].y);
+      }
+      return;
+    }
+
+    if (!player.targetBody) return;
 
     // Find the target body
     const body = map.bodies.find(b => b.name === player.targetBody);
