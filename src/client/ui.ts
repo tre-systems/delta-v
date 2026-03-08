@@ -121,10 +121,15 @@ export class UIManager {
     this.shipListEl.style.display = 'flex';
   }
 
-  updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number, hasBurns = false) {
+  updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number, hasBurns = false, cargoFree = 0, cargoMax = 0) {
     document.getElementById('turnInfo')!.textContent = `Turn ${turn}`;
     document.getElementById('phaseInfo')!.textContent = isMyTurn ? phase.toUpperCase() : 'OPPONENT\'S TURN';
-    document.getElementById('fuelGauge')!.textContent = `Fuel: ${fuel}/${maxFuel}`;
+    // Show cargo during ordnance phase, fuel otherwise
+    if (phase === 'ordnance' && isMyTurn && cargoMax > 0) {
+      document.getElementById('fuelGauge')!.textContent = `Cargo: ${cargoFree}/${cargoMax}`;
+    } else {
+      document.getElementById('fuelGauge')!.textContent = `Fuel: ${fuel}/${maxFuel}`;
+    }
 
     const undoBtn = document.getElementById('undoBtn')!;
     undoBtn.style.display = isMyTurn && phase === 'astrogation' && hasBurns ? 'inline-block' : 'none';
@@ -152,7 +157,7 @@ export class UIManager {
       statusMsg.textContent = 'Select your ship and set a burn direction, then confirm';
       statusMsg.style.display = 'block';
     } else if (phase === 'ordnance') {
-      statusMsg.textContent = 'Launch mines or torpedoes, or skip';
+      statusMsg.textContent = 'Launch mines, torpedoes, or nukes — or skip';
       statusMsg.style.display = 'block';
     } else if (phase === 'combat') {
       statusMsg.textContent = 'Combat phase — skip or engage enemy ships';
@@ -238,5 +243,11 @@ export class UIManager {
     const btn = document.getElementById('rematchBtn')!;
     btn.textContent = 'Waiting...';
     btn.setAttribute('disabled', 'true');
+  }
+
+  showReconnecting(attempt: number) {
+    const statusMsg = document.getElementById('statusMsg')!;
+    statusMsg.textContent = `Reconnecting... (attempt ${attempt})`;
+    statusMsg.style.display = 'block';
   }
 }

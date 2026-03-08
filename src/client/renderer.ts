@@ -139,6 +139,13 @@ interface CombatEffect {
   color: string;
 }
 
+interface HexFlash {
+  position: PixelCoord;
+  startTime: number;
+  duration: number;
+  color: string;
+}
+
 // --- Planning state (controlled by input handler) ---
 
 export interface PlanningState {
@@ -166,6 +173,7 @@ export class Renderer {
   planningState: PlanningState = { selectedShipId: null, burns: new Map(), overloads: new Map(), weakGravityChoices: new Map(), torpedoAccel: null, combatTargetId: null };
   private combatResults: { results: CombatResult[]; showUntil: number } | null = null;
   private combatEffects: CombatEffect[] = [];
+  private hexFlashes: HexFlash[] = [];
   private movementEvents: { events: MovementEvent[]; showUntil: number } | null = null;
   private lastTime = 0;
 
@@ -280,7 +288,23 @@ export class Renderer {
 
   showMovementEvents(events: MovementEvent[]) {
     if (events.length > 0) {
-      this.movementEvents = { events, showUntil: performance.now() + 4000 };
+      const now = performance.now();
+      this.movementEvents = { events, showUntil: now + 4000 };
+
+      // Create hex flashes at event locations
+      for (const ev of events) {
+        const p = hexToPixel(ev.hex, HEX_SIZE);
+        const color = ev.type === 'crash' ? '#ff4444'
+          : ev.type === 'nukeDetonation' ? '#ff6600'
+          : ev.damageType === 'eliminated' ? '#ff4444'
+          : '#ffaa00';
+        this.hexFlashes.push({
+          position: p,
+          startTime: now + MOVEMENT_ANIM_DURATION * 0.8, // Flash near end of movement
+          duration: 1500,
+          color,
+        });
+      }
     }
   }
 
@@ -371,6 +395,7 @@ export class Renderer {
       this.renderTorpedoGuidance(ctx, this.gameState, now);
       this.renderCombatOverlay(ctx, this.gameState, now);
       this.renderShips(ctx, this.gameState, now);
+      this.renderHexFlashes(ctx, now);
       this.renderCombatEffects(ctx, now);
     }
 
@@ -1028,6 +1053,28 @@ export class Renderer {
       ctx.fillStyle = '#ff6666';
       ctx.textAlign = 'center';
       ctx.fillText(label, targetPos.x, targetPos.y - 20);
+    }
+  }
+
+  private renderHexFlashes(ctx: CanvasRenderingContext2D, now: number) {
+    this.hexFlashes = this.hexFlashes.filter(f => now < f.startTime + f.duration);
+
+    for (const flash of this.hexFlashes) {
+      if (now < flash.startTime) continue;
+      const progress = (now - flash.startTime) / flash.duration;
+      const alpha = (1 - progress) * 0.6;
+      const radius = HEX_SIZE * (0.5 + progress * 0.5);
+
+      ctx.beginPath();
+      ctx.arc(flash.position.x, flash.position.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = flash.color;
+      ctx.globalAlpha = alpha * 0.3;
+      ctx.fill();
+      ctx.strokeStyle = flash.color;
+      ctx.lineWidth = 2 * (1 - progress);
+      ctx.globalAlpha = alpha;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
     }
   }
 
