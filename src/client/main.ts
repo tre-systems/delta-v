@@ -5,6 +5,7 @@ import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
 import { Renderer } from './renderer';
 import { InputHandler } from './input';
 import { UIManager } from './ui';
+import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat } from './audio';
 
 type ClientState =
   | 'menu'
@@ -79,7 +80,8 @@ class GameClient {
       }
     });
 
-    // Start render loop
+    // Start render loop and audio
+    initAudio();
     this.renderer.start();
 
     // Check for auto-join code in URL
@@ -245,7 +247,7 @@ class GameClient {
         break;
 
       case 'matchFound':
-        // Game is about to start
+        playPhaseChange();
         break;
 
       case 'gameStart':
@@ -264,8 +266,12 @@ class GameClient {
         this.renderer.setGameState(this.gameState);
         this.input.setGameState(this.gameState);
         this.setState('playing_movementAnim');
+        playThrust();
         if (msg.events.length > 0) {
           this.renderer.showMovementEvents(msg.events);
+          // Play explosion sound for destructive events
+          const hasDestruction = msg.events.some(e => e.damageType === 'eliminated' || e.type === 'crash');
+          if (hasDestruction) setTimeout(() => playExplosion(), 500);
         }
         this.renderer.animateMovements(msg.movements, msg.ordnanceMovements, () => {
           this.onAnimationComplete();
@@ -278,6 +284,10 @@ class GameClient {
         this.input.setGameState(this.gameState);
         this.renderer.showCombatResults(msg.results);
         this.renderer.planningState.combatTargetId = null;
+        playCombat();
+        if (msg.results.some(r => r.damageType === 'eliminated')) {
+          setTimeout(() => playExplosion(), 300);
+        }
         this.transitionToPhase();
         break;
 
@@ -296,6 +306,11 @@ class GameClient {
           msg.winner === this.playerId,
           msg.reason,
         );
+        if (msg.winner === this.playerId) {
+          playVictory();
+        } else {
+          playDefeat();
+        }
         break;
 
       case 'rematchPending':
@@ -356,6 +371,7 @@ class GameClient {
       orders.push(order);
     }
 
+    playConfirm();
     this.send({ type: 'astrogation', orders });
   }
 
@@ -372,10 +388,13 @@ class GameClient {
 
     if (this.gameState.phase === 'combat' && isMyTurn) {
       this.setState('playing_combat');
+      playPhaseChange();
     } else if (this.gameState.phase === 'ordnance' && isMyTurn) {
       this.setState('playing_ordnance');
+      playPhaseChange();
     } else if (this.gameState.phase === 'astrogation' && isMyTurn) {
       this.setState('playing_astrogation');
+      playPhaseChange();
     } else {
       this.setState('playing_opponentTurn');
     }
