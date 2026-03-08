@@ -365,6 +365,58 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
+  blockade: {
+    name: 'Blockade Runner',
+    description: 'Packet ship must reach Mars — dreadnaught blocks the way',
+    players: [
+      {
+        // Runner: fast packet ship from Venus heading to Mars
+        ships: [
+          { type: 'packet', position: { q: -5, r: -7 }, velocity: { dq: 0, dr: 0 } },
+        ],
+        targetBody: 'Mars',
+        homeBody: 'Venus',
+        escapeWins: false,
+      },
+      {
+        // Blocker: powerful dreadnaught patrolling near the asteroid belt
+        ships: [
+          { type: 'dreadnaught', position: { q: 3, r: 2 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+        ],
+        targetBody: '',
+        homeBody: 'Mars',
+        escapeWins: false,
+      },
+    ],
+  },
+  fleetAction: {
+    name: 'Fleet Action',
+    description: 'Full fleet battle — corvettes, corsairs, and frigates clash',
+    players: [
+      {
+        // Fleet 1: based at Mars
+        ships: [
+          { type: 'frigate', position: { q: 10, r: 8 }, velocity: { dq: 0, dr: 0 } },
+          { type: 'corsair', position: { q: 10, r: 8 }, velocity: { dq: 0, dr: 0 } },
+          { type: 'corvette', position: { q: 10, r: 8 }, velocity: { dq: 0, dr: 0 } },
+        ],
+        targetBody: '',
+        homeBody: 'Mars',
+        escapeWins: false,
+      },
+      {
+        // Fleet 2: based at Venus
+        ships: [
+          { type: 'frigate', position: { q: -5, r: -7 }, velocity: { dq: 0, dr: 0 } },
+          { type: 'corsair', position: { q: -5, r: -7 }, velocity: { dq: 0, dr: 0 } },
+          { type: 'corvette', position: { q: -5, r: -7 }, velocity: { dq: 0, dr: 0 } },
+        ],
+        targetBody: '',
+        homeBody: 'Venus',
+        escapeWins: false,
+      },
+    ],
+  },
 };
 
 // Singleton map instance
