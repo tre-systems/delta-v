@@ -87,6 +87,13 @@ export class Camera {
     this.y = this.targetY;
     this.zoom = this.targetZoom;
   }
+
+  /** Check if a world-space point is visible (with margin for off-screen elements) */
+  isVisible(wx: number, wy: number, margin = 50): boolean {
+    const halfW = this.canvasW / 2 / this.zoom + margin;
+    const halfH = this.canvasH / 2 / this.zoom + margin;
+    return Math.abs(wx - this.x) < halfW && Math.abs(wy - this.y) < halfH;
+  }
 }
 
 // --- Stars background (seeded procedural) ---
@@ -482,6 +489,8 @@ export class Renderer {
       if (!hex.gravity) continue;
       const [q, r] = key.split(',').map(Number);
       const p = hexToPixel({ q, r }, HEX_SIZE);
+      // Viewport culling — skip off-screen hexes
+      if (!this.camera.isVisible(p.x, p.y)) continue;
       const dir = HEX_DIRECTIONS[hex.gravity.direction];
       const target = hexToPixel(hexAdd({ q, r }, dir), HEX_SIZE);
 
@@ -613,6 +622,7 @@ export class Renderer {
       if (hex.terrain !== 'asteroid') continue;
       const [q, r] = key.split(',').map(Number);
       const p = hexToPixel({ q, r }, HEX_SIZE);
+      if (!this.camera.isVisible(p.x, p.y)) continue;
 
       // Small scattered dots to suggest asteroid debris
       ctx.fillStyle = 'rgba(160, 140, 120, 0.35)';
