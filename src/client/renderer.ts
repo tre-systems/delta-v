@@ -724,6 +724,31 @@ export class Renderer {
           ctx.stroke();
           ctx.setLineDash([]);
 
+          // Show gravity deflection indicators along the path
+          for (const grav of course.gravityEffects) {
+            if (grav.strength === 'weak') continue; // weak has its own toggle UI
+            const gp = hexToPixel(grav.hex, HEX_SIZE);
+            const dp = hexToPixel(hexAdd(grav.hex, HEX_DIRECTIONS[grav.direction]), HEX_SIZE);
+            const angle = Math.atan2(dp.y - gp.y, dp.x - gp.x);
+            const arrowLen = 7;
+            const ax = gp.x + Math.cos(angle) * arrowLen;
+            const ay = gp.y + Math.sin(angle) * arrowLen;
+            ctx.strokeStyle = 'rgba(255, 200, 50, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(gp.x, gp.y);
+            ctx.lineTo(ax, ay);
+            ctx.stroke();
+            // Arrowhead
+            const headLen = 4;
+            ctx.beginPath();
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(ax - headLen * Math.cos(angle - 0.5), ay - headLen * Math.sin(angle - 0.5));
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(ax - headLen * Math.cos(angle + 0.5), ay - headLen * Math.sin(angle + 0.5));
+            ctx.stroke();
+          }
+
           // Ghost ship at destination
           if (!course.crashed) {
             this.drawShipIcon(ctx, to.x, to.y, ship.owner, 0.4, 0);
@@ -1534,14 +1559,21 @@ export class Renderer {
     const vpW = vpBR.x - vpTL.x;
     const vpH = vpBR.y - vpTL.y;
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(
-      Math.max(mmX, vpTL.x),
-      Math.max(mmY, vpTL.y),
-      Math.min(vpW, mmW),
-      Math.min(vpH, mmH),
-    );
+    // Clip viewport rect to minimap bounds
+    const clampedX = Math.max(mmX + 1, vpTL.x);
+    const clampedY = Math.max(mmY + 1, vpTL.y);
+    const clampedR = Math.min(mmX + mmW - 1, vpTL.x + vpW);
+    const clampedB = Math.min(mmY + mmH - 1, vpTL.y + vpH);
+    const clampedW = clampedR - clampedX;
+    const clampedH = clampedB - clampedY;
+
+    if (clampedW > 2 && clampedH > 2) {
+      ctx.fillStyle = 'rgba(79, 195, 247, 0.06)';
+      ctx.fillRect(clampedX, clampedY, clampedW, clampedH);
+      ctx.strokeStyle = 'rgba(79, 195, 247, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(clampedX, clampedY, clampedW, clampedH);
+    }
 
     ctx.restore();
   }
