@@ -333,18 +333,18 @@ class GameClient {
         }
         break;
 
-      case 'gameOver':
+      case 'gameOver': {
         this.setState('gameOver');
-        this.ui.showGameOver(
-          msg.winner === this.playerId,
-          msg.reason,
-        );
-        if (msg.winner === this.playerId) {
+        const won = msg.winner === this.playerId;
+        this.ui.showGameOver(won, msg.reason);
+        this.ui.logText(`${won ? 'VICTORY' : 'DEFEAT'}: ${msg.reason}`, won ? 'log-landed' : 'log-eliminated');
+        if (won) {
           playVictory();
         } else {
           playDefeat();
         }
         break;
+      }
 
       case 'rematchPending':
         this.ui.showRematchPending();
@@ -502,6 +502,9 @@ class GameClient {
       launch.torpedoAccel = this.renderer.planningState.torpedoAccel ?? null;
     }
 
+    const shipName = SHIP_STATS[ship.type]?.name ?? ship.type;
+    this.ui.logText(`${shipName} launched ${ordType}`);
+
     if (this.isLocalGame) {
       this.localProcessOrdnance([launch]);
     } else {
@@ -631,11 +634,11 @@ class GameClient {
   private localCheckGameEnd() {
     if (!this.gameState || this.gameState.phase !== 'gameOver') return;
     this.setState('gameOver');
-    this.ui.showGameOver(
-      this.gameState.winner === this.playerId,
-      this.gameState.winReason ?? '',
-    );
-    if (this.gameState.winner === this.playerId) {
+    const won = this.gameState.winner === this.playerId;
+    const reason = this.gameState.winReason ?? '';
+    this.ui.showGameOver(won, reason);
+    this.ui.logText(`${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`, won ? 'log-landed' : 'log-eliminated');
+    if (won) {
       playVictory();
     } else {
       playDefeat();
@@ -691,6 +694,11 @@ class GameClient {
     if (this.gameState.phase === 'ordnance' && this.gameState.activePlayer === aiPlayer) {
       const launches = aiOrdnance(this.gameState, aiPlayer, this.map, this.aiDifficulty);
       if (launches.length > 0) {
+        for (const l of launches) {
+          const ship = this.gameState.ships.find(s => s.id === l.shipId);
+          const name = ship ? (SHIP_STATS[ship.type]?.name ?? ship.type) : l.shipId;
+          this.ui.logText(`AI: ${name} launched ${l.ordnanceType}`);
+        }
         const result = processOrdnance(this.gameState, aiPlayer, launches, this.map);
         if (!('error' in result)) {
           this.gameState = result.state;
