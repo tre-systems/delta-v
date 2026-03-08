@@ -35,7 +35,7 @@ export interface Ship {
 
 export interface Ordnance {
   id: string;
-  type: 'mine' | 'torpedo';
+  type: 'mine' | 'torpedo' | 'nuke';
   owner: number;
   position: HexCoord;
   velocity: HexVec;
@@ -80,8 +80,8 @@ export interface GravityEffect {
 
 export interface OrdnanceLaunch {
   shipId: string;
-  ordnanceType: 'mine' | 'torpedo';
-  torpedoAccel?: number | null; // HEX_DIRECTIONS index for torpedo terminal guidance
+  ordnanceType: 'mine' | 'torpedo' | 'nuke';
+  torpedoAccel?: number | null; // HEX_DIRECTIONS index for torpedo/nuke terminal guidance
 }
 
 export interface OrdnanceMovement {
@@ -162,7 +162,7 @@ export interface CombatResult {
 // --- Movement events (asteroid hazards, etc.) ---
 
 export interface MovementEvent {
-  type: 'asteroidHit' | 'crash' | 'mineDetonation' | 'torpedoHit';
+  type: 'asteroidHit' | 'crash' | 'mineDetonation' | 'torpedoHit' | 'nukeDetonation';
   shipId: string;
   hex: HexCoord;
   dieRoll: number;

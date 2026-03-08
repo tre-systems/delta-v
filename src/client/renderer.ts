@@ -133,6 +133,7 @@ export interface PlanningState {
   selectedShipId: string | null;
   burns: Map<string, number | null>; // shipId -> burn direction (or null for no burn)
   overloads: Map<string, number | null>; // shipId -> overload direction (warships only, 2 fuel total)
+  weakGravityChoices: Map<string, Record<string, boolean>>; // shipId -> { hexKey: true to ignore }
   torpedoAccel: number | null; // direction for torpedo terminal guidance
   combatTargetId: string | null; // enemy ship targeted for combat
 }
@@ -150,7 +151,7 @@ export class Renderer {
   private gameState: GameState | null = null;
   private playerId = -1;
   private animState: AnimationState | null = null;
-  planningState: PlanningState = { selectedShipId: null, burns: new Map(), overloads: new Map(), torpedoAccel: null, combatTargetId: null };
+  planningState: PlanningState = { selectedShipId: null, burns: new Map(), overloads: new Map(), weakGravityChoices: new Map(), torpedoAccel: null, combatTargetId: null };
   private combatResults: { results: CombatResult[]; showUntil: number } | null = null;
   private lastTime = 0;
 
@@ -285,6 +286,7 @@ export class Renderer {
     if (this.gameState && this.map) {
       this.renderCourseVectors(ctx, this.gameState, this.map, now);
       this.renderOrdnance(ctx, this.gameState, now);
+      this.renderTorpedoGuidance(ctx, this.gameState, now);
       this.renderCombatOverlay(ctx, this.gameState, now);
       this.renderShips(ctx, this.gameState, now);
     }
@@ -437,7 +439,8 @@ export class Renderer {
 
         if (burn !== null || isSelected) {
           const overload = this.planningState.overloads.get(ship.id) ?? null;
-          const course = computeCourse(ship, burn, map, { overload });
+          const wgChoices = this.planningState.weakGravityChoices.get(ship.id) ?? {};
+          const course = computeCourse(ship, burn, map, { overload, weakGravityChoices: wgChoices });
           const from = hexToPixel(ship.landed ? course.path[0] : ship.position, HEX_SIZE);
           const to = hexToPixel(course.destination, HEX_SIZE);
 
@@ -495,6 +498,39 @@ export class Renderer {
                   ctx.fill();
                   ctx.stroke();
                 }
+              }
+            }
+          }
+
+          // Weak gravity toggle indicators on the path
+          if (isSelected) {
+            for (const grav of course.gravityEffects) {
+              if (grav.strength !== 'weak') continue;
+              const gp = hexToPixel(grav.hex, HEX_SIZE);
+              const key = hexKey(grav.hex);
+              const isIgnored = wgChoices[key] === true;
+
+              // Draw hollow/filled circle to indicate ignore/apply
+              ctx.strokeStyle = isIgnored ? 'rgba(180, 130, 255, 0.5)' : 'rgba(180, 130, 255, 0.8)';
+              ctx.fillStyle = isIgnored ? 'rgba(180, 130, 255, 0.1)' : 'rgba(180, 130, 255, 0.35)';
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.arc(gp.x, gp.y, 10, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+
+              // "G" label and strikethrough when ignored
+              ctx.fillStyle = isIgnored ? 'rgba(180, 130, 255, 0.4)' : 'rgba(180, 130, 255, 0.9)';
+              ctx.font = 'bold 8px monospace';
+              ctx.textAlign = 'center';
+              ctx.fillText('G', gp.x, gp.y + 3);
+              if (isIgnored) {
+                ctx.strokeStyle = 'rgba(255, 100, 100, 0.7)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(gp.x - 6, gp.y + 4);
+                ctx.lineTo(gp.x + 6, gp.y - 4);
+                ctx.stroke();
               }
             }
           }
@@ -673,7 +709,24 @@ export class Renderer {
       const color = ord.owner === this.playerId ? '#4fc3f7' : '#ff9800';
       const pulse = 0.6 + 0.3 * Math.sin(now / 400);
 
-      if (ord.type === 'mine') {
+      if (ord.type === 'nuke') {
+        // Nuke: larger pulsing red diamond with glow
+        const s = 6;
+        const nukeColor = '#ff4444';
+        ctx.fillStyle = nukeColor;
+        ctx.globalAlpha = pulse;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y - s);
+        ctx.lineTo(p.x + s, p.y);
+        ctx.lineTo(p.x, p.y + s);
+        ctx.lineTo(p.x - s, p.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#ff8888';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else if (ord.type === 'mine') {
         // Mine: small diamond shape
         const s = 4;
         ctx.fillStyle = color;
@@ -723,6 +776,55 @@ export class Renderer {
         ctx.globalAlpha = 1;
       }
     }
+  }
+
+  private renderTorpedoGuidance(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
+    if (state.phase !== 'ordnance' || state.activePlayer !== this.playerId) return;
+    if (this.animState) return;
+
+    const selectedId = this.planningState.selectedShipId;
+    if (!selectedId) return;
+
+    const ship = state.ships.find(s => s.id === selectedId);
+    if (!ship || ship.destroyed || ship.landed) return;
+
+    // Only show for warships (torpedo-capable)
+    const stats = SHIP_STATS[ship.type];
+    if (!stats?.canOverload) return;
+
+    const shipPos = hexToPixel(ship.position, HEX_SIZE);
+    const accel = this.planningState.torpedoAccel;
+
+    // Show 6 direction arrows around the ship for torpedo terminal guidance
+    for (let d = 0; d < 6; d++) {
+      const targetHex = hexAdd(ship.position, HEX_DIRECTIONS[d]);
+      const tp = hexToPixel(targetHex, HEX_SIZE);
+      const isActive = accel === d;
+
+      ctx.fillStyle = isActive ? 'rgba(255, 120, 60, 0.6)' : 'rgba(255, 120, 60, 0.12)';
+      ctx.strokeStyle = isActive ? '#ff7744' : 'rgba(255, 120, 60, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(tp.x, tp.y, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Arrow from ship to target direction
+      if (isActive) {
+        ctx.strokeStyle = 'rgba(255, 120, 60, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(shipPos.x, shipPos.y);
+        ctx.lineTo(tp.x, tp.y);
+        ctx.stroke();
+      }
+    }
+
+    // Label
+    ctx.fillStyle = 'rgba(255, 120, 60, 0.8)';
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('GUIDANCE', shipPos.x, shipPos.y - 20);
   }
 
   private renderCombatOverlay(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
