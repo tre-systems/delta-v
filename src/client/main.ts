@@ -8,6 +8,7 @@ import { aiAstrogation, aiOrdnance, aiCombat, type AIDifficulty } from '../share
 import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
 import { UIManager } from './ui';
+import { Tutorial } from './tutorial';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, isMuted, setMuted } from './audio';
 
 type ClientState =
@@ -35,6 +36,7 @@ class GameClient {
   renderer: Renderer;
   private input: InputHandler;
   private ui: UIManager;
+  private tutorial: Tutorial;
   private map = getSolarSystemMap();
   private tooltipEl: HTMLElement;
 
@@ -52,6 +54,7 @@ class GameClient {
     this.renderer = new Renderer(this.canvas);
     this.input = new InputHandler(this.canvas, this.renderer.camera, this.renderer.planningState);
     this.ui = new UIManager();
+    this.tutorial = new Tutorial();
     this.tooltipEl = document.getElementById('shipTooltip')!;
 
     this.renderer.setMap(this.map);
@@ -185,6 +188,7 @@ class GameClient {
     switch (newState) {
       case 'menu':
         this.ui.showMenu();
+        this.tutorial.hideTip();
         // Reset camera to default view centered on the solar system
         this.renderer.resetCamera();
         break;
@@ -212,6 +216,7 @@ class GameClient {
           if (myShip) {
             this.renderer.planningState.selectedShipId = myShip.id;
           }
+          this.tutorial.onPhaseChange('astrogation', this.gameState.turnNumber);
         }
         this.renderer.frameOnShips();
         break;
@@ -230,6 +235,7 @@ class GameClient {
           if (launchable) {
             this.renderer.planningState.selectedShipId = launchable.id;
           }
+          this.tutorial.onPhaseChange('ordnance', this.gameState.turnNumber);
         }
         break;
 
@@ -240,10 +246,14 @@ class GameClient {
         this.renderer.planningState.combatTargetId = null;
         this.ui.showAttackButton(false);
         this.startCombatTargetWatch();
+        if (this.gameState) {
+          this.tutorial.onPhaseChange('combat', this.gameState.turnNumber);
+        }
         break;
 
       case 'playing_movementAnim':
         this.stopTurnTimer();
+        this.tutorial.hideTip();
         this.ui.showHUD();
         this.ui.showMovementStatus();
         break;
@@ -257,6 +267,7 @@ class GameClient {
 
       case 'gameOver':
         this.stopTurnTimer();
+        this.tutorial.hideTip();
         // gameOver overlay is shown via showGameOver
         break;
     }

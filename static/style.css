@@ -914,6 +914,86 @@ body {
   to { opacity: 0; }
 }
 
+/* Tutorial tip */
+.tutorial-tip {
+  position: fixed;
+  bottom: 6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: rgba(10, 10, 40, 0.95);
+  border: 1px solid rgba(79, 195, 247, 0.5);
+  border-radius: 6px;
+  padding: 1rem 1.4rem;
+  max-width: 380px;
+  width: calc(100% - 2rem);
+  backdrop-filter: blur(8px);
+  animation: tipFadeIn 0.4s ease-out;
+}
+
+@keyframes tipFadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.tutorial-tip-text {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #e0e0e0;
+  margin-bottom: 0.8rem;
+}
+
+.tutorial-tip-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.btn-tutorial {
+  border-color: #4fc3f7;
+  color: #4fc3f7;
+  padding: 0.4rem 1.2rem;
+  font-size: 0.8rem;
+}
+
+.btn-tutorial:hover {
+  background: rgba(79, 195, 247, 0.12);
+}
+
+.btn-tutorial-skip {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #888;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.75rem;
+}
+
+.btn-tutorial-skip:hover {
+  color: #aaa;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.tutorial-progress {
+  margin-top: 0.6rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.tutorial-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(79, 195, 247, 0.2);
+}
+
+.tutorial-dot.active {
+  background: #4fc3f7;
+}
+
+.tutorial-dot.done {
+  background: rgba(79, 195, 247, 0.5);
+}
+
 /* Disabled button state */
 .btn[disabled] {
   opacity: 0.4;
