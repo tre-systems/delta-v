@@ -115,6 +115,12 @@ class GameClient {
             this.sendSkipCombat();
           }
         }
+      } else if (e.key.toLowerCase() === 'n' && this.state === 'playing_ordnance') {
+        this.sendOrdnanceLaunch('mine');
+      } else if (e.key.toLowerCase() === 't' && this.state === 'playing_ordnance') {
+        this.sendOrdnanceLaunch('torpedo');
+      } else if (e.key.toLowerCase() === 'k' && this.state === 'playing_ordnance') {
+        this.sendOrdnanceLaunch('nuke');
       } else if (e.key >= '1' && e.key <= '6' && this.state === 'playing_astrogation') {
         // Number keys 1-6 for burn directions
         this.setBurnDirection(parseInt(e.key) - 1);

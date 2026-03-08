@@ -379,6 +379,10 @@ export class UIManager {
           text = `${name} crashed!`;
           cls = 'log-eliminated';
           break;
+        case 'ramming':
+          text = `${name}: RAMMED [${ev.dieRoll}] ${ev.damageType === 'eliminated' ? '— ELIMINATED' : ev.damageType === 'disabled' ? `— D${ev.disabledTurns}` : '— no damage'}`;
+          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
+          break;
         case 'asteroidHit':
           text = `${name}: asteroid [${ev.dieRoll}] ${ev.damageType === 'eliminated' ? '— ELIMINATED' : ev.damageType === 'disabled' ? `— D${ev.disabledTurns}` : '— miss'}`;
           cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
