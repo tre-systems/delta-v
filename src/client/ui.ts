@@ -339,10 +339,34 @@ export class UIManager {
     btn.setAttribute('disabled', 'true');
   }
 
-  showReconnecting(attempt: number) {
-    const statusMsg = document.getElementById('statusMsg')!;
-    statusMsg.textContent = `Reconnecting... (attempt ${attempt})`;
-    statusMsg.style.display = 'block';
+  showReconnecting(attempt: number, maxAttempts: number, onCancel: () => void) {
+    const overlay = document.getElementById('reconnectOverlay')!;
+    overlay.style.display = 'flex';
+    document.getElementById('reconnectText')!.textContent = 'Connection lost';
+    document.getElementById('reconnectAttempt')!.textContent = `Attempt ${attempt} of ${maxAttempts}`;
+    const cancelBtn = document.getElementById('reconnectCancelBtn')!;
+    cancelBtn.onclick = () => {
+      this.hideReconnecting();
+      onCancel();
+    };
+  }
+
+  hideReconnecting() {
+    document.getElementById('reconnectOverlay')!.style.display = 'none';
+  }
+
+  // --- Toast notifications ---
+
+  showToast(message: string, type: 'error' | 'info' | 'success' = 'info') {
+    const container = document.getElementById('toastContainer')!;
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    // Remove after animation
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 3100);
   }
 
   // --- Game log ---
