@@ -122,7 +122,7 @@ export class GameDO extends DurableObject {
         await this.handleSkipCombat(playerId, ws);
         break;
       case 'rematch':
-        await this.initGame();
+        await this.handleRematch(playerId, ws);
         break;
       case 'ping':
         this.send(ws, { type: 'pong', t: msg.t });
@@ -240,6 +240,23 @@ export class GameDO extends DurableObject {
 
     this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
+  }
+
+  private async handleRematch(playerId: number, ws: WebSocket) {
+    const requests = await this.ctx.storage.get<number[]>('rematchRequests') ?? [];
+    if (!requests.includes(playerId)) {
+      requests.push(playerId);
+    }
+
+    if (requests.length >= 2) {
+      // Both players want a rematch — restart
+      await this.ctx.storage.delete('rematchRequests');
+      await this.initGame();
+    } else {
+      // First request — notify both players
+      await this.ctx.storage.put('rematchRequests', requests);
+      this.broadcast({ type: 'rematchPending' });
+    }
   }
 
   private broadcastEndOrUpdate(state: GameState) {
