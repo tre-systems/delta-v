@@ -27,6 +27,7 @@ export interface Ship {
   cargoUsed: number; // mass of ordnance consumed from cargo capacity
   landed: boolean;
   destroyed: boolean;
+  detected: boolean; // true if within detection range of opponent's ships/bases
   damage: {
     disabledTurns: number; // 0 = operational, cumulative >= 6 = eliminated
   };

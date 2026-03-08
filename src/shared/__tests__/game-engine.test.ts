@@ -481,3 +481,71 @@ describe('ordnance system', () => {
     expect(result.state.ordnance).toHaveLength(0);
   });
 });
+
+describe('detection / fog of war', () => {
+  it('ships start as detected', () => {
+    for (const ship of initialState.ships) {
+      expect(ship.detected).toBe(true);
+    }
+  });
+
+  it('detects ships within ship detection range after movement', () => {
+    // Place ships far apart — should stay detected if initially detected
+    const ship0 = initialState.ships[0];
+    const ship1 = initialState.ships[1];
+    ship0.landed = false;
+    ship0.position = { q: 0, r: 0 };
+    ship0.velocity = { dq: 0, dr: 0 };
+    ship1.landed = false;
+    ship1.position = { q: 2, r: 0 }; // within range 3
+    ship1.velocity = { dq: 0, dr: 0 };
+    ship1.detected = false; // pretend undetected
+
+    const orders: AstrogationOrder[] = [{ shipId: ship0.id, burn: null }];
+    const result = processAstrogation(initialState, 0, orders, map);
+    if ('error' in result) return;
+
+    // Ship1 should be detected (within range 3 of ship0)
+    const detectedShip = result.state.ships.find(s => s.id === ship1.id)!;
+    expect(detectedShip.detected).toBe(true);
+  });
+
+  it('does not detect ships beyond detection range', () => {
+    const ship0 = initialState.ships[0];
+    const ship1 = initialState.ships[1];
+    ship0.landed = false;
+    ship0.position = { q: -20, r: -20 };
+    ship0.velocity = { dq: 0, dr: 0 };
+    ship1.landed = false;
+    ship1.position = { q: 20, r: 20 }; // far from ship0 and any bases
+    ship1.velocity = { dq: 0, dr: 0 };
+    ship1.detected = false; // start undetected
+
+    const orders: AstrogationOrder[] = [{ shipId: ship0.id, burn: null }];
+    const result = processAstrogation(initialState, 0, orders, map);
+    if ('error' in result) return;
+
+    const detectedShip = result.state.ships.find(s => s.id === ship1.id)!;
+    expect(detectedShip.detected).toBe(false);
+  });
+
+  it('detected status persists once set', () => {
+    const ship0 = initialState.ships[0];
+    const ship1 = initialState.ships[1];
+    ship0.landed = false;
+    ship0.position = { q: 0, r: 0 };
+    ship0.velocity = { dq: 0, dr: 0 };
+    ship1.landed = false;
+    ship1.position = { q: 10, r: 0 }; // beyond range
+    ship1.velocity = { dq: 0, dr: 0 };
+    ship1.detected = true; // already detected
+
+    const orders: AstrogationOrder[] = [{ shipId: ship0.id, burn: null }];
+    const result = processAstrogation(initialState, 0, orders, map);
+    if ('error' in result) return;
+
+    // Should stay detected (persistent)
+    const detectedShip = result.state.ships.find(s => s.id === ship1.id)!;
+    expect(detectedShip.detected).toBe(true);
+  });
+});
