@@ -41,6 +41,7 @@ export class InputHandler {
     canvas.addEventListener('mousedown', (e) => this.onPointerDown(e.clientX, e.clientY));
     canvas.addEventListener('mousemove', (e) => this.onPointerMove(e.clientX, e.clientY));
     canvas.addEventListener('mouseup', (e) => this.onPointerUp(e.clientX, e.clientY));
+    canvas.addEventListener('dblclick', (e) => this.handleDoubleClick(e.clientX, e.clientY));
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const factor = 1 - e.deltaY * 0.001;
@@ -328,5 +329,11 @@ export class InputHandler {
     this.camera.targetY = worldClickY;
 
     return true;
+  }
+
+  private handleDoubleClick(screenX: number, screenY: number) {
+    const worldPos = this.camera.screenToWorld(screenX, screenY);
+    this.camera.targetX = worldPos.x;
+    this.camera.targetY = worldPos.y;
   }
 }
