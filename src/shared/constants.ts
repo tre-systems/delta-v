@@ -40,4 +40,5 @@ export const CAMERA_LERP_SPEED = 5;
 
 // Game constants
 export const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+export const TURN_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes per turn
 export const CODE_LENGTH = 5;

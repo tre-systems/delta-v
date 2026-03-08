@@ -1253,6 +1253,14 @@ export class Renderer {
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
       }
+
+      // Lifetime indicator (turns remaining until self-destruct)
+      if (!this.animState && ord.turnsRemaining <= 2) {
+        ctx.fillStyle = ord.turnsRemaining <= 1 ? 'rgba(255, 80, 80, 0.9)' : 'rgba(255, 200, 50, 0.7)';
+        ctx.font = 'bold 6px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${ord.turnsRemaining}`, p.x, p.y + 10);
+      }
     }
 
     // During animation, also render ordnance that detonated (show until detonation point)
