@@ -225,14 +225,20 @@ export class GameDO extends DurableObject {
     const gameState = await this.getGameState();
     if (!gameState) return;
 
-    const result = skipCombat(gameState, playerId);
+    const map = getSolarSystemMap();
+    const result = skipCombat(gameState, playerId, map);
 
     if ('error' in result) {
       this.send(ws, { type: 'error', message: result.error });
       return;
     }
 
-    this.broadcast({ type: 'stateUpdate', state: result.state });
+    // If base defense fire happened, send as combat results
+    if (result.baseDefenseResults && result.baseDefenseResults.length > 0) {
+      this.broadcast({ type: 'combatResult', results: result.baseDefenseResults, state: result.state });
+    }
+
+    this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
   }
 

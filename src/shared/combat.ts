@@ -1,5 +1,5 @@
-import { hexDistance } from './hex';
-import type { Ship } from './types';
+import { hexDistance, hexKey } from './hex';
+import type { Ship, SolarSystemMap, CombatResult } from './types';
 import { SHIP_STATS } from './constants';
 
 // --- Damage tables ---
@@ -253,4 +253,67 @@ export function resolveCombat(
     damageResult,
     counterattack,
   };
+}
+
+/**
+ * Resolve base defense fire.
+ * Bases fire at 2:1 odds against enemy ships in gravity hexes adjacent to the base.
+ * No range or velocity modifiers apply.
+ */
+export function resolveBaseDefense(
+  state: { ships: Ship[] },
+  activePlayer: number,
+  map: SolarSystemMap,
+  rng?: () => number,
+): CombatResult[] {
+  const results: CombatResult[] = [];
+
+  // Find all bases belonging to active player's opponent (bases fire against the active player's enemies)
+  // Actually, bases fire against enemies of the base owner. During combat phase,
+  // the active player's bases fire at enemy ships.
+  for (const [key, hex] of map.hexes) {
+    if (!hex.base) continue;
+    // Find base's gravity hex neighbors — specifically hexes with gravity pointing toward this body
+    const bodyName = hex.base.bodyName;
+    const [bq, br] = key.split(',').map(Number);
+
+    // Find enemy ships in gravity hexes adjacent to this base
+    for (const ship of state.ships) {
+      if (ship.owner === activePlayer || ship.destroyed) continue;
+      if (ship.landed) continue; // landed ships are safe
+
+      const shipHex = map.hexes.get(hexKey(ship.position));
+      if (!shipHex?.gravity) continue;
+      if (shipHex.gravity.bodyName !== bodyName) continue;
+
+      // Check if this gravity hex is adjacent to the base hex
+      const dist = hexDistance(ship.position, { q: bq, r: br });
+      if (dist !== 1) continue;
+
+      // Base fires at 2:1, no range/velocity modifiers
+      const odds = '2:1' as const;
+      const dieRoll = rollD6(rng);
+      const modifiedRoll = dieRoll; // No modifiers
+      const damageResult = lookupGunCombat(odds, modifiedRoll);
+
+      applyDamage(ship, damageResult);
+
+      results.push({
+        attackerIds: [`base:${bodyName}`],
+        targetId: ship.id,
+        odds,
+        attackStrength: 0,
+        defendStrength: 0,
+        rangeMod: 0,
+        velocityMod: 0,
+        dieRoll,
+        modifiedRoll,
+        damageType: damageResult.type,
+        disabledTurns: damageResult.disabledTurns,
+        counterattack: null,
+      });
+    }
+  }
+
+  return results;
 }

@@ -104,6 +104,7 @@ class GameClient {
         this.renderer.planningState.selectedShipId = null;
         this.renderer.planningState.burns.clear();
         this.renderer.planningState.overloads.clear();
+        this.renderer.planningState.weakGravityChoices.clear();
         // Auto-select the player's first ship
         if (this.gameState) {
           const myShip = this.gameState.ships.find(s => s.owner === this.playerId && !s.destroyed);
@@ -294,8 +295,10 @@ class GameClient {
       if (ship.owner !== this.playerId) continue;
       const burn = this.renderer.planningState.burns.get(ship.id) ?? null;
       const overload = this.renderer.planningState.overloads.get(ship.id) ?? null;
+      const wgChoices = this.renderer.planningState.weakGravityChoices.get(ship.id);
       const order: AstrogationOrder = { shipId: ship.id, burn };
       if (overload !== null) order.overload = overload;
+      if (wgChoices && Object.keys(wgChoices).length > 0) order.weakGravityChoices = wgChoices;
       orders.push(order);
     }
 
@@ -354,7 +357,7 @@ class GameClient {
     }, 100);
   }
 
-  private sendOrdnanceLaunch(ordType: 'mine' | 'torpedo') {
+  private sendOrdnanceLaunch(ordType: 'mine' | 'torpedo' | 'nuke') {
     if (!this.gameState || this.state !== 'playing_ordnance') return;
     const selectedId = this.renderer.planningState.selectedShipId;
     if (!selectedId) return;
@@ -367,8 +370,8 @@ class GameClient {
       ordnanceType: ordType,
     };
 
-    // For torpedoes, use the selected torpedo direction (if any)
-    if (ordType === 'torpedo') {
+    // For torpedoes and nukes, use the selected guidance direction (if any)
+    if (ordType === 'torpedo' || ordType === 'nuke') {
       launch.torpedoAccel = this.renderer.planningState.torpedoAccel ?? null;
     }
 
