@@ -766,14 +766,26 @@ function checkGameEnd(state: GameState, map?: SolarSystemMap): void {
   }
 
   // Check loss: all ships destroyed
-  for (let p = 0; p < 2; p++) {
-    const alive = state.ships.filter(s => s.owner === p && !s.destroyed);
-    if (alive.length === 0) {
-      state.winner = 1 - p;
-      state.winReason = 'All opponent ships destroyed!';
-      state.phase = 'gameOver';
-      return;
-    }
+  const alive0 = state.ships.filter(s => s.owner === 0 && !s.destroyed).length;
+  const alive1 = state.ships.filter(s => s.owner === 1 && !s.destroyed).length;
+  if (alive0 === 0 && alive1 === 0) {
+    // Mutual destruction — active player loses (defender wins)
+    state.winner = 1 - state.activePlayer;
+    state.winReason = 'Mutual destruction — last attacker loses!';
+    state.phase = 'gameOver';
+    return;
+  }
+  if (alive0 === 0) {
+    state.winner = 1;
+    state.winReason = 'All opponent ships destroyed!';
+    state.phase = 'gameOver';
+    return;
+  }
+  if (alive1 === 0) {
+    state.winner = 0;
+    state.winReason = 'All opponent ships destroyed!';
+    state.phase = 'gameOver';
+    return;
   }
 }
 
