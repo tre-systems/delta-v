@@ -7,7 +7,7 @@ import { computeCourse } from './movement';
 import { SHIP_STATS, ORDNANCE_MASS, ORDNANCE_LIFETIME, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from './constants';
 import { hexKey, hexVecLength, hexDistance, hexAdd, hexSubtract, hexLineDraw, HEX_DIRECTIONS, hexEqual } from './hex';
 import {
-  resolveCombat, canAttack, lookupOtherDamage, applyDamage, rollD6,
+  resolveCombat, resolveBaseDefense, canAttack, lookupOtherDamage, lookupGunCombat, applyDamage, rollD6,
   type CombatResolution,
 } from './combat';
 
@@ -175,6 +175,9 @@ export function processAstrogation(
     }
   }
 
+  // Check ramming: opposing ships on the same hex after movement
+  checkRamming(state, events, rng);
+
   // Move ordnance (all ordnance, not just active player's)
   moveOrdnance(state, map, ordnanceMovements, events, rng);
 
@@ -226,6 +229,12 @@ export function processCombat(
     results.push(toCombatResult(resolution));
   }
 
+  // Base defense fire: active player's bases fire at enemy ships in adjacent gravity hexes
+  if (map) {
+    const baseResults = resolveBaseDefense(state, playerId, map, rng);
+    results.push(...baseResults);
+  }
+
   // Check game end after combat
   checkGameEnd(state, map);
 
@@ -243,7 +252,9 @@ export function processCombat(
 export function skipCombat(
   state: GameState,
   playerId: number,
-): { state: GameState } | { error: string } {
+  map?: SolarSystemMap,
+  rng?: () => number,
+): { state: GameState; baseDefenseResults?: CombatResult[] } | { error: string } {
   if (state.phase !== 'combat') {
     return { error: 'Not in combat phase' };
   }
@@ -251,8 +262,21 @@ export function skipCombat(
     return { error: 'Not your turn' };
   }
 
-  advanceTurn(state);
-  return { state };
+  // Base defense fire still happens even if player skips
+  let baseDefenseResults: CombatResult[] | undefined;
+  if (map) {
+    const baseResults = resolveBaseDefense(state, playerId, map, rng);
+    if (baseResults.length > 0) {
+      baseDefenseResults = baseResults;
+    }
+    checkGameEnd(state, map);
+  }
+
+  if (state.winner === null) {
+    advanceTurn(state);
+  }
+
+  return { state, baseDefenseResults };
 }
 
 /**
@@ -294,13 +318,13 @@ export function processOrdnance(
       return { error: 'Insufficient cargo capacity' };
     }
 
-    // Torpedoes: warships only
-    if (launch.ordnanceType === 'torpedo' && !stats.canOverload) {
-      return { error: 'Only warships can launch torpedoes' };
+    // Torpedoes and nukes: warships only
+    if ((launch.ordnanceType === 'torpedo' || launch.ordnanceType === 'nuke') && !stats.canOverload) {
+      return { error: 'Only warships can launch torpedoes and nukes' };
     }
 
-    // Validate torpedo acceleration direction
-    if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
+    // Validate torpedo/nuke acceleration direction
+    if ((launch.ordnanceType === 'torpedo' || launch.ordnanceType === 'nuke') && launch.torpedoAccel != null) {
       if (launch.torpedoAccel < 0 || launch.torpedoAccel > 5) {
         return { error: 'Invalid torpedo acceleration direction' };
       }
@@ -308,7 +332,7 @@ export function processOrdnance(
 
     // Launch ordnance: inherits ship's velocity
     let velocity = { ...ship.velocity };
-    if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
+    if ((launch.ordnanceType === 'torpedo' || launch.ordnanceType === 'nuke') && launch.torpedoAccel != null) {
       const accelDir = HEX_DIRECTIONS[launch.torpedoAccel];
       velocity = {
         dq: velocity.dq + accelDir.dq,
@@ -398,7 +422,7 @@ function moveOrdnance(
       }
     }
 
-    const detonated = !ord.destroyed && checkOrdnanceDetonation(ord, state, finalPath, events, rng);
+    const detonated = !ord.destroyed && checkOrdnanceDetonation(ord, state, finalPath, events, map, rng);
 
     ordnanceMovements.push({
       ordnanceId: ord.id,
@@ -420,14 +444,27 @@ function moveOrdnance(
 /**
  * Check if ordnance detonates by contacting ships along its path.
  * Mines affect all ships in the hex, torpedoes hit single target.
+ * Nukes use Gun Combat table at 2:1 odds, affect all ships in hex.
  */
 function checkOrdnanceDetonation(
   ord: Ordnance,
   state: GameState,
   path: { q: number; r: number }[],
   events: MovementEvent[],
+  map: SolarSystemMap,
   rng?: () => number,
 ): boolean {
+  // Nukes also detonate on asteroid hexes, destroying them
+  if (ord.type === 'nuke') {
+    for (const pathHex of path) {
+      const hex = map.hexes.get(hexKey(pathHex));
+      if (hex?.terrain === 'asteroid') {
+        hex.terrain = 'space'; // Destroy the asteroid
+        return true; // Nuke expended
+      }
+    }
+  }
+
   // Check final position for ships
   for (const ship of state.ships) {
     if (ship.destroyed) continue;
@@ -436,8 +473,17 @@ function checkOrdnanceDetonation(
 
     if (hexEqual(ship.position, ord.position)) {
       const dieRoll = rollD6(rng);
-      const result = lookupOtherDamage(dieRoll);
-      const eventType = ord.type === 'mine' ? 'mineDetonation' : 'torpedoHit';
+
+      let result;
+      let eventType: MovementEvent['type'];
+      if (ord.type === 'nuke') {
+        // Nukes use Gun Combat table at 2:1 odds
+        result = lookupGunCombat('2:1', dieRoll);
+        eventType = 'nukeDetonation';
+      } else {
+        result = lookupOtherDamage(dieRoll);
+        eventType = ord.type === 'mine' ? 'mineDetonation' : 'torpedoHit';
+      }
 
       events.push({
         type: eventType,
@@ -451,12 +497,12 @@ function checkOrdnanceDetonation(
 
       applyDamage(ship, result);
 
-      // Mines affect all ships in hex, torpedoes hit one target
+      // Torpedoes hit one target only; mines and nukes affect all ships in hex
       if (ord.type === 'torpedo') return true;
     }
   }
 
-  // For mines: if we hit at least one enemy ship, detonate
+  // For mines/nukes: if we hit at least one enemy ship, detonate
   return events.some(e => e.ordnanceId === ord.id);
 }
 
@@ -569,6 +615,45 @@ function checkAsteroidHazards(
 
     const eliminated = applyDamage(ship, result);
     if (eliminated) break;
+  }
+}
+
+/**
+ * Check for ramming: opposing ships on the same hex after movement.
+ * Both ships roll on the Other Damage table.
+ */
+function checkRamming(
+  state: GameState,
+  events: MovementEvent[],
+  rng?: () => number,
+): void {
+  const alive = state.ships.filter(s => !s.destroyed);
+
+  for (let i = 0; i < alive.length; i++) {
+    for (let j = i + 1; j < alive.length; j++) {
+      const a = alive[i];
+      const b = alive[j];
+      if (a.owner === b.owner) continue;
+      if (!hexEqual(a.position, b.position)) continue;
+      // Both landed ships at a base are not ramming
+      if (a.landed && b.landed) continue;
+
+      // Ram! Both take Other Damage
+      for (const ship of [a, b]) {
+        if (ship.destroyed) continue;
+        const dieRoll = rollD6(rng);
+        const result = lookupOtherDamage(dieRoll);
+        events.push({
+          type: 'crash',
+          shipId: ship.id,
+          hex: ship.position,
+          dieRoll,
+          damageType: result.type,
+          disabledTurns: result.disabledTurns,
+        });
+        applyDamage(ship, result);
+      }
+    }
   }
 }
 
