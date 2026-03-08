@@ -141,6 +141,9 @@ export class InputHandler {
   // --- Click logic ---
 
   private handleClick(screenX: number, screenY: number) {
+    // Check minimap click first
+    if (this.handleMinimapClick(screenX, screenY)) return;
+
     if (!this.gameState || !this.map) return;
     if (this.gameState.activePlayer !== this.playerId) return;
 
@@ -280,5 +283,50 @@ export class InputHandler {
 
     // Clicked empty space — deselect target
     this.planningState.combatTargetId = null;
+  }
+
+  /**
+   * Check if a screen click falls within the minimap area.
+   * If so, pan the camera to the corresponding world position.
+   * Returns true if the click was consumed by the minimap.
+   */
+  private handleMinimapClick(screenX: number, screenY: number): boolean {
+    if (!this.map) return false;
+
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const mmW = 140;
+    const mmH = 140;
+    const mmX = w - mmW - 10;
+    const mmY = h - mmH - 10;
+    const mmPad = 8;
+
+    // Check if click is within minimap bounds
+    if (screenX < mmX || screenX > mmX + mmW || screenY < mmY || screenY > mmY + mmH) {
+      return false;
+    }
+
+    // Convert minimap click to world coordinates
+    const bounds = this.map.bounds;
+    const worldMinX = hexToPixel({ q: bounds.minQ, r: bounds.minR }, HEX_SIZE).x;
+    const worldMaxX = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, HEX_SIZE).x;
+    const worldMinY = hexToPixel({ q: bounds.minQ, r: bounds.minR }, HEX_SIZE).y;
+    const worldMaxY = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, HEX_SIZE).y;
+    const worldW = worldMaxX - worldMinX || 1;
+    const worldH = worldMaxY - worldMinY || 1;
+
+    const innerW = mmW - mmPad * 2;
+    const innerH = mmH - mmPad * 2;
+    const scale = Math.min(innerW / worldW, innerH / worldH);
+    const offsetX = mmX + mmPad + (innerW - worldW * scale) / 2;
+    const offsetY = mmY + mmPad + (innerH - worldH * scale) / 2;
+
+    const worldClickX = (screenX - offsetX) / scale + worldMinX;
+    const worldClickY = (screenY - offsetY) / scale + worldMinY;
+
+    this.camera.targetX = worldClickX;
+    this.camera.targetY = worldClickY;
+
+    return true;
   }
 }

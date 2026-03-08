@@ -418,6 +418,11 @@ export class Renderer {
         this.renderMovementEventsToast(ctx, this.movementEvents.events, now, w);
       }
     }
+
+    // Minimap (screen-space, bottom-right)
+    if (this.map && this.gameState) {
+      this.renderMinimap(ctx, w, h);
+    }
   }
 
   // --- Render layers ---
@@ -1231,6 +1236,107 @@ export class Renderer {
         y += 24;
       }
     }
+
+    ctx.restore();
+  }
+
+  private renderMinimap(ctx: CanvasRenderingContext2D, screenW: number, screenH: number) {
+    if (!this.map || !this.gameState) return;
+
+    const mmW = 140;
+    const mmH = 140;
+    const mmX = screenW - mmW - 10;
+    const mmY = screenH - mmH - 10;
+    const mmPad = 8;
+
+    // Background
+    ctx.save();
+    ctx.fillStyle = 'rgba(10, 10, 26, 0.8)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(mmX, mmY, mmW, mmH, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    // Compute world bounds from map bounds
+    const bounds = this.map.bounds;
+    const worldMinX = hexToPixel({ q: bounds.minQ, r: bounds.minR }, HEX_SIZE).x;
+    const worldMaxX = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, HEX_SIZE).x;
+    const worldMinY = hexToPixel({ q: bounds.minQ, r: bounds.minR }, HEX_SIZE).y;
+    const worldMaxY = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, HEX_SIZE).y;
+    const worldW = worldMaxX - worldMinX || 1;
+    const worldH = worldMaxY - worldMinY || 1;
+
+    // Scale to fit minimap with padding
+    const innerW = mmW - mmPad * 2;
+    const innerH = mmH - mmPad * 2;
+    const scale = Math.min(innerW / worldW, innerH / worldH);
+    const offsetX = mmX + mmPad + (innerW - worldW * scale) / 2;
+    const offsetY = mmY + mmPad + (innerH - worldH * scale) / 2;
+
+    const toMinimap = (wx: number, wy: number) => ({
+      x: offsetX + (wx - worldMinX) * scale,
+      y: offsetY + (wy - worldMinY) * scale,
+    });
+
+    // Draw celestial bodies
+    for (const body of this.map.bodies) {
+      const p = hexToPixel(body.center, HEX_SIZE);
+      const mp = toMinimap(p.x, p.y);
+      const r = Math.max(2, body.renderRadius * HEX_SIZE * scale * 0.5);
+      ctx.fillStyle = body.color;
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.arc(mp.x, mp.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Draw ships as dots
+    for (const ship of this.gameState.ships) {
+      if (ship.destroyed) continue;
+      // Skip undetected enemy ships
+      if (ship.owner !== this.playerId && !ship.detected) continue;
+
+      const p = hexToPixel(ship.position, HEX_SIZE);
+      const mp = toMinimap(p.x, p.y);
+      ctx.fillStyle = ship.owner === this.playerId ? '#4fc3f7' : '#ff8a65';
+      ctx.beginPath();
+      ctx.arc(mp.x, mp.y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Draw ordnance as tiny dots
+    for (const ord of this.gameState.ordnance) {
+      if (ord.destroyed) continue;
+      const p = hexToPixel(ord.position, HEX_SIZE);
+      const mp = toMinimap(p.x, p.y);
+      ctx.fillStyle = ord.type === 'nuke' ? '#ff4444' : '#ffb74d';
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.arc(mp.x, mp.y, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Draw viewport rectangle
+    const cam = this.camera;
+    const vpHalfW = screenW / 2 / cam.zoom;
+    const vpHalfH = screenH / 2 / cam.zoom;
+    const vpTL = toMinimap(cam.x - vpHalfW, cam.y - vpHalfH);
+    const vpBR = toMinimap(cam.x + vpHalfW, cam.y + vpHalfH);
+    const vpW = vpBR.x - vpTL.x;
+    const vpH = vpBR.y - vpTL.y;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(
+      Math.max(mmX, vpTL.x),
+      Math.max(mmY, vpTL.y),
+      Math.min(vpW, mmW),
+      Math.min(vpH, mmH),
+    );
 
     ctx.restore();
   }
