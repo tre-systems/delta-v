@@ -1,10 +1,11 @@
 import type { GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack } from '../shared/types';
+import { pixelToHex, hexEqual, hexVecLength } from '../shared/hex';
 import { canAttack } from '../shared/combat';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
 import { createGame, processAstrogation, processOrdnance, skipOrdnance, processCombat, skipCombat } from '../shared/game-engine';
 import { aiAstrogation, aiOrdnance, aiCombat, type AIDifficulty } from '../shared/ai';
-import { Renderer } from './renderer';
+import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
 import { UIManager } from './ui';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat } from './audio';
@@ -35,12 +36,14 @@ class GameClient {
   private input: InputHandler;
   private ui: UIManager;
   private map = getSolarSystemMap();
+  private tooltipEl: HTMLElement;
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
     this.renderer = new Renderer(this.canvas);
     this.input = new InputHandler(this.canvas, this.renderer.camera, this.renderer.planningState);
     this.ui = new UIManager();
+    this.tooltipEl = document.getElementById('shipTooltip')!;
 
     this.renderer.setMap(this.map);
     this.input.setMap(this.map);
@@ -70,6 +73,9 @@ class GameClient {
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
+      // Don't handle keys when typing in input fields
+      if (e.target instanceof HTMLInputElement) return;
+
       if (e.key === 'Tab' && this.gameState &&
           (this.state === 'playing_astrogation' || this.state === 'playing_ordnance' || this.state === 'playing_combat')) {
         e.preventDefault();
@@ -85,8 +91,45 @@ class GameClient {
           this.renderer.planningState.selectedShipId = null;
           this.updateHUD();
         }
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        if (this.state === 'playing_astrogation') {
+          e.preventDefault();
+          this.confirmOrders();
+        } else if (this.state === 'playing_ordnance') {
+          e.preventDefault();
+          this.sendSkipOrdnance();
+        } else if (this.state === 'playing_combat') {
+          e.preventDefault();
+          if (this.renderer.planningState.combatTargetId) {
+            this.sendAttack();
+          } else {
+            this.sendSkipCombat();
+          }
+        }
+      } else if (e.key >= '1' && e.key <= '6' && this.state === 'playing_astrogation') {
+        // Number keys 1-6 for burn directions
+        this.setBurnDirection(parseInt(e.key) - 1);
+      } else if (e.key === '0' && this.state === 'playing_astrogation') {
+        // 0 to clear burn
+        this.clearSelectedBurn();
+      } else if (e.key.toLowerCase() === 'w' || e.key === 'ArrowUp') {
+        this.renderer.camera.pan(0, 40);
+      } else if (e.key.toLowerCase() === 's' || e.key === 'ArrowDown') {
+        this.renderer.camera.pan(0, -40);
+      } else if (e.key.toLowerCase() === 'a' || e.key === 'ArrowLeft') {
+        this.renderer.camera.pan(40, 0);
+      } else if (e.key.toLowerCase() === 'd' || e.key === 'ArrowRight') {
+        this.renderer.camera.pan(-40, 0);
+      } else if (e.key === '=' || e.key === '+') {
+        this.renderer.camera.zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1.15);
+      } else if (e.key === '-' || e.key === '_') {
+        this.renderer.camera.zoomAt(window.innerWidth / 2, window.innerHeight / 2, 0.87);
       }
     });
+
+    // Ship hover tooltip
+    this.canvas.addEventListener('mousemove', (e) => this.updateTooltip(e.clientX, e.clientY));
+    this.canvas.addEventListener('mouseleave', () => { this.tooltipEl.style.display = 'none'; });
 
     // Start render loop and audio
     initAudio();
@@ -760,6 +803,35 @@ class GameClient {
     this.updateHUD();
   }
 
+  // --- Burn shortcuts ---
+
+  private setBurnDirection(dir: number) {
+    if (!this.gameState || this.state !== 'playing_astrogation') return;
+    const shipId = this.renderer.planningState.selectedShipId;
+    if (!shipId) return;
+    const ship = this.gameState.ships.find(s => s.id === shipId);
+    if (!ship || ship.fuel <= 0 || ship.destroyed || ship.damage.disabledTurns > 0) return;
+
+    const current = this.renderer.planningState.burns.get(shipId) ?? null;
+    // Toggle: same direction = cancel
+    this.renderer.planningState.burns.set(shipId, current === dir ? null : dir);
+    if (current !== dir) {
+      this.renderer.planningState.overloads.delete(shipId);
+    }
+    playSelect();
+    this.updateHUD();
+  }
+
+  private clearSelectedBurn() {
+    if (!this.gameState || this.state !== 'playing_astrogation') return;
+    const shipId = this.renderer.planningState.selectedShipId;
+    if (!shipId) return;
+    this.renderer.planningState.burns.delete(shipId);
+    this.renderer.planningState.overloads.delete(shipId);
+    this.renderer.planningState.weakGravityChoices.delete(shipId);
+    this.updateHUD();
+  }
+
   // --- Helpers ---
 
   private updateHUD() {
@@ -773,6 +845,13 @@ class GameClient {
     const hasBurns = Array.from(this.renderer.planningState.burns.values()).some(b => b !== null);
     const cargoFree = selectedShip && stats ? stats.cargo - selectedShip.cargoUsed : 0;
     const cargoMax = stats?.cargo ?? 0;
+    // Build objective text
+    const player = this.gameState.players[this.playerId];
+    const objective = player?.escapeWins
+      ? '⬡ Escape the map'
+      : player?.targetBody
+        ? `⬡ Land on ${player.targetBody}`
+        : '';
     this.ui.updateHUD(
       this.gameState.turnNumber,
       this.gameState.phase,
@@ -782,6 +861,7 @@ class GameClient {
       hasBurns,
       cargoFree,
       cargoMax,
+      objective,
     );
     this.ui.updateShipList(
       myShips,
@@ -794,6 +874,60 @@ class GameClient {
     const stats = SHIP_STATS[ship.type];
     if (!stats) return false;
     return (stats.cargo - ship.cargoUsed) >= ORDNANCE_MASS.mine;
+  }
+
+  private updateTooltip(screenX: number, screenY: number) {
+    if (!this.gameState || this.state === 'menu' || this.state === 'connecting' || this.state === 'waitingForOpponent') {
+      this.tooltipEl.style.display = 'none';
+      return;
+    }
+
+    const worldPos = this.renderer.camera.screenToWorld(screenX, screenY);
+    const hoverHex = pixelToHex(worldPos, HEX_SIZE);
+
+    // Find ship at hover hex
+    const ship = this.gameState.ships.find(s => {
+      if (s.destroyed) return false;
+      if (s.owner !== this.playerId && !s.detected) return false;
+      return hexEqual(s.position, hoverHex);
+    });
+
+    if (!ship) {
+      this.tooltipEl.style.display = 'none';
+      return;
+    }
+
+    const stats = SHIP_STATS[ship.type];
+    const name = stats?.name ?? ship.type;
+    const isEnemy = ship.owner !== this.playerId;
+    const nameClass = isEnemy ? 'tt-enemy' : 'tt-name';
+    const speed = hexVecLength(ship.velocity);
+    const combat = stats ? `${stats.combat}${stats.defensiveOnly ? 'D' : ''}` : '?';
+
+    let html = `<div class="${nameClass}">${name}</div>`;
+    html += `<div class="tt-stat">Combat: ${combat}</div>`;
+    html += `<div class="tt-stat">Speed: ${speed.toFixed(1)}</div>`;
+
+    if (!isEnemy) {
+      // Show detailed info for own ships
+      html += `<div class="tt-stat">Fuel: ${ship.fuel}/${stats?.fuel ?? '?'}</div>`;
+      if (stats && stats.cargo > 0) {
+        html += `<div class="tt-stat">Cargo: ${stats.cargo - ship.cargoUsed}/${stats.cargo}</div>`;
+      }
+    }
+
+    if (ship.damage.disabledTurns > 0) {
+      html += `<div class="tt-warn">Disabled: ${ship.damage.disabledTurns}T</div>`;
+    }
+    if (ship.landed) {
+      html += `<div class="tt-stat">Landed</div>`;
+    }
+
+    this.tooltipEl.innerHTML = html;
+    this.tooltipEl.style.display = 'block';
+    // Position tooltip offset from cursor
+    this.tooltipEl.style.left = `${screenX + 12}px`;
+    this.tooltipEl.style.top = `${screenY - 10}px`;
   }
 
   // Deserialize state from server (plain object -> proper types)
