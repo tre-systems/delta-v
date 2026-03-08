@@ -317,6 +317,54 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
+  convoy: {
+    name: 'Convoy',
+    description: 'Escort a tanker from Mars to Venus — pirates intercept',
+    players: [
+      {
+        // Convoy: tanker + corvette escort, starting from Mars
+        ships: [
+          { type: 'tanker', position: { q: 10, r: 8 }, velocity: { dq: 0, dr: 0 } },
+          { type: 'corvette', position: { q: 10, r: 8 }, velocity: { dq: 0, dr: 0 } },
+        ],
+        targetBody: 'Venus',
+        homeBody: 'Mars',
+        escapeWins: false,
+      },
+      {
+        // Pirates: 2 corsairs lurking in the asteroid belt
+        ships: [
+          { type: 'corsair', position: { q: 3, r: 3 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corsair', position: { q: -2, r: 5 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+        ],
+        targetBody: '',
+        homeBody: '',
+        escapeWins: false,
+      },
+    ],
+  },
+  duel: {
+    name: 'Duel',
+    description: 'Frigates clash near Mercury — last ship standing wins',
+    players: [
+      {
+        ships: [
+          { type: 'frigate', position: { q: 5, r: -3 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+        ],
+        targetBody: '',
+        homeBody: 'Mercury',
+        escapeWins: false,
+      },
+      {
+        ships: [
+          { type: 'frigate', position: { q: 9, r: -1 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+        ],
+        targetBody: '',
+        homeBody: 'Mercury',
+        escapeWins: false,
+      },
+    ],
+  },
 };
 
 // Singleton map instance
