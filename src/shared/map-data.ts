@@ -22,7 +22,7 @@ interface BodyDefinition {
   destructive: boolean;  // contact = destruction (Sol)
   color: string;
   renderRadius: number;  // visual radius as multiplier of hex size
-  baseDirections: number[]; // which of the 6 directions have bases (on outermost surface ring)
+  baseDirections: number[]; // which of the 6 directions have bases (on first gravity ring for multi-hex bodies)
 }
 
 const BODY_DEFS: BodyDefinition[] = [
@@ -213,19 +213,12 @@ export function buildSolarSystemMap(): SolarSystemMap {
       hex.body = { name: def.name, destructive: def.destructive };
     }
 
-    // Mark base hexes on the outermost surface ring
+    // Mark base hexes — always on the first gravity ring (surfaceRadius + 1 from center)
+    // This ensures ships start outside the body surface and can escape gravity on takeoff
     for (const dir of def.baseDirections) {
-      // For single-hex bodies (surfaceRadius=0), the base IS the body hex
-      // For larger bodies, bases are on the outermost surface hex in that direction
-      let baseHex: HexCoord;
-      if (def.surfaceRadius === 0) {
-        baseHex = def.center;
-      } else {
-        // Walk 'surfaceRadius' steps in the given direction from center
-        baseHex = def.center;
-        for (let i = 0; i < def.surfaceRadius; i++) {
-          baseHex = hexNeighbor(baseHex, dir);
-        }
+      let baseHex = def.center;
+      for (let i = 0; i < def.surfaceRadius + 1; i++) {
+        baseHex = hexNeighbor(baseHex, dir);
       }
       const hex = ensureHex(baseHex);
       hex.base = { name: `${def.name} Base`, bodyName: def.name };

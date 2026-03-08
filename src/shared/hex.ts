@@ -159,17 +159,30 @@ export function pixelToHex(p: PixelCoord, size: number): HexCoord {
 export function hexDirectionToward(from: HexCoord, to: HexCoord): number {
   const fp = hexToPixel(from, 1);
   const tp = hexToPixel(to, 1);
-  const angle = Math.atan2(tp.y - fp.y, tp.x - fp.x);
+  const dx = tp.x - fp.x;
+  const dy = tp.y - fp.y;
 
-  // Flat-top hex: direction 0 (E) is at angle 0
-  // Each direction spans 60 degrees (PI/3)
-  let index = Math.round(angle / (Math.PI / 3));
-  if (index < 0) index += 6;
-  // Map angle-based index to our direction array
-  // atan2 gives: 0=E, 1=SE, 2=SW, 3=W, -1=NE, -2=NW
-  // We need: 0=E, 1=NE, 2=NW, 3=W, 4=SW, 5=SE
-  const angleToDir = [0, 5, 4, 3, 2, 1];
-  return angleToDir[index % 6];
+  if (dx === 0 && dy === 0) return 0; // Same hex, default to E
+
+  const angle = Math.atan2(dy, dx);
+
+  // Compute pixel angles from the actual direction vectors (bulletproof)
+  let bestDir = 0;
+  let bestDist = Infinity;
+  for (let d = 0; d < 6; d++) {
+    const v = HEX_DIRECTIONS[d];
+    const da = Math.atan2(
+      SQRT3 / 2 * v.dq + SQRT3 * v.dr,
+      (3 / 2) * v.dq,
+    );
+    let diff = Math.abs(angle - da);
+    if (diff > Math.PI) diff = 2 * Math.PI - diff;
+    if (diff < bestDist) {
+      bestDist = diff;
+      bestDir = d;
+    }
+  }
+  return bestDir;
 }
 
 // --- Hex ring (all hexes at exactly distance n from center) ---
