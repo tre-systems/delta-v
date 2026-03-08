@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createGame, processAstrogation } from '../game-engine';
+import { createGame, processAstrogation, skipCombat } from '../game-engine';
 import { buildSolarSystemMap, SCENARIOS, findBaseHex } from '../map-data';
 import { SHIP_STATS } from '../constants';
 import { hexKey, hexEqual } from '../hex';
@@ -117,7 +117,7 @@ describe('processAstrogation', () => {
     expect('error' in result).toBe(true);
   });
 
-  it('switches active player after turn', () => {
+  it('enters combat phase after astrogation when enemies exist', () => {
     const orders: AstrogationOrder[] = [{
       shipId: initialState.ships[0].id,
       burn: null,
@@ -125,12 +125,31 @@ describe('processAstrogation', () => {
     const result = processAstrogation(initialState, 0, orders, map);
 
     if (!('error' in result)) {
-      expect(result.state.activePlayer).toBe(1);
+      // Both players have ships alive, so combat phase is entered
+      expect(result.state.phase).toBe('combat');
+      expect(result.state.activePlayer).toBe(0);
     }
   });
 
-  it('increments turn number after both players move', () => {
-    // Player 0's turn
+  it('switches active player after skipping combat', () => {
+    const orders: AstrogationOrder[] = [{
+      shipId: initialState.ships[0].id,
+      burn: null,
+    }];
+    const result = processAstrogation(initialState, 0, orders, map);
+    if ('error' in result) return;
+
+    // Skip combat to advance turn
+    const combatResult = skipCombat(result.state, 0);
+    expect('error' in combatResult).toBe(false);
+    if ('error' in combatResult) return;
+
+    expect(combatResult.state.activePlayer).toBe(1);
+    expect(combatResult.state.phase).toBe('astrogation');
+  });
+
+  it('increments turn number after both players complete turns', () => {
+    // Player 0's turn: astrogation + skip combat
     const orders0: AstrogationOrder[] = [{
       shipId: initialState.ships[0].id,
       burn: null,
@@ -139,19 +158,27 @@ describe('processAstrogation', () => {
     expect('error' in result0).toBe(false);
     if ('error' in result0) return;
 
-    expect(result0.state.turnNumber).toBe(1); // Still turn 1
+    const skip0 = skipCombat(result0.state, 0);
+    expect('error' in skip0).toBe(false);
+    if ('error' in skip0) return;
 
-    // Player 1's turn
+    expect(skip0.state.turnNumber).toBe(1); // Still turn 1
+
+    // Player 1's turn: astrogation + skip combat
     const orders1: AstrogationOrder[] = [{
-      shipId: result0.state.ships[1].id,
+      shipId: skip0.state.ships[1].id,
       burn: null,
     }];
-    const result1 = processAstrogation(result0.state, 1, orders1, map);
+    const result1 = processAstrogation(skip0.state, 1, orders1, map);
     expect('error' in result1).toBe(false);
     if ('error' in result1) return;
 
-    expect(result1.state.turnNumber).toBe(2); // Now turn 2
-    expect(result1.state.activePlayer).toBe(0); // Back to player 0
+    const skip1 = skipCombat(result1.state, 1);
+    expect('error' in skip1).toBe(false);
+    if ('error' in skip1) return;
+
+    expect(skip1.state.turnNumber).toBe(2); // Now turn 2
+    expect(skip1.state.activePlayer).toBe(0); // Back to player 0
   });
 });
 
