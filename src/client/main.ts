@@ -38,6 +38,14 @@ class GameClient {
   private map = getSolarSystemMap();
   private tooltipEl: HTMLElement;
 
+  // Ping/latency tracking
+  private pingInterval: number | null = null;
+  private lastPingSent = 0;
+  private latencyMs = -1; // -1 = unknown
+
+  // Turn timer
+  private turnStartTime = 0;
+
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
     this.renderer = new Renderer(this.canvas);
@@ -153,6 +161,8 @@ class GameClient {
 
   private setState(newState: ClientState) {
     this.state = newState;
+    // Hide tooltip on state changes
+    this.tooltipEl.style.display = 'none';
 
     switch (newState) {
       case 'menu':
@@ -171,6 +181,7 @@ class GameClient {
 
       case 'playing_astrogation':
         this.ui.showHUD();
+        this.turnStartTime = Date.now();
         this.updateHUD();
         // Reset planning state
         this.renderer.planningState.selectedShipId = null;
@@ -219,6 +230,7 @@ class GameClient {
       case 'playing_opponentTurn':
         this.ui.showHUD();
         this.updateHUD();
+        this.renderer.frameOnShips();
         break;
 
       case 'gameOver':
@@ -292,6 +304,26 @@ class GameClient {
     this.ws.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
     this.ws.onclose = () => this.handleDisconnect();
     this.ws.onerror = () => {}; // onclose fires after onerror
+    this.startPing();
+  }
+
+  private startPing() {
+    this.stopPing();
+    this.latencyMs = -1;
+    this.pingInterval = window.setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.lastPingSent = Date.now();
+        this.send({ type: 'ping', t: this.lastPingSent });
+      }
+    }, 5000);
+  }
+
+  private stopPing() {
+    if (this.pingInterval !== null) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
+    this.latencyMs = -1;
   }
 
   private attemptReconnect() {
@@ -411,12 +443,24 @@ class GameClient {
         break;
 
       case 'pong':
-        // Latency measurement (unused for now)
+        if (msg.t > 0) {
+          this.latencyMs = Date.now() - msg.t;
+          // Update latency display in HUD
+          const latEl = document.getElementById('latencyInfo');
+          if (latEl) {
+            latEl.textContent = `${this.latencyMs}ms`;
+            latEl.className = 'latency-text ' + (
+              this.latencyMs < 100 ? 'latency-good' :
+              this.latencyMs < 250 ? 'latency-ok' : 'latency-bad'
+            );
+          }
+        }
         break;
     }
   }
 
   private handleDisconnect() {
+    this.stopPing();
     if (this.state === 'menu' || this.state === 'gameOver') return;
 
     // If we have an active game, attempt reconnection
@@ -590,6 +634,7 @@ class GameClient {
   }
 
   private exitToMenu() {
+    this.stopPing();
     this.ws?.close();
     this.ws = null;
     this.gameState = null;
@@ -873,6 +918,17 @@ class GameClient {
       cargoMax,
       objective,
     );
+    // Update latency display (multiplayer only)
+    const latencyEl = document.getElementById('latencyInfo')!;
+    if (!this.isLocalGame && this.latencyMs >= 0) {
+      latencyEl.textContent = `${this.latencyMs}ms`;
+      latencyEl.className = 'latency-text ' + (
+        this.latencyMs < 100 ? 'latency-good' :
+        this.latencyMs < 250 ? 'latency-ok' : 'latency-bad'
+      );
+    } else {
+      latencyEl.textContent = '';
+    }
     this.ui.updateShipList(
       myShips,
       selectedId,
@@ -922,7 +978,9 @@ class GameClient {
   }
 
   private updateTooltip(screenX: number, screenY: number) {
-    if (!this.gameState || this.state === 'menu' || this.state === 'connecting' || this.state === 'waitingForOpponent') {
+    if (!this.gameState || this.state === 'menu' || this.state === 'connecting'
+        || this.state === 'waitingForOpponent' || this.state === 'playing_movementAnim'
+        || this.state === 'gameOver') {
       this.tooltipEl.style.display = 'none';
       return;
     }
