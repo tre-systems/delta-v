@@ -64,7 +64,7 @@ export function aiAstrogation(
     const canOverload = difficulty !== 'easy' && stats?.canOverload && ship.fuel >= 2;
 
     // Build list of (burn, overload) pairs to evaluate
-    type BurnOption = { burn: number | null; overload: number | null };
+    type BurnOption = { burn: number | null; overload: number | null; weakGravityChoices?: Record<string, boolean> };
     const options: BurnOption[] = [{ burn: null, overload: null }];
     for (let d = 0; d < 6; d++) {
       if (canBurnFuel) {
@@ -77,9 +77,11 @@ export function aiAstrogation(
       }
     }
 
+    let bestWeakGrav: Record<string, boolean> | undefined;
+
     for (const opt of options) {
-      const course = computeCourse(ship, opt.burn, map,
-        opt.overload !== null ? { overload: opt.overload } : undefined);
+      const courseOpts = opt.overload !== null ? { overload: opt.overload } : undefined;
+      const course = computeCourse(ship, opt.burn, map, courseOpts);
 
       // Skip crashed courses entirely
       if (course.crashed) continue;
@@ -95,10 +97,29 @@ export function aiAstrogation(
         score -= 1; // Small penalty for extra fuel cost of overloading
       }
 
+      // For normal/hard AI, also try ignoring weak gravity choices
+      let bestLocalWG: Record<string, boolean> | undefined;
+      if (difficulty !== 'easy' && course.gravityEffects.some(g => g.strength === 'weak')) {
+        // Try toggling each weak gravity hex
+        const weakHexes = course.gravityEffects.filter(g => g.strength === 'weak');
+        for (const wg of weakHexes) {
+          const wgChoices: Record<string, boolean> = { [hexKey(wg.hex)]: true };
+          const altCourse = computeCourse(ship, opt.burn, map,
+            { ...(courseOpts ?? {}), weakGravityChoices: wgChoices });
+          if (altCourse.crashed) continue;
+          const altScore = scoreCourse(ship, altCourse, targetHex, escapeWins, enemyShips, difficulty);
+          if (altScore > score) {
+            score = altScore;
+            bestLocalWG = wgChoices;
+          }
+        }
+      }
+
       if (score > bestScore) {
         bestScore = score;
         bestBurn = opt.burn;
         bestOverload = opt.overload;
+        bestWeakGrav = bestLocalWG;
       }
     }
 
@@ -116,6 +137,7 @@ export function aiAstrogation(
       shipId: ship.id,
       burn: bestBurn,
       ...(bestOverload !== null ? { overload: bestOverload } : {}),
+      ...(bestWeakGrav ? { weakGravityChoices: bestWeakGrav } : {}),
     });
   }
 
@@ -164,6 +186,23 @@ export function aiOrdnance(
     }
     if (!nearestEnemy) continue;
 
+    // Hard AI: launch nuke at enemies within range if cargo allows
+    if (difficulty === 'hard' && nearestDist <= torpedoRange &&
+        stats.canOverload && cargoFree >= ORDNANCE_MASS.nuke) {
+      // Prefer nukes over torpedoes when enemy is strong
+      const enemyStr = getCombatStrength([nearestEnemy]);
+      const myStr = getCombatStrength([ship]);
+      if (enemyStr >= myStr && nearestDist <= 6) {
+        const bestDir = findDirectionToward(ship.position, nearestEnemy.position);
+        launches.push({
+          shipId: ship.id,
+          ordnanceType: 'nuke',
+          torpedoAccel: bestDir,
+        });
+        continue;
+      }
+    }
+
     // Launch torpedo if enemy is within range and ship can
     if (nearestDist <= torpedoRange && stats.canOverload && cargoFree >= ORDNANCE_MASS.torpedo) {
       // Aim guidance toward enemy
@@ -182,6 +221,20 @@ export function aiOrdnance(
         shipId: ship.id,
         ordnanceType: 'mine',
       });
+      continue;
+    }
+
+    // Defensive mine-laying: drop mines behind when being pursued (escape scenarios)
+    const player = state.players[playerId];
+    if (player?.escapeWins && nearestDist <= 8 && cargoFree >= ORDNANCE_MASS.mine) {
+      // Only if enemy is approaching from behind
+      const speed = hexVecLength(ship.velocity);
+      if (speed >= 2 && difficulty !== 'easy') {
+        launches.push({
+          shipId: ship.id,
+          ordnanceType: 'mine',
+        });
+      }
     }
   }
 
