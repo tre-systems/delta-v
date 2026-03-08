@@ -307,18 +307,36 @@ function scoreCourse(
     }
   }
 
-  // Combat positioning: prefer keeping distance from enemies when weak
+  // Combat positioning
   const myStrength = getCombatStrength([ship]);
-  if (myStrength > 0 && enemyShips.length > 0) {
+  const noPrimaryObjective = !escapeWins && !targetHex;
+  if (enemyShips.length > 0) {
     for (const enemy of enemyShips) {
       const dist = hexDistance(course.destination, enemy.position);
       const enemyStr = getCombatStrength([enemy]);
-      if (myStrength >= enemyStr) {
-        // We're stronger: get closer
-        score += Math.max(0, 5 - dist) * 2 * mult;
-      } else {
-        // We're weaker: stay away
-        score += Math.min(dist, 5) * 1 * mult;
+
+      if (noPrimaryObjective) {
+        // Pure combat mode: aggressively seek combat range
+        if (myStrength >= enemyStr) {
+          // Close in — strong bonus for being at range 1-3
+          score += Math.max(0, 8 - dist) * 5 * mult;
+        } else {
+          // Weaker: stay at moderate range, but don't flee forever
+          const idealDist = 4;
+          score -= Math.abs(dist - idealDist) * 3 * mult;
+        }
+        // Speed management: prefer moderate velocity near enemies
+        const speed = hexVecLength(course.newVelocity);
+        if (dist < 5 && speed > 3) {
+          score -= (speed - 3) * 4 * mult; // penalize overshooting
+        }
+      } else if (myStrength > 0) {
+        // Has objective but also can fight
+        if (myStrength >= enemyStr) {
+          score += Math.max(0, 5 - dist) * 2 * mult;
+        } else {
+          score += Math.min(dist, 5) * 1 * mult;
+        }
       }
     }
   }
