@@ -9,7 +9,7 @@ import {
   hexVecLength,
 } from '../shared/hex';
 import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CelestialBody, CombatResult, PlayerState } from '../shared/types';
-import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS } from '../shared/constants';
+import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from '../shared/constants';
 import { computeCourse, predictDestination } from '../shared/movement';
 import { computeOdds, computeRangeMod, computeVelocityMod, getCombatStrength, canAttack } from '../shared/combat';
 
@@ -436,6 +436,7 @@ export class Renderer {
       }
     }
     if (this.gameState && this.map) {
+      this.renderDetectionRanges(ctx, this.gameState, this.map);
       this.renderCourseVectors(ctx, this.gameState, this.map, now);
       this.renderOrdnance(ctx, this.gameState, now);
       this.renderTorpedoGuidance(ctx, this.gameState, now);
@@ -688,6 +689,56 @@ export class Renderer {
     ctx.font = 'bold 8px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('▼ TARGET', p.x, p.y + r + 24);
+  }
+
+  private renderDetectionRanges(ctx: CanvasRenderingContext2D, state: GameState, map: SolarSystemMap) {
+    if (this.animState) return;
+
+    // Show detection range for selected own ship
+    const selectedId = this.planningState.selectedShipId;
+    for (const ship of state.ships) {
+      if (ship.owner !== this.playerId || ship.destroyed) continue;
+      const isSelected = ship.id === selectedId;
+      if (!isSelected) continue; // Only show for selected ship to avoid clutter
+
+      const p = hexToPixel(ship.position, HEX_SIZE);
+      const detRange = SHIP_DETECTION_RANGE;
+      // Approximate circle radius from hex distance
+      const radius = detRange * HEX_SIZE * 1.73; // sqrt(3) * hex_size * range
+
+      ctx.strokeStyle = 'rgba(79, 195, 247, 0.08)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 6]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Subtle label
+      ctx.fillStyle = 'rgba(79, 195, 247, 0.15)';
+      ctx.font = '7px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('DETECTION', p.x, p.y - radius - 4);
+    }
+
+    // Show base detection ranges for own bases
+    const player = state.players[this.playerId];
+    if (player?.homeBody) {
+      for (const [key, hex] of map.hexes) {
+        if (!hex.base || hex.base.bodyName !== player.homeBody) continue;
+        const [q, r] = key.split(',').map(Number);
+        const p = hexToPixel({ q, r }, HEX_SIZE);
+        const radius = BASE_DETECTION_RANGE * HEX_SIZE * 1.73;
+
+        ctx.strokeStyle = 'rgba(79, 195, 247, 0.05)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 8]);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
   }
 
   private renderCourseVectors(ctx: CanvasRenderingContext2D, state: GameState, map: SolarSystemMap, now: number) {
@@ -976,7 +1027,7 @@ export class Renderer {
       // Disabled ships shown dimmer
       const isDisabled = ship.damage.disabledTurns > 0;
       const alpha = isDisabled ? 0.5 : 1.0;
-      this.drawShipIcon(ctx, pos.x, pos.y, ship.owner, alpha, heading);
+      this.drawShipIcon(ctx, pos.x, pos.y, ship.owner, alpha, heading, ship.damage.disabledTurns, ship.type);
 
       // Disabled indicator
       if (isDisabled && !this.animState) {
@@ -1008,12 +1059,28 @@ export class Renderer {
     }
   }
 
-  private drawShipIcon(ctx: CanvasRenderingContext2D, x: number, y: number, owner: number, alpha: number, heading: number) {
+  private drawShipIcon(ctx: CanvasRenderingContext2D, x: number, y: number, owner: number, alpha: number, heading: number, disabledTurns = 0, shipType = '') {
     const color = owner === 0 ? `rgba(79, 195, 247, ${alpha})` : `rgba(255, 152, 0, ${alpha})`;
-    const size = 8;
+    // Size based on ship type combat value
+    const stats = SHIP_STATS[shipType];
+    const combat = stats?.combat ?? 2;
+    const size = combat >= 15 ? 12 : combat >= 8 ? 10 : combat >= 4 ? 9 : 8;
 
     ctx.save();
     ctx.translate(x, y);
+
+    // Damage glow for disabled ships (flickering red/orange)
+    if (disabledTurns > 0) {
+      const flickerPhase = performance.now() / 200 + x * 0.1; // unique per ship
+      const intensity = 0.3 + 0.2 * Math.sin(flickerPhase) + 0.1 * Math.sin(flickerPhase * 2.7);
+      const glowColor = disabledTurns >= 4 ? `rgba(255, 50, 50, ${intensity})` : `rgba(255, 150, 50, ${intensity})`;
+      const glowRadius = 10 + disabledTurns;
+      ctx.fillStyle = glowColor;
+      ctx.beginPath();
+      ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.rotate(heading);
     ctx.fillStyle = color;
     ctx.beginPath();
@@ -1299,16 +1366,27 @@ export class Renderer {
       const odds = computeOdds(attackStr, defendStr);
       const rangeMod = computeRangeMod(myAttackers[0], target);
       const velMod = computeVelocityMod(myAttackers[0], target);
+      const totalMod = -(rangeMod + velMod);
 
       // Background box
-      const label = `${odds}  R-${rangeMod} V-${velMod}`;
+      const modStr = totalMod >= 0 ? `+${totalMod}` : `${totalMod}`;
+      const label = `${odds}  R-${rangeMod} V-${velMod}  (${modStr})`;
       ctx.font = 'bold 10px monospace';
       const textW = ctx.measureText(label).width;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
       ctx.fillRect(targetPos.x - textW / 2 - 4, targetPos.y - 32, textW + 8, 16);
-      ctx.fillStyle = '#ff6666';
+      // Color code: green if favorable, red if unfavorable, yellow if neutral
+      ctx.fillStyle = totalMod > 0 ? '#88ff88' : totalMod < 0 ? '#ff6666' : '#ffdd57';
       ctx.textAlign = 'center';
       ctx.fillText(label, targetPos.x, targetPos.y - 20);
+
+      // Show counterattack warning if target can counterattack
+      const targetStats = SHIP_STATS[target.type];
+      if (targetStats && !targetStats.defensiveOnly && target.damage.disabledTurns === 0) {
+        ctx.fillStyle = 'rgba(255, 170, 0, 0.7)';
+        ctx.font = '7px monospace';
+        ctx.fillText('CAN COUNTER', targetPos.x, targetPos.y - 38);
+      }
     }
   }
 

@@ -526,6 +526,21 @@ body {
   letter-spacing: 0.08em;
 }
 
+/* Turn timer in HUD */
+.turn-timer {
+  color: #888;
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+}
+
+.turn-timer-active {
+  color: #b0bec5;
+}
+
+.turn-timer-slow {
+  color: #ffb74d;
+}
+
 /* Latency indicator in HUD */
 .latency-text {
   color: #888;
