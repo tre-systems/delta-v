@@ -1,4 +1,4 @@
-import type { Ship } from '../shared/types';
+import type { Ship, MovementEvent, CombatResult } from '../shared/types';
 import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
 
 export class UIManager {
@@ -8,11 +8,16 @@ export class UIManager {
   private hudEl: HTMLElement;
   private gameOverEl: HTMLElement;
   private shipListEl: HTMLElement;
+  private gameLogEl: HTMLElement;
+  private logEntriesEl: HTMLElement;
+  private logShowBtn: HTMLElement;
+  private logVisible = true;
 
   // Callbacks
   onSelectScenario: ((scenario: string) => void) | null = null;
-  onSinglePlayer: ((difficulty: 'easy' | 'normal' | 'hard') => void) | null = null;
+  onSinglePlayer: ((scenario: string, difficulty: 'easy' | 'normal' | 'hard') => void) | null = null;
   private aiDifficulty: 'easy' | 'normal' | 'hard' = 'normal';
+  private pendingAIGame = false; // true when scenario selection is for AI game
   onJoin: ((code: string) => void) | null = null;
   onUndo: (() => void) | null = null;
   onConfirm: (() => void) | null = null;
@@ -31,6 +36,9 @@ export class UIManager {
     this.hudEl = document.getElementById('hud')!;
     this.gameOverEl = document.getElementById('gameOver')!;
     this.shipListEl = document.getElementById('shipList')!;
+    this.gameLogEl = document.getElementById('gameLog')!;
+    this.logEntriesEl = document.getElementById('logEntries')!;
+    this.logShowBtn = document.getElementById('logShowBtn')!;
 
     // Wire up buttons
     document.getElementById('createBtn')!.addEventListener('click', () => {
@@ -43,8 +51,9 @@ export class UIManager {
         // First click: show difficulty options
         diffSelect.style.display = 'flex';
       } else {
-        // Second click: start with selected difficulty
-        this.onSinglePlayer?.(this.aiDifficulty);
+        // Second click: go to scenario selection for AI game
+        this.pendingAIGame = true;
+        this.showScenarioSelect();
       }
     });
 
@@ -57,16 +66,22 @@ export class UIManager {
         // Update active state
         document.querySelectorAll('.btn-difficulty').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        // Start game immediately on difficulty selection
-        this.onSinglePlayer?.(this.aiDifficulty);
+        // Go to scenario selection for AI game
+        this.pendingAIGame = true;
+        this.showScenarioSelect();
       });
     });
 
-    // Scenario buttons
+    // Scenario buttons — dispatch to multiplayer or AI based on context
     document.querySelectorAll('.btn-scenario').forEach((btn) => {
       btn.addEventListener('click', () => {
         const scenario = (btn as HTMLElement).dataset.scenario!;
-        this.onSelectScenario?.(scenario);
+        if (this.pendingAIGame) {
+          this.pendingAIGame = false;
+          this.onSinglePlayer?.(scenario, this.aiDifficulty);
+        } else {
+          this.onSelectScenario?.(scenario);
+        }
       });
     });
 
@@ -107,6 +122,18 @@ export class UIManager {
     document.getElementById('skipCombatBtn')!.addEventListener('click', () => this.onSkipCombat?.());
     document.getElementById('rematchBtn')!.addEventListener('click', () => this.onRematch?.());
     document.getElementById('exitBtn')!.addEventListener('click', () => this.onExit?.());
+
+    // Game log toggle
+    document.getElementById('logToggleBtn')!.addEventListener('click', () => {
+      this.logVisible = false;
+      this.gameLogEl.style.display = 'none';
+      this.logShowBtn.style.display = 'block';
+    });
+    this.logShowBtn.addEventListener('click', () => {
+      this.logVisible = true;
+      this.gameLogEl.style.display = 'flex';
+      this.logShowBtn.style.display = 'none';
+    });
   }
 
   hideAll() {
@@ -116,13 +143,16 @@ export class UIManager {
     this.hudEl.style.display = 'none';
     this.gameOverEl.style.display = 'none';
     this.shipListEl.style.display = 'none';
+    this.gameLogEl.style.display = 'none';
+    this.logShowBtn.style.display = 'none';
   }
 
   showMenu() {
     this.hideAll();
     this.menuEl.style.display = 'flex';
-    // Reset difficulty selector
+    // Reset state
     document.getElementById('difficultySelect')!.style.display = 'none';
+    this.pendingAIGame = false;
   }
 
   showScenarioSelect() {
@@ -148,6 +178,11 @@ export class UIManager {
     this.hideAll();
     this.hudEl.style.display = 'block';
     this.shipListEl.style.display = 'flex';
+    if (this.logVisible) {
+      this.gameLogEl.style.display = 'flex';
+    } else {
+      this.logShowBtn.style.display = 'block';
+    }
   }
 
   updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number, hasBurns = false, cargoFree = 0, cargoMax = 0) {
@@ -291,5 +326,94 @@ export class UIManager {
     const statusMsg = document.getElementById('statusMsg')!;
     statusMsg.textContent = `Reconnecting... (attempt ${attempt})`;
     statusMsg.style.display = 'block';
+  }
+
+  // --- Game log ---
+
+  clearLog() {
+    this.logEntriesEl.innerHTML = '';
+  }
+
+  logTurn(turn: number, player: string) {
+    const el = document.createElement('div');
+    el.className = 'log-entry log-turn';
+    el.textContent = `— Turn ${turn}: ${player} —`;
+    this.logEntriesEl.appendChild(el);
+    this.scrollLogToBottom();
+  }
+
+  logText(text: string, cssClass = '') {
+    const el = document.createElement('div');
+    el.className = `log-entry ${cssClass}`;
+    el.textContent = text;
+    this.logEntriesEl.appendChild(el);
+    this.scrollLogToBottom();
+  }
+
+  logMovementEvents(events: MovementEvent[], ships: Ship[]) {
+    for (const ev of events) {
+      const ship = ships.find(s => s.id === ev.shipId);
+      const name = ship ? (SHIP_STATS[ship.type]?.name ?? ship.type) : ev.shipId;
+      let text: string;
+      let cls: string;
+
+      switch (ev.type) {
+        case 'crash':
+          text = `${name} crashed!`;
+          cls = 'log-eliminated';
+          break;
+        case 'asteroidHit':
+          text = `${name}: asteroid [${ev.dieRoll}] ${ev.damageType === 'eliminated' ? '— ELIMINATED' : ev.damageType === 'disabled' ? `— D${ev.disabledTurns}` : '— miss'}`;
+          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
+          break;
+        case 'mineDetonation':
+          text = `Mine hit ${name} [${ev.dieRoll}] ${ev.damageType === 'eliminated' ? '— ELIMINATED' : ev.damageType === 'disabled' ? `— D${ev.disabledTurns}` : '— no effect'}`;
+          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
+          break;
+        case 'torpedoHit':
+          text = `Torpedo hit ${name} [${ev.dieRoll}] ${ev.damageType === 'eliminated' ? '— ELIMINATED' : ev.damageType === 'disabled' ? `— D${ev.disabledTurns}` : '— no effect'}`;
+          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
+          break;
+        case 'nukeDetonation':
+          text = `NUKE hit ${name} [${ev.dieRoll}] ${ev.damageType === 'eliminated' ? '— ELIMINATED' : ev.damageType === 'disabled' ? `— D${ev.disabledTurns}` : '— no effect'}`;
+          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
+          break;
+        default:
+          continue;
+      }
+      this.logText(text, cls);
+    }
+  }
+
+  logCombatResults(results: CombatResult[], ships: Ship[]) {
+    for (const r of results) {
+      const target = ships.find(s => s.id === r.targetId);
+      const targetName = target ? (SHIP_STATS[target.type]?.name ?? target.type) : r.targetId;
+      const result = r.damageType === 'eliminated' ? 'ELIMINATED'
+        : r.damageType === 'disabled' ? `D${r.disabledTurns}`
+        : 'miss';
+      const cls = r.damageType === 'eliminated' ? 'log-eliminated'
+        : r.damageType === 'disabled' ? 'log-damage' : '';
+      this.logText(`${r.odds} [${r.dieRoll}→${r.modifiedRoll}] ${targetName}: ${result}`, cls);
+
+      if (r.counterattack) {
+        const cTarget = ships.find(s => s.id === r.counterattack!.targetId);
+        const cName = cTarget ? (SHIP_STATS[cTarget.type]?.name ?? cTarget.type) : r.counterattack.targetId;
+        const cResult = r.counterattack.damageType === 'eliminated' ? 'ELIMINATED'
+          : r.counterattack.damageType === 'disabled' ? `D${r.counterattack.disabledTurns}`
+          : 'miss';
+        const cCls = r.counterattack.damageType === 'eliminated' ? 'log-eliminated'
+          : r.counterattack.damageType === 'disabled' ? 'log-damage' : '';
+        this.logText(`  Counter: ${cName} ${cResult}`, cCls);
+      }
+    }
+  }
+
+  logLanding(shipName: string, bodyName: string) {
+    this.logText(`${shipName} landed at ${bodyName}`, 'log-landed');
+  }
+
+  private scrollLogToBottom() {
+    this.logEntriesEl.scrollTop = this.logEntriesEl.scrollHeight;
   }
 }
