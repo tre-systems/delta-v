@@ -297,8 +297,14 @@ export function processOrdnance(
   }
 
   let nextOrdId = state.ordnance.length;
+  const launchedShips = new Set<string>();
 
   for (const launch of launches) {
+    // Each ship may launch only 1 item per turn
+    if (launchedShips.has(launch.shipId)) {
+      return { error: 'Each ship may launch only one ordnance per turn' };
+    }
+
     const ship = state.ships.find(s => s.id === launch.shipId);
     if (!ship || ship.owner !== playerId || ship.destroyed || ship.landed) {
       return { error: 'Invalid ship for ordnance launch' };
@@ -351,6 +357,7 @@ export function processOrdnance(
     });
 
     ship.cargoUsed += mass;
+    launchedShips.add(launch.shipId);
   }
 
   // Advance to combat phase
@@ -465,45 +472,49 @@ function checkOrdnanceDetonation(
     }
   }
 
-  // Check final position for ships
-  for (const ship of state.ships) {
-    if (ship.destroyed) continue;
-    // Don't detonate on owner's ships
-    if (ship.owner === ord.owner) continue;
+  // Check all hexes along path for enemy ships (detonation on contact)
+  for (const pathHex of path) {
+    for (const ship of state.ships) {
+      if (ship.destroyed) continue;
+      // Don't detonate on owner's ships
+      if (ship.owner === ord.owner) continue;
 
-    if (hexEqual(ship.position, ord.position)) {
-      const dieRoll = rollD6(rng);
+      if (hexEqual(ship.position, pathHex)) {
+        const dieRoll = rollD6(rng);
 
-      let result;
-      let eventType: MovementEvent['type'];
-      if (ord.type === 'nuke') {
-        // Nukes use Gun Combat table at 2:1 odds
-        result = lookupGunCombat('2:1', dieRoll);
-        eventType = 'nukeDetonation';
-      } else {
-        result = lookupOtherDamage(dieRoll);
-        eventType = ord.type === 'mine' ? 'mineDetonation' : 'torpedoHit';
+        let result;
+        let eventType: MovementEvent['type'];
+        if (ord.type === 'nuke') {
+          // Nukes use Gun Combat table at 2:1 odds
+          result = lookupGunCombat('2:1', dieRoll);
+          eventType = 'nukeDetonation';
+        } else {
+          result = lookupOtherDamage(dieRoll);
+          eventType = ord.type === 'mine' ? 'mineDetonation' : 'torpedoHit';
+        }
+
+        events.push({
+          type: eventType,
+          shipId: ship.id,
+          hex: pathHex,
+          dieRoll,
+          damageType: result.type,
+          disabledTurns: result.disabledTurns,
+          ordnanceId: ord.id,
+        });
+
+        applyDamage(ship, result);
+
+        // Torpedoes hit one target only; mines and nukes affect all in hex
+        if (ord.type === 'torpedo') return true;
       }
-
-      events.push({
-        type: eventType,
-        shipId: ship.id,
-        hex: ord.position,
-        dieRoll,
-        damageType: result.type,
-        disabledTurns: result.disabledTurns,
-        ordnanceId: ord.id,
-      });
-
-      applyDamage(ship, result);
-
-      // Torpedoes hit one target only; mines and nukes affect all ships in hex
-      if (ord.type === 'torpedo') return true;
     }
+
+    // For mines/nukes: if we hit at least one enemy ship on this hex, detonate
+    if (events.some(e => e.ordnanceId === ord.id)) return true;
   }
 
-  // For mines/nukes: if we hit at least one enemy ship, detonate
-  return events.some(e => e.ordnanceId === ord.id);
+  return false;
 }
 
 /**
