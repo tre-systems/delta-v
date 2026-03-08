@@ -120,6 +120,18 @@ body {
   background: rgba(255, 82, 82, 0.15);
 }
 
+.btn-ordnance {
+  border-color: #ffb74d;
+  color: #ffb74d;
+  padding: 0.6rem 1.5rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+}
+
+.btn-ordnance:hover {
+  background: rgba(255, 183, 77, 0.15);
+}
+
 .divider {
   color: #555;
   margin: 1.2rem 0;

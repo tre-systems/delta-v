@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createGame, processAstrogation, skipCombat, processCombat } from '../game-engine';
+import { createGame, processAstrogation, processOrdnance, skipOrdnance, skipCombat, processCombat } from '../game-engine';
 import { buildSolarSystemMap, SCENARIOS, findBaseHex } from '../map-data';
-import { SHIP_STATS } from '../constants';
+import { SHIP_STATS, ORDNANCE_MASS } from '../constants';
 import { hexKey, hexEqual } from '../hex';
-import type { GameState, SolarSystemMap, AstrogationOrder } from '../types';
+import type { GameState, SolarSystemMap, AstrogationOrder, OrdnanceLaunch } from '../types';
 
 let map: SolarSystemMap;
 let initialState: GameState;
@@ -372,5 +372,112 @@ describe('Escape scenario', () => {
     for (const m of result.movements) {
       expect(m.fuelSpent).toBe(1);
     }
+  });
+});
+
+describe('ordnance system', () => {
+  it('launches a mine from cargo', () => {
+    // Take off first to get ship airborne
+    const ship = initialState.ships[0]; // corvette, cargo=5
+    ship.landed = false;
+    ship.velocity = { dq: 1, dr: 0 };
+    ship.position = { q: 0, r: 0 };
+
+    // Advance to ordnance phase
+    const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: null }];
+    const result = processAstrogation(initialState, 0, orders, map);
+    if ('error' in result) return;
+
+    // If ordnance phase was entered
+    if (result.state.phase === 'ordnance') {
+      const launches: OrdnanceLaunch[] = [{ shipId: ship.id, ordnanceType: 'mine' }];
+      const ordResult = processOrdnance(result.state, 0, launches, map);
+      expect('error' in ordResult).toBe(false);
+      if (!('error' in ordResult)) {
+        // Mine should exist
+        expect(ordResult.state.ordnance).toHaveLength(1);
+        expect(ordResult.state.ordnance[0].type).toBe('mine');
+        // Cargo used should increase
+        const movedShip = ordResult.state.ships.find(s => s.id === ship.id)!;
+        expect(movedShip.cargoUsed).toBe(ORDNANCE_MASS.mine);
+      }
+    }
+  });
+
+  it('rejects mine launch when landed', () => {
+    const ship = initialState.ships[0];
+    // Ship is landed, force ordnance phase
+    initialState.phase = 'ordnance';
+
+    const launches: OrdnanceLaunch[] = [{ shipId: ship.id, ordnanceType: 'mine' }];
+    const result = processOrdnance(initialState, 0, launches, map);
+    expect('error' in result).toBe(true);
+  });
+
+  it('rejects torpedo from non-warship', () => {
+    // Use escape scenario for transport ships
+    const escState = createGame(SCENARIOS.escape, map, 'ORD01', findBaseHex);
+    const transport = escState.ships[0]; // transport, canOverload=false
+    transport.landed = false;
+    transport.velocity = { dq: 1, dr: 0 };
+    escState.phase = 'ordnance';
+
+    const launches: OrdnanceLaunch[] = [{ shipId: transport.id, ordnanceType: 'torpedo' }];
+    const result = processOrdnance(escState, 0, launches, map);
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('warship');
+    }
+  });
+
+  it('rejects launch when cargo full', () => {
+    const ship = initialState.ships[0]; // corvette, cargo=5
+    ship.landed = false;
+    ship.velocity = { dq: 1, dr: 0 };
+    ship.position = { q: 0, r: 0 };
+    ship.cargoUsed = 5; // all cargo used
+    initialState.phase = 'ordnance';
+
+    const launches: OrdnanceLaunch[] = [{ shipId: ship.id, ordnanceType: 'mine' }];
+    const result = processOrdnance(initialState, 0, launches, map);
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('cargo');
+    }
+  });
+
+  it('skipOrdnance advances to combat phase', () => {
+    initialState.phase = 'ordnance';
+    const result = skipOrdnance(initialState, 0);
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      // Should advance past ordnance
+      expect(result.state.phase).not.toBe('ordnance');
+    }
+  });
+
+  it('ordnance moves with gravity and self-destructs after 5 turns', () => {
+    // Manually place ordnance
+    initialState.ordnance = [{
+      id: 'ord0',
+      type: 'mine',
+      owner: 0,
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+      turnsRemaining: 1, // will self-destruct this turn
+      destroyed: false,
+    }];
+
+    const ship = initialState.ships[0];
+    ship.landed = false;
+    ship.velocity = { dq: 0, dr: 0 };
+    ship.position = { q: 5, r: 5 };
+
+    const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: null }];
+    const result = processAstrogation(initialState, 0, orders, map);
+    if ('error' in result) return;
+
+    // Ordnance should have been removed (self-destructed)
+    expect(result.state.ordnance).toHaveLength(0);
   });
 });

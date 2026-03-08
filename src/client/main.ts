@@ -1,7 +1,7 @@
-import type { GameState, S2C, AstrogationOrder, CombatAttack } from '../shared/types';
+import type { GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack } from '../shared/types';
 import { canAttack } from '../shared/combat';
 import { getSolarSystemMap } from '../shared/map-data';
-import { SHIP_STATS } from '../shared/constants';
+import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
 import { Renderer } from './renderer';
 import { InputHandler } from './input';
 import { UIManager } from './ui';
@@ -11,6 +11,7 @@ type ClientState =
   | 'connecting'
   | 'waitingForOpponent'
   | 'playing_astrogation'
+  | 'playing_ordnance'
   | 'playing_combat'
   | 'playing_movementAnim'
   | 'playing_opponentTurn'
@@ -43,6 +44,8 @@ class GameClient {
     this.ui.onSelectScenario = (scenario) => this.createGame(scenario);
     this.ui.onJoin = (code) => this.joinGame(code);
     this.ui.onConfirm = () => this.confirmOrders();
+    this.ui.onLaunchOrdnance = (ordType) => this.sendOrdnanceLaunch(ordType);
+    this.ui.onSkipOrdnance = () => this.sendSkipOrdnance();
     this.ui.onAttack = () => this.sendAttack();
     this.ui.onSkipCombat = () => this.sendSkipCombat();
     this.ui.onRematch = () => this.sendRematch();
@@ -109,6 +112,22 @@ class GameClient {
           }
         }
         this.renderer.frameOnShips();
+        break;
+
+      case 'playing_ordnance':
+        this.ui.showHUD();
+        this.updateHUD();
+        this.renderer.planningState.selectedShipId = null;
+        // Auto-select first ship that can launch ordnance
+        if (this.gameState) {
+          const launchable = this.gameState.ships.find(s =>
+            s.owner === this.playerId && !s.destroyed && !s.landed &&
+            s.damage.disabledTurns === 0 && this.canLaunchOrdnance(s),
+          );
+          if (launchable) {
+            this.renderer.planningState.selectedShipId = launchable.id;
+          }
+        }
         break;
 
       case 'playing_combat':
@@ -296,6 +315,8 @@ class GameClient {
 
     if (this.gameState.phase === 'combat' && isMyTurn) {
       this.setState('playing_combat');
+    } else if (this.gameState.phase === 'ordnance' && isMyTurn) {
+      this.setState('playing_ordnance');
     } else if (this.gameState.phase === 'astrogation' && isMyTurn) {
       this.setState('playing_astrogation');
     } else {
@@ -331,6 +352,32 @@ class GameClient {
       const hasTarget = this.renderer.planningState.combatTargetId !== null;
       this.ui.showAttackButton(hasTarget);
     }, 100);
+  }
+
+  private sendOrdnanceLaunch(ordType: 'mine' | 'torpedo') {
+    if (!this.gameState || this.state !== 'playing_ordnance') return;
+    const selectedId = this.renderer.planningState.selectedShipId;
+    if (!selectedId) return;
+
+    const ship = this.gameState.ships.find(s => s.id === selectedId);
+    if (!ship) return;
+
+    const launch: OrdnanceLaunch = {
+      shipId: selectedId,
+      ordnanceType: ordType,
+    };
+
+    // For torpedoes, use the selected torpedo direction (if any)
+    if (ordType === 'torpedo') {
+      launch.torpedoAccel = this.renderer.planningState.torpedoAccel ?? null;
+    }
+
+    this.send({ type: 'ordnance', launches: [launch] });
+  }
+
+  private sendSkipOrdnance() {
+    if (!this.gameState || this.state !== 'playing_ordnance') return;
+    this.send({ type: 'skipOrdnance' });
   }
 
   private sendSkipCombat() {
@@ -382,6 +429,12 @@ class GameClient {
       selectedId,
       this.renderer.planningState.burns,
     );
+  }
+
+  private canLaunchOrdnance(ship: { type: string; cargoUsed: number }): boolean {
+    const stats = SHIP_STATS[ship.type];
+    if (!stats) return false;
+    return (stats.cargo - ship.cargoUsed) >= ORDNANCE_MASS.mine;
   }
 
   // Deserialize state from server (plain object -> proper types)
