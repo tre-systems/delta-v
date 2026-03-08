@@ -1,4 +1,5 @@
-import type { GameState, S2C, AstrogationOrder, ShipMovement } from '../shared/types';
+import type { GameState, S2C, AstrogationOrder, CombatAttack } from '../shared/types';
+import { canAttack } from '../shared/combat';
 import { getSolarSystemMap } from '../shared/map-data';
 import { SHIP_STATS } from '../shared/constants';
 import { Renderer } from './renderer';
@@ -41,6 +42,7 @@ class GameClient {
     this.ui.onCreate = () => this.createGame();
     this.ui.onJoin = (code) => this.joinGame(code);
     this.ui.onConfirm = () => this.confirmOrders();
+    this.ui.onAttack = () => this.sendAttack();
     this.ui.onSkipCombat = () => this.sendSkipCombat();
     this.ui.onRematch = () => this.sendRematch();
     this.ui.onExit = () => this.exitToMenu();
@@ -95,6 +97,9 @@ class GameClient {
       case 'playing_combat':
         this.ui.showHUD();
         this.updateHUD();
+        this.renderer.planningState.combatTargetId = null;
+        this.ui.showAttackButton(false);
+        this.startCombatTargetWatch();
         break;
 
       case 'playing_movementAnim':
@@ -191,7 +196,8 @@ class GameClient {
         this.gameState = this.deserializeState(msg.state);
         this.renderer.setGameState(this.gameState);
         this.input.setGameState(this.gameState);
-        // After combat resolves, transition based on new state
+        this.renderer.showCombatResults(msg.results);
+        this.renderer.planningState.combatTargetId = null;
         this.transitionToPhase();
         break;
 
@@ -268,6 +274,36 @@ class GameClient {
     } else {
       this.setState('playing_opponentTurn');
     }
+  }
+
+  private sendAttack() {
+    if (!this.gameState || this.state !== 'playing_combat') return;
+    const targetId = this.renderer.planningState.combatTargetId;
+    if (!targetId) return;
+
+    const attackerIds = this.gameState.ships
+      .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s))
+      .map(s => s.id);
+
+    if (attackerIds.length === 0) return;
+
+    const attacks: CombatAttack[] = [{ attackerIds, targetId }];
+    this.send({ type: 'combat', attacks });
+  }
+
+  private combatWatchInterval: number | null = null;
+
+  private startCombatTargetWatch() {
+    if (this.combatWatchInterval) clearInterval(this.combatWatchInterval);
+    this.combatWatchInterval = window.setInterval(() => {
+      if (this.state !== 'playing_combat') {
+        if (this.combatWatchInterval) clearInterval(this.combatWatchInterval);
+        this.combatWatchInterval = null;
+        return;
+      }
+      const hasTarget = this.renderer.planningState.combatTargetId !== null;
+      this.ui.showAttackButton(hasTarget);
+    }, 100);
   }
 
   private sendSkipCombat() {
