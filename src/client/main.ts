@@ -261,6 +261,7 @@ class GameClient {
     this.ui.logText(`vs AI (${this.aiDifficulty}) — ${scenarioDef.name}`);
     this.renderer.setGameState(this.gameState);
     this.input.setGameState(this.gameState);
+    this.logScenarioBriefing();
 
     if (this.gameState.activePlayer === this.playerId) {
       this.setState('playing_astrogation');
@@ -334,7 +335,7 @@ class GameClient {
         this.renderer.setGameState(this.gameState);
         this.input.setGameState(this.gameState);
         this.ui.clearLog();
-        this.ui.logText(`Game started: ${this.gameState.scenario}`);
+        this.logScenarioBriefing();
         if (this.gameState.activePlayer === this.playerId) {
           this.setState('playing_astrogation');
         } else {
@@ -879,6 +880,20 @@ class GameClient {
     );
   }
 
+  private logScenarioBriefing() {
+    if (!this.gameState) return;
+    const player = this.gameState.players[this.playerId];
+    const myShips = this.gameState.ships.filter(s => s.owner === this.playerId);
+    const shipNames = myShips.map(s => SHIP_STATS[s.type]?.name ?? s.type).join(', ');
+    this.ui.logText(`Your fleet: ${shipNames}`);
+    if (player.escapeWins) {
+      this.ui.logText('Objective: Escape the solar system!', 'log-landed');
+    } else if (player.targetBody) {
+      this.ui.logText(`Objective: Land on ${player.targetBody}`, 'log-landed');
+    }
+    this.ui.logText('Press ? for controls help');
+  }
+
   private toggleHelp() {
     const helpOverlay = document.getElementById('helpOverlay')!;
     helpOverlay.style.display = helpOverlay.style.display === 'none' ? 'flex' : 'none';
@@ -892,6 +907,11 @@ class GameClient {
       if (!ship) continue;
       const name = SHIP_STATS[ship.type]?.name ?? ship.type;
       this.ui.logLanding(name, m.landedAt);
+      // Check if it's at a friendly base (resupply happened)
+      const player = this.gameState.players[ship.owner];
+      if (player && player.homeBody === m.landedAt) {
+        this.ui.logText(`  ${name} resupplied: fuel + cargo restored`);
+      }
     }
   }
 

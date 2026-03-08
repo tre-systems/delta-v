@@ -408,6 +408,7 @@ export class Renderer {
 
     this.renderStars(ctx);
     if (this.map) {
+      if (this.gameState) this.renderMapBorder(ctx, this.map, this.gameState, now);
       this.renderAsteroids(ctx, this.map);
       this.renderGravityIndicators(ctx, this.map);
       this.renderBodies(ctx, this.map);
@@ -567,6 +568,32 @@ export class Renderer {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
+    }
+  }
+
+  private renderMapBorder(ctx: CanvasRenderingContext2D, map: SolarSystemMap, state: GameState, now: number) {
+    // Only show for escape scenarios (or always as subtle boundary)
+    const player = state.players[this.playerId];
+    const isEscape = player?.escapeWins;
+
+    const bounds = map.bounds;
+    const margin = 3; // match hasEscaped
+    const tl = hexToPixel({ q: bounds.minQ - margin, r: bounds.minR - margin }, HEX_SIZE);
+    const br = hexToPixel({ q: bounds.maxQ + margin, r: bounds.maxR + margin }, HEX_SIZE);
+
+    if (isEscape) {
+      // Prominent pulsing border for escape scenarios
+      const pulse = 0.15 + 0.1 * Math.sin(now / 1000);
+      ctx.strokeStyle = `rgba(100, 255, 100, ${pulse})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 6]);
+      ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+      ctx.setLineDash([]);
+    } else {
+      // Subtle border for awareness
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
     }
   }
 
