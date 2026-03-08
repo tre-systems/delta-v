@@ -162,7 +162,7 @@ export class InputHandler {
     // Check if clicking a burn or overload direction arrow
     if (this.planningState.selectedShipId) {
       const ship = this.gameState.ships.find(s => s.id === this.planningState.selectedShipId);
-      if (ship && ship.fuel > 0) {
+      if (ship && ship.fuel > 0 && ship.damage.disabledTurns === 0) {
         const currentBurn = this.planningState.burns.get(ship.id) ?? null;
         const predDest = ship.landed
           ? computeCourse(ship, null, this.map).path[0] // launch hex
@@ -252,9 +252,10 @@ export class InputHandler {
       }
     }
 
-    // Check if clicking on own ship to select it
+    // Check if clicking on own ship to select it (skip disabled/landed ships for ordnance)
     for (const ship of this.gameState.ships) {
       if (ship.owner !== this.playerId || ship.destroyed) continue;
+      if (ship.damage.disabledTurns > 0 || ship.landed) continue;
       if (hexEqual(clickHex, ship.position)) {
         this.planningState.selectedShipId = ship.id;
         this.planningState.torpedoAccel = null;
