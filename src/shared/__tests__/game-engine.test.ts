@@ -648,8 +648,8 @@ describe('ramming', () => {
     const s1 = result.state.ships[1];
     if (hexEqual(s0.position, s1.position)) {
       // Should have ram events
-      const crashEvents = result.events.filter(e => e.type === 'crash');
-      expect(crashEvents.length).toBeGreaterThan(0);
+      const ramEvents = result.events.filter(e => e.type === 'ramming');
+      expect(ramEvents.length).toBeGreaterThan(0);
     }
   });
 });
