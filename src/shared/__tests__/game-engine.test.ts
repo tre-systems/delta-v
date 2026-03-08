@@ -711,3 +711,26 @@ describe('ordnance validation', () => {
     }
   });
 });
+
+describe('mutual destruction', () => {
+  it('awards win to defender when all ships destroyed simultaneously', () => {
+    // Simulate mutual destruction: destroy all ships for both players
+    for (const ship of initialState.ships) {
+      ship.destroyed = true;
+    }
+    initialState.activePlayer = 0;
+    initialState.phase = 'astrogation';
+
+    // Run a no-op astrogation to trigger checkGameEnd
+    const orders: AstrogationOrder[] = initialState.ships
+      .filter(s => s.owner === 0)
+      .map(s => ({ shipId: s.id, burn: null }));
+    const result = processAstrogation(initialState, 0, orders, map);
+    if (!('error' in result)) {
+      expect(result.state.phase).toBe('gameOver');
+      // Defender (player 1) should win since active player (0) was the attacker
+      expect(result.state.winner).toBe(1);
+      expect(result.state.winReason).toContain('Mutual destruction');
+    }
+  });
+});
