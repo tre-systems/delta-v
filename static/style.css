@@ -34,12 +34,15 @@ body {
   justify-content: center;
   z-index: 10;
   background: rgba(10, 10, 26, 0.85);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .menu-content {
   text-align: center;
   max-width: 360px;
   padding: 2rem;
+  margin: auto; /* Center when screen scrolls */
 }
 
 .title {
