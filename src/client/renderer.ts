@@ -132,6 +132,7 @@ export interface AnimationState {
 export interface PlanningState {
   selectedShipId: string | null;
   burns: Map<string, number | null>; // shipId -> burn direction (or null for no burn)
+  overloads: Map<string, number | null>; // shipId -> overload direction (warships only, 2 fuel total)
   combatTargetId: string | null; // enemy ship targeted for combat
 }
 
@@ -148,7 +149,7 @@ export class Renderer {
   private gameState: GameState | null = null;
   private playerId = -1;
   private animState: AnimationState | null = null;
-  planningState: PlanningState = { selectedShipId: null, burns: new Map(), combatTargetId: null };
+  planningState: PlanningState = { selectedShipId: null, burns: new Map(), overloads: new Map(), combatTargetId: null };
   private combatResults: { results: CombatResult[]; showUntil: number } | null = null;
   private lastTime = 0;
 
@@ -431,7 +432,8 @@ export class Renderer {
         const isSelected = ship.id === this.planningState.selectedShipId;
 
         if (burn !== null || isSelected) {
-          const course = computeCourse(ship, burn, map);
+          const overload = this.planningState.overloads.get(ship.id) ?? null;
+          const course = computeCourse(ship, burn, map, { overload });
           const from = hexToPixel(ship.landed ? course.path[0] : ship.position, HEX_SIZE);
           const to = hexToPixel(course.destination, HEX_SIZE);
 
@@ -469,6 +471,27 @@ export class Renderer {
               ctx.arc(tp.x, tp.y, 8, 0, Math.PI * 2);
               ctx.fill();
               ctx.stroke();
+            }
+
+            // Overload direction arrows (shown after burn is set, for warships with enough fuel)
+            if (burn !== null) {
+              const stats = SHIP_STATS[ship.type];
+              if (stats?.canOverload && ship.fuel >= 2) {
+                const burnDest = hexAdd(predDest, HEX_DIRECTIONS[burn]);
+                for (let d = 0; d < 6; d++) {
+                  const olHex = hexAdd(burnDest, HEX_DIRECTIONS[d]);
+                  const olp = hexToPixel(olHex, HEX_SIZE);
+                  const isOlActive = overload === d;
+
+                  ctx.fillStyle = isOlActive ? 'rgba(255, 183, 77, 0.6)' : 'rgba(255, 183, 77, 0.1)';
+                  ctx.strokeStyle = isOlActive ? '#ffb74d' : 'rgba(255, 183, 77, 0.25)';
+                  ctx.lineWidth = 1.5;
+                  ctx.beginPath();
+                  ctx.arc(olp.x, olp.y, 6, 0, Math.PI * 2);
+                  ctx.fill();
+                  ctx.stroke();
+                }
+              }
             }
           }
 
