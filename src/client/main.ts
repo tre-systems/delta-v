@@ -8,7 +8,7 @@ import { aiAstrogation, aiOrdnance, aiCombat, type AIDifficulty } from '../share
 import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
 import { UIManager } from './ui';
-import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat } from './audio';
+import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, isMuted, setMuted } from './audio';
 
 type ClientState =
   | 'menu'
@@ -140,6 +140,14 @@ class GameClient {
     // Help overlay
     document.getElementById('helpCloseBtn')!.addEventListener('click', () => this.toggleHelp());
     document.getElementById('helpBtn')!.addEventListener('click', () => this.toggleHelp());
+
+    // Sound toggle
+    const soundBtn = document.getElementById('soundBtn')!;
+    this.updateSoundButton();
+    soundBtn.addEventListener('click', () => {
+      setMuted(!isMuted());
+      this.updateSoundButton();
+    });
 
     // Ship hover tooltip
     this.canvas.addEventListener('mousemove', (e) => this.updateTooltip(e.clientX, e.clientY));
@@ -953,6 +961,13 @@ class GameClient {
   private toggleHelp() {
     const helpOverlay = document.getElementById('helpOverlay')!;
     helpOverlay.style.display = helpOverlay.style.display === 'none' ? 'flex' : 'none';
+  }
+
+  private updateSoundButton() {
+    const btn = document.getElementById('soundBtn')!;
+    const m = isMuted();
+    btn.textContent = m ? '🔇' : '🔊';
+    btn.classList.toggle('muted', m);
   }
 
   private logLandings(movements: ShipMovement[]) {

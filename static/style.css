@@ -597,6 +597,36 @@ body {
   color: #ccc;
 }
 
+.sound-btn {
+  position: fixed;
+  bottom: 6.5rem;
+  right: 0.5rem;
+  z-index: 5;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(10, 10, 26, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #888;
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sound-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ccc;
+}
+
+.sound-btn.muted {
+  color: #ff5252;
+  border-color: rgba(255, 82, 82, 0.3);
+}
+
 /* Game Over */
 #gameOver h2 {
   font-size: 2rem;
