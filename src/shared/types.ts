@@ -11,6 +11,7 @@ export interface GameState {
   phase: Phase;
   activePlayer: number; // 0 or 1
   ships: Ship[];
+  ordnance: Ordnance[];
   players: [PlayerState, PlayerState];
   winner: number | null;
   winReason: string | null;
@@ -23,11 +24,22 @@ export interface Ship {
   position: HexCoord;
   velocity: HexVec;
   fuel: number;
+  cargoUsed: number; // mass of ordnance consumed from cargo capacity
   landed: boolean;
   destroyed: boolean;
   damage: {
     disabledTurns: number; // 0 = operational, cumulative >= 6 = eliminated
   };
+}
+
+export interface Ordnance {
+  id: string;
+  type: 'mine' | 'torpedo';
+  owner: number;
+  position: HexCoord;
+  velocity: HexVec;
+  turnsRemaining: number; // self-destruct countdown (5 turns)
+  destroyed: boolean;
 }
 
 export interface PlayerState {
@@ -63,6 +75,20 @@ export interface GravityEffect {
   bodyName: string;
   strength: 'full' | 'weak';
   ignored: boolean; // true if player chose to ignore weak gravity
+}
+
+export interface OrdnanceLaunch {
+  shipId: string;
+  ordnanceType: 'mine' | 'torpedo';
+  torpedoAccel?: number | null; // HEX_DIRECTIONS index for torpedo terminal guidance
+}
+
+export interface OrdnanceMovement {
+  ordnanceId: string;
+  from: HexCoord;
+  to: HexCoord;
+  path: HexCoord[];
+  detonated: boolean;
 }
 
 export interface ShipMovement {
@@ -135,12 +161,13 @@ export interface CombatResult {
 // --- Movement events (asteroid hazards, etc.) ---
 
 export interface MovementEvent {
-  type: 'asteroidHit' | 'crash';
+  type: 'asteroidHit' | 'crash' | 'mineDetonation' | 'torpedoHit';
   shipId: string;
   hex: HexCoord;
   dieRoll: number;
   damageType: 'none' | 'disabled' | 'eliminated';
   disabledTurns: number;
+  ordnanceId?: string;
 }
 
 // --- Network messages ---
@@ -149,6 +176,8 @@ export type C2S =
   | { type: 'join'; code: string }
   | { type: 'ready' }
   | { type: 'astrogation'; orders: AstrogationOrder[] }
+  | { type: 'ordnance'; launches: OrdnanceLaunch[] }
+  | { type: 'skipOrdnance' }
   | { type: 'combat'; attacks: CombatAttack[] }
   | { type: 'skipCombat' }
   | { type: 'rematch' }
@@ -158,7 +187,7 @@ export type S2C =
   | { type: 'welcome'; playerId: number; code: string }
   | { type: 'matchFound' }
   | { type: 'gameStart'; state: GameState }
-  | { type: 'movementResult'; movements: ShipMovement[]; events: MovementEvent[]; state: GameState }
+  | { type: 'movementResult'; movements: ShipMovement[]; ordnanceMovements: OrdnanceMovement[]; events: MovementEvent[]; state: GameState }
   | { type: 'combatResult'; results: CombatResult[]; state: GameState }
   | { type: 'stateUpdate'; state: GameState }
   | { type: 'gameOver'; winner: number; reason: string }
