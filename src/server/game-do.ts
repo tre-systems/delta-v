@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { GameState, C2S, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack } from '../shared/types';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
-import { INACTIVITY_TIMEOUT_MS } from '../shared/constants';
+import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../shared/constants';
 import { createGame, processAstrogation, processOrdnance, skipOrdnance, processCombat, skipCombat } from '../shared/game-engine';
 
 export interface Env {
@@ -188,11 +188,69 @@ export class GameDO extends DurableObject {
       return;
     }
 
+    // Check if turn timeout is pending
+    const turnTimeoutAt = await this.ctx.storage.get<number>('turnTimeoutAt');
+    if (turnTimeoutAt !== undefined && Date.now() >= turnTimeoutAt - 500) {
+      await this.handleTurnTimeout();
+      return;
+    }
+
     // Inactivity timeout — close everything
     for (const ws of this.ctx.getWebSockets()) {
       try { ws.close(1000, 'Inactivity timeout'); } catch {}
     }
     await this.ctx.storage.deleteAll();
+  }
+
+  private async handleTurnTimeout(): Promise<void> {
+    await this.ctx.storage.delete('turnTimeoutAt');
+    const gameState = await this.getGameState();
+    if (!gameState || gameState.phase === 'gameOver') return;
+
+    const map = getSolarSystemMap();
+    const playerId = gameState.activePlayer;
+
+    if (gameState.phase === 'astrogation') {
+      // Auto-submit empty orders (no burns)
+      const orders: AstrogationOrder[] = gameState.ships
+        .filter(s => s.owner === playerId)
+        .map(s => ({ shipId: s.id, burn: null }));
+      const result = processAstrogation(gameState, playerId, orders, map);
+      if (!('error' in result)) {
+        this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
+        this.broadcastEndOrUpdate(result.state);
+        await this.saveGameState(result.state);
+        await this.startTurnTimer(result.state);
+      }
+    } else if (gameState.phase === 'ordnance') {
+      const result = skipOrdnance(gameState, playerId);
+      if (!('error' in result)) {
+        this.broadcast({ type: 'stateUpdate', state: result.state });
+        this.broadcastEndOrUpdate(result.state);
+        await this.saveGameState(result.state);
+        await this.startTurnTimer(result.state);
+      }
+    } else if (gameState.phase === 'combat') {
+      const result = skipCombat(gameState, playerId, map);
+      if (!('error' in result)) {
+        if (result.baseDefenseResults && result.baseDefenseResults.length > 0) {
+          this.broadcast({ type: 'combatResult', results: result.baseDefenseResults, state: result.state });
+        }
+        this.broadcastEndOrUpdate(result.state);
+        await this.saveGameState(result.state);
+        await this.startTurnTimer(result.state);
+      }
+    }
+  }
+
+  private async startTurnTimer(state: GameState): Promise<void> {
+    if (state.phase === 'gameOver') {
+      await this.ctx.storage.delete('turnTimeoutAt');
+      return;
+    }
+    const timeoutAt = Date.now() + TURN_TIMEOUT_MS;
+    await this.ctx.storage.put('turnTimeoutAt', timeoutAt);
+    await this.ctx.storage.setAlarm(timeoutAt);
   }
 
   // --- Game logic (delegates to engine) ---
@@ -207,6 +265,7 @@ export class GameDO extends DurableObject {
 
     await this.saveGameState(gameState);
     this.broadcast({ type: 'gameStart', state: gameState });
+    await this.startTurnTimer(gameState);
   }
 
   private async handleAstrogation(playerId: number, ws: WebSocket, orders: AstrogationOrder[]) {
@@ -224,6 +283,7 @@ export class GameDO extends DurableObject {
     this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
     this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
+    await this.startTurnTimer(result.state);
   }
 
   private async handleOrdnance(playerId: number, ws: WebSocket, launches: OrdnanceLaunch[]) {
@@ -241,6 +301,7 @@ export class GameDO extends DurableObject {
     this.broadcast({ type: 'stateUpdate', state: result.state });
     this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
+    await this.startTurnTimer(result.state);
   }
 
   private async handleSkipOrdnance(playerId: number, ws: WebSocket) {
@@ -256,6 +317,7 @@ export class GameDO extends DurableObject {
 
     this.broadcast({ type: 'stateUpdate', state: result.state });
     await this.saveGameState(result.state);
+    await this.startTurnTimer(result.state);
   }
 
   private async handleCombat(playerId: number, ws: WebSocket, attacks: CombatAttack[]) {
@@ -273,6 +335,7 @@ export class GameDO extends DurableObject {
     this.broadcast({ type: 'combatResult', results: result.results, state: result.state });
     this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
+    await this.startTurnTimer(result.state);
   }
 
   private async handleSkipCombat(playerId: number, ws: WebSocket) {
@@ -294,6 +357,7 @@ export class GameDO extends DurableObject {
 
     this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
+    await this.startTurnTimer(result.state);
   }
 
   private async handleRematch(playerId: number, ws: WebSocket) {
