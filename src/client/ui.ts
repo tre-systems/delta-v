@@ -145,6 +145,8 @@ export class UIManager {
     this.shipListEl.style.display = 'none';
     this.gameLogEl.style.display = 'none';
     this.logShowBtn.style.display = 'none';
+    document.getElementById('helpBtn')!.style.display = 'none';
+    document.getElementById('helpOverlay')!.style.display = 'none';
   }
 
   showMenu() {
@@ -178,6 +180,7 @@ export class UIManager {
     this.hideAll();
     this.hudEl.style.display = 'block';
     this.shipListEl.style.display = 'flex';
+    document.getElementById('helpBtn')!.style.display = 'flex';
     if (this.logVisible) {
       this.gameLogEl.style.display = 'flex';
     } else {
