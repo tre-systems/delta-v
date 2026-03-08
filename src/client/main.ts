@@ -59,11 +59,22 @@ class GameClient {
       if (ship) this.renderer.centerOnHex(ship.position);
     };
 
-    // Keyboard: Tab to cycle ships
+    // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Tab' && this.state === 'playing_astrogation' && this.gameState) {
         e.preventDefault();
         this.cycleShip(e.shiftKey ? -1 : 1);
+      } else if (e.key === 'Escape') {
+        // Deselect ship and clear targets
+        if (this.renderer.planningState.combatTargetId) {
+          this.renderer.planningState.combatTargetId = null;
+          this.ui.showAttackButton(false);
+        } else if (this.renderer.planningState.torpedoAccel !== null) {
+          this.renderer.planningState.torpedoAccel = null;
+        } else {
+          this.renderer.planningState.selectedShipId = null;
+          this.updateHUD();
+        }
       }
     });
 
@@ -184,6 +195,10 @@ class GameClient {
     this.setState('connecting');
   }
 
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+  private reconnectTimer: number | null = null;
+
   private connect(code: string) {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     let url = `${protocol}//${location.host}/ws/${code}`;
@@ -193,7 +208,20 @@ class GameClient {
     this.ws = new WebSocket(url);
     this.ws.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
     this.ws.onclose = () => this.handleDisconnect();
-    this.ws.onerror = () => this.handleDisconnect();
+    this.ws.onerror = () => {}; // onclose fires after onerror
+  }
+
+  private attemptReconnect() {
+    if (!this.gameCode || this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.setState('menu');
+      return;
+    }
+    this.reconnectAttempts++;
+    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 8000);
+    this.ui.showReconnecting(this.reconnectAttempts);
+    this.reconnectTimer = window.setTimeout(() => {
+      this.connect(this.gameCode!);
+    }, delay);
   }
 
   private send(msg: unknown) {
@@ -207,6 +235,7 @@ class GameClient {
       case 'welcome':
         this.playerId = msg.playerId;
         this.gameCode = msg.code;
+        this.reconnectAttempts = 0; // Reset on successful connection
         this.renderer.setPlayerId(msg.playerId);
         this.input.setPlayerId(msg.playerId);
         if (this.state === 'connecting') {
@@ -288,7 +317,12 @@ class GameClient {
   }
 
   private handleDisconnect() {
-    if (this.state !== 'menu' && this.state !== 'gameOver') {
+    if (this.state === 'menu' || this.state === 'gameOver') return;
+
+    // If we have an active game, attempt reconnection
+    if (this.gameCode && this.gameState) {
+      this.attemptReconnect();
+    } else {
       this.setState('menu');
     }
   }
@@ -441,6 +475,8 @@ class GameClient {
     const stats = selectedShip ? SHIP_STATS[selectedShip.type] : null;
     // Check if any ship has a burn set (for undo button visibility)
     const hasBurns = Array.from(this.renderer.planningState.burns.values()).some(b => b !== null);
+    const cargoFree = selectedShip && stats ? stats.cargo - selectedShip.cargoUsed : 0;
+    const cargoMax = stats?.cargo ?? 0;
     this.ui.updateHUD(
       this.gameState.turnNumber,
       this.gameState.phase,
@@ -448,6 +484,8 @@ class GameClient {
       selectedShip?.fuel ?? 0,
       stats?.fuel ?? 0,
       hasBurns,
+      cargoFree,
+      cargoMax,
     );
     this.ui.updateShipList(
       myShips,
