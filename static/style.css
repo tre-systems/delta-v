@@ -615,3 +615,120 @@ body {
   width: 100%;
   margin-bottom: 0.5rem;
 }
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .title {
+    font-size: 2rem;
+    letter-spacing: 0.2em;
+  }
+
+  .subtitle {
+    font-size: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .menu-content {
+    padding: 1.2rem;
+    max-width: 300px;
+  }
+
+  .hud-bar {
+    flex-wrap: wrap;
+    gap: 0.2rem;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.7rem;
+  }
+
+  .hud-bottom {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.5rem;
+  }
+
+  .status-msg {
+    font-size: 0.7rem;
+    width: 100%;
+  }
+
+  .btn-confirm, .btn-attack {
+    padding: 0.5rem 1.5rem;
+    font-size: 0.85rem;
+  }
+
+  .btn-ordnance {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+  }
+
+  .ship-list {
+    top: auto;
+    bottom: 5rem;
+    left: 0.3rem;
+    max-height: 30vh;
+    overflow-y: auto;
+  }
+
+  .ship-entry {
+    font-size: 0.6rem;
+    min-width: 100px;
+    padding: 0.25rem 0.4rem;
+  }
+
+  .game-log {
+    top: auto;
+    bottom: 5rem;
+    right: 0.3rem;
+    width: 160px;
+    max-height: 30vh;
+  }
+
+  .log-entries {
+    font-size: 0.55rem;
+  }
+
+  .game-code {
+    font-size: 1.8rem;
+    letter-spacing: 0.3em;
+  }
+
+  .objective-text {
+    font-size: 0.6rem;
+  }
+
+  .latency-text {
+    font-size: 0.55rem;
+  }
+
+  .help-content {
+    max-width: 280px;
+    font-size: 0.85rem;
+  }
+
+  .help-key {
+    min-width: 90px;
+  }
+
+  #gameOver h2 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-height: 500px) {
+  /* Landscape mobile */
+  .ship-list {
+    top: 2.5rem;
+    bottom: auto;
+    max-height: 50vh;
+  }
+
+  .game-log {
+    top: 2.5rem;
+    bottom: auto;
+    max-height: 50vh;
+  }
+
+  .hud-bottom {
+    padding: 0.3rem;
+  }
+}
