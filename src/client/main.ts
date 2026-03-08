@@ -134,6 +134,9 @@ class GameClient {
         this.renderer.camera.zoomAt(window.innerWidth / 2, window.innerHeight / 2, 0.87);
       } else if (e.key === '?' || e.key === '/') {
         this.toggleHelp();
+      } else if (e.key.toLowerCase() === 'm') {
+        setMuted(!isMuted());
+        this.updateSoundButton();
       }
     });
 
@@ -427,7 +430,7 @@ class GameClient {
       case 'gameOver': {
         this.setState('gameOver');
         const won = msg.winner === this.playerId;
-        this.ui.showGameOver(won, msg.reason);
+        this.ui.showGameOver(won, msg.reason, this.getGameOverStats());
         this.ui.logText(`${won ? 'VICTORY' : 'DEFEAT'}: ${msg.reason}`, won ? 'log-landed' : 'log-eliminated');
         if (won) {
           playVictory();
@@ -741,13 +744,26 @@ class GameClient {
     this.setState('gameOver');
     const won = this.gameState.winner === this.playerId;
     const reason = this.gameState.winReason ?? '';
-    this.ui.showGameOver(won, reason);
+    this.ui.showGameOver(won, reason, this.getGameOverStats());
     this.ui.logText(`${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`, won ? 'log-landed' : 'log-eliminated');
     if (won) {
       playVictory();
     } else {
       playDefeat();
     }
+  }
+
+  private getGameOverStats() {
+    if (!this.gameState) return undefined;
+    const myShips = this.gameState.ships.filter(s => s.owner === this.playerId);
+    const enemyShips = this.gameState.ships.filter(s => s.owner !== this.playerId);
+    return {
+      turns: this.gameState.turnNumber,
+      myShipsAlive: myShips.filter(s => !s.destroyed).length,
+      myShipsTotal: myShips.length,
+      enemyShipsAlive: enemyShips.filter(s => !s.destroyed).length,
+      enemyShipsTotal: enemyShips.length,
+    };
   }
 
   private runAITurn() {
@@ -936,6 +952,16 @@ class GameClient {
       );
     } else {
       latencyEl.textContent = '';
+    }
+    // Update fleet status
+    const fleetEl = document.getElementById('fleetStatus')!;
+    const enemyShips = this.gameState.ships.filter(s => s.owner !== this.playerId);
+    const myAlive = myShips.filter(s => !s.destroyed).length;
+    const enemyAlive = enemyShips.filter(s => !s.destroyed).length;
+    if (myShips.length > 1 || enemyShips.length > 1) {
+      fleetEl.textContent = `⚔ ${myAlive}v${enemyAlive}`;
+    } else {
+      fleetEl.textContent = '';
     }
     this.ui.updateShipList(
       myShips,
