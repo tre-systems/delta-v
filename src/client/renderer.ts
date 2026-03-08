@@ -8,7 +8,7 @@ import {
   HEX_DIRECTIONS,
   hexVecLength,
 } from '../shared/hex';
-import type { GameState, Ship, ShipMovement, SolarSystemMap, CelestialBody, CombatResult } from '../shared/types';
+import type { GameState, Ship, ShipMovement, OrdnanceMovement, SolarSystemMap, CelestialBody, CombatResult } from '../shared/types';
 import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS } from '../shared/constants';
 import { computeCourse, predictDestination } from '../shared/movement';
 import { computeOdds, computeRangeMod, computeVelocityMod, getCombatStrength, canAttack } from '../shared/combat';
@@ -122,6 +122,7 @@ function generateStars(count: number, range: number): Star[] {
 
 export interface AnimationState {
   movements: ShipMovement[];
+  ordnanceMovements: OrdnanceMovement[];
   startTime: number;
   duration: number;
   onComplete: () => void;
@@ -174,25 +175,27 @@ export class Renderer {
     this.playerId = id;
   }
 
-  animateMovements(movements: ShipMovement[], onComplete: () => void) {
+  animateMovements(movements: ShipMovement[], ordnanceMovements: OrdnanceMovement[], onComplete: () => void) {
     this.animState = {
       movements,
+      ordnanceMovements,
       startTime: performance.now(),
       duration: MOVEMENT_ANIM_DURATION,
       onComplete,
     };
 
-    // Frame camera on all moving ships
-    if (this.map && movements.length > 0) {
+    // Frame camera on all moving ships and ordnance
+    const allFrom = [...movements.map(m => m.from), ...ordnanceMovements.map(m => m.from)];
+    const allTo = [...movements.map(m => m.to), ...ordnanceMovements.map(m => m.to)];
+    const allHexes = [...allFrom, ...allTo];
+    if (this.map && allHexes.length > 0) {
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      for (const m of movements) {
-        for (const h of [m.from, m.to]) {
-          const p = hexToPixel(h, HEX_SIZE);
-          minX = Math.min(minX, p.x);
-          maxX = Math.max(maxX, p.x);
-          minY = Math.min(minY, p.y);
-          maxY = Math.max(maxY, p.y);
-        }
+      for (const h of allHexes) {
+        const p = hexToPixel(h, HEX_SIZE);
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
       }
       this.camera.frameBounds(minX, maxX, minY, maxY, 150);
     }
@@ -705,7 +708,21 @@ export class Renderer {
 
     for (const ord of state.ordnance) {
       if (ord.destroyed) continue;
-      const p = hexToPixel(ord.position, HEX_SIZE);
+
+      let p: PixelCoord;
+      // During animation, interpolate ordnance position along its path
+      if (this.animState) {
+        const om = this.animState.ordnanceMovements.find(m => m.ordnanceId === ord.id);
+        if (om) {
+          const progress = Math.min((now - this.animState.startTime) / this.animState.duration, 1);
+          p = this.interpolatePath(om.path, progress);
+        } else {
+          p = hexToPixel(ord.position, HEX_SIZE);
+        }
+      } else {
+        p = hexToPixel(ord.position, HEX_SIZE);
+      }
+
       const color = ord.owner === this.playerId ? '#4fc3f7' : '#ff9800';
       const pulse = 0.6 + 0.3 * Math.sin(now / 400);
 
@@ -761,8 +778,8 @@ export class Renderer {
         ctx.restore();
       }
 
-      // Velocity vector for ordnance
-      if (ord.velocity.dq !== 0 || ord.velocity.dr !== 0) {
+      // Velocity vector for ordnance (hide during animation)
+      if (!this.animState && (ord.velocity.dq !== 0 || ord.velocity.dr !== 0)) {
         const dest = hexToPixel(hexAdd(ord.position, ord.velocity), HEX_SIZE);
         ctx.strokeStyle = color;
         ctx.globalAlpha = 0.3;
@@ -774,6 +791,39 @@ export class Renderer {
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
+      }
+    }
+
+    // During animation, also render ordnance that detonated (show until detonation point)
+    if (this.animState) {
+      const progress = Math.min((now - this.animState.startTime) / this.animState.duration, 1);
+      for (const om of this.animState.ordnanceMovements) {
+        if (!om.detonated) continue;
+        // Already removed from state.ordnance — render at interpolated position until detonation
+        if (progress < 0.9) {
+          const p = this.interpolatePath(om.path, progress);
+          ctx.fillStyle = '#ff4444';
+          ctx.globalAlpha = 0.7;
+          const s = 4;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y - s);
+          ctx.lineTo(p.x + s, p.y);
+          ctx.lineTo(p.x, p.y + s);
+          ctx.lineTo(p.x - s, p.y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        } else {
+          // Flash at detonation point
+          const detP = hexToPixel(om.to, HEX_SIZE);
+          const flashSize = 12 * (1 - (progress - 0.9) / 0.1);
+          ctx.fillStyle = '#ffaa00';
+          ctx.globalAlpha = 0.8;
+          ctx.beginPath();
+          ctx.arc(detP.x, detP.y, flashSize, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
       }
     }
   }

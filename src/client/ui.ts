@@ -12,6 +12,7 @@ export class UIManager {
   // Callbacks
   onSelectScenario: ((scenario: string) => void) | null = null;
   onJoin: ((code: string) => void) | null = null;
+  onUndo: (() => void) | null = null;
   onConfirm: (() => void) | null = null;
   onLaunchOrdnance: ((type: 'mine' | 'torpedo' | 'nuke') => void) | null = null;
   onSkipOrdnance: (() => void) | null = null;
@@ -69,6 +70,7 @@ export class UIManager {
       });
     });
 
+    document.getElementById('undoBtn')!.addEventListener('click', () => this.onUndo?.());
     document.getElementById('confirmBtn')!.addEventListener('click', () => this.onConfirm?.());
     document.getElementById('launchMineBtn')!.addEventListener('click', () => this.onLaunchOrdnance?.('mine'));
     document.getElementById('launchTorpedoBtn')!.addEventListener('click', () => this.onLaunchOrdnance?.('torpedo'));
@@ -119,10 +121,13 @@ export class UIManager {
     this.shipListEl.style.display = 'flex';
   }
 
-  updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number) {
+  updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number, hasBurns = false) {
     document.getElementById('turnInfo')!.textContent = `Turn ${turn}`;
     document.getElementById('phaseInfo')!.textContent = isMyTurn ? phase.toUpperCase() : 'OPPONENT\'S TURN';
     document.getElementById('fuelGauge')!.textContent = `Fuel: ${fuel}/${maxFuel}`;
+
+    const undoBtn = document.getElementById('undoBtn')!;
+    undoBtn.style.display = isMyTurn && phase === 'astrogation' && hasBurns ? 'inline-block' : 'none';
 
     const confirmBtn = document.getElementById('confirmBtn')!;
     confirmBtn.style.display = isMyTurn && phase === 'astrogation' ? 'inline-block' : 'none';
@@ -212,5 +217,13 @@ export class UIManager {
     this.gameOverEl.style.display = 'flex';
     document.getElementById('gameOverText')!.textContent = won ? 'VICTORY' : 'DEFEAT';
     document.getElementById('gameOverReason')!.textContent = reason;
+    document.getElementById('rematchBtn')!.textContent = 'Rematch';
+    document.getElementById('rematchBtn')!.removeAttribute('disabled');
+  }
+
+  showRematchPending() {
+    const btn = document.getElementById('rematchBtn')!;
+    btn.textContent = 'Waiting...';
+    btn.setAttribute('disabled', 'true');
   }
 }

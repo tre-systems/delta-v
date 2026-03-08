@@ -690,3 +690,24 @@ describe('nuke ordnance', () => {
     }
   });
 });
+
+describe('ordnance validation', () => {
+  it('rejects multiple launches from the same ship', () => {
+    // Set up a frigate with enough cargo for 2 mines but enforce 1-per-turn
+    const ship = initialState.ships[0];
+    ship.type = 'frigate';
+    ship.landed = false;
+    ship.fuel = 20;
+    initialState.phase = 'ordnance';
+
+    const launches: OrdnanceLaunch[] = [
+      { shipId: ship.id, ordnanceType: 'mine' },
+      { shipId: ship.id, ordnanceType: 'mine' },
+    ];
+    const result = processOrdnance(initialState, 0, launches, map);
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('one ordnance per turn');
+    }
+  });
+});
