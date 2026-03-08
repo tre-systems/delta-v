@@ -24,6 +24,7 @@ export interface Ship {
   velocity: HexVec;
   fuel: number;
   landed: boolean;
+  destroyed: boolean;
 }
 
 export interface PlayerState {

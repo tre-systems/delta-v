@@ -82,7 +82,7 @@ class GameClient {
         this.renderer.planningState.burns.clear();
         // Auto-select the player's first ship
         if (this.gameState) {
-          const myShip = this.gameState.ships.find(s => s.owner === this.playerId);
+          const myShip = this.gameState.ships.find(s => s.owner === this.playerId && !s.destroyed);
           if (myShip) {
             this.renderer.planningState.selectedShipId = myShip.id;
           }
@@ -267,7 +267,7 @@ class GameClient {
   private updateHUD() {
     if (!this.gameState) return;
     const isMyTurn = this.gameState.activePlayer === this.playerId;
-    const myShip = this.gameState.ships.find(s => s.owner === this.playerId);
+    const myShip = this.gameState.ships.find(s => s.owner === this.playerId && !s.destroyed);
     const stats = myShip ? SHIP_STATS[myShip.type] : null;
     this.ui.updateHUD(
       this.gameState.turnNumber,

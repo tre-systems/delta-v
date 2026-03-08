@@ -380,7 +380,7 @@ export class Renderer {
     if (this.animState) return;
 
     for (const ship of state.ships) {
-      if (ship.landed) continue;
+      if (ship.landed || ship.destroyed) continue;
       const from = hexToPixel(ship.position, HEX_SIZE);
       const predicted = predictDestination(ship);
       const to = hexToPixel(predicted, HEX_SIZE);
@@ -403,7 +403,7 @@ export class Renderer {
     // Planning preview for selected ship
     if (state.phase === 'astrogation' && state.activePlayer === this.playerId) {
       for (const ship of state.ships) {
-        if (ship.owner !== this.playerId) continue;
+        if (ship.owner !== this.playerId || ship.destroyed) continue;
         const burn = this.planningState.burns.get(ship.id) ?? null;
         const isSelected = ship.id === this.planningState.selectedShipId;
 
@@ -463,6 +463,7 @@ export class Renderer {
 
   private renderShips(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
     for (const ship of state.ships) {
+      if (ship.destroyed && !this.animState) continue;
       let pos: PixelCoord;
       let velocity = ship.velocity;
 
