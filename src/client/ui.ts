@@ -8,6 +8,7 @@ export class UIManager {
   onCreate: (() => void) | null = null;
   onJoin: ((code: string) => void) | null = null;
   onConfirm: (() => void) | null = null;
+  onAttack: (() => void) | null = null;
   onSkipCombat: (() => void) | null = null;
   onRematch: (() => void) | null = null;
   onExit: (() => void) | null = null;
@@ -45,6 +46,7 @@ export class UIManager {
     });
 
     document.getElementById('confirmBtn')!.addEventListener('click', () => this.onConfirm?.());
+    document.getElementById('attackBtn')!.addEventListener('click', () => this.onAttack?.());
     document.getElementById('skipCombatBtn')!.addEventListener('click', () => this.onSkipCombat?.());
     document.getElementById('rematchBtn')!.addEventListener('click', () => this.onRematch?.());
     document.getElementById('exitBtn')!.addEventListener('click', () => this.onExit?.());
@@ -105,6 +107,10 @@ export class UIManager {
     } else {
       statusMsg.style.display = 'none';
     }
+  }
+
+  showAttackButton(visible: boolean) {
+    document.getElementById('attackBtn')!.style.display = visible ? 'inline-block' : 'none';
   }
 
   showMovementStatus() {

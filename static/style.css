@@ -108,6 +108,18 @@ body {
   background: rgba(102, 187, 106, 0.15);
 }
 
+.btn-attack {
+  border-color: #ff5252;
+  color: #ff5252;
+  padding: 0.6rem 2.5rem;
+  font-size: 1rem;
+  letter-spacing: 0.15em;
+}
+
+.btn-attack:hover {
+  background: rgba(255, 82, 82, 0.15);
+}
+
 .divider {
   color: #555;
   margin: 1.2rem 0;

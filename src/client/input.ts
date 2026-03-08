@@ -140,11 +140,17 @@ export class InputHandler {
 
   private handleClick(screenX: number, screenY: number) {
     if (!this.gameState || !this.map) return;
-    if (this.gameState.phase !== 'astrogation') return;
     if (this.gameState.activePlayer !== this.playerId) return;
 
     const worldPos = this.camera.screenToWorld(screenX, screenY);
     const clickHex = pixelToHex(worldPos, HEX_SIZE);
+
+    if (this.gameState.phase === 'combat') {
+      this.handleCombatClick(clickHex);
+      return;
+    }
+
+    if (this.gameState.phase !== 'astrogation') return;
 
     // Check if clicking a burn direction arrow
     if (this.planningState.selectedShipId) {
@@ -180,5 +186,23 @@ export class InputHandler {
 
     // Clicked empty space — deselect
     this.planningState.selectedShipId = null;
+  }
+
+  private handleCombatClick(clickHex: HexCoord) {
+    if (!this.gameState) return;
+
+    // Click an enemy ship to target it
+    for (const ship of this.gameState.ships) {
+      if (ship.owner === this.playerId || ship.destroyed) continue;
+      if (hexEqual(clickHex, ship.position)) {
+        // Toggle: click same target = deselect
+        this.planningState.combatTargetId =
+          this.planningState.combatTargetId === ship.id ? null : ship.id;
+        return;
+      }
+    }
+
+    // Clicked empty space — deselect target
+    this.planningState.combatTargetId = null;
   }
 }

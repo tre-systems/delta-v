@@ -8,9 +8,10 @@ import {
   HEX_DIRECTIONS,
   hexVecLength,
 } from '../shared/hex';
-import type { GameState, Ship, ShipMovement, SolarSystemMap, CelestialBody } from '../shared/types';
+import type { GameState, Ship, ShipMovement, SolarSystemMap, CelestialBody, CombatResult } from '../shared/types';
 import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED } from '../shared/constants';
 import { computeCourse, predictDestination } from '../shared/movement';
+import { computeOdds, computeRangeMod, computeVelocityMod, getCombatStrength, canAttack } from '../shared/combat';
 
 // --- Camera ---
 
@@ -131,6 +132,7 @@ export interface AnimationState {
 export interface PlanningState {
   selectedShipId: string | null;
   burns: Map<string, number | null>; // shipId -> burn direction (or null for no burn)
+  combatTargetId: string | null; // enemy ship targeted for combat
 }
 
 // --- Renderer ---
@@ -146,7 +148,8 @@ export class Renderer {
   private gameState: GameState | null = null;
   private playerId = -1;
   private animState: AnimationState | null = null;
-  planningState: PlanningState = { selectedShipId: null, burns: new Map() };
+  planningState: PlanningState = { selectedShipId: null, burns: new Map(), combatTargetId: null };
+  private combatResults: { results: CombatResult[]; showUntil: number } | null = null;
   private lastTime = 0;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -190,6 +193,10 @@ export class Renderer {
       }
       this.camera.frameBounds(minX, maxX, minY, maxY, 150);
     }
+  }
+
+  showCombatResults(results: CombatResult[]) {
+    this.combatResults = { results, showUntil: performance.now() + 3000 };
   }
 
   isAnimating(): boolean {
@@ -269,10 +276,20 @@ export class Renderer {
     }
     if (this.gameState && this.map) {
       this.renderCourseVectors(ctx, this.gameState, this.map, now);
+      this.renderCombatOverlay(ctx, this.gameState, now);
       this.renderShips(ctx, this.gameState, now);
     }
 
     ctx.restore();
+
+    // Combat results toast (screen-space)
+    if (this.combatResults && this.gameState) {
+      if (now > this.combatResults.showUntil) {
+        this.combatResults = null;
+      } else {
+        this.renderCombatResultsToast(ctx, this.combatResults.results, now, w);
+      }
+    }
   }
 
   // --- Render layers ---
@@ -586,6 +603,120 @@ export class Renderer {
       y: from.y + (to.y - from.y) * segT,
     };
   }
+  private renderCombatOverlay(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
+    if (state.phase !== 'combat' || state.activePlayer !== this.playerId) return;
+    if (this.animState) return;
+
+    const targetId = this.planningState.combatTargetId;
+    const target = targetId ? state.ships.find(s => s.id === targetId) : null;
+
+    // Highlight valid enemy targets
+    for (const ship of state.ships) {
+      if (ship.owner === this.playerId || ship.destroyed) continue;
+      const p = hexToPixel(ship.position, HEX_SIZE);
+      const isTarget = ship.id === targetId;
+
+      // Pulsing ring on enemies
+      const pulse = 0.5 + 0.3 * Math.sin(now / 300);
+      ctx.strokeStyle = isTarget
+        ? `rgba(255, 80, 80, ${0.8 + pulse * 0.2})`
+        : `rgba(255, 80, 80, ${0.2 + pulse * 0.15})`;
+      ctx.lineWidth = isTarget ? 2.5 : 1.5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, isTarget ? 16 : 13, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Draw attack line and odds preview
+    if (target && !target.destroyed) {
+      const myAttackers = state.ships.filter(
+        s => s.owner === this.playerId && !s.destroyed && canAttack(s),
+      );
+      if (myAttackers.length === 0) return;
+
+      const targetPos = hexToPixel(target.position, HEX_SIZE);
+
+      // Attack lines from each attacker
+      for (const attacker of myAttackers) {
+        const attackerPos = hexToPixel(attacker.position, HEX_SIZE);
+        ctx.strokeStyle = 'rgba(255, 80, 80, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(attackerPos.x, attackerPos.y);
+        ctx.lineTo(targetPos.x, targetPos.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Odds preview at target
+      const attackStr = getCombatStrength(myAttackers);
+      const defendStr = getCombatStrength([target]);
+      const odds = computeOdds(attackStr, defendStr);
+      const rangeMod = computeRangeMod(myAttackers[0], target);
+      const velMod = computeVelocityMod(myAttackers[0], target);
+
+      // Background box
+      const label = `${odds}  R-${rangeMod} V-${velMod}`;
+      ctx.font = 'bold 10px monospace';
+      const textW = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(targetPos.x - textW / 2 - 4, targetPos.y - 32, textW + 8, 16);
+      ctx.fillStyle = '#ff6666';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, targetPos.x, targetPos.y - 20);
+    }
+  }
+
+  private renderCombatResultsToast(ctx: CanvasRenderingContext2D, results: CombatResult[], now: number, screenW: number) {
+    if (results.length === 0) return;
+    const fadeStart = this.combatResults!.showUntil - 1000;
+    const alpha = now > fadeStart ? Math.max(0, (this.combatResults!.showUntil - now) / 1000) : 1;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    let y = 60;
+    for (const r of results) {
+      const text = formatCombatResult(r, this.gameState!);
+      ctx.font = 'bold 12px monospace';
+      const w = ctx.measureText(text).width;
+      const x = screenW / 2;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillRect(x - w / 2 - 8, y - 12, w + 16, 20);
+      ctx.fillStyle = r.damageType === 'eliminated' ? '#ff4444'
+        : r.damageType === 'disabled' ? '#ffaa00'
+        : '#88ff88';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, x, y + 2);
+      y += 26;
+
+      if (r.counterattack) {
+        const cText = formatCombatResult(r.counterattack, this.gameState!);
+        ctx.font = '11px monospace';
+        const cw = ctx.measureText(cText).width;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        ctx.fillRect(x - cw / 2 - 8, y - 12, cw + 16, 18);
+        ctx.fillStyle = r.counterattack.damageType === 'eliminated' ? '#ff4444'
+          : r.counterattack.damageType === 'disabled' ? '#ffaa00'
+          : '#88ff88';
+        ctx.fillText(cText, x, y + 2);
+        y += 24;
+      }
+    }
+
+    ctx.restore();
+  }
+}
+
+function formatCombatResult(r: CombatResult, state: GameState): string {
+  const targetShip = state.ships.find(s => s.id === r.targetId);
+  const targetName = targetShip ? `${targetShip.type}` : r.targetId;
+  const result = r.damageType === 'eliminated' ? 'ELIMINATED'
+    : r.damageType === 'disabled' ? `DISABLED ${r.disabledTurns}T`
+    : 'MISS';
+  return `${r.odds} [${r.dieRoll}→${r.modifiedRoll}] ${targetName}: ${result}`;
 }
 
 // --- Utility ---
