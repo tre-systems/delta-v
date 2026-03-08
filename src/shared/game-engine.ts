@@ -655,7 +655,7 @@ function checkRamming(
         const dieRoll = rollD6(rng);
         const result = lookupOtherDamage(dieRoll);
         events.push({
-          type: 'crash',
+          type: 'ramming',
           shipId: ship.id,
           hex: ship.position,
           dieRoll,
