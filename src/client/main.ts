@@ -61,7 +61,8 @@ class GameClient {
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Tab' && this.state === 'playing_astrogation' && this.gameState) {
+      if (e.key === 'Tab' && this.gameState &&
+          (this.state === 'playing_astrogation' || this.state === 'playing_ordnance' || this.state === 'playing_combat')) {
         e.preventDefault();
         this.cycleShip(e.shiftKey ? -1 : 1);
       } else if (e.key === 'Escape') {

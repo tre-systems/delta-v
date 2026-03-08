@@ -137,14 +137,27 @@ export class UIManager {
     const confirmBtn = document.getElementById('confirmBtn')!;
     confirmBtn.style.display = isMyTurn && phase === 'astrogation' ? 'inline-block' : 'none';
 
-    const launchMineBtn = document.getElementById('launchMineBtn')!;
-    const launchTorpedoBtn = document.getElementById('launchTorpedoBtn')!;
-    const launchNukeBtn = document.getElementById('launchNukeBtn')!;
+    const launchMineBtn = document.getElementById('launchMineBtn')! as HTMLButtonElement;
+    const launchTorpedoBtn = document.getElementById('launchTorpedoBtn')! as HTMLButtonElement;
+    const launchNukeBtn = document.getElementById('launchNukeBtn')! as HTMLButtonElement;
     const skipOrdnanceBtn = document.getElementById('skipOrdnanceBtn')!;
-    launchMineBtn.style.display = isMyTurn && phase === 'ordnance' ? 'inline-block' : 'none';
-    launchTorpedoBtn.style.display = isMyTurn && phase === 'ordnance' ? 'inline-block' : 'none';
-    launchNukeBtn.style.display = isMyTurn && phase === 'ordnance' ? 'inline-block' : 'none';
-    skipOrdnanceBtn.style.display = isMyTurn && phase === 'ordnance' ? 'inline-block' : 'none';
+    const showOrd = isMyTurn && phase === 'ordnance';
+    launchMineBtn.style.display = showOrd ? 'inline-block' : 'none';
+    launchTorpedoBtn.style.display = showOrd ? 'inline-block' : 'none';
+    launchNukeBtn.style.display = showOrd ? 'inline-block' : 'none';
+    skipOrdnanceBtn.style.display = showOrd ? 'inline-block' : 'none';
+    // Disable buttons based on cargo capacity
+    if (showOrd) {
+      const canMine = cargoFree >= 10; // mine mass
+      const canTorpedo = cargoFree >= 20; // torpedo mass
+      const canNuke = cargoFree >= 20; // nuke mass
+      launchMineBtn.disabled = !canMine;
+      launchTorpedoBtn.disabled = !canTorpedo;
+      launchNukeBtn.disabled = !canNuke;
+      launchMineBtn.style.opacity = canMine ? '1' : '0.4';
+      launchTorpedoBtn.style.opacity = canTorpedo ? '1' : '0.4';
+      launchNukeBtn.style.opacity = canNuke ? '1' : '0.4';
+    }
 
     const skipCombatBtn = document.getElementById('skipCombatBtn')!;
     skipCombatBtn.style.display = isMyTurn && phase === 'combat' ? 'inline-block' : 'none';
