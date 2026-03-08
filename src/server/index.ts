@@ -13,7 +13,7 @@ export default {
 
     // Create a new game
     if (url.pathname === '/create' && request.method === 'POST') {
-      return handleCreate(env);
+      return handleCreate(request, env);
     }
 
     // WebSocket upgrade to game DO
@@ -36,10 +36,18 @@ function generateCode(): string {
   return code;
 }
 
-async function handleCreate(env: Env): Promise<Response> {
+async function handleCreate(request: Request, env: Env): Promise<Response> {
   const code = generateCode();
-  // Touch the DO to ensure it exists (it will be created lazily on first WS connect)
-  return Response.json({ code });
+  let scenario = 'biplanetary';
+  try {
+    const body = await request.json() as { scenario?: string };
+    if (body.scenario && typeof body.scenario === 'string') {
+      scenario = body.scenario;
+    }
+  } catch {
+    // Default scenario if no body
+  }
+  return Response.json({ code, scenario });
 }
 
 async function handleWebSocket(request: Request, env: Env, code: string): Promise<Response> {

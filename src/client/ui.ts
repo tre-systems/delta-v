@@ -1,26 +1,48 @@
+import type { Ship } from '../shared/types';
+import { SHIP_STATS } from '../shared/constants';
+
 export class UIManager {
   private menuEl: HTMLElement;
+  private scenarioEl: HTMLElement;
   private waitingEl: HTMLElement;
   private hudEl: HTMLElement;
   private gameOverEl: HTMLElement;
+  private shipListEl: HTMLElement;
 
   // Callbacks
-  onCreate: (() => void) | null = null;
+  onSelectScenario: ((scenario: string) => void) | null = null;
   onJoin: ((code: string) => void) | null = null;
   onConfirm: (() => void) | null = null;
   onAttack: (() => void) | null = null;
   onSkipCombat: (() => void) | null = null;
   onRematch: (() => void) | null = null;
   onExit: (() => void) | null = null;
+  onSelectShip: ((shipId: string) => void) | null = null;
 
   constructor() {
     this.menuEl = document.getElementById('menu')!;
+    this.scenarioEl = document.getElementById('scenarioSelect')!;
     this.waitingEl = document.getElementById('waiting')!;
     this.hudEl = document.getElementById('hud')!;
     this.gameOverEl = document.getElementById('gameOver')!;
+    this.shipListEl = document.getElementById('shipList')!;
 
     // Wire up buttons
-    document.getElementById('createBtn')!.addEventListener('click', () => this.onCreate?.());
+    document.getElementById('createBtn')!.addEventListener('click', () => {
+      this.showScenarioSelect();
+    });
+
+    // Scenario buttons
+    document.querySelectorAll('.btn-scenario').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const scenario = (btn as HTMLElement).dataset.scenario!;
+        this.onSelectScenario?.(scenario);
+      });
+    });
+
+    document.getElementById('backBtn')!.addEventListener('click', () => {
+      this.showMenu();
+    });
 
     document.getElementById('joinBtn')!.addEventListener('click', () => {
       const code = (document.getElementById('codeInput') as HTMLInputElement).value.toUpperCase().trim();
@@ -54,14 +76,21 @@ export class UIManager {
 
   hideAll() {
     this.menuEl.style.display = 'none';
+    this.scenarioEl.style.display = 'none';
     this.waitingEl.style.display = 'none';
     this.hudEl.style.display = 'none';
     this.gameOverEl.style.display = 'none';
+    this.shipListEl.style.display = 'none';
   }
 
   showMenu() {
     this.hideAll();
     this.menuEl.style.display = 'flex';
+  }
+
+  showScenarioSelect() {
+    this.hideAll();
+    this.scenarioEl.style.display = 'flex';
   }
 
   showWaiting(code: string) {
@@ -81,6 +110,7 @@ export class UIManager {
   showHUD() {
     this.hideAll();
     this.hudEl.style.display = 'block';
+    this.shipListEl.style.display = 'flex';
   }
 
   updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number) {
@@ -106,6 +136,46 @@ export class UIManager {
       statusMsg.style.display = 'block';
     } else {
       statusMsg.style.display = 'none';
+    }
+  }
+
+  updateShipList(ships: Ship[], selectedId: string | null, burns: Map<string, number | null>) {
+    this.shipListEl.innerHTML = '';
+    // Count ship types for numbering (e.g., "Transport 1", "Transport 2")
+    const typeCounts: Record<string, number> = {};
+    for (const ship of ships) {
+      typeCounts[ship.type] = (typeCounts[ship.type] ?? 0) + 1;
+    }
+    const typeIndices: Record<string, number> = {};
+
+    for (const ship of ships) {
+      const stats = SHIP_STATS[ship.type];
+      const name = stats?.name ?? ship.type;
+      const needsNumber = (typeCounts[ship.type] ?? 0) > 1;
+      typeIndices[ship.type] = (typeIndices[ship.type] ?? 0) + 1;
+      const displayName = needsNumber ? `${name} ${typeIndices[ship.type]}` : name;
+
+      const entry = document.createElement('div');
+      entry.className = 'ship-entry';
+      if (ship.id === selectedId) entry.classList.add('active');
+      if (ship.destroyed) entry.classList.add('destroyed');
+
+      const hasBurn = burns.has(ship.id) && burns.get(ship.id) !== null;
+
+      entry.innerHTML = `
+        <span class="ship-name">${displayName}</span>
+        <span class="ship-status">
+          ${ship.destroyed ? 'X' : ship.damage.disabledTurns > 0 ? `D${ship.damage.disabledTurns}` : ''}
+          ${hasBurn ? '<span class="burn-dot"></span>' : ''}
+        </span>
+        <span class="ship-fuel">${ship.destroyed ? '' : `${ship.fuel}/${stats?.fuel ?? '?'}`}</span>
+      `;
+
+      if (!ship.destroyed) {
+        entry.addEventListener('click', () => this.onSelectShip?.(ship.id));
+      }
+
+      this.shipListEl.appendChild(entry);
     }
   }
 

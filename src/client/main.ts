@@ -21,6 +21,7 @@ class GameClient {
   private ws: WebSocket | null = null;
   private playerId = -1;
   private gameCode = '';
+  private scenario = 'biplanetary';
   private gameState: GameState | null = null;
 
   private canvas: HTMLCanvasElement;
@@ -39,13 +40,28 @@ class GameClient {
     this.input.setMap(this.map);
 
     // Wire UI callbacks
-    this.ui.onCreate = () => this.createGame();
+    this.ui.onSelectScenario = (scenario) => this.createGame(scenario);
     this.ui.onJoin = (code) => this.joinGame(code);
     this.ui.onConfirm = () => this.confirmOrders();
     this.ui.onAttack = () => this.sendAttack();
     this.ui.onSkipCombat = () => this.sendSkipCombat();
     this.ui.onRematch = () => this.sendRematch();
     this.ui.onExit = () => this.exitToMenu();
+    this.ui.onSelectShip = (shipId) => {
+      this.renderer.planningState.selectedShipId = shipId;
+      this.updateHUD();
+      // Center camera on selected ship
+      const ship = this.gameState?.ships.find(s => s.id === shipId);
+      if (ship) this.renderer.centerOnHex(ship.position);
+    };
+
+    // Keyboard: Tab to cycle ships
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab' && this.state === 'playing_astrogation' && this.gameState) {
+        e.preventDefault();
+        this.cycleShip(e.shiftKey ? -1 : 1);
+      }
+    });
 
     // Start render loop
     this.renderer.start();
@@ -120,9 +136,14 @@ class GameClient {
 
   // --- Network ---
 
-  private async createGame() {
+  private async createGame(scenario: string) {
     try {
-      const res = await fetch('/create', { method: 'POST' });
+      this.scenario = scenario;
+      const res = await fetch('/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario }),
+      });
       const data = await res.json() as { code: string };
       this.gameCode = data.code;
       // Update URL
@@ -143,7 +164,11 @@ class GameClient {
 
   private connect(code: string) {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    this.ws = new WebSocket(`${protocol}//${location.host}/ws/${code}`);
+    let url = `${protocol}//${location.host}/ws/${code}`;
+    if (this.scenario && this.scenario !== 'biplanetary') {
+      url += `?scenario=${this.scenario}`;
+    }
+    this.ws = new WebSocket(url);
     this.ws.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
     this.ws.onclose = () => this.handleDisconnect();
     this.ws.onerror = () => this.handleDisconnect();
@@ -323,19 +348,37 @@ class GameClient {
     this.setState('menu');
   }
 
+  private cycleShip(direction: number) {
+    if (!this.gameState) return;
+    const myShips = this.gameState.ships.filter(s => s.owner === this.playerId && !s.destroyed);
+    if (myShips.length <= 1) return;
+    const currentIdx = myShips.findIndex(s => s.id === this.renderer.planningState.selectedShipId);
+    const nextIdx = (currentIdx + direction + myShips.length) % myShips.length;
+    this.renderer.planningState.selectedShipId = myShips[nextIdx].id;
+    this.renderer.centerOnHex(myShips[nextIdx].position);
+    this.updateHUD();
+  }
+
   // --- Helpers ---
 
   private updateHUD() {
     if (!this.gameState) return;
     const isMyTurn = this.gameState.activePlayer === this.playerId;
-    const myShip = this.gameState.ships.find(s => s.owner === this.playerId && !s.destroyed);
-    const stats = myShip ? SHIP_STATS[myShip.type] : null;
+    const myShips = this.gameState.ships.filter(s => s.owner === this.playerId);
+    const selectedId = this.renderer.planningState.selectedShipId;
+    const selectedShip = myShips.find(s => s.id === selectedId) ?? myShips.find(s => !s.destroyed);
+    const stats = selectedShip ? SHIP_STATS[selectedShip.type] : null;
     this.ui.updateHUD(
       this.gameState.turnNumber,
       this.gameState.phase,
       isMyTurn,
-      myShip?.fuel ?? 0,
+      selectedShip?.fuel ?? 0,
       stats?.fuel ?? 0,
+    );
+    this.ui.updateShipList(
+      myShips,
+      selectedId,
+      this.renderer.planningState.burns,
     );
   }
 

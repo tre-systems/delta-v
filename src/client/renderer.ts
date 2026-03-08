@@ -210,6 +210,12 @@ export class Renderer {
     this.camera.snapToTarget();
   }
 
+  centerOnHex(hex: HexCoord) {
+    const p = hexToPixel(hex, HEX_SIZE);
+    this.camera.targetX = p.x;
+    this.camera.targetY = p.y;
+  }
+
   frameOnShips() {
     if (!this.gameState) return;
     const myShips = this.gameState.ships.filter(s => s.owner === this.playerId);
@@ -479,6 +485,15 @@ export class Renderer {
   }
 
   private renderShips(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
+    // Count ships at each hex for stacking offset
+    const hexCounts = new Map<string, number>();
+    const hexIndices = new Map<string, number>();
+    for (const ship of state.ships) {
+      if (ship.destroyed && !this.animState) continue;
+      const key = hexKey(ship.position);
+      hexCounts.set(key, (hexCounts.get(key) ?? 0) + 1);
+    }
+
     for (const ship of state.ships) {
       if (ship.destroyed && !this.animState) continue;
       let pos: PixelCoord;
@@ -507,6 +522,18 @@ export class Renderer {
         pos = hexToPixel(ship.position, HEX_SIZE);
       }
 
+      // Offset for stacked ships at same hex
+      if (!this.animState) {
+        const key = hexKey(ship.position);
+        const count = hexCounts.get(key) ?? 1;
+        if (count > 1) {
+          const idx = hexIndices.get(key) ?? 0;
+          hexIndices.set(key, idx + 1);
+          const offset = (idx - (count - 1) / 2) * 14;
+          pos = { x: pos.x + offset, y: pos.y };
+        }
+      }
+
       // Ship heading based on velocity
       const speed = hexVecLength(velocity);
       const heading = speed > 0
@@ -526,7 +553,9 @@ export class Renderer {
         ctx.stroke();
       }
 
-      this.drawShipIcon(ctx, pos.x, pos.y, ship.owner, 1.0, heading);
+      // Disabled ships shown dimmer
+      const alpha = ship.damage.disabledTurns > 0 ? 0.5 : 1.0;
+      this.drawShipIcon(ctx, pos.x, pos.y, ship.owner, alpha, heading);
 
       // Fuel indicator
       if (ship.owner === this.playerId && !this.animState) {

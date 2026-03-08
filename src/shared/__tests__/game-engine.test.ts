@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createGame, processAstrogation, skipCombat } from '../game-engine';
+import { createGame, processAstrogation, skipCombat, processCombat } from '../game-engine';
 import { buildSolarSystemMap, SCENARIOS, findBaseHex } from '../map-data';
 import { SHIP_STATS } from '../constants';
 import { hexKey, hexEqual } from '../hex';
@@ -240,6 +240,103 @@ describe('victory conditions', () => {
       expect(result.state.phase).toBe('gameOver');
       expect(result.state.winner).toBe(0);
       expect(result.state.winReason).toContain('Venus');
+    }
+  });
+});
+
+describe('Escape scenario', () => {
+  let escapeState: GameState;
+
+  beforeEach(() => {
+    escapeState = createGame(SCENARIOS.escape, map, 'ESC01', findBaseHex);
+  });
+
+  it('creates correct number of ships per player', () => {
+    const p0Ships = escapeState.ships.filter(s => s.owner === 0);
+    const p1Ships = escapeState.ships.filter(s => s.owner === 1);
+    expect(p0Ships).toHaveLength(3); // 3 transports
+    expect(p1Ships).toHaveLength(2); // corvette + corsair
+  });
+
+  it('pilgrim transports start landed at Terra base', () => {
+    const p0Ships = escapeState.ships.filter(s => s.owner === 0);
+    for (const ship of p0Ships) {
+      expect(ship.type).toBe('transport');
+      expect(ship.landed).toBe(true);
+    }
+  });
+
+  it('enforcer ships start not landed', () => {
+    const p1Ships = escapeState.ships.filter(s => s.owner === 1);
+    for (const ship of p1Ships) {
+      expect(ship.landed).toBe(false);
+    }
+  });
+
+  it('enforcer ship types are corvette and corsair', () => {
+    const p1Ships = escapeState.ships.filter(s => s.owner === 1);
+    const types = p1Ships.map(s => s.type).sort();
+    expect(types).toEqual(['corsair', 'corvette']);
+  });
+
+  it('pilgrim player has escapeWins = true', () => {
+    expect(escapeState.players[0].escapeWins).toBe(true);
+    expect(escapeState.players[1].escapeWins).toBe(false);
+  });
+
+  it('ship escaping map bounds wins for pilgrim', () => {
+    // Position a pilgrim transport beyond map bounds
+    const ship = escapeState.ships[0];
+    ship.position = { q: map.bounds.maxQ + 5, r: 0 };
+    ship.velocity = { dq: 2, dr: 0 };
+    ship.landed = false;
+
+    const orders: AstrogationOrder[] = escapeState.ships
+      .filter(s => s.owner === 0)
+      .map(s => ({ shipId: s.id, burn: null }));
+
+    const result = processAstrogation(escapeState, 0, orders, map);
+    if ('error' in result) return;
+
+    expect(result.state.phase).toBe('gameOver');
+    expect(result.state.winner).toBe(0);
+    expect(result.state.winReason).toContain('Escaped');
+  });
+
+  it('destroying all pilgrim ships wins for enforcer', () => {
+    // Destroy all pilgrim ships
+    for (const ship of escapeState.ships) {
+      if (ship.owner === 0) {
+        ship.destroyed = true;
+      }
+    }
+
+    // Enforcer makes a move — checkGameEnd should trigger
+    const enforcerShip = escapeState.ships.find(s => s.owner === 1)!;
+    escapeState.activePlayer = 1;
+    const orders: AstrogationOrder[] = [{ shipId: enforcerShip.id, burn: null }];
+    const result = processAstrogation(escapeState, 1, orders, map);
+    if ('error' in result) return;
+
+    expect(result.state.phase).toBe('gameOver');
+    expect(result.state.winner).toBe(1);
+    expect(result.state.winReason).toContain('destroyed');
+  });
+
+  it('handles multiple ships with same orders', () => {
+    // All 3 transports get burn orders
+    const orders: AstrogationOrder[] = escapeState.ships
+      .filter(s => s.owner === 0)
+      .map(s => ({ shipId: s.id, burn: 1 })); // All burn NE
+
+    const result = processAstrogation(escapeState, 0, orders, map);
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+
+    // All 3 should have moved
+    expect(result.movements).toHaveLength(3);
+    for (const m of result.movements) {
+      expect(m.fuelSpent).toBe(1);
     }
   });
 });
