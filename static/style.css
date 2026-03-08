@@ -687,15 +687,25 @@ body {
 
   .hud-bar {
     flex-wrap: wrap;
-    gap: 0.2rem;
+    gap: 0.2rem 0.5rem;
     padding: 0.4rem 0.5rem;
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
     font-size: 0.7rem;
+    justify-content: center;
   }
 
   .hud-bottom {
     flex-wrap: wrap;
     gap: 0.4rem;
     padding: 0.5rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  /* Larger touch targets for mobile */
+  .hud-bottom .btn {
+    min-height: 44px;
+    min-width: 60px;
   }
 
   .status-msg {
@@ -704,27 +714,31 @@ body {
   }
 
   .btn-confirm, .btn-attack {
-    padding: 0.5rem 1.5rem;
-    font-size: 0.85rem;
+    padding: 0.6rem 1.5rem;
+    font-size: 0.9rem;
+    flex: 1;
+    max-width: 180px;
   }
 
   .btn-ordnance {
-    padding: 0.5rem 1rem;
-    font-size: 0.75rem;
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
+    min-width: 70px;
   }
 
   .ship-list {
     top: auto;
     bottom: 5rem;
     left: 0.3rem;
-    max-height: 30vh;
+    max-height: 25vh;
     overflow-y: auto;
   }
 
   .ship-entry {
-    font-size: 0.6rem;
-    min-width: 100px;
-    padding: 0.25rem 0.4rem;
+    font-size: 0.65rem;
+    min-width: 110px;
+    padding: 0.35rem 0.5rem;
+    min-height: 36px;
   }
 
   .game-log {
@@ -732,7 +746,7 @@ body {
     bottom: 5rem;
     right: 0.3rem;
     width: 160px;
-    max-height: 30vh;
+    max-height: 25vh;
   }
 
   .log-entries {
@@ -763,6 +777,39 @@ body {
 
   #gameOver h2 {
     font-size: 1.5rem;
+  }
+
+  .toast {
+    font-size: 0.7rem;
+    max-width: 280px;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .help-btn, .sound-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .btn-scenario {
+    padding: 0.8rem 1rem;
+    min-height: 56px;
+  }
+
+  .btn-difficulty {
+    min-height: 44px;
+  }
+}
+
+/* Small mobile screens */
+@media (max-width: 360px) {
+  .btn-ordnance {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.7rem;
+    min-width: 55px;
+  }
+
+  .ship-list {
+    max-height: 20vh;
   }
 }
 
@@ -882,16 +929,41 @@ body {
   .ship-list {
     top: 2.5rem;
     bottom: auto;
-    max-height: 50vh;
+    max-height: 45vh;
   }
 
   .game-log {
     top: 2.5rem;
     bottom: auto;
-    max-height: 50vh;
+    max-height: 45vh;
   }
 
   .hud-bottom {
     padding: 0.3rem;
+    padding-bottom: max(0.3rem, env(safe-area-inset-bottom));
+  }
+
+  .hud-bar {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.65rem;
+  }
+
+  .menu-content {
+    max-width: 280px;
+    padding: 0.8rem;
+  }
+
+  .title {
+    font-size: 1.6rem;
+    margin-bottom: 0.1em;
+  }
+
+  .subtitle {
+    margin-bottom: 1rem;
+  }
+
+  .btn-scenario {
+    padding: 0.5rem 0.8rem;
+    margin-bottom: 0.4rem;
   }
 }
