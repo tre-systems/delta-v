@@ -8,7 +8,7 @@ import {
   HEX_DIRECTIONS,
   hexVecLength,
 } from '../shared/hex';
-import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CelestialBody, CombatResult } from '../shared/types';
+import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CelestialBody, CombatResult, PlayerState } from '../shared/types';
 import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS } from '../shared/constants';
 import { computeCourse, predictDestination } from '../shared/movement';
 import { computeOdds, computeRangeMod, computeVelocityMod, getCombatStrength, canAttack } from '../shared/combat';
@@ -385,9 +385,13 @@ export class Renderer {
 
     this.renderStars(ctx);
     if (this.map) {
+      this.renderAsteroids(ctx, this.map);
       this.renderGravityIndicators(ctx, this.map);
       this.renderBodies(ctx, this.map);
-      this.renderBaseMarkers(ctx, this.map);
+      this.renderBaseMarkers(ctx, this.map, this.gameState);
+      if (this.gameState) {
+        this.renderLandingTarget(ctx, this.map, this.gameState, now);
+      }
     }
     if (this.gameState && this.map) {
       this.renderCourseVectors(ctx, this.gameState, this.map, now);
@@ -502,14 +506,31 @@ export class Renderer {
     }
   }
 
-  private renderBaseMarkers(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
+  private renderBaseMarkers(ctx: CanvasRenderingContext2D, map: SolarSystemMap, state: GameState | null) {
+    // Determine home bodies for coloring
+    let myHome = '';
+    let enemyHome = '';
+    if (state && this.playerId >= 0) {
+      myHome = state.players[this.playerId]?.homeBody ?? '';
+      enemyHome = state.players[1 - this.playerId]?.homeBody ?? '';
+    }
+
     for (const [key, hex] of map.hexes) {
       if (!hex.base) continue;
       const [q, r] = key.split(',').map(Number);
       const p = hexToPixel({ q, r }, HEX_SIZE);
 
-      ctx.fillStyle = '#66bb6a';
-      ctx.strokeStyle = '#388e3c';
+      // Color by ownership
+      if (hex.base.bodyName === myHome) {
+        ctx.fillStyle = '#4fc3f7'; // friendly blue
+        ctx.strokeStyle = '#2196f3';
+      } else if (hex.base.bodyName === enemyHome) {
+        ctx.fillStyle = '#ff8a65'; // enemy orange
+        ctx.strokeStyle = '#e64a19';
+      } else {
+        ctx.fillStyle = '#66bb6a'; // neutral green
+        ctx.strokeStyle = '#388e3c';
+      }
       ctx.lineWidth = 1;
 
       // Small diamond marker
@@ -523,6 +544,54 @@ export class Renderer {
       ctx.fill();
       ctx.stroke();
     }
+  }
+
+  private renderAsteroids(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
+    for (const [key, hex] of map.hexes) {
+      if (hex.terrain !== 'asteroid') continue;
+      const [q, r] = key.split(',').map(Number);
+      const p = hexToPixel({ q, r }, HEX_SIZE);
+
+      // Small scattered dots to suggest asteroid debris
+      ctx.fillStyle = 'rgba(160, 140, 120, 0.35)';
+      const seed = q * 7 + r * 13; // deterministic per hex
+      for (let i = 0; i < 3; i++) {
+        const ox = ((seed * (i + 1) * 17) % 11 - 5) * 1.5;
+        const oy = ((seed * (i + 1) * 23) % 11 - 5) * 1.5;
+        const sz = 1.5 + ((seed * (i + 1) * 31) % 5) * 0.3;
+        ctx.beginPath();
+        ctx.arc(p.x + ox, p.y + oy, sz, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  private renderLandingTarget(ctx: CanvasRenderingContext2D, map: SolarSystemMap, state: GameState, now: number) {
+    const player = state.players[this.playerId];
+    if (!player || !player.targetBody) return;
+
+    // Find the target body
+    const body = map.bodies.find(b => b.name === player.targetBody);
+    if (!body) return;
+
+    const p = hexToPixel(body.center, HEX_SIZE);
+    const r = body.renderRadius * HEX_SIZE;
+
+    // Pulsing ring around target body
+    const pulse = 0.4 + 0.3 * Math.sin(now / 800);
+    ctx.strokeStyle = `rgba(100, 255, 100, ${pulse})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r + 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // "TARGET" label below body label
+    ctx.fillStyle = `rgba(100, 255, 100, ${0.5 + pulse * 0.3})`;
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('▼ TARGET', p.x, p.y + r + 24);
   }
 
   private renderCourseVectors(ctx: CanvasRenderingContext2D, state: GameState, map: SolarSystemMap, now: number) {
@@ -744,15 +813,36 @@ export class Renderer {
       }
 
       // Disabled ships shown dimmer
-      const alpha = ship.damage.disabledTurns > 0 ? 0.5 : 1.0;
+      const isDisabled = ship.damage.disabledTurns > 0;
+      const alpha = isDisabled ? 0.5 : 1.0;
       this.drawShipIcon(ctx, pos.x, pos.y, ship.owner, alpha, heading);
 
-      // Fuel indicator
-      if (ship.owner === this.playerId && !this.animState) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.font = '8px monospace';
+      // Disabled indicator
+      if (isDisabled && !this.animState) {
+        ctx.fillStyle = 'rgba(255, 170, 0, 0.9)';
+        ctx.font = 'bold 7px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(`F:${ship.fuel}`, pos.x, pos.y + 18);
+        ctx.fillText(`D${ship.damage.disabledTurns}`, pos.x, pos.y - 12);
+      }
+
+      // Ship label and fuel (only when not animating)
+      if (!this.animState) {
+        const stats = SHIP_STATS[ship.type];
+        const label = stats ? stats.name.charAt(0) : '?'; // Single letter: C=Corvette, T=Transport, etc.
+
+        if (ship.owner === this.playerId) {
+          // Show type letter + fuel for own ships
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+          ctx.font = '8px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${label} F:${ship.fuel}`, pos.x, pos.y + 18);
+        } else if (ship.detected) {
+          // Show type letter for detected enemy ships
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.font = '8px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(label, pos.x, pos.y + 18);
+        }
       }
     }
   }

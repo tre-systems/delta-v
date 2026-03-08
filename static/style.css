@@ -478,6 +478,47 @@ body {
   border-color: rgba(79, 195, 247, 0.5);
 }
 
+/* Ship hover tooltip */
+.ship-tooltip {
+  position: fixed;
+  z-index: 20;
+  background: rgba(10, 10, 26, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  min-width: 100px;
+  white-space: nowrap;
+}
+
+.ship-tooltip .tt-name {
+  color: #4fc3f7;
+  font-weight: bold;
+  font-size: 0.75rem;
+}
+
+.ship-tooltip .tt-enemy {
+  color: #ff8a65;
+}
+
+.ship-tooltip .tt-stat {
+  color: #aaa;
+}
+
+.ship-tooltip .tt-warn {
+  color: #ff9800;
+}
+
+/* Objective text in HUD */
+.objective-text {
+  color: #66bb6a;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
 /* Game Over */
 #gameOver h2 {
   font-size: 2rem;
