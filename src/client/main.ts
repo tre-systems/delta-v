@@ -124,8 +124,14 @@ class GameClient {
         this.renderer.camera.zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1.15);
       } else if (e.key === '-' || e.key === '_') {
         this.renderer.camera.zoomAt(window.innerWidth / 2, window.innerHeight / 2, 0.87);
+      } else if (e.key === '?' || e.key === '/') {
+        this.toggleHelp();
       }
     });
+
+    // Help overlay
+    document.getElementById('helpCloseBtn')!.addEventListener('click', () => this.toggleHelp());
+    document.getElementById('helpBtn')!.addEventListener('click', () => this.toggleHelp());
 
     // Ship hover tooltip
     this.canvas.addEventListener('mousemove', (e) => this.updateTooltip(e.clientX, e.clientY));
@@ -871,6 +877,11 @@ class GameClient {
       selectedId,
       this.renderer.planningState.burns,
     );
+  }
+
+  private toggleHelp() {
+    const helpOverlay = document.getElementById('helpOverlay')!;
+    helpOverlay.style.display = helpOverlay.style.display === 'none' ? 'flex' : 'none';
   }
 
   private logLandings(movements: ShipMovement[]) {
