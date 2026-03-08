@@ -13,7 +13,7 @@ export class UIManager {
   onSelectScenario: ((scenario: string) => void) | null = null;
   onJoin: ((code: string) => void) | null = null;
   onConfirm: (() => void) | null = null;
-  onLaunchOrdnance: ((type: 'mine' | 'torpedo') => void) | null = null;
+  onLaunchOrdnance: ((type: 'mine' | 'torpedo' | 'nuke') => void) | null = null;
   onSkipOrdnance: (() => void) | null = null;
   onAttack: (() => void) | null = null;
   onSkipCombat: (() => void) | null = null;
@@ -72,6 +72,7 @@ export class UIManager {
     document.getElementById('confirmBtn')!.addEventListener('click', () => this.onConfirm?.());
     document.getElementById('launchMineBtn')!.addEventListener('click', () => this.onLaunchOrdnance?.('mine'));
     document.getElementById('launchTorpedoBtn')!.addEventListener('click', () => this.onLaunchOrdnance?.('torpedo'));
+    document.getElementById('launchNukeBtn')!.addEventListener('click', () => this.onLaunchOrdnance?.('nuke'));
     document.getElementById('skipOrdnanceBtn')!.addEventListener('click', () => this.onSkipOrdnance?.());
     document.getElementById('attackBtn')!.addEventListener('click', () => this.onAttack?.());
     document.getElementById('skipCombatBtn')!.addEventListener('click', () => this.onSkipCombat?.());
@@ -128,9 +129,11 @@ export class UIManager {
 
     const launchMineBtn = document.getElementById('launchMineBtn')!;
     const launchTorpedoBtn = document.getElementById('launchTorpedoBtn')!;
+    const launchNukeBtn = document.getElementById('launchNukeBtn')!;
     const skipOrdnanceBtn = document.getElementById('skipOrdnanceBtn')!;
     launchMineBtn.style.display = isMyTurn && phase === 'ordnance' ? 'inline-block' : 'none';
     launchTorpedoBtn.style.display = isMyTurn && phase === 'ordnance' ? 'inline-block' : 'none';
+    launchNukeBtn.style.display = isMyTurn && phase === 'ordnance' ? 'inline-block' : 'none';
     skipOrdnanceBtn.style.display = isMyTurn && phase === 'ordnance' ? 'inline-block' : 'none';
 
     const skipCombatBtn = document.getElementById('skipCombatBtn')!;

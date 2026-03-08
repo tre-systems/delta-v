@@ -25,6 +25,7 @@ export const SHIP_STATS: Record<string, ShipStats> = {
 export const ORDNANCE_MASS: Record<string, number> = {
   mine: 10,
   torpedo: 20,
+  nuke: 20,
 };
 
 export const ORDNANCE_LIFETIME = 5; // self-destruct after 5 turns

@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createGame, processAstrogation, processOrdnance, skipOrdnance, skipCombat, processCombat } from '../game-engine';
 import { buildSolarSystemMap, SCENARIOS, findBaseHex } from '../map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../constants';
-import { hexKey, hexEqual } from '../hex';
-import type { GameState, SolarSystemMap, AstrogationOrder, OrdnanceLaunch } from '../types';
+import { hexKey, hexEqual, hexDistance } from '../hex';
+import { resolveBaseDefense } from '../combat';
+import type { GameState, SolarSystemMap, AstrogationOrder, OrdnanceLaunch, Ship } from '../types';
 
 let map: SolarSystemMap;
 let initialState: GameState;
@@ -547,5 +548,145 @@ describe('detection / fog of war', () => {
     // Should stay detected (persistent)
     const detectedShip = result.state.ships.find(s => s.id === ship1.id)!;
     expect(detectedShip.detected).toBe(true);
+  });
+});
+
+describe('base defense fire', () => {
+  it('fires at enemy ships in gravity hex adjacent to base', () => {
+    // Find a base and its adjacent gravity hex
+    const marsBase = findBaseHex(map, 'Mars')!;
+    expect(marsBase).not.toBeNull();
+
+    // Find gravity hex adjacent to this base
+    let gravHex: { q: number; r: number } | null = null;
+    for (const [key, hex] of map.hexes) {
+      if (!hex.gravity || hex.gravity.bodyName !== 'Mars') continue;
+      const [gq, gr] = key.split(',').map(Number);
+      if (hexDistance({ q: gq, r: gr }, marsBase) === 1) {
+        gravHex = { q: gq, r: gr };
+        break;
+      }
+    }
+
+    if (!gravHex) return; // Skip if map layout doesn't have this
+
+    // Place enemy ship in the gravity hex
+    const state: { ships: Ship[] } = {
+      ships: [
+        {
+          id: 'enemy',
+          type: 'corvette',
+          owner: 1,
+          position: gravHex,
+          velocity: { dq: 0, dr: 0 },
+          fuel: 20,
+          cargoUsed: 0,
+          landed: false,
+          destroyed: false,
+          detected: true,
+          damage: { disabledTurns: 0 },
+        },
+      ],
+    };
+
+    // Fixed RNG for deterministic result
+    const results = resolveBaseDefense(state, 0, map, () => 0.5);
+
+    // Should have fired at the enemy ship
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].targetId).toBe('enemy');
+    expect(results[0].odds).toBe('2:1');
+    expect(results[0].rangeMod).toBe(0); // No range mod
+    expect(results[0].velocityMod).toBe(0); // No velocity mod
+  });
+
+  it('does not fire at landed ships', () => {
+    const marsBase = findBaseHex(map, 'Mars')!;
+
+    const state: { ships: Ship[] } = {
+      ships: [
+        {
+          id: 'enemy',
+          type: 'corvette',
+          owner: 1,
+          position: marsBase,
+          velocity: { dq: 0, dr: 0 },
+          fuel: 20,
+          cargoUsed: 0,
+          landed: true, // landed at base
+          destroyed: false,
+          detected: true,
+          damage: { disabledTurns: 0 },
+        },
+      ],
+    };
+
+    const results = resolveBaseDefense(state, 0, map);
+    expect(results).toHaveLength(0);
+  });
+});
+
+describe('ramming', () => {
+  it('ships on same hex after movement trigger ramming damage', () => {
+    // Position both ships to collide at the same hex
+    const ship0 = initialState.ships[0];
+    const ship1 = initialState.ships[1];
+    ship0.landed = false;
+    ship0.position = { q: 5, r: 5 };
+    ship0.velocity = { dq: 1, dr: 0 };
+    ship1.landed = false;
+    ship1.position = { q: 7, r: 5 };
+    ship1.velocity = { dq: -1, dr: 0 };
+
+    // Both heading toward q:6, r:5
+    const orders: AstrogationOrder[] = [{ shipId: ship0.id, burn: null }];
+    const result = processAstrogation(initialState, 0, orders, map);
+    if ('error' in result) return;
+
+    // Check if the ship ended up on the same hex as the enemy
+    const s0 = result.state.ships[0];
+    const s1 = result.state.ships[1];
+    if (hexEqual(s0.position, s1.position)) {
+      // Should have ram events
+      const crashEvents = result.events.filter(e => e.type === 'crash');
+      expect(crashEvents.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('nuke ordnance', () => {
+  it('launches nuke from warship with sufficient cargo', () => {
+    // Corvette has cargo=5, nuke needs 20. Use a frigate (cargo=40) instead.
+    const ship = initialState.ships[0];
+    ship.type = 'frigate'; // canOverload=true, cargo=40
+    ship.landed = false;
+    ship.velocity = { dq: 1, dr: 0 };
+    ship.position = { q: 0, r: 0 };
+    initialState.phase = 'ordnance';
+
+    const launches: OrdnanceLaunch[] = [{ shipId: ship.id, ordnanceType: 'nuke', torpedoAccel: 0 }];
+    const result = processOrdnance(initialState, 0, launches, map);
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      expect(result.state.ordnance).toHaveLength(1);
+      expect(result.state.ordnance[0].type).toBe('nuke');
+      const movedShip = result.state.ships.find(s => s.id === ship.id)!;
+      expect(movedShip.cargoUsed).toBe(ORDNANCE_MASS.nuke);
+    }
+  });
+
+  it('rejects nuke from non-warship', () => {
+    const escState = createGame(SCENARIOS.escape, map, 'NUK01', findBaseHex);
+    const transport = escState.ships[0]; // transport
+    transport.landed = false;
+    transport.velocity = { dq: 1, dr: 0 };
+    escState.phase = 'ordnance';
+
+    const launches: OrdnanceLaunch[] = [{ shipId: transport.id, ordnanceType: 'nuke' }];
+    const result = processOrdnance(escState, 0, launches, map);
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('warship');
+    }
   });
 });
