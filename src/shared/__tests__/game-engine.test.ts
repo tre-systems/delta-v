@@ -734,3 +734,79 @@ describe('mutual destruction', () => {
     }
   });
 });
+
+describe('Blockade Runner scenario', () => {
+  let blockadeState: GameState;
+
+  beforeEach(() => {
+    blockadeState = createGame(SCENARIOS.blockade, map, 'BLK01', findBaseHex);
+  });
+
+  it('creates 1 ship per player', () => {
+    const p0Ships = blockadeState.ships.filter(s => s.owner === 0);
+    const p1Ships = blockadeState.ships.filter(s => s.owner === 1);
+    expect(p0Ships).toHaveLength(1);
+    expect(p1Ships).toHaveLength(1);
+  });
+
+  it('runner is a packet ship', () => {
+    const runner = blockadeState.ships.find(s => s.owner === 0)!;
+    expect(runner.type).toBe('packet');
+  });
+
+  it('blocker is a dreadnaught', () => {
+    const blocker = blockadeState.ships.find(s => s.owner === 1)!;
+    expect(blocker.type).toBe('dreadnaught');
+  });
+
+  it('runner targets Mars', () => {
+    expect(blockadeState.players[0].targetBody).toBe('Mars');
+  });
+
+  it('dreadnaught starts unlanded in space', () => {
+    const blocker = blockadeState.ships.find(s => s.owner === 1)!;
+    expect(blocker.landed).toBe(false);
+  });
+});
+
+describe('Fleet Action scenario', () => {
+  let fleetState: GameState;
+
+  beforeEach(() => {
+    fleetState = createGame(SCENARIOS.fleetAction, map, 'FLT01', findBaseHex);
+  });
+
+  it('creates 3 ships per player', () => {
+    const p0Ships = fleetState.ships.filter(s => s.owner === 0);
+    const p1Ships = fleetState.ships.filter(s => s.owner === 1);
+    expect(p0Ships).toHaveLength(3);
+    expect(p1Ships).toHaveLength(3);
+  });
+
+  it('each fleet has frigate, corsair, and corvette', () => {
+    for (const playerId of [0, 1]) {
+      const types = fleetState.ships
+        .filter(s => s.owner === playerId)
+        .map(s => s.type)
+        .sort();
+      expect(types).toEqual(['corsair', 'corvette', 'frigate']);
+    }
+  });
+
+  it('fleet 1 is based at Mars, fleet 2 at Venus', () => {
+    expect(fleetState.players[0].homeBody).toBe('Mars');
+    expect(fleetState.players[1].homeBody).toBe('Venus');
+  });
+
+  it('no target body — pure combat scenario', () => {
+    expect(fleetState.players[0].targetBody).toBe('');
+    expect(fleetState.players[1].targetBody).toBe('');
+  });
+
+  it('all ships start with full fuel for their type', () => {
+    for (const ship of fleetState.ships) {
+      const stats = SHIP_STATS[ship.type];
+      expect(ship.fuel).toBe(stats.fuel);
+    }
+  });
+});
