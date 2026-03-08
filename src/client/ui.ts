@@ -8,6 +8,7 @@ export class UIManager {
   onCreate: (() => void) | null = null;
   onJoin: ((code: string) => void) | null = null;
   onConfirm: (() => void) | null = null;
+  onSkipCombat: (() => void) | null = null;
   onRematch: (() => void) | null = null;
   onExit: (() => void) | null = null;
 
@@ -44,6 +45,7 @@ export class UIManager {
     });
 
     document.getElementById('confirmBtn')!.addEventListener('click', () => this.onConfirm?.());
+    document.getElementById('skipCombatBtn')!.addEventListener('click', () => this.onSkipCombat?.());
     document.getElementById('rematchBtn')!.addEventListener('click', () => this.onRematch?.());
     document.getElementById('exitBtn')!.addEventListener('click', () => this.onExit?.());
   }
@@ -87,12 +89,18 @@ export class UIManager {
     const confirmBtn = document.getElementById('confirmBtn')!;
     confirmBtn.style.display = isMyTurn && phase === 'astrogation' ? 'inline-block' : 'none';
 
+    const skipCombatBtn = document.getElementById('skipCombatBtn')!;
+    skipCombatBtn.style.display = isMyTurn && phase === 'combat' ? 'inline-block' : 'none';
+
     const statusMsg = document.getElementById('statusMsg')!;
     if (!isMyTurn) {
       statusMsg.textContent = 'Waiting for opponent...';
       statusMsg.style.display = 'block';
     } else if (phase === 'astrogation') {
       statusMsg.textContent = 'Select your ship and set a burn direction, then confirm';
+      statusMsg.style.display = 'block';
+    } else if (phase === 'combat') {
+      statusMsg.textContent = 'Combat phase — skip or engage enemy ships';
       statusMsg.style.display = 'block';
     } else {
       statusMsg.style.display = 'none';
