@@ -278,10 +278,12 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       {
         ships: [{ type: 'corvette', position: { q: 10, r: 8 }, velocity: { dq: 0, dr: 0 } }],
         targetBody: 'Venus',
+        homeBody: 'Mars',
       },
       {
         ships: [{ type: 'corvette', position: { q: -5, r: -7 }, velocity: { dq: 0, dr: 0 } }],
         targetBody: 'Mars',
+        homeBody: 'Venus',
       },
     ],
   },

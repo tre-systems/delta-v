@@ -1,10 +1,8 @@
 import { DurableObject } from 'cloudflare:workers';
-import type {
-  GameState, Ship, C2S, S2C, AstrogationOrder, ShipMovement,
-} from '../shared/types';
-import { computeCourse } from '../shared/movement';
+import type { GameState, C2S, S2C, AstrogationOrder } from '../shared/types';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
-import { SHIP_STATS, INACTIVITY_TIMEOUT_MS } from '../shared/constants';
+import { INACTIVITY_TIMEOUT_MS } from '../shared/constants';
+import { createGame, processAstrogation } from '../shared/game-engine';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -16,19 +14,7 @@ export class GameDO extends DurableObject {
     super(ctx, env);
   }
 
-  // --- Helpers for WebSocket tag-based player tracking ---
-
-  private getPlayerSockets(): Map<number, WebSocket> {
-    const result = new Map<number, WebSocket>();
-    for (const ws of this.ctx.getWebSockets()) {
-      const tag = this.ctx.getTags(ws).find(t => t.startsWith('player:'));
-      if (tag) {
-        const id = parseInt(tag.split(':')[1]);
-        result.set(id, ws);
-      }
-    }
-    return result;
-  }
+  // --- WebSocket tag-based player tracking ---
 
   private getPlayerId(ws: WebSocket): number | null {
     const tag = this.ctx.getTags(ws).find(t => t.startsWith('player:'));
@@ -40,7 +26,7 @@ export class GameDO extends DurableObject {
       + this.ctx.getWebSockets('player:1').length;
   }
 
-  // --- State management via DO storage ---
+  // --- State management ---
 
   private async getGameState(): Promise<GameState | null> {
     return await this.ctx.storage.get<GameState>('gameState') ?? null;
@@ -66,42 +52,34 @@ export class GameDO extends DurableObject {
       return new Response('Expected WebSocket', { status: 426 });
     }
 
-    // Extract code from URL
     const url = new URL(request.url);
     const codeMatch = url.pathname.match(/\/ws\/([A-Z0-9]{5})/);
     if (codeMatch) {
       await this.setGameCode(codeMatch[1]);
     }
 
-    // Count current players
     const playerCount = this.getPlayerCount();
     if (playerCount >= 2) {
       return new Response('Game is full', { status: 409 });
     }
 
-    // Assign next available player ID
     const playerId = this.ctx.getWebSockets('player:0').length === 0 ? 0 : 1;
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
-    // Accept with a tag so we can identify this player after hibernation
     this.ctx.acceptWebSocket(server, [`player:${playerId}`]);
 
-    // Send welcome
     const code = await this.getGameCode();
     this.send(server, { type: 'welcome', playerId, code });
 
-    // Check if both players are now connected
-    // +1 because the just-accepted socket may not yet appear in getWebSockets
+    // Both players connected — start the game
     if (playerCount + 1 >= 2) {
       this.broadcast({ type: 'matchFound' });
       await this.initGame();
     }
 
-    // Set inactivity alarm
     await this.ctx.storage.setAlarm(Date.now() + INACTIVITY_TIMEOUT_MS);
-
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -119,7 +97,6 @@ export class GameDO extends DurableObject {
     const playerId = this.getPlayerId(ws);
     if (playerId === null) return;
 
-    // Reset inactivity alarm
     await this.ctx.storage.setAlarm(Date.now() + INACTIVITY_TIMEOUT_MS);
 
     switch (msg.type) {
@@ -135,7 +112,7 @@ export class GameDO extends DurableObject {
     }
   }
 
-  async webSocketClose(ws: WebSocket): Promise<void> {
+  async webSocketClose(): Promise<void> {
     this.broadcast({ type: 'opponentDisconnected' });
   }
 
@@ -146,46 +123,14 @@ export class GameDO extends DurableObject {
     await this.ctx.storage.deleteAll();
   }
 
-  // --- Game logic ---
+  // --- Game logic (delegates to engine) ---
 
   private async initGame() {
     const scenario = SCENARIOS.biplanetary;
     const map = getSolarSystemMap();
     const code = await this.getGameCode();
 
-    const ships: Ship[] = [];
-    for (let p = 0; p < scenario.players.length; p++) {
-      for (let s = 0; s < scenario.players[p].ships.length; s++) {
-        const def = scenario.players[p].ships[s];
-        const stats = SHIP_STATS[def.type];
-        const baseHex = findBaseHex(map, p === 0 ? 'Mars' : 'Venus');
-        ships.push({
-          id: `p${p}s${s}`,
-          type: def.type,
-          owner: p,
-          position: baseHex ?? def.position,
-          velocity: { ...def.velocity },
-          fuel: stats.fuel,
-          landed: true,
-          destroyed: false,
-        });
-      }
-    }
-
-    const gameState: GameState = {
-      gameId: code,
-      scenario: scenario.name,
-      turnNumber: 1,
-      phase: 'astrogation',
-      activePlayer: 0,
-      ships,
-      players: [
-        { connected: true, ready: true, targetBody: scenario.players[0].targetBody },
-        { connected: true, ready: true, targetBody: scenario.players[1].targetBody },
-      ],
-      winner: null,
-      winReason: null,
-    };
+    const gameState = createGame(scenario, map, code, findBaseHex);
 
     await this.saveGameState(gameState);
     this.broadcast({ type: 'gameStart', state: gameState });
@@ -195,118 +140,36 @@ export class GameDO extends DurableObject {
     const gameState = await this.getGameState();
     if (!gameState) return;
 
-    if (gameState.phase !== 'astrogation') {
-      this.send(ws, { type: 'error', message: 'Not in astrogation phase' });
-      return;
-    }
-    if (playerId !== gameState.activePlayer) {
-      this.send(ws, { type: 'error', message: 'Not your turn' });
-      return;
-    }
-
     const map = getSolarSystemMap();
-    const movements: ShipMovement[] = [];
+    const result = processAstrogation(gameState, playerId, orders, map);
 
-    for (const ship of gameState.ships) {
-      if (ship.owner !== playerId) continue;
-      if (ship.destroyed) continue;
-
-      const order = orders.find(o => o.shipId === ship.id);
-      const burn = order?.burn ?? null;
-
-      // Validate burn
-      if (burn !== null) {
-        if (burn < 0 || burn > 5) {
-          this.send(ws, { type: 'error', message: 'Invalid burn direction' });
-          return;
-        }
-        if (ship.fuel <= 0) {
-          this.send(ws, { type: 'error', message: 'No fuel remaining' });
-          return;
-        }
-      }
-
-      const course = computeCourse(ship, burn, map);
-      movements.push({
-        shipId: ship.id,
-        from: { ...ship.position },
-        to: course.destination,
-        path: course.path,
-        newVelocity: course.newVelocity,
-        fuelSpent: course.fuelSpent,
-        gravityEffects: course.gravityEffects,
-        crashed: course.crashed,
-        landedAt: course.landedAt,
-      });
-
-      // Update ship
-      ship.position = course.destination;
-      ship.velocity = course.newVelocity;
-      ship.fuel -= course.fuelSpent;
-      ship.landed = course.landedAt !== null;
-
-      if (course.landedAt) {
-        // Landing: velocity resets to zero (ship docks / sets down)
-        ship.velocity = { dq: 0, dr: 0 };
-      }
-
-      if (course.crashed) {
-        ship.destroyed = true;
-        ship.velocity = { dq: 0, dr: 0 };
-      }
-    }
-
-    // Check victory: landing on target body
-    for (const ship of gameState.ships) {
-      if (ship.destroyed || !ship.landed) continue;
-      const targetBody = gameState.players[ship.owner].targetBody;
-      const hex = map.hexes.get(`${ship.position.q},${ship.position.r}`);
-      if (hex?.base?.bodyName === targetBody || hex?.body?.name === targetBody) {
-        gameState.winner = ship.owner;
-        gameState.winReason = `Landed on ${targetBody}!`;
-        gameState.phase = 'gameOver';
-      }
-    }
-
-    // Check loss: all ships destroyed
-    for (let p = 0; p < 2; p++) {
-      const alive = gameState.ships.filter(s => s.owner === p && !s.destroyed);
-      if (alive.length === 0) {
-        gameState.winner = 1 - p;
-        gameState.winReason = `Opponent's ship was destroyed!`;
-        gameState.phase = 'gameOver';
-      }
+    if ('error' in result) {
+      this.send(ws, { type: 'error', message: result.error });
+      return;
     }
 
     // Broadcast movement results
-    this.broadcast({ type: 'movementResult', movements, state: gameState });
+    this.broadcast({ type: 'movementResult', movements: result.movements, state: result.state });
 
-    if (gameState.phase === 'gameOver') {
+    if (result.state.phase === 'gameOver') {
       this.broadcast({
         type: 'gameOver',
-        winner: gameState.winner!,
-        reason: gameState.winReason!,
+        winner: result.state.winner!,
+        reason: result.state.winReason!,
       });
-      await this.saveGameState(gameState);
-      return;
     }
 
-    // Switch active player
-    gameState.activePlayer = 1 - gameState.activePlayer;
-    if (gameState.activePlayer === 0) {
-      gameState.turnNumber++;
-    }
+    await this.saveGameState(result.state);
 
-    await this.saveGameState(gameState);
-    this.broadcast({ type: 'stateUpdate', state: gameState });
+    if (result.state.phase !== 'gameOver') {
+      this.broadcast({ type: 'stateUpdate', state: result.state });
+    }
   }
 
-  // --- Messaging helpers ---
+  // --- Messaging ---
 
   private send(ws: WebSocket, msg: S2C) {
-    try {
-      ws.send(JSON.stringify(msg));
-    } catch {}
+    try { ws.send(JSON.stringify(msg)); } catch {}
   }
 
   private broadcast(msg: S2C) {
