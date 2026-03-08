@@ -117,6 +117,40 @@ describe('processAstrogation', () => {
     expect('error' in result).toBe(true);
   });
 
+  it('accepts overload order for warship and spends 2 fuel', () => {
+    const ship = initialState.ships[0]; // corvette, canOverload = true
+    ship.landed = false;
+    ship.velocity = { dq: 0, dr: 0 };
+    ship.position = { q: 0, r: 0 };
+
+    const orders: AstrogationOrder[] = [{
+      shipId: ship.id,
+      burn: 0,      // E
+      overload: 1,  // NE
+    }];
+    const result = processAstrogation(initialState, 0, orders, map);
+
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      expect(result.movements[0].fuelSpent).toBe(2);
+    }
+  });
+
+  it('rejects invalid overload direction', () => {
+    const ship = initialState.ships[0];
+    ship.landed = false;
+    ship.velocity = { dq: 0, dr: 0 };
+    ship.position = { q: 0, r: 0 };
+
+    const orders: AstrogationOrder[] = [{
+      shipId: ship.id,
+      burn: 0,
+      overload: 7, // invalid
+    }];
+    const result = processAstrogation(initialState, 0, orders, map);
+    expect('error' in result).toBe(true);
+  });
+
   it('enters combat phase after astrogation when enemies exist', () => {
     const orders: AstrogationOrder[] = [{
       shipId: initialState.ships[0].id,
