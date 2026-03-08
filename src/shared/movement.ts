@@ -6,11 +6,15 @@ import {
   hexSubtract,
   hexLineDraw,
   hexKey,
-  hexEqual,
-  hexVecLength,
   hexDirectionToward,
 } from './hex';
-import type { Ship, CourseResult, GravityEffect, SolarSystemMap, MapHex } from './types';
+import type { Ship, CourseResult, GravityEffect, SolarSystemMap } from './types';
+import { SHIP_STATS } from './constants';
+
+export interface CourseOptions {
+  overload?: number | null; // second burn direction (warships only)
+  weakGravityChoices?: Record<string, boolean>; // hexKey -> true to ignore
+}
 
 /**
  * Compute the course for a ship given a burn direction.
@@ -18,17 +22,21 @@ import type { Ship, CourseResult, GravityEffect, SolarSystemMap, MapHex } from '
  * Algorithm:
  * 1. Predicted destination = position + velocity
  * 2. Apply burn (optional): shift destination by 1 hex in burn direction
- * 3. Trace path from position to destination
- * 4. Apply gravity: each gravity hex in path deflects the destination
- * 5. Compute final path and new velocity
+ * 3. Apply overload (optional, warships only): shift by another hex, 2 fuel total
+ * 4. Trace path from position to destination
+ * 5. Apply gravity: each gravity hex in path deflects the destination
+ * 6. Compute final path and new velocity
  */
 export function computeCourse(
   ship: Ship,
   burn: number | null,
   map: SolarSystemMap,
+  options?: CourseOptions,
 ): CourseResult {
   let destination: HexCoord;
   let fuelSpent = 0;
+  const overload = options?.overload ?? null;
+  const weakGravityChoices = options?.weakGravityChoices ?? {};
 
   if (ship.landed) {
     // No burn = stay landed (ship remains at the base)
@@ -41,19 +49,16 @@ export function computeCourse(
         gravityEffects: [],
         crashed: false,
         crashBody: null,
-        landedAt: null, // Already landed, no new landing event
+        landedAt: null,
       };
     }
 
-    // Takeoff: ship starts at a base on a planet surface.
-    // Boosters move ship 1 hex away from planet center.
-    // Gravity of that hex pulls it back, so net velocity is 0.
-    // The ship ends up stationary in the gravity hex above the base.
+    // Takeoff: boosters move ship 1 hex away from planet center.
+    // Gravity cancels this, leaving ship stationary in the gravity hex.
     // Then the player's burn is applied from there.
     const baseHex = map.hexes.get(hexKey(ship.position));
     const bodyName = baseHex?.base?.bodyName ?? baseHex?.body?.name;
 
-    // Find the launch hex: the adjacent hex in the direction away from the body center.
     let launchHex = ship.position;
     if (bodyName) {
       const body = map.bodies.find(b => b.name === bodyName);
@@ -64,7 +69,6 @@ export function computeCourse(
         if (!nh?.body) {
           launchHex = awayNeighbor;
         } else {
-          // Fallback: find any adjacent non-body hex
           for (let d = 0; d < 6; d++) {
             const neighbor = hexAdd(ship.position, HEX_DIRECTIONS[d]);
             const nh2 = map.hexes.get(hexKey(neighbor));
@@ -81,32 +85,29 @@ export function computeCourse(
     }
 
     // After booster + gravity cancel, ship is stationary at launchHex.
-    // Apply the player's burn from there.
     destination = hexAdd(launchHex, HEX_DIRECTIONS[burn]);
-    fuelSpent = ship.fuel > 0 ? 1 : 0;
+    fuelSpent = 1;
 
-    // Trace path and apply gravity from launch hex
+    // Overload on takeoff
+    if (overload !== null) {
+      const stats = SHIP_STATS[ship.type];
+      if (stats?.canOverload && ship.fuel >= 2) {
+        destination = hexAdd(destination, HEX_DIRECTIONS[overload]);
+        fuelSpent = 2;
+      }
+    }
+
     const path = hexLineDraw(launchHex, destination);
     const gravityEffects: GravityEffect[] = [];
-    applyGravity(path, destination, map, gravityEffects, (newDest) => { destination = newDest; });
+    applyGravity(path, destination, map, gravityEffects, weakGravityChoices, (d) => { destination = d; });
 
     const finalPath = hexLineDraw(launchHex, destination);
     const newVelocity = hexSubtract(destination, launchHex);
 
-    // Skip crash check against the body we just took off from
     const { crashed, crashBody } = checkCrash(finalPath, map, newVelocity, bodyName ?? undefined);
-    const landedAt = checkLanding(destination, newVelocity, map);
+    const landedAt = checkLanding(destination, map);
 
-    return {
-      destination,
-      path: finalPath,
-      newVelocity,
-      fuelSpent,
-      gravityEffects,
-      crashed,
-      crashBody,
-      landedAt,
-    };
+    return { destination, path: finalPath, newVelocity, fuelSpent, gravityEffects, crashed, crashBody, landedAt };
   }
 
   // Normal movement: destination = position + velocity
@@ -118,78 +119,87 @@ export function computeCourse(
     fuelSpent = 1;
   }
 
+  // Apply overload (warships only, costs 2 fuel total)
+  if (overload !== null && burn !== null) {
+    const stats = SHIP_STATS[ship.type];
+    if (stats?.canOverload && ship.fuel >= 2) {
+      destination = hexAdd(destination, HEX_DIRECTIONS[overload]);
+      fuelSpent = 2;
+    }
+  }
+
   // Trace path and apply gravity
   const rawPath = hexLineDraw(ship.position, destination);
   const gravityEffects: GravityEffect[] = [];
-
-  applyGravity(rawPath, destination, map, gravityEffects, (newDest) => { destination = newDest; });
+  applyGravity(rawPath, destination, map, gravityEffects, weakGravityChoices, (d) => { destination = d; });
 
   // Compute final path with gravity-adjusted destination
   const finalPath = hexLineDraw(ship.position, destination);
   const newVelocity = hexSubtract(destination, ship.position);
 
   const { crashed, crashBody } = checkCrash(finalPath, map, newVelocity);
-  const landedAt = checkLanding(destination, newVelocity, map);
+  const landedAt = checkLanding(destination, map);
 
-  return {
-    destination,
-    path: finalPath,
-    newVelocity,
-    fuelSpent,
-    gravityEffects,
-    crashed,
-    crashBody,
-    landedAt,
-  };
+  return { destination, path: finalPath, newVelocity, fuelSpent, gravityEffects, crashed, crashBody, landedAt };
 }
 
 /**
- * Walk the path and apply gravity deflections to the destination.
- * Gravity hexes deflect the endpoint by 1 hex in the gravity direction.
- * Applies gravity at the starting hex (a stationary ship in a gravity hex drifts).
- * Skips the destination hex — gravity there affects the next turn, not this move.
- * This ensures ships can land at base hexes in the gravity ring without being
- * pushed past the base into the planet body.
+ * Apply gravity deflections along the path.
+ *
+ * Applies at starting hex (stationary ships drift).
+ * Skips destination hex (gravity there affects next turn).
+ *
+ * Weak gravity: player may choose to ignore a single weak gravity hex.
+ * Two consecutive weak gravity hexes from the same body = mandatory on the second.
  */
 function applyGravity(
   path: HexCoord[],
   destination: HexCoord,
   map: SolarSystemMap,
   effects: GravityEffect[],
+  weakGravityChoices: Record<string, boolean>,
   setDestination: (d: HexCoord) => void,
 ): void {
   let dest = destination;
+  let prevWeakBody: string | null = null;
 
-  // Apply gravity at all hexes except the last (destination).
-  // For a single-hex path (stationary ship), the hex is both start and destination,
-  // so gravity still applies (the ship is IN the gravity field and gets pulled).
   const end = path.length === 1 ? path.length : path.length - 1;
   for (let i = 0; i < end; i++) {
     const hex = map.hexes.get(hexKey(path[i]));
-    if (hex?.gravity) {
-      const grav = hex.gravity;
-
-      // Weak gravity: player can ignore a single weak gravity hex
-      // TODO: Add weak gravity player choice
-
-      const deflection = HEX_DIRECTIONS[grav.direction];
-      dest = hexAdd(dest, deflection);
-      effects.push({
-        hex: path[i],
-        direction: grav.direction,
-        bodyName: grav.bodyName,
-      });
+    if (!hex?.gravity) {
+      prevWeakBody = null;
+      continue;
     }
+
+    const grav = hex.gravity;
+    const key = hexKey(path[i]);
+
+    if (grav.strength === 'weak') {
+      const isConsecutiveWeak = prevWeakBody === grav.bodyName;
+      const playerIgnores = weakGravityChoices[key] === true;
+
+      if (!isConsecutiveWeak && playerIgnores) {
+        effects.push({ hex: path[i], direction: grav.direction, bodyName: grav.bodyName, strength: 'weak', ignored: true });
+        prevWeakBody = grav.bodyName;
+        continue;
+      }
+      prevWeakBody = grav.bodyName;
+    } else {
+      prevWeakBody = null;
+    }
+
+    const deflection = HEX_DIRECTIONS[grav.direction];
+    dest = hexAdd(dest, deflection);
+    effects.push({ hex: path[i], direction: grav.direction, bodyName: grav.bodyName, strength: grav.strength, ignored: false });
   }
 
   setDestination(dest);
 }
 
 /**
- * Check if any hex in the path would result in a crash (ship hits a planetary body).
- * Skip the first hex (departure).
- * Final hex: base hexes never crash (landing), destructive bodies always crash,
- * non-destructive bodies crash unless velocity is zero.
+ * Check if any hex in the path causes a crash.
+ * Intermediate body hexes = crash (except skipBody for takeoff).
+ * Final hex: destructive bodies crash, non-destructive = landing.
  */
 function checkCrash(
   path: HexCoord[],
@@ -200,13 +210,10 @@ function checkCrash(
   for (let i = 1; i < path.length; i++) {
     const hex = map.hexes.get(hexKey(path[i]));
     if (hex?.body) {
-      // For intermediate hexes: skip the takeoff body, crash for all others
       if (i < path.length - 1) {
         if (skipBody && hex.body.name === skipBody) continue;
         return { crashed: true, crashBody: hex.body.name };
       }
-      // For the final hex: destructive bodies (Sol) always crash.
-      // Non-destructive bodies at the destination = landing (the ship arrives and sets down).
       if (hex.body.destructive) {
         return { crashed: true, crashBody: hex.body.name };
       }
@@ -216,26 +223,17 @@ function checkCrash(
 }
 
 /**
- * Check if the ship lands at a base or body.
- * Base hexes: ship lands regardless of velocity (base docking catches the ship).
- * Body surface hexes (no base): ship must have zero velocity to land safely.
+ * Check if the ship lands at a base or body surface.
+ * Base hexes: always land (docking catches the ship at any velocity).
+ * Non-destructive body surface: also lands (ship touches down).
  */
 function checkLanding(
   destination: HexCoord,
-  velocity: HexVec,
   map: SolarSystemMap,
 ): string | null {
   const hex = map.hexes.get(hexKey(destination));
-
-  // Base hexes: landing always succeeds (base catches the ship)
-  if (hex?.base) {
-    return hex.base.bodyName;
-  }
-
-  // Non-destructive body surface: landing (ship arrives and sets down)
-  if (hex?.body && !hex.body.destructive) {
-    return hex.body.name;
-  }
+  if (hex?.base) return hex.base.bodyName;
+  if (hex?.body && !hex.body.destructive) return hex.body.name;
   return null;
 }
 

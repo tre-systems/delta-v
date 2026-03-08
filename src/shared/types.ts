@@ -2,7 +2,7 @@ import type { HexCoord, HexVec } from './hex';
 
 // --- Game state ---
 
-export type Phase = 'waiting' | 'astrogation' | 'movement' | 'gameOver';
+export type Phase = 'waiting' | 'astrogation' | 'ordnance' | 'movement' | 'combat' | 'resupply' | 'gameOver';
 
 export interface GameState {
   gameId: string;
@@ -25,6 +25,9 @@ export interface Ship {
   fuel: number;
   landed: boolean;
   destroyed: boolean;
+  damage: {
+    disabledTurns: number; // 0 = operational, cumulative >= 6 = eliminated
+  };
 }
 
 export interface PlayerState {
@@ -38,6 +41,8 @@ export interface PlayerState {
 export interface AstrogationOrder {
   shipId: string;
   burn: number | null; // HEX_DIRECTIONS index (0-5) or null
+  overload?: number | null; // second burn direction for warships (costs 2 fuel total)
+  weakGravityChoices?: Record<string, boolean>; // hexKey -> true to ignore weak gravity
 }
 
 export interface CourseResult {
@@ -55,6 +60,8 @@ export interface GravityEffect {
   hex: HexCoord;
   direction: number; // HEX_DIRECTIONS index
   bodyName: string;
+  strength: 'full' | 'weak';
+  ignored: boolean; // true if player chose to ignore weak gravity
 }
 
 export interface ShipMovement {
@@ -133,6 +140,7 @@ export interface ScenarioShip {
 export interface ScenarioPlayer {
   ships: ScenarioShip[];
   targetBody: string;
+  homeBody: string; // body name for base ownership / resupply
 }
 
 export interface ScenarioDefinition {
