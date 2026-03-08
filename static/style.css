@@ -204,6 +204,109 @@ body {
   text-align: center;
 }
 
+/* Scenario selection */
+.scenario-title {
+  font-size: 1.3rem;
+  letter-spacing: 0.2em;
+  margin-bottom: 1.5rem;
+  color: #ccc;
+}
+
+.btn-scenario {
+  display: block;
+  width: 100%;
+  padding: 1rem 1.5rem;
+  margin-bottom: 0.75rem;
+  text-align: left;
+  border-color: rgba(79, 195, 247, 0.3);
+}
+
+.btn-scenario:hover {
+  border-color: #4fc3f7;
+  background: rgba(79, 195, 247, 0.08);
+}
+
+.scenario-name {
+  font-size: 1rem;
+  color: #4fc3f7;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.3rem;
+}
+
+.scenario-desc {
+  font-size: 0.75rem;
+  color: #888;
+  letter-spacing: 0.05em;
+}
+
+/* Ship list */
+.ship-list {
+  position: fixed;
+  top: 2.5rem;
+  left: 0.5rem;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.ship-entry {
+  padding: 0.3rem 0.6rem;
+  background: rgba(10, 10, 26, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 130px;
+  backdrop-filter: blur(4px);
+}
+
+.ship-entry:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ship-entry.active {
+  border-color: #4fc3f7;
+  background: rgba(79, 195, 247, 0.08);
+}
+
+.ship-entry.destroyed {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.ship-entry.destroyed .ship-name {
+  text-decoration: line-through;
+}
+
+.ship-name {
+  flex: 1;
+  color: #ccc;
+}
+
+.ship-status {
+  color: #ff9800;
+  font-size: 0.65rem;
+}
+
+.ship-fuel {
+  color: #888;
+  font-size: 0.65rem;
+}
+
+.burn-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #66bb6a;
+  margin-left: 2px;
+  vertical-align: middle;
+}
+
 /* Game Over */
 #gameOver h2 {
   font-size: 2rem;

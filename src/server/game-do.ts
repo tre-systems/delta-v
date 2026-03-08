@@ -58,6 +58,12 @@ export class GameDO extends DurableObject {
       await this.setGameCode(codeMatch[1]);
     }
 
+    // Store scenario from query param
+    const scenario = url.searchParams.get('scenario');
+    if (scenario) {
+      await this.ctx.storage.put('scenario', scenario);
+    }
+
     const playerCount = this.getPlayerCount();
     if (playerCount >= 2) {
       return new Response('Game is full', { status: 409 });
@@ -132,7 +138,8 @@ export class GameDO extends DurableObject {
   // --- Game logic (delegates to engine) ---
 
   private async initGame() {
-    const scenario = SCENARIOS.biplanetary;
+    const scenarioName = await this.ctx.storage.get<string>('scenario') ?? 'biplanetary';
+    const scenario = SCENARIOS[scenarioName] ?? SCENARIOS.biplanetary;
     const map = getSolarSystemMap();
     const code = await this.getGameCode();
 
@@ -163,7 +170,8 @@ export class GameDO extends DurableObject {
     const gameState = await this.getGameState();
     if (!gameState) return;
 
-    const result = processCombat(gameState, playerId, attacks);
+    const map = getSolarSystemMap();
+    const result = processCombat(gameState, playerId, attacks, map);
 
     if ('error' in result) {
       this.send(ws, { type: 'error', message: result.error });
