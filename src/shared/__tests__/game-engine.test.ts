@@ -810,3 +810,81 @@ describe('Fleet Action scenario', () => {
     }
   });
 });
+
+describe('Edge cases', () => {
+  it('no-burn orders for all ships produces valid movement', () => {
+    const orders: AstrogationOrder[] = initialState.ships
+      .filter(s => s.owner === 0)
+      .map(s => ({ shipId: s.id, burn: null }));
+    const result = processAstrogation(initialState, 0, orders, map);
+    expect('error' in result).toBe(false);
+  });
+
+  it('skip ordnance when no ordnance exists', () => {
+    initialState.phase = 'ordnance';
+    const result = skipOrdnance(initialState, 0);
+    expect('error' in result).toBe(false);
+  });
+
+  it('skip combat when no enemies are nearby', () => {
+    initialState.phase = 'combat';
+    const result = skipCombat(initialState, 0, map);
+    expect('error' in result).toBe(false);
+  });
+
+  it('wrong player cannot submit orders', () => {
+    // Player 0 is active, try submitting as player 1
+    const orders: AstrogationOrder[] = initialState.ships
+      .filter(s => s.owner === 1)
+      .map(s => ({ shipId: s.id, burn: null }));
+    const result = processAstrogation(initialState, 1, orders, map);
+    expect('error' in result).toBe(true);
+  });
+
+  it('destroyed ships are skipped in movement', () => {
+    const ship = initialState.ships[0];
+    ship.destroyed = true;
+    const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: null }];
+    const result = processAstrogation(initialState, 0, orders, map);
+    expect('error' in result).toBe(false);
+  });
+
+  it('fleet action ends when one side is eliminated', () => {
+    const fleetState = createGame(SCENARIOS.fleetAction, map, 'FLT02', findBaseHex);
+    // Destroy all of player 1's ships
+    fleetState.ships.filter(s => s.owner === 1).forEach(s => { s.destroyed = true; });
+
+    // Run a no-op astrogation to trigger checkGameEnd
+    const orders: AstrogationOrder[] = fleetState.ships
+      .filter(s => s.owner === 0)
+      .map(s => ({ shipId: s.id, burn: null }));
+    const result = processAstrogation(fleetState, 0, orders, map);
+    if (!('error' in result)) {
+      expect(result.state.phase).toBe('gameOver');
+      expect(result.state.winner).toBe(0);
+    }
+  });
+
+  it('blockade runner wins by landing on Mars', () => {
+    const blockadeState = createGame(SCENARIOS.blockade, map, 'BLK02', findBaseHex);
+    const runner = blockadeState.ships.find(s => s.owner === 0)!;
+    // Position runner just outside Mars gravity, drifting toward Mars surface
+    // Mars center is {q:10, r:8}, gravity ring at radius 1
+    // Ship at {q:12, r:7} with velocity {dq:-1, dr:0} drifts to base hex {q:11, r:7}
+    // Gravity then deflects it onto Mars surface — triggers landing on non-destructive body
+    runner.position = { q: 12, r: 7 };
+    runner.velocity = { dq: -1, dr: 0 };
+    runner.landed = false;
+
+    // Process drift-only turn (no burn)
+    const orders: AstrogationOrder[] = blockadeState.ships
+      .filter(s => s.owner === 0)
+      .map(s => ({ shipId: s.id, burn: null }));
+    const result = processAstrogation(blockadeState, 0, orders, map);
+    if (!('error' in result)) {
+      expect(result.state.phase).toBe('gameOver');
+      expect(result.state.winner).toBe(0);
+      expect(result.state.winReason).toContain('Mars');
+    }
+  });
+});
