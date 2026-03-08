@@ -1,5 +1,5 @@
 import type { GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, ShipMovement } from '../shared/types';
-import { pixelToHex, hexEqual, hexVecLength } from '../shared/hex';
+import { pixelToHex, hexToPixel, hexEqual, hexVecLength } from '../shared/hex';
 import { canAttack, getCombatStrength, computeOdds, computeRangeMod, computeVelocityMod } from '../shared/combat';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
@@ -130,6 +130,10 @@ class GameClient {
       } else if (e.key === '0' && this.state === 'playing_astrogation') {
         // 0 to clear burn
         this.clearSelectedBurn();
+      } else if (e.key.toLowerCase() === 'e' && this.gameState &&
+          (this.state === 'playing_astrogation' || this.state === 'playing_ordnance' || this.state === 'playing_combat' || this.state === 'playing_opponentTurn')) {
+        // Focus camera on nearest enemy
+        this.focusNearestEnemy();
       } else if (e.key.toLowerCase() === 'w' || e.key === 'ArrowUp') {
         this.renderer.camera.pan(0, 40);
       } else if (e.key.toLowerCase() === 's' || e.key === 'ArrowDown') {
@@ -580,12 +584,15 @@ class GameClient {
 
     if (this.gameState.phase === 'combat' && isMyTurn) {
       this.setState('playing_combat');
+      this.renderer.showPhaseBanner('COMBAT');
       playPhaseChange();
     } else if (this.gameState.phase === 'ordnance' && isMyTurn) {
       this.setState('playing_ordnance');
+      this.renderer.showPhaseBanner('ORDNANCE');
       playPhaseChange();
     } else if (this.gameState.phase === 'astrogation' && isMyTurn) {
       this.setState('playing_astrogation');
+      this.renderer.showPhaseBanner('YOUR TURN');
       playPhaseChange();
     } else {
       this.setState('playing_opponentTurn');
@@ -964,6 +971,31 @@ class GameClient {
     this.renderer.planningState.selectedShipId = myShips[nextIdx].id;
     this.renderer.centerOnHex(myShips[nextIdx].position);
     this.updateHUD();
+  }
+
+  private focusNearestEnemy() {
+    if (!this.gameState) return;
+    const enemies = this.gameState.ships.filter(s =>
+      s.owner !== this.playerId && !s.destroyed && s.detected,
+    );
+    if (enemies.length === 0) {
+      this.ui.showToast('No detected enemies', 'info');
+      return;
+    }
+    // Find the one nearest to current camera center
+    let nearest = enemies[0];
+    let bestDist = Infinity;
+    for (const e of enemies) {
+      const p = hexToPixel(e.position, HEX_SIZE);
+      const dx = p.x - this.renderer.camera.x;
+      const dy = p.y - this.renderer.camera.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < bestDist) {
+        bestDist = dist;
+        nearest = e;
+      }
+    }
+    this.renderer.centerOnHex(nearest.position);
   }
 
   // --- Burn shortcuts ---
