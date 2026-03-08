@@ -100,6 +100,7 @@ class GameClient {
         // Reset planning state
         this.renderer.planningState.selectedShipId = null;
         this.renderer.planningState.burns.clear();
+        this.renderer.planningState.overloads.clear();
         // Auto-select the player's first ship
         if (this.gameState) {
           const myShip = this.gameState.ships.find(s => s.owner === this.playerId && !s.destroyed);
@@ -272,10 +273,11 @@ class GameClient {
     const orders: AstrogationOrder[] = [];
     for (const ship of this.gameState.ships) {
       if (ship.owner !== this.playerId) continue;
-      orders.push({
-        shipId: ship.id,
-        burn: this.renderer.planningState.burns.get(ship.id) ?? null,
-      });
+      const burn = this.renderer.planningState.burns.get(ship.id) ?? null;
+      const overload = this.renderer.planningState.overloads.get(ship.id) ?? null;
+      const order: AstrogationOrder = { shipId: ship.id, burn };
+      if (overload !== null) order.overload = overload;
+      orders.push(order);
     }
 
     this.send({ type: 'astrogation', orders });
