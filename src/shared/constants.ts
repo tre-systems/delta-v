@@ -29,6 +29,10 @@ export const ORDNANCE_MASS: Record<string, number> = {
 
 export const ORDNANCE_LIFETIME = 5; // self-destruct after 5 turns
 
+// Detection ranges
+export const SHIP_DETECTION_RANGE = 3;
+export const BASE_DETECTION_RANGE = 5;
+
 // Animation durations (ms)
 export const MOVEMENT_ANIM_DURATION = 2000;
 export const CAMERA_LERP_SPEED = 5;

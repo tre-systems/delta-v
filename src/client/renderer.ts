@@ -407,6 +407,8 @@ export class Renderer {
 
     for (const ship of state.ships) {
       if (ship.landed || ship.destroyed) continue;
+      // Don't show velocity vectors for undetected enemy ships
+      if (ship.owner !== this.playerId && !ship.detected) continue;
       const from = hexToPixel(ship.position, HEX_SIZE);
       const predicted = predictDestination(ship);
       const to = hexToPixel(predicted, HEX_SIZE);
@@ -510,17 +512,22 @@ export class Renderer {
   }
 
   private renderShips(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
+    // Filter visible ships (own ships + detected enemy ships)
+    const visibleShips = state.ships.filter(s => {
+      if (s.destroyed && !this.animState) return false;
+      if (s.owner === this.playerId) return true;
+      return s.detected;
+    });
+
     // Count ships at each hex for stacking offset
     const hexCounts = new Map<string, number>();
     const hexIndices = new Map<string, number>();
-    for (const ship of state.ships) {
-      if (ship.destroyed && !this.animState) continue;
+    for (const ship of visibleShips) {
       const key = hexKey(ship.position);
       hexCounts.set(key, (hexCounts.get(key) ?? 0) + 1);
     }
 
-    for (const ship of state.ships) {
-      if (ship.destroyed && !this.animState) continue;
+    for (const ship of visibleShips) {
       let pos: PixelCoord;
       let velocity = ship.velocity;
 
@@ -725,9 +732,9 @@ export class Renderer {
     const targetId = this.planningState.combatTargetId;
     const target = targetId ? state.ships.find(s => s.id === targetId) : null;
 
-    // Highlight valid enemy targets
+    // Highlight valid enemy targets (only detected ones)
     for (const ship of state.ships) {
-      if (ship.owner === this.playerId || ship.destroyed) continue;
+      if (ship.owner === this.playerId || ship.destroyed || !ship.detected) continue;
       const p = hexToPixel(ship.position, HEX_SIZE);
       const isTarget = ship.id === targetId;
 
