@@ -315,10 +315,18 @@ export class UIManager {
     document.getElementById('confirmBtn')!.style.display = 'none';
   }
 
-  showGameOver(won: boolean, reason: string) {
+  showGameOver(won: boolean, reason: string, stats?: { turns: number; myShipsAlive: number; myShipsTotal: number; enemyShipsAlive: number; enemyShipsTotal: number }) {
     this.gameOverEl.style.display = 'flex';
     document.getElementById('gameOverText')!.textContent = won ? 'VICTORY' : 'DEFEAT';
-    document.getElementById('gameOverReason')!.textContent = reason;
+    let reasonText = reason;
+    if (stats) {
+      reasonText += `\n\nTurns: ${stats.turns}`;
+      reasonText += ` | Your ships: ${stats.myShipsAlive}/${stats.myShipsTotal}`;
+      reasonText += ` | Enemy: ${stats.enemyShipsAlive}/${stats.enemyShipsTotal}`;
+    }
+    const reasonEl = document.getElementById('gameOverReason')!;
+    reasonEl.textContent = reasonText;
+    reasonEl.style.whiteSpace = 'pre-line';
     document.getElementById('rematchBtn')!.textContent = 'Rematch';
     document.getElementById('rematchBtn')!.removeAttribute('disabled');
   }
