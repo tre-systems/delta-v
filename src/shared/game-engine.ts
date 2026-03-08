@@ -4,8 +4,8 @@ import type {
   ScenarioDefinition, CombatAttack, CombatResult, MovementEvent,
 } from './types';
 import { computeCourse } from './movement';
-import { SHIP_STATS, ORDNANCE_MASS, ORDNANCE_LIFETIME } from './constants';
-import { hexKey, hexVecLength, hexAdd, hexSubtract, hexLineDraw, HEX_DIRECTIONS, hexEqual } from './hex';
+import { SHIP_STATS, ORDNANCE_MASS, ORDNANCE_LIFETIME, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from './constants';
+import { hexKey, hexVecLength, hexDistance, hexAdd, hexSubtract, hexLineDraw, HEX_DIRECTIONS, hexEqual } from './hex';
 import {
   resolveCombat, canAttack, lookupOtherDamage, applyDamage, rollD6,
   type CombatResolution,
@@ -67,6 +67,7 @@ export function createGame(
         cargoUsed: 0,
         landed,
         destroyed: false,
+        detected: true,
         damage: { disabledTurns: 0 },
       });
     }
@@ -176,6 +177,9 @@ export function processAstrogation(
 
   // Move ordnance (all ordnance, not just active player's)
   moveOrdnance(state, map, ordnanceMovements, events, rng);
+
+  // Update detection after all movement
+  updateDetection(state, map);
 
   // Check victory/loss after movement
   checkGameEnd(state, map);
@@ -580,6 +584,54 @@ function applyResupply(ship: Ship, map: SolarSystemMap): void {
     ship.fuel = stats.fuel;
     ship.cargoUsed = 0; // restock ordnance
     ship.damage = { disabledTurns: 0 };
+  }
+}
+
+/**
+ * Update detection status for all ships.
+ * A ship is detected if:
+ * - It's within SHIP_DETECTION_RANGE of any opponent ship
+ * - It's within BASE_DETECTION_RANGE of any opponent base
+ * Once detected, a ship remains detected until it reaches a friendly base.
+ * Landing at a friendly base clears detection.
+ */
+function updateDetection(state: GameState, map: SolarSystemMap): void {
+  for (const ship of state.ships) {
+    if (ship.destroyed) continue;
+
+    // Landing at a friendly base clears detection
+    if (ship.landed) {
+      const hex = map.hexes.get(hexKey(ship.position));
+      if (hex?.base) {
+        // Check if it's a friendly base (bases belonging to the same homeBody)
+        ship.detected = false;
+        continue;
+      }
+    }
+
+    // If already detected, stays detected (persistent)
+    if (ship.detected) continue;
+
+    // Check if within range of any opponent ship
+    for (const other of state.ships) {
+      if (other.owner === ship.owner || other.destroyed) continue;
+      if (hexDistance(ship.position, other.position) <= SHIP_DETECTION_RANGE) {
+        ship.detected = true;
+        break;
+      }
+    }
+
+    if (ship.detected) continue;
+
+    // Check if within range of any opponent base
+    for (const [key, hex] of map.hexes) {
+      if (!hex.base) continue;
+      const [q, r] = key.split(',').map(Number);
+      if (hexDistance(ship.position, { q, r }) <= BASE_DETECTION_RANGE) {
+        ship.detected = true;
+        break;
+      }
+    }
   }
 }
 
