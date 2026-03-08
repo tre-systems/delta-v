@@ -47,9 +47,9 @@ class GameClient {
 
     // Wire UI callbacks
     this.ui.onSelectScenario = (scenario) => this.createGame(scenario);
-    this.ui.onSinglePlayer = (difficulty) => {
+    this.ui.onSinglePlayer = (scenario, difficulty) => {
       this.aiDifficulty = difficulty;
-      this.startLocalGame('biplanetary');
+      this.startLocalGame(scenario);
     };
     this.ui.onJoin = (code) => this.joinGame(code);
     this.ui.onUndo = () => this.undoSelectedShipBurn();
@@ -202,11 +202,14 @@ class GameClient {
   private startLocalGame(scenario: string) {
     this.isLocalGame = true;
     this.playerId = 0;
+    this.lastLoggedTurn = -1;
     this.renderer.setPlayerId(0);
     this.input.setPlayerId(0);
 
     const scenarioDef = SCENARIOS[scenario] ?? SCENARIOS.biplanetary;
     this.gameState = createGame(scenarioDef, this.map, 'LOCAL', findBaseHex);
+    this.ui.clearLog();
+    this.ui.logText(`vs AI (${this.aiDifficulty}) — ${scenarioDef.name}`);
     this.renderer.setGameState(this.gameState);
     this.input.setGameState(this.gameState);
 
@@ -281,6 +284,8 @@ class GameClient {
         this.gameState = this.deserializeState(msg.state);
         this.renderer.setGameState(this.gameState);
         this.input.setGameState(this.gameState);
+        this.ui.clearLog();
+        this.ui.logText(`Game started: ${this.gameState.scenario}`);
         if (this.gameState.activePlayer === this.playerId) {
           this.setState('playing_astrogation');
         } else {
@@ -296,7 +301,7 @@ class GameClient {
         playThrust();
         if (msg.events.length > 0) {
           this.renderer.showMovementEvents(msg.events);
-          // Play explosion sound for destructive events
+          this.ui.logMovementEvents(msg.events, this.gameState.ships);
           const hasDestruction = msg.events.some(e => e.damageType === 'eliminated' || e.type === 'crash');
           if (hasDestruction) setTimeout(() => playExplosion(), 500);
         }
@@ -310,6 +315,7 @@ class GameClient {
         this.renderer.setGameState(this.gameState);
         this.input.setGameState(this.gameState);
         this.renderer.showCombatResults(msg.results);
+        this.ui.logCombatResults(msg.results, this.gameState.ships);
         this.renderer.planningState.combatTargetId = null;
         playCombat();
         if (msg.results.some(r => r.damageType === 'eliminated')) {
@@ -411,9 +417,18 @@ class GameClient {
     this.transitionToPhase();
   }
 
+  private lastLoggedTurn = -1;
+
   private transitionToPhase() {
     if (!this.gameState) return;
     if (this.gameState.phase === 'gameOver') return;
+
+    // Log turn header when turn changes
+    if (this.gameState.turnNumber !== this.lastLoggedTurn && this.gameState.phase === 'astrogation') {
+      this.lastLoggedTurn = this.gameState.turnNumber;
+      const playerLabel = this.gameState.activePlayer === this.playerId ? 'You' : 'Opponent';
+      this.ui.logTurn(this.gameState.turnNumber, playerLabel);
+    }
 
     const isMyTurn = this.gameState.activePlayer === this.playerId;
 
@@ -545,6 +560,7 @@ class GameClient {
     playThrust();
     if (result.events.length > 0) {
       this.renderer.showMovementEvents(result.events);
+      this.ui.logMovementEvents(result.events, this.gameState.ships);
       if (result.events.some(e => e.damageType === 'eliminated' || e.type === 'crash')) {
         setTimeout(() => playExplosion(), 500);
       }
@@ -587,6 +603,7 @@ class GameClient {
     this.renderer.setGameState(this.gameState);
     this.input.setGameState(this.gameState);
     this.renderer.showCombatResults(result.results);
+    this.ui.logCombatResults(result.results, this.gameState.ships);
     this.renderer.planningState.combatTargetId = null;
     playCombat();
     if (result.results.some(r => r.damageType === 'eliminated')) {
@@ -605,6 +622,7 @@ class GameClient {
     this.input.setGameState(this.gameState);
     if (result.baseDefenseResults && result.baseDefenseResults.length > 0) {
       this.renderer.showCombatResults(result.baseDefenseResults);
+      this.ui.logCombatResults(result.baseDefenseResults, this.gameState.ships);
     }
     this.localCheckGameEnd();
     this.transitionToPhase();
@@ -644,6 +662,7 @@ class GameClient {
       playThrust();
       if (result.events.length > 0) {
         this.renderer.showMovementEvents(result.events);
+        this.ui.logMovementEvents(result.events, this.gameState.ships);
         if (result.events.some(e => e.damageType === 'eliminated' || e.type === 'crash')) {
           setTimeout(() => playExplosion(), 500);
         }
@@ -694,6 +713,7 @@ class GameClient {
         if (!('error' in result)) {
           this.gameState = result.state;
           this.renderer.showCombatResults(result.results);
+          this.ui.logCombatResults(result.results, this.gameState.ships);
           playCombat();
           if (result.results.some(r => r.damageType === 'eliminated')) {
             setTimeout(() => playExplosion(), 300);
@@ -705,6 +725,7 @@ class GameClient {
           this.gameState = result.state;
           if (result.baseDefenseResults && result.baseDefenseResults.length > 0) {
             this.renderer.showCombatResults(result.baseDefenseResults);
+            this.ui.logCombatResults(result.baseDefenseResults, this.gameState.ships);
           }
         }
       }
