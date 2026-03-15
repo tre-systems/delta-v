@@ -30,19 +30,20 @@ body {
   width: 100%;
   height: 100%;
   display: flex;
-  align-items: center;
   justify-content: center;
   z-index: 10;
   background: rgba(10, 10, 26, 0.85);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  padding: 1rem 0;
 }
 
 .menu-content {
   text-align: center;
   max-width: 360px;
   padding: 2rem;
-  margin: auto; /* Center when screen scrolls */
+  margin: auto;
+  flex-shrink: 0;
 }
 
 .title {
@@ -51,6 +52,7 @@ body {
   letter-spacing: 0.3em;
   color: #fff;
   margin-bottom: 0.2em;
+  white-space: nowrap;
 }
 
 .subtitle {
@@ -155,8 +157,15 @@ body {
   gap: 0.5rem;
 }
 
+.join-row .btn {
+  flex-shrink: 0;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
 .code-input {
   flex: 1;
+  min-width: 0;
   padding: 0.75rem 1rem;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -216,16 +225,24 @@ body {
   left: 0;
   right: 0;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  padding: 1rem;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
   z-index: 5;
 }
 
+.hud-bottom-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .status-msg {
-  font-size: 0.9rem;
-  color: #aaa;
+  font-size: 0.85rem;
+  color: #888;
   text-align: center;
+  max-width: 90vw;
 }
 
 /* Scenario selection */
@@ -690,12 +707,20 @@ body {
 
   .subtitle {
     font-size: 0.75rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
   }
 
   .menu-content {
-    padding: 1.2rem;
+    padding: 1rem;
     max-width: 300px;
+  }
+
+  .divider {
+    margin: 0.8rem 0;
+  }
+
+  .btn {
+    padding: 0.6rem 1.5rem;
   }
 
   .hud-bar {
@@ -709,10 +734,14 @@ body {
   }
 
   .hud-bottom {
+    gap: 0.3rem;
+    padding: 0.4rem 0.5rem;
+    padding-bottom: max(0.4rem, env(safe-area-inset-bottom));
+  }
+
+  .hud-bottom-buttons {
     flex-wrap: wrap;
-    gap: 0.4rem;
-    padding: 0.5rem;
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    justify-content: center;
   }
 
   /* Larger touch targets for mobile */
@@ -723,7 +752,6 @@ body {
 
   .status-msg {
     font-size: 0.7rem;
-    width: 100%;
   }
 
   .btn-confirm, .btn-attack {
