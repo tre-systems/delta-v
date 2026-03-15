@@ -582,6 +582,43 @@ describe('ordnance system', () => {
     }
   });
 
+  it('assigns a fresh ordnance id even when earlier ids are still present', () => {
+    const state = createGame(SCENARIOS.blockade, map, 'ORD02', findBaseHex);
+    const ship = state.ships.find(s => s.type === 'packet')!;
+    ship.landed = false;
+    ship.velocity = { dq: 1, dr: 0 };
+    ship.position = { q: 0, r: 0 };
+    state.phase = 'ordnance';
+    state.activePlayer = 0;
+    state.pendingAstrogationOrders = [{ shipId: ship.id, burn: 0 }];
+    state.ordnance = [
+      {
+        id: 'ord0',
+        type: 'torpedo',
+        owner: 0,
+        position: { q: -1, r: 0 },
+        velocity: { dq: 1, dr: 0 },
+        turnsRemaining: 4,
+        destroyed: false,
+      },
+      {
+        id: 'ord3',
+        type: 'nuke',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        velocity: { dq: -1, dr: 0 },
+        turnsRemaining: 4,
+        destroyed: false,
+      },
+    ];
+
+    const result = processOrdnance(state, 0, [{ shipId: ship.id, ordnanceType: 'mine' }], map);
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      expect(result.ordnanceMovements.some(move => move.ordnanceId === 'ord4')).toBe(true);
+    }
+  });
+
   it('rejects mine launch when landed', () => {
     const ship = initialState.ships[0];
     // Ship is landed, force ordnance phase

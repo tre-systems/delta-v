@@ -26,7 +26,7 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SHIP_AESTHETICS.
 - **Damage & Repairs**: Complex damage tracking (disabled turns vs. cumulative elimination). Find safe harbor at planetary bases for repairs and resupply.
 
 ### 🎮 Multiple Game Modes
-- **6 Playable Scenarios**: Features diverse scenarios including *Bi-Planetary*, *Escape*, *Convoy*, *Duel*, *Blockade Runner*, and *Fleet Action*.
+- **7 Playable Scenarios**: Features *Bi-Planetary*, *Escape*, *Convoy*, *Duel*, *Blockade Runner*, *Fleet Action*, and a tuned *Interplanetary War* fleet-building scenario.
 - **Local AI Opponent**: Test your skills offline against an AI component with configurable difficulty levels.
 - **Real-Time Multiplayer**: Built for fast, responsive web-socket based remote play.
 

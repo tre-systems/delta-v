@@ -80,6 +80,16 @@ function getAllowedOrdnanceTypes(state: Pick<GameState, 'scenarioRules'>): Set<O
   return new Set(allowed);
 }
 
+function getNextOrdnanceId(state: Pick<GameState, 'ordnance'>): number {
+  let nextId = 0;
+  for (const ord of state.ordnance) {
+    const match = /^ord(\d+)$/.exec(ord.id);
+    if (!match) continue;
+    nextId = Math.max(nextId, Number(match[1]) + 1);
+  }
+  return nextId;
+}
+
 function isPlanetaryDefenseEnabled(state: Pick<GameState, 'scenarioRules'>): boolean {
   return state.scenarioRules.planetaryDefenseEnabled !== false;
 }
@@ -800,7 +810,7 @@ export function processOrdnance(
     return { error: 'Not your turn' };
   }
 
-  let nextOrdId = state.ordnance.length;
+  let nextOrdId = getNextOrdnanceId(state);
   const launchedShips = new Set<string>();
   const allowedOrdnanceTypes = getAllowedOrdnanceTypes(state);
 
