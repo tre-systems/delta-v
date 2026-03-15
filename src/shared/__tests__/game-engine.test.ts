@@ -2230,7 +2230,7 @@ describe('fleet building (MegaCredit economy)', () => {
   it('transitions to astrogation when both players submit', () => {
     const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
     const r1 = processFleetReady(state, 0, [{ shipType: 'corvette' }], map);
-    expect('error' in r1).toBe(false);
+    if ('error' in r1) throw new Error(r1.error);
     const r2 = processFleetReady(r1.state, 1, [{ shipType: 'corsair' }], map);
     expect('error' in r2).toBe(false);
     if ('state' in r2) {
