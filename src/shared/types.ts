@@ -12,6 +12,8 @@ export interface GameState {
   activePlayer: number; // 0 or 1
   ships: Ship[];
   ordnance: Ordnance[];
+  pendingAstrogationOrders: AstrogationOrder[] | null;
+  destroyedAsteroids: string[]; // hexKey[] for asteroids removed by nukes
   players: [PlayerState, PlayerState];
   winner: number | null;
   winReason: string | null;
@@ -37,6 +39,7 @@ export interface Ordnance {
   id: string;
   type: 'mine' | 'torpedo' | 'nuke';
   owner: number;
+  sourceShipId?: string | null;
   position: HexCoord;
   velocity: HexVec;
   turnsRemaining: number; // self-destruct countdown (5 turns)

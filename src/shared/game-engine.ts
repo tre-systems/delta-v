@@ -18,7 +18,7 @@ export interface MovementResult {
   state: GameState;
 }
 
-export interface OrdnanceResult {
+export interface StateUpdateResult {
   state: GameState;
 }
 
@@ -81,6 +81,8 @@ export function createGame(
     activePlayer: 0,
     ships,
     ordnance: [],
+    pendingAstrogationOrders: null,
+    destroyedAsteroids: [],
     players: [
       { connected: true, ready: true, targetBody: scenario.players[0].targetBody, homeBody: scenario.players[0].homeBody, escapeWins: scenario.players[0].escapeWins },
       { connected: true, ready: true, targetBody: scenario.players[1].targetBody, homeBody: scenario.players[1].homeBody, escapeWins: scenario.players[1].escapeWins },
@@ -92,7 +94,7 @@ export function createGame(
 
 /**
  * Process astrogation orders for the active player.
- * Moves ships, checks asteroid hazards, then advances to combat phase.
+ * Queues movement orders, then either enters ordnance or resolves movement immediately.
  */
 export function processAstrogation(
   state: GameState,
@@ -100,7 +102,7 @@ export function processAstrogation(
   orders: AstrogationOrder[],
   map: SolarSystemMap,
   rng?: () => number,
-): MovementResult | { error: string } {
+): MovementResult | StateUpdateResult | { error: string } {
   if (state.phase !== 'astrogation') {
     return { error: 'Not in astrogation phase' };
   }
@@ -108,33 +110,103 @@ export function processAstrogation(
     return { error: 'Not your turn' };
   }
 
+  const validationError = validateAstrogationOrders(state, playerId, orders);
+  if (validationError) {
+    return { error: validationError };
+  }
+
+  state.pendingAstrogationOrders = orders.map(order => ({
+    shipId: order.shipId,
+    burn: order.burn,
+    overload: order.overload ?? null,
+    weakGravityChoices: order.weakGravityChoices ? { ...order.weakGravityChoices } : undefined,
+  }));
+
+  checkGameEnd(state, map);
+  if (state.winner !== null) {
+    state.pendingAstrogationOrders = null;
+    return { state };
+  }
+
+  if (shouldEnterOrdnancePhase(state)) {
+    state.phase = 'ordnance';
+    return { state };
+  }
+
+  return resolveMovementPhase(state, playerId, map, rng);
+}
+
+function validateAstrogationOrders(
+  state: GameState,
+  playerId: number,
+  orders: AstrogationOrder[],
+): string | null {
+  const seenShips = new Set<string>();
+
+  for (const order of orders) {
+    if (seenShips.has(order.shipId)) {
+      return 'Each ship may receive at most one astrogation order';
+    }
+    seenShips.add(order.shipId);
+
+    const ship = state.ships.find(s => s.id === order.shipId);
+    if (!ship || ship.owner !== playerId || ship.destroyed) {
+      return 'Invalid ship for astrogation order';
+    }
+
+    const isDisabled = ship.damage.disabledTurns > 0;
+    const burn = isDisabled ? null : order.burn;
+    const overload = isDisabled ? null : (order.overload ?? null);
+
+    if (burn !== null && (burn < 0 || burn > 5)) {
+      return 'Invalid burn direction';
+    }
+    if (burn !== null && ship.fuel <= 0) {
+      return 'No fuel remaining';
+    }
+
+    if (overload !== null && (overload < 0 || overload > 5)) {
+      return 'Invalid overload direction';
+    }
+    if (overload !== null) {
+      if (burn === null) {
+        return 'Overload requires a primary burn';
+      }
+      const stats = SHIP_STATS[ship.type];
+      if (!stats?.canOverload) {
+        return 'This ship cannot overload';
+      }
+      if (ship.fuel < 2) {
+        return 'Insufficient fuel for overload';
+      }
+    }
+  }
+
+  return null;
+}
+
+function resolveMovementPhase(
+  state: GameState,
+  playerId: number,
+  map: SolarSystemMap,
+  rng?: () => number,
+): MovementResult {
   const movements: ShipMovement[] = [];
   const ordnanceMovements: OrdnanceMovement[] = [];
   const events: MovementEvent[] = [];
+  const queuedOrders = new Map(
+    (state.pendingAstrogationOrders ?? []).map(order => [order.shipId, order] as const),
+  );
+  state.pendingAstrogationOrders = null;
 
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
     if (ship.destroyed) continue;
 
-    // Disabled ships drift — they cannot maneuver
     const isDisabled = ship.damage.disabledTurns > 0;
-
-    const order = orders.find(o => o.shipId === ship.id);
+    const order = queuedOrders.get(ship.id);
     const burn = isDisabled ? null : (order?.burn ?? null);
-
-    // Validate burn direction
-    if (burn !== null && (burn < 0 || burn > 5)) {
-      return { error: 'Invalid burn direction' };
-    }
-    if (burn !== null && ship.fuel <= 0) {
-      return { error: 'No fuel remaining' };
-    }
-
-    // Validate overload
     const overload = isDisabled ? null : (order?.overload ?? null);
-    if (overload !== null && (overload < 0 || overload > 5)) {
-      return { error: 'Invalid overload direction' };
-    }
 
     const course = computeCourse(ship, burn, map, {
       overload,
@@ -153,7 +225,6 @@ export function processAstrogation(
       landedAt: course.landedAt,
     });
 
-    // Apply movement to ship
     ship.position = course.destination;
     ship.velocity = course.newVelocity;
     ship.fuel -= course.fuelSpent;
@@ -167,28 +238,29 @@ export function processAstrogation(
     if (course.crashed) {
       ship.destroyed = true;
       ship.velocity = { dq: 0, dr: 0 };
+      const crashHex = course.path.find((hex, idx) => idx > 0 && map.hexes.get(hexKey(hex))?.body) ?? course.destination;
+      events.push({
+        type: 'crash',
+        shipId: ship.id,
+        hex: crashHex,
+        dieRoll: 0,
+        damageType: 'eliminated',
+        disabledTurns: 0,
+      });
     }
 
-    // Asteroid hazard: roll for each asteroid hex entered at speed > 1
     if (!ship.destroyed) {
-      checkAsteroidHazards(ship, course.path, map, events, rng);
+      checkAsteroidHazards(ship, course.path, state, map, events, rng);
     }
   }
 
-  // Check ramming: opposing ships on the same hex after movement
   checkRamming(state, events, rng);
-
-  // Move ordnance (all ordnance, not just active player's)
   moveOrdnance(state, map, ordnanceMovements, events, rng);
-
-  // Update detection after all movement
   updateDetection(state, map);
-
-  // Check victory/loss after movement
   checkGameEnd(state, map);
 
   if (state.winner === null) {
-    advanceAfterAstrogation(state);
+    advanceAfterMovement(state);
   }
 
   return { movements, ordnanceMovements, events, state };
@@ -212,18 +284,34 @@ export function processCombat(
   }
 
   const results: CombatResult[] = [];
+  const committedAttackers = new Set<string>();
 
   for (const attack of attacks) {
-    const attackers = attack.attackerIds
-      .map(id => state.ships.find(s => s.id === id))
-      .filter((s): s is Ship => s !== undefined && s.owner === playerId);
+    const attackSeen = new Set<string>();
+    const attackers: Ship[] = [];
+
+    for (const id of attack.attackerIds) {
+      if (attackSeen.has(id) || committedAttackers.has(id)) {
+        return { error: 'Each ship may attack only once per combat phase' };
+      }
+
+      const ship = state.ships.find(s => s.id === id);
+      if (!ship || ship.owner !== playerId || !canAttack(ship)) {
+        return { error: 'Invalid attacker selection' };
+      }
+
+      attackSeen.add(id);
+      attackers.push(ship);
+    }
 
     const target = state.ships.find(s => s.id === attack.targetId);
-    if (!target || target.owner === playerId) continue;
-    if (target.destroyed) continue;
+    if (!target || target.owner === playerId || target.destroyed) {
+      return { error: 'Invalid combat target' };
+    }
 
-    // Verify at least one attacker can attack
-    if (!attackers.some(s => canAttack(s))) continue;
+    for (const attacker of attackers) {
+      committedAttackers.add(attacker.id);
+    }
 
     const resolution = resolveCombat(attackers, target, state.ships, rng);
     results.push(toCombatResult(resolution));
@@ -281,14 +369,15 @@ export function skipCombat(
 
 /**
  * Process ordnance launches for the active player.
- * Ships can launch mines (from cargo) or torpedoes (warships only, from cargo).
+ * Ships can launch mines/torpedoes/nukes, then the queued movement phase resolves.
  */
 export function processOrdnance(
   state: GameState,
   playerId: number,
   launches: OrdnanceLaunch[],
   map: SolarSystemMap,
-): OrdnanceResult | { error: string } {
+  rng?: () => number,
+): MovementResult | { error: string } {
   if (state.phase !== 'ordnance') {
     return { error: 'Not in ordnance phase' };
   }
@@ -350,6 +439,7 @@ export function processOrdnance(
       id: `ord${nextOrdId++}`,
       type: launch.ordnanceType,
       owner: playerId,
+      sourceShipId: ship.id,
       position: { ...ship.position },
       velocity,
       turnsRemaining: ORDNANCE_LIFETIME,
@@ -360,19 +450,18 @@ export function processOrdnance(
     launchedShips.add(launch.shipId);
   }
 
-  // Advance to combat phase
-  advanceAfterOrdnance(state);
-
-  return { state };
+  return resolveMovementPhase(state, playerId, map, rng);
 }
 
 /**
- * Skip ordnance phase (player has no ordnance to launch).
+ * Skip ordnance phase and resolve the queued movement phase.
  */
 export function skipOrdnance(
   state: GameState,
   playerId: number,
-): { state: GameState } | { error: string } {
+  map?: SolarSystemMap,
+  rng?: () => number,
+): MovementResult | StateUpdateResult | { error: string } {
   if (state.phase !== 'ordnance') {
     return { error: 'Not in ordnance phase' };
   }
@@ -380,12 +469,19 @@ export function skipOrdnance(
     return { error: 'Not your turn' };
   }
 
-  advanceAfterOrdnance(state);
-  return { state };
+  if (!map) {
+    if (state.pendingAstrogationOrders) {
+      return { error: 'Map required to resolve movement after ordnance' };
+    }
+    advanceAfterMovement(state);
+    return { state };
+  }
+
+  return resolveMovementPhase(state, playerId, map, rng);
 }
 
 /**
- * Move all ordnance, check for detonations against ships.
+ * Move all ordnance, then check for detonations against ships and other ordnance.
  */
 function moveOrdnance(
   state: GameState,
@@ -464,20 +560,26 @@ function checkOrdnanceDetonation(
   // Nukes also detonate on asteroid hexes, destroying them
   if (ord.type === 'nuke') {
     for (const pathHex of path) {
-      const hex = map.hexes.get(hexKey(pathHex));
-      if (hex?.terrain === 'asteroid') {
-        hex.terrain = 'space'; // Destroy the asteroid
+      const key = hexKey(pathHex);
+      if (isAsteroidHex(state, map, pathHex)) {
+        if (!state.destroyedAsteroids.includes(key)) {
+          state.destroyedAsteroids.push(key);
+        }
         return true; // Nuke expended
       }
     }
   }
 
-  // Check all hexes along path for enemy ships (detonation on contact)
-  for (const pathHex of path) {
+  // Check all hexes along path for ships or ordnance (detonation on contact)
+  for (let i = 0; i < path.length; i++) {
+    const pathHex = path[i];
+    const isLaunchHex = i === 0;
+    let hitSomething = false;
+
     for (const ship of state.ships) {
       if (ship.destroyed) continue;
-      // Don't detonate on owner's ships
-      if (ship.owner === ord.owner) continue;
+      if (ship.id === ord.sourceShipId) continue;
+      if (isLaunchHex && ship.owner === ord.owner) continue;
 
       if (hexEqual(ship.position, pathHex)) {
         const dieRoll = rollD6(rng);
@@ -504,41 +606,44 @@ function checkOrdnanceDetonation(
         });
 
         applyDamage(ship, result);
+        hitSomething = true;
 
         // Torpedoes hit one target only; mines and nukes affect all in hex
         if (ord.type === 'torpedo') return true;
       }
     }
 
-    // For mines/nukes: if we hit at least one enemy ship on this hex, detonate
-    if (events.some(e => e.ordnanceId === ord.id)) return true;
+    for (const other of state.ordnance) {
+      if (other.id === ord.id || other.destroyed) continue;
+      if (isLaunchHex && other.owner === ord.owner) continue;
+      if (!hexEqual(other.position, pathHex)) continue;
+      other.destroyed = true;
+      hitSomething = true;
+      if (ord.type === 'torpedo') return true;
+    }
+
+    if (hitSomething) return true;
   }
 
   return false;
 }
 
 /**
- * Advance phase after astrogation: go to ordnance if player has ordnance capability.
+ * Determine whether the active player should receive an ordnance phase this turn.
  */
-function advanceAfterAstrogation(state: GameState): void {
+function shouldEnterOrdnancePhase(state: GameState): boolean {
   // Check if player has ships capable of launching ordnance
-  const canLaunch = state.ships.some(s =>
+  return state.ships.some(s =>
     s.owner === state.activePlayer && !s.destroyed && !s.landed &&
     s.damage.disabledTurns === 0 &&
     hasOrdnanceCapacity(s),
   );
-
-  if (canLaunch) {
-    state.phase = 'ordnance';
-  } else {
-    advanceAfterOrdnance(state);
-  }
 }
 
 /**
- * Advance phase after ordnance: go to combat or next turn.
+ * Advance phase after movement: go to combat or next turn.
  */
-function advanceAfterOrdnance(state: GameState): void {
+function advanceAfterMovement(state: GameState): void {
   const hasTargets = hasCombatTargets(state);
   if (hasTargets) {
     state.phase = 'combat';
@@ -600,6 +705,7 @@ function hasCombatTargets(state: GameState): boolean {
 function checkAsteroidHazards(
   ship: Ship,
   path: { q: number; r: number }[],
+  state: GameState,
   map: SolarSystemMap,
   events: MovementEvent[],
   rng?: () => number,
@@ -609,8 +715,7 @@ function checkAsteroidHazards(
 
   // Check each hex in the path (skip starting hex)
   for (let i = 1; i < path.length; i++) {
-    const hex = map.hexes.get(hexKey(path[i]));
-    if (hex?.terrain !== 'asteroid') continue;
+    if (!isAsteroidHex(state, map, path[i])) continue;
 
     const dieRoll = rollD6(rng);
     const result = lookupOtherDamage(dieRoll);
@@ -627,6 +732,16 @@ function checkAsteroidHazards(
     const eliminated = applyDamage(ship, result);
     if (eliminated) break;
   }
+}
+
+function isAsteroidHex(
+  state: GameState,
+  map: SolarSystemMap,
+  coord: { q: number; r: number },
+): boolean {
+  const key = hexKey(coord);
+  const hex = map.hexes.get(key);
+  return hex?.terrain === 'asteroid' && !state.destroyedAsteroids.includes(key);
 }
 
 /**
