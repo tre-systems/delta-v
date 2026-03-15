@@ -352,11 +352,9 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 **Remaining divergences:**
 - **Contact geometry:** mine/torpedo contact approximated by hex occupancy/path, not the stricter "any portion of the hex" geometric rule from the board
 - **Gravity edge cases:** the gravity-edge / printed-outline rules from the paper map are not modeled
-- **Orbital bases:** not yet implemented as placeable units (carrying, emplacing, torpedo launching)
-- **Asteroid-base special cases:** asteroid bases cannot launch torpedoes yet; clandestine-base scanner rules not modeled
-- **Broader nuke effects:** planetary-surface damage beyond single-hex-side devastation not modeled
 - **Logistics:** capture, surrender, looting, rescue, fuel transfer, cargo handling beyond ordnance mass, heroism, dummy counters remain unimplemented
 - **Advanced combat system:** the alternate weapon/drive/structure damage tracks from the rulebook are out of scope
+- **Campaign / Economy layer:** MegaCredit purchasing system, explicit shipping lanes, and asteroid prospecting are not implemented yet.
 
 ## Scenarios
 
@@ -378,7 +376,7 @@ Six scenarios are implemented, selectable from the menu:
 
 ### Convoy (Escort Mission)
 
-- Escort (1 tanker + 1 corsair from Mars) vs. Pirates (2 corsairs near asteroid belt)
+- Escort (1 tanker + 1 frigate from Mars) vs. Pirates (2 corsairs near asteroid belt)
 - Escort must get the tanker to Venus; pirates must stop it
 
 ### Duel (Combat Training)
@@ -790,6 +788,7 @@ interface ScenarioPlayer {
 - [x] Tutorial system (phase-based tips for new players)
 - [x] Ship movement trails (persistent path history on map and minimap)
 - [x] Multi-target combat UI (queue multiple attack declarations per phase)
+- [x] Automation and Simulation scripts for engine testing
 - [ ] Improved animations (particle effects for thrust, gravity lensing)
 - [ ] Turn history replay
 - [ ] Spectator mode
