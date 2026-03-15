@@ -240,11 +240,16 @@ export function aiOrdnance(
 
     // Drop a mine if enemies are close-ish and we have cargo
     if (nearestDist <= mineRange && cargoFree >= ORDNANCE_MASS.mine) {
-      launches.push({
-        shipId: ship.id,
-        ordnanceType: 'mine',
-      });
-      continue;
+      // Rule: must change course (burn) to launch a mine
+      const pendingOrder = (state.pendingAstrogationOrders ?? []).find(o => o.shipId === ship.id);
+      const hasBurn = pendingOrder?.burn != null || pendingOrder?.overload != null;
+      if (hasBurn) {
+        launches.push({
+          shipId: ship.id,
+          ordnanceType: 'mine',
+        });
+        continue;
+      }
     }
 
     // Defensive mine-laying: drop mines behind when being pursued (escape scenarios)
@@ -253,10 +258,15 @@ export function aiOrdnance(
       // Only if enemy is approaching from behind
       const speed = hexVecLength(ship.velocity);
       if (speed >= 2 && difficulty !== 'easy') {
-        launches.push({
-          shipId: ship.id,
-          ordnanceType: 'mine',
-        });
+        // Also check for burn rule
+        const pendingOrder = (state.pendingAstrogationOrders ?? []).find(o => o.shipId === ship.id);
+        const hasBurn = pendingOrder?.burn != null || pendingOrder?.overload != null;
+        if (hasBurn) {
+          launches.push({
+            shipId: ship.id,
+            ordnanceType: 'mine',
+          });
+        }
       }
     }
   }
@@ -484,17 +494,23 @@ function scoreCourse(
         // Extra strong bonus for being at range 1-3
         if (dist <= 3) score += 20 * mult;
         
-        // Velocity matching: prefer courses that match the enemy's velocity to reduce combat penalties
-        const velMatchDist = hexDistance(
-          { q: course.newVelocity.dq, r: course.newVelocity.dr },
-          { q: enemy.velocity.dq, r: enemy.velocity.dr }
-        );
-        score -= velMatchDist * 3 * mult;
-        
+        // Velocity matching: prefer courses that match the enemy's velocity ONLY when close
+        // This prevents "parallel flying" stalemates at long distance.
+        if (dist < 10) {
+          const velMatchDist = hexDistance(
+            { q: course.newVelocity.dq, r: course.newVelocity.dr },
+            { q: enemy.velocity.dq, r: enemy.velocity.dr }
+          );
+          score -= velMatchDist * (dist < 4 ? 4 : 2) * mult;
+        }
+
         // Speed management: prefer moderate velocity near enemies, unless matching their high speed
         const speed = hexVecLength(course.newVelocity);
-        if (dist < 5 && speed > 5 && velMatchDist > 2) {
-          score -= (speed - 5) * 4 * mult; // penalize overshooting if not matching velocity
+        if (dist < 5 && speed > 5) {
+          const enemySpeed = hexVecLength(enemy.velocity);
+          if (speed > enemySpeed + 2) {
+            score -= (speed - enemySpeed) * 3 * mult;
+          }
         }
       } else if (myStrength > 0) {
         // Has objective but also can fight
