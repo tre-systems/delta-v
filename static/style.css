@@ -88,8 +88,8 @@ body::before {
 
 .glass {
   background: var(--panel) !important;
-  backdrop-filter: blur(12px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
   border: 1px solid var(--border-strong) !important;
   box-shadow: var(--shadow-soft) !important;
 }
@@ -340,7 +340,7 @@ body::before {
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: rgba(7, 14, 28, 0.78);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(28px);
   box-shadow: var(--shadow-soft);
   color: var(--muted-strong);
   font-family: var(--font-mono);
@@ -372,7 +372,7 @@ body::before {
   border-radius: 20px;
   border: 1px solid var(--border);
   background: rgba(7, 14, 28, 0.78);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(28px);
   box-shadow: var(--shadow-soft);
 }
 
@@ -443,7 +443,7 @@ body::before {
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(7, 14, 28, 0.72);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(28px);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -521,7 +521,7 @@ body::before {
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(7, 14, 28, 0.76);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(28px);
   box-shadow: var(--shadow-soft);
 }
 
@@ -598,7 +598,7 @@ body::before {
   font-size: 0.66rem;
   letter-spacing: 0.14em;
   cursor: pointer;
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(22px);
 }
 
 .log-show-btn:hover {
