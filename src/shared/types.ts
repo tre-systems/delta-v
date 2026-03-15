@@ -8,6 +8,7 @@ export interface GameState {
   gameId: string;
   scenario: string;
   scenarioRules: ScenarioRules;
+  escapeMoralVictoryAchieved: boolean;
   turnNumber: number;
   phase: Phase;
   activePlayer: number; // 0 or 1
@@ -252,6 +253,7 @@ export interface ScenarioShip {
   position: HexCoord;
   velocity: HexVec;
   startLanded?: boolean; // default true — set false for ships in orbit
+  startInOrbit?: boolean; // queue the current gravity hex so orbit starts behave like an ongoing orbit
 }
 
 export interface ScenarioPlayer {
@@ -268,6 +270,7 @@ export interface ScenarioDefinition {
   description: string;
   players: ScenarioPlayer[];
   rules?: ScenarioRules;
+  startingPlayer?: 0 | 1;
   startingCredits?: number | [number, number]; // per-player starting MegaCredits for fleet-building scenarios
   availableShipTypes?: string[]; // restricts purchasable ships (default: all non-orbital-base)
 }
