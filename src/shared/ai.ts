@@ -59,8 +59,10 @@ export function aiAstrogation(
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
 
+    if (ship.destroyed) continue;
+
     // Disabled ships just drift
-    if (ship.damage.disabledTurns > 0 || ship.destroyed) {
+    if (ship.damage.disabledTurns > 0) {
       orders.push({ shipId: ship.id, burn: null });
       continue;
     }
@@ -201,8 +203,9 @@ export function aiOrdnance(
     if (!nearestEnemy) continue;
 
     // Hard AI: launch nuke at enemies within range if cargo allows
+    const canLaunchNuke = stats.canOverload || (ship.nukesLaunchedSinceResupply ?? 0) < 1;
     if (difficulty === 'hard' && nearestDist <= torpedoRange &&
-        cargoFree >= ORDNANCE_MASS.nuke) {
+        cargoFree >= ORDNANCE_MASS.nuke && canLaunchNuke) {
       // Prefer nukes over torpedoes when enemy is strong
       const enemyStr = getCombatStrength([nearestEnemy]);
       const myStr = getCombatStrength([ship]);
