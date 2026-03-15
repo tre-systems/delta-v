@@ -1,6 +1,6 @@
 # Ship Aesthetics & Concept Art
 
-This document explores the visual identity of the Delta-V fleet, drawing inspiration from the original 1973 *Delta-V* board game and modern "hard sci-fi" aesthetics.
+This document explores the visual identity of the Delta-V fleet, drawing inspiration from classic hard sci-fi aesthetics.
 
 ## Design Philosophy: "Brutalist Functionality"
 

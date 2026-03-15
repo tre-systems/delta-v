@@ -9,7 +9,6 @@ import {
 import type { MapHex, CelestialBody, SolarSystemMap, ScenarioDefinition } from './types';
 
 // --- Body definitions ---
-// Coordinates match the official Delta-V (SJG 2018) board layout.
 // Sol is center-south; Venus SW; Mercury near Sol SE; Terra NE; Mars NW;
 // asteroid belt in the middle band; Jupiter and moons at top.
 // Flat-top hex grid, q increases right, r increases down-right.
@@ -152,7 +151,7 @@ const BODY_DEFS: BodyDefinition[] = [
 ];
 
 // --- Asteroid belt hexes (scattered between Mars/Terra and Jupiter orbits) ---
-// Positioned in the band between inner planets and Jupiter, matching Delta-V layout
+// Positioned in the band between inner planets and Jupiter
 
 function generateAsteroidHexes(): HexCoord[] {
   const asteroids: HexCoord[] = [];
@@ -272,8 +271,6 @@ export function buildSolarSystemMap(): SolarSystemMap {
 }
 
 // --- Scenario definitions ---
-// Scenarios match the official Delta-V 2018 rules where applicable.
-// Custom scenarios (Convoy, Duel, Blockade, Fleet Action) are inspired by the rules.
 
 export const SCENARIOS: Record<string, ScenarioDefinition> = {
   biplanetary: {
@@ -332,7 +329,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     ],
   },
   convoy: {
-    // Custom scenario inspired by Delta-V commerce/piracy themes
+    // Custom scenario: escort a tanker through hostile space
     name: 'Convoy',
     description: 'Escort a tanker from Mars to Venus — pirates intercept',
     players: [

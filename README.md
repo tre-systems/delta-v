@@ -7,7 +7,7 @@
 
 *[Insert Gameplay GIF/Screenshot here]*
 
-**Delta-V** is an online, real-time multiplayer implementation of [Delta-V](https://en.wikipedia.org/wiki/Delta-V_(board_game)) — a tactical space combat and racing game featuring realistic vector movement and orbital gravity mechanics across the inner Solar System. 
+**Delta-V** is an online, real-time multiplayer tactical space combat and racing game featuring realistic vector movement and orbital gravity mechanics across the inner Solar System.
 
 Command your fleet, master astrogation trajectories, sling-shot around celestial bodies, and engage in high-stakes combat where positioning and velocity are just as crucial as firepower.
 
@@ -100,7 +100,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 
 - [ ] **Deferred Gravity Edge Cases**: Achieve 100% spec-accurate orbital behaviors.
 - [ ] **Hidden Information Scenarios**: Implement authoritative Fog of War for specific game modes.
-- [ ] **Expanded Content**: Port additional scenarios and variants from the original board game.
+- [ ] **Expanded Content**: Add new scenarios and game mode variants.
 - [ ] **Polish**: Enhancements to visual FX, richer onboarding tutorials, and a deeper combat odds UI overview.
 
 ---
