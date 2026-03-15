@@ -24,6 +24,7 @@ export interface Ship {
   type: string; // key into SHIP_STATS
   owner: number; // 0 or 1
   position: HexCoord;
+  lastMovementPath?: HexCoord[]; // path flown on the active player's most recent movement phase
   velocity: HexVec;
   fuel: number;
   cargoUsed: number; // mass of ordnance consumed from cargo capacity

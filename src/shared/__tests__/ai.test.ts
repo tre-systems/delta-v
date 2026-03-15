@@ -6,6 +6,11 @@ import { SHIP_STATS, ORDNANCE_MASS } from '../constants';
 import type { GameState, SolarSystemMap, Ship } from '../types';
 
 let map: SolarSystemMap;
+const openMap: SolarSystemMap = {
+  hexes: new Map(),
+  bodies: [],
+  bounds: { minQ: -50, maxQ: 50, minR: -50, maxR: 50 },
+};
 
 beforeEach(() => {
   map = buildSolarSystemMap();
@@ -212,7 +217,7 @@ describe('aiCombat', () => {
     // Destroy AI ships
     state.ships.filter(s => s.owner === 1).forEach(s => { s.destroyed = true; });
 
-    const attacks = aiCombat(state, 1);
+    const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(0);
   });
 
@@ -220,7 +225,7 @@ describe('aiCombat', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     state.ships.filter(s => s.owner === 0).forEach(s => { s.destroyed = true; });
 
-    const attacks = aiCombat(state, 1);
+    const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(0);
   });
 
@@ -231,19 +236,46 @@ describe('aiCombat', () => {
 
     // Place them adjacent — best possible odds
     aiShip.position = { q: 0, r: 0 };
+    aiShip.lastMovementPath = [{ q: 0, r: 0 }];
     aiShip.velocity = { dq: 0, dr: 0 };
     aiShip.landed = false;
     enemyShip.position = { q: 1, r: 0 };
+    enemyShip.lastMovementPath = [{ q: 1, r: 0 }];
     enemyShip.velocity = { dq: 0, dr: 0 };
     enemyShip.landed = false;
 
-    const attacks = aiCombat(state, 1);
+    const attacks = aiCombat(state, 1, openMap);
     // At adjacent range with equal strength, AI should attack
     expect(attacks.length).toBeGreaterThanOrEqual(1);
     if (attacks.length > 0) {
       expect(attacks[0].attackerIds).toContain(aiShip.id);
       expect(attacks[0].targetId).toBe(enemyShip.id);
     }
+  });
+
+  it('skips targets that are blocked by a body', () => {
+    const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
+    const aiShip = state.ships.find(s => s.owner === 1)!;
+    const enemyShip = state.ships.find(s => s.owner === 0)!;
+
+    aiShip.position = { q: 0, r: 0 };
+    aiShip.lastMovementPath = [{ q: 0, r: 0 }];
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.landed = false;
+    enemyShip.position = { q: 2, r: 0 };
+    enemyShip.lastMovementPath = [{ q: 2, r: 0 }];
+    enemyShip.velocity = { dq: 0, dr: 0 };
+    enemyShip.landed = false;
+
+    const blockedMap: SolarSystemMap = {
+      hexes: new Map([
+        ['1,0', { terrain: 'planetSurface', body: { name: 'Blocker', destructive: false } }],
+      ]),
+      bodies: [],
+      bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
+    };
+
+    expect(aiCombat(state, 1, blockedMap)).toEqual([]);
   });
 
   it('concentrates fire with multiple ships', () => {
@@ -253,18 +285,21 @@ describe('aiCombat', () => {
 
     // Place all near each other
     enforcers[0].position = { q: 0, r: 0 };
+    enforcers[0].lastMovementPath = [{ q: 0, r: 0 }];
     enforcers[0].velocity = { dq: 0, dr: 0 };
     enforcers[0].landed = false;
     enforcers[1].position = { q: 0, r: 1 };
+    enforcers[1].lastMovementPath = [{ q: 0, r: 1 }];
     enforcers[1].velocity = { dq: 0, dr: 0 };
     enforcers[1].landed = false;
     pilgrim.position = { q: 1, r: 0 };
+    pilgrim.lastMovementPath = [{ q: 1, r: 0 }];
     pilgrim.velocity = { dq: 0, dr: 0 };
     pilgrim.landed = false;
     // Destroy other pilgrims
     state.ships.filter(s => s.owner === 0 && s.id !== pilgrim.id).forEach(s => { s.destroyed = true; });
 
-    const attacks = aiCombat(state, 1);
+    const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(1);
     // Should concentrate both ships on the single target
     expect(attacks[0].attackerIds).toHaveLength(2);
@@ -285,7 +320,7 @@ describe('aiCombat', () => {
     enemyShip.landed = false;
 
     // Easy AI should skip combat with bad range + velocity mods
-    const attacks = aiCombat(state, 1, 'easy');
+    const attacks = aiCombat(state, 1, map, 'easy');
     expect(attacks).toHaveLength(0);
   });
 
@@ -301,7 +336,7 @@ describe('aiCombat', () => {
     enemyShip.velocity = { dq: 0, dr: 0 };
     enemyShip.landed = false;
 
-    const attacks = aiCombat(state, 1);
+    const attacks = aiCombat(state, 1, map);
     if (attacks.length > 0) {
       const allShipIds = new Set(state.ships.map(s => s.id));
       for (const id of attacks[0].attackerIds) {
@@ -381,7 +416,7 @@ describe('AI scenario handling', () => {
         const launches = aiOrdnance(state, 1, map, diff);
         expect(Array.isArray(launches)).toBe(true);
 
-        const attacks = aiCombat(state, 1, diff);
+        const attacks = aiCombat(state, 1, map, diff);
         expect(Array.isArray(attacks)).toBe(true);
       }
     }
