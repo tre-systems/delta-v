@@ -311,6 +311,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         // Enforcers: corvette near Terra, corsair near Venus
         ships: [
           { type: 'corvette', position: { q: -10, r: 5 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corvette', position: { q: -11, r: 6 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
           { type: 'corsair', position: { q: -3, r: -7 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
         ],
         targetBody: '',
@@ -338,6 +339,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ships: [
           { type: 'corsair', position: { q: 2, r: 15 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
           { type: 'corsair', position: { q: -2, r: 16 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corsair', position: { q: 5, r: 13 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
         ],
         targetBody: '',
         homeBody: '',
@@ -376,16 +378,16 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       {
         // Runner: fast packet ship from Venus heading to Mars
         ships: [
-          { type: 'packet', position: { q: -5, r: -7 }, velocity: { dq: 0, dr: 0 } },
+          { type: 'packet', position: { q: -5, r: -7 }, velocity: { dq: 2, dr: 2 } },
         ],
         targetBody: 'Mars',
         homeBody: 'Venus',
         escapeWins: false,
       },
       {
-        // Blocker: powerful dreadnaught patrolling near the asteroid belt
+        // Blocker: frigate patrolling near the asteroid belt
         ships: [
-          { type: 'dreadnaught', position: { q: 3, r: 2 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'frigate', position: { q: 5, r: 4 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
         ],
         targetBody: '',
         homeBody: 'Mars',
