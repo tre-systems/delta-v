@@ -5,3 +5,6 @@ dist/
 .claude/
 static/bundle.js
 static/bundle.js.map
+
+# Ignore PDFs
+*.pdf
