@@ -207,9 +207,10 @@ describe('computeCourse - gravity', () => {
 
     const course = computeCourse(ship, null, map);
 
-    // Ship should arrive at the base hex (not be deflected past it)
+    // Ship should arrive at the base hex (not be deflected past it), but it is
+    // still flying unless it executes a legal landing burn from orbit.
     if (hexEqual(course.destination, marsBase!)) {
-      expect(course.landedAt).toBe('Mars');
+      expect(course.landedAt).toBeNull();
       expect(course.crashed).toBe(false);
     }
     expect(course.gravityEffects).toHaveLength(0);
@@ -299,8 +300,7 @@ describe('computeCourse - crash detection', () => {
     }
   });
 
-  it('ship landing on non-destructive body does not crash', () => {
-    // Ship ending on Mercury body hex (non-destructive)
+  it('ship ending on a planetary body without a legal landing crashes', () => {
     const mercuryCenter = { q: 7, r: -2 };
     const ship = makeShip({
       position: { q: 8, r: -2 },
@@ -308,48 +308,61 @@ describe('computeCourse - crash detection', () => {
     });
     const course = computeCourse(ship, null, map);
 
-    // Mercury is non-destructive, so landing = not a crash
     if (hexEqual(course.destination, mercuryCenter)) {
-      expect(course.crashed).toBe(false);
-      expect(course.landedAt).toBe('Mercury');
+      expect(course.crashed).toBe(true);
+      expect(course.landedAt).toBeNull();
     }
   });
 });
 
 describe('computeCourse - landing', () => {
-  it('ship arriving at base hex lands', () => {
+  it('drifting into a planetary base hex does not auto-land', () => {
     const marsBase = findBaseHex(map, 'Mars')!;
     expect(marsBase).not.toBeNull();
 
-    // Ship arriving at the base from an adjacent non-gravity hex
     const ship = makeShip({
       position: hexAdd(marsBase, HEX_DIRECTIONS[0]), // 1 hex E of base
       velocity: { dq: -1, dr: 0 }, // Moving W to base
     });
     const course = computeCourse(ship, null, map);
 
-    // Path may be affected by gravity, but if it reaches the base:
+    if (hexEqual(course.destination, marsBase)) {
+      expect(course.landedAt).toBeNull();
+      expect(course.crashed).toBe(false);
+    }
+  });
+
+  it('planetary landing requires orbit and a 1-fuel landing burn', () => {
+    const marsBase = findBaseHex(map, 'Mars')!;
+    const ship = makeShip({
+      position: { q: marsBase.q, r: marsBase.r + 1 },
+      velocity: { dq: 0, dr: -1 },
+      pendingGravityEffects: [{
+        hex: { q: marsBase.q, r: marsBase.r + 1 },
+        direction: 3,
+        bodyName: 'Mars',
+        strength: 'full',
+        ignored: false,
+      }],
+    });
+    const course = computeCourse(ship, 0, map);
+
+    expect(course.destination).toEqual(marsBase);
+    expect(course.fuelSpent).toBe(1);
     if (hexEqual(course.destination, marsBase)) {
       expect(course.landedAt).toBe('Mars');
       expect(course.crashed).toBe(false);
     }
   });
 
-  it('base landing works at any velocity', () => {
-    // Ship moving fast through a base hex should still land
-    const marsBase = findBaseHex(map, 'Mars')!;
-
-    // This test verifies the landing check doesn't require zero velocity
+  it('asteroid landing requires stopping in the hex', () => {
     const ship = makeShip({
-      position: { q: marsBase.q + 2, r: marsBase.r },
-      velocity: { dq: -2, dr: 0 },
+      position: { q: -3, r: 18 }, // Ceres hex
+      velocity: { dq: 0, dr: 0 },
     });
     const course = computeCourse(ship, null, map);
-
-    // If destination is the base, it should land regardless of velocity
-    if (hexEqual(course.destination, marsBase)) {
-      expect(course.landedAt).toBe('Mars');
-    }
+    expect(course.destination).toEqual({ q: -3, r: 18 });
+    expect(course.landedAt).toBe('Ceres');
   });
 });
 

@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import type { GameState, C2S, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack } from '../shared/types';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../shared/constants';
-import { createGame, processAstrogation, processOrdnance, skipOrdnance, processCombat, skipCombat } from '../shared/game-engine';
+import { createGame, processAstrogation, processOrdnance, skipOrdnance, beginCombatPhase, processCombat, skipCombat } from '../shared/game-engine';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -162,6 +162,9 @@ export class GameDO extends DurableObject {
       case 'skipOrdnance':
         await this.handleSkipOrdnance(playerId, ws);
         break;
+      case 'beginCombat':
+        await this.handleBeginCombat(playerId, ws);
+        break;
       case 'combat':
         await this.handleCombat(playerId, ws, msg.attacks);
         break;
@@ -270,8 +273,8 @@ export class GameDO extends DurableObject {
     } else if (gameState.phase === 'combat') {
       const result = skipCombat(gameState, playerId, map);
       if (!('error' in result)) {
-        if (result.baseDefenseResults && result.baseDefenseResults.length > 0) {
-          this.broadcast({ type: 'combatResult', results: result.baseDefenseResults, state: result.state });
+        if (result.results && result.results.length > 0) {
+          this.broadcast({ type: 'combatResult', results: result.results, state: result.state });
         }
         this.broadcastEndOrUpdate(result.state);
         await this.saveGameState(result.state);
@@ -386,6 +389,29 @@ export class GameDO extends DurableObject {
     await this.startTurnTimer(result.state);
   }
 
+  private async handleBeginCombat(playerId: number, ws: WebSocket) {
+    const gameState = await this.getGameState();
+    if (!gameState) return;
+
+    const map = getSolarSystemMap();
+    const result = beginCombatPhase(gameState, playerId, map);
+
+    if ('error' in result) {
+      this.send(ws, { type: 'error', message: result.error });
+      return;
+    }
+
+    if ('results' in result && result.results.length > 0) {
+      this.broadcast({ type: 'combatResult', results: result.results, state: result.state });
+    } else {
+      this.broadcast({ type: 'stateUpdate', state: result.state });
+    }
+
+    this.broadcastEndOrUpdate(result.state);
+    await this.saveGameState(result.state);
+    await this.startTurnTimer(result.state);
+  }
+
   private async handleSkipCombat(playerId: number, ws: WebSocket) {
     const gameState = await this.getGameState();
     if (!gameState) return;
@@ -398,9 +424,8 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    // If base defense fire happened, send as combat results
-    if (result.baseDefenseResults && result.baseDefenseResults.length > 0) {
-      this.broadcast({ type: 'combatResult', results: result.baseDefenseResults, state: result.state });
+    if (result.results && result.results.length > 0) {
+      this.broadcast({ type: 'combatResult', results: result.results, state: result.state });
     }
 
     this.broadcastEndOrUpdate(result.state);

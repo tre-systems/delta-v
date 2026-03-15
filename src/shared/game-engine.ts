@@ -7,7 +7,9 @@ import { applyPendingGravityEffects, collectEnteredGravityEffects, computeCourse
 import { SHIP_STATS, ORDNANCE_MASS, ORDNANCE_LIFETIME, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from './constants';
 import { hexKey, hexVecLength, hexDistance, hexAdd, hexSubtract, hexLineDraw, HEX_DIRECTIONS, hexEqual } from './hex';
 import {
-  resolveCombat, resolveBaseDefense, canAttack, hasLineOfSight, lookupOtherDamage, lookupGunCombat, applyDamage, rollD6,
+  resolveCombat, resolveBaseDefense, canAttack, hasLineOfSight, hasLineOfSightToTarget,
+  computeGroupRangeModToTarget, computeGroupVelocityModToTarget,
+  lookupOtherDamage, lookupGunCombat, applyDamage, rollD6,
   type CombatResolution,
 } from './combat';
 
@@ -66,6 +68,7 @@ export function createGame(
         velocity: { ...def.velocity },
         fuel: stats?.fuel ?? 20,
         cargoUsed: 0,
+        nukesLaunchedSinceResupply: 0,
         landed,
         destroyed: false,
         detected: true,
@@ -84,6 +87,7 @@ export function createGame(
     ships,
     ordnance: [],
     pendingAstrogationOrders: null,
+    pendingAsteroidHazards: [],
     destroyedAsteroids: [],
     players: [
       { connected: true, ready: true, targetBody: scenario.players[0].targetBody, homeBody: scenario.players[0].homeBody, escapeWins: scenario.players[0].escapeWins },
@@ -257,20 +261,59 @@ function resolveMovementPhase(
     }
 
     if (!ship.destroyed) {
-      checkAsteroidHazards(ship, course.path, state, map, events, rng);
+      queueAsteroidHazards(ship, course.path, course.newVelocity, state, map);
     }
   }
 
   checkRamming(state, events, rng);
   moveOrdnance(state, map, ordnanceMovements, events, rng);
   updateDetection(state, map);
-  checkGameEnd(state, map);
+  checkImmediateVictory(state, map);
 
   if (state.winner === null) {
-    advanceAfterMovement(state);
+    if (shouldEnterCombatPhase(state, map)) {
+      state.phase = 'combat';
+    } else {
+      checkGameEnd(state, map);
+      if (state.winner === null) {
+        advanceTurn(state);
+      }
+    }
   }
 
   return { movements, ordnanceMovements, events, state };
+}
+
+/**
+ * Resolve automatic combat-step effects that happen before attack declarations.
+ */
+export function beginCombatPhase(
+  state: GameState,
+  playerId: number,
+  map?: SolarSystemMap,
+  rng?: () => number,
+): CombatPhaseResult | StateUpdateResult | { error: string } {
+  if (state.phase !== 'combat') {
+    return { error: 'Not in combat phase' };
+  }
+  if (playerId !== state.activePlayer) {
+    return { error: 'Not your turn' };
+  }
+
+  const results = resolvePendingAsteroidHazards(state, playerId, rng);
+  if (map) {
+    checkGameEnd(state, map);
+  }
+  if (state.winner !== null) {
+    return results.length > 0 ? { results, state } : { state };
+  }
+
+  if (!shouldRemainInCombatPhase(state, map)) {
+    advanceTurn(state);
+    return results.length > 0 ? { results, state } : { state };
+  }
+
+  return results.length > 0 ? { results, state } : { state };
 }
 
 /**
@@ -290,7 +333,14 @@ export function processCombat(
     return { error: 'Not your turn' };
   }
 
-  const results: CombatResult[] = [];
+  const results = resolvePendingAsteroidHazards(state, playerId, rng);
+  if (state.winner === null) {
+    checkGameEnd(state, map);
+  }
+  if (state.winner !== null) {
+    return { results, state };
+  }
+
   const committedAttackers = new Set<string>();
   const committedTargets = new Set<string>();
 
@@ -312,21 +362,36 @@ export function processCombat(
       attackers.push(ship);
     }
 
-    const target = state.ships.find(s => s.id === attack.targetId);
-    if (!target || target.owner === playerId || target.destroyed) {
-      return { error: 'Invalid combat target' };
-    }
-    if (committedTargets.has(target.id)) {
+    const targetType = attack.targetType ?? 'ship';
+    const targetKey = `${targetType}:${attack.targetId}`;
+    if (committedTargets.has(targetKey)) {
       return { error: 'Each ship may be attacked only once per combat phase' };
-    }
-    if (map && attackers.some(attacker => !hasLineOfSight(attacker, target, map))) {
-      return { error: 'Attacker lacks line of sight to target' };
     }
 
     for (const attacker of attackers) {
       committedAttackers.add(attacker.id);
     }
-    committedTargets.add(target.id);
+    committedTargets.add(targetKey);
+
+    if (targetType === 'ordnance') {
+      const target = state.ordnance.find(o => o.id === attack.targetId);
+      if (!target || target.owner === playerId || target.destroyed || target.type !== 'nuke') {
+        return { error: 'Invalid combat target' };
+      }
+      if (map && attackers.some(attacker => !hasLineOfSightToTarget(attacker, target, map))) {
+        return { error: 'Attacker lacks line of sight to target' };
+      }
+      results.push(resolveAntiNukeAttack(attackers, target, rng));
+      continue;
+    }
+
+    const target = state.ships.find(s => s.id === attack.targetId);
+    if (!target || target.owner === playerId || target.destroyed) {
+      return { error: 'Invalid combat target' };
+    }
+    if (map && attackers.some(attacker => !hasLineOfSight(attacker, target, map))) {
+      return { error: 'Attacker lacks line of sight to target' };
+    }
 
     const resolution = resolveCombat(attackers, target, state.ships, rng, map);
     results.push(toCombatResult(resolution));
@@ -337,6 +402,8 @@ export function processCombat(
     const baseResults = resolveBaseDefense(state, playerId, map, rng);
     results.push(...baseResults);
   }
+
+  state.ordnance = state.ordnance.filter(o => !o.destroyed);
 
   // Check game end after combat
   checkGameEnd(state, map);
@@ -357,7 +424,7 @@ export function skipCombat(
   playerId: number,
   map?: SolarSystemMap,
   rng?: () => number,
-): { state: GameState; baseDefenseResults?: CombatResult[] } | { error: string } {
+): { state: GameState; results?: CombatResult[] } | { error: string } {
   if (state.phase !== 'combat') {
     return { error: 'Not in combat phase' };
   }
@@ -365,13 +432,18 @@ export function skipCombat(
     return { error: 'Not your turn' };
   }
 
+  const results = resolvePendingAsteroidHazards(state, playerId, rng);
+  if (map) {
+    checkGameEnd(state, map);
+  }
+  if (state.winner !== null) {
+    return results.length > 0 ? { state, results } : { state };
+  }
+
   // Base defense fire still happens even if player skips
-  let baseDefenseResults: CombatResult[] | undefined;
   if (map) {
     const baseResults = resolveBaseDefense(state, playerId, map, rng);
-    if (baseResults.length > 0) {
-      baseDefenseResults = baseResults;
-    }
+    results.push(...baseResults);
     checkGameEnd(state, map);
   }
 
@@ -379,7 +451,7 @@ export function skipCombat(
     advanceTurn(state);
   }
 
-  return { state, baseDefenseResults };
+  return results.length > 0 ? { state, results } : { state };
 }
 
 /**
@@ -428,25 +500,33 @@ export function processOrdnance(
       return { error: 'Insufficient cargo capacity' };
     }
 
-    // Torpedoes and nukes: warships only
-    if ((launch.ordnanceType === 'torpedo' || launch.ordnanceType === 'nuke') && !stats.canOverload) {
-      return { error: 'Only warships can launch torpedoes and nukes' };
+    if (launch.ordnanceType === 'torpedo' && !stats.canOverload) {
+      return { error: 'Only warships can launch torpedoes' };
+    }
+    if (launch.ordnanceType === 'nuke' && !stats.canOverload && (ship.nukesLaunchedSinceResupply ?? 0) >= 1) {
+      return { error: 'Non-warships may carry only one nuke between resupplies' };
     }
 
-    // Validate torpedo/nuke acceleration direction
-    if ((launch.ordnanceType === 'torpedo' || launch.ordnanceType === 'nuke') && launch.torpedoAccel != null) {
+    // Validate torpedo launch acceleration
+    if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
       if (launch.torpedoAccel < 0 || launch.torpedoAccel > 5) {
         return { error: 'Invalid torpedo acceleration direction' };
       }
+      if (launch.torpedoAccelSteps != null && launch.torpedoAccelSteps !== 1 && launch.torpedoAccelSteps !== 2) {
+        return { error: 'Invalid torpedo acceleration distance' };
+      }
+    } else if (launch.torpedoAccel != null || launch.torpedoAccelSteps != null) {
+      return { error: 'Only torpedoes use launch acceleration' };
     }
 
     // Launch ordnance: inherits ship's velocity
     let velocity = { ...ship.velocity };
-    if ((launch.ordnanceType === 'torpedo' || launch.ordnanceType === 'nuke') && launch.torpedoAccel != null) {
+    if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
       const accelDir = HEX_DIRECTIONS[launch.torpedoAccel];
+      const accelSteps = launch.torpedoAccelSteps ?? 1;
       velocity = {
-        dq: velocity.dq + accelDir.dq,
-        dr: velocity.dr + accelDir.dr,
+        dq: velocity.dq + accelDir.dq * accelSteps,
+        dr: velocity.dr + accelDir.dr * accelSteps,
       };
     }
 
@@ -463,6 +543,9 @@ export function processOrdnance(
     });
 
     ship.cargoUsed += mass;
+    if (launch.ordnanceType === 'nuke') {
+      ship.nukesLaunchedSinceResupply = (ship.nukesLaunchedSinceResupply ?? 0) + 1;
+    }
     launchedShips.add(launch.shipId);
   }
 
@@ -489,7 +572,11 @@ export function skipOrdnance(
     if (state.pendingAstrogationOrders) {
       return { error: 'Map required to resolve movement after ordnance' };
     }
-    advanceAfterMovement(state);
+    if (hasAnyEnemyShips(state)) {
+      state.phase = 'combat';
+    } else {
+      advanceTurn(state);
+    }
     return { state };
   }
 
@@ -555,7 +642,7 @@ function moveOrdnance(
 /**
  * Check if ordnance detonates by contacting ships along its path.
  * Mines affect all ships in the hex, torpedoes hit single target.
- * Nukes use Gun Combat table at 2:1 odds, affect all ships in hex.
+ * Nukes automatically eliminate ships in the detonated hex.
  */
 function checkOrdnanceDetonation(
   ord: Ordnance,
@@ -565,75 +652,138 @@ function checkOrdnanceDetonation(
   map: SolarSystemMap,
   rng?: () => number,
 ): boolean {
-  // Nukes also detonate on asteroid hexes, destroying them
-  if (ord.type === 'nuke') {
-    for (const pathHex of path) {
-      const key = hexKey(pathHex);
-      if (isAsteroidHex(state, map, pathHex)) {
-        if (!state.destroyedAsteroids.includes(key)) {
-          state.destroyedAsteroids.push(key);
-        }
-        return true; // Nuke expended
-      }
-    }
-  }
-
-  // Check all hexes along path for ships or ordnance (detonation on contact)
   for (let i = 0; i < path.length; i++) {
     const pathHex = path[i];
     const isLaunchHex = i === 0;
-    let hitSomething = false;
+    const key = hexKey(pathHex);
+    const mapHex = map.hexes.get(key);
+    let forcedDetonation = false;
 
-    for (const ship of state.ships) {
-      if (ship.destroyed) continue;
-      if (ship.id === ord.sourceShipId) continue;
-      if (isLaunchHex && ship.owner === ord.owner) continue;
-
-      if (hexEqual(ship.position, pathHex)) {
-        const dieRoll = rollD6(rng);
-
-        let result;
-        let eventType: MovementEvent['type'];
-        if (ord.type === 'nuke') {
-          // Nukes use Gun Combat table at 2:1 odds
-          result = lookupGunCombat('2:1', dieRoll);
-          eventType = 'nukeDetonation';
-        } else {
-          result = lookupOtherDamage(dieRoll);
-          eventType = ord.type === 'mine' ? 'mineDetonation' : 'torpedoHit';
+    if (isAsteroidHex(state, map, pathHex)) {
+      if (ord.type === 'nuke') {
+        if (!state.destroyedAsteroids.includes(key)) {
+          state.destroyedAsteroids.push(key);
         }
-
-        events.push({
-          type: eventType,
-          shipId: ship.id,
-          hex: pathHex,
-          dieRoll,
-          damageType: result.type,
-          disabledTurns: result.disabledTurns,
-          ordnanceId: ord.id,
-        });
-
-        applyDamage(ship, result);
-        hitSomething = true;
-
-        // Torpedoes hit one target only; mines and nukes affect all in hex
-        if (ord.type === 'torpedo') return true;
+        forcedDetonation = true;
+      } else {
+        return true;
       }
     }
 
-    for (const other of state.ordnance) {
-      if (other.id === ord.id || other.destroyed) continue;
-      if (isLaunchHex && other.owner === ord.owner) continue;
-      if (!hexEqual(other.position, pathHex)) continue;
-      other.destroyed = true;
-      hitSomething = true;
-      if (ord.type === 'torpedo') return true;
+    if (mapHex?.base) {
+      if (ord.type === 'nuke') {
+        forcedDetonation = true;
+      } else {
+        return true;
+      }
     }
 
-    if (hitSomething) return true;
+    const contactedShips = state.ships.filter(ship =>
+      !ship.destroyed &&
+      ship.id !== ord.sourceShipId &&
+      (!isLaunchHex || ship.owner !== ord.owner) &&
+      hexEqual(ship.position, pathHex),
+    );
+    const contactedOrdnance = state.ordnance.filter(other =>
+      other.id !== ord.id &&
+      !other.destroyed &&
+      (!isLaunchHex || other.owner !== ord.owner) &&
+      hexEqual(other.position, pathHex),
+    );
+
+    if (ord.type === 'torpedo') {
+      if (resolveTorpedoDetonation(ord, contactedShips, contactedOrdnance, pathHex, events, rng)) {
+        return true;
+      }
+      continue;
+    }
+
+    let hitSomething = false;
+    for (const ship of contactedShips) {
+      const dieRoll = ord.type === 'nuke' ? 0 : rollD6(rng);
+      const result = ord.type === 'nuke'
+        ? { type: 'eliminated' as const, disabledTurns: 0 }
+        : lookupOtherDamage(dieRoll);
+      events.push({
+        type: ord.type === 'nuke' ? 'nukeDetonation' : 'mineDetonation',
+        shipId: ship.id,
+        hex: pathHex,
+        dieRoll,
+        damageType: result.type,
+        disabledTurns: result.disabledTurns,
+        ordnanceId: ord.id,
+      });
+      applyDamage(ship, result);
+      hitSomething = true;
+    }
+
+    for (const other of contactedOrdnance) {
+      other.destroyed = true;
+      hitSomething = true;
+    }
+
+    if (hitSomething || forcedDetonation) {
+      return true;
+    }
   }
 
   return false;
+}
+
+function resolveTorpedoDetonation(
+  ord: Ordnance,
+  ships: Ship[],
+  contactedOrdnance: Ordnance[],
+  hex: { q: number; r: number },
+  events: MovementEvent[],
+  rng?: () => number,
+): boolean {
+  if (ships.length === 0 && contactedOrdnance.length === 0) {
+    return false;
+  }
+
+  const candidates = shuffle(
+    [
+      ...ships.map(ship => ({ type: 'ship' as const, ship })),
+      ...contactedOrdnance.map(other => ({ type: 'ordnance' as const, other })),
+    ],
+    rng,
+  );
+
+  for (const candidate of candidates) {
+    if (candidate.type === 'ordnance') {
+      candidate.other.destroyed = true;
+      return true;
+    }
+
+    const dieRoll = rollD6(rng);
+    const result = lookupOtherDamage(dieRoll);
+    events.push({
+      type: 'torpedoHit',
+      shipId: candidate.ship.id,
+      hex,
+      dieRoll,
+      damageType: result.type,
+      disabledTurns: result.disabledTurns,
+      ordnanceId: ord.id,
+    });
+
+    if (result.type !== 'none') {
+      applyDamage(candidate.ship, result);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function shuffle<T>(items: T[], rng?: () => number): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor((rng ? rng() : Math.random()) * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
 
 /**
@@ -649,15 +799,21 @@ function shouldEnterOrdnancePhase(state: GameState): boolean {
 }
 
 /**
- * Advance phase after movement: go to combat or next turn.
+ * Determine whether the active player should enter combat after movement.
  */
-function advanceAfterMovement(state: GameState): void {
-  const hasTargets = hasCombatTargets(state);
-  if (hasTargets) {
-    state.phase = 'combat';
-  } else {
-    advanceTurn(state);
+function shouldEnterCombatPhase(state: GameState, map: SolarSystemMap): boolean {
+  if (state.pendingAsteroidHazards.some(hazard => {
+    const ship = state.ships.find(s => s.id === hazard.shipId);
+    return ship?.owner === state.activePlayer && !ship.destroyed;
+  })) {
+    return true;
   }
+
+  if (hasBaseDefenseTargets(state, map)) {
+    return true;
+  }
+
+  return hasManualCombatTargets(state, map);
 }
 
 /**
@@ -693,53 +849,132 @@ function advanceTurn(state: GameState): void {
 }
 
 /**
- * Check if any enemy ships are within potential combat range.
+ * Check if the active player still has any optional combat actions to take.
  */
-function hasCombatTargets(state: GameState): boolean {
-  const player = state.activePlayer;
-  const myShips = state.ships.filter(s => s.owner === player && !s.destroyed && canAttack(s));
-  const enemyShips = state.ships.filter(s => s.owner !== player && !s.destroyed);
+function shouldRemainInCombatPhase(state: GameState, map?: SolarSystemMap): boolean {
+  if (state.pendingAsteroidHazards.some(hazard => {
+    const ship = state.ships.find(s => s.id === hazard.shipId);
+    return ship?.owner === state.activePlayer && !ship.destroyed;
+  })) {
+    return true;
+  }
+  if (!map) {
+    return hasAnyEnemyShips(state);
+  }
+  return hasManualCombatTargets(state, map) || hasBaseDefenseTargets(state, map);
+}
 
-  // In Delta-V, gun combat has effectively unlimited range but
-  // range modifier makes distant attacks very unlikely to succeed.
-  // Show combat phase if there are any living enemies.
-  return myShips.length > 0 && enemyShips.length > 0;
+function hasAnyEnemyShips(state: GameState): boolean {
+  const player = state.activePlayer;
+  return state.ships.some(s => s.owner !== player && !s.destroyed);
 }
 
 /**
- * Check asteroid hazards along a ship's path.
- * Ships passing through asteroid hexes at speed > 1 must roll on Other Damage table.
+ * Check if the active player's ships can attack enemy ships or nukes.
  */
-function checkAsteroidHazards(
+function hasManualCombatTargets(state: GameState, map: SolarSystemMap): boolean {
+  const attackers = state.ships.filter(s => s.owner === state.activePlayer && !s.destroyed && canAttack(s));
+  if (attackers.length === 0) return false;
+
+  if (state.ships.some(target =>
+    target.owner !== state.activePlayer &&
+    !target.destroyed &&
+    attackers.some(attacker => hasLineOfSight(attacker, target, map)),
+  )) {
+    return true;
+  }
+
+  return state.ordnance.some(ord =>
+    ord.type === 'nuke' &&
+    ord.owner !== state.activePlayer &&
+    !ord.destroyed &&
+    attackers.some(attacker => hasLineOfSightToTarget(attacker, ord, map)),
+  );
+}
+
+function hasBaseDefenseTargets(state: GameState, map: SolarSystemMap): boolean {
+  const homeBody = state.players[state.activePlayer]?.homeBody;
+  if (!homeBody) return false;
+
+  for (const [key, hex] of map.hexes) {
+    if (!hex.base || hex.base.bodyName !== homeBody) continue;
+    const [bq, br] = key.split(',').map(Number);
+    for (const ship of state.ships) {
+      if (ship.owner === state.activePlayer || ship.destroyed || ship.landed) continue;
+      const shipHex = map.hexes.get(hexKey(ship.position));
+      if (!shipHex?.gravity || shipHex.gravity.bodyName !== homeBody) continue;
+      if (hexDistance(ship.position, { q: bq, r: br }) === 1) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Queue asteroid hazards so they resolve during combat.
+ */
+function queueAsteroidHazards(
   ship: Ship,
   path: { q: number; r: number }[],
+  velocity: { dq: number; dr: number },
   state: GameState,
   map: SolarSystemMap,
-  events: MovementEvent[],
-  rng?: () => number,
 ): void {
-  const speed = hexVecLength(ship.velocity);
+  const speed = hexVecLength(velocity);
   if (speed <= 1) return;
 
-  // Check each hex in the path (skip starting hex)
   for (let i = 1; i < path.length; i++) {
     if (!isAsteroidHex(state, map, path[i])) continue;
+    state.pendingAsteroidHazards.push({
+      shipId: ship.id,
+      hex: { ...path[i] },
+    });
+  }
+}
+
+function resolvePendingAsteroidHazards(
+  state: GameState,
+  playerId: number,
+  rng?: () => number,
+): CombatResult[] {
+  const results: CombatResult[] = [];
+  const remaining = [];
+
+  for (const hazard of state.pendingAsteroidHazards) {
+    const ship = state.ships.find(s => s.id === hazard.shipId);
+    if (!ship || ship.owner !== playerId) {
+      remaining.push(hazard);
+      continue;
+    }
+    if (ship.destroyed) {
+      continue;
+    }
 
     const dieRoll = rollD6(rng);
     const result = lookupOtherDamage(dieRoll);
-
-    events.push({
-      type: 'asteroidHit',
-      shipId: ship.id,
-      hex: path[i],
+    applyDamage(ship, result);
+    results.push({
+      attackerIds: [],
+      targetId: ship.id,
+      targetType: 'ship',
+      attackType: 'asteroidHazard',
+      odds: '-',
+      attackStrength: 0,
+      defendStrength: 0,
+      rangeMod: 0,
+      velocityMod: 0,
       dieRoll,
+      modifiedRoll: dieRoll,
       damageType: result.type,
       disabledTurns: result.disabledTurns,
+      counterattack: null,
     });
-
-    const eliminated = applyDamage(ship, result);
-    if (eliminated) break;
   }
+
+  state.pendingAsteroidHazards = remaining;
+  return results;
 }
 
 function isAsteroidHex(
@@ -802,6 +1037,7 @@ function applyResupply(ship: Ship, map: SolarSystemMap): void {
   if (stats) {
     ship.fuel = stats.fuel;
     ship.cargoUsed = 0; // restock ordnance
+    ship.nukesLaunchedSinceResupply = 0;
     ship.damage = { disabledTurns: 0 };
   }
 }
@@ -857,35 +1093,43 @@ function updateDetection(state: GameState, map: SolarSystemMap): void {
 }
 
 /**
+ * Check immediate movement-based victory conditions.
+ */
+function checkImmediateVictory(state: GameState, map?: SolarSystemMap): void {
+  if (!map) return;
+
+  for (const ship of state.ships) {
+    if (ship.destroyed || !ship.landed) continue;
+    const targetBody = state.players[ship.owner].targetBody;
+    if (!targetBody) continue;
+    const hex = map.hexes.get(hexKey(ship.position));
+    if (hex?.base?.bodyName === targetBody || hex?.body?.name === targetBody) {
+      state.winner = ship.owner;
+      state.winReason = `Landed on ${targetBody}!`;
+      state.phase = 'gameOver';
+      return;
+    }
+  }
+
+  for (const ship of state.ships) {
+    if (ship.destroyed) continue;
+    if (!state.players[ship.owner].escapeWins) continue;
+    if (hasEscaped(ship.position, map.bounds)) {
+      state.winner = ship.owner;
+      state.winReason = 'Escaped the solar system!';
+      state.phase = 'gameOver';
+      return;
+    }
+  }
+}
+
+/**
  * Check if the game has ended (victory or all ships destroyed).
  */
 function checkGameEnd(state: GameState, map?: SolarSystemMap): void {
-  // Check victory: landing on target body (needs map)
-  if (map) {
-    for (const ship of state.ships) {
-      if (ship.destroyed || !ship.landed) continue;
-      const targetBody = state.players[ship.owner].targetBody;
-      if (!targetBody) continue;
-      const hex = map.hexes.get(hexKey(ship.position));
-      if (hex?.base?.bodyName === targetBody || hex?.body?.name === targetBody) {
-        state.winner = ship.owner;
-        state.winReason = `Landed on ${targetBody}!`;
-        state.phase = 'gameOver';
-        return;
-      }
-    }
-
-    // Check escape victory: ship moved beyond map bounds
-    for (const ship of state.ships) {
-      if (ship.destroyed) continue;
-      if (!state.players[ship.owner].escapeWins) continue;
-      if (hasEscaped(ship.position, map.bounds)) {
-        state.winner = ship.owner;
-        state.winReason = 'Escaped the solar system!';
-        state.phase = 'gameOver';
-        return;
-      }
-    }
+  checkImmediateVictory(state, map);
+  if (state.winner !== null) {
+    return;
   }
 
   // Check loss: all ships destroyed
@@ -924,6 +1168,39 @@ function hasEscaped(
          pos.r < bounds.minR - margin || pos.r > bounds.maxR + margin;
 }
 
+function resolveAntiNukeAttack(
+  attackers: Ship[],
+  target: Ordnance,
+  rng?: () => number,
+): CombatResult {
+  const rangeMod = computeGroupRangeModToTarget(attackers, target);
+  const velocityMod = computeGroupVelocityModToTarget(attackers, target);
+  const dieRoll = rollD6(rng);
+  const modifiedRoll = dieRoll - rangeMod - velocityMod;
+  const rolledResult = lookupGunCombat('2:1', modifiedRoll);
+  const destroyed = rolledResult.type !== 'none';
+  if (destroyed) {
+    target.destroyed = true;
+  }
+
+  return {
+    attackerIds: attackers.map(ship => ship.id),
+    targetId: target.id,
+    targetType: 'ordnance',
+    attackType: 'antiNuke',
+    odds: '2:1',
+    attackStrength: 0,
+    defendStrength: 0,
+    rangeMod,
+    velocityMod,
+    dieRoll,
+    modifiedRoll,
+    damageType: destroyed ? 'eliminated' : 'none',
+    disabledTurns: 0,
+    counterattack: null,
+  };
+}
+
 /**
  * Convert internal CombatResolution to network-safe CombatResult.
  */
@@ -931,6 +1208,8 @@ function toCombatResult(r: CombatResolution): CombatResult {
   return {
     attackerIds: r.attackerIds,
     targetId: r.targetId,
+    targetType: 'ship',
+    attackType: 'gun',
     odds: r.odds,
     attackStrength: r.attackStrength,
     defendStrength: r.defendStrength,
