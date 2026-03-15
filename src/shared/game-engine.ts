@@ -30,6 +30,53 @@ export interface CombatPhaseResult {
   state: GameState;
 }
 
+function resolveControlledBases(
+  player: ScenarioDefinition['players'][number],
+  map: SolarSystemMap,
+): string[] {
+  if (player.bases && player.bases.length > 0) {
+    return [...new Set(player.bases.map(base => hexKey(base)))];
+  }
+
+  if (!player.homeBody) {
+    return [];
+  }
+
+  const ownedBases: string[] = [];
+  for (const [key, hex] of map.hexes) {
+    if (hex.base?.bodyName === player.homeBody) {
+      ownedBases.push(key);
+    }
+  }
+  return ownedBases;
+}
+
+function playerControlsBase(state: GameState, playerId: number, baseKey: string): boolean {
+  return state.players[playerId]?.bases.includes(baseKey) ?? false;
+}
+
+function bodyHasGravity(bodyName: string, map: SolarSystemMap): boolean {
+  for (const hex of map.hexes.values()) {
+    if (hex.gravity?.bodyName === bodyName) return true;
+  }
+  return false;
+}
+
+function getOwnedPlanetaryBases(
+  state: GameState,
+  playerId: number,
+  map: SolarSystemMap,
+): { key: string; coord: { q: number; r: number } }[] {
+  const bases = state.players[playerId]?.bases ?? [];
+  return bases.flatMap(key => {
+    if (state.destroyedBases.includes(key)) return [];
+    const hex = map.hexes.get(key);
+    if (!hex?.base || !bodyHasGravity(hex.base.bodyName, map)) return [];
+    const [q, r] = key.split(',').map(Number);
+    return [{ key, coord: { q, r } }];
+  });
+}
+
 /**
  * Pure game engine — no IO, no networking, no storage.
  * All game logic lives here so it can be unit tested.
@@ -41,6 +88,7 @@ export function createGame(
   findBaseHex: (map: SolarSystemMap, bodyName: string) => { q: number; r: number } | null,
 ): GameState {
   const ships: Ship[] = [];
+  const playerBases = scenario.players.map(player => resolveControlledBases(player, map));
 
   for (let p = 0; p < scenario.players.length; p++) {
     for (let s = 0; s < scenario.players[p].ships.length; s++) {
@@ -52,7 +100,13 @@ export function createGame(
       let landed: boolean;
 
       if (shouldLand) {
-        const baseHex = findBaseHex(map, scenario.players[p].homeBody);
+        const ownedBase = playerBases[p][0];
+        const baseHex = ownedBase
+          ? (() => {
+            const [q, r] = ownedBase.split(',').map(Number);
+            return { q, r };
+          })()
+          : findBaseHex(map, scenario.players[p].homeBody);
         position = baseHex ?? def.position;
         landed = true;
       } else {
@@ -92,8 +146,22 @@ export function createGame(
     destroyedAsteroids: [],
     destroyedBases: [],
     players: [
-      { connected: true, ready: true, targetBody: scenario.players[0].targetBody, homeBody: scenario.players[0].homeBody, escapeWins: scenario.players[0].escapeWins },
-      { connected: true, ready: true, targetBody: scenario.players[1].targetBody, homeBody: scenario.players[1].homeBody, escapeWins: scenario.players[1].escapeWins },
+      {
+        connected: true,
+        ready: true,
+        targetBody: scenario.players[0].targetBody,
+        homeBody: scenario.players[0].homeBody,
+        bases: playerBases[0],
+        escapeWins: scenario.players[0].escapeWins,
+      },
+      {
+        connected: true,
+        ready: true,
+        targetBody: scenario.players[1].targetBody,
+        homeBody: scenario.players[1].homeBody,
+        bases: playerBases[1],
+        escapeWins: scenario.players[1].escapeWins,
+      },
     ],
     winner: null,
     winReason: null,
@@ -899,18 +967,14 @@ function hasManualCombatTargets(state: GameState, map: SolarSystemMap): boolean 
 }
 
 function hasBaseDefenseTargets(state: GameState, map: SolarSystemMap): boolean {
-  const homeBody = state.players[state.activePlayer]?.homeBody;
-  if (!homeBody) return false;
-
-  for (const [key, hex] of map.hexes) {
-    if (!hex.base || hex.base.bodyName !== homeBody) continue;
-    if (state.destroyedBases.includes(key)) continue;
-    const [bq, br] = key.split(',').map(Number);
-    const baseCoord = { q: bq, r: br };
+  for (const { coord: baseCoord } of getOwnedPlanetaryBases(state, state.activePlayer, map)) {
+    const baseHex = map.hexes.get(hexKey(baseCoord));
+    const bodyName = baseHex?.base?.bodyName;
+    if (!bodyName) continue;
     for (const ship of state.ships) {
       if (ship.owner === state.activePlayer || ship.destroyed || ship.landed) continue;
       const shipHex = map.hexes.get(hexKey(ship.position));
-      if (!shipHex?.gravity || shipHex.gravity.bodyName !== homeBody) continue;
+      if (!shipHex?.gravity || shipHex.gravity.bodyName !== bodyName) continue;
       if (hexDistance(ship.position, baseCoord) === 1) {
         return true;
       }
@@ -1047,6 +1111,7 @@ function applyResupply(ship: Ship, state: GameState, map: SolarSystemMap): void 
   const baseKey = hexKey(ship.position);
   const hex = map.hexes.get(baseKey);
   if (!hex?.base || state.destroyedBases.includes(baseKey)) return;
+  if (!playerControlsBase(state, ship.owner, baseKey)) return;
 
   const stats = SHIP_STATS[ship.type];
   if (stats) {
@@ -1073,8 +1138,7 @@ function updateDetection(state: GameState, map: SolarSystemMap): void {
     if (ship.landed) {
       const key = hexKey(ship.position);
       const hex = map.hexes.get(key);
-      const playerHome = state.players[ship.owner].homeBody;
-      if (hex?.base && !state.destroyedBases.includes(key) && hex.base.bodyName === playerHome) {
+      if (hex?.base && !state.destroyedBases.includes(key) && playerControlsBase(state, ship.owner, key)) {
         ship.detected = false;
         continue;
       }
@@ -1095,11 +1159,10 @@ function updateDetection(state: GameState, map: SolarSystemMap): void {
     if (ship.detected) continue;
 
     // Check if within range of any opponent base
-    const opponentHome = state.players[1 - ship.owner].homeBody;
-    for (const [key, hex] of map.hexes) {
-      if (!hex.base) continue;
+    for (const key of state.players[1 - ship.owner].bases) {
+      const hex = map.hexes.get(key);
+      if (!hex?.base) continue;
       if (state.destroyedBases.includes(key)) continue;
-      if (hex.base.bodyName !== opponentHome) continue; // Only opponent bases detect
       const [q, r] = key.split(',').map(Number);
       if (hexDistance(ship.position, { q, r }) <= BASE_DETECTION_RANGE) {
         ship.detected = true;

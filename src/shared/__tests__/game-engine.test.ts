@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createGame, processAstrogation, processOrdnance, skipOrdnance, beginCombatPhase, skipCombat, processCombat, type MovementResult, type StateUpdateResult } from '../game-engine';
-import { buildSolarSystemMap, SCENARIOS, findBaseHex } from '../map-data';
+import { buildSolarSystemMap, SCENARIOS, findBaseHex, findBaseHexes } from '../map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../constants';
 import { hexKey, hexEqual, hexDistance } from '../hex';
 import { resolveBaseDefense } from '../combat';
@@ -89,6 +89,12 @@ describe('createGame', () => {
     const venusBase = findBaseHex(map, 'Venus')!;
     expect(initialState.ships[0].position).toEqual(marsBase);
     expect(initialState.ships[1].position).toEqual(venusBase);
+  });
+
+  it('supports explicit split base ownership for shared worlds', () => {
+    const duelState = createGame(SCENARIOS.duel, map, 'DUEL1', findBaseHex);
+    expect(duelState.players[0].bases).toEqual(['8,-2']);
+    expect(duelState.players[1].bases).toEqual(['6,-2']);
   });
 });
 
@@ -385,6 +391,40 @@ describe('resupply on landing', () => {
     const stats = SHIP_STATS[landedShip.type];
     expect(landedShip.fuel).toBe(stats.fuel);
     expect(landedShip.damage.disabledTurns).toBe(0);
+  });
+
+  it('does not resupply when landing at an unowned base', () => {
+    const ship = initialState.ships[0];
+    const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: 0 }];
+    const result = processAstrogation(initialState, 0, orders, map);
+
+    if ('error' in result) return;
+
+    const movedShip = result.state.ships[0];
+    const marsBase = findBaseHex(map, 'Mars')!;
+    const venusBase = findBaseHex(map, 'Venus')!;
+    result.state.players[0].bases = [hexKey(venusBase)];
+    movedShip.position = { q: marsBase.q, r: marsBase.r + 1 };
+    movedShip.velocity = { dq: 0, dr: -1 };
+    movedShip.landed = false;
+    movedShip.fuel = 5;
+    movedShip.pendingGravityEffects = [{
+      hex: { q: marsBase.q, r: marsBase.r + 1 },
+      direction: 3,
+      bodyName: 'Mars',
+      strength: 'full',
+      ignored: false,
+    }];
+
+    result.state.activePlayer = 0;
+    result.state.phase = 'astrogation';
+
+    const landResult = processAstrogation(result.state, 0, [{ shipId: movedShip.id, burn: 0 }], map);
+    if ('error' in landResult) return;
+
+    const landedShip = landResult.state.ships[0];
+    expect(landedShip.landed).toBe(true);
+    expect(landedShip.fuel).toBe(4);
   });
 });
 
@@ -882,8 +922,8 @@ describe('base defense fire', () => {
         },
       ],
       players: [
-        { homeBody: 'Mars' },
-        { homeBody: 'Venus' },
+        { bases: [hexKey(marsBase)] },
+        { bases: [hexKey(findBaseHex(map, 'Venus')!)] },
       ],
     };
 
@@ -918,8 +958,8 @@ describe('base defense fire', () => {
         },
       ],
       players: [
-        { homeBody: 'Mars' },
-        { homeBody: 'Venus' },
+        { bases: [hexKey(marsBase)] },
+        { bases: [hexKey(findBaseHex(map, 'Venus')!)] },
       ],
     };
 
@@ -927,7 +967,7 @@ describe('base defense fire', () => {
     expect(results).toHaveLength(0);
   });
 
-  it('does not fire from neutral bases outside the active player home world', () => {
+  it('does not fire from neutral bases outside the active player owned set', () => {
     const mercuryBase = findBaseHex(map, 'Mercury')!;
     let gravHex: { q: number; r: number } | null = null;
     for (const [key, hex] of map.hexes) {
@@ -959,12 +999,44 @@ describe('base defense fire', () => {
         },
       ],
       players: [
-        { homeBody: 'Mars' },
-        { homeBody: 'Venus' },
+        { bases: [hexKey(findBaseHex(map, 'Mars')!)] },
+        { bases: [hexKey(findBaseHex(map, 'Venus')!)] },
       ],
     }, 0, map, () => 0.5);
 
     expect(results).toHaveLength(0);
+  });
+
+  it('only fires from the owned base when both players share a world', () => {
+    const [westBase, eastBase] = findBaseHexes(map, 'Mercury').sort((a, b) => a.q - b.q);
+    const defenseState = {
+      ships: [
+        {
+          id: 'enemy-east',
+          type: 'corvette',
+          owner: 1,
+          position: { q: eastBase.q, r: eastBase.r + 1 },
+          velocity: { dq: 0, dr: 0 },
+          fuel: 20,
+          cargoUsed: 0,
+          landed: false,
+          destroyed: false,
+          detected: true,
+          damage: { disabledTurns: 0 },
+        },
+      ],
+      players: [
+        { bases: [hexKey(westBase)] },
+        { bases: [hexKey(eastBase)] },
+      ],
+    };
+
+    expect(resolveBaseDefense(defenseState, 0, map, () => 0.5)).toHaveLength(0);
+
+    defenseState.ships[0].position = { q: westBase.q, r: westBase.r + 1 };
+    const results = resolveBaseDefense(defenseState, 0, map, () => 0.5);
+    expect(results).toHaveLength(1);
+    expect(results[0].attackerIds).toEqual([`base:${hexKey(westBase)}`]);
   });
 
   it('fires at enemy nukes with range and velocity modifiers', () => {
@@ -985,8 +1057,8 @@ describe('base defense fire', () => {
       ] as Ordnance[],
       destroyedBases: [],
       players: [
-        { homeBody: 'Mars' },
-        { homeBody: 'Venus' },
+        { bases: [hexKey(marsBase)] },
+        { bases: [hexKey(findBaseHex(map, 'Venus')!)] },
       ],
     };
 
@@ -1133,8 +1205,8 @@ describe('nuke ordnance', () => {
       ordnance: [],
       destroyedBases: result.state.destroyedBases,
       players: [
-        { homeBody: 'Mars' },
-        { homeBody: 'Venus' },
+        { bases: [hexKey(marsBase)] },
+        { bases: [hexKey(findBaseHex(map, 'Venus')!)] },
       ],
     }, 0, map, () => 0.99);
 
@@ -1403,6 +1475,8 @@ describe('Fleet Action scenario', () => {
   it('fleet 1 is based at Mars, fleet 2 at Venus', () => {
     expect(fleetState.players[0].homeBody).toBe('Mars');
     expect(fleetState.players[1].homeBody).toBe('Venus');
+    expect(fleetState.players[0].bases).toContain(hexKey(findBaseHex(map, 'Mars')!));
+    expect(fleetState.players[1].bases).toContain(hexKey(findBaseHex(map, 'Venus')!));
   });
 
   it('no target body — pure combat scenario', () => {
