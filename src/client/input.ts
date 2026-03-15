@@ -169,13 +169,17 @@ export class InputHandler {
       if (ship && ship.fuel > 0 && ship.damage.disabledTurns === 0) {
         const currentBurn = this.planningState.burns.get(ship.id) ?? null;
         const predDest = ship.landed
-          ? computeCourse(ship, null, this.map).path[0] // launch hex
+          ? computeCourse(ship, null, this.map, { destroyedBases: this.gameState.destroyedBases }).path[0] // launch hex
           : predictDestination(ship);
 
         // Check weak gravity toggle clicks
         const overload = this.planningState.overloads.get(ship.id) ?? null;
         const wgChoices = this.planningState.weakGravityChoices.get(ship.id) ?? {};
-        const course = computeCourse(ship, currentBurn, this.map, { overload, weakGravityChoices: wgChoices });
+        const course = computeCourse(ship, currentBurn, this.map, {
+          overload,
+          weakGravityChoices: wgChoices,
+          destroyedBases: this.gameState.destroyedBases,
+        });
         for (const grav of course.enteredGravityEffects) {
           if (grav.strength !== 'weak') continue;
           if (hexEqual(clickHex, grav.hex)) {

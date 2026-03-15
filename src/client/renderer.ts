@@ -268,11 +268,14 @@ export class Renderer {
         let attackerPos: PixelCoord | null = null;
 
         if (firstId.startsWith('base:')) {
-          // Base defense fire — find the base hex
-          const bodyName = firstId.slice(5);
-          if (this.map) {
+          const baseRef = firstId.slice(5);
+          if (baseRef.includes(',')) {
+            const [bq, br] = baseRef.split(',').map(Number);
+            attackerPos = hexToPixel({ q: bq, r: br }, HEX_SIZE);
+          } else if (this.map) {
+            // Backward-compatible fallback for older replays/messages
             for (const [key, hex] of this.map.hexes) {
-              if (hex.base?.bodyName === bodyName) {
+              if (hex.base?.bodyName === baseRef) {
                 const [bq, br] = key.split(',').map(Number);
                 attackerPos = hexToPixel({ q: bq, r: br }, HEX_SIZE);
                 break;
@@ -595,6 +598,7 @@ export class Renderer {
     // Determine home bodies for coloring
     let myHome = '';
     let enemyHome = '';
+    const destroyed = new Set(state?.destroyedBases ?? []);
     if (state && this.playerId >= 0) {
       myHome = state.players[this.playerId]?.homeBody ?? '';
       enemyHome = state.players[1 - this.playerId]?.homeBody ?? '';
@@ -604,6 +608,19 @@ export class Renderer {
       if (!hex.base) continue;
       const [q, r] = key.split(',').map(Number);
       const p = hexToPixel({ q, r }, HEX_SIZE);
+      const isDestroyed = destroyed.has(key);
+
+      if (isDestroyed) {
+        ctx.strokeStyle = 'rgba(255, 90, 90, 0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(p.x - 5, p.y - 5);
+        ctx.lineTo(p.x + 5, p.y + 5);
+        ctx.moveTo(p.x + 5, p.y - 5);
+        ctx.lineTo(p.x - 5, p.y + 5);
+        ctx.stroke();
+        continue;
+      }
 
       // Color by ownership
       if (hex.base.bodyName === myHome) {
@@ -764,9 +781,11 @@ export class Renderer {
 
     // Show base detection ranges for own bases
     const player = state.players[this.playerId];
+    const destroyed = new Set(state.destroyedBases);
     if (player?.homeBody) {
       for (const [key, hex] of map.hexes) {
         if (!hex.base || hex.base.bodyName !== player.homeBody) continue;
+        if (destroyed.has(key)) continue;
         const [q, r] = key.split(',').map(Number);
         const p = hexToPixel({ q, r }, HEX_SIZE);
         const radius = BASE_DETECTION_RANGE * HEX_SIZE * 1.73;
@@ -831,7 +850,11 @@ export class Renderer {
         if (burn !== null || isSelected) {
           const overload = this.planningState.overloads.get(ship.id) ?? null;
           const wgChoices = this.planningState.weakGravityChoices.get(ship.id) ?? {};
-          const course = computeCourse(ship, burn, map, { overload, weakGravityChoices: wgChoices });
+          const course = computeCourse(ship, burn, map, {
+            overload,
+            weakGravityChoices: wgChoices,
+            destroyedBases: state.destroyedBases,
+          });
           const from = hexToPixel(ship.landed ? course.path[0] : ship.position, HEX_SIZE);
           const to = hexToPixel(course.destination, HEX_SIZE);
 

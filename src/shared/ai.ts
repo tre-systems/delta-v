@@ -91,7 +91,10 @@ export function aiAstrogation(
     let bestWeakGrav: Record<string, boolean> | undefined;
 
     for (const opt of options) {
-      const courseOpts = opt.overload !== null ? { overload: opt.overload } : undefined;
+      const courseOpts = {
+        ...(opt.overload !== null ? { overload: opt.overload } : {}),
+        destroyedBases: state.destroyedBases,
+      };
       const course = computeCourse(ship, opt.burn, map, courseOpts);
 
       // Skip crashed courses entirely
@@ -116,7 +119,7 @@ export function aiAstrogation(
         for (const wg of weakHexes) {
           const wgChoices: Record<string, boolean> = { [hexKey(wg.hex)]: true };
           const altCourse = computeCourse(ship, opt.burn, map,
-            { ...(courseOpts ?? {}), weakGravityChoices: wgChoices });
+            { ...courseOpts, weakGravityChoices: wgChoices });
           if (altCourse.crashed) continue;
           const altScore = scoreCourse(ship, altCourse, targetHex, targetBody, escapeWins, enemyShips, difficulty);
           if (altScore > score) {
@@ -137,7 +140,7 @@ export function aiAstrogation(
     // Easy AI: 25% chance to pick a random suboptimal direction instead
     if (difficulty === 'easy' && Math.random() < 0.25 && canBurnFuel) {
       const randomDir = Math.floor(Math.random() * 6);
-      const course = computeCourse(ship, randomDir, map);
+      const course = computeCourse(ship, randomDir, map, { destroyedBases: state.destroyedBases });
       if (!course.crashed) {
         bestBurn = randomDir;
         bestOverload = null;
