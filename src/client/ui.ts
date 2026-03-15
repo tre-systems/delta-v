@@ -235,7 +235,7 @@ export class UIManager {
     if (showOrd) {
       const canMine = cargoFree >= ORDNANCE_MASS.mine;
       const canTorpedo = isWarship && cargoFree >= ORDNANCE_MASS.torpedo;
-      const canNuke = isWarship && cargoFree >= ORDNANCE_MASS.nuke;
+      const canNuke = cargoFree >= ORDNANCE_MASS.nuke;
       launchMineBtn.disabled = !canMine;
       launchTorpedoBtn.disabled = !canTorpedo;
       launchNukeBtn.disabled = !canNuke;
@@ -243,7 +243,7 @@ export class UIManager {
       launchTorpedoBtn.style.opacity = canTorpedo ? '1' : '0.4';
       launchNukeBtn.style.opacity = canNuke ? '1' : '0.4';
       launchTorpedoBtn.title = isWarship ? '' : 'Warships only';
-      launchNukeBtn.title = isWarship ? '' : 'Warships only';
+      launchNukeBtn.title = '';
     }
 
     const skipCombatBtn = document.getElementById('skipCombatBtn')!;
@@ -257,10 +257,10 @@ export class UIManager {
       statusMsg.textContent = 'Click ship → click direction arrow to burn (1-6 keys) → CONFIRM (Enter)';
       statusMsg.style.display = 'block';
     } else if (phase === 'ordnance') {
-      statusMsg.textContent = 'Select ship, set guidance (click arrows), launch ordnance — or SKIP (Enter)';
+      statusMsg.textContent = 'Select ship, set torpedo boost with the arrows, launch ordnance — or SKIP (Enter)';
       statusMsg.style.display = 'block';
     } else if (phase === 'combat') {
-      statusMsg.textContent = 'Click enemy ship to target → ATTACK — or SKIP COMBAT (Enter)';
+      statusMsg.textContent = 'Click enemy ship or nuke to target → ATTACK — or SKIP COMBAT (Enter)';
       statusMsg.style.display = 'block';
     } else {
       statusMsg.style.display = 'none';
@@ -448,14 +448,22 @@ export class UIManager {
 
   logCombatResults(results: CombatResult[], ships: Ship[]) {
     for (const r of results) {
-      const target = ships.find(s => s.id === r.targetId);
-      const targetName = target ? (SHIP_STATS[target.type]?.name ?? target.type) : r.targetId;
+      const target = r.targetType === 'ship'
+        ? ships.find(s => s.id === r.targetId)
+        : null;
+      const targetName = r.targetType === 'ordnance'
+        ? 'nuke'
+        : target ? (SHIP_STATS[target.type]?.name ?? target.type) : r.targetId;
       const result = r.damageType === 'eliminated' ? 'ELIMINATED'
         : r.damageType === 'disabled' ? `D${r.disabledTurns}`
         : 'miss';
       const cls = r.damageType === 'eliminated' ? 'log-eliminated'
         : r.damageType === 'disabled' ? 'log-damage' : '';
-      this.logText(`${r.odds} [${r.dieRoll}→${r.modifiedRoll}] ${targetName}: ${result}`, cls);
+      if (r.attackType === 'asteroidHazard') {
+        this.logText(`${targetName}: asteroid [${r.dieRoll}] ${result}`, cls);
+      } else {
+        this.logText(`${r.odds} [${r.dieRoll}→${r.modifiedRoll}] ${targetName}: ${result}`, cls);
+      }
 
       if (r.counterattack) {
         const cTarget = ships.find(s => s.id === r.counterattack!.targetId);

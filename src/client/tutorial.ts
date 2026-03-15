@@ -43,13 +43,13 @@ const STEPS: TutorialStep[] = [
   {
     id: 'ordnance-intro',
     phase: 'ordnance',
-    text: 'Ordnance phase: warships can launch mines, torpedoes, or nukes from their cargo. Mines and nukes drift with their launch vector, while torpedoes steer toward enemies. Use keyboard shortcuts: N=mine, T=torpedo, K=nuke.',
+    text: 'Ordnance phase: ships can launch mines or nukes if they have cargo space, and warships can also launch torpedoes. Torpedoes can boost 1 or 2 hexes on launch; click the same arrow again to switch from x1 to x2. Use N=mine, T=torpedo, K=nuke.',
     once: true,
   },
   {
     id: 'combat-intro',
     phase: 'combat',
-    text: 'Combat phase: click an enemy ship to target it. Combat odds depend on your combined firepower vs theirs, modified by range and relative velocity. Press Enter to attack or skip.',
+    text: 'Combat phase: click an enemy ship or nuke to target it. Gun attacks use combined firepower, while nukes are intercepted at 2:1 with range and relative velocity modifiers. Press Enter to attack or skip.',
     once: true,
   },
 ];

@@ -13,6 +13,7 @@ export interface GameState {
   ships: Ship[];
   ordnance: Ordnance[];
   pendingAstrogationOrders: AstrogationOrder[] | null;
+  pendingAsteroidHazards: AsteroidHazard[];
   destroyedAsteroids: string[]; // hexKey[] for asteroids removed by nukes
   players: [PlayerState, PlayerState];
   winner: number | null;
@@ -28,6 +29,7 @@ export interface Ship {
   velocity: HexVec;
   fuel: number;
   cargoUsed: number; // mass of ordnance consumed from cargo capacity
+  nukesLaunchedSinceResupply?: number;
   landed: boolean;
   destroyed: boolean;
   detected: boolean; // true if within detection range of opponent's ships/bases
@@ -86,10 +88,16 @@ export interface GravityEffect {
   ignored: boolean; // true if player chose to ignore weak gravity
 }
 
+export interface AsteroidHazard {
+  shipId: string;
+  hex: HexCoord;
+}
+
 export interface OrdnanceLaunch {
   shipId: string;
   ordnanceType: 'mine' | 'torpedo' | 'nuke';
-  torpedoAccel?: number | null; // HEX_DIRECTIONS index for torpedo/nuke terminal guidance
+  torpedoAccel?: number | null; // HEX_DIRECTIONS index for torpedo launch boost
+  torpedoAccelSteps?: 1 | 2 | null;
 }
 
 export interface OrdnanceMovement {
@@ -150,11 +158,14 @@ export interface SolarSystemMap {
 export interface CombatAttack {
   attackerIds: string[];
   targetId: string;
+  targetType?: 'ship' | 'ordnance';
 }
 
 export interface CombatResult {
   attackerIds: string[];
   targetId: string;
+  targetType: 'ship' | 'ordnance';
+  attackType: 'gun' | 'baseDefense' | 'asteroidHazard' | 'antiNuke';
   odds: string;
   attackStrength: number;
   defendStrength: number;
@@ -185,6 +196,7 @@ export type C2S =
   | { type: 'astrogation'; orders: AstrogationOrder[] }
   | { type: 'ordnance'; launches: OrdnanceLaunch[] }
   | { type: 'skipOrdnance' }
+  | { type: 'beginCombat' }
   | { type: 'combat'; attacks: CombatAttack[] }
   | { type: 'skipCombat' }
   | { type: 'rematch' }

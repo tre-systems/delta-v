@@ -7,6 +7,7 @@ import {
   hexLineDraw,
   hexKey,
   hexDirectionToward,
+  hexVecLength,
 } from './hex';
 import type { Ship, CourseResult, GravityEffect, SolarSystemMap } from './types';
 import { SHIP_STATS } from './constants';
@@ -111,8 +112,8 @@ export function computeCourse(
     const enteredGravityEffects = collectEnteredGravityEffects(finalPath, map, weakGravityChoices);
     const newVelocity = hexSubtract(destination, launchHex);
 
-    const { crashed, crashBody } = checkCrash(finalPath, map, newVelocity, bodyName ?? undefined);
-    const landedAt = checkLanding(destination, map);
+    const landedAt = checkLanding(ship, destination, newVelocity, fuelSpent, map);
+    const { crashed, crashBody } = checkCrash(finalPath, map, landedAt, bodyName ?? undefined);
 
     return {
       destination,
@@ -153,8 +154,8 @@ export function computeCourse(
   const enteredGravityEffects = collectEnteredGravityEffects(finalPath, map, weakGravityChoices);
   const newVelocity = hexSubtract(destination, ship.position);
 
-  const { crashed, crashBody } = checkCrash(finalPath, map, newVelocity);
-  const landedAt = checkLanding(destination, map);
+  const landedAt = checkLanding(ship, destination, newVelocity, fuelSpent, map);
+  const { crashed, crashBody } = checkCrash(finalPath, map, landedAt);
 
   return {
     destination,
@@ -242,7 +243,7 @@ export function collectEnteredGravityEffects(
 function checkCrash(
   path: HexCoord[],
   map: SolarSystemMap,
-  newVelocity: HexVec,
+  landedAt: string | null,
   skipBody?: string,
 ): { crashed: boolean; crashBody: string | null } {
   for (let i = 1; i < path.length; i++) {
@@ -252,7 +253,7 @@ function checkCrash(
         if (skipBody && hex.body.name === skipBody) continue;
         return { crashed: true, crashBody: hex.body.name };
       }
-      if (hex.body.destructive) {
+      if (hex.body.destructive || landedAt === null) {
         return { crashed: true, crashBody: hex.body.name };
       }
     }
@@ -261,18 +262,60 @@ function checkCrash(
 }
 
 /**
- * Check if the ship lands at a base or body surface.
- * Base hexes: always land (docking catches the ship at any velocity).
- * Non-destructive body surface: also lands (ship touches down).
+ * Check whether the ship completes a legal landing.
  */
 function checkLanding(
+  ship: Ship,
   destination: HexCoord,
+  newVelocity: HexVec,
+  fuelSpent: number,
   map: SolarSystemMap,
 ): string | null {
   const hex = map.hexes.get(hexKey(destination));
-  if (hex?.base) return hex.base.bodyName;
-  if (hex?.body && !hex.body.destructive) return hex.body.name;
+  if (hex?.base) {
+    if (bodyHasGravity(hex.base.bodyName, map)) {
+      return canLandAtPlanetaryBase(ship, hex.base.bodyName, fuelSpent, map)
+        ? hex.base.bodyName
+        : null;
+    }
+    return hexVecLength(newVelocity) === 0 ? hex.base.bodyName : null;
+  }
+
+  if (hex?.body && !hex.body.destructive) {
+    if (bodyHasGravity(hex.body.name, map)) {
+      return null;
+    }
+    return hexVecLength(newVelocity) === 0 ? hex.body.name : null;
+  }
   return null;
+}
+
+function bodyHasGravity(bodyName: string, map: SolarSystemMap): boolean {
+  for (const hex of map.hexes.values()) {
+    if (hex.gravity?.bodyName === bodyName) return true;
+  }
+  return false;
+}
+
+function canLandAtPlanetaryBase(
+  ship: Ship,
+  bodyName: string,
+  fuelSpent: number,
+  map: SolarSystemMap,
+): boolean {
+  if (fuelSpent !== 1) return false;
+  if (hexVecLength(ship.velocity) !== 1) return false;
+
+  const currentHex = map.hexes.get(hexKey(ship.position));
+  if (currentHex?.gravity?.bodyName !== bodyName) return false;
+
+  const projectedDrift = applyPendingGravityEffects(
+    hexAdd(ship.position, ship.velocity),
+    ship.pendingGravityEffects,
+  );
+  const projectedHex = map.hexes.get(hexKey(projectedDrift));
+  if (projectedHex?.gravity?.bodyName === bodyName) return true;
+  return projectedHex?.base?.bodyName === bodyName;
 }
 
 /**
