@@ -12,6 +12,16 @@ export class UIManager {
   private logEntriesEl: HTMLElement;
   private logShowBtn: HTMLElement;
   private logVisible = true;
+  private readonly actionButtonIds = [
+    'undoBtn',
+    'confirmBtn',
+    'launchMineBtn',
+    'launchTorpedoBtn',
+    'launchNukeBtn',
+    'skipOrdnanceBtn',
+    'attackBtn',
+    'skipCombatBtn',
+  ];
 
   // Callbacks
   onSelectScenario: ((scenario: string) => void) | null = null;
@@ -46,15 +56,8 @@ export class UIManager {
     });
 
     document.getElementById('singlePlayerBtn')!.addEventListener('click', () => {
-      const diffSelect = document.getElementById('difficultySelect')!;
-      if (diffSelect.style.display === 'none') {
-        // First click: show difficulty options
-        diffSelect.style.display = 'flex';
-      } else {
-        // Second click: go to scenario selection for AI game
-        this.pendingAIGame = true;
-        this.showScenarioSelect();
-      }
+      this.pendingAIGame = true;
+      this.showScenarioSelect();
     });
 
     // Difficulty buttons
@@ -66,9 +69,6 @@ export class UIManager {
         // Update active state
         document.querySelectorAll('.btn-difficulty').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        // Go to scenario selection for AI game
-        this.pendingAIGame = true;
-        this.showScenarioSelect();
       });
     });
 
@@ -167,18 +167,19 @@ export class UIManager {
     this.menuEl.style.display = 'flex';
     document.getElementById('soundBtn')!.style.display = 'flex';
     // Reset state
-    document.getElementById('difficultySelect')!.style.display = 'none';
     this.pendingAIGame = false;
   }
 
   showScenarioSelect() {
     this.hideAll();
     this.scenarioEl.style.display = 'flex';
+    document.getElementById('soundBtn')!.style.display = 'flex';
   }
 
   showWaiting(code: string) {
     this.hideAll();
     this.waitingEl.style.display = 'flex';
+    document.getElementById('soundBtn')!.style.display = 'flex';
     document.getElementById('gameCode')!.textContent = code;
     document.getElementById('waitingStatus')!.textContent = 'Waiting for opponent...';
   }
@@ -186,6 +187,7 @@ export class UIManager {
   showConnecting() {
     this.hideAll();
     this.waitingEl.style.display = 'flex';
+    document.getElementById('soundBtn')!.style.display = 'flex';
     document.getElementById('gameCode')!.textContent = '...';
     document.getElementById('waitingStatus')!.textContent = 'Connecting...';
   }
@@ -326,7 +328,9 @@ export class UIManager {
     const statusMsg = document.getElementById('statusMsg')!;
     statusMsg.textContent = 'Ships moving...';
     statusMsg.style.display = 'block';
-    document.getElementById('confirmBtn')!.style.display = 'none';
+    for (const id of this.actionButtonIds) {
+      document.getElementById(id)!.style.display = 'none';
+    }
   }
 
   showGameOver(won: boolean, reason: string, stats?: { turns: number; myShipsAlive: number; myShipsTotal: number; enemyShipsAlive: number; enemyShipsTotal: number }) {

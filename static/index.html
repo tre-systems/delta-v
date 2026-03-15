@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0c1220">
   <title>Delta-V</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -12,12 +17,15 @@
   <!-- Menu screen -->
   <div id="menu" class="screen">
     <div class="menu-content">
+      <div class="menu-eyebrow">Solar Vector Duel</div>
       <h1 class="title">DELTA-V</h1>
       <p class="subtitle">Triplanetary</p>
+      <p class="menu-note">Plot burns, ride gravity, and outfly the other commander.</p>
       <button id="createBtn" class="btn btn-primary">Create Game</button>
       <div id="aiSection" class="ai-section">
-        <button id="singlePlayerBtn" class="btn btn-secondary" style="width:100%;margin-top:0.5rem">Play vs AI</button>
-        <div id="difficultySelect" class="difficulty-select" style="display:none">
+        <button id="singlePlayerBtn" class="btn btn-secondary btn-ai" style="width:100%;margin-top:0.5rem">Play vs AI</button>
+        <div class="difficulty-label">Difficulty</div>
+        <div id="difficultySelect" class="difficulty-select">
           <button class="btn btn-difficulty" data-difficulty="easy">Easy</button>
           <button class="btn btn-difficulty active" data-difficulty="normal">Normal</button>
           <button class="btn btn-difficulty" data-difficulty="hard">Hard</button>
@@ -167,9 +175,9 @@
   </div>
 
   <!-- Help button -->
-  <button id="helpBtn" class="help-btn" style="display:none">?</button>
+  <button id="helpBtn" class="help-btn" style="display:none" aria-label="Show controls">?</button>
   <!-- Sound toggle button -->
-  <button id="soundBtn" class="sound-btn" style="display:none" title="Toggle sound"></button>
+  <button id="soundBtn" class="sound-btn" style="display:none" title="Toggle sound" aria-label="Toggle sound"></button>
 
   <!-- Reconnection overlay -->
   <div id="reconnectOverlay" class="reconnect-overlay" style="display:none">
