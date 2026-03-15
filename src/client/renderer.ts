@@ -1125,6 +1125,20 @@ export class Renderer {
         ctx.fillText('\u2605', pos.x, pos.y - 14); // gold star
       }
 
+      // Orbit indicator (speed 1 in a gravity hex)
+      if (!ship.landed && !ship.destroyed && !this.animState && this.map) {
+        const speed = hexVecLength(ship.velocity);
+        const hex = this.map.hexes.get(hexKey(ship.position));
+        if (speed === 1 && hex?.gravity) {
+          const phase = now / 2000 + pos.x * 0.01;
+          ctx.strokeStyle = 'rgba(150, 200, 255, 0.35)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, 16, phase, phase + Math.PI * 1.5);
+          ctx.stroke();
+        }
+      }
+
       // Landed indicator
       if (ship.landed && !this.animState) {
         ctx.strokeStyle = 'rgba(100, 200, 100, 0.5)';
@@ -1146,8 +1160,10 @@ export class Renderer {
           ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
           ctx.font = '8px monospace';
           ctx.textAlign = 'center';
-          const landedTag = ship.landed ? ' L' : '';
-          ctx.fillText(`${label} F:${ship.fuel}${landedTag}`, pos.x, pos.y + 18);
+          const speed = hexVecLength(ship.velocity);
+          const inGravity = this.map && this.map.hexes.get(hexKey(ship.position))?.gravity;
+          const statusTag = ship.landed ? ' L' : (speed === 1 && inGravity) ? ' O' : '';
+          ctx.fillText(`${label} F:${ship.fuel}${statusTag}`, pos.x, pos.y + 18);
         } else if (ship.detected) {
           // Show type letter for detected enemy ships
           ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
