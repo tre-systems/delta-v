@@ -1563,13 +1563,13 @@ function checkGameEnd(state: GameState, map?: SolarSystemMap): void {
   }
   if (alive0 === 0) {
     state.winner = 1;
-    state.winReason = 'All opponent ships destroyed!';
+    state.winReason = 'Fleet eliminated!';
     state.phase = 'gameOver';
     return;
   }
   if (alive1 === 0) {
     state.winner = 0;
-    state.winReason = 'All opponent ships destroyed!';
+    state.winReason = 'Fleet eliminated!';
     state.phase = 'gameOver';
     return;
   }

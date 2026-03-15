@@ -150,13 +150,13 @@ describe('computeCourse - overload maneuver', () => {
 
 describe('computeCourse - gravity', () => {
   it('entering a gravity hex queues deflection for the next turn', () => {
-    const gravHex = { q: 11, r: 8 }; // E of Mars
+    const gravHex = { q: -8, r: -5 }; // E of Mars
     const hex = map.hexes.get(hexKey(gravHex));
     expect(hex?.gravity).toBeDefined();
     expect(hex?.gravity?.bodyName).toBe('Mars');
 
     const ship = makeShip({
-      position: { q: 13, r: 8 },
+      position: { q: -6, r: -5 },
       velocity: { dq: -2, dr: 0 }, // Ends in the Mars gravity ring
     });
     const course = computeCourse(ship, null, map);
@@ -168,7 +168,7 @@ describe('computeCourse - gravity', () => {
   });
 
   it('pending gravity deflects the following turn', () => {
-    const gravHex = { q: 11, r: 8 }; // E of Mars
+    const gravHex = { q: -8, r: -5 }; // E of Mars
     const hex = map.hexes.get(hexKey(gravHex));
     expect(hex?.gravity).toBeDefined();
 
@@ -185,7 +185,7 @@ describe('computeCourse - gravity', () => {
     });
     const course = computeCourse(ship, null, map);
 
-    expect(course.destination).toEqual({ q: 10, r: 7 });
+    expect(course.destination).toEqual({ q: -9, r: -6 });
     expect(course.gravityEffects).toHaveLength(1);
   });
 
@@ -234,8 +234,8 @@ describe('computeCourse - gravity', () => {
 describe('computeCourse - weak gravity', () => {
   it('player can ignore single weak gravity hex', () => {
     // Luna has weak gravity at distance 1
-    const lunaCenter = { q: -14, r: 5 };
-    const lunaGravHex = { q: -15, r: 5 }; // W of Luna
+    const lunaCenter = { q: 13, r: -9 };
+    const lunaGravHex = { q: 12, r: -9 }; // W of Luna
     const hex = map.hexes.get(hexKey(lunaGravHex));
 
     if (hex?.gravity?.strength !== 'weak') {
@@ -244,7 +244,7 @@ describe('computeCourse - weak gravity', () => {
     }
 
     const ship = makeShip({
-      position: { q: -16, r: 5 },
+      position: { q: 11, r: -9 },
       velocity: { dq: 1, dr: 0 }, // Moving E through Luna weak gravity
     });
 
@@ -285,9 +285,9 @@ describe('computeCourse - crash detection', () => {
 
   it('ship passing through planet body crashes', () => {
     // Ship with velocity that takes it through a planet body
-    const venusCenter = { q: -5, r: -7 };
+    const venusCenter = { q: -7, r: 7 };
     const ship = makeShip({
-      position: { q: -5, r: -9 },
+      position: { q: -7, r: 5 },
       velocity: { dq: 0, dr: 2 }, // Moving SE through Venus
     });
     const course = computeCourse(ship, null, map);
@@ -302,9 +302,9 @@ describe('computeCourse - crash detection', () => {
   });
 
   it('ship ending on a planetary body without a legal landing crashes', () => {
-    const mercuryCenter = { q: 7, r: -2 };
+    const mercuryCenter = { q: 4, r: 2 };
     const ship = makeShip({
-      position: { q: 8, r: -2 },
+      position: { q: 5, r: 2 },
       velocity: { dq: -1, dr: 0 }, // Moving W to Mercury center
     });
     const course = computeCourse(ship, null, map);
@@ -379,11 +379,11 @@ describe('computeCourse - landing', () => {
 
   it('asteroid landing requires stopping in the hex', () => {
     const ship = makeShip({
-      position: { q: -3, r: 18 }, // Ceres hex
+      position: { q: -4, r: -14 }, // Ceres hex
       velocity: { dq: 0, dr: 0 },
     });
     const course = computeCourse(ship, null, map);
-    expect(course.destination).toEqual({ q: -3, r: 18 });
+    expect(course.destination).toEqual({ q: -4, r: -14 });
     expect(course.landedAt).toBe('Ceres');
   });
 });

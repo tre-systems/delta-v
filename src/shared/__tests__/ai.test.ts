@@ -87,12 +87,12 @@ describe('aiAstrogation', () => {
 
   it('works for multi-ship scenario (escape)', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST', findBaseHex);
-    // Enforcer side (player 1) has 3 ships
+    // Enforcer side (player 1) has 2 ships (1 corvette + 1 corsair per rules)
     const orders = aiAstrogation(state, 1, map);
-    expect(orders).toHaveLength(3);
+    expect(orders).toHaveLength(2);
     // Each order should reference a different ship
     const shipIds = orders.map(o => o.shipId);
-    expect(new Set(shipIds).size).toBe(3);
+    expect(new Set(shipIds).size).toBe(2);
   });
 
   it('does not crash when ship has zero fuel', () => {
