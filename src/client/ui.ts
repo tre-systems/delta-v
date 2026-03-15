@@ -260,7 +260,7 @@ export class UIManager {
       statusMsg.textContent = 'Select ship, set torpedo boost with the arrows, launch ordnance — or SKIP (Enter)';
       statusMsg.style.display = 'block';
     } else if (phase === 'combat') {
-      statusMsg.textContent = 'Click enemy ship or nuke to target → ATTACK — or SKIP COMBAT (Enter)';
+      statusMsg.textContent = 'Click enemy target, click own ships to include/exclude, -/= adjust attack strength → ATTACK';
       statusMsg.style.display = 'block';
     } else {
       statusMsg.style.display = 'none';
