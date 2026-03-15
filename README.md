@@ -49,6 +49,7 @@ src/
     ├── renderer.ts     # High-performance HTML5 Canvas 2D engine
     ├── input.ts        # Desktop & touch input / burn planning
     └── ui.ts           # Clean HTML/CSS layout overlays
+scripts/              # Automated Bot & AI Simulation tests
 ```
 
 **Design Highlight:** The core `game-engine.ts` is purely functional. It receives inputs (astrogation orders, combat declarations) and deterministically produces the new state. This guarantees synchronization between server and client without complex reconciliation, and makes the game highly unit testable. The backend acts as a thin wrapper using **Cloudflare Durable Objects** to handle WebSocket lifecycle and state persistence.
@@ -84,6 +85,7 @@ Get your thrusters firing locally in seconds:
 | `npm run typecheck` | Run TypeScript type checking across the project |
 | `npm test` | Run all unit tests via Vitest |
 | `npm run test:watch` | Run Vitest in continuous watch mode |
+| `npm run simulate` | Run headless AI vs AI matches to test game balance and engine stability |
 | `npm run deploy` | Deploy straight to Cloudflare Workers |
 
 ---
