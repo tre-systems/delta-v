@@ -1497,7 +1497,7 @@ class GameClient {
     const facingFugitives = this.gameState.scenarioRules.hiddenIdentityInspection;
     const objective = player?.escapeWins
       ? hasFugitiveShip ? '⬡ Escape the \u2605 ship' : '⬡ Escape the map'
-      : facingFugitives ? '⬡ Find & destroy fugitives'
+      : facingFugitives ? '⬡ Inspect, capture, or destroy fugitives'
       : player?.targetBody
         ? `⬡ Land on ${player.targetBody}`
         : '⬡ Destroy all enemies';
@@ -1566,7 +1566,7 @@ class GameClient {
     if (hasFugitiveShip) {
       this.ui.logText('Objective: Get the \u2605 ship off the map!', 'log-landed');
     } else if (facingFugitives) {
-      this.ui.logText('Objective: Find and destroy the fugitives!', 'log-damage');
+      this.ui.logText('Objective: Inspect transports, then capture or destroy the fugitives.', 'log-damage');
     } else if (player.escapeWins) {
       this.ui.logText('Objective: Escape the solar system!', 'log-landed');
     } else if (player.targetBody) {

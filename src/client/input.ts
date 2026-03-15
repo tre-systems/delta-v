@@ -434,18 +434,19 @@ export class InputHandler {
     attackerIds: string[];
     remainingStrength: number;
   } | null {
-    if (!this.gameState || targetType !== 'ship') return null;
-    const target = this.gameState.ships.find(ship => ship.id === targetId && !ship.destroyed && ship.owner !== this.playerId);
+    const gameState = this.gameState;
+    if (!gameState || targetType !== 'ship') return null;
+    const target = gameState.ships.find(ship => ship.id === targetId && !ship.destroyed && ship.owner !== this.playerId);
     if (!target) return null;
 
     for (let i = this.planningState.queuedAttacks.length - 1; i >= 0; i--) {
       const queued = this.planningState.queuedAttacks[i];
       if ((queued.targetType ?? 'ship') !== 'ship') continue;
-      const queuedTarget = this.gameState.ships.find(ship => ship.id === queued.targetId && !ship.destroyed);
+      const queuedTarget = gameState.ships.find(ship => ship.id === queued.targetId && !ship.destroyed);
       if (!queuedTarget || !hexEqual(queuedTarget.position, target.position)) continue;
 
       const attackers = queued.attackerIds
-        .map(id => this.gameState.ships.find(ship => ship.id === id))
+        .map(id => gameState.ships.find(ship => ship.id === id))
         .filter((ship): ship is Ship => !!ship);
       const maxStrength = getCombatStrength(attackers);
       const groupKey = [...queued.attackerIds].sort().join('|');
@@ -453,7 +454,7 @@ export class InputHandler {
 
       for (const attack of this.planningState.queuedAttacks) {
         if ((attack.targetType ?? 'ship') !== 'ship') continue;
-        const attackTarget = this.gameState.ships.find(ship => ship.id === attack.targetId && !ship.destroyed);
+        const attackTarget = gameState.ships.find(ship => ship.id === attack.targetId && !ship.destroyed);
         if (!attackTarget || !hexEqual(attackTarget.position, target.position)) continue;
         if ([...attack.attackerIds].sort().join('|') !== groupKey) continue;
         allocatedStrength += attack.attackStrength ?? maxStrength;

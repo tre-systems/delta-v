@@ -8,7 +8,7 @@ Since the core `game-engine.ts` is purely functional and deterministic, creating
 
 ## 1. Headless Engine Simulation (AI vs AI)
 
-**Goal:** Run thousands of games in seconds to test scenario balance, AI effectiveness, and find crash-inducing edge cases deep in the game tree.
+**Goal:** Run thousands of games in seconds to test scenario balance, AI effectiveness, and find crash-inducing edge cases deep in the game tree. (Implemented in `scripts/simulate-ai.ts`).
 
 **Approach:**
 Create a new Node script (e.g., `scripts/simulate-ai.ts`) that runs outside the browser and the Cloudflare Worker, executing purely in Node.js.
@@ -45,8 +45,8 @@ Create a headless WebSocket bot client using a library like `ws` in Node.js (e.g
 
 ---
 
-## Summary of Next Steps for Implementation
+## Summary of Progress
 
-1. **Extract RNG:** Ensure all calls to `Math.random()` in `combat.ts` and `movement.ts` can accept a custom seeded RNG function to make the simulation deterministic.
-2. **Write the AI Runner:** Write the `simulate-ai.ts` loop, logging the result of the `while` loop to a CSV file.
-3. **Write the Load Tester:** Build a simple WebSocket bot wrapper to hit the local `wrangler dev` environment.
+1. **RNG Extraction**: Completed. Engine functions accept optional RNG for deterministic simulations.
+2. **AI Runner**: Implemented. `npm run simulate` executes headless matches.
+3. **Load Tester**: Planned for future infrastructure stress testing.
