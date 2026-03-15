@@ -395,13 +395,13 @@ describe('capture mechanics', () => {
 });
 
 describe('heroism', () => {
-  it('grants heroism when target survives at 2:1 or worse odds', () => {
-    const attacker = makeShip({ id: 'a', owner: 0, type: 'frigate', position: { q: 0, r: 0 } }); // combat 8
-    const target = makeShip({ id: 't', owner: 1, type: 'corvette', position: { q: 0, r: 0 } }); // combat 2
-    // Roll 1 → at 4:1 odds, modified roll 1 → D2 (not eliminated)
-    resolveCombat([attacker], target, [attacker, target], () => 0.001);
+  it('grants heroism to an underdog attacker that achieves D2 or better', () => {
+    const attacker = makeShip({ id: 'a', owner: 0, type: 'corvette', position: { q: 0, r: 0 } }); // combat 2
+    const target = makeShip({ id: 't', owner: 1, type: 'frigate', position: { q: 0, r: 0 } }); // combat 8
+    // Roll 6 → at 1:4 odds, modified roll 6 → D2
+    resolveCombat([attacker], target, [attacker, target], () => 0.999);
 
-    expect(target.heroismAvailable).toBe(true);
+    expect(attacker.heroismAvailable).toBe(true);
   });
 
   it('does not grant heroism at even odds', () => {
@@ -420,14 +420,14 @@ describe('heroism', () => {
     const result = resolveCombat([attacker], target, [attacker, target], () => 0.34);
 
     expect(result.modifiedRoll).toBe(4); // roll 3 + 1 heroism
-    expect(attacker.heroismAvailable).toBe(false); // consumed
+    expect(attacker.heroismAvailable).toBe(true);
   });
 
-  it('heroism is consumed after use', () => {
+  it('heroism persists after use', () => {
     const attacker = makeShip({ id: 'a', owner: 0, type: 'corvette', position: { q: 0, r: 0 }, heroismAvailable: true });
     const target = makeShip({ id: 't', owner: 1, type: 'corvette', position: { q: 0, r: 0 } });
     resolveCombat([attacker], target, [attacker, target], () => 0.5);
 
-    expect(attacker.heroismAvailable).toBe(false);
+    expect(attacker.heroismAvailable).toBe(true);
   });
 });

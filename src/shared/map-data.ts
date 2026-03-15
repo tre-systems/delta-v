@@ -69,7 +69,7 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#4488cc',
     renderRadius: 1.2,
-    baseDirections: [0, 1, 2, 3, 4, 5], // rules: "Terra ... have bases on all six sides"
+    baseDirections: [1, 4, 0, 2, 3, 5], // keep the legacy start hex first while covering all six sides
   },
   {
     name: 'Luna',
@@ -91,7 +91,7 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#cc4422',
     renderRadius: 0.7,
-    baseDirections: [0, 1, 2, 3, 4, 5], // rules: "Mars ... have bases on all six sides"
+    baseDirections: [1, 4, 0, 2, 3, 5], // keep the legacy start hex first while covering all six sides
   },
   {
     name: 'Ceres',

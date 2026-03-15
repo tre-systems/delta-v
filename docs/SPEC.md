@@ -10,7 +10,7 @@ This implementation renders the game as a smooth, continuous-space experience �
 
 ## Architecture
 
-Following the patterns established in Pongo, the stack is:
+The project follows a modern full-stack TypeScript architecture:
 
 ```
 src/
@@ -62,8 +62,6 @@ static/
 
 ### Invite / Join Flow (No Lobby, No Login)
 
-Identical pattern to Pongo:
-
 1. Player 1 clicks "Create Game" → `POST /create` → receives 5-char code (e.g., `K7M2X`)
 2. UI shows the code prominently + a shareable link (`https://delta-v.example.com/?code=K7M2X`)
 3. Player 1 can copy link or share via native Share API
@@ -107,8 +105,8 @@ The map represents the inner Solar System along the ecliptic plane:
 - **Asteroid Belt** — scattered asteroid hexes between Mars and Jupiter
 
 **Gravity types:**
-- **Full gravity** (solid arrows on original map): mandatory 1-hex deflection toward the body for any object passing through
-- **Weak gravity** (Luna, Io — hollow arrows): player may choose to use or ignore when passing through a single weak gravity hex. Two consecutive weak gravity hexes = full gravity effect on the second.
+- **Full gravity**: mandatory 1-hex deflection toward the body for any object passing through
+- **Weak gravity** (Luna, Io): player may choose to use or ignore when passing through a single weak gravity hex. Two consecutive weak gravity hexes = full gravity effect on the second.
 
 **The map data is defined as a static JSON structure** listing every hex with its terrain type (empty, gravity, asteroid, planet surface, base).
 
@@ -125,17 +123,16 @@ The core mechanic. Each ship has a **velocity vector** — a displacement from i
 5. **Move:** the phasing player's ships travel simultaneously along their final plotted paths.
 6. **Queue new gravity:** gravity hexes entered during this move apply on the following turn.
 
-**Additional canonical movement rules:**
+**Additional movement rules:**
 - Gravity takes effect on the turn *after* entry.
 - A single weak-gravity hex may be ignored, but two consecutive weak-gravity hexes of the same body make the second deflection mandatory.
 - A course exactly along the edge of a gravity hex does not count as entering that gravity hex.
-- A course passing between a gravity hex and the printed outline of a body is affected by that gravity hex.
 - Ships keep their velocity vectors between turns; stationary ships have a zero vector.
 - Any ship whose final course ends off-map is eliminated. It is legal for the intermediate projected course to leave the map, but the final arrow head must remain on-map.
 
 ### Turn Structure
 
-Each game turn consists of one player-turn per player. The canonical 2018 player-turn is:
+Each game turn consists of one player-turn per player. The player-turn is:
 
 ```
 1. ASTROGATION PHASE
@@ -206,14 +203,13 @@ Each ship tracks:
 5. Roll 1d6 on the Gun Combat Table.
 6. Counterattack is resolved before attack damage is implemented.
 
-**Canonical combat rules that must be preserved:**
+**Combat mechanics:**
 - Line of sight is blocked by planets, moons, and Sol.
 - Ships, ordnance, and asteroids do not block line of sight.
 - A defender may counterattack if still eligible, and any ships in the defender's hex that share the defender's course may join that counterattack.
 - Attacks may be declared at less than full strength.
 - When multiple ships attack together, use the greatest applicable range and velocity penalties.
-- A ship may not attack more than once per combat phase.
-- A ship may not be attacked more than once per combat phase.
+- A ship may not attack more than once per combat phase. (Note: A group of ships from the same hex may split their total combat strength across multiple targets in a single hex).
 - Planetary-defense shots follow normal gunfire rules except where explicitly modified.
 
 **Damage rules:**
@@ -320,19 +316,20 @@ Gravity is the key environmental mechanic:
 - Ships and orbital bases detect at range 3.
 - Planetary bases detect at range 5.
 - Once detected, a ship remains detected until it reaches a friendly base.
+- **Inspection**: In hidden-identity scenarios (like *Escape*), an enforcer can reveal a hidden ship by "matching courses": ending a turn in the same hex with the identical velocity vector.
 
 Detection matters primarily in hidden-information scenarios such as Piracy and Lateral 7. In open scenarios like Bi-Planetary, all ships may simply be visible.
 
-### Other Canonical Rules
+### Other Rules
 
 - **Asteroids:** roll once on the Other Damage Table for each asteroid hex entered at speed > 1. Moving along a hexside between two asteroid hexes counts as entering one asteroid hex. Mines and torpedoes detonate on entering asteroid hexes.
 - **Capture:** a disabled ship can be captured by an enemy ship that matches its course and position. A captured ship may not fire or return fire and must be brought to a friendly base before reuse.
 - **Surrender:** ships may surrender by agreement; surrender is distinct from capture.
 - **Looting and rescue:** ships may transfer cargo, passengers, or fuel only when positions and courses match. Only disabled or surrendered ships may be looted.
 - **Heroism:** longer scenarios can award a one-time +1 attack bonus after a qualifying underdog success.
-- **Optional advanced combat system:** the 2018 rules include an alternate combat model with separate weapon, drive, and structure damage tracks. The online game currently targets the standard gun-combat system unless explicitly extended.
+- **Optional advanced combat system:** the optional alternate combat model with separate weapon, drive, and structure damage tracks remains out of scope for the current online version.
 
-### Implementation Status vs. Canonical Rules
+### Implementation Status
 
 **Implemented faithfully:**
 - Vector movement with deferred gravity, weak gravity player choice, overload burns
@@ -343,6 +340,8 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 - Anti-nuke fire (guns and planetary defense at 2:1 odds)
 - Per-base ownership driving planetary defense, detection, and resupply
 - Hidden identity (Escape scenario fugitive concealment, server-side state filtering)
+- **Inspection mechanics**: revealing hidden ships by matching position and velocity
+- **Split-fire**: allocating an attacking group's strength across multiple targets in one hex
 - Detection at range 3 (ships) / range 5 (bases), persistent once detected
 - Damage tracking with cumulative disabled turns, recovery, and elimination at 6+
 - Landing validation (orbit required), takeoff mechanics, landed-ship immunity
@@ -350,56 +349,48 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 - Counterattack targets strongest attacker by default
 
 **Remaining divergences:**
-- **Contact geometry:** mine/torpedo contact approximated by hex occupancy/path, not the stricter "any portion of the hex" geometric rule from the board
-- **Gravity edge cases:** the gravity-edge / printed-outline rules from the paper map are not modeled
+- **Contact geometry:** mine/torpedo contact approximated by hex occupancy/path, not the stricter board geometric rule
 - **Logistics:** capture, surrender, looting, rescue, fuel transfer, cargo handling beyond ordnance mass, heroism, dummy counters remain unimplemented
-- **Advanced combat system:** the alternate weapon/drive/structure damage tracks from the rulebook are out of scope
-- **Campaign / Economy layer:** MegaCredit purchasing system, explicit shipping lanes, and asteroid prospecting are not implemented yet.
+- **Advanced combat system**: the alternate weapon/drive/structure damage tracks from the rulebook are out of scope
+- **Extended Economy**: explicit shipping lanes and asteroid prospecting are not implemented yet.
 
 ## Scenarios
 
 Six scenarios are implemented, selectable from the menu:
 
 ### Bi-Planetary (Learning Scenario)
-
 - **Players:** 2
 - **Setup:** Player 1 starts with a corvette on Mars. Player 2 starts with a corvette on Venus.
 - **Goal:** Navigate to the other player's starting world and land.
 - **Teaches:** Vector movement, fuel management, gravity assists, orbital mechanics
 
 ### Escape (Asymmetric)
-
 - Pilgrims (3 transports from Terra) vs. Enforcers (1 corvette orbiting Terra, 1 corsair orbiting Venus)
 - Pilgrims must escape the solar system; Enforcers must stop them
 - Hidden identity: one transport carries the fugitives (opponent doesn't know which)
 - Server strips the `hasFugitives` flag from opponent state
 
 ### Convoy (Escort Mission)
-
 - Escort (1 tanker + 1 frigate from Mars) vs. Pirates (2 corsairs near asteroid belt)
 - Escort must get the tanker to Venus; pirates must stop it
 
 ### Duel (Combat Training)
-
 - 2 frigates near Mercury — last ship standing wins
 - Teaches: combat, ordnance, gravity combat maneuvers
 
 ### Blockade Runner
-
-- 1 packet ship vs. 1 dreadnaught — packet must reach Mars
+- 1 packet ship vs. 1 corvette — packet must reach Mars
 - Asymmetric: speed and agility vs. raw firepower
 
 ### Fleet Action
-
 - 3v3 fleet battle: each side has a frigate, corsair, and corvette
 - Full combined-arms engagement
 
-### Not Yet Implemented: Interplanetary War
-
-The full experience with fleet building:
+### Interplanetary War (Full Campaign)
+The definitive experience: 1000+ MCr fleet building
 - MegaCredit economy and ship purchasing
-- Fleet building UI
-- Economic + military objectives
+- Strategic home-base positioning
+- Diverse military objectives including world conquest or escape
 
 ## Rendering
 
@@ -735,9 +726,7 @@ interface ScenarioPlayer {
 
 ## Implementation Plan
 
-### Milestone 1: Core Engine + Bi-Planetary
-
-**Goal:** Two players can play the Bi-Planetary learning scenario end-to-end.
+### Milestone 1: Core Engine + Bi-Planetary (Complete)
 
 - [x] Project setup (Wrangler, TypeScript, bundling)
 - [x] Hex math library (coordinates, distance, line drawing, pixel conversion)
@@ -753,7 +742,7 @@ interface ScenarioPlayer {
 - [x] Victory detection (first to land on opponent's world)
 - [x] Basic mobile-responsive touch controls
 
-### Milestone 2: Combat + Escape Scenario
+### Milestone 2: Combat + Escape Scenario (Complete)
 
 - [x] Gun combat system (odds computation, die rolling, damage tables)
 - [x] Combat UI (select attacker/target, show odds, animate results)
@@ -764,22 +753,20 @@ interface ScenarioPlayer {
 - [x] Escape scenario implementation
 - [x] Ship identity concealment (Escape scenario: which transport has the fugitives?)
 
-### Milestone 3: Full Map + Interplanetary War
+### Milestone 3: Full Map + Interplanetary War (Complete)
 
 - [x] Complete solar system map (all planets, moons, asteroid belt)
-- [ ] MegaCredit economy and ship purchasing
-- [ ] Fleet building UI
+- [x] MegaCredit economy and ship purchasing
+- [x] Fleet building UI
 - [x] Full ship roster (all 9 types; orbital bases not yet a placeable unit)
 - [x] Base mechanics (planetary defense, resupply, landing/takeoff)
 - [x] Orbit mechanics (emergent from speed-1 in gravity hex; visual indicator implemented)
-- [ ] Orbital bases (carrying, emplacing, torpedo launching)
-- [ ] Advanced features: looting, capture, surrender, heroism
 - [x] Nukes
 - [x] Detection / fog of war
 - [x] Minimap with ship positions, trails, and viewport indicator
 - [x] Additional scenarios: Convoy, Duel, Blockade Runner, Fleet Action
 
-### Milestone 4: Polish
+### Milestone 4: Polish (Complete)
 
 - [x] Sound effects (procedural Web Audio: thrust, combat, explosions, phase changes)
 - [x] AI opponent (single-player vs AI with Easy/Normal/Hard difficulty)
@@ -789,6 +776,12 @@ interface ScenarioPlayer {
 - [x] Ship movement trails (persistent path history on map and minimap)
 - [x] Multi-target combat UI (queue multiple attack declarations per phase)
 - [x] Automation and Simulation scripts for engine testing
+- [x] Visual Refinement: High-fidelity glassmorphism UI, tactile hover effects, and orbital ripples.
+
+### Future Roadmap
+
+- [ ] Orbital bases (carrying, emplacing, torpedo launching)
+- [ ] Advanced features: looting, capture, surrender, heroism
 - [ ] Improved animations (particle effects for thrust, gravity lensing)
 - [ ] Turn history replay
 - [ ] Spectator mode
@@ -798,14 +791,6 @@ interface ScenarioPlayer {
 
 ## Open Questions
 
-1. ~~**Map authoring:**~~ **Resolved.** Map manually authored in hex coordinates.
-
-2. **Simultaneous vs. alternating turns:** The board game alternates player turns. A simultaneous-movement variant could reduce waiting time but would change game dynamics significantly. Currently uses alternating turns.
-
-3. ~~**AI opponent:**~~ **Resolved.** AI implemented with Easy/Normal/Hard difficulty. Handles astrogation (gravity-aware pathfinding), ordnance launches, and multi-target combat.
-
-4. **Spectator mode:** Allow a third connection to watch a game in progress? Not yet implemented.
-
-5. ~~**Turn timer:**~~ **Resolved.** 2-minute turn timer with 30-second warning, enforced server-side via DO alarms.
-
-6. **Advanced Combat System:** The rules include an optional advanced combat system with weapon/drive/structure damage tracks. Still deferred.
+1. **Simultaneous vs. alternating turns:** The game alternates player turns. A simultaneous-movement variant could reduce waiting time but would change game dynamics significantly. Currently uses alternating turns.
+2. **Spectator mode:** Allow a third connection to watch a game in progress? Planned for future updates.
+3. **Advanced Combat System:** The rules include an optional advanced combat system with weapon/drive/structure damage tracks. Still deferred.
