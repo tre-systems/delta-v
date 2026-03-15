@@ -3,7 +3,7 @@ import { pixelToHex, hexToPixel, hexEqual, hexVecLength } from '../shared/hex';
 import { canAttack, getCombatStrength, computeOdds, computeRangeMod, computeVelocityMod } from '../shared/combat';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
-import { createGame, processAstrogation, processOrdnance, skipOrdnance, processCombat, skipCombat } from '../shared/game-engine';
+import { createGame, processAstrogation, processOrdnance, skipOrdnance, processCombat, skipCombat, type MovementResult } from '../shared/game-engine';
 import { aiAstrogation, aiOrdnance, aiCombat, type AIDifficulty } from '../shared/ai';
 import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
@@ -753,15 +753,7 @@ class GameClient {
     this.setState('menu');
   }
 
-  // --- Local game (single player) ---
-
-  private localProcessAstrogation(orders: AstrogationOrder[]) {
-    if (!this.gameState) return;
-    const result = processAstrogation(this.gameState, this.playerId, orders, this.map);
-    if ('error' in result) {
-      console.error('Local astrogation error:', result.error);
-      return;
-    }
+  private playLocalMovementResult(result: MovementResult, onComplete: () => void) {
     this.gameState = result.state;
     this.renderer.setGameState(this.gameState);
     this.input.setGameState(this.gameState);
@@ -775,10 +767,33 @@ class GameClient {
       }
     }
     this.logLandings(result.movements);
-    this.renderer.animateMovements(result.movements, result.ordnanceMovements, () => {
-      this.localCheckGameEnd();
-      this.onAnimationComplete();
-    });
+    this.renderer.animateMovements(result.movements, result.ordnanceMovements, onComplete);
+  }
+
+  // --- Local game (single player) ---
+
+  private localProcessAstrogation(orders: AstrogationOrder[]) {
+    if (!this.gameState) return;
+    const result = processAstrogation(this.gameState, this.playerId, orders, this.map);
+    if ('error' in result) {
+      console.error('Local astrogation error:', result.error);
+      return;
+    }
+    if ('movements' in result) {
+      this.playLocalMovementResult(result, () => {
+        this.localCheckGameEnd();
+        this.onAnimationComplete();
+      });
+      return;
+    }
+
+    this.gameState = result.state;
+    this.renderer.setGameState(this.gameState);
+    this.input.setGameState(this.gameState);
+    this.localCheckGameEnd();
+    if (this.gameState.phase !== 'gameOver') {
+      this.transitionToPhase();
+    }
   }
 
   private localProcessOrdnance(launches: OrdnanceLaunch[]) {
@@ -788,21 +803,31 @@ class GameClient {
       console.error('Local ordnance error:', result.error);
       return;
     }
-    this.gameState = result.state;
-    this.renderer.setGameState(this.gameState);
-    this.input.setGameState(this.gameState);
-    this.localCheckGameEnd();
-    this.transitionToPhase();
+    this.playLocalMovementResult(result, () => {
+      this.localCheckGameEnd();
+      this.onAnimationComplete();
+    });
   }
 
   private localSkipOrdnance() {
     if (!this.gameState) return;
-    const result = skipOrdnance(this.gameState, this.playerId);
+    const result = skipOrdnance(this.gameState, this.playerId, this.map);
     if ('error' in result) return;
+    if ('movements' in result) {
+      this.playLocalMovementResult(result, () => {
+        this.localCheckGameEnd();
+        this.onAnimationComplete();
+      });
+      return;
+    }
+
     this.gameState = result.state;
     this.renderer.setGameState(this.gameState);
     this.input.setGameState(this.gameState);
-    this.transitionToPhase();
+    this.localCheckGameEnd();
+    if (this.gameState.phase !== 'gameOver') {
+      this.transitionToPhase();
+    }
   }
 
   private localProcessCombat(attacks: CombatAttack[]) {
@@ -878,23 +903,17 @@ class GameClient {
         console.error('AI astrogation error:', result.error);
         return;
       }
-      this.gameState = result.state;
-      this.renderer.setGameState(this.gameState);
-      this.input.setGameState(this.gameState);
-      this.setState('playing_movementAnim');
-      playThrust();
-      if (result.events.length > 0) {
-        this.renderer.showMovementEvents(result.events);
-        this.ui.logMovementEvents(result.events, this.gameState.ships);
-        if (result.events.some(e => e.damageType === 'eliminated' || e.type === 'crash')) {
-          setTimeout(() => playExplosion(), 500);
-        }
+      if ('movements' in result) {
+        this.playLocalMovementResult(result, () => {
+          this.localCheckGameEnd();
+          this.continueAIAfterAstrogation(aiPlayer);
+        });
+      } else {
+        this.gameState = result.state;
+        this.renderer.setGameState(this.gameState);
+        this.input.setGameState(this.gameState);
+        this.processAIPhases(aiPlayer);
       }
-      this.logLandings(result.movements);
-      this.renderer.animateMovements(result.movements, result.ordnanceMovements, () => {
-        this.localCheckGameEnd();
-        this.continueAIAfterAstrogation(aiPlayer);
-      });
       return;
     }
 
@@ -921,14 +940,23 @@ class GameClient {
           this.ui.logText(`AI: ${name} launched ${l.ordnanceType}`);
         }
         const result = processOrdnance(this.gameState, aiPlayer, launches, this.map);
-        if (!('error' in result)) {
-          this.gameState = result.state;
-        }
+        if ('error' in result) return;
+        this.playLocalMovementResult(result, () => {
+          this.localCheckGameEnd();
+          this.processAIPhases(aiPlayer);
+        });
+        return;
       } else {
-        const result = skipOrdnance(this.gameState, aiPlayer);
-        if (!('error' in result)) {
-          this.gameState = result.state;
+        const result = skipOrdnance(this.gameState, aiPlayer, this.map);
+        if ('error' in result) return;
+        if ('movements' in result) {
+          this.playLocalMovementResult(result, () => {
+            this.localCheckGameEnd();
+            this.processAIPhases(aiPlayer);
+          });
+          return;
         }
+        this.gameState = result.state;
       }
       this.renderer.setGameState(this.gameState);
       this.input.setGameState(this.gameState);
