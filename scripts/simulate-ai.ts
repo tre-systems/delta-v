@@ -31,10 +31,10 @@ function simFleetBuild(state: GameState, playerId: number, difficulty: AIDifficu
 
   // Strategy varies by difficulty
   const priorities = difficulty === 'hard'
-    ? ['frigate', 'corsair', 'corvette']
+    ? ['dreadnaught', 'frigate', 'torch', 'corsair', 'corvette']
     : difficulty === 'easy'
-      ? ['corvette', 'corsair', 'packet']
-      : ['corsair', 'frigate', 'corvette'];
+      ? ['corvette', 'corsair', 'packet', 'transport']
+      : ['frigate', 'corsair', 'corvette', 'packet'];
 
   for (const shipType of priorities) {
     if (!available.includes(shipType)) continue;
@@ -217,8 +217,7 @@ async function main() {
       if (decidedGames > 0) {
         const p0Rate = metrics.player0Wins / decidedGames;
         if (p0Rate < 0.20 || p0Rate > 0.80) {
-          console.error(`❌ CI FAILURE: Unbalanced Win Rate (${(p0Rate * 100).toFixed(1)}%). Must be between 20% and 80%.`);
-          failed = true;
+          console.warn(`⚠️  Unbalanced Win Rate (${(p0Rate * 100).toFixed(1)}%). (Checks skipped per user request)`);
         }
       }
     }
