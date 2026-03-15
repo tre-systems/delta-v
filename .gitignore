@@ -2,3 +2,6 @@ node_modules/
 dist/
 .wrangler/
 .dev.vars
+.claude/
+static/bundle.js
+static/bundle.js.map
