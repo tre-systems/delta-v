@@ -1,98 +1,105 @@
-# Delta-V
+# 🚀 Delta-V
 
-An online multiplayer implementation of [Delta-V](https://en.wikipedia.org/wiki/Delta-V_(board_game)) -- space combat with vector movement and gravity across the inner Solar System.
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)
+![HTML5 Canvas](https://img.shields.io/badge/HTML5_Canvas-E34F26?style=for-the-badge&logo=html5&logoColor=white)
+![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=for-the-badge&logo=vitest&logoColor=white)
 
-## What is it?
+*[Insert Gameplay GIF/Screenshot here]*
 
-Two players command ships racing between planets. Ships move using realistic vector physics on a hex grid: velocity persists between turns, fuel is burned to accelerate, and planetary gravity deflects your course. Combat uses odds-based dice resolution with range and velocity modifiers.
+**Delta-V** is an online, real-time multiplayer implementation of [Delta-V](https://en.wikipedia.org/wiki/Delta-V_(board_game)) — a tactical space combat and racing game featuring realistic vector movement and orbital gravity mechanics across the inner Solar System. 
 
-The game renders as a smooth, continuous-space experience (no visible hex grid) while using axial hex coordinates internally for all game logic.
+Command your fleet, master astrogation trajectories, sling-shot around celestial bodies, and engage in high-stakes combat where positioning and velocity are just as crucial as firepower.
 
-## Quick Start
+## 🌟 Features
 
-```bash
-npm install
-npm run dev        # Start local dev server (wrangler)
+### ☄️ Realistic Vector Physics Spaceflight
+- **Vector Movement Engine**: Your velocity persists between turns. Plan your burns carefully; there's no friction to stop you.
+- **Orbital Mechanics**: Planetary gravity deflects your course. Master "Weak" and "Full" gravity wells to execute slingshot maneuvers.
+- **Continuous Rendering vs Discrete Logic**: The visual rendering provides a smooth, continuous-space aesthetic, whilst all game logic acts on a strict, pure axial hex-coordinate system.
+
+### ⚔️ Deep Tactical Combat
+- **Odds-Based Combat**: Gun combat utilizes a classic odds-based dice resolution system, influenced by relative velocity and range modifiers.
+- **Ordnance Management**: Equip and deploy mines, torpedoes, and devastating nukes.
+- **Damage & Repairs**: Complex damage tracking (disabled turns vs. cumulative elimination). Find safe harbor at planetary bases for repairs and resupply.
+
+### 🎮 Multiple Game Modes
+- **6 Playable Scenarios**: Features diverse scenarios including *Bi-Planetary*, *Escape*, *Convoy*, *Duel*, *Blockade Runner*, and *Fleet Action*.
+- **Local AI Opponent**: Test your skills offline against an AI component with configurable difficulty levels.
+- **Real-Time Multiplayer**: Built for fast, responsive web-socket based remote play.
+
+---
+
+## 🛠️ Architecture
+
+Delta-V adopts an elegant, robust architecture utilizing modern web primitives:
+
+```text
+src/
+├── shared/           # Pure Game Engine (Shared between Client & Server)
+│   ├── game-engine.ts  # Pure state machine (no IO = highly testable)
+│   ├── movement.ts     # Vector astrogation & gravity logic
+│   ├── combat.ts       # Odds resolution & damage tables
+│   └── hex.ts          # Axial hex coordinate math
+├── server/           # Cloudflare Workers Backend
+│   ├── index.ts        # HTTP entry point & WebSocket routing
+│   └── game-do.ts      # Durable Object storing authoritative game state
+└── client/           # Browser Frontend
+    ├── main.ts         # Client-side state machine & networking
+    ├── renderer.ts     # High-performance HTML5 Canvas 2D engine
+    ├── input.ts        # Desktop & touch input / burn planning
+    └── ui.ts           # Clean HTML/CSS layout overlays
 ```
 
-Open two browser tabs to `http://localhost:8787`. Create a game in one tab, join with the code in the other.
+**Design Highlight:** The core `game-engine.ts` is purely functional. It receives inputs (astrogation orders, combat declarations) and deterministically produces the new state. This guarantees synchronization between server and client without complex reconciliation, and makes the game highly unit testable. The backend acts as a thin wrapper using **Cloudflare Durable Objects** to handle WebSocket lifecycle and state persistence.
 
-## Commands
+---
+
+## 🚀 Quick Start
+
+Get your thrusters firing locally in seconds:
+
+1. **Install Dependencies**
+   ```bash
+   npm install
+   ```
+
+2. **Start the Local Development Server**
+   ```bash
+   npm run dev
+   ```
+   *This starts the Wrangler server.*
+
+3. **Play the Game**
+   - Open your browser to `http://localhost:8787`
+   - Open a **second tab** or window to the same URL.
+   - Create a game in tab 1, and use the generated join code in tab 2.
+
+### CLI Commands
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start local development server |
-| `npm run build` | Build client bundle |
-| `npm run typecheck` | Run TypeScript type checking |
-| `npm test` | Run all tests |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run deploy` | Deploy to Cloudflare Workers |
+| `npm run dev` | Start local development server (Wrangler/esbuild) |
+| `npm run build` | Build the client bundle |
+| `npm run typecheck` | Run TypeScript type checking across the project |
+| `npm test` | Run all unit tests via Vitest |
+| `npm run test:watch` | Run Vitest in continuous watch mode |
+| `npm run deploy` | Deploy straight to Cloudflare Workers |
 
-## Architecture
+---
 
-Full TypeScript stack: Cloudflare Workers + Durable Objects on the server, HTML5 Canvas on the client.
+## 📜 Game Rules Reference
 
-```
-src/
-  shared/           Shared game logic (server + client)
-    hex.ts           Axial hex math library
-    movement.ts      Vector movement + gravity engine
-    combat.ts        Gun combat, damage tables, dice
-    game-engine.ts   Pure game state machine (no IO)
-    map-data.ts      Solar system map + scenarios
-    types.ts         All type definitions
-    constants.ts     Ship stats, game constants
-  server/
-    index.ts         Worker entry (HTTP + WebSocket routing)
-    game-do.ts       Durable Object (game state, turn lifecycle)
-  client/
-    main.ts          Client state machine + WebSocket
-    renderer.ts      Canvas rendering + camera + animation
-    input.ts         Mouse/touch input, burn planning
-    ui.ts            HTML overlay UI (menus, HUD, game over)
-```
+For the comprehensive ruleset detailing movement edge cases, damage tables, and specific scenario rules, refer to [SPEC.md](./SPEC.md).
 
-The game engine (`game-engine.ts`) is a pure-function module with no IO, making it fully unit-testable. The Durable Object (`game-do.ts`) is a thin wrapper handling WebSocket lifecycle and storage.
+## 🗺️ Roadmap & Planned Features
 
-## Game Rules
+- [ ] **Deferred Gravity Edge Cases**: Achieve 100% spec-accurate orbital behaviors.
+- [ ] **Hidden Information Scenarios**: Implement authoritative Fog of War for specific game modes.
+- [ ] **Expanded Content**: Port additional scenarios and variants from the original board game.
+- [ ] **Polish**: Enhancements to visual FX, richer onboarding tutorials, and a deeper combat odds UI overview.
 
-See [SPEC.md](SPEC.md) for the full game specification including movement, combat, damage, and scenario rules.
+---
 
-### Implemented
-
-- Vector movement with velocity persistence
-- Planetary gravity (full and weak)
-- Fuel management and resupply at bases
-- Overload maneuver (warships burn 2 fuel for 2-hex acceleration)
-- Landing and takeoff mechanics
-- Gun combat with odds-based damage table
-- Counterattack system
-- Planetary base defense fire
-- Ordnance: mines, torpedoes, and nukes
-- Damage tracking (disabled turns, cumulative elimination)
-- Asteroid hazard rolls
-- Ramming, crash resolution, and nuke-blasted asteroid removal
-- Detection state for enemy ships
-- Phase cycling (astrogation -> ordnance -> movement -> combat -> next player)
-- Local AI opponent with difficulty levels
-- Six playable scenarios: Bi-Planetary, Escape, Convoy, Duel, Blockade Runner, Fleet Action
-
-### Planned
-
-- Spec-accurate deferred gravity / orbit edge cases
-- Hidden-info scenarios with authoritative fog of war
-- Additional scenario variants from the full board game
-- Richer presentation polish (more effects, deeper onboarding, stronger combat odds UI)
-
-## Tech Stack
-
-- **Runtime**: Cloudflare Workers + Durable Objects
-- **Language**: TypeScript (full stack)
-- **Rendering**: HTML5 Canvas 2D
-- **Build**: esbuild (client), wrangler (server)
-- **Testing**: vitest
-- **CI**: GitHub Actions (typecheck + test + build)
-
-## License
-
+## 📄 License
 All rights reserved.
