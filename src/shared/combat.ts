@@ -261,18 +261,19 @@ export function resolveCombat(
  * No range or velocity modifiers apply.
  */
 export function resolveBaseDefense(
-  state: { ships: Ship[] },
+  state: { ships: Ship[]; players: { homeBody: string }[] },
   activePlayer: number,
   map: SolarSystemMap,
   rng?: () => number,
 ): CombatResult[] {
   const results: CombatResult[] = [];
+  const homeBody = state.players[activePlayer]?.homeBody;
+  if (!homeBody) return results;
 
-  // Find all bases belonging to active player's opponent (bases fire against the active player's enemies)
-  // Actually, bases fire against enemies of the base owner. During combat phase,
-  // the active player's bases fire at enemy ships.
+  // Only the active player's home-world bases provide defense fire.
   for (const [key, hex] of map.hexes) {
     if (!hex.base) continue;
+    if (hex.base.bodyName !== homeBody) continue;
     // Find base's gravity hex neighbors — specifically hexes with gravity pointing toward this body
     const bodyName = hex.base.bodyName;
     const [bq, br] = key.split(',').map(Number);

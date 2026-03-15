@@ -636,8 +636,10 @@ export class Renderer {
   }
 
   private renderAsteroids(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
+    const destroyed = new Set(this.gameState?.destroyedAsteroids ?? []);
     for (const [key, hex] of map.hexes) {
       if (hex.terrain !== 'asteroid') continue;
+      if (destroyed.has(key)) continue;
       const [q, r] = key.split(',').map(Number);
       const p = hexToPixel({ q, r }, HEX_SIZE);
       if (!this.camera.isVisible(p.x, p.y)) continue;
