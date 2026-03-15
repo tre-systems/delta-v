@@ -1,50 +1,149 @@
-# Security & Anti-Cheat Review
+# Security & Competitive Integrity Review
 
-This document outlines the security posture and anti-cheat mechanisms built into the Delta-V game engine. As a competitive multiplayer game, maintaining the integrity of the game state and preventing unauthorized manipulations is a core architectural requirement.
+This document describes the current security posture of Delta-V with emphasis on competitive multiplayer. It separates protections that are already in place from the gaps that still let players disrupt games, seize seats, or otherwise undermine fair play.
 
-## Authoritative Server Model
+## What The Server Already Enforces
 
-Delta-V employs a strict **Authoritative Server Model**. The client is treated as a "dumb terminal" responsible only for rendering state and forwarding player intent (inputs). All game logic, physics computations, and rules enforcement occur on the backend via Cloudflare Durable Objects.
+Delta-V uses an authoritative-server model for rules execution:
 
-### 1. Identity & Impersonation (SECURE)
-A player cannot forge actions for their opponent.
-- When a WebSocket connects to a game lobby, the server handles upgrading the connection and tightly binds that socket reference to an internal player tag (`player:0` or `player:1`).
-- When an action is received from a client socket, the server determines the `playerId` strictly by analyzing the socket reference (`this.getPlayerId(ws)`).
-- The client *never* sends its ID or authentication tokens in the command payload, making spoofing impossible.
+- WebSocket messages are bound to the server-side socket tag (`player:0` or `player:1`), so a client cannot simply claim to be the other player in a normal action payload.
+- Movement, ordnance, combat, resupply, detection, and victory logic are resolved in the shared engine on the server, not on the browser client.
+- Hidden-identity state is filtered per player before broadcast via `filterStateForPlayer()`, so the fugitive flag itself is not sent to the opponent.
+- Dice rolls and ordnance randomness are generated server-side, so the client does not directly choose outcomes.
 
-### 2. State Leaks & Hidden Information (SECURE)
-A player cannot use browser developer tools or network sniffers to reveal hidden data (e.g., the identity of the fugitive transport in the *Escape* scenario).
-- The authoritative `GameState` is maintained server-side.
-- Before broadcasting state updates, the server explicitly sanitizes the payload through `filterStateForPlayer()`.
-- Properties containing hidden data, such as the boolean `hasFugitives`, are stripped from ships not owned by the receiving player socket *before* JSON serialization.
+These protections are real, but they do not by themselves make the multiplayer stack secure for competitive play.
 
-### 3. RNG Manipulation (SECURE)
-A player cannot predict or manipulate dice rolls, asteroid hazard checks, or torpedo/mine detonation results.
-- The client only submits structural intent (e.g., `{ shipId: 'A', burn: 1 }`, or an array of `attacks`).
-- The client never submits random seeds or dice results.
-- All pseudo-random number generation (`Math.random()`) occurs strictly on the server during the state evaluation phase (`processCombat`, `processOrdnance`, `processAsteroidHazards`).
+## Confirmed Competitive Risks
 
-### 4. Payload Forging & Rules Enforcement (SECURE)
-A player cannot execute impossible maneuvers, such as burning 5 fuel in one turn, or firing weapons from a disabled ship.
-- `game-engine.ts` comprehensively validates all incoming orders against the canonical game rules before applying them to the state.
-- Examples of server-side validation include:
-  - Checking that a ship has sufficient fuel before accepting a burn order.
-  - Ensuring warships cannot exceed an overload burn of 2, and commercial ships cannot exceed a burn of 1.
-  - Enforcing the strict mass limits of ordnance (e.g., a frigate cannot launch a nuke without sufficient cargo capacity).
-  - Preventing disabled ships from issuing astrogation orders or declaring attacks.
+### 1. Room access and reconnects are code-only
 
-## Frontend Vulnerabilities
+Current status: **not secure enough for competitive play**
 
-The frontend architecture has been reviewed and verified to be secure against common web vulnerabilities.
+- A 5-character room code is the only credential required to join a match.
+- There is no host token, player-specific join secret, or reconnect secret.
+- If a player disconnects, the next connection during the reconnect window inherits `disconnectedPlayer` and takes that seat.
+- The first two successful websocket connections occupy the two player slots.
 
-### 1. Cross-Site Scripting (XSS)
-- The DOM is updated entirely using safe APIs (`textContent` and CSS classes).
-- There is no parsing of untrusted user input into `innerHTML`.
-- The only user input field (the 5-letter game join code) is heavily sanitized, uppercased, and rendered safely.
+Implications:
 
-### 2. Code Injection
-- The codebase does not utilize `eval()`, `new Function()`, or execute strings in `setTimeout`.
+- Anyone who learns a live room code can join an open seat.
+- Anyone who connects during an opponent disconnect window can hijack that player's seat.
+- The original match creator has no reserved ownership of the room beyond connecting first.
 
-### 3. Denial of Service (DoS)
-- Cloudflare Workers provide innate rate-limiting and payload-size caps before traffic even reaches the application layer.
-- The server logic uses strict Try/Catch blocks around `JSON.parse` to cleanly reject malformed WebSocket payloads without crashing the Durable Object instance.
+Relevant code:
+
+- [src/server/game-do.ts](/Users/robertgilks/Source/delta-v/src/server/game-do.ts#L87)
+- [src/server/game-do.ts](/Users/robertgilks/Source/delta-v/src/server/game-do.ts#L91)
+- [src/server/game-do.ts](/Users/robertgilks/Source/delta-v/src/server/game-do.ts#L116)
+
+Recommended fix:
+
+- Generate per-player secret rejoin tokens at match creation.
+- Require the token on reconnect before restoring a player slot.
+- Reserve the creator's seat explicitly instead of assigning seats purely by connection order.
+
+### 2. Scenario selection is client-overwritable
+
+Current status: **not secure enough for competitive play**
+
+- The Durable Object stores the scenario directly from the websocket query string.
+- This happens during connection, before the game starts.
+- The scenario returned by `/create` is not authoritatively locked to the room.
+
+Implications:
+
+- Either player can connect with a different `?scenario=...` and override the intended scenario for the room.
+- In practice, the last connecting client wins.
+
+Relevant code:
+
+- [src/server/game-do.ts](/Users/robertgilks/Source/delta-v/src/server/game-do.ts#L81)
+- [src/server/game-do.ts](/Users/robertgilks/Source/delta-v/src/server/game-do.ts#L130)
+- [src/server/index.ts](/Users/robertgilks/Source/delta-v/src/server/index.ts#L39)
+
+Recommended fix:
+
+- Persist the scenario chosen at `/create`.
+- Reject websocket attempts to change the scenario after room creation.
+- Validate scenario identifiers against the known scenario list at the edge.
+
+### 3. WebSocket payloads are not runtime-validated
+
+Current status: **vulnerable to disruption**
+
+- The server catches malformed JSON, but it does not validate the parsed object shape before dispatch.
+- Handler methods pass fields like `msg.purchases`, `msg.orders`, `msg.launches`, and `msg.attacks` straight into engine functions.
+- Engine functions assume arrays/objects and iterate immediately.
+
+Implications:
+
+- A connected player can send valid JSON with the wrong shape, such as `{"type":"combat","attacks":null}`.
+- That can throw an uncaught runtime exception inside the Durable Object event handler.
+- The likely outcome is match disruption rather than rule bypass, but for competitive play that is still a serious availability problem.
+
+Relevant code:
+
+- [src/server/game-do.ts](/Users/robertgilks/Source/delta-v/src/server/game-do.ts#L140)
+- [src/server/game-do.ts](/Users/robertgilks/Source/delta-v/src/server/game-do.ts#L321)
+- [src/shared/game-engine.ts](/Users/robertgilks/Source/delta-v/src/shared/game-engine.ts#L283)
+- [src/shared/game-engine.ts](/Users/robertgilks/Source/delta-v/src/shared/game-engine.ts#L629)
+- [src/shared/game-engine.ts](/Users/robertgilks/Source/delta-v/src/shared/game-engine.ts#L817)
+
+Recommended fix:
+
+- Add strict runtime schema validation for every client-to-server message before calling the engine.
+- Reject oversized arrays and malformed payloads with explicit errors.
+- Wrap handler dispatch in a final safety catch so one bad message cannot destabilize the match.
+
+### 4. Room codes are short, non-cryptographic, and not uniqueness-checked
+
+Current status: **acceptable for casual play, weak for competitive play**
+
+- Room codes are 5 characters from a 32-character alphabet.
+- Codes are generated with `Math.random()`.
+- `/create` does not check whether the generated code is already in use.
+- There is no application-layer throttling in front of room creation or join attempts.
+
+Implications:
+
+- Code guessing is more realistic than it should be for a competitive ladder or event environment.
+- A collision can route a newly created room to an already existing Durable Object name.
+- This risk compounds the reconnect and seat-hijack problems above.
+
+Relevant code:
+
+- [src/server/index.ts](/Users/robertgilks/Source/delta-v/src/server/index.ts#L30)
+- [src/server/index.ts](/Users/robertgilks/Source/delta-v/src/server/index.ts#L39)
+- [src/server/index.ts](/Users/robertgilks/Source/delta-v/src/server/index.ts#L53)
+
+Recommended fix:
+
+- Use longer codes or opaque tokens from a cryptographically strong RNG.
+- Check for room-code collisions before returning a new room.
+- Add explicit rate limiting or bot protection on room creation and websocket join attempts.
+
+## Lower-Risk Notes
+
+### Hidden information
+
+The current hidden-identity filtering is sound for the implemented Escape-style fugitive mechanic, because the hidden `hasFugitives` flag is stripped before broadcast. However, this is narrower than a full hidden-information system. If the game grows toward dummy counters, concealed movement, or more scenario-specific secrets, the current filtering approach will need a broader audit.
+
+### Randomness
+
+Random outcomes are server-side, which is the important anti-cheat property today. They are not produced by a cryptographically strong RNG, though, so this should be described as "server-controlled" rather than "cryptographically secure."
+
+### Frontend XSS posture
+
+The client does use `innerHTML` in several UI paths, so previous claims that it never does were inaccurate. Today those code paths appear to render internal game data and static markup rather than arbitrary user-generated content, which keeps the practical risk low. If chat, player names, modded scenarios, or other freeform text are ever added, those paths must be revisited immediately.
+
+## Competitive Readiness Summary
+
+Current assessment:
+
+- **Rules authority:** good
+- **Hidden fugitive info:** good for the implemented scope
+- **Competitive identity / seat security:** weak
+- **Match availability under hostile clients:** weak
+- **Room secrecy:** weak
+
+Delta-V is in decent shape for friendly matches between trusted players, but it is not yet hardened enough for serious competitive play or public matchmaking.

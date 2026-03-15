@@ -1180,6 +1180,7 @@ export class Renderer {
     for (const ship of visibleShips) {
       let pos: PixelCoord;
       let velocity = ship.velocity;
+      let labelYOffset = 24;
 
       // Check if this ship is being animated
       if (this.animState) {
@@ -1211,8 +1212,9 @@ export class Renderer {
         if (count > 1) {
           const idx = hexIndices.get(key) ?? 0;
           hexIndices.set(key, idx + 1);
-          const offset = (idx - (count - 1) / 2) * 14;
+          const offset = (idx - (count - 1) / 2) * 16;
           pos = { x: pos.x + offset, y: pos.y };
+          labelYOffset = 24 + idx * 11;
         }
       }
 
@@ -1307,12 +1309,12 @@ export class Renderer {
           const speed = hexVecLength(ship.velocity);
           const inGravity = this.map && this.map.hexes.get(hexKey(ship.position))?.gravity;
           const statusTag = ship.landed ? ' • Landed' : (speed === 1 && inGravity) ? ' • Orbiting' : '';
-          ctx.fillText(`${typeName} • Fuel: ${ship.fuel}${statusTag}`, pos.x, pos.y + 24);
+          ctx.fillText(`${typeName} • Fuel: ${ship.fuel}${statusTag}`, pos.x, pos.y + labelYOffset);
         } else if (ship.detected) {
           ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
           ctx.font = '500 9px Inter, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(typeName, pos.x, pos.y + 24);
+          ctx.fillText(typeName, pos.x, pos.y + labelYOffset);
         }
       }
     }
