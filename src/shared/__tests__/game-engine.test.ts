@@ -739,6 +739,7 @@ describe('ordnance system', () => {
       landed: false,
       destroyed: false,
       detected: true,
+      resuppliedThisTurn: false,
       damage: { disabledTurns: 0 },
     });
 
@@ -918,6 +919,7 @@ describe('base defense fire', () => {
           landed: false,
           destroyed: false,
           detected: true,
+          resuppliedThisTurn: false,
           damage: { disabledTurns: 0 },
         },
       ],
@@ -954,6 +956,7 @@ describe('base defense fire', () => {
           landed: true, // landed at base
           destroyed: false,
           detected: true,
+          resuppliedThisTurn: false,
           damage: { disabledTurns: 0 },
         },
       ],
@@ -995,6 +998,7 @@ describe('base defense fire', () => {
           landed: false,
           destroyed: false,
           detected: true,
+          resuppliedThisTurn: false,
           damage: { disabledTurns: 0 },
         },
       ],
@@ -1022,6 +1026,7 @@ describe('base defense fire', () => {
           landed: false,
           destroyed: false,
           detected: true,
+          resuppliedThisTurn: false,
           damage: { disabledTurns: 0 },
         },
       ],
@@ -1199,6 +1204,7 @@ describe('nuke ordnance', () => {
           landed: false,
           destroyed: false,
           detected: true,
+          resuppliedThisTurn: false,
           damage: { disabledTurns: 0 },
         },
       ],
