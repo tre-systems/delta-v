@@ -30,3 +30,11 @@ jobs:
 
       - name: Run Headless Engine Simulations
         run: npm run simulate all 100 -- --ci
+
+      - name: Deploy
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
