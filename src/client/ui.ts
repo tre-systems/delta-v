@@ -18,6 +18,7 @@ export class UIManager {
     'launchMineBtn',
     'launchTorpedoBtn',
     'launchNukeBtn',
+    'emplaceBaseBtn',
     'skipOrdnanceBtn',
     'attackBtn',
     'fireBtn',
@@ -33,6 +34,7 @@ export class UIManager {
   onUndo: (() => void) | null = null;
   onConfirm: (() => void) | null = null;
   onLaunchOrdnance: ((type: 'mine' | 'torpedo' | 'nuke') => void) | null = null;
+  onEmplaceBase: (() => void) | null = null;
   onSkipOrdnance: (() => void) | null = null;
   onAttack: (() => void) | null = null;
   onFireAll: (() => void) | null = null;
@@ -119,6 +121,7 @@ export class UIManager {
     document.getElementById('launchMineBtn')!.addEventListener('click', () => this.onLaunchOrdnance?.('mine'));
     document.getElementById('launchTorpedoBtn')!.addEventListener('click', () => this.onLaunchOrdnance?.('torpedo'));
     document.getElementById('launchNukeBtn')!.addEventListener('click', () => this.onLaunchOrdnance?.('nuke'));
+    document.getElementById('emplaceBaseBtn')!.addEventListener('click', () => this.onEmplaceBase?.());
     document.getElementById('skipOrdnanceBtn')!.addEventListener('click', () => this.onSkipOrdnance?.());
     document.getElementById('attackBtn')!.addEventListener('click', () => this.onAttack?.());
     document.getElementById('fireBtn')!.addEventListener('click', () => this.onFireAll?.());
@@ -208,7 +211,7 @@ export class UIManager {
     }
   }
 
-  updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number, hasBurns = false, cargoFree = 0, cargoMax = 0, objective = '', isWarship = false) {
+  updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number, hasBurns = false, cargoFree = 0, cargoMax = 0, objective = '', isWarship = false, canEmplaceBase = false) {
     document.getElementById('turnInfo')!.textContent = `Turn ${turn}`;
     document.getElementById('phaseInfo')!.textContent = isMyTurn ? phase.toUpperCase() : 'OPPONENT\'S TURN';
     document.getElementById('objective')!.textContent = objective;
@@ -228,11 +231,13 @@ export class UIManager {
     const launchMineBtn = document.getElementById('launchMineBtn')! as HTMLButtonElement;
     const launchTorpedoBtn = document.getElementById('launchTorpedoBtn')! as HTMLButtonElement;
     const launchNukeBtn = document.getElementById('launchNukeBtn')! as HTMLButtonElement;
+    const emplaceBaseBtn = document.getElementById('emplaceBaseBtn')! as HTMLButtonElement;
     const skipOrdnanceBtn = document.getElementById('skipOrdnanceBtn')!;
     const showOrd = isMyTurn && phase === 'ordnance';
     launchMineBtn.style.display = showOrd ? 'inline-block' : 'none';
     launchTorpedoBtn.style.display = showOrd ? 'inline-block' : 'none';
     launchNukeBtn.style.display = showOrd ? 'inline-block' : 'none';
+    emplaceBaseBtn.style.display = showOrd && canEmplaceBase ? 'inline-block' : 'none';
     skipOrdnanceBtn.style.display = showOrd ? 'inline-block' : 'none';
     // Disable buttons based on cargo capacity and warship status
     if (showOrd) {
@@ -293,10 +298,16 @@ export class UIManager {
 
       const hasBurn = burns.has(ship.id) && burns.get(ship.id) !== null;
 
+      const statusParts: string[] = [];
+      if (ship.destroyed) statusParts.push('X');
+      else if (ship.captured) statusParts.push('CAP');
+      else if (ship.damage.disabledTurns > 0) statusParts.push(`D${ship.damage.disabledTurns}`);
+      if (ship.heroismAvailable) statusParts.push('H');
+
       entry.innerHTML = `
         <span class="ship-name">${displayName}</span>
         <span class="ship-status">
-          ${ship.destroyed ? 'X' : ship.damage.disabledTurns > 0 ? `D${ship.damage.disabledTurns}` : ''}
+          ${statusParts.join(' ')}
           ${hasBurn ? '<span class="burn-dot"></span>' : ''}
         </span>
         <span class="ship-fuel">${ship.destroyed ? '' : `${ship.fuel}/${stats?.fuel ?? '?'}`}</span>
@@ -310,8 +321,9 @@ export class UIManager {
         const cargo = stats.cargo > 0 ? `Cargo: ${stats.cargo - ship.cargoUsed}/${stats.cargo}` : '';
         const velocity = `Vel: (${ship.velocity.dq},${ship.velocity.dr})`;
         const dmg = ship.damage.disabledTurns > 0 ? `Dmg: ${ship.damage.disabledTurns}T` : '';
-        const status = ship.landed ? 'Landed' : '';
-        details.innerHTML = `<span>ATK:${combat} ${cargo}</span><span>${velocity} ${dmg} ${status}</span>`;
+        const status = ship.captured ? 'Captured' : ship.landed ? 'Landed' : '';
+        const heroism = ship.heroismAvailable ? ' [Heroism]' : '';
+        details.innerHTML = `<span>ATK:${combat}${heroism} ${cargo}</span><span>${velocity} ${dmg} ${status}</span>`;
         entry.appendChild(details);
       }
 
@@ -448,6 +460,13 @@ export class UIManager {
           text = `NUKE hit ${name} [${ev.dieRoll}] ${ev.damageType === 'eliminated' ? '— ELIMINATED' : ev.damageType === 'disabled' ? `— D${ev.disabledTurns}` : '— no effect'}`;
           cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
           break;
+        case 'capture': {
+          const captor = ev.capturedBy ? ships.find(s => s.id === ev.capturedBy) : null;
+          const captorName = captor ? (SHIP_STATS[captor.type]?.name ?? captor.type) : 'unknown';
+          text = `${name} CAPTURED by ${captorName}!`;
+          cls = 'log-damage';
+          break;
+        }
         default:
           continue;
       }

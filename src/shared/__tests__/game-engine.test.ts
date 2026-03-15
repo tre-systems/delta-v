@@ -1993,3 +1993,201 @@ describe('hidden identity (Escape scenario)', () => {
     expect(result.state.winReason).toContain('fugitives');
   });
 });
+
+describe('capture mechanics', () => {
+  it('captures a disabled enemy ship when matching position and velocity', () => {
+    const state: GameState = {
+      gameId: 'TEST',
+      scenario: 'duel',
+      turnNumber: 1,
+      phase: 'astrogation',
+      activePlayer: 0,
+      ships: [
+        {
+          id: 'captor', type: 'corvette', owner: 0,
+          position: { q: 5, r: 0 }, velocity: { dq: 1, dr: 0 },
+          fuel: 20, cargoUsed: 0, resuppliedThisTurn: false,
+          landed: false, destroyed: false, detected: true,
+          damage: { disabledTurns: 0 }, pendingGravityEffects: [],
+        },
+        {
+          id: 'target', type: 'corvette', owner: 1,
+          position: { q: 6, r: 0 }, velocity: { dq: 1, dr: 0 },
+          fuel: 20, cargoUsed: 0, resuppliedThisTurn: false,
+          landed: false, destroyed: false, detected: true,
+          damage: { disabledTurns: 3 }, pendingGravityEffects: [],
+        },
+      ],
+      ordnance: [],
+      pendingAstrogationOrders: null,
+      pendingAsteroidHazards: [],
+      destroyedAsteroids: [],
+      destroyedBases: [],
+      players: [
+        { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
+        { connected: true, ready: true, targetBody: '', homeBody: 'Venus', bases: [], escapeWins: false },
+      ],
+      winner: null,
+      winReason: null,
+    };
+
+    // Only active player's ships move. Captor at (4,0) vel (1,0) → ends at (5,0) vel (1,0).
+    // Target already at (5,0) vel (1,0) — doesn't move during opponent's turn.
+    state.ships[0].position = { q: 4, r: 0 };
+    state.ships[0].velocity = { dq: 1, dr: 0 };
+    state.ships[1].position = { q: 5, r: 0 };
+    state.ships[1].velocity = { dq: 1, dr: 0 };
+
+    const result = processAstrogation(state, 0, [
+      { shipId: 'captor', burn: null },
+    ], openMap);
+
+    if ('error' in result) throw new Error(result.error);
+    const mr = 'movements' in result ? result : null;
+    expect(mr).not.toBeNull();
+
+    const target = result.state.ships.find(s => s.id === 'target')!;
+    expect(target.captured).toBe(true);
+    expect(target.owner).toBe(0); // ownership transferred
+
+    // Check capture event
+    if (mr) {
+      const captureEvent = mr.events.find(e => e.type === 'capture');
+      expect(captureEvent).toBeDefined();
+      expect(captureEvent!.shipId).toBe('target');
+      expect(captureEvent!.capturedBy).toBe('captor');
+    }
+  });
+
+  it('does not capture a non-disabled ship', () => {
+    const state: GameState = {
+      gameId: 'TEST',
+      scenario: 'duel',
+      turnNumber: 1,
+      phase: 'astrogation',
+      activePlayer: 0,
+      ships: [
+        {
+          id: 'captor', type: 'corvette', owner: 0,
+          position: { q: 5, r: 0 }, velocity: { dq: 1, dr: 0 },
+          fuel: 20, cargoUsed: 0, resuppliedThisTurn: false,
+          landed: false, destroyed: false, detected: true,
+          damage: { disabledTurns: 0 }, pendingGravityEffects: [],
+        },
+        {
+          id: 'target', type: 'corvette', owner: 1,
+          position: { q: 5, r: 0 }, velocity: { dq: 1, dr: 0 },
+          fuel: 20, cargoUsed: 0, resuppliedThisTurn: false,
+          landed: false, destroyed: false, detected: true,
+          damage: { disabledTurns: 0 }, pendingGravityEffects: [],
+        },
+      ],
+      ordnance: [],
+      pendingAstrogationOrders: null,
+      pendingAsteroidHazards: [],
+      destroyedAsteroids: [],
+      destroyedBases: [],
+      players: [
+        { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
+        { connected: true, ready: true, targetBody: '', homeBody: 'Venus', bases: [], escapeWins: false },
+      ],
+      winner: null,
+      winReason: null,
+    };
+
+    const result = processAstrogation(state, 0, [
+      { shipId: 'captor', burn: null },
+    ], openMap);
+
+    if ('error' in result) throw new Error(result.error);
+    const target = result.state.ships.find(s => s.id === 'target')!;
+    expect(target.captured).toBeFalsy();
+    expect(target.owner).toBe(1); // unchanged
+  });
+
+  it('does not capture with mismatched velocity', () => {
+    const state: GameState = {
+      gameId: 'TEST',
+      scenario: 'duel',
+      turnNumber: 1,
+      phase: 'astrogation',
+      activePlayer: 0,
+      ships: [
+        {
+          id: 'captor', type: 'corvette', owner: 0,
+          position: { q: 5, r: 0 }, velocity: { dq: 1, dr: 0 },
+          fuel: 20, cargoUsed: 0, resuppliedThisTurn: false,
+          landed: false, destroyed: false, detected: true,
+          damage: { disabledTurns: 0 }, pendingGravityEffects: [],
+        },
+        {
+          id: 'target', type: 'corvette', owner: 1,
+          position: { q: 5, r: 0 }, velocity: { dq: 2, dr: 0 },
+          fuel: 20, cargoUsed: 0, resuppliedThisTurn: false,
+          landed: false, destroyed: false, detected: true,
+          damage: { disabledTurns: 3 }, pendingGravityEffects: [],
+        },
+      ],
+      ordnance: [],
+      pendingAstrogationOrders: null,
+      pendingAsteroidHazards: [],
+      destroyedAsteroids: [],
+      destroyedBases: [],
+      players: [
+        { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
+        { connected: true, ready: true, targetBody: '', homeBody: 'Venus', bases: [], escapeWins: false },
+      ],
+      winner: null,
+      winReason: null,
+    };
+
+    const result = processAstrogation(state, 0, [
+      { shipId: 'captor', burn: null },
+    ], openMap);
+
+    if ('error' in result) throw new Error(result.error);
+    const target = result.state.ships.find(s => s.id === 'target')!;
+    expect(target.captured).toBeFalsy();
+    expect(target.owner).toBe(1);
+  });
+
+  it('captured ships cannot launch ordnance', () => {
+    const state: GameState = {
+      gameId: 'TEST',
+      scenario: 'duel',
+      turnNumber: 1,
+      phase: 'ordnance',
+      activePlayer: 0,
+      ships: [
+        {
+          id: 'captured', type: 'corvette', owner: 0,
+          position: { q: 5, r: 0 }, velocity: { dq: 1, dr: 0 },
+          fuel: 20, cargoUsed: 0, resuppliedThisTurn: false,
+          landed: false, destroyed: false, detected: true,
+          captured: true,
+          damage: { disabledTurns: 0 }, pendingGravityEffects: [],
+        },
+      ],
+      ordnance: [],
+      pendingAstrogationOrders: [{ shipId: 'captured', burn: null }],
+      pendingAsteroidHazards: [],
+      destroyedAsteroids: [],
+      destroyedBases: [],
+      players: [
+        { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
+        { connected: true, ready: true, targetBody: '', homeBody: 'Venus', bases: [], escapeWins: false },
+      ],
+      winner: null,
+      winReason: null,
+    };
+
+    const result = processOrdnance(state, 0, [
+      { shipId: 'captured', ordnanceType: 'mine' },
+    ], openMap);
+
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('Captured');
+    }
+  });
+});

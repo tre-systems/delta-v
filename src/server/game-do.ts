@@ -1,8 +1,8 @@
 import { DurableObject } from 'cloudflare:workers';
-import type { GameState, C2S, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack } from '../shared/types';
+import type { GameState, C2S, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, OrbitalBaseEmplacement } from '../shared/types';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../shared/constants';
-import { createGame, processAstrogation, processOrdnance, skipOrdnance, beginCombatPhase, processCombat, skipCombat } from '../shared/game-engine';
+import { createGame, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat } from '../shared/game-engine';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -159,6 +159,9 @@ export class GameDO extends DurableObject {
         break;
       case 'ordnance':
         await this.handleOrdnance(playerId, ws, msg.launches);
+        break;
+      case 'emplaceBase':
+        await this.handleEmplaceBase(playerId, ws, msg.emplacements);
         break;
       case 'skipOrdnance':
         await this.handleSkipOrdnance(playerId, ws);
@@ -348,6 +351,23 @@ export class GameDO extends DurableObject {
     this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
     await this.startTurnTimer(result.state);
+  }
+
+  private async handleEmplaceBase(playerId: number, ws: WebSocket, emplacements: OrbitalBaseEmplacement[]) {
+    const gameState = await this.getGameState();
+    if (!gameState) return;
+
+    const map = getSolarSystemMap();
+    const result = processEmplacement(gameState, playerId, emplacements, map);
+
+    if ('error' in result) {
+      this.send(ws, { type: 'error', message: result.error });
+      return;
+    }
+
+    this.broadcastFiltered({ type: 'stateUpdate', state: result.state });
+    this.broadcastEndOrUpdate(result.state);
+    await this.saveGameState(result.state);
   }
 
   private async handleSkipOrdnance(playerId: number, ws: WebSocket) {

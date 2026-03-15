@@ -1290,12 +1290,31 @@ export class Renderer {
     ctx.rotate(heading);
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.moveTo(size, 0);          // Nose
-    ctx.lineTo(-size * 0.6, -size * 0.5);  // Top wing
-    ctx.lineTo(-size * 0.3, 0);   // Indent
-    ctx.lineTo(-size * 0.6, size * 0.5);   // Bottom wing
-    ctx.closePath();
-    ctx.fill();
+    if (shipType === 'orbitalBase') {
+      // Draw orbital base as octagon with inner ring
+      const r = 12;
+      for (let i = 0; i < 8; i++) {
+        const angle = (Math.PI * 2 * i) / 8 - Math.PI / 8;
+        const px = Math.cos(angle) * r;
+        const py = Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 6, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      ctx.moveTo(size, 0);          // Nose
+      ctx.lineTo(-size * 0.6, -size * 0.5);  // Top wing
+      ctx.lineTo(-size * 0.3, 0);   // Indent
+      ctx.lineTo(-size * 0.6, size * 0.5);   // Bottom wing
+      ctx.closePath();
+      ctx.fill();
+    }
     ctx.restore();
   }
 

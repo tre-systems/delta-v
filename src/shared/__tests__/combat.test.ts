@@ -376,3 +376,58 @@ describe('resolveCombat', () => {
     expect(result.counterattack!.odds).toBe('1:4');
   });
 });
+
+describe('capture mechanics', () => {
+  it('captured ships cannot attack', () => {
+    const ship = makeShip({ captured: true });
+    expect(canAttack(ship)).toBe(false);
+  });
+
+  it('captured ships cannot counterattack', () => {
+    const ship = makeShip({ captured: true });
+    expect(canCounterattack(ship)).toBe(false);
+  });
+
+  it('non-captured ships can attack normally', () => {
+    const ship = makeShip({ captured: false });
+    expect(canAttack(ship)).toBe(true);
+  });
+});
+
+describe('heroism', () => {
+  it('grants heroism when target survives at 2:1 or worse odds', () => {
+    const attacker = makeShip({ id: 'a', owner: 0, type: 'frigate', position: { q: 0, r: 0 } }); // combat 8
+    const target = makeShip({ id: 't', owner: 1, type: 'corvette', position: { q: 0, r: 0 } }); // combat 2
+    // Roll 1 → at 4:1 odds, modified roll 1 → D2 (not eliminated)
+    resolveCombat([attacker], target, [attacker, target], () => 0.001);
+
+    expect(target.heroismAvailable).toBe(true);
+  });
+
+  it('does not grant heroism at even odds', () => {
+    const attacker = makeShip({ id: 'a', owner: 0, type: 'corvette', position: { q: 0, r: 0 } }); // combat 2
+    const target = makeShip({ id: 't', owner: 1, type: 'corvette', position: { q: 0, r: 0 } }); // combat 2
+    // Roll 1 → at 1:1 odds, modified roll 1 → no effect
+    resolveCombat([attacker], target, [attacker, target], () => 0.001);
+
+    expect(target.heroismAvailable).toBeFalsy();
+  });
+
+  it('applies +1 heroism bonus to attack roll', () => {
+    const attacker = makeShip({ id: 'a', owner: 0, type: 'corvette', position: { q: 0, r: 0 }, heroismAvailable: true });
+    const target = makeShip({ id: 't', owner: 1, type: 'corvette', position: { q: 0, r: 0 } });
+    // rng returns fixed value → die roll 3 + heroism +1 = modified 4
+    const result = resolveCombat([attacker], target, [attacker, target], () => 0.34);
+
+    expect(result.modifiedRoll).toBe(4); // roll 3 + 1 heroism
+    expect(attacker.heroismAvailable).toBe(false); // consumed
+  });
+
+  it('heroism is consumed after use', () => {
+    const attacker = makeShip({ id: 'a', owner: 0, type: 'corvette', position: { q: 0, r: 0 }, heroismAvailable: true });
+    const target = makeShip({ id: 't', owner: 1, type: 'corvette', position: { q: 0, r: 0 } });
+    resolveCombat([attacker], target, [attacker, target], () => 0.5);
+
+    expect(attacker.heroismAvailable).toBe(false);
+  });
+});

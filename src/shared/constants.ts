@@ -19,6 +19,7 @@ export const SHIP_STATS: Record<string, ShipStats> = {
   frigate:     { name: 'Frigate',     combat: 8,  defensiveOnly: false, fuel: 20, cargo: 40, cost: 150, canOverload: true },
   dreadnaught: { name: 'Dreadnaught', combat: 15, defensiveOnly: false, fuel: 15, cargo: 50, cost: 600, canOverload: true },
   torch:       { name: 'Torch',       combat: 8,  defensiveOnly: false, fuel: Infinity, cargo: 10, cost: 400, canOverload: true },
+  orbitalBase: { name: 'Orbital Base', combat: 16, defensiveOnly: false, fuel: Infinity, cargo: Infinity, cost: 200, canOverload: false },
 };
 
 // Ordnance definitions
@@ -27,6 +28,8 @@ export const ORDNANCE_MASS: Record<string, number> = {
   torpedo: 20,
   nuke: 20,
 };
+
+export const ORBITAL_BASE_MASS = 50; // cargo mass to carry an orbital base
 
 export const ORDNANCE_LIFETIME = 5; // self-destruct after 5 turns
 

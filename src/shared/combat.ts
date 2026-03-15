@@ -143,6 +143,7 @@ export function getDeclaredCombatStrength(
 export function canAttack(ship: Ship): boolean {
   if (ship.destroyed || ship.landed || ship.damage.disabledTurns > 0) return false;
   if (ship.resuppliedThisTurn) return false;
+  if (ship.captured) return false;
   const stats = SHIP_STATS[ship.type];
   return stats ? !stats.defensiveOnly : false;
 }
@@ -153,6 +154,7 @@ export function canAttack(ship: Ship): boolean {
 export function canCounterattack(ship: Ship): boolean {
   if (ship.destroyed || ship.landed || ship.damage.disabledTurns > 0) return false;
   if (ship.resuppliedThisTurn) return false;
+  if (ship.captured) return false;
   const stats = SHIP_STATS[ship.type];
   return stats ? stats.combat > 0 && !stats.defensiveOnly : false;
 }
@@ -347,7 +349,15 @@ export function resolveCombat(
   const velocityMod = computeGroupVelocityMod(attackers, target);
 
   const dieRoll = rollD6(rng);
-  const modifiedRoll = dieRoll - rangeMod - velocityMod;
+  // Heroism: +1 bonus if any attacker has heroism available
+  let heroismUsed = false;
+  const heroismAttacker = attackers.find(s => s.heroismAvailable);
+  const heroismBonus = heroismAttacker ? 1 : 0;
+  const modifiedRoll = dieRoll - rangeMod - velocityMod + heroismBonus;
+  if (heroismAttacker) {
+    heroismAttacker.heroismAvailable = false;
+    heroismUsed = true;
+  }
   const damageResult = lookupGunCombat(odds, modifiedRoll);
 
   // Counterattack happens before attack damage is implemented.
@@ -383,6 +393,14 @@ export function resolveCombat(
   }
 
   applyDamage(target, damageResult);
+
+  // Grant heroism: surviving at 2:1 or worse odds against you earns a one-time +1 bonus
+  if (!target.destroyed && damageResult.type !== 'eliminated') {
+    const defenseRatio = defendStrength / attackStrength;
+    if (defenseRatio <= 0.5) { // target was outgunned 2:1 or worse
+      target.heroismAvailable = true;
+    }
+  }
 
   return {
     attackerIds: attackers.map(s => s.id),
