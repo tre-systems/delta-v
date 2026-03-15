@@ -7,7 +7,7 @@ import { applyPendingGravityEffects, collectEnteredGravityEffects, computeCourse
 import { SHIP_STATS, ORDNANCE_MASS, ORDNANCE_LIFETIME, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from './constants';
 import { hexKey, hexVecLength, hexDistance, hexAdd, hexSubtract, hexLineDraw, HEX_DIRECTIONS, hexEqual } from './hex';
 import {
-  resolveCombat, resolveBaseDefense, canAttack, lookupOtherDamage, lookupGunCombat, applyDamage, rollD6,
+  resolveCombat, resolveBaseDefense, canAttack, hasLineOfSight, lookupOtherDamage, lookupGunCombat, applyDamage, rollD6,
   type CombatResolution,
 } from './combat';
 
@@ -62,6 +62,7 @@ export function createGame(
         type: def.type,
         owner: p,
         position,
+        lastMovementPath: [{ ...position }],
         velocity: { ...def.velocity },
         fuel: stats?.fuel ?? 20,
         cargoUsed: 0,
@@ -227,6 +228,7 @@ function resolveMovementPhase(
     });
 
     ship.position = course.destination;
+    ship.lastMovementPath = course.path.map(hex => ({ ...hex }));
     ship.velocity = course.newVelocity;
     ship.fuel -= course.fuelSpent;
     ship.landed = course.landedAt !== null;
@@ -290,6 +292,7 @@ export function processCombat(
 
   const results: CombatResult[] = [];
   const committedAttackers = new Set<string>();
+  const committedTargets = new Set<string>();
 
   for (const attack of attacks) {
     const attackSeen = new Set<string>();
@@ -313,12 +316,19 @@ export function processCombat(
     if (!target || target.owner === playerId || target.destroyed) {
       return { error: 'Invalid combat target' };
     }
+    if (committedTargets.has(target.id)) {
+      return { error: 'Each ship may be attacked only once per combat phase' };
+    }
+    if (map && attackers.some(attacker => !hasLineOfSight(attacker, target, map))) {
+      return { error: 'Attacker lacks line of sight to target' };
+    }
 
     for (const attacker of attackers) {
       committedAttackers.add(attacker.id);
     }
+    committedTargets.add(target.id);
 
-    const resolution = resolveCombat(attackers, target, state.ships, rng);
+    const resolution = resolveCombat(attackers, target, state.ships, rng, map);
     results.push(toCombatResult(resolution));
   }
 

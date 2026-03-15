@@ -1,6 +1,13 @@
 import type { GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, ShipMovement } from '../shared/types';
 import { pixelToHex, hexToPixel, hexEqual, hexVecLength } from '../shared/hex';
-import { canAttack, getCombatStrength, computeOdds, computeRangeMod, computeVelocityMod } from '../shared/combat';
+import {
+  canAttack,
+  getCombatStrength,
+  computeOdds,
+  computeGroupRangeMod,
+  computeGroupVelocityMod,
+  hasLineOfSight,
+} from '../shared/combat';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
 import { createGame, processAstrogation, processOrdnance, skipOrdnance, processCombat, skipCombat, type MovementResult } from '../shared/game-engine';
@@ -628,10 +635,11 @@ class GameClient {
 
     const attackerIds = this.gameState.ships
       .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s))
+      .filter(s => hasLineOfSight(s, target, this.map))
       .map(s => s.id);
 
     if (attackerIds.length === 0) {
-      this.ui.showToast('No ships available to attack', 'error');
+      this.ui.showToast('No ships have line of sight to that target', 'error');
       return;
     }
 
@@ -964,7 +972,7 @@ class GameClient {
 
     // Combat phase
     if (this.gameState.phase === 'combat' && this.gameState.activePlayer === aiPlayer) {
-      const attacks = aiCombat(this.gameState, aiPlayer, this.aiDifficulty);
+      const attacks = aiCombat(this.gameState, aiPlayer, this.map, this.aiDifficulty);
       if (attacks.length > 0) {
         const result = processCombat(this.gameState, aiPlayer, attacks, this.map);
         if (!('error' in result)) {
@@ -1292,13 +1300,13 @@ class GameClient {
     if (isEnemy && this.gameState) {
       const myAttackers = this.gameState.ships.filter(
         s => s.owner === this.playerId && !s.destroyed && canAttack(s),
-      );
+      ).filter(s => hasLineOfSight(s, ship, this.map));
       if (myAttackers.length > 0) {
         const atkStr = getCombatStrength(myAttackers);
         const defStr = getCombatStrength([ship]);
         const odds = computeOdds(atkStr, defStr);
-        const rMod = computeRangeMod(myAttackers[0], ship);
-        const vMod = computeVelocityMod(myAttackers[0], ship);
+        const rMod = computeGroupRangeMod(myAttackers, ship);
+        const vMod = computeGroupVelocityMod(myAttackers, ship);
         html += `<div class="tt-warn">${odds} R-${rMod} V-${vMod}</div>`;
       }
     }

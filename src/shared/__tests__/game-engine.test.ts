@@ -8,6 +8,11 @@ import type { GameState, SolarSystemMap, AstrogationOrder, OrdnanceLaunch, Ship 
 
 let map: SolarSystemMap;
 let initialState: GameState;
+const openMap: SolarSystemMap = {
+  hexes: new Map(),
+  bodies: [],
+  bounds: { minQ: -50, maxQ: 50, minR: -50, maxR: 50 },
+};
 
 beforeEach(() => {
   map = buildSolarSystemMap();
@@ -915,14 +920,89 @@ describe('ordnance validation', () => {
     const enemyA = fleetState.ships.find(s => s.owner === 1)!;
     const enemyB = fleetState.ships.filter(s => s.owner === 1)[1]!;
 
+    attacker.landed = false;
+    attacker.position = { q: 0, r: 0 };
+    attacker.lastMovementPath = [{ q: 0, r: 0 }];
+    ally.landed = false;
+    ally.position = { q: 1, r: 0 };
+    ally.lastMovementPath = [{ q: 1, r: 0 }];
+    enemyA.landed = false;
+    enemyA.position = { q: 2, r: 0 };
+    enemyA.lastMovementPath = [{ q: 2, r: 0 }];
+    enemyB.landed = false;
+    enemyB.position = { q: 3, r: 0 };
+    enemyB.lastMovementPath = [{ q: 3, r: 0 }];
+
     const result = processCombat(fleetState, 0, [
       { attackerIds: [attacker.id], targetId: enemyA.id },
       { attackerIds: [attacker.id, ally.id], targetId: enemyB.id },
-    ], map);
+    ], openMap);
 
     expect('error' in result).toBe(true);
     if ('error' in result) {
       expect(result.error).toContain('only once');
+    }
+  });
+
+  it('rejects attacking the same target more than once per combat phase', () => {
+    const fleetState = createGame(SCENARIOS.fleetAction, map, 'ATK02', findBaseHex);
+    fleetState.phase = 'combat';
+    fleetState.activePlayer = 0;
+
+    const attackers = fleetState.ships.filter(s => s.owner === 0);
+    const enemies = fleetState.ships.filter(s => s.owner === 1);
+
+    attackers.forEach((ship, idx) => {
+      ship.landed = false;
+      ship.position = { q: idx, r: 0 };
+      ship.lastMovementPath = [{ ...ship.position }];
+    });
+    enemies.forEach((ship, idx) => {
+      ship.landed = false;
+      ship.position = { q: idx + 1, r: 0 };
+      ship.lastMovementPath = [{ ...ship.position }];
+    });
+
+    const result = processCombat(fleetState, 0, [
+      { attackerIds: [attackers[0].id], targetId: enemies[0].id },
+      { attackerIds: [attackers[1].id], targetId: enemies[0].id },
+    ], openMap);
+
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('attacked only once');
+    }
+  });
+
+  it('rejects attacks without line of sight through a body', () => {
+    const state = createGame(SCENARIOS.biplanetary, map, 'ATK03', findBaseHex);
+    state.phase = 'combat';
+    state.activePlayer = 0;
+
+    const attacker = state.ships[0];
+    const target = state.ships[1];
+    attacker.landed = false;
+    target.landed = false;
+    attacker.position = { q: 0, r: 0 };
+    attacker.lastMovementPath = [{ q: 0, r: 0 }];
+    target.position = { q: 2, r: 0 };
+    target.lastMovementPath = [{ q: 2, r: 0 }];
+
+    const losMap: SolarSystemMap = {
+      hexes: new Map([
+        ['1,0', { terrain: 'planetSurface', body: { name: 'Blocker', destructive: false } }],
+      ]),
+      bodies: [],
+      bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
+    };
+
+    const result = processCombat(state, 0, [
+      { attackerIds: [attacker.id], targetId: target.id },
+    ], losMap);
+
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('line of sight');
     }
   });
 });

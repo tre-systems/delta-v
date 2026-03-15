@@ -11,7 +11,15 @@ import {
 import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CelestialBody, CombatResult, PlayerState } from '../shared/types';
 import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from '../shared/constants';
 import { computeCourse, predictDestination } from '../shared/movement';
-import { computeOdds, computeRangeMod, computeVelocityMod, getCombatStrength, canAttack } from '../shared/combat';
+import {
+  computeOdds,
+  computeGroupRangeMod,
+  computeGroupVelocityMod,
+  getCombatStrength,
+  getCounterattackers,
+  canAttack,
+  hasLineOfSight,
+} from '../shared/combat';
 
 // --- Camera ---
 
@@ -1371,10 +1379,15 @@ export class Renderer {
 
     const targetId = this.planningState.combatTargetId;
     const target = targetId ? state.ships.find(s => s.id === targetId) : null;
+    const myAttackers = state.ships.filter(
+      s => s.owner === this.playerId && !s.destroyed && canAttack(s),
+    );
 
     // Highlight valid enemy targets (only detected ones)
     for (const ship of state.ships) {
       if (ship.owner === this.playerId || ship.destroyed || !ship.detected) continue;
+      const hasShot = this.map !== null && myAttackers.some(attacker => hasLineOfSight(attacker, ship, this.map!));
+      if (!hasShot) continue;
       const p = hexToPixel(ship.position, HEX_SIZE);
       const isTarget = ship.id === targetId;
 
@@ -1391,15 +1404,15 @@ export class Renderer {
 
     // Draw attack line and odds preview
     if (target && !target.destroyed) {
-      const myAttackers = state.ships.filter(
-        s => s.owner === this.playerId && !s.destroyed && canAttack(s),
-      );
-      if (myAttackers.length === 0) return;
+      const legalAttackers = this.map === null
+        ? []
+        : myAttackers.filter(attacker => hasLineOfSight(attacker, target, this.map!));
+      if (legalAttackers.length === 0) return;
 
       const targetPos = hexToPixel(target.position, HEX_SIZE);
 
       // Attack lines from each attacker
-      for (const attacker of myAttackers) {
+      for (const attacker of legalAttackers) {
         const attackerPos = hexToPixel(attacker.position, HEX_SIZE);
         ctx.strokeStyle = 'rgba(255, 80, 80, 0.4)';
         ctx.lineWidth = 1.5;
@@ -1412,11 +1425,11 @@ export class Renderer {
       }
 
       // Odds preview at target
-      const attackStr = getCombatStrength(myAttackers);
+      const attackStr = getCombatStrength(legalAttackers);
       const defendStr = getCombatStrength([target]);
       const odds = computeOdds(attackStr, defendStr);
-      const rangeMod = computeRangeMod(myAttackers[0], target);
-      const velMod = computeVelocityMod(myAttackers[0], target);
+      const rangeMod = computeGroupRangeMod(legalAttackers, target);
+      const velMod = computeGroupVelocityMod(legalAttackers, target);
       const totalMod = -(rangeMod + velMod);
 
       // Background box
@@ -1432,8 +1445,7 @@ export class Renderer {
       ctx.fillText(label, targetPos.x, targetPos.y - 20);
 
       // Show counterattack warning if target can counterattack
-      const targetStats = SHIP_STATS[target.type];
-      if (targetStats && !targetStats.defensiveOnly && target.damage.disabledTurns === 0) {
+      if (getCounterattackers(target, state.ships).length > 0) {
         ctx.fillStyle = 'rgba(255, 170, 0, 0.7)';
         ctx.font = '7px monospace';
         ctx.fillText('CAN COUNTER', targetPos.x, targetPos.y - 38);
