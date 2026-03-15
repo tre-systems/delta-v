@@ -387,7 +387,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   blockade: {
     // Custom asymmetric scenario: speed vs firepower
     name: 'Blockade Runner',
-    description: 'Packet ship races past a frigate to reach Mars',
+    description: 'Packet ship races past a corvette to reach Mars',
     players: [
       {
         // Runner: fast packet ship from Venus heading toward Mars
@@ -437,28 +437,20 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     ],
   },
   fleetAction: {
-    // Custom fleet battle scenario
+    // Custom fleet battle scenario with fleet building
     name: 'Fleet Action',
-    description: 'Full fleet battle — corvettes, corsairs, and frigates clash',
+    description: 'Build your fleet and clash — Mars vs Venus',
+    startingCredits: 400,
+    availableShipTypes: ['corvette', 'corsair', 'frigate', 'dreadnaught', 'torch'],
     players: [
       {
-        // Fleet 1: based at Mars
-        ships: [
-          { type: 'frigate', position: { q: -9, r: -5 }, velocity: { dq: 0, dr: 0 } },
-          { type: 'corsair', position: { q: -9, r: -5 }, velocity: { dq: 0, dr: 0 } },
-          { type: 'corvette', position: { q: -9, r: -5 }, velocity: { dq: 0, dr: 0 } },
-        ],
+        ships: [],
         targetBody: '',
         homeBody: 'Mars',
         escapeWins: false,
       },
       {
-        // Fleet 2: based at Venus
-        ships: [
-          { type: 'frigate', position: { q: -7, r: 7 }, velocity: { dq: 0, dr: 0 } },
-          { type: 'corsair', position: { q: -7, r: 7 }, velocity: { dq: 0, dr: 0 } },
-          { type: 'corvette', position: { q: -7, r: 7 }, velocity: { dq: 0, dr: 0 } },
-        ],
+        ships: [],
         targetBody: '',
         homeBody: 'Venus',
         escapeWins: false,
