@@ -134,6 +134,17 @@ export function createGame(
     }
   }
 
+  // Assign fugitives for hidden-identity scenarios (e.g. Escape)
+  for (let p = 0; p < scenario.players.length; p++) {
+    if (scenario.players[p].hiddenIdentity) {
+      const playerShips = ships.filter(s => s.owner === p);
+      if (playerShips.length > 0) {
+        const chosen = playerShips[Math.floor(Math.random() * playerShips.length)];
+        chosen.hasFugitives = true;
+      }
+    }
+  }
+
   return {
     gameId: gameCode,
     scenario: scenario.name,
@@ -1257,8 +1268,11 @@ function checkImmediateVictory(state: GameState, map?: SolarSystemMap): void {
     if (ship.destroyed) continue;
     if (!state.players[ship.owner].escapeWins) continue;
     if (hasEscaped(ship.position, map.bounds)) {
+      // In hidden-identity scenarios, only the fugitive ship's escape counts
+      const hasFugitiveScenario = state.ships.some(s => s.owner === ship.owner && s.hasFugitives);
+      if (hasFugitiveScenario && !ship.hasFugitives) continue;
       state.winner = ship.owner;
-      state.winReason = 'Escaped the solar system!';
+      state.winReason = ship.hasFugitives ? 'The fugitives escaped!' : 'Escaped the solar system!';
       state.phase = 'gameOver';
       return;
     }
@@ -1272,6 +1286,17 @@ function checkGameEnd(state: GameState, map?: SolarSystemMap): void {
   checkImmediateVictory(state, map);
   if (state.winner !== null) {
     return;
+  }
+
+  // Check hidden-identity loss: if the fugitive ship is destroyed, opponent wins
+  for (const ship of state.ships) {
+    if (ship.hasFugitives && ship.destroyed) {
+      const opponent = 1 - ship.owner;
+      state.winner = opponent;
+      state.winReason = 'The fugitives have been captured!';
+      state.phase = 'gameOver';
+      return;
+    }
   }
 
   // Check loss: all ships destroyed

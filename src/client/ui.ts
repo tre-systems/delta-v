@@ -20,6 +20,7 @@ export class UIManager {
     'launchNukeBtn',
     'skipOrdnanceBtn',
     'attackBtn',
+    'fireBtn',
     'skipCombatBtn',
   ];
 
@@ -34,6 +35,7 @@ export class UIManager {
   onLaunchOrdnance: ((type: 'mine' | 'torpedo' | 'nuke') => void) | null = null;
   onSkipOrdnance: (() => void) | null = null;
   onAttack: (() => void) | null = null;
+  onFireAll: (() => void) | null = null;
   onSkipCombat: (() => void) | null = null;
   onRematch: (() => void) | null = null;
   onExit: (() => void) | null = null;
@@ -119,6 +121,7 @@ export class UIManager {
     document.getElementById('launchNukeBtn')!.addEventListener('click', () => this.onLaunchOrdnance?.('nuke'));
     document.getElementById('skipOrdnanceBtn')!.addEventListener('click', () => this.onSkipOrdnance?.());
     document.getElementById('attackBtn')!.addEventListener('click', () => this.onAttack?.());
+    document.getElementById('fireBtn')!.addEventListener('click', () => this.onFireAll?.());
     document.getElementById('skipCombatBtn')!.addEventListener('click', () => this.onSkipCombat?.());
     document.getElementById('rematchBtn')!.addEventListener('click', () => this.onRematch?.());
     document.getElementById('exitBtn')!.addEventListener('click', () => this.onExit?.());
@@ -260,7 +263,7 @@ export class UIManager {
       statusMsg.textContent = 'Select ship, set torpedo boost with the arrows, launch ordnance — or SKIP (Enter)';
       statusMsg.style.display = 'block';
     } else if (phase === 'combat') {
-      statusMsg.textContent = 'Click enemy target, click own ships to include/exclude, -/= adjust attack strength → ATTACK';
+      statusMsg.textContent = 'Click enemy → ATTACK to queue. Multiple targets allowed. Enter or FIRE ALL to execute.';
       statusMsg.style.display = 'block';
     } else {
       statusMsg.style.display = 'none';
@@ -322,6 +325,12 @@ export class UIManager {
 
   showAttackButton(visible: boolean) {
     document.getElementById('attackBtn')!.style.display = visible ? 'inline-block' : 'none';
+  }
+
+  showFireButton(visible: boolean, count: number) {
+    const btn = document.getElementById('fireBtn')!;
+    btn.style.display = visible ? 'inline-block' : 'none';
+    btn.textContent = count > 0 ? `FIRE ALL (${count})` : 'FIRE ALL';
   }
 
   showMovementStatus() {

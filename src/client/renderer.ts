@@ -8,7 +8,7 @@ import {
   HEX_DIRECTIONS,
   hexVecLength,
 } from '../shared/hex';
-import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CelestialBody, CombatResult, PlayerState } from '../shared/types';
+import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CelestialBody, CombatResult, CombatAttack, PlayerState } from '../shared/types';
 import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from '../shared/constants';
 import { computeCourse, predictDestination } from '../shared/movement';
 import {
@@ -177,6 +177,7 @@ export interface PlanningState {
   combatTargetType: 'ship' | 'ordnance' | null;
   combatAttackerIds: string[];
   combatAttackStrength: number | null;
+  queuedAttacks: CombatAttack[]; // multi-target: attacks queued before sending
 }
 
 // --- Renderer ---
@@ -203,6 +204,7 @@ export class Renderer {
     combatTargetType: null,
     combatAttackerIds: [],
     combatAttackStrength: null,
+    queuedAttacks: [],
   };
   private combatResults: { results: CombatResult[]; showUntil: number } | null = null;
   private combatEffects: CombatEffect[] = [];
@@ -1115,6 +1117,14 @@ export class Renderer {
         ctx.fillText(`D${ship.damage.disabledTurns}`, pos.x, pos.y - 12);
       }
 
+      // Fugitive indicator (only visible to owning player)
+      if (ship.hasFugitives && ship.owner === this.playerId && !this.animState) {
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('\u2605', pos.x, pos.y - 14); // gold star
+      }
+
       // Landed indicator
       if (ship.landed && !this.animState) {
         ctx.strokeStyle = 'rgba(100, 200, 100, 0.5)';
@@ -1429,13 +1439,50 @@ export class Renderer {
     const ordnanceTarget = targetId && targetType === 'ordnance'
       ? state.ordnance.find(o => o.id === targetId && !o.destroyed && o.owner !== this.playerId && o.type === 'nuke') ?? null
       : null;
+    const committedAttackers = new Set(
+      this.planningState.queuedAttacks.flatMap(a => a.attackerIds),
+    );
+    const queuedTargetKeys = new Set(
+      this.planningState.queuedAttacks.map(a => `${a.targetType ?? 'ship'}:${a.targetId}`),
+    );
     const myAttackers = state.ships.filter(
-      s => s.owner === this.playerId && !s.destroyed && canAttack(s),
+      s => s.owner === this.playerId && !s.destroyed && canAttack(s) && !committedAttackers.has(s.id),
     );
 
-    // Highlight valid enemy targets (only detected ones)
+    // Render queued attack lines (dimmer, dashed)
+    for (const queued of this.planningState.queuedAttacks) {
+      const target = queued.targetType === 'ordnance'
+        ? state.ordnance.find(o => o.id === queued.targetId)
+        : state.ships.find(s => s.id === queued.targetId);
+      if (!target) continue;
+      const targetPos = hexToPixel(target.position, HEX_SIZE);
+      for (const attackerId of queued.attackerIds) {
+        const attacker = state.ships.find(s => s.id === attackerId);
+        if (!attacker) continue;
+        const attackerPos = hexToPixel(attacker.position, HEX_SIZE);
+        ctx.strokeStyle = 'rgba(79, 195, 247, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(attackerPos.x, attackerPos.y);
+        ctx.lineTo(targetPos.x, targetPos.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      // Dim lock indicator on queued target
+      ctx.strokeStyle = 'rgba(255, 80, 80, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.arc(targetPos.x, targetPos.y, 15, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Highlight valid enemy targets (only detected ones, not already queued)
     for (const ship of state.ships) {
       if (ship.owner === this.playerId || ship.destroyed || ship.landed || !ship.detected) continue;
+      if (queuedTargetKeys.has(`ship:${ship.id}`)) continue;
       const hasShot = this.map !== null && myAttackers.some(attacker => hasLineOfSight(attacker, ship, this.map!));
       if (!hasShot) continue;
       const p = hexToPixel(ship.position, HEX_SIZE);
