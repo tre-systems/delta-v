@@ -2,7 +2,7 @@ import type { HexCoord, HexVec } from './hex';
 
 // --- Game state ---
 
-export type Phase = 'waiting' | 'astrogation' | 'ordnance' | 'movement' | 'combat' | 'resupply' | 'gameOver';
+export type Phase = 'waiting' | 'fleetBuilding' | 'astrogation' | 'ordnance' | 'movement' | 'combat' | 'resupply' | 'gameOver';
 
 export interface GameState {
   gameId: string;
@@ -65,6 +65,7 @@ export interface PlayerState {
   homeBody: string; // default home world / scenario identity
   bases: string[]; // hexKey[] for bases this player controls
   escapeWins: boolean; // true if this player wins by escaping the map
+  credits?: number; // MegaCredits remaining for fleet-building scenarios
 }
 
 // --- Movement ---
@@ -206,7 +207,12 @@ export interface OrbitalBaseEmplacement {
   shipId: string; // transport/packet carrying the base
 }
 
+export interface FleetPurchase {
+  shipType: string; // key into SHIP_STATS
+}
+
 export type C2S =
+  | { type: 'fleetReady'; purchases: FleetPurchase[] }
   | { type: 'astrogation'; orders: AstrogationOrder[] }
   | { type: 'ordnance'; launches: OrdnanceLaunch[] }
   | { type: 'emplaceBase'; emplacements: OrbitalBaseEmplacement[] }
@@ -252,4 +258,6 @@ export interface ScenarioDefinition {
   name: string;
   description: string;
   players: ScenarioPlayer[];
+  startingCredits?: number; // per-player starting MegaCredits for fleet-building scenarios
+  availableShipTypes?: string[]; // restricts purchasable ships (default: all non-orbital-base)
 }

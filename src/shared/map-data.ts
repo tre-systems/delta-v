@@ -395,6 +395,26 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
+  interplanetaryWar: {
+    name: 'Interplanetary War',
+    description: 'Build your fleet with MegaCredits — total war across the solar system',
+    startingCredits: 800,
+    availableShipTypes: ['transport', 'packet', 'tanker', 'corvette', 'corsair', 'frigate', 'dreadnaught', 'torch'],
+    players: [
+      {
+        ships: [],
+        targetBody: '',
+        homeBody: 'Mars',
+        escapeWins: false,
+      },
+      {
+        ships: [],
+        targetBody: '',
+        homeBody: 'Terra',
+        escapeWins: false,
+      },
+    ],
+  },
   fleetAction: {
     name: 'Fleet Action',
     description: 'Full fleet battle — corvettes, corsairs, and frigates clash',

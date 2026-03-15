@@ -1,8 +1,8 @@
 import { DurableObject } from 'cloudflare:workers';
-import type { GameState, C2S, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, OrbitalBaseEmplacement } from '../shared/types';
+import type { GameState, C2S, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, OrbitalBaseEmplacement, FleetPurchase } from '../shared/types';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../shared/constants';
-import { createGame, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat } from '../shared/game-engine';
+import { createGame, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat } from '../shared/game-engine';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -154,6 +154,9 @@ export class GameDO extends DurableObject {
     await this.touchInactivity();
 
     switch (msg.type) {
+      case 'fleetReady':
+        await this.handleFleetReady(playerId, ws, msg.purchases);
+        break;
       case 'astrogation':
         await this.handleAstrogation(playerId, ws, msg.orders);
         break;
@@ -313,6 +316,27 @@ export class GameDO extends DurableObject {
     await this.saveGameState(gameState);
     this.broadcastFiltered({ type: 'gameStart', state: gameState });
     await this.startTurnTimer(gameState);
+  }
+
+  private async handleFleetReady(playerId: number, ws: WebSocket, purchases: FleetPurchase[]) {
+    const gameState = await this.getGameState();
+    if (!gameState) return;
+
+    const map = getSolarSystemMap();
+    const scenarioName = await this.ctx.storage.get<string>('scenario') ?? 'biplanetary';
+    const scenario = SCENARIOS[scenarioName] ?? SCENARIOS.biplanetary;
+    const result = processFleetReady(gameState, playerId, purchases, map, scenario.availableShipTypes);
+
+    if ('error' in result) {
+      this.send(ws, { type: 'error', message: result.error });
+      return;
+    }
+
+    this.broadcastFiltered({ type: 'stateUpdate', state: result.state });
+    await this.saveGameState(result.state);
+    if (result.state.phase === 'astrogation') {
+      await this.startTurnTimer(result.state);
+    }
   }
 
   private async handleAstrogation(playerId: number, ws: WebSocket, orders: AstrogationOrder[]) {
