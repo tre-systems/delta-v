@@ -2017,10 +2017,12 @@ export class Renderer {
   private renderMinimap(ctx: CanvasRenderingContext2D, screenW: number, screenH: number) {
     if (!this.map || !this.gameState) return;
 
-    const mmW = 140;
-    const mmH = 140;
-    const mmX = screenW - mmW - 10;
-    const mmY = screenH - mmH - 10;
+    const isMobile = screenW < 600;
+    const mmW = isMobile ? 100 : 140;
+    const mmH = isMobile ? 100 : 140;
+    const mmX = 12;
+    // On mobile, position above the ship list / bottom HUD; on desktop, bottom-left
+    const mmY = isMobile ? 90 : screenH - mmH - 12;
     const mmPad = 8;
 
     // Background
