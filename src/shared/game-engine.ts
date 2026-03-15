@@ -124,6 +124,7 @@ export function createGame(
         fuel: stats?.fuel ?? 20,
         cargoUsed: 0,
         nukesLaunchedSinceResupply: 0,
+        resuppliedThisTurn: false,
         landed,
         destroyed: false,
         detected: true,
@@ -469,7 +470,7 @@ export function processCombat(
     }
 
     const target = state.ships.find(s => s.id === attack.targetId);
-    if (!target || target.owner === playerId || target.destroyed) {
+    if (!target || target.owner === playerId || target.destroyed || target.landed) {
       return { error: 'Invalid combat target' };
     }
     if (map && attackers.some(attacker => !hasLineOfSight(attacker, target, map))) {
@@ -570,6 +571,9 @@ export function processOrdnance(
     }
     if (ship.damage.disabledTurns > 0) {
       return { error: 'Disabled ships cannot launch ordnance' };
+    }
+    if (ship.resuppliedThisTurn) {
+      return { error: 'Ships cannot launch ordnance during a turn in which they resupply' };
     }
 
     const mass = ORDNANCE_MASS[launch.ordnanceType];
@@ -768,7 +772,9 @@ function checkOrdnanceDetonation(
       !ship.destroyed &&
       ship.id !== ord.sourceShipId &&
       (!isLaunchHex || ship.owner !== ord.owner) &&
-      hexEqual(ship.position, pathHex),
+      hexEqual(ship.position, pathHex) &&
+      // Landed ships are immune to mines and torpedoes but NOT nukes
+      (!ship.landed || ord.type === 'nuke'),
     );
     const contactedOrdnance = state.ordnance.filter(other =>
       other.id !== ord.id &&
@@ -879,7 +885,7 @@ function shouldEnterOrdnancePhase(state: GameState): boolean {
   // Check if player has ships capable of launching ordnance
   return state.ships.some(s =>
     s.owner === state.activePlayer && !s.destroyed && !s.landed &&
-    s.damage.disabledTurns === 0 &&
+    s.damage.disabledTurns === 0 && !s.resuppliedThisTurn &&
     hasOrdnanceCapacity(s),
   );
 }
@@ -921,6 +927,7 @@ function advanceTurn(state: GameState): void {
   for (const ship of state.ships) {
     if (ship.owner !== state.activePlayer) continue;
     if (ship.destroyed) continue;
+    ship.resuppliedThisTurn = false;
     if (ship.damage.disabledTurns > 0) {
       ship.damage.disabledTurns--;
     }
@@ -965,6 +972,7 @@ function hasManualCombatTargets(state: GameState, map: SolarSystemMap): boolean 
   if (state.ships.some(target =>
     target.owner !== state.activePlayer &&
     !target.destroyed &&
+    !target.landed &&
     attackers.some(attacker => hasLineOfSight(attacker, target, map)),
   )) {
     return true;
@@ -1094,8 +1102,8 @@ function checkRamming(
       const b = alive[j];
       if (a.owner === b.owner) continue;
       if (!hexEqual(a.position, b.position)) continue;
-      // Both landed ships at a base are not ramming
-      if (a.landed && b.landed) continue;
+      // Landed ships are immune to ramming
+      if (a.landed || b.landed) continue;
 
       // Ram! Both take Other Damage
       for (const ship of [a, b]) {
@@ -1131,6 +1139,7 @@ function applyResupply(ship: Ship, state: GameState, map: SolarSystemMap): void 
     ship.cargoUsed = 0; // restock ordnance
     ship.nukesLaunchedSinceResupply = 0;
     ship.damage = { disabledTurns: 0 };
+    ship.resuppliedThisTurn = true;
   }
 }
 

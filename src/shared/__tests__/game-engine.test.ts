@@ -1620,3 +1620,196 @@ describe('Edge cases', () => {
     expect(result.state.winReason).toContain('Mars');
   });
 });
+
+describe('landed ship immunity', () => {
+  it('rejects gun combat attacks against landed ships', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'LAND01', findBaseHex);
+    state.phase = 'combat';
+    state.activePlayer = 0;
+
+    const attacker = state.ships[0];
+    const target = state.ships[1];
+    attacker.landed = false;
+    target.landed = true;
+    attacker.position = { q: 0, r: 0 };
+    attacker.lastMovementPath = [{ q: 0, r: 0 }];
+    target.position = { q: 1, r: 0 };
+    target.lastMovementPath = [{ q: 1, r: 0 }];
+
+    const result = processCombat(state, 0, [
+      { attackerIds: [attacker.id], targetId: target.id },
+    ], openMap);
+
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('Invalid combat target');
+    }
+  });
+
+  it('landed ships are immune to mines', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'LAND02', findBaseHex);
+    state.activePlayer = 0;
+
+    const target = state.ships[1];
+    target.landed = true;
+    target.position = { q: 5, r: 0 };
+    target.lastMovementPath = [{ q: 5, r: 0 }];
+
+    // Place a mine that will move through the landed ship's hex
+    state.ordnance.push({
+      id: 'mine1',
+      type: 'mine',
+      owner: 0,
+      position: { q: 4, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+      turnsRemaining: 5,
+      destroyed: false,
+      pendingGravityEffects: [],
+    });
+
+    const attacker = state.ships[0];
+    attacker.landed = false;
+    attacker.position = { q: -10, r: 0 };
+    attacker.lastMovementPath = [{ q: -10, r: 0 }];
+    attacker.velocity = { dq: 0, dr: 0 };
+
+    const result = resolveAstrogationMovement(state, 0, [
+      { shipId: attacker.id, burn: null },
+    ]);
+
+    // Mine should not have hit the landed ship
+    expect(target.destroyed).toBe(false);
+    expect(target.damage.disabledTurns).toBe(0);
+  });
+
+  it('landed ships are NOT immune to nukes', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'LAND03', findBaseHex);
+    state.activePlayer = 0;
+
+    const target = state.ships[1];
+    target.landed = true;
+    target.position = { q: 5, r: 0 };
+    target.lastMovementPath = [{ q: 5, r: 0 }];
+
+    // Place a nuke that will move through the landed ship's hex
+    state.ordnance.push({
+      id: 'nuke1',
+      type: 'nuke',
+      owner: 0,
+      position: { q: 4, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+      turnsRemaining: 5,
+      destroyed: false,
+      pendingGravityEffects: [],
+    });
+
+    const attacker = state.ships[0];
+    attacker.landed = false;
+    attacker.position = { q: -10, r: 0 };
+    attacker.lastMovementPath = [{ q: -10, r: 0 }];
+    attacker.velocity = { dq: 0, dr: 0 };
+
+    const result = resolveAstrogationMovement(state, 0, [
+      { shipId: attacker.id, burn: null },
+    ]);
+
+    // Nuke should have destroyed the landed ship
+    expect(target.destroyed).toBe(true);
+  });
+
+  it('landed ships are immune to ramming', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'LAND04', findBaseHex);
+    state.phase = 'combat';
+    state.activePlayer = 0;
+
+    const attacker = state.ships[0];
+    const target = state.ships[1];
+    attacker.landed = false;
+    target.landed = true;
+    // Place both ships on the same hex (simulates post-movement overlap)
+    attacker.position = { q: 5, r: 0 };
+    attacker.lastMovementPath = [{ q: 4, r: 0 }, { q: 5, r: 0 }];
+    attacker.velocity = { dq: 1, dr: 0 };
+    target.position = { q: 5, r: 0 };
+    target.lastMovementPath = [{ q: 5, r: 0 }];
+
+    // Skip combat — ramming was already checked during movement
+    // Instead, test directly: put them on the same hex and use resolveAstrogationMovement
+    // Reset to astrogation phase to move the attacker through the target's hex
+    state.phase = 'astrogation';
+    attacker.position = { q: 4, r: 0 };
+    attacker.lastMovementPath = [{ q: 4, r: 0 }];
+
+    const result = resolveAstrogationMovement(state, 0, [
+      { shipId: attacker.id, burn: null },
+    ]);
+
+    // Landed target should be immune to ramming
+    expect(target.destroyed).toBe(false);
+    expect(target.damage.disabledTurns).toBe(0);
+    // Attacker also should not take ramming damage (ramming skipped entirely)
+    expect(attacker.destroyed).toBe(false);
+  });
+});
+
+describe('resupply restrictions', () => {
+  it('ships that resupply cannot attack in the same turn', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'RESUP01', findBaseHex);
+    state.phase = 'combat';
+    state.activePlayer = 0;
+
+    const attacker = state.ships[0];
+    const target = state.ships[1];
+    attacker.landed = false;
+    attacker.resuppliedThisTurn = true;
+    target.landed = false;
+    attacker.position = { q: 0, r: 0 };
+    attacker.lastMovementPath = [{ q: 0, r: 0 }];
+    target.position = { q: 1, r: 0 };
+    target.lastMovementPath = [{ q: 1, r: 0 }];
+
+    const result = processCombat(state, 0, [
+      { attackerIds: [attacker.id], targetId: target.id },
+    ], openMap);
+
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('Invalid attacker');
+    }
+  });
+
+  it('ships that resupply cannot launch ordnance in the same turn', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'RESUP02', findBaseHex);
+    state.phase = 'ordnance';
+    state.activePlayer = 0;
+    state.pendingAstrogationOrders = [];
+
+    const ship = state.ships[0];
+    ship.landed = false;
+    ship.resuppliedThisTurn = true;
+    ship.position = { q: 0, r: 0 };
+
+    const result = processOrdnance(state, 0, [
+      { shipId: ship.id, ordnanceType: 'mine' },
+    ], openMap);
+
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('resupply');
+    }
+  });
+
+  it('resupply flag is cleared on next turn', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'RESUP03', findBaseHex);
+    state.phase = 'combat';
+    state.activePlayer = 0;
+
+    const ship = state.ships[0];
+    ship.resuppliedThisTurn = true;
+
+    // Skip combat to advance turn
+    const result = skipCombat(state, 0, openMap);
+    expect('error' in result).toBe(false);
+    expect(ship.resuppliedThisTurn).toBe(false);
+  });
+});
