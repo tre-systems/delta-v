@@ -35,6 +35,10 @@ export interface Ship {
   landed: boolean;
   destroyed: boolean;
   detected: boolean; // true if within detection range of opponent's ships/bases
+  captured?: boolean; // true if captured by enemy — cannot fire/attack until base resupply
+  heroismAvailable?: boolean; // one-time +1 attack bonus from surviving unfavorable odds
+  carryingOrbitalBase?: boolean; // transport/packet carrying an unemplaced orbital base
+  emplaced?: boolean; // true for orbital bases that have been placed (stationary, cannot move)
   hasFugitives?: boolean; // Escape scenario: true if this transport carries the fugitives (hidden from opponent)
   pendingGravityEffects?: GravityEffect[]; // gravity entered last turn that applies this turn
   damage: {
@@ -186,20 +190,26 @@ export interface CombatResult {
 // --- Movement events (asteroid hazards, etc.) ---
 
 export interface MovementEvent {
-  type: 'asteroidHit' | 'crash' | 'ramming' | 'mineDetonation' | 'torpedoHit' | 'nukeDetonation';
+  type: 'asteroidHit' | 'crash' | 'ramming' | 'mineDetonation' | 'torpedoHit' | 'nukeDetonation' | 'capture';
   shipId: string;
   hex: HexCoord;
   dieRoll: number;
-  damageType: 'none' | 'disabled' | 'eliminated';
+  damageType: 'none' | 'disabled' | 'eliminated' | 'captured';
   disabledTurns: number;
   ordnanceId?: string;
+  capturedBy?: string; // id of the capturing ship
 }
 
 // --- Network messages ---
 
+export interface OrbitalBaseEmplacement {
+  shipId: string; // transport/packet carrying the base
+}
+
 export type C2S =
   | { type: 'astrogation'; orders: AstrogationOrder[] }
   | { type: 'ordnance'; launches: OrdnanceLaunch[] }
+  | { type: 'emplaceBase'; emplacements: OrbitalBaseEmplacement[] }
   | { type: 'skipOrdnance' }
   | { type: 'beginCombat' }
   | { type: 'combat'; attacks: CombatAttack[] }

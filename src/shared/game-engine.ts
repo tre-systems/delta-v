@@ -1,10 +1,11 @@
 import type {
   GameState, Ship, Ordnance, AstrogationOrder, OrdnanceLaunch,
+  OrbitalBaseEmplacement,
   ShipMovement, OrdnanceMovement, SolarSystemMap,
   ScenarioDefinition, CombatAttack, CombatResult, MovementEvent,
 } from './types';
 import { applyPendingGravityEffects, collectEnteredGravityEffects, computeCourse } from './movement';
-import { SHIP_STATS, ORDNANCE_MASS, ORDNANCE_LIFETIME, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from './constants';
+import { SHIP_STATS, ORDNANCE_MASS, ORDNANCE_LIFETIME, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE, ORBITAL_BASE_MASS } from './constants';
 import { hexKey, hexVecLength, hexDistance, hexAdd, hexSubtract, hexLineDraw, HEX_DIRECTIONS, hexEqual } from './hex';
 import {
   resolveCombat, resolveBaseDefense, canAttack, hasLineOfSight, hasLineOfSightToTarget,
@@ -241,6 +242,9 @@ function validateAstrogationOrders(
     if (!ship || ship.owner !== playerId || ship.destroyed) {
       return 'Invalid ship for astrogation order';
     }
+    if (ship.emplaced) {
+      return 'Emplaced orbital bases cannot move';
+    }
 
     const isDisabled = ship.damage.disabledTurns > 0;
     const burn = isDisabled ? null : order.burn;
@@ -290,6 +294,7 @@ function resolveMovementPhase(
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
     if (ship.destroyed) continue;
+    if (ship.emplaced) continue; // emplaced orbital bases are stationary
 
     const isDisabled = ship.damage.disabledTurns > 0;
     const order = queuedOrders.get(ship.id);
@@ -348,6 +353,8 @@ function resolveMovementPhase(
     }
   }
 
+  checkOrbitalBaseResupply(state, playerId);
+  checkCapture(state, playerId, events);
   checkRamming(state, events, rng);
   moveOrdnance(state, map, ordnanceMovements, events, rng);
   updateDetection(state, map);
@@ -583,6 +590,9 @@ export function processOrdnance(
     if (ship.damage.disabledTurns > 0) {
       return { error: 'Disabled ships cannot launch ordnance' };
     }
+    if (ship.captured) {
+      return { error: 'Captured ships cannot launch ordnance' };
+    }
     if (ship.resuppliedThisTurn) {
       return { error: 'Ships cannot launch ordnance during a turn in which they resupply' };
     }
@@ -598,8 +608,12 @@ export function processOrdnance(
       return { error: 'Insufficient cargo capacity' };
     }
 
-    if (launch.ordnanceType === 'torpedo' && !stats.canOverload) {
-      return { error: 'Only warships can launch torpedoes' };
+    // Orbital bases can only launch torpedoes (one per turn)
+    if (ship.type === 'orbitalBase' && launch.ordnanceType !== 'torpedo') {
+      return { error: 'Orbital bases can only launch torpedoes' };
+    }
+    if (launch.ordnanceType === 'torpedo' && !stats.canOverload && ship.type !== 'orbitalBase') {
+      return { error: 'Only warships and orbital bases can launch torpedoes' };
     }
     if (launch.ordnanceType === 'nuke' && !stats.canOverload && (ship.nukesLaunchedSinceResupply ?? 0) >= 1) {
       return { error: 'Non-warships may carry only one nuke between resupplies' };
@@ -657,6 +671,78 @@ export function processOrdnance(
   }
 
   return resolveMovementPhase(state, playerId, map, rng);
+}
+
+/**
+ * Emplace orbital bases from carrying ships during the ordnance phase.
+ * The carrying ship must be in orbit (in a gravity hex, speed 1) or on a world hex side.
+ * Creates a new emplaced orbital base ship at the carrier's position.
+ */
+export function processEmplacement(
+  state: GameState,
+  playerId: number,
+  emplacements: OrbitalBaseEmplacement[],
+  map: SolarSystemMap,
+): StateUpdateResult | { error: string } {
+  if (state.phase !== 'ordnance') {
+    return { error: 'Not in ordnance phase' };
+  }
+  if (playerId !== state.activePlayer) {
+    return { error: 'Not your turn' };
+  }
+
+  for (const emp of emplacements) {
+    const ship = state.ships.find(s => s.id === emp.shipId);
+    if (!ship || ship.owner !== playerId || ship.destroyed) {
+      return { error: 'Invalid ship for emplacement' };
+    }
+    if (!ship.carryingOrbitalBase) {
+      return { error: 'Ship is not carrying an orbital base' };
+    }
+    if (ship.type !== 'transport' && ship.type !== 'packet') {
+      return { error: 'Only transports and packets can carry orbital bases' };
+    }
+    if (ship.resuppliedThisTurn) {
+      return { error: 'Cannot emplace during a resupply turn' };
+    }
+
+    // Must be in orbit (in a gravity hex at speed 1) or on a world hex side
+    const posKey = hexKey(ship.position);
+    const hex = map.hexes.get(posKey);
+    const speed = hexVecLength(ship.velocity);
+    const inOrbit = hex?.gravity && speed === 1;
+    const onWorldSide = hex?.gravity && ship.landed;
+
+    if (!inOrbit && !onWorldSide) {
+      return { error: 'Must be in orbit or on a world hex side to emplace an orbital base' };
+    }
+
+    // Create the emplaced orbital base as a new ship
+    const baseId = `ob${state.ships.length}`;
+    const newBase: Ship = {
+      id: baseId,
+      type: 'orbitalBase',
+      owner: playerId,
+      position: { ...ship.position },
+      velocity: { ...ship.velocity },
+      fuel: Infinity,
+      cargoUsed: 0,
+      resuppliedThisTurn: false,
+      landed: false,
+      destroyed: false,
+      detected: true,
+      emplaced: true,
+      pendingGravityEffects: [],
+      damage: { disabledTurns: 0 },
+    };
+    state.ships.push(newBase);
+
+    // Remove orbital base from carrier
+    ship.carryingOrbitalBase = false;
+    ship.cargoUsed = Math.max(0, ship.cargoUsed - ORBITAL_BASE_MASS);
+  }
+
+  return { state };
 }
 
 /**
@@ -937,7 +1023,7 @@ function shouldEnterOrdnancePhase(state: GameState): boolean {
   // Check if player has ships capable of launching ordnance
   return state.ships.some(s =>
     s.owner === state.activePlayer && !s.destroyed && !s.landed &&
-    s.damage.disabledTurns === 0 && !s.resuppliedThisTurn &&
+    s.damage.disabledTurns === 0 && !s.resuppliedThisTurn && !s.captured &&
     hasOrdnanceCapacity(s),
   );
 }
@@ -1154,8 +1240,9 @@ function checkRamming(
       const b = alive[j];
       if (a.owner === b.owner) continue;
       if (!hexEqual(a.position, b.position)) continue;
-      // Landed ships are immune to ramming
+      // Landed or captured ships are immune to ramming
       if (a.landed || b.landed) continue;
+      if (a.captured || b.captured) continue;
 
       // Ram! Both take Other Damage
       for (const ship of [a, b]) {
@@ -1177,6 +1264,79 @@ function checkRamming(
 }
 
 /**
+ * Check for capture: when the moving player's ship ends on the same hex
+ * with the same velocity as a disabled enemy ship, that ship is captured.
+ * Captured ships switch owner but cannot act until resupplied at a friendly base.
+ */
+function checkCapture(
+  state: GameState,
+  playerId: number,
+  events: MovementEvent[],
+): void {
+  const playerShips = state.ships.filter(s =>
+    s.owner === playerId && !s.destroyed && !s.landed && s.damage.disabledTurns === 0,
+  );
+
+  for (const captor of playerShips) {
+    for (const target of state.ships) {
+      if (target.owner === playerId || target.destroyed) continue;
+      if (target.damage.disabledTurns <= 0) continue; // must be disabled
+      if (target.captured) continue; // already captured
+      if (!hexEqual(captor.position, target.position)) continue;
+      if (captor.velocity.dq !== target.velocity.dq || captor.velocity.dr !== target.velocity.dr) continue;
+
+      // Capture! Transfer ownership
+      target.captured = true;
+      target.owner = playerId;
+
+      events.push({
+        type: 'capture',
+        shipId: target.id,
+        hex: target.position,
+        dieRoll: 0,
+        damageType: 'captured',
+        disabledTurns: 0,
+        capturedBy: captor.id,
+      });
+    }
+  }
+}
+
+/**
+ * Check if any moving player's ships can resupply from friendly emplaced orbital bases.
+ * A ship resupplies from an orbital base if they share the same position and velocity.
+ * The orbital base cannot fire or launch ordnance on turns when it resupplies.
+ */
+function checkOrbitalBaseResupply(state: GameState, playerId: number): void {
+  const orbitalBases = state.ships.filter(s =>
+    s.owner === playerId && !s.destroyed && s.emplaced && s.type === 'orbitalBase',
+  );
+
+  for (const ship of state.ships) {
+    if (ship.owner !== playerId || ship.destroyed || ship.emplaced) continue;
+    if (ship.resuppliedThisTurn) continue; // already resupplied at a landing base
+
+    for (const ob of orbitalBases) {
+      if (!hexEqual(ship.position, ob.position)) continue;
+      if (ship.velocity.dq !== ob.velocity.dq || ship.velocity.dr !== ob.velocity.dr) continue;
+
+      // Resupply from orbital base
+      const stats = SHIP_STATS[ship.type];
+      if (stats) {
+        ship.fuel = stats.fuel;
+        ship.cargoUsed = 0;
+        ship.nukesLaunchedSinceResupply = 0;
+        ship.damage = { disabledTurns: 0 };
+        ship.captured = false;
+        ship.resuppliedThisTurn = true;
+        ob.resuppliedThisTurn = true; // orbital base can't fire this turn
+      }
+      break;
+    }
+  }
+}
+
+/**
  * Resupply a ship that has landed at a base.
  */
 function applyResupply(ship: Ship, state: GameState, map: SolarSystemMap): void {
@@ -1191,6 +1351,7 @@ function applyResupply(ship: Ship, state: GameState, map: SolarSystemMap): void 
     ship.cargoUsed = 0; // restock ordnance
     ship.nukesLaunchedSinceResupply = 0;
     ship.damage = { disabledTurns: 0 };
+    ship.captured = false; // base maintenance clears captured status
     ship.resuppliedThisTurn = true;
   }
 }

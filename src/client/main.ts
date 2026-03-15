@@ -11,7 +11,7 @@ import {
 } from '../shared/combat';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
-import { createGame, processAstrogation, processOrdnance, skipOrdnance, beginCombatPhase, processCombat, skipCombat, type MovementResult } from '../shared/game-engine';
+import { createGame, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat, type MovementResult } from '../shared/game-engine';
 import { aiAstrogation, aiOrdnance, aiCombat, type AIDifficulty } from '../shared/ai';
 import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
@@ -79,6 +79,7 @@ class GameClient {
     this.ui.onUndo = () => this.undoSelectedShipBurn();
     this.ui.onConfirm = () => this.confirmOrders();
     this.ui.onLaunchOrdnance = (ordType) => this.sendOrdnanceLaunch(ordType);
+    this.ui.onEmplaceBase = () => this.sendEmplaceBase();
     this.ui.onSkipOrdnance = () => this.sendSkipOrdnance();
     this.ui.onAttack = () => this.queueAttack();
     this.ui.onFireAll = () => this.fireAllAttacks();
@@ -874,6 +875,35 @@ class GameClient {
     }
   }
 
+  private sendEmplaceBase() {
+    if (!this.gameState || this.state !== 'playing_ordnance') return;
+    const selectedId = this.renderer.planningState.selectedShipId;
+    if (!selectedId) {
+      this.ui.showToast('Select a ship first', 'info');
+      return;
+    }
+    const ship = this.gameState.ships.find(s => s.id === selectedId);
+    if (!ship || !ship.carryingOrbitalBase) {
+      this.ui.showToast('Ship is not carrying an orbital base', 'error');
+      return;
+    }
+
+    if (this.isLocalGame) {
+      const result = processEmplacement(this.gameState, this.playerId, [{ shipId: selectedId }], this.map);
+      if ('error' in result) {
+        this.ui.showToast(result.error, 'error');
+        return;
+      }
+      this.gameState = result.state;
+      this.renderer.setGameState(this.gameState);
+      this.input.setGameState(this.gameState);
+      this.ui.showToast('Orbital base emplaced!', 'success');
+      this.updateHUD();
+    } else {
+      this.send({ type: 'emplaceBase', emplacements: [{ shipId: selectedId }] });
+    }
+  }
+
   private sendSkipOrdnance() {
     if (!this.gameState || this.state !== 'playing_ordnance') return;
     if (this.isLocalGame) {
@@ -1317,6 +1347,7 @@ class GameClient {
       : player?.targetBody
         ? `⬡ Land on ${player.targetBody}`
         : '⬡ Destroy all enemies';
+    const canEmplaceBase = selectedShip?.carryingOrbitalBase === true && !selectedShip.destroyed && !selectedShip.resuppliedThisTurn;
     this.ui.updateHUD(
       this.gameState.turnNumber,
       this.gameState.phase,
@@ -1328,6 +1359,7 @@ class GameClient {
       cargoMax,
       objective,
       stats?.canOverload ?? false,
+      canEmplaceBase,
     );
     // Update latency display (multiplayer only)
     const latencyEl = document.getElementById('latencyInfo')!;
