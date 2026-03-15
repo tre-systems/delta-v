@@ -13,22 +13,33 @@ This implementation renders the game as a smooth, continuous-space experience �
 Following the patterns established in Pongo, the stack is:
 
 ```
-lobby-worker/          Cloudflare Worker — HTTP routing, game creation, invite codes
-  ├── src/             Worker source (TypeScript)
-  ├── index.html       Single-page app shell
-  ├── style.css        Styles
-  └── client.ts        Client-side game logic, rendering, WebSocket handling
+src/
+  server/
+    index.ts           Cloudflare Worker — HTTP routing (/create, /ws/:code)
+    game-do.ts         Durable Object — authoritative game state, WebSocket plumbing
 
-game-do/               Cloudflare Durable Object — authoritative game state per match
-  └── src/             DO source (TypeScript)
+  client/
+    main.ts            Client state machine, WebSocket handling, AI turn runner
+    renderer.ts        Canvas rendering, camera, animations, trails, minimap
+    input.ts           Mouse/touch/keyboard input, burn direction selection
+    ui.ts              DOM overlays (menu, HUD, game log, game over)
+    audio.ts           Procedural sound effects (Web Audio API)
+    tutorial.ts        Phase-based tutorial tips for new players
 
-shared/                Shared types, constants, hex math, game rules
-  └── src/
-      ├── types.ts     Ship types, game state, messages
-      ├── hex.ts       Hex coordinate math (axial coordinates)
-      ├── movement.ts  Vector movement, gravity, course prediction
-      ├── combat.ts    Gun combat, ordnance, damage tables
-      └── rules.ts     Game constants, ship stats, scenario definitions
+  shared/
+    types.ts           All interfaces (Ship, GameState, messages, map types)
+    hex.ts             Hex math (axial coords, line draw, pixel conversion)
+    movement.ts        Vector movement, gravity, crash/landing/takeoff
+    combat.ts          Gun combat, counterattack, odds, line of sight
+    game-engine.ts     Pure game logic (createGame, processAstrogation, etc.)
+    constants.ts       Ship stats, ordnance mass, detection ranges, timing
+    map-data.ts        Solar system bodies, gravity rings, bases, scenarios
+    ai.ts              AI opponent (astrogation, ordnance, combat decisions)
+
+static/
+  index.html           Single-page app shell
+  style.css            Styles
+  favicon.svg          App icon
 ```
 
 **Why TypeScript instead of Rust/WASM:** The game is turn-based with no real-time simulation loop needed on the server. TypeScript runs natively on Cloudflare Workers and simplifies the stack considerably. Canvas rendering on the client is more than sufficient for animating ship movements between turns.
@@ -334,209 +345,171 @@ The document above is the canonical rules reference. The current online implemen
 - **Logistics:** capture, surrender, looting, rescue, fuel transfer, cargo handling beyond simple ordnance mass, heroism, dummy counters, and broader hidden-movement rules remain unfinished.
 - **Optional systems:** the advanced combat system from the rulebook is still out of scope and would need an explicit design decision before implementation.
 
-## Scenarios (Implementation Priority)
+## Scenarios
 
-### Phase 1: Bi-Planetary (Learning Scenario)
+Six scenarios are implemented, selectable from the menu:
 
-The simplest scenario — perfect for initial implementation.
+### Bi-Planetary (Learning Scenario)
 
 - **Players:** 2
 - **Setup:** Player 1 starts with a corvette on Mars. Player 2 starts with a corvette on Venus.
-- **Goal:** Navigate to the other player's starting world and land. First to do it wins. Fewest turns breaks ties.
-- **Map subset:** Can use the full map or a trimmed version focusing on Mars–Venus corridor
-- **No combat needed** (though ships may encounter each other)
+- **Goal:** Navigate to the other player's starting world and land.
 - **Teaches:** Vector movement, fuel management, gravity assists, orbital mechanics
 
-### Phase 2: Escape (Short 2-Player)
+### Escape (Asymmetric)
 
-Asymmetric scenario with combat:
 - Pilgrims (3 transports from Terra) vs. Enforcers (1 corvette orbiting Terra, 1 corsair orbiting Venus)
 - Pilgrims must escape the solar system; Enforcers must stop them
-- Introduces combat, hidden ship identity (which transport carries the fugitives?)
+- Hidden identity: one transport carries the fugitives (opponent doesn't know which)
+- Server strips the `hasFugitives` flag from opponent state
 
-### Phase 3: Interplanetary War (Full 2-Player)
+### Convoy (Escort Mission)
 
-The full experience:
-- Fleet building with MegaCredits budget
-- Multiple ship types, ordnance, bases
+- Escort (1 tanker + 1 corsair from Mars) vs. Pirates (2 corsairs near asteroid belt)
+- Escort must get the tanker to Venus; pirates must stop it
+
+### Duel (Combat Training)
+
+- 2 frigates near Mercury — last ship standing wins
+- Teaches: combat, ordnance, gravity combat maneuvers
+
+### Blockade Runner
+
+- 1 packet ship vs. 1 dreadnaught — packet must reach Mars
+- Asymmetric: speed and agility vs. raw firepower
+
+### Fleet Action
+
+- 3v3 fleet battle: each side has a frigate, corsair, and corvette
+- Full combined-arms engagement
+
+### Not Yet Implemented: Interplanetary War
+
+The full experience with fleet building:
+- MegaCredit economy and ship purchasing
+- Fleet building UI
 - Economic + military objectives
-- Full map with all celestial bodies
 
 ## Rendering
 
 ### Visual Style
 
-- **Dark space background** with subtle star field
+- **Dark space background** with procedural star field
 - **No hex grid lines** — space is rendered as continuous
-- **Celestial bodies** rendered as stylized circles/spheres with appropriate colors and relative sizes
-- **Gravity wells** visualized as subtle radial gradients or faint concentric rings around planets (not hex-shaped)
-- **Ships** rendered as small directional icons/sprites with team colors
-- **Velocity vectors** shown as arrows from ship's current position through to predicted next-turn position
-- **Fuel burns** shown as a bright thrust indicator at the base of the vector
+- **Celestial bodies** rendered as stylized circles with appropriate colors and relative sizes
+- **Gravity indicators** shown as subtle directional arrows in gravity hexes
+- **Ships** rendered as directional arrow icons with team colors (blue/orange)
+- **Velocity vectors** shown as dashed arrows from ship position through predicted destination
+- **Movement trails** — persistent faint lines showing historical ship paths (like pen marks on a Delta-V whiteboard), visible on main map and minimap
+- **Detection ranges** shown as faint circles around own ships/bases
+- **Ship tooltips** on hover showing stats (fuel, cargo, velocity, damage)
 
 ### Animations
 
 Since the game is turn-based, animations play during the Movement Phase to show what happened:
 
 1. **Course planning (interactive):**
-   - Player drags/clicks to set fuel burns
-   - Predicted course updates in real-time with a dotted line
-   - Ghost ship appears at predicted destination
-   - Gravity deflections shown as subtle bends in the predicted path
+   - Click ship, then click direction arrow or press 1-6 to set burn
+   - Predicted course updates in real-time with a dashed line
+   - Ghost ship icon at predicted destination with fuel cost display
+   - Gravity deflections shown in the predicted path
 
-2. **Movement animation (after both players confirm):**
-   - Ships glide smoothly along their course vectors over ~2 seconds
-   - Thrust burns shown as engine glow / particle trail at the ship
-   - Gravity deflections shown as a smooth curve (not a sharp bend) — the straight-line hex path is interpolated into a gentle arc for visual appeal
-   - Ordnance (torpedoes, mines) also animate along their paths
-   - Collisions / detonations trigger explosion effects
+2. **Movement animation (after confirm):**
+   - Ships glide smoothly along their course vectors (~1.5 seconds)
+   - Thrust trail rendered behind moving ships
+   - Ordnance (torpedoes, mines, nukes) also animate along their paths
+   - Movement events (ramming, mine/torpedo hits, asteroid hazards) shown as hex flashes with toast notifications
 
 3. **Combat animation:**
-   - Attacking ship flashes / highlights
-   - Beam/projectile line drawn from attacker to target
-   - Die roll displayed briefly
-   - Damage result shown (shield flash for miss, red flash + damage number for hit, explosion for eliminated)
+   - Beam line drawn from attacker to target (colored by attacker type)
+   - Hex flash at target location (red for hit, white for miss)
+   - Combat results toast showing odds, roll, and outcome
+   - Explosion effect for eliminated ships
 
 4. **Orbit visualization:**
-   - Ships in orbit shown with a subtle circular path indicator
-   - Smooth orbital motion if orbiting between turns
+   - Ships at speed-1 in gravity hexes show a rotating arc indicator and "O" label
+   - Orbit is emergent (not a special state), visualized when conditions are met
+
+5. **Phase banners:**
+   - Brief centered text overlay when phases transition (e.g., "MOVEMENT", "COMBAT")
 
 ### Camera / Viewport
 
-- **Pannable and zoomable** map (touch + mouse + scroll wheel)
-- **Zoom range:** from full solar system overview to close-up on individual ships
-- **Auto-frame:** camera smoothly pans to show relevant action during animations
-- **Minimap** (optional) in corner showing full map with ship positions highlighted
+- **Pannable and zoomable** map (drag to pan, scroll wheel to zoom, trackpad pinch-to-zoom)
+- **Keyboard controls:** WASD/arrows to pan, +/- to zoom
+- **Zoom range:** 0.15x to 4.0x with smooth lerp interpolation
+- **Auto-frame:** camera smoothly pans to show relevant action during movement animations
+- **Minimap** in bottom-right corner showing celestial bodies, ship positions, trails, and viewport indicator
 
 ### Canvas Rendering
 
-Use HTML5 Canvas 2D for rendering:
-- Layered rendering: background stars → gravity well indicators → celestial bodies → course arrows → ships → UI overlays
-- Ship icons as pre-rendered sprites or simple geometric shapes
-- Smooth interpolation (requestAnimationFrame) for all animations
-- Touch-friendly: large tap targets for ships, pinch-to-zoom
+HTML5 Canvas 2D with layered rendering:
+- Background stars → asteroid hexes → gravity indicators → celestial bodies → base markers → detection ranges → trails → course vectors → ordnance → ships → combat effects → UI overlays
+- Simple geometric ship icons (directional arrows)
+- 60fps rendering via requestAnimationFrame with delta-time camera lerp
+- Touch-friendly: pinch-to-zoom, drag to pan
 
 ## Client-Side State Machine
 
 ```
-MENU
-  ├── CREATE_GAME → WAITING_FOR_OPPONENT
-  └── JOIN_GAME  → CONNECTING
-                      └── WAITING_FOR_OPPONENT
+menu
+  ├── Create Game → connecting → waitingForOpponent
+  ├── Join Game   → connecting → waitingForOpponent
+  └── Play vs AI  → (scenario select) → playing_astrogation (local game)
 
-WAITING_FOR_OPPONENT → SETUP (when both players connected)
+waitingForOpponent → playing_astrogation (when both connected)
 
-SETUP → PLAYING (scenario-specific setup complete)
+playing_astrogation   → playing_ordnance (after confirm)
+playing_ordnance      → playing_movementAnim (after movement resolves)
+playing_movementAnim  → playing_combat (animation complete)
+playing_combat        → playing_opponentTurn (after combat/skip)
+playing_opponentTurn  → playing_astrogation (when opponent's turn completes)
 
-PLAYING (repeating cycle):
-  ├── MY_TURN
-  │   ├── ASTROGATION    (planning movement for all ships)
-  │   ├── ORDNANCE       (choosing ordnance launches)
-  │   ├── MOVEMENT_ANIM  (watching movement resolve)
-  │   ├── COMBAT         (choosing attacks, seeing results)
-  │   └── RESUPPLY       (managing bases)
-  └── OPPONENT_TURN
-      └── WAITING        (opponent is planning)
-      └── MOVEMENT_ANIM  (watching opponent's turn resolve)
-      └── COMBAT_ANIM    (seeing opponent's combat results)
+Any playing state → gameOver (victory/defeat condition met)
 
-PLAYING → GAME_OVER (victory/defeat condition met)
-
-GAME_OVER
-  ├── REMATCH → SETUP
-  └── EXIT → MENU
+gameOver
+  ├── Rematch → playing_astrogation
+  └── Exit → menu
 ```
+
+Note: resupply is handled automatically at the start of each turn (no player interaction needed). The AI opponent uses the same state machine, executing its turn during `playing_opponentTurn`.
 
 ## Network Protocol
 
-Binary messages using a simple serialization format (MessagePack or a custom binary protocol). Since the game is turn-based, message frequency is low — JSON would also work fine. Prefer JSON for simplicity unless message size becomes an issue.
+JSON messages over WebSocket. The game is turn-based so message frequency is low.
 
 ### Client → Server (C2S)
 
 ```typescript
 type C2S =
-  | { type: 'join'; code: string }
-  | { type: 'ready' }                                    // Player ready after setup
-  | { type: 'astrogation'; orders: AstrogationOrder[] }  // Movement orders for all ships
-  | { type: 'ordnance'; launches: OrdnanceLaunch[] }     // Ordnance launches
-  | { type: 'combat'; attacks: CombatAttack[] }          // Attack declarations
-  | { type: 'resupply'; actions: ResupplyAction[] }      // Base resupply actions
-  | { type: 'endPhase' }                                 // Confirm end of current phase
-  | { type: 'rematch' }                                  // Request rematch
-  | { type: 'ping'; t: number }                          // Latency measurement
-
-interface AstrogationOrder {
-  shipId: string
-  burn: HexDirection | null    // null = no burn, otherwise one of 6 directions
-  overload: HexDirection | null // second burn direction (warships only, costs 2 fuel)
-}
-
-interface OrdnanceLaunch {
-  shipId: string
-  ordnanceType: 'mine' | 'torpedo' | 'nuke'
-  // Torpedoes need initial acceleration direction(s)
-  torpedoAccel?: HexDirection[]
-}
-
-interface CombatAttack {
-  attackerIds: string[]   // Can be multiple ships attacking together
-  targetId: string
-  strength?: number       // Optional: limited attack (less than full strength)
-}
-
-interface ResupplyAction {
-  shipId: string
-  action: 'refuel' | 'repair' | 'loadOrdnance' | 'loadCargo' | 'unloadCargo'
-  item?: string
-  quantity?: number
-}
+  | { type: 'astrogation'; orders: AstrogationOrder[] }
+  | { type: 'ordnance'; launches: OrdnanceLaunch[] }
+  | { type: 'skipOrdnance' }
+  | { type: 'beginCombat' }
+  | { type: 'combat'; attacks: CombatAttack[] }
+  | { type: 'skipCombat' }
+  | { type: 'rematch' }
+  | { type: 'ping'; t: number }
 ```
 
 ### Server → Client (S2C)
 
 ```typescript
 type S2C =
-  | { type: 'welcome'; playerId: number }
+  | { type: 'welcome'; playerId: number; code: string }
   | { type: 'matchFound' }
-  | { type: 'gameSetup'; scenario: ScenarioConfig; initialState: GameState }
-  | { type: 'phaseStart'; phase: Phase; activePlayer: number }
-  | { type: 'movementResult'; movements: ShipMovement[]; events: MovementEvent[] }
-  | { type: 'combatResult'; combats: CombatResolution[] }
-  | { type: 'stateUpdate'; state: GameState }            // Full state sync
+  | { type: 'gameStart'; state: GameState }
+  | { type: 'movementResult'; movements: ShipMovement[]; ordnanceMovements: OrdnanceMovement[]; events: MovementEvent[]; state: GameState }
+  | { type: 'combatResult'; results: CombatResult[]; state: GameState }
+  | { type: 'stateUpdate'; state: GameState }
   | { type: 'gameOver'; winner: number; reason: string }
+  | { type: 'rematchPending' }
   | { type: 'opponentDisconnected' }
   | { type: 'error'; message: string }
   | { type: 'pong'; t: number }
-
-interface ShipMovement {
-  shipId: string
-  from: HexCoord
-  to: HexCoord
-  path: HexCoord[]          // Intermediate hexes for animation
-  gravityDeflections: GravityDeflection[]
-  thrustBurn: HexDirection | null
-}
-
-interface MovementEvent {
-  type: 'crash' | 'asteroidHit' | 'ram' | 'mineDetonation' | 'torpedoHit' | 'nukeDetonation'
-  location: HexCoord
-  affectedShips: string[]
-  dieRoll: number
-  result: DamageResult
-}
-
-interface CombatResolution {
-  attackerIds: string[]
-  targetId: string
-  odds: string              // e.g., "2:1"
-  rangeMod: number
-  velocityMod: number
-  dieRoll: number
-  modifiedRoll: number
-  result: DamageResult
-  counterattack?: CombatResolution
-}
 ```
+
+All game-mutating messages include the full updated `GameState`. For hidden-information scenarios, the server filters state per player (e.g., stripping `hasFugitives` from opponent ships). See `src/shared/types.ts` for complete interface definitions.
 
 ## Game State
 
@@ -796,35 +769,42 @@ interface ScenarioPlayer {
 - [x] Complete solar system map (all planets, moons, asteroid belt)
 - [ ] MegaCredit economy and ship purchasing
 - [ ] Fleet building UI
-- [x] Full ship roster (all 9 types + orbital bases)
+- [x] Full ship roster (all 9 types; orbital bases not yet a placeable unit)
 - [x] Base mechanics (planetary defense, resupply, landing/takeoff)
-- [ ] Orbit mechanics
+- [x] Orbit mechanics (emergent from speed-1 in gravity hex; visual indicator implemented)
+- [ ] Orbital bases (carrying, emplacing, torpedo launching)
 - [ ] Advanced features: looting, capture, surrender, heroism
 - [x] Nukes
 - [x] Detection / fog of war
-- [ ] Minimap for full solar system navigation
+- [x] Minimap with ship positions, trails, and viewport indicator
+- [x] Additional scenarios: Convoy, Duel, Blockade Runner, Fleet Action
 
 ### Milestone 4: Polish
 
-- [ ] Sound effects (thrust, explosions, ambient space)
+- [x] Sound effects (procedural Web Audio: thrust, combat, explosions, phase changes)
+- [x] AI opponent (single-player vs AI with Easy/Normal/Hard difficulty)
+- [x] Reconnection handling (WebSocket reconnect with player-slot persistence)
+- [x] Turn timer (2-minute timeout with 30-second warning)
+- [x] Tutorial system (phase-based tips for new players)
+- [x] Ship movement trails (persistent path history on map and minimap)
+- [x] Multi-target combat UI (queue multiple attack declarations per phase)
 - [ ] Improved animations (particle effects for thrust, gravity lensing)
 - [ ] Turn history replay
 - [ ] Spectator mode
-- [ ] Game state persistence (resume interrupted games)
-- [ ] Reconnection handling
+- [ ] Game state persistence (resume interrupted games across sessions)
 - [ ] Performance optimization for mobile
 - [ ] PWA support (installable, offline-capable menu)
 
 ## Open Questions
 
-1. **Map authoring:** The original hex map needs to be digitized into our coordinate system. Should we trace the original map image as a reference layer, or build from astronomical data?
+1. ~~**Map authoring:**~~ **Resolved.** Map manually authored in hex coordinates, tracing the physical Delta-V board layout.
 
-2. **Simultaneous vs. alternating turns:** The board game alternates player turns. Should we offer a simultaneous-movement variant for online play (both players submit orders, then all ships move at once)? This would reduce waiting time but changes game dynamics.
+2. **Simultaneous vs. alternating turns:** The board game alternates player turns. A simultaneous-movement variant could reduce waiting time but would change game dynamics significantly. Currently uses alternating turns.
 
-3. **AI opponent:** Should we implement a simple AI for single-player practice? The Bi-Planetary scenario would be straightforward to AI (gravity-assist pathfinding).
+3. ~~**AI opponent:**~~ **Resolved.** AI implemented with Easy/Normal/Hard difficulty. Handles astrogation (gravity-aware pathfinding), ordnance launches, and multi-target combat.
 
-4. **Spectator mode:** Allow a third connection to watch a game in progress?
+4. **Spectator mode:** Allow a third connection to watch a game in progress? Not yet implemented.
 
-5. **Turn timer:** Should there be an optional turn timer to prevent indefinite stalling?
+5. ~~**Turn timer:**~~ **Resolved.** 2-minute turn timer with 30-second warning, enforced server-side via DO alarms.
 
-6. **Advanced Combat System:** The rules include an optional advanced combat system with weapon/drive/structure damage tracks. Include in Phase 3 or defer?
+6. **Advanced Combat System:** The rules include an optional advanced combat system with weapon/drive/structure damage tracks. Still deferred.
