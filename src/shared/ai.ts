@@ -471,18 +471,20 @@ function scoreCourse(
 
       if (noPrimaryObjective) {
         // Pure combat mode: aggressively seek combat range
-        if (myStrength >= enemyStr) {
-          // Close in — strong bonus for being at range 1-3
-          score += Math.max(0, 8 - dist) * 5 * mult;
-        } else {
-          // Weaker: stay at moderate range, but don't flee forever
-          const idealDist = 4;
-          score -= Math.abs(dist - idealDist) * 3 * mult;
-        }
-        // Speed management: prefer moderate velocity near enemies
+        // Close in — strong bonus for being at range 1-3
+        score += Math.max(0, 8 - dist) * 5 * mult;
+        
+        // Velocity matching: prefer courses that match the enemy's velocity to reduce combat penalties
+        const velMatchDist = hexDistance(
+          { q: course.newVelocity.dq, r: course.newVelocity.dr },
+          { q: enemy.velocity.dq, r: enemy.velocity.dr }
+        );
+        score -= velMatchDist * 3 * mult;
+        
+        // Speed management: prefer moderate velocity near enemies, unless matching their high speed
         const speed = hexVecLength(course.newVelocity);
-        if (dist < 5 && speed > 3) {
-          score -= (speed - 3) * 4 * mult; // penalize overshooting
+        if (dist < 5 && speed > 5 && velMatchDist > 2) {
+          score -= (speed - 5) * 4 * mult; // penalize overshooting if not matching velocity
         }
       } else if (myStrength > 0) {
         // Has objective but also can fight
