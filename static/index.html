@@ -23,12 +23,14 @@
       <p class="menu-note">Plot burns, ride gravity, and outfly the other commander.</p>
       <button id="createBtn" class="btn btn-primary">Create Game</button>
       <div id="aiSection" class="ai-section">
-        <button id="singlePlayerBtn" class="btn btn-secondary btn-ai" style="width:100%;margin-top:0.5rem">Play vs AI</button>
-        <div class="difficulty-label">Difficulty</div>
-        <div id="difficultySelect" class="difficulty-select">
-          <button class="btn btn-difficulty" data-difficulty="easy">Easy</button>
-          <button class="btn btn-difficulty active" data-difficulty="normal">Normal</button>
-          <button class="btn btn-difficulty" data-difficulty="hard">Hard</button>
+        <button id="singlePlayerBtn" class="btn btn-secondary btn-ai">Play vs AI</button>
+        <div class="difficulty-group">
+          <div class="difficulty-label">Difficulty</div>
+          <div id="difficultySelect" class="difficulty-select">
+            <button class="btn btn-difficulty" data-difficulty="easy">Easy</button>
+            <button class="btn btn-difficulty active" data-difficulty="normal">Normal</button>
+            <button class="btn btn-difficulty" data-difficulty="hard">Hard</button>
+          </div>
         </div>
       </div>
       <div class="divider">or</div>
@@ -62,6 +64,10 @@
       <button class="btn btn-scenario" data-scenario="blockade">
         <div class="scenario-name">Blockade Runner</div>
         <div class="scenario-desc">Packet ship races past a dreadnaught to reach Mars</div>
+      </button>
+      <button class="btn btn-scenario" data-scenario="interplanetaryWar">
+        <div class="scenario-name">Interplanetary War</div>
+        <div class="scenario-desc">Build your fleet with MegaCredits — total war</div>
       </button>
       <button class="btn btn-scenario" data-scenario="fleetAction">
         <div class="scenario-name">Fleet Action</div>
@@ -106,6 +112,22 @@
         <button id="skipCombatBtn" class="btn btn-confirm" style="display:none">SKIP COMBAT</button>
       </div>
       <div id="statusMsg" class="status-msg"></div>
+    </div>
+  </div>
+
+  <!-- Fleet building overlay -->
+  <div id="fleetBuilding" class="screen" style="display:none">
+    <div class="menu-content fleet-building-content">
+      <h2 class="scenario-title">Build Your Fleet</h2>
+      <div id="fleetCredits" class="fleet-credits">800 MC</div>
+      <div id="fleetShopList" class="fleet-shop-list"></div>
+      <div class="fleet-cart-header">Your Fleet</div>
+      <div id="fleetCart" class="fleet-cart"></div>
+      <div class="fleet-building-actions">
+        <button id="fleetReadyBtn" class="btn btn-confirm">LAUNCH FLEET</button>
+        <button id="fleetClearBtn" class="btn btn-secondary">CLEAR</button>
+      </div>
+      <div id="fleetWaiting" class="fleet-waiting" style="display:none">Waiting for opponent...</div>
     </div>
   </div>
 

@@ -1,4 +1,4 @@
-import type { Ship, MovementEvent, CombatResult } from '../shared/types';
+import type { Ship, GameState, FleetPurchase, MovementEvent, CombatResult } from '../shared/types';
 import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
 
 export class UIManager {
@@ -11,7 +11,9 @@ export class UIManager {
   private gameLogEl: HTMLElement;
   private logEntriesEl: HTMLElement;
   private logShowBtn: HTMLElement;
+  private fleetBuildingEl: HTMLElement;
   private logVisible = true;
+  private fleetCart: FleetPurchase[] = [];
   private readonly actionButtonIds = [
     'undoBtn',
     'confirmBtn',
@@ -39,6 +41,7 @@ export class UIManager {
   onAttack: (() => void) | null = null;
   onFireAll: (() => void) | null = null;
   onSkipCombat: (() => void) | null = null;
+  onFleetReady: ((purchases: FleetPurchase[]) => void) | null = null;
   onRematch: (() => void) | null = null;
   onExit: (() => void) | null = null;
   onSelectShip: ((shipId: string) => void) | null = null;
@@ -53,6 +56,7 @@ export class UIManager {
     this.gameLogEl = document.getElementById('gameLog')!;
     this.logEntriesEl = document.getElementById('logEntries')!;
     this.logShowBtn = document.getElementById('logShowBtn')!;
+    this.fleetBuildingEl = document.getElementById('fleetBuilding')!;
 
     // Wire up buttons
     document.getElementById('createBtn')!.addEventListener('click', () => {
