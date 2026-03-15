@@ -44,6 +44,26 @@ export class GameDO extends DurableObject {
     await this.ctx.storage.put('gameCode', code);
   }
 
+  private async touchInactivity(): Promise<void> {
+    await this.ctx.storage.put('inactivityAt', Date.now() + INACTIVITY_TIMEOUT_MS);
+    await this.rescheduleAlarm();
+  }
+
+  private async rescheduleAlarm(): Promise<void> {
+    const [disconnectAt, turnTimeoutAt, inactivityAt] = await Promise.all([
+      this.ctx.storage.get<number>('disconnectAt'),
+      this.ctx.storage.get<number>('turnTimeoutAt'),
+      this.ctx.storage.get<number>('inactivityAt'),
+    ]);
+
+    const deadlines = [disconnectAt, turnTimeoutAt, inactivityAt]
+      .filter((value): value is number => value !== undefined);
+
+    if (deadlines.length > 0) {
+      await this.ctx.storage.setAlarm(Math.min(...deadlines));
+    }
+  }
+
   // --- WebSocket lifecycle ---
 
   async fetch(request: Request): Promise<Response> {
@@ -87,8 +107,8 @@ export class GameDO extends DurableObject {
         this.send(server, { type: 'gameStart', state: gameState });
       }
 
-      // Reset inactivity alarm
-      await this.ctx.storage.setAlarm(Date.now() + INACTIVITY_TIMEOUT_MS);
+      await this.ctx.storage.delete('disconnectAt');
+      await this.touchInactivity();
       return new Response(null, { status: 101, webSocket: client });
     }
 
@@ -112,7 +132,7 @@ export class GameDO extends DurableObject {
       await this.initGame();
     }
 
-    await this.ctx.storage.setAlarm(Date.now() + INACTIVITY_TIMEOUT_MS);
+    await this.touchInactivity();
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -130,7 +150,7 @@ export class GameDO extends DurableObject {
     const playerId = this.getPlayerId(ws);
     if (playerId === null) return;
 
-    await this.ctx.storage.setAlarm(Date.now() + INACTIVITY_TIMEOUT_MS);
+    await this.touchInactivity();
 
     switch (msg.type) {
       case 'astrogation':
@@ -163,7 +183,6 @@ export class GameDO extends DurableObject {
 
     // If no game in progress, just clean up
     if (!gameState || gameState.phase === 'gameOver') {
-      this.broadcast({ type: 'opponentDisconnected' });
       return;
     }
 
@@ -172,40 +191,52 @@ export class GameDO extends DurableObject {
     if (playerId !== null) {
       await this.ctx.storage.put('disconnectedPlayer', playerId);
       await this.ctx.storage.put('disconnectTime', Date.now());
-      // Set alarm for 30s — if they don't reconnect, broadcast disconnect
-      await this.ctx.storage.setAlarm(Date.now() + 30_000);
+      await this.ctx.storage.put('disconnectAt', Date.now() + 30_000);
+      await this.rescheduleAlarm();
     }
   }
 
   async alarm(): Promise<void> {
+    const now = Date.now();
     const disconnectedPlayer = await this.ctx.storage.get<number>('disconnectedPlayer');
+    const disconnectAt = await this.ctx.storage.get<number>('disconnectAt');
 
-    if (disconnectedPlayer !== undefined) {
+    if (disconnectedPlayer !== undefined && disconnectAt !== undefined && now >= disconnectAt) {
       // Disconnect grace period expired — notify remaining player
       await this.ctx.storage.delete('disconnectedPlayer');
       await this.ctx.storage.delete('disconnectTime');
+      await this.ctx.storage.delete('disconnectAt');
       this.broadcast({ type: 'opponentDisconnected' });
+      await this.rescheduleAlarm();
       return;
     }
 
     // Check if turn timeout is pending
     const turnTimeoutAt = await this.ctx.storage.get<number>('turnTimeoutAt');
-    if (turnTimeoutAt !== undefined && Date.now() >= turnTimeoutAt - 500) {
+    if (turnTimeoutAt !== undefined && now >= turnTimeoutAt - 500) {
       await this.handleTurnTimeout();
       return;
     }
 
-    // Inactivity timeout — close everything
-    for (const ws of this.ctx.getWebSockets()) {
-      try { ws.close(1000, 'Inactivity timeout'); } catch {}
+    const inactivityAt = await this.ctx.storage.get<number>('inactivityAt');
+    if (inactivityAt !== undefined && now >= inactivityAt) {
+      for (const ws of this.ctx.getWebSockets()) {
+        try { ws.close(1000, 'Inactivity timeout'); } catch {}
+      }
+      await this.ctx.storage.deleteAll();
+      return;
     }
-    await this.ctx.storage.deleteAll();
+
+    await this.rescheduleAlarm();
   }
 
   private async handleTurnTimeout(): Promise<void> {
     await this.ctx.storage.delete('turnTimeoutAt');
     const gameState = await this.getGameState();
-    if (!gameState || gameState.phase === 'gameOver') return;
+    if (!gameState || gameState.phase === 'gameOver') {
+      await this.rescheduleAlarm();
+      return;
+    }
 
     const map = getSolarSystemMap();
     const playerId = gameState.activePlayer;
@@ -217,15 +248,21 @@ export class GameDO extends DurableObject {
         .map(s => ({ shipId: s.id, burn: null }));
       const result = processAstrogation(gameState, playerId, orders, map);
       if (!('error' in result)) {
-        this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
+        if ('movements' in result) {
+          this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
+        }
         this.broadcastEndOrUpdate(result.state);
         await this.saveGameState(result.state);
         await this.startTurnTimer(result.state);
       }
     } else if (gameState.phase === 'ordnance') {
-      const result = skipOrdnance(gameState, playerId);
+      const result = skipOrdnance(gameState, playerId, map);
       if (!('error' in result)) {
-        this.broadcast({ type: 'stateUpdate', state: result.state });
+        if ('movements' in result) {
+          this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
+        } else {
+          this.broadcast({ type: 'stateUpdate', state: result.state });
+        }
         this.broadcastEndOrUpdate(result.state);
         await this.saveGameState(result.state);
         await this.startTurnTimer(result.state);
@@ -240,17 +277,20 @@ export class GameDO extends DurableObject {
         await this.saveGameState(result.state);
         await this.startTurnTimer(result.state);
       }
+    } else {
+      await this.rescheduleAlarm();
     }
   }
 
   private async startTurnTimer(state: GameState): Promise<void> {
     if (state.phase === 'gameOver') {
       await this.ctx.storage.delete('turnTimeoutAt');
+      await this.rescheduleAlarm();
       return;
     }
     const timeoutAt = Date.now() + TURN_TIMEOUT_MS;
     await this.ctx.storage.put('turnTimeoutAt', timeoutAt);
-    await this.ctx.storage.setAlarm(timeoutAt);
+    await this.rescheduleAlarm();
   }
 
   // --- Game logic (delegates to engine) ---
@@ -280,7 +320,9 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
+    if ('movements' in result) {
+      this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
+    }
     this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
     await this.startTurnTimer(result.state);
@@ -298,7 +340,7 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    this.broadcast({ type: 'stateUpdate', state: result.state });
+    this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
     this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
     await this.startTurnTimer(result.state);
@@ -308,14 +350,20 @@ export class GameDO extends DurableObject {
     const gameState = await this.getGameState();
     if (!gameState) return;
 
-    const result = skipOrdnance(gameState, playerId);
+    const map = getSolarSystemMap();
+    const result = skipOrdnance(gameState, playerId, map);
 
     if ('error' in result) {
       this.send(ws, { type: 'error', message: result.error });
       return;
     }
 
-    this.broadcast({ type: 'stateUpdate', state: result.state });
+    if ('movements' in result) {
+      this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
+    } else {
+      this.broadcast({ type: 'stateUpdate', state: result.state });
+    }
+    this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
     await this.startTurnTimer(result.state);
   }
