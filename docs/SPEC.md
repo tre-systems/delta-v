@@ -1,6 +1,6 @@
-# Delta-V: Delta-V Online
+# Delta-V
 
-An online multiplayer implementation of the Delta-V board game — space combat with vector movement and gravity in the inner Solar System.
+An online multiplayer space combat game — vector movement and gravity in the inner Solar System.
 
 ## Overview
 
@@ -78,7 +78,7 @@ Players are identified only by their position in the game (Player 1 / Player 2).
 
 ### Hex Grid (Internal Only)
 
-The game uses **axial hex coordinates** (q, r) internally. The hex grid is approximately 40 columns wide and 55 rows tall (matching the physical Delta-V map). The client renders hex centers as pixel positions but does **not** draw hex borders.
+The game uses **axial hex coordinates** (q, r) internally. The hex grid is approximately 40 columns wide and 55 rows tall. The client renders hex centers as pixel positions but does **not** draw hex borders.
 
 When a player is planning movement, subtle dot markers or a faint radial guide may appear to indicate valid destination hexes — but no full grid is drawn.
 
@@ -411,7 +411,7 @@ The full experience with fleet building:
 - **Gravity indicators** shown as subtle directional arrows in gravity hexes
 - **Ships** rendered as directional arrow icons with team colors (blue/orange)
 - **Velocity vectors** shown as dashed arrows from ship position through predicted destination
-- **Movement trails** — persistent faint lines showing historical ship paths (like pen marks on a Delta-V whiteboard), visible on main map and minimap
+- **Movement trails** — persistent faint lines showing historical ship paths, visible on main map and minimap
 - **Detection ranges** shown as faint circles around own ships/bases
 - **Ship tooltips** on hover showing stats (fuel, cargo, velocity, damage)
 
@@ -700,7 +700,7 @@ interface MapHex {
 }
 ```
 
-The full Delta-V map has approximately 1,500–2,000 hexes. The map definition will be authored by hand (referencing the original board) and stored as a static asset.
+The full solar system map has approximately 1,500–2,000 hexes. The map definition is authored by hand and stored as a static asset.
 
 ## Scenarios System
 
@@ -741,7 +741,7 @@ interface ScenarioPlayer {
 
 - [x] Project setup (Wrangler, TypeScript, bundling)
 - [x] Hex math library (coordinates, distance, line drawing, pixel conversion)
-- [x] Map data: define a subset of the Delta-V map (Mars–Venus corridor)
+- [x] Map data: define solar system map (Mars–Venus corridor)
 - [x] Canvas renderer: stars background, celestial bodies, gravity indicators
 - [x] Ship rendering with directional icons and velocity arrows
 - [x] Vector movement engine with gravity
@@ -798,7 +798,7 @@ interface ScenarioPlayer {
 
 ## Open Questions
 
-1. ~~**Map authoring:**~~ **Resolved.** Map manually authored in hex coordinates, tracing the physical Delta-V board layout.
+1. ~~**Map authoring:**~~ **Resolved.** Map manually authored in hex coordinates.
 
 2. **Simultaneous vs. alternating turns:** The board game alternates player turns. A simultaneous-movement variant could reduce waiting time but would change game dynamics significantly. Currently uses alternating turns.
 

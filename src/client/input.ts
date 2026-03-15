@@ -84,18 +84,27 @@ export class InputHandler {
   }
 
   private onPointerMove(x: number, y: number) {
-    if (!this.isDragging) return;
-    const dx = x - this.dragStartX;
-    const dy = y - this.dragStartY;
+    if (this.isDragging) {
+      const dx = x - this.dragStartX;
+      const dy = y - this.dragStartY;
 
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      this.dragMoved = true;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        this.dragMoved = true;
+      }
+
+      if (this.dragMoved) {
+        this.camera.pan(dx, dy);
+        this.dragStartX = x;
+        this.dragStartY = y;
+      }
     }
 
-    if (this.dragMoved) {
-      this.camera.pan(dx, dy);
-      this.dragStartX = x;
-      this.dragStartY = y;
+    // Always track hover hex if we have game state
+    if (this.gameState && this.map) {
+      const worldPos = this.camera.screenToWorld(x, y);
+      this.planningState.hoverHex = pixelToHex(worldPos, HEX_SIZE);
+    } else {
+      this.planningState.hoverHex = null;
     }
   }
 

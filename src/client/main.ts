@@ -451,6 +451,7 @@ class GameClient {
         this.reconnectAttempts = 0;
         this.renderer.setPlayerId(msg.playerId);
         this.input.setPlayerId(msg.playerId);
+        this.ui.setPlayerId(msg.playerId);
         if (this.state === 'connecting') {
           this.setState('waitingForOpponent');
         }

@@ -5,6 +5,7 @@ import {
   hexToPixel,
   hexAdd,
   hexKey,
+  hexEqual,
   HEX_DIRECTIONS,
   hexVecLength,
 } from '../shared/hex';
@@ -179,6 +180,7 @@ export interface PlanningState {
   combatAttackerIds: string[];
   combatAttackStrength: number | null;
   queuedAttacks: CombatAttack[]; // multi-target: attacks queued before sending
+  hoverHex: HexCoord | null; // current hex being hovered by mouse
 }
 
 // --- Renderer ---
@@ -206,6 +208,7 @@ export class Renderer {
     combatAttackerIds: [],
     combatAttackStrength: null,
     queuedAttacks: [],
+    hoverHex: null,
   };
   private combatResults: { results: CombatResult[]; showUntil: number } | null = null;
   private combatEffects: CombatEffect[] = [];
@@ -502,7 +505,7 @@ export class Renderer {
       if (this.gameState) this.renderMapBorder(ctx, this.map, this.gameState, now);
       this.renderAsteroids(ctx, this.map);
       this.renderGravityIndicators(ctx, this.map);
-      this.renderBodies(ctx, this.map);
+      this.renderBodies(ctx, now, this.map);
       this.renderBaseMarkers(ctx, this.map, this.gameState);
       if (this.gameState) {
         this.renderLandingTarget(ctx, this.map, this.gameState, now);
@@ -604,18 +607,34 @@ export class Renderer {
     }
   }
 
-  private renderBodies(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
+  private renderBodies(ctx: CanvasRenderingContext2D, now: number, map: SolarSystemMap) {
     for (const body of map.bodies) {
       const p = hexToPixel(body.center, HEX_SIZE);
       const r = body.renderRadius * HEX_SIZE;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 1500 + p.x * 0.01);
 
-      // Glow
-      const glow = ctx.createRadialGradient(p.x, p.y, r * 0.5, p.x, p.y, r * 2);
-      glow.addColorStop(0, body.color + '20');
+      // Atmospheric/Gravity Ripples
+      const rippleCount = 3;
+      for (let i = 1; i <= rippleCount; i++) {
+        const rippleR = r * (1.2 + i * 0.8 + pulse * 0.2);
+        const rippleAlpha = (0.15 / i) * (1 - pulse * 0.3);
+        ctx.strokeStyle = body.color;
+        ctx.globalAlpha = rippleAlpha;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, rippleR, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // Primary Glow
+      const glow = ctx.createRadialGradient(p.x, p.y, r * 0.5, p.x, p.y, r * 3);
+      glow.addColorStop(0, body.color + '30');
+      glow.addColorStop(0.4, body.color + '10');
       glow.addColorStop(1, 'transparent');
       ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r * 2, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2);
       ctx.fill();
 
       // Body disc
@@ -628,10 +647,10 @@ export class Renderer {
       ctx.fill();
 
       // Label
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.font = '10px monospace';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.font = '600 11px var(--font-display), sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(body.name, p.x, p.y + r + 14);
+      ctx.fillText(body.name.toUpperCase(), p.x, p.y + r + 18);
     }
   }
 
@@ -948,14 +967,25 @@ export class Renderer {
               const targetHex = hexAdd(predDest, HEX_DIRECTIONS[d]);
               const tp = hexToPixel(targetHex, HEX_SIZE);
               const isActive = burn === d;
+              const isHovered = this.planningState.hoverHex && hexEqual(this.planningState.hoverHex, targetHex);
 
-              ctx.fillStyle = isActive ? 'rgba(79, 195, 247, 0.6)' : 'rgba(79, 195, 247, 0.15)';
-              ctx.strokeStyle = isActive ? '#4fc3f7' : 'rgba(79, 195, 247, 0.3)';
-              ctx.lineWidth = 1.5;
+              let size = 8;
+              if (isActive) size = 10;
+              if (isHovered) size += 2;
+
+              if (isHovered || isActive) {
+                ctx.shadowBlur = isHovered ? 12 : 8;
+                ctx.shadowColor = '#4fc3f7';
+              }
+
+              ctx.fillStyle = isActive ? 'rgba(79, 195, 247, 0.8)' : isHovered ? 'rgba(79, 195, 247, 0.4)' : 'rgba(79, 195, 247, 0.15)';
+              ctx.strokeStyle = isActive || isHovered ? '#4fc3f7' : 'rgba(79, 195, 247, 0.3)';
+              ctx.lineWidth = isActive || isHovered ? 2 : 1.5;
               ctx.beginPath();
-              ctx.arc(tp.x, tp.y, 8, 0, Math.PI * 2);
+              ctx.arc(tp.x, tp.y, size, 0, Math.PI * 2);
               ctx.fill();
               ctx.stroke();
+              ctx.shadowBlur = 0;
             }
 
             // Overload direction arrows (shown after burn is set, for warships with enough fuel)
@@ -967,14 +997,25 @@ export class Renderer {
                   const olHex = hexAdd(burnDest, HEX_DIRECTIONS[d]);
                   const olp = hexToPixel(olHex, HEX_SIZE);
                   const isOlActive = overload === d;
+                  const isOlHovered = this.planningState.hoverHex && hexEqual(this.planningState.hoverHex, olHex);
 
-                  ctx.fillStyle = isOlActive ? 'rgba(255, 183, 77, 0.6)' : 'rgba(255, 183, 77, 0.1)';
-                  ctx.strokeStyle = isOlActive ? '#ffb74d' : 'rgba(255, 183, 77, 0.25)';
-                  ctx.lineWidth = 1.5;
+                  let olSize = 6;
+                  if (isOlActive) olSize = 8;
+                  if (isOlHovered) olSize += 1.5;
+
+                  if (isOlHovered || isOlActive) {
+                    ctx.shadowBlur = isOlHovered ? 8 : 4;
+                    ctx.shadowColor = '#ffb74d';
+                  }
+
+                  ctx.fillStyle = isOlActive ? 'rgba(255, 183, 77, 0.8)' : isOlHovered ? 'rgba(255, 183, 77, 0.4)' : 'rgba(255, 183, 77, 0.1)';
+                  ctx.strokeStyle = isOlActive || isOlHovered ? '#ffb74d' : 'rgba(255, 183, 77, 0.25)';
+                  ctx.lineWidth = isOlActive || isOlHovered ? 2 : 1.5;
                   ctx.beginPath();
-                  ctx.arc(olp.x, olp.y, 6, 0, Math.PI * 2);
+                  ctx.arc(olp.x, olp.y, olSize, 0, Math.PI * 2);
                   ctx.fill();
                   ctx.stroke();
+                  ctx.shadowBlur = 0;
                 }
               }
             }
