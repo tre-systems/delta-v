@@ -176,7 +176,7 @@ export class InputHandler {
         const overload = this.planningState.overloads.get(ship.id) ?? null;
         const wgChoices = this.planningState.weakGravityChoices.get(ship.id) ?? {};
         const course = computeCourse(ship, currentBurn, this.map, { overload, weakGravityChoices: wgChoices });
-        for (const grav of course.gravityEffects) {
+        for (const grav of course.enteredGravityEffects) {
           if (grav.strength !== 'weak') continue;
           if (hexEqual(clickHex, grav.hex)) {
             const key = hexKey(grav.hex);

@@ -31,7 +31,7 @@ const STEPS: TutorialStep[] = [
   {
     id: 'gravity',
     phase: 'astrogation',
-    text: 'Planets and the sun have gravity. When your course passes through a gravity hex, your path is deflected. The colored rings around bodies show gravity fields. Plan your burns to use gravity to your advantage!',
+    text: 'Planets and the sun have gravity. Entering a gravity hex sets up a deflection on the following turn, which is how you can sling around planets and settle into orbit. The colored rings around bodies show those gravity fields.',
     minTurn: 2,
   },
   {

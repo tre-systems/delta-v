@@ -3,7 +3,7 @@ import type {
   ShipMovement, OrdnanceMovement, SolarSystemMap,
   ScenarioDefinition, CombatAttack, CombatResult, MovementEvent,
 } from './types';
-import { computeCourse } from './movement';
+import { applyPendingGravityEffects, collectEnteredGravityEffects, computeCourse } from './movement';
 import { SHIP_STATS, ORDNANCE_MASS, ORDNANCE_LIFETIME, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from './constants';
 import { hexKey, hexVecLength, hexDistance, hexAdd, hexSubtract, hexLineDraw, HEX_DIRECTIONS, hexEqual } from './hex';
 import {
@@ -68,6 +68,7 @@ export function createGame(
         landed,
         destroyed: false,
         detected: true,
+        pendingGravityEffects: [],
         damage: { disabledTurns: 0 },
       });
     }
@@ -229,6 +230,9 @@ function resolveMovementPhase(
     ship.velocity = course.newVelocity;
     ship.fuel -= course.fuelSpent;
     ship.landed = course.landedAt !== null;
+    ship.pendingGravityEffects = course.landedAt
+      ? []
+      : course.enteredGravityEffects.map(effect => ({ ...effect }));
 
     if (course.landedAt) {
       ship.velocity = { dq: 0, dr: 0 };
@@ -238,6 +242,7 @@ function resolveMovementPhase(
     if (course.crashed) {
       ship.destroyed = true;
       ship.velocity = { dq: 0, dr: 0 };
+      ship.pendingGravityEffects = [];
       const crashHex = course.path.find((hex, idx) => idx > 0 && map.hexes.get(hexKey(hex))?.body) ?? course.destination;
       events.push({
         type: 'crash',
@@ -444,6 +449,7 @@ export function processOrdnance(
       velocity,
       turnsRemaining: ORDNANCE_LIFETIME,
       destroyed: false,
+      pendingGravityEffects: [],
     });
 
     ship.cargoUsed += mass;
@@ -495,20 +501,12 @@ function moveOrdnance(
 
     const from = { ...ord.position };
     const dest = hexAdd(ord.position, ord.velocity);
-
-    // Apply gravity along path
-    const path = hexLineDraw(from, dest);
-    let finalDest = dest;
-    for (let i = 0; i < path.length - 1; i++) {
-      const hex = map.hexes.get(hexKey(path[i]));
-      if (hex?.gravity) {
-        finalDest = hexAdd(finalDest, HEX_DIRECTIONS[hex.gravity.direction]);
-      }
-    }
+    const finalDest = applyPendingGravityEffects(dest, ord.pendingGravityEffects);
 
     const finalPath = hexLineDraw(from, finalDest);
     ord.position = finalDest;
     ord.velocity = hexSubtract(finalDest, from);
+    ord.pendingGravityEffects = collectEnteredGravityEffects(finalPath, map);
     ord.turnsRemaining--;
 
     // Self-destruct

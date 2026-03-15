@@ -23,9 +23,9 @@ export interface CourseOptions {
  * 1. Predicted destination = position + velocity
  * 2. Apply burn (optional): shift destination by 1 hex in burn direction
  * 3. Apply overload (optional, warships only): shift by another hex, 2 fuel total
- * 4. Trace path from position to destination
- * 5. Apply gravity: each gravity hex in path deflects the destination
- * 6. Compute final path and new velocity
+ * 4. Apply pending gravity entered on the previous turn
+ * 5. Trace the actual path for this turn
+ * 6. Record gravity hexes entered this turn for the next turn
  */
 export function computeCourse(
   ship: Ship,
@@ -47,6 +47,7 @@ export function computeCourse(
         newVelocity: { dq: 0, dr: 0 },
         fuelSpent: 0,
         gravityEffects: [],
+        enteredGravityEffects: [],
         crashed: false,
         crashBody: null,
         landedAt: null,
@@ -97,17 +98,33 @@ export function computeCourse(
       }
     }
 
-    const path = hexLineDraw(launchHex, destination);
-    const gravityEffects: GravityEffect[] = [];
-    applyGravity(path, destination, map, gravityEffects, weakGravityChoices, (d) => { destination = d; });
+    // Takeoff enters the launch gravity hex before the ship's burn resolves.
+    const takeoffGravityEffects = collectEnteredGravityEffects(
+      [ship.position, launchHex],
+      map,
+      weakGravityChoices,
+    );
+    const gravityEffects = [...takeoffGravityEffects];
+    destination = applyPendingGravityEffects(destination, gravityEffects);
 
     const finalPath = hexLineDraw(launchHex, destination);
+    const enteredGravityEffects = collectEnteredGravityEffects(finalPath, map, weakGravityChoices);
     const newVelocity = hexSubtract(destination, launchHex);
 
     const { crashed, crashBody } = checkCrash(finalPath, map, newVelocity, bodyName ?? undefined);
     const landedAt = checkLanding(destination, map);
 
-    return { destination, path: finalPath, newVelocity, fuelSpent, gravityEffects, crashed, crashBody, landedAt };
+    return {
+      destination,
+      path: finalPath,
+      newVelocity,
+      fuelSpent,
+      gravityEffects,
+      enteredGravityEffects,
+      crashed,
+      crashBody,
+      landedAt,
+    };
   }
 
   // Normal movement: destination = position + velocity
@@ -128,43 +145,65 @@ export function computeCourse(
     }
   }
 
-  // Trace path and apply gravity
-  const rawPath = hexLineDraw(ship.position, destination);
-  const gravityEffects: GravityEffect[] = [];
-  applyGravity(rawPath, destination, map, gravityEffects, weakGravityChoices, (d) => { destination = d; });
+  // Gravity applies one turn after entry, so only previously queued gravity affects this move.
+  const gravityEffects = (ship.pendingGravityEffects ?? []).map(effect => ({ ...effect }));
+  destination = applyPendingGravityEffects(destination, gravityEffects);
 
-  // Compute final path with gravity-adjusted destination
   const finalPath = hexLineDraw(ship.position, destination);
+  const enteredGravityEffects = collectEnteredGravityEffects(finalPath, map, weakGravityChoices);
   const newVelocity = hexSubtract(destination, ship.position);
 
   const { crashed, crashBody } = checkCrash(finalPath, map, newVelocity);
   const landedAt = checkLanding(destination, map);
 
-  return { destination, path: finalPath, newVelocity, fuelSpent, gravityEffects, crashed, crashBody, landedAt };
+  return {
+    destination,
+    path: finalPath,
+    newVelocity,
+    fuelSpent,
+    gravityEffects,
+    enteredGravityEffects,
+    crashed,
+    crashBody,
+    landedAt,
+  };
 }
 
 /**
- * Apply gravity deflections along the path.
+ * Apply pending gravity deflections entered on the previous turn.
+ */
+export function applyPendingGravityEffects(
+  destination: HexCoord,
+  effects: GravityEffect[] | undefined,
+): HexCoord {
+  let dest = destination;
+  for (const effect of effects ?? []) {
+    if (effect.ignored) continue;
+    const deflection = HEX_DIRECTIONS[effect.direction];
+    dest = hexAdd(dest, deflection);
+  }
+  return dest;
+}
+
+/**
+ * Collect gravity hexes entered during this move.
  *
- * Applies at starting hex (stationary ships drift).
- * Skips destination hex (gravity there affects next turn).
+ * The starting hex is skipped because its effect would already have been queued
+ * on a previous turn. The destination hex is included because entering it now
+ * means its gravity applies on the following turn.
  *
  * Weak gravity: player may choose to ignore a single weak gravity hex.
  * Two consecutive weak gravity hexes from the same body = mandatory on the second.
  */
-function applyGravity(
+export function collectEnteredGravityEffects(
   path: HexCoord[],
-  destination: HexCoord,
   map: SolarSystemMap,
-  effects: GravityEffect[],
-  weakGravityChoices: Record<string, boolean>,
-  setDestination: (d: HexCoord) => void,
-): void {
-  let dest = destination;
+  weakGravityChoices: Record<string, boolean> = {},
+): GravityEffect[] {
+  const effects: GravityEffect[] = [];
   let prevWeakBody: string | null = null;
 
-  const end = path.length === 1 ? path.length : path.length - 1;
-  for (let i = 0; i < end; i++) {
+  for (let i = 1; i < path.length; i++) {
     const hex = map.hexes.get(hexKey(path[i]));
     if (!hex?.gravity) {
       prevWeakBody = null;
@@ -173,27 +212,26 @@ function applyGravity(
 
     const grav = hex.gravity;
     const key = hexKey(path[i]);
+    let ignored = false;
 
     if (grav.strength === 'weak') {
       const isConsecutiveWeak = prevWeakBody === grav.bodyName;
-      const playerIgnores = weakGravityChoices[key] === true;
-
-      if (!isConsecutiveWeak && playerIgnores) {
-        effects.push({ hex: path[i], direction: grav.direction, bodyName: grav.bodyName, strength: 'weak', ignored: true });
-        prevWeakBody = grav.bodyName;
-        continue;
-      }
+      ignored = !isConsecutiveWeak && weakGravityChoices[key] === true;
       prevWeakBody = grav.bodyName;
     } else {
       prevWeakBody = null;
     }
 
-    const deflection = HEX_DIRECTIONS[grav.direction];
-    dest = hexAdd(dest, deflection);
-    effects.push({ hex: path[i], direction: grav.direction, bodyName: grav.bodyName, strength: grav.strength, ignored: false });
+    effects.push({
+      hex: path[i],
+      direction: grav.direction,
+      bodyName: grav.bodyName,
+      strength: grav.strength,
+      ignored,
+    });
   }
 
-  setDestination(dest);
+  return effects;
 }
 
 /**
@@ -249,5 +287,8 @@ export function canBurn(ship: Ship): boolean {
  */
 export function predictDestination(ship: Ship): HexCoord {
   if (ship.landed) return ship.position;
-  return hexAdd(ship.position, ship.velocity);
+  return applyPendingGravityEffects(
+    hexAdd(ship.position, ship.velocity),
+    ship.pendingGravityEffects,
+  );
 }
