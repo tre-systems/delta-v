@@ -544,6 +544,16 @@ body {
   color: #ffb74d;
 }
 
+.turn-timer-urgent {
+  color: #ef5350;
+  animation: timer-pulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes timer-pulse {
+  from { opacity: 1; }
+  to { opacity: 0.5; }
+}
+
 /* Latency indicator in HUD */
 .latency-text {
   color: #888;
