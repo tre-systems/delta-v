@@ -1242,7 +1242,7 @@ describe('ordnance validation', () => {
   });
 
   it('rejects reusing the same attacker across combat declarations', () => {
-    const fleetState = createGame(SCENARIOS.fleetAction, map, 'ATK01', findBaseHex);
+    const fleetState = createGame(SCENARIOS.convoy, map, 'ATK01', findBaseHex);
     fleetState.phase = 'combat';
     fleetState.activePlayer = 0;
 
@@ -1276,12 +1276,13 @@ describe('ordnance validation', () => {
   });
 
   it('rejects attacking the same target more than once per combat phase', () => {
-    const fleetState = createGame(SCENARIOS.fleetAction, map, 'ATK02', findBaseHex);
+    const fleetState = createGame(SCENARIOS.convoy, map, 'ATK02', findBaseHex);
     fleetState.phase = 'combat';
-    fleetState.activePlayer = 0;
+    fleetState.activePlayer = 1;
 
-    const attackers = fleetState.ships.filter(s => s.owner === 0);
-    const enemies = fleetState.ships.filter(s => s.owner === 1);
+    // Use P1's corsairs (all combat-capable) as attackers
+    const attackers = fleetState.ships.filter(s => s.owner === 1);
+    const enemies = fleetState.ships.filter(s => s.owner === 0);
 
     attackers.forEach((ship, idx) => {
       ship.landed = false;
@@ -1294,7 +1295,7 @@ describe('ordnance validation', () => {
       ship.lastMovementPath = [{ ...ship.position }];
     });
 
-    const result = processCombat(fleetState, 0, [
+    const result = processCombat(fleetState, 1, [
       { attackerIds: [attackers[0].id], targetId: enemies[0].id },
       { attackerIds: [attackers[1].id], targetId: enemies[0].id },
     ], openMap);
@@ -1511,40 +1512,20 @@ describe('Fleet Action scenario', () => {
     fleetState = createGame(SCENARIOS.fleetAction, map, 'FLT01', findBaseHex);
   });
 
-  it('creates 3 ships per player', () => {
-    const p0Ships = fleetState.ships.filter(s => s.owner === 0);
-    const p1Ships = fleetState.ships.filter(s => s.owner === 1);
-    expect(p0Ships).toHaveLength(3);
-    expect(p1Ships).toHaveLength(3);
-  });
-
-  it('each fleet has frigate, corsair, and corvette', () => {
-    for (const playerId of [0, 1]) {
-      const types = fleetState.ships
-        .filter(s => s.owner === playerId)
-        .map(s => s.type)
-        .sort();
-      expect(types).toEqual(['corsair', 'corvette', 'frigate']);
-    }
+  it('starts in fleet building phase with credits', () => {
+    expect(fleetState.phase).toBe('fleetBuilding');
+    expect(fleetState.players[0].credits).toBe(400);
+    expect(fleetState.players[1].credits).toBe(400);
   });
 
   it('fleet 1 is based at Mars, fleet 2 at Venus', () => {
     expect(fleetState.players[0].homeBody).toBe('Mars');
     expect(fleetState.players[1].homeBody).toBe('Venus');
-    expect(fleetState.players[0].bases).toContain(hexKey(findBaseHex(map, 'Mars')!));
-    expect(fleetState.players[1].bases).toContain(hexKey(findBaseHex(map, 'Venus')!));
   });
 
   it('no target body — pure combat scenario', () => {
     expect(fleetState.players[0].targetBody).toBe('');
     expect(fleetState.players[1].targetBody).toBe('');
-  });
-
-  it('all ships start with full fuel for their type', () => {
-    for (const ship of fleetState.ships) {
-      const stats = SHIP_STATS[ship.type];
-      expect(ship.fuel).toBe(stats.fuel);
-    }
   });
 });
 
