@@ -103,143 +103,235 @@ The map represents the inner Solar System along the ecliptic plane:
 
 ### Vector Movement
 
-The core mechanic. Each ship has a **velocity vector** — a displacement from its current hex to its destination hex, repeated each turn.
+The core mechanic. Each ship has a **velocity vector** — a displacement from its current hex to its destination hex, repeated each turn until thrust or gravity changes it.
 
-**How it works each turn:**
+**Canonical movement procedure:**
 
-1. **Predict course:** The game shows where each ship will end up if it doesn't accelerate (current position + velocity vector = predicted destination)
-2. **Burn fuel (optional):** The player may spend 1 fuel point to shift the predicted destination by 1 hex in any of the 6 hex directions. This changes both the destination AND the velocity vector for future turns. (Warships may do an "overload maneuver" spending 2 fuel for a 2-hex shift.)
-3. **Apply gravity:** As the ship's course passes through gravity hexes, each gravity hex deflects the endpoint by 1 hex toward the gravity source. Gravity is cumulative and mandatory (except weak gravity — see above).
-4. **Move:** The ship travels from its current position to its final destination along a straight line.
+1. **Predict course:** current position + current velocity = projected destination.
+2. **Burn fuel (optional):** spend 1 fuel to shift the projected destination by 1 hex in any of the 6 directions.
+3. **Overload (warships only):** once between maintenance stopovers, a warship may spend 2 fuel total for a 2-hex shift.
+4. **Apply deferred gravity:** gravity entered on the previous turn deflects the current move by 1 hex per gravity hex entered.
+5. **Move:** the phasing player's ships travel simultaneously along their final plotted paths.
+6. **Queue new gravity:** gravity hexes entered during this move apply on the following turn.
 
-**The velocity vector persists between turns.** A ship moving from A→B will, next turn, continue from B→C (where C is the same displacement as A→B) unless thrust or gravity modifies it.
-
-**Stationary ships** have a zero vector (no arrow). They remain in place until they burn fuel.
+**Additional canonical movement rules:**
+- Gravity takes effect on the turn *after* entry.
+- A single weak-gravity hex may be ignored, but two consecutive weak-gravity hexes of the same body make the second deflection mandatory.
+- A course exactly along the edge of a gravity hex does not count as entering that gravity hex.
+- A course passing between a gravity hex and the printed outline of a body is affected by that gravity hex.
+- Ships keep their velocity vectors between turns; stationary ships have a zero vector.
+- Any ship whose final course ends off-map is eliminated. It is legal for the intermediate projected course to leave the map, but the final arrow head must remain on-map.
 
 ### Turn Structure
 
-Each game turn consists of one player-turn per player. A player-turn has 5 phases:
+Each game turn consists of one player-turn per player. The canonical 2018 player-turn is:
 
 ```
 1. ASTROGATION PHASE
-   - Review predicted courses for all your ships
-   - Decide fuel burns (acceleration) for each ship
-   - Decide overload maneuvers (if applicable)
-   - Confirm all movement orders
+   - Plot fuel burns, overloads, and weak-gravity choices for the phasing player's ships
 
 2. ORDNANCE PHASE
-   - Launch mines, torpedoes, or nukes from eligible ships
-   - Each ship may launch only 1 item per turn
-   - Ordnance cannot be launched while at a base or during resupply
+   - Launch eligible mines, torpedoes, and nukes
+   - Each ship may release at most one item per turn
 
-3. MOVEMENT PHASE (automated)
-   - All ships move along their plotted courses simultaneously
-   - Mines/torpedoes/nukes also move
-   - Gravity effects are applied
-   - Crash detection (ship intersects planet/sun outline)
-   - Asteroid hazard rolls
-   - Ramming resolution
-   - Ordnance detonation on contact
+3. MOVEMENT PHASE
+   - Only the phasing player's ships and the phasing player's ordnance move
+   - Gravity entered earlier applies now; newly entered gravity is queued for later
+   - Crashes, landings, asteroid entry, ordnance contact, and ramming positions are established
 
 4. COMBAT PHASE
-   - Phasing player's ships may attack enemy ships in range
-   - Defender may counterattack
-   - Planetary base defense fire
-   - Die rolls with modifiers for range and relative velocity
+   - Resolve asteroid hazard rolls for asteroid hexes entered at speed > 1
+   - Resolve gunfire, counterattacks, planetary defense, and attacks against nukes
 
 5. RESUPPLY PHASE
-   - Ships at friendly bases: refuel, repair, reload ordnance
-   - Load/unload cargo
-   - Maintenance (repairs all damage, allows 1 overload maneuver)
+   - Bases refuel, repair, reload, transfer cargo/fuel, and provide maintenance
+   - Damaged ships recover 1 disabled turn at the end of the turn
 ```
 
 After both players complete their turns, a new game turn begins.
 
-### Ships
+### Ships and Cargo
 
 Nine ship types plus orbital bases:
 
 | Ship Type   | Combat | Fuel | Cargo | Notes |
 |-------------|--------|------|-------|-------|
-| Transport   | 1D     | 10   | 50    | Basic cargo hauler, defensive only |
-| Packet      | 2      | 10   | 50    | Armed transport |
-| Tanker      | 1D     | 50   | 0     | Fuel carrier, defensive only |
-| Liner       | 2D     | 10   | 0     | Passenger ship, defensive only |
+| Transport   | 1D     | 10   | 50    | Cargo hauler; may carry orbital bases |
+| Packet      | 2      | 10   | 50    | Armed transport; may carry orbital bases |
+| Tanker      | 1D     | 50   | 0     | Fuel carrier |
+| Liner       | 2D     | 10   | 0     | Passenger ship |
 | Corvette    | 2      | 20   | 5     | Smallest warship |
-| Corsair     | 4      | 20   | 10    | Flexible mid-size warship |
+| Corsair     | 4      | 20   | 10    | Mid-size warship |
 | Frigate     | 8      | 20   | 40    | Large warship |
-| Dreadnaught | 15     | 15   | 50    | Huge warship, less fuel |
-| Torch       | 8      | ∞    | 10    | Unlimited fuel, frigate guns |
-| Orbital Base| 16     | ∞    | ∞     | Stationary, resupply point |
+| Dreadnaught | 15     | 15   | 50    | Heavy warship |
+| Torch       | 8      | ∞    | 10    | Unlimited fuel; may not transfer fuel |
+| Orbital Base| 16     | ∞    | ∞     | Stationary emplacement |
 
-**"D" suffix** on combat strength means defensive only (cannot initiate attacks, only counterattack).
+**Cargo and special-capacity rules:**
+- A combat factor with the `D` suffix marks a commercial ship that may not attack or counterattack.
+- Only warships may overload.
+- Only warships may launch torpedoes.
+- Any ship may carry and launch nukes if it has enough cargo capacity, but non-warships may carry at most one nuke at a time.
+- Only transports and packets may carry orbital bases.
+- Fuel is not cargo.
 
-Each ship has:
-- Current hex position (q, r)
-- Velocity vector (dq, dr) — the hex displacement per turn
+Each ship tracks:
+- Current hex position
+- Velocity vector
 - Fuel remaining
-- Cargo manifest (items + mass)
-- Damage status (disabled turns remaining, or eliminated)
-- Owner (player index)
+- Cargo / ordnance load
+- Damage state
+- Detection state
+- Ownership and scenario-specific flags such as capture or heroism
 
 ### Combat System
 
-**Gun combat** (the standard combat system for first implementation):
+**Standard gun combat** is the default ruleset for the online implementation.
 
-1. Attacker declares target(s)
-2. Compute **combat odds**: attacker strength / defender strength, reduced to standard ratios (1:4, 1:2, 1:1, 2:1, 3:1, 4:1)
-3. Apply **range modifier**: subtract 1 from die roll per hex of range (measured from attacker's closest approach to target's final position)
-4. Apply **relative velocity modifier**: subtract 1 from die roll per hex of velocity difference > 2
-5. Roll 1d6, consult Gun Combat Damage table
-6. Results: – (no effect), D1–D5 (disabled 1–5 turns), E (eliminated)
-7. Defender may counterattack (recompute odds from defender's perspective)
+1. The phasing player declares attacks.
+2. Combine the chosen attackers' combat factors and compare them to the defender's factor to get odds (1:4, 1:2, 1:1, 2:1, 3:1, 4:1).
+3. Apply **range modifier**: subtract 1 per hex of range, measured from the attacker's closest approach to the target's final position.
+4. Apply **relative velocity modifier**: subtract 1 per hex of relative velocity above 2.
+5. Roll 1d6 on the Gun Combat Table.
+6. Counterattack is resolved before attack damage is implemented.
 
-**Damage:**
-- Disabled ships cannot maneuver, attack, or launch ordnance — they drift on current vector
-- Damage is cumulative: if total disabled turns ≥ 6, ship is eliminated
-- Ships recover 1 disabled turn per game turn (at resupply phase)
-- Reaching a friendly base immediately repairs all damage
+**Canonical combat rules that must be preserved:**
+- Line of sight is blocked by planets, moons, and Sol.
+- Ships, ordnance, and asteroids do not block line of sight.
+- A defender may counterattack if still eligible, and any ships in the defender's hex that share the defender's course may join that counterattack.
+- Attacks may be declared at less than full strength.
+- A ship may not attack more than once per combat phase.
+- A ship may not be attacked more than once per combat phase.
+- Planetary-defense shots follow normal gunfire rules except where explicitly modified.
+
+**Damage rules:**
+- `D1` through `D5` disable a ship for that many turns.
+- Disabled ships drift on their present vectors and may not maneuver, attack, counterattack, or launch ordnance.
+- Damage is cumulative; 6 or more disabled turns eliminates the ship.
+- Every damaged ship repairs 1 disabled turn at the end of each of its player-turns.
+- Maintenance at a friendly base repairs all damage and restores one overload allowance.
 
 **Other damage sources:**
-| Source    | Mechanic |
-|-----------|---------|
-| Torpedoes | Roll on Other Damage table, hits single target |
-| Mines     | Roll on Other Damage table, affects all ships in hex |
-| Asteroids | Roll on Other Damage table per asteroid hex entered at speed > 1 |
-| Ramming   | Roll on Other Damage table, affects both ships |
-| Nukes     | Roll on Gun Combat table at 2:1 odds (with range/velocity mods) |
+
+| Source    | Canonical effect |
+|-----------|------------------|
+| Torpedoes | Roll on the Other Damage Table; only one ship can be hit |
+| Mines     | Roll on the Other Damage Table against every affected ship |
+| Asteroids | Roll on the Other Damage Table for each asteroid hex entered at speed > 1 |
+| Ramming   | Roll on the Other Damage Table for both ships |
+| Nukes     | Destroy everything in the detonated hex automatically |
 
 ### Ordnance
 
-- **Mines** (mass 10): launched with ship's vector, drift for 5 turns then self-destruct. Detonate on contact with any ship/ordnance in their hex.
-- **Torpedoes** (mass 20): like mines but with terminal guidance — on launch turn, accelerate 1-2 hexes in any direction. Hit single target. Warships only.
-- **Nukes** (mass 20): devastating area weapons. Detonate on contact with anything. Destroy asteroid hexes, devastate planet hex sides. Scenario-specific availability.
+**General ordnance rules:**
+- All ordnance is affected by gravity.
+- Ordnance moves only during its owner's movement phase.
+- Each ship may release only one item per turn.
+- A ship may not launch ordnance while at a base, while taking off or landing, while refueling or transferring fuel, or during any player-turn in which it resupplies.
+- Mines, torpedoes, and nukes detonate when they enter a hex containing a ship, astral body, mine, torpedo, or nuke, or when any of those enter their hex.
 
-### Gravity and Orbits
+**Mines** (mass 10):
+- Inherit the launching ship's vector.
+- The launching ship must immediately change course so it does not remain in the mine's hex.
+- Remain active for 5 turns, then self-destruct.
+- Detonate if a ship or ordnance course passes through any portion of the mine hex, or the mine's course passes through any portion of an occupied hex.
+- Guns and planetary defenses have no effect on mines.
+
+**Torpedoes** (mass 20):
+- Inherit the launching ship's vector, then may accelerate one or two hexes in any direction on the launch turn.
+- Only warships may launch them.
+- Hit only a single target.
+- If multiple ships are in the affected hex, resolve them in random order until one ship is damaged or destroyed, or all have been rolled with no effect.
+- Continue moving if they miss.
+
+**Nukes** (mass 20):
+- Inherit the launching ship's vector.
+- Remain active for 5 turns, then self-destruct.
+- Explode when they enter a hex containing a ship, base, asteroid, mine, or torpedo, or when any of those enter the nuke hex.
+- Destroy everything in the detonated hex automatically.
+- Convert an asteroid hex to clear space.
+- If they reach a moon or planet without earlier detonation, they devastate one entire hex side; any base or ship on that side is destroyed.
+- Guns and planetary defenses may attack nukes at 2:1 odds with normal range and velocity modifiers; any disabling result destroys the nuke.
+- Scenario rules determine whether nukes are available at all.
+
+### Gravity, Orbit, Landing, and Takeoff
 
 Gravity is the key environmental mechanic:
-- Each gravity hex has a direction arrow pointing toward the parent body
-- Any object passing through a gravity hex has its endpoint shifted 1 hex in the arrow's direction
-- This happens **after** the object enters the gravity hex (i.e., on the turn after entry)
-- Gravity is cumulative: passing through 3 gravity hexes = 3 hex shifts
-- **Orbit** emerges naturally: a ship moving at 1 hex/turn through gravity hexes adjacent to a body will naturally orbit it (no special rules needed)
-- Landing requires expending fuel to cancel velocity, entering orbit first
+- Each gravity hex has an arrow pointing toward its parent body.
+- Deflections are cumulative.
+- Orbit is not a special state; it emerges from speed-1 movement through the gravity ring.
 
-### Landing, Takeoff, and Bases
+**Landing and takeoff rules:**
+- To land on a planet or satellite, a ship must first be in orbit and then spend 1 fuel to land on a base hex side.
+- Intersecting a planet or satellite any other way is a crash.
+- A ship may land on Ceres, the clandestine asteroid, or an unnamed asteroid by stopping in that asteroid hex.
+- Takeoff from a planetary base is free: boosters push the ship outward, surface gravity cancels that boost, and the ship begins stationary in the gravity hex above the base.
+- After planetary takeoff, the ship must still spend fuel normally to enter or leave orbit.
+- Landed ships at planetary bases are immune to gunfire, mines, torpedoes, and ramming, but not nukes.
+- Landed ships may not fire guns or launch ordnance.
 
-- **Landing:** Ship lands at a base by stopping on the planet's hex side that contains the base
-- **Takeoff:** Free! Boosters provide 1 hex of acceleration away from the planet. Gravity cancels this, leaving the ship stationary in the gravity hex above the base. Must then burn fuel to leave orbit.
-- **Bases provide:** refueling, full repair, ordnance resupply, cargo transfer, planetary defense fire
-- **Planetary defense:** Bases fire at 2:1 odds against enemy ships in the gravity hex directly above, during the combat phase. No range/velocity modifiers.
+### Bases, Detection, and Support
 
-### Detection
+**Planetary bases:**
+- Provide fuel, maintenance, cargo handling, ordnance reloads, detection, and planetary defense.
+- Each base may fire at every enemy ship in the gravity hex directly above that base during its owner's combat phase.
+- Planetary-defense fire is resolved at 2:1 odds with no range or velocity modifiers; all other gunfire rules still apply.
 
-Ships and bases have detectors:
-- **Ship/orbital base detectors:** 3 hex range
-- **Planetary base detectors:** 5 hex range (printed on map)
-- Once detected, a ship remains detected until it reaches a friendly base
+**Asteroid bases:**
+- Provide normal base functions.
+- Have no planetary defense.
+- May launch one torpedo per turn.
+- Are harmed only by nukes unless a scenario overrides this.
 
-Detection matters primarily in scenarios with hidden movement (Piracy, Lateral 7). For the initial Bi-Planetary scenario, all ships are visible.
+**Orbital bases:**
+- May be carried only by transports or packets.
+- May be emplaced in a gravity hex while the carrying ship is in orbit, or on an unoccupied world hex side.
+- Do not literally orbit once emplaced.
+- May fire one torpedo per turn if not resupplying another ship.
+- Cannot be moved once placed.
+
+**Clandestine base:**
+- A secret asteroid base that uses orbital-base statistics.
+- Scenario-specific dense-asteroid and scanner rules apply around it.
+
+**Resupply and maintenance:**
+- All bases provide unlimited fuel, mines, and torpedoes.
+- Planetary bases resupply landed ships on their base hex side.
+- Asteroid bases resupply ships stopped in the base hex.
+- Orbital bases resupply ships that match the base's position and course.
+- Refueling includes maintenance: all damage is repaired and one overload allowance is restored.
+- A ship may take any mix of mines and torpedoes that fits its cargo capacity.
+- No ship may fire guns or launch ordnance during a player-turn in which it resupplies.
+- An orbital base that resupplies any ship may not fire guns or launch ordnance that player-turn.
+
+**Detection:**
+- Ships and orbital bases detect at range 3.
+- Planetary bases detect at range 5.
+- Once detected, a ship remains detected until it reaches a friendly base.
+
+Detection matters primarily in hidden-information scenarios such as Piracy and Lateral 7. In open scenarios like Bi-Planetary, all ships may simply be visible.
+
+### Other Canonical Rules
+
+- **Asteroids:** roll once on the Other Damage Table for each asteroid hex entered at speed > 1. Moving along a hexside between two asteroid hexes counts as entering one asteroid hex. Mines and torpedoes detonate on entering asteroid hexes.
+- **Capture:** a disabled ship can be captured by an enemy ship that matches its course and position. A captured ship may not fire or return fire and must be brought to a friendly base before reuse.
+- **Surrender:** ships may surrender by agreement; surrender is distinct from capture.
+- **Looting and rescue:** ships may transfer cargo, passengers, or fuel only when positions and courses match. Only disabled or surrendered ships may be looted.
+- **Heroism:** longer scenarios can award a one-time +1 attack bonus after a qualifying underdog success.
+- **Optional advanced combat system:** the 2018 rules include an alternate combat model with separate weapon, drive, and structure damage tracks. The online game currently targets the standard gun-combat system unless explicitly extended.
+
+### Current Rules Gaps To Resolve
+
+The document above is the canonical rules reference. The current online implementation still diverges from it in several important places:
+
+- **Combat fidelity:** current code still measures gun range from current positions instead of closest approach, does not enforce line-of-sight blocking by bodies, allows `D`-suffix commercial ships to counterattack, only supports direct-target counterattacks, and does not yet support limited attacks or enforce the "target attacked only once per combat phase" rule.
+- **Movement fidelity:** current landing logic is still simplified; it does not fully require prior orbit plus 1 fuel for planetary landing, and it does not model the gravity-edge / printed-outline edge cases from the paper map.
+- **Turn-sequence fidelity:** asteroid hazard damage is still resolved inside the movement engine instead of being deferred to the combat step of the phasing player's turn.
+- **Ordnance fidelity:** torpedoes currently accelerate only one hex instead of one or two, torpedo multi-target random resolution is not implemented, nukes are still treated as warship-only, non-warship one-nuke cargo limits are not enforced, attacks against nukes are not implemented, and nuke devastation of planetary hex sides is not modeled.
+- **Contact geometry:** mine and torpedo contact is approximated by hex occupancy/path rather than the stricter "any portion of the hex" geometric rule from the board game.
+- **Bases and support:** planetary-defense and detection ownership are still simplified to home-world data instead of per-base ownership; orbital bases, asteroid-base special cases, clandestine-base scanner rules, and full resupply positioning restrictions are not yet fully modeled.
+- **Logistics and hidden information:** capture, surrender, looting, rescue, fuel transfer, cargo handling beyond simple ordnance mass, heroism, dummy counters, and broader hidden-movement rules remain unfinished.
+- **Optional systems:** the advanced combat system from the rulebook is still out of scope and would need an explicit design decision before implementation.
 
 ## Scenarios (Implementation Priority)
 
