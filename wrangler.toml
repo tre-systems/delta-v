@@ -1,6 +1,9 @@
 name = "delta-v"
 main = "src/server/index.ts"
 compatibility_date = "2025-03-01"
+routes = [
+  { pattern = "delta-v.tre.systems", custom_domain = true }
+]
 
 [build]
 command = "node esbuild.client.mjs"
