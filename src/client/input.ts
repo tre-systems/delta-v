@@ -482,10 +482,11 @@ export class InputHandler {
 
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const mmW = 140;
-    const mmH = 140;
-    const mmX = w - mmW - 10;
-    const mmY = h - mmH - 10;
+    const isMobile = w < 600;
+    const mmW = isMobile ? 100 : 140;
+    const mmH = isMobile ? 100 : 140;
+    const mmX = 12;
+    const mmY = isMobile ? 90 : h - mmH - 12;
     const mmPad = 8;
 
     // Check if click is within minimap bounds
