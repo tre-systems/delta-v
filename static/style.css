@@ -351,15 +351,19 @@ body::before {
   align-items: center;
   gap: 0.55rem;
   transform: translateX(-50%);
-  width: min(calc(100vw - 2rem), 760px);
+  max-width: min(calc(100vw - 2rem), 760px);
+  pointer-events: none;
+}
+
+.hud-bottom > * {
+  pointer-events: auto;
 }
 
 .hud-bottom-buttons {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.45rem;
-  width: 100%;
   padding: 0.5rem;
   border-radius: 20px;
   border: 1px solid var(--border);
@@ -446,7 +450,7 @@ body::before {
 }
 
 .ship-entry {
-  min-width: 148px;
+  min-width: 164px;
   padding: 0.5rem 0.7rem;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -512,9 +516,9 @@ body::before {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.15rem;
   color: var(--muted);
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   line-height: 1.5;
 }
 
@@ -522,14 +526,18 @@ body::before {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.8rem;
 }
 
 .ship-detail-label {
   color: rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
 }
 
 .ship-detail-value {
   color: var(--muted-strong);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .game-log {
@@ -1130,7 +1138,7 @@ body::before {
 
   .hud-bottom {
     bottom: max(0.75rem, env(safe-area-inset-bottom));
-    width: calc(100vw - 1rem);
+    max-width: calc(100vw - 1rem);
   }
 
   .hud-bottom-buttons {
@@ -1139,7 +1147,6 @@ body::before {
 
   .hud-bottom .btn {
     min-height: 44px;
-    flex: 1 1 140px;
   }
 
   .status-msg {
@@ -1395,6 +1402,12 @@ body::before {
   text-align: center;
   opacity: 0;
   transition: opacity 0.3s ease-out;
+  padding: 2rem 3rem;
+  border-radius: var(--radius);
+  background: rgba(7, 14, 28, 0.82);
+  backdrop-filter: blur(32px);
+  border: 1px solid rgba(122, 215, 255, 0.15);
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(122, 215, 255, 0.08);
 }
 
 #phaseAlert.active {
@@ -1419,10 +1432,10 @@ body::before {
   color: var(--text);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(122, 215, 255, 0.08);
   padding: 0.4rem 1.2rem;
   border-radius: var(--radius-pill);
-  backdrop-filter: blur(8px);
+  border: 1px solid rgba(122, 215, 255, 0.12);
   display: inline-block;
 }
 
