@@ -45,8 +45,15 @@ export class InputHandler {
     canvas.addEventListener('dblclick', (e) => this.handleDoubleClick(e.clientX, e.clientY));
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
-      const factor = 1 - e.deltaY * 0.001;
-      this.camera.zoomAt(e.clientX, e.clientY, factor);
+      if (e.ctrlKey) {
+        // Trackpad pinch-to-zoom (macOS/browsers send ctrl+wheel for pinch gestures)
+        const factor = 1 - e.deltaY * 0.01;
+        this.camera.zoomAt(e.clientX, e.clientY, factor);
+      } else {
+        // Standard scroll wheel — zoom
+        const factor = 1 - e.deltaY * 0.001;
+        this.camera.zoomAt(e.clientX, e.clientY, factor);
+      }
     }, { passive: false });
 
     // Touch events

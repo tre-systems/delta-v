@@ -80,12 +80,13 @@ export class Camera {
 
   zoomAt(sx: number, sy: number, factor: number) {
     const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.targetZoom * factor));
-    const worldBefore = this.screenToWorld(sx, sy);
+    // Use target values so rapid trackpad events don't drift
+    const worldX = (sx - this.canvasW / 2) / this.targetZoom + this.targetX;
+    const worldY = (sy - this.canvasH / 2) / this.targetZoom + this.targetY;
     this.targetZoom = newZoom;
     // Adjust target to keep the point under cursor stable
-    const ratio = 1 - this.zoom / newZoom;
-    this.targetX += (worldBefore.x - this.x) * ratio;
-    this.targetY += (worldBefore.y - this.y) * ratio;
+    this.targetX = worldX - (sx - this.canvasW / 2) / newZoom;
+    this.targetY = worldY - (sy - this.canvasH / 2) / newZoom;
   }
 
   pan(dx: number, dy: number) {
