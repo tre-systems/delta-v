@@ -309,8 +309,10 @@ export class InputHandler {
     }
 
     // Click an enemy ship to target it
+    const queuedTargets = new Set(this.planningState.queuedAttacks.map(a => `${a.targetType ?? 'ship'}:${a.targetId}`));
     for (const ship of this.gameState.ships) {
       if (ship.owner === this.playerId || ship.destroyed || ship.landed) continue;
+      if (queuedTargets.has(`ship:${ship.id}`)) continue;
       if (hexEqual(clickHex, ship.position)) {
         // Toggle: click same target = deselect
         const isSame = this.planningState.combatTargetId === ship.id
@@ -376,8 +378,11 @@ export class InputHandler {
   private getLegalCombatAttackers(targetId: string, targetType: 'ship' | 'ordnance'): Ship[] {
     if (!this.gameState || !this.map) return [];
 
+    const committedAttackers = new Set(
+      this.planningState.queuedAttacks.flatMap(a => a.attackerIds),
+    );
     const myAttackers = this.gameState.ships.filter(ship =>
-      ship.owner === this.playerId && !ship.destroyed && canAttack(ship),
+      ship.owner === this.playerId && !ship.destroyed && canAttack(ship) && !committedAttackers.has(ship.id),
     );
 
     if (targetType === 'ordnance') {

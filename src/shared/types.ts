@@ -35,6 +35,7 @@ export interface Ship {
   landed: boolean;
   destroyed: boolean;
   detected: boolean; // true if within detection range of opponent's ships/bases
+  hasFugitives?: boolean; // Escape scenario: true if this transport carries the fugitives (hidden from opponent)
   pendingGravityEffects?: GravityEffect[]; // gravity entered last turn that applies this turn
   damage: {
     disabledTurns: number; // 0 = operational, cumulative >= 6 = eliminated
@@ -234,6 +235,7 @@ export interface ScenarioPlayer {
   homeBody: string; // default home world / starting body
   bases?: HexCoord[]; // explicit controlled bases for scenarios that split a world's bases
   escapeWins: boolean; // true if this player wins by escaping
+  hiddenIdentity?: boolean; // true if one ship carries hidden cargo (fugitives) — opponent doesn't know which
 }
 
 export interface ScenarioDefinition {

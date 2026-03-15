@@ -325,12 +325,13 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 The document above is the canonical rules reference. The current online implementation still diverges from it in several important places:
 
-- **Combat fidelity:** limited-strength attacks are implemented for phasing-player gunfire, landed ships are properly immune to gunfire, and ships that resupply cannot fire in the same turn. The online model still simplifies the paper game's broader defensive timing/options, especially defender counterattack target choice and multi-target gun attacks.
+- **Combat fidelity:** limited-strength attacks, multi-target attacks (queue multiple attack declarations per combat phase), landed-ship immunity, and resupply-turn restrictions are all implemented. Defender counterattack target choice still defaults to strongest attacker rather than player choice.
+- **Hidden identity:** the Escape scenario now conceals which transport carries the fugitives — only the owning player sees the ★ marker, the server strips this from opponent state. Victory requires escaping with the fugitive ship specifically (or destroying it as the enforcer).
 - **Movement fidelity:** planetary-base landing is now stricter, and landed ships are immune to ramming, but the gravity-edge / printed-outline edge cases from the paper map are still not modeled, and asteroid/base representation is still simplified compared to the board.
 - **Ordnance fidelity:** ship gunfire and planetary defenses can now attack nukes, torpedoes resolve mixed multi-target contacts more faithfully, direct nuke hits can destroy bases persistently, landed ships are immune to mines/torpedoes (but not nukes), nukes reaching a planet devastate the entry hex side (destroying any base or ship there), and mine launches require a course change. Broader planetary-surface damage effects beyond single-hex-side devastation are still not modeled.
 - **Contact geometry:** mine and torpedo contact is approximated by hex occupancy/path rather than the stricter "any portion of the hex" geometric rule from the board game.
 - **Bases and support:** per-base ownership now drives planetary defense, detection, and friendly resupply, and ships that resupply cannot fire or launch ordnance during that turn. Orbital bases, asteroid-base special cases, clandestine-base scanner rules, and full resupply positioning restrictions are not yet fully modeled.
-- **Logistics and hidden information:** capture, surrender, looting, rescue, fuel transfer, cargo handling beyond simple ordnance mass, heroism, dummy counters, and broader hidden-movement rules remain unfinished.
+- **Logistics:** capture, surrender, looting, rescue, fuel transfer, cargo handling beyond simple ordnance mass, heroism, dummy counters, and broader hidden-movement rules remain unfinished.
 - **Optional systems:** the advanced combat system from the rulebook is still out of scope and would need an explicit design decision before implementation.
 
 ## Scenarios (Implementation Priority)
@@ -765,42 +766,42 @@ interface ScenarioPlayer {
 
 **Goal:** Two players can play the Bi-Planetary learning scenario end-to-end.
 
-- [ ] Project setup (Wrangler, TypeScript, bundling)
-- [ ] Hex math library (coordinates, distance, line drawing, pixel conversion)
-- [ ] Map data: define a subset of the Delta-V map (Mars–Venus corridor)
-- [ ] Canvas renderer: stars background, celestial bodies, gravity indicators
-- [ ] Ship rendering with directional icons and velocity arrows
-- [ ] Vector movement engine with gravity
-- [ ] Course planning UI (select ship, set burn, see prediction, confirm)
-- [ ] Movement animation (smooth ship glide with thrust trail)
-- [ ] Durable Object: game state management, turn sequencing
-- [ ] Worker: invite code creation, WebSocket routing
-- [ ] Client WebSocket: state sync, turn submission
-- [ ] Victory detection (first to land on opponent's world)
-- [ ] Basic mobile-responsive touch controls
+- [x] Project setup (Wrangler, TypeScript, bundling)
+- [x] Hex math library (coordinates, distance, line drawing, pixel conversion)
+- [x] Map data: define a subset of the Delta-V map (Mars–Venus corridor)
+- [x] Canvas renderer: stars background, celestial bodies, gravity indicators
+- [x] Ship rendering with directional icons and velocity arrows
+- [x] Vector movement engine with gravity
+- [x] Course planning UI (select ship, set burn, see prediction, confirm)
+- [x] Movement animation (smooth ship glide with thrust trail)
+- [x] Durable Object: game state management, turn sequencing
+- [x] Worker: invite code creation, WebSocket routing
+- [x] Client WebSocket: state sync, turn submission
+- [x] Victory detection (first to land on opponent's world)
+- [x] Basic mobile-responsive touch controls
 
 ### Milestone 2: Combat + Escape Scenario
 
-- [ ] Gun combat system (odds computation, die rolling, damage tables)
-- [ ] Combat UI (select attacker/target, show odds, animate results)
-- [ ] Damage tracking and recovery
-- [ ] Counterattack logic
-- [ ] Ordnance system (mines, torpedoes)
-- [ ] Ordnance movement and detonation
-- [ ] Escape scenario implementation
-- [ ] Ship identity concealment (Escape scenario: which transport has the fugitives?)
+- [x] Gun combat system (odds computation, die rolling, damage tables)
+- [x] Combat UI (select attacker/target, show odds, animate results)
+- [x] Damage tracking and recovery
+- [x] Counterattack logic
+- [x] Ordnance system (mines, torpedoes)
+- [x] Ordnance movement and detonation
+- [x] Escape scenario implementation
+- [x] Ship identity concealment (Escape scenario: which transport has the fugitives?)
 
 ### Milestone 3: Full Map + Interplanetary War
 
-- [ ] Complete solar system map (all planets, moons, asteroid belt)
+- [x] Complete solar system map (all planets, moons, asteroid belt)
 - [ ] MegaCredit economy and ship purchasing
 - [ ] Fleet building UI
-- [ ] Full ship roster (all 9 types + orbital bases)
-- [ ] Base mechanics (planetary defense, resupply, landing/takeoff)
+- [x] Full ship roster (all 9 types + orbital bases)
+- [x] Base mechanics (planetary defense, resupply, landing/takeoff)
 - [ ] Orbit mechanics
 - [ ] Advanced features: looting, capture, surrender, heroism
-- [ ] Nukes
-- [ ] Detection / fog of war
+- [x] Nukes
+- [x] Detection / fog of war
 - [ ] Minimap for full solar system navigation
 
 ### Milestone 4: Polish
