@@ -27,3 +27,6 @@ jobs:
 
       - name: Build client
         run: npm run build
+
+      - name: Run Headless Engine Simulations
+        run: npm run simulate all 100 -- --ci
