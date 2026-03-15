@@ -7,6 +7,7 @@ export type Phase = 'waiting' | 'fleetBuilding' | 'astrogation' | 'ordnance' | '
 export interface GameState {
   gameId: string;
   scenario: string;
+  scenarioRules: ScenarioRules;
   turnNumber: number;
   phase: Phase;
   activePlayer: number; // 0 or 1
@@ -36,10 +37,11 @@ export interface Ship {
   destroyed: boolean;
   detected: boolean; // true if within detection range of opponent's ships/bases
   captured?: boolean; // true if captured by enemy — cannot fire/attack until base resupply
-  heroismAvailable?: boolean; // one-time +1 attack bonus from surviving unfavorable odds
+  heroismAvailable?: boolean; // heroic ships add +1 to gun combat rolls whenever they attack
   carryingOrbitalBase?: boolean; // transport/packet carrying an unemplaced orbital base
   emplaced?: boolean; // true for orbital bases that have been placed (stationary, cannot move)
   hasFugitives?: boolean; // Escape scenario: true if this transport carries the fugitives (hidden from opponent)
+  identityRevealed?: boolean; // hidden-identity scenarios: true once inspection reveals this ship's role
   pendingGravityEffects?: GravityEffect[]; // gravity entered last turn that applies this turn
   damage: {
     disabledTurns: number; // 0 = operational, cumulative >= 6 = eliminated
@@ -211,6 +213,13 @@ export interface FleetPurchase {
   shipType: string; // key into SHIP_STATS
 }
 
+export interface ScenarioRules {
+  allowedOrdnanceTypes?: Array<Ordnance['type']>;
+  planetaryDefenseEnabled?: boolean;
+  hiddenIdentityInspection?: boolean;
+  escapeEdge?: 'any' | 'north';
+}
+
 export type C2S =
   | { type: 'fleetReady'; purchases: FleetPurchase[] }
   | { type: 'astrogation'; orders: AstrogationOrder[] }
@@ -258,6 +267,7 @@ export interface ScenarioDefinition {
   name: string;
   description: string;
   players: ScenarioPlayer[];
-  startingCredits?: number; // per-player starting MegaCredits for fleet-building scenarios
+  rules?: ScenarioRules;
+  startingCredits?: number | [number, number]; // per-player starting MegaCredits for fleet-building scenarios
   availableShipTypes?: string[]; // restricts purchasable ships (default: all non-orbital-base)
 }
