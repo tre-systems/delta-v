@@ -831,11 +831,13 @@ export class Renderer {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Subtle label
-      ctx.fillStyle = 'rgba(79, 195, 247, 0.15)';
-      ctx.font = '7px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('DETECTION', p.x, p.y - radius - 4);
+      // Subtle label — only show at higher zoom levels
+      if (this.camera.zoom > 0.6) {
+        ctx.fillStyle = 'rgba(79, 195, 247, 0.12)';
+        ctx.font = `${Math.max(6, 7 / this.camera.zoom)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText('sensor range', p.x, p.y - radius - 4);
+      }
     }
 
     // Show base detection ranges for own bases
@@ -1303,15 +1305,24 @@ export class Renderer {
         const typeName = stats ? stats.name : 'Unknown';
 
         if (ship.owner === this.playerId) {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-          ctx.font = '500 9px Inter, sans-serif';
           ctx.textAlign = 'center';
+          // Ship name
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.font = '600 9px Inter, sans-serif';
+          ctx.fillText(typeName, pos.x, pos.y + labelYOffset);
+          // Status line below name
           const speed = hexVecLength(ship.velocity);
           const inGravity = this.map && this.map.hexes.get(hexKey(ship.position))?.gravity;
-          const statusTag = ship.landed ? ' • Landed' : (speed === 1 && inGravity) ? ' • Orbiting' : '';
-          ctx.fillText(`${typeName} • Fuel: ${ship.fuel}${statusTag}`, pos.x, pos.y + labelYOffset);
+          const fuelStr = stats ? `F${ship.fuel}` : '';
+          const statusTag = ship.landed ? 'Landed' : (speed === 1 && inGravity) ? 'Orbit' : '';
+          const parts = [fuelStr, statusTag].filter(Boolean);
+          if (parts.length > 0) {
+            ctx.fillStyle = ship.landed ? 'rgba(149, 214, 135, 0.6)' : 'rgba(255, 255, 255, 0.45)';
+            ctx.font = '8px monospace';
+            ctx.fillText(parts.join(' · '), pos.x, pos.y + labelYOffset + 10);
+          }
         } else if (ship.detected) {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+          ctx.fillStyle = 'rgba(255, 171, 145, 0.6)';
           ctx.font = '500 9px Inter, sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText(typeName, pos.x, pos.y + labelYOffset);

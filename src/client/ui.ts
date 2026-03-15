@@ -384,13 +384,13 @@ export class UIManager {
       statusMsg.textContent = 'Waiting for opponent...';
       statusMsg.style.display = 'block';
     } else if (phase === 'astrogation') {
-      statusMsg.textContent = 'Click ship → click direction arrow to burn (1-6 keys) → CONFIRM (Enter)';
+      statusMsg.textContent = 'Select ship · Choose burn direction (1-6) · Confirm (Enter)';
       statusMsg.style.display = 'block';
     } else if (phase === 'ordnance') {
-      statusMsg.textContent = 'Select ship, set torpedo boost with the arrows, launch ordnance — or SKIP (Enter)';
+      statusMsg.textContent = 'Launch ordnance or skip (Enter)';
       statusMsg.style.display = 'block';
     } else if (phase === 'combat') {
-      statusMsg.textContent = 'Click enemy → ATTACK to queue. Multiple targets allowed. Enter or FIRE ALL to execute.';
+      statusMsg.textContent = 'Click enemies to target · Fire All to attack (Enter)';
       statusMsg.style.display = 'block';
     } else {
       statusMsg.style.display = 'none';
@@ -439,13 +439,24 @@ export class UIManager {
       if (ship.id === selectedId && !ship.destroyed && stats) {
         const details = document.createElement('div');
         details.className = 'ship-details';
-        const combat = stats.combat + (stats.defensiveOnly ? 'D' : '');
-        const cargo = stats.cargo > 0 ? `Cargo: ${stats.cargo - ship.cargoUsed}/${stats.cargo}` : '';
-        const velocity = `Vel: (${ship.velocity.dq},${ship.velocity.dr})`;
-        const dmg = ship.damage.disabledTurns > 0 ? `Dmg: ${ship.damage.disabledTurns}T` : '';
-        const status = ship.captured ? 'Captured' : ship.landed ? 'Landed' : '';
-        const heroism = ship.heroismAvailable ? ' [Heroism]' : '';
-        details.innerHTML = `<span>ATK:${combat}${heroism} ${cargo}</span><span>${velocity} ${dmg} ${status}</span>`;
+        const combatVal = stats.combat + (stats.defensiveOnly ? ' (def)' : '');
+        const rows: string[] = [];
+        rows.push(`<div class="ship-detail-row"><span class="ship-detail-label">Combat</span><span class="ship-detail-value">${combatVal}${ship.heroismAvailable ? ' ★' : ''}</span></div>`);
+        if (stats.cargo > 0) {
+          rows.push(`<div class="ship-detail-row"><span class="ship-detail-label">Cargo</span><span class="ship-detail-value">${stats.cargo - ship.cargoUsed}/${stats.cargo}</span></div>`);
+        }
+        const speed = Math.abs(ship.velocity.dq) + Math.abs(ship.velocity.dr);
+        const velDisplay = speed === 0 ? 'Stationary' : `${ship.velocity.dq}, ${ship.velocity.dr}`;
+        rows.push(`<div class="ship-detail-row"><span class="ship-detail-label">Velocity</span><span class="ship-detail-value">${velDisplay}</span></div>`);
+        if (ship.damage.disabledTurns > 0) {
+          rows.push(`<div class="ship-detail-row"><span class="ship-detail-label">Disabled</span><span class="ship-detail-value" style="color:var(--warning)">${ship.damage.disabledTurns} turns</span></div>`);
+        }
+        if (ship.captured) {
+          rows.push(`<div class="ship-detail-row"><span class="ship-detail-label">Status</span><span class="ship-detail-value" style="color:var(--danger)">Captured</span></div>`);
+        } else if (ship.landed) {
+          rows.push(`<div class="ship-detail-row"><span class="ship-detail-label">Status</span><span class="ship-detail-value" style="color:var(--success)">Landed</span></div>`);
+        }
+        details.innerHTML = rows.join('');
         entry.appendChild(details);
       }
 
