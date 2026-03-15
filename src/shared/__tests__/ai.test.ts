@@ -62,6 +62,17 @@ describe('aiAstrogation', () => {
     expect(destroyedOrder!.burn).toBeNull();
   });
 
+  it('takes off from home base when it has a target', () => {
+    const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
+    // AI is player 1, starts landed at Venus, target is Mars
+    const aiShip = state.ships.find(s => s.owner === 1)!;
+    expect(aiShip.landed).toBe(true);
+
+    const orders = aiAstrogation(state, 1, map);
+    // AI should burn to take off, not stay landed
+    expect(orders[0].burn).not.toBeNull();
+  });
+
   it('returns orders for escape scenario', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST', findBaseHex);
     // Player 0 has escape objective
