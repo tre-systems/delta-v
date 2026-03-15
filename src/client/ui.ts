@@ -167,6 +167,7 @@ export class UIManager {
     this.shipListEl.style.display = 'none';
     this.gameLogEl.style.display = 'none';
     this.logShowBtn.style.display = 'none';
+    this.fleetBuildingEl.style.display = 'none';
     document.getElementById('helpBtn')!.style.display = 'none';
     document.getElementById('soundBtn')!.style.display = 'none';
     document.getElementById('helpOverlay')!.style.display = 'none';
@@ -213,6 +214,105 @@ export class UIManager {
     } else {
       this.logShowBtn.style.display = 'block';
     }
+  }
+
+  showFleetBuilding(state: GameState, playerId: number) {
+    this.hideAll();
+    this.fleetBuildingEl.style.display = 'flex';
+    document.getElementById('soundBtn')!.style.display = 'flex';
+    this.fleetCart = [];
+
+    const player = state.players[playerId];
+    const credits = player.credits ?? 0;
+
+    // Determine available ship types from scenario
+    const scenario = state.scenario;
+    // We can't easily access the scenario definition from UI, so we build from SHIP_STATS
+    // excluding orbitalBase (can't be purchased directly)
+    const availableTypes = Object.entries(SHIP_STATS)
+      .filter(([key]) => key !== 'orbitalBase')
+      .sort((a, b) => a[1].cost - b[1].cost);
+
+    this.renderFleetShop(availableTypes, credits);
+    this.renderFleetCart(credits);
+
+    // Wire buttons
+    document.getElementById('fleetReadyBtn')!.onclick = () => {
+      this.onFleetReady?.(this.fleetCart);
+    };
+    document.getElementById('fleetClearBtn')!.onclick = () => {
+      this.fleetCart = [];
+      this.renderFleetCart(credits);
+    };
+    document.getElementById('fleetWaiting')!.style.display = 'none';
+  }
+
+  showFleetWaiting() {
+    document.getElementById('fleetReadyBtn')!.style.display = 'none';
+    document.getElementById('fleetClearBtn')!.style.display = 'none';
+    document.getElementById('fleetWaiting')!.style.display = 'block';
+  }
+
+  private renderFleetShop(types: [string, typeof SHIP_STATS[string]][], totalCredits: number) {
+    const shopEl = document.getElementById('fleetShopList')!;
+    shopEl.innerHTML = '';
+
+    for (const [key, stats] of types) {
+      const item = document.createElement('div');
+      item.className = 'fleet-shop-item';
+      item.innerHTML = `
+        <div>
+          <div class="fleet-shop-name">${stats.name}</div>
+          <div class="fleet-shop-stats">C${stats.combat}${stats.defensiveOnly ? 'D' : ''} F${stats.fuel === Infinity ? '\u221e' : stats.fuel}</div>
+        </div>
+        <div class="fleet-shop-cost">${stats.cost} MC</div>
+      `;
+      item.addEventListener('click', () => {
+        const spent = this.fleetCart.reduce((sum, p) => sum + (SHIP_STATS[p.shipType]?.cost ?? 0), 0);
+        if (spent + stats.cost <= totalCredits) {
+          this.fleetCart.push({ shipType: key });
+          this.renderFleetCart(totalCredits);
+        }
+      });
+      shopEl.appendChild(item);
+    }
+  }
+
+  private renderFleetCart(totalCredits: number) {
+    const cartEl = document.getElementById('fleetCart')!;
+    const creditsEl = document.getElementById('fleetCredits')!;
+    const spent = this.fleetCart.reduce((sum, p) => sum + (SHIP_STATS[p.shipType]?.cost ?? 0), 0);
+    const remaining = totalCredits - spent;
+    creditsEl.textContent = `${remaining} MC remaining`;
+
+    cartEl.innerHTML = '';
+    if (this.fleetCart.length === 0) {
+      cartEl.innerHTML = '<span style="color:#556;font-size:0.75rem;padding:0.2rem">Click ships above to add</span>';
+      return;
+    }
+
+    for (let i = 0; i < this.fleetCart.length; i++) {
+      const purchase = this.fleetCart[i];
+      const stats = SHIP_STATS[purchase.shipType];
+      const chip = document.createElement('div');
+      chip.className = 'fleet-cart-chip';
+      chip.innerHTML = `${stats?.name ?? purchase.shipType} <span class="chip-remove">\u00d7</span>`;
+      chip.addEventListener('click', () => {
+        this.fleetCart.splice(i, 1);
+        this.renderFleetCart(totalCredits);
+      });
+      cartEl.appendChild(chip);
+    }
+
+    // Update shop item disabled states
+    const shopItems = document.querySelectorAll('.fleet-shop-item');
+    const types = Object.entries(SHIP_STATS).filter(([key]) => key !== 'orbitalBase').sort((a, b) => a[1].cost - b[1].cost);
+    shopItems.forEach((item, idx) => {
+      if (idx < types.length) {
+        const cost = types[idx][1].cost;
+        item.classList.toggle('disabled', cost > remaining);
+      }
+    });
   }
 
   updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number, hasBurns = false, cargoFree = 0, cargoMax = 0, objective = '', isWarship = false, canEmplaceBase = false) {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createGame, processAstrogation, processOrdnance, skipOrdnance, beginCombatPhase, skipCombat, processCombat, type MovementResult, type StateUpdateResult } from '../game-engine';
+import { createGame, processFleetReady, processAstrogation, processOrdnance, skipOrdnance, beginCombatPhase, skipCombat, processCombat, type MovementResult, type StateUpdateResult } from '../game-engine';
 import { buildSolarSystemMap, SCENARIOS, findBaseHex, findBaseHexes } from '../map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../constants';
 import { hexKey, hexEqual, hexDistance } from '../hex';
@@ -468,7 +468,7 @@ describe('Escape scenario', () => {
     const p0Ships = escapeState.ships.filter(s => s.owner === 0);
     const p1Ships = escapeState.ships.filter(s => s.owner === 1);
     expect(p0Ships).toHaveLength(3); // 3 transports
-    expect(p1Ships).toHaveLength(2); // corvette + corsair
+    expect(p1Ships).toHaveLength(3); // 2 corvettes + corsair
   });
 
   it('pilgrim transports start landed at Terra base', () => {
@@ -486,10 +486,10 @@ describe('Escape scenario', () => {
     }
   });
 
-  it('enforcer ship types are corvette and corsair', () => {
+  it('enforcer ship types are corvettes and corsair', () => {
     const p1Ships = escapeState.ships.filter(s => s.owner === 1);
     const types = p1Ships.map(s => s.type).sort();
-    expect(types).toEqual(['corsair', 'corvette']);
+    expect(types).toEqual(['corsair', 'corvette', 'corvette']);
   });
 
   it('pilgrim player has escapeWins = true', () => {
@@ -1489,16 +1489,16 @@ describe('Blockade Runner scenario', () => {
     expect(runner.type).toBe('packet');
   });
 
-  it('blocker is a dreadnaught', () => {
+  it('blocker is a frigate', () => {
     const blocker = blockadeState.ships.find(s => s.owner === 1)!;
-    expect(blocker.type).toBe('dreadnaught');
+    expect(blocker.type).toBe('frigate');
   });
 
   it('runner targets Mars', () => {
     expect(blockadeState.players[0].targetBody).toBe('Mars');
   });
 
-  it('dreadnaught starts unlanded in space', () => {
+  it('blocker starts unlanded in space', () => {
     const blocker = blockadeState.ships.find(s => s.owner === 1)!;
     expect(blocker.landed).toBe(false);
   });
@@ -2188,6 +2188,92 @@ describe('capture mechanics', () => {
     expect('error' in result).toBe(true);
     if ('error' in result) {
       expect(result.error).toContain('Captured');
+    }
+  });
+});
+
+describe('fleet building (MegaCredit economy)', () => {
+  it('Interplanetary War scenario starts in fleetBuilding phase', () => {
+    const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
+    expect(state.phase).toBe('fleetBuilding');
+    expect(state.players[0].credits).toBe(800);
+    expect(state.players[1].credits).toBe(800);
+    // Both players start not ready
+    expect(state.players[0].ready).toBe(false);
+    expect(state.players[1].ready).toBe(false);
+    // No ships yet (empty fleet)
+    expect(state.ships).toHaveLength(0);
+  });
+
+  it('processFleetReady spawns purchased ships at bases', () => {
+    const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
+    const result = processFleetReady(state, 0, [
+      { shipType: 'corvette' },
+      { shipType: 'corsair' },
+    ], map, SCENARIOS.interplanetaryWar.availableShipTypes);
+
+    expect('error' in result).toBe(false);
+    if ('state' in result) {
+      const p0Ships = result.state.ships.filter(s => s.owner === 0);
+      expect(p0Ships).toHaveLength(2);
+      expect(p0Ships[0].type).toBe('corvette');
+      expect(p0Ships[1].type).toBe('corsair');
+      expect(p0Ships[0].landed).toBe(true);
+      // Credits deducted: 800 - 40 (corvette) - 80 (corsair) = 680
+      expect(result.state.players[0].credits).toBe(680);
+      expect(result.state.players[0].ready).toBe(true);
+      // Still in fleetBuilding — player 1 hasn't submitted
+      expect(result.state.phase).toBe('fleetBuilding');
+    }
+  });
+
+  it('transitions to astrogation when both players submit', () => {
+    const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
+    const r1 = processFleetReady(state, 0, [{ shipType: 'corvette' }], map);
+    expect('error' in r1).toBe(false);
+    const r2 = processFleetReady(r1.state, 1, [{ shipType: 'corsair' }], map);
+    expect('error' in r2).toBe(false);
+    if ('state' in r2) {
+      expect(r2.state.phase).toBe('astrogation');
+      expect(r2.state.ships).toHaveLength(2);
+    }
+  });
+
+  it('rejects purchases exceeding credits', () => {
+    const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
+    // Dreadnaught costs 600, torch costs 400 — total 1000 > 800
+    const result = processFleetReady(state, 0, [
+      { shipType: 'dreadnaught' },
+      { shipType: 'torch' },
+    ], map);
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('Not enough credits');
+    }
+  });
+
+  it('rejects unknown ship type', () => {
+    const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
+    const result = processFleetReady(state, 0, [
+      { shipType: 'battlecruiser' },
+    ], map);
+    expect('error' in result).toBe(true);
+  });
+
+  it('rejects direct orbital base purchase', () => {
+    const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
+    const result = processFleetReady(state, 0, [
+      { shipType: 'orbitalBase' },
+    ], map);
+    expect('error' in result).toBe(true);
+  });
+
+  it('rejects fleet ready when not in fleetBuilding phase', () => {
+    const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
+    const result = processFleetReady(state, 0, [], map);
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('Not in fleet building');
     }
   });
 });
