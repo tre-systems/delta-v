@@ -9,7 +9,7 @@ import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
 import { UIManager } from './ui';
 import { Tutorial } from './tutorial';
-import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, isMuted, setMuted } from './audio';
+import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
 
 type ClientState =
   | 'menu'
@@ -48,6 +48,7 @@ class GameClient {
   // Turn timer
   private turnStartTime = 0;
   private turnTimerInterval: number | null = null;
+  private timerWarningPlayed = false;
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -134,6 +135,13 @@ class GameClient {
           (this.state === 'playing_astrogation' || this.state === 'playing_ordnance' || this.state === 'playing_combat' || this.state === 'playing_opponentTurn')) {
         // Focus camera on nearest enemy
         this.focusNearestEnemy();
+      } else if (e.key.toLowerCase() === 'h' && this.gameState &&
+          (this.state === 'playing_astrogation' || this.state === 'playing_ordnance' || this.state === 'playing_combat' || this.state === 'playing_opponentTurn')) {
+        // Center camera on own fleet
+        this.focusOwnFleet();
+      } else if (e.key.toLowerCase() === 'l' && this.gameState) {
+        // Toggle game log
+        this.ui.toggleLog();
       } else if (e.key.toLowerCase() === 'w' || e.key === 'ArrowUp') {
         this.renderer.camera.pan(0, 40);
       } else if (e.key.toLowerCase() === 's' || e.key === 'ArrowDown') {
@@ -998,6 +1006,15 @@ class GameClient {
     this.renderer.centerOnHex(nearest.position);
   }
 
+  private focusOwnFleet() {
+    if (!this.gameState) return;
+    const myShips = this.gameState.ships.filter(s => s.owner === this.playerId && !s.destroyed);
+    if (myShips.length === 0) return;
+    // Center on first alive ship (or selected ship if one is selected)
+    const selected = myShips.find(s => s.id === this.renderer.planningState.selectedShipId);
+    this.renderer.centerOnHex((selected ?? myShips[0]).position);
+  }
+
   // --- Burn shortcuts ---
 
   private setBurnDirection(dir: number) {
@@ -1141,13 +1158,21 @@ class GameClient {
   private startTurnTimer() {
     this.stopTurnTimer();
     this.turnStartTime = Date.now();
+    this.timerWarningPlayed = false;
     const timerEl = document.getElementById('turnTimer')!;
     this.turnTimerInterval = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - this.turnStartTime) / 1000);
+      const remaining = 120 - elapsed;
       const mins = Math.floor(elapsed / 60);
       const secs = elapsed % 60;
       timerEl.textContent = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
-      timerEl.className = 'turn-timer' + (elapsed >= 30 ? ' turn-timer-slow' : ' turn-timer-active');
+      timerEl.className = 'turn-timer' + (elapsed >= 90 ? ' turn-timer-urgent' : elapsed >= 30 ? ' turn-timer-slow' : ' turn-timer-active');
+      // Warning at 30s remaining
+      if (remaining <= 30 && !this.timerWarningPlayed) {
+        this.timerWarningPlayed = true;
+        playWarning();
+        this.ui.showToast('30 seconds remaining!', 'error');
+      }
     }, 1000);
   }
 
