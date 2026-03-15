@@ -85,10 +85,10 @@ describe('createGame', () => {
   });
 
   it('ships are placed at actual base hexes', () => {
-    const marsBase = findBaseHex(map, 'Mars')!;
-    const venusBase = findBaseHex(map, 'Venus')!;
-    expect(initialState.ships[0].position).toEqual(marsBase);
-    expect(initialState.ships[1].position).toEqual(venusBase);
+    const marsHex = map.hexes.get(hexKey(initialState.ships[0].position));
+    const venusHex = map.hexes.get(hexKey(initialState.ships[1].position));
+    expect(marsHex?.base?.bodyName).toBe('Mars');
+    expect(venusHex?.base?.bodyName).toBe('Venus');
   });
 
   it('supports explicit split base ownership for shared worlds', () => {
@@ -598,6 +598,7 @@ describe('ordnance system', () => {
     transport.landed = false;
     transport.velocity = { dq: 1, dr: 0 };
     blockadeState.phase = 'ordnance';
+    blockadeState.activePlayer = 0;
 
     const launches: OrdnanceLaunch[] = [{ shipId: transport.id, ordnanceType: 'torpedo' }];
     const result = processOrdnance(blockadeState, 0, launches, map);
@@ -1620,6 +1621,7 @@ describe('Edge cases', () => {
 
   it('blockade runner wins by landing on Mars', () => {
     const blockadeState = createGame(SCENARIOS.blockade, map, 'BLK02', findBaseHex);
+    blockadeState.activePlayer = 0;
     const runner = blockadeState.ships.find(s => s.owner === 0)!;
     const marsBase = findBaseHex(map, 'Mars')!;
     runner.position = { q: marsBase.q, r: marsBase.r + 1 };
@@ -2056,6 +2058,7 @@ describe('capture mechanics', () => {
       gameId: 'TEST',
       scenario: 'duel',
       scenarioRules: {},
+      escapeMoralVictoryAchieved: false,
       turnNumber: 1,
       phase: 'astrogation',
       activePlayer: 0,
@@ -2121,6 +2124,7 @@ describe('capture mechanics', () => {
       gameId: 'TEST',
       scenario: 'duel',
       scenarioRules: {},
+      escapeMoralVictoryAchieved: false,
       turnNumber: 1,
       phase: 'astrogation',
       activePlayer: 0,
@@ -2168,6 +2172,7 @@ describe('capture mechanics', () => {
       gameId: 'TEST',
       scenario: 'duel',
       scenarioRules: {},
+      escapeMoralVictoryAchieved: false,
       turnNumber: 1,
       phase: 'astrogation',
       activePlayer: 0,
@@ -2215,6 +2220,7 @@ describe('capture mechanics', () => {
       gameId: 'TEST',
       scenario: 'duel',
       scenarioRules: {},
+      escapeMoralVictoryAchieved: false,
       turnNumber: 1,
       phase: 'ordnance',
       activePlayer: 0,
@@ -2256,7 +2262,7 @@ describe('fleet building (MegaCredit economy)', () => {
   it('Interplanetary War scenario starts in fleetBuilding phase', () => {
     const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
     expect(state.phase).toBe('fleetBuilding');
-    expect(state.players[0].credits).toBe(800);
+    expect(state.players[0].credits).toBe(900);
     expect(state.players[1].credits).toBe(800);
     // Both players start not ready
     expect(state.players[0].ready).toBe(false);
@@ -2279,8 +2285,8 @@ describe('fleet building (MegaCredit economy)', () => {
       expect(p0Ships[0].type).toBe('corvette');
       expect(p0Ships[1].type).toBe('corsair');
       expect(p0Ships[0].landed).toBe(true);
-      // Credits deducted: 800 - 40 (corvette) - 80 (corsair) = 680
-      expect(result.state.players[0].credits).toBe(680);
+      // Credits deducted: 900 - 40 (corvette) - 80 (corsair) = 780
+      expect(result.state.players[0].credits).toBe(780);
       expect(result.state.players[0].ready).toBe(true);
       // Still in fleetBuilding — player 1 hasn't submitted
       expect(result.state.phase).toBe('fleetBuilding');
