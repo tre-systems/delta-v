@@ -11,7 +11,15 @@ import type { GameState, AstrogationOrder, OrdnanceLaunch, CombatAttack, SolarSy
 import { HEX_DIRECTIONS, hexDistance, hexAdd, hexKey, hexVecLength } from './hex';
 import { applyPendingGravityEffects, computeCourse } from './movement';
 import { SHIP_STATS, ORDNANCE_MASS } from './constants';
-import { getCombatStrength, canAttack, computeRangeMod, computeVelocityMod } from './combat';
+import {
+  getCombatStrength,
+  canAttack,
+  computeGroupRangeMod,
+  computeGroupVelocityMod,
+  computeRangeMod,
+  computeVelocityMod,
+  hasLineOfSight,
+} from './combat';
 
 export type AIDifficulty = 'easy' | 'normal' | 'hard';
 
@@ -248,6 +256,7 @@ export function aiOrdnance(
 export function aiCombat(
   state: GameState,
   playerId: number,
+  map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
 ): CombatAttack[] {
   const myShips = state.ships.filter(s =>
@@ -262,19 +271,23 @@ export function aiCombat(
 
   // Pick best target: closest + weakest = highest priority
   let bestTarget: Ship | null = null;
+  let bestAttackers: Ship[] = [];
   let bestScore = -Infinity;
 
   for (const enemy of enemyShips) {
+    const attackersForTarget = myShips.filter(attacker => hasLineOfSight(attacker, enemy, map));
+    if (attackersForTarget.length === 0) continue;
+
     // Average distance from our attackers
     let totalDist = 0;
-    for (const attacker of myShips) {
+    for (const attacker of attackersForTarget) {
       totalDist += hexDistance(attacker.position, enemy.position);
     }
-    const avgDist = totalDist / myShips.length;
+    const avgDist = totalDist / attackersForTarget.length;
 
     // Range/velocity mods
-    const rangeMod = computeRangeMod(myShips[0], enemy);
-    const velMod = computeVelocityMod(myShips[0], enemy);
+    const rangeMod = computeGroupRangeMod(attackersForTarget, enemy);
+    const velMod = computeGroupVelocityMod(attackersForTarget, enemy);
     const totalMod = rangeMod + velMod;
 
     // Score: prefer closer targets with fewer modifiers
@@ -282,16 +295,17 @@ export function aiCombat(
     if (score > bestScore) {
       bestScore = score;
       bestTarget = enemy;
+      bestAttackers = attackersForTarget;
     }
   }
 
-  if (!bestTarget) return [];
+  if (!bestTarget || bestAttackers.length === 0) return [];
 
   // Only attack if odds are reasonable (modified roll needs to be positive)
-  const attackStr = getCombatStrength(myShips);
+  const attackStr = getCombatStrength(bestAttackers);
   const defendStr = getCombatStrength([bestTarget]);
-  const rangeMod = computeRangeMod(myShips[0], bestTarget);
-  const velMod = computeVelocityMod(myShips[0], bestTarget);
+  const rangeMod = computeGroupRangeMod(bestAttackers, bestTarget);
+  const velMod = computeGroupVelocityMod(bestAttackers, bestTarget);
 
   // Easy: more conservative (skip if max roll < 3)
   // Normal: skip if max roll < 1
@@ -302,7 +316,7 @@ export function aiCombat(
   }
 
   return [{
-    attackerIds: myShips.map(s => s.id),
+    attackerIds: bestAttackers.map(s => s.id),
     targetId: bestTarget.id,
   }];
 }

@@ -1,4 +1,4 @@
-import { hexDistance, hexKey } from './hex';
+import { hexDistance, hexEqual, hexKey, hexLineDraw } from './hex';
 import type { Ship, SolarSystemMap, CombatResult } from './types';
 import { SHIP_STATS } from './constants';
 
@@ -80,10 +80,11 @@ export function computeOdds(attackStrength: number, defendStrength: number): Odd
 
 /**
  * Compute range modifier: subtract 1 per hex of distance.
- * Range is measured from attacker position to target position.
+ * Range is measured from the attacker's closest approach this turn
+ * to the target's final position.
  */
 export function computeRangeMod(attacker: Ship, target: Ship): number {
-  return hexDistance(attacker.position, target.position);
+  return hexDistance(getClosestApproachHex(attacker, target), target.position);
 }
 
 /**
@@ -121,12 +122,66 @@ export function canAttack(ship: Ship): boolean {
 }
 
 /**
- * Check if a ship can counterattack (not destroyed, not disabled, has combat strength).
+ * Check if a ship can counterattack (non-commercial, not destroyed, not disabled).
  */
 export function canCounterattack(ship: Ship): boolean {
   if (ship.destroyed || ship.damage.disabledTurns > 0) return false;
   const stats = SHIP_STATS[ship.type];
-  return stats ? stats.combat > 0 : false;
+  return stats ? stats.combat > 0 && !stats.defensiveOnly : false;
+}
+
+function getTrackedPath(ship: Ship) {
+  return ship.lastMovementPath && ship.lastMovementPath.length > 0
+    ? ship.lastMovementPath
+    : [ship.position];
+}
+
+export function getClosestApproachHex(attacker: Ship, target: Ship) {
+  let bestHex = getTrackedPath(attacker)[0];
+  let bestDistance = hexDistance(bestHex, target.position);
+
+  for (const pathHex of getTrackedPath(attacker)) {
+    const distance = hexDistance(pathHex, target.position);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestHex = pathHex;
+    }
+  }
+
+  return bestHex;
+}
+
+export function computeGroupRangeMod(attackers: Ship[], target: Ship): number {
+  if (attackers.length === 0) return 0;
+  return Math.max(...attackers.map(attacker => computeRangeMod(attacker, target)));
+}
+
+export function computeGroupVelocityMod(attackers: Ship[], target: Ship): number {
+  if (attackers.length === 0) return 0;
+  return Math.max(...attackers.map(attacker => computeVelocityMod(attacker, target)));
+}
+
+export function hasLineOfSight(attacker: Ship, target: Ship, map: SolarSystemMap): boolean {
+  const from = getClosestApproachHex(attacker, target);
+  const path = hexLineDraw(from, target.position);
+
+  for (let i = 1; i < path.length - 1; i++) {
+    if (map.hexes.get(hexKey(path[i]))?.body) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function getCounterattackers(target: Ship, allShips: Ship[]): Ship[] {
+  return allShips.filter(ship =>
+    ship.owner === target.owner &&
+    canCounterattack(ship) &&
+    hexEqual(ship.position, target.position) &&
+    ship.velocity.dq === target.velocity.dq &&
+    ship.velocity.dr === target.velocity.dr,
+  );
 }
 
 /**
@@ -193,40 +248,36 @@ export function resolveCombat(
   target: Ship,
   allShips: Ship[],
   rng?: () => number,
+  _map?: SolarSystemMap,
 ): CombatResolution {
   const attackStrength = getCombatStrength(attackers);
   const defendStrength = getCombatStrength([target]);
   const odds = computeOdds(attackStrength, defendStrength);
 
-  // Use first attacker for range/velocity calculation
+  // Use the worst applicable modifiers across the attacking group.
   const primaryAttacker = attackers[0];
-  const rangeMod = computeRangeMod(primaryAttacker, target);
-  const velocityMod = computeVelocityMod(primaryAttacker, target);
+  const rangeMod = computeGroupRangeMod(attackers, target);
+  const velocityMod = computeGroupVelocityMod(attackers, target);
 
   const dieRoll = rollD6(rng);
   const modifiedRoll = dieRoll - rangeMod - velocityMod;
   const damageResult = lookupGunCombat(odds, modifiedRoll);
 
-  // Apply damage to target
-  applyDamage(target, damageResult);
-
-  // Counterattack: defender fires back if able
+  // Counterattack happens before attack damage is implemented.
   let counterattack: CombatResolution | null = null;
-  if (canCounterattack(target) && !target.destroyed) {
-    const counterStrength = getCombatStrength([target]);
+  const counterattackers = getCounterattackers(target, allShips);
+  if (counterattackers.length > 0) {
+    const counterStrength = getCombatStrength(counterattackers);
     const counterOdds = computeOdds(counterStrength, attackStrength);
-    const counterRange = rangeMod; // Same range
-    const counterVelMod = velocityMod; // Same velocity difference
+    const counterRange = rangeMod;
+    const counterVelMod = velocityMod;
 
     const counterDie = rollD6(rng);
     const counterModified = counterDie - counterRange - counterVelMod;
     const counterResult = lookupGunCombat(counterOdds, counterModified);
 
-    // Apply counter-damage to primary attacker
-    applyDamage(primaryAttacker, counterResult);
-
     counterattack = {
-      attackerIds: [target.id],
+      attackerIds: counterattackers.map(ship => ship.id),
       targetId: primaryAttacker.id,
       odds: counterOdds,
       attackStrength: counterStrength,
@@ -239,6 +290,12 @@ export function resolveCombat(
       counterattack: null,
     };
   }
+
+  if (counterattack) {
+    applyDamage(primaryAttacker, counterattack.damageResult);
+  }
+
+  applyDamage(target, damageResult);
 
   return {
     attackerIds: attackers.map(s => s.id),

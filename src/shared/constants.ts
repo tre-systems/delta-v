@@ -2,7 +2,7 @@
 export interface ShipStats {
   name: string;
   combat: number;
-  defensiveOnly: boolean; // "D" suffix — can only counterattack
+  defensiveOnly: boolean; // "D" suffix — commercial ship, cannot attack or counterattack
   fuel: number;
   cargo: number;
   cost: number;

@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeOdds, computeRangeMod, computeVelocityMod,
-  getCombatStrength, canAttack, canCounterattack,
+  computeGroupRangeMod, computeGroupVelocityMod, hasLineOfSight,
+  getCombatStrength, canAttack, canCounterattack, getCounterattackers,
   lookupGunCombat, lookupOtherDamage, applyDamage,
   resolveCombat, rollD6,
 } from '../combat';
-import type { Ship } from '../types';
+import type { Ship, SolarSystemMap } from '../types';
 
 function makeShip(overrides: Partial<Ship> = {}): Ship {
   return {
@@ -70,6 +71,15 @@ describe('computeRangeMod', () => {
     const b = makeShip({ position: { q: 3, r: -1 } });
     expect(computeRangeMod(a, b)).toBe(3);
   });
+
+  it('uses closest approach from the most recent movement path', () => {
+    const a = makeShip({
+      position: { q: 0, r: 0 },
+      lastMovementPath: [{ q: 3, r: 0 }, { q: 2, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 0 }],
+    });
+    const b = makeShip({ position: { q: 3, r: 1 } });
+    expect(computeRangeMod(a, b)).toBe(1);
+  });
 });
 
 describe('computeVelocityMod', () => {
@@ -130,12 +140,53 @@ describe('canAttack', () => {
 });
 
 describe('canCounterattack', () => {
-  it('transport can counterattack', () => {
-    expect(canCounterattack(makeShip({ type: 'transport' }))).toBe(true);
+  it('transport cannot counterattack', () => {
+    expect(canCounterattack(makeShip({ type: 'transport' }))).toBe(false);
   });
 
   it('disabled ship cannot counterattack', () => {
     expect(canCounterattack(makeShip({ damage: { disabledTurns: 1 } }))).toBe(false);
+  });
+});
+
+describe('group combat helpers', () => {
+  it('uses the worst range modifier across multiple attackers', () => {
+    const close = makeShip({ id: 'close', position: { q: 0, r: 0 } });
+    const far = makeShip({ id: 'far', position: { q: 6, r: 0 }, lastMovementPath: [{ q: 6, r: 0 }] });
+    const target = makeShip({ id: 't', position: { q: 1, r: 0 } });
+    expect(computeGroupRangeMod([close, far], target)).toBe(5);
+  });
+
+  it('uses the worst velocity modifier across multiple attackers', () => {
+    const slow = makeShip({ id: 'slow', velocity: { dq: 2, dr: 0 } });
+    const fast = makeShip({ id: 'fast', velocity: { dq: 6, dr: 0 } });
+    const target = makeShip({ id: 't', velocity: { dq: 0, dr: 0 } });
+    expect(computeGroupVelocityMod([slow, fast], target)).toBe(4);
+  });
+});
+
+describe('line of sight', () => {
+  it('is blocked by body hexes between attacker and target', () => {
+    const attacker = makeShip({ position: { q: 0, r: 0 } });
+    const target = makeShip({ position: { q: 2, r: 0 } });
+    const map: SolarSystemMap = {
+      hexes: new Map([
+        ['1,0', { terrain: 'planetSurface', body: { name: 'Body', destructive: false } }],
+      ]),
+      bodies: [],
+      bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
+    };
+    expect(hasLineOfSight(attacker, target, map)).toBe(false);
+  });
+});
+
+describe('counterattack groups', () => {
+  it('includes same-hex same-course allied ships in the counterattack', () => {
+    const target = makeShip({ id: 'target', owner: 1, position: { q: 1, r: 0 }, velocity: { dq: 1, dr: 0 } });
+    const escort = makeShip({ id: 'escort', owner: 1, type: 'packet', position: { q: 1, r: 0 }, velocity: { dq: 1, dr: 0 } });
+    const outsider = makeShip({ id: 'outsider', owner: 1, position: { q: 2, r: 0 }, velocity: { dq: 1, dr: 0 } });
+    const ships = [target, escort, outsider];
+    expect(getCounterattackers(target, ships).map(ship => ship.id)).toEqual(['target', 'escort']);
   });
 });
 
@@ -243,10 +294,11 @@ describe('resolveCombat', () => {
     expect(result.dieRoll).toBe(4);
     // modifiedRoll = 4 - 1 (range) - 0 (velocity) = 3
     expect(result.modifiedRoll).toBe(3);
-    // 1:1 odds, roll 3 -> D1 (target disabled), so no counterattack
+    // Counterattack resolves before damage is implemented.
     expect(result.damageResult.type).toBe('disabled');
     expect(result.damageResult.disabledTurns).toBe(1);
-    expect(result.counterattack).toBeNull();
+    expect(result.counterattack).not.toBeNull();
+    expect(attacker.damage.disabledTurns).toBe(1);
   });
 
   it('counterattack when target survives undamaged', () => {
@@ -263,7 +315,7 @@ describe('resolveCombat', () => {
     expect(result.counterattack!.targetId).toBe('a');
   });
 
-  it('no counterattack if target destroyed', () => {
+  it('target still counterattacks even if the attack destroys it', () => {
     const attacker = makeShip({ id: 'a', owner: 0, type: 'dreadnaught' });
     const target = makeShip({ id: 't', owner: 1, position: { q: 0, r: 0 } });
 
@@ -273,10 +325,11 @@ describe('resolveCombat', () => {
 
     expect(result.damageResult.type).toBe('eliminated');
     expect(target.destroyed).toBe(true);
-    expect(result.counterattack).toBeNull();
+    expect(result.counterattack).not.toBeNull();
+    expect(attacker.damage.disabledTurns).toBeGreaterThan(0);
   });
 
-  it('no counterattack from defensive-only ships if they cannot counterattack', () => {
+  it('defensive-only ships do not counterattack', () => {
     const attacker = makeShip({ id: 'a', owner: 0 });
     const target = makeShip({ id: 't', owner: 1, type: 'transport' });
 
@@ -284,8 +337,7 @@ describe('resolveCombat', () => {
     const rng = () => 0.0; // roll 1
     const result = resolveCombat([attacker], target, [attacker, target], rng);
 
-    // Transport can counterattack (has combat strength)
-    expect(result.counterattack).not.toBeNull();
+    expect(result.counterattack).toBeNull();
   });
 
   it('multiple attackers combine strength', () => {

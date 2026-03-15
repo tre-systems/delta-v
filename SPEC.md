@@ -200,6 +200,7 @@ Each ship tracks:
 - Ships, ordnance, and asteroids do not block line of sight.
 - A defender may counterattack if still eligible, and any ships in the defender's hex that share the defender's course may join that counterattack.
 - Attacks may be declared at less than full strength.
+- When multiple ships attack together, use the greatest applicable range and velocity penalties.
 - A ship may not attack more than once per combat phase.
 - A ship may not be attacked more than once per combat phase.
 - Planetary-defense shots follow normal gunfire rules except where explicitly modified.
@@ -324,7 +325,7 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 The document above is the canonical rules reference. The current online implementation still diverges from it in several important places:
 
-- **Combat fidelity:** current code still measures gun range from current positions instead of closest approach, does not enforce line-of-sight blocking by bodies, allows `D`-suffix commercial ships to counterattack, only supports direct-target counterattacks, and does not yet support limited attacks or enforce the "target attacked only once per combat phase" rule.
+- **Combat fidelity:** limited-strength attacks are still not implemented, and the online counterattack model is still simpler than the paper game's broader defensive timing/options.
 - **Movement fidelity:** current landing logic is still simplified; it does not fully require prior orbit plus 1 fuel for planetary landing, and it does not model the gravity-edge / printed-outline edge cases from the paper map.
 - **Turn-sequence fidelity:** asteroid hazard damage is still resolved inside the movement engine instead of being deferred to the combat step of the phasing player's turn.
 - **Ordnance fidelity:** torpedoes currently accelerate only one hex instead of one or two, torpedo multi-target random resolution is not implemented, nukes are still treated as warship-only, non-warship one-nuke cargo limits are not enforced, attacks against nukes are not implemented, and nuke devastation of planetary hex sides is not modeled.
