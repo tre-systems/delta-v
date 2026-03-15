@@ -346,17 +346,18 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 - Damage tracking with cumulative disabled turns, recovery, and elimination at 6+
 - Landing validation (orbit required), takeoff mechanics, landed-ship immunity
 - Ramming, asteroid hazards, crash detection
+- Escape inspection, concealment, and moral-victory flow
 - Counterattack targets strongest attacker by default
 
 **Remaining divergences:**
 - **Contact geometry:** mine/torpedo contact approximated by hex occupancy/path, not the stricter board geometric rule
-- **Logistics:** capture, surrender, looting, rescue, fuel transfer, cargo handling beyond ordnance mass, heroism, dummy counters remain unimplemented
+- **Logistics:** surrender, looting, rescue, fuel transfer, cargo handling beyond ordnance mass, dummy counters remain unimplemented
 - **Advanced combat system**: the alternate weapon/drive/structure damage tracks from the rulebook are out of scope
 - **Extended Economy**: explicit shipping lanes and asteroid prospecting are not implemented yet.
 
 ## Scenarios
 
-Six scenarios are implemented, selectable from the menu:
+Seven scenarios are implemented, selectable from the menu:
 
 ### Bi-Planetary (Learning Scenario)
 - **Players:** 2
@@ -365,13 +366,14 @@ Six scenarios are implemented, selectable from the menu:
 - **Teaches:** Vector movement, fuel management, gravity assists, orbital mechanics
 
 ### Escape (Asymmetric)
-- Pilgrims (3 transports from Terra) vs. Enforcers (1 corvette orbiting Terra, 1 corsair orbiting Venus)
+- Pilgrims (3 transports from Terra) vs. Enforcers (1 corvette near Terra, 1 corsair near Venus)
 - Pilgrims must escape the solar system; Enforcers must stop them
 - Hidden identity: one transport carries the fugitives (opponent doesn't know which)
 - Server strips the `hasFugitives` flag from opponent state
+- Moral victory is tracked per the 2018 rules if the Pilgrims disable an Enforcer ship before being lost
 
 ### Convoy (Escort Mission)
-- Escort (1 tanker + 1 frigate from Mars) vs. Pirates (2 corsairs near asteroid belt)
+- Escort (1 tanker + 1 frigate from Mars) vs. Pirates (2 corsairs + 1 corvette)
 - Escort must get the tanker to Venus; pirates must stop it
 
 ### Duel (Combat Training)
@@ -383,14 +385,13 @@ Six scenarios are implemented, selectable from the menu:
 - Asymmetric: speed and agility vs. raw firepower
 
 ### Fleet Action
-- 3v3 fleet battle: each side has a frigate, corsair, and corvette
+- Fleet-building battle with tuned first-player order for a shorter balanced clash
 - Full combined-arms engagement
 
-### Interplanetary War (Full Campaign)
-The definitive experience: 1000+ MCr fleet building
-- MegaCredit economy and ship purchasing
-- Strategic home-base positioning
-- Diverse military objectives including world conquest or escape
+### Interplanetary War
+- Tuned fleet-building war scenario using Terran vs. Rebel roles from the rulebook
+- Uses a smaller MegaCredit budget than the full paper campaign for shorter digital play
+- Strategic home-base positioning and mixed-fleet combat
 
 ## Rendering
 
@@ -753,7 +754,7 @@ interface ScenarioPlayer {
 - [x] Escape scenario implementation
 - [x] Ship identity concealment (Escape scenario: which transport has the fugitives?)
 
-### Milestone 3: Full Map + Interplanetary War (Complete)
+### Milestone 3: Full Map + Fleet Building (Complete)
 
 - [x] Complete solar system map (all planets, moons, asteroid belt)
 - [x] MegaCredit economy and ship purchasing
@@ -765,6 +766,7 @@ interface ScenarioPlayer {
 - [x] Detection / fog of war
 - [x] Minimap with ship positions, trails, and viewport indicator
 - [x] Additional scenarios: Convoy, Duel, Blockade Runner, Fleet Action
+- [x] Tuned Interplanetary War skirmish variant
 
 ### Milestone 4: Polish (Complete)
 
@@ -774,7 +776,7 @@ interface ScenarioPlayer {
 - [x] Turn timer (2-minute timeout with 30-second warning)
 - [x] Tutorial system (phase-based tips for new players)
 - [x] Ship movement trails (persistent path history on map and minimap)
-- [x] Multi-target combat UI (queue multiple attack declarations per phase)
+- [x] Split-fire combat UI (queue and allocate attacks across targets in one hex)
 - [x] Automation and Simulation scripts for engine testing
 - [x] Visual Refinement: High-fidelity glassmorphism UI, tactile hover effects, and orbital ripples.
 
@@ -782,7 +784,7 @@ interface ScenarioPlayer {
 
 - [ ] Zod Integration (Strict schema validation for WebSocket payloads)
 - [ ] Orbital bases (carrying, emplacing, torpedo launching)
-- [ ] Advanced features: looting, capture, surrender, heroism
+- [ ] Advanced features: looting, surrender, rescue, and richer logistics
 - [ ] Improved animations (particle effects for thrust, gravity lensing)
 - [ ] Turn history replay
 - [ ] Spectator mode
