@@ -11,6 +11,8 @@
 
 Command your fleet, master astrogation trajectories, sling-shot around celestial bodies, and engage in high-stakes combat where positioning and velocity are just as crucial as firepower.
 
+Check out our [**Ship Aesthetics & Visual Style Guide**](file:///Users/robertgilks/.gemini/antigravity/brain/ccb53c84-7838-4c8b-9425-07484b29cc7d/SHIP_AESTHETICS.md) to see the high-fidelity concept art for our fleet.
+
 ## 🌟 Features
 
 ### ☄️ Realistic Vector Physics Spaceflight
