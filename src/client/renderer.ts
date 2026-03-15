@@ -1435,7 +1435,7 @@ export class Renderer {
 
     // Highlight valid enemy targets (only detected ones)
     for (const ship of state.ships) {
-      if (ship.owner === this.playerId || ship.destroyed || !ship.detected) continue;
+      if (ship.owner === this.playerId || ship.destroyed || ship.landed || !ship.detected) continue;
       const hasShot = this.map !== null && myAttackers.some(attacker => hasLineOfSight(attacker, ship, this.map!));
       if (!hasShot) continue;
       const p = hexToPixel(ship.position, HEX_SIZE);

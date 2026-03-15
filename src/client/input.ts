@@ -310,7 +310,7 @@ export class InputHandler {
 
     // Click an enemy ship to target it
     for (const ship of this.gameState.ships) {
-      if (ship.owner === this.playerId || ship.destroyed) continue;
+      if (ship.owner === this.playerId || ship.destroyed || ship.landed) continue;
       if (hexEqual(clickHex, ship.position)) {
         // Toggle: click same target = deselect
         const isSame = this.planningState.combatTargetId === ship.id
