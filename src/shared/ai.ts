@@ -87,7 +87,7 @@ export function aiAstrogation(
       if (course.crashed) continue;
 
       let score = scoreCourse(
-        ship, course, targetHex, escapeWins, enemyShips, difficulty,
+        ship, course, targetHex, targetBody, escapeWins, enemyShips, difficulty,
       );
 
       // Fuel efficiency: slight preference for conserving fuel
@@ -107,7 +107,7 @@ export function aiAstrogation(
           const altCourse = computeCourse(ship, opt.burn, map,
             { ...(courseOpts ?? {}), weakGravityChoices: wgChoices });
           if (altCourse.crashed) continue;
-          const altScore = scoreCourse(ship, altCourse, targetHex, escapeWins, enemyShips, difficulty);
+          const altScore = scoreCourse(ship, altCourse, targetHex, targetBody, escapeWins, enemyShips, difficulty);
           if (altScore > score) {
             score = altScore;
             bestLocalWG = wgChoices;
@@ -316,6 +316,7 @@ function scoreCourse(
   ship: Ship,
   course: CourseResult,
   targetHex: { q: number; r: number } | null,
+  targetBody: string,
   escapeWins: boolean,
   enemyShips: Ship[],
   difficulty: AIDifficulty,
@@ -331,6 +332,10 @@ function scoreCourse(
     score += distFromCenter * 10 * mult;
     const speed = hexVecLength(course.newVelocity);
     score += speed * 5 * mult;
+    // Never stay landed when trying to escape
+    if (ship.landed && course.destination.q === ship.position.q && course.destination.r === ship.position.r) {
+      score -= 100 * mult;
+    }
   } else if (targetHex) {
     // Navigate to target strategy
     const currentDist = hexDistance(ship.position, targetHex);
@@ -339,9 +344,17 @@ function scoreCourse(
     // Reward getting closer to target
     score += (currentDist - newDist) * 20 * mult;
 
-    // Bonus for landing
-    if (course.landedAt) {
+    // Bonus for landing on target body (not home!)
+    if (course.landedAt === targetBody) {
       score += 1000;
+    } else if (course.landedAt) {
+      // Landing at wrong body — bad, we need to keep moving
+      score -= 30 * mult;
+    }
+
+    // Heavy penalty for staying landed at home — AI must launch
+    if (ship.landed && course.destination.q === ship.position.q && course.destination.r === ship.position.r) {
+      score -= 50 * mult;
     }
 
     // Velocity alignment: prefer velocity pointing toward target
@@ -360,9 +373,15 @@ function scoreCourse(
     }
   }
 
+  // Penalty for staying landed in combat-only scenarios
+  const noPrimaryObjective = !escapeWins && !targetHex;
+  if (noPrimaryObjective && ship.landed &&
+      course.destination.q === ship.position.q && course.destination.r === ship.position.r) {
+    score -= 80 * mult;
+  }
+
   // Combat positioning
   const myStrength = getCombatStrength([ship]);
-  const noPrimaryObjective = !escapeWins && !targetHex;
   if (enemyShips.length > 0) {
     for (const enemy of enemyShips) {
       const dist = hexDistance(course.destination, enemy.position);
