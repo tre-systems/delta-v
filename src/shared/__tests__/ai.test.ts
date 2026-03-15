@@ -56,15 +56,14 @@ describe('aiAstrogation', () => {
     expect(disabledOrder!.burn).toBeNull();
   });
 
-  it('destroyed ships get null burn', () => {
+  it('destroyed ships are skipped (no order generated)', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     const aiShip = state.ships.find(s => s.owner === 1)!;
     aiShip.destroyed = true;
 
     const orders = aiAstrogation(state, 1, map);
     const destroyedOrder = orders.find(o => o.shipId === aiShip.id);
-    expect(destroyedOrder).toBeDefined();
-    expect(destroyedOrder!.burn).toBeNull();
+    expect(destroyedOrder).toBeUndefined();
   });
 
   it('takes off from home base when it has a target', () => {

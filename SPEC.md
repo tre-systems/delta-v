@@ -332,18 +332,31 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 - **Heroism:** longer scenarios can award a one-time +1 attack bonus after a qualifying underdog success.
 - **Optional advanced combat system:** the 2018 rules include an alternate combat model with separate weapon, drive, and structure damage tracks. The online game currently targets the standard gun-combat system unless explicitly extended.
 
-### Current Rules Gaps To Resolve
+### Implementation Status vs. Canonical Rules
 
-The document above is the canonical rules reference. The current online implementation still diverges from it in several important places:
+**Implemented faithfully:**
+- Vector movement with deferred gravity, weak gravity player choice, overload burns
+- Gun Combat Table with odds, range modifiers, velocity modifiers, counterattack
+- Limited-strength attacks, multi-target attack queuing, landed-ship immunity
+- Resupply-turn restrictions (cannot fire/launch when resupplied)
+- Ordnance: mines (5-turn self-destruct, course-change requirement), torpedoes (1-2 hex launch boost), nukes (hex devastation, base destruction, asteroid clearing)
+- Anti-nuke fire (guns and planetary defense at 2:1 odds)
+- Per-base ownership driving planetary defense, detection, and resupply
+- Hidden identity (Escape scenario fugitive concealment, server-side state filtering)
+- Detection at range 3 (ships) / range 5 (bases), persistent once detected
+- Damage tracking with cumulative disabled turns, recovery, and elimination at 6+
+- Landing validation (orbit required), takeoff mechanics, landed-ship immunity
+- Ramming, asteroid hazards, crash detection
+- Counterattack targets strongest attacker by default
 
-- **Combat fidelity:** limited-strength attacks, multi-target attacks (queue multiple attack declarations per combat phase), landed-ship immunity, and resupply-turn restrictions are all implemented. Counterattack damage targets the strongest attacker by default (spec does not specify player choice for this).
-- **Hidden identity:** the Escape scenario now conceals which transport carries the fugitives — only the owning player sees the ★ marker, the server strips this from opponent state. Victory requires escaping with the fugitive ship specifically (or destroying it as the enforcer).
-- **Movement fidelity:** planetary-base landing is now stricter, and landed ships are immune to ramming, but the gravity-edge / printed-outline edge cases from the paper map are still not modeled, and asteroid/base representation is still simplified compared to the board.
-- **Ordnance fidelity:** ship gunfire and planetary defenses can now attack nukes, torpedoes resolve mixed multi-target contacts more faithfully, direct nuke hits can destroy bases persistently, landed ships are immune to mines/torpedoes (but not nukes), nukes reaching a planet devastate the entry hex side (destroying any base or ship there), and mine launches require a course change. Broader planetary-surface damage effects beyond single-hex-side devastation are still not modeled.
-- **Contact geometry:** mine and torpedo contact is approximated by hex occupancy/path rather than the stricter "any portion of the hex" geometric rule from the board game.
-- **Bases and support:** per-base ownership now drives planetary defense, detection, and friendly resupply, and ships that resupply cannot fire or launch ordnance during that turn. Orbital bases, asteroid-base special cases, clandestine-base scanner rules, and full resupply positioning restrictions are not yet fully modeled.
-- **Logistics:** capture, surrender, looting, rescue, fuel transfer, cargo handling beyond simple ordnance mass, heroism, dummy counters, and broader hidden-movement rules remain unfinished.
-- **Optional systems:** the advanced combat system from the rulebook is still out of scope and would need an explicit design decision before implementation.
+**Remaining divergences:**
+- **Contact geometry:** mine/torpedo contact approximated by hex occupancy/path, not the stricter "any portion of the hex" geometric rule from the board
+- **Gravity edge cases:** the gravity-edge / printed-outline rules from the paper map are not modeled
+- **Orbital bases:** not yet implemented as placeable units (carrying, emplacing, torpedo launching)
+- **Asteroid-base special cases:** asteroid bases cannot launch torpedoes yet; clandestine-base scanner rules not modeled
+- **Broader nuke effects:** planetary-surface damage beyond single-hex-side devastation not modeled
+- **Logistics:** capture, surrender, looting, rescue, fuel transfer, cargo handling beyond ordnance mass, heroism, dummy counters remain unimplemented
+- **Advanced combat system:** the alternate weapon/drive/structure damage tracks from the rulebook are out of scope
 
 ## Scenarios
 
@@ -513,66 +526,55 @@ All game-mutating messages include the full updated `GameState`. For hidden-info
 
 ## Game State
 
-The authoritative state held by the Durable Object:
+The authoritative state held by the Durable Object (see `src/shared/types.ts` for full definitions):
 
 ```typescript
 interface GameState {
-  // Game metadata
   gameId: string
   scenario: string
   turnNumber: number
-  currentPhase: Phase
-  activePlayer: number         // Which player is currently acting
-
-  // Map (static after setup, but nukes can modify asteroids)
-  map: MapData
-
-  // Dynamic state
+  phase: Phase
+  activePlayer: number                           // 0 or 1
   ships: Ship[]
-  ordnance: Ordnance[]         // Active mines, torpedoes, nukes in flight
-  players: PlayerState[]
-
-  // History (for undo/replay)
-  turnLog: TurnLogEntry[]
+  ordnance: Ordnance[]
+  pendingAstrogationOrders: AstrogationOrder[] | null
+  pendingAsteroidHazards: AsteroidHazard[]
+  destroyedAsteroids: string[]                   // hexKey[] removed by nukes
+  destroyedBases: string[]                       // hexKey[] destroyed by nukes
+  players: [PlayerState, PlayerState]
+  winner: number | null
+  winReason: string | null
 }
 
 interface Ship {
   id: string
-  type: ShipType
-  owner: number
+  type: string                                   // key into SHIP_STATS
+  owner: number                                  // 0 or 1
   position: HexCoord
-  velocity: HexVec            // (dq, dr) displacement per turn
+  lastMovementPath?: HexCoord[]                  // path from most recent movement
+  velocity: HexVec                               // (dq, dr) displacement per turn
   fuel: number
-  cargo: CargoItem[]
-  damage: {
-    disabledTurns: number     // 0 = operational, ≥6 = eliminated
-  }
-  flags: {
-    inOrbit: boolean
-    landed: boolean
-    heroic: boolean
-    captured: boolean
-    hasScanners: boolean
-  }
-}
-
-interface Ordnance {
-  id: string
-  type: 'mine' | 'torpedo' | 'nuke'
-  owner: number
-  position: HexCoord
-  velocity: HexVec
-  turnsRemaining: number      // Self-destruct countdown (mines: 5, torpedoes: 5)
+  cargoUsed: number                              // mass of ordnance consumed
+  nukesLaunchedSinceResupply?: number
+  resuppliedThisTurn: boolean
+  landed: boolean
+  destroyed: boolean
+  detected: boolean
+  hasFugitives?: boolean                         // hidden from opponent in Escape
+  pendingGravityEffects?: GravityEffect[]
+  damage: { disabledTurns: number }              // 0 = operational, ≥6 = eliminated
 }
 
 interface PlayerState {
   connected: boolean
   ready: boolean
-  credits: number             // MegaCredits (scenario-dependent)
-  // Scenario-specific state (e.g., cargo delivery tracking for Piracy)
+  targetBody: string                             // body to land on ('' if none)
+  homeBody: string
+  bases: string[]                                // hexKey[] of controlled bases
+  escapeWins: boolean
 }
 
-type Phase = 'setup' | 'astrogation' | 'ordnance' | 'movement' | 'combat' | 'resupply'
+type Phase = 'waiting' | 'astrogation' | 'ordnance' | 'movement' | 'combat' | 'resupply' | 'gameOver'
 ```
 
 ## Hex Math
