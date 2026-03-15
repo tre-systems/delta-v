@@ -10,6 +10,7 @@ export class UIManager {
   private shipListEl: HTMLElement;
   private gameLogEl: HTMLElement;
   private logEntriesEl: HTMLElement;
+  private lastPhase: string | null = null;
   private logShowBtn: HTMLElement;
   private fleetBuildingEl: HTMLElement;
   private logVisible = true;
@@ -319,6 +320,13 @@ export class UIManager {
     document.getElementById('turnInfo')!.textContent = `Turn ${turn}`;
     document.getElementById('phaseInfo')!.textContent = isMyTurn ? phase.toUpperCase() : 'OPPONENT\'S TURN';
     document.getElementById('objective')!.textContent = objective;
+
+    // Trigger phase alert if turn or phase changed
+    const phaseKey = `${turn}-${phase}-${isMyTurn}`;
+    if (this.lastPhase !== phaseKey) {
+      this.lastPhase = phaseKey;
+      this.showPhaseAlert(phase, isMyTurn);
+    }
     // Show cargo during ordnance phase, fuel otherwise
     if (phase === 'ordnance' && isMyTurn && cargoMax > 0) {
       document.getElementById('fuelGauge')!.textContent = `Cargo: ${cargoFree}/${cargoMax}`;
@@ -510,6 +518,24 @@ export class UIManager {
     }, 3100);
   }
 
+  showPhaseAlert(phase: string, isMyTurn: boolean) {
+    const alertEl = document.getElementById('phaseAlert')!;
+    const titleEl = alertEl.querySelector('.phase-alert-title') as HTMLElement;
+    const subEl = alertEl.querySelector('.phase-alert-subtitle') as HTMLElement;
+
+    titleEl.textContent = phase === 'astrogation' ? 'Astrogation' : phase === 'ordnance' ? 'Ordnance' : phase === 'combat' ? 'Combat' : phase;
+    subEl.textContent = isMyTurn ? 'YOUR TURN' : 'OPPONENT\'S TURN';
+    subEl.style.color = isMyTurn ? 'var(--accent)' : 'var(--warning)';
+
+    alertEl.classList.remove('active');
+    void alertEl.offsetWidth; // trigger reflow
+    alertEl.classList.add('active');
+
+    setTimeout(() => {
+      alertEl.classList.remove('active');
+    }, 2000);
+  }
+
   // --- Game log ---
 
   clearLog() {
@@ -541,33 +567,33 @@ export class UIManager {
 
       switch (ev.type) {
         case 'crash':
-          text = `${name} crashed!`;
+          text = `${name} crashed and was LOST!`;
           cls = 'log-eliminated';
           break;
         case 'ramming':
-          text = `${name}: RAMMED [${ev.dieRoll}] ${ev.damageType === 'eliminated' ? '— ELIMINATED' : ev.damageType === 'disabled' ? `— D${ev.disabledTurns}` : '— no damage'}`;
+          text = `${name} collided with another ship! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Eliminated!' : ev.damageType === 'disabled' ? `Disabled for ${ev.disabledTurns} turns` : 'Survives'}`;
           cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
           break;
         case 'asteroidHit':
-          text = `${name}: asteroid [${ev.dieRoll}] ${ev.damageType === 'eliminated' ? '— ELIMINATED' : ev.damageType === 'disabled' ? `— D${ev.disabledTurns}` : '— miss'}`;
+          text = `${name} struck an asteroid! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Hull breached, Ship Lost!' : ev.damageType === 'disabled' ? `Systems disabled for ${ev.disabledTurns}T` : 'Glancing blow, no damage'}`;
           cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
           break;
         case 'mineDetonation':
-          text = `Mine hit ${name} [${ev.dieRoll}] ${ev.damageType === 'eliminated' ? '— ELIMINATED' : ev.damageType === 'disabled' ? `— D${ev.disabledTurns}` : '— no effect'}`;
+          text = `Mine detonated near ${name}! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Vessel destroyed!' : ev.damageType === 'disabled' ? `Disabled for ${ev.disabledTurns}T` : 'Armor held'}`;
           cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
           break;
         case 'torpedoHit':
-          text = `Torpedo hit ${name} [${ev.dieRoll}] ${ev.damageType === 'eliminated' ? '— ELIMINATED' : ev.damageType === 'disabled' ? `— D${ev.disabledTurns}` : '— no effect'}`;
+          text = `Torpedo impact on ${name}! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Critical detonation, vessel lost' : ev.damageType === 'disabled' ? `Systems disabled for ${ev.disabledTurns}T` : 'Deflected'}`;
           cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
           break;
         case 'nukeDetonation':
-          text = `NUKE hit ${name} [${ev.dieRoll}] ${ev.damageType === 'eliminated' ? '— ELIMINATED' : ev.damageType === 'disabled' ? `— D${ev.disabledTurns}` : '— no effect'}`;
+          text = `Nuclear detonation near ${name}! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Ship vaporized!' : ev.damageType === 'disabled' ? `Disabled for ${ev.disabledTurns}T` : 'Radiation shield held'}`;
           cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
           break;
         case 'capture': {
           const captor = ev.capturedBy ? ships.find(s => s.id === ev.capturedBy) : null;
           const captorName = captor ? (SHIP_STATS[captor.type]?.name ?? captor.type) : 'unknown';
-          text = `${name} CAPTURED by ${captorName}!`;
+          text = `${name} has been CAPTURED by ${captorName}!`;
           cls = 'log-damage';
           break;
         }
@@ -586,18 +612,18 @@ export class UIManager {
       const targetName = r.targetType === 'ordnance'
         ? 'nuke'
         : target ? (SHIP_STATS[target.type]?.name ?? target.type) : r.targetId;
-      const result = r.damageType === 'eliminated' ? 'ELIMINATED'
-        : r.damageType === 'disabled' ? `D${r.disabledTurns}`
-        : 'miss';
+      const result = r.damageType === 'eliminated' ? 'DESTROYED'
+        : r.damageType === 'disabled' ? `DISABLED (${r.disabledTurns}T)`
+        : 'Miss';
       const cls = r.damageType === 'eliminated' ? 'log-eliminated'
         : r.damageType === 'disabled' ? 'log-damage' : '';
 
       // Build attacker description
       let attackerDesc = '';
       if (r.attackType === 'baseDefense') {
-        attackerDesc = 'Base';
+        attackerDesc = 'Planetary Base';
       } else if (r.attackType === 'antiNuke') {
-        attackerDesc = 'Base';
+        attackerDesc = 'Defensive Battery';
       } else if (r.attackType !== 'asteroidHazard') {
         const attackerNames = r.attackerIds
           .map(id => {
@@ -605,28 +631,28 @@ export class UIManager {
             return s ? (SHIP_STATS[s.type]?.name ?? s.type) : id;
           })
           .filter((v, i, a) => a.indexOf(v) === i); // dedupe same type
-        attackerDesc = attackerNames.join('+');
+        attackerDesc = attackerNames.join(' & ');
       }
 
       if (r.attackType === 'asteroidHazard') {
-        this.logText(`${targetName}: asteroid [${r.dieRoll}] ${result}`, cls);
+        this.logText(`${targetName} struck an asteroid: ${result} [Roll: ${r.dieRoll}]`, cls);
       } else {
         const mods = [];
         if (r.rangeMod !== 0) mods.push(`R${r.rangeMod > 0 ? '+' : ''}${r.rangeMod}`);
         if (r.velocityMod !== 0) mods.push(`V${r.velocityMod > 0 ? '+' : ''}${r.velocityMod}`);
-        const modStr = mods.length > 0 ? ` ${mods.join(' ')}` : '';
-        this.logText(`${attackerDesc}→${targetName} ${r.odds} [${r.dieRoll}→${r.modifiedRoll}${modStr}] ${result}`, cls);
+        const modStr = mods.length > 0 ? ` (${mods.join(', ')})` : '';
+        this.logText(`${attackerDesc} fired on ${targetName} [Odds: ${r.odds}${modStr}] -> Roll: ${r.dieRoll} -> ${result}`, cls);
       }
 
       if (r.counterattack) {
         const cTarget = ships.find(s => s.id === r.counterattack!.targetId);
         const cName = cTarget ? (SHIP_STATS[cTarget.type]?.name ?? cTarget.type) : r.counterattack.targetId;
-        const cResult = r.counterattack.damageType === 'eliminated' ? 'ELIMINATED'
-          : r.counterattack.damageType === 'disabled' ? `D${r.counterattack.disabledTurns}`
-          : 'miss';
+        const cResult = r.counterattack.damageType === 'eliminated' ? 'DESTROYED'
+          : r.counterattack.damageType === 'disabled' ? `DISABLED (${r.counterattack.disabledTurns}T)`
+          : 'Miss';
         const cCls = r.counterattack.damageType === 'eliminated' ? 'log-eliminated'
           : r.counterattack.damageType === 'disabled' ? 'log-damage' : '';
-        this.logText(`  Counter: ${cName} ${cResult}`, cCls);
+        this.logText(`  Target returned fire on ${cName}: ${cResult}`, cCls);
       }
     }
   }
