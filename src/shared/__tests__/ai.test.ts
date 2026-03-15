@@ -87,12 +87,12 @@ describe('aiAstrogation', () => {
 
   it('works for multi-ship scenario (escape)', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST', findBaseHex);
-    // Enforcer side (player 1) has 2 ships
+    // Enforcer side (player 1) has 3 ships
     const orders = aiAstrogation(state, 1, map);
-    expect(orders).toHaveLength(2);
+    expect(orders).toHaveLength(3);
     // Each order should reference a different ship
     const shipIds = orders.map(o => o.shipId);
-    expect(new Set(shipIds).size).toBe(2);
+    expect(new Set(shipIds).size).toBe(3);
   });
 
   it('does not crash when ship has zero fuel', () => {
@@ -283,14 +283,12 @@ describe('aiCombat', () => {
     const pilgrim = state.ships.find(s => s.owner === 0)!;
 
     // Place all near each other
-    enforcers[0].position = { q: 0, r: 0 };
-    enforcers[0].lastMovementPath = [{ q: 0, r: 0 }];
-    enforcers[0].velocity = { dq: 0, dr: 0 };
-    enforcers[0].landed = false;
-    enforcers[1].position = { q: 0, r: 1 };
-    enforcers[1].lastMovementPath = [{ q: 0, r: 1 }];
-    enforcers[1].velocity = { dq: 0, dr: 0 };
-    enforcers[1].landed = false;
+    for (let i = 0; i < enforcers.length; i++) {
+      enforcers[i].position = { q: 0, r: i };
+      enforcers[i].lastMovementPath = [{ q: 0, r: i }];
+      enforcers[i].velocity = { dq: 0, dr: 0 };
+      enforcers[i].landed = false;
+    }
     pilgrim.position = { q: 1, r: 0 };
     pilgrim.lastMovementPath = [{ q: 1, r: 0 }];
     pilgrim.velocity = { dq: 0, dr: 0 };
@@ -300,8 +298,8 @@ describe('aiCombat', () => {
 
     const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(1);
-    // Should concentrate both ships on the single target
-    expect(attacks[0].attackerIds).toHaveLength(2);
+    // Should concentrate all ships on the single target
+    expect(attacks[0].attackerIds).toHaveLength(enforcers.length);
     expect(attacks[0].targetId).toBe(pilgrim.id);
   });
 
