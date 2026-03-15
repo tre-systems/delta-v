@@ -468,10 +468,31 @@ export class UIManager {
         : 'miss';
       const cls = r.damageType === 'eliminated' ? 'log-eliminated'
         : r.damageType === 'disabled' ? 'log-damage' : '';
+
+      // Build attacker description
+      let attackerDesc = '';
+      if (r.attackType === 'baseDefense') {
+        attackerDesc = 'Base';
+      } else if (r.attackType === 'antiNuke') {
+        attackerDesc = 'Base';
+      } else if (r.attackType !== 'asteroidHazard') {
+        const attackerNames = r.attackerIds
+          .map(id => {
+            const s = ships.find(sh => sh.id === id);
+            return s ? (SHIP_STATS[s.type]?.name ?? s.type) : id;
+          })
+          .filter((v, i, a) => a.indexOf(v) === i); // dedupe same type
+        attackerDesc = attackerNames.join('+');
+      }
+
       if (r.attackType === 'asteroidHazard') {
         this.logText(`${targetName}: asteroid [${r.dieRoll}] ${result}`, cls);
       } else {
-        this.logText(`${r.odds} [${r.dieRoll}→${r.modifiedRoll}] ${targetName}: ${result}`, cls);
+        const mods = [];
+        if (r.rangeMod !== 0) mods.push(`R${r.rangeMod > 0 ? '+' : ''}${r.rangeMod}`);
+        if (r.velocityMod !== 0) mods.push(`V${r.velocityMod > 0 ? '+' : ''}${r.velocityMod}`);
+        const modStr = mods.length > 0 ? ` ${mods.join(' ')}` : '';
+        this.logText(`${attackerDesc}→${targetName} ${r.odds} [${r.dieRoll}→${r.modifiedRoll}${modStr}] ${result}`, cls);
       }
 
       if (r.counterattack) {
