@@ -345,17 +345,18 @@ describe('aiCombat', () => {
 });
 
 describe('AI scenario handling', () => {
-  it('fleet action: AI generates orders for all 3 ships', () => {
-    const state = createGame(SCENARIOS.fleetAction, map, 'FA01', findBaseHex);
+  it('duel: AI generates orders for each ship', () => {
+    const state = createGame(SCENARIOS.duel, map, 'FA01', findBaseHex);
     const orders = aiAstrogation(state, 1, map);
     const aiShips = state.ships.filter(s => s.owner === 1);
     expect(orders).toHaveLength(aiShips.length);
-    expect(aiShips.length).toBe(3);
+    expect(aiShips.length).toBe(1);
   });
 
-  it('fleet action: AI seeks combat when no target body', () => {
-    const state = createGame(SCENARIOS.fleetAction, map, 'FA02', findBaseHex);
-    // Unland all ships and place opposing fleets nearby
+  it('combat-only: AI seeks combat when no target body', () => {
+    // Use duel scenario (no target body, pure combat)
+    const state = createGame(SCENARIOS.duel, map, 'FA02', findBaseHex);
+    // Unland all ships and place opposing fleets far apart
     for (const ship of state.ships) {
       ship.landed = false;
       ship.position = ship.owner === 0
@@ -371,7 +372,7 @@ describe('AI scenario handling', () => {
 
   it('blockade: AI interceptor seeks enemy runner', () => {
     const state = createGame(SCENARIOS.blockade, map, 'BK01', findBaseHex);
-    // The dreadnaught (player 1) starts in space
+    // The corvette (player 1) starts in space
     const dreadnaught = state.ships.find(s => s.owner === 1)!;
     expect(dreadnaught.landed).toBe(false);
     const orders = aiAstrogation(state, 1, map);
@@ -394,7 +395,7 @@ describe('AI scenario handling', () => {
 
   it('AI handles all difficulty levels without errors', () => {
     const difficulties: Array<'easy' | 'normal' | 'hard'> = ['easy', 'normal', 'hard'];
-    const scenarios = [SCENARIOS.biplanetary, SCENARIOS.escape, SCENARIOS.blockade, SCENARIOS.fleetAction];
+    const scenarios = [SCENARIOS.biplanetary, SCENARIOS.escape, SCENARIOS.blockade, SCENARIOS.duel];
 
     for (const scenario of scenarios) {
       for (const diff of difficulties) {
