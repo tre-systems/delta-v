@@ -304,6 +304,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         targetBody: '',
         homeBody: 'Terra',
         escapeWins: true,
+        hiddenIdentity: true,
       },
       {
         // Enforcers: corvette near Terra, corsair near Venus

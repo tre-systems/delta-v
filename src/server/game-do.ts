@@ -101,10 +101,11 @@ export class GameDO extends DurableObject {
       const code = await this.getGameCode();
       this.send(server, { type: 'welcome', playerId, code });
 
-      // Send current game state so they can rejoin
+      // Send current game state so they can rejoin (filtered for hidden info)
       const gameState = await this.getGameState();
       if (gameState) {
-        this.send(server, { type: 'gameStart', state: gameState });
+        const filteredState = this.filterStateForPlayer(gameState, playerId);
+        this.send(server, { type: 'gameStart', state: filteredState });
       }
 
       await this.ctx.storage.delete('disconnectAt');
@@ -252,7 +253,7 @@ export class GameDO extends DurableObject {
       const result = processAstrogation(gameState, playerId, orders, map);
       if (!('error' in result)) {
         if ('movements' in result) {
-          this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
+          this.broadcastFiltered({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
         }
         this.broadcastEndOrUpdate(result.state);
         await this.saveGameState(result.state);
@@ -262,9 +263,9 @@ export class GameDO extends DurableObject {
       const result = skipOrdnance(gameState, playerId, map);
       if (!('error' in result)) {
         if ('movements' in result) {
-          this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
+          this.broadcastFiltered({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
         } else {
-          this.broadcast({ type: 'stateUpdate', state: result.state });
+          this.broadcastFiltered({ type: 'stateUpdate', state: result.state });
         }
         this.broadcastEndOrUpdate(result.state);
         await this.saveGameState(result.state);
@@ -274,7 +275,7 @@ export class GameDO extends DurableObject {
       const result = skipCombat(gameState, playerId, map);
       if (!('error' in result)) {
         if (result.results && result.results.length > 0) {
-          this.broadcast({ type: 'combatResult', results: result.results, state: result.state });
+          this.broadcastFiltered({ type: 'combatResult', results: result.results, state: result.state });
         }
         this.broadcastEndOrUpdate(result.state);
         await this.saveGameState(result.state);
@@ -307,7 +308,7 @@ export class GameDO extends DurableObject {
     const gameState = createGame(scenario, map, code, findBaseHex);
 
     await this.saveGameState(gameState);
-    this.broadcast({ type: 'gameStart', state: gameState });
+    this.broadcastFiltered({ type: 'gameStart', state: gameState });
     await this.startTurnTimer(gameState);
   }
 
@@ -324,7 +325,7 @@ export class GameDO extends DurableObject {
     }
 
     if ('movements' in result) {
-      this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
+      this.broadcastFiltered({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
     }
     this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
@@ -343,7 +344,7 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
+    this.broadcastFiltered({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
     this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
     await this.startTurnTimer(result.state);
@@ -362,9 +363,9 @@ export class GameDO extends DurableObject {
     }
 
     if ('movements' in result) {
-      this.broadcast({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
+      this.broadcastFiltered({ type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state });
     } else {
-      this.broadcast({ type: 'stateUpdate', state: result.state });
+      this.broadcastFiltered({ type: 'stateUpdate', state: result.state });
     }
     this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
@@ -383,7 +384,7 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    this.broadcast({ type: 'combatResult', results: result.results, state: result.state });
+    this.broadcastFiltered({ type: 'combatResult', results: result.results, state: result.state });
     this.broadcastEndOrUpdate(result.state);
     await this.saveGameState(result.state);
     await this.startTurnTimer(result.state);
@@ -402,9 +403,9 @@ export class GameDO extends DurableObject {
     }
 
     if ('results' in result && result.results.length > 0) {
-      this.broadcast({ type: 'combatResult', results: result.results, state: result.state });
+      this.broadcastFiltered({ type: 'combatResult', results: result.results, state: result.state });
     } else {
-      this.broadcast({ type: 'stateUpdate', state: result.state });
+      this.broadcastFiltered({ type: 'stateUpdate', state: result.state });
     }
 
     this.broadcastEndOrUpdate(result.state);
@@ -425,7 +426,7 @@ export class GameDO extends DurableObject {
     }
 
     if (result.results && result.results.length > 0) {
-      this.broadcast({ type: 'combatResult', results: result.results, state: result.state });
+      this.broadcastFiltered({ type: 'combatResult', results: result.results, state: result.state });
     }
 
     this.broadcastEndOrUpdate(result.state);
@@ -454,7 +455,7 @@ export class GameDO extends DurableObject {
     if (state.phase === 'gameOver') {
       this.broadcast({ type: 'gameOver', winner: state.winner!, reason: state.winReason! });
     } else {
-      this.broadcast({ type: 'stateUpdate', state });
+      this.broadcastFiltered({ type: 'stateUpdate', state });
     }
   }
 
@@ -468,6 +469,42 @@ export class GameDO extends DurableObject {
     const data = JSON.stringify(msg);
     for (const ws of this.ctx.getWebSockets()) {
       try { ws.send(data); } catch {}
+    }
+  }
+
+  private filterStateForPlayer(state: GameState, playerId: number): GameState {
+    const hasHiddenInfo = state.ships.some(s => s.hasFugitives);
+    if (!hasHiddenInfo) return state;
+    return {
+      ...state,
+      ships: state.ships.map(s => {
+        if (s.hasFugitives && s.owner !== playerId) {
+          const { hasFugitives, ...rest } = s;
+          return rest;
+        }
+        return s;
+      }),
+    };
+  }
+
+  /**
+   * Broadcast a message containing game state, filtering hidden information per player.
+   */
+  private broadcastFiltered(msg: S2C & { state: GameState }) {
+    const hasHiddenInfo = msg.state.ships.some(s => s.hasFugitives);
+    if (!hasHiddenInfo) {
+      this.broadcast(msg);
+      return;
+    }
+
+    for (let playerId = 0; playerId < 2; playerId++) {
+      const sockets = this.ctx.getWebSockets(`player:${playerId}`);
+      if (sockets.length === 0) continue;
+      const filtered = { ...msg, state: this.filterStateForPlayer(msg.state, playerId) };
+      const data = JSON.stringify(filtered);
+      for (const ws of sockets) {
+        try { ws.send(data); } catch {}
+      }
     }
   }
 }

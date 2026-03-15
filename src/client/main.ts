@@ -80,7 +80,8 @@ class GameClient {
     this.ui.onConfirm = () => this.confirmOrders();
     this.ui.onLaunchOrdnance = (ordType) => this.sendOrdnanceLaunch(ordType);
     this.ui.onSkipOrdnance = () => this.sendSkipOrdnance();
-    this.ui.onAttack = () => this.sendAttack();
+    this.ui.onAttack = () => this.queueAttack();
+    this.ui.onFireAll = () => this.fireAllAttacks();
     this.ui.onSkipCombat = () => this.sendSkipCombat();
     this.ui.onRematch = () => this.sendRematch();
     this.ui.onExit = () => this.exitToMenu();
@@ -106,6 +107,12 @@ class GameClient {
         if (this.renderer.planningState.combatTargetId) {
           this.clearCombatSelection();
           this.ui.showAttackButton(false);
+        } else if (this.renderer.planningState.queuedAttacks.length > 0) {
+          // Undo last queued attack
+          this.renderer.planningState.queuedAttacks.pop();
+          const count = this.renderer.planningState.queuedAttacks.length;
+          this.ui.showFireButton(count > 0, count);
+          this.ui.showToast(count > 0 ? `Undid last attack (${count} queued)` : 'Attack queue cleared', 'info');
         } else if (this.renderer.planningState.torpedoAccel !== null) {
           this.renderer.planningState.torpedoAccel = null;
           this.renderer.planningState.torpedoAccelSteps = null;
@@ -123,7 +130,9 @@ class GameClient {
         } else if (this.state === 'playing_combat') {
           e.preventDefault();
           if (this.renderer.planningState.combatTargetId) {
-            this.sendAttack();
+            this.queueAttack();
+          } else if (this.renderer.planningState.queuedAttacks.length > 0) {
+            this.fireAllAttacks();
           } else {
             this.sendSkipCombat();
           }
@@ -272,7 +281,7 @@ class GameClient {
         this.startTurnTimer();
         this.ui.showHUD();
         this.updateHUD();
-        this.clearCombatSelection();
+        this.resetCombatState();
         this.ui.showAttackButton(false);
         this.startCombatTargetWatch();
         if (this.gameState) {
@@ -480,7 +489,7 @@ class GameClient {
         this.input.setGameState(this.gameState);
         this.renderer.showCombatResults(msg.results, previousState);
         this.ui.logCombatResults(msg.results, this.gameState.ships);
-        this.clearCombatSelection();
+        this.resetCombatState();
         playCombat();
         if (msg.results.some(r => r.damageType === 'eliminated')) {
           setTimeout(() => playExplosion(), 300);
@@ -638,14 +647,15 @@ class GameClient {
     }
   }
 
-  private sendAttack() {
-    if (!this.gameState || this.state !== 'playing_combat') return;
+  private buildCurrentAttack(): CombatAttack | null {
+    if (!this.gameState || this.state !== 'playing_combat') return null;
     const targetId = this.renderer.planningState.combatTargetId;
     const targetType = this.renderer.planningState.combatTargetType ?? 'ship';
-    if (!targetId) {
-      this.ui.showToast('Select an enemy ship or nuke to target', 'info');
-      return;
-    }
+    if (!targetId) return null;
+
+    const committedAttackers = new Set(
+      this.renderer.planningState.queuedAttacks.flatMap(a => a.attackerIds),
+    );
 
     let attackerIds: string[] = [];
     let attackStrength: number | null = null;
@@ -653,13 +663,9 @@ class GameClient {
       const target = this.gameState.ordnance.find(o =>
         o.id === targetId && !o.destroyed && o.owner !== this.playerId && o.type === 'nuke',
       );
-      if (!target) {
-        this.ui.showToast('Target is not valid', 'error');
-        this.clearCombatSelection();
-        return;
-      }
+      if (!target) return null;
       const legalAttackers = this.gameState.ships
-        .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s))
+        .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s) && !committedAttackers.has(s.id))
         .filter(s => hasLineOfSightToTarget(s, target, this.map));
       const selectedAttackers = legalAttackers.filter(s =>
         this.renderer.planningState.combatAttackerIds.includes(s.id),
@@ -667,13 +673,9 @@ class GameClient {
       attackerIds = (selectedAttackers.length > 0 ? selectedAttackers : legalAttackers).map(s => s.id);
     } else {
       const target = this.gameState.ships.find(s => s.id === targetId);
-      if (!target || target.destroyed) {
-        this.ui.showToast('Target is not valid', 'error');
-        this.clearCombatSelection();
-        return;
-      }
+      if (!target || target.destroyed) return null;
       const legalAttackers = this.gameState.ships
-        .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s))
+        .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s) && !committedAttackers.has(s.id))
         .filter(s => hasLineOfSight(s, target, this.map));
       const selectedAttackers = legalAttackers.filter(s =>
         this.renderer.planningState.combatAttackerIds.includes(s.id),
@@ -689,17 +691,54 @@ class GameClient {
       }
     }
 
-    if (attackerIds.length === 0) {
-      this.ui.showToast('No ships have line of sight to that target', 'error');
-      return;
-    }
+    if (attackerIds.length === 0) return null;
 
-    const attacks: CombatAttack[] = [{
+    return {
       attackerIds,
       targetId,
       targetType,
       attackStrength: targetType === 'ship' ? attackStrength : null,
-    }];
+    };
+  }
+
+  private queueAttack() {
+    const attack = this.buildCurrentAttack();
+    if (!attack) {
+      this.ui.showToast('Select an enemy ship or nuke to target', 'info');
+      return;
+    }
+
+    this.renderer.planningState.queuedAttacks.push(attack);
+    this.clearCombatSelection();
+    this.ui.showAttackButton(false);
+
+    // Check if there are more available attackers (not yet committed)
+    const committedAttackers = new Set(
+      this.renderer.planningState.queuedAttacks.flatMap(a => a.attackerIds),
+    );
+    const remainingAttackers = this.gameState!.ships.filter(
+      s => s.owner === this.playerId && !s.destroyed && canAttack(s) && !committedAttackers.has(s.id),
+    );
+
+    if (remainingAttackers.length === 0) {
+      // No more attackers available — auto-fire
+      this.fireAllAttacks();
+    } else {
+      const count = this.renderer.planningState.queuedAttacks.length;
+      this.ui.showToast(`Attack queued (${count}). Select next target or press Enter to fire.`, 'info');
+      this.ui.showFireButton(true, count);
+    }
+  }
+
+  private fireAllAttacks() {
+    const attacks = [...this.renderer.planningState.queuedAttacks];
+    if (attacks.length === 0) {
+      this.sendSkipCombat();
+      return;
+    }
+    this.renderer.planningState.queuedAttacks = [];
+    this.ui.showFireButton(false, 0);
+
     if (this.isLocalGame) {
       this.localProcessCombat(attacks);
     } else {
@@ -736,6 +775,12 @@ class GameClient {
     this.renderer.planningState.combatTargetType = null;
     this.renderer.planningState.combatAttackerIds = [];
     this.renderer.planningState.combatAttackStrength = null;
+  }
+
+  private resetCombatState() {
+    this.clearCombatSelection();
+    this.renderer.planningState.queuedAttacks = [];
+    this.ui.showFireButton(false, 0);
   }
 
   private adjustCombatStrength(delta: number) {
@@ -976,7 +1021,7 @@ class GameClient {
     this.input.setGameState(this.gameState);
     this.renderer.showCombatResults(result.results, previousState);
     this.ui.logCombatResults(result.results, this.gameState.ships);
-    this.clearCombatSelection();
+    this.resetCombatState();
     playCombat();
     if (result.results.some(r => r.damageType === 'eliminated')) {
       setTimeout(() => playExplosion(), 300);
@@ -1262,8 +1307,11 @@ class GameClient {
     const cargoMax = stats?.cargo ?? 0;
     // Build objective text
     const player = this.gameState.players[this.playerId];
+    const hasFugitiveShip = this.gameState.ships.some(s => s.owner === this.playerId && s.hasFugitives);
+    const facingFugitives = this.gameState.ships.some(s => s.owner !== this.playerId && s.hasFugitives !== undefined);
     const objective = player?.escapeWins
-      ? '⬡ Escape the map'
+      ? hasFugitiveShip ? '⬡ Escape the \u2605 ship' : '⬡ Escape the map'
+      : facingFugitives ? '⬡ Find & destroy fugitives'
       : player?.targetBody
         ? `⬡ Land on ${player.targetBody}`
         : '⬡ Destroy all enemies';
@@ -1325,7 +1373,13 @@ class GameClient {
     const myShips = this.gameState.ships.filter(s => s.owner === this.playerId);
     const shipNames = myShips.map(s => SHIP_STATS[s.type]?.name ?? s.type).join(', ');
     this.ui.logText(`Your fleet: ${shipNames}`);
-    if (player.escapeWins) {
+    const hasFugitiveShip = myShips.some(s => s.hasFugitives);
+    const facingFugitives = this.gameState.ships.some(s => s.owner !== this.playerId && s.hasFugitives !== undefined);
+    if (hasFugitiveShip) {
+      this.ui.logText('Objective: Get the \u2605 ship off the map!', 'log-landed');
+    } else if (facingFugitives) {
+      this.ui.logText('Objective: Find and destroy the fugitives!', 'log-damage');
+    } else if (player.escapeWins) {
       this.ui.logText('Objective: Escape the solar system!', 'log-landed');
     } else if (player.targetBody) {
       this.ui.logText(`Objective: Land on ${player.targetBody}`, 'log-landed');
