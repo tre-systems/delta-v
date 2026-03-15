@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "simulate": "tsx scripts/simulate-ai.ts"
+    "simulate": "tsx scripts/simulate-ai.ts",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250214.0",

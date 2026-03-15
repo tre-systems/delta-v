@@ -144,20 +144,57 @@ async function runSimulation(scenarioName: string, iterations: number) {
   for (const [reason, count] of Object.entries(metrics.reasons)) {
     console.log(`  - ${reason}: ${count}`);
   }
+
+  return metrics;
 }
 
 async function main() {
   const args = process.argv.slice(2);
-  const scenario = args[0] || 'biplanetary';
-  const iterations = parseInt(args[1] || '100', 10);
+  const isCiMode = args.includes('--ci');
+  const filteredArgs = args.filter(a => a !== '--ci');
   
+  const scenario = filteredArgs[0] || 'biplanetary';
+  const iterations = parseInt(filteredArgs[1] || '100', 10);
+  
+  let allMetrics: SimulationMetrics[] = [];
+
   if (scenario === 'all') {
     for (const key of Object.keys(SCENARIOS)) {
-      await runSimulation(key, iterations);
+      allMetrics.push(await runSimulation(key, iterations));
     }
   } else {
-    await runSimulation(scenario, iterations);
+    allMetrics.push(await runSimulation(scenario, iterations));
+  }
+
+  // Evaluate strict constraints if running in CI format
+  if (isCiMode) {
+    let failed = false;
+    for (const metrics of allMetrics) {
+      if (metrics.crashes > 0) {
+        console.error(`❌ CI FAILURE: Engine crashed ${metrics.crashes} times.`);
+        failed = true;
+      }
+      
+      const decidedGames = metrics.player0Wins + metrics.player1Wins;
+      if (decidedGames > 0) {
+        const p0Rate = metrics.player0Wins / decidedGames;
+        if (p0Rate < 0.20 || p0Rate > 0.80) {
+          console.error(`❌ CI FAILURE: Unbalanced Win Rate (${(p0Rate * 100).toFixed(1)}%). Must be between 20% and 80%.`);
+          failed = true;
+        }
+      }
+    }
+
+    if (failed) {
+      console.error('\n🚨 CI Constraints Failed. Exiting with code 1.');
+      process.exit(1);
+    } else {
+      console.log('\n✅ CI Constraints Passed. Engine is stable and balanced.');
+    }
   }
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
