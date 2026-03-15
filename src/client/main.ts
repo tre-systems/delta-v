@@ -104,8 +104,7 @@ class GameClient {
       } else if (e.key === 'Escape') {
         // Deselect ship and clear targets
         if (this.renderer.planningState.combatTargetId) {
-          this.renderer.planningState.combatTargetId = null;
-          this.renderer.planningState.combatTargetType = null;
+          this.clearCombatSelection();
           this.ui.showAttackButton(false);
         } else if (this.renderer.planningState.torpedoAccel !== null) {
           this.renderer.planningState.torpedoAccel = null;
@@ -129,6 +128,12 @@ class GameClient {
             this.sendSkipCombat();
           }
         }
+      } else if ((e.key === '-' || e.key === '_') && this.state === 'playing_combat') {
+        e.preventDefault();
+        this.adjustCombatStrength(-1);
+      } else if ((e.key === '=' || e.key === '+') && this.state === 'playing_combat') {
+        e.preventDefault();
+        this.adjustCombatStrength(1);
       } else if (e.key.toLowerCase() === 'n' && this.state === 'playing_ordnance') {
         this.sendOrdnanceLaunch('mine');
       } else if (e.key.toLowerCase() === 't' && this.state === 'playing_ordnance') {
@@ -141,6 +146,8 @@ class GameClient {
       } else if (e.key === '0' && this.state === 'playing_astrogation') {
         // 0 to clear burn
         this.clearSelectedBurn();
+      } else if (e.key === '0' && this.state === 'playing_combat') {
+        this.resetCombatStrengthToMax();
       } else if (e.key.toLowerCase() === 'e' && this.gameState &&
           (this.state === 'playing_astrogation' || this.state === 'playing_ordnance' || this.state === 'playing_combat' || this.state === 'playing_opponentTurn')) {
         // Focus camera on nearest enemy
@@ -265,8 +272,7 @@ class GameClient {
         this.startTurnTimer();
         this.ui.showHUD();
         this.updateHUD();
-        this.renderer.planningState.combatTargetId = null;
-        this.renderer.planningState.combatTargetType = null;
+        this.clearCombatSelection();
         this.ui.showAttackButton(false);
         this.startCombatTargetWatch();
         if (this.gameState) {
@@ -474,8 +480,7 @@ class GameClient {
         this.input.setGameState(this.gameState);
         this.renderer.showCombatResults(msg.results, previousState);
         this.ui.logCombatResults(msg.results, this.gameState.ships);
-        this.renderer.planningState.combatTargetId = null;
-        this.renderer.planningState.combatTargetType = null;
+        this.clearCombatSelection();
         playCombat();
         if (msg.results.some(r => r.damageType === 'eliminated')) {
           setTimeout(() => playExplosion(), 300);
@@ -643,32 +648,45 @@ class GameClient {
     }
 
     let attackerIds: string[] = [];
+    let attackStrength: number | null = null;
     if (targetType === 'ordnance') {
       const target = this.gameState.ordnance.find(o =>
         o.id === targetId && !o.destroyed && o.owner !== this.playerId && o.type === 'nuke',
       );
       if (!target) {
         this.ui.showToast('Target is not valid', 'error');
-        this.renderer.planningState.combatTargetId = null;
-        this.renderer.planningState.combatTargetType = null;
+        this.clearCombatSelection();
         return;
       }
-      attackerIds = this.gameState.ships
+      const legalAttackers = this.gameState.ships
         .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s))
-        .filter(s => hasLineOfSightToTarget(s, target, this.map))
-        .map(s => s.id);
+        .filter(s => hasLineOfSightToTarget(s, target, this.map));
+      const selectedAttackers = legalAttackers.filter(s =>
+        this.renderer.planningState.combatAttackerIds.includes(s.id),
+      );
+      attackerIds = (selectedAttackers.length > 0 ? selectedAttackers : legalAttackers).map(s => s.id);
     } else {
       const target = this.gameState.ships.find(s => s.id === targetId);
       if (!target || target.destroyed) {
         this.ui.showToast('Target is not valid', 'error');
-        this.renderer.planningState.combatTargetId = null;
-        this.renderer.planningState.combatTargetType = null;
+        this.clearCombatSelection();
         return;
       }
-      attackerIds = this.gameState.ships
+      const legalAttackers = this.gameState.ships
         .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s))
-        .filter(s => hasLineOfSight(s, target, this.map))
-        .map(s => s.id);
+        .filter(s => hasLineOfSight(s, target, this.map));
+      const selectedAttackers = legalAttackers.filter(s =>
+        this.renderer.planningState.combatAttackerIds.includes(s.id),
+      );
+      const attackers = selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
+      attackerIds = attackers.map(s => s.id);
+      const maxStrength = getCombatStrength(attackers);
+      if (maxStrength > 0) {
+        attackStrength = Math.max(
+          1,
+          Math.min(maxStrength, this.renderer.planningState.combatAttackStrength ?? maxStrength),
+        );
+      }
     }
 
     if (attackerIds.length === 0) {
@@ -676,7 +694,12 @@ class GameClient {
       return;
     }
 
-    const attacks: CombatAttack[] = [{ attackerIds, targetId, targetType }];
+    const attacks: CombatAttack[] = [{
+      attackerIds,
+      targetId,
+      targetType,
+      attackStrength: targetType === 'ship' ? attackStrength : null,
+    }];
     if (this.isLocalGame) {
       this.localProcessCombat(attacks);
     } else {
@@ -706,6 +729,40 @@ class GameClient {
       const hasTarget = this.renderer.planningState.combatTargetId !== null;
       this.ui.showAttackButton(hasTarget);
     }, 100);
+  }
+
+  private clearCombatSelection() {
+    this.renderer.planningState.combatTargetId = null;
+    this.renderer.planningState.combatTargetType = null;
+    this.renderer.planningState.combatAttackerIds = [];
+    this.renderer.planningState.combatAttackStrength = null;
+  }
+
+  private adjustCombatStrength(delta: number) {
+    if (!this.gameState || this.state !== 'playing_combat') return;
+    if (this.renderer.planningState.combatTargetType !== 'ship') return;
+
+    const attackers = this.gameState.ships.filter(ship =>
+      this.renderer.planningState.combatAttackerIds.includes(ship.id),
+    );
+    const maxStrength = getCombatStrength(attackers);
+    if (maxStrength <= 0) return;
+
+    const current = this.renderer.planningState.combatAttackStrength ?? maxStrength;
+    this.renderer.planningState.combatAttackStrength = Math.max(1, Math.min(maxStrength, current + delta));
+  }
+
+  private resetCombatStrengthToMax() {
+    if (!this.gameState || this.state !== 'playing_combat') return;
+    if (this.renderer.planningState.combatTargetType !== 'ship') return;
+
+    const attackers = this.gameState.ships.filter(ship =>
+      this.renderer.planningState.combatAttackerIds.includes(ship.id),
+    );
+    const maxStrength = getCombatStrength(attackers);
+    if (maxStrength > 0) {
+      this.renderer.planningState.combatAttackStrength = maxStrength;
+    }
   }
 
   private sendOrdnanceLaunch(ordType: 'mine' | 'torpedo' | 'nuke') {
@@ -919,8 +976,7 @@ class GameClient {
     this.input.setGameState(this.gameState);
     this.renderer.showCombatResults(result.results, previousState);
     this.ui.logCombatResults(result.results, this.gameState.ships);
-    this.renderer.planningState.combatTargetId = null;
-    this.renderer.planningState.combatTargetType = null;
+    this.clearCombatSelection();
     playCombat();
     if (result.results.some(r => r.damageType === 'eliminated')) {
       setTimeout(() => playExplosion(), 300);

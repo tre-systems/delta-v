@@ -161,6 +161,7 @@ export interface CombatAttack {
   attackerIds: string[];
   targetId: string;
   targetType?: 'ship' | 'ordnance';
+  attackStrength?: number | null; // optional reduced-strength attack declaration
 }
 
 export interface CombatResult {

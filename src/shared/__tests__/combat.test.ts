@@ -352,4 +352,26 @@ describe('resolveCombat', () => {
     expect(result.defendStrength).toBe(2);
     expect(result.odds).toBe('2:1');
   });
+
+  it('supports declared reduced-strength attacks', () => {
+    const attacker = makeShip({ id: 'a', owner: 0, type: 'dreadnaught' });
+    const target = makeShip({ id: 't', owner: 1, position: { q: 0, r: 0 } });
+
+    const result = resolveCombat([attacker], target, [attacker, target], () => 0.5, undefined, 2);
+
+    expect(result.attackStrength).toBe(2);
+    expect(result.defendStrength).toBe(2);
+    expect(result.odds).toBe('1:1');
+  });
+
+  it('uses the full attacking group strength as the defender value for counterattacks', () => {
+    const attacker = makeShip({ id: 'a', owner: 0, type: 'dreadnaught' });
+    const target = makeShip({ id: 't', owner: 1, position: { q: 0, r: 0 } });
+
+    const result = resolveCombat([attacker], target, [attacker, target], () => 0.5, undefined, 2);
+
+    expect(result.counterattack).not.toBeNull();
+    expect(result.counterattack!.defendStrength).toBe(15);
+    expect(result.counterattack!.odds).toBe('1:4');
+  });
 });

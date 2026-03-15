@@ -325,7 +325,7 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 The document above is the canonical rules reference. The current online implementation still diverges from it in several important places:
 
-- **Combat fidelity:** limited-strength attacks are still not implemented, and the online counterattack model is still simpler than the paper game's broader defensive timing/options.
+- **Combat fidelity:** limited-strength attacks are now implemented for phasing-player gunfire, but the online model still simplifies the paper game's broader defensive timing/options, especially defender counterattack target choice and multi-target gun attacks.
 - **Movement fidelity:** planetary-base landing is now stricter, but the gravity-edge / printed-outline edge cases from the paper map are still not modeled, and asteroid/base representation is still simplified compared to the board.
 - **Ordnance fidelity:** ship gunfire and planetary defenses can now attack nukes, torpedoes resolve mixed multi-target contacts more faithfully, and direct nuke hits can destroy bases persistently, but nuke devastation of planetary hex sides and broader planetary-surface damage effects are still not modeled.
 - **Contact geometry:** mine and torpedo contact is approximated by hex occupancy/path rather than the stricter "any portion of the hex" geometric rule from the board game.

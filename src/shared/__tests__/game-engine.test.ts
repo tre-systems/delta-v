@@ -1354,6 +1354,55 @@ describe('ordnance validation', () => {
     }
   });
 
+  it('rejects declared attack strength above the selected ships total', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'ATK04B', findBaseHex);
+    state.phase = 'combat';
+    state.activePlayer = 0;
+
+    const attacker = state.ships[0];
+    const target = state.ships[1];
+    attacker.landed = false;
+    target.landed = false;
+    attacker.position = { q: 0, r: 0 };
+    attacker.lastMovementPath = [{ q: 0, r: 0 }];
+    target.position = { q: 1, r: 0 };
+    target.lastMovementPath = [{ q: 1, r: 0 }];
+
+    const result = processCombat(state, 0, [
+      { attackerIds: [attacker.id], targetId: target.id, attackStrength: 3 },
+    ], openMap);
+
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('attack strength');
+    }
+  });
+
+  it('uses declared reduced attack strength in combat resolution', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'ATK04C', findBaseHex);
+    state.phase = 'combat';
+    state.activePlayer = 0;
+
+    const attacker = state.ships[0];
+    const target = state.ships[1];
+    attacker.type = 'dreadnaught';
+    attacker.landed = false;
+    target.landed = false;
+    attacker.position = { q: 0, r: 0 };
+    attacker.lastMovementPath = [{ q: 0, r: 0 }];
+    target.position = { q: 0, r: 0 };
+    target.lastMovementPath = [{ q: 0, r: 0 }];
+
+    const result = processCombat(state, 0, [
+      { attackerIds: [attacker.id], targetId: target.id, attackStrength: 2 },
+    ], openMap, () => 0.5);
+
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+    expect(result.results[0].attackStrength).toBe(2);
+    expect(result.results[0].odds).toBe('1:1');
+  });
+
   it('allows combat attacks against enemy nukes', () => {
     const state = createGame(SCENARIOS.biplanetary, openMap, 'ATK05', findBaseHex);
     state.phase = 'combat';
