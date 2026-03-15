@@ -606,6 +606,15 @@ export function processOrdnance(
       return { error: 'Only torpedoes use launch acceleration' };
     }
 
+    // Mine launch: ship must change course so it doesn't remain in the mine's hex
+    if (launch.ordnanceType === 'mine') {
+      const pendingOrder = (state.pendingAstrogationOrders ?? []).find(o => o.shipId === ship.id);
+      const hasBurn = pendingOrder?.burn != null || pendingOrder?.overload != null;
+      if (!hasBurn) {
+        return { error: 'Ship must change course when launching a mine' };
+      }
+    }
+
     // Launch ordnance: inherits ship's velocity
     let velocity = { ...ship.velocity };
     if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
@@ -698,16 +707,48 @@ function moveOrdnance(
       ord.destroyed = true;
     }
 
-    // Crash into celestial bodies
-    for (const pathHex of finalPath) {
-      const hex = map.hexes.get(hexKey(pathHex));
+    // Crash into celestial bodies (nukes devastate the entry hex side)
+    let nukeDevastated = false;
+    for (let pi = 0; pi < finalPath.length; pi++) {
+      const hex = map.hexes.get(hexKey(finalPath[pi]));
       if (hex?.body) {
+        if (ord.type === 'nuke') {
+          nukeDevastated = true;
+          // The hex just before the body is the entry side
+          const entryHex = pi > 0 ? finalPath[pi - 1] : finalPath[pi];
+          const entryKey = hexKey(entryHex);
+          // Destroy any base on the entry hex side
+          if (map.hexes.get(entryKey)?.base && !state.destroyedBases.includes(entryKey)) {
+            state.destroyedBases.push(entryKey);
+          }
+          // Destroy all ships and ordnance on the entry hex
+          for (const ship of state.ships) {
+            if (!ship.destroyed && hexEqual(ship.position, entryHex)) {
+              ship.destroyed = true;
+              ship.velocity = { dq: 0, dr: 0 };
+              events.push({
+                type: 'nukeDetonation',
+                shipId: ship.id,
+                hex: entryHex,
+                dieRoll: 0,
+                damageType: 'eliminated',
+                disabledTurns: 0,
+                ordnanceId: ord.id,
+              });
+            }
+          }
+          for (const other of state.ordnance) {
+            if (other.id !== ord.id && !other.destroyed && hexEqual(other.position, entryHex)) {
+              other.destroyed = true;
+            }
+          }
+        }
         ord.destroyed = true;
         break;
       }
     }
 
-    const detonated = !ord.destroyed && checkOrdnanceDetonation(ord, state, finalPath, events, map, rng);
+    const detonated = nukeDevastated || (!ord.destroyed && checkOrdnanceDetonation(ord, state, finalPath, events, map, rng));
 
     ordnanceMovements.push({
       ordnanceId: ord.id,
