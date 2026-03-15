@@ -147,3 +147,11 @@ Current assessment:
 - **Room secrecy:** weak
 
 Delta-V is in decent shape for friendly matches between trusted players, but it is not yet hardened enough for serious competitive play or public matchmaking.
+
+## Next Priority
+
+The next tracked engineering task should be the server-hardening pass:
+
+- authenticated reconnect / rejoin tokens
+- scenario locking at room creation
+- strict runtime validation for all WebSocket client messages

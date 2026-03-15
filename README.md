@@ -98,6 +98,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 
 ## 🗺️ Roadmap & Planned Features
 
+- [ ] **Server Hardening For Competitive Play**: Add authenticated reconnect tokens, lock scenario selection at room creation, and validate WebSocket payloads at runtime.
 - [x] **Hidden Information Scenarios**: Authoritative Fog of War implemented for specific game modes (e.g., *Escape*).
 - [x] **Premium Polish**: High-fidelity glassmorphism UI, tactical micro-animations, and procedural SFX.
 - [x] **AI Opponent**: Challenging local-bot with multiple difficulty levels and gravity-aware pathfinding.
