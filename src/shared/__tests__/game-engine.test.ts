@@ -93,8 +93,8 @@ describe('createGame', () => {
 
   it('supports explicit split base ownership for shared worlds', () => {
     const duelState = createGame(SCENARIOS.duel, map, 'DUEL1', findBaseHex);
-    expect(duelState.players[0].bases).toEqual(['8,-2']);
-    expect(duelState.players[1].bases).toEqual(['6,-2']);
+    expect(duelState.players[0].bases).toEqual(['5,2']);
+    expect(duelState.players[1].bases).toEqual(['3,2']);
   });
 });
 
@@ -152,12 +152,12 @@ describe('processAstrogation', () => {
   it('applies gravity on the turn after a ship enters a gravity hex', () => {
     const ship = initialState.ships[0];
     ship.landed = false;
-    ship.position = { q: 11, r: 9 };
+    ship.position = { q: -8, r: -4 };
     ship.velocity = { dq: 0, dr: -1 };
 
     const first = resolveAstrogationMovement(initialState, 0, [{ shipId: ship.id, burn: null }]);
     const afterFirstMove = first.state.ships.find(s => s.id === ship.id)!;
-    expect(afterFirstMove.position).toEqual({ q: 11, r: 8 });
+    expect(afterFirstMove.position).toEqual({ q: -8, r: -5 });
     expect(afterFirstMove.pendingGravityEffects).toHaveLength(1);
     expect(afterFirstMove.pendingGravityEffects?.[0].bodyName).toBe('Mars');
 
@@ -166,7 +166,7 @@ describe('processAstrogation', () => {
 
     const second = resolveAstrogationMovement(first.state, 0, [{ shipId: ship.id, burn: null }]);
     const afterSecondMove = second.state.ships.find(s => s.id === ship.id)!;
-    expect(afterSecondMove.position).toEqual({ q: 10, r: 7 });
+    expect(afterSecondMove.position).toEqual({ q: -9, r: -6 });
   });
 
   it('defers asteroid hazards until combat begins', () => {
@@ -468,7 +468,7 @@ describe('Escape scenario', () => {
     const p0Ships = escapeState.ships.filter(s => s.owner === 0);
     const p1Ships = escapeState.ships.filter(s => s.owner === 1);
     expect(p0Ships).toHaveLength(3); // 3 transports
-    expect(p1Ships).toHaveLength(3); // 2 corvettes + corsair
+    expect(p1Ships).toHaveLength(2); // 1 corvette + 1 corsair (per rules)
   });
 
   it('pilgrim transports start landed at Terra base', () => {
@@ -489,7 +489,7 @@ describe('Escape scenario', () => {
   it('enforcer ship types are corvettes and corsair', () => {
     const p1Ships = escapeState.ships.filter(s => s.owner === 1);
     const types = p1Ships.map(s => s.type).sort();
-    expect(types).toEqual(['corsair', 'corvette', 'corvette']);
+    expect(types).toEqual(['corsair', 'corvette']);
   });
 
   it('pilgrim player has escapeWins = true', () => {
@@ -1599,6 +1599,7 @@ describe('Edge cases', () => {
     if (!('error' in result)) {
       expect(result.state.phase).toBe('gameOver');
       expect(result.state.winner).toBe(0);
+      expect(result.state.winReason).toBe('Fleet eliminated!');
     }
   });
 
