@@ -325,11 +325,11 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 The document above is the canonical rules reference. The current online implementation still diverges from it in several important places:
 
-- **Combat fidelity:** limited-strength attacks are now implemented for phasing-player gunfire, but the online model still simplifies the paper game's broader defensive timing/options, especially defender counterattack target choice and multi-target gun attacks.
-- **Movement fidelity:** planetary-base landing is now stricter, but the gravity-edge / printed-outline edge cases from the paper map are still not modeled, and asteroid/base representation is still simplified compared to the board.
-- **Ordnance fidelity:** ship gunfire and planetary defenses can now attack nukes, torpedoes resolve mixed multi-target contacts more faithfully, and direct nuke hits can destroy bases persistently, but nuke devastation of planetary hex sides and broader planetary-surface damage effects are still not modeled.
+- **Combat fidelity:** limited-strength attacks are implemented for phasing-player gunfire, landed ships are properly immune to gunfire, and ships that resupply cannot fire in the same turn. The online model still simplifies the paper game's broader defensive timing/options, especially defender counterattack target choice and multi-target gun attacks.
+- **Movement fidelity:** planetary-base landing is now stricter, and landed ships are immune to ramming, but the gravity-edge / printed-outline edge cases from the paper map are still not modeled, and asteroid/base representation is still simplified compared to the board.
+- **Ordnance fidelity:** ship gunfire and planetary defenses can now attack nukes, torpedoes resolve mixed multi-target contacts more faithfully, direct nuke hits can destroy bases persistently, and landed ships are immune to mines/torpedoes (but not nukes). Nuke devastation of planetary hex sides and broader planetary-surface damage effects are still not modeled.
 - **Contact geometry:** mine and torpedo contact is approximated by hex occupancy/path rather than the stricter "any portion of the hex" geometric rule from the board game.
-- **Bases and support:** per-base ownership now drives planetary defense, detection, and friendly resupply, but orbital bases, asteroid-base special cases, clandestine-base scanner rules, and full resupply positioning restrictions are not yet fully modeled.
+- **Bases and support:** per-base ownership now drives planetary defense, detection, and friendly resupply, and ships that resupply cannot fire or launch ordnance during that turn. Orbital bases, asteroid-base special cases, clandestine-base scanner rules, and full resupply positioning restrictions are not yet fully modeled.
 - **Logistics and hidden information:** capture, surrender, looting, rescue, fuel transfer, cargo handling beyond simple ordnance mass, heroism, dummy counters, and broader hidden-movement rules remain unfinished.
 - **Optional systems:** the advanced combat system from the rulebook is still out of scope and would need an explicit design decision before implementation.
 

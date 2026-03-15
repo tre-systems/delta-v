@@ -142,6 +142,7 @@ export function getDeclaredCombatStrength(
  */
 export function canAttack(ship: Ship): boolean {
   if (ship.destroyed || ship.landed || ship.damage.disabledTurns > 0) return false;
+  if (ship.resuppliedThisTurn) return false;
   const stats = SHIP_STATS[ship.type];
   return stats ? !stats.defensiveOnly : false;
 }
@@ -151,6 +152,7 @@ export function canAttack(ship: Ship): boolean {
  */
 export function canCounterattack(ship: Ship): boolean {
   if (ship.destroyed || ship.landed || ship.damage.disabledTurns > 0) return false;
+  if (ship.resuppliedThisTurn) return false;
   const stats = SHIP_STATS[ship.type];
   return stats ? stats.combat > 0 && !stats.defensiveOnly : false;
 }
