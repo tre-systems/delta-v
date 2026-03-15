@@ -212,6 +212,9 @@ export class Renderer {
   private movementEvents: { events: MovementEvent[]; showUntil: number } | null = null;
   private phaseBanner: { text: string; showUntil: number } | null = null;
   private lastTime = 0;
+  // Persistent ship trails: shipId -> array of hex positions visited across turns
+  private shipTrails: Map<string, HexCoord[]> = new Map();
+  private ordnanceTrails: Map<string, HexCoord[]> = new Map();
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -232,7 +235,37 @@ export class Renderer {
     this.playerId = id;
   }
 
+  clearTrails() {
+    this.shipTrails.clear();
+    this.ordnanceTrails.clear();
+  }
+
   animateMovements(movements: ShipMovement[], ordnanceMovements: OrdnanceMovement[], onComplete: () => void) {
+    // Record movement paths into persistent trails
+    for (const m of movements) {
+      const trail = this.shipTrails.get(m.shipId);
+      if (trail) {
+        // Append path (skip first point if it matches the trail's last point)
+        const start = (trail.length > 0 && m.path.length > 0 &&
+          trail[trail.length - 1].q === m.path[0].q &&
+          trail[trail.length - 1].r === m.path[0].r) ? 1 : 0;
+        for (let i = start; i < m.path.length; i++) trail.push(m.path[i]);
+      } else {
+        this.shipTrails.set(m.shipId, [...m.path]);
+      }
+    }
+    for (const m of ordnanceMovements) {
+      const trail = this.ordnanceTrails.get(m.ordnanceId);
+      if (trail) {
+        const start = (trail.length > 0 && m.path.length > 0 &&
+          trail[trail.length - 1].q === m.path[0].q &&
+          trail[trail.length - 1].r === m.path[0].r) ? 1 : 0;
+        for (let i = start; i < m.path.length; i++) trail.push(m.path[i]);
+      } else {
+        this.ordnanceTrails.set(m.ordnanceId, [...m.path]);
+      }
+    }
+
     this.animState = {
       movements,
       ordnanceMovements,
@@ -480,6 +513,7 @@ export class Renderer {
       this.renderOrdnance(ctx, this.gameState, now);
       this.renderTorpedoGuidance(ctx, this.gameState, now);
       this.renderCombatOverlay(ctx, this.gameState, now);
+      this.renderTrails(ctx, this.gameState);
       this.renderMovementPaths(ctx, this.gameState, now);
       this.renderShips(ctx, this.gameState, now);
       this.renderHexFlashes(ctx, now);
@@ -987,6 +1021,61 @@ export class Renderer {
           }
         }
       }
+    }
+  }
+
+  private renderTrails(ctx: CanvasRenderingContext2D, state: GameState) {
+    // Draw persistent ship trails (faint lines showing historical paths)
+    for (const [shipId, trail] of this.shipTrails) {
+      if (trail.length < 2) continue;
+      const ship = state.ships.find(s => s.id === shipId);
+      if (!ship) continue;
+      // Skip undetected enemy trails
+      if (ship.owner !== this.playerId && !ship.detected) continue;
+
+      const isOwn = ship.owner === this.playerId;
+      ctx.strokeStyle = isOwn ? 'rgba(79, 195, 247, 0.18)' : 'rgba(255, 152, 0, 0.18)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      const p0 = hexToPixel(trail[0], HEX_SIZE);
+      ctx.moveTo(p0.x, p0.y);
+      for (let i = 1; i < trail.length; i++) {
+        const p = hexToPixel(trail[i], HEX_SIZE);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+
+      // Small dots at each waypoint
+      const dotColor = isOwn ? 'rgba(79, 195, 247, 0.25)' : 'rgba(255, 152, 0, 0.25)';
+      for (let i = 0; i < trail.length; i++) {
+        const p = hexToPixel(trail[i], HEX_SIZE);
+        if (!this.camera.isVisible(p.x, p.y)) continue;
+        ctx.fillStyle = dotColor;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Draw ordnance trails (even fainter)
+    for (const [ordId, trail] of this.ordnanceTrails) {
+      if (trail.length < 2) continue;
+      const ord = state.ordnance?.find(o => o.id === ordId);
+      const isOwn = ord ? ord.owner === this.playerId : false;
+      // Show all ordnance trails (they're visible objects)
+      ctx.strokeStyle = isOwn ? 'rgba(79, 195, 247, 0.1)' : 'rgba(255, 152, 0, 0.1)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 4]);
+      ctx.beginPath();
+      const p0 = hexToPixel(trail[0], HEX_SIZE);
+      ctx.moveTo(p0.x, p0.y);
+      for (let i = 1; i < trail.length; i++) {
+        const p = hexToPixel(trail[i], HEX_SIZE);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
   }
 
@@ -1891,6 +1980,26 @@ export class Renderer {
       ctx.fill();
     }
     ctx.globalAlpha = 1;
+
+    // Draw ship trails on minimap
+    for (const [shipId, trail] of this.shipTrails) {
+      if (trail.length < 2) continue;
+      const ship = this.gameState.ships.find(s => s.id === shipId);
+      if (!ship) continue;
+      if (ship.owner !== this.playerId && !ship.detected) continue;
+      ctx.strokeStyle = ship.owner === this.playerId ? 'rgba(79, 195, 247, 0.3)' : 'rgba(255, 138, 101, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const p0 = hexToPixel(trail[0], HEX_SIZE);
+      const mp0 = toMinimap(p0.x, p0.y);
+      ctx.moveTo(mp0.x, mp0.y);
+      for (let i = 1; i < trail.length; i++) {
+        const pi = hexToPixel(trail[i], HEX_SIZE);
+        const mpi = toMinimap(pi.x, pi.y);
+        ctx.lineTo(mpi.x, mpi.y);
+      }
+      ctx.stroke();
+    }
 
     // Draw ships as dots
     for (const ship of this.gameState.ships) {

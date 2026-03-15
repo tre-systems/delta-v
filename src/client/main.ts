@@ -343,6 +343,7 @@ class GameClient {
 
     const scenarioDef = SCENARIOS[scenario] ?? SCENARIOS.biplanetary;
     this.gameState = createGame(scenarioDef, this.map, 'LOCAL', findBaseHex);
+    this.renderer.clearTrails();
     this.ui.clearLog();
     this.ui.logText(`vs AI (${this.aiDifficulty}) — ${scenarioDef.name}`);
     this.renderer.setGameState(this.gameState);
@@ -452,6 +453,7 @@ class GameClient {
 
       case 'gameStart':
         this.gameState = this.deserializeState(msg.state);
+        this.renderer.clearTrails();
         this.renderer.setGameState(this.gameState);
         this.input.setGameState(this.gameState);
         this.ui.clearLog();
