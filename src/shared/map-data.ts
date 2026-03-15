@@ -347,11 +347,11 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         escapeWins: false,
       },
       {
-        // Pirates: 3 corsairs lurking in the asteroid belt
+        // Pirates: 3 corsairs positioned to intercept the Mars→Venus route
         ships: [
-          { type: 'corsair', position: { q: -2, r: -13 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
-          { type: 'corsair', position: { q: 2, r: -12 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
-          { type: 'corsair', position: { q: -5, r: -13 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corsair', position: { q: -8, r: 0 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corsair', position: { q: -6, r: -2 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corsair', position: { q: -9, r: 2 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
         ],
         targetBody: '',
         homeBody: '',
@@ -392,16 +392,16 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       {
         // Runner: fast packet ship from Venus heading toward Mars
         ships: [
-          { type: 'packet', position: { q: -7, r: 7 }, velocity: { dq: 0, dr: -2 } },
+          { type: 'packet', position: { q: -7, r: 5 }, velocity: { dq: 0, dr: -2 }, startLanded: false },
         ],
         targetBody: 'Mars',
         homeBody: 'Venus',
         escapeWins: false,
       },
       {
-        // Blocker: frigate patrolling between the planets
+        // Blocker: corvette patrolling between the planets (less firepower = fairer)
         ships: [
-          { type: 'frigate', position: { q: -6, r: 0 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corvette', position: { q: -8, r: -1 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
         ],
         targetBody: '',
         homeBody: 'Mars',

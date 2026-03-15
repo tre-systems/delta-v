@@ -359,8 +359,8 @@ describe('AI scenario handling', () => {
     for (const ship of state.ships) {
       ship.landed = false;
       ship.position = ship.owner === 0
-        ? { q: 0, r: 0 }
-        : { q: 5, r: 0 };
+        ? { q: -10, r: 0 }
+        : { q: 10, r: 0 };
       ship.velocity = { dq: 0, dr: 0 };
     }
     const orders = aiAstrogation(state, 1, map, 'hard');

@@ -109,6 +109,13 @@ export function aiAstrogation(
       // Skip crashed courses entirely
       if (course.crashed) continue;
 
+      // Look ahead: skip courses whose resulting velocity will crash next turn
+      if (!course.landedAt) {
+        const simShip = { ...ship, position: course.destination, velocity: course.newVelocity, pendingGravityEffects: course.enteredGravityEffects };
+        const nextCourse = computeCourse(simShip, null, map, { destroyedBases: state.destroyedBases });
+        if (nextCourse.crashed) continue;
+      }
+
       let score = scoreCourse(
         ship, course, targetHex, targetBody, escapeWins, enemyShips, difficulty,
       );
@@ -130,6 +137,11 @@ export function aiAstrogation(
           const altCourse = computeCourse(ship, opt.burn, map,
             { ...courseOpts, weakGravityChoices: wgChoices });
           if (altCourse.crashed) continue;
+          if (!altCourse.landedAt) {
+            const simShip2 = { ...ship, position: altCourse.destination, velocity: altCourse.newVelocity, pendingGravityEffects: altCourse.enteredGravityEffects };
+            const nextAlt = computeCourse(simShip2, null, map, { destroyedBases: state.destroyedBases });
+            if (nextAlt.crashed) continue;
+          }
           const altScore = scoreCourse(ship, altCourse, targetHex, targetBody, escapeWins, enemyShips, difficulty);
           if (altScore > score) {
             score = altScore;
@@ -488,23 +500,27 @@ function scoreCourse(
 
       if (noPrimaryObjective) {
         // Pure combat mode: aggressively seek combat range
-        // Close in — bonus that scales with distance to ensure incentive even at long range
-        score += Math.max(0, 50 - dist) * 1 * mult;
-        
-        // Extra strong bonus for being at range 1-3
-        if (dist <= 3) score += 20 * mult;
-        
-        // Velocity matching: prefer courses that match the enemy's velocity ONLY when close
-        // This prevents "parallel flying" stalemates at long distance.
-        if (dist < 10) {
+        // Strong closing incentive that always outweighs other penalties
+        score += Math.max(0, 50 - dist) * 3 * mult;
+
+        // Extra strong bonus for being at combat range 1-3
+        if (dist <= 3) score += 40 * mult;
+
+        // Velocity toward enemy: prefer velocity pointing at enemy
+        const nextPos = hexAdd(course.destination, course.newVelocity);
+        const nextDist = hexDistance(nextPos, enemy.position);
+        score += (dist - nextDist) * 5 * mult;
+
+        // Velocity matching: only at close range to maintain engagement
+        if (dist < 6) {
           const velMatchDist = hexDistance(
             { q: course.newVelocity.dq, r: course.newVelocity.dr },
             { q: enemy.velocity.dq, r: enemy.velocity.dr }
           );
-          score -= velMatchDist * (dist < 4 ? 4 : 2) * mult;
+          score -= velMatchDist * (dist < 3 ? 4 : 2) * mult;
         }
 
-        // Speed management: prefer moderate velocity near enemies, unless matching their high speed
+        // Speed management: prefer moderate velocity near enemies
         const speed = hexVecLength(course.newVelocity);
         if (dist < 5 && speed > 5) {
           const enemySpeed = hexVecLength(enemy.velocity);
