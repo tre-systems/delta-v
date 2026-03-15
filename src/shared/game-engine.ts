@@ -8,6 +8,7 @@ import { SHIP_STATS, ORDNANCE_MASS, ORDNANCE_LIFETIME, SHIP_DETECTION_RANGE, BAS
 import { hexKey, hexVecLength, hexDistance, hexAdd, hexSubtract, hexLineDraw, HEX_DIRECTIONS, hexEqual } from './hex';
 import {
   resolveCombat, resolveBaseDefense, canAttack, hasLineOfSight, hasLineOfSightToTarget,
+  hasBaseLineOfSight,
   computeGroupRangeModToTarget, computeGroupVelocityModToTarget,
   lookupOtherDamage, lookupGunCombat, applyDamage, rollD6,
   type CombatResolution,
@@ -89,6 +90,7 @@ export function createGame(
     pendingAstrogationOrders: null,
     pendingAsteroidHazards: [],
     destroyedAsteroids: [],
+    destroyedBases: [],
     players: [
       { connected: true, ready: true, targetBody: scenario.players[0].targetBody, homeBody: scenario.players[0].homeBody, escapeWins: scenario.players[0].escapeWins },
       { connected: true, ready: true, targetBody: scenario.players[1].targetBody, homeBody: scenario.players[1].homeBody, escapeWins: scenario.players[1].escapeWins },
@@ -217,6 +219,7 @@ function resolveMovementPhase(
     const course = computeCourse(ship, burn, map, {
       overload,
       weakGravityChoices: order?.weakGravityChoices,
+      destroyedBases: state.destroyedBases,
     });
 
     movements.push({
@@ -242,7 +245,7 @@ function resolveMovementPhase(
 
     if (course.landedAt) {
       ship.velocity = { dq: 0, dr: 0 };
-      applyResupply(ship, map);
+      applyResupply(ship, state, map);
     }
 
     if (course.crashed) {
@@ -670,8 +673,11 @@ function checkOrdnanceDetonation(
       }
     }
 
-    if (mapHex?.base) {
+    if (mapHex?.base && !state.destroyedBases.includes(key)) {
       if (ord.type === 'nuke') {
+        if (!state.destroyedBases.includes(key)) {
+          state.destroyedBases.push(key);
+        }
         forcedDetonation = true;
       } else {
         return true;
@@ -898,12 +904,20 @@ function hasBaseDefenseTargets(state: GameState, map: SolarSystemMap): boolean {
 
   for (const [key, hex] of map.hexes) {
     if (!hex.base || hex.base.bodyName !== homeBody) continue;
+    if (state.destroyedBases.includes(key)) continue;
     const [bq, br] = key.split(',').map(Number);
+    const baseCoord = { q: bq, r: br };
     for (const ship of state.ships) {
       if (ship.owner === state.activePlayer || ship.destroyed || ship.landed) continue;
       const shipHex = map.hexes.get(hexKey(ship.position));
       if (!shipHex?.gravity || shipHex.gravity.bodyName !== homeBody) continue;
-      if (hexDistance(ship.position, { q: bq, r: br }) === 1) {
+      if (hexDistance(ship.position, baseCoord) === 1) {
+        return true;
+      }
+    }
+    for (const ord of state.ordnance) {
+      if (ord.owner === state.activePlayer || ord.destroyed || ord.type !== 'nuke') continue;
+      if (hasBaseLineOfSight(baseCoord, ord, map)) {
         return true;
       }
     }
@@ -1029,9 +1043,10 @@ function checkRamming(
 /**
  * Resupply a ship that has landed at a base.
  */
-function applyResupply(ship: Ship, map: SolarSystemMap): void {
-  const hex = map.hexes.get(hexKey(ship.position));
-  if (!hex?.base) return;
+function applyResupply(ship: Ship, state: GameState, map: SolarSystemMap): void {
+  const baseKey = hexKey(ship.position);
+  const hex = map.hexes.get(baseKey);
+  if (!hex?.base || state.destroyedBases.includes(baseKey)) return;
 
   const stats = SHIP_STATS[ship.type];
   if (stats) {
@@ -1056,9 +1071,10 @@ function updateDetection(state: GameState, map: SolarSystemMap): void {
 
     // Landing at a friendly base clears detection
     if (ship.landed) {
-      const hex = map.hexes.get(hexKey(ship.position));
+      const key = hexKey(ship.position);
+      const hex = map.hexes.get(key);
       const playerHome = state.players[ship.owner].homeBody;
-      if (hex?.base && hex.base.bodyName === playerHome) {
+      if (hex?.base && !state.destroyedBases.includes(key) && hex.base.bodyName === playerHome) {
         ship.detected = false;
         continue;
       }
@@ -1082,6 +1098,7 @@ function updateDetection(state: GameState, map: SolarSystemMap): void {
     const opponentHome = state.players[1 - ship.owner].homeBody;
     for (const [key, hex] of map.hexes) {
       if (!hex.base) continue;
+      if (state.destroyedBases.includes(key)) continue;
       if (hex.base.bodyName !== opponentHome) continue; // Only opponent bases detect
       const [q, r] = key.split(',').map(Number);
       if (hexDistance(ship.position, { q, r }) <= BASE_DETECTION_RANGE) {

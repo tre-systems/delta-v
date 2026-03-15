@@ -214,6 +214,39 @@ export function hasLineOfSightToTarget(
   return true;
 }
 
+export function hasBaseLineOfSight(
+  baseCoord: { q: number; r: number },
+  target: Pick<Ship | Ordnance, 'position'>,
+  map: SolarSystemMap,
+): boolean {
+  const path = hexLineDraw(baseCoord, target.position);
+
+  for (let i = 1; i < path.length - 1; i++) {
+    if (map.hexes.get(hexKey(path[i]))?.body) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function computeBaseRangeMod(
+  baseCoord: { q: number; r: number },
+  target: Pick<Ship | Ordnance, 'position'>,
+): number {
+  return hexDistance(baseCoord, target.position);
+}
+
+export function computeBaseVelocityMod(
+  target: Pick<Ship | Ordnance, 'velocity'>,
+): number {
+  const dq = Math.abs(target.velocity.dq);
+  const dr = Math.abs(target.velocity.dr);
+  const ds = Math.abs(-target.velocity.dq - target.velocity.dr);
+  const velDiff = Math.max(dq, dr, ds);
+  return Math.max(0, velDiff - 2);
+}
+
 export function getCounterattackers(target: Ship, allShips: Ship[]): Ship[] {
   return allShips.filter(ship =>
     ship.owner === target.owner &&
@@ -358,7 +391,12 @@ export function resolveCombat(
  * No range or velocity modifiers apply.
  */
 export function resolveBaseDefense(
-  state: { ships: Ship[]; players: { homeBody: string }[] },
+  state: {
+    ships: Ship[];
+    ordnance?: Ordnance[];
+    destroyedBases?: string[];
+    players: { homeBody: string }[];
+  },
   activePlayer: number,
   map: SolarSystemMap,
   rng?: () => number,
@@ -366,14 +404,22 @@ export function resolveBaseDefense(
   const results: CombatResult[] = [];
   const homeBody = state.players[activePlayer]?.homeBody;
   if (!homeBody) return results;
+  const destroyedBases = new Set(state.destroyedBases ?? []);
+  const enemyNukes = state.ordnance?.filter(ord =>
+    ord.type === 'nuke' &&
+    ord.owner !== activePlayer &&
+    !ord.destroyed,
+  ) ?? [];
 
   // Only the active player's home-world bases provide defense fire.
   for (const [key, hex] of map.hexes) {
     if (!hex.base) continue;
     if (hex.base.bodyName !== homeBody) continue;
+    if (destroyedBases.has(key)) continue;
     // Find base's gravity hex neighbors — specifically hexes with gravity pointing toward this body
     const bodyName = hex.base.bodyName;
     const [bq, br] = key.split(',').map(Number);
+    const baseCoord = { q: bq, r: br };
 
     // Find enemy ships in gravity hexes adjacent to this base
     for (const ship of state.ships) {
@@ -397,7 +443,7 @@ export function resolveBaseDefense(
       applyDamage(ship, damageResult);
 
       results.push({
-        attackerIds: [`base:${bodyName}`],
+        attackerIds: [`base:${key}`],
         targetId: ship.id,
         targetType: 'ship',
         attackType: 'baseDefense',
@@ -410,6 +456,39 @@ export function resolveBaseDefense(
         modifiedRoll,
         damageType: damageResult.type,
         disabledTurns: damageResult.disabledTurns,
+        counterattack: null,
+      });
+    }
+
+    for (const ord of enemyNukes) {
+      if (ord.destroyed) continue;
+      if (!hasBaseLineOfSight(baseCoord, ord, map)) continue;
+
+      const odds = '2:1' as const;
+      const rangeMod = computeBaseRangeMod(baseCoord, ord);
+      const velocityMod = computeBaseVelocityMod(ord);
+      const dieRoll = rollD6(rng);
+      const modifiedRoll = dieRoll - rangeMod - velocityMod;
+      const damageResult = lookupGunCombat(odds, modifiedRoll);
+      const destroyed = damageResult.type !== 'none';
+      if (destroyed) {
+        ord.destroyed = true;
+      }
+
+      results.push({
+        attackerIds: [`base:${key}`],
+        targetId: ord.id,
+        targetType: 'ordnance',
+        attackType: 'baseDefense',
+        odds,
+        attackStrength: 0,
+        defendStrength: 0,
+        rangeMod,
+        velocityMod,
+        dieRoll,
+        modifiedRoll,
+        damageType: destroyed ? 'eliminated' : 'none',
+        disabledTurns: 0,
         counterattack: null,
       });
     }

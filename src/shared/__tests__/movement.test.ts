@@ -355,6 +355,27 @@ describe('computeCourse - landing', () => {
     }
   });
 
+  it('destroyed planetary bases are not legal landing targets', () => {
+    const marsBase = findBaseHex(map, 'Mars')!;
+    const ship = makeShip({
+      position: { q: marsBase.q, r: marsBase.r + 1 },
+      velocity: { dq: 0, dr: -1 },
+      pendingGravityEffects: [{
+        hex: { q: marsBase.q, r: marsBase.r + 1 },
+        direction: 3,
+        bodyName: 'Mars',
+        strength: 'full',
+        ignored: false,
+      }],
+    });
+    const course = computeCourse(ship, 0, map, {
+      destroyedBases: [hexKey(marsBase)],
+    });
+
+    expect(course.destination).toEqual(marsBase);
+    expect(course.landedAt).toBeNull();
+  });
+
   it('asteroid landing requires stopping in the hex', () => {
     const ship = makeShip({
       position: { q: -3, r: 18 }, // Ceres hex

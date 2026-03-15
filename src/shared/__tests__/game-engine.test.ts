@@ -4,7 +4,7 @@ import { buildSolarSystemMap, SCENARIOS, findBaseHex } from '../map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../constants';
 import { hexKey, hexEqual, hexDistance } from '../hex';
 import { resolveBaseDefense } from '../combat';
-import type { GameState, SolarSystemMap, AstrogationOrder, OrdnanceLaunch, Ship } from '../types';
+import type { GameState, SolarSystemMap, AstrogationOrder, OrdnanceLaunch, Ordnance, Ship } from '../types';
 
 let map: SolarSystemMap;
 let initialState: GameState;
@@ -966,6 +966,38 @@ describe('base defense fire', () => {
 
     expect(results).toHaveLength(0);
   });
+
+  it('fires at enemy nukes with range and velocity modifiers', () => {
+    const marsBase = findBaseHex(map, 'Mars')!;
+    const state = {
+      ships: [],
+      ordnance: [
+        {
+          id: 'enemy-nuke',
+          type: 'nuke',
+          owner: 1,
+          position: { q: marsBase.q + 2, r: marsBase.r },
+          velocity: { dq: 3, dr: 0 },
+          turnsRemaining: 5,
+          destroyed: false,
+          pendingGravityEffects: [],
+        },
+      ] as Ordnance[],
+      destroyedBases: [],
+      players: [
+        { homeBody: 'Mars' },
+        { homeBody: 'Venus' },
+      ],
+    };
+
+    const results = resolveBaseDefense(state, 0, map, () => 0.99);
+    expect(results).toHaveLength(1);
+    expect(results[0].targetId).toBe('enemy-nuke');
+    expect(results[0].targetType).toBe('ordnance');
+    expect(results[0].rangeMod).toBe(2);
+    expect(results[0].velocityMod).toBe(1);
+    expect(results[0].damageType).toBe('eliminated');
+  });
 });
 
 describe('ramming', () => {
@@ -1052,6 +1084,61 @@ describe('nuke ordnance', () => {
     if ('error' in second) {
       expect(second.error).toContain('one nuke');
     }
+  });
+
+  it('destroyed bases stay destroyed and stop defending', () => {
+    const marsBase = findBaseHex(map, 'Mars')!;
+    const ship = initialState.ships[0];
+    ship.type = 'frigate';
+    ship.landed = false;
+    ship.position = { q: marsBase.q - 1, r: marsBase.r };
+    ship.velocity = { dq: 1, dr: 0 };
+    initialState.phase = 'ordnance';
+
+    const result = processOrdnance(initialState, 0, [{ shipId: ship.id, ordnanceType: 'nuke' }], map);
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+
+    expect(result.state.destroyedBases).toContain(hexKey(marsBase));
+
+    let gravHex: { q: number; r: number } | null = null;
+    for (const [key, hex] of map.hexes) {
+      if (!hex.gravity || hex.gravity.bodyName !== 'Mars') continue;
+      const [gq, gr] = key.split(',').map(Number);
+      if (hexDistance({ q: gq, r: gr }, marsBase) === 1) {
+        gravHex = { q: gq, r: gr };
+        break;
+      }
+    }
+
+    expect(gravHex).not.toBeNull();
+    if (!gravHex) return;
+
+    const defenseResults = resolveBaseDefense({
+      ships: [
+        {
+          id: 'enemy',
+          type: 'corvette',
+          owner: 1,
+          position: gravHex,
+          velocity: { dq: 0, dr: 0 },
+          fuel: 20,
+          cargoUsed: 0,
+          landed: false,
+          destroyed: false,
+          detected: true,
+          damage: { disabledTurns: 0 },
+        },
+      ],
+      ordnance: [],
+      destroyedBases: result.state.destroyedBases,
+      players: [
+        { homeBody: 'Mars' },
+        { homeBody: 'Venus' },
+      ],
+    }, 0, map, () => 0.99);
+
+    expect(defenseResults).toHaveLength(0);
   });
 });
 

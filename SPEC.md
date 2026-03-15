@@ -327,7 +327,7 @@ The document above is the canonical rules reference. The current online implemen
 
 - **Combat fidelity:** limited-strength attacks are still not implemented, and the online counterattack model is still simpler than the paper game's broader defensive timing/options.
 - **Movement fidelity:** planetary-base landing is now stricter, but the gravity-edge / printed-outline edge cases from the paper map are still not modeled, and asteroid/base representation is still simplified compared to the board.
-- **Ordnance fidelity:** ship gunfire can now attack nukes and torpedoes resolve mixed multi-target contacts more faithfully, but planetary-defense attacks against nukes, nuke devastation of planetary hex sides, and persistent base damage/state changes from nuke hits are still not modeled.
+- **Ordnance fidelity:** ship gunfire and planetary defenses can now attack nukes, torpedoes resolve mixed multi-target contacts more faithfully, and direct nuke hits can destroy bases persistently, but nuke devastation of planetary hex sides and broader planetary-surface damage effects are still not modeled.
 - **Contact geometry:** mine and torpedo contact is approximated by hex occupancy/path rather than the stricter "any portion of the hex" geometric rule from the board game.
 - **Bases and support:** planetary-defense and detection ownership are still simplified to home-world data instead of per-base ownership; orbital bases, asteroid-base special cases, clandestine-base scanner rules, and full resupply positioning restrictions are not yet fully modeled.
 - **Logistics and hidden information:** capture, surrender, looting, rescue, fuel transfer, cargo handling beyond simple ordnance mass, heroism, dummy counters, and broader hidden-movement rules remain unfinished.

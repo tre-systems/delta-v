@@ -15,6 +15,7 @@ export interface GameState {
   pendingAstrogationOrders: AstrogationOrder[] | null;
   pendingAsteroidHazards: AsteroidHazard[];
   destroyedAsteroids: string[]; // hexKey[] for asteroids removed by nukes
+  destroyedBases: string[]; // hexKey[] for bases destroyed by nuke detonation
   players: [PlayerState, PlayerState];
   winner: number | null;
   winReason: string | null;
