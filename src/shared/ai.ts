@@ -16,9 +16,12 @@ import {
   canAttack,
   computeGroupRangeMod,
   computeGroupVelocityMod,
+  computeGroupRangeModToTarget,
+  computeGroupVelocityModToTarget,
   computeRangeMod,
   computeVelocityMod,
   hasLineOfSight,
+  hasLineOfSightToTarget,
 } from './combat';
 
 export type AIDifficulty = 'easy' | 'normal' | 'hard';
@@ -196,16 +199,14 @@ export function aiOrdnance(
 
     // Hard AI: launch nuke at enemies within range if cargo allows
     if (difficulty === 'hard' && nearestDist <= torpedoRange &&
-        stats.canOverload && cargoFree >= ORDNANCE_MASS.nuke) {
+        cargoFree >= ORDNANCE_MASS.nuke) {
       // Prefer nukes over torpedoes when enemy is strong
       const enemyStr = getCombatStrength([nearestEnemy]);
       const myStr = getCombatStrength([ship]);
       if (enemyStr >= myStr && nearestDist <= 6) {
-        const bestDir = findDirectionToward(ship.position, nearestEnemy.position);
         launches.push({
           shipId: ship.id,
           ordnanceType: 'nuke',
-          torpedoAccel: bestDir,
         });
         continue;
       }
@@ -219,6 +220,7 @@ export function aiOrdnance(
         shipId: ship.id,
         ordnanceType: 'torpedo',
         torpedoAccel: bestDir,
+        torpedoAccelSteps: nearestDist > 4 ? 2 : 1,
       });
       continue;
     }
@@ -267,10 +269,15 @@ export function aiCombat(
   const enemyShips = state.ships.filter(s =>
     s.owner !== playerId && !s.destroyed,
   );
-  if (enemyShips.length === 0) return [];
+  const enemyNukes = state.ordnance.filter(o =>
+    o.owner !== playerId && !o.destroyed && o.type === 'nuke',
+  );
+  if (enemyShips.length === 0 && enemyNukes.length === 0) return [];
 
   // Pick best target: closest + weakest = highest priority
   let bestTarget: Ship | null = null;
+  let bestOrdnanceTarget: GameState['ordnance'][number] | null = null;
+  let bestTargetType: 'ship' | 'ordnance' = 'ship';
   let bestAttackers: Ship[] = [];
   let bestScore = -Infinity;
 
@@ -295,29 +302,61 @@ export function aiCombat(
     if (score > bestScore) {
       bestScore = score;
       bestTarget = enemy;
+      bestOrdnanceTarget = null;
+      bestTargetType = 'ship';
       bestAttackers = attackersForTarget;
     }
   }
 
-  if (!bestTarget || bestAttackers.length === 0) return [];
+  for (const nuke of enemyNukes) {
+    const attackersForTarget = myShips.filter(attacker => hasLineOfSightToTarget(attacker, nuke, map));
+    if (attackersForTarget.length === 0) continue;
+
+    let totalDist = 0;
+    for (const attacker of attackersForTarget) {
+      totalDist += hexDistance(attacker.position, nuke.position);
+    }
+    const avgDist = totalDist / attackersForTarget.length;
+    const rangeMod = computeGroupRangeModToTarget(attackersForTarget, nuke);
+    const velMod = computeGroupVelocityModToTarget(attackersForTarget, nuke);
+    const threat = Math.max(0, 6 - Math.min(...state.ships
+      .filter(ship => ship.owner === playerId && !ship.destroyed)
+      .map(ship => hexDistance(ship.position, nuke.position))));
+    const score = 18 + threat * 8 - avgDist * 2 - (rangeMod + velMod) * 3;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestTarget = null;
+      bestOrdnanceTarget = nuke;
+      bestTargetType = 'ordnance';
+      bestAttackers = attackersForTarget;
+    }
+  }
+
+  if (bestAttackers.length === 0) return [];
 
   // Only attack if odds are reasonable (modified roll needs to be positive)
-  const attackStr = getCombatStrength(bestAttackers);
-  const defendStr = getCombatStrength([bestTarget]);
-  const rangeMod = computeGroupRangeMod(bestAttackers, bestTarget);
-  const velMod = computeGroupVelocityMod(bestAttackers, bestTarget);
+  const attackStr = bestTargetType === 'ship' && bestTarget ? getCombatStrength(bestAttackers) : 0;
+  const defendStr = bestTargetType === 'ship' && bestTarget ? getCombatStrength([bestTarget]) : 0;
+  const rangeMod = bestTargetType === 'ship' && bestTarget
+    ? computeGroupRangeMod(bestAttackers, bestTarget)
+    : computeGroupRangeModToTarget(bestAttackers, bestOrdnanceTarget!);
+  const velMod = bestTargetType === 'ship' && bestTarget
+    ? computeGroupVelocityMod(bestAttackers, bestTarget)
+    : computeGroupVelocityModToTarget(bestAttackers, bestOrdnanceTarget!);
 
   // Easy: more conservative (skip if max roll < 3)
   // Normal: skip if max roll < 1
   // Hard: always attack if any chance of doing damage
   const minRollThreshold = difficulty === 'easy' ? 3 : difficulty === 'hard' ? 0 : 1;
-  if (6 - rangeMod - velMod < minRollThreshold && attackStr <= defendStr) {
+  if (bestTargetType === 'ship' && 6 - rangeMod - velMod < minRollThreshold && attackStr <= defendStr) {
     return []; // Skip combat, odds are too bad
   }
 
   return [{
     attackerIds: bestAttackers.map(s => s.id),
-    targetId: bestTarget.id,
+    targetId: bestTargetType === 'ship' && bestTarget ? bestTarget.id : bestOrdnanceTarget!.id,
+    targetType: bestTargetType,
   }];
 }
 

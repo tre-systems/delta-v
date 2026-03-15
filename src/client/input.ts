@@ -248,8 +248,15 @@ export class InputHandler {
         for (let d = 0; d < 6; d++) {
           const target = hexAdd(ship.position, HEX_DIRECTIONS[d]);
           if (hexEqual(clickHex, target)) {
-            this.planningState.torpedoAccel =
-              this.planningState.torpedoAccel === d ? null : d;
+            if (this.planningState.torpedoAccel !== d) {
+              this.planningState.torpedoAccel = d;
+              this.planningState.torpedoAccelSteps = 1;
+            } else if (this.planningState.torpedoAccelSteps === 1) {
+              this.planningState.torpedoAccelSteps = 2;
+            } else {
+              this.planningState.torpedoAccel = null;
+              this.planningState.torpedoAccelSteps = null;
+            }
             return;
           }
         }
@@ -263,6 +270,7 @@ export class InputHandler {
       if (hexEqual(clickHex, ship.position)) {
         this.planningState.selectedShipId = ship.id;
         this.planningState.torpedoAccel = null;
+        this.planningState.torpedoAccelSteps = null;
         return;
       }
     }
@@ -271,19 +279,33 @@ export class InputHandler {
   private handleCombatClick(clickHex: HexCoord) {
     if (!this.gameState) return;
 
+    for (const ord of this.gameState.ordnance) {
+      if (ord.owner === this.playerId || ord.destroyed || ord.type !== 'nuke') continue;
+      if (hexEqual(clickHex, ord.position)) {
+        const isSame = this.planningState.combatTargetId === ord.id
+          && this.planningState.combatTargetType === 'ordnance';
+        this.planningState.combatTargetId = isSame ? null : ord.id;
+        this.planningState.combatTargetType = isSame ? null : 'ordnance';
+        return;
+      }
+    }
+
     // Click an enemy ship to target it
     for (const ship of this.gameState.ships) {
       if (ship.owner === this.playerId || ship.destroyed) continue;
       if (hexEqual(clickHex, ship.position)) {
         // Toggle: click same target = deselect
-        this.planningState.combatTargetId =
-          this.planningState.combatTargetId === ship.id ? null : ship.id;
+        const isSame = this.planningState.combatTargetId === ship.id
+          && this.planningState.combatTargetType === 'ship';
+        this.planningState.combatTargetId = isSame ? null : ship.id;
+        this.planningState.combatTargetType = isSame ? null : 'ship';
         return;
       }
     }
 
     // Clicked empty space — deselect target
     this.planningState.combatTargetId = null;
+    this.planningState.combatTargetType = null;
   }
 
   /**

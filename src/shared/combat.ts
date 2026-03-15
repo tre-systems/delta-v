@@ -1,5 +1,5 @@
 import { hexDistance, hexEqual, hexKey, hexLineDraw } from './hex';
-import type { Ship, SolarSystemMap, CombatResult } from './types';
+import type { Ship, Ordnance, SolarSystemMap, CombatResult } from './types';
 import { SHIP_STATS } from './constants';
 
 // --- Damage tables ---
@@ -40,6 +40,7 @@ export type OddsRatio = typeof ODDS_RATIOS[number];
 export interface CombatAttack {
   attackerIds: string[];
   targetId: string;
+  targetType?: 'ship' | 'ordnance';
 }
 
 export interface CombatResolution {
@@ -84,7 +85,7 @@ export function computeOdds(attackStrength: number, defendStrength: number): Odd
  * to the target's final position.
  */
 export function computeRangeMod(attacker: Ship, target: Ship): number {
-  return hexDistance(getClosestApproachHex(attacker, target), target.position);
+  return computeRangeModToTarget(attacker, target);
 }
 
 /**
@@ -92,6 +93,20 @@ export function computeRangeMod(attacker: Ship, target: Ship): number {
  * Velocity difference is the hex distance between their velocity vectors.
  */
 export function computeVelocityMod(attacker: Ship, target: Ship): number {
+  return computeVelocityModToTarget(attacker, target);
+}
+
+export function computeRangeModToTarget(
+  attacker: Ship,
+  target: Pick<Ship | Ordnance, 'position'>,
+): number {
+  return hexDistance(getClosestApproachHex(attacker, target), target.position);
+}
+
+export function computeVelocityModToTarget(
+  attacker: Ship,
+  target: Pick<Ship | Ordnance, 'velocity'>,
+): number {
   const dq = Math.abs(attacker.velocity.dq - target.velocity.dq);
   const dr = Math.abs(attacker.velocity.dr - target.velocity.dr);
   const ds = Math.abs((-attacker.velocity.dq - attacker.velocity.dr) - (-target.velocity.dq - target.velocity.dr));
@@ -116,7 +131,7 @@ export function getCombatStrength(ships: Ship[]): number {
  * Check if a ship can initiate an attack (not defensive-only, not disabled).
  */
 export function canAttack(ship: Ship): boolean {
-  if (ship.destroyed || ship.damage.disabledTurns > 0) return false;
+  if (ship.destroyed || ship.landed || ship.damage.disabledTurns > 0) return false;
   const stats = SHIP_STATS[ship.type];
   return stats ? !stats.defensiveOnly : false;
 }
@@ -125,7 +140,7 @@ export function canAttack(ship: Ship): boolean {
  * Check if a ship can counterattack (non-commercial, not destroyed, not disabled).
  */
 export function canCounterattack(ship: Ship): boolean {
-  if (ship.destroyed || ship.damage.disabledTurns > 0) return false;
+  if (ship.destroyed || ship.landed || ship.damage.disabledTurns > 0) return false;
   const stats = SHIP_STATS[ship.type];
   return stats ? stats.combat > 0 && !stats.defensiveOnly : false;
 }
@@ -136,7 +151,10 @@ function getTrackedPath(ship: Ship) {
     : [ship.position];
 }
 
-export function getClosestApproachHex(attacker: Ship, target: Ship) {
+export function getClosestApproachHex(
+  attacker: Ship,
+  target: Pick<Ship | Ordnance, 'position'>,
+) {
   let bestHex = getTrackedPath(attacker)[0];
   let bestDistance = hexDistance(bestHex, target.position);
 
@@ -152,16 +170,38 @@ export function getClosestApproachHex(attacker: Ship, target: Ship) {
 }
 
 export function computeGroupRangeMod(attackers: Ship[], target: Ship): number {
-  if (attackers.length === 0) return 0;
-  return Math.max(...attackers.map(attacker => computeRangeMod(attacker, target)));
+  return computeGroupRangeModToTarget(attackers, target);
 }
 
 export function computeGroupVelocityMod(attackers: Ship[], target: Ship): number {
-  if (attackers.length === 0) return 0;
-  return Math.max(...attackers.map(attacker => computeVelocityMod(attacker, target)));
+  return computeGroupVelocityModToTarget(attackers, target);
 }
 
 export function hasLineOfSight(attacker: Ship, target: Ship, map: SolarSystemMap): boolean {
+  return hasLineOfSightToTarget(attacker, target, map);
+}
+
+export function computeGroupRangeModToTarget(
+  attackers: Ship[],
+  target: Pick<Ship | Ordnance, 'position'>,
+): number {
+  if (attackers.length === 0) return 0;
+  return Math.max(...attackers.map(attacker => computeRangeModToTarget(attacker, target)));
+}
+
+export function computeGroupVelocityModToTarget(
+  attackers: Ship[],
+  target: Pick<Ship | Ordnance, 'velocity'>,
+): number {
+  if (attackers.length === 0) return 0;
+  return Math.max(...attackers.map(attacker => computeVelocityModToTarget(attacker, target)));
+}
+
+export function hasLineOfSightToTarget(
+  attacker: Ship,
+  target: Pick<Ship | Ordnance, 'position'>,
+  map: SolarSystemMap,
+): boolean {
   const from = getClosestApproachHex(attacker, target);
   const path = hexLineDraw(from, target.position);
 
@@ -359,6 +399,8 @@ export function resolveBaseDefense(
       results.push({
         attackerIds: [`base:${bodyName}`],
         targetId: ship.id,
+        targetType: 'ship',
+        attackType: 'baseDefense',
         odds,
         attackStrength: 0,
         defendStrength: 0,

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createGame, processAstrogation, processOrdnance, skipOrdnance, skipCombat, processCombat, type MovementResult, type StateUpdateResult } from '../game-engine';
+import { createGame, processAstrogation, processOrdnance, skipOrdnance, beginCombatPhase, skipCombat, processCombat, type MovementResult, type StateUpdateResult } from '../game-engine';
 import { buildSolarSystemMap, SCENARIOS, findBaseHex } from '../map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../constants';
 import { hexKey, hexEqual, hexDistance } from '../hex';
@@ -163,6 +163,45 @@ describe('processAstrogation', () => {
     expect(afterSecondMove.position).toEqual({ q: 10, r: 7 });
   });
 
+  it('defers asteroid hazards until combat begins', () => {
+    const hazardMap: SolarSystemMap = {
+      hexes: new Map([
+        ['1,0', { terrain: 'asteroid' }],
+      ]),
+      bodies: [],
+      bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
+    };
+    const state = createGame(SCENARIOS.biplanetary, hazardMap, 'AST01', findBaseHex);
+    const ship = state.ships[0];
+    ship.landed = false;
+    ship.position = { q: -1, r: 0 };
+    ship.velocity = { dq: 2, dr: 0 };
+
+    const first = processAstrogation(state, 0, [{ shipId: ship.id, burn: null }], hazardMap);
+    expect('error' in first).toBe(false);
+    if ('error' in first) return;
+    let movement: MovementResult;
+    if ('movements' in first) {
+      movement = first;
+    } else {
+      const skipped = skipOrdnance(first.state, 0, hazardMap);
+      if ('error' in skipped) throw new Error(skipped.error);
+      movement = expectMovement(skipped);
+    }
+
+    expect(movement.events.filter(e => e.type === 'asteroidHit')).toHaveLength(0);
+    expect(movement.state.pendingAsteroidHazards).toHaveLength(1);
+    expect(movement.state.phase).toBe('combat');
+
+    const combatStart = beginCombatPhase(movement.state, 0, hazardMap, () => 0.5);
+    expect('error' in combatStart).toBe(false);
+    if ('error' in combatStart || !('results' in combatStart)) return;
+
+    expect(combatStart.results).toHaveLength(1);
+    expect(combatStart.results[0].attackType).toBe('asteroidHazard');
+    expect(combatStart.state.pendingAsteroidHazards).toHaveLength(0);
+  });
+
   it('rejects invalid burn direction', () => {
     const orders: AstrogationOrder[] = [{
       shipId: initialState.ships[0].id,
@@ -208,17 +247,22 @@ describe('processAstrogation', () => {
   });
 
   it('enters combat phase after astrogation when enemies exist', () => {
-    const orders: AstrogationOrder[] = [{
-      shipId: initialState.ships[0].id,
-      burn: null,
-    }];
-    const result = processAstrogation(initialState, 0, orders, map);
+    const ship0 = initialState.ships[0];
+    const ship1 = initialState.ships[1];
+    ship0.landed = false;
+    ship0.position = { q: 0, r: 0 };
+    ship0.velocity = { dq: 0, dr: 0 };
+    ship0.cargoUsed = SHIP_STATS[ship0.type].cargo;
+    ship1.landed = false;
+    ship1.position = { q: 2, r: 0 };
+    ship1.velocity = { dq: 0, dr: 0 };
 
-    if (!('error' in result)) {
-      // Both players have ships alive, so combat phase is entered
-      expect(result.state.phase).toBe('combat');
-      expect(result.state.activePlayer).toBe(0);
-    }
+    const result = processAstrogation(initialState, 0, [{ shipId: ship0.id, burn: null }], openMap);
+    expect('error' in result).toBe(false);
+    if ('error' in result || !('movements' in result)) return;
+
+    expect(result.state.phase).toBe('combat');
+    expect(result.state.activePlayer).toBe(0);
   });
 
   it('queues movement and enters ordnance before movement for launch-capable ships', () => {
@@ -238,11 +282,17 @@ describe('processAstrogation', () => {
   });
 
   it('switches active player after skipping combat', () => {
-    const orders: AstrogationOrder[] = [{
-      shipId: initialState.ships[0].id,
-      burn: null,
-    }];
-    const result = processAstrogation(initialState, 0, orders, map);
+    const ship0 = initialState.ships[0];
+    const ship1 = initialState.ships[1];
+    ship0.landed = false;
+    ship0.position = { q: 0, r: 0 };
+    ship0.velocity = { dq: 0, dr: 0 };
+    ship0.cargoUsed = SHIP_STATS[ship0.type].cargo;
+    ship1.landed = false;
+    ship1.position = { q: 2, r: 0 };
+    ship1.velocity = { dq: 0, dr: 0 };
+
+    const result = processAstrogation(initialState, 0, [{ shipId: ship0.id, burn: null }], openMap);
     if ('error' in result) return;
 
     // Skip combat to advance turn
@@ -255,12 +305,19 @@ describe('processAstrogation', () => {
   });
 
   it('increments turn number after both players complete turns', () => {
+    initialState.ships.forEach((ship, idx) => {
+      ship.landed = false;
+      ship.position = { q: idx * 3, r: 0 };
+      ship.velocity = { dq: 0, dr: 0 };
+      ship.cargoUsed = SHIP_STATS[ship.type].cargo;
+    });
+
     // Player 0's turn: astrogation + skip combat
     const orders0: AstrogationOrder[] = [{
       shipId: initialState.ships[0].id,
       burn: null,
     }];
-    const result0 = processAstrogation(initialState, 0, orders0, map);
+    const result0 = processAstrogation(initialState, 0, orders0, openMap);
     expect('error' in result0).toBe(false);
     if ('error' in result0) return;
 
@@ -275,7 +332,7 @@ describe('processAstrogation', () => {
       shipId: skip0.state.ships[1].id,
       burn: null,
     }];
-    const result1 = processAstrogation(skip0.state, 1, orders1, map);
+    const result1 = processAstrogation(skip0.state, 1, orders1, openMap);
     expect('error' in result1).toBe(false);
     if ('error' in result1) return;
 
@@ -300,53 +357,63 @@ describe('resupply on landing', () => {
     const movedShip = result.state.ships[0];
     expect(movedShip.fuel).toBe(19); // Used 1 fuel for takeoff
 
-    // Now simulate the ship landing at a base by manually positioning it
-    // and computing a course that arrives at a base hex
-    const venusBase = findBaseHex(map, 'Venus')!;
-    movedShip.position = { q: venusBase.q + 1, r: venusBase.r };
-    movedShip.velocity = { dq: -1, dr: 0 };
+    // Now simulate a legal orbital landing at the friendly Mars base.
+    const marsBase = findBaseHex(map, 'Mars')!;
+    movedShip.position = { q: marsBase.q, r: marsBase.r + 1 };
+    movedShip.velocity = { dq: 0, dr: -1 };
     movedShip.landed = false;
     movedShip.fuel = 5; // Low fuel
+    movedShip.pendingGravityEffects = [{
+      hex: { q: marsBase.q, r: marsBase.r + 1 },
+      direction: 3,
+      bodyName: 'Mars',
+      strength: 'full',
+      ignored: false,
+    }];
 
     // Switch to player 0's turn
     result.state.activePlayer = 0;
     result.state.phase = 'astrogation';
 
-    const landingOrders: AstrogationOrder[] = [{ shipId: movedShip.id, burn: null }];
+    const landingOrders: AstrogationOrder[] = [{ shipId: movedShip.id, burn: 0 }];
     const landResult = processAstrogation(result.state, 0, landingOrders, map);
 
     if ('error' in landResult) return;
 
     const landedShip = landResult.state.ships[0];
-    if (landedShip.landed) {
-      // Ship should be refueled to max
-      const stats = SHIP_STATS[landedShip.type];
-      expect(landedShip.fuel).toBe(stats.fuel);
-      expect(landedShip.damage.disabledTurns).toBe(0);
-    }
+    expect(landedShip.landed).toBe(true);
+    const stats = SHIP_STATS[landedShip.type];
+    expect(landedShip.fuel).toBe(stats.fuel);
+    expect(landedShip.damage.disabledTurns).toBe(0);
   });
 });
 
 describe('victory conditions', () => {
   it('landing on target body wins the game', () => {
-    // Manually position P0 to land on Venus (target)
-    const venusBase = findBaseHex(map, 'Venus')!;
+    const marsBase = findBaseHex(map, 'Mars')!;
     const ship = initialState.ships[0];
-    ship.position = { q: venusBase.q + 1, r: venusBase.r };
-    ship.velocity = { dq: -1, dr: 0 };
+    initialState.players[0].targetBody = 'Mars';
+    ship.position = { q: marsBase.q, r: marsBase.r + 1 };
+    ship.velocity = { dq: 0, dr: -1 };
     ship.landed = false;
+    ship.pendingGravityEffects = [{
+      hex: { q: marsBase.q, r: marsBase.r + 1 },
+      direction: 3,
+      bodyName: 'Mars',
+      strength: 'full',
+      ignored: false,
+    }];
 
-    const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: null }];
+    const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: 0 }];
     const result = processAstrogation(initialState, 0, orders, map);
 
     if ('error' in result) return;
 
     const landedShip = result.state.ships[0];
-    if (landedShip.landed && landedShip.position.q === venusBase.q && landedShip.position.r === venusBase.r) {
-      expect(result.state.phase).toBe('gameOver');
-      expect(result.state.winner).toBe(0);
-      expect(result.state.winReason).toContain('Venus');
-    }
+    expect(landedShip.landed).toBe(true);
+    expect(result.state.phase).toBe('gameOver');
+    expect(result.state.winner).toBe(0);
+    expect(result.state.winReason).toContain('Mars');
   });
 });
 
@@ -552,33 +619,65 @@ describe('ordnance system', () => {
   });
 
   it('ordnance defers gravity until the turn after entry', () => {
-    initialState.ordnance = [{
+    const gravityMap: SolarSystemMap = {
+      hexes: new Map([
+        ['1,0', {
+          terrain: 'space',
+          gravity: { direction: 3, strength: 'full', bodyName: 'TestWorld' },
+        }],
+      ]),
+      bodies: [],
+      bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
+    };
+    const state = createGame(SCENARIOS.biplanetary, gravityMap, 'ORDGR', findBaseHex);
+
+    state.ordnance = [{
       id: 'ord0',
       type: 'mine',
       owner: 0,
-      position: { q: 11, r: 9 },
+      position: { q: 1, r: 1 },
       velocity: { dq: 0, dr: -1 },
       turnsRemaining: 5,
       destroyed: false,
       pendingGravityEffects: [],
     }];
 
-    const ship = initialState.ships[0];
+    const ship = state.ships[0];
     ship.landed = false;
     ship.velocity = { dq: 0, dr: 0 };
     ship.position = { q: 20, r: 20 };
 
-    const first = resolveAstrogationMovement(initialState, 0, [{ shipId: ship.id, burn: null }]);
+    const firstResult = processAstrogation(state, 0, [{ shipId: ship.id, burn: null }], gravityMap);
+    expect('error' in firstResult).toBe(false);
+    if ('error' in firstResult) return;
+    let first: MovementResult;
+    if ('movements' in firstResult) {
+      first = firstResult;
+    } else {
+      const skipped = skipOrdnance(firstResult.state, 0, gravityMap);
+      if ('error' in skipped) throw new Error(skipped.error);
+      first = expectMovement(skipped);
+    }
     expect(first.state.ordnance).toHaveLength(1);
-    expect(first.state.ordnance[0].position).toEqual({ q: 11, r: 8 });
+    expect(first.state.ordnance[0].position).toEqual({ q: 1, r: 0 });
     expect(first.state.ordnance[0].pendingGravityEffects).toHaveLength(1);
 
     first.state.phase = 'astrogation';
     first.state.activePlayer = 0;
 
-    const second = resolveAstrogationMovement(first.state, 0, [{ shipId: ship.id, burn: null }]);
+    const secondResult = processAstrogation(first.state, 0, [{ shipId: ship.id, burn: null }], gravityMap);
+    expect('error' in secondResult).toBe(false);
+    if ('error' in secondResult) return;
+    let second: MovementResult;
+    if ('movements' in secondResult) {
+      second = secondResult;
+    } else {
+      const skipped = skipOrdnance(secondResult.state, 0, gravityMap);
+      if ('error' in skipped) throw new Error(skipped.error);
+      second = expectMovement(skipped);
+    }
     expect(second.state.ordnance).toHaveLength(1);
-    expect(second.state.ordnance[0].position).toEqual({ q: 10, r: 7 });
+    expect(second.state.ordnance[0].position).toEqual({ q: 0, r: -1 });
   });
 
   it('torpedoes detonate on friendly ships in their path', () => {
@@ -611,6 +710,51 @@ describe('ordnance system', () => {
     expect(hits).toHaveLength(1);
   });
 
+  it('torpedoes can use a 2-hex launch boost', () => {
+    const ship = initialState.ships[0];
+    ship.type = 'frigate';
+    ship.landed = false;
+    ship.position = { q: 10, r: 0 };
+    ship.velocity = { dq: 1, dr: 0 };
+    initialState.phase = 'ordnance';
+
+    const result = processOrdnance(initialState, 0, [{
+      shipId: ship.id,
+      ordnanceType: 'torpedo',
+      torpedoAccel: 0,
+      torpedoAccelSteps: 2,
+    }], map);
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+
+    expect(result.state.ordnance[0].velocity).toEqual({ dq: 3, dr: 0 });
+  });
+
+  it('torpedoes detonate when entering asteroid hexes', () => {
+    const asteroidKey = Array.from(map.hexes.entries()).find(([, hex]) => hex.terrain === 'asteroid')?.[0];
+    expect(asteroidKey).toBeTruthy();
+    if (!asteroidKey) return;
+
+    const [aq, ar] = asteroidKey.split(',').map(Number);
+    const ship = initialState.ships[0];
+    ship.type = 'frigate';
+    ship.landed = false;
+    ship.position = { q: aq - 2, r: ar };
+    ship.velocity = { dq: 1, dr: 0 };
+    initialState.phase = 'ordnance';
+
+    const result = processOrdnance(initialState, 0, [{
+      shipId: ship.id,
+      ordnanceType: 'torpedo',
+      torpedoAccel: 0,
+    }], map);
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+
+    expect(result.state.ordnance).toHaveLength(0);
+    expect(result.ordnanceMovements[0].detonated).toBe(true);
+  });
+
   it('tracks asteroid destruction in game state without mutating the map', () => {
     const asteroidKey = Array.from(map.hexes.entries()).find(([, hex]) => hex.terrain === 'asteroid')?.[0];
     expect(asteroidKey).toBeTruthy();
@@ -619,12 +763,12 @@ describe('ordnance system', () => {
     const [aq, ar] = asteroidKey.split(',').map(Number);
     const ship = initialState.ships[0];
     ship.landed = false;
-    ship.position = { q: aq - 2, r: ar };
+    ship.position = { q: aq - 1, r: ar };
     ship.velocity = { dq: 1, dr: 0 };
     ship.type = 'frigate';
     initialState.phase = 'ordnance';
 
-    const result = processOrdnance(initialState, 0, [{ shipId: ship.id, ordnanceType: 'nuke', torpedoAccel: 0 }], map);
+    const result = processOrdnance(initialState, 0, [{ shipId: ship.id, ordnanceType: 'nuke' }], map);
     expect('error' in result).toBe(false);
     if ('error' in result) return;
 
@@ -863,7 +1007,7 @@ describe('nuke ordnance', () => {
     ship.position = { q: 15, r: 0 };
     initialState.phase = 'ordnance';
 
-    const launches: OrdnanceLaunch[] = [{ shipId: ship.id, ordnanceType: 'nuke', torpedoAccel: 0 }];
+    const launches: OrdnanceLaunch[] = [{ shipId: ship.id, ordnanceType: 'nuke' }];
     const result = processOrdnance(initialState, 0, launches, map);
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
@@ -874,18 +1018,39 @@ describe('nuke ordnance', () => {
     }
   });
 
-  it('rejects nuke from non-warship', () => {
+  it('allows nuke from non-warship with enough cargo', () => {
     const escState = createGame(SCENARIOS.escape, map, 'NUK01', findBaseHex);
     const transport = escState.ships[0]; // transport
     transport.landed = false;
+    transport.position = { q: 15, r: 0 };
     transport.velocity = { dq: 1, dr: 0 };
     escState.phase = 'ordnance';
 
     const launches: OrdnanceLaunch[] = [{ shipId: transport.id, ordnanceType: 'nuke' }];
     const result = processOrdnance(escState, 0, launches, map);
-    expect('error' in result).toBe(true);
-    if ('error' in result) {
-      expect(result.error).toContain('warship');
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+    expect(result.state.ordnance[0].type).toBe('nuke');
+  });
+
+  it('rejects a second nuke launch from a non-warship without resupply', () => {
+    const escState = createGame(SCENARIOS.escape, map, 'NUK02', findBaseHex);
+    const transport = escState.ships[0];
+    transport.landed = false;
+    transport.velocity = { dq: 1, dr: 0 };
+    escState.phase = 'ordnance';
+
+    const first = processOrdnance(escState, 0, [{ shipId: transport.id, ordnanceType: 'nuke' }], map);
+    expect('error' in first).toBe(false);
+    if ('error' in first) return;
+
+    first.state.phase = 'ordnance';
+    first.state.activePlayer = 0;
+
+    const second = processOrdnance(first.state, 0, [{ shipId: transport.id, ordnanceType: 'nuke' }], map);
+    expect('error' in second).toBe(true);
+    if ('error' in second) {
+      expect(second.error).toContain('one nuke');
     }
   });
 });
@@ -1004,6 +1169,66 @@ describe('ordnance validation', () => {
     if ('error' in result) {
       expect(result.error).toContain('line of sight');
     }
+  });
+
+  it('rejects landed ships as attackers', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'ATK04', findBaseHex);
+    state.phase = 'combat';
+    state.activePlayer = 0;
+
+    const attacker = state.ships[0];
+    const target = state.ships[1];
+    attacker.landed = true;
+    target.landed = false;
+    attacker.position = { q: 0, r: 0 };
+    attacker.lastMovementPath = [{ q: 0, r: 0 }];
+    target.position = { q: 1, r: 0 };
+    target.lastMovementPath = [{ q: 1, r: 0 }];
+
+    const result = processCombat(state, 0, [
+      { attackerIds: [attacker.id], targetId: target.id },
+    ], openMap);
+
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('Invalid attacker');
+    }
+  });
+
+  it('allows combat attacks against enemy nukes', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'ATK05', findBaseHex);
+    state.phase = 'combat';
+    state.activePlayer = 0;
+
+    const attacker = state.ships[0];
+    attacker.landed = false;
+    attacker.position = { q: 0, r: 0 };
+    attacker.lastMovementPath = [{ q: 0, r: 0 }];
+    attacker.velocity = { dq: 0, dr: 0 };
+
+    state.ordnance.push({
+      id: 'enemy-nuke',
+      type: 'nuke',
+      owner: 1,
+      position: { q: 1, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      turnsRemaining: 5,
+      destroyed: false,
+      pendingGravityEffects: [],
+    });
+
+    const result = processCombat(state, 0, [
+      { attackerIds: [attacker.id], targetId: 'enemy-nuke', targetType: 'ordnance' },
+    ], openMap, () => 0.8);
+
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].attackType).toBe('antiNuke');
+    expect(result.results[0].targetType).toBe('ordnance');
+    expect(result.results[0].damageType).toBe('eliminated');
+    expect(result.state.ordnance.find(o => o.id === 'enemy-nuke')).toBeUndefined();
   });
 });
 
@@ -1163,18 +1388,22 @@ describe('Edge cases', () => {
   it('blockade runner wins by landing on Mars', () => {
     const blockadeState = createGame(SCENARIOS.blockade, map, 'BLK02', findBaseHex);
     const runner = blockadeState.ships.find(s => s.owner === 0)!;
-    // Position runner just outside Mars gravity, drifting toward Mars surface
-    // Mars center is {q:10, r:8}, gravity ring at radius 1
-    // Ship at {q:12, r:7} with velocity {dq:-1, dr:0} drifts to base hex {q:11, r:7}
-    // Gravity then deflects it onto Mars surface — triggers landing on non-destructive body
-    runner.position = { q: 12, r: 7 };
-    runner.velocity = { dq: -1, dr: 0 };
+    const marsBase = findBaseHex(map, 'Mars')!;
+    runner.position = { q: marsBase.q, r: marsBase.r + 1 };
+    runner.velocity = { dq: 0, dr: -1 };
     runner.landed = false;
+    runner.pendingGravityEffects = [{
+      hex: { q: marsBase.q, r: marsBase.r + 1 },
+      direction: 3,
+      bodyName: 'Mars',
+      strength: 'full',
+      ignored: false,
+    }];
 
-    // Process drift-only turn (no burn)
+    // Process a legal orbital landing burn.
     const orders: AstrogationOrder[] = blockadeState.ships
       .filter(s => s.owner === 0)
-      .map(s => ({ shipId: s.id, burn: null }));
+      .map(s => ({ shipId: s.id, burn: 0 }));
     const result = resolveAstrogationMovement(blockadeState, 0, orders);
     expect(result.state.phase).toBe('gameOver');
     expect(result.state.winner).toBe(0);

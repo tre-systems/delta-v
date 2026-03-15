@@ -15,10 +15,13 @@ import {
   computeOdds,
   computeGroupRangeMod,
   computeGroupVelocityMod,
+  computeGroupRangeModToTarget,
+  computeGroupVelocityModToTarget,
   getCombatStrength,
   getCounterattackers,
   canAttack,
   hasLineOfSight,
+  hasLineOfSightToTarget,
 } from '../shared/combat';
 
 // --- Camera ---
@@ -168,8 +171,10 @@ export interface PlanningState {
   burns: Map<string, number | null>; // shipId -> burn direction (or null for no burn)
   overloads: Map<string, number | null>; // shipId -> overload direction (warships only, 2 fuel total)
   weakGravityChoices: Map<string, Record<string, boolean>>; // shipId -> { hexKey: true to ignore }
-  torpedoAccel: number | null; // direction for torpedo terminal guidance
+  torpedoAccel: number | null; // direction for torpedo launch boost
+  torpedoAccelSteps: 1 | 2 | null;
   combatTargetId: string | null; // enemy ship targeted for combat
+  combatTargetType: 'ship' | 'ordnance' | null;
 }
 
 // --- Renderer ---
@@ -185,7 +190,16 @@ export class Renderer {
   private gameState: GameState | null = null;
   private playerId = -1;
   private animState: AnimationState | null = null;
-  planningState: PlanningState = { selectedShipId: null, burns: new Map(), overloads: new Map(), weakGravityChoices: new Map(), torpedoAccel: null, combatTargetId: null };
+  planningState: PlanningState = {
+    selectedShipId: null,
+    burns: new Map(),
+    overloads: new Map(),
+    weakGravityChoices: new Map(),
+    torpedoAccel: null,
+    torpedoAccelSteps: null,
+    combatTargetId: null,
+    combatTargetType: null,
+  };
   private combatResults: { results: CombatResult[]; showUntil: number } | null = null;
   private combatEffects: CombatEffect[] = [];
   private hexFlashes: HexFlash[] = [];
@@ -238,13 +252,13 @@ export class Renderer {
     }
   }
 
-  showCombatResults(results: CombatResult[]) {
+  showCombatResults(results: CombatResult[], previousState?: GameState | null) {
     const now = performance.now();
     this.combatResults = { results, showUntil: now + 3000 };
 
     // Create visual effects for each combat result
     for (const r of results) {
-      const target = this.gameState?.ships.find(s => s.id === r.targetId);
+      const target = getCombatTargetEntity(r, this.gameState, previousState ?? null);
       if (!target) continue;
       const targetPos = hexToPixel(target.position, HEX_SIZE);
 
@@ -272,7 +286,7 @@ export class Renderer {
           }
         }
 
-        if (attackerPos) {
+        if (attackerPos && r.attackType !== 'asteroidHazard') {
           const beamColor = firstId.startsWith('base:') ? '#66bb6a'
             : r.damageType === 'eliminated' ? '#ff4444'
             : r.damageType === 'disabled' ? '#ffaa00' : '#4fc3f7';
@@ -1340,6 +1354,7 @@ export class Renderer {
 
     const shipPos = hexToPixel(ship.position, HEX_SIZE);
     const accel = this.planningState.torpedoAccel;
+    const accelSteps = this.planningState.torpedoAccelSteps;
 
     // Show 6 direction arrows around the ship for torpedo terminal guidance
     for (let d = 0; d < 6; d++) {
@@ -1363,6 +1378,10 @@ export class Renderer {
         ctx.moveTo(shipPos.x, shipPos.y);
         ctx.lineTo(tp.x, tp.y);
         ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255, 240, 200, 0.9)';
+        ctx.font = '7px monospace';
+        ctx.fillText(`x${accelSteps ?? 1}`, tp.x, tp.y + 2);
       }
     }
 
@@ -1370,7 +1389,7 @@ export class Renderer {
     ctx.fillStyle = 'rgba(255, 120, 60, 0.8)';
     ctx.font = '8px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('GUIDANCE', shipPos.x, shipPos.y - 20);
+    ctx.fillText('TORPEDO BOOST', shipPos.x, shipPos.y - 20);
   }
 
   private renderCombatOverlay(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
@@ -1378,7 +1397,13 @@ export class Renderer {
     if (this.animState) return;
 
     const targetId = this.planningState.combatTargetId;
-    const target = targetId ? state.ships.find(s => s.id === targetId) : null;
+    const targetType = this.planningState.combatTargetType;
+    const shipTarget = targetId && targetType !== 'ordnance'
+      ? state.ships.find(s => s.id === targetId) ?? null
+      : null;
+    const ordnanceTarget = targetId && targetType === 'ordnance'
+      ? state.ordnance.find(o => o.id === targetId && !o.destroyed && o.owner !== this.playerId && o.type === 'nuke') ?? null
+      : null;
     const myAttackers = state.ships.filter(
       s => s.owner === this.playerId && !s.destroyed && canAttack(s),
     );
@@ -1389,7 +1414,7 @@ export class Renderer {
       const hasShot = this.map !== null && myAttackers.some(attacker => hasLineOfSight(attacker, ship, this.map!));
       if (!hasShot) continue;
       const p = hexToPixel(ship.position, HEX_SIZE);
-      const isTarget = ship.id === targetId;
+      const isTarget = ship.id === targetId && targetType === 'ship';
 
       // Pulsing ring on enemies
       const pulse = 0.5 + 0.3 * Math.sin(now / 300);
@@ -1402,14 +1427,35 @@ export class Renderer {
       ctx.stroke();
     }
 
+    for (const ord of state.ordnance) {
+      if (ord.destroyed || ord.owner === this.playerId || ord.type !== 'nuke') continue;
+      const hasShot = this.map !== null && myAttackers.some(attacker => hasLineOfSightToTarget(attacker, ord, this.map!));
+      if (!hasShot) continue;
+      const p = hexToPixel(ord.position, HEX_SIZE);
+      const isTarget = ord.id === targetId && targetType === 'ordnance';
+      const pulse = 0.5 + 0.3 * Math.sin(now / 300);
+      ctx.strokeStyle = isTarget
+        ? `rgba(255, 210, 80, ${0.8 + pulse * 0.2})`
+        : `rgba(255, 210, 80, ${0.2 + pulse * 0.15})`;
+      ctx.lineWidth = isTarget ? 2.5 : 1.5;
+      ctx.beginPath();
+      ctx.rect(p.x - (isTarget ? 10 : 8), p.y - (isTarget ? 10 : 8), isTarget ? 20 : 16, isTarget ? 20 : 16);
+      ctx.stroke();
+    }
+
     // Draw attack line and odds preview
-    if (target && !target.destroyed) {
-      const legalAttackers = this.map === null
-        ? []
-        : myAttackers.filter(attacker => hasLineOfSight(attacker, target, this.map!));
+    if (shipTarget || ordnanceTarget) {
+      let legalAttackers: Ship[] = [];
+      if (this.map !== null) {
+        if (ordnanceTarget) {
+          legalAttackers = myAttackers.filter(attacker => hasLineOfSightToTarget(attacker, ordnanceTarget, this.map!));
+        } else {
+          legalAttackers = myAttackers.filter(attacker => hasLineOfSight(attacker, shipTarget!, this.map!));
+        }
+      }
       if (legalAttackers.length === 0) return;
 
-      const targetPos = hexToPixel(target.position, HEX_SIZE);
+      const targetPos = hexToPixel((ordnanceTarget ?? shipTarget)!.position, HEX_SIZE);
 
       // Attack lines from each attacker
       for (const attacker of legalAttackers) {
@@ -1425,11 +1471,22 @@ export class Renderer {
       }
 
       // Odds preview at target
-      const attackStr = getCombatStrength(legalAttackers);
-      const defendStr = getCombatStrength([target]);
-      const odds = computeOdds(attackStr, defendStr);
-      const rangeMod = computeGroupRangeMod(legalAttackers, target);
-      const velMod = computeGroupVelocityMod(legalAttackers, target);
+      let attackStr = 0;
+      let defendStr = 0;
+      let odds = '2:1';
+      let rangeMod = 0;
+      let velMod = 0;
+
+      if (ordnanceTarget) {
+        rangeMod = computeGroupRangeModToTarget(legalAttackers, ordnanceTarget);
+        velMod = computeGroupVelocityModToTarget(legalAttackers, ordnanceTarget);
+      } else {
+        attackStr = getCombatStrength(legalAttackers);
+        defendStr = getCombatStrength([shipTarget!]);
+        odds = computeOdds(attackStr, defendStr);
+        rangeMod = computeGroupRangeMod(legalAttackers, shipTarget!);
+        velMod = computeGroupVelocityMod(legalAttackers, shipTarget!);
+      }
       const totalMod = -(rangeMod + velMod);
 
       // Background box
@@ -1445,7 +1502,7 @@ export class Renderer {
       ctx.fillText(label, targetPos.x, targetPos.y - 20);
 
       // Show counterattack warning if target can counterattack
-      if (getCounterattackers(target, state.ships).length > 0) {
+      if (shipTarget && getCounterattackers(shipTarget, state.ships).length > 0) {
         ctx.fillStyle = 'rgba(255, 170, 0, 0.7)';
         ctx.font = '7px monospace';
         ctx.fillText('CAN COUNTER', targetPos.x, targetPos.y - 38);
@@ -1783,12 +1840,43 @@ export class Renderer {
 }
 
 function formatCombatResult(r: CombatResult, state: GameState): string {
-  const targetShip = state.ships.find(s => s.id === r.targetId);
-  const targetName = targetShip ? `${targetShip.type}` : r.targetId;
+  const targetName = getCombatTargetName(r, state);
   const result = r.damageType === 'eliminated' ? 'ELIMINATED'
     : r.damageType === 'disabled' ? `DISABLED ${r.disabledTurns}T`
     : 'MISS';
+  if (r.attackType === 'asteroidHazard') {
+    return `${targetName}: asteroid [${r.dieRoll}] ${result}`;
+  }
+  if (r.attackType === 'antiNuke') {
+    return `${r.odds} [${r.dieRoll}→${r.modifiedRoll}] ${targetName}: ${result}`;
+  }
   return `${r.odds} [${r.dieRoll}→${r.modifiedRoll}] ${targetName}: ${result}`;
+}
+
+function getCombatTargetEntity(
+  result: CombatResult,
+  state: GameState | null,
+  previousState: GameState | null,
+) {
+  const sources = [state, previousState].filter((source): source is GameState => source !== null);
+  for (const source of sources) {
+    if (result.targetType === 'ordnance') {
+      const ordnance = source.ordnance.find(o => o.id === result.targetId);
+      if (ordnance) return ordnance;
+      continue;
+    }
+    const ship = source.ships.find(s => s.id === result.targetId);
+    if (ship) return ship;
+  }
+  return null;
+}
+
+function getCombatTargetName(result: CombatResult, state: GameState): string {
+  if (result.targetType === 'ordnance') {
+    return 'nuke';
+  }
+  const targetShip = state.ships.find(s => s.id === result.targetId);
+  return targetShip ? `${targetShip.type}` : result.targetId;
 }
 
 // --- Utility ---
