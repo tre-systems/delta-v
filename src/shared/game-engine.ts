@@ -150,14 +150,16 @@ export function createGame(
       let landed: boolean;
 
       if (shouldLand) {
+        const defHex = map.hexes.get(hexKey(def.position));
         const ownedBase = playerBases[p][0];
-        const baseHex = ownedBase
+        const baseHex = defHex?.base
+          ? { ...def.position }
+          : ownedBase
           ? (() => {
             const [q, r] = ownedBase.split(',').map(Number);
             return { q, r };
           })()
           : (() => {
-            const defHex = map.hexes.get(hexKey(def.position));
             if (defHex?.base || defHex?.body) {
               return { ...def.position };
             }
@@ -169,6 +171,17 @@ export function createGame(
         position = { ...def.position };
         landed = false;
       }
+
+      const startHex = map.hexes.get(hexKey(position));
+      const initialGravity = !landed && def.startInOrbit && startHex?.gravity
+        ? [{
+          hex: { ...position },
+          direction: startHex.gravity.direction,
+          bodyName: startHex.gravity.bodyName,
+          strength: startHex.gravity.strength,
+          ignored: false,
+        }]
+        : [];
 
       ships.push({
         id: `p${p}s${s}`,
@@ -185,7 +198,7 @@ export function createGame(
         destroyed: false,
         detected: true,
         identityRevealed: !scenario.players[p].hiddenIdentity,
-        pendingGravityEffects: [],
+        pendingGravityEffects: initialGravity,
         damage: { disabledTurns: 0 },
       });
     }
@@ -218,9 +231,10 @@ export function createGame(
       hiddenIdentityInspection: scenario.rules?.hiddenIdentityInspection ?? false,
       escapeEdge: scenario.rules?.escapeEdge ?? 'any',
     },
+    escapeMoralVictoryAchieved: false,
     turnNumber: 1,
     phase: hasFleetBuilding ? 'fleetBuilding' : 'astrogation',
-    activePlayer: 0,
+    activePlayer: scenario.startingPlayer ?? 0,
     ships,
     ordnance: [],
     pendingAstrogationOrders: null,
@@ -517,6 +531,7 @@ function resolveMovementPhase(
   checkRamming(state, events, rng);
   moveOrdnance(state, map, ordnanceMovements, events, rng);
   updateDetection(state, map);
+  updateEscapeMoralVictory(state);
   checkImmediateVictory(state, map);
 
   if (state.winner === null) {
@@ -550,6 +565,7 @@ export function beginCombatPhase(
   }
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
+  updateEscapeMoralVictory(state);
   if (map) {
     checkGameEnd(state, map);
   }
@@ -583,6 +599,7 @@ export function processCombat(
   }
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
+  updateEscapeMoralVictory(state);
   if (state.winner === null) {
     checkGameEnd(state, map);
   }
@@ -712,6 +729,7 @@ export function processCombat(
   }
 
   state.ordnance = state.ordnance.filter(o => !o.destroyed);
+  updateEscapeMoralVictory(state);
 
   // Check game end after combat
   checkGameEnd(state, map);
@@ -741,6 +759,7 @@ export function skipCombat(
   }
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
+  updateEscapeMoralVictory(state);
   if (map) {
     checkGameEnd(state, map);
   }
@@ -752,6 +771,7 @@ export function skipCombat(
   if (map && isPlanetaryDefenseEnabled(state)) {
     const baseResults = resolveBaseDefense(state, playerId, map, rng);
     results.push(...baseResults);
+    updateEscapeMoralVictory(state);
     checkGameEnd(state, map);
   }
 
@@ -1665,6 +1685,25 @@ function getFugitiveShip(state: GameState): Ship | undefined {
   return state.ships.find(ship => ship.hasFugitives);
 }
 
+function updateEscapeMoralVictory(state: GameState): void {
+  if (state.escapeMoralVictoryAchieved || !usesEscapeInspectionRules(state)) {
+    return;
+  }
+
+  const fugitiveOwner = getFugitiveShip(state)?.owner
+    ?? state.players.findIndex(player => player.escapeWins);
+  if (fugitiveOwner < 0) {
+    return;
+  }
+
+  const enforcerOwner = 1 - fugitiveOwner;
+  if (state.ships.some(ship =>
+    ship.owner === enforcerOwner && (ship.destroyed || ship.damage.disabledTurns > 0),
+  )) {
+    state.escapeMoralVictoryAchieved = true;
+  }
+}
+
 function fugitiveHasEscaped(state: GameState, ship: Ship, map: SolarSystemMap): boolean {
   const escapeEdge = getEscapeEdge(state);
   if (escapeEdge === 'north') {
@@ -1736,16 +1775,26 @@ function checkGameEnd(state: GameState, map?: SolarSystemMap): void {
   if (usesEscapeInspectionRules(state)) {
     const fugitive = getFugitiveShip(state);
     if (fugitive?.destroyed) {
-      const opponent = 1 - fugitive.owner;
-      state.winner = opponent;
-      state.winReason = 'Enforcers marginal victory — the fugitive transport was destroyed.';
+      if (state.escapeMoralVictoryAchieved) {
+        state.winner = fugitive.owner;
+        state.winReason = 'Pilgrims moral victory — the fugitives were lost, but they disabled an Enforcer ship.';
+      } else {
+        const opponent = 1 - fugitive.owner;
+        state.winner = opponent;
+        state.winReason = 'Enforcers marginal victory — the fugitive transport was destroyed.';
+      }
       state.phase = 'gameOver';
       return;
     }
     if (map && hasReturnedCapturedFugitivesToBase(state, map)) {
       const fugitiveOwner = fugitive?.owner ?? 1;
-      state.winner = fugitiveOwner;
-      state.winReason = 'Enforcers decisive victory — the fugitives were captured and returned to base.';
+      if (state.escapeMoralVictoryAchieved) {
+        state.winner = 1 - fugitiveOwner;
+        state.winReason = 'Pilgrims moral victory — the fugitives were captured, but they disabled an Enforcer ship.';
+      } else {
+        state.winner = fugitiveOwner;
+        state.winReason = 'Enforcers decisive victory — the fugitives were captured and returned to base.';
+      }
       state.phase = 'gameOver';
       return;
     }

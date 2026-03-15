@@ -73,7 +73,8 @@ const BODY_DEFS: BodyDefinition[] = [
   },
   {
     name: 'Luna',
-    center: { q: 13, r: -9 },
+    // Shifted slightly off the Terra base ring so Terra and Luna keep distinct base hexes.
+    center: { q: 14, r: -10 },
     surfaceRadius: 0,
     gravityRings: 1,
     gravityStrength: 'weak',
@@ -284,12 +285,20 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ships: [{ type: 'corvette', position: { q: -9, r: -5 }, velocity: { dq: 0, dr: 0 } }],
         targetBody: 'Venus',
         homeBody: 'Mars',
+        bases: [
+          { q: -9, r: -6 }, { q: -8, r: -6 }, { q: -10, r: -4 },
+          { q: -8, r: -5 }, { q: -10, r: -5 }, { q: -9, r: -4 },
+        ],
         escapeWins: false,
       },
       {
         ships: [{ type: 'corvette', position: { q: -7, r: 7 }, velocity: { dq: 0, dr: 0 } }],
         targetBody: 'Mars',
         homeBody: 'Venus',
+        bases: [
+          { q: -9, r: 7 }, { q: -5, r: 7 }, { q: -5, r: 5 },
+          { q: -7, r: 5 }, { q: -9, r: 9 }, { q: -7, r: 9 },
+        ],
         escapeWins: false,
       },
     ],
@@ -326,13 +335,13 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       {
         // Enforcers: 1 corvette orbiting Terra, 1 corsair orbiting Venus
         ships: [
-          { type: 'corvette', position: { q: 12, r: -9 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
-          { type: 'corsair', position: { q: -5, r: 7 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corvette', position: { q: 8, r: -7 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corsair', position: { q: -5, r: 5 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
         ],
         targetBody: '',
         homeBody: 'Venus',
         bases: [
-          { q: 12, r: -8 }, { q: 12, r: -10 }, { q: 10, r: -10 },
+          { q: 12, r: -10 }, { q: 12, r: -8 }, { q: 10, r: -10 },
           { q: 8, r: -8 }, { q: 8, r: -6 }, { q: 10, r: -6 },
           { q: -5, r: 7 }, { q: -5, r: 5 }, { q: -7, r: 5 },
           { q: -9, r: 7 }, { q: -9, r: 9 }, { q: -7, r: 9 },
@@ -358,11 +367,11 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         escapeWins: false,
       },
       {
-        // Pirates: 3 corsairs positioned to intercept the Mars→Venus route
+        // Pirates: two corsairs and a corvette positioned to intercept the Mars→Venus route
         ships: [
-          { type: 'corsair', position: { q: -8, r: 0 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
-          { type: 'corsair', position: { q: -6, r: -2 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
           { type: 'corsair', position: { q: -9, r: 2 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corsair', position: { q: -6, r: -1 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corvette', position: { q: -7, r: -3 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
         ],
         targetBody: '',
         homeBody: '',
@@ -374,6 +383,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     // Custom combat training scenario near Mercury
     name: 'Duel',
     description: 'Frigates clash near Mercury — last ship standing wins',
+    startingPlayer: 1,
     players: [
       {
         ships: [
@@ -399,6 +409,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     // Custom asymmetric scenario: speed vs firepower
     name: 'Blockade Runner',
     description: 'Packet ship races past a corvette to reach Mars',
+    startingPlayer: 1,
     players: [
       {
         // Runner: fast packet ship from Venus heading toward Mars
@@ -412,7 +423,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       {
         // Blocker: corvette patrolling between the planets (less firepower = fairer)
         ships: [
-          { type: 'corvette', position: { q: -8, r: -1 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corvette', position: { q: -8, r: 1 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
         ],
         targetBody: '',
         homeBody: 'Mars',
@@ -427,22 +438,23 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     // "The Rebel player selects a fleet using an allowance of MCr 1000.
     // Rebel ships may be placed on – or in orbit around – Callisto, Io,
     // Ganymede, and Mars."
-    // Simplified: equal credits, single homeBody each
+    // Tuned skirmish: simplified credits and placement, while keeping the Terran/Rebel roles from the book.
     name: 'Interplanetary War',
     description: 'Build your fleet with MegaCredits — total war across the solar system',
-    startingCredits: 800,
+    startingPlayer: 1,
+    startingCredits: [900, 800],
     availableShipTypes: ['transport', 'packet', 'tanker', 'corvette', 'corsair', 'frigate', 'dreadnaught', 'torch'],
     players: [
       {
         ships: [],
         targetBody: '',
-        homeBody: 'Mars',
+        homeBody: 'Terra',
         escapeWins: false,
       },
       {
         ships: [],
         targetBody: '',
-        homeBody: 'Terra',
+        homeBody: 'Mars',
         escapeWins: false,
       },
     ],
@@ -451,6 +463,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     // Custom fleet battle scenario with fleet building
     name: 'Fleet Action',
     description: 'Build your fleet and clash — Mars vs Venus',
+    startingPlayer: 1,
     startingCredits: 400,
     availableShipTypes: ['corvette', 'corsair', 'frigate', 'dreadnaught', 'torch'],
     players: [

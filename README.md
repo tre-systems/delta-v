@@ -101,6 +101,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] **Hidden Information Scenarios**: Authoritative Fog of War implemented for specific game modes (e.g., *Escape*).
 - [x] **Premium Polish**: High-fidelity glassmorphism UI, tactical micro-animations, and procedural SFX.
 - [x] **AI Opponent**: Challenging local-bot with multiple difficulty levels and gravity-aware pathfinding.
+- [ ] **Zod Integration**: Implement strict schema validation for WebSocket payloads to ensure server-side robustness.
 - [ ] **Orbital Bases**: Carrying and emplacing strategic stations during play.
 - [ ] **Spectator Mode**: Allowing third-party connections to watch ongoing battles.
 

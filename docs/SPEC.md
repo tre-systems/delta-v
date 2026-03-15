@@ -780,6 +780,7 @@ interface ScenarioPlayer {
 
 ### Future Roadmap
 
+- [ ] Zod Integration (Strict schema validation for WebSocket payloads)
 - [ ] Orbital bases (carrying, emplacing, torpedo launching)
 - [ ] Advanced features: looting, capture, surrender, heroism
 - [ ] Improved animations (particle effects for thrust, gravity lensing)
