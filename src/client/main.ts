@@ -1,5 +1,5 @@
 import type { GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, ShipMovement } from '../shared/types';
-import { pixelToHex, hexToPixel, hexEqual, hexVecLength } from '../shared/hex';
+import { pixelToHex, hexToPixel, hexEqual, hexKey, hexVecLength } from '../shared/hex';
 import {
   canAttack,
   getCombatStrength,
@@ -1335,7 +1335,7 @@ class GameClient {
       this.renderer.showLandingEffect(m.to);
       // Check if it's at a friendly base (resupply happened)
       const player = this.gameState.players[ship.owner];
-      if (player && player.homeBody === m.landedAt) {
+      if (player && player.bases.includes(hexKey(m.to))) {
         this.ui.logText(`  ${name} resupplied: fuel + cargo restored`);
       }
     }

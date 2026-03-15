@@ -395,28 +395,27 @@ export function resolveBaseDefense(
     ships: Ship[];
     ordnance?: Ordnance[];
     destroyedBases?: string[];
-    players: { homeBody: string }[];
+    players: { bases: string[] }[];
   },
   activePlayer: number,
   map: SolarSystemMap,
   rng?: () => number,
 ): CombatResult[] {
   const results: CombatResult[] = [];
-  const homeBody = state.players[activePlayer]?.homeBody;
-  if (!homeBody) return results;
   const destroyedBases = new Set(state.destroyedBases ?? []);
+  const ownedBases = state.players[activePlayer]?.bases ?? [];
   const enemyNukes = state.ordnance?.filter(ord =>
     ord.type === 'nuke' &&
     ord.owner !== activePlayer &&
     !ord.destroyed,
   ) ?? [];
 
-  // Only the active player's home-world bases provide defense fire.
-  for (const [key, hex] of map.hexes) {
-    if (!hex.base) continue;
-    if (hex.base.bodyName !== homeBody) continue;
+  for (const key of ownedBases) {
     if (destroyedBases.has(key)) continue;
-    // Find base's gravity hex neighbors — specifically hexes with gravity pointing toward this body
+    const hex = map.hexes.get(key);
+    if (!hex?.base) continue;
+    if (!bodyHasGravity(hex.base.bodyName, map)) continue;
+
     const bodyName = hex.base.bodyName;
     const [bq, br] = key.split(',').map(Number);
     const baseCoord = { q: bq, r: br };
@@ -495,4 +494,11 @@ export function resolveBaseDefense(
   }
 
   return results;
+}
+
+function bodyHasGravity(bodyName: string, map: SolarSystemMap): boolean {
+  for (const hex of map.hexes.values()) {
+    if (hex.gravity?.bodyName === bodyName) return true;
+  }
+  return false;
 }
