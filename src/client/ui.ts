@@ -136,6 +136,18 @@ export class UIManager {
     });
   }
 
+  toggleLog() {
+    if (this.logVisible) {
+      this.logVisible = false;
+      this.gameLogEl.style.display = 'none';
+      this.logShowBtn.style.display = 'block';
+    } else {
+      this.logVisible = true;
+      this.gameLogEl.style.display = 'flex';
+      this.logShowBtn.style.display = 'none';
+    }
+  }
+
   hideAll() {
     this.menuEl.style.display = 'none';
     this.scenarioEl.style.display = 'none';

@@ -260,6 +260,24 @@ describe('aiCombat', () => {
     expect(attacks[0].targetId).toBe(pilgrim.id);
   });
 
+  it('easy AI is more conservative about attacking', () => {
+    const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
+    const aiShip = state.ships.find(s => s.owner === 1)!;
+    const enemyShip = state.ships.find(s => s.owner === 0)!;
+
+    // Place them far apart — poor odds
+    aiShip.position = { q: 0, r: 0 };
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.landed = false;
+    enemyShip.position = { q: 8, r: 0 };
+    enemyShip.velocity = { dq: 3, dr: 0 };
+    enemyShip.landed = false;
+
+    // Easy AI should skip combat with bad range + velocity mods
+    const attacks = aiCombat(state, 1, 'easy');
+    expect(attacks).toHaveLength(0);
+  });
+
   it('attack contains valid ship references', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     const aiShip = state.ships.find(s => s.owner === 1)!;
@@ -279,6 +297,82 @@ describe('aiCombat', () => {
         expect(allShipIds.has(id)).toBe(true);
       }
       expect(allShipIds.has(attacks[0].targetId)).toBe(true);
+    }
+  });
+});
+
+describe('AI scenario handling', () => {
+  it('fleet action: AI generates orders for all 3 ships', () => {
+    const state = createGame(SCENARIOS.fleetAction, map, 'FA01', findBaseHex);
+    const orders = aiAstrogation(state, 1, map);
+    const aiShips = state.ships.filter(s => s.owner === 1);
+    expect(orders).toHaveLength(aiShips.length);
+    expect(aiShips.length).toBe(3);
+  });
+
+  it('fleet action: AI seeks combat when no target body', () => {
+    const state = createGame(SCENARIOS.fleetAction, map, 'FA02', findBaseHex);
+    // Unland all ships and place opposing fleets nearby
+    for (const ship of state.ships) {
+      ship.landed = false;
+      ship.position = ship.owner === 0
+        ? { q: 0, r: 0 }
+        : { q: 5, r: 0 };
+      ship.velocity = { dq: 0, dr: 0 };
+    }
+    const orders = aiAstrogation(state, 1, map, 'hard');
+    // At least one ship should burn toward enemy (not null)
+    const hasBurn = orders.some(o => o.burn !== null);
+    expect(hasBurn).toBe(true);
+  });
+
+  it('blockade: AI interceptor seeks enemy runner', () => {
+    const state = createGame(SCENARIOS.blockade, map, 'BK01', findBaseHex);
+    // The dreadnaught (player 1) starts in space
+    const dreadnaught = state.ships.find(s => s.owner === 1)!;
+    expect(dreadnaught.landed).toBe(false);
+    const orders = aiAstrogation(state, 1, map);
+    expect(orders).toHaveLength(1);
+  });
+
+  it('blockade: runner AI navigates toward Mars', () => {
+    const state = createGame(SCENARIOS.blockade, map, 'BK02', findBaseHex);
+    const runner = state.ships.find(s => s.owner === 0)!;
+    // Unland runner and place it in open space
+    runner.landed = false;
+    runner.position = { q: -3, r: -5 };
+    runner.velocity = { dq: 0, dr: 0 };
+
+    const orders = aiAstrogation(state, 0, map, 'hard');
+    expect(orders).toHaveLength(1);
+    // Hard AI should burn toward Mars (not drift)
+    expect(orders[0].burn).not.toBeNull();
+  });
+
+  it('AI handles all difficulty levels without errors', () => {
+    const difficulties: Array<'easy' | 'normal' | 'hard'> = ['easy', 'normal', 'hard'];
+    const scenarios = [SCENARIOS.biplanetary, SCENARIOS.escape, SCENARIOS.blockade, SCENARIOS.fleetAction];
+
+    for (const scenario of scenarios) {
+      for (const diff of difficulties) {
+        const state = createGame(scenario, map, 'DF01', findBaseHex);
+        // Unland ships for meaningful AI decisions
+        state.ships.forEach(s => {
+          if (!s.destroyed) {
+            s.landed = false;
+            s.velocity = { dq: 0, dr: 0 };
+          }
+        });
+
+        const orders = aiAstrogation(state, 1, map, diff);
+        expect(orders.length).toBeGreaterThan(0);
+
+        const launches = aiOrdnance(state, 1, map, diff);
+        expect(Array.isArray(launches)).toBe(true);
+
+        const attacks = aiCombat(state, 1, diff);
+        expect(Array.isArray(attacks)).toBe(true);
+      }
     }
   });
 });

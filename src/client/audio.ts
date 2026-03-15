@@ -171,6 +171,26 @@ export function playPhaseChange() {
   osc2.stop(ac.currentTime + 0.25);
 }
 
+/** Warning beep for low timer. */
+export function playWarning() {
+  const ac = getCtx();
+  if (!ac) return;
+  // Two short beeps
+  for (let i = 0; i < 2; i++) {
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.type = 'square';
+    const t = ac.currentTime + i * 0.2;
+    osc.frequency.setValueAtTime(1000, t);
+    gain.gain.setValueAtTime(0.05, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    osc.start(t);
+    osc.stop(t + 0.1);
+  }
+}
+
 /** Victory fanfare. */
 export function playVictory() {
   const ac = getCtx();
