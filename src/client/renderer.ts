@@ -1201,10 +1201,10 @@ export class Renderer {
 
       // Disabled indicator
       if (isDisabled && !this.animState) {
-        ctx.fillStyle = 'rgba(255, 170, 0, 0.9)';
-        ctx.font = 'bold 7px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`D${ship.damage.disabledTurns}`, pos.x, pos.y - 12);
+        ctx.fillStyle = '#ff5252'; // More prominent red
+        ctx.font = 'bold 9px Inter, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`DISABLED: ${ship.damage.disabledTurns}T`, pos.x + 12, pos.y - 12);
       }
 
       // Fugitive indicator (only visible to owning player)
@@ -1243,23 +1243,21 @@ export class Renderer {
       // Ship label and fuel (only when not animating)
       if (!this.animState) {
         const stats = SHIP_STATS[ship.type];
-        const label = stats ? stats.name.charAt(0) : '?'; // Single letter: C=Corvette, T=Transport, etc.
+        const typeName = stats ? stats.name : 'Unknown';
 
         if (ship.owner === this.playerId) {
-          // Show type letter + fuel for own ships
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-          ctx.font = '8px monospace';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+          ctx.font = '500 9px Inter, sans-serif';
           ctx.textAlign = 'center';
           const speed = hexVecLength(ship.velocity);
           const inGravity = this.map && this.map.hexes.get(hexKey(ship.position))?.gravity;
-          const statusTag = ship.landed ? ' L' : (speed === 1 && inGravity) ? ' O' : '';
-          ctx.fillText(`${label} F:${ship.fuel}${statusTag}`, pos.x, pos.y + 18);
+          const statusTag = ship.landed ? ' • Landed' : (speed === 1 && inGravity) ? ' • Orbiting' : '';
+          ctx.fillText(`${typeName} • Fuel: ${ship.fuel}${statusTag}`, pos.x, pos.y + 24);
         } else if (ship.detected) {
-          // Show type letter for detected enemy ships
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-          ctx.font = '8px monospace';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+          ctx.font = '500 9px Inter, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(label, pos.x, pos.y + 18);
+          ctx.fillText(typeName, pos.x, pos.y + 24);
         }
       }
     }

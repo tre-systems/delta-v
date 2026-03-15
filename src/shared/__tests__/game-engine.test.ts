@@ -1489,9 +1489,9 @@ describe('Blockade Runner scenario', () => {
     expect(runner.type).toBe('packet');
   });
 
-  it('blocker is a frigate', () => {
+  it('blocker is a corvette', () => {
     const blocker = blockadeState.ships.find(s => s.owner === 1)!;
-    expect(blocker.type).toBe('frigate');
+    expect(blocker.type).toBe('corvette');
   });
 
   it('runner targets Mars', () => {
