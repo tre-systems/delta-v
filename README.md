@@ -94,7 +94,7 @@ Get your thrusters firing locally in seconds:
 
 ## 📜 Game Rules Reference
 
-For the comprehensive ruleset detailing movement edge cases, damage tables, and specific scenario rules, refer to [SPEC.md](./SPEC.md).
+For the comprehensive ruleset detailing movement edge cases, damage tables, and specific scenario rules, refer to [SPEC.md](./docs/SPEC.md).
 
 ## 🗺️ Roadmap & Planned Features
 
