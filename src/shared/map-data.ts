@@ -297,9 +297,10 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       {
         // Pilgrims: 3 transports at Terra, must escape the solar system
         ships: [
-          { type: 'transport', position: { q: -12, r: 5 }, velocity: { dq: 0, dr: 0 } },
-          { type: 'transport', position: { q: -12, r: 5 }, velocity: { dq: 0, dr: 0 } },
-          { type: 'transport', position: { q: -12, r: 5 }, velocity: { dq: 0, dr: 0 } },
+          // Launching out with a significant head start velocity
+          { type: 'transport', position: { q: -13, r: 5 }, velocity: { dq: -2, dr: 0 } },
+          { type: 'transport', position: { q: -13, r: 5 }, velocity: { dq: -2, dr: 0 } },
+          { type: 'transport', position: { q: -13, r: 5 }, velocity: { dq: -2, dr: 0 } },
         ],
         targetBody: '',
         homeBody: 'Terra',
@@ -323,20 +324,20 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     description: 'Escort a tanker from Mars to Venus — pirates intercept',
     players: [
       {
-        // Convoy: tanker + corvette escort, starting from Mars
+        // Convoy: tanker + frigate escort, starting from Mars
         ships: [
           { type: 'tanker', position: { q: 10, r: 8 }, velocity: { dq: 0, dr: 0 } },
-          { type: 'corvette', position: { q: 10, r: 8 }, velocity: { dq: 0, dr: 0 } },
+          { type: 'frigate', position: { q: 10, r: 8 }, velocity: { dq: 0, dr: 0 } },
         ],
         targetBody: 'Venus',
         homeBody: 'Mars',
         escapeWins: false,
       },
       {
-        // Pirates: 2 corsairs lurking in the asteroid belt
+        // Pirates: 2 corsairs lurking deep in the asteroid belt
         ships: [
-          { type: 'corsair', position: { q: 3, r: 3 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
-          { type: 'corsair', position: { q: -2, r: 5 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corsair', position: { q: 2, r: 15 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          { type: 'corsair', position: { q: -2, r: 16 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
         ],
         targetBody: '',
         homeBody: '',
