@@ -89,17 +89,16 @@ body::before {
 .menu-content {
   width: min(420px, 100%);
   margin: auto;
-  padding: 1.8rem;
+  padding: 2.2rem;
   border-radius: 26px;
   background:
     linear-gradient(180deg, rgba(13, 22, 39, 0.96), rgba(7, 14, 28, 0.9));
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
   text-align: center;
-}
-
-.menu-content > * + * {
-  margin-top: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .menu-eyebrow {
@@ -116,29 +115,31 @@ body::before {
 }
 
 .title {
-  margin-top: 1rem;
-  font-size: clamp(2.8rem, 10vw, 4rem);
+  font-size: clamp(2.2rem, 9vw, 3.4rem);
   font-weight: 700;
-  line-height: 0.95;
-  letter-spacing: 0.34em;
+  line-height: 1;
+  letter-spacing: 0.28em;
   color: #f7fbff;
-  text-indent: 0.34em;
+  text-indent: 0.28em;
   white-space: nowrap;
+  margin: 0.5rem 0;
 }
 
 .subtitle {
   color: var(--accent);
   font-family: var(--font-mono);
   font-size: 0.78rem;
-  letter-spacing: 0.24em;
+  font-weight: 500;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
+  margin-bottom: 0.5rem;
 }
 
 .menu-note {
-  margin-top: 1rem;
   color: var(--muted);
   font-size: 0.94rem;
   line-height: 1.6;
+  margin-bottom: 0.5rem;
 }
 
 .btn {
@@ -195,6 +196,7 @@ body::before {
 }
 
 .btn-ai {
+  width: 100%;
   border-color: rgba(255, 197, 106, 0.32);
   background: rgba(255, 197, 106, 0.06);
 }
@@ -611,6 +613,15 @@ body::before {
 
 .ai-section {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.difficulty-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .difficulty-label {
@@ -1206,4 +1217,127 @@ body::before {
   .tutorial-tip {
     bottom: 5.8rem;
   }
+}
+
+/* Fleet building */
+.fleet-building-content {
+  max-width: 28rem;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.fleet-credits {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #4af;
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.fleet-shop-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.fleet-shop-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-size: 0.8rem;
+}
+
+.fleet-shop-item:hover {
+  background: rgba(68, 170, 255, 0.15);
+  border-color: rgba(68, 170, 255, 0.4);
+}
+
+.fleet-shop-item.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.fleet-shop-name {
+  font-weight: 500;
+  color: #dde;
+}
+
+.fleet-shop-stats {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  color: #889;
+}
+
+.fleet-shop-cost {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  color: #4af;
+  white-space: nowrap;
+}
+
+.fleet-cart-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #889;
+  margin-bottom: 0.3rem;
+}
+
+.fleet-cart {
+  min-height: 2rem;
+  padding: 0.4rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.4rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.fleet-cart-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(68, 170, 255, 0.15);
+  border: 1px solid rgba(68, 170, 255, 0.3);
+  border-radius: 0.3rem;
+  font-size: 0.75rem;
+  color: #cde;
+  cursor: pointer;
+}
+
+.fleet-cart-chip:hover {
+  background: rgba(255, 80, 80, 0.2);
+  border-color: rgba(255, 80, 80, 0.4);
+}
+
+.fleet-cart-chip .chip-remove {
+  color: #f66;
+  font-weight: 700;
+}
+
+.fleet-building-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.fleet-building-actions .btn {
+  flex: 1;
+}
+
+.fleet-waiting {
+  text-align: center;
+  color: #889;
+  margin-top: 0.5rem;
+  font-style: italic;
 }

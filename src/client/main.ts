@@ -1,4 +1,4 @@
-import type { GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, ShipMovement } from '../shared/types';
+import type { GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, FleetPurchase, ShipMovement, ScenarioDefinition } from '../shared/types';
 import { pixelToHex, hexToPixel, hexEqual, hexKey, hexVecLength } from '../shared/hex';
 import {
   canAttack,
@@ -11,7 +11,7 @@ import {
 } from '../shared/combat';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
-import { createGame, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat, type MovementResult } from '../shared/game-engine';
+import { createGame, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat, type MovementResult } from '../shared/game-engine';
 import { aiAstrogation, aiOrdnance, aiCombat, type AIDifficulty } from '../shared/ai';
 import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
@@ -23,6 +23,7 @@ type ClientState =
   | 'menu'
   | 'connecting'
   | 'waitingForOpponent'
+  | 'playing_fleetBuilding'
   | 'playing_astrogation'
   | 'playing_ordnance'
   | 'playing_combat'
@@ -84,6 +85,7 @@ class GameClient {
     this.ui.onAttack = () => this.queueAttack();
     this.ui.onFireAll = () => this.fireAllAttacks();
     this.ui.onSkipCombat = () => this.sendSkipCombat();
+    this.ui.onFleetReady = (purchases) => this.sendFleetReady(purchases);
     this.ui.onRematch = () => this.sendRematch();
     this.ui.onExit = () => this.exitToMenu();
     this.ui.onSelectShip = (shipId) => {
@@ -240,6 +242,10 @@ class GameClient {
         this.ui.showWaiting(this.gameCode ?? '');
         break;
 
+      case 'playing_fleetBuilding':
+        this.ui.showFleetBuilding(this.gameState!, this.playerId);
+        break;
+
       case 'playing_astrogation':
         this.ui.showHUD();
         this.startTurnTimer();
@@ -351,7 +357,9 @@ class GameClient {
     this.input.setGameState(this.gameState);
     this.logScenarioBriefing();
 
-    if (this.gameState.activePlayer === this.playerId) {
+    if (this.gameState.phase === 'fleetBuilding') {
+      this.setState('playing_fleetBuilding');
+    } else if (this.gameState.activePlayer === this.playerId) {
       this.setState('playing_astrogation');
     } else {
       this.setState('playing_opponentTurn');
@@ -459,7 +467,9 @@ class GameClient {
         this.input.setGameState(this.gameState);
         this.ui.clearLog();
         this.logScenarioBriefing();
-        if (this.gameState.activePlayer === this.playerId) {
+        if (this.gameState.phase === 'fleetBuilding') {
+          this.setState('playing_fleetBuilding');
+        } else if (this.gameState.activePlayer === this.playerId) {
           this.setState('playing_astrogation');
         } else {
           this.setState('playing_opponentTurn');
@@ -618,6 +628,15 @@ class GameClient {
       this.lastLoggedTurn = this.gameState.turnNumber;
       const playerLabel = this.gameState.activePlayer === this.playerId ? 'You' : 'Opponent';
       this.ui.logTurn(this.gameState.turnNumber, playerLabel);
+    }
+
+    if (this.gameState.phase === 'fleetBuilding') {
+      // Fleet building is simultaneous — both players build at the same time
+      if (!this.gameState.players[this.playerId].ready) {
+        this.setState('playing_fleetBuilding');
+      }
+      // If already submitted, just wait for the stateUpdate that transitions to astrogation
+      return;
     }
 
     const isMyTurn = this.gameState.activePlayer === this.playerId;
@@ -920,6 +939,63 @@ class GameClient {
     } else {
       this.send({ type: 'skipCombat' });
     }
+  }
+
+  private sendFleetReady(purchases: FleetPurchase[]) {
+    if (!this.gameState || this.state !== 'playing_fleetBuilding') return;
+    const scenarioDef = SCENARIOS[this.scenario] ?? SCENARIOS.biplanetary;
+
+    if (this.isLocalGame) {
+      // Process player's fleet
+      const result = processFleetReady(this.gameState, this.playerId, purchases, this.map, scenarioDef.availableShipTypes);
+      if ('error' in result) {
+        this.ui.showToast(result.error, 'error');
+        return;
+      }
+      this.gameState = result.state;
+
+      // AI fleet building
+      const aiPurchases = this.aiFleetBuild(scenarioDef);
+      const aiResult = processFleetReady(this.gameState, 1 - this.playerId, aiPurchases, this.map, scenarioDef.availableShipTypes);
+      if ('error' in aiResult) {
+        console.error('AI fleet build error:', aiResult.error);
+      } else {
+        this.gameState = aiResult.state;
+      }
+
+      this.renderer.setGameState(this.gameState);
+      this.input.setGameState(this.gameState);
+      this.logScenarioBriefing();
+      this.transitionToPhase();
+    } else {
+      this.send({ type: 'fleetReady', purchases });
+      this.ui.showFleetWaiting();
+    }
+  }
+
+  private aiFleetBuild(scenario: ScenarioDefinition): FleetPurchase[] {
+    const credits = this.gameState!.players[1 - this.playerId].credits ?? 0;
+    const available = scenario.availableShipTypes ?? Object.keys(SHIP_STATS).filter(t => t !== 'orbitalBase');
+    const purchases: FleetPurchase[] = [];
+    let remaining = credits;
+
+    // Simple AI: buy a mix of warships weighted by difficulty
+    const priorities = this.aiDifficulty === 'hard'
+      ? ['frigate', 'corsair', 'corvette']
+      : this.aiDifficulty === 'easy'
+        ? ['corvette', 'corsair', 'packet']
+        : ['corsair', 'frigate', 'corvette'];
+
+    for (const shipType of priorities) {
+      if (!available.includes(shipType)) continue;
+      const cost = SHIP_STATS[shipType]?.cost ?? Infinity;
+      while (remaining >= cost) {
+        purchases.push({ shipType });
+        remaining -= cost;
+      }
+    }
+
+    return purchases;
   }
 
   private sendRematch() {
