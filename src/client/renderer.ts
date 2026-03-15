@@ -898,7 +898,7 @@ export class Renderer {
 
           // Weak gravity toggle indicators on the path
           if (isSelected) {
-            for (const grav of course.gravityEffects) {
+            for (const grav of course.enteredGravityEffects) {
               if (grav.strength !== 'weak') continue;
               const gp = hexToPixel(grav.hex, HEX_SIZE);
               const key = hexKey(grav.hex);

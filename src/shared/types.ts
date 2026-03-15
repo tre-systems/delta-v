@@ -30,6 +30,7 @@ export interface Ship {
   landed: boolean;
   destroyed: boolean;
   detected: boolean; // true if within detection range of opponent's ships/bases
+  pendingGravityEffects?: GravityEffect[]; // gravity entered last turn that applies this turn
   damage: {
     disabledTurns: number; // 0 = operational, cumulative >= 6 = eliminated
   };
@@ -44,6 +45,7 @@ export interface Ordnance {
   velocity: HexVec;
   turnsRemaining: number; // self-destruct countdown (5 turns)
   destroyed: boolean;
+  pendingGravityEffects?: GravityEffect[]; // gravity entered last turn that applies this turn
 }
 
 export interface PlayerState {
@@ -68,7 +70,8 @@ export interface CourseResult {
   path: HexCoord[];
   newVelocity: HexVec;
   fuelSpent: number;
-  gravityEffects: GravityEffect[];
+  gravityEffects: GravityEffect[]; // gravity applied this turn from last turn's entries
+  enteredGravityEffects: GravityEffect[]; // gravity entered this turn that applies next turn
   crashed: boolean;
   crashBody: string | null;
   landedAt: string | null; // body name if landed

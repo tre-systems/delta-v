@@ -18,6 +18,7 @@ function makeShip(overrides: Partial<Ship> = {}): Ship {
     landed: false,
     destroyed: false,
     detected: true,
+    pendingGravityEffects: [],
     damage: { disabledTurns: 0 },
     ...overrides,
   };
@@ -147,48 +148,43 @@ describe('computeCourse - overload maneuver', () => {
 });
 
 describe('computeCourse - gravity', () => {
-  it('gravity deflects destination', () => {
-    // Mars gravity ring is at distance 1 from (10,8)
-    // Ship must pass THROUGH the gravity hex (not end on it)
+  it('entering a gravity hex queues deflection for the next turn', () => {
     const gravHex = { q: 11, r: 8 }; // E of Mars
     const hex = map.hexes.get(hexKey(gravHex));
     expect(hex?.gravity).toBeDefined();
     expect(hex?.gravity?.bodyName).toBe('Mars');
 
-    // Ship 2 hexes E of Mars, moving W at speed 2 — passes through gravity hex
     const ship = makeShip({
       position: { q: 13, r: 8 },
-      velocity: { dq: -2, dr: 0 }, // Moving W, path: 13,8 -> 12,8 -> 11,8
+      velocity: { dq: -2, dr: 0 }, // Ends in the Mars gravity ring
     });
     const course = computeCourse(ship, null, map);
 
-    // The gravity hex (11,8) is the destination, so gravity is skipped this turn.
-    // Instead test a ship that passes through without stopping:
-    const ship2 = makeShip({
-      position: { q: 13, r: 8 },
-      velocity: { dq: -3, dr: 0 }, // Path: 13 -> 12 -> 11 -> 10 (Mars body)
-    });
-    const course2 = computeCourse(ship2, null, map);
-
-    // Should have gravity from hex (11,8) which is intermediate (not destination)
-    const marsGravity = course2.gravityEffects.filter(e => e.bodyName === 'Mars');
-    expect(marsGravity.length).toBeGreaterThan(0);
+    expect(course.destination).toEqual(gravHex);
+    expect(course.gravityEffects).toHaveLength(0);
+    expect(course.enteredGravityEffects).toHaveLength(1);
+    expect(course.enteredGravityEffects[0].bodyName).toBe('Mars');
   });
 
-  it('stationary ship in gravity hex drifts', () => {
-    // Place a ship in a Mars gravity hex
+  it('pending gravity deflects the following turn', () => {
     const gravHex = { q: 11, r: 8 }; // E of Mars
     const hex = map.hexes.get(hexKey(gravHex));
     expect(hex?.gravity).toBeDefined();
 
     const ship = makeShip({
       position: gravHex,
-      velocity: { dq: 0, dr: 0 },
+      velocity: { dq: 0, dr: -1 },
+      pendingGravityEffects: [{
+        hex: gravHex,
+        direction: hex!.gravity!.direction,
+        bodyName: 'Mars',
+        strength: 'full',
+        ignored: false,
+      }],
     });
     const course = computeCourse(ship, null, map);
 
-    // Ship should be deflected toward Mars
-    expect(hexEqual(course.destination, gravHex)).toBe(false);
+    expect(course.destination).toEqual({ q: 10, r: 7 });
     expect(course.gravityEffects).toHaveLength(1);
   });
 
@@ -216,23 +212,19 @@ describe('computeCourse - gravity', () => {
       expect(course.landedAt).toBe('Mars');
       expect(course.crashed).toBe(false);
     }
-    // Gravity at the base hex should NOT appear in effects
-    // (it's the destination, so gravity there applies next turn)
+    expect(course.gravityEffects).toHaveLength(0);
+    expect(course.enteredGravityEffects.every(effect => !hexEqual(effect.hex, ship.position))).toBe(true);
   });
 
-  it('cumulative gravity from multiple hexes', () => {
-    // Sol has 2 gravity rings — a path through multiple gravity hexes
-    // should accumulate deflections
+  it('passing through multiple gravity hexes queues multiple future deflections', () => {
     const ship = makeShip({
       position: { q: 5, r: 0 },
       velocity: { dq: -2, dr: 0 }, // Moving W toward Sol
     });
     const course = computeCourse(ship, null, map);
 
-    // If path passes through Sol gravity hexes, deflections should stack
-    if (course.gravityEffects.length > 1) {
-      // Multiple gravity effects = cumulative
-      expect(course.gravityEffects.length).toBeGreaterThanOrEqual(2);
+    if (course.enteredGravityEffects.length > 1) {
+      expect(course.enteredGravityEffects.length).toBeGreaterThanOrEqual(2);
     }
   });
 });
@@ -254,16 +246,18 @@ describe('computeCourse - weak gravity', () => {
       velocity: { dq: 1, dr: 0 }, // Moving E through Luna weak gravity
     });
 
-    // Without ignoring: should get deflected
+    // Without ignoring: destination is unchanged this turn, but gravity is queued.
     const courseApplied = computeCourse(ship, null, map);
 
-    // With ignoring: should NOT get deflected
+    // With ignoring: same destination this turn, but queued gravity is marked ignored.
     const courseIgnored = computeCourse(ship, null, map, {
       weakGravityChoices: { [hexKey(lunaGravHex)]: true },
     });
 
-    const appliedGrav = courseApplied.gravityEffects.find(e => e.bodyName === 'Luna');
-    const ignoredGrav = courseIgnored.gravityEffects.find(e => e.bodyName === 'Luna');
+    expect(courseApplied.destination).toEqual(courseIgnored.destination);
+
+    const appliedGrav = courseApplied.enteredGravityEffects.find(e => e.bodyName === 'Luna');
+    const ignoredGrav = courseIgnored.enteredGravityEffects.find(e => e.bodyName === 'Luna');
 
     if (appliedGrav) {
       expect(appliedGrav.ignored).toBe(false);
@@ -423,6 +417,22 @@ describe('predictDestination', () => {
       velocity: { dq: 2, dr: -1 },
     });
     expect(predictDestination(ship)).toEqual({ q: 5, r: 3 });
+  });
+
+  it('includes pending gravity for flying ships', () => {
+    const ship = makeShip({
+      position: { q: 11, r: 8 },
+      velocity: { dq: 0, dr: -1 },
+      pendingGravityEffects: [{
+        hex: { q: 11, r: 8 },
+        direction: 3,
+        bodyName: 'Mars',
+        strength: 'full',
+        ignored: false,
+      }],
+    });
+
+    expect(predictDestination(ship)).toEqual({ q: 10, r: 7 });
   });
 });
 

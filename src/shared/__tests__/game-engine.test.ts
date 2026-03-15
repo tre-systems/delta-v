@@ -138,6 +138,26 @@ describe('processAstrogation', () => {
     }
   });
 
+  it('applies gravity on the turn after a ship enters a gravity hex', () => {
+    const ship = initialState.ships[0];
+    ship.landed = false;
+    ship.position = { q: 11, r: 9 };
+    ship.velocity = { dq: 0, dr: -1 };
+
+    const first = resolveAstrogationMovement(initialState, 0, [{ shipId: ship.id, burn: null }]);
+    const afterFirstMove = first.state.ships.find(s => s.id === ship.id)!;
+    expect(afterFirstMove.position).toEqual({ q: 11, r: 8 });
+    expect(afterFirstMove.pendingGravityEffects).toHaveLength(1);
+    expect(afterFirstMove.pendingGravityEffects?.[0].bodyName).toBe('Mars');
+
+    first.state.phase = 'astrogation';
+    first.state.activePlayer = 0;
+
+    const second = resolveAstrogationMovement(first.state, 0, [{ shipId: ship.id, burn: null }]);
+    const afterSecondMove = second.state.ships.find(s => s.id === ship.id)!;
+    expect(afterSecondMove.position).toEqual({ q: 10, r: 7 });
+  });
+
   it('rejects invalid burn direction', () => {
     const orders: AstrogationOrder[] = [{
       shipId: initialState.ships[0].id,
@@ -524,6 +544,36 @@ describe('ordnance system', () => {
 
     // Ordnance should have been removed (self-destructed)
     expect(result.state.ordnance).toHaveLength(0);
+  });
+
+  it('ordnance defers gravity until the turn after entry', () => {
+    initialState.ordnance = [{
+      id: 'ord0',
+      type: 'mine',
+      owner: 0,
+      position: { q: 11, r: 9 },
+      velocity: { dq: 0, dr: -1 },
+      turnsRemaining: 5,
+      destroyed: false,
+      pendingGravityEffects: [],
+    }];
+
+    const ship = initialState.ships[0];
+    ship.landed = false;
+    ship.velocity = { dq: 0, dr: 0 };
+    ship.position = { q: 20, r: 20 };
+
+    const first = resolveAstrogationMovement(initialState, 0, [{ shipId: ship.id, burn: null }]);
+    expect(first.state.ordnance).toHaveLength(1);
+    expect(first.state.ordnance[0].position).toEqual({ q: 11, r: 8 });
+    expect(first.state.ordnance[0].pendingGravityEffects).toHaveLength(1);
+
+    first.state.phase = 'astrogation';
+    first.state.activePlayer = 0;
+
+    const second = resolveAstrogationMovement(first.state, 0, [{ shipId: ship.id, burn: null }]);
+    expect(second.state.ordnance).toHaveLength(1);
+    expect(second.state.ordnance[0].position).toEqual({ q: 10, r: 7 });
   });
 
   it('torpedoes detonate on friendly ships in their path', () => {

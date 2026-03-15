@@ -9,7 +9,7 @@
  */
 import type { GameState, AstrogationOrder, OrdnanceLaunch, CombatAttack, SolarSystemMap, Ship, CourseResult } from './types';
 import { HEX_DIRECTIONS, hexDistance, hexAdd, hexKey, hexVecLength } from './hex';
-import { computeCourse } from './movement';
+import { applyPendingGravityEffects, computeCourse } from './movement';
 import { SHIP_STATS, ORDNANCE_MASS } from './constants';
 import { getCombatStrength, canAttack, computeRangeMod, computeVelocityMod } from './combat';
 
@@ -99,9 +99,9 @@ export function aiAstrogation(
 
       // For normal/hard AI, also try ignoring weak gravity choices
       let bestLocalWG: Record<string, boolean> | undefined;
-      if (difficulty !== 'easy' && course.gravityEffects.some(g => g.strength === 'weak')) {
+      if (difficulty !== 'easy' && course.enteredGravityEffects.some(g => g.strength === 'weak')) {
         // Try toggling each weak gravity hex
-        const weakHexes = course.gravityEffects.filter(g => g.strength === 'weak');
+        const weakHexes = course.enteredGravityEffects.filter(g => g.strength === 'weak');
         for (const wg of weakHexes) {
           const wgChoices: Record<string, boolean> = { [hexKey(wg.hex)]: true };
           const altCourse = computeCourse(ship, opt.burn, map,
@@ -378,6 +378,25 @@ function scoreCourse(
   if (noPrimaryObjective && ship.landed &&
       course.destination.q === ship.position.q && course.destination.r === ship.position.r) {
     score -= 80 * mult;
+  }
+
+  // Deferred gravity matters most for the following turn, so look one move ahead.
+  if (!course.landedAt && course.enteredGravityEffects.length > 0) {
+    const nextTurnDest = applyPendingGravityEffects(
+      hexAdd(course.destination, course.newVelocity),
+      course.enteredGravityEffects,
+    );
+
+    if (escapeWins) {
+      score += (hexDistance(nextTurnDest, { q: 0, r: 0 }) - hexDistance(course.destination, { q: 0, r: 0 })) * 4 * mult;
+    } else if (targetHex) {
+      score += (hexDistance(course.destination, targetHex) - hexDistance(nextTurnDest, targetHex)) * 6 * mult;
+    } else if (enemyShips.length > 0) {
+      const nearestEnemyAfterDrift = Math.min(
+        ...enemyShips.map(enemy => hexDistance(nextTurnDest, enemy.position)),
+      );
+      score += Math.max(0, 5 - nearestEnemyAfterDrift) * mult;
+    }
   }
 
   // Combat positioning
