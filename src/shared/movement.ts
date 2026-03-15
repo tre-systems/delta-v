@@ -15,6 +15,7 @@ import { SHIP_STATS } from './constants';
 export interface CourseOptions {
   overload?: number | null; // second burn direction (warships only)
   weakGravityChoices?: Record<string, boolean>; // hexKey -> true to ignore
+  destroyedBases?: string[];
 }
 
 /**
@@ -38,6 +39,7 @@ export function computeCourse(
   let fuelSpent = 0;
   const overload = options?.overload ?? null;
   const weakGravityChoices = options?.weakGravityChoices ?? {};
+  const destroyedBases = new Set(options?.destroyedBases ?? []);
 
   if (ship.landed) {
     // No burn = stay landed (ship remains at the base)
@@ -112,7 +114,7 @@ export function computeCourse(
     const enteredGravityEffects = collectEnteredGravityEffects(finalPath, map, weakGravityChoices);
     const newVelocity = hexSubtract(destination, launchHex);
 
-    const landedAt = checkLanding(ship, destination, newVelocity, fuelSpent, map);
+    const landedAt = checkLanding(ship, destination, newVelocity, fuelSpent, map, destroyedBases);
     const { crashed, crashBody } = checkCrash(finalPath, map, landedAt, bodyName ?? undefined);
 
     return {
@@ -154,7 +156,7 @@ export function computeCourse(
   const enteredGravityEffects = collectEnteredGravityEffects(finalPath, map, weakGravityChoices);
   const newVelocity = hexSubtract(destination, ship.position);
 
-  const landedAt = checkLanding(ship, destination, newVelocity, fuelSpent, map);
+  const landedAt = checkLanding(ship, destination, newVelocity, fuelSpent, map, destroyedBases);
   const { crashed, crashBody } = checkCrash(finalPath, map, landedAt);
 
   return {
@@ -270,11 +272,13 @@ function checkLanding(
   newVelocity: HexVec,
   fuelSpent: number,
   map: SolarSystemMap,
+  destroyedBases: Set<string>,
 ): string | null {
-  const hex = map.hexes.get(hexKey(destination));
-  if (hex?.base) {
+  const key = hexKey(destination);
+  const hex = map.hexes.get(key);
+  if (hex?.base && !destroyedBases.has(key)) {
     if (bodyHasGravity(hex.base.bodyName, map)) {
-      return canLandAtPlanetaryBase(ship, hex.base.bodyName, fuelSpent, map)
+      return canLandAtPlanetaryBase(ship, hex.base.bodyName, fuelSpent, map, destroyedBases)
         ? hex.base.bodyName
         : null;
     }
@@ -302,6 +306,7 @@ function canLandAtPlanetaryBase(
   bodyName: string,
   fuelSpent: number,
   map: SolarSystemMap,
+  destroyedBases: Set<string>,
 ): boolean {
   if (fuelSpent !== 1) return false;
   if (hexVecLength(ship.velocity) !== 1) return false;
@@ -315,7 +320,7 @@ function canLandAtPlanetaryBase(
   );
   const projectedHex = map.hexes.get(hexKey(projectedDrift));
   if (projectedHex?.gravity?.bodyName === bodyName) return true;
-  return projectedHex?.base?.bodyName === bodyName;
+  return projectedHex?.base?.bodyName === bodyName && !destroyedBases.has(hexKey(projectedDrift));
 }
 
 /**
