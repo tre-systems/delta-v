@@ -86,6 +86,14 @@ body::before {
   backdrop-filter: blur(20px);
 }
 
+.glass {
+  background: var(--panel) !important;
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+  border: 1px solid var(--border-strong) !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
 .menu-content {
   width: min(420px, 100%);
   margin: auto;
@@ -1387,3 +1395,49 @@ body::before {
   0% { transform: translate(-50%, -40%) scale(0.9); opacity: 0; }
   100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 }
+
+/* Micro-interactions & Juice */
+.btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+  filter: brightness(1.1);
+  box-shadow: 0 8px 24px rgba(122, 215, 255, 0.25);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.fleet-shop-item {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fleet-shop-item:hover {
+  transform: translateX(4px);
+  border-color: var(--accent);
+  box-shadow: -4px 0 0 var(--accent);
+}
+
+.fleet-cart-chip {
+  animation: chip-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes chip-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.recoil-anim {
+  animation: recoil 0.2s ease-out;
+}
+
+@keyframes recoil {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* Logging Color Refinement */
+.log-enemy { color: var(--danger); }
+.log-env { color: var(--accent); }
+.log-obj { color: var(--warning); }

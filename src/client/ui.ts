@@ -15,6 +15,7 @@ export class UIManager {
   private fleetBuildingEl: HTMLElement;
   private logVisible = true;
   private fleetCart: FleetPurchase[] = [];
+  private playerId: number = -1;
   private readonly actionButtonIds = [
     'undoBtn',
     'confirmBtn',
@@ -174,6 +175,10 @@ export class UIManager {
     document.getElementById('helpOverlay')!.style.display = 'none';
   }
 
+  setPlayerId(id: number) {
+    this.playerId = id;
+  }
+
   showMenu() {
     this.hideAll();
     this.menuEl.style.display = 'flex';
@@ -273,6 +278,11 @@ export class UIManager {
         if (spent + stats.cost <= totalCredits) {
           this.fleetCart.push({ shipType: key });
           this.renderFleetCart(totalCredits);
+          // Apply recoil animation to cart
+          const cartEl = document.getElementById('fleetCart')!;
+          cartEl.classList.remove('recoil-anim');
+          void cartEl.offsetWidth;
+          cartEl.classList.add('recoil-anim');
         }
       });
       shopEl.appendChild(item);
@@ -572,11 +582,11 @@ export class UIManager {
           break;
         case 'ramming':
           text = `${name} collided with another ship! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Eliminated!' : ev.damageType === 'disabled' ? `Disabled for ${ev.disabledTurns} turns` : 'Survives'}`;
-          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
+          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : 'log-env';
           break;
         case 'asteroidHit':
           text = `${name} struck an asteroid! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Hull breached, Ship Lost!' : ev.damageType === 'disabled' ? `Systems disabled for ${ev.disabledTurns}T` : 'Glancing blow, no damage'}`;
-          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
+          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : 'log-env';
           break;
         case 'mineDetonation':
           text = `Mine detonated near ${name}! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Vessel destroyed!' : ev.damageType === 'disabled' ? `Disabled for ${ev.disabledTurns}T` : 'Armor held'}`;
@@ -615,8 +625,10 @@ export class UIManager {
       const result = r.damageType === 'eliminated' ? 'DESTROYED'
         : r.damageType === 'disabled' ? `DISABLED (${r.disabledTurns}T)`
         : 'Miss';
+      const isPlayerTarget = target && target.owner === this.playerId;
       const cls = r.damageType === 'eliminated' ? 'log-eliminated'
-        : r.damageType === 'disabled' ? 'log-damage' : '';
+        : r.damageType === 'disabled' ? 'log-damage' 
+        : isPlayerTarget ? 'log-enemy' : '';
 
       // Build attacker description
       let attackerDesc = '';
@@ -635,7 +647,7 @@ export class UIManager {
       }
 
       if (r.attackType === 'asteroidHazard') {
-        this.logText(`${targetName} struck an asteroid: ${result} [Roll: ${r.dieRoll}]`, cls);
+        this.logText(`${targetName} struck an asteroid: ${result} [Roll: ${r.dieRoll}]`, cls || 'log-env');
       } else {
         const mods = [];
         if (r.rangeMod !== 0) mods.push(`R${r.rangeMod > 0 ? '+' : ''}${r.rangeMod}`);

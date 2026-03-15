@@ -1,6 +1,6 @@
 # Delta-V Architecture & Design Document
 
-Delta-V is an online multiplayer implementation of the classic space combat and racing board game *Delta-V*. This document outlines the high-level architecture, core systems, design patterns used, and proposes areas for future refactorings and improvements.
+Delta-V is an online multiplayer space combat and racing game. This document outlines the high-level architecture, core systems, design patterns used, and proposes areas for future refactorings and improvements.
 
 ## 1. High-Level Architecture
 
