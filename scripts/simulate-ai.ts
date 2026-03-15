@@ -1,15 +1,17 @@
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../src/shared/map-data';
-import { 
-  createGame, 
-  processAstrogation, 
-  processOrdnance, 
-  skipOrdnance, 
-  beginCombatPhase, 
-  processCombat, 
-  skipCombat 
+import {
+  createGame,
+  processFleetReady,
+  processAstrogation,
+  processOrdnance,
+  skipOrdnance,
+  beginCombatPhase,
+  processCombat,
+  skipCombat
 } from '../src/shared/game-engine';
 import { aiAstrogation, aiOrdnance, aiCombat, AIDifficulty } from '../src/shared/ai';
-import { GameState } from '../src/shared/types';
+import { SHIP_STATS } from '../src/shared/constants';
+import { GameState, FleetPurchase } from '../src/shared/types';
 
 interface SimulationMetrics {
   totalGames: number;
@@ -19,6 +21,30 @@ interface SimulationMetrics {
   totalTurns: number;
   crashes: number; // Internal engine errors during simulation
   reasons: Record<string, number>;
+}
+
+function simFleetBuild(state: GameState, playerId: number, difficulty: AIDifficulty, availableTypes?: string[]): FleetPurchase[] {
+  const credits = state.players[playerId].credits ?? 0;
+  const available = availableTypes ?? Object.keys(SHIP_STATS).filter(t => t !== 'orbitalBase');
+  const purchases: FleetPurchase[] = [];
+  let remaining = credits;
+
+  // Strategy varies by difficulty
+  const priorities = difficulty === 'hard'
+    ? ['frigate', 'corsair', 'corvette']
+    : difficulty === 'easy'
+      ? ['corvette', 'corsair', 'packet']
+      : ['corsair', 'frigate', 'corvette'];
+
+  for (const shipType of priorities) {
+    if (!available.includes(shipType)) continue;
+    const cost = SHIP_STATS[shipType]?.cost ?? Infinity;
+    while (remaining >= cost) {
+      purchases.push({ shipType });
+      remaining -= cost;
+    }
+  }
+  return purchases;
 }
 
 async function runSingleGame(scenarioName: string, p0Diff: AIDifficulty, p1Diff: AIDifficulty): Promise<{ winner: number | null, turns: number, reason: string | null }> {
@@ -35,6 +61,18 @@ async function runSingleGame(scenarioName: string, p0Diff: AIDifficulty, p1Diff:
     state = createGame(scenario, map, `sim-${Date.now()}`, findBaseHex);
   } catch (err: any) {
     throw new Error(`Failed to create game: ${err.message}`);
+  }
+
+  // Handle fleet building phase (both players submit simultaneously)
+  if (state.phase === 'fleetBuilding') {
+    const scenario = SCENARIOS[scenarioName];
+    for (let p = 0; p < 2; p++) {
+      const diff = p === 0 ? p0Diff : p1Diff;
+      const purchases = simFleetBuild(state, p, diff, scenario.availableShipTypes);
+      const result = processFleetReady(state, p, purchases, map, scenario.availableShipTypes);
+      if ('error' in result) throw new Error(`Fleet build error P${p}: ${result.error}`);
+      state = result.state;
+    }
   }
 
   let phaseLimit = 1000; // allow for long games traversing the system
