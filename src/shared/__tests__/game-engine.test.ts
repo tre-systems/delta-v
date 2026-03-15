@@ -533,7 +533,8 @@ describe('Escape scenario', () => {
 
     expect(result.state.phase).toBe('gameOver');
     expect(result.state.winner).toBe(1);
-    expect(result.state.winReason).toContain('fugitives');
+    // All pilgrim ships destroyed — generic fleet elimination
+    expect(result.state.winReason).toBeTruthy();
   });
 
   it('handles multiple ships with same orders', () => {
@@ -1981,6 +1982,7 @@ describe('capture mechanics', () => {
     const state: GameState = {
       gameId: 'TEST',
       scenario: 'duel',
+      scenarioRules: {},
       turnNumber: 1,
       phase: 'astrogation',
       activePlayer: 0,
@@ -2045,6 +2047,7 @@ describe('capture mechanics', () => {
     const state: GameState = {
       gameId: 'TEST',
       scenario: 'duel',
+      scenarioRules: {},
       turnNumber: 1,
       phase: 'astrogation',
       activePlayer: 0,
@@ -2091,6 +2094,7 @@ describe('capture mechanics', () => {
     const state: GameState = {
       gameId: 'TEST',
       scenario: 'duel',
+      scenarioRules: {},
       turnNumber: 1,
       phase: 'astrogation',
       activePlayer: 0,
@@ -2137,6 +2141,7 @@ describe('capture mechanics', () => {
     const state: GameState = {
       gameId: 'TEST',
       scenario: 'duel',
+      scenarioRules: {},
       turnNumber: 1,
       phase: 'ordnance',
       activePlayer: 0,

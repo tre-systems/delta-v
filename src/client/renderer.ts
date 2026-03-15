@@ -1255,6 +1255,20 @@ export class Renderer {
         ctx.textAlign = 'center';
         ctx.fillText('\u2605', pos.x, pos.y - 14); // gold star
       }
+      if (this.gameState?.scenarioRules.hiddenIdentityInspection && ship.owner !== this.playerId && ship.identityRevealed && !this.animState) {
+        ctx.textAlign = 'center';
+        if (ship.hasFugitives) {
+          ctx.fillStyle = 'rgba(255, 120, 120, 0.95)';
+          ctx.font = 'bold 9px monospace';
+          ctx.fillText('\u2605', pos.x, pos.y - 14);
+        } else {
+          ctx.strokeStyle = 'rgba(220, 220, 220, 0.9)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y - 14, 4, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
 
       // Orbit indicator (speed 1 in a gravity hex)
       if (!ship.landed && !ship.destroyed && !this.animState && this.map) {

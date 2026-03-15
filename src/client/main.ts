@@ -11,7 +11,7 @@ import {
 } from '../shared/combat';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
-import { createGame, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat, type MovementResult } from '../shared/game-engine';
+import { createGame, filterStateForPlayer, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat, type MovementResult } from '../shared/game-engine';
 import { aiAstrogation, aiOrdnance, aiCombat, type AIDifficulty } from '../shared/ai';
 import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
@@ -670,6 +670,71 @@ class GameClient {
     }
   }
 
+  private getReusableCombatGroup(targetId: string, targetType: 'ship' | 'ordnance'): {
+    attackerIds: string[];
+    remainingStrength: number;
+  } | null {
+    if (!this.gameState || targetType !== 'ship') return null;
+    const target = this.gameState.ships.find(ship => ship.id === targetId && !ship.destroyed && ship.owner !== this.playerId);
+    if (!target) return null;
+
+    for (let i = this.renderer.planningState.queuedAttacks.length - 1; i >= 0; i--) {
+      const queued = this.renderer.planningState.queuedAttacks[i];
+      if ((queued.targetType ?? 'ship') !== 'ship') continue;
+      const queuedTarget = this.gameState.ships.find(ship => ship.id === queued.targetId && !ship.destroyed);
+      if (!queuedTarget || !hexEqual(queuedTarget.position, target.position)) continue;
+
+      const groupKey = [...queued.attackerIds].sort().join('|');
+      const attackers = this.gameState.ships.filter(ship => queued.attackerIds.includes(ship.id));
+      const maxStrength = getCombatStrength(attackers);
+      let allocatedStrength = 0;
+
+      for (const attack of this.renderer.planningState.queuedAttacks) {
+        if ((attack.targetType ?? 'ship') !== 'ship') continue;
+        const attackKey = [...attack.attackerIds].sort().join('|');
+        if (attackKey !== groupKey) continue;
+        const attackTarget = this.gameState.ships.find(ship => ship.id === attack.targetId && !ship.destroyed);
+        if (!attackTarget || !hexEqual(attackTarget.position, target.position)) continue;
+        allocatedStrength += attack.attackStrength ?? maxStrength;
+      }
+
+      const remainingStrength = Math.max(0, maxStrength - allocatedStrength);
+      if (remainingStrength > 0) {
+        return {
+          attackerIds: [...queued.attackerIds],
+          remainingStrength,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  private hasSplitFireOptions(): boolean {
+    if (!this.gameState) return false;
+    const queuedTargets = new Set(this.renderer.planningState.queuedAttacks.map(a => `${a.targetType ?? 'ship'}:${a.targetId}`));
+
+    for (const attack of this.renderer.planningState.queuedAttacks) {
+      if ((attack.targetType ?? 'ship') !== 'ship') continue;
+      const target = this.gameState.ships.find(ship => ship.id === attack.targetId && !ship.destroyed);
+      if (!target) continue;
+      const reusable = this.getReusableCombatGroup(target.id, 'ship');
+      if (!reusable || reusable.remainingStrength <= 0) continue;
+      const untargetedSameHex = this.gameState.ships.some(ship =>
+        ship.owner !== this.playerId &&
+        !ship.destroyed &&
+        !ship.landed &&
+        hexEqual(ship.position, target.position) &&
+        !queuedTargets.has(`ship:${ship.id}`),
+      );
+      if (untargetedSameHex) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   private buildCurrentAttack(): CombatAttack | null {
     if (!this.gameState || this.state !== 'playing_combat') return null;
     const targetId = this.renderer.planningState.combatTargetId;
@@ -697,20 +762,29 @@ class GameClient {
     } else {
       const target = this.gameState.ships.find(s => s.id === targetId);
       if (!target || target.destroyed) return null;
-      const legalAttackers = this.gameState.ships
-        .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s) && !committedAttackers.has(s.id))
-        .filter(s => hasLineOfSight(s, target, this.map));
-      const selectedAttackers = legalAttackers.filter(s =>
-        this.renderer.planningState.combatAttackerIds.includes(s.id),
-      );
-      const attackers = selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
-      attackerIds = attackers.map(s => s.id);
-      const maxStrength = getCombatStrength(attackers);
-      if (maxStrength > 0) {
+      const reusableGroup = this.getReusableCombatGroup(targetId, targetType);
+      if (reusableGroup) {
+        attackerIds = [...reusableGroup.attackerIds];
         attackStrength = Math.max(
           1,
-          Math.min(maxStrength, this.renderer.planningState.combatAttackStrength ?? maxStrength),
+          Math.min(reusableGroup.remainingStrength, this.renderer.planningState.combatAttackStrength ?? reusableGroup.remainingStrength),
         );
+      } else {
+        const legalAttackers = this.gameState.ships
+          .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s) && !committedAttackers.has(s.id))
+          .filter(s => hasLineOfSight(s, target, this.map));
+        const selectedAttackers = legalAttackers.filter(s =>
+          this.renderer.planningState.combatAttackerIds.includes(s.id),
+        );
+        const attackers = selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
+        attackerIds = attackers.map(s => s.id);
+        const maxStrength = getCombatStrength(attackers);
+        if (maxStrength > 0) {
+          attackStrength = Math.max(
+            1,
+            Math.min(maxStrength, this.renderer.planningState.combatAttackStrength ?? maxStrength),
+          );
+        }
       }
     }
 
@@ -743,7 +817,7 @@ class GameClient {
       s => s.owner === this.playerId && !s.destroyed && canAttack(s) && !committedAttackers.has(s.id),
     );
 
-    if (remainingAttackers.length === 0) {
+    if (remainingAttackers.length === 0 && !this.hasSplitFireOptions()) {
       // No more attackers available — auto-fire
       this.fireAllAttacks();
     } else {
@@ -1189,7 +1263,8 @@ class GameClient {
 
     // Astrogation phase
     if (this.gameState.phase === 'astrogation') {
-      const orders = aiAstrogation(this.gameState, aiPlayer, this.map, this.aiDifficulty);
+      const aiView = filterStateForPlayer(this.gameState, aiPlayer);
+      const orders = aiAstrogation(aiView, aiPlayer, this.map, this.aiDifficulty);
       const result = processAstrogation(this.gameState, aiPlayer, orders, this.map);
       if ('error' in result) {
         console.error('AI astrogation error:', result.error);
@@ -1224,7 +1299,8 @@ class GameClient {
 
     // Ordnance phase
     if (this.gameState.phase === 'ordnance' && this.gameState.activePlayer === aiPlayer) {
-      const launches = aiOrdnance(this.gameState, aiPlayer, this.map, this.aiDifficulty);
+      const aiView = filterStateForPlayer(this.gameState, aiPlayer);
+      const launches = aiOrdnance(aiView, aiPlayer, this.map, this.aiDifficulty);
       if (launches.length > 0) {
         for (const l of launches) {
           const ship = this.gameState.ships.find(s => s.id === l.shipId);
@@ -1280,7 +1356,8 @@ class GameClient {
         }
       }
 
-      const attacks = aiCombat(this.gameState, aiPlayer, this.map, this.aiDifficulty);
+      const aiView = filterStateForPlayer(this.gameState, aiPlayer);
+      const attacks = aiCombat(aiView, aiPlayer, this.map, this.aiDifficulty);
       if (attacks.length > 0) {
         const previousState = this.gameState;
         const result = processCombat(this.gameState, aiPlayer, attacks, this.map);
@@ -1417,7 +1494,7 @@ class GameClient {
     // Build objective text
     const player = this.gameState.players[this.playerId];
     const hasFugitiveShip = this.gameState.ships.some(s => s.owner === this.playerId && s.hasFugitives);
-    const facingFugitives = this.gameState.ships.some(s => s.owner !== this.playerId && s.hasFugitives !== undefined);
+    const facingFugitives = this.gameState.scenarioRules.hiddenIdentityInspection;
     const objective = player?.escapeWins
       ? hasFugitiveShip ? '⬡ Escape the \u2605 ship' : '⬡ Escape the map'
       : facingFugitives ? '⬡ Find & destroy fugitives'
@@ -1485,7 +1562,7 @@ class GameClient {
     const shipNames = myShips.map(s => SHIP_STATS[s.type]?.name ?? s.type).join(', ');
     this.ui.logText(`Your fleet: ${shipNames}`);
     const hasFugitiveShip = myShips.some(s => s.hasFugitives);
-    const facingFugitives = this.gameState.ships.some(s => s.owner !== this.playerId && s.hasFugitives !== undefined);
+    const facingFugitives = this.gameState.scenarioRules.hiddenIdentityInspection;
     if (hasFugitiveShip) {
       this.ui.logText('Objective: Get the \u2605 ship off the map!', 'log-landed');
     } else if (facingFugitives) {

@@ -63,6 +63,55 @@ function bodyHasGravity(bodyName: string, map: SolarSystemMap): boolean {
   return false;
 }
 
+function getScenarioStartingCredits(scenario: ScenarioDefinition, playerId: number): number | undefined {
+  if (scenario.startingCredits == null) {
+    return undefined;
+  }
+  return Array.isArray(scenario.startingCredits)
+    ? scenario.startingCredits[playerId]
+    : scenario.startingCredits;
+}
+
+function getAllowedOrdnanceTypes(state: Pick<GameState, 'scenarioRules'>): Set<Ordnance['type']> {
+  const allowed = state.scenarioRules.allowedOrdnanceTypes;
+  if (!allowed || allowed.length === 0) {
+    return new Set(['mine', 'torpedo', 'nuke']);
+  }
+  return new Set(allowed);
+}
+
+function isPlanetaryDefenseEnabled(state: Pick<GameState, 'scenarioRules'>): boolean {
+  return state.scenarioRules.planetaryDefenseEnabled !== false;
+}
+
+function usesEscapeInspectionRules(state: Pick<GameState, 'scenarioRules'>): boolean {
+  return state.scenarioRules.hiddenIdentityInspection === true;
+}
+
+function getEscapeEdge(state: Pick<GameState, 'scenarioRules'>): 'any' | 'north' {
+  return state.scenarioRules.escapeEdge ?? 'any';
+}
+
+export function filterStateForPlayer(state: GameState, playerId: number): GameState {
+  if (!usesEscapeInspectionRules(state) && !state.ships.some(s => s.hasFugitives)) {
+    return state;
+  }
+
+  return {
+    ...state,
+    ships: state.ships.map(ship => {
+      if (ship.owner === playerId) {
+        return ship;
+      }
+      if (ship.identityRevealed) {
+        return ship;
+      }
+      const { hasFugitives, identityRevealed, ...rest } = ship;
+      return rest;
+    }),
+  };
+}
+
 function getOwnedPlanetaryBases(
   state: GameState,
   playerId: number,
@@ -107,7 +156,13 @@ export function createGame(
             const [q, r] = ownedBase.split(',').map(Number);
             return { q, r };
           })()
-          : findBaseHex(map, scenario.players[p].homeBody);
+          : (() => {
+            const defHex = map.hexes.get(hexKey(def.position));
+            if (defHex?.base || defHex?.body) {
+              return { ...def.position };
+            }
+            return findBaseHex(map, scenario.players[p].homeBody);
+          })();
         position = baseHex ?? def.position;
         landed = true;
       } else {
@@ -129,6 +184,7 @@ export function createGame(
         landed,
         destroyed: false,
         detected: true,
+        identityRevealed: !scenario.players[p].hiddenIdentity,
         pendingGravityEffects: [],
         damage: { disabledTurns: 0 },
       });
@@ -142,15 +198,26 @@ export function createGame(
       if (playerShips.length > 0) {
         const chosen = playerShips[Math.floor(Math.random() * playerShips.length)];
         chosen.hasFugitives = true;
+        for (const ship of playerShips) {
+          ship.identityRevealed = false;
+        }
       }
     }
   }
 
-  const hasFleetBuilding = (scenario.startingCredits ?? 0) > 0;
+  const hasFleetBuilding = [0, 1].some(playerId => (getScenarioStartingCredits(scenario, playerId) ?? 0) > 0);
 
   return {
     gameId: gameCode,
     scenario: scenario.name,
+    scenarioRules: {
+      allowedOrdnanceTypes: scenario.rules?.allowedOrdnanceTypes
+        ? [...scenario.rules.allowedOrdnanceTypes]
+        : undefined,
+      planetaryDefenseEnabled: scenario.rules?.planetaryDefenseEnabled ?? true,
+      hiddenIdentityInspection: scenario.rules?.hiddenIdentityInspection ?? false,
+      escapeEdge: scenario.rules?.escapeEdge ?? 'any',
+    },
     turnNumber: 1,
     phase: hasFleetBuilding ? 'fleetBuilding' : 'astrogation',
     activePlayer: 0,
@@ -168,7 +235,7 @@ export function createGame(
         homeBody: scenario.players[0].homeBody,
         bases: playerBases[0],
         escapeWins: scenario.players[0].escapeWins,
-        credits: scenario.startingCredits,
+        credits: getScenarioStartingCredits(scenario, 0),
       },
       {
         connected: true,
@@ -177,7 +244,7 @@ export function createGame(
         homeBody: scenario.players[1].homeBody,
         bases: playerBases[1],
         escapeWins: scenario.players[1].escapeWins,
-        credits: scenario.startingCredits,
+        credits: getScenarioStartingCredits(scenario, 1),
       },
     ],
     winner: null,
@@ -445,6 +512,7 @@ function resolveMovementPhase(
   }
 
   checkOrbitalBaseResupply(state, playerId);
+  checkInspection(state, playerId);
   checkCapture(state, playerId, events);
   checkRamming(state, events, rng);
   moveOrdnance(state, map, ordnanceMovements, events, rng);
@@ -522,16 +590,22 @@ export function processCombat(
     return { results, state };
   }
 
-  const committedAttackers = new Set<string>();
+  const committedAttackers = new Map<string, string>();
   const committedTargets = new Set<string>();
+  const attackGroups = new Map<string, {
+    maxStrength: number;
+    allocatedStrength: number;
+    targetHexKey: string | null;
+    targetType: 'ship' | 'ordnance';
+  }>();
 
   for (const attack of attacks) {
     const attackSeen = new Set<string>();
     const attackers: Ship[] = [];
 
     for (const id of attack.attackerIds) {
-      if (attackSeen.has(id) || committedAttackers.has(id)) {
-        return { error: 'Each ship may attack only once per combat phase' };
+      if (attackSeen.has(id)) {
+        return { error: 'Each ship may appear at most once in an attack declaration' };
       }
 
       const ship = state.ships.find(s => s.id === id);
@@ -543,30 +617,54 @@ export function processCombat(
       attackers.push(ship);
     }
 
+    if (attackers.length === 0) {
+      return { error: 'Invalid attacker selection' };
+    }
+
     const targetType = attack.targetType ?? 'ship';
     const targetKey = `${targetType}:${attack.targetId}`;
+    const groupKey = [...attackSeen].sort().join('|');
     const maxAttackStrength = attackers.reduce((total, ship) => {
       const stats = SHIP_STATS[ship.type];
       return total + (stats?.combat ?? 0);
     }, 0);
-    if (attack.attackStrength != null) {
-      if (targetType !== 'ship') {
-        return { error: 'Reduced-strength attacks are only supported against ships' };
-      }
-      if (!Number.isInteger(attack.attackStrength) || attack.attackStrength < 1 || attack.attackStrength > maxAttackStrength) {
-        return { error: 'Invalid declared attack strength' };
-      }
-    }
     if (committedTargets.has(targetKey)) {
       return { error: 'Each ship may be attacked only once per combat phase' };
     }
 
+    let group = attackGroups.get(groupKey);
     for (const attacker of attackers) {
-      committedAttackers.add(attacker.id);
+      const existingGroup = committedAttackers.get(attacker.id);
+      if (existingGroup && existingGroup !== groupKey) {
+        return { error: 'Each ship may attack only once per combat phase' };
+      }
+      committedAttackers.set(attacker.id, groupKey);
+    }
+    if (!group) {
+      group = {
+        maxStrength: maxAttackStrength,
+        allocatedStrength: 0,
+        targetHexKey: null,
+        targetType,
+      };
+      attackGroups.set(groupKey, group);
+    } else if (group.targetType !== targetType) {
+      return { error: 'An attacking group cannot split fire between ship and ordnance targets' };
+    }
+
+    const remainingStrength = group.maxStrength - group.allocatedStrength;
+    if (remainingStrength <= 0) {
+      return { error: 'Attack group has no strength remaining to allocate' };
     }
     committedTargets.add(targetKey);
 
     if (targetType === 'ordnance') {
+      if (group.allocatedStrength > 0) {
+        return { error: 'Split fire is only supported against ships in the same hex' };
+      }
+      if (attack.attackStrength != null) {
+        return { error: 'Reduced-strength attacks are only supported against ships' };
+      }
       const target = state.ordnance.find(o => o.id === attack.targetId);
       if (!target || target.owner === playerId || target.destroyed || target.type !== 'nuke') {
         return { error: 'Invalid combat target' };
@@ -574,6 +672,7 @@ export function processCombat(
       if (map && attackers.some(attacker => !hasLineOfSightToTarget(attacker, target, map))) {
         return { error: 'Attacker lacks line of sight to target' };
       }
+      group.allocatedStrength = group.maxStrength;
       results.push(resolveAntiNukeAttack(attackers, target, rng));
       continue;
     }
@@ -582,16 +681,29 @@ export function processCombat(
     if (!target || target.owner === playerId || target.destroyed || target.landed) {
       return { error: 'Invalid combat target' };
     }
+    const targetHexKey = hexKey(target.position);
+    if (group.targetHexKey && group.targetHexKey !== targetHexKey) {
+      return { error: 'Split fire may only target ships in the same hex' };
+    }
+    if (attack.attackStrength != null) {
+      if (!Number.isInteger(attack.attackStrength) || attack.attackStrength < 1 || attack.attackStrength > remainingStrength) {
+        return { error: 'Invalid declared attack strength' };
+      }
+    }
     if (map && attackers.some(attacker => !hasLineOfSight(attacker, target, map))) {
       return { error: 'Attacker lacks line of sight to target' };
     }
 
-    const resolution = resolveCombat(attackers, target, state.ships, rng, map, attack.attackStrength ?? null);
+    const allocatedStrength = attack.attackStrength ?? remainingStrength;
+    group.targetHexKey = targetHexKey;
+    group.allocatedStrength += allocatedStrength;
+
+    const resolution = resolveCombat(attackers, target, state.ships, rng, map, allocatedStrength);
     results.push(toCombatResult(resolution));
   }
 
   // Base defense fire: active player's bases fire at enemy ships in adjacent gravity hexes
-  if (map) {
+  if (map && isPlanetaryDefenseEnabled(state)) {
     const baseResults = resolveBaseDefense(state, playerId, map, rng);
     results.push(...baseResults);
   }
@@ -634,7 +746,7 @@ export function skipCombat(
   }
 
   // Base defense fire still happens even if player skips
-  if (map) {
+  if (map && isPlanetaryDefenseEnabled(state)) {
     const baseResults = resolveBaseDefense(state, playerId, map, rng);
     results.push(...baseResults);
     checkGameEnd(state, map);
@@ -667,6 +779,7 @@ export function processOrdnance(
 
   let nextOrdId = state.ordnance.length;
   const launchedShips = new Set<string>();
+  const allowedOrdnanceTypes = getAllowedOrdnanceTypes(state);
 
   for (const launch of launches) {
     // Each ship may launch only 1 item per turn
@@ -690,6 +803,9 @@ export function processOrdnance(
 
     const mass = ORDNANCE_MASS[launch.ordnanceType];
     if (!mass) return { error: 'Invalid ordnance type' };
+    if (!allowedOrdnanceTypes.has(launch.ordnanceType)) {
+      return { error: `This scenario does not allow ${launch.ordnanceType} launches` };
+    }
 
     const stats = SHIP_STATS[ship.type];
     if (!stats) return { error: 'Unknown ship type' };
@@ -1111,11 +1227,15 @@ function shuffle<T>(items: T[], rng?: () => number): T[] {
  * Determine whether the active player should receive an ordnance phase this turn.
  */
 function shouldEnterOrdnancePhase(state: GameState): boolean {
-  // Check if player has ships capable of launching ordnance
+  const allowedOrdnanceTypes = getAllowedOrdnanceTypes(state);
+  if (allowedOrdnanceTypes.size === 0) {
+    return false;
+  }
+
   return state.ships.some(s =>
     s.owner === state.activePlayer && !s.destroyed && !s.landed &&
     s.damage.disabledTurns === 0 && !s.resuppliedThisTurn && !s.captured &&
-    hasOrdnanceCapacity(s),
+    hasLaunchableOrdnanceCapacity(s, allowedOrdnanceTypes),
   );
 }
 
@@ -1130,7 +1250,7 @@ function shouldEnterCombatPhase(state: GameState, map: SolarSystemMap): boolean 
     return true;
   }
 
-  if (hasBaseDefenseTargets(state, map)) {
+  if (isPlanetaryDefenseEnabled(state) && hasBaseDefenseTargets(state, map)) {
     return true;
   }
 
@@ -1145,6 +1265,22 @@ function hasOrdnanceCapacity(ship: Ship): boolean {
   if (!stats) return false;
   const minMass = ORDNANCE_MASS.mine; // smallest ordnance
   return (stats.cargo - ship.cargoUsed) >= minMass;
+}
+
+function hasLaunchableOrdnanceCapacity(ship: Ship, allowedTypes: Set<Ordnance['type']>): boolean {
+  const stats = SHIP_STATS[ship.type];
+  if (!stats) return false;
+
+  for (const ordnanceType of allowedTypes) {
+    const mass = ORDNANCE_MASS[ordnanceType];
+    if (mass == null || ship.cargoUsed + mass > stats.cargo) continue;
+    if (ship.type === 'orbitalBase' && ordnanceType !== 'torpedo') continue;
+    if (ordnanceType === 'torpedo' && !stats.canOverload && ship.type !== 'orbitalBase') continue;
+    if (ordnanceType === 'nuke' && !stats.canOverload && (ship.nukesLaunchedSinceResupply ?? 0) >= 1) continue;
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -1183,7 +1319,7 @@ function shouldRemainInCombatPhase(state: GameState, map?: SolarSystemMap): bool
   if (!map) {
     return hasAnyEnemyShips(state);
   }
-  return hasManualCombatTargets(state, map) || hasBaseDefenseTargets(state, map);
+  return hasManualCombatTargets(state, map) || (isPlanetaryDefenseEnabled(state) && hasBaseDefenseTargets(state, map));
 }
 
 function hasAnyEnemyShips(state: GameState): boolean {
@@ -1355,6 +1491,30 @@ function checkRamming(
 }
 
 /**
+ * Reveal hidden-identity ships when an enemy matches courses with them.
+ */
+function checkInspection(state: GameState, playerId: number): void {
+  if (!usesEscapeInspectionRules(state)) return;
+
+  const inspectingShips = state.ships.filter(ship =>
+    ship.owner === playerId &&
+    !ship.destroyed &&
+    !ship.landed &&
+    ship.damage.disabledTurns === 0,
+  );
+
+  for (const inspector of inspectingShips) {
+    for (const target of state.ships) {
+      if (target.owner === playerId || target.destroyed) continue;
+      if (target.identityRevealed) continue;
+      if (!hexEqual(inspector.position, target.position)) continue;
+      if (inspector.velocity.dq !== target.velocity.dq || inspector.velocity.dr !== target.velocity.dr) continue;
+      target.identityRevealed = true;
+    }
+  }
+}
+
+/**
  * Check for capture: when the moving player's ship ends on the same hex
  * with the same velocity as a disabled enemy ship, that ship is captured.
  * Captured ships switch owner but cannot act until resupplied at a friendly base.
@@ -1379,6 +1539,7 @@ function checkCapture(
       // Capture! Transfer ownership
       target.captured = true;
       target.owner = playerId;
+      target.identityRevealed = true;
 
       events.push({
         type: 'capture',
@@ -1497,6 +1658,28 @@ function updateDetection(state: GameState, map: SolarSystemMap): void {
   }
 }
 
+function getFugitiveShip(state: GameState): Ship | undefined {
+  return state.ships.find(ship => ship.hasFugitives);
+}
+
+function fugitiveHasEscaped(state: GameState, ship: Ship, map: SolarSystemMap): boolean {
+  const escapeEdge = getEscapeEdge(state);
+  if (escapeEdge === 'north') {
+    return hasEscapedNorth(ship.position, map.bounds);
+  }
+  return hasEscaped(ship.position, map.bounds);
+}
+
+function hasReturnedCapturedFugitivesToBase(state: GameState, map: SolarSystemMap): boolean {
+  const fugitive = getFugitiveShip(state);
+  if (!fugitive || fugitive.destroyed || !fugitive.captured || !fugitive.landed) {
+    return false;
+  }
+  const baseKey = hexKey(fugitive.position);
+  const baseHex = map.hexes.get(baseKey);
+  return !!baseHex?.base && !state.destroyedBases.includes(baseKey) && playerControlsBase(state, fugitive.owner, baseKey);
+}
+
 /**
  * Check immediate movement-based victory conditions.
  */
@@ -1519,15 +1702,22 @@ function checkImmediateVictory(state: GameState, map?: SolarSystemMap): void {
   for (const ship of state.ships) {
     if (ship.destroyed) continue;
     if (!state.players[ship.owner].escapeWins) continue;
-    if (hasEscaped(ship.position, map.bounds)) {
-      // In hidden-identity scenarios, only the fugitive ship's escape counts
-      const hasFugitiveScenario = state.ships.some(s => s.owner === ship.owner && s.hasFugitives);
-      if (hasFugitiveScenario && !ship.hasFugitives) continue;
-      state.winner = ship.owner;
-      state.winReason = ship.hasFugitives ? 'The fugitives escaped!' : 'Escaped the solar system!';
-      state.phase = 'gameOver';
-      return;
+    if (!fugitiveHasEscaped(state, ship, map)) continue;
+
+    const hasFugitiveScenario = state.ships.some(s => s.owner === ship.owner && s.hasFugitives);
+    if (hasFugitiveScenario && !ship.hasFugitives) continue;
+
+    state.winner = ship.owner;
+    if (ship.hasFugitives) {
+      const fuelNeededToStop = hexVecLength(ship.velocity) + 1;
+      state.winReason = ship.fuel >= fuelNeededToStop
+        ? 'Pilgrims decisive victory — the fugitives escaped beyond Jupiter with fuel to spare!'
+        : 'Pilgrims marginal victory — the fugitives escaped beyond Jupiter!';
+    } else {
+      state.winReason = 'Escaped the solar system!';
     }
+    state.phase = 'gameOver';
+    return;
   }
 }
 
@@ -1540,15 +1730,23 @@ function checkGameEnd(state: GameState, map?: SolarSystemMap): void {
     return;
   }
 
-  // Check hidden-identity loss: if the fugitive ship is destroyed, opponent wins
-  for (const ship of state.ships) {
-    if (ship.hasFugitives && ship.destroyed) {
-      const opponent = 1 - ship.owner;
+  if (usesEscapeInspectionRules(state)) {
+    const fugitive = getFugitiveShip(state);
+    if (fugitive?.destroyed) {
+      const opponent = 1 - fugitive.owner;
       state.winner = opponent;
-      state.winReason = 'The fugitives have been captured!';
+      state.winReason = 'Enforcers marginal victory — the fugitive transport was destroyed.';
       state.phase = 'gameOver';
       return;
     }
+    if (map && hasReturnedCapturedFugitivesToBase(state, map)) {
+      const fugitiveOwner = fugitive?.owner ?? 1;
+      state.winner = fugitiveOwner;
+      state.winReason = 'Enforcers decisive victory — the fugitives were captured and returned to base.';
+      state.phase = 'gameOver';
+      return;
+    }
+    return;
   }
 
   // Check loss: all ships destroyed
@@ -1585,6 +1783,14 @@ function hasEscaped(
   const margin = 3;
   return pos.q < bounds.minQ - margin || pos.q > bounds.maxQ + margin ||
          pos.r < bounds.minR - margin || pos.r > bounds.maxR + margin;
+}
+
+function hasEscapedNorth(
+  pos: { q: number; r: number },
+  bounds: { minQ: number; maxQ: number; minR: number; maxR: number },
+): boolean {
+  const margin = 3;
+  return pos.r < bounds.minR - margin;
 }
 
 function resolveAntiNukeAttack(

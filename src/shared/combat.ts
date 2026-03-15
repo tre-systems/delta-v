@@ -349,15 +349,9 @@ export function resolveCombat(
   const velocityMod = computeGroupVelocityMod(attackers, target);
 
   const dieRoll = rollD6(rng);
-  // Heroism: +1 bonus if any attacker has heroism available
-  let heroismUsed = false;
   const heroismAttacker = attackers.find(s => s.heroismAvailable);
   const heroismBonus = heroismAttacker ? 1 : 0;
   const modifiedRoll = dieRoll - rangeMod - velocityMod + heroismBonus;
-  if (heroismAttacker) {
-    heroismAttacker.heroismAvailable = false;
-    heroismUsed = true;
-  }
   const damageResult = lookupGunCombat(odds, modifiedRoll);
 
   // Counterattack happens before attack damage is implemented.
@@ -369,8 +363,9 @@ export function resolveCombat(
     const counterRange = rangeMod;
     const counterVelMod = velocityMod;
 
+    const counterHeroism = counterattackers.some(ship => ship.heroismAvailable) ? 1 : 0;
     const counterDie = rollD6(rng);
-    const counterModified = counterDie - counterRange - counterVelMod;
+    const counterModified = counterDie - counterRange - counterVelMod + counterHeroism;
     const counterResult = lookupGunCombat(counterOdds, counterModified);
 
     counterattack = {
@@ -394,11 +389,14 @@ export function resolveCombat(
 
   applyDamage(target, damageResult);
 
-  // Grant heroism: surviving at 2:1 or worse odds against you earns a one-time +1 bonus
-  if (!target.destroyed && damageResult.type !== 'eliminated') {
-    const defenseRatio = defendStrength / attackStrength;
-    if (defenseRatio <= 0.5) { // target was outgunned 2:1 or worse
-      target.heroismAvailable = true;
+  // Heroism: attackers that win at underdog odds become permanently heroic.
+  if (attackStrength < defendStrength) {
+    const achievedD2OrBetter = damageResult.type === 'eliminated'
+      || (damageResult.type === 'disabled' && damageResult.disabledTurns >= 2);
+    if (achievedD2OrBetter) {
+      for (const attacker of attackers) {
+        attacker.heroismAvailable = true;
+      }
     }
   }
 

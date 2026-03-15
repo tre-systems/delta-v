@@ -69,7 +69,7 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#4488cc',
     renderRadius: 1.2,
-    baseDirections: [1, 4], // NE and SW — rules: "Terra [has] two"
+    baseDirections: [0, 1, 2, 3, 4, 5], // rules: "Terra ... have bases on all six sides"
   },
   {
     name: 'Luna',
@@ -80,7 +80,7 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#cccccc',
     renderRadius: 0.45,
-    baseDirections: [0], // E — rules: "Luna [has] one base"
+    baseDirections: [0, 1, 2, 3, 4, 5], // rules: "Luna ... have bases on all six sides"
   },
   {
     name: 'Mars',
@@ -91,7 +91,7 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#cc4422',
     renderRadius: 0.7,
-    baseDirections: [1, 4], // NE and SW — rules: "Mars [has] two"
+    baseDirections: [0, 1, 2, 3, 4, 5], // rules: "Mars ... have bases on all six sides"
   },
   {
     name: 'Ceres',
@@ -303,6 +303,12 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     //  Planetary defenses are not operating."
     name: 'Escape',
     description: '3 pilgrim transports flee Terra — enforcers must stop them',
+    rules: {
+      allowedOrdnanceTypes: ['nuke'],
+      planetaryDefenseEnabled: false,
+      hiddenIdentityInspection: true,
+      escapeEdge: 'north',
+    },
     players: [
       {
         // Pilgrims: 3 transports at Terra, launching outward
@@ -313,6 +319,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ],
         targetBody: '',
         homeBody: 'Terra',
+        bases: [],
         escapeWins: true,
         hiddenIdentity: true,
       },
@@ -324,6 +331,13 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ],
         targetBody: '',
         homeBody: 'Venus',
+        bases: [
+          { q: 12, r: -8 }, { q: 12, r: -10 }, { q: 10, r: -10 },
+          { q: 8, r: -8 }, { q: 8, r: -6 }, { q: 10, r: -6 },
+          { q: -5, r: 7 }, { q: -5, r: 5 }, { q: -7, r: 5 },
+          { q: -9, r: 7 }, { q: -9, r: 9 }, { q: -7, r: 9 },
+          { q: 1, r: -22 },
+        ],
         escapeWins: false,
       },
     ],

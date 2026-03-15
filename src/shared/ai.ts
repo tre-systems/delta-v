@@ -190,6 +190,7 @@ export function aiOrdnance(
   difficulty: AIDifficulty = 'normal',
 ): OrdnanceLaunch[] {
   const launches: OrdnanceLaunch[] = [];
+  const allowedTypes = new Set(state.scenarioRules.allowedOrdnanceTypes ?? ['mine', 'torpedo', 'nuke']);
 
   // Easy AI rarely uses ordnance (30% chance to skip entirely)
   if (difficulty === 'easy' && Math.random() < 0.3) return launches;
@@ -223,7 +224,7 @@ export function aiOrdnance(
 
     // Hard AI: launch nuke at enemies within range if cargo allows
     const canLaunchNuke = stats.canOverload || (ship.nukesLaunchedSinceResupply ?? 0) < 1;
-    if (difficulty === 'hard' && nearestDist <= torpedoRange &&
+    if (allowedTypes.has('nuke') && difficulty === 'hard' && nearestDist <= torpedoRange &&
         cargoFree >= ORDNANCE_MASS.nuke && canLaunchNuke) {
       // Prefer nukes over torpedoes when enemy is strong
       const enemyStr = getCombatStrength([nearestEnemy]);
@@ -238,7 +239,7 @@ export function aiOrdnance(
     }
 
     // Launch torpedo if enemy is within range and ship can
-    if (nearestDist <= torpedoRange && stats.canOverload && cargoFree >= ORDNANCE_MASS.torpedo) {
+    if (allowedTypes.has('torpedo') && nearestDist <= torpedoRange && stats.canOverload && cargoFree >= ORDNANCE_MASS.torpedo) {
       // Aim guidance toward enemy
       const bestDir = findDirectionToward(ship.position, nearestEnemy.position);
       launches.push({
@@ -251,7 +252,7 @@ export function aiOrdnance(
     }
 
     // Drop a mine if enemies are close-ish and we have cargo
-    if (nearestDist <= mineRange && cargoFree >= ORDNANCE_MASS.mine) {
+    if (allowedTypes.has('mine') && nearestDist <= mineRange && cargoFree >= ORDNANCE_MASS.mine) {
       // Rule: must change course (burn) to launch a mine
       const pendingOrder = (state.pendingAstrogationOrders ?? []).find(o => o.shipId === ship.id);
       const hasBurn = pendingOrder?.burn != null || pendingOrder?.overload != null;
@@ -266,7 +267,7 @@ export function aiOrdnance(
 
     // Defensive mine-laying: drop mines behind when being pursued (escape scenarios)
     const player = state.players[playerId];
-    if (player?.escapeWins && nearestDist <= 8 && cargoFree >= ORDNANCE_MASS.mine) {
+    if (allowedTypes.has('mine') && player?.escapeWins && nearestDist <= 8 && cargoFree >= ORDNANCE_MASS.mine) {
       // Only if enemy is approaching from behind
       const speed = hexVecLength(ship.velocity);
       if (speed >= 2 && difficulty !== 'easy') {
