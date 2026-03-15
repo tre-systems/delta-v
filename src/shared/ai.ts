@@ -60,6 +60,13 @@ export function aiAstrogation(
     if (ship.owner !== playerId) continue;
 
     if (ship.destroyed) continue;
+    if (ship.emplaced) continue; // orbital bases don't need astrogation
+
+    // Captured ships can't act
+    if (ship.captured) {
+      orders.push({ shipId: ship.id, burn: null });
+      continue;
+    }
 
     // Disabled ships just drift
     if (ship.damage.disabledTurns > 0) {
@@ -471,8 +478,11 @@ function scoreCourse(
 
       if (noPrimaryObjective) {
         // Pure combat mode: aggressively seek combat range
-        // Close in — strong bonus for being at range 1-3
-        score += Math.max(0, 8 - dist) * 5 * mult;
+        // Close in — bonus that scales with distance to ensure incentive even at long range
+        score += Math.max(0, 50 - dist) * 1 * mult;
+        
+        // Extra strong bonus for being at range 1-3
+        if (dist <= 3) score += 20 * mult;
         
         // Velocity matching: prefer courses that match the enemy's velocity to reduce combat penalties
         const velMatchDist = hexDistance(
@@ -489,9 +499,11 @@ function scoreCourse(
       } else if (myStrength > 0) {
         // Has objective but also can fight
         if (myStrength >= enemyStr) {
-          score += Math.max(0, 5 - dist) * 2 * mult;
+          // If we are stronger or equal, we should push toward them if they are nearby
+          score += Math.max(0, 10 - dist) * 1.5 * mult;
         } else {
-          score += Math.min(dist, 5) * 1 * mult;
+          // If we are weaker, maintain some distance but don't just run away if it stalls the game
+          score += Math.min(dist, 8) * 0.5 * mult;
         }
       }
     }

@@ -37,9 +37,9 @@ async function runSingleGame(scenarioName: string, p0Diff: AIDifficulty, p1Diff:
     throw new Error(`Failed to create game: ${err.message}`);
   }
 
-  let turnLimit = 200; // prevent absolute infinite loops
+  let phaseLimit = 1000; // allow for long games traversing the system
 
-  while (state.phase !== 'gameOver' && turnLimit > 0) {
+  while (state.phase !== 'gameOver' && phaseLimit > 0) {
     const activePlayer = state.activePlayer;
     const difficulty = activePlayer === 0 ? p0Diff : p1Diff;
 
@@ -84,10 +84,10 @@ async function runSingleGame(scenarioName: string, p0Diff: AIDifficulty, p1Diff:
       throw err;
     }
 
-    turnLimit--;
+    phaseLimit--;
   }
 
-  if (turnLimit <= 0) {
+  if (phaseLimit <= 0) {
     return { winner: null, turns: state.turnNumber, reason: 'timeout' };
   }
 
