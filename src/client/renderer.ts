@@ -595,13 +595,12 @@ export class Renderer {
   }
 
   private renderBaseMarkers(ctx: CanvasRenderingContext2D, map: SolarSystemMap, state: GameState | null) {
-    // Determine home bodies for coloring
-    let myHome = '';
-    let enemyHome = '';
+    let myBases = new Set<string>();
+    let enemyBases = new Set<string>();
     const destroyed = new Set(state?.destroyedBases ?? []);
     if (state && this.playerId >= 0) {
-      myHome = state.players[this.playerId]?.homeBody ?? '';
-      enemyHome = state.players[1 - this.playerId]?.homeBody ?? '';
+      myBases = new Set(state.players[this.playerId]?.bases ?? []);
+      enemyBases = new Set(state.players[1 - this.playerId]?.bases ?? []);
     }
 
     for (const [key, hex] of map.hexes) {
@@ -623,10 +622,10 @@ export class Renderer {
       }
 
       // Color by ownership
-      if (hex.base.bodyName === myHome) {
+      if (myBases.has(key)) {
         ctx.fillStyle = '#4fc3f7'; // friendly blue
         ctx.strokeStyle = '#2196f3';
-      } else if (hex.base.bodyName === enemyHome) {
+      } else if (enemyBases.has(key)) {
         ctx.fillStyle = '#ff8a65'; // enemy orange
         ctx.strokeStyle = '#e64a19';
       } else {
@@ -782,22 +781,21 @@ export class Renderer {
     // Show base detection ranges for own bases
     const player = state.players[this.playerId];
     const destroyed = new Set(state.destroyedBases);
-    if (player?.homeBody) {
-      for (const [key, hex] of map.hexes) {
-        if (!hex.base || hex.base.bodyName !== player.homeBody) continue;
-        if (destroyed.has(key)) continue;
-        const [q, r] = key.split(',').map(Number);
-        const p = hexToPixel({ q, r }, HEX_SIZE);
-        const radius = BASE_DETECTION_RANGE * HEX_SIZE * 1.73;
+    for (const key of player?.bases ?? []) {
+      if (destroyed.has(key)) continue;
+      const hex = map.hexes.get(key);
+      if (!hex?.base) continue;
+      const [q, r] = key.split(',').map(Number);
+      const p = hexToPixel({ q, r }, HEX_SIZE);
+      const radius = BASE_DETECTION_RANGE * HEX_SIZE * 1.73;
 
-        ctx.strokeStyle = 'rgba(79, 195, 247, 0.05)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 8]);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
+      ctx.strokeStyle = 'rgba(79, 195, 247, 0.05)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 8]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
   }
 

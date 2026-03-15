@@ -353,6 +353,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ],
         targetBody: '',
         homeBody: 'Mercury',
+        bases: [{ q: 8, r: -2 }],
         escapeWins: false,
       },
       {
@@ -361,6 +362,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ],
         targetBody: '',
         homeBody: 'Mercury',
+        bases: [{ q: 6, r: -2 }],
         escapeWins: false,
       },
     ],
@@ -429,13 +431,18 @@ export function getSolarSystemMap(): SolarSystemMap {
   return _map;
 }
 
-// Helper: find a base hex for a body (first base found)
-export function findBaseHex(map: SolarSystemMap, bodyName: string): HexCoord | null {
+export function findBaseHexes(map: SolarSystemMap, bodyName: string): HexCoord[] {
+  const bases: HexCoord[] = [];
   for (const [key, hex] of map.hexes) {
     if (hex.base?.bodyName === bodyName) {
       const [q, r] = key.split(',').map(Number);
-      return { q, r };
+      bases.push({ q, r });
     }
   }
-  return null;
+  return bases;
+}
+
+// Helper: find a base hex for a body (first base found)
+export function findBaseHex(map: SolarSystemMap, bodyName: string): HexCoord | null {
+  return findBaseHexes(map, bodyName)[0] ?? null;
 }

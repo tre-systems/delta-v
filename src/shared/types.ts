@@ -56,7 +56,8 @@ export interface PlayerState {
   connected: boolean;
   ready: boolean;
   targetBody: string; // body name they must land on ('' if no landing target)
-  homeBody: string; // body name for base ownership / resupply
+  homeBody: string; // default home world / scenario identity
+  bases: string[]; // hexKey[] for bases this player controls
   escapeWins: boolean; // true if this player wins by escaping the map
 }
 
@@ -228,7 +229,8 @@ export interface ScenarioShip {
 export interface ScenarioPlayer {
   ships: ScenarioShip[];
   targetBody: string;
-  homeBody: string; // body name for base ownership / resupply
+  homeBody: string; // default home world / starting body
+  bases?: HexCoord[]; // explicit controlled bases for scenarios that split a world's bases
   escapeWins: boolean; // true if this player wins by escaping
 }
 
