@@ -435,6 +435,18 @@ export function processCombat(
 
     const targetType = attack.targetType ?? 'ship';
     const targetKey = `${targetType}:${attack.targetId}`;
+    const maxAttackStrength = attackers.reduce((total, ship) => {
+      const stats = SHIP_STATS[ship.type];
+      return total + (stats?.combat ?? 0);
+    }, 0);
+    if (attack.attackStrength != null) {
+      if (targetType !== 'ship') {
+        return { error: 'Reduced-strength attacks are only supported against ships' };
+      }
+      if (!Number.isInteger(attack.attackStrength) || attack.attackStrength < 1 || attack.attackStrength > maxAttackStrength) {
+        return { error: 'Invalid declared attack strength' };
+      }
+    }
     if (committedTargets.has(targetKey)) {
       return { error: 'Each ship may be attacked only once per combat phase' };
     }
@@ -464,7 +476,7 @@ export function processCombat(
       return { error: 'Attacker lacks line of sight to target' };
     }
 
-    const resolution = resolveCombat(attackers, target, state.ships, rng, map);
+    const resolution = resolveCombat(attackers, target, state.ships, rng, map, attack.attackStrength ?? null);
     results.push(toCombatResult(resolution));
   }
 

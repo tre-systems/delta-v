@@ -10,6 +10,7 @@ import {
 import type { GameState, Ship, SolarSystemMap } from '../shared/types';
 import { predictDestination, computeCourse } from '../shared/movement';
 import { SHIP_STATS } from '../shared/constants';
+import { canAttack, getCombatStrength, hasLineOfSight, hasLineOfSightToTarget } from '../shared/combat';
 import { type Camera, type PlanningState, HEX_SIZE } from './renderer';
 
 export class InputHandler {
@@ -283,13 +284,26 @@ export class InputHandler {
   private handleCombatClick(clickHex: HexCoord) {
     if (!this.gameState) return;
 
+    for (const ship of this.gameState.ships) {
+      if (ship.owner !== this.playerId || ship.destroyed || !canAttack(ship)) continue;
+      if (hexEqual(clickHex, ship.position)) {
+        if (this.toggleCombatAttacker(ship.id)) {
+          this.planningState.selectedShipId = ship.id;
+          return;
+        }
+      }
+    }
+
     for (const ord of this.gameState.ordnance) {
       if (ord.owner === this.playerId || ord.destroyed || ord.type !== 'nuke') continue;
       if (hexEqual(clickHex, ord.position)) {
         const isSame = this.planningState.combatTargetId === ord.id
           && this.planningState.combatTargetType === 'ordnance';
-        this.planningState.combatTargetId = isSame ? null : ord.id;
-        this.planningState.combatTargetType = isSame ? null : 'ordnance';
+        if (isSame) {
+          this.clearCombatTarget();
+        } else {
+          this.setCombatTarget(ord.id, 'ordnance');
+        }
         return;
       }
     }
@@ -301,15 +315,84 @@ export class InputHandler {
         // Toggle: click same target = deselect
         const isSame = this.planningState.combatTargetId === ship.id
           && this.planningState.combatTargetType === 'ship';
-        this.planningState.combatTargetId = isSame ? null : ship.id;
-        this.planningState.combatTargetType = isSame ? null : 'ship';
+        if (isSame) {
+          this.clearCombatTarget();
+        } else {
+          this.setCombatTarget(ship.id, 'ship');
+        }
         return;
       }
     }
 
     // Clicked empty space — deselect target
+    this.clearCombatTarget();
+  }
+
+  private setCombatTarget(targetId: string, targetType: 'ship' | 'ordnance') {
+    this.planningState.combatTargetId = targetId;
+    this.planningState.combatTargetType = targetType;
+    const legalAttackers = this.getLegalCombatAttackers(targetId, targetType);
+    this.planningState.combatAttackerIds = legalAttackers.map(ship => ship.id);
+    this.planningState.combatAttackStrength = targetType === 'ship'
+      ? getCombatStrength(legalAttackers)
+      : null;
+  }
+
+  private clearCombatTarget() {
     this.planningState.combatTargetId = null;
     this.planningState.combatTargetType = null;
+    this.planningState.combatAttackerIds = [];
+    this.planningState.combatAttackStrength = null;
+  }
+
+  private toggleCombatAttacker(shipId: string): boolean {
+    const targetId = this.planningState.combatTargetId;
+    const targetType = this.planningState.combatTargetType;
+    if (!targetId || !targetType) return false;
+
+    const legalAttackers = this.getLegalCombatAttackers(targetId, targetType);
+    const legalIds = new Set(legalAttackers.map(ship => ship.id));
+    if (!legalIds.has(shipId)) return false;
+
+    const selected = this.planningState.combatAttackerIds.filter(id => legalIds.has(id));
+    const nextSelected = selected.includes(shipId)
+      ? selected.filter(id => id !== shipId)
+      : legalAttackers.filter(ship => selected.includes(ship.id) || ship.id === shipId).map(ship => ship.id);
+
+    if (nextSelected.length === 0) {
+      return true;
+    }
+
+    this.planningState.combatAttackerIds = nextSelected;
+    this.planningState.combatAttackStrength = targetType === 'ship'
+      ? Math.min(
+        Math.max(this.planningState.combatAttackStrength ?? getCombatStrength(legalAttackers), 1),
+        getCombatStrength(legalAttackers.filter(ship => nextSelected.includes(ship.id))),
+      )
+      : null;
+    return true;
+  }
+
+  private getLegalCombatAttackers(targetId: string, targetType: 'ship' | 'ordnance'): Ship[] {
+    if (!this.gameState || !this.map) return [];
+
+    const myAttackers = this.gameState.ships.filter(ship =>
+      ship.owner === this.playerId && !ship.destroyed && canAttack(ship),
+    );
+
+    if (targetType === 'ordnance') {
+      const target = this.gameState.ordnance.find(ord =>
+        ord.id === targetId && !ord.destroyed && ord.owner !== this.playerId && ord.type === 'nuke',
+      );
+      if (!target) return [];
+      return myAttackers.filter(attacker => hasLineOfSightToTarget(attacker, target, this.map!));
+    }
+
+    const target = this.gameState.ships.find(ship =>
+      ship.id === targetId && !ship.destroyed && ship.owner !== this.playerId,
+    );
+    if (!target) return [];
+    return myAttackers.filter(attacker => hasLineOfSight(attacker, target, this.map!));
   }
 
   /**

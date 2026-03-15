@@ -175,6 +175,8 @@ export interface PlanningState {
   torpedoAccelSteps: 1 | 2 | null;
   combatTargetId: string | null; // enemy ship targeted for combat
   combatTargetType: 'ship' | 'ordnance' | null;
+  combatAttackerIds: string[];
+  combatAttackStrength: number | null;
 }
 
 // --- Renderer ---
@@ -199,6 +201,8 @@ export class Renderer {
     torpedoAccelSteps: null,
     combatTargetId: null,
     combatTargetType: null,
+    combatAttackerIds: [],
+    combatAttackStrength: null,
   };
   private combatResults: { results: CombatResult[]; showUntil: number } | null = null;
   private combatEffects: CombatEffect[] = [];
@@ -1475,11 +1479,25 @@ export class Renderer {
         }
       }
       if (legalAttackers.length === 0) return;
+      const selectedAttackers = legalAttackers.filter(attacker =>
+        this.planningState.combatAttackerIds.includes(attacker.id),
+      );
+      const activeAttackers = selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
+      const selectedAttackerIds = new Set(activeAttackers.map(attacker => attacker.id));
 
       const targetPos = hexToPixel((ordnanceTarget ?? shipTarget)!.position, HEX_SIZE);
 
+      for (const attacker of activeAttackers) {
+        const attackerPos = hexToPixel(attacker.position, HEX_SIZE);
+        ctx.strokeStyle = 'rgba(79, 195, 247, 0.55)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(attackerPos.x, attackerPos.y, 14, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
       // Attack lines from each attacker
-      for (const attacker of legalAttackers) {
+      for (const attacker of activeAttackers) {
         const attackerPos = hexToPixel(attacker.position, HEX_SIZE);
         ctx.strokeStyle = 'rgba(255, 80, 80, 0.4)';
         ctx.lineWidth = 1.5;
@@ -1497,22 +1515,28 @@ export class Renderer {
       let odds = '2:1';
       let rangeMod = 0;
       let velMod = 0;
+      let label = '';
 
       if (ordnanceTarget) {
-        rangeMod = computeGroupRangeModToTarget(legalAttackers, ordnanceTarget);
-        velMod = computeGroupVelocityModToTarget(legalAttackers, ordnanceTarget);
+        rangeMod = computeGroupRangeModToTarget(activeAttackers, ordnanceTarget);
+        velMod = computeGroupVelocityModToTarget(activeAttackers, ordnanceTarget);
+        label = `2:1  R-${rangeMod} V-${velMod}`;
       } else {
-        attackStr = getCombatStrength(legalAttackers);
+        const maxAttackStr = getCombatStrength(activeAttackers);
+        attackStr = maxAttackStr > 0
+          ? Math.max(1, Math.min(maxAttackStr, this.planningState.combatAttackStrength ?? maxAttackStr))
+          : 0;
         defendStr = getCombatStrength([shipTarget!]);
         odds = computeOdds(attackStr, defendStr);
-        rangeMod = computeGroupRangeMod(legalAttackers, shipTarget!);
-        velMod = computeGroupVelocityMod(legalAttackers, shipTarget!);
+        rangeMod = computeGroupRangeMod(activeAttackers, shipTarget!);
+        velMod = computeGroupVelocityMod(activeAttackers, shipTarget!);
+        label = `${odds}  ATK ${attackStr}/${maxAttackStr}  R-${rangeMod} V-${velMod}`;
       }
       const totalMod = -(rangeMod + velMod);
 
       // Background box
       const modStr = totalMod >= 0 ? `+${totalMod}` : `${totalMod}`;
-      const label = `${odds}  R-${rangeMod} V-${velMod}  (${modStr})`;
+      label = `${label}  (${modStr})`;
       ctx.font = 'bold 10px monospace';
       const textW = ctx.measureText(label).width;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -1526,7 +1550,8 @@ export class Renderer {
       if (shipTarget && getCounterattackers(shipTarget, state.ships).length > 0) {
         ctx.fillStyle = 'rgba(255, 170, 0, 0.7)';
         ctx.font = '7px monospace';
-        ctx.fillText('CAN COUNTER', targetPos.x, targetPos.y - 38);
+        const attackerLabel = selectedAttackerIds.size > 1 ? ` / ${selectedAttackerIds.size} SHIPS` : '';
+        ctx.fillText(`CAN COUNTER${attackerLabel}`, targetPos.x, targetPos.y - 38);
       }
     }
   }

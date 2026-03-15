@@ -41,6 +41,7 @@ export interface CombatAttack {
   attackerIds: string[];
   targetId: string;
   targetType?: 'ship' | 'ordnance';
+  attackStrength?: number | null;
 }
 
 export interface CombatResolution {
@@ -125,6 +126,15 @@ export function getCombatStrength(ships: Ship[]): number {
     if (stats) total += stats.combat;
   }
   return total;
+}
+
+export function getDeclaredCombatStrength(
+  ships: Ship[],
+  declaredStrength?: number | null,
+): number {
+  const maxStrength = getCombatStrength(ships);
+  if (declaredStrength == null) return maxStrength;
+  return Math.max(1, Math.min(maxStrength, declaredStrength));
 }
 
 /**
@@ -322,13 +332,15 @@ export function resolveCombat(
   allShips: Ship[],
   rng?: () => number,
   _map?: SolarSystemMap,
+  declaredAttackStrength?: number | null,
 ): CombatResolution {
-  const attackStrength = getCombatStrength(attackers);
+  const maxAttackStrength = getCombatStrength(attackers);
+  const attackStrength = getDeclaredCombatStrength(attackers, declaredAttackStrength);
   const defendStrength = getCombatStrength([target]);
   const odds = computeOdds(attackStrength, defendStrength);
 
   // Use the worst applicable modifiers across the attacking group.
-  const primaryAttacker = attackers[0];
+  const primaryAttacker = chooseCounterattackTarget(attackers);
   const rangeMod = computeGroupRangeMod(attackers, target);
   const velocityMod = computeGroupVelocityMod(attackers, target);
 
@@ -341,7 +353,7 @@ export function resolveCombat(
   const counterattackers = getCounterattackers(target, allShips);
   if (counterattackers.length > 0) {
     const counterStrength = getCombatStrength(counterattackers);
-    const counterOdds = computeOdds(counterStrength, attackStrength);
+    const counterOdds = computeOdds(counterStrength, maxAttackStrength);
     const counterRange = rangeMod;
     const counterVelMod = velocityMod;
 
@@ -354,7 +366,7 @@ export function resolveCombat(
       targetId: primaryAttacker.id,
       odds: counterOdds,
       attackStrength: counterStrength,
-      defendStrength: attackStrength,
+      defendStrength: maxAttackStrength,
       rangeMod: counterRange,
       velocityMod: counterVelMod,
       dieRoll: counterDie,
@@ -383,6 +395,18 @@ export function resolveCombat(
     damageResult,
     counterattack,
   };
+}
+
+function chooseCounterattackTarget(attackers: Ship[]): Ship {
+  return [...attackers].sort((a, b) => {
+    const aStrength = SHIP_STATS[a.type]?.combat ?? 0;
+    const bStrength = SHIP_STATS[b.type]?.combat ?? 0;
+    if (bStrength !== aStrength) return bStrength - aStrength;
+    if (b.damage.disabledTurns !== a.damage.disabledTurns) {
+      return b.damage.disabledTurns - a.damage.disabledTurns;
+    }
+    return a.id.localeCompare(b.id);
+  })[0];
 }
 
 /**
