@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import type { GameState, C2S, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, OrbitalBaseEmplacement, FleetPurchase } from '../shared/types';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../shared/constants';
-import { createGame, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat } from '../shared/game-engine';
+import { createGame, filterStateForPlayer, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat } from '../shared/game-engine';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -104,7 +104,7 @@ export class GameDO extends DurableObject {
       // Send current game state so they can rejoin (filtered for hidden info)
       const gameState = await this.getGameState();
       if (gameState) {
-        const filteredState = this.filterStateForPlayer(gameState, playerId);
+        const filteredState = filterStateForPlayer(gameState, playerId);
         this.send(server, { type: 'gameStart', state: filteredState });
       }
 
@@ -516,26 +516,12 @@ export class GameDO extends DurableObject {
     }
   }
 
-  private filterStateForPlayer(state: GameState, playerId: number): GameState {
-    const hasHiddenInfo = state.ships.some(s => s.hasFugitives);
-    if (!hasHiddenInfo) return state;
-    return {
-      ...state,
-      ships: state.ships.map(s => {
-        if (s.hasFugitives && s.owner !== playerId) {
-          const { hasFugitives, ...rest } = s;
-          return rest;
-        }
-        return s;
-      }),
-    };
-  }
-
   /**
    * Broadcast a message containing game state, filtering hidden information per player.
    */
   private broadcastFiltered(msg: S2C & { state: GameState }) {
-    const hasHiddenInfo = msg.state.ships.some(s => s.hasFugitives);
+    const hasHiddenInfo = msg.state.scenarioRules.hiddenIdentityInspection
+      || msg.state.ships.some(s => s.hasFugitives || s.identityRevealed === false);
     if (!hasHiddenInfo) {
       this.broadcast(msg);
       return;
@@ -544,7 +530,7 @@ export class GameDO extends DurableObject {
     for (let playerId = 0; playerId < 2; playerId++) {
       const sockets = this.ctx.getWebSockets(`player:${playerId}`);
       if (sockets.length === 0) continue;
-      const filtered = { ...msg, state: this.filterStateForPlayer(msg.state, playerId) };
+      const filtered = { ...msg, state: filterStateForPlayer(msg.state, playerId) };
       const data = JSON.stringify(filtered);
       for (const ws of sockets) {
         try { ws.send(data); } catch {}
