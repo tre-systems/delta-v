@@ -500,8 +500,8 @@ describe('Escape scenario', () => {
   it('ship escaping map bounds wins for pilgrim', () => {
     // The fugitive ship must escape to win
     const fugitive = escapeState.ships.find(s => s.hasFugitives)!;
-    fugitive.position = { q: map.bounds.maxQ + 5, r: 0 };
-    fugitive.velocity = { dq: 2, dr: 0 };
+    fugitive.position = { q: 0, r: map.bounds.minR - 5 };
+    fugitive.velocity = { dq: 0, dr: -2 };
     fugitive.landed = false;
 
     const orders: AstrogationOrder[] = escapeState.ships
@@ -513,7 +513,7 @@ describe('Escape scenario', () => {
 
     expect(result.state.phase).toBe('gameOver');
     expect(result.state.winner).toBe(0);
-    expect(result.state.winReason).toContain('fugitives escaped');
+    expect(result.state.winReason).toContain('escaped beyond Jupiter');
   });
 
   it('destroying all pilgrim ships wins for enforcer', () => {
@@ -593,15 +593,14 @@ describe('ordnance system', () => {
   });
 
   it('rejects torpedo from non-warship', () => {
-    // Use escape scenario for transport ships
-    const escState = createGame(SCENARIOS.escape, map, 'ORD01', findBaseHex);
-    const transport = escState.ships[0]; // transport, canOverload=false
+    const blockadeState = createGame(SCENARIOS.blockade, map, 'ORD01', findBaseHex);
+    const transport = blockadeState.ships.find(s => s.type === 'packet')!;
     transport.landed = false;
     transport.velocity = { dq: 1, dr: 0 };
-    escState.phase = 'ordnance';
+    blockadeState.phase = 'ordnance';
 
     const launches: OrdnanceLaunch[] = [{ shipId: transport.id, ordnanceType: 'torpedo' }];
-    const result = processOrdnance(escState, 0, launches, map);
+    const result = processOrdnance(blockadeState, 0, launches, map);
     expect('error' in result).toBe(true);
     if ('error' in result) {
       expect(result.error).toContain('warship');
@@ -1177,13 +1176,17 @@ describe('nuke ordnance', () => {
     expect('error' in result).toBe(false);
     if ('error' in result) return;
 
-    expect(result.state.destroyedBases).toContain(hexKey(marsBase));
+    const destroyedMarsBaseKey = result.state.destroyedBases.find(key => map.hexes.get(key)?.base?.bodyName === 'Mars');
+    expect(destroyedMarsBaseKey).toBeTruthy();
+    if (!destroyedMarsBaseKey) return;
+    const [dbq, dbr] = destroyedMarsBaseKey.split(',').map(Number);
+    const destroyedMarsBase = { q: dbq, r: dbr };
 
     let gravHex: { q: number; r: number } | null = null;
     for (const [key, hex] of map.hexes) {
       if (!hex.gravity || hex.gravity.bodyName !== 'Mars') continue;
       const [gq, gr] = key.split(',').map(Number);
-      if (hexDistance({ q: gq, r: gr }, marsBase) === 1) {
+      if (hexDistance({ q: gq, r: gr }, destroyedMarsBase) === 1) {
         gravHex = { q: gq, r: gr };
         break;
       }
@@ -1212,7 +1215,7 @@ describe('nuke ordnance', () => {
       ordnance: [],
       destroyedBases: result.state.destroyedBases,
       players: [
-        { bases: [hexKey(marsBase)] },
+        { bases: [destroyedMarsBaseKey] },
         { bases: [hexKey(findBaseHex(map, 'Venus')!)] },
       ],
     }, 0, map, () => 0.99);
@@ -1274,6 +1277,36 @@ describe('ordnance validation', () => {
     if ('error' in result) {
       expect(result.error).toContain('only once');
     }
+  });
+
+  it('allows split fire against multiple ships in the same hex when total strength is allocated legally', () => {
+    const fleetState = createGame(SCENARIOS.convoy, map, 'ATK01B', findBaseHex);
+    fleetState.phase = 'combat';
+    fleetState.activePlayer = 0;
+
+    const attacker = fleetState.ships.find(s => s.owner === 0 && s.type === 'frigate')!;
+    const enemyShips = fleetState.ships.filter(s => s.owner === 1);
+    const [enemyA, enemyB] = enemyShips;
+
+    attacker.landed = false;
+    attacker.position = { q: 0, r: 0 };
+    attacker.lastMovementPath = [{ q: 0, r: 0 }];
+    enemyA.landed = false;
+    enemyA.position = { q: 2, r: 0 };
+    enemyA.lastMovementPath = [{ q: 2, r: 0 }];
+    enemyB.landed = false;
+    enemyB.position = { q: 2, r: 0 };
+    enemyB.lastMovementPath = [{ q: 2, r: 0 }];
+
+    const result = processCombat(fleetState, 0, [
+      { attackerIds: [attacker.id], targetId: enemyA.id, attackStrength: 4 },
+      { attackerIds: [attacker.id], targetId: enemyB.id, attackStrength: 4 },
+    ], openMap, () => 0.5);
+
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+    expect(result.results).toHaveLength(2);
+    expect(result.results.every(r => r.attackStrength === 4)).toBe(true);
   });
 
   it('rejects attacking the same target more than once per combat phase', () => {
@@ -1927,12 +1960,33 @@ describe('hidden identity (Escape scenario)', () => {
     expect(fugitiveShips).toHaveLength(0);
   });
 
+  it('reveals a hidden transport after an enforcer matches course with it', () => {
+    const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
+    const fugitive = state.ships.find(s => s.hasFugitives)!;
+    const inspector = state.ships.find(s => s.owner === 1)!;
+
+    fugitive.landed = false;
+    fugitive.position = { q: 0, r: 0 };
+    fugitive.velocity = { dq: 0, dr: 0 };
+    fugitive.identityRevealed = false;
+    inspector.position = { q: 0, r: 0 };
+    inspector.velocity = { dq: 0, dr: 0 };
+    inspector.landed = false;
+    state.activePlayer = 1;
+
+    resolveAstrogationMovement(state, 1, state.ships
+      .filter(s => s.owner === 1)
+      .map(s => ({ shipId: s.id, burn: null })));
+
+    expect(fugitive.identityRevealed).toBe(true);
+  });
+
   it('fugitive ship escape triggers victory', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
     const fugitive = state.ships.find(s => s.hasFugitives)!;
     fugitive.landed = false;
-    fugitive.position = { q: map.bounds.maxQ + 5, r: 0 };
-    fugitive.velocity = { dq: 2, dr: 0 };
+    fugitive.position = { q: 0, r: map.bounds.minR - 5 };
+    fugitive.velocity = { dq: 0, dr: -2 };
     state.activePlayer = 0;
 
     const orders = state.ships
@@ -1942,15 +1996,15 @@ describe('hidden identity (Escape scenario)', () => {
     if ('error' in result) throw new Error(result.error);
 
     expect(result.state.winner).toBe(0);
-    expect(result.state.winReason).toContain('fugitives escaped');
+    expect(result.state.winReason).toContain('escaped beyond Jupiter');
   });
 
   it('non-fugitive ship escape does not trigger victory', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
     const nonFugitive = state.ships.find(s => s.owner === 0 && !s.hasFugitives)!;
     nonFugitive.landed = false;
-    nonFugitive.position = { q: map.bounds.maxQ + 5, r: 0 };
-    nonFugitive.velocity = { dq: 2, dr: 0 };
+    nonFugitive.position = { q: 0, r: map.bounds.minR - 5 };
+    nonFugitive.velocity = { dq: 0, dr: -2 };
     state.activePlayer = 0;
 
     const orders = state.ships
@@ -1973,7 +2027,26 @@ describe('hidden identity (Escape scenario)', () => {
     const result = skipCombat(state, 1, map);
     if ('error' in result) throw new Error(result.error);
     expect(result.state.winner).toBe(1);
-    expect(result.state.winReason).toContain('fugitives');
+    expect(result.state.winReason).toContain('fugitive transport');
+  });
+
+  it('returning a captured fugitive transport to base gives the enforcers a decisive victory', () => {
+    const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
+    const fugitive = state.ships.find(s => s.hasFugitives)!;
+    const enforcerBase = state.players[1].bases[0]!;
+    const [q, r] = enforcerBase.split(',').map(Number);
+
+    fugitive.owner = 1;
+    fugitive.captured = true;
+    fugitive.landed = true;
+    fugitive.position = { q, r };
+    state.phase = 'combat';
+    state.activePlayer = 1;
+
+    const result = skipCombat(state, 1, map);
+    if ('error' in result) throw new Error(result.error);
+    expect(result.state.winner).toBe(1);
+    expect(result.state.winReason).toContain('returned to base');
   });
 });
 

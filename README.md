@@ -98,10 +98,11 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 
 ## 🗺️ Roadmap & Planned Features
 
-- [ ] **Deferred Gravity Edge Cases**: Achieve 100% spec-accurate orbital behaviors.
-- [ ] **Hidden Information Scenarios**: Implement authoritative Fog of War for specific game modes.
-- [ ] **Expanded Content**: Add new scenarios and game mode variants.
-- [ ] **Polish**: Enhancements to visual FX, richer onboarding tutorials, and a deeper combat odds UI overview.
+- [x] **Hidden Information Scenarios**: Authoritative Fog of War implemented for specific game modes (e.g., *Escape*).
+- [x] **Premium Polish**: High-fidelity glassmorphism UI, tactical micro-animations, and procedural SFX.
+- [x] **AI Opponent**: Challenging local-bot with multiple difficulty levels and gravity-aware pathfinding.
+- [ ] **Orbital Bases**: Carrying and emplacing strategic stations during play.
+- [ ] **Spectator Mode**: Allowing third-party connections to watch ongoing battles.
 
 ---
 

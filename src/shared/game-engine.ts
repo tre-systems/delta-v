@@ -602,14 +602,22 @@ export function processCombat(
   for (const attack of attacks) {
     const attackSeen = new Set<string>();
     const attackers: Ship[] = [];
+    const groupKey = [...attack.attackerIds].sort().join('|');
 
     for (const id of attack.attackerIds) {
       if (attackSeen.has(id)) {
         return { error: 'Each ship may appear at most once in an attack declaration' };
       }
+      const existingGroup = committedAttackers.get(id);
+      if (existingGroup && existingGroup !== groupKey) {
+        return { error: 'Each ship may attack only once per combat phase' };
+      }
 
       const ship = state.ships.find(s => s.id === id);
-      if (!ship || ship.owner !== playerId || !canAttack(ship)) {
+      if (!ship || ship.owner !== playerId) {
+        return { error: 'Invalid attacker selection' };
+      }
+      if (!existingGroup && !canAttack(ship)) {
         return { error: 'Invalid attacker selection' };
       }
 
@@ -623,7 +631,6 @@ export function processCombat(
 
     const targetType = attack.targetType ?? 'ship';
     const targetKey = `${targetType}:${attack.targetId}`;
-    const groupKey = [...attackSeen].sort().join('|');
     const maxAttackStrength = attackers.reduce((total, ship) => {
       const stats = SHIP_STATS[ship.type];
       return total + (stats?.combat ?? 0);
@@ -634,10 +641,6 @@ export function processCombat(
 
     let group = attackGroups.get(groupKey);
     for (const attacker of attackers) {
-      const existingGroup = committedAttackers.get(attacker.id);
-      if (existingGroup && existingGroup !== groupKey) {
-        return { error: 'Each ship may attack only once per combat phase' };
-      }
       committedAttackers.set(attacker.id, groupKey);
     }
     if (!group) {
