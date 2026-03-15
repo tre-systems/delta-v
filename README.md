@@ -67,18 +67,22 @@ See [SPEC.md](SPEC.md) for the full game specification including movement, comba
 - Landing and takeoff mechanics
 - Gun combat with odds-based damage table
 - Counterattack system
+- Planetary base defense fire
+- Ordnance: mines, torpedoes, and nukes
 - Damage tracking (disabled turns, cumulative elimination)
 - Asteroid hazard rolls
-- Phase cycling (astrogation -> combat -> resupply -> next player)
-- Bi-Planetary scenario (Mars vs Venus race)
+- Ramming, crash resolution, and nuke-blasted asteroid removal
+- Detection state for enemy ships
+- Phase cycling (astrogation -> ordnance -> movement -> combat -> next player)
+- Local AI opponent with difficulty levels
+- Six playable scenarios: Bi-Planetary, Escape, Convoy, Duel, Blockade Runner, Fleet Action
 
 ### Planned
 
-- Combat target selection UI
-- Ordnance (mines, torpedoes)
-- Additional scenarios (Escape, Merchant, Piracy, Fleet)
-- Full solar system map with asteroid belt
-- Detection and fog of war
+- Spec-accurate deferred gravity / orbit edge cases
+- Hidden-info scenarios with authoritative fog of war
+- Additional scenario variants from the full board game
+- Richer presentation polish (more effects, deeper onboarding, stronger combat odds UI)
 
 ## Tech Stack
 

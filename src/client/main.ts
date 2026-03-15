@@ -1179,7 +1179,9 @@ class GameClient {
   private updateSoundButton() {
     const btn = document.getElementById('soundBtn')!;
     const m = isMuted();
-    btn.textContent = m ? '🔇' : '🔊';
+    btn.textContent = m ? 'OFF' : 'SFX';
+    btn.title = m ? 'Sound off' : 'Sound on';
+    btn.setAttribute('aria-label', m ? 'Enable sound effects' : 'Disable sound effects');
     btn.classList.toggle('muted', m);
   }
 

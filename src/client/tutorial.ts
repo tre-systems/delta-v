@@ -43,7 +43,7 @@ const STEPS: TutorialStep[] = [
   {
     id: 'ordnance-intro',
     phase: 'ordnance',
-    text: 'Ordnance phase: warships can launch mines, torpedoes, or nukes from their cargo. Mines sit in space, torpedoes track toward enemies. Use keyboard shortcuts: N=mine, T=torpedo, K=nuke.',
+    text: 'Ordnance phase: warships can launch mines, torpedoes, or nukes from their cargo. Mines and nukes drift with their launch vector, while torpedoes steer toward enemies. Use keyboard shortcuts: N=mine, T=torpedo, K=nuke.',
     once: true,
   },
   {
@@ -55,13 +55,12 @@ const STEPS: TutorialStep[] = [
 ];
 
 export class Tutorial {
-  private currentStep = 0;
   private completed = false;
   private shownSteps = new Set<string>();
   private tipEl: HTMLElement;
   private textEl: HTMLElement;
   private progressEl: HTMLElement;
-  private activeSteps: TutorialStep[] = [];
+  private activeStepId: string | null = null;
 
   constructor() {
     this.tipEl = document.getElementById('tutorialTip')!;
@@ -105,9 +104,11 @@ export class Tutorial {
   /** Hide the tutorial tip */
   hideTip() {
     this.tipEl.style.display = 'none';
+    this.activeStepId = null;
   }
 
   private showStep(step: TutorialStep) {
+    this.activeStepId = step.id;
     this.textEl.textContent = step.text;
     this.tipEl.style.display = 'block';
     // Re-trigger animation
@@ -116,8 +117,6 @@ export class Tutorial {
     this.tipEl.style.animation = '';
 
     // Update progress dots
-    const totalRelevant = STEPS.filter(s => !s.once || !this.shownSteps.has(s.id)).length;
-    const shownCount = this.shownSteps.size;
     this.progressEl.innerHTML = STEPS.map((s, i) => {
       const cls = this.shownSteps.has(s.id) ? 'done' : s.id === step.id ? 'active' : '';
       return `<div class="tutorial-dot ${cls}"></div>`;
@@ -126,9 +125,8 @@ export class Tutorial {
 
   private advance() {
     // Mark current step as shown
-    const currentVisibleStep = STEPS.find(s => !this.shownSteps.has(s.id));
-    if (currentVisibleStep) {
-      this.shownSteps.add(currentVisibleStep.id);
+    if (this.activeStepId) {
+      this.shownSteps.add(this.activeStepId);
     }
 
     // Check if all steps are shown
@@ -153,6 +151,7 @@ export class Tutorial {
   reset() {
     this.completed = false;
     this.shownSteps.clear();
+    this.activeStepId = null;
     localStorage.removeItem(STORAGE_KEY);
   }
 }
