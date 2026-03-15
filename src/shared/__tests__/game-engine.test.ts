@@ -1222,6 +1222,7 @@ describe('ordnance validation', () => {
     ship.landed = false;
     ship.fuel = 20;
     initialState.phase = 'ordnance';
+    initialState.pendingAstrogationOrders = [{ shipId: ship.id, burn: 0 }];
 
     const launches: OrdnanceLaunch[] = [
       { shipId: ship.id, ordnanceType: 'mine' },
@@ -1811,5 +1812,113 @@ describe('resupply restrictions', () => {
     const result = skipCombat(state, 0, openMap);
     expect('error' in result).toBe(false);
     expect(ship.resuppliedThisTurn).toBe(false);
+  });
+});
+
+describe('mine launch restrictions', () => {
+  it('rejects mine launch when ship has no burn committed', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'MINE01', findBaseHex);
+    state.phase = 'ordnance';
+    state.activePlayer = 0;
+
+    const ship = state.ships[0];
+    ship.type = 'frigate'; // cargo 40, enough for mine mass 10
+    ship.landed = false;
+    ship.position = { q: 0, r: 0 };
+    ship.velocity = { dq: 1, dr: 0 };
+
+    // Pending orders with no burn
+    state.pendingAstrogationOrders = [{ shipId: ship.id, burn: null }];
+
+    const result = processOrdnance(state, 0, [
+      { shipId: ship.id, ordnanceType: 'mine' },
+    ], openMap);
+
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('change course');
+    }
+  });
+
+  it('allows mine launch when ship has a burn committed', () => {
+    const state = createGame(SCENARIOS.biplanetary, openMap, 'MINE02', findBaseHex);
+    state.phase = 'ordnance';
+    state.activePlayer = 0;
+
+    const ship = state.ships[0];
+    ship.type = 'frigate'; // cargo 40, enough for mine mass 10
+    ship.landed = false;
+    ship.position = { q: 0, r: 0 };
+    ship.velocity = { dq: 1, dr: 0 };
+
+    state.pendingAstrogationOrders = [{ shipId: ship.id, burn: 2 }];
+
+    const result = processOrdnance(state, 0, [
+      { shipId: ship.id, ordnanceType: 'mine' },
+    ], openMap);
+
+    expect('error' in result).toBe(false);
+  });
+});
+
+describe('nuke planetary devastation', () => {
+  it('nuke reaching a planet devastates the entry hex side', () => {
+    const state = createGame(SCENARIOS.biplanetary, map, 'NUKE01', findBaseHex);
+    state.activePlayer = 0;
+
+    // Find Mercury's center and a gravity hex next to it
+    const mercuryCenter = map.bodies.find(b => b.name === 'Mercury')!.center;
+    // Mercury is a single-hex body with 1 gravity ring — find a gravity hex
+    let gravHex: { q: number; r: number } | null = null;
+    for (const [key, hex] of map.hexes) {
+      if (hex.gravity?.bodyName === 'Mercury') {
+        const [q, r] = key.split(',').map(Number);
+        gravHex = { q, r };
+        break;
+      }
+    }
+    expect(gravHex).not.toBeNull();
+
+    // Place a nuke heading toward Mercury body from the gravity hex
+    const vel = {
+      dq: mercuryCenter.q - gravHex!.q,
+      dr: mercuryCenter.r - gravHex!.r,
+    };
+    state.ordnance.push({
+      id: 'nuke-planet',
+      type: 'nuke',
+      owner: 0,
+      position: { ...gravHex! },
+      velocity: vel,
+      turnsRemaining: 5,
+      destroyed: false,
+      pendingGravityEffects: [],
+    });
+
+    // Place a ship on the gravity hex (it should be destroyed by devastation)
+    const victim = state.ships[1];
+    victim.landed = false;
+    victim.position = { ...gravHex! };
+    victim.lastMovementPath = [{ ...gravHex! }];
+    victim.velocity = { dq: 0, dr: 0 };
+
+    // Place player 0's ship far away
+    const attacker = state.ships[0];
+    attacker.landed = false;
+    attacker.position = { q: -30, r: -30 };
+    attacker.lastMovementPath = [{ q: -30, r: -30 }];
+    attacker.velocity = { dq: 0, dr: 0 };
+
+    const result = resolveAstrogationMovement(state, 0, [
+      { shipId: attacker.id, burn: null },
+    ]);
+
+    // The nuke should have devastated the gravity hex, destroying the victim
+    expect(victim.destroyed).toBe(true);
+    // And any base on that hex should be destroyed
+    const gravKey = hexKey(gravHex!);
+    if (map.hexes.get(gravKey)?.base) {
+      expect(state.destroyedBases).toContain(gravKey);
+    }
   });
 });
