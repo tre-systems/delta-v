@@ -52,6 +52,7 @@ import {
   shouldAttemptReconnect,
   shouldTransitionAfterStateUpdate,
 } from './game-client-network';
+import { deriveKeyboardAction, type KeyboardAction } from './game-client-keyboard';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
 
 class GameClient {
@@ -122,97 +123,24 @@ class GameClient {
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-      // Don't handle keys when typing in input fields
-      if (e.target instanceof HTMLInputElement) return;
-
-      if (e.key === 'Tab' && this.gameState &&
-          (this.state === 'playing_astrogation' || this.state === 'playing_ordnance' || this.state === 'playing_combat')) {
-        e.preventDefault();
-        this.cycleShip(e.shiftKey ? -1 : 1);
-      } else if (e.key === 'Escape') {
-        // Deselect ship and clear targets
-        if (this.renderer.planningState.combatTargetId) {
-          this.clearCombatSelection();
-          this.ui.showAttackButton(false);
-        } else if (this.renderer.planningState.queuedAttacks.length > 0) {
-          // Undo last queued attack
-          this.renderer.planningState.queuedAttacks.pop();
-          const count = this.renderer.planningState.queuedAttacks.length;
-          this.ui.showFireButton(count > 0, count);
-          this.ui.showToast(count > 0 ? `Undid last attack (${count} queued)` : 'Attack queue cleared', 'info');
-        } else if (this.renderer.planningState.torpedoAccel !== null) {
-          this.renderer.planningState.torpedoAccel = null;
-          this.renderer.planningState.torpedoAccelSteps = null;
-        } else {
-          this.renderer.planningState.selectedShipId = null;
-          this.updateHUD();
-        }
-      } else if (e.key === 'Enter' || e.key === ' ') {
-        if (this.state === 'playing_astrogation') {
-          e.preventDefault();
-          this.confirmOrders();
-        } else if (this.state === 'playing_ordnance') {
-          e.preventDefault();
-          this.sendSkipOrdnance();
-        } else if (this.state === 'playing_combat') {
-          e.preventDefault();
-          if (this.renderer.planningState.combatTargetId) {
-            this.queueAttack();
-          } else if (this.renderer.planningState.queuedAttacks.length > 0) {
-            this.fireAllAttacks();
-          } else {
-            this.sendSkipCombat();
-          }
-        }
-      } else if ((e.key === '-' || e.key === '_') && this.state === 'playing_combat') {
-        e.preventDefault();
-        this.adjustCombatStrength(-1);
-      } else if ((e.key === '=' || e.key === '+') && this.state === 'playing_combat') {
-        e.preventDefault();
-        this.adjustCombatStrength(1);
-      } else if (e.key.toLowerCase() === 'n' && this.state === 'playing_ordnance') {
-        this.sendOrdnanceLaunch('mine');
-      } else if (e.key.toLowerCase() === 't' && this.state === 'playing_ordnance') {
-        this.sendOrdnanceLaunch('torpedo');
-      } else if (e.key.toLowerCase() === 'k' && this.state === 'playing_ordnance') {
-        this.sendOrdnanceLaunch('nuke');
-      } else if (e.key >= '1' && e.key <= '6' && this.state === 'playing_astrogation') {
-        // Number keys 1-6 for burn directions
-        this.setBurnDirection(parseInt(e.key) - 1);
-      } else if (e.key === '0' && this.state === 'playing_astrogation') {
-        // 0 to clear burn
-        this.clearSelectedBurn();
-      } else if (e.key === '0' && this.state === 'playing_combat') {
-        this.resetCombatStrengthToMax();
-      } else if (e.key.toLowerCase() === 'e' && this.gameState &&
-          (this.state === 'playing_astrogation' || this.state === 'playing_ordnance' || this.state === 'playing_combat' || this.state === 'playing_opponentTurn')) {
-        // Focus camera on nearest enemy
-        this.focusNearestEnemy();
-      } else if (e.key.toLowerCase() === 'h' && this.gameState &&
-          (this.state === 'playing_astrogation' || this.state === 'playing_ordnance' || this.state === 'playing_combat' || this.state === 'playing_opponentTurn')) {
-        // Center camera on own fleet
-        this.focusOwnFleet();
-      } else if (e.key.toLowerCase() === 'l' && this.gameState) {
-        // Toggle game log
-        this.ui.toggleLog();
-      } else if (e.key.toLowerCase() === 'w' || e.key === 'ArrowUp') {
-        this.renderer.camera.pan(0, 40);
-      } else if (e.key.toLowerCase() === 's' || e.key === 'ArrowDown') {
-        this.renderer.camera.pan(0, -40);
-      } else if (e.key.toLowerCase() === 'a' || e.key === 'ArrowLeft') {
-        this.renderer.camera.pan(40, 0);
-      } else if (e.key.toLowerCase() === 'd' || e.key === 'ArrowRight') {
-        this.renderer.camera.pan(-40, 0);
-      } else if (e.key === '=' || e.key === '+') {
-        this.renderer.camera.zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1.15);
-      } else if (e.key === '-' || e.key === '_') {
-        this.renderer.camera.zoomAt(window.innerWidth / 2, window.innerHeight / 2, 0.87);
-      } else if (e.key === '?' || e.key === '/') {
-        this.toggleHelp();
-      } else if (e.key.toLowerCase() === 'm') {
-        setMuted(!isMuted());
-        this.updateSoundButton();
+      const action = deriveKeyboardAction(
+        {
+          state: this.state,
+          hasGameState: !!this.gameState,
+          typingInInput: e.target instanceof HTMLInputElement,
+          combatTargetId: this.renderer.planningState.combatTargetId,
+          queuedAttackCount: this.renderer.planningState.queuedAttacks.length,
+          torpedoAccelActive: this.renderer.planningState.torpedoAccel !== null,
+        },
+        { key: e.key, shiftKey: e.shiftKey },
+      );
+      if (action.kind === 'none') {
+        return;
       }
+      if (action.preventDefault) {
+        e.preventDefault();
+      }
+      this.handleKeyboardAction(action);
     });
 
     // Help overlay
@@ -649,6 +577,87 @@ class GameClient {
     } else {
       if (this.state === 'menu' || this.state === 'gameOver') return;
       this.setState('menu');
+    }
+  }
+
+  private handleKeyboardAction(action: KeyboardAction) {
+    switch (action.kind) {
+      case 'none':
+        return;
+      case 'cycleShip':
+        this.cycleShip(action.direction);
+        return;
+      case 'clearCombatSelection':
+        this.clearCombatSelection();
+        this.ui.showAttackButton(false);
+        return;
+      case 'undoQueuedAttack': {
+        this.renderer.planningState.queuedAttacks.pop();
+        const count = this.renderer.planningState.queuedAttacks.length;
+        this.ui.showFireButton(count > 0, count);
+        this.ui.showToast(count > 0 ? `Undid last attack (${count} queued)` : 'Attack queue cleared', 'info');
+        return;
+      }
+      case 'clearTorpedoAcceleration':
+        this.renderer.planningState.torpedoAccel = null;
+        this.renderer.planningState.torpedoAccelSteps = null;
+        return;
+      case 'deselectShip':
+        this.renderer.planningState.selectedShipId = null;
+        this.updateHUD();
+        return;
+      case 'confirmOrders':
+        this.confirmOrders();
+        return;
+      case 'skipOrdnance':
+        this.sendSkipOrdnance();
+        return;
+      case 'queueAttack':
+        this.queueAttack();
+        return;
+      case 'fireAllAttacks':
+        this.fireAllAttacks();
+        return;
+      case 'skipCombat':
+        this.sendSkipCombat();
+        return;
+      case 'adjustCombatStrength':
+        this.adjustCombatStrength(action.delta);
+        return;
+      case 'launchOrdnance':
+        this.sendOrdnanceLaunch(action.ordnanceType);
+        return;
+      case 'setBurnDirection':
+        this.setBurnDirection(action.direction);
+        return;
+      case 'clearSelectedBurn':
+        this.clearSelectedBurn();
+        return;
+      case 'resetCombatStrength':
+        this.resetCombatStrengthToMax();
+        return;
+      case 'focusNearestEnemy':
+        this.focusNearestEnemy();
+        return;
+      case 'focusOwnFleet':
+        this.focusOwnFleet();
+        return;
+      case 'toggleLog':
+        this.ui.toggleLog();
+        return;
+      case 'panCamera':
+        this.renderer.camera.pan(action.dx, action.dy);
+        return;
+      case 'zoomCamera':
+        this.renderer.camera.zoomAt(window.innerWidth / 2, window.innerHeight / 2, action.factor);
+        return;
+      case 'toggleHelp':
+        this.toggleHelp();
+        return;
+      case 'toggleMute':
+        setMuted(!isMuted());
+        this.updateSoundButton();
+        return;
     }
   }
 
