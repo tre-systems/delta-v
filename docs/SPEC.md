@@ -333,7 +333,9 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 **Implemented faithfully:**
 - Vector movement with deferred gravity, weak gravity player choice, overload burns
-- Gun Combat Table with odds, range modifiers, velocity modifiers, counterattack
+- **Overload allowance tracking**: warships may overload once between maintenance stopovers; base resupply restores the allowance
+- Gun Combat Table matching 2018 rulebook (minimum D2 damage threshold, correct per-odds values)
+- **Per-source Other Damage Tables**: torpedo, mine, asteroid, and ramming each use their own column from the 2018 rulebook
 - Limited-strength attacks, multi-target attack queuing, landed-ship immunity
 - Resupply-turn restrictions (cannot fire/launch when resupplied)
 - Ordnance: mines (5-turn self-destruct, course-change requirement), torpedoes (1-2 hex launch boost), nukes (hex devastation, base destruction, asteroid clearing)
@@ -344,6 +346,7 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 - **Split-fire**: allocating an attacking group's strength across multiple targets in one hex
 - Detection at range 3 (ships) / range 5 (bases), persistent once detected
 - Damage tracking with cumulative disabled turns, recovery, and elimination at 6+
+- **Dreadnaught exception**: dreadnaughts may fire guns even when disabled
 - Landing validation (orbit required), takeoff mechanics, landed-ship immunity
 - Ramming, asteroid hazards, crash detection
 - Escape inspection, concealment, and moral-victory flow
@@ -351,6 +354,8 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 **Remaining divergences:**
 - **Contact geometry:** mine/torpedo contact approximated by hex occupancy/path, not the stricter board geometric rule
+- **Edge-of-gravity rule:** a course exactly along the edge of a gravity hex should not count as entering it, but hexLineDraw cannot distinguish edge-grazing from true entry
+- **Asteroid hexside rule:** moving along a hexside between two asteroid hexes should count as entering one asteroid hex, not two
 - **Logistics:** surrender, looting, rescue, fuel transfer, cargo handling beyond ordnance mass, dummy counters remain unimplemented
 - **Advanced combat system**: the alternate weapon/drive/structure damage tracks from the rulebook are out of scope
 - **Extended Economy**: explicit shipping lanes and asteroid prospecting are not implemented yet.

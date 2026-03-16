@@ -11,6 +11,15 @@ export default defineConfig({
       ],
       reporter: ['text', 'html', 'json-summary'],
       reportsDirectory: './coverage',
+      thresholds: {
+        // Prevent coverage backsliding on game logic (shared engine)
+        'src/shared/**/*.ts': {
+          statements: 84,
+          branches: 75,
+          functions: 88,
+          lines: 85,
+        },
+      },
     },
   },
 });

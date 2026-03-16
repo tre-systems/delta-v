@@ -200,9 +200,9 @@ describe('lookupGunCombat', () => {
     expect(lookupGunCombat('4:1', 6)).toEqual({ type: 'eliminated', disabledTurns: 0 });
   });
 
-  it('1:1 odds, roll 3 = D1', () => {
-    // Table[3][2] = 1
-    expect(lookupGunCombat('1:1', 3)).toEqual({ type: 'disabled', disabledTurns: 1 });
+  it('1:1 odds, roll 4 = D2', () => {
+    // Table[4][2] = 2 per PDF Gun Combat Table
+    expect(lookupGunCombat('1:1', 4)).toEqual({ type: 'disabled', disabledTurns: 2 });
   });
 
   it('2:1 odds, roll 5 = D4', () => {
@@ -217,16 +217,44 @@ describe('lookupGunCombat', () => {
 });
 
 describe('lookupOtherDamage', () => {
-  it('roll 1 = no effect', () => {
-    expect(lookupOtherDamage(1)).toEqual({ type: 'none', disabledTurns: 0 });
+  it('torpedo roll 1 = no effect', () => {
+    expect(lookupOtherDamage(1, 'torpedo')).toEqual({ type: 'none', disabledTurns: 0 });
   });
 
-  it('roll 2 = D1', () => {
-    expect(lookupOtherDamage(2)).toEqual({ type: 'disabled', disabledTurns: 1 });
+  it('torpedo roll 2 = D1', () => {
+    expect(lookupOtherDamage(2, 'torpedo')).toEqual({ type: 'disabled', disabledTurns: 1 });
   });
 
-  it('roll 6 = eliminated', () => {
-    expect(lookupOtherDamage(6)).toEqual({ type: 'eliminated', disabledTurns: 0 });
+  it('torpedo roll 6 = D3', () => {
+    expect(lookupOtherDamage(6, 'torpedo')).toEqual({ type: 'disabled', disabledTurns: 3 });
+  });
+
+  it('mine roll 4 = no effect', () => {
+    expect(lookupOtherDamage(4, 'mine')).toEqual({ type: 'none', disabledTurns: 0 });
+  });
+
+  it('mine roll 5 = D2', () => {
+    expect(lookupOtherDamage(5, 'mine')).toEqual({ type: 'disabled', disabledTurns: 2 });
+  });
+
+  it('asteroid roll 5 = D1', () => {
+    expect(lookupOtherDamage(5, 'asteroid')).toEqual({ type: 'disabled', disabledTurns: 1 });
+  });
+
+  it('asteroid roll 6 = D2', () => {
+    expect(lookupOtherDamage(6, 'asteroid')).toEqual({ type: 'disabled', disabledTurns: 2 });
+  });
+
+  it('ram roll 5 = D3', () => {
+    expect(lookupOtherDamage(5, 'ram')).toEqual({ type: 'disabled', disabledTurns: 3 });
+  });
+
+  it('ram roll 6 = D5', () => {
+    expect(lookupOtherDamage(6, 'ram')).toEqual({ type: 'disabled', disabledTurns: 5 });
+  });
+
+  it('defaults to torpedo when no source specified', () => {
+    expect(lookupOtherDamage(3)).toEqual({ type: 'disabled', disabledTurns: 1 });
   });
 });
 
@@ -284,7 +312,7 @@ describe('resolveCombat', () => {
     const attacker = makeShip({ id: 'a', owner: 0, position: { q: 0, r: 0 } });
     const target = makeShip({ id: 't', owner: 1, position: { q: 1, r: 0 } });
 
-    const rng = () => 0.5; // roll 4
+    const rng = () => 0.7; // roll 5
 
     const result = resolveCombat([attacker], target, [attacker, target], rng);
 
@@ -292,14 +320,15 @@ describe('resolveCombat', () => {
     expect(result.targetId).toBe('t');
     expect(result.odds).toBe('1:1'); // 2 vs 2
     expect(result.rangeMod).toBe(1); // 1 hex away
-    expect(result.dieRoll).toBe(4);
-    // modifiedRoll = 4 - 1 (range) - 0 (velocity) = 3
-    expect(result.modifiedRoll).toBe(3);
-    // Counterattack resolves before damage is implemented.
+    expect(result.dieRoll).toBe(5);
+    // modifiedRoll = 5 - 1 (range) - 0 (velocity) = 4
+    expect(result.modifiedRoll).toBe(4);
+    // At 1:1 odds, modified roll 4 = D2 per PDF Gun Combat Table
     expect(result.damageResult.type).toBe('disabled');
-    expect(result.damageResult.disabledTurns).toBe(1);
+    expect(result.damageResult.disabledTurns).toBe(2);
+    // Counterattack resolves before damage is implemented.
     expect(result.counterattack).not.toBeNull();
-    expect(attacker.damage.disabledTurns).toBe(1);
+    expect(attacker.damage.disabledTurns).toBe(2);
   });
 
   it('counterattack when target survives undamaged', () => {
@@ -397,8 +426,8 @@ describe('capture mechanics', () => {
 describe('heroism', () => {
   it('grants heroism to an underdog attacker that achieves D2 or better', () => {
     const attacker = makeShip({ id: 'a', owner: 0, type: 'corvette', position: { q: 0, r: 0 } }); // combat 2
-    const target = makeShip({ id: 't', owner: 1, type: 'frigate', position: { q: 0, r: 0 } }); // combat 8
-    // Roll 6 → at 1:4 odds, modified roll 6 → D2
+    const target = makeShip({ id: 't', owner: 1, type: 'corsair', position: { q: 0, r: 0 } }); // combat 4
+    // Roll 6 → at 1:2 odds (2 vs 4), modified roll 6 → D3 per PDF table
     resolveCombat([attacker], target, [attacker, target], () => 0.999);
 
     expect(attacker.heroismAvailable).toBe(true);
