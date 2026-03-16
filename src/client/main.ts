@@ -4,7 +4,7 @@ if ('serviceWorker' in navigator) {
 }
 
 import type { CombatResult, GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, FleetPurchase, ShipMovement, ScenarioDefinition } from '../shared/types';
-import { pixelToHex, hexToPixel, hexEqual, hexKey } from '../shared/hex';
+import { pixelToHex, hexEqual, hexKey } from '../shared/hex';
 import {
   canAttack,
   getCombatStrength,
@@ -20,20 +20,11 @@ import { InputHandler } from './input';
 import { UIManager } from './ui';
 import { Tutorial } from './tutorial';
 import { buildAstrogationOrders, deriveHudViewModel, getGameOverStats, getScenarioBriefingLines } from './game-client-helpers';
+import { derivePhaseTransition, type ClientState } from './game-client-phase';
+import { getNearestEnemyPosition, getNextSelectedShip, getOwnFleetFocusPosition } from './game-client-navigation';
+import { deriveTurnTimer } from './game-client-timer';
 import { buildShipTooltipHtml } from './game-client-tooltip';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
-
-type ClientState =
-  | 'menu'
-  | 'connecting'
-  | 'waitingForOpponent'
-  | 'playing_fleetBuilding'
-  | 'playing_astrogation'
-  | 'playing_ordnance'
-  | 'playing_combat'
-  | 'playing_movementAnim'
-  | 'playing_opponentTurn'
-  | 'gameOver';
 
 class GameClient {
   private state: ClientState = 'menu';
@@ -726,50 +717,32 @@ class GameClient {
   private transitionToPhase() {
     if (!this.gameState) return;
     if (this.gameState.phase === 'gameOver') return;
-
-    // Log turn header when turn changes
-    if (this.gameState.turnNumber !== this.lastLoggedTurn && this.gameState.phase === 'astrogation') {
-      this.lastLoggedTurn = this.gameState.turnNumber;
-      const playerLabel = this.gameState.activePlayer === this.playerId ? 'You' : 'Opponent';
-      this.ui.logTurn(this.gameState.turnNumber, playerLabel);
+    const transition = derivePhaseTransition(
+      this.gameState,
+      this.playerId,
+      this.lastLoggedTurn,
+      this.isLocalGame,
+    );
+    if (transition.turnLogNumber !== null && transition.turnLogPlayerLabel) {
+      this.lastLoggedTurn = transition.turnLogNumber;
+      this.ui.logTurn(transition.turnLogNumber, transition.turnLogPlayerLabel);
     }
-
-    if (this.gameState.phase === 'fleetBuilding') {
-      // Fleet building is simultaneous — both players build at the same time
-      if (!this.gameState.players[this.playerId].ready) {
-        this.setState('playing_fleetBuilding');
-      }
-      // If already submitted, just wait for the stateUpdate that transitions to astrogation
+    if (transition.beginCombatPhase) {
+      this.beginCombatPhase();
       return;
     }
-
-    const isMyTurn = this.gameState.activePlayer === this.playerId;
-
-    if (this.gameState.phase === 'combat' && isMyTurn) {
-      if (this.gameState.pendingAsteroidHazards.some(h => {
-        const ship = this.gameState!.ships.find(s => s.id === h.shipId);
-        return ship?.owner === this.playerId && !ship.destroyed;
-      })) {
-        this.beginCombatPhase();
-        return;
-      }
-      this.setState('playing_combat');
-      this.renderer.showPhaseBanner('COMBAT');
+    if (!transition.nextState) {
+      return;
+    }
+    this.setState(transition.nextState);
+    if (transition.banner) {
+      this.renderer.showPhaseBanner(transition.banner);
+    }
+    if (transition.playPhaseSound) {
       playPhaseChange();
-    } else if (this.gameState.phase === 'ordnance' && isMyTurn) {
-      this.setState('playing_ordnance');
-      this.renderer.showPhaseBanner('ORDNANCE');
-      playPhaseChange();
-    } else if (this.gameState.phase === 'astrogation' && isMyTurn) {
-      this.setState('playing_astrogation');
-      this.renderer.showPhaseBanner('YOUR TURN');
-      playPhaseChange();
-    } else {
-      this.setState('playing_opponentTurn');
-      // In local game, trigger AI turn
-      if (this.isLocalGame && this.gameState.activePlayer !== this.playerId) {
-        setTimeout(() => this.runAITurn(), 500);
-      }
+    }
+    if (transition.runLocalAI) {
+      setTimeout(() => this.runAITurn(), 500);
     }
   }
 
@@ -1421,47 +1394,43 @@ class GameClient {
 
   private cycleShip(direction: number) {
     if (!this.gameState) return;
-    const myShips = this.gameState.ships.filter(s => s.owner === this.playerId && !s.destroyed);
-    if (myShips.length <= 1) return;
-    const currentIdx = myShips.findIndex(s => s.id === this.renderer.planningState.selectedShipId);
-    const nextIdx = (currentIdx + direction + myShips.length) % myShips.length;
-    this.renderer.planningState.selectedShipId = myShips[nextIdx].id;
-    this.renderer.centerOnHex(myShips[nextIdx].position);
+    const nextShip = getNextSelectedShip(
+      this.gameState,
+      this.playerId,
+      this.renderer.planningState.selectedShipId,
+      direction,
+    );
+    if (!nextShip) return;
+    this.renderer.planningState.selectedShipId = nextShip.id;
+    this.renderer.centerOnHex(nextShip.position);
     this.updateHUD();
   }
 
   private focusNearestEnemy() {
     if (!this.gameState) return;
-    const enemies = this.gameState.ships.filter(s =>
-      s.owner !== this.playerId && !s.destroyed && s.detected,
+    const position = getNearestEnemyPosition(
+      this.gameState,
+      this.playerId,
+      this.renderer.camera.x,
+      this.renderer.camera.y,
+      HEX_SIZE,
     );
-    if (enemies.length === 0) {
+    if (!position) {
       this.ui.showToast('No detected enemies', 'info');
       return;
     }
-    // Find the one nearest to current camera center
-    let nearest = enemies[0];
-    let bestDist = Infinity;
-    for (const e of enemies) {
-      const p = hexToPixel(e.position, HEX_SIZE);
-      const dx = p.x - this.renderer.camera.x;
-      const dy = p.y - this.renderer.camera.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < bestDist) {
-        bestDist = dist;
-        nearest = e;
-      }
-    }
-    this.renderer.centerOnHex(nearest.position);
+    this.renderer.centerOnHex(position);
   }
 
   private focusOwnFleet() {
     if (!this.gameState) return;
-    const myShips = this.gameState.ships.filter(s => s.owner === this.playerId && !s.destroyed);
-    if (myShips.length === 0) return;
-    // Center on first alive ship (or selected ship if one is selected)
-    const selected = myShips.find(s => s.id === this.renderer.planningState.selectedShipId);
-    this.renderer.centerOnHex((selected ?? myShips[0]).position);
+    const position = getOwnFleetFocusPosition(
+      this.gameState,
+      this.playerId,
+      this.renderer.planningState.selectedShipId,
+    );
+    if (!position) return;
+    this.renderer.centerOnHex(position);
   }
 
   // --- Burn shortcuts ---
@@ -1559,17 +1528,10 @@ class GameClient {
     this.timerWarningPlayed = false;
     this.turnTimerInterval = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - this.turnStartTime) / 1000);
-      const remaining = Math.floor(TURN_TIMEOUT_MS / 1000) - elapsed;
-      const mins = Math.floor(elapsed / 60);
-      const secs = elapsed % 60;
-      const text = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
-      const className = 'turn-timer' + (
-        elapsed >= 90 ? ' turn-timer-urgent' :
-        elapsed >= 30 ? ' turn-timer-slow' : ' turn-timer-active'
-      );
-      this.ui.setTurnTimer(text, className);
+      const timer = deriveTurnTimer(elapsed, Math.floor(TURN_TIMEOUT_MS / 1000));
+      this.ui.setTurnTimer(timer.text, timer.className);
       // Warning at 30s remaining
-      if (remaining <= 30 && !this.timerWarningPlayed) {
+      if (timer.shouldWarn && !this.timerWarningPlayed) {
         this.timerWarningPlayed = true;
         playWarning();
         this.ui.showToast('30 seconds remaining!', 'error');
