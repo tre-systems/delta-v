@@ -4,8 +4,10 @@ import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../shared/constants';
 import { createGame, filterStateForPlayer, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat } from '../shared/game-engine';
 import {
+  createRoomConfig,
   generatePlayerToken,
   isValidPlayerToken,
+  parseInitPayload,
   resolveSeatAssignment,
   validateClientMessage,
   type RoomConfig,
@@ -67,6 +69,11 @@ export class GameDO extends DurableObject {
 
   private async getGameCode(): Promise<string> {
     return await this.ctx.storage.get<string>('gameCode') ?? '';
+  }
+
+  private async getScenario() {
+    const scenarioName = (await this.getRoomConfig())?.scenario ?? 'biplanetary';
+    return SCENARIOS[scenarioName] ?? SCENARIOS.biplanetary;
   }
 
   private async setGameCode(code: string): Promise<void> {
@@ -377,6 +384,23 @@ export class GameDO extends DurableObject {
     }
   }
 
+  private async runGameStateAction<Success extends { state: GameState }>(
+    ws: WebSocket,
+    action: (gameState: GameState) => Success | { error: string } | Promise<Success | { error: string }>,
+    onSuccess: (result: Success) => Promise<void> | void,
+  ): Promise<void> {
+    const gameState = await this.getGameState();
+    if (!gameState) {
+      return;
+    }
+    const result = await action(gameState);
+    if ('error' in result) {
+      this.send(ws, { type: 'error', message: result.error });
+      return;
+    }
+    await onSuccess(result);
+  }
+
   // --- Game logic (delegates to engine) ---
 
   private async handleInit(request: Request): Promise<Response> {
@@ -392,47 +416,24 @@ export class GameDO extends DurableObject {
       return new Response('Invalid init payload', { status: 400 });
     }
 
-    if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
-      return new Response('Invalid init payload', { status: 400 });
+    const parsed = parseInitPayload(payload, Object.keys(SCENARIOS));
+    if (!parsed.ok) {
+      return new Response(parsed.error, { status: 400 });
     }
 
-    const { code, scenario, playerToken, inviteToken } = payload as {
-      code?: unknown;
-      scenario?: unknown;
-      playerToken?: unknown;
-      inviteToken?: unknown;
-    };
-
-    if (typeof code !== 'string' || !/^[A-Z0-9]{5}$/.test(code)) {
-      return new Response('Invalid room code', { status: 400 });
-    }
-    if (typeof scenario !== 'string' || !(scenario in SCENARIOS)) {
-      return new Response('Invalid scenario', { status: 400 });
-    }
-    if (!isValidPlayerToken(playerToken)) {
-      return new Response('Invalid player token', { status: 400 });
-    }
-    if (!isValidPlayerToken(inviteToken)) {
-      return new Response('Invalid invite token', { status: 400 });
-    }
-
-    const roomConfig: RoomConfig = {
-      code,
-      scenario,
-      playerTokens: [playerToken, null],
-      inviteTokens: [null, inviteToken],
-    };
+    const roomConfig = createRoomConfig(parsed.value);
 
     await this.saveRoomConfig(roomConfig);
-    await this.setGameCode(code);
+    await this.setGameCode(roomConfig.code);
     await this.touchInactivity();
     return Response.json({ ok: true }, { status: 201 });
   }
 
   private async initGame() {
-    const roomConfig = await this.getRoomConfig();
-    const scenarioName = roomConfig?.scenario ?? 'biplanetary';
-    const scenario = SCENARIOS[scenarioName] ?? SCENARIOS.biplanetary;
+    const [roomConfig, scenario] = await Promise.all([
+      this.getRoomConfig(),
+      this.getScenario(),
+    ]);
     const map = getSolarSystemMap();
     const code = roomConfig?.code ?? await this.getGameCode();
 
@@ -444,140 +445,107 @@ export class GameDO extends DurableObject {
   }
 
   private async handleFleetReady(playerId: number, ws: WebSocket, purchases: FleetPurchase[]) {
-    const gameState = await this.getGameState();
-    if (!gameState) return;
-
-    const map = getSolarSystemMap();
-    const scenarioName = (await this.getRoomConfig())?.scenario ?? 'biplanetary';
-    const scenario = SCENARIOS[scenarioName] ?? SCENARIOS.biplanetary;
-    const result = processFleetReady(gameState, playerId, purchases, map, scenario.availableShipTypes);
-
-    if ('error' in result) {
-      this.send(ws, { type: 'error', message: result.error });
-      return;
-    }
-
-    await this.publishStateChange(
-      result.state,
-      undefined,
-      result.state.phase === 'astrogation',
+    await this.runGameStateAction(
+      ws,
+      async gameState => {
+        const scenario = await this.getScenario();
+        return processFleetReady(
+          gameState,
+          playerId,
+          purchases,
+          getSolarSystemMap(),
+          scenario.availableShipTypes,
+        );
+      },
+      async result => {
+        await this.publishStateChange(
+          result.state,
+          undefined,
+          result.state.phase === 'astrogation',
+        );
+      },
     );
   }
 
   private async handleAstrogation(playerId: number, ws: WebSocket, orders: AstrogationOrder[]) {
-    const gameState = await this.getGameState();
-    if (!gameState) return;
-
-    const map = getSolarSystemMap();
-    const result = processAstrogation(gameState, playerId, orders, map);
-
-    if ('error' in result) {
-      this.send(ws, { type: 'error', message: result.error });
-      return;
-    }
-
-    await this.publishStateChange(
-      result.state,
-      resolveMovementBroadcast(result),
+    await this.runGameStateAction(
+      ws,
+      gameState => processAstrogation(gameState, playerId, orders, getSolarSystemMap()),
+      async result => {
+        await this.publishStateChange(
+          result.state,
+          resolveMovementBroadcast(result),
+        );
+      },
     );
   }
 
   private async handleOrdnance(playerId: number, ws: WebSocket, launches: OrdnanceLaunch[]) {
-    const gameState = await this.getGameState();
-    if (!gameState) return;
-
-    const map = getSolarSystemMap();
-    const result = processOrdnance(gameState, playerId, launches, map);
-
-    if ('error' in result) {
-      this.send(ws, { type: 'error', message: result.error });
-      return;
-    }
-
-    await this.publishStateChange(result.state, toMovementResultMessage(result));
+    await this.runGameStateAction(
+      ws,
+      gameState => processOrdnance(gameState, playerId, launches, getSolarSystemMap()),
+      async result => {
+        await this.publishStateChange(result.state, toMovementResultMessage(result));
+      },
+    );
   }
 
   private async handleEmplaceBase(playerId: number, ws: WebSocket, emplacements: OrbitalBaseEmplacement[]) {
-    const gameState = await this.getGameState();
-    if (!gameState) return;
-
-    const map = getSolarSystemMap();
-    const result = processEmplacement(gameState, playerId, emplacements, map);
-
-    if ('error' in result) {
-      this.send(ws, { type: 'error', message: result.error });
-      return;
-    }
-
-    await this.publishStateChange(result.state, toStateUpdateMessage(result.state), false);
+    await this.runGameStateAction(
+      ws,
+      gameState => processEmplacement(gameState, playerId, emplacements, getSolarSystemMap()),
+      async result => {
+        await this.publishStateChange(result.state, toStateUpdateMessage(result.state), false);
+      },
+    );
   }
 
   private async handleSkipOrdnance(playerId: number, ws: WebSocket) {
-    const gameState = await this.getGameState();
-    if (!gameState) return;
-
-    const map = getSolarSystemMap();
-    const result = skipOrdnance(gameState, playerId, map);
-
-    if ('error' in result) {
-      this.send(ws, { type: 'error', message: result.error });
-      return;
-    }
-
-    await this.publishStateChange(
-      result.state,
-      resolveMovementBroadcast(result, 'stateUpdate'),
+    await this.runGameStateAction(
+      ws,
+      gameState => skipOrdnance(gameState, playerId, getSolarSystemMap()),
+      async result => {
+        await this.publishStateChange(
+          result.state,
+          resolveMovementBroadcast(result, 'stateUpdate'),
+        );
+      },
     );
   }
 
   private async handleCombat(playerId: number, ws: WebSocket, attacks: CombatAttack[]) {
-    const gameState = await this.getGameState();
-    if (!gameState) return;
-
-    const map = getSolarSystemMap();
-    const result = processCombat(gameState, playerId, attacks, map);
-
-    if ('error' in result) {
-      this.send(ws, { type: 'error', message: result.error });
-      return;
-    }
-
-    await this.publishStateChange(result.state, resolveCombatBroadcast(result)!);
+    await this.runGameStateAction(
+      ws,
+      gameState => processCombat(gameState, playerId, attacks, getSolarSystemMap()),
+      async result => {
+        await this.publishStateChange(result.state, resolveCombatBroadcast(result)!);
+      },
+    );
   }
 
   private async handleBeginCombat(playerId: number, ws: WebSocket) {
-    const gameState = await this.getGameState();
-    if (!gameState) return;
-
-    const map = getSolarSystemMap();
-    const result = beginCombatPhase(gameState, playerId, map);
-
-    if ('error' in result) {
-      this.send(ws, { type: 'error', message: result.error });
-      return;
-    }
-
-    await this.publishStateChange(
-      result.state,
-      resolveCombatBroadcast(result, 'stateUpdate'),
+    await this.runGameStateAction(
+      ws,
+      gameState => beginCombatPhase(gameState, playerId, getSolarSystemMap()),
+      async result => {
+        await this.publishStateChange(
+          result.state,
+          resolveCombatBroadcast(result, 'stateUpdate'),
+        );
+      },
     );
   }
 
   private async handleSkipCombat(playerId: number, ws: WebSocket) {
-    const gameState = await this.getGameState();
-    if (!gameState) return;
-
-    const map = getSolarSystemMap();
-    const result = skipCombat(gameState, playerId, map);
-
-    if ('error' in result) {
-      this.send(ws, { type: 'error', message: result.error });
-      return;
-    }
-
-    await this.publishStateChange(
-      result.state,
-      resolveCombatBroadcast(result),
+    await this.runGameStateAction(
+      ws,
+      gameState => skipCombat(gameState, playerId, getSolarSystemMap()),
+      async result => {
+        await this.publishStateChange(
+          result.state,
+          resolveCombatBroadcast(result),
+        );
+      },
     );
   }
 
