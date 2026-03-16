@@ -9,7 +9,7 @@ Delta-V now has a materially stronger authoritative-server boundary than the ori
 - WebSocket actions are still resolved server-side against the authoritative game engine.
 - Hidden-identity state is filtered per player before broadcast, so the fugitive flag itself is not sent to the opponent.
 - Room creation is now authoritative: `/create` initializes the room, locks the scenario up front, and rejects room-code collisions.
-- The room creator receives a reserved player token for seat 0, and the copied invite link carries a guest-seat token for seat 1.
+- The room creator receives a reserved player token for seat 0, and the copied invite link carries a guest invite token for seat 1.
 - Once the guest joins, that invite token is rotated into a private reconnect token for that player.
 - Reconnects require the stored player token, which prevents the old "next socket steals the disconnected seat" failure mode.
 - Client-to-server WebSocket messages are runtime-validated before any engine handler executes, and malformed payloads are rejected instead of being trusted structurally.
