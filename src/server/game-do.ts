@@ -17,6 +17,13 @@ import {
   toStateUpdateMessage,
   type StatefulServerMessage,
 } from './game-do-messages';
+import {
+  createDisconnectMarker,
+  getNextAlarmAt,
+  normalizeDisconnectedPlayer,
+  resolveAlarmAction,
+  shouldClearDisconnectMarker,
+} from './game-do-session';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -71,18 +78,37 @@ export class GameDO extends DurableObject {
     await this.rescheduleAlarm();
   }
 
-  private async rescheduleAlarm(): Promise<void> {
+  private async getAlarmDeadlines() {
     const [disconnectAt, turnTimeoutAt, inactivityAt] = await Promise.all([
       this.ctx.storage.get<number>('disconnectAt'),
       this.ctx.storage.get<number>('turnTimeoutAt'),
       this.ctx.storage.get<number>('inactivityAt'),
     ]);
+    return { disconnectAt, turnTimeoutAt, inactivityAt };
+  }
 
-    const deadlines = [disconnectAt, turnTimeoutAt, inactivityAt]
-      .filter((value): value is number => value !== undefined);
+  private async clearDisconnectMarker(): Promise<void> {
+    await Promise.all([
+      this.ctx.storage.delete('disconnectedPlayer'),
+      this.ctx.storage.delete('disconnectTime'),
+      this.ctx.storage.delete('disconnectAt'),
+    ]);
+  }
 
-    if (deadlines.length > 0) {
-      await this.ctx.storage.setAlarm(Math.min(...deadlines));
+  private async setDisconnectMarker(playerId: number): Promise<void> {
+    const marker = createDisconnectMarker(playerId, Date.now());
+    await Promise.all([
+      this.ctx.storage.put('disconnectedPlayer', marker.disconnectedPlayer),
+      this.ctx.storage.put('disconnectTime', marker.disconnectTime),
+      this.ctx.storage.put('disconnectAt', marker.disconnectAt),
+    ]);
+    await this.rescheduleAlarm();
+  }
+
+  private async rescheduleAlarm(): Promise<void> {
+    const alarmAt = getNextAlarmAt(await this.getAlarmDeadlines());
+    if (alarmAt !== null) {
+      await this.ctx.storage.setAlarm(alarmAt);
     }
   }
 
@@ -110,10 +136,9 @@ export class GameDO extends DurableObject {
     }
 
     const playerCount = this.getPlayerCount();
-    const disconnectedPlayerRaw = await this.ctx.storage.get<number>('disconnectedPlayer');
-    const disconnectedPlayer = disconnectedPlayerRaw === 0 || disconnectedPlayerRaw === 1
-      ? disconnectedPlayerRaw
-      : null;
+    const disconnectedPlayer = normalizeDisconnectedPlayer(
+      await this.ctx.storage.get<number>('disconnectedPlayer'),
+    );
     const seatOpen: [boolean, boolean] = [
       this.ctx.getWebSockets('player:0').length === 0,
       this.ctx.getWebSockets('player:1').length === 0,
@@ -145,10 +170,8 @@ export class GameDO extends DurableObject {
       return new Response('Player token unavailable', { status: 500 });
     }
 
-    if (disconnectedPlayer === playerId) {
-      await this.ctx.storage.delete('disconnectedPlayer');
-      await this.ctx.storage.delete('disconnectTime');
-      await this.ctx.storage.delete('disconnectAt');
+    if (shouldClearDisconnectMarker(disconnectedPlayer, playerId)) {
+      await this.clearDisconnectMarker();
     }
 
     const pair = new WebSocketPair();
@@ -248,45 +271,40 @@ export class GameDO extends DurableObject {
     // Grace period: set a 30s alarm for disconnect timeout
     // The player can reconnect before it fires
     if (playerId !== null) {
-      await this.ctx.storage.put('disconnectedPlayer', playerId);
-      await this.ctx.storage.put('disconnectTime', Date.now());
-      await this.ctx.storage.put('disconnectAt', Date.now() + 30_000);
-      await this.rescheduleAlarm();
+      await this.setDisconnectMarker(playerId);
     }
   }
 
   async alarm(): Promise<void> {
     const now = Date.now();
-    const disconnectedPlayer = await this.ctx.storage.get<number>('disconnectedPlayer');
-    const disconnectAt = await this.ctx.storage.get<number>('disconnectAt');
+    const disconnectedPlayer = normalizeDisconnectedPlayer(
+      await this.ctx.storage.get<number>('disconnectedPlayer'),
+    );
+    const action = resolveAlarmAction({
+      now,
+      disconnectedPlayer,
+      ...await this.getAlarmDeadlines(),
+    });
 
-    if (disconnectedPlayer !== undefined && disconnectAt !== undefined && now >= disconnectAt) {
-      // Disconnect grace period expired — notify remaining player
-      await this.ctx.storage.delete('disconnectedPlayer');
-      await this.ctx.storage.delete('disconnectTime');
-      await this.ctx.storage.delete('disconnectAt');
-      this.broadcast({ type: 'opponentDisconnected' });
-      await this.rescheduleAlarm();
-      return;
+    switch (action.type) {
+      case 'disconnectExpired':
+        await this.clearDisconnectMarker();
+        this.broadcast({ type: 'opponentDisconnected' });
+        await this.rescheduleAlarm();
+        return;
+      case 'turnTimeout':
+        await this.handleTurnTimeout();
+        return;
+      case 'inactivityTimeout':
+        for (const ws of this.ctx.getWebSockets()) {
+          try { ws.close(1000, 'Inactivity timeout'); } catch {}
+        }
+        await this.ctx.storage.deleteAll();
+        return;
+      case 'reschedule':
+        await this.rescheduleAlarm();
+        return;
     }
-
-    // Check if turn timeout is pending
-    const turnTimeoutAt = await this.ctx.storage.get<number>('turnTimeoutAt');
-    if (turnTimeoutAt !== undefined && now >= turnTimeoutAt - 500) {
-      await this.handleTurnTimeout();
-      return;
-    }
-
-    const inactivityAt = await this.ctx.storage.get<number>('inactivityAt');
-    if (inactivityAt !== undefined && now >= inactivityAt) {
-      for (const ws of this.ctx.getWebSockets()) {
-        try { ws.close(1000, 'Inactivity timeout'); } catch {}
-      }
-      await this.ctx.storage.deleteAll();
-      return;
-    }
-
-    await this.rescheduleAlarm();
   }
 
   private async handleTurnTimeout(): Promise<void> {

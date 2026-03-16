@@ -62,6 +62,7 @@ function createCtx() {
 
 describe('GameDO', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
@@ -142,5 +143,47 @@ describe('GameDO', () => {
       type: 'error',
       message: 'Invalid combat payload',
     });
+  });
+
+  it('stores a disconnect marker and alarm when a live player disconnects', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const ctx = createCtx();
+    await ctx.storage.put('gameState', { phase: 'astrogation' });
+    await ctx.storage.put('inactivityAt', 99_999);
+    const ws = { send() {} };
+    ctx.acceptWebSocket(ws, ['player:1']);
+    const game = new GameDO(ctx as any, {} as any);
+
+    await game.webSocketClose(ws as any);
+
+    expect(await ctx.storage.get('disconnectedPlayer')).toBe(1);
+    expect(await ctx.storage.get('disconnectTime')).toBe(1_000);
+    expect(await ctx.storage.get('disconnectAt')).toBe(31_000);
+    expect(ctx.storage.alarmAt).toBe(31_000);
+  });
+
+  it('clears an expired disconnect marker and notifies the remaining player', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(10_000);
+    const ctx = createCtx();
+    await ctx.storage.put('disconnectedPlayer', 0);
+    await ctx.storage.put('disconnectTime', 5_000);
+    await ctx.storage.put('disconnectAt', 9_000);
+    await ctx.storage.put('inactivityAt', 20_000);
+    const ws = {
+      sent: [] as string[],
+      send(payload: string) {
+        this.sent.push(payload);
+      },
+    };
+    ctx.acceptWebSocket(ws, ['player:1']);
+    const game = new GameDO(ctx as any, {} as any);
+
+    await game.alarm();
+
+    expect(await ctx.storage.get('disconnectedPlayer')).toBeUndefined();
+    expect(await ctx.storage.get('disconnectTime')).toBeUndefined();
+    expect(await ctx.storage.get('disconnectAt')).toBeUndefined();
+    expect(ctx.storage.alarmAt).toBe(20_000);
+    expect(JSON.parse(ws.sent[0]!)).toEqual({ type: 'opponentDisconnected' });
   });
 });
