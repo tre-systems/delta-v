@@ -39,6 +39,7 @@ export interface Ship {
   detected: boolean; // true if within detection range of opponent's ships/bases
   captured?: boolean; // true if captured by enemy — cannot fire/attack until base resupply
   heroismAvailable?: boolean; // heroic ships add +1 to gun combat rolls whenever they attack
+  overloadUsed?: boolean; // true if ship has used its one overload allowance since last maintenance
   carryingOrbitalBase?: boolean; // transport/packet carrying an unemplaced orbital base
   emplaced?: boolean; // true for orbital bases that have been placed (stationary, cannot move)
   hasFugitives?: boolean; // Escape scenario: true if this transport carries the fugitives (hidden from opponent)

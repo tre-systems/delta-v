@@ -11,6 +11,7 @@ import {
 } from './hex';
 import type { Ship, CourseResult, GravityEffect, SolarSystemMap } from './types';
 import { SHIP_STATS } from './constants';
+import { bodyHasGravity } from './map-data';
 
 export interface CourseOptions {
   overload?: number | null; // second burn direction (warships only)
@@ -294,12 +295,6 @@ function checkLanding(
   return null;
 }
 
-function bodyHasGravity(bodyName: string, map: SolarSystemMap): boolean {
-  for (const hex of map.hexes.values()) {
-    if (hex.gravity?.bodyName === bodyName) return true;
-  }
-  return false;
-}
 
 function canLandAtPlanetaryBase(
   ship: Ship,

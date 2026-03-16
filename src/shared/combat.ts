@@ -1,35 +1,35 @@
 import { hexDistance, hexEqual, hexKey, hexLineDraw } from './hex';
 import type { Ship, Ordnance, SolarSystemMap, CombatResult } from './types';
-import { SHIP_STATS } from './constants';
+import { SHIP_STATS, DAMAGE_ELIMINATION_THRESHOLD } from './constants';
+import { bodyHasGravity } from './map-data';
 
 // --- Damage tables ---
 
-// Gun Combat Results Table
+// Gun Combat Results Table (from Triplanetary 2018 rulebook p.6)
 // Rows: modified die roll (≤0 through 6+)
 // Columns: odds ratio index (0=1:4, 1=1:2, 2=1:1, 3=2:1, 4=3:1, 5=4:1)
 // Values: 0 = no effect, 1-5 = disabled that many turns, 6 = eliminated
 const GUN_COMBAT_TABLE: number[][] = [
   // ≤0   1:4  1:2  1:1  2:1  3:1  4:1
-  [  0,   0,   0,   0,   0,   1  ], // roll ≤ 0
-  [  0,   0,   0,   0,   1,   2  ], // roll 1
-  [  0,   0,   0,   1,   2,   3  ], // roll 2
-  [  0,   0,   1,   2,   3,   4  ], // roll 3
-  [  0,   1,   2,   3,   4,   5  ], // roll 4
-  [  1,   2,   3,   4,   5,   6  ], // roll 5
-  [  2,   3,   4,   5,   6,   6  ], // roll 6+
+  [  0,   0,   0,   0,   0,   0  ], // roll ≤ 0
+  [  0,   0,   0,   0,   0,   2  ], // roll 1
+  [  0,   0,   0,   0,   2,   3  ], // roll 2
+  [  0,   0,   0,   2,   3,   4  ], // roll 3
+  [  0,   0,   2,   3,   4,   5  ], // roll 4
+  [  0,   2,   3,   4,   5,   6  ], // roll 5
+  [  1,   3,   4,   5,   6,   6  ], // roll 6+
 ];
 
-// Other Damage Table (torpedoes, mines, asteroids, ramming)
+// Other Damage Tables per source type (from Triplanetary 2018 rulebook p.6)
 // Index: die roll 1-6
-// Values: 0 = no effect, 1-5 = disabled, 6 = eliminated
-const OTHER_DAMAGE_TABLE: number[] = [
-  0, // roll 1: no effect
-  1, // roll 2: D1
-  2, // roll 3: D2
-  3, // roll 4: D3
-  4, // roll 5: D4
-  6, // roll 6: eliminated
-];
+// Values: 0 = no effect, 1-5 = disabled that many turns, 6 = eliminated
+export type OtherDamageSource = 'torpedo' | 'mine' | 'asteroid' | 'ram';
+const OTHER_DAMAGE_TABLES: Record<OtherDamageSource, number[]> = {
+  torpedo:  [0, 1, 1, 1, 2, 3], // roll 1-6: –, D1, D1, D1, D2, D3
+  mine:     [0, 0, 0, 0, 2, 2], // roll 1-6: –, –,  –,  –,  D2, D2
+  asteroid: [0, 0, 0, 0, 1, 2], // roll 1-6: –, –,  –,  –,  D1, D2
+  ram:      [0, 0, 1, 1, 3, 5], // roll 1-6: –, –,  D1, D1, D3, D5
+};
 
 // Standard odds ratios
 const ODDS_RATIOS = ['1:4', '1:2', '1:1', '2:1', '3:1', '4:1'] as const;
@@ -141,22 +141,29 @@ export function getDeclaredCombatStrength(
  * Check if a ship can initiate an attack (not defensive-only, not disabled).
  */
 export function canAttack(ship: Ship): boolean {
-  if (ship.destroyed || ship.landed || ship.damage.disabledTurns > 0) return false;
+  if (ship.destroyed || ship.landed) return false;
   if (ship.resuppliedThisTurn) return false;
   if (ship.captured) return false;
   const stats = SHIP_STATS[ship.type];
-  return stats ? !stats.defensiveOnly : false;
+  if (!stats || stats.defensiveOnly) return false;
+  // Dreadnaughts may still fire their guns even when disabled (rulebook p.6)
+  if (ship.damage.disabledTurns > 0 && ship.type !== 'dreadnaught') return false;
+  return true;
 }
 
 /**
  * Check if a ship can counterattack (non-commercial, not destroyed, not disabled).
+ * Dreadnaughts may counterattack even when disabled.
  */
 export function canCounterattack(ship: Ship): boolean {
-  if (ship.destroyed || ship.landed || ship.damage.disabledTurns > 0) return false;
+  if (ship.destroyed || ship.landed) return false;
   if (ship.resuppliedThisTurn) return false;
   if (ship.captured) return false;
   const stats = SHIP_STATS[ship.type];
-  return stats ? stats.combat > 0 && !stats.defensiveOnly : false;
+  if (!stats || stats.combat <= 0 || stats.defensiveOnly) return false;
+  // Dreadnaughts may still fire their guns even when disabled (rulebook p.6)
+  if (ship.damage.disabledTurns > 0 && ship.type !== 'dreadnaught') return false;
+  return true;
 }
 
 function getTrackedPath(ship: Ship) {
@@ -286,10 +293,11 @@ export function lookupGunCombat(odds: OddsRatio, modifiedRoll: number): DamageRe
 
 /**
  * Look up result on the Other Damage table (asteroids, mines, torpedoes, ramming).
+ * Each source type has its own damage column per the Triplanetary 2018 rulebook.
  */
-export function lookupOtherDamage(dieRoll: number): DamageResult {
+export function lookupOtherDamage(dieRoll: number, source: OtherDamageSource = 'torpedo'): DamageResult {
   const idx = Math.max(0, Math.min(5, dieRoll - 1));
-  const value = OTHER_DAMAGE_TABLE[idx];
+  const value = OTHER_DAMAGE_TABLES[source][idx];
 
   if (value === 0) return { type: 'none', disabledTurns: 0 };
   if (value === 6) return { type: 'eliminated', disabledTurns: 0 };
@@ -310,7 +318,7 @@ export function applyDamage(ship: Ship, result: DamageResult): boolean {
 
   // Cumulative disabled turns
   ship.damage.disabledTurns += result.disabledTurns;
-  if (ship.damage.disabledTurns >= 6) {
+  if (ship.damage.disabledTurns >= DAMAGE_ELIMINATION_THRESHOLD) {
     ship.destroyed = true;
     ship.velocity = { dq: 0, dr: 0 };
     return true;
@@ -538,9 +546,3 @@ export function resolveBaseDefense(
   return results;
 }
 
-function bodyHasGravity(bodyName: string, map: SolarSystemMap): boolean {
-  for (const hex of map.hexes.values()) {
-    if (hex.gravity?.bodyName === bodyName) return true;
-  }
-  return false;
-}

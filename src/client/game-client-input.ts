@@ -78,7 +78,7 @@ function resolveOverloadToggle(ship: Ship, clickHex: HexCoord, planning: InputPl
   const currentBurn = planning.burns.get(ship.id) ?? null;
   if (currentBurn === null) return null;
   const stats = SHIP_STATS[ship.type];
-  if (!stats?.canOverload || ship.fuel < 2) return null;
+  if (!stats?.canOverload || ship.fuel < 2 || ship.overloadUsed) return null;
 
   const predictedDestination = ship.landed ? null : predictDestination(ship);
   const launchHex = predictedDestination ?? ship.position;
