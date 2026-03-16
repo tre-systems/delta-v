@@ -105,6 +105,22 @@ describe('aiAstrogation', () => {
     // With zero fuel, should choose null burn (no other option)
     expect(orders[0].burn).toBeNull();
   });
+
+  it('does not choose overload after the ship has already used its allowance', () => {
+    const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
+    const aiShip = state.ships.find(s => s.owner === 1)!;
+    aiShip.landed = false;
+    aiShip.position = { q: 10, r: 0 };
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.fuel = 10;
+
+    const withAllowance = aiAstrogation(state, 1, map, 'hard');
+    expect(withAllowance[0].overload).not.toBeNull();
+
+    aiShip.overloadUsed = true;
+    const withoutAllowance = aiAstrogation(state, 1, map, 'hard');
+    expect(withoutAllowance[0].overload).toBeUndefined();
+  });
 });
 
 describe('aiOrdnance', () => {
