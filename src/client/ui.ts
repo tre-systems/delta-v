@@ -558,7 +558,7 @@ export class UIManager {
 
     setTimeout(() => {
       alertEl.classList.remove('active');
-    }, 2000);
+    }, 1200);
   }
 
   // --- Game log ---
