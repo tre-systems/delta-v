@@ -9,6 +9,7 @@
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "simulate": "tsx scripts/simulate-ai.ts",
     "prepare": "husky"
@@ -17,6 +18,7 @@
     "@cloudflare/workers-types": "^4.20250214.0",
     "@types/node": "^25.5.0",
     "@types/ws": "^8.18.1",
+    "@vitest/coverage-v8": "^4.1.0",
     "esbuild": "^0.24.0",
     "husky": "^9.1.7",
     "tsx": "^4.21.0",

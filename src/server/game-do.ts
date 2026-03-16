@@ -393,6 +393,7 @@ export class GameDO extends DurableObject {
 
     await this.saveRoomConfig(roomConfig);
     await this.setGameCode(code);
+    await this.touchInactivity();
     return Response.json({ ok: true }, { status: 201 });
   }
 
