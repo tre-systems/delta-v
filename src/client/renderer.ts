@@ -20,6 +20,22 @@ import {
   getQueuedCombatOverlayAttacks,
 } from './renderer-combat';
 import {
+  buildShipLabelView,
+  getDetonatedOrdnanceOverlay,
+  getDisabledShipLabel,
+  getOrdnanceColor,
+  getOrdnanceHeading,
+  getOrdnanceLifetimeView,
+  getOrdnancePulse,
+  getShipHeading,
+  getShipIconAlpha,
+  getShipIdentityMarker,
+  getShipStackOffsets,
+  getVisibleShips,
+  shouldShowLandedIndicator,
+  shouldShowOrbitIndicator,
+} from './renderer-entities';
+import {
   clipViewportToMinimap,
   createMinimapLayout,
   projectWorldToMinimap,
@@ -1223,20 +1239,8 @@ export class Renderer {
   }
 
   private renderShips(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
-    // Filter visible ships (own ships + detected enemy ships)
-    const visibleShips = state.ships.filter(s => {
-      if (s.destroyed && !this.animState) return false;
-      if (s.owner === this.playerId) return true;
-      return s.detected;
-    });
-
-    // Count ships at each hex for stacking offset
-    const hexCounts = new Map<string, number>();
-    const hexIndices = new Map<string, number>();
-    for (const ship of visibleShips) {
-      const key = hexKey(ship.position);
-      hexCounts.set(key, (hexCounts.get(key) ?? 0) + 1);
-    }
+    const visibleShips = getVisibleShips(state, this.playerId, this.animState !== null);
+    const stackOffsets = this.animState ? null : getShipStackOffsets(visibleShips);
 
     for (const ship of visibleShips) {
       let pos: PixelCoord;
@@ -1267,26 +1271,14 @@ export class Renderer {
       }
 
       // Offset for stacked ships at same hex
-      if (!this.animState) {
-        const key = hexKey(ship.position);
-        const count = hexCounts.get(key) ?? 1;
-        if (count > 1) {
-          const idx = hexIndices.get(key) ?? 0;
-          hexIndices.set(key, idx + 1);
-          const offset = (idx - (count - 1) / 2) * 16;
-          pos = { x: pos.x + offset, y: pos.y };
-          labelYOffset = 24 + idx * 11;
-        }
+      const stackOffset = stackOffsets?.get(ship.id);
+      if (stackOffset) {
+        pos = { x: pos.x + stackOffset.xOffset, y: pos.y };
+        labelYOffset = stackOffset.labelYOffset;
       }
 
       // Ship heading based on velocity
-      const speed = hexVecLength(velocity);
-      const heading = speed > 0
-        ? Math.atan2(
-            hexToPixel(hexAdd(ship.position, velocity), HEX_SIZE).y - hexToPixel(ship.position, HEX_SIZE).y,
-            hexToPixel(hexAdd(ship.position, velocity), HEX_SIZE).x - hexToPixel(ship.position, HEX_SIZE).x,
-          )
-        : 0;
+      const heading = getShipHeading(ship.position, velocity, HEX_SIZE);
 
       // Selection highlight
       const isSelected = ship.id === this.planningState.selectedShipId;
@@ -1299,28 +1291,40 @@ export class Renderer {
       }
 
       // Disabled ships shown dimmer
-      const isDisabled = ship.damage.disabledTurns > 0;
-      const alpha = isDisabled ? 0.5 : 1.0;
-      this.drawShipIcon(ctx, pos.x, pos.y, ship.owner, alpha, heading, ship.damage.disabledTurns, ship.type);
+      const disabledLabel = getDisabledShipLabel(ship, this.animState !== null);
+      this.drawShipIcon(
+        ctx,
+        pos.x,
+        pos.y,
+        ship.owner,
+        getShipIconAlpha(ship),
+        heading,
+        ship.damage.disabledTurns,
+        ship.type,
+      );
 
       // Disabled indicator
-      if (isDisabled && !this.animState) {
+      if (disabledLabel) {
         ctx.fillStyle = '#ff5252'; // More prominent red
         ctx.font = 'bold 9px Inter, sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(`DISABLED: ${ship.damage.disabledTurns}T`, pos.x + 12, pos.y - 12);
+        ctx.fillText(disabledLabel, pos.x + 12, pos.y - 12);
       }
 
-      // Fugitive indicator (only visible to owning player)
-      if (ship.hasFugitives && ship.owner === this.playerId && !this.animState) {
+      const identityMarker = getShipIdentityMarker(
+        ship,
+        this.playerId,
+        Boolean(this.gameState?.scenarioRules.hiddenIdentityInspection),
+        this.animState !== null,
+      );
+      if (identityMarker === 'friendlyFugitive') {
         ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
         ctx.font = 'bold 9px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('\u2605', pos.x, pos.y - 14); // gold star
-      }
-      if (this.gameState?.scenarioRules.hiddenIdentityInspection && ship.owner !== this.playerId && ship.identityRevealed && !this.animState) {
+        ctx.fillText('\u2605', pos.x, pos.y - 14);
+      } else if (identityMarker === 'enemyFugitive' || identityMarker === 'enemyDecoy') {
         ctx.textAlign = 'center';
-        if (ship.hasFugitives) {
+        if (identityMarker === 'enemyFugitive') {
           ctx.fillStyle = 'rgba(255, 120, 120, 0.95)';
           ctx.font = 'bold 9px monospace';
           ctx.fillText('\u2605', pos.x, pos.y - 14);
@@ -1333,22 +1337,17 @@ export class Renderer {
         }
       }
 
-      // Orbit indicator (speed 1 in a gravity hex)
-      if (!ship.landed && !ship.destroyed && !this.animState && this.map) {
-        const speed = hexVecLength(ship.velocity);
-        const hex = this.map.hexes.get(hexKey(ship.position));
-        if (speed === 1 && hex?.gravity) {
-          const phase = now / 2000 + pos.x * 0.01;
-          ctx.strokeStyle = 'rgba(150, 200, 255, 0.35)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.arc(pos.x, pos.y, 16, phase, phase + Math.PI * 1.5);
-          ctx.stroke();
-        }
+      const inGravity = Boolean(this.map?.hexes.get(hexKey(ship.position))?.gravity);
+      if (shouldShowOrbitIndicator(ship, inGravity, this.animState !== null)) {
+        const phase = now / 2000 + pos.x * 0.01;
+        ctx.strokeStyle = 'rgba(150, 200, 255, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 16, phase, phase + Math.PI * 1.5);
+        ctx.stroke();
       }
 
-      // Landed indicator
-      if (ship.landed && !this.animState) {
+      if (shouldShowLandedIndicator(ship, this.animState !== null)) {
         ctx.strokeStyle = 'rgba(100, 200, 100, 0.5)';
         ctx.lineWidth = 1;
         ctx.setLineDash([2, 2]);
@@ -1358,31 +1357,16 @@ export class Renderer {
         ctx.setLineDash([]);
       }
 
-      // Ship label and fuel (only when not animating)
-      if (!this.animState) {
-        const stats = SHIP_STATS[ship.type];
-        const typeName = stats ? stats.name : 'Unknown';
-
-        if (ship.owner === this.playerId) {
-          ctx.textAlign = 'center';
-          // Ship name
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-          ctx.font = '600 9px Inter, sans-serif';
-          ctx.fillText(typeName, pos.x, pos.y + labelYOffset);
-          // Compact status: just fuel number, only show status tag if landed/orbit
-          const speed = hexVecLength(ship.velocity);
-          const inGravity = this.map && this.map.hexes.get(hexKey(ship.position))?.gravity;
-          const statusTag = ship.landed ? 'Landed' : (speed === 1 && inGravity) ? 'Orbit' : '';
-          if (statusTag) {
-            ctx.fillStyle = ship.landed ? 'rgba(149, 214, 135, 0.5)' : 'rgba(255, 255, 255, 0.35)';
-            ctx.font = '7px monospace';
-            ctx.fillText(statusTag, pos.x, pos.y + labelYOffset + 9);
-          }
-        } else if (ship.detected) {
-          ctx.fillStyle = 'rgba(255, 171, 145, 0.5)';
-          ctx.font = '500 9px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(typeName, pos.x, pos.y + labelYOffset);
+      const labelView = buildShipLabelView(ship, this.playerId, inGravity, this.animState !== null);
+      if (labelView) {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = labelView.typeColor;
+        ctx.font = labelView.typeFont;
+        ctx.fillText(labelView.typeName, pos.x, pos.y + labelYOffset);
+        if (labelView.statusTag && labelView.statusColor && labelView.statusFont) {
+          ctx.fillStyle = labelView.statusColor;
+          ctx.font = labelView.statusFont;
+          ctx.fillText(labelView.statusTag, pos.x, pos.y + labelYOffset + 9);
         }
       }
     }
@@ -1508,8 +1492,8 @@ export class Renderer {
         p = hexToPixel(ord.position, HEX_SIZE);
       }
 
-      const color = ord.owner === this.playerId ? '#4fc3f7' : '#ff9800';
-      const pulse = 0.6 + 0.3 * Math.sin(now / 400);
+      const color = getOrdnanceColor(ord.owner, this.playerId);
+      const pulse = getOrdnancePulse(now);
 
       if (ord.type === 'nuke') {
         // Nuke: larger pulsing red diamond with glow
@@ -1543,10 +1527,7 @@ export class Renderer {
         ctx.globalAlpha = 1;
       } else {
         // Torpedo: small triangle pointing in velocity direction
-        const heading = Math.atan2(
-          hexToPixel(hexAdd(ord.position, ord.velocity), HEX_SIZE).y - p.y,
-          hexToPixel(hexAdd(ord.position, ord.velocity), HEX_SIZE).x - p.x,
-        );
+        const heading = getOrdnanceHeading(ord.position, ord.velocity, HEX_SIZE);
         const s = 5;
         ctx.save();
         ctx.translate(p.x, p.y);
@@ -1579,11 +1560,12 @@ export class Renderer {
       }
 
       // Lifetime indicator (turns remaining until self-destruct)
-      if (!this.animState && ord.turnsRemaining <= 2) {
-        ctx.fillStyle = ord.turnsRemaining <= 1 ? 'rgba(255, 80, 80, 0.9)' : 'rgba(255, 200, 50, 0.7)';
+      const lifetimeView = getOrdnanceLifetimeView(ord.turnsRemaining, this.animState !== null);
+      if (lifetimeView) {
+        ctx.fillStyle = lifetimeView.color;
         ctx.font = 'bold 6px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(`${ord.turnsRemaining}`, p.x, p.y + 10);
+        ctx.fillText(lifetimeView.text, p.x, p.y + 10);
       }
     }
 
@@ -1592,28 +1574,26 @@ export class Renderer {
       const progress = Math.min((now - this.animState.startTime) / this.animState.duration, 1);
       for (const om of this.animState.ordnanceMovements) {
         if (!om.detonated) continue;
-        // Already removed from state.ordnance — render at interpolated position until detonation
-        if (progress < 0.9) {
+        const overlay = getDetonatedOrdnanceOverlay(progress);
+        if (!overlay) continue;
+        if (overlay.kind === 'diamond') {
           const p = this.interpolatePath(om.path, progress);
-          ctx.fillStyle = '#ff4444';
-          ctx.globalAlpha = 0.7;
-          const s = 4;
+          ctx.fillStyle = overlay.color;
+          ctx.globalAlpha = overlay.alpha;
           ctx.beginPath();
-          ctx.moveTo(p.x, p.y - s);
-          ctx.lineTo(p.x + s, p.y);
-          ctx.lineTo(p.x, p.y + s);
-          ctx.lineTo(p.x - s, p.y);
+          ctx.moveTo(p.x, p.y - overlay.size);
+          ctx.lineTo(p.x + overlay.size, p.y);
+          ctx.lineTo(p.x, p.y + overlay.size);
+          ctx.lineTo(p.x - overlay.size, p.y);
           ctx.closePath();
           ctx.fill();
           ctx.globalAlpha = 1;
         } else {
-          // Flash at detonation point
           const detP = hexToPixel(om.to, HEX_SIZE);
-          const flashSize = 12 * (1 - (progress - 0.9) / 0.1);
-          ctx.fillStyle = '#ffaa00';
-          ctx.globalAlpha = 0.8;
+          ctx.fillStyle = overlay.color;
+          ctx.globalAlpha = overlay.alpha;
           ctx.beginPath();
-          ctx.arc(detP.x, detP.y, flashSize, 0, Math.PI * 2);
+          ctx.arc(detP.x, detP.y, overlay.size, 0, Math.PI * 2);
           ctx.fill();
           ctx.globalAlpha = 1;
         }
