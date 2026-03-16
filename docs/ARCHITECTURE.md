@@ -10,7 +10,7 @@ Delta-V employs a full-stack TypeScript architecture built around a **shared pur
 - **Language**: TypeScript (strict mode) across the entire stack.
 - **Frontend**: HTML5 Canvas 2D API for rendering (`client/renderer.ts`), raw DOM/Events for UI and Input. No heavy frameworks (React/Vue/etc.) are used, ensuring maximum performance for the game loop.
 - **Backend**: Cloudflare Workers for HTTP routing and Cloudflare Durable Objects for authoritative game state and WebSocket management.
-- **Build & Tools**: `esbuild` for lightening-fast client bundling, `wrangler` for local testing and deployment, and `vitest` for unit testing.
+- **Build & Tools**: `esbuild` for lightning-fast client bundling, `wrangler` for local testing and deployment, and `vitest` for unit testing.
 
 ---
 

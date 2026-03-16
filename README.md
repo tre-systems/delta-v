@@ -120,7 +120,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] **Runtime Payload Validation**: Strict server-side WebSocket payload validation before dispatch.
 - [x] **Orbital Bases**: Carrying and emplacing strategic stations during play.
 - [ ] **Client-Side Test Coverage**: Browser-facing orchestration, UI, and input flows still need dedicated tests.
-- [ ] **Asteroid Map Visuals**: The in-game tactical map should match [docs/map.png](/Users/robertgilks/Source/delta-v/docs/map.png) and visibly render asteroid fields.
+- [ ] **Asteroid Map Visuals**: The in-game tactical map should match [docs/map.png](./docs/map.png) and visibly render asteroid fields.
 - [ ] **Spectator Mode**: Allowing third-party connections to watch ongoing battles.
 
 ---
