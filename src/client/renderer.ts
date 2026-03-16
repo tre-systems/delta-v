@@ -831,13 +831,7 @@ export class Renderer {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Subtle label — only show at higher zoom levels
-      if (this.camera.zoom > 0.6) {
-        ctx.fillStyle = 'rgba(79, 195, 247, 0.12)';
-        ctx.font = `${Math.max(6, 7 / this.camera.zoom)}px monospace`;
-        ctx.textAlign = 'center';
-        ctx.fillText('sensor range', p.x, p.y - radius - 4);
-      }
+      // Sensor range label removed — the dashed circle is sufficient
     }
 
     // Show base detection ranges for own bases
@@ -878,9 +872,9 @@ export class Renderer {
       if (predicted.q !== ship.position.q || predicted.r !== ship.position.r) {
         const isOwn = ship.owner === this.playerId;
         ctx.strokeStyle = isOwn
-          ? 'rgba(79, 195, 247, 0.3)'
-          : 'rgba(255, 152, 0, 0.3)';
-        ctx.lineWidth = 1;
+          ? 'rgba(79, 195, 247, 0.45)'
+          : 'rgba(255, 152, 0, 0.45)';
+        ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
         ctx.moveTo(from.x, from.y);
@@ -1078,7 +1072,7 @@ export class Renderer {
       if (ship.owner !== this.playerId && !ship.detected) continue;
 
       const isOwn = ship.owner === this.playerId;
-      ctx.strokeStyle = isOwn ? 'rgba(79, 195, 247, 0.18)' : 'rgba(255, 152, 0, 0.18)';
+      ctx.strokeStyle = isOwn ? 'rgba(79, 195, 247, 0.28)' : 'rgba(255, 152, 0, 0.28)';
       ctx.lineWidth = 1.5;
       ctx.setLineDash([]);
       ctx.beginPath();
@@ -1091,7 +1085,7 @@ export class Renderer {
       ctx.stroke();
 
       // Small dots at each waypoint
-      const dotColor = isOwn ? 'rgba(79, 195, 247, 0.25)' : 'rgba(255, 152, 0, 0.25)';
+      const dotColor = isOwn ? 'rgba(79, 195, 247, 0.35)' : 'rgba(255, 152, 0, 0.35)';
       for (let i = 0; i < trail.length; i++) {
         const p = hexToPixel(trail[i], HEX_SIZE);
         if (!this.camera.isVisible(p.x, p.y)) continue;
@@ -1135,10 +1129,10 @@ export class Renderer {
       if (ship.owner !== this.playerId && !ship.detected) continue;
       if (movement.path.length < 2) continue;
 
-      // Draw faint dotted path line
-      const color = ship.owner === this.playerId ? 'rgba(79, 195, 247, 0.25)' : 'rgba(255, 152, 0, 0.25)';
+      // Draw dotted path line
+      const color = ship.owner === this.playerId ? 'rgba(79, 195, 247, 0.4)' : 'rgba(255, 152, 0, 0.4)';
       ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.5;
       ctx.setLineDash([3, 5]);
       ctx.beginPath();
       const start = hexToPixel(movement.path[0], HEX_SIZE);
@@ -1307,22 +1301,20 @@ export class Renderer {
         if (ship.owner === this.playerId) {
           ctx.textAlign = 'center';
           // Ship name
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
           ctx.font = '600 9px Inter, sans-serif';
           ctx.fillText(typeName, pos.x, pos.y + labelYOffset);
-          // Status line below name
+          // Compact status: just fuel number, only show status tag if landed/orbit
           const speed = hexVecLength(ship.velocity);
           const inGravity = this.map && this.map.hexes.get(hexKey(ship.position))?.gravity;
-          const fuelStr = stats ? `F${ship.fuel}` : '';
           const statusTag = ship.landed ? 'Landed' : (speed === 1 && inGravity) ? 'Orbit' : '';
-          const parts = [fuelStr, statusTag].filter(Boolean);
-          if (parts.length > 0) {
-            ctx.fillStyle = ship.landed ? 'rgba(149, 214, 135, 0.6)' : 'rgba(255, 255, 255, 0.45)';
-            ctx.font = '8px monospace';
-            ctx.fillText(parts.join(' · '), pos.x, pos.y + labelYOffset + 10);
+          if (statusTag) {
+            ctx.fillStyle = ship.landed ? 'rgba(149, 214, 135, 0.5)' : 'rgba(255, 255, 255, 0.35)';
+            ctx.font = '7px monospace';
+            ctx.fillText(statusTag, pos.x, pos.y + labelYOffset + 9);
           }
         } else if (ship.detected) {
-          ctx.fillStyle = 'rgba(255, 171, 145, 0.6)';
+          ctx.fillStyle = 'rgba(255, 171, 145, 0.5)';
           ctx.font = '500 9px Inter, sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText(typeName, pos.x, pos.y + labelYOffset);

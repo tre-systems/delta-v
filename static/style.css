@@ -345,15 +345,15 @@ body::before {
   align-items: center;
   justify-content: space-between;
   gap: 0.45rem 1rem;
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 1rem;
   border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: rgba(7, 14, 28, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(4, 9, 18, 0.88);
   backdrop-filter: blur(28px);
-  box-shadow: var(--shadow-soft);
-  color: var(--muted-strong);
+  box-shadow: none;
+  color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -383,20 +383,20 @@ body::before {
   gap: 0.45rem;
   padding: 0.5rem;
   border-radius: 20px;
-  border: 1px solid var(--border);
-  background: rgba(7, 14, 28, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(4, 9, 18, 0.85);
   backdrop-filter: blur(28px);
-  box-shadow: var(--shadow-soft);
+  box-shadow: none;
 }
 
 .status-msg {
   max-width: min(100%, 680px);
-  padding: 0.55rem 0.9rem;
+  padding: 0.45rem 0.8rem;
   border-radius: var(--radius-pill);
-  background: rgba(7, 14, 28, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--muted);
-  font-size: 0.82rem;
+  background: rgba(4, 9, 18, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  color: rgba(144, 160, 186, 0.7);
+  font-size: 0.75rem;
   text-align: center;
   line-height: 1.45;
 }
@@ -470,8 +470,8 @@ body::before {
   min-width: 164px;
   padding: 0.5rem 0.7rem;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(7, 14, 28, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(4, 9, 18, 0.82);
   backdrop-filter: blur(28px);
   cursor: pointer;
   display: flex;
@@ -479,7 +479,8 @@ body::before {
   gap: 0.45rem;
   font-family: var(--font-mono);
   font-size: 0.68rem;
-  box-shadow: var(--shadow-soft);
+  box-shadow: none;
+  transition: opacity 0.2s, border-color 0.2s;
 }
 
 .ship-entry:hover {
@@ -562,15 +563,15 @@ body::before {
   top: 5.6rem;
   right: 0.9rem;
   bottom: 8.8rem;
-  width: 250px;
+  width: 230px;
   z-index: 5;
   display: flex;
   flex-direction: column;
   border-radius: var(--radius);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(7, 14, 28, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(4, 9, 18, 0.85);
   backdrop-filter: blur(28px);
-  box-shadow: var(--shadow-soft);
+  box-shadow: none;
 }
 
 .game-log-header {
