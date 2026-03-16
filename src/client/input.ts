@@ -3,7 +3,8 @@ import {
   pixelToHex,
 } from '../shared/hex';
 import type { GameState, SolarSystemMap } from '../shared/types';
-import { type Camera, type PlanningState, HEX_SIZE } from './renderer';
+import { type PlanningState, HEX_SIZE } from './renderer';
+import { type Camera } from './renderer-camera';
 import {
   createClearedCombatPlan,
   createCombatTargetPlan,
