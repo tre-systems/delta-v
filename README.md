@@ -68,18 +68,25 @@ For project conventions and refactoring guidance, see [**CODING_STANDARDS.md**](
 
 Get your thrusters firing locally in seconds:
 
-1. **Install Dependencies**
+1. **Use the Project Node Version**
+   ```bash
+   nvm use
+   ```
+
+   Delta-V is tested in CI with **Node 25.x**.
+
+2. **Install Dependencies**
    ```bash
    npm install
    ```
 
-2. **Start the Local Development Server**
+3. **Start the Local Development Server**
    ```bash
    npm run dev
    ```
    *This starts the Wrangler server.*
 
-3. **Play the Game**
+4. **Play the Game**
    - Open your browser to `http://localhost:8787`
    - Open a **second tab** or window to the same URL.
    - Create a game in tab 1, then use the generated invite link in tab 2.
