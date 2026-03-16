@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { computeCourse, predictDestination, canBurn } from '../movement';
 import { buildSolarSystemMap, findBaseHex } from '../map-data';
-import { hexKey, hexEqual, hexDistance, hexAdd, HEX_DIRECTIONS } from '../hex';
+import { analyzeHexLine, hexKey, hexEqual, hexDistance, hexAdd, HEX_DIRECTIONS } from '../hex';
 import type { Ship, SolarSystemMap } from '../types';
 
 let map: SolarSystemMap;
@@ -228,6 +228,29 @@ describe('computeCourse - gravity', () => {
     if (course.enteredGravityEffects.length > 1) {
       expect(course.enteredGravityEffects.length).toBeGreaterThanOrEqual(2);
     }
+  });
+
+  it('does not queue gravity when the course only runs along a gravity hex edge', () => {
+    const edgeMap: SolarSystemMap = {
+      hexes: new Map([
+        ['1,0', {
+          terrain: 'space',
+          gravity: { direction: 3, strength: 'full', bodyName: 'TestWorld' },
+        }],
+      ]),
+      bodies: [],
+      bounds: { minQ: -2, maxQ: 4, minR: -2, maxR: 2 },
+    };
+    const ship = makeShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 2, dr: -1 },
+    });
+
+    const analysis = analyzeHexLine(ship.position, { q: 2, r: -1 });
+    expect(analysis.ambiguousPairs).toEqual([[{ q: 1, r: 0 }, { q: 1, r: -1 }]]);
+
+    const course = computeCourse(ship, null, edgeMap);
+    expect(course.enteredGravityEffects).toEqual([]);
   });
 });
 

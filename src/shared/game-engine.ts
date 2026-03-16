@@ -6,7 +6,7 @@ import type {
 } from './types';
 import { applyPendingGravityEffects, collectEnteredGravityEffects, computeCourse } from './movement';
 import { SHIP_STATS, ORDNANCE_MASS, ORDNANCE_LIFETIME, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE, ORBITAL_BASE_MASS } from './constants';
-import { hexKey, hexVecLength, hexDistance, hexAdd, hexSubtract, hexLineDraw, HEX_DIRECTIONS, hexEqual } from './hex';
+import { analyzeHexLine, hexKey, hexVecLength, hexDistance, hexAdd, hexSubtract, hexLineDraw, HEX_DIRECTIONS, hexEqual } from './hex';
 import {
   resolveCombat, resolveBaseDefense, canAttack, hasLineOfSight, hasLineOfSightToTarget,
   hasBaseLineOfSight,
@@ -96,6 +96,52 @@ function getEscapeEdge(state: Pick<GameState, 'scenarioRules'>): 'any' | 'north'
   return state.scenarioRules.escapeEdge ?? 'any';
 }
 
+function parseBaseKey(baseKey: string): { q: number; r: number } {
+  const [q, r] = baseKey.split(',').map(Number);
+  return { q, r };
+}
+
+function assertScenarioPlayerCount(scenario: ScenarioDefinition): void {
+  if (scenario.players.length !== 2) {
+    throw new Error(`Scenario must define exactly 2 players, got ${scenario.players.length}`);
+  }
+}
+
+function resolveStartingPlacement(
+  def: ScenarioDefinition['players'][number]['ships'][number],
+  player: ScenarioDefinition['players'][number],
+  playerBases: string[],
+  map: SolarSystemMap,
+  findBaseHex: (map: SolarSystemMap, bodyName: string) => { q: number; r: number } | null,
+): { position: { q: number; r: number }; landed: boolean } {
+  const shouldLand = def.startLanded !== false;
+  if (!shouldLand) {
+    return { position: { ...def.position }, landed: false };
+  }
+
+  const defHex = map.hexes.get(hexKey(def.position));
+  if (defHex?.base) {
+    return { position: { ...def.position }, landed: true };
+  }
+
+  if (playerBases[0]) {
+    return { position: parseBaseKey(playerBases[0]), landed: true };
+  }
+
+  if (defHex?.body) {
+    return { position: { ...def.position }, landed: true };
+  }
+
+  const homeBase = player.homeBody
+    ? findBaseHex(map, player.homeBody)
+    : null;
+  if (homeBase) {
+    return { position: homeBase, landed: true };
+  }
+
+  throw new Error(`No valid landed starting hex for ${player.homeBody || 'player'} ${def.type}`);
+}
+
 export function filterStateForPlayer(state: GameState, playerId: number): GameState {
   if (!usesEscapeInspectionRules(state) && !state.ships.some(s => s.hasFugitives)) {
     return state;
@@ -141,6 +187,7 @@ export function createGame(
   gameCode: string,
   findBaseHex: (map: SolarSystemMap, bodyName: string) => { q: number; r: number } | null,
 ): GameState {
+  assertScenarioPlayerCount(scenario);
   const ships: Ship[] = [];
   const playerBases = scenario.players.map(player => resolveControlledBases(player, map));
 
@@ -148,33 +195,13 @@ export function createGame(
     for (let s = 0; s < scenario.players[p].ships.length; s++) {
       const def = scenario.players[p].ships[s];
       const stats = SHIP_STATS[def.type];
-      const shouldLand = def.startLanded !== false;
-
-      let position: { q: number; r: number };
-      let landed: boolean;
-
-      if (shouldLand) {
-        const defHex = map.hexes.get(hexKey(def.position));
-        const ownedBase = playerBases[p][0];
-        const baseHex = defHex?.base
-          ? { ...def.position }
-          : ownedBase
-          ? (() => {
-            const [q, r] = ownedBase.split(',').map(Number);
-            return { q, r };
-          })()
-          : (() => {
-            if (defHex?.base || defHex?.body) {
-              return { ...def.position };
-            }
-            return findBaseHex(map, scenario.players[p].homeBody);
-          })();
-        position = baseHex ?? def.position;
-        landed = true;
-      } else {
-        position = { ...def.position };
-        landed = false;
-      }
+      const { position, landed } = resolveStartingPlacement(
+        def,
+        scenario.players[p],
+        playerBases[p],
+        map,
+        findBaseHex,
+      );
 
       const startHex = map.hexes.get(hexKey(position));
       const initialGravity = !landed && def.startInOrbit && startHex?.gravity
@@ -1420,12 +1447,30 @@ function queueAsteroidHazards(
 ): void {
   const speed = hexVecLength(velocity);
   if (speed <= 1) return;
+  if (path.length < 2) return;
+  const line = analyzeHexLine(path[0], path[path.length - 1]);
+  const queuedBoundaryPairs = new Set<string>();
 
-  for (let i = 1; i < path.length; i++) {
-    if (!isAsteroidHex(state, map, path[i])) continue;
+  for (let i = 1; i < line.definite.length; i++) {
+    if (!isAsteroidHex(state, map, line.definite[i])) continue;
     state.pendingAsteroidHazards.push({
       shipId: ship.id,
-      hex: { ...path[i] },
+      hex: { ...line.definite[i] },
+    });
+  }
+
+  for (const [first, second] of line.ambiguousPairs) {
+    if (!isAsteroidHex(state, map, first) || !isAsteroidHex(state, map, second)) continue;
+    const firstKey = hexKey(first);
+    const secondKey = hexKey(second);
+    const pairKey = firstKey < secondKey
+      ? `${firstKey}|${secondKey}`
+      : `${secondKey}|${firstKey}`;
+    if (queuedBoundaryPairs.has(pairKey)) continue;
+    queuedBoundaryPairs.add(pairKey);
+    state.pendingAsteroidHazards.push({
+      shipId: ship.id,
+      hex: { ...first },
     });
   }
 }
