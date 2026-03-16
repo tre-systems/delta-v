@@ -1,5 +1,5 @@
 import type { Ship, GameState, FleetPurchase, MovementEvent, CombatResult } from '../shared/types';
-import { CODE_LENGTH, ORDNANCE_MASS } from '../shared/constants';
+import { CODE_LENGTH } from '../shared/constants';
 import {
   formatCombatResultEntries,
   formatMovementEventEntry,
@@ -12,6 +12,7 @@ import {
   getFleetCartView,
   getFleetShopView,
 } from './ui-fleet';
+import { buildHUDView } from './ui-hud';
 import { buildShipListView } from './ui-ship-list';
 
 export class UIManager {
@@ -328,9 +329,22 @@ export class UIManager {
   }
 
   updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number, hasBurns = false, cargoFree = 0, cargoMax = 0, objective = '', isWarship = false, canEmplaceBase = false) {
-    document.getElementById('turnInfo')!.textContent = `Turn ${turn}`;
-    document.getElementById('phaseInfo')!.textContent = isMyTurn ? phase.toUpperCase() : 'OPPONENT\'S TURN';
-    document.getElementById('objective')!.textContent = objective;
+    const hudView = buildHUDView(
+      turn,
+      phase,
+      isMyTurn,
+      fuel,
+      maxFuel,
+      hasBurns,
+      cargoFree,
+      cargoMax,
+      objective,
+      isWarship,
+      canEmplaceBase,
+    );
+    document.getElementById('turnInfo')!.textContent = hudView.turnText;
+    document.getElementById('phaseInfo')!.textContent = hudView.phaseText;
+    document.getElementById('objective')!.textContent = hudView.objectiveText;
 
     // Trigger phase alert if turn or phase changed
     const phaseKey = `${turn}-${phase}-${isMyTurn}`;
@@ -338,60 +352,40 @@ export class UIManager {
       this.lastPhase = phaseKey;
       this.showPhaseAlert(phase, isMyTurn);
     }
-    // Show cargo during ordnance phase, fuel otherwise
-    if (phase === 'ordnance' && isMyTurn && cargoMax > 0) {
-      document.getElementById('fuelGauge')!.textContent = `Cargo: ${cargoFree}/${cargoMax}`;
-    } else {
-      document.getElementById('fuelGauge')!.textContent = `Fuel: ${fuel}/${maxFuel}`;
-    }
+    document.getElementById('fuelGauge')!.textContent = hudView.fuelGaugeText;
 
     const undoBtn = document.getElementById('undoBtn')!;
-    undoBtn.style.display = isMyTurn && phase === 'astrogation' && hasBurns ? 'inline-block' : 'none';
+    undoBtn.style.display = hudView.undoVisible ? 'inline-block' : 'none';
 
     const confirmBtn = document.getElementById('confirmBtn')!;
-    confirmBtn.style.display = isMyTurn && phase === 'astrogation' ? 'inline-block' : 'none';
+    confirmBtn.style.display = hudView.confirmVisible ? 'inline-block' : 'none';
 
     const launchMineBtn = document.getElementById('launchMineBtn')! as HTMLButtonElement;
     const launchTorpedoBtn = document.getElementById('launchTorpedoBtn')! as HTMLButtonElement;
     const launchNukeBtn = document.getElementById('launchNukeBtn')! as HTMLButtonElement;
     const emplaceBaseBtn = document.getElementById('emplaceBaseBtn')! as HTMLButtonElement;
     const skipOrdnanceBtn = document.getElementById('skipOrdnanceBtn')!;
-    const showOrd = isMyTurn && phase === 'ordnance';
-    launchMineBtn.style.display = showOrd ? 'inline-block' : 'none';
-    launchTorpedoBtn.style.display = showOrd ? 'inline-block' : 'none';
-    launchNukeBtn.style.display = showOrd ? 'inline-block' : 'none';
-    emplaceBaseBtn.style.display = showOrd && canEmplaceBase ? 'inline-block' : 'none';
-    skipOrdnanceBtn.style.display = showOrd ? 'inline-block' : 'none';
-    // Disable buttons based on cargo capacity and warship status
-    if (showOrd) {
-      const canMine = cargoFree >= ORDNANCE_MASS.mine;
-      const canTorpedo = isWarship && cargoFree >= ORDNANCE_MASS.torpedo;
-      const canNuke = cargoFree >= ORDNANCE_MASS.nuke;
-      launchMineBtn.disabled = !canMine;
-      launchTorpedoBtn.disabled = !canTorpedo;
-      launchNukeBtn.disabled = !canNuke;
-      launchMineBtn.style.opacity = canMine ? '1' : '0.4';
-      launchTorpedoBtn.style.opacity = canTorpedo ? '1' : '0.4';
-      launchNukeBtn.style.opacity = canNuke ? '1' : '0.4';
-      launchTorpedoBtn.title = isWarship ? '' : 'Warships only';
-      launchNukeBtn.title = '';
-    }
+    launchMineBtn.style.display = hudView.launchMine.visible ? 'inline-block' : 'none';
+    launchTorpedoBtn.style.display = hudView.launchTorpedo.visible ? 'inline-block' : 'none';
+    launchNukeBtn.style.display = hudView.launchNuke.visible ? 'inline-block' : 'none';
+    emplaceBaseBtn.style.display = hudView.emplaceBaseVisible ? 'inline-block' : 'none';
+    skipOrdnanceBtn.style.display = hudView.skipOrdnanceVisible ? 'inline-block' : 'none';
+    launchMineBtn.disabled = hudView.launchMine.disabled;
+    launchTorpedoBtn.disabled = hudView.launchTorpedo.disabled;
+    launchNukeBtn.disabled = hudView.launchNuke.disabled;
+    launchMineBtn.style.opacity = hudView.launchMine.opacity;
+    launchTorpedoBtn.style.opacity = hudView.launchTorpedo.opacity;
+    launchNukeBtn.style.opacity = hudView.launchNuke.opacity;
+    launchMineBtn.title = hudView.launchMine.title;
+    launchTorpedoBtn.title = hudView.launchTorpedo.title;
+    launchNukeBtn.title = hudView.launchNuke.title;
 
     const skipCombatBtn = document.getElementById('skipCombatBtn')!;
-    skipCombatBtn.style.display = isMyTurn && phase === 'combat' ? 'inline-block' : 'none';
+    skipCombatBtn.style.display = hudView.skipCombatVisible ? 'inline-block' : 'none';
 
     const statusMsg = document.getElementById('statusMsg')!;
-    if (!isMyTurn) {
-      statusMsg.textContent = 'Waiting for opponent...';
-      statusMsg.style.display = 'block';
-    } else if (phase === 'astrogation') {
-      statusMsg.textContent = 'Select ship · Choose burn direction (1-6) · Confirm (Enter)';
-      statusMsg.style.display = 'block';
-    } else if (phase === 'ordnance') {
-      statusMsg.textContent = 'Launch ordnance or skip (Enter)';
-      statusMsg.style.display = 'block';
-    } else if (phase === 'combat') {
-      statusMsg.textContent = 'Click enemies to target · Fire All to attack (Enter)';
+    if (hudView.statusText) {
+      statusMsg.textContent = hudView.statusText;
       statusMsg.style.display = 'block';
     } else {
       statusMsg.style.display = 'none';
