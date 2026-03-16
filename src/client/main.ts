@@ -603,12 +603,21 @@ class GameClient {
       case 'gameOver': {
         this.setState('gameOver');
         const won = msg.winner === this.playerId;
-        this.ui.showGameOver(won, msg.reason, this.getGameOverStats());
+        const stats = this.getGameOverStats();
         this.ui.logText(`${won ? 'VICTORY' : 'DEFEAT'}: ${msg.reason}`, won ? 'log-landed' : 'log-eliminated');
-        if (won) {
-          playVictory();
+        // Trigger dramatic explosions on the loser's remaining ships
+        const loserId = won ? (1 - this.playerId) : this.playerId;
+        const loserShips = this.gameState?.ships.filter(s => s.owner === loserId && !s.destroyed) ?? [];
+        if (loserShips.length > 0) {
+          playExplosion();
+          const animDuration = this.renderer.triggerGameOverExplosions(loserShips);
+          setTimeout(() => {
+            this.ui.showGameOver(won, msg.reason, stats);
+            if (won) { playVictory(); } else { playDefeat(); }
+          }, animDuration);
         } else {
-          playDefeat();
+          this.ui.showGameOver(won, msg.reason, stats);
+          if (won) { playVictory(); } else { playDefeat(); }
         }
         break;
       }
@@ -1313,12 +1322,20 @@ class GameClient {
     this.setState('gameOver');
     const won = this.gameState.winner === this.playerId;
     const reason = this.gameState.winReason ?? '';
-    this.ui.showGameOver(won, reason, this.getGameOverStats());
+    const stats = this.getGameOverStats();
     this.ui.logText(`${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`, won ? 'log-landed' : 'log-eliminated');
-    if (won) {
-      playVictory();
+    const loserId = won ? (1 - this.playerId) : this.playerId;
+    const loserShips = this.gameState.ships.filter(s => s.owner === loserId && !s.destroyed);
+    if (loserShips.length > 0) {
+      playExplosion();
+      const animDuration = this.renderer.triggerGameOverExplosions(loserShips);
+      setTimeout(() => {
+        this.ui.showGameOver(won, reason, stats);
+        if (won) { playVictory(); } else { playDefeat(); }
+      }, animDuration);
     } else {
-      playDefeat();
+      this.ui.showGameOver(won, reason, stats);
+      if (won) { playVictory(); } else { playDefeat(); }
     }
   }
 
