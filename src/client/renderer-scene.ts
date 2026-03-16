@@ -265,7 +265,14 @@ export function renderAsteroids(
     const debrisView = buildAsteroidDebrisView({ q, r }, hexSize);
     if (!isVisible(debrisView.center.x, debrisView.center.y)) continue;
 
-    ctx.fillStyle = 'rgba(160, 140, 120, 0.35)';
+    // Subtle hex background tint
+    ctx.fillStyle = 'rgba(140, 120, 90, 0.08)';
+    ctx.beginPath();
+    ctx.arc(debrisView.center.x, debrisView.center.y, hexSize * 0.7, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rock particles
+    ctx.fillStyle = 'rgba(180, 160, 130, 0.55)';
     for (const particle of debrisView.particles) {
       ctx.beginPath();
       ctx.arc(
