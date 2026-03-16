@@ -3,6 +3,7 @@ import type { GameState, C2S, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttac
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../shared/constants';
 import { createGame, filterStateForPlayer, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat } from '../shared/game-engine';
+import { validateC2SMessage } from './c2s-validation';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -140,13 +141,21 @@ export class GameDO extends DurableObject {
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (typeof message !== 'string') return;
 
-    let msg: C2S;
+    let parsed: unknown;
     try {
-      msg = JSON.parse(message);
+      parsed = JSON.parse(message);
     } catch {
       this.send(ws, { type: 'error', message: 'Invalid JSON' });
       return;
     }
+
+    const validation = validateC2SMessage(parsed);
+    if (!validation.ok) {
+      this.send(ws, { type: 'error', message: validation.error });
+      return;
+    }
+
+    const msg: C2S = validation.value;
 
     const playerId = this.getPlayerId(ws);
     if (playerId === null) return;
