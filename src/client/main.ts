@@ -16,6 +16,7 @@ import { Tutorial } from './tutorial';
 import { buildCurrentAttack, countRemainingCombatAttackers, getAttackStrengthForSelection, hasSplitFireOptions } from './game-client-combat';
 import { buildAstrogationOrders, deriveHudViewModel, getGameOverStats, getScenarioBriefingLines } from './game-client-helpers';
 import { derivePhaseTransition, type ClientState } from './game-client-phase';
+import { deriveClientStateEntryPlan } from './game-client-phase-entry';
 import { getNearestEnemyPosition, getNextSelectedShip, getOwnFleetFocusPosition } from './game-client-navigation';
 import {
   buildGameRoute,
@@ -31,8 +32,6 @@ import {
 import { deriveTurnTimer } from './game-client-timer';
 import { buildShipTooltipHtml } from './game-client-tooltip';
 import {
-  canShipLaunchAnyOrdnance,
-  getFirstLaunchableShipId,
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
 } from './game-client-ordnance';
@@ -258,12 +257,11 @@ class GameClient {
     // Hide tooltip on state changes
     this.tooltipEl.style.display = 'none';
 
+    const entryPlan = deriveClientStateEntryPlan(newState, this.gameState, this.playerId);
+
     switch (newState) {
       case 'menu':
         this.ui.showMenu();
-        this.tutorial.hideTip();
-        // Reset camera to default view centered on the solar system
-        this.renderer.resetCamera();
         break;
 
       case 'connecting':
@@ -283,73 +281,58 @@ class GameClient {
       case 'playing_fleetBuilding':
         this.ui.showFleetBuilding(this.gameState!, this.playerId);
         break;
-
       case 'playing_astrogation':
-        this.ui.showHUD();
-        this.startTurnTimer();
-        this.updateHUD();
-        // Reset planning state
-        this.renderer.planningState.selectedShipId = null;
-        this.renderer.planningState.burns.clear();
-        this.renderer.planningState.overloads.clear();
-        this.renderer.planningState.weakGravityChoices.clear();
-        // Auto-select the player's first ship
-        if (this.gameState) {
-          const myShip = this.gameState.ships.find(s => s.owner === this.playerId && !s.destroyed);
-          if (myShip) {
-            this.renderer.planningState.selectedShipId = myShip.id;
-          }
-          this.tutorial.onPhaseChange('astrogation', this.gameState.turnNumber);
-        }
-        this.renderer.frameOnShips();
-        break;
-
       case 'playing_ordnance':
-        this.startTurnTimer();
-        this.ui.showHUD();
-        this.updateHUD();
-        this.renderer.planningState.selectedShipId = null;
-        // Auto-select first ship that can launch ordnance
-        if (this.gameState) {
-          const launchableShipId = getFirstLaunchableShipId(this.gameState, this.playerId);
-          if (launchableShipId) {
-            this.renderer.planningState.selectedShipId = launchableShipId;
-          }
-          this.tutorial.onPhaseChange('ordnance', this.gameState.turnNumber);
-        }
-        break;
-
       case 'playing_combat':
-        this.startTurnTimer();
-        this.ui.showHUD();
-        this.updateHUD();
-        this.resetCombatState();
-        this.ui.showAttackButton(false);
-        this.startCombatTargetWatch();
-        if (this.gameState) {
-          this.tutorial.onPhaseChange('combat', this.gameState.turnNumber);
-        }
-        break;
-
       case 'playing_movementAnim':
-        this.stopTurnTimer();
-        this.tutorial.hideTip();
-        this.ui.showHUD();
-        this.ui.showMovementStatus();
-        break;
-
       case 'playing_opponentTurn':
-        this.stopTurnTimer();
         this.ui.showHUD();
-        this.updateHUD();
-        this.renderer.frameOnShips();
         break;
-
       case 'gameOver':
-        this.stopTurnTimer();
-        this.tutorial.hideTip();
-        // gameOver overlay is shown via showGameOver
         break;
+    }
+
+    if (entryPlan.hideTutorial) {
+      this.tutorial.hideTip();
+    }
+    if (entryPlan.resetCamera) {
+      this.renderer.resetCamera();
+    }
+    if (entryPlan.stopTurnTimer) {
+      this.stopTurnTimer();
+    }
+    if (entryPlan.startTurnTimer) {
+      this.startTurnTimer();
+    }
+    if (entryPlan.updateHUD) {
+      this.updateHUD();
+    }
+    if (entryPlan.clearAstrogationPlanning) {
+      this.renderer.planningState.selectedShipId = null;
+      this.renderer.planningState.burns.clear();
+      this.renderer.planningState.overloads.clear();
+      this.renderer.planningState.weakGravityChoices.clear();
+    }
+    if (entryPlan.selectedShipId !== undefined) {
+      this.renderer.planningState.selectedShipId = entryPlan.selectedShipId;
+    }
+    if (entryPlan.resetCombatState) {
+      this.resetCombatState();
+    }
+    if (entryPlan.clearAttackButton) {
+      this.ui.showAttackButton(false);
+    }
+    if (entryPlan.showMovementStatus) {
+      this.ui.showMovementStatus();
+    }
+    if (entryPlan.startCombatTargetWatch) {
+      this.startCombatTargetWatch();
+    }
+    if (entryPlan.tutorialPhase && this.gameState) {
+      this.tutorial.onPhaseChange(entryPlan.tutorialPhase, this.gameState.turnNumber);
+    }
+    if (entryPlan.frameOnShips) {
+      this.renderer.frameOnShips();
     }
   }
 
