@@ -1,7 +1,6 @@
 import {
   type HexCoord,
   type PixelCoord,
-  type HexVec,
   hexToPixel,
   hexAdd,
   hexKey,
@@ -9,7 +8,7 @@ import {
   HEX_DIRECTIONS,
   hexVecLength,
 } from '../shared/hex';
-import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CelestialBody, CombatResult, CombatAttack, PlayerState } from '../shared/types';
+import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CombatResult, CombatAttack } from '../shared/types';
 import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from '../shared/constants';
 import { computeCourse, predictDestination } from '../shared/movement';
 import {
@@ -39,6 +38,13 @@ import {
   formatMovementEventToast,
   getToastFadeAlpha,
 } from './renderer-toast';
+import {
+  buildAsteroidDebrisView,
+  buildBaseMarkerView,
+  buildBodyView,
+  buildLandingObjectiveView,
+  buildMapBorderView,
+} from './renderer-map';
 import {
   clipViewportToMinimap,
   createMinimapLayout,
@@ -694,29 +700,26 @@ export class Renderer {
 
   private renderBodies(ctx: CanvasRenderingContext2D, now: number, map: SolarSystemMap) {
     for (const body of map.bodies) {
-      const p = hexToPixel(body.center, HEX_SIZE);
-      const r = body.renderRadius * HEX_SIZE;
-      const pulse = 0.5 + 0.5 * Math.sin(now / 1500 + p.x * 0.01);
+      const view = buildBodyView(body, HEX_SIZE, now);
+      const p = view.center;
+      const r = view.radius;
 
       // Atmospheric/Gravity Ripples
-      const rippleCount = 3;
-      for (let i = 1; i <= rippleCount; i++) {
-        const rippleR = r * (1.2 + i * 0.8 + pulse * 0.2);
-        const rippleAlpha = (0.15 / i) * (1 - pulse * 0.3);
+      for (const ripple of view.ripples) {
         ctx.strokeStyle = body.color;
-        ctx.globalAlpha = rippleAlpha;
+        ctx.globalAlpha = ripple.alpha;
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, rippleR, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, ripple.radius, 0, Math.PI * 2);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
 
       // Primary Glow
       const glow = ctx.createRadialGradient(p.x, p.y, r * 0.5, p.x, p.y, r * 3);
-      glow.addColorStop(0, body.color + '30');
-      glow.addColorStop(0.4, body.color + '10');
-      glow.addColorStop(1, 'transparent');
+      glow.addColorStop(0, view.glowStops[0]);
+      glow.addColorStop(0.4, view.glowStops[1]);
+      glow.addColorStop(1, view.glowStops[2]);
       ctx.fillStyle = glow;
       ctx.beginPath();
       ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2);
@@ -724,8 +727,8 @@ export class Renderer {
 
       // Body disc
       const grad = ctx.createRadialGradient(p.x - r * 0.3, p.y - r * 0.3, r * 0.1, p.x, p.y, r);
-      grad.addColorStop(0, lightenColor(body.color, 30));
-      grad.addColorStop(1, body.color);
+      grad.addColorStop(0, view.coreColor);
+      grad.addColorStop(1, view.edgeColor);
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
@@ -735,28 +738,19 @@ export class Renderer {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
       ctx.font = '600 11px var(--font-display), sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(body.name.toUpperCase(), p.x, p.y + r + 18);
+      ctx.fillText(view.label, p.x, view.labelY);
     }
   }
 
   private renderBaseMarkers(ctx: CanvasRenderingContext2D, map: SolarSystemMap, state: GameState | null) {
-    let myBases = new Set<string>();
-    let enemyBases = new Set<string>();
-    const destroyed = new Set(state?.destroyedBases ?? []);
-    if (state && this.playerId >= 0) {
-      myBases = new Set(state.players[this.playerId]?.bases ?? []);
-      enemyBases = new Set(state.players[1 - this.playerId]?.bases ?? []);
-    }
-
     for (const [key, hex] of map.hexes) {
       if (!hex.base) continue;
       const [q, r] = key.split(',').map(Number);
       const p = hexToPixel({ q, r }, HEX_SIZE);
-      const isDestroyed = destroyed.has(key);
-
-      if (isDestroyed) {
+      const markerView = buildBaseMarkerView(key, state, this.playerId);
+      if (markerView.kind === 'destroyed') {
         ctx.strokeStyle = 'rgba(255, 90, 90, 0.8)';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = markerView.lineWidth;
         ctx.beginPath();
         ctx.moveTo(p.x - 5, p.y - 5);
         ctx.lineTo(p.x + 5, p.y + 5);
@@ -766,18 +760,9 @@ export class Renderer {
         continue;
       }
 
-      // Color by ownership
-      if (myBases.has(key)) {
-        ctx.fillStyle = '#4fc3f7'; // friendly blue
-        ctx.strokeStyle = '#2196f3';
-      } else if (enemyBases.has(key)) {
-        ctx.fillStyle = '#ff8a65'; // enemy orange
-        ctx.strokeStyle = '#e64a19';
-      } else {
-        ctx.fillStyle = '#66bb6a'; // neutral green
-        ctx.strokeStyle = '#388e3c';
-      }
-      ctx.lineWidth = 1;
+      ctx.fillStyle = markerView.fillStyle!;
+      ctx.strokeStyle = markerView.strokeStyle;
+      ctx.lineWidth = markerView.lineWidth;
 
       // Small diamond marker
       const s = 5;
@@ -793,29 +778,17 @@ export class Renderer {
   }
 
   private renderMapBorder(ctx: CanvasRenderingContext2D, map: SolarSystemMap, state: GameState, now: number) {
-    // Only show for escape scenarios (or always as subtle boundary)
-    const player = state.players[this.playerId];
-    const isEscape = player?.escapeWins;
-
-    const bounds = map.bounds;
-    const margin = 3; // match hasEscaped
-    const tl = hexToPixel({ q: bounds.minQ - margin, r: bounds.minR - margin }, HEX_SIZE);
-    const br = hexToPixel({ q: bounds.maxQ + margin, r: bounds.maxR + margin }, HEX_SIZE);
-
-    if (isEscape) {
-      // Prominent pulsing border for escape scenarios
-      const pulse = 0.15 + 0.1 * Math.sin(now / 1000);
-      ctx.strokeStyle = `rgba(100, 255, 100, ${pulse})`;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([8, 6]);
-      ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
-      ctx.setLineDash([]);
-    } else {
-      // Subtle border for awareness
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
-    }
+    const borderView = buildMapBorderView(
+      map.bounds,
+      Boolean(state.players[this.playerId]?.escapeWins),
+      now,
+      HEX_SIZE,
+    );
+    ctx.strokeStyle = borderView.strokeStyle;
+    ctx.lineWidth = borderView.lineWidth;
+    ctx.setLineDash(borderView.lineDash);
+    ctx.strokeRect(borderView.topLeft.x, borderView.topLeft.y, borderView.width, borderView.height);
+    ctx.setLineDash([]);
   }
 
   private renderAsteroids(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
@@ -824,73 +797,50 @@ export class Renderer {
       if (hex.terrain !== 'asteroid') continue;
       if (destroyed.has(key)) continue;
       const [q, r] = key.split(',').map(Number);
-      const p = hexToPixel({ q, r }, HEX_SIZE);
-      if (!this.camera.isVisible(p.x, p.y)) continue;
+      const debrisView = buildAsteroidDebrisView({ q, r }, HEX_SIZE);
+      if (!this.camera.isVisible(debrisView.center.x, debrisView.center.y)) continue;
 
       // Small scattered dots to suggest asteroid debris
       ctx.fillStyle = 'rgba(160, 140, 120, 0.35)';
-      const seed = q * 7 + r * 13; // deterministic per hex
-      for (let i = 0; i < 3; i++) {
-        const ox = ((seed * (i + 1) * 17) % 11 - 5) * 1.5;
-        const oy = ((seed * (i + 1) * 23) % 11 - 5) * 1.5;
-        const sz = 1.5 + ((seed * (i + 1) * 31) % 5) * 0.3;
+      for (const particle of debrisView.particles) {
         ctx.beginPath();
-        ctx.arc(p.x + ox, p.y + oy, sz, 0, Math.PI * 2);
+        ctx.arc(
+          debrisView.center.x + particle.xOffset,
+          debrisView.center.y + particle.yOffset,
+          particle.size,
+          0,
+          Math.PI * 2,
+        );
         ctx.fill();
       }
     }
   }
 
   private renderLandingTarget(ctx: CanvasRenderingContext2D, map: SolarSystemMap, state: GameState, now: number) {
-    const player = state.players[this.playerId];
-    if (!player) return;
-
-    if (player.escapeWins) {
-      // Escape objective: render edge arrows showing "escape" direction
-      const bounds = map.bounds;
-      const pulse = 0.3 + 0.2 * Math.sin(now / 600);
-      ctx.fillStyle = `rgba(100, 255, 100, ${pulse})`;
+    const objectiveView = buildLandingObjectiveView(state.players[this.playerId], map, now, HEX_SIZE);
+    if (!objectiveView) return;
+    if (objectiveView.kind === 'escape') {
+      ctx.fillStyle = objectiveView.color;
       ctx.font = 'bold 9px monospace';
       ctx.textAlign = 'center';
-
-      // Show arrows at several positions along map edges
-      const edgePositions = [
-        hexToPixel({ q: bounds.maxQ + 2, r: Math.floor((bounds.minR + bounds.maxR) / 2) }, HEX_SIZE),
-        hexToPixel({ q: bounds.minQ - 2, r: Math.floor((bounds.minR + bounds.maxR) / 2) }, HEX_SIZE),
-        hexToPixel({ q: Math.floor((bounds.minQ + bounds.maxQ) / 2), r: bounds.maxR + 2 }, HEX_SIZE),
-        hexToPixel({ q: Math.floor((bounds.minQ + bounds.maxQ) / 2), r: bounds.minR - 2 }, HEX_SIZE),
-      ];
-      const arrows = ['→ ESCAPE', '← ESCAPE', '↓ ESCAPE', '↑ ESCAPE'];
-      for (let i = 0; i < edgePositions.length; i++) {
-        ctx.fillText(arrows[i], edgePositions[i].x, edgePositions[i].y);
+      for (const marker of objectiveView.markers) {
+        ctx.fillText(marker.text, marker.position.x, marker.position.y);
       }
       return;
     }
 
-    if (!player.targetBody) return;
-
-    // Find the target body
-    const body = map.bodies.find(b => b.name === player.targetBody);
-    if (!body) return;
-
-    const p = hexToPixel(body.center, HEX_SIZE);
-    const r = body.renderRadius * HEX_SIZE;
-
-    // Pulsing ring around target body
-    const pulse = 0.4 + 0.3 * Math.sin(now / 800);
-    ctx.strokeStyle = `rgba(100, 255, 100, ${pulse})`;
+    ctx.strokeStyle = objectiveView.strokeStyle;
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 4]);
     ctx.beginPath();
-    ctx.arc(p.x, p.y, r + 8, 0, Math.PI * 2);
+    ctx.arc(objectiveView.center.x, objectiveView.center.y, objectiveView.radius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // "TARGET" label below body label
-    ctx.fillStyle = `rgba(100, 255, 100, ${0.5 + pulse * 0.3})`;
+    ctx.fillStyle = objectiveView.labelStyle;
     ctx.font = 'bold 8px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('▼ TARGET', p.x, p.y + r + 24);
+    ctx.fillText(objectiveView.labelText, objectiveView.center.x, objectiveView.labelY);
   }
 
   private renderDetectionRanges(ctx: CanvasRenderingContext2D, state: GameState, map: SolarSystemMap) {
@@ -2071,14 +2021,4 @@ export class Renderer {
 
     ctx.restore();
   }
-}
-
-// --- Utility ---
-
-function lightenColor(hex: string, amount: number): string {
-  const num = parseInt(hex.slice(1), 16);
-  const r = Math.min(255, (num >> 16) + amount);
-  const g = Math.min(255, ((num >> 8) & 0xff) + amount);
-  const b = Math.min(255, (num & 0xff) + amount);
-  return `rgb(${r}, ${g}, ${b})`;
 }
