@@ -48,7 +48,7 @@ static/
 
 **Worker (lobby-worker):**
 - `GET /` — Serves the SPA (index.html + bundled JS/CSS)
-- `POST /create` — Generates a 5-character invite code plus creator/guest tokens, initializes the Durable Object room, and locks the chosen scenario
+- `POST /create` — Generates a 5-character invite code plus a creator reconnect token and a guest invite token, initializes the Durable Object room, and locks the chosen scenario
 - `GET /ws/:code` — WebSocket upgrade, proxied to the Durable Object
 
 **Durable Object (game-do):**
@@ -61,7 +61,7 @@ static/
 
 ### Invite / Join Flow (No Lobby, No Login)
 
-1. Player 1 clicks "Create Game" → `POST /create` → receives 5-char code plus creator and guest tokens
+1. Player 1 clicks "Create Game" → `POST /create` → receives a 5-char code plus a creator reconnect token and a guest invite token
 2. UI shows the code prominently + a shareable invite link (`https://delta-v.example.com/?code=K7M2X&playerToken=...`)
 3. Player 1 can copy link or share via native Share API
 4. Player 2 receives the invite link or an equivalent tokenized join URL
@@ -90,25 +90,24 @@ When a player is planning movement, subtle dot markers or a faint radial guide m
 The map represents the inner Solar System along the ecliptic plane:
 
 **Celestial Bodies (with gravity hexes):**
-- **Sol** (Sun) — center of map, large body, multiple gravity hexes, any contact = destruction
-- **Mercury** — small, 2 bases, gravity hexes
-- **Venus** — medium, bases on all 6 sides, gravity hexes
-- **Terra** (Earth) — medium, 2 bases, gravity hexes
-  - **Luna** — small satellite, weak gravity (hollow arrows), 1 base
-- **Mars** — medium, 2 bases, gravity hexes
-  - Has two tiny moons (no gameplay effect in basic scenarios)
-- **Jupiter** — large, off-map or map edge, gravity hexes
-  - **Io** — satellite, weak gravity, 1 base
-  - **Callisto** — satellite, weak gravity, 1 base
-  - **Ganymede** — satellite, no base in basic scenarios
-- **Ceres** — asteroid, 1 base
-- **Asteroid Belt** — scattered asteroid hexes between Mars and Jupiter
+- **Sol** (Sun) — center of map, radius-2 body with two full-gravity rings; any contact = destruction
+- **Mercury** — single-hex body with one full-gravity ring and 2 base hexes
+- **Venus** — radius-1 body with one full-gravity ring and bases on all 6 sides
+- **Terra** (Earth) — radius-1 body with one full-gravity ring and bases on all 6 sides
+  - **Luna** — single-hex moon with one weak-gravity ring and bases on all 6 sides
+- **Mars** — single-hex body with one full-gravity ring and bases on all 6 sides
+- **Jupiter** — large northern body with two full-gravity rings
+  - **Io** — single-hex moon with one weak-gravity ring and 1 base
+  - **Callisto** — single-hex moon with one weak-gravity ring and 1 base
+  - **Ganymede** — single-hex moon with one weak-gravity ring and no base
+- **Ceres** — single-hex asteroid body with 1 base and no gravity
+- **Asteroid Belt** — scattered asteroid hexes between the inner planets and Jupiter
 
 **Gravity types:**
 - **Full gravity**: mandatory 1-hex deflection toward the body for any object passing through
-- **Weak gravity** (Luna, Io): player may choose to use or ignore when passing through a single weak gravity hex. Two consecutive weak gravity hexes = full gravity effect on the second.
+- **Weak gravity** (Luna, Io, Callisto, Ganymede): player may choose to use or ignore when passing through a single weak gravity hex. Two consecutive weak gravity hexes = full gravity effect on the second.
 
-**The map data is defined as a static JSON structure** listing every hex with its terrain type (empty, gravity, asteroid, planet surface, base).
+**The map data lives in a static TypeScript module** that programmatically builds body surfaces, gravity rings, base hexes, asteroid terrain, and scenario definitions.
 
 ### Vector Movement
 
@@ -790,14 +789,15 @@ interface ScenarioPlayer {
 - [x] Server hardening for competitive play (tokenized room access, authenticated reconnect tokens, scenario locking at room creation, and runtime WebSocket payload validation)
 - [x] Runtime WebSocket payload validation
 - [x] Orbital bases (carrying, emplacing, torpedo launching)
+- [x] PWA support (installable shell with offline-capable single-player)
 - [ ] Browser-side orchestration and UI test coverage
+- [ ] Asteroid map visuals to match `docs/map.png`
 - [ ] Advanced features: looting, surrender, rescue, and richer logistics
 - [ ] Improved animations (particle effects for thrust, gravity lensing)
 - [ ] Turn history replay
 - [ ] Spectator mode
 - [ ] Game state persistence (resume interrupted games across sessions)
 - [ ] Performance optimization for mobile
-- [ ] PWA support (installable, offline-capable menu)
 
 ## Open Questions
 

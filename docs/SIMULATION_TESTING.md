@@ -1,17 +1,20 @@
 # Delta-V Simulation Testing Strategy
 
-To ensure game balance, test edge cases, and validate the stability of the Durable Objects backend, we can implement two distinct types of simulation testing: **Headless Engine Simulation (AI vs AI)** and **Network Integration Simulation (PvP Bot Stress Testing)**.
+Delta-V now has one established simulation layer and one still-planned layer:
 
-Since the core `game-engine.ts` is purely functional and deterministic, creating high-speed simulations is extremely feasible.
+- **Headless Engine Simulation (AI vs AI)** is implemented and runs in CI.
+- **Network Integration Simulation (PvP Bot Stress Testing)** is still future work.
+
+Since the core `game-engine.ts` is purely functional and deterministic apart from injected RNG, high-speed simulation is practical.
 
 ---
 
 ## 1. Headless Engine Simulation (AI vs AI)
 
-**Goal:** Run thousands of games in seconds to test scenario balance, AI effectiveness, and find crash-inducing edge cases deep in the game tree. (Implemented in `scripts/simulate-ai.ts`).
+**Goal:** Run large batches of AI-vs-AI games quickly to test scenario balance, AI effectiveness, and find crash-inducing edge cases deep in the game tree. This is implemented in `scripts/simulate-ai.ts`.
 
 **Approach:**
-Create a new Node script (e.g., `scripts/simulate-ai.ts`) that runs outside the browser and the Cloudflare Worker, executing purely in Node.js.
+The current runner executes entirely in Node.js, outside the browser and Cloudflare Worker runtime.
 
 1. **Setup:** Initialize `GameState` using `createGame(SCENARIOS[name], map, ...)`.
 2. **Game Loop:** Put the engine in a `while (state.phase !== 'gameOver')` loop.
@@ -22,9 +25,14 @@ Create a new Node script (e.g., `scripts/simulate-ai.ts`) that runs outside the 
 4. **Data Collection:** Track metrics like win rates (Player 0 vs Player 1), average turns to win, fuel consumed, and most common causes of death (combat vs crashes).
 
 **Implementation Details:**
-- Because the `game-engine.ts` has no DOM or Canvas dependencies, this can run extraordinarily fast.
+- Because the `game-engine.ts` has no DOM or Canvas dependencies, this runs very quickly in practice.
 - You can run Monte Carlo simulations (e.g., 10,000 runs of the 'Escape' scenario) to definitively prove if the scenario favors the escaping player or the blockading player.
 - **Randomness:** The combat engine relies on `Math.random()`. Passing a seeded random number generator (RNG) into `processCombat` and `processAstrogation` allows for completely reproducible replays when a simulation encounters a crash or an infinite loop.
+
+**Current usage:**
+- `npm run simulate` runs 100 headless games of the default scenario.
+- `npm run simulate all 100 -- --ci` is the current CI stress pass across all scenarios.
+- `--ci` fails the process on engine crashes and prints balance warnings without making them fatal.
 
 ---
 
@@ -32,7 +40,7 @@ Create a new Node script (e.g., `scripts/simulate-ai.ts`) that runs outside the 
 
 **Goal:** Validate the Cloudflare Durable Object lifecycle, WebSocket handling, reconnection logic, and server scaling.
 
-**Approach:**
+**Approach (planned):**
 Create a headless WebSocket bot client using a library like `ws` in Node.js (e.g., `scripts/load-test.ts`).
 
 1. **Lobby Creation:** The script makes an HTTP POST request to `/create` to get a 5-letter game code.
@@ -48,5 +56,5 @@ Create a headless WebSocket bot client using a library like `ws` in Node.js (e.g
 ## Summary of Progress
 
 1. **RNG Extraction**: Completed. Engine functions accept optional RNG for deterministic simulations.
-2. **AI Runner**: Implemented. `npm run simulate` executes headless matches.
+2. **AI Runner**: Implemented. `npm run simulate` executes headless matches, and CI runs the multi-scenario `--ci` pass.
 3. **Load Tester**: Planned for future infrastructure stress testing.
