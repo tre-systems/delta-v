@@ -42,16 +42,17 @@ async function handleCreate(request: Request, env: Env): Promise<Response> {
   for (let attempt = 0; attempt < 12; attempt++) {
     const code = generateRoomCode();
     const playerToken = generatePlayerToken();
+    const inviteToken = generatePlayerToken();
     const id = env.GAME.idFromName(code);
     const stub = env.GAME.get(id);
     const initResponse = await stub.fetch(new Request('https://room.internal/init', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, scenario, playerToken }),
+      body: JSON.stringify({ code, scenario, playerToken, inviteToken }),
     }));
 
     if (initResponse.ok) {
-      return Response.json({ code, playerToken });
+      return Response.json({ code, playerToken, inviteToken });
     }
 
     if (initResponse.status !== 409) {

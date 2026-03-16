@@ -16,6 +16,7 @@ export class UIManager {
   private logVisible = true;
   private fleetCart: FleetPurchase[] = [];
   private playerId: number = -1;
+  private inviteUrl: string | null = null;
   private readonly actionButtonIds = [
     'undoBtn',
     'confirmBtn',
@@ -34,7 +35,7 @@ export class UIManager {
   onSinglePlayer: ((scenario: string, difficulty: 'easy' | 'normal' | 'hard') => void) | null = null;
   private aiDifficulty: 'easy' | 'normal' | 'hard' = 'normal';
   private pendingAIGame = false; // true when scenario selection is for AI game
-  onJoin: ((code: string) => void) | null = null;
+  onJoin: ((code: string, playerToken?: string | null) => void) | null = null;
   onUndo: (() => void) | null = null;
   onConfirm: (() => void) | null = null;
   onLaunchOrdnance: ((type: 'mine' | 'torpedo' | 'nuke') => void) | null = null;
@@ -100,20 +101,20 @@ export class UIManager {
     });
 
     document.getElementById('joinBtn')!.addEventListener('click', () => {
-      const code = (document.getElementById('codeInput') as HTMLInputElement).value.toUpperCase().trim();
-      if (code.length === 5) this.onJoin?.(code);
+      const parsed = this.parseJoinInput((document.getElementById('codeInput') as HTMLInputElement).value);
+      if (parsed) this.onJoin?.(parsed.code, parsed.playerToken);
     });
 
     document.getElementById('codeInput')!.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        const code = (e.target as HTMLInputElement).value.toUpperCase().trim();
-        if (code.length === 5) this.onJoin?.(code);
+        const parsed = this.parseJoinInput((e.target as HTMLInputElement).value);
+        if (parsed) this.onJoin?.(parsed.code, parsed.playerToken);
       }
     });
 
     document.getElementById('copyBtn')!.addEventListener('click', () => {
       const code = document.getElementById('gameCode')!.textContent;
-      const url = `${window.location.origin}/?code=${code}`;
+      const url = this.inviteUrl ?? `${window.location.origin}/?code=${code}`;
       navigator.clipboard?.writeText(url).then(() => {
         document.getElementById('copyBtn')!.textContent = 'Copied!';
         setTimeout(() => {
@@ -187,16 +188,36 @@ export class UIManager {
     this.pendingAIGame = false;
   }
 
+  private parseJoinInput(rawValue: string): { code: string; playerToken: string | null } | null {
+    const trimmed = rawValue.trim();
+    if (!trimmed) return null;
+
+    try {
+      const url = new URL(trimmed);
+      const code = url.searchParams.get('code')?.toUpperCase() ?? '';
+      const playerToken = url.searchParams.get('playerToken');
+      if (code.length === 5) {
+        return { code, playerToken };
+      }
+    } catch {
+      // Not a URL — fall through to raw code handling.
+    }
+
+    const code = trimmed.toUpperCase();
+    return code.length === 5 ? { code, playerToken: null } : null;
+  }
+
   showScenarioSelect() {
     this.hideAll();
     this.scenarioEl.style.display = 'flex';
     document.getElementById('soundBtn')!.style.display = 'flex';
   }
 
-  showWaiting(code: string) {
+  showWaiting(code: string, inviteUrl: string | null = null) {
     this.hideAll();
     this.waitingEl.style.display = 'flex';
     document.getElementById('soundBtn')!.style.display = 'flex';
+    this.inviteUrl = inviteUrl;
     document.getElementById('gameCode')!.textContent = code;
     document.getElementById('waitingStatus')!.textContent = 'Waiting for opponent...';
   }
@@ -205,6 +226,7 @@ export class UIManager {
     this.hideAll();
     this.waitingEl.style.display = 'flex';
     document.getElementById('soundBtn')!.style.display = 'flex';
+    this.inviteUrl = null;
     document.getElementById('gameCode')!.textContent = '...';
     document.getElementById('waitingStatus')!.textContent = 'Connecting...';
   }

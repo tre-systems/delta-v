@@ -78,23 +78,39 @@ describe('seat assignment', () => {
       disconnectedPlayer: null,
       seatOpen: [true, true],
       playerTokens: ['creator-token', null],
+      inviteTokens: [null, 'invite-token'],
     })).toEqual({
       type: 'join',
       playerId: 0,
       issueNewToken: false,
+      consumeInviteToken: false,
     });
   });
 
-  it('lets an anonymous opponent claim the open guest seat', () => {
+  it('requires an invite token for the guest seat and rotates it into a player token', () => {
     expect(resolveSeatAssignment({
       presentedToken: null,
       disconnectedPlayer: null,
       seatOpen: [true, true],
       playerTokens: ['creator-token', null],
+      inviteTokens: [null, 'invite-token'],
+    })).toEqual({
+      type: 'reject',
+      status: 403,
+      message: 'Join token required',
+    });
+
+    expect(resolveSeatAssignment({
+      presentedToken: 'invite-token',
+      disconnectedPlayer: null,
+      seatOpen: [true, true],
+      playerTokens: ['creator-token', null],
+      inviteTokens: [null, 'invite-token'],
     })).toEqual({
       type: 'join',
       playerId: 1,
       issueNewToken: true,
+      consumeInviteToken: true,
     });
   });
 
@@ -104,6 +120,7 @@ describe('seat assignment', () => {
       disconnectedPlayer: null,
       seatOpen: [true, true],
       playerTokens: ['creator-token', null],
+      inviteTokens: [null, 'invite-token'],
     })).toEqual({
       type: 'reject',
       status: 403,
@@ -117,10 +134,11 @@ describe('seat assignment', () => {
       disconnectedPlayer: 1,
       seatOpen: [false, true],
       playerTokens: ['creator-token', 'guest-token'],
+      inviteTokens: [null, null],
     })).toEqual({
       type: 'reject',
-      status: 409,
-      message: 'Waiting for player reconnection',
+      status: 403,
+      message: 'Join token required',
     });
 
     expect(resolveSeatAssignment({
@@ -128,10 +146,12 @@ describe('seat assignment', () => {
       disconnectedPlayer: 1,
       seatOpen: [false, true],
       playerTokens: ['creator-token', 'guest-token'],
+      inviteTokens: [null, null],
     })).toEqual({
       type: 'join',
       playerId: 1,
       issueNewToken: false,
+      consumeInviteToken: false,
     });
   });
 });
