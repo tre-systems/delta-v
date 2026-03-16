@@ -151,7 +151,7 @@ export interface AnimationState {
 // --- Combat visual effects ---
 
 interface CombatEffect {
-  type: 'beam' | 'explosion';
+  type: 'beam' | 'explosion' | 'gameOverExplosion';
   from: PixelCoord;
   to: PixelCoord;
   startTime: number;
@@ -418,6 +418,38 @@ export class Renderer {
     });
   }
 
+  /**
+   * Trigger dramatic staggered explosions on the losing player's ships.
+   * Returns the total animation duration in ms.
+   */
+  triggerGameOverExplosions(ships: Ship[]): number {
+    const now = performance.now();
+    const stagger = 250; // ms between each ship exploding
+    for (let i = 0; i < ships.length; i++) {
+      const p = hexToPixel(ships[i].position, HEX_SIZE);
+      const delay = i * stagger;
+      // Large dramatic explosion
+      this.combatEffects.push({
+        type: 'gameOverExplosion',
+        from: p,
+        to: p,
+        startTime: now + delay,
+        duration: 1500,
+        color: '#ff4444',
+      });
+      // Secondary orange ring slightly delayed
+      this.combatEffects.push({
+        type: 'gameOverExplosion',
+        from: p,
+        to: p,
+        startTime: now + delay + 200,
+        duration: 1200,
+        color: '#ff8800',
+      });
+    }
+    return ships.length * stagger + 1500; // total duration before panel shows
+  }
+
   showPhaseBanner(text: string) {
     this.phaseBanner = {
       text,
@@ -502,6 +534,7 @@ export class Renderer {
 
     this.renderStars(ctx);
     if (this.map) {
+      this.renderHexGrid(ctx, this.map);
       if (this.gameState) this.renderMapBorder(ctx, this.map, this.gameState, now);
       this.renderAsteroids(ctx, this.map);
       this.renderGravityIndicators(ctx, this.map);
@@ -568,6 +601,50 @@ export class Renderer {
       ctx.arc(star.x, star.y, star.size / this.camera.zoom, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  // Precomputed flat-top hex vertex offsets (cos/sin at 60-degree intervals)
+  private static readonly HEX_OFFSETS: [number, number][] = (() => {
+    const offsets: [number, number][] = [];
+    for (let i = 0; i <= 6; i++) {
+      const angle = (Math.PI / 3) * i;
+      offsets.push([Math.cos(angle), Math.sin(angle)]);
+    }
+    return offsets;
+  })();
+
+  private renderHexGrid(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
+    ctx.strokeStyle = 'rgba(100, 140, 200, 0.25)';
+    ctx.lineWidth = 0.8;
+    const offsets = Renderer.HEX_OFFSETS;
+    const size = HEX_SIZE;
+    const { minQ, maxQ, minR, maxR } = map.bounds;
+    // Compute pixel-space bounding rectangle from all four corners
+    const corners = [
+      hexToPixel({ q: minQ, r: minR }, size),
+      hexToPixel({ q: maxQ, r: minR }, size),
+      hexToPixel({ q: minQ, r: maxR }, size),
+      hexToPixel({ q: maxQ, r: maxR }, size),
+    ];
+    const pxMinX = Math.min(...corners.map(c => c.x)) - size;
+    const pxMaxX = Math.max(...corners.map(c => c.x)) + size;
+    const pxMinY = Math.min(...corners.map(c => c.y)) - size;
+    const pxMaxY = Math.max(...corners.map(c => c.y)) + size;
+    // Over-iterate q range to fill the rectangle, clipping by pixel bounds
+    const qPad = Math.ceil((maxR - minR) / 2) + 2;
+    ctx.beginPath();
+    for (let q = minQ - qPad; q <= maxQ + qPad; q++) {
+      for (let r = minR - qPad; r <= maxR + qPad; r++) {
+        const p = hexToPixel({ q, r }, size);
+        if (p.x < pxMinX || p.x > pxMaxX || p.y < pxMinY || p.y > pxMaxY) continue;
+        if (!this.camera.isVisible(p.x, p.y)) continue;
+        ctx.moveTo(p.x + offsets[0][0] * size, p.y + offsets[0][1] * size);
+        for (let i = 1; i <= 6; i++) {
+          ctx.lineTo(p.x + offsets[i][0] * size, p.y + offsets[i][1] * size);
+        }
+      }
+    }
+    ctx.stroke();
   }
 
   private renderGravityIndicators(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
@@ -1864,6 +1941,75 @@ export class Renderer {
           ctx.arc(effect.from.x, effect.from.y, radius * 0.5, 0, Math.PI * 2);
           ctx.fill();
         }
+        ctx.globalAlpha = 1;
+      } else if (effect.type === 'gameOverExplosion') {
+        // Large dramatic multi-ring explosion for game-over
+        const maxRadius = 50;
+        const alpha = 1 - progress;
+
+        // Outer expanding ring
+        const outerRadius = maxRadius * progress;
+        ctx.strokeStyle = effect.color;
+        ctx.lineWidth = 4 * (1 - progress);
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.beginPath();
+        ctx.arc(effect.from.x, effect.from.y, outerRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Second ring (slightly behind)
+        if (progress > 0.1) {
+          const innerProgress = (progress - 0.1) / 0.9;
+          const innerRadius = maxRadius * 0.7 * innerProgress;
+          ctx.lineWidth = 3 * (1 - innerProgress);
+          ctx.globalAlpha = (1 - innerProgress) * 0.5;
+          ctx.beginPath();
+          ctx.arc(effect.from.x, effect.from.y, innerRadius, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Bright core flash
+        if (progress < 0.4) {
+          const coreAlpha = (1 - progress / 0.4);
+          const coreRadius = 15 * (1 - progress * 0.5);
+          ctx.fillStyle = '#ffffff';
+          ctx.globalAlpha = coreAlpha * 0.8;
+          ctx.beginPath();
+          ctx.arc(effect.from.x, effect.from.y, coreRadius, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Colored glow around core
+          ctx.fillStyle = effect.color;
+          ctx.globalAlpha = coreAlpha * 0.4;
+          ctx.beginPath();
+          ctx.arc(effect.from.x, effect.from.y, coreRadius * 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Debris lines radiating outward
+        if (progress > 0.05 && progress < 0.8) {
+          const debrisAlpha = progress < 0.4 ? 1 : (0.8 - progress) / 0.4;
+          ctx.strokeStyle = effect.color;
+          ctx.globalAlpha = debrisAlpha * 0.6;
+          ctx.lineWidth = 1.5;
+          // Use position hash for deterministic but varied debris angles
+          const seed = (effect.from.x * 7 + effect.from.y * 13) | 0;
+          for (let d = 0; d < 8; d++) {
+            const angle = (seed + d * 0.785) % (Math.PI * 2);
+            const innerR = maxRadius * progress * 0.3;
+            const outerR = maxRadius * progress * 0.7;
+            ctx.beginPath();
+            ctx.moveTo(
+              effect.from.x + Math.cos(angle) * innerR,
+              effect.from.y + Math.sin(angle) * innerR,
+            );
+            ctx.lineTo(
+              effect.from.x + Math.cos(angle) * outerR,
+              effect.from.y + Math.sin(angle) * outerR,
+            );
+            ctx.stroke();
+          }
+        }
+
         ctx.globalAlpha = 1;
       }
     }

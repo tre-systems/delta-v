@@ -267,7 +267,7 @@ export function buildSolarSystemMap(): SolarSystemMap {
   return {
     hexes,
     bodies,
-    bounds: { minQ, maxQ, minR, maxR },
+    bounds: { minQ: minQ - 5, maxQ: maxQ + 5, minR: minR - 3, maxR: maxR + 5 },
   };
 }
 
