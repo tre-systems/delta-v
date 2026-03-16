@@ -1,5 +1,12 @@
 import type { Ship, GameState, FleetPurchase, MovementEvent, CombatResult } from '../shared/types';
 import { CODE_LENGTH, ORDNANCE_MASS, SHIP_STATS } from '../shared/constants';
+import {
+  formatCombatResultEntries,
+  formatMovementEventEntry,
+  getLatencyStatus,
+  getPhaseAlertCopy,
+  parseJoinInput,
+} from './ui-formatters';
 
 export class UIManager {
   private menuEl: HTMLElement;
@@ -101,13 +108,13 @@ export class UIManager {
     });
 
     document.getElementById('joinBtn')!.addEventListener('click', () => {
-      const parsed = this.parseJoinInput((document.getElementById('codeInput') as HTMLInputElement).value);
+      const parsed = parseJoinInput((document.getElementById('codeInput') as HTMLInputElement).value, CODE_LENGTH);
       if (parsed) this.onJoin?.(parsed.code, parsed.playerToken);
     });
 
     document.getElementById('codeInput')!.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        const parsed = this.parseJoinInput((e.target as HTMLInputElement).value);
+        const parsed = parseJoinInput((e.target as HTMLInputElement).value, CODE_LENGTH);
         if (parsed) this.onJoin?.(parsed.code, parsed.playerToken);
       }
     });
@@ -186,25 +193,6 @@ export class UIManager {
     document.getElementById('soundBtn')!.style.display = 'flex';
     // Reset state
     this.pendingAIGame = false;
-  }
-
-  private parseJoinInput(rawValue: string): { code: string; playerToken: string | null } | null {
-    const trimmed = rawValue.trim();
-    if (!trimmed) return null;
-
-    try {
-      const url = new URL(trimmed);
-      const code = url.searchParams.get('code')?.toUpperCase() ?? '';
-      const playerToken = url.searchParams.get('playerToken');
-      if (code.length === CODE_LENGTH) {
-        return { code, playerToken };
-      }
-    } catch {
-      // Not a URL — fall through to raw code handling.
-    }
-
-    const code = trimmed.toUpperCase();
-    return code.length === CODE_LENGTH ? { code, playerToken: null } : null;
   }
 
   showScenarioSelect() {
@@ -421,16 +409,9 @@ export class UIManager {
 
   updateLatency(latencyMs: number | null) {
     const latencyEl = document.getElementById('latencyInfo')!;
-    if (latencyMs === null) {
-      latencyEl.textContent = '';
-      latencyEl.className = 'latency-text';
-      return;
-    }
-    latencyEl.textContent = `${latencyMs}ms`;
-    latencyEl.className = 'latency-text ' + (
-      latencyMs < 100 ? 'latency-good' :
-      latencyMs < 250 ? 'latency-ok' : 'latency-bad'
-    );
+    const status = getLatencyStatus(latencyMs);
+    latencyEl.textContent = status.text;
+    latencyEl.className = status.className;
   }
 
   updateFleetStatus(status: string) {
@@ -609,10 +590,10 @@ export class UIManager {
     const alertEl = document.getElementById('phaseAlert')!;
     const titleEl = alertEl.querySelector('.phase-alert-title') as HTMLElement;
     const subEl = alertEl.querySelector('.phase-alert-subtitle') as HTMLElement;
-
-    titleEl.textContent = phase === 'astrogation' ? 'Astrogation' : phase === 'ordnance' ? 'Ordnance' : phase === 'combat' ? 'Combat' : phase;
-    subEl.textContent = isMyTurn ? 'YOUR TURN' : 'OPPONENT\'S TURN';
-    subEl.style.color = isMyTurn ? 'var(--accent)' : 'var(--warning)';
+    const copy = getPhaseAlertCopy(phase, isMyTurn);
+    titleEl.textContent = copy.title;
+    subEl.textContent = copy.subtitle;
+    subEl.style.color = copy.subtitleColor;
 
     alertEl.classList.remove('active');
     void alertEl.offsetWidth; // trigger reflow
@@ -647,101 +628,15 @@ export class UIManager {
 
   logMovementEvents(events: MovementEvent[], ships: Ship[]) {
     for (const ev of events) {
-      const ship = ships.find(s => s.id === ev.shipId);
-      const name = ship ? (SHIP_STATS[ship.type]?.name ?? ship.type) : ev.shipId;
-      let text: string;
-      let cls: string;
-
-      switch (ev.type) {
-        case 'crash':
-          text = `${name} crashed and was LOST!`;
-          cls = 'log-eliminated';
-          break;
-        case 'ramming':
-          text = `${name} collided with another ship! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Eliminated!' : ev.damageType === 'disabled' ? `Disabled for ${ev.disabledTurns} turns` : 'Survives'}`;
-          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : 'log-env';
-          break;
-        case 'asteroidHit':
-          text = `${name} struck an asteroid! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Hull breached, Ship Lost!' : ev.damageType === 'disabled' ? `Systems disabled for ${ev.disabledTurns}T` : 'Glancing blow, no damage'}`;
-          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : 'log-env';
-          break;
-        case 'mineDetonation':
-          text = `Mine detonated near ${name}! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Vessel destroyed!' : ev.damageType === 'disabled' ? `Disabled for ${ev.disabledTurns}T` : 'Armor held'}`;
-          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
-          break;
-        case 'torpedoHit':
-          text = `Torpedo impact on ${name}! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Critical detonation, vessel lost' : ev.damageType === 'disabled' ? `Systems disabled for ${ev.disabledTurns}T` : 'Deflected'}`;
-          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
-          break;
-        case 'nukeDetonation':
-          text = `Nuclear detonation near ${name}! [Roll: ${ev.dieRoll}] -> ${ev.damageType === 'eliminated' ? 'Ship vaporized!' : ev.damageType === 'disabled' ? `Disabled for ${ev.disabledTurns}T` : 'Radiation shield held'}`;
-          cls = ev.damageType === 'eliminated' ? 'log-eliminated' : ev.damageType === 'disabled' ? 'log-damage' : '';
-          break;
-        case 'capture': {
-          const captor = ev.capturedBy ? ships.find(s => s.id === ev.capturedBy) : null;
-          const captorName = captor ? (SHIP_STATS[captor.type]?.name ?? captor.type) : 'unknown';
-          text = `${name} has been CAPTURED by ${captorName}!`;
-          cls = 'log-damage';
-          break;
-        }
-        default:
-          continue;
-      }
-      this.logText(text, cls);
+      const entry = formatMovementEventEntry(ev, ships);
+      if (entry) this.logText(entry.text, entry.className);
     }
   }
 
   logCombatResults(results: CombatResult[], ships: Ship[]) {
     for (const r of results) {
-      const target = r.targetType === 'ship'
-        ? ships.find(s => s.id === r.targetId)
-        : null;
-      const targetName = r.targetType === 'ordnance'
-        ? 'nuke'
-        : target ? (SHIP_STATS[target.type]?.name ?? target.type) : r.targetId;
-      const result = r.damageType === 'eliminated' ? 'DESTROYED'
-        : r.damageType === 'disabled' ? `DISABLED (${r.disabledTurns}T)`
-        : 'Miss';
-      const isPlayerTarget = target && target.owner === this.playerId;
-      const cls = r.damageType === 'eliminated' ? 'log-eliminated'
-        : r.damageType === 'disabled' ? 'log-damage' 
-        : isPlayerTarget ? 'log-enemy' : '';
-
-      // Build attacker description
-      let attackerDesc = '';
-      if (r.attackType === 'baseDefense') {
-        attackerDesc = 'Planetary Base';
-      } else if (r.attackType === 'antiNuke') {
-        attackerDesc = 'Defensive Battery';
-      } else if (r.attackType !== 'asteroidHazard') {
-        const attackerNames = r.attackerIds
-          .map(id => {
-            const s = ships.find(sh => sh.id === id);
-            return s ? (SHIP_STATS[s.type]?.name ?? s.type) : id;
-          })
-          .filter((v, i, a) => a.indexOf(v) === i); // dedupe same type
-        attackerDesc = attackerNames.join(' & ');
-      }
-
-      if (r.attackType === 'asteroidHazard') {
-        this.logText(`${targetName} struck an asteroid: ${result} [Roll: ${r.dieRoll}]`, cls || 'log-env');
-      } else {
-        const mods = [];
-        if (r.rangeMod !== 0) mods.push(`R${r.rangeMod > 0 ? '+' : ''}${r.rangeMod}`);
-        if (r.velocityMod !== 0) mods.push(`V${r.velocityMod > 0 ? '+' : ''}${r.velocityMod}`);
-        const modStr = mods.length > 0 ? ` (${mods.join(', ')})` : '';
-        this.logText(`${attackerDesc} fired on ${targetName} [Odds: ${r.odds}${modStr}] -> Roll: ${r.dieRoll} -> ${result}`, cls);
-      }
-
-      if (r.counterattack) {
-        const cTarget = ships.find(s => s.id === r.counterattack!.targetId);
-        const cName = cTarget ? (SHIP_STATS[cTarget.type]?.name ?? cTarget.type) : r.counterattack.targetId;
-        const cResult = r.counterattack.damageType === 'eliminated' ? 'DESTROYED'
-          : r.counterattack.damageType === 'disabled' ? `DISABLED (${r.counterattack.disabledTurns}T)`
-          : 'Miss';
-        const cCls = r.counterattack.damageType === 'eliminated' ? 'log-eliminated'
-          : r.counterattack.damageType === 'disabled' ? 'log-damage' : '';
-        this.logText(`  Target returned fire on ${cName}: ${cResult}`, cCls);
+      for (const entry of formatCombatResultEntries(r, ships, this.playerId)) {
+        this.logText(entry.text, entry.className);
       }
     }
   }
