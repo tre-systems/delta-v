@@ -7,6 +7,8 @@
 
 ### [Play Now at delta-v.tre.systems](https://delta-v.tre.systems/)
 
+<a href='https://ko-fi.com/N4N31DPNUS' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+
 ![Delta-V Tactical Map](./screenshot.png)
 
 **Delta-V** is an online, real-time multiplayer tactical space combat and racing game featuring realistic vector movement and orbital gravity mechanics across the inner Solar System.
@@ -104,6 +106,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] **Hidden Information Scenarios**: Authoritative Fog of War implemented for specific game modes (e.g., *Escape*).
 - [x] **Premium Polish**: High-fidelity glassmorphism UI, tactical micro-animations, and procedural SFX.
 - [x] **AI Opponent**: Challenging local-bot with multiple difficulty levels and gravity-aware pathfinding.
+- [x] **Progressive Web App**: Installable PWA with offline single-player support, app manifest, and service worker caching.
 - [ ] **Zod Integration**: Implement strict schema validation for WebSocket payloads to ensure server-side robustness.
 - [ ] **Orbital Bases**: Carrying and emplacing strategic stations during play.
 - [ ] **Spectator Mode**: Allowing third-party connections to watch ongoing battles.
