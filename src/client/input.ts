@@ -35,6 +35,7 @@ export class InputHandler {
   private dragStartX = 0;
   private dragStartY = 0;
   private dragMoved = false;
+  private isTouch = false;
 
   // Pinch zoom
   private lastPinchDist = 0;
@@ -85,8 +86,9 @@ export class InputHandler {
 
   // --- Pointer handling ---
 
-  private onPointerDown(x: number, y: number) {
+  private onPointerDown(x: number, y: number, touch = false) {
     this.isDragging = true;
+    this.isTouch = touch;
     this.dragStartX = x;
     this.dragStartY = y;
     this.dragMoved = false;
@@ -96,8 +98,9 @@ export class InputHandler {
     if (this.isDragging) {
       const dx = x - this.dragStartX;
       const dy = y - this.dragStartY;
+      const threshold = this.isTouch ? 8 : 3;
 
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
         this.dragMoved = true;
       }
 
@@ -129,7 +132,7 @@ export class InputHandler {
   private onTouchStart(e: TouchEvent) {
     e.preventDefault();
     if (e.touches.length === 1) {
-      this.onPointerDown(e.touches[0].clientX, e.touches[0].clientY);
+      this.onPointerDown(e.touches[0].clientX, e.touches[0].clientY, true);
     } else if (e.touches.length === 2) {
       this.isDragging = false;
       this.lastPinchDist = this.getPinchDist(e);
