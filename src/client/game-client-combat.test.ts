@@ -3,9 +3,15 @@ import type { CombatAttack, GameState, Ordnance, PlayerState, Ship, SolarSystemM
 import {
   buildCurrentAttack,
   countRemainingCombatAttackers,
+  createClearedCombatPlan,
+  createCombatTargetPlan,
+  getCombatAttackerIdAtHex,
+  getCombatTargetAtHex,
   getAttackStrengthForSelection,
+  getLegalCombatAttackers,
   getReusableCombatGroup,
   hasSplitFireOptions,
+  toggleCombatAttackerSelection,
 } from './game-client-combat';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
@@ -137,5 +143,80 @@ describe('game client combat helpers', () => {
 
     expect(countRemainingCombatAttackers(state, 0, queuedAttacks)).toBe(1);
     expect(getAttackStrengthForSelection(state, ['a', 'b'])).toBe(6);
+  });
+
+  it('finds clickable attackers and targets while ignoring queued ships', () => {
+    const state = createState({ ordnance: [createOrdnance({ position: { q: 2, r: 0 } })] });
+    const queuedAttacks: CombatAttack[] = [
+      { attackerIds: ['a'], targetId: 'x', targetType: 'ship', attackStrength: 4 },
+    ];
+
+    expect(getCombatAttackerIdAtHex(state, 0, { q: 0, r: 1 })).toBe('b');
+    expect(getCombatTargetAtHex(state, 0, { q: 2, r: 0 }, queuedAttacks)).toEqual({
+      targetId: 'ord-0',
+      targetType: 'ordnance',
+    });
+    expect(getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, [])).toEqual({
+      targetId: 'x',
+      targetType: 'ship',
+    });
+    expect(getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, queuedAttacks)).not.toEqual({
+      targetId: 'x',
+      targetType: 'ship',
+    });
+  });
+
+  it('creates and clears combat target plans from reusable or legal groups', () => {
+    const state = createState();
+    const queuedAttacks: CombatAttack[] = [
+      { attackerIds: ['a', 'b'], targetId: 'x', targetType: 'ship', attackStrength: 3 },
+    ];
+
+    expect(createCombatTargetPlan(state, 0, {
+      combatTargetId: null,
+      combatTargetType: null,
+      combatAttackerIds: [],
+      combatAttackStrength: null,
+      queuedAttacks,
+    }, 'y', 'ship', map)).toEqual({
+      combatTargetId: 'y',
+      combatTargetType: 'ship',
+      combatAttackerIds: ['a', 'b'],
+      combatAttackStrength: 3,
+    });
+
+    expect(createClearedCombatPlan()).toEqual({
+      combatTargetId: null,
+      combatTargetType: null,
+      combatAttackerIds: [],
+      combatAttackStrength: null,
+    });
+  });
+
+  it('returns legal combat attackers and toggles attacker selection without clearing all', () => {
+    const state = createState();
+    const planning = {
+      combatTargetId: 'x',
+      combatTargetType: 'ship' as const,
+      combatAttackerIds: ['a', 'b'],
+      combatAttackStrength: 6,
+      queuedAttacks: [],
+    };
+
+    expect(getLegalCombatAttackers(state, 0, planning.queuedAttacks, 'x', 'ship', map).map((ship) => ship.id)).toEqual(['a', 'b']);
+    expect(toggleCombatAttackerSelection(state, 0, planning, map, 'b')).toEqual({
+      consumed: true,
+      combatAttackerIds: ['a'],
+      combatAttackStrength: 4,
+    });
+    expect(toggleCombatAttackerSelection(state, 0, {
+      ...planning,
+      combatAttackerIds: ['a'],
+      combatAttackStrength: 4,
+    }, map, 'a')).toEqual({
+      consumed: true,
+      combatAttackerIds: ['a'],
+      combatAttackStrength: 4,
+    });
   });
 });
