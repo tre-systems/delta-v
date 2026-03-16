@@ -13,7 +13,6 @@ import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, So
 import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from '../shared/constants';
 import { computeCourse, predictDestination } from '../shared/movement';
 import {
-  formatCombatResult,
   getCombatOverlayHighlights,
   getCombatPreview,
   getCombatTargetEntity,
@@ -35,6 +34,11 @@ import {
   shouldShowLandedIndicator,
   shouldShowOrbitIndicator,
 } from './renderer-entities';
+import {
+  buildCombatResultToastLines,
+  formatMovementEventToast,
+  getToastFadeAlpha,
+} from './renderer-toast';
 import {
   clipViewportToMinimap,
   createMinimapLayout,
@@ -1909,8 +1913,7 @@ export class Renderer {
 
   private renderMovementEventsToast(ctx: CanvasRenderingContext2D, events: MovementEvent[], now: number, screenW: number) {
     if (events.length === 0) return;
-    const fadeStart = this.movementEvents!.showUntil - 1000;
-    const alpha = now > fadeStart ? Math.max(0, (this.movementEvents!.showUntil - now) / 1000) : 1;
+    const alpha = getToastFadeAlpha(this.movementEvents!.showUntil, now);
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -1919,47 +1922,18 @@ export class Renderer {
     for (const ev of events) {
       const ship = this.gameState?.ships.find(s => s.id === ev.shipId);
       const shipName = ship ? ship.type : ev.shipId;
-      let text: string;
-      let color: string;
-
-      switch (ev.type) {
-        case 'crash':
-          text = `${shipName}: CRASHED`;
-          color = '#ff4444';
-          break;
-        case 'ramming':
-          text = `${shipName}: RAMMED [${ev.dieRoll}] — ${ev.damageType === 'eliminated' ? 'ELIMINATED' : ev.damageType === 'disabled' ? `DISABLED ${ev.disabledTurns}T` : 'NO DAMAGE'}`;
-          color = ev.damageType === 'eliminated' ? '#ff4444' : ev.damageType === 'disabled' ? '#ffaa00' : '#88ff88';
-          break;
-        case 'asteroidHit':
-          text = `${shipName}: Asteroid hit [${ev.dieRoll}] — ${ev.damageType === 'eliminated' ? 'ELIMINATED' : ev.damageType === 'disabled' ? `DISABLED ${ev.disabledTurns}T` : 'MISS'}`;
-          color = ev.damageType === 'eliminated' ? '#ff4444' : ev.damageType === 'disabled' ? '#ffaa00' : '#88ff88';
-          break;
-        case 'mineDetonation':
-          text = `Mine hit ${shipName} [${ev.dieRoll}] — ${ev.damageType === 'eliminated' ? 'ELIMINATED' : ev.damageType === 'disabled' ? `DISABLED ${ev.disabledTurns}T` : 'NO EFFECT'}`;
-          color = ev.damageType === 'eliminated' ? '#ff4444' : ev.damageType === 'disabled' ? '#ffaa00' : '#88ff88';
-          break;
-        case 'torpedoHit':
-          text = `Torpedo hit ${shipName} [${ev.dieRoll}] — ${ev.damageType === 'eliminated' ? 'ELIMINATED' : ev.damageType === 'disabled' ? `DISABLED ${ev.disabledTurns}T` : 'NO EFFECT'}`;
-          color = ev.damageType === 'eliminated' ? '#ff4444' : ev.damageType === 'disabled' ? '#ffaa00' : '#88ff88';
-          break;
-        case 'nukeDetonation':
-          text = `NUKE hit ${shipName} [${ev.dieRoll}] — ${ev.damageType === 'eliminated' ? 'ELIMINATED' : ev.damageType === 'disabled' ? `DISABLED ${ev.disabledTurns}T` : 'NO EFFECT'}`;
-          color = ev.damageType === 'eliminated' ? '#ff4444' : ev.damageType === 'disabled' ? '#ffaa00' : '#88ff88';
-          break;
-        default:
-          continue;
-      }
+      const line = formatMovementEventToast(ev, shipName);
+      if (!line) continue;
 
       ctx.font = 'bold 12px monospace';
-      const w = ctx.measureText(text).width;
+      const w = ctx.measureText(line.text).width;
       const x = screenW / 2;
 
       ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
       ctx.fillRect(x - w / 2 - 8, y - 12, w + 16, 20);
-      ctx.fillStyle = color;
+      ctx.fillStyle = line.color;
       ctx.textAlign = 'center';
-      ctx.fillText(text, x, y + 2);
+      ctx.fillText(line.text, x, y + 2);
       y += 26;
     }
 
@@ -1968,40 +1942,24 @@ export class Renderer {
 
   private renderCombatResultsToast(ctx: CanvasRenderingContext2D, results: CombatResult[], now: number, screenW: number) {
     if (results.length === 0) return;
-    const fadeStart = this.combatResults!.showUntil - 1000;
-    const alpha = now > fadeStart ? Math.max(0, (this.combatResults!.showUntil - now) / 1000) : 1;
+    const alpha = getToastFadeAlpha(this.combatResults!.showUntil, now);
 
     ctx.save();
     ctx.globalAlpha = alpha;
 
     let y = 60;
-    for (const r of results) {
-      const text = formatCombatResult(r, this.gameState!);
-      ctx.font = 'bold 12px monospace';
-      const w = ctx.measureText(text).width;
+    for (const line of buildCombatResultToastLines(results, this.gameState!)) {
+      const isSecondary = line.variant === 'secondary';
+      ctx.font = isSecondary ? '11px monospace' : 'bold 12px monospace';
+      const w = ctx.measureText(line.text).width;
       const x = screenW / 2;
 
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-      ctx.fillRect(x - w / 2 - 8, y - 12, w + 16, 20);
-      ctx.fillStyle = r.damageType === 'eliminated' ? '#ff4444'
-        : r.damageType === 'disabled' ? '#ffaa00'
-        : '#88ff88';
+      ctx.fillStyle = isSecondary ? 'rgba(0, 0, 0, 0.65)' : 'rgba(0, 0, 0, 0.75)';
+      ctx.fillRect(x - w / 2 - 8, y - 12, w + 16, isSecondary ? 18 : 20);
+      ctx.fillStyle = line.color;
       ctx.textAlign = 'center';
-      ctx.fillText(text, x, y + 2);
-      y += 26;
-
-      if (r.counterattack) {
-        const cText = formatCombatResult(r.counterattack, this.gameState!);
-        ctx.font = '11px monospace';
-        const cw = ctx.measureText(cText).width;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-        ctx.fillRect(x - cw / 2 - 8, y - 12, cw + 16, 18);
-        ctx.fillStyle = r.counterattack.damageType === 'eliminated' ? '#ff4444'
-          : r.counterattack.damageType === 'disabled' ? '#ffaa00'
-          : '#88ff88';
-        ctx.fillText(cText, x, y + 2);
-        y += 24;
-      }
+      ctx.fillText(line.text, x, y + 2);
+      y += isSecondary ? 24 : 26;
     }
 
     ctx.restore();
