@@ -17,6 +17,17 @@ import { buildCurrentAttack, countRemainingCombatAttackers, getAttackStrengthFor
 import { buildAstrogationOrders, deriveHudViewModel, getGameOverStats, getScenarioBriefingLines } from './game-client-helpers';
 import { derivePhaseTransition, type ClientState } from './game-client-phase';
 import { getNearestEnemyPosition, getNextSelectedShip, getOwnFleetFocusPosition } from './game-client-navigation';
+import {
+  buildGameRoute,
+  buildInviteLink,
+  buildWebSocketUrl,
+  getStoredInviteToken,
+  getStoredPlayerToken,
+  loadTokenStore,
+  saveTokenStore,
+  setStoredInviteToken,
+  setStoredPlayerToken,
+} from './game-client-session';
 import { deriveTurnTimer } from './game-client-timer';
 import { buildShipTooltipHtml } from './game-client-tooltip';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
@@ -212,7 +223,7 @@ class GameClient {
         this.storePlayerToken(normalizedCode, playerToken);
       }
       // Strip token from URL to avoid leaking it via browser history / referrer headers
-      history.replaceState(null, '', `/?code=${normalizedCode}`);
+      history.replaceState(null, '', buildGameRoute(normalizedCode));
       this.joinGame(normalizedCode);
     } else {
       this.setState('menu');
@@ -240,7 +251,7 @@ class GameClient {
         if (!this.inviteLink && this.gameCode) {
           const storedInviteToken = this.getStoredInviteToken(this.gameCode);
           if (storedInviteToken) {
-            this.inviteLink = `${window.location.origin}/?code=${this.gameCode}&playerToken=${encodeURIComponent(storedInviteToken)}`;
+            this.inviteLink = buildInviteLink(window.location.origin, this.gameCode, storedInviteToken);
           }
         }
         this.ui.showWaiting(this.gameCode ?? '', this.inviteLink);
@@ -336,9 +347,9 @@ class GameClient {
       this.gameCode = data.code;
       this.storePlayerToken(data.code, data.playerToken);
       this.storeInviteToken(data.code, data.inviteToken);
-      this.inviteLink = `${window.location.origin}/?code=${data.code}&playerToken=${encodeURIComponent(data.inviteToken)}`;
+      this.inviteLink = buildInviteLink(window.location.origin, data.code, data.inviteToken);
       // Update URL
-      history.replaceState(null, '', `/?code=${this.gameCode}`);
+      history.replaceState(null, '', buildGameRoute(this.gameCode));
       this.connect(this.gameCode);
       this.setState('waitingForOpponent');
     } catch (err) {
@@ -381,7 +392,7 @@ class GameClient {
     }
     this.gameCode = code;
     this.inviteLink = null;
-    history.replaceState(null, '', `/?code=${code}`);
+    history.replaceState(null, '', buildGameRoute(code));
     this.connect(code);
     this.setState('connecting');
   }
@@ -390,62 +401,34 @@ class GameClient {
   private maxReconnectAttempts = 5;
   private reconnectTimer: number | null = null;
 
-  private static readonly TOKEN_STORE_KEY = 'delta-v:tokens';
-  private static readonly TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-
   private getTokenStore(): Record<string, { playerToken?: string; inviteToken?: string; ts: number }> {
-    try {
-      return JSON.parse(localStorage.getItem(GameClient.TOKEN_STORE_KEY) || '{}');
-    } catch {
-      return {};
-    }
+    return loadTokenStore(localStorage);
   }
 
   private saveTokenStore(store: Record<string, { playerToken?: string; inviteToken?: string; ts: number }>): void {
-    // Prune entries older than TTL
-    const now = Date.now();
-    for (const key of Object.keys(store)) {
-      if (now - store[key].ts > GameClient.TOKEN_TTL_MS) {
-        delete store[key];
-      }
-    }
-    try {
-      localStorage.setItem(GameClient.TOKEN_STORE_KEY, JSON.stringify(store));
-    } catch {
-      // Ignore storage failures.
-    }
+    saveTokenStore(localStorage, store, Date.now());
   }
 
   private getStoredPlayerToken(code: string): string | null {
-    const entry = this.getTokenStore()[code];
-    return entry?.playerToken ?? null;
+    return getStoredPlayerToken(this.getTokenStore(), code);
   }
 
   private storePlayerToken(code: string, token: string): void {
-    const store = this.getTokenStore();
-    store[code] = { ...store[code], playerToken: token, ts: Date.now() };
+    const store = setStoredPlayerToken(this.getTokenStore(), code, token, Date.now());
     this.saveTokenStore(store);
   }
 
   private getStoredInviteToken(code: string): string | null {
-    const entry = this.getTokenStore()[code];
-    return entry?.inviteToken ?? null;
+    return getStoredInviteToken(this.getTokenStore(), code);
   }
 
   private storeInviteToken(code: string, token: string): void {
-    const store = this.getTokenStore();
-    store[code] = { ...store[code], inviteToken: token, ts: Date.now() };
+    const store = setStoredInviteToken(this.getTokenStore(), code, token, Date.now());
     this.saveTokenStore(store);
   }
 
   private connect(code: string) {
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    let url = `${protocol}//${location.host}/ws/${code}`;
-    const playerToken = this.getStoredPlayerToken(code);
-    if (playerToken) {
-      url += `?playerToken=${encodeURIComponent(playerToken)}`;
-    }
-    this.ws = new WebSocket(url);
+    this.ws = new WebSocket(buildWebSocketUrl(location, code, this.getStoredPlayerToken(code)));
     this.ws.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
     this.ws.onclose = () => this.handleDisconnect();
     this.ws.onerror = () => {}; // onclose fires after onerror
