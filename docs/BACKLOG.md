@@ -15,11 +15,6 @@ The HUD now measures its live top/bottom offsets instead of relying on fixed `re
 
 ## P2 — Code Quality
 
-### Decompose game-engine.ts
-At over 1000 lines, `game-engine.ts` handles game creation, astrogation, ordnance, combat, and turn management. Extract into focused modules (e.g., `game-create.ts`, `game-ordnance.ts`, `game-combat-phase.ts`) while keeping the orchestrator thin.
-
-**Files:** `src/shared/game-engine.ts`
-
 ### Continue shrinking large client coordinators
 `main.ts`, `renderer.ts`, and `ui.ts` are cleaner than they were, but they still carry too much orchestration and DOM/render state. Keep extracting pure helpers and view-model builders until those files are mostly wiring.
 
@@ -27,11 +22,14 @@ At over 1000 lines, `game-engine.ts` handles game creation, astrogation, ordnanc
 
 ## P3 — Test Coverage
 
-### Add map-data.test.ts
-`src/shared/map-data.ts` has no unit tests. Cover `bodyHasGravity`, scenario generation, and hex map construction.
-
-### Add processEmplacement tests
-The orbital base emplacement logic in `game-engine.ts` is untested. Add tests for valid/invalid placements and cost validation.
-
 ### Add constants validation tests
 Add basic sanity tests for `SHIP_STATS` (e.g., no negative values, warships have `canOverload: true`, `defensiveOnly` ships have low combat ratings).
+
+### Improve branch coverage on decomposed engine modules
+`engine-util.ts` (60% branches) and `engine-combat.ts` (70.5% branches) have coverage gaps. Add tests for edge cases in utility predicates and combat phase validation.
+
+## Done
+
+- ~~Decompose game-engine.ts~~ — Extracted into `engine-util.ts`, `engine-victory.ts`, `engine-ordnance.ts`, `engine-combat.ts` with backward-compatible re-exports (681 lines, down from 1957)
+- ~~Add map-data.test.ts~~ — 23 tests covering map builder, body gravity, base placement, scenarios
+- ~~Add processEmplacement tests~~ — 10 tests covering emplacement validation and success paths
