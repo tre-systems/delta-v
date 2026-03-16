@@ -10,7 +10,6 @@ import {
 } from '../shared/hex';
 import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CombatResult, CombatAttack } from '../shared/types';
 import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS } from '../shared/constants';
-import { computeCourse, predictDestination } from '../shared/movement';
 import {
   getCombatOverlayHighlights,
   getCombatPreview,
@@ -53,6 +52,7 @@ import {
   buildShipTrailViews,
   buildVelocityVectorViews,
 } from './renderer-vectors';
+import { buildAstrogationCoursePreviewViews } from './renderer-course';
 import {
   createMinimapLayout,
 } from './game-client-minimap';
@@ -890,170 +890,99 @@ export class Renderer {
       }
     }
 
-    // Planning preview for selected ship
-    if (state.phase === 'astrogation' && state.activePlayer === this.playerId) {
-      for (const ship of state.ships) {
-        if (ship.owner !== this.playerId || ship.destroyed) continue;
-        const burn = this.planningState.burns.get(ship.id) ?? null;
-        const isSelected = ship.id === this.planningState.selectedShipId;
+    for (const preview of buildAstrogationCoursePreviewViews(
+      state,
+      this.playerId,
+      this.planningState,
+      map,
+      HEX_SIZE,
+    )) {
+      ctx.strokeStyle = preview.lineColor;
+      ctx.lineWidth = preview.lineWidth;
+      ctx.setLineDash(preview.lineDash);
+      ctx.beginPath();
+      ctx.moveTo(preview.linePoints[0].x, preview.linePoints[0].y);
+      for (let i = 1; i < preview.linePoints.length; i++) {
+        ctx.lineTo(preview.linePoints[i].x, preview.linePoints[i].y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
 
-        if (burn !== null || isSelected) {
-          const overload = this.planningState.overloads.get(ship.id) ?? null;
-          const wgChoices = this.planningState.weakGravityChoices.get(ship.id) ?? {};
-          const course = computeCourse(ship, burn, map, {
-            overload,
-            weakGravityChoices: wgChoices,
-            destroyedBases: state.destroyedBases,
-          });
-          const from = hexToPixel(ship.landed ? course.path[0] : ship.position, HEX_SIZE);
-          const to = hexToPixel(course.destination, HEX_SIZE);
+      for (const arrow of preview.gravityArrows) {
+        ctx.strokeStyle = arrow.color;
+        ctx.lineWidth = arrow.lineWidth;
+        ctx.beginPath();
+        ctx.moveTo(arrow.from.x, arrow.from.y);
+        ctx.lineTo(arrow.to.x, arrow.to.y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(arrow.to.x, arrow.to.y);
+        ctx.lineTo(arrow.headLeft.x, arrow.headLeft.y);
+        ctx.moveTo(arrow.to.x, arrow.to.y);
+        ctx.lineTo(arrow.headRight.x, arrow.headRight.y);
+        ctx.stroke();
+      }
 
-          // Course line
-          ctx.strokeStyle = course.crashed ? '#ff4444' : '#4fc3f7';
-          ctx.lineWidth = 2;
-          ctx.setLineDash(burn !== null ? [] : [6, 4]);
-          ctx.beginPath();
-          ctx.moveTo(from.x, from.y);
-          // Draw through intermediate path points for slight curve effect
-          for (let i = 1; i < course.path.length; i++) {
-            const pp = hexToPixel(course.path[i], HEX_SIZE);
-            ctx.lineTo(pp.x, pp.y);
-          }
-          ctx.stroke();
-          ctx.setLineDash([]);
+      if (preview.ghostShip) {
+        this.drawShipIcon(
+          ctx,
+          preview.ghostShip.position.x,
+          preview.ghostShip.position.y,
+          preview.ghostShip.owner,
+          preview.ghostShip.alpha,
+          0,
+          0,
+          preview.ghostShip.shipType,
+        );
+      }
 
-          // Show gravity deflection indicators along the path
-          for (const grav of course.gravityEffects) {
-            if (grav.strength === 'weak') continue; // weak has its own toggle UI
-            const gp = hexToPixel(grav.hex, HEX_SIZE);
-            const dp = hexToPixel(hexAdd(grav.hex, HEX_DIRECTIONS[grav.direction]), HEX_SIZE);
-            const angle = Math.atan2(dp.y - gp.y, dp.x - gp.x);
-            const arrowLen = 7;
-            const ax = gp.x + Math.cos(angle) * arrowLen;
-            const ay = gp.y + Math.sin(angle) * arrowLen;
-            ctx.strokeStyle = 'rgba(255, 200, 50, 0.6)';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(gp.x, gp.y);
-            ctx.lineTo(ax, ay);
-            ctx.stroke();
-            // Arrowhead
-            const headLen = 4;
-            ctx.beginPath();
-            ctx.moveTo(ax, ay);
-            ctx.lineTo(ax - headLen * Math.cos(angle - 0.5), ay - headLen * Math.sin(angle - 0.5));
-            ctx.moveTo(ax, ay);
-            ctx.lineTo(ax - headLen * Math.cos(angle + 0.5), ay - headLen * Math.sin(angle + 0.5));
-            ctx.stroke();
-          }
-
-          // Ghost ship at destination
-          if (!course.crashed) {
-            this.drawShipIcon(ctx, to.x, to.y, ship.owner, 0.4, 0, 0, ship.type);
-          }
-
-          // Burn direction arrows (when selected)
-          if (isSelected && ship.fuel > 0) {
-            const predDest = ship.landed ? course.path[0] : predictDestination(ship);
-            for (let d = 0; d < 6; d++) {
-              const targetHex = hexAdd(predDest, HEX_DIRECTIONS[d]);
-              const tp = hexToPixel(targetHex, HEX_SIZE);
-              const isActive = burn === d;
-              const isHovered = this.planningState.hoverHex && hexEqual(this.planningState.hoverHex, targetHex);
-
-              let size = 8;
-              if (isActive) size = 10;
-              if (isHovered) size += 2;
-
-              if (isHovered || isActive) {
-                ctx.shadowBlur = isHovered ? 12 : 8;
-                ctx.shadowColor = '#4fc3f7';
-              }
-
-              ctx.fillStyle = isActive ? 'rgba(79, 195, 247, 0.8)' : isHovered ? 'rgba(79, 195, 247, 0.4)' : 'rgba(79, 195, 247, 0.15)';
-              ctx.strokeStyle = isActive || isHovered ? '#4fc3f7' : 'rgba(79, 195, 247, 0.3)';
-              ctx.lineWidth = isActive || isHovered ? 2 : 1.5;
-              ctx.beginPath();
-              ctx.arc(tp.x, tp.y, size, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.stroke();
-              ctx.shadowBlur = 0;
-            }
-
-            // Overload direction arrows (shown after burn is set, for warships with enough fuel)
-            if (burn !== null) {
-              const stats = SHIP_STATS[ship.type];
-              if (stats?.canOverload && ship.fuel >= 2 && !ship.overloadUsed) {
-                const burnDest = hexAdd(predDest, HEX_DIRECTIONS[burn]);
-                for (let d = 0; d < 6; d++) {
-                  const olHex = hexAdd(burnDest, HEX_DIRECTIONS[d]);
-                  const olp = hexToPixel(olHex, HEX_SIZE);
-                  const isOlActive = overload === d;
-                  const isOlHovered = this.planningState.hoverHex && hexEqual(this.planningState.hoverHex, olHex);
-
-                  let olSize = 6;
-                  if (isOlActive) olSize = 8;
-                  if (isOlHovered) olSize += 1.5;
-
-                  if (isOlHovered || isOlActive) {
-                    ctx.shadowBlur = isOlHovered ? 8 : 4;
-                    ctx.shadowColor = '#ffb74d';
-                  }
-
-                  ctx.fillStyle = isOlActive ? 'rgba(255, 183, 77, 0.8)' : isOlHovered ? 'rgba(255, 183, 77, 0.4)' : 'rgba(255, 183, 77, 0.1)';
-                  ctx.strokeStyle = isOlActive || isOlHovered ? '#ffb74d' : 'rgba(255, 183, 77, 0.25)';
-                  ctx.lineWidth = isOlActive || isOlHovered ? 2 : 1.5;
-                  ctx.beginPath();
-                  ctx.arc(olp.x, olp.y, olSize, 0, Math.PI * 2);
-                  ctx.fill();
-                  ctx.stroke();
-                  ctx.shadowBlur = 0;
-                }
-              }
-            }
-          }
-
-          // Weak gravity toggle indicators on the path
-          if (isSelected) {
-            for (const grav of course.enteredGravityEffects) {
-              if (grav.strength !== 'weak') continue;
-              const gp = hexToPixel(grav.hex, HEX_SIZE);
-              const key = hexKey(grav.hex);
-              const isIgnored = wgChoices[key] === true;
-
-              // Draw hollow/filled circle to indicate ignore/apply
-              ctx.strokeStyle = isIgnored ? 'rgba(180, 130, 255, 0.5)' : 'rgba(180, 130, 255, 0.8)';
-              ctx.fillStyle = isIgnored ? 'rgba(180, 130, 255, 0.1)' : 'rgba(180, 130, 255, 0.35)';
-              ctx.lineWidth = 1.5;
-              ctx.beginPath();
-              ctx.arc(gp.x, gp.y, 10, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.stroke();
-
-              // "G" label and strikethrough when ignored
-              ctx.fillStyle = isIgnored ? 'rgba(180, 130, 255, 0.4)' : 'rgba(180, 130, 255, 0.9)';
-              ctx.font = 'bold 8px monospace';
-              ctx.textAlign = 'center';
-              ctx.fillText('G', gp.x, gp.y + 3);
-              if (isIgnored) {
-                ctx.strokeStyle = 'rgba(255, 100, 100, 0.7)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(gp.x - 6, gp.y + 4);
-                ctx.lineTo(gp.x + 6, gp.y - 4);
-                ctx.stroke();
-              }
-            }
-          }
-
-          // Fuel cost indicator
-          if (burn !== null) {
-            ctx.fillStyle = '#ffcc00';
-            ctx.font = 'bold 9px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText(`-${course.fuelSpent}`, to.x, to.y - 16);
-          }
+      for (const marker of [...preview.burnMarkers, ...preview.overloadMarkers]) {
+        if (marker.shadowBlur > 0 && marker.shadowColor) {
+          ctx.shadowBlur = marker.shadowBlur;
+          ctx.shadowColor = marker.shadowColor;
         }
+        ctx.fillStyle = marker.fillColor;
+        ctx.strokeStyle = marker.strokeColor;
+        ctx.lineWidth = marker.lineWidth;
+        ctx.beginPath();
+        ctx.arc(marker.position.x, marker.position.y, marker.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      for (const marker of preview.weakGravityMarkers) {
+        ctx.strokeStyle = marker.strokeColor;
+        ctx.fillStyle = marker.fillColor;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(marker.position.x, marker.position.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = marker.labelColor;
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('G', marker.position.x, marker.position.y + 3);
+        if (marker.strikeFrom && marker.strikeTo) {
+          ctx.strokeStyle = 'rgba(255, 100, 100, 0.7)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(marker.strikeFrom.x, marker.strikeFrom.y);
+          ctx.lineTo(marker.strikeTo.x, marker.strikeTo.y);
+          ctx.stroke();
+        }
+      }
+
+      if (preview.fuelCostLabel) {
+        ctx.fillStyle = preview.fuelCostLabel.color;
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(
+          preview.fuelCostLabel.text,
+          preview.fuelCostLabel.position.x,
+          preview.fuelCostLabel.position.y,
+        );
       }
     }
   }
