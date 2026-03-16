@@ -144,13 +144,13 @@ export function buildMapBorderView(
 
 export function buildAsteroidDebrisView(coord: HexCoord, hexSize: number): AsteroidDebrisView {
   const center = hexToPixel(coord, hexSize);
-  const seed = coord.q * 7 + coord.r * 13;
-  const particles = Array.from({ length: 3 }, (_, index) => {
+  const seed = Math.abs(coord.q * 7 + coord.r * 13);
+  const particles = Array.from({ length: 6 }, (_, index) => {
     const factor = index + 1;
     return {
-      xOffset: ((seed * factor * 17) % 11 - 5) * 1.5,
-      yOffset: ((seed * factor * 23) % 11 - 5) * 1.5,
-      size: 1.5 + ((seed * factor * 31) % 5) * 0.3,
+      xOffset: ((seed * factor * 17) % 21 - 10) * 0.9,
+      yOffset: ((seed * factor * 23) % 21 - 10) * 0.9,
+      size: 1.8 + ((seed * factor * 31) % 7) * 0.4,
     };
   });
   return { center, particles };
