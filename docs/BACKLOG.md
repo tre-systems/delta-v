@@ -15,21 +15,21 @@ The HUD now measures its live top/bottom offsets instead of relying on fixed `re
 
 ## P2 — Code Quality
 
-### Continue shrinking large client coordinators
-`main.ts`, `renderer.ts`, and `ui.ts` are cleaner than they were, but they still carry too much orchestration and DOM/render state. Keep extracting pure helpers and view-model builders until those files are mostly wiring.
+### Shrink main.ts further (1,286 lines)
+`main.ts` is the only coordinator still over 1,000 lines. Its methods are mostly 5-20 line glue between extracted helpers — no single block is large enough for easy extraction. Consider whether a second-level split (e.g., separating local-game orchestration from network orchestration) is worthwhile.
 
-**Files:** `src/client/main.ts`, `src/client/renderer.ts`, `src/client/ui.ts`
+**Files:** `src/client/main.ts`
 
 ## P3 — Test Coverage
 
-### Add constants validation tests
-Add basic sanity tests for `SHIP_STATS` (e.g., no negative values, warships have `canOverload: true`, `defensiveOnly` ships have low combat ratings).
-
 ### Improve branch coverage on decomposed engine modules
-`engine-util.ts` (60% branches) and `engine-combat.ts` (70.5% branches) have coverage gaps. Add tests for edge cases in utility predicates and combat phase validation.
+`engine-combat.ts` (70.5% branches) has coverage gaps. Add tests for edge cases in combat phase validation.
 
 ## Done
 
 - ~~Decompose game-engine.ts~~ — Extracted into `engine-util.ts`, `engine-victory.ts`, `engine-ordnance.ts`, `engine-combat.ts` with backward-compatible re-exports (681 lines, down from 1957)
 - ~~Add map-data.test.ts~~ — 23 tests covering map builder, body gravity, base placement, scenarios
 - ~~Add processEmplacement tests~~ — 10 tests covering emplacement validation and success paths
+- ~~Add constants validation tests~~ — 15 tests covering ship stats sanity, ordnance mass, combat/cost scaling
+- ~~Shrink renderer.ts~~ — Extracted `renderer-draw.ts`, `renderer-effects.ts`, `renderer-scene.ts`, `renderer-overlay.ts` (1,771 → 1,011 lines)
+- ~~Shrink ui.ts and input.ts~~ — Already under 1,000 lines (661 and 313 respectively)
