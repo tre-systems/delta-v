@@ -4,7 +4,7 @@ if ('serviceWorker' in navigator) {
 }
 
 import type { CombatResult, GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, FleetPurchase, ShipMovement, ScenarioDefinition } from '../shared/types';
-import { pixelToHex, hexEqual, hexKey } from '../shared/hex';
+import { pixelToHex, hexKey } from '../shared/hex';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { CODE_LENGTH, SHIP_STATS, TURN_TIMEOUT_MS } from '../shared/constants';
 import { createGame, processFleetReady, processEmplacement, type MovementResult } from '../shared/game-engine';
@@ -14,7 +14,7 @@ import { InputHandler } from './input';
 import { UIManager } from './ui';
 import { Tutorial } from './tutorial';
 import { buildCurrentAttack, countRemainingCombatAttackers, getAttackStrengthForSelection, hasSplitFireOptions } from './game-client-combat';
-import { buildAstrogationOrders, deriveHudViewModel, getScenarioBriefingLines } from './game-client-helpers';
+import { buildAstrogationOrders, deriveHudViewModel } from './game-client-helpers';
 import { derivePhaseTransition, type ClientState } from './game-client-phase';
 import { deriveClientStateEntryPlan } from './game-client-phase-entry';
 import { getNearestEnemyPosition, getNextSelectedShip, getOwnFleetFocusPosition } from './game-client-navigation';
@@ -56,6 +56,8 @@ import { deriveClientScreenPlan } from './game-client-screen';
 import { deriveAIActionPlan } from './game-client-ai-flow';
 import { deriveBurnChangePlan } from './game-client-burn';
 import { deriveLandingLogEntries } from './game-client-landings';
+import { getTooltipShip } from './game-client-hover';
+import { deriveScenarioBriefingEntries } from './game-client-briefing';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
 
 class GameClient {
@@ -1232,15 +1234,8 @@ class GameClient {
 
   private logScenarioBriefing() {
     if (!this.gameState) return;
-    const lines = getScenarioBriefingLines(this.gameState, this.playerId);
-    for (const line of lines) {
-      if (line.startsWith('Objective: Escape') || line.startsWith('Objective: Get') || line.startsWith('Objective: Land')) {
-        this.ui.logText(line, 'log-landed');
-      } else if (line.startsWith('Objective: Inspect') || line.startsWith('Objective: Destroy')) {
-        this.ui.logText(line, 'log-damage');
-      } else {
-        this.ui.logText(line);
-      }
+    for (const entry of deriveScenarioBriefingEntries(this.gameState, this.playerId)) {
+      this.ui.logText(entry.text, entry.cssClass);
     }
   }
 
@@ -1288,29 +1283,17 @@ class GameClient {
   }
 
   private updateTooltip(screenX: number, screenY: number) {
-    if (!this.gameState || this.state === 'menu' || this.state === 'connecting'
-        || this.state === 'waitingForOpponent' || this.state === 'playing_movementAnim'
-        || this.state === 'gameOver') {
-      this.tooltipEl.style.display = 'none';
-      return;
-    }
-
+    const gameState = this.gameState;
     const worldPos = this.renderer.camera.screenToWorld(screenX, screenY);
     const hoverHex = pixelToHex(worldPos, HEX_SIZE);
+    const ship = getTooltipShip(gameState, this.state, this.playerId, hoverHex);
 
-    // Find ship at hover hex
-    const ship = this.gameState.ships.find(s => {
-      if (s.destroyed) return false;
-      if (s.owner !== this.playerId && !s.detected) return false;
-      return hexEqual(s.position, hoverHex);
-    });
-
-    if (!ship) {
+    if (!ship || !gameState) {
       this.tooltipEl.style.display = 'none';
       return;
     }
 
-    this.tooltipEl.innerHTML = buildShipTooltipHtml(this.gameState, ship, this.playerId, this.map);
+    this.tooltipEl.innerHTML = buildShipTooltipHtml(gameState, ship, this.playerId, this.map);
     this.tooltipEl.style.display = 'block';
     // Position tooltip offset from cursor
     this.tooltipEl.style.left = `${screenX + 12}px`;
