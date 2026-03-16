@@ -211,6 +211,43 @@ export function parseCreatePayload(raw: unknown, knownScenarioKeys: readonly str
   };
 }
 
+export interface InitPayload {
+  code: string;
+  scenario: string;
+  playerToken: string;
+  inviteToken: string;
+}
+
+export function parseInitPayload(
+  raw: unknown,
+  knownScenarioKeys: readonly string[],
+): { ok: true; value: InitPayload } | { ok: false; error: string } {
+  if (!isObject(raw)) {
+    return { ok: false, error: 'Invalid init payload' };
+  }
+  if (typeof raw.code !== 'string' || !/^[A-Z0-9]{5}$/.test(raw.code)) {
+    return { ok: false, error: 'Invalid room code' };
+  }
+  if (typeof raw.scenario !== 'string' || !knownScenarioKeys.includes(raw.scenario)) {
+    return { ok: false, error: 'Invalid scenario' };
+  }
+  if (!isValidPlayerToken(raw.playerToken)) {
+    return { ok: false, error: 'Invalid player token' };
+  }
+  if (!isValidPlayerToken(raw.inviteToken)) {
+    return { ok: false, error: 'Invalid invite token' };
+  }
+  return {
+    ok: true,
+    value: {
+      code: raw.code,
+      scenario: raw.scenario,
+      playerToken: raw.playerToken,
+      inviteToken: raw.inviteToken,
+    },
+  };
+}
+
 export function validateClientMessage(raw: unknown): { ok: true; value: C2S } | { ok: false; error: string } {
   if (!isObject(raw) || !isString(raw.type)) {
     return { ok: false, error: 'Invalid message payload' };
@@ -256,6 +293,15 @@ export interface RoomConfig {
   scenario: string;
   playerTokens: [string, string | null];
   inviteTokens: [string | null, string | null];
+}
+
+export function createRoomConfig(init: InitPayload): RoomConfig {
+  return {
+    code: init.code,
+    scenario: init.scenario,
+    playerTokens: [init.playerToken, null],
+    inviteTokens: [null, init.inviteToken],
+  };
 }
 
 export interface SeatAssignmentInput {
