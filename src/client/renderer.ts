@@ -13,17 +13,12 @@ import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, So
 import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from '../shared/constants';
 import { computeCourse, predictDestination } from '../shared/movement';
 import {
-  computeOdds,
-  computeGroupRangeMod,
-  computeGroupVelocityMod,
-  computeGroupRangeModToTarget,
-  computeGroupVelocityModToTarget,
-  getCombatStrength,
-  getCounterattackers,
-  canAttack,
-  hasLineOfSight,
-  hasLineOfSightToTarget,
-} from '../shared/combat';
+  formatCombatResult,
+  getCombatOverlayHighlights,
+  getCombatPreview,
+  getCombatTargetEntity,
+  getQueuedCombatOverlayAttacks,
+} from './renderer-combat';
 
 // --- Camera ---
 
@@ -1691,35 +1686,13 @@ export class Renderer {
     if (state.phase !== 'combat' || state.activePlayer !== this.playerId) return;
     if (this.animState) return;
 
-    const targetId = this.planningState.combatTargetId;
-    const targetType = this.planningState.combatTargetType;
-    const shipTarget = targetId && targetType !== 'ordnance'
-      ? state.ships.find(s => s.id === targetId) ?? null
-      : null;
-    const ordnanceTarget = targetId && targetType === 'ordnance'
-      ? state.ordnance.find(o => o.id === targetId && !o.destroyed && o.owner !== this.playerId && o.type === 'nuke') ?? null
-      : null;
-    const committedAttackers = new Set(
-      this.planningState.queuedAttacks.flatMap(a => a.attackerIds),
-    );
-    const queuedTargetKeys = new Set(
-      this.planningState.queuedAttacks.map(a => `${a.targetType ?? 'ship'}:${a.targetId}`),
-    );
-    const myAttackers = state.ships.filter(
-      s => s.owner === this.playerId && !s.destroyed && canAttack(s) && !committedAttackers.has(s.id),
-    );
+    const pulse = 0.5 + 0.3 * Math.sin(now / 300);
 
     // Render queued attack lines (dimmer, dashed)
-    for (const queued of this.planningState.queuedAttacks) {
-      const target = queued.targetType === 'ordnance'
-        ? state.ordnance.find(o => o.id === queued.targetId)
-        : state.ships.find(s => s.id === queued.targetId);
-      if (!target) continue;
-      const targetPos = hexToPixel(target.position, HEX_SIZE);
-      for (const attackerId of queued.attackerIds) {
-        const attacker = state.ships.find(s => s.id === attackerId);
-        if (!attacker) continue;
-        const attackerPos = hexToPixel(attacker.position, HEX_SIZE);
+    for (const queued of getQueuedCombatOverlayAttacks(state, this.planningState.queuedAttacks)) {
+      const targetPos = hexToPixel(queued.targetPosition, HEX_SIZE);
+      for (const attackerPosition of queued.attackerPositions) {
+        const attackerPos = hexToPixel(attackerPosition, HEX_SIZE);
         ctx.strokeStyle = 'rgba(79, 195, 247, 0.3)';
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
@@ -1740,126 +1713,72 @@ export class Renderer {
     }
 
     // Highlight valid enemy targets (only detected ones, not already queued)
-    for (const ship of state.ships) {
-      if (ship.owner === this.playerId || ship.destroyed || ship.landed || !ship.detected) continue;
-      if (queuedTargetKeys.has(`ship:${ship.id}`)) continue;
-      const hasShot = this.map !== null && myAttackers.some(attacker => hasLineOfSight(attacker, ship, this.map!));
-      if (!hasShot) continue;
+    const highlights = getCombatOverlayHighlights(state, this.playerId, this.planningState, this.map);
+    for (const ship of highlights.shipTargets) {
       const p = hexToPixel(ship.position, HEX_SIZE);
-      const isTarget = ship.id === targetId && targetType === 'ship';
-
-      // Pulsing ring on enemies
-      const pulse = 0.5 + 0.3 * Math.sin(now / 300);
-      ctx.strokeStyle = isTarget
+      ctx.strokeStyle = ship.isSelected
         ? `rgba(255, 80, 80, ${0.8 + pulse * 0.2})`
         : `rgba(255, 80, 80, ${0.2 + pulse * 0.15})`;
-      ctx.lineWidth = isTarget ? 2.5 : 1.5;
+      ctx.lineWidth = ship.isSelected ? 2.5 : 1.5;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, isTarget ? 16 : 13, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, ship.isSelected ? 16 : 13, 0, Math.PI * 2);
       ctx.stroke();
     }
 
-    for (const ord of state.ordnance) {
-      if (ord.destroyed || ord.owner === this.playerId || ord.type !== 'nuke') continue;
-      const hasShot = this.map !== null && myAttackers.some(attacker => hasLineOfSightToTarget(attacker, ord, this.map!));
-      if (!hasShot) continue;
-      const p = hexToPixel(ord.position, HEX_SIZE);
-      const isTarget = ord.id === targetId && targetType === 'ordnance';
-      const pulse = 0.5 + 0.3 * Math.sin(now / 300);
-      ctx.strokeStyle = isTarget
+    for (const ordnance of highlights.ordnanceTargets) {
+      const p = hexToPixel(ordnance.position, HEX_SIZE);
+      ctx.strokeStyle = ordnance.isSelected
         ? `rgba(255, 210, 80, ${0.8 + pulse * 0.2})`
         : `rgba(255, 210, 80, ${0.2 + pulse * 0.15})`;
-      ctx.lineWidth = isTarget ? 2.5 : 1.5;
+      ctx.lineWidth = ordnance.isSelected ? 2.5 : 1.5;
       ctx.beginPath();
-      ctx.rect(p.x - (isTarget ? 10 : 8), p.y - (isTarget ? 10 : 8), isTarget ? 20 : 16, isTarget ? 20 : 16);
+      ctx.rect(
+        p.x - (ordnance.isSelected ? 10 : 8),
+        p.y - (ordnance.isSelected ? 10 : 8),
+        ordnance.isSelected ? 20 : 16,
+        ordnance.isSelected ? 20 : 16,
+      );
       ctx.stroke();
     }
 
     // Draw attack line and odds preview
-    if (shipTarget || ordnanceTarget) {
-      let legalAttackers: Ship[] = [];
-      if (this.map !== null) {
-        if (ordnanceTarget) {
-          legalAttackers = myAttackers.filter(attacker => hasLineOfSightToTarget(attacker, ordnanceTarget, this.map!));
-        } else {
-          legalAttackers = myAttackers.filter(attacker => hasLineOfSight(attacker, shipTarget!, this.map!));
-        }
-      }
-      if (legalAttackers.length === 0) return;
-      const selectedAttackers = legalAttackers.filter(attacker =>
-        this.planningState.combatAttackerIds.includes(attacker.id),
-      );
-      const activeAttackers = selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
-      const selectedAttackerIds = new Set(activeAttackers.map(attacker => attacker.id));
+    const preview = getCombatPreview(state, this.playerId, this.planningState, this.map);
+    if (preview === null) return;
 
-      const targetPos = hexToPixel((ordnanceTarget ?? shipTarget)!.position, HEX_SIZE);
+    const targetPos = hexToPixel(preview.targetPosition, HEX_SIZE);
+    for (const attackerPosition of preview.attackerPositions) {
+      const attackerPos = hexToPixel(attackerPosition, HEX_SIZE);
+      ctx.strokeStyle = 'rgba(79, 195, 247, 0.55)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(attackerPos.x, attackerPos.y, 14, 0, Math.PI * 2);
+      ctx.stroke();
+    }
 
-      for (const attacker of activeAttackers) {
-        const attackerPos = hexToPixel(attacker.position, HEX_SIZE);
-        ctx.strokeStyle = 'rgba(79, 195, 247, 0.55)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(attackerPos.x, attackerPos.y, 14, 0, Math.PI * 2);
-        ctx.stroke();
-      }
+    for (const attackerPosition of preview.attackerPositions) {
+      const attackerPos = hexToPixel(attackerPosition, HEX_SIZE);
+      ctx.strokeStyle = 'rgba(255, 80, 80, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(attackerPos.x, attackerPos.y);
+      ctx.lineTo(targetPos.x, targetPos.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
-      // Attack lines from each attacker
-      for (const attacker of activeAttackers) {
-        const attackerPos = hexToPixel(attacker.position, HEX_SIZE);
-        ctx.strokeStyle = 'rgba(255, 80, 80, 0.4)';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath();
-        ctx.moveTo(attackerPos.x, attackerPos.y);
-        ctx.lineTo(targetPos.x, targetPos.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
+    ctx.font = 'bold 10px monospace';
+    const textW = ctx.measureText(preview.label).width;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(targetPos.x - textW / 2 - 4, targetPos.y - 32, textW + 8, 16);
+    ctx.fillStyle = preview.totalMod > 0 ? '#88ff88' : preview.totalMod < 0 ? '#ff6666' : '#ffdd57';
+    ctx.textAlign = 'center';
+    ctx.fillText(preview.label, targetPos.x, targetPos.y - 20);
 
-      // Odds preview at target
-      let attackStr = 0;
-      let defendStr = 0;
-      let odds = '2:1';
-      let rangeMod = 0;
-      let velMod = 0;
-      let label = '';
-
-      if (ordnanceTarget) {
-        rangeMod = computeGroupRangeModToTarget(activeAttackers, ordnanceTarget);
-        velMod = computeGroupVelocityModToTarget(activeAttackers, ordnanceTarget);
-        label = `2:1  R-${rangeMod} V-${velMod}`;
-      } else {
-        const maxAttackStr = getCombatStrength(activeAttackers);
-        attackStr = maxAttackStr > 0
-          ? Math.max(1, Math.min(maxAttackStr, this.planningState.combatAttackStrength ?? maxAttackStr))
-          : 0;
-        defendStr = getCombatStrength([shipTarget!]);
-        odds = computeOdds(attackStr, defendStr);
-        rangeMod = computeGroupRangeMod(activeAttackers, shipTarget!);
-        velMod = computeGroupVelocityMod(activeAttackers, shipTarget!);
-        label = `${odds}  ATK ${attackStr}/${maxAttackStr}  R-${rangeMod} V-${velMod}`;
-      }
-      const totalMod = -(rangeMod + velMod);
-
-      // Background box
-      const modStr = totalMod >= 0 ? `+${totalMod}` : `${totalMod}`;
-      label = `${label}  (${modStr})`;
-      ctx.font = 'bold 10px monospace';
-      const textW = ctx.measureText(label).width;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(targetPos.x - textW / 2 - 4, targetPos.y - 32, textW + 8, 16);
-      // Color code: green if favorable, red if unfavorable, yellow if neutral
-      ctx.fillStyle = totalMod > 0 ? '#88ff88' : totalMod < 0 ? '#ff6666' : '#ffdd57';
-      ctx.textAlign = 'center';
-      ctx.fillText(label, targetPos.x, targetPos.y - 20);
-
-      // Show counterattack warning if target can counterattack
-      if (shipTarget && getCounterattackers(shipTarget, state.ships).length > 0) {
-        ctx.fillStyle = 'rgba(255, 170, 0, 0.7)';
-        ctx.font = '7px monospace';
-        const attackerLabel = selectedAttackerIds.size > 1 ? ` / ${selectedAttackerIds.size} SHIPS` : '';
-        ctx.fillText(`CAN COUNTER${attackerLabel}`, targetPos.x, targetPos.y - 38);
-      }
+    if (preview.counterattackLabel) {
+      ctx.fillStyle = 'rgba(255, 170, 0, 0.7)';
+      ctx.font = '7px monospace';
+      ctx.fillText(preview.counterattackLabel, targetPos.x, targetPos.y - 38);
     }
   }
 
@@ -2281,46 +2200,6 @@ export class Renderer {
 
     ctx.restore();
   }
-}
-
-function formatCombatResult(r: CombatResult, state: GameState): string {
-  const targetName = getCombatTargetName(r, state);
-  const result = r.damageType === 'eliminated' ? 'ELIMINATED'
-    : r.damageType === 'disabled' ? `DISABLED ${r.disabledTurns}T`
-    : 'MISS';
-  if (r.attackType === 'asteroidHazard') {
-    return `${targetName}: asteroid [${r.dieRoll}] ${result}`;
-  }
-  if (r.attackType === 'antiNuke') {
-    return `${r.odds} [${r.dieRoll}→${r.modifiedRoll}] ${targetName}: ${result}`;
-  }
-  return `${r.odds} [${r.dieRoll}→${r.modifiedRoll}] ${targetName}: ${result}`;
-}
-
-function getCombatTargetEntity(
-  result: CombatResult,
-  state: GameState | null,
-  previousState: GameState | null,
-) {
-  const sources = [state, previousState].filter((source): source is GameState => source !== null);
-  for (const source of sources) {
-    if (result.targetType === 'ordnance') {
-      const ordnance = source.ordnance.find(o => o.id === result.targetId);
-      if (ordnance) return ordnance;
-      continue;
-    }
-    const ship = source.ships.find(s => s.id === result.targetId);
-    if (ship) return ship;
-  }
-  return null;
-}
-
-function getCombatTargetName(result: CombatResult, state: GameState): string {
-  if (result.targetType === 'ordnance') {
-    return 'nuke';
-  }
-  const targetShip = state.ships.find(s => s.id === result.targetId);
-  return targetShip ? `${targetShip.type}` : result.targetId;
 }
 
 // --- Utility ---
