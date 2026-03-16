@@ -70,6 +70,8 @@ export interface PlayerState {
   bases: string[]; // hexKey[] for bases this player controls
   escapeWins: boolean; // true if this player wins by escaping the map
   credits?: number; // MegaCredits remaining for fleet-building scenarios
+  visitedBodies?: string[]; // checkpoint body names visited (Grand Tour race)
+  totalFuelSpent?: number; // cumulative fuel spent (race tiebreaker)
 }
 
 // --- Movement ---
@@ -220,6 +222,9 @@ export interface ScenarioRules {
   planetaryDefenseEnabled?: boolean;
   hiddenIdentityInspection?: boolean;
   escapeEdge?: 'any' | 'north';
+  combatDisabled?: boolean; // skip gun/base-defense combat (asteroid hazards still resolve)
+  checkpointBodies?: string[]; // body names that must be visited for race victory
+  sharedBases?: string[]; // body names whose bases all players can use
 }
 
 export type C2S =

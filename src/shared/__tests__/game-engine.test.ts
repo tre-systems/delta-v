@@ -4,6 +4,7 @@ import { buildSolarSystemMap, SCENARIOS, findBaseHex, findBaseHexes } from '../m
 import { SHIP_STATS, ORDNANCE_MASS } from '../constants';
 import { hexKey, hexEqual, hexDistance } from '../hex';
 import { resolveBaseDefense } from '../combat';
+import { updateCheckpoints, checkImmediateVictory } from '../engine-victory';
 import type { GameState, ScenarioDefinition, SolarSystemMap, AstrogationOrder, OrdnanceLaunch, Ordnance, Ship } from '../types';
 
 let map: SolarSystemMap;
@@ -2478,5 +2479,149 @@ describe('fleet building (MegaCredit economy)', () => {
     if ('error' in result) {
       expect(result.error).toContain('Not in fleet building');
     }
+  });
+});
+
+describe('Grand Tour', () => {
+  let tourState: GameState;
+
+  beforeEach(() => {
+    tourState = createGame(SCENARIOS.grandTour, map, 'TOUR1', findBaseHex);
+  });
+
+  it('initializes checkpoint tracking', () => {
+    expect(tourState.scenarioRules.checkpointBodies).toEqual(
+      ['Sol', 'Mercury', 'Venus', 'Terra', 'Mars', 'Jupiter', 'Io', 'Callisto'],
+    );
+    expect(tourState.scenarioRules.combatDisabled).toBe(true);
+    expect(tourState.players[0].visitedBodies).toBeDefined();
+    expect(tourState.players[0].totalFuelSpent).toBe(0);
+    expect(tourState.players[1].visitedBodies).toBeDefined();
+    expect(tourState.players[1].totalFuelSpent).toBe(0);
+  });
+
+  it('pre-marks starting body as visited', () => {
+    // Player 0 starts at Terra, Player 1 at Mars
+    expect(tourState.players[0].visitedBodies).toContain('Terra');
+    expect(tourState.players[1].visitedBodies).toContain('Mars');
+  });
+
+  it('gives both players shared bases for fuel', () => {
+    // Both players should have bases on Terra, Venus, Mars, and Callisto
+    const terraBaseKeys = findBaseHexes(map, 'Terra').map(h => hexKey(h));
+    const venusBaseKeys = findBaseHexes(map, 'Venus').map(h => hexKey(h));
+    const marsBaseKeys = findBaseHexes(map, 'Mars').map(h => hexKey(h));
+    const callistoBaseKeys = findBaseHexes(map, 'Callisto').map(h => hexKey(h));
+
+    for (const key of [...terraBaseKeys, ...venusBaseKeys, ...marsBaseKeys, ...callistoBaseKeys]) {
+      expect(tourState.players[0].bases).toContain(key);
+      expect(tourState.players[1].bases).toContain(key);
+    }
+  });
+
+  it('updates checkpoints when path crosses gravity hexes', () => {
+    // Find a Mercury gravity hex
+    const mercuryGravityHex = [...map.hexes.entries()]
+      .find(([, hex]) => hex.gravity?.bodyName === 'Mercury');
+    expect(mercuryGravityHex).toBeDefined();
+
+    const [keyStr] = mercuryGravityHex!;
+    const [q, r] = keyStr.split(',').map(Number);
+
+    updateCheckpoints(tourState, 0, [{ q, r }], map);
+    expect(tourState.players[0].visitedBodies).toContain('Mercury');
+    // Player 1 should be unaffected
+    expect(tourState.players[1].visitedBodies).not.toContain('Mercury');
+  });
+
+  it('does not duplicate visited bodies', () => {
+    const mercuryGravityHex = [...map.hexes.entries()]
+      .find(([, hex]) => hex.gravity?.bodyName === 'Mercury');
+    const [keyStr] = mercuryGravityHex!;
+    const [q, r] = keyStr.split(',').map(Number);
+
+    updateCheckpoints(tourState, 0, [{ q, r }], map);
+    updateCheckpoints(tourState, 0, [{ q, r }], map);
+    const count = tourState.players[0].visitedBodies!.filter(b => b === 'Mercury').length;
+    expect(count).toBe(1);
+  });
+
+  it('wins when all checkpoints visited and landed at home', () => {
+    // Mark all checkpoints as visited for player 0
+    tourState.players[0].visitedBodies = [...tourState.scenarioRules.checkpointBodies!];
+
+    // Land the ship at a Terra base
+    const ship = tourState.ships.find(s => s.owner === 0)!;
+    const terraBase = findBaseHexes(map, 'Terra')[0];
+    ship.position = terraBase;
+    ship.landed = true;
+    ship.destroyed = false;
+
+    // Run astrogation with no burns (ship is already landed)
+    // Directly test checkImmediateVictory by importing it
+    checkImmediateVictory(tourState, map);
+
+    expect(tourState.winner).toBe(0);
+    expect(tourState.winReason).toContain('Grand Tour complete');
+  });
+
+  it('does not win with incomplete checkpoints', () => {
+    // Mark only some checkpoints as visited
+    tourState.players[0].visitedBodies = ['Terra', 'Mercury', 'Venus'];
+
+    const ship = tourState.ships.find(s => s.owner === 0)!;
+    const terraBase = findBaseHexes(map, 'Terra')[0];
+    ship.position = terraBase;
+    ship.landed = true;
+    ship.destroyed = false;
+
+    checkImmediateVictory(tourState, map);
+
+    expect(tourState.winner).toBeNull();
+  });
+
+  it('does not win at wrong home body', () => {
+    // All checkpoints visited but landed at Mars (not home for player 0)
+    tourState.players[0].visitedBodies = [...tourState.scenarioRules.checkpointBodies!];
+
+    const ship = tourState.ships.find(s => s.owner === 0)!;
+    const marsBase = findBaseHexes(map, 'Mars')[0];
+    ship.position = marsBase;
+    ship.landed = true;
+    ship.destroyed = false;
+
+    checkImmediateVictory(tourState, map);
+
+    expect(tourState.winner).toBeNull();
+  });
+
+  it('skips combat phase when combatDisabled', () => {
+    // Move player 0's ship next to player 1's ship
+    const ship0 = tourState.ships.find(s => s.owner === 0)!;
+    const ship1 = tourState.ships.find(s => s.owner === 1)!;
+    ship0.position = { q: 0, r: 0 };
+    ship0.landed = false;
+    ship0.velocity = { dq: 0, dr: 0 };
+    ship1.position = { q: 1, r: 0 };
+    ship1.landed = false;
+    ship1.velocity = { dq: 0, dr: 0 };
+
+    // Process a turn — should skip combat
+    const result = processAstrogation(tourState, 0, [{ shipId: ship0.id, burn: null }], map);
+    // After movement, phase should not be 'combat'
+    expect(tourState.phase).not.toBe('combat');
+  });
+
+  it('tracks fuel consumption', () => {
+    const ship = tourState.ships.find(s => s.owner === 0)!;
+    ship.landed = false;
+    ship.velocity = { dq: 0, dr: 0 };
+    tourState.phase = 'astrogation';
+    tourState.activePlayer = 0;
+
+    const initialFuel = tourState.players[0].totalFuelSpent;
+    resolveAstrogationMovement(tourState, 0, [{ shipId: ship.id, burn: 0 }]);
+
+    expect(tourState.players[0].totalFuelSpent).toBe(initialFuel! + 1);
   });
 });
