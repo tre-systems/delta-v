@@ -2,28 +2,16 @@ import {
   type HexCoord,
   type PixelCoord,
   hexToPixel,
-  hexAdd,
   hexKey,
-  hexEqual,
-  HEX_DIRECTIONS,
-  hexVecLength,
 } from '../shared/hex';
 import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CombatResult, CombatAttack } from '../shared/types';
-import { MOVEMENT_ANIM_DURATION, SHIP_STATS } from '../shared/constants';
+import { MOVEMENT_ANIM_DURATION } from '../shared/constants';
 import {
-  getCombatOverlayHighlights,
-  getCombatPreview,
   getCombatTargetEntity,
-  getQueuedCombatOverlayAttacks,
 } from './renderer-combat';
 import {
   buildShipLabelView,
-  getDetonatedOrdnanceOverlay,
   getDisabledShipLabel,
-  getOrdnanceColor,
-  getOrdnanceHeading,
-  getOrdnanceLifetimeView,
-  getOrdnancePulse,
   getShipHeading,
   getShipIconAlpha,
   getShipIdentityMarker,
@@ -37,16 +25,8 @@ import {
   formatMovementEventToast,
   getToastFadeAlpha,
 } from './renderer-toast';
-import {
-  buildAsteroidDebrisView,
-  buildBaseMarkerView,
-  buildBodyView,
-  buildLandingObjectiveView,
-  buildMapBorderView,
-} from './renderer-map';
 import { buildMinimapSceneView } from './renderer-minimap';
 import {
-  buildDetectionRangeViews,
   buildMovementPathViews,
   buildOrdnanceTrailViews,
   buildShipTrailViews,
@@ -65,37 +45,25 @@ import {
   drawShipIcon as drawShipIconFn,
   drawThrustTrail as drawThrustTrailFn,
   interpolatePath as interpolatePathFn,
-  drawOrdnanceVelocity,
 } from './renderer-draw';
-
-// --- Stars background (seeded procedural) ---
-
-interface Star {
-  x: number;
-  y: number;
-  brightness: number;
-  size: number;
-}
-
-function generateStars(count: number, range: number): Star[] {
-  // Simple seeded random
-  let seed = 42;
-  function rand(): number {
-    seed = (seed * 16807 + 0) % 2147483647;
-    return seed / 2147483647;
-  }
-
-  const stars: Star[] = [];
-  for (let i = 0; i < count; i++) {
-    stars.push({
-      x: (rand() - 0.5) * range * 2,
-      y: (rand() - 0.5) * range * 2,
-      brightness: 0.3 + rand() * 0.7,
-      size: 0.5 + rand() * 1.5,
-    });
-  }
-  return stars;
-}
+import {
+  type Star,
+  generateStars,
+  renderStars as renderStarsFn,
+  renderHexGrid as renderHexGridFn,
+  renderGravityIndicators as renderGravityIndicatorsFn,
+  renderBodies as renderBodiesFn,
+  renderBaseMarkers as renderBaseMarkersFn,
+  renderMapBorder as renderMapBorderFn,
+  renderAsteroids as renderAsteroidsFn,
+  renderLandingTarget as renderLandingTargetFn,
+  renderDetectionRanges as renderDetectionRangesFn,
+} from './renderer-scene';
+import {
+  renderOrdnance as renderOrdnanceFn,
+  renderTorpedoGuidance as renderTorpedoGuidanceFn,
+  renderCombatOverlay as renderCombatOverlayFn,
+} from './renderer-overlay';
 
 // --- Animation state ---
 
@@ -526,258 +494,39 @@ export class Renderer {
   // --- Render layers ---
 
   private renderStars(ctx: CanvasRenderingContext2D) {
-    for (const star of this.stars) {
-      ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness * 0.6})`;
-      ctx.beginPath();
-      ctx.arc(star.x, star.y, star.size / this.camera.zoom, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    renderStarsFn(ctx, this.stars, this.camera.zoom);
   }
 
-  // Precomputed flat-top hex vertex offsets (cos/sin at 60-degree intervals)
-  private static readonly HEX_OFFSETS: [number, number][] = (() => {
-    const offsets: [number, number][] = [];
-    for (let i = 0; i <= 6; i++) {
-      const angle = (Math.PI / 3) * i;
-      offsets.push([Math.cos(angle), Math.sin(angle)]);
-    }
-    return offsets;
-  })();
-
   private renderHexGrid(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
-    ctx.strokeStyle = 'rgba(100, 140, 200, 0.25)';
-    ctx.lineWidth = 0.8;
-    const offsets = Renderer.HEX_OFFSETS;
-    const size = HEX_SIZE;
-    const { minQ, maxQ, minR, maxR } = map.bounds;
-    // Compute pixel-space bounding rectangle from all four corners
-    const corners = [
-      hexToPixel({ q: minQ, r: minR }, size),
-      hexToPixel({ q: maxQ, r: minR }, size),
-      hexToPixel({ q: minQ, r: maxR }, size),
-      hexToPixel({ q: maxQ, r: maxR }, size),
-    ];
-    const pxMinX = Math.min(...corners.map(c => c.x)) - size;
-    const pxMaxX = Math.max(...corners.map(c => c.x)) + size;
-    const pxMinY = Math.min(...corners.map(c => c.y)) - size;
-    const pxMaxY = Math.max(...corners.map(c => c.y)) + size;
-    // Over-iterate q range to fill the rectangle, clipping by pixel bounds
-    const qPad = Math.ceil((maxR - minR) / 2) + 2;
-    ctx.beginPath();
-    for (let q = minQ - qPad; q <= maxQ + qPad; q++) {
-      for (let r = minR - qPad; r <= maxR + qPad; r++) {
-        const p = hexToPixel({ q, r }, size);
-        if (p.x < pxMinX || p.x > pxMaxX || p.y < pxMinY || p.y > pxMaxY) continue;
-        if (!this.camera.isVisible(p.x, p.y)) continue;
-        ctx.moveTo(p.x + offsets[0][0] * size, p.y + offsets[0][1] * size);
-        for (let i = 1; i <= 6; i++) {
-          ctx.lineTo(p.x + offsets[i][0] * size, p.y + offsets[i][1] * size);
-        }
-      }
-    }
-    ctx.stroke();
+    renderHexGridFn(ctx, map, HEX_SIZE, (x, y) => this.camera.isVisible(x, y));
   }
 
   private renderGravityIndicators(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
-    // Subtle radial lines pointing toward body for each gravity hex
-    for (const [key, hex] of map.hexes) {
-      if (!hex.gravity) continue;
-      const [q, r] = key.split(',').map(Number);
-      const p = hexToPixel({ q, r }, HEX_SIZE);
-      // Viewport culling — skip off-screen hexes
-      if (!this.camera.isVisible(p.x, p.y)) continue;
-      const dir = HEX_DIRECTIONS[hex.gravity.direction];
-      const target = hexToPixel(hexAdd({ q, r }, dir), HEX_SIZE);
-
-      ctx.strokeStyle = hex.gravity.strength === 'weak'
-        ? 'rgba(100, 140, 255, 0.12)'
-        : 'rgba(100, 140, 255, 0.2)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(
-        p.x + (target.x - p.x) * 0.4,
-        p.y + (target.y - p.y) * 0.4,
-      );
-      ctx.stroke();
-
-      // Small arrowhead
-      const ax = p.x + (target.x - p.x) * 0.4;
-      const ay = p.y + (target.y - p.y) * 0.4;
-      const angle = Math.atan2(target.y - p.y, target.x - p.x);
-      const headLen = 4;
-      ctx.beginPath();
-      ctx.moveTo(ax, ay);
-      ctx.lineTo(ax - headLen * Math.cos(angle - 0.5), ay - headLen * Math.sin(angle - 0.5));
-      ctx.moveTo(ax, ay);
-      ctx.lineTo(ax - headLen * Math.cos(angle + 0.5), ay - headLen * Math.sin(angle + 0.5));
-      ctx.stroke();
-    }
+    renderGravityIndicatorsFn(ctx, map, HEX_SIZE, (x, y) => this.camera.isVisible(x, y));
   }
 
   private renderBodies(ctx: CanvasRenderingContext2D, now: number, map: SolarSystemMap) {
-    for (const body of map.bodies) {
-      const view = buildBodyView(body, HEX_SIZE, now);
-      const p = view.center;
-      const r = view.radius;
-
-      // Atmospheric/Gravity Ripples
-      for (const ripple of view.ripples) {
-        ctx.strokeStyle = body.color;
-        ctx.globalAlpha = ripple.alpha;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, ripple.radius, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-
-      // Primary Glow
-      const glow = ctx.createRadialGradient(p.x, p.y, r * 0.5, p.x, p.y, r * 3);
-      glow.addColorStop(0, view.glowStops[0]);
-      glow.addColorStop(0.4, view.glowStops[1]);
-      glow.addColorStop(1, view.glowStops[2]);
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Body disc
-      const grad = ctx.createRadialGradient(p.x - r * 0.3, p.y - r * 0.3, r * 0.1, p.x, p.y, r);
-      grad.addColorStop(0, view.coreColor);
-      grad.addColorStop(1, view.edgeColor);
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Label
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-      ctx.font = '600 11px var(--font-display), sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(view.label, p.x, view.labelY);
-    }
+    renderBodiesFn(ctx, map, HEX_SIZE, now);
   }
 
   private renderBaseMarkers(ctx: CanvasRenderingContext2D, map: SolarSystemMap, state: GameState | null) {
-    for (const [key, hex] of map.hexes) {
-      if (!hex.base) continue;
-      const [q, r] = key.split(',').map(Number);
-      const p = hexToPixel({ q, r }, HEX_SIZE);
-      const markerView = buildBaseMarkerView(key, state, this.playerId);
-      if (markerView.kind === 'destroyed') {
-        ctx.strokeStyle = 'rgba(255, 90, 90, 0.8)';
-        ctx.lineWidth = markerView.lineWidth;
-        ctx.beginPath();
-        ctx.moveTo(p.x - 5, p.y - 5);
-        ctx.lineTo(p.x + 5, p.y + 5);
-        ctx.moveTo(p.x + 5, p.y - 5);
-        ctx.lineTo(p.x - 5, p.y + 5);
-        ctx.stroke();
-        continue;
-      }
-
-      ctx.fillStyle = markerView.fillStyle!;
-      ctx.strokeStyle = markerView.strokeStyle;
-      ctx.lineWidth = markerView.lineWidth;
-
-      // Small diamond marker
-      const s = 5;
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y - s);
-      ctx.lineTo(p.x + s, p.y);
-      ctx.lineTo(p.x, p.y + s);
-      ctx.lineTo(p.x - s, p.y);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    }
+    renderBaseMarkersFn(ctx, map, state, this.playerId, HEX_SIZE);
   }
 
   private renderMapBorder(ctx: CanvasRenderingContext2D, map: SolarSystemMap, state: GameState, now: number) {
-    const borderView = buildMapBorderView(
-      map.bounds,
-      Boolean(state.players[this.playerId]?.escapeWins),
-      now,
-      HEX_SIZE,
-    );
-    ctx.strokeStyle = borderView.strokeStyle;
-    ctx.lineWidth = borderView.lineWidth;
-    ctx.setLineDash(borderView.lineDash);
-    ctx.strokeRect(borderView.topLeft.x, borderView.topLeft.y, borderView.width, borderView.height);
-    ctx.setLineDash([]);
+    renderMapBorderFn(ctx, map, state, this.playerId, HEX_SIZE, now);
   }
 
   private renderAsteroids(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
-    const destroyed = new Set(this.gameState?.destroyedAsteroids ?? []);
-    for (const [key, hex] of map.hexes) {
-      if (hex.terrain !== 'asteroid') continue;
-      if (destroyed.has(key)) continue;
-      const [q, r] = key.split(',').map(Number);
-      const debrisView = buildAsteroidDebrisView({ q, r }, HEX_SIZE);
-      if (!this.camera.isVisible(debrisView.center.x, debrisView.center.y)) continue;
-
-      // Small scattered dots to suggest asteroid debris
-      ctx.fillStyle = 'rgba(160, 140, 120, 0.35)';
-      for (const particle of debrisView.particles) {
-        ctx.beginPath();
-        ctx.arc(
-          debrisView.center.x + particle.xOffset,
-          debrisView.center.y + particle.yOffset,
-          particle.size,
-          0,
-          Math.PI * 2,
-        );
-        ctx.fill();
-      }
-    }
+    renderAsteroidsFn(ctx, map, this.gameState?.destroyedAsteroids ?? [], HEX_SIZE, (x, y) => this.camera.isVisible(x, y));
   }
 
   private renderLandingTarget(ctx: CanvasRenderingContext2D, map: SolarSystemMap, state: GameState, now: number) {
-    const objectiveView = buildLandingObjectiveView(state.players[this.playerId], map, now, HEX_SIZE);
-    if (!objectiveView) return;
-    if (objectiveView.kind === 'escape') {
-      ctx.fillStyle = objectiveView.color;
-      ctx.font = 'bold 9px monospace';
-      ctx.textAlign = 'center';
-      for (const marker of objectiveView.markers) {
-        ctx.fillText(marker.text, marker.position.x, marker.position.y);
-      }
-      return;
-    }
-
-    ctx.strokeStyle = objectiveView.strokeStyle;
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 4]);
-    ctx.beginPath();
-    ctx.arc(objectiveView.center.x, objectiveView.center.y, objectiveView.radius, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    ctx.fillStyle = objectiveView.labelStyle;
-    ctx.font = 'bold 8px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(objectiveView.labelText, objectiveView.center.x, objectiveView.labelY);
+    renderLandingTargetFn(ctx, map, state, this.playerId, HEX_SIZE, now);
   }
 
   private renderDetectionRanges(ctx: CanvasRenderingContext2D, state: GameState, map: SolarSystemMap) {
-    if (this.animState) return;
-    const overlays = buildDetectionRangeViews(
-      state,
-      this.playerId,
-      this.planningState.selectedShipId,
-      map,
-      HEX_SIZE,
-    );
-    for (const overlay of overlays) {
-      ctx.strokeStyle = overlay.color;
-      ctx.lineWidth = overlay.lineWidth;
-      ctx.setLineDash(overlay.lineDash);
-      ctx.beginPath();
-      ctx.arc(overlay.center.x, overlay.center.y, overlay.radius, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
+    renderDetectionRangesFn(ctx, state, this.playerId, this.planningState.selectedShipId, map, HEX_SIZE, this.animState !== null);
   }
 
   private renderCourseVectors(ctx: CanvasRenderingContext2D, state: GameState, map: SolarSystemMap, now: number) {
@@ -1106,276 +855,16 @@ export class Renderer {
     return interpolatePathFn(path, progress, HEX_SIZE);
   }
   private renderOrdnance(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
-    if (!state.ordnance || state.ordnance.length === 0) return;
-
-    for (const ord of state.ordnance) {
-      if (ord.destroyed) continue;
-
-      let p: PixelCoord;
-      // During animation, interpolate ordnance position along its path
-      if (this.animState) {
-        const om = this.animState.ordnanceMovements.find(m => m.ordnanceId === ord.id);
-        if (om) {
-          const progress = Math.min((now - this.animState.startTime) / this.animState.duration, 1);
-          p = this.interpolatePath(om.path, progress);
-        } else {
-          p = hexToPixel(ord.position, HEX_SIZE);
-        }
-      } else {
-        p = hexToPixel(ord.position, HEX_SIZE);
-      }
-
-      const color = getOrdnanceColor(ord.owner, this.playerId);
-      const pulse = getOrdnancePulse(now);
-
-      if (ord.type === 'nuke') {
-        // Nuke: larger pulsing red diamond with glow
-        const s = 6;
-        const nukeColor = '#ff4444';
-        ctx.fillStyle = nukeColor;
-        ctx.globalAlpha = pulse;
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y - s);
-        ctx.lineTo(p.x + s, p.y);
-        ctx.lineTo(p.x, p.y + s);
-        ctx.lineTo(p.x - s, p.y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#ff8888';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      } else if (ord.type === 'mine') {
-        // Mine: small diamond shape
-        const s = 4;
-        ctx.fillStyle = color;
-        ctx.globalAlpha = pulse;
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y - s);
-        ctx.lineTo(p.x + s, p.y);
-        ctx.lineTo(p.x, p.y + s);
-        ctx.lineTo(p.x - s, p.y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      } else {
-        // Torpedo: small triangle pointing in velocity direction
-        const heading = getOrdnanceHeading(ord.position, ord.velocity, HEX_SIZE);
-        const s = 5;
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(heading);
-        ctx.fillStyle = color;
-        ctx.globalAlpha = pulse;
-        ctx.beginPath();
-        ctx.moveTo(s, 0);
-        ctx.lineTo(-s * 0.6, -s * 0.4);
-        ctx.lineTo(-s * 0.6, s * 0.4);
-        ctx.closePath();
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.restore();
-      }
-
-      // Velocity vector for ordnance (hide during animation)
-      if (!this.animState) {
-        drawOrdnanceVelocity(ctx, ord.position, ord.velocity, p, color, HEX_SIZE);
-      }
-
-      // Lifetime indicator (turns remaining until self-destruct)
-      const lifetimeView = getOrdnanceLifetimeView(ord.turnsRemaining, this.animState !== null);
-      if (lifetimeView) {
-        ctx.fillStyle = lifetimeView.color;
-        ctx.font = 'bold 6px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(lifetimeView.text, p.x, p.y + 10);
-      }
-    }
-
-    // During animation, also render ordnance that detonated (show until detonation point)
-    if (this.animState) {
-      const progress = Math.min((now - this.animState.startTime) / this.animState.duration, 1);
-      for (const om of this.animState.ordnanceMovements) {
-        if (!om.detonated) continue;
-        const overlay = getDetonatedOrdnanceOverlay(progress);
-        if (!overlay) continue;
-        if (overlay.kind === 'diamond') {
-          const p = this.interpolatePath(om.path, progress);
-          ctx.fillStyle = overlay.color;
-          ctx.globalAlpha = overlay.alpha;
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y - overlay.size);
-          ctx.lineTo(p.x + overlay.size, p.y);
-          ctx.lineTo(p.x, p.y + overlay.size);
-          ctx.lineTo(p.x - overlay.size, p.y);
-          ctx.closePath();
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        } else {
-          const detP = hexToPixel(om.to, HEX_SIZE);
-          ctx.fillStyle = overlay.color;
-          ctx.globalAlpha = overlay.alpha;
-          ctx.beginPath();
-          ctx.arc(detP.x, detP.y, overlay.size, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        }
-      }
-    }
+    renderOrdnanceFn(ctx, state, this.playerId, this.animState, HEX_SIZE, now,
+      (path, progress) => this.interpolatePath(path, progress));
   }
 
   private renderTorpedoGuidance(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
-    if (state.phase !== 'ordnance' || state.activePlayer !== this.playerId) return;
-    if (this.animState) return;
-
-    const selectedId = this.planningState.selectedShipId;
-    if (!selectedId) return;
-
-    const ship = state.ships.find(s => s.id === selectedId);
-    if (!ship || ship.destroyed || ship.landed) return;
-
-    // Only show for warships (torpedo-capable)
-    const stats = SHIP_STATS[ship.type];
-    if (!stats?.canOverload) return;
-
-    const shipPos = hexToPixel(ship.position, HEX_SIZE);
-    const accel = this.planningState.torpedoAccel;
-    const accelSteps = this.planningState.torpedoAccelSteps;
-
-    // Show 6 direction arrows around the ship for torpedo terminal guidance
-    for (let d = 0; d < 6; d++) {
-      const targetHex = hexAdd(ship.position, HEX_DIRECTIONS[d]);
-      const tp = hexToPixel(targetHex, HEX_SIZE);
-      const isActive = accel === d;
-
-      ctx.fillStyle = isActive ? 'rgba(255, 120, 60, 0.6)' : 'rgba(255, 120, 60, 0.12)';
-      ctx.strokeStyle = isActive ? '#ff7744' : 'rgba(255, 120, 60, 0.3)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(tp.x, tp.y, 7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Arrow from ship to target direction
-      if (isActive) {
-        ctx.strokeStyle = 'rgba(255, 120, 60, 0.5)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(shipPos.x, shipPos.y);
-        ctx.lineTo(tp.x, tp.y);
-        ctx.stroke();
-
-        ctx.fillStyle = 'rgba(255, 240, 200, 0.9)';
-        ctx.font = '7px monospace';
-        ctx.fillText(`x${accelSteps ?? 1}`, tp.x, tp.y + 2);
-      }
-    }
-
-    // Label
-    ctx.fillStyle = 'rgba(255, 120, 60, 0.8)';
-    ctx.font = '8px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('TORPEDO BOOST', shipPos.x, shipPos.y - 20);
+    renderTorpedoGuidanceFn(ctx, state, this.playerId, this.planningState, this.animState !== null, HEX_SIZE, now);
   }
 
   private renderCombatOverlay(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
-    if (state.phase !== 'combat' || state.activePlayer !== this.playerId) return;
-    if (this.animState) return;
-
-    const pulse = 0.5 + 0.3 * Math.sin(now / 300);
-
-    // Render queued attack lines (dimmer, dashed)
-    for (const queued of getQueuedCombatOverlayAttacks(state, this.planningState.queuedAttacks)) {
-      const targetPos = hexToPixel(queued.targetPosition, HEX_SIZE);
-      for (const attackerPosition of queued.attackerPositions) {
-        const attackerPos = hexToPixel(attackerPosition, HEX_SIZE);
-        ctx.strokeStyle = 'rgba(79, 195, 247, 0.3)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(attackerPos.x, attackerPos.y);
-        ctx.lineTo(targetPos.x, targetPos.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-      // Dim lock indicator on queued target
-      ctx.strokeStyle = 'rgba(255, 80, 80, 0.4)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.arc(targetPos.x, targetPos.y, 15, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // Highlight valid enemy targets (only detected ones, not already queued)
-    const highlights = getCombatOverlayHighlights(state, this.playerId, this.planningState, this.map);
-    for (const ship of highlights.shipTargets) {
-      const p = hexToPixel(ship.position, HEX_SIZE);
-      ctx.strokeStyle = ship.isSelected
-        ? `rgba(255, 80, 80, ${0.8 + pulse * 0.2})`
-        : `rgba(255, 80, 80, ${0.2 + pulse * 0.15})`;
-      ctx.lineWidth = ship.isSelected ? 2.5 : 1.5;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, ship.isSelected ? 16 : 13, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    for (const ordnance of highlights.ordnanceTargets) {
-      const p = hexToPixel(ordnance.position, HEX_SIZE);
-      ctx.strokeStyle = ordnance.isSelected
-        ? `rgba(255, 210, 80, ${0.8 + pulse * 0.2})`
-        : `rgba(255, 210, 80, ${0.2 + pulse * 0.15})`;
-      ctx.lineWidth = ordnance.isSelected ? 2.5 : 1.5;
-      ctx.beginPath();
-      ctx.rect(
-        p.x - (ordnance.isSelected ? 10 : 8),
-        p.y - (ordnance.isSelected ? 10 : 8),
-        ordnance.isSelected ? 20 : 16,
-        ordnance.isSelected ? 20 : 16,
-      );
-      ctx.stroke();
-    }
-
-    // Draw attack line and odds preview
-    const preview = getCombatPreview(state, this.playerId, this.planningState, this.map);
-    if (preview === null) return;
-
-    const targetPos = hexToPixel(preview.targetPosition, HEX_SIZE);
-    for (const attackerPosition of preview.attackerPositions) {
-      const attackerPos = hexToPixel(attackerPosition, HEX_SIZE);
-      ctx.strokeStyle = 'rgba(79, 195, 247, 0.55)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(attackerPos.x, attackerPos.y, 14, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    for (const attackerPosition of preview.attackerPositions) {
-      const attackerPos = hexToPixel(attackerPosition, HEX_SIZE);
-      ctx.strokeStyle = 'rgba(255, 80, 80, 0.4)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      ctx.moveTo(attackerPos.x, attackerPos.y);
-      ctx.lineTo(targetPos.x, targetPos.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    ctx.font = 'bold 10px monospace';
-    const textW = ctx.measureText(preview.label).width;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(targetPos.x - textW / 2 - 4, targetPos.y - 32, textW + 8, 16);
-    ctx.fillStyle = preview.totalMod > 0 ? '#88ff88' : preview.totalMod < 0 ? '#ff6666' : '#ffdd57';
-    ctx.textAlign = 'center';
-    ctx.fillText(preview.label, targetPos.x, targetPos.y - 20);
-
-    if (preview.counterattackLabel) {
-      ctx.fillStyle = 'rgba(255, 170, 0, 0.7)';
-      ctx.font = '7px monospace';
-      ctx.fillText(preview.counterattackLabel, targetPos.x, targetPos.y - 38);
-    }
+    renderCombatOverlayFn(ctx, state, this.playerId, this.planningState, this.map, this.animState !== null, HEX_SIZE, now);
   }
 
   private renderHexFlashes(ctx: CanvasRenderingContext2D, now: number) {
