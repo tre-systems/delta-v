@@ -10,13 +10,18 @@ import {
   validateClientMessage,
   type RoomConfig,
 } from './protocol';
+import {
+  resolveCombatBroadcast,
+  resolveMovementBroadcast,
+  toMovementResultMessage,
+  toStateUpdateMessage,
+  type StatefulServerMessage,
+} from './game-do-messages';
 
 export interface Env {
   ASSETS: Fetcher;
   GAME: DurableObjectNamespace;
 }
-
-type StateBroadcast = Extract<S2C, { state: GameState }>;
 
 export class GameDO extends DurableObject {
   constructor(ctx: DurableObjectState, env: Env) {
@@ -304,9 +309,7 @@ export class GameDO extends DurableObject {
       if (!('error' in result)) {
         await this.publishStateChange(
           result.state,
-          'movements' in result
-            ? { type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state }
-            : undefined,
+          resolveMovementBroadcast(result),
         );
       }
     } else if (gameState.phase === 'ordnance') {
@@ -314,9 +317,7 @@ export class GameDO extends DurableObject {
       if (!('error' in result)) {
         await this.publishStateChange(
           result.state,
-          'movements' in result
-            ? { type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state }
-            : { type: 'stateUpdate', state: result.state },
+          resolveMovementBroadcast(result, 'stateUpdate'),
         );
       }
     } else if (gameState.phase === 'combat') {
@@ -324,9 +325,7 @@ export class GameDO extends DurableObject {
       if (!('error' in result)) {
         await this.publishStateChange(
           result.state,
-          result.results && result.results.length > 0
-            ? { type: 'combatResult', results: result.results, state: result.state }
-            : undefined,
+          resolveCombatBroadcast(result),
         );
       }
     } else {
@@ -347,7 +346,7 @@ export class GameDO extends DurableObject {
 
   private async publishStateChange(
     state: GameState,
-    primaryMessage?: StateBroadcast,
+    primaryMessage?: StatefulServerMessage,
     restartTurnTimer = true,
   ) {
     if (primaryMessage) {
@@ -461,9 +460,7 @@ export class GameDO extends DurableObject {
 
     await this.publishStateChange(
       result.state,
-      'movements' in result
-        ? { type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state }
-        : undefined,
+      resolveMovementBroadcast(result),
     );
   }
 
@@ -479,13 +476,7 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    await this.publishStateChange(result.state, {
-      type: 'movementResult',
-      movements: result.movements,
-      ordnanceMovements: result.ordnanceMovements,
-      events: result.events,
-      state: result.state,
-    });
+    await this.publishStateChange(result.state, toMovementResultMessage(result));
   }
 
   private async handleEmplaceBase(playerId: number, ws: WebSocket, emplacements: OrbitalBaseEmplacement[]) {
@@ -500,7 +491,7 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    await this.publishStateChange(result.state, { type: 'stateUpdate', state: result.state }, false);
+    await this.publishStateChange(result.state, toStateUpdateMessage(result.state), false);
   }
 
   private async handleSkipOrdnance(playerId: number, ws: WebSocket) {
@@ -517,9 +508,7 @@ export class GameDO extends DurableObject {
 
     await this.publishStateChange(
       result.state,
-      'movements' in result
-        ? { type: 'movementResult', movements: result.movements, ordnanceMovements: result.ordnanceMovements, events: result.events, state: result.state }
-        : { type: 'stateUpdate', state: result.state },
+      resolveMovementBroadcast(result, 'stateUpdate'),
     );
   }
 
@@ -535,11 +524,7 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    await this.publishStateChange(result.state, {
-      type: 'combatResult',
-      results: result.results,
-      state: result.state,
-    });
+    await this.publishStateChange(result.state, resolveCombatBroadcast(result)!);
   }
 
   private async handleBeginCombat(playerId: number, ws: WebSocket) {
@@ -556,9 +541,7 @@ export class GameDO extends DurableObject {
 
     await this.publishStateChange(
       result.state,
-      'results' in result && result.results.length > 0
-        ? { type: 'combatResult', results: result.results, state: result.state }
-        : { type: 'stateUpdate', state: result.state },
+      resolveCombatBroadcast(result, 'stateUpdate'),
     );
   }
 
@@ -576,9 +559,7 @@ export class GameDO extends DurableObject {
 
     await this.publishStateChange(
       result.state,
-      result.results && result.results.length > 0
-        ? { type: 'combatResult', results: result.results, state: result.state }
-        : undefined,
+      resolveCombatBroadcast(result),
     );
   }
 
