@@ -226,6 +226,8 @@ class GameClient {
       if (playerToken) {
         this.storePlayerToken(normalizedCode, playerToken);
       }
+      // Strip token from URL to avoid leaking it via browser history / referrer headers
+      history.replaceState(null, '', `/?code=${normalizedCode}`);
       this.joinGame(normalizedCode);
     } else {
       this.setState('menu');
@@ -402,44 +404,52 @@ class GameClient {
   private maxReconnectAttempts = 5;
   private reconnectTimer: number | null = null;
 
-  private getPlayerTokenStorageKey(code: string): string {
-    return `delta-v:player-token:${code}`;
+  private static readonly TOKEN_STORE_KEY = 'delta-v:tokens';
+  private static readonly TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+  private getTokenStore(): Record<string, { playerToken?: string; inviteToken?: string; ts: number }> {
+    try {
+      return JSON.parse(localStorage.getItem(GameClient.TOKEN_STORE_KEY) || '{}');
+    } catch {
+      return {};
+    }
   }
 
-  private getInviteTokenStorageKey(code: string): string {
-    return `delta-v:invite-token:${code}`;
+  private saveTokenStore(store: Record<string, { playerToken?: string; inviteToken?: string; ts: number }>): void {
+    // Prune entries older than TTL
+    const now = Date.now();
+    for (const key of Object.keys(store)) {
+      if (now - store[key].ts > GameClient.TOKEN_TTL_MS) {
+        delete store[key];
+      }
+    }
+    try {
+      localStorage.setItem(GameClient.TOKEN_STORE_KEY, JSON.stringify(store));
+    } catch {
+      // Ignore storage failures.
+    }
   }
 
   private getStoredPlayerToken(code: string): string | null {
-    try {
-      return localStorage.getItem(this.getPlayerTokenStorageKey(code));
-    } catch {
-      return null;
-    }
+    const entry = this.getTokenStore()[code];
+    return entry?.playerToken ?? null;
   }
 
   private storePlayerToken(code: string, token: string): void {
-    try {
-      localStorage.setItem(this.getPlayerTokenStorageKey(code), token);
-    } catch {
-      // Ignore storage failures and fall back to the current browser session.
-    }
+    const store = this.getTokenStore();
+    store[code] = { ...store[code], playerToken: token, ts: Date.now() };
+    this.saveTokenStore(store);
   }
 
   private getStoredInviteToken(code: string): string | null {
-    try {
-      return localStorage.getItem(this.getInviteTokenStorageKey(code));
-    } catch {
-      return null;
-    }
+    const entry = this.getTokenStore()[code];
+    return entry?.inviteToken ?? null;
   }
 
   private storeInviteToken(code: string, token: string): void {
-    try {
-      localStorage.setItem(this.getInviteTokenStorageKey(code), token);
-    } catch {
-      // Ignore storage failures and fall back to the current browser session.
-    }
+    const store = this.getTokenStore();
+    store[code] = { ...store[code], inviteToken: token, ts: Date.now() };
+    this.saveTokenStore(store);
   }
 
   private connect(code: string) {

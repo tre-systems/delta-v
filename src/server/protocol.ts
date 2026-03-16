@@ -35,9 +35,15 @@ function isNullableIntegerInRange(value: unknown, min: number, max: number): val
 }
 
 function getRandomInt(maxExclusive: number): number {
+  // Rejection sampling to avoid modulo bias
+  const limit = Math.floor(0x100000000 / maxExclusive) * maxExclusive;
   const bytes = new Uint32Array(1);
-  crypto.getRandomValues(bytes);
-  return bytes[0] % maxExclusive;
+  let value: number;
+  do {
+    crypto.getRandomValues(bytes);
+    value = bytes[0];
+  } while (value >= limit);
+  return value % maxExclusive;
 }
 
 function generateRandomString(chars: string, length: number): string {
@@ -285,6 +291,11 @@ export function resolveSeatAssignment(input: SeatAssignmentInput): SeatAssignmen
     return { type: 'reject', status: 403, message: 'Invalid player token' };
   }
 
+  // Tokenless fallback: allow joining seats that were never assigned a token.
+  // This can only happen if the room was initialized but the seat slot was left
+  // empty (e.g. a future "open lobby" mode). Currently seat 0 always gets a
+  // playerToken and seat 1 always gets an inviteToken at /init, so this branch
+  // is not reachable in normal play — it exists as a safety net.
   for (const playerId of [0, 1] as const) {
     if (seatOpen[playerId] && playerTokens[playerId] === null && inviteTokens[playerId] === null) {
       return { type: 'join', playerId, issueNewToken: true, consumeInviteToken: false };
