@@ -3,6 +3,13 @@ import type { GameState, C2S, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttac
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../shared/constants';
 import { createGame, filterStateForPlayer, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat } from '../shared/game-engine';
+import {
+  generatePlayerToken,
+  isValidPlayerToken,
+  resolveSeatAssignment,
+  validateClientMessage,
+  type RoomConfig,
+} from './protocol';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -36,6 +43,14 @@ export class GameDO extends DurableObject {
     await this.ctx.storage.put('gameState', state);
   }
 
+  private async getRoomConfig(): Promise<RoomConfig | null> {
+    return await this.ctx.storage.get<RoomConfig>('roomConfig') ?? null;
+  }
+
+  private async saveRoomConfig(config: RoomConfig): Promise<void> {
+    await this.ctx.storage.put('roomConfig', config);
+  }
+
   private async getGameCode(): Promise<string> {
     return await this.ctx.storage.get<string>('gameCode') ?? '';
   }
@@ -67,68 +82,79 @@ export class GameDO extends DurableObject {
   // --- WebSocket lifecycle ---
 
   async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === '/init' && request.method === 'POST') {
+      return this.handleInit(request);
+    }
+
     const upgradeHeader = request.headers.get('Upgrade');
     if (upgradeHeader !== 'websocket') {
       return new Response('Expected WebSocket', { status: 426 });
     }
 
-    const url = new URL(request.url);
-    const codeMatch = url.pathname.match(/\/ws\/([A-Z0-9]{5})/);
-    if (codeMatch) {
-      await this.setGameCode(codeMatch[1]);
+    const roomConfig = await this.getRoomConfig();
+    if (!roomConfig) {
+      return new Response('Game not found', { status: 404 });
     }
 
-    // Store scenario from query param
-    const scenario = url.searchParams.get('scenario');
-    if (scenario) {
-      await this.ctx.storage.put('scenario', scenario);
+    const presentedTokenRaw = url.searchParams.get('playerToken');
+    if (presentedTokenRaw !== null && !isValidPlayerToken(presentedTokenRaw)) {
+      return new Response('Invalid player token', { status: 400 });
     }
 
     const playerCount = this.getPlayerCount();
-    const disconnectedPlayer = await this.ctx.storage.get<number>('disconnectedPlayer');
+    const disconnectedPlayerRaw = await this.ctx.storage.get<number>('disconnectedPlayer');
+    const disconnectedPlayer = disconnectedPlayerRaw === 0 || disconnectedPlayerRaw === 1
+      ? disconnectedPlayerRaw
+      : null;
+    const seatOpen: [boolean, boolean] = [
+      this.ctx.getWebSockets('player:0').length === 0,
+      this.ctx.getWebSockets('player:1').length === 0,
+    ];
 
-    // Check if this is a reconnection
-    if (disconnectedPlayer !== undefined && playerCount < 2) {
-      // Reconnecting player takes the disconnected slot
-      const playerId = disconnectedPlayer;
+    const seatDecision = resolveSeatAssignment({
+      presentedToken: presentedTokenRaw,
+      disconnectedPlayer,
+      seatOpen,
+      playerTokens: roomConfig.playerTokens,
+    });
+
+    if (seatDecision.type === 'reject') {
+      return new Response(seatDecision.message, { status: seatDecision.status });
+    }
+
+    const playerId = seatDecision.playerId;
+    if (seatDecision.issueNewToken) {
+      roomConfig.playerTokens[playerId] = generatePlayerToken();
+      await this.saveRoomConfig(roomConfig);
+    }
+
+    const playerToken = roomConfig.playerTokens[playerId];
+    if (!playerToken) {
+      return new Response('Player token unavailable', { status: 500 });
+    }
+
+    if (disconnectedPlayer === playerId) {
       await this.ctx.storage.delete('disconnectedPlayer');
       await this.ctx.storage.delete('disconnectTime');
-
-      const pair = new WebSocketPair();
-      const [client, server] = Object.values(pair);
-      this.ctx.acceptWebSocket(server, [`player:${playerId}`]);
-
-      const code = await this.getGameCode();
-      this.send(server, { type: 'welcome', playerId, code });
-
-      // Send current game state so they can rejoin (filtered for hidden info)
-      const gameState = await this.getGameState();
-      if (gameState) {
-        const filteredState = filterStateForPlayer(gameState, playerId);
-        this.send(server, { type: 'gameStart', state: filteredState });
-      }
-
       await this.ctx.storage.delete('disconnectAt');
-      await this.touchInactivity();
-      return new Response(null, { status: 101, webSocket: client });
     }
-
-    if (playerCount >= 2) {
-      return new Response('Game is full', { status: 409 });
-    }
-
-    const playerId = this.ctx.getWebSockets('player:0').length === 0 ? 0 : 1;
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
     this.ctx.acceptWebSocket(server, [`player:${playerId}`]);
 
-    const code = await this.getGameCode();
-    this.send(server, { type: 'welcome', playerId, code });
+    this.send(server, { type: 'welcome', playerId, code: roomConfig.code, playerToken });
+
+    const gameState = await this.getGameState();
+    if (gameState) {
+      const filteredState = filterStateForPlayer(gameState, playerId);
+      this.send(server, { type: 'gameStart', state: filteredState });
+    }
 
     // Both players connected — start the game
-    if (playerCount + 1 >= 2) {
+    if (!gameState && playerCount + 1 >= 2) {
       this.broadcast({ type: 'matchFound' });
       await this.initGame();
     }
@@ -140,50 +166,62 @@ export class GameDO extends DurableObject {
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (typeof message !== 'string') return;
 
-    let msg: C2S;
+    let raw: unknown;
     try {
-      msg = JSON.parse(message);
+      raw = JSON.parse(message);
     } catch {
       this.send(ws, { type: 'error', message: 'Invalid JSON' });
       return;
     }
+
+    const parsed = validateClientMessage(raw);
+    if (!parsed.ok) {
+      this.send(ws, { type: 'error', message: parsed.error });
+      return;
+    }
+    const msg: C2S = parsed.value;
 
     const playerId = this.getPlayerId(ws);
     if (playerId === null) return;
 
     await this.touchInactivity();
 
-    switch (msg.type) {
-      case 'fleetReady':
-        await this.handleFleetReady(playerId, ws, msg.purchases);
-        break;
-      case 'astrogation':
-        await this.handleAstrogation(playerId, ws, msg.orders);
-        break;
-      case 'ordnance':
-        await this.handleOrdnance(playerId, ws, msg.launches);
-        break;
-      case 'emplaceBase':
-        await this.handleEmplaceBase(playerId, ws, msg.emplacements);
-        break;
-      case 'skipOrdnance':
-        await this.handleSkipOrdnance(playerId, ws);
-        break;
-      case 'beginCombat':
-        await this.handleBeginCombat(playerId, ws);
-        break;
-      case 'combat':
-        await this.handleCombat(playerId, ws, msg.attacks);
-        break;
-      case 'skipCombat':
-        await this.handleSkipCombat(playerId, ws);
-        break;
-      case 'rematch':
-        await this.handleRematch(playerId, ws);
-        break;
-      case 'ping':
-        this.send(ws, { type: 'pong', t: msg.t });
-        break;
+    try {
+      switch (msg.type) {
+        case 'fleetReady':
+          await this.handleFleetReady(playerId, ws, msg.purchases);
+          break;
+        case 'astrogation':
+          await this.handleAstrogation(playerId, ws, msg.orders);
+          break;
+        case 'ordnance':
+          await this.handleOrdnance(playerId, ws, msg.launches);
+          break;
+        case 'emplaceBase':
+          await this.handleEmplaceBase(playerId, ws, msg.emplacements);
+          break;
+        case 'skipOrdnance':
+          await this.handleSkipOrdnance(playerId, ws);
+          break;
+        case 'beginCombat':
+          await this.handleBeginCombat(playerId, ws);
+          break;
+        case 'combat':
+          await this.handleCombat(playerId, ws, msg.attacks);
+          break;
+        case 'skipCombat':
+          await this.handleSkipCombat(playerId, ws);
+          break;
+        case 'rematch':
+          await this.handleRematch(playerId, ws);
+          break;
+        case 'ping':
+          this.send(ws, { type: 'pong', t: msg.t });
+          break;
+      }
+    } catch (error) {
+      console.error('Unhandled websocket message error', error);
+      this.send(ws, { type: 'error', message: 'Internal server error' });
     }
   }
 
@@ -305,11 +343,56 @@ export class GameDO extends DurableObject {
 
   // --- Game logic (delegates to engine) ---
 
+  private async handleInit(request: Request): Promise<Response> {
+    const existing = await this.getRoomConfig();
+    if (existing) {
+      return new Response('Room already initialized', { status: 409 });
+    }
+
+    let payload: unknown;
+    try {
+      payload = await request.json();
+    } catch {
+      return new Response('Invalid init payload', { status: 400 });
+    }
+
+    if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+      return new Response('Invalid init payload', { status: 400 });
+    }
+
+    const { code, scenario, playerToken } = payload as {
+      code?: unknown;
+      scenario?: unknown;
+      playerToken?: unknown;
+    };
+
+    if (typeof code !== 'string' || !/^[A-Z0-9]{5}$/.test(code)) {
+      return new Response('Invalid room code', { status: 400 });
+    }
+    if (typeof scenario !== 'string' || !(scenario in SCENARIOS)) {
+      return new Response('Invalid scenario', { status: 400 });
+    }
+    if (!isValidPlayerToken(playerToken)) {
+      return new Response('Invalid player token', { status: 400 });
+    }
+
+    const roomConfig: RoomConfig = {
+      code,
+      scenario,
+      playerTokens: [playerToken, null],
+    };
+
+    await this.saveRoomConfig(roomConfig);
+    await this.setGameCode(code);
+    return Response.json({ ok: true }, { status: 201 });
+  }
+
   private async initGame() {
-    const scenarioName = await this.ctx.storage.get<string>('scenario') ?? 'biplanetary';
+    const roomConfig = await this.getRoomConfig();
+    const scenarioName = roomConfig?.scenario ?? 'biplanetary';
     const scenario = SCENARIOS[scenarioName] ?? SCENARIOS.biplanetary;
     const map = getSolarSystemMap();
-    const code = await this.getGameCode();
+    const code = roomConfig?.code ?? await this.getGameCode();
 
     const gameState = createGame(scenario, map, code, findBaseHex);
 
@@ -323,7 +406,7 @@ export class GameDO extends DurableObject {
     if (!gameState) return;
 
     const map = getSolarSystemMap();
-    const scenarioName = await this.ctx.storage.get<string>('scenario') ?? 'biplanetary';
+    const scenarioName = (await this.getRoomConfig())?.scenario ?? 'biplanetary';
     const scenario = SCENARIOS[scenarioName] ?? SCENARIOS.biplanetary;
     const result = processFleetReady(gameState, playerId, purchases, map, scenario.availableShipTypes);
 
