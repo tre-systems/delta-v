@@ -42,19 +42,27 @@ export function aiAstrogation(
   const targetBody = player.targetBody;
   const escapeWins = player.escapeWins;
 
-  // Find target hex (center of target body)
-  let targetHex: { q: number; r: number } | null = null;
+  // Default navigation target (non-checkpoint scenarios)
+  let defaultTargetHex: { q: number; r: number } | null = null;
   if (targetBody) {
-    for (const [key, hex] of map.hexes) {
-      if (hex.body?.name === targetBody) {
-        targetHex = parseHexKey(key);
+    for (const body of map.bodies) {
+      if (body.name === targetBody) {
+        defaultTargetHex = body.center;
         break;
       }
     }
   }
 
+  const checkpoints = state.scenarioRules.checkpointBodies;
+
   // Find enemy ships for combat positioning
   const enemyShips = state.ships.filter(s => s.owner !== playerId && !s.destroyed);
+
+  // Precompute base positions for fuel-seeking
+  const basePosMap = new Map<string, { q: number; r: number }>();
+  for (const baseKey of player.bases) {
+    basePosMap.set(baseKey, parseHexKey(baseKey));
+  }
 
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
@@ -74,6 +82,44 @@ export function aiAstrogation(
       continue;
     }
 
+    // Per-ship checkpoint target or default target
+    let shipTargetHex = defaultTargetHex;
+    let shipTargetBody = targetBody;
+    let seekingFuel = false;
+    if (checkpoints && player.visitedBodies) {
+      const nextBody = pickNextCheckpoint(player, checkpoints, map, ship.position) ?? '';
+      shipTargetBody = nextBody;
+      shipTargetHex = null;
+      if (nextBody) {
+        for (const body of map.bodies) {
+          if (body.name === nextBody) {
+            shipTargetHex = body.center;
+            break;
+          }
+        }
+      }
+
+      // Refuel strategy: divert to nearest base when fuel won't reach the target
+      if (shipTargetHex && !ship.landed) {
+        const distToTarget = hexDistance(ship.position, shipTargetHex);
+        const speed = hexVecLength(ship.velocity);
+        // Need fuel to navigate: roughly distance/3 for accel + distance/3 for decel + margin
+        const fuelForTrip = Math.ceil(distToTarget * 2 / 3) + speed + 1;
+        if (ship.fuel < fuelForTrip) {
+          const basePos = findNearestBase(ship.position, player.bases, map);
+          if (basePos) {
+            const baseDist = hexDistance(ship.position, basePos);
+            // Only divert if base is reasonably close and reachable
+            if (baseDist < distToTarget && baseDist <= ship.fuel + speed + 2) {
+              shipTargetHex = basePos;
+              shipTargetBody = ''; // Landing at base is good
+              seekingFuel = true;
+            }
+          }
+        }
+      }
+    }
+
     let bestBurn: number | null = null;
     let bestOverload: number | null = null;
     let bestScore = -Infinity;
@@ -81,10 +127,12 @@ export function aiAstrogation(
     const stats = SHIP_STATS[ship.type];
     const canBurnFuel = ship.fuel > 0;
     // Easy AI never overloads; Normal/Hard can overload warships with enough fuel
+    // No overloads in non-combat races — too risky near gravity wells
     const canOverload = difficulty !== 'easy'
       && stats?.canOverload
       && ship.fuel >= 2
-      && !ship.overloadUsed;
+      && !ship.overloadUsed
+      && !state.scenarioRules.combatDisabled;
 
     // Build list of (burn, overload) pairs to evaluate
     type BurnOption = { burn: number | null; overload: number | null; weakGravityChoices?: Record<string, boolean> };
@@ -112,16 +160,52 @@ export function aiAstrogation(
       // Skip crashed courses entirely
       if (course.crashed) continue;
 
-      // Look ahead: skip courses whose resulting velocity will crash next turn
+      // Look ahead: skip courses that will inevitably crash.
+      let gravityRiskPenalty = 0;
       if (!course.landedAt) {
         const simShip = { ...ship, position: course.destination, velocity: course.newVelocity, pendingGravityEffects: course.enteredGravityEffects };
-        const nextCourse = computeCourse(simShip, null, map, { destroyedBases: state.destroyedBases });
-        if (nextCourse.crashed) continue;
+        const fuelAfter = ship.fuel - course.fuelSpent;
+        const driftCourse = computeCourse(simShip, null, map, { destroyedBases: state.destroyedBases });
+        if (driftCourse.crashed) {
+          if (!checkpoints) {
+            // Combat scenarios: simple hard reject if drifting crashes
+            continue;
+          }
+          // Race mode: check if any burn next turn avoids crash
+          if (fuelAfter <= 0) continue;
+          let canSurvive = false;
+          for (let d2 = 0; d2 < 6; d2++) {
+            const escape = computeCourse(simShip, d2, map, { destroyedBases: state.destroyedBases });
+            if (escape.crashed) continue;
+            // Also check the turn after the escape burn
+            if (!escape.landedAt && fuelAfter > 1) {
+              const sim2 = { ...simShip, position: escape.destination, velocity: escape.newVelocity, pendingGravityEffects: escape.enteredGravityEffects };
+              const drift2 = computeCourse(sim2, null, map, { destroyedBases: state.destroyedBases });
+              if (drift2.crashed) {
+                let canSurvive2 = false;
+                for (let d3 = 0; d3 < 6; d3++) {
+                  const esc2 = computeCourse(sim2, d3, map, { destroyedBases: state.destroyedBases });
+                  if (!esc2.crashed) { canSurvive2 = true; break; }
+                }
+                if (!canSurvive2) continue; // Escape leads to another trap
+              }
+            }
+            canSurvive = true;
+            break;
+          }
+          if (!canSurvive) continue; // No escape, hard reject
+          gravityRiskPenalty = -20; // Survivable but needs corrective burns
+        }
       }
 
       let score = scoreCourse(
-        ship, course, targetHex, targetBody, escapeWins, enemyShips, difficulty,
-      );
+        ship, course, shipTargetHex, shipTargetBody, escapeWins, enemyShips, difficulty, map, !!checkpoints,
+      ) + gravityRiskPenalty;
+
+      // Fuel-seeking: big bonus for landing at any body (base refuel)
+      if (seekingFuel && course.landedAt) {
+        score += 800;
+      }
 
       // Fuel efficiency: slight preference for conserving fuel
       if (opt.burn === null) {
@@ -145,7 +229,7 @@ export function aiAstrogation(
             const nextAlt = computeCourse(simShip2, null, map, { destroyedBases: state.destroyedBases });
             if (nextAlt.crashed) continue;
           }
-          const altScore = scoreCourse(ship, altCourse, targetHex, targetBody, escapeWins, enemyShips, difficulty);
+          const altScore = scoreCourse(ship, altCourse, shipTargetHex, shipTargetBody, escapeWins, enemyShips, difficulty, map, !!checkpoints);
           if (altScore > score) {
             score = altScore;
             bestLocalWG = wgChoices;
@@ -419,6 +503,8 @@ function scoreCourse(
   escapeWins: boolean,
   enemyShips: Ship[],
   difficulty: AIDifficulty,
+  map?: SolarSystemMap,
+  isRace?: boolean,
 ): number {
   let score = 0;
 
@@ -444,10 +530,14 @@ function scoreCourse(
     score += (currentDist - newDist) * 20 * mult;
 
     // Bonus for landing on target body (not home!)
-    if (course.landedAt === targetBody) {
+    if (targetBody && course.landedAt === targetBody) {
       score += 1000;
+    } else if (course.landedAt && !targetBody) {
+      // Fuel-seeking: landing at any base is great
+      score += 500;
     } else if (course.landedAt) {
-      // Landing at wrong body — bad, we need to keep moving
+      // Landing at wrong body — generally bad, but in checkpoint races
+      // any base landing provides a refuel opportunity
       score -= 30 * mult;
     }
 
@@ -464,10 +554,29 @@ function scoreCourse(
     score -= velDist * 2 * mult;
 
     // Penalty for overshooting (velocity too high near target)
-    if (newDist < 5) {
+    if (newDist < 8) {
       const speed = hexVecLength(course.newVelocity);
       if (speed > newDist + 1) {
-        score -= (speed - newDist) * 10 * mult;
+        score -= (speed - newDist) * 15 * mult;
+      }
+    }
+  }
+
+  // Race mode: penalize high speed near bodies (gravity well danger)
+  if (isRace && map && !course.landedAt) {
+    const speed = hexVecLength(course.newVelocity);
+    for (const body of map.bodies) {
+      const bodyDist = hexDistance(course.destination, body.center);
+      const dangerZone = body.surfaceRadius + 5;
+      if (bodyDist < dangerZone && speed > Math.max(1, bodyDist - body.surfaceRadius)) {
+        score -= (speed - bodyDist + body.surfaceRadius + 1) * 15;
+      }
+    }
+    // Must be nearly stopped to land
+    if (targetHex) {
+      const newDist2 = hexDistance(course.destination, targetHex);
+      if (newDist2 < 3 && speed > 1) {
+        score -= speed * 25;
       }
     }
   }
@@ -549,6 +658,57 @@ function scoreCourse(
   }
 
   return score;
+}
+
+/**
+ * Pick the next checkpoint body to visit, or homeBody if all visited.
+ * Uses nearest-neighbor heuristic from the player's ship position.
+ */
+function pickNextCheckpoint(
+  player: { visitedBodies?: string[]; homeBody: string },
+  checkpoints: string[],
+  map: SolarSystemMap,
+  shipPos?: { q: number; r: number },
+): string | null {
+  const visited = new Set(player.visitedBodies ?? []);
+  const unvisited = checkpoints.filter(b => !visited.has(b));
+  if (unvisited.length === 0) return player.homeBody;
+  if (!shipPos) return unvisited[0];
+
+  // Find nearest unvisited body
+  let bestBody = unvisited[0];
+  let bestDist = Infinity;
+  for (const name of unvisited) {
+    const body = map.bodies.find(b => b.name === name);
+    if (!body) continue;
+    const dist = hexDistance(shipPos, body.center);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestBody = name;
+    }
+  }
+  return bestBody;
+}
+
+/**
+ * Find the nearest base hex the player controls that has fuel.
+ */
+function findNearestBase(
+  shipPos: { q: number; r: number },
+  playerBases: string[],
+  map: SolarSystemMap,
+): { q: number; r: number } | null {
+  let bestPos: { q: number; r: number } | null = null;
+  let bestDist = Infinity;
+  for (const baseKey of playerBases) {
+    const pos = parseHexKey(baseKey);
+    const dist = hexDistance(shipPos, pos);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestPos = pos;
+    }
+  }
+  return bestPos;
 }
 
 function parseHexKey(key: string): { q: number; r: number } {
