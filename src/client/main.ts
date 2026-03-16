@@ -333,8 +333,9 @@ class GameClient {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scenario }),
       });
-      const data = await res.json() as { code: string };
+      const data = await res.json() as { code: string; playerToken: string };
       this.gameCode = data.code;
+      this.storePlayerToken(data.code, data.playerToken);
       // Update URL
       history.replaceState(null, '', `/?code=${this.gameCode}`);
       this.connect(this.gameCode);
@@ -383,11 +384,32 @@ class GameClient {
   private maxReconnectAttempts = 5;
   private reconnectTimer: number | null = null;
 
+  private getPlayerTokenStorageKey(code: string): string {
+    return `delta-v:player-token:${code}`;
+  }
+
+  private getStoredPlayerToken(code: string): string | null {
+    try {
+      return localStorage.getItem(this.getPlayerTokenStorageKey(code));
+    } catch {
+      return null;
+    }
+  }
+
+  private storePlayerToken(code: string, token: string): void {
+    try {
+      localStorage.setItem(this.getPlayerTokenStorageKey(code), token);
+    } catch {
+      // Ignore storage failures and fall back to the current browser session.
+    }
+  }
+
   private connect(code: string) {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     let url = `${protocol}//${location.host}/ws/${code}`;
-    if (this.scenario && this.scenario !== 'biplanetary') {
-      url += `?scenario=${this.scenario}`;
+    const playerToken = this.getStoredPlayerToken(code);
+    if (playerToken) {
+      url += `?playerToken=${encodeURIComponent(playerToken)}`;
     }
     this.ws = new WebSocket(url);
     this.ws.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
@@ -449,6 +471,7 @@ class GameClient {
       case 'welcome':
         this.playerId = msg.playerId;
         this.gameCode = msg.code;
+        this.storePlayerToken(msg.code, msg.playerToken);
         if (this.reconnectAttempts > 0) {
           this.ui.hideReconnecting();
           this.ui.showToast('Reconnected!', 'success');
