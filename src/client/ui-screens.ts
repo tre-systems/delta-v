@@ -26,6 +26,31 @@ export interface WaitingScreenCopy {
   statusText: string;
 }
 
+export interface GameOverStatsLike {
+  turns: number;
+  myShipsAlive: number;
+  myShipsTotal: number;
+  enemyShipsAlive: number;
+  enemyShipsTotal: number;
+}
+
+export interface GameOverView {
+  titleText: 'VICTORY' | 'DEFEAT';
+  reasonText: string;
+  rematchText: 'Rematch';
+  rematchDisabled: false;
+}
+
+export interface ReconnectView {
+  reconnectText: 'Connection lost';
+  attemptText: string;
+}
+
+export interface RematchPendingView {
+  rematchText: 'Waiting...';
+  rematchDisabled: true;
+}
+
 const HIDDEN_VISIBILITY: UIScreenVisibility = {
   menu: 'none',
   scenario: 'none',
@@ -87,6 +112,39 @@ export function buildWaitingScreenCopy(code: string, connecting: boolean): Waiti
   return connecting
     ? { codeText: '...', statusText: 'Connecting...' }
     : { codeText: code, statusText: 'Waiting for opponent...' };
+}
+
+export function buildGameOverView(
+  won: boolean,
+  reason: string,
+  stats?: GameOverStatsLike,
+): GameOverView {
+  let reasonText = reason;
+  if (stats) {
+    reasonText += `\n\nTurns: ${stats.turns}`;
+    reasonText += ` | Your ships: ${stats.myShipsAlive}/${stats.myShipsTotal}`;
+    reasonText += ` | Enemy: ${stats.enemyShipsAlive}/${stats.enemyShipsTotal}`;
+  }
+  return {
+    titleText: won ? 'VICTORY' : 'DEFEAT',
+    reasonText,
+    rematchText: 'Rematch',
+    rematchDisabled: false,
+  };
+}
+
+export function buildRematchPendingView(): RematchPendingView {
+  return {
+    rematchText: 'Waiting...',
+    rematchDisabled: true,
+  };
+}
+
+export function buildReconnectView(attempt: number, maxAttempts: number): ReconnectView {
+  return {
+    reconnectText: 'Connection lost',
+    attemptText: `Attempt ${attempt} of ${maxAttempts}`,
+  };
 }
 
 export function toggleLogVisible(logVisible: boolean): boolean {

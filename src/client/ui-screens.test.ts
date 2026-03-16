@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildGameOverView,
+  buildReconnectView,
+  buildRematchPendingView,
   buildScreenVisibility,
   buildWaitingScreenCopy,
   toggleLogVisible,
@@ -47,6 +50,31 @@ describe('ui-screens', () => {
     expect(buildWaitingScreenCopy('ABCDE', true)).toEqual({
       codeText: '...',
       statusText: 'Connecting...',
+    });
+  });
+
+  it('builds game-over, reconnect, and rematch-pending overlay copy', () => {
+    expect(buildGameOverView(true, 'Fleet eliminated!', {
+      turns: 12,
+      myShipsAlive: 2,
+      myShipsTotal: 3,
+      enemyShipsAlive: 0,
+      enemyShipsTotal: 2,
+    })).toEqual({
+      titleText: 'VICTORY',
+      reasonText: 'Fleet eliminated!\n\nTurns: 12 | Your ships: 2/3 | Enemy: 0/2',
+      rematchText: 'Rematch',
+      rematchDisabled: false,
+    });
+
+    expect(buildReconnectView(2, 5)).toEqual({
+      reconnectText: 'Connection lost',
+      attemptText: 'Attempt 2 of 5',
+    });
+
+    expect(buildRematchPendingView()).toEqual({
+      rematchText: 'Waiting...',
+      rematchDisabled: true,
     });
   });
 
