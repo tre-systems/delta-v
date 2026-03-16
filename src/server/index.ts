@@ -1,4 +1,6 @@
 import { GameDO } from './game-do';
+import { generatePlayerToken, generateRoomCode, parseCreatePayload } from './protocol';
+import { SCENARIOS } from '../shared/map-data';
 
 export { GameDO };
 
@@ -27,27 +29,37 @@ export default {
   },
 };
 
-function generateCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no O/0/1/I to avoid confusion
-  let code = '';
-  for (let i = 0; i < 5; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
-}
-
 async function handleCreate(request: Request, env: Env): Promise<Response> {
-  const code = generateCode();
-  let scenario = 'biplanetary';
+  let payload: unknown = null;
   try {
-    const body = await request.json() as { scenario?: string };
-    if (body.scenario && typeof body.scenario === 'string') {
-      scenario = body.scenario;
-    }
+    payload = await request.json();
   } catch {
-    // Default scenario if no body
+    // Default scenario if no body.
   }
-  return Response.json({ code, scenario });
+
+  const { scenario } = parseCreatePayload(payload, Object.keys(SCENARIOS));
+
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const code = generateRoomCode();
+    const playerToken = generatePlayerToken();
+    const id = env.GAME.idFromName(code);
+    const stub = env.GAME.get(id);
+    const initResponse = await stub.fetch(new Request('https://room.internal/init', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, scenario, playerToken }),
+    }));
+
+    if (initResponse.ok) {
+      return Response.json({ code, playerToken });
+    }
+
+    if (initResponse.status !== 409) {
+      return new Response('Failed to create game', { status: 500 });
+    }
+  }
+
+  return new Response('Failed to allocate room code', { status: 503 });
 }
 
 async function handleWebSocket(request: Request, env: Env, code: string): Promise<Response> {
