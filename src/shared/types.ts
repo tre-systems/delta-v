@@ -234,7 +234,7 @@ export type C2S =
   | { type: 'ping'; t: number };
 
 export type S2C =
-  | { type: 'welcome'; playerId: number; code: string }
+  | { type: 'welcome'; playerId: number; code: string; playerToken: string }
   | { type: 'matchFound' }
   | { type: 'gameStart'; state: GameState }
   | { type: 'movementResult'; movements: ShipMovement[]; ordnanceMovements: OrdnanceMovement[]; events: MovementEvent[]; state: GameState }
