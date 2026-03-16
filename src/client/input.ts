@@ -2,14 +2,8 @@ import {
   type HexCoord,
   pixelToHex,
   hexToPixel,
-  hexAdd,
-  hexEqual,
-  hexKey,
-  HEX_DIRECTIONS,
 } from '../shared/hex';
 import type { GameState, SolarSystemMap } from '../shared/types';
-import { predictDestination, computeCourse } from '../shared/movement';
-import { SHIP_STATS } from '../shared/constants';
 import { type Camera, type PlanningState, HEX_SIZE } from './renderer';
 import {
   createClearedCombatPlan,
@@ -18,6 +12,10 @@ import {
   getCombatTargetAtHex,
   toggleCombatAttackerSelection,
 } from './game-client-combat';
+import {
+  resolveAstrogationClick,
+  resolveOrdnanceClick,
+} from './game-client-input';
 
 export class InputHandler {
   private canvas: HTMLCanvasElement;
@@ -185,121 +183,50 @@ export class InputHandler {
     }
 
     if (this.gameState.phase !== 'astrogation') return;
-
-    // Check if clicking a burn or overload direction arrow
-    if (this.planningState.selectedShipId) {
-      const ship = this.gameState.ships.find(s => s.id === this.planningState.selectedShipId);
-      if (ship && ship.fuel > 0 && ship.damage.disabledTurns === 0) {
-        const currentBurn = this.planningState.burns.get(ship.id) ?? null;
-        const predDest = ship.landed
-          ? computeCourse(ship, null, this.map, { destroyedBases: this.gameState.destroyedBases }).path[0] // launch hex
-          : predictDestination(ship);
-
-        // Check weak gravity toggle clicks
-        const overload = this.planningState.overloads.get(ship.id) ?? null;
-        const wgChoices = this.planningState.weakGravityChoices.get(ship.id) ?? {};
-        const course = computeCourse(ship, currentBurn, this.map, {
-          overload,
-          weakGravityChoices: wgChoices,
-          destroyedBases: this.gameState.destroyedBases,
-        });
-        for (const grav of course.enteredGravityEffects) {
-          if (grav.strength !== 'weak') continue;
-          if (hexEqual(clickHex, grav.hex)) {
-            const key = hexKey(grav.hex);
-            const newChoices = { ...wgChoices };
-            newChoices[key] = !newChoices[key];
-            this.planningState.weakGravityChoices.set(ship.id, newChoices);
-            return;
-          }
-        }
-
-        // Check overload arrows first (they overlap with burn arrow space)
-        if (currentBurn !== null) {
-          const stats = SHIP_STATS[ship.type];
-          if (stats?.canOverload && ship.fuel >= 2) {
-            const burnDest = hexAdd(predDest, HEX_DIRECTIONS[currentBurn]);
-            const currentOverload = this.planningState.overloads.get(ship.id) ?? null;
-            for (let d = 0; d < 6; d++) {
-              const olTarget = hexAdd(burnDest, HEX_DIRECTIONS[d]);
-              if (hexEqual(clickHex, olTarget)) {
-                this.planningState.overloads.set(
-                  ship.id,
-                  currentOverload === d ? null : d,
-                );
-                return;
-              }
-            }
-          }
-        }
-
-        for (let d = 0; d < 6; d++) {
-          const burnTarget = hexAdd(predDest, HEX_DIRECTIONS[d]);
-          if (hexEqual(clickHex, burnTarget)) {
-            // Toggle burn: click same direction = cancel
-            this.planningState.burns.set(
-              ship.id,
-              currentBurn === d ? null : d,
-            );
-            // Clear overload when burn changes
-            if (currentBurn !== d) {
-              this.planningState.overloads.delete(ship.id);
-            }
-            return;
-          }
-        }
-      }
-    }
-
-    // Check if clicking on own ship to select it
-    for (const ship of this.gameState.ships) {
-      if (ship.owner !== this.playerId) continue;
-      if (hexEqual(clickHex, ship.position)) {
-        this.planningState.selectedShipId = ship.id;
+    const interaction = resolveAstrogationClick(
+      this.gameState,
+      this.map,
+      this.playerId,
+      this.planningState,
+      clickHex,
+    );
+    switch (interaction.type) {
+      case 'weakGravityToggle':
+        this.planningState.weakGravityChoices.set(interaction.shipId, interaction.choices);
         return;
-      }
+      case 'overloadToggle':
+        this.planningState.overloads.set(interaction.shipId, interaction.direction);
+        return;
+      case 'burnToggle':
+        this.planningState.burns.set(interaction.shipId, interaction.direction);
+        if (interaction.clearOverload) {
+          this.planningState.overloads.delete(interaction.shipId);
+        }
+        return;
+      case 'selectShip':
+        this.planningState.selectedShipId = interaction.shipId;
+        return;
+      case 'clearSelection':
+        this.planningState.selectedShipId = null;
+        return;
     }
-
-    // Clicked empty space — deselect
-    this.planningState.selectedShipId = null;
   }
 
   private handleOrdnanceClick(clickHex: HexCoord) {
     if (!this.gameState) return;
-
-    const selectedId = this.planningState.selectedShipId;
-    if (selectedId) {
-      const ship = this.gameState.ships.find(s => s.id === selectedId);
-      if (ship) {
-        // Check if clicking a torpedo guidance direction
-        for (let d = 0; d < 6; d++) {
-          const target = hexAdd(ship.position, HEX_DIRECTIONS[d]);
-          if (hexEqual(clickHex, target)) {
-            if (this.planningState.torpedoAccel !== d) {
-              this.planningState.torpedoAccel = d;
-              this.planningState.torpedoAccelSteps = 1;
-            } else if (this.planningState.torpedoAccelSteps === 1) {
-              this.planningState.torpedoAccelSteps = 2;
-            } else {
-              this.planningState.torpedoAccel = null;
-              this.planningState.torpedoAccelSteps = null;
-            }
-            return;
-          }
-        }
-      }
-    }
-
-    // Check if clicking on own ship to select it (skip disabled/landed ships for ordnance)
-    for (const ship of this.gameState.ships) {
-      if (ship.owner !== this.playerId || ship.destroyed) continue;
-      if (ship.damage.disabledTurns > 0 || ship.landed) continue;
-      if (hexEqual(clickHex, ship.position)) {
-        this.planningState.selectedShipId = ship.id;
+    const interaction = resolveOrdnanceClick(this.gameState, this.playerId, this.planningState, clickHex);
+    switch (interaction.type) {
+      case 'torpedoAccel':
+        this.planningState.torpedoAccel = interaction.torpedoAccel;
+        this.planningState.torpedoAccelSteps = interaction.torpedoAccelSteps;
+        return;
+      case 'selectShip':
+        this.planningState.selectedShipId = interaction.shipId;
         this.planningState.torpedoAccel = null;
         this.planningState.torpedoAccelSteps = null;
         return;
-      }
+      case 'none':
+        return;
     }
   }
 
