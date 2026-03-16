@@ -4,8 +4,8 @@ import { deriveHudLayoutOffsets } from './ui-layout';
 describe('deriveHudLayoutOffsets', () => {
   it('returns stable fallbacks when HUD bounds are unavailable', () => {
     expect(deriveHudLayoutOffsets(800, null, null)).toEqual({
-      hudTopOffsetPx: 90,
-      hudBottomOffsetPx: 140,
+      hudTopOffsetPx: 72,
+      hudBottomOffsetPx: 80,
     });
   });
 
@@ -16,10 +16,17 @@ describe('deriveHudLayoutOffsets', () => {
     });
   });
 
-  it('never shrinks below the desktop-safe fallbacks', () => {
+  it('uses measured values even when smaller than fallback', () => {
     expect(deriveHudLayoutOffsets(720, { bottom: 44 }, { top: 640 })).toEqual({
-      hudTopOffsetPx: 90,
-      hudBottomOffsetPx: 140,
+      hudTopOffsetPx: 56,
+      hudBottomOffsetPx: 92,
+    });
+  });
+
+  it('never goes below absolute minimum', () => {
+    expect(deriveHudLayoutOffsets(500, { bottom: 10 }, { top: 490 })).toEqual({
+      hudTopOffsetPx: 32,
+      hudBottomOffsetPx: 32,
     });
   });
 });

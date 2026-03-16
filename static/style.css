@@ -22,8 +22,8 @@
   --radius: 18px;
   --radius-sm: 12px;
   --radius-pill: 999px;
-  --hud-top-offset: 5.6rem;
-  --hud-bottom-offset: 8.8rem;
+  --hud-top-offset: 4.5rem;
+  --hud-bottom-offset: 5rem;
   --font-display: 'Space Grotesk', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 }
@@ -699,7 +699,7 @@ body::before {
 
 .btn-difficulty {
   flex: 1;
-  min-height: 42px;
+  min-height: 48px;
   padding: 0.55rem 0.45rem;
   font-size: 0.72rem;
   letter-spacing: 0.1em;
@@ -1202,7 +1202,7 @@ body::before {
   }
 
   .hud-bottom .btn {
-    min-height: 44px;
+    min-height: 48px;
     min-width: 0;
     width: 100%;
   }
@@ -1254,9 +1254,9 @@ body::before {
   }
 
   .sound-btn {
-    bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 4.1rem);
-    right: 3.85rem;
-    min-width: 52px;
+    bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 7rem);
+    right: 0.5rem;
+    min-width: 42px;
     padding: 0 0.7rem;
   }
 
@@ -1336,12 +1336,15 @@ body::before {
 @media (max-height: 560px) {
   .ship-list {
     top: var(--hud-top-offset);
-    max-height: min(40vh, 180px);
+    bottom: calc(var(--hud-bottom-offset) + 0.35rem);
+    max-height: none;
+    overflow-y: auto;
   }
 
   .game-log {
     top: var(--hud-top-offset);
-    max-height: min(40vh, 180px);
+    bottom: calc(var(--hud-bottom-offset) + 0.35rem);
+    max-height: none;
   }
 
   .hud-bottom {
