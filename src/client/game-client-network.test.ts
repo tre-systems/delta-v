@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { createGame } from '../shared/game-engine';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../shared/map-data';
 import {
+  deriveDisconnectHandling,
   deriveGameStartClientState,
+  deriveReconnectAttemptPlan,
   deriveWelcomeHandling,
   getReconnectDelayMs,
   shouldAttemptReconnect,
@@ -49,6 +51,47 @@ describe('game-client-network', () => {
     expect(shouldAttemptReconnect('playing_astrogation', null, state)).toBe(false);
     expect(shouldAttemptReconnect('playing_astrogation', 'ABCDE', null)).toBe(false);
     expect(shouldAttemptReconnect('playing_astrogation', 'ABCDE', state)).toBe(true);
+  });
+
+  it('derives disconnect handling for reconnect, menu fallback, and no-op states', () => {
+    const map = buildSolarSystemMap();
+    const state = createGame(SCENARIOS.duel, map, 'NET4', findBaseHex);
+
+    expect(deriveDisconnectHandling('playing_astrogation', 'ABCDE', state)).toEqual({
+      attemptReconnect: true,
+      nextState: null,
+    });
+    expect(deriveDisconnectHandling('connecting', null, state)).toEqual({
+      attemptReconnect: false,
+      nextState: 'menu',
+    });
+    expect(deriveDisconnectHandling('gameOver', 'ABCDE', state)).toEqual({
+      attemptReconnect: false,
+      nextState: null,
+    });
+  });
+
+  it('derives reconnect scheduling and terminal failure conditions', () => {
+    expect(deriveReconnectAttemptPlan('ABCDE', 0, 5)).toEqual({
+      giveUp: false,
+      nextAttempt: 1,
+      delayMs: 1000,
+    });
+    expect(deriveReconnectAttemptPlan('ABCDE', 4, 5)).toEqual({
+      giveUp: false,
+      nextAttempt: 5,
+      delayMs: 8000,
+    });
+    expect(deriveReconnectAttemptPlan('ABCDE', 5, 5)).toEqual({
+      giveUp: true,
+      nextAttempt: null,
+      delayMs: null,
+    });
+    expect(deriveReconnectAttemptPlan(null, 0, 5)).toEqual({
+      giveUp: true,
+      nextAttempt: null,
+      delayMs: null,
+    });
   });
 
   it('skips phase transitions while movement animation is running', () => {
