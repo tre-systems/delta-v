@@ -15,6 +15,9 @@ import {
 import { buildHUDView } from './ui-hud';
 import { deriveHudLayoutOffsets } from './ui-layout';
 import {
+  buildGameOverView,
+  buildReconnectView,
+  buildRematchPendingView,
   buildScreenVisibility,
   buildWaitingScreenCopy,
   toggleLogVisible,
@@ -508,32 +511,32 @@ export class UIManager {
   }
 
   showGameOver(won: boolean, reason: string, stats?: { turns: number; myShipsAlive: number; myShipsTotal: number; enemyShipsAlive: number; enemyShipsTotal: number }) {
+    const view = buildGameOverView(won, reason, stats);
     this.gameOverEl.style.display = 'flex';
-    document.getElementById('gameOverText')!.textContent = won ? 'VICTORY' : 'DEFEAT';
-    let reasonText = reason;
-    if (stats) {
-      reasonText += `\n\nTurns: ${stats.turns}`;
-      reasonText += ` | Your ships: ${stats.myShipsAlive}/${stats.myShipsTotal}`;
-      reasonText += ` | Enemy: ${stats.enemyShipsAlive}/${stats.enemyShipsTotal}`;
-    }
+    document.getElementById('gameOverText')!.textContent = view.titleText;
     const reasonEl = document.getElementById('gameOverReason')!;
-    reasonEl.textContent = reasonText;
+    reasonEl.textContent = view.reasonText;
     reasonEl.style.whiteSpace = 'pre-line';
-    document.getElementById('rematchBtn')!.textContent = 'Rematch';
-    document.getElementById('rematchBtn')!.removeAttribute('disabled');
+    const rematchBtn = document.getElementById('rematchBtn')!;
+    rematchBtn.textContent = view.rematchText;
+    rematchBtn.removeAttribute('disabled');
   }
 
   showRematchPending() {
+    const view = buildRematchPendingView();
     const btn = document.getElementById('rematchBtn')!;
-    btn.textContent = 'Waiting...';
-    btn.setAttribute('disabled', 'true');
+    btn.textContent = view.rematchText;
+    if (view.rematchDisabled) {
+      btn.setAttribute('disabled', 'true');
+    }
   }
 
   showReconnecting(attempt: number, maxAttempts: number, onCancel: () => void) {
+    const view = buildReconnectView(attempt, maxAttempts);
     const overlay = document.getElementById('reconnectOverlay')!;
     overlay.style.display = 'flex';
-    document.getElementById('reconnectText')!.textContent = 'Connection lost';
-    document.getElementById('reconnectAttempt')!.textContent = `Attempt ${attempt} of ${maxAttempts}`;
+    document.getElementById('reconnectText')!.textContent = view.reconnectText;
+    document.getElementById('reconnectAttempt')!.textContent = view.attemptText;
     const cancelBtn = document.getElementById('reconnectCancelBtn')!;
     cancelBtn.onclick = () => {
       this.hideReconnecting();
