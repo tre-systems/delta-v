@@ -5,12 +5,6 @@ if ('serviceWorker' in navigator) {
 
 import type { CombatResult, GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, FleetPurchase, ShipMovement, ScenarioDefinition } from '../shared/types';
 import { pixelToHex, hexEqual, hexKey } from '../shared/hex';
-import {
-  canAttack,
-  getCombatStrength,
-  hasLineOfSight,
-  hasLineOfSightToTarget,
-} from '../shared/combat';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { CODE_LENGTH, ORDNANCE_MASS, SHIP_STATS, TURN_TIMEOUT_MS } from '../shared/constants';
 import { createGame, filterStateForPlayer, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat, type MovementResult } from '../shared/game-engine';
@@ -19,6 +13,7 @@ import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
 import { UIManager } from './ui';
 import { Tutorial } from './tutorial';
+import { buildCurrentAttack, countRemainingCombatAttackers, getAttackStrengthForSelection, hasSplitFireOptions } from './game-client-combat';
 import { buildAstrogationOrders, deriveHudViewModel, getGameOverStats, getScenarioBriefingLines } from './game-client-helpers';
 import { derivePhaseTransition, type ClientState } from './game-client-phase';
 import { getNearestEnemyPosition, getNextSelectedShip, getOwnFleetFocusPosition } from './game-client-navigation';
@@ -746,136 +741,9 @@ class GameClient {
     }
   }
 
-  private getReusableCombatGroup(targetId: string, targetType: 'ship' | 'ordnance'): {
-    attackerIds: string[];
-    remainingStrength: number;
-  } | null {
-    if (!this.gameState || targetType !== 'ship') return null;
-    const target = this.gameState.ships.find(ship => ship.id === targetId && !ship.destroyed && ship.owner !== this.playerId);
-    if (!target) return null;
-
-    for (let i = this.renderer.planningState.queuedAttacks.length - 1; i >= 0; i--) {
-      const queued = this.renderer.planningState.queuedAttacks[i];
-      if ((queued.targetType ?? 'ship') !== 'ship') continue;
-      const queuedTarget = this.gameState.ships.find(ship => ship.id === queued.targetId && !ship.destroyed);
-      if (!queuedTarget || !hexEqual(queuedTarget.position, target.position)) continue;
-
-      const groupKey = [...queued.attackerIds].sort().join('|');
-      const attackers = this.gameState.ships.filter(ship => queued.attackerIds.includes(ship.id));
-      const maxStrength = getCombatStrength(attackers);
-      let allocatedStrength = 0;
-
-      for (const attack of this.renderer.planningState.queuedAttacks) {
-        if ((attack.targetType ?? 'ship') !== 'ship') continue;
-        const attackKey = [...attack.attackerIds].sort().join('|');
-        if (attackKey !== groupKey) continue;
-        const attackTarget = this.gameState.ships.find(ship => ship.id === attack.targetId && !ship.destroyed);
-        if (!attackTarget || !hexEqual(attackTarget.position, target.position)) continue;
-        allocatedStrength += attack.attackStrength ?? maxStrength;
-      }
-
-      const remainingStrength = Math.max(0, maxStrength - allocatedStrength);
-      if (remainingStrength > 0) {
-        return {
-          attackerIds: [...queued.attackerIds],
-          remainingStrength,
-        };
-      }
-    }
-
-    return null;
-  }
-
-  private hasSplitFireOptions(): boolean {
-    if (!this.gameState) return false;
-    const queuedTargets = new Set(this.renderer.planningState.queuedAttacks.map(a => `${a.targetType ?? 'ship'}:${a.targetId}`));
-
-    for (const attack of this.renderer.planningState.queuedAttacks) {
-      if ((attack.targetType ?? 'ship') !== 'ship') continue;
-      const target = this.gameState.ships.find(ship => ship.id === attack.targetId && !ship.destroyed);
-      if (!target) continue;
-      const reusable = this.getReusableCombatGroup(target.id, 'ship');
-      if (!reusable || reusable.remainingStrength <= 0) continue;
-      const untargetedSameHex = this.gameState.ships.some(ship =>
-        ship.owner !== this.playerId &&
-        !ship.destroyed &&
-        !ship.landed &&
-        hexEqual(ship.position, target.position) &&
-        !queuedTargets.has(`ship:${ship.id}`),
-      );
-      if (untargetedSameHex) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  private buildCurrentAttack(): CombatAttack | null {
-    if (!this.gameState || this.state !== 'playing_combat') return null;
-    const targetId = this.renderer.planningState.combatTargetId;
-    const targetType = this.renderer.planningState.combatTargetType ?? 'ship';
-    if (!targetId) return null;
-
-    const committedAttackers = new Set(
-      this.renderer.planningState.queuedAttacks.flatMap(a => a.attackerIds),
-    );
-
-    let attackerIds: string[] = [];
-    let attackStrength: number | null = null;
-    if (targetType === 'ordnance') {
-      const target = this.gameState.ordnance.find(o =>
-        o.id === targetId && !o.destroyed && o.owner !== this.playerId && o.type === 'nuke',
-      );
-      if (!target) return null;
-      const legalAttackers = this.gameState.ships
-        .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s) && !committedAttackers.has(s.id))
-        .filter(s => hasLineOfSightToTarget(s, target, this.map));
-      const selectedAttackers = legalAttackers.filter(s =>
-        this.renderer.planningState.combatAttackerIds.includes(s.id),
-      );
-      attackerIds = (selectedAttackers.length > 0 ? selectedAttackers : legalAttackers).map(s => s.id);
-    } else {
-      const target = this.gameState.ships.find(s => s.id === targetId);
-      if (!target || target.destroyed) return null;
-      const reusableGroup = this.getReusableCombatGroup(targetId, targetType);
-      if (reusableGroup) {
-        attackerIds = [...reusableGroup.attackerIds];
-        attackStrength = Math.max(
-          1,
-          Math.min(reusableGroup.remainingStrength, this.renderer.planningState.combatAttackStrength ?? reusableGroup.remainingStrength),
-        );
-      } else {
-        const legalAttackers = this.gameState.ships
-          .filter(s => s.owner === this.playerId && !s.destroyed && canAttack(s) && !committedAttackers.has(s.id))
-          .filter(s => hasLineOfSight(s, target, this.map));
-        const selectedAttackers = legalAttackers.filter(s =>
-          this.renderer.planningState.combatAttackerIds.includes(s.id),
-        );
-        const attackers = selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
-        attackerIds = attackers.map(s => s.id);
-        const maxStrength = getCombatStrength(attackers);
-        if (maxStrength > 0) {
-          attackStrength = Math.max(
-            1,
-            Math.min(maxStrength, this.renderer.planningState.combatAttackStrength ?? maxStrength),
-          );
-        }
-      }
-    }
-
-    if (attackerIds.length === 0) return null;
-
-    return {
-      attackerIds,
-      targetId,
-      targetType,
-      attackStrength: targetType === 'ship' ? attackStrength : null,
-    };
-  }
-
   private queueAttack() {
-    const attack = this.buildCurrentAttack();
+    if (!this.gameState || this.state !== 'playing_combat') return;
+    const attack = buildCurrentAttack(this.gameState, this.playerId, this.renderer.planningState, this.map);
     if (!attack) {
       this.ui.showToast('Select an enemy ship or nuke to target', 'info');
       return;
@@ -885,15 +753,12 @@ class GameClient {
     this.clearCombatSelection();
     this.ui.showAttackButton(false);
 
-    // Check if there are more available attackers (not yet committed)
-    const committedAttackers = new Set(
-      this.renderer.planningState.queuedAttacks.flatMap(a => a.attackerIds),
+    const remainingAttackers = countRemainingCombatAttackers(
+      this.gameState,
+      this.playerId,
+      this.renderer.planningState.queuedAttacks,
     );
-    const remainingAttackers = this.gameState!.ships.filter(
-      s => s.owner === this.playerId && !s.destroyed && canAttack(s) && !committedAttackers.has(s.id),
-    );
-
-    if (remainingAttackers.length === 0 && !this.hasSplitFireOptions()) {
+    if (remainingAttackers === 0 && !hasSplitFireOptions(this.gameState, this.playerId, this.renderer.planningState.queuedAttacks)) {
       // No more attackers available — auto-fire
       this.fireAllAttacks();
     } else {
@@ -959,11 +824,10 @@ class GameClient {
   private adjustCombatStrength(delta: number) {
     if (!this.gameState || this.state !== 'playing_combat') return;
     if (this.renderer.planningState.combatTargetType !== 'ship') return;
-
-    const attackers = this.gameState.ships.filter(ship =>
-      this.renderer.planningState.combatAttackerIds.includes(ship.id),
+    const maxStrength = getAttackStrengthForSelection(
+      this.gameState,
+      this.renderer.planningState.combatAttackerIds,
     );
-    const maxStrength = getCombatStrength(attackers);
     if (maxStrength <= 0) return;
 
     const current = this.renderer.planningState.combatAttackStrength ?? maxStrength;
@@ -973,11 +837,10 @@ class GameClient {
   private resetCombatStrengthToMax() {
     if (!this.gameState || this.state !== 'playing_combat') return;
     if (this.renderer.planningState.combatTargetType !== 'ship') return;
-
-    const attackers = this.gameState.ships.filter(ship =>
-      this.renderer.planningState.combatAttackerIds.includes(ship.id),
+    const maxStrength = getAttackStrengthForSelection(
+      this.gameState,
+      this.renderer.planningState.combatAttackerIds,
     );
-    const maxStrength = getCombatStrength(attackers);
     if (maxStrength > 0) {
       this.renderer.planningState.combatAttackStrength = maxStrength;
     }
