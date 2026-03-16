@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createRoomConfig,
   generatePlayerToken,
   generateRoomCode,
   normalizeScenarioKey,
   parseCreatePayload,
+  parseInitPayload,
   resolveSeatAssignment,
   validateClientMessage,
 } from '../protocol';
@@ -29,6 +31,67 @@ describe('protocol helpers', () => {
     expect(parseCreatePayload({ scenario: 'escape' }, ['biplanetary', 'escape'])).toEqual({ scenario: 'escape' });
     expect(parseCreatePayload({ scenario: 'fake' }, ['biplanetary', 'escape'])).toEqual({ scenario: 'biplanetary' });
     expect(parseCreatePayload(null, ['biplanetary', 'escape'])).toEqual({ scenario: 'biplanetary' });
+  });
+
+  it('parses init payloads and builds room config', () => {
+    const parsed = parseInitPayload({
+      code: 'ABCDE',
+      scenario: 'escape',
+      playerToken: 'A'.repeat(32),
+      inviteToken: 'B'.repeat(32),
+    }, ['biplanetary', 'escape']);
+    expect(parsed).toEqual({
+      ok: true,
+      value: {
+        code: 'ABCDE',
+        scenario: 'escape',
+        playerToken: 'A'.repeat(32),
+        inviteToken: 'B'.repeat(32),
+      },
+    });
+    if (!parsed.ok) {
+      throw new Error('expected init payload to parse');
+    }
+    expect(createRoomConfig(parsed.value)).toEqual({
+      code: 'ABCDE',
+      scenario: 'escape',
+      playerTokens: ['A'.repeat(32), null],
+      inviteTokens: [null, 'B'.repeat(32)],
+    });
+  });
+
+  it('rejects malformed init payloads', () => {
+    expect(parseInitPayload(null, ['biplanetary'])).toEqual({
+      ok: false,
+      error: 'Invalid init payload',
+    });
+    expect(parseInitPayload({
+      code: 'ABCD',
+      scenario: 'biplanetary',
+      playerToken: 'A'.repeat(32),
+      inviteToken: 'B'.repeat(32),
+    }, ['biplanetary'])).toEqual({
+      ok: false,
+      error: 'Invalid room code',
+    });
+    expect(parseInitPayload({
+      code: 'ABCDE',
+      scenario: 'bogus',
+      playerToken: 'A'.repeat(32),
+      inviteToken: 'B'.repeat(32),
+    }, ['biplanetary'])).toEqual({
+      ok: false,
+      error: 'Invalid scenario',
+    });
+    expect(parseInitPayload({
+      code: 'ABCDE',
+      scenario: 'biplanetary',
+      playerToken: 'bad',
+      inviteToken: 'B'.repeat(32),
+    }, ['biplanetary'])).toEqual({
+      ok: false,
+      error: 'Invalid player token',
+    });
   });
 });
 
