@@ -12,8 +12,9 @@ import {
   hasBaseLineOfSight,
   computeGroupRangeModToTarget, computeGroupVelocityModToTarget,
   lookupOtherDamage, lookupGunCombat, applyDamage, rollD6,
-  type CombatResolution,
+  type CombatResolution, type OtherDamageSource,
 } from './combat';
+import { bodyHasGravity } from './map-data';
 
 export interface MovementResult {
   movements: ShipMovement[];
@@ -54,13 +55,6 @@ function resolveControlledBases(
 
 function playerControlsBase(state: GameState, playerId: number, baseKey: string): boolean {
   return state.players[playerId]?.bases.includes(baseKey) ?? false;
-}
-
-function bodyHasGravity(bodyName: string, map: SolarSystemMap): boolean {
-  for (const hex of map.hexes.values()) {
-    if (hex.gravity?.bodyName === bodyName) return true;
-  }
-  return false;
 }
 
 function getScenarioStartingCredits(scenario: ScenarioDefinition, playerId: number): number | undefined {
@@ -453,6 +447,9 @@ function validateAstrogationOrders(
       if (ship.fuel < 2) {
         return 'Insufficient fuel for overload';
       }
+      if (ship.overloadUsed) {
+        return 'Overload already used since last maintenance';
+      }
     }
   }
 
@@ -505,6 +502,9 @@ function resolveMovementPhase(
     ship.lastMovementPath = course.path.map(hex => ({ ...hex }));
     ship.velocity = course.newVelocity;
     ship.fuel -= course.fuelSpent;
+    if (overload !== null) {
+      ship.overloadUsed = true;
+    }
     ship.landed = course.landedAt !== null;
     ship.pendingGravityEffects = course.landedAt
       ? []
@@ -1173,7 +1173,7 @@ function checkOrdnanceDetonation(
       const dieRoll = ord.type === 'nuke' ? 0 : rollD6(rng);
       const result = ord.type === 'nuke'
         ? { type: 'eliminated' as const, disabledTurns: 0 }
-        : lookupOtherDamage(dieRoll);
+        : lookupOtherDamage(dieRoll, 'mine');
       events.push({
         type: ord.type === 'nuke' ? 'nukeDetonation' : 'mineDetonation',
         shipId: ship.id,
@@ -1227,7 +1227,7 @@ function resolveTorpedoDetonation(
     }
 
     const dieRoll = rollD6(rng);
-    const result = lookupOtherDamage(dieRoll);
+    const result = lookupOtherDamage(dieRoll, 'torpedo');
     events.push({
       type: 'torpedoHit',
       shipId: candidate.ship.id,
@@ -1449,7 +1449,7 @@ function resolvePendingAsteroidHazards(
     }
 
     const dieRoll = rollD6(rng);
-    const result = lookupOtherDamage(dieRoll);
+    const result = lookupOtherDamage(dieRoll, 'asteroid');
     applyDamage(ship, result);
     results.push({
       attackerIds: [],
@@ -1508,7 +1508,7 @@ function checkRamming(
       for (const ship of [a, b]) {
         if (ship.destroyed) continue;
         const dieRoll = rollD6(rng);
-        const result = lookupOtherDamage(dieRoll);
+        const result = lookupOtherDamage(dieRoll, 'ram');
         events.push({
           type: 'ramming',
           shipId: ship.id,
@@ -1635,6 +1635,7 @@ function applyResupply(ship: Ship, state: GameState, map: SolarSystemMap): void 
     ship.fuel = stats.fuel;
     ship.cargoUsed = 0; // restock ordnance
     ship.nukesLaunchedSinceResupply = 0;
+    ship.overloadUsed = false; // maintenance restores one overload allowance
     ship.damage = { disabledTurns: 0 };
     ship.captured = false; // base maintenance clears captured status
     ship.resuppliedThisTurn = true;

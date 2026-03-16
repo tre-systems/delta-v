@@ -348,9 +348,12 @@ export function aiCombat(
     const avgDist = totalDist / attackersForTarget.length;
     const rangeMod = computeGroupRangeModToTarget(attackersForTarget, nuke);
     const velMod = computeGroupVelocityModToTarget(attackersForTarget, nuke);
-    const threat = Math.max(0, 6 - Math.min(...state.ships
+    const ownShipDistances = state.ships
       .filter(ship => ship.owner === playerId && !ship.destroyed)
-      .map(ship => hexDistance(ship.position, nuke.position))));
+      .map(ship => hexDistance(ship.position, nuke.position));
+    const threat = ownShipDistances.length > 0
+      ? Math.max(0, 6 - Math.min(...ownShipDistances))
+      : 0;
     const score = 18 + threat * 8 - avgDist * 2 - (rangeMod + velMod) * 3;
 
     scored.push({ targetId: nuke.id, targetType: 'ordnance', attackers: attackersForTarget, score });

@@ -508,3 +508,10 @@ export function findBaseHexes(map: SolarSystemMap, bodyName: string): HexCoord[]
 export function findBaseHex(map: SolarSystemMap, bodyName: string): HexCoord | null {
   return findBaseHexes(map, bodyName)[0] ?? null;
 }
+
+export function bodyHasGravity(bodyName: string, map: SolarSystemMap): boolean {
+  for (const hex of map.hexes.values()) {
+    if (hex.gravity?.bodyName === bodyName) return true;
+  }
+  return false;
+}

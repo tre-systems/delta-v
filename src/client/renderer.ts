@@ -1064,7 +1064,7 @@ export class Renderer {
             // Overload direction arrows (shown after burn is set, for warships with enough fuel)
             if (burn !== null) {
               const stats = SHIP_STATS[ship.type];
-              if (stats?.canOverload && ship.fuel >= 2) {
+              if (stats?.canOverload && ship.fuel >= 2 && !ship.overloadUsed) {
                 const burnDest = hexAdd(predDest, HEX_DIRECTIONS[burn]);
                 for (let d = 0; d < 6; d++) {
                   const olHex = hexAdd(burnDest, HEX_DIRECTIONS[d]);

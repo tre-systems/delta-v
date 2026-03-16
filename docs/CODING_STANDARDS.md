@@ -60,6 +60,8 @@ Do not create meaningless wrapper functions or over-fragment files just to hit n
 - Keep rules-heavy logic covered with direct unit tests.
 - When extracting pure helpers from client/server coordinators, add tests for those helpers.
 - Prefer targeted tests around risky logic over shallow coverage inflation.
+- Use data-driven tests (`it.each` / `describe.each`) to reduce verbosity when testing tables, mappings, or many input-output pairs. This is especially useful for combat tables, damage lookups, and hex math.
+- Coverage thresholds are enforced on `src/shared/` via vitest config — the pre-commit hook and CI both run `test:coverage` to prevent backsliding.
 
 ## Constants And Configuration
 
