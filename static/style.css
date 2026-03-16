@@ -1412,54 +1412,45 @@ body::before {
 /* Phase Alert Overlay */
 #phaseAlert {
   position: fixed;
-  top: 50%;
+  top: 4.5rem;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   z-index: 1000;
   pointer-events: none;
   text-align: center;
   opacity: 0;
-  transition: opacity 0.3s ease-out;
-  padding: 2rem 3rem;
+  transition: opacity 0.25s ease-out;
+  padding: 0.5rem 1.5rem;
   border-radius: var(--radius);
-  background: rgba(7, 14, 28, 0.82);
-  backdrop-filter: blur(32px);
+  background: rgba(7, 14, 28, 0.75);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(122, 215, 255, 0.15);
-  box-shadow: 0 0 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(122, 215, 255, 0.08);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
 }
 
 #phaseAlert.active {
   opacity: 1;
-  animation: phase-bounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .phase-alert-title {
   font-family: var(--font-display);
-  font-size: 3.5rem;
-  font-weight: 800;
-  letter-spacing: 0.2em;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
   color: var(--accent);
-  text-shadow: 0 0 30px rgba(122, 215, 255, 0.6);
+  text-shadow: 0 0 12px rgba(122, 215, 255, 0.4);
   text-transform: uppercase;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.2rem;
 }
 
 .phase-alert-subtitle {
   font-family: var(--font-mono);
-  font-size: 1.1rem;
+  font-size: 0.8rem;
   color: var(--text);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  background: rgba(122, 215, 255, 0.08);
-  padding: 0.4rem 1.2rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid rgba(122, 215, 255, 0.12);
+  padding: 0.2rem 0.8rem;
   display: inline-block;
-}
-
-@keyframes phase-bounce {
-  0% { transform: translate(-50%, -40%) scale(0.9); opacity: 0; }
-  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 }
 
 /* Micro-interactions & Juice */

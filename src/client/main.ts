@@ -713,9 +713,7 @@ class GameClient {
       return;
     }
     this.setState(transition.nextState);
-    if (transition.banner) {
-      this.renderer.showPhaseBanner(transition.banner);
-    }
+    // Canvas phase banner removed — DOM overlay in ui.ts handles this
     if (transition.playPhaseSound) {
       playPhaseChange();
     }
