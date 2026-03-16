@@ -3,11 +3,11 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
-import type { CombatResult, GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, FleetPurchase, ShipMovement, ScenarioDefinition } from '../shared/types';
+import type { CombatResult, GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, FleetPurchase, ShipMovement } from '../shared/types';
 import { pixelToHex, hexKey } from '../shared/hex';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
-import { CODE_LENGTH, SHIP_STATS, TURN_TIMEOUT_MS } from '../shared/constants';
-import { createGame, processFleetReady, processEmplacement, type MovementResult } from '../shared/game-engine';
+import { CODE_LENGTH, TURN_TIMEOUT_MS } from '../shared/constants';
+import { createGame, processEmplacement, type MovementResult } from '../shared/game-engine';
 import { type AIDifficulty } from '../shared/ai';
 import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
@@ -58,6 +58,7 @@ import { deriveBurnChangePlan } from './game-client-burn';
 import { deriveLandingLogEntries } from './game-client-landings';
 import { getTooltipShip } from './game-client-hover';
 import { deriveScenarioBriefingEntries } from './game-client-briefing';
+import { resolveLocalFleetReady } from './game-client-fleet';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
 
 class GameClient {
@@ -894,21 +895,21 @@ class GameClient {
     const scenarioDef = SCENARIOS[this.scenario] ?? SCENARIOS.biplanetary;
 
     if (this.isLocalGame) {
-      // Process player's fleet
-      const result = processFleetReady(this.gameState, this.playerId, purchases, this.map, scenarioDef.availableShipTypes);
-      if ('error' in result) {
+      const result = resolveLocalFleetReady(
+        this.gameState,
+        this.playerId,
+        purchases,
+        this.map,
+        scenarioDef,
+        this.aiDifficulty,
+      );
+      if (result.kind === 'error') {
         this.ui.showToast(result.error, 'error');
         return;
       }
       this.applyGameState(result.state);
-
-      // AI fleet building
-      const aiPurchases = this.aiFleetBuild(scenarioDef);
-      const aiResult = processFleetReady(this.gameState, 1 - this.playerId, aiPurchases, this.map, scenarioDef.availableShipTypes);
-      if ('error' in aiResult) {
-        console.error('AI fleet build error:', aiResult.error);
-      } else {
-        this.applyGameState(aiResult.state);
+      if (result.aiError) {
+        console.error('AI fleet build error:', result.aiError);
       }
       this.logScenarioBriefing();
       this.transitionToPhase();
@@ -916,31 +917,6 @@ class GameClient {
       this.send({ type: 'fleetReady', purchases });
       this.ui.showFleetWaiting();
     }
-  }
-
-  private aiFleetBuild(scenario: ScenarioDefinition): FleetPurchase[] {
-    const credits = this.gameState!.players[1 - this.playerId].credits ?? 0;
-    const available = scenario.availableShipTypes ?? Object.keys(SHIP_STATS).filter(t => t !== 'orbitalBase');
-    const purchases: FleetPurchase[] = [];
-    let remaining = credits;
-
-    // Simple AI: buy a mix of warships weighted by difficulty
-    const priorities = this.aiDifficulty === 'hard'
-      ? ['frigate', 'corsair', 'corvette']
-      : this.aiDifficulty === 'easy'
-        ? ['corvette', 'corsair', 'packet']
-        : ['corsair', 'frigate', 'corvette'];
-
-    for (const shipType of priorities) {
-      if (!available.includes(shipType)) continue;
-      const cost = SHIP_STATS[shipType]?.cost ?? Infinity;
-      while (remaining >= cost) {
-        purchases.push({ shipType });
-        remaining -= cost;
-      }
-    }
-
-    return purchases;
   }
 
   private sendRematch() {
