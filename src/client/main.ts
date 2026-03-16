@@ -54,6 +54,8 @@ import { deriveGameOverPlan } from './game-client-endgame';
 import { deriveClientMessagePlan } from './game-client-messages';
 import { deriveClientScreenPlan } from './game-client-screen';
 import { deriveAIActionPlan } from './game-client-ai-flow';
+import { deriveBurnChangePlan } from './game-client-burn';
+import { deriveLandingLogEntries } from './game-client-landings';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
 
 class GameClient {
@@ -1168,28 +1170,24 @@ class GameClient {
   // --- Burn shortcuts ---
 
   private setBurnDirection(dir: number) {
-    if (!this.gameState || this.state !== 'playing_astrogation') return;
-    const shipId = this.renderer.planningState.selectedShipId;
-    if (!shipId) {
-      this.ui.showToast('Select a ship first', 'info');
+    if (this.state !== 'playing_astrogation') return;
+    const selectedShipId = this.renderer.planningState.selectedShipId;
+    const currentBurn = selectedShipId
+      ? this.renderer.planningState.burns.get(selectedShipId) ?? null
+      : null;
+    const plan = deriveBurnChangePlan(this.gameState, selectedShipId, dir, currentBurn);
+
+    if (plan.kind === 'error') {
+      this.ui.showToast(plan.message, plan.level);
       return;
     }
-    const ship = this.gameState.ships.find(s => s.id === shipId);
-    if (!ship || ship.destroyed) return;
-    if (ship.damage.disabledTurns > 0) {
-      this.ui.showToast(`Ship disabled for ${ship.damage.disabledTurns} more turn(s)`, 'error');
-      return;
-    }
-    if (ship.fuel <= 0) {
-      this.ui.showToast('No fuel remaining', 'error');
+    if (plan.kind === 'noop') {
       return;
     }
 
-    const current = this.renderer.planningState.burns.get(shipId) ?? null;
-    // Toggle: same direction = cancel
-    this.renderer.planningState.burns.set(shipId, current === dir ? null : dir);
-    if (current !== dir) {
-      this.renderer.planningState.overloads.delete(shipId);
+    this.renderer.planningState.burns.set(plan.shipId, plan.nextBurn);
+    if (plan.clearOverload) {
+      this.renderer.planningState.overloads.delete(plan.shipId);
     }
     playSelect();
     this.updateHUD();
@@ -1280,19 +1278,11 @@ class GameClient {
   }
 
   private logLandings(movements: ShipMovement[]) {
-    if (!this.gameState) return;
-    for (const m of movements) {
-      if (!m.landedAt) continue;
-      const ship = this.gameState.ships.find(s => s.id === m.shipId);
-      if (!ship) continue;
-      const name = SHIP_STATS[ship.type]?.name ?? ship.type;
-      this.ui.logLanding(name, m.landedAt);
-      // Show landing visual effect
-      this.renderer.showLandingEffect(m.to);
-      // Check if it's at a friendly base (resupply happened)
-      const player = this.gameState.players[ship.owner];
-      if (player && player.bases.includes(hexKey(m.to))) {
-        this.ui.logText(`  ${name} resupplied: fuel + cargo restored`);
+    for (const entry of deriveLandingLogEntries(this.gameState, movements)) {
+      this.ui.logLanding(entry.shipName, entry.bodyName);
+      this.renderer.showLandingEffect(entry.destination);
+      if (entry.resupplyText) {
+        this.ui.logText(entry.resupplyText);
       }
     }
   }
