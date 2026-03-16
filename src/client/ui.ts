@@ -14,6 +14,12 @@ import {
 } from './ui-fleet';
 import { buildHUDView } from './ui-hud';
 import { deriveHudLayoutOffsets } from './ui-layout';
+import {
+  buildScreenVisibility,
+  buildWaitingScreenCopy,
+  toggleLogVisible,
+  type UIScreenMode,
+} from './ui-screens';
 import { buildShipListView } from './ui-ship-list';
 
 export class UIManager {
@@ -164,41 +170,43 @@ export class UIManager {
     // Game log toggle
     document.getElementById('logToggleBtn')!.addEventListener('click', () => {
       this.logVisible = false;
-      this.gameLogEl.style.display = 'none';
-      this.logShowBtn.style.display = 'block';
+      const visibility = buildScreenVisibility('hud', this.logVisible);
+      this.gameLogEl.style.display = visibility.gameLog;
+      this.logShowBtn.style.display = visibility.logShowBtn;
     });
     this.logShowBtn.addEventListener('click', () => {
       this.logVisible = true;
-      this.gameLogEl.style.display = 'flex';
-      this.logShowBtn.style.display = 'none';
+      const visibility = buildScreenVisibility('hud', this.logVisible);
+      this.gameLogEl.style.display = visibility.gameLog;
+      this.logShowBtn.style.display = visibility.logShowBtn;
     });
   }
 
   toggleLog() {
-    if (this.logVisible) {
-      this.logVisible = false;
-      this.gameLogEl.style.display = 'none';
-      this.logShowBtn.style.display = 'block';
-    } else {
-      this.logVisible = true;
-      this.gameLogEl.style.display = 'flex';
-      this.logShowBtn.style.display = 'none';
-    }
+    this.logVisible = toggleLogVisible(this.logVisible);
+    const visibility = buildScreenVisibility('hud', this.logVisible);
+    this.gameLogEl.style.display = visibility.gameLog;
+    this.logShowBtn.style.display = visibility.logShowBtn;
+  }
+
+  private applyScreenVisibility(mode: UIScreenMode) {
+    const visibility = buildScreenVisibility(mode, this.logVisible);
+    this.menuEl.style.display = visibility.menu;
+    this.scenarioEl.style.display = visibility.scenario;
+    this.waitingEl.style.display = visibility.waiting;
+    this.hudEl.style.display = visibility.hud;
+    this.gameOverEl.style.display = visibility.gameOver;
+    this.shipListEl.style.display = visibility.shipList;
+    this.gameLogEl.style.display = visibility.gameLog;
+    this.logShowBtn.style.display = visibility.logShowBtn;
+    this.fleetBuildingEl.style.display = visibility.fleetBuilding;
+    document.getElementById('helpBtn')!.style.display = visibility.helpBtn;
+    document.getElementById('soundBtn')!.style.display = visibility.soundBtn;
+    document.getElementById('helpOverlay')!.style.display = visibility.helpOverlay;
   }
 
   hideAll() {
-    this.menuEl.style.display = 'none';
-    this.scenarioEl.style.display = 'none';
-    this.waitingEl.style.display = 'none';
-    this.hudEl.style.display = 'none';
-    this.gameOverEl.style.display = 'none';
-    this.shipListEl.style.display = 'none';
-    this.gameLogEl.style.display = 'none';
-    this.logShowBtn.style.display = 'none';
-    this.fleetBuildingEl.style.display = 'none';
-    document.getElementById('helpBtn')!.style.display = 'none';
-    document.getElementById('soundBtn')!.style.display = 'none';
-    document.getElementById('helpOverlay')!.style.display = 'none';
+    this.applyScreenVisibility('hidden');
     this.resetLayoutMetrics();
   }
 
@@ -208,54 +216,43 @@ export class UIManager {
 
   showMenu() {
     this.hideAll();
-    this.menuEl.style.display = 'flex';
-    document.getElementById('soundBtn')!.style.display = 'flex';
+    this.applyScreenVisibility('menu');
     // Reset state
     this.pendingAIGame = false;
   }
 
   showScenarioSelect() {
     this.hideAll();
-    this.scenarioEl.style.display = 'flex';
-    document.getElementById('soundBtn')!.style.display = 'flex';
+    this.applyScreenVisibility('scenario');
   }
 
   showWaiting(code: string, inviteUrl: string | null = null) {
     this.hideAll();
-    this.waitingEl.style.display = 'flex';
-    document.getElementById('soundBtn')!.style.display = 'flex';
+    this.applyScreenVisibility('waiting');
     this.inviteUrl = inviteUrl;
-    document.getElementById('gameCode')!.textContent = code;
-    document.getElementById('waitingStatus')!.textContent = 'Waiting for opponent...';
+    const copy = buildWaitingScreenCopy(code, false);
+    document.getElementById('gameCode')!.textContent = copy.codeText;
+    document.getElementById('waitingStatus')!.textContent = copy.statusText;
   }
 
   showConnecting() {
     this.hideAll();
-    this.waitingEl.style.display = 'flex';
-    document.getElementById('soundBtn')!.style.display = 'flex';
+    this.applyScreenVisibility('waiting');
     this.inviteUrl = null;
-    document.getElementById('gameCode')!.textContent = '...';
-    document.getElementById('waitingStatus')!.textContent = 'Connecting...';
+    const copy = buildWaitingScreenCopy('', true);
+    document.getElementById('gameCode')!.textContent = copy.codeText;
+    document.getElementById('waitingStatus')!.textContent = copy.statusText;
   }
 
   showHUD() {
     this.hideAll();
-    this.hudEl.style.display = 'block';
-    this.shipListEl.style.display = 'flex';
-    document.getElementById('helpBtn')!.style.display = 'flex';
-    document.getElementById('soundBtn')!.style.display = 'flex';
-    if (this.logVisible) {
-      this.gameLogEl.style.display = 'flex';
-    } else {
-      this.logShowBtn.style.display = 'block';
-    }
+    this.applyScreenVisibility('hud');
     this.queueLayoutSync();
   }
 
   showFleetBuilding(state: GameState, playerId: number) {
     this.hideAll();
-    this.fleetBuildingEl.style.display = 'flex';
-    document.getElementById('soundBtn')!.style.display = 'flex';
+    this.applyScreenVisibility('fleetBuilding');
     this.fleetCart = [];
 
     const player = state.players[playerId];
