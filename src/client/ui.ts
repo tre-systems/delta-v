@@ -1,5 +1,5 @@
 import type { Ship, GameState, FleetPurchase, MovementEvent, CombatResult } from '../shared/types';
-import { CODE_LENGTH, ORDNANCE_MASS, SHIP_STATS } from '../shared/constants';
+import { CODE_LENGTH, ORDNANCE_MASS } from '../shared/constants';
 import {
   formatCombatResultEntries,
   formatMovementEventEntry,
@@ -12,6 +12,7 @@ import {
   getFleetCartView,
   getFleetShopView,
 } from './ui-fleet';
+import { buildShipListView } from './ui-ship-list';
 
 export class UIManager {
   private menuEl: HTMLElement;
@@ -436,63 +437,35 @@ export class UIManager {
 
   updateShipList(ships: Ship[], selectedId: string | null, burns: Map<string, number | null>) {
     this.shipListEl.innerHTML = '';
-    // Count ship types for numbering (e.g., "Transport 1", "Transport 2")
-    const typeCounts: Record<string, number> = {};
-    for (const ship of ships) {
-      typeCounts[ship.type] = (typeCounts[ship.type] ?? 0) + 1;
-    }
-    const typeIndices: Record<string, number> = {};
+    const shipListView = buildShipListView(ships, selectedId, burns);
 
-    for (const ship of ships) {
-      const stats = SHIP_STATS[ship.type];
-      const name = stats?.name ?? ship.type;
-      const needsNumber = (typeCounts[ship.type] ?? 0) > 1;
-      typeIndices[ship.type] = (typeIndices[ship.type] ?? 0) + 1;
-      const displayName = needsNumber ? `${name} ${typeIndices[ship.type]}` : name;
+    for (const [index, ship] of ships.entries()) {
+      const entryView = shipListView[index];
 
       const entry = document.createElement('div');
       entry.className = 'ship-entry';
-      if (ship.id === selectedId) entry.classList.add('active');
-      if (ship.destroyed) entry.classList.add('destroyed');
-
-      const hasBurn = burns.has(ship.id) && burns.get(ship.id) !== null;
-
-      const statusParts: string[] = [];
-      if (ship.destroyed) statusParts.push('X');
-      else if (ship.captured) statusParts.push('CAP');
-      else if (ship.damage.disabledTurns > 0) statusParts.push(`D${ship.damage.disabledTurns}`);
-      if (ship.heroismAvailable) statusParts.push('H');
+      if (entryView.isSelected) entry.classList.add('active');
+      if (entryView.isDestroyed) entry.classList.add('destroyed');
 
       entry.innerHTML = `
-        <span class="ship-name">${displayName}</span>
+        <span class="ship-name">${entryView.displayName}</span>
         <span class="ship-status">
-          ${statusParts.join(' ')}
-          ${hasBurn ? '<span class="burn-dot"></span>' : ''}
+          ${entryView.statusText}
+          ${entryView.hasBurn ? '<span class="burn-dot"></span>' : ''}
         </span>
-        <span class="ship-fuel">${ship.destroyed ? '' : `${ship.fuel}/${stats?.fuel ?? '?'}`}</span>
+        <span class="ship-fuel">${entryView.fuelText}</span>
       `;
 
       // Show expanded details for selected ship
-      if (ship.id === selectedId && !ship.destroyed && stats) {
+      if (entryView.detailRows.length > 0) {
         const details = document.createElement('div');
         details.className = 'ship-details';
-        const combatVal = stats.combat + (stats.defensiveOnly ? ' (def)' : '');
-        const rows: string[] = [];
-        rows.push(`<div class="ship-detail-row"><span class="ship-detail-label">Combat</span><span class="ship-detail-value">${combatVal}${ship.heroismAvailable ? ' ★' : ''}</span></div>`);
-        if (stats.cargo > 0) {
-          rows.push(`<div class="ship-detail-row"><span class="ship-detail-label">Cargo</span><span class="ship-detail-value">${stats.cargo - ship.cargoUsed}/${stats.cargo}</span></div>`);
-        }
-        const speed = Math.abs(ship.velocity.dq) + Math.abs(ship.velocity.dr);
-        const velDisplay = speed === 0 ? 'Stationary' : `${ship.velocity.dq}, ${ship.velocity.dr}`;
-        rows.push(`<div class="ship-detail-row"><span class="ship-detail-label">Velocity</span><span class="ship-detail-value">${velDisplay}</span></div>`);
-        if (ship.damage.disabledTurns > 0) {
-          rows.push(`<div class="ship-detail-row"><span class="ship-detail-label">Disabled</span><span class="ship-detail-value" style="color:var(--warning)">${ship.damage.disabledTurns} turns</span></div>`);
-        }
-        if (ship.captured) {
-          rows.push(`<div class="ship-detail-row"><span class="ship-detail-label">Status</span><span class="ship-detail-value" style="color:var(--danger)">Captured</span></div>`);
-        } else if (ship.landed) {
-          rows.push(`<div class="ship-detail-row"><span class="ship-detail-label">Status</span><span class="ship-detail-value" style="color:var(--success)">Landed</span></div>`);
-        }
+        const rows = entryView.detailRows.map((row) => {
+          const style = row.tone
+            ? ` style="color:var(--${row.tone})"`
+            : '';
+          return `<div class="ship-detail-row"><span class="ship-detail-label">${row.label}</span><span class="ship-detail-value"${style}>${row.value}</span></div>`;
+        });
         details.innerHTML = rows.join('');
         entry.appendChild(details);
       }
