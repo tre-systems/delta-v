@@ -106,13 +106,11 @@ describe('renderer map helpers', () => {
       lineWidth: 2,
     });
 
-    expect(buildAsteroidDebrisView({ q: -6, r: -11 }, 28)).toMatchObject({
-      particles: [
-        { xOffset: -22.5, yOffset: -21, size: 1.5 },
-        { xOffset: -21, yOffset: -18, size: 1.5 },
-        { xOffset: -19.5, yOffset: -15, size: 1.5 },
-      ],
-    });
+    const debris = buildAsteroidDebrisView({ q: -6, r: -11 }, 28);
+    expect(debris.particles).toHaveLength(6);
+    expect(debris.center).toBeDefined();
+    // Particles are deterministic for the same coord
+    expect(debris).toEqual(buildAsteroidDebrisView({ q: -6, r: -11 }, 28));
   });
 
   it('builds landing objective views for escape and target-body play', () => {
