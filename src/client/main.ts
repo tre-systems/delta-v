@@ -7,7 +7,7 @@ import type { CombatResult, GameState, S2C, AstrogationOrder, OrdnanceLaunch, Co
 import { pixelToHex, hexEqual, hexKey } from '../shared/hex';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { CODE_LENGTH, ORDNANCE_MASS, SHIP_STATS, TURN_TIMEOUT_MS } from '../shared/constants';
-import { createGame, filterStateForPlayer, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat, type MovementResult } from '../shared/game-engine';
+import { createGame, filterStateForPlayer, processFleetReady, processEmplacement, type MovementResult } from '../shared/game-engine';
 import { aiAstrogation, aiOrdnance, aiCombat, type AIDifficulty } from '../shared/ai';
 import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
@@ -30,6 +30,16 @@ import {
 } from './game-client-session';
 import { deriveTurnTimer } from './game-client-timer';
 import { buildShipTooltipHtml } from './game-client-tooltip';
+import {
+  hasOwnedPendingAsteroidHazards,
+  resolveAstrogationStep,
+  resolveBeginCombatStep,
+  resolveCombatStep,
+  resolveOrdnanceStep,
+  resolveSkipCombatStep,
+  resolveSkipOrdnanceStep,
+  type LocalResolution,
+} from './game-client-local';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
 
 class GameClient {
@@ -1017,101 +1027,97 @@ class GameClient {
     );
   }
 
+  private handleLocalResolution(
+    resolution: LocalResolution,
+    onContinue: () => void,
+    errorPrefix: string,
+  ) {
+    if (resolution.kind === 'error') {
+      console.error(errorPrefix, resolution.error);
+      return;
+    }
+
+    if (resolution.kind === 'movement') {
+      this.playLocalMovementResult(resolution.result, () => {
+        this.localCheckGameEnd();
+        if (this.gameState?.phase !== 'gameOver') {
+          onContinue();
+        }
+      });
+      return;
+    }
+
+    if (resolution.kind === 'combat') {
+      this.presentCombatResults(
+        resolution.previousState,
+        resolution.state,
+        resolution.results,
+        resolution.resetCombat,
+      );
+    } else {
+      this.applyGameState(resolution.state);
+    }
+
+    this.localCheckGameEnd();
+    if (this.gameState?.phase !== 'gameOver') {
+      onContinue();
+    }
+  }
+
   // --- Local game (single player) ---
 
   private localProcessAstrogation(orders: AstrogationOrder[]) {
     if (!this.gameState) return;
-    const result = processAstrogation(this.gameState, this.playerId, orders, this.map);
-    if ('error' in result) {
-      console.error('Local astrogation error:', result.error);
-      return;
-    }
-    if ('movements' in result) {
-      this.playLocalMovementResult(result, () => {
-        this.localCheckGameEnd();
-        this.onAnimationComplete();
-      });
-      return;
-    }
-
-    this.applyGameState(result.state);
-    this.localCheckGameEnd();
-    if (this.gameState.phase !== 'gameOver') {
-      this.transitionToPhase();
-    }
+    this.handleLocalResolution(
+      resolveAstrogationStep(this.gameState, this.playerId, orders, this.map),
+      () => this.onAnimationComplete(),
+      'Local astrogation error:',
+    );
   }
 
   private localProcessOrdnance(launches: OrdnanceLaunch[]) {
     if (!this.gameState) return;
-    const result = processOrdnance(this.gameState, this.playerId, launches, this.map);
-    if ('error' in result) {
-      console.error('Local ordnance error:', result.error);
-      return;
-    }
-    this.playLocalMovementResult(result, () => {
-      this.localCheckGameEnd();
-      this.onAnimationComplete();
-    });
+    this.handleLocalResolution(
+      resolveOrdnanceStep(this.gameState, this.playerId, launches, this.map),
+      () => this.onAnimationComplete(),
+      'Local ordnance error:',
+    );
   }
 
   private localSkipOrdnance() {
     if (!this.gameState) return;
-    const result = skipOrdnance(this.gameState, this.playerId, this.map);
-    if ('error' in result) return;
-    if ('movements' in result) {
-      this.playLocalMovementResult(result, () => {
-        this.localCheckGameEnd();
-        this.onAnimationComplete();
-      });
-      return;
-    }
-
-    this.applyGameState(result.state);
-    this.localCheckGameEnd();
-    if (this.gameState.phase !== 'gameOver') {
-      this.transitionToPhase();
-    }
+    this.handleLocalResolution(
+      resolveSkipOrdnanceStep(this.gameState, this.playerId, this.map),
+      () => this.onAnimationComplete(),
+      'Local skip ordnance error:',
+    );
   }
 
   private localBeginCombat() {
     if (!this.gameState) return;
-    const previousState = this.gameState;
-    const result = beginCombatPhase(this.gameState, this.playerId, this.map);
-    if ('error' in result) return;
-
-    this.applyGameState(result.state);
-
-    if ('results' in result && result.results.length > 0) {
-      this.presentCombatResults(previousState, this.gameState, result.results, false);
-    }
-
-    this.localCheckGameEnd();
-    if (this.gameState.phase !== 'gameOver') {
-      this.transitionToPhase();
-    }
+    this.handleLocalResolution(
+      resolveBeginCombatStep(this.gameState, this.playerId, this.map),
+      () => this.transitionToPhase(),
+      'Local combat start error:',
+    );
   }
 
   private localProcessCombat(attacks: CombatAttack[]) {
     if (!this.gameState) return;
-    const previousState = this.gameState;
-    const result = processCombat(this.gameState, this.playerId, attacks, this.map);
-    if ('error' in result) return;
-    this.presentCombatResults(previousState, result.state, result.results);
-    this.localCheckGameEnd();
-    this.transitionToPhase();
+    this.handleLocalResolution(
+      resolveCombatStep(this.gameState, this.playerId, attacks, this.map),
+      () => this.transitionToPhase(),
+      'Local combat error:',
+    );
   }
 
   private localSkipCombat() {
     if (!this.gameState) return;
-    const previousState = this.gameState;
-    const result = skipCombat(this.gameState, this.playerId, this.map);
-    if ('error' in result) return;
-    this.applyGameState(result.state);
-    if (result.results && result.results.length > 0) {
-      this.presentCombatResults(previousState, this.gameState, result.results, false);
-    }
-    this.localCheckGameEnd();
-    this.transitionToPhase();
+    this.handleLocalResolution(
+      resolveSkipCombatStep(this.gameState, this.playerId, this.map),
+      () => this.transitionToPhase(),
+      'Local skip combat error:',
+    );
   }
 
   private localCheckGameEnd() {
@@ -1124,41 +1130,23 @@ class GameClient {
     const aiPlayer = this.gameState.activePlayer;
     if (aiPlayer === this.playerId) return; // Not AI's turn
 
-    // Astrogation phase
     if (this.gameState.phase === 'astrogation') {
       const aiView = filterStateForPlayer(this.gameState, aiPlayer);
       const orders = aiAstrogation(aiView, aiPlayer, this.map, this.aiDifficulty);
-      const result = processAstrogation(this.gameState, aiPlayer, orders, this.map);
-      if ('error' in result) {
-        console.error('AI astrogation error:', result.error);
-        return;
-      }
-      if ('movements' in result) {
-        this.playLocalMovementResult(result, () => {
-          this.localCheckGameEnd();
-          this.continueAIAfterAstrogation(aiPlayer);
-        });
-      } else {
-        this.applyGameState(result.state);
-        this.processAIPhases(aiPlayer);
-      }
+      this.handleLocalResolution(
+        resolveAstrogationStep(this.gameState, aiPlayer, orders, this.map),
+        () => this.processAIPhases(aiPlayer),
+        'AI astrogation error:',
+      );
       return;
     }
 
-    // If we get here with ordnance/combat phase, process them directly
-    this.processAIPhases(aiPlayer);
-  }
-
-  private continueAIAfterAstrogation(aiPlayer: number) {
-    if (!this.gameState || this.gameState.phase === 'gameOver') return;
-    // Process ordnance and combat phases for AI
     this.processAIPhases(aiPlayer);
   }
 
   private processAIPhases(aiPlayer: number) {
     if (!this.gameState || this.gameState.phase === 'gameOver') return;
 
-    // Ordnance phase
     if (this.gameState.phase === 'ordnance' && this.gameState.activePlayer === aiPlayer) {
       const aiView = filterStateForPlayer(this.gameState, aiPlayer);
       const launches = aiOrdnance(aiView, aiPlayer, this.map, this.aiDifficulty);
@@ -1168,69 +1156,42 @@ class GameClient {
           const name = ship ? (SHIP_STATS[ship.type]?.name ?? ship.type) : l.shipId;
           this.ui.logText(`AI: ${name} launched ${l.ordnanceType}`);
         }
-        const result = processOrdnance(this.gameState, aiPlayer, launches, this.map);
-        if ('error' in result) return;
-        this.playLocalMovementResult(result, () => {
-          this.localCheckGameEnd();
-          this.processAIPhases(aiPlayer);
-        });
-        return;
-      } else {
-        const result = skipOrdnance(this.gameState, aiPlayer, this.map);
-        if ('error' in result) return;
-        if ('movements' in result) {
-          this.playLocalMovementResult(result, () => {
-            this.localCheckGameEnd();
-            this.processAIPhases(aiPlayer);
-          });
-          return;
-        }
-        this.applyGameState(result.state);
       }
+      const resolution = launches.length > 0
+        ? resolveOrdnanceStep(this.gameState, aiPlayer, launches, this.map)
+        : resolveSkipOrdnanceStep(this.gameState, aiPlayer, this.map);
+      this.handleLocalResolution(
+        resolution,
+        () => this.processAIPhases(aiPlayer),
+        launches.length > 0 ? 'AI ordnance error:' : 'AI skip ordnance error:',
+      );
+      return;
     }
 
-    // Combat phase
     if (this.gameState.phase === 'combat' && this.gameState.activePlayer === aiPlayer) {
-      if (this.gameState.pendingAsteroidHazards.some(h => {
-        const ship = this.gameState!.ships.find(s => s.id === h.shipId);
-        return ship?.owner === aiPlayer && !ship.destroyed;
-      })) {
-        const previousState = this.gameState;
-        const start = beginCombatPhase(this.gameState, aiPlayer, this.map);
-        if ('error' in start) return;
-        this.applyGameState(start.state);
-        if ('results' in start && start.results.length > 0) {
-          this.presentCombatResults(previousState, this.gameState, start.results, false);
-        }
-        if (this.gameState.phase !== 'combat') {
-          this.localCheckGameEnd();
-          return;
-        }
+      if (hasOwnedPendingAsteroidHazards(this.gameState, aiPlayer)) {
+        this.handleLocalResolution(
+          resolveBeginCombatStep(this.gameState, aiPlayer, this.map),
+          () => this.processAIPhases(aiPlayer),
+          'AI combat start error:',
+        );
+        return;
       }
 
       const aiView = filterStateForPlayer(this.gameState, aiPlayer);
       const attacks = aiCombat(aiView, aiPlayer, this.map, this.aiDifficulty);
-      if (attacks.length > 0) {
-        const previousState = this.gameState;
-        const result = processCombat(this.gameState, aiPlayer, attacks, this.map);
-        if (!('error' in result)) {
-          this.presentCombatResults(previousState, result.state, result.results, false);
-        }
-      } else {
-        const previousState = this.gameState;
-        const result = skipCombat(this.gameState, aiPlayer, this.map);
-        if (!('error' in result)) {
-          this.applyGameState(result.state);
-          if (result.results && result.results.length > 0) {
-            this.presentCombatResults(previousState, this.gameState, result.results, false);
-          }
-        }
-      }
+      const resolution = attacks.length > 0
+        ? resolveCombatStep(this.gameState, aiPlayer, attacks, this.map, false)
+        : resolveSkipCombatStep(this.gameState, aiPlayer, this.map);
+      this.handleLocalResolution(
+        resolution,
+        () => this.transitionToPhase(),
+        attacks.length > 0 ? 'AI combat error:' : 'AI skip combat error:',
+      );
+      return;
     }
 
     this.localCheckGameEnd();
-
-    // Transition to the next phase (should be player's turn now)
     if (this.gameState) {
       this.transitionToPhase();
     }
