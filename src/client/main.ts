@@ -49,11 +49,10 @@ import {
   deriveDisconnectHandling,
   deriveGameStartClientState,
   deriveReconnectAttemptPlan,
-  deriveWelcomeHandling,
-  shouldTransitionAfterStateUpdate,
 } from './game-client-network';
 import { deriveKeyboardAction, type KeyboardAction } from './game-client-keyboard';
 import { deriveGameOverPlan } from './game-client-endgame';
+import { deriveClientMessagePlan } from './game-client-messages';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
 
 class GameClient {
@@ -477,25 +476,25 @@ class GameClient {
   }
 
   private handleMessage(msg: S2C) {
-    switch (msg.type) {
+    const plan = deriveClientMessagePlan(this.state, this.reconnectAttempts, this.playerId, Date.now(), msg);
+    switch (plan.kind) {
       case 'welcome': {
-        const welcome = deriveWelcomeHandling(this.state, this.reconnectAttempts, msg.playerId);
-        this.playerId = msg.playerId;
-        this.gameCode = msg.code;
-        this.storePlayerToken(msg.code, msg.playerToken);
-        if (welcome.clearInviteLink) {
+        this.playerId = plan.playerId;
+        this.gameCode = plan.code;
+        this.storePlayerToken(plan.code, plan.playerToken);
+        if (plan.clearInviteLink) {
           this.inviteLink = null;
         }
-        if (welcome.showReconnectToast) {
+        if (plan.showReconnectToast) {
           this.ui.hideReconnecting();
           this.ui.showToast('Reconnected!', 'success');
         }
         this.reconnectAttempts = 0;
-        this.renderer.setPlayerId(msg.playerId);
-        this.input.setPlayerId(msg.playerId);
-        this.ui.setPlayerId(msg.playerId);
-        if (welcome.nextState) {
-          this.setState(welcome.nextState);
+        this.renderer.setPlayerId(plan.playerId);
+        this.input.setPlayerId(plan.playerId);
+        this.ui.setPlayerId(plan.playerId);
+        if (plan.nextState) {
+          this.setState(plan.nextState);
         }
         break;
       }
@@ -505,65 +504,62 @@ class GameClient {
         break;
 
       case 'gameStart':
-        this.applyGameState(this.deserializeState(msg.state));
+        this.applyGameState(this.deserializeState(plan.state));
         this.renderer.clearTrails();
         this.ui.clearLog();
         this.logScenarioBriefing();
-        if (!this.gameState) {
-          break;
-        }
-        this.setState(deriveGameStartClientState(this.gameState, this.playerId));
+        this.setState(plan.nextState);
         break;
 
       case 'movementResult':
         this.presentMovementResult(
-          this.deserializeState(msg.state),
-          msg.movements,
-          msg.ordnanceMovements,
-          msg.events,
+          this.deserializeState(plan.state),
+          plan.movements,
+          plan.ordnanceMovements,
+          plan.events,
           () => {
           this.onAnimationComplete();
           },
         );
         break;
 
-      case 'combatResult':
-        {
+      case 'combatResult': {
         const previousState = this.gameState;
-        this.presentCombatResults(previousState!, this.deserializeState(msg.state), msg.results);
-        this.transitionToPhase();
-        break;
+        this.presentCombatResults(previousState!, this.deserializeState(plan.state), plan.results);
+        if (plan.shouldTransition) {
+          this.transitionToPhase();
         }
+        break;
+      }
 
       case 'stateUpdate':
-        this.applyGameState(this.deserializeState(msg.state));
-        if (shouldTransitionAfterStateUpdate(this.state)) {
+        this.applyGameState(this.deserializeState(plan.state));
+        if (plan.shouldTransition) {
           this.transitionToPhase();
         }
         break;
 
-      case 'gameOver': {
-        this.showGameOverOutcome(msg.winner === this.playerId, msg.reason);
+      case 'gameOver':
+        this.showGameOverOutcome(plan.won, plan.reason);
         break;
-      }
 
       case 'rematchPending':
         this.ui.showRematchPending();
         break;
 
       case 'opponentDisconnected':
-        this.setState('gameOver');
-        this.ui.showGameOver(true, 'Opponent disconnected');
+        this.setState(plan.nextState);
+        this.ui.showGameOver(plan.won, plan.reason);
         break;
 
       case 'error':
-        console.error('Server error:', msg.message);
-        this.ui.showToast(msg.message, 'error');
+        console.error('Server error:', plan.message);
+        this.ui.showToast(plan.message, 'error');
         break;
 
       case 'pong':
-        if (msg.t > 0) {
-          this.latencyMs = Date.now() - msg.t;
+        if (plan.latencyMs !== null) {
+          this.latencyMs = plan.latencyMs;
           this.ui.updateLatency(this.latencyMs);
         }
         break;
