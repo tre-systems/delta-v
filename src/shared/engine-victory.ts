@@ -1,5 +1,5 @@
 import type { GameState, Ship, SolarSystemMap, MovementEvent } from './types';
-import { hexKey, hexVecLength, hexDistance, hexEqual } from './hex';
+import { type HexCoord, hexKey, hexVecLength, hexDistance, hexEqual } from './hex';
 import { SHIP_STATS, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from './constants';
 import { rollD6, lookupOtherDamage, applyDamage } from './combat';
 import {
@@ -29,10 +29,49 @@ export function advanceTurn(state: GameState): void {
 }
 
 /**
+ * Update checkpoint body visits for race scenarios.
+ * Checks each hex in the path for gravity or surface belonging to a checkpoint body.
+ */
+export function updateCheckpoints(state: GameState, playerId: number, path: HexCoord[], map: SolarSystemMap): void {
+  const checkpoints = state.scenarioRules.checkpointBodies;
+  const visited = state.players[playerId].visitedBodies;
+  if (!checkpoints || !visited) return;
+
+  for (const hex of path) {
+    const mapHex = map.hexes.get(hexKey(hex));
+    if (!mapHex) continue;
+    const bodyName = mapHex.gravity?.bodyName ?? mapHex.body?.name;
+    if (bodyName && checkpoints.includes(bodyName) && !visited.includes(bodyName)) {
+      visited.push(bodyName);
+    }
+  }
+}
+
+/**
  * Check immediate movement-based victory conditions.
  */
 export function checkImmediateVictory(state: GameState, map?: SolarSystemMap): void {
   if (!map) return;
+
+  // Checkpoint race victory: all bodies visited + landed at home
+  if (state.scenarioRules.checkpointBodies) {
+    for (const ship of state.ships) {
+      if (ship.destroyed || !ship.landed) continue;
+      const player = state.players[ship.owner];
+      if (!player.visitedBodies) continue;
+      const allVisited = state.scenarioRules.checkpointBodies.every(
+        b => player.visitedBodies!.includes(b),
+      );
+      if (!allVisited) continue;
+      const hex = map.hexes.get(hexKey(ship.position));
+      if (hex?.base?.bodyName === player.homeBody || hex?.body?.name === player.homeBody) {
+        state.winner = ship.owner;
+        state.winReason = `Grand Tour complete! Visited all ${state.scenarioRules.checkpointBodies.length} bodies.`;
+        state.phase = 'gameOver';
+        return;
+      }
+    }
+  }
 
   for (const ship of state.ships) {
     if (ship.destroyed || !ship.landed) continue;

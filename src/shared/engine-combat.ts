@@ -78,6 +78,10 @@ export function processCombat(
     return { results, state };
   }
 
+  if (state.scenarioRules.combatDisabled && attacks.length > 0) {
+    return { error: 'Combat is not allowed in this scenario' };
+  }
+
   const committedAttackers = new Map<string, string>();
   const committedTargets = new Set<string>();
   const attackGroups = new Map<string, {
@@ -260,6 +264,9 @@ export function shouldEnterCombatPhase(state: GameState, map: SolarSystemMap): b
     return true;
   }
 
+  // No gun/base combat in race scenarios (asteroid hazards still resolve above)
+  if (state.scenarioRules.combatDisabled) return false;
+
   if (isPlanetaryDefenseEnabled(state) && hasBaseDefenseTargets(state, map)) {
     return true;
   }
@@ -274,6 +281,7 @@ function shouldRemainInCombatPhase(state: GameState, map?: SolarSystemMap): bool
   })) {
     return true;
   }
+  if (state.scenarioRules.combatDisabled) return false;
   if (!map) {
     return hasAnyEnemyShips(state);
   }

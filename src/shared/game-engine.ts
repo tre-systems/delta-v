@@ -15,7 +15,7 @@ import {
 } from './engine-util';
 import {
   advanceTurn, checkGameEnd, checkImmediateVictory,
-  updateEscapeMoralVictory,
+  updateEscapeMoralVictory, updateCheckpoints,
   checkRamming, checkInspection, checkCapture,
   checkOrbitalBaseResupply, applyResupply, updateDetection,
 } from './engine-victory';
@@ -68,6 +68,17 @@ function getScenarioStartingCredits(scenario: ScenarioDefinition, playerId: numb
   return Array.isArray(scenario.startingCredits)
     ? scenario.startingCredits[playerId]
     : scenario.startingCredits;
+}
+
+function getStartingVisitedBodies(ships: Ship[], playerId: number, map: SolarSystemMap): string[] {
+  const visited = new Set<string>();
+  for (const ship of ships) {
+    if (ship.owner !== playerId) continue;
+    const hex = map.hexes.get(hexKey(ship.position));
+    if (hex?.gravity?.bodyName) visited.add(hex.gravity.bodyName);
+    if (hex?.body?.name) visited.add(hex.body.name);
+  }
+  return [...visited];
 }
 
 function assertScenarioPlayerCount(scenario: ScenarioDefinition): void {
@@ -145,6 +156,21 @@ export function createGame(
   const ships: Ship[] = [];
   const playerBases = scenario.players.map(player => resolveControlledBases(player, map));
 
+  // Shared bases: add fuel-body bases to both players (Grand Tour race)
+  if (scenario.rules?.sharedBases) {
+    const sharedBaseKeys = new Set<string>();
+    for (const [key, hex] of map.hexes) {
+      if (hex.base && scenario.rules.sharedBases.includes(hex.base.bodyName)) {
+        sharedBaseKeys.add(key);
+      }
+    }
+    for (const bases of playerBases) {
+      for (const key of sharedBaseKeys) {
+        if (!bases.includes(key)) bases.push(key);
+      }
+    }
+  }
+
   for (let p = 0; p < scenario.players.length; p++) {
     for (let s = 0; s < scenario.players[p].ships.length; s++) {
       const def = scenario.players[p].ships[s];
@@ -214,6 +240,13 @@ export function createGame(
       planetaryDefenseEnabled: scenario.rules?.planetaryDefenseEnabled ?? true,
       hiddenIdentityInspection: scenario.rules?.hiddenIdentityInspection ?? false,
       escapeEdge: scenario.rules?.escapeEdge ?? 'any',
+      combatDisabled: scenario.rules?.combatDisabled,
+      checkpointBodies: scenario.rules?.checkpointBodies
+        ? [...scenario.rules.checkpointBodies]
+        : undefined,
+      sharedBases: scenario.rules?.sharedBases
+        ? [...scenario.rules.sharedBases]
+        : undefined,
     },
     escapeMoralVictoryAchieved: false,
     turnNumber: 1,
@@ -234,6 +267,10 @@ export function createGame(
         bases: playerBases[0],
         escapeWins: scenario.players[0].escapeWins,
         credits: getScenarioStartingCredits(scenario, 0),
+        ...(scenario.rules?.checkpointBodies ? {
+          visitedBodies: getStartingVisitedBodies(ships, 0, map),
+          totalFuelSpent: 0,
+        } : {}),
       },
       {
         connected: true,
@@ -243,6 +280,10 @@ export function createGame(
         bases: playerBases[1],
         escapeWins: scenario.players[1].escapeWins,
         credits: getScenarioStartingCredits(scenario, 1),
+        ...(scenario.rules?.checkpointBodies ? {
+          visitedBodies: getStartingVisitedBodies(ships, 1, map),
+          totalFuelSpent: 0,
+        } : {}),
       },
     ],
     winner: null,
@@ -509,6 +550,19 @@ function resolveMovementPhase(
 
     if (!ship.destroyed) {
       queueAsteroidHazards(ship, course.path, course.newVelocity, state, map);
+    }
+  }
+
+  // Track checkpoint visits and fuel for race scenarios
+  if (state.scenarioRules.checkpointBodies) {
+    for (const m of movements) {
+      const ship = state.ships.find(s => s.id === m.shipId);
+      if (ship && !ship.destroyed) {
+        updateCheckpoints(state, ship.owner, m.path, map);
+        if (state.players[ship.owner].totalFuelSpent !== undefined) {
+          state.players[ship.owner].totalFuelSpent! += m.fuelSpent;
+        }
+      }
     }
   }
 
