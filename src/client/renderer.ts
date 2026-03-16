@@ -9,7 +9,7 @@ import {
   hexVecLength,
 } from '../shared/hex';
 import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CombatResult, CombatAttack } from '../shared/types';
-import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from '../shared/constants';
+import { MOVEMENT_ANIM_DURATION, CAMERA_LERP_SPEED, SHIP_STATS } from '../shared/constants';
 import { computeCourse, predictDestination } from '../shared/movement';
 import {
   getCombatOverlayHighlights,
@@ -46,6 +46,13 @@ import {
   buildMapBorderView,
 } from './renderer-map';
 import { buildMinimapSceneView } from './renderer-minimap';
+import {
+  buildDetectionRangeViews,
+  buildMovementPathViews,
+  buildOrdnanceTrailViews,
+  buildShipTrailViews,
+  buildVelocityVectorViews,
+} from './renderer-vectors';
 import {
   createMinimapLayout,
 } from './game-client-minimap';
@@ -844,46 +851,19 @@ export class Renderer {
 
   private renderDetectionRanges(ctx: CanvasRenderingContext2D, state: GameState, map: SolarSystemMap) {
     if (this.animState) return;
-
-    // Show detection range for selected own ship
-    const selectedId = this.planningState.selectedShipId;
-    for (const ship of state.ships) {
-      if (ship.owner !== this.playerId || ship.destroyed) continue;
-      const isSelected = ship.id === selectedId;
-      if (!isSelected) continue; // Only show for selected ship to avoid clutter
-
-      const p = hexToPixel(ship.position, HEX_SIZE);
-      const detRange = SHIP_DETECTION_RANGE;
-      // Approximate circle radius from hex distance
-      const radius = detRange * HEX_SIZE * 1.73; // sqrt(3) * hex_size * range
-
-      ctx.strokeStyle = 'rgba(79, 195, 247, 0.08)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 6]);
+    const overlays = buildDetectionRangeViews(
+      state,
+      this.playerId,
+      this.planningState.selectedShipId,
+      map,
+      HEX_SIZE,
+    );
+    for (const overlay of overlays) {
+      ctx.strokeStyle = overlay.color;
+      ctx.lineWidth = overlay.lineWidth;
+      ctx.setLineDash(overlay.lineDash);
       ctx.beginPath();
-      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Sensor range label removed — the dashed circle is sufficient
-    }
-
-    // Show base detection ranges for own bases
-    const player = state.players[this.playerId];
-    const destroyed = new Set(state.destroyedBases);
-    for (const key of player?.bases ?? []) {
-      if (destroyed.has(key)) continue;
-      const hex = map.hexes.get(key);
-      if (!hex?.base) continue;
-      const [q, r] = key.split(',').map(Number);
-      const p = hexToPixel({ q, r }, HEX_SIZE);
-      const radius = BASE_DETECTION_RANGE * HEX_SIZE * 1.73;
-
-      ctx.strokeStyle = 'rgba(79, 195, 247, 0.05)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 8]);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.arc(overlay.center.x, overlay.center.y, overlay.radius, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -893,38 +873,20 @@ export class Renderer {
     // During animation, don't show planning vectors
     if (this.animState) return;
 
-    for (const ship of state.ships) {
-      if (ship.landed || ship.destroyed) continue;
-      // Don't show velocity vectors for undetected enemy ships
-      if (ship.owner !== this.playerId && !ship.detected) continue;
-      const from = hexToPixel(ship.position, HEX_SIZE);
-      const predicted = predictDestination(ship);
-      const to = hexToPixel(predicted, HEX_SIZE);
-
-      // Velocity vector — thin dashed line
-      const speed = hexVecLength(ship.velocity);
-      if (predicted.q !== ship.position.q || predicted.r !== ship.position.r) {
-        const isOwn = ship.owner === this.playerId;
-        ctx.strokeStyle = isOwn
-          ? 'rgba(79, 195, 247, 0.45)'
-          : 'rgba(255, 152, 0, 0.45)';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(from.x, from.y);
-        ctx.lineTo(to.x, to.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Speed label at midpoint for detected enemy ships
-        if (!isOwn && speed >= 1) {
-          const mx = (from.x + to.x) / 2;
-          const my = (from.y + to.y) / 2;
-          ctx.fillStyle = 'rgba(255, 152, 0, 0.5)';
-          ctx.font = '7px monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText(`v${Math.round(speed)}`, mx, my - 5);
-        }
+    for (const vector of buildVelocityVectorViews(state, this.playerId, HEX_SIZE)) {
+      ctx.strokeStyle = vector.color;
+      ctx.lineWidth = vector.lineWidth;
+      ctx.setLineDash(vector.lineDash);
+      ctx.beginPath();
+      ctx.moveTo(vector.from.x, vector.from.y);
+      ctx.lineTo(vector.to.x, vector.to.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (vector.speedLabel) {
+        ctx.fillStyle = vector.speedLabel.color;
+        ctx.font = '7px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(vector.speedLabel.text, vector.speedLabel.position.x, vector.speedLabel.position.y);
       }
     }
 
@@ -1097,54 +1059,36 @@ export class Renderer {
   }
 
   private renderTrails(ctx: CanvasRenderingContext2D, state: GameState) {
-    // Draw persistent ship trails (faint lines showing historical paths)
-    for (const [shipId, trail] of this.shipTrails) {
-      if (trail.length < 2) continue;
-      const ship = state.ships.find(s => s.id === shipId);
-      if (!ship) continue;
-      // Skip undetected enemy trails
-      if (ship.owner !== this.playerId && !ship.detected) continue;
-
-      const isOwn = ship.owner === this.playerId;
-      ctx.strokeStyle = isOwn ? 'rgba(79, 195, 247, 0.28)' : 'rgba(255, 152, 0, 0.28)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([]);
+    for (const trail of buildShipTrailViews(state, this.playerId, this.shipTrails, HEX_SIZE)) {
+      ctx.strokeStyle = trail.lineColor;
+      ctx.lineWidth = trail.lineWidth;
+      ctx.setLineDash(trail.lineDash);
       ctx.beginPath();
-      const p0 = hexToPixel(trail[0], HEX_SIZE);
-      ctx.moveTo(p0.x, p0.y);
-      for (let i = 1; i < trail.length; i++) {
-        const p = hexToPixel(trail[i], HEX_SIZE);
-        ctx.lineTo(p.x, p.y);
+      ctx.moveTo(trail.points[0].x, trail.points[0].y);
+      for (let i = 1; i < trail.points.length; i++) {
+        ctx.lineTo(trail.points[i].x, trail.points[i].y);
       }
       ctx.stroke();
 
-      // Small dots at each waypoint
-      const dotColor = isOwn ? 'rgba(79, 195, 247, 0.35)' : 'rgba(255, 152, 0, 0.35)';
-      for (let i = 0; i < trail.length; i++) {
-        const p = hexToPixel(trail[i], HEX_SIZE);
-        if (!this.camera.isVisible(p.x, p.y)) continue;
-        ctx.fillStyle = dotColor;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
-        ctx.fill();
+      if (trail.waypointColor) {
+        for (const point of trail.points) {
+          if (!this.camera.isVisible(point.x, point.y)) continue;
+          ctx.fillStyle = trail.waypointColor;
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, trail.waypointRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
 
-    // Draw ordnance trails (even fainter)
-    for (const [ordId, trail] of this.ordnanceTrails) {
-      if (trail.length < 2) continue;
-      const ord = state.ordnance?.find(o => o.id === ordId);
-      const isOwn = ord ? ord.owner === this.playerId : false;
-      // Show all ordnance trails (they're visible objects)
-      ctx.strokeStyle = isOwn ? 'rgba(79, 195, 247, 0.1)' : 'rgba(255, 152, 0, 0.1)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([2, 4]);
+    for (const trail of buildOrdnanceTrailViews(state, this.playerId, this.ordnanceTrails, HEX_SIZE)) {
+      ctx.strokeStyle = trail.lineColor;
+      ctx.lineWidth = trail.lineWidth;
+      ctx.setLineDash(trail.lineDash);
       ctx.beginPath();
-      const p0 = hexToPixel(trail[0], HEX_SIZE);
-      ctx.moveTo(p0.x, p0.y);
-      for (let i = 1; i < trail.length; i++) {
-        const p = hexToPixel(trail[i], HEX_SIZE);
-        ctx.lineTo(p.x, p.y);
+      ctx.moveTo(trail.points[0].x, trail.points[0].y);
+      for (let i = 1; i < trail.points.length; i++) {
+        ctx.lineTo(trail.points[i].x, trail.points[i].y);
       }
       ctx.stroke();
       ctx.setLineDash([]);
@@ -1155,37 +1099,22 @@ export class Renderer {
     if (!this.animState) return;
 
     const progress = Math.min((now - this.animState.startTime) / this.animState.duration, 1);
-
-    for (const movement of this.animState.movements) {
-      const ship = state.ships.find(s => s.id === movement.shipId);
-      if (!ship) continue;
-      // Skip undetected enemy movement paths
-      if (ship.owner !== this.playerId && !ship.detected) continue;
-      if (movement.path.length < 2) continue;
-
-      // Draw dotted path line
-      const color = ship.owner === this.playerId ? 'rgba(79, 195, 247, 0.4)' : 'rgba(255, 152, 0, 0.4)';
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([3, 5]);
+    for (const pathView of buildMovementPathViews(state, this.playerId, this.animState.movements, progress, HEX_SIZE)) {
+      ctx.strokeStyle = pathView.color;
+      ctx.lineWidth = pathView.lineWidth;
+      ctx.setLineDash(pathView.lineDash);
       ctx.beginPath();
-      const start = hexToPixel(movement.path[0], HEX_SIZE);
-      ctx.moveTo(start.x, start.y);
-      for (let i = 1; i < movement.path.length; i++) {
-        const p = hexToPixel(movement.path[i], HEX_SIZE);
-        ctx.lineTo(p.x, p.y);
+      ctx.moveTo(pathView.points[0].x, pathView.points[0].y);
+      for (let i = 1; i < pathView.points.length; i++) {
+        ctx.lineTo(pathView.points[i].x, pathView.points[i].y);
       }
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Small dot at each waypoint that's been passed
-      const totalSegs = movement.path.length - 1;
-      const passedSegs = Math.floor(progress * totalSegs);
-      for (let i = 1; i <= passedSegs && i < movement.path.length; i++) {
-        const p = hexToPixel(movement.path[i], HEX_SIZE);
-        ctx.fillStyle = color;
+      for (const waypoint of pathView.passedWaypoints) {
+        ctx.fillStyle = pathView.color;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.arc(waypoint.x, waypoint.y, pathView.waypointRadius, 0, Math.PI * 2);
         ctx.fill();
       }
     }
