@@ -14,7 +14,7 @@ import { InputHandler } from './input';
 import { UIManager } from './ui';
 import { Tutorial } from './tutorial';
 import { buildCurrentAttack, countRemainingCombatAttackers, getAttackStrengthForSelection, hasSplitFireOptions } from './game-client-combat';
-import { buildAstrogationOrders, deriveHudViewModel, getGameOverStats, getScenarioBriefingLines } from './game-client-helpers';
+import { buildAstrogationOrders, deriveHudViewModel, getScenarioBriefingLines } from './game-client-helpers';
 import { derivePhaseTransition, type ClientState } from './game-client-phase';
 import { deriveClientStateEntryPlan } from './game-client-phase-entry';
 import { getNearestEnemyPosition, getNextSelectedShip, getOwnFleetFocusPosition } from './game-client-navigation';
@@ -46,13 +46,14 @@ import {
   type LocalResolution,
 } from './game-client-local';
 import {
+  deriveDisconnectHandling,
   deriveGameStartClientState,
+  deriveReconnectAttemptPlan,
   deriveWelcomeHandling,
-  getReconnectDelayMs,
-  shouldAttemptReconnect,
   shouldTransitionAfterStateUpdate,
 } from './game-client-network';
 import { deriveKeyboardAction, type KeyboardAction } from './game-client-keyboard';
+import { deriveGameOverPlan } from './game-client-endgame';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
 
 class GameClient {
@@ -381,14 +382,14 @@ class GameClient {
   }
 
   private attemptReconnect() {
-    if (!this.gameCode || this.reconnectAttempts >= this.maxReconnectAttempts) {
+    const plan = deriveReconnectAttemptPlan(this.gameCode, this.reconnectAttempts, this.maxReconnectAttempts);
+    if (plan.giveUp) {
       this.ui.hideReconnecting();
       this.ui.showToast('Could not reconnect to game', 'error');
       this.setState('menu');
       return;
     }
-    this.reconnectAttempts++;
-    const delay = getReconnectDelayMs(this.reconnectAttempts);
+    this.reconnectAttempts = plan.nextAttempt!;
     this.ui.showReconnecting(this.reconnectAttempts, this.maxReconnectAttempts, () => {
       // Cancel reconnection and return to menu
       if (this.reconnectTimer !== null) {
@@ -400,7 +401,7 @@ class GameClient {
     });
     this.reconnectTimer = window.setTimeout(() => {
       this.connect(this.gameCode!);
-    }, delay);
+    }, plan.delayMs!);
   }
 
   private send(msg: unknown) {
@@ -451,13 +452,12 @@ class GameClient {
 
   private showGameOverOutcome(won: boolean, reason: string) {
     this.setState('gameOver');
-    const stats = this.gameState ? getGameOverStats(this.gameState, this.playerId) : undefined;
-    this.ui.logText(`${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`, won ? 'log-landed' : 'log-eliminated');
-    const loserId = won ? 1 - this.playerId : this.playerId;
-    const loserShips = this.gameState?.ships.filter((ship) => ship.owner === loserId && !ship.destroyed) ?? [];
+    const plan = deriveGameOverPlan(this.gameState, this.playerId, won, reason);
+    this.ui.logText(plan.logText, plan.logClass);
+    const loserShips = this.gameState?.ships.filter((ship) => plan.loserShipIds.includes(ship.id)) ?? [];
     if (loserShips.length === 0) {
-      this.ui.showGameOver(won, reason, stats);
-      if (won) {
+      this.ui.showGameOver(won, reason, plan.stats);
+      if (plan.resultSound === 'victory') {
         playVictory();
       } else {
         playDefeat();
@@ -467,8 +467,8 @@ class GameClient {
     playExplosion();
     const animDuration = this.renderer.triggerGameOverExplosions(loserShips);
     setTimeout(() => {
-      this.ui.showGameOver(won, reason, stats);
-      if (won) {
+      this.ui.showGameOver(won, reason, plan.stats);
+      if (plan.resultSound === 'victory') {
         playVictory();
       } else {
         playDefeat();
@@ -572,11 +572,13 @@ class GameClient {
 
   private handleDisconnect() {
     this.stopPing();
-    if (shouldAttemptReconnect(this.state, this.gameCode, this.gameState)) {
+    const handling = deriveDisconnectHandling(this.state, this.gameCode, this.gameState);
+    if (handling.attemptReconnect) {
       this.attemptReconnect();
-    } else {
-      if (this.state === 'menu' || this.state === 'gameOver') return;
-      this.setState('menu');
+      return;
+    }
+    if (handling.nextState) {
+      this.setState(handling.nextState);
     }
   }
 
