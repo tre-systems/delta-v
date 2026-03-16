@@ -45,6 +45,13 @@ The frontend is responsible for rendering the pure hex-grid state into a smooth,
 - **`ui.ts` / `audio.ts`**: Handles the HTML overlay (menus, HUD) and Web Audio API interactions.
 - **Visual Polish**: Employs a premium design system with glassmorphism tokens (backdrop-filters), tactile micro-animations (recoil, scaling glows), and pulsing orbital effects for high-end UX.
 
+### D. Progressive Web App (`static/sw.js`, `static/site.webmanifest`)
+Delta-V is a fully installable PWA. A lightweight hand-written service worker provides:
+- **Precaching** of the app shell (`/`, `client.js`, `style.css`, icons) for instant repeat loads.
+- **Offline single-player**: The AI opponent works entirely client-side, so cached assets allow full gameplay without network.
+- **WebSocket passthrough**: The service worker explicitly skips `/ws/*` and `/create` routes, ensuring multiplayer connections are never intercepted.
+- **Stale-while-revalidate** for static assets and **network-first** for navigation, complementing Cloudflare's edge caching rather than fighting it.
+
 ---
 
 ## 3. Data Flow Example: A Movement Turn

@@ -1,3 +1,8 @@
+// Register service worker for PWA support
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
 import type { GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, FleetPurchase, ShipMovement, ScenarioDefinition } from '../shared/types';
 import { pixelToHex, hexToPixel, hexEqual, hexKey, hexVecLength } from '../shared/hex';
 import {
