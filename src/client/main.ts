@@ -40,6 +40,13 @@ import {
   resolveSkipOrdnanceStep,
   type LocalResolution,
 } from './game-client-local';
+import {
+  deriveGameStartClientState,
+  deriveWelcomeHandling,
+  getReconnectDelayMs,
+  shouldAttemptReconnect,
+  shouldTransitionAfterStateUpdate,
+} from './game-client-network';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
 
 class GameClient {
@@ -385,13 +392,8 @@ class GameClient {
     this.logScenarioBriefing();
     const gameState = this.gameState;
     if (!gameState) return;
-
-    if (gameState.phase === 'fleetBuilding') {
-      this.setState('playing_fleetBuilding');
-    } else if (gameState.activePlayer === this.playerId) {
-      this.setState('playing_astrogation');
-    } else {
-      this.setState('playing_opponentTurn');
+    this.setState(deriveGameStartClientState(gameState, this.playerId));
+    if (this.state === 'playing_opponentTurn') {
       this.runAITurn();
     }
   }
@@ -472,7 +474,7 @@ class GameClient {
       return;
     }
     this.reconnectAttempts++;
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 8000);
+    const delay = getReconnectDelayMs(this.reconnectAttempts);
     this.ui.showReconnecting(this.reconnectAttempts, this.maxReconnectAttempts, () => {
       // Cancel reconnection and return to menu
       if (this.reconnectTimer !== null) {
@@ -562,14 +564,15 @@ class GameClient {
 
   private handleMessage(msg: S2C) {
     switch (msg.type) {
-      case 'welcome':
+      case 'welcome': {
+        const welcome = deriveWelcomeHandling(this.state, this.reconnectAttempts, msg.playerId);
         this.playerId = msg.playerId;
         this.gameCode = msg.code;
         this.storePlayerToken(msg.code, msg.playerToken);
-        if (msg.playerId !== 0) {
+        if (welcome.clearInviteLink) {
           this.inviteLink = null;
         }
-        if (this.reconnectAttempts > 0) {
+        if (welcome.showReconnectToast) {
           this.ui.hideReconnecting();
           this.ui.showToast('Reconnected!', 'success');
         }
@@ -577,10 +580,11 @@ class GameClient {
         this.renderer.setPlayerId(msg.playerId);
         this.input.setPlayerId(msg.playerId);
         this.ui.setPlayerId(msg.playerId);
-        if (this.state === 'connecting') {
-          this.setState('waitingForOpponent');
+        if (welcome.nextState) {
+          this.setState(welcome.nextState);
         }
         break;
+      }
 
       case 'matchFound':
         playPhaseChange();
@@ -594,13 +598,7 @@ class GameClient {
         if (!this.gameState) {
           break;
         }
-        if (this.gameState.phase === 'fleetBuilding') {
-          this.setState('playing_fleetBuilding');
-        } else if (this.gameState.activePlayer === this.playerId) {
-          this.setState('playing_astrogation');
-        } else {
-          this.setState('playing_opponentTurn');
-        }
+        this.setState(deriveGameStartClientState(this.gameState, this.playerId));
         break;
 
       case 'movementResult':
@@ -625,7 +623,7 @@ class GameClient {
 
       case 'stateUpdate':
         this.applyGameState(this.deserializeState(msg.state));
-        if (this.state !== 'playing_movementAnim') {
+        if (shouldTransitionAfterStateUpdate(this.state)) {
           this.transitionToPhase();
         }
         break;
@@ -660,12 +658,10 @@ class GameClient {
 
   private handleDisconnect() {
     this.stopPing();
-    if (this.state === 'menu' || this.state === 'gameOver') return;
-
-    // If we have an active game, attempt reconnection
-    if (this.gameCode && this.gameState) {
+    if (shouldAttemptReconnect(this.state, this.gameCode, this.gameState)) {
       this.attemptReconnect();
     } else {
+      if (this.state === 'menu' || this.state === 'gameOver') return;
       this.setState('menu');
     }
   }
