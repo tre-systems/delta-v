@@ -41,6 +41,7 @@ class GameClient {
   private ws: WebSocket | null = null;
   private playerId = -1;
   private gameCode: string | null = null;
+  private inviteLink: string | null = null;
   private scenario = 'biplanetary';
   private gameState: GameState | null = null;
   private isLocalGame = false; // true for single player vs AI
@@ -81,7 +82,7 @@ class GameClient {
       this.aiDifficulty = difficulty;
       this.startLocalGame(scenario);
     };
-    this.ui.onJoin = (code) => this.joinGame(code);
+    this.ui.onJoin = (code, playerToken) => this.joinGame(code, playerToken ?? null);
     this.ui.onUndo = () => this.undoSelectedShipBurn();
     this.ui.onConfirm = () => this.confirmOrders();
     this.ui.onLaunchOrdnance = (ordType) => this.sendOrdnanceLaunch(ordType);
@@ -219,8 +220,15 @@ class GameClient {
     // Check for auto-join code in URL
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
+    const playerToken = urlParams.get('playerToken');
     if (code && code.length === 5) {
-      this.joinGame(code.toUpperCase());
+      const normalizedCode = code.toUpperCase();
+      if (playerToken) {
+        this.storePlayerToken(normalizedCode, playerToken);
+      }
+      // Strip token from URL to avoid leaking it via browser history / referrer headers
+      history.replaceState(null, '', `/?code=${normalizedCode}`);
+      this.joinGame(normalizedCode);
     } else {
       this.setState('menu');
     }
@@ -244,7 +252,13 @@ class GameClient {
         break;
 
       case 'waitingForOpponent':
-        this.ui.showWaiting(this.gameCode ?? '');
+        if (!this.inviteLink && this.gameCode) {
+          const storedInviteToken = this.getStoredInviteToken(this.gameCode);
+          if (storedInviteToken) {
+            this.inviteLink = `${window.location.origin}/?code=${this.gameCode}&playerToken=${encodeURIComponent(storedInviteToken)}`;
+          }
+        }
+        this.ui.showWaiting(this.gameCode ?? '', this.inviteLink);
         break;
 
       case 'playing_fleetBuilding':
@@ -333,8 +347,11 @@ class GameClient {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scenario }),
       });
-      const data = await res.json() as { code: string };
+      const data = await res.json() as { code: string; playerToken: string; inviteToken: string };
       this.gameCode = data.code;
+      this.storePlayerToken(data.code, data.playerToken);
+      this.storeInviteToken(data.code, data.inviteToken);
+      this.inviteLink = `${window.location.origin}/?code=${data.code}&playerToken=${encodeURIComponent(data.inviteToken)}`;
       // Update URL
       history.replaceState(null, '', `/?code=${this.gameCode}`);
       this.connect(this.gameCode);
@@ -372,8 +389,12 @@ class GameClient {
     }
   }
 
-  private joinGame(code: string) {
+  private joinGame(code: string, playerToken: string | null = null) {
+    if (playerToken) {
+      this.storePlayerToken(code, playerToken);
+    }
     this.gameCode = code;
+    this.inviteLink = null;
     history.replaceState(null, '', `/?code=${code}`);
     this.connect(code);
     this.setState('connecting');
@@ -383,11 +404,60 @@ class GameClient {
   private maxReconnectAttempts = 5;
   private reconnectTimer: number | null = null;
 
+  private static readonly TOKEN_STORE_KEY = 'delta-v:tokens';
+  private static readonly TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+  private getTokenStore(): Record<string, { playerToken?: string; inviteToken?: string; ts: number }> {
+    try {
+      return JSON.parse(localStorage.getItem(GameClient.TOKEN_STORE_KEY) || '{}');
+    } catch {
+      return {};
+    }
+  }
+
+  private saveTokenStore(store: Record<string, { playerToken?: string; inviteToken?: string; ts: number }>): void {
+    // Prune entries older than TTL
+    const now = Date.now();
+    for (const key of Object.keys(store)) {
+      if (now - store[key].ts > GameClient.TOKEN_TTL_MS) {
+        delete store[key];
+      }
+    }
+    try {
+      localStorage.setItem(GameClient.TOKEN_STORE_KEY, JSON.stringify(store));
+    } catch {
+      // Ignore storage failures.
+    }
+  }
+
+  private getStoredPlayerToken(code: string): string | null {
+    const entry = this.getTokenStore()[code];
+    return entry?.playerToken ?? null;
+  }
+
+  private storePlayerToken(code: string, token: string): void {
+    const store = this.getTokenStore();
+    store[code] = { ...store[code], playerToken: token, ts: Date.now() };
+    this.saveTokenStore(store);
+  }
+
+  private getStoredInviteToken(code: string): string | null {
+    const entry = this.getTokenStore()[code];
+    return entry?.inviteToken ?? null;
+  }
+
+  private storeInviteToken(code: string, token: string): void {
+    const store = this.getTokenStore();
+    store[code] = { ...store[code], inviteToken: token, ts: Date.now() };
+    this.saveTokenStore(store);
+  }
+
   private connect(code: string) {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     let url = `${protocol}//${location.host}/ws/${code}`;
-    if (this.scenario && this.scenario !== 'biplanetary') {
-      url += `?scenario=${this.scenario}`;
+    const playerToken = this.getStoredPlayerToken(code);
+    if (playerToken) {
+      url += `?playerToken=${encodeURIComponent(playerToken)}`;
     }
     this.ws = new WebSocket(url);
     this.ws.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
@@ -449,6 +519,10 @@ class GameClient {
       case 'welcome':
         this.playerId = msg.playerId;
         this.gameCode = msg.code;
+        this.storePlayerToken(msg.code, msg.playerToken);
+        if (msg.playerId !== 0) {
+          this.inviteLink = null;
+        }
         if (this.reconnectAttempts > 0) {
           this.ui.hideReconnecting();
           this.ui.showToast('Reconnected!', 'success');
