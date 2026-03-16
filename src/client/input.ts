@@ -1,7 +1,6 @@
 import {
   type HexCoord,
   pixelToHex,
-  hexToPixel,
 } from '../shared/hex';
 import type { GameState, SolarSystemMap } from '../shared/types';
 import { type Camera, type PlanningState, HEX_SIZE } from './renderer';
@@ -12,6 +11,11 @@ import {
   getCombatTargetAtHex,
   toggleCombatAttackerSelection,
 } from './game-client-combat';
+import {
+  createMinimapLayout,
+  isPointInMinimap,
+  projectMinimapToWorld,
+} from './game-client-minimap';
 import {
   resolveAstrogationClick,
   resolveOrdnanceClick,
@@ -284,41 +288,19 @@ export class InputHandler {
   private handleMinimapClick(screenX: number, screenY: number): boolean {
     if (!this.map) return false;
 
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const isMobile = w < 600;
-    const mmW = isMobile ? 100 : 140;
-    const mmH = isMobile ? 100 : 140;
-    const mmX = 12;
-    const mmY = isMobile ? 90 : h - mmH - 12;
-    const mmPad = 8;
-
-    // Check if click is within minimap bounds
-    if (screenX < mmX || screenX > mmX + mmW || screenY < mmY || screenY > mmY + mmH) {
+    const layout = createMinimapLayout(
+      this.map.bounds,
+      window.innerWidth,
+      window.innerHeight,
+      HEX_SIZE,
+    );
+    if (!isPointInMinimap(layout, { x: screenX, y: screenY })) {
       return false;
     }
 
-    // Convert minimap click to world coordinates
-    const bounds = this.map.bounds;
-    const worldMinX = hexToPixel({ q: bounds.minQ, r: bounds.minR }, HEX_SIZE).x;
-    const worldMaxX = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, HEX_SIZE).x;
-    const worldMinY = hexToPixel({ q: bounds.minQ, r: bounds.minR }, HEX_SIZE).y;
-    const worldMaxY = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, HEX_SIZE).y;
-    const worldW = worldMaxX - worldMinX || 1;
-    const worldH = worldMaxY - worldMinY || 1;
-
-    const innerW = mmW - mmPad * 2;
-    const innerH = mmH - mmPad * 2;
-    const scale = Math.min(innerW / worldW, innerH / worldH);
-    const offsetX = mmX + mmPad + (innerW - worldW * scale) / 2;
-    const offsetY = mmY + mmPad + (innerH - worldH * scale) / 2;
-
-    const worldClickX = (screenX - offsetX) / scale + worldMinX;
-    const worldClickY = (screenY - offsetY) / scale + worldMinY;
-
-    this.camera.targetX = worldClickX;
-    this.camera.targetY = worldClickY;
-
+    const worldClick = projectMinimapToWorld(layout, { x: screenX, y: screenY });
+    this.camera.targetX = worldClick.x;
+    this.camera.targetY = worldClick.y;
     return true;
   }
 
