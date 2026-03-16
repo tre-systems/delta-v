@@ -3,25 +3,24 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
-import type { GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, FleetPurchase, ShipMovement, ScenarioDefinition } from '../shared/types';
-import { pixelToHex, hexToPixel, hexEqual, hexKey, hexVecLength } from '../shared/hex';
+import type { CombatResult, GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, FleetPurchase, ShipMovement, ScenarioDefinition } from '../shared/types';
+import { pixelToHex, hexToPixel, hexEqual, hexKey } from '../shared/hex';
 import {
   canAttack,
   getCombatStrength,
-  computeOdds,
-  computeGroupRangeMod,
-  computeGroupVelocityMod,
   hasLineOfSight,
   hasLineOfSightToTarget,
 } from '../shared/combat';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
-import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
+import { CODE_LENGTH, ORDNANCE_MASS, SHIP_STATS, TURN_TIMEOUT_MS } from '../shared/constants';
 import { createGame, filterStateForPlayer, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat, type MovementResult } from '../shared/game-engine';
 import { aiAstrogation, aiOrdnance, aiCombat, type AIDifficulty } from '../shared/ai';
 import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
 import { UIManager } from './ui';
 import { Tutorial } from './tutorial';
+import { buildAstrogationOrders, deriveHudViewModel, getGameOverStats, getScenarioBriefingLines } from './game-client-helpers';
+import { buildShipTooltipHtml } from './game-client-tooltip';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
 
 type ClientState =
@@ -221,7 +220,7 @@ class GameClient {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const playerToken = urlParams.get('playerToken');
-    if (code && code.length === 5) {
+    if (code && code.length === CODE_LENGTH) {
       const normalizedCode = code.toUpperCase();
       if (playerToken) {
         this.storePlayerToken(normalizedCode, playerToken);
@@ -371,17 +370,18 @@ class GameClient {
     this.input.setPlayerId(0);
 
     const scenarioDef = SCENARIOS[scenario] ?? SCENARIOS.biplanetary;
-    this.gameState = createGame(scenarioDef, this.map, 'LOCAL', findBaseHex);
+    const state = createGame(scenarioDef, this.map, 'LOCAL', findBaseHex);
     this.renderer.clearTrails();
     this.ui.clearLog();
     this.ui.logText(`vs AI (${this.aiDifficulty}) — ${scenarioDef.name}`);
-    this.renderer.setGameState(this.gameState);
-    this.input.setGameState(this.gameState);
+    this.applyGameState(state);
     this.logScenarioBriefing();
+    const gameState = this.gameState;
+    if (!gameState) return;
 
-    if (this.gameState.phase === 'fleetBuilding') {
+    if (gameState.phase === 'fleetBuilding') {
       this.setState('playing_fleetBuilding');
-    } else if (this.gameState.activePlayer === this.playerId) {
+    } else if (gameState.activePlayer === this.playerId) {
       this.setState('playing_astrogation');
     } else {
       this.setState('playing_opponentTurn');
@@ -514,6 +514,73 @@ class GameClient {
     }
   }
 
+  private applyGameState(state: GameState) {
+    this.gameState = state;
+    this.renderer.setGameState(state);
+    this.input.setGameState(state);
+  }
+
+  private presentMovementResult(
+    state: GameState,
+    movements: MovementResult['movements'],
+    ordnanceMovements: MovementResult['ordnanceMovements'],
+    events: MovementResult['events'],
+    onComplete: () => void,
+  ) {
+    this.applyGameState(state);
+    this.setState('playing_movementAnim');
+    playThrust();
+    if (events.length > 0) {
+      this.renderer.showMovementEvents(events);
+      this.ui.logMovementEvents(events, state.ships);
+      if (events.some((event) => event.damageType === 'eliminated' || event.type === 'crash')) {
+        setTimeout(() => playExplosion(), 500);
+      }
+    }
+    this.logLandings(movements);
+    this.renderer.animateMovements(movements, ordnanceMovements, onComplete);
+  }
+
+  private presentCombatResults(previousState: GameState, state: GameState, results: CombatResult[], resetCombat = true) {
+    this.applyGameState(state);
+    this.renderer.showCombatResults(results, previousState);
+    this.ui.logCombatResults(results, state.ships);
+    if (resetCombat) {
+      this.resetCombatState();
+    }
+    playCombat();
+    if (results.some((result) => result.damageType === 'eliminated')) {
+      setTimeout(() => playExplosion(), 300);
+    }
+  }
+
+  private showGameOverOutcome(won: boolean, reason: string) {
+    this.setState('gameOver');
+    const stats = this.gameState ? getGameOverStats(this.gameState, this.playerId) : undefined;
+    this.ui.logText(`${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`, won ? 'log-landed' : 'log-eliminated');
+    const loserId = won ? 1 - this.playerId : this.playerId;
+    const loserShips = this.gameState?.ships.filter((ship) => ship.owner === loserId && !ship.destroyed) ?? [];
+    if (loserShips.length === 0) {
+      this.ui.showGameOver(won, reason, stats);
+      if (won) {
+        playVictory();
+      } else {
+        playDefeat();
+      }
+      return;
+    }
+    playExplosion();
+    const animDuration = this.renderer.triggerGameOverExplosions(loserShips);
+    setTimeout(() => {
+      this.ui.showGameOver(won, reason, stats);
+      if (won) {
+        playVictory();
+      } else {
+        playDefeat();
+      }
+    }, animDuration);
+  }
+
   private handleMessage(msg: S2C) {
     switch (msg.type) {
       case 'welcome':
@@ -541,12 +608,13 @@ class GameClient {
         break;
 
       case 'gameStart':
-        this.gameState = this.deserializeState(msg.state);
+        this.applyGameState(this.deserializeState(msg.state));
         this.renderer.clearTrails();
-        this.renderer.setGameState(this.gameState);
-        this.input.setGameState(this.gameState);
         this.ui.clearLog();
         this.logScenarioBriefing();
+        if (!this.gameState) {
+          break;
+        }
         if (this.gameState.phase === 'fleetBuilding') {
           this.setState('playing_fleetBuilding');
         } else if (this.gameState.activePlayer === this.playerId) {
@@ -557,68 +625,34 @@ class GameClient {
         break;
 
       case 'movementResult':
-        this.gameState = this.deserializeState(msg.state);
-        this.renderer.setGameState(this.gameState);
-        this.input.setGameState(this.gameState);
-        this.setState('playing_movementAnim');
-        playThrust();
-        if (msg.events.length > 0) {
-          this.renderer.showMovementEvents(msg.events);
-          this.ui.logMovementEvents(msg.events, this.gameState.ships);
-          const hasDestruction = msg.events.some(e => e.damageType === 'eliminated' || e.type === 'crash');
-          if (hasDestruction) setTimeout(() => playExplosion(), 500);
-        }
-        this.logLandings(msg.movements);
-        this.renderer.animateMovements(msg.movements, msg.ordnanceMovements, () => {
+        this.presentMovementResult(
+          this.deserializeState(msg.state),
+          msg.movements,
+          msg.ordnanceMovements,
+          msg.events,
+          () => {
           this.onAnimationComplete();
-        });
+          },
+        );
         break;
 
       case 'combatResult':
         {
         const previousState = this.gameState;
-        this.gameState = this.deserializeState(msg.state);
-        this.renderer.setGameState(this.gameState);
-        this.input.setGameState(this.gameState);
-        this.renderer.showCombatResults(msg.results, previousState);
-        this.ui.logCombatResults(msg.results, this.gameState.ships);
-        this.resetCombatState();
-        playCombat();
-        if (msg.results.some(r => r.damageType === 'eliminated')) {
-          setTimeout(() => playExplosion(), 300);
-        }
+        this.presentCombatResults(previousState!, this.deserializeState(msg.state), msg.results);
         this.transitionToPhase();
         break;
         }
 
       case 'stateUpdate':
-        this.gameState = this.deserializeState(msg.state);
-        this.renderer.setGameState(this.gameState);
-        this.input.setGameState(this.gameState);
+        this.applyGameState(this.deserializeState(msg.state));
         if (this.state !== 'playing_movementAnim') {
           this.transitionToPhase();
         }
         break;
 
       case 'gameOver': {
-        this.setState('gameOver');
-        const won = msg.winner === this.playerId;
-        const stats = this.getGameOverStats();
-        this.ui.logText(`${won ? 'VICTORY' : 'DEFEAT'}: ${msg.reason}`, won ? 'log-landed' : 'log-eliminated');
-        // Trigger dramatic explosions on the loser's remaining ships
-        const loserId = won ? (1 - this.playerId) : this.playerId;
-        const loserShips = this.gameState?.ships.filter(s => s.owner === loserId && !s.destroyed) ?? [];
-        if (loserShips.length > 0) {
-          playExplosion();
-          const animDuration = this.renderer.triggerGameOverExplosions(loserShips);
-          setTimeout(() => {
-            this.ui.showGameOver(won, msg.reason, stats);
-            if (won) { playVictory(); } else { playDefeat(); }
-          }, animDuration);
-        } else {
-          this.ui.showGameOver(won, msg.reason, stats);
-          if (won) { playVictory(); } else { playDefeat(); }
-        }
+        this.showGameOverOutcome(msg.winner === this.playerId, msg.reason);
         break;
       }
 
@@ -639,15 +673,7 @@ class GameClient {
       case 'pong':
         if (msg.t > 0) {
           this.latencyMs = Date.now() - msg.t;
-          // Update latency display in HUD
-          const latEl = document.getElementById('latencyInfo');
-          if (latEl) {
-            latEl.textContent = `${this.latencyMs}ms`;
-            latEl.className = 'latency-text ' + (
-              this.latencyMs < 100 ? 'latency-good' :
-              this.latencyMs < 250 ? 'latency-ok' : 'latency-bad'
-            );
-          }
+          this.ui.updateLatency(this.latencyMs);
         }
         break;
     }
@@ -680,18 +706,7 @@ class GameClient {
 
   private confirmOrders() {
     if (!this.gameState || this.state !== 'playing_astrogation') return;
-
-    const orders: AstrogationOrder[] = [];
-    for (const ship of this.gameState.ships) {
-      if (ship.owner !== this.playerId) continue;
-      const burn = this.renderer.planningState.burns.get(ship.id) ?? null;
-      const overload = this.renderer.planningState.overloads.get(ship.id) ?? null;
-      const wgChoices = this.renderer.planningState.weakGravityChoices.get(ship.id);
-      const order: AstrogationOrder = { shipId: ship.id, burn };
-      if (overload !== null) order.overload = overload;
-      if (wgChoices && Object.keys(wgChoices).length > 0) order.weakGravityChoices = wgChoices;
-      orders.push(order);
-    }
+    const orders = buildAstrogationOrders(this.gameState, this.playerId, this.renderer.planningState);
 
     playConfirm();
     if (this.isLocalGame) {
@@ -1076,9 +1091,7 @@ class GameClient {
         this.ui.showToast(result.error, 'error');
         return;
       }
-      this.gameState = result.state;
-      this.renderer.setGameState(this.gameState);
-      this.input.setGameState(this.gameState);
+      this.applyGameState(result.state);
       this.ui.showToast('Orbital base emplaced!', 'success');
       this.updateHUD();
     } else {
@@ -1115,7 +1128,7 @@ class GameClient {
         this.ui.showToast(result.error, 'error');
         return;
       }
-      this.gameState = result.state;
+      this.applyGameState(result.state);
 
       // AI fleet building
       const aiPurchases = this.aiFleetBuild(scenarioDef);
@@ -1123,11 +1136,8 @@ class GameClient {
       if ('error' in aiResult) {
         console.error('AI fleet build error:', aiResult.error);
       } else {
-        this.gameState = aiResult.state;
+        this.applyGameState(aiResult.state);
       }
-
-      this.renderer.setGameState(this.gameState);
-      this.input.setGameState(this.gameState);
       this.logScenarioBriefing();
       this.transitionToPhase();
     } else {
@@ -1181,20 +1191,13 @@ class GameClient {
   }
 
   private playLocalMovementResult(result: MovementResult, onComplete: () => void) {
-    this.gameState = result.state;
-    this.renderer.setGameState(this.gameState);
-    this.input.setGameState(this.gameState);
-    this.setState('playing_movementAnim');
-    playThrust();
-    if (result.events.length > 0) {
-      this.renderer.showMovementEvents(result.events);
-      this.ui.logMovementEvents(result.events, this.gameState.ships);
-      if (result.events.some(e => e.damageType === 'eliminated' || e.type === 'crash')) {
-        setTimeout(() => playExplosion(), 500);
-      }
-    }
-    this.logLandings(result.movements);
-    this.renderer.animateMovements(result.movements, result.ordnanceMovements, onComplete);
+    this.presentMovementResult(
+      result.state,
+      result.movements,
+      result.ordnanceMovements,
+      result.events,
+      onComplete,
+    );
   }
 
   // --- Local game (single player) ---
@@ -1214,9 +1217,7 @@ class GameClient {
       return;
     }
 
-    this.gameState = result.state;
-    this.renderer.setGameState(this.gameState);
-    this.input.setGameState(this.gameState);
+    this.applyGameState(result.state);
     this.localCheckGameEnd();
     if (this.gameState.phase !== 'gameOver') {
       this.transitionToPhase();
@@ -1248,9 +1249,7 @@ class GameClient {
       return;
     }
 
-    this.gameState = result.state;
-    this.renderer.setGameState(this.gameState);
-    this.input.setGameState(this.gameState);
+    this.applyGameState(result.state);
     this.localCheckGameEnd();
     if (this.gameState.phase !== 'gameOver') {
       this.transitionToPhase();
@@ -1263,17 +1262,10 @@ class GameClient {
     const result = beginCombatPhase(this.gameState, this.playerId, this.map);
     if ('error' in result) return;
 
-    this.gameState = result.state;
-    this.renderer.setGameState(this.gameState);
-    this.input.setGameState(this.gameState);
+    this.applyGameState(result.state);
 
     if ('results' in result && result.results.length > 0) {
-      this.renderer.showCombatResults(result.results, previousState);
-      this.ui.logCombatResults(result.results, this.gameState.ships);
-      playCombat();
-      if (result.results.some(r => r.damageType === 'eliminated')) {
-        setTimeout(() => playExplosion(), 300);
-      }
+      this.presentCombatResults(previousState, this.gameState, result.results, false);
     }
 
     this.localCheckGameEnd();
@@ -1287,16 +1279,7 @@ class GameClient {
     const previousState = this.gameState;
     const result = processCombat(this.gameState, this.playerId, attacks, this.map);
     if ('error' in result) return;
-    this.gameState = result.state;
-    this.renderer.setGameState(this.gameState);
-    this.input.setGameState(this.gameState);
-    this.renderer.showCombatResults(result.results, previousState);
-    this.ui.logCombatResults(result.results, this.gameState.ships);
-    this.resetCombatState();
-    playCombat();
-    if (result.results.some(r => r.damageType === 'eliminated')) {
-      setTimeout(() => playExplosion(), 300);
-    }
+    this.presentCombatResults(previousState, result.state, result.results);
     this.localCheckGameEnd();
     this.transitionToPhase();
   }
@@ -1306,12 +1289,9 @@ class GameClient {
     const previousState = this.gameState;
     const result = skipCombat(this.gameState, this.playerId, this.map);
     if ('error' in result) return;
-    this.gameState = result.state;
-    this.renderer.setGameState(this.gameState);
-    this.input.setGameState(this.gameState);
+    this.applyGameState(result.state);
     if (result.results && result.results.length > 0) {
-      this.renderer.showCombatResults(result.results, previousState);
-      this.ui.logCombatResults(result.results, this.gameState.ships);
+      this.presentCombatResults(previousState, this.gameState, result.results, false);
     }
     this.localCheckGameEnd();
     this.transitionToPhase();
@@ -1319,37 +1299,7 @@ class GameClient {
 
   private localCheckGameEnd() {
     if (!this.gameState || this.gameState.phase !== 'gameOver') return;
-    this.setState('gameOver');
-    const won = this.gameState.winner === this.playerId;
-    const reason = this.gameState.winReason ?? '';
-    const stats = this.getGameOverStats();
-    this.ui.logText(`${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`, won ? 'log-landed' : 'log-eliminated');
-    const loserId = won ? (1 - this.playerId) : this.playerId;
-    const loserShips = this.gameState.ships.filter(s => s.owner === loserId && !s.destroyed);
-    if (loserShips.length > 0) {
-      playExplosion();
-      const animDuration = this.renderer.triggerGameOverExplosions(loserShips);
-      setTimeout(() => {
-        this.ui.showGameOver(won, reason, stats);
-        if (won) { playVictory(); } else { playDefeat(); }
-      }, animDuration);
-    } else {
-      this.ui.showGameOver(won, reason, stats);
-      if (won) { playVictory(); } else { playDefeat(); }
-    }
-  }
-
-  private getGameOverStats() {
-    if (!this.gameState) return undefined;
-    const myShips = this.gameState.ships.filter(s => s.owner === this.playerId);
-    const enemyShips = this.gameState.ships.filter(s => s.owner !== this.playerId);
-    return {
-      turns: this.gameState.turnNumber,
-      myShipsAlive: myShips.filter(s => !s.destroyed).length,
-      myShipsTotal: myShips.length,
-      enemyShipsAlive: enemyShips.filter(s => !s.destroyed).length,
-      enemyShipsTotal: enemyShips.length,
-    };
+    this.showGameOverOutcome(this.gameState.winner === this.playerId, this.gameState.winReason ?? '');
   }
 
   private runAITurn() {
@@ -1372,9 +1322,7 @@ class GameClient {
           this.continueAIAfterAstrogation(aiPlayer);
         });
       } else {
-        this.gameState = result.state;
-        this.renderer.setGameState(this.gameState);
-        this.input.setGameState(this.gameState);
+        this.applyGameState(result.state);
         this.processAIPhases(aiPlayer);
       }
       return;
@@ -1420,10 +1368,8 @@ class GameClient {
           });
           return;
         }
-        this.gameState = result.state;
+        this.applyGameState(result.state);
       }
-      this.renderer.setGameState(this.gameState);
-      this.input.setGameState(this.gameState);
     }
 
     // Combat phase
@@ -1435,17 +1381,10 @@ class GameClient {
         const previousState = this.gameState;
         const start = beginCombatPhase(this.gameState, aiPlayer, this.map);
         if ('error' in start) return;
-        this.gameState = start.state;
+        this.applyGameState(start.state);
         if ('results' in start && start.results.length > 0) {
-          this.renderer.showCombatResults(start.results, previousState);
-          this.ui.logCombatResults(start.results, this.gameState.ships);
-          playCombat();
-          if (start.results.some(r => r.damageType === 'eliminated')) {
-            setTimeout(() => playExplosion(), 300);
-          }
+          this.presentCombatResults(previousState, this.gameState, start.results, false);
         }
-        this.renderer.setGameState(this.gameState);
-        this.input.setGameState(this.gameState);
         if (this.gameState.phase !== 'combat') {
           this.localCheckGameEnd();
           return;
@@ -1458,33 +1397,24 @@ class GameClient {
         const previousState = this.gameState;
         const result = processCombat(this.gameState, aiPlayer, attacks, this.map);
         if (!('error' in result)) {
-          this.gameState = result.state;
-          this.renderer.showCombatResults(result.results, previousState);
-          this.ui.logCombatResults(result.results, this.gameState.ships);
-          playCombat();
-          if (result.results.some(r => r.damageType === 'eliminated')) {
-            setTimeout(() => playExplosion(), 300);
-          }
+          this.presentCombatResults(previousState, result.state, result.results, false);
         }
       } else {
         const previousState = this.gameState;
         const result = skipCombat(this.gameState, aiPlayer, this.map);
         if (!('error' in result)) {
-          this.gameState = result.state;
+          this.applyGameState(result.state);
           if (result.results && result.results.length > 0) {
-            this.renderer.showCombatResults(result.results, previousState);
-            this.ui.logCombatResults(result.results, this.gameState.ships);
+            this.presentCombatResults(previousState, this.gameState, result.results, false);
           }
         }
       }
-      this.renderer.setGameState(this.gameState);
-      this.input.setGameState(this.gameState);
     }
 
     this.localCheckGameEnd();
 
     // Transition to the next phase (should be player's turn now)
-    if (this.gameState.phase !== 'gameOver') {
+    if (this.gameState) {
       this.transitionToPhase();
     }
   }
@@ -1578,127 +1508,66 @@ class GameClient {
 
   private updateHUD() {
     if (!this.gameState) return;
-    const isMyTurn = this.gameState.activePlayer === this.playerId;
-    const myShips = this.gameState.ships.filter(s => s.owner === this.playerId);
-    const selectedId = this.renderer.planningState.selectedShipId;
-    const selectedShip = myShips.find(s => s.id === selectedId) ?? myShips.find(s => !s.destroyed);
-    const stats = selectedShip ? SHIP_STATS[selectedShip.type] : null;
-    // Check if any ship has a burn set (for undo button visibility)
-    const hasBurns = Array.from(this.renderer.planningState.burns.values()).some(b => b !== null);
-    const cargoFree = selectedShip && stats ? stats.cargo - selectedShip.cargoUsed : 0;
-    const cargoMax = stats?.cargo ?? 0;
-    // Build objective text
-    const player = this.gameState.players[this.playerId];
-    const hasFugitiveShip = this.gameState.ships.some(s => s.owner === this.playerId && s.hasFugitives);
-    const facingFugitives = this.gameState.scenarioRules.hiddenIdentityInspection;
-    const objective = player?.escapeWins
-      ? hasFugitiveShip ? '⬡ Escape the \u2605 ship' : '⬡ Escape the map'
-      : facingFugitives ? '⬡ Inspect, capture, or destroy fugitives'
-      : player?.targetBody
-        ? `⬡ Land on ${player.targetBody}`
-        : '⬡ Destroy all enemies';
-    const canEmplaceBase = selectedShip?.carryingOrbitalBase === true && !selectedShip.destroyed && !selectedShip.resuppliedThisTurn;
+    const hud = deriveHudViewModel(this.gameState, this.playerId, this.renderer.planningState);
     this.ui.updateHUD(
-      this.gameState.turnNumber,
-      this.gameState.phase,
-      isMyTurn,
-      selectedShip?.fuel ?? 0,
-      stats?.fuel ?? 0,
-      hasBurns,
-      cargoFree,
-      cargoMax,
-      objective,
-      stats?.canOverload ?? false,
-      canEmplaceBase,
+      hud.turn,
+      hud.phase,
+      hud.isMyTurn,
+      hud.fuel,
+      hud.maxFuel,
+      hud.hasBurns,
+      hud.cargoFree,
+      hud.cargoMax,
+      hud.objective,
+      hud.canOverload,
+      hud.canEmplaceBase,
     );
-    // Update latency display (multiplayer only)
-    const latencyEl = document.getElementById('latencyInfo')!;
-    if (!this.isLocalGame && this.latencyMs >= 0) {
-      latencyEl.textContent = `${this.latencyMs}ms`;
-      latencyEl.className = 'latency-text ' + (
-        this.latencyMs < 100 ? 'latency-good' :
-        this.latencyMs < 250 ? 'latency-ok' : 'latency-bad'
-      );
-    } else {
-      latencyEl.textContent = '';
-    }
-    // Update fleet status
-    const fleetEl = document.getElementById('fleetStatus')!;
-    const enemyShips = this.gameState.ships.filter(s => s.owner !== this.playerId);
-    const myAlive = myShips.filter(s => !s.destroyed).length;
-    const enemyAlive = enemyShips.filter(s => !s.destroyed).length;
-    let statusParts: string[] = [];
-    if (myShips.length > 1 || enemyShips.length > 1) {
-      statusParts.push(`⚔ ${myAlive}v${enemyAlive}`);
-    }
-    // Show active ordnance count
-    const activeOrd = this.gameState.ordnance.filter(o => !o.destroyed);
-    if (activeOrd.length > 0) {
-      const mines = activeOrd.filter(o => o.type === 'mine').length;
-      const torps = activeOrd.filter(o => o.type === 'torpedo').length;
-      const nukes = activeOrd.filter(o => o.type === 'nuke').length;
-      const ordParts: string[] = [];
-      if (mines > 0) ordParts.push(`${mines}M`);
-      if (torps > 0) ordParts.push(`${torps}T`);
-      if (nukes > 0) ordParts.push(`${nukes}N`);
-      statusParts.push(ordParts.join('/'));
-    }
-    fleetEl.textContent = statusParts.join(' ');
+    this.ui.updateLatency(!this.isLocalGame && this.latencyMs >= 0 ? this.latencyMs : null);
+    this.ui.updateFleetStatus(hud.fleetStatus);
     this.ui.updateShipList(
-      myShips,
-      selectedId,
+      hud.myShips,
+      hud.selectedId,
       this.renderer.planningState.burns,
     );
   }
 
   private logScenarioBriefing() {
     if (!this.gameState) return;
-    const player = this.gameState.players[this.playerId];
-    const myShips = this.gameState.ships.filter(s => s.owner === this.playerId);
-    const shipNames = myShips.map(s => SHIP_STATS[s.type]?.name ?? s.type).join(', ');
-    this.ui.logText(`Your fleet: ${shipNames}`);
-    const hasFugitiveShip = myShips.some(s => s.hasFugitives);
-    const facingFugitives = this.gameState.scenarioRules.hiddenIdentityInspection;
-    if (hasFugitiveShip) {
-      this.ui.logText('Objective: Get the \u2605 ship off the map!', 'log-landed');
-    } else if (facingFugitives) {
-      this.ui.logText('Objective: Inspect transports, then capture or destroy the fugitives.', 'log-damage');
-    } else if (player.escapeWins) {
-      this.ui.logText('Objective: Escape the solar system!', 'log-landed');
-    } else if (player.targetBody) {
-      this.ui.logText(`Objective: Land on ${player.targetBody}`, 'log-landed');
-    } else {
-      this.ui.logText('Objective: Destroy all enemy ships!', 'log-damage');
+    const lines = getScenarioBriefingLines(this.gameState, this.playerId);
+    for (const line of lines) {
+      if (line.startsWith('Objective: Escape') || line.startsWith('Objective: Get') || line.startsWith('Objective: Land')) {
+        this.ui.logText(line, 'log-landed');
+      } else if (line.startsWith('Objective: Inspect') || line.startsWith('Objective: Destroy')) {
+        this.ui.logText(line, 'log-damage');
+      } else {
+        this.ui.logText(line);
+      }
     }
-    this.ui.logText('Press ? for controls help');
   }
 
   private toggleHelp() {
-    const helpOverlay = document.getElementById('helpOverlay')!;
-    helpOverlay.style.display = helpOverlay.style.display === 'none' ? 'flex' : 'none';
+    this.ui.toggleHelpOverlay();
   }
 
   private updateSoundButton() {
-    const btn = document.getElementById('soundBtn')!;
-    const m = isMuted();
-    btn.textContent = m ? 'OFF' : 'SFX';
-    btn.title = m ? 'Sound off' : 'Sound on';
-    btn.setAttribute('aria-label', m ? 'Enable sound effects' : 'Disable sound effects');
-    btn.classList.toggle('muted', m);
+    this.ui.updateSoundButton(isMuted());
   }
 
   private startTurnTimer() {
     this.stopTurnTimer();
     this.turnStartTime = Date.now();
     this.timerWarningPlayed = false;
-    const timerEl = document.getElementById('turnTimer')!;
     this.turnTimerInterval = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - this.turnStartTime) / 1000);
-      const remaining = 120 - elapsed;
+      const remaining = Math.floor(TURN_TIMEOUT_MS / 1000) - elapsed;
       const mins = Math.floor(elapsed / 60);
       const secs = elapsed % 60;
-      timerEl.textContent = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
-      timerEl.className = 'turn-timer' + (elapsed >= 90 ? ' turn-timer-urgent' : elapsed >= 30 ? ' turn-timer-slow' : ' turn-timer-active');
+      const text = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`;
+      const className = 'turn-timer' + (
+        elapsed >= 90 ? ' turn-timer-urgent' :
+        elapsed >= 30 ? ' turn-timer-slow' : ' turn-timer-active'
+      );
+      this.ui.setTurnTimer(text, className);
       // Warning at 30s remaining
       if (remaining <= 30 && !this.timerWarningPlayed) {
         this.timerWarningPlayed = true;
@@ -1713,8 +1582,7 @@ class GameClient {
       clearInterval(this.turnTimerInterval);
       this.turnTimerInterval = null;
     }
-    const timerEl = document.getElementById('turnTimer');
-    if (timerEl) timerEl.textContent = '';
+    this.ui.clearTurnTimer();
   }
 
   private logLandings(movements: ShipMovement[]) {
@@ -1764,48 +1632,7 @@ class GameClient {
       return;
     }
 
-    const stats = SHIP_STATS[ship.type];
-    const name = stats?.name ?? ship.type;
-    const isEnemy = ship.owner !== this.playerId;
-    const nameClass = isEnemy ? 'tt-enemy' : 'tt-name';
-    const speed = hexVecLength(ship.velocity);
-    const combat = stats ? `${stats.combat}${stats.defensiveOnly ? 'D' : ''}` : '?';
-
-    let html = `<div class="${nameClass}">${name}</div>`;
-    html += `<div class="tt-stat">Combat: ${combat}</div>`;
-    html += `<div class="tt-stat">Speed: ${speed.toFixed(1)}</div>`;
-
-    if (!isEnemy) {
-      // Show detailed info for own ships
-      html += `<div class="tt-stat">Fuel: ${ship.fuel}/${stats?.fuel ?? '?'}</div>`;
-      if (stats && stats.cargo > 0) {
-        html += `<div class="tt-stat">Cargo: ${stats.cargo - ship.cargoUsed}/${stats.cargo}</div>`;
-      }
-    }
-
-    if (ship.damage.disabledTurns > 0) {
-      html += `<div class="tt-warn">Disabled: ${ship.damage.disabledTurns}T</div>`;
-    }
-    if (ship.landed) {
-      html += `<div class="tt-stat">Landed</div>`;
-    }
-
-    // Show combat odds when hovering enemy during combat/any phase
-    if (isEnemy && this.gameState) {
-      const myAttackers = this.gameState.ships.filter(
-        s => s.owner === this.playerId && !s.destroyed && canAttack(s),
-      ).filter(s => hasLineOfSight(s, ship, this.map));
-      if (myAttackers.length > 0) {
-        const atkStr = getCombatStrength(myAttackers);
-        const defStr = getCombatStrength([ship]);
-        const odds = computeOdds(atkStr, defStr);
-        const rMod = computeGroupRangeMod(myAttackers, ship);
-        const vMod = computeGroupVelocityMod(myAttackers, ship);
-        html += `<div class="tt-warn">${odds} R-${rMod} V-${vMod}</div>`;
-      }
-    }
-
-    this.tooltipEl.innerHTML = html;
+    this.tooltipEl.innerHTML = buildShipTooltipHtml(this.gameState, ship, this.playerId, this.map);
     this.tooltipEl.style.display = 'block';
     // Position tooltip offset from cursor
     this.tooltipEl.style.left = `${screenX + 12}px`;

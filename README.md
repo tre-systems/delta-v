@@ -58,7 +58,9 @@ src/
 scripts/              # Automated Bot & AI Simulation tests
 ```
 
-**Design Highlight:** The core `game-engine.ts` is purely functional. It receives inputs (astrogation orders, combat declarations) and deterministically produces the new state. This guarantees synchronization between server and client without complex reconciliation, and makes the game highly unit testable. The backend acts as a thin wrapper using **Cloudflare Durable Objects** to handle WebSocket lifecycle and state persistence.
+**Design Highlight:** The core `game-engine.ts` is purely functional. It receives inputs (astrogation orders, combat declarations) and deterministically produces the new state. This guarantees synchronization between server and client without complex reconciliation, and makes the game highly unit testable. The backend stays authoritative through **Cloudflare Durable Objects**, handling room lifecycle, tokenized joins, validation, and state persistence.
+
+For project conventions and refactoring guidance, see [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md).
 
 ---
 
@@ -80,7 +82,7 @@ Get your thrusters firing locally in seconds:
 3. **Play the Game**
    - Open your browser to `http://localhost:8787`
    - Open a **second tab** or window to the same URL.
-   - Create a game in tab 1, and use the generated join code in tab 2.
+   - Create a game in tab 1, then use the generated invite link in tab 2.
 
 ### CLI Commands
 
@@ -90,6 +92,7 @@ Get your thrusters firing locally in seconds:
 | `npm run build` | Build the client bundle |
 | `npm run typecheck` | Run TypeScript type checking across the project |
 | `npm test` | Run all unit tests via Vitest |
+| `npm run test:coverage` | Run tests with a coverage report under `coverage/` |
 | `npm run test:watch` | Run Vitest in continuous watch mode |
 | `npm run simulate` | Run headless AI vs AI matches to test game balance and engine stability |
 | `npm run deploy` | Deploy straight to Cloudflare Workers |
@@ -107,8 +110,9 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] **Premium Polish**: High-fidelity glassmorphism UI, tactical micro-animations, and procedural SFX.
 - [x] **AI Opponent**: Challenging local-bot with multiple difficulty levels and gravity-aware pathfinding.
 - [x] **Progressive Web App**: Installable PWA with offline single-player support, app manifest, and service worker caching.
-- [ ] **Zod Integration**: Implement strict schema validation for WebSocket payloads to ensure server-side robustness.
-- [ ] **Orbital Bases**: Carrying and emplacing strategic stations during play.
+- [x] **Runtime Payload Validation**: Strict server-side WebSocket payload validation before dispatch.
+- [x] **Orbital Bases**: Carrying and emplacing strategic stations during play.
+- [ ] **Client-Side Test Coverage**: Browser-facing orchestration, UI, and input flows still need dedicated tests.
 - [ ] **Spectator Mode**: Allowing third-party connections to watch ongoing battles.
 
 ---
