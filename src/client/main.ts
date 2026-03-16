@@ -7,8 +7,8 @@ import type { CombatResult, GameState, S2C, AstrogationOrder, OrdnanceLaunch, Co
 import { pixelToHex, hexEqual, hexKey } from '../shared/hex';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { CODE_LENGTH, SHIP_STATS, TURN_TIMEOUT_MS } from '../shared/constants';
-import { createGame, filterStateForPlayer, processFleetReady, processEmplacement, type MovementResult } from '../shared/game-engine';
-import { aiAstrogation, aiOrdnance, aiCombat, type AIDifficulty } from '../shared/ai';
+import { createGame, processFleetReady, processEmplacement, type MovementResult } from '../shared/game-engine';
+import { type AIDifficulty } from '../shared/ai';
 import { Renderer, HEX_SIZE } from './renderer';
 import { InputHandler } from './input';
 import { UIManager } from './ui';
@@ -36,7 +36,6 @@ import {
   resolveOrdnanceLaunchPlan,
 } from './game-client-ordnance';
 import {
-  hasOwnedPendingAsteroidHazards,
   resolveAstrogationStep,
   resolveBeginCombatStep,
   resolveCombatStep,
@@ -54,6 +53,7 @@ import { deriveKeyboardAction, type KeyboardAction } from './game-client-keyboar
 import { deriveGameOverPlan } from './game-client-endgame';
 import { deriveClientMessagePlan } from './game-client-messages';
 import { deriveClientScreenPlan } from './game-client-screen';
+import { deriveAIActionPlan } from './game-client-ai-flow';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
 
 class GameClient {
@@ -1067,74 +1067,60 @@ class GameClient {
   }
 
   private runAITurn() {
-    if (!this.gameState || this.gameState.phase === 'gameOver') return;
-    const aiPlayer = this.gameState.activePlayer;
-    if (aiPlayer === this.playerId) return; // Not AI's turn
-
-    if (this.gameState.phase === 'astrogation') {
-      const aiView = filterStateForPlayer(this.gameState, aiPlayer);
-      const orders = aiAstrogation(aiView, aiPlayer, this.map, this.aiDifficulty);
-      this.handleLocalResolution(
-        resolveAstrogationStep(this.gameState, aiPlayer, orders, this.map),
-        () => this.processAIPhases(aiPlayer),
-        'AI astrogation error:',
-      );
-      return;
-    }
-
-    this.processAIPhases(aiPlayer);
+    this.processAIPhases();
   }
 
-  private processAIPhases(aiPlayer: number) {
-    if (!this.gameState || this.gameState.phase === 'gameOver') return;
+  private processAIPhases() {
+    const plan = deriveAIActionPlan(this.gameState, this.playerId, this.map, this.aiDifficulty);
 
-    if (this.gameState.phase === 'ordnance' && this.gameState.activePlayer === aiPlayer) {
-      const aiView = filterStateForPlayer(this.gameState, aiPlayer);
-      const launches = aiOrdnance(aiView, aiPlayer, this.map, this.aiDifficulty);
-      if (launches.length > 0) {
-        for (const l of launches) {
-          const ship = this.gameState.ships.find(s => s.id === l.shipId);
-          const name = ship ? (SHIP_STATS[ship.type]?.name ?? ship.type) : l.shipId;
-          this.ui.logText(`AI: ${name} launched ${l.ordnanceType}`);
-        }
-      }
-      const resolution = launches.length > 0
-        ? resolveOrdnanceStep(this.gameState, aiPlayer, launches, this.map)
-        : resolveSkipOrdnanceStep(this.gameState, aiPlayer, this.map);
-      this.handleLocalResolution(
-        resolution,
-        () => this.processAIPhases(aiPlayer),
-        launches.length > 0 ? 'AI ordnance error:' : 'AI skip ordnance error:',
-      );
-      return;
-    }
-
-    if (this.gameState.phase === 'combat' && this.gameState.activePlayer === aiPlayer) {
-      if (hasOwnedPendingAsteroidHazards(this.gameState, aiPlayer)) {
+    switch (plan.kind) {
+      case 'none':
+        return;
+      case 'astrogation':
         this.handleLocalResolution(
-          resolveBeginCombatStep(this.gameState, aiPlayer, this.map),
-          () => this.processAIPhases(aiPlayer),
-          'AI combat start error:',
+          resolveAstrogationStep(this.gameState!, plan.aiPlayer, plan.orders, this.map),
+          () => this.processAIPhases(),
+          plan.errorPrefix,
+        );
+        return;
+      case 'ordnance': {
+        for (const entry of plan.logEntries) {
+          this.ui.logText(entry);
+        }
+        const resolution = plan.skip
+          ? resolveSkipOrdnanceStep(this.gameState!, plan.aiPlayer, this.map)
+          : resolveOrdnanceStep(this.gameState!, plan.aiPlayer, plan.launches, this.map);
+        this.handleLocalResolution(
+          resolution,
+          () => this.processAIPhases(),
+          plan.errorPrefix,
         );
         return;
       }
-
-      const aiView = filterStateForPlayer(this.gameState, aiPlayer);
-      const attacks = aiCombat(aiView, aiPlayer, this.map, this.aiDifficulty);
-      const resolution = attacks.length > 0
-        ? resolveCombatStep(this.gameState, aiPlayer, attacks, this.map, false)
-        : resolveSkipCombatStep(this.gameState, aiPlayer, this.map);
-      this.handleLocalResolution(
-        resolution,
-        () => this.transitionToPhase(),
-        attacks.length > 0 ? 'AI combat error:' : 'AI skip combat error:',
-      );
-      return;
-    }
-
-    this.localCheckGameEnd();
-    if (this.gameState) {
-      this.transitionToPhase();
+      case 'beginCombat':
+        this.handleLocalResolution(
+          resolveBeginCombatStep(this.gameState!, plan.aiPlayer, this.map),
+          () => this.processAIPhases(),
+          plan.errorPrefix,
+        );
+        return;
+      case 'combat': {
+        const resolution = plan.skip
+          ? resolveSkipCombatStep(this.gameState!, plan.aiPlayer, this.map)
+          : resolveCombatStep(this.gameState!, plan.aiPlayer, plan.attacks, this.map, false);
+        this.handleLocalResolution(
+          resolution,
+          () => this.transitionToPhase(),
+          plan.errorPrefix,
+        );
+        return;
+      }
+      case 'transition':
+        this.localCheckGameEnd();
+        if (this.gameState) {
+          this.transitionToPhase();
+        }
+        return;
     }
   }
 
