@@ -48,29 +48,29 @@ static/
 
 **Worker (lobby-worker):**
 - `GET /` — Serves the SPA (index.html + bundled JS/CSS)
-- `POST /create` — Generates a 5-character alphanumeric invite code, creates/retrieves the Durable Object by name
-- `GET /join/:code` — Validates code exists
+- `POST /create` — Generates a 5-character invite code plus creator/guest tokens, initializes the Durable Object room, and locks the chosen scenario
 - `GET /ws/:code` — WebSocket upgrade, proxied to the Durable Object
 
 **Durable Object (game-do):**
 - One instance per active game, keyed by invite code
 - Maintains authoritative game state: map, ships, turn order, phase
-- Receives player actions via WebSocket, validates against rules, applies state changes
+- Receives player actions via WebSocket, runtime-validates them, and applies state changes
 - Broadcasts updated state to all connected players
-- Uses DO alarms for idle timeout / cleanup (e.g., 30 min inactivity)
+- Uses DO alarms for disconnect grace, turn timeout, and idle cleanup (currently 5 min inactivity)
 - Persists game state to DO storage so games survive DO evictions
 
 ### Invite / Join Flow (No Lobby, No Login)
 
-1. Player 1 clicks "Create Game" → `POST /create` → receives 5-char code (e.g., `K7M2X`)
-2. UI shows the code prominently + a shareable link (`https://delta-v.example.com/?code=K7M2X`)
+1. Player 1 clicks "Create Game" → `POST /create` → receives 5-char code plus creator and guest tokens
+2. UI shows the code prominently + a shareable invite link (`https://delta-v.example.com/?code=K7M2X&playerToken=...`)
 3. Player 1 can copy link or share via native Share API
-4. Player 2 receives link or manually enters code
-5. If URL has `?code=` param, auto-join on page load (no extra click)
-6. Both players connect via WebSocket to `/ws/K7M2X` → same DO instance
-7. When both players are connected, the game setup phase begins
+4. Player 2 receives the invite link or an equivalent tokenized join URL
+5. If URL has `?code=` and `playerToken=` params, the client stores the token and auto-joins on page load
+6. Both players connect via WebSocket to `/ws/K7M2X?playerToken=...` → same DO instance
+7. Guest invite tokens rotate into reconnect tokens after first successful join
+8. When both players are connected, the game setup phase begins
 
-Players are identified only by their position in the game (Player 1 / Player 2). No accounts, no persistent identity.
+Players are still seat-based for gameplay purposes (Player 1 / Player 2), but room access and reconnects are tokenized. There are still no accounts or long-term player identities.
 
 ## Game Concepts
 
@@ -759,7 +759,7 @@ interface ScenarioPlayer {
 - [x] Complete solar system map (all planets, moons, asteroid belt)
 - [x] MegaCredit economy and ship purchasing
 - [x] Fleet building UI
-- [x] Full ship roster (all 9 types; orbital bases not yet a placeable unit)
+- [x] Full ship roster (all 9 types plus orbital base emplacement support)
 - [x] Base mechanics (planetary defense, resupply, landing/takeoff)
 - [x] Orbit mechanics (emergent from speed-1 in gravity hex; visual indicator implemented)
 - [x] Nukes
@@ -783,8 +783,9 @@ interface ScenarioPlayer {
 ### Future Roadmap
 
 - [x] Server hardening for competitive play (tokenized room access, authenticated reconnect tokens, scenario locking at room creation, and runtime WebSocket payload validation)
-- [ ] Zod Integration (Strict schema validation for WebSocket payloads)
-- [ ] Orbital bases (carrying, emplacing, torpedo launching)
+- [x] Runtime WebSocket payload validation
+- [x] Orbital bases (carrying, emplacing, torpedo launching)
+- [ ] Browser-side orchestration and UI test coverage
 - [ ] Advanced features: looting, surrender, rescue, and richer logistics
 - [ ] Improved animations (particle effects for thrust, gravity lensing)
 - [ ] Turn history replay

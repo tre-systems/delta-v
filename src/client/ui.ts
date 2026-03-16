@@ -1,5 +1,5 @@
 import type { Ship, GameState, FleetPurchase, MovementEvent, CombatResult } from '../shared/types';
-import { SHIP_STATS, ORDNANCE_MASS } from '../shared/constants';
+import { CODE_LENGTH, ORDNANCE_MASS, SHIP_STATS } from '../shared/constants';
 
 export class UIManager {
   private menuEl: HTMLElement;
@@ -196,7 +196,7 @@ export class UIManager {
       const url = new URL(trimmed);
       const code = url.searchParams.get('code')?.toUpperCase() ?? '';
       const playerToken = url.searchParams.get('playerToken');
-      if (code.length === 5) {
+      if (code.length === CODE_LENGTH) {
         return { code, playerToken };
       }
     } catch {
@@ -204,7 +204,7 @@ export class UIManager {
     }
 
     const code = trimmed.toUpperCase();
-    return code.length === 5 ? { code, playerToken: null } : null;
+    return code.length === CODE_LENGTH ? { code, playerToken: null } : null;
   }
 
   showScenarioSelect() {
@@ -416,6 +416,50 @@ export class UIManager {
       statusMsg.style.display = 'block';
     } else {
       statusMsg.style.display = 'none';
+    }
+  }
+
+  updateLatency(latencyMs: number | null) {
+    const latencyEl = document.getElementById('latencyInfo')!;
+    if (latencyMs === null) {
+      latencyEl.textContent = '';
+      latencyEl.className = 'latency-text';
+      return;
+    }
+    latencyEl.textContent = `${latencyMs}ms`;
+    latencyEl.className = 'latency-text ' + (
+      latencyMs < 100 ? 'latency-good' :
+      latencyMs < 250 ? 'latency-ok' : 'latency-bad'
+    );
+  }
+
+  updateFleetStatus(status: string) {
+    document.getElementById('fleetStatus')!.textContent = status;
+  }
+
+  toggleHelpOverlay() {
+    const helpOverlay = document.getElementById('helpOverlay')!;
+    helpOverlay.style.display = helpOverlay.style.display === 'none' ? 'flex' : 'none';
+  }
+
+  updateSoundButton(muted: boolean) {
+    const btn = document.getElementById('soundBtn')!;
+    btn.textContent = muted ? 'OFF' : 'SFX';
+    btn.title = muted ? 'Sound off' : 'Sound on';
+    btn.setAttribute('aria-label', muted ? 'Enable sound effects' : 'Disable sound effects');
+    btn.classList.toggle('muted', muted);
+  }
+
+  setTurnTimer(text: string, className: string) {
+    const timerEl = document.getElementById('turnTimer')!;
+    timerEl.textContent = text;
+    timerEl.className = className;
+  }
+
+  clearTurnTimer() {
+    const timerEl = document.getElementById('turnTimer');
+    if (timerEl) {
+      timerEl.textContent = '';
     }
   }
 
