@@ -4,7 +4,7 @@ Delta-V is an online multiplayer space combat and racing game. This document out
 
 ## 1. High-Level Architecture
 
-Delta-V employs a full-stack TypeScript architecture built around a **"Thick Client, Thin Server"** model, but with a highly authoritative server state. 
+Delta-V employs a full-stack TypeScript architecture built around a **shared pure engine with authoritative edge sessions** model.
 
 ### Key Technologies
 - **Language**: TypeScript (strict mode) across the entire stack.
@@ -29,17 +29,17 @@ This is the heart of the project. The decision to keep all game rules in a share
 ### B. The Server (`server/`)
 The backend leverages Cloudflare's edge network.
 
-- **`index.ts`**: The standard Worker entry point. It creates game lobbies (generating 5-letter codes) and upgrades valid WebSocket requests.
+- **`index.ts`**: The standard Worker entry point. It creates tokenized game rooms, generates collision-checked 5-character codes, and forwards valid WebSocket requests.
 - **`game-do.ts` (Durable Object)**: Each game instance is backed by a single Durable Object. This ensures that all WebSocket connections for a specific game hit the same exact machine in Cloudflare's network, preventing race conditions.
-  - Acts as a thin wrapper around `game-engine.ts`.
-  - Handles WebSocket lifecycle (connections, reconnections, inactivity timeouts).
-  - Validates inputs, passes them to the pure engine, stores the resulting state using the Durable Object `ctx.storage`, and broadcasts updates to connected clients.
+  - Acts as the authoritative session and transport layer around `game-engine.ts`.
+  - Handles WebSocket lifecycle (connections, reconnects, inactivity timeouts, turn timeouts).
+  - Validates inputs before dispatch, passes them to the pure engine, stores the resulting state using the Durable Object `ctx.storage`, and broadcasts updates to connected clients.
   - Handles hidden information (e.g., hiding which transport carries fugitives in the Escape scenario) by filtering state broadcasts per-player.
 
 ### C. The Client (`client/`)
 The frontend is responsible for rendering the pure hex-grid state into a smooth, continuous graphical experience.
 
-- **`main.ts`**: The client-side controller. Manages WebSocket connections, handles the game loop phases, and orchestrates the Renderer, Input, and UI.
+- **`main.ts`**: The client-side controller. Manages WebSocket connections, local-AI execution, phase transitions, and orchestrates the Renderer, Input, and UI.
 - **`renderer.ts`**: A highly optimized Canvas 2D renderer. It separates logical hex coordinates from pixel coordinates. It features smooth camera interpolation, persistent trails, and movement/combat animations that occur *between* turn phases.
 - **`input.ts`**: Manages the complex state of user interaction (selecting burn vectors, queuing attacks, choosing targets) before finalizing and sending them to the server.
 - **`ui.ts` / `audio.ts`**: Handles the HTML overlay (menus, HUD) and Web Audio API interactions.
@@ -65,24 +65,21 @@ Delta-V is a fully installable PWA. A lightweight hand-written service worker pr
 
 ---
 
-## 4. Possible Improvements and Refactorings
+## 4. Refactoring Priorities
 
-While the current architecture is mature and clean, there are several areas where the codebase could be evolved:
+The next architectural gains are mostly about keeping the current design readable, not replacing it:
 
-### A. Shared Engine Refactorings
-- **Split `game-engine.ts`**: Currently over 1,300 lines long, `game-engine.ts` does a lot of heavy lifting. It could be split into phase-specific modules: `phase-astrogation.ts`, `phase-combat.ts`, and `phase-ordnance.ts`.
-- **Entity Component System (ECS)**: If the game were to expand significantly (e.g., multiple ship types with modular weapons, complex asteroid fields), moving from hardcoded arrays of `Ship` and `Ordnance` to a lightweight ECS might make managing side-effects and combat resolution cleaner.
-- **Event Sourcing**: Instead of just passing new states back, the engine could exclusively emit an array of "GameEvents." The clients would apply these events to their local state. This helps with replayability (creating a replay viewer) and allows the client to predict state changes more efficiently.
+### A. Shared Engine
+- **Split `game-engine.ts` by phase when it becomes painful to navigate**: The engine remains a strong fit for pure functions and plain data. If the file continues to grow, phase-oriented modules are the natural next split.
+- **Avoid premature ECS migration**: The current rules engine has a small, stable entity set and turn-based processing. An ECS would likely make the rules harder to follow before it creates meaningful flexibility.
+- **Prefer a lightweight event log over full event sourcing**: Replays, reconnect catch-up, and spectator mode would benefit from an append-only turn log, but snapshots should remain the source of truth.
 
-### B. Client Architecture
-- **State Management**: The client relies on a large internal state machine inside `main.ts` with many discrete strings (`playing_astrogation`, `playing_movementAnim`). Introducing an explicit State Pattern implementation (or a lightweight library like XState) would make phase transitions and error handling more robust.
-- **Canvas Rendering Optimizations**:
-  - The `Renderer` class is quite large (2000+ lines). Splitting it into `MapLayer`, `ShipLayer`, `EffectLayer`, and `UILayer` classes would improve maintainability.
-  - Implement Offscreen Canvas or canvas caching for static elements (the stars backdrop, map borders, base markers) so they don't have to be re-drawn every single frame.
-- **Client-Side Prediction**: Currently, the client must wait for the server to confirm movement before showing it. For local-AI games this is fine, but for high-latency multiplayer, implementing client-side prediction for astrogation (showing a ghost ship where you *will* end up) would massively improve UX. (Note: The game already has a `predictDestination` function, but it could be integrated more deeply into the UI).
+### B. Client
+- **Continue extracting pure helpers from `main.ts`**: Phase derivation, HUD view models, and local/remote result application should keep moving out of the main controller so browser orchestration stays thin.
+- **Split `renderer.ts` by render pass only when needed**: The renderer is large enough to justify future decomposition, but the right split is by visual responsibility, not by introducing a generic rendering framework.
+- **Add browser-side tests around input/UI/orchestration**: Shared rules are already well covered. The bigger refactor risk now sits in client coordination code.
 
-### C. Server / DevOps Improvements
-- **Matchmaking System**: Currently, players must share a 5-letter code. A lobby/matchmaking system could be implemented using a secondary Cloudflare Worker or by utilizing Cloudflare KV to list active "looking for game" players.
-- **Database Persistence**: Currently, game state lives in the Durable Object storage. If a game finishes, it ceases to exist. Integrating Cloudflare D1 (SQL) to save player stats, match histories, and Elo ratings would be a great next step.
-- **Turn Reconnection Logic Enhancement**: The reconnect logic works, but if a player disconnects mid-animation, they might lose context. Implementing a "catch-up" event log in the Durable Object that sends missing visual events on reconnect would ensure clients know *why* a ship exploded while they were offline.
-- **Zod Schema Validation**: Implementing Zod for all C2S and S2C messages to provide strict runtime validation and prevent malformed payloads from affecting the Durable Object state.
+### C. Server / Operations
+- **Keep refactoring `game-do.ts` by concern**: Session/auth handling, engine-result publishing, and timeout management should stay separate so features like spectators or replay catch-up can be added without bloating one class.
+- **Public lobby hardening remains future work**: Longer opaque identifiers, rate limiting, and optional identity/account binding matter more than swapping validation libraries.
+- **Persistence beyond active rooms is still optional**: Durable Object storage is a good fit for live matches; D1 or another store only becomes necessary once match history or player progression matters.
