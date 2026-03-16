@@ -45,10 +45,9 @@ import {
   buildLandingObjectiveView,
   buildMapBorderView,
 } from './renderer-map';
+import { buildMinimapSceneView } from './renderer-minimap';
 import {
-  clipViewportToMinimap,
   createMinimapLayout,
-  projectWorldToMinimap,
 } from './game-client-minimap';
 
 // --- Camera ---
@@ -1933,90 +1932,63 @@ export class Renderer {
     ctx.fill();
     ctx.stroke();
 
-    const toMinimap = (wx: number, wy: number) =>
-      projectWorldToMinimap(layout, { x: wx, y: wy });
+    const scene = buildMinimapSceneView(
+      this.map,
+      this.gameState,
+      this.playerId,
+      this.shipTrails,
+      layout,
+      this.camera,
+      screenW,
+      screenH,
+      HEX_SIZE,
+    );
 
-    // Draw celestial bodies
-    for (const body of this.map.bodies) {
-      const p = hexToPixel(body.center, HEX_SIZE);
-      const mp = toMinimap(p.x, p.y);
-      const r = Math.max(2, body.renderRadius * HEX_SIZE * layout.scale * 0.5);
+    for (const body of scene.bodies) {
       ctx.fillStyle = body.color;
-      ctx.globalAlpha = 0.7;
+      ctx.globalAlpha = body.alpha;
       ctx.beginPath();
-      ctx.arc(mp.x, mp.y, r, 0, Math.PI * 2);
+      ctx.arc(body.position.x, body.position.y, body.radius, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
 
-    // Draw ship trails on minimap
-    for (const [shipId, trail] of this.shipTrails) {
-      if (trail.length < 2) continue;
-      const ship = this.gameState.ships.find(s => s.id === shipId);
-      if (!ship) continue;
-      if (ship.owner !== this.playerId && !ship.detected) continue;
-      ctx.strokeStyle = ship.owner === this.playerId ? 'rgba(79, 195, 247, 0.3)' : 'rgba(255, 138, 101, 0.3)';
+    for (const trail of scene.shipTrails) {
+      if (trail.points.length < 2) continue;
+      ctx.strokeStyle = trail.color;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      const p0 = hexToPixel(trail[0], HEX_SIZE);
-      const mp0 = toMinimap(p0.x, p0.y);
-      ctx.moveTo(mp0.x, mp0.y);
-      for (let i = 1; i < trail.length; i++) {
-        const pi = hexToPixel(trail[i], HEX_SIZE);
-        const mpi = toMinimap(pi.x, pi.y);
-        ctx.lineTo(mpi.x, mpi.y);
+      ctx.moveTo(trail.points[0].x, trail.points[0].y);
+      for (let i = 1; i < trail.points.length; i++) {
+        ctx.lineTo(trail.points[i].x, trail.points[i].y);
       }
       ctx.stroke();
     }
 
-    // Draw ships as dots
-    for (const ship of this.gameState.ships) {
-      if (ship.destroyed) continue;
-      // Skip undetected enemy ships
-      if (ship.owner !== this.playerId && !ship.detected) continue;
-
-      const p = hexToPixel(ship.position, HEX_SIZE);
-      const mp = toMinimap(p.x, p.y);
-      ctx.fillStyle = ship.owner === this.playerId ? '#4fc3f7' : '#ff8a65';
+    for (const ship of scene.ships) {
+      ctx.fillStyle = ship.color;
+      ctx.globalAlpha = ship.alpha;
       ctx.beginPath();
-      ctx.arc(mp.x, mp.y, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Draw ordnance as tiny dots
-    for (const ord of this.gameState.ordnance) {
-      if (ord.destroyed) continue;
-      const p = hexToPixel(ord.position, HEX_SIZE);
-      const mp = toMinimap(p.x, p.y);
-      ctx.fillStyle = ord.type === 'nuke' ? '#ff4444' : '#ffb74d';
-      ctx.globalAlpha = 0.6;
-      ctx.beginPath();
-      ctx.arc(mp.x, mp.y, 1.5, 0, Math.PI * 2);
+      ctx.arc(ship.position.x, ship.position.y, ship.radius, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
 
-    // Draw viewport rectangle
-    const cam = this.camera;
-    const vpHalfW = screenW / 2 / cam.zoom;
-    const vpHalfH = screenH / 2 / cam.zoom;
-    const vpTL = toMinimap(cam.x - vpHalfW, cam.y - vpHalfH);
-    const vpBR = toMinimap(cam.x + vpHalfW, cam.y + vpHalfH);
-    const vpW = vpBR.x - vpTL.x;
-    const vpH = vpBR.y - vpTL.y;
-    const viewport = clipViewportToMinimap(layout, {
-      x: vpTL.x,
-      y: vpTL.y,
-      width: vpW,
-      height: vpH,
-    });
+    for (const ordnance of scene.ordnance) {
+      ctx.fillStyle = ordnance.color;
+      ctx.globalAlpha = ordnance.alpha;
+      ctx.beginPath();
+      ctx.arc(ordnance.position.x, ordnance.position.y, ordnance.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
 
-    if (viewport.width > 2 && viewport.height > 2) {
+    if (scene.viewport) {
       ctx.fillStyle = 'rgba(79, 195, 247, 0.06)';
-      ctx.fillRect(viewport.x, viewport.y, viewport.width, viewport.height);
+      ctx.fillRect(scene.viewport.x, scene.viewport.y, scene.viewport.width, scene.viewport.height);
       ctx.strokeStyle = 'rgba(79, 195, 247, 0.5)';
       ctx.lineWidth = 1;
-      ctx.strokeRect(viewport.x, viewport.y, viewport.width, viewport.height);
+      ctx.strokeRect(scene.viewport.x, scene.viewport.y, scene.viewport.width, scene.viewport.height);
     }
 
     ctx.restore();
