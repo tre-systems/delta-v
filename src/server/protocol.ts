@@ -249,6 +249,7 @@ export interface RoomConfig {
   code: string;
   scenario: string;
   playerTokens: [string, string | null];
+  inviteTokens: [string | null, string | null];
 }
 
 export interface SeatAssignmentInput {
@@ -256,19 +257,27 @@ export interface SeatAssignmentInput {
   disconnectedPlayer: number | null;
   seatOpen: [boolean, boolean];
   playerTokens: [string, string | null];
+  inviteTokens: [string | null, string | null];
 }
 
 export type SeatAssignmentDecision =
-  | { type: 'join'; playerId: 0 | 1; issueNewToken: boolean }
+  | { type: 'join'; playerId: 0 | 1; issueNewToken: boolean; consumeInviteToken: boolean }
   | { type: 'reject'; status: number; message: string };
 
 export function resolveSeatAssignment(input: SeatAssignmentInput): SeatAssignmentDecision {
-  const { presentedToken, seatOpen, playerTokens } = input;
+  const { presentedToken, seatOpen, playerTokens, inviteTokens } = input;
 
   for (const playerId of [0, 1] as const) {
     const expectedToken = playerTokens[playerId];
     if (expectedToken && seatOpen[playerId] && presentedToken === expectedToken) {
-      return { type: 'join', playerId, issueNewToken: false };
+      return { type: 'join', playerId, issueNewToken: false, consumeInviteToken: false };
+    }
+  }
+
+  for (const playerId of [0, 1] as const) {
+    const inviteToken = inviteTokens[playerId];
+    if (inviteToken && seatOpen[playerId] && presentedToken === inviteToken) {
+      return { type: 'join', playerId, issueNewToken: true, consumeInviteToken: true };
     }
   }
 
@@ -277,9 +286,13 @@ export function resolveSeatAssignment(input: SeatAssignmentInput): SeatAssignmen
   }
 
   for (const playerId of [0, 1] as const) {
-    if (seatOpen[playerId] && playerTokens[playerId] === null) {
-      return { type: 'join', playerId, issueNewToken: true };
+    if (seatOpen[playerId] && playerTokens[playerId] === null && inviteTokens[playerId] === null) {
+      return { type: 'join', playerId, issueNewToken: true, consumeInviteToken: false };
     }
+  }
+
+  if (seatOpen.some(Boolean)) {
+    return { type: 'reject', status: 403, message: 'Join token required' };
   }
 
   if (input.disconnectedPlayer !== null) {

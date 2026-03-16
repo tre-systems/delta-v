@@ -117,6 +117,7 @@ export class GameDO extends DurableObject {
       disconnectedPlayer,
       seatOpen,
       playerTokens: roomConfig.playerTokens,
+      inviteTokens: roomConfig.inviteTokens,
     });
 
     if (seatDecision.type === 'reject') {
@@ -126,6 +127,9 @@ export class GameDO extends DurableObject {
     const playerId = seatDecision.playerId;
     if (seatDecision.issueNewToken) {
       roomConfig.playerTokens[playerId] = generatePlayerToken();
+      if (seatDecision.consumeInviteToken) {
+        roomConfig.inviteTokens[playerId] = null;
+      }
       await this.saveRoomConfig(roomConfig);
     }
 
@@ -360,10 +364,11 @@ export class GameDO extends DurableObject {
       return new Response('Invalid init payload', { status: 400 });
     }
 
-    const { code, scenario, playerToken } = payload as {
+    const { code, scenario, playerToken, inviteToken } = payload as {
       code?: unknown;
       scenario?: unknown;
       playerToken?: unknown;
+      inviteToken?: unknown;
     };
 
     if (typeof code !== 'string' || !/^[A-Z0-9]{5}$/.test(code)) {
@@ -375,11 +380,15 @@ export class GameDO extends DurableObject {
     if (!isValidPlayerToken(playerToken)) {
       return new Response('Invalid player token', { status: 400 });
     }
+    if (!isValidPlayerToken(inviteToken)) {
+      return new Response('Invalid invite token', { status: 400 });
+    }
 
     const roomConfig: RoomConfig = {
       code,
       scenario,
       playerTokens: [playerToken, null],
+      inviteTokens: [null, inviteToken],
     };
 
     await this.saveRoomConfig(roomConfig);

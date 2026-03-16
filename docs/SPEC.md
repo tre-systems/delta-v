@@ -782,7 +782,7 @@ interface ScenarioPlayer {
 
 ### Future Roadmap
 
-- [x] Server hardening for competitive play (authenticated reconnect tokens, scenario locking at room creation, and runtime WebSocket payload validation)
+- [x] Server hardening for competitive play (tokenized room access, authenticated reconnect tokens, scenario locking at room creation, and runtime WebSocket payload validation)
 - [ ] Zod Integration (Strict schema validation for WebSocket payloads)
 - [ ] Orbital bases (carrying, emplacing, torpedo launching)
 - [ ] Advanced features: looting, surrender, rescue, and richer logistics

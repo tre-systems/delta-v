@@ -9,7 +9,8 @@ Delta-V now has a materially stronger authoritative-server boundary than the ori
 - WebSocket actions are still resolved server-side against the authoritative game engine.
 - Hidden-identity state is filtered per player before broadcast, so the fugitive flag itself is not sent to the opponent.
 - Room creation is now authoritative: `/create` initializes the room, locks the scenario up front, and rejects room-code collisions.
-- The room creator receives a reserved player token for seat 0, and each joined player receives a player token for reconnects.
+- The room creator receives a reserved player token for seat 0, and the copied invite link carries a guest-seat token for seat 1.
+- Once the guest joins, that invite token is rotated into a private reconnect token for that player.
 - Reconnects require the stored player token, which prevents the old "next socket steals the disconnected seat" failure mode.
 - Client-to-server WebSocket messages are runtime-validated before any engine handler executes, and malformed payloads are rejected instead of being trusted structurally.
 - Room codes are generated from a cryptographically strong RNG rather than `Math.random()`.
@@ -18,22 +19,22 @@ These changes make private competitive play substantially safer than before.
 
 ## Remaining Competitive Risks
 
-### 1. Open guest seats are still code-based
+### 1. Invite links are still bearer credentials
 
-Current status: **improved, but not fully hardened**
+Current status: **good for invited play, not ideal for public matchmaking**
 
-- The creator seat is token-protected.
-- Reconnects are token-protected.
-- The second player's initial join is still based on knowledge of the room code alone.
+- Both player seats are now token-protected.
+- The guest seat is accessed through possession of the invite link.
+- If that invite link is leaked before the intended guest uses it, another player can still claim the seat.
 
 Implications:
 
-- Anyone who learns a live room code can still claim an unoccupied guest seat before the intended opponent does.
-- This is much better than the old reconnect-hijack behavior, but it is not the same as full invite-token matchmaking.
+- This is a standard private-link security model and is a large improvement over the old code-only guest join.
+- It is still not the same as authenticated accounts, out-of-band invites, or tournament admin tooling.
 
 Recommended next step:
 
-- Add optional guest invite tokens or signed invite URLs for the second seat.
+- Add optional signed invite issuance, account binding, or one-time accept flows for stricter organized play.
 
 ### 2. Room secrecy is still limited by short codes
 
@@ -72,16 +73,16 @@ Current assessment:
 - **Rules authority:** good
 - **Reconnect / seat hijack resistance:** good
 - **Host-seat integrity:** good
+- **Guest-seat integrity via invite links:** good
 - **Match availability under hostile payloads:** good
-- **Open guest-seat security:** moderate
 - **Room secrecy / public matchmaking readiness:** weak
 
-Delta-V is now in much better shape for competitive matches between invited players. It is still not fully hardened for public matchmaking or tournament-style open lobbies until guest-seat access and room secrecy are tightened further.
+Delta-V is now in much better shape for competitive matches between invited players. It is still not fully hardened for public matchmaking or tournament-style open lobbies until room secrecy, rate limiting, and stronger identity layers are tightened further.
 
 ## Next Priority
 
-The next security-focused engineering step should be room-access hardening:
+The next security-focused engineering step should be public-lobby hardening:
 
-- protected guest invite tokens or signed invite links
 - longer room identifiers and/or rate limiting
 - optional edge-side bot protection for public deployments
+- stronger identity/account binding if organized competitive play matters
