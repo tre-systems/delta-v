@@ -57,6 +57,16 @@ import {
   createMinimapLayout,
 } from './game-client-minimap';
 import { Camera } from './renderer-camera';
+import {
+  drawCombatEffects, drawHexFlashes,
+  type CombatEffect, type HexFlash,
+} from './renderer-effects';
+import {
+  drawShipIcon as drawShipIconFn,
+  drawThrustTrail as drawThrustTrailFn,
+  interpolatePath as interpolatePathFn,
+  drawOrdnanceVelocity,
+} from './renderer-draw';
 
 // --- Stars background (seeded procedural) ---
 
@@ -97,23 +107,7 @@ export interface AnimationState {
   onComplete: () => void;
 }
 
-// --- Combat visual effects ---
-
-interface CombatEffect {
-  type: 'beam' | 'explosion' | 'gameOverExplosion';
-  from: PixelCoord;
-  to: PixelCoord;
-  startTime: number;
-  duration: number;
-  color: string;
-}
-
-interface HexFlash {
-  position: PixelCoord;
-  startTime: number;
-  duration: number;
-  color: string;
-}
+// CombatEffect and HexFlash types imported from renderer-effects.ts
 
 // --- Planning state (controlled by input handler) ---
 
@@ -1101,104 +1095,15 @@ export class Renderer {
   }
 
   private drawShipIcon(ctx: CanvasRenderingContext2D, x: number, y: number, owner: number, alpha: number, heading: number, disabledTurns = 0, shipType = '') {
-    const color = owner === 0 ? `rgba(79, 195, 247, ${alpha})` : `rgba(255, 152, 0, ${alpha})`;
-    // Size based on ship type combat value
-    const stats = SHIP_STATS[shipType];
-    const combat = stats?.combat ?? 2;
-    const size = combat >= 15 ? 12 : combat >= 8 ? 10 : combat >= 4 ? 9 : 8;
-
-    ctx.save();
-    ctx.translate(x, y);
-
-    // Damage glow for disabled ships (flickering red/orange)
-    if (disabledTurns > 0) {
-      const flickerPhase = performance.now() / 200 + x * 0.1; // unique per ship
-      const intensity = 0.3 + 0.2 * Math.sin(flickerPhase) + 0.1 * Math.sin(flickerPhase * 2.7);
-      const glowColor = disabledTurns >= 4 ? `rgba(255, 50, 50, ${intensity})` : `rgba(255, 150, 50, ${intensity})`;
-      const glowRadius = 10 + disabledTurns;
-      ctx.fillStyle = glowColor;
-      ctx.beginPath();
-      ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.rotate(heading);
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    if (shipType === 'orbitalBase') {
-      // Draw orbital base as octagon with inner ring
-      const r = 12;
-      for (let i = 0; i < 8; i++) {
-        const angle = (Math.PI * 2 * i) / 8 - Math.PI / 8;
-        const px = Math.cos(angle) * r;
-        const py = Math.sin(angle) * r;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, 6, 0, Math.PI * 2);
-      ctx.stroke();
-    } else {
-      ctx.moveTo(size, 0);          // Nose
-      ctx.lineTo(-size * 0.6, -size * 0.5);  // Top wing
-      ctx.lineTo(-size * 0.3, 0);   // Indent
-      ctx.lineTo(-size * 0.6, size * 0.5);   // Bottom wing
-      ctx.closePath();
-      ctx.fill();
-    }
-    ctx.restore();
+    drawShipIconFn(ctx, x, y, owner, alpha, heading, disabledTurns, shipType);
   }
 
   private drawThrustTrail(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, progress: number) {
-    const len = 12 + Math.sin(progress * 20) * 4;
-    const spread = 0.3;
-    const alpha = 0.6 * (1 - progress);
-
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-
-    const grad = ctx.createLinearGradient(0, 0, len, 0);
-    grad.addColorStop(0, `rgba(255, 200, 50, ${alpha})`);
-    grad.addColorStop(0.5, `rgba(255, 100, 20, ${alpha * 0.5})`);
-    grad.addColorStop(1, 'transparent');
-
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.moveTo(0, -3);
-    ctx.lineTo(len, -len * spread);
-    ctx.lineTo(len, len * spread);
-    ctx.lineTo(0, 3);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.restore();
+    drawThrustTrailFn(ctx, x, y, angle, progress);
   }
 
   private interpolatePath(path: HexCoord[], progress: number): PixelCoord {
-    if (path.length <= 1) return hexToPixel(path[0], HEX_SIZE);
-
-    // Ease in-out
-    const t = progress < 0.5
-      ? 2 * progress * progress
-      : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-
-    const totalSegments = path.length - 1;
-    const pathT = t * totalSegments;
-    const segIndex = Math.min(Math.floor(pathT), totalSegments - 1);
-    const segT = pathT - segIndex;
-
-    const from = hexToPixel(path[segIndex], HEX_SIZE);
-    const to = hexToPixel(path[segIndex + 1], HEX_SIZE);
-
-    return {
-      x: from.x + (to.x - from.x) * segT,
-      y: from.y + (to.y - from.y) * segT,
-    };
+    return interpolatePathFn(path, progress, HEX_SIZE);
   }
   private renderOrdnance(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
     if (!state.ordnance || state.ordnance.length === 0) return;
@@ -1273,18 +1178,8 @@ export class Renderer {
       }
 
       // Velocity vector for ordnance (hide during animation)
-      if (!this.animState && (ord.velocity.dq !== 0 || ord.velocity.dr !== 0)) {
-        const dest = hexToPixel(hexAdd(ord.position, ord.velocity), HEX_SIZE);
-        ctx.strokeStyle = color;
-        ctx.globalAlpha = 0.3;
-        ctx.lineWidth = 0.5;
-        ctx.setLineDash([2, 3]);
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(dest.x, dest.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.globalAlpha = 1;
+      if (!this.animState) {
+        drawOrdnanceVelocity(ctx, ord.position, ord.velocity, p, color, HEX_SIZE);
       }
 
       // Lifetime indicator (turns remaining until self-destruct)
@@ -1484,155 +1379,11 @@ export class Renderer {
   }
 
   private renderHexFlashes(ctx: CanvasRenderingContext2D, now: number) {
-    this.hexFlashes = this.hexFlashes.filter(f => now < f.startTime + f.duration);
-
-    for (const flash of this.hexFlashes) {
-      if (now < flash.startTime) continue;
-      const progress = (now - flash.startTime) / flash.duration;
-      const alpha = (1 - progress) * 0.6;
-      const radius = HEX_SIZE * (0.5 + progress * 0.5);
-
-      ctx.beginPath();
-      ctx.arc(flash.position.x, flash.position.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = flash.color;
-      ctx.globalAlpha = alpha * 0.3;
-      ctx.fill();
-      ctx.strokeStyle = flash.color;
-      ctx.lineWidth = 2 * (1 - progress);
-      ctx.globalAlpha = alpha;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
+    this.hexFlashes = drawHexFlashes(ctx, this.hexFlashes, now, HEX_SIZE);
   }
 
   private renderCombatEffects(ctx: CanvasRenderingContext2D, now: number) {
-    // Clean up expired effects
-    this.combatEffects = this.combatEffects.filter(e => now < e.startTime + e.duration);
-
-    for (const effect of this.combatEffects) {
-      if (now < effect.startTime) continue; // Not yet started
-      const progress = (now - effect.startTime) / effect.duration;
-
-      if (effect.type === 'beam') {
-        // Beam line from attacker to target
-        const beamAlpha = 1 - progress;
-        const beamProgress = Math.min(progress * 3, 1); // Beam reaches target at 1/3 duration
-
-        ctx.strokeStyle = effect.color;
-        ctx.globalAlpha = beamAlpha * 0.8;
-        ctx.lineWidth = 2 * (1 - progress);
-        ctx.beginPath();
-        ctx.moveTo(effect.from.x, effect.from.y);
-        ctx.lineTo(
-          effect.from.x + (effect.to.x - effect.from.x) * beamProgress,
-          effect.from.y + (effect.to.y - effect.from.y) * beamProgress,
-        );
-        ctx.stroke();
-
-        // Glow line
-        ctx.globalAlpha = beamAlpha * 0.3;
-        ctx.lineWidth = 6 * (1 - progress);
-        ctx.beginPath();
-        ctx.moveTo(effect.from.x, effect.from.y);
-        ctx.lineTo(
-          effect.from.x + (effect.to.x - effect.from.x) * beamProgress,
-          effect.from.y + (effect.to.y - effect.from.y) * beamProgress,
-        );
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      } else if (effect.type === 'explosion') {
-        // Expanding ring explosion
-        const maxRadius = 20;
-        const radius = maxRadius * progress;
-        const alpha = 1 - progress;
-
-        ctx.strokeStyle = effect.color;
-        ctx.lineWidth = 3 * (1 - progress);
-        ctx.globalAlpha = alpha * 0.8;
-        ctx.beginPath();
-        ctx.arc(effect.from.x, effect.from.y, radius, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Inner flash
-        if (progress < 0.3) {
-          ctx.fillStyle = effect.color;
-          ctx.globalAlpha = (1 - progress / 0.3) * 0.6;
-          ctx.beginPath();
-          ctx.arc(effect.from.x, effect.from.y, radius * 0.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-      } else if (effect.type === 'gameOverExplosion') {
-        // Large dramatic multi-ring explosion for game-over
-        const maxRadius = 50;
-        const alpha = 1 - progress;
-
-        // Outer expanding ring
-        const outerRadius = maxRadius * progress;
-        ctx.strokeStyle = effect.color;
-        ctx.lineWidth = 4 * (1 - progress);
-        ctx.globalAlpha = alpha * 0.7;
-        ctx.beginPath();
-        ctx.arc(effect.from.x, effect.from.y, outerRadius, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Second ring (slightly behind)
-        if (progress > 0.1) {
-          const innerProgress = (progress - 0.1) / 0.9;
-          const innerRadius = maxRadius * 0.7 * innerProgress;
-          ctx.lineWidth = 3 * (1 - innerProgress);
-          ctx.globalAlpha = (1 - innerProgress) * 0.5;
-          ctx.beginPath();
-          ctx.arc(effect.from.x, effect.from.y, innerRadius, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-
-        // Bright core flash
-        if (progress < 0.4) {
-          const coreAlpha = (1 - progress / 0.4);
-          const coreRadius = 15 * (1 - progress * 0.5);
-          ctx.fillStyle = '#ffffff';
-          ctx.globalAlpha = coreAlpha * 0.8;
-          ctx.beginPath();
-          ctx.arc(effect.from.x, effect.from.y, coreRadius, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Colored glow around core
-          ctx.fillStyle = effect.color;
-          ctx.globalAlpha = coreAlpha * 0.4;
-          ctx.beginPath();
-          ctx.arc(effect.from.x, effect.from.y, coreRadius * 2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        // Debris lines radiating outward
-        if (progress > 0.05 && progress < 0.8) {
-          const debrisAlpha = progress < 0.4 ? 1 : (0.8 - progress) / 0.4;
-          ctx.strokeStyle = effect.color;
-          ctx.globalAlpha = debrisAlpha * 0.6;
-          ctx.lineWidth = 1.5;
-          // Use position hash for deterministic but varied debris angles
-          const seed = (effect.from.x * 7 + effect.from.y * 13) | 0;
-          for (let d = 0; d < 8; d++) {
-            const angle = (seed + d * 0.785) % (Math.PI * 2);
-            const innerR = maxRadius * progress * 0.3;
-            const outerR = maxRadius * progress * 0.7;
-            ctx.beginPath();
-            ctx.moveTo(
-              effect.from.x + Math.cos(angle) * innerR,
-              effect.from.y + Math.sin(angle) * innerR,
-            );
-            ctx.lineTo(
-              effect.from.x + Math.cos(angle) * outerR,
-              effect.from.y + Math.sin(angle) * outerR,
-            );
-            ctx.stroke();
-          }
-        }
-
-        ctx.globalAlpha = 1;
-      }
-    }
+    this.combatEffects = drawCombatEffects(ctx, this.combatEffects, now);
   }
 
   private renderMovementEventsToast(ctx: CanvasRenderingContext2D, events: MovementEvent[], now: number, screenW: number) {
