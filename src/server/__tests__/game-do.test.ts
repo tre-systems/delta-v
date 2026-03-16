@@ -13,6 +13,8 @@ vi.mock('cloudflare:workers', () => ({
 }));
 
 import { GameDO } from '../game-do';
+import { createGame } from '../../shared/game-engine';
+import { findBaseHex, getSolarSystemMap, SCENARIOS } from '../../shared/map-data';
 
 class MockStorage {
   private data = new Map<string, unknown>();
@@ -185,5 +187,22 @@ describe('GameDO', () => {
     expect(await ctx.storage.get('disconnectAt')).toBeUndefined();
     expect(ctx.storage.alarmAt).toBe(20_000);
     expect(JSON.parse(ws.sent[0]!)).toEqual({ type: 'opponentDisconnected' });
+  });
+
+  it('advances a timed-out turn through the alarm path', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(10_000);
+    const ctx = createCtx();
+    const state = createGame(SCENARIOS.biplanetary, getSolarSystemMap(), 'TIME1', findBaseHex);
+    await ctx.storage.put('gameState', state);
+    await ctx.storage.put('turnTimeoutAt', 9_500);
+    await ctx.storage.put('inactivityAt', 30_000);
+    const game = new GameDO(ctx as any, {} as any);
+
+    await game.alarm();
+
+    const nextState = await ctx.storage.get<any>('gameState');
+    expect(nextState.activePlayer).toBe(1);
+    expect(await ctx.storage.get('turnTimeoutAt')).toBeGreaterThan(10_000);
+    expect(ctx.storage.alarmAt).toBe(30_000);
   });
 });
