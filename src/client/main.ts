@@ -6,7 +6,7 @@ if ('serviceWorker' in navigator) {
 import type { CombatResult, GameState, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, FleetPurchase, ShipMovement, ScenarioDefinition } from '../shared/types';
 import { pixelToHex, hexEqual, hexKey } from '../shared/hex';
 import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
-import { CODE_LENGTH, ORDNANCE_MASS, SHIP_STATS, TURN_TIMEOUT_MS } from '../shared/constants';
+import { CODE_LENGTH, SHIP_STATS, TURN_TIMEOUT_MS } from '../shared/constants';
 import { createGame, filterStateForPlayer, processFleetReady, processEmplacement, type MovementResult } from '../shared/game-engine';
 import { aiAstrogation, aiOrdnance, aiCombat, type AIDifficulty } from '../shared/ai';
 import { Renderer, HEX_SIZE } from './renderer';
@@ -30,6 +30,12 @@ import {
 } from './game-client-session';
 import { deriveTurnTimer } from './game-client-timer';
 import { buildShipTooltipHtml } from './game-client-tooltip';
+import {
+  canShipLaunchAnyOrdnance,
+  getFirstLaunchableShipId,
+  resolveBaseEmplacementPlan,
+  resolveOrdnanceLaunchPlan,
+} from './game-client-ordnance';
 import {
   hasOwnedPendingAsteroidHazards,
   resolveAstrogationStep,
@@ -305,12 +311,9 @@ class GameClient {
         this.renderer.planningState.selectedShipId = null;
         // Auto-select first ship that can launch ordnance
         if (this.gameState) {
-          const launchable = this.gameState.ships.find(s =>
-            s.owner === this.playerId && !s.destroyed && !s.landed &&
-            s.damage.disabledTurns === 0 && this.canLaunchOrdnance(s),
-          );
-          if (launchable) {
-            this.renderer.planningState.selectedShipId = launchable.id;
+          const launchableShipId = getFirstLaunchableShipId(this.gameState, this.playerId);
+          if (launchableShipId) {
+            this.renderer.planningState.selectedShipId = launchableShipId;
           }
           this.tutorial.onPhaseChange('ordnance', this.gameState.turnNumber);
         }
@@ -835,81 +838,34 @@ class GameClient {
 
   private sendOrdnanceLaunch(ordType: 'mine' | 'torpedo' | 'nuke') {
     if (!this.gameState || this.state !== 'playing_ordnance') return;
-    const selectedId = this.renderer.planningState.selectedShipId;
-    if (!selectedId) {
-      this.ui.showToast('Select a ship first', 'info');
+    const plan = resolveOrdnanceLaunchPlan(this.gameState, this.renderer.planningState, ordType);
+    if (!plan.ok) {
+      if (plan.message) {
+        this.ui.showToast(plan.message, plan.level);
+      }
       return;
     }
-
-    const ship = this.gameState.ships.find(s => s.id === selectedId);
-    if (!ship) return;
-
-    // Client-side validation
-    const stats = SHIP_STATS[ship.type];
-    if (!stats) return;
-    const cargoFree = stats.cargo - ship.cargoUsed;
-
-    if (ship.destroyed) {
-      this.ui.showToast('Ship is destroyed', 'error');
-      return;
-    }
-    if (ship.landed) {
-      this.ui.showToast('Cannot launch ordnance while landed', 'error');
-      return;
-    }
-    if (ship.damage.disabledTurns > 0) {
-      this.ui.showToast('Ship is disabled', 'error');
-      return;
-    }
-    if (ordType === 'torpedo' && !stats.canOverload) {
-      this.ui.showToast('Only warships can launch torpedoes', 'error');
-      return;
-    }
-    if (ordType === 'nuke' && !stats.canOverload && (ship.nukesLaunchedSinceResupply ?? 0) >= 1) {
-      this.ui.showToast('Non-warships may carry only one nuke between resupplies', 'error');
-      return;
-    }
-    const needed = ORDNANCE_MASS[ordType] ?? 0;
-    if (cargoFree < needed) {
-      this.ui.showToast(`Not enough cargo (need ${needed}, have ${cargoFree})`, 'error');
-      return;
-    }
-
-    const launch: OrdnanceLaunch = {
-      shipId: selectedId,
-      ordnanceType: ordType,
-    };
-
-    if (ordType === 'torpedo') {
-      launch.torpedoAccel = this.renderer.planningState.torpedoAccel ?? null;
-      launch.torpedoAccelSteps = this.renderer.planningState.torpedoAccelSteps ?? null;
-    }
-
-    const shipName = stats.name ?? ship.type;
-    this.ui.logText(`${shipName} launched ${ordType}`);
+    this.ui.logText(`${plan.shipName} launched ${ordType}`);
 
     if (this.isLocalGame) {
-      this.localProcessOrdnance([launch]);
+      this.localProcessOrdnance([plan.launch]);
     } else {
-      this.send({ type: 'ordnance', launches: [launch] });
+      this.send({ type: 'ordnance', launches: [plan.launch] });
     }
   }
 
   private sendEmplaceBase() {
     if (!this.gameState || this.state !== 'playing_ordnance') return;
-    const selectedId = this.renderer.planningState.selectedShipId;
-    if (!selectedId) {
-      this.ui.showToast('Select a ship first', 'info');
-      return;
-    }
-    const ship = this.gameState.ships.find(s => s.id === selectedId);
-    if (!ship || !ship.carryingOrbitalBase) {
-      this.ui.showToast('Ship is not carrying an orbital base', 'error');
+    const plan = resolveBaseEmplacementPlan(this.gameState, this.renderer.planningState.selectedShipId);
+    if (!plan.ok) {
+      if (plan.message) {
+        this.ui.showToast(plan.message, plan.level);
+      }
       return;
     }
 
     if (this.isLocalGame) {
-      const result = processEmplacement(this.gameState, this.playerId, [{ shipId: selectedId }], this.map);
+      const result = processEmplacement(this.gameState, this.playerId, plan.emplacements, this.map);
       if ('error' in result) {
         this.ui.showToast(result.error, 'error');
         return;
@@ -918,7 +874,7 @@ class GameClient {
       this.ui.showToast('Orbital base emplaced!', 'success');
       this.updateHUD();
     } else {
-      this.send({ type: 'emplaceBase', emplacements: [{ shipId: selectedId }] });
+      this.send({ type: 'emplaceBase', emplacements: plan.emplacements });
     }
   }
 
@@ -1364,12 +1320,6 @@ class GameClient {
         this.ui.logText(`  ${name} resupplied: fuel + cargo restored`);
       }
     }
-  }
-
-  private canLaunchOrdnance(ship: { type: string; cargoUsed: number }): boolean {
-    const stats = SHIP_STATS[ship.type];
-    if (!stats) return false;
-    return (stats.cargo - ship.cargoUsed) >= ORDNANCE_MASS.mine;
   }
 
   private updateTooltip(screenX: number, screenY: number) {
