@@ -1249,13 +1249,15 @@ body::before {
   }
 
   .help-btn {
-    bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 4.1rem);
+    top: calc(var(--hud-top-offset) + 0.25rem);
+    bottom: auto;
     right: 0.5rem;
   }
 
   .sound-btn {
-    bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 7rem);
-    right: 0.5rem;
+    top: calc(var(--hud-top-offset) + 0.25rem);
+    bottom: auto;
+    right: 3.5rem;
     min-width: 42px;
     padding: 0 0.7rem;
   }
@@ -1349,6 +1351,20 @@ body::before {
 
   .hud-bottom {
     bottom: 0.55rem;
+  }
+
+  .help-btn {
+    top: calc(var(--hud-top-offset) + 0.25rem);
+    bottom: auto;
+    right: 0.5rem;
+  }
+
+  .sound-btn {
+    top: calc(var(--hud-top-offset) + 0.25rem);
+    bottom: auto;
+    right: 3.5rem;
+    min-width: 42px;
+    padding: 0 0.7rem;
   }
 
   .tutorial-tip {
