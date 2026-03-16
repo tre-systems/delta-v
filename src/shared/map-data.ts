@@ -481,6 +481,33 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
+  grandTour: {
+    // Rules: "Grand Tour, 2037 AD" — each racer starts with one corvette
+    // at a different habitable world. Must pass through at least one gravity
+    // hex of each major body (Sol, Mercury, Venus, Terra, Mars, Jupiter,
+    // Io, Callisto) and return to land on starting world. No combat.
+    name: 'Grand Tour',
+    description: 'Race past every major body in the solar system and return home',
+    rules: {
+      combatDisabled: true,
+      checkpointBodies: ['Sol', 'Mercury', 'Venus', 'Terra', 'Mars', 'Jupiter', 'Io', 'Callisto'],
+      sharedBases: ['Terra', 'Venus', 'Mars', 'Callisto'],
+    },
+    players: [
+      {
+        ships: [{ type: 'corvette', position: { q: 10, r: -8 }, velocity: { dq: 0, dr: 0 } }],
+        targetBody: '',
+        homeBody: 'Terra',
+        escapeWins: false,
+      },
+      {
+        ships: [{ type: 'corvette', position: { q: -9, r: -5 }, velocity: { dq: 0, dr: 0 } }],
+        targetBody: '',
+        homeBody: 'Mars',
+        escapeWins: false,
+      },
+    ],
+  },
 };
 
 // Singleton map instance

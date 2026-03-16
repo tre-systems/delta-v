@@ -41,6 +41,12 @@ function getSelectedShip(state: GameState, playerId: number, selectedId: string 
 
 function getObjective(state: GameState, playerId: number): string {
   const player = state.players[playerId];
+  if (state.scenarioRules.checkpointBodies) {
+    const visited = player.visitedBodies?.length ?? 0;
+    const total = state.scenarioRules.checkpointBodies.length;
+    if (visited >= total) return `⬡ Return to ${player.homeBody}`;
+    return `⬡ Tour: ${visited}/${total} bodies visited`;
+  }
   const hasFugitiveShip = state.ships.some((ship) => ship.owner === playerId && ship.hasFugitives);
   const facingFugitives = state.scenarioRules.hiddenIdentityInspection;
   if (player.escapeWins) {
@@ -146,6 +152,12 @@ export function getScenarioBriefingLines(state: GameState, playerId: number): st
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
   const shipNames = myShips.map((ship) => SHIP_STATS[ship.type]?.name ?? ship.type).join(', ');
   const lines = [`Your fleet: ${shipNames}`];
+  if (state.scenarioRules.checkpointBodies) {
+    lines.push(`Objective: Visit all ${state.scenarioRules.checkpointBodies.length} major bodies, then land on ${player.homeBody}`);
+    lines.push('No combat — race only');
+    lines.push('Press ? for controls help');
+    return lines;
+  }
   const hasFugitiveShip = myShips.some((ship) => ship.hasFugitives);
   const facingFugitives = state.scenarioRules.hiddenIdentityInspection;
   if (hasFugitiveShip) {
