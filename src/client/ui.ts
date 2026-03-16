@@ -7,6 +7,11 @@ import {
   getPhaseAlertCopy,
   parseJoinInput,
 } from './ui-formatters';
+import {
+  canAddFleetShip,
+  getFleetCartView,
+  getFleetShopView,
+} from './ui-fleet';
 
 export class UIManager {
   private menuEl: HTMLElement;
@@ -240,16 +245,7 @@ export class UIManager {
 
     const player = state.players[playerId];
     const credits = player.credits ?? 0;
-
-    // Determine available ship types from scenario
-    const scenario = state.scenario;
-    // We can't easily access the scenario definition from UI, so we build from SHIP_STATS
-    // excluding orbitalBase (can't be purchased directly)
-    const availableTypes = Object.entries(SHIP_STATS)
-      .filter(([key]) => key !== 'orbitalBase')
-      .sort((a, b) => a[1].cost - b[1].cost);
-
-    this.renderFleetShop(availableTypes, credits);
+    this.renderFleetShop(credits);
     this.renderFleetCart(credits);
 
     // Wire buttons
@@ -269,24 +265,24 @@ export class UIManager {
     document.getElementById('fleetWaiting')!.style.display = 'block';
   }
 
-  private renderFleetShop(types: [string, typeof SHIP_STATS[string]][], totalCredits: number) {
+  private renderFleetShop(totalCredits: number) {
     const shopEl = document.getElementById('fleetShopList')!;
     shopEl.innerHTML = '';
 
-    for (const [key, stats] of types) {
+    for (const itemView of getFleetShopView(this.fleetCart, totalCredits)) {
       const item = document.createElement('div');
       item.className = 'fleet-shop-item';
+      item.classList.toggle('disabled', itemView.disabled);
       item.innerHTML = `
         <div>
-          <div class="fleet-shop-name">${stats.name}</div>
-          <div class="fleet-shop-stats">C${stats.combat}${stats.defensiveOnly ? 'D' : ''} F${stats.fuel === Infinity ? '\u221e' : stats.fuel}</div>
+          <div class="fleet-shop-name">${itemView.name}</div>
+          <div class="fleet-shop-stats">${itemView.statsText}</div>
         </div>
-        <div class="fleet-shop-cost">${stats.cost} MC</div>
+        <div class="fleet-shop-cost">${itemView.cost} MC</div>
       `;
       item.addEventListener('click', () => {
-        const spent = this.fleetCart.reduce((sum, p) => sum + (SHIP_STATS[p.shipType]?.cost ?? 0), 0);
-        if (spent + stats.cost <= totalCredits) {
-          this.fleetCart.push({ shipType: key });
+        if (canAddFleetShip(this.fleetCart, totalCredits, itemView.shipType)) {
+          this.fleetCart.push({ shipType: itemView.shipType });
           this.renderFleetCart(totalCredits);
           // Apply recoil animation to cart
           const cartEl = document.getElementById('fleetCart')!;
@@ -302,24 +298,21 @@ export class UIManager {
   private renderFleetCart(totalCredits: number) {
     const cartEl = document.getElementById('fleetCart')!;
     const creditsEl = document.getElementById('fleetCredits')!;
-    const spent = this.fleetCart.reduce((sum, p) => sum + (SHIP_STATS[p.shipType]?.cost ?? 0), 0);
-    const remaining = totalCredits - spent;
-    creditsEl.textContent = `${remaining} MC remaining`;
+    const cartView = getFleetCartView(this.fleetCart, totalCredits);
+    creditsEl.textContent = cartView.remainingLabel;
 
     cartEl.innerHTML = '';
-    if (this.fleetCart.length === 0) {
+    if (cartView.isEmpty) {
       cartEl.innerHTML = '<span style="color:#556;font-size:0.75rem;padding:0.2rem">Click ships above to add</span>';
       return;
     }
 
-    for (let i = 0; i < this.fleetCart.length; i++) {
-      const purchase = this.fleetCart[i];
-      const stats = SHIP_STATS[purchase.shipType];
+    for (const [index, itemView] of cartView.items.entries()) {
       const chip = document.createElement('div');
       chip.className = 'fleet-cart-chip';
-      chip.innerHTML = `${stats?.name ?? purchase.shipType} <span class="chip-remove">\u00d7</span>`;
+      chip.innerHTML = `${itemView.label} <span class="chip-remove">\u00d7</span>`;
       chip.addEventListener('click', () => {
-        this.fleetCart.splice(i, 1);
+        this.fleetCart.splice(index, 1);
         this.renderFleetCart(totalCredits);
       });
       cartEl.appendChild(chip);
@@ -327,12 +320,9 @@ export class UIManager {
 
     // Update shop item disabled states
     const shopItems = document.querySelectorAll('.fleet-shop-item');
-    const types = Object.entries(SHIP_STATS).filter(([key]) => key !== 'orbitalBase').sort((a, b) => a[1].cost - b[1].cost);
+    const shopView = getFleetShopView(this.fleetCart, totalCredits);
     shopItems.forEach((item, idx) => {
-      if (idx < types.length) {
-        const cost = types[idx][1].cost;
-        item.classList.toggle('disabled', cost > remaining);
-      }
+      item.classList.toggle('disabled', shopView[idx]?.disabled ?? false);
     });
   }
 
