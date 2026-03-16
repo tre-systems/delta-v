@@ -13,6 +13,7 @@ import {
   getFleetShopView,
 } from './ui-fleet';
 import { buildHUDView } from './ui-hud';
+import { deriveHudLayoutOffsets } from './ui-layout';
 import { buildShipListView } from './ui-ship-list';
 
 export class UIManager {
@@ -20,6 +21,8 @@ export class UIManager {
   private scenarioEl: HTMLElement;
   private waitingEl: HTMLElement;
   private hudEl: HTMLElement;
+  private topBarEl: HTMLElement;
+  private bottomBarEl: HTMLElement;
   private gameOverEl: HTMLElement;
   private shipListEl: HTMLElement;
   private gameLogEl: HTMLElement;
@@ -31,6 +34,7 @@ export class UIManager {
   private fleetCart: FleetPurchase[] = [];
   private playerId: number = -1;
   private inviteUrl: string | null = null;
+  private layoutSyncFrame: number | null = null;
   private readonly actionButtonIds = [
     'undoBtn',
     'confirmBtn',
@@ -62,18 +66,25 @@ export class UIManager {
   onRematch: (() => void) | null = null;
   onExit: (() => void) | null = null;
   onSelectShip: ((shipId: string) => void) | null = null;
+  private readonly handleViewportResize = () => {
+    this.queueLayoutSync();
+  };
 
   constructor() {
     this.menuEl = document.getElementById('menu')!;
     this.scenarioEl = document.getElementById('scenarioSelect')!;
     this.waitingEl = document.getElementById('waiting')!;
     this.hudEl = document.getElementById('hud')!;
+    this.topBarEl = document.getElementById('topBar')!;
+    this.bottomBarEl = document.getElementById('bottomBar')!;
     this.gameOverEl = document.getElementById('gameOver')!;
     this.shipListEl = document.getElementById('shipList')!;
     this.gameLogEl = document.getElementById('gameLog')!;
     this.logEntriesEl = document.getElementById('logEntries')!;
     this.logShowBtn = document.getElementById('logShowBtn')!;
     this.fleetBuildingEl = document.getElementById('fleetBuilding')!;
+    window.addEventListener('resize', this.handleViewportResize);
+    window.visualViewport?.addEventListener('resize', this.handleViewportResize);
 
     // Wire up buttons
     document.getElementById('createBtn')!.addEventListener('click', () => {
@@ -188,6 +199,7 @@ export class UIManager {
     document.getElementById('helpBtn')!.style.display = 'none';
     document.getElementById('soundBtn')!.style.display = 'none';
     document.getElementById('helpOverlay')!.style.display = 'none';
+    this.resetLayoutMetrics();
   }
 
   setPlayerId(id: number) {
@@ -237,6 +249,7 @@ export class UIManager {
     } else {
       this.logShowBtn.style.display = 'block';
     }
+    this.queueLayoutSync();
   }
 
   showFleetBuilding(state: GameState, playerId: number) {
@@ -390,6 +403,7 @@ export class UIManager {
     } else {
       statusMsg.style.display = 'none';
     }
+    this.queueLayoutSync();
   }
 
   updateLatency(latencyMs: number | null) {
@@ -420,6 +434,7 @@ export class UIManager {
     const timerEl = document.getElementById('turnTimer')!;
     timerEl.textContent = text;
     timerEl.className = className;
+    this.queueLayoutSync();
   }
 
   clearTurnTimer() {
@@ -427,6 +442,7 @@ export class UIManager {
     if (timerEl) {
       timerEl.textContent = '';
     }
+    this.queueLayoutSync();
   }
 
   updateShipList(ships: Ship[], selectedId: string | null, burns: Map<string, number | null>) {
@@ -474,12 +490,14 @@ export class UIManager {
 
   showAttackButton(visible: boolean) {
     document.getElementById('attackBtn')!.style.display = visible ? 'inline-block' : 'none';
+    this.queueLayoutSync();
   }
 
   showFireButton(visible: boolean, count: number) {
     const btn = document.getElementById('fireBtn')!;
     btn.style.display = visible ? 'inline-block' : 'none';
     btn.textContent = count > 0 ? `FIRE ALL (${count})` : 'FIRE ALL';
+    this.queueLayoutSync();
   }
 
   showMovementStatus() {
@@ -489,6 +507,7 @@ export class UIManager {
     for (const id of this.actionButtonIds) {
       document.getElementById(id)!.style.display = 'none';
     }
+    this.queueLayoutSync();
   }
 
   showGameOver(won: boolean, reason: string, stats?: { turns: number; myShipsAlive: number; myShipsTotal: number; enemyShipsAlive: number; enemyShipsTotal: number }) {
@@ -604,5 +623,39 @@ export class UIManager {
 
   private scrollLogToBottom() {
     this.logEntriesEl.scrollTop = this.logEntriesEl.scrollHeight;
+  }
+
+  private queueLayoutSync() {
+    if (this.layoutSyncFrame !== null) return;
+    this.layoutSyncFrame = window.requestAnimationFrame(() => {
+      this.layoutSyncFrame = null;
+      this.syncLayoutMetrics();
+    });
+  }
+
+  private syncLayoutMetrics() {
+    if (this.hudEl.style.display === 'none') {
+      this.resetLayoutMetrics();
+      return;
+    }
+
+    const offsets = deriveHudLayoutOffsets(
+      window.innerHeight,
+      this.topBarEl.getBoundingClientRect(),
+      this.bottomBarEl.getBoundingClientRect(),
+    );
+    const rootStyle = document.documentElement.style;
+    rootStyle.setProperty('--hud-top-offset', `${offsets.hudTopOffsetPx}px`);
+    rootStyle.setProperty('--hud-bottom-offset', `${offsets.hudBottomOffsetPx}px`);
+  }
+
+  private resetLayoutMetrics() {
+    if (this.layoutSyncFrame !== null) {
+      window.cancelAnimationFrame(this.layoutSyncFrame);
+      this.layoutSyncFrame = null;
+    }
+    const rootStyle = document.documentElement.style;
+    rootStyle.removeProperty('--hud-top-offset');
+    rootStyle.removeProperty('--hud-bottom-offset');
   }
 }

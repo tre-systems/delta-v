@@ -115,7 +115,9 @@ function cubeLerp(a: CubeCoord, b: CubeCoord, t: number): { q: number; r: number
   };
 }
 
-export function hexLineDraw(a: HexCoord, b: HexCoord): HexCoord[] {
+const HEX_LINE_NUDGE_EPS = 1e-6;
+
+function hexLineDrawWithNudge(a: HexCoord, b: HexCoord, eps: number): HexCoord[] {
   const n = hexDistance(a, b);
   if (n === 0) return [a];
 
@@ -123,7 +125,6 @@ export function hexLineDraw(a: HexCoord, b: HexCoord): HexCoord[] {
   const bc = axialToCube(b);
 
   // Epsilon nudge to avoid landing exactly on hex boundaries
-  const eps = 1e-6;
   const aNudged: CubeCoord = { q: ac.q + eps, r: ac.r + eps, s: ac.s - 2 * eps };
   const bNudged: CubeCoord = { q: bc.q + eps, r: bc.r + eps, s: bc.s - 2 * eps };
 
@@ -134,6 +135,49 @@ export function hexLineDraw(a: HexCoord, b: HexCoord): HexCoord[] {
     results.push(cubeRound(lerped.q, lerped.r, lerped.s));
   }
   return results;
+}
+
+export function hexLineDraw(a: HexCoord, b: HexCoord): HexCoord[] {
+  return hexLineDrawWithNudge(a, b, HEX_LINE_NUDGE_EPS);
+}
+
+export interface HexLineAnalysis {
+  primary: HexCoord[];
+  alternate: HexCoord[];
+  definite: HexCoord[];
+  ambiguousPairs: Array<[HexCoord, HexCoord]>;
+}
+
+export function analyzeHexLine(a: HexCoord, b: HexCoord): HexLineAnalysis {
+  const primary = hexLineDrawWithNudge(a, b, HEX_LINE_NUDGE_EPS);
+  const alternate = hexLineDrawWithNudge(a, b, -HEX_LINE_NUDGE_EPS);
+  const alternateKeys = new Set(alternate.map(hexKey));
+  const seenDefinite = new Set<string>();
+  const definite: HexCoord[] = [];
+
+  for (const hex of primary) {
+    const key = hexKey(hex);
+    if (!alternateKeys.has(key) || seenDefinite.has(key)) continue;
+    definite.push(hex);
+    seenDefinite.add(key);
+  }
+
+  const seenPairs = new Set<string>();
+  const ambiguousPairs: Array<[HexCoord, HexCoord]> = [];
+  const length = Math.min(primary.length, alternate.length);
+  for (let i = 0; i < length; i++) {
+    if (hexEqual(primary[i], alternate[i])) continue;
+    const firstKey = hexKey(primary[i]);
+    const secondKey = hexKey(alternate[i]);
+    const pairKey = firstKey < secondKey
+      ? `${firstKey}|${secondKey}`
+      : `${secondKey}|${firstKey}`;
+    if (seenPairs.has(pairKey)) continue;
+    seenPairs.add(pairKey);
+    ambiguousPairs.push([primary[i], alternate[i]]);
+  }
+
+  return { primary, alternate, definite, ambiguousPairs };
 }
 
 // --- Pixel conversion (flat-top hex) ---

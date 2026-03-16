@@ -81,7 +81,10 @@ export function aiAstrogation(
     const stats = SHIP_STATS[ship.type];
     const canBurnFuel = ship.fuel > 0;
     // Easy AI never overloads; Normal/Hard can overload warships with enough fuel
-    const canOverload = difficulty !== 'easy' && stats?.canOverload && ship.fuel >= 2;
+    const canOverload = difficulty !== 'easy'
+      && stats?.canOverload
+      && ship.fuel >= 2
+      && !ship.overloadUsed;
 
     // Build list of (burn, overload) pairs to evaluate
     type BurnOption = { burn: number | null; overload: number | null; weakGravityChoices?: Record<string, boolean> };

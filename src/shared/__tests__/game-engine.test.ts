@@ -4,7 +4,7 @@ import { buildSolarSystemMap, SCENARIOS, findBaseHex, findBaseHexes } from '../m
 import { SHIP_STATS, ORDNANCE_MASS } from '../constants';
 import { hexKey, hexEqual, hexDistance } from '../hex';
 import { resolveBaseDefense } from '../combat';
-import type { GameState, SolarSystemMap, AstrogationOrder, OrdnanceLaunch, Ordnance, Ship } from '../types';
+import type { GameState, ScenarioDefinition, SolarSystemMap, AstrogationOrder, OrdnanceLaunch, Ordnance, Ship } from '../types';
 
 let map: SolarSystemMap;
 let initialState: GameState;
@@ -95,6 +95,47 @@ describe('createGame', () => {
     const duelState = createGame(SCENARIOS.duel, map, 'DUEL1', findBaseHex);
     expect(duelState.players[0].bases).toEqual(['5,2']);
     expect(duelState.players[1].bases).toEqual(['3,2']);
+  });
+
+  it('rejects scenarios that do not define exactly two players', () => {
+    const invalidScenario: ScenarioDefinition = {
+      ...SCENARIOS.duel,
+      players: [SCENARIOS.duel.players[0]],
+    };
+
+    expect(() => createGame(invalidScenario, map, 'BADPLY', findBaseHex)).toThrow(
+      'Scenario must define exactly 2 players',
+    );
+  });
+
+  it('throws when a landed ship has no valid starting hex', () => {
+    const barrenMap: SolarSystemMap = {
+      hexes: new Map(),
+      bodies: [],
+      bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
+    };
+    const invalidScenario: ScenarioDefinition = {
+      name: 'Broken',
+      description: 'Invalid landed placement',
+      players: [
+        {
+          ships: [{ type: 'corvette', position: { q: 99, r: 99 }, velocity: { dq: 0, dr: 0 } }],
+          targetBody: '',
+          homeBody: '',
+          escapeWins: false,
+        },
+        {
+          ships: [{ type: 'corvette', position: { q: -99, r: -99 }, velocity: { dq: 0, dr: 0 } }],
+          targetBody: '',
+          homeBody: '',
+          escapeWins: true,
+        },
+      ],
+    };
+
+    expect(() => createGame(invalidScenario, barrenMap, 'BADHEX', findBaseHex)).toThrow(
+      'No valid landed starting hex',
+    );
   });
 });
 
@@ -206,6 +247,65 @@ describe('processAstrogation', () => {
     expect(combatStart.results).toHaveLength(1);
     expect(combatStart.results[0].attackType).toBe('asteroidHazard');
     expect(combatStart.state.pendingAsteroidHazards).toHaveLength(0);
+  });
+
+  it('does not queue an asteroid hazard when movement only runs along a single asteroid hex edge', () => {
+    const edgeMap: SolarSystemMap = {
+      hexes: new Map([
+        ['1,0', { terrain: 'asteroid' }],
+      ]),
+      bodies: [],
+      bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
+    };
+    const state = createGame(SCENARIOS.biplanetary, edgeMap, 'ASTEDGE0', findBaseHex);
+    const ship = state.ships[0];
+    ship.landed = false;
+    ship.position = { q: 0, r: 0 };
+    ship.velocity = { dq: 2, dr: -1 };
+
+    const result = processAstrogation(state, 0, [{ shipId: ship.id, burn: null }], edgeMap);
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+    let movement: MovementResult;
+    if ('movements' in result) {
+      movement = result;
+    } else {
+      const skipped = skipOrdnance(result.state, 0, edgeMap);
+      if ('error' in skipped) throw new Error(skipped.error);
+      movement = expectMovement(skipped);
+    }
+
+    expect(movement.state.pendingAsteroidHazards).toHaveLength(0);
+  });
+
+  it('counts a shared hexside between two asteroid hexes as one asteroid encounter', () => {
+    const edgeMap: SolarSystemMap = {
+      hexes: new Map([
+        ['1,0', { terrain: 'asteroid' }],
+        ['1,-1', { terrain: 'asteroid' }],
+      ]),
+      bodies: [],
+      bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
+    };
+    const state = createGame(SCENARIOS.biplanetary, edgeMap, 'ASTEDGE1', findBaseHex);
+    const ship = state.ships[0];
+    ship.landed = false;
+    ship.position = { q: 0, r: 0 };
+    ship.velocity = { dq: 2, dr: -1 };
+
+    const result = processAstrogation(state, 0, [{ shipId: ship.id, burn: null }], edgeMap);
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+    let movement: MovementResult;
+    if ('movements' in result) {
+      movement = result;
+    } else {
+      const skipped = skipOrdnance(result.state, 0, edgeMap);
+      if ('error' in skipped) throw new Error(skipped.error);
+      movement = expectMovement(skipped);
+    }
+
+    expect(movement.state.pendingAsteroidHazards).toHaveLength(1);
   });
 
   it('rejects invalid burn direction', () => {

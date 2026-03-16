@@ -22,6 +22,8 @@
   --radius: 18px;
   --radius-sm: 12px;
   --radius-pill: 999px;
+  --hud-top-offset: 5.6rem;
+  --hud-bottom-offset: 8.8rem;
   --font-display: 'Space Grotesk', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 }
@@ -458,7 +460,7 @@ body::before {
 
 .ship-list {
   position: fixed;
-  top: 5.6rem;
+  top: var(--hud-top-offset);
   left: 0.9rem;
   z-index: 5;
   display: flex;
@@ -560,9 +562,9 @@ body::before {
 
 .game-log {
   position: fixed;
-  top: 5.6rem;
+  top: var(--hud-top-offset);
   right: 0.9rem;
-  bottom: 8.8rem;
+  bottom: var(--hud-bottom-offset);
   width: 230px;
   z-index: 5;
   display: flex;
@@ -635,7 +637,7 @@ body::before {
 
 .log-show-btn {
   position: fixed;
-  top: 5.8rem;
+  top: calc(var(--hud-top-offset) + 0.2rem);
   right: 0.9rem;
   z-index: 5;
   padding: 0.5rem 0.8rem;
@@ -964,7 +966,7 @@ body::before {
 
 .toast-container {
   position: fixed;
-  top: 5.2rem;
+  top: calc(var(--hud-top-offset) + 0.4rem);
   left: 50%;
   transform: translateX(-50%);
   z-index: 25;
@@ -1030,7 +1032,7 @@ body::before {
 .tutorial-tip {
   position: fixed;
   left: 50%;
-  bottom: 7rem;
+  bottom: calc(var(--hud-bottom-offset) + 0.6rem);
   z-index: 20;
   width: min(420px, calc(100vw - 2rem));
   padding: 1.05rem 1.15rem;
@@ -1149,54 +1151,97 @@ body::before {
     top: 0.5rem;
     left: 0.5rem;
     right: 0.5rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 0.65rem 0.75rem;
     gap: 0.35rem 0.8rem;
+    justify-content: stretch;
+    align-items: center;
+  }
+
+  .hud-bar > * {
+    min-width: 0;
+    width: 100%;
+    text-align: center;
+  }
+
+  .hud-bar > .hud-group:first-child,
+  #fleetStatus,
+  #objective {
+    grid-column: 1 / -1;
+  }
+
+  .hud-bar .hud-group {
     justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .objective-text,
+  .fleet-status,
+  .latency-text,
+  .turn-timer {
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .hud-bottom {
+    left: 0.5rem;
+    right: 0.5rem;
     bottom: max(0.75rem, env(safe-area-inset-bottom));
-    max-width: calc(100vw - 1rem);
+    width: auto;
+    max-width: none;
+    transform: none;
+    align-items: stretch;
   }
 
   .hud-bottom-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     padding: 0.45rem;
+    width: 100%;
   }
 
   .hud-bottom .btn {
     min-height: 44px;
+    min-width: 0;
+    width: 100%;
   }
 
   .status-msg {
     font-size: 0.75rem;
     padding: 0.5rem 0.7rem;
+    max-width: none;
   }
 
   .ship-list {
     top: auto;
-    bottom: 6.8rem;
+    bottom: calc(var(--hud-bottom-offset) + 0.35rem);
     left: 0.5rem;
-    max-height: 24vh;
+    width: min(44vw, 184px);
+    max-width: calc(50vw - 0.75rem);
+    max-height: min(28vh, 220px);
     overflow-y: auto;
   }
 
   .ship-entry {
-    min-width: 126px;
+    min-width: 0;
+    width: 100%;
     padding: 0.42rem 0.58rem;
   }
 
   .game-log {
     top: auto;
     right: 0.5rem;
-    bottom: 6.8rem;
-    width: 180px;
-    max-height: 26vh;
+    bottom: calc(var(--hud-bottom-offset) + 0.35rem);
+    width: min(46vw, 188px);
+    max-width: calc(50vw - 0.75rem);
+    max-height: min(30vh, 236px);
   }
 
   .log-show-btn {
     top: auto;
     right: 0.5rem;
-    bottom: calc(6.8rem + 0.2rem);
+    bottom: calc(var(--hud-bottom-offset) + 0.55rem);
   }
 
   .help-key {
@@ -1204,21 +1249,29 @@ body::before {
   }
 
   .help-btn {
-    bottom: 4rem;
+    bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 4.1rem);
     right: 0.5rem;
   }
 
   .sound-btn {
-    bottom: 6.9rem;
-    right: 0.5rem;
+    bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 4.1rem);
+    right: 3.85rem;
+    min-width: 52px;
+    padding: 0 0.7rem;
   }
 
   .toast-container {
-    top: 4.8rem;
+    top: calc(var(--hud-top-offset) + 0.35rem);
   }
 
   .tutorial-tip {
-    bottom: 7.8rem;
+    bottom: calc(var(--hud-bottom-offset) + 0.7rem);
+  }
+
+  #phaseAlert {
+    top: calc(var(--hud-top-offset) + 0.5rem);
+    width: min(300px, calc(100vw - 1rem));
+    padding: 0.45rem 1rem;
   }
 }
 
@@ -1251,7 +1304,11 @@ body::before {
   }
 
   .game-log {
-    width: 160px;
+    width: calc(50vw - 0.8rem);
+  }
+
+  .ship-list {
+    width: calc(50vw - 0.8rem);
   }
 
   .help-content {
@@ -1265,17 +1322,26 @@ body::before {
   .tutorial-tip-actions .btn {
     width: 100%;
   }
+
+  .phase-alert-title {
+    font-size: 1.1rem;
+  }
+
+  .phase-alert-subtitle {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+  }
 }
 
 @media (max-height: 560px) {
   .ship-list {
-    top: 5.2rem;
-    max-height: 40vh;
+    top: var(--hud-top-offset);
+    max-height: min(40vh, 180px);
   }
 
   .game-log {
-    top: 5.2rem;
-    max-height: 40vh;
+    top: var(--hud-top-offset);
+    max-height: min(40vh, 180px);
   }
 
   .hud-bottom {
@@ -1283,7 +1349,7 @@ body::before {
   }
 
   .tutorial-tip {
-    bottom: 5.8rem;
+    bottom: calc(var(--hud-bottom-offset) + 0.4rem);
   }
 }
 
@@ -1412,7 +1478,7 @@ body::before {
 /* Phase Alert Overlay */
 #phaseAlert {
   position: fixed;
-  top: 4.5rem;
+  top: calc(var(--hud-top-offset) + 0.6rem);
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;

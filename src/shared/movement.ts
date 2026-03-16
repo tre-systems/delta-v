@@ -4,6 +4,7 @@ import {
   HEX_DIRECTIONS,
   hexAdd,
   hexSubtract,
+  analyzeHexLine,
   hexLineDraw,
   hexKey,
   hexDirectionToward,
@@ -206,16 +207,19 @@ export function collectEnteredGravityEffects(
 ): GravityEffect[] {
   const effects: GravityEffect[] = [];
   let prevWeakBody: string | null = null;
+  if (path.length < 2) return effects;
+  const line = analyzeHexLine(path[0], path[path.length - 1]);
 
-  for (let i = 1; i < path.length; i++) {
-    const hex = map.hexes.get(hexKey(path[i]));
+  for (let i = 1; i < line.definite.length; i++) {
+    const coord = line.definite[i];
+    const hex = map.hexes.get(hexKey(coord));
     if (!hex?.gravity) {
       prevWeakBody = null;
       continue;
     }
 
     const grav = hex.gravity;
-    const key = hexKey(path[i]);
+    const key = hexKey(coord);
     let ignored = false;
 
     if (grav.strength === 'weak') {
@@ -227,7 +231,7 @@ export function collectEnteredGravityEffects(
     }
 
     effects.push({
-      hex: path[i],
+      hex: coord,
       direction: grav.direction,
       bodyName: grav.bodyName,
       strength: grav.strength,
