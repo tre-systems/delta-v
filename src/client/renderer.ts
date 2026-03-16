@@ -19,6 +19,11 @@ import {
   getCombatTargetEntity,
   getQueuedCombatOverlayAttacks,
 } from './renderer-combat';
+import {
+  clipViewportToMinimap,
+  createMinimapLayout,
+  projectWorldToMinimap,
+} from './game-client-minimap';
 
 // --- Camera ---
 
@@ -2074,13 +2079,8 @@ export class Renderer {
   private renderMinimap(ctx: CanvasRenderingContext2D, screenW: number, screenH: number) {
     if (!this.map || !this.gameState) return;
 
-    const isMobile = screenW < 600;
-    const mmW = isMobile ? 100 : 140;
-    const mmH = isMobile ? 100 : 140;
-    const mmX = 12;
-    // On mobile, position above the ship list / bottom HUD; on desktop, bottom-left
-    const mmY = isMobile ? 90 : screenH - mmH - 12;
-    const mmPad = 8;
+    const layout = createMinimapLayout(this.map.bounds, screenW, screenH, HEX_SIZE);
+    const { x: mmX, y: mmY, width: mmW, height: mmH } = layout;
 
     // Background
     ctx.save();
@@ -2092,32 +2092,14 @@ export class Renderer {
     ctx.fill();
     ctx.stroke();
 
-    // Compute world bounds from map bounds
-    const bounds = this.map.bounds;
-    const worldMinX = hexToPixel({ q: bounds.minQ, r: bounds.minR }, HEX_SIZE).x;
-    const worldMaxX = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, HEX_SIZE).x;
-    const worldMinY = hexToPixel({ q: bounds.minQ, r: bounds.minR }, HEX_SIZE).y;
-    const worldMaxY = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, HEX_SIZE).y;
-    const worldW = worldMaxX - worldMinX || 1;
-    const worldH = worldMaxY - worldMinY || 1;
-
-    // Scale to fit minimap with padding
-    const innerW = mmW - mmPad * 2;
-    const innerH = mmH - mmPad * 2;
-    const scale = Math.min(innerW / worldW, innerH / worldH);
-    const offsetX = mmX + mmPad + (innerW - worldW * scale) / 2;
-    const offsetY = mmY + mmPad + (innerH - worldH * scale) / 2;
-
-    const toMinimap = (wx: number, wy: number) => ({
-      x: offsetX + (wx - worldMinX) * scale,
-      y: offsetY + (wy - worldMinY) * scale,
-    });
+    const toMinimap = (wx: number, wy: number) =>
+      projectWorldToMinimap(layout, { x: wx, y: wy });
 
     // Draw celestial bodies
     for (const body of this.map.bodies) {
       const p = hexToPixel(body.center, HEX_SIZE);
       const mp = toMinimap(p.x, p.y);
-      const r = Math.max(2, body.renderRadius * HEX_SIZE * scale * 0.5);
+      const r = Math.max(2, body.renderRadius * HEX_SIZE * layout.scale * 0.5);
       ctx.fillStyle = body.color;
       ctx.globalAlpha = 0.7;
       ctx.beginPath();
@@ -2181,21 +2163,19 @@ export class Renderer {
     const vpBR = toMinimap(cam.x + vpHalfW, cam.y + vpHalfH);
     const vpW = vpBR.x - vpTL.x;
     const vpH = vpBR.y - vpTL.y;
+    const viewport = clipViewportToMinimap(layout, {
+      x: vpTL.x,
+      y: vpTL.y,
+      width: vpW,
+      height: vpH,
+    });
 
-    // Clip viewport rect to minimap bounds
-    const clampedX = Math.max(mmX + 1, vpTL.x);
-    const clampedY = Math.max(mmY + 1, vpTL.y);
-    const clampedR = Math.min(mmX + mmW - 1, vpTL.x + vpW);
-    const clampedB = Math.min(mmY + mmH - 1, vpTL.y + vpH);
-    const clampedW = clampedR - clampedX;
-    const clampedH = clampedB - clampedY;
-
-    if (clampedW > 2 && clampedH > 2) {
+    if (viewport.width > 2 && viewport.height > 2) {
       ctx.fillStyle = 'rgba(79, 195, 247, 0.06)';
-      ctx.fillRect(clampedX, clampedY, clampedW, clampedH);
+      ctx.fillRect(viewport.x, viewport.y, viewport.width, viewport.height);
       ctx.strokeStyle = 'rgba(79, 195, 247, 0.5)';
       ctx.lineWidth = 1;
-      ctx.strokeRect(clampedX, clampedY, clampedW, clampedH);
+      ctx.strokeRect(viewport.x, viewport.y, viewport.width, viewport.height);
     }
 
     ctx.restore();
