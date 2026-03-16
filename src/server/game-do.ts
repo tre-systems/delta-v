@@ -26,6 +26,7 @@ import {
   resolveAlarmAction,
   shouldClearDisconnectMarker,
 } from './game-do-session';
+import { resolveTurnTimeoutOutcome } from './game-do-turns';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -322,40 +323,13 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    const map = getSolarSystemMap();
-    const playerId = gameState.activePlayer;
-
-    if (gameState.phase === 'astrogation') {
-      // Auto-submit empty orders (no burns)
-      const orders: AstrogationOrder[] = gameState.ships
-        .filter(s => s.owner === playerId)
-        .map(s => ({ shipId: s.id, burn: null }));
-      const result = processAstrogation(gameState, playerId, orders, map);
-      if (!('error' in result)) {
-        await this.publishStateChange(
-          result.state,
-          resolveMovementBroadcast(result),
-        );
-      }
-    } else if (gameState.phase === 'ordnance') {
-      const result = skipOrdnance(gameState, playerId, map);
-      if (!('error' in result)) {
-        await this.publishStateChange(
-          result.state,
-          resolveMovementBroadcast(result, 'stateUpdate'),
-        );
-      }
-    } else if (gameState.phase === 'combat') {
-      const result = skipCombat(gameState, playerId, map);
-      if (!('error' in result)) {
-        await this.publishStateChange(
-          result.state,
-          resolveCombatBroadcast(result),
-        );
-      }
-    } else {
+    const outcome = resolveTurnTimeoutOutcome(gameState, getSolarSystemMap());
+    if (!outcome) {
       await this.rescheduleAlarm();
+      return;
     }
+
+    await this.publishStateChange(outcome.state, outcome.primaryMessage);
   }
 
   private async startTurnTimer(state: GameState): Promise<void> {
