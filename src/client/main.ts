@@ -53,6 +53,7 @@ import {
 import { deriveKeyboardAction, type KeyboardAction } from './game-client-keyboard';
 import { deriveGameOverPlan } from './game-client-endgame';
 import { deriveClientMessagePlan } from './game-client-messages';
+import { deriveClientScreenPlan } from './game-client-screen';
 import { initAudio, playSelect, playConfirm, playThrust, playCombat, playExplosion, playPhaseChange, playVictory, playDefeat, playWarning, isMuted, setMuted } from './audio';
 
 class GameClient {
@@ -186,8 +187,15 @@ class GameClient {
     this.tooltipEl.style.display = 'none';
 
     const entryPlan = deriveClientStateEntryPlan(newState, this.gameState, this.playerId);
+    const screenPlan = deriveClientScreenPlan(
+      newState,
+      this.gameCode,
+      this.inviteLink,
+      this.gameCode ? this.getStoredInviteToken(this.gameCode) : null,
+      window.location.origin,
+    );
 
-    switch (newState) {
+    switch (screenPlan.kind) {
       case 'menu':
         this.ui.showMenu();
         break;
@@ -196,27 +204,18 @@ class GameClient {
         this.ui.showConnecting();
         break;
 
-      case 'waitingForOpponent':
-        if (!this.inviteLink && this.gameCode) {
-          const storedInviteToken = this.getStoredInviteToken(this.gameCode);
-          if (storedInviteToken) {
-            this.inviteLink = buildInviteLink(window.location.origin, this.gameCode, storedInviteToken);
-          }
-        }
-        this.ui.showWaiting(this.gameCode ?? '', this.inviteLink);
+      case 'waiting':
+        this.inviteLink = screenPlan.inviteLink;
+        this.ui.showWaiting(screenPlan.code, screenPlan.inviteLink);
         break;
 
-      case 'playing_fleetBuilding':
+      case 'fleetBuilding':
         this.ui.showFleetBuilding(this.gameState!, this.playerId);
         break;
-      case 'playing_astrogation':
-      case 'playing_ordnance':
-      case 'playing_combat':
-      case 'playing_movementAnim':
-      case 'playing_opponentTurn':
+      case 'hud':
         this.ui.showHUD();
         break;
-      case 'gameOver':
+      case 'none':
         break;
     }
 
