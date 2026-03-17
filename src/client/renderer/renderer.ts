@@ -87,6 +87,7 @@ export class Renderer {
   private gameState: GameState | null = null;
   private playerId = -1;
   private animState: AnimationState | null = null;
+  private animFallbackTimer: ReturnType<typeof setTimeout> | null = null;
   private planningState: PlanningState;
   private combatResults: { results: CombatResult[]; showUntil: number } | null = null;
   private combatEffects: CombatEffect[] = [];
@@ -164,6 +165,18 @@ export class Renderer {
       duration: MOVEMENT_ANIM_DURATION,
       onComplete,
     };
+
+    // Safety net: if rAF is throttled (mobile screen off, background tab),
+    // ensure the animation callback still fires via setTimeout.
+    if (this.animFallbackTimer !== null) clearTimeout(this.animFallbackTimer);
+    this.animFallbackTimer = setTimeout(() => {
+      this.animFallbackTimer = null;
+      if (this.animState) {
+        const cb = this.animState.onComplete;
+        this.animState = null;
+        cb();
+      }
+    }, MOVEMENT_ANIM_DURATION + 500);
 
     // Frame camera on all moving ships and ordnance
     const allFrom = [...movements.map((m) => m.from), ...ordnanceMovements.map((m) => m.from)];
@@ -404,6 +417,10 @@ export class Renderer {
 
     // Check animation completion
     if (this.animState && now - this.animState.startTime >= this.animState.duration) {
+      if (this.animFallbackTimer !== null) {
+        clearTimeout(this.animFallbackTimer);
+        this.animFallbackTimer = null;
+      }
       const cb = this.animState.onComplete;
       this.animState = null;
       cb();
