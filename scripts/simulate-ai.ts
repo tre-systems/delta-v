@@ -8,7 +8,7 @@ import {
   beginCombatPhase,
   processCombat,
   skipCombat
-} from '../src/shared/game-engine';
+} from '../src/shared/engine/game-engine';
 import { aiAstrogation, aiOrdnance, aiCombat, AIDifficulty } from '../src/shared/ai';
 import { SHIP_STATS } from '../src/shared/constants';
 import { GameState, FleetPurchase } from '../src/shared/types';
