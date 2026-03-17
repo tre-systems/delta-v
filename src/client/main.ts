@@ -1102,7 +1102,11 @@ class GameClient {
     while (!this.isGameOver()) {
       const plan = deriveAIActionPlan(this.ctx.gameState!, this.ctx.playerId, this.map, this.ctx.aiDifficulty);
 
-      if (plan.kind === 'none') return;
+      if (plan.kind === 'none') {
+        // AI is done — if it's now the human player's turn, transition the UI
+        this.transitionToPhase();
+        return;
+      }
 
       if (plan.kind === 'transition') {
         this.localCheckGameEnd();
