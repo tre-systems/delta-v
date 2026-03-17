@@ -19,15 +19,15 @@ export interface ClientStateEntryPlan {
   tutorialPhase: 'astrogation' | 'ordnance' | 'combat' | null;
 }
 
-function getFirstOwnedShipId(gameState: GameState | null, playerId: number): string | null {
+const getFirstOwnedShipId = (gameState: GameState | null, playerId: number): string | null => {
   return gameState?.ships.find((ship) => ship.owner === playerId && !ship.destroyed)?.id ?? null;
-}
+};
 
-export function deriveClientStateEntryPlan(
+export const deriveClientStateEntryPlan = (
   state: ClientState,
   gameState: GameState | null,
   playerId: number,
-): ClientStateEntryPlan {
+): ClientStateEntryPlan => {
   switch (state) {
     case 'menu':
       return {
@@ -166,4 +166,4 @@ export function deriveClientStateEntryPlan(
         tutorialPhase: null,
       };
   }
-}
+};

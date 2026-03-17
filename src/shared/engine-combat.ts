@@ -23,15 +23,126 @@ export interface CombatPhaseResult {
   state: GameState;
 }
 
+const toCombatResult = (r: CombatResolution): CombatResult => ({
+  attackerIds: r.attackerIds,
+  targetId: r.targetId,
+  targetType: 'ship',
+  attackType: 'gun',
+  odds: r.odds,
+  attackStrength: r.attackStrength,
+  defendStrength: r.defendStrength,
+  rangeMod: r.rangeMod,
+  velocityMod: r.velocityMod,
+  dieRoll: r.dieRoll,
+  modifiedRoll: r.modifiedRoll,
+  damageType: r.damageResult.type,
+  disabledTurns: r.damageResult.disabledTurns,
+  counterattack: r.counterattack ? toCombatResult(r.counterattack) : null,
+});
+
+const resolveAntiNukeAttack = (attackers: Ship[], target: Ordnance, rng?: () => number): CombatResult => {
+  const rangeMod = computeGroupRangeModToTarget(attackers, target);
+  const velocityMod = computeGroupVelocityModToTarget(attackers, target);
+  const dieRoll = rollD6(rng);
+  const modifiedRoll = dieRoll - rangeMod - velocityMod;
+  const rolledResult = lookupGunCombat('2:1', modifiedRoll);
+  const destroyed = rolledResult.type !== 'none';
+  if (destroyed) {
+    target.destroyed = true;
+  }
+
+  return {
+    attackerIds: attackers.map((ship) => ship.id),
+    targetId: target.id,
+    targetType: 'ordnance',
+    attackType: 'antiNuke',
+    odds: '2:1',
+    attackStrength: 0,
+    defendStrength: 0,
+    rangeMod,
+    velocityMod,
+    dieRoll,
+    modifiedRoll,
+    damageType: destroyed ? 'eliminated' : 'none',
+    disabledTurns: 0,
+    counterattack: null,
+  };
+};
+
+const hasManualCombatTargets = (state: GameState, map: SolarSystemMap): boolean => {
+  const attackers = state.ships.filter((s) => s.owner === state.activePlayer && !s.destroyed && canAttack(s));
+  if (attackers.length === 0) return false;
+
+  if (
+    state.ships.some(
+      (target) =>
+        target.owner !== state.activePlayer &&
+        !target.destroyed &&
+        !target.landed &&
+        attackers.some((attacker) => hasLineOfSight(attacker, target, map)),
+    )
+  ) {
+    return true;
+  }
+
+  return state.ordnance.some(
+    (ord) =>
+      ord.type === 'nuke' &&
+      ord.owner !== state.activePlayer &&
+      !ord.destroyed &&
+      attackers.some((attacker) => hasLineOfSightToTarget(attacker, ord, map)),
+  );
+};
+
+const hasBaseDefenseTargets = (state: GameState, map: SolarSystemMap): boolean => {
+  for (const { coord: baseCoord } of getOwnedPlanetaryBases(state, state.activePlayer, map)) {
+    const baseHex = map.hexes.get(hexKey(baseCoord));
+    const bodyName = baseHex?.base?.bodyName;
+    if (!bodyName) continue;
+    for (const ship of state.ships) {
+      if (ship.owner === state.activePlayer || ship.destroyed || ship.landed) continue;
+      const shipHex = map.hexes.get(hexKey(ship.position));
+      if (!shipHex?.gravity || shipHex.gravity.bodyName !== bodyName) continue;
+      if (hexDistance(ship.position, baseCoord) === 1) {
+        return true;
+      }
+    }
+    for (const ord of state.ordnance) {
+      if (ord.owner === state.activePlayer || ord.destroyed || ord.type !== 'nuke') continue;
+      if (hasBaseLineOfSight(baseCoord, ord, map)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
+const shouldRemainInCombatPhase = (state: GameState, map?: SolarSystemMap): boolean => {
+  if (
+    state.pendingAsteroidHazards.some((hazard) => {
+      const ship = state.ships.find((s) => s.id === hazard.shipId);
+      return ship?.owner === state.activePlayer && !ship.destroyed;
+    })
+  ) {
+    return true;
+  }
+  if (state.scenarioRules.combatDisabled) return false;
+  if (!map) {
+    return hasAnyEnemyShips(state);
+  }
+  return hasManualCombatTargets(state, map) || (isPlanetaryDefenseEnabled(state) && hasBaseDefenseTargets(state, map));
+};
+
 /**
  * Resolve automatic combat-step effects that happen before attack declarations.
  */
-export function beginCombatPhase(
+export const beginCombatPhase = (
   state: GameState,
   playerId: number,
   map?: SolarSystemMap,
   rng?: () => number,
-): CombatPhaseResult | { state: GameState } | { error: string } {
+): CombatPhaseResult | { state: GameState } | { error: string } => {
   if (state.phase !== 'combat') {
     return { error: 'Not in combat phase' };
   }
@@ -54,18 +165,18 @@ export function beginCombatPhase(
   }
 
   return results.length > 0 ? { results, state } : { state };
-}
+};
 
 /**
  * Process combat attacks for the active player.
  */
-export function processCombat(
+export const processCombat = (
   state: GameState,
   playerId: number,
   attacks: CombatAttack[],
   map?: SolarSystemMap,
   rng?: () => number,
-): CombatPhaseResult | { error: string } {
+): CombatPhaseResult | { error: string } => {
   if (state.phase !== 'combat') {
     return { error: 'Not in combat phase' };
   }
@@ -223,17 +334,17 @@ export function processCombat(
   }
 
   return { results, state };
-}
+};
 
 /**
  * Skip combat phase (player has no attacks to make).
  */
-export function skipCombat(
+export const skipCombat = (
   state: GameState,
   playerId: number,
   map?: SolarSystemMap,
   rng?: () => number,
-): { state: GameState; results?: CombatResult[] } | { error: string } {
+): { state: GameState; results?: CombatResult[] } | { error: string } => {
   if (state.phase !== 'combat') {
     return { error: 'Not in combat phase' };
   }
@@ -262,12 +373,12 @@ export function skipCombat(
   }
 
   return results.length > 0 ? { state, results } : { state };
-}
+};
 
 /**
  * Determine whether the active player should enter combat after movement.
  */
-export function shouldEnterCombatPhase(state: GameState, map: SolarSystemMap): boolean {
+export const shouldEnterCombatPhase = (state: GameState, map: SolarSystemMap): boolean => {
   if (
     state.pendingAsteroidHazards.some((hazard) => {
       const ship = state.ships.find((s) => s.id === hazard.shipId);
@@ -285,117 +396,4 @@ export function shouldEnterCombatPhase(state: GameState, map: SolarSystemMap): b
   }
 
   return hasManualCombatTargets(state, map);
-}
-
-function shouldRemainInCombatPhase(state: GameState, map?: SolarSystemMap): boolean {
-  if (
-    state.pendingAsteroidHazards.some((hazard) => {
-      const ship = state.ships.find((s) => s.id === hazard.shipId);
-      return ship?.owner === state.activePlayer && !ship.destroyed;
-    })
-  ) {
-    return true;
-  }
-  if (state.scenarioRules.combatDisabled) return false;
-  if (!map) {
-    return hasAnyEnemyShips(state);
-  }
-  return hasManualCombatTargets(state, map) || (isPlanetaryDefenseEnabled(state) && hasBaseDefenseTargets(state, map));
-}
-
-function hasManualCombatTargets(state: GameState, map: SolarSystemMap): boolean {
-  const attackers = state.ships.filter((s) => s.owner === state.activePlayer && !s.destroyed && canAttack(s));
-  if (attackers.length === 0) return false;
-
-  if (
-    state.ships.some(
-      (target) =>
-        target.owner !== state.activePlayer &&
-        !target.destroyed &&
-        !target.landed &&
-        attackers.some((attacker) => hasLineOfSight(attacker, target, map)),
-    )
-  ) {
-    return true;
-  }
-
-  return state.ordnance.some(
-    (ord) =>
-      ord.type === 'nuke' &&
-      ord.owner !== state.activePlayer &&
-      !ord.destroyed &&
-      attackers.some((attacker) => hasLineOfSightToTarget(attacker, ord, map)),
-  );
-}
-
-function hasBaseDefenseTargets(state: GameState, map: SolarSystemMap): boolean {
-  for (const { coord: baseCoord } of getOwnedPlanetaryBases(state, state.activePlayer, map)) {
-    const baseHex = map.hexes.get(hexKey(baseCoord));
-    const bodyName = baseHex?.base?.bodyName;
-    if (!bodyName) continue;
-    for (const ship of state.ships) {
-      if (ship.owner === state.activePlayer || ship.destroyed || ship.landed) continue;
-      const shipHex = map.hexes.get(hexKey(ship.position));
-      if (!shipHex?.gravity || shipHex.gravity.bodyName !== bodyName) continue;
-      if (hexDistance(ship.position, baseCoord) === 1) {
-        return true;
-      }
-    }
-    for (const ord of state.ordnance) {
-      if (ord.owner === state.activePlayer || ord.destroyed || ord.type !== 'nuke') continue;
-      if (hasBaseLineOfSight(baseCoord, ord, map)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-function resolveAntiNukeAttack(attackers: Ship[], target: Ordnance, rng?: () => number): CombatResult {
-  const rangeMod = computeGroupRangeModToTarget(attackers, target);
-  const velocityMod = computeGroupVelocityModToTarget(attackers, target);
-  const dieRoll = rollD6(rng);
-  const modifiedRoll = dieRoll - rangeMod - velocityMod;
-  const rolledResult = lookupGunCombat('2:1', modifiedRoll);
-  const destroyed = rolledResult.type !== 'none';
-  if (destroyed) {
-    target.destroyed = true;
-  }
-
-  return {
-    attackerIds: attackers.map((ship) => ship.id),
-    targetId: target.id,
-    targetType: 'ordnance',
-    attackType: 'antiNuke',
-    odds: '2:1',
-    attackStrength: 0,
-    defendStrength: 0,
-    rangeMod,
-    velocityMod,
-    dieRoll,
-    modifiedRoll,
-    damageType: destroyed ? 'eliminated' : 'none',
-    disabledTurns: 0,
-    counterattack: null,
-  };
-}
-
-function toCombatResult(r: CombatResolution): CombatResult {
-  return {
-    attackerIds: r.attackerIds,
-    targetId: r.targetId,
-    targetType: 'ship',
-    attackType: 'gun',
-    odds: r.odds,
-    attackStrength: r.attackStrength,
-    defendStrength: r.defendStrength,
-    rangeMod: r.rangeMod,
-    velocityMod: r.velocityMod,
-    dieRoll: r.dieRoll,
-    modifiedRoll: r.modifiedRoll,
-    damageType: r.damageResult.type,
-    disabledTurns: r.damageResult.disabledTurns,
-    counterattack: r.counterattack ? toCombatResult(r.counterattack) : null,
-  };
-}
+};

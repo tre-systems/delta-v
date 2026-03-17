@@ -44,25 +44,25 @@ export interface CombatPreview {
   counterattackLabel: string | null;
 }
 
-function getCommittedAttackers(queuedAttacks: CombatAttack[]): Set<string> {
+const getCommittedAttackers = (queuedAttacks: CombatAttack[]): Set<string> => {
   return new Set(queuedAttacks.flatMap((attack) => attack.attackerIds));
-}
+};
 
-function getQueuedTargetKeys(queuedAttacks: CombatAttack[]): Set<string> {
+const getQueuedTargetKeys = (queuedAttacks: CombatAttack[]): Set<string> => {
   return new Set(queuedAttacks.map((attack) => `${attack.targetType ?? 'ship'}:${attack.targetId}`));
-}
+};
 
-function getAvailableAttackers(state: GameState, playerId: number, queuedAttacks: CombatAttack[]): Ship[] {
+const getAvailableAttackers = (state: GameState, playerId: number, queuedAttacks: CombatAttack[]): Ship[] => {
   const committedAttackers = getCommittedAttackers(queuedAttacks);
   return state.ships.filter(
     (ship) => ship.owner === playerId && !ship.destroyed && canAttack(ship) && !committedAttackers.has(ship.id),
   );
-}
+};
 
-function getCurrentCombatTarget(state: GameState, playerId: number, planning: CombatOverlayPlanningState) {
-  const targetId = planning.combatTargetId;
+const getCurrentCombatTarget = (state: GameState, playerId: number, planning: CombatOverlayPlanningState) => {
+  const { combatTargetId: targetId, combatTargetType } = planning;
   if (!targetId) return null;
-  if (planning.combatTargetType === 'ordnance') {
+  if (combatTargetType === 'ordnance') {
     const ordnance = state.ordnance.find(
       (item) => item.id === targetId && !item.destroyed && item.owner !== playerId && item.type === 'nuke',
     );
@@ -70,43 +70,42 @@ function getCurrentCombatTarget(state: GameState, playerId: number, planning: Co
   }
   const ship = state.ships.find((item) => item.id === targetId);
   return ship ? { targetType: 'ship' as const, target: ship } : null;
-}
+};
 
-export function getQueuedCombatOverlayAttacks(
+export const getQueuedCombatOverlayAttacks = (
   state: GameState,
   queuedAttacks: CombatAttack[],
-): QueuedCombatOverlayAttack[] {
-  const overlays: QueuedCombatOverlayAttack[] = [];
-  for (const queued of queuedAttacks) {
-    const target =
-      (queued.targetType ?? 'ship') === 'ordnance'
-        ? state.ordnance.find((item) => item.id === queued.targetId)
-        : state.ships.find((item) => item.id === queued.targetId);
-    if (!target) continue;
-    overlays.push({
-      targetPosition: target.position,
-      attackerPositions: queued.attackerIds
-        .map((attackerId) => state.ships.find((ship) => ship.id === attackerId)?.position ?? null)
-        .filter((position): position is HexCoord => position !== null),
-    });
-  }
-  return overlays;
-}
+): QueuedCombatOverlayAttack[] => {
+  return queuedAttacks
+    .map((queued) => {
+      const target =
+        (queued.targetType ?? 'ship') === 'ordnance'
+          ? state.ordnance.find((item) => item.id === queued.targetId)
+          : state.ships.find((item) => item.id === queued.targetId);
+      if (!target) return null;
+      return {
+        targetPosition: target.position,
+        attackerPositions: queued.attackerIds
+          .map((attackerId) => state.ships.find((ship) => ship.id === attackerId)?.position ?? null)
+          .filter((position): position is HexCoord => position !== null),
+      };
+    })
+    .filter((overlay): overlay is QueuedCombatOverlayAttack => overlay !== null);
+};
 
-export function getCombatOverlayHighlights(
+export const getCombatOverlayHighlights = (
   state: GameState,
   playerId: number,
   planning: CombatOverlayPlanningState,
   map: SolarSystemMap | null,
-): CombatOverlayHighlights {
+): CombatOverlayHighlights => {
   if (map === null) {
     return { shipTargets: [], ordnanceTargets: [] };
   }
 
-  const targetId = planning.combatTargetId;
-  const targetType = planning.combatTargetType;
-  const queuedTargetKeys = getQueuedTargetKeys(planning.queuedAttacks);
-  const myAttackers = getAvailableAttackers(state, playerId, planning.queuedAttacks);
+  const { combatTargetId: targetId, combatTargetType: targetType, queuedAttacks } = planning;
+  const queuedTargetKeys = getQueuedTargetKeys(queuedAttacks);
+  const myAttackers = getAvailableAttackers(state, playerId, queuedAttacks);
   const shipTargets = state.ships
     .filter(
       (ship) =>
@@ -134,28 +133,28 @@ export function getCombatOverlayHighlights(
       isSelected: ordnance.id === targetId && targetType === 'ordnance',
     }));
   return { shipTargets, ordnanceTargets };
-}
+};
 
-function getLegalPreviewAttackers(
+const getLegalPreviewAttackers = (
   target: Ship | Ordnance,
   targetType: 'ship' | 'ordnance',
   attackers: Ship[],
   map: SolarSystemMap,
-): Ship[] {
+): Ship[] => {
   if (targetType === 'ordnance') {
     return attackers.filter((attacker) => hasLineOfSightToTarget(attacker, target, map));
   }
   const shipTarget = target as Ship;
   return attackers.filter((attacker) => hasLineOfSight(attacker, shipTarget, map));
-}
+};
 
-function formatPreviewLabel(
+const formatPreviewLabel = (
   target: Ship | Ordnance,
   targetType: 'ship' | 'ordnance',
   attackers: Ship[],
   allShips: Ship[],
   requestedStrength: number | null,
-): { label: string; totalMod: number; counterattackLabel: string | null } {
+): { label: string; totalMod: number; counterattackLabel: string | null } => {
   let label = '';
   let rangeMod = 0;
   let velMod = 0;
@@ -189,14 +188,14 @@ function formatPreviewLabel(
     totalMod,
     counterattackLabel,
   };
-}
+};
 
-export function getCombatPreview(
+export const getCombatPreview = (
   state: GameState,
   playerId: number,
   planning: CombatOverlayPlanningState,
   map: SolarSystemMap | null,
-): CombatPreview | null {
+): CombatPreview | null => {
   if (map === null) return null;
 
   const targetInfo = getCurrentCombatTarget(state, playerId, planning);
@@ -222,9 +221,9 @@ export function getCombatPreview(
     totalMod: preview.totalMod,
     counterattackLabel: preview.counterattackLabel,
   };
-}
+};
 
-export function formatCombatResult(result: CombatResult, state: GameState): string {
+export const formatCombatResult = (result: CombatResult, state: GameState): string => {
   const targetName =
     result.targetType === 'ordnance'
       ? 'nuke'
@@ -239,13 +238,13 @@ export function formatCombatResult(result: CombatResult, state: GameState): stri
     return `${targetName}: asteroid [${result.dieRoll}] ${damage}`;
   }
   return `${result.odds} [${result.dieRoll}→${result.modifiedRoll}] ${targetName}: ${damage}`;
-}
+};
 
-export function getCombatTargetEntity(
+export const getCombatTargetEntity = (
   result: CombatResult,
   state: GameState | null,
   previousState: GameState | null,
-): Ship | Ordnance | null {
+): Ship | Ordnance | null => {
   const sources = [state, previousState].filter((source): source is GameState => source !== null);
   for (const source of sources) {
     if (result.targetType === 'ordnance') {
@@ -257,4 +256,4 @@ export function getCombatTargetEntity(
     if (ship) return ship;
   }
   return null;
-}
+};

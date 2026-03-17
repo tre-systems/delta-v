@@ -17,7 +17,7 @@ import type {
 /**
  * Determine whether the active player should receive an ordnance phase this turn.
  */
-export function shouldEnterOrdnancePhase(state: GameState): boolean {
+export const shouldEnterOrdnancePhase = (state: GameState): boolean => {
   const allowedOrdnanceTypes = getAllowedOrdnanceTypes(state);
   if (allowedOrdnanceTypes.size === 0) {
     return false;
@@ -33,17 +33,17 @@ export function shouldEnterOrdnancePhase(state: GameState): boolean {
       !s.captured &&
       hasLaunchableOrdnanceCapacity(s, allowedOrdnanceTypes),
   );
-}
+};
 
 /**
  * Emplace orbital bases from carrying ships during the ordnance phase.
  */
-export function processEmplacement(
+export const processEmplacement = (
   state: GameState,
   playerId: number,
   emplacements: OrbitalBaseEmplacement[],
   map: SolarSystemMap,
-): { state: GameState } | { error: string } {
+): { state: GameState } | { error: string } => {
   if (state.phase !== 'ordnance') {
     return { error: 'Not in ordnance phase' };
   }
@@ -100,99 +100,72 @@ export function processEmplacement(
   }
 
   return { state };
-}
+};
 
 /**
- * Move all ordnance, then check for detonations against ships and other ordnance.
+ * Check if a hex is an asteroid that hasn't been destroyed.
  */
-export function moveOrdnance(
-  state: GameState,
-  map: SolarSystemMap,
-  ordnanceMovements: OrdnanceMovement[],
+export const isAsteroidHex = (state: GameState, map: SolarSystemMap, coord: { q: number; r: number }): boolean => {
+  const key = hexKey(coord);
+  const hex = map.hexes.get(key);
+  return hex?.terrain === 'asteroid' && !state.destroyedAsteroids.includes(key);
+};
+
+const resolveTorpedoDetonation = (
+  ord: Ordnance,
+  ships: Ship[],
+  contactedOrdnance: Ordnance[],
+  hex: { q: number; r: number },
   events: MovementEvent[],
   rng?: () => number,
-): void {
-  for (const ord of state.ordnance) {
-    if (ord.destroyed) continue;
+): boolean => {
+  if (ships.length === 0 && contactedOrdnance.length === 0) {
+    return false;
+  }
 
-    const from = { ...ord.position };
-    const dest = hexAdd(ord.position, ord.velocity);
-    const finalDest = applyPendingGravityEffects(dest, ord.pendingGravityEffects);
+  const candidates = shuffle(
+    [
+      ...ships.map((ship) => ({ type: 'ship' as const, ship })),
+      ...contactedOrdnance.map((other) => ({ type: 'ordnance' as const, other })),
+    ],
+    rng,
+  );
 
-    const finalPath = hexLineDraw(from, finalDest);
-    ord.position = finalDest;
-    ord.velocity = hexSubtract(finalDest, from);
-    ord.pendingGravityEffects = collectEnteredGravityEffects(finalPath, map);
-    ord.turnsRemaining--;
-
-    if (ord.turnsRemaining <= 0) {
-      ord.destroyed = true;
+  for (const candidate of candidates) {
+    if (candidate.type === 'ordnance') {
+      candidate.other.destroyed = true;
+      return true;
     }
 
-    let nukeDevastated = false;
-    for (let pi = 0; pi < finalPath.length; pi++) {
-      const hex = map.hexes.get(hexKey(finalPath[pi]));
-      if (hex?.body) {
-        if (ord.type === 'nuke') {
-          nukeDevastated = true;
-          const entryHex = pi > 0 ? finalPath[pi - 1] : finalPath[pi];
-          const entryKey = hexKey(entryHex);
-          if (map.hexes.get(entryKey)?.base && !state.destroyedBases.includes(entryKey)) {
-            state.destroyedBases.push(entryKey);
-          }
-          for (const ship of state.ships) {
-            if (!ship.destroyed && hexEqual(ship.position, entryHex)) {
-              ship.destroyed = true;
-              ship.velocity = { dq: 0, dr: 0 };
-              events.push({
-                type: 'nukeDetonation',
-                shipId: ship.id,
-                hex: entryHex,
-                dieRoll: 0,
-                damageType: 'eliminated',
-                disabledTurns: 0,
-                ordnanceId: ord.id,
-              });
-            }
-          }
-          for (const other of state.ordnance) {
-            if (other.id !== ord.id && !other.destroyed && hexEqual(other.position, entryHex)) {
-              other.destroyed = true;
-            }
-          }
-        }
-        ord.destroyed = true;
-        break;
-      }
-    }
-
-    const detonated =
-      nukeDevastated || (!ord.destroyed && checkOrdnanceDetonation(ord, state, finalPath, events, map, rng));
-
-    ordnanceMovements.push({
+    const dieRoll = rollD6(rng);
+    const result = lookupOtherDamage(dieRoll, 'torpedo');
+    events.push({
+      type: 'torpedoHit',
+      shipId: candidate.ship.id,
+      hex,
+      dieRoll,
+      damageType: result.type,
+      disabledTurns: result.disabledTurns,
       ordnanceId: ord.id,
-      from,
-      to: finalDest,
-      path: finalPath,
-      detonated,
     });
 
-    if (detonated) {
-      ord.destroyed = true;
+    if (result.type !== 'none') {
+      applyDamage(candidate.ship, result);
+      return true;
     }
   }
 
-  state.ordnance = state.ordnance.filter((o) => !o.destroyed);
-}
+  return false;
+};
 
-function checkOrdnanceDetonation(
+const checkOrdnanceDetonation = (
   ord: Ordnance,
   state: GameState,
   path: { q: number; r: number }[],
   events: MovementEvent[],
   map: SolarSystemMap,
   rng?: () => number,
-): boolean {
+): boolean => {
   for (let i = 0; i < path.length; i++) {
     const pathHex = path[i];
     const isLaunchHex = i === 0;
@@ -274,74 +247,101 @@ function checkOrdnanceDetonation(
   }
 
   return false;
-}
-
-function resolveTorpedoDetonation(
-  ord: Ordnance,
-  ships: Ship[],
-  contactedOrdnance: Ordnance[],
-  hex: { q: number; r: number },
-  events: MovementEvent[],
-  rng?: () => number,
-): boolean {
-  if (ships.length === 0 && contactedOrdnance.length === 0) {
-    return false;
-  }
-
-  const candidates = shuffle(
-    [
-      ...ships.map((ship) => ({ type: 'ship' as const, ship })),
-      ...contactedOrdnance.map((other) => ({ type: 'ordnance' as const, other })),
-    ],
-    rng,
-  );
-
-  for (const candidate of candidates) {
-    if (candidate.type === 'ordnance') {
-      candidate.other.destroyed = true;
-      return true;
-    }
-
-    const dieRoll = rollD6(rng);
-    const result = lookupOtherDamage(dieRoll, 'torpedo');
-    events.push({
-      type: 'torpedoHit',
-      shipId: candidate.ship.id,
-      hex,
-      dieRoll,
-      damageType: result.type,
-      disabledTurns: result.disabledTurns,
-      ordnanceId: ord.id,
-    });
-
-    if (result.type !== 'none') {
-      applyDamage(candidate.ship, result);
-      return true;
-    }
-  }
-
-  return false;
-}
+};
 
 /**
- * Check if a hex is an asteroid that hasn't been destroyed.
+ * Move all ordnance, then check for detonations against ships and other ordnance.
  */
-export function isAsteroidHex(state: GameState, map: SolarSystemMap, coord: { q: number; r: number }): boolean {
-  const key = hexKey(coord);
-  const hex = map.hexes.get(key);
-  return hex?.terrain === 'asteroid' && !state.destroyedAsteroids.includes(key);
-}
+export const moveOrdnance = (
+  state: GameState,
+  map: SolarSystemMap,
+  ordnanceMovements: OrdnanceMovement[],
+  events: MovementEvent[],
+  rng?: () => number,
+): void => {
+  for (const ord of state.ordnance) {
+    if (ord.destroyed) continue;
+
+    const from = { ...ord.position };
+    const dest = hexAdd(ord.position, ord.velocity);
+    const finalDest = applyPendingGravityEffects(dest, ord.pendingGravityEffects);
+
+    const finalPath = hexLineDraw(from, finalDest);
+    ord.position = finalDest;
+    ord.velocity = hexSubtract(finalDest, from);
+    ord.pendingGravityEffects = collectEnteredGravityEffects(finalPath, map);
+    ord.turnsRemaining--;
+
+    if (ord.turnsRemaining <= 0) {
+      ord.destroyed = true;
+    }
+
+    let nukeDevastated = false;
+    for (let pi = 0; pi < finalPath.length; pi++) {
+      const hex = map.hexes.get(hexKey(finalPath[pi]));
+      if (hex?.body) {
+        if (ord.type === 'nuke') {
+          nukeDevastated = true;
+          const entryHex = pi > 0 ? finalPath[pi - 1] : finalPath[pi];
+          const entryKey = hexKey(entryHex);
+          if (map.hexes.get(entryKey)?.base && !state.destroyedBases.includes(entryKey)) {
+            state.destroyedBases.push(entryKey);
+          }
+          for (const ship of state.ships) {
+            if (!ship.destroyed && hexEqual(ship.position, entryHex)) {
+              ship.destroyed = true;
+              ship.velocity = { dq: 0, dr: 0 };
+              events.push({
+                type: 'nukeDetonation',
+                shipId: ship.id,
+                hex: entryHex,
+                dieRoll: 0,
+                damageType: 'eliminated',
+                disabledTurns: 0,
+                ordnanceId: ord.id,
+              });
+            }
+          }
+          for (const other of state.ordnance) {
+            if (other.id !== ord.id && !other.destroyed && hexEqual(other.position, entryHex)) {
+              other.destroyed = true;
+            }
+          }
+        }
+        ord.destroyed = true;
+        break;
+      }
+    }
+
+    const detonated =
+      nukeDevastated || (!ord.destroyed && checkOrdnanceDetonation(ord, state, finalPath, events, map, rng));
+
+    ordnanceMovements.push({
+      ordnanceId: ord.id,
+      from,
+      to: finalDest,
+      path: finalPath,
+      detonated,
+    });
+
+    if (detonated) {
+      ord.destroyed = true;
+    }
+  }
+
+  state.ordnance = state.ordnance.filter((o) => !o.destroyed);
+};
 
 /**
  * Queue asteroid hazards so they resolve during combat.
  */
-export function queueAsteroidHazards(
+export const queueAsteroidHazards = (
   ship: Ship,
   path: { q: number; r: number }[],
   velocity: { dq: number; dr: number },
   state: GameState,
   map: SolarSystemMap,
-): void {
+): void => {
   const speed = hexVecLength(velocity);
   if (speed <= 1) return;
   if (path.length < 2) return;
@@ -368,14 +368,18 @@ export function queueAsteroidHazards(
       hex: { ...first },
     });
   }
-}
+};
 
 /**
  * Resolve pending asteroid collision damage.
  */
-export function resolvePendingAsteroidHazards(state: GameState, playerId: number, rng?: () => number): CombatResult[] {
+export const resolvePendingAsteroidHazards = (
+  state: GameState,
+  playerId: number,
+  rng?: () => number,
+): CombatResult[] => {
   const results: CombatResult[] = [];
-  const remaining = [];
+  const remaining: typeof state.pendingAsteroidHazards = [];
 
   for (const hazard of state.pendingAsteroidHazards) {
     const ship = state.ships.find((s) => s.id === hazard.shipId);
@@ -410,4 +414,4 @@ export function resolvePendingAsteroidHazards(state: GameState, playerId: number
 
   state.pendingAsteroidHazards = remaining;
   return results;
-}
+};

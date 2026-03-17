@@ -53,7 +53,7 @@ export interface StateUpdateResult {
   state: GameState;
 }
 
-function resolveControlledBases(player: ScenarioDefinition['players'][number], map: SolarSystemMap): string[] {
+const resolveControlledBases = (player: ScenarioDefinition['players'][number], map: SolarSystemMap): string[] => {
   if (player.bases && player.bases.length > 0) {
     return [...new Set(player.bases.map((base) => hexKey(base)))];
   }
@@ -62,46 +62,41 @@ function resolveControlledBases(player: ScenarioDefinition['players'][number], m
     return [];
   }
 
-  const ownedBases: string[] = [];
-  for (const [key, hex] of map.hexes) {
-    if (hex.base?.bodyName === player.homeBody) {
-      ownedBases.push(key);
-    }
-  }
-  return ownedBases;
-}
+  return [...map.hexes.entries()].filter(([, hex]) => hex.base?.bodyName === player.homeBody).map(([key]) => key);
+};
 
-function getScenarioStartingCredits(scenario: ScenarioDefinition, playerId: number): number | undefined {
+const getScenarioStartingCredits = (scenario: ScenarioDefinition, playerId: number): number | undefined => {
   if (scenario.startingCredits == null) {
     return undefined;
   }
   return Array.isArray(scenario.startingCredits) ? scenario.startingCredits[playerId] : scenario.startingCredits;
-}
+};
 
-function getStartingVisitedBodies(ships: Ship[], playerId: number, map: SolarSystemMap): string[] {
-  const visited = new Set<string>();
-  for (const ship of ships) {
-    if (ship.owner !== playerId) continue;
-    const hex = map.hexes.get(hexKey(ship.position));
-    if (hex?.gravity?.bodyName) visited.add(hex.gravity.bodyName);
-    if (hex?.body?.name) visited.add(hex.body.name);
-  }
+const getStartingVisitedBodies = (ships: Ship[], playerId: number, map: SolarSystemMap): string[] => {
+  const visited = ships
+    .filter((ship) => ship.owner === playerId)
+    .reduce((acc, ship) => {
+      const hex = map.hexes.get(hexKey(ship.position));
+      if (hex?.gravity?.bodyName) acc.add(hex.gravity.bodyName);
+      if (hex?.body?.name) acc.add(hex.body.name);
+      return acc;
+    }, new Set<string>());
   return [...visited];
-}
+};
 
-function assertScenarioPlayerCount(scenario: ScenarioDefinition): void {
+const assertScenarioPlayerCount = (scenario: ScenarioDefinition): void => {
   if (scenario.players.length !== 2) {
     throw new Error(`Scenario must define exactly 2 players, got ${scenario.players.length}`);
   }
-}
+};
 
-function resolveStartingPlacement(
+const resolveStartingPlacement = (
   def: ScenarioDefinition['players'][number]['ships'][number],
   player: ScenarioDefinition['players'][number],
   playerBases: string[],
   map: SolarSystemMap,
   findBaseHex: (map: SolarSystemMap, bodyName: string) => { q: number; r: number } | null,
-): { position: { q: number; r: number }; landed: boolean } {
+): { position: { q: number; r: number }; landed: boolean } => {
   const shouldLand = def.startLanded !== false;
   if (!shouldLand) {
     return { position: { ...def.position }, landed: false };
@@ -126,9 +121,9 @@ function resolveStartingPlacement(
   }
 
   throw new Error(`No valid landed starting hex for ${player.homeBody || 'player'} ${def.type}`);
-}
+};
 
-export function filterStateForPlayer(state: GameState, playerId: number): GameState {
+export const filterStateForPlayer = (state: GameState, playerId: number): GameState => {
   if (!usesEscapeInspectionRules(state) && !state.ships.some((s) => s.hasFugitives)) {
     return state;
   }
@@ -146,18 +141,18 @@ export function filterStateForPlayer(state: GameState, playerId: number): GameSt
       return rest;
     }),
   };
-}
+};
 
 /**
  * Pure game engine — no IO, no networking, no storage.
  * All game logic lives here so it can be unit tested.
  */
-export function createGame(
+export const createGame = (
   scenario: ScenarioDefinition,
   map: SolarSystemMap,
   gameCode: string,
   findBaseHex: (map: SolarSystemMap, bodyName: string) => { q: number; r: number } | null,
-): GameState {
+): GameState => {
   assertScenarioPlayerCount(scenario);
   const ships: Ship[] = [];
   const playerBases = scenario.players.map((player) => resolveControlledBases(player, map));
@@ -290,18 +285,18 @@ export function createGame(
     winner: null,
     winReason: null,
   };
-}
+};
 
 /**
  * Process fleet purchases for a player during the fleet-building phase.
  */
-export function processFleetReady(
+export const processFleetReady = (
   state: GameState,
   playerId: number,
   purchases: FleetPurchase[],
   map: SolarSystemMap,
   availableShipTypes?: string[],
-): StateUpdateResult | { error: string } {
+): StateUpdateResult | { error: string } => {
   if (state.phase !== 'fleetBuilding') {
     return { error: 'Not in fleet building phase' };
   }
@@ -312,20 +307,29 @@ export function processFleetReady(
   const player = state.players[playerId];
   const credits = player.credits ?? 0;
 
-  let totalCost = 0;
-  for (const purchase of purchases) {
-    const stats = SHIP_STATS[purchase.shipType];
-    if (!stats) {
-      return { error: `Unknown ship type: ${purchase.shipType}` };
-    }
-    if (purchase.shipType === 'orbitalBase') {
-      return { error: 'Cannot purchase orbital bases directly — buy a transport and base cargo' };
-    }
-    if (availableShipTypes && !availableShipTypes.includes(purchase.shipType)) {
-      return { error: `Ship type not available: ${purchase.shipType}` };
-    }
-    totalCost += stats.cost;
+  const totalCostOrError = purchases.reduce<{ cost: number } | { error: string }>(
+    (acc, purchase) => {
+      if ('error' in acc) return acc;
+      const stats = SHIP_STATS[purchase.shipType];
+      if (!stats) {
+        return { error: `Unknown ship type: ${purchase.shipType}` };
+      }
+      if (purchase.shipType === 'orbitalBase') {
+        return { error: 'Cannot purchase orbital bases directly — buy a transport and base cargo' };
+      }
+      if (availableShipTypes && !availableShipTypes.includes(purchase.shipType)) {
+        return { error: `Ship type not available: ${purchase.shipType}` };
+      }
+      return { cost: acc.cost + stats.cost };
+    },
+    { cost: 0 },
+  );
+
+  if ('error' in totalCostOrError) {
+    return totalCostOrError;
   }
+
+  const totalCost = totalCostOrError.cost;
 
   if (totalCost > credits) {
     return { error: `Not enough credits: need ${totalCost}, have ${credits}` };
@@ -371,52 +375,9 @@ export function processFleetReady(
   }
 
   return { state };
-}
+};
 
-/**
- * Process astrogation orders for the active player.
- */
-export function processAstrogation(
-  state: GameState,
-  playerId: number,
-  orders: AstrogationOrder[],
-  map: SolarSystemMap,
-  rng?: () => number,
-): MovementResult | StateUpdateResult | { error: string } {
-  if (state.phase !== 'astrogation') {
-    return { error: 'Not in astrogation phase' };
-  }
-  if (playerId !== state.activePlayer) {
-    return { error: 'Not your turn' };
-  }
-
-  const validationError = validateAstrogationOrders(state, playerId, orders);
-  if (validationError) {
-    return { error: validationError };
-  }
-
-  state.pendingAstrogationOrders = orders.map((order) => ({
-    shipId: order.shipId,
-    burn: order.burn,
-    overload: order.overload ?? null,
-    weakGravityChoices: order.weakGravityChoices ? { ...order.weakGravityChoices } : undefined,
-  }));
-
-  checkGameEnd(state, map);
-  if (state.winner !== null) {
-    state.pendingAstrogationOrders = null;
-    return { state };
-  }
-
-  if (shouldEnterOrdnancePhase(state)) {
-    state.phase = 'ordnance';
-    return { state };
-  }
-
-  return resolveMovementPhase(state, playerId, map, rng);
-}
-
-function validateAstrogationOrders(state: GameState, playerId: number, orders: AstrogationOrder[]): string | null {
+const validateAstrogationOrders = (state: GameState, playerId: number, orders: AstrogationOrder[]): string | null => {
   const seenShips = new Set<string>();
 
   for (const order of orders) {
@@ -465,18 +426,18 @@ function validateAstrogationOrders(state: GameState, playerId: number, orders: A
   }
 
   return null;
-}
+};
 
 /**
  * Central movement orchestrator — resolves queued orders, then runs all
  * post-movement checks (resupply, ramming, ordnance, detection, victory).
  */
-function resolveMovementPhase(
+const resolveMovementPhase = (
   state: GameState,
   playerId: number,
   map: SolarSystemMap,
   rng?: () => number,
-): MovementResult {
+): MovementResult => {
   const movements: ShipMovement[] = [];
   const ordnanceMovements: OrdnanceMovement[] = [];
   const events: MovementEvent[] = [];
@@ -581,18 +542,61 @@ function resolveMovementPhase(
   }
 
   return { movements, ordnanceMovements, events, state };
-}
+};
+
+/**
+ * Process astrogation orders for the active player.
+ */
+export const processAstrogation = (
+  state: GameState,
+  playerId: number,
+  orders: AstrogationOrder[],
+  map: SolarSystemMap,
+  rng?: () => number,
+): MovementResult | StateUpdateResult | { error: string } => {
+  if (state.phase !== 'astrogation') {
+    return { error: 'Not in astrogation phase' };
+  }
+  if (playerId !== state.activePlayer) {
+    return { error: 'Not your turn' };
+  }
+
+  const validationError = validateAstrogationOrders(state, playerId, orders);
+  if (validationError) {
+    return { error: validationError };
+  }
+
+  state.pendingAstrogationOrders = orders.map((order) => ({
+    shipId: order.shipId,
+    burn: order.burn,
+    overload: order.overload ?? null,
+    weakGravityChoices: order.weakGravityChoices ? { ...order.weakGravityChoices } : undefined,
+  }));
+
+  checkGameEnd(state, map);
+  if (state.winner !== null) {
+    state.pendingAstrogationOrders = null;
+    return { state };
+  }
+
+  if (shouldEnterOrdnancePhase(state)) {
+    state.phase = 'ordnance';
+    return { state };
+  }
+
+  return resolveMovementPhase(state, playerId, map, rng);
+};
 
 /**
  * Process ordnance launches for the active player.
  */
-export function processOrdnance(
+export const processOrdnance = (
   state: GameState,
   playerId: number,
   launches: OrdnanceLaunch[],
   map: SolarSystemMap,
   rng?: () => number,
-): MovementResult | { error: string } {
+): MovementResult | { error: string } => {
   if (state.phase !== 'ordnance') {
     return { error: 'Not in ordnance phase' };
   }
@@ -665,15 +669,18 @@ export function processOrdnance(
       }
     }
 
-    let velocity = { ...ship.velocity };
-    if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
-      const accelDir = HEX_DIRECTIONS[launch.torpedoAccel];
-      const accelSteps = launch.torpedoAccelSteps ?? 1;
-      velocity = {
-        dq: velocity.dq + accelDir.dq * accelSteps,
-        dr: velocity.dr + accelDir.dr * accelSteps,
-      };
-    }
+    const baseVelocity = { ...ship.velocity };
+    const velocity =
+      launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null
+        ? (() => {
+            const accelDir = HEX_DIRECTIONS[launch.torpedoAccel];
+            const accelSteps = launch.torpedoAccelSteps ?? 1;
+            return {
+              dq: baseVelocity.dq + accelDir.dq * accelSteps,
+              dr: baseVelocity.dr + accelDir.dr * accelSteps,
+            };
+          })()
+        : baseVelocity;
 
     state.ordnance.push({
       id: `ord${nextOrdId++}`,
@@ -695,17 +702,17 @@ export function processOrdnance(
   }
 
   return resolveMovementPhase(state, playerId, map, rng);
-}
+};
 
 /**
  * Skip ordnance phase and resolve the queued movement phase.
  */
-export function skipOrdnance(
+export const skipOrdnance = (
   state: GameState,
   playerId: number,
   map?: SolarSystemMap,
   rng?: () => number,
-): MovementResult | StateUpdateResult | { error: string } {
+): MovementResult | StateUpdateResult | { error: string } => {
   if (state.phase !== 'ordnance') {
     return { error: 'Not in ordnance phase' };
   }
@@ -726,4 +733,4 @@ export function skipOrdnance(
   }
 
   return resolveMovementPhase(state, playerId, map, rng);
-}
+};

@@ -28,12 +28,12 @@ export type LocalResolution =
       resetCombat: boolean;
     };
 
-export function resolveAstrogationStep(
+export const resolveAstrogationStep = (
   state: GameState,
   playerId: number,
   orders: AstrogationOrder[],
   map: SolarSystemMap,
-): LocalResolution {
+): LocalResolution => {
   const result = processAstrogation(state, playerId, orders, map);
   if ('error' in result) {
     return { kind: 'error', error: result.error };
@@ -42,22 +42,22 @@ export function resolveAstrogationStep(
     return { kind: 'movement', result };
   }
   return { kind: 'state', state: result.state };
-}
+};
 
-export function resolveOrdnanceStep(
+export const resolveOrdnanceStep = (
   state: GameState,
   playerId: number,
   launches: OrdnanceLaunch[],
   map: SolarSystemMap,
-): LocalResolution {
+): LocalResolution => {
   const result = processOrdnance(state, playerId, launches, map);
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
   return { kind: 'movement', result };
-}
+};
 
-export function resolveSkipOrdnanceStep(state: GameState, playerId: number, map: SolarSystemMap): LocalResolution {
+export const resolveSkipOrdnanceStep = (state: GameState, playerId: number, map: SolarSystemMap): LocalResolution => {
   const result = skipOrdnance(state, playerId, map);
   if ('error' in result) {
     return { kind: 'error', error: result.error };
@@ -66,9 +66,9 @@ export function resolveSkipOrdnanceStep(state: GameState, playerId: number, map:
     return { kind: 'movement', result };
   }
   return { kind: 'state', state: result.state };
-}
+};
 
-export function resolveBeginCombatStep(state: GameState, playerId: number, map: SolarSystemMap): LocalResolution {
+export const resolveBeginCombatStep = (state: GameState, playerId: number, map: SolarSystemMap): LocalResolution => {
   const previousState = state;
   const result = beginCombatPhase(state, playerId, map);
   if ('error' in result) {
@@ -84,15 +84,15 @@ export function resolveBeginCombatStep(state: GameState, playerId: number, map: 
     };
   }
   return { kind: 'state', state: result.state };
-}
+};
 
-export function resolveCombatStep(
+export const resolveCombatStep = (
   state: GameState,
   playerId: number,
   attacks: CombatAttack[],
   map: SolarSystemMap,
   resetCombat = true,
-): LocalResolution {
+): LocalResolution => {
   const previousState = state;
   const result = processCombat(state, playerId, attacks, map);
   if ('error' in result) {
@@ -105,9 +105,9 @@ export function resolveCombatStep(
     results: result.results,
     resetCombat,
   };
-}
+};
 
-export function resolveSkipCombatStep(state: GameState, playerId: number, map: SolarSystemMap): LocalResolution {
+export const resolveSkipCombatStep = (state: GameState, playerId: number, map: SolarSystemMap): LocalResolution => {
   const previousState = state;
   const result = skipCombat(state, playerId, map);
   if ('error' in result) {
@@ -123,11 +123,11 @@ export function resolveSkipCombatStep(state: GameState, playerId: number, map: S
     };
   }
   return { kind: 'state', state: result.state };
-}
+};
 
-export function hasOwnedPendingAsteroidHazards(state: GameState, playerId: number): boolean {
+export const hasOwnedPendingAsteroidHazards = (state: GameState, playerId: number): boolean => {
   return state.pendingAsteroidHazards.some((hazard) => {
     const ship = state.ships.find((candidate) => candidate.id === hazard.shipId);
     return ship?.owner === playerId && !ship.destroyed;
   });
-}
+};

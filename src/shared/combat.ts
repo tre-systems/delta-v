@@ -66,7 +66,7 @@ export interface DamageResult {
 /**
  * Compute combat odds ratio from attacker and defender strengths.
  */
-export function computeOdds(attackStrength: number, defendStrength: number): OddsRatio {
+export const computeOdds = (attackStrength: number, defendStrength: number): OddsRatio => {
   if (defendStrength <= 0) return '4:1';
   if (attackStrength <= 0) return '1:4';
 
@@ -78,60 +78,28 @@ export function computeOdds(attackStrength: number, defendStrength: number): Odd
   if (ratio >= 1) return '1:1';
   if (ratio >= 0.5) return '1:2';
   return '1:4';
-}
-
-/**
- * Compute range modifier: subtract 1 per hex of distance.
- * Range is measured from the attacker's closest approach this turn
- * to the target's final position.
- */
-export function computeRangeMod(attacker: Ship, target: Ship): number {
-  return computeRangeModToTarget(attacker, target);
-}
-
-/**
- * Compute velocity modifier: subtract 1 per hex of velocity difference > 2.
- * Velocity difference is the hex distance between their velocity vectors.
- */
-export function computeVelocityMod(attacker: Ship, target: Ship): number {
-  return computeVelocityModToTarget(attacker, target);
-}
-
-export function computeRangeModToTarget(attacker: Ship, target: Pick<Ship | Ordnance, 'position'>): number {
-  return hexDistance(getClosestApproachHex(attacker, target), target.position);
-}
-
-export function computeVelocityModToTarget(attacker: Ship, target: Pick<Ship | Ordnance, 'velocity'>): number {
-  const dq = Math.abs(attacker.velocity.dq - target.velocity.dq);
-  const dr = Math.abs(attacker.velocity.dr - target.velocity.dr);
-  const ds = Math.abs(-attacker.velocity.dq - attacker.velocity.dr - (-target.velocity.dq - target.velocity.dr));
-  const velDiff = Math.max(dq, dr, ds);
-  return Math.max(0, velDiff - 2);
-}
+};
 
 /**
  * Get total combat strength for a group of attackers.
  */
-export function getCombatStrength(ships: Ship[]): number {
-  let total = 0;
-  for (const ship of ships) {
-    if (ship.destroyed || ship.damage.disabledTurns > 0) continue;
+export const getCombatStrength = (ships: Ship[]): number =>
+  ships.reduce((total, ship) => {
+    if (ship.destroyed || ship.damage.disabledTurns > 0) return total;
     const stats = SHIP_STATS[ship.type];
-    if (stats) total += stats.combat;
-  }
-  return total;
-}
+    return stats ? total + stats.combat : total;
+  }, 0);
 
-export function getDeclaredCombatStrength(ships: Ship[], declaredStrength?: number | null): number {
+export const getDeclaredCombatStrength = (ships: Ship[], declaredStrength?: number | null): number => {
   const maxStrength = getCombatStrength(ships);
   if (declaredStrength == null) return maxStrength;
   return Math.max(1, Math.min(maxStrength, declaredStrength));
-}
+};
 
 /**
  * Check if a ship can initiate an attack (not defensive-only, not disabled).
  */
-export function canAttack(ship: Ship): boolean {
+export const canAttack = (ship: Ship): boolean => {
   if (ship.destroyed || ship.landed) return false;
   if (ship.resuppliedThisTurn) return false;
   if (ship.captured) return false;
@@ -140,13 +108,13 @@ export function canAttack(ship: Ship): boolean {
   // Dreadnaughts may still fire their guns even when disabled (rulebook p.6)
   if (ship.damage.disabledTurns > 0 && ship.type !== 'dreadnaught') return false;
   return true;
-}
+};
 
 /**
  * Check if a ship can counterattack (non-commercial, not destroyed, not disabled).
  * Dreadnaughts may counterattack even when disabled.
  */
-export function canCounterattack(ship: Ship): boolean {
+export const canCounterattack = (ship: Ship): boolean => {
   if (ship.destroyed || ship.landed) return false;
   if (ship.resuppliedThisTurn) return false;
   if (ship.captured) return false;
@@ -155,99 +123,101 @@ export function canCounterattack(ship: Ship): boolean {
   // Dreadnaughts may still fire their guns even when disabled (rulebook p.6)
   if (ship.damage.disabledTurns > 0 && ship.type !== 'dreadnaught') return false;
   return true;
-}
+};
 
-function getTrackedPath(ship: Ship) {
-  return ship.lastMovementPath && ship.lastMovementPath.length > 0 ? ship.lastMovementPath : [ship.position];
-}
+const getTrackedPath = (ship: Ship) =>
+  ship.lastMovementPath && ship.lastMovementPath.length > 0 ? ship.lastMovementPath : [ship.position];
 
-export function getClosestApproachHex(attacker: Ship, target: Pick<Ship | Ordnance, 'position'>) {
-  let bestHex = getTrackedPath(attacker)[0];
-  let bestDistance = hexDistance(bestHex, target.position);
+export const getClosestApproachHex = (attacker: Ship, target: Pick<Ship | Ordnance, 'position'>) =>
+  getTrackedPath(attacker).reduce(
+    (best, pathHex) => {
+      const distance = hexDistance(pathHex, target.position);
+      return distance < best.distance ? { hex: pathHex, distance } : best;
+    },
+    { hex: getTrackedPath(attacker)[0], distance: hexDistance(getTrackedPath(attacker)[0], target.position) },
+  ).hex;
 
-  for (const pathHex of getTrackedPath(attacker)) {
-    const distance = hexDistance(pathHex, target.position);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestHex = pathHex;
-    }
-  }
+/**
+ * Compute range modifier: subtract 1 per hex of distance.
+ * Range is measured from the attacker's closest approach this turn
+ * to the target's final position.
+ */
+export const computeRangeModToTarget = (attacker: Ship, target: Pick<Ship | Ordnance, 'position'>): number =>
+  hexDistance(getClosestApproachHex(attacker, target), target.position);
 
-  return bestHex;
-}
+export const computeRangeMod = (attacker: Ship, target: Ship): number => computeRangeModToTarget(attacker, target);
 
-export function computeGroupRangeMod(attackers: Ship[], target: Ship): number {
-  return computeGroupRangeModToTarget(attackers, target);
-}
+export const computeVelocityModToTarget = (attacker: Ship, target: Pick<Ship | Ordnance, 'velocity'>): number => {
+  const dq = Math.abs(attacker.velocity.dq - target.velocity.dq);
+  const dr = Math.abs(attacker.velocity.dr - target.velocity.dr);
+  const ds = Math.abs(-attacker.velocity.dq - attacker.velocity.dr - (-target.velocity.dq - target.velocity.dr));
+  const velDiff = Math.max(dq, dr, ds);
+  return Math.max(0, velDiff - 2);
+};
 
-export function computeGroupVelocityMod(attackers: Ship[], target: Ship): number {
-  return computeGroupVelocityModToTarget(attackers, target);
-}
+/**
+ * Compute velocity modifier: subtract 1 per hex of velocity difference > 2.
+ * Velocity difference is the hex distance between their velocity vectors.
+ */
+export const computeVelocityMod = (attacker: Ship, target: Ship): number =>
+  computeVelocityModToTarget(attacker, target);
 
-export function hasLineOfSight(attacker: Ship, target: Ship, map: SolarSystemMap): boolean {
-  return hasLineOfSightToTarget(attacker, target, map);
-}
-
-export function computeGroupRangeModToTarget(attackers: Ship[], target: Pick<Ship | Ordnance, 'position'>): number {
+export const computeGroupRangeModToTarget = (attackers: Ship[], target: Pick<Ship | Ordnance, 'position'>): number => {
   if (attackers.length === 0) return 0;
   return Math.max(...attackers.map((attacker) => computeRangeModToTarget(attacker, target)));
-}
+};
 
-export function computeGroupVelocityModToTarget(attackers: Ship[], target: Pick<Ship | Ordnance, 'velocity'>): number {
+export const computeGroupRangeMod = (attackers: Ship[], target: Ship): number =>
+  computeGroupRangeModToTarget(attackers, target);
+
+export const computeGroupVelocityModToTarget = (
+  attackers: Ship[],
+  target: Pick<Ship | Ordnance, 'velocity'>,
+): number => {
   if (attackers.length === 0) return 0;
   return Math.max(...attackers.map((attacker) => computeVelocityModToTarget(attacker, target)));
-}
+};
 
-export function hasLineOfSightToTarget(
+export const computeGroupVelocityMod = (attackers: Ship[], target: Ship): number =>
+  computeGroupVelocityModToTarget(attackers, target);
+
+export const hasLineOfSightToTarget = (
   attacker: Ship,
   target: Pick<Ship | Ordnance, 'position'>,
   map: SolarSystemMap,
-): boolean {
+): boolean => {
   const from = getClosestApproachHex(attacker, target);
   const path = hexLineDraw(from, target.position);
+  return !path.slice(1, -1).some((hex) => map.hexes.get(hexKey(hex))?.body);
+};
 
-  for (let i = 1; i < path.length - 1; i++) {
-    if (map.hexes.get(hexKey(path[i]))?.body) {
-      return false;
-    }
-  }
+export const hasLineOfSight = (attacker: Ship, target: Ship, map: SolarSystemMap): boolean =>
+  hasLineOfSightToTarget(attacker, target, map);
 
-  return true;
-}
-
-export function hasBaseLineOfSight(
+export const hasBaseLineOfSight = (
   baseCoord: { q: number; r: number },
   target: Pick<Ship | Ordnance, 'position'>,
   map: SolarSystemMap,
-): boolean {
+): boolean => {
   const path = hexLineDraw(baseCoord, target.position);
+  return !path.slice(1, -1).some((hex) => map.hexes.get(hexKey(hex))?.body);
+};
 
-  for (let i = 1; i < path.length - 1; i++) {
-    if (map.hexes.get(hexKey(path[i]))?.body) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-export function computeBaseRangeMod(
+export const computeBaseRangeMod = (
   baseCoord: { q: number; r: number },
   target: Pick<Ship | Ordnance, 'position'>,
-): number {
-  return hexDistance(baseCoord, target.position);
-}
+): number => hexDistance(baseCoord, target.position);
 
-export function computeBaseVelocityMod(target: Pick<Ship | Ordnance, 'velocity'>): number {
+export const computeBaseVelocityMod = (target: Pick<Ship | Ordnance, 'velocity'>): number => {
   const dq = Math.abs(target.velocity.dq);
   const dr = Math.abs(target.velocity.dr);
   const ds = Math.abs(-target.velocity.dq - target.velocity.dr);
   const velDiff = Math.max(dq, dr, ds);
   return Math.max(0, velDiff - 2);
-}
+};
 
-export function getCounterattackers(target: Ship, allShips: Ship[]): Ship[] {
-  return allShips.filter(
+export const getCounterattackers = (target: Ship, allShips: Ship[]): Ship[] =>
+  allShips.filter(
     (ship) =>
       ship.owner === target.owner &&
       canCounterattack(ship) &&
@@ -255,12 +225,11 @@ export function getCounterattackers(target: Ship, allShips: Ship[]): Ship[] {
       ship.velocity.dq === target.velocity.dq &&
       ship.velocity.dr === target.velocity.dr,
   );
-}
 
 /**
  * Look up result on the Gun Combat table.
  */
-export function lookupGunCombat(odds: OddsRatio, modifiedRoll: number): DamageResult {
+export const lookupGunCombat = (odds: OddsRatio, modifiedRoll: number): DamageResult => {
   const col = ODDS_RATIOS.indexOf(odds);
   const row = Math.max(0, Math.min(6, modifiedRoll));
   const value = GUN_COMBAT_TABLE[row][col];
@@ -268,25 +237,25 @@ export function lookupGunCombat(odds: OddsRatio, modifiedRoll: number): DamageRe
   if (value === 0) return { type: 'none', disabledTurns: 0 };
   if (value === 6) return { type: 'eliminated', disabledTurns: 0 };
   return { type: 'disabled', disabledTurns: value };
-}
+};
 
 /**
  * Look up result on the Other Damage table (asteroids, mines, torpedoes, ramming).
  * Each source type has its own damage column per the Triplanetary 2018 rulebook.
  */
-export function lookupOtherDamage(dieRoll: number, source: OtherDamageSource = 'torpedo'): DamageResult {
+export const lookupOtherDamage = (dieRoll: number, source: OtherDamageSource = 'torpedo'): DamageResult => {
   const idx = Math.max(0, Math.min(5, dieRoll - 1));
   const value = OTHER_DAMAGE_TABLES[source][idx];
 
   if (value === 0) return { type: 'none', disabledTurns: 0 };
   if (value === 6) return { type: 'eliminated', disabledTurns: 0 };
   return { type: 'disabled', disabledTurns: value };
-}
+};
 
 /**
  * Apply damage to a ship. Returns true if the ship was eliminated.
  */
-export function applyDamage(ship: Ship, result: DamageResult): boolean {
+export const applyDamage = (ship: Ship, result: DamageResult): boolean => {
   if (result.type === 'none') return false;
 
   if (result.type === 'eliminated') {
@@ -304,27 +273,38 @@ export function applyDamage(ship: Ship, result: DamageResult): boolean {
   }
 
   return false;
-}
+};
 
 /**
  * Roll a d6 (1-6). Uses crypto.getRandomValues if available, else Math.random.
  */
-export function rollD6(rng?: () => number): number {
+export const rollD6 = (rng?: () => number): number => {
   if (rng) return Math.floor(rng() * 6) + 1;
   return Math.floor(Math.random() * 6) + 1;
-}
+};
+
+const chooseCounterattackTarget = (attackers: Ship[]): Ship =>
+  [...attackers].sort((a, b) => {
+    const aStrength = SHIP_STATS[a.type]?.combat ?? 0;
+    const bStrength = SHIP_STATS[b.type]?.combat ?? 0;
+    if (bStrength !== aStrength) return bStrength - aStrength;
+    if (b.damage.disabledTurns !== a.damage.disabledTurns) {
+      return b.damage.disabledTurns - a.damage.disabledTurns;
+    }
+    return a.id.localeCompare(b.id);
+  })[0];
 
 /**
  * Resolve a single combat attack.
  */
-export function resolveCombat(
+export const resolveCombat = (
   attackers: Ship[],
   target: Ship,
   allShips: Ship[],
   rng?: () => number,
   _map?: SolarSystemMap,
   declaredAttackStrength?: number | null,
-): CombatResolution {
+): CombatResolution => {
   const maxAttackStrength = getCombatStrength(attackers);
   const attackStrength = getDeclaredCombatStrength(attackers, declaredAttackStrength);
   const defendStrength = getCombatStrength([target]);
@@ -342,33 +322,34 @@ export function resolveCombat(
   const damageResult = lookupGunCombat(odds, modifiedRoll);
 
   // Counterattack happens before attack damage is implemented.
-  let counterattack: CombatResolution | null = null;
   const counterattackers = getCounterattackers(target, allShips);
-  if (counterattackers.length > 0) {
-    const counterStrength = getCombatStrength(counterattackers);
-    const counterOdds = computeOdds(counterStrength, maxAttackStrength);
-    const counterRange = rangeMod;
-    const counterVelMod = velocityMod;
+  const counterattack: CombatResolution | null =
+    counterattackers.length > 0
+      ? (() => {
+          const counterStrength = getCombatStrength(counterattackers);
+          const counterOdds = computeOdds(counterStrength, maxAttackStrength);
+          const counterRange = rangeMod;
+          const counterVelMod = velocityMod;
+          const counterHeroism = counterattackers.some((ship) => ship.heroismAvailable) ? 1 : 0;
+          const counterDie = rollD6(rng);
+          const counterModified = counterDie - counterRange - counterVelMod + counterHeroism;
+          const counterResult = lookupGunCombat(counterOdds, counterModified);
 
-    const counterHeroism = counterattackers.some((ship) => ship.heroismAvailable) ? 1 : 0;
-    const counterDie = rollD6(rng);
-    const counterModified = counterDie - counterRange - counterVelMod + counterHeroism;
-    const counterResult = lookupGunCombat(counterOdds, counterModified);
-
-    counterattack = {
-      attackerIds: counterattackers.map((ship) => ship.id),
-      targetId: primaryAttacker.id,
-      odds: counterOdds,
-      attackStrength: counterStrength,
-      defendStrength: maxAttackStrength,
-      rangeMod: counterRange,
-      velocityMod: counterVelMod,
-      dieRoll: counterDie,
-      modifiedRoll: counterModified,
-      damageResult: counterResult,
-      counterattack: null,
-    };
-  }
+          return {
+            attackerIds: counterattackers.map((ship) => ship.id),
+            targetId: primaryAttacker.id,
+            odds: counterOdds,
+            attackStrength: counterStrength,
+            defendStrength: maxAttackStrength,
+            rangeMod: counterRange,
+            velocityMod: counterVelMod,
+            dieRoll: counterDie,
+            modifiedRoll: counterModified,
+            damageResult: counterResult,
+            counterattack: null,
+          };
+        })()
+      : null;
 
   if (counterattack) {
     applyDamage(primaryAttacker, counterattack.damageResult);
@@ -400,26 +381,14 @@ export function resolveCombat(
     damageResult,
     counterattack,
   };
-}
-
-function chooseCounterattackTarget(attackers: Ship[]): Ship {
-  return [...attackers].sort((a, b) => {
-    const aStrength = SHIP_STATS[a.type]?.combat ?? 0;
-    const bStrength = SHIP_STATS[b.type]?.combat ?? 0;
-    if (bStrength !== aStrength) return bStrength - aStrength;
-    if (b.damage.disabledTurns !== a.damage.disabledTurns) {
-      return b.damage.disabledTurns - a.damage.disabledTurns;
-    }
-    return a.id.localeCompare(b.id);
-  })[0];
-}
+};
 
 /**
  * Resolve base defense fire.
  * Bases fire at 2:1 odds against enemy ships in gravity hexes adjacent to the base.
  * No range or velocity modifiers apply.
  */
-export function resolveBaseDefense(
+export const resolveBaseDefense = (
   state: {
     ships: Ship[];
     ordnance?: Ordnance[];
@@ -429,7 +398,7 @@ export function resolveBaseDefense(
   activePlayer: number,
   map: SolarSystemMap,
   rng?: () => number,
-): CombatResult[] {
+): CombatResult[] => {
   const results: CombatResult[] = [];
   const destroyedBases = new Set(state.destroyedBases ?? []);
   const ownedBases = state.players[activePlayer]?.bases ?? [];
@@ -442,7 +411,7 @@ export function resolveBaseDefense(
     if (!hex?.base) continue;
     if (!bodyHasGravity(hex.base.bodyName, map)) continue;
 
-    const bodyName = hex.base.bodyName;
+    const { bodyName } = hex.base;
     const [bq, br] = key.split(',').map(Number);
     const baseCoord = { q: bq, r: br };
 
@@ -520,4 +489,4 @@ export function resolveBaseDefense(
   }
 
   return results;
-}
+};

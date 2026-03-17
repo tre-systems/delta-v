@@ -21,21 +21,21 @@ export interface FleetCartView {
   isEmpty: boolean;
 }
 
-export function getFleetShopTypes() {
+export const getFleetShopTypes = () => {
   return Object.entries(SHIP_STATS)
     .filter(([shipType]) => shipType !== 'orbitalBase')
     .sort((left, right) => left[1].cost - right[1].cost);
-}
+};
 
-export function getFleetCartCost(cart: FleetPurchase[]): number {
+export const getFleetCartCost = (cart: FleetPurchase[]): number => {
   return cart.reduce((total, purchase) => total + (SHIP_STATS[purchase.shipType]?.cost ?? 0), 0);
-}
+};
 
-export function canAddFleetShip(cart: FleetPurchase[], totalCredits: number, shipType: string): boolean {
+export const canAddFleetShip = (cart: FleetPurchase[], totalCredits: number, shipType: string): boolean => {
   return getFleetCartCost(cart) + (SHIP_STATS[shipType]?.cost ?? 0) <= totalCredits;
-}
+};
 
-export function getFleetCartView(cart: FleetPurchase[], totalCredits: number): FleetCartView {
+export const getFleetCartView = (cart: FleetPurchase[], totalCredits: number): FleetCartView => {
   const remainingCredits = totalCredits - getFleetCartCost(cart);
   return {
     remainingCredits,
@@ -46,9 +46,9 @@ export function getFleetCartView(cart: FleetPurchase[], totalCredits: number): F
     })),
     isEmpty: cart.length === 0,
   };
-}
+};
 
-export function getFleetShopView(cart: FleetPurchase[], totalCredits: number): FleetShopItemView[] {
+export const getFleetShopView = (cart: FleetPurchase[], totalCredits: number): FleetShopItemView[] => {
   const remainingCredits = totalCredits - getFleetCartCost(cart);
   return getFleetShopTypes().map(([shipType, stats]) => ({
     shipType,
@@ -57,4 +57,4 @@ export function getFleetShopView(cart: FleetPurchase[], totalCredits: number): F
     cost: stats.cost,
     disabled: stats.cost > remainingCredits,
   }));
-}
+};

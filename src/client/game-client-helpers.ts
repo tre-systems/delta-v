@@ -29,12 +29,12 @@ export interface HudViewModel {
 
 type PlanningSnapshot = Pick<PlanningState, 'selectedShipId' | 'burns' | 'overloads' | 'weakGravityChoices'>;
 
-function getSelectedShip(state: GameState, playerId: number, selectedId: string | null) {
+const getSelectedShip = (state: GameState, playerId: number, selectedId: string | null) => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
   return myShips.find((ship) => ship.id === selectedId) ?? myShips.find((ship) => !ship.destroyed) ?? null;
-}
+};
 
-function getObjective(state: GameState, playerId: number): string {
+const getObjective = (state: GameState, playerId: number): string => {
   const player = state.players[playerId];
   if (state.scenarioRules.checkpointBodies) {
     const visited = player.visitedBodies?.length ?? 0;
@@ -54,9 +54,9 @@ function getObjective(state: GameState, playerId: number): string {
     return `⬡ Land on ${player.targetBody}`;
   }
   return '⬡ Destroy all enemies';
-}
+};
 
-function getFleetStatus(state: GameState, playerId: number): string {
+const getFleetStatus = (state: GameState, playerId: number): string => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
   const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
   const myAlive = myShips.filter((ship) => !ship.destroyed).length;
@@ -80,13 +80,13 @@ function getFleetStatus(state: GameState, playerId: number): string {
   if (nukes > 0) ordnanceParts.push(`${nukes}N`);
   statusParts.push(ordnanceParts.join('/'));
   return statusParts.join(' ');
-}
+};
 
-export function buildAstrogationOrders(
+export const buildAstrogationOrders = (
   state: GameState,
   playerId: number,
   planning: PlanningSnapshot,
-): AstrogationOrder[] {
+): AstrogationOrder[] => {
   return state.ships
     .filter((ship) => ship.owner === playerId)
     .map((ship) => {
@@ -100,9 +100,9 @@ export function buildAstrogationOrders(
       }
       return order;
     });
-}
+};
 
-export function deriveHudViewModel(state: GameState, playerId: number, planning: PlanningSnapshot): HudViewModel {
+export const deriveHudViewModel = (state: GameState, playerId: number, planning: PlanningSnapshot): HudViewModel => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
   const selectedShip = getSelectedShip(state, playerId, planning.selectedShipId);
   const stats = selectedShip ? SHIP_STATS[selectedShip.type] : null;
@@ -123,9 +123,9 @@ export function deriveHudViewModel(state: GameState, playerId: number, planning:
       selectedShip?.carryingOrbitalBase === true && !selectedShip.destroyed && !selectedShip.resuppliedThisTurn,
     fleetStatus: getFleetStatus(state, playerId),
   };
-}
+};
 
-export function getGameOverStats(state: GameState, playerId: number): GameOverStats {
+export const getGameOverStats = (state: GameState, playerId: number): GameOverStats => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
   const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
   return {
@@ -135,9 +135,9 @@ export function getGameOverStats(state: GameState, playerId: number): GameOverSt
     enemyShipsAlive: enemyShips.filter((ship) => !ship.destroyed).length,
     enemyShipsTotal: enemyShips.length,
   };
-}
+};
 
-export function getScenarioBriefingLines(state: GameState, playerId: number): string[] {
+export const getScenarioBriefingLines = (state: GameState, playerId: number): string[] => {
   const player = state.players[playerId];
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
   const shipNames = myShips.map((ship) => SHIP_STATS[ship.type]?.name ?? ship.type).join(', ');
@@ -165,4 +165,4 @@ export function getScenarioBriefingLines(state: GameState, playerId: number): st
   }
   lines.push('Press ? for controls help');
   return lines;
-}
+};

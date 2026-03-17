@@ -22,17 +22,17 @@ export interface LogEntryView {
   className: string;
 }
 
-function getShipName(ship: Ship | null, fallback: string): string {
+const getShipName = (ship: Ship | null, fallback: string): string => {
   return ship ? (SHIP_STATS[ship.type]?.name ?? ship.type) : fallback;
-}
+};
 
-function formatDamageResult(damageType: string, disabledTurns: number, missLabel = 'Miss'): string {
+const formatDamageResult = (damageType: string, disabledTurns: number, missLabel = 'Miss'): string => {
   if (damageType === 'eliminated') return 'DESTROYED';
   if (damageType === 'disabled') return `DISABLED (${disabledTurns}T)`;
   return missLabel;
-}
+};
 
-export function parseJoinInput(rawValue: string, codeLength: number): ParsedJoinInput | null {
+export const parseJoinInput = (rawValue: string, codeLength: number): ParsedJoinInput | null => {
   const trimmed = rawValue.trim();
   if (!trimmed) return null;
 
@@ -49,9 +49,9 @@ export function parseJoinInput(rawValue: string, codeLength: number): ParsedJoin
 
   const code = trimmed.toUpperCase();
   return code.length === codeLength ? { code, playerToken: null } : null;
-}
+};
 
-export function getLatencyStatus(latencyMs: number | null): UITextStatus {
+export const getLatencyStatus = (latencyMs: number | null): UITextStatus => {
   if (latencyMs === null) {
     return { text: '', className: 'latency-text' };
   }
@@ -59,9 +59,9 @@ export function getLatencyStatus(latencyMs: number | null): UITextStatus {
     text: `${latencyMs}ms`,
     className: `latency-text ${latencyMs < 100 ? 'latency-good' : latencyMs < 250 ? 'latency-ok' : 'latency-bad'}`,
   };
-}
+};
 
-export function getPhaseAlertCopy(phase: string, isMyTurn: boolean): PhaseAlertCopy {
+export const getPhaseAlertCopy = (phase: string, isMyTurn: boolean): PhaseAlertCopy => {
   const title =
     phase === 'astrogation' ? 'Astrogation' : phase === 'ordnance' ? 'Ordnance' : phase === 'combat' ? 'Combat' : phase;
   return {
@@ -69,9 +69,9 @@ export function getPhaseAlertCopy(phase: string, isMyTurn: boolean): PhaseAlertC
     subtitle: isMyTurn ? 'YOUR TURN' : "OPPONENT'S TURN",
     subtitleColor: isMyTurn ? 'var(--accent)' : 'var(--warning)',
   };
-}
+};
 
-export function formatMovementEventEntry(event: MovementEvent, ships: Ship[]): LogEntryView | null {
+export const formatMovementEventEntry = (event: MovementEvent, ships: Ship[]): LogEntryView | null => {
   const ship = ships.find((candidate) => candidate.id === event.shipId) ?? null;
   const name = getShipName(ship, event.shipId);
 
@@ -130,9 +130,9 @@ export function formatMovementEventEntry(event: MovementEvent, ships: Ship[]): L
     default:
       return null;
   }
-}
+};
 
-function getCombatAttackerDescription(result: CombatResult, ships: Ship[]): string {
+const getCombatAttackerDescription = (result: CombatResult, ships: Ship[]): string => {
   if (result.attackType === 'baseDefense') return 'Planetary Base';
   if (result.attackType === 'antiNuke') return 'Defensive Battery';
   if (result.attackType === 'asteroidHazard') return '';
@@ -144,9 +144,9 @@ function getCombatAttackerDescription(result: CombatResult, ships: Ship[]): stri
     })
     .filter((name, index, values) => values.indexOf(name) === index);
   return attackerNames.join(' & ');
-}
+};
 
-export function formatCombatResultEntries(result: CombatResult, ships: Ship[], playerId: number): LogEntryView[] {
+export const formatCombatResultEntries = (result: CombatResult, ships: Ship[], playerId: number): LogEntryView[] => {
   const entries: LogEntryView[] = [];
   const target = result.targetType === 'ship' ? (ships.find((ship) => ship.id === result.targetId) ?? null) : null;
   const targetName = result.targetType === 'ordnance' ? 'nuke' : getShipName(target, result.targetId);
@@ -190,4 +190,4 @@ export function formatCombatResultEntries(result: CombatResult, ships: Ship[], p
   }
 
   return entries;
-}
+};

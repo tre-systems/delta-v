@@ -22,12 +22,12 @@ export interface Star {
   size: number;
 }
 
-export function generateStars(count: number, range: number): Star[] {
+export const generateStars = (count: number, range: number): Star[] => {
   let seed = 42;
-  function rand(): number {
+  const rand = (): number => {
     seed = (seed * 16807 + 0) % 2147483647;
     return seed / 2147483647;
-  }
+  };
 
   const stars: Star[] = [];
   for (let i = 0; i < count; i++) {
@@ -39,7 +39,7 @@ export function generateStars(count: number, range: number): Star[] {
     });
   }
   return stars;
-}
+};
 
 // Precomputed flat-top hex vertex offsets (cos/sin at 60-degree intervals)
 const HEX_OFFSETS: [number, number][] = (() => {
@@ -51,21 +51,21 @@ const HEX_OFFSETS: [number, number][] = (() => {
   return offsets;
 })();
 
-export function renderStars(ctx: CanvasRenderingContext2D, stars: Star[], zoom: number): void {
+export const renderStars = (ctx: CanvasRenderingContext2D, stars: Star[], zoom: number): void => {
   for (const star of stars) {
     ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness * 0.6})`;
     ctx.beginPath();
     ctx.arc(star.x, star.y, star.size / zoom, 0, Math.PI * 2);
     ctx.fill();
   }
-}
+};
 
-export function renderHexGrid(
+export const renderHexGrid = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
   hexSize: number,
   isVisible: (x: number, y: number) => boolean,
-): void {
+): void => {
   ctx.strokeStyle = 'rgba(100, 140, 200, 0.25)';
   ctx.lineWidth = 0.8;
   const size = hexSize;
@@ -94,14 +94,14 @@ export function renderHexGrid(
     }
   }
   ctx.stroke();
-}
+};
 
-export function renderGravityIndicators(
+export const renderGravityIndicators = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
   hexSize: number,
   isVisible: (x: number, y: number) => boolean,
-): void {
+): void => {
   for (const [key, hex] of map.hexes) {
     if (!hex.gravity) continue;
     const [q, r] = key.split(',').map(Number);
@@ -128,9 +128,14 @@ export function renderGravityIndicators(
     ctx.lineTo(ax - headLen * Math.cos(angle + 0.5), ay - headLen * Math.sin(angle + 0.5));
     ctx.stroke();
   }
-}
+};
 
-export function renderBodies(ctx: CanvasRenderingContext2D, map: SolarSystemMap, hexSize: number, now: number): void {
+export const renderBodies = (
+  ctx: CanvasRenderingContext2D,
+  map: SolarSystemMap,
+  hexSize: number,
+  now: number,
+): void => {
   for (const body of map.bodies) {
     const view = buildBodyView(body, hexSize, now);
     const p = view.center;
@@ -168,15 +173,15 @@ export function renderBodies(ctx: CanvasRenderingContext2D, map: SolarSystemMap,
     ctx.textAlign = 'center';
     ctx.fillText(view.label, p.x, view.labelY);
   }
-}
+};
 
-export function renderBaseMarkers(
+export const renderBaseMarkers = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
   state: GameState | null,
   playerId: number,
   hexSize: number,
-): void {
+): void => {
   for (const [key, hex] of map.hexes) {
     if (!hex.base) continue;
     const [q, r] = key.split(',').map(Number);
@@ -208,31 +213,31 @@ export function renderBaseMarkers(
     ctx.fill();
     ctx.stroke();
   }
-}
+};
 
-export function renderMapBorder(
+export const renderMapBorder = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
   state: GameState,
   playerId: number,
   hexSize: number,
   now: number,
-): void {
+): void => {
   const borderView = buildMapBorderView(map.bounds, Boolean(state.players[playerId]?.escapeWins), now, hexSize);
   ctx.strokeStyle = borderView.strokeStyle;
   ctx.lineWidth = borderView.lineWidth;
   ctx.setLineDash(borderView.lineDash);
   ctx.strokeRect(borderView.topLeft.x, borderView.topLeft.y, borderView.width, borderView.height);
   ctx.setLineDash([]);
-}
+};
 
-export function renderAsteroids(
+export const renderAsteroids = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
   destroyedAsteroids: string[],
   hexSize: number,
   isVisible: (x: number, y: number) => boolean,
-): void {
+): void => {
   const destroyed = new Set(destroyedAsteroids);
   for (const [key, hex] of map.hexes) {
     if (hex.terrain !== 'asteroid') continue;
@@ -261,16 +266,16 @@ export function renderAsteroids(
       ctx.fill();
     }
   }
-}
+};
 
-export function renderLandingTarget(
+export const renderLandingTarget = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
   state: GameState,
   playerId: number,
   hexSize: number,
   now: number,
-): void {
+): void => {
   const objectiveView = buildLandingObjectiveView(state.players[playerId], map, now, hexSize);
   if (!objectiveView) return;
   if (objectiveView.kind === 'escape') {
@@ -295,9 +300,9 @@ export function renderLandingTarget(
   ctx.font = 'bold 8px monospace';
   ctx.textAlign = 'center';
   ctx.fillText(objectiveView.labelText, objectiveView.center.x, objectiveView.labelY);
-}
+};
 
-export function renderDetectionRanges(
+export const renderDetectionRanges = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   playerId: number,
@@ -305,7 +310,7 @@ export function renderDetectionRanges(
   map: SolarSystemMap,
   hexSize: number,
   isAnimating: boolean,
-): void {
+): void => {
   if (isAnimating) return;
   const overlays = buildDetectionRangeViews(state, playerId, selectedShipId, map, hexSize);
   for (const overlay of overlays) {
@@ -317,4 +322,4 @@ export function renderDetectionRanges(
     ctx.stroke();
     ctx.setLineDash([]);
   }
-}
+};

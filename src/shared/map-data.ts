@@ -147,54 +147,48 @@ const BODY_DEFS: BodyDefinition[] = [
 // --- Asteroid belt hexes (scattered between Mars/Terra and Jupiter orbits) ---
 // Positioned in the band between inner planets and Jupiter
 
-function generateAsteroidHexes(): HexCoord[] {
-  const asteroids: HexCoord[] = [];
-  // Scatter asteroid hexes across the belt region (roughly r=-10 to r=-18)
-  const beltHexes: HexCoord[] = [
-    { q: -6, r: -11 },
-    { q: -4, r: -12 },
-    { q: -2, r: -13 },
-    { q: 0, r: -13 },
-    { q: 2, r: -12 },
-    { q: 4, r: -11 },
-    { q: 6, r: -10 },
-    { q: 8, r: -10 },
-    { q: -8, r: -12 },
-    { q: -5, r: -13 },
-    { q: -1, r: -14 },
-    { q: 1, r: -14 },
-    { q: 3, r: -13 },
-    { q: 5, r: -12 },
-    { q: 7, r: -11 },
-    { q: 9, r: -11 },
-    { q: -7, r: -13 },
-    { q: -3, r: -15 },
-    { q: 3, r: -15 },
-    { q: 6, r: -13 },
-  ];
-  asteroids.push(...beltHexes);
-  return asteroids;
-}
+const generateAsteroidHexes = (): HexCoord[] => [
+  { q: -6, r: -11 },
+  { q: -4, r: -12 },
+  { q: -2, r: -13 },
+  { q: 0, r: -13 },
+  { q: 2, r: -12 },
+  { q: 4, r: -11 },
+  { q: 6, r: -10 },
+  { q: 8, r: -10 },
+  { q: -8, r: -12 },
+  { q: -5, r: -13 },
+  { q: -1, r: -14 },
+  { q: 1, r: -14 },
+  { q: 3, r: -13 },
+  { q: 5, r: -12 },
+  { q: 7, r: -11 },
+  { q: 9, r: -11 },
+  { q: -7, r: -13 },
+  { q: -3, r: -15 },
+  { q: 3, r: -15 },
+  { q: 6, r: -13 },
+];
 
 // --- Map builder ---
 
-export function buildSolarSystemMap(): SolarSystemMap {
+export const buildSolarSystemMap = (): SolarSystemMap => {
   const hexes = new Map<string, MapHex>();
   const bodies: CelestialBody[] = [];
 
-  let minQ = Infinity,
-    maxQ = -Infinity,
-    minR = Infinity,
-    maxR = -Infinity;
+  let minQ = Infinity;
+  let maxQ = -Infinity;
+  let minR = Infinity;
+  let maxR = -Infinity;
 
-  function trackBounds(h: HexCoord) {
+  const trackBounds = (h: HexCoord) => {
     minQ = Math.min(minQ, h.q);
     maxQ = Math.max(maxQ, h.q);
     minR = Math.min(minR, h.r);
     maxR = Math.max(maxR, h.r);
-  }
+  };
 
-  function ensureHex(coord: HexCoord): MapHex {
+  const ensureHex = (coord: HexCoord): MapHex => {
     const key = hexKey(coord);
     let hex = hexes.get(key);
     if (!hex) {
@@ -203,7 +197,7 @@ export function buildSolarSystemMap(): SolarSystemMap {
     }
     trackBounds(coord);
     return hex;
-  }
+  };
 
   for (const def of BODY_DEFS) {
     const surfaceHexes: HexCoord[] = [];
@@ -280,7 +274,7 @@ export function buildSolarSystemMap(): SolarSystemMap {
     bodies,
     bounds: { minQ: minQ - 5, maxQ: maxQ + 5, minR: minR - 3, maxR: maxR + 5 },
   };
-}
+};
 
 // --- Scenario definitions ---
 
@@ -532,32 +526,28 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
 // Singleton map instance
 let _map: SolarSystemMap | null = null;
 
-export function getSolarSystemMap(): SolarSystemMap {
+export const getSolarSystemMap = (): SolarSystemMap => {
   if (!_map) {
     _map = buildSolarSystemMap();
   }
   return _map;
-}
+};
 
-export function findBaseHexes(map: SolarSystemMap, bodyName: string): HexCoord[] {
-  const bases: HexCoord[] = [];
-  for (const [key, hex] of map.hexes) {
-    if (hex.base?.bodyName === bodyName) {
+export const findBaseHexes = (map: SolarSystemMap, bodyName: string): HexCoord[] =>
+  [...map.hexes.entries()]
+    .filter(([, hex]) => hex.base?.bodyName === bodyName)
+    .map(([key]) => {
       const [q, r] = key.split(',').map(Number);
-      bases.push({ q, r });
-    }
-  }
-  return bases;
-}
+      return { q, r };
+    });
 
 // Helper: find a base hex for a body (first base found)
-export function findBaseHex(map: SolarSystemMap, bodyName: string): HexCoord | null {
-  return findBaseHexes(map, bodyName)[0] ?? null;
-}
+export const findBaseHex = (map: SolarSystemMap, bodyName: string): HexCoord | null =>
+  findBaseHexes(map, bodyName)[0] ?? null;
 
-export function bodyHasGravity(bodyName: string, map: SolarSystemMap): boolean {
+export const bodyHasGravity = (bodyName: string, map: SolarSystemMap): boolean => {
   for (const hex of map.hexes.values()) {
     if (hex.gravity?.bodyName === bodyName) return true;
   }
   return false;
-}
+};
