@@ -16,25 +16,30 @@ The project follows a modern full-stack TypeScript architecture:
 src/
   server/
     index.ts           Cloudflare Worker — HTTP routing (/create, /ws/:code)
-    game-do.ts         Durable Object — authoritative game state, WebSocket plumbing
+    game-do/
+      game-do.ts       Durable Object — authoritative game state, WebSocket plumbing
+      messages.ts      Message handling and dispatch
+      session.ts       Session management and auth
+      turns.ts         Turn processing and resolution
 
   client/
     main.ts            Client state machine, WebSocket handling, AI turn runner
-    renderer.ts        Canvas rendering, camera, animations, trails, minimap
     input.ts           Mouse/touch/keyboard input, burn direction selection
-    ui.ts              DOM overlays (menu, HUD, game log, game over)
     audio.ts           Procedural sound effects (Web Audio API)
     tutorial.ts        Phase-based tutorial tips for new players
+    game/              Client game logic helpers (combat, phase, burn, ordnance, etc.)
+    renderer/          Canvas rendering, camera, animations, trails, minimap
+    ui/                DOM overlays (menu, HUD, game log, game over)
 
   shared/
     types.ts           All interfaces (Ship, GameState, messages, map types)
     hex.ts             Hex math (axial coords, line draw, pixel conversion)
     movement.ts        Vector movement, gravity, crash/landing/takeoff
     combat.ts          Gun combat, counterattack, odds, line of sight
-    game-engine.ts     Pure game logic (createGame, processAstrogation, etc.)
     constants.ts       Ship stats, ordnance mass, detection ranges, timing
     map-data.ts        Solar system bodies, gravity rings, bases, scenarios
     ai.ts              AI opponent (astrogation, ordnance, combat decisions)
+    engine/            Pure game logic (createGame, processAstrogation, etc.)
 
 static/
   index.html           Single-page app shell
