@@ -16,7 +16,7 @@ import {
   hexVecLength,
   parseHexKey,
   pixelToHex,
-} from '../hex';
+} from './hex';
 
 describe('hex arithmetic', () => {
   it('hexAdd adds vector to coordinate', () => {

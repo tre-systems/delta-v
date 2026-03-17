@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { analyzeHexLine, HEX_DIRECTIONS, hexAdd, hexEqual, hexKey } from '../hex';
-import { buildSolarSystemMap, findBaseHex } from '../map-data';
-import { canBurn, computeCourse, predictDestination } from '../movement';
-import type { Ship, SolarSystemMap } from '../types';
+import { analyzeHexLine, HEX_DIRECTIONS, hexAdd, hexEqual, hexKey } from './hex';
+import { buildSolarSystemMap, findBaseHex } from './map-data';
+import { canBurn, computeCourse, predictDestination } from './movement';
+import type { Ship, SolarSystemMap } from './types';
 
 let map: SolarSystemMap;
 
