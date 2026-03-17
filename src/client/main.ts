@@ -34,6 +34,7 @@ import {
   getAttackStrengthForSelection,
   hasSplitFireOptions,
 } from './game/combat';
+import { type GameCommand, keyboardActionToCommand } from './game/commands';
 import { deriveGameOverPlan } from './game/endgame';
 import { resolveLocalFleetReady } from './game/fleet';
 import { buildAstrogationOrders, deriveHudViewModel } from './game/helpers';
@@ -74,6 +75,7 @@ import { createLocalTransport, createWebSocketTransport, type GameTransport } fr
 import { InputHandler } from './input';
 import { HEX_SIZE, Renderer } from './renderer/renderer';
 import { Tutorial } from './tutorial';
+import type { UIEvent } from './ui/events';
 import { UIManager } from './ui/ui';
 
 class GameClient {
@@ -118,31 +120,8 @@ class GameClient {
     this.renderer.setMap(this.map);
     this.input.setMap(this.map);
 
-    // Wire UI callbacks
-    this.ui.onSelectScenario = (scenario) => this.createGame(scenario);
-    this.ui.onSinglePlayer = (scenario, difficulty) => {
-      this.aiDifficulty = difficulty;
-      this.startLocalGame(scenario);
-    };
-    this.ui.onJoin = (code, playerToken) => this.joinGame(code, playerToken ?? null);
-    this.ui.onUndo = () => this.undoSelectedShipBurn();
-    this.ui.onConfirm = () => this.confirmOrders();
-    this.ui.onLaunchOrdnance = (ordType) => this.sendOrdnanceLaunch(ordType);
-    this.ui.onEmplaceBase = () => this.sendEmplaceBase();
-    this.ui.onSkipOrdnance = () => this.sendSkipOrdnance();
-    this.ui.onAttack = () => this.queueAttack();
-    this.ui.onFireAll = () => this.fireAllAttacks();
-    this.ui.onSkipCombat = () => this.sendSkipCombat();
-    this.ui.onFleetReady = (purchases) => this.sendFleetReady(purchases);
-    this.ui.onRematch = () => this.sendRematch();
-    this.ui.onExit = () => this.exitToMenu();
-    this.ui.onSelectShip = (shipId) => {
-      this.planningState.selectedShipId = shipId;
-      this.updateHUD();
-      // Center camera on selected ship
-      const ship = this.gameState?.ships.find((s) => s.id === shipId);
-      if (ship) this.renderer.centerOnHex(ship.position);
-    };
+    // Wire UI events
+    this.ui.onEvent = (event) => this.handleUIEvent(event);
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
@@ -609,11 +588,91 @@ class GameClient {
   }
 
   private handleKeyboardAction(action: KeyboardAction) {
-    switch (action.kind) {
-      case 'none':
+    const cmd = keyboardActionToCommand(action);
+    if (cmd) this.dispatch(cmd);
+  }
+
+  private handleUIEvent(event: UIEvent) {
+    switch (event.type) {
+      // Menu / lobby events — not game commands
+      case 'selectScenario':
+        this.createGame(event.scenario);
         return;
-      case 'cycleShip':
-        this.cycleShip(action.direction);
+      case 'startSinglePlayer':
+        this.aiDifficulty = event.difficulty;
+        this.startLocalGame(event.scenario);
+        return;
+      case 'join':
+        this.joinGame(event.code, event.playerToken ?? null);
+        return;
+      // In-game events → dispatch as GameCommands
+      case 'undo':
+        this.dispatch({ type: 'undoBurn' });
+        return;
+      case 'confirm':
+        this.dispatch({ type: 'confirmOrders' });
+        return;
+      case 'launchOrdnance':
+        this.dispatch({ type: 'launchOrdnance', ordType: event.ordType });
+        return;
+      case 'emplaceBase':
+        this.dispatch({ type: 'emplaceBase' });
+        return;
+      case 'skipOrdnance':
+        this.dispatch({ type: 'skipOrdnance' });
+        return;
+      case 'attack':
+        this.dispatch({ type: 'queueAttack' });
+        return;
+      case 'fireAll':
+        this.dispatch({ type: 'fireAllAttacks' });
+        return;
+      case 'skipCombat':
+        this.dispatch({ type: 'skipCombat' });
+        return;
+      case 'fleetReady':
+        this.dispatch({ type: 'fleetReady', purchases: event.purchases });
+        return;
+      case 'rematch':
+        this.dispatch({ type: 'requestRematch' });
+        return;
+      case 'exit':
+        this.dispatch({ type: 'exitToMenu' });
+        return;
+      case 'selectShip':
+        this.dispatch({ type: 'selectShip', shipId: event.shipId });
+        return;
+    }
+  }
+
+  private dispatch(cmd: GameCommand) {
+    switch (cmd.type) {
+      case 'confirmOrders':
+        this.confirmOrders();
+        return;
+      case 'undoBurn':
+        this.undoSelectedShipBurn();
+        return;
+      case 'setBurnDirection':
+        this.setBurnDirection(cmd.direction);
+        return;
+      case 'clearSelectedBurn':
+        this.clearSelectedBurn();
+        return;
+      case 'queueAttack':
+        this.queueAttack();
+        return;
+      case 'fireAllAttacks':
+        this.fireAllAttacks();
+        return;
+      case 'skipCombat':
+        this.sendSkipCombat();
+        return;
+      case 'adjustCombatStrength':
+        this.adjustCombatStrength(cmd.delta);
+        return;
+      case 'resetCombatStrength':
+        this.resetCombatStrengthToMax();
         return;
       case 'clearCombatSelection':
         this.clearCombatSelection();
@@ -626,43 +685,31 @@ class GameClient {
         this.ui.showToast(count > 0 ? `Undid last attack (${count} queued)` : 'Attack queue cleared', 'info');
         return;
       }
-      case 'clearTorpedoAcceleration':
-        this.planningState.torpedoAccel = null;
-        this.planningState.torpedoAccelSteps = null;
+      case 'launchOrdnance':
+        this.sendOrdnanceLaunch(cmd.ordType);
         return;
-      case 'deselectShip':
-        this.planningState.selectedShipId = null;
-        this.updateHUD();
-        return;
-      case 'confirmOrders':
-        this.confirmOrders();
+      case 'emplaceBase':
+        this.sendEmplaceBase();
         return;
       case 'skipOrdnance':
         this.sendSkipOrdnance();
         return;
-      case 'queueAttack':
-        this.queueAttack();
+      case 'fleetReady':
+        this.sendFleetReady(cmd.purchases);
         return;
-      case 'fireAllAttacks':
-        this.fireAllAttacks();
+      case 'selectShip': {
+        this.planningState.selectedShipId = cmd.shipId;
+        this.updateHUD();
+        const ship = this.gameState?.ships.find((s) => s.id === cmd.shipId);
+        if (ship) this.renderer.centerOnHex(ship.position);
         return;
-      case 'skipCombat':
-        this.sendSkipCombat();
+      }
+      case 'deselectShip':
+        this.planningState.selectedShipId = null;
+        this.updateHUD();
         return;
-      case 'adjustCombatStrength':
-        this.adjustCombatStrength(action.delta);
-        return;
-      case 'launchOrdnance':
-        this.sendOrdnanceLaunch(action.ordnanceType);
-        return;
-      case 'setBurnDirection':
-        this.setBurnDirection(action.direction);
-        return;
-      case 'clearSelectedBurn':
-        this.clearSelectedBurn();
-        return;
-      case 'resetCombatStrength':
-        this.resetCombatStrengthToMax();
+      case 'cycleShip':
+        this.cycleShip(cmd.direction);
         return;
       case 'focusNearestEnemy':
         this.focusNearestEnemy();
@@ -670,14 +717,14 @@ class GameClient {
       case 'focusOwnFleet':
         this.focusOwnFleet();
         return;
-      case 'toggleLog':
-        this.ui.toggleLog();
-        return;
       case 'panCamera':
-        this.renderer.camera.pan(action.dx, action.dy);
+        this.renderer.camera.pan(cmd.dx, cmd.dy);
         return;
       case 'zoomCamera':
-        this.renderer.camera.zoomAt(window.innerWidth / 2, window.innerHeight / 2, action.factor);
+        this.renderer.camera.zoomAt(window.innerWidth / 2, window.innerHeight / 2, cmd.factor);
+        return;
+      case 'toggleLog':
+        this.ui.toggleLog();
         return;
       case 'toggleHelp':
         this.toggleHelp();
@@ -685,6 +732,16 @@ class GameClient {
       case 'toggleMute':
         setMuted(!isMuted());
         this.updateSoundButton();
+        return;
+      case 'clearTorpedoAcceleration':
+        this.planningState.torpedoAccel = null;
+        this.planningState.torpedoAccelSteps = null;
+        return;
+      case 'requestRematch':
+        this.sendRematch();
+        return;
+      case 'exitToMenu':
+        this.exitToMenu();
         return;
     }
   }

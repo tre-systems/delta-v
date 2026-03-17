@@ -1,6 +1,7 @@
 import { CODE_LENGTH } from '../../shared/constants';
 import type { CombatResult, FleetPurchase, GameState, MovementEvent, Ship } from '../../shared/types';
 import { byId, el, hide, show, visible } from '../dom';
+import type { UIEvent } from './events';
 import { canAddFleetShip, getFleetCartView, getFleetShopView } from './fleet';
 import {
   formatCombatResultEntries,
@@ -54,24 +55,9 @@ export class UIManager {
     'skipCombatBtn',
   ];
 
-  // Callbacks
-  onSelectScenario: ((scenario: string) => void) | null = null;
-  onSinglePlayer: ((scenario: string, difficulty: 'easy' | 'normal' | 'hard') => void) | null = null;
+  onEvent: ((event: UIEvent) => void) | null = null;
   private aiDifficulty: 'easy' | 'normal' | 'hard' = 'normal';
   private pendingAIGame = false; // true when scenario selection is for AI game
-  onJoin: ((code: string, playerToken?: string | null) => void) | null = null;
-  onUndo: (() => void) | null = null;
-  onConfirm: (() => void) | null = null;
-  onLaunchOrdnance: ((type: 'mine' | 'torpedo' | 'nuke') => void) | null = null;
-  onEmplaceBase: (() => void) | null = null;
-  onSkipOrdnance: (() => void) | null = null;
-  onAttack: (() => void) | null = null;
-  onFireAll: (() => void) | null = null;
-  onSkipCombat: (() => void) | null = null;
-  onFleetReady: ((purchases: FleetPurchase[]) => void) | null = null;
-  onRematch: (() => void) | null = null;
-  onExit: (() => void) | null = null;
-  onSelectShip: ((shipId: string) => void) | null = null;
   private readonly handleViewportResize = () => {
     this.queueLayoutSync();
   };
@@ -122,9 +108,9 @@ export class UIManager {
         const scenario = (btn as HTMLElement).dataset.scenario!;
         if (this.pendingAIGame) {
           this.pendingAIGame = false;
-          this.onSinglePlayer?.(scenario, this.aiDifficulty);
+          this.onEvent?.({ type: 'startSinglePlayer', scenario, difficulty: this.aiDifficulty });
         } else {
-          this.onSelectScenario?.(scenario);
+          this.onEvent?.({ type: 'selectScenario', scenario });
         }
       });
     }
@@ -135,13 +121,13 @@ export class UIManager {
 
     byId('joinBtn').addEventListener('click', () => {
       const parsed = parseJoinInput((byId('codeInput') as HTMLInputElement).value, CODE_LENGTH);
-      if (parsed) this.onJoin?.(parsed.code, parsed.playerToken);
+      if (parsed) this.onEvent?.({ type: 'join', code: parsed.code, playerToken: parsed.playerToken });
     });
 
     byId('codeInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         const parsed = parseJoinInput((e.target as HTMLInputElement).value, CODE_LENGTH);
-        if (parsed) this.onJoin?.(parsed.code, parsed.playerToken);
+        if (parsed) this.onEvent?.({ type: 'join', code: parsed.code, playerToken: parsed.playerToken });
       }
     });
 
@@ -156,18 +142,20 @@ export class UIManager {
       });
     });
 
-    byId('undoBtn').addEventListener('click', () => this.onUndo?.());
-    byId('confirmBtn').addEventListener('click', () => this.onConfirm?.());
-    byId('launchMineBtn').addEventListener('click', () => this.onLaunchOrdnance?.('mine'));
-    byId('launchTorpedoBtn').addEventListener('click', () => this.onLaunchOrdnance?.('torpedo'));
-    byId('launchNukeBtn').addEventListener('click', () => this.onLaunchOrdnance?.('nuke'));
-    byId('emplaceBaseBtn').addEventListener('click', () => this.onEmplaceBase?.());
-    byId('skipOrdnanceBtn').addEventListener('click', () => this.onSkipOrdnance?.());
-    byId('attackBtn').addEventListener('click', () => this.onAttack?.());
-    byId('fireBtn').addEventListener('click', () => this.onFireAll?.());
-    byId('skipCombatBtn').addEventListener('click', () => this.onSkipCombat?.());
-    byId('rematchBtn').addEventListener('click', () => this.onRematch?.());
-    byId('exitBtn').addEventListener('click', () => this.onExit?.());
+    byId('undoBtn').addEventListener('click', () => this.onEvent?.({ type: 'undo' }));
+    byId('confirmBtn').addEventListener('click', () => this.onEvent?.({ type: 'confirm' }));
+    byId('launchMineBtn').addEventListener('click', () => this.onEvent?.({ type: 'launchOrdnance', ordType: 'mine' }));
+    byId('launchTorpedoBtn').addEventListener('click', () =>
+      this.onEvent?.({ type: 'launchOrdnance', ordType: 'torpedo' }),
+    );
+    byId('launchNukeBtn').addEventListener('click', () => this.onEvent?.({ type: 'launchOrdnance', ordType: 'nuke' }));
+    byId('emplaceBaseBtn').addEventListener('click', () => this.onEvent?.({ type: 'emplaceBase' }));
+    byId('skipOrdnanceBtn').addEventListener('click', () => this.onEvent?.({ type: 'skipOrdnance' }));
+    byId('attackBtn').addEventListener('click', () => this.onEvent?.({ type: 'attack' }));
+    byId('fireBtn').addEventListener('click', () => this.onEvent?.({ type: 'fireAll' }));
+    byId('skipCombatBtn').addEventListener('click', () => this.onEvent?.({ type: 'skipCombat' }));
+    byId('rematchBtn').addEventListener('click', () => this.onEvent?.({ type: 'rematch' }));
+    byId('exitBtn').addEventListener('click', () => this.onEvent?.({ type: 'exit' }));
 
     // Game log toggle
     byId('logToggleBtn').addEventListener('click', () => {
@@ -264,7 +252,7 @@ export class UIManager {
 
     // Wire buttons
     byId('fleetReadyBtn').onclick = () => {
-      this.onFleetReady?.(this.fleetCart);
+      this.onEvent?.({ type: 'fleetReady', purchases: this.fleetCart });
     };
     byId('fleetClearBtn').onclick = () => {
       this.fleetCart = [];
@@ -485,7 +473,7 @@ export class UIManager {
       }
 
       if (!ship.destroyed) {
-        entry.addEventListener('click', () => this.onSelectShip?.(ship.id));
+        entry.addEventListener('click', () => this.onEvent?.({ type: 'selectShip', shipId: ship.id }));
       }
 
       this.shipListEl.appendChild(entry);
