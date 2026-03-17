@@ -9,8 +9,9 @@ import {
 } from './game/combat';
 import { resolveAstrogationClick, resolveOrdnanceClick } from './game/input';
 import { createMinimapLayout, isPointInMinimap, projectMinimapToWorld } from './game/minimap';
+import type { PlanningState } from './game/planning';
 import type { Camera } from './renderer/camera';
-import { HEX_SIZE, type PlanningState } from './renderer/renderer';
+import { HEX_SIZE } from './renderer/renderer';
 
 export class InputHandler {
   private camera: Camera;

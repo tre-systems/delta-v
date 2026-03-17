@@ -1,7 +1,6 @@
 import { MOVEMENT_ANIM_DURATION } from '../../shared/constants';
 import { type HexCoord, hexKey, hexToPixel, type PixelCoord, parseHexKey } from '../../shared/hex';
 import type {
-  CombatAttack,
   CombatResult,
   GameState,
   MovementEvent,
@@ -70,22 +69,10 @@ export interface AnimationState {
 
 // CombatEffect and HexFlash types imported from renderer-effects.ts
 
-// --- Planning state (controlled by input handler) ---
+// PlanningState is owned by GameClient, passed in as a reference
+import type { PlanningState } from '../game/planning';
 
-export interface PlanningState {
-  selectedShipId: string | null;
-  burns: Map<string, number | null>; // shipId -> burn direction (or null for no burn)
-  overloads: Map<string, number | null>; // shipId -> overload direction (warships only, 2 fuel total)
-  weakGravityChoices: Map<string, Record<string, boolean>>; // shipId -> { hexKey: true to ignore }
-  torpedoAccel: number | null; // direction for torpedo launch boost
-  torpedoAccelSteps: 1 | 2 | null;
-  combatTargetId: string | null; // enemy ship targeted for combat
-  combatTargetType: 'ship' | 'ordnance' | null;
-  combatAttackerIds: string[];
-  combatAttackStrength: number | null;
-  queuedAttacks: CombatAttack[]; // multi-target: attacks queued before sending
-  hoverHex: HexCoord | null; // current hex being hovered by mouse
-}
+export type { PlanningState } from '../game/planning';
 
 // --- Renderer ---
 
@@ -100,20 +87,7 @@ export class Renderer {
   private gameState: GameState | null = null;
   private playerId = -1;
   private animState: AnimationState | null = null;
-  planningState: PlanningState = {
-    selectedShipId: null,
-    burns: new Map(),
-    overloads: new Map(),
-    weakGravityChoices: new Map(),
-    torpedoAccel: null,
-    torpedoAccelSteps: null,
-    combatTargetId: null,
-    combatTargetType: null,
-    combatAttackerIds: [],
-    combatAttackStrength: null,
-    queuedAttacks: [],
-    hoverHex: null,
-  };
+  private planningState: PlanningState;
   private combatResults: { results: CombatResult[]; showUntil: number } | null = null;
   private combatEffects: CombatEffect[] = [];
   private hexFlashes: HexFlash[] = [];
@@ -124,10 +98,11 @@ export class Renderer {
   private shipTrails: Map<string, HexCoord[]> = new Map();
   private ordnanceTrails: Map<string, HexCoord[]> = new Map();
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, planningState: PlanningState) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.camera = new Camera();
+    this.planningState = planningState;
     this.stars = generateStars(600, 2000);
   }
 
