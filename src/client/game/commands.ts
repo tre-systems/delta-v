@@ -1,11 +1,15 @@
+import type { HexCoord } from '../../shared/hex';
 import type { FleetPurchase } from '../../shared/types';
+import type { CombatTargetPlan } from '../game/combat';
 import type { KeyboardAction } from './keyboard';
 
 export type GameCommand =
   // Astrogation
   | { type: 'confirmOrders' }
   | { type: 'undoBurn' }
-  | { type: 'setBurnDirection'; direction: number }
+  | { type: 'setBurnDirection'; shipId?: string; direction: number | null }
+  | { type: 'setOverloadDirection'; shipId: string; direction: number | null }
+  | { type: 'setWeakGravityChoices'; shipId: string; choices: Record<string, boolean> }
   | { type: 'clearSelectedBurn' }
   // Combat
   | { type: 'queueAttack' }
@@ -13,6 +17,7 @@ export type GameCommand =
   | { type: 'skipCombat' }
   | { type: 'adjustCombatStrength'; delta: number }
   | { type: 'resetCombatStrength' }
+  | { type: 'setCombatPlan'; plan: CombatTargetPlan; selectedShipId?: string }
   | { type: 'clearCombatSelection' }
   | { type: 'undoQueuedAttack' }
   // Ordnance
@@ -33,11 +38,14 @@ export type GameCommand =
   | { type: 'toggleLog' }
   | { type: 'toggleHelp' }
   | { type: 'toggleMute' }
-  // Lifecycle
+  // lifecycle
   | { type: 'requestRematch' }
   | { type: 'exitToMenu' }
-  // Torpedo
-  | { type: 'clearTorpedoAcceleration' };
+  // Torpedo / Ordnance
+  | { type: 'setTorpedoAccel'; direction: number | null; steps: (1 | 2) | null }
+  | { type: 'clearTorpedoAcceleration' }
+  // Hover
+  | { type: 'setHoverHex'; hex: HexCoord | null };
 
 export const keyboardActionToCommand = (action: KeyboardAction): GameCommand | null => {
   switch (action.kind) {

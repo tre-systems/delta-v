@@ -1,12 +1,12 @@
 import { type HexCoord, pixelToHex } from '../shared/hex';
 import type { GameState, SolarSystemMap } from '../shared/types';
 import {
-  createClearedCombatPlan,
   createCombatTargetPlan,
   getCombatAttackerIdAtHex,
   getCombatTargetAtHex,
   toggleCombatAttackerSelection,
 } from './game/combat';
+import type { GameCommand } from './game/commands';
 import { resolveAstrogationClick, resolveOrdnanceClick } from './game/input';
 import { createMinimapLayout, isPointInMinimap, projectMinimapToWorld } from './game/minimap';
 import type { PlanningState } from './game/planning';
@@ -19,6 +19,7 @@ export class InputHandler {
   private gameState: GameState | null = null;
   private map: SolarSystemMap | null = null;
   private playerId = -1;
+  public onCommand: (cmd: GameCommand) => void;
 
   // Drag state
   private isDragging = false;
@@ -33,9 +34,15 @@ export class InputHandler {
   // Callbacks
   onConfirm: (() => void) | null = null;
 
-  constructor(canvas: HTMLCanvasElement, camera: Camera, planningState: PlanningState) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    camera: Camera,
+    planningState: PlanningState,
+    onCommand: (cmd: GameCommand) => void,
+  ) {
     this.camera = camera;
     this.planningState = planningState;
+    this.onCommand = onCommand;
 
     // Mouse events
     canvas.addEventListener('mousedown', (e) => this.onPointerDown(e.clientX, e.clientY));
@@ -107,9 +114,12 @@ export class InputHandler {
     // Always track hover hex if we have game state
     if (this.gameState && this.map) {
       const worldPos = this.camera.screenToWorld(x, y);
-      this.planningState.hoverHex = pixelToHex(worldPos, HEX_SIZE);
-    } else {
-      this.planningState.hoverHex = null;
+      const hex = pixelToHex(worldPos, HEX_SIZE);
+      if (hex.q !== this.planningState.hoverHex?.q || hex.r !== this.planningState.hoverHex?.r) {
+        this.onCommand({ type: 'setHoverHex', hex });
+      }
+    } else if (this.planningState.hoverHex) {
+      this.onCommand({ type: 'setHoverHex', hex: null });
     }
   }
 
@@ -187,22 +197,19 @@ export class InputHandler {
     const interaction = resolveAstrogationClick(this.gameState, this.map, this.playerId, this.planningState, clickHex);
     switch (interaction.type) {
       case 'weakGravityToggle':
-        this.planningState.weakGravityChoices.set(interaction.shipId, interaction.choices);
+        this.onCommand({ type: 'setWeakGravityChoices', shipId: interaction.shipId, choices: interaction.choices });
         return;
       case 'overloadToggle':
-        this.planningState.overloads.set(interaction.shipId, interaction.direction);
+        this.onCommand({ type: 'setOverloadDirection', shipId: interaction.shipId, direction: interaction.direction });
         return;
       case 'burnToggle':
-        this.planningState.burns.set(interaction.shipId, interaction.direction);
-        if (interaction.clearOverload) {
-          this.planningState.overloads.delete(interaction.shipId);
-        }
+        this.onCommand({ type: 'setBurnDirection', shipId: interaction.shipId, direction: interaction.direction });
         return;
       case 'selectShip':
-        this.planningState.selectedShipId = interaction.shipId;
+        this.onCommand({ type: 'selectShip', shipId: interaction.shipId });
         return;
       case 'clearSelection':
-        this.planningState.selectedShipId = null;
+        this.onCommand({ type: 'deselectShip' });
         return;
     }
   }
@@ -212,13 +219,15 @@ export class InputHandler {
     const interaction = resolveOrdnanceClick(this.gameState, this.playerId, this.planningState, clickHex);
     switch (interaction.type) {
       case 'torpedoAccel':
-        this.planningState.torpedoAccel = interaction.torpedoAccel;
-        this.planningState.torpedoAccelSteps = interaction.torpedoAccelSteps;
+        this.onCommand({
+          type: 'setTorpedoAccel',
+          direction: interaction.torpedoAccel,
+          steps: interaction.torpedoAccelSteps,
+        });
         return;
       case 'selectShip':
-        this.planningState.selectedShipId = interaction.shipId;
-        this.planningState.torpedoAccel = null;
-        this.planningState.torpedoAccelSteps = null;
+        this.onCommand({ type: 'selectShip', shipId: interaction.shipId });
+        this.onCommand({ type: 'clearTorpedoAcceleration' });
         return;
       case 'none':
         return;
@@ -238,9 +247,16 @@ export class InputHandler {
         attackerId,
       );
       if (toggle?.consumed) {
-        this.planningState.combatAttackerIds = toggle.combatAttackerIds;
-        this.planningState.combatAttackStrength = toggle.combatAttackStrength;
-        this.planningState.selectedShipId = attackerId;
+        this.onCommand({
+          type: 'setCombatPlan',
+          plan: {
+            combatTargetId: this.planningState.combatTargetId,
+            combatTargetType: this.planningState.combatTargetType,
+            combatAttackerIds: toggle.combatAttackerIds,
+            combatAttackStrength: toggle.combatAttackStrength,
+          },
+          selectedShipId: attackerId,
+        });
         return;
       }
     }
@@ -251,25 +267,23 @@ export class InputHandler {
         this.planningState.combatTargetId === target.targetId &&
         this.planningState.combatTargetType === target.targetType;
       if (isSame) {
-        Object.assign(this.planningState, createClearedCombatPlan());
+        this.onCommand({ type: 'clearCombatSelection' });
       } else {
-        Object.assign(
+        const plan = createCombatTargetPlan(
+          this.gameState,
+          this.playerId,
           this.planningState,
-          createCombatTargetPlan(
-            this.gameState,
-            this.playerId,
-            this.planningState,
-            target.targetId,
-            target.targetType,
-            this.map,
-          ),
+          target.targetId,
+          target.targetType,
+          this.map,
         );
+        this.onCommand({ type: 'setCombatPlan', plan });
       }
       return;
     }
 
     // Clicked empty space — deselect target
-    Object.assign(this.planningState, createClearedCombatPlan());
+    this.onCommand({ type: 'clearCombatSelection' });
   }
 
   /**

@@ -39,10 +39,10 @@ The backend leverages Cloudflare's edge network.
 ### C. The Client (`client/`)
 The frontend is responsible for rendering the pure hex-grid state into a smooth, continuous graphical experience.
 
-- **`main.ts`**: The client-side controller. Manages WebSocket connections, local-AI execution, phase transitions, and orchestrates the Renderer, Input, and UI.
+- **`main.ts`**: The client-side controller. Manages WebSocket connections, local-AI execution, and phase transitions. It orchestrates the Renderer, Input, and UI through a centralized **`ClientContext`** and a single **`dispatch(GameCommand)`** entry point.
 - **`renderer/renderer.ts`**: A highly optimized Canvas 2D renderer. It separates logical hex coordinates from pixel coordinates. It features smooth camera interpolation, persistent trails, and movement/combat animations that occur *between* turn phases.
-- **`input.ts`**: Manages the complex state of user interaction (selecting burn vectors, queuing attacks, choosing targets) before finalizing and sending them to the server.
-- **`game/` / `renderer/` / `ui/` subfolders**: Pure client-side helpers for combat selection, input planning, minimap geometry, phase derivation, formatting, and tooltip/view-model logic. These keep the large coordinators testable without introducing a client framework.
+- **`input.ts`**: Manages user interaction (panning, zooming, clicking). It translates raw browser events into high-level **`GameCommand`** objects which are then dispatched to `main.ts`, ensuring the input layer never directly mutates the application state.
+- **`game/` / `renderer/` / `ui/` subfolders**: Pure client-side helpers for combat selection, input planning, minimap geometry, phase derivation, formatting, and tooltip/view-model logic.
 - **`ui/ui.ts`** / **`audio.ts`**: Handles the HTML overlay (menus, HUD) and Web Audio API interactions.
 - **Visual Polish**: Employs a premium design system with glassmorphism tokens (backdrop-filters), tactile micro-animations (recoil, scaling glows), and pulsing orbital effects for high-end UX.
 
