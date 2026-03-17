@@ -428,6 +428,139 @@ describe('shouldEnterCombatPhase', () => {
   });
 });
 
+describe('processCombat — additional edge cases', () => {
+  it('rejects duplicate target in separate attacks', () => {
+    const state = makeCombatState();
+    state.ships = [
+      makeShip({ id: 'a0', type: 'frigate', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
+      makeShip({ id: 'a1', type: 'corvette', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
+      makeShip({ id: 'e0', owner: 1, position: { q: 2, r: 0 }, lastMovementPath: [{ q: 2, r: 0 }] }),
+    ];
+    // Two separate attacks on the same target
+    const result = processCombat(
+      state,
+      0,
+      [
+        { attackerIds: ['a0'], targetId: 'e0' },
+        { attackerIds: ['a1'], targetId: 'e0' },
+      ],
+      openMap,
+      () => 0.99,
+    );
+    expect('error' in result && result.error).toContain('attacked only once');
+  });
+
+  it('rejects ordnance attack when group has no remaining strength', () => {
+    const state = makeCombatState();
+    state.ordnance = [
+      makeOrdnance({ id: 'nuke0', owner: 1, position: { q: 2, r: 0 } }),
+      makeOrdnance({ id: 'nuke1', owner: 1, position: { q: 2, r: 0 } }),
+    ];
+    state.ships = [
+      makeShip({ id: 'a0', type: 'frigate', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
+      makeShip({ id: 'e0', owner: 1, position: { q: 10, r: 0 }, lastMovementPath: [{ q: 10, r: 0 }] }),
+    ];
+    // First ordnance attack allocates full strength, second with same group has none remaining
+    const result = processCombat(
+      state,
+      0,
+      [
+        { attackerIds: ['a0'], targetId: 'nuke0', targetType: 'ordnance' },
+        { attackerIds: ['a0'], targetId: 'nuke1', targetType: 'ordnance' },
+      ],
+      openMap,
+      () => 0.99,
+    );
+    expect('error' in result && result.error).toContain('no strength remaining');
+  });
+
+  it('rejects anti-nuke attack when attacker lacks LOS through body', () => {
+    const bodyMap: SolarSystemMap = {
+      hexes: new Map([['1,0', { terrain: 'planetSurface', body: { name: 'Blocker', destructive: false } }]]),
+      bodies: [{ name: 'Blocker', center: { q: 1, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 }],
+      bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
+    };
+    const state = makeCombatState();
+    state.ordnance = [makeOrdnance({ id: 'nuke0', owner: 1, position: { q: 2, r: 0 } })];
+    state.ships = [
+      makeShip({ id: 'a0', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
+      makeShip({ id: 'e0', owner: 1, position: { q: 10, r: 0 }, lastMovementPath: [{ q: 10, r: 0 }] }),
+    ];
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: ['a0'], targetId: 'nuke0', targetType: 'ordnance' }],
+      bodyMap,
+    );
+    expect('error' in result && result.error).toContain('line of sight');
+  });
+
+  it('rejects ship attack when attacker lacks LOS through body', () => {
+    const bodyMap: SolarSystemMap = {
+      hexes: new Map([['1,0', { terrain: 'planetSurface', body: { name: 'Blocker', destructive: false } }]]),
+      bodies: [{ name: 'Blocker', center: { q: 1, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 }],
+      bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
+    };
+    const state = makeCombatState();
+    state.ships = [
+      makeShip({ id: 'a0', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
+      makeShip({ id: 'e0', owner: 1, position: { q: 2, r: 0 }, lastMovementPath: [{ q: 2, r: 0 }] }),
+    ];
+    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0' }], bodyMap);
+    expect('error' in result && result.error).toContain('line of sight');
+  });
+
+  it('resolves successful ship combat with results', () => {
+    const state = makeCombatState();
+    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0' }], openMap, () => 0.99);
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      expect(result.results.length).toBeGreaterThanOrEqual(1);
+      const shipCombat = result.results.find((r) => r.targetType === 'ship');
+      expect(shipCombat).toBeDefined();
+      expect(shipCombat?.attackType).toBe('gun');
+    }
+  });
+});
+
+describe('shouldRemainInCombatPhase edge cases', () => {
+  it('resolves pending asteroid hazards and returns results', () => {
+    const state = makeCombatState();
+    // Solo ship with pending asteroid hazard (no enemies)
+    state.ships = [makeShip({ id: 'a0', owner: 0, position: { q: 0, r: 0 } })];
+    state.pendingAsteroidHazards = [{ shipId: 'a0', hex: { q: 0, r: 0 } }];
+
+    const result = beginCombatPhase(state, 0, openMap, () => 0.99);
+    expect('error' in result).toBe(false);
+    if ('results' in result) {
+      // Hazards were resolved, results returned
+      expect(result.results.length).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('without map falls back to hasAnyEnemyShips check', () => {
+    const state = makeCombatState();
+    // No map → uses hasAnyEnemyShips
+    const result = beginCombatPhase(state, 0);
+    expect('error' in result).toBe(false);
+    if ('state' in result) {
+      // Enemy exists → stays in combat
+      expect(result.state.phase).toBe('combat');
+    }
+  });
+
+  it('without map advances turn when no enemies', () => {
+    const state = makeCombatState();
+    state.ships[1].destroyed = true;
+    const result = beginCombatPhase(state, 0);
+    expect('error' in result).toBe(false);
+    if ('state' in result) {
+      // No map → no checkGameEnd → winner stays null, but turn advances past combat
+      expect(result.state.phase).not.toBe('combat');
+    }
+  });
+});
+
 describe('base defense with skipCombat', () => {
   it('resolves planetary defense during skip when enabled', () => {
     const map = buildSolarSystemMap();
