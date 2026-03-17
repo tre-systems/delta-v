@@ -262,6 +262,88 @@ describe('computeCourse - gravity', () => {
     const course = computeCourse(ship, null, edgeMap);
     expect(course.enteredGravityEffects).toEqual([]);
   });
+
+  it('queues gravity when the course definitively enters a gravity hex', () => {
+    const gravMap: SolarSystemMap = {
+      hexes: new Map([
+        [
+          '1,0',
+          {
+            terrain: 'space',
+            gravity: { direction: 3, strength: 'full', bodyName: 'TestWorld' },
+          },
+        ],
+      ]),
+      bodies: [],
+      bounds: { minQ: -2, maxQ: 4, minR: -2, maxR: 2 },
+    };
+    // Straight E at speed 2: (0,0) -> (2,0), definitively enters (1,0)
+    const ship = makeShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 2, dr: 0 },
+    });
+
+    const course = computeCourse(ship, null, gravMap);
+    expect(course.enteredGravityEffects).toHaveLength(1);
+    expect(course.enteredGravityEffects[0].bodyName).toBe('TestWorld');
+  });
+
+  it('does not queue gravity for edge-grazing with weak gravity hex', () => {
+    const weakGravMap: SolarSystemMap = {
+      hexes: new Map([
+        [
+          '1,0',
+          {
+            terrain: 'space',
+            gravity: { direction: 3, strength: 'weak', bodyName: 'TestMoon' },
+          },
+        ],
+      ]),
+      bodies: [],
+      bounds: { minQ: -2, maxQ: 4, minR: -2, maxR: 2 },
+    };
+    // Diagonal path (0,0) -> (2,-1) grazes edge of (1,0)
+    const ship = makeShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 2, dr: -1 },
+    });
+
+    const course = computeCourse(ship, null, weakGravMap);
+    expect(course.enteredGravityEffects).toEqual([]);
+  });
+
+  it('does not queue gravity when both sides of edge-grazing are gravity hexes', () => {
+    // Both (1,0) and (1,-1) have gravity but path runs along their shared edge
+    const dualGravMap: SolarSystemMap = {
+      hexes: new Map([
+        [
+          '1,0',
+          {
+            terrain: 'space',
+            gravity: { direction: 3, strength: 'full', bodyName: 'TestWorld' },
+          },
+        ],
+        [
+          '1,-1',
+          {
+            terrain: 'space',
+            gravity: { direction: 4, strength: 'full', bodyName: 'TestWorld' },
+          },
+        ],
+      ]),
+      bodies: [],
+      bounds: { minQ: -2, maxQ: 4, minR: -2, maxR: 2 },
+    };
+    // Path (0,0) -> (2,-1) runs along the shared edge
+    const ship = makeShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 2, dr: -1 },
+    });
+
+    const course = computeCourse(ship, null, dualGravMap);
+    // Neither gravity hex is definite — both are ambiguous
+    expect(course.enteredGravityEffects).toEqual([]);
+  });
 });
 
 describe('computeCourse - weak gravity', () => {
