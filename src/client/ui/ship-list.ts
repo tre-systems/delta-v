@@ -19,11 +19,10 @@ export interface ShipListEntryView {
 }
 
 const getDisplayNames = (ships: Ship[]) => {
-  const typeCounts: Record<string, number> = {};
-  for (const ship of ships) {
-    typeCounts[ship.type] = (typeCounts[ship.type] ?? 0) + 1;
-  }
-
+  const typeCounts = ships.reduce<Record<string, number>>((acc, ship) => {
+    acc[ship.type] = (acc[ship.type] ?? 0) + 1;
+    return acc;
+  }, {});
   const typeIndices: Record<string, number> = {};
   return ships.map((ship) => {
     const name = SHIP_STATS[ship.type]?.name ?? ship.type;
@@ -33,14 +32,13 @@ const getDisplayNames = (ships: Ship[]) => {
   });
 };
 
-const getStatusText = (ship: Ship): string => {
-  const statusParts: string[] = [];
-  if (ship.destroyed) statusParts.push('X');
-  else if (ship.captured) statusParts.push('CAP');
-  else if (ship.damage.disabledTurns > 0) statusParts.push(`D${ship.damage.disabledTurns}`);
-  if (ship.heroismAvailable) statusParts.push('H');
-  return statusParts.join(' ');
-};
+const getStatusText = (ship: Ship): string =>
+  [
+    ship.destroyed ? 'X' : ship.captured ? 'CAP' : ship.damage.disabledTurns > 0 ? `D${ship.damage.disabledTurns}` : '',
+    ship.heroismAvailable ? 'H' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
 const getVelocityLabel = (ship: Ship): string => {
   const speed = Math.abs(ship.velocity.dq) + Math.abs(ship.velocity.dr);
@@ -51,51 +49,20 @@ const getShipDetailRows = (ship: Ship, isSelected: boolean): ShipDetailRowView[]
   const stats = SHIP_STATS[ship.type];
   if (!isSelected || ship.destroyed || !stats) return [];
 
-  const rows: ShipDetailRowView[] = [
+  return [
     {
       label: 'Combat',
       value: `${stats.combat}${stats.defensiveOnly ? ' (def)' : ''}${ship.heroismAvailable ? ' ★' : ''}`,
       tone: null,
     },
-  ];
-
-  if (stats.cargo > 0) {
-    rows.push({
-      label: 'Cargo',
-      value: `${stats.cargo - ship.cargoUsed}/${stats.cargo}`,
-      tone: null,
-    });
-  }
-
-  rows.push({
-    label: 'Velocity',
-    value: getVelocityLabel(ship),
-    tone: null,
-  });
-
-  if (ship.damage.disabledTurns > 0) {
-    rows.push({
-      label: 'Disabled',
-      value: `${ship.damage.disabledTurns} turns`,
-      tone: 'warning',
-    });
-  }
-
-  if (ship.captured) {
-    rows.push({
-      label: 'Status',
-      value: 'Captured',
-      tone: 'danger',
-    });
-  } else if (ship.landed) {
-    rows.push({
-      label: 'Status',
-      value: 'Landed',
-      tone: 'success',
-    });
-  }
-
-  return rows;
+    stats.cargo > 0 ? { label: 'Cargo', value: `${stats.cargo - ship.cargoUsed}/${stats.cargo}`, tone: null } : null,
+    { label: 'Velocity', value: getVelocityLabel(ship), tone: null },
+    ship.damage.disabledTurns > 0
+      ? { label: 'Disabled', value: `${ship.damage.disabledTurns} turns`, tone: 'warning' as const }
+      : null,
+    ship.captured ? { label: 'Status', value: 'Captured', tone: 'danger' as const } : null,
+    !ship.captured && ship.landed ? { label: 'Status', value: 'Landed', tone: 'success' as const } : null,
+  ].filter((row): row is ShipDetailRowView => row !== null);
 };
 
 export const buildShipListView = (

@@ -82,15 +82,13 @@ const resolveOverloadToggle = (ship: Ship, clickHex: HexCoord, planning: InputPl
   const burnDestination = hexAdd(launchHex, HEX_DIRECTIONS[currentBurn]);
   const currentOverload = planning.overloads.get(ship.id) ?? null;
 
-  for (let direction = 0; direction < 6; direction++) {
-    if (!hexEqual(clickHex, hexAdd(burnDestination, HEX_DIRECTIONS[direction]))) continue;
-    return {
-      type: 'overloadToggle' as const,
-      shipId: ship.id,
-      direction: currentOverload === direction ? null : direction,
-    };
-  }
-  return null;
+  const direction = HEX_DIRECTIONS.findIndex((dir) => hexEqual(clickHex, hexAdd(burnDestination, dir)));
+  if (direction === -1) return null;
+  return {
+    type: 'overloadToggle' as const,
+    shipId: ship.id,
+    direction: currentOverload === direction ? null : direction,
+  };
 };
 
 const resolveBurnToggle = (
@@ -104,16 +102,14 @@ const resolveBurnToggle = (
   const predictedDestination = ship.landed
     ? computeCourse(ship, null, map, { destroyedBases: state.destroyedBases }).path[0]
     : predictDestination(ship);
-  for (let direction = 0; direction < 6; direction++) {
-    if (!hexEqual(clickHex, hexAdd(predictedDestination, HEX_DIRECTIONS[direction]))) continue;
-    return {
-      type: 'burnToggle' as const,
-      shipId: ship.id,
-      direction: currentBurn === direction ? null : direction,
-      clearOverload: currentBurn !== direction,
-    };
-  }
-  return null;
+  const direction = HEX_DIRECTIONS.findIndex((dir) => hexEqual(clickHex, hexAdd(predictedDestination, dir)));
+  if (direction === -1) return null;
+  return {
+    type: 'burnToggle' as const,
+    shipId: ship.id,
+    direction: currentBurn === direction ? null : direction,
+    clearOverload: currentBurn !== direction,
+  };
 };
 
 export const resolveAstrogationClick = (
