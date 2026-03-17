@@ -103,21 +103,21 @@ export class UIManager {
     });
 
     // Difficulty buttons
-    document.querySelectorAll('.btn-difficulty').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
+    for (const btn of Array.from(document.querySelectorAll('.btn-difficulty'))) {
+      btn.addEventListener('click', (e: Event) => {
         e.stopPropagation();
         const diff = (btn as HTMLElement).dataset.difficulty as 'easy' | 'normal' | 'hard';
         this.aiDifficulty = diff;
         // Update active state
-        document.querySelectorAll('.btn-difficulty').forEach((b) => {
+        for (const b of Array.from(document.querySelectorAll('.btn-difficulty'))) {
           b.classList.remove('active');
-        });
+        }
         btn.classList.add('active');
       });
-    });
+    }
 
     // Scenario buttons — dispatch to multiplayer or AI based on context
-    document.querySelectorAll('.btn-scenario').forEach((btn) => {
+    for (const btn of Array.from(document.querySelectorAll('.btn-scenario'))) {
       btn.addEventListener('click', () => {
         const scenario = (btn as HTMLElement).dataset.scenario!;
         if (this.pendingAIGame) {
@@ -127,7 +127,7 @@ export class UIManager {
           this.onSelectScenario?.(scenario);
         }
       });
-    });
+    }
 
     byId('backBtn').addEventListener('click', () => {
       this.showMenu();
@@ -335,9 +335,9 @@ export class UIManager {
     // Update shop item disabled states
     const shopItems = document.querySelectorAll('.fleet-shop-item');
     const shopView = getFleetShopView(this.fleetCart, totalCredits);
-    shopItems.forEach((item, idx) => {
+    for (const [idx, item] of Array.from(shopItems).entries()) {
       item.classList.toggle('disabled', shopView[idx]?.disabled ?? false);
-    });
+    }
   }
 
   updateHUD(
@@ -425,7 +425,7 @@ export class UIManager {
 
   toggleHelpOverlay() {
     const helpOverlay = byId('helpOverlay');
-    helpOverlay.style.display = helpOverlay.style.display === 'none' ? 'flex' : 'none';
+    visible(helpOverlay, helpOverlay.style.display === 'none', 'flex');
   }
 
   updateSoundButton(muted: boolean) {
