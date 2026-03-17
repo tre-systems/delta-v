@@ -366,7 +366,7 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 ## Scenarios
 
-Seven scenarios are implemented, selectable from the menu:
+Eight scenarios are implemented, selectable from the menu:
 
 ### Bi-Planetary (Learning Scenario)
 - **Players:** 2
@@ -401,6 +401,12 @@ Seven scenarios are implemented, selectable from the menu:
 - Tuned fleet-building war scenario using Terran vs. Rebel roles from the rulebook
 - Uses a smaller MegaCredit budget than the full paper campaign for shorter digital play
 - Strategic home-base positioning and mixed-fleet combat
+
+### Grand Tour (Race)
+- Each player starts with a corvette at a different habitable world
+- Must pass through at least one gravity hex of each major body (Sol, Mercury, Venus, Terra, Mars, Jupiter, Io, Callisto) and return to land at the starting world
+- No combat — pure navigation and gravity management
+- Shared bases at Terra, Venus, Mars, and Callisto for refueling
 
 ## Rendering
 
@@ -494,8 +500,10 @@ JSON messages over WebSocket. The game is turn-based so message frequency is low
 
 ```typescript
 type C2S =
+  | { type: 'fleetReady'; purchases: FleetPurchase[] }
   | { type: 'astrogation'; orders: AstrogationOrder[] }
   | { type: 'ordnance'; launches: OrdnanceLaunch[] }
+  | { type: 'emplaceBase'; emplacements: OrbitalBaseEmplacement[] }
   | { type: 'skipOrdnance' }
   | { type: 'beginCombat' }
   | { type: 'combat'; attacks: CombatAttack[] }
@@ -508,7 +516,7 @@ type C2S =
 
 ```typescript
 type S2C =
-  | { type: 'welcome'; playerId: number; code: string }
+  | { type: 'welcome'; playerId: number; code: string; playerToken: string }
   | { type: 'matchFound' }
   | { type: 'gameStart'; state: GameState }
   | { type: 'movementResult'; movements: ShipMovement[]; ordnanceMovements: OrdnanceMovement[]; events: MovementEvent[]; state: GameState }
@@ -791,10 +799,10 @@ interface ScenarioPlayer {
 
 ### Future Roadmap
 
-- [x] Server hardening for competitive play (tokenized room access, authenticated reconnect tokens, scenario locking at room creation, and runtime WebSocket payload validation)
-- [x] Runtime WebSocket payload validation
+- [x] Server hardening for competitive play (tokenized room access, authenticated reconnect tokens, scenario locking at room creation, runtime WebSocket payload validation)
 - [x] Orbital bases (carrying, emplacing, torpedo launching)
 - [x] PWA support (installable shell with offline-capable single-player)
+- [x] Grand Tour checkpoint race scenario
 - [ ] Browser-side orchestration and UI test coverage
 - [ ] Asteroid map visuals to match `docs/map.png`
 - [ ] Advanced features: looting, surrender, rescue, and richer logistics
