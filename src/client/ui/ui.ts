@@ -1,5 +1,6 @@
 import { CODE_LENGTH } from '../../shared/constants';
 import type { CombatResult, FleetPurchase, GameState, MovementEvent, Ship } from '../../shared/types';
+import { byId, el, hide, show, visible } from '../dom';
 import { canAddFleetShip, getFleetCartView, getFleetShopView } from './fleet';
 import {
   formatCombatResultEntries,
@@ -76,27 +77,27 @@ export class UIManager {
   };
 
   constructor() {
-    this.menuEl = document.getElementById('menu')!;
-    this.scenarioEl = document.getElementById('scenarioSelect')!;
-    this.waitingEl = document.getElementById('waiting')!;
-    this.hudEl = document.getElementById('hud')!;
-    this.topBarEl = document.getElementById('topBar')!;
-    this.bottomBarEl = document.getElementById('bottomBar')!;
-    this.gameOverEl = document.getElementById('gameOver')!;
-    this.shipListEl = document.getElementById('shipList')!;
-    this.gameLogEl = document.getElementById('gameLog')!;
-    this.logEntriesEl = document.getElementById('logEntries')!;
-    this.logShowBtn = document.getElementById('logShowBtn')!;
-    this.fleetBuildingEl = document.getElementById('fleetBuilding')!;
+    this.menuEl = byId('menu');
+    this.scenarioEl = byId('scenarioSelect');
+    this.waitingEl = byId('waiting');
+    this.hudEl = byId('hud');
+    this.topBarEl = byId('topBar');
+    this.bottomBarEl = byId('bottomBar');
+    this.gameOverEl = byId('gameOver');
+    this.shipListEl = byId('shipList');
+    this.gameLogEl = byId('gameLog');
+    this.logEntriesEl = byId('logEntries');
+    this.logShowBtn = byId('logShowBtn');
+    this.fleetBuildingEl = byId('fleetBuilding');
     window.addEventListener('resize', this.handleViewportResize);
     window.visualViewport?.addEventListener('resize', this.handleViewportResize);
 
     // Wire up buttons
-    document.getElementById('createBtn')!.addEventListener('click', () => {
+    byId('createBtn').addEventListener('click', () => {
       this.showScenarioSelect();
     });
 
-    document.getElementById('singlePlayerBtn')!.addEventListener('click', () => {
+    byId('singlePlayerBtn').addEventListener('click', () => {
       this.pendingAIGame = true;
       this.showScenarioSelect();
     });
@@ -128,48 +129,48 @@ export class UIManager {
       });
     });
 
-    document.getElementById('backBtn')!.addEventListener('click', () => {
+    byId('backBtn').addEventListener('click', () => {
       this.showMenu();
     });
 
-    document.getElementById('joinBtn')!.addEventListener('click', () => {
-      const parsed = parseJoinInput((document.getElementById('codeInput') as HTMLInputElement).value, CODE_LENGTH);
+    byId('joinBtn').addEventListener('click', () => {
+      const parsed = parseJoinInput((byId('codeInput') as HTMLInputElement).value, CODE_LENGTH);
       if (parsed) this.onJoin?.(parsed.code, parsed.playerToken);
     });
 
-    document.getElementById('codeInput')!.addEventListener('keydown', (e) => {
+    byId('codeInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         const parsed = parseJoinInput((e.target as HTMLInputElement).value, CODE_LENGTH);
         if (parsed) this.onJoin?.(parsed.code, parsed.playerToken);
       }
     });
 
-    document.getElementById('copyBtn')!.addEventListener('click', () => {
-      const code = document.getElementById('gameCode')!.textContent;
+    byId('copyBtn').addEventListener('click', () => {
+      const code = byId('gameCode').textContent;
       const url = this.inviteUrl ?? `${window.location.origin}/?code=${code}`;
       navigator.clipboard?.writeText(url).then(() => {
-        document.getElementById('copyBtn')!.textContent = 'Copied!';
+        byId('copyBtn').textContent = 'Copied!';
         setTimeout(() => {
-          document.getElementById('copyBtn')!.textContent = 'Copy Link';
+          byId('copyBtn').textContent = 'Copy Link';
         }, 2000);
       });
     });
 
-    document.getElementById('undoBtn')!.addEventListener('click', () => this.onUndo?.());
-    document.getElementById('confirmBtn')!.addEventListener('click', () => this.onConfirm?.());
-    document.getElementById('launchMineBtn')!.addEventListener('click', () => this.onLaunchOrdnance?.('mine'));
-    document.getElementById('launchTorpedoBtn')!.addEventListener('click', () => this.onLaunchOrdnance?.('torpedo'));
-    document.getElementById('launchNukeBtn')!.addEventListener('click', () => this.onLaunchOrdnance?.('nuke'));
-    document.getElementById('emplaceBaseBtn')!.addEventListener('click', () => this.onEmplaceBase?.());
-    document.getElementById('skipOrdnanceBtn')!.addEventListener('click', () => this.onSkipOrdnance?.());
-    document.getElementById('attackBtn')!.addEventListener('click', () => this.onAttack?.());
-    document.getElementById('fireBtn')!.addEventListener('click', () => this.onFireAll?.());
-    document.getElementById('skipCombatBtn')!.addEventListener('click', () => this.onSkipCombat?.());
-    document.getElementById('rematchBtn')!.addEventListener('click', () => this.onRematch?.());
-    document.getElementById('exitBtn')!.addEventListener('click', () => this.onExit?.());
+    byId('undoBtn').addEventListener('click', () => this.onUndo?.());
+    byId('confirmBtn').addEventListener('click', () => this.onConfirm?.());
+    byId('launchMineBtn').addEventListener('click', () => this.onLaunchOrdnance?.('mine'));
+    byId('launchTorpedoBtn').addEventListener('click', () => this.onLaunchOrdnance?.('torpedo'));
+    byId('launchNukeBtn').addEventListener('click', () => this.onLaunchOrdnance?.('nuke'));
+    byId('emplaceBaseBtn').addEventListener('click', () => this.onEmplaceBase?.());
+    byId('skipOrdnanceBtn').addEventListener('click', () => this.onSkipOrdnance?.());
+    byId('attackBtn').addEventListener('click', () => this.onAttack?.());
+    byId('fireBtn').addEventListener('click', () => this.onFireAll?.());
+    byId('skipCombatBtn').addEventListener('click', () => this.onSkipCombat?.());
+    byId('rematchBtn').addEventListener('click', () => this.onRematch?.());
+    byId('exitBtn').addEventListener('click', () => this.onExit?.());
 
     // Game log toggle
-    document.getElementById('logToggleBtn')!.addEventListener('click', () => {
+    byId('logToggleBtn').addEventListener('click', () => {
       this.logVisible = false;
       const visibility = buildScreenVisibility('hud', this.logVisible);
       this.gameLogEl.style.display = visibility.gameLog;
@@ -201,9 +202,9 @@ export class UIManager {
     this.gameLogEl.style.display = visibility.gameLog;
     this.logShowBtn.style.display = visibility.logShowBtn;
     this.fleetBuildingEl.style.display = visibility.fleetBuilding;
-    document.getElementById('helpBtn')!.style.display = visibility.helpBtn;
-    document.getElementById('soundBtn')!.style.display = visibility.soundBtn;
-    document.getElementById('helpOverlay')!.style.display = visibility.helpOverlay;
+    byId('helpBtn').style.display = visibility.helpBtn;
+    byId('soundBtn').style.display = visibility.soundBtn;
+    byId('helpOverlay').style.display = visibility.helpOverlay;
   }
 
   hideAll() {
@@ -232,8 +233,8 @@ export class UIManager {
     this.applyScreenVisibility('waiting');
     this.inviteUrl = inviteUrl;
     const copy = buildWaitingScreenCopy(code, false);
-    document.getElementById('gameCode')!.textContent = copy.codeText;
-    document.getElementById('waitingStatus')!.textContent = copy.statusText;
+    byId('gameCode').textContent = copy.codeText;
+    byId('waitingStatus').textContent = copy.statusText;
   }
 
   showConnecting() {
@@ -241,8 +242,8 @@ export class UIManager {
     this.applyScreenVisibility('waiting');
     this.inviteUrl = null;
     const copy = buildWaitingScreenCopy('', true);
-    document.getElementById('gameCode')!.textContent = copy.codeText;
-    document.getElementById('waitingStatus')!.textContent = copy.statusText;
+    byId('gameCode').textContent = copy.codeText;
+    byId('waitingStatus').textContent = copy.statusText;
   }
 
   showHUD() {
@@ -262,24 +263,24 @@ export class UIManager {
     this.renderFleetCart(credits);
 
     // Wire buttons
-    document.getElementById('fleetReadyBtn')!.onclick = () => {
+    byId('fleetReadyBtn').onclick = () => {
       this.onFleetReady?.(this.fleetCart);
     };
-    document.getElementById('fleetClearBtn')!.onclick = () => {
+    byId('fleetClearBtn').onclick = () => {
       this.fleetCart = [];
       this.renderFleetCart(credits);
     };
-    document.getElementById('fleetWaiting')!.style.display = 'none';
+    hide(byId('fleetWaiting'));
   }
 
   showFleetWaiting() {
-    document.getElementById('fleetReadyBtn')!.style.display = 'none';
-    document.getElementById('fleetClearBtn')!.style.display = 'none';
-    document.getElementById('fleetWaiting')!.style.display = 'block';
+    hide(byId('fleetReadyBtn'));
+    hide(byId('fleetClearBtn'));
+    show(byId('fleetWaiting'), 'block');
   }
 
   private renderFleetShop(totalCredits: number) {
-    const shopEl = document.getElementById('fleetShopList')!;
+    const shopEl = byId('fleetShopList');
     shopEl.innerHTML = '';
 
     for (const itemView of getFleetShopView(this.fleetCart, totalCredits)) {
@@ -298,7 +299,7 @@ export class UIManager {
           this.fleetCart.push({ shipType: itemView.shipType });
           this.renderFleetCart(totalCredits);
           // Apply recoil animation to cart
-          const cartEl = document.getElementById('fleetCart')!;
+          const cartEl = byId('fleetCart');
           cartEl.classList.remove('recoil-anim');
           void cartEl.offsetWidth;
           cartEl.classList.add('recoil-anim');
@@ -309,8 +310,8 @@ export class UIManager {
   }
 
   private renderFleetCart(totalCredits: number) {
-    const cartEl = document.getElementById('fleetCart')!;
-    const creditsEl = document.getElementById('fleetCredits')!;
+    const cartEl = byId('fleetCart');
+    const creditsEl = byId('fleetCredits');
     const cartView = getFleetCartView(this.fleetCart, totalCredits);
     creditsEl.textContent = cartView.remainingLabel;
 
@@ -365,9 +366,9 @@ export class UIManager {
       isWarship,
       canEmplaceBase,
     );
-    document.getElementById('turnInfo')!.textContent = hudView.turnText;
-    document.getElementById('phaseInfo')!.textContent = hudView.phaseText;
-    document.getElementById('objective')!.textContent = hudView.objectiveText;
+    byId('turnInfo').textContent = hudView.turnText;
+    byId('phaseInfo').textContent = hudView.phaseText;
+    byId('objective').textContent = hudView.objectiveText;
 
     // Trigger phase alert if turn or phase changed
     const phaseKey = `${turn}-${phase}-${isMyTurn}`;
@@ -375,24 +376,20 @@ export class UIManager {
       this.lastPhase = phaseKey;
       this.showPhaseAlert(phase, isMyTurn);
     }
-    document.getElementById('fuelGauge')!.textContent = hudView.fuelGaugeText;
+    byId('fuelGauge').textContent = hudView.fuelGaugeText;
 
-    const undoBtn = document.getElementById('undoBtn')!;
-    undoBtn.style.display = hudView.undoVisible ? 'inline-block' : 'none';
+    visible(byId('undoBtn'), hudView.undoVisible, 'inline-block');
+    visible(byId('confirmBtn'), hudView.confirmVisible, 'inline-block');
 
-    const confirmBtn = document.getElementById('confirmBtn')!;
-    confirmBtn.style.display = hudView.confirmVisible ? 'inline-block' : 'none';
-
-    const launchMineBtn = document.getElementById('launchMineBtn')! as HTMLButtonElement;
-    const launchTorpedoBtn = document.getElementById('launchTorpedoBtn')! as HTMLButtonElement;
-    const launchNukeBtn = document.getElementById('launchNukeBtn')! as HTMLButtonElement;
-    const emplaceBaseBtn = document.getElementById('emplaceBaseBtn')! as HTMLButtonElement;
-    const skipOrdnanceBtn = document.getElementById('skipOrdnanceBtn')!;
-    launchMineBtn.style.display = hudView.launchMine.visible ? 'inline-block' : 'none';
-    launchTorpedoBtn.style.display = hudView.launchTorpedo.visible ? 'inline-block' : 'none';
-    launchNukeBtn.style.display = hudView.launchNuke.visible ? 'inline-block' : 'none';
-    emplaceBaseBtn.style.display = hudView.emplaceBaseVisible ? 'inline-block' : 'none';
-    skipOrdnanceBtn.style.display = hudView.skipOrdnanceVisible ? 'inline-block' : 'none';
+    const launchMineBtn = byId<HTMLButtonElement>('launchMineBtn');
+    const launchTorpedoBtn = byId<HTMLButtonElement>('launchTorpedoBtn');
+    const launchNukeBtn = byId<HTMLButtonElement>('launchNukeBtn');
+    const emplaceBaseBtn = byId<HTMLButtonElement>('emplaceBaseBtn');
+    visible(launchMineBtn, hudView.launchMine.visible, 'inline-block');
+    visible(launchTorpedoBtn, hudView.launchTorpedo.visible, 'inline-block');
+    visible(launchNukeBtn, hudView.launchNuke.visible, 'inline-block');
+    visible(emplaceBaseBtn, hudView.emplaceBaseVisible, 'inline-block');
+    visible(byId('skipOrdnanceBtn'), hudView.skipOrdnanceVisible, 'inline-block');
     launchMineBtn.disabled = hudView.launchMine.disabled;
     launchTorpedoBtn.disabled = hudView.launchTorpedo.disabled;
     launchNukeBtn.disabled = hudView.launchNuke.disabled;
@@ -403,37 +400,36 @@ export class UIManager {
     launchTorpedoBtn.title = hudView.launchTorpedo.title;
     launchNukeBtn.title = hudView.launchNuke.title;
 
-    const skipCombatBtn = document.getElementById('skipCombatBtn')!;
-    skipCombatBtn.style.display = hudView.skipCombatVisible ? 'inline-block' : 'none';
+    visible(byId('skipCombatBtn'), hudView.skipCombatVisible, 'inline-block');
 
-    const statusMsg = document.getElementById('statusMsg')!;
+    const statusMsg = byId('statusMsg');
     if (hudView.statusText) {
       statusMsg.textContent = hudView.statusText;
-      statusMsg.style.display = 'block';
+      show(statusMsg, 'block');
     } else {
-      statusMsg.style.display = 'none';
+      hide(statusMsg);
     }
     this.queueLayoutSync();
   }
 
   updateLatency(latencyMs: number | null) {
-    const latencyEl = document.getElementById('latencyInfo')!;
+    const latencyEl = byId('latencyInfo');
     const status = getLatencyStatus(latencyMs);
     latencyEl.textContent = status.text;
     latencyEl.className = status.className;
   }
 
   updateFleetStatus(status: string) {
-    document.getElementById('fleetStatus')!.textContent = status;
+    byId('fleetStatus').textContent = status;
   }
 
   toggleHelpOverlay() {
-    const helpOverlay = document.getElementById('helpOverlay')!;
+    const helpOverlay = byId('helpOverlay');
     helpOverlay.style.display = helpOverlay.style.display === 'none' ? 'flex' : 'none';
   }
 
   updateSoundButton(muted: boolean) {
-    const btn = document.getElementById('soundBtn')!;
+    const btn = byId('soundBtn');
     btn.textContent = muted ? 'OFF' : 'SFX';
     btn.title = muted ? 'Sound off' : 'Sound on';
     btn.setAttribute('aria-label', muted ? 'Enable sound effects' : 'Disable sound effects');
@@ -441,14 +437,14 @@ export class UIManager {
   }
 
   setTurnTimer(text: string, className: string) {
-    const timerEl = document.getElementById('turnTimer')!;
+    const timerEl = byId('turnTimer');
     timerEl.textContent = text;
     timerEl.className = className;
     this.queueLayoutSync();
   }
 
   clearTurnTimer() {
-    const timerEl = document.getElementById('turnTimer');
+    const timerEl = byId('turnTimer');
     if (timerEl) {
       timerEl.textContent = '';
     }
@@ -496,24 +492,24 @@ export class UIManager {
     }
   }
 
-  showAttackButton(visible: boolean) {
-    document.getElementById('attackBtn')!.style.display = visible ? 'inline-block' : 'none';
+  showAttackButton(isVisible: boolean) {
+    visible(byId('attackBtn'), isVisible, 'inline-block');
     this.queueLayoutSync();
   }
 
-  showFireButton(visible: boolean, count: number) {
-    const btn = document.getElementById('fireBtn')!;
-    btn.style.display = visible ? 'inline-block' : 'none';
+  showFireButton(isVisible: boolean, count: number) {
+    const btn = byId('fireBtn');
+    visible(btn, isVisible, 'inline-block');
     btn.textContent = count > 0 ? `FIRE ALL (${count})` : 'FIRE ALL';
     this.queueLayoutSync();
   }
 
   showMovementStatus() {
-    const statusMsg = document.getElementById('statusMsg')!;
+    const statusMsg = byId('statusMsg');
     statusMsg.textContent = 'Ships moving...';
-    statusMsg.style.display = 'block';
+    show(statusMsg, 'block');
     for (const id of this.actionButtonIds) {
-      document.getElementById(id)!.style.display = 'none';
+      hide(byId(id));
     }
     this.queueLayoutSync();
   }
@@ -530,19 +526,19 @@ export class UIManager {
     },
   ) {
     const view = buildGameOverView(won, reason, stats);
-    this.gameOverEl.style.display = 'flex';
-    document.getElementById('gameOverText')!.textContent = view.titleText;
-    const reasonEl = document.getElementById('gameOverReason')!;
+    show(this.gameOverEl, 'flex');
+    byId('gameOverText').textContent = view.titleText;
+    const reasonEl = byId('gameOverReason');
     reasonEl.textContent = view.reasonText;
     reasonEl.style.whiteSpace = 'pre-line';
-    const rematchBtn = document.getElementById('rematchBtn')!;
+    const rematchBtn = byId('rematchBtn');
     rematchBtn.textContent = view.rematchText;
     rematchBtn.removeAttribute('disabled');
   }
 
   showRematchPending() {
     const view = buildRematchPendingView();
-    const btn = document.getElementById('rematchBtn')!;
+    const btn = byId('rematchBtn');
     btn.textContent = view.rematchText;
     if (view.rematchDisabled) {
       btn.setAttribute('disabled', 'true');
@@ -551,11 +547,11 @@ export class UIManager {
 
   showReconnecting(attempt: number, maxAttempts: number, onCancel: () => void) {
     const view = buildReconnectView(attempt, maxAttempts);
-    const overlay = document.getElementById('reconnectOverlay')!;
-    overlay.style.display = 'flex';
-    document.getElementById('reconnectText')!.textContent = view.reconnectText;
-    document.getElementById('reconnectAttempt')!.textContent = view.attemptText;
-    const cancelBtn = document.getElementById('reconnectCancelBtn')!;
+    const overlay = byId('reconnectOverlay');
+    show(overlay, 'flex');
+    byId('reconnectText').textContent = view.reconnectText;
+    byId('reconnectAttempt').textContent = view.attemptText;
+    const cancelBtn = byId('reconnectCancelBtn');
     cancelBtn.onclick = () => {
       this.hideReconnecting();
       onCancel();
@@ -563,25 +559,22 @@ export class UIManager {
   }
 
   hideReconnecting() {
-    document.getElementById('reconnectOverlay')!.style.display = 'none';
+    hide(byId('reconnectOverlay'));
   }
 
   // --- Toast notifications ---
 
   showToast(message: string, type: 'error' | 'info' | 'success' = 'info') {
-    const container = document.getElementById('toastContainer')!;
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
+    const container = byId('toastContainer');
+    const toast = el('div', { class: `toast toast-${type}`, text: message });
     container.appendChild(toast);
-    // Remove after animation
     setTimeout(() => {
       if (toast.parentNode) toast.parentNode.removeChild(toast);
     }, 3100);
   }
 
   showPhaseAlert(phase: string, isMyTurn: boolean) {
-    const alertEl = document.getElementById('phaseAlert')!;
+    const alertEl = byId('phaseAlert');
     const titleEl = alertEl.querySelector('.phase-alert-title') as HTMLElement;
     const subEl = alertEl.querySelector('.phase-alert-subtitle') as HTMLElement;
     const copy = getPhaseAlertCopy(phase, isMyTurn);
@@ -605,18 +598,12 @@ export class UIManager {
   }
 
   logTurn(turn: number, player: string) {
-    const el = document.createElement('div');
-    el.className = 'log-entry log-turn';
-    el.textContent = `— Turn ${turn}: ${player} —`;
-    this.logEntriesEl.appendChild(el);
+    this.logEntriesEl.appendChild(el('div', { class: 'log-entry log-turn', text: `— Turn ${turn}: ${player} —` }));
     this.scrollLogToBottom();
   }
 
   logText(text: string, cssClass = '') {
-    const el = document.createElement('div');
-    el.className = `log-entry ${cssClass}`;
-    el.textContent = text;
-    this.logEntriesEl.appendChild(el);
+    this.logEntriesEl.appendChild(el('div', { class: `log-entry ${cssClass}`, text }));
     this.scrollLogToBottom();
   }
 

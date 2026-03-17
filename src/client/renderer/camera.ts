@@ -1,5 +1,6 @@
 import { CAMERA_LERP_SPEED } from '../../shared/constants';
 import type { PixelCoord } from '../../shared/hex';
+import { clamp } from '../../shared/util';
 
 export class Camera {
   x = 0;
@@ -54,7 +55,7 @@ export class Camera {
   }
 
   zoomAt(sx: number, sy: number, factor: number) {
-    const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.targetZoom * factor));
+    const newZoom = clamp(this.targetZoom * factor, this.minZoom, this.maxZoom);
     const worldX = (sx - this.canvasW / 2) / this.targetZoom + this.targetX;
     const worldY = (sy - this.canvasH / 2) / this.targetZoom + this.targetY;
     this.targetZoom = newZoom;

@@ -18,6 +18,7 @@ import type {
   S2C,
   ShipMovement,
 } from '../shared/types';
+import { clamp } from '../shared/util';
 import {
   initAudio,
   isMuted,
@@ -32,6 +33,7 @@ import {
   playWarning,
   setMuted,
 } from './audio';
+import { byId, hide, show } from './dom';
 import { deriveAIActionPlan } from './game/ai-flow';
 import { deriveScenarioBriefingEntries } from './game/briefing';
 import { deriveBurnChangePlan } from './game/burn';
@@ -111,12 +113,12 @@ class GameClient {
   private timerWarningPlayed = false;
 
   constructor() {
-    this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
+    this.canvas = byId<HTMLCanvasElement>('gameCanvas');
     this.renderer = new Renderer(this.canvas);
     this.input = new InputHandler(this.canvas, this.renderer.camera, this.renderer.planningState);
     this.ui = new UIManager();
     this.tutorial = new Tutorial();
-    this.tooltipEl = document.getElementById('shipTooltip')!;
+    this.tooltipEl = byId('shipTooltip');
 
     this.renderer.setMap(this.map);
     this.input.setMap(this.map);
@@ -170,11 +172,11 @@ class GameClient {
     });
 
     // Help overlay
-    document.getElementById('helpCloseBtn')!.addEventListener('click', () => this.toggleHelp());
-    document.getElementById('helpBtn')!.addEventListener('click', () => this.toggleHelp());
+    byId('helpCloseBtn').addEventListener('click', () => this.toggleHelp());
+    byId('helpBtn').addEventListener('click', () => this.toggleHelp());
 
     // Sound toggle
-    const soundBtn = document.getElementById('soundBtn')!;
+    const soundBtn = byId('soundBtn');
     this.updateSoundButton();
     soundBtn.addEventListener('click', () => {
       setMuted(!isMuted());
@@ -184,7 +186,7 @@ class GameClient {
     // Ship hover tooltip
     this.canvas.addEventListener('mousemove', (e) => this.updateTooltip(e.clientX, e.clientY));
     this.canvas.addEventListener('mouseleave', () => {
-      this.tooltipEl.style.display = 'none';
+      hide(this.tooltipEl);
     });
 
     // Start render loop and audio
@@ -211,7 +213,7 @@ class GameClient {
   private setState(newState: ClientState) {
     this.state = newState;
     // Hide tooltip on state changes
-    this.tooltipEl.style.display = 'none';
+    hide(this.tooltipEl);
 
     const entryPlan = deriveClientStateEntryPlan(newState, this.gameState, this.playerId);
     const screenPlan = deriveClientScreenPlan(
@@ -837,7 +839,7 @@ class GameClient {
     if (maxStrength <= 0) return;
 
     const current = this.renderer.planningState.combatAttackStrength ?? maxStrength;
-    this.renderer.planningState.combatAttackStrength = Math.max(1, Math.min(maxStrength, current + delta));
+    this.renderer.planningState.combatAttackStrength = clamp(current + delta, 1, maxStrength);
   }
 
   private resetCombatStrengthToMax() {
@@ -1255,12 +1257,12 @@ class GameClient {
     const ship = getTooltipShip(gameState, this.state, this.playerId, hoverHex);
 
     if (!ship || !gameState) {
-      this.tooltipEl.style.display = 'none';
+      hide(this.tooltipEl);
       return;
     }
 
     this.tooltipEl.innerHTML = buildShipTooltipHtml(gameState, ship, this.playerId, this.map);
-    this.tooltipEl.style.display = 'block';
+    show(this.tooltipEl, 'block');
     // Position tooltip offset from cursor
     this.tooltipEl.style.left = `${screenX + 12}px`;
     this.tooltipEl.style.top = `${screenY - 10}px`;
