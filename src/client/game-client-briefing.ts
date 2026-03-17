@@ -16,10 +16,7 @@ function getBriefingCssClass(line: string): string {
   return '';
 }
 
-export function deriveScenarioBriefingEntries(
-  state: GameState,
-  playerId: number,
-): BriefingLogEntry[] {
+export function deriveScenarioBriefingEntries(state: GameState, playerId: number): BriefingLogEntry[] {
   return getScenarioBriefingLines(state, playerId).map((line) => ({
     text: line,
     cssClass: getBriefingCssClass(line),

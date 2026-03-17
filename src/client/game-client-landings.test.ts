@@ -38,10 +38,7 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     turnNumber: 1,
     phase: 'movement',
     activePlayer: 0,
-    ships: [
-      createShip(),
-      createShip({ id: 'enemy', owner: 1, type: 'corsair' }),
-    ],
+    ships: [createShip(), createShip({ id: 'enemy', owner: 1, type: 'corsair' })],
     ordnance: [],
     pendingAstrogationOrders: null,
     pendingAsteroidHazards: [],

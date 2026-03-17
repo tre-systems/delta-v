@@ -1,6 +1,6 @@
+import { SCENARIOS } from '../shared/map-data';
 import { GameDO } from './game-do';
 import { generatePlayerToken, generateRoomCode, parseCreatePayload } from './protocol';
-import { SCENARIOS } from '../shared/map-data';
 
 export { GameDO };
 
@@ -45,11 +45,13 @@ async function handleCreate(request: Request, env: Env): Promise<Response> {
     const inviteToken = generatePlayerToken();
     const id = env.GAME.idFromName(code);
     const stub = env.GAME.get(id);
-    const initResponse = await stub.fetch(new Request('https://room.internal/init', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, scenario, playerToken, inviteToken }),
-    }));
+    const initResponse = await stub.fetch(
+      new Request('https://room.internal/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, scenario, playerToken, inviteToken }),
+      }),
+    );
 
     if (initResponse.ok) {
       return Response.json({ code, playerToken, inviteToken });

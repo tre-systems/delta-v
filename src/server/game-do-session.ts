@@ -46,7 +46,11 @@ export function getNextAlarmAt(deadlines: AlarmDeadlines): number | null {
 }
 
 export function resolveAlarmAction(snapshot: AlarmSnapshot): AlarmAction {
-  if (snapshot.disconnectedPlayer !== null && snapshot.disconnectAt !== undefined && snapshot.now >= snapshot.disconnectAt) {
+  if (
+    snapshot.disconnectedPlayer !== null &&
+    snapshot.disconnectAt !== undefined &&
+    snapshot.now >= snapshot.disconnectAt
+  ) {
     return { type: 'disconnectExpired', playerId: snapshot.disconnectedPlayer };
   }
   if (snapshot.turnTimeoutAt !== undefined && snapshot.now >= snapshot.turnTimeoutAt - TURN_TIMEOUT_GRACE_MS) {

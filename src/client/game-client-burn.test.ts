@@ -69,9 +69,18 @@ describe('game-client-burn', () => {
   });
 
   it('rejects disabled and fuel-starved ships', () => {
-    expect(deriveBurnChangePlan(createState(createShip({
-      damage: { disabledTurns: 2 },
-    })), 'ship-0', 2, null)).toEqual({
+    expect(
+      deriveBurnChangePlan(
+        createState(
+          createShip({
+            damage: { disabledTurns: 2 },
+          }),
+        ),
+        'ship-0',
+        2,
+        null,
+      ),
+    ).toEqual({
       kind: 'error',
       message: 'Ship disabled for 2 more turn(s)',
       level: 'error',

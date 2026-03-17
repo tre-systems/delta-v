@@ -1,7 +1,6 @@
-import type { GameState, Ship, Ordnance, SolarSystemMap } from './types';
-import { hexKey } from './hex';
-import { SHIP_STATS, ORDNANCE_MASS } from './constants';
+import { ORDNANCE_MASS, SHIP_STATS } from './constants';
 import { bodyHasGravity } from './map-data';
+import type { GameState, Ordnance, Ship, SolarSystemMap } from './types';
 
 export function playerControlsBase(state: GameState, playerId: number, baseKey: string): boolean {
   return state.players[playerId]?.bases.includes(baseKey) ?? false;
@@ -30,7 +29,7 @@ export function getOwnedPlanetaryBases(
   map: SolarSystemMap,
 ): { key: string; coord: { q: number; r: number } }[] {
   const bases = state.players[playerId]?.bases ?? [];
-  return bases.flatMap(key => {
+  return bases.flatMap((key) => {
     if (state.destroyedBases.includes(key)) return [];
     const hex = map.hexes.get(key);
     if (!hex?.base || !bodyHasGravity(hex.base.bodyName, map)) return [];
@@ -61,7 +60,7 @@ export function hasOrdnanceCapacity(ship: Ship): boolean {
   const stats = SHIP_STATS[ship.type];
   if (!stats) return false;
   const minMass = ORDNANCE_MASS.mine;
-  return (stats.cargo - ship.cargoUsed) >= minMass;
+  return stats.cargo - ship.cargoUsed >= minMass;
 }
 
 export function hasLaunchableOrdnanceCapacity(ship: Ship, allowedTypes: Set<Ordnance['type']>): boolean {
@@ -82,7 +81,7 @@ export function hasLaunchableOrdnanceCapacity(ship: Ship, allowedTypes: Set<Ordn
 
 export function hasAnyEnemyShips(state: GameState): boolean {
   const player = state.activePlayer;
-  return state.ships.some(s => s.owner !== player && !s.destroyed);
+  return state.ships.some((s) => s.owner !== player && !s.destroyed);
 }
 
 export function shuffle<T>(items: T[], rng?: () => number): T[] {
@@ -99,8 +98,12 @@ export function hasEscaped(
   bounds: { minQ: number; maxQ: number; minR: number; maxR: number },
 ): boolean {
   const margin = 3;
-  return pos.q < bounds.minQ - margin || pos.q > bounds.maxQ + margin ||
-         pos.r < bounds.minR - margin || pos.r > bounds.maxR + margin;
+  return (
+    pos.q < bounds.minQ - margin ||
+    pos.q > bounds.maxQ + margin ||
+    pos.r < bounds.minR - margin ||
+    pos.r > bounds.maxR + margin
+  );
 }
 
 export function hasEscapedNorth(

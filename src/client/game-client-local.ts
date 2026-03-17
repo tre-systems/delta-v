@@ -1,11 +1,11 @@
 import {
   beginCombatPhase,
+  type MovementResult,
   processAstrogation,
   processCombat,
   processOrdnance,
   skipCombat,
   skipOrdnance,
-  type MovementResult,
 } from '../shared/game-engine';
 import type {
   AstrogationOrder,
@@ -57,11 +57,7 @@ export function resolveOrdnanceStep(
   return { kind: 'movement', result };
 }
 
-export function resolveSkipOrdnanceStep(
-  state: GameState,
-  playerId: number,
-  map: SolarSystemMap,
-): LocalResolution {
+export function resolveSkipOrdnanceStep(state: GameState, playerId: number, map: SolarSystemMap): LocalResolution {
   const result = skipOrdnance(state, playerId, map);
   if ('error' in result) {
     return { kind: 'error', error: result.error };
@@ -72,11 +68,7 @@ export function resolveSkipOrdnanceStep(
   return { kind: 'state', state: result.state };
 }
 
-export function resolveBeginCombatStep(
-  state: GameState,
-  playerId: number,
-  map: SolarSystemMap,
-): LocalResolution {
+export function resolveBeginCombatStep(state: GameState, playerId: number, map: SolarSystemMap): LocalResolution {
   const previousState = state;
   const result = beginCombatPhase(state, playerId, map);
   if ('error' in result) {
@@ -115,11 +107,7 @@ export function resolveCombatStep(
   };
 }
 
-export function resolveSkipCombatStep(
-  state: GameState,
-  playerId: number,
-  map: SolarSystemMap,
-): LocalResolution {
+export function resolveSkipCombatStep(state: GameState, playerId: number, map: SolarSystemMap): LocalResolution {
   const previousState = state;
   const result = skipCombat(state, playerId, map);
   if ('error' in result) {

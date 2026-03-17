@@ -1,10 +1,5 @@
 import { ORDNANCE_MASS, SHIP_STATS } from '../shared/constants';
-import type {
-  GameState,
-  OrdnanceLaunch,
-  OrbitalBaseEmplacement,
-  Ship,
-} from '../shared/types';
+import type { GameState, OrbitalBaseEmplacement, OrdnanceLaunch, Ship } from '../shared/types';
 import type { PlanningState } from './renderer';
 
 type OrdnanceState = Pick<GameState, 'ships'>;
@@ -18,31 +13,28 @@ export type ClientActionError = {
 
 export type OrdnanceLaunchPlan =
   | {
-    ok: true;
-    launch: OrdnanceLaunch;
-    shipName: string;
-  }
+      ok: true;
+      launch: OrdnanceLaunch;
+      shipName: string;
+    }
   | ClientActionError;
 
 export type BaseEmplacementPlan =
   | {
-    ok: true;
-    emplacements: OrbitalBaseEmplacement[];
-  }
+      ok: true;
+      emplacements: OrbitalBaseEmplacement[];
+    }
   | ClientActionError;
 
 function getShipName(ship: Ship): string {
   return SHIP_STATS[ship.type]?.name ?? ship.type;
 }
 
-function getSelectedShip(
-  state: OrdnanceState,
-  selectedShipId: string | null,
-): Ship | null {
+function getSelectedShip(state: OrdnanceState, selectedShipId: string | null): Ship | null {
   if (!selectedShipId) {
     return null;
   }
-  return state.ships.find(ship => ship.id === selectedShipId) ?? null;
+  return state.ships.find((ship) => ship.id === selectedShipId) ?? null;
 }
 
 export function canShipLaunchAnyOrdnance(ship: Pick<Ship, 'type' | 'cargoUsed'>): boolean {
@@ -50,20 +42,20 @@ export function canShipLaunchAnyOrdnance(ship: Pick<Ship, 'type' | 'cargoUsed'>)
   if (!stats) {
     return false;
   }
-  return (stats.cargo - ship.cargoUsed) >= ORDNANCE_MASS.mine;
+  return stats.cargo - ship.cargoUsed >= ORDNANCE_MASS.mine;
 }
 
-export function getFirstLaunchableShipId(
-  state: OrdnanceState,
-  playerId: number,
-): string | null {
-  return state.ships.find(ship =>
-    ship.owner === playerId
-    && !ship.destroyed
-    && !ship.landed
-    && ship.damage.disabledTurns === 0
-    && canShipLaunchAnyOrdnance(ship),
-  )?.id ?? null;
+export function getFirstLaunchableShipId(state: OrdnanceState, playerId: number): string | null {
+  return (
+    state.ships.find(
+      (ship) =>
+        ship.owner === playerId &&
+        !ship.destroyed &&
+        !ship.landed &&
+        ship.damage.disabledTurns === 0 &&
+        canShipLaunchAnyOrdnance(ship),
+    )?.id ?? null
+  );
 }
 
 export function resolveOrdnanceLaunchPlan(
@@ -120,16 +112,13 @@ export function resolveOrdnanceLaunchPlan(
     launch: {
       shipId: ship.id,
       ordnanceType,
-      torpedoAccel: ordnanceType === 'torpedo' ? planning.torpedoAccel ?? null : undefined,
-      torpedoAccelSteps: ordnanceType === 'torpedo' ? planning.torpedoAccelSteps ?? null : undefined,
+      torpedoAccel: ordnanceType === 'torpedo' ? (planning.torpedoAccel ?? null) : undefined,
+      torpedoAccelSteps: ordnanceType === 'torpedo' ? (planning.torpedoAccelSteps ?? null) : undefined,
     },
   };
 }
 
-export function resolveBaseEmplacementPlan(
-  state: OrdnanceState,
-  selectedShipId: string | null,
-): BaseEmplacementPlan {
+export function resolveBaseEmplacementPlan(state: OrdnanceState, selectedShipId: string | null): BaseEmplacementPlan {
   if (!selectedShipId) {
     return { ok: false, message: 'Select a ship first', level: 'info' };
   }

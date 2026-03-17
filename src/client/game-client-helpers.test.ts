@@ -129,10 +129,7 @@ describe('game client helpers', () => {
         createShip({ id: 'p0s1', type: 'packet', owner: 0, destroyed: true }),
         createShip({ id: 'p1s0', type: 'corsair', owner: 1, destroyed: true }),
       ],
-      ordnance: [
-        createOrdnance({ type: 'mine' }),
-        createOrdnance({ id: 'ord-1', type: 'nuke', owner: 1 }),
-      ],
+      ordnance: [createOrdnance({ type: 'mine' }), createOrdnance({ id: 'ord-1', type: 'nuke', owner: 1 })],
       players: [
         {
           ...createPlayers()[0],

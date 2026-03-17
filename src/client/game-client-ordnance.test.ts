@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GameState, Ship } from '../shared/types';
-import type { PlanningState } from './renderer';
 import {
   canShipLaunchAnyOrdnance,
   getFirstLaunchableShipId,
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
 } from './game-client-ordnance';
+import type { PlanningState } from './renderer';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
   return {
@@ -31,7 +31,9 @@ function createState(ships: Ship[]): Pick<GameState, 'ships'> {
   return { ships };
 }
 
-function createPlanning(overrides: Partial<Pick<PlanningState, 'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'>> = {}) {
+function createPlanning(
+  overrides: Partial<Pick<PlanningState, 'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'>> = {},
+) {
   return {
     selectedShipId: 'ship-1',
     torpedoAccel: null,
@@ -87,17 +89,27 @@ describe('game-client-ordnance', () => {
       message: 'Cannot launch ordnance while landed',
       level: 'error',
     });
-    expect(resolveOrdnanceLaunchPlan(createState([createShip({ damage: { disabledTurns: 2 } })]), createPlanning(), 'mine')).toEqual({
+    expect(
+      resolveOrdnanceLaunchPlan(createState([createShip({ damage: { disabledTurns: 2 } })]), createPlanning(), 'mine'),
+    ).toEqual({
       ok: false,
       message: 'Ship is disabled',
       level: 'error',
     });
-    expect(resolveOrdnanceLaunchPlan(createState([createShip({ type: 'packet' })]), createPlanning(), 'torpedo')).toEqual({
+    expect(
+      resolveOrdnanceLaunchPlan(createState([createShip({ type: 'packet' })]), createPlanning(), 'torpedo'),
+    ).toEqual({
       ok: false,
       message: 'Only warships can launch torpedoes',
       level: 'error',
     });
-    expect(resolveOrdnanceLaunchPlan(createState([createShip({ type: 'packet', nukesLaunchedSinceResupply: 1 })]), createPlanning(), 'nuke')).toEqual({
+    expect(
+      resolveOrdnanceLaunchPlan(
+        createState([createShip({ type: 'packet', nukesLaunchedSinceResupply: 1 })]),
+        createPlanning(),
+        'nuke',
+      ),
+    ).toEqual({
       ok: false,
       message: 'Non-warships may carry only one nuke between resupplies',
       level: 'error',

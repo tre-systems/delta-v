@@ -25,12 +25,8 @@ export interface HexFlash {
  * Render and prune active combat visual effects (beams, explosions, game-over blasts).
  * Returns the filtered array with expired effects removed.
  */
-export function drawCombatEffects(
-  ctx: CanvasRenderingContext2D,
-  effects: CombatEffect[],
-  now: number,
-): CombatEffect[] {
-  const live = effects.filter(e => now < e.startTime + e.duration);
+export function drawCombatEffects(ctx: CanvasRenderingContext2D, effects: CombatEffect[], now: number): CombatEffect[] {
+  const live = effects.filter((e) => now < e.startTime + e.duration);
 
   for (const effect of live) {
     if (now < effect.startTime) continue;
@@ -124,7 +120,7 @@ function drawGameOverExplosionEffect(ctx: CanvasRenderingContext2D, effect: Comb
 
   // Bright core flash
   if (progress < 0.4) {
-    const coreAlpha = (1 - progress / 0.4);
+    const coreAlpha = 1 - progress / 0.4;
     const coreRadius = 15 * (1 - progress * 0.5);
     ctx.fillStyle = '#ffffff';
     ctx.globalAlpha = coreAlpha * 0.8;
@@ -151,14 +147,8 @@ function drawGameOverExplosionEffect(ctx: CanvasRenderingContext2D, effect: Comb
       const innerR = maxRadius * progress * 0.3;
       const outerR = maxRadius * progress * 0.7;
       ctx.beginPath();
-      ctx.moveTo(
-        effect.from.x + Math.cos(angle) * innerR,
-        effect.from.y + Math.sin(angle) * innerR,
-      );
-      ctx.lineTo(
-        effect.from.x + Math.cos(angle) * outerR,
-        effect.from.y + Math.sin(angle) * outerR,
-      );
+      ctx.moveTo(effect.from.x + Math.cos(angle) * innerR, effect.from.y + Math.sin(angle) * innerR);
+      ctx.lineTo(effect.from.x + Math.cos(angle) * outerR, effect.from.y + Math.sin(angle) * outerR);
       ctx.stroke();
     }
   }
@@ -176,7 +166,7 @@ export function drawHexFlashes(
   now: number,
   hexSize: number,
 ): HexFlash[] {
-  const live = flashes.filter(f => now < f.startTime + f.duration);
+  const live = flashes.filter((f) => now < f.startTime + f.duration);
 
   for (const flash of live) {
     if (now < flash.startTime) continue;

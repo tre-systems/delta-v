@@ -1,12 +1,12 @@
 import {
-  computeOdds,
+  canAttack,
   computeGroupRangeMod,
   computeGroupRangeModToTarget,
   computeGroupVelocityMod,
   computeGroupVelocityModToTarget,
+  computeOdds,
   getCombatStrength,
   getCounterattackers,
-  canAttack,
   hasLineOfSight,
   hasLineOfSightToTarget,
 } from '../shared/combat';
@@ -54,8 +54,8 @@ function getQueuedTargetKeys(queuedAttacks: CombatAttack[]): Set<string> {
 
 function getAvailableAttackers(state: GameState, playerId: number, queuedAttacks: CombatAttack[]): Ship[] {
   const committedAttackers = getCommittedAttackers(queuedAttacks);
-  return state.ships.filter((ship) =>
-    ship.owner === playerId && !ship.destroyed && canAttack(ship) && !committedAttackers.has(ship.id),
+  return state.ships.filter(
+    (ship) => ship.owner === playerId && !ship.destroyed && canAttack(ship) && !committedAttackers.has(ship.id),
   );
 }
 
@@ -63,8 +63,8 @@ function getCurrentCombatTarget(state: GameState, playerId: number, planning: Co
   const targetId = planning.combatTargetId;
   if (!targetId) return null;
   if (planning.combatTargetType === 'ordnance') {
-    const ordnance = state.ordnance.find((item) =>
-      item.id === targetId && !item.destroyed && item.owner !== playerId && item.type === 'nuke',
+    const ordnance = state.ordnance.find(
+      (item) => item.id === targetId && !item.destroyed && item.owner !== playerId && item.type === 'nuke',
     );
     return ordnance ? { targetType: 'ordnance' as const, target: ordnance } : null;
   }
@@ -78,9 +78,10 @@ export function getQueuedCombatOverlayAttacks(
 ): QueuedCombatOverlayAttack[] {
   const overlays: QueuedCombatOverlayAttack[] = [];
   for (const queued of queuedAttacks) {
-    const target = (queued.targetType ?? 'ship') === 'ordnance'
-      ? state.ordnance.find((item) => item.id === queued.targetId)
-      : state.ships.find((item) => item.id === queued.targetId);
+    const target =
+      (queued.targetType ?? 'ship') === 'ordnance'
+        ? state.ordnance.find((item) => item.id === queued.targetId)
+        : state.ships.find((item) => item.id === queued.targetId);
     if (!target) continue;
     overlays.push({
       targetPosition: target.position,
@@ -107,24 +108,26 @@ export function getCombatOverlayHighlights(
   const queuedTargetKeys = getQueuedTargetKeys(planning.queuedAttacks);
   const myAttackers = getAvailableAttackers(state, playerId, planning.queuedAttacks);
   const shipTargets = state.ships
-    .filter((ship) =>
-      ship.owner !== playerId &&
-      !ship.destroyed &&
-      !ship.landed &&
-      ship.detected &&
-      !queuedTargetKeys.has(`ship:${ship.id}`) &&
-      myAttackers.some((attacker) => hasLineOfSight(attacker, ship, map)),
+    .filter(
+      (ship) =>
+        ship.owner !== playerId &&
+        !ship.destroyed &&
+        !ship.landed &&
+        ship.detected &&
+        !queuedTargetKeys.has(`ship:${ship.id}`) &&
+        myAttackers.some((attacker) => hasLineOfSight(attacker, ship, map)),
     )
     .map((ship) => ({
       position: ship.position,
       isSelected: ship.id === targetId && targetType === 'ship',
     }));
   const ordnanceTargets = state.ordnance
-    .filter((ordnance) =>
-      !ordnance.destroyed &&
-      ordnance.owner !== playerId &&
-      ordnance.type === 'nuke' &&
-      myAttackers.some((attacker) => hasLineOfSightToTarget(attacker, ordnance, map)),
+    .filter(
+      (ordnance) =>
+        !ordnance.destroyed &&
+        ordnance.owner !== playerId &&
+        ordnance.type === 'nuke' &&
+        myAttackers.some((attacker) => hasLineOfSightToTarget(attacker, ordnance, map)),
     )
     .map((ordnance) => ({
       position: ordnance.position,
@@ -164,9 +167,8 @@ function formatPreviewLabel(
   } else {
     const shipTarget = target as Ship;
     const maxAttackStrength = getCombatStrength(attackers);
-    const attackStrength = maxAttackStrength > 0
-      ? Math.max(1, Math.min(maxAttackStrength, requestedStrength ?? maxAttackStrength))
-      : 0;
+    const attackStrength =
+      maxAttackStrength > 0 ? Math.max(1, Math.min(maxAttackStrength, requestedStrength ?? maxAttackStrength)) : 0;
     const defendStrength = getCombatStrength([shipTarget]);
     const odds = computeOdds(attackStrength, defendStrength);
     rangeMod = computeGroupRangeMod(attackers, shipTarget);
@@ -176,11 +178,12 @@ function formatPreviewLabel(
 
   const totalMod = -(rangeMod + velMod);
   const modLabel = totalMod >= 0 ? `+${totalMod}` : `${totalMod}`;
-  const counterattackLabel = targetType === 'ship'
-    ? getCounterattackers(target as Ship, allShips).length > 0
-      ? `CAN COUNTER${attackers.length > 1 ? ` / ${attackers.length} SHIPS` : ''}`
-      : null
-    : null;
+  const counterattackLabel =
+    targetType === 'ship'
+      ? getCounterattackers(target as Ship, allShips).length > 0
+        ? `CAN COUNTER${attackers.length > 1 ? ` / ${attackers.length} SHIPS` : ''}`
+        : null
+      : null;
   return {
     label: `${label}  (${modLabel})`,
     totalMod,
@@ -222,14 +225,16 @@ export function getCombatPreview(
 }
 
 export function formatCombatResult(result: CombatResult, state: GameState): string {
-  const targetName = result.targetType === 'ordnance'
-    ? 'nuke'
-    : state.ships.find((ship) => ship.id === result.targetId)?.type ?? result.targetId;
-  const damage = result.damageType === 'eliminated'
-    ? 'ELIMINATED'
-    : result.damageType === 'disabled'
-      ? `DISABLED ${result.disabledTurns}T`
-      : 'MISS';
+  const targetName =
+    result.targetType === 'ordnance'
+      ? 'nuke'
+      : (state.ships.find((ship) => ship.id === result.targetId)?.type ?? result.targetId);
+  const damage =
+    result.damageType === 'eliminated'
+      ? 'ELIMINATED'
+      : result.damageType === 'disabled'
+        ? `DISABLED ${result.disabledTurns}T`
+        : 'MISS';
   if (result.attackType === 'asteroidHazard') {
     return `${targetName}: asteroid [${result.dieRoll}] ${damage}`;
   }

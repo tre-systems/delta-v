@@ -18,12 +18,12 @@ export interface PixelCoord {
 
 // The 6 hex directions (flat-top, starting East, going counter-clockwise)
 export const HEX_DIRECTIONS: readonly HexVec[] = [
-  { dq: +1, dr: 0 },  // 0: E
+  { dq: +1, dr: 0 }, // 0: E
   { dq: +1, dr: -1 }, // 1: NE
-  { dq: 0, dr: -1 },  // 2: NW
-  { dq: -1, dr: 0 },  // 3: W
+  { dq: 0, dr: -1 }, // 2: NW
+  { dq: -1, dr: 0 }, // 3: W
   { dq: -1, dr: +1 }, // 4: SW
-  { dq: 0, dr: +1 },  // 5: SE
+  { dq: 0, dr: +1 }, // 5: SE
 ];
 
 // --- Basic arithmetic ---
@@ -56,14 +56,14 @@ function axialToCube(h: HexCoord): CubeCoord {
   return { q: h.q, r: h.r, s: -h.q - h.r };
 }
 
-function cubeToAxial(c: CubeCoord): HexCoord {
+function _cubeToAxial(c: CubeCoord): HexCoord {
   return { q: c.q, r: c.r };
 }
 
 export function cubeRound(fq: number, fr: number, fs: number): HexCoord {
   let q = Math.round(fq);
   let r = Math.round(fr);
-  let s = Math.round(fs);
+  const s = Math.round(fs);
 
   const dq = Math.abs(q - fq);
   const dr = Math.abs(r - fr);
@@ -85,11 +85,7 @@ export function cubeRound(fq: number, fr: number, fs: number): HexCoord {
 export function hexDistance(a: HexCoord, b: HexCoord): number {
   const ac = axialToCube(a);
   const bc = axialToCube(b);
-  return Math.max(
-    Math.abs(ac.q - bc.q),
-    Math.abs(ac.r - bc.r),
-    Math.abs(ac.s - bc.s)
-  );
+  return Math.max(Math.abs(ac.q - bc.q), Math.abs(ac.r - bc.r), Math.abs(ac.s - bc.s));
 }
 
 // --- Neighbors ---
@@ -100,7 +96,7 @@ export function hexNeighbor(h: HexCoord, direction: number): HexCoord {
 }
 
 export function hexNeighbors(h: HexCoord): HexCoord[] {
-  return HEX_DIRECTIONS.map(d => ({ q: h.q + d.dq, r: h.r + d.dr }));
+  return HEX_DIRECTIONS.map((d) => ({ q: h.q + d.dq, r: h.r + d.dr }));
 }
 
 // --- Line drawing ---
@@ -169,9 +165,7 @@ export function analyzeHexLine(a: HexCoord, b: HexCoord): HexLineAnalysis {
     if (hexEqual(primary[i], alternate[i])) continue;
     const firstKey = hexKey(primary[i]);
     const secondKey = hexKey(alternate[i]);
-    const pairKey = firstKey < secondKey
-      ? `${firstKey}|${secondKey}`
-      : `${secondKey}|${firstKey}`;
+    const pairKey = firstKey < secondKey ? `${firstKey}|${secondKey}` : `${secondKey}|${firstKey}`;
     if (seenPairs.has(pairKey)) continue;
     seenPairs.add(pairKey);
     ambiguousPairs.push([primary[i], alternate[i]]);
@@ -187,13 +181,13 @@ const SQRT3 = Math.sqrt(3);
 export function hexToPixel(h: HexCoord, size: number): PixelCoord {
   return {
     x: size * (3 / 2) * h.q,
-    y: size * (SQRT3 / 2 * h.q + SQRT3 * h.r),
+    y: size * ((SQRT3 / 2) * h.q + SQRT3 * h.r),
   };
 }
 
 export function pixelToHex(p: PixelCoord, size: number): HexCoord {
-  const q = (2 / 3) * p.x / size;
-  const r = (-1 / 3 * p.x + SQRT3 / 3 * p.y) / size;
+  const q = ((2 / 3) * p.x) / size;
+  const r = ((-1 / 3) * p.x + (SQRT3 / 3) * p.y) / size;
   return cubeRound(q, r, -q - r);
 }
 
@@ -215,10 +209,7 @@ export function hexDirectionToward(from: HexCoord, to: HexCoord): number {
   let bestDist = Infinity;
   for (let d = 0; d < 6; d++) {
     const v = HEX_DIRECTIONS[d];
-    const da = Math.atan2(
-      SQRT3 / 2 * v.dq + SQRT3 * v.dr,
-      (3 / 2) * v.dq,
-    );
+    const da = Math.atan2((SQRT3 / 2) * v.dq + SQRT3 * v.dr, (3 / 2) * v.dq);
     let diff = Math.abs(angle - da);
     if (diff > Math.PI) diff = 2 * Math.PI - diff;
     if (diff < bestDist) {

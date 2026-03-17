@@ -87,7 +87,7 @@ export class Tutorial {
     if (this.completed) return;
 
     // Find the next step that matches this phase
-    const step = STEPS.find(s => {
+    const step = STEPS.find((s) => {
       if (this.shownSteps.has(s.id)) return false;
       if (s.phase !== 'any' && s.phase !== phase) return false;
       if (s.minTurn && turn < s.minTurn) return false;
@@ -117,7 +117,7 @@ export class Tutorial {
     this.tipEl.style.animation = '';
 
     // Update progress dots
-    this.progressEl.innerHTML = STEPS.map((s, i) => {
+    this.progressEl.innerHTML = STEPS.map((s, _i) => {
       const cls = this.shownSteps.has(s.id) ? 'done' : s.id === step.id ? 'active' : '';
       return `<div class="tutorial-dot ${cls}"></div>`;
     }).join('');

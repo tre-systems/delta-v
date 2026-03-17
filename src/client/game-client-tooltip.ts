@@ -1,5 +1,12 @@
+import {
+  canAttack,
+  computeGroupRangeMod,
+  computeGroupVelocityMod,
+  computeOdds,
+  getCombatStrength,
+  hasLineOfSight,
+} from '../shared/combat';
 import { SHIP_STATS } from '../shared/constants';
-import { canAttack, computeGroupRangeMod, computeGroupVelocityMod, computeOdds, getCombatStrength, hasLineOfSight } from '../shared/combat';
 import { hexVecLength } from '../shared/hex';
 import type { GameState, Ship, SolarSystemMap } from '../shared/types';
 
@@ -23,12 +30,7 @@ function getCombatSummary(state: GameState, ship: Ship, playerId: number, map: S
   return `<div class="tt-warn">${odds} R-${rangeMod} V-${velocityMod}</div>`;
 }
 
-export function buildShipTooltipHtml(
-  state: GameState,
-  ship: Ship,
-  playerId: number,
-  map: SolarSystemMap,
-): string {
+export function buildShipTooltipHtml(state: GameState, ship: Ship, playerId: number, map: SolarSystemMap): string {
   const stats = SHIP_STATS[ship.type];
   const name = stats?.name ?? ship.type;
   const isEnemy = ship.owner !== playerId;

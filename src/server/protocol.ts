@@ -3,8 +3,8 @@ import type {
   C2S,
   CombatAttack,
   FleetPurchase,
-  OrdnanceLaunch,
   OrbitalBaseEmplacement,
+  OrdnanceLaunch,
 } from '../shared/types';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -120,7 +120,12 @@ function parseOrdnanceLaunches(raw: unknown): OrdnanceLaunch[] | null {
     if (item.torpedoAccel !== undefined && !isNullableIntegerInRange(item.torpedoAccel, 0, 5)) {
       return null;
     }
-    if (item.torpedoAccelSteps !== undefined && item.torpedoAccelSteps !== null && item.torpedoAccelSteps !== 1 && item.torpedoAccelSteps !== 2) {
+    if (
+      item.torpedoAccelSteps !== undefined &&
+      item.torpedoAccelSteps !== null &&
+      item.torpedoAccelSteps !== 1 &&
+      item.torpedoAccelSteps !== 2
+    ) {
       return null;
     }
     launches.push({
@@ -168,7 +173,12 @@ function parseCombatAttacks(raw: unknown): CombatAttack[] | null {
     const rawAttackStrength = item.attackStrength;
     let attackStrength: number | null = null;
     if (rawAttackStrength !== undefined && rawAttackStrength !== null) {
-      if (typeof rawAttackStrength !== 'number' || !Number.isInteger(rawAttackStrength) || rawAttackStrength < 1 || rawAttackStrength > 99) {
+      if (
+        typeof rawAttackStrength !== 'number' ||
+        !Number.isInteger(rawAttackStrength) ||
+        rawAttackStrength < 1 ||
+        rawAttackStrength > 99
+      ) {
         return null;
       }
       attackStrength = rawAttackStrength;
@@ -256,23 +266,33 @@ export function validateClientMessage(raw: unknown): { ok: true; value: C2S } | 
   switch (raw.type) {
     case 'fleetReady': {
       const purchases = parseFleetPurchases(raw.purchases);
-      return purchases ? { ok: true, value: { type: 'fleetReady', purchases } } : { ok: false, error: 'Invalid fleet payload' };
+      return purchases
+        ? { ok: true, value: { type: 'fleetReady', purchases } }
+        : { ok: false, error: 'Invalid fleet payload' };
     }
     case 'astrogation': {
       const orders = parseAstrogationOrders(raw.orders);
-      return orders ? { ok: true, value: { type: 'astrogation', orders } } : { ok: false, error: 'Invalid astrogation payload' };
+      return orders
+        ? { ok: true, value: { type: 'astrogation', orders } }
+        : { ok: false, error: 'Invalid astrogation payload' };
     }
     case 'ordnance': {
       const launches = parseOrdnanceLaunches(raw.launches);
-      return launches ? { ok: true, value: { type: 'ordnance', launches } } : { ok: false, error: 'Invalid ordnance payload' };
+      return launches
+        ? { ok: true, value: { type: 'ordnance', launches } }
+        : { ok: false, error: 'Invalid ordnance payload' };
     }
     case 'emplaceBase': {
       const emplacements = parseBaseEmplacements(raw.emplacements);
-      return emplacements ? { ok: true, value: { type: 'emplaceBase', emplacements } } : { ok: false, error: 'Invalid emplacement payload' };
+      return emplacements
+        ? { ok: true, value: { type: 'emplaceBase', emplacements } }
+        : { ok: false, error: 'Invalid emplacement payload' };
     }
     case 'combat': {
       const attacks = parseCombatAttacks(raw.attacks);
-      return attacks ? { ok: true, value: { type: 'combat', attacks } } : { ok: false, error: 'Invalid combat payload' };
+      return attacks
+        ? { ok: true, value: { type: 'combat', attacks } }
+        : { ok: false, error: 'Invalid combat payload' };
     }
     case 'skipOrdnance':
     case 'beginCombat':

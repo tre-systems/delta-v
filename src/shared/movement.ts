@@ -1,18 +1,18 @@
+import { SHIP_STATS } from './constants';
 import {
+  analyzeHexLine,
+  HEX_DIRECTIONS,
   type HexCoord,
   type HexVec,
-  HEX_DIRECTIONS,
   hexAdd,
-  hexSubtract,
-  analyzeHexLine,
-  hexLineDraw,
-  hexKey,
   hexDirectionToward,
+  hexKey,
+  hexLineDraw,
+  hexSubtract,
   hexVecLength,
 } from './hex';
-import type { Ship, CourseResult, GravityEffect, SolarSystemMap } from './types';
-import { SHIP_STATS } from './constants';
 import { bodyHasGravity } from './map-data';
+import type { CourseResult, GravityEffect, Ship, SolarSystemMap } from './types';
 
 export interface CourseOptions {
   overload?: number | null; // second burn direction (warships only)
@@ -67,7 +67,7 @@ export function computeCourse(
 
     let launchHex = ship.position;
     if (bodyName) {
-      const body = map.bodies.find(b => b.name === bodyName);
+      const body = map.bodies.find((b) => b.name === bodyName);
       if (body) {
         const awayDir = hexDirectionToward(body.center, ship.position);
         const awayNeighbor = hexAdd(ship.position, HEX_DIRECTIONS[awayDir]);
@@ -104,11 +104,7 @@ export function computeCourse(
     }
 
     // Takeoff enters the launch gravity hex before the ship's burn resolves.
-    const takeoffGravityEffects = collectEnteredGravityEffects(
-      [ship.position, launchHex],
-      map,
-      weakGravityChoices,
-    );
+    const takeoffGravityEffects = collectEnteredGravityEffects([ship.position, launchHex], map, weakGravityChoices);
     const gravityEffects = [...takeoffGravityEffects];
     destination = applyPendingGravityEffects(destination, gravityEffects);
 
@@ -151,7 +147,7 @@ export function computeCourse(
   }
 
   // Gravity applies one turn after entry, so only previously queued gravity affects this move.
-  const gravityEffects = (ship.pendingGravityEffects ?? []).map(effect => ({ ...effect }));
+  const gravityEffects = (ship.pendingGravityEffects ?? []).map((effect) => ({ ...effect }));
   destination = applyPendingGravityEffects(destination, gravityEffects);
 
   const finalPath = hexLineDraw(ship.position, destination);
@@ -177,10 +173,7 @@ export function computeCourse(
 /**
  * Apply pending gravity deflections entered on the previous turn.
  */
-export function applyPendingGravityEffects(
-  destination: HexCoord,
-  effects: GravityEffect[] | undefined,
-): HexCoord {
+export function applyPendingGravityEffects(destination: HexCoord, effects: GravityEffect[] | undefined): HexCoord {
   let dest = destination;
   for (const effect of effects ?? []) {
     if (effect.ignored) continue;
@@ -283,9 +276,7 @@ function checkLanding(
   const hex = map.hexes.get(key);
   if (hex?.base && !destroyedBases.has(key)) {
     if (bodyHasGravity(hex.base.bodyName, map)) {
-      return canLandAtPlanetaryBase(ship, hex.base.bodyName, fuelSpent, map, destroyedBases)
-        ? hex.base.bodyName
-        : null;
+      return canLandAtPlanetaryBase(ship, hex.base.bodyName, fuelSpent, map, destroyedBases) ? hex.base.bodyName : null;
     }
     return hexVecLength(newVelocity) === 0 ? hex.base.bodyName : null;
   }
@@ -298,7 +289,6 @@ function checkLanding(
   }
   return null;
 }
-
 
 function canLandAtPlanetaryBase(
   ship: Ship,
@@ -313,10 +303,7 @@ function canLandAtPlanetaryBase(
   const currentHex = map.hexes.get(hexKey(ship.position));
   if (currentHex?.gravity?.bodyName !== bodyName) return false;
 
-  const projectedDrift = applyPendingGravityEffects(
-    hexAdd(ship.position, ship.velocity),
-    ship.pendingGravityEffects,
-  );
+  const projectedDrift = applyPendingGravityEffects(hexAdd(ship.position, ship.velocity), ship.pendingGravityEffects);
   const projectedHex = map.hexes.get(hexKey(projectedDrift));
   if (projectedHex?.gravity?.bodyName === bodyName) return true;
   return projectedHex?.base?.bodyName === bodyName && !destroyedBases.has(hexKey(projectedDrift));
@@ -334,8 +321,5 @@ export function canBurn(ship: Ship): boolean {
  */
 export function predictDestination(ship: Ship): HexCoord {
   if (ship.landed) return ship.position;
-  return applyPendingGravityEffects(
-    hexAdd(ship.position, ship.velocity),
-    ship.pendingGravityEffects,
-  );
+  return applyPendingGravityEffects(hexAdd(ship.position, ship.velocity), ship.pendingGravityEffects);
 }

@@ -1,14 +1,25 @@
-import {
-  type HexCoord,
-  type PixelCoord,
-  hexToPixel,
-  hexKey,
-} from '../shared/hex';
-import type { GameState, Ship, ShipMovement, OrdnanceMovement, MovementEvent, SolarSystemMap, CombatResult, CombatAttack } from '../shared/types';
 import { MOVEMENT_ANIM_DURATION } from '../shared/constants';
+import { type HexCoord, hexKey, hexToPixel, type PixelCoord } from '../shared/hex';
+import type {
+  CombatAttack,
+  CombatResult,
+  GameState,
+  MovementEvent,
+  OrdnanceMovement,
+  Ship,
+  ShipMovement,
+  SolarSystemMap,
+} from '../shared/types';
+import { createMinimapLayout } from './game-client-minimap';
+import { Camera } from './renderer-camera';
+import { getCombatTargetEntity } from './renderer-combat';
+import { buildAstrogationCoursePreviewViews } from './renderer-course';
 import {
-  getCombatTargetEntity,
-} from './renderer-combat';
+  drawShipIcon as drawShipIconFn,
+  drawThrustTrail as drawThrustTrailFn,
+  interpolatePath as interpolatePathFn,
+} from './renderer-draw';
+import { type CombatEffect, drawCombatEffects, drawHexFlashes, type HexFlash } from './renderer-effects';
 import {
   buildShipLabelView,
   getDisabledShipLabel,
@@ -20,50 +31,32 @@ import {
   shouldShowLandedIndicator,
   shouldShowOrbitIndicator,
 } from './renderer-entities';
-import {
-  buildCombatResultToastLines,
-  formatMovementEventToast,
-  getToastFadeAlpha,
-} from './renderer-toast';
 import { buildMinimapSceneView } from './renderer-minimap';
+import {
+  renderCombatOverlay as renderCombatOverlayFn,
+  renderOrdnance as renderOrdnanceFn,
+  renderTorpedoGuidance as renderTorpedoGuidanceFn,
+} from './renderer-overlay';
+import {
+  generateStars,
+  renderAsteroids as renderAsteroidsFn,
+  renderBaseMarkers as renderBaseMarkersFn,
+  renderBodies as renderBodiesFn,
+  renderDetectionRanges as renderDetectionRangesFn,
+  renderGravityIndicators as renderGravityIndicatorsFn,
+  renderHexGrid as renderHexGridFn,
+  renderLandingTarget as renderLandingTargetFn,
+  renderMapBorder as renderMapBorderFn,
+  renderStars as renderStarsFn,
+  type Star,
+} from './renderer-scene';
+import { buildCombatResultToastLines, formatMovementEventToast, getToastFadeAlpha } from './renderer-toast';
 import {
   buildMovementPathViews,
   buildOrdnanceTrailViews,
   buildShipTrailViews,
   buildVelocityVectorViews,
 } from './renderer-vectors';
-import { buildAstrogationCoursePreviewViews } from './renderer-course';
-import {
-  createMinimapLayout,
-} from './game-client-minimap';
-import { Camera } from './renderer-camera';
-import {
-  drawCombatEffects, drawHexFlashes,
-  type CombatEffect, type HexFlash,
-} from './renderer-effects';
-import {
-  drawShipIcon as drawShipIconFn,
-  drawThrustTrail as drawThrustTrailFn,
-  interpolatePath as interpolatePathFn,
-} from './renderer-draw';
-import {
-  type Star,
-  generateStars,
-  renderStars as renderStarsFn,
-  renderHexGrid as renderHexGridFn,
-  renderGravityIndicators as renderGravityIndicatorsFn,
-  renderBodies as renderBodiesFn,
-  renderBaseMarkers as renderBaseMarkersFn,
-  renderMapBorder as renderMapBorderFn,
-  renderAsteroids as renderAsteroidsFn,
-  renderLandingTarget as renderLandingTargetFn,
-  renderDetectionRanges as renderDetectionRangesFn,
-} from './renderer-scene';
-import {
-  renderOrdnance as renderOrdnanceFn,
-  renderTorpedoGuidance as renderTorpedoGuidanceFn,
-  renderCombatOverlay as renderCombatOverlayFn,
-} from './renderer-overlay';
 
 // --- Animation state ---
 
@@ -161,9 +154,13 @@ export class Renderer {
       const trail = this.shipTrails.get(m.shipId);
       if (trail) {
         // Append path (skip first point if it matches the trail's last point)
-        const start = (trail.length > 0 && m.path.length > 0 &&
+        const start =
+          trail.length > 0 &&
+          m.path.length > 0 &&
           trail[trail.length - 1].q === m.path[0].q &&
-          trail[trail.length - 1].r === m.path[0].r) ? 1 : 0;
+          trail[trail.length - 1].r === m.path[0].r
+            ? 1
+            : 0;
         for (let i = start; i < m.path.length; i++) trail.push(m.path[i]);
       } else {
         this.shipTrails.set(m.shipId, [...m.path]);
@@ -172,9 +169,13 @@ export class Renderer {
     for (const m of ordnanceMovements) {
       const trail = this.ordnanceTrails.get(m.ordnanceId);
       if (trail) {
-        const start = (trail.length > 0 && m.path.length > 0 &&
+        const start =
+          trail.length > 0 &&
+          m.path.length > 0 &&
           trail[trail.length - 1].q === m.path[0].q &&
-          trail[trail.length - 1].r === m.path[0].r) ? 1 : 0;
+          trail[trail.length - 1].r === m.path[0].r
+            ? 1
+            : 0;
         for (let i = start; i < m.path.length; i++) trail.push(m.path[i]);
       } else {
         this.ordnanceTrails.set(m.ordnanceId, [...m.path]);
@@ -190,11 +191,14 @@ export class Renderer {
     };
 
     // Frame camera on all moving ships and ordnance
-    const allFrom = [...movements.map(m => m.from), ...ordnanceMovements.map(m => m.from)];
-    const allTo = [...movements.map(m => m.to), ...ordnanceMovements.map(m => m.to)];
+    const allFrom = [...movements.map((m) => m.from), ...ordnanceMovements.map((m) => m.from)];
+    const allTo = [...movements.map((m) => m.to), ...ordnanceMovements.map((m) => m.to)];
     const allHexes = [...allFrom, ...allTo];
     if (this.map && allHexes.length > 0) {
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      let minX = Infinity,
+        maxX = -Infinity,
+        minY = Infinity,
+        maxY = -Infinity;
       for (const h of allHexes) {
         const p = hexToPixel(h, HEX_SIZE);
         minX = Math.min(minX, p.x);
@@ -237,16 +241,20 @@ export class Renderer {
             }
           }
         } else {
-          const attacker = this.gameState?.ships.find(s => s.id === firstId);
+          const attacker = this.gameState?.ships.find((s) => s.id === firstId);
           if (attacker) {
             attackerPos = hexToPixel(attacker.position, HEX_SIZE);
           }
         }
 
         if (attackerPos && r.attackType !== 'asteroidHazard') {
-          const beamColor = firstId.startsWith('base:') ? '#66bb6a'
-            : r.damageType === 'eliminated' ? '#ff4444'
-            : r.damageType === 'disabled' ? '#ffaa00' : '#4fc3f7';
+          const beamColor = firstId.startsWith('base:')
+            ? '#66bb6a'
+            : r.damageType === 'eliminated'
+              ? '#ff4444'
+              : r.damageType === 'disabled'
+                ? '#ffaa00'
+                : '#4fc3f7';
           this.combatEffects.push({
             type: 'beam',
             from: attackerPos,
@@ -272,7 +280,7 @@ export class Renderer {
 
       // Same for counterattack
       if (r.counterattack && r.counterattack.damageType !== 'none') {
-        const counterTarget = this.gameState?.ships.find(s => s.id === r.counterattack!.targetId);
+        const counterTarget = this.gameState?.ships.find((s) => s.id === r.counterattack!.targetId);
         if (counterTarget) {
           const counterPos = hexToPixel(counterTarget.position, HEX_SIZE);
           this.combatEffects.push({
@@ -304,10 +312,14 @@ export class Renderer {
       // Create hex flashes at event locations
       for (const ev of events) {
         const p = hexToPixel(ev.hex, HEX_SIZE);
-        const color = ev.type === 'crash' ? '#ff4444'
-          : ev.type === 'nukeDetonation' ? '#ff6600'
-          : ev.damageType === 'eliminated' ? '#ff4444'
-          : '#ffaa00';
+        const color =
+          ev.type === 'crash'
+            ? '#ff4444'
+            : ev.type === 'nukeDetonation'
+              ? '#ff6600'
+              : ev.damageType === 'eliminated'
+                ? '#ff4444'
+                : '#ffaa00';
         this.hexFlashes.push({
           position: p,
           startTime: now + MOVEMENT_ANIM_DURATION * 0.8, // Flash near end of movement
@@ -382,9 +394,12 @@ export class Renderer {
 
   frameOnShips() {
     if (!this.gameState) return;
-    const myShips = this.gameState.ships.filter(s => s.owner === this.playerId);
+    const myShips = this.gameState.ships.filter((s) => s.owner === this.playerId);
     if (myShips.length === 0) return;
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
     for (const s of myShips) {
       const p = hexToPixel(s.position, HEX_SIZE);
       minX = Math.min(minX, p.x);
@@ -518,7 +533,9 @@ export class Renderer {
   }
 
   private renderAsteroids(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
-    renderAsteroidsFn(ctx, map, this.gameState?.destroyedAsteroids ?? [], HEX_SIZE, (x, y) => this.camera.isVisible(x, y));
+    renderAsteroidsFn(ctx, map, this.gameState?.destroyedAsteroids ?? [], HEX_SIZE, (x, y) =>
+      this.camera.isVisible(x, y),
+    );
   }
 
   private renderLandingTarget(ctx: CanvasRenderingContext2D, map: SolarSystemMap, state: GameState, now: number) {
@@ -526,10 +543,18 @@ export class Renderer {
   }
 
   private renderDetectionRanges(ctx: CanvasRenderingContext2D, state: GameState, map: SolarSystemMap) {
-    renderDetectionRangesFn(ctx, state, this.playerId, this.planningState.selectedShipId, map, HEX_SIZE, this.animState !== null);
+    renderDetectionRangesFn(
+      ctx,
+      state,
+      this.playerId,
+      this.planningState.selectedShipId,
+      map,
+      HEX_SIZE,
+      this.animState !== null,
+    );
   }
 
-  private renderCourseVectors(ctx: CanvasRenderingContext2D, state: GameState, map: SolarSystemMap, now: number) {
+  private renderCourseVectors(ctx: CanvasRenderingContext2D, state: GameState, map: SolarSystemMap, _now: number) {
     // During animation, don't show planning vectors
     if (this.animState) return;
 
@@ -550,13 +575,7 @@ export class Renderer {
       }
     }
 
-    for (const preview of buildAstrogationCoursePreviewViews(
-      state,
-      this.playerId,
-      this.planningState,
-      map,
-      HEX_SIZE,
-    )) {
+    for (const preview of buildAstrogationCoursePreviewViews(state, this.playerId, this.planningState, map, HEX_SIZE)) {
       ctx.strokeStyle = preview.lineColor;
       ctx.lineWidth = preview.lineWidth;
       ctx.setLineDash(preview.lineDash);
@@ -638,11 +657,7 @@ export class Renderer {
         ctx.fillStyle = preview.fuelCostLabel.color;
         ctx.font = 'bold 9px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(
-          preview.fuelCostLabel.text,
-          preview.fuelCostLabel.position.x,
-          preview.fuelCostLabel.position.y,
-        );
+        ctx.fillText(preview.fuelCostLabel.text, preview.fuelCostLabel.position.x, preview.fuelCostLabel.position.y);
       }
     }
   }
@@ -720,7 +735,7 @@ export class Renderer {
 
       // Check if this ship is being animated
       if (this.animState) {
-        const movement = this.animState.movements.find(m => m.shipId === ship.id);
+        const movement = this.animState.movements.find((m) => m.shipId === ship.id);
         if (movement) {
           const progress = Math.min((now - this.animState.startTime) / this.animState.duration, 1);
           pos = this.interpolatePath(movement.path, progress);
@@ -843,7 +858,16 @@ export class Renderer {
     }
   }
 
-  private drawShipIcon(ctx: CanvasRenderingContext2D, x: number, y: number, owner: number, alpha: number, heading: number, disabledTurns = 0, shipType = '') {
+  private drawShipIcon(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    owner: number,
+    alpha: number,
+    heading: number,
+    disabledTurns = 0,
+    shipType = '',
+  ) {
     drawShipIconFn(ctx, x, y, owner, alpha, heading, disabledTurns, shipType);
   }
 
@@ -855,8 +879,9 @@ export class Renderer {
     return interpolatePathFn(path, progress, HEX_SIZE);
   }
   private renderOrdnance(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
-    renderOrdnanceFn(ctx, state, this.playerId, this.animState, HEX_SIZE, now,
-      (path, progress) => this.interpolatePath(path, progress));
+    renderOrdnanceFn(ctx, state, this.playerId, this.animState, HEX_SIZE, now, (path, progress) =>
+      this.interpolatePath(path, progress),
+    );
   }
 
   private renderTorpedoGuidance(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
@@ -864,7 +889,16 @@ export class Renderer {
   }
 
   private renderCombatOverlay(ctx: CanvasRenderingContext2D, state: GameState, now: number) {
-    renderCombatOverlayFn(ctx, state, this.playerId, this.planningState, this.map, this.animState !== null, HEX_SIZE, now);
+    renderCombatOverlayFn(
+      ctx,
+      state,
+      this.playerId,
+      this.planningState,
+      this.map,
+      this.animState !== null,
+      HEX_SIZE,
+      now,
+    );
   }
 
   private renderHexFlashes(ctx: CanvasRenderingContext2D, now: number) {
@@ -875,7 +909,12 @@ export class Renderer {
     this.combatEffects = drawCombatEffects(ctx, this.combatEffects, now);
   }
 
-  private renderMovementEventsToast(ctx: CanvasRenderingContext2D, events: MovementEvent[], now: number, screenW: number) {
+  private renderMovementEventsToast(
+    ctx: CanvasRenderingContext2D,
+    events: MovementEvent[],
+    now: number,
+    screenW: number,
+  ) {
     if (events.length === 0) return;
     const alpha = getToastFadeAlpha(this.movementEvents!.showUntil, now);
 
@@ -884,7 +923,7 @@ export class Renderer {
 
     let y = 60;
     for (const ev of events) {
-      const ship = this.gameState?.ships.find(s => s.id === ev.shipId);
+      const ship = this.gameState?.ships.find((s) => s.id === ev.shipId);
       const shipName = ship ? ship.type : ev.shipId;
       const line = formatMovementEventToast(ev, shipName);
       if (!line) continue;
@@ -904,7 +943,12 @@ export class Renderer {
     ctx.restore();
   }
 
-  private renderCombatResultsToast(ctx: CanvasRenderingContext2D, results: CombatResult[], now: number, screenW: number) {
+  private renderCombatResultsToast(
+    ctx: CanvasRenderingContext2D,
+    results: CombatResult[],
+    now: number,
+    screenW: number,
+  ) {
     if (results.length === 0) return;
     const alpha = getToastFadeAlpha(this.combatResults!.showUntil, now);
 

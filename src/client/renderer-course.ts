@@ -1,13 +1,5 @@
 import { SHIP_STATS } from '../shared/constants';
-import {
-  HEX_DIRECTIONS,
-  hexAdd,
-  hexEqual,
-  hexKey,
-  hexToPixel,
-  type HexCoord,
-  type PixelCoord,
-} from '../shared/hex';
+import { HEX_DIRECTIONS, type HexCoord, hexAdd, hexEqual, hexKey, hexToPixel, type PixelCoord } from '../shared/hex';
 import { computeCourse, predictDestination } from '../shared/movement';
 import type { GameState, SolarSystemMap } from '../shared/types';
 
@@ -131,11 +123,7 @@ function buildGravityArrow(hex: HexCoord, direction: number, hexSize: number): C
   };
 }
 
-function buildWeakGravityMarker(
-  hex: HexCoord,
-  ignored: boolean,
-  hexSize: number,
-): WeakGravityMarkerView {
+function buildWeakGravityMarker(hex: HexCoord, ignored: boolean, hexSize: number): WeakGravityMarkerView {
   const position = hexToPixel(hex, hexSize);
   return {
     position,
@@ -159,23 +147,25 @@ function buildBurnMarkers(
   for (let direction = 0; direction < 6; direction++) {
     const targetHex = hexAdd(predictedDestination, HEX_DIRECTIONS[direction]);
     const target = hexToPixel(targetHex, hexSize);
-    markers.push(buildDirectionMarker(
-      target,
-      burn === direction,
-      hoverHex !== null && hexEqual(hoverHex, targetHex),
-      8,
-      10,
-      2,
-      'rgba(79, 195, 247, 0.8)',
-      'rgba(79, 195, 247, 0.4)',
-      'rgba(79, 195, 247, 0.15)',
-      '#4fc3f7',
-      'rgba(79, 195, 247, 0.3)',
-      '#4fc3f7',
-      '#4fc3f7',
-      8,
-      12,
-    ));
+    markers.push(
+      buildDirectionMarker(
+        target,
+        burn === direction,
+        hoverHex !== null && hexEqual(hoverHex, targetHex),
+        8,
+        10,
+        2,
+        'rgba(79, 195, 247, 0.8)',
+        'rgba(79, 195, 247, 0.4)',
+        'rgba(79, 195, 247, 0.15)',
+        '#4fc3f7',
+        'rgba(79, 195, 247, 0.3)',
+        '#4fc3f7',
+        '#4fc3f7',
+        8,
+        12,
+      ),
+    );
   }
   return markers;
 }
@@ -197,23 +187,25 @@ function buildOverloadMarkers(
   for (let direction = 0; direction < 6; direction++) {
     const targetHex = hexAdd(burnDestination, HEX_DIRECTIONS[direction]);
     const target = hexToPixel(targetHex, hexSize);
-    markers.push(buildDirectionMarker(
-      target,
-      overload === direction,
-      hoverHex !== null && hexEqual(hoverHex, targetHex),
-      6,
-      8,
-      1.5,
-      'rgba(255, 183, 77, 0.8)',
-      'rgba(255, 183, 77, 0.4)',
-      'rgba(255, 183, 77, 0.1)',
-      '#ffb74d',
-      'rgba(255, 183, 77, 0.25)',
-      '#ffb74d',
-      '#ffb74d',
-      4,
-      8,
-    ));
+    markers.push(
+      buildDirectionMarker(
+        target,
+        overload === direction,
+        hoverHex !== null && hexEqual(hoverHex, targetHex),
+        6,
+        8,
+        1.5,
+        'rgba(255, 183, 77, 0.8)',
+        'rgba(255, 183, 77, 0.4)',
+        'rgba(255, 183, 77, 0.1)',
+        '#ffb74d',
+        'rgba(255, 183, 77, 0.25)',
+        '#ffb74d',
+        '#ffb74d',
+        4,
+        8,
+      ),
+    );
   }
   return markers;
 }
@@ -262,24 +254,25 @@ export function buildAstrogationCoursePreviewViews(
             shipType: ship.type,
             alpha: 0.4,
           },
-      burnMarkers: isSelected
-        ? buildBurnMarkers(ship, burn, planning.hoverHex, predictedDestination, hexSize)
-        : [],
+      burnMarkers: isSelected ? buildBurnMarkers(ship, burn, planning.hoverHex, predictedDestination, hexSize) : [],
       overloadMarkers: isSelected
         ? buildOverloadMarkers(ship, burn, overload, planning.hoverHex, predictedDestination, hexSize)
         : [],
       weakGravityMarkers: isSelected
         ? course.enteredGravityEffects
             .filter((gravity) => gravity.strength === 'weak')
-            .map((gravity) => buildWeakGravityMarker(gravity.hex, weakGravityChoices[hexKey(gravity.hex)] === true, hexSize))
+            .map((gravity) =>
+              buildWeakGravityMarker(gravity.hex, weakGravityChoices[hexKey(gravity.hex)] === true, hexSize),
+            )
         : [],
-      fuelCostLabel: burn !== null
-        ? {
-            position: { x: destination.x, y: destination.y - 16 },
-            text: `-${course.fuelSpent}`,
-            color: '#ffcc00',
-          }
-        : null,
+      fuelCostLabel:
+        burn !== null
+          ? {
+              position: { x: destination.x, y: destination.y - 16 },
+              text: `-${course.fuelSpent}`,
+              color: '#ffcc00',
+            }
+          : null,
     });
   }
   return previews;

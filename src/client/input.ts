@@ -1,10 +1,5 @@
-import {
-  type HexCoord,
-  pixelToHex,
-} from '../shared/hex';
+import { type HexCoord, pixelToHex } from '../shared/hex';
 import type { GameState, SolarSystemMap } from '../shared/types';
-import { type PlanningState, HEX_SIZE } from './renderer';
-import { type Camera } from './renderer-camera';
 import {
   createClearedCombatPlan,
   createCombatTargetPlan,
@@ -12,18 +7,12 @@ import {
   getCombatTargetAtHex,
   toggleCombatAttackerSelection,
 } from './game-client-combat';
-import {
-  createMinimapLayout,
-  isPointInMinimap,
-  projectMinimapToWorld,
-} from './game-client-minimap';
-import {
-  resolveAstrogationClick,
-  resolveOrdnanceClick,
-} from './game-client-input';
+import { resolveAstrogationClick, resolveOrdnanceClick } from './game-client-input';
+import { createMinimapLayout, isPointInMinimap, projectMinimapToWorld } from './game-client-minimap';
+import { HEX_SIZE, type PlanningState } from './renderer';
+import type { Camera } from './renderer-camera';
 
 export class InputHandler {
-  private canvas: HTMLCanvasElement;
   private camera: Camera;
   private planningState: PlanningState;
   private gameState: GameState | null = null;
@@ -44,7 +33,6 @@ export class InputHandler {
   onConfirm: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement, camera: Camera, planningState: PlanningState) {
-    this.canvas = canvas;
     this.camera = camera;
     this.planningState = planningState;
 
@@ -53,18 +41,22 @@ export class InputHandler {
     canvas.addEventListener('mousemove', (e) => this.onPointerMove(e.clientX, e.clientY));
     canvas.addEventListener('mouseup', (e) => this.onPointerUp(e.clientX, e.clientY));
     canvas.addEventListener('dblclick', (e) => this.handleDoubleClick(e.clientX, e.clientY));
-    canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      if (e.ctrlKey) {
-        // Trackpad pinch-to-zoom (macOS/browsers send ctrl+wheel for pinch gestures)
-        const factor = 1 - e.deltaY * 0.01;
-        this.camera.zoomAt(e.clientX, e.clientY, factor);
-      } else {
-        // Standard scroll wheel — zoom
-        const factor = 1 - e.deltaY * 0.001;
-        this.camera.zoomAt(e.clientX, e.clientY, factor);
-      }
-    }, { passive: false });
+    canvas.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault();
+        if (e.ctrlKey) {
+          // Trackpad pinch-to-zoom (macOS/browsers send ctrl+wheel for pinch gestures)
+          const factor = 1 - e.deltaY * 0.01;
+          this.camera.zoomAt(e.clientX, e.clientY, factor);
+        } else {
+          // Standard scroll wheel — zoom
+          const factor = 1 - e.deltaY * 0.001;
+          this.camera.zoomAt(e.clientX, e.clientY, factor);
+        }
+      },
+      { passive: false },
+    );
 
     // Touch events
     canvas.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: false });
@@ -191,13 +183,7 @@ export class InputHandler {
     }
 
     if (this.gameState.phase !== 'astrogation') return;
-    const interaction = resolveAstrogationClick(
-      this.gameState,
-      this.map,
-      this.playerId,
-      this.planningState,
-      clickHex,
-    );
+    const interaction = resolveAstrogationClick(this.gameState, this.map, this.playerId, this.planningState, clickHex);
     switch (interaction.type) {
       case 'weakGravityToggle':
         this.planningState.weakGravityChoices.set(interaction.shipId, interaction.choices);
@@ -260,8 +246,9 @@ export class InputHandler {
 
     const target = getCombatTargetAtHex(this.gameState, this.playerId, clickHex, this.planningState.queuedAttacks);
     if (target) {
-      const isSame = this.planningState.combatTargetId === target.targetId
-        && this.planningState.combatTargetType === target.targetType;
+      const isSame =
+        this.planningState.combatTargetId === target.targetId &&
+        this.planningState.combatTargetType === target.targetType;
       if (isSame) {
         Object.assign(this.planningState, createClearedCombatPlan());
       } else {
@@ -292,12 +279,7 @@ export class InputHandler {
   private handleMinimapClick(screenX: number, screenY: number): boolean {
     if (!this.map) return false;
 
-    const layout = createMinimapLayout(
-      this.map.bounds,
-      window.innerWidth,
-      window.innerHeight,
-      HEX_SIZE,
-    );
+    const layout = createMinimapLayout(this.map.bounds, window.innerWidth, window.innerHeight, HEX_SIZE);
     if (!isPointInMinimap(layout, { x: screenX, y: screenY })) {
       return false;
     }

@@ -1,10 +1,20 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  hexAdd, hexSubtract, hexEqual, hexKey,
-  hexDistance, hexNeighbor, hexNeighbors,
-  hexLineDraw, hexToPixel, pixelToHex,
-  hexDirectionToward, hexRing, hexVecLength,
-  HEX_DIRECTIONS, cubeRound,
+  cubeRound,
+  HEX_DIRECTIONS,
+  hexAdd,
+  hexDirectionToward,
+  hexDistance,
+  hexEqual,
+  hexKey,
+  hexLineDraw,
+  hexNeighbor,
+  hexNeighbors,
+  hexRing,
+  hexSubtract,
+  hexToPixel,
+  hexVecLength,
+  pixelToHex,
 } from '../hex';
 
 describe('hex arithmetic', () => {
@@ -46,12 +56,12 @@ describe('hexDistance', () => {
 describe('hexNeighbor / hexNeighbors', () => {
   it('returns correct neighbor for each direction', () => {
     const center = { q: 5, r: 3 };
-    expect(hexNeighbor(center, 0)).toEqual({ q: 6, r: 3 });  // E
-    expect(hexNeighbor(center, 1)).toEqual({ q: 6, r: 2 });  // NE
-    expect(hexNeighbor(center, 2)).toEqual({ q: 5, r: 2 });  // NW
-    expect(hexNeighbor(center, 3)).toEqual({ q: 4, r: 3 });  // W
-    expect(hexNeighbor(center, 4)).toEqual({ q: 4, r: 4 });  // SW
-    expect(hexNeighbor(center, 5)).toEqual({ q: 5, r: 4 });  // SE
+    expect(hexNeighbor(center, 0)).toEqual({ q: 6, r: 3 }); // E
+    expect(hexNeighbor(center, 1)).toEqual({ q: 6, r: 2 }); // NE
+    expect(hexNeighbor(center, 2)).toEqual({ q: 5, r: 2 }); // NW
+    expect(hexNeighbor(center, 3)).toEqual({ q: 4, r: 3 }); // W
+    expect(hexNeighbor(center, 4)).toEqual({ q: 4, r: 4 }); // SW
+    expect(hexNeighbor(center, 5)).toEqual({ q: 5, r: 4 }); // SE
   });
 
   it('hexNeighbors returns all 6 neighbors', () => {
@@ -79,8 +89,8 @@ describe('hexLineDraw', () => {
   it('straight line E direction', () => {
     const line = hexLineDraw({ q: 0, r: 0 }, { q: 3, r: 0 });
     expect(line).toHaveLength(4);
-    expect(line.map(h => h.q)).toEqual([0, 1, 2, 3]);
-    expect(line.every(h => h.r === 0)).toBe(true);
+    expect(line.map((h) => h.q)).toEqual([0, 1, 2, 3]);
+    expect(line.every((h) => h.r === 0)).toBe(true);
   });
 
   it('line length matches hex distance + 1', () => {

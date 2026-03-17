@@ -1,9 +1,9 @@
-import { hexToPixel, type HexCoord } from '../shared/hex';
+import { type HexCoord, hexToPixel } from '../shared/hex';
 import type { GameState, SolarSystemMap } from '../shared/types';
 import {
   clipViewportToMinimap,
-  projectWorldToMinimap,
   type MinimapLayout,
+  projectWorldToMinimap,
   type ScreenPoint,
   type ScreenRect,
 } from './game-client-minimap';
