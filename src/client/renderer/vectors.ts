@@ -1,5 +1,5 @@
 import { BASE_DETECTION_RANGE, SHIP_DETECTION_RANGE } from '../../shared/constants';
-import { type HexCoord, hexToPixel, hexVecLength, type PixelCoord } from '../../shared/hex';
+import { type HexCoord, hexToPixel, hexVecLength, type PixelCoord, parseHexKey } from '../../shared/hex';
 import { predictDestination } from '../../shared/movement';
 import type { GameState, ShipMovement, SolarSystemMap } from '../../shared/types';
 
@@ -65,9 +65,8 @@ export const buildDetectionRangeViews = (
     if (destroyed.has(key)) continue;
     const hex = map.hexes.get(key);
     if (!hex?.base) continue;
-    const [q, r] = key.split(',').map(Number);
     views.push({
-      center: hexToPixel({ q, r }, hexSize),
+      center: hexToPixel(parseHexKey(key), hexSize),
       radius: BASE_DETECTION_RANGE * hexSize * 1.73,
       color: 'rgba(79, 195, 247, 0.05)',
       lineWidth: 1,

@@ -343,17 +343,16 @@ export const aiAstrogation = (
 
     // Build list of (burn, overload) pairs to evaluate
     type BurnOption = { burn: number | null; overload: number | null; weakGravityChoices?: Record<string, boolean> };
-    const options: BurnOption[] = [{ burn: null, overload: null }];
-    for (let d = 0; d < 6; d++) {
-      if (canBurnFuel) {
-        options.push({ burn: d, overload: null });
-        if (canOverload) {
-          for (let o = 0; o < 6; o++) {
-            options.push({ burn: d, overload: o });
-          }
-        }
-      }
-    }
+    const directions = [0, 1, 2, 3, 4, 5] as const;
+    const options: BurnOption[] = [
+      { burn: null, overload: null },
+      ...(canBurnFuel
+        ? directions.flatMap((d) => [
+            { burn: d, overload: null },
+            ...(canOverload ? directions.map((o) => ({ burn: d, overload: o as number | null })) : []),
+          ])
+        : []),
+    ];
 
     let bestWeakGrav: Record<string, boolean> | undefined;
 

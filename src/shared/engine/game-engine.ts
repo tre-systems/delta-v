@@ -155,17 +155,13 @@ export const createGame = (
   findBaseHex: (map: SolarSystemMap, bodyName: string) => { q: number; r: number } | null,
 ): GameState => {
   assertScenarioPlayerCount(scenario);
-  const ships: Ship[] = [];
   const playerBases = scenario.players.map((player) => resolveControlledBases(player, map));
 
   // Shared bases: add fuel-body bases to both players (Grand Tour race)
   if (scenario.rules?.sharedBases) {
-    const sharedBaseKeys = new Set<string>();
-    for (const [key, hex] of map.hexes) {
-      if (hex.base && scenario.rules.sharedBases.includes(hex.base.bodyName)) {
-        sharedBaseKeys.add(key);
-      }
-    }
+    const sharedBaseKeys = [...map.hexes.entries()]
+      .filter(([, hex]) => hex.base && scenario.rules!.sharedBases!.includes(hex.base!.bodyName))
+      .map(([key]) => key);
     for (const bases of playerBases) {
       for (const key of sharedBaseKeys) {
         if (!bases.includes(key)) bases.push(key);
@@ -173,12 +169,10 @@ export const createGame = (
     }
   }
 
-  for (let p = 0; p < scenario.players.length; p++) {
-    for (let s = 0; s < scenario.players[p].ships.length; s++) {
-      const def = scenario.players[p].ships[s];
+  const ships: Ship[] = scenario.players.flatMap((player, p) =>
+    player.ships.map((def, s) => {
       const stats = SHIP_STATS[def.type];
-      const { position, landed } = resolveStartingPlacement(def, scenario.players[p], playerBases[p], map, findBaseHex);
-
+      const { position, landed } = resolveStartingPlacement(def, player, playerBases[p], map, findBaseHex);
       const startHex = map.hexes.get(hexKey(position));
       const initialGravity =
         !landed && def.startInOrbit && startHex?.gravity
@@ -193,7 +187,7 @@ export const createGame = (
             ]
           : [];
 
-      ships.push({
+      return {
         id: `p${p}s${s}`,
         type: def.type,
         owner: p,
@@ -207,23 +201,22 @@ export const createGame = (
         landed,
         destroyed: false,
         detected: true,
-        identityRevealed: !scenario.players[p].hiddenIdentity,
+        identityRevealed: !player.hiddenIdentity,
         pendingGravityEffects: initialGravity,
         damage: { disabledTurns: 0 },
-      });
-    }
-  }
+      };
+    }),
+  );
 
-  for (let p = 0; p < scenario.players.length; p++) {
-    if (scenario.players[p].hiddenIdentity) {
-      const playerShips = ships.filter((s) => s.owner === p);
-      if (playerShips.length > 0) {
-        const chosen = randomChoice(playerShips);
-        chosen.hasFugitives = true;
-        for (const ship of playerShips) {
-          ship.identityRevealed = false;
-        }
-      }
+  // Assign fugitive identity for hidden-identity scenarios
+  for (const player of scenario.players) {
+    if (!player.hiddenIdentity) continue;
+    const p = scenario.players.indexOf(player);
+    const playerShips = ships.filter((s) => s.owner === p);
+    if (playerShips.length === 0) continue;
+    randomChoice(playerShips).hasFugitives = true;
+    for (const ship of playerShips) {
+      ship.identityRevealed = false;
     }
   }
 

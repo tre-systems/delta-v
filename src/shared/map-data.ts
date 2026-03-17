@@ -1,4 +1,4 @@
-import { type HexCoord, hexDirectionToward, hexKey, hexNeighbor, hexRing } from './hex';
+import { type HexCoord, hexDirectionToward, hexKey, hexNeighbor, hexRing, parseHexKey } from './hex';
 import type { CelestialBody, MapHex, ScenarioDefinition, SolarSystemMap } from './types';
 
 // --- Body definitions ---
@@ -534,20 +534,11 @@ export const getSolarSystemMap = (): SolarSystemMap => {
 };
 
 export const findBaseHexes = (map: SolarSystemMap, bodyName: string): HexCoord[] =>
-  [...map.hexes.entries()]
-    .filter(([, hex]) => hex.base?.bodyName === bodyName)
-    .map(([key]) => {
-      const [q, r] = key.split(',').map(Number);
-      return { q, r };
-    });
+  [...map.hexes.entries()].filter(([, hex]) => hex.base?.bodyName === bodyName).map(([key]) => parseHexKey(key));
 
 // Helper: find a base hex for a body (first base found)
 export const findBaseHex = (map: SolarSystemMap, bodyName: string): HexCoord | null =>
   findBaseHexes(map, bodyName)[0] ?? null;
 
-export const bodyHasGravity = (bodyName: string, map: SolarSystemMap): boolean => {
-  for (const hex of map.hexes.values()) {
-    if (hex.gravity?.bodyName === bodyName) return true;
-  }
-  return false;
-};
+export const bodyHasGravity = (bodyName: string, map: SolarSystemMap): boolean =>
+  [...map.hexes.values()].some((hex) => hex.gravity?.bodyName === bodyName);
