@@ -6,10 +6,10 @@ This document captures recommendations for reducing complexity in the Delta-V co
 
 Before diving into changes, it's worth naming the patterns that are already strong:
 
-- **Pure functional game engine.** `shared/game-engine.ts` takes state + actions and returns new state + events with no side effects. This is exactly right for a turn-based game and makes the rules unit-testable in isolation.
-- **The "derive plan, then execute" pattern.** Files like `game-client-phase.ts`, `game-client-messages.ts`, and `game-client-phase-entry.ts` return plain data objects describing what should happen, and the caller executes them. This keeps logic testable and side effects contained. The `setState` method's entry plan execution is the best example.
+- **Pure functional game engine.** `shared/engine/game-engine.ts` takes state + actions and returns new state + events with no side effects. This is exactly right for a turn-based game and makes the rules unit-testable in isolation.
+- **The "derive plan, then execute" pattern.** Files like `game/phase.ts`, `game/messages.ts`, and `game/phase-entry.ts` return plain data objects describing what should happen, and the caller executes them. This keeps logic testable and side effects contained. The `setState` method's entry plan execution is the best example.
 - **Shared types as the contract.** `types.ts` as the single source of truth for `GameState`, `Ship`, network messages, etc. ensures client and server never drift.
-- **Decomposed renderer.** At ~1000 lines with well-extracted sub-modules (`renderer-combat.ts`, `renderer-entities.ts`, `renderer-vectors.ts`, etc.), the renderer is doing what a game renderer should.
+- **Decomposed renderer.** At ~1000 lines with well-extracted sub-modules (`renderer/combat.ts`, `renderer/entities.ts`, `renderer/vectors.ts`, etc.), the renderer is doing what a game renderer should.
 
 The overarching theme of this document is: you don't need a framework, you need to shrink the surface area of `GameClient` by pulling state and logic out of the class and into composable pure functions and a thin transport layer. You're already doing this — just keep going.
 
@@ -338,7 +338,7 @@ type InputEvent =
 
 A separate interpretation layer (a pure function) maps `InputEvent` + current state → `GameCommand`. This makes the input handler trivially testable (it just translates coordinates) and puts all the game-aware click logic in a pure function that's also easy to test.
 
-This is lower priority because the current structure works and the click logic is already partially extracted into `game-client-input.ts`, `game-client-combat.ts`, etc. But it's the natural endpoint of the patterns you're already using.
+This is lower priority because the current structure works and the click logic is already partially extracted into `game/input.ts`, `game/combat.ts`, etc. But it's the natural endpoint of the patterns you're already using.
 
 ---
 
