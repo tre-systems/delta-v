@@ -370,6 +370,24 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 - **Extended Economy** *(deferred — scenario-specific):* Shipping lanes (Piracy trade cycles, cargo delivery) and asteroid prospecting (automated mines, robot guards, ore/CT shards) are scenario-specific economy mechanics from the Piracy and Interplanetary War scenarios. Defer until those scenarios are on the roadmap.
 
+- **Orbital base D1 resilience** *(not yet implemented):* The rulebook (p.6) states orbital bases may still launch torpedoes, fire guns, and resupply friendly ships while at D1 damage. Currently, disabled orbital bases follow the same restrictions as ships. Low priority — only relevant in scenarios with orbital base emplacement.
+
+- **Torch ship fuel transfer restriction** *(not yet implemented):* The rulebook (p.8) states torch ships "may not transfer fuel to other ships." Fuel transfer between ships is not implemented at all (part of Logistics), so this restriction has no current effect. Track for when logistics are added.
+
+**Unimplemented rulebook scenarios** (from the Triplanetary 2018 PDF):
+
+| Scenario | Type | Key Dependencies |
+|---|---|---|
+| Lateral 7 | 2-player short | Dummy counters, Clandestine base, scanners, dense asteroids |
+| Piracy | 3-player long | Clandestine, scanners, trade cycles, cargo delivery, Merchants/Patrol/Pirates roles |
+| Nova | 3-player short | Alien fleet AI, nova bombs, multi-faction |
+| Retribution | 2-player medium | Sons of Liberty sequential corvettes, Freedom Fleet conversion |
+| Fleet Mutiny | 2-player long | Hexside suppression, base capture, planetary defense suppression |
+| Prospecting | Multi-player long | Automated mines, robot guards, ore, CT shards, PM grapples |
+| Campaign | Multi-player | Full economy, referee, all of the above |
+
+All of these require Logistics and/or Extended Economy mechanics as prerequisites.
+
 ## Scenarios
 
 Eight scenarios are implemented, selectable from the menu:
@@ -545,6 +563,8 @@ The authoritative state held by the Durable Object (see `src/shared/types.ts` fo
 interface GameState {
   gameId: string
   scenario: string
+  scenarioRules: ScenarioRules                   // per-scenario flags (ordnance types, escape edge, etc.)
+  escapeMoralVictoryAchieved: boolean            // Escape scenario moral victory tracking
   turnNumber: number
   phase: Phase
   activePlayer: number                           // 0 or 1
@@ -573,7 +593,13 @@ interface Ship {
   landed: boolean
   destroyed: boolean
   detected: boolean
+  captured?: boolean                             // captured by enemy — cannot fire until base resupply
+  heroismAvailable?: boolean                     // heroic ships add +1 to gun combat attack rolls
+  overloadUsed?: boolean                         // true if overload used since last maintenance
+  carryingOrbitalBase?: boolean                  // transport/packet carrying an unemplaced orbital base
+  emplaced?: boolean                             // orbital base placed (stationary, cannot move)
   hasFugitives?: boolean                         // hidden from opponent in Escape
+  identityRevealed?: boolean                     // hidden-identity: true once inspection reveals role
   pendingGravityEffects?: GravityEffect[]
   damage: { disabledTurns: number }              // 0 = operational, ≥6 = eliminated
 }
@@ -587,7 +613,7 @@ interface PlayerState {
   escapeWins: boolean
 }
 
-type Phase = 'waiting' | 'astrogation' | 'ordnance' | 'movement' | 'combat' | 'resupply' | 'gameOver'
+type Phase = 'waiting' | 'fleetBuilding' | 'astrogation' | 'ordnance' | 'movement' | 'combat' | 'resupply' | 'gameOver'
 ```
 
 ## Hex Math
@@ -722,29 +748,23 @@ The full solar system map has approximately 1,500–2,000 hexes. The map definit
 Scenarios are defined as configuration objects:
 
 ```typescript
-interface ScenarioConfig {
+interface ScenarioDefinition {
   name: string
   description: string
-  playerCount: number
-  mapBounds?: { minQ, maxQ, minR, maxR }  // Optional map subset
   players: ScenarioPlayer[]
-  victoryConditions: VictoryCondition[]
-  specialRules: string[]
-  availableShipTypes?: ShipType[]          // Restricts purchasable ships
-  nuclesAvailable: boolean
-  startingCredits?: number[]               // Per player
+  rules?: ScenarioRules                    // Ordnance types, escape edge, combat disabled, etc.
+  startingPlayer?: 0 | 1
+  startingCredits?: number | [number, number]   // Per-player MegaCredits for fleet-building
+  availableShipTypes?: string[]            // Restricts purchasable ships
 }
 
 interface ScenarioPlayer {
-  name: string                             // e.g., "Mars", "Venus"
-  startingShips: {
-    type: ShipType
-    position: HexCoord
-    velocity?: HexVec                      // Default: stationary
-    fuel?: number                          // Default: full
-    cargo?: CargoItem[]
-  }[]
-  bases: HexCoord[]                        // Which bases this player controls
+  ships: ScenarioShip[]                      // Starting fleet
+  targetBody: string                         // Body to land on ('' if none)
+  homeBody: string                           // Default home world
+  bases?: HexCoord[]                         // Explicit controlled bases
+  escapeWins: boolean                        // True if wins by escaping the map
+  hiddenIdentity?: boolean                   // One ship carries hidden cargo (Escape)
 }
 ```
 
@@ -809,17 +829,15 @@ interface ScenarioPlayer {
 - [x] Orbital bases (carrying, emplacing, torpedo launching)
 - [x] PWA support (installable shell with offline-capable single-player)
 - [x] Grand Tour checkpoint race scenario
-- [ ] Browser-side orchestration and UI test coverage
 - [ ] Asteroid map visuals to match `docs/map.png`
-- [ ] Advanced features: looting, surrender, rescue, and richer logistics
-- [ ] Improved animations (particle effects for thrust, gravity lensing)
-- [ ] Turn history replay
+- [ ] Logistics: surrender, looting, rescue, fuel transfer, cargo handling
+- [ ] New scenarios: Lateral 7, Fleet Mutiny, Retribution
 - [ ] Spectator mode
-- [ ] Game state persistence (resume interrupted games across sessions)
-- [ ] Performance optimization for mobile
+- [ ] Turn history replay
 
-## Open Questions
+## Design Decisions
 
-1. **Simultaneous vs. alternating turns:** The game alternates player turns. A simultaneous-movement variant could reduce waiting time but would change game dynamics significantly. Currently uses alternating turns.
-2. **Spectator mode:** Allow a third connection to watch a game in progress? Planned for future updates.
-3. **Advanced Combat System:** The rules include an optional advanced combat system with weapon/drive/structure damage tracks. Still deferred.
+1. **Alternating turns** (not simultaneous): Matches the original board game. Simultaneous movement would change game dynamics significantly.
+2. **Standard combat system**: The rulebook includes an optional Advanced Combat System with separate weapon/drive/structure damage tracks (p.16). Deferred — the standard D1–D5/E system is used throughout.
+3. **Contact geometry**: Digital hex-path intersection rather than literal geometric line intersection on the printed map. Standard for digital hex games.
+4. **2-player only**: The original supports 2+ players with referee. Multi-player support would require lobby changes, turn ordering, and faction assignment UI.
