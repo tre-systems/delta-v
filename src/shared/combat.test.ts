@@ -150,6 +150,14 @@ describe('canAttack', () => {
     expect(canAttack(makeShip({ damage: { disabledTurns: 1 } }))).toBe(false);
   });
 
+  it('disabled dreadnaught can still attack (rulebook p.6 exception)', () => {
+    expect(canAttack(makeShip({ type: 'dreadnaught', damage: { disabledTurns: 3 } }))).toBe(true);
+  });
+
+  it('destroyed dreadnaught cannot attack', () => {
+    expect(canAttack(makeShip({ type: 'dreadnaught', destroyed: true }))).toBe(false);
+  });
+
   it('destroyed ship cannot attack', () => {
     expect(canAttack(makeShip({ destroyed: true }))).toBe(false);
   });
@@ -162,6 +170,14 @@ describe('canCounterattack', () => {
 
   it('disabled ship cannot counterattack', () => {
     expect(canCounterattack(makeShip({ damage: { disabledTurns: 1 } }))).toBe(false);
+  });
+
+  it('disabled dreadnaught can still counterattack (rulebook p.6 exception)', () => {
+    expect(canCounterattack(makeShip({ type: 'dreadnaught', damage: { disabledTurns: 2 } }))).toBe(true);
+  });
+
+  it('destroyed dreadnaught cannot counterattack', () => {
+    expect(canCounterattack(makeShip({ type: 'dreadnaught', destroyed: true }))).toBe(false);
   });
 });
 

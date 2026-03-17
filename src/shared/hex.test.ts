@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  analyzeHexLine,
   cubeRound,
   HEX_DIRECTIONS,
   hexAdd,
@@ -184,6 +185,98 @@ describe('cubeRound', () => {
     expect(r1.q).toBe(0);
     expect(Object.is(r1.r, -0) ? 0 : r1.r).toBe(0); // JS -0 quirk
     expect(cubeRound(0.9, 0.1, -1.0).q).toBe(1);
+  });
+});
+
+describe('analyzeHexLine', () => {
+  it('axis-aligned path has no ambiguous pairs', () => {
+    // Moving straight E: (0,0) -> (3,0)
+    const result = analyzeHexLine({ q: 0, r: 0 }, { q: 3, r: 0 });
+    expect(result.ambiguousPairs).toHaveLength(0);
+    expect(result.definite).toHaveLength(4); // 0,0 through 3,0
+  });
+
+  it('diagonal path along hex edge produces ambiguous pairs', () => {
+    // (0,0) -> (2,-1): this line runs along the edge between (1,0) and (1,-1)
+    const result = analyzeHexLine({ q: 0, r: 0 }, { q: 2, r: -1 });
+    expect(result.ambiguousPairs).toHaveLength(1);
+    const pair = result.ambiguousPairs[0];
+    const pairKeys = [hexKey(pair[0]), hexKey(pair[1])].sort();
+    expect(pairKeys).toEqual(['1,-1', '1,0']);
+  });
+
+  it('definite hexes exclude ambiguous ones', () => {
+    const result = analyzeHexLine({ q: 0, r: 0 }, { q: 2, r: -1 });
+    const definiteKeys = new Set(result.definite.map(hexKey));
+    // Start and end are always definite
+    expect(definiteKeys.has('0,0')).toBe(true);
+    expect(definiteKeys.has('2,-1')).toBe(true);
+    // Ambiguous hexes should not be in definite
+    expect(definiteKeys.has('1,0')).toBe(false);
+    expect(definiteKeys.has('1,-1')).toBe(false);
+  });
+
+  it('longer diagonal produces multiple ambiguous pairs', () => {
+    // (0,0) -> (4,-2): runs along edges for each step
+    const result = analyzeHexLine({ q: 0, r: 0 }, { q: 4, r: -2 });
+    expect(result.ambiguousPairs.length).toBeGreaterThanOrEqual(1);
+    // Each ambiguous pair should be neighbors
+    for (const [a, b] of result.ambiguousPairs) {
+      expect(hexDistance(a, b)).toBe(1);
+    }
+  });
+
+  it('primary and alternate have the same length', () => {
+    const result = analyzeHexLine({ q: 0, r: 0 }, { q: 4, r: -2 });
+    expect(result.primary.length).toBe(result.alternate.length);
+  });
+
+  it('same hex produces no ambiguity', () => {
+    const result = analyzeHexLine({ q: 3, r: 5 }, { q: 3, r: 5 });
+    expect(result.ambiguousPairs).toHaveLength(0);
+    expect(result.definite).toHaveLength(1);
+  });
+
+  it('non-edge-aligned diagonal has no ambiguous pairs', () => {
+    // (0,0) -> (3,-1): this path does not run along hex edges
+    const result = analyzeHexLine({ q: 0, r: 0 }, { q: 3, r: -1 });
+    expect(result.ambiguousPairs).toHaveLength(0);
+    expect(result.definite).toHaveLength(4);
+  });
+
+  it('reverse direction produces consistent ambiguous pairs', () => {
+    const forward = analyzeHexLine({ q: 0, r: 0 }, { q: 2, r: -1 });
+    const backward = analyzeHexLine({ q: 2, r: -1 }, { q: 0, r: 0 });
+    // Both should have the same number of ambiguous pairs
+    expect(forward.ambiguousPairs).toHaveLength(backward.ambiguousPairs.length);
+    // The ambiguous hex keys should be the same (order may differ)
+    const fwdPairKeys = forward.ambiguousPairs.map(([a, b]) => [hexKey(a), hexKey(b)].sort().join('|'));
+    const bwdPairKeys = backward.ambiguousPairs.map(([a, b]) => [hexKey(a), hexKey(b)].sort().join('|'));
+    expect(fwdPairKeys.sort()).toEqual(bwdPairKeys.sort());
+  });
+
+  it('NE diagonal (0,0) -> (2,-2) along hex edges', () => {
+    // This moves 2 steps in the NE direction, which is axis-aligned
+    const result = analyzeHexLine({ q: 0, r: 0 }, { q: 2, r: -2 });
+    expect(result.ambiguousPairs).toHaveLength(0);
+    expect(result.definite).toHaveLength(3);
+  });
+
+  it('SE diagonal (0,0) -> (0,2) along hex edges', () => {
+    // This moves 2 steps in the SE direction, which is axis-aligned
+    const result = analyzeHexLine({ q: 0, r: 0 }, { q: 0, r: 2 });
+    expect(result.ambiguousPairs).toHaveLength(0);
+  });
+
+  it('off-axis path (0,0) -> (1,1) has ambiguous middle', () => {
+    // Distance 2, going through either (0,1) or (1,0)
+    const result = analyzeHexLine({ q: 0, r: 0 }, { q: 1, r: 1 });
+    // For distance 2, the middle hex is ambiguous
+    expect(result.ambiguousPairs.length).toBeGreaterThanOrEqual(0);
+    // Start and end are always definite
+    const definiteKeys = new Set(result.definite.map(hexKey));
+    expect(definiteKeys.has('0,0')).toBe(true);
+    expect(definiteKeys.has('1,1')).toBe(true);
   });
 });
 
