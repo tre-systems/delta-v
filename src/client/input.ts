@@ -1,25 +1,14 @@
-import { type HexCoord, pixelToHex } from '../shared/hex';
-import type { GameState, SolarSystemMap } from '../shared/types';
-import {
-  createCombatTargetPlan,
-  getCombatAttackerIdAtHex,
-  getCombatTargetAtHex,
-  toggleCombatAttackerSelection,
-} from './game/combat';
-import type { GameCommand } from './game/commands';
-import { resolveAstrogationClick, resolveOrdnanceClick } from './game/input';
+import { type HexCoord, hexEqual, pixelToHex } from '../shared/hex';
+import type { SolarSystemMap } from '../shared/types';
+import type { InputEvent } from './game/input-events';
 import { createMinimapLayout, isPointInMinimap, projectMinimapToWorld } from './game/minimap';
-import type { PlanningState } from './game/planning';
 import type { Camera } from './renderer/camera';
 import { HEX_SIZE } from './renderer/renderer';
 
 export class InputHandler {
   private camera: Camera;
-  private planningState: PlanningState;
-  private gameState: GameState | null = null;
   private map: SolarSystemMap | null = null;
-  private playerId = -1;
-  public onCommand: (cmd: GameCommand) => void;
+  private onInput: (event: InputEvent) => void;
 
   // Drag state
   private isDragging = false;
@@ -31,18 +20,12 @@ export class InputHandler {
   // Pinch zoom
   private lastPinchDist = 0;
 
-  // Callbacks
-  onConfirm: (() => void) | null = null;
+  // Hover dedup
+  private lastHoverHex: HexCoord | null = null;
 
-  constructor(
-    canvas: HTMLCanvasElement,
-    camera: Camera,
-    planningState: PlanningState,
-    onCommand: (cmd: GameCommand) => void,
-  ) {
+  constructor(canvas: HTMLCanvasElement, camera: Camera, onInput: (event: InputEvent) => void) {
     this.camera = camera;
-    this.planningState = planningState;
-    this.onCommand = onCommand;
+    this.onInput = onInput;
 
     // Mouse events
     canvas.addEventListener('mousedown', (e) => this.onPointerDown(e.clientX, e.clientY));
@@ -72,16 +55,8 @@ export class InputHandler {
     canvas.addEventListener('touchend', (e) => this.onTouchEnd(e));
   }
 
-  setGameState(state: GameState) {
-    this.gameState = state;
-  }
-
   setMap(map: SolarSystemMap) {
     this.map = map;
-  }
-
-  setPlayerId(id: number) {
-    this.playerId = id;
   }
 
   // --- Pointer handling ---
@@ -111,15 +86,12 @@ export class InputHandler {
       }
     }
 
-    // Always track hover hex if we have game state
-    if (this.gameState && this.map) {
-      const worldPos = this.camera.screenToWorld(x, y);
-      const hex = pixelToHex(worldPos, HEX_SIZE);
-      if (hex.q !== this.planningState.hoverHex?.q || hex.r !== this.planningState.hoverHex?.r) {
-        this.onCommand({ type: 'setHoverHex', hex });
-      }
-    } else if (this.planningState.hoverHex) {
-      this.onCommand({ type: 'setHoverHex', hex: null });
+    // Track hover hex
+    const worldPos = this.camera.screenToWorld(x, y);
+    const hex = pixelToHex(worldPos, HEX_SIZE);
+    if (!this.lastHoverHex || !hexEqual(hex, this.lastHoverHex)) {
+      this.lastHoverHex = hex;
+      this.onInput({ type: 'hoverHex', hex });
     }
   }
 
@@ -174,116 +146,11 @@ export class InputHandler {
   // --- Click logic ---
 
   private handleClick(screenX: number, screenY: number) {
-    // Check minimap click first
     if (this.handleMinimapClick(screenX, screenY)) return;
 
-    if (!this.gameState || !this.map) return;
-    if (this.gameState.activePlayer !== this.playerId) return;
-
     const worldPos = this.camera.screenToWorld(screenX, screenY);
-    const clickHex = pixelToHex(worldPos, HEX_SIZE);
-
-    if (this.gameState.phase === 'combat') {
-      this.handleCombatClick(clickHex);
-      return;
-    }
-
-    if (this.gameState.phase === 'ordnance') {
-      this.handleOrdnanceClick(clickHex);
-      return;
-    }
-
-    if (this.gameState.phase !== 'astrogation') return;
-    const interaction = resolveAstrogationClick(this.gameState, this.map, this.playerId, this.planningState, clickHex);
-    switch (interaction.type) {
-      case 'weakGravityToggle':
-        this.onCommand({ type: 'setWeakGravityChoices', shipId: interaction.shipId, choices: interaction.choices });
-        return;
-      case 'overloadToggle':
-        this.onCommand({ type: 'setOverloadDirection', shipId: interaction.shipId, direction: interaction.direction });
-        return;
-      case 'burnToggle':
-        this.onCommand({ type: 'setBurnDirection', shipId: interaction.shipId, direction: interaction.direction });
-        return;
-      case 'selectShip':
-        this.onCommand({ type: 'selectShip', shipId: interaction.shipId });
-        return;
-      case 'clearSelection':
-        this.onCommand({ type: 'deselectShip' });
-        return;
-    }
-  }
-
-  private handleOrdnanceClick(clickHex: HexCoord) {
-    if (!this.gameState) return;
-    const interaction = resolveOrdnanceClick(this.gameState, this.playerId, this.planningState, clickHex);
-    switch (interaction.type) {
-      case 'torpedoAccel':
-        this.onCommand({
-          type: 'setTorpedoAccel',
-          direction: interaction.torpedoAccel,
-          steps: interaction.torpedoAccelSteps,
-        });
-        return;
-      case 'selectShip':
-        this.onCommand({ type: 'selectShip', shipId: interaction.shipId });
-        this.onCommand({ type: 'clearTorpedoAcceleration' });
-        return;
-      case 'none':
-        return;
-    }
-  }
-
-  private handleCombatClick(clickHex: HexCoord) {
-    if (!this.gameState) return;
-
-    const attackerId = getCombatAttackerIdAtHex(this.gameState, this.playerId, clickHex);
-    if (attackerId) {
-      const toggle = toggleCombatAttackerSelection(
-        this.gameState,
-        this.playerId,
-        this.planningState,
-        this.map,
-        attackerId,
-      );
-      if (toggle?.consumed) {
-        this.onCommand({
-          type: 'setCombatPlan',
-          plan: {
-            combatTargetId: this.planningState.combatTargetId,
-            combatTargetType: this.planningState.combatTargetType,
-            combatAttackerIds: toggle.combatAttackerIds,
-            combatAttackStrength: toggle.combatAttackStrength,
-          },
-          selectedShipId: attackerId,
-        });
-        return;
-      }
-    }
-
-    const target = getCombatTargetAtHex(this.gameState, this.playerId, clickHex, this.planningState.queuedAttacks);
-    if (target) {
-      const isSame =
-        this.planningState.combatTargetId === target.targetId &&
-        this.planningState.combatTargetType === target.targetType;
-      if (isSame) {
-        this.onCommand({ type: 'clearCombatSelection' });
-      } else {
-        const plan = createCombatTargetPlan(
-          this.gameState,
-          this.playerId,
-          this.planningState,
-          target.targetId,
-          target.targetType,
-          this.map,
-        );
-        this.onCommand({ type: 'setCombatPlan', plan });
-      }
-      return;
-    }
-
-    // Clicked empty space — deselect target
-    this.onCommand({ type: 'clearCombatSelection' });
+    const hex = pixelToHex(worldPos, HEX_SIZE);
+    this.onInput({ type: 'clickHex', hex });
   }
 
   /**
