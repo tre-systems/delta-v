@@ -121,7 +121,7 @@ The shared engine is data-oriented by design. Lean into that with functional pat
 
 State belongs to the coordinator that manages its lifecycle, and is passed by reference to collaborators:
 
-- **PlanningState** is owned by `GameClient` in `main.ts`, defined in `src/client/game/planning.ts`. Renderer and InputHandler receive it as a constructor parameter and read/mutate the shared reference. Never reach through `renderer.planningState` — access it directly from the owner.
+- **PlanningState** is owned by `GameClient` in `main.ts`, defined in `src/client/game/planning.ts`. Renderer receives it as a constructor parameter and reads the shared reference each frame. `InputHandler` does not receive PlanningState — it emits raw spatial events (`InputEvent`), and `interpretInput()` receives PlanningState as a read-only argument to produce `GameCommand[]`.
 
 - **GameState** is owned by `GameClient`, updated via `applyGameState()`. Other modules receive it as function arguments, never as stored references.
 
