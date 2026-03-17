@@ -15,24 +15,6 @@ The HUD now measures its live top/bottom offsets instead of relying on fixed `re
 
 ## P2 — Code Quality
 
-### 2c. Command dispatch
-Unify ~30 action-handler methods into a single `dispatch(cmd: GameCommand)` bottleneck. The existing `KeyboardAction` discriminated union maps almost directly to `GameCommand`.
-
-**Benefit:** One place for logging, guard conditions, and input routing. Keyboard, UI, and input handler all produce the same command type.
-
-**Files:** `src/client/main.ts`, `src/client/game/keyboard.ts`
-
-**Details:** See REFACTORING.md Priority 3.
-
-### 2d. Typed UI event bus
-Replace `UIManager`'s ~15 nullable callback properties with a single typed `UIEvent` union and emitter. Events feed into the dispatch function from 2c.
-
-**Benefit:** Makes the relationship between UI events and game actions visible and greppable.
-
-**Files:** `src/client/ui/ui.ts`, `src/client/main.ts`
-
-**Details:** See REFACTORING.md Priority 5.
-
 ### 2f. Serialisation codec *(deferred — not currently needed)*
 `GameState` contains only JSON-serializable primitives (no Map/Set/Date). `deserializeState()` is `return raw`. A codec would add overhead with zero current benefit. Revisit if Map or Set fields are added to GameState.
 
@@ -69,11 +51,7 @@ Currently 77% branches. Gaps around weak gravity consecutive rules, off-map elim
 
 ## Suggested Order of Work
 
-The remaining P2 items build on each other. Suggested sequencing:
-1. **2c** (Command dispatch) — unifies all input routing
-2. **2d** (UI event bus) — feeds naturally into 2c's dispatch
-
-P3 items are independent of each other and of P2. They can be interleaved freely.
+P3 items are independent of each other. They can be interleaved freely.
 
 ## Done
 
@@ -88,3 +66,5 @@ P3 items are independent of each other and of P2. They can be interleaved freely
 - ~~2a. Pull PlanningState out of the Renderer~~ — `PlanningState` moved to `src/client/game/planning.ts`, owned by `GameClient`, passed to Renderer and InputHandler as references
 - ~~2b. Transport adapter~~ — `GameTransport` interface with `createLocalTransport` and `createWebSocketTransport` in `src/client/game/transport.ts`; eliminated all `isLocalGame` branching in action handlers
 - ~~2e. Async AI turn loop~~ — Replaced recursive callback chain with async/await loop in `runAITurn`; extracted `resolveAIPlan` and `isGameOver` helpers
+- ~~2c. Command dispatch~~ — `GameCommand` discriminated union in `src/client/game/commands.ts`; single `dispatch(cmd)` bottleneck in GameClient; `keyboardActionToCommand()` bridges KeyboardAction → GameCommand
+- ~~2d. Typed UI event bus~~ — `UIEvent` union in `src/client/ui/events.ts`; UIManager's 15 nullable callbacks replaced with single `onEvent` emitter; `handleUIEvent()` in GameClient routes menu events directly, game events through `dispatch()`
