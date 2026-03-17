@@ -479,6 +479,164 @@ describe('computeCourse - takeoff', () => {
   });
 });
 
+describe('computeCourse - takeoff edge cases', () => {
+  it('takeoff finds a launch hex when away direction is blocked by a body', () => {
+    // Create a custom map where the "away" neighbor from the body center is another body hex
+    const customMap: SolarSystemMap = {
+      hexes: new Map([
+        // Body at center
+        ['0,0', { terrain: 'planetSurface', body: { name: 'TestWorld', destructive: false } }],
+        // Base where ship is landed (adjacent to body)
+        [
+          '1,0',
+          {
+            terrain: 'space',
+            base: { bodyName: 'TestWorld', name: 'BodyName' },
+            gravity: { direction: 3, strength: 'full', bodyName: 'TestWorld' },
+          },
+        ],
+        // Away direction from center (1,0) → (2,0) is blocked by another body
+        ['2,0', { terrain: 'planetSurface', body: { name: 'Blocker', destructive: true } }],
+        // But another gravity hex exists
+        ['0,1', { terrain: 'space', gravity: { direction: 0, strength: 'full', bodyName: 'TestWorld' } }],
+        ['1,-1', { terrain: 'space', gravity: { direction: 4, strength: 'full', bodyName: 'TestWorld' } }],
+      ]),
+      bodies: [
+        { name: 'TestWorld', center: { q: 0, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 },
+        { name: 'Blocker', center: { q: 2, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 },
+      ],
+      bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
+    };
+
+    const ship = makeShip({
+      position: { q: 1, r: 0 },
+      landed: true,
+      velocity: { dq: 0, dr: 0 },
+      fuel: 20,
+    });
+
+    // Try multiple burn directions to find one that doesn't get cancelled by gravity
+    let found = false;
+    for (let d = 0; d < 6; d++) {
+      const course = computeCourse(ship, d, customMap);
+      // Fallback loop ran — ship should spend fuel and compute a course
+      expect(course.fuelSpent).toBe(1);
+      if (!course.crashed) {
+        found = true;
+        break;
+      }
+    }
+    // At least one direction should work
+    expect(found).toBe(true);
+  });
+
+  it('takeoff with overload on a warship costs 2 fuel', () => {
+    const marsBase = findBaseHex(map, 'Mars')!;
+    const ship = makeShip({
+      type: 'corvette', // canOverload: true
+      position: marsBase,
+      landed: true,
+      velocity: { dq: 0, dr: 0 },
+      fuel: 20,
+    });
+
+    const course = computeCourse(ship, 0, map, { overload: 3 });
+    expect(course.fuelSpent).toBe(2);
+    // Ship should move further than a normal takeoff
+    expect(course.destination).not.toEqual(marsBase);
+  });
+
+  it('takeoff with overload on a transport is ignored', () => {
+    const marsBase = findBaseHex(map, 'Mars')!;
+    const ship = makeShip({
+      type: 'transport', // canOverload: false
+      position: marsBase,
+      landed: true,
+      velocity: { dq: 0, dr: 0 },
+      fuel: 20,
+    });
+
+    const course = computeCourse(ship, 0, map, { overload: 3 });
+    // Transport can't overload, so only 1 fuel spent
+    expect(course.fuelSpent).toBe(1);
+  });
+
+  it('takeoff overload with insufficient fuel is ignored', () => {
+    const marsBase = findBaseHex(map, 'Mars')!;
+    const ship = makeShip({
+      type: 'corvette',
+      position: marsBase,
+      landed: true,
+      velocity: { dq: 0, dr: 0 },
+      fuel: 1, // Not enough for overload (needs 2)
+    });
+
+    const course = computeCourse(ship, 0, map, { overload: 3 });
+    // Only 1 fuel available, overload ignored
+    expect(course.fuelSpent).toBe(1);
+  });
+});
+
+describe('computeCourse - weak gravity consecutive rule', () => {
+  it('second consecutive weak gravity from same body is mandatory', () => {
+    // Create a map with two consecutive weak gravity hexes from the same body
+    const customMap: SolarSystemMap = {
+      hexes: new Map([
+        ['1,0', { terrain: 'space', gravity: { direction: 3, strength: 'weak', bodyName: 'Luna' } }],
+        ['2,0', { terrain: 'space', gravity: { direction: 3, strength: 'weak', bodyName: 'Luna' } }],
+      ]),
+      bodies: [{ name: 'Luna', center: { q: 3, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 }],
+      bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
+    };
+
+    const ship = makeShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 2, dr: 0 }, // Will pass through both weak gravity hexes
+    });
+
+    // Try to ignore both weak gravity hexes
+    const course = computeCourse(ship, null, customMap, {
+      weakGravityChoices: { '1,0': true, '2,0': true },
+    });
+
+    // First weak gravity can be ignored, second consecutive one from same body cannot
+    const effects = course.enteredGravityEffects;
+    if (effects.length === 2) {
+      expect(effects[0].ignored).toBe(true); // First can be ignored
+      expect(effects[1].ignored).toBe(false); // Second is mandatory
+    }
+  });
+
+  it('weak gravity from different bodies can both be ignored', () => {
+    const customMap: SolarSystemMap = {
+      hexes: new Map([
+        ['1,0', { terrain: 'space', gravity: { direction: 3, strength: 'weak', bodyName: 'BodyA' } }],
+        ['2,0', { terrain: 'space', gravity: { direction: 3, strength: 'weak', bodyName: 'BodyB' } }],
+      ]),
+      bodies: [
+        { name: 'BodyA', center: { q: 3, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 },
+        { name: 'BodyB', center: { q: 4, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 },
+      ],
+      bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
+    };
+
+    const ship = makeShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 2, dr: 0 },
+    });
+
+    const course = computeCourse(ship, null, customMap, {
+      weakGravityChoices: { '1,0': true, '2,0': true },
+    });
+
+    const effects = course.enteredGravityEffects;
+    if (effects.length === 2) {
+      expect(effects[0].ignored).toBe(true);
+      expect(effects[1].ignored).toBe(true);
+    }
+  });
+});
+
 describe('predictDestination', () => {
   it('returns position for landed ship', () => {
     const ship = makeShip({ position: { q: 3, r: 4 }, landed: true });

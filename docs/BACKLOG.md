@@ -24,34 +24,7 @@ The HUD now measures its live top/bottom offsets instead of relying on fixed `re
 
 ## P3 — Test Coverage
 
-### 3a. Improve branch coverage on engine/combat.ts
-Currently 88.39% branches. Add tests for edge cases in combat phase validation (anti-nuke fire, split-fire edge cases, dreadnaught-when-disabled).
-
-**Files:** `src/shared/engine/combat.ts`, `src/shared/engine/combat.test.ts`
-
-### 3b. Improve AI test coverage
-`ai.ts` is at 62.66% statements, 58.61% branches, 54.05% functions. Significant gaps in ordnance AI, combat target selection, and fleet-building decisions.
-
-**Files:** `src/shared/ai.ts`, `src/shared/ai.test.ts`
-
-### 3c. Improve victory.ts branch coverage
-Currently 85.25% branches. Gaps around escape-edge detection, moral victory conditions, and checkpoint race completion.
-
-**Files:** `src/shared/engine/victory.ts`, `src/shared/engine/victory.test.ts`
-
-### 3d. Add movement.ts edge case tests
-Currently 77% branches. Gaps around weak gravity consecutive rules, off-map elimination, and takeoff mechanics.
-
-**Files:** `src/shared/movement.ts`, `src/shared/movement.test.ts`
-
-### 3e. Add protocol validation tests
-`server/protocol.ts` is at 46.77% branches. Add tests for malformed payloads, edge cases in fleet-ready validation, and ordnance launch validation.
-
-**Files:** `src/server/protocol.ts`, `src/server/protocol.test.ts`
-
-## Suggested Order of Work
-
-P3 items are independent of each other. They can be interleaved freely.
+No open P3 items currently.
 
 ## Done
 
@@ -68,3 +41,8 @@ P3 items are independent of each other. They can be interleaved freely.
 - ~~2e. Async AI turn loop~~ — Replaced recursive callback chain with async/await loop in `runAITurn`; extracted `resolveAIPlan` and `isGameOver` helpers
 - ~~2c. Command dispatch~~ — `GameCommand` discriminated union in `src/client/game/commands.ts`; single `dispatch(cmd)` bottleneck in GameClient; `keyboardActionToCommand()` bridges KeyboardAction → GameCommand
 - ~~2d. Typed UI event bus~~ — `UIEvent` union in `src/client/ui/events.ts`; UIManager's 15 nullable callbacks replaced with single `onEvent` emitter; `handleUIEvent()` in GameClient routes menu events directly, game events through `dispatch()`
+- ~~3a. Improve combat.ts branch coverage~~ — 90% branches; added tests for duplicate targets, LOS-blocked attacks, anti-nuke through bodies, no-strength ordnance groups, asteroid hazard resolution
+- ~~3b. Improve AI test coverage~~ — 85.7% statements, 79% branches (from 62%/58%); added 53 tests covering escape strategy, checkpoint races, easy AI randomization, mine-laying, nuke launch, anti-nuke targeting
+- ~~3c. Improve victory.ts branch coverage~~ — 93% branches (from 85%); added 44 tests covering checkpoints, escape/moral victory, ramming, inspection, capture, orbital resupply, detection
+- ~~3d. Add movement.ts edge case tests~~ — 87% branches (from 77%); added tests for takeoff fallback, overload, weak gravity consecutive rules
+- ~~3e. Add protocol validation tests~~ — 100% branches (from 46%); added 90 tests covering all validation functions, seat assignment, message parsing
