@@ -127,11 +127,9 @@ describe('aiOrdnance', () => {
   it('returns empty array when no enemies exist', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     // Destroy all enemy ships
-    state.ships
-      .filter((s) => s.owner === 0)
-      .forEach((s) => {
-        s.destroyed = true;
-      });
+    for (const s of state.ships.filter((s) => s.owner === 0)) {
+      s.destroyed = true;
+    }
 
     const launches = aiOrdnance(state, 1, map);
     expect(launches).toHaveLength(0);
@@ -234,11 +232,9 @@ describe('aiCombat', () => {
   it('returns empty when AI has no ships that can attack', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     // Destroy AI ships
-    state.ships
-      .filter((s) => s.owner === 1)
-      .forEach((s) => {
-        s.destroyed = true;
-      });
+    for (const s of state.ships.filter((s) => s.owner === 1)) {
+      s.destroyed = true;
+    }
 
     const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(0);
@@ -246,11 +242,9 @@ describe('aiCombat', () => {
 
   it('returns empty when no enemies exist', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
-    state.ships
-      .filter((s) => s.owner === 0)
-      .forEach((s) => {
-        s.destroyed = true;
-      });
+    for (const s of state.ships.filter((s) => s.owner === 0)) {
+      s.destroyed = true;
+    }
 
     const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(0);
@@ -320,11 +314,9 @@ describe('aiCombat', () => {
     pilgrim.velocity = { dq: 0, dr: 0 };
     pilgrim.landed = false;
     // Destroy other pilgrims
-    state.ships
-      .filter((s) => s.owner === 0 && s.id !== pilgrim.id)
-      .forEach((s) => {
-        s.destroyed = true;
-      });
+    for (const s of state.ships.filter((s) => s.owner === 0 && s.id !== pilgrim.id)) {
+      s.destroyed = true;
+    }
 
     const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(1);
@@ -429,12 +421,12 @@ describe('AI scenario handling', () => {
       for (const diff of difficulties) {
         const state = createGame(scenario, map, 'DF01', findBaseHex);
         // Unland ships for meaningful AI decisions
-        state.ships.forEach((s) => {
+        for (const s of state.ships) {
           if (!s.destroyed) {
             s.landed = false;
             s.velocity = { dq: 0, dr: 0 };
           }
-        });
+        }
 
         const orders = aiAstrogation(state, 1, map, diff);
         expect(orders.length).toBeGreaterThan(0);

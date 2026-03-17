@@ -19,24 +19,49 @@
         "useConst": "error",
         "useTemplate": "warn",
         "useExponentiationOperator": "warn",
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "warn",
+        "useNodejsImportProtocol": "error",
+        "noNamespace": "error"
       },
       "complexity": {
-        "useArrowFunction": "warn",
-        "useFlatMap": "warn",
-        "noForEach": "off"
+        "useArrowFunction": "error",
+        "useFlatMap": "error",
+        "noForEach": "error",
+        "noUselessSwitchCase": "error",
+        "noUselessTypeConstraint": "error"
       },
       "suspicious": {
         "noVar": "error",
         "noExplicitAny": "warn",
-        "noDoubleEquals": "error"
+        "noDoubleEquals": "error",
+        "noFallthroughSwitchClause": "error",
+        "noGlobalAssign": "error",
+        "noShadowRestrictedNames": "error"
       },
       "correctness": {
         "noUnusedVariables": "warn",
-        "noUnusedImports": "error"
+        "noUnusedImports": "error",
+        "noUndeclaredVariables": "error",
+        "useExhaustiveDependencies": "warn"
+      },
+      "performance": {
+        "noAccumulatingSpread": "warn",
+        "noDelete": "warn"
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["src/server/**/*.ts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUndeclaredVariables": "off"
+          }
+        }
+      }
+    }
+  ],
   "files": {
     "includes": ["src/**/*.ts", "*.mjs"]
   }

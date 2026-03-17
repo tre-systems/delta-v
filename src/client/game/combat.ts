@@ -1,7 +1,7 @@
 import { canAttack, getCombatStrength, hasLineOfSight, hasLineOfSightToTarget } from '../../shared/combat';
 import { type HexCoord, hexEqual } from '../../shared/hex';
 import type { CombatAttack, GameState, SolarSystemMap } from '../../shared/types';
-import { clamp } from '../../shared/util';
+import { clamp, filterMap } from '../../shared/util';
 import type { PlanningState } from '../renderer/renderer';
 
 type CombatPlanningSnapshot = Pick<
@@ -150,9 +150,10 @@ export const getLegalCombatAttackers = (
 
   const reusableGroup = targetType === 'ship' ? getReusableCombatGroup(state, playerId, queuedAttacks, targetId) : null;
   if (reusableGroup) {
-    return reusableGroup.attackerIds
-      .map((id) => state.ships.find((ship) => ship.id === id))
-      .filter((ship): ship is NonNullable<typeof ship> => !!ship && !ship.destroyed && canAttack(ship));
+    return filterMap(reusableGroup.attackerIds, (id) => {
+      const ship = state.ships.find((s) => s.id === id);
+      return ship && !ship.destroyed && canAttack(ship) ? ship : null;
+    });
   }
 
   const committedAttackers = getCommittedAttackers(queuedAttacks);

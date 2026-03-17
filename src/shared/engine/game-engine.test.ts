@@ -430,12 +430,12 @@ describe('processAstrogation', () => {
   });
 
   it('increments turn number after both players complete turns', () => {
-    initialState.ships.forEach((ship, idx) => {
+    for (const [idx, ship] of initialState.ships.entries()) {
       ship.landed = false;
       ship.position = { q: idx * 3, r: 0 };
       ship.velocity = { dq: 0, dr: 0 };
       ship.cargoUsed = SHIP_STATS[ship.type].cargo;
-    });
+    }
 
     // Player 0's turn: astrogation + skip combat
     const orders0: AstrogationOrder[] = [
@@ -1517,16 +1517,16 @@ describe('ordnance validation', () => {
     const attackers = fleetState.ships.filter((s) => s.owner === 1);
     const enemies = fleetState.ships.filter((s) => s.owner === 0);
 
-    attackers.forEach((ship, idx) => {
+    for (const [idx, ship] of attackers.entries()) {
       ship.landed = false;
       ship.position = { q: idx, r: 0 };
       ship.lastMovementPath = [{ ...ship.position }];
-    });
-    enemies.forEach((ship, idx) => {
+    }
+    for (const [idx, ship] of enemies.entries()) {
       ship.landed = false;
       ship.position = { q: idx + 1, r: 0 };
       ship.lastMovementPath = [{ ...ship.position }];
-    });
+    }
 
     const result = processCombat(
       fleetState,
@@ -1813,11 +1813,9 @@ describe('Edge cases', () => {
   it('fleet action ends when one side is eliminated', () => {
     const fleetState = createGame(SCENARIOS.fleetAction, map, 'FLT02', findBaseHex);
     // Destroy all of player 1's ships
-    fleetState.ships
-      .filter((s) => s.owner === 1)
-      .forEach((s) => {
-        s.destroyed = true;
-      });
+    for (const s of fleetState.ships.filter((s) => s.owner === 1)) {
+      s.destroyed = true;
+    }
 
     // Run a no-op astrogation to trigger checkGameEnd
     const orders: AstrogationOrder[] = fleetState.ships

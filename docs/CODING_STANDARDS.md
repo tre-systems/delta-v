@@ -115,9 +115,58 @@ The shared engine is data-oriented by design. Lean into that with functional pat
 - **Don't force it.** Imperative code is fine when the logic is inherently stateful (tracking previous iteration state, early exits with complex conditions, Canvas drawing). Functional style should clarify, not obscure.
 - **Prefer arrow functions** (`const foo = (x: number) => ...`) over function declarations.
 
+## Client Architecture
+
+### State ownership
+
+State belongs to the coordinator that manages its lifecycle, and is passed by reference to collaborators:
+
+- **PlanningState** is owned by `GameClient` in `main.ts`, defined in `src/client/game/planning.ts`. Renderer and InputHandler receive it as a constructor parameter and read/mutate the shared reference. Never reach through `renderer.planningState` — access it directly from the owner.
+
+- **GameState** is owned by `GameClient`, updated via `applyGameState()`. Other modules receive it as function arguments, never as stored references.
+
+### Transport adapter
+
+Network vs. local game branching is handled by `GameTransport` (`src/client/game/transport.ts`), not by `if (isLocalGame)` checks in action handlers:
+
+- `createWebSocketTransport(send)` — wraps a WebSocket send function
+- `createLocalTransport(deps)` — dependency-injected local resolution using callbacks
+
+Action handlers call `this.transport.submitAstrogation(orders)` etc. instead of branching on game mode. The `isLocalGame` flag may still exist for scheduling (e.g. AI turns) but should not appear in submission logic.
+
+### Async patterns
+
+- **AI turn loop** uses `async/await` with `while` loops, not recursive `setTimeout` callback chains. The 500ms initial delay uses `await new Promise(r => setTimeout(r, 500))`.
+- **Promise-wrap callbacks** when an animation or timer needs to be awaited: wrap the callback-based API in a `new Promise` whose resolver is called from the callback.
+
+### Screen visibility
+
+The `applyScreenVisibility` pattern in `UIManager` is the single choke point for screen toggling. It applies the output of the pure `buildScreenVisibility()` function. This is the one place where direct `.style.display` assignment is acceptable — everywhere else, use `show()`/`hide()`/`visible()` from `dom.ts`.
+
+## Linting
+
+Biome enforces the following as errors (not just warnings):
+
+| Rule | What it enforces |
+|---|---|
+| `useConst` | Immutable bindings where possible |
+| `noVar` | No `var` declarations |
+| `noDoubleEquals` | Strict equality only |
+| `useArrowFunction` | Arrow functions over function expressions |
+| `noForEach` | `for...of` instead of `.forEach()` |
+| `useFlatMap` | `.flatMap()` instead of `.map().flat()` |
+| `noUnusedImports` | Clean imports |
+
+Additional rules at warning level: `noNonNullAssertion`, `noExplicitAny`, `noAccumulatingSpread`, `noUnusedVariables`.
+
+The server directory (`src/server/`) has `noUndeclaredVariables` disabled because Cloudflare Workers globals (like `WebSocketPair`) are not recognized by biome.
+
 ## Practical Style
 
 - Use descriptive names over abbreviations unless the abbreviation is already standard in the codebase.
 - Add comments sparingly and only where they explain non-obvious intent.
 - Prefer direct control flow over abstract indirection.
 - Keep public-facing behavior changes accompanied by tests or a clear rationale when tests are not practical.
+- **Use `for...of`** instead of `.forEach()` — enforced by biome. When you need the index, use `for (const [i, item] of arr.entries())`.
+- **Avoid `.map().filter(x => x != null)`** — use `filterMap()` from `src/shared/util.ts` for a single-pass transform-and-discard.
+- **Prefer `byId()`** over `document.getElementById()!` — it throws on missing elements with a clear error message and avoids non-null assertions.
