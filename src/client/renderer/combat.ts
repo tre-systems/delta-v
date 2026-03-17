@@ -12,7 +12,7 @@ import {
 } from '../../shared/combat';
 import type { HexCoord } from '../../shared/hex';
 import type { CombatAttack, CombatResult, GameState, Ordnance, Ship, SolarSystemMap } from '../../shared/types';
-import { clamp } from '../../shared/util';
+import { clamp, filterMap } from '../../shared/util';
 
 export interface CombatOverlayPlanningState {
   combatTargetId: string | null;
@@ -77,21 +77,20 @@ export const getQueuedCombatOverlayAttacks = (
   state: GameState,
   queuedAttacks: CombatAttack[],
 ): QueuedCombatOverlayAttack[] => {
-  return queuedAttacks
-    .map((queued) => {
-      const target =
-        (queued.targetType ?? 'ship') === 'ordnance'
-          ? state.ordnance.find((item) => item.id === queued.targetId)
-          : state.ships.find((item) => item.id === queued.targetId);
-      if (!target) return null;
-      return {
-        targetPosition: target.position,
-        attackerPositions: queued.attackerIds
-          .map((attackerId) => state.ships.find((ship) => ship.id === attackerId)?.position ?? null)
-          .filter((position): position is HexCoord => position !== null),
-      };
-    })
-    .filter((overlay): overlay is QueuedCombatOverlayAttack => overlay !== null);
+  return filterMap(queuedAttacks, (queued) => {
+    const target =
+      (queued.targetType ?? 'ship') === 'ordnance'
+        ? state.ordnance.find((item) => item.id === queued.targetId)
+        : state.ships.find((item) => item.id === queued.targetId);
+    if (!target) return null;
+    return {
+      targetPosition: target.position,
+      attackerPositions: filterMap(
+        queued.attackerIds,
+        (attackerId) => state.ships.find((ship) => ship.id === attackerId)?.position ?? null,
+      ),
+    };
+  });
 };
 
 export const getCombatOverlayHighlights = (
