@@ -20,78 +20,13 @@ These patterns are already strong and should be preserved:
 
 ---
 
-## Remaining Refactoring: Centralise mutable client state
+## Completed: Centralise mutable client state
 
-State is currently spread across multiple locations on `GameClient`:
+The `GameClient` state has been centralized into a single `ClientContext` object (`this.ctx`). This provides a single source of truth for all mutable client-side data (game state, planning state, session info, connection status).
 
-- `this.state` — the client phase (`ClientState`)
-- `this.gameState` — the authoritative game state
-- `this.renderer.planningState` — input/planning UI state
-- `this.ws`, `this.reconnectAttempts`, `this.reconnectTimer` — connection state
-- `this.pingInterval`, `this.lastPingSent`, `this.latencyMs` — ping state
-- `this.turnStartTime`, `this.turnTimerInterval`, `this.timerWarningPlayed` — timer state
-- `this.playerId`, `this.gameCode`, `this.inviteLink`, `this.scenario` — session state
-- `this.isLocalGame`, `this.aiDifficulty` — mode state
-- `this.combatWatchInterval`, `this.lastLoggedTurn` — miscellaneous
+## Completed: InputHandler produces commands, not mutations
 
-### Proposed change
-
-Group into a single typed context:
-
-```typescript
-interface ClientContext {
-  // Core
-  clientState: ClientState;
-  gameState: GameState | null;
-  planning: PlanningState;
-
-  // Session
-  playerId: number;
-  gameCode: string | null;
-  inviteLink: string | null;
-  scenario: string;
-  isLocalGame: boolean;
-  aiDifficulty: AIDifficulty;
-
-  // Connection
-  connection: {
-    ws: WebSocket | null;
-    reconnectAttempts: number;
-    latencyMs: number;
-  };
-
-  // Timers (managed externally)
-  turnStartTime: number;
-  lastLoggedTurn: number;
-}
-```
-
-You don't need Redux or a state management library — just a plain object that you pass to your pure derivation functions instead of pulling fields off `this`. This makes it possible to snapshot the entire client state for debugging, and makes the derivation functions' dependencies explicit in their signatures.
-
----
-
-## Remaining Refactoring: InputHandler produces commands, not mutations
-
-Currently `InputHandler` takes a `Camera` and `PlanningState` in its constructor and mutates both directly. It also has a bare `onConfirm` callback.
-
-### Proposed change
-
-The input handler should translate pointer/touch events into world-space interactions and emit commands — the same `GameCommand` type used by `dispatch()`. Clicks and keyboard actions both produce the same command type, giving you one place to handle game input regardless of source.
-
-```typescript
-class InputHandler {
-  onCommand: ((cmd: GameCommand) => void) | null = null;
-
-  private handleClick = (screenX: number, screenY: number) => {
-    // ... translate to hex, determine interaction ...
-    this.onCommand?.({ type: 'setBurnDirection', shipId, direction });
-  };
-}
-```
-
-The input handler no longer needs a reference to `PlanningState` at all — it just needs enough context to figure out what the click means (game state, map, current phase). The command consumer applies the planning state changes.
-
-This is lower priority because the current structure works and the click logic is already partially extracted into `game/input.ts`, `game/combat.ts`, etc. But it's the natural endpoint of the patterns already established.
+The `InputHandler` now translates all user interactions into `GameCommand` objects. It no longer mutates `PlanningState` or `Camera` directly. All actions flow through a single `dispatch(cmd)` bottleneck in `GameClient`.
 
 ---
 
