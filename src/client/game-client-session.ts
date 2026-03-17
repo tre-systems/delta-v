@@ -20,25 +20,25 @@ export interface LocationLike {
 export const TOKEN_STORE_KEY = 'delta-v:tokens';
 export const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
-export function loadTokenStore(storage: Pick<StorageLike, 'getItem'>, key = TOKEN_STORE_KEY): TokenStore {
+export const loadTokenStore = (storage: Pick<StorageLike, 'getItem'>, key = TOKEN_STORE_KEY): TokenStore => {
   try {
     return JSON.parse(storage.getItem(key) || '{}');
   } catch {
     return {};
   }
-}
+};
 
-export function pruneExpiredTokens(store: TokenStore, now: number, ttlMs = TOKEN_TTL_MS): TokenStore {
+export const pruneExpiredTokens = (store: TokenStore, now: number, ttlMs = TOKEN_TTL_MS): TokenStore => {
   return Object.fromEntries(Object.entries(store).filter(([, entry]) => now - entry.ts <= ttlMs));
-}
+};
 
-export function saveTokenStore(
+export const saveTokenStore = (
   storage: Pick<StorageLike, 'setItem'>,
   store: TokenStore,
   now: number,
   key = TOKEN_STORE_KEY,
   ttlMs = TOKEN_TTL_MS,
-): TokenStore {
+): TokenStore => {
   const prunedStore = pruneExpiredTokens(store, now, ttlMs);
   try {
     storage.setItem(key, JSON.stringify(prunedStore));
@@ -46,17 +46,17 @@ export function saveTokenStore(
     // Ignore storage failures.
   }
   return prunedStore;
-}
+};
 
-export function getStoredPlayerToken(store: TokenStore, code: string): string | null {
+export const getStoredPlayerToken = (store: TokenStore, code: string): string | null => {
   return store[code]?.playerToken ?? null;
-}
+};
 
-export function getStoredInviteToken(store: TokenStore, code: string): string | null {
+export const getStoredInviteToken = (store: TokenStore, code: string): string | null => {
   return store[code]?.inviteToken ?? null;
-}
+};
 
-export function setStoredPlayerToken(store: TokenStore, code: string, playerToken: string, now: number): TokenStore {
+export const setStoredPlayerToken = (store: TokenStore, code: string, playerToken: string, now: number): TokenStore => {
   return {
     ...store,
     [code]: {
@@ -65,9 +65,9 @@ export function setStoredPlayerToken(store: TokenStore, code: string, playerToke
       ts: now,
     },
   };
-}
+};
 
-export function setStoredInviteToken(store: TokenStore, code: string, inviteToken: string, now: number): TokenStore {
+export const setStoredInviteToken = (store: TokenStore, code: string, inviteToken: string, now: number): TokenStore => {
   return {
     ...store,
     [code]: {
@@ -76,18 +76,18 @@ export function setStoredInviteToken(store: TokenStore, code: string, inviteToke
       ts: now,
     },
   };
-}
+};
 
-export function buildInviteLink(origin: string, code: string, inviteToken: string): string {
+export const buildInviteLink = (origin: string, code: string, inviteToken: string): string => {
   return `${origin}/?code=${code}&playerToken=${encodeURIComponent(inviteToken)}`;
-}
+};
 
-export function buildGameRoute(code: string): string {
+export const buildGameRoute = (code: string): string => {
   return `/?code=${code}`;
-}
+};
 
-export function buildWebSocketUrl(location: LocationLike, code: string, playerToken: string | null): string {
+export const buildWebSocketUrl = (location: LocationLike, code: string, playerToken: string | null): string => {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const tokenSuffix = playerToken ? `?playerToken=${encodeURIComponent(playerToken)}` : '';
   return `${protocol}//${location.host}/ws/${code}${tokenSuffix}`;
-}
+};

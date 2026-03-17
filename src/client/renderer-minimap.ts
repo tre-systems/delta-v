@@ -34,27 +34,27 @@ export interface MinimapSceneView {
   viewport: ScreenRect | null;
 }
 
-function projectHex(layout: MinimapLayout, coord: HexCoord, hexSize: number): ScreenPoint {
+const projectHex = (layout: MinimapLayout, coord: HexCoord, hexSize: number): ScreenPoint => {
   const point = hexToPixel(coord, hexSize);
   return projectWorldToMinimap(layout, point);
-}
+};
 
-function buildBodyDots(map: SolarSystemMap, layout: MinimapLayout, hexSize: number): MinimapDotView[] {
+const buildBodyDots = (map: SolarSystemMap, layout: MinimapLayout, hexSize: number): MinimapDotView[] => {
   return map.bodies.map((body) => ({
     position: projectHex(layout, body.center, hexSize),
     radius: Math.max(2, body.renderRadius * hexSize * layout.scale * 0.5),
     color: body.color,
     alpha: 0.7,
   }));
-}
+};
 
-function buildShipTrailViews(
+const buildShipTrailViews = (
   state: GameState,
   playerId: number,
   shipTrails: Map<string, HexCoord[]>,
   layout: MinimapLayout,
   hexSize: number,
-): MinimapTrailView[] {
+): MinimapTrailView[] => {
   const trails: MinimapTrailView[] = [];
   for (const [shipId, trail] of shipTrails) {
     if (trail.length < 2) continue;
@@ -67,9 +67,14 @@ function buildShipTrailViews(
     });
   }
   return trails;
-}
+};
 
-function buildShipDots(state: GameState, playerId: number, layout: MinimapLayout, hexSize: number): MinimapDotView[] {
+const buildShipDots = (
+  state: GameState,
+  playerId: number,
+  layout: MinimapLayout,
+  hexSize: number,
+): MinimapDotView[] => {
   return state.ships
     .filter((ship) => !ship.destroyed && (ship.owner === playerId || ship.detected))
     .map((ship) => ({
@@ -78,9 +83,9 @@ function buildShipDots(state: GameState, playerId: number, layout: MinimapLayout
       color: ship.owner === playerId ? '#4fc3f7' : '#ff8a65',
       alpha: 1,
     }));
-}
+};
 
-function buildOrdnanceDots(state: GameState, layout: MinimapLayout, hexSize: number): MinimapDotView[] {
+const buildOrdnanceDots = (state: GameState, layout: MinimapLayout, hexSize: number): MinimapDotView[] => {
   return state.ordnance
     .filter((ordnance) => !ordnance.destroyed)
     .map((ordnance) => ({
@@ -89,14 +94,14 @@ function buildOrdnanceDots(state: GameState, layout: MinimapLayout, hexSize: num
       color: ordnance.type === 'nuke' ? '#ff4444' : '#ffb74d',
       alpha: 0.6,
     }));
-}
+};
 
-function buildViewportView(
+const buildViewportView = (
   layout: MinimapLayout,
   camera: MinimapCameraView,
   screenWidth: number,
   screenHeight: number,
-): ScreenRect | null {
+): ScreenRect | null => {
   const vpHalfW = screenWidth / 2 / camera.zoom;
   const vpHalfH = screenHeight / 2 / camera.zoom;
   const topLeft = projectWorldToMinimap(layout, {
@@ -114,9 +119,9 @@ function buildViewportView(
     height: bottomRight.y - topLeft.y,
   });
   return viewport.width > 2 && viewport.height > 2 ? viewport : null;
-}
+};
 
-export function buildMinimapSceneView(
+export const buildMinimapSceneView = (
   map: SolarSystemMap,
   state: GameState,
   playerId: number,
@@ -126,7 +131,7 @@ export function buildMinimapSceneView(
   screenWidth: number,
   screenHeight: number,
   hexSize: number,
-): MinimapSceneView {
+): MinimapSceneView => {
   return {
     bodies: buildBodyDots(map, layout, hexSize),
     shipTrails: buildShipTrailViews(state, playerId, shipTrails, layout, hexSize),
@@ -134,4 +139,4 @@ export function buildMinimapSceneView(
     ordnance: buildOrdnanceDots(state, layout, hexSize),
     viewport: buildViewportView(layout, camera, screenWidth, screenHeight),
   };
-}
+};

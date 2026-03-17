@@ -30,15 +30,15 @@ export interface DetonatedOrdnanceOverlay {
   alpha: number;
 }
 
-export function getVisibleShips(state: GameState, playerId: number, isAnimating: boolean): Ship[] {
+export const getVisibleShips = (state: GameState, playerId: number, isAnimating: boolean): Ship[] => {
   return state.ships.filter((ship) => {
     if (ship.destroyed && !isAnimating) return false;
     if (ship.owner === playerId) return true;
     return ship.detected;
   });
-}
+};
 
-export function getShipStackOffsets(ships: Ship[]): Map<string, ShipStackOffset> {
+export const getShipStackOffsets = (ships: Ship[]): Map<string, ShipStackOffset> => {
   const hexCounts = new Map<string, number>();
   for (const ship of ships) {
     const key = hexKey(ship.position);
@@ -58,53 +58,53 @@ export function getShipStackOffsets(ships: Ship[]): Map<string, ShipStackOffset>
     });
   }
   return offsets;
-}
+};
 
-export function getShipHeading(position: HexCoord, velocity: HexVec, hexSize: number): number {
+export const getShipHeading = (position: HexCoord, velocity: HexVec, hexSize: number): number => {
   if (hexVecLength(velocity) === 0) return 0;
   const from = hexToPixel(position, hexSize);
   const to = hexToPixel(hexAdd(position, velocity), hexSize);
   return Math.atan2(to.y - from.y, to.x - from.x);
-}
+};
 
-export function getShipIconAlpha(ship: Ship): number {
+export const getShipIconAlpha = (ship: Ship): number => {
   return ship.damage.disabledTurns > 0 ? 0.5 : 1;
-}
+};
 
-export function getDisabledShipLabel(ship: Ship, isAnimating: boolean): string | null {
+export const getDisabledShipLabel = (ship: Ship, isAnimating: boolean): string | null => {
   if (isAnimating || ship.damage.disabledTurns <= 0) return null;
   return `DISABLED: ${ship.damage.disabledTurns}T`;
-}
+};
 
-export function getShipIdentityMarker(
+export const getShipIdentityMarker = (
   ship: Ship,
   playerId: number,
   hiddenIdentityInspection: boolean,
   isAnimating: boolean,
-): ShipIdentityMarker | null {
+): ShipIdentityMarker | null => {
   if (isAnimating) return null;
   if (ship.hasFugitives && ship.owner === playerId) return 'friendlyFugitive';
   if (hiddenIdentityInspection && ship.owner !== playerId && ship.identityRevealed) {
     return ship.hasFugitives ? 'enemyFugitive' : 'enemyDecoy';
   }
   return null;
-}
+};
 
-export function shouldShowOrbitIndicator(ship: Ship, inGravity: boolean, isAnimating: boolean): boolean {
+export const shouldShowOrbitIndicator = (ship: Ship, inGravity: boolean, isAnimating: boolean): boolean => {
   if (ship.landed || ship.destroyed || isAnimating) return false;
   return hexVecLength(ship.velocity) === 1 && inGravity;
-}
+};
 
-export function shouldShowLandedIndicator(ship: Ship, isAnimating: boolean): boolean {
+export const shouldShowLandedIndicator = (ship: Ship, isAnimating: boolean): boolean => {
   return ship.landed && !isAnimating;
-}
+};
 
-export function buildShipLabelView(
+export const buildShipLabelView = (
   ship: Ship,
   playerId: number,
   inGravity: boolean,
   isAnimating: boolean,
-): ShipLabelView | null {
+): ShipLabelView | null => {
   if (isAnimating) return null;
 
   const typeName = SHIP_STATS[ship.type]?.name ?? 'Unknown';
@@ -130,31 +130,31 @@ export function buildShipLabelView(
     statusColor: null,
     statusFont: null,
   };
-}
+};
 
-export function getOrdnanceColor(owner: number, playerId: number): string {
+export const getOrdnanceColor = (owner: number, playerId: number): string => {
   return owner === playerId ? '#4fc3f7' : '#ff9800';
-}
+};
 
-export function getOrdnancePulse(now: number): number {
+export const getOrdnancePulse = (now: number): number => {
   return 0.6 + 0.3 * Math.sin(now / 400);
-}
+};
 
-export function getOrdnanceHeading(position: HexCoord, velocity: HexVec, hexSize: number): number {
+export const getOrdnanceHeading = (position: HexCoord, velocity: HexVec, hexSize: number): number => {
   const from = hexToPixel(position, hexSize);
   const to = hexToPixel(hexAdd(position, velocity), hexSize);
   return Math.atan2(to.y - from.y, to.x - from.x);
-}
+};
 
-export function getOrdnanceLifetimeView(turnsRemaining: number, isAnimating: boolean): OrdnanceLifetimeView | null {
+export const getOrdnanceLifetimeView = (turnsRemaining: number, isAnimating: boolean): OrdnanceLifetimeView | null => {
   if (isAnimating || turnsRemaining > 2) return null;
   return {
     text: `${turnsRemaining}`,
     color: turnsRemaining <= 1 ? 'rgba(255, 80, 80, 0.9)' : 'rgba(255, 200, 50, 0.7)',
   };
-}
+};
 
-export function getDetonatedOrdnanceOverlay(progress: number): DetonatedOrdnanceOverlay | null {
+export const getDetonatedOrdnanceOverlay = (progress: number): DetonatedOrdnanceOverlay | null => {
   if (progress < 0.9) {
     return { kind: 'diamond', size: 4, color: '#ff4444', alpha: 0.7 };
   }
@@ -167,4 +167,4 @@ export function getDetonatedOrdnanceOverlay(progress: number): DetonatedOrdnance
     };
   }
   return null;
-}
+};

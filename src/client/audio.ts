@@ -6,28 +6,28 @@
 let ctx: AudioContext | null = null;
 let muted = false;
 
-export function isMuted(): boolean {
+export const isMuted = (): boolean => {
   return muted;
-}
+};
 
-export function setMuted(m: boolean) {
+export const setMuted = (m: boolean) => {
   muted = m;
   // Persist preference
   try {
     localStorage.setItem('delta-v-mute', m ? '1' : '0');
   } catch {}
-}
+};
 
-function getCtx(): AudioContext | null {
+const getCtx = (): AudioContext | null => {
   if (muted) return null;
   if (!ctx) {
     ctx = new AudioContext();
   }
   return ctx;
-}
+};
 
 /** Resume audio context after user gesture (required by browsers). */
-export function initAudio() {
+export const initAudio = () => {
   // Load saved mute preference
   try {
     const saved = localStorage.getItem('delta-v-mute');
@@ -43,10 +43,10 @@ export function initAudio() {
   };
   document.addEventListener('click', resume);
   document.addEventListener('touchstart', resume);
-}
+};
 
 /** Short blip for UI interactions (button clicks, selections). */
-export function playSelect() {
+export const playSelect = () => {
   const ac = getCtx();
   if (!ac) return;
   const osc = ac.createOscillator();
@@ -60,10 +60,10 @@ export function playSelect() {
   gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.1);
   osc.start(ac.currentTime);
   osc.stop(ac.currentTime + 0.1);
-}
+};
 
 /** Confirm/submit sound — ascending tone. */
-export function playConfirm() {
+export const playConfirm = () => {
   const ac = getCtx();
   if (!ac) return;
   const osc = ac.createOscillator();
@@ -77,10 +77,10 @@ export function playConfirm() {
   gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.2);
   osc.start(ac.currentTime);
   osc.stop(ac.currentTime + 0.2);
-}
+};
 
 /** Thruster sound for movement. */
-export function playThrust() {
+export const playThrust = () => {
   const ac = getCtx();
   if (!ac) return;
   const bufSize = ac.sampleRate * 0.3;
@@ -102,10 +102,10 @@ export function playThrust() {
   filter.connect(gain);
   gain.connect(ac.destination);
   src.start(ac.currentTime);
-}
+};
 
 /** Laser/beam sound for combat. */
-export function playCombat() {
+export const playCombat = () => {
   const ac = getCtx();
   if (!ac) return;
   const osc = ac.createOscillator();
@@ -119,10 +119,10 @@ export function playCombat() {
   gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.35);
   osc.start(ac.currentTime);
   osc.stop(ac.currentTime + 0.35);
-}
+};
 
 /** Explosion sound for ship destruction or detonation. */
-export function playExplosion() {
+export const playExplosion = () => {
   const ac = getCtx();
   if (!ac) return;
   const bufSize = ac.sampleRate * 0.5;
@@ -144,10 +144,10 @@ export function playExplosion() {
   filter.connect(gain);
   gain.connect(ac.destination);
   src.start(ac.currentTime);
-}
+};
 
 /** Alert tone for phase changes. */
-export function playPhaseChange() {
+export const playPhaseChange = () => {
   const ac = getCtx();
   if (!ac) return;
   const osc = ac.createOscillator();
@@ -171,10 +171,10 @@ export function playPhaseChange() {
   gain2.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.25);
   osc2.start(ac.currentTime + 0.12);
   osc2.stop(ac.currentTime + 0.25);
-}
+};
 
 /** Warning beep for low timer. */
-export function playWarning() {
+export const playWarning = () => {
   const ac = getCtx();
   if (!ac) return;
   // Two short beeps
@@ -191,10 +191,10 @@ export function playWarning() {
     osc.start(t);
     osc.stop(t + 0.1);
   }
-}
+};
 
 /** Victory fanfare. */
-export function playVictory() {
+export const playVictory = () => {
   const ac = getCtx();
   if (!ac) return;
   const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
@@ -211,10 +211,10 @@ export function playVictory() {
     osc.start(t);
     osc.stop(t + 0.3);
   });
-}
+};
 
 /** Defeat sound. */
-export function playDefeat() {
+export const playDefeat = () => {
   const ac = getCtx();
   if (!ac) return;
   const notes = [400, 350, 300, 200]; // Descending
@@ -231,4 +231,4 @@ export function playDefeat() {
     osc.start(t);
     osc.stop(t + 0.35);
   });
-}
+};

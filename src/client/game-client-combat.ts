@@ -31,24 +31,24 @@ export interface CombatAttackerToggleResult {
   combatAttackStrength: number | null;
 }
 
-function getGroupKey(attackerIds: string[]): string {
+const getGroupKey = (attackerIds: string[]): string => {
   return [...attackerIds].sort().join('|');
-}
+};
 
-function getCommittedAttackers(queuedAttacks: CombatAttack[]): Set<string> {
+const getCommittedAttackers = (queuedAttacks: CombatAttack[]): Set<string> => {
   return new Set(queuedAttacks.flatMap((attack) => attack.attackerIds));
-}
+};
 
-function getTargetedKeys(queuedAttacks: CombatAttack[]): Set<string> {
+const getTargetedKeys = (queuedAttacks: CombatAttack[]): Set<string> => {
   return new Set(queuedAttacks.map((attack) => `${attack.targetType ?? 'ship'}:${attack.targetId}`));
-}
+};
 
-export function getReusableCombatGroup(
+export const getReusableCombatGroup = (
   state: GameState,
   playerId: number,
   queuedAttacks: CombatAttack[],
   targetId: string,
-): ReusableCombatGroup | null {
+): ReusableCombatGroup | null => {
   const target = state.ships.find((ship) => ship.id === targetId && !ship.destroyed && ship.owner !== playerId);
   if (!target) return null;
 
@@ -76,9 +76,9 @@ export function getReusableCombatGroup(
     }
   }
   return null;
-}
+};
 
-export function hasSplitFireOptions(state: GameState, playerId: number, queuedAttacks: CombatAttack[]): boolean {
+export const hasSplitFireOptions = (state: GameState, playerId: number, queuedAttacks: CombatAttack[]): boolean => {
   const queuedTargets = getTargetedKeys(queuedAttacks);
   for (const attack of queuedAttacks) {
     if ((attack.targetType ?? 'ship') !== 'ship') continue;
@@ -97,27 +97,27 @@ export function hasSplitFireOptions(state: GameState, playerId: number, queuedAt
     if (untargetedSameHex) return true;
   }
   return false;
-}
+};
 
-function clampAttackStrength(maxStrength: number, requestedStrength: number | null): number | null {
+const clampAttackStrength = (maxStrength: number, requestedStrength: number | null): number | null => {
   if (maxStrength <= 0) return null;
   return Math.max(1, Math.min(maxStrength, requestedStrength ?? maxStrength));
-}
+};
 
-export function getCombatAttackerIdAtHex(state: GameState, playerId: number, clickHex: HexCoord): string | null {
+export const getCombatAttackerIdAtHex = (state: GameState, playerId: number, clickHex: HexCoord): string | null => {
   return (
     state.ships.find(
       (ship) => ship.owner === playerId && !ship.destroyed && canAttack(ship) && hexEqual(clickHex, ship.position),
     )?.id ?? null
   );
-}
+};
 
-export function getCombatTargetAtHex(
+export const getCombatTargetAtHex = (
   state: GameState,
   playerId: number,
   clickHex: HexCoord,
   queuedAttacks: CombatAttack[],
-): CombatTargetSelection | null {
+): CombatTargetSelection | null => {
   const ordnance = state.ordnance.find(
     (item) => item.owner !== playerId && !item.destroyed && item.type === 'nuke' && hexEqual(clickHex, item.position),
   );
@@ -135,16 +135,16 @@ export function getCombatTargetAtHex(
       hexEqual(clickHex, item.position),
   );
   return ship ? { targetId: ship.id, targetType: 'ship' } : null;
-}
+};
 
-export function getLegalCombatAttackers(
+export const getLegalCombatAttackers = (
   state: GameState,
   playerId: number,
   queuedAttacks: CombatAttack[],
   targetId: string,
   targetType: 'ship' | 'ordnance',
   map: SolarSystemMap | null,
-) {
+) => {
   if (map === null) return [];
 
   const reusableGroup = targetType === 'ship' ? getReusableCombatGroup(state, playerId, queuedAttacks, targetId) : null;
@@ -168,16 +168,16 @@ export function getLegalCombatAttackers(
 
   const target = state.ships.find((ship) => ship.id === targetId && !ship.destroyed && ship.owner !== playerId);
   return target ? myAttackers.filter((attacker) => hasLineOfSight(attacker, target, map)) : [];
-}
+};
 
-export function createCombatTargetPlan(
+export const createCombatTargetPlan = (
   state: GameState,
   playerId: number,
   planning: CombatPlanningSnapshot,
   targetId: string,
   targetType: 'ship' | 'ordnance',
   map: SolarSystemMap | null,
-): CombatTargetPlan {
+): CombatTargetPlan => {
   const reusableGroup =
     targetType === 'ship' ? getReusableCombatGroup(state, playerId, planning.queuedAttacks, targetId) : null;
   if (reusableGroup) {
@@ -196,24 +196,24 @@ export function createCombatTargetPlan(
     combatAttackerIds: legalAttackers.map((ship) => ship.id),
     combatAttackStrength: targetType === 'ship' ? getCombatStrength(legalAttackers) : null,
   };
-}
+};
 
-export function createClearedCombatPlan(): CombatTargetPlan {
+export const createClearedCombatPlan = (): CombatTargetPlan => {
   return {
     combatTargetId: null,
     combatTargetType: null,
     combatAttackerIds: [],
     combatAttackStrength: null,
   };
-}
+};
 
-export function toggleCombatAttackerSelection(
+export const toggleCombatAttackerSelection = (
   state: GameState,
   playerId: number,
   planning: CombatPlanningSnapshot,
   map: SolarSystemMap | null,
   shipId: string,
-): CombatAttackerToggleResult | null {
+): CombatAttackerToggleResult | null => {
   const targetId = planning.combatTargetId;
   const targetType = planning.combatTargetType;
   if (!targetId || !targetType) return null;
@@ -247,14 +247,14 @@ export function toggleCombatAttackerSelection(
           )
         : null,
   };
-}
+};
 
-export function buildCurrentAttack(
+export const buildCurrentAttack = (
   state: GameState,
   playerId: number,
   planning: CombatPlanningSnapshot,
   map: SolarSystemMap,
-): CombatAttack | null {
+): CombatAttack | null => {
   const targetId = planning.combatTargetId;
   const targetType = planning.combatTargetType ?? 'ship';
   if (!targetId) return null;
@@ -295,19 +295,19 @@ export function buildCurrentAttack(
   return attackers.length > 0 && attackStrength
     ? { attackerIds: attackers.map((ship) => ship.id), targetId, targetType, attackStrength }
     : null;
-}
+};
 
-export function countRemainingCombatAttackers(
+export const countRemainingCombatAttackers = (
   state: GameState,
   playerId: number,
   queuedAttacks: CombatAttack[],
-): number {
+): number => {
   const committedAttackers = getCommittedAttackers(queuedAttacks);
   return state.ships.filter(
     (ship) => ship.owner === playerId && !ship.destroyed && canAttack(ship) && !committedAttackers.has(ship.id),
   ).length;
-}
+};
 
-export function getAttackStrengthForSelection(state: GameState, attackerIds: string[]): number {
+export const getAttackStrengthForSelection = (state: GameState, attackerIds: string[]): number => {
   return getCombatStrength(state.ships.filter((ship) => attackerIds.includes(ship.id)));
-}
+};

@@ -60,7 +60,7 @@ const HIDDEN_VISIBILITY: UIScreenVisibility = {
   helpOverlay: 'none',
 };
 
-export function buildScreenVisibility(mode: UIScreenMode, logVisible: boolean): UIScreenVisibility {
+export const buildScreenVisibility = (mode: UIScreenMode, logVisible: boolean): UIScreenVisibility => {
   switch (mode) {
     case 'menu':
       return {
@@ -99,43 +99,40 @@ export function buildScreenVisibility(mode: UIScreenMode, logVisible: boolean): 
     default:
       return HIDDEN_VISIBILITY;
   }
-}
+};
 
-export function buildWaitingScreenCopy(code: string, connecting: boolean): WaitingScreenCopy {
+export const buildWaitingScreenCopy = (code: string, connecting: boolean): WaitingScreenCopy => {
   return connecting
     ? { codeText: '...', statusText: 'Connecting...' }
     : { codeText: code, statusText: 'Waiting for opponent...' };
-}
+};
 
-export function buildGameOverView(won: boolean, reason: string, stats?: GameOverStatsLike): GameOverView {
-  let reasonText = reason;
-  if (stats) {
-    reasonText += `\n\nTurns: ${stats.turns}`;
-    reasonText += ` | Your ships: ${stats.myShipsAlive}/${stats.myShipsTotal}`;
-    reasonText += ` | Enemy: ${stats.enemyShipsAlive}/${stats.enemyShipsTotal}`;
-  }
+export const buildGameOverView = (won: boolean, reason: string, stats?: GameOverStatsLike): GameOverView => {
+  const reasonText = stats
+    ? `${reason}\n\nTurns: ${stats.turns} | Your ships: ${stats.myShipsAlive}/${stats.myShipsTotal} | Enemy: ${stats.enemyShipsAlive}/${stats.enemyShipsTotal}`
+    : reason;
   return {
     titleText: won ? 'VICTORY' : 'DEFEAT',
     reasonText,
     rematchText: 'Rematch',
     rematchDisabled: false,
   };
-}
+};
 
-export function buildRematchPendingView(): RematchPendingView {
+export const buildRematchPendingView = (): RematchPendingView => {
   return {
     rematchText: 'Waiting...',
     rematchDisabled: true,
   };
-}
+};
 
-export function buildReconnectView(attempt: number, maxAttempts: number): ReconnectView {
+export const buildReconnectView = (attempt: number, maxAttempts: number): ReconnectView => {
   return {
     reconnectText: 'Connection lost',
     attemptText: `Attempt ${attempt} of ${maxAttempts}`,
   };
-}
+};
 
-export function toggleLogVisible(logVisible: boolean): boolean {
+export const toggleLogVisible = (logVisible: boolean): boolean => {
   return !logVisible;
-}
+};

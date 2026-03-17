@@ -25,7 +25,11 @@ export interface HexFlash {
  * Render and prune active combat visual effects (beams, explosions, game-over blasts).
  * Returns the filtered array with expired effects removed.
  */
-export function drawCombatEffects(ctx: CanvasRenderingContext2D, effects: CombatEffect[], now: number): CombatEffect[] {
+export const drawCombatEffects = (
+  ctx: CanvasRenderingContext2D,
+  effects: CombatEffect[],
+  now: number,
+): CombatEffect[] => {
   const live = effects.filter((e) => now < e.startTime + e.duration);
 
   for (const effect of live) {
@@ -42,9 +46,9 @@ export function drawCombatEffects(ctx: CanvasRenderingContext2D, effects: Combat
   }
 
   return live;
-}
+};
 
-function drawBeamEffect(ctx: CanvasRenderingContext2D, effect: CombatEffect, progress: number): void {
+const drawBeamEffect = (ctx: CanvasRenderingContext2D, effect: CombatEffect, progress: number): void => {
   const beamAlpha = 1 - progress;
   const beamProgress = Math.min(progress * 3, 1);
 
@@ -70,9 +74,9 @@ function drawBeamEffect(ctx: CanvasRenderingContext2D, effect: CombatEffect, pro
   );
   ctx.stroke();
   ctx.globalAlpha = 1;
-}
+};
 
-function drawExplosionEffect(ctx: CanvasRenderingContext2D, effect: CombatEffect, progress: number): void {
+const drawExplosionEffect = (ctx: CanvasRenderingContext2D, effect: CombatEffect, progress: number): void => {
   const maxRadius = 20;
   const radius = maxRadius * progress;
   const alpha = 1 - progress;
@@ -92,9 +96,9 @@ function drawExplosionEffect(ctx: CanvasRenderingContext2D, effect: CombatEffect
     ctx.fill();
   }
   ctx.globalAlpha = 1;
-}
+};
 
-function drawGameOverExplosionEffect(ctx: CanvasRenderingContext2D, effect: CombatEffect, progress: number): void {
+const drawGameOverExplosionEffect = (ctx: CanvasRenderingContext2D, effect: CombatEffect, progress: number): void => {
   const maxRadius = 50;
   const alpha = 1 - progress;
 
@@ -154,18 +158,18 @@ function drawGameOverExplosionEffect(ctx: CanvasRenderingContext2D, effect: Comb
   }
 
   ctx.globalAlpha = 1;
-}
+};
 
 /**
  * Render and prune hex flash highlights.
  * Returns the filtered array with expired flashes removed.
  */
-export function drawHexFlashes(
+export const drawHexFlashes = (
   ctx: CanvasRenderingContext2D,
   flashes: HexFlash[],
   now: number,
   hexSize: number,
-): HexFlash[] {
+): HexFlash[] => {
   const live = flashes.filter((f) => now < f.startTime + f.duration);
 
   for (const flash of live) {
@@ -187,4 +191,4 @@ export function drawHexFlashes(
   }
 
   return live;
-}
+};
