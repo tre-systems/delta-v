@@ -18,24 +18,7 @@ These patterns are already strong and should be preserved:
 - **Typed UI event bus.** `UIEvent` union (`src/client/ui/events.ts`) replaces 15 nullable callbacks on UIManager with a single `onEvent` emitter. `handleUIEvent()` in GameClient maps menu events directly and in-game events through `dispatch()`.
 - **Async AI turn loop.** `runAITurn` uses `async/await` with a `while` loop instead of recursive `setTimeout` callback chains.
 - **Centralised mutable client state.** `GameClient` groups all mutable state into a single `ClientContext` object (`this.ctx`), providing a single source of truth for game state, planning state, session info, and connection status.
-- **InputHandler produces commands, not mutations.** `InputHandler` translates all user interactions into `GameCommand` objects via an `onCommand` callback. It no longer mutates `PlanningState` or `Camera` directly.
-
----
-
-## Remaining Refactoring: Reduce InputHandler's knowledge (longer-term)
-
-Instead of giving `InputHandler` references to everything, have it produce raw spatial events:
-
-```typescript
-type InputEvent =
-  | { type: 'clickHex'; hex: HexCoord }
-  | { type: 'clickMinimap'; worldPos: PixelCoord }
-  | { type: 'doubleClickWorld'; worldPos: PixelCoord }
-  | { type: 'pan'; dx: number; dy: number }
-  | { type: 'zoom'; cx: number; cy: number; factor: number };
-```
-
-A separate interpretation layer (a pure function) maps `InputEvent` + current state → `GameCommand`. This makes the input handler trivially testable (it just translates coordinates) and puts all the game-aware click logic in a pure function that's also easy to test.
+- **Spatial InputHandler with pure interpretation layer.** `InputHandler` (`src/client/input.ts`) is a purely spatial event source — it handles canvas pointer/touch events, drag detection, pinch zoom, minimap clicks, and double-click centering, but knows nothing about game state, phases, or players. It emits raw `InputEvent` objects (`clickHex`, `hoverHex`). A pure function `interpretInput()` (`src/client/game/input-events.ts`) maps `InputEvent` + current state → `GameCommand[]`, handling all phase routing and delegating to existing resolution functions.
 
 ---
 

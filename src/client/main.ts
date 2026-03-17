@@ -39,6 +39,7 @@ import { deriveGameOverPlan } from './game/endgame';
 import { resolveLocalFleetReady } from './game/fleet';
 import { buildAstrogationOrders, deriveHudViewModel } from './game/helpers';
 import { getTooltipShip } from './game/hover';
+import { type InputEvent, interpretInput } from './game/input-events';
 import { deriveKeyboardAction, type KeyboardAction } from './game/keyboard';
 import { deriveLandingLogEntries } from './game/landings';
 import {
@@ -130,9 +131,7 @@ class GameClient {
   constructor() {
     this.canvas = byId<HTMLCanvasElement>('gameCanvas');
     this.renderer = new Renderer(this.canvas, this.ctx.planningState);
-    this.input = new InputHandler(this.canvas, this.renderer.camera, this.ctx.planningState, (cmd) =>
-      this.dispatch(cmd),
-    );
+    this.input = new InputHandler(this.canvas, this.renderer.camera, (event) => this.handleInput(event));
     this.ui = new UIManager();
     this.tutorial = new Tutorial();
     this.tooltipEl = byId('shipTooltip');
@@ -317,7 +316,6 @@ class GameClient {
     this.ctx.playerId = 0;
     this.lastLoggedTurn = -1;
     this.renderer.setPlayerId(0);
-    this.input.setPlayerId(0);
     this.ctx.transport = this.createLocalTransport();
 
     const scenarioDef = SCENARIOS[scenario] ?? SCENARIOS.biplanetary;
@@ -436,7 +434,6 @@ class GameClient {
   private applyGameState(state: GameState) {
     this.ctx.gameState = state;
     this.renderer.setGameState(state);
-    this.input.setGameState(state);
   }
 
   private presentMovementResult(
@@ -526,7 +523,6 @@ class GameClient {
         }
         this.ctx.reconnectAttempts = 0;
         this.renderer.setPlayerId(plan.playerId);
-        this.input.setPlayerId(plan.playerId);
         this.ui.setPlayerId(plan.playerId);
         if (plan.nextState) {
           this.setState(plan.nextState);
@@ -668,6 +664,13 @@ class GameClient {
       case 'selectShip':
         this.dispatch({ type: 'selectShip', shipId: event.shipId });
         return;
+    }
+  }
+
+  private handleInput(event: InputEvent) {
+    const commands = interpretInput(event, this.ctx.gameState, this.map, this.ctx.playerId, this.ctx.planningState);
+    for (const cmd of commands) {
+      this.dispatch(cmd);
     }
   }
 
