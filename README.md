@@ -30,7 +30,7 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SHIP_AESTHETICS.
 - **Damage & Repairs**: Complex damage tracking (disabled turns vs. cumulative elimination). Find safe harbor at planetary bases for repairs and resupply.
 
 ### 🎮 Multiple Game Modes
-- **7 Playable Scenarios**: Features *Bi-Planetary*, *Escape*, *Convoy*, *Duel*, *Blockade Runner*, *Fleet Action*, and a tuned *Interplanetary War* fleet-building scenario.
+- **8 Playable Scenarios**: Features *Bi-Planetary*, *Escape*, *Convoy*, *Duel*, *Blockade Runner*, *Fleet Action*, *Interplanetary War*, and *Grand Tour* race.
 - **Local AI Opponent**: Test your skills offline against an AI component with configurable difficulty levels.
 - **Real-Time Multiplayer**: Built for fast, responsive web-socket based remote play.
 
@@ -42,20 +42,22 @@ Delta-V adopts an elegant, robust architecture utilizing modern web primitives:
 
 ```text
 src/
-├── shared/           # Pure Game Engine (Shared between Client & Server)
-│   ├── game-engine.ts  # Pure state machine (no IO = highly testable)
-│   ├── movement.ts     # Vector astrogation & gravity logic
-│   ├── combat.ts       # Odds resolution & damage tables
-│   └── hex.ts          # Axial hex coordinate math
-├── server/           # Cloudflare Workers Backend
-│   ├── index.ts        # HTTP entry point & WebSocket routing
-│   └── game-do.ts      # Durable Object storing authoritative game state
-└── client/           # Browser Frontend
-    ├── main.ts         # Client-side state machine & networking
-    ├── renderer.ts     # High-performance HTML5 Canvas 2D engine
-    ├── input.ts        # Desktop & touch input / burn planning
-    └── ui.ts           # Clean HTML/CSS layout overlays
-scripts/              # Automated Bot & AI Simulation tests
+├── shared/              # Pure Game Engine (Shared between Client & Server)
+│   ├── engine/            # Core state machine (createGame, processAstrogation, combat, ordnance, victory)
+│   ├── movement.ts        # Vector astrogation & gravity logic
+│   ├── combat.ts          # Odds resolution & damage tables
+│   ├── hex.ts             # Axial hex coordinate math
+│   ├── map-data.ts        # Solar system bodies, gravity, bases, scenarios
+│   └── ai.ts              # AI opponent for single-player
+├── server/              # Cloudflare Workers Backend
+│   ├── index.ts           # HTTP entry point & WebSocket routing
+│   └── game-do/           # Durable Object: state, messages, sessions, turns
+└── client/              # Browser Frontend
+    ├── main.ts            # Client-side state machine & networking
+    ├── game/              # Game logic helpers (combat, burn, phase, ordnance, input)
+    ├── renderer/          # Canvas rendering, camera, animations, minimap
+    └── ui/                # DOM overlays (menu, HUD, game log, game over)
+scripts/                 # Automated Bot & AI Simulation tests
 ```
 
 **Design Highlight:** The core `game-engine.ts` is purely functional. It receives inputs (astrogation orders, combat declarations) and deterministically produces the new state. This guarantees synchronization between server and client without complex reconciliation, and makes the game highly unit testable. The backend stays authoritative through **Cloudflare Durable Objects**, handling room lifecycle, tokenized joins, validation, and state persistence.
@@ -110,18 +112,23 @@ Get your thrusters firing locally in seconds:
 
 For the comprehensive ruleset detailing movement edge cases, damage tables, and specific scenario rules, refer to [SPEC.md](./docs/SPEC.md).
 
-## 🗺️ Roadmap & Planned Features
+## 🗺️ Roadmap
 
-- [x] **Server Hardening For Competitive Play**: Tokenized host/guest room access, authenticated reconnects, room-locked scenarios, collision-safe room creation, and runtime WebSocket payload validation.
-- [x] **Hidden Information Scenarios**: Authoritative Fog of War implemented for specific game modes (e.g., *Escape*).
-- [x] **Premium Polish**: High-fidelity glassmorphism UI, tactical micro-animations, and procedural SFX.
-- [x] **AI Opponent**: Challenging local-bot with multiple difficulty levels and gravity-aware pathfinding.
-- [x] **Progressive Web App**: Installable PWA with offline single-player support, app manifest, and service worker caching.
-- [x] **Runtime Payload Validation**: Strict server-side WebSocket payload validation before dispatch.
-- [x] **Orbital Bases**: Carrying and emplacing strategic stations during play.
-- [ ] **Client-Side Test Coverage**: Browser-facing orchestration, UI, and input flows still need dedicated tests.
-- [ ] **Asteroid Map Visuals**: The in-game tactical map should match [docs/map.png](./docs/map.png) and visibly render asteroid fields.
-- [ ] **Spectator Mode**: Allowing third-party connections to watch ongoing battles.
+### Complete
+- [x] Server hardening (tokenized rooms, authenticated reconnects, runtime payload validation)
+- [x] Hidden information (Fog of War, server-side state filtering for *Escape*)
+- [x] AI opponent (Easy/Normal/Hard, gravity-aware pathfinding)
+- [x] Orbital bases (carrying, emplacing, torpedo launching)
+- [x] PWA support (installable, offline single-player)
+- [x] Premium polish (glassmorphism UI, procedural SFX, micro-animations)
+- [x] 880 tests across 57 suites, 8 scenario AI simulations
+
+### Planned
+- [ ] **Asteroid Map Visuals**: Render asteroid fields to match [docs/map.png](./docs/map.png)
+- [ ] **New Scenarios**: Lateral 7, Fleet Mutiny, Retribution (require logistics mechanics)
+- [ ] **Logistics**: Surrender, looting, rescue, fuel transfer, capture, cargo handling
+- [ ] **Spectator Mode**: Third-party connections to watch ongoing battles
+- [ ] **Turn Replay**: Review past turns and full game history
 
 ---
 
