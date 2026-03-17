@@ -15,31 +15,6 @@ The HUD now measures its live top/bottom offsets instead of relying on fixed `re
 
 ## P2 — Code Quality
 
-### 20. Adopt utility helpers across the codebase
-`src/shared/util.ts` provides functional collection helpers (`sumBy`, `minBy`, `maxBy`, `filterMap`, `compact`, `count`, `partition`, `indexBy`, `groupBy`, `cond`, etc.) and `src/client/dom.ts` provides declarative DOM helpers (`el`, `show`/`hide`/`visible`, `byId`). These are tested and documented in CODING_STANDARDS.md but not yet widely used. Sweep the codebase to replace manual reduce/loop/filter patterns with the util helpers, and replace verbose createElement/addEventListener chains with the DOM helpers.
-
-**Benefit:** Reduces boilerplate, makes intent clearer, and establishes consistent patterns across the codebase.
-
-**Files:** All files under `src/shared/` and `src/client/` — look for manual `reduce`, `for` loops building accumulators, `.filter().length`, `.map().filter(x => x != null)`, `document.createElement` chains, and `getElementById` with non-null assertions.
-
-### 2a. Pull PlanningState out of the Renderer
-`PlanningState` lives on the `Renderer` but is mutated by `InputHandler`, `main.ts`, and read by renderer sub-modules. Move ownership to `GameClient`. The renderer and input handler receive it as a read reference. Mutations go through existing helpers like `createClearedCombatPlan`.
-
-**Benefit:** Eliminates the tightest coupling in the codebase — three systems reaching into the same mutable bag. Enables snapshotting for debugging/undo.
-
-**Files:** `src/client/main.ts`, `src/client/renderer/renderer.ts`, `src/client/input.ts`
-
-**Details:** See REFACTORING.md Priority 1.
-
-### 2b. Transport adapter for local vs network play
-9 `if (this.isLocalGame)` branches in `main.ts` duplicate logic. Define a `GameTransport` interface with `WebSocketTransport` and `LocalTransport` implementations.
-
-**Benefit:** Eliminates all `isLocalGame` branching. Opens the door for replay playback and test harness transports.
-
-**Files:** `src/client/main.ts`, new `src/client/game/transport.ts`
-
-**Details:** See REFACTORING.md Priority 2.
-
 ### 2c. Command dispatch
 Unify ~30 action-handler methods into a single `dispatch(cmd: GameCommand)` bottleneck. The existing `KeyboardAction` discriminated union maps almost directly to `GameCommand`.
 
@@ -58,19 +33,8 @@ Replace `UIManager`'s ~15 nullable callback properties with a single typed `UIEv
 
 **Details:** See REFACTORING.md Priority 5.
 
-### 2e. Async AI turn loop
-Replace the recursive callback chain in `processAIPhases` with an explicit async loop. Animation callbacks resolve promises instead of recursing.
-
-**Benefit:** AI turn becomes readable as a sequence, not a callback graph.
-
-**Files:** `src/client/main.ts`, `src/client/game/ai-flow.ts`
-
-**Details:** See REFACTORING.md Priority 7.
-
-### 2f. Serialisation codec
-Create `shared/codec.ts` with explicit serialise/deserialise functions for `GameState`. Add a round-trip test to catch new `Map`/`Set` fields.
-
-**Benefit:** Prevents a class of bugs when adding new collection fields to game state.
+### 2f. Serialisation codec *(deferred — not currently needed)*
+`GameState` contains only JSON-serializable primitives (no Map/Set/Date). `deserializeState()` is `return raw`. A codec would add overhead with zero current benefit. Revisit if Map or Set fields are added to GameState.
 
 **Files:** new `src/shared/codec.ts`
 
@@ -105,14 +69,9 @@ Currently 77% branches. Gaps around weak gravity consecutive rules, off-map elim
 
 ## Suggested Order of Work
 
-The P2 items build on each other. Suggested sequencing:
-1. **20** (Adopt utility helpers) — low-risk sweep that improves readability across the board
-2. **2a** (PlanningState) — removes the tightest coupling, minimal disruption
-2. **2b** (Transport) — eliminates isLocalGame branching, big main.ts shrink
-3. **2c** (Command dispatch) — unifies all input routing
-4. **2d** (UI event bus) — feeds naturally into 2c's dispatch
-5. **2e** (Async AI) — standalone, can be done anytime
-6. **2f** (Codec) — standalone, prevents future bugs
+The remaining P2 items build on each other. Suggested sequencing:
+1. **2c** (Command dispatch) — unifies all input routing
+2. **2d** (UI event bus) — feeds naturally into 2c's dispatch
 
 P3 items are independent of each other and of P2. They can be interleaved freely.
 
@@ -125,3 +84,7 @@ P3 items are independent of each other and of P2. They can be interleaved freely
 - ~~Shrink renderer.ts~~ — Extracted `renderer/draw.ts`, `renderer/effects.ts`, `renderer/scene.ts`, `renderer/overlay.ts` (1,771 → 1,011 lines)
 - ~~Shrink ui.ts and input.ts~~ — Already under 1,000 lines (661 and 313 respectively)
 - ~~Reorganise into folders~~ — Flat prefixed filenames replaced with `game/`, `renderer/`, `ui/`, `engine/`, `game-do/` subfolders
+- ~~20. Adopt utility helpers~~ — Swept codebase to use `src/shared/util.ts` helpers and `src/client/dom.ts` DOM helpers; refactored imperative patterns to declarative/functional style
+- ~~2a. Pull PlanningState out of the Renderer~~ — `PlanningState` moved to `src/client/game/planning.ts`, owned by `GameClient`, passed to Renderer and InputHandler as references
+- ~~2b. Transport adapter~~ — `GameTransport` interface with `createLocalTransport` and `createWebSocketTransport` in `src/client/game/transport.ts`; eliminated all `isLocalGame` branching in action handlers
+- ~~2e. Async AI turn loop~~ — Replaced recursive callback chain with async/await loop in `runAITurn`; extracted `resolveAIPlan` and `isGameOver` helpers
