@@ -14,6 +14,7 @@ import {
 import { SHIP_STATS } from '../constants';
 import { hexDistance, hexKey } from '../hex';
 import type { CombatAttack, CombatResult, GameState, Ordnance, Ship, SolarSystemMap } from '../types';
+import { sumBy } from '../util';
 import { resolvePendingAsteroidHazards } from './ordnance';
 import { getOwnedPlanetaryBases, hasAnyEnemyShips, isPlanetaryDefenseEnabled } from './util';
 import { advanceTurn, checkGameEnd, updateEscapeMoralVictory } from './victory';
@@ -241,10 +242,7 @@ export const processCombat = (
 
     const targetType = attack.targetType ?? 'ship';
     const targetKey = `${targetType}:${attack.targetId}`;
-    const maxAttackStrength = attackers.reduce((total, ship) => {
-      const stats = SHIP_STATS[ship.type];
-      return total + (stats?.combat ?? 0);
-    }, 0);
+    const maxAttackStrength = sumBy(attackers, (ship) => SHIP_STATS[ship.type]?.combat ?? 0);
     if (committedTargets.has(targetKey)) {
       return { error: 'Each ship may be attacked only once per combat phase' };
     }

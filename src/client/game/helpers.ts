@@ -1,5 +1,6 @@
 import { SHIP_STATS } from '../../shared/constants';
 import type { AstrogationOrder, GameState, Ship } from '../../shared/types';
+import { count } from '../../shared/util';
 import type { PlanningState } from '../renderer/renderer';
 
 export interface GameOverStats {
@@ -59,8 +60,8 @@ const getObjective = (state: GameState, playerId: number): string => {
 const getFleetStatus = (state: GameState, playerId: number): string => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
   const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
-  const myAlive = myShips.filter((ship) => !ship.destroyed).length;
-  const enemyAlive = enemyShips.filter((ship) => !ship.destroyed).length;
+  const myAlive = count(myShips, (ship) => !ship.destroyed);
+  const enemyAlive = count(enemyShips, (ship) => !ship.destroyed);
   const statusParts: string[] = [];
   if (myShips.length > 1 || enemyShips.length > 1) {
     statusParts.push(`⚔ ${myAlive}v${enemyAlive}`);
@@ -72,9 +73,9 @@ const getFleetStatus = (state: GameState, playerId: number): string => {
   }
 
   const ordnanceParts: string[] = [];
-  const mines = activeOrdnance.filter((ordnance) => ordnance.type === 'mine').length;
-  const torpedoes = activeOrdnance.filter((ordnance) => ordnance.type === 'torpedo').length;
-  const nukes = activeOrdnance.filter((ordnance) => ordnance.type === 'nuke').length;
+  const mines = count(activeOrdnance, (ordnance) => ordnance.type === 'mine');
+  const torpedoes = count(activeOrdnance, (ordnance) => ordnance.type === 'torpedo');
+  const nukes = count(activeOrdnance, (ordnance) => ordnance.type === 'nuke');
   if (mines > 0) ordnanceParts.push(`${mines}M`);
   if (torpedoes > 0) ordnanceParts.push(`${torpedoes}T`);
   if (nukes > 0) ordnanceParts.push(`${nukes}N`);
@@ -130,9 +131,9 @@ export const getGameOverStats = (state: GameState, playerId: number): GameOverSt
   const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
   return {
     turns: state.turnNumber,
-    myShipsAlive: myShips.filter((ship) => !ship.destroyed).length,
+    myShipsAlive: count(myShips, (ship) => !ship.destroyed),
     myShipsTotal: myShips.length,
-    enemyShipsAlive: enemyShips.filter((ship) => !ship.destroyed).length,
+    enemyShipsAlive: count(enemyShips, (ship) => !ship.destroyed),
     enemyShipsTotal: enemyShips.length,
   };
 };

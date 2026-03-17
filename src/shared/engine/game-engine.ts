@@ -13,6 +13,7 @@ import type {
   ShipMovement,
   SolarSystemMap,
 } from '../types';
+import { randomChoice } from '../util';
 import { shouldEnterCombatPhase } from './combat';
 import { moveOrdnance, queueAsteroidHazards, shouldEnterOrdnancePhase } from './ordnance';
 import {
@@ -217,7 +218,7 @@ export const createGame = (
     if (scenario.players[p].hiddenIdentity) {
       const playerShips = ships.filter((s) => s.owner === p);
       if (playerShips.length > 0) {
-        const chosen = playerShips[Math.floor(Math.random() * playerShips.length)];
+        const chosen = randomChoice(playerShips);
         chosen.hasFugitives = true;
         for (const ship of playerShips) {
           ship.identityRevealed = false;

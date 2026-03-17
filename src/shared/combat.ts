@@ -1,7 +1,8 @@
 import { DAMAGE_ELIMINATION_THRESHOLD, SHIP_STATS } from './constants';
-import { hexDistance, hexEqual, hexKey, hexLineDraw } from './hex';
+import { hexDistance, hexEqual, hexKey, hexLineDraw, parseHexKey } from './hex';
 import { bodyHasGravity } from './map-data';
 import type { CombatResult, Ordnance, Ship, SolarSystemMap } from './types';
+import { clamp, sumBy } from './util';
 
 // --- Damage tables ---
 
@@ -84,16 +85,15 @@ export const computeOdds = (attackStrength: number, defendStrength: number): Odd
  * Get total combat strength for a group of attackers.
  */
 export const getCombatStrength = (ships: Ship[]): number =>
-  ships.reduce((total, ship) => {
-    if (ship.destroyed || ship.damage.disabledTurns > 0) return total;
-    const stats = SHIP_STATS[ship.type];
-    return stats ? total + stats.combat : total;
-  }, 0);
+  sumBy(ships, (ship) => {
+    if (ship.destroyed || ship.damage.disabledTurns > 0) return 0;
+    return SHIP_STATS[ship.type]?.combat ?? 0;
+  });
 
 export const getDeclaredCombatStrength = (ships: Ship[], declaredStrength?: number | null): number => {
   const maxStrength = getCombatStrength(ships);
   if (declaredStrength == null) return maxStrength;
-  return Math.max(1, Math.min(maxStrength, declaredStrength));
+  return clamp(declaredStrength, 1, maxStrength);
 };
 
 /**
@@ -231,7 +231,7 @@ export const getCounterattackers = (target: Ship, allShips: Ship[]): Ship[] =>
  */
 export const lookupGunCombat = (odds: OddsRatio, modifiedRoll: number): DamageResult => {
   const col = ODDS_RATIOS.indexOf(odds);
-  const row = Math.max(0, Math.min(6, modifiedRoll));
+  const row = clamp(modifiedRoll, 0, 6);
   const value = GUN_COMBAT_TABLE[row][col];
 
   if (value === 0) return { type: 'none', disabledTurns: 0 };
@@ -244,7 +244,7 @@ export const lookupGunCombat = (odds: OddsRatio, modifiedRoll: number): DamageRe
  * Each source type has its own damage column per the Triplanetary 2018 rulebook.
  */
 export const lookupOtherDamage = (dieRoll: number, source: OtherDamageSource = 'torpedo'): DamageResult => {
-  const idx = Math.max(0, Math.min(5, dieRoll - 1));
+  const idx = clamp(dieRoll - 1, 0, 5);
   const value = OTHER_DAMAGE_TABLES[source][idx];
 
   if (value === 0) return { type: 'none', disabledTurns: 0 };
@@ -412,8 +412,7 @@ export const resolveBaseDefense = (
     if (!bodyHasGravity(hex.base.bodyName, map)) continue;
 
     const { bodyName } = hex.base;
-    const [bq, br] = key.split(',').map(Number);
-    const baseCoord = { q: bq, r: br };
+    const baseCoord = parseHexKey(key);
 
     // Find enemy ships in gravity hexes adjacent to this base
     for (const ship of state.ships) {
@@ -425,7 +424,7 @@ export const resolveBaseDefense = (
       if (shipHex.gravity.bodyName !== bodyName) continue;
 
       // Check if this gravity hex is adjacent to the base hex
-      const dist = hexDistance(ship.position, { q: bq, r: br });
+      const dist = hexDistance(ship.position, baseCoord);
       if (dist !== 1) continue;
 
       // Base fires at 2:1, no range/velocity modifiers

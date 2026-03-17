@@ -1,3 +1,5 @@
+import { pickBy } from '../../shared/util';
+
 export interface TokenStoreEntry {
   playerToken?: string;
   inviteToken?: string;
@@ -29,7 +31,7 @@ export const loadTokenStore = (storage: Pick<StorageLike, 'getItem'>, key = TOKE
 };
 
 export const pruneExpiredTokens = (store: TokenStore, now: number, ttlMs = TOKEN_TTL_MS): TokenStore => {
-  return Object.fromEntries(Object.entries(store).filter(([, entry]) => now - entry.ts <= ttlMs));
+  return pickBy(store, (entry) => now - entry.ts <= ttlMs) as TokenStore;
 };
 
 export const saveTokenStore = (

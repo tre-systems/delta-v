@@ -1,5 +1,6 @@
 import { SHIP_STATS } from '../../shared/constants';
 import type { FleetPurchase } from '../../shared/types';
+import { sumBy } from '../../shared/util';
 
 export interface FleetShopItemView {
   shipType: string;
@@ -28,7 +29,7 @@ export const getFleetShopTypes = () => {
 };
 
 export const getFleetCartCost = (cart: FleetPurchase[]): number => {
-  return cart.reduce((total, purchase) => total + (SHIP_STATS[purchase.shipType]?.cost ?? 0), 0);
+  return sumBy(cart, (purchase) => SHIP_STATS[purchase.shipType]?.cost ?? 0);
 };
 
 export const canAddFleetShip = (cart: FleetPurchase[], totalCredits: number, shipType: string): boolean => {
