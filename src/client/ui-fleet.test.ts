@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FleetPurchase } from '../shared/types';
-import {
-  canAddFleetShip,
-  getFleetCartCost,
-  getFleetCartView,
-  getFleetShopTypes,
-  getFleetShopView,
-} from './ui-fleet';
+import { canAddFleetShip, getFleetCartCost, getFleetCartView, getFleetShopTypes, getFleetShopView } from './ui-fleet';
 
 describe('ui fleet helpers', () => {
   it('returns purchasable ship types without orbital bases and sorted by cost', () => {
@@ -17,9 +11,7 @@ describe('ui fleet helpers', () => {
   });
 
   it('calculates cart totals and add eligibility from current credits', () => {
-    const cart: FleetPurchase[] = [
-      { shipType: 'transport' },
-    ];
+    const cart: FleetPurchase[] = [{ shipType: 'transport' }];
 
     expect(getFleetCartCost(cart)).toBe(10);
     expect(canAddFleetShip(cart, 40, 'packet')).toBe(true);

@@ -6,20 +6,36 @@ export interface ShipStats {
   fuel: number;
   cargo: number;
   cost: number;
-  canOverload: boolean;   // Warships can burn 2 fuel for 2-hex acceleration
+  canOverload: boolean; // Warships can burn 2 fuel for 2-hex acceleration
 }
 
 export const SHIP_STATS: Record<string, ShipStats> = {
-  transport:   { name: 'Transport',   combat: 1,  defensiveOnly: true,  fuel: 10, cargo: 50, cost: 10,  canOverload: false },
-  packet:      { name: 'Packet',      combat: 2,  defensiveOnly: false, fuel: 10, cargo: 50, cost: 20,  canOverload: false },
-  tanker:      { name: 'Tanker',      combat: 1,  defensiveOnly: true,  fuel: 50, cargo: 0,  cost: 10,  canOverload: false },
-  liner:       { name: 'Liner',       combat: 2,  defensiveOnly: true,  fuel: 10, cargo: 0,  cost: 50,  canOverload: false },
-  corvette:    { name: 'Corvette',    combat: 2,  defensiveOnly: false, fuel: 20, cargo: 5,  cost: 40,  canOverload: true },
-  corsair:     { name: 'Corsair',     combat: 4,  defensiveOnly: false, fuel: 20, cargo: 10, cost: 80,  canOverload: true },
-  frigate:     { name: 'Frigate',     combat: 8,  defensiveOnly: false, fuel: 20, cargo: 40, cost: 150, canOverload: true },
-  dreadnaught: { name: 'Dreadnaught', combat: 15, defensiveOnly: false, fuel: 15, cargo: 50, cost: 600, canOverload: true },
-  torch:       { name: 'Torch',       combat: 8,  defensiveOnly: false, fuel: Infinity, cargo: 10, cost: 400, canOverload: true },
-  orbitalBase: { name: 'Orbital Base', combat: 16, defensiveOnly: false, fuel: Infinity, cargo: Infinity, cost: 1000, canOverload: false },
+  transport: { name: 'Transport', combat: 1, defensiveOnly: true, fuel: 10, cargo: 50, cost: 10, canOverload: false },
+  packet: { name: 'Packet', combat: 2, defensiveOnly: false, fuel: 10, cargo: 50, cost: 20, canOverload: false },
+  tanker: { name: 'Tanker', combat: 1, defensiveOnly: true, fuel: 50, cargo: 0, cost: 10, canOverload: false },
+  liner: { name: 'Liner', combat: 2, defensiveOnly: true, fuel: 10, cargo: 0, cost: 50, canOverload: false },
+  corvette: { name: 'Corvette', combat: 2, defensiveOnly: false, fuel: 20, cargo: 5, cost: 40, canOverload: true },
+  corsair: { name: 'Corsair', combat: 4, defensiveOnly: false, fuel: 20, cargo: 10, cost: 80, canOverload: true },
+  frigate: { name: 'Frigate', combat: 8, defensiveOnly: false, fuel: 20, cargo: 40, cost: 150, canOverload: true },
+  dreadnaught: {
+    name: 'Dreadnaught',
+    combat: 15,
+    defensiveOnly: false,
+    fuel: 15,
+    cargo: 50,
+    cost: 600,
+    canOverload: true,
+  },
+  torch: { name: 'Torch', combat: 8, defensiveOnly: false, fuel: Infinity, cargo: 10, cost: 400, canOverload: true },
+  orbitalBase: {
+    name: 'Orbital Base',
+    combat: 16,
+    defensiveOnly: false,
+    fuel: Infinity,
+    cargo: Infinity,
+    cost: 1000,
+    canOverload: false,
+  },
 };
 
 // Ordnance definitions

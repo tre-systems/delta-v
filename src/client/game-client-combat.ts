@@ -1,5 +1,5 @@
 import { canAttack, getCombatStrength, hasLineOfSight, hasLineOfSightToTarget } from '../shared/combat';
-import { hexEqual, type HexCoord } from '../shared/hex';
+import { type HexCoord, hexEqual } from '../shared/hex';
 import type { CombatAttack, GameState, SolarSystemMap } from '../shared/types';
 import type { PlanningState } from './renderer';
 
@@ -78,11 +78,7 @@ export function getReusableCombatGroup(
   return null;
 }
 
-export function hasSplitFireOptions(
-  state: GameState,
-  playerId: number,
-  queuedAttacks: CombatAttack[],
-): boolean {
+export function hasSplitFireOptions(state: GameState, playerId: number, queuedAttacks: CombatAttack[]): boolean {
   const queuedTargets = getTargetedKeys(queuedAttacks);
   for (const attack of queuedAttacks) {
     if ((attack.targetType ?? 'ship') !== 'ship') continue;
@@ -90,12 +86,13 @@ export function hasSplitFireOptions(
     if (!target) continue;
     const reusable = getReusableCombatGroup(state, playerId, queuedAttacks, target.id);
     if (!reusable || reusable.remainingStrength <= 0) continue;
-    const untargetedSameHex = state.ships.some((ship) =>
-      ship.owner !== playerId &&
-      !ship.destroyed &&
-      !ship.landed &&
-      hexEqual(ship.position, target.position) &&
-      !queuedTargets.has(`ship:${ship.id}`),
+    const untargetedSameHex = state.ships.some(
+      (ship) =>
+        ship.owner !== playerId &&
+        !ship.destroyed &&
+        !ship.landed &&
+        hexEqual(ship.position, target.position) &&
+        !queuedTargets.has(`ship:${ship.id}`),
     );
     if (untargetedSameHex) return true;
   }
@@ -108,9 +105,11 @@ function clampAttackStrength(maxStrength: number, requestedStrength: number | nu
 }
 
 export function getCombatAttackerIdAtHex(state: GameState, playerId: number, clickHex: HexCoord): string | null {
-  return state.ships.find((ship) =>
-    ship.owner === playerId && !ship.destroyed && canAttack(ship) && hexEqual(clickHex, ship.position),
-  )?.id ?? null;
+  return (
+    state.ships.find(
+      (ship) => ship.owner === playerId && !ship.destroyed && canAttack(ship) && hexEqual(clickHex, ship.position),
+    )?.id ?? null
+  );
 }
 
 export function getCombatTargetAtHex(
@@ -119,20 +118,21 @@ export function getCombatTargetAtHex(
   clickHex: HexCoord,
   queuedAttacks: CombatAttack[],
 ): CombatTargetSelection | null {
-  const ordnance = state.ordnance.find((item) =>
-    item.owner !== playerId && !item.destroyed && item.type === 'nuke' && hexEqual(clickHex, item.position),
+  const ordnance = state.ordnance.find(
+    (item) => item.owner !== playerId && !item.destroyed && item.type === 'nuke' && hexEqual(clickHex, item.position),
   );
   if (ordnance) {
     return { targetId: ordnance.id, targetType: 'ordnance' };
   }
 
   const queuedTargets = getTargetedKeys(queuedAttacks);
-  const ship = state.ships.find((item) =>
-    item.owner !== playerId &&
-    !item.destroyed &&
-    !item.landed &&
-    !queuedTargets.has(`ship:${item.id}`) &&
-    hexEqual(clickHex, item.position),
+  const ship = state.ships.find(
+    (item) =>
+      item.owner !== playerId &&
+      !item.destroyed &&
+      !item.landed &&
+      !queuedTargets.has(`ship:${item.id}`) &&
+      hexEqual(clickHex, item.position),
   );
   return ship ? { targetId: ship.id, targetType: 'ship' } : null;
 }
@@ -147,9 +147,7 @@ export function getLegalCombatAttackers(
 ) {
   if (map === null) return [];
 
-  const reusableGroup = targetType === 'ship'
-    ? getReusableCombatGroup(state, playerId, queuedAttacks, targetId)
-    : null;
+  const reusableGroup = targetType === 'ship' ? getReusableCombatGroup(state, playerId, queuedAttacks, targetId) : null;
   if (reusableGroup) {
     return reusableGroup.attackerIds
       .map((id) => state.ships.find((ship) => ship.id === id))
@@ -157,20 +155,18 @@ export function getLegalCombatAttackers(
   }
 
   const committedAttackers = getCommittedAttackers(queuedAttacks);
-  const myAttackers = state.ships.filter((ship) =>
-    ship.owner === playerId && !ship.destroyed && canAttack(ship) && !committedAttackers.has(ship.id),
+  const myAttackers = state.ships.filter(
+    (ship) => ship.owner === playerId && !ship.destroyed && canAttack(ship) && !committedAttackers.has(ship.id),
   );
 
   if (targetType === 'ordnance') {
-    const target = state.ordnance.find((item) =>
-      item.id === targetId && !item.destroyed && item.owner !== playerId && item.type === 'nuke',
+    const target = state.ordnance.find(
+      (item) => item.id === targetId && !item.destroyed && item.owner !== playerId && item.type === 'nuke',
     );
     return target ? myAttackers.filter((attacker) => hasLineOfSightToTarget(attacker, target, map)) : [];
   }
 
-  const target = state.ships.find((ship) =>
-    ship.id === targetId && !ship.destroyed && ship.owner !== playerId,
-  );
+  const target = state.ships.find((ship) => ship.id === targetId && !ship.destroyed && ship.owner !== playerId);
   return target ? myAttackers.filter((attacker) => hasLineOfSight(attacker, target, map)) : [];
 }
 
@@ -182,9 +178,8 @@ export function createCombatTargetPlan(
   targetType: 'ship' | 'ordnance',
   map: SolarSystemMap | null,
 ): CombatTargetPlan {
-  const reusableGroup = targetType === 'ship'
-    ? getReusableCombatGroup(state, playerId, planning.queuedAttacks, targetId)
-    : null;
+  const reusableGroup =
+    targetType === 'ship' ? getReusableCombatGroup(state, playerId, planning.queuedAttacks, targetId) : null;
   if (reusableGroup) {
     return {
       combatTargetId: targetId,
@@ -231,9 +226,7 @@ export function toggleCombatAttackerSelection(
   const selected = planning.combatAttackerIds.filter((id) => legalIds.has(id));
   const nextSelected = selected.includes(shipId)
     ? selected.filter((id) => id !== shipId)
-    : legalAttackers
-        .filter((ship) => selected.includes(ship.id) || ship.id === shipId)
-        .map((ship) => ship.id);
+    : legalAttackers.filter((ship) => selected.includes(ship.id) || ship.id === shipId).map((ship) => ship.id);
 
   if (nextSelected.length === 0) {
     return {
@@ -246,12 +239,13 @@ export function toggleCombatAttackerSelection(
   return {
     consumed: true,
     combatAttackerIds: nextSelected,
-    combatAttackStrength: targetType === 'ship'
-      ? Math.min(
-          Math.max(planning.combatAttackStrength ?? getCombatStrength(legalAttackers), 1),
-          getCombatStrength(legalAttackers.filter((ship) => nextSelected.includes(ship.id))),
-        )
-      : null,
+    combatAttackStrength:
+      targetType === 'ship'
+        ? Math.min(
+            Math.max(planning.combatAttackStrength ?? getCombatStrength(legalAttackers), 1),
+            getCombatStrength(legalAttackers.filter((ship) => nextSelected.includes(ship.id))),
+          )
+        : null,
   };
 }
 
@@ -267,12 +261,15 @@ export function buildCurrentAttack(
 
   const committedAttackers = getCommittedAttackers(planning.queuedAttacks);
   if (targetType === 'ordnance') {
-    const target = state.ordnance.find((ordnance) =>
-      ordnance.id === targetId && !ordnance.destroyed && ordnance.owner !== playerId && ordnance.type === 'nuke',
+    const target = state.ordnance.find(
+      (ordnance) =>
+        ordnance.id === targetId && !ordnance.destroyed && ordnance.owner !== playerId && ordnance.type === 'nuke',
     );
     if (!target) return null;
     const legalAttackers = state.ships
-      .filter((ship) => ship.owner === playerId && !ship.destroyed && canAttack(ship) && !committedAttackers.has(ship.id))
+      .filter(
+        (ship) => ship.owner === playerId && !ship.destroyed && canAttack(ship) && !committedAttackers.has(ship.id),
+      )
       .filter((ship) => hasLineOfSightToTarget(ship, target, map));
     const selectedAttackers = legalAttackers.filter((ship) => planning.combatAttackerIds.includes(ship.id));
     const attackerIds = (selectedAttackers.length > 0 ? selectedAttackers : legalAttackers).map((ship) => ship.id);
@@ -306,8 +303,8 @@ export function countRemainingCombatAttackers(
   queuedAttacks: CombatAttack[],
 ): number {
   const committedAttackers = getCommittedAttackers(queuedAttacks);
-  return state.ships.filter((ship) =>
-    ship.owner === playerId && !ship.destroyed && canAttack(ship) && !committedAttackers.has(ship.id),
+  return state.ships.filter(
+    (ship) => ship.owner === playerId && !ship.destroyed && canAttack(ship) && !committedAttackers.has(ship.id),
   ).length;
 }
 

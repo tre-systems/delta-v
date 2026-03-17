@@ -1,4 +1,4 @@
-import { hexEqual, type HexCoord } from '../shared/hex';
+import { type HexCoord, hexEqual } from '../shared/hex';
 import type { GameState, Ship } from '../shared/types';
 import type { ClientState } from './game-client-phase';
 
@@ -20,9 +20,11 @@ export function getTooltipShip(
     return null;
   }
 
-  return state.ships.find((ship) => {
-    if (ship.destroyed) return false;
-    if (ship.owner !== playerId && !ship.detected) return false;
-    return hexEqual(ship.position, hoverHex);
-  }) ?? null;
+  return (
+    state.ships.find((ship) => {
+      if (ship.destroyed) return false;
+      if (ship.owner !== playerId && !ship.detected) return false;
+      return hexEqual(ship.position, hoverHex);
+    }) ?? null
+  );
 }

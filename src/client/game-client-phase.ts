@@ -36,9 +36,7 @@ export function derivePhaseTransition(
   isLocalGame: boolean,
 ): PhaseTransitionPlan {
   const shouldLogTurn = state.phase === 'astrogation' && state.turnNumber !== lastLoggedTurn;
-  const turnLogPlayerLabel = shouldLogTurn
-    ? state.activePlayer === playerId ? 'You' : 'Opponent'
-    : null;
+  const turnLogPlayerLabel = shouldLogTurn ? (state.activePlayer === playerId ? 'You' : 'Opponent') : null;
   const turnLogNumber = shouldLogTurn ? state.turnNumber : null;
 
   if (state.phase === 'fleetBuilding') {

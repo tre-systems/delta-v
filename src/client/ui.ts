@@ -1,5 +1,6 @@
-import type { Ship, GameState, FleetPurchase, MovementEvent, CombatResult } from '../shared/types';
 import { CODE_LENGTH } from '../shared/constants';
+import type { CombatResult, FleetPurchase, GameState, MovementEvent, Ship } from '../shared/types';
+import { canAddFleetShip, getFleetCartView, getFleetShopView } from './ui-fleet';
 import {
   formatCombatResultEntries,
   formatMovementEventEntry,
@@ -7,11 +8,6 @@ import {
   getPhaseAlertCopy,
   parseJoinInput,
 } from './ui-formatters';
-import {
-  canAddFleetShip,
-  getFleetCartView,
-  getFleetShopView,
-} from './ui-fleet';
 import { buildHUDView } from './ui-hud';
 import { deriveHudLayoutOffsets } from './ui-layout';
 import {
@@ -112,7 +108,9 @@ export class UIManager {
         const diff = (btn as HTMLElement).dataset.difficulty as 'easy' | 'normal' | 'hard';
         this.aiDifficulty = diff;
         // Update active state
-        document.querySelectorAll('.btn-difficulty').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.btn-difficulty').forEach((b) => {
+          b.classList.remove('active');
+        });
         btn.classList.add('active');
       });
     });
@@ -341,7 +339,19 @@ export class UIManager {
     });
   }
 
-  updateHUD(turn: number, phase: string, isMyTurn: boolean, fuel: number, maxFuel: number, hasBurns = false, cargoFree = 0, cargoMax = 0, objective = '', isWarship = false, canEmplaceBase = false) {
+  updateHUD(
+    turn: number,
+    phase: string,
+    isMyTurn: boolean,
+    fuel: number,
+    maxFuel: number,
+    hasBurns = false,
+    cargoFree = 0,
+    cargoMax = 0,
+    objective = '',
+    isWarship = false,
+    canEmplaceBase = false,
+  ) {
     const hudView = buildHUDView(
       turn,
       phase,
@@ -471,9 +481,7 @@ export class UIManager {
         const details = document.createElement('div');
         details.className = 'ship-details';
         const rows = entryView.detailRows.map((row) => {
-          const style = row.tone
-            ? ` style="color:var(--${row.tone})"`
-            : '';
+          const style = row.tone ? ` style="color:var(--${row.tone})"` : '';
           return `<div class="ship-detail-row"><span class="ship-detail-label">${row.label}</span><span class="ship-detail-value"${style}>${row.value}</span></div>`;
         });
         details.innerHTML = rows.join('');
@@ -510,7 +518,17 @@ export class UIManager {
     this.queueLayoutSync();
   }
 
-  showGameOver(won: boolean, reason: string, stats?: { turns: number; myShipsAlive: number; myShipsTotal: number; enemyShipsAlive: number; enemyShipsTotal: number }) {
+  showGameOver(
+    won: boolean,
+    reason: string,
+    stats?: {
+      turns: number;
+      myShipsAlive: number;
+      myShipsTotal: number;
+      enemyShipsAlive: number;
+      enemyShipsTotal: number;
+    },
+  ) {
     const view = buildGameOverView(won, reason, stats);
     this.gameOverEl.style.display = 'flex';
     document.getElementById('gameOverText')!.textContent = view.titleText;

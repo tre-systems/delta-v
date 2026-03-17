@@ -37,10 +37,7 @@ function createState(): GameState {
     pendingAsteroidHazards: [],
     destroyedAsteroids: [],
     destroyedBases: [],
-    players: [
-      createPlayer({ bases: ['mars-base'] }),
-      createPlayer({ bases: ['venus-base'] }),
-    ],
+    players: [createPlayer({ bases: ['mars-base'] }), createPlayer({ bases: ['venus-base'] })],
     winner: null,
     winReason: null,
   };

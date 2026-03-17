@@ -1,10 +1,20 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  computeOdds, computeRangeMod, computeVelocityMod,
-  computeGroupRangeMod, computeGroupVelocityMod, hasLineOfSight,
-  getCombatStrength, canAttack, canCounterattack, getCounterattackers,
-  lookupGunCombat, lookupOtherDamage, applyDamage,
-  resolveCombat, rollD6,
+  applyDamage,
+  canAttack,
+  canCounterattack,
+  computeGroupRangeMod,
+  computeGroupVelocityMod,
+  computeOdds,
+  computeRangeMod,
+  computeVelocityMod,
+  getCombatStrength,
+  getCounterattackers,
+  hasLineOfSight,
+  lookupGunCombat,
+  lookupOtherDamage,
+  resolveCombat,
+  rollD6,
 } from '../combat';
 import type { Ship, SolarSystemMap } from '../types';
 
@@ -76,7 +86,12 @@ describe('computeRangeMod', () => {
   it('uses closest approach from the most recent movement path', () => {
     const a = makeShip({
       position: { q: 0, r: 0 },
-      lastMovementPath: [{ q: 3, r: 0 }, { q: 2, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 0 }],
+      lastMovementPath: [
+        { q: 3, r: 0 },
+        { q: 2, r: 0 },
+        { q: 1, r: 0 },
+        { q: 0, r: 0 },
+      ],
     });
     const b = makeShip({ position: { q: 3, r: 1 } });
     expect(computeRangeMod(a, b)).toBe(1);
@@ -171,9 +186,7 @@ describe('line of sight', () => {
     const attacker = makeShip({ position: { q: 0, r: 0 } });
     const target = makeShip({ position: { q: 2, r: 0 } });
     const map: SolarSystemMap = {
-      hexes: new Map([
-        ['1,0', { terrain: 'planetSurface', body: { name: 'Body', destructive: false } }],
-      ]),
+      hexes: new Map([['1,0', { terrain: 'planetSurface', body: { name: 'Body', destructive: false } }]]),
       bodies: [],
       bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
     };
@@ -184,10 +197,16 @@ describe('line of sight', () => {
 describe('counterattack groups', () => {
   it('includes same-hex same-course allied ships in the counterattack', () => {
     const target = makeShip({ id: 'target', owner: 1, position: { q: 1, r: 0 }, velocity: { dq: 1, dr: 0 } });
-    const escort = makeShip({ id: 'escort', owner: 1, type: 'packet', position: { q: 1, r: 0 }, velocity: { dq: 1, dr: 0 } });
+    const escort = makeShip({
+      id: 'escort',
+      owner: 1,
+      type: 'packet',
+      position: { q: 1, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+    });
     const outsider = makeShip({ id: 'outsider', owner: 1, position: { q: 2, r: 0 }, velocity: { dq: 1, dr: 0 } });
     const ships = [target, escort, outsider];
-    expect(getCounterattackers(target, ships).map(ship => ship.id)).toEqual(['target', 'escort']);
+    expect(getCounterattackers(target, ships).map((ship) => ship.id)).toEqual(['target', 'escort']);
   });
 });
 
@@ -443,7 +462,13 @@ describe('heroism', () => {
   });
 
   it('applies +1 heroism bonus to attack roll', () => {
-    const attacker = makeShip({ id: 'a', owner: 0, type: 'corvette', position: { q: 0, r: 0 }, heroismAvailable: true });
+    const attacker = makeShip({
+      id: 'a',
+      owner: 0,
+      type: 'corvette',
+      position: { q: 0, r: 0 },
+      heroismAvailable: true,
+    });
     const target = makeShip({ id: 't', owner: 1, type: 'corvette', position: { q: 0, r: 0 } });
     // rng returns fixed value → die roll 3 + heroism +1 = modified 4
     const result = resolveCombat([attacker], target, [attacker, target], () => 0.34);
@@ -453,7 +478,13 @@ describe('heroism', () => {
   });
 
   it('heroism persists after use', () => {
-    const attacker = makeShip({ id: 'a', owner: 0, type: 'corvette', position: { q: 0, r: 0 }, heroismAvailable: true });
+    const attacker = makeShip({
+      id: 'a',
+      owner: 0,
+      type: 'corvette',
+      position: { q: 0, r: 0 },
+      heroismAvailable: true,
+    });
     const target = makeShip({ id: 't', owner: 1, type: 'corvette', position: { q: 0, r: 0 } });
     resolveCombat([attacker], target, [attacker, target], () => 0.5);
 

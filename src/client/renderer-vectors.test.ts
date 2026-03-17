@@ -38,11 +38,31 @@ function createState(): GameState {
     activePlayer: 0,
     ships: [
       createShip({ id: 'selected', owner: 0, position: { q: 0, r: 0 }, velocity: { dq: 1, dr: 0 } }),
-      createShip({ id: 'enemy-visible', owner: 1, position: { q: 2, r: -1 }, velocity: { dq: 0, dr: 1 }, detected: true }),
-      createShip({ id: 'enemy-hidden', owner: 1, position: { q: 3, r: -2 }, velocity: { dq: 1, dr: -1 }, detected: false }),
+      createShip({
+        id: 'enemy-visible',
+        owner: 1,
+        position: { q: 2, r: -1 },
+        velocity: { dq: 0, dr: 1 },
+        detected: true,
+      }),
+      createShip({
+        id: 'enemy-hidden',
+        owner: 1,
+        position: { q: 3, r: -2 },
+        velocity: { dq: 1, dr: -1 },
+        detected: false,
+      }),
     ],
     ordnance: [
-      { id: 'mine-1', type: 'mine', owner: 0, position: { q: 1, r: 1 }, velocity: { dq: 0, dr: 0 }, turnsRemaining: 3, destroyed: false },
+      {
+        id: 'mine-1',
+        type: 'mine',
+        owner: 0,
+        position: { q: 1, r: 1 },
+        velocity: { dq: 0, dr: 0 },
+        turnsRemaining: 3,
+        destroyed: false,
+      },
     ],
     pendingAstrogationOrders: null,
     pendingAsteroidHazards: [],
@@ -101,23 +121,50 @@ describe('renderer vector helpers', () => {
   it('builds visible ship and ordnance trails', () => {
     const state = createState();
     const shipTrails = new Map([
-      ['selected', [{ q: 0, r: 0 }, { q: 1, r: 0 }]],
-      ['enemy-visible', [{ q: 2, r: -1 }, { q: 3, r: -1 }]],
-      ['enemy-hidden', [{ q: 3, r: -2 }, { q: 4, r: -2 }]],
+      [
+        'selected',
+        [
+          { q: 0, r: 0 },
+          { q: 1, r: 0 },
+        ],
+      ],
+      [
+        'enemy-visible',
+        [
+          { q: 2, r: -1 },
+          { q: 3, r: -1 },
+        ],
+      ],
+      [
+        'enemy-hidden',
+        [
+          { q: 3, r: -2 },
+          { q: 4, r: -2 },
+        ],
+      ],
     ]);
     const ordnanceTrails = new Map([
-      ['mine-1', [{ q: 1, r: 1 }, { q: 2, r: 1 }]],
-      ['gone', [{ q: 5, r: 5 }, { q: 6, r: 5 }]],
+      [
+        'mine-1',
+        [
+          { q: 1, r: 1 },
+          { q: 2, r: 1 },
+        ],
+      ],
+      [
+        'gone',
+        [
+          { q: 5, r: 5 },
+          { q: 6, r: 5 },
+        ],
+      ],
     ]);
 
     const shipViews = buildShipTrailViews(state, 0, shipTrails, 28);
     const ordViews = buildOrdnanceTrailViews(state, 0, ordnanceTrails, 28);
 
     expect(shipViews).toHaveLength(2);
-    expect(shipViews.map((view) => view.lineColor)).toEqual([
-      'rgba(79, 195, 247, 0.28)',
-      'rgba(255, 152, 0, 0.28)',
-    ]);
+    expect(shipViews.map((view) => view.lineColor)).toEqual(['rgba(79, 195, 247, 0.28)', 'rgba(255, 152, 0, 0.28)']);
     expect(ordViews).toHaveLength(2);
     expect(ordViews[0]).toMatchObject({
       lineDash: [2, 4],
@@ -131,7 +178,11 @@ describe('renderer vector helpers', () => {
       shipId: 'selected',
       from: { q: 0, r: 0 },
       to: { q: 2, r: 0 },
-      path: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }],
+      path: [
+        { q: 0, r: 0 },
+        { q: 1, r: 0 },
+        { q: 2, r: 0 },
+      ],
       newVelocity: { dq: 1, dr: 0 },
       fuelSpent: 1,
       gravityEffects: [],

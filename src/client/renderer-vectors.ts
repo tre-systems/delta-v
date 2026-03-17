@@ -1,5 +1,5 @@
 import { BASE_DETECTION_RANGE, SHIP_DETECTION_RANGE } from '../shared/constants';
-import { hexToPixel, hexVecLength, type HexCoord, type PixelCoord } from '../shared/hex';
+import { type HexCoord, hexToPixel, hexVecLength, type PixelCoord } from '../shared/hex';
 import { predictDestination } from '../shared/movement';
 import type { GameState, ShipMovement, SolarSystemMap } from '../shared/types';
 
@@ -46,8 +46,8 @@ export function buildDetectionRangeViews(
   hexSize: number,
 ): CircleOverlayView[] {
   const views: CircleOverlayView[] = [];
-  const selectedShip = state.ships.find((ship) =>
-    ship.id === selectedShipId && ship.owner === playerId && !ship.destroyed,
+  const selectedShip = state.ships.find(
+    (ship) => ship.id === selectedShipId && ship.owner === playerId && !ship.destroyed,
   );
   if (selectedShip) {
     views.push({
@@ -78,11 +78,7 @@ export function buildDetectionRangeViews(
   return views;
 }
 
-export function buildVelocityVectorViews(
-  state: GameState,
-  playerId: number,
-  hexSize: number,
-): VelocityVectorView[] {
+export function buildVelocityVectorViews(state: GameState, playerId: number, hexSize: number): VelocityVectorView[] {
   return state.ships
     .filter((ship) => !ship.landed && !ship.destroyed && (ship.owner === playerId || ship.detected))
     .map((ship) => {
@@ -92,13 +88,14 @@ export function buildVelocityVectorViews(
       if (predicted.q === ship.position.q && predicted.r === ship.position.r) return null;
       const isOwn = ship.owner === playerId;
       const speed = hexVecLength(ship.velocity);
-      const speedLabel = !isOwn && speed >= 1
-        ? {
-            text: `v${Math.round(speed)}`,
-            position: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - 5 },
-            color: 'rgba(255, 152, 0, 0.5)',
-          }
-        : null;
+      const speedLabel =
+        !isOwn && speed >= 1
+          ? {
+              text: `v${Math.round(speed)}`,
+              position: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - 5 },
+              color: 'rgba(255, 152, 0, 0.5)',
+            }
+          : null;
       return {
         from,
         to,

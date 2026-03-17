@@ -1,4 +1,4 @@
-import { hexToPixel, type HexCoord, type PixelCoord } from '../shared/hex';
+import { type HexCoord, hexToPixel, type PixelCoord } from '../shared/hex';
 import type { CelestialBody, GameState, PlayerState, SolarSystemMap } from '../shared/types';
 
 export interface BodyRippleView {
@@ -148,15 +148,19 @@ export function buildAsteroidDebrisView(coord: HexCoord, hexSize: number): Aster
   const particles = Array.from({ length: 6 }, (_, index) => {
     const factor = index + 1;
     return {
-      xOffset: ((seed * factor * 17) % 21 - 10) * 0.9,
-      yOffset: ((seed * factor * 23) % 21 - 10) * 0.9,
+      xOffset: (((seed * factor * 17) % 21) - 10) * 0.9,
+      yOffset: (((seed * factor * 23) % 21) - 10) * 0.9,
       size: 1.8 + ((seed * factor * 31) % 7) * 0.4,
     };
   });
   return { center, particles };
 }
 
-function buildEscapeObjectiveView(bounds: SolarSystemMap['bounds'], now: number, hexSize: number): LandingObjectiveView {
+function buildEscapeObjectiveView(
+  bounds: SolarSystemMap['bounds'],
+  now: number,
+  hexSize: number,
+): LandingObjectiveView {
   const midR = Math.floor((bounds.minR + bounds.maxR) / 2);
   const midQ = Math.floor((bounds.minQ + bounds.maxQ) / 2);
   return {

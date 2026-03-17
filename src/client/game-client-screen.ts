@@ -33,8 +33,8 @@ export function deriveClientScreenPlan(
       return {
         kind: 'waiting',
         code: gameCode ?? '',
-        inviteLink: inviteLink
-          ?? (gameCode && storedInviteToken ? buildInviteLink(origin, gameCode, storedInviteToken) : null),
+        inviteLink:
+          inviteLink ?? (gameCode && storedInviteToken ? buildInviteLink(origin, gameCode, storedInviteToken) : null),
       };
     case 'playing_fleetBuilding':
       return { kind: 'fleetBuilding' };

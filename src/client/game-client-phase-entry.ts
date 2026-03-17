@@ -20,7 +20,7 @@ export interface ClientStateEntryPlan {
 }
 
 function getFirstOwnedShipId(gameState: GameState | null, playerId: number): string | null {
-  return gameState?.ships.find(ship => ship.owner === playerId && !ship.destroyed)?.id ?? null;
+  return gameState?.ships.find((ship) => ship.owner === playerId && !ship.destroyed)?.id ?? null;
 }
 
 export function deriveClientStateEntryPlan(
@@ -148,9 +148,6 @@ export function deriveClientStateEntryPlan(
         startCombatTargetWatch: false,
         tutorialPhase: null,
       };
-    case 'connecting':
-    case 'waitingForOpponent':
-    case 'playing_fleetBuilding':
     default:
       return {
         stopTurnTimer: false,

@@ -1,13 +1,7 @@
-import { aiAstrogation, aiCombat, aiOrdnance, type AIDifficulty } from '../shared/ai';
+import { type AIDifficulty, aiAstrogation, aiCombat, aiOrdnance } from '../shared/ai';
 import { SHIP_STATS } from '../shared/constants';
 import { filterStateForPlayer } from '../shared/game-engine';
-import type {
-  AstrogationOrder,
-  CombatAttack,
-  GameState,
-  OrdnanceLaunch,
-  SolarSystemMap,
-} from '../shared/types';
+import type { AstrogationOrder, CombatAttack, GameState, OrdnanceLaunch, SolarSystemMap } from '../shared/types';
 import { hasOwnedPendingAsteroidHazards } from './game-client-local';
 
 export interface AIDecisionGenerators {

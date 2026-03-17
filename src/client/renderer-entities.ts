@@ -1,12 +1,5 @@
 import { SHIP_STATS } from '../shared/constants';
-import {
-  hexAdd,
-  hexKey,
-  hexToPixel,
-  hexVecLength,
-  type HexCoord,
-  type HexVec,
-} from '../shared/hex';
+import { type HexCoord, type HexVec, hexAdd, hexKey, hexToPixel, hexVecLength } from '../shared/hex';
 import type { GameState, Ship } from '../shared/types';
 
 export interface ShipStackOffset {
@@ -123,11 +116,7 @@ export function buildShipLabelView(
       typeColor: 'rgba(255, 255, 255, 0.7)',
       typeFont: '600 9px Inter, sans-serif',
       statusTag,
-      statusColor: ship.landed
-        ? 'rgba(149, 214, 135, 0.5)'
-        : statusTag
-          ? 'rgba(255, 255, 255, 0.35)'
-          : null,
+      statusColor: ship.landed ? 'rgba(149, 214, 135, 0.5)' : statusTag ? 'rgba(255, 255, 255, 0.35)' : null,
       statusFont: statusTag ? '7px monospace' : null,
     };
   }

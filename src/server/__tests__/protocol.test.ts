@@ -34,12 +34,15 @@ describe('protocol helpers', () => {
   });
 
   it('parses init payloads and builds room config', () => {
-    const parsed = parseInitPayload({
-      code: 'ABCDE',
-      scenario: 'escape',
-      playerToken: 'A'.repeat(32),
-      inviteToken: 'B'.repeat(32),
-    }, ['biplanetary', 'escape']);
+    const parsed = parseInitPayload(
+      {
+        code: 'ABCDE',
+        scenario: 'escape',
+        playerToken: 'A'.repeat(32),
+        inviteToken: 'B'.repeat(32),
+      },
+      ['biplanetary', 'escape'],
+    );
     expect(parsed).toEqual({
       ok: true,
       value: {
@@ -65,30 +68,45 @@ describe('protocol helpers', () => {
       ok: false,
       error: 'Invalid init payload',
     });
-    expect(parseInitPayload({
-      code: 'ABCD',
-      scenario: 'biplanetary',
-      playerToken: 'A'.repeat(32),
-      inviteToken: 'B'.repeat(32),
-    }, ['biplanetary'])).toEqual({
+    expect(
+      parseInitPayload(
+        {
+          code: 'ABCD',
+          scenario: 'biplanetary',
+          playerToken: 'A'.repeat(32),
+          inviteToken: 'B'.repeat(32),
+        },
+        ['biplanetary'],
+      ),
+    ).toEqual({
       ok: false,
       error: 'Invalid room code',
     });
-    expect(parseInitPayload({
-      code: 'ABCDE',
-      scenario: 'bogus',
-      playerToken: 'A'.repeat(32),
-      inviteToken: 'B'.repeat(32),
-    }, ['biplanetary'])).toEqual({
+    expect(
+      parseInitPayload(
+        {
+          code: 'ABCDE',
+          scenario: 'bogus',
+          playerToken: 'A'.repeat(32),
+          inviteToken: 'B'.repeat(32),
+        },
+        ['biplanetary'],
+      ),
+    ).toEqual({
       ok: false,
       error: 'Invalid scenario',
     });
-    expect(parseInitPayload({
-      code: 'ABCDE',
-      scenario: 'biplanetary',
-      playerToken: 'bad',
-      inviteToken: 'B'.repeat(32),
-    }, ['biplanetary'])).toEqual({
+    expect(
+      parseInitPayload(
+        {
+          code: 'ABCDE',
+          scenario: 'biplanetary',
+          playerToken: 'bad',
+          inviteToken: 'B'.repeat(32),
+        },
+        ['biplanetary'],
+      ),
+    ).toEqual({
       ok: false,
       error: 'Invalid player token',
     });
@@ -97,10 +115,12 @@ describe('protocol helpers', () => {
 
 describe('client message validation', () => {
   it('accepts valid astrogation payloads', () => {
-    expect(validateClientMessage({
-      type: 'astrogation',
-      orders: [{ shipId: 'p0s0', burn: 1, overload: null, weakGravityChoices: { '0,1': true } }],
-    })).toEqual({
+    expect(
+      validateClientMessage({
+        type: 'astrogation',
+        orders: [{ shipId: 'p0s0', burn: 1, overload: null, weakGravityChoices: { '0,1': true } }],
+      }),
+    ).toEqual({
       ok: true,
       value: {
         type: 'astrogation',
@@ -117,10 +137,12 @@ describe('client message validation', () => {
   });
 
   it('rejects invalid ordnance payloads', () => {
-    expect(validateClientMessage({
-      type: 'ordnance',
-      launches: [{ shipId: 'p0s0', ordnanceType: 'mine', torpedoAccel: 7 }],
-    })).toEqual({
+    expect(
+      validateClientMessage({
+        type: 'ordnance',
+        launches: [{ shipId: 'p0s0', ordnanceType: 'mine', torpedoAccel: 7 }],
+      }),
+    ).toEqual({
       ok: false,
       error: 'Invalid ordnance payload',
     });
@@ -136,13 +158,15 @@ describe('client message validation', () => {
 
 describe('seat assignment', () => {
   it('lets the creator claim the reserved seat with the issued token', () => {
-    expect(resolveSeatAssignment({
-      presentedToken: 'creator-token',
-      disconnectedPlayer: null,
-      seatOpen: [true, true],
-      playerTokens: ['creator-token', null],
-      inviteTokens: [null, 'invite-token'],
-    })).toEqual({
+    expect(
+      resolveSeatAssignment({
+        presentedToken: 'creator-token',
+        disconnectedPlayer: null,
+        seatOpen: [true, true],
+        playerTokens: ['creator-token', null],
+        inviteTokens: [null, 'invite-token'],
+      }),
+    ).toEqual({
       type: 'join',
       playerId: 0,
       issueNewToken: false,
@@ -151,25 +175,29 @@ describe('seat assignment', () => {
   });
 
   it('requires an invite token for the guest seat and rotates it into a player token', () => {
-    expect(resolveSeatAssignment({
-      presentedToken: null,
-      disconnectedPlayer: null,
-      seatOpen: [true, true],
-      playerTokens: ['creator-token', null],
-      inviteTokens: [null, 'invite-token'],
-    })).toEqual({
+    expect(
+      resolveSeatAssignment({
+        presentedToken: null,
+        disconnectedPlayer: null,
+        seatOpen: [true, true],
+        playerTokens: ['creator-token', null],
+        inviteTokens: [null, 'invite-token'],
+      }),
+    ).toEqual({
       type: 'reject',
       status: 403,
       message: 'Join token required',
     });
 
-    expect(resolveSeatAssignment({
-      presentedToken: 'invite-token',
-      disconnectedPlayer: null,
-      seatOpen: [true, true],
-      playerTokens: ['creator-token', null],
-      inviteTokens: [null, 'invite-token'],
-    })).toEqual({
+    expect(
+      resolveSeatAssignment({
+        presentedToken: 'invite-token',
+        disconnectedPlayer: null,
+        seatOpen: [true, true],
+        playerTokens: ['creator-token', null],
+        inviteTokens: [null, 'invite-token'],
+      }),
+    ).toEqual({
       type: 'join',
       playerId: 1,
       issueNewToken: true,
@@ -178,13 +206,15 @@ describe('seat assignment', () => {
   });
 
   it('rejects invalid tokens', () => {
-    expect(resolveSeatAssignment({
-      presentedToken: 'bad-token',
-      disconnectedPlayer: null,
-      seatOpen: [true, true],
-      playerTokens: ['creator-token', null],
-      inviteTokens: [null, 'invite-token'],
-    })).toEqual({
+    expect(
+      resolveSeatAssignment({
+        presentedToken: 'bad-token',
+        disconnectedPlayer: null,
+        seatOpen: [true, true],
+        playerTokens: ['creator-token', null],
+        inviteTokens: [null, 'invite-token'],
+      }),
+    ).toEqual({
       type: 'reject',
       status: 403,
       message: 'Invalid player token',
@@ -192,25 +222,29 @@ describe('seat assignment', () => {
   });
 
   it('requires the stored token to reclaim a disconnected seat', () => {
-    expect(resolveSeatAssignment({
-      presentedToken: null,
-      disconnectedPlayer: 1,
-      seatOpen: [false, true],
-      playerTokens: ['creator-token', 'guest-token'],
-      inviteTokens: [null, null],
-    })).toEqual({
+    expect(
+      resolveSeatAssignment({
+        presentedToken: null,
+        disconnectedPlayer: 1,
+        seatOpen: [false, true],
+        playerTokens: ['creator-token', 'guest-token'],
+        inviteTokens: [null, null],
+      }),
+    ).toEqual({
       type: 'reject',
       status: 403,
       message: 'Join token required',
     });
 
-    expect(resolveSeatAssignment({
-      presentedToken: 'guest-token',
-      disconnectedPlayer: 1,
-      seatOpen: [false, true],
-      playerTokens: ['creator-token', 'guest-token'],
-      inviteTokens: [null, null],
-    })).toEqual({
+    expect(
+      resolveSeatAssignment({
+        presentedToken: 'guest-token',
+        disconnectedPlayer: 1,
+        seatOpen: [false, true],
+        playerTokens: ['creator-token', 'guest-token'],
+        inviteTokens: [null, null],
+      }),
+    ).toEqual({
       type: 'join',
       playerId: 1,
       issueNewToken: false,

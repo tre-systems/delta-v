@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CombatResult, GameState, MovementEvent, OrdnanceMovement, S2C, Ship, ShipMovement } from '../shared/types';
-import type { ClientState } from './game-client-phase';
+import type {
+  CombatResult,
+  GameState,
+  MovementEvent,
+  OrdnanceMovement,
+  S2C,
+  Ship,
+  ShipMovement,
+} from '../shared/types';
 import { deriveClientMessagePlan } from './game-client-messages';
+import type { ClientState } from './game-client-phase';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
   return {
@@ -54,12 +62,14 @@ function derive(msg: S2C, currentState: ClientState = 'connecting') {
 
 describe('game-client-messages', () => {
   it('derives welcome handling from reconnect and current state', () => {
-    expect(derive({
-      type: 'welcome',
-      playerId: 1,
-      code: 'ABCDE',
-      playerToken: 'player-token',
-    })).toEqual({
+    expect(
+      derive({
+        type: 'welcome',
+        playerId: 1,
+        code: 'ABCDE',
+        playerToken: 'player-token',
+      }),
+    ).toEqual({
       kind: 'welcome',
       playerId: 1,
       code: 'ABCDE',
@@ -72,52 +82,66 @@ describe('game-client-messages', () => {
 
   it('derives game start, movement, combat, and state update plans', () => {
     const movementState = createState();
-    const movements: ShipMovement[] = [{
-      shipId: 'ship-0',
-      from: { q: 0, r: 0 },
-      to: { q: 1, r: 0 },
-      path: [],
-      newVelocity: { dq: 1, dr: 0 },
-      fuelSpent: 1,
-      gravityEffects: [],
-      crashed: false,
-      landedAt: null,
-    }];
+    const movements: ShipMovement[] = [
+      {
+        shipId: 'ship-0',
+        from: { q: 0, r: 0 },
+        to: { q: 1, r: 0 },
+        path: [],
+        newVelocity: { dq: 1, dr: 0 },
+        fuelSpent: 1,
+        gravityEffects: [],
+        crashed: false,
+        landedAt: null,
+      },
+    ];
     const ordnanceMovements: OrdnanceMovement[] = [];
     const events: MovementEvent[] = [];
-    const results: CombatResult[] = [{
-      attackerIds: ['ship-0'],
-      targetId: 'enemy',
-      targetType: 'ship',
-      attackType: 'gun',
-      odds: '1-1',
-      attackStrength: 1,
-      defendStrength: 1,
-      rangeMod: 0,
-      velocityMod: 0,
-      dieRoll: 3,
-      modifiedRoll: 3,
-      damageType: 'disabled',
-      disabledTurns: 1,
-      counterattack: null,
-    }];
+    const results: CombatResult[] = [
+      {
+        attackerIds: ['ship-0'],
+        targetId: 'enemy',
+        targetType: 'ship',
+        attackType: 'gun',
+        odds: '1-1',
+        attackStrength: 1,
+        defendStrength: 1,
+        rangeMod: 0,
+        velocityMod: 0,
+        dieRoll: 3,
+        modifiedRoll: 3,
+        damageType: 'disabled',
+        disabledTurns: 1,
+        counterattack: null,
+      },
+    ];
 
-    expect(derive({
-      type: 'gameStart',
-      state: createState({ phase: 'fleetBuilding' }),
-    }, 'waitingForOpponent')).toEqual({
+    expect(
+      derive(
+        {
+          type: 'gameStart',
+          state: createState({ phase: 'fleetBuilding' }),
+        },
+        'waitingForOpponent',
+      ),
+    ).toEqual({
       kind: 'gameStart',
       state: createState({ phase: 'fleetBuilding' }),
       nextState: 'playing_fleetBuilding',
     });
 
-    expect(derive({
-      type: 'movementResult',
-      state: movementState,
-      movements,
-      ordnanceMovements,
-      events,
-    }, 'playing_astrogation')).toEqual({
+    expect(
+      derive(
+        {
+          type: 'movementResult',
+          state: movementState,
+          movements,
+          ordnanceMovements,
+          events,
+        },
+        'playing_astrogation',
+      ),
+    ).toEqual({
       kind: 'movementResult',
       state: movementState,
       movements,
@@ -125,21 +149,31 @@ describe('game-client-messages', () => {
       events,
     });
 
-    expect(derive({
-      type: 'combatResult',
-      state: movementState,
-      results,
-    }, 'playing_combat')).toEqual({
+    expect(
+      derive(
+        {
+          type: 'combatResult',
+          state: movementState,
+          results,
+        },
+        'playing_combat',
+      ),
+    ).toEqual({
       kind: 'combatResult',
       state: movementState,
       results,
       shouldTransition: true,
     });
 
-    expect(derive({
-      type: 'stateUpdate',
-      state: movementState,
-    }, 'playing_movementAnim')).toEqual({
+    expect(
+      derive(
+        {
+          type: 'stateUpdate',
+          state: movementState,
+        },
+        'playing_movementAnim',
+      ),
+    ).toEqual({
       kind: 'stateUpdate',
       state: movementState,
       shouldTransition: false,
@@ -147,11 +181,16 @@ describe('game-client-messages', () => {
   });
 
   it('derives endgame, rematch, disconnect, error, and pong plans', () => {
-    expect(derive({
-      type: 'gameOver',
-      winner: 1,
-      reason: 'Lost all ships',
-    }, 'playing_combat')).toEqual({
+    expect(
+      derive(
+        {
+          type: 'gameOver',
+          winner: 1,
+          reason: 'Lost all ships',
+        },
+        'playing_combat',
+      ),
+    ).toEqual({
       kind: 'gameOver',
       won: false,
       reason: 'Lost all ships',

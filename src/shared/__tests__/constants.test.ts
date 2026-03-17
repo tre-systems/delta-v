@@ -1,5 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { SHIP_STATS, ORDNANCE_MASS, ORDNANCE_LIFETIME, ORBITAL_BASE_MASS, DAMAGE_ELIMINATION_THRESHOLD } from '../constants';
+import { describe, expect, it } from 'vitest';
+import {
+  DAMAGE_ELIMINATION_THRESHOLD,
+  ORBITAL_BASE_MASS,
+  ORDNANCE_LIFETIME,
+  ORDNANCE_MASS,
+  SHIP_STATS,
+} from '../constants';
 
 describe('SHIP_STATS', () => {
   it('has all expected ship types', () => {
@@ -60,7 +66,7 @@ describe('SHIP_STATS', () => {
   });
 
   it('warship combat strength scales with cost', () => {
-    const warships = ['corvette', 'corsair', 'frigate', 'dreadnaught'].map(t => SHIP_STATS[t]);
+    const warships = ['corvette', 'corsair', 'frigate', 'dreadnaught'].map((t) => SHIP_STATS[t]);
     for (let i = 1; i < warships.length; i++) {
       expect(warships[i].combat).toBeGreaterThan(warships[i - 1].combat);
       expect(warships[i].cost).toBeGreaterThan(warships[i - 1].cost);

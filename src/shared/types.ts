@@ -2,7 +2,15 @@ import type { HexCoord, HexVec } from './hex';
 
 // --- Game state ---
 
-export type Phase = 'waiting' | 'fleetBuilding' | 'astrogation' | 'ordnance' | 'movement' | 'combat' | 'resupply' | 'gameOver';
+export type Phase =
+  | 'waiting'
+  | 'fleetBuilding'
+  | 'astrogation'
+  | 'ordnance'
+  | 'movement'
+  | 'combat'
+  | 'resupply'
+  | 'gameOver';
 
 export interface GameState {
   gameId: string;
@@ -243,7 +251,13 @@ export type S2C =
   | { type: 'welcome'; playerId: number; code: string; playerToken: string }
   | { type: 'matchFound' }
   | { type: 'gameStart'; state: GameState }
-  | { type: 'movementResult'; movements: ShipMovement[]; ordnanceMovements: OrdnanceMovement[]; events: MovementEvent[]; state: GameState }
+  | {
+      type: 'movementResult';
+      movements: ShipMovement[];
+      ordnanceMovements: OrdnanceMovement[];
+      events: MovementEvent[];
+      state: GameState;
+    }
   | { type: 'combatResult'; results: CombatResult[]; state: GameState }
   | { type: 'stateUpdate'; state: GameState }
   | { type: 'gameOver'; winner: number; reason: string }

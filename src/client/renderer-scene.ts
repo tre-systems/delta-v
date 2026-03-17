@@ -4,12 +4,7 @@
  * Pure functions extracted from Renderer — no class state dependencies.
  */
 
-import {
-  type HexCoord,
-  hexToPixel,
-  hexAdd,
-  HEX_DIRECTIONS,
-} from '../shared/hex';
+import { HEX_DIRECTIONS, hexAdd, hexToPixel } from '../shared/hex';
 import type { GameState, SolarSystemMap } from '../shared/types';
 import {
   buildAsteroidDebrisView,
@@ -56,11 +51,7 @@ const HEX_OFFSETS: [number, number][] = (() => {
   return offsets;
 })();
 
-export function renderStars(
-  ctx: CanvasRenderingContext2D,
-  stars: Star[],
-  zoom: number,
-): void {
+export function renderStars(ctx: CanvasRenderingContext2D, stars: Star[], zoom: number): void {
   for (const star of stars) {
     ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness * 0.6})`;
     ctx.beginPath();
@@ -85,10 +76,10 @@ export function renderHexGrid(
     hexToPixel({ q: minQ, r: maxR }, size),
     hexToPixel({ q: maxQ, r: maxR }, size),
   ];
-  const pxMinX = Math.min(...corners.map(c => c.x)) - size;
-  const pxMaxX = Math.max(...corners.map(c => c.x)) + size;
-  const pxMinY = Math.min(...corners.map(c => c.y)) - size;
-  const pxMaxY = Math.max(...corners.map(c => c.y)) + size;
+  const pxMinX = Math.min(...corners.map((c) => c.x)) - size;
+  const pxMaxX = Math.max(...corners.map((c) => c.x)) + size;
+  const pxMinY = Math.min(...corners.map((c) => c.y)) - size;
+  const pxMaxY = Math.max(...corners.map((c) => c.y)) + size;
   const qPad = Math.ceil((maxR - minR) / 2) + 2;
   ctx.beginPath();
   for (let q = minQ - qPad; q <= maxQ + qPad; q++) {
@@ -119,16 +110,11 @@ export function renderGravityIndicators(
     const dir = HEX_DIRECTIONS[hex.gravity.direction];
     const target = hexToPixel(hexAdd({ q, r }, dir), hexSize);
 
-    ctx.strokeStyle = hex.gravity.strength === 'weak'
-      ? 'rgba(100, 140, 255, 0.12)'
-      : 'rgba(100, 140, 255, 0.2)';
+    ctx.strokeStyle = hex.gravity.strength === 'weak' ? 'rgba(100, 140, 255, 0.12)' : 'rgba(100, 140, 255, 0.2)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(p.x, p.y);
-    ctx.lineTo(
-      p.x + (target.x - p.x) * 0.4,
-      p.y + (target.y - p.y) * 0.4,
-    );
+    ctx.lineTo(p.x + (target.x - p.x) * 0.4, p.y + (target.y - p.y) * 0.4);
     ctx.stroke();
 
     const ax = p.x + (target.x - p.x) * 0.4;
@@ -144,12 +130,7 @@ export function renderGravityIndicators(
   }
 }
 
-export function renderBodies(
-  ctx: CanvasRenderingContext2D,
-  map: SolarSystemMap,
-  hexSize: number,
-  now: number,
-): void {
+export function renderBodies(ctx: CanvasRenderingContext2D, map: SolarSystemMap, hexSize: number, now: number): void {
   for (const body of map.bodies) {
     const view = buildBodyView(body, hexSize, now);
     const p = view.center;
@@ -237,12 +218,7 @@ export function renderMapBorder(
   hexSize: number,
   now: number,
 ): void {
-  const borderView = buildMapBorderView(
-    map.bounds,
-    Boolean(state.players[playerId]?.escapeWins),
-    now,
-    hexSize,
-  );
+  const borderView = buildMapBorderView(map.bounds, Boolean(state.players[playerId]?.escapeWins), now, hexSize);
   ctx.strokeStyle = borderView.strokeStyle;
   ctx.lineWidth = borderView.lineWidth;
   ctx.setLineDash(borderView.lineDash);

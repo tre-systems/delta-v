@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-
-import { buildSolarSystemMap } from '../shared/map-data';
 import { hexKey } from '../shared/hex';
+import { buildSolarSystemMap } from '../shared/map-data';
 import type { GameState, GravityEffect, PlayerState, Ship } from '../shared/types';
 import { buildAstrogationCoursePreviewViews, type CoursePreviewPlanningState } from './renderer-course';
 

@@ -27,16 +27,11 @@ export interface HudViewModel {
   fleetStatus: string;
 }
 
-type PlanningSnapshot = Pick<
-  PlanningState,
-  'selectedShipId' | 'burns' | 'overloads' | 'weakGravityChoices'
->;
+type PlanningSnapshot = Pick<PlanningState, 'selectedShipId' | 'burns' | 'overloads' | 'weakGravityChoices'>;
 
 function getSelectedShip(state: GameState, playerId: number, selectedId: string | null) {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
-  return myShips.find((ship) => ship.id === selectedId)
-    ?? myShips.find((ship) => !ship.destroyed)
-    ?? null;
+  return myShips.find((ship) => ship.id === selectedId) ?? myShips.find((ship) => !ship.destroyed) ?? null;
 }
 
 function getObjective(state: GameState, playerId: number): string {
@@ -107,11 +102,7 @@ export function buildAstrogationOrders(
     });
 }
 
-export function deriveHudViewModel(
-  state: GameState,
-  playerId: number,
-  planning: PlanningSnapshot,
-): HudViewModel {
+export function deriveHudViewModel(state: GameState, playerId: number, planning: PlanningSnapshot): HudViewModel {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
   const selectedShip = getSelectedShip(state, playerId, planning.selectedShipId);
   const stats = selectedShip ? SHIP_STATS[selectedShip.type] : null;
@@ -128,9 +119,8 @@ export function deriveHudViewModel(
     cargoMax: stats?.cargo ?? 0,
     objective: getObjective(state, playerId),
     canOverload: stats?.canOverload ?? false,
-    canEmplaceBase: selectedShip?.carryingOrbitalBase === true
-      && !selectedShip.destroyed
-      && !selectedShip.resuppliedThisTurn,
+    canEmplaceBase:
+      selectedShip?.carryingOrbitalBase === true && !selectedShip.destroyed && !selectedShip.resuppliedThisTurn,
     fleetStatus: getFleetStatus(state, playerId),
   };
 }
@@ -153,7 +143,9 @@ export function getScenarioBriefingLines(state: GameState, playerId: number): st
   const shipNames = myShips.map((ship) => SHIP_STATS[ship.type]?.name ?? ship.type).join(', ');
   const lines = [`Your fleet: ${shipNames}`];
   if (state.scenarioRules.checkpointBodies) {
-    lines.push(`Objective: Visit all ${state.scenarioRules.checkpointBodies.length} major bodies, then land on ${player.homeBody}`);
+    lines.push(
+      `Objective: Visit all ${state.scenarioRules.checkpointBodies.length} major bodies, then land on ${player.homeBody}`,
+    );
     lines.push('No combat — race only');
     lines.push('Press ? for controls help');
     return lines;

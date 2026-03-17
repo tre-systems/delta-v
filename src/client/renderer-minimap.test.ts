@@ -49,9 +49,33 @@ function createState(): GameState {
       createShip({ id: 'destroyed', owner: 0, destroyed: true }),
     ],
     ordnance: [
-      { id: 'nuke', type: 'nuke', owner: 0, position: { q: 1, r: 1 }, velocity: { dq: 0, dr: 0 }, turnsRemaining: 2, destroyed: false },
-      { id: 'mine', type: 'mine', owner: 1, position: { q: 2, r: 2 }, velocity: { dq: 0, dr: 0 }, turnsRemaining: 3, destroyed: false },
-      { id: 'gone', type: 'torpedo', owner: 1, position: { q: 3, r: 3 }, velocity: { dq: 0, dr: 0 }, turnsRemaining: 1, destroyed: true },
+      {
+        id: 'nuke',
+        type: 'nuke',
+        owner: 0,
+        position: { q: 1, r: 1 },
+        velocity: { dq: 0, dr: 0 },
+        turnsRemaining: 2,
+        destroyed: false,
+      },
+      {
+        id: 'mine',
+        type: 'mine',
+        owner: 1,
+        position: { q: 2, r: 2 },
+        velocity: { dq: 0, dr: 0 },
+        turnsRemaining: 3,
+        destroyed: false,
+      },
+      {
+        id: 'gone',
+        type: 'torpedo',
+        owner: 1,
+        position: { q: 3, r: 3 },
+        velocity: { dq: 0, dr: 0 },
+        turnsRemaining: 1,
+        destroyed: true,
+      },
     ],
     pendingAstrogationOrders: null,
     pendingAsteroidHazards: [],
@@ -72,22 +96,30 @@ describe('renderer minimap helpers', () => {
     const state = createState();
     const layout = createMinimapLayout(map.bounds, 1200, 800, 28);
     const shipTrails = new Map([
-      ['friendly', [{ q: 0, r: 0 }, { q: 1, r: 0 }]],
-      ['enemy-visible', [{ q: 2, r: -1 }, { q: 3, r: -1 }]],
-      ['enemy-hidden', [{ q: 3, r: -2 }, { q: 4, r: -2 }]],
+      [
+        'friendly',
+        [
+          { q: 0, r: 0 },
+          { q: 1, r: 0 },
+        ],
+      ],
+      [
+        'enemy-visible',
+        [
+          { q: 2, r: -1 },
+          { q: 3, r: -1 },
+        ],
+      ],
+      [
+        'enemy-hidden',
+        [
+          { q: 3, r: -2 },
+          { q: 4, r: -2 },
+        ],
+      ],
     ]);
 
-    const scene = buildMinimapSceneView(
-      map,
-      state,
-      0,
-      shipTrails,
-      layout,
-      { x: 0, y: 0, zoom: 1.5 },
-      1200,
-      800,
-      28,
-    );
+    const scene = buildMinimapSceneView(map, state, 0, shipTrails, layout, { x: 0, y: 0, zoom: 1.5 }, 1200, 800, 28);
 
     expect(scene.bodies).toHaveLength(2);
     expect(scene.bodies[0]).toMatchObject({ color: '#cc4422', alpha: 0.7 });
@@ -113,17 +145,7 @@ describe('renderer minimap helpers', () => {
     const state = createState();
     const layout = createMinimapLayout(map.bounds, 1200, 800, 28);
 
-    const scene = buildMinimapSceneView(
-      map,
-      state,
-      0,
-      new Map(),
-      layout,
-      { x: 0, y: 0, zoom: 1000 },
-      1,
-      1,
-      28,
-    );
+    const scene = buildMinimapSceneView(map, state, 0, new Map(), layout, { x: 0, y: 0, zoom: 1000 }, 1, 1, 28);
 
     expect(scene.viewport).toBeNull();
   });

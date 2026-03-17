@@ -38,7 +38,7 @@ describe('ui hud helpers', () => {
     });
 
     expect(buildHUDView(5, 'combat', false, 5, 10)).toMatchObject({
-      phaseText: 'OPPONENT\'S TURN',
+      phaseText: "OPPONENT'S TURN",
       statusText: 'Waiting for opponent...',
       skipCombatVisible: false,
       confirmVisible: false,

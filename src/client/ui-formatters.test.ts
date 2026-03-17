@@ -51,16 +51,13 @@ describe('ui formatters', () => {
     });
     expect(getPhaseAlertCopy('combat', false)).toEqual({
       title: 'Combat',
-      subtitle: 'OPPONENT\'S TURN',
+      subtitle: "OPPONENT'S TURN",
       subtitleColor: 'var(--warning)',
     });
   });
 
   it('formats movement event entries including captures', () => {
-    const ships = [
-      createShip({ id: 'a', type: 'corsair' }),
-      createShip({ id: 'b', type: 'corvette', owner: 1 }),
-    ];
+    const ships = [createShip({ id: 'a', type: 'corsair' }), createShip({ id: 'b', type: 'corvette', owner: 1 })];
     const capture: MovementEvent = {
       type: 'capture',
       shipId: 'b',

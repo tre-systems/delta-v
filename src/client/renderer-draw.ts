@@ -3,13 +3,8 @@
  * Pure functions extracted from Renderer — no class state dependencies.
  */
 
-import {
-  type HexCoord,
-  type PixelCoord,
-  hexToPixel,
-  hexAdd,
-} from '../shared/hex';
 import { SHIP_STATS } from '../shared/constants';
+import { type HexCoord, hexAdd, hexToPixel, type PixelCoord } from '../shared/hex';
 
 /**
  * Draw a ship icon (arrow or octagon for orbital base) at the given position.
@@ -116,9 +111,7 @@ export function interpolatePath(path: HexCoord[], progress: number, hexSize: num
   if (path.length <= 1) return hexToPixel(path[0], hexSize);
 
   // Ease in-out
-  const t = progress < 0.5
-    ? 2 * progress * progress
-    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+  const t = progress < 0.5 ? 2 * progress * progress : 1 - (-2 * progress + 2) ** 2 / 2;
 
   const totalSegments = path.length - 1;
   const pathT = t * totalSegments;

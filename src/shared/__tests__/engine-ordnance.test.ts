@@ -1,10 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { ORBITAL_BASE_MASS } from '../constants';
 import { processEmplacement } from '../engine-ordnance';
 import { createGame } from '../game-engine';
-import { buildSolarSystemMap, SCENARIOS, findBaseHex } from '../map-data';
-import { hexKey, hexVecLength } from '../hex';
-import { ORBITAL_BASE_MASS } from '../constants';
-import type { GameState, SolarSystemMap, Ship } from '../types';
+import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
+import type { GameState, Ship, SolarSystemMap } from '../types';
 
 let map: SolarSystemMap;
 
@@ -12,7 +11,12 @@ function createConvoyGame(): GameState {
   return createGame(SCENARIOS.convoy, map, 'TEST', findBaseHex);
 }
 
-function makeTransportWithBase(state: GameState, playerId: number, position: { q: number; r: number }, velocity: { dq: number; dr: number }): Ship {
+function makeTransportWithBase(
+  state: GameState,
+  playerId: number,
+  position: { q: number; r: number },
+  velocity: { dq: number; dr: number },
+): Ship {
   const ship: Ship = {
     id: `test-transport-${state.ships.length}`,
     type: 'transport',

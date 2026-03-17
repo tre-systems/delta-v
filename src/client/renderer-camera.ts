@@ -1,5 +1,5 @@
-import type { PixelCoord } from '../shared/hex';
 import { CAMERA_LERP_SPEED } from '../shared/constants';
+import type { PixelCoord } from '../shared/hex';
 
 export class Camera {
   x = 0;

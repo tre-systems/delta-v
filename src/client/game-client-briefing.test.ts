@@ -65,20 +65,27 @@ describe('game-client-briefing', () => {
   });
 
   it('classifies escape and hidden-identity objective variants', () => {
-    expect(deriveScenarioBriefingEntries(createState({
-      ships: [createShip({ hasFugitives: true }), createShip({ id: 'enemy', owner: 1 })],
-    }), 0)[1]).toEqual({
+    expect(
+      deriveScenarioBriefingEntries(
+        createState({
+          ships: [createShip({ hasFugitives: true }), createShip({ id: 'enemy', owner: 1 })],
+        }),
+        0,
+      )[1],
+    ).toEqual({
       text: 'Objective: Get the ★ ship off the map!',
       cssClass: 'log-landed',
     });
 
-    expect(deriveScenarioBriefingEntries(createState({
-      scenarioRules: { hiddenIdentityInspection: true },
-      players: [
-        { ...createPlayers()[0], targetBody: '' },
-        createPlayers()[1],
-      ],
-    }), 0)[1]).toEqual({
+    expect(
+      deriveScenarioBriefingEntries(
+        createState({
+          scenarioRules: { hiddenIdentityInspection: true },
+          players: [{ ...createPlayers()[0], targetBody: '' }, createPlayers()[1]],
+        }),
+        0,
+      )[1],
+    ).toEqual({
       text: 'Objective: Inspect transports, then capture or destroy the fugitives.',
       cssClass: 'log-damage',
     });

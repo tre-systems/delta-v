@@ -5,9 +5,9 @@ import {
   countRemainingCombatAttackers,
   createClearedCombatPlan,
   createCombatTargetPlan,
+  getAttackStrengthForSelection,
   getCombatAttackerIdAtHex,
   getCombatTargetAtHex,
-  getAttackStrengthForSelection,
   getLegalCombatAttackers,
   getReusableCombatGroup,
   hasSplitFireOptions,
@@ -104,13 +104,20 @@ describe('game client combat helpers', () => {
   it('builds a ship attack from selected legal attackers and clamps requested strength', () => {
     const state = createState();
 
-    expect(buildCurrentAttack(state, 0, {
-      combatTargetId: 'x',
-      combatTargetType: 'ship',
-      combatAttackerIds: ['a'],
-      combatAttackStrength: 99,
-      queuedAttacks: [],
-    }, map)).toEqual({
+    expect(
+      buildCurrentAttack(
+        state,
+        0,
+        {
+          combatTargetId: 'x',
+          combatTargetType: 'ship',
+          combatAttackerIds: ['a'],
+          combatAttackStrength: 99,
+          queuedAttacks: [],
+        },
+        map,
+      ),
+    ).toEqual({
       attackerIds: ['a'],
       targetId: 'x',
       targetType: 'ship',
@@ -121,13 +128,20 @@ describe('game client combat helpers', () => {
   it('builds an ordnance interception attack against an enemy nuke', () => {
     const state = createState({ ordnance: [createOrdnance()] });
 
-    expect(buildCurrentAttack(state, 0, {
-      combatTargetId: 'ord-0',
-      combatTargetType: 'ordnance',
-      combatAttackerIds: [],
-      combatAttackStrength: null,
-      queuedAttacks: [],
-    }, map)).toEqual({
+    expect(
+      buildCurrentAttack(
+        state,
+        0,
+        {
+          combatTargetId: 'ord-0',
+          combatTargetType: 'ordnance',
+          combatAttackerIds: [],
+          combatAttackStrength: null,
+          queuedAttacks: [],
+        },
+        map,
+      ),
+    ).toEqual({
       attackerIds: ['a', 'b'],
       targetId: 'ord-0',
       targetType: 'ordnance',
@@ -172,13 +186,22 @@ describe('game client combat helpers', () => {
       { attackerIds: ['a', 'b'], targetId: 'x', targetType: 'ship', attackStrength: 3 },
     ];
 
-    expect(createCombatTargetPlan(state, 0, {
-      combatTargetId: null,
-      combatTargetType: null,
-      combatAttackerIds: [],
-      combatAttackStrength: null,
-      queuedAttacks,
-    }, 'y', 'ship', map)).toEqual({
+    expect(
+      createCombatTargetPlan(
+        state,
+        0,
+        {
+          combatTargetId: null,
+          combatTargetType: null,
+          combatAttackerIds: [],
+          combatAttackStrength: null,
+          queuedAttacks,
+        },
+        'y',
+        'ship',
+        map,
+      ),
+    ).toEqual({
       combatTargetId: 'y',
       combatTargetType: 'ship',
       combatAttackerIds: ['a', 'b'],
@@ -203,17 +226,28 @@ describe('game client combat helpers', () => {
       queuedAttacks: [],
     };
 
-    expect(getLegalCombatAttackers(state, 0, planning.queuedAttacks, 'x', 'ship', map).map((ship) => ship.id)).toEqual(['a', 'b']);
+    expect(getLegalCombatAttackers(state, 0, planning.queuedAttacks, 'x', 'ship', map).map((ship) => ship.id)).toEqual([
+      'a',
+      'b',
+    ]);
     expect(toggleCombatAttackerSelection(state, 0, planning, map, 'b')).toEqual({
       consumed: true,
       combatAttackerIds: ['a'],
       combatAttackStrength: 4,
     });
-    expect(toggleCombatAttackerSelection(state, 0, {
-      ...planning,
-      combatAttackerIds: ['a'],
-      combatAttackStrength: 4,
-    }, map, 'a')).toEqual({
+    expect(
+      toggleCombatAttackerSelection(
+        state,
+        0,
+        {
+          ...planning,
+          combatAttackerIds: ['a'],
+          combatAttackStrength: 4,
+        },
+        map,
+        'a',
+      ),
+    ).toEqual({
       consumed: true,
       combatAttackerIds: ['a'],
       combatAttackStrength: 4,

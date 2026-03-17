@@ -1,14 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { buildSolarSystemMap } from '../shared/map-data';
-import type {
-  AstrogationOrder,
-  CombatAttack,
-  GameState,
-  OrdnanceLaunch,
-  PlayerState,
-  Ship,
-} from '../shared/types';
+import type { AstrogationOrder, CombatAttack, GameState, OrdnanceLaunch, PlayerState, Ship } from '../shared/types';
 import { deriveAIActionPlan } from './game-client-ai-flow';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
@@ -76,11 +69,13 @@ describe('game-client-ai-flow', () => {
     const orders: AstrogationOrder[] = [{ shipId: 'ai-ship', burn: 2 }];
     const astrogation = vi.fn(() => orders);
 
-    expect(deriveAIActionPlan(createState({ phase: 'astrogation' }), 0, map, 'normal', {
-      astrogation,
-      ordnance: vi.fn(() => []),
-      combat: vi.fn(() => []),
-    })).toEqual({
+    expect(
+      deriveAIActionPlan(createState({ phase: 'astrogation' }), 0, map, 'normal', {
+        astrogation,
+        ordnance: vi.fn(() => []),
+        combat: vi.fn(() => []),
+      }),
+    ).toEqual({
       kind: 'astrogation',
       aiPlayer: 1,
       orders,
@@ -92,11 +87,13 @@ describe('game-client-ai-flow', () => {
     const map = buildSolarSystemMap();
     const launches: OrdnanceLaunch[] = [{ shipId: 'ai-ship', ordnanceType: 'mine' }];
 
-    expect(deriveAIActionPlan(createState({ phase: 'ordnance' }), 0, map, 'normal', {
-      astrogation: vi.fn(() => []),
-      ordnance: vi.fn(() => launches),
-      combat: vi.fn(() => []),
-    })).toEqual({
+    expect(
+      deriveAIActionPlan(createState({ phase: 'ordnance' }), 0, map, 'normal', {
+        astrogation: vi.fn(() => []),
+        ordnance: vi.fn(() => launches),
+        combat: vi.fn(() => []),
+      }),
+    ).toEqual({
       kind: 'ordnance',
       aiPlayer: 1,
       launches,
@@ -105,11 +102,13 @@ describe('game-client-ai-flow', () => {
       errorPrefix: 'AI ordnance error:',
     });
 
-    expect(deriveAIActionPlan(createState({ phase: 'ordnance' }), 0, map, 'normal', {
-      astrogation: vi.fn(() => []),
-      ordnance: vi.fn(() => []),
-      combat: vi.fn(() => []),
-    })).toEqual({
+    expect(
+      deriveAIActionPlan(createState({ phase: 'ordnance' }), 0, map, 'normal', {
+        astrogation: vi.fn(() => []),
+        ordnance: vi.fn(() => []),
+        combat: vi.fn(() => []),
+      }),
+    ).toEqual({
       kind: 'ordnance',
       aiPlayer: 1,
       launches: [],
@@ -123,20 +122,29 @@ describe('game-client-ai-flow', () => {
     const map = buildSolarSystemMap();
     const attacks: CombatAttack[] = [{ attackerIds: ['ai-ship'], targetId: 'player-ship' }];
 
-    expect(deriveAIActionPlan(createState({
-      phase: 'combat',
-      pendingAsteroidHazards: [{ shipId: 'ai-ship', hex: { q: 0, r: 0 } }],
-    }), 0, map, 'normal')).toEqual({
+    expect(
+      deriveAIActionPlan(
+        createState({
+          phase: 'combat',
+          pendingAsteroidHazards: [{ shipId: 'ai-ship', hex: { q: 0, r: 0 } }],
+        }),
+        0,
+        map,
+        'normal',
+      ),
+    ).toEqual({
       kind: 'beginCombat',
       aiPlayer: 1,
       errorPrefix: 'AI combat start error:',
     });
 
-    expect(deriveAIActionPlan(createState({ phase: 'combat' }), 0, map, 'normal', {
-      astrogation: vi.fn(() => []),
-      ordnance: vi.fn(() => []),
-      combat: vi.fn(() => attacks),
-    })).toEqual({
+    expect(
+      deriveAIActionPlan(createState({ phase: 'combat' }), 0, map, 'normal', {
+        astrogation: vi.fn(() => []),
+        ordnance: vi.fn(() => []),
+        combat: vi.fn(() => attacks),
+      }),
+    ).toEqual({
       kind: 'combat',
       aiPlayer: 1,
       attacks,
@@ -144,11 +152,13 @@ describe('game-client-ai-flow', () => {
       errorPrefix: 'AI combat error:',
     });
 
-    expect(deriveAIActionPlan(createState({ phase: 'combat' }), 0, map, 'normal', {
-      astrogation: vi.fn(() => []),
-      ordnance: vi.fn(() => []),
-      combat: vi.fn(() => []),
-    })).toEqual({
+    expect(
+      deriveAIActionPlan(createState({ phase: 'combat' }), 0, map, 'normal', {
+        astrogation: vi.fn(() => []),
+        ordnance: vi.fn(() => []),
+        combat: vi.fn(() => []),
+      }),
+    ).toEqual({
       kind: 'combat',
       aiPlayer: 1,
       attacks: [],

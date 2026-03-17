@@ -1,10 +1,10 @@
 import type { CombatResult, GameState, MovementEvent, OrdnanceMovement, S2C, ShipMovement } from '../shared/types';
-import type { ClientState } from './game-client-phase';
 import {
   deriveGameStartClientState,
   deriveWelcomeHandling,
   shouldTransitionAfterStateUpdate,
 } from './game-client-network';
+import type { ClientState } from './game-client-phase';
 
 export type ClientMessagePlan =
   | {

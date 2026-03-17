@@ -69,11 +69,7 @@ describe('renderer entity helpers', () => {
   });
 
   it('builds stack offsets for ships sharing a hex', () => {
-    const offsets = getShipStackOffsets([
-      createShip({ id: 'a' }),
-      createShip({ id: 'b' }),
-      createShip({ id: 'c' }),
-    ]);
+    const offsets = getShipStackOffsets([createShip({ id: 'a' }), createShip({ id: 'b' }), createShip({ id: 'c' })]);
 
     expect(offsets.get('a')).toEqual({ xOffset: -16, labelYOffset: 24 });
     expect(offsets.get('b')).toEqual({ xOffset: 0, labelYOffset: 35 });
@@ -81,23 +77,13 @@ describe('renderer entity helpers', () => {
   });
 
   it('builds owner and enemy ship labels with orbit status', () => {
-    expect(buildShipLabelView(
-      createShip({ velocity: { dq: 1, dr: 0 } }),
-      0,
-      true,
-      false,
-    )).toMatchObject({
+    expect(buildShipLabelView(createShip({ velocity: { dq: 1, dr: 0 } }), 0, true, false)).toMatchObject({
       typeName: 'Packet',
       statusTag: 'Orbit',
       typeColor: 'rgba(255, 255, 255, 0.7)',
     });
 
-    expect(buildShipLabelView(
-      createShip({ owner: 1, detected: true }),
-      0,
-      false,
-      false,
-    )).toMatchObject({
+    expect(buildShipLabelView(createShip({ owner: 1, detected: true }), 0, false, false)).toMatchObject({
       typeName: 'Packet',
       typeColor: 'rgba(255, 171, 145, 0.5)',
       statusTag: null,
@@ -105,36 +91,21 @@ describe('renderer entity helpers', () => {
   });
 
   it('derives ship markers and disabled status labels', () => {
-    expect(getShipIdentityMarker(
-      createShip({ hasFugitives: true }),
-      0,
-      true,
-      false,
-    )).toBe('friendlyFugitive');
+    expect(getShipIdentityMarker(createShip({ hasFugitives: true }), 0, true, false)).toBe('friendlyFugitive');
 
-    expect(getShipIdentityMarker(
-      createShip({ owner: 1, identityRevealed: true, hasFugitives: true }),
-      0,
-      true,
-      false,
-    )).toBe('enemyFugitive');
+    expect(
+      getShipIdentityMarker(createShip({ owner: 1, identityRevealed: true, hasFugitives: true }), 0, true, false),
+    ).toBe('enemyFugitive');
 
-    expect(getShipIdentityMarker(
-      createShip({ owner: 1, identityRevealed: true, hasFugitives: false }),
-      0,
-      true,
-      false,
-    )).toBe('enemyDecoy');
+    expect(
+      getShipIdentityMarker(createShip({ owner: 1, identityRevealed: true, hasFugitives: false }), 0, true, false),
+    ).toBe('enemyDecoy');
 
     expect(getDisabledShipLabel(createShip({ damage: { disabledTurns: 3 } }), false)).toBe('DISABLED: 3T');
   });
 
   it('derives orbit, heading, and ordnance overlays', () => {
-    expect(shouldShowOrbitIndicator(
-      createShip({ velocity: { dq: 1, dr: 0 } }),
-      true,
-      false,
-    )).toBe(true);
+    expect(shouldShowOrbitIndicator(createShip({ velocity: { dq: 1, dr: 0 } }), true, false)).toBe(true);
     expect(getShipHeading({ q: 0, r: 0 }, { dq: 1, dr: 0 }, 28)).toBeCloseTo(Math.PI / 6, 4);
 
     expect(getOrdnanceLifetimeView(1, false)).toEqual({

@@ -36,37 +36,29 @@ describe('game-client-screen', () => {
   });
 
   it('recovers or preserves invite links on the waiting screen', () => {
-    expect(deriveClientScreenPlan(
-      'waitingForOpponent',
-      'ABCDE',
-      null,
-      'invite-token',
-      'https://delta-v.example',
-    )).toEqual({
+    expect(
+      deriveClientScreenPlan('waitingForOpponent', 'ABCDE', null, 'invite-token', 'https://delta-v.example'),
+    ).toEqual({
       kind: 'waiting',
       code: 'ABCDE',
       inviteLink: 'https://delta-v.example/?code=ABCDE&playerToken=invite-token',
     });
 
-    expect(deriveClientScreenPlan(
-      'waitingForOpponent',
-      'ABCDE',
-      'https://saved.example/invite',
-      'invite-token',
-      'https://delta-v.example',
-    )).toEqual({
+    expect(
+      deriveClientScreenPlan(
+        'waitingForOpponent',
+        'ABCDE',
+        'https://saved.example/invite',
+        'invite-token',
+        'https://delta-v.example',
+      ),
+    ).toEqual({
       kind: 'waiting',
       code: 'ABCDE',
       inviteLink: 'https://saved.example/invite',
     });
 
-    expect(deriveClientScreenPlan(
-      'waitingForOpponent',
-      null,
-      null,
-      null,
-      'https://delta-v.example',
-    )).toEqual({
+    expect(deriveClientScreenPlan('waitingForOpponent', null, null, null, 'https://delta-v.example')).toEqual({
       kind: 'waiting',
       code: '',
       inviteLink: null,

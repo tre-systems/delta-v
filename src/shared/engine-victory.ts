@@ -1,11 +1,14 @@
-import type { GameState, Ship, SolarSystemMap, MovementEvent } from './types';
-import { type HexCoord, hexKey, hexVecLength, hexDistance, hexEqual } from './hex';
-import { SHIP_STATS, SHIP_DETECTION_RANGE, BASE_DETECTION_RANGE } from './constants';
-import { rollD6, lookupOtherDamage, applyDamage } from './combat';
+import { applyDamage, lookupOtherDamage, rollD6 } from './combat';
+import { BASE_DETECTION_RANGE, SHIP_DETECTION_RANGE, SHIP_STATS } from './constants';
 import {
-  playerControlsBase, usesEscapeInspectionRules, getEscapeEdge,
-  hasEscaped, hasEscapedNorth,
+  getEscapeEdge,
+  hasEscaped,
+  hasEscapedNorth,
+  playerControlsBase,
+  usesEscapeInspectionRules,
 } from './engine-util';
+import { type HexCoord, hexDistance, hexEqual, hexKey, hexVecLength } from './hex';
+import type { GameState, MovementEvent, Ship, SolarSystemMap } from './types';
 
 /**
  * Advance to the next player's turn after combat/resupply.
@@ -59,9 +62,7 @@ export function checkImmediateVictory(state: GameState, map?: SolarSystemMap): v
       if (ship.destroyed || !ship.landed) continue;
       const player = state.players[ship.owner];
       if (!player.visitedBodies) continue;
-      const allVisited = state.scenarioRules.checkpointBodies.every(
-        b => player.visitedBodies!.includes(b),
-      );
+      const allVisited = state.scenarioRules.checkpointBodies.every((b) => player.visitedBodies!.includes(b));
       if (!allVisited) continue;
       const hex = map.hexes.get(hexKey(ship.position));
       if (hex?.base?.bodyName === player.homeBody || hex?.body?.name === player.homeBody) {
@@ -91,15 +92,16 @@ export function checkImmediateVictory(state: GameState, map?: SolarSystemMap): v
     if (!state.players[ship.owner].escapeWins) continue;
     if (!fugitiveHasEscaped(state, ship, map)) continue;
 
-    const hasFugitiveScenario = state.ships.some(s => s.owner === ship.owner && s.hasFugitives);
+    const hasFugitiveScenario = state.ships.some((s) => s.owner === ship.owner && s.hasFugitives);
     if (hasFugitiveScenario && !ship.hasFugitives) continue;
 
     state.winner = ship.owner;
     if (ship.hasFugitives) {
       const fuelNeededToStop = hexVecLength(ship.velocity) + 1;
-      state.winReason = ship.fuel >= fuelNeededToStop
-        ? 'Pilgrims decisive victory — the fugitives escaped beyond Jupiter with fuel to spare!'
-        : 'Pilgrims marginal victory — the fugitives escaped beyond Jupiter!';
+      state.winReason =
+        ship.fuel >= fuelNeededToStop
+          ? 'Pilgrims decisive victory — the fugitives escaped beyond Jupiter with fuel to spare!'
+          : 'Pilgrims marginal victory — the fugitives escaped beyond Jupiter!';
     } else {
       state.winReason = 'Escaped the solar system!';
     }
@@ -146,8 +148,8 @@ export function checkGameEnd(state: GameState, map?: SolarSystemMap): void {
     return;
   }
 
-  const alive0 = state.ships.filter(s => s.owner === 0 && !s.destroyed).length;
-  const alive1 = state.ships.filter(s => s.owner === 1 && !s.destroyed).length;
+  const alive0 = state.ships.filter((s) => s.owner === 0 && !s.destroyed).length;
+  const alive1 = state.ships.filter((s) => s.owner === 1 && !s.destroyed).length;
   if (alive0 === 0 && alive1 === 0) {
     state.winner = 1 - state.activePlayer;
     state.winReason = 'Mutual destruction — last attacker loses!';
@@ -169,7 +171,7 @@ export function checkGameEnd(state: GameState, map?: SolarSystemMap): void {
 }
 
 export function getFugitiveShip(state: GameState): Ship | undefined {
-  return state.ships.find(ship => ship.hasFugitives);
+  return state.ships.find((ship) => ship.hasFugitives);
 }
 
 export function updateEscapeMoralVictory(state: GameState): void {
@@ -177,16 +179,13 @@ export function updateEscapeMoralVictory(state: GameState): void {
     return;
   }
 
-  const fugitiveOwner = getFugitiveShip(state)?.owner
-    ?? state.players.findIndex(player => player.escapeWins);
+  const fugitiveOwner = getFugitiveShip(state)?.owner ?? state.players.findIndex((player) => player.escapeWins);
   if (fugitiveOwner < 0) {
     return;
   }
 
   const enforcerOwner = 1 - fugitiveOwner;
-  if (state.ships.some(ship =>
-    ship.owner === enforcerOwner && (ship.destroyed || ship.damage.disabledTurns > 0),
-  )) {
+  if (state.ships.some((ship) => ship.owner === enforcerOwner && (ship.destroyed || ship.damage.disabledTurns > 0))) {
     state.escapeMoralVictoryAchieved = true;
   }
 }
@@ -206,18 +205,16 @@ function hasReturnedCapturedFugitivesToBase(state: GameState, map: SolarSystemMa
   }
   const baseKey = hexKey(fugitive.position);
   const baseHex = map.hexes.get(baseKey);
-  return !!baseHex?.base && !state.destroyedBases.includes(baseKey) && playerControlsBase(state, fugitive.owner, baseKey);
+  return (
+    !!baseHex?.base && !state.destroyedBases.includes(baseKey) && playerControlsBase(state, fugitive.owner, baseKey)
+  );
 }
 
 /**
  * Check for ramming: opposing ships on the same hex after movement.
  */
-export function checkRamming(
-  state: GameState,
-  events: MovementEvent[],
-  rng?: () => number,
-): void {
-  const alive = state.ships.filter(s => !s.destroyed);
+export function checkRamming(state: GameState, events: MovementEvent[], rng?: () => number): void {
+  const alive = state.ships.filter((s) => !s.destroyed);
 
   for (let i = 0; i < alive.length; i++) {
     for (let j = i + 1; j < alive.length; j++) {
@@ -252,11 +249,8 @@ export function checkRamming(
 export function checkInspection(state: GameState, playerId: number): void {
   if (!usesEscapeInspectionRules(state)) return;
 
-  const inspectingShips = state.ships.filter(ship =>
-    ship.owner === playerId &&
-    !ship.destroyed &&
-    !ship.landed &&
-    ship.damage.disabledTurns === 0,
+  const inspectingShips = state.ships.filter(
+    (ship) => ship.owner === playerId && !ship.destroyed && !ship.landed && ship.damage.disabledTurns === 0,
   );
 
   for (const inspector of inspectingShips) {
@@ -273,13 +267,9 @@ export function checkInspection(state: GameState, playerId: number): void {
 /**
  * Check for capture: moving player's ship on same hex/velocity as disabled enemy.
  */
-export function checkCapture(
-  state: GameState,
-  playerId: number,
-  events: MovementEvent[],
-): void {
-  const playerShips = state.ships.filter(s =>
-    s.owner === playerId && !s.destroyed && !s.landed && s.damage.disabledTurns === 0,
+export function checkCapture(state: GameState, playerId: number, events: MovementEvent[]): void {
+  const playerShips = state.ships.filter(
+    (s) => s.owner === playerId && !s.destroyed && !s.landed && s.damage.disabledTurns === 0,
   );
 
   for (const captor of playerShips) {
@@ -311,8 +301,8 @@ export function checkCapture(
  * Check if any moving player's ships can resupply from friendly emplaced orbital bases.
  */
 export function checkOrbitalBaseResupply(state: GameState, playerId: number): void {
-  const orbitalBases = state.ships.filter(s =>
-    s.owner === playerId && !s.destroyed && s.emplaced && s.type === 'orbitalBase',
+  const orbitalBases = state.ships.filter(
+    (s) => s.owner === playerId && !s.destroyed && s.emplaced && s.type === 'orbitalBase',
   );
 
   for (const ship of state.ships) {

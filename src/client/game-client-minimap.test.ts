@@ -44,12 +44,14 @@ describe('game client minimap helpers', () => {
   it('clips viewport rectangles to the minimap border', () => {
     const layout = createMinimapLayout(bounds, 1024, 768, 28);
 
-    expect(clipViewportToMinimap(layout, {
-      x: layout.x - 10,
-      y: layout.y - 20,
-      width: 60,
-      height: 80,
-    })).toEqual({
+    expect(
+      clipViewportToMinimap(layout, {
+        x: layout.x - 10,
+        y: layout.y - 20,
+        width: 60,
+        height: 80,
+      }),
+    ).toEqual({
       x: layout.x + 1,
       y: layout.y + 1,
       width: 49,

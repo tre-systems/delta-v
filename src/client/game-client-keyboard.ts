@@ -1,10 +1,6 @@
 import type { ClientState } from './game-client-phase';
 
-const SHIP_SELECTION_STATES = new Set<ClientState>([
-  'playing_astrogation',
-  'playing_ordnance',
-  'playing_combat',
-]);
+const SHIP_SELECTION_STATES = new Set<ClientState>(['playing_astrogation', 'playing_ordnance', 'playing_combat']);
 
 const FOCUS_STATES = new Set<ClientState>([
   'playing_astrogation',
@@ -56,10 +52,7 @@ function createNoopAction(): KeyboardAction {
   return { kind: 'none', preventDefault: false };
 }
 
-export function deriveKeyboardAction(
-  context: KeyboardShortcutContext,
-  input: KeyboardShortcutInput,
-): KeyboardAction {
+export function deriveKeyboardAction(context: KeyboardShortcutContext, input: KeyboardShortcutInput): KeyboardAction {
   if (context.typingInInput) {
     return createNoopAction();
   }

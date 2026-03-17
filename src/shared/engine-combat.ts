@@ -1,18 +1,22 @@
-import type {
-  GameState, Ship, Ordnance, CombatAttack, CombatResult, SolarSystemMap,
-} from './types';
-import { hexKey, hexDistance } from './hex';
-import { SHIP_STATS } from './constants';
 import {
-  resolveCombat, resolveBaseDefense, canAttack, hasLineOfSight, hasLineOfSightToTarget,
-  hasBaseLineOfSight,
-  computeGroupRangeModToTarget, computeGroupVelocityModToTarget,
-  lookupGunCombat, rollD6,
   type CombatResolution,
+  canAttack,
+  computeGroupRangeModToTarget,
+  computeGroupVelocityModToTarget,
+  hasBaseLineOfSight,
+  hasLineOfSight,
+  hasLineOfSightToTarget,
+  lookupGunCombat,
+  resolveBaseDefense,
+  resolveCombat,
+  rollD6,
 } from './combat';
-import { isPlanetaryDefenseEnabled, getOwnedPlanetaryBases, hasAnyEnemyShips } from './engine-util';
-import { advanceTurn, checkGameEnd, updateEscapeMoralVictory } from './engine-victory';
+import { SHIP_STATS } from './constants';
 import { resolvePendingAsteroidHazards } from './engine-ordnance';
+import { getOwnedPlanetaryBases, hasAnyEnemyShips, isPlanetaryDefenseEnabled } from './engine-util';
+import { advanceTurn, checkGameEnd, updateEscapeMoralVictory } from './engine-victory';
+import { hexDistance, hexKey } from './hex';
+import type { CombatAttack, CombatResult, GameState, Ordnance, Ship, SolarSystemMap } from './types';
 
 export interface CombatPhaseResult {
   results: CombatResult[];
@@ -84,12 +88,15 @@ export function processCombat(
 
   const committedAttackers = new Map<string, string>();
   const committedTargets = new Set<string>();
-  const attackGroups = new Map<string, {
-    maxStrength: number;
-    allocatedStrength: number;
-    targetHexKey: string | null;
-    targetType: 'ship' | 'ordnance';
-  }>();
+  const attackGroups = new Map<
+    string,
+    {
+      maxStrength: number;
+      allocatedStrength: number;
+      targetHexKey: string | null;
+      targetType: 'ship' | 'ordnance';
+    }
+  >();
 
   for (const attack of attacks) {
     const attackSeen = new Set<string>();
@@ -105,7 +112,7 @@ export function processCombat(
         return { error: 'Each ship may attack only once per combat phase' };
       }
 
-      const ship = state.ships.find(s => s.id === id);
+      const ship = state.ships.find((s) => s.id === id);
       if (!ship || ship.owner !== playerId) {
         return { error: 'Invalid attacker selection' };
       }
@@ -160,11 +167,11 @@ export function processCombat(
       if (attack.attackStrength != null) {
         return { error: 'Reduced-strength attacks are only supported against ships' };
       }
-      const target = state.ordnance.find(o => o.id === attack.targetId);
+      const target = state.ordnance.find((o) => o.id === attack.targetId);
       if (!target || target.owner === playerId || target.destroyed || target.type !== 'nuke') {
         return { error: 'Invalid combat target' };
       }
-      if (map && attackers.some(attacker => !hasLineOfSightToTarget(attacker, target, map))) {
+      if (map && attackers.some((attacker) => !hasLineOfSightToTarget(attacker, target, map))) {
         return { error: 'Attacker lacks line of sight to target' };
       }
       group.allocatedStrength = group.maxStrength;
@@ -172,7 +179,7 @@ export function processCombat(
       continue;
     }
 
-    const target = state.ships.find(s => s.id === attack.targetId);
+    const target = state.ships.find((s) => s.id === attack.targetId);
     if (!target || target.owner === playerId || target.destroyed || target.landed) {
       return { error: 'Invalid combat target' };
     }
@@ -181,11 +188,15 @@ export function processCombat(
       return { error: 'Split fire may only target ships in the same hex' };
     }
     if (attack.attackStrength != null) {
-      if (!Number.isInteger(attack.attackStrength) || attack.attackStrength < 1 || attack.attackStrength > remainingStrength) {
+      if (
+        !Number.isInteger(attack.attackStrength) ||
+        attack.attackStrength < 1 ||
+        attack.attackStrength > remainingStrength
+      ) {
         return { error: 'Invalid declared attack strength' };
       }
     }
-    if (map && attackers.some(attacker => !hasLineOfSight(attacker, target, map))) {
+    if (map && attackers.some((attacker) => !hasLineOfSight(attacker, target, map))) {
       return { error: 'Attacker lacks line of sight to target' };
     }
 
@@ -202,7 +213,7 @@ export function processCombat(
     results.push(...baseResults);
   }
 
-  state.ordnance = state.ordnance.filter(o => !o.destroyed);
+  state.ordnance = state.ordnance.filter((o) => !o.destroyed);
   updateEscapeMoralVictory(state);
 
   checkGameEnd(state, map);
@@ -257,10 +268,12 @@ export function skipCombat(
  * Determine whether the active player should enter combat after movement.
  */
 export function shouldEnterCombatPhase(state: GameState, map: SolarSystemMap): boolean {
-  if (state.pendingAsteroidHazards.some(hazard => {
-    const ship = state.ships.find(s => s.id === hazard.shipId);
-    return ship?.owner === state.activePlayer && !ship.destroyed;
-  })) {
+  if (
+    state.pendingAsteroidHazards.some((hazard) => {
+      const ship = state.ships.find((s) => s.id === hazard.shipId);
+      return ship?.owner === state.activePlayer && !ship.destroyed;
+    })
+  ) {
     return true;
   }
 
@@ -275,10 +288,12 @@ export function shouldEnterCombatPhase(state: GameState, map: SolarSystemMap): b
 }
 
 function shouldRemainInCombatPhase(state: GameState, map?: SolarSystemMap): boolean {
-  if (state.pendingAsteroidHazards.some(hazard => {
-    const ship = state.ships.find(s => s.id === hazard.shipId);
-    return ship?.owner === state.activePlayer && !ship.destroyed;
-  })) {
+  if (
+    state.pendingAsteroidHazards.some((hazard) => {
+      const ship = state.ships.find((s) => s.id === hazard.shipId);
+      return ship?.owner === state.activePlayer && !ship.destroyed;
+    })
+  ) {
     return true;
   }
   if (state.scenarioRules.combatDisabled) return false;
@@ -289,23 +304,27 @@ function shouldRemainInCombatPhase(state: GameState, map?: SolarSystemMap): bool
 }
 
 function hasManualCombatTargets(state: GameState, map: SolarSystemMap): boolean {
-  const attackers = state.ships.filter(s => s.owner === state.activePlayer && !s.destroyed && canAttack(s));
+  const attackers = state.ships.filter((s) => s.owner === state.activePlayer && !s.destroyed && canAttack(s));
   if (attackers.length === 0) return false;
 
-  if (state.ships.some(target =>
-    target.owner !== state.activePlayer &&
-    !target.destroyed &&
-    !target.landed &&
-    attackers.some(attacker => hasLineOfSight(attacker, target, map)),
-  )) {
+  if (
+    state.ships.some(
+      (target) =>
+        target.owner !== state.activePlayer &&
+        !target.destroyed &&
+        !target.landed &&
+        attackers.some((attacker) => hasLineOfSight(attacker, target, map)),
+    )
+  ) {
     return true;
   }
 
-  return state.ordnance.some(ord =>
-    ord.type === 'nuke' &&
-    ord.owner !== state.activePlayer &&
-    !ord.destroyed &&
-    attackers.some(attacker => hasLineOfSightToTarget(attacker, ord, map)),
+  return state.ordnance.some(
+    (ord) =>
+      ord.type === 'nuke' &&
+      ord.owner !== state.activePlayer &&
+      !ord.destroyed &&
+      attackers.some((attacker) => hasLineOfSightToTarget(attacker, ord, map)),
   );
 }
 
@@ -333,11 +352,7 @@ function hasBaseDefenseTargets(state: GameState, map: SolarSystemMap): boolean {
   return false;
 }
 
-function resolveAntiNukeAttack(
-  attackers: Ship[],
-  target: Ordnance,
-  rng?: () => number,
-): CombatResult {
+function resolveAntiNukeAttack(attackers: Ship[], target: Ordnance, rng?: () => number): CombatResult {
   const rangeMod = computeGroupRangeModToTarget(attackers, target);
   const velocityMod = computeGroupVelocityModToTarget(attackers, target);
   const dieRoll = rollD6(rng);
@@ -349,7 +364,7 @@ function resolveAntiNukeAttack(
   }
 
   return {
-    attackerIds: attackers.map(ship => ship.id),
+    attackerIds: attackers.map((ship) => ship.id),
     targetId: target.id,
     targetType: 'ordnance',
     attackType: 'antiNuke',

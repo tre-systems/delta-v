@@ -1,5 +1,5 @@
-import { hexKey, type HexCoord } from '../shared/hex';
 import { SHIP_STATS } from '../shared/constants';
+import { type HexCoord, hexKey } from '../shared/hex';
 import type { GameState, ShipMovement } from '../shared/types';
 
 export interface LandingLogEntry {
@@ -9,10 +9,7 @@ export interface LandingLogEntry {
   resupplyText: string | null;
 }
 
-export function deriveLandingLogEntries(
-  state: GameState | null,
-  movements: ShipMovement[],
-): LandingLogEntry[] {
+export function deriveLandingLogEntries(state: GameState | null, movements: ShipMovement[]): LandingLogEntry[] {
   if (!state) {
     return [];
   }
@@ -32,7 +29,7 @@ export function deriveLandingLogEntries(
       destination: movement.to,
       shipName,
       bodyName: movement.landedAt,
-      resupplyText: player && player.bases.includes(hexKey(movement.to))
+      resupplyText: player?.bases.includes(hexKey(movement.to))
         ? `  ${shipName} resupplied: fuel + cargo restored`
         : null,
     });

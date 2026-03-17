@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import type { CombatAttack, CombatResult, GameState, Ordnance, PlayerState, Ship, SolarSystemMap } from '../shared/types';
+import type {
+  CombatAttack,
+  CombatResult,
+  GameState,
+  Ordnance,
+  PlayerState,
+  Ship,
+  SolarSystemMap,
+} from '../shared/types';
 import {
+  type CombatOverlayPlanningState,
   formatCombatResult,
   getCombatOverlayHighlights,
   getCombatPreview,
   getCombatTargetEntity,
   getQueuedCombatOverlayAttacks,
-  type CombatOverlayPlanningState,
 } from './renderer-combat';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
@@ -122,9 +130,7 @@ describe('renderer combat helpers', () => {
     const planning = createPlanning({
       combatTargetId: 'ord-0',
       combatTargetType: 'ordnance',
-      queuedAttacks: [
-        { attackerIds: ['a'], targetId: 'x', targetType: 'ship', attackStrength: 4 },
-      ],
+      queuedAttacks: [{ attackerIds: ['a'], targetId: 'x', targetType: 'ship', attackStrength: 4 }],
     });
 
     expect(getCombatOverlayHighlights(state, 0, planning, map)).toEqual({
@@ -143,7 +149,10 @@ describe('renderer combat helpers', () => {
 
     expect(getCombatPreview(state, 0, planning, map)).toEqual({
       targetPosition: { q: 1, r: 0 },
-      attackerPositions: [{ q: 0, r: 0 }, { q: 0, r: 1 }],
+      attackerPositions: [
+        { q: 0, r: 0 },
+        { q: 0, r: 1 },
+      ],
       label: '1:2  ATK 6/6  R-1 V-0  (-1)',
       totalMod: -1,
       counterattackLabel: 'CAN COUNTER / 2 SHIPS',
@@ -161,7 +170,10 @@ describe('renderer combat helpers', () => {
 
     expect(getCombatPreview(state, 0, planning, map)).toEqual({
       targetPosition: { q: 1, r: 0 },
-      attackerPositions: [{ q: 0, r: 0 }, { q: 0, r: 1 }],
+      attackerPositions: [
+        { q: 0, r: 0 },
+        { q: 0, r: 1 },
+      ],
       label: '2:1  R-1 V-0  (-1)',
       totalMod: -1,
       counterattackLabel: null,
@@ -170,10 +182,7 @@ describe('renderer combat helpers', () => {
 
   it('formats combat results and falls back to the previous state for target lookup', () => {
     const state = createState({
-      ships: [
-        createShip({ id: 'a', owner: 0 }),
-        createShip({ id: 'b', owner: 0, position: { q: 0, r: 1 } }),
-      ],
+      ships: [createShip({ id: 'a', owner: 0 }), createShip({ id: 'b', owner: 0, position: { q: 0, r: 1 } })],
       ordnance: [createOrdnance()],
     });
     const previousState = createState();

@@ -7,22 +7,29 @@
  * - normal: Uses overloads, good heuristic scoring, launches ordnance, reasonable combat
  * - hard:   Better scoring weights, aggressive ordnance use, always attacks when possible
  */
-import type { GameState, AstrogationOrder, OrdnanceLaunch, CombatAttack, SolarSystemMap, Ship, CourseResult } from './types';
-import { HEX_DIRECTIONS, hexDistance, hexAdd, hexKey, hexVecLength } from './hex';
-import { applyPendingGravityEffects, computeCourse } from './movement';
-import { SHIP_STATS, ORDNANCE_MASS } from './constants';
+
 import {
-  getCombatStrength,
   canAttack,
   computeGroupRangeMod,
-  computeGroupVelocityMod,
   computeGroupRangeModToTarget,
+  computeGroupVelocityMod,
   computeGroupVelocityModToTarget,
-  computeRangeMod,
-  computeVelocityMod,
+  getCombatStrength,
   hasLineOfSight,
   hasLineOfSightToTarget,
 } from './combat';
+import { ORDNANCE_MASS, SHIP_STATS } from './constants';
+import { HEX_DIRECTIONS, hexAdd, hexDistance, hexKey, hexVecLength } from './hex';
+import { applyPendingGravityEffects, computeCourse } from './movement';
+import type {
+  AstrogationOrder,
+  CombatAttack,
+  CourseResult,
+  GameState,
+  OrdnanceLaunch,
+  Ship,
+  SolarSystemMap,
+} from './types';
 
 export type AIDifficulty = 'easy' | 'normal' | 'hard';
 
@@ -56,7 +63,7 @@ export function aiAstrogation(
   const checkpoints = state.scenarioRules.checkpointBodies;
 
   // Find enemy ships for combat positioning
-  const enemyShips = state.ships.filter(s => s.owner !== playerId && !s.destroyed);
+  const enemyShips = state.ships.filter((s) => s.owner !== playerId && !s.destroyed);
 
   // Precompute base positions for fuel-seeking
   const basePosMap = new Map<string, { q: number; r: number }>();
@@ -104,7 +111,7 @@ export function aiAstrogation(
         const distToTarget = hexDistance(ship.position, shipTargetHex);
         const speed = hexVecLength(ship.velocity);
         // Need fuel to navigate: roughly distance/3 for accel + distance/3 for decel + margin
-        const fuelForTrip = Math.ceil(distToTarget * 2 / 3) + speed + 1;
+        const fuelForTrip = Math.ceil((distToTarget * 2) / 3) + speed + 1;
         if (ship.fuel < fuelForTrip) {
           const basePos = findNearestBase(ship.position, player.bases, map);
           if (basePos) {
@@ -128,11 +135,12 @@ export function aiAstrogation(
     const canBurnFuel = ship.fuel > 0;
     // Easy AI never overloads; Normal/Hard can overload warships with enough fuel
     // No overloads in non-combat races — too risky near gravity wells
-    const canOverload = difficulty !== 'easy'
-      && stats?.canOverload
-      && ship.fuel >= 2
-      && !ship.overloadUsed
-      && !state.scenarioRules.combatDisabled;
+    const canOverload =
+      difficulty !== 'easy' &&
+      stats?.canOverload &&
+      ship.fuel >= 2 &&
+      !ship.overloadUsed &&
+      !state.scenarioRules.combatDisabled;
 
     // Build list of (burn, overload) pairs to evaluate
     type BurnOption = { burn: number | null; overload: number | null; weakGravityChoices?: Record<string, boolean> };
@@ -163,7 +171,12 @@ export function aiAstrogation(
       // Look ahead: skip courses that will inevitably crash.
       let gravityRiskPenalty = 0;
       if (!course.landedAt) {
-        const simShip = { ...ship, position: course.destination, velocity: course.newVelocity, pendingGravityEffects: course.enteredGravityEffects };
+        const simShip = {
+          ...ship,
+          position: course.destination,
+          velocity: course.newVelocity,
+          pendingGravityEffects: course.enteredGravityEffects,
+        };
         const fuelAfter = ship.fuel - course.fuelSpent;
         const driftCourse = computeCourse(simShip, null, map, { destroyedBases: state.destroyedBases });
         if (driftCourse.crashed) {
@@ -175,17 +188,25 @@ export function aiAstrogation(
           if (fuelAfter <= 0) continue;
           let canSurvive = false;
           for (let d2 = 0; d2 < 6; d2++) {
-            const escape = computeCourse(simShip, d2, map, { destroyedBases: state.destroyedBases });
-            if (escape.crashed) continue;
+            const escapeResult = computeCourse(simShip, d2, map, { destroyedBases: state.destroyedBases });
+            if (escapeResult.crashed) continue;
             // Also check the turn after the escape burn
-            if (!escape.landedAt && fuelAfter > 1) {
-              const sim2 = { ...simShip, position: escape.destination, velocity: escape.newVelocity, pendingGravityEffects: escape.enteredGravityEffects };
+            if (!escapeResult.landedAt && fuelAfter > 1) {
+              const sim2 = {
+                ...simShip,
+                position: escapeResult.destination,
+                velocity: escapeResult.newVelocity,
+                pendingGravityEffects: escapeResult.enteredGravityEffects,
+              };
               const drift2 = computeCourse(sim2, null, map, { destroyedBases: state.destroyedBases });
               if (drift2.crashed) {
                 let canSurvive2 = false;
                 for (let d3 = 0; d3 < 6; d3++) {
                   const esc2 = computeCourse(sim2, d3, map, { destroyedBases: state.destroyedBases });
-                  if (!esc2.crashed) { canSurvive2 = true; break; }
+                  if (!esc2.crashed) {
+                    canSurvive2 = true;
+                    break;
+                  }
                 }
                 if (!canSurvive2) continue; // Escape leads to another trap
               }
@@ -198,9 +219,18 @@ export function aiAstrogation(
         }
       }
 
-      let score = scoreCourse(
-        ship, course, shipTargetHex, shipTargetBody, escapeWins, enemyShips, difficulty, map, !!checkpoints,
-      ) + gravityRiskPenalty;
+      let score =
+        scoreCourse(
+          ship,
+          course,
+          shipTargetHex,
+          shipTargetBody,
+          escapeWins,
+          enemyShips,
+          difficulty,
+          map,
+          !!checkpoints,
+        ) + gravityRiskPenalty;
 
       // Fuel-seeking: big bonus for landing at any body (base refuel)
       if (seekingFuel && course.landedAt) {
@@ -216,20 +246,34 @@ export function aiAstrogation(
 
       // For normal/hard AI, also try ignoring weak gravity choices
       let bestLocalWG: Record<string, boolean> | undefined;
-      if (difficulty !== 'easy' && course.enteredGravityEffects.some(g => g.strength === 'weak')) {
+      if (difficulty !== 'easy' && course.enteredGravityEffects.some((g) => g.strength === 'weak')) {
         // Try toggling each weak gravity hex
-        const weakHexes = course.enteredGravityEffects.filter(g => g.strength === 'weak');
+        const weakHexes = course.enteredGravityEffects.filter((g) => g.strength === 'weak');
         for (const wg of weakHexes) {
           const wgChoices: Record<string, boolean> = { [hexKey(wg.hex)]: true };
-          const altCourse = computeCourse(ship, opt.burn, map,
-            { ...courseOpts, weakGravityChoices: wgChoices });
+          const altCourse = computeCourse(ship, opt.burn, map, { ...courseOpts, weakGravityChoices: wgChoices });
           if (altCourse.crashed) continue;
           if (!altCourse.landedAt) {
-            const simShip2 = { ...ship, position: altCourse.destination, velocity: altCourse.newVelocity, pendingGravityEffects: altCourse.enteredGravityEffects };
+            const simShip2 = {
+              ...ship,
+              position: altCourse.destination,
+              velocity: altCourse.newVelocity,
+              pendingGravityEffects: altCourse.enteredGravityEffects,
+            };
             const nextAlt = computeCourse(simShip2, null, map, { destroyedBases: state.destroyedBases });
             if (nextAlt.crashed) continue;
           }
-          const altScore = scoreCourse(ship, altCourse, shipTargetHex, shipTargetBody, escapeWins, enemyShips, difficulty, map, !!checkpoints);
+          const altScore = scoreCourse(
+            ship,
+            altCourse,
+            shipTargetHex,
+            shipTargetBody,
+            escapeWins,
+            enemyShips,
+            difficulty,
+            map,
+            !!checkpoints,
+          );
           if (altScore > score) {
             score = altScore;
             bestLocalWG = wgChoices;
@@ -282,7 +326,7 @@ export function aiOrdnance(
   // Easy AI rarely uses ordnance (30% chance to skip entirely)
   if (difficulty === 'easy' && Math.random() < 0.3) return launches;
 
-  const enemyShips = state.ships.filter(s => s.owner !== playerId && !s.destroyed);
+  const enemyShips = state.ships.filter((s) => s.owner !== playerId && !s.destroyed);
   if (enemyShips.length === 0) return launches;
 
   // Difficulty-based range thresholds
@@ -311,8 +355,13 @@ export function aiOrdnance(
 
     // Hard AI: launch nuke at enemies within range if cargo allows
     const canLaunchNuke = stats.canOverload || (ship.nukesLaunchedSinceResupply ?? 0) < 1;
-    if (allowedTypes.has('nuke') && difficulty === 'hard' && nearestDist <= torpedoRange &&
-        cargoFree >= ORDNANCE_MASS.nuke && canLaunchNuke) {
+    if (
+      allowedTypes.has('nuke') &&
+      difficulty === 'hard' &&
+      nearestDist <= torpedoRange &&
+      cargoFree >= ORDNANCE_MASS.nuke &&
+      canLaunchNuke
+    ) {
       // Prefer nukes over torpedoes when enemy is strong
       const enemyStr = getCombatStrength([nearestEnemy]);
       const myStr = getCombatStrength([ship]);
@@ -326,7 +375,12 @@ export function aiOrdnance(
     }
 
     // Launch torpedo if enemy is within range and ship can
-    if (allowedTypes.has('torpedo') && nearestDist <= torpedoRange && stats.canOverload && cargoFree >= ORDNANCE_MASS.torpedo) {
+    if (
+      allowedTypes.has('torpedo') &&
+      nearestDist <= torpedoRange &&
+      stats.canOverload &&
+      cargoFree >= ORDNANCE_MASS.torpedo
+    ) {
       // Aim guidance toward enemy
       const bestDir = findDirectionToward(ship.position, nearestEnemy.position);
       launches.push({
@@ -341,7 +395,7 @@ export function aiOrdnance(
     // Drop a mine if enemies are close-ish and we have cargo
     if (allowedTypes.has('mine') && nearestDist <= mineRange && cargoFree >= ORDNANCE_MASS.mine) {
       // Rule: must change course (burn) to launch a mine
-      const pendingOrder = (state.pendingAstrogationOrders ?? []).find(o => o.shipId === ship.id);
+      const pendingOrder = (state.pendingAstrogationOrders ?? []).find((o) => o.shipId === ship.id);
       const hasBurn = pendingOrder?.burn != null || pendingOrder?.overload != null;
       if (hasBurn) {
         launches.push({
@@ -359,7 +413,7 @@ export function aiOrdnance(
       const speed = hexVecLength(ship.velocity);
       if (speed >= 2 && difficulty !== 'easy') {
         // Also check for burn rule
-        const pendingOrder = (state.pendingAstrogationOrders ?? []).find(o => o.shipId === ship.id);
+        const pendingOrder = (state.pendingAstrogationOrders ?? []).find((o) => o.shipId === ship.id);
         const hasBurn = pendingOrder?.burn != null || pendingOrder?.overload != null;
         if (hasBurn) {
           launches.push({
@@ -384,17 +438,11 @@ export function aiCombat(
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
 ): CombatAttack[] {
-  const myShips = state.ships.filter(s =>
-    s.owner === playerId && !s.destroyed && canAttack(s),
-  );
+  const myShips = state.ships.filter((s) => s.owner === playerId && !s.destroyed && canAttack(s));
   if (myShips.length === 0) return [];
 
-  const enemyShips = state.ships.filter(s =>
-    s.owner !== playerId && !s.destroyed,
-  );
-  const enemyNukes = state.ordnance.filter(o =>
-    o.owner !== playerId && !o.destroyed && o.type === 'nuke',
-  );
+  const enemyShips = state.ships.filter((s) => s.owner !== playerId && !s.destroyed);
+  const enemyNukes = state.ordnance.filter((o) => o.owner !== playerId && !o.destroyed && o.type === 'nuke');
   if (enemyShips.length === 0 && enemyNukes.length === 0) return [];
 
   // Score all potential targets
@@ -408,7 +456,7 @@ export function aiCombat(
 
   for (const enemy of enemyShips) {
     if (enemy.landed) continue;
-    const attackersForTarget = myShips.filter(attacker => hasLineOfSight(attacker, enemy, map));
+    const attackersForTarget = myShips.filter((attacker) => hasLineOfSight(attacker, enemy, map));
     if (attackersForTarget.length === 0) continue;
 
     let totalDist = 0;
@@ -419,13 +467,13 @@ export function aiCombat(
     const rangeMod = computeGroupRangeMod(attackersForTarget, enemy);
     const velMod = computeGroupVelocityMod(attackersForTarget, enemy);
     const totalMod = rangeMod + velMod;
-    const score = -avgDist * 2 - totalMod * 3 + (enemy.damage.disabledTurns * 5);
+    const score = -avgDist * 2 - totalMod * 3 + enemy.damage.disabledTurns * 5;
 
     scored.push({ targetId: enemy.id, targetType: 'ship', attackers: attackersForTarget, score });
   }
 
   for (const nuke of enemyNukes) {
-    const attackersForTarget = myShips.filter(attacker => hasLineOfSightToTarget(attacker, nuke, map));
+    const attackersForTarget = myShips.filter((attacker) => hasLineOfSightToTarget(attacker, nuke, map));
     if (attackersForTarget.length === 0) continue;
 
     let totalDist = 0;
@@ -436,11 +484,9 @@ export function aiCombat(
     const rangeMod = computeGroupRangeModToTarget(attackersForTarget, nuke);
     const velMod = computeGroupVelocityModToTarget(attackersForTarget, nuke);
     const ownShipDistances = state.ships
-      .filter(ship => ship.owner === playerId && !ship.destroyed)
-      .map(ship => hexDistance(ship.position, nuke.position));
-    const threat = ownShipDistances.length > 0
-      ? Math.max(0, 6 - Math.min(...ownShipDistances))
-      : 0;
+      .filter((ship) => ship.owner === playerId && !ship.destroyed)
+      .map((ship) => hexDistance(ship.position, nuke.position));
+    const threat = ownShipDistances.length > 0 ? Math.max(0, 6 - Math.min(...ownShipDistances)) : 0;
     const score = 18 + threat * 8 - avgDist * 2 - (rangeMod + velMod) * 3;
 
     scored.push({ targetId: nuke.id, targetType: 'ordnance', attackers: attackersForTarget, score });
@@ -461,12 +507,12 @@ export function aiCombat(
     const targetKey = `${target.targetType}:${target.targetId}`;
     if (committedTargets.has(targetKey)) continue;
 
-    const available = target.attackers.filter(a => !committedAttackers.has(a.id));
+    const available = target.attackers.filter((a) => !committedAttackers.has(a.id));
     if (available.length === 0) continue;
 
     // Check if odds are reasonable
     if (target.targetType === 'ship') {
-      const enemy = enemyShips.find(s => s.id === target.targetId);
+      const enemy = enemyShips.find((s) => s.id === target.targetId);
       if (!enemy) continue;
       const attackStr = getCombatStrength(available);
       const defendStr = getCombatStrength([enemy]);
@@ -476,7 +522,7 @@ export function aiCombat(
     }
 
     attacks.push({
-      attackerIds: available.map(s => s.id),
+      attackerIds: available.map((s) => s.id),
       targetId: target.targetId,
       targetType: target.targetType,
     });
@@ -547,10 +593,7 @@ function scoreCourse(
     }
 
     // Velocity alignment: prefer velocity pointing toward target
-    const velDist = hexDistance(
-      hexAdd(course.destination, course.newVelocity),
-      targetHex,
-    );
+    const velDist = hexDistance(hexAdd(course.destination, course.newVelocity), targetHex);
     score -= velDist * 2 * mult;
 
     // Penalty for overshooting (velocity too high near target)
@@ -583,8 +626,12 @@ function scoreCourse(
 
   // Penalty for staying landed in combat-only scenarios
   const noPrimaryObjective = !escapeWins && !targetHex;
-  if (noPrimaryObjective && ship.landed &&
-      course.destination.q === ship.position.q && course.destination.r === ship.position.r) {
+  if (
+    noPrimaryObjective &&
+    ship.landed &&
+    course.destination.q === ship.position.q &&
+    course.destination.r === ship.position.r
+  ) {
     score -= 80 * mult;
   }
 
@@ -600,9 +647,7 @@ function scoreCourse(
     } else if (targetHex) {
       score += (hexDistance(course.destination, targetHex) - hexDistance(nextTurnDest, targetHex)) * 6 * mult;
     } else if (enemyShips.length > 0) {
-      const nearestEnemyAfterDrift = Math.min(
-        ...enemyShips.map(enemy => hexDistance(nextTurnDest, enemy.position)),
-      );
+      const nearestEnemyAfterDrift = Math.min(...enemyShips.map((enemy) => hexDistance(nextTurnDest, enemy.position)));
       score += Math.max(0, 5 - nearestEnemyAfterDrift) * mult;
     }
   }
@@ -631,7 +676,7 @@ function scoreCourse(
         if (dist < 6) {
           const velMatchDist = hexDistance(
             { q: course.newVelocity.dq, r: course.newVelocity.dr },
-            { q: enemy.velocity.dq, r: enemy.velocity.dr }
+            { q: enemy.velocity.dq, r: enemy.velocity.dr },
           );
           score -= velMatchDist * (dist < 3 ? 4 : 2) * mult;
         }
@@ -671,7 +716,7 @@ function pickNextCheckpoint(
   shipPos?: { q: number; r: number },
 ): string | null {
   const visited = new Set(player.visitedBodies ?? []);
-  const unvisited = checkpoints.filter(b => !visited.has(b));
+  const unvisited = checkpoints.filter((b) => !visited.has(b));
   if (unvisited.length === 0) return player.homeBody;
   if (!shipPos) return unvisited[0];
 
@@ -679,7 +724,7 @@ function pickNextCheckpoint(
   let bestBody = unvisited[0];
   let bestDist = Infinity;
   for (const name of unvisited) {
-    const body = map.bodies.find(b => b.name === name);
+    const body = map.bodies.find((b) => b.name === name);
     if (!body) continue;
     const dist = hexDistance(shipPos, body.center);
     if (dist < bestDist) {
@@ -696,7 +741,7 @@ function pickNextCheckpoint(
 function findNearestBase(
   shipPos: { q: number; r: number },
   playerBases: string[],
-  map: SolarSystemMap,
+  _map: SolarSystemMap,
 ): { q: number; r: number } | null {
   let bestPos: { q: number; r: number } | null = null;
   let bestDist = Infinity;

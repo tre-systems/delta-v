@@ -8,11 +8,7 @@ export interface ToastLine {
 }
 
 function getResultColor(damageType: CombatResult['damageType']): string {
-  return damageType === 'eliminated'
-    ? '#ff4444'
-    : damageType === 'disabled'
-      ? '#ffaa00'
-      : '#88ff88';
+  return damageType === 'eliminated' ? '#ff4444' : damageType === 'disabled' ? '#ffaa00' : '#88ff88';
 }
 
 function getMovementDamageText(event: MovementEvent, missLabel: string): string {
@@ -24,11 +20,7 @@ function getMovementDamageText(event: MovementEvent, missLabel: string): string 
 }
 
 function getMovementDamageColor(event: MovementEvent): string {
-  return event.damageType === 'eliminated'
-    ? '#ff4444'
-    : event.damageType === 'disabled'
-      ? '#ffaa00'
-      : '#88ff88';
+  return event.damageType === 'eliminated' ? '#ff4444' : event.damageType === 'disabled' ? '#ffaa00' : '#88ff88';
 }
 
 export function getToastFadeAlpha(showUntil: number, now: number): number {

@@ -22,9 +22,7 @@ export function deriveGameStartClientState(state: GameState, playerId: number): 
   if (state.phase === 'fleetBuilding') {
     return 'playing_fleetBuilding';
   }
-  return state.activePlayer === playerId
-    ? 'playing_astrogation'
-    : 'playing_opponentTurn';
+  return state.activePlayer === playerId ? 'playing_astrogation' : 'playing_opponentTurn';
 }
 
 export function deriveWelcomeHandling(
@@ -40,7 +38,7 @@ export function deriveWelcomeHandling(
 }
 
 export function getReconnectDelayMs(attempt: number): number {
-  return Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+  return Math.min(1000 * 2 ** (attempt - 1), 8000);
 }
 
 export function shouldAttemptReconnect(

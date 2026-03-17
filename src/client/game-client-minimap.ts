@@ -72,10 +72,9 @@ export function createMinimapLayout(
 }
 
 export function isPointInMinimap(frame: MinimapFrame, point: ScreenPoint): boolean {
-  return point.x >= frame.x &&
-    point.x <= frame.x + frame.width &&
-    point.y >= frame.y &&
-    point.y <= frame.y + frame.height;
+  return (
+    point.x >= frame.x && point.x <= frame.x + frame.width && point.y >= frame.y && point.y <= frame.y + frame.height
+  );
 }
 
 export function projectWorldToMinimap(layout: MinimapLayout, point: ScreenPoint): ScreenPoint {

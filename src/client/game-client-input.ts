@@ -1,11 +1,5 @@
-import {
-  type HexCoord,
-  hexAdd,
-  hexEqual,
-  hexKey,
-  HEX_DIRECTIONS,
-} from '../shared/hex';
 import { SHIP_STATS } from '../shared/constants';
+import { HEX_DIRECTIONS, type HexCoord, hexAdd, hexEqual, hexKey } from '../shared/hex';
 import { computeCourse, predictDestination } from '../shared/movement';
 import type { GameState, Ship, SolarSystemMap } from '../shared/types';
 import type { PlanningState } from './renderer';
@@ -28,7 +22,7 @@ export type OrdnanceInteraction =
   | { type: 'none' };
 
 function getShipById(state: GameState, shipId: string | null): Ship | null {
-  return shipId ? state.ships.find((ship) => ship.id === shipId) ?? null : null;
+  return shipId ? (state.ships.find((ship) => ship.id === shipId) ?? null) : null;
 }
 
 function getOwnShipAtHex(
@@ -37,11 +31,14 @@ function getOwnShipAtHex(
   clickHex: HexCoord,
   options: { requireOperational?: boolean } = {},
 ) {
-  return state.ships.find((ship) =>
-    ship.owner === playerId &&
-    (!options.requireOperational || (!ship.destroyed && ship.damage.disabledTurns === 0 && !ship.landed)) &&
-    hexEqual(clickHex, ship.position),
-  ) ?? null;
+  return (
+    state.ships.find(
+      (ship) =>
+        ship.owner === playerId &&
+        (!options.requireOperational || (!ship.destroyed && ship.damage.disabledTurns === 0 && !ship.landed)) &&
+        hexEqual(clickHex, ship.position),
+    ) ?? null
+  );
 }
 
 function resolveWeakGravityToggle(
@@ -177,17 +174,11 @@ export function resolveOrdnanceClick(
     if (clickedDirection !== null) {
       return {
         type: 'torpedoAccel',
-        ...cycleTorpedoAcceleration(
-          planning.torpedoAccel,
-          planning.torpedoAccelSteps,
-          clickedDirection,
-        ),
+        ...cycleTorpedoAcceleration(planning.torpedoAccel, planning.torpedoAccelSteps, clickedDirection),
       };
     }
   }
 
   const ownShip = getOwnShipAtHex(state, playerId, clickHex, { requireOperational: true });
-  return ownShip
-    ? { type: 'selectShip', shipId: ownShip.id, clearTorpedoAccel: true }
-    : { type: 'none' };
+  return ownShip ? { type: 'selectShip', shipId: ownShip.id, clearTorpedoAccel: true } : { type: 'none' };
 }

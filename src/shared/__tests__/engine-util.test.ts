@@ -1,21 +1,37 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  hasEscaped, hasEscapedNorth, hasOrdnanceCapacity, hasLaunchableOrdnanceCapacity,
-  hasAnyEnemyShips, shuffle, getAllowedOrdnanceTypes, getNextOrdnanceId,
-  playerControlsBase, isPlanetaryDefenseEnabled, usesEscapeInspectionRules,
+  getAllowedOrdnanceTypes,
   getEscapeEdge,
+  getNextOrdnanceId,
+  hasAnyEnemyShips,
+  hasEscaped,
+  hasEscapedNorth,
+  hasLaunchableOrdnanceCapacity,
+  hasOrdnanceCapacity,
+  isPlanetaryDefenseEnabled,
+  playerControlsBase,
+  shuffle,
+  usesEscapeInspectionRules,
 } from '../engine-util';
-import type { Ship, GameState, Ordnance } from '../types';
+import type { GameState, Ordnance, Ship } from '../types';
 
 const bounds = { minQ: -10, maxQ: 10, minR: -10, maxR: 10 };
 
 function makeShip(overrides: Partial<Ship> = {}): Ship {
   return {
-    id: 'test', type: 'corvette', owner: 0,
-    position: { q: 0, r: 0 }, velocity: { dq: 0, dr: 0 },
-    fuel: 20, cargoUsed: 0, resuppliedThisTurn: false,
-    landed: false, destroyed: false, detected: true,
-    pendingGravityEffects: [], damage: { disabledTurns: 0 },
+    id: 'test',
+    type: 'corvette',
+    owner: 0,
+    position: { q: 0, r: 0 },
+    velocity: { dq: 0, dr: 0 },
+    fuel: 20,
+    cargoUsed: 0,
+    resuppliedThisTurn: false,
+    landed: false,
+    destroyed: false,
+    detected: true,
+    pendingGravityEffects: [],
+    damage: { disabledTurns: 0 },
     ...overrides,
   };
 }
@@ -152,7 +168,10 @@ describe('shuffle', () => {
 
   it('uses provided rng', () => {
     let callCount = 0;
-    const rng = () => { callCount++; return 0.5; };
+    const rng = () => {
+      callCount++;
+      return 0.5;
+    };
     shuffle([1, 2, 3], rng);
     expect(callCount).toBeGreaterThan(0);
   });

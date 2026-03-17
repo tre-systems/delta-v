@@ -3,15 +3,12 @@
  * Pure functions extracted from Renderer — no class state dependencies.
  */
 
-import {
-  type HexCoord,
-  type PixelCoord,
-  hexToPixel,
-  hexAdd,
-  HEX_DIRECTIONS,
-} from '../shared/hex';
-import type { GameState, CombatAttack, SolarSystemMap } from '../shared/types';
 import { SHIP_STATS } from '../shared/constants';
+import { HEX_DIRECTIONS, type HexCoord, hexAdd, hexToPixel, type PixelCoord } from '../shared/hex';
+import type { GameState, SolarSystemMap } from '../shared/types';
+import type { AnimationState, PlanningState } from './renderer';
+import { getCombatOverlayHighlights, getCombatPreview, getQueuedCombatOverlayAttacks } from './renderer-combat';
+import { drawOrdnanceVelocity } from './renderer-draw';
 import {
   getDetonatedOrdnanceOverlay,
   getOrdnanceColor,
@@ -19,13 +16,6 @@ import {
   getOrdnanceLifetimeView,
   getOrdnancePulse,
 } from './renderer-entities';
-import {
-  getCombatOverlayHighlights,
-  getCombatPreview,
-  getQueuedCombatOverlayAttacks,
-} from './renderer-combat';
-import { drawOrdnanceVelocity } from './renderer-draw';
-import type { AnimationState, PlanningState } from './renderer';
 
 export function renderOrdnance(
   ctx: CanvasRenderingContext2D,
@@ -43,7 +33,7 @@ export function renderOrdnance(
 
     let p: PixelCoord;
     if (animState) {
-      const om = animState.ordnanceMovements.find(m => m.ordnanceId === ord.id);
+      const om = animState.ordnanceMovements.find((m) => m.ordnanceId === ord.id);
       if (om) {
         const progress = Math.min((now - animState.startTime) / animState.duration, 1);
         p = interpolatePath(om.path, progress);
@@ -154,7 +144,7 @@ export function renderTorpedoGuidance(
   planningState: PlanningState,
   isAnimating: boolean,
   hexSize: number,
-  now: number,
+  _now: number,
 ): void {
   if (state.phase !== 'ordnance' || state.activePlayer !== playerId) return;
   if (isAnimating) return;
@@ -162,7 +152,7 @@ export function renderTorpedoGuidance(
   const selectedId = planningState.selectedShipId;
   if (!selectedId) return;
 
-  const ship = state.ships.find(s => s.id === selectedId);
+  const ship = state.ships.find((s) => s.id === selectedId);
   if (!ship || ship.destroyed || ship.landed) return;
 
   const stats = SHIP_STATS[ship.type];
