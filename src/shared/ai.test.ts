@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { aiAstrogation, aiCombat, aiOrdnance } from './ai';
 import { SHIP_STATS } from './constants';
-import { createGame } from './game-engine';
+import { createGame } from './engine/game-engine';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from './map-data';
 import type { SolarSystemMap } from './types';
 
