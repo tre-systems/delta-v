@@ -105,6 +105,25 @@ export class Renderer {
     this.camera = new Camera();
     this.planningState = planningState;
     this.stars = generateStars(600, 2000);
+
+    // Complete stale animations when visibility changes.
+    // When hidden: rAF stops and setTimeout may be fully suspended, so skip
+    // the animation immediately. When visible again: catch any that slipped through.
+    document.addEventListener('visibilitychange', () => {
+      if (!this.animState) return;
+      if (
+        document.visibilityState === 'hidden' ||
+        performance.now() - this.animState.startTime >= this.animState.duration
+      ) {
+        if (this.animFallbackTimer !== null) {
+          clearTimeout(this.animFallbackTimer);
+          this.animFallbackTimer = null;
+        }
+        const cb = this.animState.onComplete;
+        this.animState = null;
+        cb();
+      }
+    });
   }
 
   setMap(map: SolarSystemMap) {
@@ -156,6 +175,13 @@ export class Renderer {
       } else {
         this.ordnanceTrails.set(m.ordnanceId, [...m.path]);
       }
+    }
+
+    // If the page is hidden, skip animation entirely — rAF and setTimeout
+    // may both be fully suspended by the browser.
+    if (document.hidden) {
+      onComplete();
+      return;
     }
 
     this.animState = {
