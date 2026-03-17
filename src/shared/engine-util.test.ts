@@ -12,8 +12,8 @@ import {
   playerControlsBase,
   shuffle,
   usesEscapeInspectionRules,
-} from '../engine-util';
-import type { GameState, Ordnance, Ship } from '../types';
+} from './engine-util';
+import type { GameState, Ordnance, Ship } from './types';
 
 const bounds = { minQ: -10, maxQ: 10, minR: -10, maxR: 10 };
 

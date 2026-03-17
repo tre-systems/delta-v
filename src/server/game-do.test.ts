@@ -12,9 +12,9 @@ vi.mock('cloudflare:workers', () => ({
   },
 }));
 
-import { createGame } from '../../shared/game-engine';
-import { findBaseHex, getSolarSystemMap, SCENARIOS } from '../../shared/map-data';
-import { GameDO } from '../game-do';
+import { createGame } from '../shared/game-engine';
+import { findBaseHex, getSolarSystemMap, SCENARIOS } from '../shared/map-data';
+import { GameDO } from './game-do';
 
 class MockStorage {
   private data = new Map<string, unknown>();

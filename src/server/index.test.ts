@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../game-do', () => ({
+vi.mock('./game-do', () => ({
   GameDO: class GameDO {},
 }));
 
-import worker from '../index';
+import worker from './index';
 
 function createEnv(initHandler?: (request: Request) => Promise<Response> | Response) {
   const assetsFetch = vi.fn(async () => new Response('asset ok'));

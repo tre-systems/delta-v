@@ -5,7 +5,7 @@ import {
   ORDNANCE_LIFETIME,
   ORDNANCE_MASS,
   SHIP_STATS,
-} from '../constants';
+} from './constants';
 
 describe('SHIP_STATS', () => {
   it('has all expected ship types', () => {

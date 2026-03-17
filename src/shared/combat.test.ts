@@ -15,8 +15,8 @@ import {
   lookupOtherDamage,
   resolveCombat,
   rollD6,
-} from '../combat';
-import type { Ship, SolarSystemMap } from '../types';
+} from './combat';
+import type { Ship, SolarSystemMap } from './types';
 
 function makeShip(overrides: Partial<Ship> = {}): Ship {
   return {

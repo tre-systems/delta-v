@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ORBITAL_BASE_MASS } from '../constants';
-import { processEmplacement } from '../engine-ordnance';
-import { createGame } from '../game-engine';
-import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
-import type { GameState, Ship, SolarSystemMap } from '../types';
+import { ORBITAL_BASE_MASS } from './constants';
+import { processEmplacement } from './engine-ordnance';
+import { createGame } from './game-engine';
+import { buildSolarSystemMap, findBaseHex, SCENARIOS } from './map-data';
+import type { GameState, Ship, SolarSystemMap } from './types';
 
 let map: SolarSystemMap;
 

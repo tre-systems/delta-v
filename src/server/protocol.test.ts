@@ -8,7 +8,7 @@ import {
   parseInitPayload,
   resolveSeatAssignment,
   validateClientMessage,
-} from '../protocol';
+} from './protocol';
 
 describe('protocol helpers', () => {
   it('generates 5-character room codes from the allowed alphabet', () => {

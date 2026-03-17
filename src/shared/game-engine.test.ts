@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { resolveBaseDefense } from '../combat';
-import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
-import { checkImmediateVictory, updateCheckpoints } from '../engine-victory';
+import { resolveBaseDefense } from './combat';
+import { ORDNANCE_MASS, SHIP_STATS } from './constants';
+import { checkImmediateVictory, updateCheckpoints } from './engine-victory';
 import {
   beginCombatPhase,
   createGame,
@@ -13,9 +13,9 @@ import {
   type StateUpdateResult,
   skipCombat,
   skipOrdnance,
-} from '../game-engine';
-import { hexDistance, hexEqual, hexKey } from '../hex';
-import { buildSolarSystemMap, findBaseHex, findBaseHexes, SCENARIOS } from '../map-data';
+} from './game-engine';
+import { hexDistance, hexEqual, hexKey } from './hex';
+import { buildSolarSystemMap, findBaseHex, findBaseHexes, SCENARIOS } from './map-data';
 import type {
   AstrogationOrder,
   GameState,
@@ -23,7 +23,7 @@ import type {
   OrdnanceLaunch,
   ScenarioDefinition,
   SolarSystemMap,
-} from '../types';
+} from './types';
 
 let map: SolarSystemMap;
 let initialState: GameState;

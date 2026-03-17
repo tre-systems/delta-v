@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { hexKey } from '../hex';
-import { bodyHasGravity, buildSolarSystemMap, findBaseHex, findBaseHexes, SCENARIOS } from '../map-data';
-import type { SolarSystemMap } from '../types';
+import { hexKey } from './hex';
+import { bodyHasGravity, buildSolarSystemMap, findBaseHex, findBaseHexes, SCENARIOS } from './map-data';
+import type { SolarSystemMap } from './types';
 
 let map: SolarSystemMap;
 
