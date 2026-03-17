@@ -20,16 +20,22 @@ interface AnimState {
 }
 
 /** Minimal reproduction of the Renderer's animation + fallback logic. */
-const createAnimController = () => {
+const createAnimController = (pageHidden = false) => {
   let animState: AnimState | null = null;
   let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
-  return {
+  const ctrl = {
     get animState() {
       return animState;
     },
 
     startAnimation: (duration: number, onComplete: () => void) => {
+      // Skip animation entirely when page is hidden
+      if (pageHidden) {
+        onComplete();
+        return;
+      }
+
       animState = { startTime: performance.now(), duration, onComplete };
 
       if (fallbackTimer !== null) clearTimeout(fallbackTimer);
@@ -56,8 +62,26 @@ const createAnimController = () => {
       }
     },
 
+    /** Simulates the visibilitychange handler checking for stale animations. */
+    handleVisibilityChange: (nowVisible: boolean) => {
+      if (!animState) return;
+      // When hidden: complete immediately (no one can see the animation).
+      // When visible: complete only if the animation duration has elapsed.
+      if (!nowVisible || performance.now() - animState.startTime >= animState.duration) {
+        if (fallbackTimer !== null) {
+          clearTimeout(fallbackTimer);
+          fallbackTimer = null;
+        }
+        const cb = animState.onComplete;
+        animState = null;
+        cb();
+      }
+    },
+
     hasFallbackTimer: () => fallbackTimer !== null,
   };
+
+  return ctrl;
 };
 
 describe('animation fallback timer', () => {
@@ -147,5 +171,73 @@ describe('animation fallback timer', () => {
     // Only the second animation callback should fire
     expect(firstCompleted).toBe(false);
     expect(secondCompleted).toBe(true);
+  });
+
+  it('completes stale animation on visibilitychange when returning to visible', () => {
+    const ctrl = createAnimController();
+    let completed = false;
+
+    ctrl.startAnimation(MOVEMENT_ANIM_DURATION, () => {
+      completed = true;
+    });
+
+    // Simulate time passing (as if the tab was backgrounded and timers frozen)
+    vi.advanceTimersByTime(MOVEMENT_ANIM_DURATION);
+
+    // Neither rAF nor setTimeout fired — animation still pending
+    // (setTimeout needs duration+500, we only advanced duration)
+    expect(completed).toBe(false);
+    expect(ctrl.animState).not.toBeNull();
+
+    // Tab becomes visible again — visibilitychange handler fires
+    ctrl.handleVisibilityChange(true);
+
+    expect(completed).toBe(true);
+    expect(ctrl.animState).toBeNull();
+  });
+
+  it('skips animation entirely when page is hidden', () => {
+    const ctrl = createAnimController(true);
+    let completed = false;
+
+    ctrl.startAnimation(MOVEMENT_ANIM_DURATION, () => {
+      completed = true;
+    });
+
+    // Callback fires immediately, no animation state set
+    expect(completed).toBe(true);
+    expect(ctrl.animState).toBeNull();
+    expect(ctrl.hasFallbackTimer()).toBe(false);
+  });
+
+  it('completes animation immediately on visibilitychange to hidden', () => {
+    const ctrl = createAnimController();
+    let completed = false;
+
+    ctrl.startAnimation(MOVEMENT_ANIM_DURATION, () => {
+      completed = true;
+    });
+
+    // Tab goes hidden — no point animating, complete immediately
+    ctrl.handleVisibilityChange(false);
+
+    expect(completed).toBe(true);
+    expect(ctrl.animState).toBeNull();
+    expect(ctrl.hasFallbackTimer()).toBe(false);
+  });
+
+  it('visibilitychange to visible does not complete animation that has not yet elapsed', () => {
+    const ctrl = createAnimController();
+    let completed = false;
+
+    ctrl.startAnimation(MOVEMENT_ANIM_DURATION, () => {
+      completed = true;
+    });
+
+    // Tab becomes visible but animation just started — not enough time elapsed
+    ctrl.handleVisibilityChange(true);
+
+    expect(completed).toBe(false);
+    expect(ctrl.animState).not.toBeNull();
   });
 });
