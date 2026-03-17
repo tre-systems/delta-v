@@ -6,11 +6,11 @@ import {
   getCombatAttackerIdAtHex,
   getCombatTargetAtHex,
   toggleCombatAttackerSelection,
-} from './game-client-combat';
-import { resolveAstrogationClick, resolveOrdnanceClick } from './game-client-input';
-import { createMinimapLayout, isPointInMinimap, projectMinimapToWorld } from './game-client-minimap';
-import { HEX_SIZE, type PlanningState } from './renderer';
-import type { Camera } from './renderer-camera';
+} from './game/combat';
+import { resolveAstrogationClick, resolveOrdnanceClick } from './game/input';
+import { createMinimapLayout, isPointInMinimap, projectMinimapToWorld } from './game/minimap';
+import type { Camera } from './renderer/camera';
+import { HEX_SIZE, type PlanningState } from './renderer/renderer';
 
 export class InputHandler {
   private camera: Camera;

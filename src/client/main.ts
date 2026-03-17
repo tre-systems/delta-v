@@ -5,7 +5,7 @@ if ('serviceWorker' in navigator) {
 
 import type { AIDifficulty } from '../shared/ai';
 import { CODE_LENGTH, TURN_TIMEOUT_MS } from '../shared/constants';
-import { createGame, type MovementResult, processEmplacement } from '../shared/game-engine';
+import { createGame, type MovementResult, processEmplacement } from '../shared/engine/game-engine';
 import { pixelToHex } from '../shared/hex';
 import { findBaseHex, getSolarSystemMap, SCENARIOS } from '../shared/map-data';
 import type {
@@ -32,21 +32,21 @@ import {
   playWarning,
   setMuted,
 } from './audio';
-import { deriveAIActionPlan } from './game-client-ai-flow';
-import { deriveScenarioBriefingEntries } from './game-client-briefing';
-import { deriveBurnChangePlan } from './game-client-burn';
+import { deriveAIActionPlan } from './game/ai-flow';
+import { deriveScenarioBriefingEntries } from './game/briefing';
+import { deriveBurnChangePlan } from './game/burn';
 import {
   buildCurrentAttack,
   countRemainingCombatAttackers,
   getAttackStrengthForSelection,
   hasSplitFireOptions,
-} from './game-client-combat';
-import { deriveGameOverPlan } from './game-client-endgame';
-import { resolveLocalFleetReady } from './game-client-fleet';
-import { buildAstrogationOrders, deriveHudViewModel } from './game-client-helpers';
-import { getTooltipShip } from './game-client-hover';
-import { deriveKeyboardAction, type KeyboardAction } from './game-client-keyboard';
-import { deriveLandingLogEntries } from './game-client-landings';
+} from './game/combat';
+import { deriveGameOverPlan } from './game/endgame';
+import { resolveLocalFleetReady } from './game/fleet';
+import { buildAstrogationOrders, deriveHudViewModel } from './game/helpers';
+import { getTooltipShip } from './game/hover';
+import { deriveKeyboardAction, type KeyboardAction } from './game/keyboard';
+import { deriveLandingLogEntries } from './game/landings';
 import {
   type LocalResolution,
   resolveAstrogationStep,
@@ -55,18 +55,14 @@ import {
   resolveOrdnanceStep,
   resolveSkipCombatStep,
   resolveSkipOrdnanceStep,
-} from './game-client-local';
-import { deriveClientMessagePlan } from './game-client-messages';
-import { getNearestEnemyPosition, getNextSelectedShip, getOwnFleetFocusPosition } from './game-client-navigation';
-import {
-  deriveDisconnectHandling,
-  deriveGameStartClientState,
-  deriveReconnectAttemptPlan,
-} from './game-client-network';
-import { resolveBaseEmplacementPlan, resolveOrdnanceLaunchPlan } from './game-client-ordnance';
-import { type ClientState, derivePhaseTransition } from './game-client-phase';
-import { deriveClientStateEntryPlan } from './game-client-phase-entry';
-import { deriveClientScreenPlan } from './game-client-screen';
+} from './game/local';
+import { deriveClientMessagePlan } from './game/messages';
+import { getNearestEnemyPosition, getNextSelectedShip, getOwnFleetFocusPosition } from './game/navigation';
+import { deriveDisconnectHandling, deriveGameStartClientState, deriveReconnectAttemptPlan } from './game/network';
+import { resolveBaseEmplacementPlan, resolveOrdnanceLaunchPlan } from './game/ordnance';
+import { type ClientState, derivePhaseTransition } from './game/phase';
+import { deriveClientStateEntryPlan } from './game/phase-entry';
+import { deriveClientScreenPlan } from './game/screen';
 import {
   buildGameRoute,
   buildInviteLink,
@@ -77,13 +73,13 @@ import {
   saveTokenStore,
   setStoredInviteToken,
   setStoredPlayerToken,
-} from './game-client-session';
-import { deriveTurnTimer } from './game-client-timer';
-import { buildShipTooltipHtml } from './game-client-tooltip';
+} from './game/session';
+import { deriveTurnTimer } from './game/timer';
+import { buildShipTooltipHtml } from './game/tooltip';
 import { InputHandler } from './input';
-import { HEX_SIZE, Renderer } from './renderer';
+import { HEX_SIZE, Renderer } from './renderer/renderer';
 import { Tutorial } from './tutorial';
-import { UIManager } from './ui';
+import { UIManager } from './ui/ui';
 
 class GameClient {
   private state: ClientState = 'menu';

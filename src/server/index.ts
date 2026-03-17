@@ -1,5 +1,5 @@
 import { SCENARIOS } from '../shared/map-data';
-import { GameDO } from './game-do';
+import { GameDO } from './game-do/game-do';
 import { generatePlayerToken, generateRoomCode, parseCreatePayload } from './protocol';
 
 export { GameDO };
