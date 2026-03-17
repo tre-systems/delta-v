@@ -17,16 +17,8 @@ These patterns are already strong and should be preserved:
 - **Command dispatch.** `GameCommand` discriminated union (`src/client/game/commands.ts`) routes all user-initiated actions through a single `dispatch(cmd)` bottleneck. `keyboardActionToCommand()` bridges the keyboard input layer.
 - **Typed UI event bus.** `UIEvent` union (`src/client/ui/events.ts`) replaces 15 nullable callbacks on UIManager with a single `onEvent` emitter. `handleUIEvent()` in GameClient maps menu events directly and in-game events through `dispatch()`.
 - **Async AI turn loop.** `runAITurn` uses `async/await` with a `while` loop instead of recursive `setTimeout` callback chains.
-
----
-
-## Completed: Centralise mutable client state
-
-The `GameClient` state has been centralized into a single `ClientContext` object (`this.ctx`). This provides a single source of truth for all mutable client-side data (game state, planning state, session info, connection status).
-
-## Completed: InputHandler produces commands, not mutations
-
-The `InputHandler` now translates all user interactions into `GameCommand` objects. It no longer mutates `PlanningState` or `Camera` directly. All actions flow through a single `dispatch(cmd)` bottleneck in `GameClient`.
+- **Centralised mutable client state.** `GameClient` groups all mutable state into a single `ClientContext` object (`this.ctx`), providing a single source of truth for game state, planning state, session info, and connection status.
+- **InputHandler produces commands, not mutations.** `InputHandler` translates all user interactions into `GameCommand` objects via an `onCommand` callback. It no longer mutates `PlanningState` or `Camera` directly.
 
 ---
 
