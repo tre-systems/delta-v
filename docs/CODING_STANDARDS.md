@@ -27,13 +27,23 @@ Avoid pushing browser, network, storage, or rendering concerns into the shared e
 
 Classes are acceptable in places like:
 
-- `src/server/game-do.ts`
+- `src/server/game-do/game-do.ts`
 - `src/client/main.ts`
-- `src/client/renderer.ts`
+- `src/client/renderer/renderer.ts`
 - `src/client/input.ts`
-- `src/client/ui.ts`
+- `src/client/ui/ui.ts`
 
 These files coordinate long-lived state, timers, DOM, canvas, sockets, or platform APIs. That is a legitimate use of classes in this project.
+
+### DOM helpers
+
+Use `src/client/dom.ts` helpers for declarative DOM construction in UI code:
+
+- **`el(tag, props, ...children)`** — Create elements with class, text, handlers, and children in one expression instead of multi-line createElement/className/addEventListener/appendChild chains.
+- **`visible(el, condition)` / `show(el)` / `hide(el)`** — Toggle display instead of writing `.style.display = condition ? 'block' : 'none'` everywhere.
+- **`byId(id)`** — Typed `getElementById` that throws on missing elements, replacing `document.getElementById('x')!` non-null assertions.
+
+Prefer `el()` for building element trees programmatically. Continue using `innerHTML` for complex HTML templates where `el()` would be awkward.
 
 ## Refactoring Guidance
 
@@ -74,6 +84,36 @@ Do not create meaningless wrapper functions or over-fragment files just to hit n
 - Update docs when behavior changes materially.
 - Do not leave roadmap items marked as future work once they are implemented.
 - Architecture docs should describe the real join flow, validation model, and authority boundaries.
+
+## Functional Style
+
+The shared engine is data-oriented by design. Lean into that with functional patterns:
+
+- **Use `src/shared/util.ts` helpers** instead of writing manual reduce/loop equivalents. They exist to make intent obvious. The full set:
+
+  | Helper | Replaces |
+  |---|---|
+  | `sumBy(arr, fn)` | `arr.reduce((s, x) => s + fn(x), 0)` |
+  | `minBy(arr, fn)` / `maxBy` | Loops tracking `bestVal` / `bestItem` |
+  | `count(arr, fn)` | `arr.filter(fn).length` (avoids intermediate array) |
+  | `indexBy(arr, fn)` | `new Map(arr.map(x => [fn(x), x]))` |
+  | `groupBy(arr, fn)` | Reduce building `Record<string, T[]>` |
+  | `partition(arr, fn)` | Two `.filter()` calls with opposite predicates |
+  | `compact(arr)` | `.filter(x => x != null)` with correct narrowing |
+  | `filterMap(arr, fn)` | `.map(fn).filter(x => x != null)` in one pass |
+  | `uniqueBy(arr, fn)` | `[...new Set(arr.map(fn))]` or manual Set dedup |
+  | `pickBy(obj, fn)` | `Object.fromEntries(Object.entries(obj).filter(...))` |
+  | `mapValues(obj, fn)` | `Object.fromEntries(Object.entries(obj).map(...))` |
+  | `cond([p, v], ...)` | Chains of `if (p) return v;` (Clojure-style cond) |
+
+- **Prefer expressions over statements.** A `filter` → `map` chain is easier to follow than a `for` loop that pushes into a mutable array.
+- **Avoid mutable accumulators** when a helper already captures the pattern. Instead of tracking `bestDist` / `bestItem` through a loop, use `minBy`. Instead of `reduce((sum, x) => sum + x.value, 0)`, use `sumBy`. Instead of two `.filter()` calls splitting an array, use `partition`.
+- **Prefer `filterMap` over `.map().filter()`** when transforming and discarding nulls — it's one pass and reads as a single intent: "extract these values, skip the ones that don't exist."
+- **Prefer `count` over `.filter().length`** — it avoids allocating an intermediate array just to measure it.
+- **Build lookup structures declaratively.** `indexBy(orders, o => o.shipId)` over manually constructing a `Map` with a loop.
+- **Keep transformations as pipelines** where it reads well: filter the data, transform it, extract what you need. Chain array methods or compose helper calls — whichever is clearest.
+- **Don't force it.** Imperative code is fine when the logic is inherently stateful (tracking previous iteration state, early exits with complex conditions, Canvas drawing). Functional style should clarify, not obscure.
+- **Prefer arrow functions** (`const foo = (x: number) => ...`) over function declarations.
 
 ## Practical Style
 

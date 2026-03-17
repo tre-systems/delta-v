@@ -5,7 +5,7 @@ Delta-V now has one established simulation layer and one still-planned layer:
 - **Headless Engine Simulation (AI vs AI)** is implemented and runs in CI.
 - **Network Integration Simulation (PvP Bot Stress Testing)** is still future work.
 
-Since the core `game-engine.ts` is purely functional and deterministic apart from injected RNG, high-speed simulation is practical.
+Since the core `engine/game-engine.ts` is purely functional and deterministic apart from injected RNG, high-speed simulation is practical.
 
 ---
 

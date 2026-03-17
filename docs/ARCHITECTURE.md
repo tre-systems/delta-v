@@ -8,7 +8,7 @@ Delta-V employs a full-stack TypeScript architecture built around a **shared pur
 
 ### Key Technologies
 - **Language**: TypeScript (strict mode) across the entire stack.
-- **Frontend**: HTML5 Canvas 2D API for rendering (`client/renderer.ts`), raw DOM/Events for UI and Input. No heavy frameworks (React/Vue/etc.) are used, ensuring maximum performance for the game loop.
+- **Frontend**: HTML5 Canvas 2D API for rendering (`client/renderer/renderer.ts`), raw DOM/Events for UI and Input. No heavy frameworks (React/Vue/etc.) are used, ensuring maximum performance for the game loop.
 - **Backend**: Cloudflare Workers for HTTP routing and Cloudflare Durable Objects for authoritative game state and WebSocket management.
 - **Build & Tools**: `esbuild` for lightning-fast client bundling, `wrangler` for local testing and deployment, and `vitest` for unit testing.
 
@@ -21,7 +21,7 @@ The architecture is divided into three distinct layers: Shared Logic, Server, an
 ### A. Shared Game Engine (`shared/`)
 This is the heart of the project. The decision to keep all game rules in a shared folder makes the system incredibly robust and completely unit-testable.
 
-- **`game-engine.ts`**: A pure functional state machine. It takes the current `GameState` and player actions (e.g., astrogation orders, combat declarations) and returns a new `GameState` along with events (movements, combat results). **Crucially, it has no side effects (no DOM manipulation, no network calls, no storage access).**
+- **`engine/game-engine.ts`**: A pure functional state machine. It takes the current `GameState` and player actions (e.g., astrogation orders, combat declarations) and returns a new `GameState` along with events (movements, combat results). **Crucially, it has no side effects (no DOM manipulation, no network calls, no storage access).**
 - **`movement.ts`**: Contains the complex vector math, gravity well logic, and collision detection. Moving a ship is resolved strictly on an axial hex grid (using `hex.ts`).
 - **`combat.ts`**: Evaluates line-of-sight, calculates combat odds based on velocity/range modifiers, and resolves damage.
 - **`types.ts`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads). This ensures the client and server never fall out of sync.
@@ -30,7 +30,7 @@ This is the heart of the project. The decision to keep all game rules in a share
 The backend leverages Cloudflare's edge network.
 
 - **`index.ts`**: The standard Worker entry point. It creates tokenized game rooms, generates collision-checked 5-character codes, and forwards valid WebSocket requests.
-- **`game-do.ts` (Durable Object)**: Each game instance is backed by a single Durable Object. This ensures that all WebSocket connections for a specific game hit the same exact machine in Cloudflare's network, preventing race conditions.
+- **`game-do/game-do.ts` (Durable Object)**: Each game instance is backed by a single Durable Object. This ensures that all WebSocket connections for a specific game hit the same exact machine in Cloudflare's network, preventing race conditions.
   - Acts as the authoritative session and transport layer around `game-engine.ts`.
   - Handles WebSocket lifecycle (connections, reconnects, inactivity timeouts, turn timeouts).
   - Validates inputs before dispatch, passes them to the pure engine, stores the resulting state using the Durable Object `ctx.storage`, and broadcasts updates to connected clients.
@@ -40,10 +40,10 @@ The backend leverages Cloudflare's edge network.
 The frontend is responsible for rendering the pure hex-grid state into a smooth, continuous graphical experience.
 
 - **`main.ts`**: The client-side controller. Manages WebSocket connections, local-AI execution, phase transitions, and orchestrates the Renderer, Input, and UI.
-- **`renderer.ts`**: A highly optimized Canvas 2D renderer. It separates logical hex coordinates from pixel coordinates. It features smooth camera interpolation, persistent trails, and movement/combat animations that occur *between* turn phases.
+- **`renderer/renderer.ts`**: A highly optimized Canvas 2D renderer. It separates logical hex coordinates from pixel coordinates. It features smooth camera interpolation, persistent trails, and movement/combat animations that occur *between* turn phases.
 - **`input.ts`**: Manages the complex state of user interaction (selecting burn vectors, queuing attacks, choosing targets) before finalizing and sending them to the server.
-- **`game-client-*.ts` / `renderer-*.ts` helper modules**: Pure client-side helpers for combat selection, input planning, minimap geometry, phase derivation, formatting, and tooltip/view-model logic. These keep the large coordinators testable without introducing a client framework.
-- **`ui.ts` / `audio.ts`**: Handles the HTML overlay (menus, HUD) and Web Audio API interactions.
+- **`game/` / `renderer/` / `ui/` subfolders**: Pure client-side helpers for combat selection, input planning, minimap geometry, phase derivation, formatting, and tooltip/view-model logic. These keep the large coordinators testable without introducing a client framework.
+- **`ui/ui.ts`** / **`audio.ts`**: Handles the HTML overlay (menus, HUD) and Web Audio API interactions.
 - **Visual Polish**: Employs a premium design system with glassmorphism tokens (backdrop-filters), tactile micro-animations (recoil, scaling glows), and pulsing orbital effects for high-end UX.
 
 ### D. Progressive Web App (`static/sw.js`, `static/site.webmanifest`)
@@ -71,16 +71,16 @@ Delta-V is a fully installable PWA. A lightweight hand-written service worker pr
 The next architectural gains are mostly about keeping the current design readable, not replacing it:
 
 ### A. Shared Engine
-- **Split `game-engine.ts` by phase when it becomes painful to navigate**: The engine remains a strong fit for pure functions and plain data. If the file continues to grow, phase-oriented modules are the natural next split.
+- **Engine is now decomposed by phase** (`engine/game-engine.ts`, `engine/combat.ts`, `engine/ordnance.ts`, `engine/victory.ts`, `engine/util.ts`): The engine remains a strong fit for pure functions and plain data.
 - **Avoid premature ECS migration**: The current rules engine has a small, stable entity set and turn-based processing. An ECS would likely make the rules harder to follow before it creates meaningful flexibility.
 - **Prefer a lightweight event log over full event sourcing**: Replays, reconnect catch-up, and spectator mode would benefit from an append-only turn log, but snapshots should remain the source of truth.
 
 ### B. Client
 - **Continue extracting pure helpers from `main.ts`**: Phase derivation, HUD view models, and local/remote result application should keep moving out of the main controller so browser orchestration stays thin.
-- **Split `renderer.ts` by render pass only when needed**: The renderer is large enough to justify future decomposition, but the right split is by visual responsibility, not by introducing a generic rendering framework.
+- **Renderer is now decomposed by visual responsibility** (`renderer/renderer.ts` plus `combat.ts`, `entities.ts`, `vectors.ts`, `effects.ts`, etc.): Further splits should follow the same pattern of visual responsibility.
 - **Add browser-side tests around input/UI/orchestration**: Shared rules are already well covered. The bigger refactor risk now sits in client coordination code.
 
 ### C. Server / Operations
-- **Keep refactoring `game-do.ts` by concern**: Session/auth handling, engine-result publishing, and timeout management should stay separate so features like spectators or replay catch-up can be added without bloating one class.
+- **`game-do/` is now split by concern** (`game-do.ts`, `messages.ts`, `session.ts`, `turns.ts`): Features like spectators or replay catch-up can be added without bloating one class.
 - **Public lobby hardening remains future work**: Longer opaque identifiers, rate limiting, and optional identity/account binding matter more than swapping validation libraries.
 - **Persistence beyond active rooms is still optional**: Durable Object storage is a good fit for live matches; D1 or another store only becomes necessary once match history or player progression matters.
