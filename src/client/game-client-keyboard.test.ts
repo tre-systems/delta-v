@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
-
+import { deriveKeyboardAction, type KeyboardShortcutContext } from './game-client-keyboard';
 import type { ClientState } from './game-client-phase';
-import {
-  deriveKeyboardAction,
-  type KeyboardShortcutContext,
-} from './game-client-keyboard';
 
 function createContext(overrides: Partial<KeyboardShortcutContext> = {}): KeyboardShortcutContext {
   return {
@@ -18,11 +14,7 @@ function createContext(overrides: Partial<KeyboardShortcutContext> = {}): Keyboa
   };
 }
 
-function actionFor(
-  key: string,
-  overrides: Partial<KeyboardShortcutContext> = {},
-  shiftKey = false,
-) {
+function actionFor(key: string, overrides: Partial<KeyboardShortcutContext> = {}, shiftKey = false) {
   return deriveKeyboardAction(createContext(overrides), { key, shiftKey });
 }
 
@@ -35,11 +27,7 @@ describe('game-client-keyboard', () => {
   });
 
   it('cycles ships with tab in playable ship-selection states', () => {
-    const states: ClientState[] = [
-      'playing_astrogation',
-      'playing_ordnance',
-      'playing_combat',
-    ];
+    const states: ClientState[] = ['playing_astrogation', 'playing_ordnance', 'playing_combat'];
 
     for (const state of states) {
       expect(actionFor('Tab', { state, hasGameState: true })).toEqual({

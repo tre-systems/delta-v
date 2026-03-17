@@ -39,11 +39,14 @@ describe('server index worker', () => {
       return Response.json({ ok: true }, { status: 201 });
     });
 
-    const response = await worker.fetch(new Request('https://delta-v.test/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{',
-    }), env as any);
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{',
+      }),
+      env as any,
+    );
 
     expect(response.status).toBe(200);
     expect(initFetch).toHaveBeenCalledTimes(1);
@@ -54,7 +57,7 @@ describe('server index worker', () => {
     expect(initPayload.playerToken).toMatch(/^[A-Za-z0-9_-]{32}$/);
     expect(initPayload.inviteToken).toMatch(/^[A-Za-z0-9_-]{32}$/);
 
-    const data = await response.json() as Record<string, string>;
+    const data = (await response.json()) as Record<string, string>;
     expect(data.code).toBe(initPayload.code);
     expect(data.playerToken).toBe(initPayload.playerToken);
     expect(data.inviteToken).toBe(initPayload.inviteToken);
@@ -63,9 +66,12 @@ describe('server index worker', () => {
   it('retries collisions up to 12 times before returning 503', async () => {
     const { env, initFetch } = createEnv(async () => new Response('collision', { status: 409 }));
 
-    const response = await worker.fetch(new Request('https://delta-v.test/create', {
-      method: 'POST',
-    }), env as any);
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+      }),
+      env as any,
+    );
 
     expect(response.status).toBe(503);
     expect(initFetch).toHaveBeenCalledTimes(12);
@@ -75,11 +81,14 @@ describe('server index worker', () => {
   it('returns 500 when durable object initialization fails unexpectedly', async () => {
     const { env, initFetch } = createEnv(async () => new Response('boom', { status: 500 }));
 
-    const response = await worker.fetch(new Request('https://delta-v.test/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scenario: 'escape' }),
-    }), env as any);
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario: 'escape' }),
+      }),
+      env as any,
+    );
 
     expect(response.status).toBe(500);
     expect(initFetch).toHaveBeenCalledTimes(1);

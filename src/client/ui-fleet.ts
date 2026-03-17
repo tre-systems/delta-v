@@ -31,11 +31,7 @@ export function getFleetCartCost(cart: FleetPurchase[]): number {
   return cart.reduce((total, purchase) => total + (SHIP_STATS[purchase.shipType]?.cost ?? 0), 0);
 }
 
-export function canAddFleetShip(
-  cart: FleetPurchase[],
-  totalCredits: number,
-  shipType: string,
-): boolean {
+export function canAddFleetShip(cart: FleetPurchase[], totalCredits: number, shipType: string): boolean {
   return getFleetCartCost(cart) + (SHIP_STATS[shipType]?.cost ?? 0) <= totalCredits;
 }
 

@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { buildSolarSystemMap, SCENARIOS, findBaseHex, findBaseHexes, bodyHasGravity } from '../map-data';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { hexKey } from '../hex';
+import { bodyHasGravity, buildSolarSystemMap, findBaseHex, findBaseHexes, SCENARIOS } from '../map-data';
 import type { SolarSystemMap } from '../types';
 
 let map: SolarSystemMap;
@@ -20,7 +20,7 @@ describe('buildSolarSystemMap', () => {
   });
 
   it('includes all expected celestial bodies', () => {
-    const names = map.bodies.map(b => b.name);
+    const names = map.bodies.map((b) => b.name);
     expect(names).toContain('Sol');
     expect(names).toContain('Mercury');
     expect(names).toContain('Venus');
@@ -36,14 +36,14 @@ describe('buildSolarSystemMap', () => {
   });
 
   it('marks Sol surface as destructive', () => {
-    const solCenter = map.bodies.find(b => b.name === 'Sol')!.center;
+    const solCenter = map.bodies.find((b) => b.name === 'Sol')!.center;
     const hex = map.hexes.get(hexKey(solCenter))!;
     expect(hex.terrain).toBe('sunSurface');
     expect(hex.body?.destructive).toBe(true);
   });
 
   it('marks planet surfaces as non-destructive', () => {
-    const mars = map.bodies.find(b => b.name === 'Mars')!;
+    const mars = map.bodies.find((b) => b.name === 'Mars')!;
     const hex = map.hexes.get(hexKey(mars.center))!;
     expect(hex.terrain).toBe('planetSurface');
     expect(hex.body?.destructive).toBe(false);
@@ -152,7 +152,7 @@ describe('findBaseHex / findBaseHexes', () => {
 
 describe('SCENARIOS', () => {
   it('all scenarios have valid player definitions', () => {
-    for (const [name, scenario] of Object.entries(SCENARIOS)) {
+    for (const [_name, scenario] of Object.entries(SCENARIOS)) {
       expect(scenario.players.length).toBeGreaterThanOrEqual(2);
       expect(scenario.name).toBeTruthy();
       expect(scenario.description).toBeTruthy();
@@ -172,7 +172,7 @@ describe('SCENARIOS', () => {
   it('escape has 3 transports vs 2 enforcers', () => {
     const s = SCENARIOS.escape;
     expect(s.players[0].ships.length).toBe(3);
-    expect(s.players[0].ships.every(sh => sh.type === 'transport')).toBe(true);
+    expect(s.players[0].ships.every((sh) => sh.type === 'transport')).toBe(true);
     expect(s.players[0].escapeWins).toBe(true);
     expect(s.players[1].ships.length).toBe(2);
     expect(s.rules?.hiddenIdentityInspection).toBe(true);
@@ -193,7 +193,7 @@ describe('SCENARIOS', () => {
 
   it('convoy has a tanker with frigate escort', () => {
     const s = SCENARIOS.convoy;
-    const shipTypes = s.players[0].ships.map(sh => sh.type);
+    const shipTypes = s.players[0].ships.map((sh) => sh.type);
     expect(shipTypes).toContain('tanker');
     expect(shipTypes).toContain('frigate');
   });

@@ -15,15 +15,19 @@ import {
 
 describe('game client session helpers', () => {
   it('loads token store safely and falls back on invalid JSON', () => {
-    expect(loadTokenStore({
-      getItem: () => '{"ABCDE":{"playerToken":"pt-1","ts":1}}',
-    })).toEqual({
+    expect(
+      loadTokenStore({
+        getItem: () => '{"ABCDE":{"playerToken":"pt-1","ts":1}}',
+      }),
+    ).toEqual({
       ABCDE: { playerToken: 'pt-1', ts: 1 },
     });
 
-    expect(loadTokenStore({
-      getItem: () => '{bad json',
-    })).toEqual({});
+    expect(
+      loadTokenStore({
+        getItem: () => '{bad json',
+      }),
+    ).toEqual({});
   });
 
   it('sets and reads player and invite tokens while preserving existing entries', () => {
@@ -48,10 +52,7 @@ describe('game client session helpers', () => {
       FRESH: { playerToken: 'pt-1', ts: 900 },
     });
     expect(pruneExpiredTokens(store, 1000, 200)).toEqual(pruned);
-    expect(setItem).toHaveBeenCalledWith(
-      TOKEN_STORE_KEY,
-      JSON.stringify(pruned),
-    );
+    expect(setItem).toHaveBeenCalledWith(TOKEN_STORE_KEY, JSON.stringify(pruned));
   });
 
   it('builds invite links, routes, and websocket URLs with optional tokens', () => {
@@ -59,19 +60,27 @@ describe('game client session helpers', () => {
       'https://delta-v.example/?code=ABCDE&playerToken=invite%20token',
     );
     expect(buildGameRoute('ABCDE')).toBe('/?code=ABCDE');
-    expect(buildWebSocketUrl({
-      protocol: 'https:',
-      host: 'delta-v.example',
-      origin: 'https://delta-v.example',
-    }, 'ABCDE', 'player token')).toBe(
-      'wss://delta-v.example/ws/ABCDE?playerToken=player%20token',
-    );
-    expect(buildWebSocketUrl({
-      protocol: 'http:',
-      host: 'localhost:8787',
-      origin: 'http://localhost:8787',
-    }, 'ABCDE', null)).toBe(
-      'ws://localhost:8787/ws/ABCDE',
-    );
+    expect(
+      buildWebSocketUrl(
+        {
+          protocol: 'https:',
+          host: 'delta-v.example',
+          origin: 'https://delta-v.example',
+        },
+        'ABCDE',
+        'player token',
+      ),
+    ).toBe('wss://delta-v.example/ws/ABCDE?playerToken=player%20token');
+    expect(
+      buildWebSocketUrl(
+        {
+          protocol: 'http:',
+          host: 'localhost:8787',
+          origin: 'http://localhost:8787',
+        },
+        'ABCDE',
+        null,
+      ),
+    ).toBe('ws://localhost:8787/ws/ABCDE');
   });
 });

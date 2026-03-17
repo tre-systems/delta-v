@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CombatResult, GameState, MovementEvent, Ship } from '../shared/types';
-import {
-  buildCombatResultToastLines,
-  formatMovementEventToast,
-  getToastFadeAlpha,
-} from './renderer-toast';
+import { buildCombatResultToastLines, formatMovementEventToast, getToastFadeAlpha } from './renderer-toast';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
   return {
@@ -83,19 +79,18 @@ function createCombatResult(overrides: Partial<CombatResult> = {}): CombatResult
 
 describe('renderer toast helpers', () => {
   it('formats movement event toast text and color', () => {
-    expect(formatMovementEventToast(
-      createMovementEvent({ type: 'ramming', damageType: 'disabled', disabledTurns: 2 }),
-      'packet',
-    )).toEqual({
+    expect(
+      formatMovementEventToast(
+        createMovementEvent({ type: 'ramming', damageType: 'disabled', disabledTurns: 2 }),
+        'packet',
+      ),
+    ).toEqual({
       text: 'packet: RAMMED [4] — DISABLED 2T',
       color: '#ffaa00',
       variant: 'primary',
     });
 
-    expect(formatMovementEventToast(
-      createMovementEvent({ type: 'crash' }),
-      'packet',
-    )).toEqual({
+    expect(formatMovementEventToast(createMovementEvent({ type: 'crash' }), 'packet')).toEqual({
       text: 'packet: CRASHED',
       color: '#ff4444',
       variant: 'primary',
@@ -103,23 +98,25 @@ describe('renderer toast helpers', () => {
   });
 
   it('returns null for movement events without toast copy', () => {
-    expect(formatMovementEventToast(
-      createMovementEvent({ type: 'capture', damageType: 'captured' }),
-      'packet',
-    )).toBeNull();
+    expect(
+      formatMovementEventToast(createMovementEvent({ type: 'capture', damageType: 'captured' }), 'packet'),
+    ).toBeNull();
   });
 
   it('builds combat result and counterattack toast lines', () => {
     const state = createState();
-    const lines = buildCombatResultToastLines([
-      createCombatResult({
-        damageType: 'disabled',
-        counterattack: createCombatResult({
-          targetId: 'ship-1',
-          damageType: 'eliminated',
+    const lines = buildCombatResultToastLines(
+      [
+        createCombatResult({
+          damageType: 'disabled',
+          counterattack: createCombatResult({
+            targetId: 'ship-1',
+            damageType: 'eliminated',
+          }),
         }),
-      }),
-    ], state);
+      ],
+      state,
+    );
 
     expect(lines).toHaveLength(2);
     expect(lines[0]).toMatchObject({ color: '#ffaa00', variant: 'primary' });

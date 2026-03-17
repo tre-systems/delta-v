@@ -12,9 +12,9 @@ vi.mock('cloudflare:workers', () => ({
   },
 }));
 
-import { GameDO } from '../game-do';
 import { createGame } from '../../shared/game-engine';
 import { findBaseHex, getSolarSystemMap, SCENARIOS } from '../../shared/map-data';
+import { GameDO } from '../game-do';
 
 class MockStorage {
   private data = new Map<string, unknown>();
@@ -57,7 +57,7 @@ function createCtx() {
     },
     getWebSockets(tag?: string) {
       if (!tag) return sockets;
-      return sockets.filter(ws => (tags.get(ws) ?? []).includes(tag));
+      return sockets.filter((ws) => (tags.get(ws) ?? []).includes(tag));
     },
   };
 }
@@ -72,16 +72,18 @@ describe('GameDO', () => {
     const ctx = createCtx();
     const game = new GameDO(ctx as any, {} as any);
 
-    const response = await game.fetch(new Request('https://room.internal/init', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code: 'ABCDE',
-        scenario: 'escape',
-        playerToken: 'A'.repeat(32),
-        inviteToken: 'B'.repeat(32),
+    const response = await game.fetch(
+      new Request('https://room.internal/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: 'ABCDE',
+          scenario: 'escape',
+          playerToken: 'A'.repeat(32),
+          inviteToken: 'B'.repeat(32),
+        }),
       }),
-    }));
+    );
 
     expect(response.status).toBe(201);
     expect(await ctx.storage.get('gameCode')).toBe('ABCDE');
@@ -102,9 +104,11 @@ describe('GameDO', () => {
     const ctx = createCtx();
     const game = new GameDO(ctx as any, {} as any);
 
-    const response = await game.fetch(new Request('https://room.internal/ws/ABCDE', {
-      headers: { Upgrade: 'websocket' },
-    }));
+    const response = await game.fetch(
+      new Request('https://room.internal/ws/ABCDE', {
+        headers: { Upgrade: 'websocket' },
+      }),
+    );
 
     expect(response.status).toBe(404);
     expect(await response.text()).toContain('Game not found');
@@ -120,9 +124,11 @@ describe('GameDO', () => {
     });
 
     const game = new GameDO(ctx as any, {} as any);
-    const response = await game.fetch(new Request('https://room.internal/ws/ABCDE?playerToken=bad-token', {
-      headers: { Upgrade: 'websocket' },
-    }));
+    const response = await game.fetch(
+      new Request('https://room.internal/ws/ABCDE?playerToken=bad-token', {
+        headers: { Upgrade: 'websocket' },
+      }),
+    );
 
     expect(response.status).toBe(400);
     expect(await response.text()).toContain('Invalid player token');

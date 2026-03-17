@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-
-import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../shared/map-data';
 import { createGame } from '../shared/game-engine';
-import type { FleetPurchase, GameState, ScenarioDefinition } from '../shared/types';
+import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../shared/map-data';
+import type { FleetPurchase, ScenarioDefinition } from '../shared/types';
 import { buildAIFleetPurchases, resolveLocalFleetReady } from './game-client-fleet';
 
 describe('game-client-fleet', () => {
@@ -30,14 +29,7 @@ describe('game-client-fleet', () => {
     const scenario = SCENARIOS.interplanetaryWar;
     const state = createGame(scenario, map, 'LOCAL', findBaseHex);
 
-    expect(resolveLocalFleetReady(
-      state,
-      0,
-      [{ shipType: 'orbitalBase' }],
-      map,
-      scenario,
-      'normal',
-    )).toEqual({
+    expect(resolveLocalFleetReady(state, 0, [{ shipType: 'orbitalBase' }], map, scenario, 'normal')).toEqual({
       kind: 'error',
       error: 'Cannot purchase orbital bases directly — buy a transport and base cargo',
     });
@@ -50,14 +42,7 @@ describe('game-client-fleet', () => {
     const initialPlayerShips = state.ships.filter((ship) => ship.owner === 0).length;
     const initialAiShips = state.ships.filter((ship) => ship.owner === 1).length;
 
-    const result = resolveLocalFleetReady(
-      state,
-      0,
-      [{ shipType: 'corvette' }],
-      map,
-      scenario,
-      'easy',
-    );
+    const result = resolveLocalFleetReady(state, 0, [{ shipType: 'corvette' }], map, scenario, 'easy');
 
     expect(result.kind).toBe('success');
     if (result.kind !== 'success') return;
@@ -76,20 +61,15 @@ describe('game-client-fleet', () => {
       availableShipTypes: ['corvette', 'corsair'],
     };
     const state = createGame(scenario, map, 'LOCAL', findBaseHex);
-    const processReady = vi.fn()
-      .mockReturnValueOnce({ state })
-      .mockReturnValueOnce({ error: 'AI fleet build failed' });
+    const processReady = vi.fn().mockReturnValueOnce({ state }).mockReturnValueOnce({ error: 'AI fleet build failed' });
     const buildAIPurchases = vi.fn((): FleetPurchase[] => [{ shipType: 'corsair' }]);
 
-    expect(resolveLocalFleetReady(
-      state,
-      0,
-      [{ shipType: 'corvette' }],
-      map,
-      scenario,
-      'hard',
-      { processReady, buildAIPurchases },
-    )).toEqual({
+    expect(
+      resolveLocalFleetReady(state, 0, [{ shipType: 'corvette' }], map, scenario, 'hard', {
+        processReady,
+        buildAIPurchases,
+      }),
+    ).toEqual({
       kind: 'success',
       state,
       aiError: 'AI fleet build failed',

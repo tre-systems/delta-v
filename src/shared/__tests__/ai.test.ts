@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { aiAstrogation, aiOrdnance, aiCombat } from '../ai';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { aiAstrogation, aiCombat, aiOrdnance } from '../ai';
+import { SHIP_STATS } from '../constants';
 import { createGame } from '../game-engine';
-import { buildSolarSystemMap, SCENARIOS, findBaseHex } from '../map-data';
-import { SHIP_STATS, ORDNANCE_MASS } from '../constants';
-import type { GameState, SolarSystemMap, Ship } from '../types';
+import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
+import type { SolarSystemMap } from '../types';
 
 let map: SolarSystemMap;
 const openMap: SolarSystemMap = {
@@ -20,14 +20,14 @@ describe('aiAstrogation', () => {
   it('returns one order per AI ship', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     const orders = aiAstrogation(state, 1, map);
-    const aiShips = state.ships.filter(s => s.owner === 1);
+    const aiShips = state.ships.filter((s) => s.owner === 1);
     expect(orders).toHaveLength(aiShips.length);
   });
 
   it('each order has a valid shipId belonging to the AI', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     const orders = aiAstrogation(state, 1, map);
-    const aiShipIds = new Set(state.ships.filter(s => s.owner === 1).map(s => s.id));
+    const aiShipIds = new Set(state.ships.filter((s) => s.owner === 1).map((s) => s.id));
     for (const order of orders) {
       expect(aiShipIds.has(order.shipId)).toBe(true);
     }
@@ -47,29 +47,29 @@ describe('aiAstrogation', () => {
   it('disabled ships get null burn', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     // Disable AI's ship
-    const aiShip = state.ships.find(s => s.owner === 1)!;
+    const aiShip = state.ships.find((s) => s.owner === 1)!;
     aiShip.damage.disabledTurns = 3;
 
     const orders = aiAstrogation(state, 1, map);
-    const disabledOrder = orders.find(o => o.shipId === aiShip.id);
+    const disabledOrder = orders.find((o) => o.shipId === aiShip.id);
     expect(disabledOrder).toBeDefined();
     expect(disabledOrder!.burn).toBeNull();
   });
 
   it('destroyed ships are skipped (no order generated)', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
-    const aiShip = state.ships.find(s => s.owner === 1)!;
+    const aiShip = state.ships.find((s) => s.owner === 1)!;
     aiShip.destroyed = true;
 
     const orders = aiAstrogation(state, 1, map);
-    const destroyedOrder = orders.find(o => o.shipId === aiShip.id);
+    const destroyedOrder = orders.find((o) => o.shipId === aiShip.id);
     expect(destroyedOrder).toBeUndefined();
   });
 
   it('takes off from home base when it has a target', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     // AI is player 1, starts landed at Venus, target is Mars
-    const aiShip = state.ships.find(s => s.owner === 1)!;
+    const aiShip = state.ships.find((s) => s.owner === 1)!;
     expect(aiShip.landed).toBe(true);
 
     const orders = aiAstrogation(state, 1, map);
@@ -81,7 +81,7 @@ describe('aiAstrogation', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST', findBaseHex);
     // Player 0 has escape objective
     const orders = aiAstrogation(state, 0, map);
-    const p0Ships = state.ships.filter(s => s.owner === 0);
+    const p0Ships = state.ships.filter((s) => s.owner === 0);
     expect(orders).toHaveLength(p0Ships.length);
   });
 
@@ -91,13 +91,13 @@ describe('aiAstrogation', () => {
     const orders = aiAstrogation(state, 1, map);
     expect(orders).toHaveLength(2);
     // Each order should reference a different ship
-    const shipIds = orders.map(o => o.shipId);
+    const shipIds = orders.map((o) => o.shipId);
     expect(new Set(shipIds).size).toBe(2);
   });
 
   it('does not crash when ship has zero fuel', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
-    const aiShip = state.ships.find(s => s.owner === 1)!;
+    const aiShip = state.ships.find((s) => s.owner === 1)!;
     aiShip.fuel = 0;
 
     const orders = aiAstrogation(state, 1, map);
@@ -108,7 +108,7 @@ describe('aiAstrogation', () => {
 
   it('does not choose overload after the ship has already used its allowance', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
-    const aiShip = state.ships.find(s => s.owner === 1)!;
+    const aiShip = state.ships.find((s) => s.owner === 1)!;
     aiShip.landed = false;
     aiShip.position = { q: 10, r: 0 };
     aiShip.velocity = { dq: 0, dr: 0 };
@@ -127,7 +127,11 @@ describe('aiOrdnance', () => {
   it('returns empty array when no enemies exist', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     // Destroy all enemy ships
-    state.ships.filter(s => s.owner === 0).forEach(s => { s.destroyed = true; });
+    state.ships
+      .filter((s) => s.owner === 0)
+      .forEach((s) => {
+        s.destroyed = true;
+      });
 
     const launches = aiOrdnance(state, 1, map);
     expect(launches).toHaveLength(0);
@@ -136,7 +140,7 @@ describe('aiOrdnance', () => {
   it('returns empty array for ships without cargo', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     // Fill up the AI ship's cargo
-    const aiShip = state.ships.find(s => s.owner === 1)!;
+    const aiShip = state.ships.find((s) => s.owner === 1)!;
     const stats = SHIP_STATS[aiShip.type];
     aiShip.cargoUsed = stats.cargo;
 
@@ -153,7 +157,7 @@ describe('aiOrdnance', () => {
 
   it('does not launch from disabled ships', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
-    const aiShip = state.ships.find(s => s.owner === 1)!;
+    const aiShip = state.ships.find((s) => s.owner === 1)!;
     aiShip.landed = false;
     aiShip.damage.disabledTurns = 2;
 
@@ -163,8 +167,8 @@ describe('aiOrdnance', () => {
 
   it('launches torpedo at nearby enemy for warships', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
-    const aiShip = state.ships.find(s => s.owner === 1)!;
-    const enemyShip = state.ships.find(s => s.owner === 0)!;
+    const aiShip = state.ships.find((s) => s.owner === 1)!;
+    const enemyShip = state.ships.find((s) => s.owner === 0)!;
 
     // Place ships close together and not landed
     aiShip.position = { q: 0, r: 0 };
@@ -184,8 +188,8 @@ describe('aiOrdnance', () => {
 
   it('hard AI launches nuke against stronger enemy', () => {
     const state = createGame(SCENARIOS.duel, map, 'TEST', findBaseHex);
-    const ship0 = state.ships.find(s => s.owner === 0)!;
-    const ship1 = state.ships.find(s => s.owner === 1)!;
+    const ship0 = state.ships.find((s) => s.owner === 0)!;
+    const ship1 = state.ships.find((s) => s.owner === 1)!;
 
     // Place ships close together, not landed
     ship0.position = { q: 0, r: 0 };
@@ -207,8 +211,8 @@ describe('aiOrdnance', () => {
   it('each launch references a valid AI ship', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST', findBaseHex);
     // Unland enforcer ships and place near enemies
-    const enforcers = state.ships.filter(s => s.owner === 1);
-    const pilgrims = state.ships.filter(s => s.owner === 0);
+    const enforcers = state.ships.filter((s) => s.owner === 1);
+    const pilgrims = state.ships.filter((s) => s.owner === 0);
     enforcers.forEach((s, i) => {
       s.landed = false;
       s.position = { q: i * 2, r: 0 };
@@ -219,7 +223,7 @@ describe('aiOrdnance', () => {
     });
 
     const launches = aiOrdnance(state, 1, map);
-    const aiShipIds = new Set(enforcers.map(s => s.id));
+    const aiShipIds = new Set(enforcers.map((s) => s.id));
     for (const launch of launches) {
       expect(aiShipIds.has(launch.shipId)).toBe(true);
     }
@@ -230,7 +234,11 @@ describe('aiCombat', () => {
   it('returns empty when AI has no ships that can attack', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     // Destroy AI ships
-    state.ships.filter(s => s.owner === 1).forEach(s => { s.destroyed = true; });
+    state.ships
+      .filter((s) => s.owner === 1)
+      .forEach((s) => {
+        s.destroyed = true;
+      });
 
     const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(0);
@@ -238,7 +246,11 @@ describe('aiCombat', () => {
 
   it('returns empty when no enemies exist', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
-    state.ships.filter(s => s.owner === 0).forEach(s => { s.destroyed = true; });
+    state.ships
+      .filter((s) => s.owner === 0)
+      .forEach((s) => {
+        s.destroyed = true;
+      });
 
     const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(0);
@@ -246,8 +258,8 @@ describe('aiCombat', () => {
 
   it('attacks nearby enemy with reasonable odds', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
-    const aiShip = state.ships.find(s => s.owner === 1)!;
-    const enemyShip = state.ships.find(s => s.owner === 0)!;
+    const aiShip = state.ships.find((s) => s.owner === 1)!;
+    const enemyShip = state.ships.find((s) => s.owner === 0)!;
 
     // Place them adjacent — best possible odds
     aiShip.position = { q: 0, r: 0 };
@@ -270,8 +282,8 @@ describe('aiCombat', () => {
 
   it('skips targets that are blocked by a body', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
-    const aiShip = state.ships.find(s => s.owner === 1)!;
-    const enemyShip = state.ships.find(s => s.owner === 0)!;
+    const aiShip = state.ships.find((s) => s.owner === 1)!;
+    const enemyShip = state.ships.find((s) => s.owner === 0)!;
 
     aiShip.position = { q: 0, r: 0 };
     aiShip.lastMovementPath = [{ q: 0, r: 0 }];
@@ -283,9 +295,7 @@ describe('aiCombat', () => {
     enemyShip.landed = false;
 
     const blockedMap: SolarSystemMap = {
-      hexes: new Map([
-        ['1,0', { terrain: 'planetSurface', body: { name: 'Blocker', destructive: false } }],
-      ]),
+      hexes: new Map([['1,0', { terrain: 'planetSurface', body: { name: 'Blocker', destructive: false } }]]),
       bodies: [],
       bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
     };
@@ -295,8 +305,8 @@ describe('aiCombat', () => {
 
   it('concentrates fire with multiple ships', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST', findBaseHex);
-    const enforcers = state.ships.filter(s => s.owner === 1);
-    const pilgrim = state.ships.find(s => s.owner === 0)!;
+    const enforcers = state.ships.filter((s) => s.owner === 1);
+    const pilgrim = state.ships.find((s) => s.owner === 0)!;
 
     // Place all near each other
     for (let i = 0; i < enforcers.length; i++) {
@@ -310,7 +320,11 @@ describe('aiCombat', () => {
     pilgrim.velocity = { dq: 0, dr: 0 };
     pilgrim.landed = false;
     // Destroy other pilgrims
-    state.ships.filter(s => s.owner === 0 && s.id !== pilgrim.id).forEach(s => { s.destroyed = true; });
+    state.ships
+      .filter((s) => s.owner === 0 && s.id !== pilgrim.id)
+      .forEach((s) => {
+        s.destroyed = true;
+      });
 
     const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(1);
@@ -321,8 +335,8 @@ describe('aiCombat', () => {
 
   it('easy AI is more conservative about attacking', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
-    const aiShip = state.ships.find(s => s.owner === 1)!;
-    const enemyShip = state.ships.find(s => s.owner === 0)!;
+    const aiShip = state.ships.find((s) => s.owner === 1)!;
+    const enemyShip = state.ships.find((s) => s.owner === 0)!;
 
     // Place them far apart — poor odds
     aiShip.position = { q: 0, r: 0 };
@@ -339,8 +353,8 @@ describe('aiCombat', () => {
 
   it('attack contains valid ship references', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
-    const aiShip = state.ships.find(s => s.owner === 1)!;
-    const enemyShip = state.ships.find(s => s.owner === 0)!;
+    const aiShip = state.ships.find((s) => s.owner === 1)!;
+    const enemyShip = state.ships.find((s) => s.owner === 0)!;
 
     aiShip.position = { q: 0, r: 0 };
     aiShip.velocity = { dq: 0, dr: 0 };
@@ -351,7 +365,7 @@ describe('aiCombat', () => {
 
     const attacks = aiCombat(state, 1, map);
     if (attacks.length > 0) {
-      const allShipIds = new Set(state.ships.map(s => s.id));
+      const allShipIds = new Set(state.ships.map((s) => s.id));
       for (const id of attacks[0].attackerIds) {
         expect(allShipIds.has(id)).toBe(true);
       }
@@ -364,7 +378,7 @@ describe('AI scenario handling', () => {
   it('duel: AI generates orders for each ship', () => {
     const state = createGame(SCENARIOS.duel, map, 'FA01', findBaseHex);
     const orders = aiAstrogation(state, 1, map);
-    const aiShips = state.ships.filter(s => s.owner === 1);
+    const aiShips = state.ships.filter((s) => s.owner === 1);
     expect(orders).toHaveLength(aiShips.length);
     expect(aiShips.length).toBe(1);
   });
@@ -375,21 +389,19 @@ describe('AI scenario handling', () => {
     // Unland all ships and place opposing fleets far apart
     for (const ship of state.ships) {
       ship.landed = false;
-      ship.position = ship.owner === 0
-        ? { q: -10, r: 0 }
-        : { q: 10, r: 0 };
+      ship.position = ship.owner === 0 ? { q: -10, r: 0 } : { q: 10, r: 0 };
       ship.velocity = { dq: 0, dr: 0 };
     }
     const orders = aiAstrogation(state, 1, map, 'hard');
     // At least one ship should burn toward enemy (not null)
-    const hasBurn = orders.some(o => o.burn !== null);
+    const hasBurn = orders.some((o) => o.burn !== null);
     expect(hasBurn).toBe(true);
   });
 
   it('blockade: AI interceptor seeks enemy runner', () => {
     const state = createGame(SCENARIOS.blockade, map, 'BK01', findBaseHex);
     // The corvette (player 1) starts in space
-    const dreadnaught = state.ships.find(s => s.owner === 1)!;
+    const dreadnaught = state.ships.find((s) => s.owner === 1)!;
     expect(dreadnaught.landed).toBe(false);
     const orders = aiAstrogation(state, 1, map);
     expect(orders).toHaveLength(1);
@@ -397,7 +409,7 @@ describe('AI scenario handling', () => {
 
   it('blockade: runner AI navigates toward Mars', () => {
     const state = createGame(SCENARIOS.blockade, map, 'BK02', findBaseHex);
-    const runner = state.ships.find(s => s.owner === 0)!;
+    const runner = state.ships.find((s) => s.owner === 0)!;
     // Unland runner and place it in open space
     runner.landed = false;
     runner.position = { q: -3, r: -5 };
@@ -417,7 +429,7 @@ describe('AI scenario handling', () => {
       for (const diff of difficulties) {
         const state = createGame(scenario, map, 'DF01', findBaseHex);
         // Unland ships for meaningful AI decisions
-        state.ships.forEach(s => {
+        state.ships.forEach((s) => {
           if (!s.destroyed) {
             s.landed = false;
             s.velocity = { dq: 0, dr: 0 };

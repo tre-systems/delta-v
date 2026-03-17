@@ -20,12 +20,7 @@ describe('game-client-local', () => {
   it('classifies launched movement as a movement result', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST1', findBaseHex);
     const ship = state.ships[0];
-    const resolution = resolveAstrogationStep(
-      state,
-      0,
-      [{ shipId: ship.id, burn: 0 }],
-      map,
-    );
+    const resolution = resolveAstrogationStep(state, 0, [{ shipId: ship.id, burn: 0 }], map);
 
     expect(resolution.kind).toBe('movement');
   });
@@ -38,12 +33,7 @@ describe('game-client-local', () => {
     ship.position = { q: 20, r: 0 };
     ship.velocity = { dq: 0, dr: 0 };
 
-    const resolution = resolveAstrogationStep(
-      state,
-      0,
-      [{ shipId: ship.id, burn: null }],
-      map,
-    );
+    const resolution = resolveAstrogationStep(state, 0, [{ shipId: ship.id, burn: null }], map);
 
     expect(resolution).toMatchObject({
       kind: 'state',

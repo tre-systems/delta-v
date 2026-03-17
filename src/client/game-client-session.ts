@@ -28,14 +28,8 @@ export function loadTokenStore(storage: Pick<StorageLike, 'getItem'>, key = TOKE
   }
 }
 
-export function pruneExpiredTokens(
-  store: TokenStore,
-  now: number,
-  ttlMs = TOKEN_TTL_MS,
-): TokenStore {
-  return Object.fromEntries(
-    Object.entries(store).filter(([, entry]) => now - entry.ts <= ttlMs),
-  );
+export function pruneExpiredTokens(store: TokenStore, now: number, ttlMs = TOKEN_TTL_MS): TokenStore {
+  return Object.fromEntries(Object.entries(store).filter(([, entry]) => now - entry.ts <= ttlMs));
 }
 
 export function saveTokenStore(
@@ -62,12 +56,7 @@ export function getStoredInviteToken(store: TokenStore, code: string): string | 
   return store[code]?.inviteToken ?? null;
 }
 
-export function setStoredPlayerToken(
-  store: TokenStore,
-  code: string,
-  playerToken: string,
-  now: number,
-): TokenStore {
+export function setStoredPlayerToken(store: TokenStore, code: string, playerToken: string, now: number): TokenStore {
   return {
     ...store,
     [code]: {
@@ -78,12 +67,7 @@ export function setStoredPlayerToken(
   };
 }
 
-export function setStoredInviteToken(
-  store: TokenStore,
-  code: string,
-  inviteToken: string,
-  now: number,
-): TokenStore {
+export function setStoredInviteToken(store: TokenStore, code: string, inviteToken: string, now: number): TokenStore {
   return {
     ...store,
     [code]: {
@@ -104,8 +88,6 @@ export function buildGameRoute(code: string): string {
 
 export function buildWebSocketUrl(location: LocationLike, code: string, playerToken: string | null): string {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const tokenSuffix = playerToken
-    ? `?playerToken=${encodeURIComponent(playerToken)}`
-    : '';
+  const tokenSuffix = playerToken ? `?playerToken=${encodeURIComponent(playerToken)}` : '';
   return `${protocol}//${location.host}/ws/${code}${tokenSuffix}`;
 }

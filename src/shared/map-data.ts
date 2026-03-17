@@ -1,12 +1,5 @@
-import {
-  type HexCoord,
-  hexKey,
-  hexNeighbor,
-  hexRing,
-  hexDistance,
-  hexDirectionToward,
-} from './hex';
-import type { MapHex, CelestialBody, SolarSystemMap, ScenarioDefinition } from './types';
+import { type HexCoord, hexDirectionToward, hexKey, hexNeighbor, hexRing } from './hex';
+import type { CelestialBody, MapHex, ScenarioDefinition, SolarSystemMap } from './types';
 
 // --- Body definitions ---
 // Sol is center-south; Venus SW; Mercury near Sol SE; Terra NE; Mars NW;
@@ -18,11 +11,11 @@ interface BodyDefinition {
   name: string;
   center: HexCoord;
   surfaceRadius: number; // hexes covered by the body (0 = single hex)
-  gravityRings: number;  // rings of gravity hexes around the surface
+  gravityRings: number; // rings of gravity hexes around the surface
   gravityStrength: 'full' | 'weak';
-  destructive: boolean;  // contact = destruction (Sol)
+  destructive: boolean; // contact = destruction (Sol)
   color: string;
-  renderRadius: number;  // visual radius as multiplier of hex size
+  renderRadius: number; // visual radius as multiplier of hex size
   baseDirections: number[]; // which of the 6 directions have bases (on first gravity ring for multi-hex bodies)
 }
 
@@ -158,11 +151,26 @@ function generateAsteroidHexes(): HexCoord[] {
   const asteroids: HexCoord[] = [];
   // Scatter asteroid hexes across the belt region (roughly r=-10 to r=-18)
   const beltHexes: HexCoord[] = [
-    { q: -6, r: -11 }, { q: -4, r: -12 }, { q: -2, r: -13 }, { q: 0, r: -13 },
-    { q: 2, r: -12 }, { q: 4, r: -11 }, { q: 6, r: -10 }, { q: 8, r: -10 },
-    { q: -8, r: -12 }, { q: -5, r: -13 }, { q: -1, r: -14 }, { q: 1, r: -14 },
-    { q: 3, r: -13 }, { q: 5, r: -12 }, { q: 7, r: -11 }, { q: 9, r: -11 },
-    { q: -7, r: -13 }, { q: -3, r: -15 }, { q: 3, r: -15 }, { q: 6, r: -13 },
+    { q: -6, r: -11 },
+    { q: -4, r: -12 },
+    { q: -2, r: -13 },
+    { q: 0, r: -13 },
+    { q: 2, r: -12 },
+    { q: 4, r: -11 },
+    { q: 6, r: -10 },
+    { q: 8, r: -10 },
+    { q: -8, r: -12 },
+    { q: -5, r: -13 },
+    { q: -1, r: -14 },
+    { q: 1, r: -14 },
+    { q: 3, r: -13 },
+    { q: 5, r: -12 },
+    { q: 7, r: -11 },
+    { q: 9, r: -11 },
+    { q: -7, r: -13 },
+    { q: -3, r: -15 },
+    { q: 3, r: -15 },
+    { q: 6, r: -13 },
   ];
   asteroids.push(...beltHexes);
   return asteroids;
@@ -174,7 +182,10 @@ export function buildSolarSystemMap(): SolarSystemMap {
   const hexes = new Map<string, MapHex>();
   const bodies: CelestialBody[] = [];
 
-  let minQ = Infinity, maxQ = -Infinity, minR = Infinity, maxR = -Infinity;
+  let minQ = Infinity,
+    maxQ = -Infinity,
+    minR = Infinity,
+    maxR = -Infinity;
 
   function trackBounds(h: HexCoord) {
     minQ = Math.min(minQ, h.q);
@@ -279,15 +290,19 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     // Each player must navigate to the other world and land.
     // The winner is the one who does it in the fewest turns."
     name: 'Bi-Planetary',
-    description: '1v1 corvettes race to land on the opponent\'s world',
+    description: "1v1 corvettes race to land on the opponent's world",
     players: [
       {
         ships: [{ type: 'corvette', position: { q: -9, r: -5 }, velocity: { dq: 0, dr: 0 } }],
         targetBody: 'Venus',
         homeBody: 'Mars',
         bases: [
-          { q: -9, r: -6 }, { q: -8, r: -6 }, { q: -10, r: -4 },
-          { q: -8, r: -5 }, { q: -10, r: -5 }, { q: -9, r: -4 },
+          { q: -9, r: -6 },
+          { q: -8, r: -6 },
+          { q: -10, r: -4 },
+          { q: -8, r: -5 },
+          { q: -10, r: -5 },
+          { q: -9, r: -4 },
         ],
         escapeWins: false,
       },
@@ -296,8 +311,12 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         targetBody: 'Mars',
         homeBody: 'Venus',
         bases: [
-          { q: -9, r: 7 }, { q: -5, r: 7 }, { q: -5, r: 5 },
-          { q: -7, r: 5 }, { q: -9, r: 9 }, { q: -7, r: 9 },
+          { q: -9, r: 7 },
+          { q: -5, r: 7 },
+          { q: -5, r: 5 },
+          { q: -7, r: 5 },
+          { q: -9, r: 9 },
+          { q: -7, r: 9 },
         ],
         escapeWins: false,
       },
@@ -341,10 +360,18 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         targetBody: '',
         homeBody: 'Venus',
         bases: [
-          { q: 12, r: -10 }, { q: 12, r: -8 }, { q: 10, r: -10 },
-          { q: 8, r: -8 }, { q: 8, r: -6 }, { q: 10, r: -6 },
-          { q: -5, r: 7 }, { q: -5, r: 5 }, { q: -7, r: 5 },
-          { q: -9, r: 7 }, { q: -9, r: 9 }, { q: -7, r: 9 },
+          { q: 12, r: -10 },
+          { q: 12, r: -8 },
+          { q: 10, r: -10 },
+          { q: 8, r: -8 },
+          { q: 8, r: -6 },
+          { q: 10, r: -6 },
+          { q: -5, r: 7 },
+          { q: -5, r: 5 },
+          { q: -7, r: 5 },
+          { q: -9, r: 7 },
+          { q: -9, r: 9 },
+          { q: -7, r: 9 },
           { q: 1, r: -22 },
         ],
         escapeWins: false,
@@ -386,18 +413,14 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     startingPlayer: 1,
     players: [
       {
-        ships: [
-          { type: 'frigate', position: { q: 3, r: 1 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
-        ],
+        ships: [{ type: 'frigate', position: { q: 3, r: 1 }, velocity: { dq: 0, dr: 0 }, startLanded: false }],
         targetBody: '',
         homeBody: 'Mercury',
         bases: [{ q: 5, r: 2 }],
         escapeWins: false,
       },
       {
-        ships: [
-          { type: 'frigate', position: { q: 5, r: 3 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
-        ],
+        ships: [{ type: 'frigate', position: { q: 5, r: 3 }, velocity: { dq: 0, dr: 0 }, startLanded: false }],
         targetBody: '',
         homeBody: 'Mercury',
         bases: [{ q: 3, r: 2 }],
@@ -413,18 +436,14 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     players: [
       {
         // Runner: fast packet ship from Venus heading toward Mars
-        ships: [
-          { type: 'packet', position: { q: -7, r: 5 }, velocity: { dq: 0, dr: -2 }, startLanded: false },
-        ],
+        ships: [{ type: 'packet', position: { q: -7, r: 5 }, velocity: { dq: 0, dr: -2 }, startLanded: false }],
         targetBody: 'Mars',
         homeBody: 'Venus',
         escapeWins: false,
       },
       {
         // Blocker: corvette patrolling between the planets (less firepower = fairer)
-        ships: [
-          { type: 'corvette', position: { q: -8, r: 1 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
-        ],
+        ships: [{ type: 'corvette', position: { q: -8, r: 1 }, velocity: { dq: 0, dr: 0 }, startLanded: false }],
         targetBody: '',
         homeBody: 'Mars',
         escapeWins: false,

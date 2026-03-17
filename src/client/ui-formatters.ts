@@ -57,24 +57,16 @@ export function getLatencyStatus(latencyMs: number | null): UITextStatus {
   }
   return {
     text: `${latencyMs}ms`,
-    className: 'latency-text ' + (
-      latencyMs < 100 ? 'latency-good' :
-      latencyMs < 250 ? 'latency-ok' : 'latency-bad'
-    ),
+    className: `latency-text ${latencyMs < 100 ? 'latency-good' : latencyMs < 250 ? 'latency-ok' : 'latency-bad'}`,
   };
 }
 
 export function getPhaseAlertCopy(phase: string, isMyTurn: boolean): PhaseAlertCopy {
-  const title = phase === 'astrogation'
-    ? 'Astrogation'
-    : phase === 'ordnance'
-      ? 'Ordnance'
-      : phase === 'combat'
-        ? 'Combat'
-        : phase;
+  const title =
+    phase === 'astrogation' ? 'Astrogation' : phase === 'ordnance' ? 'Ordnance' : phase === 'combat' ? 'Combat' : phase;
   return {
     title,
-    subtitle: isMyTurn ? 'YOUR TURN' : 'OPPONENT\'S TURN',
+    subtitle: isMyTurn ? 'YOUR TURN' : "OPPONENT'S TURN",
     subtitleColor: isMyTurn ? 'var(--accent)' : 'var(--warning)',
   };
 }
@@ -92,30 +84,43 @@ export function formatMovementEventEntry(event: MovementEvent, ships: Ship[]): L
     case 'ramming':
       return {
         text: `${name} collided with another ship! [Roll: ${event.dieRoll}] -> ${event.damageType === 'eliminated' ? 'Eliminated!' : event.damageType === 'disabled' ? `Disabled for ${event.disabledTurns} turns` : 'Survives'}`,
-        className: event.damageType === 'eliminated' ? 'log-eliminated' : event.damageType === 'disabled' ? 'log-damage' : 'log-env',
+        className:
+          event.damageType === 'eliminated'
+            ? 'log-eliminated'
+            : event.damageType === 'disabled'
+              ? 'log-damage'
+              : 'log-env',
       };
     case 'asteroidHit':
       return {
         text: `${name} struck an asteroid! [Roll: ${event.dieRoll}] -> ${event.damageType === 'eliminated' ? 'Hull breached, Ship Lost!' : event.damageType === 'disabled' ? `Systems disabled for ${event.disabledTurns}T` : 'Glancing blow, no damage'}`,
-        className: event.damageType === 'eliminated' ? 'log-eliminated' : event.damageType === 'disabled' ? 'log-damage' : 'log-env',
+        className:
+          event.damageType === 'eliminated'
+            ? 'log-eliminated'
+            : event.damageType === 'disabled'
+              ? 'log-damage'
+              : 'log-env',
       };
     case 'mineDetonation':
       return {
         text: `Mine detonated near ${name}! [Roll: ${event.dieRoll}] -> ${event.damageType === 'eliminated' ? 'Vessel destroyed!' : event.damageType === 'disabled' ? `Disabled for ${event.disabledTurns}T` : 'Armor held'}`,
-        className: event.damageType === 'eliminated' ? 'log-eliminated' : event.damageType === 'disabled' ? 'log-damage' : '',
+        className:
+          event.damageType === 'eliminated' ? 'log-eliminated' : event.damageType === 'disabled' ? 'log-damage' : '',
       };
     case 'torpedoHit':
       return {
         text: `Torpedo impact on ${name}! [Roll: ${event.dieRoll}] -> ${event.damageType === 'eliminated' ? 'Critical detonation, vessel lost' : event.damageType === 'disabled' ? `Systems disabled for ${event.disabledTurns}T` : 'Deflected'}`,
-        className: event.damageType === 'eliminated' ? 'log-eliminated' : event.damageType === 'disabled' ? 'log-damage' : '',
+        className:
+          event.damageType === 'eliminated' ? 'log-eliminated' : event.damageType === 'disabled' ? 'log-damage' : '',
       };
     case 'nukeDetonation':
       return {
         text: `Nuclear detonation near ${name}! [Roll: ${event.dieRoll}] -> ${event.damageType === 'eliminated' ? 'Ship vaporized!' : event.damageType === 'disabled' ? `Disabled for ${event.disabledTurns}T` : 'Radiation shield held'}`,
-        className: event.damageType === 'eliminated' ? 'log-eliminated' : event.damageType === 'disabled' ? 'log-damage' : '',
+        className:
+          event.damageType === 'eliminated' ? 'log-eliminated' : event.damageType === 'disabled' ? 'log-damage' : '',
       };
     case 'capture': {
-      const captor = event.capturedBy ? ships.find((candidate) => candidate.id === event.capturedBy) ?? null : null;
+      const captor = event.capturedBy ? (ships.find((candidate) => candidate.id === event.capturedBy) ?? null) : null;
       const captorName = getShipName(captor, 'unknown');
       return {
         text: `${name} has been CAPTURED by ${captorName}!`,
@@ -143,16 +148,17 @@ function getCombatAttackerDescription(result: CombatResult, ships: Ship[]): stri
 
 export function formatCombatResultEntries(result: CombatResult, ships: Ship[], playerId: number): LogEntryView[] {
   const entries: LogEntryView[] = [];
-  const target = result.targetType === 'ship'
-    ? ships.find((ship) => ship.id === result.targetId) ?? null
-    : null;
+  const target = result.targetType === 'ship' ? (ships.find((ship) => ship.id === result.targetId) ?? null) : null;
   const targetName = result.targetType === 'ordnance' ? 'nuke' : getShipName(target, result.targetId);
   const isPlayerTarget = target?.owner === playerId;
-  const className = result.damageType === 'eliminated'
-    ? 'log-eliminated'
-    : result.damageType === 'disabled'
-      ? 'log-damage'
-      : isPlayerTarget ? 'log-enemy' : '';
+  const className =
+    result.damageType === 'eliminated'
+      ? 'log-eliminated'
+      : result.damageType === 'disabled'
+        ? 'log-damage'
+        : isPlayerTarget
+          ? 'log-enemy'
+          : '';
 
   if (result.attackType === 'asteroidHazard') {
     entries.push({
@@ -174,9 +180,12 @@ export function formatCombatResultEntries(result: CombatResult, ships: Ship[], p
     const counterTarget = ships.find((ship) => ship.id === result.counterattack!.targetId) ?? null;
     entries.push({
       text: `  Target returned fire on ${getShipName(counterTarget, result.counterattack.targetId)}: ${formatDamageResult(result.counterattack.damageType, result.counterattack.disabledTurns)}`,
-      className: result.counterattack.damageType === 'eliminated'
-        ? 'log-eliminated'
-        : result.counterattack.damageType === 'disabled' ? 'log-damage' : '',
+      className:
+        result.counterattack.damageType === 'eliminated'
+          ? 'log-eliminated'
+          : result.counterattack.damageType === 'disabled'
+            ? 'log-damage'
+            : '',
     });
   }
 

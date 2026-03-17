@@ -13,7 +13,9 @@ export function isMuted(): boolean {
 export function setMuted(m: boolean) {
   muted = m;
   // Persist preference
-  try { localStorage.setItem('delta-v-mute', m ? '1' : '0'); } catch {}
+  try {
+    localStorage.setItem('delta-v-mute', m ? '1' : '0');
+  } catch {}
 }
 
 function getCtx(): AudioContext | null {

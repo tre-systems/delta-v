@@ -1,10 +1,4 @@
-export type UIScreenMode =
-  | 'hidden'
-  | 'menu'
-  | 'scenario'
-  | 'waiting'
-  | 'hud'
-  | 'fleetBuilding';
+export type UIScreenMode = 'hidden' | 'menu' | 'scenario' | 'waiting' | 'hud' | 'fleetBuilding';
 
 export interface UIScreenVisibility {
   menu: 'none' | 'flex';
@@ -102,7 +96,6 @@ export function buildScreenVisibility(mode: UIScreenMode, logVisible: boolean): 
         fleetBuilding: 'flex',
         soundBtn: 'flex',
       };
-    case 'hidden':
     default:
       return HIDDEN_VISIBILITY;
   }
@@ -114,11 +107,7 @@ export function buildWaitingScreenCopy(code: string, connecting: boolean): Waiti
     : { codeText: code, statusText: 'Waiting for opponent...' };
 }
 
-export function buildGameOverView(
-  won: boolean,
-  reason: string,
-  stats?: GameOverStatsLike,
-): GameOverView {
+export function buildGameOverView(won: boolean, reason: string, stats?: GameOverStatsLike): GameOverView {
   let reasonText = reason;
   if (stats) {
     reasonText += `\n\nTurns: ${stats.turns}`;

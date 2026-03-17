@@ -51,11 +51,13 @@ function getShipDetailRows(ship: Ship, isSelected: boolean): ShipDetailRowView[]
   const stats = SHIP_STATS[ship.type];
   if (!isSelected || ship.destroyed || !stats) return [];
 
-  const rows: ShipDetailRowView[] = [{
-    label: 'Combat',
-    value: `${stats.combat}${stats.defensiveOnly ? ' (def)' : ''}${ship.heroismAvailable ? ' ★' : ''}`,
-    tone: null,
-  }];
+  const rows: ShipDetailRowView[] = [
+    {
+      label: 'Combat',
+      value: `${stats.combat}${stats.defensiveOnly ? ' (def)' : ''}${ship.heroismAvailable ? ' ★' : ''}`,
+      tone: null,
+    },
+  ];
 
   if (stats.cargo > 0) {
     rows.push({

@@ -52,11 +52,9 @@ export function buildHUDView(
 
   return {
     turnText: `Turn ${turn}`,
-    phaseText: isMyTurn ? phase.toUpperCase() : 'OPPONENT\'S TURN',
+    phaseText: isMyTurn ? phase.toUpperCase() : "OPPONENT'S TURN",
     objectiveText: objective,
-    fuelGaugeText: showOrdnance && cargoMax > 0
-      ? `Cargo: ${cargoFree}/${cargoMax}`
-      : `Fuel: ${fuel}/${maxFuel}`,
+    fuelGaugeText: showOrdnance && cargoMax > 0 ? `Cargo: ${cargoFree}/${cargoMax}` : `Fuel: ${fuel}/${maxFuel}`,
     statusText: !isMyTurn
       ? 'Waiting for opponent...'
       : phase === 'astrogation'

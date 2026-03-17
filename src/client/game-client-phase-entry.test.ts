@@ -67,10 +67,7 @@ describe('game-client-phase-entry', () => {
   it('derives ordnance selection from the first launchable ship', () => {
     const plan = deriveClientStateEntryPlan(
       'playing_ordnance',
-      createState([
-        createShip({ id: 'empty', cargoUsed: 50 }),
-        createShip({ id: 'launchable' }),
-      ]),
+      createState([createShip({ id: 'empty', cargoUsed: 50 }), createShip({ id: 'launchable' })]),
       0,
     );
 

@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { computeCourse, predictDestination, canBurn } from '../movement';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { analyzeHexLine, HEX_DIRECTIONS, hexAdd, hexEqual, hexKey } from '../hex';
 import { buildSolarSystemMap, findBaseHex } from '../map-data';
-import { analyzeHexLine, hexKey, hexEqual, hexDistance, hexAdd, HEX_DIRECTIONS } from '../hex';
+import { canBurn, computeCourse, predictDestination } from '../movement';
 import type { Ship, SolarSystemMap } from '../types';
 
 let map: SolarSystemMap;
@@ -175,13 +175,15 @@ describe('computeCourse - gravity', () => {
     const ship = makeShip({
       position: gravHex,
       velocity: { dq: 0, dr: -1 },
-      pendingGravityEffects: [{
-        hex: gravHex,
-        direction: hex!.gravity!.direction,
-        bodyName: 'Mars',
-        strength: 'full',
-        ignored: false,
-      }],
+      pendingGravityEffects: [
+        {
+          hex: gravHex,
+          direction: hex!.gravity!.direction,
+          bodyName: 'Mars',
+          strength: 'full',
+          ignored: false,
+        },
+      ],
     });
     const course = computeCourse(ship, null, map);
 
@@ -215,7 +217,7 @@ describe('computeCourse - gravity', () => {
       expect(course.crashed).toBe(false);
     }
     expect(course.gravityEffects).toHaveLength(0);
-    expect(course.enteredGravityEffects.every(effect => !hexEqual(effect.hex, ship.position))).toBe(true);
+    expect(course.enteredGravityEffects.every((effect) => !hexEqual(effect.hex, ship.position))).toBe(true);
   });
 
   it('passing through multiple gravity hexes queues multiple future deflections', () => {
@@ -233,10 +235,13 @@ describe('computeCourse - gravity', () => {
   it('does not queue gravity when the course only runs along a gravity hex edge', () => {
     const edgeMap: SolarSystemMap = {
       hexes: new Map([
-        ['1,0', {
-          terrain: 'space',
-          gravity: { direction: 3, strength: 'full', bodyName: 'TestWorld' },
-        }],
+        [
+          '1,0',
+          {
+            terrain: 'space',
+            gravity: { direction: 3, strength: 'full', bodyName: 'TestWorld' },
+          },
+        ],
       ]),
       bodies: [],
       bounds: { minQ: -2, maxQ: 4, minR: -2, maxR: 2 },
@@ -247,7 +252,12 @@ describe('computeCourse - gravity', () => {
     });
 
     const analysis = analyzeHexLine(ship.position, { q: 2, r: -1 });
-    expect(analysis.ambiguousPairs).toEqual([[{ q: 1, r: 0 }, { q: 1, r: -1 }]]);
+    expect(analysis.ambiguousPairs).toEqual([
+      [
+        { q: 1, r: 0 },
+        { q: 1, r: -1 },
+      ],
+    ]);
 
     const course = computeCourse(ship, null, edgeMap);
     expect(course.enteredGravityEffects).toEqual([]);
@@ -257,7 +267,7 @@ describe('computeCourse - gravity', () => {
 describe('computeCourse - weak gravity', () => {
   it('player can ignore single weak gravity hex', () => {
     // Luna has weak gravity at distance 1
-    const lunaCenter = { q: 13, r: -9 };
+    const _lunaCenter = { q: 13, r: -9 };
     const lunaGravHex = { q: 12, r: -9 }; // W of Luna
     const hex = map.hexes.get(hexKey(lunaGravHex));
 
@@ -281,8 +291,8 @@ describe('computeCourse - weak gravity', () => {
 
     expect(courseApplied.destination).toEqual(courseIgnored.destination);
 
-    const appliedGrav = courseApplied.enteredGravityEffects.find(e => e.bodyName === 'Luna');
-    const ignoredGrav = courseIgnored.enteredGravityEffects.find(e => e.bodyName === 'Luna');
+    const appliedGrav = courseApplied.enteredGravityEffects.find((e) => e.bodyName === 'Luna');
+    const ignoredGrav = courseIgnored.enteredGravityEffects.find((e) => e.bodyName === 'Luna');
 
     if (appliedGrav) {
       expect(appliedGrav.ignored).toBe(false);
@@ -308,7 +318,7 @@ describe('computeCourse - crash detection', () => {
 
   it('ship passing through planet body crashes', () => {
     // Ship with velocity that takes it through a planet body
-    const venusCenter = { q: -7, r: 7 };
+    const _venusCenter = { q: -7, r: 7 };
     const ship = makeShip({
       position: { q: -7, r: 5 },
       velocity: { dq: 0, dr: 2 }, // Moving SE through Venus
@@ -316,10 +326,12 @@ describe('computeCourse - crash detection', () => {
     const course = computeCourse(ship, null, map);
 
     // Should crash into Venus body if path goes through surface hexes
-    if (course.path.some(h => {
-      const hex = map.hexes.get(hexKey(h));
-      return hex?.body?.name === 'Venus';
-    })) {
+    if (
+      course.path.some((h) => {
+        const hex = map.hexes.get(hexKey(h));
+        return hex?.body?.name === 'Venus';
+      })
+    ) {
       expect(course.crashed).toBe(true);
     }
   });
@@ -361,13 +373,15 @@ describe('computeCourse - landing', () => {
     const ship = makeShip({
       position: { q: marsBase.q, r: marsBase.r + 1 },
       velocity: { dq: 0, dr: -1 },
-      pendingGravityEffects: [{
-        hex: { q: marsBase.q, r: marsBase.r + 1 },
-        direction: 3,
-        bodyName: 'Mars',
-        strength: 'full',
-        ignored: false,
-      }],
+      pendingGravityEffects: [
+        {
+          hex: { q: marsBase.q, r: marsBase.r + 1 },
+          direction: 3,
+          bodyName: 'Mars',
+          strength: 'full',
+          ignored: false,
+        },
+      ],
     });
     const course = computeCourse(ship, 0, map);
 
@@ -384,13 +398,15 @@ describe('computeCourse - landing', () => {
     const ship = makeShip({
       position: { q: marsBase.q, r: marsBase.r + 1 },
       velocity: { dq: 0, dr: -1 },
-      pendingGravityEffects: [{
-        hex: { q: marsBase.q, r: marsBase.r + 1 },
-        direction: 3,
-        bodyName: 'Mars',
-        strength: 'full',
-        ignored: false,
-      }],
+      pendingGravityEffects: [
+        {
+          hex: { q: marsBase.q, r: marsBase.r + 1 },
+          direction: 3,
+          bodyName: 'Mars',
+          strength: 'full',
+          ignored: false,
+        },
+      ],
     });
     const course = computeCourse(ship, 0, map, {
       destroyedBases: [hexKey(marsBase)],
@@ -481,13 +497,15 @@ describe('predictDestination', () => {
     const ship = makeShip({
       position: { q: 11, r: 8 },
       velocity: { dq: 0, dr: -1 },
-      pendingGravityEffects: [{
-        hex: { q: 11, r: 8 },
-        direction: 3,
-        bodyName: 'Mars',
-        strength: 'full',
-        ignored: false,
-      }],
+      pendingGravityEffects: [
+        {
+          hex: { q: 11, r: 8 },
+          direction: 3,
+          bodyName: 'Mars',
+          strength: 'full',
+          ignored: false,
+        },
+      ],
     });
 
     expect(predictDestination(ship)).toEqual({ q: 10, r: 7 });

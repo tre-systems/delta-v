@@ -1,23 +1,34 @@
 import { DurableObject } from 'cloudflare:workers';
-import type { GameState, C2S, S2C, AstrogationOrder, OrdnanceLaunch, CombatAttack, OrbitalBaseEmplacement, FleetPurchase } from '../shared/types';
-import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../shared/map-data';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../shared/constants';
-import { createGame, filterStateForPlayer, processFleetReady, processAstrogation, processOrdnance, processEmplacement, skipOrdnance, beginCombatPhase, processCombat, skipCombat } from '../shared/game-engine';
 import {
-  createRoomConfig,
-  generatePlayerToken,
-  isValidPlayerToken,
-  parseInitPayload,
-  resolveSeatAssignment,
-  validateClientMessage,
-  type RoomConfig,
-} from './protocol';
+  beginCombatPhase,
+  createGame,
+  filterStateForPlayer,
+  processAstrogation,
+  processCombat,
+  processEmplacement,
+  processFleetReady,
+  processOrdnance,
+  skipCombat,
+  skipOrdnance,
+} from '../shared/game-engine';
+import { findBaseHex, getSolarSystemMap, SCENARIOS } from '../shared/map-data';
+import type {
+  AstrogationOrder,
+  C2S,
+  CombatAttack,
+  FleetPurchase,
+  GameState,
+  OrbitalBaseEmplacement,
+  OrdnanceLaunch,
+  S2C,
+} from '../shared/types';
 import {
   resolveCombatBroadcast,
   resolveMovementBroadcast,
+  type StatefulServerMessage,
   toMovementResultMessage,
   toStateUpdateMessage,
-  type StatefulServerMessage,
 } from './game-do-messages';
 import {
   createDisconnectMarker,
@@ -27,6 +38,15 @@ import {
   shouldClearDisconnectMarker,
 } from './game-do-session';
 import { resolveTurnTimeoutOutcome } from './game-do-turns';
+import {
+  createRoomConfig,
+  generatePlayerToken,
+  isValidPlayerToken,
+  parseInitPayload,
+  type RoomConfig,
+  resolveSeatAssignment,
+  validateClientMessage,
+} from './protocol';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -34,26 +54,21 @@ export interface Env {
 }
 
 export class GameDO extends DurableObject {
-  constructor(ctx: DurableObjectState, env: Env) {
-    super(ctx, env);
-  }
-
   // --- WebSocket tag-based player tracking ---
 
   private getPlayerId(ws: WebSocket): number | null {
-    const tag = this.ctx.getTags(ws).find(t => t.startsWith('player:'));
-    return tag ? parseInt(tag.split(':')[1]) : null;
+    const tag = this.ctx.getTags(ws).find((t) => t.startsWith('player:'));
+    return tag ? parseInt(tag.split(':')[1], 10) : null;
   }
 
   private getPlayerCount(): number {
-    return this.ctx.getWebSockets('player:0').length
-      + this.ctx.getWebSockets('player:1').length;
+    return this.ctx.getWebSockets('player:0').length + this.ctx.getWebSockets('player:1').length;
   }
 
   // --- State management ---
 
   private async getGameState(): Promise<GameState | null> {
-    return await this.ctx.storage.get<GameState>('gameState') ?? null;
+    return (await this.ctx.storage.get<GameState>('gameState')) ?? null;
   }
 
   private async saveGameState(state: GameState): Promise<void> {
@@ -61,7 +76,7 @@ export class GameDO extends DurableObject {
   }
 
   private async getRoomConfig(): Promise<RoomConfig | null> {
-    return await this.ctx.storage.get<RoomConfig>('roomConfig') ?? null;
+    return (await this.ctx.storage.get<RoomConfig>('roomConfig')) ?? null;
   }
 
   private async saveRoomConfig(config: RoomConfig): Promise<void> {
@@ -69,7 +84,7 @@ export class GameDO extends DurableObject {
   }
 
   private async getGameCode(): Promise<string> {
-    return await this.ctx.storage.get<string>('gameCode') ?? '';
+    return (await this.ctx.storage.get<string>('gameCode')) ?? '';
   }
 
   private async getScenario() {
@@ -144,9 +159,7 @@ export class GameDO extends DurableObject {
     }
 
     const playerCount = this.getPlayerCount();
-    const disconnectedPlayer = normalizeDisconnectedPlayer(
-      await this.ctx.storage.get<number>('disconnectedPlayer'),
-    );
+    const disconnectedPlayer = normalizeDisconnectedPlayer(await this.ctx.storage.get<number>('disconnectedPlayer'));
     const seatOpen: [boolean, boolean] = [
       this.ctx.getWebSockets('player:0').length === 0,
       this.ctx.getWebSockets('player:1').length === 0,
@@ -285,13 +298,11 @@ export class GameDO extends DurableObject {
 
   async alarm(): Promise<void> {
     const now = Date.now();
-    const disconnectedPlayer = normalizeDisconnectedPlayer(
-      await this.ctx.storage.get<number>('disconnectedPlayer'),
-    );
+    const disconnectedPlayer = normalizeDisconnectedPlayer(await this.ctx.storage.get<number>('disconnectedPlayer'));
     const action = resolveAlarmAction({
       now,
       disconnectedPlayer,
-      ...await this.getAlarmDeadlines(),
+      ...(await this.getAlarmDeadlines()),
     });
 
     switch (action.type) {
@@ -305,7 +316,9 @@ export class GameDO extends DurableObject {
         return;
       case 'inactivityTimeout':
         for (const ws of this.ctx.getWebSockets()) {
-          try { ws.close(1000, 'Inactivity timeout'); } catch {}
+          try {
+            ws.close(1000, 'Inactivity timeout');
+          } catch {}
         }
         await this.ctx.storage.deleteAll();
         return;
@@ -343,11 +356,7 @@ export class GameDO extends DurableObject {
     await this.rescheduleAlarm();
   }
 
-  private async publishStateChange(
-    state: GameState,
-    primaryMessage?: StatefulServerMessage,
-    restartTurnTimer = true,
-  ) {
+  private async publishStateChange(state: GameState, primaryMessage?: StatefulServerMessage, restartTurnTimer = true) {
     if (primaryMessage) {
       this.broadcastFiltered(primaryMessage);
     }
@@ -404,12 +413,9 @@ export class GameDO extends DurableObject {
   }
 
   private async initGame() {
-    const [roomConfig, scenario] = await Promise.all([
-      this.getRoomConfig(),
-      this.getScenario(),
-    ]);
+    const [roomConfig, scenario] = await Promise.all([this.getRoomConfig(), this.getScenario()]);
     const map = getSolarSystemMap();
-    const code = roomConfig?.code ?? await this.getGameCode();
+    const code = roomConfig?.code ?? (await this.getGameCode());
 
     const gameState = createGame(scenario, map, code, findBaseHex);
 
@@ -421,22 +427,12 @@ export class GameDO extends DurableObject {
   private async handleFleetReady(playerId: number, ws: WebSocket, purchases: FleetPurchase[]) {
     await this.runGameStateAction(
       ws,
-      async gameState => {
+      async (gameState) => {
         const scenario = await this.getScenario();
-        return processFleetReady(
-          gameState,
-          playerId,
-          purchases,
-          getSolarSystemMap(),
-          scenario.availableShipTypes,
-        );
+        return processFleetReady(gameState, playerId, purchases, getSolarSystemMap(), scenario.availableShipTypes);
       },
-      async result => {
-        await this.publishStateChange(
-          result.state,
-          undefined,
-          result.state.phase === 'astrogation',
-        );
+      async (result) => {
+        await this.publishStateChange(result.state, undefined, result.state.phase === 'astrogation');
       },
     );
   }
@@ -444,12 +440,9 @@ export class GameDO extends DurableObject {
   private async handleAstrogation(playerId: number, ws: WebSocket, orders: AstrogationOrder[]) {
     await this.runGameStateAction(
       ws,
-      gameState => processAstrogation(gameState, playerId, orders, getSolarSystemMap()),
-      async result => {
-        await this.publishStateChange(
-          result.state,
-          resolveMovementBroadcast(result),
-        );
+      (gameState) => processAstrogation(gameState, playerId, orders, getSolarSystemMap()),
+      async (result) => {
+        await this.publishStateChange(result.state, resolveMovementBroadcast(result));
       },
     );
   }
@@ -457,8 +450,8 @@ export class GameDO extends DurableObject {
   private async handleOrdnance(playerId: number, ws: WebSocket, launches: OrdnanceLaunch[]) {
     await this.runGameStateAction(
       ws,
-      gameState => processOrdnance(gameState, playerId, launches, getSolarSystemMap()),
-      async result => {
+      (gameState) => processOrdnance(gameState, playerId, launches, getSolarSystemMap()),
+      async (result) => {
         await this.publishStateChange(result.state, toMovementResultMessage(result));
       },
     );
@@ -467,8 +460,8 @@ export class GameDO extends DurableObject {
   private async handleEmplaceBase(playerId: number, ws: WebSocket, emplacements: OrbitalBaseEmplacement[]) {
     await this.runGameStateAction(
       ws,
-      gameState => processEmplacement(gameState, playerId, emplacements, getSolarSystemMap()),
-      async result => {
+      (gameState) => processEmplacement(gameState, playerId, emplacements, getSolarSystemMap()),
+      async (result) => {
         await this.publishStateChange(result.state, toStateUpdateMessage(result.state), false);
       },
     );
@@ -477,12 +470,9 @@ export class GameDO extends DurableObject {
   private async handleSkipOrdnance(playerId: number, ws: WebSocket) {
     await this.runGameStateAction(
       ws,
-      gameState => skipOrdnance(gameState, playerId, getSolarSystemMap()),
-      async result => {
-        await this.publishStateChange(
-          result.state,
-          resolveMovementBroadcast(result, 'stateUpdate'),
-        );
+      (gameState) => skipOrdnance(gameState, playerId, getSolarSystemMap()),
+      async (result) => {
+        await this.publishStateChange(result.state, resolveMovementBroadcast(result, 'stateUpdate'));
       },
     );
   }
@@ -490,8 +480,8 @@ export class GameDO extends DurableObject {
   private async handleCombat(playerId: number, ws: WebSocket, attacks: CombatAttack[]) {
     await this.runGameStateAction(
       ws,
-      gameState => processCombat(gameState, playerId, attacks, getSolarSystemMap()),
-      async result => {
+      (gameState) => processCombat(gameState, playerId, attacks, getSolarSystemMap()),
+      async (result) => {
         await this.publishStateChange(result.state, resolveCombatBroadcast(result)!);
       },
     );
@@ -500,12 +490,9 @@ export class GameDO extends DurableObject {
   private async handleBeginCombat(playerId: number, ws: WebSocket) {
     await this.runGameStateAction(
       ws,
-      gameState => beginCombatPhase(gameState, playerId, getSolarSystemMap()),
-      async result => {
-        await this.publishStateChange(
-          result.state,
-          resolveCombatBroadcast(result, 'stateUpdate'),
-        );
+      (gameState) => beginCombatPhase(gameState, playerId, getSolarSystemMap()),
+      async (result) => {
+        await this.publishStateChange(result.state, resolveCombatBroadcast(result, 'stateUpdate'));
       },
     );
   }
@@ -513,18 +500,15 @@ export class GameDO extends DurableObject {
   private async handleSkipCombat(playerId: number, ws: WebSocket) {
     await this.runGameStateAction(
       ws,
-      gameState => skipCombat(gameState, playerId, getSolarSystemMap()),
-      async result => {
-        await this.publishStateChange(
-          result.state,
-          resolveCombatBroadcast(result),
-        );
+      (gameState) => skipCombat(gameState, playerId, getSolarSystemMap()),
+      async (result) => {
+        await this.publishStateChange(result.state, resolveCombatBroadcast(result));
       },
     );
   }
 
-  private async handleRematch(playerId: number, ws: WebSocket) {
-    const requests = await this.ctx.storage.get<number[]>('rematchRequests') ?? [];
+  private async handleRematch(playerId: number, _ws: WebSocket) {
+    const requests = (await this.ctx.storage.get<number[]>('rematchRequests')) ?? [];
     if (!requests.includes(playerId)) {
       requests.push(playerId);
     }
@@ -551,13 +535,17 @@ export class GameDO extends DurableObject {
   // --- Messaging ---
 
   private send(ws: WebSocket, msg: S2C) {
-    try { ws.send(JSON.stringify(msg)); } catch {}
+    try {
+      ws.send(JSON.stringify(msg));
+    } catch {}
   }
 
   private broadcast(msg: S2C) {
     const data = JSON.stringify(msg);
     for (const ws of this.ctx.getWebSockets()) {
-      try { ws.send(data); } catch {}
+      try {
+        ws.send(data);
+      } catch {}
     }
   }
 
@@ -565,8 +553,9 @@ export class GameDO extends DurableObject {
    * Broadcast a message containing game state, filtering hidden information per player.
    */
   private broadcastFiltered(msg: S2C & { state: GameState }) {
-    const hasHiddenInfo = msg.state.scenarioRules.hiddenIdentityInspection
-      || msg.state.ships.some(s => s.hasFugitives || s.identityRevealed === false);
+    const hasHiddenInfo =
+      msg.state.scenarioRules.hiddenIdentityInspection ||
+      msg.state.ships.some((s) => s.hasFugitives || s.identityRevealed === false);
     if (!hasHiddenInfo) {
       this.broadcast(msg);
       return;
@@ -578,7 +567,9 @@ export class GameDO extends DurableObject {
       const filtered = { ...msg, state: filterStateForPlayer(msg.state, playerId) };
       const data = JSON.stringify(filtered);
       for (const ws of sockets) {
-        try { ws.send(data); } catch {}
+        try {
+          ws.send(data);
+        } catch {}
       }
     }
   }
