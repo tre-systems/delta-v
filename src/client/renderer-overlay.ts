@@ -17,7 +17,7 @@ import {
   getOrdnancePulse,
 } from './renderer-entities';
 
-export function renderOrdnance(
+export const renderOrdnance = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   playerId: number,
@@ -25,24 +25,22 @@ export function renderOrdnance(
   hexSize: number,
   now: number,
   interpolatePath: (path: HexCoord[], progress: number) => PixelCoord,
-): void {
+): void => {
   if (!state.ordnance || state.ordnance.length === 0) return;
 
   for (const ord of state.ordnance) {
     if (ord.destroyed) continue;
 
-    let p: PixelCoord;
-    if (animState) {
-      const om = animState.ordnanceMovements.find((m) => m.ordnanceId === ord.id);
-      if (om) {
-        const progress = Math.min((now - animState.startTime) / animState.duration, 1);
-        p = interpolatePath(om.path, progress);
-      } else {
-        p = hexToPixel(ord.position, hexSize);
+    const p: PixelCoord = (() => {
+      if (animState) {
+        const om = animState.ordnanceMovements.find((m) => m.ordnanceId === ord.id);
+        if (om) {
+          const progress = Math.min((now - animState.startTime) / animState.duration, 1);
+          return interpolatePath(om.path, progress);
+        }
       }
-    } else {
-      p = hexToPixel(ord.position, hexSize);
-    }
+      return hexToPixel(ord.position, hexSize);
+    })();
 
     const color = getOrdnanceColor(ord.owner, playerId);
     const pulse = getOrdnancePulse(now);
@@ -135,9 +133,9 @@ export function renderOrdnance(
       }
     }
   }
-}
+};
 
-export function renderTorpedoGuidance(
+export const renderTorpedoGuidance = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   playerId: number,
@@ -145,7 +143,7 @@ export function renderTorpedoGuidance(
   isAnimating: boolean,
   hexSize: number,
   _now: number,
-): void {
+): void => {
   if (state.phase !== 'ordnance' || state.activePlayer !== playerId) return;
   if (isAnimating) return;
 
@@ -193,9 +191,9 @@ export function renderTorpedoGuidance(
   ctx.font = '8px monospace';
   ctx.textAlign = 'center';
   ctx.fillText('TORPEDO BOOST', shipPos.x, shipPos.y - 20);
-}
+};
 
-export function renderCombatOverlay(
+export const renderCombatOverlay = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   playerId: number,
@@ -204,7 +202,7 @@ export function renderCombatOverlay(
   isAnimating: boolean,
   hexSize: number,
   now: number,
-): void {
+): void => {
   if (state.phase !== 'combat' || state.activePlayer !== playerId) return;
   if (isAnimating) return;
 
@@ -298,4 +296,4 @@ export function renderCombatOverlay(
     ctx.font = '7px monospace';
     ctx.fillText(preview.counterattackLabel, targetPos.x, targetPos.y - 38);
   }
-}
+};

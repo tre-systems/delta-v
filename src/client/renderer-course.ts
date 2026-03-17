@@ -66,7 +66,7 @@ export interface CoursePreviewView {
   fuelCostLabel: FuelCostLabelView | null;
 }
 
-function buildDirectionMarker(
+const buildDirectionMarker = (
   position: PixelCoord,
   isActive: boolean,
   isHovered: boolean,
@@ -82,10 +82,8 @@ function buildDirectionMarker(
   hoverShadow: string,
   activeBlur: number,
   hoverBlur: number,
-): CourseMarkerView {
-  let size = baseSize;
-  if (isActive) size = activeSize;
-  if (isHovered) size += hoverDelta;
+): CourseMarkerView => {
+  const size = (isActive ? activeSize : baseSize) + (isHovered ? hoverDelta : 0);
   return {
     position,
     size,
@@ -95,9 +93,9 @@ function buildDirectionMarker(
     shadowBlur: isHovered ? hoverBlur : isActive ? activeBlur : 0,
     shadowColor: isHovered || isActive ? (isHovered ? hoverShadow : activeShadow) : null,
   };
-}
+};
 
-function buildGravityArrow(hex: HexCoord, direction: number, hexSize: number): CourseArrowView {
+const buildGravityArrow = (hex: HexCoord, direction: number, hexSize: number): CourseArrowView => {
   const start = hexToPixel(hex, hexSize);
   const target = hexToPixel(hexAdd(hex, HEX_DIRECTIONS[direction]), hexSize);
   const angle = Math.atan2(target.y - start.y, target.x - start.x);
@@ -121,9 +119,9 @@ function buildGravityArrow(hex: HexCoord, direction: number, hexSize: number): C
     color: 'rgba(255, 200, 50, 0.6)',
     lineWidth: 1.5,
   };
-}
+};
 
-function buildWeakGravityMarker(hex: HexCoord, ignored: boolean, hexSize: number): WeakGravityMarkerView {
+const buildWeakGravityMarker = (hex: HexCoord, ignored: boolean, hexSize: number): WeakGravityMarkerView => {
   const position = hexToPixel(hex, hexSize);
   return {
     position,
@@ -133,90 +131,82 @@ function buildWeakGravityMarker(hex: HexCoord, ignored: boolean, hexSize: number
     strikeFrom: ignored ? { x: position.x - 6, y: position.y + 4 } : null,
     strikeTo: ignored ? { x: position.x + 6, y: position.y - 4 } : null,
   };
-}
+};
 
-function buildBurnMarkers(
+const buildBurnMarkers = (
   ship: GameState['ships'][number],
   burn: number | null,
   hoverHex: HexCoord | null,
   predictedDestination: HexCoord,
   hexSize: number,
-): CourseMarkerView[] {
+): CourseMarkerView[] => {
   if (ship.fuel <= 0) return [];
-  const markers: CourseMarkerView[] = [];
-  for (let direction = 0; direction < 6; direction++) {
+  return HEX_DIRECTIONS.map((_, direction) => {
     const targetHex = hexAdd(predictedDestination, HEX_DIRECTIONS[direction]);
     const target = hexToPixel(targetHex, hexSize);
-    markers.push(
-      buildDirectionMarker(
-        target,
-        burn === direction,
-        hoverHex !== null && hexEqual(hoverHex, targetHex),
-        8,
-        10,
-        2,
-        'rgba(79, 195, 247, 0.8)',
-        'rgba(79, 195, 247, 0.4)',
-        'rgba(79, 195, 247, 0.15)',
-        '#4fc3f7',
-        'rgba(79, 195, 247, 0.3)',
-        '#4fc3f7',
-        '#4fc3f7',
-        8,
-        12,
-      ),
+    return buildDirectionMarker(
+      target,
+      burn === direction,
+      hoverHex !== null && hexEqual(hoverHex, targetHex),
+      8,
+      10,
+      2,
+      'rgba(79, 195, 247, 0.8)',
+      'rgba(79, 195, 247, 0.4)',
+      'rgba(79, 195, 247, 0.15)',
+      '#4fc3f7',
+      'rgba(79, 195, 247, 0.3)',
+      '#4fc3f7',
+      '#4fc3f7',
+      8,
+      12,
     );
-  }
-  return markers;
-}
+  });
+};
 
-function buildOverloadMarkers(
+const buildOverloadMarkers = (
   ship: GameState['ships'][number],
   burn: number | null,
   overload: number | null,
   hoverHex: HexCoord | null,
   predictedDestination: HexCoord,
   hexSize: number,
-): CourseMarkerView[] {
+): CourseMarkerView[] => {
   if (burn === null) return [];
   const stats = SHIP_STATS[ship.type];
   if (!stats?.canOverload || ship.fuel < 2 || ship.overloadUsed) return [];
 
   const burnDestination = hexAdd(predictedDestination, HEX_DIRECTIONS[burn]);
-  const markers: CourseMarkerView[] = [];
-  for (let direction = 0; direction < 6; direction++) {
+  return HEX_DIRECTIONS.map((_, direction) => {
     const targetHex = hexAdd(burnDestination, HEX_DIRECTIONS[direction]);
     const target = hexToPixel(targetHex, hexSize);
-    markers.push(
-      buildDirectionMarker(
-        target,
-        overload === direction,
-        hoverHex !== null && hexEqual(hoverHex, targetHex),
-        6,
-        8,
-        1.5,
-        'rgba(255, 183, 77, 0.8)',
-        'rgba(255, 183, 77, 0.4)',
-        'rgba(255, 183, 77, 0.1)',
-        '#ffb74d',
-        'rgba(255, 183, 77, 0.25)',
-        '#ffb74d',
-        '#ffb74d',
-        4,
-        8,
-      ),
+    return buildDirectionMarker(
+      target,
+      overload === direction,
+      hoverHex !== null && hexEqual(hoverHex, targetHex),
+      6,
+      8,
+      1.5,
+      'rgba(255, 183, 77, 0.8)',
+      'rgba(255, 183, 77, 0.4)',
+      'rgba(255, 183, 77, 0.1)',
+      '#ffb74d',
+      'rgba(255, 183, 77, 0.25)',
+      '#ffb74d',
+      '#ffb74d',
+      4,
+      8,
     );
-  }
-  return markers;
-}
+  });
+};
 
-export function buildAstrogationCoursePreviewViews(
+export const buildAstrogationCoursePreviewViews = (
   state: GameState,
   playerId: number,
   planning: CoursePreviewPlanningState,
   map: SolarSystemMap,
   hexSize: number,
-): CoursePreviewView[] {
+): CoursePreviewView[] => {
   if (state.phase !== 'astrogation' || state.activePlayer !== playerId) return [];
 
   const previews: CoursePreviewView[] = [];
@@ -276,4 +266,4 @@ export function buildAstrogationCoursePreviewViews(
     });
   }
   return previews;
-}
+};

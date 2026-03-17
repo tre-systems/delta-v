@@ -18,23 +18,18 @@ const MAX_COMBAT_ATTACKS = 64;
 const MAX_ATTACKERS_PER_COMBAT = 16;
 const MAX_WEAK_GRAVITY_CHOICES = 64;
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
-function isString(value: unknown): value is string {
-  return typeof value === 'string';
-}
+const isString = (value: unknown): value is string => typeof value === 'string';
 
-function isIntegerInRange(value: unknown, min: number, max: number): value is number {
-  return Number.isInteger(value) && (value as number) >= min && (value as number) <= max;
-}
+const isIntegerInRange = (value: unknown, min: number, max: number): value is number =>
+  Number.isInteger(value) && (value as number) >= min && (value as number) <= max;
 
-function isNullableIntegerInRange(value: unknown, min: number, max: number): value is number | null {
-  return value === null || isIntegerInRange(value, min, max);
-}
+const isNullableIntegerInRange = (value: unknown, min: number, max: number): value is number | null =>
+  value === null || isIntegerInRange(value, min, max);
 
-function getRandomInt(maxExclusive: number): number {
+const getRandomInt = (maxExclusive: number): number => {
   // Rejection sampling to avoid modulo bias
   const limit = Math.floor(0x100000000 / maxExclusive) * maxExclusive;
   const bytes = new Uint32Array(1);
@@ -44,17 +39,17 @@ function getRandomInt(maxExclusive: number): number {
     value = bytes[0];
   } while (value >= limit);
   return value % maxExclusive;
-}
+};
 
-function generateRandomString(chars: string, length: number): string {
+const generateRandomString = (chars: string, length: number): string => {
   let result = '';
   for (let i = 0; i < length; i++) {
     result += chars[getRandomInt(chars.length)];
   }
   return result;
-}
+};
 
-function parseFleetPurchases(raw: unknown): FleetPurchase[] | null {
+const parseFleetPurchases = (raw: unknown): FleetPurchase[] | null => {
   if (!Array.isArray(raw) || raw.length > MAX_FLEET_PURCHASES) return null;
   const purchases: FleetPurchase[] = [];
   for (const item of raw) {
@@ -64,9 +59,9 @@ function parseFleetPurchases(raw: unknown): FleetPurchase[] | null {
     purchases.push({ shipType: item.shipType });
   }
   return purchases;
-}
+};
 
-function parseWeakGravityChoices(raw: unknown): Record<string, boolean> | undefined | null {
+const parseWeakGravityChoices = (raw: unknown): Record<string, boolean> | undefined | null => {
   if (raw == null) return undefined;
   if (!isObject(raw)) return null;
   const entries = Object.entries(raw);
@@ -78,9 +73,9 @@ function parseWeakGravityChoices(raw: unknown): Record<string, boolean> | undefi
     parsed[key] = value;
   }
   return parsed;
-}
+};
 
-function parseAstrogationOrders(raw: unknown): AstrogationOrder[] | null {
+const parseAstrogationOrders = (raw: unknown): AstrogationOrder[] | null => {
   if (!Array.isArray(raw) || raw.length > MAX_ASTROGATION_ORDERS) return null;
   const orders: AstrogationOrder[] = [];
   for (const item of raw) {
@@ -105,9 +100,9 @@ function parseAstrogationOrders(raw: unknown): AstrogationOrder[] | null {
     });
   }
   return orders;
-}
+};
 
-function parseOrdnanceLaunches(raw: unknown): OrdnanceLaunch[] | null {
+const parseOrdnanceLaunches = (raw: unknown): OrdnanceLaunch[] | null => {
   if (!Array.isArray(raw) || raw.length > MAX_ORDNANCE_LAUNCHES) return null;
   const launches: OrdnanceLaunch[] = [];
   for (const item of raw) {
@@ -136,9 +131,9 @@ function parseOrdnanceLaunches(raw: unknown): OrdnanceLaunch[] | null {
     });
   }
   return launches;
-}
+};
 
-function parseBaseEmplacements(raw: unknown): OrbitalBaseEmplacement[] | null {
+const parseBaseEmplacements = (raw: unknown): OrbitalBaseEmplacement[] | null => {
   if (!Array.isArray(raw) || raw.length > MAX_BASE_EMPLACEMENTS) return null;
   const emplacements: OrbitalBaseEmplacement[] = [];
   for (const item of raw) {
@@ -148,9 +143,9 @@ function parseBaseEmplacements(raw: unknown): OrbitalBaseEmplacement[] | null {
     emplacements.push({ shipId: item.shipId });
   }
   return emplacements;
-}
+};
 
-function parseCombatAttacks(raw: unknown): CombatAttack[] | null {
+const parseCombatAttacks = (raw: unknown): CombatAttack[] | null => {
   if (!Array.isArray(raw) || raw.length > MAX_COMBAT_ATTACKS) return null;
   const attacks: CombatAttack[] = [];
   for (const item of raw) {
@@ -170,7 +165,7 @@ function parseCombatAttacks(raw: unknown): CombatAttack[] | null {
     if (item.targetType !== undefined && item.targetType !== 'ship' && item.targetType !== 'ordnance') {
       return null;
     }
-    const rawAttackStrength = item.attackStrength;
+    const { attackStrength: rawAttackStrength } = item;
     let attackStrength: number | null = null;
     if (rawAttackStrength !== undefined && rawAttackStrength !== null) {
       if (
@@ -191,35 +186,30 @@ function parseCombatAttacks(raw: unknown): CombatAttack[] | null {
     });
   }
   return attacks;
-}
+};
 
-export function generateRoomCode(): string {
-  return generateRandomString(CODE_CHARS, 5);
-}
+export const generateRoomCode = (): string => generateRandomString(CODE_CHARS, 5);
 
-export function generatePlayerToken(): string {
-  return generateRandomString(TOKEN_CHARS, 32);
-}
+export const generatePlayerToken = (): string => generateRandomString(TOKEN_CHARS, 32);
 
-export function isValidPlayerToken(value: unknown): value is string {
-  return typeof value === 'string' && /^[A-Za-z0-9_-]{32}$/.test(value);
-}
+export const isValidPlayerToken = (value: unknown): value is string =>
+  typeof value === 'string' && /^[A-Za-z0-9_-]{32}$/.test(value);
 
-export function normalizeScenarioKey(raw: unknown, knownScenarioKeys: readonly string[]): string {
+export const normalizeScenarioKey = (raw: unknown, knownScenarioKeys: readonly string[]): string => {
   if (!isString(raw)) {
     return 'biplanetary';
   }
   return knownScenarioKeys.includes(raw) ? raw : 'biplanetary';
-}
+};
 
-export function parseCreatePayload(raw: unknown, knownScenarioKeys: readonly string[]): { scenario: string } {
+export const parseCreatePayload = (raw: unknown, knownScenarioKeys: readonly string[]): { scenario: string } => {
   if (!isObject(raw)) {
     return { scenario: 'biplanetary' };
   }
   return {
     scenario: normalizeScenarioKey(raw.scenario, knownScenarioKeys),
   };
-}
+};
 
 export interface InitPayload {
   code: string;
@@ -228,10 +218,10 @@ export interface InitPayload {
   inviteToken: string;
 }
 
-export function parseInitPayload(
+export const parseInitPayload = (
   raw: unknown,
   knownScenarioKeys: readonly string[],
-): { ok: true; value: InitPayload } | { ok: false; error: string } {
+): { ok: true; value: InitPayload } | { ok: false; error: string } => {
   if (!isObject(raw)) {
     return { ok: false, error: 'Invalid init payload' };
   }
@@ -256,9 +246,9 @@ export function parseInitPayload(
       inviteToken: raw.inviteToken,
     },
   };
-}
+};
 
-export function validateClientMessage(raw: unknown): { ok: true; value: C2S } | { ok: false; error: string } {
+export const validateClientMessage = (raw: unknown): { ok: true; value: C2S } | { ok: false; error: string } => {
   if (!isObject(raw) || !isString(raw.type)) {
     return { ok: false, error: 'Invalid message payload' };
   }
@@ -306,7 +296,7 @@ export function validateClientMessage(raw: unknown): { ok: true; value: C2S } | 
     default:
       return { ok: false, error: 'Unknown message type' };
   }
-}
+};
 
 export interface RoomConfig {
   code: string;
@@ -315,14 +305,12 @@ export interface RoomConfig {
   inviteTokens: [string | null, string | null];
 }
 
-export function createRoomConfig(init: InitPayload): RoomConfig {
-  return {
-    code: init.code,
-    scenario: init.scenario,
-    playerTokens: [init.playerToken, null],
-    inviteTokens: [null, init.inviteToken],
-  };
-}
+export const createRoomConfig = ({ code, scenario, playerToken, inviteToken }: InitPayload): RoomConfig => ({
+  code,
+  scenario,
+  playerTokens: [playerToken, null],
+  inviteTokens: [null, inviteToken],
+});
 
 export interface SeatAssignmentInput {
   presentedToken: string | null;
@@ -336,7 +324,7 @@ export type SeatAssignmentDecision =
   | { type: 'join'; playerId: 0 | 1; issueNewToken: boolean; consumeInviteToken: boolean }
   | { type: 'reject'; status: number; message: string };
 
-export function resolveSeatAssignment(input: SeatAssignmentInput): SeatAssignmentDecision {
+export const resolveSeatAssignment = (input: SeatAssignmentInput): SeatAssignmentDecision => {
   const { presentedToken, seatOpen, playerTokens, inviteTokens } = input;
 
   for (const playerId of [0, 1] as const) {
@@ -377,4 +365,4 @@ export function resolveSeatAssignment(input: SeatAssignmentInput): SeatAssignmen
   }
 
   return { type: 'reject', status: 409, message: 'Game is full' };
-}
+};

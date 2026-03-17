@@ -9,7 +9,7 @@ import { type HexCoord, hexAdd, hexToPixel, type PixelCoord } from '../shared/he
 /**
  * Draw a ship icon (arrow or octagon for orbital base) at the given position.
  */
-export function drawShipIcon(
+export const drawShipIcon = (
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -18,7 +18,7 @@ export function drawShipIcon(
   heading: number,
   disabledTurns = 0,
   shipType = '',
-): void {
+): void => {
   const color = owner === 0 ? `rgba(79, 195, 247, ${alpha})` : `rgba(255, 152, 0, ${alpha})`;
   const stats = SHIP_STATS[shipType];
   const combat = stats?.combat ?? 2;
@@ -67,18 +67,18 @@ export function drawShipIcon(
     ctx.fill();
   }
   ctx.restore();
-}
+};
 
 /**
  * Draw a thrust exhaust trail behind a moving ship.
  */
-export function drawThrustTrail(
+export const drawThrustTrail = (
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   angle: number,
   progress: number,
-): void {
+): void => {
   const len = 12 + Math.sin(progress * 20) * 4;
   const spread = 0.3;
   const alpha = 0.6 * (1 - progress);
@@ -102,12 +102,12 @@ export function drawThrustTrail(
   ctx.fill();
 
   ctx.restore();
-}
+};
 
 /**
  * Smoothly interpolate a position along a hex path with ease-in-out.
  */
-export function interpolatePath(path: HexCoord[], progress: number, hexSize: number): PixelCoord {
+export const interpolatePath = (path: HexCoord[], progress: number, hexSize: number): PixelCoord => {
   if (path.length <= 1) return hexToPixel(path[0], hexSize);
 
   // Ease in-out
@@ -125,19 +125,19 @@ export function interpolatePath(path: HexCoord[], progress: number, hexSize: num
     x: from.x + (to.x - from.x) * segT,
     y: from.y + (to.y - from.y) * segT,
   };
-}
+};
 
 /**
  * Draw an ordnance velocity vector (dashed line from current position to next).
  */
-export function drawOrdnanceVelocity(
+export const drawOrdnanceVelocity = (
   ctx: CanvasRenderingContext2D,
   position: HexCoord,
   velocity: { dq: number; dr: number },
   px: PixelCoord,
   color: string,
   hexSize: number,
-): void {
+): void => {
   if (velocity.dq === 0 && velocity.dr === 0) return;
   const dest = hexToPixel(hexAdd(position, velocity), hexSize);
   ctx.strokeStyle = color;
@@ -150,4 +150,4 @@ export function drawOrdnanceVelocity(
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
-}
+};

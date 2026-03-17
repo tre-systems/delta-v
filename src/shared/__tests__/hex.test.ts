@@ -14,6 +14,7 @@ import {
   hexSubtract,
   hexToPixel,
   hexVecLength,
+  parseHexKey,
   pixelToHex,
 } from '../hex';
 
@@ -183,5 +184,24 @@ describe('cubeRound', () => {
     expect(r1.q).toBe(0);
     expect(Object.is(r1.r, -0) ? 0 : r1.r).toBe(0); // JS -0 quirk
     expect(cubeRound(0.9, 0.1, -1.0).q).toBe(1);
+  });
+});
+
+describe('parseHexKey', () => {
+  it('is the inverse of hexKey', () => {
+    const coord = { q: 3, r: -7 };
+    expect(parseHexKey(hexKey(coord))).toEqual(coord);
+  });
+
+  it('parses positive coords', () => {
+    expect(parseHexKey('5,10')).toEqual({ q: 5, r: 10 });
+  });
+
+  it('parses negative coords', () => {
+    expect(parseHexKey('-3,-4')).toEqual({ q: -3, r: -4 });
+  });
+
+  it('parses zero', () => {
+    expect(parseHexKey('0,0')).toEqual({ q: 0, r: 0 });
   });
 });

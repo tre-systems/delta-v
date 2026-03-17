@@ -61,13 +61,13 @@ export type ClientMessagePlan =
       latencyMs: number | null;
     };
 
-export function deriveClientMessagePlan(
+export const deriveClientMessagePlan = (
   currentState: ClientState,
   reconnectAttempts: number,
   playerId: number,
   nowMs: number,
   msg: S2C,
-): ClientMessagePlan {
+): ClientMessagePlan => {
   switch (msg.type) {
     case 'welcome': {
       const welcome = deriveWelcomeHandling(currentState, reconnectAttempts, msg.playerId);
@@ -136,4 +136,4 @@ export function deriveClientMessagePlan(
         latencyMs: msg.t > 0 ? nowMs - msg.t : null,
       };
   }
-}
+};

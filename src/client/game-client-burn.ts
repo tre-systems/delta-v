@@ -10,12 +10,12 @@ export type BurnChangePlan =
       clearOverload: boolean;
     };
 
-export function deriveBurnChangePlan(
+export const deriveBurnChangePlan = (
   state: GameState | null,
   selectedShipId: string | null,
   direction: number,
   currentBurn: number | null,
-): BurnChangePlan {
+): BurnChangePlan => {
   if (!state) {
     return { kind: 'noop' };
   }
@@ -52,4 +52,4 @@ export function deriveBurnChangePlan(
     nextBurn: currentBurn === direction ? null : direction,
     clearOverload: currentBurn !== direction,
   };
-}
+};

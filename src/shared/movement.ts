@@ -21,6 +21,141 @@ export interface CourseOptions {
 }
 
 /**
+ * Apply pending gravity deflections entered on the previous turn.
+ */
+export const applyPendingGravityEffects = (destination: HexCoord, effects: GravityEffect[] | undefined): HexCoord =>
+  (effects ?? []).reduce(
+    (dest, effect) => (effect.ignored ? dest : hexAdd(dest, HEX_DIRECTIONS[effect.direction])),
+    destination,
+  );
+
+/**
+ * Collect gravity hexes entered during this move.
+ *
+ * The starting hex is skipped because its effect would already have been queued
+ * on a previous turn. The destination hex is included because entering it now
+ * means its gravity applies on the following turn.
+ *
+ * Weak gravity: player may choose to ignore a single weak gravity hex.
+ * Two consecutive weak gravity hexes from the same body = mandatory on the second.
+ */
+export const collectEnteredGravityEffects = (
+  path: HexCoord[],
+  map: SolarSystemMap,
+  weakGravityChoices: Record<string, boolean> = {},
+): GravityEffect[] => {
+  const effects: GravityEffect[] = [];
+  let prevWeakBody: string | null = null;
+  if (path.length < 2) return effects;
+  const line = analyzeHexLine(path[0], path[path.length - 1]);
+
+  for (let i = 1; i < line.definite.length; i++) {
+    const coord = line.definite[i];
+    const hex = map.hexes.get(hexKey(coord));
+    if (!hex?.gravity) {
+      prevWeakBody = null;
+      continue;
+    }
+
+    const grav = hex.gravity;
+    const key = hexKey(coord);
+    let ignored = false;
+
+    if (grav.strength === 'weak') {
+      const isConsecutiveWeak = prevWeakBody === grav.bodyName;
+      ignored = !isConsecutiveWeak && weakGravityChoices[key] === true;
+      prevWeakBody = grav.bodyName;
+    } else {
+      prevWeakBody = null;
+    }
+
+    effects.push({
+      hex: coord,
+      direction: grav.direction,
+      bodyName: grav.bodyName,
+      strength: grav.strength,
+      ignored,
+    });
+  }
+
+  return effects;
+};
+
+const canLandAtPlanetaryBase = (
+  ship: Ship,
+  bodyName: string,
+  fuelSpent: number,
+  map: SolarSystemMap,
+  destroyedBases: Set<string>,
+): boolean => {
+  if (fuelSpent !== 1) return false;
+  if (hexVecLength(ship.velocity) !== 1) return false;
+
+  const currentHex = map.hexes.get(hexKey(ship.position));
+  if (currentHex?.gravity?.bodyName !== bodyName) return false;
+
+  const projectedDrift = applyPendingGravityEffects(hexAdd(ship.position, ship.velocity), ship.pendingGravityEffects);
+  const projectedHex = map.hexes.get(hexKey(projectedDrift));
+  if (projectedHex?.gravity?.bodyName === bodyName) return true;
+  return projectedHex?.base?.bodyName === bodyName && !destroyedBases.has(hexKey(projectedDrift));
+};
+
+/**
+ * Check whether the ship completes a legal landing.
+ */
+const checkLanding = (
+  ship: Ship,
+  destination: HexCoord,
+  newVelocity: HexVec,
+  fuelSpent: number,
+  map: SolarSystemMap,
+  destroyedBases: Set<string>,
+): string | null => {
+  const key = hexKey(destination);
+  const hex = map.hexes.get(key);
+  if (hex?.base && !destroyedBases.has(key)) {
+    if (bodyHasGravity(hex.base.bodyName, map)) {
+      return canLandAtPlanetaryBase(ship, hex.base.bodyName, fuelSpent, map, destroyedBases) ? hex.base.bodyName : null;
+    }
+    return hexVecLength(newVelocity) === 0 ? hex.base.bodyName : null;
+  }
+
+  if (hex?.body && !hex.body.destructive) {
+    if (bodyHasGravity(hex.body.name, map)) {
+      return null;
+    }
+    return hexVecLength(newVelocity) === 0 ? hex.body.name : null;
+  }
+  return null;
+};
+
+/**
+ * Check if any hex in the path causes a crash.
+ * Intermediate body hexes = crash (except skipBody for takeoff).
+ * Final hex: destructive bodies crash, non-destructive = landing.
+ */
+const checkCrash = (
+  path: HexCoord[],
+  map: SolarSystemMap,
+  landedAt: string | null,
+  skipBody?: string,
+): { crashed: boolean; crashBody: string | null } => {
+  for (let i = 1; i < path.length; i++) {
+    const hex = map.hexes.get(hexKey(path[i]));
+    if (hex?.body) {
+      if (i < path.length - 1) {
+        if (skipBody && hex.body.name === skipBody) continue;
+        return { crashed: true, crashBody: hex.body.name };
+      }
+      if (hex.body.destructive || landedAt === null) {
+        return { crashed: true, crashBody: hex.body.name };
+      }
+    }
+  }
+  return { crashed: false, crashBody: null };
+};
+
+/**
  * Compute the course for a ship given a burn direction.
  *
  * Algorithm:
@@ -31,17 +166,14 @@ export interface CourseOptions {
  * 5. Trace the actual path for this turn
  * 6. Record gravity hexes entered this turn for the next turn
  */
-export function computeCourse(
+export const computeCourse = (
   ship: Ship,
   burn: number | null,
   map: SolarSystemMap,
   options?: CourseOptions,
-): CourseResult {
-  let destination: HexCoord;
-  let fuelSpent = 0;
-  const overload = options?.overload ?? null;
-  const weakGravityChoices = options?.weakGravityChoices ?? {};
-  const destroyedBases = new Set(options?.destroyedBases ?? []);
+): CourseResult => {
+  const { overload = null, weakGravityChoices = {}, destroyedBases: destroyedBasesList = [] } = options ?? {};
+  const destroyedBases = new Set(destroyedBasesList);
 
   if (ship.landed) {
     // No burn = stay landed (ship remains at the base)
@@ -91,8 +223,8 @@ export function computeCourse(
     }
 
     // After booster + gravity cancel, ship is stationary at launchHex.
-    destination = hexAdd(launchHex, HEX_DIRECTIONS[burn]);
-    fuelSpent = 1;
+    let destination: HexCoord = hexAdd(launchHex, HEX_DIRECTIONS[burn]);
+    let fuelSpent = 1;
 
     // Overload on takeoff
     if (overload !== null) {
@@ -129,7 +261,8 @@ export function computeCourse(
   }
 
   // Normal movement: destination = position + velocity
-  destination = hexAdd(ship.position, ship.velocity);
+  let destination: HexCoord = hexAdd(ship.position, ship.velocity);
+  let fuelSpent = 0;
 
   // Apply burn
   if (burn !== null && ship.fuel > 0) {
@@ -168,158 +301,17 @@ export function computeCourse(
     crashBody,
     landedAt,
   };
-}
-
-/**
- * Apply pending gravity deflections entered on the previous turn.
- */
-export function applyPendingGravityEffects(destination: HexCoord, effects: GravityEffect[] | undefined): HexCoord {
-  let dest = destination;
-  for (const effect of effects ?? []) {
-    if (effect.ignored) continue;
-    const deflection = HEX_DIRECTIONS[effect.direction];
-    dest = hexAdd(dest, deflection);
-  }
-  return dest;
-}
-
-/**
- * Collect gravity hexes entered during this move.
- *
- * The starting hex is skipped because its effect would already have been queued
- * on a previous turn. The destination hex is included because entering it now
- * means its gravity applies on the following turn.
- *
- * Weak gravity: player may choose to ignore a single weak gravity hex.
- * Two consecutive weak gravity hexes from the same body = mandatory on the second.
- */
-export function collectEnteredGravityEffects(
-  path: HexCoord[],
-  map: SolarSystemMap,
-  weakGravityChoices: Record<string, boolean> = {},
-): GravityEffect[] {
-  const effects: GravityEffect[] = [];
-  let prevWeakBody: string | null = null;
-  if (path.length < 2) return effects;
-  const line = analyzeHexLine(path[0], path[path.length - 1]);
-
-  for (let i = 1; i < line.definite.length; i++) {
-    const coord = line.definite[i];
-    const hex = map.hexes.get(hexKey(coord));
-    if (!hex?.gravity) {
-      prevWeakBody = null;
-      continue;
-    }
-
-    const grav = hex.gravity;
-    const key = hexKey(coord);
-    let ignored = false;
-
-    if (grav.strength === 'weak') {
-      const isConsecutiveWeak = prevWeakBody === grav.bodyName;
-      ignored = !isConsecutiveWeak && weakGravityChoices[key] === true;
-      prevWeakBody = grav.bodyName;
-    } else {
-      prevWeakBody = null;
-    }
-
-    effects.push({
-      hex: coord,
-      direction: grav.direction,
-      bodyName: grav.bodyName,
-      strength: grav.strength,
-      ignored,
-    });
-  }
-
-  return effects;
-}
-
-/**
- * Check if any hex in the path causes a crash.
- * Intermediate body hexes = crash (except skipBody for takeoff).
- * Final hex: destructive bodies crash, non-destructive = landing.
- */
-function checkCrash(
-  path: HexCoord[],
-  map: SolarSystemMap,
-  landedAt: string | null,
-  skipBody?: string,
-): { crashed: boolean; crashBody: string | null } {
-  for (let i = 1; i < path.length; i++) {
-    const hex = map.hexes.get(hexKey(path[i]));
-    if (hex?.body) {
-      if (i < path.length - 1) {
-        if (skipBody && hex.body.name === skipBody) continue;
-        return { crashed: true, crashBody: hex.body.name };
-      }
-      if (hex.body.destructive || landedAt === null) {
-        return { crashed: true, crashBody: hex.body.name };
-      }
-    }
-  }
-  return { crashed: false, crashBody: null };
-}
-
-/**
- * Check whether the ship completes a legal landing.
- */
-function checkLanding(
-  ship: Ship,
-  destination: HexCoord,
-  newVelocity: HexVec,
-  fuelSpent: number,
-  map: SolarSystemMap,
-  destroyedBases: Set<string>,
-): string | null {
-  const key = hexKey(destination);
-  const hex = map.hexes.get(key);
-  if (hex?.base && !destroyedBases.has(key)) {
-    if (bodyHasGravity(hex.base.bodyName, map)) {
-      return canLandAtPlanetaryBase(ship, hex.base.bodyName, fuelSpent, map, destroyedBases) ? hex.base.bodyName : null;
-    }
-    return hexVecLength(newVelocity) === 0 ? hex.base.bodyName : null;
-  }
-
-  if (hex?.body && !hex.body.destructive) {
-    if (bodyHasGravity(hex.body.name, map)) {
-      return null;
-    }
-    return hexVecLength(newVelocity) === 0 ? hex.body.name : null;
-  }
-  return null;
-}
-
-function canLandAtPlanetaryBase(
-  ship: Ship,
-  bodyName: string,
-  fuelSpent: number,
-  map: SolarSystemMap,
-  destroyedBases: Set<string>,
-): boolean {
-  if (fuelSpent !== 1) return false;
-  if (hexVecLength(ship.velocity) !== 1) return false;
-
-  const currentHex = map.hexes.get(hexKey(ship.position));
-  if (currentHex?.gravity?.bodyName !== bodyName) return false;
-
-  const projectedDrift = applyPendingGravityEffects(hexAdd(ship.position, ship.velocity), ship.pendingGravityEffects);
-  const projectedHex = map.hexes.get(hexKey(projectedDrift));
-  if (projectedHex?.gravity?.bodyName === bodyName) return true;
-  return projectedHex?.base?.bodyName === bodyName && !destroyedBases.has(hexKey(projectedDrift));
-}
+};
 
 /**
  * Check if a ship can burn fuel.
  */
-export function canBurn(ship: Ship): boolean {
-  return ship.fuel > 0;
-}
+export const canBurn = (ship: Ship): boolean => ship.fuel > 0;
 
 /**
  * Predict where a ship will be next turn with no burn (for display).
  */
-export function predictDestination(ship: Ship): HexCoord {
+export const predictDestination = (ship: Ship): HexCoord => {
   if (ship.landed) return ship.position;
   return applyPendingGravityEffects(hexAdd(ship.position, ship.velocity), ship.pendingGravityEffects);
-}
+};

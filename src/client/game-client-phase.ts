@@ -22,19 +22,19 @@ export interface PhaseTransitionPlan {
   turnLogPlayerLabel: string | null;
 }
 
-function hasPendingOwnedAsteroidHazards(state: GameState, playerId: number): boolean {
+const hasPendingOwnedAsteroidHazards = (state: GameState, playerId: number): boolean => {
   return state.pendingAsteroidHazards.some((hazard) => {
     const ship = state.ships.find((candidate) => candidate.id === hazard.shipId);
     return ship?.owner === playerId && !ship.destroyed;
   });
-}
+};
 
-export function derivePhaseTransition(
+export const derivePhaseTransition = (
   state: GameState,
   playerId: number,
   lastLoggedTurn: number,
   isLocalGame: boolean,
-): PhaseTransitionPlan {
+): PhaseTransitionPlan => {
   const shouldLogTurn = state.phase === 'astrogation' && state.turnNumber !== lastLoggedTurn;
   const turnLogPlayerLabel = shouldLogTurn ? (state.activePlayer === playerId ? 'You' : 'Opponent') : null;
   const turnLogNumber = shouldLogTurn ? state.turnNumber : null;
@@ -108,4 +108,4 @@ export function derivePhaseTransition(
     turnLogNumber,
     turnLogPlayerLabel,
   };
-}
+};

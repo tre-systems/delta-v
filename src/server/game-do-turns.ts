@@ -7,10 +7,10 @@ export interface TurnTimeoutOutcome {
   primaryMessage?: StatefulServerMessage;
 }
 
-export function resolveTurnTimeoutOutcome(gameState: GameState, map: SolarSystemMap): TurnTimeoutOutcome | null {
-  const playerId = gameState.activePlayer;
+export const resolveTurnTimeoutOutcome = (gameState: GameState, map: SolarSystemMap): TurnTimeoutOutcome | null => {
+  const { activePlayer: playerId, phase } = gameState;
 
-  if (gameState.phase === 'astrogation') {
+  if (phase === 'astrogation') {
     const orders: AstrogationOrder[] = gameState.ships
       .filter((ship) => ship.owner === playerId)
       .map((ship) => ({ shipId: ship.id, burn: null }));
@@ -18,17 +18,17 @@ export function resolveTurnTimeoutOutcome(gameState: GameState, map: SolarSystem
     return 'error' in result ? null : { state: result.state, primaryMessage: resolveMovementBroadcast(result) };
   }
 
-  if (gameState.phase === 'ordnance') {
+  if (phase === 'ordnance') {
     const result = skipOrdnance(gameState, playerId, map);
     return 'error' in result
       ? null
       : { state: result.state, primaryMessage: resolveMovementBroadcast(result, 'stateUpdate') };
   }
 
-  if (gameState.phase === 'combat') {
+  if (phase === 'combat') {
     const result = skipCombat(gameState, playerId, map);
     return 'error' in result ? null : { state: result.state, primaryMessage: resolveCombatBroadcast(result) };
   }
 
   return null;
-}
+};

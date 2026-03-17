@@ -10,7 +10,7 @@ import { SHIP_STATS } from '../shared/constants';
 import { hexVecLength } from '../shared/hex';
 import type { GameState, Ship, SolarSystemMap } from '../shared/types';
 
-function getCombatSummary(state: GameState, ship: Ship, playerId: number, map: SolarSystemMap) {
+const getCombatSummary = (state: GameState, ship: Ship, playerId: number, map: SolarSystemMap) => {
   if (ship.owner === playerId) {
     return '';
   }
@@ -28,9 +28,9 @@ function getCombatSummary(state: GameState, ship: Ship, playerId: number, map: S
   const rangeMod = computeGroupRangeMod(attackers, ship);
   const velocityMod = computeGroupVelocityMod(attackers, ship);
   return `<div class="tt-warn">${odds} R-${rangeMod} V-${velocityMod}</div>`;
-}
+};
 
-export function buildShipTooltipHtml(state: GameState, ship: Ship, playerId: number, map: SolarSystemMap): string {
+export const buildShipTooltipHtml = (state: GameState, ship: Ship, playerId: number, map: SolarSystemMap): string => {
   const stats = SHIP_STATS[ship.type];
   const name = stats?.name ?? ship.type;
   const isEnemy = ship.owner !== playerId;
@@ -61,4 +61,4 @@ export function buildShipTooltipHtml(state: GameState, ship: Ship, playerId: num
     parts.push(combatSummary);
   }
   return parts.join('');
-}
+};

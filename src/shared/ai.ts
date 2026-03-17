@@ -33,43 +33,261 @@ import type {
 
 export type AIDifficulty = 'easy' | 'normal' | 'hard';
 
+// --- Helpers (declared before exported functions that use them) ---
+
+const parseHexKey = (key: string): { q: number; r: number } => {
+  const [q, r] = key.split(',').map(Number);
+  return { q, r };
+};
+
+const findDirectionToward = (from: { q: number; r: number }, to: { q: number; r: number }): number => {
+  const { dir } = HEX_DIRECTIONS.reduce(
+    (best, dirVec, d) => {
+      const dist = hexDistance(hexAdd(from, dirVec), to);
+      return dist < best.dist ? { dir: d, dist } : best;
+    },
+    { dir: 0, dist: Infinity },
+  );
+  return dir;
+};
+
+/**
+ * Find the nearest base hex the player controls that has fuel.
+ */
+const findNearestBase = (
+  shipPos: { q: number; r: number },
+  playerBases: string[],
+  _map: SolarSystemMap,
+): { q: number; r: number } | null => {
+  const result = playerBases.reduce<{ pos: { q: number; r: number } | null; dist: number }>(
+    (best, baseKey) => {
+      const pos = parseHexKey(baseKey);
+      const dist = hexDistance(shipPos, pos);
+      return dist < best.dist ? { pos, dist } : best;
+    },
+    { pos: null, dist: Infinity },
+  );
+  return result.pos;
+};
+
+/**
+ * Pick the next checkpoint body to visit, or homeBody if all visited.
+ * Uses nearest-neighbor heuristic from the player's ship position.
+ */
+const pickNextCheckpoint = (
+  player: { visitedBodies?: string[]; homeBody: string },
+  checkpoints: string[],
+  map: SolarSystemMap,
+  shipPos?: { q: number; r: number },
+): string | null => {
+  const visited = new Set(player.visitedBodies ?? []);
+  const unvisited = checkpoints.filter((b) => !visited.has(b));
+  if (unvisited.length === 0) return player.homeBody;
+  if (!shipPos) return unvisited[0];
+
+  // Find nearest unvisited body
+  const bestBody = unvisited.reduce((best, name) => {
+    const body = map.bodies.find((b) => b.name === name);
+    if (!body) return best;
+    const dist = hexDistance(shipPos, body.center);
+    const bestBodyObj = map.bodies.find((b) => b.name === best);
+    const bestDist = bestBodyObj ? hexDistance(shipPos, bestBodyObj.center) : Infinity;
+    return dist < bestDist ? name : best;
+  }, unvisited[0]);
+  return bestBody;
+};
+
+/**
+ * Score a course result for AI decision-making.
+ */
+const scoreCourse = (
+  ship: Ship,
+  course: CourseResult,
+  targetHex: { q: number; r: number } | null,
+  targetBody: string,
+  escapeWins: boolean,
+  enemyShips: Ship[],
+  difficulty: AIDifficulty,
+  map?: SolarSystemMap,
+  isRace?: boolean,
+): number => {
+  let score = 0;
+
+  // Difficulty multiplier for scoring precision
+  const mult = difficulty === 'hard' ? 1.5 : difficulty === 'easy' ? 0.7 : 1.0;
+
+  if (escapeWins) {
+    // Escape strategy: maximize distance from center + velocity
+    const distFromCenter = hexDistance(course.destination, { q: 0, r: 0 });
+    score += distFromCenter * 10 * mult;
+    const speed = hexVecLength(course.newVelocity);
+    score += speed * 5 * mult;
+    // Never stay landed when trying to escape
+    if (ship.landed && course.destination.q === ship.position.q && course.destination.r === ship.position.r) {
+      score -= 100 * mult;
+    }
+  } else if (targetHex) {
+    // Navigate to target strategy
+    const currentDist = hexDistance(ship.position, targetHex);
+    const newDist = hexDistance(course.destination, targetHex);
+
+    // Reward getting closer to target
+    score += (currentDist - newDist) * 20 * mult;
+
+    // Bonus for landing on target body (not home!)
+    if (targetBody && course.landedAt === targetBody) {
+      score += 1000;
+    } else if (course.landedAt && !targetBody) {
+      // Fuel-seeking: landing at any base is great
+      score += 500;
+    } else if (course.landedAt) {
+      // Landing at wrong body — generally bad, but in checkpoint races
+      // any base landing provides a refuel opportunity
+      score -= 30 * mult;
+    }
+
+    // Heavy penalty for staying landed at home — AI must launch
+    if (ship.landed && course.destination.q === ship.position.q && course.destination.r === ship.position.r) {
+      score -= 50 * mult;
+    }
+
+    // Velocity alignment: prefer velocity pointing toward target
+    const velDist = hexDistance(hexAdd(course.destination, course.newVelocity), targetHex);
+    score -= velDist * 2 * mult;
+
+    // Penalty for overshooting (velocity too high near target)
+    if (newDist < 8) {
+      const speed = hexVecLength(course.newVelocity);
+      if (speed > newDist + 1) {
+        score -= (speed - newDist) * 15 * mult;
+      }
+    }
+  }
+
+  // Race mode: penalize high speed near bodies (gravity well danger)
+  if (isRace && map && !course.landedAt) {
+    const speed = hexVecLength(course.newVelocity);
+    for (const body of map.bodies) {
+      const bodyDist = hexDistance(course.destination, body.center);
+      const dangerZone = body.surfaceRadius + 5;
+      if (bodyDist < dangerZone && speed > Math.max(1, bodyDist - body.surfaceRadius)) {
+        score -= (speed - bodyDist + body.surfaceRadius + 1) * 15;
+      }
+    }
+    // Must be nearly stopped to land
+    if (targetHex) {
+      const newDist2 = hexDistance(course.destination, targetHex);
+      if (newDist2 < 3 && speed > 1) {
+        score -= speed * 25;
+      }
+    }
+  }
+
+  // Penalty for staying landed in combat-only scenarios
+  const noPrimaryObjective = !escapeWins && !targetHex;
+  if (
+    noPrimaryObjective &&
+    ship.landed &&
+    course.destination.q === ship.position.q &&
+    course.destination.r === ship.position.r
+  ) {
+    score -= 80 * mult;
+  }
+
+  // Deferred gravity matters most for the following turn, so look one move ahead.
+  if (!course.landedAt && course.enteredGravityEffects.length > 0) {
+    const nextTurnDest = applyPendingGravityEffects(
+      hexAdd(course.destination, course.newVelocity),
+      course.enteredGravityEffects,
+    );
+
+    if (escapeWins) {
+      score += (hexDistance(nextTurnDest, { q: 0, r: 0 }) - hexDistance(course.destination, { q: 0, r: 0 })) * 4 * mult;
+    } else if (targetHex) {
+      score += (hexDistance(course.destination, targetHex) - hexDistance(nextTurnDest, targetHex)) * 6 * mult;
+    } else if (enemyShips.length > 0) {
+      const nearestEnemyAfterDrift = Math.min(...enemyShips.map((enemy) => hexDistance(nextTurnDest, enemy.position)));
+      score += Math.max(0, 5 - nearestEnemyAfterDrift) * mult;
+    }
+  }
+
+  // Combat positioning
+  const myStrength = getCombatStrength([ship]);
+  if (enemyShips.length > 0) {
+    for (const enemy of enemyShips) {
+      const dist = hexDistance(course.destination, enemy.position);
+      const enemyStr = getCombatStrength([enemy]);
+
+      if (noPrimaryObjective) {
+        // Pure combat mode: aggressively seek combat range
+        // Strong closing incentive that always outweighs other penalties
+        score += Math.max(0, 50 - dist) * 3 * mult;
+
+        // Extra strong bonus for being at combat range 1-3
+        if (dist <= 3) score += 40 * mult;
+
+        // Velocity toward enemy: prefer velocity pointing at enemy
+        const nextPos = hexAdd(course.destination, course.newVelocity);
+        const nextDist = hexDistance(nextPos, enemy.position);
+        score += (dist - nextDist) * 5 * mult;
+
+        // Velocity matching: only at close range to maintain engagement
+        if (dist < 6) {
+          const velMatchDist = hexDistance(
+            { q: course.newVelocity.dq, r: course.newVelocity.dr },
+            { q: enemy.velocity.dq, r: enemy.velocity.dr },
+          );
+          score -= velMatchDist * (dist < 3 ? 4 : 2) * mult;
+        }
+
+        // Speed management: prefer moderate velocity near enemies
+        const speed = hexVecLength(course.newVelocity);
+        if (dist < 5 && speed > 5) {
+          const enemySpeed = hexVecLength(enemy.velocity);
+          if (speed > enemySpeed + 2) {
+            score -= (speed - enemySpeed) * 3 * mult;
+          }
+        }
+      } else if (myStrength > 0) {
+        // Has objective but also can fight
+        if (myStrength >= enemyStr) {
+          // If we are stronger or equal, we should push toward them if they are nearby
+          score += Math.max(0, 10 - dist) * 1.5 * mult;
+        } else {
+          // If we are weaker, maintain some distance but don't just run away if it stalls the game
+          score += Math.min(dist, 8) * 0.5 * mult;
+        }
+      }
+    }
+  }
+
+  return score;
+};
+
 /**
  * Generate astrogation orders for an AI player.
  * Strategy: for each ship, evaluate all 7 options (6 burn directions + no burn)
  * and pick the one that brings us closest to our goal.
  */
-export function aiAstrogation(
+export const aiAstrogation = (
   state: GameState,
   playerId: number,
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
-): AstrogationOrder[] {
+): AstrogationOrder[] => {
   const orders: AstrogationOrder[] = [];
+  const { targetBody, escapeWins } = state.players[playerId];
   const player = state.players[playerId];
-  const targetBody = player.targetBody;
-  const escapeWins = player.escapeWins;
 
   // Default navigation target (non-checkpoint scenarios)
-  let defaultTargetHex: { q: number; r: number } | null = null;
-  if (targetBody) {
-    for (const body of map.bodies) {
-      if (body.name === targetBody) {
-        defaultTargetHex = body.center;
-        break;
-      }
-    }
-  }
+  const defaultTargetHex: { q: number; r: number } | null = targetBody
+    ? (map.bodies.find((body) => body.name === targetBody)?.center ?? null)
+    : null;
 
   const checkpoints = state.scenarioRules.checkpointBodies;
 
   // Find enemy ships for combat positioning
   const enemyShips = state.ships.filter((s) => s.owner !== playerId && !s.destroyed);
-
-  // Precompute base positions for fuel-seeking
-  const basePosMap = new Map<string, { q: number; r: number }>();
-  for (const baseKey of player.bases) {
-    basePosMap.set(baseKey, parseHexKey(baseKey));
-  }
 
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
@@ -96,15 +314,7 @@ export function aiAstrogation(
     if (checkpoints && player.visitedBodies) {
       const nextBody = pickNextCheckpoint(player, checkpoints, map, ship.position) ?? '';
       shipTargetBody = nextBody;
-      shipTargetHex = null;
-      if (nextBody) {
-        for (const body of map.bodies) {
-          if (body.name === nextBody) {
-            shipTargetHex = body.center;
-            break;
-          }
-        }
-      }
+      shipTargetHex = nextBody ? (map.bodies.find((body) => body.name === nextBody)?.center ?? null) : null;
 
       // Refuel strategy: divert to nearest base when fuel won't reach the target
       if (shipTargetHex && !ship.landed) {
@@ -308,18 +518,18 @@ export function aiAstrogation(
   }
 
   return orders;
-}
+};
 
 /**
  * Generate ordnance launches for an AI player.
  * Strategy: launch torpedoes at nearby enemy ships.
  */
-export function aiOrdnance(
+export const aiOrdnance = (
   state: GameState,
   playerId: number,
   _map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
-): OrdnanceLaunch[] {
+): OrdnanceLaunch[] => {
   const launches: OrdnanceLaunch[] = [];
   const allowedTypes = new Set(state.scenarioRules.allowedOrdnanceTypes ?? ['mine', 'torpedo', 'nuke']);
 
@@ -342,15 +552,13 @@ export function aiOrdnance(
     const cargoFree = stats.cargo - ship.cargoUsed;
 
     // Find nearest enemy
-    let nearestEnemy: Ship | null = null;
-    let nearestDist = Infinity;
-    for (const enemy of enemyShips) {
-      const dist = hexDistance(ship.position, enemy.position);
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearestEnemy = enemy;
-      }
-    }
+    const { nearestEnemy, nearestDist } = enemyShips.reduce<{ nearestEnemy: Ship | null; nearestDist: number }>(
+      (best, enemy) => {
+        const dist = hexDistance(ship.position, enemy.position);
+        return dist < best.nearestDist ? { nearestEnemy: enemy, nearestDist: dist } : best;
+      },
+      { nearestEnemy: null, nearestDist: Infinity },
+    );
     if (!nearestEnemy) continue;
 
     // Hard AI: launch nuke at enemies within range if cargo allows
@@ -426,18 +634,18 @@ export function aiOrdnance(
   }
 
   return launches;
-}
+};
 
 /**
  * Generate combat attacks for an AI player.
  * Strategy: concentrate fire on the weakest enemy.
  */
-export function aiCombat(
+export const aiCombat = (
   state: GameState,
   playerId: number,
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
-): CombatAttack[] {
+): CombatAttack[] => {
   const myShips = state.ships.filter((s) => s.owner === playerId && !s.destroyed && canAttack(s));
   if (myShips.length === 0) return [];
 
@@ -459,10 +667,10 @@ export function aiCombat(
     const attackersForTarget = myShips.filter((attacker) => hasLineOfSight(attacker, enemy, map));
     if (attackersForTarget.length === 0) continue;
 
-    let totalDist = 0;
-    for (const attacker of attackersForTarget) {
-      totalDist += hexDistance(attacker.position, enemy.position);
-    }
+    const totalDist = attackersForTarget.reduce(
+      (sum, attacker) => sum + hexDistance(attacker.position, enemy.position),
+      0,
+    );
     const avgDist = totalDist / attackersForTarget.length;
     const rangeMod = computeGroupRangeMod(attackersForTarget, enemy);
     const velMod = computeGroupVelocityMod(attackersForTarget, enemy);
@@ -476,10 +684,10 @@ export function aiCombat(
     const attackersForTarget = myShips.filter((attacker) => hasLineOfSightToTarget(attacker, nuke, map));
     if (attackersForTarget.length === 0) continue;
 
-    let totalDist = 0;
-    for (const attacker of attackersForTarget) {
-      totalDist += hexDistance(attacker.position, nuke.position);
-    }
+    const totalDist = attackersForTarget.reduce(
+      (sum, attacker) => sum + hexDistance(attacker.position, nuke.position),
+      0,
+    );
     const avgDist = totalDist / attackersForTarget.length;
     const rangeMod = computeGroupRangeModToTarget(attackersForTarget, nuke);
     const velMod = computeGroupVelocityModToTarget(attackersForTarget, nuke);
@@ -534,243 +742,4 @@ export function aiCombat(
   }
 
   return attacks;
-}
-
-// --- Helpers ---
-
-/**
- * Score a course result for AI decision-making.
- */
-function scoreCourse(
-  ship: Ship,
-  course: CourseResult,
-  targetHex: { q: number; r: number } | null,
-  targetBody: string,
-  escapeWins: boolean,
-  enemyShips: Ship[],
-  difficulty: AIDifficulty,
-  map?: SolarSystemMap,
-  isRace?: boolean,
-): number {
-  let score = 0;
-
-  // Difficulty multiplier for scoring precision
-  const mult = difficulty === 'hard' ? 1.5 : difficulty === 'easy' ? 0.7 : 1.0;
-
-  if (escapeWins) {
-    // Escape strategy: maximize distance from center + velocity
-    const distFromCenter = hexDistance(course.destination, { q: 0, r: 0 });
-    score += distFromCenter * 10 * mult;
-    const speed = hexVecLength(course.newVelocity);
-    score += speed * 5 * mult;
-    // Never stay landed when trying to escape
-    if (ship.landed && course.destination.q === ship.position.q && course.destination.r === ship.position.r) {
-      score -= 100 * mult;
-    }
-  } else if (targetHex) {
-    // Navigate to target strategy
-    const currentDist = hexDistance(ship.position, targetHex);
-    const newDist = hexDistance(course.destination, targetHex);
-
-    // Reward getting closer to target
-    score += (currentDist - newDist) * 20 * mult;
-
-    // Bonus for landing on target body (not home!)
-    if (targetBody && course.landedAt === targetBody) {
-      score += 1000;
-    } else if (course.landedAt && !targetBody) {
-      // Fuel-seeking: landing at any base is great
-      score += 500;
-    } else if (course.landedAt) {
-      // Landing at wrong body — generally bad, but in checkpoint races
-      // any base landing provides a refuel opportunity
-      score -= 30 * mult;
-    }
-
-    // Heavy penalty for staying landed at home — AI must launch
-    if (ship.landed && course.destination.q === ship.position.q && course.destination.r === ship.position.r) {
-      score -= 50 * mult;
-    }
-
-    // Velocity alignment: prefer velocity pointing toward target
-    const velDist = hexDistance(hexAdd(course.destination, course.newVelocity), targetHex);
-    score -= velDist * 2 * mult;
-
-    // Penalty for overshooting (velocity too high near target)
-    if (newDist < 8) {
-      const speed = hexVecLength(course.newVelocity);
-      if (speed > newDist + 1) {
-        score -= (speed - newDist) * 15 * mult;
-      }
-    }
-  }
-
-  // Race mode: penalize high speed near bodies (gravity well danger)
-  if (isRace && map && !course.landedAt) {
-    const speed = hexVecLength(course.newVelocity);
-    for (const body of map.bodies) {
-      const bodyDist = hexDistance(course.destination, body.center);
-      const dangerZone = body.surfaceRadius + 5;
-      if (bodyDist < dangerZone && speed > Math.max(1, bodyDist - body.surfaceRadius)) {
-        score -= (speed - bodyDist + body.surfaceRadius + 1) * 15;
-      }
-    }
-    // Must be nearly stopped to land
-    if (targetHex) {
-      const newDist2 = hexDistance(course.destination, targetHex);
-      if (newDist2 < 3 && speed > 1) {
-        score -= speed * 25;
-      }
-    }
-  }
-
-  // Penalty for staying landed in combat-only scenarios
-  const noPrimaryObjective = !escapeWins && !targetHex;
-  if (
-    noPrimaryObjective &&
-    ship.landed &&
-    course.destination.q === ship.position.q &&
-    course.destination.r === ship.position.r
-  ) {
-    score -= 80 * mult;
-  }
-
-  // Deferred gravity matters most for the following turn, so look one move ahead.
-  if (!course.landedAt && course.enteredGravityEffects.length > 0) {
-    const nextTurnDest = applyPendingGravityEffects(
-      hexAdd(course.destination, course.newVelocity),
-      course.enteredGravityEffects,
-    );
-
-    if (escapeWins) {
-      score += (hexDistance(nextTurnDest, { q: 0, r: 0 }) - hexDistance(course.destination, { q: 0, r: 0 })) * 4 * mult;
-    } else if (targetHex) {
-      score += (hexDistance(course.destination, targetHex) - hexDistance(nextTurnDest, targetHex)) * 6 * mult;
-    } else if (enemyShips.length > 0) {
-      const nearestEnemyAfterDrift = Math.min(...enemyShips.map((enemy) => hexDistance(nextTurnDest, enemy.position)));
-      score += Math.max(0, 5 - nearestEnemyAfterDrift) * mult;
-    }
-  }
-
-  // Combat positioning
-  const myStrength = getCombatStrength([ship]);
-  if (enemyShips.length > 0) {
-    for (const enemy of enemyShips) {
-      const dist = hexDistance(course.destination, enemy.position);
-      const enemyStr = getCombatStrength([enemy]);
-
-      if (noPrimaryObjective) {
-        // Pure combat mode: aggressively seek combat range
-        // Strong closing incentive that always outweighs other penalties
-        score += Math.max(0, 50 - dist) * 3 * mult;
-
-        // Extra strong bonus for being at combat range 1-3
-        if (dist <= 3) score += 40 * mult;
-
-        // Velocity toward enemy: prefer velocity pointing at enemy
-        const nextPos = hexAdd(course.destination, course.newVelocity);
-        const nextDist = hexDistance(nextPos, enemy.position);
-        score += (dist - nextDist) * 5 * mult;
-
-        // Velocity matching: only at close range to maintain engagement
-        if (dist < 6) {
-          const velMatchDist = hexDistance(
-            { q: course.newVelocity.dq, r: course.newVelocity.dr },
-            { q: enemy.velocity.dq, r: enemy.velocity.dr },
-          );
-          score -= velMatchDist * (dist < 3 ? 4 : 2) * mult;
-        }
-
-        // Speed management: prefer moderate velocity near enemies
-        const speed = hexVecLength(course.newVelocity);
-        if (dist < 5 && speed > 5) {
-          const enemySpeed = hexVecLength(enemy.velocity);
-          if (speed > enemySpeed + 2) {
-            score -= (speed - enemySpeed) * 3 * mult;
-          }
-        }
-      } else if (myStrength > 0) {
-        // Has objective but also can fight
-        if (myStrength >= enemyStr) {
-          // If we are stronger or equal, we should push toward them if they are nearby
-          score += Math.max(0, 10 - dist) * 1.5 * mult;
-        } else {
-          // If we are weaker, maintain some distance but don't just run away if it stalls the game
-          score += Math.min(dist, 8) * 0.5 * mult;
-        }
-      }
-    }
-  }
-
-  return score;
-}
-
-/**
- * Pick the next checkpoint body to visit, or homeBody if all visited.
- * Uses nearest-neighbor heuristic from the player's ship position.
- */
-function pickNextCheckpoint(
-  player: { visitedBodies?: string[]; homeBody: string },
-  checkpoints: string[],
-  map: SolarSystemMap,
-  shipPos?: { q: number; r: number },
-): string | null {
-  const visited = new Set(player.visitedBodies ?? []);
-  const unvisited = checkpoints.filter((b) => !visited.has(b));
-  if (unvisited.length === 0) return player.homeBody;
-  if (!shipPos) return unvisited[0];
-
-  // Find nearest unvisited body
-  let bestBody = unvisited[0];
-  let bestDist = Infinity;
-  for (const name of unvisited) {
-    const body = map.bodies.find((b) => b.name === name);
-    if (!body) continue;
-    const dist = hexDistance(shipPos, body.center);
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestBody = name;
-    }
-  }
-  return bestBody;
-}
-
-/**
- * Find the nearest base hex the player controls that has fuel.
- */
-function findNearestBase(
-  shipPos: { q: number; r: number },
-  playerBases: string[],
-  _map: SolarSystemMap,
-): { q: number; r: number } | null {
-  let bestPos: { q: number; r: number } | null = null;
-  let bestDist = Infinity;
-  for (const baseKey of playerBases) {
-    const pos = parseHexKey(baseKey);
-    const dist = hexDistance(shipPos, pos);
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestPos = pos;
-    }
-  }
-  return bestPos;
-}
-
-function parseHexKey(key: string): { q: number; r: number } {
-  const [q, r] = key.split(',').map(Number);
-  return { q, r };
-}
-
-function findDirectionToward(from: { q: number; r: number }, to: { q: number; r: number }): number {
-  let bestDir = 0;
-  let bestDist = Infinity;
-  for (let d = 0; d < 6; d++) {
-    const neighbor = hexAdd(from, HEX_DIRECTIONS[d]);
-    const dist = hexDistance(neighbor, to);
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestDir = d;
-    }
-  }
-  return bestDir;
-}
+};

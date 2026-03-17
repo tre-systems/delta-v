@@ -18,45 +18,45 @@ export interface ReconnectAttemptPlan {
   delayMs: number | null;
 }
 
-export function deriveGameStartClientState(state: GameState, playerId: number): ClientState {
+export const deriveGameStartClientState = (state: GameState, playerId: number): ClientState => {
   if (state.phase === 'fleetBuilding') {
     return 'playing_fleetBuilding';
   }
   return state.activePlayer === playerId ? 'playing_astrogation' : 'playing_opponentTurn';
-}
+};
 
-export function deriveWelcomeHandling(
+export const deriveWelcomeHandling = (
   currentState: ClientState,
   reconnectAttempts: number,
   playerId: number,
-): WelcomeHandling {
+): WelcomeHandling => {
   return {
     clearInviteLink: playerId !== 0,
     showReconnectToast: reconnectAttempts > 0,
     nextState: currentState === 'connecting' ? 'waitingForOpponent' : null,
   };
-}
+};
 
-export function getReconnectDelayMs(attempt: number): number {
+export const getReconnectDelayMs = (attempt: number): number => {
   return Math.min(1000 * 2 ** (attempt - 1), 8000);
-}
+};
 
-export function shouldAttemptReconnect(
+export const shouldAttemptReconnect = (
   currentState: ClientState,
   gameCode: string | null,
   gameState: GameState | null,
-): boolean {
+): boolean => {
   if (currentState === 'menu' || currentState === 'gameOver') {
     return false;
   }
   return Boolean(gameCode && gameState);
-}
+};
 
-export function deriveDisconnectHandling(
+export const deriveDisconnectHandling = (
   currentState: ClientState,
   gameCode: string | null,
   gameState: GameState | null,
-): DisconnectHandling {
+): DisconnectHandling => {
   if (shouldAttemptReconnect(currentState, gameCode, gameState)) {
     return {
       attemptReconnect: true,
@@ -73,13 +73,13 @@ export function deriveDisconnectHandling(
     attemptReconnect: false,
     nextState: 'menu',
   };
-}
+};
 
-export function deriveReconnectAttemptPlan(
+export const deriveReconnectAttemptPlan = (
   gameCode: string | null,
   reconnectAttempts: number,
   maxReconnectAttempts: number,
-): ReconnectAttemptPlan {
+): ReconnectAttemptPlan => {
   if (!gameCode || reconnectAttempts >= maxReconnectAttempts) {
     return {
       giveUp: true,
@@ -93,8 +93,8 @@ export function deriveReconnectAttemptPlan(
     nextAttempt,
     delayMs: getReconnectDelayMs(nextAttempt),
   };
-}
+};
 
-export function shouldTransitionAfterStateUpdate(currentState: ClientState): boolean {
+export const shouldTransitionAfterStateUpdate = (currentState: ClientState): boolean => {
   return currentState !== 'playing_movementAnim';
-}
+};

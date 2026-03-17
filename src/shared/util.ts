@@ -1,9 +1,20 @@
 /**
- * Small functional helpers for collection transforms.
+ * Small utility helpers: functional collection transforms and general-purpose functions.
  *
  * These replace common imperative patterns (reduce-to-sum, loop-to-find-min,
  * build-a-lookup-map) with intent-revealing one-liners. No external deps.
  */
+
+// --- General-purpose ---
+
+/** Clamp a number to [min, max]. */
+export const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
+
+/** Pick a random element from a non-empty array. */
+export const randomChoice = <T>(arr: readonly T[], rng: () => number = Math.random): T =>
+  arr[Math.floor(rng() * arr.length)];
+
+// --- Collection transforms ---
 
 /** Sum an array by a numeric projection. */
 export const sumBy = <T>(arr: readonly T[], fn: (item: T) => number): number =>

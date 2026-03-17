@@ -9,27 +9,13 @@ export interface Env {
   GAME: DurableObjectNamespace;
 }
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-
-    // Create a new game
-    if (url.pathname === '/create' && request.method === 'POST') {
-      return handleCreate(request, env);
-    }
-
-    // WebSocket upgrade to game DO
-    const wsMatch = url.pathname.match(/^\/ws\/([A-Z0-9]{5})$/);
-    if (wsMatch) {
-      return handleWebSocket(request, env, wsMatch[1]);
-    }
-
-    // Serve static assets
-    return env.ASSETS.fetch(request);
-  },
+const handleWebSocket = (request: Request, env: Env, code: string): Promise<Response> => {
+  const id = env.GAME.idFromName(code);
+  const stub = env.GAME.get(id);
+  return stub.fetch(request);
 };
 
-async function handleCreate(request: Request, env: Env): Promise<Response> {
+const handleCreate = async (request: Request, env: Env): Promise<Response> => {
   let payload: unknown = null;
   try {
     payload = await request.json();
@@ -63,10 +49,24 @@ async function handleCreate(request: Request, env: Env): Promise<Response> {
   }
 
   return new Response('Failed to allocate room code', { status: 503 });
-}
+};
 
-async function handleWebSocket(request: Request, env: Env, code: string): Promise<Response> {
-  const id = env.GAME.idFromName(code);
-  const stub = env.GAME.get(id);
-  return stub.fetch(request);
-}
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+
+    // Create a new game
+    if (url.pathname === '/create' && request.method === 'POST') {
+      return handleCreate(request, env);
+    }
+
+    // WebSocket upgrade to game DO
+    const wsMatch = url.pathname.match(/^\/ws\/([A-Z0-9]{5})$/);
+    if (wsMatch) {
+      return handleWebSocket(request, env, wsMatch[1]);
+    }
+
+    // Serve static assets
+    return env.ASSETS.fetch(request);
+  },
+};

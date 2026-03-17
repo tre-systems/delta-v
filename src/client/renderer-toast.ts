@@ -7,28 +7,28 @@ export interface ToastLine {
   variant: 'primary' | 'secondary';
 }
 
-function getResultColor(damageType: CombatResult['damageType']): string {
+const getResultColor = (damageType: CombatResult['damageType']): string => {
   return damageType === 'eliminated' ? '#ff4444' : damageType === 'disabled' ? '#ffaa00' : '#88ff88';
-}
+};
 
-function getMovementDamageText(event: MovementEvent, missLabel: string): string {
+const getMovementDamageText = (event: MovementEvent, missLabel: string): string => {
   return event.damageType === 'eliminated'
     ? 'ELIMINATED'
     : event.damageType === 'disabled'
       ? `DISABLED ${event.disabledTurns}T`
       : missLabel;
-}
+};
 
-function getMovementDamageColor(event: MovementEvent): string {
+const getMovementDamageColor = (event: MovementEvent): string => {
   return event.damageType === 'eliminated' ? '#ff4444' : event.damageType === 'disabled' ? '#ffaa00' : '#88ff88';
-}
+};
 
-export function getToastFadeAlpha(showUntil: number, now: number): number {
+export const getToastFadeAlpha = (showUntil: number, now: number): number => {
   const fadeStart = showUntil - 1000;
   return now > fadeStart ? Math.max(0, (showUntil - now) / 1000) : 1;
-}
+};
 
-export function formatMovementEventToast(event: MovementEvent, shipName: string): ToastLine | null {
+export const formatMovementEventToast = (event: MovementEvent, shipName: string): ToastLine | null => {
   switch (event.type) {
     case 'crash':
       return { text: `${shipName}: CRASHED`, color: '#ff4444', variant: 'primary' };
@@ -65,9 +65,9 @@ export function formatMovementEventToast(event: MovementEvent, shipName: string)
     default:
       return null;
   }
-}
+};
 
-export function buildCombatResultToastLines(results: CombatResult[], state: GameState): ToastLine[] {
+export const buildCombatResultToastLines = (results: CombatResult[], state: GameState): ToastLine[] => {
   const lines: ToastLine[] = [];
   for (const result of results) {
     lines.push({
@@ -84,4 +84,4 @@ export function buildCombatResultToastLines(results: CombatResult[], state: Game
     }
   }
   return lines;
-}
+};

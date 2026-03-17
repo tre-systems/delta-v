@@ -17,13 +17,13 @@ const HUD_STATES = new Set<ClientState>([
   'playing_opponentTurn',
 ]);
 
-export function deriveClientScreenPlan(
+export const deriveClientScreenPlan = (
   state: ClientState,
   gameCode: string | null,
   inviteLink: string | null,
   storedInviteToken: string | null,
   origin: string,
-): ClientScreenPlan {
+): ClientScreenPlan => {
   switch (state) {
     case 'menu':
       return { kind: 'menu' };
@@ -46,4 +46,4 @@ export function deriveClientScreenPlan(
       }
       return { kind: 'none' };
   }
-}
+};

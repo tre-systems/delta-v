@@ -38,13 +38,13 @@ export interface MovementPathView {
   waypointRadius: number;
 }
 
-export function buildDetectionRangeViews(
+export const buildDetectionRangeViews = (
   state: GameState,
   playerId: number,
   selectedShipId: string | null,
   map: SolarSystemMap,
   hexSize: number,
-): CircleOverlayView[] {
+): CircleOverlayView[] => {
   const views: CircleOverlayView[] = [];
   const selectedShip = state.ships.find(
     (ship) => ship.id === selectedShipId && ship.owner === playerId && !ship.destroyed,
@@ -76,9 +76,9 @@ export function buildDetectionRangeViews(
   }
 
   return views;
-}
+};
 
-export function buildVelocityVectorViews(state: GameState, playerId: number, hexSize: number): VelocityVectorView[] {
+export const buildVelocityVectorViews = (state: GameState, playerId: number, hexSize: number): VelocityVectorView[] => {
   return state.ships
     .filter((ship) => !ship.landed && !ship.destroyed && (ship.owner === playerId || ship.detected))
     .map((ship) => {
@@ -106,14 +106,14 @@ export function buildVelocityVectorViews(state: GameState, playerId: number, hex
       };
     })
     .filter((view): view is VelocityVectorView => view !== null);
-}
+};
 
-export function buildShipTrailViews(
+export const buildShipTrailViews = (
   state: GameState,
   playerId: number,
   shipTrails: Map<string, HexCoord[]>,
   hexSize: number,
-): TrailView[] {
+): TrailView[] => {
   const views: TrailView[] = [];
   for (const [shipId, trail] of shipTrails) {
     if (trail.length < 2) continue;
@@ -131,14 +131,14 @@ export function buildShipTrailViews(
     });
   }
   return views;
-}
+};
 
-export function buildOrdnanceTrailViews(
+export const buildOrdnanceTrailViews = (
   state: GameState,
   playerId: number,
   ordnanceTrails: Map<string, HexCoord[]>,
   hexSize: number,
-): TrailView[] {
+): TrailView[] => {
   const views: TrailView[] = [];
   for (const [ordnanceId, trail] of ordnanceTrails) {
     if (trail.length < 2) continue;
@@ -154,15 +154,15 @@ export function buildOrdnanceTrailViews(
     });
   }
   return views;
-}
+};
 
-export function buildMovementPathViews(
+export const buildMovementPathViews = (
   state: GameState,
   playerId: number,
   movements: ShipMovement[],
   progress: number,
   hexSize: number,
-): MovementPathView[] {
+): MovementPathView[] => {
   const views: MovementPathView[] = [];
   for (const movement of movements) {
     const ship = state.ships.find((candidate) => candidate.id === movement.shipId);
@@ -184,4 +184,4 @@ export function buildMovementPathViews(
     });
   }
   return views;
-}
+};

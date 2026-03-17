@@ -10,12 +10,12 @@ const TOOLTIP_HIDDEN_STATES = new Set<ClientState>([
   'gameOver',
 ]);
 
-export function getTooltipShip(
+export const getTooltipShip = (
   state: GameState | null,
   clientState: ClientState,
   playerId: number,
   hoverHex: HexCoord,
-): Ship | null {
+): Ship | null => {
   if (!state || TOOLTIP_HIDDEN_STATES.has(clientState)) {
     return null;
   }
@@ -27,4 +27,4 @@ export function getTooltipShip(
       return hexEqual(ship.position, hoverHex);
     }) ?? null
   );
-}
+};

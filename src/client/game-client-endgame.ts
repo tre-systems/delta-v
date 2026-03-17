@@ -9,12 +9,12 @@ export interface GameOverPlan {
   resultSound: 'victory' | 'defeat';
 }
 
-export function deriveGameOverPlan(
+export const deriveGameOverPlan = (
   state: GameState | null,
   playerId: number,
   won: boolean,
   reason: string,
-): GameOverPlan {
+): GameOverPlan => {
   const loserId = won ? 1 - playerId : playerId;
   const loserShipIds =
     state?.ships.filter((ship) => ship.owner === loserId && !ship.destroyed).map((ship) => ship.id) ?? [];
@@ -25,4 +25,4 @@ export function deriveGameOverPlan(
     loserShipIds,
     resultSound: won ? 'victory' : 'defeat',
   };
-}
+};

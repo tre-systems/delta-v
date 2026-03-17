@@ -26,26 +26,26 @@ export type BaseEmplacementPlan =
     }
   | ClientActionError;
 
-function getShipName(ship: Ship): string {
+const getShipName = (ship: Ship): string => {
   return SHIP_STATS[ship.type]?.name ?? ship.type;
-}
+};
 
-function getSelectedShip(state: OrdnanceState, selectedShipId: string | null): Ship | null {
+const getSelectedShip = (state: OrdnanceState, selectedShipId: string | null): Ship | null => {
   if (!selectedShipId) {
     return null;
   }
   return state.ships.find((ship) => ship.id === selectedShipId) ?? null;
-}
+};
 
-export function canShipLaunchAnyOrdnance(ship: Pick<Ship, 'type' | 'cargoUsed'>): boolean {
+export const canShipLaunchAnyOrdnance = (ship: Pick<Ship, 'type' | 'cargoUsed'>): boolean => {
   const stats = SHIP_STATS[ship.type];
   if (!stats) {
     return false;
   }
   return stats.cargo - ship.cargoUsed >= ORDNANCE_MASS.mine;
-}
+};
 
-export function getFirstLaunchableShipId(state: OrdnanceState, playerId: number): string | null {
+export const getFirstLaunchableShipId = (state: OrdnanceState, playerId: number): string | null => {
   return (
     state.ships.find(
       (ship) =>
@@ -56,13 +56,13 @@ export function getFirstLaunchableShipId(state: OrdnanceState, playerId: number)
         canShipLaunchAnyOrdnance(ship),
     )?.id ?? null
   );
-}
+};
 
-export function resolveOrdnanceLaunchPlan(
+export const resolveOrdnanceLaunchPlan = (
   state: OrdnanceState,
   planning: OrdnancePlanning,
   ordnanceType: 'mine' | 'torpedo' | 'nuke',
-): OrdnanceLaunchPlan {
+): OrdnanceLaunchPlan => {
   const ship = getSelectedShip(state, planning.selectedShipId);
   if (!planning.selectedShipId) {
     return { ok: false, message: 'Select a ship first', level: 'info' };
@@ -116,9 +116,12 @@ export function resolveOrdnanceLaunchPlan(
       torpedoAccelSteps: ordnanceType === 'torpedo' ? (planning.torpedoAccelSteps ?? null) : undefined,
     },
   };
-}
+};
 
-export function resolveBaseEmplacementPlan(state: OrdnanceState, selectedShipId: string | null): BaseEmplacementPlan {
+export const resolveBaseEmplacementPlan = (
+  state: OrdnanceState,
+  selectedShipId: string | null,
+): BaseEmplacementPlan => {
   if (!selectedShipId) {
     return { ok: false, message: 'Select a ship first', level: 'info' };
   }
@@ -135,4 +138,4 @@ export function resolveBaseEmplacementPlan(state: OrdnanceState, selectedShipId:
     ok: true,
     emplacements: [{ shipId: selectedShipId }],
   };
-}
+};

@@ -48,11 +48,14 @@ export type KeyboardAction =
   | { kind: 'toggleHelp'; preventDefault: false }
   | { kind: 'toggleMute'; preventDefault: false };
 
-function createNoopAction(): KeyboardAction {
+const createNoopAction = (): KeyboardAction => {
   return { kind: 'none', preventDefault: false };
-}
+};
 
-export function deriveKeyboardAction(context: KeyboardShortcutContext, input: KeyboardShortcutInput): KeyboardAction {
+export const deriveKeyboardAction = (
+  context: KeyboardShortcutContext,
+  input: KeyboardShortcutInput,
+): KeyboardAction => {
   if (context.typingInInput) {
     return createNoopAction();
   }
@@ -172,4 +175,4 @@ export function deriveKeyboardAction(context: KeyboardShortcutContext, input: Ke
   }
 
   return createNoopAction();
-}
+};

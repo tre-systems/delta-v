@@ -23,16 +23,16 @@ export interface HUDView {
   skipCombatVisible: boolean;
 }
 
-function createHiddenButton(): UIButtonView {
+const createHiddenButton = (): UIButtonView => {
   return {
     visible: false,
     disabled: false,
     opacity: '1',
     title: '',
   };
-}
+};
 
-export function buildHUDView(
+export const buildHUDView = (
   turn: number,
   phase: string,
   isMyTurn: boolean,
@@ -44,7 +44,7 @@ export function buildHUDView(
   objective = '',
   isWarship = false,
   canEmplaceBase = false,
-): HUDView {
+): HUDView => {
   const showOrdnance = isMyTurn && phase === 'ordnance';
   const canMine = cargoFree >= ORDNANCE_MASS.mine;
   const canTorpedo = isWarship && cargoFree >= ORDNANCE_MASS.torpedo;
@@ -94,4 +94,4 @@ export function buildHUDView(
     skipOrdnanceVisible: showOrdnance,
     skipCombatVisible: isMyTurn && phase === 'combat',
   };
-}
+};

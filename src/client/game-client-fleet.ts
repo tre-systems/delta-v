@@ -18,11 +18,11 @@ export interface FleetReadyDeps {
   buildAIPurchases?: typeof buildAIFleetPurchases;
 }
 
-export function buildAIFleetPurchases(
+export const buildAIFleetPurchases = (
   credits: number,
   availableShipTypes: string[] | undefined,
   difficulty: AIDifficulty,
-): FleetPurchase[] {
+): FleetPurchase[] => {
   const available = availableShipTypes ?? Object.keys(SHIP_STATS).filter((shipType) => shipType !== 'orbitalBase');
   const purchases: FleetPurchase[] = [];
   let remaining = credits;
@@ -37,9 +37,9 @@ export function buildAIFleetPurchases(
   }
 
   return purchases;
-}
+};
 
-export function resolveLocalFleetReady(
+export const resolveLocalFleetReady = (
   state: GameState,
   playerId: number,
   purchases: FleetPurchase[],
@@ -47,7 +47,7 @@ export function resolveLocalFleetReady(
   scenario: ScenarioDefinition,
   difficulty: AIDifficulty,
   deps: FleetReadyDeps = {},
-): LocalFleetReadyResult {
+): LocalFleetReadyResult => {
   const processReady = deps.processReady ?? processFleetReady;
   const playerResult = processReady(state, playerId, purchases, map, scenario.availableShipTypes);
   if ('error' in playerResult) {
@@ -70,4 +70,4 @@ export function resolveLocalFleetReady(
   }
 
   return { kind: 'success', state: aiResult.state };
-}
+};

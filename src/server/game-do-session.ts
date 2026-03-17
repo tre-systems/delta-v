@@ -24,40 +24,38 @@ export interface DisconnectMarker {
   disconnectAt: number;
 }
 
-export function normalizeDisconnectedPlayer(value: unknown): number | null {
-  return value === 0 || value === 1 ? value : null;
-}
+export const normalizeDisconnectedPlayer = (value: unknown): number | null =>
+  value === 0 || value === 1 ? value : null;
 
-export function createDisconnectMarker(playerId: number, now: number): DisconnectMarker {
-  return {
-    disconnectedPlayer: playerId,
-    disconnectTime: now,
-    disconnectAt: now + DISCONNECT_GRACE_MS,
-  };
-}
+export const createDisconnectMarker = (playerId: number, now: number): DisconnectMarker => ({
+  disconnectedPlayer: playerId,
+  disconnectTime: now,
+  disconnectAt: now + DISCONNECT_GRACE_MS,
+});
 
-export function shouldClearDisconnectMarker(disconnectedPlayer: number | null, playerId: number): boolean {
-  return disconnectedPlayer === playerId;
-}
+export const shouldClearDisconnectMarker = (disconnectedPlayer: number | null, playerId: number): boolean =>
+  disconnectedPlayer === playerId;
 
-export function getNextAlarmAt(deadlines: AlarmDeadlines): number | null {
+export const getNextAlarmAt = (deadlines: AlarmDeadlines): number | null => {
   const values = Object.values(deadlines).filter((value): value is number => value !== undefined);
   return values.length > 0 ? Math.min(...values) : null;
-}
+};
 
-export function resolveAlarmAction(snapshot: AlarmSnapshot): AlarmAction {
-  if (
-    snapshot.disconnectedPlayer !== null &&
-    snapshot.disconnectAt !== undefined &&
-    snapshot.now >= snapshot.disconnectAt
-  ) {
-    return { type: 'disconnectExpired', playerId: snapshot.disconnectedPlayer };
+export const resolveAlarmAction = ({
+  disconnectedPlayer,
+  disconnectAt,
+  turnTimeoutAt,
+  inactivityAt,
+  now,
+}: AlarmSnapshot): AlarmAction => {
+  if (disconnectedPlayer !== null && disconnectAt !== undefined && now >= disconnectAt) {
+    return { type: 'disconnectExpired', playerId: disconnectedPlayer };
   }
-  if (snapshot.turnTimeoutAt !== undefined && snapshot.now >= snapshot.turnTimeoutAt - TURN_TIMEOUT_GRACE_MS) {
+  if (turnTimeoutAt !== undefined && now >= turnTimeoutAt - TURN_TIMEOUT_GRACE_MS) {
     return { type: 'turnTimeout' };
   }
-  if (snapshot.inactivityAt !== undefined && snapshot.now >= snapshot.inactivityAt) {
+  if (inactivityAt !== undefined && now >= inactivityAt) {
     return { type: 'inactivityTimeout' };
   }
   return { type: 'reschedule' };
-}
+};

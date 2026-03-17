@@ -2,32 +2,28 @@ import { ORDNANCE_MASS, SHIP_STATS } from './constants';
 import { bodyHasGravity } from './map-data';
 import type { GameState, Ordnance, Ship, SolarSystemMap } from './types';
 
-export function playerControlsBase(state: GameState, playerId: number, baseKey: string): boolean {
-  return state.players[playerId]?.bases.includes(baseKey) ?? false;
-}
+export const playerControlsBase = (state: GameState, playerId: number, baseKey: string): boolean =>
+  state.players[playerId]?.bases.includes(baseKey) ?? false;
 
-export function isPlanetaryDefenseEnabled(state: Pick<GameState, 'scenarioRules'>): boolean {
-  return state.scenarioRules.planetaryDefenseEnabled !== false;
-}
+export const isPlanetaryDefenseEnabled = (state: Pick<GameState, 'scenarioRules'>): boolean =>
+  state.scenarioRules.planetaryDefenseEnabled !== false;
 
-export function usesEscapeInspectionRules(state: Pick<GameState, 'scenarioRules'>): boolean {
-  return state.scenarioRules.hiddenIdentityInspection === true;
-}
+export const usesEscapeInspectionRules = (state: Pick<GameState, 'scenarioRules'>): boolean =>
+  state.scenarioRules.hiddenIdentityInspection === true;
 
-export function getEscapeEdge(state: Pick<GameState, 'scenarioRules'>): 'any' | 'north' {
-  return state.scenarioRules.escapeEdge ?? 'any';
-}
+export const getEscapeEdge = (state: Pick<GameState, 'scenarioRules'>): 'any' | 'north' =>
+  state.scenarioRules.escapeEdge ?? 'any';
 
-export function parseBaseKey(baseKey: string): { q: number; r: number } {
+export const parseBaseKey = (baseKey: string): { q: number; r: number } => {
   const [q, r] = baseKey.split(',').map(Number);
   return { q, r };
-}
+};
 
-export function getOwnedPlanetaryBases(
+export const getOwnedPlanetaryBases = (
   state: GameState,
   playerId: number,
   map: SolarSystemMap,
-): { key: string; coord: { q: number; r: number } }[] {
+): { key: string; coord: { q: number; r: number } }[] => {
   const bases = state.players[playerId]?.bases ?? [];
   return bases.flatMap((key) => {
     if (state.destroyedBases.includes(key)) return [];
@@ -36,34 +32,30 @@ export function getOwnedPlanetaryBases(
     const [q, r] = key.split(',').map(Number);
     return [{ key, coord: { q, r } }];
   });
-}
+};
 
-export function getAllowedOrdnanceTypes(state: Pick<GameState, 'scenarioRules'>): Set<Ordnance['type']> {
-  const allowed = state.scenarioRules.allowedOrdnanceTypes;
+export const getAllowedOrdnanceTypes = (state: Pick<GameState, 'scenarioRules'>): Set<Ordnance['type']> => {
+  const { allowedOrdnanceTypes: allowed } = state.scenarioRules;
   if (!allowed || allowed.length === 0) {
     return new Set(['mine', 'torpedo', 'nuke']);
   }
   return new Set(allowed);
-}
+};
 
-export function getNextOrdnanceId(state: Pick<GameState, 'ordnance'>): number {
-  let nextId = 0;
-  for (const ord of state.ordnance) {
+export const getNextOrdnanceId = (state: Pick<GameState, 'ordnance'>): number =>
+  state.ordnance.reduce((maxId, ord) => {
     const match = /^ord(\d+)$/.exec(ord.id);
-    if (!match) continue;
-    nextId = Math.max(nextId, Number(match[1]) + 1);
-  }
-  return nextId;
-}
+    return match ? Math.max(maxId, Number(match[1]) + 1) : maxId;
+  }, 0);
 
-export function hasOrdnanceCapacity(ship: Ship): boolean {
+export const hasOrdnanceCapacity = (ship: Ship): boolean => {
   const stats = SHIP_STATS[ship.type];
   if (!stats) return false;
   const minMass = ORDNANCE_MASS.mine;
   return stats.cargo - ship.cargoUsed >= minMass;
-}
+};
 
-export function hasLaunchableOrdnanceCapacity(ship: Ship, allowedTypes: Set<Ordnance['type']>): boolean {
+export const hasLaunchableOrdnanceCapacity = (ship: Ship, allowedTypes: Set<Ordnance['type']>): boolean => {
   const stats = SHIP_STATS[ship.type];
   if (!stats) return false;
 
@@ -77,26 +69,26 @@ export function hasLaunchableOrdnanceCapacity(ship: Ship, allowedTypes: Set<Ordn
   }
 
   return false;
-}
+};
 
-export function hasAnyEnemyShips(state: GameState): boolean {
-  const player = state.activePlayer;
-  return state.ships.some((s) => s.owner !== player && !s.destroyed);
-}
+export const hasAnyEnemyShips = (state: GameState): boolean => {
+  const { activePlayer } = state;
+  return state.ships.some((s) => s.owner !== activePlayer && !s.destroyed);
+};
 
-export function shuffle<T>(items: T[], rng?: () => number): T[] {
+export const shuffle = <T>(items: T[], rng?: () => number): T[] => {
   const copy = [...items];
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor((rng ? rng() : Math.random()) * (i + 1));
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
-}
+};
 
-export function hasEscaped(
+export const hasEscaped = (
   pos: { q: number; r: number },
   bounds: { minQ: number; maxQ: number; minR: number; maxR: number },
-): boolean {
+): boolean => {
   const margin = 3;
   return (
     pos.q < bounds.minQ - margin ||
@@ -104,12 +96,12 @@ export function hasEscaped(
     pos.r < bounds.minR - margin ||
     pos.r > bounds.maxR + margin
   );
-}
+};
 
-export function hasEscapedNorth(
+export const hasEscapedNorth = (
   pos: { q: number; r: number },
   bounds: { minQ: number; maxQ: number; minR: number; maxR: number },
-): boolean {
+): boolean => {
   const margin = 3;
   return pos.r < bounds.minR - margin;
-}
+};

@@ -18,7 +18,7 @@ export interface ShipListEntryView {
   detailRows: ShipDetailRowView[];
 }
 
-function getDisplayNames(ships: Ship[]) {
+const getDisplayNames = (ships: Ship[]) => {
   const typeCounts: Record<string, number> = {};
   for (const ship of ships) {
     typeCounts[ship.type] = (typeCounts[ship.type] ?? 0) + 1;
@@ -31,23 +31,23 @@ function getDisplayNames(ships: Ship[]) {
     typeIndices[ship.type] = (typeIndices[ship.type] ?? 0) + 1;
     return needsNumber ? `${name} ${typeIndices[ship.type]}` : name;
   });
-}
+};
 
-function getStatusText(ship: Ship): string {
+const getStatusText = (ship: Ship): string => {
   const statusParts: string[] = [];
   if (ship.destroyed) statusParts.push('X');
   else if (ship.captured) statusParts.push('CAP');
   else if (ship.damage.disabledTurns > 0) statusParts.push(`D${ship.damage.disabledTurns}`);
   if (ship.heroismAvailable) statusParts.push('H');
   return statusParts.join(' ');
-}
+};
 
-function getVelocityLabel(ship: Ship): string {
+const getVelocityLabel = (ship: Ship): string => {
   const speed = Math.abs(ship.velocity.dq) + Math.abs(ship.velocity.dr);
   return speed === 0 ? 'Stationary' : `${ship.velocity.dq}, ${ship.velocity.dr}`;
-}
+};
 
-function getShipDetailRows(ship: Ship, isSelected: boolean): ShipDetailRowView[] {
+const getShipDetailRows = (ship: Ship, isSelected: boolean): ShipDetailRowView[] => {
   const stats = SHIP_STATS[ship.type];
   if (!isSelected || ship.destroyed || !stats) return [];
 
@@ -96,13 +96,13 @@ function getShipDetailRows(ship: Ship, isSelected: boolean): ShipDetailRowView[]
   }
 
   return rows;
-}
+};
 
-export function buildShipListView(
+export const buildShipListView = (
   ships: Ship[],
   selectedId: string | null,
   burns: Map<string, number | null>,
-): ShipListEntryView[] {
+): ShipListEntryView[] => {
   const displayNames = getDisplayNames(ships);
   return ships.map((ship, index) => ({
     shipId: ship.id,
@@ -114,4 +114,4 @@ export function buildShipListView(
     fuelText: ship.destroyed ? '' : `${ship.fuel}/${SHIP_STATS[ship.type]?.fuel ?? '?'}`,
     detailRows: getShipDetailRows(ship, ship.id === selectedId),
   }));
-}
+};

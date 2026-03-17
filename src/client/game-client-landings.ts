@@ -9,30 +9,26 @@ export interface LandingLogEntry {
   resupplyText: string | null;
 }
 
-export function deriveLandingLogEntries(state: GameState | null, movements: ShipMovement[]): LandingLogEntry[] {
+export const deriveLandingLogEntries = (state: GameState | null, movements: ShipMovement[]): LandingLogEntry[] => {
   if (!state) {
     return [];
   }
 
-  const entries: LandingLogEntry[] = [];
-  for (const movement of movements) {
-    if (!movement.landedAt) {
-      continue;
-    }
-    const ship = state.ships.find((candidate) => candidate.id === movement.shipId);
-    if (!ship) {
-      continue;
-    }
-    const shipName = SHIP_STATS[ship.type]?.name ?? ship.type;
-    const player = state.players[ship.owner];
-    entries.push({
-      destination: movement.to,
-      shipName,
-      bodyName: movement.landedAt,
-      resupplyText: player?.bases.includes(hexKey(movement.to))
-        ? `  ${shipName} resupplied: fuel + cargo restored`
-        : null,
-    });
-  }
-  return entries;
-}
+  return movements
+    .filter((movement) => movement.landedAt)
+    .map((movement) => {
+      const ship = state.ships.find((candidate) => candidate.id === movement.shipId);
+      if (!ship) return null;
+      const shipName = SHIP_STATS[ship.type]?.name ?? ship.type;
+      const player = state.players[ship.owner];
+      return {
+        destination: movement.to,
+        shipName,
+        bodyName: movement.landedAt!,
+        resupplyText: player?.bases.includes(hexKey(movement.to))
+          ? `  ${shipName} resupplied: fuel + cargo restored`
+          : null,
+      };
+    })
+    .filter((entry): entry is LandingLogEntry => entry !== null);
+};

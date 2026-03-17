@@ -21,16 +21,16 @@ export type OrdnanceInteraction =
   | { type: 'selectShip'; shipId: string; clearTorpedoAccel: true }
   | { type: 'none' };
 
-function getShipById(state: GameState, shipId: string | null): Ship | null {
+const getShipById = (state: GameState, shipId: string | null): Ship | null => {
   return shipId ? (state.ships.find((ship) => ship.id === shipId) ?? null) : null;
-}
+};
 
-function getOwnShipAtHex(
+const getOwnShipAtHex = (
   state: GameState,
   playerId: number,
   clickHex: HexCoord,
   options: { requireOperational?: boolean } = {},
-) {
+) => {
   return (
     state.ships.find(
       (ship) =>
@@ -39,15 +39,15 @@ function getOwnShipAtHex(
         hexEqual(clickHex, ship.position),
     ) ?? null
   );
-}
+};
 
-function resolveWeakGravityToggle(
+const resolveWeakGravityToggle = (
   state: GameState,
   map: SolarSystemMap,
   ship: Ship,
   clickHex: HexCoord,
   planning: InputPlanningSnapshot,
-) {
+) => {
   const currentBurn = planning.burns.get(ship.id) ?? null;
   const overload = planning.overloads.get(ship.id) ?? null;
   const weakGravityChoices = planning.weakGravityChoices.get(ship.id) ?? {};
@@ -69,9 +69,9 @@ function resolveWeakGravityToggle(
     };
   }
   return null;
-}
+};
 
-function resolveOverloadToggle(ship: Ship, clickHex: HexCoord, planning: InputPlanningSnapshot) {
+const resolveOverloadToggle = (ship: Ship, clickHex: HexCoord, planning: InputPlanningSnapshot) => {
   const currentBurn = planning.burns.get(ship.id) ?? null;
   if (currentBurn === null) return null;
   const stats = SHIP_STATS[ship.type];
@@ -91,15 +91,15 @@ function resolveOverloadToggle(ship: Ship, clickHex: HexCoord, planning: InputPl
     };
   }
   return null;
-}
+};
 
-function resolveBurnToggle(
+const resolveBurnToggle = (
   state: GameState,
   map: SolarSystemMap,
   ship: Ship,
   clickHex: HexCoord,
   planning: InputPlanningSnapshot,
-) {
+) => {
   const currentBurn = planning.burns.get(ship.id) ?? null;
   const predictedDestination = ship.landed
     ? computeCourse(ship, null, map, { destroyedBases: state.destroyedBases }).path[0]
@@ -114,15 +114,15 @@ function resolveBurnToggle(
     };
   }
   return null;
-}
+};
 
-export function resolveAstrogationClick(
+export const resolveAstrogationClick = (
   state: GameState,
   map: SolarSystemMap,
   playerId: number,
   planning: InputPlanningSnapshot,
   clickHex: HexCoord,
-): AstrogationInteraction {
+): AstrogationInteraction => {
   const selectedShip = getShipById(state, planning.selectedShipId);
   if (selectedShip && selectedShip.fuel > 0 && selectedShip.damage.disabledTurns === 0) {
     const weakGravityToggle = resolveWeakGravityToggle(state, map, selectedShip, clickHex, planning);
@@ -137,22 +137,18 @@ export function resolveAstrogationClick(
 
   const ownShip = getOwnShipAtHex(state, playerId, clickHex);
   return ownShip ? { type: 'selectShip', shipId: ownShip.id } : { type: 'clearSelection' };
-}
+};
 
-function getClickedTorpedoDirection(ship: Ship, clickHex: HexCoord): number | null {
-  for (let direction = 0; direction < 6; direction++) {
-    if (hexEqual(clickHex, hexAdd(ship.position, HEX_DIRECTIONS[direction]))) {
-      return direction;
-    }
-  }
-  return null;
-}
+const getClickedTorpedoDirection = (ship: Ship, clickHex: HexCoord): number | null => {
+  const direction = HEX_DIRECTIONS.findIndex((dir) => hexEqual(clickHex, hexAdd(ship.position, dir)));
+  return direction >= 0 ? direction : null;
+};
 
-function cycleTorpedoAcceleration(
+const cycleTorpedoAcceleration = (
   currentDirection: number | null,
   currentSteps: 1 | 2 | null,
   clickedDirection: number,
-) {
+) => {
   if (currentDirection !== clickedDirection) {
     return { torpedoAccel: clickedDirection, torpedoAccelSteps: 1 as const };
   }
@@ -160,14 +156,14 @@ function cycleTorpedoAcceleration(
     return { torpedoAccel: clickedDirection, torpedoAccelSteps: 2 as const };
   }
   return { torpedoAccel: null, torpedoAccelSteps: null };
-}
+};
 
-export function resolveOrdnanceClick(
+export const resolveOrdnanceClick = (
   state: GameState,
   playerId: number,
   planning: InputPlanningSnapshot,
   clickHex: HexCoord,
-): OrdnanceInteraction {
+): OrdnanceInteraction => {
   const selectedShip = getShipById(state, planning.selectedShipId);
   if (selectedShip) {
     const clickedDirection = getClickedTorpedoDirection(selectedShip, clickHex);
@@ -181,4 +177,4 @@ export function resolveOrdnanceClick(
 
   const ownShip = getOwnShipAtHex(state, playerId, clickHex, { requireOperational: true });
   return ownShip ? { type: 'selectShip', shipId: ownShip.id, clearTorpedoAccel: true } : { type: 'none' };
-}
+};

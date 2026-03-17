@@ -13,11 +13,11 @@ const HUD_BOTTOM_FALLBACK_PX = 80;
 const HUD_MIN_PX = 32;
 const HUD_GAP_PX = 12;
 
-export function deriveHudLayoutOffsets(
+export const deriveHudLayoutOffsets = (
   viewportHeight: number,
   topBarRect: Pick<MeasuredEdge, 'bottom'> | null,
   bottomBarRect: Pick<MeasuredEdge, 'top'> | null,
-): HudLayoutOffsets {
+): HudLayoutOffsets => {
   const hudTopOffsetPx = topBarRect
     ? Math.max(HUD_MIN_PX, Math.ceil(topBarRect.bottom + HUD_GAP_PX))
     : HUD_TOP_FALLBACK_PX;
@@ -30,4 +30,4 @@ export function deriveHudLayoutOffsets(
     hudTopOffsetPx,
     hudBottomOffsetPx,
   };
-}
+};

@@ -43,15 +43,15 @@ export type AIActionPlan =
       aiPlayer: number;
     };
 
-function buildAIOrdnanceLogEntries(state: GameState, launches: OrdnanceLaunch[]): string[] {
+const buildAIOrdnanceLogEntries = (state: GameState, launches: OrdnanceLaunch[]): string[] => {
   return launches.map((launch) => {
     const ship = state.ships.find((candidate) => candidate.id === launch.shipId);
     const name = ship ? (SHIP_STATS[ship.type]?.name ?? ship.type) : launch.shipId;
     return `AI: ${name} launched ${launch.ordnanceType}`;
   });
-}
+};
 
-export function deriveAIActionPlan(
+export const deriveAIActionPlan = (
   state: GameState | null,
   playerId: number,
   map: SolarSystemMap,
@@ -61,7 +61,7 @@ export function deriveAIActionPlan(
     ordnance: aiOrdnance,
     combat: aiCombat,
   },
-): AIActionPlan {
+): AIActionPlan => {
   if (!state || state.phase === 'gameOver') {
     return { kind: 'none' };
   }
@@ -115,4 +115,4 @@ export function deriveAIActionPlan(
     kind: 'transition',
     aiPlayer,
   };
-}
+};
