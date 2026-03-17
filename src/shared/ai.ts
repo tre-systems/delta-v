@@ -19,7 +19,7 @@ import {
   hasLineOfSightToTarget,
 } from './combat';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
-import { HEX_DIRECTIONS, hexAdd, hexDistance, hexKey, hexVecLength } from './hex';
+import { HEX_DIRECTIONS, hexAdd, hexDistance, hexKey, hexVecLength, parseHexKey } from './hex';
 import { applyPendingGravityEffects, computeCourse } from './movement';
 import type {
   AstrogationOrder,
@@ -30,15 +30,11 @@ import type {
   Ship,
   SolarSystemMap,
 } from './types';
+import { minBy, sumBy } from './util';
 
 export type AIDifficulty = 'easy' | 'normal' | 'hard';
 
 // --- Helpers (declared before exported functions that use them) ---
-
-const parseHexKey = (key: string): { q: number; r: number } => {
-  const [q, r] = key.split(',').map(Number);
-  return { q, r };
-};
 
 const findDirectionToward = (from: { q: number; r: number }, to: { q: number; r: number }): number => {
   const { dir } = HEX_DIRECTIONS.reduce(
@@ -59,15 +55,8 @@ const findNearestBase = (
   playerBases: string[],
   _map: SolarSystemMap,
 ): { q: number; r: number } | null => {
-  const result = playerBases.reduce<{ pos: { q: number; r: number } | null; dist: number }>(
-    (best, baseKey) => {
-      const pos = parseHexKey(baseKey);
-      const dist = hexDistance(shipPos, pos);
-      return dist < best.dist ? { pos, dist } : best;
-    },
-    { pos: null, dist: Infinity },
-  );
-  return result.pos;
+  const nearest = minBy(playerBases, (baseKey) => hexDistance(shipPos, parseHexKey(baseKey)));
+  return nearest ? parseHexKey(nearest) : null;
 };
 
 /**
@@ -206,8 +195,8 @@ const scoreCourse = (
     } else if (targetHex) {
       score += (hexDistance(course.destination, targetHex) - hexDistance(nextTurnDest, targetHex)) * 6 * mult;
     } else if (enemyShips.length > 0) {
-      const nearestEnemyAfterDrift = Math.min(...enemyShips.map((enemy) => hexDistance(nextTurnDest, enemy.position)));
-      score += Math.max(0, 5 - nearestEnemyAfterDrift) * mult;
+      const closest = minBy(enemyShips, (enemy) => hexDistance(nextTurnDest, enemy.position))!;
+      score += Math.max(0, 5 - hexDistance(nextTurnDest, closest.position)) * mult;
     }
   }
 
@@ -552,14 +541,9 @@ export const aiOrdnance = (
     const cargoFree = stats.cargo - ship.cargoUsed;
 
     // Find nearest enemy
-    const { nearestEnemy, nearestDist } = enemyShips.reduce<{ nearestEnemy: Ship | null; nearestDist: number }>(
-      (best, enemy) => {
-        const dist = hexDistance(ship.position, enemy.position);
-        return dist < best.nearestDist ? { nearestEnemy: enemy, nearestDist: dist } : best;
-      },
-      { nearestEnemy: null, nearestDist: Infinity },
-    );
+    const nearestEnemy = minBy(enemyShips, (enemy) => hexDistance(ship.position, enemy.position));
     if (!nearestEnemy) continue;
+    const nearestDist = hexDistance(ship.position, nearestEnemy.position);
 
     // Hard AI: launch nuke at enemies within range if cargo allows
     const canLaunchNuke = stats.canOverload || (ship.nukesLaunchedSinceResupply ?? 0) < 1;
@@ -667,11 +651,8 @@ export const aiCombat = (
     const attackersForTarget = myShips.filter((attacker) => hasLineOfSight(attacker, enemy, map));
     if (attackersForTarget.length === 0) continue;
 
-    const totalDist = attackersForTarget.reduce(
-      (sum, attacker) => sum + hexDistance(attacker.position, enemy.position),
-      0,
-    );
-    const avgDist = totalDist / attackersForTarget.length;
+    const avgDist =
+      sumBy(attackersForTarget, (a) => hexDistance(a.position, enemy.position)) / attackersForTarget.length;
     const rangeMod = computeGroupRangeMod(attackersForTarget, enemy);
     const velMod = computeGroupVelocityMod(attackersForTarget, enemy);
     const totalMod = rangeMod + velMod;
@@ -684,17 +665,13 @@ export const aiCombat = (
     const attackersForTarget = myShips.filter((attacker) => hasLineOfSightToTarget(attacker, nuke, map));
     if (attackersForTarget.length === 0) continue;
 
-    const totalDist = attackersForTarget.reduce(
-      (sum, attacker) => sum + hexDistance(attacker.position, nuke.position),
-      0,
-    );
-    const avgDist = totalDist / attackersForTarget.length;
+    const avgDist =
+      sumBy(attackersForTarget, (a) => hexDistance(a.position, nuke.position)) / attackersForTarget.length;
     const rangeMod = computeGroupRangeModToTarget(attackersForTarget, nuke);
     const velMod = computeGroupVelocityModToTarget(attackersForTarget, nuke);
-    const ownShipDistances = state.ships
-      .filter((ship) => ship.owner === playerId && !ship.destroyed)
-      .map((ship) => hexDistance(ship.position, nuke.position));
-    const threat = ownShipDistances.length > 0 ? Math.max(0, 6 - Math.min(...ownShipDistances)) : 0;
+    const ownShips = state.ships.filter((ship) => ship.owner === playerId && !ship.destroyed);
+    const closestOwn = minBy(ownShips, (ship) => hexDistance(ship.position, nuke.position));
+    const threat = closestOwn ? Math.max(0, 6 - hexDistance(closestOwn.position, nuke.position)) : 0;
     const score = 18 + threat * 8 - avgDist * 2 - (rangeMod + velMod) * 3;
 
     scored.push({ targetId: nuke.id, targetType: 'ordnance', attackers: attackersForTarget, score });

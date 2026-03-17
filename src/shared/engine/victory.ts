@@ -1,7 +1,8 @@
 import { applyDamage, lookupOtherDamage, rollD6 } from '../combat';
 import { BASE_DETECTION_RANGE, SHIP_DETECTION_RANGE, SHIP_STATS } from '../constants';
-import { type HexCoord, hexDistance, hexEqual, hexKey, hexVecLength } from '../hex';
+import { type HexCoord, hexDistance, hexEqual, hexKey, hexVecLength, parseHexKey } from '../hex';
 import type { GameState, MovementEvent, Ship, SolarSystemMap } from '../types';
+import { count } from '../util';
 import { getEscapeEdge, hasEscaped, hasEscapedNorth, playerControlsBase, usesEscapeInspectionRules } from './util';
 
 /**
@@ -164,8 +165,8 @@ export const checkGameEnd = (state: GameState, map?: SolarSystemMap): void => {
     return;
   }
 
-  const alive0 = state.ships.filter((s) => s.owner === 0 && !s.destroyed).length;
-  const alive1 = state.ships.filter((s) => s.owner === 1 && !s.destroyed).length;
+  const alive0 = count(state.ships, (s) => s.owner === 0 && !s.destroyed);
+  const alive1 = count(state.ships, (s) => s.owner === 1 && !s.destroyed);
   if (alive0 === 0 && alive1 === 0) {
     state.winner = 1 - state.activePlayer;
     state.winReason = 'Mutual destruction — last attacker loses!';
@@ -373,8 +374,8 @@ export const updateDetection = (state: GameState, map: SolarSystemMap): void => 
       const hex = map.hexes.get(key);
       if (!hex?.base) continue;
       if (state.destroyedBases.includes(key)) continue;
-      const [q, r] = key.split(',').map(Number);
-      if (hexDistance(ship.position, { q, r }) <= BASE_DETECTION_RANGE) {
+      const baseCoord = parseHexKey(key);
+      if (hexDistance(ship.position, baseCoord) <= BASE_DETECTION_RANGE) {
         ship.detected = true;
         break;
       }

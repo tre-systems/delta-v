@@ -1,4 +1,5 @@
 import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
+import { parseHexKey } from '../hex';
 import { bodyHasGravity } from '../map-data';
 import type { GameState, Ordnance, Ship, SolarSystemMap } from '../types';
 
@@ -14,10 +15,7 @@ export const usesEscapeInspectionRules = (state: Pick<GameState, 'scenarioRules'
 export const getEscapeEdge = (state: Pick<GameState, 'scenarioRules'>): 'any' | 'north' =>
   state.scenarioRules.escapeEdge ?? 'any';
 
-export const parseBaseKey = (baseKey: string): { q: number; r: number } => {
-  const [q, r] = baseKey.split(',').map(Number);
-  return { q, r };
-};
+export { parseHexKey as parseBaseKey } from '../hex';
 
 export const getOwnedPlanetaryBases = (
   state: GameState,
@@ -29,8 +27,7 @@ export const getOwnedPlanetaryBases = (
     if (state.destroyedBases.includes(key)) return [];
     const hex = map.hexes.get(key);
     if (!hex?.base || !bodyHasGravity(hex.base.bodyName, map)) return [];
-    const [q, r] = key.split(',').map(Number);
-    return [{ key, coord: { q, r } }];
+    return [{ key, coord: parseHexKey(key) }];
   });
 };
 

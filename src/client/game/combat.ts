@@ -1,6 +1,7 @@
 import { canAttack, getCombatStrength, hasLineOfSight, hasLineOfSightToTarget } from '../../shared/combat';
 import { type HexCoord, hexEqual } from '../../shared/hex';
 import type { CombatAttack, GameState, SolarSystemMap } from '../../shared/types';
+import { clamp } from '../../shared/util';
 import type { PlanningState } from '../renderer/renderer';
 
 type CombatPlanningSnapshot = Pick<
@@ -101,7 +102,7 @@ export const hasSplitFireOptions = (state: GameState, playerId: number, queuedAt
 
 const clampAttackStrength = (maxStrength: number, requestedStrength: number | null): number | null => {
   if (maxStrength <= 0) return null;
-  return Math.max(1, Math.min(maxStrength, requestedStrength ?? maxStrength));
+  return clamp(requestedStrength ?? maxStrength, 1, maxStrength);
 };
 
 export const getCombatAttackerIdAtHex = (state: GameState, playerId: number, clickHex: HexCoord): string | null => {

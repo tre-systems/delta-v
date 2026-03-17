@@ -12,6 +12,7 @@ import {
 } from '../../shared/combat';
 import type { HexCoord } from '../../shared/hex';
 import type { CombatAttack, CombatResult, GameState, Ordnance, Ship, SolarSystemMap } from '../../shared/types';
+import { clamp } from '../../shared/util';
 
 export interface CombatOverlayPlanningState {
   combatTargetId: string | null;
@@ -167,7 +168,7 @@ const formatPreviewLabel = (
     const shipTarget = target as Ship;
     const maxAttackStrength = getCombatStrength(attackers);
     const attackStrength =
-      maxAttackStrength > 0 ? Math.max(1, Math.min(maxAttackStrength, requestedStrength ?? maxAttackStrength)) : 0;
+      maxAttackStrength > 0 ? clamp(requestedStrength ?? maxAttackStrength, 1, maxAttackStrength) : 0;
     const defendStrength = getCombatStrength([shipTarget]);
     const odds = computeOdds(attackStrength, defendStrength);
     rangeMod = computeGroupRangeMod(attackers, shipTarget);

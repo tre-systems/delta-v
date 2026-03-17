@@ -5,6 +5,8 @@
  * Tutorial state is persisted in localStorage so it only shows once.
  */
 
+import { byId, hide, show } from './dom';
+
 const STORAGE_KEY = 'deltav_tutorial_done';
 
 interface TutorialStep {
@@ -63,9 +65,9 @@ export class Tutorial {
   private activeStepId: string | null = null;
 
   constructor() {
-    this.tipEl = document.getElementById('tutorialTip')!;
-    this.textEl = document.getElementById('tutorialTipText')!;
-    this.progressEl = document.getElementById('tutorialProgress')!;
+    this.tipEl = byId('tutorialTip');
+    this.textEl = byId('tutorialTipText');
+    this.progressEl = byId('tutorialProgress');
 
     // Check if tutorial already completed
     if (localStorage.getItem(STORAGE_KEY) === '1') {
@@ -73,8 +75,8 @@ export class Tutorial {
     }
 
     // Wire buttons
-    document.getElementById('tutorialNextBtn')!.addEventListener('click', () => this.advance());
-    document.getElementById('tutorialSkipBtn')!.addEventListener('click', () => this.skip());
+    byId('tutorialNextBtn').addEventListener('click', () => this.advance());
+    byId('tutorialSkipBtn').addEventListener('click', () => this.skip());
   }
 
   /** Check if tutorial is active (not completed) */
@@ -103,14 +105,14 @@ export class Tutorial {
 
   /** Hide the tutorial tip */
   hideTip() {
-    this.tipEl.style.display = 'none';
+    hide(this.tipEl);
     this.activeStepId = null;
   }
 
   private showStep(step: TutorialStep) {
     this.activeStepId = step.id;
     this.textEl.textContent = step.text;
-    this.tipEl.style.display = 'block';
+    show(this.tipEl, 'block');
     // Re-trigger animation
     this.tipEl.style.animation = 'none';
     void this.tipEl.offsetHeight; // force reflow
