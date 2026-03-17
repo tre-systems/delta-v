@@ -356,13 +356,19 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 - Escape inspection, concealment, and moral-victory flow
 - Counterattack targets strongest attacker by default
 
-**Remaining divergences:**
-- **Contact geometry:** mine/torpedo contact approximated by hex occupancy/path, not the stricter board geometric rule
-- **Edge-of-gravity rule:** a course exactly along the edge of a gravity hex should not count as entering it, but hexLineDraw cannot distinguish edge-grazing from true entry
-- **Asteroid hexside rule:** moving along a hexside between two asteroid hexes should count as entering one asteroid hex, not two
-- **Logistics:** surrender, looting, rescue, fuel transfer, cargo handling beyond ordnance mass, dummy counters remain unimplemented
-- **Advanced combat system**: the alternate weapon/drive/structure damage tracks from the rulebook are out of scope
-- **Extended Economy**: explicit shipping lanes and asteroid prospecting are not implemented yet.
+**Remaining divergences** (cross-referenced against Triplanetary 2018 rulebook):
+
+- **Contact geometry** *(accepted — low priority):* Mine/torpedo contact approximated by hex occupancy/path, not the stricter board geometric rule. The rulebook requires literal geometric line intersection with the printed hex area; two courses can pass through the same hex without their drawn lines touching. Hex-path intersection is a standard digital approximation. Fixing would require sub-hex geometry incompatible with axial coordinate math.
+
+- **Edge-of-gravity rule** *(resolved):* The rulebook (p.3, Figure 7) explicitly states a course running exactly along the edge of a gravity hex does not count as entering it. Resolved via `analyzeHexLine()` which produces `definite` (hexes in both nudge directions) and `ambiguousPairs` (edge-grazing hexes). `collectEnteredGravityEffects()` only iterates `definite`, correctly skipping edge-grazing gravity hexes.
+
+- **Asteroid hexside rule** *(resolved):* The rulebook (p.7) states "a ship passing along a hexside between two asteroid hexes is considered to have entered one asteroid hex" — one hazard roll, not two. Resolved via `analyzeHexLine()`: `queueAsteroidHazards()` queues exactly one hazard for `ambiguousPairs` where both hexes are asteroids.
+
+- **Logistics** *(deferred — scenario-specific):* Surrender, looting, rescue, fuel transfer, cargo handling, dummy counters remain unimplemented. The rulebook (p.8) defines course-matching mechanics for transfers, surrender as a binding bargain, cargo capacity in tons (fuel excluded), and dummy counters for concealment scenarios. These are primarily needed for Lateral 7, Piracy, Escape, and Interplanetary War scenarios.
+
+- **Advanced combat system** *(mostly resolved):* The rulebook uses the standard D1–D5/E damage system throughout; no separate advanced subsystem damage tracks exist. Dreadnaught gun exception (fire while disabled) is implemented in `canAttack`/`canCounterattack`. Minor gap: orbital bases should continue to fire torpedoes and resupply at D1 damage — not yet implemented but only relevant in orbital base scenarios.
+
+- **Extended Economy** *(deferred — scenario-specific):* Shipping lanes (Piracy trade cycles, cargo delivery) and asteroid prospecting (automated mines, robot guards, ore/CT shards) are scenario-specific economy mechanics from the Piracy and Interplanetary War scenarios. Defer until those scenarios are on the roadmap.
 
 ## Scenarios
 
