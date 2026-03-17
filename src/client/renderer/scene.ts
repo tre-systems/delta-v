@@ -4,7 +4,7 @@
  * Pure functions extracted from Renderer — no class state dependencies.
  */
 
-import { HEX_DIRECTIONS, hexAdd, hexToPixel } from '../../shared/hex';
+import { HEX_DIRECTIONS, hexAdd, hexToPixel, parseHexKey } from '../../shared/hex';
 import type { GameState, SolarSystemMap } from '../../shared/types';
 import {
   buildAsteroidDebrisView,
@@ -29,27 +29,19 @@ export const generateStars = (count: number, range: number): Star[] => {
     return seed / 2147483647;
   };
 
-  const stars: Star[] = [];
-  for (let i = 0; i < count; i++) {
-    stars.push({
-      x: (rand() - 0.5) * range * 2,
-      y: (rand() - 0.5) * range * 2,
-      brightness: 0.3 + rand() * 0.7,
-      size: 0.5 + rand() * 1.5,
-    });
-  }
-  return stars;
+  return Array.from({ length: count }, () => ({
+    x: (rand() - 0.5) * range * 2,
+    y: (rand() - 0.5) * range * 2,
+    brightness: 0.3 + rand() * 0.7,
+    size: 0.5 + rand() * 1.5,
+  }));
 };
 
 // Precomputed flat-top hex vertex offsets (cos/sin at 60-degree intervals)
-const HEX_OFFSETS: [number, number][] = (() => {
-  const offsets: [number, number][] = [];
-  for (let i = 0; i <= 6; i++) {
-    const angle = (Math.PI / 3) * i;
-    offsets.push([Math.cos(angle), Math.sin(angle)]);
-  }
-  return offsets;
-})();
+const HEX_OFFSETS: [number, number][] = Array.from({ length: 7 }, (_, i) => {
+  const angle = (Math.PI / 3) * i;
+  return [Math.cos(angle), Math.sin(angle)] as [number, number];
+});
 
 export const renderStars = (ctx: CanvasRenderingContext2D, stars: Star[], zoom: number): void => {
   for (const star of stars) {
@@ -104,11 +96,11 @@ export const renderGravityIndicators = (
 ): void => {
   for (const [key, hex] of map.hexes) {
     if (!hex.gravity) continue;
-    const [q, r] = key.split(',').map(Number);
-    const p = hexToPixel({ q, r }, hexSize);
+    const coord = parseHexKey(key);
+    const p = hexToPixel(coord, hexSize);
     if (!isVisible(p.x, p.y)) continue;
     const dir = HEX_DIRECTIONS[hex.gravity.direction];
-    const target = hexToPixel(hexAdd({ q, r }, dir), hexSize);
+    const target = hexToPixel(hexAdd(coord, dir), hexSize);
 
     ctx.strokeStyle = hex.gravity.strength === 'weak' ? 'rgba(100, 140, 255, 0.12)' : 'rgba(100, 140, 255, 0.2)';
     ctx.lineWidth = 1;
@@ -184,8 +176,8 @@ export const renderBaseMarkers = (
 ): void => {
   for (const [key, hex] of map.hexes) {
     if (!hex.base) continue;
-    const [q, r] = key.split(',').map(Number);
-    const p = hexToPixel({ q, r }, hexSize);
+    const coord = parseHexKey(key);
+    const p = hexToPixel(coord, hexSize);
     const markerView = buildBaseMarkerView(key, state, playerId);
     if (markerView.kind === 'destroyed') {
       ctx.strokeStyle = 'rgba(255, 90, 90, 0.8)';
@@ -242,8 +234,7 @@ export const renderAsteroids = (
   for (const [key, hex] of map.hexes) {
     if (hex.terrain !== 'asteroid') continue;
     if (destroyed.has(key)) continue;
-    const [q, r] = key.split(',').map(Number);
-    const debrisView = buildAsteroidDebrisView({ q, r }, hexSize);
+    const debrisView = buildAsteroidDebrisView(parseHexKey(key), hexSize);
     if (!isVisible(debrisView.center.x, debrisView.center.y)) continue;
 
     // Subtle hex background tint

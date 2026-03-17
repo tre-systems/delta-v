@@ -41,13 +41,8 @@ const getRandomInt = (maxExclusive: number): number => {
   return value % maxExclusive;
 };
 
-const generateRandomString = (chars: string, length: number): string => {
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars[getRandomInt(chars.length)];
-  }
-  return result;
-};
+const generateRandomString = (chars: string, length: number): string =>
+  Array.from({ length }, () => chars[getRandomInt(chars.length)]).join('');
 
 const parseFleetPurchases = (raw: unknown): FleetPurchase[] | null => {
   if (!Array.isArray(raw) || raw.length > MAX_FLEET_PURCHASES) return null;
@@ -327,18 +322,16 @@ export type SeatAssignmentDecision =
 export const resolveSeatAssignment = (input: SeatAssignmentInput): SeatAssignmentDecision => {
   const { presentedToken, seatOpen, playerTokens, inviteTokens } = input;
 
-  for (const playerId of [0, 1] as const) {
-    const expectedToken = playerTokens[playerId];
-    if (expectedToken && seatOpen[playerId] && presentedToken === expectedToken) {
-      return { type: 'join', playerId, issueNewToken: false, consumeInviteToken: false };
-    }
+  const seats = [0, 1] as const;
+
+  const tokenMatch = seats.find((p) => playerTokens[p] && seatOpen[p] && presentedToken === playerTokens[p]);
+  if (tokenMatch !== undefined) {
+    return { type: 'join', playerId: tokenMatch, issueNewToken: false, consumeInviteToken: false };
   }
 
-  for (const playerId of [0, 1] as const) {
-    const inviteToken = inviteTokens[playerId];
-    if (inviteToken && seatOpen[playerId] && presentedToken === inviteToken) {
-      return { type: 'join', playerId, issueNewToken: true, consumeInviteToken: true };
-    }
+  const inviteMatch = seats.find((p) => inviteTokens[p] && seatOpen[p] && presentedToken === inviteTokens[p]);
+  if (inviteMatch !== undefined) {
+    return { type: 'join', playerId: inviteMatch, issueNewToken: true, consumeInviteToken: true };
   }
 
   if (presentedToken) {
@@ -350,10 +343,9 @@ export const resolveSeatAssignment = (input: SeatAssignmentInput): SeatAssignmen
   // empty (e.g. a future "open lobby" mode). Currently seat 0 always gets a
   // playerToken and seat 1 always gets an inviteToken at /init, so this branch
   // is not reachable in normal play — it exists as a safety net.
-  for (const playerId of [0, 1] as const) {
-    if (seatOpen[playerId] && playerTokens[playerId] === null && inviteTokens[playerId] === null) {
-      return { type: 'join', playerId, issueNewToken: true, consumeInviteToken: false };
-    }
+  const openSeat = seats.find((p) => seatOpen[p] && playerTokens[p] === null && inviteTokens[p] === null);
+  if (openSeat !== undefined) {
+    return { type: 'join', playerId: openSeat, issueNewToken: true, consumeInviteToken: false };
   }
 
   if (seatOpen.some(Boolean)) {

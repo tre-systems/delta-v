@@ -1,5 +1,5 @@
 import { MOVEMENT_ANIM_DURATION } from '../../shared/constants';
-import { type HexCoord, hexKey, hexToPixel, type PixelCoord } from '../../shared/hex';
+import { type HexCoord, hexKey, hexToPixel, type PixelCoord, parseHexKey } from '../../shared/hex';
 import type {
   CombatAttack,
   CombatResult,
@@ -228,16 +228,12 @@ export class Renderer {
         if (firstId.startsWith('base:')) {
           const baseRef = firstId.slice(5);
           if (baseRef.includes(',')) {
-            const [bq, br] = baseRef.split(',').map(Number);
-            attackerPos = hexToPixel({ q: bq, r: br }, HEX_SIZE);
+            attackerPos = hexToPixel(parseHexKey(baseRef), HEX_SIZE);
           } else if (this.map) {
             // Backward-compatible fallback for older replays/messages
-            for (const [key, hex] of this.map.hexes) {
-              if (hex.base?.bodyName === baseRef) {
-                const [bq, br] = key.split(',').map(Number);
-                attackerPos = hexToPixel({ q: bq, r: br }, HEX_SIZE);
-                break;
-              }
+            const baseEntry = [...this.map.hexes.entries()].find(([, hex]) => hex.base?.bodyName === baseRef);
+            if (baseEntry) {
+              attackerPos = hexToPixel(parseHexKey(baseEntry[0]), HEX_SIZE);
             }
           }
         } else {
