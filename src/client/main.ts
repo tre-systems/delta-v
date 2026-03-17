@@ -5,19 +5,10 @@ if ('serviceWorker' in navigator) {
 
 import type { AIDifficulty } from '../shared/ai';
 import { CODE_LENGTH, TURN_TIMEOUT_MS } from '../shared/constants';
-import { createGame, type MovementResult, processEmplacement } from '../shared/engine/game-engine';
+import { createGame, type MovementResult } from '../shared/engine/game-engine';
 import { pixelToHex } from '../shared/hex';
 import { findBaseHex, getSolarSystemMap, SCENARIOS } from '../shared/map-data';
-import type {
-  AstrogationOrder,
-  CombatAttack,
-  CombatResult,
-  FleetPurchase,
-  GameState,
-  OrdnanceLaunch,
-  S2C,
-  ShipMovement,
-} from '../shared/types';
+import type { CombatResult, FleetPurchase, GameState, S2C, ShipMovement } from '../shared/types';
 import { clamp } from '../shared/util';
 import {
   initAudio,
@@ -34,7 +25,7 @@ import {
   setMuted,
 } from './audio';
 import { byId, hide, show } from './dom';
-import { deriveAIActionPlan } from './game/ai-flow';
+import { type AIActionPlan, deriveAIActionPlan } from './game/ai-flow';
 import { deriveScenarioBriefingEntries } from './game/briefing';
 import { deriveBurnChangePlan } from './game/burn';
 import {
@@ -64,6 +55,7 @@ import { deriveDisconnectHandling, deriveGameStartClientState, deriveReconnectAt
 import { resolveBaseEmplacementPlan, resolveOrdnanceLaunchPlan } from './game/ordnance';
 import { type ClientState, derivePhaseTransition } from './game/phase';
 import { deriveClientStateEntryPlan } from './game/phase-entry';
+import { createInitialPlanningState } from './game/planning';
 import { deriveClientScreenPlan } from './game/screen';
 import {
   buildGameRoute,
@@ -78,6 +70,7 @@ import {
 } from './game/session';
 import { deriveTurnTimer } from './game/timer';
 import { buildShipTooltipHtml } from './game/tooltip';
+import { createLocalTransport, createWebSocketTransport, type GameTransport } from './game/transport';
 import { InputHandler } from './input';
 import { HEX_SIZE, Renderer } from './renderer/renderer';
 import { Tutorial } from './tutorial';
@@ -93,8 +86,10 @@ class GameClient {
   private gameState: GameState | null = null;
   private isLocalGame = false; // true for single player vs AI
   private aiDifficulty: AIDifficulty = 'normal';
+  private transport: GameTransport | null = null;
 
   private canvas: HTMLCanvasElement;
+  private planningState = createInitialPlanningState();
   renderer: Renderer;
   private input: InputHandler;
   private ui: UIManager;
@@ -114,8 +109,8 @@ class GameClient {
 
   constructor() {
     this.canvas = byId<HTMLCanvasElement>('gameCanvas');
-    this.renderer = new Renderer(this.canvas);
-    this.input = new InputHandler(this.canvas, this.renderer.camera, this.renderer.planningState);
+    this.renderer = new Renderer(this.canvas, this.planningState);
+    this.input = new InputHandler(this.canvas, this.renderer.camera, this.planningState);
     this.ui = new UIManager();
     this.tutorial = new Tutorial();
     this.tooltipEl = byId('shipTooltip');
@@ -142,7 +137,7 @@ class GameClient {
     this.ui.onRematch = () => this.sendRematch();
     this.ui.onExit = () => this.exitToMenu();
     this.ui.onSelectShip = (shipId) => {
-      this.renderer.planningState.selectedShipId = shipId;
+      this.planningState.selectedShipId = shipId;
       this.updateHUD();
       // Center camera on selected ship
       const ship = this.gameState?.ships.find((s) => s.id === shipId);
@@ -156,9 +151,9 @@ class GameClient {
           state: this.state,
           hasGameState: !!this.gameState,
           typingInInput: e.target instanceof HTMLInputElement,
-          combatTargetId: this.renderer.planningState.combatTargetId,
-          queuedAttackCount: this.renderer.planningState.queuedAttacks.length,
-          torpedoAccelActive: this.renderer.planningState.torpedoAccel !== null,
+          combatTargetId: this.planningState.combatTargetId,
+          queuedAttackCount: this.planningState.queuedAttacks.length,
+          torpedoAccelActive: this.planningState.torpedoAccel !== null,
         },
         { key: e.key, shiftKey: e.shiftKey },
       );
@@ -264,13 +259,13 @@ class GameClient {
       this.updateHUD();
     }
     if (entryPlan.clearAstrogationPlanning) {
-      this.renderer.planningState.selectedShipId = null;
-      this.renderer.planningState.burns.clear();
-      this.renderer.planningState.overloads.clear();
-      this.renderer.planningState.weakGravityChoices.clear();
+      this.planningState.selectedShipId = null;
+      this.planningState.burns.clear();
+      this.planningState.overloads.clear();
+      this.planningState.weakGravityChoices.clear();
     }
     if (entryPlan.selectedShipId !== undefined) {
-      this.renderer.planningState.selectedShipId = entryPlan.selectedShipId;
+      this.planningState.selectedShipId = entryPlan.selectedShipId;
     }
     if (entryPlan.resetCombatState) {
       this.resetCombatState();
@@ -324,6 +319,7 @@ class GameClient {
     this.lastLoggedTurn = -1;
     this.renderer.setPlayerId(0);
     this.input.setPlayerId(0);
+    this.transport = this.createLocalTransport();
 
     const scenarioDef = SCENARIOS[scenario] ?? SCENARIOS.biplanetary;
     const state = createGame(scenarioDef, this.map, 'LOCAL', findBaseHex);
@@ -386,6 +382,7 @@ class GameClient {
     this.ws.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
     this.ws.onclose = () => this.handleDisconnect();
     this.ws.onerror = () => {}; // onclose fires after onerror
+    this.transport = createWebSocketTransport((msg) => this.send(msg));
     this.startPing();
   }
 
@@ -623,18 +620,18 @@ class GameClient {
         this.ui.showAttackButton(false);
         return;
       case 'undoQueuedAttack': {
-        this.renderer.planningState.queuedAttacks.pop();
-        const count = this.renderer.planningState.queuedAttacks.length;
+        this.planningState.queuedAttacks.pop();
+        const count = this.planningState.queuedAttacks.length;
         this.ui.showFireButton(count > 0, count);
         this.ui.showToast(count > 0 ? `Undid last attack (${count} queued)` : 'Attack queue cleared', 'info');
         return;
       }
       case 'clearTorpedoAcceleration':
-        this.renderer.planningState.torpedoAccel = null;
-        this.renderer.planningState.torpedoAccelSteps = null;
+        this.planningState.torpedoAccel = null;
+        this.planningState.torpedoAccelSteps = null;
         return;
       case 'deselectShip':
-        this.renderer.planningState.selectedShipId = null;
+        this.planningState.selectedShipId = null;
         this.updateHUD();
         return;
       case 'confirmOrders':
@@ -696,25 +693,21 @@ class GameClient {
 
   private undoSelectedShipBurn() {
     if (!this.gameState || this.state !== 'playing_astrogation') return;
-    const shipId = this.renderer.planningState.selectedShipId;
+    const shipId = this.planningState.selectedShipId;
     if (shipId) {
-      this.renderer.planningState.burns.delete(shipId);
-      this.renderer.planningState.overloads.delete(shipId);
-      this.renderer.planningState.weakGravityChoices.delete(shipId);
+      this.planningState.burns.delete(shipId);
+      this.planningState.overloads.delete(shipId);
+      this.planningState.weakGravityChoices.delete(shipId);
     }
     this.updateHUD();
   }
 
   private confirmOrders() {
-    if (!this.gameState || this.state !== 'playing_astrogation') return;
-    const orders = buildAstrogationOrders(this.gameState, this.playerId, this.renderer.planningState);
+    if (!this.gameState || this.state !== 'playing_astrogation' || !this.transport) return;
+    const orders = buildAstrogationOrders(this.gameState, this.playerId, this.planningState);
 
     playConfirm();
-    if (this.isLocalGame) {
-      this.localProcessAstrogation(orders);
-    } else {
-      this.send({ type: 'astrogation', orders });
-    }
+    this.transport.submitAstrogation(orders);
   }
 
   private onAnimationComplete() {
@@ -745,63 +738,55 @@ class GameClient {
       playPhaseChange();
     }
     if (transition.runLocalAI) {
-      setTimeout(() => this.runAITurn(), 500);
+      this.runAITurn();
     }
   }
 
   private queueAttack() {
     if (!this.gameState || this.state !== 'playing_combat') return;
-    const attack = buildCurrentAttack(this.gameState, this.playerId, this.renderer.planningState, this.map);
+    const attack = buildCurrentAttack(this.gameState, this.playerId, this.planningState, this.map);
     if (!attack) {
       this.ui.showToast('Select an enemy ship or nuke to target', 'info');
       return;
     }
 
-    this.renderer.planningState.queuedAttacks.push(attack);
+    this.planningState.queuedAttacks.push(attack);
     this.clearCombatSelection();
     this.ui.showAttackButton(false);
 
     const remainingAttackers = countRemainingCombatAttackers(
       this.gameState,
       this.playerId,
-      this.renderer.planningState.queuedAttacks,
+      this.planningState.queuedAttacks,
     );
     if (
       remainingAttackers === 0 &&
-      !hasSplitFireOptions(this.gameState, this.playerId, this.renderer.planningState.queuedAttacks)
+      !hasSplitFireOptions(this.gameState, this.playerId, this.planningState.queuedAttacks)
     ) {
       // No more attackers available — auto-fire
       this.fireAllAttacks();
     } else {
-      const count = this.renderer.planningState.queuedAttacks.length;
+      const count = this.planningState.queuedAttacks.length;
       this.ui.showToast(`Attack queued (${count}). Select next target or press Enter to fire.`, 'info');
       this.ui.showFireButton(true, count);
     }
   }
 
   private fireAllAttacks() {
-    const attacks = [...this.renderer.planningState.queuedAttacks];
+    if (!this.transport) return;
+    const attacks = [...this.planningState.queuedAttacks];
     if (attacks.length === 0) {
       this.sendSkipCombat();
       return;
     }
-    this.renderer.planningState.queuedAttacks = [];
+    this.planningState.queuedAttacks = [];
     this.ui.showFireButton(false, 0);
-
-    if (this.isLocalGame) {
-      this.localProcessCombat(attacks);
-    } else {
-      this.send({ type: 'combat', attacks });
-    }
+    this.transport.submitCombat(attacks);
   }
 
   private beginCombatPhase() {
-    if (!this.gameState || this.gameState.phase !== 'combat') return;
-    if (this.isLocalGame) {
-      this.localBeginCombat();
-    } else {
-      this.send({ type: 'beginCombat' });
-    }
+    if (!this.gameState || this.gameState.phase !== 'combat' || !this.transport) return;
+    this.transport.beginCombat();
   }
 
   private combatWatchInterval: number | null = null;
@@ -814,46 +799,46 @@ class GameClient {
         this.combatWatchInterval = null;
         return;
       }
-      const hasTarget = this.renderer.planningState.combatTargetId !== null;
+      const hasTarget = this.planningState.combatTargetId !== null;
       this.ui.showAttackButton(hasTarget);
     }, 100);
   }
 
   private clearCombatSelection() {
-    this.renderer.planningState.combatTargetId = null;
-    this.renderer.planningState.combatTargetType = null;
-    this.renderer.planningState.combatAttackerIds = [];
-    this.renderer.planningState.combatAttackStrength = null;
+    this.planningState.combatTargetId = null;
+    this.planningState.combatTargetType = null;
+    this.planningState.combatAttackerIds = [];
+    this.planningState.combatAttackStrength = null;
   }
 
   private resetCombatState() {
     this.clearCombatSelection();
-    this.renderer.planningState.queuedAttacks = [];
+    this.planningState.queuedAttacks = [];
     this.ui.showFireButton(false, 0);
   }
 
   private adjustCombatStrength(delta: number) {
     if (!this.gameState || this.state !== 'playing_combat') return;
-    if (this.renderer.planningState.combatTargetType !== 'ship') return;
-    const maxStrength = getAttackStrengthForSelection(this.gameState, this.renderer.planningState.combatAttackerIds);
+    if (this.planningState.combatTargetType !== 'ship') return;
+    const maxStrength = getAttackStrengthForSelection(this.gameState, this.planningState.combatAttackerIds);
     if (maxStrength <= 0) return;
 
-    const current = this.renderer.planningState.combatAttackStrength ?? maxStrength;
-    this.renderer.planningState.combatAttackStrength = clamp(current + delta, 1, maxStrength);
+    const current = this.planningState.combatAttackStrength ?? maxStrength;
+    this.planningState.combatAttackStrength = clamp(current + delta, 1, maxStrength);
   }
 
   private resetCombatStrengthToMax() {
     if (!this.gameState || this.state !== 'playing_combat') return;
-    if (this.renderer.planningState.combatTargetType !== 'ship') return;
-    const maxStrength = getAttackStrengthForSelection(this.gameState, this.renderer.planningState.combatAttackerIds);
+    if (this.planningState.combatTargetType !== 'ship') return;
+    const maxStrength = getAttackStrengthForSelection(this.gameState, this.planningState.combatAttackerIds);
     if (maxStrength > 0) {
-      this.renderer.planningState.combatAttackStrength = maxStrength;
+      this.planningState.combatAttackStrength = maxStrength;
     }
   }
 
   private sendOrdnanceLaunch(ordType: 'mine' | 'torpedo' | 'nuke') {
-    if (!this.gameState || this.state !== 'playing_ordnance') return;
-    const plan = resolveOrdnanceLaunchPlan(this.gameState, this.renderer.planningState, ordType);
+    if (!this.gameState || this.state !== 'playing_ordnance' || !this.transport) return;
+    const plan = resolveOrdnanceLaunchPlan(this.gameState, this.planningState, ordType);
     if (!plan.ok) {
       if (plan.message) {
         this.ui.showToast(plan.message, plan.level);
@@ -861,91 +846,41 @@ class GameClient {
       return;
     }
     this.ui.logText(`${plan.shipName} launched ${ordType}`);
-
-    if (this.isLocalGame) {
-      this.localProcessOrdnance([plan.launch]);
-    } else {
-      this.send({ type: 'ordnance', launches: [plan.launch] });
-    }
+    this.transport.submitOrdnance([plan.launch]);
   }
 
   private sendEmplaceBase() {
-    if (!this.gameState || this.state !== 'playing_ordnance') return;
-    const plan = resolveBaseEmplacementPlan(this.gameState, this.renderer.planningState.selectedShipId);
+    if (!this.gameState || this.state !== 'playing_ordnance' || !this.transport) return;
+    const plan = resolveBaseEmplacementPlan(this.gameState, this.planningState.selectedShipId);
     if (!plan.ok) {
       if (plan.message) {
         this.ui.showToast(plan.message, plan.level);
       }
       return;
     }
-
-    if (this.isLocalGame) {
-      const result = processEmplacement(this.gameState, this.playerId, plan.emplacements, this.map);
-      if ('error' in result) {
-        this.ui.showToast(result.error, 'error');
-        return;
-      }
-      this.applyGameState(result.state);
-      this.ui.showToast('Orbital base emplaced!', 'success');
-      this.updateHUD();
-    } else {
-      this.send({ type: 'emplaceBase', emplacements: plan.emplacements });
-    }
+    this.transport.submitEmplacement(plan.emplacements);
   }
 
   private sendSkipOrdnance() {
-    if (!this.gameState || this.state !== 'playing_ordnance') return;
-    if (this.isLocalGame) {
-      this.localSkipOrdnance();
-    } else {
-      this.send({ type: 'skipOrdnance' });
-    }
+    if (!this.gameState || this.state !== 'playing_ordnance' || !this.transport) return;
+    this.transport.skipOrdnance();
   }
 
   private sendSkipCombat() {
-    if (!this.gameState || this.state !== 'playing_combat') return;
-    if (this.isLocalGame) {
-      this.localSkipCombat();
-    } else {
-      this.send({ type: 'skipCombat' });
-    }
+    if (!this.gameState || this.state !== 'playing_combat' || !this.transport) return;
+    this.transport.skipCombat();
   }
 
   private sendFleetReady(purchases: FleetPurchase[]) {
-    if (!this.gameState || this.state !== 'playing_fleetBuilding') return;
-    const scenarioDef = SCENARIOS[this.scenario] ?? SCENARIOS.biplanetary;
-
-    if (this.isLocalGame) {
-      const result = resolveLocalFleetReady(
-        this.gameState,
-        this.playerId,
-        purchases,
-        this.map,
-        scenarioDef,
-        this.aiDifficulty,
-      );
-      if (result.kind === 'error') {
-        this.ui.showToast(result.error, 'error');
-        return;
-      }
-      this.applyGameState(result.state);
-      if (result.aiError) {
-        console.error('AI fleet build error:', result.aiError);
-      }
-      this.logScenarioBriefing();
-      this.transitionToPhase();
-    } else {
-      this.send({ type: 'fleetReady', purchases });
+    if (!this.gameState || this.state !== 'playing_fleetBuilding' || !this.transport) return;
+    this.transport.submitFleetReady(purchases);
+    if (!this.isLocalGame) {
       this.ui.showFleetWaiting();
     }
   }
 
   private sendRematch() {
-    if (this.isLocalGame) {
-      this.startLocalGame(this.scenario);
-      return;
-    }
-    this.send({ type: 'rematch' });
+    this.transport?.requestRematch();
   }
 
   private exitToMenu() {
@@ -955,6 +890,7 @@ class GameClient {
     this.ws = null;
     this.gameState = null;
     this.isLocalGame = false;
+    this.transport = null;
     history.replaceState(null, '', '/');
     this.setState('menu');
   }
@@ -993,58 +929,48 @@ class GameClient {
 
   // --- Local game (single player) ---
 
-  private localProcessAstrogation(orders: AstrogationOrder[]) {
-    if (!this.gameState) return;
-    this.handleLocalResolution(
-      resolveAstrogationStep(this.gameState, this.playerId, orders, this.map),
-      () => this.onAnimationComplete(),
-      'Local astrogation error:',
-    );
-  }
-
-  private localProcessOrdnance(launches: OrdnanceLaunch[]) {
-    if (!this.gameState) return;
-    this.handleLocalResolution(
-      resolveOrdnanceStep(this.gameState, this.playerId, launches, this.map),
-      () => this.onAnimationComplete(),
-      'Local ordnance error:',
-    );
-  }
-
-  private localSkipOrdnance() {
-    if (!this.gameState) return;
-    this.handleLocalResolution(
-      resolveSkipOrdnanceStep(this.gameState, this.playerId, this.map),
-      () => this.onAnimationComplete(),
-      'Local skip ordnance error:',
-    );
-  }
-
-  private localBeginCombat() {
-    if (!this.gameState) return;
-    this.handleLocalResolution(
-      resolveBeginCombatStep(this.gameState, this.playerId, this.map),
-      () => this.transitionToPhase(),
-      'Local combat start error:',
-    );
-  }
-
-  private localProcessCombat(attacks: CombatAttack[]) {
-    if (!this.gameState) return;
-    this.handleLocalResolution(
-      resolveCombatStep(this.gameState, this.playerId, attacks, this.map),
-      () => this.transitionToPhase(),
-      'Local combat error:',
-    );
-  }
-
-  private localSkipCombat() {
-    if (!this.gameState) return;
-    this.handleLocalResolution(
-      resolveSkipCombatStep(this.gameState, this.playerId, this.map),
-      () => this.transitionToPhase(),
-      'Local skip combat error:',
-    );
+  private createLocalTransport(): GameTransport {
+    return createLocalTransport({
+      getState: () => this.gameState,
+      getPlayerId: () => this.playerId,
+      getMap: () => this.map,
+      onResolution: (resolution, onContinue, errorPrefix) =>
+        this.handleLocalResolution(resolution, onContinue, errorPrefix),
+      onAnimationComplete: () => this.onAnimationComplete(),
+      onTransitionToPhase: () => this.transitionToPhase(),
+      onEmplacementResult: (result) => {
+        if ('error' in result) {
+          this.ui.showToast(result.error, 'error');
+          return;
+        }
+        this.applyGameState(result.state);
+        this.ui.showToast('Orbital base emplaced!', 'success');
+        this.updateHUD();
+      },
+      onFleetReady: (purchases) => {
+        if (!this.gameState) return;
+        const scenarioDef = SCENARIOS[this.scenario] ?? SCENARIOS.biplanetary;
+        const result = resolveLocalFleetReady(
+          this.gameState,
+          this.playerId,
+          purchases,
+          this.map,
+          scenarioDef,
+          this.aiDifficulty,
+        );
+        if (result.kind === 'error') {
+          this.ui.showToast(result.error, 'error');
+          return;
+        }
+        this.applyGameState(result.state);
+        if (result.aiError) {
+          console.error('AI fleet build error:', result.aiError);
+        }
+        this.logScenarioBriefing();
+        this.transitionToPhase();
+      },
+      onRematch: () => this.startLocalGame(this.scenario),
+    });
   }
 
   private localCheckGameEnd() {
@@ -1052,66 +978,77 @@ class GameClient {
     this.showGameOverOutcome(this.gameState.winner === this.playerId, this.gameState.winReason ?? '');
   }
 
-  private runAITurn() {
-    this.processAIPhases();
+  private isGameOver(): boolean {
+    return !this.gameState || this.gameState.phase === 'gameOver';
   }
 
-  private processAIPhases() {
-    const plan = deriveAIActionPlan(this.gameState, this.playerId, this.map, this.aiDifficulty);
+  private runAITurn = async () => {
+    await new Promise((r) => setTimeout(r, 500));
 
-    switch (plan.kind) {
-      case 'none':
-        return;
-      case 'astrogation':
-        this.handleLocalResolution(
-          resolveAstrogationStep(this.gameState!, plan.aiPlayer, plan.orders, this.map),
-          () => this.processAIPhases(),
-          plan.errorPrefix,
-        );
-        return;
-      case 'ordnance': {
-        for (const entry of plan.logEntries) {
-          this.ui.logText(entry);
-        }
-        const resolution = plan.skip
-          ? resolveSkipOrdnanceStep(this.gameState!, plan.aiPlayer, this.map)
-          : resolveOrdnanceStep(this.gameState!, plan.aiPlayer, plan.launches, this.map);
-        this.handleLocalResolution(resolution, () => this.processAIPhases(), plan.errorPrefix);
-        return;
-      }
-      case 'beginCombat':
-        this.handleLocalResolution(
-          resolveBeginCombatStep(this.gameState!, plan.aiPlayer, this.map),
-          () => this.processAIPhases(),
-          plan.errorPrefix,
-        );
-        return;
-      case 'combat': {
-        const resolution = plan.skip
-          ? resolveSkipCombatStep(this.gameState!, plan.aiPlayer, this.map)
-          : resolveCombatStep(this.gameState!, plan.aiPlayer, plan.attacks, this.map, false);
-        this.handleLocalResolution(resolution, () => this.transitionToPhase(), plan.errorPrefix);
-        return;
-      }
-      case 'transition':
+    while (!this.isGameOver()) {
+      const plan = deriveAIActionPlan(this.gameState, this.playerId, this.map, this.aiDifficulty);
+
+      if (plan.kind === 'none') return;
+
+      if (plan.kind === 'transition') {
         this.localCheckGameEnd();
-        if (this.gameState) {
+        if (!this.isGameOver()) {
           this.transitionToPhase();
         }
         return;
+      }
+
+      if (plan.kind === 'ordnance') {
+        for (const entry of plan.logEntries) {
+          this.ui.logText(entry);
+        }
+      }
+
+      const resolution = this.resolveAIPlan(plan);
+      const isCombatEnd = plan.kind === 'combat';
+
+      await new Promise<void>((resolve) => {
+        this.handleLocalResolution(
+          resolution,
+          () => {
+            if (isCombatEnd) {
+              this.transitionToPhase();
+            }
+            resolve();
+          },
+          plan.errorPrefix,
+        );
+      });
+
+      if (this.isGameOver()) return;
+      if (isCombatEnd) return; // transitionToPhase may schedule another runAITurn
+    }
+  };
+
+  private resolveAIPlan(plan: AIActionPlan): LocalResolution {
+    switch (plan.kind) {
+      case 'astrogation':
+        return resolveAstrogationStep(this.gameState!, plan.aiPlayer, plan.orders, this.map);
+      case 'ordnance':
+        return plan.skip
+          ? resolveSkipOrdnanceStep(this.gameState!, plan.aiPlayer, this.map)
+          : resolveOrdnanceStep(this.gameState!, plan.aiPlayer, plan.launches, this.map);
+      case 'beginCombat':
+        return resolveBeginCombatStep(this.gameState!, plan.aiPlayer, this.map);
+      case 'combat':
+        return plan.skip
+          ? resolveSkipCombatStep(this.gameState!, plan.aiPlayer, this.map)
+          : resolveCombatStep(this.gameState!, plan.aiPlayer, plan.attacks, this.map, false);
+      default:
+        return { kind: 'error', error: `Unexpected AI plan kind` };
     }
   }
 
   private cycleShip(direction: number) {
     if (!this.gameState) return;
-    const nextShip = getNextSelectedShip(
-      this.gameState,
-      this.playerId,
-      this.renderer.planningState.selectedShipId,
-      direction,
-    );
+    const nextShip = getNextSelectedShip(this.gameState, this.playerId, this.planningState.selectedShipId, direction);
     if (!nextShip) return;
-    this.renderer.planningState.selectedShipId = nextShip.id;
+    this.planningState.selectedShipId = nextShip.id;
     this.renderer.centerOnHex(nextShip.position);
     this.updateHUD();
   }
@@ -1134,11 +1071,7 @@ class GameClient {
 
   private focusOwnFleet() {
     if (!this.gameState) return;
-    const position = getOwnFleetFocusPosition(
-      this.gameState,
-      this.playerId,
-      this.renderer.planningState.selectedShipId,
-    );
+    const position = getOwnFleetFocusPosition(this.gameState, this.playerId, this.planningState.selectedShipId);
     if (!position) return;
     this.renderer.centerOnHex(position);
   }
@@ -1147,8 +1080,8 @@ class GameClient {
 
   private setBurnDirection(dir: number) {
     if (this.state !== 'playing_astrogation') return;
-    const selectedShipId = this.renderer.planningState.selectedShipId;
-    const currentBurn = selectedShipId ? (this.renderer.planningState.burns.get(selectedShipId) ?? null) : null;
+    const selectedShipId = this.planningState.selectedShipId;
+    const currentBurn = selectedShipId ? (this.planningState.burns.get(selectedShipId) ?? null) : null;
     const plan = deriveBurnChangePlan(this.gameState, selectedShipId, dir, currentBurn);
 
     if (plan.kind === 'error') {
@@ -1159,9 +1092,9 @@ class GameClient {
       return;
     }
 
-    this.renderer.planningState.burns.set(plan.shipId, plan.nextBurn);
+    this.planningState.burns.set(plan.shipId, plan.nextBurn);
     if (plan.clearOverload) {
-      this.renderer.planningState.overloads.delete(plan.shipId);
+      this.planningState.overloads.delete(plan.shipId);
     }
     playSelect();
     this.updateHUD();
@@ -1169,11 +1102,11 @@ class GameClient {
 
   private clearSelectedBurn() {
     if (!this.gameState || this.state !== 'playing_astrogation') return;
-    const shipId = this.renderer.planningState.selectedShipId;
+    const shipId = this.planningState.selectedShipId;
     if (!shipId) return;
-    this.renderer.planningState.burns.delete(shipId);
-    this.renderer.planningState.overloads.delete(shipId);
-    this.renderer.planningState.weakGravityChoices.delete(shipId);
+    this.planningState.burns.delete(shipId);
+    this.planningState.overloads.delete(shipId);
+    this.planningState.weakGravityChoices.delete(shipId);
     this.updateHUD();
   }
 
@@ -1181,7 +1114,7 @@ class GameClient {
 
   private updateHUD() {
     if (!this.gameState) return;
-    const hud = deriveHudViewModel(this.gameState, this.playerId, this.renderer.planningState);
+    const hud = deriveHudViewModel(this.gameState, this.playerId, this.planningState);
     this.ui.updateHUD(
       hud.turn,
       hud.phase,
@@ -1197,7 +1130,7 @@ class GameClient {
     );
     this.ui.updateLatency(!this.isLocalGame && this.latencyMs >= 0 ? this.latencyMs : null);
     this.ui.updateFleetStatus(hud.fleetStatus);
-    this.ui.updateShipList(hud.myShips, hud.selectedId, this.renderer.planningState.burns);
+    this.ui.updateShipList(hud.myShips, hud.selectedId, this.planningState.burns);
   }
 
   private logScenarioBriefing() {
