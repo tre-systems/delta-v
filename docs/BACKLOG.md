@@ -8,10 +8,7 @@ No open P0 items currently.
 
 ## P1 — Robustness
 
-### Continue mobile HUD/layout polish
-The HUD now measures its live top/bottom offsets instead of relying on fixed `rem` guesses, and the mobile top bar/action cluster have been tightened. There is still follow-up work to validate real-device behavior and finish any remaining overlap or clipping issues on very small screens.
-
-**Files:** `static/style.css`, `src/client/ui/ui.ts`, `src/client/renderer/renderer.ts`
+No open P1 items currently.
 
 ## P2 — Code Quality
 
@@ -28,6 +25,7 @@ No open P3 items currently.
 
 ## Done
 
+- ~~Mobile HUD/layout polish~~ — Compact 2-line flex top bar on mobile (47px, down from 107px); constrained game log/ship list on short viewports to prevent full-view occlusion; fixed help/SFX button overlap with game log at ≤560px height
 - ~~Decompose game-engine.ts~~ — Extracted into `engine/util.ts`, `engine/victory.ts`, `engine/ordnance.ts`, `engine/combat.ts` with backward-compatible re-exports (681 lines, down from 1957)
 - ~~Add map-data.test.ts~~ — 23 tests covering map builder, body gravity, base placement, scenarios
 - ~~Add processEmplacement tests~~ — 10 tests covering emplacement validation and success paths
