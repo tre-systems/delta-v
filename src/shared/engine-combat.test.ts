@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { beginCombatPhase, processCombat, shouldEnterCombatPhase, skipCombat } from '../engine-combat';
-import { createGame } from '../game-engine';
-import { hexKey } from '../hex';
-import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
-import type { GameState, Ordnance, Ship, SolarSystemMap } from '../types';
+import { beginCombatPhase, processCombat, shouldEnterCombatPhase, skipCombat } from './engine-combat';
+import { createGame } from './game-engine';
+import { hexKey } from './hex';
+import { buildSolarSystemMap, findBaseHex, SCENARIOS } from './map-data';
+import type { GameState, Ordnance, Ship, SolarSystemMap } from './types';
 
 function makeShip(overrides: Partial<Ship> = {}): Ship {
   return {
