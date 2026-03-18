@@ -427,8 +427,10 @@ export class Renderer {
 
   private resize() {
     const dpr = window.devicePixelRatio || 1;
-    this.canvas.width = window.innerWidth * dpr;
-    this.canvas.height = window.innerHeight * dpr;
+    const w = document.documentElement.clientWidth;
+    const h = document.documentElement.clientHeight;
+    this.canvas.width = w * dpr;
+    this.canvas.height = h * dpr;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
@@ -436,8 +438,10 @@ export class Renderer {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
 
-    this.camera.update(dt, window.innerWidth, window.innerHeight);
-    this.render(now);
+    const cw = document.documentElement.clientWidth;
+    const ch = document.documentElement.clientHeight;
+    this.camera.update(dt, cw, ch);
+    this.render(now, cw, ch);
 
     // Check animation completion
     if (this.animState && now - this.animState.startTime >= this.animState.duration) {
@@ -453,10 +457,8 @@ export class Renderer {
     requestAnimationFrame((t) => this.loop(t));
   }
 
-  private render(now: number) {
+  private render(now: number, w = document.documentElement.clientWidth, h = document.documentElement.clientHeight) {
     const ctx = this.ctx;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
 
     // Clear
     ctx.fillStyle = '#08081a';
