@@ -435,6 +435,14 @@ class GameClient {
   private applyGameState(state: GameState) {
     this.ctx.gameState = state;
     this.renderer.setGameState(state);
+    // Clear selection if the selected ship was destroyed
+    const selectedId = this.ctx.planningState.selectedShipId;
+    if (selectedId) {
+      const ship = state.ships.find((s) => s.id === selectedId);
+      if (!ship || ship.destroyed) {
+        this.ctx.planningState.selectedShipId = null;
+      }
+    }
   }
 
   private presentMovementResult(
@@ -682,6 +690,7 @@ class GameClient {
   }
 
   private handleInput(event: InputEvent) {
+    if (this.ctx.state === 'playing_movementAnim') return;
     const commands = interpretInput(event, this.ctx.gameState, this.map, this.ctx.playerId, this.ctx.planningState);
     for (const cmd of commands) {
       this.dispatch(cmd);
@@ -1274,6 +1283,10 @@ class GameClient {
   private updateHUD() {
     if (!this.ctx.gameState) return;
     const hud = deriveHudViewModel(this.ctx.gameState, this.ctx.playerId, this.ctx.planningState);
+    // Sync auto-selected ship back to planning state so keyboard shortcuts work
+    if (hud.selectedId !== null && this.ctx.planningState.selectedShipId !== hud.selectedId) {
+      this.ctx.planningState.selectedShipId = hud.selectedId;
+    }
     this.ui.updateHUD({
       turn: hud.turn,
       phase: hud.phase,
