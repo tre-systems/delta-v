@@ -105,12 +105,24 @@ const clampAttackStrength = (maxStrength: number, requestedStrength: number | nu
   return clamp(requestedStrength ?? maxStrength, 1, maxStrength);
 };
 
-export const getCombatAttackerIdAtHex = (state: GameState, playerId: number, clickHex: HexCoord): string | null => {
-  return (
-    state.ships.find(
-      (ship) => ship.owner === playerId && !ship.destroyed && canAttack(ship) && hexEqual(clickHex, ship.position),
-    )?.id ?? null
+export const getCombatAttackerIdAtHex = (
+  state: GameState,
+  playerId: number,
+  clickHex: HexCoord,
+  selectedShipId?: string | null,
+): string | null => {
+  const matches = state.ships.filter(
+    (ship) => ship.owner === playerId && !ship.destroyed && canAttack(ship) && hexEqual(clickHex, ship.position),
   );
+  if (matches.length === 0) return null;
+  if (matches.length === 1) return matches[0].id;
+
+  // Cycle: if selected ship is at this hex, pick the next one
+  if (selectedShipId) {
+    const currentIdx = matches.findIndex((s) => s.id === selectedShipId);
+    if (currentIdx >= 0) return matches[(currentIdx + 1) % matches.length].id;
+  }
+  return matches[0].id;
 };
 
 export const getCombatTargetAtHex = (

@@ -121,7 +121,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] Orbital bases (carrying, emplacing, torpedo launching)
 - [x] PWA support (installable, offline single-player)
 - [x] Premium polish (glassmorphism UI, procedural SFX, micro-animations)
-- [x] 880 tests across 57 suites, 8 scenario AI simulations
+- [x] 897 tests across 58 suites, 8 scenario AI simulations
 
 ### Planned
 - [ ] **Asteroid Map Visuals**: Render asteroid fields to match [docs/map.png](./docs/map.png)

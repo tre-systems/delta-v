@@ -30,9 +30,14 @@ export interface HudViewModel {
 
 type PlanningSnapshot = Pick<PlanningState, 'selectedShipId' | 'burns' | 'overloads' | 'weakGravityChoices'>;
 
-const getSelectedShip = (state: GameState, playerId: number, selectedId: string | null) => {
+export const getSelectedShip = (state: GameState, playerId: number, selectedId: string | null) => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
-  return myShips.find((ship) => ship.id === selectedId) ?? myShips.find((ship) => !ship.destroyed) ?? null;
+  if (selectedId !== null) {
+    const match = myShips.find((ship) => ship.id === selectedId);
+    if (match) return match;
+  }
+  const alive = myShips.filter((ship) => !ship.destroyed);
+  return alive.length === 1 ? alive[0] : null;
 };
 
 const getObjective = (state: GameState, playerId: number): string => {

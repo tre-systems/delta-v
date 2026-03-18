@@ -780,14 +780,19 @@ export class Renderer {
       // Ship heading based on velocity
       const heading = getShipHeading(ship.position, velocity, HEX_SIZE);
 
-      // Selection highlight
+      // Selection highlight — pulsing glow for clarity
       const isSelected = ship.id === this.planningState.selectedShipId;
       if (isSelected) {
-        ctx.strokeStyle = '#4fc3f7';
-        ctx.lineWidth = 2;
+        const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 300);
+        ctx.save();
+        ctx.strokeStyle = `rgba(79, 195, 247, ${pulse})`;
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#4fc3f7';
+        ctx.shadowBlur = 8;
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, 14, 0, Math.PI * 2);
+        ctx.arc(pos.x, pos.y, 16, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.restore();
       }
 
       // Disabled ships shown dimmer

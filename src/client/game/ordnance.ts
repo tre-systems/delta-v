@@ -58,6 +58,18 @@ export const getFirstLaunchableShipId = (state: OrdnanceState, playerId: number)
   );
 };
 
+export const getUnambiguousLaunchableShipId = (state: OrdnanceState, playerId: number): string | null => {
+  const launchable = state.ships.filter(
+    (ship) =>
+      ship.owner === playerId &&
+      !ship.destroyed &&
+      !ship.landed &&
+      ship.damage.disabledTurns === 0 &&
+      canShipLaunchAnyOrdnance(ship),
+  );
+  return launchable.length === 1 ? launchable[0].id : null;
+};
+
 export const resolveOrdnanceLaunchPlan = (
   state: OrdnanceState,
   planning: OrdnancePlanning,
