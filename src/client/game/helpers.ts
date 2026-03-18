@@ -125,7 +125,7 @@ export const deriveHudViewModel = (state: GameState, playerId: number, planning:
     phase: state.phase,
     isMyTurn: state.activePlayer === playerId,
     myShips,
-    selectedId: planning.selectedShipId,
+    selectedId: selectedShip?.id ?? null,
     fuel: selectedShip?.fuel ?? 0,
     maxFuel: stats?.fuel ?? 0,
     hasBurns: Array.from(planning.burns.values()).some((burn) => burn !== null),
