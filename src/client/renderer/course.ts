@@ -227,9 +227,13 @@ export const buildAstrogationCoursePreviewViews = (
     const destination = hexToPixel(course.destination, hexSize);
     const predictedDestination = ship.landed ? course.path[0] : predictDestination(ship);
 
+    // For takeoff: show full path from base hex → launch hex → destination
+    const takeoffPrefix =
+      ship.landed && burn !== null && !hexEqual(ship.position, course.path[0]) ? [ship.position] : [];
+
     previews.push({
       shipId: ship.id,
-      linePoints: [fromHex, ...course.path.slice(1)].map((hex) => hexToPixel(hex, hexSize)),
+      linePoints: [...takeoffPrefix, fromHex, ...course.path.slice(1)].map((hex) => hexToPixel(hex, hexSize)),
       lineColor: course.crashed ? '#ff4444' : '#4fc3f7',
       lineWidth: 2,
       lineDash: burn !== null ? [] : [6, 4],

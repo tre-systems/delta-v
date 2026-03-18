@@ -467,6 +467,19 @@ class GameClient {
     this.applyGameState(state);
     this.renderer.showCombatResults(results, previousState);
     this.ui.logCombatResults(results, state.ships);
+    for (const [i, result] of results.entries()) {
+      const target = result.targetType === 'ship' ? state.ships.find((s) => s.id === result.targetId) : null;
+      const targetName = target ? (SHIP_STATS[target.type]?.name ?? target.type) : 'nuke';
+      const outcome =
+        result.damageType === 'eliminated'
+          ? 'DESTROYED'
+          : result.damageType === 'disabled'
+            ? `Disabled ${result.disabledTurns}T`
+            : 'Miss';
+      const toastType =
+        result.damageType === 'eliminated' ? 'error' : result.damageType === 'disabled' ? 'info' : 'info';
+      setTimeout(() => this.ui.showToast(`${targetName}: ${outcome}`, toastType), i * 400);
+    }
     if (resetCombat) {
       this.resetCombatState();
     }
@@ -1273,6 +1286,14 @@ class GameClient {
       hud.objective,
       hud.canOverload,
       hud.canEmplaceBase,
+      {
+        selectedShipLanded: hud.selectedShipLanded,
+        selectedShipDisabled: hud.selectedShipDisabled,
+        selectedShipHasBurn: hud.selectedShipHasBurn,
+        allShipsHaveBurns: hud.allShipsHaveBurns,
+        multipleShipsAlive: hud.multipleShipsAlive,
+        hasSelection: hud.selectedId !== null,
+      },
     );
     this.ui.updateLatency(!this.ctx.isLocalGame && this.ctx.latencyMs >= 0 ? this.ctx.latencyMs : null);
     this.ui.updateFleetStatus(hud.fleetStatus);
