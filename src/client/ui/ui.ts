@@ -434,7 +434,7 @@ export class UIManager {
 
   updateSoundButton(muted: boolean) {
     const btn = byId('soundBtn');
-    btn.textContent = muted ? 'OFF' : 'SFX';
+    btn.textContent = muted ? '🔇' : '🔊';
     btn.title = muted ? 'Sound off' : 'Sound on';
     btn.setAttribute('aria-label', muted ? 'Enable sound effects' : 'Disable sound effects');
     btn.classList.toggle('muted', muted);
