@@ -22,8 +22,10 @@
   --radius: 18px;
   --radius-sm: 12px;
   --radius-pill: 999px;
-  --hud-top-offset: 4.5rem;
-  --hud-bottom-offset: 5rem;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --hud-top-offset: calc(4.5rem + var(--safe-top));
+  --hud-bottom-offset: calc(5rem + var(--safe-bottom));
   --font-display: 'Space Grotesk', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 }
@@ -338,7 +340,7 @@ body::before {
 
 .hud-bar {
   position: fixed;
-  top: 0.8rem;
+  top: calc(0.8rem + var(--safe-top));
   left: 0.8rem;
   right: 0.8rem;
   z-index: 5;
@@ -363,7 +365,7 @@ body::before {
 .hud-bottom {
   position: fixed;
   left: 50%;
-  bottom: 1rem;
+  bottom: calc(1rem + var(--safe-bottom));
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -902,14 +904,14 @@ body::before {
 }
 
 .help-btn {
-  bottom: 4.4rem;
+  bottom: calc(4.4rem + var(--safe-bottom));
   width: 42px;
   height: 42px;
   font-size: 0.92rem;
 }
 
 .sound-btn {
-  bottom: 7.2rem;
+  bottom: calc(7.2rem + var(--safe-bottom));
   min-width: 58px;
   height: 42px;
   padding: 0 0.85rem;
@@ -1185,7 +1187,7 @@ body::before {
   }
 
   .hud-bar {
-    top: 0.5rem;
+    top: calc(0.5rem + var(--safe-top));
     left: 0.5rem;
     right: 0.5rem;
     display: flex;
@@ -1221,7 +1223,7 @@ body::before {
   .hud-bottom {
     left: 0.5rem;
     right: 0.5rem;
-    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    bottom: calc(0.75rem + var(--safe-bottom));
     width: auto;
     max-width: none;
     transform: none;
@@ -1393,7 +1395,7 @@ body::before {
   }
 
   .hud-bottom {
-    bottom: 0.55rem;
+    bottom: calc(0.55rem + var(--safe-bottom));
   }
 
   .help-btn {
