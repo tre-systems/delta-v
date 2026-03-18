@@ -168,7 +168,7 @@ export const getScenarioBriefingLines = (state: GameState, playerId: number): st
       `Objective: Visit all ${state.scenarioRules.checkpointBodies.length} major bodies, then land on ${player.homeBody}`,
     );
     lines.push('No combat — race only');
-    lines.push('Press ? for controls help');
+    if (typeof window === 'undefined' || window.innerWidth > 760) lines.push('Press ? for controls help');
     return lines;
   }
   const hasFugitiveShip = myShips.some((ship) => ship.hasFugitives);
@@ -184,6 +184,6 @@ export const getScenarioBriefingLines = (state: GameState, playerId: number): st
   } else {
     lines.push('Objective: Destroy all enemy ships!');
   }
-  lines.push('Press ? for controls help');
+  if (typeof window === 'undefined' || window.innerWidth > 760) lines.push('Press ? for controls help');
   return lines;
 };
