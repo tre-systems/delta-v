@@ -26,6 +26,11 @@ export interface HudViewModel {
   canOverload: boolean;
   canEmplaceBase: boolean;
   fleetStatus: string;
+  selectedShipLanded: boolean;
+  selectedShipDisabled: boolean;
+  selectedShipHasBurn: boolean;
+  allShipsHaveBurns: boolean;
+  multipleShipsAlive: boolean;
 }
 
 type PlanningSnapshot = Pick<PlanningState, 'selectedShipId' | 'burns' | 'overloads' | 'weakGravityChoices'>;
@@ -128,6 +133,11 @@ export const deriveHudViewModel = (state: GameState, playerId: number, planning:
     canEmplaceBase:
       selectedShip?.carryingOrbitalBase === true && !selectedShip.destroyed && !selectedShip.resuppliedThisTurn,
     fleetStatus: getFleetStatus(state, playerId),
+    selectedShipLanded: selectedShip?.landed ?? false,
+    selectedShipDisabled: (selectedShip?.damage.disabledTurns ?? 0) > 0,
+    selectedShipHasBurn: selectedShip ? (planning.burns.get(selectedShip.id) ?? null) !== null : false,
+    allShipsHaveBurns: myShips.filter((s) => !s.destroyed).every((s) => (planning.burns.get(s.id) ?? null) !== null),
+    multipleShipsAlive: myShips.filter((s) => !s.destroyed).length > 1,
   };
 };
 

@@ -103,10 +103,8 @@ export const buildShipLabelView = (
   ship: Ship,
   playerId: number,
   inGravity: boolean,
-  isAnimating: boolean,
+  _isAnimating: boolean,
 ): ShipLabelView | null => {
-  if (isAnimating) return null;
-
   const typeName = SHIP_STATS[ship.type]?.name ?? 'Unknown';
   if (ship.owner === playerId) {
     const orbiting = hexVecLength(ship.velocity) === 1 && inGravity;
