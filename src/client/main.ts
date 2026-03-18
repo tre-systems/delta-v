@@ -1286,6 +1286,8 @@ class GameClient {
       objective: hud.objective,
       isWarship: hud.canOverload,
       canEmplaceBase: hud.canEmplaceBase,
+      speed: hud.speed,
+      fuelToStop: hud.fuelToStop,
       astrogationCtx: {
         selectedShipLanded: hud.selectedShipLanded,
         selectedShipDisabled: hud.selectedShipDisabled,

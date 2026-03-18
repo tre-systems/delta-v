@@ -284,17 +284,27 @@ export const renderCombatOverlay = (
     ctx.setLineDash([]);
   }
 
-  ctx.font = 'bold 10px monospace';
-  const textW = ctx.measureText(preview.label).width;
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-  ctx.fillRect(targetPos.x - textW / 2 - 4, targetPos.y - 32, textW + 8, 16);
-  ctx.fillStyle = preview.totalMod > 0 ? '#88ff88' : preview.totalMod < 0 ? '#ff6666' : '#ffdd57';
   ctx.textAlign = 'center';
+
+  // Odds line
+  ctx.font = 'bold 10px monospace';
+  const oddsW = ctx.measureText(preview.label).width;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+  ctx.fillRect(targetPos.x - oddsW / 2 - 4, targetPos.y - 32, oddsW + 8, 16);
+  ctx.fillStyle = '#ffdd57';
   ctx.fillText(preview.label, targetPos.x, targetPos.y - 20);
+
+  // Modifier line (Range/Velocity penalties)
+  ctx.font = '8px monospace';
+  const modW = ctx.measureText(preview.modLabel).width;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.fillRect(targetPos.x - modW / 2 - 4, targetPos.y - 46, modW + 8, 14);
+  ctx.fillStyle = preview.modColor;
+  ctx.fillText(preview.modLabel, targetPos.x, targetPos.y - 36);
 
   if (preview.counterattackLabel) {
     ctx.fillStyle = 'rgba(255, 170, 0, 0.7)';
     ctx.font = '7px monospace';
-    ctx.fillText(preview.counterattackLabel, targetPos.x, targetPos.y - 38);
+    ctx.fillText(preview.counterattackLabel, targetPos.x, targetPos.y - 52);
   }
 };

@@ -64,6 +64,8 @@ export interface HUDInput {
   isWarship: boolean;
   canEmplaceBase: boolean;
   astrogationCtx: AstrogationContext;
+  speed: number;
+  fuelToStop: number;
 }
 
 export const buildHUDView = (input: HUDInput): HUDView => {
@@ -80,6 +82,8 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     isWarship,
     canEmplaceBase,
     astrogationCtx,
+    speed,
+    fuelToStop,
   } = input;
   const showOrdnance = isMyTurn && phase === 'ordnance';
   const canMine = cargoFree >= ORDNANCE_MASS.mine;
@@ -90,7 +94,14 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     turnText: `Turn ${turn}`,
     phaseText: isMyTurn ? phase.toUpperCase() : "OPPONENT'S TURN",
     objectiveText: objective,
-    fuelGaugeText: showOrdnance && cargoMax > 0 ? `Cargo: ${cargoFree}/${cargoMax}` : `Fuel: ${fuel}/${maxFuel}`,
+    fuelGaugeText:
+      showOrdnance && cargoMax > 0
+        ? `Cargo: ${cargoFree}/${cargoMax}`
+        : speed > 0
+          ? `Fuel: ${fuel}/${maxFuel} · Speed ${speed} (${fuelToStop} to stop)`
+          : astrogationCtx.selectedShipLanded
+            ? `Fuel: ${fuel}/${maxFuel} · Landed`
+            : `Fuel: ${fuel}/${maxFuel}`,
     statusText: !isMyTurn
       ? 'Waiting for opponent...'
       : phase === 'astrogation'

@@ -41,6 +41,8 @@ export interface CombatPreview {
   targetPosition: HexCoord;
   attackerPositions: HexCoord[];
   label: string;
+  modLabel: string;
+  modColor: string;
   totalMod: number;
   counterattackLabel: string | null;
 }
@@ -154,7 +156,7 @@ const formatPreviewLabel = (
   attackers: Ship[],
   allShips: Ship[],
   requestedStrength: number | null,
-): { label: string; totalMod: number; counterattackLabel: string | null } => {
+): { label: string; modLabel: string; modColor: string; totalMod: number; counterattackLabel: string | null } => {
   let label = '';
   let rangeMod = 0;
   let velMod = 0;
@@ -162,7 +164,7 @@ const formatPreviewLabel = (
   if (targetType === 'ordnance') {
     rangeMod = computeGroupRangeModToTarget(attackers, target);
     velMod = computeGroupVelocityModToTarget(attackers, target);
-    label = `2:1  R-${rangeMod} V-${velMod}`;
+    label = '2:1';
   } else {
     const shipTarget = target as Ship;
     const maxAttackStrength = getCombatStrength(attackers);
@@ -172,11 +174,15 @@ const formatPreviewLabel = (
     const odds = computeOdds(attackStrength, defendStrength);
     rangeMod = computeGroupRangeMod(attackers, shipTarget);
     velMod = computeGroupVelocityMod(attackers, shipTarget);
-    label = `${odds}  ATK ${attackStrength}/${maxAttackStrength}  R-${rangeMod} V-${velMod}`;
+    label = `${odds}  ATK ${attackStrength}/${maxAttackStrength}`;
   }
 
   const totalMod = -(rangeMod + velMod);
-  const modLabel = totalMod >= 0 ? `+${totalMod}` : `${totalMod}`;
+  const modParts: string[] = [];
+  if (rangeMod > 0) modParts.push(`Range -${rangeMod}`);
+  if (velMod > 0) modParts.push(`Velocity -${velMod}`);
+  const modLabel = modParts.length > 0 ? modParts.join('  ') : 'No penalty';
+  const modColor = totalMod <= -3 ? '#ff6b6b' : totalMod <= -1 ? '#ffcc00' : '#8bc34a';
   const counterattackLabel =
     targetType === 'ship'
       ? getCounterattackers(target as Ship, allShips).length > 0
@@ -184,7 +190,9 @@ const formatPreviewLabel = (
         : null
       : null;
   return {
-    label: `${label}  (${modLabel})`,
+    label,
+    modLabel,
+    modColor,
     totalMod,
     counterattackLabel,
   };
@@ -218,6 +226,8 @@ export const getCombatPreview = (
     targetPosition: targetInfo.target.position,
     attackerPositions: activeAttackers.map((attacker) => attacker.position),
     label: preview.label,
+    modLabel: preview.modLabel,
+    modColor: preview.modColor,
     totalMod: preview.totalMod,
     counterattackLabel: preview.counterattackLabel,
   };
