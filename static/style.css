@@ -670,6 +670,43 @@ body::before {
   border-radius: var(--radius-pill);
 }
 
+/* Mobile log latest-message bar */
+.log-latest-bar {
+  position: fixed;
+  bottom: calc(var(--hud-bottom-offset) + 0.1rem);
+  left: 0.5rem;
+  right: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: var(--panel);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  z-index: 20;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--muted-strong);
+  line-height: 1.4;
+}
+
+.log-latest-text {
+  pointer-events: none;
+}
+
+/* Color classes inherited from log entries */
+.log-latest-text.log-turn { color: var(--accent); }
+.log-latest-text.log-damage { color: var(--warning); }
+.log-latest-text.log-eliminated { color: var(--danger); }
+.log-latest-text.log-landed { color: var(--success); }
+.log-latest-text.log-enemy { color: var(--danger); }
+.log-latest-text.log-env { color: var(--accent); }
+.log-latest-text.log-obj { color: var(--warning); }
+
 .ai-section {
   width: 100%;
   display: flex;
@@ -1233,6 +1270,15 @@ body::before {
     width: min(46vw, 188px);
     max-width: calc(50vw - 0.75rem);
     max-height: min(30vh, 236px);
+  }
+
+  .game-log.mobile-expanded {
+    left: 0.5rem;
+    right: 0.5rem;
+    width: auto;
+    max-width: none;
+    max-height: min(50vh, 320px);
+    z-index: 25;
   }
 
   .log-show-btn {

@@ -75,6 +75,28 @@ describe('game-client-phase-entry', () => {
     expect(plan.tutorialPhase).toBe('ordnance');
   });
 
+  it('returns null selectedShipId when multiple alive ships exist', () => {
+    const plan = deriveClientStateEntryPlan(
+      'playing_astrogation',
+      createState([
+        createShip({ id: 'ship-a', owner: 0 }),
+        createShip({ id: 'ship-b', owner: 0 }),
+        createShip({ id: 'enemy', owner: 1 }),
+      ]),
+      0,
+    );
+    expect(plan.selectedShipId).toBeNull();
+  });
+
+  it('returns null ordnance selectedShipId when multiple launchable ships exist', () => {
+    const plan = deriveClientStateEntryPlan(
+      'playing_ordnance',
+      createState([createShip({ id: 'ship-a', owner: 0 }), createShip({ id: 'ship-b', owner: 0 })]),
+      0,
+    );
+    expect(plan.selectedShipId).toBeNull();
+  });
+
   it('derives combat and movement animation behaviors', () => {
     const state = createState([createShip()]);
 

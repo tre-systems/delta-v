@@ -67,6 +67,7 @@ function createPlanning(overrides: Partial<PlanningState> = {}): PlanningState {
     combatAttackStrength: null,
     queuedAttacks: [],
     hoverHex: null,
+    lastSelectedHex: null,
     ...overrides,
   };
 }
@@ -200,5 +201,50 @@ describe('game client input helpers', () => {
     });
 
     expect(resolveOrdnanceClick(state, 0, createPlanning(), { q: 0, r: 0 })).toEqual({ type: 'none' });
+  });
+
+  it('cycles through stacked ships on repeated astrogation clicks', () => {
+    const hex = { q: 0, r: 0 };
+    const state = createState({
+      ships: [
+        createShip({ id: 'ship-a', owner: 0, position: hex }),
+        createShip({ id: 'ship-b', owner: 0, position: hex }),
+        createShip({ id: 'enemy', owner: 1, position: { q: 5, r: 0 } }),
+      ],
+    });
+
+    // First click selects first ship
+    expect(resolveAstrogationClick(state, simpleMap, 0, createPlanning(), hex)).toEqual({
+      type: 'selectShip',
+      shipId: 'ship-a',
+    });
+
+    // Second click with ship-a selected at same hex cycles to ship-b
+    expect(
+      resolveAstrogationClick(
+        state,
+        simpleMap,
+        0,
+        createPlanning({ selectedShipId: 'ship-a', lastSelectedHex: hexKey(hex) }),
+        hex,
+      ),
+    ).toEqual({
+      type: 'selectShip',
+      shipId: 'ship-b',
+    });
+
+    // Third click cycles back to ship-a
+    expect(
+      resolveAstrogationClick(
+        state,
+        simpleMap,
+        0,
+        createPlanning({ selectedShipId: 'ship-b', lastSelectedHex: hexKey(hex) }),
+        hex,
+      ),
+    ).toEqual({
+      type: 'selectShip',
+      shipId: 'ship-a',
+    });
   });
 });

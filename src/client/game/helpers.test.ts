@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState, Ordnance, PlayerState, Ship } from '../../shared/types';
-import { buildAstrogationOrders, deriveHudViewModel, getGameOverStats, getScenarioBriefingLines } from './helpers';
+import {
+  buildAstrogationOrders,
+  deriveHudViewModel,
+  getGameOverStats,
+  getScenarioBriefingLines,
+  getSelectedShip,
+} from './helpers';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
   return {
@@ -80,6 +86,42 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     ...overrides,
   };
 }
+
+describe('getSelectedShip', () => {
+  it('returns the ship matching selectedId', () => {
+    const state = createState();
+    expect(getSelectedShip(state, 0, 'p0s0')?.id).toBe('p0s0');
+    expect(getSelectedShip(state, 0, 'p0s1')?.id).toBe('p0s1');
+  });
+
+  it('auto-selects when exactly one alive ship and selectedId is null', () => {
+    const state = createState({
+      ships: [createShip({ id: 'sole', owner: 0 }), createShip({ id: 'enemy', owner: 1 })],
+    });
+    expect(getSelectedShip(state, 0, null)?.id).toBe('sole');
+  });
+
+  it('returns null when multiple alive ships and selectedId is null', () => {
+    const state = createState();
+    expect(getSelectedShip(state, 0, null)).toBeNull();
+  });
+
+  it('returns null when selectedId is stale and multiple alive ships exist', () => {
+    const state = createState();
+    expect(getSelectedShip(state, 0, 'nonexistent')).toBeNull();
+  });
+
+  it('auto-selects when selectedId is stale and exactly one alive ship', () => {
+    const state = createState({
+      ships: [
+        createShip({ id: 'alive', owner: 0 }),
+        createShip({ id: 'dead', owner: 0, destroyed: true }),
+        createShip({ id: 'enemy', owner: 1 }),
+      ],
+    });
+    expect(getSelectedShip(state, 0, 'nonexistent')?.id).toBe('alive');
+  });
+});
 
 describe('game client helpers', () => {
   it('builds astrogation orders for the active player only', () => {

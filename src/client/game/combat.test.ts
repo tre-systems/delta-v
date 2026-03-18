@@ -180,6 +180,26 @@ describe('game client combat helpers', () => {
     });
   });
 
+  it('cycles through stacked combat attackers on repeated clicks', () => {
+    const hex = { q: 0, r: 0 };
+    const state = createState({
+      ships: [
+        createShip({ id: 'a', owner: 0, type: 'corsair', position: hex }),
+        createShip({ id: 'b', owner: 0, type: 'corvette', position: hex }),
+        createShip({ id: 'x', owner: 1, type: 'frigate', position: { q: 1, r: 0 } }),
+      ],
+    });
+
+    // First click (no selection) picks first
+    expect(getCombatAttackerIdAtHex(state, 0, hex)).toBe('a');
+
+    // With 'a' selected, cycles to 'b'
+    expect(getCombatAttackerIdAtHex(state, 0, hex, 'a')).toBe('b');
+
+    // With 'b' selected, cycles back to 'a'
+    expect(getCombatAttackerIdAtHex(state, 0, hex, 'b')).toBe('a');
+  });
+
   it('creates and clears combat target plans from reusable or legal groups', () => {
     const state = createState();
     const queuedAttacks: CombatAttack[] = [

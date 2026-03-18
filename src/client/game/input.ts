@@ -6,7 +6,13 @@ import type { PlanningState } from '../renderer/renderer';
 
 type InputPlanningSnapshot = Pick<
   PlanningState,
-  'selectedShipId' | 'burns' | 'overloads' | 'weakGravityChoices' | 'torpedoAccel' | 'torpedoAccelSteps'
+  | 'selectedShipId'
+  | 'burns'
+  | 'overloads'
+  | 'weakGravityChoices'
+  | 'torpedoAccel'
+  | 'torpedoAccelSteps'
+  | 'lastSelectedHex'
 >;
 
 export type AstrogationInteraction =
@@ -29,16 +35,24 @@ const getOwnShipAtHex = (
   state: GameState,
   playerId: number,
   clickHex: HexCoord,
-  options: { requireOperational?: boolean } = {},
+  options: { requireOperational?: boolean; selectedShipId?: string | null; lastSelectedHex?: string | null } = {},
 ) => {
-  return (
-    state.ships.find(
-      (ship) =>
-        ship.owner === playerId &&
-        (!options.requireOperational || (!ship.destroyed && ship.damage.disabledTurns === 0 && !ship.landed)) &&
-        hexEqual(clickHex, ship.position),
-    ) ?? null
+  const matches = state.ships.filter(
+    (ship) =>
+      ship.owner === playerId &&
+      (!options.requireOperational || (!ship.destroyed && ship.damage.disabledTurns === 0 && !ship.landed)) &&
+      hexEqual(clickHex, ship.position),
   );
+  if (matches.length === 0) return null;
+  if (matches.length === 1) return matches[0];
+
+  // Cycle through stacked ships: if clicking same hex as last selection, pick next ship
+  const key = hexKey(clickHex);
+  if (options.lastSelectedHex === key && options.selectedShipId) {
+    const currentIdx = matches.findIndex((s) => s.id === options.selectedShipId);
+    if (currentIdx >= 0) return matches[(currentIdx + 1) % matches.length];
+  }
+  return matches[0];
 };
 
 const resolveWeakGravityToggle = (
@@ -131,7 +145,10 @@ export const resolveAstrogationClick = (
     if (burnToggle) return burnToggle;
   }
 
-  const ownShip = getOwnShipAtHex(state, playerId, clickHex);
+  const ownShip = getOwnShipAtHex(state, playerId, clickHex, {
+    selectedShipId: planning.selectedShipId,
+    lastSelectedHex: planning.lastSelectedHex,
+  });
   return ownShip ? { type: 'selectShip', shipId: ownShip.id } : { type: 'clearSelection' };
 };
 
@@ -171,6 +188,10 @@ export const resolveOrdnanceClick = (
     }
   }
 
-  const ownShip = getOwnShipAtHex(state, playerId, clickHex, { requireOperational: true });
+  const ownShip = getOwnShipAtHex(state, playerId, clickHex, {
+    requireOperational: true,
+    selectedShipId: planning.selectedShipId,
+    lastSelectedHex: planning.lastSelectedHex,
+  });
   return ownShip ? { type: 'selectShip', shipId: ownShip.id, clearTorpedoAccel: true } : { type: 'none' };
 };

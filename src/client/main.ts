@@ -4,9 +4,9 @@ if ('serviceWorker' in navigator) {
 }
 
 import type { AIDifficulty } from '../shared/ai';
-import { CODE_LENGTH, TURN_TIMEOUT_MS } from '../shared/constants';
+import { CODE_LENGTH, SHIP_STATS, TURN_TIMEOUT_MS } from '../shared/constants';
 import { createGame, type MovementResult } from '../shared/engine/game-engine';
-import { pixelToHex } from '../shared/hex';
+import { hexKey, pixelToHex } from '../shared/hex';
 import { findBaseHex, getSolarSystemMap, SCENARIOS } from '../shared/map-data';
 import type { CombatResult, FleetPurchase, GameState, S2C, Ship, ShipMovement } from '../shared/types';
 import { clamp } from '../shared/util';
@@ -258,6 +258,7 @@ class GameClient {
     }
     if (entryPlan.clearAstrogationPlanning) {
       this.ctx.planningState.selectedShipId = null;
+      this.ctx.planningState.lastSelectedHex = null;
       this.ctx.planningState.burns.clear();
       this.ctx.planningState.overloads.clear();
       this.ctx.planningState.weakGravityChoices.clear();
@@ -742,9 +743,17 @@ class GameClient {
         return;
       case 'selectShip': {
         this.ctx.planningState.selectedShipId = cmd.shipId;
-        this.updateHUD();
         const ship = this.ctx.gameState?.ships.find((s) => s.id === cmd.shipId);
-        if (ship) this.renderer.centerOnHex(ship.position);
+        if (ship) {
+          this.ctx.planningState.lastSelectedHex = hexKey(ship.position);
+          this.renderer.centerOnHex(ship.position);
+          const myAlive = this.ctx.gameState?.ships.filter((s) => s.owner === this.ctx.playerId && !s.destroyed);
+          if (myAlive && myAlive.length > 1) {
+            const name = SHIP_STATS[ship.type]?.name ?? ship.type;
+            this.ui.showToast(`Selected: ${name}`, 'info');
+          }
+        }
+        this.updateHUD();
         return;
       }
       case 'deselectShip':
