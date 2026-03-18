@@ -63,6 +63,7 @@ export interface CoursePreviewView {
   burnMarkers: CourseMarkerView[];
   overloadMarkers: CourseMarkerView[];
   weakGravityMarkers: WeakGravityMarkerView[];
+  pendingGravityArrows: CourseArrowView[];
   fuelCostLabel: FuelCostLabelView | null;
 }
 
@@ -95,7 +96,12 @@ const buildDirectionMarker = (
   };
 };
 
-const buildGravityArrow = (hex: HexCoord, direction: number, hexSize: number): CourseArrowView => {
+const buildGravityArrow = (
+  hex: HexCoord,
+  direction: number,
+  hexSize: number,
+  color = 'rgba(255, 200, 50, 0.6)',
+): CourseArrowView => {
   const start = hexToPixel(hex, hexSize);
   const target = hexToPixel(hexAdd(hex, HEX_DIRECTIONS[direction]), hexSize);
   const angle = Math.atan2(target.y - start.y, target.x - start.x);
@@ -116,7 +122,7 @@ const buildGravityArrow = (hex: HexCoord, direction: number, hexSize: number): C
       x: tip.x - headLength * Math.cos(angle + 0.5),
       y: tip.y - headLength * Math.sin(angle + 0.5),
     },
-    color: 'rgba(255, 200, 50, 0.6)',
+    color,
     lineWidth: 1.5,
   };
 };
@@ -258,6 +264,11 @@ export const buildAstrogationCoursePreviewViews = (
             .map((gravity) =>
               buildWeakGravityMarker(gravity.hex, weakGravityChoices[hexKey(gravity.hex)] === true, hexSize),
             )
+        : [],
+      pendingGravityArrows: isSelected
+        ? course.enteredGravityEffects
+            .filter((gravity) => gravity.strength === 'full')
+            .map((gravity) => buildGravityArrow(gravity.hex, gravity.direction, hexSize, 'rgba(100, 220, 220, 0.5)'))
         : [],
       fuelCostLabel:
         burn !== null

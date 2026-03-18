@@ -614,6 +614,24 @@ export class Renderer {
         ctx.stroke();
       }
 
+      // Pending gravity arrows (next-turn effects) in cyan
+      for (const arrow of preview.pendingGravityArrows) {
+        ctx.strokeStyle = arrow.color;
+        ctx.lineWidth = arrow.lineWidth;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(arrow.from.x, arrow.from.y);
+        ctx.lineTo(arrow.to.x, arrow.to.y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(arrow.to.x, arrow.to.y);
+        ctx.lineTo(arrow.headLeft.x, arrow.headLeft.y);
+        ctx.moveTo(arrow.to.x, arrow.to.y);
+        ctx.lineTo(arrow.headRight.x, arrow.headRight.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
       if (preview.ghostShip) {
         this.drawShipIcon(
           ctx,
