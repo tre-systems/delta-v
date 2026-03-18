@@ -51,20 +51,36 @@ const getAstrogationStatusText = (ctx: AstrogationContext): string => {
   return 'Click adjacent hex to set burn direction';
 };
 
-export const buildHUDView = (
-  turn: number,
-  phase: string,
-  isMyTurn: boolean,
-  fuel: number,
-  maxFuel: number,
-  hasBurns = false,
-  cargoFree = 0,
-  cargoMax = 0,
-  objective = '',
-  isWarship = false,
-  canEmplaceBase = false,
-  astrogationCtx?: AstrogationContext,
-): HUDView => {
+export interface HUDInput {
+  turn: number;
+  phase: string;
+  isMyTurn: boolean;
+  fuel: number;
+  maxFuel: number;
+  hasBurns: boolean;
+  cargoFree: number;
+  cargoMax: number;
+  objective: string;
+  isWarship: boolean;
+  canEmplaceBase: boolean;
+  astrogationCtx: AstrogationContext;
+}
+
+export const buildHUDView = (input: HUDInput): HUDView => {
+  const {
+    turn,
+    phase,
+    isMyTurn,
+    fuel,
+    maxFuel,
+    hasBurns,
+    cargoFree,
+    cargoMax,
+    objective,
+    isWarship,
+    canEmplaceBase,
+    astrogationCtx,
+  } = input;
   const showOrdnance = isMyTurn && phase === 'ordnance';
   const canMine = cargoFree >= ORDNANCE_MASS.mine;
   const canTorpedo = isWarship && cargoFree >= ORDNANCE_MASS.torpedo;
@@ -77,15 +93,13 @@ export const buildHUDView = (
     fuelGaugeText: showOrdnance && cargoMax > 0 ? `Cargo: ${cargoFree}/${cargoMax}` : `Fuel: ${fuel}/${maxFuel}`,
     statusText: !isMyTurn
       ? 'Waiting for opponent...'
-      : phase === 'astrogation' && astrogationCtx
+      : phase === 'astrogation'
         ? getAstrogationStatusText(astrogationCtx)
-        : phase === 'astrogation'
-          ? 'Select ship · Choose burn direction (1-6) · Confirm (Enter)'
-          : phase === 'ordnance'
-            ? 'Launch ordnance or skip (Enter)'
-            : phase === 'combat'
-              ? 'Click enemies to target · Fire All to attack (Enter)'
-              : null,
+        : phase === 'ordnance'
+          ? 'Launch ordnance or skip (Enter)'
+          : phase === 'combat'
+            ? 'Click enemies to target · Fire All to attack (Enter)'
+            : null,
     undoVisible: isMyTurn && phase === 'astrogation' && hasBurns,
     confirmVisible: isMyTurn && phase === 'astrogation',
     launchMine: showOrdnance

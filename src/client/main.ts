@@ -1274,19 +1274,19 @@ class GameClient {
   private updateHUD() {
     if (!this.ctx.gameState) return;
     const hud = deriveHudViewModel(this.ctx.gameState, this.ctx.playerId, this.ctx.planningState);
-    this.ui.updateHUD(
-      hud.turn,
-      hud.phase,
-      hud.isMyTurn,
-      hud.fuel,
-      hud.maxFuel,
-      hud.hasBurns,
-      hud.cargoFree,
-      hud.cargoMax,
-      hud.objective,
-      hud.canOverload,
-      hud.canEmplaceBase,
-      {
+    this.ui.updateHUD({
+      turn: hud.turn,
+      phase: hud.phase,
+      isMyTurn: hud.isMyTurn,
+      fuel: hud.fuel,
+      maxFuel: hud.maxFuel,
+      hasBurns: hud.hasBurns,
+      cargoFree: hud.cargoFree,
+      cargoMax: hud.cargoMax,
+      objective: hud.objective,
+      isWarship: hud.canOverload,
+      canEmplaceBase: hud.canEmplaceBase,
+      astrogationCtx: {
         selectedShipLanded: hud.selectedShipLanded,
         selectedShipDisabled: hud.selectedShipDisabled,
         selectedShipHasBurn: hud.selectedShipHasBurn,
@@ -1294,7 +1294,7 @@ class GameClient {
         multipleShipsAlive: hud.multipleShipsAlive,
         hasSelection: hud.selectedId !== null,
       },
-    );
+    });
     this.ui.updateLatency(!this.ctx.isLocalGame && this.ctx.latencyMs >= 0 ? this.ctx.latencyMs : null);
     this.ui.updateFleetStatus(hud.fleetStatus);
     this.ui.updateShipList(hud.myShips, hud.selectedId, this.ctx.planningState.burns);

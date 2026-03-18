@@ -6,6 +6,7 @@
 import { SHIP_STATS } from '../../shared/constants';
 import { HEX_DIRECTIONS, type HexCoord, hexAdd, hexToPixel, type PixelCoord } from '../../shared/hex';
 import type { GameState, SolarSystemMap } from '../../shared/types';
+import type { PlanningState } from '../game/planning';
 import { getCombatOverlayHighlights, getCombatPreview, getQueuedCombatOverlayAttacks } from './combat';
 import { drawOrdnanceVelocity } from './draw';
 import {
@@ -15,7 +16,7 @@ import {
   getOrdnanceLifetimeView,
   getOrdnancePulse,
 } from './entities';
-import type { AnimationState, PlanningState } from './renderer';
+import type { AnimationState } from './renderer';
 
 export const renderOrdnance = (
   ctx: CanvasRenderingContext2D,

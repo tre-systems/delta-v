@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { HEX_DIRECTIONS, hexAdd, hexKey } from '../../shared/hex';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type { GameState, PlayerState, Ship, SolarSystemMap } from '../../shared/types';
-import type { PlanningState } from '../renderer/renderer';
 import { resolveAstrogationClick, resolveOrdnanceClick } from './input';
+import type { PlanningState } from './planning';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
   return {

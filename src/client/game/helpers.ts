@@ -1,7 +1,7 @@
 import { SHIP_STATS } from '../../shared/constants';
 import type { AstrogationOrder, GameState, Ship } from '../../shared/types';
 import { count } from '../../shared/util';
-import type { PlanningState } from '../renderer/renderer';
+import type { PlanningState } from './planning';
 
 export interface GameOverStats {
   turns: number;
