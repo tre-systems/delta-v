@@ -2,7 +2,7 @@ import { SHIP_STATS } from '../../shared/constants';
 import { HEX_DIRECTIONS, type HexCoord, hexAdd, hexEqual, hexKey } from '../../shared/hex';
 import { computeCourse, predictDestination } from '../../shared/movement';
 import type { GameState, Ship, SolarSystemMap } from '../../shared/types';
-import type { PlanningState } from '../renderer/renderer';
+import type { PlanningState } from './planning';
 
 type InputPlanningSnapshot = Pick<
   PlanningState,

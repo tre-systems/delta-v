@@ -2,7 +2,7 @@ import { canAttack, getCombatStrength, hasLineOfSight, hasLineOfSightToTarget } 
 import { type HexCoord, hexEqual } from '../../shared/hex';
 import type { CombatAttack, GameState, SolarSystemMap } from '../../shared/types';
 import { clamp, filterMap } from '../../shared/util';
-import type { PlanningState } from '../renderer/renderer';
+import type { PlanningState } from './planning';
 
 type CombatPlanningSnapshot = Pick<
   PlanningState,

@@ -10,7 +10,7 @@ import {
   getPhaseAlertCopy,
   parseJoinInput,
 } from './formatters';
-import { type AstrogationContext, buildHUDView } from './hud';
+import { buildHUDView, type HUDInput } from './hud';
 import { deriveHudLayoutOffsets } from './layout';
 import {
   buildGameOverView,
@@ -367,34 +367,9 @@ export class UIManager {
     }
   }
 
-  updateHUD(
-    turn: number,
-    phase: string,
-    isMyTurn: boolean,
-    fuel: number,
-    maxFuel: number,
-    hasBurns = false,
-    cargoFree = 0,
-    cargoMax = 0,
-    objective = '',
-    isWarship = false,
-    canEmplaceBase = false,
-    astrogationCtx?: AstrogationContext,
-  ) {
-    const hudView = buildHUDView(
-      turn,
-      phase,
-      isMyTurn,
-      fuel,
-      maxFuel,
-      hasBurns,
-      cargoFree,
-      cargoMax,
-      objective,
-      isWarship,
-      canEmplaceBase,
-      astrogationCtx,
-    );
+  updateHUD(input: HUDInput) {
+    const hudView = buildHUDView(input);
+    const { turn, phase, isMyTurn } = input;
     byId('turnInfo').textContent = hudView.turnText;
     byId('phaseInfo').textContent = hudView.phaseText;
     byId('objective').textContent = hudView.objectiveText;
