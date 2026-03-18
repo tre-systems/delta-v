@@ -29,13 +29,13 @@ export interface ScreenRect extends ScreenPoint {
   height: number;
 }
 
-export const getMinimapFrame = (screenWidth: number, screenHeight: number): MinimapFrame => {
+export const getMinimapFrame = (screenWidth: number, screenHeight: number, hudTopOffset = 0): MinimapFrame => {
   const isMobile = screenWidth < 600;
   const width = isMobile ? 100 : 140;
   const height = isMobile ? 100 : 140;
   return {
     x: 12,
-    y: isMobile ? 90 : screenHeight - height - 12,
+    y: isMobile ? Math.max(90, hudTopOffset + 8) : screenHeight - height - 12,
     width,
     height,
     padding: 8,
@@ -47,8 +47,9 @@ export const createMinimapLayout = (
   screenWidth: number,
   screenHeight: number,
   hexSize: number,
+  hudTopOffset = 0,
 ): MinimapLayout => {
-  const frame = getMinimapFrame(screenWidth, screenHeight);
+  const frame = getMinimapFrame(screenWidth, screenHeight, hudTopOffset);
   const worldMinX = hexToPixel({ q: bounds.minQ, r: bounds.minR }, hexSize).x;
   const worldMaxX = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, hexSize).x;
   const worldMinY = hexToPixel({ q: bounds.minQ, r: bounds.minR }, hexSize).y;

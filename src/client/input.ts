@@ -161,7 +161,10 @@ export class InputHandler {
   private handleMinimapClick(screenX: number, screenY: number): boolean {
     if (!this.map) return false;
 
-    const layout = createMinimapLayout(this.map.bounds, window.innerWidth, window.innerHeight, HEX_SIZE);
+    const hudTopOffset = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--hud-top-offset') || '0',
+    );
+    const layout = createMinimapLayout(this.map.bounds, window.innerWidth, window.innerHeight, HEX_SIZE, hudTopOffset);
     if (!isPointInMinimap(layout, { x: screenX, y: screenY })) {
       return false;
     }
