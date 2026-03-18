@@ -52,6 +52,7 @@ Delta-V is a fully installable PWA. A lightweight hand-written service worker pr
 - **Offline single-player**: The AI opponent works entirely client-side, so cached assets allow full gameplay without network.
 - **WebSocket passthrough**: The service worker explicitly skips `/ws/*` and `/create` routes, ensuring multiplayer connections are never intercepted.
 - **Stale-while-revalidate** for static assets and **network-first** for navigation, complementing Cloudflare's edge caching rather than fighting it.
+- **Automatic cache busting**: The build script (`esbuild.client.mjs`) injects a content hash into the SW cache name, so every deploy with code changes triggers automatic SW update and page reload.
 
 ---
 
