@@ -20,7 +20,7 @@ const interpretCombatClick = (
   playerId: number,
   planning: PlanningState,
 ): GameCommand[] => {
-  const attackerId = getCombatAttackerIdAtHex(state, playerId, hex);
+  const attackerId = getCombatAttackerIdAtHex(state, playerId, hex, planning.selectedShipId);
   if (attackerId) {
     const toggle = toggleCombatAttackerSelection(state, playerId, planning, map, attackerId);
     if (toggle?.consumed) {

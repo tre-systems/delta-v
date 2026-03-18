@@ -60,6 +60,7 @@ const createPlanning = (overrides: Partial<PlanningState> = {}): PlanningState =
   combatAttackStrength: null,
   queuedAttacks: [],
   hoverHex: null,
+  lastSelectedHex: null,
   ...overrides,
 });
 

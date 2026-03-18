@@ -14,6 +14,7 @@ export interface PlanningState {
   combatAttackStrength: number | null;
   queuedAttacks: CombatAttack[]; // multi-target: attacks queued before sending
   hoverHex: HexCoord | null; // current hex being hovered by mouse
+  lastSelectedHex: string | null; // hexKey of last ship-selection click, for cycling stacked ships
 }
 
 export const createInitialPlanningState = (): PlanningState => ({
@@ -29,4 +30,5 @@ export const createInitialPlanningState = (): PlanningState => ({
   combatAttackStrength: null,
   queuedAttacks: [],
   hoverHex: null,
+  lastSelectedHex: null,
 });

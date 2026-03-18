@@ -38,6 +38,10 @@ export class UIManager {
   private logShowBtn: HTMLElement;
   private fleetBuildingEl: HTMLElement;
   private logVisible = true;
+  private logLatestBar: HTMLElement;
+  private logLatestText: HTMLElement;
+  private isMobile: boolean;
+  private logExpandedOnMobile = false;
   private fleetCart: FleetPurchase[] = [];
   private playerId: number = -1;
   private inviteUrl: string | null = null;
@@ -74,7 +78,21 @@ export class UIManager {
     this.gameLogEl = byId('gameLog');
     this.logEntriesEl = byId('logEntries');
     this.logShowBtn = byId('logShowBtn');
+    this.logLatestBar = byId('logLatestBar');
+    this.logLatestText = byId('logLatestText');
     this.fleetBuildingEl = byId('fleetBuilding');
+
+    const mobileQuery = window.matchMedia('(max-width: 760px)');
+    this.isMobile = mobileQuery.matches;
+    mobileQuery.addEventListener('change', (e) => {
+      this.isMobile = e.matches;
+      this.syncLogVisibility();
+    });
+
+    this.logLatestBar.addEventListener('click', () => {
+      this.expandMobileLog();
+    });
+
     window.addEventListener('resize', this.handleViewportResize);
     window.visualViewport?.addEventListener('resize', this.handleViewportResize);
 
@@ -159,6 +177,10 @@ export class UIManager {
 
     // Game log toggle
     byId('logToggleBtn').addEventListener('click', () => {
+      if (this.isMobile) {
+        this.collapseMobileLog();
+        return;
+      }
       this.logVisible = false;
       const visibility = buildScreenVisibility('hud', this.logVisible);
       this.gameLogEl.style.display = visibility.gameLog;
@@ -173,6 +195,14 @@ export class UIManager {
   }
 
   toggleLog() {
+    if (this.isMobile) {
+      if (this.logExpandedOnMobile) {
+        this.collapseMobileLog();
+      } else {
+        this.expandMobileLog();
+      }
+      return;
+    }
     this.logVisible = toggleLogVisible(this.logVisible);
     const visibility = buildScreenVisibility('hud', this.logVisible);
     this.gameLogEl.style.display = visibility.gameLog;
@@ -197,6 +227,9 @@ export class UIManager {
 
   hideAll() {
     this.applyScreenVisibility('hidden');
+    this.logLatestBar.style.display = 'none';
+    this.logExpandedOnMobile = false;
+    this.gameLogEl.classList.remove('mobile-expanded');
     this.resetLayoutMetrics();
   }
 
@@ -237,6 +270,12 @@ export class UIManager {
   showHUD() {
     this.hideAll();
     this.applyScreenVisibility('hud');
+    if (this.isMobile) {
+      // On mobile, start with log collapsed — show latest-bar instead
+      this.gameLogEl.style.display = 'none';
+      this.logShowBtn.style.display = 'none';
+      this.logLatestBar.style.display = 'block';
+    }
     this.queueLayoutSync();
   }
 
@@ -586,13 +625,16 @@ export class UIManager {
   }
 
   logTurn(turn: number, player: string) {
-    this.logEntriesEl.appendChild(el('div', { class: 'log-entry log-turn', text: `— Turn ${turn}: ${player} —` }));
+    const text = `— Turn ${turn}: ${player} —`;
+    this.logEntriesEl.appendChild(el('div', { class: 'log-entry log-turn', text }));
     this.scrollLogToBottom();
+    this.updateLatestBar(text, 'log-turn');
   }
 
   logText(text: string, cssClass = '') {
     this.logEntriesEl.appendChild(el('div', { class: `log-entry ${cssClass}`, text }));
     this.scrollLogToBottom();
+    this.updateLatestBar(text, cssClass);
   }
 
   logMovementEvents(events: MovementEvent[], ships: Ship[]) {
@@ -616,6 +658,48 @@ export class UIManager {
 
   private scrollLogToBottom() {
     this.logEntriesEl.scrollTop = this.logEntriesEl.scrollHeight;
+  }
+
+  private updateLatestBar(text: string, cssClass: string) {
+    if (!this.isMobile) return;
+    this.logLatestText.textContent = text;
+    this.logLatestText.className = `log-latest-text ${cssClass}`;
+  }
+
+  private expandMobileLog() {
+    this.logExpandedOnMobile = true;
+    this.gameLogEl.classList.add('mobile-expanded');
+    this.gameLogEl.style.display = 'flex';
+    this.logLatestBar.style.display = 'none';
+    this.scrollLogToBottom();
+  }
+
+  private collapseMobileLog() {
+    this.logExpandedOnMobile = false;
+    this.gameLogEl.classList.remove('mobile-expanded');
+    this.gameLogEl.style.display = 'none';
+    this.logLatestBar.style.display = 'block';
+  }
+
+  private syncLogVisibility() {
+    // Only sync if HUD is active (gameLogEl would be managed)
+    if (this.hudEl.style.display === 'none') return;
+    if (this.isMobile) {
+      // Entering mobile: collapse log to bar
+      this.gameLogEl.classList.remove('mobile-expanded');
+      this.gameLogEl.style.display = 'none';
+      this.logShowBtn.style.display = 'none';
+      this.logLatestBar.style.display = 'block';
+      this.logExpandedOnMobile = false;
+    } else {
+      // Entering desktop: restore log panel, hide bar
+      this.gameLogEl.classList.remove('mobile-expanded');
+      this.logLatestBar.style.display = 'none';
+      this.logExpandedOnMobile = false;
+      const visibility = buildScreenVisibility('hud', this.logVisible);
+      this.gameLogEl.style.display = visibility.gameLog;
+      this.logShowBtn.style.display = visibility.logShowBtn;
+    }
   }
 
   private queueLayoutSync() {

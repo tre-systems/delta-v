@@ -1,5 +1,5 @@
 import type { GameState } from '../../shared/types';
-import { getFirstLaunchableShipId } from './ordnance';
+import { getUnambiguousLaunchableShipId } from './ordnance';
 import type { ClientState } from './phase';
 
 export interface ClientStateEntryPlan {
@@ -19,8 +19,10 @@ export interface ClientStateEntryPlan {
   tutorialPhase: 'astrogation' | 'ordnance' | 'combat' | null;
 }
 
-const getFirstOwnedShipId = (gameState: GameState | null, playerId: number): string | null => {
-  return gameState?.ships.find((ship) => ship.owner === playerId && !ship.destroyed)?.id ?? null;
+const getUnambiguousOwnedShipId = (gameState: GameState | null, playerId: number): string | null => {
+  if (!gameState) return null;
+  const alive = gameState.ships.filter((ship) => ship.owner === playerId && !ship.destroyed);
+  return alive.length === 1 ? alive[0].id : null;
 };
 
 export const deriveClientStateEntryPlan = (
@@ -57,7 +59,7 @@ export const deriveClientStateEntryPlan = (
         updateHUD: true,
         frameOnShips: true,
         clearAstrogationPlanning: true,
-        selectedShipId: getFirstOwnedShipId(gameState, playerId),
+        selectedShipId: getUnambiguousOwnedShipId(gameState, playerId),
         resetCombatState: false,
         clearAttackButton: false,
         startCombatTargetWatch: false,
@@ -74,7 +76,7 @@ export const deriveClientStateEntryPlan = (
         updateHUD: true,
         frameOnShips: false,
         clearAstrogationPlanning: false,
-        selectedShipId: getFirstLaunchableShipId(gameState ?? { ships: [] }, playerId),
+        selectedShipId: getUnambiguousLaunchableShipId(gameState ?? { ships: [] }, playerId),
         resetCombatState: false,
         clearAttackButton: false,
         startCombatTargetWatch: false,
