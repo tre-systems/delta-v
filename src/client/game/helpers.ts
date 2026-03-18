@@ -1,4 +1,5 @@
 import { SHIP_STATS } from '../../shared/constants';
+import { hexVecLength } from '../../shared/hex';
 import type { AstrogationOrder, GameState, Ship } from '../../shared/types';
 import { count } from '../../shared/util';
 import type { PlanningState } from './planning';
@@ -31,6 +32,8 @@ export interface HudViewModel {
   selectedShipHasBurn: boolean;
   allShipsHaveBurns: boolean;
   multipleShipsAlive: boolean;
+  speed: number;
+  fuelToStop: number;
 }
 
 type PlanningSnapshot = Pick<PlanningState, 'selectedShipId' | 'burns' | 'overloads' | 'weakGravityChoices'>;
@@ -138,6 +141,8 @@ export const deriveHudViewModel = (state: GameState, playerId: number, planning:
     selectedShipHasBurn: selectedShip ? (planning.burns.get(selectedShip.id) ?? null) !== null : false,
     allShipsHaveBurns: myShips.filter((s) => !s.destroyed).every((s) => (planning.burns.get(s.id) ?? null) !== null),
     multipleShipsAlive: myShips.filter((s) => !s.destroyed).length > 1,
+    speed: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
+    fuelToStop: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
   };
 };
 

@@ -24,6 +24,8 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   isWarship: false,
   canEmplaceBase: false,
   astrogationCtx: defaultCtx,
+  speed: 0,
+  fuelToStop: 0,
   ...overrides,
 });
 
@@ -115,6 +117,24 @@ describe('ui hud helpers', () => {
       ),
     ).toMatchObject({
       statusText: 'All burns set · Confirm (Enter)',
+    });
+  });
+
+  it('shows speed and fuel-to-stop when ship is moving', () => {
+    expect(buildHUDView(buildInput({ fuel: 8, speed: 3, fuelToStop: 3 }))).toMatchObject({
+      fuelGaugeText: 'Fuel: 8/10 · Speed 3 (3 to stop)',
+    });
+  });
+
+  it('shows Landed in fuel gauge for landed ships', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          astrogationCtx: { ...defaultCtx, selectedShipLanded: true, hasSelection: true },
+        }),
+      ),
+    ).toMatchObject({
+      fuelGaugeText: 'Fuel: 10/10 · Landed',
     });
   });
 });
