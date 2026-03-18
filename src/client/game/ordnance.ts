@@ -1,6 +1,6 @@
 import { ORDNANCE_MASS, SHIP_STATS } from '../../shared/constants';
 import type { GameState, OrbitalBaseEmplacement, OrdnanceLaunch, Ship } from '../../shared/types';
-import type { PlanningState } from '../renderer/renderer';
+import type { PlanningState } from './planning';
 
 type OrdnanceState = Pick<GameState, 'ships'>;
 type OrdnancePlanning = Pick<PlanningState, 'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'>;

@@ -72,8 +72,6 @@ export interface AnimationState {
 // PlanningState is owned by GameClient, passed in as a reference
 import type { PlanningState } from '../game/planning';
 
-export type { PlanningState } from '../game/planning';
-
 // --- Renderer ---
 
 export const HEX_SIZE = 28; // pixels per hex radius

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GameState, Ship } from '../../shared/types';
-import type { PlanningState } from '../renderer/renderer';
 import {
   canShipLaunchAnyOrdnance,
   getFirstLaunchableShipId,
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
 } from './ordnance';
+import type { PlanningState } from './planning';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
   return {
