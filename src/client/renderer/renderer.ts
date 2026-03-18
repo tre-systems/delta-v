@@ -1013,7 +1013,10 @@ export class Renderer {
   private renderMinimap(ctx: CanvasRenderingContext2D, screenW: number, screenH: number) {
     if (!this.map || !this.gameState) return;
 
-    const layout = createMinimapLayout(this.map.bounds, screenW, screenH, HEX_SIZE);
+    const hudTopOffset = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--hud-top-offset') || '0',
+    );
+    const layout = createMinimapLayout(this.map.bounds, screenW, screenH, HEX_SIZE, hudTopOffset);
     const { x: mmX, y: mmY, width: mmW, height: mmH } = layout;
 
     // Background
