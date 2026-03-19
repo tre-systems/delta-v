@@ -428,8 +428,10 @@ export class Renderer {
 
   private resize() {
     const dpr = window.devicePixelRatio || 1;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    // Use canvas CSS dimensions (respects 100dvh + safe areas) rather than
+    // window.innerHeight which can be smaller on iOS PWA with viewport-fit=cover
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
     this.canvas.width = w * dpr;
     this.canvas.height = h * dpr;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -439,8 +441,8 @@ export class Renderer {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
 
-    const cw = window.innerWidth;
-    const ch = window.innerHeight;
+    const cw = this.canvas.clientWidth;
+    const ch = this.canvas.clientHeight;
     this.camera.update(dt, cw, ch);
     this.render(now, cw, ch);
 
@@ -458,7 +460,7 @@ export class Renderer {
     requestAnimationFrame((t) => this.loop(t));
   }
 
-  private render(now: number, w = window.innerWidth, h = window.innerHeight) {
+  private render(now: number, w = this.canvas.clientWidth, h = this.canvas.clientHeight) {
     const ctx = this.ctx;
 
     // Clear
