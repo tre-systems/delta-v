@@ -7,6 +7,7 @@ export type ClientState =
   | 'playing_fleetBuilding'
   | 'playing_astrogation'
   | 'playing_ordnance'
+  | 'playing_logistics'
   | 'playing_combat'
   | 'playing_movementAnim'
   | 'playing_opponentTurn'
@@ -67,6 +68,18 @@ export const derivePhaseTransition = (
     return {
       nextState: 'playing_combat',
       banner: 'COMBAT',
+      playPhaseSound: true,
+      beginCombatPhase: false,
+      runLocalAI: false,
+      turnLogNumber,
+      turnLogPlayerLabel,
+    };
+  }
+
+  if (state.phase === 'logistics' && isMyTurn) {
+    return {
+      nextState: 'playing_logistics',
+      banner: 'LOGISTICS',
       playPhaseSound: true,
       beginCombatPhase: false,
       runLocalAI: false,

@@ -3,8 +3,10 @@ import {
   type MovementResult,
   processAstrogation,
   processCombat,
+  processLogistics,
   processOrdnance,
   skipCombat,
+  skipLogistics,
   skipOrdnance,
 } from '../../shared/engine/game-engine';
 import type {
@@ -14,6 +16,7 @@ import type {
   GameState,
   OrdnanceLaunch,
   SolarSystemMap,
+  TransferOrder,
 } from '../../shared/types';
 
 export type LocalResolution =
@@ -121,6 +124,27 @@ export const resolveSkipCombatStep = (state: GameState, playerId: number, map: S
       results: result.results,
       resetCombat: false,
     };
+  }
+  return { kind: 'state', state: result.state };
+};
+
+export const resolveLogisticsStep = (
+  state: GameState,
+  playerId: number,
+  transfers: TransferOrder[],
+  map: SolarSystemMap,
+): LocalResolution => {
+  const result = processLogistics(state, playerId, transfers, map);
+  if ('error' in result) {
+    return { kind: 'error', error: result.error };
+  }
+  return { kind: 'state', state: result.state };
+};
+
+export const resolveSkipLogisticsStep = (state: GameState, playerId: number, map: SolarSystemMap): LocalResolution => {
+  const result = skipLogistics(state, playerId, map);
+  if ('error' in result) {
+    return { kind: 'error', error: result.error };
   }
   return { kind: 'state', state: result.state };
 };

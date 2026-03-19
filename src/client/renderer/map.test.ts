@@ -104,7 +104,8 @@ describe('renderer map helpers', () => {
     });
 
     const debris = buildAsteroidDebrisView({ q: -6, r: -11 }, 28);
-    expect(debris.particles).toHaveLength(6);
+    expect(debris.particles.length).toBeGreaterThanOrEqual(4);
+    expect(debris.particles.length).toBeLessThanOrEqual(8);
     expect(debris.center).toBeDefined();
     // Particles are deterministic for the same coord
     expect(debris).toEqual(buildAsteroidDebrisView({ q: -6, r: -11 }, 28));

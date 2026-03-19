@@ -7,14 +7,17 @@ import type {
   OrbitalBaseEmplacement,
   OrdnanceLaunch,
   SolarSystemMap,
+  TransferOrder,
 } from '../../shared/types';
 import {
   type LocalResolution,
   resolveAstrogationStep,
   resolveBeginCombatStep,
   resolveCombatStep,
+  resolveLogisticsStep,
   resolveOrdnanceStep,
   resolveSkipCombatStep,
+  resolveSkipLogisticsStep,
   resolveSkipOrdnanceStep,
 } from './local';
 
@@ -24,8 +27,11 @@ export interface GameTransport {
   submitOrdnance(launches: OrdnanceLaunch[]): void;
   submitEmplacement(emplacements: OrbitalBaseEmplacement[]): void;
   submitFleetReady(purchases: FleetPurchase[]): void;
+  submitLogistics(transfers: TransferOrder[]): void;
+  submitSurrender(shipIds: string[]): void;
   skipOrdnance(): void;
   skipCombat(): void;
+  skipLogistics(): void;
   beginCombat(): void;
   requestRematch(): void;
   sendChat(text: string): void;
@@ -85,6 +91,20 @@ export const createLocalTransport = (deps: LocalTransportDeps): GameTransport =>
     deps.onFleetReady(purchases);
   },
 
+  submitLogistics(transfers) {
+    const state = deps.getState();
+    if (!state) return;
+    deps.onResolution(
+      resolveLogisticsStep(state, deps.getPlayerId(), transfers, deps.getMap()),
+      deps.onTransitionToPhase,
+      'Local logistics error:',
+    );
+  },
+
+  submitSurrender(_shipIds) {
+    // Surrender in local games is handled directly via engine — not typically used vs AI
+  },
+
   skipOrdnance() {
     const state = deps.getState();
     if (!state) return;
@@ -92,6 +112,16 @@ export const createLocalTransport = (deps: LocalTransportDeps): GameTransport =>
       resolveSkipOrdnanceStep(state, deps.getPlayerId(), deps.getMap()),
       deps.onAnimationComplete,
       'Local skip ordnance error:',
+    );
+  },
+
+  skipLogistics() {
+    const state = deps.getState();
+    if (!state) return;
+    deps.onResolution(
+      resolveSkipLogisticsStep(state, deps.getPlayerId(), deps.getMap()),
+      deps.onTransitionToPhase,
+      'Local skip logistics error:',
     );
   },
 
@@ -139,11 +169,20 @@ export const createWebSocketTransport = (send: (msg: unknown) => void): GameTran
   submitFleetReady(purchases) {
     send({ type: 'fleetReady', purchases });
   },
+  submitLogistics(transfers) {
+    send({ type: 'logistics', transfers });
+  },
+  submitSurrender(shipIds) {
+    send({ type: 'surrender', shipIds });
+  },
   skipOrdnance() {
     send({ type: 'skipOrdnance' });
   },
   skipCombat() {
     send({ type: 'skipCombat' });
+  },
+  skipLogistics() {
+    send({ type: 'skipLogistics' });
   },
   beginCombat() {
     send({ type: 'beginCombat' });
