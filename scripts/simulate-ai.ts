@@ -5,6 +5,7 @@ import {
   processAstrogation,
   processOrdnance,
   skipOrdnance,
+  skipLogistics,
   beginCombatPhase,
   processCombat,
   skipCombat
@@ -99,6 +100,11 @@ async function runSingleGame(scenarioName: string, p0Diff: AIDifficulty, p1Diff:
         if ('error' in result) throw new Error(`Ordnance Error: ${result.error}`);
         state = result.state;
       } 
+      else if (state.phase === 'logistics') {
+        const result = skipLogistics(state, activePlayer, map);
+        if ('error' in result) throw new Error(`Logistics Error: ${result.error}`);
+        state = result.state;
+      }
       else if (state.phase === 'combat') {
         // Evaluate pre-combat (asteroid hazards)
         const preResult = beginCombatPhase(state, activePlayer, map, rng);
