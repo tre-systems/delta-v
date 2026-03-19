@@ -21,6 +21,7 @@ export interface HUDView {
   emplaceBaseVisible: boolean;
   skipOrdnanceVisible: boolean;
   skipCombatVisible: boolean;
+  skipLogisticsVisible: boolean;
 }
 
 const createHiddenButton = (): UIButtonView => {
@@ -110,7 +111,9 @@ export const buildHUDView = (input: HUDInput): HUDView => {
           ? 'Launch ordnance or skip (Enter)'
           : phase === 'combat'
             ? 'Click enemies to target · Fire All to attack (Enter)'
-            : null,
+            : phase === 'logistics'
+              ? 'Transfer fuel/cargo or skip (Enter)'
+              : null,
     undoVisible: isMyTurn && phase === 'astrogation' && hasBurns,
     confirmVisible: isMyTurn && phase === 'astrogation',
     launchMine: showOrdnance
@@ -140,5 +143,6 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     emplaceBaseVisible: showOrdnance && canEmplaceBase,
     skipOrdnanceVisible: showOrdnance,
     skipCombatVisible: isMyTurn && phase === 'combat',
+    skipLogisticsVisible: isMyTurn && phase === 'logistics',
   };
 };

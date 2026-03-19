@@ -82,6 +82,23 @@ export const deriveClientStateEntryPlan = (
         startCombatTargetWatch: false,
         tutorialPhase: gameState ? 'ordnance' : null,
       };
+    case 'playing_logistics':
+      return {
+        stopTurnTimer: false,
+        startTurnTimer: true,
+        hideTutorial: true,
+        resetCamera: false,
+        showHUD: true,
+        showMovementStatus: false,
+        updateHUD: true,
+        frameOnShips: false,
+        clearAstrogationPlanning: false,
+        selectedShipId: undefined,
+        resetCombatState: false,
+        clearAttackButton: false,
+        startCombatTargetWatch: false,
+        tutorialPhase: null,
+      };
     case 'playing_combat':
       return {
         stopTurnTimer: false,

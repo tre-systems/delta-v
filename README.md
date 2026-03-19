@@ -122,13 +122,16 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Premium polish (glassmorphism UI, procedural SFX, micro-animations)
 - [x] Multiplayer chat (inline in game log, rate-limited, XSS-safe)
-- [x] 980+ tests across 61 suites (unit, property-based, integration), 8 scenario AI simulations
+- [x] 1010+ tests across 62 suites (unit, property-based, integration), 8 scenario AI simulations
 - [x] Deep architectural analysis and reusability assessment ([docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md))
+- [x] Asteroid map visuals matching reference map
+- [x] Logistics system: surrender, fuel/cargo transfers, looting (enabled on Convoy, Fleet Action, Interplanetary War)
+- [x] Reinforcement spawning and fleet conversion infrastructure for future scenarios
 
 ### Planned — Features
-- [ ] **Asteroid Map Visuals**: Render asteroid fields to match [docs/map.png](./docs/map.png)
-- [ ] **New Scenarios**: Lateral 7, Fleet Mutiny, Retribution (require logistics mechanics)
-- [ ] **Logistics**: Surrender, looting, rescue, fuel transfer, capture, cargo handling
+- [ ] **Logistics transfer picker UI**: Visual widget for selecting transfer amounts (currently skip-only)
+- [ ] **New Scenarios**: Lateral 7, Fleet Mutiny, Retribution (require additional mechanics beyond logistics)
+- [ ] **Rescue/passenger transfer**: Transfer passengers between ships for rescue scenarios
 - [ ] **Spectator Mode**: Third-party connections to watch ongoing battles
 - [ ] **Turn Replay**: Review past turns and full game history
 
