@@ -421,14 +421,15 @@ export class Renderer {
   start() {
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    window.visualViewport?.addEventListener('resize', () => this.resize());
     this.lastTime = performance.now();
     requestAnimationFrame((t) => this.loop(t));
   }
 
   private resize() {
     const dpr = window.devicePixelRatio || 1;
-    const w = document.documentElement.clientWidth;
-    const h = document.documentElement.clientHeight;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
     this.canvas.width = w * dpr;
     this.canvas.height = h * dpr;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -438,8 +439,8 @@ export class Renderer {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
 
-    const cw = document.documentElement.clientWidth;
-    const ch = document.documentElement.clientHeight;
+    const cw = window.innerWidth;
+    const ch = window.innerHeight;
     this.camera.update(dt, cw, ch);
     this.render(now, cw, ch);
 
@@ -457,7 +458,7 @@ export class Renderer {
     requestAnimationFrame((t) => this.loop(t));
   }
 
-  private render(now: number, w = document.documentElement.clientWidth, h = document.documentElement.clientHeight) {
+  private render(now: number, w = window.innerWidth, h = window.innerHeight) {
     const ctx = this.ctx;
 
     // Clear
