@@ -437,10 +437,24 @@ export class Renderer {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
+  private syncBufferSize() {
+    // Re-check canvas CSS dimensions each frame — on iOS PWA the initial
+    // layout may not include safe area insets until after the first paint
+    const dpr = window.devicePixelRatio || 1;
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
+    if (this.canvas.width !== w * dpr || this.canvas.height !== h * dpr) {
+      this.canvas.width = w * dpr;
+      this.canvas.height = h * dpr;
+      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+  }
+
   private loop(now: number) {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
 
+    this.syncBufferSize();
     const cw = this.canvas.clientWidth;
     const ch = this.canvas.clientHeight;
     this.camera.update(dt, cw, ch);
