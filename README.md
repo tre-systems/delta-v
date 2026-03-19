@@ -121,7 +121,8 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] Orbital bases (carrying, emplacing, torpedo launching)
 - [x] PWA support (installable, offline single-player)
 - [x] Premium polish (glassmorphism UI, procedural SFX, micro-animations)
-- [x] 902 tests across 58 suites, 8 scenario AI simulations
+- [x] Multiplayer chat (inline in game log, rate-limited, XSS-safe)
+- [x] 908 tests across 58 suites, 8 scenario AI simulations
 - [x] Deep architectural analysis and reusability assessment ([docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md))
 
 ### Planned — Features
