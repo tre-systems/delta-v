@@ -11,8 +11,7 @@
 export const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 
 /** Pick a random element from a non-empty array. */
-export const randomChoice = <T>(arr: readonly T[], rng: () => number = Math.random): T =>
-  arr[Math.floor(rng() * arr.length)];
+export const randomChoice = <T>(arr: readonly T[], rng: () => number): T => arr[Math.floor(rng() * arr.length)];
 
 // --- Collection transforms ---
 

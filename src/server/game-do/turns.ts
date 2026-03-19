@@ -14,19 +14,19 @@ export const resolveTurnTimeoutOutcome = (gameState: GameState, map: SolarSystem
     const orders: AstrogationOrder[] = gameState.ships
       .filter((ship) => ship.owner === playerId)
       .map((ship) => ({ shipId: ship.id, burn: null }));
-    const result = processAstrogation(gameState, playerId, orders, map);
+    const result = processAstrogation(gameState, playerId, orders, map, Math.random);
     return 'error' in result ? null : { state: result.state, primaryMessage: resolveMovementBroadcast(result) };
   }
 
   if (phase === 'ordnance') {
-    const result = skipOrdnance(gameState, playerId, map);
+    const result = skipOrdnance(gameState, playerId, map, Math.random);
     return 'error' in result
       ? null
       : { state: result.state, primaryMessage: resolveMovementBroadcast(result, 'stateUpdate') };
   }
 
   if (phase === 'combat') {
-    const result = skipCombat(gameState, playerId, map);
+    const result = skipCombat(gameState, playerId, map, Math.random);
     return 'error' in result ? null : { state: result.state, primaryMessage: resolveCombatBroadcast(result) };
   }
 

@@ -20,7 +20,6 @@ import {
   getAllowedOrdnanceTypes,
   getNextOrdnanceId,
   getOwnedPlanetaryBases,
-  hasAnyEnemyShips,
   parseBaseKey,
   usesEscapeInspectionRules,
 } from './util';
@@ -153,6 +152,7 @@ export const createGame = (
   map: SolarSystemMap,
   gameCode: string,
   findBaseHex: (map: SolarSystemMap, bodyName: string) => { q: number; r: number } | null,
+  rng: () => number = Math.random,
 ): GameState => {
   assertScenarioPlayerCount(scenario);
   const playerBases = scenario.players.map((player) => resolveControlledBases(player, map));
@@ -214,7 +214,7 @@ export const createGame = (
     const p = scenario.players.indexOf(player);
     const playerShips = ships.filter((s) => s.owner === p);
     if (playerShips.length === 0) continue;
-    randomChoice(playerShips).hasFugitives = true;
+    randomChoice(playerShips, rng).hasFugitives = true;
     for (const ship of playerShips) {
       ship.identityRevealed = false;
     }
@@ -430,7 +430,7 @@ const resolveMovementPhase = (
   state: GameState,
   playerId: number,
   map: SolarSystemMap,
-  rng?: () => number,
+  rng: () => number,
 ): MovementResult => {
   const movements: ShipMovement[] = [];
   const ordnanceMovements: OrdnanceMovement[] = [];
@@ -546,7 +546,7 @@ export const processAstrogation = (
   playerId: number,
   orders: AstrogationOrder[],
   map: SolarSystemMap,
-  rng?: () => number,
+  rng: () => number,
 ): MovementResult | StateUpdateResult | { error: string } => {
   if (state.phase !== 'astrogation') {
     return { error: 'Not in astrogation phase' };
@@ -589,7 +589,7 @@ export const processOrdnance = (
   playerId: number,
   launches: OrdnanceLaunch[],
   map: SolarSystemMap,
-  rng?: () => number,
+  rng: () => number,
 ): MovementResult | { error: string } => {
   if (state.phase !== 'ordnance') {
     return { error: 'Not in ordnance phase' };
@@ -704,26 +704,14 @@ export const processOrdnance = (
 export const skipOrdnance = (
   state: GameState,
   playerId: number,
-  map?: SolarSystemMap,
-  rng?: () => number,
+  map: SolarSystemMap,
+  rng: () => number,
 ): MovementResult | StateUpdateResult | { error: string } => {
   if (state.phase !== 'ordnance') {
     return { error: 'Not in ordnance phase' };
   }
   if (playerId !== state.activePlayer) {
     return { error: 'Not your turn' };
-  }
-
-  if (!map) {
-    if (state.pendingAstrogationOrders) {
-      return { error: 'Map required to resolve movement after ordnance' };
-    }
-    if (hasAnyEnemyShips(state)) {
-      state.phase = 'combat';
-    } else {
-      advanceTurn(state);
-    }
-    return { state };
   }
 
   return resolveMovementPhase(state, playerId, map, rng);

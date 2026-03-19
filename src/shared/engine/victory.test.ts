@@ -394,7 +394,7 @@ describe('checkRamming', () => {
     state.ships[0].landed = false;
 
     const events: MovementEvent[] = [];
-    checkRamming(state, events);
+    checkRamming(state, events, Math.random);
     expect(events.filter((e) => e.type === 'ramming')).toHaveLength(0);
   });
 
@@ -409,7 +409,7 @@ describe('checkRamming', () => {
     ship1.landed = false;
 
     const events: MovementEvent[] = [];
-    checkRamming(state, events);
+    checkRamming(state, events, Math.random);
     expect(events.filter((e) => e.type === 'ramming')).toHaveLength(0);
   });
 
@@ -425,7 +425,7 @@ describe('checkRamming', () => {
     ship1.landed = false;
 
     const events: MovementEvent[] = [];
-    checkRamming(state, events);
+    checkRamming(state, events, Math.random);
     expect(events.filter((e) => e.type === 'ramming')).toHaveLength(0);
   });
 });

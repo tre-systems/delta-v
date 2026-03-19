@@ -157,12 +157,12 @@ describe('hasAnyEnemyShips', () => {
 
 describe('shuffle', () => {
   it('returns same length array', () => {
-    const result = shuffle([1, 2, 3, 4, 5]);
+    const result = shuffle([1, 2, 3, 4, 5], Math.random);
     expect(result.length).toBe(5);
   });
 
   it('contains same elements', () => {
-    const result = shuffle([1, 2, 3, 4, 5]);
+    const result = shuffle([1, 2, 3, 4, 5], Math.random);
     expect(result.sort()).toEqual([1, 2, 3, 4, 5]);
   });
 
@@ -177,11 +177,11 @@ describe('shuffle', () => {
   });
 
   it('handles empty array', () => {
-    expect(shuffle([])).toEqual([]);
+    expect(shuffle([], Math.random)).toEqual([]);
   });
 
   it('handles single element', () => {
-    expect(shuffle([42])).toEqual([42]);
+    expect(shuffle([42], Math.random)).toEqual([42]);
   });
 });
 

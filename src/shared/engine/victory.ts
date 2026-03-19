@@ -206,7 +206,7 @@ export const updateEscapeMoralVictory = (state: GameState): void => {
 /**
  * Check for ramming: opposing ships on the same hex after movement.
  */
-export const checkRamming = (state: GameState, events: MovementEvent[], rng?: () => number): void => {
+export const checkRamming = (state: GameState, events: MovementEvent[], rng: () => number): void => {
   const alive = state.ships.filter((s) => !s.destroyed);
 
   for (let i = 0; i < alive.length; i++) {

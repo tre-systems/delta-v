@@ -263,6 +263,7 @@ export const aiAstrogation = (
   playerId: number,
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
+  rng: () => number = Math.random,
 ): AstrogationOrder[] => {
   const orders: AstrogationOrder[] = [];
   const { targetBody, escapeWins } = state.players[playerId];
@@ -488,8 +489,8 @@ export const aiAstrogation = (
     }
 
     // Easy AI: 25% chance to pick a random suboptimal direction instead
-    if (difficulty === 'easy' && Math.random() < 0.25 && canBurnFuel) {
-      const randomDir = Math.floor(Math.random() * 6);
+    if (difficulty === 'easy' && rng() < 0.25 && canBurnFuel) {
+      const randomDir = Math.floor(rng() * 6);
       const course = computeCourse(ship, randomDir, map, { destroyedBases: state.destroyedBases });
       if (!course.crashed) {
         bestBurn = randomDir;
@@ -517,12 +518,13 @@ export const aiOrdnance = (
   playerId: number,
   _map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
+  rng: () => number = Math.random,
 ): OrdnanceLaunch[] => {
   const launches: OrdnanceLaunch[] = [];
   const allowedTypes = new Set(state.scenarioRules.allowedOrdnanceTypes ?? ['mine', 'torpedo', 'nuke']);
 
   // Easy AI rarely uses ordnance (30% chance to skip entirely)
-  if (difficulty === 'easy' && Math.random() < 0.3) return launches;
+  if (difficulty === 'easy' && rng() < 0.3) return launches;
 
   const enemyShips = state.ships.filter((s) => s.owner !== playerId && !s.destroyed);
   if (enemyShips.length === 0) return launches;

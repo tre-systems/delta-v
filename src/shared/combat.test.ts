@@ -328,7 +328,7 @@ describe('applyDamage', () => {
 describe('rollD6', () => {
   it('returns value between 1 and 6', () => {
     for (let i = 0; i < 100; i++) {
-      const roll = rollD6();
+      const roll = rollD6(Math.random);
       expect(roll).toBeGreaterThanOrEqual(1);
       expect(roll).toBeLessThanOrEqual(6);
     }
