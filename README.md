@@ -122,7 +122,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Premium polish (glassmorphism UI, procedural SFX, micro-animations)
 - [x] Multiplayer chat (inline in game log, rate-limited, XSS-safe)
-- [x] 908 tests across 58 suites, 8 scenario AI simulations
+- [x] 980+ tests across 61 suites (unit, property-based, integration), 8 scenario AI simulations
 - [x] Deep architectural analysis and reusability assessment ([docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md))
 
 ### Planned — Features
@@ -136,7 +136,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] **Make RNG fully injectable**: All engine entry points require explicit `rng` parameter, no `Math.random` fallbacks
 - [x] **Fix `local.ts` state aliasing**: `structuredClone` captures true pre-mutation state for animation diffing
 - [ ] **Structural sharing in engine**: Replace in-place mutation with clone-on-entry for diffing, undo, replay, and AI search
-- [x] **Decompose `main.ts`**: Split from 1397 → 1023 LOC; extracted 7 focused modules
+- [x] **Decompose `main.ts`**: Split from 1397 LOC; extracted 7 focused modules
 - [x] **Eliminate map singleton**: Removed `getSolarSystemMap()` global; all callers use `buildSolarSystemMap()` directly
 
 ---

@@ -38,15 +38,15 @@ This is the heart of the project. All game rules live in a shared folder, making
 
 | Module | LOC | Purpose | Reusability |
 |--------|-----|---------|-------------|
-| `hex.ts` | 250 | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
+| `hex.ts` | 245 | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
 | `util.ts` | 110 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
 | `types.ts` | 300 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios | Game-specific |
-| `constants.ts` | 70 | Ship stats, ordnance mass, detection ranges, animation timing | Game-specific |
+| `constants.ts` | 65 | Ship stats, ordnance mass, detection ranges, animation timing | Game-specific |
 | `movement.ts` | 320 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
 | `combat.ts` | 490 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
-| `map-data.ts` | 545 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
-| `ai.ts` | 720 | Rule-based AI with three difficulty levels | Game-specific |
-| `engine/game-engine.ts` | 730 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
+| `map-data.ts` | 535 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
+| `ai.ts` | 725 | Rule-based AI with three difficulty levels | Game-specific |
+| `engine/game-engine.ts` | 720 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
 | `engine/combat.ts` | 400 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
 | `engine/ordnance.ts` | 420 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
 | `engine/victory.ts` | 385 | Victory conditions, turn advancement, checkpoint tracking | Game-specific |
@@ -113,7 +113,7 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 | Directory | Files | LOC | Purpose |
 |-----------|-------|-----|---------|
-| `client/` (root) | 5 | ~1900 | Entry point (`main.ts` ~1023 LOC), raw input, audio, tutorial, DOM helpers |
+| `client/` (root) | 5 | ~1900 | Entry point (`main.ts` ~1025 LOC), raw input, audio, tutorial, DOM helpers |
 | `client/game/` | 34 | ~3700 | Game logic: planning, commands, phases, transport, presentation, connection, actions |
 | `client/renderer/` | 14 | ~3500 | Canvas rendering: camera, scene, entities, effects, overlays |
 | `client/ui/` | 8 | ~1400 | DOM overlays: menu, HUD, ship list, fleet shop, formatters |
@@ -237,7 +237,7 @@ An analysis of what could be extracted as a reusable hex-grid multiplayer game f
 
 | Component | LOC | Reusability | Notes |
 |-----------|-----|-------------|-------|
-| `shared/hex.ts` | 250 | **100%** | Zero game knowledge. Axial coords, line draw, pixel conversion. |
+| `shared/hex.ts` | 245 | **100%** | Zero game knowledge. Axial coords, line draw, pixel conversion. |
 | `shared/util.ts` | 110 | **100%** | Pure FP collection helpers. |
 | `renderer/camera.ts` | 85 | **95%** | Pan/zoom/lerp. Only tie: `HEX_SIZE` constant. |
 | `client/input.ts` | 185 | **90%** | Mouse/touch/pinch → clickHex/hoverHex. No game knowledge. |
@@ -297,8 +297,13 @@ Engine functions mutate `GameState` in place. This works for current usage but p
 
 ### Other Considerations
 - **Add browser-side tests around input/UI/orchestration**: Shared rules are well covered. The bigger refactor risk sits in client coordination code.
-- **Prefer a lightweight event log over full event sourcing**: Replays, reconnect catch-up, and spectator mode would benefit from an append-only turn log, but snapshots should remain the source of truth.
 - **Public lobby hardening**: Longer opaque identifiers, rate limiting, and optional identity/account binding.
+
+### Event Log / Event Sourcing for Network Protocol
+The server currently sends full `GameState` snapshots over WebSocket. A lightweight event log — or a full event-sourcing model where the server sends a snapshot on join and then broadcasts only deterministic events (`SHIP_MOVED`, `COMBAT_RESOLVED`, etc.) — would reduce payload sizes and implicitly create a log for replays, reconnect catch-up, and spectator mode. Since the client shares the same engine, it can apply events locally to stay synchronised. Snapshots should remain the source of truth; the event log complements rather than replaces them. Worth pursuing when replays or spectator mode are prioritised.
+
+### Server-Side State Rollback
+If the engine throws mid-mutation, the DO's in-memory `GameState` could be left in an inconsistent state, permanently breaking the room. A lightweight guard — cloning state before engine entry points and restoring on exception — would prevent this. Currently mitigated by high test coverage, but worth adding as a safety net if the engine grows in complexity.
 
 ### Explicitly Deferred (Not Worth Doing Yet)
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.

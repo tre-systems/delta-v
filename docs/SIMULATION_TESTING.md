@@ -27,7 +27,7 @@ The current runner executes entirely in Node.js, outside the browser and Cloudfl
 **Implementation Details:**
 - Because the `game-engine.ts` has no DOM or Canvas dependencies, this runs very quickly in practice.
 - You can run Monte Carlo simulations (e.g., 10,000 runs of the 'Escape' scenario) to definitively prove if the scenario favors the escaping player or the blockading player.
-- **Randomness:** The combat engine relies on `Math.random()`. Passing a seeded random number generator (RNG) into `processCombat` and `processAstrogation` allows for completely reproducible replays when a simulation encounters a crash or an infinite loop.
+- **Randomness:** All engine entry points (`processAstrogation`, `processCombat`, `processOrdnance`, etc.) require a mandatory `rng: () => number` parameter — there are no `Math.random` fallbacks in the turn-resolution path. Passing a seeded RNG allows completely reproducible replays when a simulation encounters a crash or an infinite loop.
 
 **Current usage:**
 - `npm run simulate` runs 100 headless games of the default scenario.
@@ -55,6 +55,6 @@ Create a headless WebSocket bot client using a library like `ws` in Node.js (e.g
 
 ## Summary of Progress
 
-1. **RNG Extraction**: Completed. Engine functions accept optional RNG for deterministic simulations.
+1. **RNG Injection**: Completed. All engine entry points require mandatory `rng` parameter for deterministic simulations.
 2. **AI Runner**: Implemented. `npm run simulate` executes headless matches, and CI runs the multi-scenario `--ci` pass.
 3. **Load Tester**: Planned for future infrastructure stress testing.
