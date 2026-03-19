@@ -60,7 +60,7 @@ src/
 scripts/                 # Automated Bot & AI Simulation tests
 ```
 
-**Design Highlight:** The core `game-engine.ts` is purely functional. It receives inputs (astrogation orders, combat declarations) and deterministically produces the new state. This guarantees synchronization between server and client without complex reconciliation, and makes the game highly unit testable. The backend stays authoritative through **Cloudflare Durable Objects**, handling room lifecycle, tokenized joins, validation, and state persistence.
+**Design Highlight:** The core `game-engine.ts` is side-effect-free — no DOM, no network, no storage. It receives inputs (astrogation orders, combat declarations) and produces the new state, making the game highly unit testable. The engine mutates state in place rather than returning immutable snapshots (see [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details and improvement plan). The backend stays authoritative through **Cloudflare Durable Objects**, handling room lifecycle, tokenized joins, validation, and state persistence.
 
 For project conventions and refactoring guidance, see [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md).
 
@@ -122,13 +122,21 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Premium polish (glassmorphism UI, procedural SFX, micro-animations)
 - [x] 902 tests across 58 suites, 8 scenario AI simulations
+- [x] Deep architectural analysis and reusability assessment ([docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md))
 
-### Planned
+### Planned — Features
 - [ ] **Asteroid Map Visuals**: Render asteroid fields to match [docs/map.png](./docs/map.png)
 - [ ] **New Scenarios**: Lateral 7, Fleet Mutiny, Retribution (require logistics mechanics)
 - [ ] **Logistics**: Surrender, looting, rescue, fuel transfer, capture, cargo handling
 - [ ] **Spectator Mode**: Third-party connections to watch ongoing battles
 - [ ] **Turn Replay**: Review past turns and full game history
+
+### Planned — Architecture
+- [ ] **Make RNG fully injectable**: Remove optional `rng?` fallbacks, require explicit RNG at all engine entry points
+- [ ] **Fix `local.ts` state aliasing**: Investigate and fix potential mutation-through-alias bug in local game resolution
+- [ ] **Structural sharing in engine**: Replace in-place mutation with clone-on-entry for diffing, undo, replay, and AI search
+- [ ] **Decompose `main.ts`**: Split the ~1400 LOC fat controller into phase-focused handlers
+- [ ] **Eliminate map singleton**: Remove `getSolarSystemMap()` global in favour of parameter passing
 
 ---
 
