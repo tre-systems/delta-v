@@ -41,7 +41,7 @@ const toCombatResult = (r: CombatResolution): CombatResult => ({
   counterattack: r.counterattack ? toCombatResult(r.counterattack) : null,
 });
 
-const resolveAntiNukeAttack = (attackers: Ship[], target: Ordnance, rng?: () => number): CombatResult => {
+const resolveAntiNukeAttack = (attackers: Ship[], target: Ordnance, rng: () => number): CombatResult => {
   const rangeMod = computeGroupRangeModToTarget(attackers, target);
   const velocityMod = computeGroupVelocityModToTarget(attackers, target);
   const dieRoll = rollD6(rng);
@@ -141,8 +141,8 @@ const shouldRemainInCombatPhase = (state: GameState, map?: SolarSystemMap): bool
 export const beginCombatPhase = (
   state: GameState,
   playerId: number,
-  map?: SolarSystemMap,
-  rng?: () => number,
+  map: SolarSystemMap,
+  rng: () => number,
 ): CombatPhaseResult | { state: GameState } | { error: string } => {
   if (state.phase !== 'combat') {
     return { error: 'Not in combat phase' };
@@ -175,8 +175,8 @@ export const processCombat = (
   state: GameState,
   playerId: number,
   attacks: CombatAttack[],
-  map?: SolarSystemMap,
-  rng?: () => number,
+  map: SolarSystemMap,
+  rng: () => number,
 ): CombatPhaseResult | { error: string } => {
   if (state.phase !== 'combat') {
     return { error: 'Not in combat phase' };
@@ -340,8 +340,8 @@ export const processCombat = (
 export const skipCombat = (
   state: GameState,
   playerId: number,
-  map?: SolarSystemMap,
-  rng?: () => number,
+  map: SolarSystemMap,
+  rng: () => number,
 ): { state: GameState; results?: CombatResult[] } | { error: string } => {
   if (state.phase !== 'combat') {
     return { error: 'Not in combat phase' };

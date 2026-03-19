@@ -39,7 +39,7 @@ describe('clamp', () => {
 
 describe('randomChoice', () => {
   it('returns the only element of a single-element array', () => {
-    expect(randomChoice([42])).toBe(42);
+    expect(randomChoice([42], Math.random)).toBe(42);
   });
 
   it('uses provided rng to select deterministically', () => {

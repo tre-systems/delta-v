@@ -278,10 +278,7 @@ export const applyDamage = (ship: Ship, result: DamageResult): boolean => {
 /**
  * Roll a d6 (1-6). Uses crypto.getRandomValues if available, else Math.random.
  */
-export const rollD6 = (rng?: () => number): number => {
-  if (rng) return Math.floor(rng() * 6) + 1;
-  return Math.floor(Math.random() * 6) + 1;
-};
+export const rollD6 = (rng: () => number): number => Math.floor(rng() * 6) + 1;
 
 const chooseCounterattackTarget = (attackers: Ship[]): Ship =>
   [...attackers].sort((a, b) => {
@@ -301,7 +298,7 @@ export const resolveCombat = (
   attackers: Ship[],
   target: Ship,
   allShips: Ship[],
-  rng?: () => number,
+  rng: () => number,
   _map?: SolarSystemMap,
   declaredAttackStrength?: number | null,
 ): CombatResolution => {
@@ -397,7 +394,7 @@ export const resolveBaseDefense = (
   },
   activePlayer: number,
   map: SolarSystemMap,
-  rng?: () => number,
+  rng: () => number,
 ): CombatResult[] => {
   const results: CombatResult[] = [];
   const destroyedBases = new Set(state.destroyedBases ?? []);

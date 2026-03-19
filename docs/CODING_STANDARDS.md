@@ -20,7 +20,7 @@ Files under `src/shared/` should remain:
 - plain typed data
 - easy to test in isolation
 
-Note: the engine currently mutates `GameState` in place rather than returning immutable snapshots. This is a known trade-off documented in ARCHITECTURE.md and tracked in BACKLOG.md (item 2k). RNG injection is also partial — most functions accept `rng?` but fall back to `Math.random` (tracked as BACKLOG.md item 2m).
+Note: the engine currently mutates `GameState` in place rather than returning immutable snapshots. This is a known trade-off documented in ARCHITECTURE.md and tracked in BACKLOG.md (item 2k). RNG is fully injectable — all engine entry points require a mandatory `rng: () => number` parameter with no `Math.random` fallbacks in the turn-resolution path.
 
 Avoid pushing browser, network, storage, or rendering concerns into the shared engine.
 

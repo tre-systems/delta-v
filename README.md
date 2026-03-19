@@ -132,8 +132,8 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [ ] **Turn Replay**: Review past turns and full game history
 
 ### Planned — Architecture
-- [ ] **Make RNG fully injectable**: Remove optional `rng?` fallbacks, require explicit RNG at all engine entry points
-- [ ] **Fix `local.ts` state aliasing**: Investigate and fix potential mutation-through-alias bug in local game resolution
+- [x] **Make RNG fully injectable**: All engine entry points require explicit `rng` parameter, no `Math.random` fallbacks
+- [x] **Fix `local.ts` state aliasing**: `structuredClone` captures true pre-mutation state for animation diffing
 - [ ] **Structural sharing in engine**: Replace in-place mutation with clone-on-entry for diffing, undo, replay, and AI search
 - [ ] **Decompose `main.ts`**: Split the ~1400 LOC fat controller into phase-focused handlers
 - [ ] **Eliminate map singleton**: Remove `getSolarSystemMap()` global in favour of parameter passing

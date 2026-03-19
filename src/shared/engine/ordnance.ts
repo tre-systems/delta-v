@@ -117,7 +117,7 @@ const resolveTorpedoDetonation = (
   contactedOrdnance: Ordnance[],
   hex: { q: number; r: number },
   events: MovementEvent[],
-  rng?: () => number,
+  rng: () => number,
 ): boolean => {
   if (ships.length === 0 && contactedOrdnance.length === 0) {
     return false;
@@ -164,7 +164,7 @@ const checkOrdnanceDetonation = (
   path: { q: number; r: number }[],
   events: MovementEvent[],
   map: SolarSystemMap,
-  rng?: () => number,
+  rng: () => number,
 ): boolean => {
   for (let i = 0; i < path.length; i++) {
     const pathHex = path[i];
@@ -257,7 +257,7 @@ export const moveOrdnance = (
   map: SolarSystemMap,
   ordnanceMovements: OrdnanceMovement[],
   events: MovementEvent[],
-  rng?: () => number,
+  rng: () => number,
 ): void => {
   for (const ord of state.ordnance) {
     if (ord.destroyed) continue;
@@ -376,7 +376,7 @@ export const queueAsteroidHazards = (
 export const resolvePendingAsteroidHazards = (
   state: GameState,
   playerId: number,
-  rng?: () => number,
+  rng: () => number,
 ): CombatResult[] => {
   const results: CombatResult[] = [];
   const remaining: typeof state.pendingAsteroidHazards = [];
