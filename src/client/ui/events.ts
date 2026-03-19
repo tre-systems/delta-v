@@ -19,4 +19,5 @@ export type UIEvent =
   | { type: 'fleetReady'; purchases: FleetPurchase[] }
   | { type: 'rematch' }
   | { type: 'exit' }
-  | { type: 'selectShip'; shipId: string };
+  | { type: 'selectShip'; shipId: string }
+  | { type: 'chat'; text: string };

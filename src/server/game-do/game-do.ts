@@ -53,8 +53,11 @@ export interface Env {
   GAME: DurableObjectNamespace;
 }
 
+const CHAT_RATE_LIMIT_MS = 500;
+
 export class GameDO extends DurableObject {
   private readonly map = buildSolarSystemMap();
+  private readonly lastChatTime = new Map<number, number>();
 
   // --- WebSocket tag-based player tracking ---
 
@@ -272,6 +275,14 @@ export class GameDO extends DurableObject {
         case 'rematch':
           await this.handleRematch(playerId, ws);
           break;
+        case 'chat': {
+          const now = Date.now();
+          const last = this.lastChatTime.get(playerId) ?? 0;
+          if (now - last < CHAT_RATE_LIMIT_MS) break;
+          this.lastChatTime.set(playerId, now);
+          this.broadcast({ type: 'chat', playerId, text: msg.text });
+          break;
+        }
         case 'ping':
           this.send(ws, { type: 'pong', t: msg.t });
           break;

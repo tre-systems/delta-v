@@ -36,6 +36,8 @@ export interface MessageHandlerDeps {
   };
   ui: {
     showToast: (message: string, type: 'error' | 'info' | 'success') => void;
+    logText: (text: string, cssClass?: string) => void;
+    setChatEnabled: (enabled: boolean) => void;
     hideReconnecting: () => void;
     setPlayerId: (id: number) => void;
     clearLog: () => void;
@@ -76,6 +78,7 @@ export const handleServerMessage = (deps: MessageHandlerDeps, msg: S2C): void =>
       deps.applyGameState(deps.deserializeState(plan.state));
       deps.renderer.clearTrails();
       deps.ui.clearLog();
+      deps.ui.setChatEnabled(true);
       deps.logScenarioBriefing();
       deps.setState(plan.nextState);
       break;
@@ -125,6 +128,13 @@ export const handleServerMessage = (deps: MessageHandlerDeps, msg: S2C): void =>
       console.error('Server error:', plan.message);
       deps.ui.showToast(plan.message, 'error');
       break;
+
+    case 'chat': {
+      const isOwn = plan.playerId === deps.ctx.playerId;
+      const label = isOwn ? 'You' : 'Opponent';
+      deps.ui.logText(`${label}: ${plan.text}`, isOwn ? 'log-chat' : 'log-chat-opponent');
+      break;
+    }
 
     case 'pong':
       if (plan.latencyMs !== null) {

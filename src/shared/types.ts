@@ -245,6 +245,7 @@ export type C2S =
   | { type: 'combat'; attacks: CombatAttack[] }
   | { type: 'skipCombat' }
   | { type: 'rematch' }
+  | { type: 'chat'; text: string }
   | { type: 'ping'; t: number };
 
 export type S2C =
@@ -263,6 +264,7 @@ export type S2C =
   | { type: 'gameOver'; winner: number; reason: string }
   | { type: 'rematchPending' }
   | { type: 'opponentDisconnected' }
+  | { type: 'chat'; playerId: number; text: string }
   | { type: 'error'; message: string }
   | { type: 'pong'; t: number };
 

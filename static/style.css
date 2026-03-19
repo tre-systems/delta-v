@@ -642,6 +642,41 @@ body::before {
   color: var(--success);
 }
 
+.log-chat {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.log-chat-opponent {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.chat-input-row {
+  padding: 0.35rem 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.chat-input {
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(4, 9, 18, 0.6);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  outline: none;
+}
+
+.chat-input::placeholder {
+  color: rgba(144, 160, 186, 0.4);
+}
+
+.chat-input:focus {
+  border-color: rgba(122, 215, 255, 0.3);
+}
+
 .log-show-btn {
   position: fixed;
   top: calc(var(--hud-top-offset) + 0.2rem);
