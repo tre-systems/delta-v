@@ -364,7 +364,7 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 - **Asteroid hexside rule** *(resolved):* The rulebook (p.7) states "a ship passing along a hexside between two asteroid hexes is considered to have entered one asteroid hex" — one hazard roll, not two. Resolved via `analyzeHexLine()`: `queueAsteroidHazards()` queues exactly one hazard for `ambiguousPairs` where both hexes are asteroids.
 
-- **Logistics** *(deferred — scenario-specific):* Surrender, looting, rescue, fuel transfer, cargo handling, dummy counters remain unimplemented. The rulebook (p.8) defines course-matching mechanics for transfers, surrender as a binding bargain, cargo capacity in tons (fuel excluded), and dummy counters for concealment scenarios. These are primarily needed for Lateral 7, Piracy, Escape, and Interplanetary War scenarios.
+- **Logistics** *(partially implemented):* Surrender (unilateral declaration during astrogation), fuel/cargo transfer (new logistics phase after movement, requires position+velocity match), and looting of disabled/surrendered enemy ships are implemented. Torch fuel transfer restriction enforced. Enabled on Convoy, Fleet Action, and Interplanetary War scenarios. Remaining: dummy counters for concealment scenarios, passenger rescue mechanics, and a visual transfer picker UI (currently skip-only).
 
 - **Advanced combat system** *(mostly resolved):* The rulebook uses the standard D1–D5/E damage system throughout; no separate advanced subsystem damage tracks exist. Dreadnaught gun exception (fire while disabled) is implemented in `canAttack`/`canCounterattack`. Minor gap: orbital bases should continue to fire torpedoes and resupply at D1 damage — not yet implemented but only relevant in orbital base scenarios.
 
@@ -372,7 +372,7 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 - **Orbital base D1 resilience** *(not yet implemented):* The rulebook (p.6) states orbital bases may still launch torpedoes, fire guns, and resupply friendly ships while at D1 damage. Currently, disabled orbital bases follow the same restrictions as ships. Low priority — only relevant in scenarios with orbital base emplacement.
 
-- **Torch ship fuel transfer restriction** *(not yet implemented):* The rulebook (p.8) states torch ships "may not transfer fuel to other ships." Fuel transfer between ships is not implemented at all (part of Logistics), so this restriction has no current effect. Track for when logistics are added.
+- **Torch ship fuel transfer restriction** *(implemented):* The rulebook (p.8) states torch ships "may not transfer fuel to other ships." Enforced in `logistics.ts` — torch ships are excluded from fuel transfer eligibility.
 
 **Unimplemented rulebook scenarios** (from the Triplanetary 2018 PDF):
 
