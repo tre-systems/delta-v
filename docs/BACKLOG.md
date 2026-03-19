@@ -25,6 +25,10 @@ Engine functions mutate `GameState` and its entities in place: `game-engine.ts` 
 
 This works because the server holds a single reference, but prevents: state diffing, undo, replay, spectator mode, and speculative AI branching. The pragmatic path is clone-on-entry at engine entry points (or Immer), not a rewrite to persistent data structures.
 
+## Features
+
+No open feature items currently.
+
 ## P3 — Test Coverage
 
 No open P3 items currently.
@@ -33,6 +37,7 @@ No open P3 items currently.
 
 - ~~2j. Decompose `main.ts`~~ — Extracted 7 modules: presentation, message-handler, connection, timer, astrogation-actions, combat-actions, ordnance-actions, local-game-flow. `main.ts` 1397 → 1023 LOC.
 - ~~2l. Eliminate map singleton~~ — Removed `getSolarSystemMap()` lazy singleton. All callers now use `buildSolarSystemMap()` directly or cache the map as a field.
+- ~~Multiplayer chat~~ — Inline chat in game log with text input. C2S/S2C `chat` message type, 200-char limit, 500ms rate limit, XSS-safe via textContent. Hidden in AI games. 6 protocol tests.
 - ~~2m. Make RNG fully injectable~~ — All engine entry points now require mandatory `rng: () => number`. No `Math.random` fallbacks in the turn-resolution path. `createGame` and AI functions accept optional `rng` with default.
 - ~~2n. Fix `local.ts` state aliasing~~ — `structuredClone(state)` before engine calls makes `previousState` semantics honest for animation diffing.
 - ~~Spec divergence audit~~ — Cross-referenced all 6 SPEC.md divergences against Triplanetary 2018 PDF rulebook. Edge-of-gravity and asteroid hexside rules already resolved via `analyzeHexLine()`. Dreadnaught fires-while-disabled exception already implemented. Added 33 new tests (897 total) covering `analyzeHexLine` edge cases, `queueAsteroidHazards` unit tests, gravity edge-grazing, dreadnaught exception, and `isAsteroidHex`/`resolvePendingAsteroidHazards`.
