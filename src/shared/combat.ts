@@ -102,7 +102,7 @@ export const getDeclaredCombatStrength = (ships: Ship[], declaredStrength?: numb
 export const canAttack = (ship: Ship): boolean => {
   if (ship.destroyed || ship.landed) return false;
   if (ship.resuppliedThisTurn) return false;
-  if (ship.captured) return false;
+  if (ship.captured || ship.surrendered) return false;
   const stats = SHIP_STATS[ship.type];
   if (!stats || stats.defensiveOnly) return false;
   // Dreadnaughts may still fire their guns even when disabled (rulebook p.6)
@@ -117,7 +117,7 @@ export const canAttack = (ship: Ship): boolean => {
 export const canCounterattack = (ship: Ship): boolean => {
   if (ship.destroyed || ship.landed) return false;
   if (ship.resuppliedThisTurn) return false;
-  if (ship.captured) return false;
+  if (ship.captured || ship.surrendered) return false;
   const stats = SHIP_STATS[ship.type];
   if (!stats || stats.combat <= 0 || stats.defensiveOnly) return false;
   // Dreadnaughts may still fire their guns even when disabled (rulebook p.6)

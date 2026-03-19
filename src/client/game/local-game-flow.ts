@@ -10,6 +10,7 @@ import {
   resolveCombatStep,
   resolveOrdnanceStep,
   resolveSkipCombatStep,
+  resolveSkipLogisticsStep,
   resolveSkipOrdnanceStep,
 } from './local';
 
@@ -103,6 +104,8 @@ export const resolveAIPlan = (deps: LocalGameFlowDeps, plan: AIActionPlan): Loca
       return plan.skip
         ? resolveSkipCombatStep(gameState, plan.aiPlayer, map)
         : resolveCombatStep(gameState, plan.aiPlayer, plan.attacks, map, false);
+    case 'logistics':
+      return resolveSkipLogisticsStep(gameState, plan.aiPlayer, map);
     default:
       return { kind: 'error', error: 'Unexpected AI plan kind' };
   }

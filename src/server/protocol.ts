@@ -5,6 +5,7 @@ import type {
   FleetPurchase,
   OrbitalBaseEmplacement,
   OrdnanceLaunch,
+  TransferOrder,
 } from '../shared/types';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -17,6 +18,8 @@ const MAX_BASE_EMPLACEMENTS = 32;
 const MAX_COMBAT_ATTACKS = 64;
 const MAX_ATTACKERS_PER_COMBAT = 16;
 const MAX_WEAK_GRAVITY_CHOICES = 64;
+const MAX_SURRENDER_SHIPS = 64;
+const MAX_TRANSFER_ORDERS = 64;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -183,6 +186,37 @@ const parseCombatAttacks = (raw: unknown): CombatAttack[] | null => {
   return attacks;
 };
 
+const parseSurrenderShipIds = (raw: unknown): string[] | null => {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_SURRENDER_SHIPS) return null;
+  const ids: string[] = [];
+  for (const item of raw) {
+    if (!isString(item) || item.length === 0) return null;
+    ids.push(item);
+  }
+  return ids;
+};
+
+const parseTransferOrders = (raw: unknown): TransferOrder[] | null => {
+  if (!Array.isArray(raw) || raw.length > MAX_TRANSFER_ORDERS) return null;
+  const transfers: TransferOrder[] = [];
+  for (const item of raw) {
+    if (!isObject(item)) return null;
+    if (!isString(item.sourceShipId) || item.sourceShipId.length === 0) return null;
+    if (!isString(item.targetShipId) || item.targetShipId.length === 0) return null;
+    if (item.transferType !== 'fuel' && item.transferType !== 'cargo') return null;
+    if (typeof item.amount !== 'number' || !Number.isInteger(item.amount) || item.amount < 1 || item.amount > 9999) {
+      return null;
+    }
+    transfers.push({
+      sourceShipId: item.sourceShipId,
+      targetShipId: item.targetShipId,
+      transferType: item.transferType,
+      amount: item.amount,
+    });
+  }
+  return transfers;
+};
+
 export const generateRoomCode = (): string => generateRandomString(CODE_CHARS, 5);
 
 export const generatePlayerToken = (): string => generateRandomString(TOKEN_CHARS, 32);
@@ -279,9 +313,22 @@ export const validateClientMessage = (raw: unknown): { ok: true; value: C2S } | 
         ? { ok: true, value: { type: 'combat', attacks } }
         : { ok: false, error: 'Invalid combat payload' };
     }
+    case 'surrender': {
+      const shipIds = parseSurrenderShipIds(raw.shipIds);
+      return shipIds
+        ? { ok: true, value: { type: 'surrender', shipIds } }
+        : { ok: false, error: 'Invalid surrender payload' };
+    }
+    case 'logistics': {
+      const transfers = parseTransferOrders(raw.transfers);
+      return transfers
+        ? { ok: true, value: { type: 'logistics', transfers } }
+        : { ok: false, error: 'Invalid logistics payload' };
+    }
     case 'skipOrdnance':
     case 'beginCombat':
     case 'skipCombat':
+    case 'skipLogistics':
     case 'rematch':
       return { ok: true, value: { type: raw.type } };
     case 'chat': {

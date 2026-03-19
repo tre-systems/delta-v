@@ -8,8 +8,11 @@ import {
   processCombat,
   processEmplacement,
   processFleetReady,
+  processLogistics,
   processOrdnance,
+  processSurrender,
   skipCombat,
+  skipLogistics,
   skipOrdnance,
 } from '../../shared/engine/game-engine';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../../shared/map-data';
@@ -22,6 +25,7 @@ import type {
   OrbitalBaseEmplacement,
   OrdnanceLaunch,
   S2C,
+  TransferOrder,
 } from '../../shared/types';
 import {
   createRoomConfig,
@@ -254,6 +258,9 @@ export class GameDO extends DurableObject {
         case 'astrogation':
           await this.handleAstrogation(playerId, ws, msg.orders);
           break;
+        case 'surrender':
+          await this.handleSurrender(playerId, ws, msg.shipIds);
+          break;
         case 'ordnance':
           await this.handleOrdnance(playerId, ws, msg.launches);
           break;
@@ -271,6 +278,12 @@ export class GameDO extends DurableObject {
           break;
         case 'skipCombat':
           await this.handleSkipCombat(playerId, ws);
+          break;
+        case 'logistics':
+          await this.handleLogistics(playerId, ws, msg.transfers);
+          break;
+        case 'skipLogistics':
+          await this.handleSkipLogistics(playerId, ws);
           break;
         case 'rematch':
           await this.handleRematch(playerId, ws);
@@ -456,6 +469,36 @@ export class GameDO extends DurableObject {
       (gameState) => processAstrogation(gameState, playerId, orders, this.map, Math.random),
       async (result) => {
         await this.publishStateChange(result.state, resolveMovementBroadcast(result));
+      },
+    );
+  }
+
+  private async handleSurrender(playerId: number, ws: WebSocket, shipIds: string[]) {
+    await this.runGameStateAction(
+      ws,
+      (gameState) => processSurrender(gameState, playerId, shipIds),
+      async (result) => {
+        await this.publishStateChange(result.state, toStateUpdateMessage(result.state), false);
+      },
+    );
+  }
+
+  private async handleLogistics(playerId: number, ws: WebSocket, transfers: TransferOrder[]) {
+    await this.runGameStateAction(
+      ws,
+      (gameState) => processLogistics(gameState, playerId, transfers, this.map),
+      async (result) => {
+        await this.publishStateChange(result.state, toStateUpdateMessage(result.state));
+      },
+    );
+  }
+
+  private async handleSkipLogistics(playerId: number, ws: WebSocket) {
+    await this.runGameStateAction(
+      ws,
+      (gameState) => skipLogistics(gameState, playerId, this.map),
+      async (result) => {
+        await this.publishStateChange(result.state, toStateUpdateMessage(result.state));
       },
     );
   }

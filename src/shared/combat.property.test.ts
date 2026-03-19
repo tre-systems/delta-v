@@ -289,6 +289,16 @@ describe('canAttack / canCounterattack properties', () => {
     );
   });
 
+  it('surrendered ships cannot attack', () => {
+    fc.assert(
+      fc.property(arbShipType(), (shipType) => {
+        const ship = makeShip({ type: shipType, surrendered: true });
+        expect(canAttack(ship)).toBe(false);
+        expect(canCounterattack(ship)).toBe(false);
+      }),
+    );
+  });
+
   it('captured ships cannot attack', () => {
     fc.assert(
       fc.property(arbShipType(), (shipType) => {

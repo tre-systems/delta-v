@@ -8,6 +8,7 @@ export type Phase =
   | 'astrogation'
   | 'ordnance'
   | 'movement'
+  | 'logistics'
   | 'combat'
   | 'resupply'
   | 'gameOver';
@@ -46,6 +47,7 @@ export interface Ship {
   destroyed: boolean;
   detected: boolean; // true if within detection range of opponent's ships/bases
   captured?: boolean; // true if captured by enemy — cannot fire/attack until base resupply
+  surrendered?: boolean; // true if owner declared surrender — cannot fire, can be looted
   heroismAvailable?: boolean; // heroic ships add +1 to gun combat rolls whenever they attack
   overloadUsed?: boolean; // true if ship has used its one overload allowance since last maintenance
   carryingOrbitalBase?: boolean; // transport/packet carrying an unemplaced orbital base
@@ -225,6 +227,19 @@ export interface FleetPurchase {
   shipType: string; // key into SHIP_STATS
 }
 
+export interface Reinforcement {
+  turn: number; // turn number when reinforcements arrive
+  playerId: number;
+  ships: ScenarioShip[];
+}
+
+export interface FleetConversion {
+  turn: number; // turn number when conversion occurs
+  fromPlayer: number;
+  toPlayer: number;
+  shipTypes?: string[]; // if specified, only convert ships of these types
+}
+
 export interface ScenarioRules {
   allowedOrdnanceTypes?: Array<Ordnance['type']>;
   planetaryDefenseEnabled?: boolean;
@@ -233,17 +248,30 @@ export interface ScenarioRules {
   combatDisabled?: boolean; // skip gun/base-defense combat (asteroid hazards still resolve)
   checkpointBodies?: string[]; // body names that must be visited for race victory
   sharedBases?: string[]; // body names whose bases all players can use
+  logisticsEnabled?: boolean; // enable surrender, fuel/cargo transfer, and looting
+  reinforcements?: Reinforcement[]; // ships spawned at specific turns
+  fleetConversion?: FleetConversion; // ships change ownership at a specific turn
+}
+
+export interface TransferOrder {
+  sourceShipId: string;
+  targetShipId: string;
+  transferType: 'fuel' | 'cargo';
+  amount: number;
 }
 
 export type C2S =
   | { type: 'fleetReady'; purchases: FleetPurchase[] }
   | { type: 'astrogation'; orders: AstrogationOrder[] }
+  | { type: 'surrender'; shipIds: string[] }
   | { type: 'ordnance'; launches: OrdnanceLaunch[] }
   | { type: 'emplaceBase'; emplacements: OrbitalBaseEmplacement[] }
   | { type: 'skipOrdnance' }
   | { type: 'beginCombat' }
   | { type: 'combat'; attacks: CombatAttack[] }
   | { type: 'skipCombat' }
+  | { type: 'logistics'; transfers: TransferOrder[] }
+  | { type: 'skipLogistics' }
   | { type: 'rematch' }
   | { type: 'chat'; text: string }
   | { type: 'ping'; t: number };
