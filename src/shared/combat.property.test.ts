@@ -333,15 +333,28 @@ describe('canAttack / canCounterattack properties', () => {
     );
   });
 
-  it('disabled non-dreadnaught warships cannot attack', () => {
+  it('disabled non-dreadnaught non-orbitalBase warships cannot attack', () => {
     const warshipTypes = Object.entries(SHIP_STATS)
-      .filter(([type, stats]) => !stats.defensiveOnly && type !== 'dreadnaught')
+      .filter(([type, stats]) => !stats.defensiveOnly && type !== 'dreadnaught' && type !== 'orbitalBase')
       .map(([type]) => type);
 
     fc.assert(
       fc.property(fc.constantFrom(...warshipTypes), fc.integer({ min: 1, max: 5 }), (shipType, turns) => {
         const ship = makeShip({ type: shipType, damage: { disabledTurns: turns } });
         expect(canAttack(ship)).toBe(false);
+      }),
+    );
+  });
+
+  it('D1-disabled orbital bases can attack but D2+ cannot', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 5 }), (turns) => {
+        const ship = makeShip({ type: 'orbitalBase', damage: { disabledTurns: turns } });
+        if (turns <= 1) {
+          expect(canAttack(ship)).toBe(true);
+        } else {
+          expect(canAttack(ship)).toBe(false);
+        }
       }),
     );
   });
