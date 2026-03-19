@@ -15,11 +15,12 @@
     "lint:fix": "biome check --write src/",
     "format": "biome format --write src/",
     "simulate": "tsx scripts/simulate-ai.ts",
+    "update-deps": "npx npm-check-updates -u && npm install",
     "prepare": "husky"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.7",
-    "@cloudflare/workers-types": "^4.20250214.0",
+    "@biomejs/biome": "2.4.8",
+    "@cloudflare/workers-types": "^4.20260317.1",
     "@types/node": "^25.5.0",
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.1.0",
@@ -27,9 +28,9 @@
     "husky": "^9.1.7",
     "jsdom": "^29.0.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.7.0",
-    "vitest": "^4.0.18",
-    "wrangler": "^4.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.75.0",
     "ws": "^8.19.0"
   }
 }
