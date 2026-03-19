@@ -113,8 +113,8 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 | Directory | Files | LOC | Purpose |
 |-----------|-------|-----|---------|
-| `client/` (root) | 5 | ~1800 | Entry point (`main.ts`), raw input, audio, tutorial, DOM helpers |
-| `client/game/` | 20+ | ~3000 | Game logic: planning state, commands, phase transitions, transport |
+| `client/` (root) | 5 | ~1500 | Entry point (`main.ts` ~1023 LOC), raw input, audio, tutorial, DOM helpers |
+| `client/game/` | 28 | ~3800 | Game logic: planning, commands, phases, transport, presentation, connection, actions |
 | `client/renderer/` | 14 | ~3000 | Canvas rendering: camera, scene, entities, effects, overlays |
 | `client/ui/` | 8 | ~1500 | DOM overlays: menu, HUD, ship list, fleet shop, formatters |
 
@@ -301,8 +301,8 @@ RNG is now a required parameter at all engine entry points. No more `Math.random
 ### Priority 1: Reduce In-Place Mutation in the Engine (large scope, unlocks future features)
 Engine functions mutate `GameState` in place and return it. This works for current usage but prevents: safely diffing old vs new state, undo, replay, spectator mode, and speculative AI branching. The pragmatic path is clone-on-entry at engine entry points (or Immer), not a full rewrite to persistent data structures. See BACKLOG.md item 2k.
 
-### Priority 2: Decompose `main.ts` (~1400 LOC)
-`GameClient` owns rendering, input, UI, networking, game logic, audio, and tutorials — a classic "fat controller". A cleaner pattern: decompose into a thin dispatcher that delegates to focused handlers per phase. This doesn't affect correctness but improves readability and extensibility. See BACKLOG.md item 2j.
+### Done: Decomposed `main.ts` (1397 → 1023 LOC)
+Extracted 7 focused modules from `GameClient`: presentation orchestration (`presentation.ts`), S2C message dispatch (`message-handler.ts`), WebSocket lifecycle (`connection.ts`), turn timer (`timer.ts`), and phase-specific action handlers (`astrogation-actions.ts`, `combat-actions.ts`, `ordnance-actions.ts`), plus local game flow (`local-game-flow.ts`). `main.ts` is now a thin dispatcher that wires up inputs, routes commands, and delegates to these modules.
 
 ### Done: Map Singleton Removed
 The `getSolarSystemMap()` lazy singleton has been removed. All callers now use `buildSolarSystemMap()` directly or cache the map as an instance field (`GameDO.map`, `GameClient.map`). The map is consistently passed as a parameter to engine functions.

@@ -7,65 +7,73 @@ if ('serviceWorker' in navigator) {
 }
 
 import type { AIDifficulty } from '../shared/ai';
-import { CODE_LENGTH, SHIP_STATS, TURN_TIMEOUT_MS } from '../shared/constants';
+import { CODE_LENGTH, SHIP_STATS } from '../shared/constants';
 import { createGame, type MovementResult } from '../shared/engine/game-engine';
 import { hexKey, pixelToHex } from '../shared/hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../shared/map-data';
-import type { CombatResult, FleetPurchase, GameState, S2C, Ship, ShipMovement } from '../shared/types';
-import { clamp } from '../shared/util';
-import {
-  initAudio,
-  isMuted,
-  playCombat,
-  playConfirm,
-  playDefeat,
-  playExplosion,
-  playPhaseChange,
-  playSelect,
-  playThrust,
-  playVictory,
-  playWarning,
-  setMuted,
-} from './audio';
+import type { CombatResult, FleetPurchase, GameState, S2C } from '../shared/types';
+import { initAudio, isMuted, playPhaseChange, playSelect, playWarning, setMuted } from './audio';
 import { byId, hide, show } from './dom';
-import { type AIActionPlan, deriveAIActionPlan } from './game/ai-flow';
-import { deriveScenarioBriefingEntries } from './game/briefing';
-import { deriveBurnChangePlan } from './game/burn';
+import type { AIActionPlan } from './game/ai-flow';
 import {
-  buildCurrentAttack,
-  countRemainingCombatAttackers,
-  getAttackStrengthForSelection,
-  hasSplitFireOptions,
-} from './game/combat';
+  type AstrogationActionDeps,
+  clearSelectedBurn as clearBurn,
+  confirmOrders as confirmAstrogation,
+  setBurnDirection as setBurnDir,
+  undoSelectedShipBurn as undoBurn,
+} from './game/astrogation-actions';
+import { deriveScenarioBriefingEntries } from './game/briefing';
+import {
+  adjustCombatStrength as adjustStrength,
+  beginCombatPhase as beginCombat,
+  type CombatActionDeps,
+  clearCombatSelection as clearCombatSel,
+  fireAllAttacks as fireCombatAttacks,
+  queueAttack as queueCombatAttack,
+  resetCombatState as resetCombat,
+  resetCombatStrengthToMax as resetStrength,
+  sendSkipCombat,
+  startCombatTargetWatch as startCombatWatch,
+} from './game/combat-actions';
 import { type GameCommand, keyboardActionToCommand } from './game/commands';
-import { deriveGameOverPlan } from './game/endgame';
+import { type ConnectionManager, createConnectionManager } from './game/connection';
 import { resolveLocalFleetReady } from './game/fleet';
-import { buildAstrogationOrders, deriveHudViewModel } from './game/helpers';
+import { deriveHudViewModel } from './game/helpers';
 import { getTooltipShip } from './game/hover';
 import { type InputEvent, interpretInput } from './game/input-events';
 import { deriveKeyboardAction, type KeyboardAction } from './game/keyboard';
-import { deriveLandingLogEntries } from './game/landings';
+import type { LocalResolution } from './game/local';
 import {
-  type LocalResolution,
-  resolveAstrogationStep,
-  resolveBeginCombatStep,
-  resolveCombatStep,
-  resolveOrdnanceStep,
-  resolveSkipCombatStep,
-  resolveSkipOrdnanceStep,
-} from './game/local';
-import { deriveClientMessagePlan } from './game/messages';
+  isGameOver as checkGameOver,
+  localCheckGameEnd as checkLocalGameEnd,
+  handleLocalResolution as handleLocalRes,
+  type LocalGameFlowDeps,
+  playLocalMovementResult as playLocalMovement,
+  resolveAIPlan as resolveAI,
+  runAITurn as runAI,
+} from './game/local-game-flow';
+import { handleServerMessage, type MessageHandlerDeps } from './game/message-handler';
 import { getNearestEnemyPosition, getNextSelectedShip, getOwnFleetFocusPosition } from './game/navigation';
-import { deriveDisconnectHandling, deriveGameStartClientState, deriveReconnectAttemptPlan } from './game/network';
-import { resolveBaseEmplacementPlan, resolveOrdnanceLaunchPlan } from './game/ordnance';
+import { deriveGameStartClientState } from './game/network';
+import {
+  type OrdnanceActionDeps,
+  sendEmplaceBase as sendEmplace,
+  sendOrdnanceLaunch,
+  sendSkipOrdnance as skipOrdnance,
+} from './game/ordnance-actions';
 import { type ClientState, derivePhaseTransition } from './game/phase';
 import { deriveClientStateEntryPlan } from './game/phase-entry';
 import { createInitialPlanningState, type PlanningState } from './game/planning';
+import {
+  type PresentationDeps,
+  presentCombatResults as presentCombat,
+  presentMovementResult as presentMovement,
+  showGameOverOutcome as showGameOver,
+} from './game/presentation';
 import { deriveClientScreenPlan } from './game/screen';
 import {
   buildGameRoute,
   buildInviteLink,
-  buildWebSocketUrl,
   getStoredInviteToken,
   getStoredPlayerToken,
   loadTokenStore,
@@ -73,9 +81,9 @@ import {
   setStoredInviteToken,
   setStoredPlayerToken,
 } from './game/session';
-import { deriveTurnTimer } from './game/timer';
+import { createTurnTimerManager, type TurnTimerManager } from './game/timer';
 import { buildShipTooltipHtml } from './game/tooltip';
-import { createLocalTransport, createWebSocketTransport, type GameTransport } from './game/transport';
+import { createLocalTransport, type GameTransport } from './game/transport';
 import { InputHandler } from './input';
 import { HEX_SIZE, Renderer } from './renderer/renderer';
 import { Tutorial } from './tutorial';
@@ -113,7 +121,6 @@ class GameClient {
     reconnectAttempts: 0,
   };
 
-  private ws: WebSocket | null = null;
   private canvas: HTMLCanvasElement;
   renderer: Renderer;
   private input: InputHandler;
@@ -121,15 +128,97 @@ class GameClient {
   private tutorial: Tutorial;
   private readonly map = buildSolarSystemMap();
   private tooltipEl: HTMLElement;
+  private connection: ConnectionManager;
+  private turnTimer!: TurnTimerManager;
 
-  // Ping/latency tracking
-  private pingInterval: number | null = null;
-  private lastPingSent = 0;
+  // Presentation orchestration deps (lazy — renderer/ui available after constructor)
+  private _presentationDeps: PresentationDeps | null = null;
+  private get presentationDeps(): PresentationDeps {
+    if (!this._presentationDeps) {
+      this._presentationDeps = {
+        applyGameState: (state) => this.applyGameState(state),
+        setState: (newState) => this.setState(newState as ClientState),
+        resetCombatState: () => this.resetCombatState(),
+        getGameState: () => this.ctx.gameState,
+        getPlayerId: () => this.ctx.playerId,
+        renderer: this.renderer,
+        ui: this.ui,
+      };
+    }
+    return this._presentationDeps;
+  }
 
-  // Turn timer
-  private turnStartTime = 0;
-  private turnTimerInterval: number | null = null;
-  private timerWarningPlayed = false;
+  // Action deps (lazy — wired to live ctx)
+  private _astrogationDeps: AstrogationActionDeps | null = null;
+  private get astrogationDeps(): AstrogationActionDeps {
+    if (!this._astrogationDeps) {
+      this._astrogationDeps = {
+        getGameState: () => this.ctx.gameState,
+        getClientState: () => this.ctx.state,
+        getPlayerId: () => this.ctx.playerId,
+        getTransport: () => this.ctx.transport,
+        planningState: this.ctx.planningState,
+        updateHUD: () => this.updateHUD(),
+        showToast: (msg, type) => this.ui.showToast(msg, type),
+      };
+    }
+    return this._astrogationDeps;
+  }
+
+  private _combatDeps: CombatActionDeps | null = null;
+  private get combatDeps(): CombatActionDeps {
+    if (!this._combatDeps) {
+      this._combatDeps = {
+        getGameState: () => this.ctx.gameState,
+        getClientState: () => this.ctx.state,
+        getPlayerId: () => this.ctx.playerId,
+        getTransport: () => this.ctx.transport,
+        getMap: () => this.map,
+        planningState: this.ctx.planningState,
+        showToast: (msg, type) => this.ui.showToast(msg, type),
+        showAttackButton: (v) => this.ui.showAttackButton(v),
+        showFireButton: (v, c) => this.ui.showFireButton(v, c),
+      };
+    }
+    return this._combatDeps;
+  }
+
+  private _ordnanceDeps: OrdnanceActionDeps | null = null;
+  private get ordnanceDeps(): OrdnanceActionDeps {
+    if (!this._ordnanceDeps) {
+      this._ordnanceDeps = {
+        getGameState: () => this.ctx.gameState,
+        getClientState: () => this.ctx.state,
+        getTransport: () => this.ctx.transport,
+        planningState: this.ctx.planningState,
+        showToast: (msg, type) => this.ui.showToast(msg, type),
+        logText: (text) => this.ui.logText(text),
+      };
+    }
+    return this._ordnanceDeps;
+  }
+
+  // Local game flow deps (lazy — wired to live ctx)
+  private _localGameFlowDeps: LocalGameFlowDeps | null = null;
+  private get localGameFlowDeps(): LocalGameFlowDeps {
+    if (!this._localGameFlowDeps) {
+      this._localGameFlowDeps = {
+        getGameState: () => this.ctx.gameState,
+        getPlayerId: () => this.ctx.playerId,
+        getMap: () => this.map,
+        getAIDifficulty: () => this.ctx.aiDifficulty,
+        applyGameState: (state) => this.applyGameState(state),
+        presentMovementResult: (state, movements, ordnanceMovements, events, onComplete) =>
+          this.presentMovementResult(state, movements, ordnanceMovements, events, onComplete),
+        presentCombatResults: (prev, state, results, resetCombat) =>
+          this.presentCombatResults(prev, state, results, resetCombat),
+        showGameOverOutcome: (won, reason) => this.showGameOverOutcome(won, reason),
+        transitionToPhase: () => this.transitionToPhase(),
+        logText: (text) => this.ui.logText(text),
+      };
+    }
+    return this._localGameFlowDeps;
+  }
 
   constructor() {
     this.canvas = byId<HTMLCanvasElement>('gameCanvas');
@@ -138,6 +227,35 @@ class GameClient {
     this.ui = new UIManager();
     this.tutorial = new Tutorial();
     this.tooltipEl = byId('shipTooltip');
+
+    this.connection = createConnectionManager({
+      getGameCode: () => this.ctx.gameCode,
+      getGameState: () => this.ctx.gameState,
+      getClientState: () => this.ctx.state,
+      getStoredPlayerToken: (code) => this.getStoredPlayerToken(code),
+      getReconnectAttempts: () => this.ctx.reconnectAttempts,
+      setReconnectAttempts: (n) => {
+        this.ctx.reconnectAttempts = n;
+      },
+      setTransport: (t) => {
+        this.ctx.transport = t;
+      },
+      setLatencyMs: (ms) => {
+        this.ctx.latencyMs = ms;
+      },
+      setState: (s) => this.setState(s),
+      handleMessage: (msg) => this.handleMessage(msg),
+      showReconnecting: (attempt, max, onCancel) => this.ui.showReconnecting(attempt, max, onCancel),
+      hideReconnecting: () => this.ui.hideReconnecting(),
+      showToast: (msg, type) => this.ui.showToast(msg, type),
+    });
+
+    this.turnTimer = createTurnTimerManager({
+      setTurnTimer: (text, className) => this.ui.setTurnTimer(text, className),
+      clearTurnTimer: () => this.ui.clearTurnTimer(),
+      showToast: (msg, type) => this.ui.showToast(msg, type),
+      playWarning,
+    });
 
     this.renderer.setMap(this.map);
     this.input.setMap(this.map);
@@ -251,10 +369,10 @@ class GameClient {
       this.renderer.resetCamera();
     }
     if (entryPlan.stopTurnTimer) {
-      this.stopTurnTimer();
+      this.turnTimer.stop();
     }
     if (entryPlan.startTurnTimer) {
-      this.startTurnTimer();
+      this.turnTimer.start();
     }
     if (entryPlan.updateHUD) {
       this.updateHUD();
@@ -348,10 +466,6 @@ class GameClient {
     this.setState('connecting');
   }
 
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectTimer: number | null = null;
-
   private getTokenStore(): Record<string, { playerToken?: string; inviteToken?: string; ts: number }> {
     return loadTokenStore(localStorage);
   }
@@ -379,60 +493,11 @@ class GameClient {
   }
 
   private connect(code: string) {
-    this.ws = new WebSocket(buildWebSocketUrl(location, code, this.getStoredPlayerToken(code)));
-    this.ws.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
-    this.ws.onclose = () => this.handleDisconnect();
-    this.ws.onerror = () => {}; // onclose fires after onerror
-    this.ctx.transport = createWebSocketTransport((msg) => this.send(msg));
-    this.startPing();
-  }
-
-  private startPing() {
-    this.stopPing();
-    this.ctx.latencyMs = -1;
-    this.pingInterval = window.setInterval(() => {
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        this.lastPingSent = Date.now();
-        this.send({ type: 'ping', t: this.lastPingSent });
-      }
-    }, 5000);
-  }
-
-  private stopPing() {
-    if (this.pingInterval !== null) {
-      clearInterval(this.pingInterval);
-      this.pingInterval = null;
-    }
-    this.ctx.latencyMs = -1;
-  }
-
-  private attemptReconnect() {
-    const plan = deriveReconnectAttemptPlan(this.ctx.gameCode, this.ctx.reconnectAttempts, this.maxReconnectAttempts);
-    if (plan.giveUp) {
-      this.ui.hideReconnecting();
-      this.ui.showToast('Could not reconnect to game', 'error');
-      this.setState('menu');
-      return;
-    }
-    this.ctx.reconnectAttempts = plan.nextAttempt!;
-    this.ui.showReconnecting(this.ctx.reconnectAttempts, this.maxReconnectAttempts, () => {
-      // Cancel reconnection and return to menu
-      if (this.reconnectTimer !== null) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
-      }
-      this.ctx.reconnectAttempts = 0;
-      this.setState('menu');
-    });
-    this.reconnectTimer = window.setTimeout(() => {
-      this.connect(this.ctx.gameCode!);
-    }, plan.delayMs!);
+    this.connection.connect(code);
   }
 
   private send(msg: unknown) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(msg));
-    }
+    this.connection.send(msg);
   }
 
   private applyGameState(state: GameState) {
@@ -455,18 +520,7 @@ class GameClient {
     events: MovementResult['events'],
     onComplete: () => void,
   ) {
-    this.applyGameState(state);
-    this.setState('playing_movementAnim');
-    playThrust();
-    if (events.length > 0) {
-      this.renderer.showMovementEvents(events);
-      this.ui.logMovementEvents(events, state.ships);
-      if (events.some((event) => event.damageType === 'eliminated' || event.type === 'crash')) {
-        setTimeout(() => playExplosion(), 500);
-      }
-    }
-    this.logLandings(movements);
-    this.renderer.animateMovements(movements, ordnanceMovements, onComplete);
+    presentMovement(this.presentationDeps, state, movements, ordnanceMovements, events, onComplete);
   }
 
   private presentCombatResults(
@@ -475,163 +529,35 @@ class GameClient {
     results: CombatResult[],
     resetCombat = true,
   ) {
-    this.applyGameState(state);
-    this.renderer.showCombatResults(results, previousState);
-    this.ui.logCombatResults(results, state.ships);
-    for (const [i, result] of results.entries()) {
-      const target = result.targetType === 'ship' ? state.ships.find((s) => s.id === result.targetId) : null;
-      const targetName = target ? (SHIP_STATS[target.type]?.name ?? target.type) : 'nuke';
-      const outcome =
-        result.damageType === 'eliminated'
-          ? 'DESTROYED'
-          : result.damageType === 'disabled'
-            ? `Disabled ${result.disabledTurns}T`
-            : 'Miss';
-      const toastType =
-        result.damageType === 'eliminated' ? 'error' : result.damageType === 'disabled' ? 'info' : 'info';
-      setTimeout(() => this.ui.showToast(`${targetName}: ${outcome}`, toastType), i * 400);
-    }
-    if (resetCombat) {
-      this.resetCombatState();
-    }
-    playCombat();
-    if (results.some((result) => result.damageType === 'eliminated')) {
-      setTimeout(() => playExplosion(), 300);
-    }
+    presentCombat(this.presentationDeps, previousState, state, results, resetCombat);
   }
 
   private showGameOverOutcome(won: boolean, reason: string) {
-    this.setState('gameOver');
-    const plan = deriveGameOverPlan(this.ctx.gameState, this.ctx.playerId, won, reason);
-    this.ui.logText(plan.logText, plan.logClass);
-    const loserShips = this.ctx.gameState?.ships.filter((ship: Ship) => plan.loserShipIds.includes(ship.id)) ?? [];
-    if (loserShips.length === 0) {
-      this.ui.showGameOver(won, reason, plan.stats);
-      if (plan.resultSound === 'victory') {
-        playVictory();
-      } else {
-        playDefeat();
-      }
-      return;
-    }
-    playExplosion();
-    const animDuration = this.renderer.triggerGameOverExplosions(loserShips);
-    setTimeout(() => {
-      this.ui.showGameOver(won, reason, plan.stats);
-      if (plan.resultSound === 'victory') {
-        playVictory();
-      } else {
-        playDefeat();
-      }
-    }, animDuration);
+    showGameOver(this.presentationDeps, won, reason);
   }
 
   private handleMessage(msg: S2C) {
-    const plan = deriveClientMessagePlan(
-      this.ctx.state,
-      this.ctx.reconnectAttempts,
-      this.ctx.playerId,
-      Date.now(),
-      msg,
-    );
-    switch (plan.kind) {
-      case 'welcome': {
-        this.ctx.playerId = plan.playerId;
-        this.ctx.gameCode = plan.code;
-        this.storePlayerToken(plan.code, plan.playerToken);
-        if (plan.clearInviteLink) {
-          this.ctx.inviteLink = null;
-        }
-        if (plan.showReconnectToast) {
-          this.ui.hideReconnecting();
-          this.ui.showToast('Reconnected!', 'success');
-        }
-        this.ctx.reconnectAttempts = 0;
-        this.renderer.setPlayerId(plan.playerId);
-        this.ui.setPlayerId(plan.playerId);
-        if (plan.nextState) {
-          this.setState(plan.nextState);
-        }
-        break;
-      }
-
-      case 'matchFound':
-        playPhaseChange();
-        break;
-
-      case 'gameStart':
-        this.applyGameState(this.deserializeState(plan.state));
-        this.renderer.clearTrails();
-        this.ui.clearLog();
-        this.logScenarioBriefing();
-        this.setState(plan.nextState);
-        break;
-
-      case 'movementResult':
-        this.presentMovementResult(
-          this.deserializeState(plan.state),
-          plan.movements,
-          plan.ordnanceMovements,
-          plan.events,
-          () => {
-            this.onAnimationComplete();
-          },
-        );
-        break;
-
-      case 'combatResult': {
-        const previousState = this.ctx.gameState;
-        this.presentCombatResults(previousState!, this.deserializeState(plan.state), plan.results);
-        if (plan.shouldTransition) {
-          this.transitionToPhase();
-        }
-        break;
-      }
-
-      case 'stateUpdate':
-        this.applyGameState(this.deserializeState(plan.state));
-        if (plan.shouldTransition) {
-          this.transitionToPhase();
-        }
-        break;
-
-      case 'gameOver':
-        this.showGameOverOutcome(plan.won, plan.reason);
-        break;
-
-      case 'rematchPending':
-        this.ui.showRematchPending();
-        break;
-
-      case 'opponentDisconnected':
-        this.setState(plan.nextState);
-        this.ui.showGameOver(plan.won, plan.reason);
-        break;
-
-      case 'error':
-        console.error('Server error:', plan.message);
-        this.ui.showToast(plan.message, 'error');
-        break;
-
-      case 'pong':
-        if (plan.latencyMs !== null) {
-          this.ctx.latencyMs = plan.latencyMs;
-          this.ui.updateLatency(this.ctx.latencyMs);
-        }
-        break;
-    }
+    const deps: MessageHandlerDeps = {
+      ctx: this.ctx,
+      setState: (s) => this.setState(s),
+      applyGameState: (s) => this.applyGameState(s),
+      transitionToPhase: () => this.transitionToPhase(),
+      presentMovementResult: (state, movements, ordnanceMovements, events, onComplete) =>
+        this.presentMovementResult(state, movements, ordnanceMovements, events, onComplete),
+      presentCombatResults: (prev, state, results) => this.presentCombatResults(prev, state, results),
+      showGameOverOutcome: (won, reason) => this.showGameOverOutcome(won, reason),
+      storePlayerToken: (code, token) => this.storePlayerToken(code, token),
+      onAnimationComplete: () => this.onAnimationComplete(),
+      logScenarioBriefing: () => this.logScenarioBriefing(),
+      deserializeState: (raw) => this.deserializeState(raw),
+      renderer: this.renderer,
+      ui: this.ui,
+    };
+    handleServerMessage(deps, msg);
   }
 
   private handleDisconnect() {
-    this.stopPing();
-    const handling = deriveDisconnectHandling(this.ctx.state, this.ctx.gameCode, this.ctx.gameState);
-    if (handling.attemptReconnect) {
-      this.attemptReconnect();
-      return;
-    }
-    if (handling.nextState) {
-      this.setState(handling.nextState);
-    }
+    this.connection.handleDisconnect();
   }
 
   private handleKeyboardAction(action: KeyboardAction) {
@@ -703,13 +629,13 @@ class GameClient {
   private dispatch(cmd: GameCommand) {
     switch (cmd.type) {
       case 'confirmOrders':
-        this.confirmOrders();
+        confirmAstrogation(this.astrogationDeps);
         return;
       case 'undoBurn':
-        this.undoSelectedShipBurn();
+        undoBurn(this.astrogationDeps);
         return;
       case 'setBurnDirection':
-        this.setBurnDirection(cmd.direction, cmd.shipId);
+        setBurnDir(this.astrogationDeps, cmd.direction, cmd.shipId);
         return;
       case 'setOverloadDirection':
         this.ctx.planningState.overloads.set(cmd.shipId, cmd.direction);
@@ -721,22 +647,22 @@ class GameClient {
         this.updateHUD();
         return;
       case 'clearSelectedBurn':
-        this.clearSelectedBurn();
+        clearBurn(this.astrogationDeps);
         return;
       case 'queueAttack':
-        this.queueAttack();
+        queueCombatAttack(this.combatDeps);
         return;
       case 'fireAllAttacks':
-        this.fireAllAttacks();
+        fireCombatAttacks(this.combatDeps);
         return;
       case 'skipCombat':
-        this.sendSkipCombat();
+        sendSkipCombat(this.combatDeps);
         return;
       case 'adjustCombatStrength':
-        this.adjustCombatStrength(cmd.delta);
+        adjustStrength(this.combatDeps, cmd.delta);
         return;
       case 'resetCombatStrength':
-        this.resetCombatStrengthToMax();
+        resetStrength(this.combatDeps);
         return;
       case 'setCombatPlan':
         Object.assign(this.ctx.planningState, cmd.plan);
@@ -744,7 +670,7 @@ class GameClient {
         this.updateHUD();
         return;
       case 'clearCombatSelection':
-        this.clearCombatSelection();
+        clearCombatSel(this.combatDeps);
         this.ui.showAttackButton(false);
         return;
       case 'undoQueuedAttack': {
@@ -755,13 +681,13 @@ class GameClient {
         return;
       }
       case 'launchOrdnance':
-        this.sendOrdnanceLaunch(cmd.ordType);
+        sendOrdnanceLaunch(this.ordnanceDeps, cmd.ordType);
         return;
       case 'emplaceBase':
-        this.sendEmplaceBase();
+        sendEmplace(this.ordnanceDeps);
         return;
       case 'skipOrdnance':
-        this.sendSkipOrdnance();
+        skipOrdnance(this.ordnanceDeps);
         return;
       case 'fleetReady':
         this.sendFleetReady(cmd.purchases);
@@ -834,25 +760,6 @@ class GameClient {
 
   // --- Game actions ---
 
-  private undoSelectedShipBurn() {
-    if (!this.ctx.gameState || this.ctx.state !== 'playing_astrogation') return;
-    const shipId = this.ctx.planningState.selectedShipId;
-    if (shipId) {
-      this.ctx.planningState.burns.delete(shipId);
-      this.ctx.planningState.overloads.delete(shipId);
-      this.ctx.planningState.weakGravityChoices.delete(shipId);
-    }
-    this.updateHUD();
-  }
-
-  private confirmOrders() {
-    if (!this.ctx.gameState || this.ctx.state !== 'playing_astrogation' || !this.ctx.transport) return;
-    const orders = buildAstrogationOrders(this.ctx.gameState, this.ctx.playerId, this.ctx.planningState);
-
-    playConfirm();
-    this.ctx.transport.submitAstrogation(orders);
-  }
-
   private onAnimationComplete() {
     if (!this.ctx.gameState) return;
     this.transitionToPhase();
@@ -874,7 +781,7 @@ class GameClient {
       this.ui.logTurn(transition.turnLogNumber, transition.turnLogPlayerLabel);
     }
     if (transition.beginCombatPhase) {
-      this.beginCombatPhase();
+      beginCombat(this.combatDeps);
       return;
     }
     if (!transition.nextState) {
@@ -890,133 +797,15 @@ class GameClient {
     }
   }
 
-  private queueAttack() {
-    if (!this.ctx.gameState || this.ctx.state !== 'playing_combat') return;
-    const attack = buildCurrentAttack(this.ctx.gameState, this.ctx.playerId, this.ctx.planningState, this.map);
-    if (!attack) {
-      this.ui.showToast('Select an enemy ship or nuke to target', 'info');
-      return;
-    }
-
-    this.ctx.planningState.queuedAttacks.push(attack);
-    this.clearCombatSelection();
-    this.ui.showAttackButton(false);
-
-    const remainingAttackers = countRemainingCombatAttackers(
-      this.ctx.gameState,
-      this.ctx.playerId,
-      this.ctx.planningState.queuedAttacks,
-    );
-    if (
-      remainingAttackers === 0 &&
-      !hasSplitFireOptions(this.ctx.gameState, this.ctx.playerId, this.ctx.planningState.queuedAttacks)
-    ) {
-      // No more attackers available — auto-fire
-      this.fireAllAttacks();
-    } else {
-      const count = this.ctx.planningState.queuedAttacks.length;
-      this.ui.showToast(`Attack queued (${count}). Select next target or press Enter to fire.`, 'info');
-      this.ui.showFireButton(true, count);
-    }
+  private resetCombatState() {
+    resetCombat(this.combatDeps);
   }
 
-  private fireAllAttacks() {
-    if (!this.ctx.transport) return;
-    const attacks = [...this.ctx.planningState.queuedAttacks];
-    if (attacks.length === 0) {
-      this.sendSkipCombat();
-      return;
-    }
-    this.ctx.planningState.queuedAttacks = [];
-    this.ui.showFireButton(false, 0);
-    this.ctx.transport.submitCombat(attacks);
-  }
-
-  private beginCombatPhase() {
-    if (!this.ctx.gameState || this.ctx.gameState.phase !== 'combat' || !this.ctx.transport) return;
-    this.ctx.transport.beginCombat();
-  }
-
-  private combatWatchInterval: number | null = null;
+  private stopCombatWatch: (() => void) | null = null;
 
   private startCombatTargetWatch() {
-    if (this.combatWatchInterval) clearInterval(this.combatWatchInterval);
-    this.combatWatchInterval = window.setInterval(() => {
-      if (this.ctx.state !== 'playing_combat') {
-        if (this.combatWatchInterval) clearInterval(this.combatWatchInterval);
-        this.combatWatchInterval = null;
-        return;
-      }
-      const hasTarget = this.ctx.planningState.combatTargetId !== null;
-      this.ui.showAttackButton(hasTarget);
-    }, 100);
-  }
-
-  private clearCombatSelection() {
-    this.ctx.planningState.combatTargetId = null;
-    this.ctx.planningState.combatTargetType = null;
-    this.ctx.planningState.combatAttackerIds = [];
-    this.ctx.planningState.combatAttackStrength = null;
-  }
-
-  private resetCombatState() {
-    this.clearCombatSelection();
-    this.ctx.planningState.queuedAttacks = [];
-    this.ui.showFireButton(false, 0);
-  }
-
-  private adjustCombatStrength(delta: number) {
-    if (!this.ctx.gameState || this.ctx.state !== 'playing_combat') return;
-    if (this.ctx.planningState.combatTargetType !== 'ship') return;
-    const maxStrength = getAttackStrengthForSelection(this.ctx.gameState, this.ctx.planningState.combatAttackerIds);
-    if (maxStrength <= 0) return;
-
-    const current = this.ctx.planningState.combatAttackStrength ?? maxStrength;
-    this.ctx.planningState.combatAttackStrength = clamp(current + delta, 1, maxStrength);
-  }
-
-  private resetCombatStrengthToMax() {
-    if (!this.ctx.gameState || this.ctx.state !== 'playing_combat') return;
-    if (this.ctx.planningState.combatTargetType !== 'ship') return;
-    const maxStrength = getAttackStrengthForSelection(this.ctx.gameState, this.ctx.planningState.combatAttackerIds);
-    if (maxStrength > 0) {
-      this.ctx.planningState.combatAttackStrength = maxStrength;
-    }
-  }
-
-  private sendOrdnanceLaunch(ordType: 'mine' | 'torpedo' | 'nuke') {
-    if (!this.ctx.gameState || this.ctx.state !== 'playing_ordnance' || !this.ctx.transport) return;
-    const plan = resolveOrdnanceLaunchPlan(this.ctx.gameState, this.ctx.planningState, ordType);
-    if (!plan.ok) {
-      if (plan.message) {
-        this.ui.showToast(plan.message, plan.level!);
-      }
-      return;
-    }
-    this.ui.logText(`${plan.shipName} launched ${ordType}`);
-    this.ctx.transport.submitOrdnance([plan.launch!]);
-  }
-
-  private sendEmplaceBase() {
-    if (!this.ctx.gameState || this.ctx.state !== 'playing_ordnance' || !this.ctx.transport) return;
-    const plan = resolveBaseEmplacementPlan(this.ctx.gameState, this.ctx.planningState.selectedShipId!);
-    if (!plan.ok) {
-      if (plan.message) {
-        this.ui.showToast(plan.message, plan.level!);
-      }
-      return;
-    }
-    this.ctx.transport.submitEmplacement(plan.emplacements!);
-  }
-
-  private sendSkipOrdnance() {
-    if (!this.ctx.gameState || this.ctx.state !== 'playing_ordnance' || !this.ctx.transport) return;
-    this.ctx.transport.skipOrdnance();
-  }
-
-  private sendSkipCombat() {
-    if (!this.ctx.gameState || this.ctx.state !== 'playing_combat' || !this.ctx.transport) return;
-    this.ctx.transport.skipCombat();
+    this.stopCombatWatch?.();
+    this.stopCombatWatch = startCombatWatch(this.combatDeps);
   }
 
   private sendFleetReady(purchases: FleetPurchase[]) {
@@ -1032,10 +821,9 @@ class GameClient {
   }
 
   private exitToMenu() {
-    this.stopPing();
-    this.stopTurnTimer();
-    this.ws?.close();
-    this.ws = null;
+    this.connection.stopPing();
+    this.turnTimer.stop();
+    this.connection.close();
     this.ctx.gameState = null;
     this.ctx.isLocalGame = false;
     this.ctx.transport = null;
@@ -1044,35 +832,11 @@ class GameClient {
   }
 
   private playLocalMovementResult(result: MovementResult, onComplete: () => void) {
-    this.presentMovementResult(result.state, result.movements, result.ordnanceMovements, result.events, onComplete);
+    playLocalMovement(this.localGameFlowDeps, result, onComplete);
   }
 
   private handleLocalResolution(resolution: LocalResolution, onContinue: () => void, errorPrefix: string) {
-    if (resolution.kind === 'error') {
-      console.error(errorPrefix, resolution.error);
-      return;
-    }
-
-    if (resolution.kind === 'movement') {
-      this.playLocalMovementResult(resolution.result, () => {
-        this.localCheckGameEnd();
-        if (this.ctx.gameState?.phase !== 'gameOver') {
-          onContinue();
-        }
-      });
-      return;
-    }
-
-    if (resolution.kind === 'combat') {
-      this.presentCombatResults(resolution.previousState, resolution.state, resolution.results, resolution.resetCombat);
-    } else {
-      this.applyGameState(resolution.state);
-    }
-
-    this.localCheckGameEnd();
-    if (this.ctx.gameState?.phase !== 'gameOver') {
-      onContinue();
-    }
+    handleLocalRes(this.localGameFlowDeps, resolution, onContinue, errorPrefix);
   }
 
   // --- Local game (single player) ---
@@ -1122,78 +886,19 @@ class GameClient {
   }
 
   private localCheckGameEnd() {
-    if (!this.ctx.gameState || this.ctx.gameState.phase !== 'gameOver') return;
-    this.showGameOverOutcome(this.ctx.gameState.winner === this.ctx.playerId, this.ctx.gameState.winReason ?? '');
+    checkLocalGameEnd(this.localGameFlowDeps);
   }
 
   private isGameOver(): boolean {
-    return !this.ctx.gameState || this.ctx.gameState.phase === 'gameOver';
+    return checkGameOver(this.localGameFlowDeps);
   }
 
   private runAITurn = async () => {
-    await new Promise((r) => setTimeout(r, 500));
-
-    while (!this.isGameOver()) {
-      const plan = deriveAIActionPlan(this.ctx.gameState!, this.ctx.playerId, this.map, this.ctx.aiDifficulty);
-
-      if (plan.kind === 'none') {
-        // AI is done — if it's now the human player's turn, transition the UI
-        this.transitionToPhase();
-        return;
-      }
-
-      if (plan.kind === 'transition') {
-        this.localCheckGameEnd();
-        if (!this.isGameOver()) {
-          this.transitionToPhase();
-        }
-        return;
-      }
-
-      if (plan.kind === 'ordnance') {
-        for (const entry of plan.logEntries) {
-          this.ui.logText(entry);
-        }
-      }
-
-      const resolution = this.resolveAIPlan(plan);
-      const isCombatEnd = plan.kind === 'combat';
-
-      await new Promise<void>((resolve) => {
-        this.handleLocalResolution(
-          resolution,
-          () => {
-            if (isCombatEnd) {
-              this.transitionToPhase();
-            }
-            resolve();
-          },
-          plan.errorPrefix,
-        );
-      });
-
-      if (this.isGameOver()) return;
-      if (isCombatEnd) return; // transitionToPhase may schedule another runAITurn
-    }
+    await runAI(this.localGameFlowDeps);
   };
 
   private resolveAIPlan(plan: AIActionPlan): LocalResolution {
-    switch (plan.kind) {
-      case 'astrogation':
-        return resolveAstrogationStep(this.ctx.gameState!, plan.aiPlayer, plan.orders, this.map);
-      case 'ordnance':
-        return plan.skip
-          ? resolveSkipOrdnanceStep(this.ctx.gameState!, plan.aiPlayer, this.map)
-          : resolveOrdnanceStep(this.ctx.gameState!, plan.aiPlayer, plan.launches, this.map);
-      case 'beginCombat':
-        return resolveBeginCombatStep(this.ctx.gameState!, plan.aiPlayer, this.map);
-      case 'combat':
-        return plan.skip
-          ? resolveSkipCombatStep(this.ctx.gameState!, plan.aiPlayer, this.map)
-          : resolveCombatStep(this.ctx.gameState!, plan.aiPlayer, plan.attacks, this.map, false);
-      default:
-        return { kind: 'error', error: `Unexpected AI plan kind` };
-    }
+    return resolveAI(this.localGameFlowDeps, plan);
   }
 
   private cycleShip(direction: number) {
@@ -1235,50 +940,6 @@ class GameClient {
     );
     if (!position) return;
     this.renderer.centerOnHex(position);
-  }
-
-  // --- Burn shortcuts ---
-
-  private setBurnDirection(dir: number | null, shipId?: string) {
-    if (this.ctx.state !== 'playing_astrogation') return;
-    const targetId = shipId ?? this.ctx.planningState.selectedShipId;
-    if (!targetId) return;
-
-    if (dir === null) {
-      this.ctx.planningState.burns.delete(targetId);
-      this.ctx.planningState.overloads.delete(targetId);
-      this.ctx.planningState.weakGravityChoices.delete(targetId);
-      this.updateHUD();
-      return;
-    }
-
-    const currentBurn = this.ctx.planningState.burns.get(targetId) ?? null;
-    const plan = deriveBurnChangePlan(this.ctx.gameState, targetId, dir, currentBurn);
-
-    if (plan.kind === 'error') {
-      this.ui.showToast(plan.message, plan.level!);
-      return;
-    }
-    if (plan.kind === 'noop') {
-      return;
-    }
-
-    this.ctx.planningState.burns.set(plan.shipId, plan.nextBurn);
-    if (plan.clearOverload) {
-      this.ctx.planningState.overloads.delete(plan.shipId);
-    }
-    playSelect();
-    this.updateHUD();
-  }
-
-  private clearSelectedBurn() {
-    if (!this.ctx.gameState || this.ctx.state !== 'playing_astrogation') return;
-    const shipId = this.ctx.planningState.selectedShipId;
-    if (!shipId) return;
-    this.ctx.planningState.burns.delete(shipId);
-    this.ctx.planningState.overloads.delete(shipId);
-    this.ctx.planningState.weakGravityChoices.delete(shipId);
-    this.updateHUD();
   }
 
   // --- Helpers ---
@@ -1331,42 +992,6 @@ class GameClient {
 
   private updateSoundButton() {
     this.ui.updateSoundButton(isMuted());
-  }
-
-  private startTurnTimer() {
-    this.stopTurnTimer();
-    this.turnStartTime = Date.now();
-    this.timerWarningPlayed = false;
-    this.turnTimerInterval = window.setInterval(() => {
-      const elapsed = Math.floor((Date.now() - this.turnStartTime) / 1000);
-      const timer = deriveTurnTimer(elapsed, Math.floor(TURN_TIMEOUT_MS / 1000));
-      this.ui.setTurnTimer(timer.text, timer.className);
-      // Warning at 30s remaining
-      if (timer.shouldWarn && !this.timerWarningPlayed) {
-        this.timerWarningPlayed = true;
-        playWarning();
-        this.ui.showToast('30 seconds remaining!', 'error');
-      }
-    }, 1000);
-  }
-
-  private stopTurnTimer() {
-    if (this.turnTimerInterval !== null) {
-      clearInterval(this.turnTimerInterval);
-      this.turnTimerInterval = null;
-    }
-    this.ui.clearTurnTimer();
-  }
-
-  private logLandings(movements: ShipMovement[]) {
-    if (!this.ctx.gameState) return;
-    for (const entry of deriveLandingLogEntries(this.ctx.gameState, movements)) {
-      this.ui.logLanding(entry.shipName, entry.bodyName);
-      this.renderer.showLandingEffect(entry.destination);
-      if (entry.resupplyText) {
-        this.ui.logText(entry.resupplyText);
-      }
-    }
   }
 
   private updateTooltip(screenX: number, screenY: number) {
