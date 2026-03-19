@@ -79,14 +79,11 @@ This works correctly because:
 
 #### RNG Injection
 
-Randomness is partially injectable. Most combat and ordnance functions accept an optional `rng?` parameter, falling back to `Math.random` when omitted:
+All engine entry points (`processAstrogation`, `processCombat`, `skipCombat`, `beginCombatPhase`, `processOrdnance`, `skipOrdnance`) require a mandatory `rng: () => number` parameter. Internal functions (`rollD6`, `resolveCombat`, `resolveBaseDefense`, `shuffle`, `randomChoice`, `checkRamming`, `moveOrdnance`, `resolvePendingAsteroidHazards`) also require `rng`. There are no `Math.random` fallbacks in the turn-resolution path.
 
-- `combat.ts`: `rollD6(rng?)` falls back to `Math.random`
-- `util.ts`: `randomChoice(..., rng = Math.random)`
-- `createGame()` uses `randomChoice` for hidden-role assignment without exposing RNG at the API boundary
-- `simulate-ai.ts` uses `Math.random` directly
+`createGame` and AI functions (`aiAstrogation`, `aiOrdnance`) accept optional `rng` with `Math.random` default, since they are setup/heuristic functions rather than turn-resolution functions.
 
-This means game execution is **not fully deterministic** — the same inputs can produce different outputs depending on which code paths use the fallback. Making `rng` a required parameter at all engine entry points would enable reproducible replays, deterministic debugging, and AI comparison testing. See BACKLOG.md item 2m.
+All server and client callers pass `Math.random` at the API boundary. Tests can pass deterministic RNGs for reproducible results. This enables reproducible replays, deterministic debugging, and AI comparison testing.
 
 ### B. The Server (`server/`)
 The backend leverages Cloudflare's edge network.
@@ -295,13 +292,13 @@ A game implementation would provide:
 
 These are architectural improvements that would benefit Delta-V directly, independent of any extraction effort. Ordered by impact and effort.
 
-### Priority 1: Make RNG Fully Injectable (small scope, high value)
-Remove all `rng?` optional parameters and make RNG required at every engine entry point. This is a bounded change (update function signatures and callers) that immediately enables reproducible replays and deterministic debugging. See BACKLOG.md item 2m.
+### Done: RNG Fully Injectable
+RNG is now a required parameter at all engine entry points. No more `Math.random` fallbacks in the rules layer. Callers pass `Math.random` at the boundary; tests can pass deterministic RNGs. `createGame` and AI functions accept optional `rng` with `Math.random` default since they are setup/heuristic functions rather than turn-resolution functions.
 
-### Priority 2: Investigate `local.ts` State Aliasing (bug risk)
-`client/game/local.ts` aliases `GameState` before calling engine functions, then uses both the "previous" and "current" state for animation. Because the engine mutates in place, the alias may point to already-mutated data. This should be investigated for correctness and fixed with explicit cloning if needed. See BACKLOG.md item 2n.
+### Done: `local.ts` State Aliasing Fixed
+`client/game/local.ts` now uses `structuredClone(state)` to capture `previousState` before engine calls. This makes the before/after semantics honest and safe for animation diffing, even though the engine mutates in place.
 
-### Priority 3: Reduce In-Place Mutation in the Engine (large scope, unlocks future features)
+### Priority 1: Reduce In-Place Mutation in the Engine (large scope, unlocks future features)
 Engine functions mutate `GameState` in place and return it. This works for current usage but prevents: safely diffing old vs new state, undo, replay, spectator mode, and speculative AI branching. The pragmatic path is clone-on-entry at engine entry points (or Immer), not a full rewrite to persistent data structures. See BACKLOG.md item 2k.
 
 ### Priority 4: Decompose `main.ts` (~1400 LOC)

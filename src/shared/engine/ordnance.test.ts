@@ -268,7 +268,7 @@ describe('resolvePendingAsteroidHazards', () => {
       pendingAsteroidHazards: [{ shipId: ship.id, hex: { q: 1, r: 0 } }],
     });
 
-    const results = resolvePendingAsteroidHazards(state, 0);
+    const results = resolvePendingAsteroidHazards(state, 0, Math.random);
     expect(results).toHaveLength(0);
     expect(state.pendingAsteroidHazards).toHaveLength(1);
   });
@@ -280,7 +280,7 @@ describe('resolvePendingAsteroidHazards', () => {
       pendingAsteroidHazards: [{ shipId: ship.id, hex: { q: 1, r: 0 } }],
     });
 
-    const results = resolvePendingAsteroidHazards(state, 0);
+    const results = resolvePendingAsteroidHazards(state, 0, Math.random);
     expect(results).toHaveLength(0);
     expect(state.pendingAsteroidHazards).toHaveLength(0);
   });

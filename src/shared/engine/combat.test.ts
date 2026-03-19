@@ -73,13 +73,13 @@ function makeCombatState(overrides: Partial<GameState> = {}): GameState {
 describe('beginCombatPhase', () => {
   it('rejects when not in combat phase', () => {
     const state = makeCombatState({ phase: 'astrogation' });
-    const result = beginCombatPhase(state, 0);
+    const result = beginCombatPhase(state, 0, openMap, Math.random);
     expect('error' in result && result.error).toContain('Not in combat phase');
   });
 
   it('rejects when not active player', () => {
     const state = makeCombatState({ activePlayer: 1 });
-    const result = beginCombatPhase(state, 0);
+    const result = beginCombatPhase(state, 0, openMap, Math.random);
     expect('error' in result && result.error).toContain('Not your turn');
   });
 
@@ -88,7 +88,7 @@ describe('beginCombatPhase', () => {
     // Manually set winner to simulate post-hazard win
     state.winner = 0;
     state.winReason = 'All enemy ships destroyed';
-    const result = beginCombatPhase(state, 0);
+    const result = beginCombatPhase(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
     expect('state' in result).toBe(true);
   });
@@ -97,7 +97,7 @@ describe('beginCombatPhase', () => {
     // Attacker disabled → no manual combat targets → advances
     const state = makeCombatState();
     state.ships[0].damage.disabledTurns = 3;
-    const result = beginCombatPhase(state, 0, openMap);
+    const result = beginCombatPhase(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
     expect('state' in result).toBe(true);
     if ('state' in result) {
@@ -107,7 +107,7 @@ describe('beginCombatPhase', () => {
 
   it('stays in combat when there are targets', () => {
     const state = makeCombatState();
-    const result = beginCombatPhase(state, 0, openMap);
+    const result = beginCombatPhase(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
     if ('state' in result) {
       expect(result.state.phase).toBe('combat');
@@ -118,44 +118,44 @@ describe('beginCombatPhase', () => {
 describe('processCombat', () => {
   it('rejects when not in combat phase', () => {
     const state = makeCombatState({ phase: 'astrogation' });
-    const result = processCombat(state, 0, []);
+    const result = processCombat(state, 0, [], openMap, Math.random);
     expect('error' in result && result.error).toContain('Not in combat phase');
   });
 
   it('rejects when not active player', () => {
     const state = makeCombatState({ activePlayer: 1 });
-    const result = processCombat(state, 0, []);
+    const result = processCombat(state, 0, [], openMap, Math.random);
     expect('error' in result && result.error).toContain('Not your turn');
   });
 
   it('rejects attacks when combatDisabled', () => {
     const state = makeCombatState({ scenarioRules: { combatDisabled: true } });
-    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0' }]);
+    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0' }], openMap, Math.random);
     expect('error' in result && result.error).toContain('not allowed');
   });
 
   it('rejects duplicate attacker ids within same attack', () => {
     const state = makeCombatState();
-    const result = processCombat(state, 0, [{ attackerIds: ['a0', 'a0'], targetId: 'e0' }], openMap);
+    const result = processCombat(state, 0, [{ attackerIds: ['a0', 'a0'], targetId: 'e0' }], openMap, Math.random);
     expect('error' in result && result.error).toContain('at most once');
   });
 
   it('rejects invalid attacker (wrong owner)', () => {
     const state = makeCombatState();
-    const result = processCombat(state, 0, [{ attackerIds: ['e0'], targetId: 'a0' }], openMap);
+    const result = processCombat(state, 0, [{ attackerIds: ['e0'], targetId: 'a0' }], openMap, Math.random);
     expect('error' in result && result.error).toContain('Invalid attacker');
   });
 
   it('rejects empty attackers', () => {
     const state = makeCombatState();
-    const result = processCombat(state, 0, [{ attackerIds: [], targetId: 'e0' }], openMap);
+    const result = processCombat(state, 0, [{ attackerIds: [], targetId: 'e0' }], openMap, Math.random);
     expect('error' in result && result.error).toContain('Invalid attacker');
   });
 
   it('rejects attacking landed ship', () => {
     const state = makeCombatState();
     state.ships[1].landed = true;
-    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0' }], openMap);
+    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0' }], openMap, Math.random);
     expect('error' in result && result.error).toContain('Invalid combat target');
   });
 
@@ -174,13 +174,20 @@ describe('processCombat', () => {
         { attackerIds: ['a0'], targetId: 'e1', attackStrength: 2 },
       ],
       openMap,
+      Math.random,
     );
     expect('error' in result && result.error).toContain('same hex');
   });
 
   it('rejects invalid declared attack strength', () => {
     const state = makeCombatState();
-    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0', attackStrength: 99 }], openMap);
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: ['a0'], targetId: 'e0', attackStrength: 99 }],
+      openMap,
+      Math.random,
+    );
     expect('error' in result && result.error).toContain('Invalid declared attack strength');
   });
 
@@ -236,6 +243,7 @@ describe('processCombat', () => {
       0,
       [{ attackerIds: ['a0'], targetId: 'ord0', targetType: 'ordnance' }],
       openMap,
+      Math.random,
     );
     expect('error' in result && result.error).toContain('Invalid combat target');
   });
@@ -248,6 +256,7 @@ describe('processCombat', () => {
       0,
       [{ attackerIds: ['a0'], targetId: 'ord0', targetType: 'ordnance', attackStrength: 2 }],
       openMap,
+      Math.random,
     );
     expect('error' in result && result.error).toContain('Reduced-strength attacks are only supported against ships');
   });
@@ -260,6 +269,7 @@ describe('processCombat', () => {
       0,
       [{ attackerIds: ['a0'], targetId: 'ord0', targetType: 'ordnance' }],
       openMap,
+      Math.random,
     );
     expect('error' in result && result.error).toContain('Invalid combat target');
   });
@@ -272,6 +282,7 @@ describe('processCombat', () => {
       0,
       [{ attackerIds: ['a0'], targetId: 'ord0', targetType: 'ordnance' }],
       openMap,
+      Math.random,
     );
     expect('error' in result && result.error).toContain('Invalid combat target');
   });
@@ -319,7 +330,7 @@ describe('processCombat', () => {
     const state = makeCombatState();
     // All enemies destroyed → winner check will find a winner
     state.ships[1].destroyed = true;
-    const result = processCombat(state, 0, [], openMap);
+    const result = processCombat(state, 0, [], openMap, Math.random);
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
       expect(result.state.winner).not.toBeNull();
@@ -330,20 +341,20 @@ describe('processCombat', () => {
 describe('skipCombat', () => {
   it('rejects when not in combat phase', () => {
     const state = makeCombatState({ phase: 'astrogation' });
-    const result = skipCombat(state, 0);
+    const result = skipCombat(state, 0, openMap, Math.random);
     expect('error' in result && result.error).toContain('Not in combat phase');
   });
 
   it('rejects when not active player', () => {
     const state = makeCombatState({ activePlayer: 1 });
-    const result = skipCombat(state, 0);
+    const result = skipCombat(state, 0, openMap, Math.random);
     expect('error' in result && result.error).toContain('Not your turn');
   });
 
   it('advances turn when no base defense', () => {
     const state = makeCombatState();
     state.ships[1].position = { q: 100, r: 100 };
-    const result = skipCombat(state, 0, openMap);
+    const result = skipCombat(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
     if ('state' in result) {
       expect(result.state.activePlayer).toBe(1);
@@ -353,7 +364,7 @@ describe('skipCombat', () => {
   it('returns results when winner found during hazards', () => {
     const state = makeCombatState();
     state.ships[1].destroyed = true;
-    const result = skipCombat(state, 0, openMap);
+    const result = skipCombat(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
     if ('state' in result) {
       expect(result.state.winner).not.toBeNull();
@@ -491,6 +502,7 @@ describe('processCombat — additional edge cases', () => {
       0,
       [{ attackerIds: ['a0'], targetId: 'nuke0', targetType: 'ordnance' }],
       bodyMap,
+      Math.random,
     );
     expect('error' in result && result.error).toContain('line of sight');
   });
@@ -506,7 +518,7 @@ describe('processCombat — additional edge cases', () => {
       makeShip({ id: 'a0', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
       makeShip({ id: 'e0', owner: 1, position: { q: 2, r: 0 }, lastMovementPath: [{ q: 2, r: 0 }] }),
     ];
-    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0' }], bodyMap);
+    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0' }], bodyMap, Math.random);
     expect('error' in result && result.error).toContain('line of sight');
   });
 
@@ -541,7 +553,7 @@ describe('shouldRemainInCombatPhase edge cases', () => {
   it('without map falls back to hasAnyEnemyShips check', () => {
     const state = makeCombatState();
     // No map → uses hasAnyEnemyShips
-    const result = beginCombatPhase(state, 0);
+    const result = beginCombatPhase(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
     if ('state' in result) {
       // Enemy exists → stays in combat
@@ -552,7 +564,7 @@ describe('shouldRemainInCombatPhase edge cases', () => {
   it('without map advances turn when no enemies', () => {
     const state = makeCombatState();
     state.ships[1].destroyed = true;
-    const result = beginCombatPhase(state, 0);
+    const result = beginCombatPhase(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
     if ('state' in result) {
       // No map → no checkGameEnd → winner stays null, but turn advances past combat

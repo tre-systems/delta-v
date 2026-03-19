@@ -28,17 +28,11 @@ This works because the server holds a single reference, but prevents: state diff
 ### 2l. Eliminate map singleton *(improvement opportunity)*
 `getSolarSystemMap()` returns a lazy-cached global. The map is already passed as a parameter to most engine functions — remove the singleton escape hatch entirely.
 
-### 2m. Make RNG fully injectable *(high priority — enables deterministic replays)*
-Randomness is only partially injectable. Most functions accept `rng?` but fall back to `Math.random`:
-- `combat.ts`: `rollD6(rng?)` falls back to `Math.random`
-- `util.ts`: `randomChoice(..., rng = Math.random)`
-- `createGame()` uses `randomChoice` for hidden-role assignment without exposing RNG at the API boundary
-- `simulate-ai.ts` uses `Math.random` directly
+### ~~2m. Make RNG fully injectable~~ *(done)*
+RNG is now a required parameter at all engine entry points (`processAstrogation`, `processCombat`, `skipCombat`, `beginCombatPhase`, `processOrdnance`, `skipOrdnance`). Internal functions (`rollD6`, `resolveCombat`, `resolveBaseDefense`, `shuffle`, `randomChoice`, `checkRamming`, `moveOrdnance`, `resolvePendingAsteroidHazards`) also require `rng`. `createGame` accepts optional `rng` with `Math.random` default. AI functions (`aiAstrogation`, `aiOrdnance`) accept optional `rng` with `Math.random` default. All callers (game-do.ts, local.ts, turns.ts) pass `Math.random` at the boundary.
 
-Make `rng` a required parameter at all engine entry points. This is a bounded change (update signatures and callers) that enables reproducible replays, deterministic debugging, and AI comparison testing.
-
-### 2n. Fix `local.ts` state aliasing *(potential bug)*
-In `client/game/local.ts`, some local resolution paths alias state before calling the engine (`const previousState = state`), then use both the "previous" and "current" state for animation diffing. Because the engine mutates in place, `previousState` may point to already-mutated data, making before/after animation logic subtly wrong. Investigate and fix with explicit cloning if needed.
+### ~~2n. Fix `local.ts` state aliasing~~ *(done)*
+Investigation found the aliasing was not causing bugs (both references pointed to the same mutated object and the consuming code didn't rely on a true snapshot). Fixed anyway with `structuredClone(state)` before engine calls to make `previousState` semantics honest and safe for future animation diffing.
 
 ## P3 — Test Coverage
 

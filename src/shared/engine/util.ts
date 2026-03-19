@@ -73,10 +73,10 @@ export const hasAnyEnemyShips = (state: GameState): boolean => {
   return state.ships.some((s) => s.owner !== activePlayer && !s.destroyed);
 };
 
-export const shuffle = <T>(items: T[], rng?: () => number): T[] => {
+export const shuffle = <T>(items: T[], rng: () => number): T[] => {
   const copy = [...items];
   for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor((rng ? rng() : Math.random()) * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
