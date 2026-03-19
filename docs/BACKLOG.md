@@ -17,8 +17,8 @@ No open P1 items currently.
 
 **Files:** new `src/shared/codec.ts`
 
-### 2j. Decompose `main.ts` *(improvement opportunity)*
-`GameClient` (~1400 LOC) owns rendering, input, UI, networking, game logic, audio, and tutorials — a fat controller. Decompose into a thin dispatcher that delegates to focused handlers per phase.
+### ~~2j. Decompose `main.ts`~~ *(done)*
+Extracted 7 focused modules from `GameClient` (1397 → 1023 LOC): presentation orchestration, S2C message handler, connection manager, turn timer manager, astrogation/combat/ordnance action handlers, and local game flow. `main.ts` is now a thin dispatcher that delegates to these modules.
 
 ### 2k. Structural sharing in engine *(improvement opportunity — unlocks replay, undo, spectator)*
 Engine functions mutate `GameState` and its entities in place: `game-engine.ts` directly mutates `state.phase`, `state.pendingAstrogationOrders`, ship fields, player objects; `combat.ts` mutates ships via `applyDamage()`, `target.destroyed = true`, heroism flags; `engine/combat.ts` mutates phase and state during combat progression.
@@ -31,6 +31,7 @@ No open P3 items currently.
 
 ## Done
 
+- ~~2j. Decompose `main.ts`~~ — Extracted 7 modules: presentation, message-handler, connection, timer, astrogation-actions, combat-actions, ordnance-actions, local-game-flow. `main.ts` 1397 → 1023 LOC.
 - ~~2l. Eliminate map singleton~~ — Removed `getSolarSystemMap()` lazy singleton. All callers now use `buildSolarSystemMap()` directly or cache the map as a field.
 - ~~2m. Make RNG fully injectable~~ — All engine entry points now require mandatory `rng: () => number`. No `Math.random` fallbacks in the turn-resolution path. `createGame` and AI functions accept optional `rng` with default.
 - ~~2n. Fix `local.ts` state aliasing~~ — `structuredClone(state)` before engine calls makes `previousState` semantics honest for animation diffing.
