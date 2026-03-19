@@ -86,6 +86,63 @@ Do not create meaningless wrapper functions or over-fragment files just to hit n
 - Do not leave roadmap items marked as future work once they are implemented.
 - Architecture docs should describe the real join flow, validation model, and authority boundaries.
 
+## Common Patterns
+
+### Discriminated unions
+
+Union types with a literal discriminator field, narrowed via `switch` or `if`. See [TypeScript Handbook — Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html).
+
+- **Client-side variants** use `kind` as discriminator: `LocalResolution`, `AIActionPlan`, `GameCommand`, `KeyboardAction`, `BurnChangePlan`.
+- **Network messages** use `type` as discriminator: `C2S`, `S2C` message unions in `types.ts`.
+
+Always handle all variants with a `switch` — TypeScript's exhaustive checking catches missing cases.
+
+### Derive/plan pattern
+
+Pure functions named `derive*` compute a data object (a "plan") describing what should happen. The caller interprets the plan and performs side effects. This separates decision logic from execution, making both testable independently.
+
+```
+derivePhaseTransition(state) → PhaseTransitionPlan    // pure: what should change
+setState(plan.nextState)                               // impure: apply it
+```
+
+Examples: `deriveClientScreenPlan`, `deriveGameOverPlan`, `deriveClientMessagePlan`, `deriveBurnChangePlan`, `deriveHudViewModel`, `deriveKeyboardAction`, `deriveAIActionPlan`.
+
+This is a lightweight version of the [functional core / imperative shell](https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/) pattern — pure derivation in the core, side effects at the boundary.
+
+### Error returns
+
+Engine functions return `{ state, ... } | { error: string }` — no exceptions for expected failures. Callers narrow with `'error' in result`:
+
+```typescript
+const result = processAstrogation(state, playerId, orders, map, rng);
+if ('error' in result) return { kind: 'error', error: result.error };
+```
+
+Protocol validation uses `{ ok: true; value: T } | { ok: false; error: string }` in `protocol.ts`.
+
+### Function prefix conventions
+
+| Prefix | Meaning | Side effects? | Examples |
+|--------|---------|---------------|----------|
+| `derive*` | Compute a view/plan from state | No | `deriveHudViewModel`, `derivePhaseTransition` |
+| `build*` | Construct a complex object | No | `buildAstrogationOrders`, `buildShipTooltipHtml` |
+| `resolve*` | Interpret input, produce structured result | No | `resolveAIPlan`, `resolveBaseEmplacementPlan` |
+| `process*` | Apply game logic, mutate state | Yes (engine) | `processAstrogation`, `processCombat` |
+| `create*` | Construct new instance/manager | No | `createGame`, `createConnectionManager` |
+| `check*` | Detect condition, may mutate state | Sometimes | `checkRamming`, `checkGameEnd` |
+| `apply*` | Apply transformation to state | Yes | `applyGameState`, `applyDamage` |
+| `get*` | Retrieve/lookup | No | `getTooltipShip`, `getNextSelectedShip` |
+| `is*` / `has*` | Boolean predicate | No | `isGameOver`, `hasLineOfSight` |
+
+### Naming conventions
+
+- **Files**: kebab-case (`game-engine.ts`, `combat-actions.ts`, `phase-entry.ts`)
+- **Functions**: camelCase (`processAstrogation`, `derivePhaseTransition`)
+- **Types/Interfaces**: PascalCase (`GameState`, `Ship`, `CombatActionDeps`)
+- **`interface`** for extensible data shapes (`GameState`, `Ship`, `CourseResult`)
+- **`type`** for discriminated unions and aliases (`C2S`, `S2C`, `GameCommand`, `LocalResolution`)
+
 ## Functional Style
 
 The shared engine is data-oriented by design. Lean into that with functional patterns:
@@ -126,9 +183,9 @@ State belongs to the coordinator that manages its lifecycle, and is passed by re
 
 - **GameState** is owned by `GameClient`, updated via `applyGameState()`. Other modules receive it as function arguments, never as stored references.
 
-### Dependency injection pattern
+### Dependency injection
 
-Client game modules use two patterns depending on purity:
+Client game modules use two patterns depending on purity (see [dependency injection](https://en.wikipedia.org/wiki/Dependency_injection)):
 
 - **Pure functions** take only what they need as direct parameters. These are the `derive*`, `build*`, `resolve*`, `get*` functions in `game/helpers.ts`, `game/keyboard.ts`, `game/navigation.ts`, `game/burn.ts`, `game/combat.ts`, `game/messages.ts`, etc. They return values and have no side effects.
 
