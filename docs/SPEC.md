@@ -366,11 +366,11 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 - **Logistics** *(partially implemented):* Surrender (unilateral declaration during astrogation), fuel/cargo transfer (new logistics phase after movement, requires position+velocity match), and looting of disabled/surrendered enemy ships are implemented. Torch fuel transfer restriction enforced. Enabled on Convoy, Fleet Action, and Interplanetary War scenarios. Remaining: dummy counters for concealment scenarios, passenger rescue mechanics, and a visual transfer picker UI (currently skip-only).
 
-- **Advanced combat system** *(mostly resolved):* The rulebook uses the standard D1–D5/E damage system throughout; no separate advanced subsystem damage tracks exist. Dreadnaught gun exception (fire while disabled) is implemented in `canAttack`/`canCounterattack`. Minor gap: orbital bases should continue to fire torpedoes and resupply at D1 damage — not yet implemented but only relevant in orbital base scenarios.
+- **Advanced combat system** *(resolved):* The rulebook uses the standard D1–D5/E damage system throughout; no separate advanced subsystem damage tracks exist. Dreadnaught gun exception (fire while disabled) is implemented in `canAttack`/`canCounterattack`. Orbital base D1 resilience (fire guns, launch torpedoes, and resupply at D1 damage) is implemented via `canOperateWhileDisabled()` in `combat.ts` and ordnance launch validation in `game-engine.ts`.
 
 - **Extended Economy** *(deferred — scenario-specific):* Shipping lanes (Piracy trade cycles, cargo delivery) and asteroid prospecting (automated mines, robot guards, ore/CT shards) are scenario-specific economy mechanics from the Piracy and Interplanetary War scenarios. Defer until those scenarios are on the roadmap.
 
-- **Orbital base D1 resilience** *(not yet implemented):* The rulebook (p.6) states orbital bases may still launch torpedoes, fire guns, and resupply friendly ships while at D1 damage. Currently, disabled orbital bases follow the same restrictions as ships. Low priority — only relevant in scenarios with orbital base emplacement.
+- **Orbital base D1 resilience** *(implemented):* The rulebook (p.6) states orbital bases may still launch torpedoes, fire guns, and resupply friendly ships while at D1 damage. Implemented: `canOperateWhileDisabled()` in `combat.ts` allows orbital bases to fire/counterattack at D1, and ordnance launch validation in `game-engine.ts` permits launches at D1. Resupply from orbital bases was already unrestricted by damage level.
 
 - **Torch ship fuel transfer restriction** *(implemented):* The rulebook (p.8) states torch ships "may not transfer fuel to other ships." Enforced in `logistics.ts` — torch ships are excluded from fuel transfer eligibility.
 

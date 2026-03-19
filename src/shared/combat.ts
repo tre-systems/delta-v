@@ -106,13 +106,15 @@ export const canAttack = (ship: Ship): boolean => {
   const stats = SHIP_STATS[ship.type];
   if (!stats || stats.defensiveOnly) return false;
   // Dreadnaughts may still fire their guns even when disabled (rulebook p.6)
-  if (ship.damage.disabledTurns > 0 && ship.type !== 'dreadnaught') return false;
+  // Orbital bases may fire at D1 damage (disabledTurns === 1) per rulebook p.6
+  if (ship.damage.disabledTurns > 0 && !canOperateWhileDisabled(ship)) return false;
   return true;
 };
 
 /**
  * Check if a ship can counterattack (non-commercial, not destroyed, not disabled).
  * Dreadnaughts may counterattack even when disabled.
+ * Orbital bases may counterattack at D1 damage.
  */
 export const canCounterattack = (ship: Ship): boolean => {
   if (ship.destroyed || ship.landed) return false;
@@ -120,10 +122,15 @@ export const canCounterattack = (ship: Ship): boolean => {
   if (ship.captured || ship.surrendered) return false;
   const stats = SHIP_STATS[ship.type];
   if (!stats || stats.combat <= 0 || stats.defensiveOnly) return false;
-  // Dreadnaughts may still fire their guns even when disabled (rulebook p.6)
-  if (ship.damage.disabledTurns > 0 && ship.type !== 'dreadnaught') return false;
+  if (ship.damage.disabledTurns > 0 && !canOperateWhileDisabled(ship)) return false;
   return true;
 };
+
+/**
+ * Dreadnaughts operate at any damage level. Orbital bases operate at D1 only.
+ */
+const canOperateWhileDisabled = (ship: Ship): boolean =>
+  ship.type === 'dreadnaught' || (ship.type === 'orbitalBase' && ship.damage.disabledTurns <= 1);
 
 const getTrackedPath = (ship: Ship) =>
   ship.lastMovementPath && ship.lastMovementPath.length > 0 ? ship.lastMovementPath : [ship.position];

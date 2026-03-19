@@ -122,7 +122,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Premium polish (glassmorphism UI, procedural SFX, micro-animations)
 - [x] Multiplayer chat (inline in game log, rate-limited, XSS-safe)
-- [x] 1010+ tests across 62 suites (unit, property-based, integration), 8 scenario AI simulations
+- [x] 1020+ tests across 62 suites (unit, property-based, integration), 8 scenario AI simulations
 - [x] Deep architectural analysis and reusability assessment ([docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md))
 - [x] Asteroid map visuals matching reference map
 - [x] Logistics system: surrender, fuel/cargo transfers, looting with transfer picker UI (enabled on Convoy, Fleet Action, Interplanetary War)
