@@ -604,6 +604,9 @@ class GameClient {
       case 'skipCombat':
         this.dispatch({ type: 'skipCombat' });
         return;
+      case 'skipLogistics':
+        this.dispatch({ type: 'skipLogistics' });
+        return;
       case 'fleetReady':
         this.dispatch({ type: 'fleetReady', purchases: event.purchases });
         return;
@@ -693,6 +696,13 @@ class GameClient {
       case 'skipOrdnance':
         skipOrdnance(this.ordnanceDeps);
         return;
+      case 'skipLogistics': {
+        const transport = this.ctx.transport;
+        if (this.ctx.state === 'playing_logistics' && transport) {
+          transport.skipLogistics();
+        }
+        return;
+      }
       case 'fleetReady':
         this.sendFleetReady(cmd.purchases);
         return;

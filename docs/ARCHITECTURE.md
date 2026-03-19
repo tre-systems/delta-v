@@ -49,7 +49,8 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `engine/game-engine.ts` | 720 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
 | `engine/combat.ts` | 400 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
 | `engine/ordnance.ts` | 420 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
-| `engine/victory.ts` | 385 | Victory conditions, turn advancement, checkpoint tracking | Game-specific |
+| `engine/logistics.ts` | 205 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
+| `engine/victory.ts` | 440 | Victory conditions, turn advancement, reinforcements, fleet conversion | Game-specific |
 | `engine/util.ts` | 105 | Game rule helpers: base ownership, escape checks, ordnance capacity | Game-specific |
 
 #### Key Design Patterns

@@ -12,6 +12,7 @@ export type ClientScreenPlan =
 const HUD_STATES = new Set<ClientState>([
   'playing_astrogation',
   'playing_ordnance',
+  'playing_logistics',
   'playing_combat',
   'playing_movementAnim',
   'playing_opponentTurn',

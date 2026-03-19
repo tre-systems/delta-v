@@ -376,6 +376,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     // Custom scenario: escort a tanker through hostile space
     name: 'Convoy',
     description: 'Escort a tanker from Mars to Venus — pirates intercept',
+    rules: { logisticsEnabled: true },
     players: [
       {
         // Convoy: tanker + frigate escort, starting from Mars
@@ -454,6 +455,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     // Tuned skirmish: simplified credits and placement, while keeping the Terran/Rebel roles from the book.
     name: 'Interplanetary War',
     description: 'Build your fleet with MegaCredits — total war across the solar system',
+    rules: { logisticsEnabled: true },
     startingPlayer: 1,
     startingCredits: [900, 800],
     availableShipTypes: ['transport', 'packet', 'tanker', 'corvette', 'corsair', 'frigate', 'dreadnaught', 'torch'],
@@ -476,6 +478,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     // Custom fleet battle scenario with fleet building
     name: 'Fleet Action',
     description: 'Build your fleet and clash — Mars vs Venus',
+    rules: { logisticsEnabled: true },
     startingPlayer: 1,
     startingCredits: 400,
     availableShipTypes: ['corvette', 'corsair', 'frigate', 'dreadnaught', 'torch'],

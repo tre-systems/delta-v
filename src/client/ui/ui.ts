@@ -59,6 +59,7 @@ export class UIManager {
     'attackBtn',
     'fireBtn',
     'skipCombatBtn',
+    'skipLogisticsBtn',
   ];
 
   onEvent: ((event: UIEvent) => void) | null = null;
@@ -187,6 +188,7 @@ export class UIManager {
     byId('attackBtn').addEventListener('click', () => this.onEvent?.({ type: 'attack' }));
     byId('fireBtn').addEventListener('click', () => this.onEvent?.({ type: 'fireAll' }));
     byId('skipCombatBtn').addEventListener('click', () => this.onEvent?.({ type: 'skipCombat' }));
+    byId('skipLogisticsBtn').addEventListener('click', () => this.onEvent?.({ type: 'skipLogistics' }));
     byId('rematchBtn').addEventListener('click', () => this.onEvent?.({ type: 'rematch' }));
     byId('exitBtn').addEventListener('click', () => this.onEvent?.({ type: 'exit' }));
 
@@ -420,6 +422,7 @@ export class UIManager {
     launchNukeBtn.title = hudView.launchNuke.title;
 
     visible(byId('skipCombatBtn'), hudView.skipCombatVisible, 'inline-block');
+    visible(byId('skipLogisticsBtn'), hudView.skipLogisticsVisible, 'inline-block');
 
     const statusMsg = byId('statusMsg');
     if (hudView.statusText) {

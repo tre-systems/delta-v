@@ -20,6 +20,8 @@ export type GameCommand =
   | { type: 'setCombatPlan'; plan: CombatTargetPlan; selectedShipId?: string }
   | { type: 'clearCombatSelection' }
   | { type: 'undoQueuedAttack' }
+  // Logistics
+  | { type: 'skipLogistics' }
   // Ordnance
   | { type: 'launchOrdnance'; ordType: 'mine' | 'torpedo' | 'nuke' }
   | { type: 'emplaceBase' }
@@ -71,6 +73,8 @@ export const keyboardActionToCommand = (action: KeyboardAction): GameCommand | n
       return { type: 'fireAllAttacks' };
     case 'skipCombat':
       return { type: 'skipCombat' };
+    case 'skipLogistics':
+      return { type: 'skipLogistics' };
     case 'adjustCombatStrength':
       return { type: 'adjustCombatStrength', delta: action.delta };
     case 'launchOrdnance':
