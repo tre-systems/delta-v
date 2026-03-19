@@ -60,6 +60,7 @@ export class UIManager {
     'fireBtn',
     'skipCombatBtn',
     'skipLogisticsBtn',
+    'confirmTransfersBtn',
   ];
 
   onEvent: ((event: UIEvent) => void) | null = null;
@@ -189,6 +190,7 @@ export class UIManager {
     byId('fireBtn').addEventListener('click', () => this.onEvent?.({ type: 'fireAll' }));
     byId('skipCombatBtn').addEventListener('click', () => this.onEvent?.({ type: 'skipCombat' }));
     byId('skipLogisticsBtn').addEventListener('click', () => this.onEvent?.({ type: 'skipLogistics' }));
+    byId('confirmTransfersBtn').addEventListener('click', () => this.onEvent?.({ type: 'confirmTransfers' }));
     byId('rematchBtn').addEventListener('click', () => this.onEvent?.({ type: 'rematch' }));
     byId('exitBtn').addEventListener('click', () => this.onEvent?.({ type: 'exit' }));
 
@@ -423,6 +425,8 @@ export class UIManager {
 
     visible(byId('skipCombatBtn'), hudView.skipCombatVisible, 'inline-block');
     visible(byId('skipLogisticsBtn'), hudView.skipLogisticsVisible, 'inline-block');
+    visible(byId('confirmTransfersBtn'), hudView.confirmTransfersVisible, 'inline-block');
+    visible(byId('transferPanel'), hudView.showTransferPanel, 'block');
 
     const statusMsg = byId('statusMsg');
     if (hudView.statusText) {

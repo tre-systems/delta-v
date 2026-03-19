@@ -22,6 +22,8 @@ export interface HUDView {
   skipOrdnanceVisible: boolean;
   skipCombatVisible: boolean;
   skipLogisticsVisible: boolean;
+  confirmTransfersVisible: boolean;
+  showTransferPanel: boolean;
 }
 
 const createHiddenButton = (): UIButtonView => {
@@ -144,5 +146,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     skipOrdnanceVisible: showOrdnance,
     skipCombatVisible: isMyTurn && phase === 'combat',
     skipLogisticsVisible: isMyTurn && phase === 'logistics',
+    confirmTransfersVisible: isMyTurn && phase === 'logistics',
+    showTransferPanel: isMyTurn && phase === 'logistics',
   };
 };

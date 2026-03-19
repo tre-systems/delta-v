@@ -35,7 +35,7 @@ export type KeyboardAction =
   | { kind: 'queueAttack'; preventDefault: true }
   | { kind: 'fireAllAttacks'; preventDefault: true }
   | { kind: 'skipCombat'; preventDefault: true }
-  | { kind: 'skipLogistics'; preventDefault: true }
+  | { kind: 'confirmTransfers'; preventDefault: true }
   | { kind: 'adjustCombatStrength'; preventDefault: true; delta: -1 | 1 }
   | { kind: 'launchOrdnance'; preventDefault: false; ordnanceType: 'mine' | 'torpedo' | 'nuke' }
   | { kind: 'setBurnDirection'; preventDefault: false; direction: number }
@@ -90,7 +90,7 @@ export const deriveKeyboardAction = (
       return { kind: 'skipOrdnance', preventDefault: true };
     }
     if (context.state === 'playing_logistics') {
-      return { kind: 'skipLogistics', preventDefault: true };
+      return { kind: 'confirmTransfers', preventDefault: true };
     }
     if (context.state === 'playing_combat') {
       if (context.combatTargetId) {
