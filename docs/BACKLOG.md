@@ -17,7 +17,28 @@ No open P1 items currently.
 
 **Files:** new `src/shared/codec.ts`
 
-**Details:** See REFACTORING.md Priority 8.
+### 2j. Decompose `main.ts` *(improvement opportunity)*
+`GameClient` (~1400 LOC) owns rendering, input, UI, networking, game logic, audio, and tutorials — a fat controller. Decompose into a thin dispatcher that delegates to focused handlers per phase.
+
+### 2k. Structural sharing in engine *(improvement opportunity — unlocks replay, undo, spectator)*
+Engine functions mutate `GameState` and its entities in place: `game-engine.ts` directly mutates `state.phase`, `state.pendingAstrogationOrders`, ship fields, player objects; `combat.ts` mutates ships via `applyDamage()`, `target.destroyed = true`, heroism flags; `engine/combat.ts` mutates phase and state during combat progression.
+
+This works because the server holds a single reference, but prevents: state diffing, undo, replay, spectator mode, and speculative AI branching. The pragmatic path is clone-on-entry at engine entry points (or Immer), not a rewrite to persistent data structures.
+
+### 2l. Eliminate map singleton *(improvement opportunity)*
+`getSolarSystemMap()` returns a lazy-cached global. The map is already passed as a parameter to most engine functions — remove the singleton escape hatch entirely.
+
+### 2m. Make RNG fully injectable *(high priority — enables deterministic replays)*
+Randomness is only partially injectable. Most functions accept `rng?` but fall back to `Math.random`:
+- `combat.ts`: `rollD6(rng?)` falls back to `Math.random`
+- `util.ts`: `randomChoice(..., rng = Math.random)`
+- `createGame()` uses `randomChoice` for hidden-role assignment without exposing RNG at the API boundary
+- `simulate-ai.ts` uses `Math.random` directly
+
+Make `rng` a required parameter at all engine entry points. This is a bounded change (update signatures and callers) that enables reproducible replays, deterministic debugging, and AI comparison testing.
+
+### 2n. Fix `local.ts` state aliasing *(potential bug)*
+In `client/game/local.ts`, some local resolution paths alias state before calling the engine (`const previousState = state`), then use both the "previous" and "current" state for animation diffing. Because the engine mutates in place, `previousState` may point to already-mutated data, making before/after animation logic subtly wrong. Investigate and fix with explicit cloning if needed.
 
 ## P3 — Test Coverage
 
