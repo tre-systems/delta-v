@@ -444,6 +444,7 @@ class GameClient {
     const state = createGame(scenarioDef, this.map, 'LOCAL', findBaseHex);
     this.renderer.clearTrails();
     this.ui.clearLog();
+    this.ui.setChatEnabled(false);
     this.ui.logText(`vs AI (${this.ctx.aiDifficulty}) — ${scenarioDef.name}`);
     this.applyGameState(state);
     this.logScenarioBriefing();
@@ -614,6 +615,9 @@ class GameClient {
         return;
       case 'selectShip':
         this.dispatch({ type: 'selectShip', shipId: event.shipId });
+        return;
+      case 'chat':
+        this.ctx.transport?.sendChat(event.text);
         return;
     }
   }
