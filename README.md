@@ -42,7 +42,7 @@ Delta-V adopts an elegant, robust architecture utilizing modern web primitives:
 
 ```text
 src/
-├── shared/              # Pure Game Engine (Shared between Client & Server)
+├── shared/              # Game Engine — side-effect-free (shared between client & server)
 │   ├── engine/            # Core state machine (createGame, processAstrogation, combat, ordnance, victory)
 │   ├── movement.ts        # Vector astrogation & gravity logic
 │   ├── combat.ts          # Odds resolution & damage tables
