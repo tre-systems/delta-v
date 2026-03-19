@@ -72,6 +72,7 @@ Do not create meaningless wrapper functions or over-fragment files just to hit n
 - When extracting pure helpers from client/server coordinators, add tests for those helpers.
 - Prefer targeted tests around risky logic over shallow coverage inflation.
 - Use data-driven tests (`it.each` / `describe.each`) to reduce verbosity when testing tables, mappings, or many input-output pairs. This is especially useful for combat tables, damage lookups, and hex math.
+- Use **property-based tests** (`fast-check`) for invariant verification on core engine functions. Co-locate as `*.property.test.ts` next to the source file. Property tests complement unit tests by fuzzing inputs to verify that invariants hold universally (e.g., "fuel never goes negative", "hex distance is symmetric", "higher odds never produce worse combat results").
 - Coverage thresholds are enforced on `src/shared/` via vitest config — the pre-commit hook and CI both run `test:coverage` to prevent backsliding.
 
 ## Constants And Configuration
