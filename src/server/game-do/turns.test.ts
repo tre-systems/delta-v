@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
 import { createGame } from '../../shared/engine/game-engine';
-import { findBaseHex, getSolarSystemMap, SCENARIOS } from '../../shared/map-data';
+import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../../shared/map-data';
 import type { GameState } from '../../shared/types';
 import { resolveTurnTimeoutOutcome } from './turns';
 
 function createState(): GameState {
-  return createGame(SCENARIOS.biplanetary, getSolarSystemMap(), 'TURN1', findBaseHex);
+  return createGame(SCENARIOS.biplanetary, buildSolarSystemMap(), 'TURN1', findBaseHex);
 }
 
 describe('game-do-turns', () => {
   it('auto-submits empty burns for timed-out astrogation turns', () => {
     const state = createState();
 
-    const outcome = resolveTurnTimeoutOutcome(state, getSolarSystemMap());
+    const outcome = resolveTurnTimeoutOutcome(state, buildSolarSystemMap());
 
     expect(outcome).not.toBeNull();
     expect(outcome?.primaryMessage?.type).toBe('movementResult');
@@ -24,7 +24,7 @@ describe('game-do-turns', () => {
     const state = createState();
     state.phase = 'ordnance';
 
-    const outcome = resolveTurnTimeoutOutcome(state, getSolarSystemMap());
+    const outcome = resolveTurnTimeoutOutcome(state, buildSolarSystemMap());
 
     expect(outcome).not.toBeNull();
     expect(outcome?.primaryMessage?.type).toMatch(/^(movementResult|stateUpdate)$/);
@@ -35,7 +35,7 @@ describe('game-do-turns', () => {
     const state = createState();
     state.phase = 'combat';
 
-    const outcome = resolveTurnTimeoutOutcome(state, getSolarSystemMap());
+    const outcome = resolveTurnTimeoutOutcome(state, buildSolarSystemMap());
 
     expect(outcome).not.toBeNull();
     expect(outcome?.state.activePlayer).toBe(1);
@@ -45,6 +45,6 @@ describe('game-do-turns', () => {
     const state = createState();
     state.phase = 'gameOver';
 
-    expect(resolveTurnTimeoutOutcome(state, getSolarSystemMap())).toBeNull();
+    expect(resolveTurnTimeoutOutcome(state, buildSolarSystemMap())).toBeNull();
   });
 });
