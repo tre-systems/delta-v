@@ -304,8 +304,8 @@ Engine functions mutate `GameState` in place and return it. This works for curre
 ### Priority 2: Decompose `main.ts` (~1400 LOC)
 `GameClient` owns rendering, input, UI, networking, game logic, audio, and tutorials — a classic "fat controller". A cleaner pattern: decompose into a thin dispatcher that delegates to focused handlers per phase. This doesn't affect correctness but improves readability and extensibility. See BACKLOG.md item 2j.
 
-### Priority 3: Remove Map Singleton
-`getSolarSystemMap()` returns a lazy-cached global. This couples the engine to a single map topology. The map is already passed as a parameter to most engine functions, but the singleton is a lingering escape hatch that should be eliminated. See BACKLOG.md item 2l.
+### Done: Map Singleton Removed
+The `getSolarSystemMap()` lazy singleton has been removed. All callers now use `buildSolarSystemMap()` directly or cache the map as an instance field (`GameDO.map`, `GameClient.map`). The map is consistently passed as a parameter to engine functions.
 
 ### Other Ongoing Priorities
 - **Continue extracting pure helpers from `main.ts`**: Phase derivation, HUD view models, and local/remote result application should keep moving out of the main controller.

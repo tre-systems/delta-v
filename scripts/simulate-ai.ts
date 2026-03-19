@@ -1,4 +1,4 @@
-import { getSolarSystemMap, SCENARIOS, findBaseHex } from '../src/shared/map-data';
+import { buildSolarSystemMap, SCENARIOS, findBaseHex } from '../src/shared/map-data';
 import {
   createGame,
   processFleetReady,
@@ -51,7 +51,7 @@ async function runSingleGame(scenarioName: string, p0Diff: AIDifficulty, p1Diff:
   const scenario = SCENARIOS[scenarioName];
   if (!scenario) throw new Error(`Unknown scenario: ${scenarioName}`);
   
-  const map = getSolarSystemMap();
+  const map = buildSolarSystemMap();
   
   // Create an RNG local to the game for reproducible behavior later if needed
   const rng = Math.random; 

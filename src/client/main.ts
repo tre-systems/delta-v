@@ -10,7 +10,7 @@ import type { AIDifficulty } from '../shared/ai';
 import { CODE_LENGTH, SHIP_STATS, TURN_TIMEOUT_MS } from '../shared/constants';
 import { createGame, type MovementResult } from '../shared/engine/game-engine';
 import { hexKey, pixelToHex } from '../shared/hex';
-import { findBaseHex, getSolarSystemMap, SCENARIOS } from '../shared/map-data';
+import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../shared/map-data';
 import type { CombatResult, FleetPurchase, GameState, S2C, Ship, ShipMovement } from '../shared/types';
 import { clamp } from '../shared/util';
 import {
@@ -119,7 +119,7 @@ class GameClient {
   private input: InputHandler;
   private ui: UIManager;
   private tutorial: Tutorial;
-  private map = getSolarSystemMap();
+  private readonly map = buildSolarSystemMap();
   private tooltipEl: HTMLElement;
 
   // Ping/latency tracking

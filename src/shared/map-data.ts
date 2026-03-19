@@ -523,16 +523,6 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   },
 };
 
-// Singleton map instance
-let _map: SolarSystemMap | null = null;
-
-export const getSolarSystemMap = (): SolarSystemMap => {
-  if (!_map) {
-    _map = buildSolarSystemMap();
-  }
-  return _map;
-};
-
 export const findBaseHexes = (map: SolarSystemMap, bodyName: string): HexCoord[] =>
   [...map.hexes.entries()].filter(([, hex]) => hex.base?.bodyName === bodyName).map(([key]) => parseHexKey(key));
 
