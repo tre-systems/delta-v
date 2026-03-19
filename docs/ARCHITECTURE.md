@@ -45,11 +45,11 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `movement.ts` | 320 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
 | `combat.ts` | 490 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
 | `map-data.ts` | 545 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
-| `ai.ts` | 250 | Rule-based AI with three difficulty levels | Game-specific |
+| `ai.ts` | 720 | Rule-based AI with three difficulty levels | Game-specific |
 | `engine/game-engine.ts` | 730 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
 | `engine/combat.ts` | 400 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
 | `engine/ordnance.ts` | 420 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
-| `engine/victory.ts` | 200 | Victory conditions, turn advancement, checkpoint tracking | Game-specific |
+| `engine/victory.ts` | 385 | Victory conditions, turn advancement, checkpoint tracking | Game-specific |
 | `engine/util.ts` | 105 | Game rule helpers: base ownership, escape checks, ordnance capacity | Game-specific |
 
 #### Key Design Patterns
@@ -113,10 +113,10 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 | Directory | Files | LOC | Purpose |
 |-----------|-------|-----|---------|
-| `client/` (root) | 5 | ~1500 | Entry point (`main.ts` ~1023 LOC), raw input, audio, tutorial, DOM helpers |
-| `client/game/` | 28 | ~3800 | Game logic: planning, commands, phases, transport, presentation, connection, actions |
-| `client/renderer/` | 14 | ~3000 | Canvas rendering: camera, scene, entities, effects, overlays |
-| `client/ui/` | 8 | ~1500 | DOM overlays: menu, HUD, ship list, fleet shop, formatters |
+| `client/` (root) | 5 | ~1900 | Entry point (`main.ts` ~1023 LOC), raw input, audio, tutorial, DOM helpers |
+| `client/game/` | 34 | ~3700 | Game logic: planning, commands, phases, transport, presentation, connection, actions |
+| `client/renderer/` | 14 | ~3500 | Canvas rendering: camera, scene, entities, effects, overlays |
+| `client/ui/` | 8 | ~1400 | DOM overlays: menu, HUD, ship list, fleet shop, formatters |
 
 #### Three-Layer Input Architecture
 
@@ -288,37 +288,19 @@ A game implementation would provide:
 
 ---
 
-## 6. Known Improvement Opportunities
+## 6. Open Improvement Opportunities
 
-These are architectural improvements that would benefit Delta-V directly, independent of any extraction effort. Ordered by impact and effort.
+See BACKLOG.md for the full prioritised list including completed items. Below are the open items relevant to architecture decisions.
 
-### Done: RNG Fully Injectable
-RNG is now a required parameter at all engine entry points. No more `Math.random` fallbacks in the rules layer. Callers pass `Math.random` at the boundary; tests can pass deterministic RNGs. `createGame` and AI functions accept optional `rng` with `Math.random` default since they are setup/heuristic functions rather than turn-resolution functions.
+### Reduce In-Place Mutation in the Engine (BACKLOG 2k)
+Engine functions mutate `GameState` in place. This works for current usage but prevents: state diffing, undo, replay, spectator mode, and speculative AI branching. The pragmatic path is clone-on-entry at engine entry points, not a rewrite to persistent data structures.
 
-### Done: `local.ts` State Aliasing Fixed
-`client/game/local.ts` now uses `structuredClone(state)` to capture `previousState` before engine calls. This makes the before/after semantics honest and safe for animation diffing, even though the engine mutates in place.
-
-### Priority 1: Reduce In-Place Mutation in the Engine (large scope, unlocks future features)
-Engine functions mutate `GameState` in place and return it. This works for current usage but prevents: safely diffing old vs new state, undo, replay, spectator mode, and speculative AI branching. The pragmatic path is clone-on-entry at engine entry points (or Immer), not a full rewrite to persistent data structures. See BACKLOG.md item 2k.
-
-### Done: Decomposed `main.ts` (1397 → 1023 LOC)
-Extracted 7 focused modules from `GameClient`: presentation orchestration (`presentation.ts`), S2C message dispatch (`message-handler.ts`), WebSocket lifecycle (`connection.ts`), turn timer (`timer.ts`), and phase-specific action handlers (`astrogation-actions.ts`, `combat-actions.ts`, `ordnance-actions.ts`), plus local game flow (`local-game-flow.ts`). `main.ts` is now a thin dispatcher that wires up inputs, routes commands, and delegates to these modules.
-
-### Done: Map Singleton Removed
-The `getSolarSystemMap()` lazy singleton has been removed. All callers now use `buildSolarSystemMap()` directly or cache the map as an instance field (`GameDO.map`, `GameClient.map`). The map is consistently passed as a parameter to engine functions.
-
-### Other Ongoing Priorities
-- **Continue extracting pure helpers from `main.ts`**: Phase derivation, HUD view models, and local/remote result application should keep moving out of the main controller.
-- **Renderer is now decomposed by visual responsibility** (`renderer/renderer.ts` plus `combat.ts`, `entities.ts`, `vectors.ts`, `effects.ts`, etc.): Further splits should follow the same pattern.
+### Other Considerations
 - **Add browser-side tests around input/UI/orchestration**: Shared rules are well covered. The bigger refactor risk sits in client coordination code.
-- **Avoid premature ECS migration**: The current rules engine has a small, stable entity set and turn-based processing. An ECS would make the rules harder to follow without meaningful flexibility gain.
 - **Prefer a lightweight event log over full event sourcing**: Replays, reconnect catch-up, and spectator mode would benefit from an append-only turn log, but snapshots should remain the source of truth.
-- **`game-do/` is now split by concern** (`game-do.ts`, `messages.ts`, `session.ts`, `turns.ts`): Features like spectators or replay catch-up can be added without bloating one class.
-- **Public lobby hardening remains future work**: Longer opaque identifiers, rate limiting, and optional identity/account binding.
-- **Persistence beyond active rooms is still optional**: Durable Object storage is a good fit for live matches; D1 or another store only becomes necessary once match history or player progression matters.
+- **Public lobby hardening**: Longer opaque identifiers, rate limiting, and optional identity/account binding.
 
 ### Explicitly Deferred (Not Worth Doing Yet)
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.
 - **Generic `RuleSet<S, C, E, P>` interface**: Designing a framework from N=1 games is premature abstraction. The current code is readable because it knows what a Ship is.
-- **Split `map-data.ts` into `world/`, `scenarios/`, `rules/`**: Four files instead of one, for a single game, with no reuse target. This is fragmentation, not simplification.
 - **Full package extraction** (`hex-core`, `match-runtime`, `delta-v-rules`): Wait until game #2 exists. Build the framework from two concrete implementations, not one.
