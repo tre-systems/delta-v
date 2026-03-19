@@ -21,7 +21,7 @@ client/          → State machine + Canvas renderer + DOM UI
 ### Key Architectural Strengths
 - **Side-effect-free engine.** The shared engine has no I/O: no DOM, no network, no storage. The DO wraps it with persistence and WebSocket plumbing. This makes everything testable and portable. Note: the engine mutates `GameState` in place rather than returning new immutable objects — see [Engine Mutation Model](#engine-mutation-model) for details and implications.
 - **Transport abstraction.** `GameTransport` decouples the client from WebSocket vs local (AI) play. The client doesn't know or care where state comes from.
-- **Functional style throughout.** Pure derivation functions (`deriveHudViewModel`, `deriveKeyboardAction`, `deriveBurnChangePlan`), partially injectable RNG, `cond()` for branching.
+- **Functional style throughout.** Pure derivation functions (`deriveHudViewModel`, `deriveKeyboardAction`, `deriveBurnChangePlan`), mandatory injectable RNG, `cond()` for branching.
 - **Scenario-driven.** `ScenarioRules` controls behaviour: ordnance types, base sharing, combat enabled, checkpoints, escape edges. New scenarios can vary gameplay without engine changes.
 - **Hidden state filtering.** `filterStateForPlayer` hides fugitive identities in escape scenarios — the server never leaks information the client shouldn't have.
 
@@ -58,7 +58,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 - **`movement.ts`**: Contains the complex vector math, gravity well logic, and collision detection. Moving a ship is resolved strictly on an axial hex grid (using `hex.ts`).
 - **`combat.ts`**: Evaluates line-of-sight, calculates combat odds based on velocity/range modifiers, and resolves damage. Mutates ships directly (e.g., `applyDamage`, `target.destroyed = true`, heroism flags).
 - **`types.ts`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads). This ensures the client and server never fall out of sync.
-- **Dependency injection**: Engine functions accept `map` as a parameter so they can be tested without global state. RNG is partially injectable — see [RNG Injection](#rng-injection).
+- **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [RNG Injection](#rng-injection).
 - **Event-driven resolution**: Movement produces events (crashes, mine hits, captures) that flow to the client for animation and logging.
 
 #### Engine Mutation Model
@@ -73,9 +73,9 @@ This works correctly because:
 - The server holds a single reference to state, processes one action at a time, and persists after each mutation.
 - Tests construct fresh state per test case.
 
-**Known risk**: In `client/game/local.ts`, some local resolution paths alias state before calling the engine (`const previousState = state`). Because the engine mutates in place, `previousState` may not actually represent the pre-mutation state. This can make before/after animation logic subtly wrong.
+**Mitigation**: `client/game/local.ts` uses `structuredClone(state)` to capture a true pre-mutation snapshot before engine calls, making `previousState` semantics honest for animation diffing.
 
-**Future improvement**: Switching to clone-on-entry (or Immer) at engine entry points would enable state diffing, undo, replay, spectator mode, and safer client-side animation. See BACKLOG.md item 2k.
+**Future improvement**: Switching to clone-on-entry at all engine entry points (not just local.ts) would enable state diffing, undo, replay, and spectator mode. See BACKLOG.md item 2k.
 
 #### RNG Injection
 
@@ -301,10 +301,10 @@ RNG is now a required parameter at all engine entry points. No more `Math.random
 ### Priority 1: Reduce In-Place Mutation in the Engine (large scope, unlocks future features)
 Engine functions mutate `GameState` in place and return it. This works for current usage but prevents: safely diffing old vs new state, undo, replay, spectator mode, and speculative AI branching. The pragmatic path is clone-on-entry at engine entry points (or Immer), not a full rewrite to persistent data structures. See BACKLOG.md item 2k.
 
-### Priority 4: Decompose `main.ts` (~1400 LOC)
+### Priority 2: Decompose `main.ts` (~1400 LOC)
 `GameClient` owns rendering, input, UI, networking, game logic, audio, and tutorials — a classic "fat controller". A cleaner pattern: decompose into a thin dispatcher that delegates to focused handlers per phase. This doesn't affect correctness but improves readability and extensibility. See BACKLOG.md item 2j.
 
-### Priority 5: Remove Map Singleton
+### Priority 3: Remove Map Singleton
 `getSolarSystemMap()` returns a lazy-cached global. This couples the engine to a single map topology. The map is already passed as a parameter to most engine functions, but the singleton is a lingering escape hatch that should be eliminated. See BACKLOG.md item 2l.
 
 ### Other Ongoing Priorities

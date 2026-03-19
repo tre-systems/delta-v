@@ -28,18 +28,14 @@ This works because the server holds a single reference, but prevents: state diff
 ### 2l. Eliminate map singleton *(improvement opportunity)*
 `getSolarSystemMap()` returns a lazy-cached global. The map is already passed as a parameter to most engine functions — remove the singleton escape hatch entirely.
 
-### ~~2m. Make RNG fully injectable~~ *(done)*
-RNG is now a required parameter at all engine entry points (`processAstrogation`, `processCombat`, `skipCombat`, `beginCombatPhase`, `processOrdnance`, `skipOrdnance`). Internal functions (`rollD6`, `resolveCombat`, `resolveBaseDefense`, `shuffle`, `randomChoice`, `checkRamming`, `moveOrdnance`, `resolvePendingAsteroidHazards`) also require `rng`. `createGame` accepts optional `rng` with `Math.random` default. AI functions (`aiAstrogation`, `aiOrdnance`) accept optional `rng` with `Math.random` default. All callers (game-do.ts, local.ts, turns.ts) pass `Math.random` at the boundary.
-
-### ~~2n. Fix `local.ts` state aliasing~~ *(done)*
-Investigation found the aliasing was not causing bugs (both references pointed to the same mutated object and the consuming code didn't rely on a true snapshot). Fixed anyway with `structuredClone(state)` before engine calls to make `previousState` semantics honest and safe for future animation diffing.
-
 ## P3 — Test Coverage
 
 No open P3 items currently.
 
 ## Done
 
+- ~~2m. Make RNG fully injectable~~ — All engine entry points now require mandatory `rng: () => number`. No `Math.random` fallbacks in the turn-resolution path. `createGame` and AI functions accept optional `rng` with default.
+- ~~2n. Fix `local.ts` state aliasing~~ — `structuredClone(state)` before engine calls makes `previousState` semantics honest for animation diffing.
 - ~~Spec divergence audit~~ — Cross-referenced all 6 SPEC.md divergences against Triplanetary 2018 PDF rulebook. Edge-of-gravity and asteroid hexside rules already resolved via `analyzeHexLine()`. Dreadnaught fires-while-disabled exception already implemented. Added 33 new tests (897 total) covering `analyzeHexLine` edge cases, `queueAsteroidHazards` unit tests, gravity edge-grazing, dreadnaught exception, and `isAsteroidHex`/`resolvePendingAsteroidHazards`.
 - ~~Mobile HUD/layout polish~~ — Compact 2-line flex top bar on mobile (47px, down from 107px); constrained game log/ship list on short viewports to prevent full-view occlusion; fixed help/SFX button overlap with game log at ≤560px height
 - ~~Decompose game-engine.ts~~ — Extracted into `engine/util.ts`, `engine/victory.ts`, `engine/ordnance.ts`, `engine/combat.ts` with backward-compatible re-exports (681 lines, down from 1957)
