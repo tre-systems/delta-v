@@ -17,6 +17,7 @@ export type UIEvent =
   | { type: 'fireAll' }
   | { type: 'skipCombat' }
   | { type: 'skipLogistics' }
+  | { type: 'confirmTransfers' }
   | { type: 'fleetReady'; purchases: FleetPurchase[] }
   | { type: 'rematch' }
   | { type: 'exit' }

@@ -52,6 +52,12 @@ import {
   resolveAIPlan as resolveAI,
   runAITurn as runAI,
 } from './game/local-game-flow';
+import {
+  buildTransferOrders,
+  createLogisticsUIState,
+  type LogisticsUIState,
+  renderTransferPanel,
+} from './game/logistics-ui';
 import { handleServerMessage, type MessageHandlerDeps } from './game/message-handler';
 import { getNearestEnemyPosition, getNextSelectedShip, getOwnFleetFocusPosition } from './game/navigation';
 import { deriveGameStartClientState } from './game/network';
@@ -128,6 +134,7 @@ class GameClient {
   private tutorial: Tutorial;
   private readonly map = buildSolarSystemMap();
   private tooltipEl: HTMLElement;
+  private logisticsUIState: LogisticsUIState | null = null;
   private connection: ConnectionManager;
   private turnTimer!: TurnTimerManager;
 
@@ -405,6 +412,20 @@ class GameClient {
     if (entryPlan.frameOnShips) {
       this.renderer.frameOnShips();
     }
+
+    // Logistics phase: init transfer UI
+    if (newState === 'playing_logistics' && this.ctx.gameState) {
+      this.logisticsUIState = createLogisticsUIState(this.ctx.gameState, this.ctx.playerId);
+      this.renderLogisticsPanel();
+    } else {
+      this.logisticsUIState = null;
+    }
+  }
+
+  private renderLogisticsPanel() {
+    const panel = byId('transferPanel');
+    if (!this.logisticsUIState) return;
+    renderTransferPanel(panel, this.logisticsUIState, () => this.renderLogisticsPanel());
   }
 
   // --- Network ---
@@ -607,6 +628,9 @@ class GameClient {
       case 'skipLogistics':
         this.dispatch({ type: 'skipLogistics' });
         return;
+      case 'confirmTransfers':
+        this.dispatch({ type: 'confirmTransfers' });
+        return;
       case 'fleetReady':
         this.dispatch({ type: 'fleetReady', purchases: event.purchases });
         return;
@@ -700,6 +724,18 @@ class GameClient {
         const transport = this.ctx.transport;
         if (this.ctx.state === 'playing_logistics' && transport) {
           transport.skipLogistics();
+        }
+        return;
+      }
+      case 'confirmTransfers': {
+        const transport2 = this.ctx.transport;
+        if (this.ctx.state === 'playing_logistics' && transport2 && this.logisticsUIState) {
+          const orders = buildTransferOrders(this.logisticsUIState);
+          if (orders.length > 0) {
+            transport2.submitLogistics(orders);
+          } else {
+            transport2.skipLogistics();
+          }
         }
         return;
       }

@@ -22,6 +22,7 @@ export type GameCommand =
   | { type: 'undoQueuedAttack' }
   // Logistics
   | { type: 'skipLogistics' }
+  | { type: 'confirmTransfers' }
   // Ordnance
   | { type: 'launchOrdnance'; ordType: 'mine' | 'torpedo' | 'nuke' }
   | { type: 'emplaceBase' }
@@ -73,8 +74,8 @@ export const keyboardActionToCommand = (action: KeyboardAction): GameCommand | n
       return { type: 'fireAllAttacks' };
     case 'skipCombat':
       return { type: 'skipCombat' };
-    case 'skipLogistics':
-      return { type: 'skipLogistics' };
+    case 'confirmTransfers':
+      return { type: 'confirmTransfers' };
     case 'adjustCombatStrength':
       return { type: 'adjustCombatStrength', delta: action.delta };
     case 'launchOrdnance':
