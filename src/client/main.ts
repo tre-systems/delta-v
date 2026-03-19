@@ -724,7 +724,7 @@ class GameClient {
         this.renderer.camera.pan(cmd.dx, cmd.dy);
         return;
       case 'zoomCamera':
-        this.renderer.camera.zoomAt(window.innerWidth / 2, window.innerHeight / 2, cmd.factor);
+        this.renderer.camera.zoomAt(this.canvas.clientWidth / 2, this.canvas.clientHeight / 2, cmd.factor);
         return;
       case 'toggleLog':
         this.ui.toggleLog();
