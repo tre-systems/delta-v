@@ -284,6 +284,12 @@ export const validateClientMessage = (raw: unknown): { ok: true; value: C2S } | 
     case 'skipCombat':
     case 'rematch':
       return { ok: true, value: { type: raw.type } };
+    case 'chat': {
+      if (!isString(raw.text) || raw.text.length === 0 || raw.text.length > 200) {
+        return { ok: false, error: 'Invalid chat payload' };
+      }
+      return { ok: true, value: { type: 'chat', text: raw.text.trim() } };
+    }
     case 'ping':
       return typeof raw.t === 'number' && Number.isFinite(raw.t)
         ? { ok: true, value: { type: 'ping', t: raw.t } }

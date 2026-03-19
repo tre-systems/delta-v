@@ -260,6 +260,50 @@ describe('validateClientMessage', () => {
     });
   });
 
+  describe('chat', () => {
+    it('accepts valid chat message', () => {
+      expect(validateClientMessage({ type: 'chat', text: 'hello' })).toEqual({
+        ok: true,
+        value: { type: 'chat', text: 'hello' },
+      });
+    });
+
+    it('trims whitespace', () => {
+      expect(validateClientMessage({ type: 'chat', text: '  hi  ' })).toEqual({
+        ok: true,
+        value: { type: 'chat', text: 'hi' },
+      });
+    });
+
+    it('rejects empty text', () => {
+      expect(validateClientMessage({ type: 'chat', text: '' })).toEqual({
+        ok: false,
+        error: 'Invalid chat payload',
+      });
+    });
+
+    it('rejects missing text', () => {
+      expect(validateClientMessage({ type: 'chat' })).toEqual({
+        ok: false,
+        error: 'Invalid chat payload',
+      });
+    });
+
+    it('rejects text over 200 chars', () => {
+      expect(validateClientMessage({ type: 'chat', text: 'x'.repeat(201) })).toEqual({
+        ok: false,
+        error: 'Invalid chat payload',
+      });
+    });
+
+    it('rejects non-string text', () => {
+      expect(validateClientMessage({ type: 'chat', text: 42 })).toEqual({
+        ok: false,
+        error: 'Invalid chat payload',
+      });
+    });
+  });
+
   describe('fleetReady', () => {
     it('accepts valid fleet purchases', () => {
       const result = validateClientMessage({

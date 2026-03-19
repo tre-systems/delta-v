@@ -53,6 +53,11 @@ export type ClientMessagePlan =
       message: string;
     }
   | {
+      kind: 'chat';
+      playerId: number;
+      text: string;
+    }
+  | {
       kind: 'pong';
       latencyMs: number | null;
     };
@@ -126,6 +131,8 @@ export const deriveClientMessagePlan = (
         kind: 'error',
         message: msg.message,
       };
+    case 'chat':
+      return { kind: 'chat', playerId: msg.playerId, text: msg.text };
     case 'pong':
       return {
         kind: 'pong',

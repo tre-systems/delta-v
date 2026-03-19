@@ -28,6 +28,7 @@ export interface GameTransport {
   skipCombat(): void;
   beginCombat(): void;
   requestRematch(): void;
+  sendChat(text: string): void;
 }
 
 export interface LocalTransportDeps {
@@ -117,6 +118,9 @@ export const createLocalTransport = (deps: LocalTransportDeps): GameTransport =>
   requestRematch() {
     deps.onRematch();
   },
+  sendChat() {
+    // No chat in local/AI games
+  },
 });
 
 export const createWebSocketTransport = (send: (msg: unknown) => void): GameTransport => ({
@@ -146,5 +150,8 @@ export const createWebSocketTransport = (send: (msg: unknown) => void): GameTran
   },
   requestRematch() {
     send({ type: 'rematch' });
+  },
+  sendChat(text) {
+    send({ type: 'chat', text });
   },
 });

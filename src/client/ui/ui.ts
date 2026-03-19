@@ -34,6 +34,8 @@ export class UIManager {
   private shipListEl: HTMLElement;
   private gameLogEl: HTMLElement;
   private logEntriesEl: HTMLElement;
+  private chatInputRow: HTMLElement;
+  private chatInput: HTMLInputElement;
   private lastPhase: string | null = null;
   private logShowBtn: HTMLElement;
   private fleetBuildingEl: HTMLElement;
@@ -80,7 +82,20 @@ export class UIManager {
     this.logShowBtn = byId('logShowBtn');
     this.logLatestBar = byId('logLatestBar');
     this.logLatestText = byId('logLatestText');
+    this.chatInputRow = byId('chatInputRow');
+    this.chatInput = byId('chatInput') as HTMLInputElement;
     this.fleetBuildingEl = byId('fleetBuilding');
+
+    this.chatInput.addEventListener('keydown', (e) => {
+      e.stopPropagation(); // Prevent game keyboard shortcuts while typing
+      if (e.key === 'Enter') {
+        const text = this.chatInput.value.trim();
+        if (text && this.onEvent) {
+          this.onEvent({ type: 'chat', text });
+          this.chatInput.value = '';
+        }
+      }
+    });
 
     const mobileQuery = window.matchMedia('(max-width: 760px)');
     this.isMobile = mobileQuery.matches;
@@ -599,6 +614,11 @@ export class UIManager {
 
   clearLog() {
     this.logEntriesEl.innerHTML = '';
+  }
+
+  setChatEnabled(enabled: boolean) {
+    this.chatInputRow.style.display = enabled ? '' : 'none';
+    this.chatInput.value = '';
   }
 
   logTurn(turn: number, player: string) {
