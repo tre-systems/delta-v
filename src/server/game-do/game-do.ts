@@ -12,7 +12,7 @@ import {
   skipCombat,
   skipOrdnance,
 } from '../../shared/engine/game-engine';
-import { findBaseHex, getSolarSystemMap, SCENARIOS } from '../../shared/map-data';
+import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../../shared/map-data';
 import type {
   AstrogationOrder,
   C2S,
@@ -54,6 +54,8 @@ export interface Env {
 }
 
 export class GameDO extends DurableObject {
+  private readonly map = buildSolarSystemMap();
+
   // --- WebSocket tag-based player tracking ---
 
   private getPlayerId(ws: WebSocket): number | null {
@@ -336,7 +338,7 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    const outcome = resolveTurnTimeoutOutcome(gameState, getSolarSystemMap());
+    const outcome = resolveTurnTimeoutOutcome(gameState, this.map);
     if (!outcome) {
       await this.rescheduleAlarm();
       return;
@@ -414,7 +416,7 @@ export class GameDO extends DurableObject {
 
   private async initGame() {
     const [roomConfig, scenario] = await Promise.all([this.getRoomConfig(), this.getScenario()]);
-    const map = getSolarSystemMap();
+    const map = this.map;
     const code = roomConfig?.code ?? (await this.getGameCode());
 
     const gameState = createGame(scenario, map, code, findBaseHex);
@@ -429,7 +431,7 @@ export class GameDO extends DurableObject {
       ws,
       async (gameState) => {
         const scenario = await this.getScenario();
-        return processFleetReady(gameState, playerId, purchases, getSolarSystemMap(), scenario.availableShipTypes);
+        return processFleetReady(gameState, playerId, purchases, this.map, scenario.availableShipTypes);
       },
       async (result) => {
         await this.publishStateChange(result.state, undefined, result.state.phase === 'astrogation');
@@ -440,7 +442,7 @@ export class GameDO extends DurableObject {
   private async handleAstrogation(playerId: number, ws: WebSocket, orders: AstrogationOrder[]) {
     await this.runGameStateAction(
       ws,
-      (gameState) => processAstrogation(gameState, playerId, orders, getSolarSystemMap(), Math.random),
+      (gameState) => processAstrogation(gameState, playerId, orders, this.map, Math.random),
       async (result) => {
         await this.publishStateChange(result.state, resolveMovementBroadcast(result));
       },
@@ -450,7 +452,7 @@ export class GameDO extends DurableObject {
   private async handleOrdnance(playerId: number, ws: WebSocket, launches: OrdnanceLaunch[]) {
     await this.runGameStateAction(
       ws,
-      (gameState) => processOrdnance(gameState, playerId, launches, getSolarSystemMap(), Math.random),
+      (gameState) => processOrdnance(gameState, playerId, launches, this.map, Math.random),
       async (result) => {
         await this.publishStateChange(result.state, toMovementResultMessage(result));
       },
@@ -460,7 +462,7 @@ export class GameDO extends DurableObject {
   private async handleEmplaceBase(playerId: number, ws: WebSocket, emplacements: OrbitalBaseEmplacement[]) {
     await this.runGameStateAction(
       ws,
-      (gameState) => processEmplacement(gameState, playerId, emplacements, getSolarSystemMap()),
+      (gameState) => processEmplacement(gameState, playerId, emplacements, this.map),
       async (result) => {
         await this.publishStateChange(result.state, toStateUpdateMessage(result.state), false);
       },
@@ -470,7 +472,7 @@ export class GameDO extends DurableObject {
   private async handleSkipOrdnance(playerId: number, ws: WebSocket) {
     await this.runGameStateAction(
       ws,
-      (gameState) => skipOrdnance(gameState, playerId, getSolarSystemMap(), Math.random),
+      (gameState) => skipOrdnance(gameState, playerId, this.map, Math.random),
       async (result) => {
         await this.publishStateChange(result.state, resolveMovementBroadcast(result, 'stateUpdate'));
       },
@@ -480,7 +482,7 @@ export class GameDO extends DurableObject {
   private async handleCombat(playerId: number, ws: WebSocket, attacks: CombatAttack[]) {
     await this.runGameStateAction(
       ws,
-      (gameState) => processCombat(gameState, playerId, attacks, getSolarSystemMap(), Math.random),
+      (gameState) => processCombat(gameState, playerId, attacks, this.map, Math.random),
       async (result) => {
         await this.publishStateChange(result.state, resolveCombatBroadcast(result)!);
       },
@@ -490,7 +492,7 @@ export class GameDO extends DurableObject {
   private async handleBeginCombat(playerId: number, ws: WebSocket) {
     await this.runGameStateAction(
       ws,
-      (gameState) => beginCombatPhase(gameState, playerId, getSolarSystemMap(), Math.random),
+      (gameState) => beginCombatPhase(gameState, playerId, this.map, Math.random),
       async (result) => {
         await this.publishStateChange(result.state, resolveCombatBroadcast(result, 'stateUpdate'));
       },
@@ -500,7 +502,7 @@ export class GameDO extends DurableObject {
   private async handleSkipCombat(playerId: number, ws: WebSocket) {
     await this.runGameStateAction(
       ws,
-      (gameState) => skipCombat(gameState, playerId, getSolarSystemMap(), Math.random),
+      (gameState) => skipCombat(gameState, playerId, this.map, Math.random),
       async (result) => {
         await this.publishStateChange(result.state, resolveCombatBroadcast(result));
       },

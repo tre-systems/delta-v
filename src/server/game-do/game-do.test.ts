@@ -13,7 +13,7 @@ vi.mock('cloudflare:workers', () => ({
 }));
 
 import { createGame } from '../../shared/engine/game-engine';
-import { findBaseHex, getSolarSystemMap, SCENARIOS } from '../../shared/map-data';
+import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../../shared/map-data';
 import { GameDO } from './game-do';
 
 class MockStorage {
@@ -198,7 +198,7 @@ describe('GameDO', () => {
   it('advances a timed-out turn through the alarm path', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(10_000);
     const ctx = createCtx();
-    const state = createGame(SCENARIOS.biplanetary, getSolarSystemMap(), 'TIME1', findBaseHex);
+    const state = createGame(SCENARIOS.biplanetary, buildSolarSystemMap(), 'TIME1', findBaseHex);
     await ctx.storage.put('gameState', state);
     await ctx.storage.put('turnTimeoutAt', 9_500);
     await ctx.storage.put('inactivityAt', 30_000);
