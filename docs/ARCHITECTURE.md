@@ -166,9 +166,9 @@ Delta-V is a fully installable PWA. A lightweight hand-written service worker pr
 
 ### WebSocket Protocol
 
-**Client→Server (C2S)**: `fleetReady`, `astrogation`, `ordnance`, `emplaceBase`, `combat`, `skipOrdnance`, `beginCombat`, `skipCombat`, `rematch`, `ping`
+**Client→Server (C2S)**: `fleetReady`, `astrogation`, `ordnance`, `emplaceBase`, `combat`, `skipOrdnance`, `beginCombat`, `skipCombat`, `chat`, `rematch`, `ping`
 
-**Server→Client (S2C)**: `welcome`, `matchFound`, `gameStart`, `movementResult`, `combatResult`, `stateUpdate`, `gameOver`, `rematchPending`, `opponentDisconnected`, `error`, `pong`
+**Server→Client (S2C)**: `welcome`, `matchFound`, `gameStart`, `movementResult`, `combatResult`, `stateUpdate`, `gameOver`, `chat`, `rematchPending`, `opponentDisconnected`, `error`, `pong`
 
 All messages are discriminated unions validated at the protocol boundary. `GameState` is the single source of truth — clients never mutate it; server owns all state mutations.
 
