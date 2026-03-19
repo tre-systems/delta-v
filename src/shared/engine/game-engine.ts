@@ -616,7 +616,10 @@ export const processOrdnance = (
       return { error: 'Invalid ship for ordnance launch' };
     }
     if (ship.damage.disabledTurns > 0) {
-      return { error: 'Disabled ships cannot launch ordnance' };
+      // Orbital bases may launch ordnance at D1 damage (rulebook p.6)
+      if (ship.type !== 'orbitalBase' || ship.damage.disabledTurns > 1) {
+        return { error: 'Disabled ships cannot launch ordnance' };
+      }
     }
     if (ship.captured) {
       return { error: 'Captured ships cannot launch ordnance' };

@@ -158,6 +158,14 @@ describe('canAttack', () => {
     expect(canAttack(makeShip({ type: 'dreadnaught', destroyed: true }))).toBe(false);
   });
 
+  it('D1-disabled orbital base can still attack (rulebook p.6)', () => {
+    expect(canAttack(makeShip({ type: 'orbitalBase', damage: { disabledTurns: 1 } }))).toBe(true);
+  });
+
+  it('D2+ disabled orbital base cannot attack', () => {
+    expect(canAttack(makeShip({ type: 'orbitalBase', damage: { disabledTurns: 2 } }))).toBe(false);
+  });
+
   it('destroyed ship cannot attack', () => {
     expect(canAttack(makeShip({ destroyed: true }))).toBe(false);
   });
@@ -178,6 +186,14 @@ describe('canCounterattack', () => {
 
   it('destroyed dreadnaught cannot counterattack', () => {
     expect(canCounterattack(makeShip({ type: 'dreadnaught', destroyed: true }))).toBe(false);
+  });
+
+  it('D1-disabled orbital base can still counterattack (rulebook p.6)', () => {
+    expect(canCounterattack(makeShip({ type: 'orbitalBase', damage: { disabledTurns: 1 } }))).toBe(true);
+  });
+
+  it('D2+ disabled orbital base cannot counterattack', () => {
+    expect(canCounterattack(makeShip({ type: 'orbitalBase', damage: { disabledTurns: 2 } }))).toBe(false);
   });
 });
 
