@@ -39,6 +39,12 @@ export type AIActionPlan =
       errorPrefix: 'AI combat error:' | 'AI skip combat error:';
     }
   | {
+      kind: 'logistics';
+      aiPlayer: number;
+      skip: true;
+      errorPrefix: 'AI skip logistics error:';
+    }
+  | {
       kind: 'transition';
       aiPlayer: number;
     };
@@ -89,6 +95,15 @@ export const deriveAIActionPlan = (
       logEntries: buildAIOrdnanceLogEntries(state, launches),
       skip: launches.length === 0,
       errorPrefix: launches.length > 0 ? 'AI ordnance error:' : 'AI skip ordnance error:',
+    };
+  }
+
+  if (state.phase === 'logistics') {
+    return {
+      kind: 'logistics',
+      aiPlayer,
+      skip: true,
+      errorPrefix: 'AI skip logistics error:',
     };
   }
 

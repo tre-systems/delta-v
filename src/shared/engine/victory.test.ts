@@ -99,6 +99,70 @@ describe('advanceTurn', () => {
     // Destroyed ship should not have its disabled turns decremented
     expect(ship.damage.disabledTurns).toBe(3);
   });
+
+  it('spawns reinforcements on the scheduled turn', () => {
+    const state = setupState();
+    state.activePlayer = 1; // will switch to 0 and increment turn
+    state.turnNumber = 2; // will become 3
+    state.scenarioRules.reinforcements = [
+      {
+        turn: 3,
+        playerId: 0,
+        ships: [{ type: 'corvette', position: { q: 5, r: 5 }, velocity: { dq: 0, dr: 0 } }],
+      },
+    ];
+    const shipsBefore = state.ships.length;
+    advanceTurn(state);
+    expect(state.ships.length).toBe(shipsBefore + 1);
+    const newShip = state.ships[state.ships.length - 1];
+    expect(newShip.type).toBe('corvette');
+    expect(newShip.owner).toBe(0);
+    expect(newShip.fuel).toBe(SHIP_STATS.corvette.fuel);
+  });
+
+  it('does not spawn reinforcements on wrong turn', () => {
+    const state = setupState();
+    state.activePlayer = 1;
+    state.turnNumber = 1; // will become 2
+    state.scenarioRules.reinforcements = [
+      {
+        turn: 5,
+        playerId: 0,
+        ships: [{ type: 'corvette', position: { q: 5, r: 5 }, velocity: { dq: 0, dr: 0 } }],
+      },
+    ];
+    const shipsBefore = state.ships.length;
+    advanceTurn(state);
+    expect(state.ships.length).toBe(shipsBefore);
+  });
+
+  it('applies fleet conversion on scheduled turn', () => {
+    const state = setupState();
+    state.activePlayer = 1;
+    state.turnNumber = 4; // will become 5
+    state.scenarioRules.fleetConversion = { turn: 5, fromPlayer: 1, toPlayer: 0 };
+    const p1Ships = state.ships.filter((s) => s.owner === 1 && !s.destroyed);
+    advanceTurn(state);
+    for (const ship of p1Ships) {
+      expect(ship.owner).toBe(0);
+    }
+  });
+
+  it('fleet conversion respects shipTypes filter', () => {
+    const state = setupState();
+    state.ships.push(makeShip({ id: 'extra-frigate', type: 'frigate', owner: 1 }));
+    state.activePlayer = 1;
+    state.turnNumber = 2; // will become 3
+    state.scenarioRules.fleetConversion = { turn: 3, fromPlayer: 1, toPlayer: 0, shipTypes: ['frigate'] };
+    advanceTurn(state);
+    const frigate = state.ships.find((s) => s.id === 'extra-frigate')!;
+    expect(frigate.owner).toBe(0);
+    // Original corvettes should stay with player 1
+    const p1Corvettes = state.ships.filter((s) => s.type === 'corvette' && s.id !== 'extra-frigate');
+    for (const ship of p1Corvettes) {
+      if (ship.owner === 1) expect(ship.owner).toBe(1);
+    }
+  });
 });
 
 describe('updateCheckpoints', () => {

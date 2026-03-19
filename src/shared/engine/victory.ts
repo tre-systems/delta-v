@@ -23,7 +23,63 @@ export const advanceTurn = (state: GameState): void => {
   if (state.activePlayer === 0) {
     state.turnNumber++;
   }
+
+  // Spawn reinforcements scheduled for this turn
+  applyReinforcements(state);
+  // Apply fleet conversion if triggered
+  applyFleetConversion(state);
+
   state.phase = 'astrogation';
+};
+
+const getNextShipId = (state: GameState): string => {
+  const maxId = state.ships.reduce((max, ship) => {
+    const num = parseInt(ship.id.replace(/\D/g, ''), 10);
+    return Number.isNaN(num) ? max : Math.max(max, num);
+  }, 0);
+  return `ship-${maxId + 1}`;
+};
+
+const applyReinforcements = (state: GameState): void => {
+  const reinforcements = state.scenarioRules.reinforcements;
+  if (!reinforcements) return;
+
+  for (const r of reinforcements) {
+    if (r.turn !== state.turnNumber) continue;
+    if (r.playerId !== state.activePlayer) continue;
+
+    for (const shipDef of r.ships) {
+      const stats = SHIP_STATS[shipDef.type];
+      if (!stats) continue;
+      const id = getNextShipId(state);
+      state.ships.push({
+        id,
+        type: shipDef.type,
+        owner: r.playerId,
+        position: { ...shipDef.position },
+        velocity: { ...shipDef.velocity },
+        fuel: stats.fuel,
+        cargoUsed: 0,
+        resuppliedThisTurn: false,
+        landed: shipDef.startLanded !== false,
+        destroyed: false,
+        detected: true,
+        damage: { disabledTurns: 0 },
+      });
+    }
+  }
+};
+
+const applyFleetConversion = (state: GameState): void => {
+  const conversion = state.scenarioRules.fleetConversion;
+  if (!conversion || conversion.turn !== state.turnNumber) return;
+
+  for (const ship of state.ships) {
+    if (ship.owner !== conversion.fromPlayer) continue;
+    if (ship.destroyed) continue;
+    if (conversion.shipTypes && !conversion.shipTypes.includes(ship.type)) continue;
+    ship.owner = conversion.toPlayer;
+  }
 };
 
 /**
@@ -313,6 +369,7 @@ export const checkOrbitalBaseResupply = (state: GameState, playerId: number): vo
         ship.nukesLaunchedSinceResupply = 0;
         ship.damage = { disabledTurns: 0 };
         ship.captured = false;
+        ship.surrendered = false;
         ship.resuppliedThisTurn = true;
         ob.resuppliedThisTurn = true;
       }
@@ -338,6 +395,7 @@ export const applyResupply = (ship: Ship, state: GameState, map: SolarSystemMap)
     ship.overloadUsed = false;
     ship.damage = { disabledTurns: 0 };
     ship.captured = false;
+    ship.surrendered = false;
     ship.resuppliedThisTurn = true;
   }
 };

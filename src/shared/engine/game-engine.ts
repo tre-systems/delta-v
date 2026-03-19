@@ -15,6 +15,7 @@ import type {
 } from '../types';
 import { randomChoice } from '../util';
 import { shouldEnterCombatPhase } from './combat';
+import { shouldEnterLogisticsPhase } from './logistics';
 import { moveOrdnance, queueAsteroidHazards, shouldEnterOrdnancePhase } from './ordnance';
 import {
   getAllowedOrdnanceTypes,
@@ -40,6 +41,7 @@ import {
 export type { CombatPhaseResult } from './combat';
 // Re-export public API from sub-modules for backward compatibility
 export { beginCombatPhase, processCombat, skipCombat } from './combat';
+export { processLogistics, processSurrender, skipLogistics } from './logistics';
 export { processEmplacement } from './ordnance';
 
 export interface MovementResult {
@@ -525,7 +527,9 @@ const resolveMovementPhase = (
   checkImmediateVictory(state, map);
 
   if (state.winner === null) {
-    if (shouldEnterCombatPhase(state, map)) {
+    if (shouldEnterLogisticsPhase(state)) {
+      state.phase = 'logistics';
+    } else if (shouldEnterCombatPhase(state, map)) {
       state.phase = 'combat';
     } else {
       checkGameEnd(state, map);
