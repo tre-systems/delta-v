@@ -2392,12 +2392,13 @@ describe('landed ship immunity', () => {
     attacker.lastMovementPath = [{ q: -10, r: 0 }];
     attacker.velocity = { dq: 0, dr: 0 };
 
-    const _result = resolveAstrogationMovement(state, 0, [
+    const result = resolveAstrogationMovement(state, 0, [
       { shipId: attacker.id, burn: null },
     ]);
 
     // Nuke should have destroyed the landed ship
-    expect(target.destroyed).toBe(true);
+    const updatedTarget = result.state.ships.find((s) => s.id === target.id)!;
+    expect(updatedTarget.destroyed).toBe(true);
   });
 
   it('landed ships are immune to ramming', () => {
@@ -2524,7 +2525,10 @@ describe('resupply restrictions', () => {
     // Skip combat to advance turn
     const result = skipCombat(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
-    expect(ship.resuppliedThisTurn).toBe(false);
+    if (!('error' in result)) {
+      const updated = result.state.ships.find((s) => s.id === ship.id)!;
+      expect(updated.resuppliedThisTurn).toBe(false);
+    }
   });
 });
 
@@ -2640,16 +2644,17 @@ describe('nuke planetary devastation', () => {
     attacker.lastMovementPath = [{ q: -30, r: -30 }];
     attacker.velocity = { dq: 0, dr: 0 };
 
-    const _result = resolveAstrogationMovement(state, 0, [
+    const result = resolveAstrogationMovement(state, 0, [
       { shipId: attacker.id, burn: null },
     ]);
 
     // The nuke should have devastated the gravity hex, destroying the victim
-    expect(victim.destroyed).toBe(true);
+    const updatedVictim = result.state.ships.find((s) => s.id === victim.id)!;
+    expect(updatedVictim.destroyed).toBe(true);
     // And any base on that hex should be destroyed
     const gravKey = hexKey(gravHex!);
     if (map.hexes.get(gravKey)?.base) {
-      expect(state.destroyedBases).toContain(gravKey);
+      expect(result.state.destroyedBases).toContain(gravKey);
     }
   });
 });
@@ -2686,7 +2691,7 @@ describe('hidden identity (Escape scenario)', () => {
     inspector.landed = false;
     state.activePlayer = 1;
 
-    resolveAstrogationMovement(
+    const result = resolveAstrogationMovement(
       state,
       1,
       state.ships
@@ -2694,7 +2699,10 @@ describe('hidden identity (Escape scenario)', () => {
         .map((s) => ({ shipId: s.id, burn: null })),
     );
 
-    expect(fugitive.identityRevealed).toBe(true);
+    const updatedFugitive = result.state.ships.find(
+      (s) => s.id === fugitive.id,
+    )!;
+    expect(updatedFugitive.identityRevealed).toBe(true);
   });
 
   it('fugitive ship escape triggers victory', () => {
@@ -3393,8 +3401,10 @@ describe('Grand Tour', () => {
     tourState.activePlayer = 0;
     const initialFuel = tourState.players[0].totalFuelSpent;
 
-    resolveAstrogationMovement(tourState, 0, [{ shipId: ship.id, burn: 0 }]);
+    const result = resolveAstrogationMovement(tourState, 0, [
+      { shipId: ship.id, burn: 0 },
+    ]);
 
-    expect(tourState.players[0].totalFuelSpent).toBe(initialFuel! + 1);
+    expect(result.state.players[0].totalFuelSpent).toBe(initialFuel! + 1);
   });
 });

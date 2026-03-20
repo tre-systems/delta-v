@@ -468,15 +468,18 @@ describe('processEmplacement', () => {
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
 
     expect('error' in result).toBe(false);
-    expect(state.ships.length).toBe(shipsBefore + 1);
+    if (!('error' in result)) {
+      const rs = result.state;
+      expect(rs.ships.length).toBe(shipsBefore + 1);
 
-    const base = state.ships[state.ships.length - 1];
+      const base = rs.ships[rs.ships.length - 1];
 
-    expect(base.type).toBe('orbitalBase');
-    expect(base.owner).toBe(0);
-    expect(base.emplaced).toBe(true);
-    expect(base.position).toEqual(marsGravityHex);
-    expect(base.velocity).toEqual({ dq: 1, dr: 0 });
+      expect(base.type).toBe('orbitalBase');
+      expect(base.owner).toBe(0);
+      expect(base.emplaced).toBe(true);
+      expect(base.position).toEqual(marsGravityHex);
+      expect(base.velocity).toEqual({ dq: 1, dr: 0 });
+    }
   });
 
   it('clears carryingOrbitalBase and reduces cargo after emplacement', () => {
@@ -490,10 +493,14 @@ describe('processEmplacement', () => {
     });
     ship.cargoUsed = ORBITAL_BASE_MASS + 10;
 
-    processEmplacement(state, 0, [{ shipId: ship.id }], map);
+    const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
 
-    expect(ship.carryingOrbitalBase).toBe(false);
-    expect(ship.cargoUsed).toBe(10);
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      const updated = result.state.ships.find((s) => s.id === ship.id)!;
+      expect(updated.carryingOrbitalBase).toBe(false);
+      expect(updated.cargoUsed).toBe(10);
+    }
   });
 
   it('rejects emplacement by a destroyed ship', () => {
