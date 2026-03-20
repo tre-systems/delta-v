@@ -10,6 +10,6 @@ CREATE TABLE IF NOT EXISTS events (
   created   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_events_ts ON events(ts);
-CREATE INDEX idx_events_event ON events(event);
-CREATE INDEX idx_events_anon ON events(anon_id);
+CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
+CREATE INDEX IF NOT EXISTS idx_events_event ON events(event);
+CREATE INDEX IF NOT EXISTS idx_events_anon ON events(anon_id);
