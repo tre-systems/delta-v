@@ -14,6 +14,7 @@ import {
   playerControlsBase,
   shuffle,
   usesEscapeInspectionRules,
+  validatePhaseAction,
 } from './util';
 
 const bounds = { minQ: -10, maxQ: 10, minR: -10, maxR: 10 };
@@ -316,5 +317,30 @@ describe('playerControlsBase', () => {
     } as any;
 
     expect(playerControlsBase(state, 0, '1,2')).toBe(false);
+  });
+});
+
+describe('validatePhaseAction', () => {
+  const state = {
+    phase: 'astrogation',
+    activePlayer: 0,
+  } as GameState;
+
+  it('returns null when phase and player match', () => {
+    expect(validatePhaseAction(state, 0, 'astrogation')).toBeNull();
+  });
+
+  it('returns error when phase does not match', () => {
+    expect(validatePhaseAction(state, 0, 'combat')).toBe('Not in combat phase');
+  });
+
+  it('returns error when player is not active', () => {
+    expect(validatePhaseAction(state, 1, 'astrogation')).toBe('Not your turn');
+  });
+
+  it('checks phase before player', () => {
+    expect(validatePhaseAction(state, 1, 'ordnance')).toBe(
+      'Not in ordnance phase',
+    );
   });
 });

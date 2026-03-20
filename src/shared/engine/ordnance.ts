@@ -27,6 +27,7 @@ import {
   getAllowedOrdnanceTypes,
   hasLaunchableOrdnanceCapacity,
   shuffle,
+  validatePhaseAction,
 } from './util';
 
 /**
@@ -64,12 +65,8 @@ export const processEmplacement = (
 ): { state: GameState } | { error: string } => {
   const state = structuredClone(inputState);
 
-  if (state.phase !== 'ordnance') {
-    return { error: 'Not in ordnance phase' };
-  }
-  if (playerId !== state.activePlayer) {
-    return { error: 'Not your turn' };
-  }
+  const phaseError = validatePhaseAction(state, playerId, 'ordnance');
+  if (phaseError) return { error: phaseError };
 
   for (const emp of emplacements) {
     const ship = state.ships.find((s) => s.id === emp.shipId);

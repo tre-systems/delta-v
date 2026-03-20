@@ -27,6 +27,7 @@ import {
   getOwnedPlanetaryBases,
   hasAnyEnemyShips,
   isPlanetaryDefenseEnabled,
+  validatePhaseAction,
 } from './util';
 import { advanceTurn, applyEscapeMoralVictory, checkGameEnd } from './victory';
 
@@ -201,12 +202,8 @@ export const beginCombatPhase = (
 ): CombatPhaseResult | { state: GameState } | { error: string } => {
   const state = structuredClone(inputState);
 
-  if (state.phase !== 'combat') {
-    return { error: 'Not in combat phase' };
-  }
-  if (playerId !== state.activePlayer) {
-    return { error: 'Not your turn' };
-  }
+  const phaseError = validatePhaseAction(state, playerId, 'combat');
+  if (phaseError) return { error: phaseError };
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
@@ -241,12 +238,8 @@ export const processCombat = (
 ): CombatPhaseResult | { error: string } => {
   const state = structuredClone(inputState);
 
-  if (state.phase !== 'combat') {
-    return { error: 'Not in combat phase' };
-  }
-  if (playerId !== state.activePlayer) {
-    return { error: 'Not your turn' };
-  }
+  const phaseError = validatePhaseAction(state, playerId, 'combat');
+  if (phaseError) return { error: phaseError };
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
@@ -485,12 +478,8 @@ export const skipCombat = (
 ): { state: GameState; results?: CombatResult[] } | { error: string } => {
   const state = structuredClone(inputState);
 
-  if (state.phase !== 'combat') {
-    return { error: 'Not in combat phase' };
-  }
-  if (playerId !== state.activePlayer) {
-    return { error: 'Not your turn' };
-  }
+  const phaseError = validatePhaseAction(state, playerId, 'combat');
+  if (phaseError) return { error: phaseError };
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 

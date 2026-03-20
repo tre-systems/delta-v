@@ -2,6 +2,7 @@ import { SHIP_STATS } from '../constants';
 import { hexEqual } from '../hex';
 import type { GameState, Ship, SolarSystemMap, TransferOrder } from '../types';
 import { shouldEnterCombatPhase } from './combat';
+import { validatePhaseAction } from './util';
 import { advanceTurn, checkGameEnd } from './victory';
 
 export interface TransferPair {
@@ -190,12 +191,8 @@ export const processLogistics = (
 ): { state: GameState } | { error: string } => {
   const state = structuredClone(inputState);
 
-  if (state.phase !== 'logistics') {
-    return { error: 'Not in logistics phase' };
-  }
-  if (playerId !== state.activePlayer) {
-    return { error: 'Not your turn' };
-  }
+  const phaseError = validatePhaseAction(state, playerId, 'logistics');
+  if (phaseError) return { error: phaseError };
 
   for (const transfer of transfers) {
     const error = validateTransfer(state, playerId, transfer);
@@ -240,12 +237,8 @@ export const skipLogistics = (
 ): { state: GameState } | { error: string } => {
   const state = structuredClone(inputState);
 
-  if (state.phase !== 'logistics') {
-    return { error: 'Not in logistics phase' };
-  }
-  if (playerId !== state.activePlayer) {
-    return { error: 'Not your turn' };
-  }
+  const phaseError = validatePhaseAction(state, playerId, 'logistics');
+  if (phaseError) return { error: phaseError };
 
   if (shouldEnterCombatPhase(state, map)) {
     state.phase = 'combat';
@@ -271,12 +264,9 @@ export const processSurrender = (
 ): { state: GameState } | { error: string } => {
   const state = structuredClone(inputState);
 
-  if (state.phase !== 'astrogation') {
-    return { error: 'Not in astrogation phase' };
-  }
-  if (playerId !== state.activePlayer) {
-    return { error: 'Not your turn' };
-  }
+  const phaseError = validatePhaseAction(state, playerId, 'astrogation');
+  if (phaseError) return { error: phaseError };
+
   if (!state.scenarioRules.logisticsEnabled) {
     return {
       error: 'Logistics not enabled for this scenario',

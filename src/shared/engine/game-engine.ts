@@ -27,6 +27,7 @@ import {
   getOwnedPlanetaryBases,
   parseBaseKey,
   usesEscapeInspectionRules,
+  validatePhaseAction,
 } from './util';
 import {
   advanceTurn,
@@ -711,12 +712,8 @@ export const processAstrogation = (
 ): MovementResult | StateUpdateResult | { error: string } => {
   const state = structuredClone(inputState);
 
-  if (state.phase !== 'astrogation') {
-    return { error: 'Not in astrogation phase' };
-  }
-  if (playerId !== state.activePlayer) {
-    return { error: 'Not your turn' };
-  }
+  const phaseError = validatePhaseAction(state, playerId, 'astrogation');
+  if (phaseError) return { error: phaseError };
 
   const validationError = validateAstrogationOrders(state, playerId, orders);
 
@@ -760,12 +757,8 @@ export const processOrdnance = (
 ): MovementResult | { error: string } => {
   const state = structuredClone(inputState);
 
-  if (state.phase !== 'ordnance') {
-    return { error: 'Not in ordnance phase' };
-  }
-  if (playerId !== state.activePlayer) {
-    return { error: 'Not your turn' };
-  }
+  const phaseError = validatePhaseAction(state, playerId, 'ordnance');
+  if (phaseError) return { error: phaseError };
 
   let nextOrdId = getNextOrdnanceId(state);
   const launchedShips = new Set<string>();
@@ -942,12 +935,8 @@ export const skipOrdnance = (
 ): MovementResult | StateUpdateResult | { error: string } => {
   const state = structuredClone(inputState);
 
-  if (state.phase !== 'ordnance') {
-    return { error: 'Not in ordnance phase' };
-  }
-  if (playerId !== state.activePlayer) {
-    return { error: 'Not your turn' };
-  }
+  const phaseError = validatePhaseAction(state, playerId, 'ordnance');
+  if (phaseError) return { error: phaseError };
 
   return resolveMovementPhase(state, playerId, map, rng);
 };
