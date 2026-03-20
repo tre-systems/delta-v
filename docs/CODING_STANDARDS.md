@@ -63,6 +63,8 @@ These are heuristics, not hard rules:
 - Files above `500` lines should be reviewed for extraction opportunities.
 - Files above `1000` lines are usually overdue for decomposition.
 
+Imperative boundary orchestrators (`main.ts`, `renderer.ts`, `game-do.ts`) tend to be larger because they coordinate many subsystems. The 1000-line heuristic applies less strictly to these files — focus on whether responsibilities are clearly separated and helper logic has been extracted.
+
 Do not create meaningless wrapper functions or over-fragment files just to hit numeric targets.
 
 ## Testing
@@ -135,6 +137,13 @@ Protocol validation uses `{ ok: true; value: T } | { ok: false; error: string }`
 | `apply*` | Apply transformation to state | Yes | `applyGameState`, `applyDamage` |
 | `get*` | Retrieve/lookup | No | `getTooltipShip`, `getNextSelectedShip` |
 | `is*` / `has*` | Boolean predicate | No | `isGameOver`, `hasLineOfSight` |
+| `present*` | Show result/outcome to user | Yes (client) | `presentMovementResult`, `presentCombatResults` |
+| `show*` | Display UI element or feedback | Yes (client) | `showGameOverOutcome`, `showToast` |
+| `render*` | Build/update DOM elements | Yes (client) | `renderTransferPanel`, `renderMinimap` |
+| `handle*` | React to an event or message | Yes | `handleLocalResolution`, `handleMessage` |
+| `play*` | Trigger animation or sequence | Yes (client) | `playLocalMovementResult`, `playSound` |
+| `move*` | Relocate entity in game state | Yes (engine) | `moveOrdnance`, `moveShip` |
+| `queue*` | Schedule future action/event | Yes (engine) | `queueAsteroidHazards`, `queueAttack` |
 
 ### Naming conventions
 
