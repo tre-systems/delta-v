@@ -22,4 +22,6 @@ export type UIEvent =
   | { type: 'rematch' }
   | { type: 'exit' }
   | { type: 'selectShip'; shipId: string }
-  | { type: 'chat'; text: string };
+  | { type: 'chat'; text: string }
+  // Navigation
+  | { type: 'backToMenu' };
