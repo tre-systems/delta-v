@@ -38,20 +38,20 @@ This is the heart of the project. All game rules live in a shared folder, making
 
 | Module | LOC | Purpose | Reusability |
 |--------|-----|---------|-------------|
-| `hex.ts` | 245 | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
-| `util.ts` | 110 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
-| `types.ts` | 300 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios | Game-specific |
-| `constants.ts` | 65 | Ship stats, ordnance mass, detection ranges, animation timing | Game-specific |
-| `movement.ts` | 320 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
-| `combat.ts` | 490 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
-| `map-data.ts` | 535 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
-| `ai.ts` | 725 | Rule-based AI with three difficulty levels | Game-specific |
-| `engine/game-engine.ts` | 720 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
-| `engine/combat.ts` | 400 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
-| `engine/ordnance.ts` | 420 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
-| `engine/logistics.ts` | 205 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
-| `engine/victory.ts` | 440 | Victory conditions, turn advancement, reinforcements, fleet conversion | Game-specific |
-| `engine/util.ts` | 105 | Game rule helpers: base ownership, escape checks, ordnance capacity | Game-specific |
+| `hex.ts` | 289 | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
+| `util.ts` | 170 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
+| `types.ts` | 358 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios | Game-specific |
+| `constants.ts` | 135 | Ship stats, ordnance mass, detection ranges, animation timing | Game-specific |
+| `movement.ts` | 426 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
+| `combat.ts` | 627 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
+| `map-data.ts` | 704 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
+| `ai.ts` | 981 | Rule-based AI with three difficulty levels | Game-specific |
+| `engine/game-engine.ts` | 945 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
+| `engine/combat.ts` | 542 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
+| `engine/ordnance.ts` | 523 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
+| `engine/logistics.ts` | 315 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
+| `engine/victory.ts` | 634 | Victory conditions, turn advancement, reinforcements, fleet conversion | Game-specific |
+| `engine/util.ts` | 157 | Game rule helpers: base ownership, escape checks, ordnance capacity | Game-specific |
 
 #### Key Design Patterns
 
@@ -76,7 +76,7 @@ This works correctly because:
 
 **Mitigation**: `client/game/local.ts` uses `structuredClone(state)` to capture a true pre-mutation snapshot before engine calls, making `previousState` semantics honest for animation diffing.
 
-**Future improvement**: Switching to clone-on-entry at all engine entry points (not just local.ts) would enable state diffing, undo, replay, and spectator mode. See BACKLOG.md item 2k.
+**Future improvement**: Switching to clone-on-entry at all engine entry points (not just local.ts) would enable state diffing, undo, replay, and spectator mode. See BACKLOG.md item 1a.
 
 #### RNG Injection
 
@@ -102,10 +102,17 @@ The backend leverages Cloudflare's edge network.
 
 #### Key Design Patterns
 
-- **`runGameStateAction()`**: Fetch current state → run pure engine function → on error send error message → on success save state and broadcast. Reduces boilerplate for each action handler.
-- **Filtered broadcasting**: `broadcastFiltered()` checks if state has hidden info. If no hidden info, same state to both players. If hidden info, calls `filterStateForPlayer()` separately per player.
-- **Single alarm**: One alarm per DO, rescheduled on each state change. Handler checks multiple deadlines (disconnect, turn timeout, inactivity) and acts on the nearest.
-- **Seat assignment**: Token-based with 30s disconnect grace period. Invite tokens consumed on first use, preventing replay attacks.
+- **[WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/api/websockets/)**: The DO uses Cloudflare's hibernatable WebSocket API (`acceptWebSocket`, `webSocketMessage`, `webSocketClose`) instead of the standard `addEventListener` pattern. This allows the DO to hibernate between messages, reducing costs. Sockets are tagged with `player:${playerId}` on accept, enabling player lookup via `getWebSockets(['player:0'])` without maintaining an in-memory map.
+
+- **`runGameStateAction(ws, action, onSuccess)`**: Generic handler that reduces boilerplate across all 12+ action handlers. Fetches current state from storage → runs a pure engine function → on error sends error message to the WebSocket → on success invokes `onSuccess` callback (typically save state + broadcast). The engine function is passed as a closure, keeping handler methods short.
+
+- **Filtered broadcasting**: `broadcastFiltered()` checks whether the current scenario has hidden information (fugitive identities in escape scenarios). If no hidden info, the same state goes to both players. If hidden info, `filterStateForPlayer(state, playerId)` is called separately per player — own ships are fully visible, unrevealed enemy ships show `type: 'unknown'`. When adding new hidden state, extend `filterStateForPlayer()` and the check in `broadcastFiltered()`.
+
+- **Single-alarm scheduling**: One alarm per DO, rescheduled after each state change. Three independent deadlines are stored: `disconnectAt` (30s grace), `turnTimeoutAt` (2 min), `inactivityAt` (5 min). `getNextAlarmAt()` computes the nearest deadline. When the alarm fires, `resolveAlarmAction()` returns a discriminated action (`disconnectExpired`, `turnTimeout`, `inactivityTimeout`) and the handler dispatches accordingly.
+
+- **Seat assignment**: `resolveSeatAssignment()` in `protocol.ts` implements a multi-step fallback: (1) player token match → returning player gets their original seat; (2) invite token match → new player consumes the token and gets the open seat; (3) tokenless join → safety net for future open lobbies; (4) no seats available → reject. Invite tokens are consumed on first use, preventing replay attacks.
+
+- **Disconnect grace period**: When a player disconnects, the DO stores a disconnect marker (player ID + 30s deadline) and schedules an alarm. If the player reconnects within 30s with a valid player token, the marker is cleared and the game continues. If the alarm fires with an unexpired marker, the game ends by forfeit. The marker is validated on reconnect — only the original player can reclaim the seat.
 
 ### C. The Client (`client/`)
 The frontend renders the pure hex-grid state into a smooth, continuous graphical experience.
@@ -114,10 +121,10 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 | Directory | Files | LOC | Purpose |
 |-----------|-------|-----|---------|
-| `client/` (root) | 5 | ~1900 | Entry point (`main.ts` ~1025 LOC), raw input, audio, tutorial, DOM helpers |
-| `client/game/` | 34 | ~3700 | Game logic: planning, commands, phases, transport, presentation, connection, actions |
-| `client/renderer/` | 14 | ~3500 | Canvas rendering: camera, scene, entities, effects, overlays |
-| `client/ui/` | 8 | ~1400 | DOM overlays: menu, HUD, ship list, fleet shop, formatters |
+| `client/` (root) | 5 | ~2200 | Entry point (`main.ts` ~1390 LOC), raw input, audio, tutorial, DOM helpers |
+| `client/game/` | 35 | ~5200 | Game logic: planning, commands, phases, transport, presentation, connection, actions |
+| `client/renderer/` | 13 | ~4500 | Canvas rendering: camera, scene, entities, effects, overlays |
+| `client/ui/` | 8 | ~1900 | DOM overlays: menu, HUD, ship list, fleet shop, formatters |
 
 #### Three-Layer Input Architecture
 
@@ -127,7 +134,7 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 #### Client State Machine (`ClientState`)
 - `menu` → `connecting` → `waitingForOpponent` → `playing_*` → `gameOver`
-- Playing substates: `fleetBuilding`, `astrogation`, `ordnance`, `combat`, `movementAnim`, `opponentTurn`
+- Playing substates: `fleetBuilding`, `astrogation`, `ordnance`, `logistics`, `combat`, `movementAnim`, `opponentTurn`
 - Phase-locked: input only processed when phase matches active player.
 
 #### Rendering Pipeline (per frame)
@@ -167,9 +174,9 @@ Delta-V is a fully installable PWA. A lightweight hand-written service worker pr
 
 ### WebSocket Protocol
 
-**Client→Server (C2S)**: `fleetReady`, `astrogation`, `ordnance`, `emplaceBase`, `combat`, `skipOrdnance`, `beginCombat`, `skipCombat`, `chat`, `rematch`, `ping`
+**Client→Server (C2S)**: `fleetReady`, `astrogation`, `ordnance`, `emplaceBase`, `skipOrdnance`, `beginCombat`, `combat`, `skipCombat`, `logistics`, `skipLogistics`, `surrender`, `rematch`, `chat`, `ping`
 
-**Server→Client (S2C)**: `welcome`, `matchFound`, `gameStart`, `movementResult`, `combatResult`, `stateUpdate`, `gameOver`, `chat`, `rematchPending`, `opponentDisconnected`, `error`, `pong`
+**Server→Client (S2C)**: `welcome`, `matchFound`, `gameStart`, `movementResult`, `combatResult`, `stateUpdate`, `gameOver`, `rematchPending`, `opponentDisconnected`, `chat`, `error`, `pong`
 
 All messages are discriminated unions validated at the protocol boundary. `GameState` is the single source of truth — clients never mutate it; server owns all state mutations.
 
@@ -238,14 +245,14 @@ An analysis of what could be extracted as a reusable hex-grid multiplayer game f
 
 | Component | LOC | Reusability | Notes |
 |-----------|-----|-------------|-------|
-| `shared/hex.ts` | 245 | **100%** | Zero game knowledge. Axial coords, line draw, pixel conversion. |
-| `shared/util.ts` | 110 | **100%** | Pure FP collection helpers. |
-| `renderer/camera.ts` | 85 | **95%** | Pan/zoom/lerp. Only tie: `HEX_SIZE` constant. |
-| `client/input.ts` | 185 | **90%** | Mouse/touch/pinch → clickHex/hoverHex. No game knowledge. |
+| `shared/hex.ts` | 289 | **100%** | Zero game knowledge. Axial coords, line draw, pixel conversion. |
+| `shared/util.ts` | 170 | **100%** | Pure FP collection helpers. |
+| `renderer/camera.ts` | 96 | **95%** | Pan/zoom/lerp. Only tie: `HEX_SIZE` constant. |
+| `client/input.ts` | 234 | **90%** | Mouse/touch/pinch → clickHex/hoverHex. No game knowledge. |
 | Server multiplayer plumbing | ~400 | **80%** | Room codes, tokens, seat assignment, disconnect grace, alarms. |
-| `game/transport.ts` | 150 | **70%** | Command submission pattern. Interface is game-specific but pattern is generic. |
+| `game/transport.ts` | 211 | **70%** | Command submission pattern. Interface is game-specific but pattern is generic. |
 | Renderer orchestration | ~200 | **60%** | Render loop, effect management, animation interpolation. |
-| Everything else | ~8000 | **0–20%** | Deeply game-specific. |
+| Everything else | ~12000 | **0–20%** | Deeply game-specific. |
 
 ### What a Generic Framework Would Look Like
 
@@ -271,7 +278,7 @@ A game implementation would provide:
 
 ### Assessment
 
-**The extractable core is ~1000 LOC** — enough to avoid rewriting for a second game, but small enough that copy-paste is also viable.
+**The extractable core is ~1400 LOC** — enough to avoid rewriting for a second game, but small enough that copy-paste is also viable.
 
 **Arguments for extraction:**
 - `hex.ts` + `camera.ts` + `input.ts` are immediately reusable with zero changes
@@ -289,24 +296,37 @@ A game implementation would provide:
 
 ---
 
-## 6. Open Improvement Opportunities
+## 6. Improvement Opportunities & Commercial Readiness
 
-See BACKLOG.md for the full prioritised list including completed items. Below are the open items relevant to architecture decisions.
+See BACKLOG.md for the full prioritised backlog. Below summarises the architectural decisions and their rationale.
 
-### Reduce In-Place Mutation in the Engine (BACKLOG 2k)
-Engine functions mutate `GameState` in place. This works for current usage but prevents: state diffing, undo, replay, spectator mode, and speculative AI branching. The pragmatic path is clone-on-entry at engine entry points, not a rewrite to persistent data structures.
+### Priority 1: Clone-on-Entry + Server Rollback + Event Log (BACKLOG 1a, 1b, 1c)
 
-### Other Considerations
-- **Add browser-side tests around input/UI/orchestration**: Shared rules are well covered. The bigger refactor risk sits in client coordination code.
-- **Public lobby hardening**: Longer opaque identifiers, rate limiting, and optional identity/account binding.
+Engine functions mutate `GameState` in place. This is the single largest architectural debt:
 
-### Event Log / Event Sourcing for Network Protocol
-The server currently sends full `GameState` snapshots over WebSocket. A lightweight event log — or a full event-sourcing model where the server sends a snapshot on join and then broadcasts only deterministic events (`SHIP_MOVED`, `COMBAT_RESOLVED`, etc.) — would reduce payload sizes and implicitly create a log for replays, reconnect catch-up, and spectator mode. Since the client shares the same engine, it can apply events locally to stay synchronised. Snapshots should remain the source of truth; the event log complements rather than replaces them. Worth pursuing when replays or spectator mode are prioritised.
+- **Production risk**: if the engine throws mid-mutation, the DO's in-memory state is left inconsistent, permanently breaking the game room.
+- **Blocks features**: state diffing, undo, replay, spectator mode, and speculative AI branching all require previous-state snapshots.
 
-### Server-Side State Rollback
-If the engine throws mid-mutation, the DO's in-memory `GameState` could be left in an inconsistent state, permanently breaking the room. A lightweight guard — cloning state before engine entry points and restoring on exception — would prevent this. Currently mitigated by high test coverage, but worth adding as a safety net if the engine grows in complexity.
+The fix is mechanical: `structuredClone(state)` before every engine entry point (already done in `local.ts`), try/catch on the server to restore on failure. With clone-on-entry in place, the server can also append lightweight events to an in-memory log after each engine call — enabling turn replay, spectator catch-up, and smooth reconnection. Snapshots remain the source of truth; the event log complements them.
 
-### Explicitly Deferred (Not Worth Doing Yet)
+### Priority 1: Error Reporting & Telemetry (BACKLOG 1d, 1e)
+
+Before user testing, we need:
+- **Error visibility**: unhandled exceptions, engine throws, WebSocket drops. Start with structured logs; add Sentry/LogFlare later.
+- **Usage telemetry**: which scenarios users pick, game duration, phase where they quit, AI difficulty distribution. Cloudflare Analytics Engine or D1.
+
+Without these, user testing is flying blind.
+
+### Priority 2: Code Quality (BACKLOG 2a, 2b)
+
+- **Client integration tests**: The riskiest area for rapid iteration is client coordination — `dispatch()`, phase transitions, message handling. Integration tests with a mock transport would catch regressions in the flows users actually experience.
+- **Centralise phase validation**: Phase-locking checks are scattered across engine entry points and server handlers. A `canPerformAction(state, playerId, actionType)` helper would centralise this, making it safe to add new phases without hunting for guards.
+
+### Explicitly Deferred
+
+- **User accounts / auth**: Adds login friction that hurts adoption during user testing. The current anonymous token model is sufficient. Revisit for native app store distribution or payment integration.
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.
 - **Generic `RuleSet<S, C, E, P>` interface**: Designing a framework from N=1 games is premature abstraction. The current code is readable because it knows what a Ship is.
 - **Full package extraction** (`hex-core`, `match-runtime`, `delta-v-rules`): Wait until game #2 exists. Build the framework from two concrete implementations, not one.
+- **Serialisation codec**: `GameState` is plain JSON. A codec adds overhead with zero current benefit.
+- **UI framework adoption**: The DOM UI layer is ~1900 LOC across 8 files. A framework (Preact, etc.) adds build complexity and migration risk for a layer that works and is small enough to iterate on directly.
