@@ -96,14 +96,17 @@ describe('renderer map helpers', () => {
       kind: 'destroyed',
       fillStyle: null,
     });
+
     expect(buildBaseMarkerView('mars-base', state, 0)).toMatchObject({
       kind: 'friendly',
       fillStyle: '#4fc3f7',
     });
+
     expect(buildBaseMarkerView('venus-base', state, 0)).toMatchObject({
       kind: 'enemy',
       fillStyle: '#ff8a65',
     });
+
     expect(buildBaseMarkerView('neutral-base', state, 0)).toMatchObject({
       kind: 'neutral',
       fillStyle: '#66bb6a',
@@ -112,32 +115,38 @@ describe('renderer map helpers', () => {
 
   it('builds border and asteroid debris views deterministically', () => {
     const bounds = createMap().bounds;
+
     expect(buildMapBorderView(bounds, false, 1000, 28)).toMatchObject({
       strokeStyle: 'rgba(255, 255, 255, 0.04)',
       lineDash: [],
       lineWidth: 1,
     });
+
     expect(buildMapBorderView(bounds, true, 1000, 28)).toMatchObject({
       lineDash: [8, 6],
       lineWidth: 2,
     });
 
     const debris = buildAsteroidDebrisView({ q: -6, r: -11 }, 28);
+
     expect(debris.particles.length).toBeGreaterThanOrEqual(4);
     expect(debris.particles.length).toBeLessThanOrEqual(8);
     expect(debris.center).toBeDefined();
+
     // Particles are deterministic for the same coord
     expect(debris).toEqual(buildAsteroidDebrisView({ q: -6, r: -11 }, 28));
   });
 
   it('builds landing objective views for escape and target-body play', () => {
     const map = createMap();
+
     const escapeView = buildLandingObjectiveView(
       createPlayer({ escapeWins: true }),
       map,
       1000,
       28,
     );
+
     expect(escapeView?.kind).toBe('escape');
     expect(
       escapeView && escapeView.kind === 'escape' ? escapeView.markers : [],
@@ -149,6 +158,7 @@ describe('renderer map helpers', () => {
       1000,
       28,
     );
+
     expect(targetView).toMatchObject({
       kind: 'targetBody',
       labelText: '▼ TARGET',

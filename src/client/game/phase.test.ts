@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import type { GameState, PlayerState, Ship } from '../../shared/types';
 import { derivePhaseTransition } from './phase';
 
@@ -86,7 +87,11 @@ describe('derivePhaseTransition', () => {
   it('waits during simultaneous fleet building when the player is already ready', () => {
     const players = createPlayers();
     players[0].ready = true;
-    const state = createState({ phase: 'fleetBuilding', players });
+
+    const state = createState({
+      phase: 'fleetBuilding',
+      players,
+    });
 
     expect(derivePhaseTransition(state, 0, 2, false).nextState).toBeNull();
   });
@@ -106,7 +111,10 @@ describe('derivePhaseTransition', () => {
   });
 
   it('schedules the AI when it becomes the opponent turn in a local game', () => {
-    const state = createState({ phase: 'ordnance', activePlayer: 1 });
+    const state = createState({
+      phase: 'ordnance',
+      activePlayer: 1,
+    });
 
     expect(derivePhaseTransition(state, 0, 2, true)).toMatchObject({
       nextState: 'playing_opponentTurn',

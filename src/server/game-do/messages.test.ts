@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import {
   createGame,
   type MovementResult,
@@ -21,6 +22,7 @@ describe('game-do-messages', () => {
   it('formats movement results for broadcast', () => {
     const map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.biplanetary, map, 'SRV1', findBaseHex);
+
     const movementResult: MovementResult = {
       state,
       movements: [],
@@ -35,6 +37,7 @@ describe('game-do-messages', () => {
       events: [],
       state,
     });
+
     expect(resolveMovementBroadcast(movementResult)).toEqual(
       toMovementResultMessage(movementResult),
     );
@@ -45,6 +48,7 @@ describe('game-do-messages', () => {
     const state = createGame(SCENARIOS.duel, map, 'SRV2', findBaseHex);
 
     expect(resolveMovementBroadcast({ state })).toBeUndefined();
+
     expect(resolveMovementBroadcast({ state }, 'stateUpdate')).toEqual(
       toStateUpdateMessage(state),
     );
@@ -53,6 +57,7 @@ describe('game-do-messages', () => {
   it('formats combat results for broadcast', () => {
     const map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.duel, map, 'SRV3', findBaseHex);
+
     const combatResults: CombatResult[] = [
       {
         attackerIds: ['p0s0'],
@@ -77,6 +82,7 @@ describe('game-do-messages', () => {
       results: combatResults,
       state,
     });
+
     expect(resolveCombatBroadcast({ state, results: combatResults })).toEqual(
       toCombatResultMessage(state, combatResults),
     );
@@ -87,6 +93,7 @@ describe('game-do-messages', () => {
     const state = createGame(SCENARIOS.duel, map, 'SRV4', findBaseHex);
 
     expect(resolveCombatBroadcast({ state, results: [] })).toBeUndefined();
+
     expect(
       resolveCombatBroadcast({ state, results: [] }, 'stateUpdate'),
     ).toEqual(toStateUpdateMessage(state));

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { createGame } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
@@ -18,20 +19,24 @@ import {
 describe('game-client-network', () => {
   it('derives fleet-building and turn-based game start states', () => {
     const map = buildSolarSystemMap();
+
     const fleetState = createGame(
       SCENARIOS.interplanetaryWar,
       map,
       'NET1',
       findBaseHex,
     );
+
     const duelState = createGame(SCENARIOS.duel, map, 'NET2', findBaseHex);
 
     expect(deriveGameStartClientState(fleetState, 0)).toBe(
       'playing_fleetBuilding',
     );
+
     expect(deriveGameStartClientState(duelState, duelState.activePlayer)).toBe(
       'playing_astrogation',
     );
+
     expect(
       deriveGameStartClientState(duelState, 1 - duelState.activePlayer),
     ).toBe('playing_opponentTurn');
@@ -63,12 +68,15 @@ describe('game-client-network', () => {
     const state = createGame(SCENARIOS.duel, map, 'NET3', findBaseHex);
 
     expect(shouldAttemptReconnect('menu', 'ABCDE', state)).toBe(false);
+
     expect(shouldAttemptReconnect('playing_astrogation', null, state)).toBe(
       false,
     );
+
     expect(shouldAttemptReconnect('playing_astrogation', 'ABCDE', null)).toBe(
       false,
     );
+
     expect(shouldAttemptReconnect('playing_astrogation', 'ABCDE', state)).toBe(
       true,
     );
@@ -84,10 +92,12 @@ describe('game-client-network', () => {
       attemptReconnect: true,
       nextState: null,
     });
+
     expect(deriveDisconnectHandling('connecting', null, state)).toEqual({
       attemptReconnect: false,
       nextState: 'menu',
     });
+
     expect(deriveDisconnectHandling('gameOver', 'ABCDE', state)).toEqual({
       attemptReconnect: false,
       nextState: null,
@@ -100,16 +110,19 @@ describe('game-client-network', () => {
       nextAttempt: 1,
       delayMs: 1000,
     });
+
     expect(deriveReconnectAttemptPlan('ABCDE', 4, 5)).toEqual({
       giveUp: false,
       nextAttempt: 5,
       delayMs: 8000,
     });
+
     expect(deriveReconnectAttemptPlan('ABCDE', 5, 5)).toEqual({
       giveUp: true,
       nextAttempt: null,
       delayMs: null,
     });
+
     expect(deriveReconnectAttemptPlan(null, 0, 5)).toEqual({
       giveUp: true,
       nextAttempt: null,
@@ -121,6 +134,7 @@ describe('game-client-network', () => {
     expect(shouldTransitionAfterStateUpdate('playing_movementAnim')).toBe(
       false,
     );
+
     expect(shouldTransitionAfterStateUpdate('playing_combat')).toBe(true);
   });
 });

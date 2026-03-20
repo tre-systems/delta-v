@@ -107,11 +107,17 @@ function createMap(): SolarSystemMap {
     hexes: new Map<string, MapHex>([
       [
         '0,1',
-        { terrain: 'space', base: { name: 'Mars Base', bodyName: 'Mars' } },
+        {
+          terrain: 'space',
+          base: { name: 'Mars Base', bodyName: 'Mars' },
+        },
       ],
       [
         '2,2',
-        { terrain: 'space', base: { name: 'Venus Base', bodyName: 'Venus' } },
+        {
+          terrain: 'space',
+          base: { name: 'Venus Base', bodyName: 'Venus' },
+        },
       ],
     ]),
     bodies: [],
@@ -130,10 +136,12 @@ describe('renderer vector helpers', () => {
     );
 
     expect(views).toHaveLength(2);
+
     expect(views[0]).toMatchObject({
       color: 'rgba(79, 195, 247, 0.08)',
       lineDash: [4, 6],
     });
+
     expect(views[1]).toMatchObject({
       color: 'rgba(79, 195, 247, 0.05)',
       lineDash: [3, 8],
@@ -144,11 +152,13 @@ describe('renderer vector helpers', () => {
     const views = buildVelocityVectorViews(createState(), 0, 28);
 
     expect(views).toHaveLength(2);
+
     expect(views[0]).toMatchObject({
       color: 'rgba(79, 195, 247, 0.45)',
       lineDash: [4, 4],
       speedLabel: null,
     });
+
     expect(views[1].speedLabel).toMatchObject({
       text: 'v1',
       color: 'rgba(255, 152, 0, 0.5)',
@@ -157,6 +167,7 @@ describe('renderer vector helpers', () => {
 
   it('builds visible ship and ordnance trails', () => {
     const state = createState();
+
     const shipTrails = new Map([
       [
         'selected',
@@ -180,6 +191,7 @@ describe('renderer vector helpers', () => {
         ],
       ],
     ]);
+
     const ordnanceTrails = new Map([
       [
         'mine-1',
@@ -205,6 +217,7 @@ describe('renderer vector helpers', () => {
       'rgba(79, 195, 247, 0.28)',
       'rgba(255, 152, 0, 0.28)',
     ]);
+
     expect(ordViews).toHaveLength(2);
     expect(ordViews[0]).toMatchObject({
       lineDash: [2, 4],

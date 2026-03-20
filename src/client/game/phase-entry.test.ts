@@ -102,6 +102,7 @@ describe('game-client-phase-entry', () => {
       ]),
       0,
     );
+
     expect(plan.selectedShipId).toBeNull();
   });
 
@@ -114,6 +115,7 @@ describe('game-client-phase-entry', () => {
       ]),
       0,
     );
+
     expect(plan.selectedShipId).toBeNull();
   });
 
@@ -148,6 +150,7 @@ describe('game-client-phase-entry', () => {
       hideTutorial: true,
       resetCamera: true,
     });
+
     expect(
       deriveClientStateEntryPlan('playing_opponentTurn', state, 0),
     ).toMatchObject({
@@ -156,6 +159,7 @@ describe('game-client-phase-entry', () => {
       updateHUD: true,
       frameOnShips: true,
     });
+
     expect(deriveClientStateEntryPlan('gameOver', state, 0)).toMatchObject({
       stopTurnTimer: true,
       hideTutorial: true,

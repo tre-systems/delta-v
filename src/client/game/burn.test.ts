@@ -81,6 +81,7 @@ describe('game-client-burn', () => {
     ).toEqual({
       kind: 'noop',
     });
+
     expect(
       deriveBurnChangePlan(
         createState(createShip({ destroyed: true })),

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import type { GameState, Ordnance, Ship } from '../types';
 import {
   getAllowedOrdnanceTypes,
@@ -17,24 +18,22 @@ import {
 
 const bounds = { minQ: -10, maxQ: 10, minR: -10, maxR: 10 };
 
-function makeShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'test',
-    type: 'corvette',
-    owner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 20,
-    cargoUsed: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    pendingGravityEffects: [],
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'test',
+  type: 'corvette',
+  owner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 20,
+  cargoUsed: 0,
+  resuppliedThisTurn: false,
+  landed: false,
+  destroyed: false,
+  detected: true,
+  pendingGravityEffects: [],
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
 describe('hasEscaped', () => {
   it('returns false for position inside bounds', () => {
@@ -43,7 +42,7 @@ describe('hasEscaped', () => {
   });
 
   it('returns false at boundary + margin edge', () => {
-    expect(hasEscaped({ q: 13, r: 0 }, bounds)).toBe(false); // exactly at margin
+    expect(hasEscaped({ q: 13, r: 0 }, bounds)).toBe(false);
   });
 
   it('returns true beyond q+ boundary', () => {
@@ -104,11 +103,13 @@ describe('hasOrdnanceCapacity', () => {
 describe('hasLaunchableOrdnanceCapacity', () => {
   it('returns true for warship with mines allowed', () => {
     const ship = makeShip({ type: 'corsair', cargoUsed: 0 });
+
     expect(hasLaunchableOrdnanceCapacity(ship, new Set(['mine']))).toBe(true);
   });
 
   it('returns false when cargo is full', () => {
     const ship = makeShip({ type: 'corsair', cargoUsed: 10 });
+
     expect(hasLaunchableOrdnanceCapacity(ship, new Set(['mine']))).toBe(false);
   });
 
@@ -118,6 +119,7 @@ describe('hasLaunchableOrdnanceCapacity', () => {
       cargoUsed: 0,
       fuel: Infinity,
     });
+
     expect(hasLaunchableOrdnanceCapacity(ship, new Set(['mine']))).toBe(false);
     expect(hasLaunchableOrdnanceCapacity(ship, new Set(['torpedo']))).toBe(
       true,
@@ -127,6 +129,7 @@ describe('hasLaunchableOrdnanceCapacity', () => {
 
   it('commercial ships cannot launch torpedoes', () => {
     const ship = makeShip({ type: 'transport', cargoUsed: 0 });
+
     expect(hasLaunchableOrdnanceCapacity(ship, new Set(['torpedo']))).toBe(
       false,
     );
@@ -138,6 +141,7 @@ describe('hasLaunchableOrdnanceCapacity', () => {
       cargoUsed: 0,
       nukesLaunchedSinceResupply: 1,
     });
+
     expect(hasLaunchableOrdnanceCapacity(ship, new Set(['nuke']))).toBe(false);
   });
 
@@ -147,6 +151,7 @@ describe('hasLaunchableOrdnanceCapacity', () => {
       cargoUsed: 0,
       nukesLaunchedSinceResupply: 3,
     });
+
     expect(hasLaunchableOrdnanceCapacity(ship, new Set(['nuke']))).toBe(true);
   });
 });
@@ -157,6 +162,7 @@ describe('hasAnyEnemyShips', () => {
       activePlayer: 0,
       ships: [makeShip({ owner: 1 })],
     } as GameState;
+
     expect(hasAnyEnemyShips(state)).toBe(true);
   });
 
@@ -165,6 +171,7 @@ describe('hasAnyEnemyShips', () => {
       activePlayer: 0,
       ships: [makeShip({ owner: 1, destroyed: true })],
     } as GameState;
+
     expect(hasAnyEnemyShips(state)).toBe(false);
   });
 
@@ -173,6 +180,7 @@ describe('hasAnyEnemyShips', () => {
       activePlayer: 0,
       ships: [makeShip({ owner: 0 })],
     } as GameState;
+
     expect(hasAnyEnemyShips(state)).toBe(false);
   });
 });
@@ -180,11 +188,13 @@ describe('hasAnyEnemyShips', () => {
 describe('shuffle', () => {
   it('returns same length array', () => {
     const result = shuffle([1, 2, 3, 4, 5], Math.random);
+
     expect(result.length).toBe(5);
   });
 
   it('contains same elements', () => {
     const result = shuffle([1, 2, 3, 4, 5], Math.random);
+
     expect(result.sort()).toEqual([1, 2, 3, 4, 5]);
   });
 
@@ -194,7 +204,9 @@ describe('shuffle', () => {
       callCount++;
       return 0.5;
     };
+
     shuffle([1, 2, 3], rng);
+
     expect(callCount).toBeGreaterThan(0);
   });
 
@@ -209,7 +221,10 @@ describe('shuffle', () => {
 
 describe('getAllowedOrdnanceTypes', () => {
   it('returns all types when no restriction', () => {
-    const result = getAllowedOrdnanceTypes({ scenarioRules: {} as any });
+    const result = getAllowedOrdnanceTypes({
+      scenarioRules: {} as any,
+    });
+
     expect(result).toEqual(new Set(['mine', 'torpedo', 'nuke']));
   });
 
@@ -217,6 +232,7 @@ describe('getAllowedOrdnanceTypes', () => {
     const result = getAllowedOrdnanceTypes({
       scenarioRules: { allowedOrdnanceTypes: [] } as any,
     });
+
     expect(result).toEqual(new Set(['mine', 'torpedo', 'nuke']));
   });
 
@@ -224,6 +240,7 @@ describe('getAllowedOrdnanceTypes', () => {
     const result = getAllowedOrdnanceTypes({
       scenarioRules: { allowedOrdnanceTypes: ['nuke'] } as any,
     });
+
     expect(result).toEqual(new Set(['nuke']));
   });
 });
@@ -250,7 +267,9 @@ describe('scenario rule predicates', () => {
   it('isPlanetaryDefenseEnabled returns false when disabled', () => {
     expect(
       isPlanetaryDefenseEnabled({
-        scenarioRules: { planetaryDefenseEnabled: false } as any,
+        scenarioRules: {
+          planetaryDefenseEnabled: false,
+        } as any,
       }),
     ).toBe(false);
   });
@@ -262,7 +281,9 @@ describe('scenario rule predicates', () => {
   it('usesEscapeInspectionRules returns true when enabled', () => {
     expect(
       usesEscapeInspectionRules({
-        scenarioRules: { hiddenIdentityInspection: true } as any,
+        scenarioRules: {
+          hiddenIdentityInspection: true,
+        } as any,
       }),
     ).toBe(true);
   });
@@ -273,19 +294,27 @@ describe('scenario rule predicates', () => {
 
   it('getEscapeEdge returns configured edge', () => {
     expect(
-      getEscapeEdge({ scenarioRules: { escapeEdge: 'north' } as any }),
+      getEscapeEdge({
+        scenarioRules: { escapeEdge: 'north' } as any,
+      }),
     ).toBe('north');
   });
 });
 
 describe('playerControlsBase', () => {
   it('returns true when player owns the base', () => {
-    const state = { players: [{ bases: ['1,2'] }, { bases: [] }] } as any;
+    const state = {
+      players: [{ bases: ['1,2'] }, { bases: [] }],
+    } as any;
+
     expect(playerControlsBase(state, 0, '1,2')).toBe(true);
   });
 
   it('returns false when player does not own the base', () => {
-    const state = { players: [{ bases: [] }, { bases: ['1,2'] }] } as any;
+    const state = {
+      players: [{ bases: [] }, { bases: ['1,2'] }],
+    } as any;
+
     expect(playerControlsBase(state, 0, '1,2')).toBe(false);
   });
 });

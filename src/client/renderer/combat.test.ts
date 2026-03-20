@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import type {
   CombatAttack,
   CombatResult,
@@ -137,6 +138,7 @@ describe('renderer combat helpers', () => {
     const state = createState({
       ordnance: [createOrdnance()],
     });
+
     const queuedAttacks: CombatAttack[] = [
       {
         attackerIds: ['a', 'missing'],
@@ -168,6 +170,7 @@ describe('renderer combat helpers', () => {
     const state = createState({
       ordnance: [createOrdnance()],
     });
+
     const planning = createPlanning({
       combatTargetId: 'ord-0',
       combatTargetType: 'ordnance',
@@ -189,6 +192,7 @@ describe('renderer combat helpers', () => {
 
   it('builds a ship combat preview with counterattack information', () => {
     const state = createState();
+
     const planning = createPlanning({
       combatTargetId: 'x',
       combatTargetType: 'ship',
@@ -213,6 +217,7 @@ describe('renderer combat helpers', () => {
     const state = createState({
       ordnance: [createOrdnance()],
     });
+
     const planning = createPlanning({
       combatTargetId: 'ord-0',
       combatTargetType: 'ordnance',
@@ -240,7 +245,9 @@ describe('renderer combat helpers', () => {
       ],
       ordnance: [createOrdnance()],
     });
+
     const previousState = createState();
+
     const asteroidResult: CombatResult = {
       attackerIds: [],
       targetId: 'x',
@@ -257,6 +264,7 @@ describe('renderer combat helpers', () => {
       disabledTurns: 2,
       counterattack: null,
     };
+
     const antiNukeResult: CombatResult = {
       attackerIds: ['a'],
       targetId: 'ord-0',
@@ -277,9 +285,11 @@ describe('renderer combat helpers', () => {
     expect(formatCombatResult(asteroidResult, previousState)).toBe(
       'frigate: asteroid [5] DISABLED 2T',
     );
+
     expect(formatCombatResult(antiNukeResult, state)).toBe(
       '2:1 [4→3] nuke: ELIMINATED',
     );
+
     expect(
       getCombatTargetEntity(asteroidResult, state, previousState)?.position,
     ).toEqual({ q: 1, r: 0 });

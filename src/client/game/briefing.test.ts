@@ -54,7 +54,11 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     activePlayer: 0,
     ships: [
       createShip({ id: 'transport', type: 'transport' }),
-      createShip({ id: 'packet', type: 'packet', position: { q: 1, r: 0 } }),
+      createShip({
+        id: 'packet',
+        type: 'packet',
+        position: { q: 1, r: 0 },
+      }),
       createShip({
         id: 'enemy',
         owner: 1,

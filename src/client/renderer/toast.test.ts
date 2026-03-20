@@ -139,7 +139,10 @@ describe('renderer toast helpers', () => {
   it('returns null for movement events without toast copy', () => {
     expect(
       formatMovementEventToast(
-        createMovementEvent({ type: 'capture', damageType: 'captured' }),
+        createMovementEvent({
+          type: 'capture',
+          damageType: 'captured',
+        }),
         'packet',
       ),
     ).toBeNull();
@@ -147,6 +150,7 @@ describe('renderer toast helpers', () => {
 
   it('builds combat result and counterattack toast lines', () => {
     const state = createState();
+
     const lines = buildCombatResultToastLines(
       [
         createCombatResult({
@@ -161,8 +165,14 @@ describe('renderer toast helpers', () => {
     );
 
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toMatchObject({ color: '#ffaa00', variant: 'primary' });
-    expect(lines[1]).toMatchObject({ color: '#ff4444', variant: 'secondary' });
+    expect(lines[0]).toMatchObject({
+      color: '#ffaa00',
+      variant: 'primary',
+    });
+    expect(lines[1]).toMatchObject({
+      color: '#ff4444',
+      variant: 'secondary',
+    });
   });
 
   it('fades toast alpha over the final second', () => {

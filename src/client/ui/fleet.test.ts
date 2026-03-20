@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import type { FleetPurchase } from '../../shared/types';
 import {
   canAddFleetShip,
@@ -15,6 +16,7 @@ describe('ui fleet helpers', () => {
     expect(shopTypes.some(([shipType]) => shipType === 'orbitalBase')).toBe(
       false,
     );
+
     expect(shopTypes[0][1].cost).toBeLessThanOrEqual(
       shopTypes[shopTypes.length - 1][1].cost,
     );
@@ -30,6 +32,7 @@ describe('ui fleet helpers', () => {
 
   it('builds fleet cart and shop view models with disabled states', () => {
     const cart: FleetPurchase[] = [{ shipType: 'transport' }];
+
     const cartView = getFleetCartView(cart, 25);
     const shopView = getFleetShopView(cart, 25);
 
@@ -38,12 +41,15 @@ describe('ui fleet helpers', () => {
       remainingLabel: '15 MC remaining',
       isEmpty: false,
     });
+
     expect(cartView.items).toEqual([
       { shipType: 'transport', label: 'Transport' },
     ]);
+
     expect(shopView.find((item) => item.shipType === 'packet')).toMatchObject({
       disabled: true,
     });
+
     expect(
       shopView.find((item) => item.shipType === 'transport'),
     ).toMatchObject({

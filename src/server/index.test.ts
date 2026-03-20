@@ -10,6 +10,7 @@ function createEnv(
   initHandler?: (request: Request) => Promise<Response> | Response,
 ) {
   const assetsFetch = vi.fn(async () => new Response('asset ok'));
+
   const initFetch = vi.fn(async (request: Request) => {
     if (initHandler) {
       return await initHandler(request);
@@ -18,6 +19,7 @@ function createEnv(
   });
 
   const stub = { fetch: initFetch };
+
   const env = {
     ASSETS: { fetch: assetsFetch },
     GAME: {
@@ -36,6 +38,7 @@ describe('server index worker', () => {
 
   it('creates rooms with generated tokens and defaults invalid payloads to biplanetary', async () => {
     let initPayload: any = null;
+
     const { env, initFetch } = createEnv(async (request) => {
       initPayload = await request.json();
       return Response.json({ ok: true }, { status: 201 });
@@ -60,6 +63,7 @@ describe('server index worker', () => {
     expect(initPayload.inviteToken).toMatch(/^[A-Za-z0-9_-]{32}$/);
 
     const data = (await response.json()) as Record<string, string>;
+
     expect(data.code).toBe(initPayload.code);
     expect(data.playerToken).toBe(initPayload.playerToken);
     expect(data.inviteToken).toBe(initPayload.inviteToken);
@@ -105,6 +109,7 @@ describe('server index worker', () => {
     const { env, initFetch } = createEnv(
       async () => new Response('proxied', { status: 200 }),
     );
+
     const request = new Request('https://delta-v.test/ws/ABCDE', {
       headers: { Upgrade: 'websocket' },
     });
