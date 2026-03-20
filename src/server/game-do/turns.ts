@@ -3,12 +3,15 @@ import {
   skipCombat,
   skipOrdnance,
 } from '../../shared/engine/game-engine';
+import type { GameEvent } from '../../shared/events';
 import type {
   AstrogationOrder,
   GameState,
   SolarSystemMap,
 } from '../../shared/types';
 import {
+  deriveCombatEvents,
+  deriveMovementEvents,
   resolveCombatBroadcast,
   resolveMovementBroadcast,
   type StatefulServerMessage,
@@ -17,6 +20,7 @@ import {
 export interface TurnTimeoutOutcome {
   state: GameState;
   primaryMessage?: StatefulServerMessage;
+  events: GameEvent[];
 }
 
 export const resolveTurnTimeoutOutcome = (
@@ -43,6 +47,7 @@ export const resolveTurnTimeoutOutcome = (
       : {
           state: result.state,
           primaryMessage: resolveMovementBroadcast(result),
+          events: deriveMovementEvents(result),
         };
   }
 
@@ -54,6 +59,7 @@ export const resolveTurnTimeoutOutcome = (
       : {
           state: result.state,
           primaryMessage: resolveMovementBroadcast(result, 'stateUpdate'),
+          events: deriveMovementEvents(result),
         };
   }
 
@@ -65,6 +71,7 @@ export const resolveTurnTimeoutOutcome = (
       : {
           state: result.state,
           primaryMessage: resolveCombatBroadcast(result),
+          events: deriveCombatEvents(result),
         };
   }
 

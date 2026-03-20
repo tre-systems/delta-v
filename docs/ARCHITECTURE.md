@@ -297,20 +297,20 @@ A game implementation would provide:
 
 See BACKLOG.md for the full prioritised backlog. Below summarises the architectural decisions and their rationale.
 
-### Priority 1: Event Log (BACKLOG 1c)
+### ~~Priority 1: Engine Safety (BACKLOG 1a, 1b, 1c)~~ *(done)*
 
-~~Clone-on-entry (1a) and server rollback (1b) are complete~~ — engine entry points `structuredClone` on entry; `runGameStateAction` and `handleTurnTimeout` catch exceptions, log with context, and preserve state.
-
-**Next step:**
-- **1c. Event log**: After each engine call, append a lightweight event to an in-memory log. Enables turn replay, spectator catch-up, and smooth reconnection. Snapshots remain the source of truth; the event log complements them.
+All three engine safety items are complete:
+- **1a. Clone-on-entry** — `structuredClone` on entry at all 11 engine entry points.
+- **1b. Server rollback** — try/catch in `runGameStateAction` and `handleTurnTimeout`; structured error logging.
+- **1c. Event log** — 5 event types (`gameStarted`, `movementResolved`, `combatResolved`, `phaseChanged`, `gameOver`) in `src/shared/events.ts`. Server appends events to DO storage after every action. Reconnecting clients receive the full log via the `gameStart` message. Unlocks turn replay, spectator catch-up, and smooth reconnection.
 
 ### Priority 1: Error Reporting & Telemetry (BACKLOG 1d, 1e)
 
 Before user testing, we need:
-- **Error visibility**: unhandled exceptions, engine throws, WebSocket drops. Start with structured logs; add Sentry/LogFlare later.
-- **Usage telemetry**: which scenarios users pick, game duration, phase where they quit, AI difficulty distribution. Cloudflare Analytics Engine or D1.
+- **Error visibility** (1d): Global client error handlers (`window.onerror`, `unhandledrejection`) POST to a `/error` endpoint. The endpoint logs via `console.error` — Cloudflare Workers Logs captures this automatically. Server-side engine exceptions are already logged (1b). No external services needed at current scale.
+- **Usage telemetry** (1e): A client `track(event, props)` function POSTs to a `/telemetry` endpoint. The endpoint logs via `console.log` — same Workers Logs sink. No Analytics Engine or D1 initially; upgrade to D1 if proper querying is needed later.
 
-Without these, user testing is flying blind.
+Both use the same pattern: structured JSON → Workers endpoint → `console.*` → Workers Logs. Zero new bindings or external dependencies.
 
 ### Priority 2: Code Quality (BACKLOG 2a, 2b)
 
