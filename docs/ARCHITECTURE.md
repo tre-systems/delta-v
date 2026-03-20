@@ -309,10 +309,10 @@ All three engine safety items are complete:
 - **1d. Error reporting** — Global `window.onerror`/`unhandledrejection` handlers POST structured JSON to `/error`. Server-side `handleReport()` validates Content-Type (415), caps body at 4 KB (413), parses JSON (400), logs via `console.error`, returns 204. No payload echo. Server-side engine exceptions already logged (1b).
 - **1e. Telemetry** — `track(event, props)` in `src/client/telemetry.ts` POSTs to `/telemetry`, logged via `console.log`. Events tracked: `game_created` (scenario, mode, difficulty), `game_over` (won, reason, turn). Fire-and-forget with `keepalive: true`. Same `handleReport()` handler with same security measures. 14 endpoint tests total.
 
-### Priority 2: Code Quality (BACKLOG 2a, 2b)
+### ~~Priority 2: Code Quality (BACKLOG 2a, 2b)~~ *(done)*
 
-- **Client integration tests**: The riskiest area for rapid iteration is client coordination — `dispatch()`, phase transitions, message handling. Integration tests with a mock transport would catch regressions in the flows users actually experience.
-- **Centralise phase validation**: Phase-locking checks are scattered across engine entry points and server handlers. A `canPerformAction(state, playerId, actionType)` helper would centralise this, making it safe to add new phases without hunting for guards.
+- **2a. Client integration tests** — 20 tests in `src/client/game/integration.test.ts` covering full connection-to-game flow, movement/combat/state-update presentation, game over, chat, errors, latency, and reconnection. Uses injectable deps pattern — no DOM or canvas needed.
+- **2b. Centralise phase validation** — `validatePhaseAction(state, playerId, requiredPhase)` in `src/shared/engine/util.ts`. All 10 standard engine entry points (all except `processFleetReady`) replaced ad-hoc phase + activePlayer checks with the single helper. 4 unit tests.
 
 ### Explicitly Deferred
 

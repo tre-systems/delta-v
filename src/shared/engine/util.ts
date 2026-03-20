@@ -1,7 +1,30 @@
 import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
 import { parseHexKey } from '../hex';
 import { bodyHasGravity } from '../map-data';
-import type { GameState, Ordnance, Ship, SolarSystemMap } from '../types';
+import type {
+  GameState,
+  Ordnance,
+  Phase,
+  Ship,
+  SolarSystemMap,
+} from '../types';
+
+// Phase + player validation for engine entry points.
+// Returns an error string if the action is not allowed,
+// or null if validation passes.
+export const validatePhaseAction = (
+  state: GameState,
+  playerId: number,
+  requiredPhase: Phase,
+): string | null => {
+  if (state.phase !== requiredPhase) {
+    return `Not in ${requiredPhase} phase`;
+  }
+  if (playerId !== state.activePlayer) {
+    return 'Not your turn';
+  }
+  return null;
+};
 
 export const playerControlsBase = (
   state: GameState,
