@@ -3,7 +3,10 @@ import {
   SHIP_DETECTION_RANGE,
 } from '../../shared/constants';
 import {
+  HEX_DIRECTIONS,
   type HexCoord,
+  hexAdd,
+  hexKey,
   hexToPixel,
   hexVecLength,
   type PixelCoord,
@@ -39,6 +42,15 @@ export interface VelocityVectorView {
   color: string;
   lineWidth: number;
   lineDash: number[];
+  arrowHead: {
+    left: PixelCoord;
+    right: PixelCoord;
+  } | null;
+  ghostDot: {
+    position: PixelCoord;
+    color: string;
+    radius: number;
+  } | null;
   speedLabel: {
     text: string;
     position: PixelCoord;
@@ -100,6 +112,33 @@ export const buildDetectionRangeViews = (
   return views;
 };
 
+const buildArrowHead = (
+  from: PixelCoord,
+  to: PixelCoord,
+  headLen: number,
+): { left: PixelCoord; right: PixelCoord } => {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) return { left: to, right: to };
+
+  const ux = dx / len;
+  const uy = dy / len;
+  const px = -uy;
+  const py = ux;
+
+  return {
+    left: {
+      x: to.x - ux * headLen + px * headLen * 0.4,
+      y: to.y - uy * headLen + py * headLen * 0.4,
+    },
+    right: {
+      x: to.x - ux * headLen - px * headLen * 0.4,
+      y: to.y - uy * headLen - py * headLen * 0.4,
+    },
+  };
+};
+
 export const buildVelocityVectorViews = (
   state: GameState,
   playerId: number,
@@ -136,16 +175,30 @@ export const buildVelocityVectorViews = (
             }
           : null;
 
+      const color = isOwn
+        ? 'rgba(79, 195, 247, 0.45)'
+        : 'rgba(255, 152, 0, 0.45)';
+
       return {
         from,
         to,
-        color: isOwn ? 'rgba(79, 195, 247, 0.45)' : 'rgba(255, 152, 0, 0.45)',
+        color,
         lineWidth: 1.5,
         lineDash: [4, 4],
+        arrowHead: buildArrowHead(from, to, 6),
+        ghostDot: isOwn
+          ? {
+              position: to,
+              color: 'rgba(79, 195, 247, 0.3)',
+              radius: 4,
+            }
+          : null,
         speedLabel,
       };
     })
-    .filter((view): view is VelocityVectorView => view !== null);
+    .filter(
+      (view): view is NonNullable<typeof view> => view !== null,
+    ) as VelocityVectorView[];
 };
 
 export const buildShipTrailViews = (
@@ -206,6 +259,54 @@ export const buildOrdnanceTrailViews = (
       waypointColor: null,
       waypointRadius: 0,
     });
+  }
+
+  return views;
+};
+
+export interface BaseThreatView {
+  hexCenter: PixelCoord;
+  radius: number;
+}
+
+export const buildBaseThreatZoneViews = (
+  state: GameState,
+  playerId: number,
+  map: SolarSystemMap,
+  hexSize: number,
+): BaseThreatView[] => {
+  const views: BaseThreatView[] = [];
+  const destroyed = new Set(state.destroyedBases);
+  const seen = new Set<string>();
+
+  for (let p = 0; p < state.players.length; p++) {
+    if (p === playerId) continue;
+    for (const key of state.players[p]?.bases ?? []) {
+      if (destroyed.has(key)) continue;
+
+      const hex = map.hexes.get(key);
+      if (!hex?.base) continue;
+
+      const baseCoord = parseHexKey(key);
+
+      for (const dir of HEX_DIRECTIONS) {
+        const adj = hexAdd(baseCoord, dir);
+        const adjKey = hexKey(adj);
+        if (seen.has(adjKey)) continue;
+
+        const adjHex = map.hexes.get(adjKey);
+        if (!adjHex?.gravity) continue;
+        if (adjHex.gravity.bodyName !== hex.base.bodyName) {
+          continue;
+        }
+
+        seen.add(adjKey);
+        views.push({
+          hexCenter: hexToPixel(adj, hexSize),
+          radius: hexSize * 0.85,
+        });
+      }
+    }
   }
 
   return views;

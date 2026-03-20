@@ -182,9 +182,9 @@ export const buildShipLabelView = (
   if (!ship.detected) return null;
 
   return {
-    typeName,
-    typeColor: 'rgba(255, 171, 145, 0.5)',
-    typeFont: '500 9px Inter, sans-serif',
+    typeName: `Enemy ${typeName}`,
+    typeColor: 'rgba(255, 140, 100, 0.7)',
+    typeFont: '600 9px Inter, sans-serif',
     statusTag: null,
     statusColor: null,
     statusFont: null,

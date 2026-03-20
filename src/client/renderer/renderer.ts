@@ -66,6 +66,7 @@ import {
   getToastFadeAlpha,
 } from './toast';
 import {
+  buildBaseThreatZoneViews,
   buildMovementPathViews,
   buildOrdnanceTrailViews,
   buildShipTrailViews,
@@ -501,7 +502,7 @@ export class Renderer {
     if (!this.gameState) return;
 
     const myShips = this.gameState.ships.filter(
-      (s) => s.owner === this.playerId,
+      (s) => s.owner === this.playerId && !s.destroyed,
     );
     if (myShips.length === 0) return;
 
@@ -519,6 +520,15 @@ export class Renderer {
     }
 
     this.camera.frameBounds(minX, maxX, minY, maxY, 200);
+
+    // Clamp zoom so hex grid is visible but enough
+    // context is shown for orientation
+    const MIN_FRAME_ZOOM = 0.6;
+    const MAX_FRAME_ZOOM = 1.8;
+    this.camera.targetZoom = Math.max(
+      MIN_FRAME_ZOOM,
+      Math.min(MAX_FRAME_ZOOM, this.camera.targetZoom),
+    );
   }
 
   start() {
@@ -601,6 +611,7 @@ export class Renderer {
     }
 
     if (this.gameState && this.map) {
+      this.renderBaseThreatZones(ctx, this.gameState, this.map);
       this.renderDetectionRanges(ctx, this.gameState, this.map);
       this.renderCourseVectors(ctx, this.gameState, this.map, now);
       this.renderOrdnance(ctx, this.gameState, now);
@@ -704,6 +715,26 @@ export class Renderer {
     renderLandingTargetFn(ctx, map, state, this.playerId, HEX_SIZE, now);
   }
 
+  private renderBaseThreatZones(
+    ctx: CanvasRenderingContext2D,
+    state: GameState,
+    map: SolarSystemMap,
+  ) {
+    if (this.animState) return;
+
+    const zones = buildBaseThreatZoneViews(state, this.playerId, map, HEX_SIZE);
+
+    for (const zone of zones) {
+      ctx.fillStyle = 'rgba(255, 80, 60, 0.08)';
+      ctx.strokeStyle = 'rgba(255, 80, 60, 0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(zone.hexCenter.x, zone.hexCenter.y, zone.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
   private renderDetectionRanges(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -742,6 +773,28 @@ export class Renderer {
       ctx.lineTo(vector.to.x, vector.to.y);
       ctx.stroke();
       ctx.setLineDash([]);
+
+      if (vector.arrowHead) {
+        ctx.beginPath();
+        ctx.moveTo(vector.to.x, vector.to.y);
+        ctx.lineTo(vector.arrowHead.left.x, vector.arrowHead.left.y);
+        ctx.moveTo(vector.to.x, vector.to.y);
+        ctx.lineTo(vector.arrowHead.right.x, vector.arrowHead.right.y);
+        ctx.stroke();
+      }
+
+      if (vector.ghostDot) {
+        ctx.fillStyle = vector.ghostDot.color;
+        ctx.beginPath();
+        ctx.arc(
+          vector.ghostDot.position.x,
+          vector.ghostDot.position.y,
+          vector.ghostDot.radius,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
 
       if (vector.speedLabel) {
         ctx.fillStyle = vector.speedLabel.color;
@@ -849,6 +902,14 @@ export class Renderer {
         ctx.fill();
         ctx.stroke();
         ctx.shadowBlur = 0;
+
+        if (marker.label && marker.labelColor) {
+          ctx.fillStyle = marker.labelColor;
+          ctx.font = 'bold 9px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(marker.label, marker.position.x, marker.position.y);
+        }
       }
 
       for (const marker of preview.weakGravityMarkers) {
@@ -1087,12 +1148,29 @@ export class Renderer {
         ship.type,
       );
 
-      // Disabled indicator
+      // Disabled indicator — background plate for
+      // visibility
       if (disabledLabel) {
-        ctx.fillStyle = '#ff5252';
         ctx.font = 'bold 9px Inter, sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(disabledLabel, pos.x + 12, pos.y - 12);
+        const labelX = pos.x + 12;
+        const labelY = pos.y - 12;
+        const metrics = ctx.measureText(disabledLabel);
+        const pad = 3;
+
+        ctx.fillStyle = 'rgba(180, 20, 20, 0.6)';
+        ctx.beginPath();
+        ctx.roundRect(
+          labelX - pad,
+          labelY - 8 - pad,
+          metrics.width + pad * 2,
+          10 + pad * 2,
+          3,
+        );
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(disabledLabel, labelX, labelY);
       }
 
       const identityMarker = getShipIdentityMarker(
