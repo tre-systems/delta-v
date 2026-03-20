@@ -118,7 +118,7 @@ const applyFleetConversion = (state: GameState): void => {
  * Checks each hex in the path for gravity or surface
  * belonging to a checkpoint body.
  */
-export const updateCheckpoints = (
+export const applyCheckpoints = (
   state: GameState,
   playerId: number,
   path: HexCoord[],
@@ -343,7 +343,7 @@ export const checkGameEnd = (state: GameState, map?: SolarSystemMap): void => {
   }
 };
 
-export const updateEscapeMoralVictory = (state: GameState): void => {
+export const applyEscapeMoralVictory = (state: GameState): void => {
   if (state.escapeMoralVictoryAchieved || !usesEscapeInspectionRules(state)) {
     return;
   }
@@ -585,10 +585,7 @@ export const applyResupply = (
 /**
  * Update detection status for all ships.
  */
-export const updateDetection = (
-  state: GameState,
-  map: SolarSystemMap,
-): void => {
+export const applyDetection = (state: GameState, map: SolarSystemMap): void => {
   for (const ship of state.ships) {
     if (ship.destroyed) continue;
 

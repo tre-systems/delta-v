@@ -28,7 +28,7 @@ import {
   hasAnyEnemyShips,
   isPlanetaryDefenseEnabled,
 } from './util';
-import { advanceTurn, checkGameEnd, updateEscapeMoralVictory } from './victory';
+import { advanceTurn, applyEscapeMoralVictory, checkGameEnd } from './victory';
 
 export interface CombatPhaseResult {
   results: CombatResult[];
@@ -208,7 +208,7 @@ export const beginCombatPhase = (
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
-  updateEscapeMoralVictory(state);
+  applyEscapeMoralVictory(state);
 
   if (map) {
     checkGameEnd(state, map);
@@ -246,7 +246,7 @@ export const processCombat = (
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
-  updateEscapeMoralVictory(state);
+  applyEscapeMoralVictory(state);
 
   if (state.winner === null) {
     checkGameEnd(state, map);
@@ -460,7 +460,7 @@ export const processCombat = (
 
   state.ordnance = state.ordnance.filter((o) => !o.destroyed);
 
-  updateEscapeMoralVictory(state);
+  applyEscapeMoralVictory(state);
   checkGameEnd(state, map);
 
   if (state.winner === null) {
@@ -488,7 +488,7 @@ export const skipCombat = (
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
-  updateEscapeMoralVictory(state);
+  applyEscapeMoralVictory(state);
 
   if (map) {
     checkGameEnd(state, map);
@@ -502,7 +502,7 @@ export const skipCombat = (
     const baseResults = resolveBaseDefense(state, playerId, map, rng);
 
     results.push(...baseResults);
-    updateEscapeMoralVictory(state);
+    applyEscapeMoralVictory(state);
     checkGameEnd(state, map);
   }
 

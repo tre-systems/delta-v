@@ -5,15 +5,15 @@ import type { GameState, MovementEvent, Ship, SolarSystemMap } from '../types';
 import { createGame } from './game-engine';
 import {
   advanceTurn,
+  applyCheckpoints,
+  applyDetection,
+  applyEscapeMoralVictory,
   checkCapture,
   checkGameEnd,
   checkImmediateVictory,
   checkInspection,
   checkOrbitalBaseResupply,
   checkRamming,
-  updateCheckpoints,
-  updateDetection,
-  updateEscapeMoralVictory,
 } from './victory';
 
 let map: SolarSystemMap;
@@ -190,7 +190,7 @@ describe('advanceTurn', () => {
   });
 });
 
-describe('updateCheckpoints', () => {
+describe('applyCheckpoints', () => {
   it('records visited checkpoint bodies from path', () => {
     map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.grandTour, map, 'CP01', findBaseHex);
@@ -201,7 +201,7 @@ describe('updateCheckpoints', () => {
     // Find a hex that belongs to a checkpoint body
     const solHex = map.bodies.find((b) => b.name === 'Sol')!.center;
 
-    updateCheckpoints(state, 0, [solHex], map);
+    applyCheckpoints(state, 0, [solHex], map);
     expect(player.visitedBodies).toContain('Sol');
   });
 
@@ -210,8 +210,8 @@ describe('updateCheckpoints', () => {
     const state = createGame(SCENARIOS.grandTour, map, 'CP02', findBaseHex);
     const solHex = map.bodies.find((b) => b.name === 'Sol')!.center;
 
-    updateCheckpoints(state, 0, [solHex], map);
-    updateCheckpoints(state, 0, [solHex], map);
+    applyCheckpoints(state, 0, [solHex], map);
+    applyCheckpoints(state, 0, [solHex], map);
     expect(
       state.players[0].visitedBodies?.filter((b) => b === 'Sol'),
     ).toHaveLength(1);
@@ -220,7 +220,7 @@ describe('updateCheckpoints', () => {
   it('is a no-op when no checkpoint bodies configured', () => {
     const state = setupState();
     // biplanetary has no checkpointBodies
-    updateCheckpoints(state, 0, [{ q: 0, r: 0 }], map);
+    applyCheckpoints(state, 0, [{ q: 0, r: 0 }], map);
     // Should not throw
   });
 
@@ -239,7 +239,7 @@ describe('updateCheckpoints', () => {
     }
     expect(marsGravHex).not.toBeNull();
 
-    updateCheckpoints(state, 0, [marsGravHex!], map);
+    applyCheckpoints(state, 0, [marsGravHex!], map);
     expect(state.players[0].visitedBodies).toContain('Mars');
   });
 });
@@ -407,7 +407,7 @@ describe('checkGameEnd', () => {
   });
 });
 
-describe('updateEscapeMoralVictory', () => {
+describe('applyEscapeMoralVictory', () => {
   it('sets moral victory when an enforcer ship is destroyed', () => {
     map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.escape, map, 'MV01', findBaseHex);
@@ -417,7 +417,7 @@ describe('updateEscapeMoralVictory', () => {
     const enforcer = state.ships.find((s) => s.owner === 1)!;
     enforcer.destroyed = true;
 
-    updateEscapeMoralVictory(state);
+    applyEscapeMoralVictory(state);
     expect(state.escapeMoralVictoryAchieved).toBe(true);
   });
 
@@ -429,7 +429,7 @@ describe('updateEscapeMoralVictory', () => {
     const enforcer = state.ships.find((s) => s.owner === 1)!;
     enforcer.damage.disabledTurns = 3;
 
-    updateEscapeMoralVictory(state);
+    applyEscapeMoralVictory(state);
     expect(state.escapeMoralVictoryAchieved).toBe(true);
   });
 
@@ -438,7 +438,7 @@ describe('updateEscapeMoralVictory', () => {
     const state = createGame(SCENARIOS.escape, map, 'MV03', findBaseHex);
     state.escapeMoralVictoryAchieved = false;
 
-    updateEscapeMoralVictory(state);
+    applyEscapeMoralVictory(state);
     expect(state.escapeMoralVictoryAchieved).toBe(false);
   });
 
@@ -447,7 +447,7 @@ describe('updateEscapeMoralVictory', () => {
     const state = createGame(SCENARIOS.escape, map, 'MV04', findBaseHex);
     state.escapeMoralVictoryAchieved = true;
 
-    updateEscapeMoralVictory(state);
+    applyEscapeMoralVictory(state);
     expect(state.escapeMoralVictoryAchieved).toBe(true);
   });
 
@@ -455,7 +455,7 @@ describe('updateEscapeMoralVictory', () => {
     const state = setupState();
     state.escapeMoralVictoryAchieved = false;
 
-    updateEscapeMoralVictory(state);
+    applyEscapeMoralVictory(state);
     expect(state.escapeMoralVictoryAchieved).toBe(false);
   });
 });
@@ -752,7 +752,7 @@ describe('checkOrbitalBaseResupply', () => {
   });
 });
 
-describe('updateDetection', () => {
+describe('applyDetection', () => {
   it('hides ship landed at own base', () => {
     const state = setupState();
     map = buildSolarSystemMap();
@@ -768,7 +768,7 @@ describe('updateDetection', () => {
     const enemy = state.ships.find((s) => s.owner === 1)!;
     enemy.position = { q: 30, r: 30 };
 
-    updateDetection(state, map);
+    applyDetection(state, map);
     expect(ship.detected).toBe(false);
   });
 
@@ -784,7 +784,7 @@ describe('updateDetection', () => {
     const enemy = state.ships.find((s) => s.owner === 1)!;
     enemy.position = { q: 12, r: 10 }; // Within SHIP_DETECTION_RANGE (3)
 
-    updateDetection(state, map);
+    applyDetection(state, map);
     expect(ship.detected).toBe(true);
   });
 
@@ -807,7 +807,7 @@ describe('updateDetection', () => {
     const venusBase = findBaseHex(map, 'Venus')!;
     ship.position = venusBase;
 
-    updateDetection(state, map);
+    applyDetection(state, map);
     expect(ship.detected).toBe(true);
   });
 
@@ -827,7 +827,7 @@ describe('updateDetection', () => {
       }
     }
 
-    updateDetection(state, map);
+    applyDetection(state, map);
     expect(ship.detected).toBe(false);
   });
 });

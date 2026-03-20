@@ -31,7 +31,6 @@ import {
   setMuted,
 } from './audio';
 import { byId, hide, show } from './dom';
-import type { AIActionPlan } from './game/ai-flow';
 import {
   type AstrogationActionDeps,
   clearSelectedBurn as clearBurn,
@@ -62,14 +61,9 @@ import { deriveHudViewModel } from './game/helpers';
 import { getTooltipShip } from './game/hover';
 import { type InputEvent, interpretInput } from './game/input-events';
 import { deriveKeyboardAction, type KeyboardAction } from './game/keyboard';
-import type { LocalResolution } from './game/local';
 import {
-  isGameOver as checkGameOver,
-  localCheckGameEnd as checkLocalGameEnd,
-  handleLocalResolution as handleLocalRes,
+  handleLocalResolution,
   type LocalGameFlowDeps,
-  playLocalMovementResult as playLocalMovement,
-  resolveAIPlan as resolveAI,
   runAITurn as runAI,
 } from './game/local-game-flow';
 import {
@@ -1167,21 +1161,6 @@ class GameClient {
     this.setState('menu');
   }
 
-  private playLocalMovementResult(
-    result: MovementResult,
-    onComplete: () => void,
-  ) {
-    playLocalMovement(this.localGameFlowDeps, result, onComplete);
-  }
-
-  private handleLocalResolution(
-    resolution: LocalResolution,
-    onContinue: () => void,
-    errorPrefix: string,
-  ) {
-    handleLocalRes(this.localGameFlowDeps, resolution, onContinue, errorPrefix);
-  }
-
   // --- Local game (single player) ---
 
   private createLocalTransport(): GameTransport {
@@ -1190,7 +1169,12 @@ class GameClient {
       getPlayerId: () => this.ctx.playerId,
       getMap: () => this.map,
       onResolution: (resolution, onContinue, errorPrefix) =>
-        this.handleLocalResolution(resolution, onContinue, errorPrefix),
+        handleLocalResolution(
+          this.localGameFlowDeps,
+          resolution,
+          onContinue,
+          errorPrefix,
+        ),
       onAnimationComplete: () => this.onAnimationComplete(),
       onTransitionToPhase: () => this.transitionToPhase(),
       onEmplacementResult: (result) => {
@@ -1236,21 +1220,9 @@ class GameClient {
     });
   }
 
-  private localCheckGameEnd() {
-    checkLocalGameEnd(this.localGameFlowDeps);
-  }
-
-  private isGameOver(): boolean {
-    return checkGameOver(this.localGameFlowDeps);
-  }
-
   private runAITurn = async () => {
     await runAI(this.localGameFlowDeps);
   };
-
-  private resolveAIPlan(plan: AIActionPlan): LocalResolution {
-    return resolveAI(this.localGameFlowDeps, plan);
-  }
 
   private cycleShip(direction: number) {
     if (!this.ctx.gameState) return;

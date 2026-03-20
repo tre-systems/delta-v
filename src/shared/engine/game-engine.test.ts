@@ -28,7 +28,7 @@ import {
   skipCombat,
   skipOrdnance,
 } from './game-engine';
-import { checkImmediateVictory, updateCheckpoints } from './victory';
+import { applyCheckpoints, checkImmediateVictory } from './victory';
 
 let map: SolarSystemMap;
 let initialState: GameState;
@@ -3263,7 +3263,7 @@ describe('Grand Tour', () => {
     const [keyStr] = mercuryGravityHex!;
     const [q, r] = keyStr.split(',').map(Number);
 
-    updateCheckpoints(tourState, 0, [{ q, r }], map);
+    applyCheckpoints(tourState, 0, [{ q, r }], map);
     expect(tourState.players[0].visitedBodies).toContain('Mercury');
     // Player 1 should be unaffected
     expect(tourState.players[1].visitedBodies).not.toContain('Mercury');
@@ -3276,8 +3276,8 @@ describe('Grand Tour', () => {
     const [keyStr] = mercuryGravityHex!;
     const [q, r] = keyStr.split(',').map(Number);
 
-    updateCheckpoints(tourState, 0, [{ q, r }], map);
-    updateCheckpoints(tourState, 0, [{ q, r }], map);
+    applyCheckpoints(tourState, 0, [{ q, r }], map);
+    applyCheckpoints(tourState, 0, [{ q, r }], map);
     const count = tourState.players[0].visitedBodies!.filter(
       (b) => b === 'Mercury',
     ).length;
