@@ -30,6 +30,9 @@ import {
 } from './util';
 import {
   advanceTurn,
+  applyCheckpoints,
+  applyDetection,
+  applyEscapeMoralVictory,
   applyResupply,
   checkCapture,
   checkGameEnd,
@@ -37,9 +40,6 @@ import {
   checkInspection,
   checkOrbitalBaseResupply,
   checkRamming,
-  updateCheckpoints,
-  updateDetection,
-  updateEscapeMoralVictory,
 } from './victory';
 
 export type { CombatPhaseResult } from './combat';
@@ -657,7 +657,7 @@ const resolveMovementPhase = (
       const ship = state.ships.find((s) => s.id === m.shipId);
 
       if (ship && !ship.destroyed) {
-        updateCheckpoints(state, ship.owner, m.path, map);
+        applyCheckpoints(state, ship.owner, m.path, map);
 
         if (state.players[ship.owner].totalFuelSpent !== undefined) {
           state.players[ship.owner].totalFuelSpent! += m.fuelSpent;
@@ -671,8 +671,8 @@ const resolveMovementPhase = (
   checkCapture(state, playerId, events);
   checkRamming(state, events, rng);
   moveOrdnance(state, map, ordnanceMovements, events, rng);
-  updateDetection(state, map);
-  updateEscapeMoralVictory(state);
+  applyDetection(state, map);
+  applyEscapeMoralVictory(state);
   checkImmediateVictory(state, map);
 
   if (state.winner === null) {
