@@ -1264,7 +1264,7 @@ body::before {
   .hud-bottom {
     left: 0.5rem;
     right: 0.5rem;
-    bottom: calc(0.35rem + var(--safe-bottom));
+    bottom: calc(0.85rem + var(--safe-bottom));
     width: auto;
     max-width: none;
     transform: none;
@@ -1291,8 +1291,8 @@ body::before {
   }
 
   .ship-list {
-    top: auto;
-    bottom: calc(var(--hud-bottom-offset) + 0.35rem);
+    top: calc(var(--hud-top-offset) + 0.35rem);
+    bottom: auto;
     left: 0.5rem;
     width: min(44vw, 184px);
     max-width: calc(50vw - 0.75rem);
