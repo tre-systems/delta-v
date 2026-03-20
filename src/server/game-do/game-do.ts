@@ -15,6 +15,7 @@ import {
   skipLogistics,
   skipOrdnance,
 } from '../../shared/engine/game-engine';
+import type { GameEvent } from '../../shared/events';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -41,6 +42,9 @@ import {
   validateClientMessage,
 } from '../protocol';
 import {
+  deriveCombatEvents,
+  deriveMovementEvents,
+  derivePhaseChangeEvents,
   resolveCombatBroadcast,
   resolveMovementBroadcast,
   type StatefulServerMessage,
@@ -91,6 +95,20 @@ export class GameDO extends DurableObject {
 
   private async saveGameState(state: GameState): Promise<void> {
     await this.ctx.storage.put('gameState', state);
+  }
+
+  private async getEventLog(): Promise<GameEvent[]> {
+    return (await this.ctx.storage.get<GameEvent[]>('eventLog')) ?? [];
+  }
+
+  private async appendEvents(...events: GameEvent[]): Promise<void> {
+    const log = await this.getEventLog();
+    log.push(...events);
+    await this.ctx.storage.put('eventLog', log);
+  }
+
+  private async resetEventLog(): Promise<void> {
+    await this.ctx.storage.put('eventLog', []);
   }
 
   private async getRoomConfig(): Promise<RoomConfig | null> {
@@ -261,10 +279,12 @@ export class GameDO extends DurableObject {
 
     if (gameState) {
       const filteredState = filterStateForPlayer(gameState, playerId);
+      const eventLog = await this.getEventLog();
 
       this.send(server, {
         type: 'gameStart',
         state: filteredState,
+        eventLog,
       });
     }
 
@@ -481,7 +501,9 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    await this.publishStateChange(outcome.state, outcome.primaryMessage);
+    await this.publishStateChange(outcome.state, outcome.primaryMessage, {
+      events: outcome.events,
+    });
   }
 
   private async startTurnTimer(state: GameState): Promise<void> {
@@ -499,14 +521,23 @@ export class GameDO extends DurableObject {
   private async publishStateChange(
     state: GameState,
     primaryMessage?: StatefulServerMessage,
-    restartTurnTimer = true,
+    options?: {
+      restartTurnTimer?: boolean;
+      events?: GameEvent[];
+    },
   ) {
+    const { restartTurnTimer = true, events = [] } = options ?? {};
+
     if (primaryMessage) {
       this.broadcastFiltered(primaryMessage);
     }
 
     this.broadcastEndOrUpdate(state);
     await this.saveGameState(state);
+
+    if (events.length > 0) {
+      await this.appendEvents(...events);
+    }
 
     if (restartTurnTimer) {
       await this.startTurnTimer(state);
@@ -605,6 +636,12 @@ export class GameDO extends DurableObject {
     const gameState = createGame(scenario, map, code, findBaseHex);
 
     await this.saveGameState(gameState);
+    await this.resetEventLog();
+    await this.appendEvents({
+      type: 'gameStarted',
+      turn: gameState.turnNumber,
+      phase: gameState.phase,
+    });
 
     this.broadcastFiltered({
       type: 'gameStart',
@@ -633,11 +670,10 @@ export class GameDO extends DurableObject {
         );
       },
       async (result) => {
-        await this.publishStateChange(
-          result.state,
-          undefined,
-          result.state.phase === 'astrogation',
-        );
+        await this.publishStateChange(result.state, undefined, {
+          restartTurnTimer: result.state.phase === 'astrogation',
+          events: derivePhaseChangeEvents(result.state),
+        });
       },
     );
   }
@@ -655,6 +691,7 @@ export class GameDO extends DurableObject {
         await this.publishStateChange(
           result.state,
           resolveMovementBroadcast(result),
+          { events: deriveMovementEvents(result) },
         );
       },
     );
@@ -672,7 +709,10 @@ export class GameDO extends DurableObject {
         await this.publishStateChange(
           result.state,
           toStateUpdateMessage(result.state),
-          false,
+          {
+            restartTurnTimer: false,
+            events: derivePhaseChangeEvents(result.state),
+          },
         );
       },
     );
@@ -690,6 +730,9 @@ export class GameDO extends DurableObject {
         await this.publishStateChange(
           result.state,
           toStateUpdateMessage(result.state),
+          {
+            events: derivePhaseChangeEvents(result.state),
+          },
         );
       },
     );
@@ -703,6 +746,9 @@ export class GameDO extends DurableObject {
         await this.publishStateChange(
           result.state,
           toStateUpdateMessage(result.state),
+          {
+            events: derivePhaseChangeEvents(result.state),
+          },
         );
       },
     );
@@ -721,6 +767,7 @@ export class GameDO extends DurableObject {
         await this.publishStateChange(
           result.state,
           toMovementResultMessage(result),
+          { events: deriveMovementEvents(result) },
         );
       },
     );
@@ -739,7 +786,10 @@ export class GameDO extends DurableObject {
         await this.publishStateChange(
           result.state,
           toStateUpdateMessage(result.state),
-          false,
+          {
+            restartTurnTimer: false,
+            events: derivePhaseChangeEvents(result.state),
+          },
         );
       },
     );
@@ -753,6 +803,7 @@ export class GameDO extends DurableObject {
         await this.publishStateChange(
           result.state,
           resolveMovementBroadcast(result, 'stateUpdate'),
+          { events: deriveMovementEvents(result) },
         );
       },
     );
@@ -771,6 +822,7 @@ export class GameDO extends DurableObject {
         await this.publishStateChange(
           result.state,
           resolveCombatBroadcast(result)!,
+          { events: deriveCombatEvents(result) },
         );
       },
     );
@@ -785,6 +837,7 @@ export class GameDO extends DurableObject {
         await this.publishStateChange(
           result.state,
           resolveCombatBroadcast(result, 'stateUpdate'),
+          { events: deriveCombatEvents(result) },
         );
       },
     );
@@ -798,6 +851,7 @@ export class GameDO extends DurableObject {
         await this.publishStateChange(
           result.state,
           resolveCombatBroadcast(result),
+          { events: deriveCombatEvents(result) },
         );
       },
     );

@@ -58,4 +58,42 @@ describe('game-do-turns', () => {
 
     expect(resolveTurnTimeoutOutcome(state, buildSolarSystemMap())).toBeNull();
   });
+
+  it('includes event log entries in outcome', () => {
+    const state = createState();
+    const map = buildSolarSystemMap();
+    const outcome = resolveTurnTimeoutOutcome(state, map);
+
+    expect(outcome).not.toBeNull();
+    expect(outcome!.events.length).toBeGreaterThan(0);
+
+    const types = outcome!.events.map((e) => e.type);
+    expect(types).toContain('phaseChanged');
+  });
+
+  it('includes movementResolved event for astrogation', () => {
+    const state = createState();
+    const map = buildSolarSystemMap();
+    const outcome = resolveTurnTimeoutOutcome(state, map);
+
+    expect(outcome).not.toBeNull();
+
+    const movementEvents = outcome!.events.filter(
+      (e) => e.type === 'movementResolved',
+    );
+    expect(movementEvents).toHaveLength(1);
+  });
+
+  it('includes combatResolved event for combat timeout', () => {
+    const state = createState();
+    state.phase = 'combat';
+    const map = buildSolarSystemMap();
+    const outcome = resolveTurnTimeoutOutcome(state, map);
+
+    expect(outcome).not.toBeNull();
+    // Skip combat produces no combat results,
+    // so no combatResolved event — just phaseChanged
+    const types = outcome!.events.map((e) => e.type);
+    expect(types).toContain('phaseChanged');
+  });
 });

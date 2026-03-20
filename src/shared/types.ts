@@ -1,3 +1,4 @@
+import type { GameEvent } from './events';
 import type { HexCoord, HexVec } from './hex';
 
 // --- Game state ---
@@ -303,7 +304,11 @@ export type S2C =
       playerToken: string;
     }
   | { type: 'matchFound' }
-  | { type: 'gameStart'; state: GameState }
+  | {
+      type: 'gameStart';
+      state: GameState;
+      eventLog?: GameEvent[];
+    }
   | {
       type: 'movementResult';
       movements: ShipMovement[];
