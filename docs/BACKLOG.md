@@ -1,37 +1,139 @@
 # Delta-V Backlog
 
-Prioritized list of remaining work items. P0 = rule correctness, P1 = robustness, P2 = code quality, P3 = test coverage.
+Prioritised list of remaining work. Items are grouped by type and ordered by priority within each group. The priority reflects a product heading toward commercial release with user testing.
 
-## P0 — Rule Correctness
+**Priority key:** P0 = rule correctness, P1 = production safety & iteration velocity, P2 = code quality & extensibility, P3 = test coverage.
 
-No open P0 items currently.
+---
 
-## P1 — Robustness
+## P1 — Architecture & Production Safety
 
-No open P1 items currently.
+### 1a. Clone-on-entry at engine entry points
 
-## P2 — Code Quality
+Engine functions mutate `GameState` in place. This works because the server holds a single reference, but it:
 
-### 2f. Serialisation codec *(deferred — not currently needed)*
-`GameState` contains only JSON-serializable primitives (no Map/Set/Date). `deserializeState()` is `return raw`. A codec would add overhead with zero current benefit. Revisit if Map or Set fields are added to GameState.
+- **Breaks the server if the engine throws mid-mutation** — the DO's in-memory state is left inconsistent, permanently breaking the room.
+- **Prevents replay, spectator, undo** — no previous-state snapshot to diff against or store.
+- **Limits AI search** — speculative branching requires manual clone gymnastics.
 
-**Files:** new `src/shared/codec.ts`
+**Approach:** Wrap every engine entry point (`processAstrogation`, `processCombat`, `processOrdnance`, `beginCombatPhase`, `skipCombat`, `skipOrdnance`, `processLogistics`, `skipLogistics`, `processFleetReady`) with `structuredClone(state)` before calling the mutation logic. On success, return the mutated clone. On exception, the original state is untouched.
 
-### ~~2j. Decompose `main.ts`~~ *(done)*
-Extracted 7 focused modules from `GameClient` (1397 → 1023 LOC): presentation orchestration, S2C message handler, connection manager, turn timer manager, astrogation/combat/ordnance action handlers, and local game flow. `main.ts` is now a thin dispatcher that delegates to these modules.
+This is already done in `client/game/local.ts` for animation diffing. Extending it to all entry points is mechanical.
 
-### 2k. Structural sharing in engine *(improvement opportunity — unlocks replay, undo, spectator)*
-Engine functions mutate `GameState` and its entities in place: `game-engine.ts` directly mutates `state.phase`, `state.pendingAstrogationOrders`, ship fields, player objects; `combat.ts` mutates ships via `applyDamage()`, `target.destroyed = true`, heroism flags; `engine/combat.ts` mutates phase and state during combat progression.
+**Unlocks:** server-side rollback safety (1b), event log (1c), turn history, spectator mode, better AI search.
 
-This works because the server holds a single reference, but prevents: state diffing, undo, replay, spectator mode, and speculative AI branching. The pragmatic path is clone-on-entry at engine entry points (or Immer), not a rewrite to persistent data structures.
+**Files:** `src/shared/engine/game-engine.ts`, engine sub-modules, `src/server/game-do/game-do.ts`
 
-## Features
+### 1b. Server-side state rollback
 
-No open feature items currently.
+With clone-on-entry (1a) in place, the server wraps engine calls in try/catch. On exception: log the error, restore the pre-mutation state, send an error message to the client. The game continues instead of permanently breaking.
+
+Currently mitigated by high test coverage, but a safety net is essential for production with real users.
+
+**Depends on:** 1a (clone-on-entry)
+
+**Files:** `src/server/game-do/game-do.ts` (`runGameStateAction`)
+
+### 1c. Event log for network protocol
+
+The server sends full `GameState` snapshots over WebSocket after every action. This works but:
+
+- **No replay capability** — there's no history of what happened, just the current state.
+- **No spectator catch-up** — a late joiner would need the full game history.
+- **Reconnection is lossy** — a reconnecting client gets a snapshot but misses the animation/events that led to it.
+- **Payload size grows with state** — every broadcast includes the full ship array, ordnance array, etc.
+
+**Approach:** After each engine call, the server appends a lightweight event to an in-memory log (e.g. `{ turn: 5, phase: 'combat', type: 'COMBAT_RESOLVED', data: combatResult }`). The log is persisted alongside the state snapshot. On reconnect or spectator join, send the snapshot + event log. Clients can replay events for animation.
+
+This is not full event sourcing — snapshots remain the source of truth. The event log is an append-only complement for replay, reconnection, and spectator mode.
+
+**Depends on:** 1a (clone-on-entry provides the before/after snapshots that generate events)
+
+**Unlocks:** turn replay, spectator mode, smooth reconnection.
+
+**Files:** `src/server/game-do/game-do.ts`, new `src/shared/events.ts` (event type definitions), `src/client/game/message-handler.ts`
+
+### 1d. Error reporting
+
+No visibility into production errors. When the engine throws, a WebSocket drops, or a client hits an unhandled exception, we currently have no signal.
+
+**Approach:** Lightweight error boundary on the client (catch unhandled rejections, report to a `/error` endpoint or external service). Server-side: log engine exceptions in `runGameStateAction` catch block (naturally falls out of 1b). Start simple — structured JSON logs that Cloudflare captures — and add an external service (Sentry, LogFlare) later if needed.
+
+**Files:** `src/client/main.ts` (error boundary), `src/server/game-do/game-do.ts` (catch logging), `src/server/index.ts` (error endpoint)
+
+### 1e. Analytics / telemetry for user testing
+
+Before user testing starts, we need basic visibility into how people play: which scenarios they pick, how long games last, where they get stuck, when they quit.
+
+**Approach:** Emit lightweight events (game created, phase entered, game ended, scenario selected, AI difficulty chosen) to a `/telemetry` endpoint. Store in Cloudflare Analytics Engine or D1. No PII. Keep the client-side instrumentation minimal — a single `track(event, props)` function called from key points in `main.ts` and `ui.ts`.
+
+**Files:** new `src/client/telemetry.ts`, `src/server/index.ts` (endpoint), `src/client/main.ts` and `src/client/ui/ui.ts` (call sites)
+
+---
+
+## P2 — Code Quality & Extensibility
+
+### 2a. Client integration tests
+
+Shared engine rules are well covered (84% statements, 75% branches). The bigger risk for rapid iteration sits in client coordination code — `main.ts` dispatch, phase transitions, message handling, UI wiring. Changes to these during user-testing iteration could break flows that unit tests don't cover.
+
+**Approach:** Add integration-style tests that exercise `GameClient` dispatch + message handler flows end-to-end with a mock transport. Test scenarios like: "player sets burns, confirms, receives movement result, transitions to combat phase." These don't need a real DOM or canvas — just the state machine and command flow.
+
+**Files:** new `src/client/game/integration.test.ts`, existing action/message-handler test files
+
+### 2b. Centralise phase validation
+
+Phase-locking checks (`if (state.activePlayer === playerId && state.phase === 'astrogation')`) are scattered across engine entry points and the server's message handlers. Adding a new phase means remembering to add guards in multiple places.
+
+**Approach:** Extract a `canPerformAction(state, playerId, actionType): boolean` helper that centralises all phase/player validation. Engine entry points and server handlers call this instead of ad-hoc checks.
+
+**Files:** `src/shared/engine/util.ts`, engine entry points, `src/server/game-do/game-do.ts`
+
+### ~~Serialisation codec~~ *(deferred — not currently needed)*
+`GameState` contains only JSON-serializable primitives (no Map/Set/Date). A codec would add overhead with zero current benefit. Revisit if Map or Set fields are added to GameState.
+
+### ~~User accounts / auth~~ *(deferred — adds friction)*
+Requiring login hurts adoption during user testing. The current anonymous token-in-localStorage model is frictionless and sufficient. Revisit when the app moves to native app store distribution or needs payment integration.
+
+---
 
 ## P3 — Test Coverage
 
-No open P3 items currently.
+### 3a. Client coordination test coverage
+
+The `dispatch()` switch in `main.ts` has ~60 cases. Phase transitions in `setState()` have implicit coupling to renderer, UI, and timer. These are the highest-risk areas during rapid iteration but currently have no direct tests.
+
+**Approach:** Test the dispatch → state transition → side-effect flow with injectable dependencies. The existing DI pattern (astrogationDeps, combatDeps, etc.) makes this feasible.
+
+**Files:** `src/client/main.ts` (test harness), new `src/client/game/dispatch.test.ts`
+
+---
+
+## Features
+
+### Turn replay
+
+Allow players to review past turns after a game ends (or during, stepping back through history).
+
+**Depends on:** 1a (clone-on-entry for snapshots), 1c (event log for animation data).
+
+### Spectator mode
+
+Third-party WebSocket connections that receive state broadcasts but cannot submit actions.
+
+**Depends on:** 1c (event log for catch-up).
+
+**Files:** `src/server/game-do/game-do.ts` (spectator seat type), `src/server/protocol.ts`, client spectator UI
+
+### 3c. New scenarios
+
+Lateral 7, Fleet Mutiny, Retribution — require mechanics beyond what's currently implemented (rescue/passenger transfer, fleet mutiny trigger, advanced reinforcement waves).
+
+### 3d. Rescue / passenger transfer
+
+Transfer passengers between ships for rescue scenarios. Extends the logistics phase with a new transfer type.
+
+---
 
 ## Done
 

@@ -20,7 +20,7 @@ Files under `src/shared/` should remain:
 - plain typed data
 - easy to test in isolation
 
-Note: the engine currently mutates `GameState` in place rather than returning immutable snapshots. This is a known trade-off documented in ARCHITECTURE.md and tracked in BACKLOG.md (item 2k). RNG is fully injectable — all engine entry points require a mandatory `rng: () => number` parameter with no `Math.random` fallbacks in the turn-resolution path.
+Note: the engine currently mutates `GameState` in place rather than returning immutable snapshots. This is a known trade-off documented in ARCHITECTURE.md and tracked in BACKLOG.md (item 1a — clone-on-entry). RNG is fully injectable — all engine entry points require a mandatory `rng: () => number` parameter with no `Math.random` fallbacks in the turn-resolution path.
 
 Avoid pushing browser, network, storage, or rendering concerns into the shared engine.
 
@@ -109,20 +109,37 @@ derivePhaseTransition(state) → PhaseTransitionPlan    // pure: what should cha
 setState(plan.nextState)                               // impure: apply it
 ```
 
-Examples: `deriveClientScreenPlan`, `deriveGameOverPlan`, `deriveClientMessagePlan`, `deriveBurnChangePlan`, `deriveHudViewModel`, `deriveKeyboardAction`, `deriveAIActionPlan`.
+Examples: `deriveClientScreenPlan`, `deriveGameOverPlan`, `deriveClientMessagePlan`, `deriveBurnChangePlan`, `deriveHudViewModel`, `deriveKeyboardAction`, `deriveAIActionPlan`, `deriveClientStateEntryPlan`, `derivePhaseTransition`.
 
-This is a lightweight version of the [functional core / imperative shell](https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/) pattern — pure derivation in the core, side effects at the boundary.
+The `deriveClientStateEntryPlan()` function in `game/phase-entry.ts` is the most elaborate example — it returns a `ClientStateEntryPlan` with ~15 boolean/enum flags controlling camera reset, HUD visibility, timer start, tutorial triggers, and combat state on each phase entry. The caller (`setState()` in `main.ts`) applies the plan imperatively.
+
+This is the [functional core / imperative shell](https://www.destroyallsoftware.com/talks/boundaries) pattern (Gary Bernhardt, ["Boundaries"](https://www.destroyallsoftware.com/talks/boundaries), SCNA 2012) — pure derivation in the core, side effects at the boundary. See also Mark Seemann's [dependency rejection](https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/) series for the same idea applied to functional programming.
 
 ### Error returns
 
-Engine functions return `{ state, ... } | { error: string }` — no exceptions for expected failures. Callers narrow with `'error' in result`:
+Two error-return conventions exist, each for a different context:
+
+**Engine results** — `{ state, ... } | { error: string }`. Used by engine entry points (`processAstrogation`, `processCombat`, etc.) where the success shape varies by function. Callers narrow with `'error' in result`:
 
 ```typescript
-const result = processAstrogation(state, playerId, orders, map, rng);
-if ('error' in result) return { kind: 'error', error: result.error };
+const result = processAstrogation(
+  state, playerId, orders, map, rng,
+);
+if ('error' in result) {
+  return { kind: 'error', error: result.error };
+}
+// result.state, result.movements, etc.
 ```
 
-Protocol validation uses `{ ok: true; value: T } | { ok: false; error: string }` in `protocol.ts`.
+**Protocol validation** — `{ ok: true; value: T } | { ok: false; error: string }`. Used by `protocol.ts` validation functions where the success type is uniform and the caller needs a typed `value`. Callers narrow with `.ok`:
+
+```typescript
+const parsed = validateAstrogationOrders(raw);
+if (!parsed.ok) return sendError(ws, parsed.error);
+// parsed.value is typed AstrogationOrder[]
+```
+
+Use **engine-style** for game logic results with heterogeneous success shapes. Use **protocol-style** for parse/validate functions that extract a typed value from untrusted input.
 
 ### Function prefix conventions
 
@@ -173,6 +190,25 @@ The shared engine is data-oriented by design. Lean into that with functional pat
   | `pickBy(obj, fn)` | `Object.fromEntries(Object.entries(obj).filter(...))` |
   | `mapValues(obj, fn)` | `Object.fromEntries(Object.entries(obj).map(...))` |
   | `cond([p, v], ...)` | Chains of `if (p) return v;` (Clojure-style cond) |
+  | `clamp(n, min, max)` | `Math.min(Math.max(n, min), max)` |
+  | `randomChoice(arr, rng)` | `arr[Math.floor(rng() * arr.length)]` (injectable RNG) |
+
+- **`cond()` vs `switch` vs ternaries.** Use `cond()` when selecting a value from a list of independent boolean conditions — it reads like a decision table and avoids nested ternaries. Use `switch` when narrowing a discriminated union (TypeScript's exhaustive checking catches missing cases). Use a ternary for simple two-branch expressions.
+
+  ```typescript
+  // cond: multiple independent conditions → value
+  const status = cond(
+    [ship.destroyed, 'destroyed'],
+    [ship.captured, 'captured'],
+    [ship.landed, 'landed'],
+  ) ?? 'active';
+
+  // switch: discriminated union narrowing
+  switch (cmd.type) {
+    case 'confirmOrders': ...
+    case 'setBurnDirection': ...
+  }
+  ```
 
 - **Prefer expressions over statements.** A `filter` → `map` chain is easier to follow than a `for` loop that pushes into a mutable array.
 - **Avoid mutable accumulators** when a helper already captures the pattern. Instead of tracking `bestDist` / `bestItem` through a loop, use `minBy`. Instead of `reduce((sum, x) => sum + x.value, 0)`, use `sumBy`. Instead of two `.filter()` calls splitting an array, use `partition`.
@@ -189,7 +225,9 @@ The shared engine is data-oriented by design. Lean into that with functional pat
 
 State belongs to the coordinator that manages its lifecycle, and is passed by reference to collaborators:
 
-- **PlanningState** is owned by `GameClient` in `main.ts`, defined in `src/client/game/planning.ts`. Renderer receives it as a constructor parameter and reads the shared reference each frame. `InputHandler` does not receive PlanningState — it emits raw spatial events (`InputEvent`), and `interpretInput()` receives PlanningState as a read-only argument to produce `GameCommand[]`.
+- **PlanningState** is owned by `GameClient` in `main.ts`, defined in `src/client/game/planning.ts`. It is the client-side "working memory" for the current turn — the uncommitted moves that get sent to the server on confirm. Renderer receives it as a constructor parameter and reads the shared reference each frame to draw previews. `InputHandler` does not receive PlanningState — it emits raw spatial events (`InputEvent`), and `interpretInput()` receives PlanningState as a read-only argument to produce `GameCommand[]`.
+
+  Key fields: `burns` (Map of ship → burn direction), `overloads` (Map of ship → overload direction), `queuedAttacks` (buffered combat declarations), `selectedShipId`, `hoverHex`, `combatTargetId`/`combatAttackerIds` (combat planning), `torpedoAccel` (torpedo launch direction). Reset via `createInitialPlanningState()` on phase transitions.
 
 - **GameState** is owned by `GameClient`, updated via `applyGameState()`. Other modules receive it as function arguments, never as stored references.
 
