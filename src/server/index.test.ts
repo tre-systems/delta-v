@@ -131,3 +131,169 @@ describe('server index worker', () => {
     expect(await response.text()).toBe('asset ok');
   });
 });
+
+describe('/error endpoint', () => {
+  it('accepts valid error reports and returns 204', async () => {
+    const { env } = createEnv();
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: 'test error',
+          ts: 123,
+        }),
+      }),
+      env as any,
+    );
+
+    expect(response.status).toBe(204);
+    expect(spy).toHaveBeenCalledWith(
+      '[client-error]',
+      expect.objectContaining({ error: 'test error' }),
+    );
+    spy.mockRestore();
+  });
+
+  it('rejects non-POST requests', async () => {
+    const { env } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/error'),
+      env as any,
+    );
+
+    // GET /error falls through to static assets
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('asset ok');
+  });
+
+  it('rejects non-JSON content type with 415', async () => {
+    const { env } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: 'not json',
+      }),
+      env as any,
+    );
+
+    expect(response.status).toBe(415);
+  });
+
+  it('rejects payloads exceeding 4 KB via content-length', async () => {
+    const { env } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/error', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': '10000',
+        },
+        body: JSON.stringify({ error: 'big' }),
+      }),
+      env as any,
+    );
+
+    expect(response.status).toBe(413);
+  });
+
+  it('rejects payloads exceeding 4 KB via body length', async () => {
+    const { env } = createEnv();
+    const bigBody = JSON.stringify({
+      error: 'x'.repeat(5000),
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: bigBody,
+      }),
+      env as any,
+    );
+
+    expect(response.status).toBe(413);
+  });
+
+  it('rejects invalid JSON with 400', async () => {
+    const { env } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{invalid',
+      }),
+      env as any,
+    );
+
+    expect(response.status).toBe(400);
+  });
+});
+
+describe('/telemetry endpoint', () => {
+  it('accepts valid telemetry events and returns 204', async () => {
+    const { env } = createEnv();
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'game_created',
+          scenario: 'biplanetary',
+        }),
+      }),
+      env as any,
+    );
+
+    expect(response.status).toBe(204);
+    expect(spy).toHaveBeenCalledWith(
+      '[telemetry]',
+      expect.objectContaining({
+        event: 'game_created',
+      }),
+    );
+    spy.mockRestore();
+  });
+
+  it('rejects non-JSON content type with 415', async () => {
+    const { env } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: 'not json',
+      }),
+      env as any,
+    );
+
+    expect(response.status).toBe(415);
+  });
+
+  it('does not echo payload in response body', async () => {
+    const { env } = createEnv();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'test' }),
+      }),
+      env as any,
+    );
+
+    expect(response.status).toBe(204);
+    const body = await response.text();
+    expect(body).toBe('');
+  });
+});

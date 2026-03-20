@@ -26,21 +26,13 @@ Server-side append-only event log persisted in DO storage alongside game state. 
 
 **Unlocks:** turn replay, spectator mode, smooth reconnection.
 
-### 1d. Error reporting
+### ~~1d. Error reporting~~ *(done)*
 
-No visibility into production errors. When the engine throws, a WebSocket drops, or a client hits an unhandled exception, we currently have no signal.
+Global `window.onerror` and `unhandledrejection` handlers POST structured JSON to `/error`. Server logs via `console.error` (Cloudflare Workers Logs). Security: POST-only, Content-Type validation, 4 KB body cap, no payload echo, 204 response. Server-side engine exceptions already logged in `runGameStateAction` and `handleTurnTimeout` catch blocks (1b). 10 endpoint tests.
 
-**Approach:** Global `window.onerror` and `unhandledrejection` handlers on the client POST structured JSON to a `/error` endpoint. The server endpoint logs the payload via `console.error` — Cloudflare Workers Logs captures all `console.*` output automatically (viewable in the dashboard or via `wrangler tail`). Server-side engine exceptions are already logged in `runGameStateAction` and `handleTurnTimeout` catch blocks (1b). No external services (Sentry, LogFlare) — unnecessary at current scale; upgrade path exists if needed.
+### ~~1e. Analytics / telemetry for user testing~~ *(done)*
 
-**Files:** `src/client/main.ts` (global error handlers), `src/server/index.ts` (`/error` endpoint)
-
-### 1e. Analytics / telemetry for user testing
-
-Before user testing starts, we need basic visibility into how people play: which scenarios they pick, how long games last, where they get stuck, when they quit.
-
-**Approach:** A lightweight `track(event, props)` function on the client POSTs structured JSON to a `/telemetry` endpoint. The server endpoint logs the payload via `console.log` — same Workers Logs sink as error reporting. No PII. No Analytics Engine or D1 — at current scale, structured logs are sufficient and queryable via `wrangler tail` or the dashboard. If proper querying is needed later, add a D1 table (`timestamp, event, json_props`).
-
-**Files:** new `src/client/telemetry.ts`, `src/server/index.ts` (`/telemetry` endpoint), `src/client/main.ts` and `src/client/ui/ui.ts` (call sites)
+Lightweight `track(event, props)` POSTs to `/telemetry`, logged via `console.log` (same Workers Logs sink). `reportError()` POSTs to `/error`. Both fire-and-forget with `keepalive: true`. Events tracked: `game_created` (scenario, mode, difficulty), `game_over` (won, reason, turn). Same security measures as 1d. 4 endpoint tests.
 
 ---
 
@@ -110,6 +102,8 @@ Transfer passengers between ships for rescue scenarios. Extends the logistics ph
 
 ## Done
 
+- ~~1e. Analytics / telemetry~~ — `track(event, props)` POSTs to `/telemetry`, `reportError()` POSTs to `/error`. Fire-and-forget with `keepalive: true`. Events: `game_created`, `game_over`. Same security as 1d. 4 endpoint tests.
+- ~~1d. Error reporting~~ — Global `window.onerror`/`unhandledrejection` POST to `/error`. `handleReport()` shared handler with Content-Type validation, 4 KB cap, no echo, 204 response. 10 endpoint tests.
 - ~~1c. Event log for network protocol~~ — 5 event types in `src/shared/events.ts`, server appends events after every action, reconnecting clients receive full log in `gameStart`. 11 tests.
 - ~~1b. Server-side state rollback~~ — `runGameStateAction` and `handleTurnTimeout` wrap engine calls in try/catch. On exception: structured log with game code/phase/turn, error sent to client, state preserved via clone-on-entry.
 - ~~1a. Clone-on-entry at engine entry points~~ — All 11 engine entry points `structuredClone(state)` on entry; callers use returned `result.state`. 22 immutability tests in `clone-on-entry.test.ts`. Unlocks 1b (rollback) and 1c (event log).
