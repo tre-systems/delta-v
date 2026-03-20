@@ -116,6 +116,7 @@ import { buildShipTooltipHtml } from './game/tooltip';
 import { createLocalTransport, type GameTransport } from './game/transport';
 import { InputHandler } from './input';
 import { HEX_SIZE, Renderer } from './renderer/renderer';
+import { installGlobalErrorHandlers, track } from './telemetry';
 import { Tutorial } from './tutorial';
 import type { UIEvent } from './ui/events';
 import { UIManager } from './ui/ui';
@@ -548,6 +549,11 @@ class GameClient {
       // Update URL
       history.replaceState(null, '', buildGameRoute(this.ctx.gameCode));
 
+      track('game_created', {
+        scenario,
+        mode: 'multiplayer',
+      });
+
       this.connect(this.ctx.gameCode);
       this.setState('waitingForOpponent');
     } catch (err) {
@@ -571,6 +577,12 @@ class GameClient {
     this.ui.clearLog();
     this.ui.setChatEnabled(false);
     this.ui.logText(`vs AI (${this.ctx.aiDifficulty}) — ${scenarioDef.name}`);
+
+    track('game_created', {
+      scenario,
+      mode: 'local',
+      difficulty: this.ctx.aiDifficulty,
+    });
 
     this.applyGameState(state);
     this.logScenarioBriefing();
@@ -709,6 +721,13 @@ class GameClient {
   }
 
   private showGameOverOutcome(won: boolean, reason: string) {
+    track('game_over', {
+      won,
+      reason,
+      scenario: this.ctx.scenario,
+      mode: this.ctx.isLocalGame ? 'local' : 'multiplayer',
+      turn: this.ctx.gameState?.turnNumber,
+    });
     showGameOver(this.presentationDeps, won, reason);
   }
 
@@ -1389,4 +1408,5 @@ class GameClient {
 }
 
 // --- Bootstrap ---
+installGlobalErrorHandlers();
 (window as any).__game = new GameClient();
