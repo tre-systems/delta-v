@@ -4,17 +4,7 @@ Prioritised list of remaining work. Items are grouped by type and ordered by pri
 
 **Priority key:** P0 = rule correctness, P1 = production safety & iteration velocity, P2 = code quality & extensibility, P3 = test coverage.
 
----
-
-## P3 — Test Coverage
-
-### 3a. Client coordination test coverage
-
-The `dispatch()` switch in `main.ts` has ~60 cases. Phase transitions in `setState()` have implicit coupling to renderer, UI, and timer. These are the highest-risk areas during rapid iteration but currently have no direct tests.
-
-**Approach:** Test the dispatch → state transition → side-effect flow with injectable dependencies. The existing DI pattern (astrogationDeps, combatDeps, etc.) makes this feasible.
-
-**Files:** `src/client/main.ts` (test harness), new `src/client/game/dispatch.test.ts`
+All P0–P3 items are complete. Only feature work remains.
 
 ---
 

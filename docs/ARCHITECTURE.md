@@ -314,6 +314,10 @@ All three engine safety items are complete:
 - **2a. Client integration tests** — 20 tests in `src/client/game/integration.test.ts` covering full connection-to-game flow, movement/combat/state-update presentation, game over, chat, errors, latency, and reconnection. Uses injectable deps pattern — no DOM or canvas needed.
 - **2b. Centralise phase validation** — `validatePhaseAction(state, playerId, requiredPhase)` in `src/shared/engine/util.ts`. All 10 standard engine entry points (all except `processFleetReady`) replaced ad-hoc phase + activePlayer checks with the single helper. 4 unit tests.
 
+### ~~Priority 3: Test Coverage (BACKLOG 3a)~~ *(done)*
+
+- **3a. Client coordination tests** — 22 tests in `src/client/game/dispatch.test.ts` covering planning state mutations (overloads, weak gravity, combat plans, queued attacks, torpedo accel, hover hex, ship selection, astrogation clearing), logistics transport guards (skip/confirm with phase checks), and phase transition output interpretation. Tests extracted pure logic from the `dispatch()` switch without needing a full `GameClient`.
+
 ### Explicitly Deferred
 
 - **User accounts / auth**: Adds login friction that hurts adoption during user testing. The current anonymous token model is sufficient. Revisit for native app store distribution or payment integration.
