@@ -125,21 +125,26 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] 1020+ tests across 62 suites (unit, property-based, integration), 8 scenario AI simulations
 - [x] Deep architectural analysis and reusability assessment ([docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md))
 - [x] Asteroid map visuals matching reference map
-- [x] Logistics system: surrender, fuel/cargo transfers, looting with transfer picker UI (enabled on Convoy, Fleet Action, Interplanetary War)
-- [x] Reinforcement spawning and fleet conversion infrastructure for future scenarios
+- [x] Logistics system: surrender, fuel/cargo transfers, looting with transfer picker UI
+- [x] Reinforcement spawning and fleet conversion infrastructure
+- [x] Make RNG fully injectable, decompose main.ts, eliminate map singleton, fix local.ts state aliasing
+
+### Next — Architecture & Production Safety
+- [ ] **Clone-on-entry at engine entry points**: Replace in-place mutation with clone-on-entry for server rollback safety, diffing, undo, replay, and AI search
+- [ ] **Server-side state rollback**: Try/catch around engine calls with state restoration on failure
+- [ ] **Event log for network protocol**: Append-only event log alongside state snapshots — enables replay, spectator catch-up, smooth reconnection
+- [ ] **Error reporting**: Client error boundary + server-side exception logging
+- [ ] **Analytics / telemetry**: Lightweight event tracking for user testing (scenario picks, game duration, quit points)
+
+### Next — Code Quality
+- [ ] **Client integration tests**: End-to-end dispatch + message handler tests with mock transport
+- [ ] **Centralise phase validation**: Single `canPerformAction()` helper replacing scattered phase guards
 
 ### Planned — Features
-- [ ] **New Scenarios**: Lateral 7, Fleet Mutiny, Retribution (require additional mechanics beyond logistics)
+- [ ] **Turn Replay**: Review past turns and full game history (depends on clone-on-entry + event log)
+- [ ] **Spectator Mode**: Third-party connections to watch ongoing battles (depends on event log)
+- [ ] **New Scenarios**: Lateral 7, Fleet Mutiny, Retribution (require additional mechanics)
 - [ ] **Rescue/passenger transfer**: Transfer passengers between ships for rescue scenarios
-- [ ] **Spectator Mode**: Third-party connections to watch ongoing battles
-- [ ] **Turn Replay**: Review past turns and full game history
-
-### Planned — Architecture
-- [x] **Make RNG fully injectable**: All engine entry points require explicit `rng` parameter, no `Math.random` fallbacks
-- [x] **Fix `local.ts` state aliasing**: `structuredClone` captures true pre-mutation state for animation diffing
-- [ ] **Structural sharing in engine**: Replace in-place mutation with clone-on-entry for diffing, undo, replay, and AI search
-- [x] **Decompose `main.ts`**: Split from 1397 LOC; extracted 7 focused modules
-- [x] **Eliminate map singleton**: Removed `getSolarSystemMap()` global; all callers use `buildSolarSystemMap()` directly
 
 ---
 

@@ -829,11 +829,11 @@ interface ScenarioPlayer {
 - [x] Orbital bases (carrying, emplacing, torpedo launching)
 - [x] PWA support (installable shell with offline-capable single-player)
 - [x] Grand Tour checkpoint race scenario
-- [ ] Asteroid map visuals to match `docs/map.png`
-- [ ] Logistics: surrender, looting, rescue, fuel transfer, cargo handling
-- [ ] New scenarios: Lateral 7, Fleet Mutiny, Retribution
-- [ ] Spectator mode
-- [ ] Turn history replay
+- [x] Asteroid map visuals matching reference map
+- [x] Logistics: surrender, looting, fuel/cargo transfer (rescue deferred — see BACKLOG.md 3d)
+- [ ] New scenarios: Lateral 7, Fleet Mutiny, Retribution (BACKLOG.md 3c)
+- [ ] Spectator mode (BACKLOG.md 3b)
+- [ ] Turn history replay (BACKLOG.md 3a)
 
 ## Design Decisions
 
