@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { hexKey } from '../../shared/hex';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type {
@@ -89,6 +90,7 @@ describe('renderer course helpers', () => {
   it('builds selected preview with burn markers even before a burn is chosen', () => {
     const map = buildSolarSystemMap();
     const state = createState([createShip()]);
+
     const previews = buildAstrogationCoursePreviewViews(
       state,
       0,
@@ -112,6 +114,7 @@ describe('renderer course helpers', () => {
   it('builds overload ring and fuel label for a warship with a declared burn', () => {
     const map = buildSolarSystemMap();
     const state = createState([createShip()]);
+
     const previews = buildAstrogationCoursePreviewViews(
       state,
       0,
@@ -133,12 +136,14 @@ describe('renderer course helpers', () => {
   it('marks weak gravity toggles as ignored when chosen', () => {
     const map = buildSolarSystemMap();
     const weakHex = { q: 15, r: -10 };
+
     const state = createState([
       createShip({
         position: { q: 14, r: -10 },
         velocity: { dq: 1, dr: 0 },
       }),
     ]);
+
     const previews = buildAstrogationCoursePreviewViews(
       state,
       0,
@@ -159,6 +164,7 @@ describe('renderer course helpers', () => {
     const map = buildSolarSystemMap();
     const gravityHex = { q: -8, r: -5 };
     const gravity = map.hexes.get(hexKey(gravityHex))?.gravity;
+
     expect(gravity).toBeDefined();
 
     const pendingGravity: GravityEffect = {
@@ -168,6 +174,7 @@ describe('renderer course helpers', () => {
       strength: 'full',
       ignored: false,
     };
+
     const state = createState([
       createShip({
         position: gravityHex,
@@ -175,6 +182,7 @@ describe('renderer course helpers', () => {
         pendingGravityEffects: [pendingGravity],
       }),
     ]);
+
     const previews = buildAstrogationCoursePreviewViews(
       state,
       0,

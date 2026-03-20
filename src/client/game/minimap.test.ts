@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { hexToPixel } from '../../shared/hex';
 import {
   clipViewportToMinimap,
@@ -9,7 +10,12 @@ import {
   projectWorldToMinimap,
 } from './minimap';
 
-const bounds = { minQ: -2, maxQ: 4, minR: -1, maxR: 3 };
+const bounds = {
+  minQ: -2,
+  maxQ: 4,
+  minR: -1,
+  maxR: 3,
+};
 
 describe('game client minimap helpers', () => {
   it('derives desktop and mobile minimap frames from screen size', () => {

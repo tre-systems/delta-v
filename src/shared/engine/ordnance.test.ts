@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+
 import { ORBITAL_BASE_MASS } from '../constants';
 import { hexKey } from '../hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
@@ -13,16 +14,15 @@ import {
 
 let map: SolarSystemMap;
 
-function createConvoyGame(): GameState {
-  return createGame(SCENARIOS.convoy, map, 'TEST', findBaseHex);
-}
+const createConvoyGame = (): GameState =>
+  createGame(SCENARIOS.convoy, map, 'TEST', findBaseHex);
 
-function makeTransportWithBase(
+const makeTransportWithBase = (
   state: GameState,
   playerId: number,
   position: { q: number; r: number },
   velocity: { dq: number; dr: number },
-): Ship {
+): Ship => {
   const ship: Ship = {
     id: `test-transport-${state.ships.length}`,
     type: 'transport',
@@ -41,7 +41,7 @@ function makeTransportWithBase(
   };
   state.ships.push(ship);
   return ship;
-}
+};
 
 beforeEach(() => {
   map = buildSolarSystemMap();
@@ -121,8 +121,12 @@ describe('queueAsteroidHazards', () => {
     ];
 
     queueAsteroidHazards(ship, path, ship.velocity, state, asteroidMap);
+
     expect(state.pendingAsteroidHazards).toHaveLength(1);
-    expect(state.pendingAsteroidHazards[0].hex).toEqual({ q: 1, r: 0 });
+    expect(state.pendingAsteroidHazards[0].hex).toEqual({
+      q: 1,
+      r: 0,
+    });
   });
 
   it('does not queue hazard at speed 1 or less', () => {
@@ -142,6 +146,7 @@ describe('queueAsteroidHazards', () => {
     ];
 
     queueAsteroidHazards(ship, path, ship.velocity, state, asteroidMap);
+
     expect(state.pendingAsteroidHazards).toHaveLength(0);
   });
 
@@ -163,11 +168,11 @@ describe('queueAsteroidHazards', () => {
     ];
 
     queueAsteroidHazards(ship, path, ship.velocity, state, asteroidMap);
+
     expect(state.pendingAsteroidHazards).toHaveLength(0);
   });
 
   it('does not queue hazard when path only grazes a single asteroid hex edge', () => {
-    // Path (0,0) -> (2,-1) runs along the edge of (1,0) — ambiguous, not definite
     const asteroidMap: SolarSystemMap = {
       hexes: new Map([['1,0', { terrain: 'asteroid' }]]),
       bodies: [],
@@ -184,12 +189,11 @@ describe('queueAsteroidHazards', () => {
     ];
 
     queueAsteroidHazards(ship, path, ship.velocity, state, asteroidMap);
+
     expect(state.pendingAsteroidHazards).toHaveLength(0);
   });
 
   it('queues exactly one hazard when path runs between two adjacent asteroid hexes (hexside rule)', () => {
-    // Path (0,0) -> (2,-1) runs along the shared edge of (1,0) and (1,-1)
-    // Both are asteroids — should count as entering ONE asteroid hex
     const asteroidMap: SolarSystemMap = {
       hexes: new Map([
         ['1,0', { terrain: 'asteroid' }],
@@ -209,6 +213,7 @@ describe('queueAsteroidHazards', () => {
     ];
 
     queueAsteroidHazards(ship, path, ship.velocity, state, asteroidMap);
+
     expect(state.pendingAsteroidHazards).toHaveLength(1);
   });
 
@@ -234,6 +239,7 @@ describe('queueAsteroidHazards', () => {
     ];
 
     queueAsteroidHazards(ship, path, ship.velocity, state, asteroidMap);
+
     expect(state.pendingAsteroidHazards).toHaveLength(2);
   });
 
@@ -258,11 +264,11 @@ describe('queueAsteroidHazards', () => {
     ];
 
     queueAsteroidHazards(ship, path, ship.velocity, state, asteroidMap);
+
     expect(state.pendingAsteroidHazards).toHaveLength(0);
   });
 
   it('does not double-count the same ambiguous asteroid pair', () => {
-    // Long path that might generate the same ambiguous pair multiple times
     const asteroidMap: SolarSystemMap = {
       hexes: new Map([
         ['2,0', { terrain: 'asteroid' }],
@@ -282,6 +288,7 @@ describe('queueAsteroidHazards', () => {
     ];
 
     queueAsteroidHazards(ship, path, ship.velocity, state, asteroidMap);
+
     // Should be at most 1 hazard for this pair
     const hazardsForPair = state.pendingAsteroidHazards.filter(
       (h) => hexKey(h.hex) === '2,0' || hexKey(h.hex) === '2,-1',
@@ -302,6 +309,7 @@ describe('resolvePendingAsteroidHazards', () => {
     });
 
     const results = resolvePendingAsteroidHazards(state, 0, () => 0.5);
+
     expect(results).toHaveLength(2);
     expect(results.every((r) => r.attackType === 'asteroidHazard')).toBe(true);
     expect(state.pendingAsteroidHazards).toHaveLength(0);
@@ -315,6 +323,7 @@ describe('resolvePendingAsteroidHazards', () => {
     });
 
     const results = resolvePendingAsteroidHazards(state, 0, Math.random);
+
     expect(results).toHaveLength(0);
     expect(state.pendingAsteroidHazards).toHaveLength(1);
   });
@@ -327,6 +336,7 @@ describe('resolvePendingAsteroidHazards', () => {
     });
 
     const results = resolvePendingAsteroidHazards(state, 0, Math.random);
+
     expect(results).toHaveLength(0);
     expect(state.pendingAsteroidHazards).toHaveLength(0);
   });
@@ -340,6 +350,7 @@ describe('isAsteroidHex', () => {
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
     const state = makeMinimalState();
+
     expect(isAsteroidHex(state, asteroidMap, { q: 1, r: 0 })).toBe(true);
   });
 
@@ -349,7 +360,10 @@ describe('isAsteroidHex', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const state = makeMinimalState({ destroyedAsteroids: ['1,0'] });
+    const state = makeMinimalState({
+      destroyedAsteroids: ['1,0'],
+    });
+
     expect(isAsteroidHex(state, asteroidMap, { q: 1, r: 0 })).toBe(false);
   });
 
@@ -360,6 +374,7 @@ describe('isAsteroidHex', () => {
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
     const state = makeMinimalState();
+
     expect(isAsteroidHex(state, spaceMap, { q: 1, r: 0 })).toBe(false);
   });
 
@@ -370,6 +385,7 @@ describe('isAsteroidHex', () => {
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
     const state = makeMinimalState();
+
     expect(isAsteroidHex(state, emptyMap, { q: 99, r: 99 })).toBe(false);
   });
 });
@@ -384,7 +400,9 @@ describe('processEmplacement', () => {
       { q: -9, r: -6 },
       { dq: 0, dr: 0 },
     );
+
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
+
     expect('error' in result).toBe(true);
   });
 
@@ -398,7 +416,9 @@ describe('processEmplacement', () => {
       { q: -9, r: -6 },
       { dq: 0, dr: 0 },
     );
+
     const result = processEmplacement(state, 1, [{ shipId: ship.id }], map);
+
     expect('error' in result).toBe(true);
   });
 
@@ -413,7 +433,9 @@ describe('processEmplacement', () => {
       { dq: 0, dr: 0 },
     );
     ship.carryingOrbitalBase = false;
+
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
+
     expect('error' in result).toBe(true);
   });
 
@@ -421,13 +443,14 @@ describe('processEmplacement', () => {
     const state = createConvoyGame();
     state.phase = 'ordnance';
     state.activePlayer = 0;
-    // Place at a gravity hex but with speed 0 (not orbiting)
-    const marsGravityHex = { q: -9, r: -6 }; // Mars gravity ring
+    const marsGravityHex = { q: -9, r: -6 };
     const ship = makeTransportWithBase(state, 0, marsGravityHex, {
       dq: 0,
       dr: 0,
     });
+
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
+
     expect('error' in result).toBe(true);
   });
 
@@ -435,7 +458,6 @@ describe('processEmplacement', () => {
     const state = createConvoyGame();
     state.phase = 'ordnance';
     state.activePlayer = 0;
-    // Place at a gravity hex with speed 1 (orbiting)
     const marsGravityHex = { q: -9, r: -6 };
     const ship = makeTransportWithBase(state, 0, marsGravityHex, {
       dq: 1,
@@ -444,10 +466,12 @@ describe('processEmplacement', () => {
     const shipsBefore = state.ships.length;
 
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
+
     expect('error' in result).toBe(false);
     expect(state.ships.length).toBe(shipsBefore + 1);
 
     const base = state.ships[state.ships.length - 1];
+
     expect(base.type).toBe('orbitalBase');
     expect(base.owner).toBe(0);
     expect(base.emplaced).toBe(true);
@@ -467,6 +491,7 @@ describe('processEmplacement', () => {
     ship.cargoUsed = ORBITAL_BASE_MASS + 10;
 
     processEmplacement(state, 0, [{ shipId: ship.id }], map);
+
     expect(ship.carryingOrbitalBase).toBe(false);
     expect(ship.cargoUsed).toBe(10);
   });
@@ -482,7 +507,9 @@ describe('processEmplacement', () => {
       { dq: 1, dr: 0 },
     );
     ship.destroyed = true;
+
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
+
     expect('error' in result).toBe(true);
   });
 
@@ -497,7 +524,9 @@ describe('processEmplacement', () => {
       { dq: 1, dr: 0 },
     );
     ship.resuppliedThisTurn = true;
+
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
+
     expect('error' in result).toBe(true);
   });
 
@@ -505,14 +534,15 @@ describe('processEmplacement', () => {
     const state = createConvoyGame();
     state.phase = 'ordnance';
     state.activePlayer = 0;
-    // Mars surface hex in gravity field, landed
     const marsGravityHex = { q: -9, r: -6 };
     const ship = makeTransportWithBase(state, 0, marsGravityHex, {
       dq: 0,
       dr: 0,
     });
     ship.landed = true;
+
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
+
     expect('error' in result).toBe(false);
   });
 
@@ -527,7 +557,9 @@ describe('processEmplacement', () => {
       { dq: 1, dr: 0 },
     );
     ship.type = 'corvette';
+
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
+
     expect('error' in result).toBe(true);
   });
 });

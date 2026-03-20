@@ -55,7 +55,11 @@ function createState(): GameState {
     phase: 'astrogation',
     activePlayer: 0,
     ships: [
-      createShip({ id: 'friendly', owner: 0, position: { q: 0, r: 0 } }),
+      createShip({
+        id: 'friendly',
+        owner: 0,
+        position: { q: 0, r: 0 },
+      }),
       createShip({
         id: 'enemy-visible',
         owner: 1,
@@ -131,6 +135,7 @@ describe('renderer minimap helpers', () => {
     const map = createMap();
     const state = createState();
     const layout = createMinimapLayout(map.bounds, 1200, 800, 28);
+
     const shipTrails = new Map([
       [
         'friendly',
@@ -168,7 +173,10 @@ describe('renderer minimap helpers', () => {
     );
 
     expect(scene.bodies).toHaveLength(2);
-    expect(scene.bodies[0]).toMatchObject({ color: '#cc4422', alpha: 0.7 });
+    expect(scene.bodies[0]).toMatchObject({
+      color: '#cc4422',
+      alpha: 0.7,
+    });
     expect(scene.bodies[0].radius).toBeGreaterThanOrEqual(2);
 
     expect(scene.shipTrails).toHaveLength(2);

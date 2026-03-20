@@ -61,7 +61,11 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     phase: 'astrogation',
     activePlayer: 1,
     ships: [
-      createShip({ id: 'player-ship', owner: 0, position: { q: 3, r: 0 } }),
+      createShip({
+        id: 'player-ship',
+        owner: 0,
+        position: { q: 3, r: 0 },
+      }),
       createShip({ id: 'ai-ship', owner: 1 }),
     ],
     ordnance: [],
@@ -83,9 +87,11 @@ describe('game-client-ai-flow', () => {
     expect(deriveAIActionPlan(null, 0, map, 'normal')).toEqual({
       kind: 'none',
     });
+
     expect(
       deriveAIActionPlan(createState({ activePlayer: 0 }), 0, map, 'normal'),
     ).toEqual({ kind: 'none' });
+
     expect(
       deriveAIActionPlan(createState({ phase: 'gameOver' }), 0, map, 'normal'),
     ).toEqual({ kind: 'none' });

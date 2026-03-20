@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import type { Ship } from '../../shared/types';
 import { buildShipListView } from './ship-list';
 
@@ -67,11 +68,13 @@ describe('ui ship list helpers', () => {
       hasBurn: true,
       fuelText: '10/20',
     });
+
     expect(view[1]).toMatchObject({
       statusText: 'CAP',
       hasBurn: false,
       fuelText: '10/10',
     });
+
     expect(view[2]).toMatchObject({
       statusText: 'X',
       fuelText: '',
@@ -101,6 +104,7 @@ describe('ui ship list helpers', () => {
       { label: 'Velocity', value: '2, -1', tone: null },
       { label: 'Status', value: 'Landed', tone: 'success' },
     ]);
+
     expect(view[1].detailRows).toEqual([]);
   });
 

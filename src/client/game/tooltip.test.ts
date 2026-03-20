@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import type { GameState, Ship, SolarSystemMap } from '../../shared/types';
 import { buildShipTooltipHtml } from './tooltip';
 
@@ -67,7 +68,12 @@ const map: SolarSystemMap = {
 
 describe('buildShipTooltipHtml', () => {
   it('shows fuel and cargo details for the local player ship', () => {
-    const ship = createShip({ type: 'packet', fuel: 7, cargoUsed: 15 });
+    const ship = createShip({
+      type: 'packet',
+      fuel: 7,
+      cargoUsed: 15,
+    });
+
     const html = buildShipTooltipHtml(createState([ship]), ship, 0, map);
 
     expect(html).toContain('Packet');
@@ -89,6 +95,7 @@ describe('buildShipTooltipHtml', () => {
       owner: 1,
       position: { q: 1, r: 0 },
     });
+
     const html = buildShipTooltipHtml(
       createState([attacker, target]),
       target,

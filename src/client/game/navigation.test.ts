@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import type { GameState, PlayerState, Ship } from '../../shared/types';
 import {
   getNearestEnemyPosition,
@@ -71,7 +72,11 @@ describe('game client navigation helpers', () => {
   it('cycles to the next available owned ship and wraps around', () => {
     const state = createState([
       createShip({ id: 'a', owner: 0 }),
-      createShip({ id: 'b', owner: 0, position: { q: 1, r: 0 } }),
+      createShip({
+        id: 'b',
+        owner: 0,
+        position: { q: 1, r: 0 },
+      }),
       createShip({ id: 'c', owner: 1 }),
     ]);
 
@@ -81,8 +86,16 @@ describe('game client navigation helpers', () => {
   it('finds the nearest detected enemy to the camera center', () => {
     const state = createState([
       createShip({ id: 'self', owner: 0 }),
-      createShip({ id: 'far', owner: 1, position: { q: 6, r: 0 } }),
-      createShip({ id: 'near', owner: 1, position: { q: 1, r: 0 } }),
+      createShip({
+        id: 'far',
+        owner: 1,
+        position: { q: 6, r: 0 },
+      }),
+      createShip({
+        id: 'near',
+        owner: 1,
+        position: { q: 1, r: 0 },
+      }),
     ]);
 
     expect(getNearestEnemyPosition(state, 0, 0, 0, 28)).toEqual({ q: 1, r: 0 });
@@ -90,12 +103,21 @@ describe('game client navigation helpers', () => {
 
   it('focuses the selected ship first, then falls back to the first alive ship', () => {
     const state = createState([
-      createShip({ id: 'a', owner: 0, position: { q: 3, r: 0 } }),
-      createShip({ id: 'b', owner: 0, position: { q: 1, r: 2 } }),
+      createShip({
+        id: 'a',
+        owner: 0,
+        position: { q: 3, r: 0 },
+      }),
+      createShip({
+        id: 'b',
+        owner: 0,
+        position: { q: 1, r: 2 },
+      }),
       createShip({ id: 'enemy', owner: 1 }),
     ]);
 
     expect(getOwnFleetFocusPosition(state, 0, 'b')).toEqual({ q: 1, r: 2 });
+
     expect(getOwnFleetFocusPosition(state, 0, null)).toEqual({ q: 3, r: 0 });
   });
 });

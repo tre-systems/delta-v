@@ -82,6 +82,7 @@ describe('renderer entity helpers', () => {
       'mine',
       'enemy-visible',
     ]);
+
     expect(getVisibleShips(state, 0, true).map((ship) => ship.id)).toEqual([
       'mine',
       'enemy-visible',
@@ -136,7 +137,11 @@ describe('renderer entity helpers', () => {
 
     expect(
       getShipIdentityMarker(
-        createShip({ owner: 1, identityRevealed: true, hasFugitives: true }),
+        createShip({
+          owner: 1,
+          identityRevealed: true,
+          hasFugitives: true,
+        }),
         0,
         true,
         false,
@@ -145,7 +150,11 @@ describe('renderer entity helpers', () => {
 
     expect(
       getShipIdentityMarker(
-        createShip({ owner: 1, identityRevealed: true, hasFugitives: false }),
+        createShip({
+          owner: 1,
+          identityRevealed: true,
+          hasFugitives: false,
+        }),
         0,
         true,
         false,
@@ -165,6 +174,7 @@ describe('renderer entity helpers', () => {
         false,
       ),
     ).toBe(true);
+
     expect(getShipHeading({ q: 0, r: 0 }, { dq: 1, dr: 0 }, 28)).toBeCloseTo(
       Math.PI / 6,
       4,
@@ -174,12 +184,14 @@ describe('renderer entity helpers', () => {
       text: '1',
       color: 'rgba(255, 80, 80, 0.9)',
     });
+
     expect(getDetonatedOrdnanceOverlay(0.5)).toEqual({
       kind: 'diamond',
       size: 4,
       color: '#ff4444',
       alpha: 0.7,
     });
+
     expect(getDetonatedOrdnanceOverlay(0.95)).toMatchObject({
       kind: 'flash',
       color: '#ffaa00',

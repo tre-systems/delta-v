@@ -28,6 +28,7 @@ describe('game-do-session', () => {
 
   it('picks the earliest pending alarm deadline', () => {
     expect(getNextAlarmAt({})).toBeNull();
+
     expect(
       getNextAlarmAt({
         disconnectAt: 2_000,
@@ -68,6 +69,7 @@ describe('game-do-session', () => {
         inactivityAt: 3_000,
       }),
     ).toEqual({ type: 'inactivityTimeout' });
+
     expect(
       resolveAlarmAction({
         now: 4_000,

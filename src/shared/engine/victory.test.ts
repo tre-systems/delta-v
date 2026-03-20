@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { SHIP_STATS } from '../constants';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { GameState, MovementEvent, Ship, SolarSystemMap } from '../types';
@@ -48,6 +49,7 @@ describe('advanceTurn', () => {
     ship.damage.disabledTurns = 3;
 
     advanceTurn(state);
+
     expect(ship.damage.disabledTurns).toBe(2);
   });
 
@@ -58,6 +60,7 @@ describe('advanceTurn', () => {
     ship.resuppliedThisTurn = true;
 
     advanceTurn(state);
+
     expect(ship.resuppliedThisTurn).toBe(false);
   });
 
@@ -67,6 +70,7 @@ describe('advanceTurn', () => {
     const turnBefore = state.turnNumber;
 
     advanceTurn(state);
+
     expect(state.activePlayer).toBe(0);
     expect(state.turnNumber).toBe(turnBefore + 1);
   });
@@ -77,6 +81,7 @@ describe('advanceTurn', () => {
     const turnBefore = state.turnNumber;
 
     advanceTurn(state);
+
     expect(state.activePlayer).toBe(1);
     expect(state.turnNumber).toBe(turnBefore);
   });
@@ -84,7 +89,9 @@ describe('advanceTurn', () => {
   it('sets phase to astrogation', () => {
     const state = setupState();
     state.phase = 'combat';
+
     advanceTurn(state);
+
     expect(state.phase).toBe('astrogation');
   });
 
@@ -96,6 +103,7 @@ describe('advanceTurn', () => {
     ship.damage.disabledTurns = 3;
 
     advanceTurn(state);
+
     // Destroyed ship should not have its disabled turns decremented
     expect(ship.damage.disabledTurns).toBe(3);
   });
@@ -118,7 +126,9 @@ describe('advanceTurn', () => {
       },
     ];
     const shipsBefore = state.ships.length;
+
     advanceTurn(state);
+
     expect(state.ships.length).toBe(shipsBefore + 1);
     const newShip = state.ships[state.ships.length - 1];
     expect(newShip.type).toBe('corvette');
@@ -144,7 +154,9 @@ describe('advanceTurn', () => {
       },
     ];
     const shipsBefore = state.ships.length;
+
     advanceTurn(state);
+
     expect(state.ships.length).toBe(shipsBefore);
   });
 
@@ -158,7 +170,9 @@ describe('advanceTurn', () => {
       toPlayer: 0,
     };
     const p1Ships = state.ships.filter((s) => s.owner === 1 && !s.destroyed);
+
     advanceTurn(state);
+
     for (const ship of p1Ships) {
       expect(ship.owner).toBe(0);
     }
@@ -167,7 +181,11 @@ describe('advanceTurn', () => {
   it('fleet conversion respects shipTypes filter', () => {
     const state = setupState();
     state.ships.push(
-      makeShip({ id: 'extra-frigate', type: 'frigate', owner: 1 }),
+      makeShip({
+        id: 'extra-frigate',
+        type: 'frigate',
+        owner: 1,
+      }),
     );
     state.activePlayer = 1;
     state.turnNumber = 2; // will become 3
@@ -177,9 +195,12 @@ describe('advanceTurn', () => {
       toPlayer: 0,
       shipTypes: ['frigate'],
     };
+
     advanceTurn(state);
+
     const frigate = state.ships.find((s) => s.id === 'extra-frigate')!;
     expect(frigate.owner).toBe(0);
+
     // Original corvettes should stay with player 1
     const p1Corvettes = state.ships.filter(
       (s) => s.type === 'corvette' && s.id !== 'extra-frigate',
@@ -202,6 +223,7 @@ describe('applyCheckpoints', () => {
     const solHex = map.bodies.find((b) => b.name === 'Sol')!.center;
 
     applyCheckpoints(state, 0, [solHex], map);
+
     expect(player.visitedBodies).toContain('Sol');
   });
 
@@ -212,6 +234,7 @@ describe('applyCheckpoints', () => {
 
     applyCheckpoints(state, 0, [solHex], map);
     applyCheckpoints(state, 0, [solHex], map);
+
     expect(
       state.players[0].visitedBodies?.filter((b) => b === 'Sol'),
     ).toHaveLength(1);
@@ -219,6 +242,7 @@ describe('applyCheckpoints', () => {
 
   it('is a no-op when no checkpoint bodies configured', () => {
     const state = setupState();
+
     // biplanetary has no checkpointBodies
     applyCheckpoints(state, 0, [{ q: 0, r: 0 }], map);
     // Should not throw
@@ -240,6 +264,7 @@ describe('applyCheckpoints', () => {
     expect(marsGravHex).not.toBeNull();
 
     applyCheckpoints(state, 0, [marsGravHex!], map);
+
     expect(state.players[0].visitedBodies).toContain('Mars');
   });
 });
@@ -247,7 +272,9 @@ describe('applyCheckpoints', () => {
 describe('checkImmediateVictory', () => {
   it('is a no-op when no map provided', () => {
     const state = setupState();
+
     checkImmediateVictory(state);
+
     expect(state.winner).toBeNull();
   });
 
@@ -263,11 +290,11 @@ describe('checkImmediateVictory', () => {
 
     // Land at home body (Terra for player 0)
     ship.landed = true;
-    // Find a base hex for Terra
     const terraBase = findBaseHex(map, 'Terra')!;
     ship.position = terraBase;
 
     checkImmediateVictory(state, map);
+
     expect(state.winner).toBe(0);
     expect(state.winReason).toContain('Grand Tour');
     expect(state.phase).toBe('gameOver');
@@ -285,6 +312,7 @@ describe('checkImmediateVictory', () => {
     ship.position = terraBase;
 
     checkImmediateVictory(state, map);
+
     expect(state.winner).toBeNull();
   });
 
@@ -300,6 +328,7 @@ describe('checkImmediateVictory', () => {
       fugitive.fuel = 20; // Plenty of fuel
 
       checkImmediateVictory(state, map);
+
       expect(state.winner).toBe(0);
       expect(state.winReason).toContain('decisive');
     }
@@ -316,6 +345,7 @@ describe('checkImmediateVictory', () => {
       fugitive.fuel = 1; // Not enough to stop
 
       checkImmediateVictory(state, map);
+
       expect(state.winner).toBe(0);
       expect(state.winReason).toContain('marginal');
     }
@@ -334,6 +364,7 @@ describe('checkImmediateVictory', () => {
       nonFugitive.velocity = { dq: 0, dr: -3 };
 
       checkImmediateVictory(state, map);
+
       // Should not win since this ship doesn't have fugitives
       expect(state.winner).toBeNull();
     }
@@ -351,6 +382,7 @@ describe('checkGameEnd', () => {
       state.escapeMoralVictoryAchieved = false;
 
       checkGameEnd(state, map);
+
       expect(state.winner).toBe(1 - fugitive.owner);
       expect(state.winReason).toContain('Enforcers marginal');
     }
@@ -366,6 +398,7 @@ describe('checkGameEnd', () => {
       state.escapeMoralVictoryAchieved = true;
 
       checkGameEnd(state, map);
+
       expect(state.winner).toBe(fugitive.owner);
       expect(state.winReason).toContain('moral victory');
     }
@@ -380,28 +413,33 @@ describe('checkGameEnd', () => {
     }
 
     checkGameEnd(state, map);
+
     expect(state.winner).toBe(1); // Last attacker (active player 0) loses
     expect(state.winReason).toContain('Mutual destruction');
   });
 
   it('detects fleet elimination of player 0', () => {
     const state = setupState();
+
     for (const ship of state.ships) {
       if (ship.owner === 0) ship.destroyed = true;
     }
 
     checkGameEnd(state, map);
+
     expect(state.winner).toBe(1);
     expect(state.winReason).toContain('Fleet eliminated');
   });
 
   it('detects fleet elimination of player 1', () => {
     const state = setupState();
+
     for (const ship of state.ships) {
       if (ship.owner === 1) ship.destroyed = true;
     }
 
     checkGameEnd(state, map);
+
     expect(state.winner).toBe(0);
     expect(state.winReason).toContain('Fleet eliminated');
   });
@@ -418,6 +456,7 @@ describe('applyEscapeMoralVictory', () => {
     enforcer.destroyed = true;
 
     applyEscapeMoralVictory(state);
+
     expect(state.escapeMoralVictoryAchieved).toBe(true);
   });
 
@@ -430,6 +469,7 @@ describe('applyEscapeMoralVictory', () => {
     enforcer.damage.disabledTurns = 3;
 
     applyEscapeMoralVictory(state);
+
     expect(state.escapeMoralVictoryAchieved).toBe(true);
   });
 
@@ -439,6 +479,7 @@ describe('applyEscapeMoralVictory', () => {
     state.escapeMoralVictoryAchieved = false;
 
     applyEscapeMoralVictory(state);
+
     expect(state.escapeMoralVictoryAchieved).toBe(false);
   });
 
@@ -448,6 +489,7 @@ describe('applyEscapeMoralVictory', () => {
     state.escapeMoralVictoryAchieved = true;
 
     applyEscapeMoralVictory(state);
+
     expect(state.escapeMoralVictoryAchieved).toBe(true);
   });
 
@@ -456,6 +498,7 @@ describe('applyEscapeMoralVictory', () => {
     state.escapeMoralVictoryAchieved = false;
 
     applyEscapeMoralVictory(state);
+
     expect(state.escapeMoralVictoryAchieved).toBe(false);
   });
 });
@@ -472,6 +515,7 @@ describe('checkRamming', () => {
     ship1.landed = false;
 
     const events: MovementEvent[] = [];
+
     // Use fixed RNG for deterministic results
     checkRamming(state, events, () => 1);
 
@@ -483,6 +527,7 @@ describe('checkRamming', () => {
 
   it('does not ram same-side ships', () => {
     const state = setupState();
+
     // Add a second player-0 ship
     state.ships.push(
       makeShip({
@@ -496,7 +541,9 @@ describe('checkRamming', () => {
     state.ships[0].landed = false;
 
     const events: MovementEvent[] = [];
+
     checkRamming(state, events, Math.random);
+
     expect(events.filter((e) => e.type === 'ramming')).toHaveLength(0);
   });
 
@@ -511,7 +558,9 @@ describe('checkRamming', () => {
     ship1.landed = false;
 
     const events: MovementEvent[] = [];
+
     checkRamming(state, events, Math.random);
+
     expect(events.filter((e) => e.type === 'ramming')).toHaveLength(0);
   });
 
@@ -527,7 +576,9 @@ describe('checkRamming', () => {
     ship1.landed = false;
 
     const events: MovementEvent[] = [];
+
     checkRamming(state, events, Math.random);
+
     expect(events.filter((e) => e.type === 'ramming')).toHaveLength(0);
   });
 });
@@ -549,6 +600,7 @@ describe('checkInspection', () => {
     pilgrim.identityRevealed = false;
 
     checkInspection(state, 1);
+
     expect(pilgrim.identityRevealed).toBe(true);
   });
 
@@ -568,11 +620,13 @@ describe('checkInspection', () => {
     pilgrim.identityRevealed = false;
 
     checkInspection(state, 1);
+
     expect(pilgrim.identityRevealed).toBe(false);
   });
 
   it('is a no-op for non-inspection scenarios', () => {
     const state = setupState();
+
     checkInspection(state, 0);
     // Should not throw
   });
@@ -594,6 +648,7 @@ describe('checkCapture', () => {
     target.damage.disabledTurns = 3;
 
     const events: MovementEvent[] = [];
+
     checkCapture(state, 0, events);
 
     expect(target.captured).toBe(true);
@@ -618,6 +673,7 @@ describe('checkCapture', () => {
     target.damage.disabledTurns = 0;
 
     const events: MovementEvent[] = [];
+
     checkCapture(state, 0, events);
 
     expect(target.captured).toBeUndefined();
@@ -640,7 +696,9 @@ describe('checkCapture', () => {
     target.captured = true;
 
     const events: MovementEvent[] = [];
+
     checkCapture(state, 0, events);
+
     expect(events).toHaveLength(0);
   });
 });
@@ -699,6 +757,7 @@ describe('checkOrbitalBaseResupply', () => {
     );
 
     checkOrbitalBaseResupply(state, 0);
+
     expect(ship.fuel).toBe(5);
   });
 
@@ -723,6 +782,7 @@ describe('checkOrbitalBaseResupply', () => {
     );
 
     checkOrbitalBaseResupply(state, 0);
+
     expect(ship.fuel).toBe(5);
   });
 
@@ -748,6 +808,7 @@ describe('checkOrbitalBaseResupply', () => {
     );
 
     checkOrbitalBaseResupply(state, 0);
+
     expect(ship.fuel).toBe(5);
   });
 });
@@ -769,6 +830,7 @@ describe('applyDetection', () => {
     enemy.position = { q: 30, r: 30 };
 
     applyDetection(state, map);
+
     expect(ship.detected).toBe(false);
   });
 
@@ -785,6 +847,7 @@ describe('applyDetection', () => {
     enemy.position = { q: 12, r: 10 }; // Within SHIP_DETECTION_RANGE (3)
 
     applyDetection(state, map);
+
     expect(ship.detected).toBe(true);
   });
 
@@ -808,6 +871,7 @@ describe('applyDetection', () => {
     ship.position = venusBase;
 
     applyDetection(state, map);
+
     expect(ship.detected).toBe(true);
   });
 
@@ -828,6 +892,7 @@ describe('applyDetection', () => {
     }
 
     applyDetection(state, map);
+
     expect(ship.detected).toBe(false);
   });
 });

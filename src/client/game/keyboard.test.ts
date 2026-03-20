@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { deriveKeyboardAction, type KeyboardShortcutContext } from './keyboard';
 import type { ClientState } from './phase';
 
@@ -27,7 +28,10 @@ function actionFor(
 describe('game-client-keyboard', () => {
   it('ignores shortcuts while typing in an input', () => {
     expect(
-      actionFor('Enter', { typingInInput: true, state: 'playing_astrogation' }),
+      actionFor('Enter', {
+        typingInInput: true,
+        state: 'playing_astrogation',
+      }),
     ).toEqual({
       kind: 'none',
       preventDefault: false,
@@ -47,6 +51,7 @@ describe('game-client-keyboard', () => {
         preventDefault: true,
         direction: 1,
       });
+
       expect(actionFor('Tab', { state, hasGameState: true }, true)).toEqual({
         kind: 'cycleShip',
         preventDefault: true,
@@ -60,14 +65,17 @@ describe('game-client-keyboard', () => {
       kind: 'clearCombatSelection',
       preventDefault: false,
     });
+
     expect(actionFor('Escape', { queuedAttackCount: 2 })).toEqual({
       kind: 'undoQueuedAttack',
       preventDefault: false,
     });
+
     expect(actionFor('Escape', { torpedoAccelActive: true })).toEqual({
       kind: 'clearTorpedoAcceleration',
       preventDefault: false,
     });
+
     expect(actionFor('Escape')).toEqual({
       kind: 'deselectShip',
       preventDefault: false,
@@ -75,14 +83,20 @@ describe('game-client-keyboard', () => {
   });
 
   it('routes enter and space by phase', () => {
-    expect(actionFor('Enter', { state: 'playing_astrogation' })).toEqual({
+    expect(
+      actionFor('Enter', {
+        state: 'playing_astrogation',
+      }),
+    ).toEqual({
       kind: 'confirmOrders',
       preventDefault: true,
     });
+
     expect(actionFor(' ', { state: 'playing_ordnance' })).toEqual({
       kind: 'skipOrdnance',
       preventDefault: true,
     });
+
     expect(
       actionFor('Enter', {
         state: 'playing_combat',
@@ -92,12 +106,17 @@ describe('game-client-keyboard', () => {
       kind: 'queueAttack',
       preventDefault: true,
     });
+
     expect(
-      actionFor('Enter', { state: 'playing_combat', queuedAttackCount: 1 }),
+      actionFor('Enter', {
+        state: 'playing_combat',
+        queuedAttackCount: 1,
+      }),
     ).toEqual({
       kind: 'fireAllAttacks',
       preventDefault: true,
     });
+
     expect(actionFor('Enter', { state: 'playing_combat' })).toEqual({
       kind: 'skipCombat',
       preventDefault: true,
@@ -110,24 +129,29 @@ describe('game-client-keyboard', () => {
       preventDefault: false,
       ordnanceType: 'mine',
     });
+
     expect(actionFor('5', { state: 'playing_astrogation' })).toEqual({
       kind: 'setBurnDirection',
       preventDefault: false,
       direction: 4,
     });
+
     expect(actionFor('0', { state: 'playing_astrogation' })).toEqual({
       kind: 'clearSelectedBurn',
       preventDefault: false,
     });
+
     expect(actionFor('0', { state: 'playing_combat' })).toEqual({
       kind: 'resetCombatStrength',
       preventDefault: false,
     });
+
     expect(actionFor('+', { state: 'playing_combat' })).toEqual({
       kind: 'adjustCombatStrength',
       preventDefault: true,
       delta: 1,
     });
+
     expect(actionFor('-', { state: 'playing_combat' })).toEqual({
       kind: 'adjustCombatStrength',
       preventDefault: true,
@@ -137,21 +161,30 @@ describe('game-client-keyboard', () => {
 
   it('gates focus and log shortcuts on game state presence', () => {
     expect(
-      actionFor('e', { state: 'playing_ordnance', hasGameState: true }),
+      actionFor('e', {
+        state: 'playing_ordnance',
+        hasGameState: true,
+      }),
     ).toEqual({
       kind: 'focusNearestEnemy',
       preventDefault: false,
     });
+
     expect(
-      actionFor('h', { state: 'playing_opponentTurn', hasGameState: true }),
+      actionFor('h', {
+        state: 'playing_opponentTurn',
+        hasGameState: true,
+      }),
     ).toEqual({
       kind: 'focusOwnFleet',
       preventDefault: false,
     });
+
     expect(actionFor('l', { hasGameState: true })).toEqual({
       kind: 'toggleLog',
       preventDefault: false,
     });
+
     expect(actionFor('l')).toEqual({
       kind: 'none',
       preventDefault: false,
@@ -165,21 +198,25 @@ describe('game-client-keyboard', () => {
       dx: 0,
       dy: 40,
     });
+
     expect(actionFor('ArrowLeft')).toEqual({
       kind: 'panCamera',
       preventDefault: false,
       dx: 40,
       dy: 0,
     });
+
     expect(actionFor('+')).toEqual({
       kind: 'zoomCamera',
       preventDefault: false,
       factor: 1.15,
     });
+
     expect(actionFor('/')).toEqual({
       kind: 'toggleHelp',
       preventDefault: false,
     });
+
     expect(actionFor('m')).toEqual({
       kind: 'toggleMute',
       preventDefault: false,
