@@ -1330,6 +1330,10 @@ body::before {
     bottom: calc(var(--hud-bottom-offset) + 0.55rem);
   }
 
+  .keyboard-only {
+    display: none;
+  }
+
   .help-key {
     min-width: 94px;
   }

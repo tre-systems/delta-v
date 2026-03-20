@@ -14,6 +14,8 @@ interface TutorialStep {
   id: string;
   phase: 'astrogation' | 'ordnance' | 'combat' | 'movement' | 'any';
   text: string;
+  /** Touch-friendly text shown on mobile */
+  mobileText?: string;
   /** Only show after this turn number */
   minTurn?: number;
   /** Only show once per game */
@@ -30,6 +32,8 @@ const STEPS: TutorialStep[] = [
     id: 'select-ship',
     phase: 'astrogation',
     text: 'Click your ship or press Tab to select it. The dashed arrow shows where your ship will drift. The 6 arrows around that point are your burn options — click one or press 1-6 to accelerate.',
+    mobileText:
+      'Tap your ship to select it. The dashed arrow shows where your ship will drift. The 6 arrows around that point are your burn options — tap one to accelerate.',
   },
   {
     id: 'gravity',
@@ -47,12 +51,16 @@ const STEPS: TutorialStep[] = [
     id: 'ordnance-intro',
     phase: 'ordnance',
     text: 'Ordnance phase: ships can launch mines or nukes if they have cargo space, and warships can also launch torpedoes. Torpedoes can boost 1 or 2 hexes on launch; click the same arrow again to switch from x1 to x2. Use N=mine, T=torpedo, K=nuke.',
+    mobileText:
+      'Ordnance phase: ships can launch mines or nukes if they have cargo space, and warships can also launch torpedoes. Torpedoes can boost 1 or 2 hexes on launch; tap the same arrow again to switch from x1 to x2. Use the buttons below to launch.',
     once: true,
   },
   {
     id: 'combat-intro',
     phase: 'combat',
     text: 'Combat phase: click an enemy ship or nuke to target it. Gun attacks use combined firepower, while nukes are intercepted at 2:1 with range and relative velocity modifiers. Press Enter to attack or skip.',
+    mobileText:
+      'Combat phase: tap an enemy ship or nuke to target it. Gun attacks use combined firepower, while nukes are intercepted at 2:1 with range and relative velocity modifiers. Use the Attack or Skip button.',
     once: true,
   },
 ];
@@ -122,7 +130,11 @@ export class Tutorial {
     }
 
     this.activeStepId = step.id;
-    this.textEl.textContent = step.text;
+
+    const isMobile = window.innerWidth <= 760;
+    this.textEl.textContent =
+      isMobile && step.mobileText ? step.mobileText : step.text;
+
     show(this.tipEl, 'block');
 
     // Re-trigger animation

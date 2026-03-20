@@ -14,6 +14,12 @@ export interface Env {
   DB: D1Database;
 }
 
+const corsHeaders: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
 const handleWebSocket = (
   request: Request,
   env: Env,
@@ -140,7 +146,10 @@ const handleReport = async (
   const contentType = request.headers.get('content-type');
   if (!contentType?.includes('application/json')) {
     return {
-      response: new Response('Content-Type must be JSON', { status: 415 }),
+      response: new Response('Content-Type must be JSON', {
+        status: 415,
+        headers: corsHeaders,
+      }),
     };
   }
 
@@ -149,6 +158,7 @@ const handleReport = async (
     return {
       response: new Response('Payload too large', {
         status: 413,
+        headers: corsHeaders,
       }),
     };
   }
@@ -160,6 +170,7 @@ const handleReport = async (
     return {
       response: new Response('Bad request', {
         status: 400,
+        headers: corsHeaders,
       }),
     };
   }
@@ -168,6 +179,7 @@ const handleReport = async (
     return {
       response: new Response('Payload too large', {
         status: 413,
+        headers: corsHeaders,
       }),
     };
   }
@@ -179,6 +191,7 @@ const handleReport = async (
     return {
       response: new Response('Invalid JSON', {
         status: 400,
+        headers: corsHeaders,
       }),
     };
   }
@@ -186,7 +199,10 @@ const handleReport = async (
   logFn(`[${label}]`, payload);
 
   return {
-    response: new Response(null, { status: 204 }),
+    response: new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    }),
     payload,
   };
 };
@@ -198,6 +214,17 @@ export default {
     ctx: ExecutionContext,
   ): Promise<Response> {
     const url = new URL(request.url);
+
+    // CORS preflight for reporting endpoints
+    if (
+      request.method === 'OPTIONS' &&
+      (url.pathname === '/error' || url.pathname === '/telemetry')
+    ) {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders,
+      });
+    }
 
     // Create a new game
     if (url.pathname === '/create' && request.method === 'POST') {

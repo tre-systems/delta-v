@@ -536,14 +536,34 @@ class GameClient {
   // --- Network ---
 
   private async createGame(scenario: string) {
+    this.ui.setMenuLoading(true);
+
     try {
       this.ctx.scenario = scenario;
 
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), 10_000);
+
       const res = await fetch('/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ scenario }),
+        signal: abort.signal,
       });
+
+      clearTimeout(timer);
+
+      if (!res.ok) {
+        this.ui.showToast(
+          'Server error \u2014 try again in a moment.',
+          'error',
+        );
+        this.setState('menu');
+
+        return;
+      }
 
       const data = (await res.json()) as {
         code: string;
@@ -572,9 +592,21 @@ class GameClient {
       this.connect(this.ctx.gameCode);
       this.setState('waitingForOpponent');
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        this.ui.showToast('Game creation timed out. Try again.', 'error');
+      } else if (err instanceof TypeError) {
+        this.ui.showToast(
+          'Network error \u2014 check your connection.',
+          'error',
+        );
+      } else {
+        this.ui.showToast('Failed to create game. Try again.', 'error');
+      }
+
       console.error('Failed to create game:', err);
-      this.ui.showToast('Failed to create game. Try again.', 'error');
       this.setState('menu');
+    } finally {
+      this.ui.setMenuLoading(false);
     }
   }
 
@@ -1465,6 +1497,10 @@ class GameClient {
     this.tooltipEl.style.top = `${screenY - 10}px`;
   }
 
+  showToast(message: string, type: 'error' | 'info' | 'success' = 'info') {
+    this.ui.showToast(message, type);
+  }
+
   // Deserialize state from server
   private deserializeState(raw: GameState): GameState {
     return raw; // JSON types are already compatible
@@ -1473,4 +1509,14 @@ class GameClient {
 
 // --- Bootstrap ---
 installGlobalErrorHandlers();
-(window as any).__game = new GameClient();
+
+const __game = new GameClient();
+(window as any).__game = __game;
+
+window.addEventListener('offline', () => {
+  __game.showToast("You're offline \u2014 check your connection", 'error');
+});
+
+window.addEventListener('online', () => {
+  __game.showToast('Back online', 'success');
+});

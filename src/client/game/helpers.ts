@@ -252,9 +252,8 @@ export const getScenarioBriefingLines = (
     );
     lines.push('No combat — race only');
 
-    if (typeof window === 'undefined' || window.innerWidth > 760) {
-      lines.push('Press ? for controls help');
-    }
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 760;
+    lines.push(isMobile ? 'Tap ? for controls' : 'Press ? for controls help');
 
     return lines;
   }
@@ -277,9 +276,8 @@ export const getScenarioBriefingLines = (
     lines.push('Objective: Destroy all enemy ships!');
   }
 
-  if (typeof window === 'undefined' || window.innerWidth > 760) {
-    lines.push('Press ? for controls help');
-  }
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 760;
+  lines.push(isMobile ? 'Tap ? for controls' : 'Press ? for controls help');
 
   return lines;
 };

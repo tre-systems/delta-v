@@ -63,14 +63,13 @@ import { resolveTurnTimeoutOutcome } from './turns';
 export interface Env {
   ASSETS: Fetcher;
   GAME: DurableObjectNamespace;
+  DB: D1Database;
 }
 
 const CHAT_RATE_LIMIT_MS = 500;
 
-export class GameDO extends DurableObject {
+export class GameDO extends DurableObject<Env> {
   private readonly map = buildSolarSystemMap();
-
-  private readonly lastChatTime = new Map<number, number>();
 
   // --- WebSocket tag-based player tracking ---
 
@@ -104,6 +103,12 @@ export class GameDO extends DurableObject {
   private async appendEvents(...events: GameEvent[]): Promise<void> {
     const log = await this.getEventLog();
     log.push(...events);
+
+    const MAX_EVENTS = 500;
+    if (log.length > MAX_EVENTS) {
+      log.splice(0, log.length - MAX_EVENTS);
+    }
+
     await this.ctx.storage.put('eventLog', log);
   }
 
@@ -180,6 +185,48 @@ export class GameDO extends DurableObject {
       await this.ctx.storage.setAlarm(alarmAt);
     }
   }
+
+  // --- Error telemetry ---
+
+  private reportEngineError = (
+    code: string,
+    phase: string,
+    turn: number,
+    err: unknown,
+  ): void => {
+    const db = this.env.DB;
+    if (!db) return;
+
+    const msg = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+
+    this.ctx.waitUntil(
+      db
+        .prepare(
+          'INSERT INTO events ' +
+            '(ts, anon_id, event, props, ip_hash, ua) ' +
+            'VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .bind(
+          Date.now(),
+          null,
+          'engine_error',
+          JSON.stringify({
+            code,
+            phase,
+            turn,
+            message: msg,
+            stack,
+          }),
+          'server',
+          null,
+        )
+        .run()
+        .catch((e: unknown) =>
+          console.error('[D1 engine error insert failed]', e),
+        ),
+    );
+  };
 
   // --- WebSocket lifecycle ---
 
@@ -261,6 +308,15 @@ export class GameDO extends DurableObject {
 
     if (shouldClearDisconnectMarker(disconnectedPlayer, playerId)) {
       await this.clearDisconnectMarker();
+    }
+
+    // Close any existing sockets for this player
+    // to prevent duplicate broadcasts
+    const existing = this.ctx.getWebSockets(`player:${playerId}`);
+    for (const old of existing) {
+      try {
+        old.close(1000, 'Replaced by new connection');
+      } catch {}
     }
 
     const pair = new WebSocketPair();
@@ -389,10 +445,11 @@ export class GameDO extends DurableObject {
 
         case 'chat': {
           const now = Date.now();
-          const last = this.lastChatTime.get(playerId) ?? 0;
+          const chatKey = `lastChat:${playerId}`;
+          const last = (await this.ctx.storage.get<number>(chatKey)) ?? 0;
           if (now - last < CHAT_RATE_LIMIT_MS) break;
 
-          this.lastChatTime.set(playerId, now);
+          await this.ctx.storage.put(chatKey, now);
           this.broadcast({
             type: 'chat',
             playerId,
@@ -490,6 +547,7 @@ export class GameDO extends DurableObject {
         `(phase=${gameState.phase},` + ` turn=${gameState.turnNumber}):`,
         err,
       );
+      this.reportEngineError(code, gameState.phase, gameState.turnNumber, err);
       // State is preserved — reschedule so
       // the next player action can proceed
       await this.rescheduleAlarm();
@@ -570,6 +628,7 @@ export class GameDO extends DurableObject {
         `(phase=${gameState.phase},` + ` turn=${gameState.turnNumber}):`,
         err,
       );
+      this.reportEngineError(code, gameState.phase, gameState.turnNumber, err);
       this.send(ws, {
         type: 'error',
         message: 'Engine error — action rejected,' + ' game state preserved',

@@ -4,31 +4,23 @@ Prioritised list of remaining work. Items are grouped by type and ordered by pri
 
 **Priority key:** P0 = rule correctness, P1 = production safety & iteration velocity, P2 = code quality & extensibility, P3 = test coverage.
 
-All P0–P3 items are complete. Only feature work remains.
+All P0–P3 items are complete. User-testing readiness items are resolved. Only feature work remains.
 
 ---
 
-## User-testing readiness
+## User-testing readiness *(all resolved)*
 
-Issues found during a deep review ahead of user testing. Grouped by priority relative to the first external test session.
+Issues found during a deep review ahead of user testing.
 
 ### High — fix before user testing
 
-#### 1. No fetch timeout on game creation
+#### ~~1. No fetch timeout on game creation~~ *(done)*
 
-`createGame()` in `src/client/main.ts` can hang
-indefinitely on slow networks. Add an `AbortController`
-with ~10s timeout so the UI always recovers.
+Added `AbortController` with 10s timeout to `createGame()`.
 
-**Files:** `src/client/main.ts`
+#### ~~2. No loading indicator on game creation~~ *(done)*
 
-#### 2. No loading indicator on game creation
-
-Users click "Create Game" and see nothing for 2–5s
-while the request completes. Show a spinner or disable
-the button until the response arrives.
-
-**Files:** `src/client/ui/ui.ts`, `src/client/main.ts`
+Button shows "CREATING..." and disables while request is in flight.
 
 #### ~~3. Empty src/client/__tests__/ directory~~ *(done)*
 
@@ -36,107 +28,54 @@ Deleted.
 
 ### Medium — ship without, but track
 
-#### 4. Generic error messages
+#### ~~4. Generic error messages~~ *(done)*
 
-"Failed to create game. Try again." doesn't distinguish
-server errors from network issues. Users won't know
-whether the problem is on their end or the server.
+Distinct messages for timeout, network error, and server error.
 
-**Files:** `src/client/main.ts`, `src/client/ui/ui.ts`
+#### ~~5. Engine errors not telemetrized~~ *(done)*
 
-#### 5. Engine errors not telemetrized
+Engine errors now inserted into D1 via `reportEngineError`.
 
-When the game engine throws, the error is logged to
-stdout but not sent to D1. Capturing these from real
-users is essential for catching edge-case bugs.
+#### ~~6. Chat rate limit resets on reconnect~~ *(done)*
 
-**Files:** `src/server/game-do/game-do.ts`,
-`src/client/telemetry.ts`
+Rate limit moved from in-memory Map to DO storage.
 
-#### 6. Chat rate limit resets on reconnect
+#### ~~7. Event log unbounded growth~~ *(done)*
 
-The 500ms per-player rate limit is held in memory and
-lost on reconnect. Low risk with 2-player rooms but
-technically exploitable.
+Capped at 500 events with oldest trimmed on append.
 
-**Files:** `src/server/game-do/game-do.ts`
+#### ~~8. No offline detection~~ *(done)*
 
-#### 7. Event log unbounded growth
-
-No cleanup or checkpointing for long games. The full
-event log is re-read and re-written on each append.
-Monitor and consider checkpointing for games longer
-than ~1 hour.
-
-**Files:** `src/server/game-do/game-do.ts`
-
-#### 8. No offline detection
-
-When internet drops, reconnection attempts fire
-immediately with no "You're offline" message. Adding
-`navigator.onLine` checks and `offline`/`online` event
-listeners would give much better UX.
-
-**Files:** `src/client/main.ts`
+Toast notifications on offline/online events.
 
 ### High — UI/mobile issues
 
-#### 12. Help overlay shows keyboard shortcuts on mobile
+#### ~~12. Help overlay shows keyboard shortcuts on mobile~~ *(done)*
 
-The controls help overlay (?) is identical on desktop and
-mobile. Mobile users see WASD, Tab, N, T, K, Enter, Esc,
-E, H, L, M — all keyboard-only shortcuts they can't use.
-On mobile, show only touch-relevant controls (drag to
-pan, pinch to zoom, tap ship to select, tap arrow to
-burn). Hide or collapse keyboard-only sections behind a
-"Keyboard shortcuts" disclosure on mobile.
+Keyboard-only rows and sections hidden via CSS at mobile breakpoint.
 
-**Files:** `static/index.html` (help overlay HTML),
-`static/style.css`
+#### ~~13. Game log says "Press ? for controls help" on mobile~~ *(done)*
 
-#### 13. Game log says "Press ? for controls help" on mobile
+Shows "Tap ? for controls" on mobile.
 
-The opening log message tells players to "Press ? for
-controls help" — a keyboard instruction. On mobile, this
-should say "Tap ? for controls help" or just
-"Tap the ? button for help".
+#### ~~14. Tutorial mentions keyboard shortcuts~~ *(done)*
 
-**Files:** `src/client/game/helpers.ts` (lines 256, 281)
-
-#### 14. Tutorial mentions keyboard shortcuts
-
-Tutorial step text references keyboard shortcuts that
-don't exist on mobile. For example, the ordnance tip
-says "Use N=mine, T=torpedo, K=nuke" and the combat
-tip says "Press Enter to attack or skip". On mobile
-these should reference the on-screen buttons instead.
-
-**Files:** `src/client/tutorial.ts`
+Added `mobileText` variants for touch-friendly instructions.
 
 ### Low — nice-to-have
 
-#### 15. No explicit CORS headers
+#### ~~15. No explicit CORS headers~~ *(done)*
 
-Telemetry and error-reporting endpoints rely on
-Cloudflare defaults. Should add explicit
-`Access-Control-Allow-Origin` headers.
+Added `Access-Control-Allow-Origin: *` and OPTIONS preflight.
 
-**Files:** `src/server/index.ts`
+#### ~~16. Room code collision ceiling~~ *(done)*
 
-#### 16. Room code collision ceiling
+32^5 (~33.6M) codes with 12 retries. Collision
+ceiling documented in `src/server/protocol.ts`.
 
-34^5 (~45M) codes with 12 retries. Fine for early
-testing but the scaling limit should be documented.
+#### ~~17. Multiple WebSocket connections per player~~ *(done)*
 
-**Files:** `src/server/protocol.ts`
-
-#### 17. Multiple WebSocket connections per player
-
-Opening two tabs with the same token causes both to
-receive broadcasts. Could confuse users who
-accidentally open a second tab.
-
-**Files:** `src/server/game-do/game-do.ts`
+Old sockets closed before accepting new connection.
 
 ---
 
