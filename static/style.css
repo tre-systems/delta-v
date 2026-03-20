@@ -653,19 +653,19 @@ body::before {
 }
 
 .chat-input-row {
-  padding: 0.35rem 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.45rem 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .chat-input {
   width: 100%;
-  padding: 0.3rem 0.5rem;
+  padding: 0.4rem 0.6rem;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(4, 9, 18, 0.6);
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   outline: none;
 }
 
@@ -842,10 +842,20 @@ body::before {
 }
 
 .fleet-status,
-.latency-text,
 .turn-timer {
   color: var(--muted);
   font-size: 0.68rem;
+}
+
+.latency-text {
+  position: fixed;
+  bottom: calc(0.4rem + var(--safe-bottom));
+  left: 0.6rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  opacity: 0.5;
+  z-index: 2;
 }
 
 .objective-text {

@@ -125,7 +125,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
             ? `Fuel: ${fuel}/${maxFuel} \u00b7 Landed`
             : `Fuel: ${fuel}/${maxFuel}`,
     statusText: !isMyTurn
-      ? 'Waiting for opponent...'
+      ? null
       : phase === 'astrogation'
         ? getAstrogationStatusText(astrogationCtx)
         : phase === 'ordnance'

@@ -6,6 +6,10 @@ export interface TurnTimerViewModel {
   shouldWarn: boolean;
 }
 
+// Hide the timer for the first N seconds so new
+// players can orient without pressure
+const GRACE_PERIOD_S = 15;
+
 export const deriveTurnTimer = (
   elapsedSeconds: number,
   timeoutSeconds: number,
@@ -14,7 +18,12 @@ export const deriveTurnTimer = (
   const mins = Math.floor(elapsedSeconds / 60);
   const secs = elapsedSeconds % 60;
   return {
-    text: mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`,
+    text:
+      elapsedSeconds < GRACE_PERIOD_S
+        ? ''
+        : mins > 0
+          ? `${mins}:${secs.toString().padStart(2, '0')}`
+          : `${secs}s`,
     className:
       'turn-timer' +
       (elapsedSeconds >= 90
