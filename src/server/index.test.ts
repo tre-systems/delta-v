@@ -4,11 +4,29 @@ vi.mock('./game-do/game-do', () => ({
   GameDO: class GameDO {},
 }));
 
-import worker from './index';
+import worker, { hashIp } from './index';
 
-function createEnv(
+const mockDb = () => {
+  const runFn = vi.fn(async () => ({}));
+  const bindFn = vi.fn(() => ({ run: runFn }));
+  const prepareFn = vi.fn(() => ({ bind: bindFn }));
+
+  return {
+    prepare: prepareFn,
+    _bind: bindFn,
+    _run: runFn,
+  };
+};
+
+const mockCtx = () => ({
+  waitUntil: vi.fn((p: Promise<unknown>) => p.catch(() => {})),
+  passThroughOnException: vi.fn(),
+  props: {},
+});
+
+const createEnv = (
   initHandler?: (request: Request) => Promise<Response> | Response,
-) {
+) => {
   const assetsFetch = vi.fn(async () => new Response('asset ok'));
 
   const initFetch = vi.fn(async (request: Request) => {
@@ -26,10 +44,11 @@ function createEnv(
       idFromName: vi.fn((code: string) => `id:${code}`),
       get: vi.fn(() => stub),
     },
+    DB: mockDb(),
   };
 
   return { env, assetsFetch, initFetch };
-}
+};
 
 describe('server index worker', () => {
   beforeEach(() => {
@@ -47,10 +66,13 @@ describe('server index worker', () => {
     const response = await worker.fetch(
       new Request('https://delta-v.test/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: '{',
       }),
       env as any,
+      mockCtx(),
     );
 
     expect(response.status).toBe(200);
@@ -79,6 +101,7 @@ describe('server index worker', () => {
         method: 'POST',
       }),
       env as any,
+      mockCtx(),
     );
 
     expect(response.status).toBe(503);
@@ -94,10 +117,13 @@ describe('server index worker', () => {
     const response = await worker.fetch(
       new Request('https://delta-v.test/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ scenario: 'escape' }),
       }),
       env as any,
+      mockCtx(),
     );
 
     expect(response.status).toBe(500);
@@ -114,7 +140,7 @@ describe('server index worker', () => {
       headers: { Upgrade: 'websocket' },
     });
 
-    const response = await worker.fetch(request, env as any);
+    const response = await worker.fetch(request, env as any, mockCtx());
 
     expect(response.status).toBe(200);
     expect(env.GAME.idFromName).toHaveBeenCalledWith('ABCDE');
@@ -125,7 +151,7 @@ describe('server index worker', () => {
     const { env, assetsFetch } = createEnv();
     const request = new Request('https://delta-v.test/');
 
-    const response = await worker.fetch(request, env as any);
+    const response = await worker.fetch(request, env as any, mockCtx());
 
     expect(assetsFetch).toHaveBeenCalledWith(request);
     expect(await response.text()).toBe('asset ok');
@@ -140,21 +166,59 @@ describe('/error endpoint', () => {
     const response = await worker.fetch(
       new Request('https://delta-v.test/error', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           error: 'test error',
           ts: 123,
         }),
       }),
       env as any,
+      mockCtx(),
     );
 
     expect(response.status).toBe(204);
     expect(spy).toHaveBeenCalledWith(
       '[client-error]',
-      expect.objectContaining({ error: 'test error' }),
+      expect.objectContaining({
+        error: 'test error',
+      }),
     );
     spy.mockRestore();
+  });
+
+  it('inserts error into D1 with client_error event', async () => {
+    const { env } = createEnv();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const ctx = mockCtx();
+
+    await worker.fetch(
+      new Request('https://delta-v.test/error', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          error: 'crash',
+          ts: 100,
+        }),
+      }),
+      env as any,
+      ctx,
+    );
+
+    // waitUntil should have been called
+    expect(ctx.waitUntil).toHaveBeenCalled();
+
+    // Wait for the D1 insert promise
+    await (ctx.waitUntil as any).mock.calls[0][0];
+
+    expect(env.DB.prepare).toHaveBeenCalled();
+    const bindArgs = env.DB._bind.mock.calls[0] as unknown[];
+    // event should be 'client_error'
+    expect(bindArgs[2]).toBe('client_error');
   });
 
   it('rejects non-POST requests', async () => {
@@ -163,6 +227,7 @@ describe('/error endpoint', () => {
     const response = await worker.fetch(
       new Request('https://delta-v.test/error'),
       env as any,
+      mockCtx(),
     );
 
     // GET /error falls through to static assets
@@ -180,6 +245,7 @@ describe('/error endpoint', () => {
         body: 'not json',
       }),
       env as any,
+      mockCtx(),
     );
 
     expect(response.status).toBe(415);
@@ -198,6 +264,7 @@ describe('/error endpoint', () => {
         body: JSON.stringify({ error: 'big' }),
       }),
       env as any,
+      mockCtx(),
     );
 
     expect(response.status).toBe(413);
@@ -212,10 +279,13 @@ describe('/error endpoint', () => {
     const response = await worker.fetch(
       new Request('https://delta-v.test/error', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: bigBody,
       }),
       env as any,
+      mockCtx(),
     );
 
     expect(response.status).toBe(413);
@@ -227,10 +297,13 @@ describe('/error endpoint', () => {
     const response = await worker.fetch(
       new Request('https://delta-v.test/error', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: '{invalid',
       }),
       env as any,
+      mockCtx(),
     );
 
     expect(response.status).toBe(400);
@@ -245,13 +318,16 @@ describe('/telemetry endpoint', () => {
     const response = await worker.fetch(
       new Request('https://delta-v.test/telemetry', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           event: 'game_created',
           scenario: 'biplanetary',
         }),
       }),
       env as any,
+      mockCtx(),
     );
 
     expect(response.status).toBe(204);
@@ -264,16 +340,82 @@ describe('/telemetry endpoint', () => {
     spy.mockRestore();
   });
 
+  it('inserts telemetry into D1', async () => {
+    const { env } = createEnv();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const ctx = mockCtx();
+
+    await worker.fetch(
+      new Request('https://delta-v.test/telemetry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event: 'game_created',
+          anonId: 'abc-123',
+          ts: 999,
+          scenario: 'duel',
+        }),
+      }),
+      env as any,
+      ctx,
+    );
+
+    await (ctx.waitUntil as any).mock.calls[0][0];
+
+    expect(env.DB.prepare).toHaveBeenCalled();
+    const bindArgs = env.DB._bind.mock.calls[0] as unknown[];
+    // ts, anonId, event, props, ipHash, ua
+    expect(bindArgs[0]).toBe(999); // ts
+    expect(bindArgs[1]).toBe('abc-123'); // anonId
+    expect(bindArgs[2]).toBe('game_created'); // event
+    expect(JSON.parse(bindArgs[3] as string)).toEqual({ scenario: 'duel' }); // props
+    expect(bindArgs[4]).toMatch(/^[0-9a-f]{16}$/); // ipHash
+  });
+
+  it('returns 204 even if D1 insert fails', async () => {
+    const { env } = createEnv();
+    env.DB._run.mockRejectedValueOnce(new Error('D1 down'));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const ctx = mockCtx();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/telemetry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event: 'test',
+        }),
+      }),
+      env as any,
+      ctx,
+    );
+
+    expect(response.status).toBe(204);
+
+    // D1 error is caught gracefully
+    await (ctx.waitUntil as any).mock.calls[0][0];
+  });
+
   it('rejects non-JSON content type with 415', async () => {
     const { env } = createEnv();
 
     const response = await worker.fetch(
       new Request('https://delta-v.test/telemetry', {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
+        headers: {
+          'Content-Type': 'text/plain',
+        },
         body: 'not json',
       }),
       env as any,
+      mockCtx(),
     );
 
     expect(response.status).toBe(415);
@@ -286,14 +428,39 @@ describe('/telemetry endpoint', () => {
     const response = await worker.fetch(
       new Request('https://delta-v.test/telemetry', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ event: 'test' }),
       }),
       env as any,
+      mockCtx(),
     );
 
     expect(response.status).toBe(204);
     const body = await response.text();
     expect(body).toBe('');
+  });
+});
+
+describe('hashIp', () => {
+  it('returns a 16-char hex string', async () => {
+    const hash = await hashIp('192.168.1.1');
+
+    expect(hash).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it('returns same hash for same input', async () => {
+    const a = await hashIp('10.0.0.1');
+    const b = await hashIp('10.0.0.1');
+
+    expect(a).toBe(b);
+  });
+
+  it('returns different hashes for different IPs', async () => {
+    const a = await hashIp('10.0.0.1');
+    const b = await hashIp('10.0.0.2');
+
+    expect(a).not.toBe(b);
   });
 });

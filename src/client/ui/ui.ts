@@ -189,6 +189,7 @@ export class UIManager {
     }
 
     byId('backBtn').addEventListener('click', () => {
+      this.onEvent?.({ type: 'backToMenu' });
       this.showMenu();
     });
 

@@ -11,6 +11,7 @@ export { GameDO };
 export interface Env {
   ASSETS: Fetcher;
   GAME: DurableObjectNamespace;
+  DB: D1Database;
 }
 
 const handleWebSocket = (
@@ -80,6 +81,50 @@ const handleCreate = async (request: Request, env: Env): Promise<Response> => {
 // Max body size for telemetry/error payloads (4 KB)
 const MAX_REPORT_BODY = 4096;
 
+// Hash an IP address to a 16-char hex string.
+// One-way — no raw IPs are stored.
+export const hashIp = async (ip: string): Promise<string> => {
+  const buf = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(ip),
+  );
+  return [...new Uint8Array(buf)]
+    .slice(0, 8)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+};
+
+// Insert an event row into D1. Fire-and-forget via
+// waitUntil — never blocks the response.
+const insertEvent = async (
+  db: D1Database,
+  payload: Record<string, unknown>,
+  ipHash: string,
+  ua: string | null,
+): Promise<void> => {
+  const { event, anonId, ts, ...rest } = payload;
+
+  try {
+    await db
+      .prepare(
+        'INSERT INTO events ' +
+          '(ts, anon_id, event, props, ip_hash, ua) ' +
+          'VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .bind(
+        (ts as number) ?? Date.now(),
+        (anonId as string) ?? null,
+        (event as string) ?? 'unknown',
+        JSON.stringify(rest),
+        ipHash,
+        ua,
+      )
+      .run();
+  } catch (err) {
+    console.error('[D1 insert failed]', err);
+  }
+};
+
 // Shared handler for fire-and-forget reporting
 // endpoints (/error, /telemetry). Security measures:
 // - POST only (enforced by caller)
@@ -91,48 +136,67 @@ const handleReport = async (
   request: Request,
   logFn: (msg: string, payload: unknown) => void,
   label: string,
-): Promise<Response> => {
+): Promise<{ response: Response; payload?: Record<string, unknown> }> => {
   const contentType = request.headers.get('content-type');
   if (!contentType?.includes('application/json')) {
-    return new Response('Content-Type must be JSON', {
-      status: 415,
-    });
+    return {
+      response: new Response('Content-Type must be JSON', { status: 415 }),
+    };
   }
 
   const contentLength = request.headers.get('content-length');
   if (contentLength && parseInt(contentLength, 10) > MAX_REPORT_BODY) {
-    return new Response('Payload too large', {
-      status: 413,
-    });
+    return {
+      response: new Response('Payload too large', {
+        status: 413,
+      }),
+    };
   }
 
   let body: string;
   try {
     body = await request.text();
   } catch {
-    return new Response('Bad request', { status: 400 });
+    return {
+      response: new Response('Bad request', {
+        status: 400,
+      }),
+    };
   }
 
   if (body.length > MAX_REPORT_BODY) {
-    return new Response('Payload too large', {
-      status: 413,
-    });
+    return {
+      response: new Response('Payload too large', {
+        status: 413,
+      }),
+    };
   }
 
-  let payload: unknown;
+  let payload: Record<string, unknown>;
   try {
     payload = JSON.parse(body);
   } catch {
-    return new Response('Invalid JSON', { status: 400 });
+    return {
+      response: new Response('Invalid JSON', {
+        status: 400,
+      }),
+    };
   }
 
   logFn(`[${label}]`, payload);
 
-  return new Response(null, { status: 204 });
+  return {
+    response: new Response(null, { status: 204 }),
+    payload,
+  };
 };
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
     const url = new URL(request.url);
 
     // Create a new game
@@ -142,12 +206,43 @@ export default {
 
     // Client error reports
     if (url.pathname === '/error' && request.method === 'POST') {
-      return handleReport(request, console.error, 'client-error');
+      const { response, payload } = await handleReport(
+        request,
+        console.error,
+        'client-error',
+      );
+
+      if (payload && env.DB) {
+        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+        const ua = (payload.ua as string) ?? request.headers.get('user-agent');
+        ctx.waitUntil(
+          insertEvent(
+            env.DB,
+            { event: 'client_error', ...payload },
+            await hashIp(ip),
+            ua,
+          ),
+        );
+      }
+
+      return response;
     }
 
     // Client telemetry events
     if (url.pathname === '/telemetry' && request.method === 'POST') {
-      return handleReport(request, console.log, 'telemetry');
+      const { response, payload } = await handleReport(
+        request,
+        console.log,
+        'telemetry',
+      );
+
+      if (payload && env.DB) {
+        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+        const ua = request.headers.get('user-agent');
+        ctx.waitUntil(insertEvent(env.DB, payload, await hashIp(ip), ua));
+      }
+
+      return response;
     }
 
     // WebSocket upgrade to game DO
