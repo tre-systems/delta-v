@@ -15,7 +15,11 @@ import {
   skipLogistics,
   skipOrdnance,
 } from '../../shared/engine/game-engine';
-import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../../shared/map-data';
+import {
+  buildSolarSystemMap,
+  findBaseHex,
+  SCENARIOS,
+} from '../../shared/map-data';
 import type {
   AstrogationOrder,
   C2S,
@@ -61,17 +65,22 @@ const CHAT_RATE_LIMIT_MS = 500;
 
 export class GameDO extends DurableObject {
   private readonly map = buildSolarSystemMap();
+
   private readonly lastChatTime = new Map<number, number>();
 
   // --- WebSocket tag-based player tracking ---
 
   private getPlayerId(ws: WebSocket): number | null {
     const tag = this.ctx.getTags(ws).find((t) => t.startsWith('player:'));
+
     return tag ? parseInt(tag.split(':')[1], 10) : null;
   }
 
   private getPlayerCount(): number {
-    return this.ctx.getWebSockets('player:0').length + this.ctx.getWebSockets('player:1').length;
+    return (
+      this.ctx.getWebSockets('player:0').length +
+      this.ctx.getWebSockets('player:1').length
+    );
   }
 
   // --- State management ---
@@ -97,7 +106,9 @@ export class GameDO extends DurableObject {
   }
 
   private async getScenario() {
-    const scenarioName = (await this.getRoomConfig())?.scenario ?? 'biplanetary';
+    const scenarioName =
+      (await this.getRoomConfig())?.scenario ?? 'biplanetary';
+
     return SCENARIOS[scenarioName] ?? SCENARIOS.biplanetary;
   }
 
@@ -106,7 +117,11 @@ export class GameDO extends DurableObject {
   }
 
   private async touchInactivity(): Promise<void> {
-    await this.ctx.storage.put('inactivityAt', Date.now() + INACTIVITY_TIMEOUT_MS);
+    await this.ctx.storage.put(
+      'inactivityAt',
+      Date.now() + INACTIVITY_TIMEOUT_MS,
+    );
+
     await this.rescheduleAlarm();
   }
 
@@ -116,6 +131,7 @@ export class GameDO extends DurableObject {
       this.ctx.storage.get<number>('turnTimeoutAt'),
       this.ctx.storage.get<number>('inactivityAt'),
     ]);
+
     return { disconnectAt, turnTimeoutAt, inactivityAt };
   }
 
@@ -129,16 +145,19 @@ export class GameDO extends DurableObject {
 
   private async setDisconnectMarker(playerId: number): Promise<void> {
     const marker = createDisconnectMarker(playerId, Date.now());
+
     await Promise.all([
       this.ctx.storage.put('disconnectedPlayer', marker.disconnectedPlayer),
       this.ctx.storage.put('disconnectTime', marker.disconnectTime),
       this.ctx.storage.put('disconnectAt', marker.disconnectAt),
     ]);
+
     await this.rescheduleAlarm();
   }
 
   private async rescheduleAlarm(): Promise<void> {
     const alarmAt = getNextAlarmAt(await this.getAlarmDeadlines());
+
     if (alarmAt !== null) {
       await this.ctx.storage.setAlarm(alarmAt);
     }
@@ -148,27 +167,41 @@ export class GameDO extends DurableObject {
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+
     if (url.pathname === '/init' && request.method === 'POST') {
       return this.handleInit(request);
     }
 
     const upgradeHeader = request.headers.get('Upgrade');
+
     if (upgradeHeader !== 'websocket') {
-      return new Response('Expected WebSocket', { status: 426 });
+      return new Response('Expected WebSocket', {
+        status: 426,
+      });
     }
 
     const roomConfig = await this.getRoomConfig();
+
     if (!roomConfig) {
-      return new Response('Game not found', { status: 404 });
+      return new Response('Game not found', {
+        status: 404,
+      });
     }
 
     const presentedTokenRaw = url.searchParams.get('playerToken');
+
     if (presentedTokenRaw !== null && !isValidPlayerToken(presentedTokenRaw)) {
-      return new Response('Invalid player token', { status: 400 });
+      return new Response('Invalid player token', {
+        status: 400,
+      });
     }
 
     const playerCount = this.getPlayerCount();
-    const disconnectedPlayer = normalizeDisconnectedPlayer(await this.ctx.storage.get<number>('disconnectedPlayer'));
+
+    const disconnectedPlayer = normalizeDisconnectedPlayer(
+      await this.ctx.storage.get<number>('disconnectedPlayer'),
+    );
+
     const seatOpen: [boolean, boolean] = [
       this.ctx.getWebSockets('player:0').length === 0,
       this.ctx.getWebSockets('player:1').length === 0,
@@ -183,21 +216,29 @@ export class GameDO extends DurableObject {
     });
 
     if (seatDecision.type === 'reject') {
-      return new Response(seatDecision.message, { status: seatDecision.status });
+      return new Response(seatDecision.message, {
+        status: seatDecision.status,
+      });
     }
 
     const playerId = seatDecision.playerId;
+
     if (seatDecision.issueNewToken) {
       roomConfig.playerTokens[playerId] = generatePlayerToken();
+
       if (seatDecision.consumeInviteToken) {
         roomConfig.inviteTokens[playerId] = null;
       }
+
       await this.saveRoomConfig(roomConfig);
     }
 
     const playerToken = roomConfig.playerTokens[playerId];
+
     if (!playerToken) {
-      return new Response('Player token unavailable', { status: 500 });
+      return new Response('Player token unavailable', {
+        status: 500,
+      });
     }
 
     if (shouldClearDisconnectMarker(disconnectedPlayer, playerId)) {
@@ -209,12 +250,22 @@ export class GameDO extends DurableObject {
 
     this.ctx.acceptWebSocket(server, [`player:${playerId}`]);
 
-    this.send(server, { type: 'welcome', playerId, code: roomConfig.code, playerToken });
+    this.send(server, {
+      type: 'welcome',
+      playerId,
+      code: roomConfig.code,
+      playerToken,
+    });
 
     const gameState = await this.getGameState();
+
     if (gameState) {
       const filteredState = filterStateForPlayer(gameState, playerId);
-      this.send(server, { type: 'gameStart', state: filteredState });
+
+      this.send(server, {
+        type: 'gameStart',
+        state: filteredState,
+      });
     }
 
     // Both players connected — start the game
@@ -224,25 +275,41 @@ export class GameDO extends DurableObject {
     }
 
     await this.touchInactivity();
-    return new Response(null, { status: 101, webSocket: client });
+
+    return new Response(null, {
+      status: 101,
+      webSocket: client,
+    });
   }
 
-  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+  async webSocketMessage(
+    ws: WebSocket,
+    message: string | ArrayBuffer,
+  ): Promise<void> {
     if (typeof message !== 'string') return;
 
     let raw: unknown;
+
     try {
       raw = JSON.parse(message);
     } catch {
-      this.send(ws, { type: 'error', message: 'Invalid JSON' });
+      this.send(ws, {
+        type: 'error',
+        message: 'Invalid JSON',
+      });
       return;
     }
 
     const parsed = validateClientMessage(raw);
+
     if (!parsed.ok) {
-      this.send(ws, { type: 'error', message: parsed.error });
+      this.send(ws, {
+        type: 'error',
+        message: parsed.error,
+      });
       return;
     }
+
     const msg: C2S = parsed.value;
 
     const playerId = this.getPlayerId(ws);
@@ -255,54 +322,76 @@ export class GameDO extends DurableObject {
         case 'fleetReady':
           await this.handleFleetReady(playerId, ws, msg.purchases);
           break;
+
         case 'astrogation':
           await this.handleAstrogation(playerId, ws, msg.orders);
           break;
+
         case 'surrender':
           await this.handleSurrender(playerId, ws, msg.shipIds);
           break;
+
         case 'ordnance':
           await this.handleOrdnance(playerId, ws, msg.launches);
           break;
+
         case 'emplaceBase':
           await this.handleEmplaceBase(playerId, ws, msg.emplacements);
           break;
+
         case 'skipOrdnance':
           await this.handleSkipOrdnance(playerId, ws);
           break;
+
         case 'beginCombat':
           await this.handleBeginCombat(playerId, ws);
           break;
+
         case 'combat':
           await this.handleCombat(playerId, ws, msg.attacks);
           break;
+
         case 'skipCombat':
           await this.handleSkipCombat(playerId, ws);
           break;
+
         case 'logistics':
           await this.handleLogistics(playerId, ws, msg.transfers);
           break;
+
         case 'skipLogistics':
           await this.handleSkipLogistics(playerId, ws);
           break;
+
         case 'rematch':
           await this.handleRematch(playerId, ws);
           break;
+
         case 'chat': {
           const now = Date.now();
           const last = this.lastChatTime.get(playerId) ?? 0;
           if (now - last < CHAT_RATE_LIMIT_MS) break;
+
           this.lastChatTime.set(playerId, now);
-          this.broadcast({ type: 'chat', playerId, text: msg.text });
+          this.broadcast({
+            type: 'chat',
+            playerId,
+            text: msg.text,
+          });
           break;
         }
+
         case 'ping':
           this.send(ws, { type: 'pong', t: msg.t });
           break;
       }
     } catch (error) {
       console.error('Unhandled websocket message error', error);
-      this.send(ws, { type: 'error', message: 'Internal server error' });
+
+      this.send(ws, {
+        type: 'error',
+        message: 'Internal server error',
+      });
     }
   }
 
@@ -315,8 +404,8 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    // Grace period: set a 30s alarm for disconnect timeout
-    // The player can reconnect before it fires
+    // Grace period: set a 30s alarm for disconnect
+    // timeout. The player can reconnect before it fires.
     if (playerId !== null) {
       await this.setDisconnectMarker(playerId);
     }
@@ -324,7 +413,11 @@ export class GameDO extends DurableObject {
 
   async alarm(): Promise<void> {
     const now = Date.now();
-    const disconnectedPlayer = normalizeDisconnectedPlayer(await this.ctx.storage.get<number>('disconnectedPlayer'));
+
+    const disconnectedPlayer = normalizeDisconnectedPlayer(
+      await this.ctx.storage.get<number>('disconnectedPlayer'),
+    );
+
     const action = resolveAlarmAction({
       now,
       disconnectedPlayer,
@@ -337,9 +430,11 @@ export class GameDO extends DurableObject {
         this.broadcast({ type: 'opponentDisconnected' });
         await this.rescheduleAlarm();
         return;
+
       case 'turnTimeout':
         await this.handleTurnTimeout();
         return;
+
       case 'inactivityTimeout':
         for (const ws of this.ctx.getWebSockets()) {
           try {
@@ -348,6 +443,7 @@ export class GameDO extends DurableObject {
         }
         await this.ctx.storage.deleteAll();
         return;
+
       case 'reschedule':
         await this.rescheduleAlarm();
         return;
@@ -356,13 +452,16 @@ export class GameDO extends DurableObject {
 
   private async handleTurnTimeout(): Promise<void> {
     await this.ctx.storage.delete('turnTimeoutAt');
+
     const gameState = await this.getGameState();
+
     if (!gameState || gameState.phase === 'gameOver') {
       await this.rescheduleAlarm();
       return;
     }
 
     const outcome = resolveTurnTimeoutOutcome(gameState, this.map);
+
     if (!outcome) {
       await this.rescheduleAlarm();
       return;
@@ -377,17 +476,24 @@ export class GameDO extends DurableObject {
       await this.rescheduleAlarm();
       return;
     }
+
     const timeoutAt = Date.now() + TURN_TIMEOUT_MS;
     await this.ctx.storage.put('turnTimeoutAt', timeoutAt);
     await this.rescheduleAlarm();
   }
 
-  private async publishStateChange(state: GameState, primaryMessage?: StatefulServerMessage, restartTurnTimer = true) {
+  private async publishStateChange(
+    state: GameState,
+    primaryMessage?: StatefulServerMessage,
+    restartTurnTimer = true,
+  ) {
     if (primaryMessage) {
       this.broadcastFiltered(primaryMessage);
     }
+
     this.broadcastEndOrUpdate(state);
     await this.saveGameState(state);
+
     if (restartTurnTimer) {
       await this.startTurnTimer(state);
     }
@@ -395,18 +501,26 @@ export class GameDO extends DurableObject {
 
   private async runGameStateAction<Success extends { state: GameState }>(
     ws: WebSocket,
-    action: (gameState: GameState) => Success | { error: string } | Promise<Success | { error: string }>,
+    action: (
+      gameState: GameState,
+    ) => Success | { error: string } | Promise<Success | { error: string }>,
     onSuccess: (result: Success) => Promise<void> | void,
   ): Promise<void> {
     const gameState = await this.getGameState();
     if (!gameState) {
       return;
     }
+
     const result = await action(gameState);
+
     if ('error' in result) {
-      this.send(ws, { type: 'error', message: result.error });
+      this.send(ws, {
+        type: 'error',
+        message: result.error,
+      });
       return;
     }
+
     await onSuccess(result);
   }
 
@@ -414,18 +528,25 @@ export class GameDO extends DurableObject {
 
   private async handleInit(request: Request): Promise<Response> {
     const existing = await this.getRoomConfig();
+
     if (existing) {
-      return new Response('Room already initialized', { status: 409 });
+      return new Response('Room already initialized', {
+        status: 409,
+      });
     }
 
     let payload: unknown;
+
     try {
       payload = await request.json();
     } catch {
-      return new Response('Invalid init payload', { status: 400 });
+      return new Response('Invalid init payload', {
+        status: 400,
+      });
     }
 
     const parsed = parseInitPayload(payload, Object.keys(SCENARIOS));
+
     if (!parsed.ok) {
       return new Response(parsed.error, { status: 400 });
     }
@@ -435,60 +556,108 @@ export class GameDO extends DurableObject {
     await this.saveRoomConfig(roomConfig);
     await this.setGameCode(roomConfig.code);
     await this.touchInactivity();
+
     return Response.json({ ok: true }, { status: 201 });
   }
 
   private async initGame() {
-    const [roomConfig, scenario] = await Promise.all([this.getRoomConfig(), this.getScenario()]);
+    const [roomConfig, scenario] = await Promise.all([
+      this.getRoomConfig(),
+      this.getScenario(),
+    ]);
+
     const map = this.map;
     const code = roomConfig?.code ?? (await this.getGameCode());
 
     const gameState = createGame(scenario, map, code, findBaseHex);
 
     await this.saveGameState(gameState);
-    this.broadcastFiltered({ type: 'gameStart', state: gameState });
+
+    this.broadcastFiltered({
+      type: 'gameStart',
+      state: gameState,
+    });
+
     await this.startTurnTimer(gameState);
   }
 
-  private async handleFleetReady(playerId: number, ws: WebSocket, purchases: FleetPurchase[]) {
+  private async handleFleetReady(
+    playerId: number,
+    ws: WebSocket,
+    purchases: FleetPurchase[],
+  ) {
     await this.runGameStateAction(
       ws,
       async (gameState) => {
         const scenario = await this.getScenario();
-        return processFleetReady(gameState, playerId, purchases, this.map, scenario.availableShipTypes);
+
+        return processFleetReady(
+          gameState,
+          playerId,
+          purchases,
+          this.map,
+          scenario.availableShipTypes,
+        );
       },
       async (result) => {
-        await this.publishStateChange(result.state, undefined, result.state.phase === 'astrogation');
+        await this.publishStateChange(
+          result.state,
+          undefined,
+          result.state.phase === 'astrogation',
+        );
       },
     );
   }
 
-  private async handleAstrogation(playerId: number, ws: WebSocket, orders: AstrogationOrder[]) {
+  private async handleAstrogation(
+    playerId: number,
+    ws: WebSocket,
+    orders: AstrogationOrder[],
+  ) {
     await this.runGameStateAction(
       ws,
-      (gameState) => processAstrogation(gameState, playerId, orders, this.map, Math.random),
+      (gameState) =>
+        processAstrogation(gameState, playerId, orders, this.map, Math.random),
       async (result) => {
-        await this.publishStateChange(result.state, resolveMovementBroadcast(result));
+        await this.publishStateChange(
+          result.state,
+          resolveMovementBroadcast(result),
+        );
       },
     );
   }
 
-  private async handleSurrender(playerId: number, ws: WebSocket, shipIds: string[]) {
+  private async handleSurrender(
+    playerId: number,
+    ws: WebSocket,
+    shipIds: string[],
+  ) {
     await this.runGameStateAction(
       ws,
       (gameState) => processSurrender(gameState, playerId, shipIds),
       async (result) => {
-        await this.publishStateChange(result.state, toStateUpdateMessage(result.state), false);
+        await this.publishStateChange(
+          result.state,
+          toStateUpdateMessage(result.state),
+          false,
+        );
       },
     );
   }
 
-  private async handleLogistics(playerId: number, ws: WebSocket, transfers: TransferOrder[]) {
+  private async handleLogistics(
+    playerId: number,
+    ws: WebSocket,
+    transfers: TransferOrder[],
+  ) {
     await this.runGameStateAction(
       ws,
       (gameState) => processLogistics(gameState, playerId, transfers, this.map),
       async (result) => {
-        await this.publishStateChange(result.state, toStateUpdateMessage(result.state));
+        await this.publishStateChange(
+          result.state,
+          toStateUpdateMessage(result.state),
+        );
       },
     );
   }
@@ -498,27 +667,47 @@ export class GameDO extends DurableObject {
       ws,
       (gameState) => skipLogistics(gameState, playerId, this.map),
       async (result) => {
-        await this.publishStateChange(result.state, toStateUpdateMessage(result.state));
+        await this.publishStateChange(
+          result.state,
+          toStateUpdateMessage(result.state),
+        );
       },
     );
   }
 
-  private async handleOrdnance(playerId: number, ws: WebSocket, launches: OrdnanceLaunch[]) {
+  private async handleOrdnance(
+    playerId: number,
+    ws: WebSocket,
+    launches: OrdnanceLaunch[],
+  ) {
     await this.runGameStateAction(
       ws,
-      (gameState) => processOrdnance(gameState, playerId, launches, this.map, Math.random),
+      (gameState) =>
+        processOrdnance(gameState, playerId, launches, this.map, Math.random),
       async (result) => {
-        await this.publishStateChange(result.state, toMovementResultMessage(result));
+        await this.publishStateChange(
+          result.state,
+          toMovementResultMessage(result),
+        );
       },
     );
   }
 
-  private async handleEmplaceBase(playerId: number, ws: WebSocket, emplacements: OrbitalBaseEmplacement[]) {
+  private async handleEmplaceBase(
+    playerId: number,
+    ws: WebSocket,
+    emplacements: OrbitalBaseEmplacement[],
+  ) {
     await this.runGameStateAction(
       ws,
-      (gameState) => processEmplacement(gameState, playerId, emplacements, this.map),
+      (gameState) =>
+        processEmplacement(gameState, playerId, emplacements, this.map),
       async (result) => {
-        await this.publishStateChange(result.state, toStateUpdateMessage(result.state), false);
+        await this.publishStateChange(
+          result.state,
+          toStateUpdateMessage(result.state),
+          false,
+        );
       },
     );
   }
@@ -528,17 +717,28 @@ export class GameDO extends DurableObject {
       ws,
       (gameState) => skipOrdnance(gameState, playerId, this.map, Math.random),
       async (result) => {
-        await this.publishStateChange(result.state, resolveMovementBroadcast(result, 'stateUpdate'));
+        await this.publishStateChange(
+          result.state,
+          resolveMovementBroadcast(result, 'stateUpdate'),
+        );
       },
     );
   }
 
-  private async handleCombat(playerId: number, ws: WebSocket, attacks: CombatAttack[]) {
+  private async handleCombat(
+    playerId: number,
+    ws: WebSocket,
+    attacks: CombatAttack[],
+  ) {
     await this.runGameStateAction(
       ws,
-      (gameState) => processCombat(gameState, playerId, attacks, this.map, Math.random),
+      (gameState) =>
+        processCombat(gameState, playerId, attacks, this.map, Math.random),
       async (result) => {
-        await this.publishStateChange(result.state, resolveCombatBroadcast(result)!);
+        await this.publishStateChange(
+          result.state,
+          resolveCombatBroadcast(result)!,
+        );
       },
     );
   }
@@ -546,9 +746,13 @@ export class GameDO extends DurableObject {
   private async handleBeginCombat(playerId: number, ws: WebSocket) {
     await this.runGameStateAction(
       ws,
-      (gameState) => beginCombatPhase(gameState, playerId, this.map, Math.random),
+      (gameState) =>
+        beginCombatPhase(gameState, playerId, this.map, Math.random),
       async (result) => {
-        await this.publishStateChange(result.state, resolveCombatBroadcast(result, 'stateUpdate'));
+        await this.publishStateChange(
+          result.state,
+          resolveCombatBroadcast(result, 'stateUpdate'),
+        );
       },
     );
   }
@@ -558,13 +762,18 @@ export class GameDO extends DurableObject {
       ws,
       (gameState) => skipCombat(gameState, playerId, this.map, Math.random),
       async (result) => {
-        await this.publishStateChange(result.state, resolveCombatBroadcast(result));
+        await this.publishStateChange(
+          result.state,
+          resolveCombatBroadcast(result),
+        );
       },
     );
   }
 
   private async handleRematch(playerId: number, _ws: WebSocket) {
-    const requests = (await this.ctx.storage.get<number[]>('rematchRequests')) ?? [];
+    const requests =
+      (await this.ctx.storage.get<number[]>('rematchRequests')) ?? [];
+
     if (!requests.includes(playerId)) {
       requests.push(playerId);
     }
@@ -582,9 +791,16 @@ export class GameDO extends DurableObject {
 
   private broadcastEndOrUpdate(state: GameState) {
     if (state.phase === 'gameOver') {
-      this.broadcast({ type: 'gameOver', winner: state.winner!, reason: state.winReason! });
+      this.broadcast({
+        type: 'gameOver',
+        winner: state.winner!,
+        reason: state.winReason!,
+      });
     } else {
-      this.broadcastFiltered({ type: 'stateUpdate', state });
+      this.broadcastFiltered({
+        type: 'stateUpdate',
+        state,
+      });
     }
   }
 
@@ -598,6 +814,7 @@ export class GameDO extends DurableObject {
 
   private broadcast(msg: S2C) {
     const data = JSON.stringify(msg);
+
     for (const ws of this.ctx.getWebSockets()) {
       try {
         ws.send(data);
@@ -606,12 +823,16 @@ export class GameDO extends DurableObject {
   }
 
   /**
-   * Broadcast a message containing game state, filtering hidden information per player.
+   * Broadcast a message containing game state,
+   * filtering hidden information per player.
    */
   private broadcastFiltered(msg: S2C & { state: GameState }) {
     const hasHiddenInfo =
       msg.state.scenarioRules.hiddenIdentityInspection ||
-      msg.state.ships.some((s) => s.hasFugitives || s.identityRevealed === false);
+      msg.state.ships.some(
+        (s) => s.hasFugitives || s.identityRevealed === false,
+      );
+
     if (!hasHiddenInfo) {
       this.broadcast(msg);
       return;
@@ -619,9 +840,16 @@ export class GameDO extends DurableObject {
 
     for (let playerId = 0; playerId < 2; playerId++) {
       const sockets = this.ctx.getWebSockets(`player:${playerId}`);
+
       if (sockets.length === 0) continue;
-      const filtered = { ...msg, state: filterStateForPlayer(msg.state, playerId) };
+
+      const filtered = {
+        ...msg,
+        state: filterStateForPlayer(msg.state, playerId),
+      };
+
       const data = JSON.stringify(filtered);
+
       for (const ws of sockets) {
         try {
           ws.send(data);

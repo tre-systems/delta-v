@@ -4,7 +4,12 @@ import { hexKey } from '../hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { GameState, Ship, SolarSystemMap } from '../types';
 import { createGame } from './game-engine';
-import { isAsteroidHex, processEmplacement, queueAsteroidHazards, resolvePendingAsteroidHazards } from './ordnance';
+import {
+  isAsteroidHex,
+  processEmplacement,
+  queueAsteroidHazards,
+  resolvePendingAsteroidHazards,
+} from './ordnance';
 
 let map: SolarSystemMap;
 
@@ -69,8 +74,22 @@ const makeMinimalState = (overrides: Partial<GameState> = {}): GameState =>
     phase: 'combat',
     activePlayer: 0,
     players: [
-      { connected: false, ready: false, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
-      { connected: false, ready: false, targetBody: '', homeBody: 'Venus', bases: [], escapeWins: false },
+      {
+        connected: false,
+        ready: false,
+        targetBody: '',
+        homeBody: 'Mars',
+        bases: [],
+        escapeWins: false,
+      },
+      {
+        connected: false,
+        ready: false,
+        targetBody: '',
+        homeBody: 'Venus',
+        bases: [],
+        escapeWins: false,
+      },
     ],
     ships: [],
     ordnance: [],
@@ -90,7 +109,10 @@ describe('queueAsteroidHazards', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const ship = makeTestShip({ position: { q: -1, r: 0 }, velocity: { dq: 2, dr: 0 } });
+    const ship = makeTestShip({
+      position: { q: -1, r: 0 },
+      velocity: { dq: 2, dr: 0 },
+    });
     const state = makeMinimalState({ ships: [ship] });
     const path = [
       { q: -1, r: 0 },
@@ -109,7 +131,10 @@ describe('queueAsteroidHazards', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const ship = makeTestShip({ position: { q: 0, r: 0 }, velocity: { dq: 1, dr: 0 } });
+    const ship = makeTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+    });
     const state = makeMinimalState({ ships: [ship] });
     const path = [
       { q: 0, r: 0 },
@@ -126,7 +151,10 @@ describe('queueAsteroidHazards', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const ship = makeTestShip({ position: { q: 0, r: 0 }, velocity: { dq: 2, dr: 0 } });
+    const ship = makeTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 2, dr: 0 },
+    });
     const state = makeMinimalState({ ships: [ship] });
     const path = [
       { q: 0, r: 0 },
@@ -145,7 +173,10 @@ describe('queueAsteroidHazards', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const ship = makeTestShip({ position: { q: 0, r: 0 }, velocity: { dq: 2, dr: -1 } });
+    const ship = makeTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 2, dr: -1 },
+    });
     const state = makeMinimalState({ ships: [ship] });
     const path = [
       { q: 0, r: 0 },
@@ -167,7 +198,10 @@ describe('queueAsteroidHazards', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const ship = makeTestShip({ position: { q: 0, r: 0 }, velocity: { dq: 2, dr: -1 } });
+    const ship = makeTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 2, dr: -1 },
+    });
     const state = makeMinimalState({ ships: [ship] });
     const path = [
       { q: 0, r: 0 },
@@ -187,7 +221,10 @@ describe('queueAsteroidHazards', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const ship = makeTestShip({ position: { q: 0, r: 0 }, velocity: { dq: 3, dr: 0 } });
+    const ship = makeTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 3, dr: 0 },
+    });
     const state = makeMinimalState({ ships: [ship] });
     const path = [
       { q: 0, r: 0 },
@@ -206,8 +243,14 @@ describe('queueAsteroidHazards', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const ship = makeTestShip({ position: { q: -1, r: 0 }, velocity: { dq: 2, dr: 0 } });
-    const state = makeMinimalState({ ships: [ship], destroyedAsteroids: ['1,0'] });
+    const ship = makeTestShip({
+      position: { q: -1, r: 0 },
+      velocity: { dq: 2, dr: 0 },
+    });
+    const state = makeMinimalState({
+      ships: [ship],
+      destroyedAsteroids: ['1,0'],
+    });
     const path = [
       { q: -1, r: 0 },
       { q: 0, r: 0 },
@@ -228,7 +271,10 @@ describe('queueAsteroidHazards', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const ship = makeTestShip({ position: { q: 0, r: 0 }, velocity: { dq: 4, dr: -2 } });
+    const ship = makeTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 4, dr: -2 },
+    });
     const state = makeMinimalState({ ships: [ship] });
     const path = [
       { q: 0, r: 0 },
@@ -332,7 +378,12 @@ describe('processEmplacement', () => {
   it('rejects emplacement outside ordnance phase', () => {
     const state = createConvoyGame();
     state.phase = 'astrogation';
-    const ship = makeTransportWithBase(state, 0, { q: -9, r: -6 }, { dq: 0, dr: 0 });
+    const ship = makeTransportWithBase(
+      state,
+      0,
+      { q: -9, r: -6 },
+      { dq: 0, dr: 0 },
+    );
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
     expect('error' in result).toBe(true);
   });
@@ -341,7 +392,12 @@ describe('processEmplacement', () => {
     const state = createConvoyGame();
     state.phase = 'ordnance';
     state.activePlayer = 0;
-    const ship = makeTransportWithBase(state, 0, { q: -9, r: -6 }, { dq: 0, dr: 0 });
+    const ship = makeTransportWithBase(
+      state,
+      0,
+      { q: -9, r: -6 },
+      { dq: 0, dr: 0 },
+    );
     const result = processEmplacement(state, 1, [{ shipId: ship.id }], map);
     expect('error' in result).toBe(true);
   });
@@ -350,7 +406,12 @@ describe('processEmplacement', () => {
     const state = createConvoyGame();
     state.phase = 'ordnance';
     state.activePlayer = 0;
-    const ship = makeTransportWithBase(state, 0, { q: -9, r: -6 }, { dq: 0, dr: 0 });
+    const ship = makeTransportWithBase(
+      state,
+      0,
+      { q: -9, r: -6 },
+      { dq: 0, dr: 0 },
+    );
     ship.carryingOrbitalBase = false;
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
     expect('error' in result).toBe(true);
@@ -362,7 +423,10 @@ describe('processEmplacement', () => {
     state.activePlayer = 0;
     // Place at a gravity hex but with speed 0 (not orbiting)
     const marsGravityHex = { q: -9, r: -6 }; // Mars gravity ring
-    const ship = makeTransportWithBase(state, 0, marsGravityHex, { dq: 0, dr: 0 });
+    const ship = makeTransportWithBase(state, 0, marsGravityHex, {
+      dq: 0,
+      dr: 0,
+    });
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
     expect('error' in result).toBe(true);
   });
@@ -373,7 +437,10 @@ describe('processEmplacement', () => {
     state.activePlayer = 0;
     // Place at a gravity hex with speed 1 (orbiting)
     const marsGravityHex = { q: -9, r: -6 };
-    const ship = makeTransportWithBase(state, 0, marsGravityHex, { dq: 1, dr: 0 });
+    const ship = makeTransportWithBase(state, 0, marsGravityHex, {
+      dq: 1,
+      dr: 0,
+    });
     const shipsBefore = state.ships.length;
 
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
@@ -393,7 +460,10 @@ describe('processEmplacement', () => {
     state.phase = 'ordnance';
     state.activePlayer = 0;
     const marsGravityHex = { q: -9, r: -6 };
-    const ship = makeTransportWithBase(state, 0, marsGravityHex, { dq: 1, dr: 0 });
+    const ship = makeTransportWithBase(state, 0, marsGravityHex, {
+      dq: 1,
+      dr: 0,
+    });
     ship.cargoUsed = ORBITAL_BASE_MASS + 10;
 
     processEmplacement(state, 0, [{ shipId: ship.id }], map);
@@ -405,7 +475,12 @@ describe('processEmplacement', () => {
     const state = createConvoyGame();
     state.phase = 'ordnance';
     state.activePlayer = 0;
-    const ship = makeTransportWithBase(state, 0, { q: -9, r: -6 }, { dq: 1, dr: 0 });
+    const ship = makeTransportWithBase(
+      state,
+      0,
+      { q: -9, r: -6 },
+      { dq: 1, dr: 0 },
+    );
     ship.destroyed = true;
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
     expect('error' in result).toBe(true);
@@ -415,7 +490,12 @@ describe('processEmplacement', () => {
     const state = createConvoyGame();
     state.phase = 'ordnance';
     state.activePlayer = 0;
-    const ship = makeTransportWithBase(state, 0, { q: -9, r: -6 }, { dq: 1, dr: 0 });
+    const ship = makeTransportWithBase(
+      state,
+      0,
+      { q: -9, r: -6 },
+      { dq: 1, dr: 0 },
+    );
     ship.resuppliedThisTurn = true;
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
     expect('error' in result).toBe(true);
@@ -427,7 +507,10 @@ describe('processEmplacement', () => {
     state.activePlayer = 0;
     // Mars surface hex in gravity field, landed
     const marsGravityHex = { q: -9, r: -6 };
-    const ship = makeTransportWithBase(state, 0, marsGravityHex, { dq: 0, dr: 0 });
+    const ship = makeTransportWithBase(state, 0, marsGravityHex, {
+      dq: 0,
+      dr: 0,
+    });
     ship.landed = true;
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
     expect('error' in result).toBe(false);
@@ -437,7 +520,12 @@ describe('processEmplacement', () => {
     const state = createConvoyGame();
     state.phase = 'ordnance';
     state.activePlayer = 0;
-    const ship = makeTransportWithBase(state, 0, { q: -9, r: -6 }, { dq: 1, dr: 0 });
+    const ship = makeTransportWithBase(
+      state,
+      0,
+      { q: -9, r: -6 },
+      { dq: 1, dr: 0 },
+    );
     ship.type = 'corvette';
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
     expect('error' in result).toBe(true);

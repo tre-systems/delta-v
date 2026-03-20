@@ -25,7 +25,10 @@ describe('hex arithmetic', () => {
   });
 
   it('hexSubtract computes displacement', () => {
-    expect(hexSubtract({ q: 5, r: 3 }, { q: 2, r: 1 })).toEqual({ dq: 3, dr: 2 });
+    expect(hexSubtract({ q: 5, r: 3 }, { q: 2, r: 1 })).toEqual({
+      dq: 3,
+      dr: 2,
+    });
   });
 
   it('hexEqual compares coordinates', () => {
@@ -250,8 +253,12 @@ describe('analyzeHexLine', () => {
     // Both should have the same number of ambiguous pairs
     expect(forward.ambiguousPairs).toHaveLength(backward.ambiguousPairs.length);
     // The ambiguous hex keys should be the same (order may differ)
-    const fwdPairKeys = forward.ambiguousPairs.map(([a, b]) => [hexKey(a), hexKey(b)].sort().join('|'));
-    const bwdPairKeys = backward.ambiguousPairs.map(([a, b]) => [hexKey(a), hexKey(b)].sort().join('|'));
+    const fwdPairKeys = forward.ambiguousPairs.map(([a, b]) =>
+      [hexKey(a), hexKey(b)].sort().join('|'),
+    );
+    const bwdPairKeys = backward.ambiguousPairs.map(([a, b]) =>
+      [hexKey(a), hexKey(b)].sort().join('|'),
+    );
     expect(fwdPairKeys.sort()).toEqual(bwdPairKeys.sort());
   });
 

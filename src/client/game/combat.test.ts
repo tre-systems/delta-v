@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { CombatAttack, GameState, Ordnance, PlayerState, Ship, SolarSystemMap } from '../../shared/types';
+import type {
+  CombatAttack,
+  GameState,
+  Ordnance,
+  PlayerState,
+  Ship,
+  SolarSystemMap,
+} from '../../shared/types';
 import {
   buildCurrentAttack,
   countRemainingCombatAttackers,
@@ -49,8 +56,22 @@ function createOrdnance(overrides: Partial<Ordnance> = {}): Ordnance {
 
 function createPlayers(): [PlayerState, PlayerState] {
   return [
-    { connected: true, ready: true, targetBody: '', homeBody: 'Terra', bases: [], escapeWins: false },
-    { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Terra',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
   ];
 }
 
@@ -65,9 +86,24 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     activePlayer: 0,
     ships: [
       createShip({ id: 'a', owner: 0, type: 'corsair' }),
-      createShip({ id: 'b', owner: 0, type: 'corvette', position: { q: 0, r: 1 } }),
-      createShip({ id: 'x', owner: 1, type: 'frigate', position: { q: 1, r: 0 } }),
-      createShip({ id: 'y', owner: 1, type: 'packet', position: { q: 1, r: 0 } }),
+      createShip({
+        id: 'b',
+        owner: 0,
+        type: 'corvette',
+        position: { q: 0, r: 1 },
+      }),
+      createShip({
+        id: 'x',
+        owner: 1,
+        type: 'frigate',
+        position: { q: 1, r: 0 },
+      }),
+      createShip({
+        id: 'y',
+        owner: 1,
+        type: 'packet',
+        position: { q: 1, r: 0 },
+      }),
     ],
     ordnance: [],
     pendingAstrogationOrders: null,
@@ -91,7 +127,12 @@ describe('game client combat helpers', () => {
   it('reuses a split-fire group against another target in the same hex', () => {
     const state = createState();
     const queuedAttacks: CombatAttack[] = [
-      { attackerIds: ['a', 'b'], targetId: 'x', targetType: 'ship', attackStrength: 3 },
+      {
+        attackerIds: ['a', 'b'],
+        targetId: 'x',
+        targetType: 'ship',
+        attackStrength: 3,
+      },
     ];
 
     expect(getReusableCombatGroup(state, 0, queuedAttacks, 'y')).toEqual({
@@ -152,7 +193,12 @@ describe('game client combat helpers', () => {
   it('counts only uncommitted attackers and computes selected strength', () => {
     const state = createState();
     const queuedAttacks: CombatAttack[] = [
-      { attackerIds: ['a'], targetId: 'x', targetType: 'ship', attackStrength: 4 },
+      {
+        attackerIds: ['a'],
+        targetId: 'x',
+        targetType: 'ship',
+        attackStrength: 4,
+      },
     ];
 
     expect(countRemainingCombatAttackers(state, 0, queuedAttacks)).toBe(1);
@@ -160,13 +206,22 @@ describe('game client combat helpers', () => {
   });
 
   it('finds clickable attackers and targets while ignoring queued ships', () => {
-    const state = createState({ ordnance: [createOrdnance({ position: { q: 2, r: 0 } })] });
+    const state = createState({
+      ordnance: [createOrdnance({ position: { q: 2, r: 0 } })],
+    });
     const queuedAttacks: CombatAttack[] = [
-      { attackerIds: ['a'], targetId: 'x', targetType: 'ship', attackStrength: 4 },
+      {
+        attackerIds: ['a'],
+        targetId: 'x',
+        targetType: 'ship',
+        attackStrength: 4,
+      },
     ];
 
     expect(getCombatAttackerIdAtHex(state, 0, { q: 0, r: 1 })).toBe('b');
-    expect(getCombatTargetAtHex(state, 0, { q: 2, r: 0 }, queuedAttacks)).toEqual({
+    expect(
+      getCombatTargetAtHex(state, 0, { q: 2, r: 0 }, queuedAttacks),
+    ).toEqual({
       targetId: 'ord-0',
       targetType: 'ordnance',
     });
@@ -174,7 +229,9 @@ describe('game client combat helpers', () => {
       targetId: 'x',
       targetType: 'ship',
     });
-    expect(getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, queuedAttacks)).not.toEqual({
+    expect(
+      getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, queuedAttacks),
+    ).not.toEqual({
       targetId: 'x',
       targetType: 'ship',
     });
@@ -186,7 +243,12 @@ describe('game client combat helpers', () => {
       ships: [
         createShip({ id: 'a', owner: 0, type: 'corsair', position: hex }),
         createShip({ id: 'b', owner: 0, type: 'corvette', position: hex }),
-        createShip({ id: 'x', owner: 1, type: 'frigate', position: { q: 1, r: 0 } }),
+        createShip({
+          id: 'x',
+          owner: 1,
+          type: 'frigate',
+          position: { q: 1, r: 0 },
+        }),
       ],
     });
 
@@ -203,7 +265,12 @@ describe('game client combat helpers', () => {
   it('creates and clears combat target plans from reusable or legal groups', () => {
     const state = createState();
     const queuedAttacks: CombatAttack[] = [
-      { attackerIds: ['a', 'b'], targetId: 'x', targetType: 'ship', attackStrength: 3 },
+      {
+        attackerIds: ['a', 'b'],
+        targetId: 'x',
+        targetType: 'ship',
+        attackStrength: 3,
+      },
     ];
 
     expect(
@@ -246,15 +313,23 @@ describe('game client combat helpers', () => {
       queuedAttacks: [],
     };
 
-    expect(getLegalCombatAttackers(state, 0, planning.queuedAttacks, 'x', 'ship', map).map((ship) => ship.id)).toEqual([
-      'a',
-      'b',
-    ]);
-    expect(toggleCombatAttackerSelection(state, 0, planning, map, 'b')).toEqual({
-      consumed: true,
-      combatAttackerIds: ['a'],
-      combatAttackStrength: 4,
-    });
+    expect(
+      getLegalCombatAttackers(
+        state,
+        0,
+        planning.queuedAttacks,
+        'x',
+        'ship',
+        map,
+      ).map((ship) => ship.id),
+    ).toEqual(['a', 'b']);
+    expect(toggleCombatAttackerSelection(state, 0, planning, map, 'b')).toEqual(
+      {
+        consumed: true,
+        combatAttackerIds: ['a'],
+        combatAttackStrength: 4,
+      },
+    );
     expect(
       toggleCombatAttackerSelection(
         state,

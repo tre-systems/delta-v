@@ -49,11 +49,16 @@ beforeEach(() => {
 describe('movement invariants', () => {
   it('fuel spent is never negative', () => {
     fc.assert(
-      fc.property(arbOpenPosition(), arbSmallVelocity(), arbOptionalBurn(), (pos, vel, burn) => {
-        const ship = makeShip({ position: pos, velocity: vel });
-        const course = computeCourse(ship, burn, map);
-        expect(course.fuelSpent).toBeGreaterThanOrEqual(0);
-      }),
+      fc.property(
+        arbOpenPosition(),
+        arbSmallVelocity(),
+        arbOptionalBurn(),
+        (pos, vel, burn) => {
+          const ship = makeShip({ position: pos, velocity: vel });
+          const course = computeCourse(ship, burn, map);
+          expect(course.fuelSpent).toBeGreaterThanOrEqual(0);
+        },
+      ),
     );
   });
 
@@ -86,7 +91,11 @@ describe('movement invariants', () => {
   it('burn costs exactly 1 fuel when ship has fuel', () => {
     fc.assert(
       fc.property(arbOpenPosition(), arbBurnDirection(), (pos, dir) => {
-        const ship = makeShip({ position: pos, velocity: { dq: 0, dr: 0 }, fuel: 20 });
+        const ship = makeShip({
+          position: pos,
+          velocity: { dq: 0, dr: 0 },
+          fuel: 20,
+        });
         const course = computeCourse(ship, dir, map);
         expect(course.fuelSpent).toBe(1);
       }),
@@ -95,35 +104,56 @@ describe('movement invariants', () => {
 
   it('path starts at ship position', () => {
     fc.assert(
-      fc.property(arbOpenPosition(), arbSmallVelocity(), arbOptionalBurn(), (pos, vel, burn) => {
-        const ship = makeShip({ position: pos, velocity: vel });
-        const course = computeCourse(ship, burn, map);
-        expect(hexEqual(course.path[0], pos)).toBe(true);
-      }),
+      fc.property(
+        arbOpenPosition(),
+        arbSmallVelocity(),
+        arbOptionalBurn(),
+        (pos, vel, burn) => {
+          const ship = makeShip({ position: pos, velocity: vel });
+          const course = computeCourse(ship, burn, map);
+          expect(hexEqual(course.path[0], pos)).toBe(true);
+        },
+      ),
     );
   });
 
   it('path ends at destination', () => {
     fc.assert(
-      fc.property(arbOpenPosition(), arbSmallVelocity(), arbOptionalBurn(), (pos, vel, burn) => {
-        const ship = makeShip({ position: pos, velocity: vel });
-        const course = computeCourse(ship, burn, map);
-        expect(hexEqual(course.path[course.path.length - 1], course.destination)).toBe(true);
-      }),
+      fc.property(
+        arbOpenPosition(),
+        arbSmallVelocity(),
+        arbOptionalBurn(),
+        (pos, vel, burn) => {
+          const ship = makeShip({ position: pos, velocity: vel });
+          const course = computeCourse(ship, burn, map);
+          expect(
+            hexEqual(course.path[course.path.length - 1], course.destination),
+          ).toBe(true);
+        },
+      ),
     );
   });
 
   it('new velocity equals destination minus position (in open space without gravity)', () => {
     fc.assert(
-      fc.property(arbOpenPosition(), arbSmallVelocity(), arbOptionalBurn(), (pos, vel, burn) => {
-        const ship = makeShip({ position: pos, velocity: vel, pendingGravityEffects: [] });
-        const course = computeCourse(ship, burn, map);
-        // Only check when no gravity effects were applied
-        if (course.gravityEffects.length === 0) {
-          const expectedVel = hexSubtract(course.destination, pos);
-          expect(course.newVelocity).toEqual(expectedVel);
-        }
-      }),
+      fc.property(
+        arbOpenPosition(),
+        arbSmallVelocity(),
+        arbOptionalBurn(),
+        (pos, vel, burn) => {
+          const ship = makeShip({
+            position: pos,
+            velocity: vel,
+            pendingGravityEffects: [],
+          });
+          const course = computeCourse(ship, burn, map);
+          // Only check when no gravity effects were applied
+          if (course.gravityEffects.length === 0) {
+            const expectedVel = hexSubtract(course.destination, pos);
+            expect(course.newVelocity).toEqual(expectedVel);
+          }
+        },
+      ),
     );
   });
 
@@ -140,13 +170,18 @@ describe('movement invariants', () => {
 
   it('consecutive path hexes are distance 1 apart', () => {
     fc.assert(
-      fc.property(arbOpenPosition(), arbSmallVelocity(), arbOptionalBurn(), (pos, vel, burn) => {
-        const ship = makeShip({ position: pos, velocity: vel });
-        const course = computeCourse(ship, burn, map);
-        for (let i = 1; i < course.path.length; i++) {
-          expect(hexDistance(course.path[i - 1], course.path[i])).toBe(1);
-        }
-      }),
+      fc.property(
+        arbOpenPosition(),
+        arbSmallVelocity(),
+        arbOptionalBurn(),
+        (pos, vel, burn) => {
+          const ship = makeShip({ position: pos, velocity: vel });
+          const course = computeCourse(ship, burn, map);
+          for (let i = 1; i < course.path.length; i++) {
+            expect(hexDistance(course.path[i - 1], course.path[i])).toBe(1);
+          }
+        },
+      ),
     );
   });
 });
@@ -170,17 +205,26 @@ describe('velocity and burn relationship', () => {
 
   it('burn adds direction vector to existing velocity (no gravity)', () => {
     fc.assert(
-      fc.property(arbOpenPosition(), arbSmallVelocity(), arbBurnDirection(), (pos, vel, dir) => {
-        const ship = makeShip({ position: pos, velocity: vel, pendingGravityEffects: [] });
-        const course = computeCourse(ship, dir, map);
-        if (course.gravityEffects.length === 0 && !course.crashed) {
-          const expected: HexVec = {
-            dq: vel.dq + HEX_DIRECTIONS[dir].dq,
-            dr: vel.dr + HEX_DIRECTIONS[dir].dr,
-          };
-          expect(course.newVelocity).toEqual(expected);
-        }
-      }),
+      fc.property(
+        arbOpenPosition(),
+        arbSmallVelocity(),
+        arbBurnDirection(),
+        (pos, vel, dir) => {
+          const ship = makeShip({
+            position: pos,
+            velocity: vel,
+            pendingGravityEffects: [],
+          });
+          const course = computeCourse(ship, dir, map);
+          if (course.gravityEffects.length === 0 && !course.crashed) {
+            const expected: HexVec = {
+              dq: vel.dq + HEX_DIRECTIONS[dir].dq,
+              dr: vel.dr + HEX_DIRECTIONS[dir].dr,
+            };
+            expect(course.newVelocity).toEqual(expected);
+          }
+        },
+      ),
     );
   });
 });
@@ -188,31 +232,41 @@ describe('velocity and burn relationship', () => {
 describe('overload mechanics', () => {
   it('overload costs exactly 2 fuel for warships', () => {
     fc.assert(
-      fc.property(arbOpenPosition(), arbBurnDirection(), arbBurnDirection(), (pos, burn, overload) => {
-        const ship = makeShip({
-          position: pos,
-          velocity: { dq: 0, dr: 0 },
-          type: 'corvette',
-          fuel: 20,
-        });
-        const course = computeCourse(ship, burn, map, { overload });
-        expect(course.fuelSpent).toBe(2);
-      }),
+      fc.property(
+        arbOpenPosition(),
+        arbBurnDirection(),
+        arbBurnDirection(),
+        (pos, burn, overload) => {
+          const ship = makeShip({
+            position: pos,
+            velocity: { dq: 0, dr: 0 },
+            type: 'corvette',
+            fuel: 20,
+          });
+          const course = computeCourse(ship, burn, map, { overload });
+          expect(course.fuelSpent).toBe(2);
+        },
+      ),
     );
   });
 
   it('overload has no effect on non-warships', () => {
     fc.assert(
-      fc.property(arbOpenPosition(), arbBurnDirection(), arbBurnDirection(), (pos, burn, overload) => {
-        const ship = makeShip({
-          position: pos,
-          velocity: { dq: 0, dr: 0 },
-          type: 'transport',
-          fuel: 10,
-        });
-        const course = computeCourse(ship, burn, map, { overload });
-        expect(course.fuelSpent).toBe(1);
-      }),
+      fc.property(
+        arbOpenPosition(),
+        arbBurnDirection(),
+        arbBurnDirection(),
+        (pos, burn, overload) => {
+          const ship = makeShip({
+            position: pos,
+            velocity: { dq: 0, dr: 0 },
+            type: 'transport',
+            fuel: 10,
+          });
+          const course = computeCourse(ship, burn, map, { overload });
+          expect(course.fuelSpent).toBe(1);
+        },
+      ),
     );
   });
 
@@ -236,7 +290,11 @@ describe('landed ship properties', () => {
   it('landed ship with no burn stays at position', () => {
     fc.assert(
       fc.property(arbOpenPosition(), (pos) => {
-        const ship = makeShip({ position: pos, landed: true, velocity: { dq: 0, dr: 0 } });
+        const ship = makeShip({
+          position: pos,
+          landed: true,
+          velocity: { dq: 0, dr: 0 },
+        });
         const course = computeCourse(ship, null, map);
         expect(hexEqual(course.destination, pos)).toBe(true);
         expect(course.fuelSpent).toBe(0);
@@ -249,26 +307,36 @@ describe('landed ship properties', () => {
 describe('ship type fuel constraints', () => {
   it('zero-fuel ship cannot burn', () => {
     fc.assert(
-      fc.property(arbOpenPosition(), arbSmallVelocity(), arbBurnDirection(), (pos, vel, dir) => {
-        const ship = makeShip({ position: pos, velocity: vel, fuel: 0 });
-        const course = computeCourse(ship, dir, map);
-        expect(course.fuelSpent).toBe(0);
-      }),
+      fc.property(
+        arbOpenPosition(),
+        arbSmallVelocity(),
+        arbBurnDirection(),
+        (pos, vel, dir) => {
+          const ship = makeShip({ position: pos, velocity: vel, fuel: 0 });
+          const course = computeCourse(ship, dir, map);
+          expect(course.fuelSpent).toBe(0);
+        },
+      ),
     );
   });
 
   it('ship with 1 fuel cannot overload', () => {
     fc.assert(
-      fc.property(arbOpenPosition(), arbBurnDirection(), arbBurnDirection(), (pos, burn, overload) => {
-        const ship = makeShip({
-          position: pos,
-          velocity: { dq: 0, dr: 0 },
-          type: 'corvette',
-          fuel: 1,
-        });
-        const course = computeCourse(ship, burn, map, { overload });
-        expect(course.fuelSpent).toBe(1);
-      }),
+      fc.property(
+        arbOpenPosition(),
+        arbBurnDirection(),
+        arbBurnDirection(),
+        (pos, burn, overload) => {
+          const ship = makeShip({
+            position: pos,
+            velocity: { dq: 0, dr: 0 },
+            type: 'corvette',
+            fuel: 1,
+          });
+          const course = computeCourse(ship, burn, map, { overload });
+          expect(course.fuelSpent).toBe(1);
+        },
+      ),
     );
   });
 });

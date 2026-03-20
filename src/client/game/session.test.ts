@@ -46,19 +46,28 @@ describe('game client session helpers', () => {
       STALE: { inviteToken: 'it-1', ts: 0 },
     };
 
-    const pruned = saveTokenStore({ setItem }, store, 1000, TOKEN_STORE_KEY, 200);
+    const pruned = saveTokenStore(
+      { setItem },
+      store,
+      1000,
+      TOKEN_STORE_KEY,
+      200,
+    );
 
     expect(pruned).toEqual({
       FRESH: { playerToken: 'pt-1', ts: 900 },
     });
     expect(pruneExpiredTokens(store, 1000, 200)).toEqual(pruned);
-    expect(setItem).toHaveBeenCalledWith(TOKEN_STORE_KEY, JSON.stringify(pruned));
+    expect(setItem).toHaveBeenCalledWith(
+      TOKEN_STORE_KEY,
+      JSON.stringify(pruned),
+    );
   });
 
   it('builds invite links, routes, and websocket URLs with optional tokens', () => {
-    expect(buildInviteLink('https://delta-v.example', 'ABCDE', 'invite token')).toBe(
-      'https://delta-v.example/?code=ABCDE&playerToken=invite%20token',
-    );
+    expect(
+      buildInviteLink('https://delta-v.example', 'ABCDE', 'invite token'),
+    ).toBe('https://delta-v.example/?code=ABCDE&playerToken=invite%20token');
     expect(buildGameRoute('ABCDE')).toBe('/?code=ABCDE');
     expect(
       buildWebSocketUrl(

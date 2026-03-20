@@ -20,7 +20,10 @@ describe('el', () => {
   });
 
   it('toggles classes from classList prop', () => {
-    const div = el('div', { class: 'base', classList: { active: true, disabled: false } });
+    const div = el('div', {
+      class: 'base',
+      classList: { active: true, disabled: false },
+    });
     expect(div.classList.contains('base')).toBe(true);
     expect(div.classList.contains('active')).toBe(true);
     expect(div.classList.contains('disabled')).toBe(false);
@@ -106,7 +109,12 @@ describe('el', () => {
   });
 
   it('appends HTMLElement children', () => {
-    const parent = el('div', undefined, el('span', { text: 'first' }), el('span', { text: 'second' }));
+    const parent = el(
+      'div',
+      undefined,
+      el('span', { text: 'first' }),
+      el('span', { text: 'second' }),
+    );
     expect(parent.children.length).toBe(2);
     expect(parent.children[0].textContent).toBe('first');
     expect(parent.children[1].textContent).toBe('second');
@@ -120,7 +128,13 @@ describe('el', () => {
   });
 
   it('mixes element and string children', () => {
-    const parent = el('div', undefined, 'text before ', el('b', { text: 'bold' }), ' text after');
+    const parent = el(
+      'div',
+      undefined,
+      'text before ',
+      el('b', { text: 'bold' }),
+      ' text after',
+    );
     expect(parent.textContent).toBe('text before bold text after');
     expect(parent.childNodes.length).toBe(3);
   });

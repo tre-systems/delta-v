@@ -1,13 +1,21 @@
 /**
- * Low-level Canvas drawing primitives for ships, ordnance, and movement interpolation.
- * Pure functions extracted from Renderer — no class state dependencies.
+ * Low-level Canvas drawing primitives for ships, ordnance,
+ * and movement interpolation.
+ * Pure functions extracted from Renderer — no class state
+ * dependencies.
  */
 
 import { SHIP_STATS } from '../../shared/constants';
-import { type HexCoord, hexAdd, hexToPixel, type PixelCoord } from '../../shared/hex';
+import {
+  type HexCoord,
+  hexAdd,
+  hexToPixel,
+  type PixelCoord,
+} from '../../shared/hex';
 
 /**
- * Draw a ship icon (arrow or octagon for orbital base) at the given position.
+ * Draw a ship icon (arrow or octagon for orbital base)
+ * at the given position.
  */
 export const drawShipIcon = (
   ctx: CanvasRenderingContext2D,
@@ -19,9 +27,14 @@ export const drawShipIcon = (
   disabledTurns = 0,
   shipType = '',
 ): void => {
-  const color = owner === 0 ? `rgba(79, 195, 247, ${alpha})` : `rgba(255, 152, 0, ${alpha})`;
+  const color =
+    owner === 0
+      ? `rgba(79, 195, 247, ${alpha})`
+      : `rgba(255, 152, 0, ${alpha})`;
+
   const stats = SHIP_STATS[shipType];
   const combat = stats?.combat ?? 2;
+
   const size = combat >= 15 ? 12 : combat >= 8 ? 10 : combat >= 4 ? 9 : 8;
 
   ctx.save();
@@ -30,9 +43,17 @@ export const drawShipIcon = (
   // Damage glow for disabled ships (flickering red/orange)
   if (disabledTurns > 0) {
     const flickerPhase = performance.now() / 200 + x * 0.1;
-    const intensity = 0.3 + 0.2 * Math.sin(flickerPhase) + 0.1 * Math.sin(flickerPhase * 2.7);
-    const glowColor = disabledTurns >= 4 ? `rgba(255, 50, 50, ${intensity})` : `rgba(255, 150, 50, ${intensity})`;
+
+    const intensity =
+      0.3 + 0.2 * Math.sin(flickerPhase) + 0.1 * Math.sin(flickerPhase * 2.7);
+
+    const glowColor =
+      disabledTurns >= 4
+        ? `rgba(255, 50, 50, ${intensity})`
+        : `rgba(255, 150, 50, ${intensity})`;
+
     const glowRadius = 10 + disabledTurns;
+
     ctx.fillStyle = glowColor;
     ctx.beginPath();
     ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
@@ -42,17 +63,22 @@ export const drawShipIcon = (
   ctx.rotate(heading);
   ctx.fillStyle = color;
   ctx.beginPath();
+
   if (shipType === 'orbitalBase') {
     const r = 12;
+
     for (let i = 0; i < 8; i++) {
       const angle = (Math.PI * 2 * i) / 8 - Math.PI / 8;
       const px = Math.cos(angle) * r;
       const py = Math.sin(angle) * r;
+
       if (i === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
+
     ctx.closePath();
     ctx.fill();
+
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -66,6 +92,7 @@ export const drawShipIcon = (
     ctx.closePath();
     ctx.fill();
   }
+
   ctx.restore();
 };
 
@@ -105,13 +132,19 @@ export const drawThrustTrail = (
 };
 
 /**
- * Smoothly interpolate a position along a hex path with ease-in-out.
+ * Smoothly interpolate a position along a hex path
+ * with ease-in-out.
  */
-export const interpolatePath = (path: HexCoord[], progress: number, hexSize: number): PixelCoord => {
+export const interpolatePath = (
+  path: HexCoord[],
+  progress: number,
+  hexSize: number,
+): PixelCoord => {
   if (path.length <= 1) return hexToPixel(path[0], hexSize);
 
   // Ease in-out
-  const t = progress < 0.5 ? 2 * progress * progress : 1 - (-2 * progress + 2) ** 2 / 2;
+  const t =
+    progress < 0.5 ? 2 * progress * progress : 1 - (-2 * progress + 2) ** 2 / 2;
 
   const totalSegments = path.length - 1;
   const pathT = t * totalSegments;
@@ -128,7 +161,8 @@ export const interpolatePath = (path: HexCoord[], progress: number, hexSize: num
 };
 
 /**
- * Draw an ordnance velocity vector (dashed line from current position to next).
+ * Draw an ordnance velocity vector (dashed line from
+ * current position to next).
  */
 export const drawOrdnanceVelocity = (
   ctx: CanvasRenderingContext2D,
@@ -139,7 +173,9 @@ export const drawOrdnanceVelocity = (
   hexSize: number,
 ): void => {
   if (velocity.dq === 0 && velocity.dr === 0) return;
+
   const dest = hexToPixel(hexAdd(position, velocity), hexSize);
+
   ctx.strokeStyle = color;
   ctx.globalAlpha = 0.3;
   ctx.lineWidth = 0.5;

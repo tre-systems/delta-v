@@ -29,7 +29,12 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
 
 describe('ui formatters', () => {
   it('parses invite links and raw codes', () => {
-    expect(parseJoinInput(' https://delta-v.example/?code=abcde&playerToken=pt-1 ', 5)).toEqual({
+    expect(
+      parseJoinInput(
+        ' https://delta-v.example/?code=abcde&playerToken=pt-1 ',
+        5,
+      ),
+    ).toEqual({
       code: 'ABCDE',
       playerToken: 'pt-1',
     });
@@ -57,7 +62,10 @@ describe('ui formatters', () => {
   });
 
   it('formats movement event entries including captures', () => {
-    const ships = [createShip({ id: 'a', type: 'corsair' }), createShip({ id: 'b', type: 'corvette', owner: 1 })];
+    const ships = [
+      createShip({ id: 'a', type: 'corsair' }),
+      createShip({ id: 'b', type: 'corvette', owner: 1 }),
+    ];
     const capture: MovementEvent = {
       type: 'capture',
       shipId: 'b',

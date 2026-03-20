@@ -3,7 +3,9 @@ import { hexToPixel } from '../../shared/hex';
 import type { GameState, Ship } from '../../shared/types';
 
 const getOwnedShips = (state: GameState, playerId: number): Ship[] => {
-  return state.ships.filter((ship) => ship.owner === playerId && !ship.destroyed);
+  return state.ships.filter(
+    (ship) => ship.owner === playerId && !ship.destroyed,
+  );
 };
 
 export const getNextSelectedShip = (
@@ -13,11 +15,14 @@ export const getNextSelectedShip = (
   direction: number,
 ): Ship | null => {
   const ships = getOwnedShips(state, playerId);
+
   if (ships.length <= 1) {
     return null;
   }
+
   const currentIndex = ships.findIndex((ship) => ship.id === selectedShipId);
   const nextIndex = (currentIndex + direction + ships.length) % ships.length;
+
   return ships[nextIndex];
 };
 
@@ -28,7 +33,10 @@ export const getNearestEnemyPosition = (
   cameraY: number,
   hexSize: number,
 ): HexCoord | null => {
-  const enemies = state.ships.filter((ship) => ship.owner !== playerId && !ship.destroyed && ship.detected);
+  const enemies = state.ships.filter(
+    (ship) => ship.owner !== playerId && !ship.destroyed && ship.detected,
+  );
+
   if (enemies.length === 0) {
     return null;
   }
@@ -37,9 +45,14 @@ export const getNearestEnemyPosition = (
     const pixel = hexToPixel(ship.position, hexSize);
     const dx = pixel.x - cameraX;
     const dy = pixel.y - cameraY;
+
     return dx * dx + dy * dy;
   };
-  const nearest = enemies.reduce((best, enemy) => (distanceTo(enemy) < distanceTo(best) ? enemy : best));
+
+  const nearest = enemies.reduce((best, enemy) =>
+    distanceTo(enemy) < distanceTo(best) ? enemy : best,
+  );
+
   return nearest.position;
 };
 
@@ -49,8 +62,13 @@ export const getOwnFleetFocusPosition = (
   selectedShipId: string | null,
 ): HexCoord | null => {
   const ships = getOwnedShips(state, playerId);
+
   if (ships.length === 0) {
     return null;
   }
-  return ships.find((ship) => ship.id === selectedShipId)?.position ?? ships[0].position;
+
+  return (
+    ships.find((ship) => ship.id === selectedShipId)?.position ??
+    ships[0].position
+  );
 };

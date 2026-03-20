@@ -15,7 +15,11 @@ export interface AstrogationActionDeps {
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
 }
 
-export const setBurnDirection = (deps: AstrogationActionDeps, dir: number | null, shipId?: string) => {
+export const setBurnDirection = (
+  deps: AstrogationActionDeps,
+  dir: number | null,
+  shipId?: string,
+) => {
   if (deps.getClientState() !== 'playing_astrogation') return;
   const targetId = shipId ?? deps.planningState.selectedShipId;
   if (!targetId) return;
@@ -29,7 +33,12 @@ export const setBurnDirection = (deps: AstrogationActionDeps, dir: number | null
   }
 
   const currentBurn = deps.planningState.burns.get(targetId) ?? null;
-  const plan = deriveBurnChangePlan(deps.getGameState(), targetId, dir, currentBurn);
+  const plan = deriveBurnChangePlan(
+    deps.getGameState(),
+    targetId,
+    dir,
+    currentBurn,
+  );
 
   if (plan.kind === 'error') {
     deps.showToast(plan.message, plan.level!);
@@ -48,7 +57,8 @@ export const setBurnDirection = (deps: AstrogationActionDeps, dir: number | null
 };
 
 export const clearSelectedBurn = (deps: AstrogationActionDeps) => {
-  if (!deps.getGameState() || deps.getClientState() !== 'playing_astrogation') return;
+  if (!deps.getGameState() || deps.getClientState() !== 'playing_astrogation')
+    return;
   const shipId = deps.planningState.selectedShipId;
   if (!shipId) return;
   deps.planningState.burns.delete(shipId);
@@ -58,7 +68,8 @@ export const clearSelectedBurn = (deps: AstrogationActionDeps) => {
 };
 
 export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
-  if (!deps.getGameState() || deps.getClientState() !== 'playing_astrogation') return;
+  if (!deps.getGameState() || deps.getClientState() !== 'playing_astrogation')
+    return;
   const shipId = deps.planningState.selectedShipId;
   if (shipId) {
     deps.planningState.burns.delete(shipId);
@@ -71,8 +82,17 @@ export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
 export const confirmOrders = (deps: AstrogationActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
-  if (!gameState || deps.getClientState() !== 'playing_astrogation' || !transport) return;
-  const orders = buildAstrogationOrders(gameState, deps.getPlayerId(), deps.planningState);
+  if (
+    !gameState ||
+    deps.getClientState() !== 'playing_astrogation' ||
+    !transport
+  )
+    return;
+  const orders = buildAstrogationOrders(
+    gameState,
+    deps.getPlayerId(),
+    deps.planningState,
+  );
 
   playConfirm();
   transport.submitAstrogation(orders);

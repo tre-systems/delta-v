@@ -32,7 +32,9 @@ function createState(ships: Ship[]): Pick<GameState, 'ships'> {
 }
 
 function createPlanning(
-  overrides: Partial<Pick<PlanningState, 'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'>> = {},
+  overrides: Partial<
+    Pick<PlanningState, 'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'>
+  > = {},
 ) {
   return {
     selectedShipId: 'ship-1',
@@ -44,8 +46,12 @@ function createPlanning(
 
 describe('game-client-ordnance', () => {
   it('checks whether a ship can launch any ordnance', () => {
-    expect(canShipLaunchAnyOrdnance(createShip({ type: 'packet', cargoUsed: 0 }))).toBe(true);
-    expect(canShipLaunchAnyOrdnance(createShip({ type: 'packet', cargoUsed: 50 }))).toBe(false);
+    expect(
+      canShipLaunchAnyOrdnance(createShip({ type: 'packet', cargoUsed: 0 })),
+    ).toBe(true);
+    expect(
+      canShipLaunchAnyOrdnance(createShip({ type: 'packet', cargoUsed: 50 })),
+    ).toBe(false);
   });
 
   it('finds the first launchable ship for the active player', () => {
@@ -79,25 +85,45 @@ describe('game-client-ordnance', () => {
   it('rejects missing selection and invalid launch conditions', () => {
     const state = createState([createShip()]);
 
-    expect(resolveOrdnanceLaunchPlan(state, createPlanning({ selectedShipId: null }), 'mine')).toEqual({
+    expect(
+      resolveOrdnanceLaunchPlan(
+        state,
+        createPlanning({ selectedShipId: null }),
+        'mine',
+      ),
+    ).toEqual({
       ok: false,
       message: 'Select a ship first',
       level: 'info',
     });
-    expect(resolveOrdnanceLaunchPlan(createState([createShip({ landed: true })]), createPlanning(), 'mine')).toEqual({
+    expect(
+      resolveOrdnanceLaunchPlan(
+        createState([createShip({ landed: true })]),
+        createPlanning(),
+        'mine',
+      ),
+    ).toEqual({
       ok: false,
       message: 'Cannot launch ordnance while landed',
       level: 'error',
     });
     expect(
-      resolveOrdnanceLaunchPlan(createState([createShip({ damage: { disabledTurns: 2 } })]), createPlanning(), 'mine'),
+      resolveOrdnanceLaunchPlan(
+        createState([createShip({ damage: { disabledTurns: 2 } })]),
+        createPlanning(),
+        'mine',
+      ),
     ).toEqual({
       ok: false,
       message: 'Ship is disabled',
       level: 'error',
     });
     expect(
-      resolveOrdnanceLaunchPlan(createState([createShip({ type: 'packet' })]), createPlanning(), 'torpedo'),
+      resolveOrdnanceLaunchPlan(
+        createState([createShip({ type: 'packet' })]),
+        createPlanning(),
+        'torpedo',
+      ),
     ).toEqual({
       ok: false,
       message: 'Only warships can launch torpedoes',
@@ -105,7 +131,9 @@ describe('game-client-ordnance', () => {
     });
     expect(
       resolveOrdnanceLaunchPlan(
-        createState([createShip({ type: 'packet', nukesLaunchedSinceResupply: 1 })]),
+        createState([
+          createShip({ type: 'packet', nukesLaunchedSinceResupply: 1 }),
+        ]),
         createPlanning(),
         'nuke',
       ),
@@ -114,7 +142,13 @@ describe('game-client-ordnance', () => {
       message: 'Non-warships may carry only one nuke between resupplies',
       level: 'error',
     });
-    expect(resolveOrdnanceLaunchPlan(createState([createShip({ cargoUsed: 50 })]), createPlanning(), 'mine')).toEqual({
+    expect(
+      resolveOrdnanceLaunchPlan(
+        createState([createShip({ cargoUsed: 50 })]),
+        createPlanning(),
+        'mine',
+      ),
+    ).toEqual({
       ok: false,
       message: 'Not enough cargo (need 10, have 0)',
       level: 'error',
@@ -133,7 +167,9 @@ describe('game-client-ordnance', () => {
       message: 'Select a ship first',
       level: 'info',
     });
-    expect(resolveBaseEmplacementPlan(createState([createShip()]), 'ship-1')).toEqual({
+    expect(
+      resolveBaseEmplacementPlan(createState([createShip()]), 'ship-1'),
+    ).toEqual({
       ok: false,
       message: 'Ship is not carrying an orbital base',
       level: 'error',

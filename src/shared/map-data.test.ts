@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hexKey } from './hex';
-import { bodyHasGravity, buildSolarSystemMap, findBaseHex, findBaseHexes, SCENARIOS } from './map-data';
+import {
+  bodyHasGravity,
+  buildSolarSystemMap,
+  findBaseHex,
+  findBaseHexes,
+  SCENARIOS,
+} from './map-data';
 import type { SolarSystemMap } from './types';
 
 let map: SolarSystemMap;
@@ -50,7 +56,9 @@ describe('buildSolarSystemMap', () => {
   });
 
   it('includes asteroid hexes', () => {
-    const asteroids = [...map.hexes.entries()].filter(([, h]) => h.terrain === 'asteroid');
+    const asteroids = [...map.hexes.entries()].filter(
+      ([, h]) => h.terrain === 'asteroid',
+    );
     expect(asteroids.length).toBeGreaterThan(10);
   });
 });
@@ -172,7 +180,9 @@ describe('SCENARIOS', () => {
   it('escape has 3 transports vs 2 enforcers', () => {
     const s = SCENARIOS.escape;
     expect(s.players[0].ships.length).toBe(3);
-    expect(s.players[0].ships.every((sh) => sh.type === 'transport')).toBe(true);
+    expect(s.players[0].ships.every((sh) => sh.type === 'transport')).toBe(
+      true,
+    );
     expect(s.players[0].escapeWins).toBe(true);
     expect(s.players[1].ships.length).toBe(2);
     expect(s.rules?.hiddenIdentityInspection).toBe(true);

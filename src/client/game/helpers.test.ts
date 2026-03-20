@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { GameState, Ordnance, PlayerState, Ship } from '../../shared/types';
+import type {
+  GameState,
+  Ordnance,
+  PlayerState,
+  Ship,
+} from '../../shared/types';
 import {
   buildAstrogationOrders,
   deriveHudViewModel,
@@ -72,8 +77,18 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     activePlayer: 0,
     ships: [
       createShip({ id: 'p0s0', type: 'packet', cargoUsed: 10 }),
-      createShip({ id: 'p0s1', type: 'transport', owner: 0, position: { q: 1, r: 0 } }),
-      createShip({ id: 'p1s0', type: 'corsair', owner: 1, position: { q: 5, r: 0 } }),
+      createShip({
+        id: 'p0s1',
+        type: 'transport',
+        owner: 0,
+        position: { q: 1, r: 0 },
+      }),
+      createShip({
+        id: 'p1s0',
+        type: 'corsair',
+        owner: 1,
+        position: { q: 5, r: 0 },
+      }),
     ],
     ordnance: [],
     pendingAstrogationOrders: null,
@@ -96,7 +111,10 @@ describe('getSelectedShip', () => {
 
   it('auto-selects when exactly one alive ship and selectedId is null', () => {
     const state = createState({
-      ships: [createShip({ id: 'sole', owner: 0 }), createShip({ id: 'enemy', owner: 1 })],
+      ships: [
+        createShip({ id: 'sole', owner: 0 }),
+        createShip({ id: 'enemy', owner: 1 }),
+      ],
     });
     expect(getSelectedShip(state, 0, null)?.id).toBe('sole');
   });
@@ -166,7 +184,10 @@ describe('game client helpers', () => {
         createShip({ id: 'p0s1', type: 'packet', owner: 0, destroyed: true }),
         createShip({ id: 'p1s0', type: 'corsair', owner: 1, destroyed: true }),
       ],
-      ordnance: [createOrdnance({ type: 'mine' }), createOrdnance({ id: 'ord-1', type: 'nuke', owner: 1 })],
+      ordnance: [
+        createOrdnance({ type: 'mine' }),
+        createOrdnance({ id: 'ord-1', type: 'nuke', owner: 1 }),
+      ],
       players: [
         {
           ...createPlayers()[0],

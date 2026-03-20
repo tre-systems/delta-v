@@ -1,9 +1,11 @@
 /**
  * Lightweight DOM helpers for declarative UI construction.
  *
- * These reduce the verbosity of createElement/className/addEventListener/appendChild
- * chains without introducing a framework. Use `el()` for building element trees,
- * `show`/`hide`/`visible` for display toggling, and `byId` for typed lookups.
+ * These reduce the verbosity of
+ * createElement/className/addEventListener/appendChild
+ * chains without introducing a framework. Use `el()` for
+ * building element trees, `show`/`hide`/`visible` for
+ * display toggling, and `byId` for typed lookups.
  */
 
 // --- Element creation ---
@@ -33,34 +35,62 @@ type Child = HTMLElement | string;
  *     'some text',
  *   )
  */
-export const el = (tag: string, props?: ElProps, ...children: Child[]): HTMLElement => {
+export const el = (
+  tag: string,
+  props?: ElProps,
+  ...children: Child[]
+): HTMLElement => {
   const element = document.createElement(tag);
 
   if (props) {
     if (props.class) element.className = props.class;
+
     if (props.classList) {
       for (const [cls, on] of Object.entries(props.classList)) {
         element.classList.toggle(cls, on);
       }
     }
+
     if (props.text) element.textContent = props.text;
     if (props.html) element.innerHTML = props.html;
-    if (props.style) Object.assign(element.style, props.style);
-    if (props.disabled != null) (element as HTMLButtonElement).disabled = props.disabled;
+
+    if (props.style) {
+      Object.assign(element.style, props.style);
+    }
+
+    if (props.disabled != null) {
+      (element as HTMLButtonElement).disabled = props.disabled;
+    }
+
     if (props.title) element.title = props.title;
+
     if (props.data) {
       for (const [key, value] of Object.entries(props.data)) {
         element.dataset[key] = value;
       }
     }
-    if (props.onClick) element.addEventListener('click', props.onClick as EventListener);
-    if (props.onKeydown) element.addEventListener('keydown', props.onKeydown as EventListener);
-    if (props.onInput) element.addEventListener('input', props.onInput as EventListener);
-    if (props.onChange) element.addEventListener('change', props.onChange as EventListener);
+
+    if (props.onClick) {
+      element.addEventListener('click', props.onClick as EventListener);
+    }
+
+    if (props.onKeydown) {
+      element.addEventListener('keydown', props.onKeydown as EventListener);
+    }
+
+    if (props.onInput) {
+      element.addEventListener('input', props.onInput as EventListener);
+    }
+
+    if (props.onChange) {
+      element.addEventListener('change', props.onChange as EventListener);
+    }
   }
 
   for (const child of children) {
-    element.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+    element.appendChild(
+      typeof child === 'string' ? document.createTextNode(child) : child,
+    );
   }
 
   return element;
@@ -79,7 +109,11 @@ export const show = (element: HTMLElement, display = ''): void => {
 };
 
 /** Set element visibility based on a boolean condition. */
-export const visible = (element: HTMLElement, condition: boolean, display = ''): void => {
+export const visible = (
+  element: HTMLElement,
+  condition: boolean,
+  display = '',
+): void => {
   element.style.display = condition ? display : 'none';
 };
 
@@ -88,6 +122,10 @@ export const visible = (element: HTMLElement, condition: boolean, display = ''):
 /** Typed getElementById that throws if the element doesn't exist. */
 export const byId = <T extends HTMLElement = HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
-  if (!element) throw new Error(`Element #${id} not found`);
+
+  if (!element) {
+    throw new Error(`Element #${id} not found`);
+  }
+
   return element as T;
 };

@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { hexKey } from '../../shared/hex';
 import { buildSolarSystemMap } from '../../shared/map-data';
-import type { GameState, GravityEffect, PlayerState, Ship } from '../../shared/types';
-import { buildAstrogationCoursePreviewViews, type CoursePreviewPlanningState } from './course';
+import type {
+  GameState,
+  GravityEffect,
+  PlayerState,
+  Ship,
+} from '../../shared/types';
+import {
+  buildAstrogationCoursePreviewViews,
+  type CoursePreviewPlanningState,
+} from './course';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
   return {
@@ -24,8 +32,22 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
 
 function createPlayers(): [PlayerState, PlayerState] {
   return [
-    { connected: true, ready: true, targetBody: '', homeBody: 'Terra', bases: [], escapeWins: false },
-    { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Terra',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
   ];
 }
 
@@ -50,7 +72,9 @@ function createState(ships: Ship[]): GameState {
   };
 }
 
-function createPlanning(overrides: Partial<CoursePreviewPlanningState> = {}): CoursePreviewPlanningState {
+function createPlanning(
+  overrides: Partial<CoursePreviewPlanningState> = {},
+): CoursePreviewPlanningState {
   return {
     selectedShipId: null,
     burns: new Map(),

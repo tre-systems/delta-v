@@ -72,7 +72,9 @@ function createState(overrides: Partial<GameState> = {}): GameState {
 
 describe('game-client-endgame', () => {
   it('derives victory presentation with surviving loser ships for animation', () => {
-    expect(deriveGameOverPlan(createState(), 0, true, 'Fleet eliminated!')).toEqual({
+    expect(
+      deriveGameOverPlan(createState(), 0, true, 'Fleet eliminated!'),
+    ).toEqual({
       stats: {
         turns: 7,
         myShipsAlive: 1,
@@ -88,7 +90,9 @@ describe('game-client-endgame', () => {
   });
 
   it('derives defeat presentation and falls back cleanly with no state', () => {
-    expect(deriveGameOverPlan(createState(), 0, false, 'Transport destroyed')).toMatchObject({
+    expect(
+      deriveGameOverPlan(createState(), 0, false, 'Transport destroyed'),
+    ).toMatchObject({
       logText: 'DEFEAT: Transport destroyed',
       logClass: 'log-eliminated',
       loserShipIds: ['p0a'],

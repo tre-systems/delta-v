@@ -1,22 +1,36 @@
-import { type HexCoord, hexDirectionToward, hexKey, hexNeighbor, hexRing, parseHexKey } from './hex';
-import type { CelestialBody, MapHex, ScenarioDefinition, SolarSystemMap } from './types';
+import {
+  type HexCoord,
+  hexDirectionToward,
+  hexKey,
+  hexNeighbor,
+  hexRing,
+  parseHexKey,
+} from './hex';
+import type {
+  CelestialBody,
+  MapHex,
+  ScenarioDefinition,
+  SolarSystemMap,
+} from './types';
 
 // --- Body definitions ---
-// Sol is center-south; Venus SW; Mercury near Sol SE; Terra NE; Mars NW;
-// asteroid belt in the middle band; Jupiter and moons at top.
-// Flat-top hex grid, q increases right, r increases down-right.
+// Sol is center-south; Venus SW; Mercury near Sol SE;
+// Terra NE; Mars NW; asteroid belt in the middle band;
+// Jupiter and moons at top.
+// Flat-top hex grid, q increases right, r increases
+// down-right.
 // Directions: 0=E, 1=NE, 2=NW, 3=W, 4=SW, 5=SE
 
 interface BodyDefinition {
   name: string;
   center: HexCoord;
-  surfaceRadius: number; // hexes covered by the body (0 = single hex)
-  gravityRings: number; // rings of gravity hexes around the surface
+  surfaceRadius: number;
+  gravityRings: number;
   gravityStrength: 'full' | 'weak';
-  destructive: boolean; // contact = destruction (Sol)
+  destructive: boolean;
   color: string;
-  renderRadius: number; // visual radius as multiplier of hex size
-  baseDirections: number[]; // which of the 6 directions have bases (on first gravity ring for multi-hex bodies)
+  renderRadius: number;
+  baseDirections: number[];
 }
 
 const BODY_DEFS: BodyDefinition[] = [
@@ -40,7 +54,7 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#b0a090',
     renderRadius: 0.6,
-    baseDirections: [0, 3], // E and W — rules: "Mercury has two [bases]"
+    baseDirections: [0, 3],
   },
   {
     name: 'Venus',
@@ -51,7 +65,7 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#e8c87a',
     renderRadius: 1.2,
-    baseDirections: [0, 1, 2, 3, 4, 5], // all 6 sides — rules: "Venus have bases on all six sides"
+    baseDirections: [0, 1, 2, 3, 4, 5],
   },
   {
     name: 'Terra',
@@ -62,11 +76,10 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#4488cc',
     renderRadius: 1.2,
-    baseDirections: [1, 4, 0, 2, 3, 5], // keep the legacy start hex first while covering all six sides
+    baseDirections: [1, 4, 0, 2, 3, 5],
   },
   {
     name: 'Luna',
-    // Shifted slightly off the Terra base ring so Terra and Luna keep distinct base hexes.
     center: { q: 14, r: -10 },
     surfaceRadius: 0,
     gravityRings: 1,
@@ -74,7 +87,7 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#cccccc',
     renderRadius: 0.45,
-    baseDirections: [0, 1, 2, 3, 4, 5], // rules: "Luna ... have bases on all six sides"
+    baseDirections: [0, 1, 2, 3, 4, 5],
   },
   {
     name: 'Mars',
@@ -85,7 +98,7 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#cc4422',
     renderRadius: 0.7,
-    baseDirections: [1, 4, 0, 2, 3, 5], // keep the legacy start hex first while covering all six sides
+    baseDirections: [1, 4, 0, 2, 3, 5],
   },
   {
     name: 'Ceres',
@@ -96,7 +109,7 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#888888',
     renderRadius: 0.35,
-    baseDirections: [0], // E
+    baseDirections: [0],
   },
   {
     name: 'Jupiter',
@@ -118,7 +131,7 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#cccc44',
     renderRadius: 0.4,
-    baseDirections: [0], // E — rules: "Io [has] one base"
+    baseDirections: [0],
   },
   {
     name: 'Callisto',
@@ -129,7 +142,7 @@ const BODY_DEFS: BodyDefinition[] = [
     destructive: false,
     color: '#998877',
     renderRadius: 0.4,
-    baseDirections: [3], // W — rules: "Callisto have only one base each"
+    baseDirections: [3],
   },
   {
     name: 'Ganymede',
@@ -144,8 +157,10 @@ const BODY_DEFS: BodyDefinition[] = [
   },
 ];
 
-// --- Asteroid belt hexes (scattered between Mars/Terra and Jupiter orbits) ---
-// Positioned in the band between inner planets and Jupiter
+// --- Asteroid belt hexes ---
+// Scattered between Mars/Terra and Jupiter orbits,
+// positioned in the band between inner planets and
+// Jupiter.
 
 const generateAsteroidHexes = (): HexCoord[] => [
   { q: -6, r: -11 },
@@ -191,11 +206,14 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
   const ensureHex = (coord: HexCoord): MapHex => {
     const key = hexKey(coord);
     let hex = hexes.get(key);
+
     if (!hex) {
       hex = { terrain: 'space' };
       hexes.set(key, hex);
     }
+
     trackBounds(coord);
+
     return hex;
   };
 
@@ -208,6 +226,7 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
       surfaceHexes.push(def.center);
     } else {
       surfaceHexes.push(def.center);
+
       for (let ring = 1; ring <= def.surfaceRadius; ring++) {
         surfaceHexes.push(...hexRing(def.center, ring));
       }
@@ -217,31 +236,52 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
     for (const sh of surfaceHexes) {
       const hex = ensureHex(sh);
       hex.terrain = def.destructive ? 'sunSurface' : 'planetSurface';
-      hex.body = { name: def.name, destructive: def.destructive };
+      hex.body = {
+        name: def.name,
+        destructive: def.destructive,
+      };
     }
 
-    // Mark base hexes — always on the first gravity ring (surfaceRadius + 1 from center)
-    // This ensures ships start outside the body surface and can escape gravity on takeoff
+    // Mark base hexes — always on the first gravity
+    // ring (surfaceRadius + 1 from center). This
+    // ensures ships start outside the body surface
+    // and can escape gravity on takeoff.
     for (const dir of def.baseDirections) {
       let baseHex = def.center;
+
       for (let i = 0; i < def.surfaceRadius + 1; i++) {
         baseHex = hexNeighbor(baseHex, dir);
       }
+
       const hex = ensureHex(baseHex);
-      hex.base = { name: `${def.name} Base`, bodyName: def.name };
+      hex.base = {
+        name: `${def.name} Base`,
+        bodyName: def.name,
+      };
     }
 
     // Gravity hexes (rings outside the surface)
-    for (let ring = def.surfaceRadius + 1; ring <= def.surfaceRadius + def.gravityRings; ring++) {
+    for (
+      let ring = def.surfaceRadius + 1;
+      ring <= def.surfaceRadius + def.gravityRings;
+      ring++
+    ) {
       const ringHexes = hexRing(def.center, ring);
+
       for (const gh of ringHexes) {
         // Don't override another body's surface
         const existing = hexes.get(hexKey(gh));
-        if (existing && (existing.terrain === 'planetSurface' || existing.terrain === 'sunSurface')) {
+        if (
+          existing &&
+          (existing.terrain === 'planetSurface' ||
+            existing.terrain === 'sunSurface')
+        ) {
           continue;
         }
+
         const hex = ensureHex(gh);
-        // Direction should point toward the body center
+        // Direction should point toward the body
+        // center
         const dir = hexDirectionToward(gh, def.center);
         hex.gravity = {
           direction: dir,
@@ -264,6 +304,7 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
   // Asteroid hexes
   for (const ah of generateAsteroidHexes()) {
     const hex = ensureHex(ah);
+
     if (hex.terrain === 'space') {
       hex.terrain = 'asteroid';
     }
@@ -272,7 +313,12 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
   return {
     hexes,
     bodies,
-    bounds: { minQ: minQ - 5, maxQ: maxQ + 5, minR: minR - 3, maxR: maxR + 5 },
+    bounds: {
+      minQ: minQ - 5,
+      maxQ: maxQ + 5,
+      minR: minR - 3,
+      maxR: maxR + 5,
+    },
   };
 };
 
@@ -280,14 +326,17 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
 
 export const SCENARIOS: Record<string, ScenarioDefinition> = {
   biplanetary: {
-    // Rules: "One player starts with a corvette on Mars, one on Venus.
-    // Each player must navigate to the other world and land.
-    // The winner is the one who does it in the fewest turns."
     name: 'Bi-Planetary',
-    description: "1v1 corvettes race to land on the opponent's world",
+    description: '1v1 corvettes race to land on the ' + "opponent's world",
     players: [
       {
-        ships: [{ type: 'corvette', position: { q: -9, r: -5 }, velocity: { dq: 0, dr: 0 } }],
+        ships: [
+          {
+            type: 'corvette',
+            position: { q: -9, r: -5 },
+            velocity: { dq: 0, dr: 0 },
+          },
+        ],
         targetBody: 'Venus',
         homeBody: 'Mars',
         bases: [
@@ -301,7 +350,13 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         escapeWins: false,
       },
       {
-        ships: [{ type: 'corvette', position: { q: -7, r: 7 }, velocity: { dq: 0, dr: 0 } }],
+        ships: [
+          {
+            type: 'corvette',
+            position: { q: -7, r: 7 },
+            velocity: { dq: 0, dr: 0 },
+          },
+        ],
         targetBody: 'Mars',
         homeBody: 'Venus',
         bases: [
@@ -316,15 +371,11 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
+
   escape: {
-    // Rules: "The Pilgrims receive three transports on Terra.
-    // The Enforcers receive one corvette in orbit around Terra
-    // and a corsair in orbit around Venus."
-    // "Mines and torpedoes are not available to either player."
-    // "Only Terra, Venus, and Io have bases. All bases belong to the Enforcers.
-    //  Planetary defenses are not operating."
     name: 'Escape',
-    description: '3 pilgrim transports flee Terra — enforcers must stop them',
+    description:
+      '3 pilgrim transports flee Terra ' + '— enforcers must stop them',
     rules: {
       allowedOrdnanceTypes: ['nuke'],
       planetaryDefenseEnabled: false,
@@ -333,11 +384,23 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     },
     players: [
       {
-        // Pilgrims: 3 transports at Terra, launching outward
+        // Pilgrims: 3 transports at Terra
         ships: [
-          { type: 'transport', position: { q: 8, r: -6 }, velocity: { dq: -2, dr: 1 } },
-          { type: 'transport', position: { q: 8, r: -6 }, velocity: { dq: -2, dr: 1 } },
-          { type: 'transport', position: { q: 8, r: -6 }, velocity: { dq: -2, dr: 1 } },
+          {
+            type: 'transport',
+            position: { q: 8, r: -6 },
+            velocity: { dq: -2, dr: 1 },
+          },
+          {
+            type: 'transport',
+            position: { q: 8, r: -6 },
+            velocity: { dq: -2, dr: 1 },
+          },
+          {
+            type: 'transport',
+            position: { q: 8, r: -6 },
+            velocity: { dq: -2, dr: 1 },
+          },
         ],
         targetBody: '',
         homeBody: 'Terra',
@@ -346,10 +409,21 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         hiddenIdentity: true,
       },
       {
-        // Enforcers: 1 corvette orbiting Terra, 1 corsair orbiting Venus
+        // Enforcers: 1 corvette orbiting Terra,
+        // 1 corsair orbiting Venus
         ships: [
-          { type: 'corvette', position: { q: 8, r: -7 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
-          { type: 'corsair', position: { q: -5, r: 5 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          {
+            type: 'corvette',
+            position: { q: 8, r: -7 },
+            velocity: { dq: 0, dr: 0 },
+            startLanded: false,
+          },
+          {
+            type: 'corsair',
+            position: { q: -5, r: 5 },
+            velocity: { dq: 0, dr: 0 },
+            startLanded: false,
+          },
         ],
         targetBody: '',
         homeBody: 'Venus',
@@ -372,28 +446,52 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
+
   convoy: {
-    // Custom scenario: escort a tanker through hostile space
     name: 'Convoy',
-    description: 'Escort a tanker from Mars to Venus — pirates intercept',
+    description: 'Escort a tanker from Mars to Venus ' + '— pirates intercept',
     rules: { logisticsEnabled: true },
     players: [
       {
-        // Convoy: tanker + frigate escort, starting from Mars
+        // Convoy: tanker + frigate escort from Mars
         ships: [
-          { type: 'tanker', position: { q: -9, r: -5 }, velocity: { dq: 0, dr: 0 } },
-          { type: 'frigate', position: { q: -9, r: -5 }, velocity: { dq: 0, dr: 0 } },
+          {
+            type: 'tanker',
+            position: { q: -9, r: -5 },
+            velocity: { dq: 0, dr: 0 },
+          },
+          {
+            type: 'frigate',
+            position: { q: -9, r: -5 },
+            velocity: { dq: 0, dr: 0 },
+          },
         ],
         targetBody: 'Venus',
         homeBody: 'Mars',
         escapeWins: false,
       },
       {
-        // Pirates: two corsairs and a corvette positioned to intercept the Mars→Venus route
+        // Pirates: two corsairs and a corvette
+        // positioned to intercept
         ships: [
-          { type: 'corsair', position: { q: -9, r: 2 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
-          { type: 'corsair', position: { q: -6, r: -1 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
-          { type: 'corvette', position: { q: -7, r: -3 }, velocity: { dq: 0, dr: 0 }, startLanded: false },
+          {
+            type: 'corsair',
+            position: { q: -9, r: 2 },
+            velocity: { dq: 0, dr: 0 },
+            startLanded: false,
+          },
+          {
+            type: 'corsair',
+            position: { q: -6, r: -1 },
+            velocity: { dq: 0, dr: 0 },
+            startLanded: false,
+          },
+          {
+            type: 'corvette',
+            position: { q: -7, r: -3 },
+            velocity: { dq: 0, dr: 0 },
+            startLanded: false,
+          },
         ],
         targetBody: '',
         homeBody: '',
@@ -401,21 +499,35 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
+
   duel: {
-    // Custom combat training scenario near Mercury
     name: 'Duel',
-    description: 'Frigates clash near Mercury — last ship standing wins',
+    description: 'Frigates clash near Mercury ' + '— last ship standing wins',
     startingPlayer: 1,
     players: [
       {
-        ships: [{ type: 'frigate', position: { q: 3, r: 1 }, velocity: { dq: 0, dr: 0 }, startLanded: false }],
+        ships: [
+          {
+            type: 'frigate',
+            position: { q: 3, r: 1 },
+            velocity: { dq: 0, dr: 0 },
+            startLanded: false,
+          },
+        ],
         targetBody: '',
         homeBody: 'Mercury',
         bases: [{ q: 5, r: 2 }],
         escapeWins: false,
       },
       {
-        ships: [{ type: 'frigate', position: { q: 5, r: 3 }, velocity: { dq: 0, dr: 0 }, startLanded: false }],
+        ships: [
+          {
+            type: 'frigate',
+            position: { q: 5, r: 3 },
+            velocity: { dq: 0, dr: 0 },
+            startLanded: false,
+          },
+        ],
         targetBody: '',
         homeBody: 'Mercury',
         bases: [{ q: 3, r: 2 }],
@@ -423,42 +535,62 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
+
   blockade: {
-    // Custom asymmetric scenario: speed vs firepower
     name: 'Blockade Runner',
-    description: 'Packet ship races past a corvette to reach Mars',
+    description: 'Packet ship races past a corvette ' + 'to reach Mars',
     startingPlayer: 1,
     players: [
       {
-        // Runner: fast packet ship from Venus heading toward Mars
-        ships: [{ type: 'packet', position: { q: -7, r: 5 }, velocity: { dq: 0, dr: -2 }, startLanded: false }],
+        // Runner: fast packet ship from Venus
+        ships: [
+          {
+            type: 'packet',
+            position: { q: -7, r: 5 },
+            velocity: { dq: 0, dr: -2 },
+            startLanded: false,
+          },
+        ],
         targetBody: 'Mars',
         homeBody: 'Venus',
         escapeWins: false,
       },
       {
-        // Blocker: corvette patrolling between the planets (less firepower = fairer)
-        ships: [{ type: 'corvette', position: { q: -8, r: 1 }, velocity: { dq: 0, dr: 0 }, startLanded: false }],
+        // Blocker: corvette patrolling between
+        // the planets
+        ships: [
+          {
+            type: 'corvette',
+            position: { q: -8, r: 1 },
+            velocity: { dq: 0, dr: 0 },
+            startLanded: false,
+          },
+        ],
         targetBody: '',
         homeBody: 'Mars',
         escapeWins: false,
       },
     ],
   },
+
   interplanetaryWar: {
-    // Rules: "The Terran player selects a fleet using the MegaCredit system
-    // and an allowance of MCr 1600. Terran ships may be placed on – or in orbit
-    // around – Terra, Luna, and Venus."
-    // "The Rebel player selects a fleet using an allowance of MCr 1000.
-    // Rebel ships may be placed on – or in orbit around – Callisto, Io,
-    // Ganymede, and Mars."
-    // Tuned skirmish: simplified credits and placement, while keeping the Terran/Rebel roles from the book.
     name: 'Interplanetary War',
-    description: 'Build your fleet with MegaCredits — total war across the solar system',
+    description:
+      'Build your fleet with MegaCredits ' +
+      '— total war across the solar system',
     rules: { logisticsEnabled: true },
     startingPlayer: 1,
     startingCredits: [900, 800],
-    availableShipTypes: ['transport', 'packet', 'tanker', 'corvette', 'corsair', 'frigate', 'dreadnaught', 'torch'],
+    availableShipTypes: [
+      'transport',
+      'packet',
+      'tanker',
+      'corvette',
+      'corsair',
+      'frigate',
+      'dreadnaught',
+      'torch',
+    ],
     players: [
       {
         ships: [],
@@ -474,14 +606,20 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
+
   fleetAction: {
-    // Custom fleet battle scenario with fleet building
     name: 'Fleet Action',
-    description: 'Build your fleet and clash — Mars vs Venus',
+    description: 'Build your fleet and clash ' + '— Mars vs Venus',
     rules: { logisticsEnabled: true },
     startingPlayer: 1,
     startingCredits: 400,
-    availableShipTypes: ['corvette', 'corsair', 'frigate', 'dreadnaught', 'torch'],
+    availableShipTypes: [
+      'corvette',
+      'corsair',
+      'frigate',
+      'dreadnaught',
+      'torch',
+    ],
     players: [
       {
         ships: [],
@@ -497,27 +635,46 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
+
   grandTour: {
-    // Rules: "Grand Tour, 2037 AD" — each racer starts with one corvette
-    // at a different habitable world. Must pass through at least one gravity
-    // hex of each major body (Sol, Mercury, Venus, Terra, Mars, Jupiter,
-    // Io, Callisto) and return to land on starting world. No combat.
     name: 'Grand Tour',
-    description: 'Race past every major body in the solar system and return home',
+    description:
+      'Race past every major body in the solar ' + 'system and return home',
     rules: {
       combatDisabled: true,
-      checkpointBodies: ['Sol', 'Mercury', 'Venus', 'Terra', 'Mars', 'Jupiter', 'Io', 'Callisto'],
+      checkpointBodies: [
+        'Sol',
+        'Mercury',
+        'Venus',
+        'Terra',
+        'Mars',
+        'Jupiter',
+        'Io',
+        'Callisto',
+      ],
       sharedBases: ['Terra', 'Venus', 'Mars', 'Callisto'],
     },
     players: [
       {
-        ships: [{ type: 'corvette', position: { q: 10, r: -8 }, velocity: { dq: 0, dr: 0 } }],
+        ships: [
+          {
+            type: 'corvette',
+            position: { q: 10, r: -8 },
+            velocity: { dq: 0, dr: 0 },
+          },
+        ],
         targetBody: '',
         homeBody: 'Terra',
         escapeWins: false,
       },
       {
-        ships: [{ type: 'corvette', position: { q: -9, r: -5 }, velocity: { dq: 0, dr: 0 } }],
+        ships: [
+          {
+            type: 'corvette',
+            position: { q: -9, r: -5 },
+            velocity: { dq: 0, dr: 0 },
+          },
+        ],
         targetBody: '',
         homeBody: 'Mars',
         escapeWins: false,
@@ -526,12 +683,22 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   },
 };
 
-export const findBaseHexes = (map: SolarSystemMap, bodyName: string): HexCoord[] =>
-  [...map.hexes.entries()].filter(([, hex]) => hex.base?.bodyName === bodyName).map(([key]) => parseHexKey(key));
+export const findBaseHexes = (
+  map: SolarSystemMap,
+  bodyName: string,
+): HexCoord[] =>
+  [...map.hexes.entries()]
+    .filter(([, hex]) => hex.base?.bodyName === bodyName)
+    .map(([key]) => parseHexKey(key));
 
 // Helper: find a base hex for a body (first base found)
-export const findBaseHex = (map: SolarSystemMap, bodyName: string): HexCoord | null =>
-  findBaseHexes(map, bodyName)[0] ?? null;
+export const findBaseHex = (
+  map: SolarSystemMap,
+  bodyName: string,
+): HexCoord | null => findBaseHexes(map, bodyName)[0] ?? null;
 
-export const bodyHasGravity = (bodyName: string, map: SolarSystemMap): boolean =>
+export const bodyHasGravity = (
+  bodyName: string,
+  map: SolarSystemMap,
+): boolean =>
   [...map.hexes.values()].some((hex) => hex.gravity?.bodyName === bodyName);

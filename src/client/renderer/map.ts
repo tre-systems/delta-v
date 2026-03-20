@@ -1,5 +1,10 @@
 import { type HexCoord, hexToPixel, type PixelCoord } from '../../shared/hex';
-import type { CelestialBody, GameState, PlayerState, SolarSystemMap } from '../../shared/types';
+import type {
+  CelestialBody,
+  GameState,
+  PlayerState,
+  SolarSystemMap,
+} from '../../shared/types';
 
 export interface BodyRippleView {
   radius: number;
@@ -67,7 +72,11 @@ export const lightenColor = (hex: string, amount: number): string => {
   return `rgb(${r}, ${g}, ${b})`;
 };
 
-export const buildBodyView = (body: CelestialBody, hexSize: number, now: number): BodyView => {
+export const buildBodyView = (
+  body: CelestialBody,
+  hexSize: number,
+  now: number,
+): BodyView => {
   const center = hexToPixel(body.center, hexSize);
   const radius = body.renderRadius * hexSize;
   const pulse = 0.5 + 0.5 * Math.sin(now / 1500 + center.x * 0.01);
@@ -90,7 +99,11 @@ export const buildBodyView = (body: CelestialBody, hexSize: number, now: number)
   };
 };
 
-export const buildBaseMarkerView = (baseKey: string, state: GameState | null, playerId: number): BaseMarkerView => {
+export const buildBaseMarkerView = (
+  baseKey: string,
+  state: GameState | null,
+  playerId: number,
+): BaseMarkerView => {
   const destroyed = new Set(state?.destroyedBases ?? []);
   if (destroyed.has(baseKey)) {
     return {
@@ -101,15 +114,36 @@ export const buildBaseMarkerView = (baseKey: string, state: GameState | null, pl
     };
   }
 
-  const myBases = state && playerId >= 0 ? new Set(state.players[playerId]?.bases ?? []) : new Set<string>();
-  const enemyBases = state && playerId >= 0 ? new Set(state.players[1 - playerId]?.bases ?? []) : new Set<string>();
+  const myBases =
+    state && playerId >= 0
+      ? new Set(state.players[playerId]?.bases ?? [])
+      : new Set<string>();
+  const enemyBases =
+    state && playerId >= 0
+      ? new Set(state.players[1 - playerId]?.bases ?? [])
+      : new Set<string>();
   if (myBases.has(baseKey)) {
-    return { kind: 'friendly', fillStyle: '#4fc3f7', strokeStyle: '#2196f3', lineWidth: 1 };
+    return {
+      kind: 'friendly',
+      fillStyle: '#4fc3f7',
+      strokeStyle: '#2196f3',
+      lineWidth: 1,
+    };
   }
   if (enemyBases.has(baseKey)) {
-    return { kind: 'enemy', fillStyle: '#ff8a65', strokeStyle: '#e64a19', lineWidth: 1 };
+    return {
+      kind: 'enemy',
+      fillStyle: '#ff8a65',
+      strokeStyle: '#e64a19',
+      lineWidth: 1,
+    };
   }
-  return { kind: 'neutral', fillStyle: '#66bb6a', strokeStyle: '#388e3c', lineWidth: 1 };
+  return {
+    kind: 'neutral',
+    fillStyle: '#66bb6a',
+    strokeStyle: '#388e3c',
+    lineWidth: 1,
+  };
 };
 
 export const buildMapBorderView = (
@@ -119,8 +153,14 @@ export const buildMapBorderView = (
   hexSize: number,
 ): MapBorderView => {
   const margin = 3;
-  const topLeft = hexToPixel({ q: bounds.minQ - margin, r: bounds.minR - margin }, hexSize);
-  const bottomRight = hexToPixel({ q: bounds.maxQ + margin, r: bounds.maxR + margin }, hexSize);
+  const topLeft = hexToPixel(
+    { q: bounds.minQ - margin, r: bounds.minR - margin },
+    hexSize,
+  );
+  const bottomRight = hexToPixel(
+    { q: bounds.maxQ + margin, r: bounds.maxR + margin },
+    hexSize,
+  );
   if (isEscape) {
     const pulse = 0.15 + 0.1 * Math.sin(now / 1000);
     return {
@@ -142,7 +182,10 @@ export const buildMapBorderView = (
   };
 };
 
-export const buildAsteroidDebrisView = (coord: HexCoord, hexSize: number): AsteroidDebrisView => {
+export const buildAsteroidDebrisView = (
+  coord: HexCoord,
+  hexSize: number,
+): AsteroidDebrisView => {
   const center = hexToPixel(coord, hexSize);
   const seed = Math.abs(coord.q * 7 + coord.r * 13);
   const count = 4 + (seed % 5);
@@ -168,10 +211,22 @@ const buildEscapeObjectiveView = (
     kind: 'escape',
     color: `rgba(100, 255, 100, ${0.3 + 0.2 * Math.sin(now / 600)})`,
     markers: [
-      { position: hexToPixel({ q: bounds.maxQ + 2, r: midR }, hexSize), text: '→ ESCAPE' },
-      { position: hexToPixel({ q: bounds.minQ - 2, r: midR }, hexSize), text: '← ESCAPE' },
-      { position: hexToPixel({ q: midQ, r: bounds.maxR + 2 }, hexSize), text: '↓ ESCAPE' },
-      { position: hexToPixel({ q: midQ, r: bounds.minR - 2 }, hexSize), text: '↑ ESCAPE' },
+      {
+        position: hexToPixel({ q: bounds.maxQ + 2, r: midR }, hexSize),
+        text: '→ ESCAPE',
+      },
+      {
+        position: hexToPixel({ q: bounds.minQ - 2, r: midR }, hexSize),
+        text: '← ESCAPE',
+      },
+      {
+        position: hexToPixel({ q: midQ, r: bounds.maxR + 2 }, hexSize),
+        text: '↓ ESCAPE',
+      },
+      {
+        position: hexToPixel({ q: midQ, r: bounds.minR - 2 }, hexSize),
+        text: '↑ ESCAPE',
+      },
     ],
   };
 };
@@ -183,10 +238,13 @@ export const buildLandingObjectiveView = (
   hexSize: number,
 ): LandingObjectiveView | null => {
   if (!player) return null;
-  if (player.escapeWins) return buildEscapeObjectiveView(map.bounds, now, hexSize);
+  if (player.escapeWins)
+    return buildEscapeObjectiveView(map.bounds, now, hexSize);
   if (!player.targetBody) return null;
 
-  const body = map.bodies.find((candidate) => candidate.name === player.targetBody);
+  const body = map.bodies.find(
+    (candidate) => candidate.name === player.targetBody,
+  );
   if (!body) return null;
 
   const center = hexToPixel(body.center, hexSize);

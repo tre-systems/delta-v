@@ -1,5 +1,11 @@
 import { CODE_LENGTH } from '../../shared/constants';
-import type { CombatResult, FleetPurchase, GameState, MovementEvent, Ship } from '../../shared/types';
+import type {
+  CombatResult,
+  FleetPurchase,
+  GameState,
+  MovementEvent,
+  Ship,
+} from '../../shared/types';
 import { byId, el, hide, show, visible } from '../dom';
 import type { UIEvent } from './events';
 import { canAddFleetShip, getFleetCartView, getFleetShopView } from './fleet';
@@ -48,6 +54,7 @@ export class UIManager {
   private playerId: number = -1;
   private inviteUrl: string | null = null;
   private layoutSyncFrame: number | null = null;
+
   private readonly actionButtonIds = [
     'undoBtn',
     'confirmBtn',
@@ -64,8 +71,12 @@ export class UIManager {
   ];
 
   onEvent: ((event: UIEvent) => void) | null = null;
+
   private aiDifficulty: 'easy' | 'normal' | 'hard' = 'normal';
-  private pendingAIGame = false; // true when scenario selection is for AI game
+
+  // true when scenario selection is for AI game
+  private pendingAIGame = false;
+
   private readonly handleViewportResize = () => {
     this.queueLayoutSync();
   };
@@ -89,9 +100,13 @@ export class UIManager {
     this.fleetBuildingEl = byId('fleetBuilding');
 
     this.chatInput.addEventListener('keydown', (e) => {
-      e.stopPropagation(); // Prevent game keyboard shortcuts while typing
+      // Prevent game keyboard shortcuts while
+      // typing
+      e.stopPropagation();
+
       if (e.key === 'Enter') {
         const text = this.chatInput.value.trim();
+
         if (text && this.onEvent) {
           this.onEvent({ type: 'chat', text });
           this.chatInput.value = '';
@@ -101,6 +116,7 @@ export class UIManager {
 
     const mobileQuery = window.matchMedia('(max-width: 760px)');
     this.isMobile = mobileQuery.matches;
+
     mobileQuery.addEventListener('change', (e) => {
       this.isMobile = e.matches;
       this.syncLogVisibility();
@@ -111,7 +127,10 @@ export class UIManager {
     });
 
     window.addEventListener('resize', this.handleViewportResize);
-    window.visualViewport?.addEventListener('resize', this.handleViewportResize);
+    window.visualViewport?.addEventListener(
+      'resize',
+      this.handleViewportResize,
+    );
 
     // Wire up buttons
     byId('createBtn').addEventListener('click', () => {
@@ -124,28 +143,47 @@ export class UIManager {
     });
 
     // Difficulty buttons
-    for (const btn of Array.from(document.querySelectorAll('.btn-difficulty'))) {
+    for (const btn of Array.from(
+      document.querySelectorAll('.btn-difficulty'),
+    )) {
       btn.addEventListener('click', (e: Event) => {
         e.stopPropagation();
-        const diff = (btn as HTMLElement).dataset.difficulty as 'easy' | 'normal' | 'hard';
+
+        const diff = (btn as HTMLElement).dataset.difficulty as
+          | 'easy'
+          | 'normal'
+          | 'hard';
         this.aiDifficulty = diff;
+
         // Update active state
-        for (const b of Array.from(document.querySelectorAll('.btn-difficulty'))) {
+        for (const b of Array.from(
+          document.querySelectorAll('.btn-difficulty'),
+        )) {
           b.classList.remove('active');
         }
+
         btn.classList.add('active');
       });
     }
 
-    // Scenario buttons — dispatch to multiplayer or AI based on context
+    // Scenario buttons — dispatch to multiplayer or
+    // AI based on context
     for (const btn of Array.from(document.querySelectorAll('.btn-scenario'))) {
       btn.addEventListener('click', () => {
         const scenario = (btn as HTMLElement).dataset.scenario!;
+
         if (this.pendingAIGame) {
           this.pendingAIGame = false;
-          this.onEvent?.({ type: 'startSinglePlayer', scenario, difficulty: this.aiDifficulty });
+          this.onEvent?.({
+            type: 'startSinglePlayer',
+            scenario,
+            difficulty: this.aiDifficulty,
+          });
         } else {
-          this.onEvent?.({ type: 'selectScenario', scenario });
+          this.onEvent?.({
+            type: 'selectScenario',
+            scenario,
+          });
         }
       });
     }
@@ -155,59 +193,140 @@ export class UIManager {
     });
 
     byId('joinBtn').addEventListener('click', () => {
-      const parsed = parseJoinInput((byId('codeInput') as HTMLInputElement).value, CODE_LENGTH);
-      if (parsed) this.onEvent?.({ type: 'join', code: parsed.code, playerToken: parsed.playerToken });
+      const parsed = parseJoinInput(
+        (byId('codeInput') as HTMLInputElement).value,
+        CODE_LENGTH,
+      );
+
+      if (parsed) {
+        this.onEvent?.({
+          type: 'join',
+          code: parsed.code,
+          playerToken: parsed.playerToken,
+        });
+      }
     });
 
     byId('codeInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        const parsed = parseJoinInput((e.target as HTMLInputElement).value, CODE_LENGTH);
-        if (parsed) this.onEvent?.({ type: 'join', code: parsed.code, playerToken: parsed.playerToken });
+        const parsed = parseJoinInput(
+          (e.target as HTMLInputElement).value,
+          CODE_LENGTH,
+        );
+
+        if (parsed) {
+          this.onEvent?.({
+            type: 'join',
+            code: parsed.code,
+            playerToken: parsed.playerToken,
+          });
+        }
       }
     });
 
     byId('copyBtn').addEventListener('click', () => {
       const code = byId('gameCode').textContent;
       const url = this.inviteUrl ?? `${window.location.origin}/?code=${code}`;
+
       navigator.clipboard?.writeText(url).then(() => {
         byId('copyBtn').textContent = 'Copied!';
+
         setTimeout(() => {
           byId('copyBtn').textContent = 'Copy Link';
         }, 2000);
       });
     });
 
-    byId('undoBtn').addEventListener('click', () => this.onEvent?.({ type: 'undo' }));
-    byId('confirmBtn').addEventListener('click', () => this.onEvent?.({ type: 'confirm' }));
-    byId('launchMineBtn').addEventListener('click', () => this.onEvent?.({ type: 'launchOrdnance', ordType: 'mine' }));
-    byId('launchTorpedoBtn').addEventListener('click', () =>
-      this.onEvent?.({ type: 'launchOrdnance', ordType: 'torpedo' }),
+    byId('undoBtn').addEventListener('click', () =>
+      this.onEvent?.({ type: 'undo' }),
     );
-    byId('launchNukeBtn').addEventListener('click', () => this.onEvent?.({ type: 'launchOrdnance', ordType: 'nuke' }));
-    byId('emplaceBaseBtn').addEventListener('click', () => this.onEvent?.({ type: 'emplaceBase' }));
-    byId('skipOrdnanceBtn').addEventListener('click', () => this.onEvent?.({ type: 'skipOrdnance' }));
-    byId('attackBtn').addEventListener('click', () => this.onEvent?.({ type: 'attack' }));
-    byId('fireBtn').addEventListener('click', () => this.onEvent?.({ type: 'fireAll' }));
-    byId('skipCombatBtn').addEventListener('click', () => this.onEvent?.({ type: 'skipCombat' }));
-    byId('skipLogisticsBtn').addEventListener('click', () => this.onEvent?.({ type: 'skipLogistics' }));
-    byId('confirmTransfersBtn').addEventListener('click', () => this.onEvent?.({ type: 'confirmTransfers' }));
-    byId('rematchBtn').addEventListener('click', () => this.onEvent?.({ type: 'rematch' }));
-    byId('exitBtn').addEventListener('click', () => this.onEvent?.({ type: 'exit' }));
+
+    byId('confirmBtn').addEventListener('click', () =>
+      this.onEvent?.({ type: 'confirm' }),
+    );
+
+    byId('launchMineBtn').addEventListener('click', () =>
+      this.onEvent?.({
+        type: 'launchOrdnance',
+        ordType: 'mine',
+      }),
+    );
+
+    byId('launchTorpedoBtn').addEventListener('click', () =>
+      this.onEvent?.({
+        type: 'launchOrdnance',
+        ordType: 'torpedo',
+      }),
+    );
+
+    byId('launchNukeBtn').addEventListener('click', () =>
+      this.onEvent?.({
+        type: 'launchOrdnance',
+        ordType: 'nuke',
+      }),
+    );
+
+    byId('emplaceBaseBtn').addEventListener('click', () =>
+      this.onEvent?.({ type: 'emplaceBase' }),
+    );
+
+    byId('skipOrdnanceBtn').addEventListener('click', () =>
+      this.onEvent?.({ type: 'skipOrdnance' }),
+    );
+
+    byId('attackBtn').addEventListener('click', () =>
+      this.onEvent?.({ type: 'attack' }),
+    );
+
+    byId('fireBtn').addEventListener('click', () =>
+      this.onEvent?.({ type: 'fireAll' }),
+    );
+
+    byId('skipCombatBtn').addEventListener('click', () =>
+      this.onEvent?.({ type: 'skipCombat' }),
+    );
+
+    byId('skipLogisticsBtn').addEventListener('click', () =>
+      this.onEvent?.({
+        type: 'skipLogistics',
+      }),
+    );
+
+    byId('confirmTransfersBtn').addEventListener('click', () =>
+      this.onEvent?.({
+        type: 'confirmTransfers',
+      }),
+    );
+
+    byId('rematchBtn').addEventListener('click', () =>
+      this.onEvent?.({ type: 'rematch' }),
+    );
+
+    byId('exitBtn').addEventListener('click', () =>
+      this.onEvent?.({ type: 'exit' }),
+    );
 
     // Game log toggle
     byId('logToggleBtn').addEventListener('click', () => {
       if (this.isMobile) {
         this.collapseMobileLog();
+
         return;
       }
+
       this.logVisible = false;
+
       const visibility = buildScreenVisibility('hud', this.logVisible);
+
       this.gameLogEl.style.display = visibility.gameLog;
       this.logShowBtn.style.display = visibility.logShowBtn;
     });
+
     this.logShowBtn.addEventListener('click', () => {
       this.logVisible = true;
+
       const visibility = buildScreenVisibility('hud', this.logVisible);
+
       this.gameLogEl.style.display = visibility.gameLog;
       this.logShowBtn.style.display = visibility.logShowBtn;
     });
@@ -220,16 +339,21 @@ export class UIManager {
       } else {
         this.expandMobileLog();
       }
+
       return;
     }
+
     this.logVisible = toggleLogVisible(this.logVisible);
+
     const visibility = buildScreenVisibility('hud', this.logVisible);
+
     this.gameLogEl.style.display = visibility.gameLog;
     this.logShowBtn.style.display = visibility.logShowBtn;
   }
 
   private applyScreenVisibility(mode: UIScreenMode) {
     const visibility = buildScreenVisibility(mode, this.logVisible);
+
     this.menuEl.style.display = visibility.menu;
     this.scenarioEl.style.display = visibility.scenario;
     this.waitingEl.style.display = visibility.waiting;
@@ -239,6 +363,7 @@ export class UIManager {
     this.gameLogEl.style.display = visibility.gameLog;
     this.logShowBtn.style.display = visibility.logShowBtn;
     this.fleetBuildingEl.style.display = visibility.fleetBuilding;
+
     byId('helpBtn').style.display = visibility.helpBtn;
     byId('soundBtn').style.display = visibility.soundBtn;
     byId('helpOverlay').style.display = visibility.helpOverlay;
@@ -272,7 +397,9 @@ export class UIManager {
     this.hideAll();
     this.applyScreenVisibility('waiting');
     this.inviteUrl = inviteUrl;
+
     const copy = buildWaitingScreenCopy(code, false);
+
     byId('gameCode').textContent = copy.codeText;
     byId('waitingStatus').textContent = copy.statusText;
   }
@@ -281,7 +408,9 @@ export class UIManager {
     this.hideAll();
     this.applyScreenVisibility('waiting');
     this.inviteUrl = null;
+
     const copy = buildWaitingScreenCopy('', true);
+
     byId('gameCode').textContent = copy.codeText;
     byId('waitingStatus').textContent = copy.statusText;
   }
@@ -289,12 +418,15 @@ export class UIManager {
   showHUD() {
     this.hideAll();
     this.applyScreenVisibility('hud');
+
     if (this.isMobile) {
-      // On mobile, start with log collapsed — show latest-bar instead
+      // On mobile, start with log collapsed —
+      // show latest-bar instead
       this.gameLogEl.style.display = 'none';
       this.logShowBtn.style.display = 'none';
       this.logLatestBar.style.display = 'block';
     }
+
     this.queueLayoutSync();
   }
 
@@ -305,17 +437,23 @@ export class UIManager {
 
     const player = state.players[playerId];
     const credits = player.credits ?? 0;
+
     this.renderFleetShop(credits);
     this.renderFleetCart(credits);
 
     // Wire buttons
     byId('fleetReadyBtn').onclick = () => {
-      this.onEvent?.({ type: 'fleetReady', purchases: this.fleetCart });
+      this.onEvent?.({
+        type: 'fleetReady',
+        purchases: this.fleetCart,
+      });
     };
+
     byId('fleetClearBtn').onclick = () => {
       this.fleetCart = [];
       this.renderFleetCart(credits);
     };
+
     hide(byId('fleetWaiting'));
   }
 
@@ -333,6 +471,7 @@ export class UIManager {
       const item = document.createElement('div');
       item.className = 'fleet-shop-item';
       item.classList.toggle('disabled', itemView.disabled);
+
       item.innerHTML = `
         <div>
           <div class="fleet-shop-name">${itemView.name}</div>
@@ -340,10 +479,14 @@ export class UIManager {
         </div>
         <div class="fleet-shop-cost">${itemView.cost} MC</div>
       `;
+
       item.addEventListener('click', () => {
         if (canAddFleetShip(this.fleetCart, totalCredits, itemView.shipType)) {
-          this.fleetCart.push({ shipType: itemView.shipType });
+          this.fleetCart.push({
+            shipType: itemView.shipType,
+          });
           this.renderFleetCart(totalCredits);
+
           // Apply recoil animation to cart
           const cartEl = byId('fleetCart');
           cartEl.classList.remove('recoil-anim');
@@ -351,6 +494,7 @@ export class UIManager {
           cartEl.classList.add('recoil-anim');
         }
       });
+
       shopEl.appendChild(item);
     }
   }
@@ -358,12 +502,16 @@ export class UIManager {
   private renderFleetCart(totalCredits: number) {
     const cartEl = byId('fleetCart');
     const creditsEl = byId('fleetCredits');
-    const cartView = getFleetCartView(this.fleetCart, totalCredits);
-    creditsEl.textContent = cartView.remainingLabel;
 
+    const cartView = getFleetCartView(this.fleetCart, totalCredits);
+
+    creditsEl.textContent = cartView.remainingLabel;
     cartEl.innerHTML = '';
+
     if (cartView.isEmpty) {
-      cartEl.innerHTML = '<span style="color:#556;font-size:0.75rem;padding:0.2rem">Click ships above to add</span>';
+      cartEl.innerHTML =
+        '<span style="color:#556;font-size:0.75rem;padding:0.2rem">Click ships above to add</span>';
+
       return;
     }
 
@@ -371,16 +519,19 @@ export class UIManager {
       const chip = document.createElement('div');
       chip.className = 'fleet-cart-chip';
       chip.innerHTML = `${itemView.label} <span class="chip-remove">\u00d7</span>`;
+
       chip.addEventListener('click', () => {
         this.fleetCart.splice(index, 1);
         this.renderFleetCart(totalCredits);
       });
+
       cartEl.appendChild(chip);
     }
 
     // Update shop item disabled states
     const shopItems = document.querySelectorAll('.fleet-shop-item');
     const shopView = getFleetShopView(this.fleetCart, totalCredits);
+
     for (const [idx, item] of Array.from(shopItems).entries()) {
       item.classList.toggle('disabled', shopView[idx]?.disabled ?? false);
     }
@@ -389,16 +540,19 @@ export class UIManager {
   updateHUD(input: HUDInput) {
     const hudView = buildHUDView(input);
     const { turn, phase, isMyTurn } = input;
+
     byId('turnInfo').textContent = hudView.turnText;
     byId('phaseInfo').textContent = hudView.phaseText;
     byId('objective').textContent = hudView.objectiveText;
 
     // Trigger phase alert if turn or phase changed
     const phaseKey = `${turn}-${phase}-${isMyTurn}`;
+
     if (this.lastPhase !== phaseKey) {
       this.lastPhase = phaseKey;
       this.showPhaseAlert(phase, isMyTurn);
     }
+
     byId('fuelGauge').textContent = hudView.fuelGaugeText;
 
     visible(byId('undoBtn'), hudView.undoVisible, 'inline-block');
@@ -408,39 +562,58 @@ export class UIManager {
     const launchTorpedoBtn = byId<HTMLButtonElement>('launchTorpedoBtn');
     const launchNukeBtn = byId<HTMLButtonElement>('launchNukeBtn');
     const emplaceBaseBtn = byId<HTMLButtonElement>('emplaceBaseBtn');
+
     visible(launchMineBtn, hudView.launchMine.visible, 'inline-block');
     visible(launchTorpedoBtn, hudView.launchTorpedo.visible, 'inline-block');
     visible(launchNukeBtn, hudView.launchNuke.visible, 'inline-block');
     visible(emplaceBaseBtn, hudView.emplaceBaseVisible, 'inline-block');
-    visible(byId('skipOrdnanceBtn'), hudView.skipOrdnanceVisible, 'inline-block');
+    visible(
+      byId('skipOrdnanceBtn'),
+      hudView.skipOrdnanceVisible,
+      'inline-block',
+    );
+
     launchMineBtn.disabled = hudView.launchMine.disabled;
     launchTorpedoBtn.disabled = hudView.launchTorpedo.disabled;
     launchNukeBtn.disabled = hudView.launchNuke.disabled;
+
     launchMineBtn.style.opacity = hudView.launchMine.opacity;
     launchTorpedoBtn.style.opacity = hudView.launchTorpedo.opacity;
     launchNukeBtn.style.opacity = hudView.launchNuke.opacity;
+
     launchMineBtn.title = hudView.launchMine.title;
     launchTorpedoBtn.title = hudView.launchTorpedo.title;
     launchNukeBtn.title = hudView.launchNuke.title;
 
     visible(byId('skipCombatBtn'), hudView.skipCombatVisible, 'inline-block');
-    visible(byId('skipLogisticsBtn'), hudView.skipLogisticsVisible, 'inline-block');
-    visible(byId('confirmTransfersBtn'), hudView.confirmTransfersVisible, 'inline-block');
+    visible(
+      byId('skipLogisticsBtn'),
+      hudView.skipLogisticsVisible,
+      'inline-block',
+    );
+    visible(
+      byId('confirmTransfersBtn'),
+      hudView.confirmTransfersVisible,
+      'inline-block',
+    );
     visible(byId('transferPanel'), hudView.showTransferPanel, 'block');
 
     const statusMsg = byId('statusMsg');
+
     if (hudView.statusText) {
       statusMsg.textContent = hudView.statusText;
       show(statusMsg, 'block');
     } else {
       hide(statusMsg);
     }
+
     this.queueLayoutSync();
   }
 
   updateLatency(latencyMs: number | null) {
     const latencyEl = byId('latencyInfo');
     const status = getLatencyStatus(latencyMs);
+
     latencyEl.textContent = status.text;
     latencyEl.className = status.className;
   }
@@ -451,14 +624,18 @@ export class UIManager {
 
   toggleHelpOverlay() {
     const helpOverlay = byId('helpOverlay');
+
     visible(helpOverlay, helpOverlay.style.display === 'none', 'flex');
   }
 
   updateSoundButton(muted: boolean) {
     const btn = byId('soundBtn');
-    btn.textContent = muted ? '🔇' : '🔊';
+    btn.textContent = muted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
     btn.title = muted ? 'Sound off' : 'Sound on';
-    btn.setAttribute('aria-label', muted ? 'Enable sound effects' : 'Disable sound effects');
+    btn.setAttribute(
+      'aria-label',
+      muted ? 'Enable sound effects' : 'Disable sound effects',
+    );
     btn.classList.toggle('muted', muted);
   }
 
@@ -471,14 +648,21 @@ export class UIManager {
 
   clearTurnTimer() {
     const timerEl = byId('turnTimer');
+
     if (timerEl) {
       timerEl.textContent = '';
     }
+
     this.queueLayoutSync();
   }
 
-  updateShipList(ships: Ship[], selectedId: string | null, burns: Map<string, number | null>) {
+  updateShipList(
+    ships: Ship[],
+    selectedId: string | null,
+    burns: Map<string, number | null>,
+  ) {
     this.shipListEl.innerHTML = '';
+
     const shipListView = buildShipListView(ships, selectedId, burns);
 
     for (const [index, ship] of ships.entries()) {
@@ -486,8 +670,12 @@ export class UIManager {
 
       const entry = document.createElement('div');
       entry.className = 'ship-entry';
-      if (entryView.isSelected) entry.classList.add('active');
-      if (entryView.isDestroyed) entry.classList.add('destroyed');
+      if (entryView.isSelected) {
+        entry.classList.add('active');
+      }
+      if (entryView.isDestroyed) {
+        entry.classList.add('destroyed');
+      }
 
       entry.innerHTML = `
         <span class="ship-name">${entryView.displayName}</span>
@@ -502,16 +690,24 @@ export class UIManager {
       if (entryView.detailRows.length > 0) {
         const details = document.createElement('div');
         details.className = 'ship-details';
+
         const rows = entryView.detailRows.map((row) => {
           const style = row.tone ? ` style="color:var(--${row.tone})"` : '';
+
           return `<div class="ship-detail-row"><span class="ship-detail-label">${row.label}</span><span class="ship-detail-value"${style}>${row.value}</span></div>`;
         });
+
         details.innerHTML = rows.join('');
         entry.appendChild(details);
       }
 
       if (!ship.destroyed) {
-        entry.addEventListener('click', () => this.onEvent?.({ type: 'selectShip', shipId: ship.id }));
+        entry.addEventListener('click', () =>
+          this.onEvent?.({
+            type: 'selectShip',
+            shipId: ship.id,
+          }),
+        );
       }
 
       this.shipListEl.appendChild(entry);
@@ -525,8 +721,11 @@ export class UIManager {
 
   showFireButton(isVisible: boolean, count: number) {
     const btn = byId('fireBtn');
+
     visible(btn, isVisible, 'inline-block');
+
     btn.textContent = count > 0 ? `FIRE ALL (${count})` : 'FIRE ALL';
+
     this.queueLayoutSync();
   }
 
@@ -534,9 +733,11 @@ export class UIManager {
     const statusMsg = byId('statusMsg');
     statusMsg.textContent = 'Ships moving...';
     show(statusMsg, 'block');
+
     for (const id of this.actionButtonIds) {
       hide(byId(id));
     }
+
     this.queueLayoutSync();
   }
 
@@ -552,11 +753,15 @@ export class UIManager {
     },
   ) {
     const view = buildGameOverView(won, reason, stats);
+
     show(this.gameOverEl, 'flex');
+
     byId('gameOverText').textContent = view.titleText;
+
     const reasonEl = byId('gameOverReason');
     reasonEl.textContent = view.reasonText;
     reasonEl.style.whiteSpace = 'pre-line';
+
     const rematchBtn = byId('rematchBtn');
     rematchBtn.textContent = view.rematchText;
     rematchBtn.removeAttribute('disabled');
@@ -566,6 +771,7 @@ export class UIManager {
     const view = buildRematchPendingView();
     const btn = byId('rematchBtn');
     btn.textContent = view.rematchText;
+
     if (view.rematchDisabled) {
       btn.setAttribute('disabled', 'true');
     }
@@ -574,9 +780,12 @@ export class UIManager {
   showReconnecting(attempt: number, maxAttempts: number, onCancel: () => void) {
     const view = buildReconnectView(attempt, maxAttempts);
     const overlay = byId('reconnectOverlay');
+
     show(overlay, 'flex');
+
     byId('reconnectText').textContent = view.reconnectText;
     byId('reconnectAttempt').textContent = view.attemptText;
+
     const cancelBtn = byId('reconnectCancelBtn');
     cancelBtn.onclick = () => {
       this.hideReconnecting();
@@ -592,17 +801,27 @@ export class UIManager {
 
   showToast(message: string, type: 'error' | 'info' | 'success' = 'info') {
     const container = byId('toastContainer');
-    const toast = el('div', { class: `toast toast-${type}`, text: message });
+
+    const toast = el('div', {
+      class: `toast toast-${type}`,
+      text: message,
+    });
+
     container.appendChild(toast);
+
     setTimeout(() => {
-      if (toast.parentNode) toast.parentNode.removeChild(toast);
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
     }, 3100);
   }
 
   showPhaseAlert(phase: string, isMyTurn: boolean) {
     const alertEl = byId('phaseAlert');
+
     const titleEl = alertEl.querySelector('.phase-alert-title') as HTMLElement;
     const subEl = alertEl.querySelector('.phase-alert-subtitle') as HTMLElement;
+
     const copy = getPhaseAlertCopy(phase, isMyTurn);
     titleEl.textContent = copy.title;
     subEl.textContent = copy.subtitle;
@@ -629,14 +848,27 @@ export class UIManager {
   }
 
   logTurn(turn: number, player: string) {
-    const text = `— Turn ${turn}: ${player} —`;
-    this.logEntriesEl.appendChild(el('div', { class: 'log-entry log-turn', text }));
+    const text = `\u2014 Turn ${turn}: ${player} \u2014`;
+
+    this.logEntriesEl.appendChild(
+      el('div', {
+        class: 'log-entry log-turn',
+        text,
+      }),
+    );
+
     this.scrollLogToBottom();
     this.updateLatestBar(text, 'log-turn');
   }
 
   logText(text: string, cssClass = '') {
-    this.logEntriesEl.appendChild(el('div', { class: `log-entry ${cssClass}`, text }));
+    this.logEntriesEl.appendChild(
+      el('div', {
+        class: `log-entry ${cssClass}`,
+        text,
+      }),
+    );
+
     this.scrollLogToBottom();
     this.updateLatestBar(text, cssClass);
   }
@@ -666,6 +898,7 @@ export class UIManager {
 
   private updateLatestBar(text: string, cssClass: string) {
     if (!this.isMobile) return;
+
     this.logLatestText.textContent = text;
     this.logLatestText.className = `log-latest-text ${cssClass}`;
   }
@@ -686,8 +919,10 @@ export class UIManager {
   }
 
   private syncLogVisibility() {
-    // Only sync if HUD is active (gameLogEl would be managed)
+    // Only sync if HUD is active (gameLogEl would
+    // be managed)
     if (this.hudEl.style.display === 'none') return;
+
     if (this.isMobile) {
       // Entering mobile: collapse log to bar
       this.gameLogEl.classList.remove('mobile-expanded');
@@ -696,11 +931,14 @@ export class UIManager {
       this.logLatestBar.style.display = 'block';
       this.logExpandedOnMobile = false;
     } else {
-      // Entering desktop: restore log panel, hide bar
+      // Entering desktop: restore log panel,
+      // hide bar
       this.gameLogEl.classList.remove('mobile-expanded');
       this.logLatestBar.style.display = 'none';
       this.logExpandedOnMobile = false;
+
       const visibility = buildScreenVisibility('hud', this.logVisible);
+
       this.gameLogEl.style.display = visibility.gameLog;
       this.logShowBtn.style.display = visibility.logShowBtn;
     }
@@ -708,6 +946,7 @@ export class UIManager {
 
   private queueLayoutSync() {
     if (this.layoutSyncFrame !== null) return;
+
     this.layoutSyncFrame = window.requestAnimationFrame(() => {
       this.layoutSyncFrame = null;
       this.syncLayoutMetrics();
@@ -717,6 +956,7 @@ export class UIManager {
   private syncLayoutMetrics() {
     if (this.hudEl.style.display === 'none') {
       this.resetLayoutMetrics();
+
       return;
     }
 
@@ -725,9 +965,14 @@ export class UIManager {
       this.topBarEl.getBoundingClientRect(),
       this.bottomBarEl.getBoundingClientRect(),
     );
+
     const rootStyle = document.documentElement.style;
+
     rootStyle.setProperty('--hud-top-offset', `${offsets.hudTopOffsetPx}px`);
-    rootStyle.setProperty('--hud-bottom-offset', `${offsets.hudBottomOffsetPx}px`);
+    rootStyle.setProperty(
+      '--hud-bottom-offset',
+      `${offsets.hudBottomOffsetPx}px`,
+    );
   }
 
   private resetLayoutMetrics() {
@@ -735,7 +980,9 @@ export class UIManager {
       window.cancelAnimationFrame(this.layoutSyncFrame);
       this.layoutSyncFrame = null;
     }
+
     const rootStyle = document.documentElement.style;
+
     rootStyle.removeProperty('--hud-top-offset');
     rootStyle.removeProperty('--hud-bottom-offset');
   }
