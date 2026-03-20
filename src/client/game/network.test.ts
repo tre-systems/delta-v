@@ -43,14 +43,12 @@ describe('game-client-network', () => {
   });
 
   it('derives welcome handling for reconnects and guests', () => {
-    expect(deriveWelcomeHandling('connecting', 2, 1)).toEqual({
-      clearInviteLink: true,
+    expect(deriveWelcomeHandling('connecting', 2)).toEqual({
       showReconnectToast: true,
       nextState: 'waitingForOpponent',
     });
 
-    expect(deriveWelcomeHandling('waitingForOpponent', 0, 0)).toEqual({
-      clearInviteLink: false,
+    expect(deriveWelcomeHandling('waitingForOpponent', 0)).toEqual({
       showReconnectToast: false,
       nextState: null,
     });

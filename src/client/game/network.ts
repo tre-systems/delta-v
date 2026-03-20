@@ -2,7 +2,6 @@ import type { GameState } from '../../shared/types';
 import type { ClientState } from './phase';
 
 export interface WelcomeHandling {
-  clearInviteLink: boolean;
   showReconnectToast: boolean;
   nextState: ClientState | null;
 }
@@ -34,10 +33,8 @@ export const deriveGameStartClientState = (
 export const deriveWelcomeHandling = (
   currentState: ClientState,
   reconnectAttempts: number,
-  playerId: number,
 ): WelcomeHandling => {
   return {
-    clearInviteLink: playerId !== 0,
     showReconnectToast: reconnectAttempts > 0,
     nextState: currentState === 'connecting' ? 'waitingForOpponent' : null,
   };

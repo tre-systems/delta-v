@@ -89,7 +89,6 @@ const createDeps = (
       state: stateOverride,
       playerId: 0,
       gameCode: null,
-      inviteLink: null,
       reconnectAttempts: 0,
       latencyMs: 0,
       gameState,

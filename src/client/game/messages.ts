@@ -19,7 +19,6 @@ export type ClientMessagePlan =
       playerId: number;
       code: string;
       playerToken: string;
-      clearInviteLink: boolean;
       showReconnectToast: boolean;
       nextState: ClientState | null;
     }
@@ -82,17 +81,12 @@ export const deriveClientMessagePlan = (
 ): ClientMessagePlan => {
   switch (msg.type) {
     case 'welcome': {
-      const welcome = deriveWelcomeHandling(
-        currentState,
-        reconnectAttempts,
-        msg.playerId,
-      );
+      const welcome = deriveWelcomeHandling(currentState, reconnectAttempts);
       return {
         kind: 'welcome',
         playerId: msg.playerId,
         code: msg.code,
         playerToken: msg.playerToken,
-        clearInviteLink: welcome.clearInviteLink,
         showReconnectToast: welcome.showReconnectToast,
         nextState: welcome.nextState,
       };

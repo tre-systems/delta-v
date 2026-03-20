@@ -1,10 +1,9 @@
 import type { ClientState } from './phase';
-import { buildInviteLink } from './session';
 
 export type ClientScreenPlan =
   | { kind: 'menu' }
   | { kind: 'connecting' }
-  | { kind: 'waiting'; code: string; inviteLink: string | null }
+  | { kind: 'waiting'; code: string }
   | { kind: 'fleetBuilding' }
   | { kind: 'hud' }
   | { kind: 'none' };
@@ -21,9 +20,6 @@ const HUD_STATES = new Set<ClientState>([
 export const deriveClientScreenPlan = (
   state: ClientState,
   gameCode: string | null,
-  inviteLink: string | null,
-  storedInviteToken: string | null,
-  origin: string,
 ): ClientScreenPlan => {
   switch (state) {
     case 'menu':
@@ -34,11 +30,6 @@ export const deriveClientScreenPlan = (
       return {
         kind: 'waiting',
         code: gameCode ?? '',
-        inviteLink:
-          inviteLink ??
-          (gameCode && storedInviteToken
-            ? buildInviteLink(origin, gameCode, storedInviteToken)
-            : null),
       };
     case 'playing_fleetBuilding':
       return { kind: 'fleetBuilding' };

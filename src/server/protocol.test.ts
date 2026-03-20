@@ -141,6 +141,16 @@ describe('parseInitPayload', () => {
     expect(result).toEqual({ ok: true, value: validPayload });
   });
 
+  it('parses payloads without invite token', () => {
+    const { inviteToken: _, ...noInvite } = validPayload;
+    const result = parseInitPayload(noInvite, keys);
+
+    expect(result).toEqual({
+      ok: true,
+      value: { ...noInvite, inviteToken: null },
+    });
+  });
+
   it('rejects non-object payloads', () => {
     expect(parseInitPayload(null, keys)).toEqual({
       ok: false,
@@ -212,19 +222,25 @@ describe('parseInitPayload', () => {
     });
   });
 
-  it('rejects invalid invite tokens', () => {
-    expect(
-      parseInitPayload({ ...validPayload, inviteToken: 'bad' }, keys),
-    ).toEqual({
-      ok: false,
-      error: 'Invalid invite token',
+  it('treats invalid or missing invite tokens as null', () => {
+    const badResult = parseInitPayload(
+      { ...validPayload, inviteToken: 'bad' },
+      keys,
+    );
+
+    expect(badResult).toEqual({
+      ok: true,
+      value: { ...validPayload, inviteToken: null },
     });
 
-    expect(
-      parseInitPayload({ ...validPayload, inviteToken: null }, keys),
-    ).toEqual({
-      ok: false,
-      error: 'Invalid invite token',
+    const nullResult = parseInitPayload(
+      { ...validPayload, inviteToken: null },
+      keys,
+    );
+
+    expect(nullResult).toEqual({
+      ok: true,
+      value: { ...validPayload, inviteToken: null },
     });
   });
 });
@@ -243,6 +259,22 @@ describe('createRoomConfig', () => {
       scenario: 'escape',
       playerTokens: ['A'.repeat(32), null],
       inviteTokens: [null, 'B'.repeat(32)],
+    });
+  });
+
+  it('builds room config with null invite token', () => {
+    expect(
+      createRoomConfig({
+        code: 'ABCDE',
+        scenario: 'escape',
+        playerToken: 'A'.repeat(32),
+        inviteToken: null,
+      }),
+    ).toEqual({
+      code: 'ABCDE',
+      scenario: 'escape',
+      playerTokens: ['A'.repeat(32), null],
+      inviteTokens: [null, null],
     });
   });
 });
