@@ -1,5 +1,6 @@
 import * as fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+
 import type { HexCoord, HexVec } from './hex';
 import {
   analyzeHexLine,
@@ -40,6 +41,7 @@ describe('hex arithmetic properties', () => {
     fc.assert(
       fc.property(arbCoord(), arbVec(), (coord, vec) => {
         const result = hexSubtract(hexAdd(coord, vec), coord);
+
         expect(result).toEqual(vec);
       }),
     );
@@ -49,6 +51,7 @@ describe('hex arithmetic properties', () => {
     fc.assert(
       fc.property(arbCoord(), arbCoord(), (a, b) => {
         const vec = hexSubtract(a, b);
+
         expect(hexAdd(b, vec)).toEqual(a);
       }),
     );
@@ -156,6 +159,7 @@ describe('hexNeighbors properties', () => {
     fc.assert(
       fc.property(arbCoord(), (coord) => {
         const keys = hexNeighbors(coord).map(hexKey);
+
         expect(new Set(keys).size).toBe(6);
       }),
     );
@@ -167,6 +171,7 @@ describe('hexLineDraw properties', () => {
     fc.assert(
       fc.property(arbCoord(), arbCoord(), (a, b) => {
         const line = hexLineDraw(a, b);
+
         expect(hexEqual(line[0], a)).toBe(true);
         expect(hexEqual(line[line.length - 1], b)).toBe(true);
       }),
@@ -177,6 +182,7 @@ describe('hexLineDraw properties', () => {
     fc.assert(
       fc.property(arbCoord(), arbCoord(), (a, b) => {
         const line = hexLineDraw(a, b);
+
         expect(line.length).toBe(hexDistance(a, b) + 1);
       }),
     );
@@ -186,6 +192,7 @@ describe('hexLineDraw properties', () => {
     fc.assert(
       fc.property(arbCoord(), arbCoord(), (a, b) => {
         const line = hexLineDraw(a, b);
+
         for (let i = 1; i < line.length; i++) {
           expect(hexDistance(line[i - 1], line[i])).toBe(1);
         }
@@ -197,6 +204,7 @@ describe('hexLineDraw properties', () => {
     fc.assert(
       fc.property(arbCoord(), (a) => {
         const line = hexLineDraw(a, a);
+
         expect(line).toHaveLength(1);
         expect(hexEqual(line[0], a)).toBe(true);
       }),
@@ -209,6 +217,7 @@ describe('analyzeHexLine properties', () => {
     fc.assert(
       fc.property(arbCoord(), arbCoord(), (a, b) => {
         const analysis = analyzeHexLine(a, b);
+
         expect(analysis.primary.length).toBe(analysis.alternate.length);
       }),
     );
@@ -220,6 +229,7 @@ describe('analyzeHexLine properties', () => {
         const { primary, alternate, definite } = analyzeHexLine(a, b);
         const primaryKeys = new Set(primary.map(hexKey));
         const alternateKeys = new Set(alternate.map(hexKey));
+
         for (const hex of definite) {
           const key = hexKey(hex);
           expect(primaryKeys.has(key)).toBe(true);
@@ -233,6 +243,7 @@ describe('analyzeHexLine properties', () => {
     fc.assert(
       fc.property(arbCoord(), arbCoord(), (a, b) => {
         const { definite } = analyzeHexLine(a, b);
+
         expect(definite.some((h) => hexEqual(h, a))).toBe(true);
         expect(definite.some((h) => hexEqual(h, b))).toBe(true);
       }),
@@ -245,6 +256,7 @@ describe('hexRing properties', () => {
     fc.assert(
       fc.property(arbCoord(), (center) => {
         const ring = hexRing(center, 0);
+
         expect(ring).toHaveLength(1);
         expect(hexEqual(ring[0], center)).toBe(true);
       }),
@@ -287,6 +299,7 @@ describe('pixel conversion roundtrip', () => {
         (coord, size) => {
           const pixel = hexToPixel(coord, size);
           const back = pixelToHex(pixel, size);
+
           expect(hexEqual(back, coord)).toBe(true);
         },
       ),
@@ -300,6 +313,7 @@ describe('cubeRound properties', () => {
       fc.property(arbCoord(), (coord) => {
         const s = -coord.q - coord.r;
         const result = cubeRound(coord.q, coord.r, s);
+
         expect(result).toEqual(coord);
       }),
     );
@@ -313,6 +327,7 @@ describe('cubeRound properties', () => {
         (fq, fr) => {
           const fs = -fq - fr;
           const result = cubeRound(fq, fr, fs);
+
           expect(result.q + result.r + (-result.q - result.r)).toBe(0);
         },
       ),

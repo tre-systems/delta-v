@@ -96,6 +96,7 @@ describe('game-client-messages', () => {
 
   it('derives game start, movement, combat, and state update plans', () => {
     const movementState = createState();
+
     const movements: ShipMovement[] = [
       {
         shipId: 'ship-0',
@@ -111,6 +112,7 @@ describe('game-client-messages', () => {
     ];
     const ordnanceMovements: OrdnanceMovement[] = [];
     const events: MovementEvent[] = [];
+
     const results: CombatResult[] = [
       {
         attackerIds: ['ship-0'],

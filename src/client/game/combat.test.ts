@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import type {
   CombatAttack,
   GameState,
@@ -139,6 +140,7 @@ describe('game client combat helpers', () => {
       attackerIds: ['a', 'b'],
       remainingStrength: 3,
     });
+
     expect(hasSplitFireOptions(state, 0, queuedAttacks)).toBe(true);
   });
 
@@ -167,7 +169,9 @@ describe('game client combat helpers', () => {
   });
 
   it('builds an ordnance interception attack against an enemy nuke', () => {
-    const state = createState({ ordnance: [createOrdnance()] });
+    const state = createState({
+      ordnance: [createOrdnance()],
+    });
 
     expect(
       buildCurrentAttack(
@@ -202,6 +206,7 @@ describe('game client combat helpers', () => {
     ];
 
     expect(countRemainingCombatAttackers(state, 0, queuedAttacks)).toBe(1);
+
     expect(getAttackStrengthForSelection(state, ['a', 'b'])).toBe(6);
   });
 
@@ -219,16 +224,19 @@ describe('game client combat helpers', () => {
     ];
 
     expect(getCombatAttackerIdAtHex(state, 0, { q: 0, r: 1 })).toBe('b');
+
     expect(
       getCombatTargetAtHex(state, 0, { q: 2, r: 0 }, queuedAttacks),
     ).toEqual({
       targetId: 'ord-0',
       targetType: 'ordnance',
     });
+
     expect(getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, [])).toEqual({
       targetId: 'x',
       targetType: 'ship',
     });
+
     expect(
       getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, queuedAttacks),
     ).not.toEqual({
@@ -241,8 +249,18 @@ describe('game client combat helpers', () => {
     const hex = { q: 0, r: 0 };
     const state = createState({
       ships: [
-        createShip({ id: 'a', owner: 0, type: 'corsair', position: hex }),
-        createShip({ id: 'b', owner: 0, type: 'corvette', position: hex }),
+        createShip({
+          id: 'a',
+          owner: 0,
+          type: 'corsair',
+          position: hex,
+        }),
+        createShip({
+          id: 'b',
+          owner: 0,
+          type: 'corvette',
+          position: hex,
+        }),
         createShip({
           id: 'x',
           owner: 1,
@@ -323,6 +341,7 @@ describe('game client combat helpers', () => {
         map,
       ).map((ship) => ship.id),
     ).toEqual(['a', 'b']);
+
     expect(toggleCombatAttackerSelection(state, 0, planning, map, 'b')).toEqual(
       {
         consumed: true,
@@ -330,6 +349,7 @@ describe('game client combat helpers', () => {
         combatAttackStrength: 4,
       },
     );
+
     expect(
       toggleCombatAttackerSelection(
         state,

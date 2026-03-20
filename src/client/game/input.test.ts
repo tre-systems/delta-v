@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { HEX_DIRECTIONS, hexAdd, hexKey } from '../../shared/hex';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type {
@@ -61,7 +62,11 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     activePlayer: 0,
     ships: [
       createShip(),
-      createShip({ id: 'ship-1', owner: 1, position: { q: 2, r: 0 } }),
+      createShip({
+        id: 'ship-1',
+        owner: 1,
+        position: { q: 2, r: 0 },
+      }),
     ],
     ordnance: [],
     pendingAstrogationOrders: null,
@@ -241,7 +246,10 @@ describe('game client input helpers', () => {
       resolveOrdnanceClick(
         state,
         0,
-        createPlanning({ torpedoAccel: 2, torpedoAccelSteps: 2 }),
+        createPlanning({
+          torpedoAccel: 2,
+          torpedoAccelSteps: 2,
+        }),
         { q: 0, r: 0 },
       ),
     ).toEqual({
@@ -266,9 +274,21 @@ describe('game client input helpers', () => {
     const hex = { q: 0, r: 0 };
     const state = createState({
       ships: [
-        createShip({ id: 'ship-a', owner: 0, position: hex }),
-        createShip({ id: 'ship-b', owner: 0, position: hex }),
-        createShip({ id: 'enemy', owner: 1, position: { q: 5, r: 0 } }),
+        createShip({
+          id: 'ship-a',
+          owner: 0,
+          position: hex,
+        }),
+        createShip({
+          id: 'ship-b',
+          owner: 0,
+          position: hex,
+        }),
+        createShip({
+          id: 'enemy',
+          owner: 1,
+          position: { q: 5, r: 0 },
+        }),
       ],
     });
 

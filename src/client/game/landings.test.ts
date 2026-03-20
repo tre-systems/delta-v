@@ -59,7 +59,11 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     activePlayer: 0,
     ships: [
       createShip(),
-      createShip({ id: 'enemy', owner: 1, type: 'corsair' }),
+      createShip({
+        id: 'enemy',
+        owner: 1,
+        type: 'corsair',
+      }),
     ],
     ordnance: [],
     pendingAstrogationOrders: null,
@@ -143,6 +147,7 @@ describe('game-client-landings', () => {
     ];
 
     expect(deriveLandingLogEntries(null, movements)).toEqual([]);
+
     expect(deriveLandingLogEntries(createState(), movements)).toEqual([]);
   });
 });

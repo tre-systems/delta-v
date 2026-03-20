@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+
 import { createGame } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
@@ -24,6 +25,7 @@ describe('game-client-local', () => {
   it('classifies launched movement as a movement result', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST1', findBaseHex);
     const ship = state.ships[0];
+
     const resolution = resolveAstrogationStep(
       state,
       0,
@@ -37,6 +39,7 @@ describe('game-client-local', () => {
   it('classifies in-space astrogation as an ordnance state update', () => {
     const state = createGame(SCENARIOS.duel, map, 'TEST2', findBaseHex);
     const ship = state.ships[0];
+
     state.activePlayer = 0;
     ship.landed = false;
     ship.position = { q: 20, r: 0 };
@@ -58,6 +61,7 @@ describe('game-client-local', () => {
   it('classifies asteroid hazard resolution as combat results', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST3', findBaseHex);
     const ship = state.ships[0];
+
     ship.landed = false;
     state.phase = 'combat';
     state.activePlayer = 0;
@@ -77,6 +81,7 @@ describe('game-client-local', () => {
 
   it('advances the turn when combat is skipped without queued results', () => {
     const state = createGame(SCENARIOS.duel, map, 'TEST4', findBaseHex);
+
     state.phase = 'combat';
     state.activePlayer = 0;
     state.pendingAsteroidHazards = [];
@@ -91,6 +96,7 @@ describe('game-client-local', () => {
 
   it('preserves caller-controlled combat reset behavior', () => {
     const state = createGame(SCENARIOS.duel, map, 'TEST4B', findBaseHex);
+
     state.phase = 'combat';
     state.activePlayer = 0;
     state.ships[0].landed = false;
@@ -127,12 +133,20 @@ describe('game-client-local', () => {
     const enemyShip = state.ships[1];
 
     state.pendingAsteroidHazards = [
-      { shipId: myShip.id, hex: { ...myShip.position } },
-      { shipId: enemyShip.id, hex: { ...enemyShip.position } },
+      {
+        shipId: myShip.id,
+        hex: { ...myShip.position },
+      },
+      {
+        shipId: enemyShip.id,
+        hex: { ...enemyShip.position },
+      },
     ];
+
     expect(hasOwnedPendingAsteroidHazards(state, 0)).toBe(true);
 
     myShip.destroyed = true;
+
     expect(hasOwnedPendingAsteroidHazards(state, 0)).toBe(false);
   });
 });

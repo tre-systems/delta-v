@@ -1,5 +1,6 @@
 import * as fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+
 import type { DamageResult, OddsRatio, OtherDamageSource } from './combat';
 import {
   applyDamage,
@@ -34,6 +35,7 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 
 const arbPositiveInt = () => fc.integer({ min: 1, max: 100 });
+
 const arbNonNegInt = () => fc.integer({ min: 0, max: 100 });
 
 const arbShipType = () => fc.constantFrom(...Object.keys(SHIP_STATS));
@@ -51,6 +53,7 @@ const arbDamageSource = (): fc.Arbitrary<OtherDamageSource> =>
 describe('computeOdds properties', () => {
   it('always returns a valid odds ratio', () => {
     const validOdds = new Set(['1:4', '1:2', '1:1', '2:1', '3:1', '4:1']);
+
     fc.assert(
       fc.property(arbNonNegInt(), arbNonNegInt(), (attack, defend) => {
         expect(validOdds.has(computeOdds(attack, defend))).toBe(true);
@@ -60,6 +63,7 @@ describe('computeOdds properties', () => {
 
   it('higher attack strength never produces worse odds', () => {
     const oddsOrder = ['1:4', '1:2', '1:1', '2:1', '3:1', '4:1'];
+
     fc.assert(
       fc.property(
         arbPositiveInt(),
@@ -68,6 +72,7 @@ describe('computeOdds properties', () => {
         (a, bonus, defend) => {
           const oddsLow = computeOdds(a, defend);
           const oddsHigh = computeOdds(a + bonus, defend);
+
           expect(oddsOrder.indexOf(oddsHigh)).toBeGreaterThanOrEqual(
             oddsOrder.indexOf(oddsLow),
           );
@@ -104,9 +109,11 @@ describe('computeOdds properties', () => {
 describe('lookupGunCombat properties', () => {
   it('result type is always valid', () => {
     const validTypes = new Set(['none', 'disabled', 'eliminated']);
+
     fc.assert(
       fc.property(arbOddsRatio(), arbModifiedRoll(), (odds, roll) => {
         const result = lookupGunCombat(odds, roll);
+
         expect(validTypes.has(result.type)).toBe(true);
       }),
     );
@@ -116,6 +123,7 @@ describe('lookupGunCombat properties', () => {
     fc.assert(
       fc.property(arbOddsRatio(), arbModifiedRoll(), (odds, roll) => {
         const result = lookupGunCombat(odds, roll);
+
         if (result.type === 'disabled') {
           expect(result.disabledTurns).toBeGreaterThan(0);
         }
@@ -127,6 +135,7 @@ describe('lookupGunCombat properties', () => {
     fc.assert(
       fc.property(arbOddsRatio(), arbModifiedRoll(), (odds, roll) => {
         const result = lookupGunCombat(odds, roll);
+
         if (result.type === 'none' || result.type === 'eliminated') {
           expect(result.disabledTurns).toBe(0);
         }
@@ -142,6 +151,7 @@ describe('lookupGunCombat properties', () => {
       fc.property(arbOddsRatio(), arbModifiedRoll(), (odds, roll) => {
         const lower = lookupGunCombat(odds, roll);
         const higher = lookupGunCombat(odds, roll + 1);
+
         expect(resultSeverity(higher)).toBeGreaterThanOrEqual(
           resultSeverity(lower),
         );
@@ -161,6 +171,7 @@ describe('lookupGunCombat properties', () => {
         (oddsIdx, roll) => {
           const lower = lookupGunCombat(oddsOrder[oddsIdx], roll);
           const higher = lookupGunCombat(oddsOrder[oddsIdx + 1], roll);
+
           expect(resultSeverity(higher)).toBeGreaterThanOrEqual(
             resultSeverity(lower),
           );
@@ -173,9 +184,11 @@ describe('lookupGunCombat properties', () => {
 describe('lookupOtherDamage properties', () => {
   it('result type is always valid', () => {
     const validTypes = new Set(['none', 'disabled', 'eliminated']);
+
     fc.assert(
       fc.property(arbDieRoll(), arbDamageSource(), (roll, source) => {
         const result = lookupOtherDamage(roll, source);
+
         expect(validTypes.has(result.type)).toBe(true);
       }),
     );
@@ -192,6 +205,7 @@ describe('lookupOtherDamage properties', () => {
         (roll, source) => {
           const lower = lookupOtherDamage(roll, source);
           const higher = lookupOtherDamage(roll + 1, source);
+
           expect(resultSeverity(higher)).toBeGreaterThanOrEqual(
             resultSeverity(lower),
           );
@@ -206,10 +220,12 @@ describe('applyDamage properties', () => {
     fc.assert(
       fc.property(arbShipType(), (shipType) => {
         const ship = makeShip({ type: shipType });
+
         const eliminated = applyDamage(ship, {
           type: 'none',
           disabledTurns: 0,
         });
+
         expect(eliminated).toBe(false);
         expect(ship.destroyed).toBe(false);
       }),
@@ -220,10 +236,12 @@ describe('applyDamage properties', () => {
     fc.assert(
       fc.property(arbShipType(), (shipType) => {
         const ship = makeShip({ type: shipType });
+
         const eliminated = applyDamage(ship, {
           type: 'eliminated',
           disabledTurns: 0,
         });
+
         expect(eliminated).toBe(true);
         expect(ship.destroyed).toBe(true);
         expect(ship.velocity).toEqual({ dq: 0, dr: 0 });
@@ -237,12 +255,16 @@ describe('applyDamage properties', () => {
         fc.integer({ min: 1, max: 5 }),
         fc.integer({ min: 1, max: 5 }),
         (existing, added) => {
-          const ship = makeShip({ damage: { disabledTurns: existing } });
+          const ship = makeShip({
+            damage: { disabledTurns: existing },
+          });
           const result: DamageResult = {
             type: 'disabled',
             disabledTurns: added,
           };
+
           const eliminated = applyDamage(ship, result);
+
           if (existing + added >= DAMAGE_ELIMINATION_THRESHOLD) {
             expect(eliminated).toBe(true);
             expect(ship.destroyed).toBe(true);
@@ -262,6 +284,7 @@ describe('getCombatStrength properties', () => {
     fc.assert(
       fc.property(arbShipType(), (shipType) => {
         const ships = [makeShip({ type: shipType, destroyed: true })];
+
         expect(getCombatStrength(ships)).toBe(0);
       }),
     );
@@ -274,8 +297,12 @@ describe('getCombatStrength properties', () => {
         fc.integer({ min: 1, max: 5 }),
         (shipType, turns) => {
           const ships = [
-            makeShip({ type: shipType, damage: { disabledTurns: turns } }),
+            makeShip({
+              type: shipType,
+              damage: { disabledTurns: turns },
+            }),
           ];
+
           expect(getCombatStrength(ships)).toBe(0);
         },
       ),
@@ -288,6 +315,7 @@ describe('getCombatStrength properties', () => {
         fc.array(arbShipType(), { minLength: 0, maxLength: 5 }),
         (types) => {
           const ships = types.map((t, i) => makeShip({ id: `s${i}`, type: t }));
+
           expect(getCombatStrength(ships)).toBeGreaterThanOrEqual(0);
         },
       ),
@@ -305,6 +333,7 @@ describe('getCombatStrength properties', () => {
             (sum, t) => sum + (SHIP_STATS[t]?.combat ?? 0),
             0,
           );
+
           expect(totalStrength).toBe(expectedSum);
         },
       ),
@@ -316,7 +345,11 @@ describe('canAttack / canCounterattack properties', () => {
   it('destroyed ships cannot attack', () => {
     fc.assert(
       fc.property(arbShipType(), (shipType) => {
-        const ship = makeShip({ type: shipType, destroyed: true });
+        const ship = makeShip({
+          type: shipType,
+          destroyed: true,
+        });
+
         expect(canAttack(ship)).toBe(false);
         expect(canCounterattack(ship)).toBe(false);
       }),
@@ -327,6 +360,7 @@ describe('canAttack / canCounterattack properties', () => {
     fc.assert(
       fc.property(arbShipType(), (shipType) => {
         const ship = makeShip({ type: shipType, landed: true });
+
         expect(canAttack(ship)).toBe(false);
         expect(canCounterattack(ship)).toBe(false);
       }),
@@ -336,7 +370,11 @@ describe('canAttack / canCounterattack properties', () => {
   it('resupplied ships cannot attack', () => {
     fc.assert(
       fc.property(arbShipType(), (shipType) => {
-        const ship = makeShip({ type: shipType, resuppliedThisTurn: true });
+        const ship = makeShip({
+          type: shipType,
+          resuppliedThisTurn: true,
+        });
+
         expect(canAttack(ship)).toBe(false);
         expect(canCounterattack(ship)).toBe(false);
       }),
@@ -346,7 +384,11 @@ describe('canAttack / canCounterattack properties', () => {
   it('surrendered ships cannot attack', () => {
     fc.assert(
       fc.property(arbShipType(), (shipType) => {
-        const ship = makeShip({ type: shipType, surrendered: true });
+        const ship = makeShip({
+          type: shipType,
+          surrendered: true,
+        });
+
         expect(canAttack(ship)).toBe(false);
         expect(canCounterattack(ship)).toBe(false);
       }),
@@ -356,7 +398,11 @@ describe('canAttack / canCounterattack properties', () => {
   it('captured ships cannot attack', () => {
     fc.assert(
       fc.property(arbShipType(), (shipType) => {
-        const ship = makeShip({ type: shipType, captured: true });
+        const ship = makeShip({
+          type: shipType,
+          captured: true,
+        });
+
         expect(canAttack(ship)).toBe(false);
         expect(canCounterattack(ship)).toBe(false);
       }),
@@ -371,6 +417,7 @@ describe('canAttack / canCounterattack properties', () => {
     fc.assert(
       fc.property(fc.constantFrom(...defensiveTypes), (shipType) => {
         const ship = makeShip({ type: shipType });
+
         expect(canAttack(ship)).toBe(false);
         expect(canCounterattack(ship)).toBe(false);
       }),
@@ -384,6 +431,7 @@ describe('canAttack / canCounterattack properties', () => {
           type: 'dreadnaught',
           damage: { disabledTurns: turns },
         });
+
         expect(canAttack(ship)).toBe(true);
         expect(canCounterattack(ship)).toBe(true);
       }),
@@ -409,6 +457,7 @@ describe('canAttack / canCounterattack properties', () => {
             type: shipType,
             damage: { disabledTurns: turns },
           });
+
           expect(canAttack(ship)).toBe(false);
         },
       ),
@@ -422,6 +471,7 @@ describe('canAttack / canCounterattack properties', () => {
           type: 'orbitalBase',
           damage: { disabledTurns: turns },
         });
+
         if (turns <= 1) {
           expect(canAttack(ship)).toBe(true);
         } else {
@@ -447,6 +497,7 @@ describe('combat modifier properties', () => {
         (pos1, pos2) => {
           const attacker = makeShip({ position: pos1 });
           const target = makeShip({ position: pos2 });
+
           expect(computeRangeMod(attacker, target)).toBeGreaterThanOrEqual(0);
         },
       ),
@@ -467,6 +518,7 @@ describe('combat modifier properties', () => {
         (vel1, vel2) => {
           const attacker = makeShip({ velocity: vel1 });
           const target = makeShip({ velocity: vel2 });
+
           expect(computeVelocityMod(attacker, target)).toBeGreaterThanOrEqual(
             0,
           );
@@ -485,6 +537,7 @@ describe('combat modifier properties', () => {
         (vel) => {
           const attacker = makeShip({ velocity: vel });
           const target = makeShip({ velocity: vel });
+
           expect(computeVelocityMod(attacker, target)).toBe(0);
         },
       ),
@@ -496,10 +549,16 @@ describe('rollD6 properties', () => {
   it('always returns 1-6', () => {
     fc.assert(
       fc.property(
-        fc.double({ min: 0, max: 1, noNaN: true, maxExcluded: true }),
+        fc.double({
+          min: 0,
+          max: 1,
+          noNaN: true,
+          maxExcluded: true,
+        }),
         (n) => {
           const rng = () => n;
           const result = rollD6(rng);
+
           expect(result).toBeGreaterThanOrEqual(1);
           expect(result).toBeLessThanOrEqual(6);
         },
@@ -512,13 +571,28 @@ describe('resolveCombat properties', () => {
   it('combat resolution always produces valid result structure', () => {
     fc.assert(
       fc.property(
-        fc.double({ min: 0, max: 1, noNaN: true, maxExcluded: true }),
-        fc.double({ min: 0, max: 1, noNaN: true, maxExcluded: true }),
+        fc.double({
+          min: 0,
+          max: 1,
+          noNaN: true,
+          maxExcluded: true,
+        }),
+        fc.double({
+          min: 0,
+          max: 1,
+          noNaN: true,
+          maxExcluded: true,
+        }),
         (rng1, rng2) => {
           let callCount = 0;
           const rng = () => (callCount++ % 2 === 0 ? rng1 : rng2);
+
           const attackers = [
-            makeShip({ id: 'a1', type: 'corvette', owner: 0 }),
+            makeShip({
+              id: 'a1',
+              type: 'corvette',
+              owner: 0,
+            }),
           ];
           const target = makeShip({
             id: 't1',
@@ -529,6 +603,7 @@ describe('resolveCombat properties', () => {
           const allShips = [...attackers, target];
 
           const result = resolveCombat(attackers, target, allShips, rng);
+
           expect(result.dieRoll).toBeGreaterThanOrEqual(1);
           expect(result.dieRoll).toBeLessThanOrEqual(6);
           expect(['none', 'disabled', 'eliminated']).toContain(

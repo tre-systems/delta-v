@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import type { AstrogationContext, HUDInput } from './hud';
 import { buildHUDView } from './hud';
 
@@ -65,17 +66,20 @@ describe('ui hud helpers', () => {
       emplaceBaseVisible: true,
       skipOrdnanceVisible: true,
     });
+
     expect(view.launchMine).toMatchObject({
       visible: true,
       disabled: false,
       opacity: '1',
     });
+
     expect(view.launchTorpedo).toMatchObject({
       visible: true,
       disabled: true,
       opacity: '0.4',
       title: 'Warships only',
     });
+
     expect(view.launchNuke).toMatchObject({
       visible: true,
       disabled: true,

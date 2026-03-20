@@ -45,10 +45,12 @@ describe('renderer-camera', () => {
     camera.targetY = -10;
 
     camera.pan(20, -10);
+
     expect(camera.targetX).toBe(30);
     expect(camera.targetY).toBe(-5);
 
     camera.snapToTarget();
+
     expect(camera.isVisible(30, -5, 0)).toBe(true);
     expect(camera.isVisible(400, 300, 0)).toBe(false);
   });

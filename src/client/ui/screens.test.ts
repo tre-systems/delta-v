@@ -36,6 +36,7 @@ describe('ui-screens', () => {
       helpBtn: 'flex',
       soundBtn: 'flex',
     });
+
     expect(buildScreenVisibility('hud', false)).toMatchObject({
       gameLog: 'none',
       logShowBtn: 'block',
@@ -47,6 +48,7 @@ describe('ui-screens', () => {
       codeText: 'ABCDE',
       statusText: 'Waiting for opponent...',
     });
+
     expect(buildWaitingScreenCopy('ABCDE', true)).toEqual({
       codeText: '...',
       statusText: 'Connecting...',

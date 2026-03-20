@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import type { CombatResult, MovementEvent, Ship } from '../../shared/types';
 import {
   formatCombatResultEntries,
@@ -38,10 +39,12 @@ describe('ui formatters', () => {
       code: 'ABCDE',
       playerToken: 'pt-1',
     });
+
     expect(parseJoinInput('abcde', 5)).toEqual({
       code: 'ABCDE',
       playerToken: null,
     });
+
     expect(parseJoinInput('abc', 5)).toBeNull();
   });
 
@@ -50,10 +53,12 @@ describe('ui formatters', () => {
       text: '',
       className: 'latency-text',
     });
+
     expect(getLatencyStatus(180)).toEqual({
       text: '180ms',
       className: 'latency-text latency-ok',
     });
+
     expect(getPhaseAlertCopy('combat', false)).toEqual({
       title: 'Combat',
       subtitle: "OPPONENT'S TURN",
@@ -66,6 +71,7 @@ describe('ui formatters', () => {
       createShip({ id: 'a', type: 'corsair' }),
       createShip({ id: 'b', type: 'corvette', owner: 1 }),
     ];
+
     const capture: MovementEvent = {
       type: 'capture',
       shipId: 'b',
@@ -75,6 +81,7 @@ describe('ui formatters', () => {
       disabledTurns: 0,
       capturedBy: 'a',
     };
+
     const asteroid: MovementEvent = {
       type: 'asteroidHit',
       shipId: 'a',
@@ -88,6 +95,7 @@ describe('ui formatters', () => {
       text: 'Corvette has been CAPTURED by Corsair!',
       className: 'log-damage',
     });
+
     expect(formatMovementEventEntry(asteroid, ships)).toEqual({
       text: 'Corsair struck an asteroid! [Roll: 5] -> Systems disabled for 2T',
       className: 'log-damage',
@@ -100,6 +108,7 @@ describe('ui formatters', () => {
       createShip({ id: 'b', type: 'corvette', owner: 0 }),
       createShip({ id: 'x', type: 'frigate', owner: 1 }),
     ];
+
     const result: CombatResult = {
       attackerIds: ['a', 'b'],
       targetId: 'x',
@@ -146,6 +155,7 @@ describe('ui formatters', () => {
 
   it('formats asteroid hazard combat entries as environmental events', () => {
     const ships = [createShip({ id: 'x', type: 'packet', owner: 1 })];
+
     const result: CombatResult = {
       attackerIds: [],
       targetId: 'x',

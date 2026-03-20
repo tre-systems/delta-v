@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { HEX_DIRECTIONS, hexAdd, hexKey } from '../../shared/hex';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type {
@@ -56,7 +57,11 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   activePlayer: 0,
   ships: [
     createShip(),
-    createShip({ id: 'ship-1', owner: 1, position: { q: 2, r: 0 } }),
+    createShip({
+      id: 'ship-1',
+      owner: 1,
+      position: { q: 2, r: 0 },
+    }),
   ],
   ordnance: [],
   pendingAstrogationOrders: null,
@@ -98,6 +103,7 @@ const click = (q: number, r: number): InputEvent => ({
   type: 'clickHex',
   hex: { q, r },
 });
+
 const hover = (hex: { q: number; r: number } | null): InputEvent => ({
   type: 'hoverHex',
   hex,
@@ -119,6 +125,7 @@ describe('interpretInput', () => {
 
     it('returns [] when not active player', () => {
       const state = createState({ activePlayer: 1 });
+
       expect(
         interpretInput(click(0, 0), state, simpleMap, 0, createPlanning()),
       ).toEqual([]);
@@ -126,6 +133,7 @@ describe('interpretInput', () => {
 
     it('returns [] for non-interactive phases', () => {
       const state = createState({ phase: 'fleetBuilding' });
+
       expect(
         interpretInput(click(0, 0), state, simpleMap, 0, createPlanning()),
       ).toEqual([]);
@@ -141,6 +149,7 @@ describe('interpretInput', () => {
         0,
         createPlanning(),
       );
+
       expect(cmds).toEqual([{ type: 'selectShip', shipId: 'ship-0' }]);
     });
 
@@ -152,12 +161,16 @@ describe('interpretInput', () => {
         0,
         createPlanning(),
       );
+
       expect(cmds).toEqual([{ type: 'deselectShip' }]);
     });
 
     it('toggles burn from destination ring', () => {
       const burnHex = hexAdd({ q: 0, r: 0 }, HEX_DIRECTIONS[0]);
-      const planning = createPlanning({ selectedShipId: 'ship-0' });
+      const planning = createPlanning({
+        selectedShipId: 'ship-0',
+      });
+
       const cmds = interpretInput(
         { type: 'clickHex', hex: burnHex },
         createState(),
@@ -165,8 +178,13 @@ describe('interpretInput', () => {
         0,
         planning,
       );
+
       expect(cmds).toEqual([
-        { type: 'setBurnDirection', shipId: 'ship-0', direction: 0 },
+        {
+          type: 'setBurnDirection',
+          shipId: 'ship-0',
+          direction: 0,
+        },
       ]);
     });
 
@@ -177,6 +195,7 @@ describe('interpretInput', () => {
         selectedShipId: 'ship-0',
         burns: new Map([['ship-0', 0]]),
       });
+
       const cmds = interpretInput(
         { type: 'clickHex', hex: overloadHex },
         createState(),
@@ -184,8 +203,13 @@ describe('interpretInput', () => {
         0,
         planning,
       );
+
       expect(cmds).toEqual([
-        { type: 'setOverloadDirection', shipId: 'ship-0', direction: 1 },
+        {
+          type: 'setOverloadDirection',
+          shipId: 'ship-0',
+          direction: 1,
+        },
       ]);
     });
 
@@ -200,7 +224,10 @@ describe('interpretInput', () => {
           }),
         ],
       });
-      const planning = createPlanning({ selectedShipId: 'ship-0' });
+      const planning = createPlanning({
+        selectedShipId: 'ship-0',
+      });
+
       const cmds = interpretInput(
         { type: 'clickHex', hex: weakHex },
         state,
@@ -208,6 +235,7 @@ describe('interpretInput', () => {
         0,
         planning,
       );
+
       expect(cmds).toEqual([
         {
           type: 'setWeakGravityChoices',
@@ -222,7 +250,10 @@ describe('interpretInput', () => {
     it('cycles torpedo acceleration', () => {
       const state = createState({ phase: 'ordnance' });
       const torpHex = hexAdd({ q: 0, r: 0 }, HEX_DIRECTIONS[0]);
-      const planning = createPlanning({ selectedShipId: 'ship-0' });
+      const planning = createPlanning({
+        selectedShipId: 'ship-0',
+      });
+
       const cmds = interpretInput(
         { type: 'clickHex', hex: torpHex },
         state,
@@ -230,6 +261,7 @@ describe('interpretInput', () => {
         0,
         planning,
       );
+
       expect(cmds).toEqual([
         { type: 'setTorpedoAccel', direction: 0, steps: 1 },
       ]);
@@ -237,6 +269,7 @@ describe('interpretInput', () => {
 
     it('selects ship and clears torpedo accel', () => {
       const state = createState({ phase: 'ordnance' });
+
       const cmds = interpretInput(
         click(0, 0),
         state,
@@ -244,6 +277,7 @@ describe('interpretInput', () => {
         0,
         createPlanning(),
       );
+
       expect(cmds).toEqual([
         { type: 'selectShip', shipId: 'ship-0' },
         { type: 'clearTorpedoAcceleration' },
@@ -255,6 +289,7 @@ describe('interpretInput', () => {
         phase: 'ordnance',
         ships: [createShip({ damage: { disabledTurns: 1 } })],
       });
+
       const cmds = interpretInput(
         click(0, 0),
         state,
@@ -262,6 +297,7 @@ describe('interpretInput', () => {
         0,
         createPlanning(),
       );
+
       expect(cmds).toEqual([]);
     });
   });
@@ -272,14 +308,20 @@ describe('interpretInput', () => {
         phase: 'combat',
         ships: [
           createShip({ position: { q: 0, r: 0 } }),
-          createShip({ id: 'ship-1', owner: 1, position: { q: 1, r: 0 } }),
+          createShip({
+            id: 'ship-1',
+            owner: 1,
+            position: { q: 1, r: 0 },
+          }),
         ],
       });
 
     it('selects a combat target', () => {
       const state = combatState();
       const planning = createPlanning();
+
       const cmds = interpretInput(click(1, 0), state, simpleMap, 0, planning);
+
       expect(cmds).toHaveLength(1);
       expect(cmds[0].type).toBe('setCombatPlan');
     });
@@ -290,12 +332,15 @@ describe('interpretInput', () => {
         combatTargetId: 'ship-1',
         combatTargetType: 'ship',
       });
+
       const cmds = interpretInput(click(1, 0), state, simpleMap, 0, planning);
+
       expect(cmds).toEqual([{ type: 'clearCombatSelection' }]);
     });
 
     it('clears selection on empty space', () => {
       const state = combatState();
+
       const cmds = interpretInput(
         click(9, 9),
         state,
@@ -303,6 +348,7 @@ describe('interpretInput', () => {
         0,
         createPlanning(),
       );
+
       expect(cmds).toEqual([{ type: 'clearCombatSelection' }]);
     });
 
@@ -313,7 +359,9 @@ describe('interpretInput', () => {
         combatTargetType: 'ship',
         combatAttackerIds: [],
       });
+
       const cmds = interpretInput(click(0, 0), state, simpleMap, 0, planning);
+
       expect(cmds).toHaveLength(1);
       expect(cmds[0].type).toBe('setCombatPlan');
     });
@@ -328,12 +376,17 @@ describe('interpretInput', () => {
         0,
         createPlanning(),
       );
+
       expect(cmds).toEqual([{ type: 'setHoverHex', hex: { q: 3, r: 4 } }]);
     });
 
     it('clears hover when no state but planning has hoverHex', () => {
-      const planning = createPlanning({ hoverHex: { q: 1, r: 1 } });
+      const planning = createPlanning({
+        hoverHex: { q: 1, r: 1 },
+      });
+
       const cmds = interpretInput(hover(null), null, null, 0, planning);
+
       expect(cmds).toEqual([{ type: 'setHoverHex', hex: null }]);
     });
 
@@ -345,6 +398,7 @@ describe('interpretInput', () => {
         0,
         createPlanning(),
       );
+
       expect(cmds).toEqual([]);
     });
   });

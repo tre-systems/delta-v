@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+
 import {
   analyzeHexLine,
   HEX_DIRECTIONS,
@@ -12,24 +13,22 @@ import type { Ship, SolarSystemMap } from './types';
 
 let map: SolarSystemMap;
 
-function makeShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'test',
-    type: 'corvette',
-    owner: 0,
-    position: { q: 5, r: 5 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 20,
-    cargoUsed: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    pendingGravityEffects: [],
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'test',
+  type: 'corvette',
+  owner: 0,
+  position: { q: 5, r: 5 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 20,
+  cargoUsed: 0,
+  resuppliedThisTurn: false,
+  landed: false,
+  destroyed: false,
+  detected: true,
+  pendingGravityEffects: [],
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
 beforeEach(() => {
   map = buildSolarSystemMap();
@@ -41,6 +40,7 @@ describe('computeCourse - basic movement', () => {
       position: { q: 5, r: 5 },
       velocity: { dq: 0, dr: 0 },
     });
+
     const course = computeCourse(ship, null, map);
 
     expect(course.destination).toEqual({ q: 5, r: 5 });
@@ -55,6 +55,7 @@ describe('computeCourse - basic movement', () => {
       position: { q: 5, r: 5 },
       velocity: { dq: 2, dr: -1 },
     });
+
     const course = computeCourse(ship, null, map);
 
     expect(course.destination).toEqual({ q: 7, r: 4 });
@@ -67,6 +68,7 @@ describe('computeCourse - basic movement', () => {
       position: { q: 5, r: 5 },
       velocity: { dq: 0, dr: 0 },
     });
+
     const course = computeCourse(ship, 0, map); // Burn E
 
     expect(course.destination).toEqual({ q: 6, r: 5 });
@@ -79,7 +81,9 @@ describe('computeCourse - basic movement', () => {
       position: { q: 5, r: 5 },
       velocity: { dq: 1, dr: 0 },
     });
-    const course = computeCourse(ship, 0, map); // Burn E, same direction as velocity
+
+    // Burn E, same direction as velocity
+    const course = computeCourse(ship, 0, map);
 
     expect(course.destination).toEqual({ q: 7, r: 5 });
     expect(course.newVelocity).toEqual({ dq: 2, dr: 0 });
@@ -91,7 +95,9 @@ describe('computeCourse - basic movement', () => {
       position: { q: 5, r: 5 },
       velocity: { dq: 2, dr: 0 },
     });
-    const course = computeCourse(ship, 3, map); // Burn W (opposite to E velocity)
+
+    // Burn W (opposite to E velocity)
+    const course = computeCourse(ship, 3, map);
 
     expect(course.destination).toEqual({ q: 6, r: 5 });
     expect(course.newVelocity).toEqual({ dq: 1, dr: 0 });
@@ -100,23 +106,27 @@ describe('computeCourse - basic movement', () => {
 
   it('no burn with empty fuel uses no fuel', () => {
     const ship = makeShip({ fuel: 0 });
-    const course = computeCourse(ship, 0, map); // Try to burn with no fuel
+
+    // Try to burn with no fuel
+    const course = computeCourse(ship, 0, map);
 
     // Burn should not apply — no fuel
     expect(course.fuelSpent).toBe(0);
-    expect(course.destination).toEqual(ship.position); // stationary
+    expect(course.destination).toEqual(ship.position);
   });
 });
 
 describe('computeCourse - overload maneuver', () => {
   it('warship can overload for 2 fuel', () => {
     const ship = makeShip({
-      type: 'corvette', // canOverload: true
+      type: 'corvette',
       position: { q: 5, r: 5 },
       velocity: { dq: 0, dr: 0 },
       fuel: 20,
     });
-    const course = computeCourse(ship, 0, map, { overload: 0 }); // Double burn E
+
+    // Double burn E
+    const course = computeCourse(ship, 0, map, { overload: 0 });
 
     expect(course.destination).toEqual({ q: 7, r: 5 });
     expect(course.newVelocity).toEqual({ dq: 2, dr: 0 });
@@ -125,11 +135,12 @@ describe('computeCourse - overload maneuver', () => {
 
   it('non-warship cannot overload', () => {
     const ship = makeShip({
-      type: 'transport', // canOverload: false
+      type: 'transport',
       position: { q: 5, r: 5 },
       velocity: { dq: 0, dr: 0 },
       fuel: 20,
     });
+
     const course = computeCourse(ship, 0, map, { overload: 0 });
 
     // Overload should not apply for transport
@@ -143,8 +154,10 @@ describe('computeCourse - overload maneuver', () => {
       position: { q: 5, r: 5 },
       velocity: { dq: 0, dr: 0 },
     });
+
     // Overload without burn should be ignored
     const course = computeCourse(ship, null, map, { overload: 0 });
+
     expect(course.fuelSpent).toBe(0);
     expect(course.destination).toEqual({ q: 5, r: 5 });
   });
@@ -152,8 +165,9 @@ describe('computeCourse - overload maneuver', () => {
   it('overload with insufficient fuel is ignored', () => {
     const ship = makeShip({
       type: 'corvette',
-      fuel: 1, // Not enough for overload (needs 2)
+      fuel: 1,
     });
+
     const course = computeCourse(ship, 0, map, { overload: 0 });
 
     expect(course.fuelSpent).toBe(1); // Normal burn only
@@ -164,13 +178,15 @@ describe('computeCourse - gravity', () => {
   it('entering a gravity hex queues deflection for the next turn', () => {
     const gravHex = { q: -8, r: -5 }; // E of Mars
     const hex = map.hexes.get(hexKey(gravHex));
+
     expect(hex?.gravity).toBeDefined();
     expect(hex?.gravity?.bodyName).toBe('Mars');
 
     const ship = makeShip({
       position: { q: -6, r: -5 },
-      velocity: { dq: -2, dr: 0 }, // Ends in the Mars gravity ring
+      velocity: { dq: -2, dr: 0 },
     });
+
     const course = computeCourse(ship, null, map);
 
     expect(course.destination).toEqual(gravHex);
@@ -182,6 +198,7 @@ describe('computeCourse - gravity', () => {
   it('pending gravity deflects the following turn', () => {
     const gravHex = { q: -8, r: -5 }; // E of Mars
     const hex = map.hexes.get(hexKey(gravHex));
+
     expect(hex?.gravity).toBeDefined();
 
     const ship = makeShip({
@@ -197,6 +214,7 @@ describe('computeCourse - gravity', () => {
         },
       ],
     });
+
     const course = computeCourse(ship, null, map);
 
     expect(course.destination).toEqual({ q: -9, r: -6 });
@@ -207,14 +225,15 @@ describe('computeCourse - gravity', () => {
     // Ship ending its move in a gravity hex should not be deflected this turn
     // This is critical for landing at bases in the gravity ring
     const marsBase = findBaseHex(map, 'Mars');
+
     expect(marsBase).not.toBeNull();
 
     // The base should be in the gravity ring
     const baseHex = map.hexes.get(hexKey(marsBase!));
+
     expect(baseHex?.base).toBeDefined();
 
     // Ship moving to land at the base — approach from outside the gravity ring
-    // We need to find a path where the base is the destination
     const ship = makeShip({
       position: { q: marsBase!.q + 1, r: marsBase!.r },
       velocity: { dq: -1, dr: 0 },
@@ -222,12 +241,13 @@ describe('computeCourse - gravity', () => {
 
     const course = computeCourse(ship, null, map);
 
-    // Ship should arrive at the base hex (not be deflected past it), but it is
-    // still flying unless it executes a legal landing burn from orbit.
+    // Ship should arrive at the base hex (not be deflected past it),
+    // but it is still flying unless it executes a legal landing burn from orbit.
     if (hexEqual(course.destination, marsBase!)) {
       expect(course.landedAt).toBeNull();
       expect(course.crashed).toBe(false);
     }
+
     expect(course.gravityEffects).toHaveLength(0);
     expect(
       course.enteredGravityEffects.every(
@@ -239,8 +259,9 @@ describe('computeCourse - gravity', () => {
   it('passing through multiple gravity hexes queues multiple future deflections', () => {
     const ship = makeShip({
       position: { q: 5, r: 0 },
-      velocity: { dq: -2, dr: 0 }, // Moving W toward Sol
+      velocity: { dq: -2, dr: 0 },
     });
+
     const course = computeCourse(ship, null, map);
 
     if (course.enteredGravityEffects.length > 1) {
@@ -255,7 +276,11 @@ describe('computeCourse - gravity', () => {
           '1,0',
           {
             terrain: 'space',
-            gravity: { direction: 3, strength: 'full', bodyName: 'TestWorld' },
+            gravity: {
+              direction: 3,
+              strength: 'full',
+              bodyName: 'TestWorld',
+            },
           },
         ],
       ]),
@@ -268,6 +293,7 @@ describe('computeCourse - gravity', () => {
     });
 
     const analysis = analyzeHexLine(ship.position, { q: 2, r: -1 });
+
     expect(analysis.ambiguousPairs).toEqual([
       [
         { q: 1, r: 0 },
@@ -276,6 +302,7 @@ describe('computeCourse - gravity', () => {
     ]);
 
     const course = computeCourse(ship, null, edgeMap);
+
     expect(course.enteredGravityEffects).toEqual([]);
   });
 
@@ -286,13 +313,18 @@ describe('computeCourse - gravity', () => {
           '1,0',
           {
             terrain: 'space',
-            gravity: { direction: 3, strength: 'full', bodyName: 'TestWorld' },
+            gravity: {
+              direction: 3,
+              strength: 'full',
+              bodyName: 'TestWorld',
+            },
           },
         ],
       ]),
       bodies: [],
       bounds: { minQ: -2, maxQ: 4, minR: -2, maxR: 2 },
     };
+
     // Straight E at speed 2: (0,0) -> (2,0), definitively enters (1,0)
     const ship = makeShip({
       position: { q: 0, r: 0 },
@@ -300,6 +332,7 @@ describe('computeCourse - gravity', () => {
     });
 
     const course = computeCourse(ship, null, gravMap);
+
     expect(course.enteredGravityEffects).toHaveLength(1);
     expect(course.enteredGravityEffects[0].bodyName).toBe('TestWorld');
   });
@@ -311,13 +344,18 @@ describe('computeCourse - gravity', () => {
           '1,0',
           {
             terrain: 'space',
-            gravity: { direction: 3, strength: 'weak', bodyName: 'TestMoon' },
+            gravity: {
+              direction: 3,
+              strength: 'weak',
+              bodyName: 'TestMoon',
+            },
           },
         ],
       ]),
       bodies: [],
       bounds: { minQ: -2, maxQ: 4, minR: -2, maxR: 2 },
     };
+
     // Diagonal path (0,0) -> (2,-1) grazes edge of (1,0)
     const ship = makeShip({
       position: { q: 0, r: 0 },
@@ -325,6 +363,7 @@ describe('computeCourse - gravity', () => {
     });
 
     const course = computeCourse(ship, null, weakGravMap);
+
     expect(course.enteredGravityEffects).toEqual([]);
   });
 
@@ -336,20 +375,29 @@ describe('computeCourse - gravity', () => {
           '1,0',
           {
             terrain: 'space',
-            gravity: { direction: 3, strength: 'full', bodyName: 'TestWorld' },
+            gravity: {
+              direction: 3,
+              strength: 'full',
+              bodyName: 'TestWorld',
+            },
           },
         ],
         [
           '1,-1',
           {
             terrain: 'space',
-            gravity: { direction: 4, strength: 'full', bodyName: 'TestWorld' },
+            gravity: {
+              direction: 4,
+              strength: 'full',
+              bodyName: 'TestWorld',
+            },
           },
         ],
       ]),
       bodies: [],
       bounds: { minQ: -2, maxQ: 4, minR: -2, maxR: 2 },
     };
+
     // Path (0,0) -> (2,-1) runs along the shared edge
     const ship = makeShip({
       position: { q: 0, r: 0 },
@@ -357,6 +405,7 @@ describe('computeCourse - gravity', () => {
     });
 
     const course = computeCourse(ship, null, dualGravMap);
+
     // Neither gravity hex is definite — both are ambiguous
     expect(course.enteredGravityEffects).toEqual([]);
   });
@@ -376,7 +425,7 @@ describe('computeCourse - weak gravity', () => {
 
     const ship = makeShip({
       position: { q: 11, r: -9 },
-      velocity: { dq: 1, dr: 0 }, // Moving E through Luna weak gravity
+      velocity: { dq: 1, dr: 0 },
     });
 
     // Without ignoring: destination is unchanged this turn, but gravity is queued.
@@ -407,11 +456,11 @@ describe('computeCourse - weak gravity', () => {
 
 describe('computeCourse - crash detection', () => {
   it('ship crashing into Sol is destroyed', () => {
-    // Ship heading directly at Sol
     const ship = makeShip({
       position: { q: 3, r: 0 },
-      velocity: { dq: -3, dr: 0 }, // Moving W toward Sol at (0,0)
+      velocity: { dq: -3, dr: 0 },
     });
+
     const course = computeCourse(ship, null, map);
 
     expect(course.crashed).toBe(true);
@@ -419,12 +468,12 @@ describe('computeCourse - crash detection', () => {
   });
 
   it('ship passing through planet body crashes', () => {
-    // Ship with velocity that takes it through a planet body
     const _venusCenter = { q: -7, r: 7 };
     const ship = makeShip({
       position: { q: -7, r: 5 },
-      velocity: { dq: 0, dr: 2 }, // Moving SE through Venus
+      velocity: { dq: 0, dr: 2 },
     });
+
     const course = computeCourse(ship, null, map);
 
     // Should crash into Venus body if path goes through surface hexes
@@ -442,8 +491,9 @@ describe('computeCourse - crash detection', () => {
     const mercuryCenter = { q: 4, r: 2 };
     const ship = makeShip({
       position: { q: 5, r: 2 },
-      velocity: { dq: -1, dr: 0 }, // Moving W to Mercury center
+      velocity: { dq: -1, dr: 0 },
     });
+
     const course = computeCourse(ship, null, map);
 
     if (hexEqual(course.destination, mercuryCenter)) {
@@ -456,12 +506,14 @@ describe('computeCourse - crash detection', () => {
 describe('computeCourse - landing', () => {
   it('drifting into a planetary base hex does not auto-land', () => {
     const marsBase = findBaseHex(map, 'Mars')!;
+
     expect(marsBase).not.toBeNull();
 
     const ship = makeShip({
-      position: hexAdd(marsBase, HEX_DIRECTIONS[0]), // 1 hex E of base
-      velocity: { dq: -1, dr: 0 }, // Moving W to base
+      position: hexAdd(marsBase, HEX_DIRECTIONS[0]),
+      velocity: { dq: -1, dr: 0 },
     });
+
     const course = computeCourse(ship, null, map);
 
     if (hexEqual(course.destination, marsBase)) {
@@ -485,10 +537,12 @@ describe('computeCourse - landing', () => {
         },
       ],
     });
+
     const course = computeCourse(ship, 0, map);
 
     expect(course.destination).toEqual(marsBase);
     expect(course.fuelSpent).toBe(1);
+
     if (hexEqual(course.destination, marsBase)) {
       expect(course.landedAt).toBe('Mars');
       expect(course.crashed).toBe(false);
@@ -510,6 +564,7 @@ describe('computeCourse - landing', () => {
         },
       ],
     });
+
     const course = computeCourse(ship, 0, map, {
       destroyedBases: [hexKey(marsBase)],
     });
@@ -520,10 +575,12 @@ describe('computeCourse - landing', () => {
 
   it('asteroid landing requires stopping in the hex', () => {
     const ship = makeShip({
-      position: { q: -4, r: -14 }, // Ceres hex
+      position: { q: -4, r: -14 },
       velocity: { dq: 0, dr: 0 },
     });
+
     const course = computeCourse(ship, null, map);
+
     expect(course.destination).toEqual({ q: -4, r: -14 });
     expect(course.landedAt).toBe('Ceres');
   });
@@ -537,12 +594,13 @@ describe('computeCourse - takeoff', () => {
       landed: true,
       velocity: { dq: 0, dr: 0 },
     });
+
     const course = computeCourse(ship, null, map);
 
     expect(course.destination).toEqual(marsBase);
     expect(course.fuelSpent).toBe(0);
     expect(course.newVelocity).toEqual({ dq: 0, dr: 0 });
-    expect(course.landedAt).toBeNull(); // Already landed, no new landing event
+    expect(course.landedAt).toBeNull();
   });
 
   it('landed ship with burn takes off', () => {
@@ -553,12 +611,11 @@ describe('computeCourse - takeoff', () => {
       velocity: { dq: 0, dr: 0 },
       fuel: 20,
     });
+
     const course = computeCourse(ship, 0, map); // Burn E
 
     expect(course.fuelSpent).toBe(1);
-    // Ship should have moved away from the base
     expect(hexEqual(course.destination, marsBase)).toBe(false);
-    // Velocity should be non-zero
     expect(course.newVelocity.dq !== 0 || course.newVelocity.dr !== 0).toBe(
       true,
     );
@@ -575,8 +632,8 @@ describe('computeCourse - takeoff', () => {
     // Try all 6 burn directions — none should crash into Mars
     for (let d = 0; d < 6; d++) {
       const course = computeCourse(ship, d, map);
+
       if (course.crashed) {
-        // If crashed, it should be into something other than Mars
         expect(course.crashBody).not.toBe('Mars');
       }
     }
@@ -585,10 +642,8 @@ describe('computeCourse - takeoff', () => {
 
 describe('computeCourse - takeoff edge cases', () => {
   it('takeoff finds a launch hex when away direction is blocked by a body', () => {
-    // Create a custom map where the "away" neighbor from the body center is another body hex
     const customMap: SolarSystemMap = {
       hexes: new Map([
-        // Body at center
         [
           '0,0',
           {
@@ -596,16 +651,21 @@ describe('computeCourse - takeoff edge cases', () => {
             body: { name: 'TestWorld', destructive: false },
           },
         ],
-        // Base where ship is landed (adjacent to body)
         [
           '1,0',
           {
             terrain: 'space',
-            base: { bodyName: 'TestWorld', name: 'BodyName' },
-            gravity: { direction: 3, strength: 'full', bodyName: 'TestWorld' },
+            base: {
+              bodyName: 'TestWorld',
+              name: 'BodyName',
+            },
+            gravity: {
+              direction: 3,
+              strength: 'full',
+              bodyName: 'TestWorld',
+            },
           },
         ],
-        // Away direction from center (1,0) → (2,0) is blocked by another body
         [
           '2,0',
           {
@@ -613,19 +673,26 @@ describe('computeCourse - takeoff edge cases', () => {
             body: { name: 'Blocker', destructive: true },
           },
         ],
-        // But another gravity hex exists
         [
           '0,1',
           {
             terrain: 'space',
-            gravity: { direction: 0, strength: 'full', bodyName: 'TestWorld' },
+            gravity: {
+              direction: 0,
+              strength: 'full',
+              bodyName: 'TestWorld',
+            },
           },
         ],
         [
           '1,-1',
           {
             terrain: 'space',
-            gravity: { direction: 4, strength: 'full', bodyName: 'TestWorld' },
+            gravity: {
+              direction: 4,
+              strength: 'full',
+              bodyName: 'TestWorld',
+            },
           },
         ],
       ]),
@@ -659,13 +726,16 @@ describe('computeCourse - takeoff edge cases', () => {
     let found = false;
     for (let d = 0; d < 6; d++) {
       const course = computeCourse(ship, d, customMap);
+
       // Fallback loop ran — ship should spend fuel and compute a course
       expect(course.fuelSpent).toBe(1);
+
       if (!course.crashed) {
         found = true;
         break;
       }
     }
+
     // At least one direction should work
     expect(found).toBe(true);
   });
@@ -673,7 +743,7 @@ describe('computeCourse - takeoff edge cases', () => {
   it('takeoff with overload on a warship costs 2 fuel', () => {
     const marsBase = findBaseHex(map, 'Mars')!;
     const ship = makeShip({
-      type: 'corvette', // canOverload: true
+      type: 'corvette',
       position: marsBase,
       landed: true,
       velocity: { dq: 0, dr: 0 },
@@ -681,15 +751,15 @@ describe('computeCourse - takeoff edge cases', () => {
     });
 
     const course = computeCourse(ship, 0, map, { overload: 3 });
+
     expect(course.fuelSpent).toBe(2);
-    // Ship should move further than a normal takeoff
     expect(course.destination).not.toEqual(marsBase);
   });
 
   it('takeoff with overload on a transport is ignored', () => {
     const marsBase = findBaseHex(map, 'Mars')!;
     const ship = makeShip({
-      type: 'transport', // canOverload: false
+      type: 'transport',
       position: marsBase,
       landed: true,
       velocity: { dq: 0, dr: 0 },
@@ -697,6 +767,7 @@ describe('computeCourse - takeoff edge cases', () => {
     });
 
     const course = computeCourse(ship, 0, map, { overload: 3 });
+
     // Transport can't overload, so only 1 fuel spent
     expect(course.fuelSpent).toBe(1);
   });
@@ -708,10 +779,11 @@ describe('computeCourse - takeoff edge cases', () => {
       position: marsBase,
       landed: true,
       velocity: { dq: 0, dr: 0 },
-      fuel: 1, // Not enough for overload (needs 2)
+      fuel: 1,
     });
 
     const course = computeCourse(ship, 0, map, { overload: 3 });
+
     // Only 1 fuel available, overload ignored
     expect(course.fuelSpent).toBe(1);
   });
@@ -719,21 +791,28 @@ describe('computeCourse - takeoff edge cases', () => {
 
 describe('computeCourse - weak gravity consecutive rule', () => {
   it('second consecutive weak gravity from same body is mandatory', () => {
-    // Create a map with two consecutive weak gravity hexes from the same body
     const customMap: SolarSystemMap = {
       hexes: new Map([
         [
           '1,0',
           {
             terrain: 'space',
-            gravity: { direction: 3, strength: 'weak', bodyName: 'Luna' },
+            gravity: {
+              direction: 3,
+              strength: 'weak',
+              bodyName: 'Luna',
+            },
           },
         ],
         [
           '2,0',
           {
             terrain: 'space',
-            gravity: { direction: 3, strength: 'weak', bodyName: 'Luna' },
+            gravity: {
+              direction: 3,
+              strength: 'weak',
+              bodyName: 'Luna',
+            },
           },
         ],
       ]),
@@ -751,7 +830,7 @@ describe('computeCourse - weak gravity consecutive rule', () => {
 
     const ship = makeShip({
       position: { q: 0, r: 0 },
-      velocity: { dq: 2, dr: 0 }, // Will pass through both weak gravity hexes
+      velocity: { dq: 2, dr: 0 },
     });
 
     // Try to ignore both weak gravity hexes
@@ -761,9 +840,10 @@ describe('computeCourse - weak gravity consecutive rule', () => {
 
     // First weak gravity can be ignored, second consecutive one from same body cannot
     const effects = course.enteredGravityEffects;
+
     if (effects.length === 2) {
-      expect(effects[0].ignored).toBe(true); // First can be ignored
-      expect(effects[1].ignored).toBe(false); // Second is mandatory
+      expect(effects[0].ignored).toBe(true);
+      expect(effects[1].ignored).toBe(false);
     }
   });
 
@@ -774,14 +854,22 @@ describe('computeCourse - weak gravity consecutive rule', () => {
           '1,0',
           {
             terrain: 'space',
-            gravity: { direction: 3, strength: 'weak', bodyName: 'BodyA' },
+            gravity: {
+              direction: 3,
+              strength: 'weak',
+              bodyName: 'BodyA',
+            },
           },
         ],
         [
           '2,0',
           {
             terrain: 'space',
-            gravity: { direction: 3, strength: 'weak', bodyName: 'BodyB' },
+            gravity: {
+              direction: 3,
+              strength: 'weak',
+              bodyName: 'BodyB',
+            },
           },
         ],
       ]),
@@ -814,6 +902,7 @@ describe('computeCourse - weak gravity consecutive rule', () => {
     });
 
     const effects = course.enteredGravityEffects;
+
     if (effects.length === 2) {
       expect(effects[0].ignored).toBe(true);
       expect(effects[1].ignored).toBe(true);
@@ -823,7 +912,11 @@ describe('computeCourse - weak gravity consecutive rule', () => {
 
 describe('predictDestination', () => {
   it('returns position for landed ship', () => {
-    const ship = makeShip({ position: { q: 3, r: 4 }, landed: true });
+    const ship = makeShip({
+      position: { q: 3, r: 4 },
+      landed: true,
+    });
+
     expect(predictDestination(ship)).toEqual({ q: 3, r: 4 });
   });
 
@@ -832,6 +925,7 @@ describe('predictDestination', () => {
       position: { q: 3, r: 4 },
       velocity: { dq: 2, dr: -1 },
     });
+
     expect(predictDestination(ship)).toEqual({ q: 5, r: 3 });
   });
 

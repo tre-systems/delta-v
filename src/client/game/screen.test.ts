@@ -16,6 +16,7 @@ describe('game-client-screen', () => {
     ).toEqual({
       kind: 'menu',
     });
+
     expect(
       deriveClientScreenPlan(
         'connecting',
@@ -27,6 +28,7 @@ describe('game-client-screen', () => {
     ).toEqual({
       kind: 'connecting',
     });
+
     expect(
       deriveClientScreenPlan(
         'playing_fleetBuilding',
@@ -38,6 +40,7 @@ describe('game-client-screen', () => {
     ).toEqual({
       kind: 'fleetBuilding',
     });
+
     expect(
       deriveClientScreenPlan(
         'gameOver',

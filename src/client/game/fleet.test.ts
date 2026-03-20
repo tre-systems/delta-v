@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+
 import { createGame } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
@@ -57,6 +58,7 @@ describe('game-client-fleet', () => {
     const map = buildSolarSystemMap();
     const scenario = SCENARIOS.interplanetaryWar;
     const state = createGame(scenario, map, 'LOCAL', findBaseHex);
+
     const initialPlayerShips = state.ships.filter(
       (ship) => ship.owner === 0,
     ).length;
@@ -75,13 +77,16 @@ describe('game-client-fleet', () => {
 
     expect(result.kind).toBe('success');
     if (result.kind !== 'success') return;
+
     expect(result.aiError).toBeUndefined();
     expect(result.state.phase).toBe('astrogation');
     expect(result.state.players[0].ready).toBe(true);
     expect(result.state.players[1].ready).toBe(true);
+
     expect(
       result.state.ships.filter((ship) => ship.owner === 0).length,
     ).toBeGreaterThan(initialPlayerShips);
+
     expect(
       result.state.ships.filter((ship) => ship.owner === 1).length,
     ).toBeGreaterThan(initialAiShips);
@@ -94,10 +99,12 @@ describe('game-client-fleet', () => {
       availableShipTypes: ['corvette', 'corsair'],
     };
     const state = createGame(scenario, map, 'LOCAL', findBaseHex);
+
     const processReady = vi
       .fn()
       .mockReturnValueOnce({ state })
       .mockReturnValueOnce({ error: 'AI fleet build failed' });
+
     const buildAIPurchases = vi.fn((): FleetPurchase[] => [
       { shipType: 'corsair' },
     ]);
@@ -129,6 +136,7 @@ describe('game-client-fleet', () => {
       map,
       scenario.availableShipTypes,
     );
+
     expect(processReady).toHaveBeenNthCalledWith(
       2,
       state,

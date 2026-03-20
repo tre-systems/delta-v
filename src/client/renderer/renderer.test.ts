@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { MOVEMENT_ANIM_DURATION } from '../../shared/constants';
 
 /**
@@ -65,6 +66,7 @@ const createAnimController = (pageHidden = false) => {
     /** Simulates the visibilitychange handler checking for stale animations. */
     handleVisibilityChange: (nowVisible: boolean) => {
       if (!animState) return;
+
       // When hidden: complete immediately (no one can see the animation).
       // When visible: complete only if the animation duration has elapsed.
       if (
@@ -91,6 +93,7 @@ describe('animation fallback timer', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
+
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -135,6 +138,7 @@ describe('animation fallback timer', () => {
     // Advancing timers should NOT fire callback again
     completed = false;
     vi.advanceTimersByTime(MOVEMENT_ANIM_DURATION + 1000);
+
     expect(completed).toBe(false);
   });
 
@@ -148,10 +152,12 @@ describe('animation fallback timer', () => {
 
     // rAF completes first
     ctrl.completeViaRAF();
+
     expect(callCount).toBe(1);
 
     // Timer fires but animState is already null
     vi.advanceTimersByTime(MOVEMENT_ANIM_DURATION + 500);
+
     expect(callCount).toBe(1);
   });
 

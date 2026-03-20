@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import {
   clamp,
   compact,
@@ -44,11 +45,12 @@ describe('randomChoice', () => {
 
   it('uses provided rng to select deterministically', () => {
     const arr = ['a', 'b', 'c'];
-    // rng returns 0.0 → index 0
+
+    // rng returns 0.0 -> index 0
     expect(randomChoice(arr, () => 0)).toBe('a');
-    // rng returns 0.99 → index 2
+    // rng returns 0.99 -> index 2
     expect(randomChoice(arr, () => 0.99)).toBe('c');
-    // rng returns 0.5 → index 1
+    // rng returns 0.5 -> index 1
     expect(randomChoice(arr, () => 0.5)).toBe('b');
   });
 });
@@ -72,6 +74,7 @@ describe('minBy', () => {
       { n: 'a', v: 1 },
       { n: 'c', v: 3 },
     ];
+
     expect(minBy(items, (x) => x.v)).toEqual({ n: 'a', v: 1 });
   });
 
@@ -84,6 +87,7 @@ describe('minBy', () => {
       { id: 1, v: 2 },
       { id: 2, v: 2 },
     ];
+
     expect(minBy(items, (x) => x.v)?.id).toBe(1);
   });
 });
@@ -95,6 +99,7 @@ describe('maxBy', () => {
       { n: 'a', v: 1 },
       { n: 'c', v: 3 },
     ];
+
     expect(maxBy(items, (x) => x.v)).toEqual({ n: 'b', v: 5 });
   });
 
@@ -109,6 +114,7 @@ describe('indexBy', () => {
       { id: 'x', v: 1 },
       { id: 'y', v: 2 },
     ];
+
     expect(indexBy(items, (x) => x.id)).toEqual({
       x: { id: 'x', v: 1 },
       y: { id: 'y', v: 2 },
@@ -120,6 +126,7 @@ describe('indexBy', () => {
       { id: 'a', v: 1 },
       { id: 'a', v: 2 },
     ];
+
     expect(indexBy(items, (x) => x.id)).toEqual({ a: { id: 'a', v: 2 } });
   });
 
@@ -135,6 +142,7 @@ describe('groupBy', () => {
       { t: 'b', v: 2 },
       { t: 'a', v: 3 },
     ];
+
     expect(groupBy(items, (x) => x.t)).toEqual({
       a: [
         { t: 'a', v: 1 },
@@ -152,11 +160,13 @@ describe('groupBy', () => {
 describe('pickBy', () => {
   it('filters object entries by value predicate', () => {
     const obj = { a: 1, b: 2, c: 3 };
+
     expect(pickBy(obj, (v) => v > 1)).toEqual({ b: 2, c: 3 });
   });
 
   it('passes key to predicate', () => {
     const obj = { keep: 1, drop: 2, keepToo: 3 };
+
     expect(pickBy(obj, (_v, k) => k.startsWith('keep'))).toEqual({
       keep: 1,
       keepToo: 3,
@@ -219,6 +229,7 @@ describe('filterMap', () => {
     const result = filterMap([1, 2, 3, 4], (n) =>
       n % 2 === 0 ? n * 10 : null,
     );
+
     expect(result).toEqual([20, 40]);
   });
 
@@ -238,6 +249,7 @@ describe('uniqueBy', () => {
       { id: 2, v: 'b' },
       { id: 1, v: 'c' },
     ];
+
     expect(uniqueBy(items, (x) => x.id)).toEqual([
       { id: 1, v: 'a' },
       { id: 2, v: 'b' },
@@ -273,18 +285,21 @@ describe('mapValues', () => {
 describe('partition', () => {
   it('splits array into matches and rest', () => {
     const [evens, odds] = partition([1, 2, 3, 4, 5], (n) => n % 2 === 0);
+
     expect(evens).toEqual([2, 4]);
     expect(odds).toEqual([1, 3, 5]);
   });
 
   it('returns two empty arrays for empty input', () => {
     const [yes, no] = partition([], () => true);
+
     expect(yes).toEqual([]);
     expect(no).toEqual([]);
   });
 
   it('puts everything in first group when all match', () => {
     const [yes, no] = partition([1, 2, 3], () => true);
+
     expect(yes).toEqual([1, 2, 3]);
     expect(no).toEqual([]);
   });

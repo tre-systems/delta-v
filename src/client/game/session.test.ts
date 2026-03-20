@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+
 import {
   buildGameRoute,
   buildInviteLink,
@@ -35,7 +36,9 @@ describe('game client session helpers', () => {
     const fullStore = setStoredInviteToken(playerStore, 'ABCDE', 'it-1', 200);
 
     expect(getStoredPlayerToken(fullStore, 'ABCDE')).toBe('pt-1');
+
     expect(getStoredInviteToken(fullStore, 'ABCDE')).toBe('it-1');
+
     expect(fullStore.ABCDE.ts).toBe(200);
   });
 
@@ -57,7 +60,9 @@ describe('game client session helpers', () => {
     expect(pruned).toEqual({
       FRESH: { playerToken: 'pt-1', ts: 900 },
     });
+
     expect(pruneExpiredTokens(store, 1000, 200)).toEqual(pruned);
+
     expect(setItem).toHaveBeenCalledWith(
       TOKEN_STORE_KEY,
       JSON.stringify(pruned),
@@ -68,7 +73,9 @@ describe('game client session helpers', () => {
     expect(
       buildInviteLink('https://delta-v.example', 'ABCDE', 'invite token'),
     ).toBe('https://delta-v.example/?code=ABCDE&playerToken=invite%20token');
+
     expect(buildGameRoute('ABCDE')).toBe('/?code=ABCDE');
+
     expect(
       buildWebSocketUrl(
         {
@@ -80,6 +87,7 @@ describe('game client session helpers', () => {
         'player token',
       ),
     ).toBe('wss://delta-v.example/ws/ABCDE?playerToken=player%20token');
+
     expect(
       buildWebSocketUrl(
         {

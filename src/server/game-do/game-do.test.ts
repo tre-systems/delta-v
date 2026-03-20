@@ -91,6 +91,7 @@ describe('GameDO', () => {
 
     expect(response.status).toBe(201);
     expect(await ctx.storage.get('gameCode')).toBe('ABCDE');
+
     expect(await ctx.storage.get('roomConfig')).toEqual({
       code: 'ABCDE',
       scenario: 'escape',
@@ -99,6 +100,7 @@ describe('GameDO', () => {
     });
 
     const inactivityAt = await ctx.storage.get<number>('inactivityAt');
+
     expect(typeof inactivityAt).toBe('number');
     expect(inactivityAt!).toBeGreaterThan(Date.now());
     expect(ctx.storage.alarmAt).toBe(inactivityAt);
@@ -120,6 +122,7 @@ describe('GameDO', () => {
 
   it('rejects malformed player tokens before websocket upgrade', async () => {
     const ctx = createCtx();
+
     await ctx.storage.put('roomConfig', {
       code: 'ABCDE',
       scenario: 'biplanetary',
@@ -128,6 +131,7 @@ describe('GameDO', () => {
     });
 
     const game = new GameDO(ctx as any, {} as any);
+
     const response = await game.fetch(
       new Request('https://room.internal/ws/ABCDE?playerToken=bad-token', {
         headers: { Upgrade: 'websocket' },
@@ -141,6 +145,7 @@ describe('GameDO', () => {
   it('rejects malformed client payloads before dispatching handlers', async () => {
     const ctx = createCtx();
     const game = new GameDO(ctx as any, {} as any);
+
     const ws = {
       sent: [] as string[],
       send(payload: string) {
@@ -162,11 +167,13 @@ describe('GameDO', () => {
 
   it('stores a disconnect marker and alarm when a live player disconnects', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_000);
+
     const ctx = createCtx();
     await ctx.storage.put('gameState', { phase: 'astrogation' });
     await ctx.storage.put('inactivityAt', 99_999);
     const ws = { send() {} };
     ctx.acceptWebSocket(ws, ['player:1']);
+
     const game = new GameDO(ctx as any, {} as any);
 
     await game.webSocketClose(ws as any);
@@ -179,11 +186,13 @@ describe('GameDO', () => {
 
   it('clears an expired disconnect marker and notifies the remaining player', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(10_000);
+
     const ctx = createCtx();
     await ctx.storage.put('disconnectedPlayer', 0);
     await ctx.storage.put('disconnectTime', 5_000);
     await ctx.storage.put('disconnectAt', 9_000);
     await ctx.storage.put('inactivityAt', 20_000);
+
     const ws = {
       sent: [] as string[],
       send(payload: string) {
@@ -191,6 +200,7 @@ describe('GameDO', () => {
       },
     };
     ctx.acceptWebSocket(ws, ['player:1']);
+
     const game = new GameDO(ctx as any, {} as any);
 
     await game.alarm();
@@ -199,11 +209,15 @@ describe('GameDO', () => {
     expect(await ctx.storage.get('disconnectTime')).toBeUndefined();
     expect(await ctx.storage.get('disconnectAt')).toBeUndefined();
     expect(ctx.storage.alarmAt).toBe(20_000);
-    expect(JSON.parse(ws.sent[0]!)).toEqual({ type: 'opponentDisconnected' });
+
+    expect(JSON.parse(ws.sent[0]!)).toEqual({
+      type: 'opponentDisconnected',
+    });
   });
 
   it('advances a timed-out turn through the alarm path', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(10_000);
+
     const ctx = createCtx();
     const state = createGame(
       SCENARIOS.biplanetary,
@@ -214,11 +228,13 @@ describe('GameDO', () => {
     await ctx.storage.put('gameState', state);
     await ctx.storage.put('turnTimeoutAt', 9_500);
     await ctx.storage.put('inactivityAt', 30_000);
+
     const game = new GameDO(ctx as any, {} as any);
 
     await game.alarm();
 
     const nextState = await ctx.storage.get<any>('gameState');
+
     expect(nextState.activePlayer).toBe(1);
     expect(await ctx.storage.get('turnTimeoutAt')).toBeGreaterThan(10_000);
     expect(ctx.storage.alarmAt).toBe(30_000);

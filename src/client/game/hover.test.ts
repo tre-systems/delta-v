@@ -69,9 +69,11 @@ describe('game-client-hover', () => {
     expect(
       getTooltipShip(null, 'playing_astrogation', 0, { q: 0, r: 0 }),
     ).toBeNull();
+
     expect(
       getTooltipShip(createState([createShip()]), 'menu', 0, { q: 0, r: 0 }),
     ).toBeNull();
+
     expect(
       getTooltipShip(createState([createShip()]), 'playing_movementAnim', 0, {
         q: 0,
@@ -92,6 +94,7 @@ describe('game-client-hover', () => {
     expect(
       getTooltipShip(state, 'playing_astrogation', 0, { q: 0, r: 0 })?.id,
     ).toBe('ship-0');
+
     expect(getTooltipShip(state, 'playing_combat', 0, { q: 1, r: 0 })?.id).toBe(
       'enemy',
     );
@@ -110,6 +113,7 @@ describe('game-client-hover', () => {
     expect(
       getTooltipShip(state, 'playing_astrogation', 0, { q: 0, r: 0 }),
     ).toBeNull();
+
     expect(
       getTooltipShip(state, 'playing_astrogation', 0, { q: 1, r: 0 }),
     ).toBeNull();

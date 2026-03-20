@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import {
   DAMAGE_ELIMINATION_THRESHOLD,
   ORBITAL_BASE_MASS,
@@ -10,6 +11,7 @@ import {
 describe('SHIP_STATS', () => {
   it('has all expected ship types', () => {
     const types = Object.keys(SHIP_STATS);
+
     expect(types).toContain('transport');
     expect(types).toContain('packet');
     expect(types).toContain('tanker');
@@ -75,6 +77,7 @@ describe('SHIP_STATS', () => {
     const warships = ['corvette', 'corsair', 'frigate', 'dreadnaught'].map(
       (t) => SHIP_STATS[t],
     );
+
     for (let i = 1; i < warships.length; i++) {
       expect(warships[i].combat).toBeGreaterThan(warships[i - 1].combat);
       expect(warships[i].cost).toBeGreaterThan(warships[i - 1].cost);
