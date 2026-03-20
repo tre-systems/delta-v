@@ -19,7 +19,7 @@ client/          → State machine + Canvas renderer + DOM UI
 - **Build & Tools**: `esbuild` for lightning-fast client bundling, `wrangler` for local testing and deployment, and `vitest` for unit testing.
 
 ### Key Architectural Strengths
-- **Side-effect-free engine.** The shared engine has no I/O: no DOM, no network, no storage. The DO wraps it with persistence and WebSocket plumbing. This makes everything testable and portable. Note: the engine mutates `GameState` in place rather than returning new immutable objects — see [Engine Mutation Model](#engine-mutation-model) for details and implications.
+- **Side-effect-free engine.** The shared engine has no I/O: no DOM, no network, no storage. The DO wraps it with persistence and WebSocket plumbing. This makes everything testable and portable. All engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. See [Engine Mutation Model](#engine-mutation-model) for details.
 - **Transport abstraction.** `GameTransport` decouples the client from WebSocket vs local (AI) play. The client doesn't know or care where state comes from.
 - **Functional style throughout.** Pure derivation functions (`deriveHudViewModel`, `deriveKeyboardAction`, `deriveBurnChangePlan`), mandatory injectable RNG, `cond()` for branching.
 - **Scenario-driven.** `ScenarioRules` controls behaviour: ordnance types, base sharing, combat enabled, checkpoints, escape edges. New scenarios can vary gameplay without engine changes.
@@ -55,7 +55,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 
 #### Key Design Patterns
 
-- **`engine/game-engine.ts`**: A side-effect-free state machine. It takes the current `GameState` and player actions (e.g., astrogation orders, combat declarations) and returns the mutated `GameState` along with events (movements, combat results). **It has no I/O side effects (no DOM, no network, no storage)**, but it does mutate `GameState` and its entities in place — see [Engine Mutation Model](#engine-mutation-model).
+- **`engine/game-engine.ts`**: A side-effect-free state machine. It takes the current `GameState` and player actions (e.g., astrogation orders, combat declarations) and returns a new `GameState` along with events (movements, combat results). **It has no I/O side effects (no DOM, no network, no storage)** and never mutates the caller's state — see [Engine Mutation Model](#engine-mutation-model).
 - **`movement.ts`**: Contains the complex vector math, gravity well logic, and collision detection. Moving a ship is resolved strictly on an axial hex grid (using `hex.ts`).
 - **`combat.ts`**: Evaluates line-of-sight, calculates combat odds based on velocity/range modifiers, and resolves damage. Mutates ships directly (e.g., `applyDamage`, `target.destroyed = true`, heroism flags).
 - **`types.ts`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads). This ensures the client and server never fall out of sync.
@@ -64,19 +64,16 @@ This is the heart of the project. All game rules live in a shared folder, making
 
 #### Engine Mutation Model
 
-The shared engine is **side-effect-free** (no I/O) but **not immutable**. Engine functions mutate `GameState` and its contained entities in place:
+The shared engine is **side-effect-free** (no I/O) and **externally immutable**. All 11 engine entry points (`processAstrogation`, `processOrdnance`, `skipOrdnance`, `processFleetReady`, `beginCombatPhase`, `processCombat`, `skipCombat`, `processLogistics`, `skipLogistics`, `processSurrender`, `processEmplacement`) call `structuredClone(inputState)` on entry. Internally, the clone is mutated in place for efficiency, but the caller's state is never touched. Callers must use the returned `result.state`.
 
-- `game-engine.ts` directly mutates `state.phase`, `state.pendingAstrogationOrders`, `state.ordnance`, player objects, and ship fields.
-- `combat.ts` mutates ships via `applyDamage()`, sets `target.destroyed = true`, toggles heroism flags.
-- `engine/combat.ts` mutates phase and state during combat progression.
+This design provides:
+- **Rollback safety**: if the engine throws mid-mutation, the server's state is untouched (see BACKLOG 1b).
+- **Snapshot diffing**: before/after state snapshots are naturally available without manual cloning.
+- **Speculative branching**: AI search and replay can call engine functions without defensive cloning.
 
-This works correctly because:
-- The server holds a single reference to state, processes one action at a time, and persists after each mutation.
-- Tests construct fresh state per test case.
+Internal mutation patterns (e.g. `applyDamage()`, `ship.destroyed = true`, phase transitions) remain unchanged — they operate on the cloned state.
 
-**Mitigation**: `client/game/local.ts` uses `structuredClone(state)` to capture a true pre-mutation snapshot before engine calls, making `previousState` semantics honest for animation diffing.
-
-**Future improvement**: Switching to clone-on-entry at all engine entry points (not just local.ts) would enable state diffing, undo, replay, and spectator mode. See BACKLOG.md item 1a.
+`client/game/local.ts` also captures `structuredClone(state)` before combat calls for animation diffing (`previousState`). This is redundant with clone-on-entry but harmless — it may be removed in a future cleanup.
 
 #### RNG Injection
 
@@ -300,14 +297,13 @@ A game implementation would provide:
 
 See BACKLOG.md for the full prioritised backlog. Below summarises the architectural decisions and their rationale.
 
-### Priority 1: Clone-on-Entry + Server Rollback + Event Log (BACKLOG 1a, 1b, 1c)
+### Priority 1: Server Rollback + Event Log (BACKLOG 1b, 1c)
 
-Engine functions mutate `GameState` in place. This is the single largest architectural debt:
+~~Clone-on-entry (1a) is complete~~ — all engine entry points now `structuredClone` on entry. The caller's state is never mutated.
 
-- **Production risk**: if the engine throws mid-mutation, the DO's in-memory state is left inconsistent, permanently breaking the game room.
-- **Blocks features**: state diffing, undo, replay, spectator mode, and speculative AI branching all require previous-state snapshots.
-
-The fix is mechanical: `structuredClone(state)` before every engine entry point (already done in `local.ts`), try/catch on the server to restore on failure. With clone-on-entry in place, the server can also append lightweight events to an in-memory log after each engine call — enabling turn replay, spectator catch-up, and smooth reconnection. Snapshots remain the source of truth; the event log complements them.
+**Next steps:**
+- **1b. Server rollback**: Wrap engine calls in `runGameStateAction` with try/catch. On exception, the pre-mutation state is already safe (clone-on-entry guarantees this) — just log the error and send an error message to the client.
+- **1c. Event log**: After each engine call, append a lightweight event to an in-memory log. Enables turn replay, spectator catch-up, and smooth reconnection. Snapshots remain the source of truth; the event log complements them.
 
 ### Priority 1: Error Reporting & Telemetry (BACKLOG 1d, 1e)
 

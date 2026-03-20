@@ -387,12 +387,14 @@ export const createGame = (
  * the fleet-building phase.
  */
 export const processFleetReady = (
-  state: GameState,
+  inputState: GameState,
   playerId: number,
   purchases: FleetPurchase[],
   map: SolarSystemMap,
   availableShipTypes?: string[],
 ): StateUpdateResult | { error: string } => {
+  const state = structuredClone(inputState);
+
   if (state.phase !== 'fleetBuilding') {
     return { error: 'Not in fleet building phase' };
   }
@@ -701,12 +703,14 @@ const resolveMovementPhase = (
  * Process astrogation orders for the active player.
  */
 export const processAstrogation = (
-  state: GameState,
+  inputState: GameState,
   playerId: number,
   orders: AstrogationOrder[],
   map: SolarSystemMap,
   rng: () => number,
 ): MovementResult | StateUpdateResult | { error: string } => {
+  const state = structuredClone(inputState);
+
   if (state.phase !== 'astrogation') {
     return { error: 'Not in astrogation phase' };
   }
@@ -748,12 +752,14 @@ export const processAstrogation = (
  * Process ordnance launches for the active player.
  */
 export const processOrdnance = (
-  state: GameState,
+  inputState: GameState,
   playerId: number,
   launches: OrdnanceLaunch[],
   map: SolarSystemMap,
   rng: () => number,
 ): MovementResult | { error: string } => {
+  const state = structuredClone(inputState);
+
   if (state.phase !== 'ordnance') {
     return { error: 'Not in ordnance phase' };
   }
@@ -929,11 +935,13 @@ export const processOrdnance = (
  * movement phase.
  */
 export const skipOrdnance = (
-  state: GameState,
+  inputState: GameState,
   playerId: number,
   map: SolarSystemMap,
   rng: () => number,
 ): MovementResult | StateUpdateResult | { error: string } => {
+  const state = structuredClone(inputState);
+
   if (state.phase !== 'ordnance') {
     return { error: 'Not in ordnance phase' };
   }

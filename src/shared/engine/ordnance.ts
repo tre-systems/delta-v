@@ -57,11 +57,13 @@ export const shouldEnterOrdnancePhase = (state: GameState): boolean => {
  * the ordnance phase.
  */
 export const processEmplacement = (
-  state: GameState,
+  inputState: GameState,
   playerId: number,
   emplacements: OrbitalBaseEmplacement[],
   map: SolarSystemMap,
 ): { state: GameState } | { error: string } => {
+  const state = structuredClone(inputState);
+
   if (state.phase !== 'ordnance') {
     return { error: 'Not in ordnance phase' };
   }

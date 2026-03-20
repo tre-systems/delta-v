@@ -79,7 +79,10 @@ describe('processSurrender', () => {
     const result = processSurrender(state, 0, ['s1']);
 
     expect('error' in result).toBe(false);
-    expect(ship.surrendered).toBe(true);
+    if (!('error' in result)) {
+      const s = result.state.ships.find((s) => s.id === 's1')!;
+      expect(s.surrendered).toBe(true);
+    }
   });
 
   it('rejects surrender of enemy ship', () => {
@@ -162,8 +165,14 @@ describe('processSurrender', () => {
     const result = processSurrender(state, 0, ['s1', 's2']);
 
     expect('error' in result).toBe(false);
-    expect(s1.surrendered).toBe(true);
-    expect(s2.surrendered).toBe(true);
+    if (!('error' in result)) {
+      expect(result.state.ships.find((s) => s.id === 's1')!.surrendered).toBe(
+        true,
+      );
+      expect(result.state.ships.find((s) => s.id === 's2')!.surrendered).toBe(
+        true,
+      );
+    }
   });
 });
 
@@ -408,8 +417,12 @@ describe('processLogistics', () => {
     const result = processLogistics(state, 0, [transfer], map);
 
     expect('error' in result).toBe(false);
-    expect(source.fuel).toBe(40);
-    expect(target.fuel).toBe(15);
+    if (!('error' in result)) {
+      const src = result.state.ships.find((s) => s.id === 's1')!;
+      const tgt = result.state.ships.find((s) => s.id === 's2')!;
+      expect(src.fuel).toBe(40);
+      expect(tgt.fuel).toBe(15);
+    }
   });
 
   it('transfers cargo between ships', () => {
@@ -436,8 +449,12 @@ describe('processLogistics', () => {
     const result = processLogistics(state, 0, [transfer], map);
 
     expect('error' in result).toBe(false);
-    expect(source.cargoUsed).toBe(2);
-    expect(target.cargoUsed).toBe(1);
+    if (!('error' in result)) {
+      const src = result.state.ships.find((s) => s.id === 's1')!;
+      const tgt = result.state.ships.find((s) => s.id === 's2')!;
+      expect(src.cargoUsed).toBe(2);
+      expect(tgt.cargoUsed).toBe(1);
+    }
   });
 
   it('rejects transfer exceeding source fuel', () => {
@@ -580,7 +597,9 @@ describe('skipLogistics', () => {
     const result = skipLogistics(state, 0, map);
 
     expect('error' in result).toBe(false);
-    expect(state.phase).not.toBe('logistics');
+    if (!('error' in result)) {
+      expect(result.state.phase).not.toBe('logistics');
+    }
   });
 
   it('rejects when not in logistics phase', () => {

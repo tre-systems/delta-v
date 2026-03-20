@@ -183,11 +183,13 @@ const validateTransfer = (
  * Process logistics transfers for the active player.
  */
 export const processLogistics = (
-  state: GameState,
+  inputState: GameState,
   playerId: number,
   transfers: TransferOrder[],
   map: SolarSystemMap,
 ): { state: GameState } | { error: string } => {
+  const state = structuredClone(inputState);
+
   if (state.phase !== 'logistics') {
     return { error: 'Not in logistics phase' };
   }
@@ -232,10 +234,12 @@ export const processLogistics = (
  * Skip logistics phase without making transfers.
  */
 export const skipLogistics = (
-  state: GameState,
+  inputState: GameState,
   playerId: number,
   map: SolarSystemMap,
 ): { state: GameState } | { error: string } => {
+  const state = structuredClone(inputState);
+
   if (state.phase !== 'logistics') {
     return { error: 'Not in logistics phase' };
   }
@@ -261,10 +265,12 @@ export const skipLogistics = (
  * astrogation phase.
  */
 export const processSurrender = (
-  state: GameState,
+  inputState: GameState,
   playerId: number,
   shipIds: string[],
 ): { state: GameState } | { error: string } => {
+  const state = structuredClone(inputState);
+
   if (state.phase !== 'astrogation') {
     return { error: 'Not in astrogation phase' };
   }
