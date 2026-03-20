@@ -90,7 +90,7 @@ The backend leverages Cloudflare's edge network.
 
 | Module | Purpose | Reusability |
 |--------|---------|-------------|
-| `index.ts` | Worker entry: `/create`, `/ws/:code`, static asset proxy | Generic pattern |
+| `index.ts` | Worker entry: `/create`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern |
 | `protocol.ts` | Room codes, tokens, seat assignment, message validation | **~80% generic** — room/token/seat logic is game-agnostic |
 | `game-do/game-do.ts` | Durable Object: WebSocket lifecycle, state persistence, broadcasting | **~70% generic** — multiplayer plumbing is reusable |
 | `game-do/messages.ts` | S2C message construction from engine results | Game-specific |
@@ -118,7 +118,7 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 | Directory | Files | LOC | Purpose |
 |-----------|-------|-----|---------|
-| `client/` (root) | 5 | ~2200 | Entry point (`main.ts` ~1390 LOC), raw input, audio, tutorial, DOM helpers |
+| `client/` (root) | 6 | ~2270 | Entry point (`main.ts` ~1400 LOC), raw input, audio, tutorial, DOM helpers, telemetry |
 | `client/game/` | 35 | ~5200 | Game logic: planning, commands, phases, transport, presentation, connection, actions |
 | `client/renderer/` | 13 | ~4500 | Canvas rendering: camera, scene, entities, effects, overlays |
 | `client/ui/` | 8 | ~1900 | DOM overlays: menu, HUD, ship list, fleet shop, formatters |
@@ -304,13 +304,10 @@ All three engine safety items are complete:
 - **1b. Server rollback** — try/catch in `runGameStateAction` and `handleTurnTimeout`; structured error logging.
 - **1c. Event log** — 5 event types (`gameStarted`, `movementResolved`, `combatResolved`, `phaseChanged`, `gameOver`) in `src/shared/events.ts`. Server appends events to DO storage after every action. Reconnecting clients receive the full log via the `gameStart` message. Unlocks turn replay, spectator catch-up, and smooth reconnection.
 
-### Priority 1: Error Reporting & Telemetry (BACKLOG 1d, 1e)
+### ~~Priority 1: Error Reporting & Telemetry (BACKLOG 1d, 1e)~~ *(done)*
 
-Before user testing, we need:
-- **Error visibility** (1d): Global client error handlers (`window.onerror`, `unhandledrejection`) POST to a `/error` endpoint. The endpoint logs via `console.error` — Cloudflare Workers Logs captures this automatically. Server-side engine exceptions are already logged (1b). No external services needed at current scale.
-- **Usage telemetry** (1e): A client `track(event, props)` function POSTs to a `/telemetry` endpoint. The endpoint logs via `console.log` — same Workers Logs sink. No Analytics Engine or D1 initially; upgrade to D1 if proper querying is needed later.
-
-Both use the same pattern: structured JSON → Workers endpoint → `console.*` → Workers Logs. Zero new bindings or external dependencies.
+- **1d. Error reporting** — Global `window.onerror`/`unhandledrejection` handlers POST structured JSON to `/error`. Server-side `handleReport()` validates Content-Type (415), caps body at 4 KB (413), parses JSON (400), logs via `console.error`, returns 204. No payload echo. Server-side engine exceptions already logged (1b).
+- **1e. Telemetry** — `track(event, props)` in `src/client/telemetry.ts` POSTs to `/telemetry`, logged via `console.log`. Events tracked: `game_created` (scenario, mode, difficulty), `game_over` (won, reason, turn). Fire-and-forget with `keepalive: true`. Same `handleReport()` handler with same security measures. 14 endpoint tests total.
 
 ### Priority 2: Code Quality (BACKLOG 2a, 2b)
 

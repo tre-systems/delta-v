@@ -45,7 +45,9 @@ const handleCreate = async (request: Request, env: Env): Promise<Response> => {
     const initResponse = await stub.fetch(
       new Request('https://room.internal/init', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           code,
           scenario,
@@ -75,6 +77,60 @@ const handleCreate = async (request: Request, env: Env): Promise<Response> => {
   });
 };
 
+// Max body size for telemetry/error payloads (4 KB)
+const MAX_REPORT_BODY = 4096;
+
+// Shared handler for fire-and-forget reporting
+// endpoints (/error, /telemetry). Security measures:
+// - POST only (enforced by caller)
+// - Content-Type must be application/json
+// - Body capped at 4 KB to prevent abuse
+// - Payload is logged but never echoed back
+// - Returns 204 No Content on success
+const handleReport = async (
+  request: Request,
+  logFn: (msg: string, payload: unknown) => void,
+  label: string,
+): Promise<Response> => {
+  const contentType = request.headers.get('content-type');
+  if (!contentType?.includes('application/json')) {
+    return new Response('Content-Type must be JSON', {
+      status: 415,
+    });
+  }
+
+  const contentLength = request.headers.get('content-length');
+  if (contentLength && parseInt(contentLength, 10) > MAX_REPORT_BODY) {
+    return new Response('Payload too large', {
+      status: 413,
+    });
+  }
+
+  let body: string;
+  try {
+    body = await request.text();
+  } catch {
+    return new Response('Bad request', { status: 400 });
+  }
+
+  if (body.length > MAX_REPORT_BODY) {
+    return new Response('Payload too large', {
+      status: 413,
+    });
+  }
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    return new Response('Invalid JSON', { status: 400 });
+  }
+
+  logFn(`[${label}]`, payload);
+
+  return new Response(null, { status: 204 });
+};
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -82,6 +138,16 @@ export default {
     // Create a new game
     if (url.pathname === '/create' && request.method === 'POST') {
       return handleCreate(request, env);
+    }
+
+    // Client error reports
+    if (url.pathname === '/error' && request.method === 'POST') {
+      return handleReport(request, console.error, 'client-error');
+    }
+
+    // Client telemetry events
+    if (url.pathname === '/telemetry' && request.method === 'POST') {
+      return handleReport(request, console.log, 'telemetry');
     }
 
     // WebSocket upgrade to game DO
