@@ -88,7 +88,6 @@ describe('game-client-messages', () => {
       playerId: 1,
       code: 'ABCDE',
       playerToken: 'player-token',
-      clearInviteLink: true,
       showReconnectToast: true,
       nextState: 'waitingForOpponent',
     });
