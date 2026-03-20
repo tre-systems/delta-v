@@ -122,23 +122,23 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Premium polish (glassmorphism UI, procedural SFX, micro-animations)
 - [x] Multiplayer chat (inline in game log, rate-limited, XSS-safe)
-- [x] 1020+ tests across 62 suites (unit, property-based, integration), 8 scenario AI simulations
+- [x] 1120+ tests across 66 suites (unit, property-based, integration), 8 scenario AI simulations
 - [x] Deep architectural analysis and reusability assessment ([docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md))
 - [x] Asteroid map visuals matching reference map
 - [x] Logistics system: surrender, fuel/cargo transfers, looting with transfer picker UI
 - [x] Reinforcement spawning and fleet conversion infrastructure
 - [x] Make RNG fully injectable, decompose main.ts, eliminate map singleton, fix local.ts state aliasing
 
-### Next — Architecture & Production Safety
-- [ ] **Clone-on-entry at engine entry points**: Replace in-place mutation with clone-on-entry for server rollback safety, diffing, undo, replay, and AI search
-- [ ] **Server-side state rollback**: Try/catch around engine calls with state restoration on failure
-- [ ] **Event log for network protocol**: Append-only event log alongside state snapshots — enables replay, spectator catch-up, smooth reconnection
-- [ ] **Error reporting**: Client error boundary + server-side exception logging
-- [ ] **Analytics / telemetry**: Lightweight event tracking for user testing (scenario picks, game duration, quit points)
+### Done — Architecture & Production Safety
+- [x] **Clone-on-entry at engine entry points**: `structuredClone` at all engine entry points for rollback safety
+- [x] **Server-side state rollback**: Try/catch around engine calls with state restoration on failure
+- [x] **Event log for network protocol**: Append-only event log alongside state snapshots
+- [x] **Error reporting**: Client error boundary + server-side exception logging, stored in D1
+- [x] **Analytics / telemetry**: Anonymous event tracking with D1 storage (scenario picks, turn timing, tutorial progress)
 
-### Next — Code Quality
-- [ ] **Client integration tests**: End-to-end dispatch + message handler tests with mock transport
-- [ ] **Centralise phase validation**: Single `canPerformAction()` helper replacing scattered phase guards
+### Done — Code Quality
+- [x] **Client integration tests**: End-to-end dispatch + message handler tests with mock transport
+- [x] **Centralise phase validation**: Single `validatePhaseAction()` helper replacing scattered phase guards
 
 ### Planned — Features
 - [ ] **Turn Replay**: Review past turns and full game history (depends on clone-on-entry + event log)
