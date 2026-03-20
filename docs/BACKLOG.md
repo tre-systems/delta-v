@@ -4,7 +4,7 @@ Prioritised list of remaining work. Items are grouped by type and ordered by pri
 
 **Priority key:** P0 = rule correctness, P1 = production safety & iteration velocity, P2 = code quality & extensibility, P3 = test coverage.
 
-All P0–P3 items are complete. User-testing readiness items are resolved. Only feature work remains.
+All P0–P3 items are complete. User-testing readiness items are resolved. Multiplayer playtest issues are resolved (except #26 interactive minimap). Only feature work remains.
 
 ---
 
@@ -85,65 +85,52 @@ Issues found during live multiplayer testing (2025-03-20).
 
 ### P0 — fix before next playtest
 
-#### 18. Camera doesn't auto-center on ship at turn start
+#### ~~18. Camera doesn't auto-center on ship at turn start~~ *(done)*
 
-When a turn begins the camera stays wherever the player left
-it. Combined with zoomed-in defaults, players spend most of
-their timer hunting for their ship instead of planning a burn.
+`frameOnShips()` now clamps zoom to 0.6–1.8× and filters
+destroyed ships, ensuring the hex grid is visible on center.
 
-**Fix:** snap or smooth-pan camera to the selected ship when
-the astrogation phase starts, at minimum on Turn 1.
+#### ~~19. Keyboard shortcuts for camera don't work~~ *(done)*
 
-#### 19. Keyboard shortcuts for camera don't work
-
-WASD, arrow keys, H (center fleet), +/- (zoom), and E
-(focus enemy) all fail to do anything. Only drag-pan and
-scroll-wheel zoom work. Likely a focus / event-routing issue
-where keypresses aren't reaching the canvas handler.
+Switched document `keydown` listener to capture phase so it
+fires before chat input's `stopPropagation`. Escape blurs
+focused inputs to restore keyboard control.
 
 ### P1 — major UX gaps
 
-#### 20. Burn direction not visible at default zoom
+#### ~~20. Burn direction not visible at default zoom~~ *(done)*
 
-The "Click adjacent hex to set burn direction" prompt
-assumes the hex grid is visible, but at the default zoom
-level hexes are invisible. Either auto-zoom to show the grid
-around the ship, or overlay directional arrows.
+Burn markers enlarged from 8→12px with numbered labels (1-6)
+matching keyboard shortcuts. Combined with #18 zoom fix,
+hexes are now visible at default zoom.
 
-#### 21. No velocity vector / projected path
+#### ~~21. No velocity vector / projected path~~ *(done)*
 
-Velocity is shown as raw numbers ("1, -3") with no on-map
-visualisation. A projected drift line or ghost-ship showing
-where the ship will end up would massively help new players
-grok vector movement.
+Velocity vectors now show arrowheads indicating drift
+direction and a ghost dot at the predicted destination for
+own ships.
 
-#### 22. Planetary base threat zones not visible
+#### ~~22. Planetary base threat zones not visible~~ *(done)*
 
-Flying near enemy bases triggers defence fire with no prior
-visual warning. Bases should render a threat radius or
-danger-zone highlight so players can route around them.
+Enemy base adjacent gravity hexes now render a subtle red
+threat zone highlight showing where defense fire applies.
 
 ### P2 — polish
 
-#### 23. Disabled state has weak feedback
+#### ~~23. Disabled state has weak feedback~~ *(done)*
 
-When a ship is disabled the only indicators are a small "D3"
-badge and the confirm button. Add a more prominent visual:
-red tint on the ship, "DISABLED" overlay, or shake animation.
+"DISABLED" label now renders with a dark red background plate
+and white text for visibility against any background.
 
-#### 24. Turn timer punishes new players
+#### ~~24. Turn timer punishes new players~~ *(done)*
 
-The 90-second timer starts immediately. Combined with #18
-(can't find ship), players repeatedly run out of time on
-early turns. Consider a longer first-turn timer, or pause
-until the player's first interaction.
+Timer display hidden for the first 15 seconds of each turn,
+giving players time to orient without clock pressure.
 
-#### 25. Chat input captures game keyboard shortcuts
+#### ~~25. Chat input captures game keyboard shortcuts~~ *(done)*
 
-If the chat textbox has focus, pressing number keys (1-6)
-types into chat instead of setting a burn direction. Game-
-relevant keys should be intercepted even when chat is focused
-(or provide a clear way to toggle focus).
+Fixed via #19 capture-phase listener. Escape key blurs chat
+input to return focus to the game.
 
 #### 26. Minimap is not interactive
 
@@ -151,33 +138,36 @@ The minimap shows planet/ship positions but clicking it
 doesn't pan the main camera. Click-to-navigate would solve
 the "can't find my ship" problem.
 
-#### 28. Chat input UI hidden/unusable
+#### ~~28. Chat input UI hidden/unusable~~ *(done)*
 
-The chat input row is difficult to see or missing, and the event log (e.g. "- Turn 11: You -") is squished into a tiny horizontal black bar at the bottom.
+Increased chat input font (0.68→0.75rem), padding, and
+border visibility.
 
-#### 29. "Waiting for opponent..." persists incorrectly
+#### ~~29. "Waiting for opponent..." persists incorrectly~~ *(done)*
 
-The text stays on screen during the player's turn and overlaps with other status instructions (like setting burn direction).
+Removed redundant "Waiting for opponent..." status text;
+"OPPONENT'S TURN" in the phase bar conveys the same info.
 
-#### 30. Indistinguishable player and enemy ships
+#### ~~30. Indistinguishable player and enemy ships~~ *(done)*
 
-Both ships are labeled as "Corvette" in the same color, making it hard to tell them apart without looking at trail colors. Label should be color-coded or explicitly name the enemy.
+Enemy ship labels now prefixed with "Enemy" and rendered in
+brighter orange (0.7 opacity) vs player white labels.
 
-#### 31. Top status bar extremely crowded
+#### ~~31. Top status bar extremely crowded~~ *(done)*
 
-TURN, FUEL, speed info, objective, and ping (26MS) are all crammed together on the right. Need better spacing or moving ping to a corner.
+Latency indicator moved to fixed bottom-left corner at
+reduced opacity, freeing space in the top bar.
 
-#### 32. "DISABLED: 1T" text visibility
+#### ~~32. "DISABLED: 1T" text visibility~~ *(done)*
 
-The red text over the trajectory lacks a background plate and feels slightly misaligned, making it hard to read against the dark grid.
+Fixed via #23 background plate improvement.
 
 ### P3 — minor
 
-#### 27. Empty turn headers in game log
+#### ~~27. Empty turn headers in game log~~ *(done)*
 
-Many log entries show "— Turn N: Opponent —" with no events
-underneath. These empty headers should be collapsed or
-omitted to reduce log noise.
+Previous turn header auto-removed if no events were logged
+after it before the next turn header is added.
 
 ---
 

@@ -124,8 +124,8 @@ describe('renderer entity helpers', () => {
         false,
       ),
     ).toMatchObject({
-      typeName: 'Packet',
-      typeColor: 'rgba(255, 171, 145, 0.5)',
+      typeName: 'Enemy Packet',
+      typeColor: 'rgba(255, 140, 100, 0.7)',
       statusTag: null,
     });
   });

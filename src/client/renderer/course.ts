@@ -27,6 +27,8 @@ export interface CourseMarkerView {
   lineWidth: number;
   shadowBlur: number;
   shadowColor: string | null;
+  label: string | null;
+  labelColor: string | null;
 }
 
 export interface CourseArrowView {
@@ -104,6 +106,8 @@ const buildDirectionMarker = (
     shadowBlur: isHovered ? hoverBlur : isActive ? activeBlur : 0,
     shadowColor:
       isHovered || isActive ? (isHovered ? hoverShadow : activeShadow) : null,
+    label: null,
+    labelColor: null,
   };
 };
 
@@ -177,17 +181,19 @@ const buildBurnMarkers = (
   return HEX_DIRECTIONS.map((_, direction) => {
     const targetHex = hexAdd(predictedDestination, HEX_DIRECTIONS[direction]);
     const target = hexToPixel(targetHex, hexSize);
+    const isActive = burn === direction;
+    const isHovered = hoverHex !== null && hexEqual(hoverHex, targetHex);
 
-    return buildDirectionMarker(
+    const marker = buildDirectionMarker(
       target,
-      burn === direction,
-      hoverHex !== null && hexEqual(hoverHex, targetHex),
-      8,
-      10,
+      isActive,
+      isHovered,
+      12,
+      14,
       2,
       'rgba(79, 195, 247, 0.8)',
       'rgba(79, 195, 247, 0.4)',
-      'rgba(79, 195, 247, 0.15)',
+      'rgba(79, 195, 247, 0.2)',
       '#4fc3f7',
       'rgba(79, 195, 247, 0.3)',
       '#4fc3f7',
@@ -195,6 +201,12 @@ const buildBurnMarkers = (
       8,
       12,
     );
+
+    marker.label = String(direction + 1);
+    marker.labelColor =
+      isActive || isHovered ? 'rgba(0, 0, 0, 0.9)' : 'rgba(79, 195, 247, 0.7)';
+
+    return marker;
   });
 };
 

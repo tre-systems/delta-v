@@ -324,30 +324,43 @@ class GameClient {
     // Wire UI events
     this.ui.onEvent = (event) => this.handleUIEvent(event);
 
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-      const action = deriveKeyboardAction(
-        {
-          state: this.ctx.state,
-          hasGameState: !!this.ctx.gameState,
-          typingInInput: e.target instanceof HTMLInputElement,
-          combatTargetId: this.ctx.planningState.combatTargetId,
-          queuedAttackCount: this.ctx.planningState.queuedAttacks.length,
-          torpedoAccelActive: this.ctx.planningState.torpedoAccel !== null,
-        },
-        { key: e.key, shiftKey: e.shiftKey },
-      );
+    // Keyboard shortcuts — capture phase so events
+    // arrive before any child stopPropagation (e.g.
+    // chat input)
+    document.addEventListener(
+      'keydown',
+      (e) => {
+        // Escape blurs focused inputs so shortcuts
+        // resume working
+        if (e.key === 'Escape' && e.target instanceof HTMLInputElement) {
+          (e.target as HTMLInputElement).blur();
+          return;
+        }
 
-      if (action.kind === 'none') {
-        return;
-      }
+        const action = deriveKeyboardAction(
+          {
+            state: this.ctx.state,
+            hasGameState: !!this.ctx.gameState,
+            typingInInput: e.target instanceof HTMLInputElement,
+            combatTargetId: this.ctx.planningState.combatTargetId,
+            queuedAttackCount: this.ctx.planningState.queuedAttacks.length,
+            torpedoAccelActive: this.ctx.planningState.torpedoAccel !== null,
+          },
+          { key: e.key, shiftKey: e.shiftKey },
+        );
 
-      if (action.preventDefault) {
-        e.preventDefault();
-      }
+        if (action.kind === 'none') {
+          return;
+        }
 
-      this.handleKeyboardAction(action);
-    });
+        if (action.preventDefault) {
+          e.preventDefault();
+        }
+
+        this.handleKeyboardAction(action);
+      },
+      true,
+    );
 
     // Help overlay
     byId('helpCloseBtn').addEventListener('click', () => this.toggleHelp());

@@ -118,7 +118,7 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 | Directory | Files | LOC | Purpose |
 |-----------|-------|-----|---------|
-| `client/` (root) | 6 | ~2270 | Entry point (`main.ts` ~1475 LOC), raw input, audio, tutorial, DOM helpers, telemetry |
+| `client/` (root) | 6 | ~2300 | Entry point (`main.ts` ~1510 LOC), raw input, audio, tutorial, DOM helpers, telemetry |
 | `client/game/` | 35 | ~5200 | Game logic: planning, commands, phases, transport, presentation, connection, actions |
 | `client/renderer/` | 13 | ~4500 | Canvas rendering: camera, scene, entities, effects, overlays |
 | `client/ui/` | 8 | ~1900 | DOM overlays: menu, HUD, ship list, fleet shop, formatters |

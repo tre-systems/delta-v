@@ -48,6 +48,7 @@ export class UIManager {
   private logVisible = true;
   private logLatestBar: HTMLElement;
   private logLatestText: HTMLElement;
+  private lastTurnHeader: HTMLElement | null = null;
   private isMobile: boolean;
   private logExpandedOnMobile = false;
   private fleetCart: FleetPurchase[] = [];
@@ -853,14 +854,23 @@ export class UIManager {
   }
 
   logTurn(turn: number, player: string) {
-    const text = `\u2014 Turn ${turn}: ${player} \u2014`;
+    // Remove previous turn header if no events
+    // followed it
+    if (
+      this.lastTurnHeader &&
+      this.lastTurnHeader === this.logEntriesEl.lastElementChild
+    ) {
+      this.logEntriesEl.removeChild(this.lastTurnHeader);
+    }
 
-    this.logEntriesEl.appendChild(
-      el('div', {
-        class: 'log-entry log-turn',
-        text,
-      }),
-    );
+    const text = `\u2014 Turn ${turn}: ${player} \u2014`;
+    const header = el('div', {
+      class: 'log-entry log-turn',
+      text,
+    });
+
+    this.logEntriesEl.appendChild(header);
+    this.lastTurnHeader = header;
 
     this.scrollLogToBottom();
     this.updateLatestBar(text, 'log-turn');

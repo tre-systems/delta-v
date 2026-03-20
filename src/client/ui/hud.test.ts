@@ -100,7 +100,7 @@ describe('ui hud helpers', () => {
       buildHUDView(buildInput({ turn: 5, phase: 'combat', isMyTurn: false })),
     ).toMatchObject({
       phaseText: "OPPONENT'S TURN",
-      statusText: 'Waiting for opponent...',
+      statusText: null,
       skipCombatVisible: false,
       confirmVisible: false,
     });
