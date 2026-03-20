@@ -20,7 +20,7 @@ Files under `src/shared/` should remain:
 - plain typed data
 - easy to test in isolation
 
-Note: the engine currently mutates `GameState` in place rather than returning immutable snapshots. This is a known trade-off documented in ARCHITECTURE.md and tracked in BACKLOG.md (item 1a — clone-on-entry). RNG is fully injectable — all engine entry points require a mandatory `rng: () => number` parameter with no `Math.random` fallbacks in the turn-resolution path.
+All engine entry points clone the input state on entry (`structuredClone`) — the caller's state is never mutated. Internally, the clone is mutated in place for efficiency. Callers must use the returned `result.state`. RNG is fully injectable — all engine entry points require a mandatory `rng: () => number` parameter with no `Math.random` fallbacks in the turn-resolution path.
 
 Avoid pushing browser, network, storage, or rendering concerns into the shared engine.
 
@@ -148,7 +148,7 @@ Use **engine-style** for game logic results with heterogeneous success shapes. U
 | `derive*` | Compute a view/plan from state | No | `deriveHudViewModel`, `derivePhaseTransition` |
 | `build*` | Construct a complex object | No | `buildAstrogationOrders`, `buildShipTooltipHtml` |
 | `resolve*` | Interpret input, produce structured result | No | `resolveAIPlan`, `resolveBaseEmplacementPlan` |
-| `process*` | Apply game logic, mutate state | Yes (engine) | `processAstrogation`, `processCombat` |
+| `process*` | Apply game logic, return new state | Clone-on-entry | `processAstrogation`, `processCombat` |
 | `create*` | Construct new instance/manager | No | `createGame`, `createConnectionManager` |
 | `check*` | Detect condition, may mutate state | Sometimes | `checkRamming`, `checkGameEnd` |
 | `apply*` | Apply transformation to state | Yes | `applyGameState`, `applyDamage` |

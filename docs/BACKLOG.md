@@ -8,21 +8,9 @@ Prioritised list of remaining work. Items are grouped by type and ordered by pri
 
 ## P1 — Architecture & Production Safety
 
-### 1a. Clone-on-entry at engine entry points
+### ~~1a. Clone-on-entry at engine entry points~~ *(done)*
 
-Engine functions mutate `GameState` in place. This works because the server holds a single reference, but it:
-
-- **Breaks the server if the engine throws mid-mutation** — the DO's in-memory state is left inconsistent, permanently breaking the room.
-- **Prevents replay, spectator, undo** — no previous-state snapshot to diff against or store.
-- **Limits AI search** — speculative branching requires manual clone gymnastics.
-
-**Approach:** Wrap every engine entry point (`processAstrogation`, `processCombat`, `processOrdnance`, `beginCombatPhase`, `skipCombat`, `skipOrdnance`, `processLogistics`, `skipLogistics`, `processFleetReady`) with `structuredClone(state)` before calling the mutation logic. On success, return the mutated clone. On exception, the original state is untouched.
-
-This is already done in `client/game/local.ts` for animation diffing. Extending it to all entry points is mechanical.
-
-**Unlocks:** server-side rollback safety (1b), event log (1c), turn history, spectator mode, better AI search.
-
-**Files:** `src/shared/engine/game-engine.ts`, engine sub-modules, `src/server/game-do/game-do.ts`
+All 11 engine entry points (`processAstrogation`, `processOrdnance`, `skipOrdnance`, `processFleetReady`, `beginCombatPhase`, `processCombat`, `skipCombat`, `processLogistics`, `skipLogistics`, `processSurrender`, `processEmplacement`) now `structuredClone(state)` on entry. The original state is never mutated — callers must use the returned `result.state`. 22 immutability tests added in `clone-on-entry.test.ts`.
 
 ### 1b. Server-side state rollback
 
@@ -30,7 +18,7 @@ With clone-on-entry (1a) in place, the server wraps engine calls in try/catch. O
 
 Currently mitigated by high test coverage, but a safety net is essential for production with real users.
 
-**Depends on:** 1a (clone-on-entry)
+**Depends on:** ~~1a (clone-on-entry)~~ *(done)*
 
 **Files:** `src/server/game-do/game-do.ts` (`runGameStateAction`)
 
@@ -47,7 +35,7 @@ The server sends full `GameState` snapshots over WebSocket after every action. T
 
 This is not full event sourcing — snapshots remain the source of truth. The event log is an append-only complement for replay, reconnection, and spectator mode.
 
-**Depends on:** 1a (clone-on-entry provides the before/after snapshots that generate events)
+**Depends on:** ~~1a (clone-on-entry)~~ *(done)*
 
 **Unlocks:** turn replay, spectator mode, smooth reconnection.
 
@@ -115,7 +103,7 @@ The `dispatch()` switch in `main.ts` has ~60 cases. Phase transitions in `setSta
 
 Allow players to review past turns after a game ends (or during, stepping back through history).
 
-**Depends on:** 1a (clone-on-entry for snapshots), 1c (event log for animation data).
+**Depends on:** ~~1a (clone-on-entry)~~ *(done)*, 1c (event log for animation data).
 
 ### Spectator mode
 
@@ -137,6 +125,7 @@ Transfer passengers between ships for rescue scenarios. Extends the logistics ph
 
 ## Done
 
+- ~~1a. Clone-on-entry at engine entry points~~ — All 11 engine entry points `structuredClone(state)` on entry; callers use returned `result.state`. 22 immutability tests in `clone-on-entry.test.ts`. Unlocks 1b (rollback) and 1c (event log).
 - ~~2j. Decompose `main.ts`~~ — Extracted 7 modules: presentation, message-handler, connection, timer, astrogation-actions, combat-actions, ordnance-actions, local-game-flow. `main.ts` 1397 → 1023 LOC.
 - ~~2l. Eliminate map singleton~~ — Removed `getSolarSystemMap()` lazy singleton. All callers now use `buildSolarSystemMap()` directly or cache the map as a field.
 - ~~Multiplayer chat~~ — Inline chat in game log with text input. C2S/S2C `chat` message type, 200-char limit, 500ms rate limit, XSS-safe via textContent. Hidden in AI games. 6 protocol tests.

@@ -194,11 +194,13 @@ const shouldRemainInCombatPhase = (
  * before attack declarations.
  */
 export const beginCombatPhase = (
-  state: GameState,
+  inputState: GameState,
   playerId: number,
   map: SolarSystemMap,
   rng: () => number,
 ): CombatPhaseResult | { state: GameState } | { error: string } => {
+  const state = structuredClone(inputState);
+
   if (state.phase !== 'combat') {
     return { error: 'Not in combat phase' };
   }
@@ -231,12 +233,14 @@ export const beginCombatPhase = (
  * Process combat attacks for the active player.
  */
 export const processCombat = (
-  state: GameState,
+  inputState: GameState,
   playerId: number,
   attacks: CombatAttack[],
   map: SolarSystemMap,
   rng: () => number,
 ): CombatPhaseResult | { error: string } => {
+  const state = structuredClone(inputState);
+
   if (state.phase !== 'combat') {
     return { error: 'Not in combat phase' };
   }
@@ -474,11 +478,13 @@ export const processCombat = (
  * Skip combat phase (player has no attacks to make).
  */
 export const skipCombat = (
-  state: GameState,
+  inputState: GameState,
   playerId: number,
   map: SolarSystemMap,
   rng: () => number,
 ): { state: GameState; results?: CombatResult[] } | { error: string } => {
+  const state = structuredClone(inputState);
+
   if (state.phase !== 'combat') {
     return { error: 'Not in combat phase' };
   }
