@@ -306,8 +306,8 @@ All three engine safety items are complete:
 
 ### ~~Priority 1: Error Reporting & Telemetry (BACKLOG 1d, 1e)~~ *(done)*
 
-- **1d. Error reporting** — Global `window.onerror`/`unhandledrejection` handlers POST structured JSON to `/error`. Server-side `handleReport()` validates Content-Type (415), caps body at 4 KB (413), parses JSON (400), logs via `console.error`, returns 204. No payload echo. Server-side engine exceptions already logged (1b).
-- **1e. Telemetry** — `track(event, props)` in `src/client/telemetry.ts` POSTs to `/telemetry`, logged via `console.log`. Events tracked: `game_created` (scenario, mode, difficulty), `game_over` (won, reason, turn). Fire-and-forget with `keepalive: true`. Same `handleReport()` handler with same security measures. 14 endpoint tests total.
+- **1d. Error reporting** — Global `window.onerror`/`unhandledrejection` handlers POST structured JSON to `/error`. Server-side `handleReport()` validates Content-Type (415), caps body at 4 KB (413), parses JSON (400), logs via `console.error`, returns 204. No payload echo. Errors stored in D1 as `client_error` events with hashed IP and browser UA. Server-side engine exceptions already logged (1b).
+- **1e. Telemetry** — `track(event, props)` in `src/client/telemetry.ts` POSTs to `/telemetry`, logged via `console.log` and stored in D1 `events` table. Anonymous persistent client ID (`crypto.randomUUID()` + localStorage). Events tracked: `game_created` (scenario, mode, difficulty), `turn_completed` (turn number, phase durations, total time), `game_over` (won, reason, turn), `scenario_browsed`, tutorial progress (`tutorial_started`, `tutorial_completed`, `tutorial_skipped`). Fire-and-forget with `keepalive: true`, D1 writes via `ctx.waitUntil()`. IP hashed (SHA-256 truncated to 16 hex chars) — no raw IPs stored. Same `handleReport()` handler with same security measures. D1 schema in `migrations/0001_create_events.sql`.
 
 ### ~~Priority 2: Code Quality (BACKLOG 2a, 2b)~~ *(done)*
 
