@@ -1,5 +1,8 @@
 import { SHIP_STATS } from '../../shared/constants';
-import { getTransferEligiblePairs, type TransferPair } from '../../shared/engine/logistics';
+import {
+  getTransferEligiblePairs,
+  type TransferPair,
+} from '../../shared/engine/logistics';
 import type { GameState, TransferOrder } from '../../shared/types';
 import { el } from '../dom';
 
@@ -9,9 +12,13 @@ export interface LogisticsUIState {
   cargoAmounts: Map<string, number>; // pairKey -> cargo amount to transfer
 }
 
-const pairKey = (source: string, target: string): string => `${source}->${target}`;
+const pairKey = (source: string, target: string): string =>
+  `${source}->${target}`;
 
-export const createLogisticsUIState = (state: GameState, playerId: number): LogisticsUIState => {
+export const createLogisticsUIState = (
+  state: GameState,
+  playerId: number,
+): LogisticsUIState => {
   const pairs = getTransferEligiblePairs(state, playerId);
   return {
     pairs,
@@ -20,7 +27,9 @@ export const createLogisticsUIState = (state: GameState, playerId: number): Logi
   };
 };
 
-export const buildTransferOrders = (uiState: LogisticsUIState): TransferOrder[] => {
+export const buildTransferOrders = (
+  uiState: LogisticsUIState,
+): TransferOrder[] => {
   const orders: TransferOrder[] = [];
   for (const pair of uiState.pairs) {
     const key = pairKey(pair.source.id, pair.target.id);
@@ -58,11 +67,20 @@ export const hasQueuedTransfers = (uiState: LogisticsUIState): boolean => {
 
 const shipName = (type: string): string => SHIP_STATS[type]?.name ?? type;
 
-export const renderTransferPanel = (container: HTMLElement, uiState: LogisticsUIState, onChanged: () => void): void => {
+export const renderTransferPanel = (
+  container: HTMLElement,
+  uiState: LogisticsUIState,
+  onChanged: () => void,
+): void => {
   container.innerHTML = '';
 
   if (uiState.pairs.length === 0) {
-    container.appendChild(el('div', { class: 'transfer-empty', text: 'No transfer-eligible ships' }));
+    container.appendChild(
+      el('div', {
+        class: 'transfer-empty',
+        text: 'No transfer-eligible ships',
+      }),
+    );
     return;
   }
 
@@ -73,23 +91,38 @@ export const renderTransferPanel = (container: HTMLElement, uiState: LogisticsUI
     const targetLabel = shipName(pair.target.type);
 
     const pairEl = el('div', { class: 'transfer-pair' });
-    pairEl.appendChild(el('div', { class: 'transfer-header', text: `${sourceLabel} → ${targetLabel}` }));
+    pairEl.appendChild(
+      el('div', {
+        class: 'transfer-header',
+        text: `${sourceLabel} → ${targetLabel}`,
+      }),
+    );
 
     if (pair.canTransferFuel) {
       const fuelAmt = uiState.fuelAmounts.get(key) ?? 0;
-      const fuelRow = buildAmountRow('Fuel', fuelAmt, pair.maxFuel, (newAmt) => {
-        uiState.fuelAmounts.set(key, newAmt);
-        onChanged();
-      });
+      const fuelRow = buildAmountRow(
+        'Fuel',
+        fuelAmt,
+        pair.maxFuel,
+        (newAmt) => {
+          uiState.fuelAmounts.set(key, newAmt);
+          onChanged();
+        },
+      );
       pairEl.appendChild(fuelRow);
     }
 
     if (pair.canTransferCargo) {
       const cargoAmt = uiState.cargoAmounts.get(key) ?? 0;
-      const cargoRow = buildAmountRow('Cargo', cargoAmt, pair.maxCargo, (newAmt) => {
-        uiState.cargoAmounts.set(key, newAmt);
-        onChanged();
-      });
+      const cargoRow = buildAmountRow(
+        'Cargo',
+        cargoAmt,
+        pair.maxCargo,
+        (newAmt) => {
+          uiState.cargoAmounts.set(key, newAmt);
+          onChanged();
+        },
+      );
       pairEl.appendChild(cargoRow);
     }
 
@@ -117,7 +150,10 @@ const buildAmountRow = (
   });
   row.appendChild(minusBtn);
 
-  const amountEl = el('span', { class: 'transfer-amount', text: `${current}/${max}` });
+  const amountEl = el('span', {
+    class: 'transfer-amount',
+    text: `${current}/${max}`,
+  });
   row.appendChild(amountEl);
 
   const plusBtn = el('button', { class: 'btn-transfer-adj', text: '+' });

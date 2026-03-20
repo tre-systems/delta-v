@@ -18,11 +18,17 @@ export interface ReconnectAttemptPlan {
   delayMs: number | null;
 }
 
-export const deriveGameStartClientState = (state: GameState, playerId: number): ClientState => {
+export const deriveGameStartClientState = (
+  state: GameState,
+  playerId: number,
+): ClientState => {
   if (state.phase === 'fleetBuilding') {
     return 'playing_fleetBuilding';
   }
-  return state.activePlayer === playerId ? 'playing_astrogation' : 'playing_opponentTurn';
+
+  return state.activePlayer === playerId
+    ? 'playing_astrogation'
+    : 'playing_opponentTurn';
 };
 
 export const deriveWelcomeHandling = (
@@ -49,6 +55,7 @@ export const shouldAttemptReconnect = (
   if (currentState === 'menu' || currentState === 'gameOver') {
     return false;
   }
+
   return Boolean(gameCode && gameState);
 };
 
@@ -63,12 +70,14 @@ export const deriveDisconnectHandling = (
       nextState: null,
     };
   }
+
   if (currentState === 'menu' || currentState === 'gameOver') {
     return {
       attemptReconnect: false,
       nextState: null,
     };
   }
+
   return {
     attemptReconnect: false,
     nextState: 'menu',
@@ -87,7 +96,9 @@ export const deriveReconnectAttemptPlan = (
       delayMs: null,
     };
   }
+
   const nextAttempt = reconnectAttempts + 1;
+
   return {
     giveUp: false,
     nextAttempt,
@@ -95,6 +106,8 @@ export const deriveReconnectAttemptPlan = (
   };
 };
 
-export const shouldTransitionAfterStateUpdate = (currentState: ClientState): boolean => {
+export const shouldTransitionAfterStateUpdate = (
+  currentState: ClientState,
+): boolean => {
   return currentState !== 'playing_movementAnim';
 };

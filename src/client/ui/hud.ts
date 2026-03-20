@@ -45,12 +45,30 @@ export interface AstrogationContext {
 }
 
 const getAstrogationStatusText = (ctx: AstrogationContext): string => {
-  if (!ctx.hasSelection && ctx.multipleShipsAlive) return 'Select a ship to begin';
-  if (ctx.selectedShipDisabled) return 'Ship disabled — will drift this turn';
-  if (ctx.selectedShipLanded && !ctx.selectedShipHasBurn) return 'Click a direction to take off (costs 1 fuel)';
-  if (ctx.allShipsHaveBurns) return 'All burns set · Confirm (Enter)';
-  if (ctx.selectedShipHasBurn && ctx.multipleShipsAlive) return 'Burn set · Select another ship or Confirm (Enter)';
-  if (ctx.selectedShipHasBurn) return 'Burn set · Confirm (Enter)';
+  if (!ctx.hasSelection && ctx.multipleShipsAlive) {
+    return 'Select a ship to begin';
+  }
+
+  if (ctx.selectedShipDisabled) {
+    return 'Ship disabled \u2014 will drift this turn';
+  }
+
+  if (ctx.selectedShipLanded && !ctx.selectedShipHasBurn) {
+    return 'Click a direction to take off (costs 1 fuel)';
+  }
+
+  if (ctx.allShipsHaveBurns) {
+    return 'All burns set \u00b7 Confirm (Enter)';
+  }
+
+  if (ctx.selectedShipHasBurn && ctx.multipleShipsAlive) {
+    return 'Burn set \u00b7 Select another ship or Confirm (Enter)';
+  }
+
+  if (ctx.selectedShipHasBurn) {
+    return 'Burn set \u00b7 Confirm (Enter)';
+  }
+
   return 'Click adjacent hex to set burn direction';
 };
 
@@ -88,6 +106,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     speed,
     fuelToStop,
   } = input;
+
   const showOrdnance = isMyTurn && phase === 'ordnance';
   const canMine = cargoFree >= ORDNANCE_MASS.mine;
   const canTorpedo = isWarship && cargoFree >= ORDNANCE_MASS.torpedo;
@@ -101,9 +120,9 @@ export const buildHUDView = (input: HUDInput): HUDView => {
       showOrdnance && cargoMax > 0
         ? `Cargo: ${cargoFree}/${cargoMax}`
         : speed > 0
-          ? `Fuel: ${fuel}/${maxFuel} · Speed ${speed} (${fuelToStop} to stop)`
+          ? `Fuel: ${fuel}/${maxFuel} \u00b7 Speed ${speed} (${fuelToStop} to stop)`
           : astrogationCtx.selectedShipLanded
-            ? `Fuel: ${fuel}/${maxFuel} · Landed`
+            ? `Fuel: ${fuel}/${maxFuel} \u00b7 Landed`
             : `Fuel: ${fuel}/${maxFuel}`,
     statusText: !isMyTurn
       ? 'Waiting for opponent...'
@@ -112,12 +131,13 @@ export const buildHUDView = (input: HUDInput): HUDView => {
         : phase === 'ordnance'
           ? 'Launch ordnance or skip (Enter)'
           : phase === 'combat'
-            ? 'Click enemies to target · Fire All to attack (Enter)'
+            ? 'Click enemies to target \u00b7 Fire All to attack (Enter)'
             : phase === 'logistics'
               ? 'Transfer fuel/cargo or skip (Enter)'
               : null,
     undoVisible: isMyTurn && phase === 'astrogation' && hasBurns,
     confirmVisible: isMyTurn && phase === 'astrogation',
+
     launchMine: showOrdnance
       ? {
           visible: true,
@@ -126,6 +146,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
           title: '',
         }
       : createHiddenButton(),
+
     launchTorpedo: showOrdnance
       ? {
           visible: true,
@@ -134,6 +155,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
           title: isWarship ? '' : 'Warships only',
         }
       : createHiddenButton(),
+
     launchNuke: showOrdnance
       ? {
           visible: true,
@@ -142,6 +164,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
           title: '',
         }
       : createHiddenButton(),
+
     emplaceBaseVisible: showOrdnance && canEmplaceBase,
     skipOrdnanceVisible: showOrdnance,
     skipCombatVisible: isMyTurn && phase === 'combat',

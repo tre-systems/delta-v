@@ -64,7 +64,8 @@ describe('ui-screens', () => {
       }),
     ).toEqual({
       titleText: 'VICTORY',
-      reasonText: 'Fleet eliminated!\n\nTurns: 12 | Your ships: 2/3 | Enemy: 0/2',
+      reasonText:
+        'Fleet eliminated!\n\nTurns: 12 | Your ships: 2/3 | Enemy: 0/2',
       rematchText: 'Rematch',
       rematchDisabled: false,
     });

@@ -24,8 +24,22 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
 
 function createPlayers(): [PlayerState, PlayerState] {
   return [
-    { connected: true, ready: true, targetBody: 'Mars', homeBody: 'Terra', bases: [], escapeWins: false },
-    { connected: true, ready: true, targetBody: 'Terra', homeBody: 'Mars', bases: [], escapeWins: false },
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Mars',
+      homeBody: 'Terra',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Terra',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
   ];
 }
 
@@ -52,7 +66,9 @@ function createState(ship: Ship): GameState {
 
 describe('game-client-burn', () => {
   it('requires a selected ship before changing burns', () => {
-    expect(deriveBurnChangePlan(createState(createShip()), null, 2, null)).toEqual({
+    expect(
+      deriveBurnChangePlan(createState(createShip()), null, 2, null),
+    ).toEqual({
       kind: 'error',
       message: 'Select a ship first',
       level: 'info',
@@ -60,10 +76,19 @@ describe('game-client-burn', () => {
   });
 
   it('ignores missing or destroyed ships', () => {
-    expect(deriveBurnChangePlan(createState(createShip()), 'missing', 2, null)).toEqual({
+    expect(
+      deriveBurnChangePlan(createState(createShip()), 'missing', 2, null),
+    ).toEqual({
       kind: 'noop',
     });
-    expect(deriveBurnChangePlan(createState(createShip({ destroyed: true })), 'ship-0', 2, null)).toEqual({
+    expect(
+      deriveBurnChangePlan(
+        createState(createShip({ destroyed: true })),
+        'ship-0',
+        2,
+        null,
+      ),
+    ).toEqual({
       kind: 'noop',
     });
   });
@@ -86,7 +111,14 @@ describe('game-client-burn', () => {
       level: 'error',
     });
 
-    expect(deriveBurnChangePlan(createState(createShip({ fuel: 0 })), 'ship-0', 2, null)).toEqual({
+    expect(
+      deriveBurnChangePlan(
+        createState(createShip({ fuel: 0 })),
+        'ship-0',
+        2,
+        null,
+      ),
+    ).toEqual({
       kind: 'error',
       message: 'No fuel remaining',
       level: 'error',
@@ -94,14 +126,18 @@ describe('game-client-burn', () => {
   });
 
   it('toggles burns and clears overloads when choosing a new direction', () => {
-    expect(deriveBurnChangePlan(createState(createShip()), 'ship-0', 2, null)).toEqual({
+    expect(
+      deriveBurnChangePlan(createState(createShip()), 'ship-0', 2, null),
+    ).toEqual({
       kind: 'update',
       shipId: 'ship-0',
       nextBurn: 2,
       clearOverload: true,
     });
 
-    expect(deriveBurnChangePlan(createState(createShip()), 'ship-0', 2, 2)).toEqual({
+    expect(
+      deriveBurnChangePlan(createState(createShip()), 'ship-0', 2, 2),
+    ).toEqual({
       kind: 'update',
       shipId: 'ship-0',
       nextBurn: null,

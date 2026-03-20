@@ -1,9 +1,18 @@
 import { ORDNANCE_MASS, SHIP_STATS } from '../../shared/constants';
-import type { GameState, OrbitalBaseEmplacement, OrdnanceLaunch, Ship } from '../../shared/types';
+import type {
+  GameState,
+  OrbitalBaseEmplacement,
+  OrdnanceLaunch,
+  Ship,
+} from '../../shared/types';
 import type { PlanningState } from './planning';
 
 type OrdnanceState = Pick<GameState, 'ships'>;
-type OrdnancePlanning = Pick<PlanningState, 'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'>;
+
+type OrdnancePlanning = Pick<
+  PlanningState,
+  'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'
+>;
 
 export type ClientActionError = {
   ok: false;
@@ -30,22 +39,33 @@ const getShipName = (ship: Ship): string => {
   return SHIP_STATS[ship.type]?.name ?? ship.type;
 };
 
-const getSelectedShip = (state: OrdnanceState, selectedShipId: string | null): Ship | null => {
+const getSelectedShip = (
+  state: OrdnanceState,
+  selectedShipId: string | null,
+): Ship | null => {
   if (!selectedShipId) {
     return null;
   }
+
   return state.ships.find((ship) => ship.id === selectedShipId) ?? null;
 };
 
-export const canShipLaunchAnyOrdnance = (ship: Pick<Ship, 'type' | 'cargoUsed'>): boolean => {
+export const canShipLaunchAnyOrdnance = (
+  ship: Pick<Ship, 'type' | 'cargoUsed'>,
+): boolean => {
   const stats = SHIP_STATS[ship.type];
+
   if (!stats) {
     return false;
   }
+
   return stats.cargo - ship.cargoUsed >= ORDNANCE_MASS.mine;
 };
 
-export const getFirstLaunchableShipId = (state: OrdnanceState, playerId: number): string | null => {
+export const getFirstLaunchableShipId = (
+  state: OrdnanceState,
+  playerId: number,
+): string | null => {
   return (
     state.ships.find(
       (ship) =>
@@ -58,7 +78,10 @@ export const getFirstLaunchableShipId = (state: OrdnanceState, playerId: number)
   );
 };
 
-export const getUnambiguousLaunchableShipId = (state: OrdnanceState, playerId: number): string | null => {
+export const getUnambiguousLaunchableShipId = (
+  state: OrdnanceState,
+  playerId: number,
+): string | null => {
   const launchable = state.ships.filter(
     (ship) =>
       ship.owner === playerId &&
@@ -67,6 +90,7 @@ export const getUnambiguousLaunchableShipId = (state: OrdnanceState, playerId: n
       ship.damage.disabledTurns === 0 &&
       canShipLaunchAnyOrdnance(ship),
   );
+
   return launchable.length === 1 ? launchable[0].id : null;
 };
 
@@ -76,32 +100,64 @@ export const resolveOrdnanceLaunchPlan = (
   ordnanceType: 'mine' | 'torpedo' | 'nuke',
 ): OrdnanceLaunchPlan => {
   const ship = getSelectedShip(state, planning.selectedShipId);
+
   if (!planning.selectedShipId) {
-    return { ok: false, message: 'Select a ship first', level: 'info' };
+    return {
+      ok: false,
+      message: 'Select a ship first',
+      level: 'info',
+    };
   }
+
   if (!ship) {
     return { ok: false, message: null, level: 'error' };
   }
 
   const stats = SHIP_STATS[ship.type];
+
   if (!stats) {
     return { ok: false, message: null, level: 'error' };
   }
 
   const cargoFree = stats.cargo - ship.cargoUsed;
+
   if (ship.destroyed) {
-    return { ok: false, message: 'Ship is destroyed', level: 'error' };
+    return {
+      ok: false,
+      message: 'Ship is destroyed',
+      level: 'error',
+    };
   }
+
   if (ship.landed) {
-    return { ok: false, message: 'Cannot launch ordnance while landed', level: 'error' };
+    return {
+      ok: false,
+      message: 'Cannot launch ordnance while landed',
+      level: 'error',
+    };
   }
+
   if (ship.damage.disabledTurns > 0) {
-    return { ok: false, message: 'Ship is disabled', level: 'error' };
+    return {
+      ok: false,
+      message: 'Ship is disabled',
+      level: 'error',
+    };
   }
+
   if (ordnanceType === 'torpedo' && !stats.canOverload) {
-    return { ok: false, message: 'Only warships can launch torpedoes', level: 'error' };
+    return {
+      ok: false,
+      message: 'Only warships can launch torpedoes',
+      level: 'error',
+    };
   }
-  if (ordnanceType === 'nuke' && !stats.canOverload && (ship.nukesLaunchedSinceResupply ?? 0) >= 1) {
+
+  if (
+    ordnanceType === 'nuke' &&
+    !stats.canOverload &&
+    (ship.nukesLaunchedSinceResupply ?? 0) >= 1
+  ) {
     return {
       ok: false,
       message: 'Non-warships may carry only one nuke between resupplies',
@@ -110,6 +166,7 @@ export const resolveOrdnanceLaunchPlan = (
   }
 
   const neededCargo = ORDNANCE_MASS[ordnanceType] ?? 0;
+
   if (cargoFree < neededCargo) {
     return {
       ok: false,
@@ -124,8 +181,14 @@ export const resolveOrdnanceLaunchPlan = (
     launch: {
       shipId: ship.id,
       ordnanceType,
-      torpedoAccel: ordnanceType === 'torpedo' ? (planning.torpedoAccel ?? null) : undefined,
-      torpedoAccelSteps: ordnanceType === 'torpedo' ? (planning.torpedoAccelSteps ?? null) : undefined,
+      torpedoAccel:
+        ordnanceType === 'torpedo'
+          ? (planning.torpedoAccel ?? null)
+          : undefined,
+      torpedoAccelSteps:
+        ordnanceType === 'torpedo'
+          ? (planning.torpedoAccelSteps ?? null)
+          : undefined,
     },
   };
 };
@@ -135,15 +198,25 @@ export const resolveBaseEmplacementPlan = (
   selectedShipId: string | null,
 ): BaseEmplacementPlan => {
   if (!selectedShipId) {
-    return { ok: false, message: 'Select a ship first', level: 'info' };
+    return {
+      ok: false,
+      message: 'Select a ship first',
+      level: 'info',
+    };
   }
 
   const ship = getSelectedShip(state, selectedShipId);
+
   if (!ship) {
     return { ok: false, message: null, level: 'error' };
   }
+
   if (!ship.carryingOrbitalBase) {
-    return { ok: false, message: 'Ship is not carrying an orbital base', level: 'error' };
+    return {
+      ok: false,
+      message: 'Ship is not carrying an orbital base',
+      level: 'error',
+    };
   }
 
   return {

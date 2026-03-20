@@ -24,7 +24,11 @@ export interface MessageHandlerDeps {
     events: MovementResult['events'],
     onComplete: () => void,
   ) => void;
-  presentCombatResults: (previousState: GameState, state: GameState, results: CombatResult[]) => void;
+  presentCombatResults: (
+    previousState: GameState,
+    state: GameState,
+    results: CombatResult[],
+  ) => void;
   showGameOverOutcome: (won: boolean, reason: string) => void;
   storePlayerToken: (code: string, token: string) => void;
   onAnimationComplete: () => void;
@@ -47,8 +51,17 @@ export interface MessageHandlerDeps {
   };
 }
 
-export const handleServerMessage = (deps: MessageHandlerDeps, msg: S2C): void => {
-  const plan = deriveClientMessagePlan(deps.ctx.state, deps.ctx.reconnectAttempts, deps.ctx.playerId, Date.now(), msg);
+export const handleServerMessage = (
+  deps: MessageHandlerDeps,
+  msg: S2C,
+): void => {
+  const plan = deriveClientMessagePlan(
+    deps.ctx.state,
+    deps.ctx.reconnectAttempts,
+    deps.ctx.playerId,
+    Date.now(),
+    msg,
+  );
   switch (plan.kind) {
     case 'welcome': {
       deps.ctx.playerId = plan.playerId;
@@ -97,7 +110,11 @@ export const handleServerMessage = (deps: MessageHandlerDeps, msg: S2C): void =>
 
     case 'combatResult': {
       const previousState = deps.ctx.gameState;
-      deps.presentCombatResults(previousState!, deps.deserializeState(plan.state), plan.results);
+      deps.presentCombatResults(
+        previousState!,
+        deps.deserializeState(plan.state),
+        plan.results,
+      );
       if (plan.shouldTransition) {
         deps.transitionToPhase();
       }
@@ -132,7 +149,10 @@ export const handleServerMessage = (deps: MessageHandlerDeps, msg: S2C): void =>
     case 'chat': {
       const isOwn = plan.playerId === deps.ctx.playerId;
       const label = isOwn ? 'You' : 'Opponent';
-      deps.ui.logText(`${label}: ${plan.text}`, isOwn ? 'log-chat' : 'log-chat-opponent');
+      deps.ui.logText(
+        `${label}: ${plan.text}`,
+        isOwn ? 'log-chat' : 'log-chat-opponent',
+      );
       break;
     }
 

@@ -33,7 +33,11 @@ describe('ui ship list helpers', () => {
       new Map(),
     );
 
-    expect(view.map((entry) => entry.displayName)).toEqual(['Transport 1', 'Transport 2', 'Corvette']);
+    expect(view.map((entry) => entry.displayName)).toEqual([
+      'Transport 1',
+      'Transport 2',
+      'Corvette',
+    ]);
   });
 
   it('builds status and fuel labels for destroyed, captured, heroic, and burning ships', () => {

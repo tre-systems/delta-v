@@ -1,4 +1,5 @@
 export const DISCONNECT_GRACE_MS = 30_000;
+
 const TURN_TIMEOUT_GRACE_MS = 500;
 
 export interface AlarmDeadlines {
@@ -27,17 +28,25 @@ export interface DisconnectMarker {
 export const normalizeDisconnectedPlayer = (value: unknown): number | null =>
   value === 0 || value === 1 ? value : null;
 
-export const createDisconnectMarker = (playerId: number, now: number): DisconnectMarker => ({
+export const createDisconnectMarker = (
+  playerId: number,
+  now: number,
+): DisconnectMarker => ({
   disconnectedPlayer: playerId,
   disconnectTime: now,
   disconnectAt: now + DISCONNECT_GRACE_MS,
 });
 
-export const shouldClearDisconnectMarker = (disconnectedPlayer: number | null, playerId: number): boolean =>
-  disconnectedPlayer === playerId;
+export const shouldClearDisconnectMarker = (
+  disconnectedPlayer: number | null,
+  playerId: number,
+): boolean => disconnectedPlayer === playerId;
 
 export const getNextAlarmAt = (deadlines: AlarmDeadlines): number | null => {
-  const values = Object.values(deadlines).filter((value): value is number => value !== undefined);
+  const values = Object.values(deadlines).filter(
+    (value): value is number => value !== undefined,
+  );
+
   return values.length > 0 ? Math.min(...values) : null;
 };
 
@@ -48,14 +57,27 @@ export const resolveAlarmAction = ({
   inactivityAt,
   now,
 }: AlarmSnapshot): AlarmAction => {
-  if (disconnectedPlayer !== null && disconnectAt !== undefined && now >= disconnectAt) {
-    return { type: 'disconnectExpired', playerId: disconnectedPlayer };
+  if (
+    disconnectedPlayer !== null &&
+    disconnectAt !== undefined &&
+    now >= disconnectAt
+  ) {
+    return {
+      type: 'disconnectExpired',
+      playerId: disconnectedPlayer,
+    };
   }
-  if (turnTimeoutAt !== undefined && now >= turnTimeoutAt - TURN_TIMEOUT_GRACE_MS) {
+
+  if (
+    turnTimeoutAt !== undefined &&
+    now >= turnTimeoutAt - TURN_TIMEOUT_GRACE_MS
+  ) {
     return { type: 'turnTimeout' };
   }
+
   if (inactivityAt !== undefined && now >= inactivityAt) {
     return { type: 'inactivityTimeout' };
   }
+
   return { type: 'reschedule' };
 };

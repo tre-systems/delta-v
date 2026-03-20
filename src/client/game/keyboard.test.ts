@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { deriveKeyboardAction, type KeyboardShortcutContext } from './keyboard';
 import type { ClientState } from './phase';
 
-function createContext(overrides: Partial<KeyboardShortcutContext> = {}): KeyboardShortcutContext {
+function createContext(
+  overrides: Partial<KeyboardShortcutContext> = {},
+): KeyboardShortcutContext {
   return {
     state: 'menu',
     hasGameState: false,
@@ -14,20 +16,30 @@ function createContext(overrides: Partial<KeyboardShortcutContext> = {}): Keyboa
   };
 }
 
-function actionFor(key: string, overrides: Partial<KeyboardShortcutContext> = {}, shiftKey = false) {
+function actionFor(
+  key: string,
+  overrides: Partial<KeyboardShortcutContext> = {},
+  shiftKey = false,
+) {
   return deriveKeyboardAction(createContext(overrides), { key, shiftKey });
 }
 
 describe('game-client-keyboard', () => {
   it('ignores shortcuts while typing in an input', () => {
-    expect(actionFor('Enter', { typingInInput: true, state: 'playing_astrogation' })).toEqual({
+    expect(
+      actionFor('Enter', { typingInInput: true, state: 'playing_astrogation' }),
+    ).toEqual({
       kind: 'none',
       preventDefault: false,
     });
   });
 
   it('cycles ships with tab in playable ship-selection states', () => {
-    const states: ClientState[] = ['playing_astrogation', 'playing_ordnance', 'playing_combat'];
+    const states: ClientState[] = [
+      'playing_astrogation',
+      'playing_ordnance',
+      'playing_combat',
+    ];
 
     for (const state of states) {
       expect(actionFor('Tab', { state, hasGameState: true })).toEqual({
@@ -71,11 +83,18 @@ describe('game-client-keyboard', () => {
       kind: 'skipOrdnance',
       preventDefault: true,
     });
-    expect(actionFor('Enter', { state: 'playing_combat', combatTargetId: 'enemy-1' })).toEqual({
+    expect(
+      actionFor('Enter', {
+        state: 'playing_combat',
+        combatTargetId: 'enemy-1',
+      }),
+    ).toEqual({
       kind: 'queueAttack',
       preventDefault: true,
     });
-    expect(actionFor('Enter', { state: 'playing_combat', queuedAttackCount: 1 })).toEqual({
+    expect(
+      actionFor('Enter', { state: 'playing_combat', queuedAttackCount: 1 }),
+    ).toEqual({
       kind: 'fireAllAttacks',
       preventDefault: true,
     });
@@ -117,11 +136,15 @@ describe('game-client-keyboard', () => {
   });
 
   it('gates focus and log shortcuts on game state presence', () => {
-    expect(actionFor('e', { state: 'playing_ordnance', hasGameState: true })).toEqual({
+    expect(
+      actionFor('e', { state: 'playing_ordnance', hasGameState: true }),
+    ).toEqual({
       kind: 'focusNearestEnemy',
       preventDefault: false,
     });
-    expect(actionFor('h', { state: 'playing_opponentTurn', hasGameState: true })).toEqual({
+    expect(
+      actionFor('h', { state: 'playing_opponentTurn', hasGameState: true }),
+    ).toEqual({
       kind: 'focusOwnFleet',
       preventDefault: false,
     });

@@ -9,6 +9,7 @@ export class Camera {
   targetX = 0;
   targetY = 0;
   targetZoom = 1.0;
+
   private canvasW = 0;
   private canvasH = 0;
 
@@ -18,7 +19,9 @@ export class Camera {
   update(dt: number, canvasW: number, canvasH: number) {
     this.canvasW = canvasW;
     this.canvasH = canvasH;
+
     const speed = Math.min(CAMERA_LERP_SPEED * dt, 1);
+
     this.x += (this.targetX - this.x) * speed;
     this.y += (this.targetY - this.y) * speed;
     this.zoom += (this.targetZoom - this.zoom) * speed;
@@ -44,20 +47,30 @@ export class Camera {
     };
   }
 
-  frameBounds(minX: number, maxX: number, minY: number, maxY: number, padding = 80) {
+  frameBounds(
+    minX: number,
+    maxX: number,
+    minY: number,
+    maxY: number,
+    padding = 80,
+  ) {
     this.targetX = (minX + maxX) / 2;
     this.targetY = (minY + maxY) / 2;
+
     const w = maxX - minX + padding * 2;
     const h = maxY - minY + padding * 2;
     const zx = this.canvasW / w;
     const zy = this.canvasH / h;
+
     this.targetZoom = Math.min(zx, zy, this.maxZoom);
   }
 
   zoomAt(sx: number, sy: number, factor: number) {
     const newZoom = clamp(this.targetZoom * factor, this.minZoom, this.maxZoom);
+
     const worldX = (sx - this.canvasW / 2) / this.targetZoom + this.targetX;
     const worldY = (sy - this.canvasH / 2) / this.targetZoom + this.targetY;
+
     this.targetZoom = newZoom;
     this.targetX = worldX - (sx - this.canvasW / 2) / newZoom;
     this.targetY = worldY - (sy - this.canvasH / 2) / newZoom;
@@ -77,6 +90,7 @@ export class Camera {
   isVisible(wx: number, wy: number, margin = 50): boolean {
     const halfW = this.canvasW / 2 / this.zoom + margin;
     const halfH = this.canvasH / 2 / this.zoom + margin;
+
     return Math.abs(wx - this.x) < halfW && Math.abs(wy - this.y) < halfH;
   }
 }

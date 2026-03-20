@@ -16,8 +16,12 @@ export const deriveGameOverPlan = (
   reason: string,
 ): GameOverPlan => {
   const loserId = won ? 1 - playerId : playerId;
+
   const loserShipIds =
-    state?.ships.filter((ship) => ship.owner === loserId && !ship.destroyed).map((ship) => ship.id) ?? [];
+    state?.ships
+      .filter((ship) => ship.owner === loserId && !ship.destroyed)
+      .map((ship) => ship.id) ?? [];
+
   return {
     stats: state ? getGameOverStats(state, playerId) : undefined,
     logText: `${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`,

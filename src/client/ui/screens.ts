@@ -1,4 +1,10 @@
-export type UIScreenMode = 'hidden' | 'menu' | 'scenario' | 'waiting' | 'hud' | 'fleetBuilding';
+export type UIScreenMode =
+  | 'hidden'
+  | 'menu'
+  | 'scenario'
+  | 'waiting'
+  | 'hud'
+  | 'fleetBuilding';
 
 export interface UIScreenVisibility {
   menu: 'none' | 'flex';
@@ -60,7 +66,10 @@ const HIDDEN_VISIBILITY: UIScreenVisibility = {
   helpOverlay: 'none',
 };
 
-export const buildScreenVisibility = (mode: UIScreenMode, logVisible: boolean): UIScreenVisibility => {
+export const buildScreenVisibility = (
+  mode: UIScreenMode,
+  logVisible: boolean,
+): UIScreenVisibility => {
   switch (mode) {
     case 'menu':
       return {
@@ -68,18 +77,21 @@ export const buildScreenVisibility = (mode: UIScreenMode, logVisible: boolean): 
         menu: 'flex',
         soundBtn: 'flex',
       };
+
     case 'scenario':
       return {
         ...HIDDEN_VISIBILITY,
         scenario: 'flex',
         soundBtn: 'flex',
       };
+
     case 'waiting':
       return {
         ...HIDDEN_VISIBILITY,
         waiting: 'flex',
         soundBtn: 'flex',
       };
+
     case 'hud':
       return {
         ...HIDDEN_VISIBILITY,
@@ -90,27 +102,40 @@ export const buildScreenVisibility = (mode: UIScreenMode, logVisible: boolean): 
         helpBtn: 'flex',
         soundBtn: 'flex',
       };
+
     case 'fleetBuilding':
       return {
         ...HIDDEN_VISIBILITY,
         fleetBuilding: 'flex',
         soundBtn: 'flex',
       };
+
     default:
       return HIDDEN_VISIBILITY;
   }
 };
 
-export const buildWaitingScreenCopy = (code: string, connecting: boolean): WaitingScreenCopy => {
+export const buildWaitingScreenCopy = (
+  code: string,
+  connecting: boolean,
+): WaitingScreenCopy => {
   return connecting
     ? { codeText: '...', statusText: 'Connecting...' }
-    : { codeText: code, statusText: 'Waiting for opponent...' };
+    : {
+        codeText: code,
+        statusText: 'Waiting for opponent...',
+      };
 };
 
-export const buildGameOverView = (won: boolean, reason: string, stats?: GameOverStatsLike): GameOverView => {
+export const buildGameOverView = (
+  won: boolean,
+  reason: string,
+  stats?: GameOverStatsLike,
+): GameOverView => {
   const reasonText = stats
     ? `${reason}\n\nTurns: ${stats.turns} | Your ships: ${stats.myShipsAlive}/${stats.myShipsTotal} | Enemy: ${stats.enemyShipsAlive}/${stats.enemyShipsTotal}`
     : reason;
+
   return {
     titleText: won ? 'VICTORY' : 'DEFEAT',
     reasonText,
@@ -126,7 +151,10 @@ export const buildRematchPendingView = (): RematchPendingView => {
   };
 };
 
-export const buildReconnectView = (attempt: number, maxAttempts: number): ReconnectView => {
+export const buildReconnectView = (
+  attempt: number,
+  maxAttempts: number,
+): ReconnectView => {
   return {
     reconnectText: 'Connection lost',
     attemptText: `Attempt ${attempt} of ${maxAttempts}`,

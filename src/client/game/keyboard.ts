@@ -1,6 +1,10 @@
 import type { ClientState } from './phase';
 
-const SHIP_SELECTION_STATES = new Set<ClientState>(['playing_astrogation', 'playing_ordnance', 'playing_combat']);
+const SHIP_SELECTION_STATES = new Set<ClientState>([
+  'playing_astrogation',
+  'playing_ordnance',
+  'playing_combat',
+]);
 
 const FOCUS_STATES = new Set<ClientState>([
   'playing_astrogation',
@@ -37,7 +41,11 @@ export type KeyboardAction =
   | { kind: 'skipCombat'; preventDefault: true }
   | { kind: 'confirmTransfers'; preventDefault: true }
   | { kind: 'adjustCombatStrength'; preventDefault: true; delta: -1 | 1 }
-  | { kind: 'launchOrdnance'; preventDefault: false; ordnanceType: 'mine' | 'torpedo' | 'nuke' }
+  | {
+      kind: 'launchOrdnance';
+      preventDefault: false;
+      ordnanceType: 'mine' | 'torpedo' | 'nuke';
+    }
   | { kind: 'setBurnDirection'; preventDefault: false; direction: number }
   | { kind: 'clearSelectedBurn'; preventDefault: false }
   | { kind: 'resetCombatStrength'; preventDefault: false }
@@ -61,7 +69,11 @@ export const deriveKeyboardAction = (
     return createNoopAction();
   }
 
-  if (input.key === 'Tab' && context.hasGameState && SHIP_SELECTION_STATES.has(context.state)) {
+  if (
+    input.key === 'Tab' &&
+    context.hasGameState &&
+    SHIP_SELECTION_STATES.has(context.state)
+  ) {
     return {
       kind: 'cycleShip',
       preventDefault: true,
@@ -103,26 +115,48 @@ export const deriveKeyboardAction = (
     }
   }
 
-  if ((input.key === '-' || input.key === '_') && context.state === 'playing_combat') {
+  if (
+    (input.key === '-' || input.key === '_') &&
+    context.state === 'playing_combat'
+  ) {
     return { kind: 'adjustCombatStrength', preventDefault: true, delta: -1 };
   }
 
-  if ((input.key === '=' || input.key === '+') && context.state === 'playing_combat') {
+  if (
+    (input.key === '=' || input.key === '+') &&
+    context.state === 'playing_combat'
+  ) {
     return { kind: 'adjustCombatStrength', preventDefault: true, delta: 1 };
   }
 
   const lowerKey = input.key.toLowerCase();
   if (lowerKey === 'n' && context.state === 'playing_ordnance') {
-    return { kind: 'launchOrdnance', preventDefault: false, ordnanceType: 'mine' };
+    return {
+      kind: 'launchOrdnance',
+      preventDefault: false,
+      ordnanceType: 'mine',
+    };
   }
   if (lowerKey === 't' && context.state === 'playing_ordnance') {
-    return { kind: 'launchOrdnance', preventDefault: false, ordnanceType: 'torpedo' };
+    return {
+      kind: 'launchOrdnance',
+      preventDefault: false,
+      ordnanceType: 'torpedo',
+    };
   }
   if (lowerKey === 'k' && context.state === 'playing_ordnance') {
-    return { kind: 'launchOrdnance', preventDefault: false, ordnanceType: 'nuke' };
+    return {
+      kind: 'launchOrdnance',
+      preventDefault: false,
+      ordnanceType: 'nuke',
+    };
   }
 
-  if (input.key >= '1' && input.key <= '6' && context.state === 'playing_astrogation') {
+  if (
+    input.key >= '1' &&
+    input.key <= '6' &&
+    context.state === 'playing_astrogation'
+  ) {
     return {
       kind: 'setBurnDirection',
       preventDefault: false,
@@ -138,11 +172,19 @@ export const deriveKeyboardAction = (
     return { kind: 'resetCombatStrength', preventDefault: false };
   }
 
-  if (lowerKey === 'e' && context.hasGameState && FOCUS_STATES.has(context.state)) {
+  if (
+    lowerKey === 'e' &&
+    context.hasGameState &&
+    FOCUS_STATES.has(context.state)
+  ) {
     return { kind: 'focusNearestEnemy', preventDefault: false };
   }
 
-  if (lowerKey === 'h' && context.hasGameState && FOCUS_STATES.has(context.state)) {
+  if (
+    lowerKey === 'h' &&
+    context.hasGameState &&
+    FOCUS_STATES.has(context.state)
+  ) {
     return { kind: 'focusOwnFleet', preventDefault: false };
   }
 

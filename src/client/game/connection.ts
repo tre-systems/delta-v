@@ -1,5 +1,8 @@
 import type { S2C } from '../../shared/types';
-import { deriveDisconnectHandling, deriveReconnectAttemptPlan } from './network';
+import {
+  deriveDisconnectHandling,
+  deriveReconnectAttemptPlan,
+} from './network';
 import type { ClientState } from './phase';
 import { buildWebSocketUrl } from './session';
 import { createWebSocketTransport, type GameTransport } from './transport';
@@ -15,7 +18,11 @@ export interface ConnectionDeps {
   setLatencyMs: (ms: number) => void;
   setState: (state: ClientState) => void;
   handleMessage: (msg: S2C) => void;
-  showReconnecting: (attempt: number, max: number, onCancel: () => void) => void;
+  showReconnecting: (
+    attempt: number,
+    max: number,
+    onCancel: () => void,
+  ) => void;
   hideReconnecting: () => void;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
 }
@@ -33,7 +40,9 @@ export interface ConnectionManager {
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 
-export const createConnectionManager = (deps: ConnectionDeps): ConnectionManager => {
+export const createConnectionManager = (
+  deps: ConnectionDeps,
+): ConnectionManager => {
   let ws: WebSocket | null = null;
   let pingInterval: number | null = null;
   let lastPingSent = 0;
@@ -65,7 +74,9 @@ export const createConnectionManager = (deps: ConnectionDeps): ConnectionManager
   };
 
   const connect = (code: string) => {
-    ws = new WebSocket(buildWebSocketUrl(location, code, deps.getStoredPlayerToken(code)));
+    ws = new WebSocket(
+      buildWebSocketUrl(location, code, deps.getStoredPlayerToken(code)),
+    );
     ws.onmessage = (e) => deps.handleMessage(JSON.parse(e.data));
     ws.onclose = () => handleDisconnect();
     ws.onerror = () => {}; // onclose fires after onerror
@@ -74,7 +85,11 @@ export const createConnectionManager = (deps: ConnectionDeps): ConnectionManager
   };
 
   const attemptReconnect = () => {
-    const plan = deriveReconnectAttemptPlan(deps.getGameCode(), deps.getReconnectAttempts(), MAX_RECONNECT_ATTEMPTS);
+    const plan = deriveReconnectAttemptPlan(
+      deps.getGameCode(),
+      deps.getReconnectAttempts(),
+      MAX_RECONNECT_ATTEMPTS,
+    );
     if (plan.giveUp) {
       deps.hideReconnecting();
       deps.showToast('Could not reconnect to game', 'error');
@@ -98,7 +113,11 @@ export const createConnectionManager = (deps: ConnectionDeps): ConnectionManager
 
   const handleDisconnect = () => {
     stopPing();
-    const handling = deriveDisconnectHandling(deps.getClientState(), deps.getGameCode(), deps.getGameState() as any);
+    const handling = deriveDisconnectHandling(
+      deps.getClientState(),
+      deps.getGameCode(),
+      deps.getGameState() as any,
+    );
     if (handling.attemptReconnect) {
       attemptReconnect();
       return;

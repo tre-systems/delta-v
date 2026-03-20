@@ -83,15 +83,21 @@ describe('hasEscapedNorth', () => {
 
 describe('hasOrdnanceCapacity', () => {
   it('returns true for ship with enough cargo space', () => {
-    expect(hasOrdnanceCapacity(makeShip({ type: 'corsair', cargoUsed: 0 }))).toBe(true);
+    expect(
+      hasOrdnanceCapacity(makeShip({ type: 'corsair', cargoUsed: 0 })),
+    ).toBe(true);
   });
 
   it('returns false for ship with full cargo', () => {
-    expect(hasOrdnanceCapacity(makeShip({ type: 'corsair', cargoUsed: 10 }))).toBe(false);
+    expect(
+      hasOrdnanceCapacity(makeShip({ type: 'corsair', cargoUsed: 10 })),
+    ).toBe(false);
   });
 
   it('returns false for unknown ship type', () => {
-    expect(hasOrdnanceCapacity(makeShip({ type: 'unknown' as any }))).toBe(false);
+    expect(hasOrdnanceCapacity(makeShip({ type: 'unknown' as any }))).toBe(
+      false,
+    );
   });
 });
 
@@ -107,24 +113,40 @@ describe('hasLaunchableOrdnanceCapacity', () => {
   });
 
   it('orbital base can only launch torpedoes', () => {
-    const ship = makeShip({ type: 'orbitalBase', cargoUsed: 0, fuel: Infinity });
+    const ship = makeShip({
+      type: 'orbitalBase',
+      cargoUsed: 0,
+      fuel: Infinity,
+    });
     expect(hasLaunchableOrdnanceCapacity(ship, new Set(['mine']))).toBe(false);
-    expect(hasLaunchableOrdnanceCapacity(ship, new Set(['torpedo']))).toBe(true);
+    expect(hasLaunchableOrdnanceCapacity(ship, new Set(['torpedo']))).toBe(
+      true,
+    );
     expect(hasLaunchableOrdnanceCapacity(ship, new Set(['nuke']))).toBe(false);
   });
 
   it('commercial ships cannot launch torpedoes', () => {
     const ship = makeShip({ type: 'transport', cargoUsed: 0 });
-    expect(hasLaunchableOrdnanceCapacity(ship, new Set(['torpedo']))).toBe(false);
+    expect(hasLaunchableOrdnanceCapacity(ship, new Set(['torpedo']))).toBe(
+      false,
+    );
   });
 
   it('non-overload ships limited to 1 nuke per resupply', () => {
-    const ship = makeShip({ type: 'packet', cargoUsed: 0, nukesLaunchedSinceResupply: 1 });
+    const ship = makeShip({
+      type: 'packet',
+      cargoUsed: 0,
+      nukesLaunchedSinceResupply: 1,
+    });
     expect(hasLaunchableOrdnanceCapacity(ship, new Set(['nuke']))).toBe(false);
   });
 
   it('overload ships can launch multiple nukes', () => {
-    const ship = makeShip({ type: 'frigate', cargoUsed: 0, nukesLaunchedSinceResupply: 3 });
+    const ship = makeShip({
+      type: 'frigate',
+      cargoUsed: 0,
+      nukesLaunchedSinceResupply: 3,
+    });
     expect(hasLaunchableOrdnanceCapacity(ship, new Set(['nuke']))).toBe(true);
   });
 });
@@ -192,12 +214,16 @@ describe('getAllowedOrdnanceTypes', () => {
   });
 
   it('returns all types when empty array', () => {
-    const result = getAllowedOrdnanceTypes({ scenarioRules: { allowedOrdnanceTypes: [] } as any });
+    const result = getAllowedOrdnanceTypes({
+      scenarioRules: { allowedOrdnanceTypes: [] } as any,
+    });
     expect(result).toEqual(new Set(['mine', 'torpedo', 'nuke']));
   });
 
   it('respects restricted types', () => {
-    const result = getAllowedOrdnanceTypes({ scenarioRules: { allowedOrdnanceTypes: ['nuke'] } as any });
+    const result = getAllowedOrdnanceTypes({
+      scenarioRules: { allowedOrdnanceTypes: ['nuke'] } as any,
+    });
     expect(result).toEqual(new Set(['nuke']));
   });
 });
@@ -208,7 +234,11 @@ describe('getNextOrdnanceId', () => {
   });
 
   it('returns next sequential id', () => {
-    expect(getNextOrdnanceId({ ordnance: [{ id: 'ord0' }, { id: 'ord3' }] as Ordnance[] })).toBe(4);
+    expect(
+      getNextOrdnanceId({
+        ordnance: [{ id: 'ord0' }, { id: 'ord3' }] as Ordnance[],
+      }),
+    ).toBe(4);
   });
 });
 
@@ -218,7 +248,11 @@ describe('scenario rule predicates', () => {
   });
 
   it('isPlanetaryDefenseEnabled returns false when disabled', () => {
-    expect(isPlanetaryDefenseEnabled({ scenarioRules: { planetaryDefenseEnabled: false } as any })).toBe(false);
+    expect(
+      isPlanetaryDefenseEnabled({
+        scenarioRules: { planetaryDefenseEnabled: false } as any,
+      }),
+    ).toBe(false);
   });
 
   it('usesEscapeInspectionRules defaults to false', () => {
@@ -226,7 +260,11 @@ describe('scenario rule predicates', () => {
   });
 
   it('usesEscapeInspectionRules returns true when enabled', () => {
-    expect(usesEscapeInspectionRules({ scenarioRules: { hiddenIdentityInspection: true } as any })).toBe(true);
+    expect(
+      usesEscapeInspectionRules({
+        scenarioRules: { hiddenIdentityInspection: true } as any,
+      }),
+    ).toBe(true);
   });
 
   it('getEscapeEdge defaults to any', () => {
@@ -234,7 +272,9 @@ describe('scenario rule predicates', () => {
   });
 
   it('getEscapeEdge returns configured edge', () => {
-    expect(getEscapeEdge({ scenarioRules: { escapeEdge: 'north' } as any })).toBe('north');
+    expect(
+      getEscapeEdge({ scenarioRules: { escapeEdge: 'north' } as any }),
+    ).toBe('north');
   });
 });
 

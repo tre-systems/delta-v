@@ -23,7 +23,10 @@ export const deriveHudLayoutOffsets = (
     : HUD_TOP_FALLBACK_PX;
 
   const hudBottomOffsetPx = bottomBarRect
-    ? Math.max(HUD_MIN_PX, Math.ceil(viewportHeight - bottomBarRect.top + HUD_GAP_PX))
+    ? Math.max(
+        HUD_MIN_PX,
+        Math.ceil(viewportHeight - bottomBarRect.top + HUD_GAP_PX),
+      )
     : HUD_BOTTOM_FALLBACK_PX;
 
   return {

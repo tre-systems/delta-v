@@ -24,8 +24,22 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
 
 function createPlayers(): [PlayerState, PlayerState] {
   return [
-    { connected: true, ready: true, targetBody: 'Venus', homeBody: 'Terra', bases: [], escapeWins: false },
-    { connected: true, ready: true, targetBody: 'Terra', homeBody: 'Mars', bases: [], escapeWins: false },
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Venus',
+      homeBody: 'Terra',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Terra',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
   ];
 }
 
@@ -41,7 +55,12 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     ships: [
       createShip({ id: 'transport', type: 'transport' }),
       createShip({ id: 'packet', type: 'packet', position: { q: 1, r: 0 } }),
-      createShip({ id: 'enemy', owner: 1, type: 'corsair', position: { q: 2, r: 0 } }),
+      createShip({
+        id: 'enemy',
+        owner: 1,
+        type: 'corsair',
+        position: { q: 2, r: 0 },
+      }),
     ],
     ordnance: [],
     pendingAstrogationOrders: null,
@@ -68,7 +87,10 @@ describe('game-client-briefing', () => {
     expect(
       deriveScenarioBriefingEntries(
         createState({
-          ships: [createShip({ hasFugitives: true }), createShip({ id: 'enemy', owner: 1 })],
+          ships: [
+            createShip({ hasFugitives: true }),
+            createShip({ id: 'enemy', owner: 1 }),
+          ],
         }),
         0,
       )[1],
@@ -81,7 +103,10 @@ describe('game-client-briefing', () => {
       deriveScenarioBriefingEntries(
         createState({
           scenarioRules: { hiddenIdentityInspection: true },
-          players: [{ ...createPlayers()[0], targetBody: '' }, createPlayers()[1]],
+          players: [
+            { ...createPlayers()[0], targetBody: '' },
+            createPlayers()[1],
+          ],
         }),
         0,
       )[1],

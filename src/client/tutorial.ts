@@ -1,8 +1,9 @@
 /**
  * Interactive tutorial system for new players.
  * Shows contextual tips during the first game.
- * Tips are shown at specific game phases and dismissed by the player.
- * Tutorial state is persisted in localStorage so it only shows once.
+ * Tips are shown at specific game phases and dismissed
+ * by the player. Tutorial state is persisted in
+ * localStorage so it only shows once.
  */
 
 import { byId, hide, show } from './dom';
@@ -84,15 +85,18 @@ export class Tutorial {
     return !this.completed;
   }
 
-  /** Called when game phase changes. Shows relevant tip if applicable. */
+  /** Called when game phase changes. Shows relevant tip. */
   onPhaseChange(phase: string, turn: number) {
     if (this.completed) return;
 
     // Find the next step that matches this phase
     const step = STEPS.find((s) => {
       if (this.shownSteps.has(s.id)) return false;
-      if (s.phase !== 'any' && s.phase !== phase) return false;
+      if (s.phase !== 'any' && s.phase !== phase) {
+        return false;
+      }
       if (s.minTurn && turn < s.minTurn) return false;
+
       return true;
     });
 
@@ -113,6 +117,7 @@ export class Tutorial {
     this.activeStepId = step.id;
     this.textEl.textContent = step.text;
     show(this.tipEl, 'block');
+
     // Re-trigger animation
     this.tipEl.style.animation = 'none';
     void this.tipEl.offsetHeight; // force reflow
@@ -120,7 +125,12 @@ export class Tutorial {
 
     // Update progress dots
     this.progressEl.innerHTML = STEPS.map((s, _i) => {
-      const cls = this.shownSteps.has(s.id) ? 'done' : s.id === step.id ? 'active' : '';
+      const cls = this.shownSteps.has(s.id)
+        ? 'done'
+        : s.id === step.id
+          ? 'active'
+          : '';
+
       return `<div class="tutorial-dot ${cls}"></div>`;
     }).join('');
   }
@@ -149,7 +159,7 @@ export class Tutorial {
     localStorage.setItem(STORAGE_KEY, '1');
   }
 
-  /** Reset tutorial (for testing or when player wants to see it again) */
+  /** Reset tutorial (for testing or replay) */
   reset() {
     this.completed = false;
     this.shownSteps.clear();

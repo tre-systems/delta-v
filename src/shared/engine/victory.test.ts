@@ -108,7 +108,13 @@ describe('advanceTurn', () => {
       {
         turn: 3,
         playerId: 0,
-        ships: [{ type: 'corvette', position: { q: 5, r: 5 }, velocity: { dq: 0, dr: 0 } }],
+        ships: [
+          {
+            type: 'corvette',
+            position: { q: 5, r: 5 },
+            velocity: { dq: 0, dr: 0 },
+          },
+        ],
       },
     ];
     const shipsBefore = state.ships.length;
@@ -128,7 +134,13 @@ describe('advanceTurn', () => {
       {
         turn: 5,
         playerId: 0,
-        ships: [{ type: 'corvette', position: { q: 5, r: 5 }, velocity: { dq: 0, dr: 0 } }],
+        ships: [
+          {
+            type: 'corvette',
+            position: { q: 5, r: 5 },
+            velocity: { dq: 0, dr: 0 },
+          },
+        ],
       },
     ];
     const shipsBefore = state.ships.length;
@@ -140,7 +152,11 @@ describe('advanceTurn', () => {
     const state = setupState();
     state.activePlayer = 1;
     state.turnNumber = 4; // will become 5
-    state.scenarioRules.fleetConversion = { turn: 5, fromPlayer: 1, toPlayer: 0 };
+    state.scenarioRules.fleetConversion = {
+      turn: 5,
+      fromPlayer: 1,
+      toPlayer: 0,
+    };
     const p1Ships = state.ships.filter((s) => s.owner === 1 && !s.destroyed);
     advanceTurn(state);
     for (const ship of p1Ships) {
@@ -150,15 +166,24 @@ describe('advanceTurn', () => {
 
   it('fleet conversion respects shipTypes filter', () => {
     const state = setupState();
-    state.ships.push(makeShip({ id: 'extra-frigate', type: 'frigate', owner: 1 }));
+    state.ships.push(
+      makeShip({ id: 'extra-frigate', type: 'frigate', owner: 1 }),
+    );
     state.activePlayer = 1;
     state.turnNumber = 2; // will become 3
-    state.scenarioRules.fleetConversion = { turn: 3, fromPlayer: 1, toPlayer: 0, shipTypes: ['frigate'] };
+    state.scenarioRules.fleetConversion = {
+      turn: 3,
+      fromPlayer: 1,
+      toPlayer: 0,
+      shipTypes: ['frigate'],
+    };
     advanceTurn(state);
     const frigate = state.ships.find((s) => s.id === 'extra-frigate')!;
     expect(frigate.owner).toBe(0);
     // Original corvettes should stay with player 1
-    const p1Corvettes = state.ships.filter((s) => s.type === 'corvette' && s.id !== 'extra-frigate');
+    const p1Corvettes = state.ships.filter(
+      (s) => s.type === 'corvette' && s.id !== 'extra-frigate',
+    );
     for (const ship of p1Corvettes) {
       if (ship.owner === 1) expect(ship.owner).toBe(1);
     }
@@ -187,7 +212,9 @@ describe('updateCheckpoints', () => {
 
     updateCheckpoints(state, 0, [solHex], map);
     updateCheckpoints(state, 0, [solHex], map);
-    expect(state.players[0].visitedBodies?.filter((b) => b === 'Sol')).toHaveLength(1);
+    expect(
+      state.players[0].visitedBodies?.filter((b) => b === 'Sol'),
+    ).toHaveLength(1);
   });
 
   it('is a no-op when no checkpoint bodies configured', () => {
@@ -230,7 +257,9 @@ describe('checkImmediateVictory', () => {
     const ship = state.ships.find((s) => s.owner === 0)!;
 
     // Visit all checkpoint bodies
-    state.players[0].visitedBodies = [...(state.scenarioRules.checkpointBodies ?? [])];
+    state.players[0].visitedBodies = [
+      ...(state.scenarioRules.checkpointBodies ?? []),
+    ];
 
     // Land at home body (Terra for player 0)
     ship.landed = true;
@@ -295,7 +324,9 @@ describe('checkImmediateVictory', () => {
   it('does not award escape to non-fugitive ship when fugitive scenario exists', () => {
     map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.escape, map, 'ESC3', findBaseHex);
-    const nonFugitive = state.ships.find((s) => s.owner === 0 && !s.hasFugitives);
+    const nonFugitive = state.ships.find(
+      (s) => s.owner === 0 && !s.hasFugitives,
+    );
 
     if (nonFugitive) {
       // Place the non-fugitive beyond the edge
@@ -453,7 +484,14 @@ describe('checkRamming', () => {
   it('does not ram same-side ships', () => {
     const state = setupState();
     // Add a second player-0 ship
-    state.ships.push(makeShip({ id: 'p0s1', owner: 0, position: { q: 5, r: 5 }, landed: false }));
+    state.ships.push(
+      makeShip({
+        id: 'p0s1',
+        owner: 0,
+        position: { q: 5, r: 5 },
+        landed: false,
+      }),
+    );
     state.ships[0].position = { q: 5, r: 5 };
     state.ships[0].landed = false;
 

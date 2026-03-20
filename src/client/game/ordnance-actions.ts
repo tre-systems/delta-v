@@ -1,5 +1,8 @@
 import type { GameState } from '../../shared/types';
-import { resolveBaseEmplacementPlan, resolveOrdnanceLaunchPlan } from './ordnance';
+import {
+  resolveBaseEmplacementPlan,
+  resolveOrdnanceLaunchPlan,
+} from './ordnance';
 import type { PlanningState } from './planning';
 import type { GameTransport } from './transport';
 
@@ -12,11 +15,19 @@ export interface OrdnanceActionDeps {
   logText: (text: string) => void;
 }
 
-export const sendOrdnanceLaunch = (deps: OrdnanceActionDeps, ordType: 'mine' | 'torpedo' | 'nuke') => {
+export const sendOrdnanceLaunch = (
+  deps: OrdnanceActionDeps,
+  ordType: 'mine' | 'torpedo' | 'nuke',
+) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
-  if (!gameState || deps.getClientState() !== 'playing_ordnance' || !transport) return;
-  const plan = resolveOrdnanceLaunchPlan(gameState, deps.planningState, ordType);
+  if (!gameState || deps.getClientState() !== 'playing_ordnance' || !transport)
+    return;
+  const plan = resolveOrdnanceLaunchPlan(
+    gameState,
+    deps.planningState,
+    ordType,
+  );
   if (!plan.ok) {
     if (plan.message) {
       deps.showToast(plan.message, plan.level!);
@@ -30,8 +41,12 @@ export const sendOrdnanceLaunch = (deps: OrdnanceActionDeps, ordType: 'mine' | '
 export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
-  if (!gameState || deps.getClientState() !== 'playing_ordnance' || !transport) return;
-  const plan = resolveBaseEmplacementPlan(gameState, deps.planningState.selectedShipId!);
+  if (!gameState || deps.getClientState() !== 'playing_ordnance' || !transport)
+    return;
+  const plan = resolveBaseEmplacementPlan(
+    gameState,
+    deps.planningState.selectedShipId!,
+  );
   if (!plan.ok) {
     if (plan.message) {
       deps.showToast(plan.message, plan.level!);
@@ -44,6 +59,7 @@ export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
 export const sendSkipOrdnance = (deps: OrdnanceActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
-  if (!gameState || deps.getClientState() !== 'playing_ordnance' || !transport) return;
+  if (!gameState || deps.getClientState() !== 'playing_ordnance' || !transport)
+    return;
   transport.skipOrdnance();
 };

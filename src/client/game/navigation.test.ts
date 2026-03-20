@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState, PlayerState, Ship } from '../../shared/types';
-import { getNearestEnemyPosition, getNextSelectedShip, getOwnFleetFocusPosition } from './navigation';
+import {
+  getNearestEnemyPosition,
+  getNextSelectedShip,
+  getOwnFleetFocusPosition,
+} from './navigation';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
   return {
@@ -23,8 +27,22 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
 
 function createPlayers(): [PlayerState, PlayerState] {
   return [
-    { connected: true, ready: true, targetBody: '', homeBody: 'Terra', bases: [], escapeWins: false },
-    { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Terra',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
   ];
 }
 
