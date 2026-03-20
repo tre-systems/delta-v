@@ -79,6 +79,108 @@ Old sockets closed before accepting new connection.
 
 ---
 
+## Multiplayer playtest issues
+
+Issues found during live multiplayer testing (2025-03-20).
+
+### P0 — fix before next playtest
+
+#### 18. Camera doesn't auto-center on ship at turn start
+
+When a turn begins the camera stays wherever the player left
+it. Combined with zoomed-in defaults, players spend most of
+their timer hunting for their ship instead of planning a burn.
+
+**Fix:** snap or smooth-pan camera to the selected ship when
+the astrogation phase starts, at minimum on Turn 1.
+
+#### 19. Keyboard shortcuts for camera don't work
+
+WASD, arrow keys, H (center fleet), +/- (zoom), and E
+(focus enemy) all fail to do anything. Only drag-pan and
+scroll-wheel zoom work. Likely a focus / event-routing issue
+where keypresses aren't reaching the canvas handler.
+
+### P1 — major UX gaps
+
+#### 20. Burn direction not visible at default zoom
+
+The "Click adjacent hex to set burn direction" prompt
+assumes the hex grid is visible, but at the default zoom
+level hexes are invisible. Either auto-zoom to show the grid
+around the ship, or overlay directional arrows.
+
+#### 21. No velocity vector / projected path
+
+Velocity is shown as raw numbers ("1, -3") with no on-map
+visualisation. A projected drift line or ghost-ship showing
+where the ship will end up would massively help new players
+grok vector movement.
+
+#### 22. Planetary base threat zones not visible
+
+Flying near enemy bases triggers defence fire with no prior
+visual warning. Bases should render a threat radius or
+danger-zone highlight so players can route around them.
+
+### P2 — polish
+
+#### 23. Disabled state has weak feedback
+
+When a ship is disabled the only indicators are a small "D3"
+badge and the confirm button. Add a more prominent visual:
+red tint on the ship, "DISABLED" overlay, or shake animation.
+
+#### 24. Turn timer punishes new players
+
+The 90-second timer starts immediately. Combined with #18
+(can't find ship), players repeatedly run out of time on
+early turns. Consider a longer first-turn timer, or pause
+until the player's first interaction.
+
+#### 25. Chat input captures game keyboard shortcuts
+
+If the chat textbox has focus, pressing number keys (1-6)
+types into chat instead of setting a burn direction. Game-
+relevant keys should be intercepted even when chat is focused
+(or provide a clear way to toggle focus).
+
+#### 26. Minimap is not interactive
+
+The minimap shows planet/ship positions but clicking it
+doesn't pan the main camera. Click-to-navigate would solve
+the "can't find my ship" problem.
+
+#### 28. Chat input UI hidden/unusable
+
+The chat input row is difficult to see or missing, and the event log (e.g. "- Turn 11: You -") is squished into a tiny horizontal black bar at the bottom.
+
+#### 29. "Waiting for opponent..." persists incorrectly
+
+The text stays on screen during the player's turn and overlaps with other status instructions (like setting burn direction).
+
+#### 30. Indistinguishable player and enemy ships
+
+Both ships are labeled as "Corvette" in the same color, making it hard to tell them apart without looking at trail colors. Label should be color-coded or explicitly name the enemy.
+
+#### 31. Top status bar extremely crowded
+
+TURN, FUEL, speed info, objective, and ping (26MS) are all crammed together on the right. Need better spacing or moving ping to a corner.
+
+#### 32. "DISABLED: 1T" text visibility
+
+The red text over the trajectory lacks a background plate and feels slightly misaligned, making it hard to read against the dark grid.
+
+### P3 — minor
+
+#### 27. Empty turn headers in game log
+
+Many log entries show "— Turn N: Opponent —" with no events
+underneath. These empty headers should be collapsed or
+omitted to reduce log noise.
+
+---
+
 ## Features
 
 ### Turn replay
