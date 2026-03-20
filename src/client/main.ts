@@ -103,12 +103,9 @@ import {
 import { deriveClientScreenPlan } from './game/screen';
 import {
   buildGameRoute,
-  buildInviteLink,
-  getStoredInviteToken,
   getStoredPlayerToken,
   loadTokenStore,
   saveTokenStore,
-  setStoredInviteToken,
   setStoredPlayerToken,
 } from './game/session';
 import { createTurnTimerManager, type TurnTimerManager } from './game/timer';
@@ -125,7 +122,6 @@ interface ClientContext {
   state: ClientState;
   playerId: number;
   gameCode: string | null;
-  inviteLink: string | null;
   scenario: string;
   gameState: GameState | null;
   isLocalGame: boolean;
@@ -141,7 +137,6 @@ class GameClient {
     state: 'menu',
     playerId: -1,
     gameCode: null,
-    inviteLink: null,
     scenario: 'biplanetary',
     gameState: null,
     isLocalGame: false,
@@ -419,13 +414,7 @@ class GameClient {
       this.ctx.playerId,
     );
 
-    const screenPlan = deriveClientScreenPlan(
-      newState,
-      this.ctx.gameCode,
-      this.ctx.inviteLink,
-      this.ctx.gameCode ? this.getStoredInviteToken(this.ctx.gameCode) : null,
-      window.location.origin,
-    );
+    const screenPlan = deriveClientScreenPlan(newState, this.ctx.gameCode);
 
     switch (screenPlan.kind) {
       case 'menu':
@@ -437,8 +426,7 @@ class GameClient {
         break;
 
       case 'waiting':
-        this.ctx.inviteLink = screenPlan.inviteLink;
-        this.ui.showWaiting(screenPlan.code, screenPlan.inviteLink);
+        this.ui.showWaiting(screenPlan.code);
         break;
 
       case 'fleetBuilding':
@@ -568,19 +556,10 @@ class GameClient {
       const data = (await res.json()) as {
         code: string;
         playerToken: string;
-        inviteToken: string;
       };
 
       this.ctx.gameCode = data.code;
       this.storePlayerToken(data.code, data.playerToken);
-      this.storeInviteToken(data.code, data.inviteToken);
-
-      this.ctx.inviteLink = buildInviteLink(
-        window.location.origin,
-        data.code,
-        data.inviteToken,
-      );
-
       // Update URL
       history.replaceState(null, '', buildGameRoute(this.ctx.gameCode));
 
@@ -655,7 +634,6 @@ class GameClient {
     }
 
     this.ctx.gameCode = code;
-    this.ctx.inviteLink = null;
 
     history.replaceState(null, '', buildGameRoute(code));
     this.connect(code);
@@ -692,21 +670,6 @@ class GameClient {
 
   private storePlayerToken(code: string, token: string): void {
     const store = setStoredPlayerToken(
-      this.getTokenStore(),
-      code,
-      token,
-      Date.now(),
-    );
-
-    this.saveTokenStore(store);
-  }
-
-  private getStoredInviteToken(code: string): string | null {
-    return getStoredInviteToken(this.getTokenStore(), code);
-  }
-
-  private storeInviteToken(code: string, token: string): void {
-    const store = setStoredInviteToken(
       this.getTokenStore(),
       code,
       token,

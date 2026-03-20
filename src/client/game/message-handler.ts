@@ -9,7 +9,6 @@ export interface MessageHandlerDeps {
     state: ClientState;
     playerId: number;
     gameCode: string | null;
-    inviteLink: string | null;
     reconnectAttempts: number;
     latencyMs: number;
     gameState: GameState | null;
@@ -67,9 +66,6 @@ export const handleServerMessage = (
       deps.ctx.playerId = plan.playerId;
       deps.ctx.gameCode = plan.code;
       deps.storePlayerToken(plan.code, plan.playerToken);
-      if (plan.clearInviteLink) {
-        deps.ctx.inviteLink = null;
-      }
       if (plan.showReconnectToast) {
         deps.ui.hideReconnecting();
         deps.ui.showToast('Reconnected!', 'success');

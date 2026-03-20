@@ -382,7 +382,7 @@ export interface InitPayload {
   code: string;
   scenario: string;
   playerToken: string;
-  inviteToken: string;
+  inviteToken: string | null;
 }
 
 export const parseInitPayload = (
@@ -408,9 +408,12 @@ export const parseInitPayload = (
     return { ok: false, error: 'Invalid player token' };
   }
 
-  if (!isValidPlayerToken(raw.inviteToken)) {
-    return { ok: false, error: 'Invalid invite token' };
-  }
+  const inviteToken =
+    raw.inviteToken === undefined || raw.inviteToken === null
+      ? null
+      : isValidPlayerToken(raw.inviteToken)
+        ? raw.inviteToken
+        : null;
 
   return {
     ok: true,
@@ -418,7 +421,7 @@ export const parseInitPayload = (
       code: raw.code,
       scenario: raw.scenario,
       playerToken: raw.playerToken,
-      inviteToken: raw.inviteToken,
+      inviteToken,
     },
   };
 };
@@ -657,13 +660,9 @@ export const resolveSeatAssignment = (
     };
   }
 
-  // Tokenless fallback: allow joining seats that were
-  // never assigned a token. This can only happen if the
-  // room was initialized but the seat slot was left empty
-  // (e.g. a future "open lobby" mode). Currently seat 0
-  // always gets a playerToken and seat 1 always gets an
-  // inviteToken at /init, so this branch is not reachable
-  // in normal play — it exists as a safety net.
+  // Tokenless join: allow joining seats that have no
+  // invite token. Seat 1 has no invite token by default,
+  // so anyone with the room code can join.
   const openSeat = seats.find(
     (p) => seatOpen[p] && playerTokens[p] === null && inviteTokens[p] === null,
   );

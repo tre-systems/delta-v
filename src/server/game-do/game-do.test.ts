@@ -84,7 +84,6 @@ describe('GameDO', () => {
           code: 'ABCDE',
           scenario: 'escape',
           playerToken: 'A'.repeat(32),
-          inviteToken: 'B'.repeat(32),
         }),
       }),
     );
@@ -96,7 +95,7 @@ describe('GameDO', () => {
       code: 'ABCDE',
       scenario: 'escape',
       playerTokens: ['A'.repeat(32), null],
-      inviteTokens: [null, 'B'.repeat(32)],
+      inviteTokens: [null, null],
     });
 
     const inactivityAt = await ctx.storage.get<number>('inactivityAt');
@@ -127,7 +126,7 @@ describe('GameDO', () => {
       code: 'ABCDE',
       scenario: 'biplanetary',
       playerTokens: ['A'.repeat(32), null],
-      inviteTokens: [null, 'B'.repeat(32)],
+      inviteTokens: [null, null],
     });
 
     const game = new GameDO(ctx as any, {} as any);

@@ -52,7 +52,6 @@ export class UIManager {
   private logExpandedOnMobile = false;
   private fleetCart: FleetPurchase[] = [];
   private playerId: number = -1;
-  private inviteUrl: string | null = null;
   private layoutSyncFrame: number | null = null;
 
   private readonly actionButtonIds = [
@@ -227,7 +226,7 @@ export class UIManager {
 
     byId('copyBtn').addEventListener('click', () => {
       const code = byId('gameCode').textContent;
-      const url = this.inviteUrl ?? `${window.location.origin}/?code=${code}`;
+      const url = `${window.location.origin}/?code=${code}`;
 
       navigator.clipboard?.writeText(url).then(() => {
         byId('copyBtn').textContent = 'Copied!';
@@ -401,10 +400,9 @@ export class UIManager {
     this.applyScreenVisibility('scenario');
   }
 
-  showWaiting(code: string, inviteUrl: string | null = null) {
+  showWaiting(code: string) {
     this.hideAll();
     this.applyScreenVisibility('waiting');
-    this.inviteUrl = inviteUrl;
 
     const copy = buildWaitingScreenCopy(code, false);
 
@@ -415,7 +413,6 @@ export class UIManager {
   showConnecting() {
     this.hideAll();
     this.applyScreenVisibility('waiting');
-    this.inviteUrl = null;
 
     const copy = buildWaitingScreenCopy('', true);
 

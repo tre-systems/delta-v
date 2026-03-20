@@ -45,7 +45,6 @@ const handleCreate = async (request: Request, env: Env): Promise<Response> => {
   for (let attempt = 0; attempt < 12; attempt++) {
     const code = generateRoomCode();
     const playerToken = generatePlayerToken();
-    const inviteToken = generatePlayerToken();
     const id = env.GAME.idFromName(code);
     const stub = env.GAME.get(id);
 
@@ -59,7 +58,6 @@ const handleCreate = async (request: Request, env: Env): Promise<Response> => {
           code,
           scenario,
           playerToken,
-          inviteToken,
         }),
       }),
     );
@@ -68,7 +66,6 @@ const handleCreate = async (request: Request, env: Env): Promise<Response> => {
       return Response.json({
         code,
         playerToken,
-        inviteToken,
       });
     }
 
