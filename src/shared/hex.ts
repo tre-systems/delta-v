@@ -174,6 +174,23 @@ export interface HexLineAnalysis {
   ambiguousPairs: Array<[HexCoord, HexCoord]>;
 }
 
+// Dual-nudge hex line analysis.
+//
+// A straight line between two hex centres can land exactly
+// on a hexside boundary, making it ambiguous which hex the
+// path actually enters. This matters for LOS (does a body
+// block the shot?), asteroid hazards (does the ship cross
+// the asteroid hex?), and gravity (does the ship enter the
+// gravity ring?).
+//
+// We trace the line twice with opposite epsilon nudges
+// (+eps, -eps), pushing it slightly to each side of any
+// boundary. Hexes that appear in *both* traces are
+// "definite" — the path unambiguously crosses them. Hexes
+// that differ between traces form "ambiguous pairs" — the
+// path runs along the hexside between them. Callers decide
+// the rule: LOS treats ambiguous hexes as non-blocking,
+// asteroid hazards queue both, gravity ignores edge-grazes.
 export const analyzeHexLine = (a: HexCoord, b: HexCoord): HexLineAnalysis => {
   const primary = hexLineDrawWithNudge(a, b, HEX_LINE_NUDGE_EPS);
   const alternate = hexLineDrawWithNudge(a, b, -HEX_LINE_NUDGE_EPS);
