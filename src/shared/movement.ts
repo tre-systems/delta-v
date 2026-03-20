@@ -210,14 +210,23 @@ const checkCrash = (
 /**
  * Compute the course for a ship given a burn direction.
  *
- * Algorithm:
- * 1. Predicted destination = position + velocity
+ * Pipeline (order matters — each stage feeds the next):
+ * 1. Predict destination = position + velocity (inertia)
  * 2. Apply burn (optional): shift destination by 1 hex
  * 3. Apply overload (optional, warships only): shift
- *    by another hex, 2 fuel total
- * 4. Apply pending gravity entered on the previous turn
- * 5. Trace the actual path for this turn
- * 6. Record gravity hexes entered this turn for next
+ *    by another hex, costs 2 fuel total
+ * 4. Apply pending gravity from hexes entered last turn
+ *    (gravity is always one turn delayed)
+ * 5. Trace the path via hexLineDraw and collect new
+ *    gravity hexes entered this turn (queued for step 4
+ *    next turn). Weak gravity choices are resolved here:
+ *    one weak hex per turn may be ignored, but two
+ *    consecutive weak hexes from the same body forces
+ *    the second.
+ * 6. Determine outcome: crash (path crosses a body),
+ *    landing (speed 1 at a gravity hex + base), or
+ *    normal movement. Takeoff is a special case that
+ *    replaces steps 1-3 with a booster launch.
  */
 export const computeCourse = (
   ship: Ship,
