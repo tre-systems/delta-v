@@ -6,7 +6,10 @@ export interface TurnTimerViewModel {
   shouldWarn: boolean;
 }
 
-export const deriveTurnTimer = (elapsedSeconds: number, timeoutSeconds: number): TurnTimerViewModel => {
+export const deriveTurnTimer = (
+  elapsedSeconds: number,
+  timeoutSeconds: number,
+): TurnTimerViewModel => {
   const remaining = timeoutSeconds - elapsedSeconds;
   const mins = Math.floor(elapsedSeconds / 60);
   const secs = elapsedSeconds % 60;
@@ -14,7 +17,11 @@ export const deriveTurnTimer = (elapsedSeconds: number, timeoutSeconds: number):
     text: mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}s`,
     className:
       'turn-timer' +
-      (elapsedSeconds >= 90 ? ' turn-timer-urgent' : elapsedSeconds >= 30 ? ' turn-timer-slow' : ' turn-timer-active'),
+      (elapsedSeconds >= 90
+        ? ' turn-timer-urgent'
+        : elapsedSeconds >= 30
+          ? ' turn-timer-slow'
+          : ' turn-timer-active'),
     shouldWarn: remaining <= 30,
   };
 };
@@ -31,7 +38,9 @@ export interface TurnTimerManager {
   stop: () => void;
 }
 
-export const createTurnTimerManager = (deps: TurnTimerDeps): TurnTimerManager => {
+export const createTurnTimerManager = (
+  deps: TurnTimerDeps,
+): TurnTimerManager => {
   let turnStartTime = 0;
   let turnTimerInterval: number | null = null;
   let timerWarningPlayed = false;
@@ -50,7 +59,10 @@ export const createTurnTimerManager = (deps: TurnTimerDeps): TurnTimerManager =>
     timerWarningPlayed = false;
     turnTimerInterval = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - turnStartTime) / 1000);
-      const timer = deriveTurnTimer(elapsed, Math.floor(TURN_TIMEOUT_MS / 1000));
+      const timer = deriveTurnTimer(
+        elapsed,
+        Math.floor(TURN_TIMEOUT_MS / 1000),
+      );
       deps.setTurnTimer(timer.text, timer.className);
       // Warning at 30s remaining
       if (timer.shouldWarn && !timerWarningPlayed) {

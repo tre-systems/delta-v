@@ -5,16 +5,48 @@ import { deriveClientScreenPlan } from './screen';
 
 describe('game-client-screen', () => {
   it('maps menu, connecting, fleet building, and game over states', () => {
-    expect(deriveClientScreenPlan('menu', null, null, null, 'https://delta-v.example')).toEqual({
+    expect(
+      deriveClientScreenPlan(
+        'menu',
+        null,
+        null,
+        null,
+        'https://delta-v.example',
+      ),
+    ).toEqual({
       kind: 'menu',
     });
-    expect(deriveClientScreenPlan('connecting', null, null, null, 'https://delta-v.example')).toEqual({
+    expect(
+      deriveClientScreenPlan(
+        'connecting',
+        null,
+        null,
+        null,
+        'https://delta-v.example',
+      ),
+    ).toEqual({
       kind: 'connecting',
     });
-    expect(deriveClientScreenPlan('playing_fleetBuilding', null, null, null, 'https://delta-v.example')).toEqual({
+    expect(
+      deriveClientScreenPlan(
+        'playing_fleetBuilding',
+        null,
+        null,
+        null,
+        'https://delta-v.example',
+      ),
+    ).toEqual({
       kind: 'fleetBuilding',
     });
-    expect(deriveClientScreenPlan('gameOver', 'ABCDE', null, 'invite', 'https://delta-v.example')).toEqual({
+    expect(
+      deriveClientScreenPlan(
+        'gameOver',
+        'ABCDE',
+        null,
+        'invite',
+        'https://delta-v.example',
+      ),
+    ).toEqual({
       kind: 'none',
     });
   });
@@ -29,7 +61,15 @@ describe('game-client-screen', () => {
     ];
 
     for (const state of states) {
-      expect(deriveClientScreenPlan(state, null, null, null, 'https://delta-v.example')).toEqual({
+      expect(
+        deriveClientScreenPlan(
+          state,
+          null,
+          null,
+          null,
+          'https://delta-v.example',
+        ),
+      ).toEqual({
         kind: 'hud',
       });
     }
@@ -37,11 +77,18 @@ describe('game-client-screen', () => {
 
   it('recovers or preserves invite links on the waiting screen', () => {
     expect(
-      deriveClientScreenPlan('waitingForOpponent', 'ABCDE', null, 'invite-token', 'https://delta-v.example'),
+      deriveClientScreenPlan(
+        'waitingForOpponent',
+        'ABCDE',
+        null,
+        'invite-token',
+        'https://delta-v.example',
+      ),
     ).toEqual({
       kind: 'waiting',
       code: 'ABCDE',
-      inviteLink: 'https://delta-v.example/?code=ABCDE&playerToken=invite-token',
+      inviteLink:
+        'https://delta-v.example/?code=ABCDE&playerToken=invite-token',
     });
 
     expect(
@@ -58,7 +105,15 @@ describe('game-client-screen', () => {
       inviteLink: 'https://saved.example/invite',
     });
 
-    expect(deriveClientScreenPlan('waitingForOpponent', null, null, null, 'https://delta-v.example')).toEqual({
+    expect(
+      deriveClientScreenPlan(
+        'waitingForOpponent',
+        null,
+        null,
+        null,
+        'https://delta-v.example',
+      ),
+    ).toEqual({
       kind: 'waiting',
       code: '',
       inviteLink: null,

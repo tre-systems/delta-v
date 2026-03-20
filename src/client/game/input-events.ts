@@ -11,7 +11,9 @@ import type { GameCommand } from './commands';
 import { resolveAstrogationClick, resolveOrdnanceClick } from './input';
 import type { PlanningState } from './planning';
 
-export type InputEvent = { type: 'clickHex'; hex: HexCoord } | { type: 'hoverHex'; hex: HexCoord | null };
+export type InputEvent =
+  | { type: 'clickHex'; hex: HexCoord }
+  | { type: 'hoverHex'; hex: HexCoord | null };
 
 const interpretCombatClick = (
   hex: HexCoord,
@@ -20,9 +22,22 @@ const interpretCombatClick = (
   playerId: number,
   planning: PlanningState,
 ): GameCommand[] => {
-  const attackerId = getCombatAttackerIdAtHex(state, playerId, hex, planning.selectedShipId);
+  const attackerId = getCombatAttackerIdAtHex(
+    state,
+    playerId,
+    hex,
+    planning.selectedShipId,
+  );
+
   if (attackerId) {
-    const toggle = toggleCombatAttackerSelection(state, playerId, planning, map, attackerId);
+    const toggle = toggleCombatAttackerSelection(
+      state,
+      playerId,
+      planning,
+      map,
+      attackerId,
+    );
+
     if (toggle?.consumed) {
       const plan: CombatTargetPlan = {
         combatTargetId: planning.combatTargetId,
@@ -30,17 +45,42 @@ const interpretCombatClick = (
         combatAttackerIds: toggle.combatAttackerIds,
         combatAttackStrength: toggle.combatAttackStrength,
       };
-      return [{ type: 'setCombatPlan', plan, selectedShipId: attackerId }];
+
+      return [
+        {
+          type: 'setCombatPlan',
+          plan,
+          selectedShipId: attackerId,
+        },
+      ];
     }
   }
 
-  const target = getCombatTargetAtHex(state, playerId, hex, planning.queuedAttacks);
+  const target = getCombatTargetAtHex(
+    state,
+    playerId,
+    hex,
+    planning.queuedAttacks,
+  );
+
   if (target) {
-    const isSame = planning.combatTargetId === target.targetId && planning.combatTargetType === target.targetType;
+    const isSame =
+      planning.combatTargetId === target.targetId &&
+      planning.combatTargetType === target.targetType;
+
     if (isSame) {
       return [{ type: 'clearCombatSelection' }];
     }
-    const plan = createCombatTargetPlan(state, playerId, planning, target.targetId, target.targetType, map);
+
+    const plan = createCombatTargetPlan(
+      state,
+      playerId,
+      planning,
+      target.targetId,
+      target.targetType,
+      map,
+    );
+
     return [{ type: 'setCombatPlan', plan }];
   }
 
@@ -54,16 +94,46 @@ const interpretAstrogationClick = (
   playerId: number,
   planning: PlanningState,
 ): GameCommand[] => {
-  const interaction = resolveAstrogationClick(state, map, playerId, planning, hex);
+  const interaction = resolveAstrogationClick(
+    state,
+    map,
+    playerId,
+    planning,
+    hex,
+  );
+
   switch (interaction.type) {
     case 'weakGravityToggle':
-      return [{ type: 'setWeakGravityChoices', shipId: interaction.shipId, choices: interaction.choices }];
+      return [
+        {
+          type: 'setWeakGravityChoices',
+          shipId: interaction.shipId,
+          choices: interaction.choices,
+        },
+      ];
     case 'overloadToggle':
-      return [{ type: 'setOverloadDirection', shipId: interaction.shipId, direction: interaction.direction }];
+      return [
+        {
+          type: 'setOverloadDirection',
+          shipId: interaction.shipId,
+          direction: interaction.direction,
+        },
+      ];
     case 'burnToggle':
-      return [{ type: 'setBurnDirection', shipId: interaction.shipId, direction: interaction.direction }];
+      return [
+        {
+          type: 'setBurnDirection',
+          shipId: interaction.shipId,
+          direction: interaction.direction,
+        },
+      ];
     case 'selectShip':
-      return [{ type: 'selectShip', shipId: interaction.shipId }];
+      return [
+        {
+          type: 'selectShip',
+          shipId: interaction.shipId,
+        },
+      ];
     case 'clearSelection':
       return [{ type: 'deselectShip' }];
   }
@@ -76,11 +146,24 @@ const interpretOrdnanceClick = (
   planning: PlanningState,
 ): GameCommand[] => {
   const interaction = resolveOrdnanceClick(state, playerId, planning, hex);
+
   switch (interaction.type) {
     case 'torpedoAccel':
-      return [{ type: 'setTorpedoAccel', direction: interaction.torpedoAccel, steps: interaction.torpedoAccelSteps }];
+      return [
+        {
+          type: 'setTorpedoAccel',
+          direction: interaction.torpedoAccel,
+          steps: interaction.torpedoAccelSteps,
+        },
+      ];
     case 'selectShip':
-      return [{ type: 'selectShip', shipId: interaction.shipId }, { type: 'clearTorpedoAcceleration' }];
+      return [
+        {
+          type: 'selectShip',
+          shipId: interaction.shipId,
+        },
+        { type: 'clearTorpedoAcceleration' },
+      ];
     case 'none':
       return [];
   }
@@ -121,6 +204,7 @@ export const interpretInput = (
     case 'hoverHex':
       if (state) return [{ type: 'setHoverHex', hex: event.hex }];
       if (planning.hoverHex) return [{ type: 'setHoverHex', hex: null }];
+
       return [];
   }
 };

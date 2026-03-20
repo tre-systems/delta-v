@@ -67,7 +67,10 @@ const createAnimController = (pageHidden = false) => {
       if (!animState) return;
       // When hidden: complete immediately (no one can see the animation).
       // When visible: complete only if the animation duration has elapsed.
-      if (!nowVisible || performance.now() - animState.startTime >= animState.duration) {
+      if (
+        !nowVisible ||
+        performance.now() - animState.startTime >= animState.duration
+      ) {
         if (fallbackTimer !== null) {
           clearTimeout(fallbackTimer);
           fallbackTimer = null;

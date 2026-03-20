@@ -3,18 +3,34 @@ import type { CombatAttack } from '../../shared/types';
 
 export interface PlanningState {
   selectedShipId: string | null;
-  burns: Map<string, number | null>; // shipId -> burn direction (or null for no burn)
-  overloads: Map<string, number | null>; // shipId -> overload direction (warships only, 2 fuel total)
-  weakGravityChoices: Map<string, Record<string, boolean>>; // shipId -> { hexKey: true to ignore }
-  torpedoAccel: number | null; // direction for torpedo launch boost
+
+  // shipId -> burn direction (or null for no burn)
+  burns: Map<string, number | null>;
+
+  // shipId -> overload direction (warships only, 2 fuel total)
+  overloads: Map<string, number | null>;
+
+  // shipId -> { hexKey: true to ignore }
+  weakGravityChoices: Map<string, Record<string, boolean>>;
+
+  // direction for torpedo launch boost
+  torpedoAccel: number | null;
   torpedoAccelSteps: 1 | 2 | null;
-  combatTargetId: string | null; // enemy ship targeted for combat
+
+  // enemy ship targeted for combat
+  combatTargetId: string | null;
   combatTargetType: 'ship' | 'ordnance' | null;
   combatAttackerIds: string[];
   combatAttackStrength: number | null;
-  queuedAttacks: CombatAttack[]; // multi-target: attacks queued before sending
-  hoverHex: HexCoord | null; // current hex being hovered by mouse
-  lastSelectedHex: string | null; // hexKey of last ship-selection click, for cycling stacked ships
+
+  // multi-target: attacks queued before sending
+  queuedAttacks: CombatAttack[];
+
+  // current hex being hovered by mouse
+  hoverHex: HexCoord | null;
+
+  // hexKey of last ship-selection click, for cycling stacked ships
+  lastSelectedHex: string | null;
 }
 
 export const createInitialPlanningState = (): PlanningState => ({

@@ -9,7 +9,10 @@ export interface LandingLogEntry {
   resupplyText: string | null;
 }
 
-export const deriveLandingLogEntries = (state: GameState | null, movements: ShipMovement[]): LandingLogEntry[] => {
+export const deriveLandingLogEntries = (
+  state: GameState | null,
+  movements: ShipMovement[],
+): LandingLogEntry[] => {
   if (!state) {
     return [];
   }
@@ -17,10 +20,15 @@ export const deriveLandingLogEntries = (state: GameState | null, movements: Ship
   return movements
     .filter((movement) => movement.landedAt)
     .map((movement) => {
-      const ship = state.ships.find((candidate) => candidate.id === movement.shipId);
+      const ship = state.ships.find(
+        (candidate) => candidate.id === movement.shipId,
+      );
+
       if (!ship) return null;
+
       const shipName = SHIP_STATS[ship.type]?.name ?? ship.type;
       const player = state.players[ship.owner];
+
       return {
         destination: movement.to,
         shipName,

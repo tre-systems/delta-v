@@ -19,6 +19,7 @@ export const deriveBurnChangePlan = (
   if (!state) {
     return { kind: 'noop' };
   }
+
   if (!selectedShipId) {
     return {
       kind: 'error',
@@ -28,9 +29,11 @@ export const deriveBurnChangePlan = (
   }
 
   const ship = state.ships.find((candidate) => candidate.id === selectedShipId);
+
   if (!ship || ship.destroyed) {
     return { kind: 'noop' };
   }
+
   if (ship.damage.disabledTurns > 0) {
     return {
       kind: 'error',
@@ -38,6 +41,7 @@ export const deriveBurnChangePlan = (
       level: 'error',
     };
   }
+
   if (ship.fuel <= 0) {
     return {
       kind: 'error',

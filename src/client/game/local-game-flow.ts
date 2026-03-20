@@ -1,6 +1,10 @@
 import type { AIDifficulty } from '../../shared/ai';
 import type { MovementResult } from '../../shared/engine/game-engine';
-import type { CombatResult, GameState, SolarSystemMap } from '../../shared/types';
+import type {
+  CombatResult,
+  GameState,
+  SolarSystemMap,
+} from '../../shared/types';
 import type { AIActionPlan } from './ai-flow';
 import { deriveAIActionPlan } from './ai-flow';
 import type { LocalResolution } from './local';
@@ -44,7 +48,10 @@ export const isGameOver = (deps: LocalGameFlowDeps): boolean =>
 export const localCheckGameEnd = (deps: LocalGameFlowDeps): void => {
   const gameState = deps.getGameState();
   if (!gameState || gameState.phase !== 'gameOver') return;
-  deps.showGameOverOutcome(gameState.winner === deps.getPlayerId(), gameState.winReason ?? '');
+  deps.showGameOverOutcome(
+    gameState.winner === deps.getPlayerId(),
+    gameState.winReason ?? '',
+  );
 };
 
 export const playLocalMovementResult = (
@@ -52,7 +59,13 @@ export const playLocalMovementResult = (
   result: MovementResult,
   onComplete: () => void,
 ): void => {
-  deps.presentMovementResult(result.state, result.movements, result.ordnanceMovements, result.events, onComplete);
+  deps.presentMovementResult(
+    result.state,
+    result.movements,
+    result.ordnanceMovements,
+    result.events,
+    onComplete,
+  );
 };
 
 export const handleLocalResolution = (
@@ -77,7 +90,12 @@ export const handleLocalResolution = (
   }
 
   if (resolution.kind === 'combat') {
-    deps.presentCombatResults(resolution.previousState, resolution.state, resolution.results, resolution.resetCombat);
+    deps.presentCombatResults(
+      resolution.previousState,
+      resolution.state,
+      resolution.results,
+      resolution.resetCombat,
+    );
   } else {
     deps.applyGameState(resolution.state);
   }
@@ -88,7 +106,10 @@ export const handleLocalResolution = (
   }
 };
 
-export const resolveAIPlan = (deps: LocalGameFlowDeps, plan: AIActionPlan): LocalResolution => {
+export const resolveAIPlan = (
+  deps: LocalGameFlowDeps,
+  plan: AIActionPlan,
+): LocalResolution => {
   const gameState = deps.getGameState()!;
   const map = deps.getMap();
   switch (plan.kind) {
@@ -115,7 +136,12 @@ export const runAITurn = async (deps: LocalGameFlowDeps): Promise<void> => {
   await new Promise((r) => setTimeout(r, 500));
 
   while (!isGameOver(deps)) {
-    const plan = deriveAIActionPlan(deps.getGameState()!, deps.getPlayerId(), deps.getMap(), deps.getAIDifficulty());
+    const plan = deriveAIActionPlan(
+      deps.getGameState()!,
+      deps.getPlayerId(),
+      deps.getMap(),
+      deps.getAIDifficulty(),
+    );
 
     if (plan.kind === 'none') {
       deps.transitionToPhase();

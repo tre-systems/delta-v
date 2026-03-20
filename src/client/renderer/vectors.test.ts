@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GameState, MapHex, Ship, ShipMovement, SolarSystemMap } from '../../shared/types';
+import type {
+  GameState,
+  MapHex,
+  Ship,
+  ShipMovement,
+  SolarSystemMap,
+} from '../../shared/types';
 import {
   buildDetectionRangeViews,
   buildMovementPathViews,
@@ -37,7 +43,12 @@ function createState(): GameState {
     phase: 'astrogation',
     activePlayer: 0,
     ships: [
-      createShip({ id: 'selected', owner: 0, position: { q: 0, r: 0 }, velocity: { dq: 1, dr: 0 } }),
+      createShip({
+        id: 'selected',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        velocity: { dq: 1, dr: 0 },
+      }),
       createShip({
         id: 'enemy-visible',
         owner: 1,
@@ -69,8 +80,22 @@ function createState(): GameState {
     destroyedAsteroids: [],
     destroyedBases: [],
     players: [
-      { connected: true, ready: true, targetBody: 'Mars', homeBody: 'Venus', bases: ['0,1'], escapeWins: false },
-      { connected: true, ready: true, targetBody: 'Venus', homeBody: 'Mars', bases: ['2,2'], escapeWins: false },
+      {
+        connected: true,
+        ready: true,
+        targetBody: 'Mars',
+        homeBody: 'Venus',
+        bases: ['0,1'],
+        escapeWins: false,
+      },
+      {
+        connected: true,
+        ready: true,
+        targetBody: 'Venus',
+        homeBody: 'Mars',
+        bases: ['2,2'],
+        escapeWins: false,
+      },
     ],
     winner: null,
     winReason: null,
@@ -80,8 +105,14 @@ function createState(): GameState {
 function createMap(): SolarSystemMap {
   return {
     hexes: new Map<string, MapHex>([
-      ['0,1', { terrain: 'space', base: { name: 'Mars Base', bodyName: 'Mars' } }],
-      ['2,2', { terrain: 'space', base: { name: 'Venus Base', bodyName: 'Venus' } }],
+      [
+        '0,1',
+        { terrain: 'space', base: { name: 'Mars Base', bodyName: 'Mars' } },
+      ],
+      [
+        '2,2',
+        { terrain: 'space', base: { name: 'Venus Base', bodyName: 'Venus' } },
+      ],
     ]),
     bodies: [],
     bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
@@ -90,7 +121,13 @@ function createMap(): SolarSystemMap {
 
 describe('renderer vector helpers', () => {
   it('builds selected ship and base detection overlays', () => {
-    const views = buildDetectionRangeViews(createState(), 0, 'selected', createMap(), 28);
+    const views = buildDetectionRangeViews(
+      createState(),
+      0,
+      'selected',
+      createMap(),
+      28,
+    );
 
     expect(views).toHaveLength(2);
     expect(views[0]).toMatchObject({
@@ -164,7 +201,10 @@ describe('renderer vector helpers', () => {
     const ordViews = buildOrdnanceTrailViews(state, 0, ordnanceTrails, 28);
 
     expect(shipViews).toHaveLength(2);
-    expect(shipViews.map((view) => view.lineColor)).toEqual(['rgba(79, 195, 247, 0.28)', 'rgba(255, 152, 0, 0.28)']);
+    expect(shipViews.map((view) => view.lineColor)).toEqual([
+      'rgba(79, 195, 247, 0.28)',
+      'rgba(255, 152, 0, 0.28)',
+    ]);
     expect(ordViews).toHaveLength(2);
     expect(ordViews[0]).toMatchObject({
       lineDash: [2, 4],
@@ -190,7 +230,13 @@ describe('renderer vector helpers', () => {
       landedAt: null,
     };
 
-    const views = buildMovementPathViews(createState(), 0, [movement], 0.75, 28);
+    const views = buildMovementPathViews(
+      createState(),
+      0,
+      [movement],
+      0.75,
+      28,
+    );
 
     expect(views).toHaveLength(1);
     expect(views[0]).toMatchObject({

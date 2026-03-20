@@ -21,20 +21,31 @@ export interface ShipListEntryView {
 const getDisplayNames = (ships: Ship[]) => {
   const typeCounts = ships.reduce<Record<string, number>>((acc, ship) => {
     acc[ship.type] = (acc[ship.type] ?? 0) + 1;
+
     return acc;
   }, {});
+
   const typeIndices: Record<string, number> = {};
+
   return ships.map((ship) => {
     const name = SHIP_STATS[ship.type]?.name ?? ship.type;
     const needsNumber = (typeCounts[ship.type] ?? 0) > 1;
+
     typeIndices[ship.type] = (typeIndices[ship.type] ?? 0) + 1;
+
     return needsNumber ? `${name} ${typeIndices[ship.type]}` : name;
   });
 };
 
 const getStatusText = (ship: Ship): string =>
   [
-    ship.destroyed ? 'X' : ship.captured ? 'CAP' : ship.damage.disabledTurns > 0 ? `D${ship.damage.disabledTurns}` : '',
+    ship.destroyed
+      ? 'X'
+      : ship.captured
+        ? 'CAP'
+        : ship.damage.disabledTurns > 0
+          ? `D${ship.damage.disabledTurns}`
+          : '',
     ship.heroismAvailable ? 'H' : '',
   ]
     .filter(Boolean)
@@ -42,26 +53,60 @@ const getStatusText = (ship: Ship): string =>
 
 const getVelocityLabel = (ship: Ship): string => {
   const speed = Math.abs(ship.velocity.dq) + Math.abs(ship.velocity.dr);
-  return speed === 0 ? 'Stationary' : `${ship.velocity.dq}, ${ship.velocity.dr}`;
+
+  return speed === 0
+    ? 'Stationary'
+    : `${ship.velocity.dq}, ${ship.velocity.dr}`;
 };
 
-const getShipDetailRows = (ship: Ship, isSelected: boolean): ShipDetailRowView[] => {
+const getShipDetailRows = (
+  ship: Ship,
+  isSelected: boolean,
+): ShipDetailRowView[] => {
   const stats = SHIP_STATS[ship.type];
-  if (!isSelected || ship.destroyed || !stats) return [];
+  if (!isSelected || ship.destroyed || !stats) {
+    return [];
+  }
 
   return [
     {
       label: 'Combat',
-      value: `${stats.combat}${stats.defensiveOnly ? ' (def)' : ''}${ship.heroismAvailable ? ' ★' : ''}`,
+      value: `${stats.combat}${stats.defensiveOnly ? ' (def)' : ''}${ship.heroismAvailable ? ' \u2605' : ''}`,
       tone: null,
     },
-    stats.cargo > 0 ? { label: 'Cargo', value: `${stats.cargo - ship.cargoUsed}/${stats.cargo}`, tone: null } : null,
-    { label: 'Velocity', value: getVelocityLabel(ship), tone: null },
-    ship.damage.disabledTurns > 0
-      ? { label: 'Disabled', value: `${ship.damage.disabledTurns} turns`, tone: 'warning' as const }
+    stats.cargo > 0
+      ? {
+          label: 'Cargo',
+          value: `${stats.cargo - ship.cargoUsed}/${stats.cargo}`,
+          tone: null,
+        }
       : null,
-    ship.captured ? { label: 'Status', value: 'Captured', tone: 'danger' as const } : null,
-    !ship.captured && ship.landed ? { label: 'Status', value: 'Landed', tone: 'success' as const } : null,
+    {
+      label: 'Velocity',
+      value: getVelocityLabel(ship),
+      tone: null,
+    },
+    ship.damage.disabledTurns > 0
+      ? {
+          label: 'Disabled',
+          value: `${ship.damage.disabledTurns} turns`,
+          tone: 'warning' as const,
+        }
+      : null,
+    ship.captured
+      ? {
+          label: 'Status',
+          value: 'Captured',
+          tone: 'danger' as const,
+        }
+      : null,
+    !ship.captured && ship.landed
+      ? {
+          label: 'Status',
+          value: 'Landed',
+          tone: 'success' as const,
+        }
+      : null,
   ].filter((row): row is ShipDetailRowView => row !== null);
 };
 
@@ -71,6 +116,7 @@ export const buildShipListView = (
   burns: Map<string, number | null>,
 ): ShipListEntryView[] => {
   const displayNames = getDisplayNames(ships);
+
   return ships.map((ship, index) => ({
     shipId: ship.id,
     displayName: displayNames[index],
@@ -78,7 +124,9 @@ export const buildShipListView = (
     isDestroyed: ship.destroyed,
     statusText: getStatusText(ship),
     hasBurn: burns.has(ship.id) && burns.get(ship.id) !== null,
-    fuelText: ship.destroyed ? '' : `${ship.fuel}/${SHIP_STATS[ship.type]?.fuel ?? '?'}`,
+    fuelText: ship.destroyed
+      ? ''
+      : `${ship.fuel}/${SHIP_STATS[ship.type]?.fuel ?? '?'}`,
     detailRows: getShipDetailRows(ship, ship.id === selectedId),
   }));
 };

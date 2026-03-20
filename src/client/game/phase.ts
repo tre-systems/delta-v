@@ -23,9 +23,14 @@ export interface PhaseTransitionPlan {
   turnLogPlayerLabel: string | null;
 }
 
-const hasPendingOwnedAsteroidHazards = (state: GameState, playerId: number): boolean => {
+const hasPendingOwnedAsteroidHazards = (
+  state: GameState,
+  playerId: number,
+): boolean => {
   return state.pendingAsteroidHazards.some((hazard) => {
-    const ship = state.ships.find((candidate) => candidate.id === hazard.shipId);
+    const ship = state.ships.find(
+      (candidate) => candidate.id === hazard.shipId,
+    );
     return ship?.owner === playerId && !ship.destroyed;
   });
 };
@@ -36,8 +41,13 @@ export const derivePhaseTransition = (
   lastLoggedTurn: number,
   isLocalGame: boolean,
 ): PhaseTransitionPlan => {
-  const shouldLogTurn = state.phase === 'astrogation' && state.turnNumber !== lastLoggedTurn;
-  const turnLogPlayerLabel = shouldLogTurn ? (state.activePlayer === playerId ? 'You' : 'Opponent') : null;
+  const shouldLogTurn =
+    state.phase === 'astrogation' && state.turnNumber !== lastLoggedTurn;
+  const turnLogPlayerLabel = shouldLogTurn
+    ? state.activePlayer === playerId
+      ? 'You'
+      : 'Opponent'
+    : null;
   const turnLogNumber = shouldLogTurn ? state.turnNumber : null;
 
   if (state.phase === 'fleetBuilding') {

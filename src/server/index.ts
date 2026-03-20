@@ -1,6 +1,10 @@
 import { SCENARIOS } from '../shared/map-data';
 import { GameDO } from './game-do/game-do';
-import { generatePlayerToken, generateRoomCode, parseCreatePayload } from './protocol';
+import {
+  generatePlayerToken,
+  generateRoomCode,
+  parseCreatePayload,
+} from './protocol';
 
 export { GameDO };
 
@@ -9,14 +13,20 @@ export interface Env {
   GAME: DurableObjectNamespace;
 }
 
-const handleWebSocket = (request: Request, env: Env, code: string): Promise<Response> => {
+const handleWebSocket = (
+  request: Request,
+  env: Env,
+  code: string,
+): Promise<Response> => {
   const id = env.GAME.idFromName(code);
   const stub = env.GAME.get(id);
+
   return stub.fetch(request);
 };
 
 const handleCreate = async (request: Request, env: Env): Promise<Response> => {
   let payload: unknown = null;
+
   try {
     payload = await request.json();
   } catch {
@@ -31,24 +41,38 @@ const handleCreate = async (request: Request, env: Env): Promise<Response> => {
     const inviteToken = generatePlayerToken();
     const id = env.GAME.idFromName(code);
     const stub = env.GAME.get(id);
+
     const initResponse = await stub.fetch(
       new Request('https://room.internal/init', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, scenario, playerToken, inviteToken }),
+        body: JSON.stringify({
+          code,
+          scenario,
+          playerToken,
+          inviteToken,
+        }),
       }),
     );
 
     if (initResponse.ok) {
-      return Response.json({ code, playerToken, inviteToken });
+      return Response.json({
+        code,
+        playerToken,
+        inviteToken,
+      });
     }
 
     if (initResponse.status !== 409) {
-      return new Response('Failed to create game', { status: 500 });
+      return new Response('Failed to create game', {
+        status: 500,
+      });
     }
   }
 
-  return new Response('Failed to allocate room code', { status: 503 });
+  return new Response('Failed to allocate room code', {
+    status: 503,
+  });
 };
 
 export default {
@@ -62,6 +86,7 @@ export default {
 
     // WebSocket upgrade to game DO
     const wsMatch = url.pathname.match(/^\/ws\/([A-Z0-9]{5})$/);
+
     if (wsMatch) {
       return handleWebSocket(request, env, wsMatch[1]);
     }

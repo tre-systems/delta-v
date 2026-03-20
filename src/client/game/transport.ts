@@ -41,15 +41,23 @@ export interface LocalTransportDeps {
   getState: () => GameState | null;
   getPlayerId: () => number;
   getMap: () => SolarSystemMap;
-  onResolution: (resolution: LocalResolution, onContinue: () => void, errorPrefix: string) => void;
+  onResolution: (
+    resolution: LocalResolution,
+    onContinue: () => void,
+    errorPrefix: string,
+  ) => void;
   onAnimationComplete: () => void;
   onTransitionToPhase: () => void;
-  onEmplacementResult: (result: { state: GameState } | { error: string }) => void;
+  onEmplacementResult: (
+    result: { state: GameState } | { error: string },
+  ) => void;
   onFleetReady: (purchases: FleetPurchase[]) => void;
   onRematch: () => void;
 }
 
-export const createLocalTransport = (deps: LocalTransportDeps): GameTransport => ({
+export const createLocalTransport = (
+  deps: LocalTransportDeps,
+): GameTransport => ({
   submitAstrogation(orders) {
     const state = deps.getState();
     if (!state) return;
@@ -83,7 +91,12 @@ export const createLocalTransport = (deps: LocalTransportDeps): GameTransport =>
   submitEmplacement(emplacements) {
     const state = deps.getState();
     if (!state) return;
-    const result = processEmplacement(state, deps.getPlayerId(), emplacements, deps.getMap());
+    const result = processEmplacement(
+      state,
+      deps.getPlayerId(),
+      emplacements,
+      deps.getMap(),
+    );
     deps.onEmplacementResult(result);
   },
 
@@ -153,7 +166,9 @@ export const createLocalTransport = (deps: LocalTransportDeps): GameTransport =>
   },
 });
 
-export const createWebSocketTransport = (send: (msg: unknown) => void): GameTransport => ({
+export const createWebSocketTransport = (
+  send: (msg: unknown) => void,
+): GameTransport => ({
   submitAstrogation(orders) {
     send({ type: 'astrogation', orders });
   },

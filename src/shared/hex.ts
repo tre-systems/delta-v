@@ -16,7 +16,8 @@ export interface PixelCoord {
   y: number;
 }
 
-// The 6 hex directions (flat-top, starting East, going counter-clockwise)
+// The 6 hex directions
+// (flat-top, starting East, going counter-clockwise)
 export const HEX_DIRECTIONS: readonly HexVec[] = [
   { dq: +1, dr: 0 }, // 0: E
   { dq: +1, dr: -1 }, // 1: NE
@@ -38,13 +39,15 @@ export const hexSubtract = (a: HexCoord, b: HexCoord): HexVec => ({
   dr: a.r - b.r,
 });
 
-export const hexEqual = (a: HexCoord, b: HexCoord): boolean => a.q === b.q && a.r === b.r;
+export const hexEqual = (a: HexCoord, b: HexCoord): boolean =>
+  a.q === b.q && a.r === b.r;
 
 export const hexKey = ({ q, r }: HexCoord): string => `${q},${r}`;
 
-/** Inverse of hexKey: parse "q,r" string back to a HexCoord. */
+/** Inverse of hexKey: parse "q,r" string back. */
 export const parseHexKey = (key: string): HexCoord => {
   const [q, r] = key.split(',').map(Number);
+
   return { q, r };
 };
 
@@ -89,24 +92,38 @@ export const cubeRound = (fq: number, fr: number, fs: number): HexCoord => {
 export const hexDistance = (a: HexCoord, b: HexCoord): number => {
   const ac = axialToCube(a);
   const bc = axialToCube(b);
-  return Math.max(Math.abs(ac.q - bc.q), Math.abs(ac.r - bc.r), Math.abs(ac.s - bc.s));
+
+  return Math.max(
+    Math.abs(ac.q - bc.q),
+    Math.abs(ac.r - bc.r),
+    Math.abs(ac.s - bc.s),
+  );
 };
 
 // --- Neighbors ---
 
 export const hexNeighbor = (h: HexCoord, direction: number): HexCoord => {
   const { dq, dr } = HEX_DIRECTIONS[direction];
+
   return { q: h.q + dq, r: h.r + dr };
 };
 
 export const hexNeighbors = ({ q, r }: HexCoord): HexCoord[] =>
-  HEX_DIRECTIONS.map(({ dq, dr }) => ({ q: q + dq, r: r + dr }));
+  HEX_DIRECTIONS.map(({ dq, dr }) => ({
+    q: q + dq,
+    r: r + dr,
+  }));
 
 // --- Line drawing ---
-// Returns all hexes along a straight line from a to b (inclusive).
-// Uses linear interpolation in cube space with epsilon nudge for boundary consistency.
+// Returns all hexes along a straight line from a to b
+// (inclusive). Uses linear interpolation in cube space
+// with epsilon nudge for boundary consistency.
 
-const cubeLerp = (a: CubeCoord, b: CubeCoord, t: number): { q: number; r: number; s: number } => ({
+const cubeLerp = (
+  a: CubeCoord,
+  b: CubeCoord,
+  t: number,
+): { q: number; r: number; s: number } => ({
   q: a.q + (b.q - a.q) * t,
   r: a.r + (b.r - a.r) * t,
   s: a.s + (b.s - a.s) * t,
@@ -114,19 +131,25 @@ const cubeLerp = (a: CubeCoord, b: CubeCoord, t: number): { q: number; r: number
 
 const HEX_LINE_NUDGE_EPS = 1e-6;
 
-const hexLineDrawWithNudge = (a: HexCoord, b: HexCoord, eps: number): HexCoord[] => {
+const hexLineDrawWithNudge = (
+  a: HexCoord,
+  b: HexCoord,
+  eps: number,
+): HexCoord[] => {
   const n = hexDistance(a, b);
   if (n === 0) return [a];
 
   const ac = axialToCube(a);
   const bc = axialToCube(b);
 
-  // Epsilon nudge to avoid landing exactly on hex boundaries
+  // Epsilon nudge to avoid landing exactly on hex
+  // boundaries
   const aNudged: CubeCoord = {
     q: ac.q + eps,
     r: ac.r + eps,
     s: ac.s - 2 * eps,
   };
+
   const bNudged: CubeCoord = {
     q: bc.q + eps,
     r: bc.r + eps,
@@ -136,11 +159,13 @@ const hexLineDrawWithNudge = (a: HexCoord, b: HexCoord, eps: number): HexCoord[]
   return Array.from({ length: n + 1 }, (_, i) => {
     const t = i / n;
     const lerped = cubeLerp(aNudged, bNudged, t);
+
     return cubeRound(lerped.q, lerped.r, lerped.s);
   });
 };
 
-export const hexLineDraw = (a: HexCoord, b: HexCoord): HexCoord[] => hexLineDrawWithNudge(a, b, HEX_LINE_NUDGE_EPS);
+export const hexLineDraw = (a: HexCoord, b: HexCoord): HexCoord[] =>
+  hexLineDrawWithNudge(a, b, HEX_LINE_NUDGE_EPS);
 
 export interface HexLineAnalysis {
   primary: HexCoord[];
@@ -158,7 +183,9 @@ export const analyzeHexLine = (a: HexCoord, b: HexCoord): HexLineAnalysis => {
 
   for (const hex of primary) {
     const key = hexKey(hex);
-    if (!alternateKeys.has(key) || seenDefinite.has(key)) continue;
+    if (!alternateKeys.has(key) || seenDefinite.has(key)) {
+      continue;
+    }
     definite.push(hex);
     seenDefinite.add(key);
   }
@@ -166,11 +193,17 @@ export const analyzeHexLine = (a: HexCoord, b: HexCoord): HexLineAnalysis => {
   const seenPairs = new Set<string>();
   const ambiguousPairs: Array<[HexCoord, HexCoord]> = [];
   const length = Math.min(primary.length, alternate.length);
+
   for (let i = 0; i < length; i++) {
     if (hexEqual(primary[i], alternate[i])) continue;
+
     const firstKey = hexKey(primary[i]);
     const secondKey = hexKey(alternate[i]);
-    const pairKey = firstKey < secondKey ? `${firstKey}|${secondKey}` : `${secondKey}|${firstKey}`;
+    const pairKey =
+      firstKey < secondKey
+        ? `${firstKey}|${secondKey}`
+        : `${secondKey}|${firstKey}`;
+
     if (seenPairs.has(pairKey)) continue;
     seenPairs.add(pairKey);
     ambiguousPairs.push([primary[i], alternate[i]]);
@@ -191,11 +224,13 @@ export const hexToPixel = ({ q, r }: HexCoord, size: number): PixelCoord => ({
 export const pixelToHex = ({ x, y }: PixelCoord, size: number): HexCoord => {
   const q = ((2 / 3) * x) / size;
   const r = ((-1 / 3) * x + (SQRT3 / 3) * y) / size;
+
   return cubeRound(q, r, -q - r);
 };
 
 // --- Direction from one hex toward another ---
-// Returns the HEX_DIRECTIONS index that best points from 'from' toward 'to'
+// Returns the HEX_DIRECTIONS index that best points
+// from 'from' toward 'to'
 
 export const hexDirectionToward = (from: HexCoord, to: HexCoord): number => {
   const fp = hexToPixel(from, 1);
@@ -203,37 +238,45 @@ export const hexDirectionToward = (from: HexCoord, to: HexCoord): number => {
   const dx = tp.x - fp.x;
   const dy = tp.y - fp.y;
 
-  if (dx === 0 && dy === 0) return 0; // Same hex, default to E
+  // Same hex, default to E
+  if (dx === 0 && dy === 0) return 0;
 
   const angle = Math.atan2(dy, dx);
 
-  // Find direction with smallest angular distance (using reduce)
+  // Find direction with smallest angular distance
   const { dir } = HEX_DIRECTIONS.reduce(
     (best, { dq, dr }, d) => {
       const da = Math.atan2((SQRT3 / 2) * dq + SQRT3 * dr, (3 / 2) * dq);
       const raw = Math.abs(angle - da);
       const diff = raw > Math.PI ? 2 * Math.PI - raw : raw;
+
       return diff < best.dist ? { dist: diff, dir: d } : best;
     },
     { dist: Infinity, dir: 0 },
   );
+
   return dir;
 };
 
-// --- Hex ring (all hexes at exactly distance n from center) ---
+// --- Hex ring ---
+// All hexes at exactly distance n from center
 
 export const hexRing = (center: HexCoord, radius: number): HexCoord[] => {
   if (radius === 0) return [center];
 
   const results: HexCoord[] = [];
-  // Start at the hex 'radius' steps in direction 4 (SW) from center
-  let hex: HexCoord = Array.from({ length: radius }).reduce<HexCoord>((h) => hexNeighbor(h, 4), center);
 
-  // Walk around the ring: 6 sides, each 'radius' steps
+  // Start at the hex 'radius' steps in direction 4 (SW)
+  let hex: HexCoord = Array.from({ length: radius }).reduce<HexCoord>(
+    (h) => hexNeighbor(h, 4),
+    center,
+  );
+
+  // Walk around: 6 sides, each 'radius' steps
   for (let side = 0; side < 6; side++) {
     for (let step = 0; step < radius; step++) {
       results.push(hex);
-      hex = hexNeighbor(hex, side); // directions 0-5 in order
+      hex = hexNeighbor(hex, side);
     }
   }
 
@@ -242,4 +285,5 @@ export const hexRing = (center: HexCoord, radius: number): HexCoord[] => {
 
 // --- Speed (magnitude of a hex vector) ---
 
-export const hexVecLength = ({ dq, dr }: HexVec): number => hexDistance({ q: 0, r: 0 }, { q: dq, r: dr });
+export const hexVecLength = ({ dq, dr }: HexVec): number =>
+  hexDistance({ q: 0, r: 0 }, { q: dq, r: dr });

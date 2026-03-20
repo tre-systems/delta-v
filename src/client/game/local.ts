@@ -60,7 +60,11 @@ export const resolveOrdnanceStep = (
   return { kind: 'movement', result };
 };
 
-export const resolveSkipOrdnanceStep = (state: GameState, playerId: number, map: SolarSystemMap): LocalResolution => {
+export const resolveSkipOrdnanceStep = (
+  state: GameState,
+  playerId: number,
+  map: SolarSystemMap,
+): LocalResolution => {
   const result = skipOrdnance(state, playerId, map, Math.random);
   if ('error' in result) {
     return { kind: 'error', error: result.error };
@@ -71,7 +75,11 @@ export const resolveSkipOrdnanceStep = (state: GameState, playerId: number, map:
   return { kind: 'state', state: result.state };
 };
 
-export const resolveBeginCombatStep = (state: GameState, playerId: number, map: SolarSystemMap): LocalResolution => {
+export const resolveBeginCombatStep = (
+  state: GameState,
+  playerId: number,
+  map: SolarSystemMap,
+): LocalResolution => {
   const previousState = structuredClone(state);
   const result = beginCombatPhase(state, playerId, map, Math.random);
   if ('error' in result) {
@@ -110,7 +118,11 @@ export const resolveCombatStep = (
   };
 };
 
-export const resolveSkipCombatStep = (state: GameState, playerId: number, map: SolarSystemMap): LocalResolution => {
+export const resolveSkipCombatStep = (
+  state: GameState,
+  playerId: number,
+  map: SolarSystemMap,
+): LocalResolution => {
   const previousState = structuredClone(state);
   const result = skipCombat(state, playerId, map, Math.random);
   if ('error' in result) {
@@ -141,7 +153,11 @@ export const resolveLogisticsStep = (
   return { kind: 'state', state: result.state };
 };
 
-export const resolveSkipLogisticsStep = (state: GameState, playerId: number, map: SolarSystemMap): LocalResolution => {
+export const resolveSkipLogisticsStep = (
+  state: GameState,
+  playerId: number,
+  map: SolarSystemMap,
+): LocalResolution => {
   const result = skipLogistics(state, playerId, map);
   if ('error' in result) {
     return { kind: 'error', error: result.error };
@@ -149,9 +165,14 @@ export const resolveSkipLogisticsStep = (state: GameState, playerId: number, map
   return { kind: 'state', state: result.state };
 };
 
-export const hasOwnedPendingAsteroidHazards = (state: GameState, playerId: number): boolean => {
+export const hasOwnedPendingAsteroidHazards = (
+  state: GameState,
+  playerId: number,
+): boolean => {
   return state.pendingAsteroidHazards.some((hazard) => {
-    const ship = state.ships.find((candidate) => candidate.id === hazard.shipId);
+    const ship = state.ships.find(
+      (candidate) => candidate.id === hazard.shipId,
+    );
     return ship?.owner === playerId && !ship.destroyed;
   });
 };

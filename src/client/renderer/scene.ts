@@ -4,7 +4,12 @@
  * Pure functions extracted from Renderer — no class state dependencies.
  */
 
-import { HEX_DIRECTIONS, hexAdd, hexToPixel, parseHexKey } from '../../shared/hex';
+import {
+  HEX_DIRECTIONS,
+  hexAdd,
+  hexToPixel,
+  parseHexKey,
+} from '../../shared/hex';
 import type { GameState, SolarSystemMap } from '../../shared/types';
 import {
   buildAsteroidDebrisView,
@@ -43,7 +48,11 @@ const HEX_OFFSETS: [number, number][] = Array.from({ length: 7 }, (_, i) => {
   return [Math.cos(angle), Math.sin(angle)] as [number, number];
 });
 
-export const renderStars = (ctx: CanvasRenderingContext2D, stars: Star[], zoom: number): void => {
+export const renderStars = (
+  ctx: CanvasRenderingContext2D,
+  stars: Star[],
+  zoom: number,
+): void => {
   for (const star of stars) {
     ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness * 0.6})`;
     ctx.beginPath();
@@ -77,11 +86,18 @@ export const renderHexGrid = (
   for (let q = minQ - qPad; q <= maxQ + qPad; q++) {
     for (let r = minR - qPad; r <= maxR + qPad; r++) {
       const p = hexToPixel({ q, r }, size);
-      if (p.x < pxMinX || p.x > pxMaxX || p.y < pxMinY || p.y > pxMaxY) continue;
+      if (p.x < pxMinX || p.x > pxMaxX || p.y < pxMinY || p.y > pxMaxY)
+        continue;
       if (!isVisible(p.x, p.y)) continue;
-      ctx.moveTo(p.x + HEX_OFFSETS[0][0] * size, p.y + HEX_OFFSETS[0][1] * size);
+      ctx.moveTo(
+        p.x + HEX_OFFSETS[0][0] * size,
+        p.y + HEX_OFFSETS[0][1] * size,
+      );
       for (let i = 1; i <= 6; i++) {
-        ctx.lineTo(p.x + HEX_OFFSETS[i][0] * size, p.y + HEX_OFFSETS[i][1] * size);
+        ctx.lineTo(
+          p.x + HEX_OFFSETS[i][0] * size,
+          p.y + HEX_OFFSETS[i][1] * size,
+        );
       }
     }
   }
@@ -102,7 +118,10 @@ export const renderGravityIndicators = (
     const dir = HEX_DIRECTIONS[hex.gravity.direction];
     const target = hexToPixel(hexAdd(coord, dir), hexSize);
 
-    ctx.strokeStyle = hex.gravity.strength === 'weak' ? 'rgba(100, 140, 255, 0.12)' : 'rgba(100, 140, 255, 0.2)';
+    ctx.strokeStyle =
+      hex.gravity.strength === 'weak'
+        ? 'rgba(100, 140, 255, 0.12)'
+        : 'rgba(100, 140, 255, 0.2)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(p.x, p.y);
@@ -115,9 +134,15 @@ export const renderGravityIndicators = (
     const headLen = 4;
     ctx.beginPath();
     ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - headLen * Math.cos(angle - 0.5), ay - headLen * Math.sin(angle - 0.5));
+    ctx.lineTo(
+      ax - headLen * Math.cos(angle - 0.5),
+      ay - headLen * Math.sin(angle - 0.5),
+    );
     ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - headLen * Math.cos(angle + 0.5), ay - headLen * Math.sin(angle + 0.5));
+    ctx.lineTo(
+      ax - headLen * Math.cos(angle + 0.5),
+      ay - headLen * Math.sin(angle + 0.5),
+    );
     ctx.stroke();
   }
 };
@@ -152,7 +177,14 @@ export const renderBodies = (
     ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2);
     ctx.fill();
 
-    const grad = ctx.createRadialGradient(p.x - r * 0.3, p.y - r * 0.3, r * 0.1, p.x, p.y, r);
+    const grad = ctx.createRadialGradient(
+      p.x - r * 0.3,
+      p.y - r * 0.3,
+      r * 0.1,
+      p.x,
+      p.y,
+      r,
+    );
     grad.addColorStop(0, view.coreColor);
     grad.addColorStop(1, view.edgeColor);
     ctx.fillStyle = grad;
@@ -215,11 +247,21 @@ export const renderMapBorder = (
   hexSize: number,
   now: number,
 ): void => {
-  const borderView = buildMapBorderView(map.bounds, Boolean(state.players[playerId]?.escapeWins), now, hexSize);
+  const borderView = buildMapBorderView(
+    map.bounds,
+    Boolean(state.players[playerId]?.escapeWins),
+    now,
+    hexSize,
+  );
   ctx.strokeStyle = borderView.strokeStyle;
   ctx.lineWidth = borderView.lineWidth;
   ctx.setLineDash(borderView.lineDash);
-  ctx.strokeRect(borderView.topLeft.x, borderView.topLeft.y, borderView.width, borderView.height);
+  ctx.strokeRect(
+    borderView.topLeft.x,
+    borderView.topLeft.y,
+    borderView.width,
+    borderView.height,
+  );
   ctx.setLineDash([]);
 };
 
@@ -261,7 +303,12 @@ export const renderLandingTarget = (
   hexSize: number,
   now: number,
 ): void => {
-  const objectiveView = buildLandingObjectiveView(state.players[playerId], map, now, hexSize);
+  const objectiveView = buildLandingObjectiveView(
+    state.players[playerId],
+    map,
+    now,
+    hexSize,
+  );
   if (!objectiveView) return;
   if (objectiveView.kind === 'escape') {
     ctx.fillStyle = objectiveView.color;
@@ -277,14 +324,24 @@ export const renderLandingTarget = (
   ctx.lineWidth = 2;
   ctx.setLineDash([6, 4]);
   ctx.beginPath();
-  ctx.arc(objectiveView.center.x, objectiveView.center.y, objectiveView.radius, 0, Math.PI * 2);
+  ctx.arc(
+    objectiveView.center.x,
+    objectiveView.center.y,
+    objectiveView.radius,
+    0,
+    Math.PI * 2,
+  );
   ctx.stroke();
   ctx.setLineDash([]);
 
   ctx.fillStyle = objectiveView.labelStyle;
   ctx.font = 'bold 8px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(objectiveView.labelText, objectiveView.center.x, objectiveView.labelY);
+  ctx.fillText(
+    objectiveView.labelText,
+    objectiveView.center.x,
+    objectiveView.labelY,
+  );
 };
 
 export const renderDetectionRanges = (
@@ -297,7 +354,13 @@ export const renderDetectionRanges = (
   isAnimating: boolean,
 ): void => {
   if (isAnimating) return;
-  const overlays = buildDetectionRangeViews(state, playerId, selectedShipId, map, hexSize);
+  const overlays = buildDetectionRangeViews(
+    state,
+    playerId,
+    selectedShipId,
+    map,
+    hexSize,
+  );
   for (const overlay of overlays) {
     ctx.strokeStyle = overlay.color;
     ctx.lineWidth = overlay.lineWidth;

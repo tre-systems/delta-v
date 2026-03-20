@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CombatResult, GameState, MovementEvent, Ship } from '../../shared/types';
-import { buildCombatResultToastLines, formatMovementEventToast, getToastFadeAlpha } from './toast';
+import type {
+  CombatResult,
+  GameState,
+  MovementEvent,
+  Ship,
+} from '../../shared/types';
+import {
+  buildCombatResultToastLines,
+  formatMovementEventToast,
+  getToastFadeAlpha,
+} from './toast';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
   return {
@@ -30,22 +39,41 @@ function createState(): GameState {
     turnNumber: 1,
     phase: 'combat',
     activePlayer: 0,
-    ships: [createShip(), createShip({ id: 'enemy', owner: 1, type: 'freighter' })],
+    ships: [
+      createShip(),
+      createShip({ id: 'enemy', owner: 1, type: 'freighter' }),
+    ],
     ordnance: [],
     pendingAstrogationOrders: null,
     pendingAsteroidHazards: [],
     destroyedAsteroids: [],
     destroyedBases: [],
     players: [
-      { connected: true, ready: true, targetBody: 'Mars', homeBody: 'Venus', bases: [], escapeWins: false },
-      { connected: true, ready: true, targetBody: 'Venus', homeBody: 'Mars', bases: [], escapeWins: false },
+      {
+        connected: true,
+        ready: true,
+        targetBody: 'Mars',
+        homeBody: 'Venus',
+        bases: [],
+        escapeWins: false,
+      },
+      {
+        connected: true,
+        ready: true,
+        targetBody: 'Venus',
+        homeBody: 'Mars',
+        bases: [],
+        escapeWins: false,
+      },
     ],
     winner: null,
     winReason: null,
   };
 }
 
-function createMovementEvent(overrides: Partial<MovementEvent> = {}): MovementEvent {
+function createMovementEvent(
+  overrides: Partial<MovementEvent> = {},
+): MovementEvent {
   return {
     type: 'asteroidHit',
     shipId: 'ship-1',
@@ -57,7 +85,9 @@ function createMovementEvent(overrides: Partial<MovementEvent> = {}): MovementEv
   };
 }
 
-function createCombatResult(overrides: Partial<CombatResult> = {}): CombatResult {
+function createCombatResult(
+  overrides: Partial<CombatResult> = {},
+): CombatResult {
   return {
     attackerIds: ['ship-1'],
     targetId: 'enemy',
@@ -81,7 +111,11 @@ describe('renderer toast helpers', () => {
   it('formats movement event toast text and color', () => {
     expect(
       formatMovementEventToast(
-        createMovementEvent({ type: 'ramming', damageType: 'disabled', disabledTurns: 2 }),
+        createMovementEvent({
+          type: 'ramming',
+          damageType: 'disabled',
+          disabledTurns: 2,
+        }),
         'packet',
       ),
     ).toEqual({
@@ -90,7 +124,12 @@ describe('renderer toast helpers', () => {
       variant: 'primary',
     });
 
-    expect(formatMovementEventToast(createMovementEvent({ type: 'crash' }), 'packet')).toEqual({
+    expect(
+      formatMovementEventToast(
+        createMovementEvent({ type: 'crash' }),
+        'packet',
+      ),
+    ).toEqual({
       text: 'packet: CRASHED',
       color: '#ff4444',
       variant: 'primary',
@@ -99,7 +138,10 @@ describe('renderer toast helpers', () => {
 
   it('returns null for movement events without toast copy', () => {
     expect(
-      formatMovementEventToast(createMovementEvent({ type: 'capture', damageType: 'captured' }), 'packet'),
+      formatMovementEventToast(
+        createMovementEvent({ type: 'capture', damageType: 'captured' }),
+        'packet',
+      ),
     ).toBeNull();
   });
 

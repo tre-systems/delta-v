@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { HEX_DIRECTIONS, hexAdd, hexKey } from '../../shared/hex';
 import { buildSolarSystemMap } from '../../shared/map-data';
-import type { GameState, PlayerState, Ship, SolarSystemMap } from '../../shared/types';
+import type {
+  GameState,
+  PlayerState,
+  Ship,
+  SolarSystemMap,
+} from '../../shared/types';
 import { resolveAstrogationClick, resolveOrdnanceClick } from './input';
 import type { PlanningState } from './planning';
 
@@ -26,8 +31,22 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
 
 function createPlayers(): [PlayerState, PlayerState] {
   return [
-    { connected: true, ready: true, targetBody: '', homeBody: 'Terra', bases: [], escapeWins: false },
-    { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Terra',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
   ];
 }
 
@@ -40,7 +59,10 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     turnNumber: 1,
     phase: 'astrogation',
     activePlayer: 0,
-    ships: [createShip(), createShip({ id: 'ship-1', owner: 1, position: { q: 2, r: 0 } })],
+    ships: [
+      createShip(),
+      createShip({ id: 'ship-1', owner: 1, position: { q: 2, r: 0 } }),
+    ],
     ordnance: [],
     pendingAstrogationOrders: null,
     pendingAsteroidHazards: [],
@@ -82,7 +104,12 @@ describe('game client input helpers', () => {
   it('selects an owned ship during astrogation', () => {
     const state = createState();
 
-    expect(resolveAstrogationClick(state, simpleMap, 0, createPlanning(), { q: 0, r: 0 })).toEqual({
+    expect(
+      resolveAstrogationClick(state, simpleMap, 0, createPlanning(), {
+        q: 0,
+        r: 0,
+      }),
+    ).toEqual({
       type: 'selectShip',
       shipId: 'ship-0',
     });
@@ -92,7 +119,13 @@ describe('game client input helpers', () => {
     const state = createState();
 
     expect(
-      resolveAstrogationClick(state, simpleMap, 0, createPlanning({ selectedShipId: 'ship-0' }), { q: 9, r: 9 }),
+      resolveAstrogationClick(
+        state,
+        simpleMap,
+        0,
+        createPlanning({ selectedShipId: 'ship-0' }),
+        { q: 9, r: 9 },
+      ),
     ).toEqual({ type: 'clearSelection' });
   });
 
@@ -101,7 +134,13 @@ describe('game client input helpers', () => {
     const clickHex = hexAdd({ q: 0, r: 0 }, HEX_DIRECTIONS[0]);
 
     expect(
-      resolveAstrogationClick(state, simpleMap, 0, createPlanning({ selectedShipId: 'ship-0' }), clickHex),
+      resolveAstrogationClick(
+        state,
+        simpleMap,
+        0,
+        createPlanning({ selectedShipId: 'ship-0' }),
+        clickHex,
+      ),
     ).toEqual({
       type: 'burnToggle',
       shipId: 'ship-0',
@@ -145,7 +184,13 @@ describe('game client input helpers', () => {
       ],
     });
 
-    const interaction = resolveAstrogationClick(state, map, 0, createPlanning({ selectedShipId: 'ship-0' }), weakHex);
+    const interaction = resolveAstrogationClick(
+      state,
+      map,
+      0,
+      createPlanning({ selectedShipId: 'ship-0' }),
+      weakHex,
+    );
 
     expect(interaction).toEqual({
       type: 'weakGravityToggle',
@@ -158,7 +203,14 @@ describe('game client input helpers', () => {
     const state = createState({ phase: 'ordnance' });
     const clickHex = hexAdd({ q: 0, r: 0 }, HEX_DIRECTIONS[0]);
 
-    expect(resolveOrdnanceClick(state, 0, createPlanning({ selectedShipId: 'ship-0' }), clickHex)).toEqual({
+    expect(
+      resolveOrdnanceClick(
+        state,
+        0,
+        createPlanning({ selectedShipId: 'ship-0' }),
+        clickHex,
+      ),
+    ).toEqual({
       type: 'torpedoAccel',
       torpedoAccel: 0,
       torpedoAccelSteps: 1,
@@ -186,7 +238,12 @@ describe('game client input helpers', () => {
     const state = createState({ phase: 'ordnance' });
 
     expect(
-      resolveOrdnanceClick(state, 0, createPlanning({ torpedoAccel: 2, torpedoAccelSteps: 2 }), { q: 0, r: 0 }),
+      resolveOrdnanceClick(
+        state,
+        0,
+        createPlanning({ torpedoAccel: 2, torpedoAccelSteps: 2 }),
+        { q: 0, r: 0 },
+      ),
     ).toEqual({
       type: 'selectShip',
       shipId: 'ship-0',
@@ -200,7 +257,9 @@ describe('game client input helpers', () => {
       ships: [createShip({ damage: { disabledTurns: 1 } })],
     });
 
-    expect(resolveOrdnanceClick(state, 0, createPlanning(), { q: 0, r: 0 })).toEqual({ type: 'none' });
+    expect(
+      resolveOrdnanceClick(state, 0, createPlanning(), { q: 0, r: 0 }),
+    ).toEqual({ type: 'none' });
   });
 
   it('cycles through stacked ships on repeated astrogation clicks', () => {
@@ -214,7 +273,9 @@ describe('game client input helpers', () => {
     });
 
     // First click selects first ship
-    expect(resolveAstrogationClick(state, simpleMap, 0, createPlanning(), hex)).toEqual({
+    expect(
+      resolveAstrogationClick(state, simpleMap, 0, createPlanning(), hex),
+    ).toEqual({
       type: 'selectShip',
       shipId: 'ship-a',
     });
@@ -225,7 +286,10 @@ describe('game client input helpers', () => {
         state,
         simpleMap,
         0,
-        createPlanning({ selectedShipId: 'ship-a', lastSelectedHex: hexKey(hex) }),
+        createPlanning({
+          selectedShipId: 'ship-a',
+          lastSelectedHex: hexKey(hex),
+        }),
         hex,
       ),
     ).toEqual({
@@ -239,7 +303,10 @@ describe('game client input helpers', () => {
         state,
         simpleMap,
         0,
-        createPlanning({ selectedShipId: 'ship-b', lastSelectedHex: hexKey(hex) }),
+        createPlanning({
+          selectedShipId: 'ship-b',
+          lastSelectedHex: hexKey(hex),
+        }),
         hex,
       ),
     ).toEqual({

@@ -128,7 +128,9 @@ describe('getCombatStrength', () => {
   });
 
   it('returns 0 for disabled ship', () => {
-    expect(getCombatStrength([makeShip({ damage: { disabledTurns: 1 } })])).toBe(0);
+    expect(
+      getCombatStrength([makeShip({ damage: { disabledTurns: 1 } })]),
+    ).toBe(0);
   });
 
   it('sums combat values of multiple ships', () => {
@@ -151,19 +153,33 @@ describe('canAttack', () => {
   });
 
   it('disabled dreadnaught can still attack (rulebook p.6 exception)', () => {
-    expect(canAttack(makeShip({ type: 'dreadnaught', damage: { disabledTurns: 3 } }))).toBe(true);
+    expect(
+      canAttack(
+        makeShip({ type: 'dreadnaught', damage: { disabledTurns: 3 } }),
+      ),
+    ).toBe(true);
   });
 
   it('destroyed dreadnaught cannot attack', () => {
-    expect(canAttack(makeShip({ type: 'dreadnaught', destroyed: true }))).toBe(false);
+    expect(canAttack(makeShip({ type: 'dreadnaught', destroyed: true }))).toBe(
+      false,
+    );
   });
 
   it('D1-disabled orbital base can still attack (rulebook p.6)', () => {
-    expect(canAttack(makeShip({ type: 'orbitalBase', damage: { disabledTurns: 1 } }))).toBe(true);
+    expect(
+      canAttack(
+        makeShip({ type: 'orbitalBase', damage: { disabledTurns: 1 } }),
+      ),
+    ).toBe(true);
   });
 
   it('D2+ disabled orbital base cannot attack', () => {
-    expect(canAttack(makeShip({ type: 'orbitalBase', damage: { disabledTurns: 2 } }))).toBe(false);
+    expect(
+      canAttack(
+        makeShip({ type: 'orbitalBase', damage: { disabledTurns: 2 } }),
+      ),
+    ).toBe(false);
   });
 
   it('destroyed ship cannot attack', () => {
@@ -177,30 +193,50 @@ describe('canCounterattack', () => {
   });
 
   it('disabled ship cannot counterattack', () => {
-    expect(canCounterattack(makeShip({ damage: { disabledTurns: 1 } }))).toBe(false);
+    expect(canCounterattack(makeShip({ damage: { disabledTurns: 1 } }))).toBe(
+      false,
+    );
   });
 
   it('disabled dreadnaught can still counterattack (rulebook p.6 exception)', () => {
-    expect(canCounterattack(makeShip({ type: 'dreadnaught', damage: { disabledTurns: 2 } }))).toBe(true);
+    expect(
+      canCounterattack(
+        makeShip({ type: 'dreadnaught', damage: { disabledTurns: 2 } }),
+      ),
+    ).toBe(true);
   });
 
   it('destroyed dreadnaught cannot counterattack', () => {
-    expect(canCounterattack(makeShip({ type: 'dreadnaught', destroyed: true }))).toBe(false);
+    expect(
+      canCounterattack(makeShip({ type: 'dreadnaught', destroyed: true })),
+    ).toBe(false);
   });
 
   it('D1-disabled orbital base can still counterattack (rulebook p.6)', () => {
-    expect(canCounterattack(makeShip({ type: 'orbitalBase', damage: { disabledTurns: 1 } }))).toBe(true);
+    expect(
+      canCounterattack(
+        makeShip({ type: 'orbitalBase', damage: { disabledTurns: 1 } }),
+      ),
+    ).toBe(true);
   });
 
   it('D2+ disabled orbital base cannot counterattack', () => {
-    expect(canCounterattack(makeShip({ type: 'orbitalBase', damage: { disabledTurns: 2 } }))).toBe(false);
+    expect(
+      canCounterattack(
+        makeShip({ type: 'orbitalBase', damage: { disabledTurns: 2 } }),
+      ),
+    ).toBe(false);
   });
 });
 
 describe('group combat helpers', () => {
   it('uses the worst range modifier across multiple attackers', () => {
     const close = makeShip({ id: 'close', position: { q: 0, r: 0 } });
-    const far = makeShip({ id: 'far', position: { q: 6, r: 0 }, lastMovementPath: [{ q: 6, r: 0 }] });
+    const far = makeShip({
+      id: 'far',
+      position: { q: 6, r: 0 },
+      lastMovementPath: [{ q: 6, r: 0 }],
+    });
     const target = makeShip({ id: 't', position: { q: 1, r: 0 } });
     expect(computeGroupRangeMod([close, far], target)).toBe(5);
   });
@@ -218,7 +254,15 @@ describe('line of sight', () => {
     const attacker = makeShip({ position: { q: 0, r: 0 } });
     const target = makeShip({ position: { q: 2, r: 0 } });
     const map: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'planetSurface', body: { name: 'Body', destructive: false } }]]),
+      hexes: new Map([
+        [
+          '1,0',
+          {
+            terrain: 'planetSurface',
+            body: { name: 'Body', destructive: false },
+          },
+        ],
+      ]),
       bodies: [],
       bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
     };
@@ -228,7 +272,12 @@ describe('line of sight', () => {
 
 describe('counterattack groups', () => {
   it('includes same-hex same-course allied ships in the counterattack', () => {
-    const target = makeShip({ id: 'target', owner: 1, position: { q: 1, r: 0 }, velocity: { dq: 1, dr: 0 } });
+    const target = makeShip({
+      id: 'target',
+      owner: 1,
+      position: { q: 1, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+    });
     const escort = makeShip({
       id: 'escort',
       owner: 1,
@@ -236,76 +285,132 @@ describe('counterattack groups', () => {
       position: { q: 1, r: 0 },
       velocity: { dq: 1, dr: 0 },
     });
-    const outsider = makeShip({ id: 'outsider', owner: 1, position: { q: 2, r: 0 }, velocity: { dq: 1, dr: 0 } });
+    const outsider = makeShip({
+      id: 'outsider',
+      owner: 1,
+      position: { q: 2, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+    });
     const ships = [target, escort, outsider];
-    expect(getCounterattackers(target, ships).map((ship) => ship.id)).toEqual(['target', 'escort']);
+    expect(getCounterattackers(target, ships).map((ship) => ship.id)).toEqual([
+      'target',
+      'escort',
+    ]);
   });
 });
 
 describe('lookupGunCombat', () => {
   it('1:4 odds, roll 0 = no effect', () => {
-    expect(lookupGunCombat('1:4', 0)).toEqual({ type: 'none', disabledTurns: 0 });
+    expect(lookupGunCombat('1:4', 0)).toEqual({
+      type: 'none',
+      disabledTurns: 0,
+    });
   });
 
   it('4:1 odds, roll 6 = eliminated', () => {
-    expect(lookupGunCombat('4:1', 6)).toEqual({ type: 'eliminated', disabledTurns: 0 });
+    expect(lookupGunCombat('4:1', 6)).toEqual({
+      type: 'eliminated',
+      disabledTurns: 0,
+    });
   });
 
   it('1:1 odds, roll 4 = D2', () => {
     // Table[4][2] = 2 per PDF Gun Combat Table
-    expect(lookupGunCombat('1:1', 4)).toEqual({ type: 'disabled', disabledTurns: 2 });
+    expect(lookupGunCombat('1:1', 4)).toEqual({
+      type: 'disabled',
+      disabledTurns: 2,
+    });
   });
 
   it('2:1 odds, roll 5 = D4', () => {
     // Table[5][3] = 4
-    expect(lookupGunCombat('2:1', 5)).toEqual({ type: 'disabled', disabledTurns: 4 });
+    expect(lookupGunCombat('2:1', 5)).toEqual({
+      type: 'disabled',
+      disabledTurns: 4,
+    });
   });
 
   it('clamps roll to 0-6 range', () => {
-    expect(lookupGunCombat('1:1', -5)).toEqual({ type: 'none', disabledTurns: 0 });
-    expect(lookupGunCombat('1:1', 10)).toEqual({ type: 'disabled', disabledTurns: 4 });
+    expect(lookupGunCombat('1:1', -5)).toEqual({
+      type: 'none',
+      disabledTurns: 0,
+    });
+    expect(lookupGunCombat('1:1', 10)).toEqual({
+      type: 'disabled',
+      disabledTurns: 4,
+    });
   });
 });
 
 describe('lookupOtherDamage', () => {
   it('torpedo roll 1 = no effect', () => {
-    expect(lookupOtherDamage(1, 'torpedo')).toEqual({ type: 'none', disabledTurns: 0 });
+    expect(lookupOtherDamage(1, 'torpedo')).toEqual({
+      type: 'none',
+      disabledTurns: 0,
+    });
   });
 
   it('torpedo roll 2 = D1', () => {
-    expect(lookupOtherDamage(2, 'torpedo')).toEqual({ type: 'disabled', disabledTurns: 1 });
+    expect(lookupOtherDamage(2, 'torpedo')).toEqual({
+      type: 'disabled',
+      disabledTurns: 1,
+    });
   });
 
   it('torpedo roll 6 = D3', () => {
-    expect(lookupOtherDamage(6, 'torpedo')).toEqual({ type: 'disabled', disabledTurns: 3 });
+    expect(lookupOtherDamage(6, 'torpedo')).toEqual({
+      type: 'disabled',
+      disabledTurns: 3,
+    });
   });
 
   it('mine roll 4 = no effect', () => {
-    expect(lookupOtherDamage(4, 'mine')).toEqual({ type: 'none', disabledTurns: 0 });
+    expect(lookupOtherDamage(4, 'mine')).toEqual({
+      type: 'none',
+      disabledTurns: 0,
+    });
   });
 
   it('mine roll 5 = D2', () => {
-    expect(lookupOtherDamage(5, 'mine')).toEqual({ type: 'disabled', disabledTurns: 2 });
+    expect(lookupOtherDamage(5, 'mine')).toEqual({
+      type: 'disabled',
+      disabledTurns: 2,
+    });
   });
 
   it('asteroid roll 5 = D1', () => {
-    expect(lookupOtherDamage(5, 'asteroid')).toEqual({ type: 'disabled', disabledTurns: 1 });
+    expect(lookupOtherDamage(5, 'asteroid')).toEqual({
+      type: 'disabled',
+      disabledTurns: 1,
+    });
   });
 
   it('asteroid roll 6 = D2', () => {
-    expect(lookupOtherDamage(6, 'asteroid')).toEqual({ type: 'disabled', disabledTurns: 2 });
+    expect(lookupOtherDamage(6, 'asteroid')).toEqual({
+      type: 'disabled',
+      disabledTurns: 2,
+    });
   });
 
   it('ram roll 5 = D3', () => {
-    expect(lookupOtherDamage(5, 'ram')).toEqual({ type: 'disabled', disabledTurns: 3 });
+    expect(lookupOtherDamage(5, 'ram')).toEqual({
+      type: 'disabled',
+      disabledTurns: 3,
+    });
   });
 
   it('ram roll 6 = D5', () => {
-    expect(lookupOtherDamage(6, 'ram')).toEqual({ type: 'disabled', disabledTurns: 5 });
+    expect(lookupOtherDamage(6, 'ram')).toEqual({
+      type: 'disabled',
+      disabledTurns: 5,
+    });
   });
 
   it('defaults to torpedo when no source specified', () => {
-    expect(lookupOtherDamage(3)).toEqual({ type: 'disabled', disabledTurns: 1 });
+    expect(lookupOtherDamage(3)).toEqual({
+      type: 'disabled',
+      disabledTurns: 1,
+    });
   });
 });
 
@@ -438,7 +543,14 @@ describe('resolveCombat', () => {
     const attacker = makeShip({ id: 'a', owner: 0, type: 'dreadnaught' });
     const target = makeShip({ id: 't', owner: 1, position: { q: 0, r: 0 } });
 
-    const result = resolveCombat([attacker], target, [attacker, target], () => 0.5, undefined, 2);
+    const result = resolveCombat(
+      [attacker],
+      target,
+      [attacker, target],
+      () => 0.5,
+      undefined,
+      2,
+    );
 
     expect(result.attackStrength).toBe(2);
     expect(result.defendStrength).toBe(2);
@@ -449,7 +561,14 @@ describe('resolveCombat', () => {
     const attacker = makeShip({ id: 'a', owner: 0, type: 'dreadnaught' });
     const target = makeShip({ id: 't', owner: 1, position: { q: 0, r: 0 } });
 
-    const result = resolveCombat([attacker], target, [attacker, target], () => 0.5, undefined, 2);
+    const result = resolveCombat(
+      [attacker],
+      target,
+      [attacker, target],
+      () => 0.5,
+      undefined,
+      2,
+    );
 
     expect(result.counterattack).not.toBeNull();
     expect(result.counterattack!.defendStrength).toBe(15);
@@ -476,8 +595,18 @@ describe('capture mechanics', () => {
 
 describe('heroism', () => {
   it('grants heroism to an underdog attacker that achieves D2 or better', () => {
-    const attacker = makeShip({ id: 'a', owner: 0, type: 'corvette', position: { q: 0, r: 0 } }); // combat 2
-    const target = makeShip({ id: 't', owner: 1, type: 'corsair', position: { q: 0, r: 0 } }); // combat 4
+    const attacker = makeShip({
+      id: 'a',
+      owner: 0,
+      type: 'corvette',
+      position: { q: 0, r: 0 },
+    }); // combat 2
+    const target = makeShip({
+      id: 't',
+      owner: 1,
+      type: 'corsair',
+      position: { q: 0, r: 0 },
+    }); // combat 4
     // Roll 6 → at 1:2 odds (2 vs 4), modified roll 6 → D3 per PDF table
     resolveCombat([attacker], target, [attacker, target], () => 0.999);
 
@@ -485,8 +614,18 @@ describe('heroism', () => {
   });
 
   it('does not grant heroism at even odds', () => {
-    const attacker = makeShip({ id: 'a', owner: 0, type: 'corvette', position: { q: 0, r: 0 } }); // combat 2
-    const target = makeShip({ id: 't', owner: 1, type: 'corvette', position: { q: 0, r: 0 } }); // combat 2
+    const attacker = makeShip({
+      id: 'a',
+      owner: 0,
+      type: 'corvette',
+      position: { q: 0, r: 0 },
+    }); // combat 2
+    const target = makeShip({
+      id: 't',
+      owner: 1,
+      type: 'corvette',
+      position: { q: 0, r: 0 },
+    }); // combat 2
     // Roll 1 → at 1:1 odds, modified roll 1 → no effect
     resolveCombat([attacker], target, [attacker, target], () => 0.001);
 
@@ -501,9 +640,19 @@ describe('heroism', () => {
       position: { q: 0, r: 0 },
       heroismAvailable: true,
     });
-    const target = makeShip({ id: 't', owner: 1, type: 'corvette', position: { q: 0, r: 0 } });
+    const target = makeShip({
+      id: 't',
+      owner: 1,
+      type: 'corvette',
+      position: { q: 0, r: 0 },
+    });
     // rng returns fixed value → die roll 3 + heroism +1 = modified 4
-    const result = resolveCombat([attacker], target, [attacker, target], () => 0.34);
+    const result = resolveCombat(
+      [attacker],
+      target,
+      [attacker, target],
+      () => 0.34,
+    );
 
     expect(result.modifiedRoll).toBe(4); // roll 3 + 1 heroism
     expect(attacker.heroismAvailable).toBe(true);
@@ -517,7 +666,12 @@ describe('heroism', () => {
       position: { q: 0, r: 0 },
       heroismAvailable: true,
     });
-    const target = makeShip({ id: 't', owner: 1, type: 'corvette', position: { q: 0, r: 0 } });
+    const target = makeShip({
+      id: 't',
+      owner: 1,
+      type: 'corvette',
+      position: { q: 0, r: 0 },
+    });
     resolveCombat([attacker], target, [attacker, target], () => 0.5);
 
     expect(attacker.heroismAvailable).toBe(true);

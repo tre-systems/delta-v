@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { resolveBaseDefense } from '../combat';
 import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
 import { hexDistance, hexEqual, hexKey } from '../hex';
-import { buildSolarSystemMap, findBaseHex, findBaseHexes, SCENARIOS } from '../map-data';
+import {
+  buildSolarSystemMap,
+  findBaseHex,
+  findBaseHexes,
+  SCENARIOS,
+} from '../map-data';
 import type {
   AstrogationOrder,
   GameState,
@@ -38,14 +43,20 @@ beforeEach(() => {
   initialState = createGame(SCENARIOS.biplanetary, map, 'TEST1', findBaseHex);
 });
 
-function expectMovement(result: MovementResult | StateUpdateResult): MovementResult {
+function expectMovement(
+  result: MovementResult | StateUpdateResult,
+): MovementResult {
   if (!('movements' in result)) {
     throw new Error('Expected movement result');
   }
   return result;
 }
 
-function resolveAstrogationMovement(state: GameState, playerId: number, orders: AstrogationOrder[]): MovementResult {
+function resolveAstrogationMovement(
+  state: GameState,
+  playerId: number,
+  orders: AstrogationOrder[],
+): MovementResult {
   const result = processAstrogation(state, playerId, orders, map, Math.random);
   if ('error' in result) {
     throw new Error(result.error);
@@ -118,9 +129,9 @@ describe('createGame', () => {
       players: [SCENARIOS.duel.players[0]],
     };
 
-    expect(() => createGame(invalidScenario, map, 'BADPLY', findBaseHex)).toThrow(
-      'Scenario must define exactly 2 players',
-    );
+    expect(() =>
+      createGame(invalidScenario, map, 'BADPLY', findBaseHex),
+    ).toThrow('Scenario must define exactly 2 players');
   });
 
   it('throws when a landed ship has no valid starting hex', () => {
@@ -134,13 +145,25 @@ describe('createGame', () => {
       description: 'Invalid landed placement',
       players: [
         {
-          ships: [{ type: 'corvette', position: { q: 99, r: 99 }, velocity: { dq: 0, dr: 0 } }],
+          ships: [
+            {
+              type: 'corvette',
+              position: { q: 99, r: 99 },
+              velocity: { dq: 0, dr: 0 },
+            },
+          ],
           targetBody: '',
           homeBody: '',
           escapeWins: false,
         },
         {
-          ships: [{ type: 'corvette', position: { q: -99, r: -99 }, velocity: { dq: 0, dr: 0 } }],
+          ships: [
+            {
+              type: 'corvette',
+              position: { q: -99, r: -99 },
+              velocity: { dq: 0, dr: 0 },
+            },
+          ],
           targetBody: '',
           homeBody: '',
           escapeWins: true,
@@ -148,7 +171,9 @@ describe('createGame', () => {
       ],
     };
 
-    expect(() => createGame(invalidScenario, barrenMap, 'BADHEX', findBaseHex)).toThrow('No valid landed starting hex');
+    expect(() =>
+      createGame(invalidScenario, barrenMap, 'BADHEX', findBaseHex),
+    ).toThrow('No valid landed starting hex');
   });
 });
 
@@ -174,7 +199,13 @@ describe('processAstrogation', () => {
         burn: null,
       },
     ];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
 
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
@@ -194,7 +225,13 @@ describe('processAstrogation', () => {
         burn: 0, // E
       },
     ];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
 
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
@@ -213,7 +250,9 @@ describe('processAstrogation', () => {
     ship.position = { q: -8, r: -4 };
     ship.velocity = { dq: 0, dr: -1 };
 
-    const first = resolveAstrogationMovement(initialState, 0, [{ shipId: ship.id, burn: null }]);
+    const first = resolveAstrogationMovement(initialState, 0, [
+      { shipId: ship.id, burn: null },
+    ]);
     const afterFirstMove = first.state.ships.find((s) => s.id === ship.id)!;
     expect(afterFirstMove.position).toEqual({ q: -8, r: -5 });
     expect(afterFirstMove.pendingGravityEffects).toHaveLength(1);
@@ -222,7 +261,9 @@ describe('processAstrogation', () => {
     first.state.phase = 'astrogation';
     first.state.activePlayer = 0;
 
-    const second = resolveAstrogationMovement(first.state, 0, [{ shipId: ship.id, burn: null }]);
+    const second = resolveAstrogationMovement(first.state, 0, [
+      { shipId: ship.id, burn: null },
+    ]);
     const afterSecondMove = second.state.ships.find((s) => s.id === ship.id)!;
     expect(afterSecondMove.position).toEqual({ q: -9, r: -6 });
   });
@@ -233,13 +274,24 @@ describe('processAstrogation', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const state = createGame(SCENARIOS.biplanetary, hazardMap, 'AST01', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      hazardMap,
+      'AST01',
+      findBaseHex,
+    );
     const ship = state.ships[0];
     ship.landed = false;
     ship.position = { q: -1, r: 0 };
     ship.velocity = { dq: 2, dr: 0 };
 
-    const first = processAstrogation(state, 0, [{ shipId: ship.id, burn: null }], hazardMap, Math.random);
+    const first = processAstrogation(
+      state,
+      0,
+      [{ shipId: ship.id, burn: null }],
+      hazardMap,
+      Math.random,
+    );
     expect('error' in first).toBe(false);
     if ('error' in first) return;
     let movement: MovementResult;
@@ -251,11 +303,18 @@ describe('processAstrogation', () => {
       movement = expectMovement(skipped);
     }
 
-    expect(movement.events.filter((e) => e.type === 'asteroidHit')).toHaveLength(0);
+    expect(
+      movement.events.filter((e) => e.type === 'asteroidHit'),
+    ).toHaveLength(0);
     expect(movement.state.pendingAsteroidHazards).toHaveLength(1);
     expect(movement.state.phase).toBe('combat');
 
-    const combatStart = beginCombatPhase(movement.state, 0, hazardMap, () => 0.5);
+    const combatStart = beginCombatPhase(
+      movement.state,
+      0,
+      hazardMap,
+      () => 0.5,
+    );
     expect('error' in combatStart).toBe(false);
     if ('error' in combatStart || !('results' in combatStart)) return;
 
@@ -270,13 +329,24 @@ describe('processAstrogation', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const state = createGame(SCENARIOS.biplanetary, edgeMap, 'ASTEDGE0', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      edgeMap,
+      'ASTEDGE0',
+      findBaseHex,
+    );
     const ship = state.ships[0];
     ship.landed = false;
     ship.position = { q: 0, r: 0 };
     ship.velocity = { dq: 2, dr: -1 };
 
-    const result = processAstrogation(state, 0, [{ shipId: ship.id, burn: null }], edgeMap, Math.random);
+    const result = processAstrogation(
+      state,
+      0,
+      [{ shipId: ship.id, burn: null }],
+      edgeMap,
+      Math.random,
+    );
     expect('error' in result).toBe(false);
     if ('error' in result) return;
     let movement: MovementResult;
@@ -300,13 +370,24 @@ describe('processAstrogation', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const state = createGame(SCENARIOS.biplanetary, edgeMap, 'ASTEDGE1', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      edgeMap,
+      'ASTEDGE1',
+      findBaseHex,
+    );
     const ship = state.ships[0];
     ship.landed = false;
     ship.position = { q: 0, r: 0 };
     ship.velocity = { dq: 2, dr: -1 };
 
-    const result = processAstrogation(state, 0, [{ shipId: ship.id, burn: null }], edgeMap, Math.random);
+    const result = processAstrogation(
+      state,
+      0,
+      [{ shipId: ship.id, burn: null }],
+      edgeMap,
+      Math.random,
+    );
     expect('error' in result).toBe(false);
     if ('error' in result) return;
     let movement: MovementResult;
@@ -328,7 +409,13 @@ describe('processAstrogation', () => {
         burn: 7, // invalid
       },
     ];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
     expect('error' in result).toBe(true);
   });
 
@@ -345,7 +432,13 @@ describe('processAstrogation', () => {
         overload: 1, // NE
       },
     ];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
 
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
@@ -367,7 +460,13 @@ describe('processAstrogation', () => {
         overload: 7, // invalid
       },
     ];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
     expect('error' in result).toBe(true);
   });
 
@@ -382,7 +481,13 @@ describe('processAstrogation', () => {
     ship1.position = { q: 2, r: 0 };
     ship1.velocity = { dq: 0, dr: 0 };
 
-    const result = processAstrogation(initialState, 0, [{ shipId: ship0.id, burn: null }], openMap, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      [{ shipId: ship0.id, burn: null }],
+      openMap,
+      Math.random,
+    );
     expect('error' in result).toBe(false);
     if ('error' in result || !('movements' in result)) return;
 
@@ -397,7 +502,13 @@ describe('processAstrogation', () => {
     ship.position = { q: 15, r: 0 };
     ship.velocity = { dq: 1, dr: 0 };
 
-    const result = processAstrogation(escapeState, 0, [{ shipId: ship.id, burn: null }], map, Math.random);
+    const result = processAstrogation(
+      escapeState,
+      0,
+      [{ shipId: ship.id, burn: null }],
+      map,
+      Math.random,
+    );
     expect('error' in result).toBe(false);
     if ('error' in result || 'movements' in result) return;
 
@@ -417,7 +528,13 @@ describe('processAstrogation', () => {
     ship1.position = { q: 2, r: 0 };
     ship1.velocity = { dq: 0, dr: 0 };
 
-    const result = processAstrogation(initialState, 0, [{ shipId: ship0.id, burn: null }], openMap, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      [{ shipId: ship0.id, burn: null }],
+      openMap,
+      Math.random,
+    );
     if ('error' in result) return;
 
     // Skip combat to advance turn
@@ -444,7 +561,13 @@ describe('processAstrogation', () => {
         burn: null,
       },
     ];
-    const result0 = processAstrogation(initialState, 0, orders0, openMap, Math.random);
+    const result0 = processAstrogation(
+      initialState,
+      0,
+      orders0,
+      openMap,
+      Math.random,
+    );
     expect('error' in result0).toBe(false);
     if ('error' in result0) return;
 
@@ -461,7 +584,13 @@ describe('processAstrogation', () => {
         burn: null,
       },
     ];
-    const result1 = processAstrogation(skip0.state, 1, orders1, openMap, Math.random);
+    const result1 = processAstrogation(
+      skip0.state,
+      1,
+      orders1,
+      openMap,
+      Math.random,
+    );
     expect('error' in result1).toBe(false);
     if ('error' in result1) return;
 
@@ -479,7 +608,13 @@ describe('resupply on landing', () => {
     // Take off first (uses 1 fuel)
     const ship = initialState.ships[0];
     const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: 0 }];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
 
     if ('error' in result) return;
 
@@ -506,8 +641,16 @@ describe('resupply on landing', () => {
     result.state.activePlayer = 0;
     result.state.phase = 'astrogation';
 
-    const landingOrders: AstrogationOrder[] = [{ shipId: movedShip.id, burn: 0 }];
-    const landResult = processAstrogation(result.state, 0, landingOrders, map, Math.random);
+    const landingOrders: AstrogationOrder[] = [
+      { shipId: movedShip.id, burn: 0 },
+    ];
+    const landResult = processAstrogation(
+      result.state,
+      0,
+      landingOrders,
+      map,
+      Math.random,
+    );
 
     if ('error' in landResult) return;
 
@@ -521,7 +664,13 @@ describe('resupply on landing', () => {
   it('does not resupply when landing at an unowned base', () => {
     const ship = initialState.ships[0];
     const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: 0 }];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
 
     if ('error' in result) return;
 
@@ -546,7 +695,13 @@ describe('resupply on landing', () => {
     result.state.activePlayer = 0;
     result.state.phase = 'astrogation';
 
-    const landResult = processAstrogation(result.state, 0, [{ shipId: movedShip.id, burn: 0 }], map, Math.random);
+    const landResult = processAstrogation(
+      result.state,
+      0,
+      [{ shipId: movedShip.id, burn: 0 }],
+      map,
+      Math.random,
+    );
     if ('error' in landResult) return;
 
     const landedShip = landResult.state.ships[0];
@@ -574,7 +729,13 @@ describe('victory conditions', () => {
     ];
 
     const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: 0 }];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
 
     if ('error' in result) return;
 
@@ -656,7 +817,9 @@ describe('Escape scenario', () => {
     // Enforcer makes a move — checkGameEnd should trigger (fugitive destroyed)
     const enforcerShip = escapeState.ships.find((s) => s.owner === 1)!;
     escapeState.activePlayer = 1;
-    const orders: AstrogationOrder[] = [{ shipId: enforcerShip.id, burn: null }];
+    const orders: AstrogationOrder[] = [
+      { shipId: enforcerShip.id, burn: null },
+    ];
     const result = processAstrogation(escapeState, 1, orders, map, Math.random);
     if ('error' in result) return;
 
@@ -692,13 +855,27 @@ describe('ordnance system', () => {
 
     // Advance to ordnance phase
     const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: null }];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
     if ('error' in result) return;
 
     // If ordnance phase was entered
     if (result.state.phase === 'ordnance') {
-      const launches: OrdnanceLaunch[] = [{ shipId: ship.id, ordnanceType: 'mine' }];
-      const ordResult = processOrdnance(result.state, 0, launches, map, Math.random);
+      const launches: OrdnanceLaunch[] = [
+        { shipId: ship.id, ordnanceType: 'mine' },
+      ];
+      const ordResult = processOrdnance(
+        result.state,
+        0,
+        launches,
+        map,
+        Math.random,
+      );
       expect('error' in ordResult).toBe(false);
       if (!('error' in ordResult)) {
         // Mine should exist
@@ -741,10 +918,18 @@ describe('ordnance system', () => {
       },
     ];
 
-    const result = processOrdnance(state, 0, [{ shipId: ship.id, ordnanceType: 'mine' }], map, Math.random);
+    const result = processOrdnance(
+      state,
+      0,
+      [{ shipId: ship.id, ordnanceType: 'mine' }],
+      map,
+      Math.random,
+    );
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
-      expect(result.ordnanceMovements.some((move) => move.ordnanceId === 'ord4')).toBe(true);
+      expect(
+        result.ordnanceMovements.some((move) => move.ordnanceId === 'ord4'),
+      ).toBe(true);
     }
   });
 
@@ -753,21 +938,36 @@ describe('ordnance system', () => {
     // Ship is landed, force ordnance phase
     initialState.phase = 'ordnance';
 
-    const launches: OrdnanceLaunch[] = [{ shipId: ship.id, ordnanceType: 'mine' }];
+    const launches: OrdnanceLaunch[] = [
+      { shipId: ship.id, ordnanceType: 'mine' },
+    ];
     const result = processOrdnance(initialState, 0, launches, map, Math.random);
     expect('error' in result).toBe(true);
   });
 
   it('rejects torpedo from non-warship', () => {
-    const blockadeState = createGame(SCENARIOS.blockade, map, 'ORD01', findBaseHex);
+    const blockadeState = createGame(
+      SCENARIOS.blockade,
+      map,
+      'ORD01',
+      findBaseHex,
+    );
     const transport = blockadeState.ships.find((s) => s.type === 'packet')!;
     transport.landed = false;
     transport.velocity = { dq: 1, dr: 0 };
     blockadeState.phase = 'ordnance';
     blockadeState.activePlayer = 0;
 
-    const launches: OrdnanceLaunch[] = [{ shipId: transport.id, ordnanceType: 'torpedo' }];
-    const result = processOrdnance(blockadeState, 0, launches, map, Math.random);
+    const launches: OrdnanceLaunch[] = [
+      { shipId: transport.id, ordnanceType: 'torpedo' },
+    ];
+    const result = processOrdnance(
+      blockadeState,
+      0,
+      launches,
+      map,
+      Math.random,
+    );
     expect('error' in result).toBe(true);
     if ('error' in result) {
       expect(result.error).toContain('warship');
@@ -782,7 +982,9 @@ describe('ordnance system', () => {
     ship.cargoUsed = 5; // all cargo used
     initialState.phase = 'ordnance';
 
-    const launches: OrdnanceLaunch[] = [{ shipId: ship.id, ordnanceType: 'mine' }];
+    const launches: OrdnanceLaunch[] = [
+      { shipId: ship.id, ordnanceType: 'mine' },
+    ];
     const result = processOrdnance(initialState, 0, launches, map, Math.random);
     expect('error' in result).toBe(true);
     if ('error' in result) {
@@ -820,7 +1022,13 @@ describe('ordnance system', () => {
     ship.position = { q: 5, r: 5 };
 
     const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: null }];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
     if ('error' in result) return;
 
     // Ordnance should have been removed (self-destructed)
@@ -841,7 +1049,12 @@ describe('ordnance system', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const state = createGame(SCENARIOS.biplanetary, gravityMap, 'ORDGR', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      gravityMap,
+      'ORDGR',
+      findBaseHex,
+    );
 
     state.ordnance = [
       {
@@ -861,14 +1074,25 @@ describe('ordnance system', () => {
     ship.velocity = { dq: 0, dr: 0 };
     ship.position = { q: 20, r: 20 };
 
-    const firstResult = processAstrogation(state, 0, [{ shipId: ship.id, burn: null }], gravityMap, Math.random);
+    const firstResult = processAstrogation(
+      state,
+      0,
+      [{ shipId: ship.id, burn: null }],
+      gravityMap,
+      Math.random,
+    );
     expect('error' in firstResult).toBe(false);
     if ('error' in firstResult) return;
     let first: MovementResult;
     if ('movements' in firstResult) {
       first = firstResult;
     } else {
-      const skipped = skipOrdnance(firstResult.state, 0, gravityMap, Math.random);
+      const skipped = skipOrdnance(
+        firstResult.state,
+        0,
+        gravityMap,
+        Math.random,
+      );
       if ('error' in skipped) throw new Error(skipped.error);
       first = expectMovement(skipped);
     }
@@ -879,14 +1103,25 @@ describe('ordnance system', () => {
     first.state.phase = 'astrogation';
     first.state.activePlayer = 0;
 
-    const secondResult = processAstrogation(first.state, 0, [{ shipId: ship.id, burn: null }], gravityMap, Math.random);
+    const secondResult = processAstrogation(
+      first.state,
+      0,
+      [{ shipId: ship.id, burn: null }],
+      gravityMap,
+      Math.random,
+    );
     expect('error' in secondResult).toBe(false);
     if ('error' in secondResult) return;
     let second: MovementResult;
     if ('movements' in secondResult) {
       second = secondResult;
     } else {
-      const skipped = skipOrdnance(secondResult.state, 0, gravityMap, Math.random);
+      const skipped = skipOrdnance(
+        secondResult.state,
+        0,
+        gravityMap,
+        Math.random,
+      );
       if ('error' in skipped) throw new Error(skipped.error);
       second = expectMovement(skipped);
     }
@@ -927,7 +1162,9 @@ describe('ordnance system', () => {
     expect('error' in result).toBe(false);
     if ('error' in result) return;
 
-    const hits = result.events.filter((e) => e.type === 'torpedoHit' && e.shipId === 'friendly-target');
+    const hits = result.events.filter(
+      (e) => e.type === 'torpedoHit' && e.shipId === 'friendly-target',
+    );
     expect(hits).toHaveLength(1);
   });
 
@@ -960,7 +1197,9 @@ describe('ordnance system', () => {
   });
 
   it('torpedoes detonate when entering asteroid hexes', () => {
-    const asteroidKey = Array.from(map.hexes.entries()).find(([, hex]) => hex.terrain === 'asteroid')?.[0];
+    const asteroidKey = Array.from(map.hexes.entries()).find(
+      ([, hex]) => hex.terrain === 'asteroid',
+    )?.[0];
     expect(asteroidKey).toBeTruthy();
     if (!asteroidKey) return;
 
@@ -993,7 +1232,9 @@ describe('ordnance system', () => {
   });
 
   it('tracks asteroid destruction in game state without mutating the map', () => {
-    const asteroidKey = Array.from(map.hexes.entries()).find(([, hex]) => hex.terrain === 'asteroid')?.[0];
+    const asteroidKey = Array.from(map.hexes.entries()).find(
+      ([, hex]) => hex.terrain === 'asteroid',
+    )?.[0];
     expect(asteroidKey).toBeTruthy();
     if (!asteroidKey) return;
 
@@ -1005,7 +1246,13 @@ describe('ordnance system', () => {
     ship.type = 'frigate';
     initialState.phase = 'ordnance';
 
-    const result = processOrdnance(initialState, 0, [{ shipId: ship.id, ordnanceType: 'nuke' }], map, Math.random);
+    const result = processOrdnance(
+      initialState,
+      0,
+      [{ shipId: ship.id, ordnanceType: 'nuke' }],
+      map,
+      Math.random,
+    );
     expect('error' in result).toBe(false);
     if ('error' in result) return;
 
@@ -1034,7 +1281,13 @@ describe('detection / fog of war', () => {
     ship1.detected = false; // pretend undetected
 
     const orders: AstrogationOrder[] = [{ shipId: ship0.id, burn: null }];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
     if ('error' in result) return;
 
     // Ship1 should be detected (within range 3 of ship0)
@@ -1054,7 +1307,13 @@ describe('detection / fog of war', () => {
     ship1.detected = false; // start undetected
 
     const orders: AstrogationOrder[] = [{ shipId: ship0.id, burn: null }];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
     if ('error' in result) return;
 
     const detectedShip = result.state.ships.find((s) => s.id === ship1.id)!;
@@ -1073,7 +1332,13 @@ describe('detection / fog of war', () => {
     ship1.detected = true; // already detected
 
     const orders: AstrogationOrder[] = [{ shipId: ship0.id, burn: null }];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
     if ('error' in result) return;
 
     // Should stay detected (persistent)
@@ -1119,7 +1384,10 @@ describe('base defense fire', () => {
           damage: { disabledTurns: 0 },
         },
       ],
-      players: [{ bases: [hexKey(marsBase)] }, { bases: [hexKey(findBaseHex(map, 'Venus')!)] }],
+      players: [
+        { bases: [hexKey(marsBase)] },
+        { bases: [hexKey(findBaseHex(map, 'Venus')!)] },
+      ],
     };
 
     // Fixed RNG for deterministic result
@@ -1153,7 +1421,10 @@ describe('base defense fire', () => {
           damage: { disabledTurns: 0 },
         },
       ],
-      players: [{ bases: [hexKey(marsBase)] }, { bases: [hexKey(findBaseHex(map, 'Venus')!)] }],
+      players: [
+        { bases: [hexKey(marsBase)] },
+        { bases: [hexKey(findBaseHex(map, 'Venus')!)] },
+      ],
     };
 
     const results = resolveBaseDefense(state, 0, map, Math.random);
@@ -1193,7 +1464,10 @@ describe('base defense fire', () => {
             damage: { disabledTurns: 0 },
           },
         ],
-        players: [{ bases: [hexKey(findBaseHex(map, 'Mars')!)] }, { bases: [hexKey(findBaseHex(map, 'Venus')!)] }],
+        players: [
+          { bases: [hexKey(findBaseHex(map, 'Mars')!)] },
+          { bases: [hexKey(findBaseHex(map, 'Venus')!)] },
+        ],
       },
       0,
       map,
@@ -1204,7 +1478,9 @@ describe('base defense fire', () => {
   });
 
   it('only fires from the owned base when both players share a world', () => {
-    const [westBase, eastBase] = findBaseHexes(map, 'Mercury').sort((a, b) => a.q - b.q);
+    const [westBase, eastBase] = findBaseHexes(map, 'Mercury').sort(
+      (a, b) => a.q - b.q,
+    );
     const defenseState = {
       ships: [
         {
@@ -1250,7 +1526,10 @@ describe('base defense fire', () => {
         },
       ] as Ordnance[],
       destroyedBases: [],
-      players: [{ bases: [hexKey(marsBase)] }, { bases: [hexKey(findBaseHex(map, 'Venus')!)] }],
+      players: [
+        { bases: [hexKey(marsBase)] },
+        { bases: [hexKey(findBaseHex(map, 'Venus')!)] },
+      ],
     };
 
     const results = resolveBaseDefense(state, 0, map, () => 0.99);
@@ -1277,7 +1556,13 @@ describe('ramming', () => {
 
     // Both heading toward q:6, r:5
     const orders: AstrogationOrder[] = [{ shipId: ship0.id, burn: null }];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
     if ('error' in result) return;
     const movement = expectMovement(result);
 
@@ -1302,7 +1587,9 @@ describe('nuke ordnance', () => {
     ship.position = { q: 15, r: 0 };
     initialState.phase = 'ordnance';
 
-    const launches: OrdnanceLaunch[] = [{ shipId: ship.id, ordnanceType: 'nuke' }];
+    const launches: OrdnanceLaunch[] = [
+      { shipId: ship.id, ordnanceType: 'nuke' },
+    ];
     const result = processOrdnance(initialState, 0, launches, map, Math.random);
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
@@ -1321,7 +1608,9 @@ describe('nuke ordnance', () => {
     transport.velocity = { dq: 1, dr: 0 };
     escState.phase = 'ordnance';
 
-    const launches: OrdnanceLaunch[] = [{ shipId: transport.id, ordnanceType: 'nuke' }];
+    const launches: OrdnanceLaunch[] = [
+      { shipId: transport.id, ordnanceType: 'nuke' },
+    ];
     const result = processOrdnance(escState, 0, launches, map, Math.random);
     expect('error' in result).toBe(false);
     if ('error' in result) return;
@@ -1335,14 +1624,26 @@ describe('nuke ordnance', () => {
     transport.velocity = { dq: 1, dr: 0 };
     escState.phase = 'ordnance';
 
-    const first = processOrdnance(escState, 0, [{ shipId: transport.id, ordnanceType: 'nuke' }], map, Math.random);
+    const first = processOrdnance(
+      escState,
+      0,
+      [{ shipId: transport.id, ordnanceType: 'nuke' }],
+      map,
+      Math.random,
+    );
     expect('error' in first).toBe(false);
     if ('error' in first) return;
 
     first.state.phase = 'ordnance';
     first.state.activePlayer = 0;
 
-    const second = processOrdnance(first.state, 0, [{ shipId: transport.id, ordnanceType: 'nuke' }], map, Math.random);
+    const second = processOrdnance(
+      first.state,
+      0,
+      [{ shipId: transport.id, ordnanceType: 'nuke' }],
+      map,
+      Math.random,
+    );
     expect('error' in second).toBe(true);
     if ('error' in second) {
       expect(second.error).toContain('one nuke');
@@ -1358,7 +1659,13 @@ describe('nuke ordnance', () => {
     ship.velocity = { dq: 1, dr: 0 };
     initialState.phase = 'ordnance';
 
-    const result = processOrdnance(initialState, 0, [{ shipId: ship.id, ordnanceType: 'nuke' }], map, Math.random);
+    const result = processOrdnance(
+      initialState,
+      0,
+      [{ shipId: ship.id, ordnanceType: 'nuke' }],
+      map,
+      Math.random,
+    );
     expect('error' in result).toBe(false);
     if ('error' in result) return;
 
@@ -1403,7 +1710,10 @@ describe('nuke ordnance', () => {
         ],
         ordnance: [],
         destroyedBases: result.state.destroyedBases,
-        players: [{ bases: [destroyedMarsBaseKey] }, { bases: [hexKey(findBaseHex(map, 'Venus')!)] }],
+        players: [
+          { bases: [destroyedMarsBaseKey] },
+          { bases: [hexKey(findBaseHex(map, 'Venus')!)] },
+        ],
       },
       0,
       map,
@@ -1440,8 +1750,12 @@ describe('ordnance validation', () => {
     fleetState.phase = 'combat';
     fleetState.activePlayer = 0;
 
-    const attacker = fleetState.ships.find((s) => s.owner === 0 && s.type === 'frigate')!;
-    const ally = fleetState.ships.find((s) => s.owner === 0 && s.id !== attacker.id)!;
+    const attacker = fleetState.ships.find(
+      (s) => s.owner === 0 && s.type === 'frigate',
+    )!;
+    const ally = fleetState.ships.find(
+      (s) => s.owner === 0 && s.id !== attacker.id,
+    )!;
     const enemyA = fleetState.ships.find((s) => s.owner === 1)!;
     const enemyB = fleetState.ships.filter((s) => s.owner === 1)[1]!;
 
@@ -1480,7 +1794,9 @@ describe('ordnance validation', () => {
     fleetState.phase = 'combat';
     fleetState.activePlayer = 0;
 
-    const attacker = fleetState.ships.find((s) => s.owner === 0 && s.type === 'frigate')!;
+    const attacker = fleetState.ships.find(
+      (s) => s.owner === 0 && s.type === 'frigate',
+    )!;
     const enemyShips = fleetState.ships.filter((s) => s.owner === 1);
     const [enemyA, enemyB] = enemyShips;
 
@@ -1563,12 +1879,26 @@ describe('ordnance validation', () => {
     target.lastMovementPath = [{ q: 2, r: 0 }];
 
     const losMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'planetSurface', body: { name: 'Blocker', destructive: false } }]]),
+      hexes: new Map([
+        [
+          '1,0',
+          {
+            terrain: 'planetSurface',
+            body: { name: 'Blocker', destructive: false },
+          },
+        ],
+      ]),
       bodies: [],
       bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
     };
 
-    const result = processCombat(state, 0, [{ attackerIds: [attacker.id], targetId: target.id }], losMap, Math.random);
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: [attacker.id], targetId: target.id }],
+      losMap,
+      Math.random,
+    );
 
     expect('error' in result).toBe(true);
     if ('error' in result) {
@@ -1577,7 +1907,12 @@ describe('ordnance validation', () => {
   });
 
   it('rejects landed ships as attackers', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'ATK04', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'ATK04',
+      findBaseHex,
+    );
     state.phase = 'combat';
     state.activePlayer = 0;
 
@@ -1590,7 +1925,13 @@ describe('ordnance validation', () => {
     target.position = { q: 1, r: 0 };
     target.lastMovementPath = [{ q: 1, r: 0 }];
 
-    const result = processCombat(state, 0, [{ attackerIds: [attacker.id], targetId: target.id }], openMap, Math.random);
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: [attacker.id], targetId: target.id }],
+      openMap,
+      Math.random,
+    );
 
     expect('error' in result).toBe(true);
     if ('error' in result) {
@@ -1599,7 +1940,12 @@ describe('ordnance validation', () => {
   });
 
   it('rejects declared attack strength above the selected ships total', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'ATK04B', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'ATK04B',
+      findBaseHex,
+    );
     state.phase = 'combat';
     state.activePlayer = 0;
 
@@ -1627,7 +1973,12 @@ describe('ordnance validation', () => {
   });
 
   it('uses declared reduced attack strength in combat resolution', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'ATK04C', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'ATK04C',
+      findBaseHex,
+    );
     state.phase = 'combat';
     state.activePlayer = 0;
 
@@ -1656,7 +2007,12 @@ describe('ordnance validation', () => {
   });
 
   it('allows combat attacks against enemy nukes', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'ATK05', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'ATK05',
+      findBaseHex,
+    );
     state.phase = 'combat';
     state.activePlayer = 0;
 
@@ -1680,7 +2036,13 @@ describe('ordnance validation', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: [attacker.id], targetId: 'enemy-nuke', targetType: 'ordnance' }],
+      [
+        {
+          attackerIds: [attacker.id],
+          targetId: 'enemy-nuke',
+          targetType: 'ordnance',
+        },
+      ],
       openMap,
       () => 0.8,
     );
@@ -1692,7 +2054,9 @@ describe('ordnance validation', () => {
     expect(result.results[0].attackType).toBe('antiNuke');
     expect(result.results[0].targetType).toBe('ordnance');
     expect(result.results[0].damageType).toBe('eliminated');
-    expect(result.state.ordnance.find((o) => o.id === 'enemy-nuke')).toBeUndefined();
+    expect(
+      result.state.ordnance.find((o) => o.id === 'enemy-nuke'),
+    ).toBeUndefined();
   });
 });
 
@@ -1709,7 +2073,13 @@ describe('mutual destruction', () => {
     const orders: AstrogationOrder[] = initialState.ships
       .filter((s) => s.owner === 0)
       .map((s) => ({ shipId: s.id, burn: null }));
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
     if (!('error' in result)) {
       expect(result.state.phase).toBe('gameOver');
       // Defender (player 1) should win since active player (0) was the attacker
@@ -1782,7 +2152,13 @@ describe('Edge cases', () => {
     const orders: AstrogationOrder[] = initialState.ships
       .filter((s) => s.owner === 0)
       .map((s) => ({ shipId: s.id, burn: null }));
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
     expect('error' in result).toBe(false);
   });
 
@@ -1803,7 +2179,13 @@ describe('Edge cases', () => {
     const orders: AstrogationOrder[] = initialState.ships
       .filter((s) => s.owner === 1)
       .map((s) => ({ shipId: s.id, burn: null }));
-    const result = processAstrogation(initialState, 1, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      1,
+      orders,
+      map,
+      Math.random,
+    );
     expect('error' in result).toBe(true);
   });
 
@@ -1811,12 +2193,23 @@ describe('Edge cases', () => {
     const ship = initialState.ships[0];
     ship.destroyed = true;
     const orders: AstrogationOrder[] = [];
-    const result = processAstrogation(initialState, 0, orders, map, Math.random);
+    const result = processAstrogation(
+      initialState,
+      0,
+      orders,
+      map,
+      Math.random,
+    );
     expect('error' in result).toBe(false);
   });
 
   it('fleet action ends when one side is eliminated', () => {
-    const fleetState = createGame(SCENARIOS.fleetAction, map, 'FLT02', findBaseHex);
+    const fleetState = createGame(
+      SCENARIOS.fleetAction,
+      map,
+      'FLT02',
+      findBaseHex,
+    );
     // Destroy all of player 1's ships
     for (const s of fleetState.ships.filter((s) => s.owner === 1)) {
       s.destroyed = true;
@@ -1835,7 +2228,12 @@ describe('Edge cases', () => {
   });
 
   it('blockade runner wins by landing on Mars', () => {
-    const blockadeState = createGame(SCENARIOS.blockade, map, 'BLK02', findBaseHex);
+    const blockadeState = createGame(
+      SCENARIOS.blockade,
+      map,
+      'BLK02',
+      findBaseHex,
+    );
     blockadeState.activePlayer = 0;
     const runner = blockadeState.ships.find((s) => s.owner === 0)!;
     const marsBase = findBaseHex(map, 'Mars')!;
@@ -1865,7 +2263,12 @@ describe('Edge cases', () => {
 
 describe('landed ship immunity', () => {
   it('rejects gun combat attacks against landed ships', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'LAND01', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'LAND01',
+      findBaseHex,
+    );
     state.phase = 'combat';
     state.activePlayer = 0;
 
@@ -1878,7 +2281,13 @@ describe('landed ship immunity', () => {
     target.position = { q: 1, r: 0 };
     target.lastMovementPath = [{ q: 1, r: 0 }];
 
-    const result = processCombat(state, 0, [{ attackerIds: [attacker.id], targetId: target.id }], openMap, Math.random);
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: [attacker.id], targetId: target.id }],
+      openMap,
+      Math.random,
+    );
 
     expect('error' in result).toBe(true);
     if ('error' in result) {
@@ -1887,7 +2296,12 @@ describe('landed ship immunity', () => {
   });
 
   it('landed ships are immune to mines', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'LAND02', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'LAND02',
+      findBaseHex,
+    );
     state.activePlayer = 0;
 
     const target = state.ships[1];
@@ -1913,7 +2327,9 @@ describe('landed ship immunity', () => {
     attacker.lastMovementPath = [{ q: -10, r: 0 }];
     attacker.velocity = { dq: 0, dr: 0 };
 
-    const _result = resolveAstrogationMovement(state, 0, [{ shipId: attacker.id, burn: null }]);
+    const _result = resolveAstrogationMovement(state, 0, [
+      { shipId: attacker.id, burn: null },
+    ]);
 
     // Mine should not have hit the landed ship
     expect(target.destroyed).toBe(false);
@@ -1921,7 +2337,12 @@ describe('landed ship immunity', () => {
   });
 
   it('landed ships are NOT immune to nukes', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'LAND03', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'LAND03',
+      findBaseHex,
+    );
     state.activePlayer = 0;
 
     const target = state.ships[1];
@@ -1947,14 +2368,21 @@ describe('landed ship immunity', () => {
     attacker.lastMovementPath = [{ q: -10, r: 0 }];
     attacker.velocity = { dq: 0, dr: 0 };
 
-    const _result = resolveAstrogationMovement(state, 0, [{ shipId: attacker.id, burn: null }]);
+    const _result = resolveAstrogationMovement(state, 0, [
+      { shipId: attacker.id, burn: null },
+    ]);
 
     // Nuke should have destroyed the landed ship
     expect(target.destroyed).toBe(true);
   });
 
   it('landed ships are immune to ramming', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'LAND04', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'LAND04',
+      findBaseHex,
+    );
     state.phase = 'combat';
     state.activePlayer = 0;
 
@@ -1979,7 +2407,9 @@ describe('landed ship immunity', () => {
     attacker.position = { q: 4, r: 0 };
     attacker.lastMovementPath = [{ q: 4, r: 0 }];
 
-    const _result = resolveAstrogationMovement(state, 0, [{ shipId: attacker.id, burn: null }]);
+    const _result = resolveAstrogationMovement(state, 0, [
+      { shipId: attacker.id, burn: null },
+    ]);
 
     // Landed target should be immune to ramming
     expect(target.destroyed).toBe(false);
@@ -1991,7 +2421,12 @@ describe('landed ship immunity', () => {
 
 describe('resupply restrictions', () => {
   it('ships that resupply cannot attack in the same turn', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'RESUP01', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'RESUP01',
+      findBaseHex,
+    );
     state.phase = 'combat';
     state.activePlayer = 0;
 
@@ -2005,7 +2440,13 @@ describe('resupply restrictions', () => {
     target.position = { q: 1, r: 0 };
     target.lastMovementPath = [{ q: 1, r: 0 }];
 
-    const result = processCombat(state, 0, [{ attackerIds: [attacker.id], targetId: target.id }], openMap, Math.random);
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: [attacker.id], targetId: target.id }],
+      openMap,
+      Math.random,
+    );
 
     expect('error' in result).toBe(true);
     if ('error' in result) {
@@ -2014,7 +2455,12 @@ describe('resupply restrictions', () => {
   });
 
   it('ships that resupply cannot launch ordnance in the same turn', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'RESUP02', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'RESUP02',
+      findBaseHex,
+    );
     state.phase = 'ordnance';
     state.activePlayer = 0;
     state.pendingAstrogationOrders = [];
@@ -2024,7 +2470,13 @@ describe('resupply restrictions', () => {
     ship.resuppliedThisTurn = true;
     ship.position = { q: 0, r: 0 };
 
-    const result = processOrdnance(state, 0, [{ shipId: ship.id, ordnanceType: 'mine' }], openMap, Math.random);
+    const result = processOrdnance(
+      state,
+      0,
+      [{ shipId: ship.id, ordnanceType: 'mine' }],
+      openMap,
+      Math.random,
+    );
 
     expect('error' in result).toBe(true);
     if ('error' in result) {
@@ -2033,7 +2485,12 @@ describe('resupply restrictions', () => {
   });
 
   it('resupply flag is cleared on next turn', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'RESUP03', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'RESUP03',
+      findBaseHex,
+    );
     state.phase = 'combat';
     state.activePlayer = 0;
 
@@ -2049,7 +2506,12 @@ describe('resupply restrictions', () => {
 
 describe('mine launch restrictions', () => {
   it('rejects mine launch when ship has no burn committed', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'MINE01', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'MINE01',
+      findBaseHex,
+    );
     state.phase = 'ordnance';
     state.activePlayer = 0;
 
@@ -2062,7 +2524,13 @@ describe('mine launch restrictions', () => {
     // Pending orders with no burn
     state.pendingAstrogationOrders = [{ shipId: ship.id, burn: null }];
 
-    const result = processOrdnance(state, 0, [{ shipId: ship.id, ordnanceType: 'mine' }], openMap, Math.random);
+    const result = processOrdnance(
+      state,
+      0,
+      [{ shipId: ship.id, ordnanceType: 'mine' }],
+      openMap,
+      Math.random,
+    );
 
     expect('error' in result).toBe(true);
     if ('error' in result) {
@@ -2071,7 +2539,12 @@ describe('mine launch restrictions', () => {
   });
 
   it('allows mine launch when ship has a burn committed', () => {
-    const state = createGame(SCENARIOS.biplanetary, openMap, 'MINE02', findBaseHex);
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      openMap,
+      'MINE02',
+      findBaseHex,
+    );
     state.phase = 'ordnance';
     state.activePlayer = 0;
 
@@ -2083,7 +2556,13 @@ describe('mine launch restrictions', () => {
 
     state.pendingAstrogationOrders = [{ shipId: ship.id, burn: 2 }];
 
-    const result = processOrdnance(state, 0, [{ shipId: ship.id, ordnanceType: 'mine' }], openMap, Math.random);
+    const result = processOrdnance(
+      state,
+      0,
+      [{ shipId: ship.id, ordnanceType: 'mine' }],
+      openMap,
+      Math.random,
+    );
 
     expect('error' in result).toBe(false);
   });
@@ -2137,7 +2616,9 @@ describe('nuke planetary devastation', () => {
     attacker.lastMovementPath = [{ q: -30, r: -30 }];
     attacker.velocity = { dq: 0, dr: 0 };
 
-    const _result = resolveAstrogationMovement(state, 0, [{ shipId: attacker.id, burn: null }]);
+    const _result = resolveAstrogationMovement(state, 0, [
+      { shipId: attacker.id, burn: null },
+    ]);
 
     // The nuke should have devastated the gravity hex, destroying the victim
     expect(victim.destroyed).toBe(true);
@@ -2181,7 +2662,9 @@ describe('hidden identity (Escape scenario)', () => {
     resolveAstrogationMovement(
       state,
       1,
-      state.ships.filter((s) => s.owner === 1).map((s) => ({ shipId: s.id, burn: null })),
+      state.ships
+        .filter((s) => s.owner === 1)
+        .map((s) => ({ shipId: s.id, burn: null })),
     );
 
     expect(fugitive.identityRevealed).toBe(true);
@@ -2195,7 +2678,9 @@ describe('hidden identity (Escape scenario)', () => {
     fugitive.velocity = { dq: 0, dr: -2 };
     state.activePlayer = 0;
 
-    const orders = state.ships.filter((s) => s.owner === 0).map((s) => ({ shipId: s.id, burn: null }));
+    const orders = state.ships
+      .filter((s) => s.owner === 0)
+      .map((s) => ({ shipId: s.id, burn: null }));
     const result = processAstrogation(state, 0, orders, map, Math.random);
     if ('error' in result) throw new Error(result.error);
 
@@ -2205,13 +2690,17 @@ describe('hidden identity (Escape scenario)', () => {
 
   it('non-fugitive ship escape does not trigger victory', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
-    const nonFugitive = state.ships.find((s) => s.owner === 0 && !s.hasFugitives)!;
+    const nonFugitive = state.ships.find(
+      (s) => s.owner === 0 && !s.hasFugitives,
+    )!;
     nonFugitive.landed = false;
     nonFugitive.position = { q: 0, r: map.bounds.minR - 5 };
     nonFugitive.velocity = { dq: 0, dr: -2 };
     state.activePlayer = 0;
 
-    const orders = state.ships.filter((s) => s.owner === 0).map((s) => ({ shipId: s.id, burn: null }));
+    const orders = state.ships
+      .filter((s) => s.owner === 0)
+      .map((s) => ({ shipId: s.id, burn: null }));
     const result = processAstrogation(state, 0, orders, map, Math.random);
     if ('error' in result) throw new Error(result.error);
 
@@ -2300,8 +2789,22 @@ describe('capture mechanics', () => {
       destroyedAsteroids: [],
       destroyedBases: [],
       players: [
-        { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
-        { connected: true, ready: true, targetBody: '', homeBody: 'Venus', bases: [], escapeWins: false },
+        {
+          connected: true,
+          ready: true,
+          targetBody: '',
+          homeBody: 'Mars',
+          bases: [],
+          escapeWins: false,
+        },
+        {
+          connected: true,
+          ready: true,
+          targetBody: '',
+          homeBody: 'Venus',
+          bases: [],
+          escapeWins: false,
+        },
       ],
       winner: null,
       winReason: null,
@@ -2314,7 +2817,13 @@ describe('capture mechanics', () => {
     state.ships[1].position = { q: 5, r: 0 };
     state.ships[1].velocity = { dq: 1, dr: 0 };
 
-    const result = processAstrogation(state, 0, [{ shipId: 'captor', burn: null }], openMap, Math.random);
+    const result = processAstrogation(
+      state,
+      0,
+      [{ shipId: 'captor', burn: null }],
+      openMap,
+      Math.random,
+    );
 
     if ('error' in result) throw new Error(result.error);
     const mr = 'movements' in result ? result : null;
@@ -2380,14 +2889,34 @@ describe('capture mechanics', () => {
       destroyedAsteroids: [],
       destroyedBases: [],
       players: [
-        { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
-        { connected: true, ready: true, targetBody: '', homeBody: 'Venus', bases: [], escapeWins: false },
+        {
+          connected: true,
+          ready: true,
+          targetBody: '',
+          homeBody: 'Mars',
+          bases: [],
+          escapeWins: false,
+        },
+        {
+          connected: true,
+          ready: true,
+          targetBody: '',
+          homeBody: 'Venus',
+          bases: [],
+          escapeWins: false,
+        },
       ],
       winner: null,
       winReason: null,
     };
 
-    const result = processAstrogation(state, 0, [{ shipId: 'captor', burn: null }], openMap, Math.random);
+    const result = processAstrogation(
+      state,
+      0,
+      [{ shipId: 'captor', burn: null }],
+      openMap,
+      Math.random,
+    );
 
     if ('error' in result) throw new Error(result.error);
     const target = result.state.ships.find((s) => s.id === 'target')!;
@@ -2442,14 +2971,34 @@ describe('capture mechanics', () => {
       destroyedAsteroids: [],
       destroyedBases: [],
       players: [
-        { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
-        { connected: true, ready: true, targetBody: '', homeBody: 'Venus', bases: [], escapeWins: false },
+        {
+          connected: true,
+          ready: true,
+          targetBody: '',
+          homeBody: 'Mars',
+          bases: [],
+          escapeWins: false,
+        },
+        {
+          connected: true,
+          ready: true,
+          targetBody: '',
+          homeBody: 'Venus',
+          bases: [],
+          escapeWins: false,
+        },
       ],
       winner: null,
       winReason: null,
     };
 
-    const result = processAstrogation(state, 0, [{ shipId: 'captor', burn: null }], openMap, Math.random);
+    const result = processAstrogation(
+      state,
+      0,
+      [{ shipId: 'captor', burn: null }],
+      openMap,
+      Math.random,
+    );
 
     if ('error' in result) throw new Error(result.error);
     const target = result.state.ships.find((s) => s.id === 'target')!;
@@ -2490,14 +3039,34 @@ describe('capture mechanics', () => {
       destroyedAsteroids: [],
       destroyedBases: [],
       players: [
-        { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
-        { connected: true, ready: true, targetBody: '', homeBody: 'Venus', bases: [], escapeWins: false },
+        {
+          connected: true,
+          ready: true,
+          targetBody: '',
+          homeBody: 'Mars',
+          bases: [],
+          escapeWins: false,
+        },
+        {
+          connected: true,
+          ready: true,
+          targetBody: '',
+          homeBody: 'Venus',
+          bases: [],
+          escapeWins: false,
+        },
       ],
       winner: null,
       winReason: null,
     };
 
-    const result = processOrdnance(state, 0, [{ shipId: 'captured', ordnanceType: 'mine' }], openMap, Math.random);
+    const result = processOrdnance(
+      state,
+      0,
+      [{ shipId: 'captured', ordnanceType: 'mine' }],
+      openMap,
+      Math.random,
+    );
 
     expect('error' in result).toBe(true);
     if ('error' in result) {
@@ -2508,7 +3077,12 @@ describe('capture mechanics', () => {
 
 describe('fleet building (MegaCredit economy)', () => {
   it('Interplanetary War scenario starts in fleetBuilding phase', () => {
-    const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
+    const state = createGame(
+      SCENARIOS.interplanetaryWar,
+      map,
+      'WAR01',
+      findBaseHex,
+    );
     expect(state.phase).toBe('fleetBuilding');
     expect(state.players[0].credits).toBe(900);
     expect(state.players[1].credits).toBe(800);
@@ -2520,7 +3094,12 @@ describe('fleet building (MegaCredit economy)', () => {
   });
 
   it('processFleetReady spawns purchased ships at bases', () => {
-    const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
+    const state = createGame(
+      SCENARIOS.interplanetaryWar,
+      map,
+      'WAR01',
+      findBaseHex,
+    );
     const result = processFleetReady(
       state,
       0,
@@ -2545,7 +3124,12 @@ describe('fleet building (MegaCredit economy)', () => {
   });
 
   it('transitions to astrogation when both players submit', () => {
-    const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
+    const state = createGame(
+      SCENARIOS.interplanetaryWar,
+      map,
+      'WAR01',
+      findBaseHex,
+    );
     const r1 = processFleetReady(state, 0, [{ shipType: 'corvette' }], map);
     if ('error' in r1) throw new Error(r1.error);
     const r2 = processFleetReady(r1.state, 1, [{ shipType: 'corsair' }], map);
@@ -2557,9 +3141,19 @@ describe('fleet building (MegaCredit economy)', () => {
   });
 
   it('rejects purchases exceeding credits', () => {
-    const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
+    const state = createGame(
+      SCENARIOS.interplanetaryWar,
+      map,
+      'WAR01',
+      findBaseHex,
+    );
     // Dreadnaught costs 600, torch costs 400 — total 1000 > 800
-    const result = processFleetReady(state, 0, [{ shipType: 'dreadnaught' }, { shipType: 'torch' }], map);
+    const result = processFleetReady(
+      state,
+      0,
+      [{ shipType: 'dreadnaught' }, { shipType: 'torch' }],
+      map,
+    );
     expect('error' in result).toBe(true);
     if ('error' in result) {
       expect(result.error).toContain('Not enough credits');
@@ -2567,14 +3161,34 @@ describe('fleet building (MegaCredit economy)', () => {
   });
 
   it('rejects unknown ship type', () => {
-    const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
-    const result = processFleetReady(state, 0, [{ shipType: 'battlecruiser' }], map);
+    const state = createGame(
+      SCENARIOS.interplanetaryWar,
+      map,
+      'WAR01',
+      findBaseHex,
+    );
+    const result = processFleetReady(
+      state,
+      0,
+      [{ shipType: 'battlecruiser' }],
+      map,
+    );
     expect('error' in result).toBe(true);
   });
 
   it('rejects direct orbital base purchase', () => {
-    const state = createGame(SCENARIOS.interplanetaryWar, map, 'WAR01', findBaseHex);
-    const result = processFleetReady(state, 0, [{ shipType: 'orbitalBase' }], map);
+    const state = createGame(
+      SCENARIOS.interplanetaryWar,
+      map,
+      'WAR01',
+      findBaseHex,
+    );
+    const result = processFleetReady(
+      state,
+      0,
+      [{ shipType: 'orbitalBase' }],
+      map,
+    );
     expect('error' in result).toBe(true);
   });
 
@@ -2624,9 +3238,16 @@ describe('Grand Tour', () => {
     const terraBaseKeys = findBaseHexes(map, 'Terra').map((h) => hexKey(h));
     const venusBaseKeys = findBaseHexes(map, 'Venus').map((h) => hexKey(h));
     const marsBaseKeys = findBaseHexes(map, 'Mars').map((h) => hexKey(h));
-    const callistoBaseKeys = findBaseHexes(map, 'Callisto').map((h) => hexKey(h));
+    const callistoBaseKeys = findBaseHexes(map, 'Callisto').map((h) =>
+      hexKey(h),
+    );
 
-    for (const key of [...terraBaseKeys, ...venusBaseKeys, ...marsBaseKeys, ...callistoBaseKeys]) {
+    for (const key of [
+      ...terraBaseKeys,
+      ...venusBaseKeys,
+      ...marsBaseKeys,
+      ...callistoBaseKeys,
+    ]) {
       expect(tourState.players[0].bases).toContain(key);
       expect(tourState.players[1].bases).toContain(key);
     }
@@ -2634,7 +3255,9 @@ describe('Grand Tour', () => {
 
   it('updates checkpoints when path crosses gravity hexes', () => {
     // Find a Mercury gravity hex
-    const mercuryGravityHex = [...map.hexes.entries()].find(([, hex]) => hex.gravity?.bodyName === 'Mercury');
+    const mercuryGravityHex = [...map.hexes.entries()].find(
+      ([, hex]) => hex.gravity?.bodyName === 'Mercury',
+    );
     expect(mercuryGravityHex).toBeDefined();
 
     const [keyStr] = mercuryGravityHex!;
@@ -2647,19 +3270,25 @@ describe('Grand Tour', () => {
   });
 
   it('does not duplicate visited bodies', () => {
-    const mercuryGravityHex = [...map.hexes.entries()].find(([, hex]) => hex.gravity?.bodyName === 'Mercury');
+    const mercuryGravityHex = [...map.hexes.entries()].find(
+      ([, hex]) => hex.gravity?.bodyName === 'Mercury',
+    );
     const [keyStr] = mercuryGravityHex!;
     const [q, r] = keyStr.split(',').map(Number);
 
     updateCheckpoints(tourState, 0, [{ q, r }], map);
     updateCheckpoints(tourState, 0, [{ q, r }], map);
-    const count = tourState.players[0].visitedBodies!.filter((b) => b === 'Mercury').length;
+    const count = tourState.players[0].visitedBodies!.filter(
+      (b) => b === 'Mercury',
+    ).length;
     expect(count).toBe(1);
   });
 
   it('wins when all checkpoints visited and landed at home', () => {
     // Mark all checkpoints as visited for player 0
-    tourState.players[0].visitedBodies = [...tourState.scenarioRules.checkpointBodies!];
+    tourState.players[0].visitedBodies = [
+      ...tourState.scenarioRules.checkpointBodies!,
+    ];
 
     // Land the ship at a Terra base
     const ship = tourState.ships.find((s) => s.owner === 0)!;
@@ -2693,7 +3322,9 @@ describe('Grand Tour', () => {
 
   it('does not win at wrong home body', () => {
     // All checkpoints visited but landed at Mars (not home for player 0)
-    tourState.players[0].visitedBodies = [...tourState.scenarioRules.checkpointBodies!];
+    tourState.players[0].visitedBodies = [
+      ...tourState.scenarioRules.checkpointBodies!,
+    ];
 
     const ship = tourState.ships.find((s) => s.owner === 0)!;
     const marsBase = findBaseHexes(map, 'Mars')[0];
@@ -2718,7 +3349,13 @@ describe('Grand Tour', () => {
     ship1.velocity = { dq: 0, dr: 0 };
 
     // Process a turn — should skip combat
-    const _result = processAstrogation(tourState, 0, [{ shipId: ship0.id, burn: null }], map, Math.random);
+    const _result = processAstrogation(
+      tourState,
+      0,
+      [{ shipId: ship0.id, burn: null }],
+      map,
+      Math.random,
+    );
     // After movement, phase should not be 'combat'
     expect(tourState.phase).not.toBe('combat');
   });

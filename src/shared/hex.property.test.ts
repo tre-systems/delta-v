@@ -22,10 +22,16 @@ import {
 // --- Arbitraries ---
 
 const arbCoord = (): fc.Arbitrary<HexCoord> =>
-  fc.record({ q: fc.integer({ min: -50, max: 50 }), r: fc.integer({ min: -50, max: 50 }) });
+  fc.record({
+    q: fc.integer({ min: -50, max: 50 }),
+    r: fc.integer({ min: -50, max: 50 }),
+  });
 
 const arbVec = (): fc.Arbitrary<HexVec> =>
-  fc.record({ dq: fc.integer({ min: -50, max: 50 }), dr: fc.integer({ min: -50, max: 50 }) });
+  fc.record({
+    dq: fc.integer({ min: -50, max: 50 }),
+    dr: fc.integer({ min: -50, max: 50 }),
+  });
 
 const arbDirection = () => fc.integer({ min: 0, max: 5 });
 
@@ -101,7 +107,9 @@ describe('hexDistance properties', () => {
   it('triangle inequality holds', () => {
     fc.assert(
       fc.property(arbCoord(), arbCoord(), arbCoord(), (a, b, c) => {
-        expect(hexDistance(a, c)).toBeLessThanOrEqual(hexDistance(a, b) + hexDistance(b, c));
+        expect(hexDistance(a, c)).toBeLessThanOrEqual(
+          hexDistance(a, b) + hexDistance(b, c),
+        );
       }),
     );
   });
@@ -117,7 +125,9 @@ describe('hexDistance properties', () => {
   it('hexVecLength equals distance from origin', () => {
     fc.assert(
       fc.property(arbVec(), (vec) => {
-        expect(hexVecLength(vec)).toBe(hexDistance({ q: 0, r: 0 }, { q: vec.dq, r: vec.dr }));
+        expect(hexVecLength(vec)).toBe(
+          hexDistance({ q: 0, r: 0 }, { q: vec.dq, r: vec.dr }),
+        );
       }),
     );
   });
@@ -243,19 +253,27 @@ describe('hexRing properties', () => {
 
   it('ring of radius r has exactly 6*r hexes', () => {
     fc.assert(
-      fc.property(arbCoord(), fc.integer({ min: 1, max: 10 }), (center, radius) => {
-        expect(hexRing(center, radius)).toHaveLength(6 * radius);
-      }),
+      fc.property(
+        arbCoord(),
+        fc.integer({ min: 1, max: 10 }),
+        (center, radius) => {
+          expect(hexRing(center, radius)).toHaveLength(6 * radius);
+        },
+      ),
     );
   });
 
   it('all hexes in ring are exactly distance r from center', () => {
     fc.assert(
-      fc.property(arbCoord(), fc.integer({ min: 1, max: 10 }), (center, radius) => {
-        for (const hex of hexRing(center, radius)) {
-          expect(hexDistance(center, hex)).toBe(radius);
-        }
-      }),
+      fc.property(
+        arbCoord(),
+        fc.integer({ min: 1, max: 10 }),
+        (center, radius) => {
+          for (const hex of hexRing(center, radius)) {
+            expect(hexDistance(center, hex)).toBe(radius);
+          }
+        },
+      ),
     );
   });
 });
@@ -263,11 +281,15 @@ describe('hexRing properties', () => {
 describe('pixel conversion roundtrip', () => {
   it('hexToPixel then pixelToHex returns the original hex', () => {
     fc.assert(
-      fc.property(arbCoord(), fc.double({ min: 5, max: 100, noNaN: true }), (coord, size) => {
-        const pixel = hexToPixel(coord, size);
-        const back = pixelToHex(pixel, size);
-        expect(hexEqual(back, coord)).toBe(true);
-      }),
+      fc.property(
+        arbCoord(),
+        fc.double({ min: 5, max: 100, noNaN: true }),
+        (coord, size) => {
+          const pixel = hexToPixel(coord, size);
+          const back = pixelToHex(pixel, size);
+          expect(hexEqual(back, coord)).toBe(true);
+        },
+      ),
     );
   });
 });

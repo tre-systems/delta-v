@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GameState, PlayerState, SolarSystemMap } from '../../shared/types';
+import type {
+  GameState,
+  PlayerState,
+  SolarSystemMap,
+} from '../../shared/types';
 import {
   buildAsteroidDebrisView,
   buildBaseMarkerView,
@@ -37,7 +41,10 @@ function createState(): GameState {
     pendingAsteroidHazards: [],
     destroyedAsteroids: [],
     destroyedBases: [],
-    players: [createPlayer({ bases: ['mars-base'] }), createPlayer({ bases: ['venus-base'] })],
+    players: [
+      createPlayer({ bases: ['mars-base'] }),
+      createPlayer({ bases: ['venus-base'] }),
+    ],
     winner: null,
     winReason: null,
   };
@@ -47,8 +54,20 @@ function createMap(): SolarSystemMap {
   return {
     hexes: new Map(),
     bodies: [
-      { name: 'Mars', center: { q: -1, r: -2 }, surfaceRadius: 0, color: '#cc4422', renderRadius: 0.7 },
-      { name: 'Venus', center: { q: 3, r: 4 }, surfaceRadius: 1, color: '#e8c87a', renderRadius: 1.2 },
+      {
+        name: 'Mars',
+        center: { q: -1, r: -2 },
+        surfaceRadius: 0,
+        color: '#cc4422',
+        renderRadius: 0.7,
+      },
+      {
+        name: 'Venus',
+        center: { q: 3, r: 4 },
+        surfaceRadius: 1,
+        color: '#e8c87a',
+        renderRadius: 1.2,
+      },
     ],
     bounds: { minQ: -10, maxQ: 10, minR: -8, maxR: 8 },
   };
@@ -113,16 +132,35 @@ describe('renderer map helpers', () => {
 
   it('builds landing objective views for escape and target-body play', () => {
     const map = createMap();
-    const escapeView = buildLandingObjectiveView(createPlayer({ escapeWins: true }), map, 1000, 28);
+    const escapeView = buildLandingObjectiveView(
+      createPlayer({ escapeWins: true }),
+      map,
+      1000,
+      28,
+    );
     expect(escapeView?.kind).toBe('escape');
-    expect(escapeView && escapeView.kind === 'escape' ? escapeView.markers : []).toHaveLength(4);
+    expect(
+      escapeView && escapeView.kind === 'escape' ? escapeView.markers : [],
+    ).toHaveLength(4);
 
-    const targetView = buildLandingObjectiveView(createPlayer({ targetBody: 'Mars' }), map, 1000, 28);
+    const targetView = buildLandingObjectiveView(
+      createPlayer({ targetBody: 'Mars' }),
+      map,
+      1000,
+      28,
+    );
     expect(targetView).toMatchObject({
       kind: 'targetBody',
       labelText: '▼ TARGET',
     });
 
-    expect(buildLandingObjectiveView(createPlayer({ targetBody: 'Pluto' }), map, 1000, 28)).toBeNull();
+    expect(
+      buildLandingObjectiveView(
+        createPlayer({ targetBody: 'Pluto' }),
+        map,
+        1000,
+        28,
+      ),
+    ).toBeNull();
   });
 });

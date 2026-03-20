@@ -19,9 +19,14 @@ export interface ClientStateEntryPlan {
   tutorialPhase: 'astrogation' | 'ordnance' | 'combat' | null;
 }
 
-const getUnambiguousOwnedShipId = (gameState: GameState | null, playerId: number): string | null => {
+const getUnambiguousOwnedShipId = (
+  gameState: GameState | null,
+  playerId: number,
+): string | null => {
   if (!gameState) return null;
-  const alive = gameState.ships.filter((ship) => ship.owner === playerId && !ship.destroyed);
+  const alive = gameState.ships.filter(
+    (ship) => ship.owner === playerId && !ship.destroyed,
+  );
   return alive.length === 1 ? alive[0].id : null;
 };
 
@@ -76,7 +81,10 @@ export const deriveClientStateEntryPlan = (
         updateHUD: true,
         frameOnShips: false,
         clearAstrogationPlanning: false,
-        selectedShipId: getUnambiguousLaunchableShipId(gameState ?? { ships: [] }, playerId),
+        selectedShipId: getUnambiguousLaunchableShipId(
+          gameState ?? { ships: [] },
+          playerId,
+        ),
         resetCombatState: false,
         clearAttackButton: false,
         startCombatTargetWatch: false,

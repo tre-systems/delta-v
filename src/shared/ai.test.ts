@@ -27,7 +27,9 @@ describe('aiAstrogation', () => {
   it('each order has a valid shipId belonging to the AI', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     const orders = aiAstrogation(state, 1, map);
-    const aiShipIds = new Set(state.ships.filter((s) => s.owner === 1).map((s) => s.id));
+    const aiShipIds = new Set(
+      state.ships.filter((s) => s.owner === 1).map((s) => s.id),
+    );
     for (const order of orders) {
       expect(aiShipIds.has(order.shipId)).toBe(true);
     }
@@ -289,7 +291,15 @@ describe('aiCombat', () => {
     enemyShip.landed = false;
 
     const blockedMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'planetSurface', body: { name: 'Blocker', destructive: false } }]]),
+      hexes: new Map([
+        [
+          '1,0',
+          {
+            terrain: 'planetSurface',
+            body: { name: 'Blocker', destructive: false },
+          },
+        ],
+      ]),
       bodies: [],
       bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
     };
@@ -314,7 +324,9 @@ describe('aiCombat', () => {
     pilgrim.velocity = { dq: 0, dr: 0 };
     pilgrim.landed = false;
     // Destroy other pilgrims
-    for (const s of state.ships.filter((s) => s.owner === 0 && s.id !== pilgrim.id)) {
+    for (const s of state.ships.filter(
+      (s) => s.owner === 0 && s.id !== pilgrim.id,
+    )) {
       s.destroyed = true;
     }
 
@@ -414,8 +426,17 @@ describe('AI scenario handling', () => {
   });
 
   it('AI handles all difficulty levels without errors', () => {
-    const difficulties: Array<'easy' | 'normal' | 'hard'> = ['easy', 'normal', 'hard'];
-    const scenarios = [SCENARIOS.biplanetary, SCENARIOS.escape, SCENARIOS.blockade, SCENARIOS.duel];
+    const difficulties: Array<'easy' | 'normal' | 'hard'> = [
+      'easy',
+      'normal',
+      'hard',
+    ];
+    const scenarios = [
+      SCENARIOS.biplanetary,
+      SCENARIOS.escape,
+      SCENARIOS.blockade,
+      SCENARIOS.duel,
+    ];
 
     for (const scenario of scenarios) {
       for (const diff of difficulties) {
@@ -513,7 +534,9 @@ describe('aiAstrogation — checkpoint race', () => {
     aiShip.fuel = 20;
 
     // Mark all checkpoints as visited
-    state.players[1].visitedBodies = [...(state.scenarioRules.checkpointBodies ?? [])];
+    state.players[1].visitedBodies = [
+      ...(state.scenarioRules.checkpointBodies ?? []),
+    ];
 
     const orders = aiAstrogation(state, 1, map, 'hard');
     // Should generate a valid order (navigating toward Mars, the home body)
@@ -648,15 +671,22 @@ describe('aiOrdnance — defensive mine-laying', () => {
     enforcer.velocity = { dq: 0, dr: -2 };
 
     // Pilgrim needs a pending burn order (mine rule requires burn)
-    state.pendingAstrogationOrders = [{ shipId: pilgrim.id, burn: 0, overload: null }];
+    state.pendingAstrogationOrders = [
+      { shipId: pilgrim.id, burn: 0, overload: null },
+    ];
 
     // Escape scenario only allows nukes, but let's test with mine allowed
     state.scenarioRules.allowedOrdnanceTypes = ['mine', 'nuke'];
 
     const launches = aiOrdnance(state, 0, map, 'normal');
     // Should attempt to drop a mine (transport has cargo=50, mine costs 10)
-    const mineLaunch = launches.find((l) => l.shipId === pilgrim.id && l.ordnanceType === 'mine');
-    if (SHIP_STATS[pilgrim.type].cargo - pilgrim.cargoUsed >= ORDNANCE_MASS.mine) {
+    const mineLaunch = launches.find(
+      (l) => l.shipId === pilgrim.id && l.ordnanceType === 'mine',
+    );
+    if (
+      SHIP_STATS[pilgrim.type].cargo - pilgrim.cargoUsed >=
+      ORDNANCE_MASS.mine
+    ) {
       expect(mineLaunch).toBeDefined();
     }
   });
@@ -676,7 +706,9 @@ describe('aiOrdnance — defensive mine-laying', () => {
     enforcer.landed = false;
     enforcer.position = { q: 0, r: -4 };
 
-    state.pendingAstrogationOrders = [{ shipId: pilgrim.id, burn: 0, overload: null }];
+    state.pendingAstrogationOrders = [
+      { shipId: pilgrim.id, burn: 0, overload: null },
+    ];
     state.scenarioRules.allowedOrdnanceTypes = ['mine', 'nuke'];
 
     // Mock Math.random to avoid the 30% early-return skip
@@ -726,7 +758,9 @@ describe('aiOrdnance — mine burn requirement', () => {
     enemy.landed = false;
     enemy.position = { q: 3, r: 0 };
 
-    state.pendingAstrogationOrders = [{ shipId: aiShip.id, burn: 2, overload: null }];
+    state.pendingAstrogationOrders = [
+      { shipId: aiShip.id, burn: 2, overload: null },
+    ];
 
     const launches = aiOrdnance(state, 1, map, 'normal');
     // Frigate has torpedo capability, so it may launch torpedo instead

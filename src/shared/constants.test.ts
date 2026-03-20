@@ -46,7 +46,13 @@ describe('SHIP_STATS', () => {
   });
 
   it('warships can overload', () => {
-    for (const type of ['corvette', 'corsair', 'frigate', 'dreadnaught', 'torch']) {
+    for (const type of [
+      'corvette',
+      'corsair',
+      'frigate',
+      'dreadnaught',
+      'torch',
+    ]) {
       expect(SHIP_STATS[type].canOverload, `${type} canOverload`).toBe(true);
     }
   });
@@ -66,7 +72,9 @@ describe('SHIP_STATS', () => {
   });
 
   it('warship combat strength scales with cost', () => {
-    const warships = ['corvette', 'corsair', 'frigate', 'dreadnaught'].map((t) => SHIP_STATS[t]);
+    const warships = ['corvette', 'corsair', 'frigate', 'dreadnaught'].map(
+      (t) => SHIP_STATS[t],
+    );
     for (let i = 1; i < warships.length; i++) {
       expect(warships[i].combat).toBeGreaterThan(warships[i - 1].combat);
       expect(warships[i].cost).toBeGreaterThan(warships[i - 1].cost);

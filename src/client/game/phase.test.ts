@@ -23,8 +23,22 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
 
 function createPlayers(): [PlayerState, PlayerState] {
   return [
-    { connected: true, ready: true, targetBody: '', homeBody: 'Terra', bases: [], escapeWins: false },
-    { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Terra',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
   ];
 }
 
@@ -52,7 +66,11 @@ function createState(overrides: Partial<GameState> = {}): GameState {
 
 describe('derivePhaseTransition', () => {
   it('logs and transitions into the local player astrogation turn', () => {
-    const state = createState({ phase: 'astrogation', activePlayer: 0, turnNumber: 3 });
+    const state = createState({
+      phase: 'astrogation',
+      activePlayer: 0,
+      turnNumber: 3,
+    });
 
     expect(derivePhaseTransition(state, 0, 2, false)).toEqual({
       nextState: 'playing_astrogation',

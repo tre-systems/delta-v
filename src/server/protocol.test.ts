@@ -28,7 +28,9 @@ describe('protocol helpers', () => {
   });
 
   it('generates unique player tokens', () => {
-    const tokens = new Set(Array.from({ length: 20 }, () => generatePlayerToken()));
+    const tokens = new Set(
+      Array.from({ length: 20 }, () => generatePlayerToken()),
+    );
     expect(tokens.size).toBeGreaterThan(1);
   });
 });
@@ -83,17 +85,25 @@ describe('parseCreatePayload', () => {
   const keys = ['biplanetary', 'escape'] as const;
 
   it('parses valid scenario', () => {
-    expect(parseCreatePayload({ scenario: 'escape' }, keys)).toEqual({ scenario: 'escape' });
+    expect(parseCreatePayload({ scenario: 'escape' }, keys)).toEqual({
+      scenario: 'escape',
+    });
   });
 
   it('defaults unknown scenario to biplanetary', () => {
-    expect(parseCreatePayload({ scenario: 'fake' }, keys)).toEqual({ scenario: 'biplanetary' });
+    expect(parseCreatePayload({ scenario: 'fake' }, keys)).toEqual({
+      scenario: 'biplanetary',
+    });
   });
 
   it('defaults non-object payloads to biplanetary', () => {
     expect(parseCreatePayload(null, keys)).toEqual({ scenario: 'biplanetary' });
-    expect(parseCreatePayload(undefined, keys)).toEqual({ scenario: 'biplanetary' });
-    expect(parseCreatePayload('string', keys)).toEqual({ scenario: 'biplanetary' });
+    expect(parseCreatePayload(undefined, keys)).toEqual({
+      scenario: 'biplanetary',
+    });
+    expect(parseCreatePayload('string', keys)).toEqual({
+      scenario: 'biplanetary',
+    });
     expect(parseCreatePayload(42, keys)).toEqual({ scenario: 'biplanetary' });
   });
 
@@ -117,9 +127,18 @@ describe('parseInitPayload', () => {
   });
 
   it('rejects non-object payloads', () => {
-    expect(parseInitPayload(null, keys)).toEqual({ ok: false, error: 'Invalid init payload' });
-    expect(parseInitPayload('string', keys)).toEqual({ ok: false, error: 'Invalid init payload' });
-    expect(parseInitPayload(42, keys)).toEqual({ ok: false, error: 'Invalid init payload' });
+    expect(parseInitPayload(null, keys)).toEqual({
+      ok: false,
+      error: 'Invalid init payload',
+    });
+    expect(parseInitPayload('string', keys)).toEqual({
+      ok: false,
+      error: 'Invalid init payload',
+    });
+    expect(parseInitPayload(42, keys)).toEqual({
+      ok: false,
+      error: 'Invalid init payload',
+    });
   });
 
   it('rejects invalid room codes', () => {
@@ -135,14 +154,18 @@ describe('parseInitPayload', () => {
       ok: false,
       error: 'Invalid room code',
     });
-    expect(parseInitPayload({ ...validPayload, code: 'ABCDEF' }, keys)).toEqual({
-      ok: false,
-      error: 'Invalid room code',
-    });
+    expect(parseInitPayload({ ...validPayload, code: 'ABCDEF' }, keys)).toEqual(
+      {
+        ok: false,
+        error: 'Invalid room code',
+      },
+    );
   });
 
   it('rejects invalid scenarios', () => {
-    expect(parseInitPayload({ ...validPayload, scenario: 'bogus' }, keys)).toEqual({
+    expect(
+      parseInitPayload({ ...validPayload, scenario: 'bogus' }, keys),
+    ).toEqual({
       ok: false,
       error: 'Invalid scenario',
     });
@@ -153,22 +176,30 @@ describe('parseInitPayload', () => {
   });
 
   it('rejects invalid player tokens', () => {
-    expect(parseInitPayload({ ...validPayload, playerToken: 'bad' }, keys)).toEqual({
+    expect(
+      parseInitPayload({ ...validPayload, playerToken: 'bad' }, keys),
+    ).toEqual({
       ok: false,
       error: 'Invalid player token',
     });
-    expect(parseInitPayload({ ...validPayload, playerToken: null }, keys)).toEqual({
+    expect(
+      parseInitPayload({ ...validPayload, playerToken: null }, keys),
+    ).toEqual({
       ok: false,
       error: 'Invalid player token',
     });
   });
 
   it('rejects invalid invite tokens', () => {
-    expect(parseInitPayload({ ...validPayload, inviteToken: 'bad' }, keys)).toEqual({
+    expect(
+      parseInitPayload({ ...validPayload, inviteToken: 'bad' }, keys),
+    ).toEqual({
       ok: false,
       error: 'Invalid invite token',
     });
-    expect(parseInitPayload({ ...validPayload, inviteToken: null }, keys)).toEqual({
+    expect(
+      parseInitPayload({ ...validPayload, inviteToken: null }, keys),
+    ).toEqual({
       ok: false,
       error: 'Invalid invite token',
     });
@@ -196,27 +227,62 @@ describe('createRoomConfig', () => {
 describe('validateClientMessage', () => {
   describe('basic validation', () => {
     it('rejects non-object payloads', () => {
-      expect(validateClientMessage(null)).toEqual({ ok: false, error: 'Invalid message payload' });
-      expect(validateClientMessage('string')).toEqual({ ok: false, error: 'Invalid message payload' });
-      expect(validateClientMessage(42)).toEqual({ ok: false, error: 'Invalid message payload' });
-      expect(validateClientMessage(undefined)).toEqual({ ok: false, error: 'Invalid message payload' });
+      expect(validateClientMessage(null)).toEqual({
+        ok: false,
+        error: 'Invalid message payload',
+      });
+      expect(validateClientMessage('string')).toEqual({
+        ok: false,
+        error: 'Invalid message payload',
+      });
+      expect(validateClientMessage(42)).toEqual({
+        ok: false,
+        error: 'Invalid message payload',
+      });
+      expect(validateClientMessage(undefined)).toEqual({
+        ok: false,
+        error: 'Invalid message payload',
+      });
     });
 
     it('rejects objects without a string type', () => {
-      expect(validateClientMessage({})).toEqual({ ok: false, error: 'Invalid message payload' });
-      expect(validateClientMessage({ type: 42 })).toEqual({ ok: false, error: 'Invalid message payload' });
-      expect(validateClientMessage({ type: null })).toEqual({ ok: false, error: 'Invalid message payload' });
+      expect(validateClientMessage({})).toEqual({
+        ok: false,
+        error: 'Invalid message payload',
+      });
+      expect(validateClientMessage({ type: 42 })).toEqual({
+        ok: false,
+        error: 'Invalid message payload',
+      });
+      expect(validateClientMessage({ type: null })).toEqual({
+        ok: false,
+        error: 'Invalid message payload',
+      });
     });
 
     it('rejects unknown message types', () => {
-      expect(validateClientMessage({ type: 'godMode' })).toEqual({ ok: false, error: 'Unknown message type' });
-      expect(validateClientMessage({ type: '' })).toEqual({ ok: false, error: 'Unknown message type' });
+      expect(validateClientMessage({ type: 'godMode' })).toEqual({
+        ok: false,
+        error: 'Unknown message type',
+      });
+      expect(validateClientMessage({ type: '' })).toEqual({
+        ok: false,
+        error: 'Unknown message type',
+      });
     });
   });
 
   describe('simple message types', () => {
-    it.each(['skipOrdnance', 'beginCombat', 'skipCombat', 'rematch'] as const)('accepts %s', (type) => {
-      expect(validateClientMessage({ type })).toEqual({ ok: true, value: { type } });
+    it.each([
+      'skipOrdnance',
+      'beginCombat',
+      'skipCombat',
+      'rematch',
+    ] as const)('accepts %s', (type) => {
+      expect(validateClientMessage({ type })).toEqual({
+        ok: true,
+        value: { type },
+      });
     });
   });
 
@@ -237,7 +303,9 @@ describe('validateClientMessage', () => {
     });
 
     it('rejects ping with non-finite or non-number timestamp', () => {
-      expect(validateClientMessage({ type: 'ping', t: Number.POSITIVE_INFINITY })).toEqual({
+      expect(
+        validateClientMessage({ type: 'ping', t: Number.POSITIVE_INFINITY }),
+      ).toEqual({
         ok: false,
         error: 'Invalid ping payload',
       });
@@ -290,7 +358,9 @@ describe('validateClientMessage', () => {
     });
 
     it('rejects text over 200 chars', () => {
-      expect(validateClientMessage({ type: 'chat', text: 'x'.repeat(201) })).toEqual({
+      expect(
+        validateClientMessage({ type: 'chat', text: 'x'.repeat(201) }),
+      ).toEqual({
         ok: false,
         error: 'Invalid chat payload',
       });
@@ -312,30 +382,41 @@ describe('validateClientMessage', () => {
       });
       expect(result).toEqual({
         ok: true,
-        value: { type: 'fleetReady', purchases: [{ shipType: 'cruiser' }, { shipType: 'destroyer' }] },
+        value: {
+          type: 'fleetReady',
+          purchases: [{ shipType: 'cruiser' }, { shipType: 'destroyer' }],
+        },
       });
     });
 
     it('accepts empty fleet purchases', () => {
-      expect(validateClientMessage({ type: 'fleetReady', purchases: [] })).toEqual({
+      expect(
+        validateClientMessage({ type: 'fleetReady', purchases: [] }),
+      ).toEqual({
         ok: true,
         value: { type: 'fleetReady', purchases: [] },
       });
     });
 
     it('rejects non-array purchases', () => {
-      expect(validateClientMessage({ type: 'fleetReady', purchases: null })).toEqual({
+      expect(
+        validateClientMessage({ type: 'fleetReady', purchases: null }),
+      ).toEqual({
         ok: false,
         error: 'Invalid fleet payload',
       });
-      expect(validateClientMessage({ type: 'fleetReady', purchases: 'cruiser' })).toEqual({
+      expect(
+        validateClientMessage({ type: 'fleetReady', purchases: 'cruiser' }),
+      ).toEqual({
         ok: false,
         error: 'Invalid fleet payload',
       });
     });
 
     it('rejects purchases exceeding max count', () => {
-      const purchases = Array.from({ length: 65 }, () => ({ shipType: 'cruiser' }));
+      const purchases = Array.from({ length: 65 }, () => ({
+        shipType: 'cruiser',
+      }));
       expect(validateClientMessage({ type: 'fleetReady', purchases })).toEqual({
         ok: false,
         error: 'Invalid fleet payload',
@@ -343,19 +424,33 @@ describe('validateClientMessage', () => {
     });
 
     it('rejects purchases with missing or invalid shipType', () => {
-      expect(validateClientMessage({ type: 'fleetReady', purchases: [{}] })).toEqual({
+      expect(
+        validateClientMessage({ type: 'fleetReady', purchases: [{}] }),
+      ).toEqual({
         ok: false,
         error: 'Invalid fleet payload',
       });
-      expect(validateClientMessage({ type: 'fleetReady', purchases: [{ shipType: '' }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'fleetReady',
+          purchases: [{ shipType: '' }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid fleet payload',
       });
-      expect(validateClientMessage({ type: 'fleetReady', purchases: [{ shipType: 42 }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'fleetReady',
+          purchases: [{ shipType: 42 }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid fleet payload',
       });
-      expect(validateClientMessage({ type: 'fleetReady', purchases: ['cruiser'] })).toEqual({
+      expect(
+        validateClientMessage({ type: 'fleetReady', purchases: ['cruiser'] }),
+      ).toEqual({
         ok: false,
         error: 'Invalid fleet payload',
       });
@@ -366,13 +461,27 @@ describe('validateClientMessage', () => {
     it('accepts valid astrogation orders', () => {
       const result = validateClientMessage({
         type: 'astrogation',
-        orders: [{ shipId: 'p0s0', burn: 1, overload: null, weakGravityChoices: { '0,1': true } }],
+        orders: [
+          {
+            shipId: 'p0s0',
+            burn: 1,
+            overload: null,
+            weakGravityChoices: { '0,1': true },
+          },
+        ],
       });
       expect(result).toEqual({
         ok: true,
         value: {
           type: 'astrogation',
-          orders: [{ shipId: 'p0s0', burn: 1, overload: null, weakGravityChoices: { '0,1': true } }],
+          orders: [
+            {
+              shipId: 'p0s0',
+              burn: 1,
+              overload: null,
+              weakGravityChoices: { '0,1': true },
+            },
+          ],
         },
       });
     });
@@ -386,7 +495,14 @@ describe('validateClientMessage', () => {
         ok: true,
         value: {
           type: 'astrogation',
-          orders: [{ shipId: 'p0s0', burn: 0, overload: null, weakGravityChoices: undefined }],
+          orders: [
+            {
+              shipId: 'p0s0',
+              burn: 0,
+              overload: null,
+              weakGravityChoices: undefined,
+            },
+          ],
         },
       });
     });
@@ -402,21 +518,28 @@ describe('validateClientMessage', () => {
     });
 
     it('accepts empty orders', () => {
-      expect(validateClientMessage({ type: 'astrogation', orders: [] })).toEqual({
+      expect(
+        validateClientMessage({ type: 'astrogation', orders: [] }),
+      ).toEqual({
         ok: true,
         value: { type: 'astrogation', orders: [] },
       });
     });
 
     it('rejects non-array orders', () => {
-      expect(validateClientMessage({ type: 'astrogation', orders: null })).toEqual({
+      expect(
+        validateClientMessage({ type: 'astrogation', orders: null }),
+      ).toEqual({
         ok: false,
         error: 'Invalid astrogation payload',
       });
     });
 
     it('rejects orders exceeding max count', () => {
-      const orders = Array.from({ length: 65 }, () => ({ shipId: 'p0s0', burn: 0 }));
+      const orders = Array.from({ length: 65 }, () => ({
+        shipId: 'p0s0',
+        burn: 0,
+      }));
       expect(validateClientMessage({ type: 'astrogation', orders })).toEqual({
         ok: false,
         error: 'Invalid astrogation payload',
@@ -424,30 +547,57 @@ describe('validateClientMessage', () => {
     });
 
     it('rejects orders with missing or empty shipId', () => {
-      expect(validateClientMessage({ type: 'astrogation', orders: [{ burn: 0 }] })).toEqual({
+      expect(
+        validateClientMessage({ type: 'astrogation', orders: [{ burn: 0 }] }),
+      ).toEqual({
         ok: false,
         error: 'Invalid astrogation payload',
       });
-      expect(validateClientMessage({ type: 'astrogation', orders: [{ shipId: '', burn: 0 }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'astrogation',
+          orders: [{ shipId: '', burn: 0 }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid astrogation payload',
       });
     });
 
     it('rejects orders with invalid burn values', () => {
-      expect(validateClientMessage({ type: 'astrogation', orders: [{ shipId: 'p0s0', burn: -1 }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'astrogation',
+          orders: [{ shipId: 'p0s0', burn: -1 }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid astrogation payload',
       });
-      expect(validateClientMessage({ type: 'astrogation', orders: [{ shipId: 'p0s0', burn: 6 }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'astrogation',
+          orders: [{ shipId: 'p0s0', burn: 6 }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid astrogation payload',
       });
-      expect(validateClientMessage({ type: 'astrogation', orders: [{ shipId: 'p0s0', burn: 1.5 }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'astrogation',
+          orders: [{ shipId: 'p0s0', burn: 1.5 }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid astrogation payload',
       });
-      expect(validateClientMessage({ type: 'astrogation', orders: [{ shipId: 'p0s0', burn: 'fast' }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'astrogation',
+          orders: [{ shipId: 'p0s0', burn: 'fast' }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid astrogation payload',
       });
@@ -455,13 +605,22 @@ describe('validateClientMessage', () => {
 
     it('rejects orders with invalid overload values', () => {
       expect(
-        validateClientMessage({ type: 'astrogation', orders: [{ shipId: 'p0s0', burn: 1, overload: -1 }] }),
+        validateClientMessage({
+          type: 'astrogation',
+          orders: [{ shipId: 'p0s0', burn: 1, overload: -1 }],
+        }),
       ).toEqual({ ok: false, error: 'Invalid astrogation payload' });
       expect(
-        validateClientMessage({ type: 'astrogation', orders: [{ shipId: 'p0s0', burn: 1, overload: 6 }] }),
+        validateClientMessage({
+          type: 'astrogation',
+          orders: [{ shipId: 'p0s0', burn: 1, overload: 6 }],
+        }),
       ).toEqual({ ok: false, error: 'Invalid astrogation payload' });
       expect(
-        validateClientMessage({ type: 'astrogation', orders: [{ shipId: 'p0s0', burn: 1, overload: 'max' }] }),
+        validateClientMessage({
+          type: 'astrogation',
+          orders: [{ shipId: 'p0s0', burn: 1, overload: 'max' }],
+        }),
       ).toEqual({ ok: false, error: 'Invalid astrogation payload' });
     });
 
@@ -475,7 +634,13 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'astrogation',
-          orders: [{ shipId: 'p0s0', burn: 1, weakGravityChoices: { key: 'not-boolean' } }],
+          orders: [
+            {
+              shipId: 'p0s0',
+              burn: 1,
+              weakGravityChoices: { key: 'not-boolean' },
+            },
+          ],
         }),
       ).toEqual({ ok: false, error: 'Invalid astrogation payload' });
     });
@@ -495,7 +660,11 @@ describe('validateClientMessage', () => {
   });
 
   describe('ordnance', () => {
-    it.each(['mine', 'torpedo', 'nuke'] as const)('accepts valid %s launch', (ordnanceType) => {
+    it.each([
+      'mine',
+      'torpedo',
+      'nuke',
+    ] as const)('accepts valid %s launch', (ordnanceType) => {
       const result = validateClientMessage({
         type: 'ordnance',
         launches: [{ shipId: 'p0s0', ordnanceType }],
@@ -504,7 +673,14 @@ describe('validateClientMessage', () => {
         ok: true,
         value: {
           type: 'ordnance',
-          launches: [{ shipId: 'p0s0', ordnanceType, torpedoAccel: null, torpedoAccelSteps: null }],
+          launches: [
+            {
+              shipId: 'p0s0',
+              ordnanceType,
+              torpedoAccel: null,
+              torpedoAccelSteps: null,
+            },
+          ],
         },
       });
     });
@@ -512,33 +688,54 @@ describe('validateClientMessage', () => {
     it('accepts torpedo with acceleration and steps', () => {
       const result = validateClientMessage({
         type: 'ordnance',
-        launches: [{ shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccel: 3, torpedoAccelSteps: 2 }],
+        launches: [
+          {
+            shipId: 'p0s0',
+            ordnanceType: 'torpedo',
+            torpedoAccel: 3,
+            torpedoAccelSteps: 2,
+          },
+        ],
       });
       expect(result).toEqual({
         ok: true,
         value: {
           type: 'ordnance',
-          launches: [{ shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccel: 3, torpedoAccelSteps: 2 }],
+          launches: [
+            {
+              shipId: 'p0s0',
+              ordnanceType: 'torpedo',
+              torpedoAccel: 3,
+              torpedoAccelSteps: 2,
+            },
+          ],
         },
       });
     });
 
     it('accepts empty launches', () => {
-      expect(validateClientMessage({ type: 'ordnance', launches: [] })).toEqual({
-        ok: true,
-        value: { type: 'ordnance', launches: [] },
-      });
+      expect(validateClientMessage({ type: 'ordnance', launches: [] })).toEqual(
+        {
+          ok: true,
+          value: { type: 'ordnance', launches: [] },
+        },
+      );
     });
 
     it('rejects non-array launches', () => {
-      expect(validateClientMessage({ type: 'ordnance', launches: 'mine' })).toEqual({
+      expect(
+        validateClientMessage({ type: 'ordnance', launches: 'mine' }),
+      ).toEqual({
         ok: false,
         error: 'Invalid ordnance payload',
       });
     });
 
     it('rejects launches exceeding max count', () => {
-      const launches = Array.from({ length: 65 }, () => ({ shipId: 'p0s0', ordnanceType: 'mine' }));
+      const launches = Array.from({ length: 65 }, () => ({
+        shipId: 'p0s0',
+        ordnanceType: 'mine',
+      }));
       expect(validateClientMessage({ type: 'ordnance', launches })).toEqual({
         ok: false,
         error: 'Invalid ordnance payload',
@@ -547,20 +744,38 @@ describe('validateClientMessage', () => {
 
     it('rejects launches with invalid ordnanceType', () => {
       expect(
-        validateClientMessage({ type: 'ordnance', launches: [{ shipId: 'p0s0', ordnanceType: 'laser' }] }),
+        validateClientMessage({
+          type: 'ordnance',
+          launches: [{ shipId: 'p0s0', ordnanceType: 'laser' }],
+        }),
       ).toEqual({ ok: false, error: 'Invalid ordnance payload' });
-      expect(validateClientMessage({ type: 'ordnance', launches: [{ shipId: 'p0s0', ordnanceType: 42 }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'ordnance',
+          launches: [{ shipId: 'p0s0', ordnanceType: 42 }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid ordnance payload',
       });
     });
 
     it('rejects launches with missing or empty shipId', () => {
-      expect(validateClientMessage({ type: 'ordnance', launches: [{ ordnanceType: 'mine' }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'ordnance',
+          launches: [{ ordnanceType: 'mine' }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid ordnance payload',
       });
-      expect(validateClientMessage({ type: 'ordnance', launches: [{ shipId: '', ordnanceType: 'mine' }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'ordnance',
+          launches: [{ shipId: '', ordnanceType: 'mine' }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid ordnance payload',
       });
@@ -570,13 +785,17 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'ordnance',
-          launches: [{ shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccel: 7 }],
+          launches: [
+            { shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccel: 7 },
+          ],
         }),
       ).toEqual({ ok: false, error: 'Invalid ordnance payload' });
       expect(
         validateClientMessage({
           type: 'ordnance',
-          launches: [{ shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccel: -1 }],
+          launches: [
+            { shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccel: -1 },
+          ],
         }),
       ).toEqual({ ok: false, error: 'Invalid ordnance payload' });
     });
@@ -585,19 +804,29 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'ordnance',
-          launches: [{ shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccelSteps: 3 }],
+          launches: [
+            { shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccelSteps: 3 },
+          ],
         }),
       ).toEqual({ ok: false, error: 'Invalid ordnance payload' });
       expect(
         validateClientMessage({
           type: 'ordnance',
-          launches: [{ shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccelSteps: 0 }],
+          launches: [
+            { shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccelSteps: 0 },
+          ],
         }),
       ).toEqual({ ok: false, error: 'Invalid ordnance payload' });
       expect(
         validateClientMessage({
           type: 'ordnance',
-          launches: [{ shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccelSteps: 'two' }],
+          launches: [
+            {
+              shipId: 'p0s0',
+              ordnanceType: 'torpedo',
+              torpedoAccelSteps: 'two',
+            },
+          ],
         }),
       ).toEqual({ ok: false, error: 'Invalid ordnance payload' });
     });
@@ -605,7 +834,9 @@ describe('validateClientMessage', () => {
     it('accepts null torpedoAccelSteps', () => {
       const result = validateClientMessage({
         type: 'ordnance',
-        launches: [{ shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccelSteps: null }],
+        launches: [
+          { shipId: 'p0s0', ordnanceType: 'torpedo', torpedoAccelSteps: null },
+        ],
       });
       expect(result.ok).toBe(true);
     });
@@ -613,44 +844,69 @@ describe('validateClientMessage', () => {
 
   describe('emplaceBase', () => {
     it('accepts valid emplacement', () => {
-      expect(validateClientMessage({ type: 'emplaceBase', emplacements: [{ shipId: 'p0s0' }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'emplaceBase',
+          emplacements: [{ shipId: 'p0s0' }],
+        }),
+      ).toEqual({
         ok: true,
         value: { type: 'emplaceBase', emplacements: [{ shipId: 'p0s0' }] },
       });
     });
 
     it('accepts empty emplacements', () => {
-      expect(validateClientMessage({ type: 'emplaceBase', emplacements: [] })).toEqual({
+      expect(
+        validateClientMessage({ type: 'emplaceBase', emplacements: [] }),
+      ).toEqual({
         ok: true,
         value: { type: 'emplaceBase', emplacements: [] },
       });
     });
 
     it('rejects non-array emplacements', () => {
-      expect(validateClientMessage({ type: 'emplaceBase', emplacements: null })).toEqual({
+      expect(
+        validateClientMessage({ type: 'emplaceBase', emplacements: null }),
+      ).toEqual({
         ok: false,
         error: 'Invalid emplacement payload',
       });
     });
 
     it('rejects emplacements exceeding max count', () => {
-      const emplacements = Array.from({ length: 33 }, () => ({ shipId: 'p0s0' }));
-      expect(validateClientMessage({ type: 'emplaceBase', emplacements })).toEqual({
+      const emplacements = Array.from({ length: 33 }, () => ({
+        shipId: 'p0s0',
+      }));
+      expect(
+        validateClientMessage({ type: 'emplaceBase', emplacements }),
+      ).toEqual({
         ok: false,
         error: 'Invalid emplacement payload',
       });
     });
 
     it('rejects emplacements with missing or empty shipId', () => {
-      expect(validateClientMessage({ type: 'emplaceBase', emplacements: [{}] })).toEqual({
+      expect(
+        validateClientMessage({ type: 'emplaceBase', emplacements: [{}] }),
+      ).toEqual({
         ok: false,
         error: 'Invalid emplacement payload',
       });
-      expect(validateClientMessage({ type: 'emplaceBase', emplacements: [{ shipId: '' }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'emplaceBase',
+          emplacements: [{ shipId: '' }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid emplacement payload',
       });
-      expect(validateClientMessage({ type: 'emplaceBase', emplacements: [{ shipId: 42 }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'emplaceBase',
+          emplacements: [{ shipId: 42 }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid emplacement payload',
       });
@@ -667,7 +923,14 @@ describe('validateClientMessage', () => {
         ok: true,
         value: {
           type: 'combat',
-          attacks: [{ attackerIds: ['p0s0'], targetId: 'p1s0', targetType: undefined, attackStrength: null }],
+          attacks: [
+            {
+              attackerIds: ['p0s0'],
+              targetId: 'p1s0',
+              targetType: undefined,
+              attackStrength: null,
+            },
+          ],
         },
       });
     });
@@ -675,13 +938,27 @@ describe('validateClientMessage', () => {
     it('accepts combat with targetType and attackStrength', () => {
       const result = validateClientMessage({
         type: 'combat',
-        attacks: [{ attackerIds: ['p0s0', 'p0s1'], targetId: 'p1s0', targetType: 'ship', attackStrength: 5 }],
+        attacks: [
+          {
+            attackerIds: ['p0s0', 'p0s1'],
+            targetId: 'p1s0',
+            targetType: 'ship',
+            attackStrength: 5,
+          },
+        ],
       });
       expect(result).toEqual({
         ok: true,
         value: {
           type: 'combat',
-          attacks: [{ attackerIds: ['p0s0', 'p0s1'], targetId: 'p1s0', targetType: 'ship', attackStrength: 5 }],
+          attacks: [
+            {
+              attackerIds: ['p0s0', 'p0s1'],
+              targetId: 'p1s0',
+              targetType: 'ship',
+              attackStrength: 5,
+            },
+          ],
         },
       });
     });
@@ -689,13 +966,22 @@ describe('validateClientMessage', () => {
     it('accepts combat targeting ordnance', () => {
       const result = validateClientMessage({
         type: 'combat',
-        attacks: [{ attackerIds: ['p0s0'], targetId: 'nuke1', targetType: 'ordnance' }],
+        attacks: [
+          { attackerIds: ['p0s0'], targetId: 'nuke1', targetType: 'ordnance' },
+        ],
       });
       expect(result).toEqual({
         ok: true,
         value: {
           type: 'combat',
-          attacks: [{ attackerIds: ['p0s0'], targetId: 'nuke1', targetType: 'ordnance', attackStrength: null }],
+          attacks: [
+            {
+              attackerIds: ['p0s0'],
+              targetId: 'nuke1',
+              targetType: 'ordnance',
+              attackStrength: null,
+            },
+          ],
         },
       });
     });
@@ -712,14 +998,19 @@ describe('validateClientMessage', () => {
         ok: false,
         error: 'Invalid combat payload',
       });
-      expect(validateClientMessage({ type: 'combat', attacks: 'attack' })).toEqual({
+      expect(
+        validateClientMessage({ type: 'combat', attacks: 'attack' }),
+      ).toEqual({
         ok: false,
         error: 'Invalid combat payload',
       });
     });
 
     it('rejects attacks exceeding max count', () => {
-      const attacks = Array.from({ length: 65 }, () => ({ attackerIds: ['p0s0'], targetId: 'p1s0' }));
+      const attacks = Array.from({ length: 65 }, () => ({
+        attackerIds: ['p0s0'],
+        targetId: 'p1s0',
+      }));
       expect(validateClientMessage({ type: 'combat', attacks })).toEqual({
         ok: false,
         error: 'Invalid combat payload',
@@ -727,14 +1018,24 @@ describe('validateClientMessage', () => {
     });
 
     it('rejects attacks with non-array attackerIds', () => {
-      expect(validateClientMessage({ type: 'combat', attacks: [{ attackerIds: 'p0s0', targetId: 'p1s0' }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'combat',
+          attacks: [{ attackerIds: 'p0s0', targetId: 'p1s0' }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid combat payload',
       });
     });
 
     it('rejects attacks with empty attackerIds', () => {
-      expect(validateClientMessage({ type: 'combat', attacks: [{ attackerIds: [], targetId: 'p1s0' }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'combat',
+          attacks: [{ attackerIds: [], targetId: 'p1s0' }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid combat payload',
       });
@@ -742,33 +1043,63 @@ describe('validateClientMessage', () => {
 
     it('rejects attacks with too many attackers', () => {
       const attackerIds = Array.from({ length: 17 }, (_, i) => `p0s${i}`);
-      expect(validateClientMessage({ type: 'combat', attacks: [{ attackerIds, targetId: 'p1s0' }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'combat',
+          attacks: [{ attackerIds, targetId: 'p1s0' }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid combat payload',
       });
     });
 
     it('rejects attacks with non-string attacker ids', () => {
-      expect(validateClientMessage({ type: 'combat', attacks: [{ attackerIds: [42], targetId: 'p1s0' }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'combat',
+          attacks: [{ attackerIds: [42], targetId: 'p1s0' }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid combat payload',
       });
-      expect(validateClientMessage({ type: 'combat', attacks: [{ attackerIds: [''], targetId: 'p1s0' }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'combat',
+          attacks: [{ attackerIds: [''], targetId: 'p1s0' }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid combat payload',
       });
     });
 
     it('rejects attacks with missing or empty targetId', () => {
-      expect(validateClientMessage({ type: 'combat', attacks: [{ attackerIds: ['p0s0'] }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'combat',
+          attacks: [{ attackerIds: ['p0s0'] }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid combat payload',
       });
-      expect(validateClientMessage({ type: 'combat', attacks: [{ attackerIds: ['p0s0'], targetId: '' }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'combat',
+          attacks: [{ attackerIds: ['p0s0'], targetId: '' }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid combat payload',
       });
-      expect(validateClientMessage({ type: 'combat', attacks: [{ attackerIds: ['p0s0'], targetId: 42 }] })).toEqual({
+      expect(
+        validateClientMessage({
+          type: 'combat',
+          attacks: [{ attackerIds: ['p0s0'], targetId: 42 }],
+        }),
+      ).toEqual({
         ok: false,
         error: 'Invalid combat payload',
       });
@@ -778,7 +1109,9 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds: ['p0s0'], targetId: 'p1s0', targetType: 'base' }],
+          attacks: [
+            { attackerIds: ['p0s0'], targetId: 'p1s0', targetType: 'base' },
+          ],
         }),
       ).toEqual({ ok: false, error: 'Invalid combat payload' });
     });
@@ -787,25 +1120,33 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: 0 }],
+          attacks: [
+            { attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: 0 },
+          ],
         }),
       ).toEqual({ ok: false, error: 'Invalid combat payload' });
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: 100 }],
+          attacks: [
+            { attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: 100 },
+          ],
         }),
       ).toEqual({ ok: false, error: 'Invalid combat payload' });
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: 1.5 }],
+          attacks: [
+            { attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: 1.5 },
+          ],
         }),
       ).toEqual({ ok: false, error: 'Invalid combat payload' });
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: 'max' }],
+          attacks: [
+            { attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: 'max' },
+          ],
         }),
       ).toEqual({ ok: false, error: 'Invalid combat payload' });
     });
@@ -813,22 +1154,31 @@ describe('validateClientMessage', () => {
     it('accepts null attackStrength', () => {
       const result = validateClientMessage({
         type: 'combat',
-        attacks: [{ attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: null }],
+        attacks: [
+          { attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: null },
+        ],
       });
       expect(result.ok).toBe(true);
       if (result.ok) {
-        expect(result.value.type === 'combat' && result.value.attacks[0].attackStrength).toBeNull();
+        expect(
+          result.value.type === 'combat' &&
+            result.value.attacks[0].attackStrength,
+        ).toBeNull();
       }
     });
 
     it('accepts boundary attackStrength values', () => {
       const min = validateClientMessage({
         type: 'combat',
-        attacks: [{ attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: 1 }],
+        attacks: [
+          { attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: 1 },
+        ],
       });
       const max = validateClientMessage({
         type: 'combat',
-        attacks: [{ attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: 99 }],
+        attacks: [
+          { attackerIds: ['p0s0'], targetId: 'p1s0', attackStrength: 99 },
+        ],
       });
       expect(min.ok).toBe(true);
       expect(max.ok).toBe(true);

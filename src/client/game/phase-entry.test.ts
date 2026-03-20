@@ -37,8 +37,22 @@ function createState(ships: Ship[]): GameState {
     destroyedAsteroids: [],
     destroyedBases: [],
     players: [
-      { connected: true, ready: true, targetBody: 'Venus', homeBody: 'Mars', bases: [], escapeWins: false },
-      { connected: true, ready: true, targetBody: 'Mars', homeBody: 'Venus', bases: [], escapeWins: false },
+      {
+        connected: true,
+        ready: true,
+        targetBody: 'Venus',
+        homeBody: 'Mars',
+        bases: [],
+        escapeWins: false,
+      },
+      {
+        connected: true,
+        ready: true,
+        targetBody: 'Mars',
+        homeBody: 'Venus',
+        bases: [],
+        escapeWins: false,
+      },
     ],
     winner: null,
     winReason: null,
@@ -67,7 +81,10 @@ describe('game-client-phase-entry', () => {
   it('derives ordnance selection from the first launchable ship', () => {
     const plan = deriveClientStateEntryPlan(
       'playing_ordnance',
-      createState([createShip({ id: 'empty', cargoUsed: 50 }), createShip({ id: 'launchable' })]),
+      createState([
+        createShip({ id: 'empty', cargoUsed: 50 }),
+        createShip({ id: 'launchable' }),
+      ]),
       0,
     );
 
@@ -91,7 +108,10 @@ describe('game-client-phase-entry', () => {
   it('returns null ordnance selectedShipId when multiple launchable ships exist', () => {
     const plan = deriveClientStateEntryPlan(
       'playing_ordnance',
-      createState([createShip({ id: 'ship-a', owner: 0 }), createShip({ id: 'ship-b', owner: 0 })]),
+      createState([
+        createShip({ id: 'ship-a', owner: 0 }),
+        createShip({ id: 'ship-b', owner: 0 }),
+      ]),
       0,
     );
     expect(plan.selectedShipId).toBeNull();
@@ -100,7 +120,9 @@ describe('game-client-phase-entry', () => {
   it('derives combat and movement animation behaviors', () => {
     const state = createState([createShip()]);
 
-    expect(deriveClientStateEntryPlan('playing_combat', state, 0)).toMatchObject({
+    expect(
+      deriveClientStateEntryPlan('playing_combat', state, 0),
+    ).toMatchObject({
       startTurnTimer: true,
       showHUD: true,
       resetCombatState: true,
@@ -109,7 +131,9 @@ describe('game-client-phase-entry', () => {
       tutorialPhase: 'combat',
     });
 
-    expect(deriveClientStateEntryPlan('playing_movementAnim', state, 0)).toMatchObject({
+    expect(
+      deriveClientStateEntryPlan('playing_movementAnim', state, 0),
+    ).toMatchObject({
       stopTurnTimer: true,
       showHUD: true,
       showMovementStatus: true,
@@ -124,7 +148,9 @@ describe('game-client-phase-entry', () => {
       hideTutorial: true,
       resetCamera: true,
     });
-    expect(deriveClientStateEntryPlan('playing_opponentTurn', state, 0)).toMatchObject({
+    expect(
+      deriveClientStateEntryPlan('playing_opponentTurn', state, 0),
+    ).toMatchObject({
       stopTurnTimer: true,
       showHUD: true,
       updateHUD: true,

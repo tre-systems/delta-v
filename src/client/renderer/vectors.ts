@@ -1,7 +1,20 @@
-import { BASE_DETECTION_RANGE, SHIP_DETECTION_RANGE } from '../../shared/constants';
-import { type HexCoord, hexToPixel, hexVecLength, type PixelCoord, parseHexKey } from '../../shared/hex';
+import {
+  BASE_DETECTION_RANGE,
+  SHIP_DETECTION_RANGE,
+} from '../../shared/constants';
+import {
+  type HexCoord,
+  hexToPixel,
+  hexVecLength,
+  type PixelCoord,
+  parseHexKey,
+} from '../../shared/hex';
 import { predictDestination } from '../../shared/movement';
-import type { GameState, ShipMovement, SolarSystemMap } from '../../shared/types';
+import type {
+  GameState,
+  ShipMovement,
+  SolarSystemMap,
+} from '../../shared/types';
 
 export interface CircleOverlayView {
   center: PixelCoord;
@@ -26,7 +39,11 @@ export interface VelocityVectorView {
   color: string;
   lineWidth: number;
   lineDash: number[];
-  speedLabel: { text: string; position: PixelCoord; color: string } | null;
+  speedLabel: {
+    text: string;
+    position: PixelCoord;
+    color: string;
+  } | null;
 }
 
 export interface MovementPathView {
@@ -46,9 +63,12 @@ export const buildDetectionRangeViews = (
   hexSize: number,
 ): CircleOverlayView[] => {
   const views: CircleOverlayView[] = [];
+
   const selectedShip = state.ships.find(
-    (ship) => ship.id === selectedShipId && ship.owner === playerId && !ship.destroyed,
+    (ship) =>
+      ship.id === selectedShipId && ship.owner === playerId && !ship.destroyed,
   );
+
   if (selectedShip) {
     views.push({
       center: hexToPixel(selectedShip.position, hexSize),
@@ -61,10 +81,13 @@ export const buildDetectionRangeViews = (
 
   const player = playerId >= 0 ? state.players[playerId] : null;
   const destroyed = new Set(state.destroyedBases);
+
   for (const key of player?.bases ?? []) {
     if (destroyed.has(key)) continue;
+
     const hex = map.hexes.get(key);
     if (!hex?.base) continue;
+
     views.push({
       center: hexToPixel(parseHexKey(key), hexSize),
       radius: BASE_DETECTION_RANGE * hexSize * 1.73,
@@ -77,24 +100,42 @@ export const buildDetectionRangeViews = (
   return views;
 };
 
-export const buildVelocityVectorViews = (state: GameState, playerId: number, hexSize: number): VelocityVectorView[] => {
+export const buildVelocityVectorViews = (
+  state: GameState,
+  playerId: number,
+  hexSize: number,
+): VelocityVectorView[] => {
   return state.ships
-    .filter((ship) => !ship.landed && !ship.destroyed && (ship.owner === playerId || ship.detected))
+    .filter(
+      (ship) =>
+        !ship.landed &&
+        !ship.destroyed &&
+        (ship.owner === playerId || ship.detected),
+    )
     .map((ship) => {
       const from = hexToPixel(ship.position, hexSize);
       const predicted = predictDestination(ship);
       const to = hexToPixel(predicted, hexSize);
-      if (predicted.q === ship.position.q && predicted.r === ship.position.r) return null;
+
+      if (predicted.q === ship.position.q && predicted.r === ship.position.r) {
+        return null;
+      }
+
       const isOwn = ship.owner === playerId;
       const speed = hexVecLength(ship.velocity);
+
       const speedLabel =
         !isOwn && speed >= 1
           ? {
               text: `v${Math.round(speed)}`,
-              position: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - 5 },
+              position: {
+                x: (from.x + to.x) / 2,
+                y: (from.y + to.y) / 2 - 5,
+              },
               color: 'rgba(255, 152, 0, 0.5)',
             }
           : null;
+
       return {
         from,
         to,
@@ -114,21 +155,30 @@ export const buildShipTrailViews = (
   hexSize: number,
 ): TrailView[] => {
   const views: TrailView[] = [];
+
   for (const [shipId, trail] of shipTrails) {
     if (trail.length < 2) continue;
+
     const ship = state.ships.find((candidate) => candidate.id === shipId);
     if (!ship) continue;
-    if (ship.owner !== playerId && !ship.detected) continue;
+    if (ship.owner !== playerId && !ship.detected) {
+      continue;
+    }
+
     const isOwn = ship.owner === playerId;
+
     views.push({
       points: trail.map((hex) => hexToPixel(hex, hexSize)),
       lineColor: isOwn ? 'rgba(79, 195, 247, 0.28)' : 'rgba(255, 152, 0, 0.28)',
       lineWidth: 1.5,
       lineDash: [],
-      waypointColor: isOwn ? 'rgba(79, 195, 247, 0.35)' : 'rgba(255, 152, 0, 0.35)',
+      waypointColor: isOwn
+        ? 'rgba(79, 195, 247, 0.35)'
+        : 'rgba(255, 152, 0, 0.35)',
       waypointRadius: 1.5,
     });
   }
+
   return views;
 };
 
@@ -139,10 +189,15 @@ export const buildOrdnanceTrailViews = (
   hexSize: number,
 ): TrailView[] => {
   const views: TrailView[] = [];
+
   for (const [ordnanceId, trail] of ordnanceTrails) {
     if (trail.length < 2) continue;
-    const ordnance = state.ordnance.find((candidate) => candidate.id === ordnanceId);
+
+    const ordnance = state.ordnance.find(
+      (candidate) => candidate.id === ordnanceId,
+    );
     const isOwn = ordnance ? ordnance.owner === playerId : false;
+
     views.push({
       points: trail.map((hex) => hexToPixel(hex, hexSize)),
       lineColor: isOwn ? 'rgba(79, 195, 247, 0.1)' : 'rgba(255, 152, 0, 0.1)',
@@ -152,6 +207,7 @@ export const buildOrdnanceTrailViews = (
       waypointRadius: 0,
     });
   }
+
   return views;
 };
 
@@ -163,14 +219,25 @@ export const buildMovementPathViews = (
   hexSize: number,
 ): MovementPathView[] => {
   const views: MovementPathView[] = [];
+
   for (const movement of movements) {
-    const ship = state.ships.find((candidate) => candidate.id === movement.shipId);
+    const ship = state.ships.find(
+      (candidate) => candidate.id === movement.shipId,
+    );
     if (!ship) continue;
-    if (ship.owner !== playerId && !ship.detected) continue;
+    if (ship.owner !== playerId && !ship.detected) {
+      continue;
+    }
     if (movement.path.length < 2) continue;
+
     const totalSegments = movement.path.length - 1;
     const passedSegments = Math.floor(progress * totalSegments);
-    const color = ship.owner === playerId ? 'rgba(79, 195, 247, 0.4)' : 'rgba(255, 152, 0, 0.4)';
+
+    const color =
+      ship.owner === playerId
+        ? 'rgba(79, 195, 247, 0.4)'
+        : 'rgba(255, 152, 0, 0.4)';
+
     views.push({
       points: movement.path.map((hex) => hexToPixel(hex, hexSize)),
       color,
@@ -182,5 +249,6 @@ export const buildMovementPathViews = (
       waypointRadius: 2,
     });
   }
+
   return views;
 };

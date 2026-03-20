@@ -31,7 +31,9 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
 
 describe('ui hud helpers', () => {
   it('builds astrogation HUD text and buttons for the active player', () => {
-    expect(buildHUDView(buildInput({ turn: 3, fuel: 8, hasBurns: true }))).toMatchObject({
+    expect(
+      buildHUDView(buildInput({ turn: 3, fuel: 8, hasBurns: true })),
+    ).toMatchObject({
       turnText: 'Turn 3',
       phaseText: 'ASTROGATION',
       fuelGaugeText: 'Fuel: 8/10',
@@ -63,19 +65,36 @@ describe('ui hud helpers', () => {
       emplaceBaseVisible: true,
       skipOrdnanceVisible: true,
     });
-    expect(view.launchMine).toMatchObject({ visible: true, disabled: false, opacity: '1' });
-    expect(view.launchTorpedo).toMatchObject({ visible: true, disabled: true, opacity: '0.4', title: 'Warships only' });
-    expect(view.launchNuke).toMatchObject({ visible: true, disabled: true, opacity: '0.4' });
+    expect(view.launchMine).toMatchObject({
+      visible: true,
+      disabled: false,
+      opacity: '1',
+    });
+    expect(view.launchTorpedo).toMatchObject({
+      visible: true,
+      disabled: true,
+      opacity: '0.4',
+      title: 'Warships only',
+    });
+    expect(view.launchNuke).toMatchObject({
+      visible: true,
+      disabled: true,
+      opacity: '0.4',
+    });
   });
 
   it('shows combat controls only for the active player', () => {
-    expect(buildHUDView(buildInput({ turn: 5, phase: 'combat' }))).toMatchObject({
+    expect(
+      buildHUDView(buildInput({ turn: 5, phase: 'combat' })),
+    ).toMatchObject({
       phaseText: 'COMBAT',
       statusText: 'Click enemies to target · Fire All to attack (Enter)',
       skipCombatVisible: true,
     });
 
-    expect(buildHUDView(buildInput({ turn: 5, phase: 'combat', isMyTurn: false }))).toMatchObject({
+    expect(
+      buildHUDView(buildInput({ turn: 5, phase: 'combat', isMyTurn: false })),
+    ).toMatchObject({
       phaseText: "OPPONENT'S TURN",
       statusText: 'Waiting for opponent...',
       skipCombatVisible: false,
@@ -87,7 +106,11 @@ describe('ui hud helpers', () => {
     expect(
       buildHUDView(
         buildInput({
-          astrogationCtx: { ...defaultCtx, selectedShipLanded: true, hasSelection: true },
+          astrogationCtx: {
+            ...defaultCtx,
+            selectedShipLanded: true,
+            hasSelection: true,
+          },
         }),
       ),
     ).toMatchObject({
@@ -99,7 +122,11 @@ describe('ui hud helpers', () => {
     expect(
       buildHUDView(
         buildInput({
-          astrogationCtx: { ...defaultCtx, hasSelection: false, multipleShipsAlive: true },
+          astrogationCtx: {
+            ...defaultCtx,
+            hasSelection: false,
+            multipleShipsAlive: true,
+          },
         }),
       ),
     ).toMatchObject({
@@ -112,7 +139,11 @@ describe('ui hud helpers', () => {
       buildHUDView(
         buildInput({
           hasBurns: true,
-          astrogationCtx: { ...defaultCtx, selectedShipHasBurn: true, allShipsHaveBurns: true },
+          astrogationCtx: {
+            ...defaultCtx,
+            selectedShipHasBurn: true,
+            allShipsHaveBurns: true,
+          },
         }),
       ),
     ).toMatchObject({
@@ -121,7 +152,9 @@ describe('ui hud helpers', () => {
   });
 
   it('shows speed and fuel-to-stop when ship is moving', () => {
-    expect(buildHUDView(buildInput({ fuel: 8, speed: 3, fuelToStop: 3 }))).toMatchObject({
+    expect(
+      buildHUDView(buildInput({ fuel: 8, speed: 3, fuelToStop: 3 })),
+    ).toMatchObject({
       fuelGaugeText: 'Fuel: 8/10 · Speed 3 (3 to stop)',
     });
   });
@@ -130,7 +163,11 @@ describe('ui hud helpers', () => {
     expect(
       buildHUDView(
         buildInput({
-          astrogationCtx: { ...defaultCtx, selectedShipLanded: true, hasSelection: true },
+          astrogationCtx: {
+            ...defaultCtx,
+            selectedShipLanded: true,
+            hasSelection: true,
+          },
         }),
       ),
     ).toMatchObject({

@@ -9,7 +9,11 @@ export type GameCommand =
   | { type: 'undoBurn' }
   | { type: 'setBurnDirection'; shipId?: string; direction: number | null }
   | { type: 'setOverloadDirection'; shipId: string; direction: number | null }
-  | { type: 'setWeakGravityChoices'; shipId: string; choices: Record<string, boolean> }
+  | {
+      type: 'setWeakGravityChoices';
+      shipId: string;
+      choices: Record<string, boolean>;
+    }
   | { type: 'clearSelectedBurn' }
   // Combat
   | { type: 'queueAttack' }
@@ -50,7 +54,9 @@ export type GameCommand =
   // Hover
   | { type: 'setHoverHex'; hex: HexCoord | null };
 
-export const keyboardActionToCommand = (action: KeyboardAction): GameCommand | null => {
+export const keyboardActionToCommand = (
+  action: KeyboardAction,
+): GameCommand | null => {
   switch (action.kind) {
     case 'none':
       return null;

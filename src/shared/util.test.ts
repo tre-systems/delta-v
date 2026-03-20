@@ -157,7 +157,10 @@ describe('pickBy', () => {
 
   it('passes key to predicate', () => {
     const obj = { keep: 1, drop: 2, keepToo: 3 };
-    expect(pickBy(obj, (_v, k) => k.startsWith('keep'))).toEqual({ keep: 1, keepToo: 3 });
+    expect(pickBy(obj, (_v, k) => k.startsWith('keep'))).toEqual({
+      keep: 1,
+      keepToo: 3,
+    });
   });
 
   it('returns empty object when nothing matches', () => {
@@ -213,7 +216,9 @@ describe('compact', () => {
 
 describe('filterMap', () => {
   it('maps and filters nulls in one pass', () => {
-    const result = filterMap([1, 2, 3, 4], (n) => (n % 2 === 0 ? n * 10 : null));
+    const result = filterMap([1, 2, 3, 4], (n) =>
+      n % 2 === 0 ? n * 10 : null,
+    );
     expect(result).toEqual([20, 40]);
   });
 
@@ -254,7 +259,10 @@ describe('mapValues', () => {
   });
 
   it('passes key to transform function', () => {
-    expect(mapValues({ x: 1, y: 2 }, (v, k) => `${k}:${v}`)).toEqual({ x: 'x:1', y: 'y:2' });
+    expect(mapValues({ x: 1, y: 2 }, (v, k) => `${k}:${v}`)).toEqual({
+      x: 'x:1',
+      y: 'y:2',
+    });
   });
 
   it('returns empty object for empty input', () => {

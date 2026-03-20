@@ -6,7 +6,9 @@ vi.mock('./game-do/game-do', () => ({
 
 import worker from './index';
 
-function createEnv(initHandler?: (request: Request) => Promise<Response> | Response) {
+function createEnv(
+  initHandler?: (request: Request) => Promise<Response> | Response,
+) {
   const assetsFetch = vi.fn(async () => new Response('asset ok'));
   const initFetch = vi.fn(async (request: Request) => {
     if (initHandler) {
@@ -64,7 +66,9 @@ describe('server index worker', () => {
   });
 
   it('retries collisions up to 12 times before returning 503', async () => {
-    const { env, initFetch } = createEnv(async () => new Response('collision', { status: 409 }));
+    const { env, initFetch } = createEnv(
+      async () => new Response('collision', { status: 409 }),
+    );
 
     const response = await worker.fetch(
       new Request('https://delta-v.test/create', {
@@ -79,7 +83,9 @@ describe('server index worker', () => {
   });
 
   it('returns 500 when durable object initialization fails unexpectedly', async () => {
-    const { env, initFetch } = createEnv(async () => new Response('boom', { status: 500 }));
+    const { env, initFetch } = createEnv(
+      async () => new Response('boom', { status: 500 }),
+    );
 
     const response = await worker.fetch(
       new Request('https://delta-v.test/create', {
@@ -96,7 +102,9 @@ describe('server index worker', () => {
   });
 
   it('proxies websocket requests to the room durable object', async () => {
-    const { env, initFetch } = createEnv(async () => new Response('proxied', { status: 200 }));
+    const { env, initFetch } = createEnv(
+      async () => new Response('proxied', { status: 200 }),
+    );
     const request = new Request('https://delta-v.test/ws/ABCDE', {
       headers: { Upgrade: 'websocket' },
     });

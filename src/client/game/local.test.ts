@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createGame } from '../../shared/engine/game-engine';
-import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../../shared/map-data';
+import {
+  buildSolarSystemMap,
+  findBaseHex,
+  SCENARIOS,
+} from '../../shared/map-data';
 import type { SolarSystemMap } from '../../shared/types';
 import {
   hasOwnedPendingAsteroidHazards,
@@ -20,7 +24,12 @@ describe('game-client-local', () => {
   it('classifies launched movement as a movement result', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST1', findBaseHex);
     const ship = state.ships[0];
-    const resolution = resolveAstrogationStep(state, 0, [{ shipId: ship.id, burn: 0 }], map);
+    const resolution = resolveAstrogationStep(
+      state,
+      0,
+      [{ shipId: ship.id, burn: 0 }],
+      map,
+    );
 
     expect(resolution.kind).toBe('movement');
   });
@@ -33,7 +42,12 @@ describe('game-client-local', () => {
     ship.position = { q: 20, r: 0 };
     ship.velocity = { dq: 0, dr: 0 };
 
-    const resolution = resolveAstrogationStep(state, 0, [{ shipId: ship.id, burn: null }], map);
+    const resolution = resolveAstrogationStep(
+      state,
+      0,
+      [{ shipId: ship.id, burn: null }],
+      map,
+    );
 
     expect(resolution).toMatchObject({
       kind: 'state',
@@ -47,7 +61,9 @@ describe('game-client-local', () => {
     ship.landed = false;
     state.phase = 'combat';
     state.activePlayer = 0;
-    state.pendingAsteroidHazards = [{ shipId: ship.id, hex: { ...ship.position } }];
+    state.pendingAsteroidHazards = [
+      { shipId: ship.id, hex: { ...ship.position } },
+    ];
 
     const resolution = resolveBeginCombatStep(state, 0, map);
 
@@ -87,7 +103,13 @@ describe('game-client-local', () => {
     const resolution = resolveCombatStep(
       state,
       0,
-      [{ attackerIds: [state.ships[0].id], targetId: state.ships[1].id, targetType: 'ship' }],
+      [
+        {
+          attackerIds: [state.ships[0].id],
+          targetId: state.ships[1].id,
+          targetType: 'ship',
+        },
+      ],
       map,
       false,
     );

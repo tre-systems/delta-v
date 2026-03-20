@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { hexKey } from '../hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { GameState, Ordnance, Ship, SolarSystemMap } from '../types';
-import { beginCombatPhase, processCombat, shouldEnterCombatPhase, skipCombat } from './combat';
+import {
+  beginCombatPhase,
+  processCombat,
+  shouldEnterCombatPhase,
+  skipCombat,
+} from './combat';
 import { createGame } from './game-engine';
 
 function makeShip(overrides: Partial<Ship> = {}): Ship {
@@ -52,8 +57,18 @@ function makeCombatState(overrides: Partial<GameState> = {}): GameState {
     phase: 'combat',
     activePlayer: 0,
     ships: [
-      makeShip({ id: 'a0', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
-      makeShip({ id: 'e0', owner: 1, position: { q: 2, r: 0 }, lastMovementPath: [{ q: 2, r: 0 }] }),
+      makeShip({
+        id: 'a0',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        lastMovementPath: [{ q: 0, r: 0 }],
+      }),
+      makeShip({
+        id: 'e0',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        lastMovementPath: [{ q: 2, r: 0 }],
+      }),
     ],
     ordnance: [],
     pendingAstrogationOrders: null,
@@ -61,8 +76,22 @@ function makeCombatState(overrides: Partial<GameState> = {}): GameState {
     destroyedAsteroids: [],
     destroyedBases: [],
     players: [
-      { connected: true, ready: true, targetBody: 'Mars', homeBody: 'Venus', bases: [], escapeWins: false },
-      { connected: true, ready: true, targetBody: 'Venus', homeBody: 'Mars', bases: [], escapeWins: false },
+      {
+        connected: true,
+        ready: true,
+        targetBody: 'Mars',
+        homeBody: 'Venus',
+        bases: [],
+        escapeWins: false,
+      },
+      {
+        connected: true,
+        ready: true,
+        targetBody: 'Venus',
+        homeBody: 'Mars',
+        bases: [],
+        escapeWins: false,
+      },
     ],
     winner: null,
     winReason: null,
@@ -130,41 +159,89 @@ describe('processCombat', () => {
 
   it('rejects attacks when combatDisabled', () => {
     const state = makeCombatState({ scenarioRules: { combatDisabled: true } });
-    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0' }], openMap, Math.random);
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: ['a0'], targetId: 'e0' }],
+      openMap,
+      Math.random,
+    );
     expect('error' in result && result.error).toContain('not allowed');
   });
 
   it('rejects duplicate attacker ids within same attack', () => {
     const state = makeCombatState();
-    const result = processCombat(state, 0, [{ attackerIds: ['a0', 'a0'], targetId: 'e0' }], openMap, Math.random);
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: ['a0', 'a0'], targetId: 'e0' }],
+      openMap,
+      Math.random,
+    );
     expect('error' in result && result.error).toContain('at most once');
   });
 
   it('rejects invalid attacker (wrong owner)', () => {
     const state = makeCombatState();
-    const result = processCombat(state, 0, [{ attackerIds: ['e0'], targetId: 'a0' }], openMap, Math.random);
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: ['e0'], targetId: 'a0' }],
+      openMap,
+      Math.random,
+    );
     expect('error' in result && result.error).toContain('Invalid attacker');
   });
 
   it('rejects empty attackers', () => {
     const state = makeCombatState();
-    const result = processCombat(state, 0, [{ attackerIds: [], targetId: 'e0' }], openMap, Math.random);
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: [], targetId: 'e0' }],
+      openMap,
+      Math.random,
+    );
     expect('error' in result && result.error).toContain('Invalid attacker');
   });
 
   it('rejects attacking landed ship', () => {
     const state = makeCombatState();
     state.ships[1].landed = true;
-    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0' }], openMap, Math.random);
-    expect('error' in result && result.error).toContain('Invalid combat target');
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: ['a0'], targetId: 'e0' }],
+      openMap,
+      Math.random,
+    );
+    expect('error' in result && result.error).toContain(
+      'Invalid combat target',
+    );
   });
 
   it('rejects split fire across different hexes', () => {
     const state = makeCombatState();
     state.ships = [
-      makeShip({ id: 'a0', type: 'frigate', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
-      makeShip({ id: 'e0', owner: 1, position: { q: 2, r: 0 }, lastMovementPath: [{ q: 2, r: 0 }] }),
-      makeShip({ id: 'e1', owner: 1, position: { q: 3, r: 0 }, lastMovementPath: [{ q: 3, r: 0 }] }),
+      makeShip({
+        id: 'a0',
+        type: 'frigate',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        lastMovementPath: [{ q: 0, r: 0 }],
+      }),
+      makeShip({
+        id: 'e0',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        lastMovementPath: [{ q: 2, r: 0 }],
+      }),
+      makeShip({
+        id: 'e1',
+        owner: 1,
+        position: { q: 3, r: 0 },
+        lastMovementPath: [{ q: 3, r: 0 }],
+      }),
     ];
     const result = processCombat(
       state,
@@ -188,16 +265,39 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain('Invalid declared attack strength');
+    expect('error' in result && result.error).toContain(
+      'Invalid declared attack strength',
+    );
   });
 
   it('rejects when attack group has no strength remaining', () => {
     const state = makeCombatState();
     state.ships = [
-      makeShip({ id: 'a0', type: 'corvette', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
-      makeShip({ id: 'e0', owner: 1, position: { q: 2, r: 0 }, lastMovementPath: [{ q: 2, r: 0 }] }),
-      makeShip({ id: 'e1', owner: 1, position: { q: 2, r: 0 }, lastMovementPath: [{ q: 2, r: 0 }] }),
-      makeShip({ id: 'e2', owner: 1, position: { q: 2, r: 0 }, lastMovementPath: [{ q: 2, r: 0 }] }),
+      makeShip({
+        id: 'a0',
+        type: 'corvette',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        lastMovementPath: [{ q: 0, r: 0 }],
+      }),
+      makeShip({
+        id: 'e0',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        lastMovementPath: [{ q: 2, r: 0 }],
+      }),
+      makeShip({
+        id: 'e1',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        lastMovementPath: [{ q: 2, r: 0 }],
+      }),
+      makeShip({
+        id: 'e2',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        lastMovementPath: [{ q: 2, r: 0 }],
+      }),
     ];
     // Corvette has combat 4, try to split against 3 targets exhausting strength
     const result = processCombat(
@@ -211,15 +311,30 @@ describe('processCombat', () => {
       openMap,
       () => 0.99,
     );
-    expect('error' in result && result.error).toContain('no strength remaining');
+    expect('error' in result && result.error).toContain(
+      'no strength remaining',
+    );
   });
 
   it('rejects attacker group type mismatch (ship vs ordnance)', () => {
     const state = makeCombatState();
-    state.ordnance = [makeOrdnance({ id: 'ord0', owner: 1, position: { q: 2, r: 0 } })];
+    state.ordnance = [
+      makeOrdnance({ id: 'ord0', owner: 1, position: { q: 2, r: 0 } }),
+    ];
     state.ships = [
-      makeShip({ id: 'a0', type: 'frigate', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
-      makeShip({ id: 'e0', owner: 1, position: { q: 2, r: 0 }, lastMovementPath: [{ q: 2, r: 0 }] }),
+      makeShip({
+        id: 'a0',
+        type: 'frigate',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        lastMovementPath: [{ q: 0, r: 0 }],
+      }),
+      makeShip({
+        id: 'e0',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        lastMovementPath: [{ q: 2, r: 0 }],
+      }),
     ];
     // First attack on ship, second on ordnance with same group
     const result = processCombat(
@@ -232,12 +347,21 @@ describe('processCombat', () => {
       openMap,
       () => 0.99,
     );
-    expect('error' in result && result.error).toContain('cannot split fire between ship and ordnance');
+    expect('error' in result && result.error).toContain(
+      'cannot split fire between ship and ordnance',
+    );
   });
 
   it('rejects targeting destroyed ordnance', () => {
     const state = makeCombatState();
-    state.ordnance = [makeOrdnance({ id: 'ord0', owner: 1, position: { q: 2, r: 0 }, destroyed: true })];
+    state.ordnance = [
+      makeOrdnance({
+        id: 'ord0',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        destroyed: true,
+      }),
+    ];
     const result = processCombat(
       state,
       0,
@@ -245,25 +369,40 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain('Invalid combat target');
+    expect('error' in result && result.error).toContain(
+      'Invalid combat target',
+    );
   });
 
   it('rejects reduced-strength attacks against ordnance', () => {
     const state = makeCombatState();
-    state.ordnance = [makeOrdnance({ id: 'ord0', owner: 1, position: { q: 2, r: 0 } })];
+    state.ordnance = [
+      makeOrdnance({ id: 'ord0', owner: 1, position: { q: 2, r: 0 } }),
+    ];
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: ['a0'], targetId: 'ord0', targetType: 'ordnance', attackStrength: 2 }],
+      [
+        {
+          attackerIds: ['a0'],
+          targetId: 'ord0',
+          targetType: 'ordnance',
+          attackStrength: 2,
+        },
+      ],
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain('Reduced-strength attacks are only supported against ships');
+    expect('error' in result && result.error).toContain(
+      'Reduced-strength attacks are only supported against ships',
+    );
   });
 
   it('rejects targeting friendly ordnance', () => {
     const state = makeCombatState();
-    state.ordnance = [makeOrdnance({ id: 'ord0', owner: 0, position: { q: 2, r: 0 } })];
+    state.ordnance = [
+      makeOrdnance({ id: 'ord0', owner: 0, position: { q: 2, r: 0 } }),
+    ];
     const result = processCombat(
       state,
       0,
@@ -271,12 +410,21 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain('Invalid combat target');
+    expect('error' in result && result.error).toContain(
+      'Invalid combat target',
+    );
   });
 
   it('rejects targeting non-nuke ordnance', () => {
     const state = makeCombatState();
-    state.ordnance = [makeOrdnance({ id: 'ord0', type: 'mine', owner: 1, position: { q: 2, r: 0 } })];
+    state.ordnance = [
+      makeOrdnance({
+        id: 'ord0',
+        type: 'mine',
+        owner: 1,
+        position: { q: 2, r: 0 },
+      }),
+    ];
     const result = processCombat(
       state,
       0,
@@ -284,12 +432,16 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain('Invalid combat target');
+    expect('error' in result && result.error).toContain(
+      'Invalid combat target',
+    );
   });
 
   it('resolves anti-nuke attack that misses', () => {
     const state = makeCombatState();
-    state.ordnance = [makeOrdnance({ id: 'ord0', owner: 1, position: { q: 2, r: 0 } })];
+    state.ordnance = [
+      makeOrdnance({ id: 'ord0', owner: 1, position: { q: 2, r: 0 } }),
+    ];
     // Use rng that produces a miss (low roll)
     const result = processCombat(
       state,
@@ -309,7 +461,9 @@ describe('processCombat', () => {
 
   it('resolves anti-nuke attack that hits', () => {
     const state = makeCombatState();
-    state.ordnance = [makeOrdnance({ id: 'ord0', owner: 1, position: { q: 2, r: 0 } })];
+    state.ordnance = [
+      makeOrdnance({ id: 'ord0', owner: 1, position: { q: 2, r: 0 } }),
+    ];
     // Use rng that produces a hit (high roll)
     const result = processCombat(
       state,
@@ -432,7 +586,9 @@ describe('shouldEnterCombatPhase', () => {
 
   it('enters combat when enemy nuke is attackable', () => {
     const state = makeCombatState();
-    state.ordnance = [makeOrdnance({ id: 'ord0', owner: 1, position: { q: 2, r: 0 } })];
+    state.ordnance = [
+      makeOrdnance({ id: 'ord0', owner: 1, position: { q: 2, r: 0 } }),
+    ];
     // Remove enemy ships so only ordnance is target
     state.ships = [state.ships[0]];
     expect(shouldEnterCombatPhase(state, openMap)).toBe(true);
@@ -443,9 +599,26 @@ describe('processCombat — additional edge cases', () => {
   it('rejects duplicate target in separate attacks', () => {
     const state = makeCombatState();
     state.ships = [
-      makeShip({ id: 'a0', type: 'frigate', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
-      makeShip({ id: 'a1', type: 'corvette', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
-      makeShip({ id: 'e0', owner: 1, position: { q: 2, r: 0 }, lastMovementPath: [{ q: 2, r: 0 }] }),
+      makeShip({
+        id: 'a0',
+        type: 'frigate',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        lastMovementPath: [{ q: 0, r: 0 }],
+      }),
+      makeShip({
+        id: 'a1',
+        type: 'corvette',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        lastMovementPath: [{ q: 0, r: 0 }],
+      }),
+      makeShip({
+        id: 'e0',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        lastMovementPath: [{ q: 2, r: 0 }],
+      }),
     ];
     // Two separate attacks on the same target
     const result = processCombat(
@@ -468,8 +641,19 @@ describe('processCombat — additional edge cases', () => {
       makeOrdnance({ id: 'nuke1', owner: 1, position: { q: 2, r: 0 } }),
     ];
     state.ships = [
-      makeShip({ id: 'a0', type: 'frigate', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
-      makeShip({ id: 'e0', owner: 1, position: { q: 10, r: 0 }, lastMovementPath: [{ q: 10, r: 0 }] }),
+      makeShip({
+        id: 'a0',
+        type: 'frigate',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        lastMovementPath: [{ q: 0, r: 0 }],
+      }),
+      makeShip({
+        id: 'e0',
+        owner: 1,
+        position: { q: 10, r: 0 },
+        lastMovementPath: [{ q: 10, r: 0 }],
+      }),
     ];
     // First ordnance attack allocates full strength, second with same group has none remaining
     const result = processCombat(
@@ -482,20 +666,50 @@ describe('processCombat — additional edge cases', () => {
       openMap,
       () => 0.99,
     );
-    expect('error' in result && result.error).toContain('no strength remaining');
+    expect('error' in result && result.error).toContain(
+      'no strength remaining',
+    );
   });
 
   it('rejects anti-nuke attack when attacker lacks LOS through body', () => {
     const bodyMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'planetSurface', body: { name: 'Blocker', destructive: false } }]]),
-      bodies: [{ name: 'Blocker', center: { q: 1, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 }],
+      hexes: new Map([
+        [
+          '1,0',
+          {
+            terrain: 'planetSurface',
+            body: { name: 'Blocker', destructive: false },
+          },
+        ],
+      ]),
+      bodies: [
+        {
+          name: 'Blocker',
+          center: { q: 1, r: 0 },
+          surfaceRadius: 0,
+          color: '#888',
+          renderRadius: 1,
+        },
+      ],
       bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
     };
     const state = makeCombatState();
-    state.ordnance = [makeOrdnance({ id: 'nuke0', owner: 1, position: { q: 2, r: 0 } })];
+    state.ordnance = [
+      makeOrdnance({ id: 'nuke0', owner: 1, position: { q: 2, r: 0 } }),
+    ];
     state.ships = [
-      makeShip({ id: 'a0', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
-      makeShip({ id: 'e0', owner: 1, position: { q: 10, r: 0 }, lastMovementPath: [{ q: 10, r: 0 }] }),
+      makeShip({
+        id: 'a0',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        lastMovementPath: [{ q: 0, r: 0 }],
+      }),
+      makeShip({
+        id: 'e0',
+        owner: 1,
+        position: { q: 10, r: 0 },
+        lastMovementPath: [{ q: 10, r: 0 }],
+      }),
     ];
     const result = processCombat(
       state,
@@ -509,22 +723,60 @@ describe('processCombat — additional edge cases', () => {
 
   it('rejects ship attack when attacker lacks LOS through body', () => {
     const bodyMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'planetSurface', body: { name: 'Blocker', destructive: false } }]]),
-      bodies: [{ name: 'Blocker', center: { q: 1, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 }],
+      hexes: new Map([
+        [
+          '1,0',
+          {
+            terrain: 'planetSurface',
+            body: { name: 'Blocker', destructive: false },
+          },
+        ],
+      ]),
+      bodies: [
+        {
+          name: 'Blocker',
+          center: { q: 1, r: 0 },
+          surfaceRadius: 0,
+          color: '#888',
+          renderRadius: 1,
+        },
+      ],
       bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
     };
     const state = makeCombatState();
     state.ships = [
-      makeShip({ id: 'a0', owner: 0, position: { q: 0, r: 0 }, lastMovementPath: [{ q: 0, r: 0 }] }),
-      makeShip({ id: 'e0', owner: 1, position: { q: 2, r: 0 }, lastMovementPath: [{ q: 2, r: 0 }] }),
+      makeShip({
+        id: 'a0',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        lastMovementPath: [{ q: 0, r: 0 }],
+      }),
+      makeShip({
+        id: 'e0',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        lastMovementPath: [{ q: 2, r: 0 }],
+      }),
     ];
-    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0' }], bodyMap, Math.random);
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: ['a0'], targetId: 'e0' }],
+      bodyMap,
+      Math.random,
+    );
     expect('error' in result && result.error).toContain('line of sight');
   });
 
   it('resolves successful ship combat with results', () => {
     const state = makeCombatState();
-    const result = processCombat(state, 0, [{ attackerIds: ['a0'], targetId: 'e0' }], openMap, () => 0.99);
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: ['a0'], targetId: 'e0' }],
+      openMap,
+      () => 0.99,
+    );
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
       expect(result.results.length).toBeGreaterThanOrEqual(1);
@@ -598,7 +850,9 @@ describe('base defense with skipCombat', () => {
           const result = skipCombat(state, 0, map, () => 0.99);
           expect('error' in result).toBe(false);
           if ('results' in result && result.results) {
-            const baseDef = result.results.find((r) => r.attackType === 'baseDefense');
+            const baseDef = result.results.find(
+              (r) => r.attackType === 'baseDefense',
+            );
             expect(baseDef).toBeDefined();
           }
         }

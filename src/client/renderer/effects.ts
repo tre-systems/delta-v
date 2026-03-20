@@ -22,7 +22,8 @@ export interface HexFlash {
 }
 
 /**
- * Render and prune active combat visual effects (beams, explosions, game-over blasts).
+ * Render and prune active combat visual effects
+ * (beams, explosions, game-over blasts).
  * Returns the filtered array with expired effects removed.
  */
 export const drawCombatEffects = (
@@ -34,6 +35,7 @@ export const drawCombatEffects = (
 
   for (const effect of live) {
     if (now < effect.startTime) continue;
+
     const progress = (now - effect.startTime) / effect.duration;
 
     if (effect.type === 'beam') {
@@ -48,13 +50,18 @@ export const drawCombatEffects = (
   return live;
 };
 
-const drawBeamEffect = (ctx: CanvasRenderingContext2D, effect: CombatEffect, progress: number): void => {
+const drawBeamEffect = (
+  ctx: CanvasRenderingContext2D,
+  effect: CombatEffect,
+  progress: number,
+): void => {
   const beamAlpha = 1 - progress;
   const beamProgress = Math.min(progress * 3, 1);
 
   ctx.strokeStyle = effect.color;
   ctx.globalAlpha = beamAlpha * 0.8;
   ctx.lineWidth = 2 * (1 - progress);
+
   ctx.beginPath();
   ctx.moveTo(effect.from.x, effect.from.y);
   ctx.lineTo(
@@ -66,6 +73,7 @@ const drawBeamEffect = (ctx: CanvasRenderingContext2D, effect: CombatEffect, pro
   // Glow line
   ctx.globalAlpha = beamAlpha * 0.3;
   ctx.lineWidth = 6 * (1 - progress);
+
   ctx.beginPath();
   ctx.moveTo(effect.from.x, effect.from.y);
   ctx.lineTo(
@@ -73,10 +81,15 @@ const drawBeamEffect = (ctx: CanvasRenderingContext2D, effect: CombatEffect, pro
     effect.from.y + (effect.to.y - effect.from.y) * beamProgress,
   );
   ctx.stroke();
+
   ctx.globalAlpha = 1;
 };
 
-const drawExplosionEffect = (ctx: CanvasRenderingContext2D, effect: CombatEffect, progress: number): void => {
+const drawExplosionEffect = (
+  ctx: CanvasRenderingContext2D,
+  effect: CombatEffect,
+  progress: number,
+): void => {
   const maxRadius = 20;
   const radius = maxRadius * progress;
   const alpha = 1 - progress;
@@ -84,6 +97,7 @@ const drawExplosionEffect = (ctx: CanvasRenderingContext2D, effect: CombatEffect
   ctx.strokeStyle = effect.color;
   ctx.lineWidth = 3 * (1 - progress);
   ctx.globalAlpha = alpha * 0.8;
+
   ctx.beginPath();
   ctx.arc(effect.from.x, effect.from.y, radius, 0, Math.PI * 2);
   ctx.stroke();
@@ -91,14 +105,20 @@ const drawExplosionEffect = (ctx: CanvasRenderingContext2D, effect: CombatEffect
   if (progress < 0.3) {
     ctx.fillStyle = effect.color;
     ctx.globalAlpha = (1 - progress / 0.3) * 0.6;
+
     ctx.beginPath();
     ctx.arc(effect.from.x, effect.from.y, radius * 0.5, 0, Math.PI * 2);
     ctx.fill();
   }
+
   ctx.globalAlpha = 1;
 };
 
-const drawGameOverExplosionEffect = (ctx: CanvasRenderingContext2D, effect: CombatEffect, progress: number): void => {
+const drawGameOverExplosionEffect = (
+  ctx: CanvasRenderingContext2D,
+  effect: CombatEffect,
+  progress: number,
+): void => {
   const maxRadius = 50;
   const alpha = 1 - progress;
 
@@ -107,6 +127,7 @@ const drawGameOverExplosionEffect = (ctx: CanvasRenderingContext2D, effect: Comb
   ctx.strokeStyle = effect.color;
   ctx.lineWidth = 4 * (1 - progress);
   ctx.globalAlpha = alpha * 0.7;
+
   ctx.beginPath();
   ctx.arc(effect.from.x, effect.from.y, outerRadius, 0, Math.PI * 2);
   ctx.stroke();
@@ -117,6 +138,7 @@ const drawGameOverExplosionEffect = (ctx: CanvasRenderingContext2D, effect: Comb
     const innerRadius = maxRadius * 0.7 * innerProgress;
     ctx.lineWidth = 3 * (1 - innerProgress);
     ctx.globalAlpha = (1 - innerProgress) * 0.5;
+
     ctx.beginPath();
     ctx.arc(effect.from.x, effect.from.y, innerRadius, 0, Math.PI * 2);
     ctx.stroke();
@@ -126,6 +148,7 @@ const drawGameOverExplosionEffect = (ctx: CanvasRenderingContext2D, effect: Comb
   if (progress < 0.4) {
     const coreAlpha = 1 - progress / 0.4;
     const coreRadius = 15 * (1 - progress * 0.5);
+
     ctx.fillStyle = '#ffffff';
     ctx.globalAlpha = coreAlpha * 0.8;
     ctx.beginPath();
@@ -142,17 +165,27 @@ const drawGameOverExplosionEffect = (ctx: CanvasRenderingContext2D, effect: Comb
   // Debris lines radiating outward
   if (progress > 0.05 && progress < 0.8) {
     const debrisAlpha = progress < 0.4 ? 1 : (0.8 - progress) / 0.4;
+
     ctx.strokeStyle = effect.color;
     ctx.globalAlpha = debrisAlpha * 0.6;
     ctx.lineWidth = 1.5;
+
     const seed = (effect.from.x * 7 + effect.from.y * 13) | 0;
+
     for (let d = 0; d < 8; d++) {
       const angle = (seed + d * 0.785) % (Math.PI * 2);
       const innerR = maxRadius * progress * 0.3;
       const outerR = maxRadius * progress * 0.7;
+
       ctx.beginPath();
-      ctx.moveTo(effect.from.x + Math.cos(angle) * innerR, effect.from.y + Math.sin(angle) * innerR);
-      ctx.lineTo(effect.from.x + Math.cos(angle) * outerR, effect.from.y + Math.sin(angle) * outerR);
+      ctx.moveTo(
+        effect.from.x + Math.cos(angle) * innerR,
+        effect.from.y + Math.sin(angle) * innerR,
+      );
+      ctx.lineTo(
+        effect.from.x + Math.cos(angle) * outerR,
+        effect.from.y + Math.sin(angle) * outerR,
+      );
       ctx.stroke();
     }
   }
@@ -174,19 +207,23 @@ export const drawHexFlashes = (
 
   for (const flash of live) {
     if (now < flash.startTime) continue;
+
     const progress = (now - flash.startTime) / flash.duration;
     const alpha = (1 - progress) * 0.6;
     const radius = hexSize * (0.5 + progress * 0.5);
 
     ctx.beginPath();
     ctx.arc(flash.position.x, flash.position.y, radius, 0, Math.PI * 2);
+
     ctx.fillStyle = flash.color;
     ctx.globalAlpha = alpha * 0.3;
     ctx.fill();
+
     ctx.strokeStyle = flash.color;
     ctx.lineWidth = 2 * (1 - progress);
     ctx.globalAlpha = alpha;
     ctx.stroke();
+
     ctx.globalAlpha = 1;
   }
 

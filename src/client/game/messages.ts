@@ -1,5 +1,16 @@
-import type { CombatResult, GameState, MovementEvent, OrdnanceMovement, S2C, ShipMovement } from '../../shared/types';
-import { deriveGameStartClientState, deriveWelcomeHandling, shouldTransitionAfterStateUpdate } from './network';
+import type {
+  CombatResult,
+  GameState,
+  MovementEvent,
+  OrdnanceMovement,
+  S2C,
+  ShipMovement,
+} from '../../shared/types';
+import {
+  deriveGameStartClientState,
+  deriveWelcomeHandling,
+  shouldTransitionAfterStateUpdate,
+} from './network';
 import type { ClientState } from './phase';
 
 export type ClientMessagePlan =
@@ -71,7 +82,11 @@ export const deriveClientMessagePlan = (
 ): ClientMessagePlan => {
   switch (msg.type) {
     case 'welcome': {
-      const welcome = deriveWelcomeHandling(currentState, reconnectAttempts, msg.playerId);
+      const welcome = deriveWelcomeHandling(
+        currentState,
+        reconnectAttempts,
+        msg.playerId,
+      );
       return {
         kind: 'welcome',
         playerId: msg.playerId,

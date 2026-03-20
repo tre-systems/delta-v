@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { analyzeHexLine, HEX_DIRECTIONS, hexAdd, hexEqual, hexKey } from './hex';
+import {
+  analyzeHexLine,
+  HEX_DIRECTIONS,
+  hexAdd,
+  hexEqual,
+  hexKey,
+} from './hex';
 import { buildSolarSystemMap, findBaseHex } from './map-data';
 import { canBurn, computeCourse, predictDestination } from './movement';
 import type { Ship, SolarSystemMap } from './types';
@@ -31,7 +37,10 @@ beforeEach(() => {
 
 describe('computeCourse - basic movement', () => {
   it('stationary ship with no burn stays put', () => {
-    const ship = makeShip({ position: { q: 5, r: 5 }, velocity: { dq: 0, dr: 0 } });
+    const ship = makeShip({
+      position: { q: 5, r: 5 },
+      velocity: { dq: 0, dr: 0 },
+    });
     const course = computeCourse(ship, null, map);
 
     expect(course.destination).toEqual({ q: 5, r: 5 });
@@ -54,7 +63,10 @@ describe('computeCourse - basic movement', () => {
   });
 
   it('burn shifts destination and changes velocity', () => {
-    const ship = makeShip({ position: { q: 5, r: 5 }, velocity: { dq: 0, dr: 0 } });
+    const ship = makeShip({
+      position: { q: 5, r: 5 },
+      velocity: { dq: 0, dr: 0 },
+    });
     const course = computeCourse(ship, 0, map); // Burn E
 
     expect(course.destination).toEqual({ q: 6, r: 5 });
@@ -217,7 +229,11 @@ describe('computeCourse - gravity', () => {
       expect(course.crashed).toBe(false);
     }
     expect(course.gravityEffects).toHaveLength(0);
-    expect(course.enteredGravityEffects.every((effect) => !hexEqual(effect.hex, ship.position))).toBe(true);
+    expect(
+      course.enteredGravityEffects.every(
+        (effect) => !hexEqual(effect.hex, ship.position),
+      ),
+    ).toBe(true);
   });
 
   it('passing through multiple gravity hexes queues multiple future deflections', () => {
@@ -373,8 +389,12 @@ describe('computeCourse - weak gravity', () => {
 
     expect(courseApplied.destination).toEqual(courseIgnored.destination);
 
-    const appliedGrav = courseApplied.enteredGravityEffects.find((e) => e.bodyName === 'Luna');
-    const ignoredGrav = courseIgnored.enteredGravityEffects.find((e) => e.bodyName === 'Luna');
+    const appliedGrav = courseApplied.enteredGravityEffects.find(
+      (e) => e.bodyName === 'Luna',
+    );
+    const ignoredGrav = courseIgnored.enteredGravityEffects.find(
+      (e) => e.bodyName === 'Luna',
+    );
 
     if (appliedGrav) {
       expect(appliedGrav.ignored).toBe(false);
@@ -539,7 +559,9 @@ describe('computeCourse - takeoff', () => {
     // Ship should have moved away from the base
     expect(hexEqual(course.destination, marsBase)).toBe(false);
     // Velocity should be non-zero
-    expect(course.newVelocity.dq !== 0 || course.newVelocity.dr !== 0).toBe(true);
+    expect(course.newVelocity.dq !== 0 || course.newVelocity.dr !== 0).toBe(
+      true,
+    );
   });
 
   it('takeoff does not crash into the launch body', () => {
@@ -567,7 +589,13 @@ describe('computeCourse - takeoff edge cases', () => {
     const customMap: SolarSystemMap = {
       hexes: new Map([
         // Body at center
-        ['0,0', { terrain: 'planetSurface', body: { name: 'TestWorld', destructive: false } }],
+        [
+          '0,0',
+          {
+            terrain: 'planetSurface',
+            body: { name: 'TestWorld', destructive: false },
+          },
+        ],
         // Base where ship is landed (adjacent to body)
         [
           '1,0',
@@ -578,14 +606,44 @@ describe('computeCourse - takeoff edge cases', () => {
           },
         ],
         // Away direction from center (1,0) → (2,0) is blocked by another body
-        ['2,0', { terrain: 'planetSurface', body: { name: 'Blocker', destructive: true } }],
+        [
+          '2,0',
+          {
+            terrain: 'planetSurface',
+            body: { name: 'Blocker', destructive: true },
+          },
+        ],
         // But another gravity hex exists
-        ['0,1', { terrain: 'space', gravity: { direction: 0, strength: 'full', bodyName: 'TestWorld' } }],
-        ['1,-1', { terrain: 'space', gravity: { direction: 4, strength: 'full', bodyName: 'TestWorld' } }],
+        [
+          '0,1',
+          {
+            terrain: 'space',
+            gravity: { direction: 0, strength: 'full', bodyName: 'TestWorld' },
+          },
+        ],
+        [
+          '1,-1',
+          {
+            terrain: 'space',
+            gravity: { direction: 4, strength: 'full', bodyName: 'TestWorld' },
+          },
+        ],
       ]),
       bodies: [
-        { name: 'TestWorld', center: { q: 0, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 },
-        { name: 'Blocker', center: { q: 2, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 },
+        {
+          name: 'TestWorld',
+          center: { q: 0, r: 0 },
+          surfaceRadius: 0,
+          color: '#888',
+          renderRadius: 1,
+        },
+        {
+          name: 'Blocker',
+          center: { q: 2, r: 0 },
+          surfaceRadius: 0,
+          color: '#888',
+          renderRadius: 1,
+        },
       ],
       bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
     };
@@ -664,10 +722,30 @@ describe('computeCourse - weak gravity consecutive rule', () => {
     // Create a map with two consecutive weak gravity hexes from the same body
     const customMap: SolarSystemMap = {
       hexes: new Map([
-        ['1,0', { terrain: 'space', gravity: { direction: 3, strength: 'weak', bodyName: 'Luna' } }],
-        ['2,0', { terrain: 'space', gravity: { direction: 3, strength: 'weak', bodyName: 'Luna' } }],
+        [
+          '1,0',
+          {
+            terrain: 'space',
+            gravity: { direction: 3, strength: 'weak', bodyName: 'Luna' },
+          },
+        ],
+        [
+          '2,0',
+          {
+            terrain: 'space',
+            gravity: { direction: 3, strength: 'weak', bodyName: 'Luna' },
+          },
+        ],
       ]),
-      bodies: [{ name: 'Luna', center: { q: 3, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 }],
+      bodies: [
+        {
+          name: 'Luna',
+          center: { q: 3, r: 0 },
+          surfaceRadius: 0,
+          color: '#888',
+          renderRadius: 1,
+        },
+      ],
       bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
     };
 
@@ -692,12 +770,36 @@ describe('computeCourse - weak gravity consecutive rule', () => {
   it('weak gravity from different bodies can both be ignored', () => {
     const customMap: SolarSystemMap = {
       hexes: new Map([
-        ['1,0', { terrain: 'space', gravity: { direction: 3, strength: 'weak', bodyName: 'BodyA' } }],
-        ['2,0', { terrain: 'space', gravity: { direction: 3, strength: 'weak', bodyName: 'BodyB' } }],
+        [
+          '1,0',
+          {
+            terrain: 'space',
+            gravity: { direction: 3, strength: 'weak', bodyName: 'BodyA' },
+          },
+        ],
+        [
+          '2,0',
+          {
+            terrain: 'space',
+            gravity: { direction: 3, strength: 'weak', bodyName: 'BodyB' },
+          },
+        ],
       ]),
       bodies: [
-        { name: 'BodyA', center: { q: 3, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 },
-        { name: 'BodyB', center: { q: 4, r: 0 }, surfaceRadius: 0, color: '#888', renderRadius: 1 },
+        {
+          name: 'BodyA',
+          center: { q: 3, r: 0 },
+          surfaceRadius: 0,
+          color: '#888',
+          renderRadius: 1,
+        },
+        {
+          name: 'BodyB',
+          center: { q: 4, r: 0 },
+          surfaceRadius: 0,
+          color: '#888',
+          renderRadius: 1,
+        },
       ],
       bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
     };

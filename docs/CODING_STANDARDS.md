@@ -234,6 +234,15 @@ Additional rules at warning level: `noNonNullAssertion`, `noExplicitAny`, `noAcc
 
 The server directory (`src/server/`) has `noUndeclaredVariables` disabled because Cloudflare Workers globals (like `WebSocketPair`) are not recognized by biome.
 
+## Formatting
+
+- **Line width**: keep lines under 80 characters where practical. Break long lines at natural points (after commas, before operators, at arrow functions). Some lines will be longer — that's fine if breaking them would hurt readability.
+- **Generous whitespace**: add blank lines between logical blocks — between functions, after import blocks, between distinct steps within a function, before return statements that follow logic, between groups of related declarations. Code should look simple, clear, and airy — not dense or cramped.
+- **Long signatures**: put each parameter on its own line when the signature exceeds ~80 chars.
+- **Long objects/arrays**: put each property or element on its own line.
+- **Long conditionals**: break `if` conditions and ternaries across multiple lines.
+- **Chained methods**: put each `.method()` on its own line for long chains (map/filter/reduce etc.).
+
 ## Practical Style
 
 - Use descriptive names over abbreviations unless the abbreviation is already standard in the codebase.

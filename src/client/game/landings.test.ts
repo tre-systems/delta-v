@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GameState, PlayerState, Ship, ShipMovement } from '../../shared/types';
+import type {
+  GameState,
+  PlayerState,
+  Ship,
+  ShipMovement,
+} from '../../shared/types';
 import { deriveLandingLogEntries } from './landings';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
@@ -24,8 +29,22 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
 
 function createPlayers(): [PlayerState, PlayerState] {
   return [
-    { connected: true, ready: true, targetBody: 'Mars', homeBody: 'Terra', bases: ['1,0'], escapeWins: false },
-    { connected: true, ready: true, targetBody: 'Terra', homeBody: 'Mars', bases: [], escapeWins: false },
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Mars',
+      homeBody: 'Terra',
+      bases: ['1,0'],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Terra',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
   ];
 }
 
@@ -38,7 +57,10 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     turnNumber: 1,
     phase: 'movement',
     activePlayer: 0,
-    ships: [createShip(), createShip({ id: 'enemy', owner: 1, type: 'corsair' })],
+    ships: [
+      createShip(),
+      createShip({ id: 'enemy', owner: 1, type: 'corsair' }),
+    ],
     ordnance: [],
     pendingAstrogationOrders: null,
     pendingAsteroidHazards: [],

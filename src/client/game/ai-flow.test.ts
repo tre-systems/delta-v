@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { buildSolarSystemMap } from '../../shared/map-data';
-import type { AstrogationOrder, CombatAttack, GameState, OrdnanceLaunch, PlayerState, Ship } from '../../shared/types';
+import type {
+  AstrogationOrder,
+  CombatAttack,
+  GameState,
+  OrdnanceLaunch,
+  PlayerState,
+  Ship,
+} from '../../shared/types';
 import { deriveAIActionPlan } from './ai-flow';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
@@ -25,8 +32,22 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
 
 function createPlayers(): [PlayerState, PlayerState] {
   return [
-    { connected: true, ready: true, targetBody: 'Mars', homeBody: 'Terra', bases: [], escapeWins: false },
-    { connected: true, ready: true, targetBody: 'Terra', homeBody: 'Mars', bases: [], escapeWins: false },
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Mars',
+      homeBody: 'Terra',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Terra',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
   ];
 }
 
@@ -59,9 +80,15 @@ describe('game-client-ai-flow', () => {
   it('returns none when there is no active AI turn', () => {
     const map = buildSolarSystemMap();
 
-    expect(deriveAIActionPlan(null, 0, map, 'normal')).toEqual({ kind: 'none' });
-    expect(deriveAIActionPlan(createState({ activePlayer: 0 }), 0, map, 'normal')).toEqual({ kind: 'none' });
-    expect(deriveAIActionPlan(createState({ phase: 'gameOver' }), 0, map, 'normal')).toEqual({ kind: 'none' });
+    expect(deriveAIActionPlan(null, 0, map, 'normal')).toEqual({
+      kind: 'none',
+    });
+    expect(
+      deriveAIActionPlan(createState({ activePlayer: 0 }), 0, map, 'normal'),
+    ).toEqual({ kind: 'none' });
+    expect(
+      deriveAIActionPlan(createState({ phase: 'gameOver' }), 0, map, 'normal'),
+    ).toEqual({ kind: 'none' });
   });
 
   it('derives astrogation actions from the injected generator', () => {
@@ -70,11 +97,17 @@ describe('game-client-ai-flow', () => {
     const astrogation = vi.fn(() => orders);
 
     expect(
-      deriveAIActionPlan(createState({ phase: 'astrogation' }), 0, map, 'normal', {
-        astrogation,
-        ordnance: vi.fn(() => []),
-        combat: vi.fn(() => []),
-      }),
+      deriveAIActionPlan(
+        createState({ phase: 'astrogation' }),
+        0,
+        map,
+        'normal',
+        {
+          astrogation,
+          ordnance: vi.fn(() => []),
+          combat: vi.fn(() => []),
+        },
+      ),
     ).toEqual({
       kind: 'astrogation',
       aiPlayer: 1,
@@ -85,7 +118,9 @@ describe('game-client-ai-flow', () => {
 
   it('derives ordnance actions, skip behavior, and log entries', () => {
     const map = buildSolarSystemMap();
-    const launches: OrdnanceLaunch[] = [{ shipId: 'ai-ship', ordnanceType: 'mine' }];
+    const launches: OrdnanceLaunch[] = [
+      { shipId: 'ai-ship', ordnanceType: 'mine' },
+    ];
 
     expect(
       deriveAIActionPlan(createState({ phase: 'ordnance' }), 0, map, 'normal', {
@@ -120,7 +155,9 @@ describe('game-client-ai-flow', () => {
 
   it('derives combat actions, including pending-hazard start and skip paths', () => {
     const map = buildSolarSystemMap();
-    const attacks: CombatAttack[] = [{ attackerIds: ['ai-ship'], targetId: 'player-ship' }];
+    const attacks: CombatAttack[] = [
+      { attackerIds: ['ai-ship'], targetId: 'player-ship' },
+    ];
 
     expect(
       deriveAIActionPlan(
@@ -170,7 +207,9 @@ describe('game-client-ai-flow', () => {
   it('falls back to transition for non-action AI phases', () => {
     const map = buildSolarSystemMap();
 
-    expect(deriveAIActionPlan(createState({ phase: 'resupply' }), 0, map, 'normal')).toEqual({
+    expect(
+      deriveAIActionPlan(createState({ phase: 'resupply' }), 0, map, 'normal'),
+    ).toEqual({
       kind: 'transition',
       aiPlayer: 1,
     });

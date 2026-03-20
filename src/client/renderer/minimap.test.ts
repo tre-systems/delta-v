@@ -26,8 +26,20 @@ function createMap(): SolarSystemMap {
   return {
     hexes: new Map(),
     bodies: [
-      { name: 'Mars', center: { q: 0, r: 0 }, surfaceRadius: 0, color: '#cc4422', renderRadius: 0.7 },
-      { name: 'Jupiter', center: { q: 8, r: -8 }, surfaceRadius: 2, color: '#cc9966', renderRadius: 2.8 },
+      {
+        name: 'Mars',
+        center: { q: 0, r: 0 },
+        surfaceRadius: 0,
+        color: '#cc4422',
+        renderRadius: 0.7,
+      },
+      {
+        name: 'Jupiter',
+        center: { q: 8, r: -8 },
+        surfaceRadius: 2,
+        color: '#cc9966',
+        renderRadius: 2.8,
+      },
     ],
     bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
   };
@@ -44,8 +56,18 @@ function createState(): GameState {
     activePlayer: 0,
     ships: [
       createShip({ id: 'friendly', owner: 0, position: { q: 0, r: 0 } }),
-      createShip({ id: 'enemy-visible', owner: 1, position: { q: 2, r: -1 }, detected: true }),
-      createShip({ id: 'enemy-hidden', owner: 1, position: { q: 3, r: -2 }, detected: false }),
+      createShip({
+        id: 'enemy-visible',
+        owner: 1,
+        position: { q: 2, r: -1 },
+        detected: true,
+      }),
+      createShip({
+        id: 'enemy-hidden',
+        owner: 1,
+        position: { q: 3, r: -2 },
+        detected: false,
+      }),
       createShip({ id: 'destroyed', owner: 0, destroyed: true }),
     ],
     ordnance: [
@@ -82,8 +104,22 @@ function createState(): GameState {
     destroyedAsteroids: [],
     destroyedBases: [],
     players: [
-      { connected: true, ready: true, targetBody: 'Mars', homeBody: 'Venus', bases: [], escapeWins: false },
-      { connected: true, ready: true, targetBody: 'Venus', homeBody: 'Mars', bases: [], escapeWins: false },
+      {
+        connected: true,
+        ready: true,
+        targetBody: 'Mars',
+        homeBody: 'Venus',
+        bases: [],
+        escapeWins: false,
+      },
+      {
+        connected: true,
+        ready: true,
+        targetBody: 'Venus',
+        homeBody: 'Mars',
+        bases: [],
+        escapeWins: false,
+      },
     ],
     winner: null,
     winReason: null,
@@ -119,7 +155,17 @@ describe('renderer minimap helpers', () => {
       ],
     ]);
 
-    const scene = buildMinimapSceneView(map, state, 0, shipTrails, layout, { x: 0, y: 0, zoom: 1.5 }, 1200, 800, 28);
+    const scene = buildMinimapSceneView(
+      map,
+      state,
+      0,
+      shipTrails,
+      layout,
+      { x: 0, y: 0, zoom: 1.5 },
+      1200,
+      800,
+      28,
+    );
 
     expect(scene.bodies).toHaveLength(2);
     expect(scene.bodies[0]).toMatchObject({ color: '#cc4422', alpha: 0.7 });
@@ -133,7 +179,10 @@ describe('renderer minimap helpers', () => {
     expect(scene.ships.map((dot) => dot.color)).toEqual(['#4fc3f7', '#ff8a65']);
 
     expect(scene.ordnance).toHaveLength(2);
-    expect(scene.ordnance.map((dot) => dot.color)).toEqual(['#ff4444', '#ffb74d']);
+    expect(scene.ordnance.map((dot) => dot.color)).toEqual([
+      '#ff4444',
+      '#ffb74d',
+    ]);
 
     expect(scene.viewport).not.toBeNull();
     expect(scene.viewport!.width).toBeGreaterThan(2);
@@ -145,7 +194,17 @@ describe('renderer minimap helpers', () => {
     const state = createState();
     const layout = createMinimapLayout(map.bounds, 1200, 800, 28);
 
-    const scene = buildMinimapSceneView(map, state, 0, new Map(), layout, { x: 0, y: 0, zoom: 1000 }, 1, 1, 28);
+    const scene = buildMinimapSceneView(
+      map,
+      state,
+      0,
+      new Map(),
+      layout,
+      { x: 0, y: 0, zoom: 1000 },
+      1,
+      1,
+      28,
+    );
 
     expect(scene.viewport).toBeNull();
   });

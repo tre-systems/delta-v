@@ -32,12 +32,22 @@ export const getFleetCartCost = (cart: FleetPurchase[]): number => {
   return sumBy(cart, (purchase) => SHIP_STATS[purchase.shipType]?.cost ?? 0);
 };
 
-export const canAddFleetShip = (cart: FleetPurchase[], totalCredits: number, shipType: string): boolean => {
-  return getFleetCartCost(cart) + (SHIP_STATS[shipType]?.cost ?? 0) <= totalCredits;
+export const canAddFleetShip = (
+  cart: FleetPurchase[],
+  totalCredits: number,
+  shipType: string,
+): boolean => {
+  return (
+    getFleetCartCost(cart) + (SHIP_STATS[shipType]?.cost ?? 0) <= totalCredits
+  );
 };
 
-export const getFleetCartView = (cart: FleetPurchase[], totalCredits: number): FleetCartView => {
+export const getFleetCartView = (
+  cart: FleetPurchase[],
+  totalCredits: number,
+): FleetCartView => {
   const remainingCredits = totalCredits - getFleetCartCost(cart);
+
   return {
     remainingCredits,
     remainingLabel: `${remainingCredits} MC remaining`,
@@ -49,8 +59,12 @@ export const getFleetCartView = (cart: FleetPurchase[], totalCredits: number): F
   };
 };
 
-export const getFleetShopView = (cart: FleetPurchase[], totalCredits: number): FleetShopItemView[] => {
+export const getFleetShopView = (
+  cart: FleetPurchase[],
+  totalCredits: number,
+): FleetShopItemView[] => {
   const remainingCredits = totalCredits - getFleetCartCost(cart);
+
   return getFleetShopTypes().map(([shipType, stats]) => ({
     shipType,
     name: stats.name,

@@ -47,8 +47,22 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     destroyedAsteroids: [],
     destroyedBases: [],
     players: [
-      { connected: true, ready: true, targetBody: 'Mars', homeBody: 'Terra', bases: [], escapeWins: false },
-      { connected: true, ready: true, targetBody: 'Terra', homeBody: 'Mars', bases: [], escapeWins: false },
+      {
+        connected: true,
+        ready: true,
+        targetBody: 'Mars',
+        homeBody: 'Terra',
+        bases: [],
+        escapeWins: false,
+      },
+      {
+        connected: true,
+        ready: true,
+        targetBody: 'Terra',
+        homeBody: 'Mars',
+        bases: [],
+        escapeWins: false,
+      },
     ],
     winner: null,
     winReason: null,
@@ -200,14 +214,18 @@ describe('game-client-messages', () => {
       kind: 'rematchPending',
     });
 
-    expect(derive({ type: 'opponentDisconnected' }, 'playing_ordnance')).toEqual({
+    expect(
+      derive({ type: 'opponentDisconnected' }, 'playing_ordnance'),
+    ).toEqual({
       kind: 'opponentDisconnected',
       nextState: 'gameOver',
       won: true,
       reason: 'Opponent disconnected',
     });
 
-    expect(derive({ type: 'error', message: 'Bad request' }, 'playing_astrogation')).toEqual({
+    expect(
+      derive({ type: 'error', message: 'Bad request' }, 'playing_astrogation'),
+    ).toEqual({
       kind: 'error',
       message: 'Bad request',
     });

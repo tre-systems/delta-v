@@ -29,10 +29,15 @@ export interface ScreenRect extends ScreenPoint {
   height: number;
 }
 
-export const getMinimapFrame = (screenWidth: number, screenHeight: number, hudTopOffset = 0): MinimapFrame => {
+export const getMinimapFrame = (
+  screenWidth: number,
+  screenHeight: number,
+  hudTopOffset = 0,
+): MinimapFrame => {
   const isMobile = screenWidth < 600;
   const width = isMobile ? 100 : 140;
   const height = isMobile ? 100 : 140;
+
   return {
     x: 12,
     y: isMobile ? Math.max(90, hudTopOffset + 8) : screenHeight - height - 12,
@@ -50,14 +55,21 @@ export const createMinimapLayout = (
   hudTopOffset = 0,
 ): MinimapLayout => {
   const frame = getMinimapFrame(screenWidth, screenHeight, hudTopOffset);
+
   const worldMinX = hexToPixel({ q: bounds.minQ, r: bounds.minR }, hexSize).x;
+
   const worldMaxX = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, hexSize).x;
+
   const worldMinY = hexToPixel({ q: bounds.minQ, r: bounds.minR }, hexSize).y;
+
   const worldMaxY = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, hexSize).y;
+
   const worldWidth = worldMaxX - worldMinX || 1;
   const worldHeight = worldMaxY - worldMinY || 1;
+
   const innerWidth = frame.width - frame.padding * 2;
   const innerHeight = frame.height - frame.padding * 2;
+
   const scale = Math.min(innerWidth / worldWidth, innerHeight / worldHeight);
 
   return {
@@ -72,31 +84,55 @@ export const createMinimapLayout = (
   };
 };
 
-export const isPointInMinimap = (frame: MinimapFrame, point: ScreenPoint): boolean => {
+export const isPointInMinimap = (
+  frame: MinimapFrame,
+  point: ScreenPoint,
+): boolean => {
   return (
-    point.x >= frame.x && point.x <= frame.x + frame.width && point.y >= frame.y && point.y <= frame.y + frame.height
+    point.x >= frame.x &&
+    point.x <= frame.x + frame.width &&
+    point.y >= frame.y &&
+    point.y <= frame.y + frame.height
   );
 };
 
-export const projectWorldToMinimap = (layout: MinimapLayout, point: ScreenPoint): ScreenPoint => {
+export const projectWorldToMinimap = (
+  layout: MinimapLayout,
+  point: ScreenPoint,
+): ScreenPoint => {
   return {
     x: layout.offsetX + (point.x - layout.worldMinX) * layout.scale,
     y: layout.offsetY + (point.y - layout.worldMinY) * layout.scale,
   };
 };
 
-export const projectMinimapToWorld = (layout: MinimapLayout, point: ScreenPoint): ScreenPoint => {
+export const projectMinimapToWorld = (
+  layout: MinimapLayout,
+  point: ScreenPoint,
+): ScreenPoint => {
   return {
     x: (point.x - layout.offsetX) / layout.scale + layout.worldMinX,
     y: (point.y - layout.offsetY) / layout.scale + layout.worldMinY,
   };
 };
 
-export const clipViewportToMinimap = (layout: MinimapLayout, viewport: ScreenRect): ScreenRect => {
+export const clipViewportToMinimap = (
+  layout: MinimapLayout,
+  viewport: ScreenRect,
+): ScreenRect => {
   const x = Math.max(layout.x + 1, viewport.x);
   const y = Math.max(layout.y + 1, viewport.y);
-  const right = Math.min(layout.x + layout.width - 1, viewport.x + viewport.width);
-  const bottom = Math.min(layout.y + layout.height - 1, viewport.y + viewport.height);
+
+  const right = Math.min(
+    layout.x + layout.width - 1,
+    viewport.x + viewport.width,
+  );
+
+  const bottom = Math.min(
+    layout.y + layout.height - 1,
+    viewport.y + viewport.height,
+  );
+
   return {
     x,
     y,

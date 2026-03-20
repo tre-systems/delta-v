@@ -52,8 +52,22 @@ function createOrdnance(overrides: Partial<Ordnance> = {}): Ordnance {
 
 function createPlayers(): [PlayerState, PlayerState] {
   return [
-    { connected: true, ready: true, targetBody: '', homeBody: 'Terra', bases: [], escapeWins: false },
-    { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Terra',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
   ];
 }
 
@@ -68,9 +82,24 @@ function createState(overrides: Partial<GameState> = {}): GameState {
     activePlayer: 0,
     ships: [
       createShip({ id: 'a', owner: 0, type: 'corsair' }),
-      createShip({ id: 'b', owner: 0, type: 'corvette', position: { q: 0, r: 1 } }),
-      createShip({ id: 'x', owner: 1, type: 'frigate', position: { q: 1, r: 0 } }),
-      createShip({ id: 'y', owner: 1, type: 'packet', position: { q: 1, r: 1 } }),
+      createShip({
+        id: 'b',
+        owner: 0,
+        type: 'corvette',
+        position: { q: 0, r: 1 },
+      }),
+      createShip({
+        id: 'x',
+        owner: 1,
+        type: 'frigate',
+        position: { q: 1, r: 0 },
+      }),
+      createShip({
+        id: 'y',
+        owner: 1,
+        type: 'packet',
+        position: { q: 1, r: 1 },
+      }),
     ],
     ordnance: [],
     pendingAstrogationOrders: null,
@@ -84,7 +113,9 @@ function createState(overrides: Partial<GameState> = {}): GameState {
   };
 }
 
-function createPlanning(overrides: Partial<CombatOverlayPlanningState> = {}): CombatOverlayPlanningState {
+function createPlanning(
+  overrides: Partial<CombatOverlayPlanningState> = {},
+): CombatOverlayPlanningState {
   return {
     combatTargetId: null,
     combatTargetType: null,
@@ -107,8 +138,18 @@ describe('renderer combat helpers', () => {
       ordnance: [createOrdnance()],
     });
     const queuedAttacks: CombatAttack[] = [
-      { attackerIds: ['a', 'missing'], targetId: 'x', targetType: 'ship', attackStrength: 4 },
-      { attackerIds: ['b'], targetId: 'ord-0', targetType: 'ordnance', attackStrength: null },
+      {
+        attackerIds: ['a', 'missing'],
+        targetId: 'x',
+        targetType: 'ship',
+        attackStrength: 4,
+      },
+      {
+        attackerIds: ['b'],
+        targetId: 'ord-0',
+        targetType: 'ordnance',
+        attackStrength: null,
+      },
     ];
 
     expect(getQueuedCombatOverlayAttacks(state, queuedAttacks)).toEqual([
@@ -130,7 +171,14 @@ describe('renderer combat helpers', () => {
     const planning = createPlanning({
       combatTargetId: 'ord-0',
       combatTargetType: 'ordnance',
-      queuedAttacks: [{ attackerIds: ['a'], targetId: 'x', targetType: 'ship', attackStrength: 4 }],
+      queuedAttacks: [
+        {
+          attackerIds: ['a'],
+          targetId: 'x',
+          targetType: 'ship',
+          attackStrength: 4,
+        },
+      ],
     });
 
     expect(getCombatOverlayHighlights(state, 0, planning, map)).toEqual({
@@ -186,7 +234,10 @@ describe('renderer combat helpers', () => {
 
   it('formats combat results and falls back to the previous state for target lookup', () => {
     const state = createState({
-      ships: [createShip({ id: 'a', owner: 0 }), createShip({ id: 'b', owner: 0, position: { q: 0, r: 1 } })],
+      ships: [
+        createShip({ id: 'a', owner: 0 }),
+        createShip({ id: 'b', owner: 0, position: { q: 0, r: 1 } }),
+      ],
       ordnance: [createOrdnance()],
     });
     const previousState = createState();
@@ -223,8 +274,14 @@ describe('renderer combat helpers', () => {
       counterattack: null,
     };
 
-    expect(formatCombatResult(asteroidResult, previousState)).toBe('frigate: asteroid [5] DISABLED 2T');
-    expect(formatCombatResult(antiNukeResult, state)).toBe('2:1 [4→3] nuke: ELIMINATED');
-    expect(getCombatTargetEntity(asteroidResult, state, previousState)?.position).toEqual({ q: 1, r: 0 });
+    expect(formatCombatResult(asteroidResult, previousState)).toBe(
+      'frigate: asteroid [5] DISABLED 2T',
+    );
+    expect(formatCombatResult(antiNukeResult, state)).toBe(
+      '2:1 [4→3] nuke: ELIMINATED',
+    );
+    expect(
+      getCombatTargetEntity(asteroidResult, state, previousState)?.position,
+    ).toEqual({ q: 1, r: 0 });
   });
 });

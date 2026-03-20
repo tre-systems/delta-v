@@ -1,7 +1,18 @@
-import { type AIDifficulty, aiAstrogation, aiCombat, aiOrdnance } from '../../shared/ai';
+import {
+  type AIDifficulty,
+  aiAstrogation,
+  aiCombat,
+  aiOrdnance,
+} from '../../shared/ai';
 import { SHIP_STATS } from '../../shared/constants';
 import { filterStateForPlayer } from '../../shared/engine/game-engine';
-import type { AstrogationOrder, CombatAttack, GameState, OrdnanceLaunch, SolarSystemMap } from '../../shared/types';
+import type {
+  AstrogationOrder,
+  CombatAttack,
+  GameState,
+  OrdnanceLaunch,
+  SolarSystemMap,
+} from '../../shared/types';
 import { hasOwnedPendingAsteroidHazards } from './local';
 
 export interface AIDecisionGenerators {
@@ -49,10 +60,17 @@ export type AIActionPlan =
       aiPlayer: number;
     };
 
-const buildAIOrdnanceLogEntries = (state: GameState, launches: OrdnanceLaunch[]): string[] => {
+const buildAIOrdnanceLogEntries = (
+  state: GameState,
+  launches: OrdnanceLaunch[],
+): string[] => {
   return launches.map((launch) => {
-    const ship = state.ships.find((candidate) => candidate.id === launch.shipId);
-    const name = ship ? (SHIP_STATS[ship.type]?.name ?? ship.type) : launch.shipId;
+    const ship = state.ships.find(
+      (candidate) => candidate.id === launch.shipId,
+    );
+    const name = ship
+      ? (SHIP_STATS[ship.type]?.name ?? ship.type)
+      : launch.shipId;
     return `AI: ${name} launched ${launch.ordnanceType}`;
   });
 };
@@ -81,20 +99,31 @@ export const deriveAIActionPlan = (
     return {
       kind: 'astrogation',
       aiPlayer,
-      orders: generators.astrogation(filterStateForPlayer(state, aiPlayer), aiPlayer, map, difficulty),
+      orders: generators.astrogation(
+        filterStateForPlayer(state, aiPlayer),
+        aiPlayer,
+        map,
+        difficulty,
+      ),
       errorPrefix: 'AI astrogation error:',
     };
   }
 
   if (state.phase === 'ordnance') {
-    const launches = generators.ordnance(filterStateForPlayer(state, aiPlayer), aiPlayer, map, difficulty);
+    const launches = generators.ordnance(
+      filterStateForPlayer(state, aiPlayer),
+      aiPlayer,
+      map,
+      difficulty,
+    );
     return {
       kind: 'ordnance',
       aiPlayer,
       launches,
       logEntries: buildAIOrdnanceLogEntries(state, launches),
       skip: launches.length === 0,
-      errorPrefix: launches.length > 0 ? 'AI ordnance error:' : 'AI skip ordnance error:',
+      errorPrefix:
+        launches.length > 0 ? 'AI ordnance error:' : 'AI skip ordnance error:',
     };
   }
 
@@ -116,13 +145,19 @@ export const deriveAIActionPlan = (
       };
     }
 
-    const attacks = generators.combat(filterStateForPlayer(state, aiPlayer), aiPlayer, map, difficulty);
+    const attacks = generators.combat(
+      filterStateForPlayer(state, aiPlayer),
+      aiPlayer,
+      map,
+      difficulty,
+    );
     return {
       kind: 'combat',
       aiPlayer,
       attacks,
       skip: attacks.length === 0,
-      errorPrefix: attacks.length > 0 ? 'AI combat error:' : 'AI skip combat error:',
+      errorPrefix:
+        attacks.length > 0 ? 'AI combat error:' : 'AI skip combat error:',
     };
   }
 

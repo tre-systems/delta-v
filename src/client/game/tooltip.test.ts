@@ -37,8 +37,22 @@ function createState(ships: Ship[]): GameState {
     destroyedAsteroids: [],
     destroyedBases: [],
     players: [
-      { connected: true, ready: true, targetBody: '', homeBody: 'Terra', bases: [], escapeWins: false },
-      { connected: true, ready: true, targetBody: '', homeBody: 'Mars', bases: [], escapeWins: false },
+      {
+        connected: true,
+        ready: true,
+        targetBody: '',
+        homeBody: 'Terra',
+        bases: [],
+        escapeWins: false,
+      },
+      {
+        connected: true,
+        ready: true,
+        targetBody: '',
+        homeBody: 'Mars',
+        bases: [],
+        escapeWins: false,
+      },
     ],
     winner: null,
     winReason: null,
@@ -63,9 +77,24 @@ describe('buildShipTooltipHtml', () => {
   });
 
   it('shows combat odds for visible enemy ships', () => {
-    const attacker = createShip({ id: 'p0s0', type: 'corsair', owner: 0, position: { q: 0, r: 0 } });
-    const target = createShip({ id: 'p1s0', type: 'frigate', owner: 1, position: { q: 1, r: 0 } });
-    const html = buildShipTooltipHtml(createState([attacker, target]), target, 0, map);
+    const attacker = createShip({
+      id: 'p0s0',
+      type: 'corsair',
+      owner: 0,
+      position: { q: 0, r: 0 },
+    });
+    const target = createShip({
+      id: 'p1s0',
+      type: 'frigate',
+      owner: 1,
+      position: { q: 1, r: 0 },
+    });
+    const html = buildShipTooltipHtml(
+      createState([attacker, target]),
+      target,
+      0,
+      map,
+    );
 
     expect(html).toContain('Frigate');
     expect(html).toContain('Combat: 8');
