@@ -18,40 +18,29 @@ All 11 engine entry points (`processAstrogation`, `processOrdnance`, `skipOrdnan
 
 **Depends on:** ~~1a (clone-on-entry)~~ *(done)*
 
-### 1c. Event log for network protocol
+### ~~1c. Event log for network protocol~~ *(done)*
 
-The server sends full `GameState` snapshots over WebSocket after every action. This works but:
-
-- **No replay capability** — there's no history of what happened, just the current state.
-- **No spectator catch-up** — a late joiner would need the full game history.
-- **Reconnection is lossy** — a reconnecting client gets a snapshot but misses the animation/events that led to it.
-- **Payload size grows with state** — every broadcast includes the full ship array, ordnance array, etc.
-
-**Approach:** After each engine call, the server appends a lightweight event to an in-memory log (e.g. `{ turn: 5, phase: 'combat', type: 'COMBAT_RESOLVED', data: combatResult }`). The log is persisted alongside the state snapshot. On reconnect or spectator join, send the snapshot + event log. Clients can replay events for animation.
-
-This is not full event sourcing — snapshots remain the source of truth. The event log is an append-only complement for replay, reconnection, and spectator mode.
+Server-side append-only event log persisted in DO storage alongside game state. 5 event types (`gameStarted`, `movementResolved`, `combatResolved`, `phaseChanged`, `gameOver`) defined in `src/shared/events.ts`. All 11 handler paths derive and append events. Reconnecting clients receive the full event log in the `gameStart` message. Snapshots remain the source of truth. 11 tests in `messages.test.ts` and `turns.test.ts`.
 
 **Depends on:** ~~1a (clone-on-entry)~~ *(done)*
 
 **Unlocks:** turn replay, spectator mode, smooth reconnection.
 
-**Files:** `src/server/game-do/game-do.ts`, new `src/shared/events.ts` (event type definitions), `src/client/game/message-handler.ts`
-
 ### 1d. Error reporting
 
 No visibility into production errors. When the engine throws, a WebSocket drops, or a client hits an unhandled exception, we currently have no signal.
 
-**Approach:** Lightweight error boundary on the client (catch unhandled rejections, report to a `/error` endpoint or external service). Server-side: log engine exceptions in `runGameStateAction` catch block (naturally falls out of 1b). Start simple — structured JSON logs that Cloudflare captures — and add an external service (Sentry, LogFlare) later if needed.
+**Approach:** Global `window.onerror` and `unhandledrejection` handlers on the client POST structured JSON to a `/error` endpoint. The server endpoint logs the payload via `console.error` — Cloudflare Workers Logs captures all `console.*` output automatically (viewable in the dashboard or via `wrangler tail`). Server-side engine exceptions are already logged in `runGameStateAction` and `handleTurnTimeout` catch blocks (1b). No external services (Sentry, LogFlare) — unnecessary at current scale; upgrade path exists if needed.
 
-**Files:** `src/client/main.ts` (error boundary), `src/server/game-do/game-do.ts` (catch logging), `src/server/index.ts` (error endpoint)
+**Files:** `src/client/main.ts` (global error handlers), `src/server/index.ts` (`/error` endpoint)
 
 ### 1e. Analytics / telemetry for user testing
 
 Before user testing starts, we need basic visibility into how people play: which scenarios they pick, how long games last, where they get stuck, when they quit.
 
-**Approach:** Emit lightweight events (game created, phase entered, game ended, scenario selected, AI difficulty chosen) to a `/telemetry` endpoint. Store in Cloudflare Analytics Engine or D1. No PII. Keep the client-side instrumentation minimal — a single `track(event, props)` function called from key points in `main.ts` and `ui.ts`.
+**Approach:** A lightweight `track(event, props)` function on the client POSTs structured JSON to a `/telemetry` endpoint. The server endpoint logs the payload via `console.log` — same Workers Logs sink as error reporting. No PII. No Analytics Engine or D1 — at current scale, structured logs are sufficient and queryable via `wrangler tail` or the dashboard. If proper querying is needed later, add a D1 table (`timestamp, event, json_props`).
 
-**Files:** new `src/client/telemetry.ts`, `src/server/index.ts` (endpoint), `src/client/main.ts` and `src/client/ui/ui.ts` (call sites)
+**Files:** new `src/client/telemetry.ts`, `src/server/index.ts` (`/telemetry` endpoint), `src/client/main.ts` and `src/client/ui/ui.ts` (call sites)
 
 ---
 
@@ -99,13 +88,13 @@ The `dispatch()` switch in `main.ts` has ~60 cases. Phase transitions in `setSta
 
 Allow players to review past turns after a game ends (or during, stepping back through history).
 
-**Depends on:** ~~1a (clone-on-entry)~~ *(done)*, 1c (event log for animation data).
+**Depends on:** ~~1a (clone-on-entry)~~ *(done)*, ~~1c (event log)~~ *(done)*.
 
 ### Spectator mode
 
 Third-party WebSocket connections that receive state broadcasts but cannot submit actions.
 
-**Depends on:** 1c (event log for catch-up).
+**Depends on:** ~~1c (event log for catch-up)~~ *(done)*.
 
 **Files:** `src/server/game-do/game-do.ts` (spectator seat type), `src/server/protocol.ts`, client spectator UI
 
@@ -121,6 +110,7 @@ Transfer passengers between ships for rescue scenarios. Extends the logistics ph
 
 ## Done
 
+- ~~1c. Event log for network protocol~~ — 5 event types in `src/shared/events.ts`, server appends events after every action, reconnecting clients receive full log in `gameStart`. 11 tests.
 - ~~1b. Server-side state rollback~~ — `runGameStateAction` and `handleTurnTimeout` wrap engine calls in try/catch. On exception: structured log with game code/phase/turn, error sent to client, state preserved via clone-on-entry.
 - ~~1a. Clone-on-entry at engine entry points~~ — All 11 engine entry points `structuredClone(state)` on entry; callers use returned `result.state`. 22 immutability tests in `clone-on-entry.test.ts`. Unlocks 1b (rollback) and 1c (event log).
 - ~~2j. Decompose `main.ts`~~ — Extracted 7 modules: presentation, message-handler, connection, timer, astrogation-actions, combat-actions, ordnance-actions, local-game-flow. `main.ts` 1397 → 1023 LOC.
