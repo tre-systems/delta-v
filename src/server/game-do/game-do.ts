@@ -460,7 +460,21 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    const outcome = resolveTurnTimeoutOutcome(gameState, this.map);
+    let outcome: ReturnType<typeof resolveTurnTimeoutOutcome>;
+    try {
+      outcome = resolveTurnTimeoutOutcome(gameState, this.map);
+    } catch (err) {
+      const code = await this.getGameCode();
+      console.error(
+        `Engine error during turn timeout` + ` in game ${code}`,
+        `(phase=${gameState.phase},` + ` turn=${gameState.turnNumber}):`,
+        err,
+      );
+      // State is preserved — reschedule so
+      // the next player action can proceed
+      await this.rescheduleAlarm();
+      return;
+    }
 
     if (!outcome) {
       await this.rescheduleAlarm();
@@ -511,7 +525,26 @@ export class GameDO extends DurableObject {
       return;
     }
 
-    const result = await action(gameState);
+    // Engine entry points clone state on entry, so
+    // gameState is never mutated — if the engine throws,
+    // the stored state remains intact and the game
+    // continues from where it was.
+    let result: Success | { error: string };
+    try {
+      result = await action(gameState);
+    } catch (err) {
+      const code = await this.getGameCode();
+      console.error(
+        `Engine error in game ${code}`,
+        `(phase=${gameState.phase},` + ` turn=${gameState.turnNumber}):`,
+        err,
+      );
+      this.send(ws, {
+        type: 'error',
+        message: 'Engine error — action rejected,' + ' game state preserved',
+      });
+      return;
+    }
 
     if ('error' in result) {
       this.send(ws, {

@@ -101,7 +101,7 @@ The backend leverages Cloudflare's edge network.
 
 - **[WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/api/websockets/)**: The DO uses Cloudflare's hibernatable WebSocket API (`acceptWebSocket`, `webSocketMessage`, `webSocketClose`) instead of the standard `addEventListener` pattern. This allows the DO to hibernate between messages, reducing costs. Sockets are tagged with `player:${playerId}` on accept, enabling player lookup via `getWebSockets(['player:0'])` without maintaining an in-memory map.
 
-- **`runGameStateAction(ws, action, onSuccess)`**: Generic handler that reduces boilerplate across all 12+ action handlers. Fetches current state from storage → runs a pure engine function → on error sends error message to the WebSocket → on success invokes `onSuccess` callback (typically save state + broadcast). The engine function is passed as a closure, keeping handler methods short.
+- **`runGameStateAction(ws, action, onSuccess)`**: Generic handler that reduces boilerplate across all 12+ action handlers. Fetches current state from storage → runs engine function in try/catch → on validation error sends error message to the WebSocket → on exception logs with game code/phase/turn and sends error (state is preserved via clone-on-entry) → on success invokes `onSuccess` callback (typically save state + broadcast). `handleTurnTimeout` has equivalent try/catch protection for the alarm-driven code path.
 
 - **Filtered broadcasting**: `broadcastFiltered()` checks whether the current scenario has hidden information (fugitive identities in escape scenarios). If no hidden info, the same state goes to both players. If hidden info, `filterStateForPlayer(state, playerId)` is called separately per player — own ships are fully visible, unrevealed enemy ships show `type: 'unknown'`. When adding new hidden state, extend `filterStateForPlayer()` and the check in `broadcastFiltered()`.
 
@@ -297,12 +297,11 @@ A game implementation would provide:
 
 See BACKLOG.md for the full prioritised backlog. Below summarises the architectural decisions and their rationale.
 
-### Priority 1: Server Rollback + Event Log (BACKLOG 1b, 1c)
+### Priority 1: Event Log (BACKLOG 1c)
 
-~~Clone-on-entry (1a) is complete~~ — all engine entry points now `structuredClone` on entry. The caller's state is never mutated.
+~~Clone-on-entry (1a) and server rollback (1b) are complete~~ — engine entry points `structuredClone` on entry; `runGameStateAction` and `handleTurnTimeout` catch exceptions, log with context, and preserve state.
 
-**Next steps:**
-- **1b. Server rollback**: Wrap engine calls in `runGameStateAction` with try/catch. On exception, the pre-mutation state is already safe (clone-on-entry guarantees this) — just log the error and send an error message to the client.
+**Next step:**
 - **1c. Event log**: After each engine call, append a lightweight event to an in-memory log. Enables turn replay, spectator catch-up, and smooth reconnection. Snapshots remain the source of truth; the event log complements them.
 
 ### Priority 1: Error Reporting & Telemetry (BACKLOG 1d, 1e)
