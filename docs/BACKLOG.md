@@ -12,15 +12,11 @@ Prioritised list of remaining work. Items are grouped by type and ordered by pri
 
 All 11 engine entry points (`processAstrogation`, `processOrdnance`, `skipOrdnance`, `processFleetReady`, `beginCombatPhase`, `processCombat`, `skipCombat`, `processLogistics`, `skipLogistics`, `processSurrender`, `processEmplacement`) now `structuredClone(state)` on entry. The original state is never mutated — callers must use the returned `result.state`. 22 immutability tests added in `clone-on-entry.test.ts`.
 
-### 1b. Server-side state rollback
+### ~~1b. Server-side state rollback~~ *(done)*
 
-With clone-on-entry (1a) in place, the server wraps engine calls in try/catch. On exception: log the error, restore the pre-mutation state, send an error message to the client. The game continues instead of permanently breaking.
-
-Currently mitigated by high test coverage, but a safety net is essential for production with real users.
+`runGameStateAction` and `handleTurnTimeout` wrap engine calls in try/catch. On exception: log with game code, phase, and turn number; send error to client; state is never corrupted thanks to clone-on-entry (1a). The game continues from the last good state.
 
 **Depends on:** ~~1a (clone-on-entry)~~ *(done)*
-
-**Files:** `src/server/game-do/game-do.ts` (`runGameStateAction`)
 
 ### 1c. Event log for network protocol
 
@@ -125,6 +121,7 @@ Transfer passengers between ships for rescue scenarios. Extends the logistics ph
 
 ## Done
 
+- ~~1b. Server-side state rollback~~ — `runGameStateAction` and `handleTurnTimeout` wrap engine calls in try/catch. On exception: structured log with game code/phase/turn, error sent to client, state preserved via clone-on-entry.
 - ~~1a. Clone-on-entry at engine entry points~~ — All 11 engine entry points `structuredClone(state)` on entry; callers use returned `result.state`. 22 immutability tests in `clone-on-entry.test.ts`. Unlocks 1b (rollback) and 1c (event log).
 - ~~2j. Decompose `main.ts`~~ — Extracted 7 modules: presentation, message-handler, connection, timer, astrogation-actions, combat-actions, ordnance-actions, local-game-flow. `main.ts` 1397 → 1023 LOC.
 - ~~2l. Eliminate map singleton~~ — Removed `getSolarSystemMap()` lazy singleton. All callers now use `buildSolarSystemMap()` directly or cache the map as a field.
