@@ -565,6 +565,7 @@ class GameClient {
 
   private startLocalGame(scenario: string) {
     this.ctx.isLocalGame = true;
+    this.ctx.scenario = scenario;
     this.ctx.playerId = 0;
     this.lastLoggedTurn = -1;
     this.renderer.setPlayerId(0);

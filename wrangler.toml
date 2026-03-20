@@ -16,6 +16,13 @@ html_handling = "auto-trailing-slash"
 [durable_objects]
 bindings = [{ name = "GAME", class_name = "GameDO" }]
 
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
 [[migrations]]
 tag = "v1"
 new_classes = ["GameDO"]
