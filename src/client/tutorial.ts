@@ -65,6 +65,9 @@ export class Tutorial {
   private progressEl: HTMLElement;
   private activeStepId: string | null = null;
 
+  /** External callback for telemetry events */
+  onTelemetry: ((event: string) => void) | null = null;
+
   constructor() {
     this.tipEl = byId('tutorialTip');
     this.textEl = byId('tutorialTipText');
@@ -114,6 +117,10 @@ export class Tutorial {
   }
 
   private showStep(step: TutorialStep) {
+    if (this.shownSteps.size === 0) {
+      this.onTelemetry?.('tutorial_started');
+    }
+
     this.activeStepId = step.id;
     this.textEl.textContent = step.text;
     show(this.tipEl, 'block');
@@ -143,6 +150,7 @@ export class Tutorial {
 
     // Check if all steps are shown
     if (this.shownSteps.size >= STEPS.length) {
+      this.onTelemetry?.('tutorial_completed');
       this.complete();
     }
 
@@ -150,6 +158,7 @@ export class Tutorial {
   }
 
   private skip() {
+    this.onTelemetry?.('tutorial_skipped');
     this.complete();
     this.hideTip();
   }

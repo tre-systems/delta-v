@@ -2,15 +2,48 @@
 //
 // Both track() and reportError() fire-and-forget POST
 // to server endpoints. No PII is collected. Payloads are
-// structured JSON logged via console.* on the server,
-// captured automatically by Cloudflare Workers Logs.
+// structured JSON logged via console.* on the server
+// and stored in D1 for querying.
+
+export interface StorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+const ANON_ID_KEY = 'deltav_anon_id';
+
+export const getOrCreateAnonId = (storage: StorageLike): string => {
+  try {
+    const existing = storage.getItem(ANON_ID_KEY);
+    if (existing) return existing;
+
+    const id = crypto.randomUUID();
+    storage.setItem(ANON_ID_KEY, id);
+    return id;
+  } catch {
+    // Fallback for incognito / storage disabled
+    return crypto.randomUUID();
+  }
+};
+
+// Eagerly resolve on module load
+let anonId: string;
+try {
+  anonId = getOrCreateAnonId(localStorage);
+} catch {
+  anonId = crypto.randomUUID();
+}
 
 const post = (path: string, body: Record<string, unknown>): void => {
   try {
     fetch(path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        ...body,
+        anonId,
+        ts: Date.now(),
+      }),
       keepalive: true,
     }).catch(() => {});
   } catch {
@@ -21,11 +54,7 @@ const post = (path: string, body: Record<string, unknown>): void => {
 // --- Telemetry ---
 
 export const track = (event: string, props?: Record<string, unknown>): void => {
-  post('/telemetry', {
-    event,
-    ...props,
-    ts: Date.now(),
-  });
+  post('/telemetry', { event, ...props });
 };
 
 // --- Error reporting ---
@@ -37,7 +66,6 @@ export const reportError = (
   post('/error', {
     error,
     ...context,
-    ts: Date.now(),
     url: window.location.href,
     ua: navigator.userAgent,
   });

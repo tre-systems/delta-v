@@ -16,6 +16,12 @@ html_handling = "auto-trailing-slash"
 [durable_objects]
 bindings = [{ name = "GAME", class_name = "GameDO" }]
 
+[[d1_databases]]
+binding = "DB"
+database_name = "delta-v-telemetry"
+database_id = "placeholder-create-via-wrangler-d1-create"
+migrations_dir = "migrations"
+
 [observability]
 enabled = true
 
