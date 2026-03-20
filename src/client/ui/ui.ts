@@ -389,6 +389,13 @@ export class UIManager {
     this.pendingAIGame = false;
   }
 
+  setMenuLoading(loading: boolean) {
+    const btn = byId<HTMLButtonElement>('createBtn');
+
+    btn.disabled = loading;
+    btn.textContent = loading ? 'CREATING...' : 'Create Game';
+  }
+
   showScenarioSelect() {
     this.hideAll();
     this.applyScreenVisibility('scenario');

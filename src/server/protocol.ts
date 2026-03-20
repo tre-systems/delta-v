@@ -342,6 +342,9 @@ const parseTransferOrders = (raw: unknown): TransferOrder[] | null => {
   return transfers;
 };
 
+// 32 code chars ^ 5 = ~33.6M possible codes.
+// At 12 retries, collision is negligible until
+// ~thousands of concurrent active rooms.
 export const generateRoomCode = (): string =>
   generateRandomString(CODE_CHARS, 5);
 
