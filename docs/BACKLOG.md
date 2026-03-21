@@ -23,13 +23,18 @@ project review without rewriting working systems.
   of session-level `ClientContext` mutation behind explicit
   helpers instead of leaving it in `main.ts`.
 - Keep building on `game/game-state-store.ts`, which now owns
-  authoritative client-side `GameState` replacement, renderer
-  sync, and selection cleanup, so state application stops being
-  open-coded in `main.ts`.
+  authoritative client-side `GameState` replacement, teardown,
+  renderer sync, and selection cleanup, so state application no
+  longer leaks back into `main.ts` or session flows.
 - Keep building on `game/planning-store.ts`, which now owns the
   common `PlanningState` mutations used by routers and action
   modules, so command handling no longer treats planning data as
   an unstructured mutable bag.
+- Keep building on `game/client-context-store.ts`, which now owns
+  the shared runtime/session mutations for connection state,
+  player identity, scenario selection, and AI difficulty, so the
+  remaining direct `ClientContext` writes keep moving out of
+  `main.ts`, `message-handler.ts`, and session helpers.
 - Keep `GameClient` as the bootstrap/wiring shell for renderer,
   connection, and UI composition.
 - Target outcome: `main.ts` becomes orchestration glue instead of
@@ -40,6 +45,9 @@ project review without rewriting working systems.
 - Replace broad barrel imports from `shared/types` with direct
   imports from `shared/types/domain`, `shared/types/protocol`,
   and `shared/types/scenario`.
+- The client gameplay and UI shells have started this migration;
+  continue moving the remaining client, renderer, server, and
+  test modules until the barrel is compatibility-only.
 - Update docs and import conventions so new modules follow the
   bounded split by default.
 - If needed, add a lint rule or lightweight repo check once the

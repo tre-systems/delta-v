@@ -1,7 +1,9 @@
 import { must } from '../../shared/assert';
 import type { MovementResult } from '../../shared/engine/game-engine';
-import type { CombatResult, GameState, S2C } from '../../shared/types';
+import type { CombatResult, GameState } from '../../shared/types/domain';
+import type { S2C } from '../../shared/types/protocol';
 import { playPhaseChange } from '../audio';
+import { applyWelcomeSession, setLatencyMs } from './client-context-store';
 import { deriveClientMessagePlan } from './messages';
 import type { ClientState } from './phase';
 export interface MessageHandlerDeps {
@@ -63,14 +65,12 @@ export const handleServerMessage = (
   );
   switch (plan.kind) {
     case 'welcome': {
-      deps.ctx.playerId = plan.playerId;
-      deps.ctx.gameCode = plan.code;
+      applyWelcomeSession(deps.ctx, plan.playerId, plan.code);
       deps.storePlayerToken(plan.code, plan.playerToken);
       if (plan.showReconnectToast) {
         deps.ui.hideReconnecting();
         deps.ui.showToast('Reconnected!', 'success');
       }
-      deps.ctx.reconnectAttempts = 0;
       deps.renderer.setPlayerId(plan.playerId);
       deps.ui.setPlayerId(plan.playerId);
       if (plan.nextState) {
@@ -144,8 +144,8 @@ export const handleServerMessage = (
     }
     case 'pong':
       if (plan.latencyMs !== null) {
-        deps.ctx.latencyMs = plan.latencyMs;
-        deps.ui.updateLatency(deps.ctx.latencyMs);
+        setLatencyMs(deps.ctx, plan.latencyMs);
+        deps.ui.updateLatency(plan.latencyMs);
       }
       break;
   }

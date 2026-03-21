@@ -1,4 +1,4 @@
-import type { FleetPurchase } from '../../shared/types';
+import type { FleetPurchase } from '../../shared/types/domain';
 
 export type AIDifficulty = 'easy' | 'normal' | 'hard';
 

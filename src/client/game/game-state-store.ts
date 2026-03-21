@@ -1,4 +1,4 @@
-import type { GameState } from '../../shared/types';
+import type { GameState } from '../../shared/types/domain';
 import { setSelectedShipId } from './planning-store';
 
 interface PlanningStateLike {
@@ -35,4 +35,10 @@ export const applyClientGameState = (
   if (!selectedShip || selectedShip.destroyed) {
     setSelectedShipId(deps.ctx.planningState, null);
   }
+};
+
+export const clearClientGameState = (
+  ctx: Pick<GameStateStoreContext, 'gameState'>,
+): void => {
+  ctx.gameState = null;
 };

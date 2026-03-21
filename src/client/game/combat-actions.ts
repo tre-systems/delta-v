@@ -1,4 +1,4 @@
-import type { GameState, SolarSystemMap } from '../../shared/types';
+import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import { clamp } from '../../shared/util';
 import {
   buildCurrentAttack,

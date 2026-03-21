@@ -1,5 +1,5 @@
 import { SHIP_STATS } from '../../shared/constants';
-import type { Ship } from '../../shared/types';
+import type { Ship } from '../../shared/types/domain';
 
 export interface ShipDetailRowView {
   label: string;

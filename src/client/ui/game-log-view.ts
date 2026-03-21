@@ -1,4 +1,8 @@
-import type { CombatResult, MovementEvent, Ship } from '../../shared/types';
+import type {
+  CombatResult,
+  MovementEvent,
+  Ship,
+} from '../../shared/types/domain';
 import { byId, el } from '../dom';
 import {
   formatCombatResultEntries,

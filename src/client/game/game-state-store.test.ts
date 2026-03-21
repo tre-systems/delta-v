@@ -6,10 +6,11 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
-import type { GameState } from '../../shared/types';
+import type { GameState } from '../../shared/types/domain';
 import {
   type ApplyClientGameStateDeps,
   applyClientGameState,
+  clearClientGameState,
 } from './game-state-store';
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
@@ -82,5 +83,15 @@ describe('applyClientGameState', () => {
     applyClientGameState(deps, state);
 
     expect(deps.ctx.planningState.selectedShipId).toBeNull();
+  });
+
+  it('clears the stored game state', () => {
+    const state = createState();
+    const deps = createDeps();
+
+    applyClientGameState(deps, state);
+    clearClientGameState(deps.ctx);
+
+    expect(deps.ctx.gameState).toBeNull();
   });
 });

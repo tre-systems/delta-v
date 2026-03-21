@@ -1,5 +1,5 @@
 import type { HexCoord } from '../../shared/hex';
-import type { CombatAttack } from '../../shared/types';
+import type { CombatAttack } from '../../shared/types/domain';
 
 export interface PlanningState {
   selectedShipId: string | null;

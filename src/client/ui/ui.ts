@@ -3,7 +3,7 @@ import type {
   GameState,
   MovementEvent,
   Ship,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import { byId } from '../dom';
 import { STATIC_BUTTON_BINDINGS } from './button-bindings';
 import type { UIEvent } from './events';

@@ -1,5 +1,5 @@
 import { must } from '../../shared/assert';
-import type { GameState } from '../../shared/types';
+import type { GameState } from '../../shared/types/domain';
 import type { LogisticsUIState } from './logistics-ui';
 import { createLogisticsUIState } from './logistics-ui';
 import type { ClientState } from './phase';

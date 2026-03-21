@@ -35,12 +35,19 @@ import type {
   CombatResult,
   FleetPurchase,
   GameState,
-  S2C,
-} from '../shared/types';
+} from '../shared/types/domain';
+import type { S2C } from '../shared/types/protocol';
 import { initAudio, isMuted, playWarning, setMuted } from './audio';
 import { byId, hide, show } from './dom';
 import type { AstrogationActionDeps } from './game/astrogation-actions';
 import { deriveScenarioBriefingEntries } from './game/briefing';
+import {
+  setAIDifficulty,
+  setLatencyMs,
+  setReconnectAttempts,
+  setScenario,
+  setTransport,
+} from './game/client-context-store';
 import {
   beginCombatPhase as beginCombat,
   type CombatActionDeps,
@@ -271,13 +278,13 @@ class GameClient {
       getStoredPlayerToken: (code) => this.getStoredPlayerToken(code),
       getReconnectAttempts: () => this.ctx.reconnectAttempts,
       setReconnectAttempts: (n) => {
-        this.ctx.reconnectAttempts = n;
+        setReconnectAttempts(this.ctx, n);
       },
       setTransport: (t) => {
-        this.ctx.transport = t;
+        setTransport(this.ctx, t);
       },
       setLatencyMs: (ms) => {
-        this.ctx.latencyMs = ms;
+        setLatencyMs(this.ctx, ms);
       },
       setState: (s) => this.setState(s),
       handleMessage: (msg) => this.handleMessage(msg),
@@ -398,7 +405,7 @@ class GameClient {
   private async createGame(scenario: string) {
     this.ui.setMenuLoading(true);
     try {
-      this.ctx.scenario = scenario;
+      setScenario(this.ctx, scenario);
       const abort = new AbortController();
       const timer = setTimeout(() => abort.abort(), 10000);
       const res = await fetch('/create', {
@@ -634,7 +641,7 @@ class GameClient {
         this.createGame(plan.scenario);
         return;
       case 'startSinglePlayer':
-        this.ctx.aiDifficulty = plan.difficulty;
+        setAIDifficulty(this.ctx, plan.difficulty);
         this.startLocalGame(plan.scenario);
         return;
       case 'joinGame':

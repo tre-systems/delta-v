@@ -1,6 +1,6 @@
 import { SHIP_STATS } from '../../shared/constants';
 import { hexKey } from '../../shared/hex';
-import type { FleetPurchase, GameState } from '../../shared/types';
+import type { FleetPurchase, GameState } from '../../shared/types/domain';
 import { isMuted, playSelect, setMuted } from '../audio';
 import {
   type AstrogationActionDeps,

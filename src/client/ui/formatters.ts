@@ -1,5 +1,9 @@
 import { SHIP_STATS } from '../../shared/constants';
-import type { CombatResult, MovementEvent, Ship } from '../../shared/types';
+import type {
+  CombatResult,
+  MovementEvent,
+  Ship,
+} from '../../shared/types/domain';
 
 export interface ParsedJoinInput {
   code: string;

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CombatResult, MovementEvent, Ship } from '../../shared/types';
+import type {
+  CombatResult,
+  MovementEvent,
+  Ship,
+} from '../../shared/types/domain';
 import {
   formatCombatResultEntries,
   formatMovementEventEntry,

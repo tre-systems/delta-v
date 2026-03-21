@@ -1,4 +1,4 @@
-import type { Ship } from '../../shared/types';
+import type { Ship } from '../../shared/types/domain';
 import { byId } from '../dom';
 import { buildShipListView } from './ship-list';
 

@@ -41,7 +41,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 |--------|-----|---------|-------------|
 | `hex.ts` | 306 | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
 | `util.ts` | 170 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
-| `types/` | 389 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts` with barrel re-export) | Game-specific |
+| `types/` | 389 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts`; new imports should target those bounded files directly, with the barrel retained for compatibility while migration completes) | Game-specific |
 | `protocol.ts` | 478 | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads) | Mostly generic |
 | `constants.ts` | 135 | Ship stats, ordnance mass, detection ranges, animation timing | Game-specific |
 | `movement.ts` | 435 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
@@ -147,10 +147,10 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 #### Key Design Patterns
 
-- **`main.ts`**: The client-side coordinator. Manages WebSocket connections, local-AI execution, and top-level composition. It now delegates command dispatch to `game/command-router.ts`, game-state application to `game/game-state-store.ts`, planning mutations to `game/planning-store.ts`, client state-entry side effects to `game/state-transition.ts`, and session lifecycle flows to `game/session-controller.ts` instead of keeping those blocks inline.
+- **`main.ts`**: The client-side coordinator. Manages WebSocket connections, local-AI execution, and top-level composition. It now delegates command dispatch to `game/command-router.ts`, game-state apply/clear ownership to `game/game-state-store.ts`, planning mutations to `game/planning-store.ts`, runtime/session field updates to `game/client-context-store.ts`, client state-entry side effects to `game/state-transition.ts`, and session lifecycle flows to `game/session-controller.ts` instead of keeping those blocks inline.
 - **`renderer/renderer.ts`**: A highly optimized Canvas 2D renderer. It separates logical hex coordinates from pixel coordinates. It features smooth camera interpolation, persistent trails, and movement/combat animations that occur *between* turn phases.
 - **`input.ts`**: Manages user interaction (panning, zooming, clicking). It translates raw browser events into `InputEvent` objects. Pure `interpretInput()` then maps these to `GameCommand[]`, ensuring the input layer never directly mutates the application state.
-- **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), planning-state helpers, phase derivation, game-state helpers, transition helpers, session helpers, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
+- **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), planning-state helpers, runtime/session helpers, phase derivation, game-state helpers, transition helpers, session helpers, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
 - **`renderer/`**: Canvas drawing layers (scene, entities, vectors, effects, overlays), camera, minimap, and animation management.
 - **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, and layout metrics.
 - **`ui/ui.ts`** / **`audio.ts`**: Handles the HTML overlay (menus, HUD) and Web Audio API interactions.
@@ -205,7 +205,8 @@ main.ts (GameClient)
   ├→ input.ts (parse mouse/keyboard → InputEvent)
   ├→ ui/ui.ts (manage screens, accept UIEvent)
   ├→ game/command-router.ts (GameCommand → state mutation or network)
-  ├→ game/game-state-store.ts (apply authoritative game state + renderer sync)
+  ├→ game/client-context-store.ts (apply shared runtime/session field updates)
+  ├→ game/game-state-store.ts (apply/clear authoritative game state + renderer sync)
   ├→ game/planning-store.ts (apply shared planning-state mutations)
   ├→ game/session-controller.ts (create/join/local-start/exit session lifecycle)
   ├→ game/state-transition.ts (client-state entry effects and screen changes)
@@ -216,7 +217,7 @@ main.ts (GameClient)
   ├→ game/helpers.ts (derive HUD view models)
   ├→ game/[combat|burn|ordnance]-actions.ts (phase-specific actions)
   ├→ game/planning.ts (user input accumulation)
-  ├→ shared/types/ (GameState, Ship, Ordnance, etc.)
+  ├→ shared/types/{domain,protocol,scenario} (bounded shared type ownership)
   ├→ shared/engine/game-engine.ts (createGame, local resolution)
   ├→ shared/hex.ts (coordinate math)
   └→ shared/constants.ts (ship stats, animation timing)
@@ -243,7 +244,7 @@ game-do.ts (Durable Object)
 | Renderer → PlanningState | **High** | Reads by reference for UI overlays (previews, selections) |
 | UI → GameState | **High** | HUD needs ship stats, phase, fuel, objective |
 | Client → Shared Engine | **Medium** | Local transport delegates to shared engine; types must align |
-| ALL → shared/types | **Very High** | All modules import from shared types — this is the integration point |
+| ALL → shared/types/* | **Very High** | Shared types remain the integration point, but direct bounded imports (`domain` / `protocol` / `scenario`) are preferred over the legacy barrel |
 
 ---
 

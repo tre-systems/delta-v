@@ -1,5 +1,5 @@
 import { must } from '../../shared/assert';
-import type { GameState } from '../../shared/types';
+import type { GameState } from '../../shared/types/domain';
 import { playConfirm, playSelect } from '../audio';
 import { deriveBurnChangePlan } from './burn';
 import { buildAstrogationOrders } from './helpers';

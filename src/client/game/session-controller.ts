@@ -1,5 +1,13 @@
 import type { AIDifficulty } from '../../shared/ai';
-import type { GameState } from '../../shared/types';
+import type { GameState } from '../../shared/types/domain';
+import {
+  setGameCode,
+  setIsLocalGame,
+  setPlayerId,
+  setScenario,
+  setTransport,
+} from './client-context-store';
+import { clearClientGameState } from './game-state-store';
 import { deriveGameStartClientState } from './network';
 import type { ClientState } from './phase';
 import type { GameTransport } from './transport';
@@ -75,8 +83,8 @@ export const completeCreatedGameSession = (
   code: string,
   playerToken: string,
 ): void => {
-  deps.ctx.scenario = scenario;
-  deps.ctx.gameCode = code;
+  setScenario(deps.ctx, scenario);
+  setGameCode(deps.ctx, code);
   deps.storePlayerToken(code, playerToken);
   deps.replaceRoute(deps.buildGameRoute(code));
   deps.trackGameCreated({
@@ -91,12 +99,12 @@ export const startLocalGameSession = (
   deps: LocalGameSessionDeps,
   scenario: string,
 ): void => {
-  deps.ctx.isLocalGame = true;
-  deps.ctx.scenario = scenario;
-  deps.ctx.playerId = 0;
+  setIsLocalGame(deps.ctx, true);
+  setScenario(deps.ctx, scenario);
+  setPlayerId(deps.ctx, 0);
   deps.resetTurnTelemetry();
   deps.setRendererPlayerId(0);
-  deps.ctx.transport = deps.createLocalTransport();
+  setTransport(deps.ctx, deps.createLocalTransport());
 
   const state = deps.createLocalGameState(scenario);
 
@@ -136,7 +144,7 @@ export const beginJoinGameSession = (
     deps.storePlayerToken(code, playerToken);
   }
   deps.resetTurnTelemetry();
-  deps.ctx.gameCode = code;
+  setGameCode(deps.ctx, code);
   deps.replaceRoute(deps.buildGameRoute(code));
   deps.connect(code);
   deps.setState('connecting');
@@ -147,9 +155,9 @@ export const exitToMenuSession = (deps: ExitToMenuSessionDeps): void => {
   deps.stopTurnTimer();
   deps.closeConnection();
   deps.resetTurnTelemetry();
-  deps.ctx.gameState = null;
-  deps.ctx.isLocalGame = false;
-  deps.ctx.transport = null;
+  clearClientGameState(deps.ctx);
+  setIsLocalGame(deps.ctx, false);
+  setTransport(deps.ctx, null);
   deps.replaceRoute('/');
   deps.setState('menu');
 };
