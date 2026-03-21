@@ -122,12 +122,13 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Engine safety (clone-on-entry, server rollback, event log)
 - [x] Error reporting and anonymous telemetry (D1 storage)
-- [x] 1250+ tests across 86 suites, 8 scenario AI simulations with per-scenario balance thresholds
+- [x] 1260+ tests across 86 suites, 8 scenario AI simulations with per-scenario balance thresholds
 - [x] Client/engine decomposition and rules consolidation
 - [x] Bounded type imports (`types/domain`, `types/protocol`, `types/scenario`)
 - [x] Typed Ship state models (controlStatus, baseStatus, identity unions)
 - [x] Authoritative disconnect-forfeit persistence
 - [x] Stable escape-role ownership after capture (`originalOwner`)
+- [x] Shared `isOrderableShip` rule, combat click/targeting fixes, nuke resupply fix
 
 ### Planned
 - [ ] **Turn Replay**: Review past turns and full game history
