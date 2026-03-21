@@ -404,14 +404,14 @@ describe('processLogistics', () => {
       type: 'frigate',
       owner: 0,
       originalOwner: 0,
-      cargoUsed: 0,
+      cargoUsed: 5,
     });
     const target = makeShip({
       id: 's2',
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
-      cargoUsed: 3,
+      cargoUsed: 0,
     });
     const state = makeState([source, target]);
     const transfer: TransferOrder = {
@@ -425,8 +425,8 @@ describe('processLogistics', () => {
     if (!('error' in result)) {
       const src = must(result.state.ships.find((s) => s.id === 's1'));
       const tgt = must(result.state.ships.find((s) => s.id === 's2'));
-      expect(src.cargoUsed).toBe(2);
-      expect(tgt.cargoUsed).toBe(1);
+      expect(src.cargoUsed).toBe(3);
+      expect(tgt.cargoUsed).toBe(2);
     }
   });
   it('rejects transfer exceeding source fuel', () => {

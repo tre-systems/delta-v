@@ -2744,6 +2744,29 @@ describe('capture mechanics', () => {
     expect(target.controlStatus).toBeUndefined();
     expect(target.owner).toBe(1);
   });
+  it('captured ships cannot receive astrogation orders', () => {
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'CAPT_ASTRO',
+      findBaseHex,
+    );
+    const ship = must(state.ships.find((s) => s.owner === 0));
+    ship.controlStatus = 'captured';
+    state.phase = 'astrogation';
+    state.activePlayer = 0;
+    const result = processAstrogation(
+      state,
+      0,
+      [{ shipId: ship.id, burn: 1 }],
+      map,
+      Math.random,
+    );
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error).toContain('Captured');
+    }
+  });
   it('captured ships cannot launch ordnance', () => {
     const state: GameState = {
       gameId: 'TEST',
