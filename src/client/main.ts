@@ -76,7 +76,6 @@ import {
   getNextSelectedShip,
   getOwnFleetFocusPosition,
 } from './game/navigation';
-import { deriveGameStartClientState } from './game/network';
 import type { OrdnanceActionDeps } from './game/ordnance-actions';
 import type { ClientState } from './game/phase';
 import { transitionClientPhase } from './game/phase-controller';
@@ -97,6 +96,12 @@ import {
   saveTokenStore,
   setStoredPlayerToken,
 } from './game/session';
+import {
+  beginJoinGameSession,
+  completeCreatedGameSession,
+  exitToMenuSession,
+  startLocalGameSession,
+} from './game/session-controller';
 import { applyClientStateTransition } from './game/state-transition';
 import { createTurnTimerManager, type TurnTimerManager } from './game/timer';
 import { buildShipTooltipHtml } from './game/tooltip';
@@ -415,16 +420,20 @@ class GameClient {
         code: string;
         playerToken: string;
       };
-      this.ctx.gameCode = data.code;
-      this.storePlayerToken(data.code, data.playerToken);
-      // Update URL
-      history.replaceState(null, '', buildGameRoute(this.ctx.gameCode));
-      track('game_created', {
+      completeCreatedGameSession(
+        {
+          ctx: this.ctx,
+          storePlayerToken: (code, token) => this.storePlayerToken(code, token),
+          replaceRoute: (route) => history.replaceState(null, '', route),
+          buildGameRoute,
+          connect: (code) => this.connect(code),
+          setState: (state) => this.setState(state),
+          trackGameCreated: (details) => track('game_created', details),
+        },
         scenario,
-        mode: 'multiplayer',
-      });
-      this.connect(this.ctx.gameCode);
-      this.setState('waitingForOpponent');
+        data.code,
+        data.playerToken,
+      );
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         this.ui.showToast('Game creation timed out. Try again.', 'error');
@@ -443,41 +452,47 @@ class GameClient {
     }
   }
   private startLocalGame(scenario: string) {
-    this.ctx.isLocalGame = true;
-    this.ctx.scenario = scenario;
-    this.ctx.playerId = 0;
-    this.turnTelemetry.reset();
-    this.renderer.setPlayerId(0);
-    this.ctx.transport = this.createLocalTransport();
-    const scenarioDef = SCENARIOS[scenario] ?? SCENARIOS.biplanetary;
-    const state = createGame(scenarioDef, this.map, 'LOCAL', findBaseHex);
-    this.renderer.clearTrails();
-    this.ui.clearLog();
-    this.ui.setChatEnabled(false);
-    this.ui.logText(`vs AI (${this.ctx.aiDifficulty}) — ${scenarioDef.name}`);
-    track('game_created', {
+    startLocalGameSession(
+      {
+        ctx: this.ctx,
+        createLocalTransport: () => this.createLocalTransport(),
+        createLocalGameState: (selectedScenario) => {
+          const scenarioDef =
+            SCENARIOS[selectedScenario] ?? SCENARIOS.biplanetary;
+          return createGame(scenarioDef, this.map, 'LOCAL', findBaseHex);
+        },
+        getScenarioName: (selectedScenario) =>
+          (SCENARIOS[selectedScenario] ?? SCENARIOS.biplanetary).name,
+        resetTurnTelemetry: () => this.turnTelemetry.reset(),
+        setRendererPlayerId: (playerId) => this.renderer.setPlayerId(playerId),
+        clearTrails: () => this.renderer.clearTrails(),
+        clearLog: () => this.ui.clearLog(),
+        setChatEnabled: (enabled) => this.ui.setChatEnabled(enabled),
+        logText: (text) => this.ui.logText(text),
+        trackGameCreated: (details) => track('game_created', details),
+        applyGameState: (state) => this.applyGameState(state),
+        logScenarioBriefing: () => this.logScenarioBriefing(),
+        setState: (state) => this.setState(state),
+        runLocalAI: () => this.runAITurn(),
+      },
       scenario,
-      mode: 'local',
-      difficulty: this.ctx.aiDifficulty,
-    });
-    this.applyGameState(state);
-    this.logScenarioBriefing();
-    const gameState = this.ctx.gameState;
-    if (!gameState) return;
-    this.setState(deriveGameStartClientState(gameState, this.ctx.playerId));
-    if (this.ctx.state === 'playing_opponentTurn') {
-      this.runAITurn();
-    }
+    );
   }
   private joinGame(code: string, playerToken: string | null = null) {
-    if (playerToken) {
-      this.storePlayerToken(code, playerToken);
-    }
-    this.turnTelemetry.reset();
-    this.ctx.gameCode = code;
-    history.replaceState(null, '', buildGameRoute(code));
-    this.connect(code);
-    this.setState('connecting');
+    beginJoinGameSession(
+      {
+        ctx: this.ctx,
+        storePlayerToken: (gameCode, token) =>
+          this.storePlayerToken(gameCode, token),
+        resetTurnTelemetry: () => this.turnTelemetry.reset(),
+        replaceRoute: (route) => history.replaceState(null, '', route),
+        buildGameRoute,
+        connect: (gameCode) => this.connect(gameCode),
+        setState: (state) => this.setState(state),
+      },
+      code,
+      playerToken,
+    );
   }
   private getTokenStore(): Record<
     string,
@@ -722,15 +737,15 @@ class GameClient {
     this.ctx.transport?.requestRematch();
   }
   private exitToMenu() {
-    this.connection.stopPing();
-    this.turnTimer.stop();
-    this.connection.close();
-    this.turnTelemetry.reset();
-    this.ctx.gameState = null;
-    this.ctx.isLocalGame = false;
-    this.ctx.transport = null;
-    history.replaceState(null, '', '/');
-    this.setState('menu');
+    exitToMenuSession({
+      ctx: this.ctx,
+      stopPing: () => this.connection.stopPing(),
+      stopTurnTimer: () => this.turnTimer.stop(),
+      closeConnection: () => this.connection.close(),
+      resetTurnTelemetry: () => this.turnTelemetry.reset(),
+      replaceRoute: (route) => history.replaceState(null, '', route),
+      setState: (state) => this.setState(state),
+    });
   }
   // --- Local game (single player) ---
   private createLocalTransport(): GameTransport {

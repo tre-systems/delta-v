@@ -132,6 +132,8 @@ const scoreCourse = (
   difficulty: AIDifficulty,
   map?: SolarSystemMap,
   isRace?: boolean,
+  enemyEscaping?: boolean,
+  shipIndex?: number,
 ): number => {
   let score = 0;
   // Difficulty multiplier for scoring precision
@@ -255,10 +257,64 @@ const scoreCourse = (
   // Combat positioning
   const myStrength = getCombatStrength([ship]);
   if (enemyShips.length > 0) {
+    // Interception mode: when enemies are fleeing,
+    // predict their trajectory and cut them off
+    // instead of chasing their current position.
+    const intercepting = enemyEscaping && noPrimaryObjective;
+    // Distribute ships across targets on hard
+    // difficulty to avoid all chasing the same one
+    const assignedTarget =
+      intercepting &&
+      difficulty === 'hard' &&
+      enemyShips.length > 1 &&
+      shipIndex != null
+        ? enemyShips[shipIndex % enemyShips.length]
+        : null;
+
     for (const enemy of enemyShips) {
       const dist = hexDistance(course.destination, enemy.position);
       const enemyStr = getCombatStrength([enemy]);
-      if (noPrimaryObjective) {
+
+      if (intercepting) {
+        // Predict where the fugitive will be next turn
+        const predicted = hexAdd(enemy.position, enemy.velocity);
+
+        if (dist <= 5) {
+          // Close range: aggressive combat positioning.
+          // Stop predicting — close and attack.
+          score += Math.max(0, 50 - dist) * 4 * mult;
+          if (dist <= 3) score += 60 * mult;
+          const nextPos = hexAdd(course.destination, course.newVelocity);
+          const nextDist = hexDistance(nextPos, enemy.position);
+          score += (dist - nextDist) * 6 * mult;
+          // Match velocity to maintain engagement
+          const velMatchDist = hexDistance(
+            {
+              q: course.newVelocity.dq,
+              r: course.newVelocity.dr,
+            },
+            {
+              q: enemy.velocity.dq,
+              r: enemy.velocity.dr,
+            },
+          );
+          score -= velMatchDist * 5 * mult;
+        } else {
+          // Far range: intercept by heading toward
+          // the predicted position, not the current one.
+          const interceptDist = hexDistance(course.destination, predicted);
+          score += Math.max(0, 50 - interceptDist) * 3 * mult;
+          if (interceptDist <= 3) score += 50 * mult;
+          const nextPos = hexAdd(course.destination, course.newVelocity);
+          const nextIntDist = hexDistance(nextPos, predicted);
+          score += (interceptDist - nextIntDist) * 6 * mult;
+        }
+        // Hard AI: focus on assigned target,
+        // de-prioritize others
+        if (assignedTarget && enemy !== assignedTarget) {
+          score -= Math.max(0, 50 - dist) * 2 * mult;
+        }
+      } else if (noPrimaryObjective) {
         // Pure combat mode: aggressively seek
         // combat range. Strong closing incentive that
         // always outweighs other penalties.
@@ -327,6 +383,8 @@ export const aiAstrogation = (
   const orders: AstrogationOrder[] = [];
   const { targetBody, escapeWins } = state.players[playerId];
   const player = state.players[playerId];
+  const opponentId = 1 - playerId;
+  const enemyEscaping = state.players[opponentId]?.escapeWins === true;
   // Default navigation target (non-checkpoint scenarios)
   const defaultTargetHex: {
     q: number;
@@ -339,6 +397,7 @@ export const aiAstrogation = (
   const enemyShips = state.ships.filter(
     (s) => s.owner !== playerId && !s.destroyed,
   );
+  let shipIdx = 0;
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
     if (ship.destroyed) continue;
@@ -514,6 +573,8 @@ export const aiAstrogation = (
           difficulty,
           map,
           !!checkpoints,
+          enemyEscaping,
+          shipIdx,
         ) + gravityRiskPenalty;
       // Fuel-seeking: big bonus for landing at any
       // body (base refuel)
@@ -570,6 +631,8 @@ export const aiAstrogation = (
             difficulty,
             map,
             !!checkpoints,
+            enemyEscaping,
+            shipIdx,
           );
           if (altScore > score) {
             score = altScore;
@@ -602,6 +665,7 @@ export const aiAstrogation = (
       ...(bestOverload !== null ? { overload: bestOverload } : {}),
       ...(bestWeakGrav ? { weakGravityChoices: bestWeakGrav } : {}),
     });
+    shipIdx++;
   }
   return orders;
 };

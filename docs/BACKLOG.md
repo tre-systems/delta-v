@@ -18,6 +18,10 @@ project review without rewriting working systems.
 - Keep building on `game/state-transition.ts`, which now owns
   the main `setState()` side-effect block, by moving more state
   mutation behind explicit transition/update helpers.
+- Keep building on `game/session-controller.ts`, which now owns
+  create/join/local-start/exit session flows, by moving the rest
+  of session-level `ClientContext` mutation behind explicit
+  helpers instead of leaving it in `main.ts`.
 - Keep `GameClient` as the bootstrap/wiring shell for renderer,
   connection, and UI composition.
 - Target outcome: `main.ts` becomes orchestration glue instead of
