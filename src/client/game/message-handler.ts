@@ -125,10 +125,6 @@ export const handleServerMessage = (
     case 'rematchPending':
       deps.ui.showRematchPending();
       break;
-    case 'opponentDisconnected':
-      deps.setState(plan.nextState);
-      deps.ui.showGameOver(plan.won, plan.reason);
-      break;
     case 'error':
       console.error('Server error:', plan.message);
       deps.ui.showToast(plan.message, 'error');

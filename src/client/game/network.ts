@@ -47,13 +47,13 @@ export const getReconnectDelayMs = (attempt: number): number => {
 export const shouldAttemptReconnect = (
   currentState: ClientState,
   gameCode: string | null,
-  gameState: GameState | null,
+  _gameState: GameState | null,
 ): boolean => {
   if (currentState === 'menu' || currentState === 'gameOver') {
     return false;
   }
 
-  return Boolean(gameCode && gameState);
+  return Boolean(gameCode);
 };
 
 export const deriveDisconnectHandling = (

@@ -22,6 +22,7 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'test-ship',
   type: 'corvette',
   owner: 0,
+  originalOwner: 0,
   position: { q: 0, r: 0 },
   velocity: { dq: 0, dr: 0 },
   fuel: 20,
@@ -155,6 +156,7 @@ describe('advanceTurn', () => {
         id: 'extra-frigate',
         type: 'frigate',
         owner: 1,
+        originalOwner: 0,
       }),
     );
     state.activePlayer = 1;
@@ -425,6 +427,7 @@ describe('checkRamming', () => {
       makeShip({
         id: 'p0s1',
         owner: 0,
+        originalOwner: 0,
         position: { q: 5, r: 5 },
         landed: false,
       }),
@@ -566,6 +569,7 @@ describe('checkOrbitalBaseResupply', () => {
         id: 'ob-1',
         type: 'orbitalBase',
         owner: 0,
+        originalOwner: 0,
         position: { q: 5, r: 5 },
         velocity: { dq: 1, dr: 0 },
         baseStatus: 'emplaced',
@@ -591,6 +595,7 @@ describe('checkOrbitalBaseResupply', () => {
         id: 'ob-2',
         type: 'orbitalBase',
         owner: 0,
+        originalOwner: 0,
         position: { q: 5, r: 5 },
         velocity: { dq: 0, dr: 1 }, // Different velocity
         baseStatus: 'emplaced',
@@ -612,6 +617,7 @@ describe('checkOrbitalBaseResupply', () => {
         id: 'ob-3',
         type: 'orbitalBase',
         owner: 0,
+        originalOwner: 0,
         position: { q: 5, r: 5 },
         velocity: { dq: 1, dr: 0 },
         baseStatus: 'emplaced',
@@ -634,6 +640,7 @@ describe('checkOrbitalBaseResupply', () => {
         id: 'ob-4',
         type: 'orbitalBase',
         owner: 0,
+        originalOwner: 0,
         position: { q: 5, r: 5 },
         velocity: { dq: 1, dr: 0 },
         baseStatus: 'emplaced',

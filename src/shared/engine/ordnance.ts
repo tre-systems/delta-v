@@ -109,6 +109,7 @@ export const processEmplacement = (
       id: baseId,
       type: 'orbitalBase',
       owner: playerId,
+      originalOwner: playerId,
       position: { ...ship.position },
       velocity: { ...ship.velocity },
       fuel: Infinity,

@@ -16,6 +16,7 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
     id: 'ship-0',
     type: 'corvette',
     owner: 0,
+    originalOwner: 0,
     position: { q: 0, r: 0 },
     velocity: { dq: 0, dr: 0 },
     fuel: 10,
@@ -65,6 +66,7 @@ function createState(overrides: Partial<GameState> = {}): GameState {
       createShip({
         id: 'ship-1',
         owner: 1,
+        originalOwner: 0,
         position: { q: 2, r: 0 },
       }),
     ],
@@ -277,16 +279,19 @@ describe('game client input helpers', () => {
         createShip({
           id: 'ship-a',
           owner: 0,
+          originalOwner: 0,
           position: hex,
         }),
         createShip({
           id: 'ship-b',
           owner: 0,
+          originalOwner: 0,
           position: hex,
         }),
         createShip({
           id: 'enemy',
           owner: 1,
+          originalOwner: 0,
           position: { q: 5, r: 0 },
         }),
       ],

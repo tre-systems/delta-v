@@ -17,6 +17,7 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
     id: 'ship-0',
     type: 'packet',
     owner: 0,
+    originalOwner: 0,
     position: { q: 0, r: 0 },
     velocity: { dq: 0, dr: 0 },
     fuel: 10,
@@ -213,15 +214,6 @@ describe('game-client-messages', () => {
 
     expect(derive({ type: 'rematchPending' }, 'gameOver')).toEqual({
       kind: 'rematchPending',
-    });
-
-    expect(
-      derive({ type: 'opponentDisconnected' }, 'playing_ordnance'),
-    ).toEqual({
-      kind: 'opponentDisconnected',
-      nextState: 'gameOver',
-      won: true,
-      reason: 'Opponent disconnected',
     });
 
     expect(
