@@ -14,18 +14,6 @@ Remaining work only. Completed items are in git history.
 - Do this incrementally, starting with the most heavily used
   shapes such as `Ship`.
 
-### Reactive signals
-
-`src/client/reactive.ts` is a standalone signals library
-(signal, computed, effect, batch, DOM helpers) with 31 tests
-including property-based coverage. Lifecycle gaps are resolved:
-nested effects auto-dispose on parent re-run, computed exposes
-`dispose()`. Ready for wiring into core UI state.
-
-Known trade-off: diamond dependencies can emit glitchy
-intermediate states outside of `batch()`. Use `batch()` when
-updating multiple signals that feed the same computed/effect.
-
 ---
 
 ## Features
