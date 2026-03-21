@@ -7,6 +7,13 @@ import {
   hasSplitFireOptions,
 } from './combat';
 import type { PlanningState } from './planning';
+import {
+  queueCombatAttack as appendCombatAttack,
+  clearCombatSelectionState,
+  resetCombatPlanning,
+  setCombatAttackStrength,
+  takeQueuedAttacks,
+} from './planning-store';
 import type { GameTransport } from './transport';
 
 export interface CombatActionDeps {
@@ -22,27 +29,22 @@ export interface CombatActionDeps {
 }
 
 export const clearCombatSelection = (deps: CombatActionDeps) => {
-  deps.planningState.combatTargetId = null;
-  deps.planningState.combatTargetType = null;
-  deps.planningState.combatAttackerIds = [];
-  deps.planningState.combatAttackStrength = null;
+  clearCombatSelectionState(deps.planningState);
 };
 
 export const resetCombatState = (deps: CombatActionDeps) => {
-  clearCombatSelection(deps);
-  deps.planningState.queuedAttacks = [];
+  resetCombatPlanning(deps.planningState);
   deps.showFireButton(false, 0);
 };
 
 export const fireAllAttacks = (deps: CombatActionDeps) => {
   const transport = deps.getTransport();
   if (!transport) return;
-  const attacks = [...deps.planningState.queuedAttacks];
+  const attacks = takeQueuedAttacks(deps.planningState);
   if (attacks.length === 0) {
     sendSkipCombat(deps);
     return;
   }
-  deps.planningState.queuedAttacks = [];
   deps.showFireButton(false, 0);
   transport.submitCombat(attacks);
 };
@@ -71,7 +73,7 @@ export const queueAttack = (deps: CombatActionDeps) => {
     return;
   }
 
-  deps.planningState.queuedAttacks.push(attack);
+  const count = appendCombatAttack(deps.planningState, attack);
   clearCombatSelection(deps);
   deps.showAttackButton(false);
 
@@ -91,7 +93,6 @@ export const queueAttack = (deps: CombatActionDeps) => {
     // No more attackers available — auto-fire
     fireAllAttacks(deps);
   } else {
-    const count = deps.planningState.queuedAttacks.length;
     deps.showToast(
       `Attack queued (${count}). Select next target or press Enter to fire.`,
       'info',
@@ -140,10 +141,9 @@ export const adjustCombatStrength = (deps: CombatActionDeps, delta: number) => {
   if (maxStrength <= 0) return;
 
   const current = deps.planningState.combatAttackStrength ?? maxStrength;
-  deps.planningState.combatAttackStrength = clamp(
-    current + delta,
-    1,
-    maxStrength,
+  setCombatAttackStrength(
+    deps.planningState,
+    clamp(current + delta, 1, maxStrength),
   );
 };
 
@@ -156,6 +156,6 @@ export const resetCombatStrengthToMax = (deps: CombatActionDeps) => {
     deps.planningState.combatAttackerIds,
   );
   if (maxStrength > 0) {
-    deps.planningState.combatAttackStrength = maxStrength;
+    setCombatAttackStrength(deps.planningState, maxStrength);
   }
 };

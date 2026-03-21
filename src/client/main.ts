@@ -84,6 +84,7 @@ import {
   createInitialPlanningState,
   type PlanningState,
 } from './game/planning';
+import { setSelectedShipId } from './game/planning-store';
 import {
   type PresentationDeps,
   presentCombatResults as presentCombat,
@@ -807,7 +808,7 @@ class GameClient {
       direction,
     );
     if (!nextShip) return;
-    this.ctx.planningState.selectedShipId = nextShip.id;
+    setSelectedShipId(this.ctx.planningState, nextShip.id);
     this.renderer.centerOnHex(nextShip.position);
     this.updateHUD();
   }
@@ -849,7 +850,7 @@ class GameClient {
       hud.selectedId !== null &&
       this.ctx.planningState.selectedShipId !== hud.selectedId
     ) {
-      this.ctx.planningState.selectedShipId = hud.selectedId;
+      setSelectedShipId(this.ctx.planningState, hud.selectedId);
     }
     this.ui.updateHUD({
       turn: hud.turn,
