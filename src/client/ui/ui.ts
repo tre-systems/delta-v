@@ -2,7 +2,6 @@ import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
 import type {
   CombatResult,
-  FleetPurchase,
   GameState,
   MovementEvent,
   Ship,
@@ -10,7 +9,7 @@ import type {
 import { byId, el, hide, show, visible } from '../dom';
 import { ACTION_BUTTON_IDS, STATIC_BUTTON_BINDINGS } from './button-bindings';
 import type { UIEvent } from './events';
-import { canAddFleetShip, getFleetCartView, getFleetShopView } from './fleet';
+import { FleetBuildingView } from './fleet-building-view';
 import {
   formatCombatResultEntries,
   formatMovementEventEntry,
@@ -53,11 +52,11 @@ export class UIManager {
   private lastTurnHeader: HTMLElement | null = null;
   private isMobile: boolean;
   private logExpandedOnMobile = false;
-  private fleetCart: FleetPurchase[] = [];
   private playerId: number = -1;
   private layoutSyncFrame: number | null = null;
 
   private readonly actionButtonIds = ACTION_BUTTON_IDS;
+  private readonly fleetBuildingView: FleetBuildingView;
 
   onEvent: ((event: UIEvent) => void) | null = null;
 
@@ -87,6 +86,11 @@ export class UIManager {
     this.chatInputRow = byId('chatInputRow');
     this.chatInput = byId('chatInput') as HTMLInputElement;
     this.fleetBuildingEl = byId('fleetBuilding');
+    this.fleetBuildingView = new FleetBuildingView({
+      onFleetReady: (purchases) => {
+        this.emit({ type: 'fleetReady', purchases });
+      },
+    });
 
     this.bindChatInput();
 
@@ -396,108 +400,11 @@ export class UIManager {
   showFleetBuilding(state: GameState, playerId: number) {
     this.hideAll();
     this.applyScreenVisibility('fleetBuilding');
-    this.fleetCart = [];
-
-    const player = state.players[playerId];
-    const credits = player.credits ?? 0;
-
-    this.renderFleetShop(credits);
-    this.renderFleetCart(credits);
-
-    // Wire buttons
-    byId('fleetReadyBtn').onclick = () => {
-      this.onEvent?.({
-        type: 'fleetReady',
-        purchases: this.fleetCart,
-      });
-    };
-
-    byId('fleetClearBtn').onclick = () => {
-      this.fleetCart = [];
-      this.renderFleetCart(credits);
-    };
-
-    hide(byId('fleetWaiting'));
+    this.fleetBuildingView.show(state, playerId);
   }
 
   showFleetWaiting() {
-    hide(byId('fleetReadyBtn'));
-    hide(byId('fleetClearBtn'));
-    show(byId('fleetWaiting'), 'block');
-  }
-
-  private renderFleetShop(totalCredits: number) {
-    const shopEl = byId('fleetShopList');
-    shopEl.innerHTML = '';
-
-    for (const itemView of getFleetShopView(this.fleetCart, totalCredits)) {
-      const item = document.createElement('div');
-      item.className = 'fleet-shop-item';
-      item.classList.toggle('disabled', itemView.disabled);
-
-      item.innerHTML = `
-        <div>
-          <div class="fleet-shop-name">${itemView.name}</div>
-          <div class="fleet-shop-stats">${itemView.statsText}</div>
-        </div>
-        <div class="fleet-shop-cost">${itemView.cost} MC</div>
-      `;
-
-      item.addEventListener('click', () => {
-        if (canAddFleetShip(this.fleetCart, totalCredits, itemView.shipType)) {
-          this.fleetCart.push({
-            shipType: itemView.shipType,
-          });
-          this.renderFleetCart(totalCredits);
-
-          // Apply recoil animation to cart
-          const cartEl = byId('fleetCart');
-          cartEl.classList.remove('recoil-anim');
-          void cartEl.offsetWidth;
-          cartEl.classList.add('recoil-anim');
-        }
-      });
-
-      shopEl.appendChild(item);
-    }
-  }
-
-  private renderFleetCart(totalCredits: number) {
-    const cartEl = byId('fleetCart');
-    const creditsEl = byId('fleetCredits');
-
-    const cartView = getFleetCartView(this.fleetCart, totalCredits);
-
-    creditsEl.textContent = cartView.remainingLabel;
-    cartEl.innerHTML = '';
-
-    if (cartView.isEmpty) {
-      cartEl.innerHTML =
-        '<span style="color:#556;font-size:0.75rem;padding:0.2rem">Click ships above to add</span>';
-
-      return;
-    }
-
-    for (const [index, itemView] of cartView.items.entries()) {
-      const chip = document.createElement('div');
-      chip.className = 'fleet-cart-chip';
-      chip.innerHTML = `${itemView.label} <span class="chip-remove">\u00d7</span>`;
-
-      chip.addEventListener('click', () => {
-        this.fleetCart.splice(index, 1);
-        this.renderFleetCart(totalCredits);
-      });
-
-      cartEl.appendChild(chip);
-    }
-
-    // Update shop item disabled states
-    const shopItems = document.querySelectorAll('.fleet-shop-item');
-    const shopView = getFleetShopView(this.fleetCart, totalCredits);
-
-    for (const [idx, item] of Array.from(shopItems).entries()) {
-      item.classList.toggle('disabled', shopView[idx]?.disabled ?? false);
-    }
+    this.fleetBuildingView.showWaiting();
   }
 
   updateHUD(input: Omit<HUDInput, 'isMobile'>) {
