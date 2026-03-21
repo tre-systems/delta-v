@@ -22,6 +22,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
+import { validateClientMessage } from '../../shared/protocol';
 import type {
   AstrogationOrder,
   C2S,
@@ -40,7 +41,6 @@ import {
   parseInitPayload,
   type RoomConfig,
   resolveSeatAssignment,
-  validateClientMessage,
 } from '../protocol';
 import {
   deriveCombatEvents,

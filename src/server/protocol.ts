@@ -1,5 +1,3 @@
-export { validateClientMessage } from '../shared/protocol';
-
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const TOKEN_CHARS =

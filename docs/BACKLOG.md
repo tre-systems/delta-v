@@ -10,19 +10,6 @@ Current direction is good. This plan is aimed at removing the
 main correctness and coordination risks found in the latest
 project review without rewriting working systems.
 
-### Phase 1. Consolidate protocol validation
-
-- Move C2S/S2C runtime schema ownership next to the shared
-  protocol message definitions instead of maintaining a large
-  hand-written parser island in `src/server/protocol.ts`.
-- Keep room-code, token, and seat-assignment helpers separate if
-  they stay generic; focus schema consolidation on message
-  payloads first.
-- Use the shared schema layer for both runtime validation and
-  compile-time TypeScript inference where practical.
-- Target outcome: one source of truth for protocol shape, smaller
-  validator surface area, and cheaper message evolution.
-
 ### Phase 2. Finish consolidating client state ownership
 
 - Extract `ClientContext` and `PlanningState` mutation behind a
@@ -50,9 +37,8 @@ project review without rewriting working systems.
 
 ### Suggested order
 
-1. Phase 1: protocol schema consolidation.
-2. Phase 2: client store/transition consolidation.
-3. Phase 3: direct shared-type imports and boundary enforcement.
+1. Phase 2: client store/transition consolidation.
+2. Phase 3: direct shared-type imports and boundary enforcement.
 
 ---
 
