@@ -18,6 +18,11 @@ import {
 } from './util';
 
 const bounds = { minQ: -10, maxQ: 10, minR: -10, maxR: 10 };
+const makeScenarioRulesState = (
+  scenarioRules: GameState['scenarioRules'] = {},
+): Pick<GameState, 'scenarioRules'> => ({
+  scenarioRules,
+});
 
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'test',
@@ -95,9 +100,12 @@ describe('hasOrdnanceCapacity', () => {
   });
 
   it('returns false for unknown ship type', () => {
-    expect(hasOrdnanceCapacity(makeShip({ type: 'unknown' as any }))).toBe(
-      false,
-    );
+    expect(
+      hasOrdnanceCapacity({
+        ...makeShip(),
+        type: 'unknown',
+      } as unknown as Ship),
+    ).toBe(false);
   });
 });
 
@@ -222,25 +230,23 @@ describe('shuffle', () => {
 
 describe('getAllowedOrdnanceTypes', () => {
   it('returns all types when no restriction', () => {
-    const result = getAllowedOrdnanceTypes({
-      scenarioRules: {} as any,
-    });
+    const result = getAllowedOrdnanceTypes(makeScenarioRulesState());
 
     expect(result).toEqual(new Set(['mine', 'torpedo', 'nuke']));
   });
 
   it('returns all types when empty array', () => {
-    const result = getAllowedOrdnanceTypes({
-      scenarioRules: { allowedOrdnanceTypes: [] } as any,
-    });
+    const result = getAllowedOrdnanceTypes(
+      makeScenarioRulesState({ allowedOrdnanceTypes: [] }),
+    );
 
     expect(result).toEqual(new Set(['mine', 'torpedo', 'nuke']));
   });
 
   it('respects restricted types', () => {
-    const result = getAllowedOrdnanceTypes({
-      scenarioRules: { allowedOrdnanceTypes: ['nuke'] } as any,
-    });
+    const result = getAllowedOrdnanceTypes(
+      makeScenarioRulesState({ allowedOrdnanceTypes: ['nuke'] }),
+    );
 
     expect(result).toEqual(new Set(['nuke']));
   });
@@ -262,43 +268,41 @@ describe('getNextOrdnanceId', () => {
 
 describe('scenario rule predicates', () => {
   it('isPlanetaryDefenseEnabled defaults to true', () => {
-    expect(isPlanetaryDefenseEnabled({ scenarioRules: {} as any })).toBe(true);
+    expect(isPlanetaryDefenseEnabled(makeScenarioRulesState())).toBe(true);
   });
 
   it('isPlanetaryDefenseEnabled returns false when disabled', () => {
     expect(
-      isPlanetaryDefenseEnabled({
-        scenarioRules: {
+      isPlanetaryDefenseEnabled(
+        makeScenarioRulesState({
           planetaryDefenseEnabled: false,
-        } as any,
-      }),
+        }),
+      ),
     ).toBe(false);
   });
 
   it('usesEscapeInspectionRules defaults to false', () => {
-    expect(usesEscapeInspectionRules({ scenarioRules: {} as any })).toBe(false);
+    expect(usesEscapeInspectionRules(makeScenarioRulesState())).toBe(false);
   });
 
   it('usesEscapeInspectionRules returns true when enabled', () => {
     expect(
-      usesEscapeInspectionRules({
-        scenarioRules: {
+      usesEscapeInspectionRules(
+        makeScenarioRulesState({
           hiddenIdentityInspection: true,
-        } as any,
-      }),
+        }),
+      ),
     ).toBe(true);
   });
 
   it('getEscapeEdge defaults to any', () => {
-    expect(getEscapeEdge({ scenarioRules: {} as any })).toBe('any');
+    expect(getEscapeEdge(makeScenarioRulesState())).toBe('any');
   });
 
   it('getEscapeEdge returns configured edge', () => {
-    expect(
-      getEscapeEdge({
-        scenarioRules: { escapeEdge: 'north' } as any,
-      }),
-    ).toBe('north');
+    expect(getEscapeEdge(makeScenarioRulesState({ escapeEdge: 'north' }))).toBe(
+      'north',
+    );
   });
 });
 
@@ -306,7 +310,7 @@ describe('playerControlsBase', () => {
   it('returns true when player owns the base', () => {
     const state = {
       players: [{ bases: ['1,2'] }, { bases: [] }],
-    } as any;
+    } as unknown as Pick<GameState, 'players'> as GameState;
 
     expect(playerControlsBase(state, 0, '1,2')).toBe(true);
   });
@@ -314,7 +318,7 @@ describe('playerControlsBase', () => {
   it('returns false when player does not own the base', () => {
     const state = {
       players: [{ bases: [] }, { bases: ['1,2'] }],
-    } as any;
+    } as unknown as Pick<GameState, 'players'> as GameState;
 
     expect(playerControlsBase(state, 0, '1,2')).toBe(false);
   });

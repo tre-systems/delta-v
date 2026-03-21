@@ -295,7 +295,7 @@ export const formatCombatResultEntries = (
 
   if (result.counterattack) {
     const counterTarget =
-      ships.find((ship) => ship.id === result.counterattack!.targetId) ?? null;
+      ships.find((ship) => ship.id === result.counterattack?.targetId) ?? null;
 
     entries.push({
       text: `  Target returned fire on ${getShipName(counterTarget, result.counterattack.targetId)}: ${formatDamageResult(result.counterattack.damageType, result.counterattack.disabledTurns)}`,

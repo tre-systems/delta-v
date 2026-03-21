@@ -1,3 +1,4 @@
+import { must } from '../../shared/assert';
 import { MOVEMENT_ANIM_DURATION } from '../../shared/constants';
 import {
   type HexCoord,
@@ -72,9 +73,7 @@ import {
   buildShipTrailViews,
   buildVelocityVectorViews,
 } from './vectors';
-
 // --- Animation state ---
-
 export interface AnimationState {
   movements: ShipMovement[];
   ordnanceMovements: OrdnanceMovement[];
@@ -85,15 +84,11 @@ export interface AnimationState {
 
 // CombatEffect and HexFlash types imported from
 // renderer-effects.ts
-
 // PlanningState is owned by GameClient, passed in as
 // a reference
 import type { PlanningState } from '../game/planning';
-
 // --- Renderer ---
-
 export const HEX_SIZE = 28; // pixels per hex radius
-
 export class Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -122,14 +117,12 @@ export class Renderer {
   // positions visited across turns
   private shipTrails: Map<string, HexCoord[]> = new Map();
   private ordnanceTrails: Map<string, HexCoord[]> = new Map();
-
   constructor(canvas: HTMLCanvasElement, planningState: PlanningState) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d')!;
+    this.ctx = must(canvas.getContext('2d'));
     this.camera = new Camera();
     this.planningState = planningState;
     this.stars = generateStars(600, 2000);
-
     // Complete stale animations when visibility
     // changes. When hidden: rAF stops and setTimeout
     // may be fully suspended, so skip the animation
@@ -137,7 +130,6 @@ export class Renderer {
     // slipped through.
     document.addEventListener('visibilitychange', () => {
       if (!this.animState) return;
-
       if (
         document.visibilityState === 'hidden' ||
         performance.now() - this.animState.startTime >= this.animState.duration
@@ -146,31 +138,25 @@ export class Renderer {
           clearTimeout(this.animFallbackTimer);
           this.animFallbackTimer = null;
         }
-
         const cb = this.animState.onComplete;
         this.animState = null;
         cb();
       }
     });
   }
-
   setMap(map: SolarSystemMap) {
     this.map = map;
   }
-
   setGameState(state: GameState) {
     this.gameState = state;
   }
-
   setPlayerId(id: number) {
     this.playerId = id;
   }
-
   clearTrails() {
     this.shipTrails.clear();
     this.ordnanceTrails.clear();
   }
-
   animateMovements(
     movements: ShipMovement[],
     ordnanceMovements: OrdnanceMovement[],
@@ -179,7 +165,6 @@ export class Renderer {
     // Record movement paths into persistent trails
     for (const m of movements) {
       const trail = this.shipTrails.get(m.shipId);
-
       if (trail) {
         // Append path (skip first point if it matches
         // the trail's last point)
@@ -190,7 +175,6 @@ export class Renderer {
           trail[trail.length - 1].r === m.path[0].r
             ? 1
             : 0;
-
         for (let i = start; i < m.path.length; i++) {
           trail.push(m.path[i]);
         }
@@ -198,10 +182,8 @@ export class Renderer {
         this.shipTrails.set(m.shipId, [...m.path]);
       }
     }
-
     for (const m of ordnanceMovements) {
       const trail = this.ordnanceTrails.get(m.ordnanceId);
-
       if (trail) {
         const start =
           trail.length > 0 &&
@@ -210,7 +192,6 @@ export class Renderer {
           trail[trail.length - 1].r === m.path[0].r
             ? 1
             : 0;
-
         for (let i = start; i < m.path.length; i++) {
           trail.push(m.path[i]);
         }
@@ -218,16 +199,13 @@ export class Renderer {
         this.ordnanceTrails.set(m.ordnanceId, [...m.path]);
       }
     }
-
     // If the page is hidden, skip animation entirely
     // — rAF and setTimeout may both be fully suspended
     // by the browser.
     if (document.hidden) {
       onComplete();
-
       return;
     }
-
     this.animState = {
       movements,
       ordnanceMovements,
@@ -235,24 +213,20 @@ export class Renderer {
       duration: MOVEMENT_ANIM_DURATION,
       onComplete,
     };
-
     // Safety net: if rAF is throttled (mobile screen
     // off, background tab), ensure the animation
     // callback still fires via setTimeout.
     if (this.animFallbackTimer !== null) {
       clearTimeout(this.animFallbackTimer);
     }
-
     this.animFallbackTimer = setTimeout(() => {
       this.animFallbackTimer = null;
-
       if (this.animState) {
         const cb = this.animState.onComplete;
         this.animState = null;
         cb();
       }
     }, MOVEMENT_ANIM_DURATION + 500);
-
     // Frame camera on all moving ships and ordnance
     const allFrom = [
       ...movements.map((m) => m.from),
@@ -263,13 +237,11 @@ export class Renderer {
       ...ordnanceMovements.map((m) => m.to),
     ];
     const allHexes = [...allFrom, ...allTo];
-
     if (this.map && allHexes.length > 0) {
       let minX = Infinity,
         maxX = -Infinity,
         minY = Infinity,
         maxY = -Infinity;
-
       for (const h of allHexes) {
         const p = hexToPixel(h, HEX_SIZE);
         minX = Math.min(minX, p.x);
@@ -277,18 +249,15 @@ export class Renderer {
         minY = Math.min(minY, p.y);
         maxY = Math.max(maxY, p.y);
       }
-
       this.camera.frameBounds(minX, maxX, minY, maxY, 150);
     }
   }
-
   showCombatResults(results: CombatResult[], previousState?: GameState | null) {
     const now = performance.now();
     this.combatResults = {
       results,
       showUntil: now + 3000,
     };
-
     // Create visual effects for each combat result
     for (const r of results) {
       const target = getCombatTargetEntity(
@@ -297,17 +266,13 @@ export class Renderer {
         previousState ?? null,
       );
       if (!target) continue;
-
       const targetPos = hexToPixel(target.position, HEX_SIZE);
-
       // Beam from attacker(s) to target
       if (r.attackerIds.length > 0) {
         const firstId = r.attackerIds[0];
         let attackerPos: PixelCoord | null = null;
-
         if (firstId.startsWith('base:')) {
           const baseRef = firstId.slice(5);
-
           if (baseRef.includes(',')) {
             attackerPos = hexToPixel(parseHexKey(baseRef), HEX_SIZE);
           } else if (this.map) {
@@ -316,19 +281,16 @@ export class Renderer {
             const baseEntry = [...this.map.hexes.entries()].find(
               ([, hex]) => hex.base?.bodyName === baseRef,
             );
-
             if (baseEntry) {
               attackerPos = hexToPixel(parseHexKey(baseEntry[0]), HEX_SIZE);
             }
           }
         } else {
           const attacker = this.gameState?.ships.find((s) => s.id === firstId);
-
           if (attacker) {
             attackerPos = hexToPixel(attacker.position, HEX_SIZE);
           }
         }
-
         if (attackerPos && r.attackType !== 'asteroidHazard') {
           const beamColor = firstId.startsWith('base:')
             ? '#66bb6a'
@@ -337,7 +299,6 @@ export class Renderer {
               : r.damageType === 'disabled'
                 ? '#ffaa00'
                 : '#4fc3f7';
-
           this.combatEffects.push({
             type: 'beam',
             from: attackerPos,
@@ -348,7 +309,6 @@ export class Renderer {
           });
         }
       }
-
       // Explosion at target for damage
       if (r.damageType !== 'none') {
         this.combatEffects.push({
@@ -360,16 +320,13 @@ export class Renderer {
           color: r.damageType === 'eliminated' ? '#ff4444' : '#ffaa00',
         });
       }
-
       // Same for counterattack
       if (r.counterattack && r.counterattack.damageType !== 'none') {
         const counterTarget = this.gameState?.ships.find(
-          (s) => s.id === r.counterattack!.targetId,
+          (s) => s.id === r.counterattack?.targetId,
         );
-
         if (counterTarget) {
           const counterPos = hexToPixel(counterTarget.position, HEX_SIZE);
-
           this.combatEffects.push({
             type: 'beam',
             from: targetPos,
@@ -381,7 +338,6 @@ export class Renderer {
                 ? '#ff4444'
                 : '#ffaa00',
           });
-
           this.combatEffects.push({
             type: 'explosion',
             from: counterPos,
@@ -397,7 +353,6 @@ export class Renderer {
       }
     }
   }
-
   showMovementEvents(events: MovementEvent[]) {
     if (events.length > 0) {
       const now = performance.now();
@@ -405,11 +360,9 @@ export class Renderer {
         events,
         showUntil: now + 4000,
       };
-
       // Create hex flashes at event locations
       for (const ev of events) {
         const p = hexToPixel(ev.hex, HEX_SIZE);
-
         const color =
           ev.type === 'crash'
             ? '#ff4444'
@@ -418,7 +371,6 @@ export class Renderer {
               : ev.damageType === 'eliminated'
                 ? '#ff4444'
                 : '#ffaa00';
-
         this.hexFlashes.push({
           position: p,
           startTime: now + MOVEMENT_ANIM_DURATION * 0.8,
@@ -428,11 +380,9 @@ export class Renderer {
       }
     }
   }
-
   showLandingEffect(hex: HexCoord) {
     const p = hexToPixel(hex, HEX_SIZE);
     const now = performance.now();
-
     this.hexFlashes.push({
       position: p,
       startTime: now + MOVEMENT_ANIM_DURATION * 0.9,
@@ -440,7 +390,6 @@ export class Renderer {
       color: '#66bb6a',
     });
   }
-
   /**
    * Trigger dramatic staggered explosions on the
    * losing player's ships.
@@ -449,11 +398,9 @@ export class Renderer {
   triggerGameOverExplosions(ships: Ship[]): number {
     const now = performance.now();
     const stagger = 250;
-
     for (let i = 0; i < ships.length; i++) {
       const p = hexToPixel(ships[i].position, HEX_SIZE);
       const delay = i * stagger;
-
       // Large dramatic explosion
       this.combatEffects.push({
         type: 'gameOverExplosion',
@@ -463,7 +410,6 @@ export class Renderer {
         duration: 1500,
         color: '#ff4444',
       });
-
       // Secondary orange ring slightly delayed
       this.combatEffects.push({
         type: 'gameOverExplosion',
@@ -474,43 +420,34 @@ export class Renderer {
         color: '#ff8800',
       });
     }
-
     return ships.length * stagger + 1500;
   }
-
   // showPhaseBanner removed — DOM phase alert in
   // ui.ts is the sole overlay
-
   isAnimating(): boolean {
     return this.animState !== null;
   }
-
   resetCamera() {
     this.camera.targetX = 0;
     this.camera.targetY = 0;
     this.camera.targetZoom = 0.3;
     this.camera.snapToTarget();
   }
-
   centerOnHex(hex: HexCoord) {
     const p = hexToPixel(hex, HEX_SIZE);
     this.camera.targetX = p.x;
     this.camera.targetY = p.y;
   }
-
   frameOnShips() {
     if (!this.gameState) return;
-
     const myShips = this.gameState.ships.filter(
       (s) => s.owner === this.playerId && !s.destroyed,
     );
     if (myShips.length === 0) return;
-
     let minX = Infinity,
       maxX = -Infinity,
       minY = Infinity,
       maxY = -Infinity;
-
     for (const s of myShips) {
       const p = hexToPixel(s.position, HEX_SIZE);
       minX = Math.min(minX, p.x);
@@ -518,9 +455,7 @@ export class Renderer {
       minY = Math.min(minY, p.y);
       maxY = Math.max(maxY, p.y);
     }
-
     this.camera.frameBounds(minX, maxX, minY, maxY, 200);
-
     // Clamp zoom so hex grid is visible but enough
     // context is shown for orientation
     const MIN_FRAME_ZOOM = 0.6;
@@ -530,7 +465,6 @@ export class Renderer {
       Math.min(MAX_FRAME_ZOOM, this.camera.targetZoom),
     );
   }
-
   start() {
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -538,27 +472,21 @@ export class Renderer {
     this.lastTime = performance.now();
     requestAnimationFrame((t) => this.loop(t));
   }
-
   private resize() {
     const dpr = window.devicePixelRatio || 1;
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
-
     this.canvas.width = w * dpr;
     this.canvas.height = h * dpr;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-
   private loop(now: number) {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
-
     const cw = this.canvas.clientWidth;
     const ch = this.canvas.clientHeight;
-
     this.camera.update(dt, cw, ch);
     this.render(now, cw, ch);
-
     // Check animation completion
     if (
       this.animState &&
@@ -568,48 +496,37 @@ export class Renderer {
         clearTimeout(this.animFallbackTimer);
         this.animFallbackTimer = null;
       }
-
       const cb = this.animState.onComplete;
       this.animState = null;
       cb();
     }
-
     requestAnimationFrame((t) => this.loop(t));
   }
-
   private render(
     now: number,
     w = this.canvas.clientWidth,
     h = this.canvas.clientHeight,
   ) {
     const ctx = this.ctx;
-
     // Clear
     ctx.fillStyle = '#08081a';
     ctx.fillRect(0, 0, w, h);
-
     ctx.save();
     this.camera.applyTransform(ctx);
-
     this.renderStars(ctx);
-
     if (this.map) {
       this.renderHexGrid(ctx, this.map);
-
       if (this.gameState) {
         this.renderMapBorder(ctx, this.map, this.gameState, now);
       }
-
       this.renderAsteroids(ctx, this.map);
       this.renderGravityIndicators(ctx, this.map);
       this.renderBodies(ctx, now, this.map);
       this.renderBaseMarkers(ctx, this.map, this.gameState);
-
       if (this.gameState) {
         this.renderLandingTarget(ctx, this.map, this.gameState, now);
       }
     }
-
     if (this.gameState && this.map) {
       this.renderBaseThreatZones(ctx, this.gameState, this.map);
       this.renderDetectionRanges(ctx, this.gameState, this.map);
@@ -623,9 +540,7 @@ export class Renderer {
       this.renderHexFlashes(ctx, now);
       this.renderCombatEffects(ctx, now);
     }
-
     ctx.restore();
-
     // Combat results toast (screen-space)
     if (this.combatResults && this.gameState) {
       if (now > this.combatResults.showUntil) {
@@ -634,7 +549,6 @@ export class Renderer {
         this.renderCombatResultsToast(ctx, this.combatResults.results, now, w);
       }
     }
-
     // Movement events toast (screen-space)
     if (this.movementEvents && this.gameState) {
       if (now > this.movementEvents.showUntil) {
@@ -643,25 +557,19 @@ export class Renderer {
         this.renderMovementEventsToast(ctx, this.movementEvents.events, now, w);
       }
     }
-
     // Phase banner removed — DOM overlay handles this
-
     // Minimap (screen-space, bottom-right)
     if (this.map && this.gameState) {
       this.renderMinimap(ctx, w, h);
     }
   }
-
   // --- Render layers ---
-
   private renderStars(ctx: CanvasRenderingContext2D) {
     renderStarsFn(ctx, this.stars, this.camera.zoom);
   }
-
   private renderHexGrid(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
     renderHexGridFn(ctx, map, HEX_SIZE, (x, y) => this.camera.isVisible(x, y));
   }
-
   private renderGravityIndicators(
     ctx: CanvasRenderingContext2D,
     map: SolarSystemMap,
@@ -670,7 +578,6 @@ export class Renderer {
       this.camera.isVisible(x, y),
     );
   }
-
   private renderBodies(
     ctx: CanvasRenderingContext2D,
     now: number,
@@ -678,7 +585,6 @@ export class Renderer {
   ) {
     renderBodiesFn(ctx, map, HEX_SIZE, now);
   }
-
   private renderBaseMarkers(
     ctx: CanvasRenderingContext2D,
     map: SolarSystemMap,
@@ -686,7 +592,6 @@ export class Renderer {
   ) {
     renderBaseMarkersFn(ctx, map, state, this.playerId, HEX_SIZE);
   }
-
   private renderMapBorder(
     ctx: CanvasRenderingContext2D,
     map: SolarSystemMap,
@@ -695,7 +600,6 @@ export class Renderer {
   ) {
     renderMapBorderFn(ctx, map, state, this.playerId, HEX_SIZE, now);
   }
-
   private renderAsteroids(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
     renderAsteroidsFn(
       ctx,
@@ -705,7 +609,6 @@ export class Renderer {
       (x, y) => this.camera.isVisible(x, y),
     );
   }
-
   private renderLandingTarget(
     ctx: CanvasRenderingContext2D,
     map: SolarSystemMap,
@@ -714,16 +617,13 @@ export class Renderer {
   ) {
     renderLandingTargetFn(ctx, map, state, this.playerId, HEX_SIZE, now);
   }
-
   private renderBaseThreatZones(
     ctx: CanvasRenderingContext2D,
     state: GameState,
     map: SolarSystemMap,
   ) {
     if (this.animState) return;
-
     const zones = buildBaseThreatZoneViews(state, this.playerId, map, HEX_SIZE);
-
     for (const zone of zones) {
       ctx.fillStyle = 'rgba(255, 80, 60, 0.08)';
       ctx.strokeStyle = 'rgba(255, 80, 60, 0.2)';
@@ -734,7 +634,6 @@ export class Renderer {
       ctx.stroke();
     }
   }
-
   private renderDetectionRanges(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -750,7 +649,6 @@ export class Renderer {
       this.animState !== null,
     );
   }
-
   private renderCourseVectors(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -759,7 +657,6 @@ export class Renderer {
   ) {
     // During animation, don't show planning vectors
     if (this.animState) return;
-
     for (const vector of buildVelocityVectorViews(
       state,
       this.playerId,
@@ -773,7 +670,6 @@ export class Renderer {
       ctx.lineTo(vector.to.x, vector.to.y);
       ctx.stroke();
       ctx.setLineDash([]);
-
       if (vector.arrowHead) {
         ctx.beginPath();
         ctx.moveTo(vector.to.x, vector.to.y);
@@ -782,7 +678,6 @@ export class Renderer {
         ctx.lineTo(vector.arrowHead.right.x, vector.arrowHead.right.y);
         ctx.stroke();
       }
-
       if (vector.ghostDot) {
         ctx.fillStyle = vector.ghostDot.color;
         ctx.beginPath();
@@ -795,7 +690,6 @@ export class Renderer {
         );
         ctx.fill();
       }
-
       if (vector.speedLabel) {
         ctx.fillStyle = vector.speedLabel.color;
         ctx.font = '7px monospace';
@@ -807,7 +701,6 @@ export class Renderer {
         );
       }
     }
-
     for (const preview of buildAstrogationCoursePreviewViews(
       state,
       this.playerId,
@@ -820,23 +713,18 @@ export class Renderer {
       ctx.setLineDash(preview.lineDash);
       ctx.beginPath();
       ctx.moveTo(preview.linePoints[0].x, preview.linePoints[0].y);
-
       for (let i = 1; i < preview.linePoints.length; i++) {
         ctx.lineTo(preview.linePoints[i].x, preview.linePoints[i].y);
       }
-
       ctx.stroke();
       ctx.setLineDash([]);
-
       for (const arrow of preview.gravityArrows) {
         ctx.strokeStyle = arrow.color;
         ctx.lineWidth = arrow.lineWidth;
-
         ctx.beginPath();
         ctx.moveTo(arrow.from.x, arrow.from.y);
         ctx.lineTo(arrow.to.x, arrow.to.y);
         ctx.stroke();
-
         ctx.beginPath();
         ctx.moveTo(arrow.to.x, arrow.to.y);
         ctx.lineTo(arrow.headLeft.x, arrow.headLeft.y);
@@ -844,19 +732,16 @@ export class Renderer {
         ctx.lineTo(arrow.headRight.x, arrow.headRight.y);
         ctx.stroke();
       }
-
       // Pending gravity arrows (next-turn effects)
       // in cyan
       for (const arrow of preview.pendingGravityArrows) {
         ctx.strokeStyle = arrow.color;
         ctx.lineWidth = arrow.lineWidth;
         ctx.setLineDash([3, 3]);
-
         ctx.beginPath();
         ctx.moveTo(arrow.from.x, arrow.from.y);
         ctx.lineTo(arrow.to.x, arrow.to.y);
         ctx.stroke();
-
         ctx.beginPath();
         ctx.moveTo(arrow.to.x, arrow.to.y);
         ctx.lineTo(arrow.headLeft.x, arrow.headLeft.y);
@@ -865,7 +750,6 @@ export class Renderer {
         ctx.stroke();
         ctx.setLineDash([]);
       }
-
       // Drift segments — faded future-turn paths
       for (const seg of preview.driftSegments) {
         ctx.save();
@@ -875,16 +759,13 @@ export class Renderer {
         ctx.setLineDash([4, 6]);
         ctx.beginPath();
         ctx.moveTo(seg.points[0].x, seg.points[0].y);
-
         for (let i = 1; i < seg.points.length; i++) {
           ctx.lineTo(seg.points[i].x, seg.points[i].y);
         }
-
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.restore();
       }
-
       if (preview.ghostShip) {
         this.drawShipIcon(
           ctx,
@@ -897,7 +778,6 @@ export class Renderer {
           preview.ghostShip.shipType,
         );
       }
-
       for (const marker of [
         ...preview.burnMarkers,
         ...preview.overloadMarkers,
@@ -906,7 +786,6 @@ export class Renderer {
           ctx.shadowBlur = marker.shadowBlur;
           ctx.shadowColor = marker.shadowColor;
         }
-
         ctx.fillStyle = marker.fillColor;
         ctx.strokeStyle = marker.strokeColor;
         ctx.lineWidth = marker.lineWidth;
@@ -921,7 +800,6 @@ export class Renderer {
         ctx.fill();
         ctx.stroke();
         ctx.shadowBlur = 0;
-
         if (marker.label && marker.labelColor) {
           ctx.fillStyle = marker.labelColor;
           ctx.font = 'bold 9px monospace';
@@ -930,7 +808,6 @@ export class Renderer {
           ctx.fillText(marker.label, marker.position.x, marker.position.y);
         }
       }
-
       for (const marker of preview.weakGravityMarkers) {
         ctx.strokeStyle = marker.strokeColor;
         ctx.fillStyle = marker.fillColor;
@@ -939,12 +816,10 @@ export class Renderer {
         ctx.arc(marker.position.x, marker.position.y, 10, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-
         ctx.fillStyle = marker.labelColor;
         ctx.font = 'bold 8px monospace';
         ctx.textAlign = 'center';
         ctx.fillText('G', marker.position.x, marker.position.y + 3);
-
         if (marker.strikeFrom && marker.strikeTo) {
           ctx.strokeStyle = 'rgba(255, 100, 100, 0.7)';
           ctx.lineWidth = 1;
@@ -954,7 +829,6 @@ export class Renderer {
           ctx.stroke();
         }
       }
-
       if (preview.fuelCostLabel) {
         ctx.fillStyle = preview.fuelCostLabel.color;
         ctx.font = 'bold 9px monospace';
@@ -967,7 +841,6 @@ export class Renderer {
       }
     }
   }
-
   private renderTrails(ctx: CanvasRenderingContext2D, state: GameState) {
     for (const trail of buildShipTrailViews(
       state,
@@ -980,19 +853,15 @@ export class Renderer {
       ctx.setLineDash(trail.lineDash);
       ctx.beginPath();
       ctx.moveTo(trail.points[0].x, trail.points[0].y);
-
       for (let i = 1; i < trail.points.length; i++) {
         ctx.lineTo(trail.points[i].x, trail.points[i].y);
       }
-
       ctx.stroke();
-
       if (trail.waypointColor) {
         for (const point of trail.points) {
           if (!this.camera.isVisible(point.x, point.y)) {
             continue;
           }
-
           ctx.fillStyle = trail.waypointColor;
           ctx.beginPath();
           ctx.arc(point.x, point.y, trail.waypointRadius, 0, Math.PI * 2);
@@ -1000,7 +869,6 @@ export class Renderer {
         }
       }
     }
-
     for (const trail of buildOrdnanceTrailViews(
       state,
       this.playerId,
@@ -1012,28 +880,23 @@ export class Renderer {
       ctx.setLineDash(trail.lineDash);
       ctx.beginPath();
       ctx.moveTo(trail.points[0].x, trail.points[0].y);
-
       for (let i = 1; i < trail.points.length; i++) {
         ctx.lineTo(trail.points[i].x, trail.points[i].y);
       }
-
       ctx.stroke();
       ctx.setLineDash([]);
     }
   }
-
   private renderMovementPaths(
     ctx: CanvasRenderingContext2D,
     state: GameState,
     now: number,
   ) {
     if (!this.animState) return;
-
     const progress = Math.min(
       (now - this.animState.startTime) / this.animState.duration,
       1,
     );
-
     for (const pathView of buildMovementPathViews(
       state,
       this.playerId,
@@ -1046,14 +909,11 @@ export class Renderer {
       ctx.setLineDash(pathView.lineDash);
       ctx.beginPath();
       ctx.moveTo(pathView.points[0].x, pathView.points[0].y);
-
       for (let i = 1; i < pathView.points.length; i++) {
         ctx.lineTo(pathView.points[i].x, pathView.points[i].y);
       }
-
       ctx.stroke();
       ctx.setLineDash([]);
-
       for (const waypoint of pathView.passedWaypoints) {
         ctx.fillStyle = pathView.color;
         ctx.beginPath();
@@ -1068,7 +928,6 @@ export class Renderer {
       }
     }
   }
-
   private renderShips(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -1079,31 +938,25 @@ export class Renderer {
       this.playerId,
       this.animState !== null,
     );
-
     const stackOffsets = this.animState
       ? null
       : getShipStackOffsets(visibleShips);
-
     for (const ship of visibleShips) {
       let pos: PixelCoord;
       let velocity = ship.velocity;
       let labelYOffset = 24;
-
       // Check if this ship is being animated
       if (this.animState) {
         const movement = this.animState.movements.find(
           (m) => m.shipId === ship.id,
         );
-
         if (movement) {
           const progress = Math.min(
             (now - this.animState.startTime) / this.animState.duration,
             1,
           );
-
           pos = this.interpolatePath(movement.path, progress);
           velocity = movement.newVelocity;
-
           // Thrust trail during animation
           if (movement.fuelSpent > 0 && progress < 0.8) {
             const angle = Math.atan2(
@@ -1112,7 +965,6 @@ export class Renderer {
               hexToPixel(movement.to, HEX_SIZE).x -
                 hexToPixel(movement.from, HEX_SIZE).x,
             );
-
             this.drawThrustTrail(ctx, pos.x, pos.y, angle + Math.PI, progress);
           }
         } else {
@@ -1121,10 +973,8 @@ export class Renderer {
       } else {
         pos = hexToPixel(ship.position, HEX_SIZE);
       }
-
       // Offset for stacked ships at same hex
       const stackOffset = stackOffsets?.get(ship.id);
-
       if (stackOffset) {
         pos = {
           x: pos.x + stackOffset.xOffset,
@@ -1132,16 +982,12 @@ export class Renderer {
         };
         labelYOffset = stackOffset.labelYOffset;
       }
-
       // Ship heading based on velocity
       const heading = getShipHeading(ship.position, velocity, HEX_SIZE);
-
       // Selection highlight — pulsing glow
       const isSelected = ship.id === this.planningState.selectedShipId;
-
       if (isSelected) {
         const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 300);
-
         ctx.save();
         ctx.strokeStyle = `rgba(79, 195, 247, ${pulse})`;
         ctx.lineWidth = 3;
@@ -1152,10 +998,8 @@ export class Renderer {
         ctx.stroke();
         ctx.restore();
       }
-
       // Disabled ships shown dimmer
       const disabledLabel = getDisabledShipLabel(ship, this.animState !== null);
-
       this.drawShipIcon(
         ctx,
         pos.x,
@@ -1166,7 +1010,6 @@ export class Renderer {
         ship.damage.disabledTurns,
         ship.type,
       );
-
       // Disabled indicator — background plate for
       // visibility
       if (disabledLabel) {
@@ -1176,7 +1019,6 @@ export class Renderer {
         const labelY = pos.y - 12;
         const metrics = ctx.measureText(disabledLabel);
         const pad = 3;
-
         ctx.fillStyle = 'rgba(180, 20, 20, 0.6)';
         ctx.beginPath();
         ctx.roundRect(
@@ -1187,18 +1029,15 @@ export class Renderer {
           3,
         );
         ctx.fill();
-
         ctx.fillStyle = '#ffffff';
         ctx.fillText(disabledLabel, labelX, labelY);
       }
-
       const identityMarker = getShipIdentityMarker(
         ship,
         this.playerId,
         Boolean(this.gameState?.scenarioRules.hiddenIdentityInspection),
         this.animState !== null,
       );
-
       if (identityMarker === 'friendlyFugitive') {
         ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
         ctx.font = 'bold 9px monospace';
@@ -1209,7 +1048,6 @@ export class Renderer {
         identityMarker === 'enemyDecoy'
       ) {
         ctx.textAlign = 'center';
-
         if (identityMarker === 'enemyFugitive') {
           ctx.fillStyle = 'rgba(255, 120, 120, 0.95)';
           ctx.font = 'bold 9px monospace';
@@ -1222,21 +1060,17 @@ export class Renderer {
           ctx.stroke();
         }
       }
-
       const inGravity = Boolean(
         this.map?.hexes.get(hexKey(ship.position))?.gravity,
       );
-
       if (shouldShowOrbitIndicator(ship, inGravity, this.animState !== null)) {
         const phase = now / 2000 + pos.x * 0.01;
-
         ctx.strokeStyle = 'rgba(150, 200, 255, 0.35)';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, 16, phase, phase + Math.PI * 1.5);
         ctx.stroke();
       }
-
       if (shouldShowLandedIndicator(ship, this.animState !== null)) {
         ctx.strokeStyle = 'rgba(100, 200, 100, 0.5)';
         ctx.lineWidth = 1;
@@ -1246,20 +1080,17 @@ export class Renderer {
         ctx.stroke();
         ctx.setLineDash([]);
       }
-
       const labelView = buildShipLabelView(
         ship,
         this.playerId,
         inGravity,
         this.animState !== null,
       );
-
       if (labelView) {
         ctx.textAlign = 'center';
         ctx.fillStyle = labelView.typeColor;
         ctx.font = labelView.typeFont;
         ctx.fillText(labelView.typeName, pos.x, pos.y + labelYOffset);
-
         if (
           labelView.statusTag &&
           labelView.statusColor &&
@@ -1272,7 +1103,6 @@ export class Renderer {
       }
     }
   }
-
   private drawShipIcon(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -1285,7 +1115,6 @@ export class Renderer {
   ) {
     drawShipIconFn(ctx, x, y, owner, alpha, heading, disabledTurns, shipType);
   }
-
   private drawThrustTrail(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -1295,11 +1124,9 @@ export class Renderer {
   ) {
     drawThrustTrailFn(ctx, x, y, angle, progress);
   }
-
   private interpolatePath(path: HexCoord[], progress: number): PixelCoord {
     return interpolatePathFn(path, progress, HEX_SIZE);
   }
-
   private renderOrdnance(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -1315,7 +1142,6 @@ export class Renderer {
       (path, progress) => this.interpolatePath(path, progress),
     );
   }
-
   private renderTorpedoGuidance(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -1331,7 +1157,6 @@ export class Renderer {
       now,
     );
   }
-
   private renderCombatOverlay(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -1348,15 +1173,12 @@ export class Renderer {
       now,
     );
   }
-
   private renderHexFlashes(ctx: CanvasRenderingContext2D, now: number) {
     this.hexFlashes = drawHexFlashes(ctx, this.hexFlashes, now, HEX_SIZE);
   }
-
   private renderCombatEffects(ctx: CanvasRenderingContext2D, now: number) {
     this.combatEffects = drawCombatEffects(ctx, this.combatEffects, now);
   }
-
   private renderMovementEventsToast(
     ctx: CanvasRenderingContext2D,
     events: MovementEvent[],
@@ -1364,37 +1186,29 @@ export class Renderer {
     screenW: number,
   ) {
     if (events.length === 0) return;
-
-    const alpha = getToastFadeAlpha(this.movementEvents!.showUntil, now);
-
+    const showUntil = this.movementEvents?.showUntil;
+    if (showUntil === undefined) return;
+    const alpha = getToastFadeAlpha(showUntil, now);
     ctx.save();
     ctx.globalAlpha = alpha;
-
     let y = 60;
-
     for (const ev of events) {
       const ship = this.gameState?.ships.find((s) => s.id === ev.shipId);
       const shipName = ship ? ship.type : ev.shipId;
       const line = formatMovementEventToast(ev, shipName);
       if (!line) continue;
-
       ctx.font = 'bold 12px monospace';
       const w = ctx.measureText(line.text).width;
       const x = screenW / 2;
-
       ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
       ctx.fillRect(x - w / 2 - 8, y - 12, w + 16, 20);
-
       ctx.fillStyle = line.color;
       ctx.textAlign = 'center';
       ctx.fillText(line.text, x, y + 2);
-
       y += 26;
     }
-
     ctx.restore();
   }
-
   private renderCombatResultsToast(
     ctx: CanvasRenderingContext2D,
     results: CombatResult[],
@@ -1402,53 +1216,44 @@ export class Renderer {
     screenW: number,
   ) {
     if (results.length === 0) return;
-
-    const alpha = getToastFadeAlpha(this.combatResults!.showUntil, now);
-
+    const showUntil = this.combatResults?.showUntil;
+    if (showUntil === undefined) return;
+    const alpha = getToastFadeAlpha(showUntil, now);
     ctx.save();
     ctx.globalAlpha = alpha;
-
     let y = 60;
-
-    for (const line of buildCombatResultToastLines(results, this.gameState!)) {
+    for (const line of buildCombatResultToastLines(
+      results,
+      must(this.gameState),
+    )) {
       const isSecondary = line.variant === 'secondary';
-
       ctx.font = isSecondary ? '11px monospace' : 'bold 12px monospace';
-
       const w = ctx.measureText(line.text).width;
       const x = screenW / 2;
-
       ctx.fillStyle = isSecondary
         ? 'rgba(0, 0, 0, 0.65)'
         : 'rgba(0, 0, 0, 0.75)';
       ctx.fillRect(x - w / 2 - 8, y - 12, w + 16, isSecondary ? 18 : 20);
-
       ctx.fillStyle = line.color;
       ctx.textAlign = 'center';
       ctx.fillText(line.text, x, y + 2);
-
       y += isSecondary ? 24 : 26;
     }
-
     ctx.restore();
   }
-
   // renderPhaseBanner removed — DOM overlay handles
   // phase announcements
-
   private renderMinimap(
     ctx: CanvasRenderingContext2D,
     screenW: number,
     screenH: number,
   ) {
     if (!this.map || !this.gameState) return;
-
     const hudTopOffset = parseFloat(
       getComputedStyle(document.documentElement).getPropertyValue(
         '--hud-top-offset',
       ) || '0',
     );
-
     const layout = createMinimapLayout(
       this.map.bounds,
       screenW,
@@ -1456,9 +1261,7 @@ export class Renderer {
       HEX_SIZE,
       hudTopOffset,
     );
-
     const { x: mmX, y: mmY, width: mmW, height: mmH } = layout;
-
     // Background
     ctx.save();
     ctx.fillStyle = 'rgba(10, 10, 26, 0.8)';
@@ -1468,7 +1271,6 @@ export class Renderer {
     ctx.roundRect(mmX, mmY, mmW, mmH, 4);
     ctx.fill();
     ctx.stroke();
-
     const scene = buildMinimapSceneView(
       this.map,
       this.gameState,
@@ -1480,7 +1282,6 @@ export class Renderer {
       screenH,
       HEX_SIZE,
     );
-
     for (const body of scene.bodies) {
       ctx.fillStyle = body.color;
       ctx.globalAlpha = body.alpha;
@@ -1488,24 +1289,18 @@ export class Renderer {
       ctx.arc(body.position.x, body.position.y, body.radius, 0, Math.PI * 2);
       ctx.fill();
     }
-
     ctx.globalAlpha = 1;
-
     for (const trail of scene.shipTrails) {
       if (trail.points.length < 2) continue;
-
       ctx.strokeStyle = trail.color;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(trail.points[0].x, trail.points[0].y);
-
       for (let i = 1; i < trail.points.length; i++) {
         ctx.lineTo(trail.points[i].x, trail.points[i].y);
       }
-
       ctx.stroke();
     }
-
     for (const ship of scene.ships) {
       ctx.fillStyle = ship.color;
       ctx.globalAlpha = ship.alpha;
@@ -1513,9 +1308,7 @@ export class Renderer {
       ctx.arc(ship.position.x, ship.position.y, ship.radius, 0, Math.PI * 2);
       ctx.fill();
     }
-
     ctx.globalAlpha = 1;
-
     for (const ordnance of scene.ordnance) {
       ctx.fillStyle = ordnance.color;
       ctx.globalAlpha = ordnance.alpha;
@@ -1529,9 +1322,7 @@ export class Renderer {
       );
       ctx.fill();
     }
-
     ctx.globalAlpha = 1;
-
     if (scene.viewport) {
       ctx.fillStyle = 'rgba(79, 195, 247, 0.06)';
       ctx.fillRect(
@@ -1540,7 +1331,6 @@ export class Renderer {
         scene.viewport.width,
         scene.viewport.height,
       );
-
       ctx.strokeStyle = 'rgba(79, 195, 247, 0.5)';
       ctx.lineWidth = 1;
       ctx.strokeRect(
@@ -1550,7 +1340,6 @@ export class Renderer {
         scene.viewport.height,
       );
     }
-
     ctx.restore();
   }
 }

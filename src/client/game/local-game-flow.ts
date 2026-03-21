@@ -1,4 +1,5 @@
 import type { AIDifficulty } from '../../shared/ai';
+import { must } from '../../shared/assert';
 import type { MovementResult } from '../../shared/engine/game-engine';
 import type {
   CombatResult,
@@ -17,7 +18,6 @@ import {
   resolveSkipLogisticsStep,
   resolveSkipOrdnanceStep,
 } from './local';
-
 export interface LocalGameFlowDeps {
   getGameState: () => GameState | null;
   getPlayerId: () => number;
@@ -41,10 +41,8 @@ export interface LocalGameFlowDeps {
   transitionToPhase: () => void;
   logText: (text: string) => void;
 }
-
 export const isGameOver = (deps: LocalGameFlowDeps): boolean =>
-  !deps.getGameState() || deps.getGameState()!.phase === 'gameOver';
-
+  !deps.getGameState() || deps.getGameState()?.phase === 'gameOver';
 export const localCheckGameEnd = (deps: LocalGameFlowDeps): void => {
   const gameState = deps.getGameState();
   if (!gameState || gameState.phase !== 'gameOver') return;
@@ -53,7 +51,6 @@ export const localCheckGameEnd = (deps: LocalGameFlowDeps): void => {
     gameState.winReason ?? '',
   );
 };
-
 export const playLocalMovementResult = (
   deps: LocalGameFlowDeps,
   result: MovementResult,
@@ -67,7 +64,6 @@ export const playLocalMovementResult = (
     onComplete,
   );
 };
-
 export const handleLocalResolution = (
   deps: LocalGameFlowDeps,
   resolution: LocalResolution,
@@ -78,7 +74,6 @@ export const handleLocalResolution = (
     console.error(errorPrefix, resolution.error);
     return;
   }
-
   if (resolution.kind === 'movement') {
     playLocalMovementResult(deps, resolution.result, () => {
       localCheckGameEnd(deps);
@@ -88,7 +83,6 @@ export const handleLocalResolution = (
     });
     return;
   }
-
   if (resolution.kind === 'combat') {
     deps.presentCombatResults(
       resolution.previousState,
@@ -99,18 +93,16 @@ export const handleLocalResolution = (
   } else {
     deps.applyGameState(resolution.state);
   }
-
   localCheckGameEnd(deps);
   if (deps.getGameState()?.phase !== 'gameOver') {
     onContinue();
   }
 };
-
 export const resolveAIPlan = (
   deps: LocalGameFlowDeps,
   plan: AIActionPlan,
 ): LocalResolution => {
-  const gameState = deps.getGameState()!;
+  const gameState = must(deps.getGameState());
   const map = deps.getMap();
   switch (plan.kind) {
     case 'astrogation':
@@ -131,23 +123,19 @@ export const resolveAIPlan = (
       return { kind: 'error', error: 'Unexpected AI plan kind' };
   }
 };
-
 export const runAITurn = async (deps: LocalGameFlowDeps): Promise<void> => {
   await new Promise((r) => setTimeout(r, 500));
-
   while (!isGameOver(deps)) {
     const plan = deriveAIActionPlan(
-      deps.getGameState()!,
+      must(deps.getGameState()),
       deps.getPlayerId(),
       deps.getMap(),
       deps.getAIDifficulty(),
     );
-
     if (plan.kind === 'none') {
       deps.transitionToPhase();
       return;
     }
-
     if (plan.kind === 'transition') {
       localCheckGameEnd(deps);
       if (!isGameOver(deps)) {
@@ -155,16 +143,13 @@ export const runAITurn = async (deps: LocalGameFlowDeps): Promise<void> => {
       }
       return;
     }
-
     if (plan.kind === 'ordnance') {
       for (const entry of plan.logEntries) {
         deps.logText(entry);
       }
     }
-
     const resolution = resolveAIPlan(deps, plan);
     const isCombatEnd = plan.kind === 'combat';
-
     await new Promise<void>((resolve) => {
       handleLocalResolution(
         deps,
@@ -178,7 +163,6 @@ export const runAITurn = async (deps: LocalGameFlowDeps): Promise<void> => {
         plan.errorPrefix,
       );
     });
-
     if (isGameOver(deps)) return;
     if (isCombatEnd) return;
   }

@@ -201,7 +201,7 @@ export const checkImmediateVictory = (
       if (!player.visitedBodies) continue;
 
       const allVisited = state.scenarioRules.checkpointBodies.every((b) =>
-        player.visitedBodies!.includes(b),
+        player.visitedBodies?.includes(b),
       );
 
       if (!allVisited) continue;
