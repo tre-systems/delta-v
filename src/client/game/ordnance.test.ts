@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import type { GameState, Ship } from '../../shared/types';
 import {
-  canShipLaunchAnyOrdnance,
   getFirstLaunchableShipId,
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
@@ -45,16 +44,6 @@ function createPlanning(
 }
 
 describe('game-client-ordnance', () => {
-  it('checks whether a ship can launch any ordnance', () => {
-    expect(
-      canShipLaunchAnyOrdnance(createShip({ type: 'packet', cargoUsed: 0 })),
-    ).toBe(true);
-
-    expect(
-      canShipLaunchAnyOrdnance(createShip({ type: 'packet', cargoUsed: 50 })),
-    ).toBe(false);
-  });
-
   it('finds the first launchable ship for the active player', () => {
     const state = createState([
       createShip({ id: 'blocked', cargoUsed: 50 }),
@@ -141,7 +130,7 @@ describe('game-client-ordnance', () => {
       ),
     ).toEqual({
       ok: false,
-      message: 'Only warships can launch torpedoes',
+      message: 'Only warships and orbital bases can launch torpedoes',
       level: 'error',
     });
 

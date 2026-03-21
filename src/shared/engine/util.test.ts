@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { GameState, Ordnance, Ship } from '../types';
 import {
+  canLaunchOrdnance,
   getAllowedOrdnanceTypes,
   getEscapeEdge,
   getNextOrdnanceId,
@@ -15,6 +16,7 @@ import {
   shuffle,
   usesEscapeInspectionRules,
   validatePhaseAction,
+  validateShipOrdnanceLaunch,
 } from './util';
 
 const bounds = { minQ: -10, maxQ: 10, minR: -10, maxR: 10 };
@@ -346,5 +348,163 @@ describe('validatePhaseAction', () => {
     expect(validatePhaseAction(state, 1, 'ordnance')).toBe(
       'Not in ordnance phase',
     );
+  });
+});
+
+describe('validateShipOrdnanceLaunch', () => {
+  it('allows a healthy warship to launch any type', () => {
+    const ship = makeShip({ type: 'frigate' });
+
+    expect(validateShipOrdnanceLaunch(ship, 'mine')).toBeNull();
+    expect(validateShipOrdnanceLaunch(ship, 'torpedo')).toBeNull();
+    expect(validateShipOrdnanceLaunch(ship, 'nuke')).toBeNull();
+  });
+
+  it('rejects destroyed ships', () => {
+    const ship = makeShip({ destroyed: true });
+
+    expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe('Ship is destroyed');
+  });
+
+  it('rejects landed ships', () => {
+    const ship = makeShip({ landed: true });
+
+    expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe(
+      'Cannot launch ordnance while landed',
+    );
+  });
+
+  it('rejects captured ships', () => {
+    const ship = makeShip({ captured: true });
+
+    expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe(
+      'Captured ships cannot launch ordnance',
+    );
+  });
+
+  it('rejects disabled ships', () => {
+    const ship = makeShip({ damage: { disabledTurns: 2 } });
+
+    expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe('Ship is disabled');
+  });
+
+  it('allows orbital bases at D1 damage', () => {
+    const ship = makeShip({
+      type: 'orbitalBase',
+      damage: { disabledTurns: 1 },
+    });
+
+    expect(validateShipOrdnanceLaunch(ship, 'torpedo')).toBeNull();
+  });
+
+  it('rejects orbital bases at D2+ damage', () => {
+    const ship = makeShip({
+      type: 'orbitalBase',
+      damage: { disabledTurns: 2 },
+    });
+
+    expect(validateShipOrdnanceLaunch(ship, 'torpedo')).toBe(
+      'Ship is disabled',
+    );
+  });
+
+  it('orbital bases can only launch torpedoes', () => {
+    const ship = makeShip({ type: 'orbitalBase' });
+
+    expect(validateShipOrdnanceLaunch(ship, 'torpedo')).toBeNull();
+    expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe(
+      'Orbital bases can only launch torpedoes',
+    );
+    expect(validateShipOrdnanceLaunch(ship, 'nuke')).toBe(
+      'Orbital bases can only launch torpedoes',
+    );
+  });
+
+  it('non-warships cannot launch torpedoes', () => {
+    const ship = makeShip({ type: 'packet' });
+
+    expect(validateShipOrdnanceLaunch(ship, 'torpedo')).toBe(
+      'Only warships and orbital bases can launch torpedoes',
+    );
+  });
+
+  it('non-warships limited to one nuke per resupply', () => {
+    const ship = makeShip({
+      type: 'packet',
+      nukesLaunchedSinceResupply: 1,
+    });
+
+    expect(validateShipOrdnanceLaunch(ship, 'nuke')).toBe(
+      'Non-warships may carry only one nuke between resupplies',
+    );
+  });
+
+  it('non-warships can launch first nuke', () => {
+    const ship = makeShip({ type: 'packet' });
+
+    expect(validateShipOrdnanceLaunch(ship, 'nuke')).toBeNull();
+  });
+
+  it('rejects when cargo is full', () => {
+    const ship = makeShip({
+      type: 'corsair',
+      cargoUsed: 10,
+    });
+
+    expect(validateShipOrdnanceLaunch(ship, 'mine')).toMatch(
+      /Not enough cargo/,
+    );
+  });
+});
+
+describe('canLaunchOrdnance', () => {
+  it('returns true for healthy ship with cargo', () => {
+    expect(canLaunchOrdnance(makeShip({ type: 'corsair' }))).toBe(true);
+  });
+
+  it('returns false for destroyed ship', () => {
+    expect(
+      canLaunchOrdnance(makeShip({ type: 'corsair', destroyed: true })),
+    ).toBe(false);
+  });
+
+  it('returns false for landed ship', () => {
+    expect(canLaunchOrdnance(makeShip({ type: 'corsair', landed: true }))).toBe(
+      false,
+    );
+  });
+
+  it('returns false for captured ship', () => {
+    expect(
+      canLaunchOrdnance(makeShip({ type: 'corsair', captured: true })),
+    ).toBe(false);
+  });
+
+  it('returns false for disabled ship', () => {
+    expect(
+      canLaunchOrdnance(
+        makeShip({
+          type: 'corsair',
+          damage: { disabledTurns: 1 },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('returns true for orbital base at D1', () => {
+    expect(
+      canLaunchOrdnance(
+        makeShip({
+          type: 'orbitalBase',
+          damage: { disabledTurns: 1 },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false for full cargo', () => {
+    expect(
+      canLaunchOrdnance(makeShip({ type: 'corsair', cargoUsed: 10 })),
+    ).toBe(false);
   });
 });

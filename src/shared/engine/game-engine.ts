@@ -28,6 +28,7 @@ import {
   parseBaseKey,
   usesEscapeInspectionRules,
   validatePhaseAction,
+  validateShipOrdnanceLaunch,
 } from './util';
 import {
   advanceTurn,
@@ -689,23 +690,9 @@ export const processOrdnance = (
       };
     }
     const ship = state.ships.find((s) => s.id === launch.shipId);
-    if (!ship || ship.owner !== playerId || ship.destroyed || ship.landed) {
+    if (!ship || ship.owner !== playerId) {
       return {
         error: 'Invalid ship for ordnance launch',
-      };
-    }
-    if (ship.damage.disabledTurns > 0) {
-      // Orbital bases may launch ordnance at D1
-      // damage (rulebook p.6)
-      if (ship.type !== 'orbitalBase' || ship.damage.disabledTurns > 1) {
-        return {
-          error: 'Disabled ships cannot launch ordnance',
-        };
-      }
-    }
-    if (ship.captured) {
-      return {
-        error: 'Captured ships cannot launch ordnance',
       };
     }
     if (ship.resuppliedThisTurn) {
@@ -714,41 +701,14 @@ export const processOrdnance = (
           'Ships cannot launch ordnance during a turn in which they resupply',
       };
     }
-    const mass = ORDNANCE_MASS[launch.ordnanceType];
-    if (!mass) return { error: 'Invalid ordnance type' };
     if (!allowedOrdnanceTypes.has(launch.ordnanceType)) {
       return {
         error: `This scenario does not allow ${launch.ordnanceType} launches`,
       };
     }
-    const stats = SHIP_STATS[ship.type];
-    if (!stats) return { error: 'Unknown ship type' };
-    if (ship.cargoUsed + mass > stats.cargo) {
-      return { error: 'Insufficient cargo capacity' };
-    }
-    if (ship.type === 'orbitalBase' && launch.ordnanceType !== 'torpedo') {
-      return {
-        error: 'Orbital bases can only launch torpedoes',
-      };
-    }
-    if (
-      launch.ordnanceType === 'torpedo' &&
-      !stats.canOverload &&
-      ship.type !== 'orbitalBase'
-    ) {
-      return {
-        error: 'Only warships and orbital bases can launch torpedoes',
-      };
-    }
-    if (
-      launch.ordnanceType === 'nuke' &&
-      !stats.canOverload &&
-      (ship.nukesLaunchedSinceResupply ?? 0) >= 1
-    ) {
-      return {
-        error: 'Non-warships may carry only one nuke between resupplies',
-      };
-    }
+    const shipError = validateShipOrdnanceLaunch(ship, launch.ordnanceType);
+    if (shipError) return { error: shipError };
+    const mass = ORDNANCE_MASS[launch.ordnanceType];
     if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
       if (launch.torpedoAccel < 0 || launch.torpedoAccel > 5) {
         return {
