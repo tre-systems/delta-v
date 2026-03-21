@@ -24,9 +24,9 @@ if ('serviceWorker' in navigator) {
 }
 
 import type { AIDifficulty } from '../shared/ai';
-import { CODE_LENGTH, SHIP_STATS } from '../shared/constants';
+import { CODE_LENGTH } from '../shared/constants';
 import { createGame, type MovementResult } from '../shared/engine/game-engine';
-import { hexKey, pixelToHex } from '../shared/hex';
+import { pixelToHex } from '../shared/hex';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -43,31 +43,19 @@ import {
   initAudio,
   isMuted,
   playPhaseChange,
-  playSelect,
   playWarning,
   setMuted,
 } from './audio';
 import { byId, hide, show } from './dom';
-import {
-  type AstrogationActionDeps,
-  clearSelectedBurn as clearBurn,
-  confirmOrders as confirmAstrogation,
-  setBurnDirection as setBurnDir,
-  undoSelectedShipBurn as undoBurn,
-} from './game/astrogation-actions';
+import type { AstrogationActionDeps } from './game/astrogation-actions';
 import { deriveScenarioBriefingEntries } from './game/briefing';
 import {
-  adjustCombatStrength as adjustStrength,
   beginCombatPhase as beginCombat,
   type CombatActionDeps,
-  clearCombatSelection as clearCombatSel,
-  fireAllAttacks as fireCombatAttacks,
-  queueAttack as queueCombatAttack,
   resetCombatState as resetCombat,
-  resetCombatStrengthToMax as resetStrength,
-  sendSkipCombat,
   startCombatTargetWatch as startCombatWatch,
 } from './game/combat-actions';
+import { dispatchGameCommand } from './game/command-router';
 import { type GameCommand, keyboardActionToCommand } from './game/commands';
 import {
   type ConnectionManager,
@@ -84,7 +72,6 @@ import {
   runAITurn as runAI,
 } from './game/local-game-flow';
 import {
-  buildTransferOrders,
   createLogisticsUIState,
   type LogisticsUIState,
   renderTransferPanel,
@@ -99,12 +86,7 @@ import {
   getOwnFleetFocusPosition,
 } from './game/navigation';
 import { deriveGameStartClientState } from './game/network';
-import {
-  type OrdnanceActionDeps,
-  sendEmplaceBase as sendEmplace,
-  sendOrdnanceLaunch,
-  sendSkipOrdnance as skipOrdnance,
-} from './game/ordnance-actions';
+import type { OrdnanceActionDeps } from './game/ordnance-actions';
 import { type ClientState, derivePhaseTransition } from './game/phase';
 import { deriveClientStateEntryPlan } from './game/phase-entry';
 import {
@@ -753,171 +735,31 @@ class GameClient {
     }
   }
   private dispatch(cmd: GameCommand) {
-    switch (cmd.type) {
-      case 'confirmOrders':
-        confirmAstrogation(this.astrogationDeps);
-        return;
-      case 'undoBurn':
-        undoBurn(this.astrogationDeps);
-        return;
-      case 'setBurnDirection':
-        setBurnDir(this.astrogationDeps, cmd.direction, cmd.shipId);
-        return;
-      case 'setOverloadDirection':
-        this.ctx.planningState.overloads.set(cmd.shipId, cmd.direction);
-        playSelect();
-        this.updateHUD();
-        return;
-      case 'setWeakGravityChoices':
-        this.ctx.planningState.weakGravityChoices.set(cmd.shipId, cmd.choices);
-        this.updateHUD();
-        return;
-      case 'clearSelectedBurn':
-        clearBurn(this.astrogationDeps);
-        return;
-      case 'queueAttack':
-        queueCombatAttack(this.combatDeps);
-        return;
-      case 'fireAllAttacks':
-        fireCombatAttacks(this.combatDeps);
-        return;
-      case 'skipCombat':
-        sendSkipCombat(this.combatDeps);
-        return;
-      case 'adjustCombatStrength':
-        adjustStrength(this.combatDeps, cmd.delta);
-        return;
-      case 'resetCombatStrength':
-        resetStrength(this.combatDeps);
-        return;
-      case 'setCombatPlan':
-        Object.assign(this.ctx.planningState, cmd.plan);
-        if (cmd.selectedShipId) {
-          this.ctx.planningState.selectedShipId = cmd.selectedShipId;
-        }
-        this.updateHUD();
-        return;
-      case 'clearCombatSelection':
-        clearCombatSel(this.combatDeps);
-        this.ui.showAttackButton(false);
-        return;
-      case 'undoQueuedAttack': {
-        this.ctx.planningState.queuedAttacks.pop();
-        const count = this.ctx.planningState.queuedAttacks.length;
-        this.ui.showFireButton(count > 0, count);
-        this.ui.showToast(
-          count > 0
-            ? `Undid last attack (${count} queued)`
-            : 'Attack queue cleared',
-          'info',
-        );
-        return;
-      }
-      case 'launchOrdnance':
-        sendOrdnanceLaunch(this.ordnanceDeps, cmd.ordType);
-        return;
-      case 'emplaceBase':
-        sendEmplace(this.ordnanceDeps);
-        return;
-      case 'skipOrdnance':
-        skipOrdnance(this.ordnanceDeps);
-        return;
-      case 'skipLogistics': {
-        const transport = this.ctx.transport;
-        if (this.ctx.state === 'playing_logistics' && transport) {
-          transport.skipLogistics();
-        }
-        return;
-      }
-      case 'confirmTransfers': {
-        const transport2 = this.ctx.transport;
-        if (
-          this.ctx.state === 'playing_logistics' &&
-          transport2 &&
-          this.logisticsUIState
-        ) {
-          const orders = buildTransferOrders(this.logisticsUIState);
-          if (orders.length > 0) {
-            transport2.submitLogistics(orders);
-          } else {
-            transport2.skipLogistics();
-          }
-        }
-        return;
-      }
-      case 'fleetReady':
-        this.sendFleetReady(cmd.purchases);
-        return;
-      case 'selectShip': {
-        this.ctx.planningState.selectedShipId = cmd.shipId;
-        const ship = this.ctx.gameState?.ships.find((s) => s.id === cmd.shipId);
-        if (ship) {
-          this.ctx.planningState.lastSelectedHex = hexKey(ship.position);
-          this.renderer.centerOnHex(ship.position);
-          const myAlive = this.ctx.gameState?.ships.filter(
-            (s) => s.owner === this.ctx.playerId && !s.destroyed,
-          );
-          if (myAlive && myAlive.length > 1) {
-            const name = SHIP_STATS[ship.type]?.name ?? ship.type;
-            this.ui.showToast(`Selected: ${name}`, 'info');
-          }
-        }
-        this.updateHUD();
-        return;
-      }
-      case 'deselectShip':
-        this.ctx.planningState.selectedShipId = null;
-        this.updateHUD();
-        return;
-      case 'cycleShip':
-        this.cycleShip(cmd.direction);
-        return;
-      case 'focusNearestEnemy':
-        this.focusNearestEnemy();
-        return;
-      case 'focusOwnFleet':
-        this.focusOwnFleet();
-        return;
-      case 'panCamera':
-        this.renderer.camera.pan(cmd.dx, cmd.dy);
-        return;
-      case 'zoomCamera':
-        this.renderer.camera.zoomAt(
-          this.canvas.clientWidth / 2,
-          this.canvas.clientHeight / 2,
-          cmd.factor,
-        );
-        return;
-      case 'toggleLog':
-        this.ui.toggleLog();
-        return;
-      case 'toggleHelp':
-        this.toggleHelp();
-        return;
-      case 'toggleMute':
-        setMuted(!isMuted());
-        this.updateSoundButton();
-        return;
-      case 'setTorpedoAccel':
-        this.ctx.planningState.torpedoAccel = cmd.direction;
-        this.ctx.planningState.torpedoAccelSteps = cmd.steps;
-        this.updateHUD();
-        return;
-      case 'clearTorpedoAcceleration':
-        this.ctx.planningState.torpedoAccel = null;
-        this.ctx.planningState.torpedoAccelSteps = null;
-        this.updateHUD();
-        return;
-      case 'setHoverHex':
-        this.ctx.planningState.hoverHex = cmd.hex;
-        return;
-      case 'requestRematch':
-        this.sendRematch();
-        return;
-      case 'exitToMenu':
-        this.exitToMenu();
-        return;
-    }
+    dispatchGameCommand(
+      {
+        ctx: this.ctx,
+        astrogationDeps: this.astrogationDeps,
+        combatDeps: this.combatDeps,
+        ordnanceDeps: this.ordnanceDeps,
+        logisticsUIState: this.logisticsUIState,
+        ui: this.ui,
+        renderer: this.renderer,
+        getCanvasCenter: () => ({
+          x: this.canvas.clientWidth / 2,
+          y: this.canvas.clientHeight / 2,
+        }),
+        updateHUD: () => this.updateHUD(),
+        cycleShip: (direction) => this.cycleShip(direction),
+        focusNearestEnemy: () => this.focusNearestEnemy(),
+        focusOwnFleet: () => this.focusOwnFleet(),
+        sendFleetReady: (purchases) => this.sendFleetReady(purchases),
+        sendRematch: () => this.sendRematch(),
+        exitToMenu: () => this.exitToMenu(),
+        toggleHelp: () => this.toggleHelp(),
+        updateSoundButton: () => this.updateSoundButton(),
+      },
+      cmd,
+    );
   }
   // --- Phase timing telemetry ---
   private recordPhaseDuration(prevState: ClientState) {
