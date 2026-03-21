@@ -108,7 +108,8 @@ export const validateShipOrdnanceLaunch = (
 
   if (ship.destroyed) return 'Ship is destroyed';
   if (ship.landed) return 'Cannot launch ordnance while landed';
-  if (ship.captured) return 'Captured ships cannot launch ordnance';
+  if (ship.controlStatus === 'captured')
+    return 'Captured ships cannot launch ordnance';
 
   // Orbital bases may launch at D1 damage (rulebook p.6)
   if (ship.damage.disabledTurns > 0) {
@@ -171,7 +172,8 @@ export const validateOrdnanceLaunch = (
 // Quick boolean: can this ship launch any ordnance at all?
 // Checks ship status and minimum cargo capacity.
 export const canLaunchOrdnance = (ship: Ship): boolean => {
-  if (ship.destroyed || ship.landed || ship.captured) return false;
+  if (ship.destroyed || ship.landed || ship.controlStatus === 'captured')
+    return false;
 
   // Orbital bases may launch at D1 damage (rulebook p.6)
   if (ship.damage.disabledTurns > 0) {

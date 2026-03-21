@@ -132,15 +132,21 @@ describe('renderer entity helpers', () => {
 
   it('derives ship markers and disabled status labels', () => {
     expect(
-      getShipIdentityMarker(createShip({ hasFugitives: true }), 0, true, false),
+      getShipIdentityMarker(
+        createShip({
+          identity: { hasFugitives: true, revealed: false },
+        }),
+        0,
+        true,
+        false,
+      ),
     ).toBe('friendlyFugitive');
 
     expect(
       getShipIdentityMarker(
         createShip({
           owner: 1,
-          identityRevealed: true,
-          hasFugitives: true,
+          identity: { hasFugitives: true, revealed: true },
         }),
         0,
         true,
@@ -152,8 +158,7 @@ describe('renderer entity helpers', () => {
       getShipIdentityMarker(
         createShip({
           owner: 1,
-          identityRevealed: true,
-          hasFugitives: false,
+          identity: { hasFugitives: false, revealed: true },
         }),
         0,
         true,

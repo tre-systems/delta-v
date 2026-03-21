@@ -48,7 +48,7 @@ export const shouldEnterOrdnancePhase = (state: GameState): boolean => {
       !s.landed &&
       s.damage.disabledTurns === 0 &&
       !s.resuppliedThisTurn &&
-      !s.captured &&
+      s.controlStatus !== 'captured' &&
       hasLaunchableOrdnanceCapacity(s, allowedOrdnanceTypes),
   );
 };
@@ -74,7 +74,7 @@ export const processEmplacement = (
     if (!ship || ship.owner !== playerId || ship.destroyed) {
       return { error: 'Invalid ship for emplacement' };
     }
-    if (!ship.carryingOrbitalBase) {
+    if (ship.baseStatus !== 'carryingBase') {
       return {
         error: 'Ship is not carrying an orbital base',
       };
@@ -117,14 +117,14 @@ export const processEmplacement = (
       landed: false,
       destroyed: false,
       detected: true,
-      emplaced: true,
+      baseStatus: 'emplaced',
       pendingGravityEffects: [],
       damage: { disabledTurns: 0 },
     };
 
     state.ships.push(newBase);
 
-    ship.carryingOrbitalBase = false;
+    ship.baseStatus = undefined;
     ship.cargoUsed = Math.max(0, ship.cargoUsed - ORBITAL_BASE_MASS);
   }
 

@@ -92,7 +92,7 @@ const getObjective = (state: GameState, playerId: number): string => {
   }
 
   const hasFugitiveShip = state.ships.some(
-    (ship) => ship.owner === playerId && ship.hasFugitives,
+    (ship) => ship.owner === playerId && ship.identity?.hasFugitives,
   );
 
   const facingFugitives = state.scenarioRules.hiddenIdentityInspection;
@@ -247,7 +247,7 @@ export const deriveHudViewModel = (
     objective: getObjective(state, playerId),
     canOverload: stats?.canOverload ?? false,
     canEmplaceBase:
-      selectedShip?.carryingOrbitalBase === true &&
+      selectedShip?.baseStatus === 'carryingBase' &&
       !selectedShip.destroyed &&
       !selectedShip.resuppliedThisTurn,
     fleetStatus: getFleetStatus(state, playerId),
@@ -311,7 +311,7 @@ export const getScenarioBriefingLines = (
     return lines;
   }
 
-  const hasFugitiveShip = myShips.some((ship) => ship.hasFugitives);
+  const hasFugitiveShip = myShips.some((ship) => ship.identity?.hasFugitives);
 
   const facingFugitives = state.scenarioRules.hiddenIdentityInspection;
 

@@ -262,7 +262,9 @@ describe('checkImmediateVictory', () => {
   it('awards escape victory with decisive win when fugitive has spare fuel', () => {
     map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.escape, map, 'ESC1', findBaseHex);
-    const fugitive = state.ships.find((s) => s.owner === 0 && s.hasFugitives);
+    const fugitive = state.ships.find(
+      (s) => s.owner === 0 && s.identity?.hasFugitives,
+    );
     if (fugitive) {
       // Place far enough north to escape
       fugitive.position = { q: 0, r: map.bounds.minR - 10 };
@@ -276,7 +278,9 @@ describe('checkImmediateVictory', () => {
   it('awards escape victory with marginal win when fugitive has low fuel', () => {
     map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.escape, map, 'ESC2', findBaseHex);
-    const fugitive = state.ships.find((s) => s.owner === 0 && s.hasFugitives);
+    const fugitive = state.ships.find(
+      (s) => s.owner === 0 && s.identity?.hasFugitives,
+    );
     if (fugitive) {
       fugitive.position = { q: 0, r: map.bounds.minR - 10 };
       fugitive.velocity = { dq: 0, dr: -3 };
@@ -290,7 +294,7 @@ describe('checkImmediateVictory', () => {
     map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.escape, map, 'ESC3', findBaseHex);
     const nonFugitive = state.ships.find(
-      (s) => s.owner === 0 && !s.hasFugitives,
+      (s) => s.owner === 0 && !s.identity?.hasFugitives,
     );
     if (nonFugitive) {
       // Place the non-fugitive beyond the edge
@@ -306,7 +310,7 @@ describe('checkGameEnd', () => {
   it('awards enforcer victory when fugitive is destroyed (no moral victory)', () => {
     map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.escape, map, 'GE01', findBaseHex);
-    const fugitive = state.ships.find((s) => s.hasFugitives);
+    const fugitive = state.ships.find((s) => s.identity?.hasFugitives);
     if (fugitive) {
       fugitive.destroyed = true;
       state.escapeMoralVictoryAchieved = false;
@@ -318,7 +322,7 @@ describe('checkGameEnd', () => {
   it('awards pilgrim moral victory when fugitive destroyed but enforcer was disabled', () => {
     map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.escape, map, 'GE02', findBaseHex);
-    const fugitive = state.ships.find((s) => s.hasFugitives);
+    const fugitive = state.ships.find((s) => s.identity?.hasFugitives);
     if (fugitive) {
       fugitive.destroyed = true;
       state.escapeMoralVictoryAchieved = true;
@@ -449,7 +453,7 @@ describe('checkRamming', () => {
     const ship1 = must(state.ships.find((s) => s.owner === 1));
     ship0.position = { q: 5, r: 5 };
     ship0.landed = false;
-    ship0.captured = true;
+    ship0.controlStatus = 'captured';
     ship1.position = { q: 5, r: 5 };
     ship1.landed = false;
     const events: MovementEvent[] = [];
@@ -469,9 +473,9 @@ describe('checkInspection', () => {
     pilgrim.position = { q: 5, r: 5 };
     pilgrim.velocity = { dq: 1, dr: 0 };
     pilgrim.landed = false;
-    pilgrim.identityRevealed = false;
+    if (pilgrim.identity) pilgrim.identity.revealed = false;
     checkInspection(state, 1);
-    expect(pilgrim.identityRevealed).toBe(true);
+    expect(pilgrim.identity?.revealed).toBe(true);
   });
   it('does not reveal when velocities differ', () => {
     map = buildSolarSystemMap();
@@ -484,9 +488,9 @@ describe('checkInspection', () => {
     pilgrim.position = { q: 5, r: 5 };
     pilgrim.velocity = { dq: 0, dr: 1 }; // Different velocity
     pilgrim.landed = false;
-    pilgrim.identityRevealed = false;
+    if (pilgrim.identity) pilgrim.identity.revealed = false;
     checkInspection(state, 1);
-    expect(pilgrim.identityRevealed).toBe(false);
+    expect(pilgrim.identity?.revealed).toBe(false);
   });
   it('is a no-op for non-inspection scenarios', () => {
     const state = setupState();
@@ -508,9 +512,8 @@ describe('checkCapture', () => {
     target.damage.disabledTurns = 3;
     const events: MovementEvent[] = [];
     checkCapture(state, 0, events);
-    expect(target.captured).toBe(true);
+    expect(target.controlStatus).toBe('captured');
     expect(target.owner).toBe(0);
-    expect(target.identityRevealed).toBe(true);
     expect(events.length).toBe(1);
     expect(events[0].type).toBe('capture');
   });
@@ -527,7 +530,7 @@ describe('checkCapture', () => {
     target.damage.disabledTurns = 0;
     const events: MovementEvent[] = [];
     checkCapture(state, 0, events);
-    expect(target.captured).toBeUndefined();
+    expect(target.controlStatus).toBeUndefined();
     expect(events).toHaveLength(0);
   });
   it('does not capture already-captured ships', () => {
@@ -541,7 +544,7 @@ describe('checkCapture', () => {
     target.velocity = { dq: 1, dr: 0 };
     target.landed = false;
     target.damage.disabledTurns = 3;
-    target.captured = true;
+    target.controlStatus = 'captured';
     const events: MovementEvent[] = [];
     checkCapture(state, 0, events);
     expect(events).toHaveLength(0);
@@ -565,7 +568,7 @@ describe('checkOrbitalBaseResupply', () => {
         owner: 0,
         position: { q: 5, r: 5 },
         velocity: { dq: 1, dr: 0 },
-        emplaced: true,
+        baseStatus: 'emplaced',
         landed: false,
       }),
     );
@@ -590,7 +593,7 @@ describe('checkOrbitalBaseResupply', () => {
         owner: 0,
         position: { q: 5, r: 5 },
         velocity: { dq: 0, dr: 1 }, // Different velocity
-        emplaced: true,
+        baseStatus: 'emplaced',
         landed: false,
       }),
     );
@@ -611,7 +614,7 @@ describe('checkOrbitalBaseResupply', () => {
         owner: 0,
         position: { q: 5, r: 5 },
         velocity: { dq: 1, dr: 0 },
-        emplaced: true,
+        baseStatus: 'emplaced',
         landed: false,
       }),
     );
@@ -633,7 +636,7 @@ describe('checkOrbitalBaseResupply', () => {
         owner: 0,
         position: { q: 5, r: 5 },
         velocity: { dq: 1, dr: 0 },
-        emplaced: true,
+        baseStatus: 'emplaced',
         landed: false,
       }),
     );

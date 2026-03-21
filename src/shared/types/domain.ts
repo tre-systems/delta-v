@@ -46,14 +46,11 @@ export interface Ship {
   landed: boolean;
   destroyed: boolean;
   detected: boolean;
-  captured?: boolean;
-  surrendered?: boolean;
+  controlStatus?: 'captured' | 'surrendered';
   heroismAvailable?: boolean;
   overloadUsed?: boolean;
-  carryingOrbitalBase?: boolean;
-  emplaced?: boolean;
-  hasFugitives?: boolean;
-  identityRevealed?: boolean;
+  baseStatus?: 'carryingBase' | 'emplaced';
+  identity?: { hasFugitives: boolean; revealed: boolean };
   pendingGravityEffects?: GravityEffect[];
 
   damage: {
