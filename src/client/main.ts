@@ -39,13 +39,7 @@ import type {
   GameState,
   S2C,
 } from '../shared/types';
-import {
-  initAudio,
-  isMuted,
-  playPhaseChange,
-  playWarning,
-  setMuted,
-} from './audio';
+import { initAudio, isMuted, playWarning, setMuted } from './audio';
 import { byId, hide, show } from './dom';
 import type { AstrogationActionDeps } from './game/astrogation-actions';
 import { deriveScenarioBriefingEntries } from './game/briefing';
@@ -87,7 +81,8 @@ import {
 } from './game/navigation';
 import { deriveGameStartClientState } from './game/network';
 import type { OrdnanceActionDeps } from './game/ordnance-actions';
-import { type ClientState, derivePhaseTransition } from './game/phase';
+import type { ClientState } from './game/phase';
+import { transitionClientPhase } from './game/phase-controller';
 import { deriveClientStateEntryPlan } from './game/phase-entry';
 import {
   createInitialPlanningState,
@@ -110,6 +105,7 @@ import {
 import { createTurnTimerManager, type TurnTimerManager } from './game/timer';
 import { buildShipTooltipHtml } from './game/tooltip';
 import { createLocalTransport, type GameTransport } from './game/transport';
+import { TurnTelemetryTracker } from './game/turn-telemetry';
 import { resolveUIEventPlan } from './game/ui-event-router';
 import { InputHandler } from './input';
 import { HEX_SIZE, Renderer } from './renderer/renderer';
@@ -156,11 +152,7 @@ class GameClient {
   private logisticsUIState: LogisticsUIState | null = null;
   private connection: ConnectionManager;
   private turnTimer!: TurnTimerManager;
-  // Phase timing for telemetry
-  private phaseStartedAt: number | null = null;
-  private turnStartedAt: number | null = null;
-  private phaseDurations: Record<string, number> = {};
-  private lastTurnNumber = -1;
+  private readonly turnTelemetry = new TurnTelemetryTracker();
   // Presentation orchestration deps
   // (lazy — renderer/ui available after constructor)
   private _presentationDeps: PresentationDeps | null = null;
@@ -373,11 +365,7 @@ class GameClient {
   private setState(newState: ClientState) {
     const prevState = this.ctx.state;
     this.ctx.state = newState;
-    // Accumulate phase duration for telemetry
-    this.recordPhaseDuration(prevState);
-    if (newState.startsWith('playing_')) {
-      this.phaseStartedAt = Date.now();
-    }
+    this.turnTelemetry.onStateChanged(prevState, newState);
     // Hide tooltip on state changes
     hide(this.tooltipEl);
     const entryPlan = deriveClientStateEntryPlan(
@@ -528,11 +516,7 @@ class GameClient {
     this.ctx.isLocalGame = true;
     this.ctx.scenario = scenario;
     this.ctx.playerId = 0;
-    this.lastLoggedTurn = -1;
-    this.lastTurnNumber = -1;
-    this.turnStartedAt = null;
-    this.phaseStartedAt = null;
-    this.phaseDurations = {};
+    this.turnTelemetry.reset();
     this.renderer.setPlayerId(0);
     this.ctx.transport = this.createLocalTransport();
     const scenarioDef = SCENARIOS[scenario] ?? SCENARIOS.biplanetary;
@@ -559,6 +543,7 @@ class GameClient {
     if (playerToken) {
       this.storePlayerToken(code, playerToken);
     }
+    this.turnTelemetry.reset();
     this.ctx.gameCode = code;
     history.replaceState(null, '', buildGameRoute(code));
     this.connect(code);
@@ -681,6 +666,7 @@ class GameClient {
       showGameOverOutcome: (won, reason) =>
         this.showGameOverOutcome(won, reason),
       storePlayerToken: (code, token) => this.storePlayerToken(code, token),
+      resetTurnTelemetry: () => this.turnTelemetry.reset(),
       onAnimationComplete: () => this.onAnimationComplete(),
       logScenarioBriefing: () => this.logScenarioBriefing(),
       deserializeState: (raw) => this.deserializeState(raw),
@@ -761,73 +747,25 @@ class GameClient {
       cmd,
     );
   }
-  // --- Phase timing telemetry ---
-  private recordPhaseDuration(prevState: ClientState) {
-    if (this.phaseStartedAt !== null && prevState.startsWith('playing_')) {
-      const phase = prevState.replace('playing_', '');
-      // Skip non-player phases
-      if (phase !== 'opponentTurn' && phase !== 'movementAnim') {
-        const elapsed = Date.now() - this.phaseStartedAt;
-        this.phaseDurations[phase] =
-          (this.phaseDurations[phase] ?? 0) + elapsed;
-      }
-      this.phaseStartedAt = null;
-    }
-  }
-  private emitTurnCompleted() {
-    if (this.turnStartedAt === null) return;
-    const totalMs = Date.now() - this.turnStartedAt;
-    track('turn_completed', {
-      turn: this.lastTurnNumber,
-      totalMs,
-      phases: { ...this.phaseDurations },
-      scenario: this.ctx.scenario,
-      mode: this.ctx.isLocalGame ? 'local' : 'multiplayer',
-    });
-    this.phaseDurations = {};
-    this.turnStartedAt = Date.now();
-  }
   // --- Game actions ---
   private onAnimationComplete() {
-    if (!this.ctx.gameState) return;
     this.transitionToPhase();
   }
-  private lastLoggedTurn = -1;
   private transitionToPhase() {
-    if (!this.ctx.gameState) return;
-    if (this.ctx.gameState.phase === 'gameOver') return;
-    const transition = derivePhaseTransition(
-      this.ctx.gameState,
-      this.ctx.playerId,
-      this.lastLoggedTurn,
-      this.ctx.isLocalGame,
-    );
-    if (transition.turnLogNumber !== null && transition.turnLogPlayerLabel) {
-      // Emit turn_completed for the previous turn
-      if (this.lastTurnNumber > 0) {
-        this.emitTurnCompleted();
-      } else {
-        // First turn — just start timing
-        this.turnStartedAt = Date.now();
-      }
-      this.lastTurnNumber = transition.turnLogNumber;
-      this.lastLoggedTurn = transition.turnLogNumber;
-      this.ui.logTurn(transition.turnLogNumber, transition.turnLogPlayerLabel);
-    }
-    if (transition.beginCombatPhase) {
-      beginCombat(this.combatDeps);
-      return;
-    }
-    if (!transition.nextState) {
-      return;
-    }
-    this.setState(transition.nextState);
-    if (transition.playPhaseSound) {
-      playPhaseChange();
-    }
-    if (transition.runLocalAI) {
-      this.runAITurn();
-    }
+    transitionClientPhase({
+      gameState: this.ctx.gameState,
+      playerId: this.ctx.playerId,
+      lastLoggedTurn: this.turnTelemetry.getLastLoggedTurn(),
+      isLocalGame: this.ctx.isLocalGame,
+      scenario: this.ctx.scenario,
+      onTurnLogged: (turnNumber, context) =>
+        this.turnTelemetry.onTurnLogged(turnNumber, context),
+      logTurn: (turnNumber, playerLabel) =>
+        this.ui.logTurn(turnNumber, playerLabel),
+      beginCombat: () => beginCombat(this.combatDeps),
+      setState: (state) => this.setState(state),
+      runLocalAI: () => this.runAITurn(),
+    });
   }
   private resetCombatState() {
     resetCombat(this.combatDeps);
@@ -857,6 +795,7 @@ class GameClient {
     this.connection.stopPing();
     this.turnTimer.stop();
     this.connection.close();
+    this.turnTelemetry.reset();
     this.ctx.gameState = null;
     this.ctx.isLocalGame = false;
     this.ctx.transport = null;

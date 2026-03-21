@@ -100,6 +100,7 @@ const createDeps = (
     presentCombatResults: track('presentCombatResults'),
     showGameOverOutcome: track('showGameOverOutcome'),
     storePlayerToken: track('storePlayerToken'),
+    resetTurnTelemetry: track('resetTurnTelemetry'),
     onAnimationComplete: track('onAnimationComplete'),
     logScenarioBriefing: track('logScenarioBriefing'),
     deserializeState: (raw: GameState) => raw,
@@ -170,6 +171,7 @@ describe('client integration: connection flow', () => {
       state,
     } as S2C);
 
+    expect(deps.calls.resetTurnTelemetry).toHaveLength(1);
     expect(deps.calls.applyGameState).toEqual([[state]]);
     expect(deps.calls['renderer.clearTrails']).toHaveLength(1);
     expect(deps.calls['ui.clearLog']).toHaveLength(1);
