@@ -209,7 +209,8 @@ const buildBurnMarkers = (
       12,
     );
 
-    marker.label = String(direction + 1);
+    const showLabel = typeof window === 'undefined' || window.innerWidth > 760;
+    marker.label = showLabel ? String(direction + 1) : null;
     marker.labelColor =
       isActive || isHovered ? 'rgba(0, 0, 0, 0.9)' : 'rgba(79, 195, 247, 0.7)';
 

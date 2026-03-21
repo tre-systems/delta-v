@@ -561,8 +561,11 @@ export class UIManager {
     }
   }
 
-  updateHUD(input: HUDInput) {
-    const hudView = buildHUDView(input);
+  updateHUD(input: Omit<HUDInput, 'isMobile'>) {
+    const hudView = buildHUDView({
+      ...input,
+      isMobile: this.isMobile,
+    });
     const { turn, phase, isMyTurn } = input;
 
     byId('turnInfo').textContent = hudView.turnText;

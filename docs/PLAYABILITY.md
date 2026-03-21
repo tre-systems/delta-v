@@ -35,6 +35,9 @@ Resize to 375x812 or use a phone:
 5. **All buttons** — CONFIRM, UNDO, SKIP COMBAT have adequate touch targets (min 48px)
 6. **Top bar** — fuel, phase, objective all visible without overflow
 7. **Ship list** — scrollable if many ships, doesn't overlap with other elements
+8. **Touch language** — status messages say "Tap" not "Click", no "(Enter)" hints
+9. **Burn markers** — direction circles have no 1-6 number labels
+10. **Help overlay** — shows "Tap ship/arrow/enemy", no keyboard shortcuts
 
 ## Combat Test (2 minutes)
 
