@@ -48,20 +48,31 @@ function simFleetBuild(state: GameState, playerId: number, difficulty: AIDifficu
   return purchases;
 }
 
-async function runSingleGame(scenarioName: string, p0Diff: AIDifficulty, p1Diff: AIDifficulty): Promise<{ winner: number | null, turns: number, reason: string | null }> {
+async function runSingleGame(
+  scenarioName: string,
+  p0Diff: AIDifficulty,
+  p1Diff: AIDifficulty,
+  randomizeStart = false,
+): Promise<{ winner: number | null, turns: number, reason: string | null }> {
   const scenario = SCENARIOS[scenarioName];
   if (!scenario) throw new Error(`Unknown scenario: ${scenarioName}`);
-  
+
   const map = buildSolarSystemMap();
-  
+
   // Create an RNG local to the game for reproducible behavior later if needed
-  const rng = Math.random; 
-  
+  const rng = Math.random;
+
   let state: GameState;
   try {
     state = createGame(scenario, map, `sim-${Date.now()}`, findBaseHex);
   } catch (err: any) {
     throw new Error(`Failed to create game: ${err.message}`);
+  }
+
+  // Randomize starting player to cancel out first-mover bias
+  // across many games. Reveals true faction/position balance.
+  if (randomizeStart) {
+    state.activePlayer = rng() < 0.5 ? 0 : 1;
   }
 
   // Handle fleet building phase (both players submit simultaneously)
@@ -155,7 +166,9 @@ async function runSimulation(scenarioName: string, iterations: number) {
 
   for (let i = 0; i < iterations; i++) {
     try {
-      const result = await runSingleGame(scenarioName, 'hard', 'hard');
+      const result = await runSingleGame(
+        scenarioName, 'hard', 'hard', true,
+      );
       metrics.totalGames++;
       metrics.totalTurns += result.turns;
       
