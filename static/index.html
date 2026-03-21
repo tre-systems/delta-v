@@ -16,6 +16,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <script>
     (() => {
+      const maxStandaloneGapPx = 160;
       const root = document.documentElement;
       const viewport = window.visualViewport;
       const isStandalone =
@@ -49,11 +50,11 @@
       const widthGap = screenWidth - viewportWidth;
       const heightGap = screenHeight - viewportHeight;
       const width =
-        isStandalone && widthGap > 0 && widthGap <= 160
+        isStandalone && widthGap > 0 && widthGap <= maxStandaloneGapPx
           ? screenWidth
           : viewportWidth;
       const height =
-        isStandalone && heightGap > 0 && heightGap <= 160
+        isStandalone && heightGap > 0 && heightGap <= maxStandaloneGapPx
           ? screenHeight
           : viewportHeight;
 
