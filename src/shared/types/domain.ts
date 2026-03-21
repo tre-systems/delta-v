@@ -1,5 +1,4 @@
-import type { GameEvent } from './events';
-import type { HexCoord, HexVec } from './hex';
+import type { HexCoord, HexVec } from '../hex';
 
 // --- Game state ---
 
@@ -234,7 +233,7 @@ export interface MovementEvent {
   capturedBy?: string;
 }
 
-// --- Network messages ---
+// --- Actions ---
 
 export interface OrbitalBaseEmplacement {
   shipId: string;
@@ -243,6 +242,15 @@ export interface OrbitalBaseEmplacement {
 export interface FleetPurchase {
   shipType: string;
 }
+
+export interface TransferOrder {
+  sourceShipId: string;
+  targetShipId: string;
+  transferType: 'fuel' | 'cargo';
+  amount: number;
+}
+
+// --- Scenario rules (embedded in GameState) ---
 
 export interface Reinforcement {
   turn: number;
@@ -270,95 +278,13 @@ export interface ScenarioRules {
   fleetConversion?: FleetConversion;
 }
 
-export interface TransferOrder {
-  sourceShipId: string;
-  targetShipId: string;
-  transferType: 'fuel' | 'cargo';
-  amount: number;
-}
-
-export type C2S =
-  | { type: 'fleetReady'; purchases: FleetPurchase[] }
-  | { type: 'astrogation'; orders: AstrogationOrder[] }
-  | { type: 'surrender'; shipIds: string[] }
-  | { type: 'ordnance'; launches: OrdnanceLaunch[] }
-  | {
-      type: 'emplaceBase';
-      emplacements: OrbitalBaseEmplacement[];
-    }
-  | { type: 'skipOrdnance' }
-  | { type: 'beginCombat' }
-  | { type: 'combat'; attacks: CombatAttack[] }
-  | { type: 'skipCombat' }
-  | { type: 'logistics'; transfers: TransferOrder[] }
-  | { type: 'skipLogistics' }
-  | { type: 'rematch' }
-  | { type: 'chat'; text: string }
-  | { type: 'ping'; t: number };
-
-export type S2C =
-  | {
-      type: 'welcome';
-      playerId: number;
-      code: string;
-      playerToken: string;
-    }
-  | { type: 'matchFound' }
-  | {
-      type: 'gameStart';
-      state: GameState;
-      eventLog?: GameEvent[];
-    }
-  | {
-      type: 'movementResult';
-      movements: ShipMovement[];
-      ordnanceMovements: OrdnanceMovement[];
-      events: MovementEvent[];
-      state: GameState;
-    }
-  | {
-      type: 'combatResult';
-      results: CombatResult[];
-      state: GameState;
-    }
-  | { type: 'stateUpdate'; state: GameState }
-  | { type: 'gameOver'; winner: number; reason: string }
-  | { type: 'rematchPending' }
-  | { type: 'opponentDisconnected' }
-  | {
-      type: 'chat';
-      playerId: number;
-      text: string;
-    }
-  | { type: 'error'; message: string }
-  | { type: 'pong'; t: number };
-
-// --- Scenario ---
-
+// ScenarioShip is needed here because Reinforcement
+// references it. The full scenario config types
+// (ScenarioDefinition, ScenarioPlayer) live in scenario.ts.
 export interface ScenarioShip {
   type: string;
   position: HexCoord;
   velocity: HexVec;
   startLanded?: boolean;
   startInOrbit?: boolean;
-}
-
-export interface ScenarioPlayer {
-  ships: ScenarioShip[];
-  targetBody: string;
-  homeBody: string;
-  bases?: HexCoord[];
-  escapeWins: boolean;
-  hiddenIdentity?: boolean;
-}
-
-export interface ScenarioDefinition {
-  name: string;
-  description: string;
-  tags?: string[];
-  players: ScenarioPlayer[];
-  rules?: ScenarioRules;
-  startingPlayer?: 0 | 1;
-  startingCredits?: number | [number, number];
-  availableShipTypes?: string[];
 }
