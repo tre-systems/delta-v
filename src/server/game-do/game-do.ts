@@ -477,10 +477,6 @@ export class GameDO extends DurableObject<Env> {
     },
   ) {
     const { restartTurnTimer = true, events = [] } = options ?? {};
-    if (primaryMessage) {
-      this.broadcastFiltered(primaryMessage);
-    }
-    this.broadcastEndOrUpdate(state);
     await this.saveGameState(state);
     if (events.length > 0) {
       await this.appendEvents(...events);
@@ -488,6 +484,10 @@ export class GameDO extends DurableObject<Env> {
     if (restartTurnTimer) {
       await this.startTurnTimer(state);
     }
+    if (primaryMessage) {
+      this.broadcastFiltered(primaryMessage);
+    }
+    this.broadcastEndOrUpdate(state);
   }
   private async runGameStateAction<
     Success extends {

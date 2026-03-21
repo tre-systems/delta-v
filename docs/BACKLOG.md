@@ -14,6 +14,67 @@ the "can't find my ship" problem.
 
 ---
 
+## Maintenance and refactor plan
+
+The project is in a good place mechanically. The next work
+should focus on reducing shell complexity and tightening
+authority boundaries rather than rewriting the engine.
+
+### Phase 0. Reliability fixes
+
+- Persist authoritative game state before broadcasting it to clients.
+- Make intentional client disconnects bypass reconnect logic.
+- Keep docs aligned with the current file layout and feature set.
+
+### Phase 1. Client shell decomposition
+
+- Split `src/client/main.ts` into a thin coordinator plus focused modules:
+  command routing, UI event routing, phase flow, and client state storage.
+- Keep coordination in the shell; keep decision logic in pure
+  `derive*` / `resolve*` helpers.
+
+### Phase 2. UI shell decomposition
+
+- Break `src/client/ui/ui.ts` into focused menu, HUD, fleet,
+  log, and overlay modules behind the existing `UIManager`
+  facade.
+- Replace repeated button wiring with a small declarative
+  registry.
+
+### Phase 3. Shared model boundaries
+
+- Split `src/shared/types.ts` into separate domain, protocol,
+  and scenario type modules.
+- Reduce the number of unrelated changes that currently collide
+  in a single cross-layer file.
+
+### Phase 4. Rules consolidation
+
+- Centralize scenario capability checks and ordnance launch
+  legality so client helpers and engine validation do not
+  encode the same rules in different places.
+- Continue preferring extracted pure helpers over larger
+  architectural moves.
+
+### Phase 5. Stronger entity state models
+
+- Replace growing optional-flag bags on entities with clearer
+  status/capability models where invalid combinations are harder
+  to represent.
+- Do this incrementally, starting with the most heavily used
+  shapes such as `Ship`.
+
+### Delivery order
+
+1. Reliability fixes with tests.
+2. `main.ts` coordinator extraction.
+3. `ui.ts` view extraction.
+4. Shared type/module split.
+5. Rules consolidation.
+6. Optional stronger state-model refactors.
+
+---
+
 ## Features
 
 ### Turn replay

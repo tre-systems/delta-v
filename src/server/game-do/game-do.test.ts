@@ -209,4 +209,48 @@ describe('GameDO', () => {
     expect(await ctx.storage.get('turnTimeoutAt')).toBeGreaterThan(10000);
     expect(ctx.storage.alarmAt).toBe(30000);
   });
+
+  it('persists state before broadcasting it to clients', async () => {
+    const ctx = createCtx();
+    const trace: string[] = [];
+    const originalPut = ctx.storage.put.bind(ctx.storage);
+    vi.spyOn(ctx.storage, 'put').mockImplementation(async (key, value) => {
+      if (key === 'gameState') {
+        trace.push('put:gameState');
+      }
+      await originalPut(key, value);
+    });
+    const ws = {
+      sent: [] as string[],
+      send(payload: string) {
+        trace.push('send');
+        this.sent.push(payload);
+      },
+    };
+    ctx.acceptWebSocket(ws, ['player:0']);
+    const game = createGameDO(ctx);
+    const state = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'SAVE1',
+      findBaseHex,
+    );
+
+    await (
+      game as unknown as {
+        publishStateChange: (
+          state: GameState,
+          primaryMessage?: unknown,
+          options?: { restartTurnTimer?: boolean; events?: unknown[] },
+        ) => Promise<void>;
+      }
+    ).publishStateChange(state, undefined, {
+      restartTurnTimer: false,
+    });
+
+    expect(trace).toContain('put:gameState');
+    expect(trace).toContain('send');
+    expect(trace.indexOf('put:gameState')).toBeLessThan(trace.indexOf('send'));
+    expect(await ctx.storage.get('gameState')).toEqual(state);
+  });
 });

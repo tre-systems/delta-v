@@ -44,6 +44,7 @@ export const createConnectionManager = (
   let pingInterval: number | null = null;
   let lastPingSent = 0;
   let reconnectTimer: number | null = null;
+  let suppressDisconnectHandling = false;
   const send = (msg: unknown) => {
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
@@ -67,11 +68,18 @@ export const createConnectionManager = (
     }, 5000);
   };
   const connect = (code: string) => {
+    suppressDisconnectHandling = false;
     ws = new WebSocket(
       buildWebSocketUrl(location, code, deps.getStoredPlayerToken(code)),
     );
     ws.onmessage = (e) => deps.handleMessage(JSON.parse(e.data));
-    ws.onclose = () => handleDisconnect();
+    ws.onclose = () => {
+      const shouldHandleDisconnect = !suppressDisconnectHandling;
+      suppressDisconnectHandling = false;
+      if (shouldHandleDisconnect) {
+        handleDisconnect();
+      }
+    };
     ws.onerror = () => {}; // onclose fires after onerror
     deps.setTransport(createWebSocketTransport((msg) => send(msg)));
     startPing();
@@ -103,6 +111,7 @@ export const createConnectionManager = (
       },
     );
     reconnectTimer = window.setTimeout(() => {
+      reconnectTimer = null;
       connect(must(deps.getGameCode()));
     }, must(plan.delayMs));
   };
@@ -122,6 +131,12 @@ export const createConnectionManager = (
     }
   };
   const close = () => {
+    suppressDisconnectHandling = true;
+    stopPing();
+    if (reconnectTimer !== null) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
     ws?.close();
     ws = null;
   };

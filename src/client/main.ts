@@ -128,6 +128,7 @@ import {
 import { createTurnTimerManager, type TurnTimerManager } from './game/timer';
 import { buildShipTooltipHtml } from './game/tooltip';
 import { createLocalTransport, type GameTransport } from './game/transport';
+import { resolveUIEventPlan } from './game/ui-event-router';
 import { InputHandler } from './input';
 import { HEX_SIZE, Renderer } from './renderer/renderer';
 import { installGlobalErrorHandlers, track } from './telemetry';
@@ -714,75 +715,27 @@ class GameClient {
     if (cmd) this.dispatch(cmd);
   }
   private handleUIEvent(event: UIEvent) {
-    switch (event.type) {
-      // Menu / lobby events — not game commands
-      case 'selectScenario':
-        this.createGame(event.scenario);
+    const plan = resolveUIEventPlan(event);
+
+    switch (plan.kind) {
+      case 'createGame':
+        this.createGame(plan.scenario);
         return;
       case 'startSinglePlayer':
-        this.ctx.aiDifficulty = event.difficulty;
-        this.startLocalGame(event.scenario);
+        this.ctx.aiDifficulty = plan.difficulty;
+        this.startLocalGame(plan.scenario);
         return;
-      case 'join':
-        this.joinGame(event.code, event.playerToken ?? null);
+      case 'joinGame':
+        this.joinGame(plan.code, plan.playerToken);
         return;
-      // In-game events -> dispatch as GameCommands
-      case 'undo':
-        this.dispatch({ type: 'undoBurn' });
+      case 'command':
+        this.dispatch(plan.command);
         return;
-      case 'confirm':
-        this.dispatch({ type: 'confirmOrders' });
+      case 'sendChat':
+        this.ctx.transport?.sendChat(plan.text);
         return;
-      case 'launchOrdnance':
-        this.dispatch({
-          type: 'launchOrdnance',
-          ordType: event.ordType,
-        });
-        return;
-      case 'emplaceBase':
-        this.dispatch({ type: 'emplaceBase' });
-        return;
-      case 'skipOrdnance':
-        this.dispatch({ type: 'skipOrdnance' });
-        return;
-      case 'attack':
-        this.dispatch({ type: 'queueAttack' });
-        return;
-      case 'fireAll':
-        this.dispatch({ type: 'fireAllAttacks' });
-        return;
-      case 'skipCombat':
-        this.dispatch({ type: 'skipCombat' });
-        return;
-      case 'skipLogistics':
-        this.dispatch({ type: 'skipLogistics' });
-        return;
-      case 'confirmTransfers':
-        this.dispatch({ type: 'confirmTransfers' });
-        return;
-      case 'fleetReady':
-        this.dispatch({
-          type: 'fleetReady',
-          purchases: event.purchases,
-        });
-        return;
-      case 'rematch':
-        this.dispatch({ type: 'requestRematch' });
-        return;
-      case 'exit':
-        this.dispatch({ type: 'exitToMenu' });
-        return;
-      case 'backToMenu':
-        track('scenario_browsed');
-        return;
-      case 'selectShip':
-        this.dispatch({
-          type: 'selectShip',
-          shipId: event.shipId,
-        });
-        return;
-      case 'chat':
-        this.ctx.transport?.sendChat(event.text);
+      case 'trackOnly':
+        track(plan.event);
         return;
     }
   }
