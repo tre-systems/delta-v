@@ -11,12 +11,11 @@ import { ACTION_BUTTON_IDS, STATIC_BUTTON_BINDINGS } from './button-bindings';
 import type { UIEvent } from './events';
 import { FleetBuildingView } from './fleet-building-view';
 import {
-  formatCombatResultEntries,
-  formatMovementEventEntry,
   getLatencyStatus,
   getPhaseAlertCopy,
   parseJoinInput,
 } from './formatters';
+import { GameLogView } from './game-log-view';
 import { buildHUDView, type HUDInput } from './hud';
 import { deriveHudLayoutOffsets } from './layout';
 import {
@@ -25,7 +24,6 @@ import {
   buildRematchPendingView,
   buildScreenVisibility,
   buildWaitingScreenCopy,
-  toggleLogVisible,
   type UIScreenMode,
 } from './screens';
 import { buildShipListView } from './ship-list';
@@ -39,24 +37,14 @@ export class UIManager {
   private bottomBarEl: HTMLElement;
   private gameOverEl: HTMLElement;
   private shipListEl: HTMLElement;
-  private gameLogEl: HTMLElement;
-  private logEntriesEl: HTMLElement;
-  private chatInputRow: HTMLElement;
-  private chatInput: HTMLInputElement;
   private lastPhase: string | null = null;
-  private logShowBtn: HTMLElement;
   private fleetBuildingEl: HTMLElement;
-  private logVisible = true;
-  private logLatestBar: HTMLElement;
-  private logLatestText: HTMLElement;
-  private lastTurnHeader: HTMLElement | null = null;
   private isMobile: boolean;
-  private logExpandedOnMobile = false;
-  private playerId: number = -1;
   private layoutSyncFrame: number | null = null;
 
   private readonly actionButtonIds = ACTION_BUTTON_IDS;
   private readonly fleetBuildingView: FleetBuildingView;
+  private readonly gameLogView: GameLogView;
 
   onEvent: ((event: UIEvent) => void) | null = null;
 
@@ -78,32 +66,31 @@ export class UIManager {
     this.bottomBarEl = byId('bottomBar');
     this.gameOverEl = byId('gameOver');
     this.shipListEl = byId('shipList');
-    this.gameLogEl = byId('gameLog');
-    this.logEntriesEl = byId('logEntries');
-    this.logShowBtn = byId('logShowBtn');
-    this.logLatestBar = byId('logLatestBar');
-    this.logLatestText = byId('logLatestText');
-    this.chatInputRow = byId('chatInputRow');
-    this.chatInput = byId('chatInput') as HTMLInputElement;
     this.fleetBuildingEl = byId('fleetBuilding');
     this.fleetBuildingView = new FleetBuildingView({
       onFleetReady: (purchases) => {
         this.emit({ type: 'fleetReady', purchases });
       },
     });
-
-    this.bindChatInput();
+    this.gameLogView = new GameLogView({
+      onChat: (text) => {
+        this.emit({ type: 'chat', text });
+      },
+    });
 
     const mobileQuery = window.matchMedia('(max-width: 760px)');
     this.isMobile = mobileQuery.matches;
+    this.gameLogView.setMobile(
+      this.isMobile,
+      this.hudEl.style.display !== 'none',
+    );
 
     mobileQuery.addEventListener('change', (e) => {
       this.isMobile = e.matches;
-      this.syncLogVisibility();
-    });
-
-    this.logLatestBar.addEventListener('click', () => {
-      this.expandMobileLog();
+      this.gameLogView.setMobile(
+        e.matches,
+        this.hudEl.style.display !== 'none',
+      );
     });
 
     window.addEventListener('resize', this.handleViewportResize);
@@ -119,32 +106,10 @@ export class UIManager {
     this.bindJoinControls();
     this.bindCopyButton();
     this.bindStaticButtons();
-    this.bindLogControls();
   }
 
   private emit(event: UIEvent) {
     this.onEvent?.(event);
-  }
-
-  private bindChatInput() {
-    this.chatInput.addEventListener('keydown', (e) => {
-      // Prevent game keyboard shortcuts while
-      // typing
-      e.stopPropagation();
-
-      if (e.key !== 'Enter') {
-        return;
-      }
-
-      const text = this.chatInput.value.trim();
-
-      if (!text) {
-        return;
-      }
-
-      this.emit({ type: 'chat', text });
-      this.chatInput.value = '';
-    });
   }
 
   private bindMenuControls() {
@@ -233,52 +198,12 @@ export class UIManager {
     }
   }
 
-  private setDesktopLogVisible(visibleOnDesktop: boolean) {
-    this.logVisible = visibleOnDesktop;
-
-    const visibility = buildScreenVisibility('hud', this.logVisible);
-
-    this.gameLogEl.style.display = visibility.gameLog;
-    this.logShowBtn.style.display = visibility.logShowBtn;
-  }
-
-  private bindLogControls() {
-    byId('logToggleBtn').addEventListener('click', () => {
-      if (this.isMobile) {
-        this.collapseMobileLog();
-
-        return;
-      }
-
-      this.setDesktopLogVisible(false);
-    });
-
-    this.logShowBtn.addEventListener('click', () => {
-      this.setDesktopLogVisible(true);
-    });
-  }
-
   toggleLog() {
-    if (this.isMobile) {
-      if (this.logExpandedOnMobile) {
-        this.collapseMobileLog();
-      } else {
-        this.expandMobileLog();
-      }
-
-      return;
-    }
-
-    this.logVisible = toggleLogVisible(this.logVisible);
-
-    const visibility = buildScreenVisibility('hud', this.logVisible);
-
-    this.gameLogEl.style.display = visibility.gameLog;
-    this.logShowBtn.style.display = visibility.logShowBtn;
+    this.gameLogView.toggle();
   }
 
   private applyScreenVisibility(mode: UIScreenMode) {
-    const visibility = buildScreenVisibility(mode, this.logVisible);
+    const visibility = buildScreenVisibility(mode, true);
 
     this.menuEl.style.display = visibility.menu;
     this.scenarioEl.style.display = visibility.scenario;
@@ -286,9 +211,8 @@ export class UIManager {
     this.hudEl.style.display = visibility.hud;
     this.gameOverEl.style.display = visibility.gameOver;
     this.shipListEl.style.display = visibility.shipList;
-    this.gameLogEl.style.display = visibility.gameLog;
-    this.logShowBtn.style.display = visibility.logShowBtn;
     this.fleetBuildingEl.style.display = visibility.fleetBuilding;
+    this.gameLogView.applyScreenVisibility(mode);
 
     byId('helpBtn').style.display = visibility.helpBtn;
     byId('soundBtn').style.display = visibility.soundBtn;
@@ -297,14 +221,12 @@ export class UIManager {
 
   hideAll() {
     this.applyScreenVisibility('hidden');
-    this.logLatestBar.style.display = 'none';
-    this.logExpandedOnMobile = false;
-    this.gameLogEl.classList.remove('mobile-expanded');
+    this.gameLogView.resetVisibilityState();
     this.resetLayoutMetrics();
   }
 
   setPlayerId(id: number) {
-    this.playerId = id;
+    this.gameLogView.setPlayerId(id);
   }
 
   private buildScenarioList() {
@@ -385,15 +307,7 @@ export class UIManager {
   showHUD() {
     this.hideAll();
     this.applyScreenVisibility('hud');
-
-    if (this.isMobile) {
-      // On mobile, start with log collapsed —
-      // show latest-bar instead
-      this.gameLogEl.style.display = 'none';
-      this.logShowBtn.style.display = 'none';
-      this.logLatestBar.style.display = 'block';
-    }
-
+    this.gameLogView.showHUD();
     this.queueLayoutSync();
   }
 
@@ -712,118 +626,31 @@ export class UIManager {
   // --- Game log ---
 
   clearLog() {
-    this.logEntriesEl.innerHTML = '';
+    this.gameLogView.clear();
   }
 
   setChatEnabled(enabled: boolean) {
-    this.chatInputRow.style.display = enabled ? '' : 'none';
-    this.chatInput.value = '';
+    this.gameLogView.setChatEnabled(enabled);
   }
 
   logTurn(turn: number, player: string) {
-    // Remove previous turn header if no events
-    // followed it
-    if (
-      this.lastTurnHeader &&
-      this.lastTurnHeader === this.logEntriesEl.lastElementChild
-    ) {
-      this.logEntriesEl.removeChild(this.lastTurnHeader);
-    }
-
-    const text = `\u2014 Turn ${turn}: ${player} \u2014`;
-    const header = el('div', {
-      class: 'log-entry log-turn',
-      text,
-    });
-
-    this.logEntriesEl.appendChild(header);
-    this.lastTurnHeader = header;
-
-    this.scrollLogToBottom();
-    this.updateLatestBar(text, 'log-turn');
+    this.gameLogView.logTurn(turn, player);
   }
 
   logText(text: string, cssClass = '') {
-    this.logEntriesEl.appendChild(
-      el('div', {
-        class: `log-entry ${cssClass}`,
-        text,
-      }),
-    );
-
-    this.scrollLogToBottom();
-    this.updateLatestBar(text, cssClass);
+    this.gameLogView.logText(text, cssClass);
   }
 
   logMovementEvents(events: MovementEvent[], ships: Ship[]) {
-    for (const ev of events) {
-      const entry = formatMovementEventEntry(ev, ships);
-      if (entry) this.logText(entry.text, entry.className);
-    }
+    this.gameLogView.logMovementEvents(events, ships);
   }
 
   logCombatResults(results: CombatResult[], ships: Ship[]) {
-    for (const r of results) {
-      for (const entry of formatCombatResultEntries(r, ships, this.playerId)) {
-        this.logText(entry.text, entry.className);
-      }
-    }
+    this.gameLogView.logCombatResults(results, ships);
   }
 
   logLanding(shipName: string, bodyName: string) {
-    this.logText(`${shipName} landed at ${bodyName}`, 'log-landed');
-  }
-
-  private scrollLogToBottom() {
-    this.logEntriesEl.scrollTop = this.logEntriesEl.scrollHeight;
-  }
-
-  private updateLatestBar(text: string, cssClass: string) {
-    if (!this.isMobile) return;
-
-    this.logLatestText.textContent = text;
-    this.logLatestText.className = `log-latest-text ${cssClass}`;
-  }
-
-  private expandMobileLog() {
-    this.logExpandedOnMobile = true;
-    this.gameLogEl.classList.add('mobile-expanded');
-    this.gameLogEl.style.display = 'flex';
-    this.logLatestBar.style.display = 'none';
-    this.scrollLogToBottom();
-  }
-
-  private collapseMobileLog() {
-    this.logExpandedOnMobile = false;
-    this.gameLogEl.classList.remove('mobile-expanded');
-    this.gameLogEl.style.display = 'none';
-    this.logLatestBar.style.display = 'block';
-  }
-
-  private syncLogVisibility() {
-    // Only sync if HUD is active (gameLogEl would
-    // be managed)
-    if (this.hudEl.style.display === 'none') return;
-
-    if (this.isMobile) {
-      // Entering mobile: collapse log to bar
-      this.gameLogEl.classList.remove('mobile-expanded');
-      this.gameLogEl.style.display = 'none';
-      this.logShowBtn.style.display = 'none';
-      this.logLatestBar.style.display = 'block';
-      this.logExpandedOnMobile = false;
-    } else {
-      // Entering desktop: restore log panel,
-      // hide bar
-      this.gameLogEl.classList.remove('mobile-expanded');
-      this.logLatestBar.style.display = 'none';
-      this.logExpandedOnMobile = false;
-
-      const visibility = buildScreenVisibility('hud', this.logVisible);
-
-      this.gameLogEl.style.display = visibility.gameLog;
-      this.logShowBtn.style.display = visibility.logShowBtn;
-    }
+    this.gameLogView.logLanding(shipName, bodyName);
   }
 
   private queueLayoutSync() {
