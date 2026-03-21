@@ -11,8 +11,61 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="manifest" href="/site.webmanifest">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const viewport = window.visualViewport;
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+      const normalizeSize = (value) =>
+        Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+      const viewportWidth = Math.max(
+        normalizeSize(window.innerWidth),
+        normalizeSize(root.clientWidth),
+        normalizeSize(viewport?.width),
+      );
+      const viewportHeight = Math.max(
+        normalizeSize(window.innerHeight),
+        normalizeSize(root.clientHeight),
+        normalizeSize(viewport?.height),
+      );
+      const rawScreenWidth = Math.max(
+        normalizeSize(window.screen.width),
+        normalizeSize(window.screen.availWidth),
+      );
+      const rawScreenHeight = Math.max(
+        normalizeSize(window.screen.height),
+        normalizeSize(window.screen.availHeight),
+      );
+      const longSide = Math.max(rawScreenWidth, rawScreenHeight);
+      const shortSide = Math.min(rawScreenWidth, rawScreenHeight);
+      const isPortrait = viewportHeight >= viewportWidth;
+      const screenWidth = isPortrait ? shortSide : longSide;
+      const screenHeight = isPortrait ? longSide : shortSide;
+      const widthGap = screenWidth - viewportWidth;
+      const heightGap = screenHeight - viewportHeight;
+      const width =
+        isStandalone && widthGap > 0 && widthGap <= 160
+          ? screenWidth
+          : viewportWidth;
+      const height =
+        isStandalone && heightGap > 0 && heightGap <= 160
+          ? screenHeight
+          : viewportHeight;
+
+      if (width > 0) {
+        root.style.setProperty('--app-width', `${width}px`);
+      }
+
+      if (height > 0) {
+        root.style.setProperty('--app-height', `${height}px`);
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>

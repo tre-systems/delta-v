@@ -33,6 +33,46 @@ describe('measureViewportSize', () => {
     });
   });
 
+  it('expands to the physical screen height in standalone mode', () => {
+    expect(
+      measureViewportSize({
+        innerWidth: 390,
+        innerHeight: 810,
+        clientWidth: 390,
+        clientHeight: 810,
+        isStandalone: true,
+        screenWidth: 390,
+        screenHeight: 844,
+        availScreenWidth: 390,
+        availScreenHeight: 844,
+        visualViewport: { width: 390, height: 810 },
+      }),
+    ).toEqual({
+      width: 390,
+      height: 844,
+    });
+  });
+
+  it('does not treat keyboard-sized reductions as a safe-area gap', () => {
+    expect(
+      measureViewportSize({
+        innerWidth: 390,
+        innerHeight: 520,
+        clientWidth: 390,
+        clientHeight: 520,
+        isStandalone: true,
+        screenWidth: 390,
+        screenHeight: 844,
+        availScreenWidth: 390,
+        availScreenHeight: 844,
+        visualViewport: { width: 390, height: 520 },
+      }),
+    ).toEqual({
+      width: 390,
+      height: 520,
+    });
+  });
+
   it('never returns negative sizes', () => {
     expect(
       measureViewportSize({
