@@ -14,28 +14,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="/style.css">
-  <script>
-    // Fix iOS PWA viewport gap: the web view can be shorter
-    // than the physical screen on initial load. Force a reflow
-    // by briefly scrolling, which triggers iOS to recalculate.
-    if (window.navigator.standalone ||
-        window.matchMedia('(display-mode: standalone)').matches) {
-      document.addEventListener('DOMContentLoaded', function() {
-        requestAnimationFrame(function() {
-          window.scrollTo(0, 1);
-          requestAnimationFrame(function() {
-            window.scrollTo(0, 0);
-          });
-        });
-      });
-    }
-  </script>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
 
   <!-- Menu screen -->
-  <div id="menu" class="screen">
+  <div id="menu" class="screen screen-page">
     <div class="menu-content">
       <div class="menu-eyebrow">Tactical Space Combat</div>
       <h1 class="title">DELTA-V</h1>
@@ -64,16 +48,16 @@
   </div>
 
   <!-- Scenario selection -->
-  <div id="scenarioSelect" class="screen" style="display:none">
+  <div id="scenarioSelect" class="screen screen-page" style="display:none">
     <div class="menu-content">
       <h2 class="scenario-title">Select Scenario</h2>
       <div id="scenarioList"></div>
-      <button id="backBtn" class="btn btn-secondary" style="margin-top: 1rem">Back</button>
+      <button id="backBtn" class="btn btn-secondary">Back</button>
     </div>
   </div>
 
   <!-- Waiting for opponent -->
-  <div id="waiting" class="screen" style="display:none">
+  <div id="waiting" class="screen screen-page" style="display:none">
     <div class="menu-content">
       <h2>Game Created</h2>
       <div id="gameCode" class="game-code">-----</div>
@@ -119,7 +103,7 @@
   </div>
 
   <!-- Fleet building overlay -->
-  <div id="fleetBuilding" class="screen" style="display:none">
+  <div id="fleetBuilding" class="screen screen-page" style="display:none">
     <div class="menu-content fleet-building-content">
       <h2 class="scenario-title">Build Your Fleet</h2>
       <div id="fleetCredits" class="fleet-credits">800 MC</div>
@@ -154,7 +138,7 @@
   </div>
 
   <!-- Game Over overlay -->
-  <div id="gameOver" class="screen glass" style="display:none">
+  <div id="gameOver" class="screen screen-page glass" style="display:none">
     <div class="menu-content">
       <h2 id="gameOverText">VICTORY</h2>
       <p id="gameOverReason"></p>
@@ -164,7 +148,7 @@
   </div>
 
   <!-- Controls help overlay -->
-  <div id="helpOverlay" class="screen glass" style="display:none">
+  <div id="helpOverlay" class="screen screen-page glass" style="display:none">
     <div class="menu-content help-content">
       <h2 class="scenario-title">Controls</h2>
       <div class="help-section">
