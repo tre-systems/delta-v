@@ -20,6 +20,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'ship-0',
   type: 'packet',
   owner: 0,
+  originalOwner: 0,
   position: { q: 0, r: 0 },
   velocity: { dq: 0, dr: 0 },
   fuel: 10,

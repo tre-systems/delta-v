@@ -235,9 +235,17 @@ describe('GameDO', () => {
     expect(await ctx.storage.get('disconnectAt')).toBe(31000);
     expect(ctx.storage.alarmAt).toBe(31000);
   });
-  it('clears an expired disconnect marker and notifies the remaining player', async () => {
+  it('clears an expired disconnect marker and ends game as forfeit', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(10000);
     const ctx = createCtx();
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      buildSolarSystemMap(),
+      'DC01',
+      findBaseHex,
+    );
+    state.phase = 'astrogation';
+    await ctx.storage.put('gameState', state);
     await ctx.storage.put('disconnectedPlayer', 0);
     await ctx.storage.put('disconnectTime', 5000);
     await ctx.storage.put('disconnectAt', 9000);
@@ -252,11 +260,16 @@ describe('GameDO', () => {
     const game = createGameDO(ctx);
     await game.alarm();
     expect(await ctx.storage.get('disconnectedPlayer')).toBeUndefined();
-    expect(await ctx.storage.get('disconnectTime')).toBeUndefined();
-    expect(await ctx.storage.get('disconnectAt')).toBeUndefined();
-    expect(ctx.storage.alarmAt).toBe(20000);
-    expect(JSON.parse(must(ws.sent[0]))).toEqual({
-      type: 'opponentDisconnected',
+    const saved = await ctx.storage.get<GameState>('gameState');
+    expect(saved?.phase).toBe('gameOver');
+    expect(saved?.winner).toBe(1);
+    expect(saved?.winReason).toBe('Opponent disconnected');
+    const msgs = ws.sent.map((s) => JSON.parse(s));
+    expect(msgs[0].type).toBe('stateUpdate');
+    expect(msgs[1]).toEqual({
+      type: 'gameOver',
+      winner: 1,
+      reason: 'Opponent disconnected',
     });
   });
   it('advances a timed-out turn through the alarm path', async () => {

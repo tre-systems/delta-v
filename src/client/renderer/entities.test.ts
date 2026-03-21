@@ -18,6 +18,7 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
     id: 'ship-1',
     type: 'packet',
     owner: 0,
+    originalOwner: 0,
     position: { q: 0, r: 0 },
     velocity: { dq: 0, dr: 0 },
     fuel: 10,
@@ -146,6 +147,7 @@ describe('renderer entity helpers', () => {
       getShipIdentityMarker(
         createShip({
           owner: 1,
+          originalOwner: 0,
           identity: { hasFugitives: true, revealed: true },
         }),
         0,
@@ -158,6 +160,7 @@ describe('renderer entity helpers', () => {
       getShipIdentityMarker(
         createShip({
           owner: 1,
+          originalOwner: 0,
           identity: { hasFugitives: false, revealed: true },
         }),
         0,

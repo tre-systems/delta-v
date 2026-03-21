@@ -16,6 +16,7 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'test',
   type: 'corvette',
   owner: 0,
+  originalOwner: 0,
   position: { q: 5, r: 5 },
   velocity: { dq: 0, dr: 0 },
   fuel: 20,

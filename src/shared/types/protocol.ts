@@ -1,4 +1,3 @@
-import type { GameEvent } from '../events';
 import type {
   AstrogationOrder,
   CombatAttack,
@@ -45,7 +44,6 @@ export type S2C =
   | {
       type: 'gameStart';
       state: GameState;
-      eventLog?: GameEvent[];
     }
   | {
       type: 'movementResult';
@@ -62,7 +60,6 @@ export type S2C =
   | { type: 'stateUpdate'; state: GameState }
   | { type: 'gameOver'; winner: number; reason: string }
   | { type: 'rematchPending' }
-  | { type: 'opponentDisconnected' }
   | {
       type: 'chat';
       playerId: number;

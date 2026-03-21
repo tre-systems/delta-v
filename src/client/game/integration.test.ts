@@ -21,6 +21,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'ship-0',
   type: 'packet',
   owner: 0,
+  originalOwner: 0,
   position: { q: 0, r: 0 },
   velocity: { dq: 0, dr: 0 },
   fuel: 10,
@@ -370,15 +371,25 @@ describe('client integration: game over flow', () => {
     ]);
   });
 
-  it('opponent disconnect triggers game over with win', () => {
+  it('disconnect forfeit arrives as normal game-over flow', () => {
+    const state = createState();
+    state.phase = 'gameOver';
+    state.winner = 0;
+    state.winReason = 'Opponent disconnected';
     const deps = createDeps('playing_astrogation', createState());
 
     handleServerMessage(deps, {
-      type: 'opponentDisconnected',
+      type: 'stateUpdate',
+      state,
     } as S2C);
 
-    expect(deps.calls.setState).toEqual([['gameOver']]);
-    expect(deps.calls['ui.showGameOver']).toEqual([
+    handleServerMessage(deps, {
+      type: 'gameOver',
+      winner: 0,
+      reason: 'Opponent disconnected',
+    } as S2C);
+
+    expect(deps.calls.showGameOverOutcome).toEqual([
       [true, 'Opponent disconnected'],
     ]);
   });

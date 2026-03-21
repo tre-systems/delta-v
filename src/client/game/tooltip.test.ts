@@ -12,6 +12,7 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
     id: 'ship-0',
     type: 'transport',
     owner: 0,
+    originalOwner: 0,
     position: { q: 0, r: 0 },
     velocity: { dq: 0, dr: 0 },
     fuel: 10,
@@ -91,12 +92,14 @@ describe('buildShipTooltipHtml', () => {
       id: 'p0s0',
       type: 'corsair',
       owner: 0,
+      originalOwner: 0,
       position: { q: 0, r: 0 },
     });
     const target = createShip({
       id: 'p1s0',
       type: 'frigate',
       owner: 1,
+      originalOwner: 0,
       position: { q: 1, r: 0 },
     });
 

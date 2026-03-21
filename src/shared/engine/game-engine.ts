@@ -250,6 +250,7 @@ export const createGame = (
         id: `p${p}s${s}`,
         type: def.type,
         owner: p,
+        originalOwner: p,
         position,
         lastMovementPath: [{ ...position }],
         velocity: { ...def.velocity },
@@ -260,7 +261,6 @@ export const createGame = (
         landed,
         destroyed: false,
         detected: true,
-        identityRevealed: !player.hiddenIdentity,
         pendingGravityEffects: initialGravity,
         damage: { disabledTurns: 0 },
       };
@@ -429,6 +429,7 @@ export const processFleetReady = (
       id: `p${playerId}s${existingCount + i}`,
       type: purchase.shipType,
       owner: playerId,
+      originalOwner: playerId,
       position: { ...base.coord },
       lastMovementPath: [{ ...base.coord }],
       velocity: { dq: 0, dr: 0 },
