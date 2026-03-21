@@ -120,3 +120,29 @@ Visual confirmation is useless at engagement ranges of thousands of kilometers. 
 - Long, fragile-looking structural spines protruding from the prow or sides of the ship.
 - Tipped with irregular, geometric sensor heads, domed cameras, and flat phased-array radar panels.
 - Highly detailed, asymmetrical, and purely utilitarian visual clutter.
+
+---
+
+## 10. Point Defense Cannons (PDCs)
+
+**How It Works:** 
+Directly extrapolated from modern naval Close-In Weapon Systems (CIWS) like the Phalanx, PDCs are fast-tracking rotary cannons designed as a ship's last line of defense. They fire curtains of solid tungsten slugs or proximity-fused flak intended to physically shred incoming missiles and drones before they hit the hull.
+
+**Visual Description & Image Placeholder:**
+> *[IMAGE: To be generated - Close up of an articulated multi-barrel rotary cannon]*
+- Small, aggressively spiked multi-barreled rotary cannons housed in armored turrets.
+- Mounted on extremely fast-turning spherical or pivoting gimbals scattered across the hull to provide 360-degree overlapping fields of fire.
+- Thick, heavy ammunition feed tracks leading down into the ship's magazines.
+
+---
+
+## 11. Guided Missiles and Torpedoes
+
+**How It Works:** 
+Because stealth is virtually impossible in the frozen vacuum of space (where the heat of a drive plume shines like a star against the background), combat relies heavily on sheer velocity and overwhelming numbers. Space-rated missiles are essentially autonomous drone-ships, featuring their own sophisticated hypergolic chemical or dirty fusion drives, designed to out-accelerate PDCs through swarm tactics.
+
+**Visual Description & Image Placeholder:**
+> *[IMAGE: To be generated - Close up of flush hexagonal missile launch tubes]*
+- Deeply recessed, flush-mounted clusters of hexagonal or cylindrical launch tubes built directly into the armor plating.
+- Often glowing amber or red from internal pre-heating before a launch sequence.
+- Clean, heavy-duty armored hatch covers meant to protect unfired ordnance from glancing blows.

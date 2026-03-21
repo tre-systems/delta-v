@@ -4,7 +4,7 @@ This document explores the visual identity of the Delta-V fleet, drawing inspira
 
 ## Design Philosophy: "Symmetrical NASA-Punk"
 
-In the vacuum of space, form follows delta-v and orbital mechanics. Our ship designs prioritize extreme realism and a grounded, industrial aesthetic:
+In the vacuum of space, form follows delta-v and orbital mechanics. Our ship designs prioritize extreme realism and a grounded, industrial aesthetic. See our deeper dive into these systems in the [**Technology & Lore Guide**](./TECHNOLOGY.md).
 - **Zero-G Symmetrical Optimization**: No "up" or "down" orientation, no aerodynamic shapes, and strictly no airplane-style cockpits. Designs lean heavily into symmetry as it's structurally efficient and visually satisfying.
 - **Visible Propulsion**: Massive, realistically-scaled engine bells and fusion drives.
 - **Advanced Thermal Management**: Sleek, flush-mounted micro-channel cooling arrays and liquid droplet radiators (no bulky or protruding radiator fins).
@@ -29,7 +29,7 @@ An experimental vessel built around a massive, high-ISP engine.
 ![Torch](./assets/torch_ship_concept_art_1773597435309.png)
 
 ### The Liner
-A luxury passenger vessel featuring artificial gravity rings.
+A luxurious interplanetary passenger vessel oriented purely for zero-g (no artificial gravity rings).
 ![Liner](./assets/liner_concept_art_1773597591879.png)
 
 ### The Corsair
