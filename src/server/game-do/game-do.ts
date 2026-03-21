@@ -484,10 +484,7 @@ export class GameDO extends DurableObject<Env> {
     if (restartTurnTimer) {
       await this.startTurnTimer(state);
     }
-    if (primaryMessage) {
-      this.broadcastFiltered(primaryMessage);
-    }
-    this.broadcastEndOrUpdate(state);
+    this.broadcastStateChange(state, primaryMessage);
   }
   private async runGameStateAction<
     Success extends {
@@ -803,17 +800,16 @@ export class GameDO extends DurableObject<Env> {
       this.broadcast({ type: 'rematchPending' });
     }
   }
-  private broadcastEndOrUpdate(state: GameState) {
+  private broadcastStateChange(
+    state: GameState,
+    primaryMessage?: StatefulServerMessage,
+  ) {
+    this.broadcastFiltered(primaryMessage ?? toStateUpdateMessage(state));
     if (state.phase === 'gameOver') {
       this.broadcast({
         type: 'gameOver',
         winner: must(state.winner),
         reason: must(state.winReason),
-      });
-    } else {
-      this.broadcastFiltered({
-        type: 'stateUpdate',
-        state,
       });
     }
   }
