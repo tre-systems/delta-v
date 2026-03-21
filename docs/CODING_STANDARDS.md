@@ -231,6 +231,26 @@ State belongs to the coordinator that manages its lifecycle, and is passed by re
 
 - **GameState** is owned by `GameClient`, updated via `applyGameState()`. Other modules receive it as function arguments, never as stored references.
 
+### Reactive signals (available, not yet adopted)
+
+`src/client/reactive.ts` is a zero-dependency signals library
+(~150 LOC) providing `signal`, `computed`, `effect`, `batch`,
+and DOM helpers (`bindText`, `bindClass`). It has full lifecycle
+management — nested effects auto-dispose on parent re-run,
+computed exposes `dispose()` — and 31 tests including
+property-based coverage.
+
+The library is **not currently wired into the UI**. The
+existing derive/plan pattern handles current needs well. Use
+reactive signals when the UI layer grows to a point where
+manual DOM-sync boilerplate becomes a drag — e.g. settings
+panels, lobby state, or rich interactive overlays where
+declarative bindings would reduce wiring code.
+
+Known trade-off: diamond dependencies can emit intermediate
+states outside of `batch()`. Always wrap multi-signal updates
+in `batch()` when they feed the same computed or effect.
+
 ### Dependency injection
 
 Client game modules use two patterns depending on purity (see [dependency injection](https://en.wikipedia.org/wiki/Dependency_injection)):
