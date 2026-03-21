@@ -62,12 +62,13 @@ These are acceptable for the current standalone/experimental
 scope. Address lifecycle gaps before wiring into core UI
 state (PlanningState, HUD).
 
-### Phase 3. Shared model boundaries
+### ~~Phase 3. Shared model boundaries~~ *(done)*
 
-- Split `src/shared/types.ts` into separate domain, protocol,
-  and scenario type modules.
-- Reduce the number of unrelated changes that currently collide
-  in a single cross-layer file.
+Split `src/shared/types.ts` into `src/shared/types/` directory:
+`domain.ts` (entities, actions, map, combat, movement),
+`protocol.ts` (C2S/S2C), `scenario.ts` (ScenarioDefinition,
+ScenarioPlayer). Barrel `index.ts` preserves all existing
+import paths.
 
 ### Phase 4. Rules consolidation
 
@@ -90,7 +91,7 @@ state (PlanningState, HUD).
 1. ~~Reliability fixes.~~
 2. ~~`main.ts` coordinator extraction.~~
 3. ~~`ui.ts` view extraction.~~
-4. Shared type/module split.
+4. ~~Shared type/module split.~~
 5. Rules consolidation.
 6. Optional stronger state-model refactors.
 
