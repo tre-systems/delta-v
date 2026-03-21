@@ -2,13 +2,13 @@
 
 This document explores the visual identity of the Delta-V fleet, drawing inspiration from classic hard sci-fi aesthetics.
 
-## Design Philosophy: "Brutalist Functionality"
+## Design Philosophy: "Symmetrical NASA-Punk"
 
-In the vacuum of space, form follows delta-v. Our ship designs prioritize:
-- **Visible Propulsion**: Large, prominent engine nozzles and fusion drives.
-- **Thermal Management**: Extensive radiator fins and heat sinks.
-- **Modular Construction**: Exposed trusses, spherical fuel tanks, and swappable cargo containers.
-- **Zero-G Optimization**: No wings, no streamlining, and industrial surface finishes (Kapton foil, thermal tiles, matte composites).
+In the vacuum of space, form follows delta-v and orbital mechanics. Our ship designs prioritize extreme realism and a grounded, industrial aesthetic:
+- **Zero-G Symmetrical Optimization**: No "up" or "down" orientation, no aerodynamic shapes, and strictly no airplane-style cockpits. Designs lean heavily into symmetry as it's structurally efficient and visually satisfying.
+- **Visible Propulsion**: Massive, realistically-scaled engine bells and fusion drives.
+- **Advanced Thermal Management**: Sleek, flush-mounted micro-channel cooling arrays and liquid droplet radiators (no bulky or protruding radiator fins).
+- **Functional Materials**: Exposed complex bare-metal trusses, standardized spherical internal pressurized tanks, and extensive use of Kapton gold foil insulation.
 
 ## Fleet Concept Gallery
 
