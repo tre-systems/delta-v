@@ -147,7 +147,7 @@ export const resolveBaseEmplacementPlan = (
     return { ok: false, message: null, level: 'error' };
   }
 
-  if (!ship.carryingOrbitalBase) {
+  if (ship.baseStatus !== 'carryingBase') {
     return {
       ok: false,
       message: 'Ship is not carrying an orbital base',

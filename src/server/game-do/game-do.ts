@@ -837,9 +837,7 @@ export class GameDO extends DurableObject<Env> {
   ) {
     const hasHiddenInfo =
       msg.state.scenarioRules.hiddenIdentityInspection ||
-      msg.state.ships.some(
-        (s) => s.hasFugitives || s.identityRevealed === false,
-      );
+      msg.state.ships.some((s) => s.identity && !s.identity.revealed);
     if (!hasHiddenInfo) {
       this.broadcast(msg);
       return;

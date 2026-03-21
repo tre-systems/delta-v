@@ -425,7 +425,7 @@ describe('aiAstrogation — captured ships', () => {
   it('captured ships get null burn', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'CAP1', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
-    aiShip.captured = true;
+    aiShip.controlStatus = 'captured';
     const orders = aiAstrogation(state, 1, map);
     const capturedOrder = orders.find((o) => o.shipId === aiShip.id);
     expect(capturedOrder).toBeDefined();
@@ -436,7 +436,7 @@ describe('aiAstrogation — emplaced ships', () => {
   it('emplaced (orbital base) ships are skipped', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'EMP1', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
-    aiShip.emplaced = true;
+    aiShip.baseStatus = 'emplaced';
     const orders = aiAstrogation(state, 1, map);
     const emplacedOrder = orders.find((o) => o.shipId === aiShip.id);
     expect(emplacedOrder).toBeUndefined();

@@ -682,19 +682,19 @@ describe('resolveCombat', () => {
 
 describe('capture mechanics', () => {
   it('captured ships cannot attack', () => {
-    const ship = makeShip({ captured: true });
+    const ship = makeShip({ controlStatus: 'captured' });
 
     expect(canAttack(ship)).toBe(false);
   });
 
   it('captured ships cannot counterattack', () => {
-    const ship = makeShip({ captured: true });
+    const ship = makeShip({ controlStatus: 'captured' });
 
     expect(canCounterattack(ship)).toBe(false);
   });
 
   it('non-captured ships can attack normally', () => {
-    const ship = makeShip({ captured: false });
+    const ship = makeShip({});
 
     expect(canAttack(ship)).toBe(true);
   });

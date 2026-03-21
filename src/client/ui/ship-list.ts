@@ -41,7 +41,7 @@ const getStatusText = (ship: Ship): string =>
   [
     ship.destroyed
       ? 'X'
-      : ship.captured
+      : ship.controlStatus === 'captured'
         ? 'CAP'
         : ship.damage.disabledTurns > 0
           ? `D${ship.damage.disabledTurns}`
@@ -93,14 +93,14 @@ const getShipDetailRows = (
           tone: 'warning' as const,
         }
       : null,
-    ship.captured
+    ship.controlStatus === 'captured'
       ? {
           label: 'Status',
           value: 'Captured',
           tone: 'danger' as const,
         }
       : null,
-    !ship.captured && ship.landed
+    ship.controlStatus !== 'captured' && ship.landed
       ? {
           label: 'Status',
           value: 'Landed',

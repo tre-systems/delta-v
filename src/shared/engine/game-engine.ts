@@ -168,7 +168,7 @@ export const filterStateForPlayer = (
 ): GameState => {
   if (
     !usesEscapeInspectionRules(state) &&
-    !state.ships.some((s) => s.hasFugitives)
+    !state.ships.some((s) => s.identity?.hasFugitives)
   ) {
     return state;
   }
@@ -178,10 +178,10 @@ export const filterStateForPlayer = (
       if (ship.owner === playerId) {
         return ship;
       }
-      if (ship.identityRevealed) {
+      if (ship.identity?.revealed) {
         return ship;
       }
-      const { hasFugitives, identityRevealed, ...rest } = ship;
+      const { identity, ...rest } = ship;
       return rest;
     }),
   };
@@ -273,10 +273,11 @@ export const createGame = (
     const p = scenario.players.indexOf(player);
     const playerShips = ships.filter((s) => s.owner === p);
     if (playerShips.length === 0) continue;
-    randomChoice(playerShips, rng).hasFugitives = true;
     for (const ship of playerShips) {
-      ship.identityRevealed = false;
+      ship.identity = { hasFugitives: false, revealed: false };
     }
+    const fugitive = randomChoice(playerShips, rng);
+    if (fugitive.identity) fugitive.identity.hasFugitives = true;
   }
   const hasFleetBuilding = [0, 1].some(
     (playerId) => (getScenarioStartingCredits(scenario, playerId) ?? 0) > 0,
@@ -466,7 +467,7 @@ const validateAstrogationOrders = (
     if (!ship || ship.owner !== playerId || ship.destroyed) {
       return 'Invalid ship for astrogation order';
     }
-    if (ship.emplaced) {
+    if (ship.baseStatus === 'emplaced') {
       return 'Emplaced orbital bases cannot move';
     }
     const isDisabled = ship.damage.disabledTurns > 0;
@@ -522,7 +523,7 @@ const resolveMovementPhase = (
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
     if (ship.destroyed) continue;
-    if (ship.emplaced) continue;
+    if (ship.baseStatus === 'emplaced') continue;
     const isDisabled = ship.damage.disabledTurns > 0;
     const order = queuedOrders.get(ship.id);
     const burn = isDisabled ? null : (order?.burn ?? null);

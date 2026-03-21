@@ -386,7 +386,7 @@ describe('canAttack / canCounterattack properties', () => {
       fc.property(arbShipType(), (shipType) => {
         const ship = makeShip({
           type: shipType,
-          surrendered: true,
+          controlStatus: 'surrendered',
         });
 
         expect(canAttack(ship)).toBe(false);
@@ -400,7 +400,7 @@ describe('canAttack / canCounterattack properties', () => {
       fc.property(arbShipType(), (shipType) => {
         const ship = makeShip({
           type: shipType,
-          captured: true,
+          controlStatus: 'captured',
         });
 
         expect(canAttack(ship)).toBe(false);

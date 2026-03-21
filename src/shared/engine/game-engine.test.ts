@@ -709,7 +709,9 @@ describe('Escape scenario', () => {
   });
   it('ship escaping map bounds wins for pilgrim', () => {
     // The fugitive ship must escape to win
-    const fugitive = must(escapeState.ships.find((s) => s.hasFugitives));
+    const fugitive = must(
+      escapeState.ships.find((s) => s.identity?.hasFugitives),
+    );
     fugitive.position = { q: 0, r: map.bounds.minR - 5 };
     fugitive.velocity = { dq: 0, dr: -2 };
     fugitive.landed = false;
@@ -2383,24 +2385,24 @@ describe('nuke planetary devastation', () => {
 describe('hidden identity (Escape scenario)', () => {
   it('assigns fugitives to exactly one ship in hidden-identity scenarios', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
-    const fugitiveShips = state.ships.filter((s) => s.hasFugitives);
+    const fugitiveShips = state.ships.filter((s) => s.identity?.hasFugitives);
     expect(fugitiveShips).toHaveLength(1);
     // Must be a player 0 (pilgrim) ship
     expect(fugitiveShips[0].owner).toBe(0);
   });
   it('does not assign fugitives in non-hidden-identity scenarios', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST1', findBaseHex);
-    const fugitiveShips = state.ships.filter((s) => s.hasFugitives);
+    const fugitiveShips = state.ships.filter((s) => s.identity?.hasFugitives);
     expect(fugitiveShips).toHaveLength(0);
   });
   it('reveals a hidden transport after an enforcer matches course with it', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
-    const fugitive = must(state.ships.find((s) => s.hasFugitives));
+    const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
     const inspector = must(state.ships.find((s) => s.owner === 1));
     fugitive.landed = false;
     fugitive.position = { q: 0, r: 0 };
     fugitive.velocity = { dq: 0, dr: 0 };
-    fugitive.identityRevealed = false;
+    if (fugitive.identity) fugitive.identity.revealed = false;
     inspector.position = { q: 0, r: 0 };
     inspector.velocity = { dq: 0, dr: 0 };
     inspector.landed = false;
@@ -2415,11 +2417,11 @@ describe('hidden identity (Escape scenario)', () => {
     const updatedFugitive = must(
       result.state.ships.find((s) => s.id === fugitive.id),
     );
-    expect(updatedFugitive.identityRevealed).toBe(true);
+    expect(updatedFugitive.identity?.revealed).toBe(true);
   });
   it('fugitive ship escape triggers victory', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
-    const fugitive = must(state.ships.find((s) => s.hasFugitives));
+    const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
     fugitive.landed = false;
     fugitive.position = { q: 0, r: map.bounds.minR - 5 };
     fugitive.velocity = { dq: 0, dr: -2 };
@@ -2435,7 +2437,7 @@ describe('hidden identity (Escape scenario)', () => {
   it('non-fugitive ship escape does not trigger victory', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
     const nonFugitive = must(
-      state.ships.find((s) => s.owner === 0 && !s.hasFugitives),
+      state.ships.find((s) => s.owner === 0 && !s.identity?.hasFugitives),
     );
     nonFugitive.landed = false;
     nonFugitive.position = { q: 0, r: map.bounds.minR - 5 };
@@ -2451,7 +2453,7 @@ describe('hidden identity (Escape scenario)', () => {
   });
   it('destroying the fugitive ship triggers opponent victory', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
-    const fugitive = must(state.ships.find((s) => s.hasFugitives));
+    const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
     fugitive.destroyed = true;
     state.phase = 'combat';
     state.activePlayer = 1;
@@ -2462,11 +2464,11 @@ describe('hidden identity (Escape scenario)', () => {
   });
   it('returning a captured fugitive transport to base gives the enforcers a decisive victory', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
-    const fugitive = must(state.ships.find((s) => s.hasFugitives));
+    const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
     const enforcerBase = must(state.players[1].bases[0]);
     const [q, r] = enforcerBase.split(',').map(Number);
     fugitive.owner = 1;
-    fugitive.captured = true;
+    fugitive.controlStatus = 'captured';
     fugitive.landed = true;
     fugitive.position = { q, r };
     state.phase = 'combat';
@@ -2562,7 +2564,7 @@ describe('capture mechanics', () => {
     const mr = 'movements' in result ? result : null;
     expect(mr).not.toBeNull();
     const target = must(result.state.ships.find((s) => s.id === 'target'));
-    expect(target.captured).toBe(true);
+    expect(target.controlStatus).toBe('captured');
     expect(target.owner).toBe(0); // ownership transferred
     // Check capture event
     if (mr) {
@@ -2648,7 +2650,7 @@ describe('capture mechanics', () => {
     );
     if ('error' in result) throw new Error(result.error);
     const target = must(result.state.ships.find((s) => s.id === 'target'));
-    expect(target.captured).toBeFalsy();
+    expect(target.controlStatus).toBeUndefined();
     expect(target.owner).toBe(1); // unchanged
   });
   it('does not capture with mismatched velocity', () => {
@@ -2727,7 +2729,7 @@ describe('capture mechanics', () => {
     );
     if ('error' in result) throw new Error(result.error);
     const target = must(result.state.ships.find((s) => s.id === 'target'));
-    expect(target.captured).toBeFalsy();
+    expect(target.controlStatus).toBeUndefined();
     expect(target.owner).toBe(1);
   });
   it('captured ships cannot launch ordnance', () => {
@@ -2752,7 +2754,7 @@ describe('capture mechanics', () => {
           landed: false,
           destroyed: false,
           detected: true,
-          captured: true,
+          controlStatus: 'captured',
           damage: { disabledTurns: 0 },
           pendingGravityEffects: [],
         },
