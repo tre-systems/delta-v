@@ -104,6 +104,8 @@ The backend leverages Cloudflare's edge network.
 
 - **`runGameStateAction(ws, action, onSuccess)`**: Generic handler that reduces boilerplate across all 12+ action handlers. Fetches current state from storage → runs engine function in try/catch → on validation error sends error message to the WebSocket → on exception logs with game code/phase/turn and sends error (state is preserved via clone-on-entry) → on success invokes `onSuccess` callback (typically save state + broadcast). `handleTurnTimeout` has equivalent try/catch protection for the alarm-driven code path.
 
+- **Single state-bearing outbound message per action**: `publishStateChange()` persists state and events first, then emits exactly one state-bearing message (`movementResult`, `combatResult`, or `stateUpdate`). If the resulting state is terminal, the DO appends a separate `gameOver` notification after that state-bearing message. This keeps client phase transitions aligned with a one-action/one-update contract.
+
 - **Filtered broadcasting**: `broadcastFiltered()` checks whether the current scenario has hidden information (fugitive identities in escape scenarios). If no hidden info, the same state goes to both players. If hidden info, `filterStateForPlayer(state, playerId)` is called separately per player — own ships are fully visible, unrevealed enemy ships show `type: 'unknown'`. When adding new hidden state, extend `filterStateForPlayer()` and the check in `broadcastFiltered()`.
 
 - **Single-alarm scheduling**: One alarm per DO, rescheduled after each state change. Three independent deadlines are stored: `disconnectAt` (30s grace), `turnTimeoutAt` (2 min), `inactivityAt` (5 min). `getNextAlarmAt()` computes the nearest deadline. When the alarm fires, `resolveAlarmAction()` returns a discriminated action (`disconnectExpired`, `turnTimeout`, `inactivityTimeout`) and the handler dispatches accordingly.
@@ -186,7 +188,7 @@ All messages are discriminated unions validated at the protocol boundary. `GameS
 POST /create → Worker generates room code + tokens → DO /init
 WebSocket /ws/{code}?playerToken=X → DO accepts, tags socket with player ID
 Both players connected → createGame() → broadcast gameStart
-Game loop: C2S action → engine → broadcast S2C result → save state → restart timer
+Game loop: C2S action → engine → save state/events → restart timer → broadcast S2C result
 Disconnect → 30s grace period → reconnect with token or forfeit
 ```
 

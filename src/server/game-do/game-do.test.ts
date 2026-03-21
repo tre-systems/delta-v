@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  handleServerMessage,
+  type MessageHandlerDeps,
+} from '../../client/game/message-handler';
 import { must } from '../../shared/assert';
-import type { GameState } from '../../shared/types';
+import type { MovementResult } from '../../shared/engine/game-engine';
+import type { GameState, S2C } from '../../shared/types';
 import type { Env } from './game-do';
 
 vi.mock('cloudflare:workers', () => ({
@@ -21,6 +26,7 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import { GameDO } from './game-do';
+import { toMovementResultMessage, toStateUpdateMessage } from './messages';
 
 class MockStorage {
   private data = new Map<string, unknown>();
@@ -73,6 +79,68 @@ function createCtx(): MockDurableObjectState {
     },
   };
 }
+
+const createSocket = () => ({
+  sent: [] as string[],
+  send(payload: string) {
+    this.sent.push(payload);
+  },
+});
+
+const createMessageHandlerDeps = (
+  state: GameState | null = null,
+): MessageHandlerDeps & { transitionCount: number } => {
+  let transitionCount = 0;
+  const deps: MessageHandlerDeps & { transitionCount: number } = {
+    ctx: {
+      state: 'playing_astrogation',
+      playerId: 0,
+      gameCode: null,
+      reconnectAttempts: 0,
+      latencyMs: 0,
+      gameState: state,
+    },
+    transitionCount,
+    setState(nextState) {
+      deps.ctx.state = nextState;
+    },
+    applyGameState(nextState) {
+      deps.ctx.gameState = nextState;
+    },
+    transitionToPhase() {
+      transitionCount += 1;
+      deps.transitionCount = transitionCount;
+      deps.ctx.state = 'playing_ordnance';
+    },
+    presentMovementResult() {},
+    presentCombatResults() {},
+    showGameOverOutcome() {},
+    storePlayerToken() {},
+    resetTurnTelemetry() {},
+    onAnimationComplete() {},
+    logScenarioBriefing() {},
+    deserializeState(raw) {
+      return raw;
+    },
+    renderer: {
+      setPlayerId() {},
+      clearTrails() {},
+    },
+    ui: {
+      showToast() {},
+      logText() {},
+      setChatEnabled() {},
+      hideReconnecting() {},
+      setPlayerId() {},
+      clearLog() {},
+      showRematchPending() {},
+      showGameOver() {},
+      updateLatency() {},
+    },
+  };
+  return deps;
+};
+
 describe('GameDO', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -252,5 +320,131 @@ describe('GameDO', () => {
     expect(trace).toContain('send');
     expect(trace.indexOf('put:gameState')).toBeLessThan(trace.indexOf('send'));
     expect(await ctx.storage.get('gameState')).toEqual(state);
+  });
+
+  it('emits one state-bearing message for state-update actions', async () => {
+    const ctx = createCtx();
+    const ws = createSocket();
+    ctx.acceptWebSocket(ws, ['player:0']);
+    const game = createGameDO(ctx);
+    const state = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'STAT1',
+      findBaseHex,
+    );
+
+    await (
+      game as unknown as {
+        publishStateChange: (
+          state: GameState,
+          primaryMessage?: unknown,
+          options?: { restartTurnTimer?: boolean; events?: unknown[] },
+        ) => Promise<void>;
+      }
+    ).publishStateChange(state, toStateUpdateMessage(state), {
+      restartTurnTimer: false,
+    });
+
+    const messages = ws.sent.map((payload) => JSON.parse(payload) as S2C);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toEqual({
+      type: 'stateUpdate',
+      state,
+    });
+
+    const deps = createMessageHandlerDeps();
+    for (const message of messages) {
+      handleServerMessage(deps, message);
+    }
+    expect(deps.transitionCount).toBe(1);
+  });
+
+  it('keeps movement results as the only state-bearing message', async () => {
+    const ctx = createCtx();
+    const ws = createSocket();
+    ctx.acceptWebSocket(ws, ['player:0']);
+    const game = createGameDO(ctx);
+    const state = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'MOVE1',
+      findBaseHex,
+    );
+    const movementResult: MovementResult = {
+      state,
+      movements: [],
+      ordnanceMovements: [],
+      events: [],
+    };
+
+    await (
+      game as unknown as {
+        publishStateChange: (
+          state: GameState,
+          primaryMessage?: unknown,
+          options?: { restartTurnTimer?: boolean; events?: unknown[] },
+        ) => Promise<void>;
+      }
+    ).publishStateChange(state, toMovementResultMessage(movementResult), {
+      restartTurnTimer: false,
+    });
+
+    const messages = ws.sent.map((payload) => JSON.parse(payload) as S2C);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toEqual({
+      type: 'movementResult',
+      movements: [],
+      ordnanceMovements: [],
+      events: [],
+      state,
+    });
+  });
+
+  it('appends game-over after a single state-bearing terminal update', async () => {
+    const ctx = createCtx();
+    const ws = createSocket();
+    ctx.acceptWebSocket(ws, ['player:0']);
+    const game = createGameDO(ctx);
+    const base = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'OVER1',
+      findBaseHex,
+    );
+    const state: GameState = {
+      ...base,
+      phase: 'gameOver',
+      winner: 0,
+      winReason: 'Fleet eliminated!',
+    };
+
+    await (
+      game as unknown as {
+        publishStateChange: (
+          state: GameState,
+          primaryMessage?: unknown,
+          options?: { restartTurnTimer?: boolean; events?: unknown[] },
+        ) => Promise<void>;
+      }
+    ).publishStateChange(state, toStateUpdateMessage(state), {
+      restartTurnTimer: false,
+    });
+
+    const messages = ws.sent.map((payload) => JSON.parse(payload) as S2C);
+
+    expect(messages).toEqual([
+      {
+        type: 'stateUpdate',
+        state,
+      },
+      {
+        type: 'gameOver',
+        winner: 0,
+        reason: 'Fleet eliminated!',
+      },
+    ]);
   });
 });
