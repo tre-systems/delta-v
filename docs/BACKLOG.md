@@ -26,6 +26,10 @@ project review without rewriting working systems.
   authoritative client-side `GameState` replacement, renderer
   sync, and selection cleanup, so state application stops being
   open-coded in `main.ts`.
+- Keep building on `game/planning-store.ts`, which now owns the
+  common `PlanningState` mutations used by routers and action
+  modules, so command handling no longer treats planning data as
+  an unstructured mutable bag.
 - Keep `GameClient` as the bootstrap/wiring shell for renderer,
   connection, and UI composition.
 - Target outcome: `main.ts` becomes orchestration glue instead of

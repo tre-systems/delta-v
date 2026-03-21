@@ -28,6 +28,17 @@ import {
 } from './ordnance-actions';
 import type { ClientState } from './phase';
 import type { PlanningState } from './planning';
+import {
+  applyCombatPlanUpdate,
+  clearTorpedoAcceleration,
+  popQueuedAttack,
+  setHoverHex,
+  selectShip as setSelectedShip,
+  setSelectedShipId,
+  setShipOverload,
+  setShipWeakGravityChoices,
+  setTorpedoAcceleration,
+} from './planning-store';
 import type { GameTransport } from './transport';
 
 interface CommandRouterContext {
@@ -77,15 +88,11 @@ const setCombatPlan = (
   planningState: PlanningState,
   plan: Extract<GameCommand, { type: 'setCombatPlan' }>,
 ): void => {
-  Object.assign(planningState, plan.plan);
-  if (plan.selectedShipId) {
-    planningState.selectedShipId = plan.selectedShipId;
-  }
+  applyCombatPlanUpdate(planningState, plan.plan, plan.selectedShipId);
 };
 
 const undoQueuedAttack = (deps: CommandRouterDeps): void => {
-  deps.ctx.planningState.queuedAttacks.pop();
-  const count = deps.ctx.planningState.queuedAttacks.length;
+  const count = popQueuedAttack(deps.ctx.planningState);
 
   deps.ui.showFireButton(count > 0, count);
   deps.ui.showToast(
@@ -126,14 +133,12 @@ const selectShip = (
   deps: CommandRouterDeps,
   shipId: Extract<GameCommand, { type: 'selectShip' }>['shipId'],
 ): void => {
-  deps.ctx.planningState.selectedShipId = shipId;
-
   const ship = deps.ctx.gameState?.ships.find(
     (candidate) => candidate.id === shipId,
   );
 
   if (ship) {
-    deps.ctx.planningState.lastSelectedHex = hexKey(ship.position);
+    setSelectedShip(deps.ctx.planningState, shipId, hexKey(ship.position));
     deps.renderer.centerOnHex(ship.position);
 
     const myAlive = deps.ctx.gameState?.ships.filter(
@@ -145,6 +150,8 @@ const selectShip = (
       const name = SHIP_STATS[ship.type]?.name ?? ship.type;
       deps.ui.showToast(`Selected: ${name}`, 'info');
     }
+  } else {
+    setSelectedShipId(deps.ctx.planningState, shipId);
   }
 
   deps.updateHUD();
@@ -165,12 +172,16 @@ export const dispatchGameCommand = (
       setBurnDirection(deps.astrogationDeps, cmd.direction, cmd.shipId);
       return;
     case 'setOverloadDirection':
-      deps.ctx.planningState.overloads.set(cmd.shipId, cmd.direction);
+      setShipOverload(deps.ctx.planningState, cmd.shipId, cmd.direction);
       playSelect();
       deps.updateHUD();
       return;
     case 'setWeakGravityChoices':
-      deps.ctx.planningState.weakGravityChoices.set(cmd.shipId, cmd.choices);
+      setShipWeakGravityChoices(
+        deps.ctx.planningState,
+        cmd.shipId,
+        cmd.choices,
+      );
       deps.updateHUD();
       return;
     case 'clearSelectedBurn':
@@ -224,7 +235,7 @@ export const dispatchGameCommand = (
       selectShip(deps, cmd.shipId);
       return;
     case 'deselectShip':
-      deps.ctx.planningState.selectedShipId = null;
+      setSelectedShipId(deps.ctx.planningState, null);
       deps.updateHUD();
       return;
     case 'cycleShip':
@@ -255,17 +266,15 @@ export const dispatchGameCommand = (
       deps.updateSoundButton();
       return;
     case 'setTorpedoAccel':
-      deps.ctx.planningState.torpedoAccel = cmd.direction;
-      deps.ctx.planningState.torpedoAccelSteps = cmd.steps;
+      setTorpedoAcceleration(deps.ctx.planningState, cmd.direction, cmd.steps);
       deps.updateHUD();
       return;
     case 'clearTorpedoAcceleration':
-      deps.ctx.planningState.torpedoAccel = null;
-      deps.ctx.planningState.torpedoAccelSteps = null;
+      clearTorpedoAcceleration(deps.ctx.planningState);
       deps.updateHUD();
       return;
     case 'setHoverHex':
-      deps.ctx.planningState.hoverHex = cmd.hex;
+      setHoverHex(deps.ctx.planningState, cmd.hex);
       return;
     case 'requestRematch':
       deps.sendRematch();

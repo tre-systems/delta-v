@@ -1,4 +1,5 @@
 import type { GameState } from '../../shared/types';
+import { setSelectedShipId } from './planning-store';
 
 interface PlanningStateLike {
   selectedShipId: string | null;
@@ -32,6 +33,6 @@ export const applyClientGameState = (
 
   const selectedShip = state.ships.find((ship) => ship.id === selectedId);
   if (!selectedShip || selectedShip.destroyed) {
-    deps.ctx.planningState.selectedShipId = null;
+    setSelectedShipId(deps.ctx.planningState, null);
   }
 };

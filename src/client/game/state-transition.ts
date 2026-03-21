@@ -4,22 +4,16 @@ import type { LogisticsUIState } from './logistics-ui';
 import { createLogisticsUIState } from './logistics-ui';
 import type { ClientState } from './phase';
 import { deriveClientStateEntryPlan } from './phase-entry';
+import type { PlanningState } from './planning';
+import { resetAstrogationPlanning, setSelectedShipId } from './planning-store';
 import { deriveClientScreenPlan } from './screen';
-
-interface PlanningStateLike {
-  selectedShipId: string | null;
-  lastSelectedHex: string | null;
-  burns: Map<string, number | null>;
-  overloads: Map<string, number | null>;
-  weakGravityChoices: Map<string, Record<string, boolean>>;
-}
 
 interface TransitionContext {
   state: ClientState;
   playerId: number;
   gameCode: string | null;
   gameState: GameState | null;
-  planningState: PlanningStateLike;
+  planningState: PlanningState;
 }
 
 interface TransitionUI {
@@ -64,14 +58,6 @@ export interface StateTransitionDeps {
   setLogisticsUIState: (state: LogisticsUIState | null) => void;
   renderLogisticsPanel: () => void;
 }
-
-const clearAstrogationPlanning = (planningState: PlanningStateLike): void => {
-  planningState.selectedShipId = null;
-  planningState.lastSelectedHex = null;
-  planningState.burns.clear();
-  planningState.overloads.clear();
-  planningState.weakGravityChoices.clear();
-};
 
 export const applyClientStateTransition = (
   deps: StateTransitionDeps,
@@ -125,10 +111,10 @@ export const applyClientStateTransition = (
     deps.updateHUD();
   }
   if (entryPlan.clearAstrogationPlanning) {
-    clearAstrogationPlanning(deps.ctx.planningState);
+    resetAstrogationPlanning(deps.ctx.planningState);
   }
   if (entryPlan.selectedShipId !== undefined) {
-    deps.ctx.planningState.selectedShipId = entryPlan.selectedShipId;
+    setSelectedShipId(deps.ctx.planningState, entryPlan.selectedShipId);
   }
   if (entryPlan.resetCombatState) {
     deps.resetCombatState();
