@@ -168,7 +168,7 @@ const hasReturnedCapturedFugitivesToBase = (
   if (
     !fugitive ||
     fugitive.destroyed ||
-    fugitive.controlStatus !== 'captured' ||
+    fugitive.owner === fugitive.originalOwner ||
     !fugitive.landed
   ) {
     return false;
