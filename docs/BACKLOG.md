@@ -41,6 +41,17 @@ authority boundaries rather than rewriting the engine.
 - Replace repeated button wiring with a small declarative
   registry.
 
+### Reactive experiment note
+
+- `src/client/reactive.ts` should stay experimental until it has
+  owner-scoped cleanup for nested effects, a disposal strategy for
+  `computed()`, and clearer propagation semantics.
+- Current review findings: nested effects leak subscriptions,
+  `computed()` stays permanently hot, and shared-dependency updates
+  can emit glitchy intermediate states.
+- Do not make it a core UI pattern yet; reconsider after those
+  lifecycle and scheduling gaps are closed with tests.
+
 ### Phase 3. Shared model boundaries
 
 - Split `src/shared/types.ts` into separate domain, protocol,
