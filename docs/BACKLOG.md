@@ -17,19 +17,14 @@ Remaining work only. Completed items are in git history.
 ### Reactive signals
 
 `src/client/reactive.ts` is a standalone signals library
-(signal, computed, effect, batch, DOM helpers) with 26 tests
-including property-based coverage. Known limitations:
+(signal, computed, effect, batch, DOM helpers) with 31 tests
+including property-based coverage. Lifecycle gaps are resolved:
+nested effects auto-dispose on parent re-run, computed exposes
+`dispose()`. Ready for wiring into core UI state.
 
-- Nested effects created inside an outer effect are not
-  auto-disposed when the outer re-runs.
-- `computed()` has no dispose — its internal effect stays
-  permanently subscribed.
-- Diamond dependencies can emit glitchy intermediate states
-  outside of `batch()`.
-
-These are acceptable for the current standalone/experimental
-scope. Address lifecycle gaps before wiring into core UI
-state (PlanningState, HUD).
+Known trade-off: diamond dependencies can emit glitchy
+intermediate states outside of `batch()`. Use `batch()` when
+updating multiple signals that feed the same computed/effect.
 
 ---
 
