@@ -4,8 +4,6 @@ Remaining work only. Completed items are in git history.
 
 ---
 
----
-
 ## Features
 
 ### Turn replay
