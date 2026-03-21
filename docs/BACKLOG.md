@@ -22,6 +22,10 @@ project review without rewriting working systems.
   create/join/local-start/exit session flows, by moving the rest
   of session-level `ClientContext` mutation behind explicit
   helpers instead of leaving it in `main.ts`.
+- Keep building on `game/game-state-store.ts`, which now owns
+  authoritative client-side `GameState` replacement, renderer
+  sync, and selection cleanup, so state application stops being
+  open-coded in `main.ts`.
 - Keep `GameClient` as the bootstrap/wiring shell for renderer,
   connection, and UI composition.
 - Target outcome: `main.ts` becomes orchestration glue instead of

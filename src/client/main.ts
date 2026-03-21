@@ -54,6 +54,7 @@ import {
   createConnectionManager,
 } from './game/connection';
 import { resolveLocalFleetReady } from './game/fleet';
+import { applyClientGameState } from './game/game-state-store';
 import { deriveHudViewModel } from './game/helpers';
 import { getTooltipShip } from './game/hover';
 import { type InputEvent, interpretInput } from './game/input-events';
@@ -535,16 +536,13 @@ class GameClient {
     this.connection.send(msg);
   }
   private applyGameState(state: GameState) {
-    this.ctx.gameState = state;
-    this.renderer.setGameState(state);
-    // Clear selection if the selected ship was destroyed
-    const selectedId = this.ctx.planningState.selectedShipId;
-    if (selectedId) {
-      const ship = state.ships.find((s) => s.id === selectedId);
-      if (!ship || ship.destroyed) {
-        this.ctx.planningState.selectedShipId = null;
-      }
-    }
+    applyClientGameState(
+      {
+        ctx: this.ctx,
+        renderer: this.renderer,
+      },
+      state,
+    );
   }
   private presentMovementResult(
     state: GameState,
