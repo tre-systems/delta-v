@@ -72,6 +72,7 @@ Verify with a single-ship fleet:
 ## AI Simulation (automated)
 
 Run `npm run simulate all 25` — all 8 scenarios should complete with 0 engine crashes.
+The simulation runner now randomizes the starting player during bulk balance runs, so the win-rate output is less biased by seat order.
 
 ## What These Tests Don't Cover
 
