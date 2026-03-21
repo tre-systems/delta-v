@@ -11,6 +11,7 @@ import {
   hasEscapedNorth,
   hasLaunchableOrdnanceCapacity,
   hasOrdnanceCapacity,
+  isOrderableShip,
   isPlanetaryDefenseEnabled,
   playerControlsBase,
   RESUPPLY_ORDNANCE_ERROR,
@@ -543,5 +544,37 @@ describe('canLaunchOrdnance', () => {
     expect(
       canLaunchOrdnance(makeShip({ type: 'corsair', cargoUsed: 10 })),
     ).toBe(false);
+  });
+});
+
+describe('isOrderableShip', () => {
+  it('returns true for operational ships', () => {
+    expect(isOrderableShip(makeShip())).toBe(true);
+  });
+
+  it('returns false for destroyed ships', () => {
+    expect(isOrderableShip(makeShip({ destroyed: true }))).toBe(false);
+  });
+
+  it('returns false for emplaced orbital bases', () => {
+    expect(isOrderableShip(makeShip({ baseStatus: 'emplaced' }))).toBe(false);
+  });
+
+  it('returns false for captured ships', () => {
+    expect(isOrderableShip(makeShip({ controlStatus: 'captured' }))).toBe(
+      false,
+    );
+  });
+
+  it('returns true for disabled ships', () => {
+    expect(isOrderableShip(makeShip({ damage: { disabledTurns: 2 } }))).toBe(
+      true,
+    );
+  });
+
+  it('returns true for surrendered ships', () => {
+    expect(isOrderableShip(makeShip({ controlStatus: 'surrendered' }))).toBe(
+      true,
+    );
   });
 });

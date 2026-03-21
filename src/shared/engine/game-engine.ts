@@ -24,6 +24,7 @@ import {
 import {
   getNextOrdnanceId,
   getOwnedPlanetaryBases,
+  isOrderableShip,
   parseBaseKey,
   usesEscapeInspectionRules,
   validateOrdnanceLaunch,
@@ -465,17 +466,18 @@ const validateAstrogationOrders = (
     }
     seenShips.add(order.shipId);
     const ship = state.ships.find((s) => s.id === order.shipId);
-    if (!ship || ship.owner !== playerId || ship.destroyed) {
+    if (!ship || ship.owner !== playerId) {
       return 'Invalid ship for astrogation order';
     }
-    if (ship.baseStatus === 'emplaced') {
-      return 'Emplaced orbital bases cannot move';
-    }
-    if (ship.controlStatus === 'captured') {
-      if (order.burn !== null || order.overload) {
-        return 'Captured ships cannot receive orders';
+    if (!isOrderableShip(ship)) {
+      if (
+        ship.controlStatus === 'captured' &&
+        order.burn === null &&
+        !order.overload
+      ) {
+        continue;
       }
-      continue;
+      return 'Ship cannot receive astrogation orders';
     }
     const isDisabled = ship.damage.disabledTurns > 0;
     const burn = isDisabled ? null : order.burn;

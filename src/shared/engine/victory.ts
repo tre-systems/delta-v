@@ -542,7 +542,6 @@ export const checkOrbitalBaseResupply = (
       if (stats) {
         ship.fuel = stats.fuel;
         ship.cargoUsed = 0;
-        ship.nukesLaunchedSinceResupply = 0;
         ship.damage = { disabledTurns: 0 };
         ship.controlStatus = undefined;
         ship.resuppliedThisTurn = true;
@@ -578,7 +577,6 @@ export const applyResupply = (
   if (stats) {
     ship.fuel = stats.fuel;
     ship.cargoUsed = 0;
-    ship.nukesLaunchedSinceResupply = 0;
     ship.overloadUsed = false;
     ship.damage = { disabledTurns: 0 };
     ship.controlStatus = undefined;

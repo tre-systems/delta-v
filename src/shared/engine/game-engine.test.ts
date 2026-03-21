@@ -2764,7 +2764,7 @@ describe('capture mechanics', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('Captured');
+      expect(result.error).toContain('cannot receive');
     }
   });
   it('captured ships cannot launch ordnance', () => {
