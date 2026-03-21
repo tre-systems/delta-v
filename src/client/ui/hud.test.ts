@@ -27,6 +27,7 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   astrogationCtx: defaultCtx,
   speed: 0,
   fuelToStop: 0,
+  isMobile: false,
   ...overrides,
 });
 
@@ -215,5 +216,57 @@ describe('ui hud helpers', () => {
     ).toMatchObject({
       fuelGaugeText: 'Fuel: 10/10 · Landed',
     });
+  });
+
+  it('omits keyboard hints on mobile', () => {
+    const mobile = buildInput({
+      isMobile: true,
+      hasBurns: true,
+      astrogationCtx: {
+        ...defaultCtx,
+        selectedShipHasBurn: true,
+        allShipsHaveBurns: true,
+      },
+    });
+
+    expect(buildHUDView(mobile).statusText).toBe('Burn set \u00b7 Confirm');
+
+    expect(
+      buildHUDView(buildInput({ isMobile: true, phase: 'ordnance' }))
+        .statusText,
+    ).toBe('Launch ordnance or skip');
+
+    expect(
+      buildHUDView(buildInput({ isMobile: true, phase: 'combat' })).statusText,
+    ).toBe('Tap enemies to target \u00b7 Fire All to attack');
+
+    expect(
+      buildHUDView(buildInput({ isMobile: true, phase: 'logistics' }))
+        .statusText,
+    ).toBe('Transfer fuel/cargo or skip');
+  });
+
+  it('uses Tap instead of Click on mobile', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          isMobile: true,
+          astrogationCtx: {
+            ...defaultCtx,
+            selectedShipLanded: true,
+            hasSelection: true,
+          },
+        }),
+      ).statusText,
+    ).toBe('Tap a direction to take off (costs 1 fuel)');
+
+    expect(
+      buildHUDView(
+        buildInput({
+          isMobile: true,
+          hasBurns: true,
+        }),
+      ).statusText,
+    ).toBe('Tap adjacent hex to set burn direction');
   });
 });
