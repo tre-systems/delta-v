@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { FleetPurchase, GameState } from '../../shared/types';
+import type { FleetPurchase, GameState } from '../../shared/types/domain';
 import { FleetBuildingView } from './fleet-building-view';
 
 const createState = (credits: number): GameState => ({

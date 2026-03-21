@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Ship } from '../../shared/types';
+import type { Ship } from '../../shared/types/domain';
 import { ShipListView } from './ship-list-view';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({

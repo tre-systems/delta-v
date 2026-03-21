@@ -553,11 +553,11 @@ type S2C =
   | { type: 'pong'; t: number }
 ```
 
-All game-mutating messages include the full updated `GameState`. For hidden-information scenarios, the server filters state per player (e.g., stripping `hasFugitives` from opponent ships). See `src/shared/types.ts` for complete interface definitions.
+All game-mutating messages include the full updated `GameState`. For hidden-information scenarios, the server filters state per player (e.g., stripping `hasFugitives` from opponent ships). See `src/shared/types/domain.ts` and `src/shared/types/protocol.ts` for the current split interface definitions.
 
 ## Game State
 
-The authoritative state held by the Durable Object (see `src/shared/types.ts` for full definitions):
+The authoritative state held by the Durable Object (see `src/shared/types/domain.ts` for full definitions):
 
 ```typescript
 interface GameState {

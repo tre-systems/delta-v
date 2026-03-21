@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Ship } from '../../shared/types';
+import type { Ship } from '../../shared/types/domain';
 import { buildShipListView } from './ship-list';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {

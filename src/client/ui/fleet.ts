@@ -1,5 +1,5 @@
 import { SHIP_STATS } from '../../shared/constants';
-import type { FleetPurchase } from '../../shared/types';
+import type { FleetPurchase } from '../../shared/types/domain';
 import { sumBy } from '../../shared/util';
 
 export interface FleetShopItemView {
