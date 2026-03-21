@@ -12,12 +12,12 @@ project review without rewriting working systems.
 
 ### Phase 2. Finish consolidating client state ownership
 
-- Extract `ClientContext` and `PlanningState` mutation behind a
-  small store or reducer layer instead of mutating the shared
-  object directly from `main.ts` and helper deps.
-- Move the imperative `setState()` side-effect block toward
-  explicit transition handlers so phase-entry behavior is easier
-  to test in isolation.
+- Introduce a small store or reducer layer for `ClientContext`
+  and `PlanningState` so commands/controllers stop mutating the
+  shared object ad hoc.
+- Keep building on `game/state-transition.ts`, which now owns
+  the main `setState()` side-effect block, by moving more state
+  mutation behind explicit transition/update helpers.
 - Keep `GameClient` as the bootstrap/wiring shell for renderer,
   connection, and UI composition.
 - Target outcome: `main.ts` becomes orchestration glue instead of
