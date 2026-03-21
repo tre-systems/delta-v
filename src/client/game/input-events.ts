@@ -22,6 +22,37 @@ const interpretCombatClick = (
   playerId: number,
   planning: PlanningState,
 ): GameCommand[] => {
+  // Check enemy targets first so mixed hexes prioritise
+  // target selection over friendly attacker toggling.
+  const target = getCombatTargetAtHex(
+    state,
+    playerId,
+    hex,
+    planning.queuedAttacks,
+    planning.combatTargetId,
+  );
+
+  if (target) {
+    const isSame =
+      planning.combatTargetId === target.targetId &&
+      planning.combatTargetType === target.targetType;
+
+    if (isSame) {
+      return [{ type: 'clearCombatSelection' }];
+    }
+
+    const plan = createCombatTargetPlan(
+      state,
+      playerId,
+      planning,
+      target.targetId,
+      target.targetType,
+      map,
+    );
+
+    return [{ type: 'setCombatPlan', plan }];
+  }
+
   const attackerId = getCombatAttackerIdAtHex(
     state,
     playerId,
@@ -54,34 +85,6 @@ const interpretCombatClick = (
         },
       ];
     }
-  }
-
-  const target = getCombatTargetAtHex(
-    state,
-    playerId,
-    hex,
-    planning.queuedAttacks,
-  );
-
-  if (target) {
-    const isSame =
-      planning.combatTargetId === target.targetId &&
-      planning.combatTargetType === target.targetType;
-
-    if (isSame) {
-      return [{ type: 'clearCombatSelection' }];
-    }
-
-    const plan = createCombatTargetPlan(
-      state,
-      playerId,
-      planning,
-      target.targetId,
-      target.targetType,
-      map,
-    );
-
-    return [{ type: 'setCombatPlan', plan }];
   }
 
   return [{ type: 'clearCombatSelection' }];

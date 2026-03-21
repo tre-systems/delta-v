@@ -1,10 +1,11 @@
+import { isOrderableShip } from '../../shared/engine/util';
 import type { HexCoord } from '../../shared/hex';
 import { hexToPixel } from '../../shared/hex';
 import type { GameState, Ship } from '../../shared/types/domain';
 
 const getOwnedShips = (state: GameState, playerId: number): Ship[] => {
   return state.ships.filter(
-    (ship) => ship.owner === playerId && !ship.destroyed,
+    (ship) => ship.owner === playerId && isOrderableShip(ship),
   );
 };
 

@@ -405,4 +405,39 @@ describe('interpretInput', () => {
       expect(cmds).toEqual([]);
     });
   });
+
+  describe('combat click priority on mixed hexes', () => {
+    it('selects enemy target before toggling friendly attacker', () => {
+      const state = createState({
+        phase: 'combat',
+        ships: [
+          createShip({
+            id: 'friendly',
+            owner: 0,
+            position: { q: 1, r: 0 },
+          }),
+          createShip({
+            id: 'enemy',
+            owner: 1,
+            originalOwner: 1,
+            position: { q: 1, r: 0 },
+          }),
+        ],
+      });
+
+      const cmds = interpretInput(
+        click(1, 0),
+        state,
+        buildSolarSystemMap(),
+        0,
+        createPlanning(),
+      );
+
+      expect(cmds.length).toBe(1);
+      expect(cmds[0].type).toBe('setCombatPlan');
+      if (cmds[0].type === 'setCombatPlan') {
+        expect(cmds[0].plan.combatTargetId).toBe('enemy');
+      }
+    });
+  });
 });
