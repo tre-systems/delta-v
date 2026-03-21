@@ -1,6 +1,7 @@
 import { SHIP_STATS } from '../../shared/constants';
 import {
   getAllowedOrdnanceTypes,
+  isOrderableShip,
   validateOrdnanceLaunch,
 } from '../../shared/engine/util';
 import { hexVecLength } from '../../shared/hex';
@@ -161,7 +162,7 @@ export const buildAstrogationOrders = (
   planning: PlanningSnapshot,
 ): AstrogationOrder[] => {
   return state.ships
-    .filter((ship) => ship.owner === playerId)
+    .filter((ship) => ship.owner === playerId && isOrderableShip(ship))
     .map((ship) => {
       const burn = planning.burns.get(ship.id) ?? null;
 
@@ -257,9 +258,9 @@ export const deriveHudViewModel = (
       ? (planning.burns.get(selectedShip.id) ?? null) !== null
       : false,
     allShipsHaveBurns: myShips
-      .filter((s) => !s.destroyed)
+      .filter(isOrderableShip)
       .every((s) => (planning.burns.get(s.id) ?? null) !== null),
-    multipleShipsAlive: myShips.filter((s) => !s.destroyed).length > 1,
+    multipleShipsAlive: myShips.filter(isOrderableShip).length > 1,
     speed: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
     fuelToStop: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
     launchMineState: getOrdnanceActionState('mine'),

@@ -370,3 +370,43 @@ describe('game client combat helpers', () => {
     });
   });
 });
+
+describe('getCombatTargetAtHex — stacked cycling', () => {
+  it('cycles through multiple enemy ships on same hex', () => {
+    const state = createState();
+
+    // Default state has enemy 'x' and 'y' at (1,0)
+    const first = getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, []);
+    expect(first?.targetId).toBe('x');
+
+    const second = getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, [], 'x');
+    expect(second?.targetId).toBe('y');
+
+    const wrap = getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, [], 'y');
+    expect(wrap?.targetId).toBe('x');
+  });
+});
+
+describe('createCombatTargetPlan — explicit attacker selection', () => {
+  it('starts with empty attackers instead of auto-drafting', () => {
+    const state = createState();
+
+    const plan = createCombatTargetPlan(
+      state,
+      0,
+      {
+        combatTargetId: null,
+        combatTargetType: null,
+        combatAttackerIds: [],
+        combatAttackStrength: null,
+        queuedAttacks: [],
+      },
+      'x',
+      'ship',
+      null,
+    );
+
+    expect(plan.combatAttackerIds).toEqual([]);
+    expect(plan.combatAttackStrength).toBeNull();
+  });
+});

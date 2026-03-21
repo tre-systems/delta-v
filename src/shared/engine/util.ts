@@ -200,6 +200,11 @@ export const hasLaunchableOrdnanceCapacity = (
   return false;
 };
 
+export const isOrderableShip = (ship: Ship): boolean =>
+  !ship.destroyed &&
+  ship.baseStatus !== 'emplaced' &&
+  ship.controlStatus !== 'captured';
+
 export const hasAnyEnemyShips = (state: GameState): boolean => {
   const { activePlayer } = state;
 

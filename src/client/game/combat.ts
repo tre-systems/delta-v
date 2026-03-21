@@ -214,6 +214,7 @@ export const getCombatTargetAtHex = (
   playerId: number,
   clickHex: HexCoord,
   queuedAttacks: CombatAttack[],
+  currentTargetId?: string | null,
 ): CombatTargetSelection | null => {
   const ordnance = state.ordnance.find(
     (item) =>
@@ -232,7 +233,7 @@ export const getCombatTargetAtHex = (
 
   const queuedTargets = getTargetedKeys(queuedAttacks);
 
-  const ship = state.ships.find(
+  const matches = state.ships.filter(
     (item) =>
       item.owner !== playerId &&
       !item.destroyed &&
@@ -241,7 +242,21 @@ export const getCombatTargetAtHex = (
       hexEqual(clickHex, item.position),
   );
 
-  return ship ? { targetId: ship.id, targetType: 'ship' } : null;
+  if (matches.length === 0) return null;
+  if (matches.length === 1) {
+    return { targetId: matches[0].id, targetType: 'ship' };
+  }
+
+  // Cycle through stacked targets
+  if (currentTargetId) {
+    const idx = matches.findIndex((s) => s.id === currentTargetId);
+    if (idx >= 0) {
+      const next = matches[(idx + 1) % matches.length];
+      return { targetId: next.id, targetType: 'ship' };
+    }
+  }
+
+  return { targetId: matches[0].id, targetType: 'ship' };
 };
 
 export const getLegalCombatAttackers = (
@@ -309,7 +324,7 @@ export const createCombatTargetPlan = (
   planning: CombatPlanningSnapshot,
   targetId: string,
   targetType: 'ship' | 'ordnance',
-  map: SolarSystemMap | null,
+  _map: SolarSystemMap | null,
 ): CombatTargetPlan => {
   const reusableGroup =
     targetType === 'ship'
@@ -330,21 +345,11 @@ export const createCombatTargetPlan = (
     };
   }
 
-  const legalAttackers = getLegalCombatAttackers(
-    state,
-    playerId,
-    planning.queuedAttacks,
-    targetId,
-    targetType,
-    map,
-  );
-
   return {
     combatTargetId: targetId,
     combatTargetType: targetType,
-    combatAttackerIds: legalAttackers.map((ship) => ship.id),
-    combatAttackStrength:
-      targetType === 'ship' ? getCombatStrength(legalAttackers) : null,
+    combatAttackerIds: [],
+    combatAttackStrength: null,
   };
 };
 
@@ -462,9 +467,10 @@ export const buildCurrentAttack = (
       planning.combatAttackerIds.includes(ship.id),
     );
 
-    const attackerIds = (
-      selectedAttackers.length > 0 ? selectedAttackers : legalAttackers
-    ).map((ship) => ship.id);
+    // Anti-nuke interception auto-drafts all legal ships
+    const attackers =
+      selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
+    const attackerIds = attackers.map((ship) => ship.id);
 
     return attackerIds.length > 0
       ? {
@@ -519,8 +525,7 @@ export const buildCurrentAttack = (
     planning.combatAttackerIds.includes(ship.id),
   );
 
-  const attackers =
-    selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
+  const attackers = selectedAttackers;
 
   const attackStrength = clampAttackStrength(
     getCombatStrength(attackers),
