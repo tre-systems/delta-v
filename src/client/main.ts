@@ -1,5 +1,3 @@
-import { must } from '../shared/assert';
-
 // Register service worker for PWA support
 if ('serviceWorker' in navigator) {
   let hadServiceWorkerController = navigator.serviceWorker.controller !== null;
@@ -66,7 +64,6 @@ import {
   runAITurn as runAI,
 } from './game/local-game-flow';
 import {
-  createLogisticsUIState,
   type LogisticsUIState,
   renderTransferPanel,
 } from './game/logistics-ui';
@@ -83,7 +80,6 @@ import { deriveGameStartClientState } from './game/network';
 import type { OrdnanceActionDeps } from './game/ordnance-actions';
 import type { ClientState } from './game/phase';
 import { transitionClientPhase } from './game/phase-controller';
-import { deriveClientStateEntryPlan } from './game/phase-entry';
 import {
   createInitialPlanningState,
   type PlanningState,
@@ -94,7 +90,6 @@ import {
   presentMovementResult as presentMovement,
   showGameOverOutcome as showGameOver,
 } from './game/presentation';
-import { deriveClientScreenPlan } from './game/screen';
 import {
   buildGameRoute,
   getStoredPlayerToken,
@@ -102,6 +97,7 @@ import {
   saveTokenStore,
   setStoredPlayerToken,
 } from './game/session';
+import { applyClientStateTransition } from './game/state-transition';
 import { createTurnTimerManager, type TurnTimerManager } from './game/timer';
 import { buildShipTooltipHtml } from './game/tooltip';
 import { createLocalTransport, type GameTransport } from './game/transport';
@@ -363,92 +359,26 @@ class GameClient {
     }
   }
   private setState(newState: ClientState) {
-    const prevState = this.ctx.state;
-    this.ctx.state = newState;
-    this.turnTelemetry.onStateChanged(prevState, newState);
-    // Hide tooltip on state changes
-    hide(this.tooltipEl);
-    const entryPlan = deriveClientStateEntryPlan(
+    applyClientStateTransition(
+      {
+        ctx: this.ctx,
+        ui: this.ui,
+        tutorial: this.tutorial,
+        renderer: this.renderer,
+        turnTimer: this.turnTimer,
+        onStateChanged: (prevState, nextState) =>
+          this.turnTelemetry.onStateChanged(prevState, nextState),
+        hideTooltip: () => hide(this.tooltipEl),
+        updateHUD: () => this.updateHUD(),
+        resetCombatState: () => this.resetCombatState(),
+        startCombatTargetWatch: () => this.startCombatTargetWatch(),
+        setLogisticsUIState: (state) => {
+          this.logisticsUIState = state;
+        },
+        renderLogisticsPanel: () => this.renderLogisticsPanel(),
+      },
       newState,
-      this.ctx.gameState,
-      this.ctx.playerId,
     );
-    const screenPlan = deriveClientScreenPlan(newState, this.ctx.gameCode);
-    switch (screenPlan.kind) {
-      case 'menu':
-        this.ui.showMenu();
-        break;
-      case 'connecting':
-        this.ui.showConnecting();
-        break;
-      case 'waiting':
-        this.ui.showWaiting(screenPlan.code);
-        break;
-      case 'fleetBuilding':
-        this.ui.showFleetBuilding(must(this.ctx.gameState), this.ctx.playerId);
-        break;
-      case 'hud':
-        this.ui.showHUD();
-        break;
-      case 'none':
-        break;
-    }
-    if (entryPlan.hideTutorial) {
-      this.tutorial.hideTip();
-    }
-    if (entryPlan.resetCamera) {
-      this.renderer.resetCamera();
-    }
-    if (entryPlan.stopTurnTimer) {
-      this.turnTimer.stop();
-    }
-    if (entryPlan.startTurnTimer) {
-      this.turnTimer.start();
-    }
-    if (entryPlan.updateHUD) {
-      this.updateHUD();
-    }
-    if (entryPlan.clearAstrogationPlanning) {
-      this.ctx.planningState.selectedShipId = null;
-      this.ctx.planningState.lastSelectedHex = null;
-      this.ctx.planningState.burns.clear();
-      this.ctx.planningState.overloads.clear();
-      this.ctx.planningState.weakGravityChoices.clear();
-    }
-    if (entryPlan.selectedShipId !== undefined) {
-      this.ctx.planningState.selectedShipId = entryPlan.selectedShipId;
-    }
-    if (entryPlan.resetCombatState) {
-      this.resetCombatState();
-    }
-    if (entryPlan.clearAttackButton) {
-      this.ui.showAttackButton(false);
-    }
-    if (entryPlan.showMovementStatus) {
-      this.ui.showMovementStatus();
-    }
-    if (entryPlan.startCombatTargetWatch) {
-      this.startCombatTargetWatch();
-    }
-    if (entryPlan.tutorialPhase && this.ctx.gameState) {
-      this.tutorial.onPhaseChange(
-        entryPlan.tutorialPhase,
-        this.ctx.gameState.turnNumber,
-      );
-    }
-    if (entryPlan.frameOnShips) {
-      this.renderer.frameOnShips();
-    }
-    // Logistics phase: init transfer UI
-    if (newState === 'playing_logistics' && this.ctx.gameState) {
-      this.logisticsUIState = createLogisticsUIState(
-        this.ctx.gameState,
-        this.ctx.playerId,
-      );
-      this.renderLogisticsPanel();
-    } else {
-      this.logisticsUIState = null;
-    }
   }
   private renderLogisticsPanel() {
     const panel = byId('transferPanel');
