@@ -41,19 +41,19 @@ This is the heart of the project. All game rules live in a shared folder, making
 |--------|-----|---------|-------------|
 | `hex.ts` | 306 | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
 | `util.ts` | 170 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
-| `types/` | 389 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts`; all imports use bounded files directly, barrel retained for compatibility only) | Game-specific |
+| `types/` | 386 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts`; all imports use bounded files directly, barrel retained for compatibility only) | Game-specific |
 | `protocol.ts` | 478 | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads) | Mostly generic |
 | `constants.ts` | 135 | Ship stats, ordnance mass, detection ranges, animation timing | Game-specific |
 | `movement.ts` | 435 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
 | `combat.ts` | 627 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
-| `map-data.ts` | 712 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
+| `map-data.ts` | 713 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
 | `ai.ts` | 924 | Rule-based AI with three difficulty levels and enforcer interception | Game-specific |
-| `engine/game-engine.ts` | 785 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
+| `engine/game-engine.ts` | 786 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
 | `engine/combat.ts` | 537 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
 | `engine/ordnance.ts` | 522 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
 | `engine/logistics.ts` | 284 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
-| `engine/victory.ts` | 634 | Victory conditions, turn advancement, reinforcements, fleet conversion | Game-specific |
-| `engine/util.ts` | 249 | Game rule helpers: base ownership, escape checks, ordnance launch eligibility | Game-specific |
+| `engine/victory.ts` | 637 | Victory conditions, turn advancement, reinforcements, fleet conversion | Game-specific |
+| `engine/util.ts` | 251 | Game rule helpers: base ownership, escape checks, ordnance launch eligibility | Game-specific |
 
 #### Key Design Patterns
 
@@ -124,10 +124,10 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 | Directory | Files | LOC | Purpose |
 |-----------|-------|-----|---------|
-| `client/` (root) | 8 | ~2300 | Entry point (`main.ts` ~985 LOC), raw input, audio, tutorial, DOM helpers, telemetry, viewport, reactive signals |
-| `client/game/` | 43 | ~6150 | Game logic: command routing, planning store, game-state store, state transitions, session control, phases, transport, actions |
-| `client/renderer/` | 13 | ~4600 | Canvas rendering: camera, scene, entities, effects, overlays |
-| `client/ui/` | 15 | ~2200 | DOM overlays: menu, HUD, ship list, fleet building, game log, formatters, button bindings, screens |
+| `client/` (root) | 8 | ~2290 | Entry point (`main.ts` ~990 LOC), raw input, audio, tutorial, DOM helpers, telemetry, viewport, reactive signals |
+| `client/game/` | 44 | ~6270 | Game logic: command routing, planning store, game-state store, state transitions, session control, phases, transport, actions |
+| `client/renderer/` | 13 | ~4590 | Canvas rendering: camera, scene, entities, effects, overlays |
+| `client/ui/` | 15 | ~2240 | DOM overlays: menu, HUD, ship list, fleet building, game log, formatters, button bindings, screens |
 
 #### Three-Layer Input Architecture
 
