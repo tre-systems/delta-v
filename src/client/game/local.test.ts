@@ -6,7 +6,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
-import type { SolarSystemMap } from '../../shared/types';
+import type { SolarSystemMap } from '../../shared/types/domain';
 import {
   hasOwnedPendingAsteroidHazards,
   resolveAstrogationStep,

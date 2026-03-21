@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GameState, Ship, TransferOrder } from '../../shared/types';
+import type { GameState, Ship, TransferOrder } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 import { derivePhaseTransition } from './phase';
 import { createInitialPlanningState } from './planning';

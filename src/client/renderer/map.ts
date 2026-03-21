@@ -4,7 +4,7 @@ import type {
   GameState,
   PlayerState,
   SolarSystemMap,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 
 export interface BodyRippleView {
   radius: number;

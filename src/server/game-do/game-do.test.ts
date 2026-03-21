@@ -5,7 +5,8 @@ import {
 } from '../../client/game/message-handler';
 import { must } from '../../shared/assert';
 import type { MovementResult } from '../../shared/engine/game-engine';
-import type { GameState, S2C } from '../../shared/types';
+import type { GameState } from '../../shared/types/domain';
+import type { S2C } from '../../shared/types/protocol';
 import type { Env } from './game-do';
 
 vi.mock('cloudflare:workers', () => ({

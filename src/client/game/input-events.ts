@@ -1,5 +1,5 @@
 import type { HexCoord } from '../../shared/hex';
-import type { GameState, SolarSystemMap } from '../../shared/types';
+import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import {
   type CombatTargetPlan,
   createCombatTargetPlan,

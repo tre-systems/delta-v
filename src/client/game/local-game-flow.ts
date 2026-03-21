@@ -5,7 +5,7 @@ import type {
   CombatResult,
   GameState,
   SolarSystemMap,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import type { AIActionPlan } from './ai-flow';
 import { deriveAIActionPlan } from './ai-flow';
 import type { LocalResolution } from './local';

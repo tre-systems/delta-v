@@ -1,4 +1,4 @@
-import type { GameState } from '../../shared/types';
+import type { GameState } from '../../shared/types/domain';
 import { playPhaseChange } from '../audio';
 import { type ClientState, derivePhaseTransition } from './phase';
 import type { TurnTelemetryContext } from './turn-telemetry';

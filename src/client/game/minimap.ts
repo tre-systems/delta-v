@@ -1,5 +1,5 @@
 import { hexToPixel } from '../../shared/hex';
-import type { SolarSystemMap } from '../../shared/types';
+import type { SolarSystemMap } from '../../shared/types/domain';
 
 export interface MinimapFrame {
   x: number;

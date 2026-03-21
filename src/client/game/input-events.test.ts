@@ -7,7 +7,7 @@ import type {
   PlayerState,
   Ship,
   SolarSystemMap,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import { type InputEvent, interpretInput } from './input-events';
 import type { PlanningState } from './planning';
 

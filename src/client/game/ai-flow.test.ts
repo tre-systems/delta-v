@@ -8,7 +8,7 @@ import type {
   OrdnanceLaunch,
   PlayerState,
   Ship,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import { deriveAIActionPlan } from './ai-flow';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {
