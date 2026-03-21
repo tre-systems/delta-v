@@ -1,4 +1,8 @@
-import { ORDNANCE_MASS, SHIP_STATS } from '../../shared/constants';
+import { SHIP_STATS } from '../../shared/constants';
+import {
+  canLaunchOrdnance,
+  validateShipOrdnanceLaunch,
+} from '../../shared/engine/util';
 import type {
   GameState,
   OrbitalBaseEmplacement,
@@ -50,30 +54,13 @@ const getSelectedShip = (
   return state.ships.find((ship) => ship.id === selectedShipId) ?? null;
 };
 
-export const canShipLaunchAnyOrdnance = (
-  ship: Pick<Ship, 'type' | 'cargoUsed'>,
-): boolean => {
-  const stats = SHIP_STATS[ship.type];
-
-  if (!stats) {
-    return false;
-  }
-
-  return stats.cargo - ship.cargoUsed >= ORDNANCE_MASS.mine;
-};
-
 export const getFirstLaunchableShipId = (
   state: OrdnanceState,
   playerId: number,
 ): string | null => {
   return (
     state.ships.find(
-      (ship) =>
-        ship.owner === playerId &&
-        !ship.destroyed &&
-        !ship.landed &&
-        ship.damage.disabledTurns === 0 &&
-        canShipLaunchAnyOrdnance(ship),
+      (ship) => ship.owner === playerId && canLaunchOrdnance(ship),
     )?.id ?? null
   );
 };
@@ -83,12 +70,7 @@ export const getUnambiguousLaunchableShipId = (
   playerId: number,
 ): string | null => {
   const launchable = state.ships.filter(
-    (ship) =>
-      ship.owner === playerId &&
-      !ship.destroyed &&
-      !ship.landed &&
-      ship.damage.disabledTurns === 0 &&
-      canShipLaunchAnyOrdnance(ship),
+    (ship) => ship.owner === playerId && canLaunchOrdnance(ship),
   );
 
   return launchable.length === 1 ? launchable[0].id : null;
@@ -99,8 +81,6 @@ export const resolveOrdnanceLaunchPlan = (
   planning: OrdnancePlanning,
   ordnanceType: 'mine' | 'torpedo' | 'nuke',
 ): OrdnanceLaunchPlan => {
-  const ship = getSelectedShip(state, planning.selectedShipId);
-
   if (!planning.selectedShipId) {
     return {
       ok: false,
@@ -109,70 +89,16 @@ export const resolveOrdnanceLaunchPlan = (
     };
   }
 
+  const ship = getSelectedShip(state, planning.selectedShipId);
+
   if (!ship) {
     return { ok: false, message: null, level: 'error' };
   }
 
-  const stats = SHIP_STATS[ship.type];
+  const error = validateShipOrdnanceLaunch(ship, ordnanceType);
 
-  if (!stats) {
-    return { ok: false, message: null, level: 'error' };
-  }
-
-  const cargoFree = stats.cargo - ship.cargoUsed;
-
-  if (ship.destroyed) {
-    return {
-      ok: false,
-      message: 'Ship is destroyed',
-      level: 'error',
-    };
-  }
-
-  if (ship.landed) {
-    return {
-      ok: false,
-      message: 'Cannot launch ordnance while landed',
-      level: 'error',
-    };
-  }
-
-  if (ship.damage.disabledTurns > 0) {
-    return {
-      ok: false,
-      message: 'Ship is disabled',
-      level: 'error',
-    };
-  }
-
-  if (ordnanceType === 'torpedo' && !stats.canOverload) {
-    return {
-      ok: false,
-      message: 'Only warships can launch torpedoes',
-      level: 'error',
-    };
-  }
-
-  if (
-    ordnanceType === 'nuke' &&
-    !stats.canOverload &&
-    (ship.nukesLaunchedSinceResupply ?? 0) >= 1
-  ) {
-    return {
-      ok: false,
-      message: 'Non-warships may carry only one nuke between resupplies',
-      level: 'error',
-    };
-  }
-
-  const neededCargo = ORDNANCE_MASS[ordnanceType] ?? 0;
-
-  if (cargoFree < neededCargo) {
-    return {
-      ok: false,
-      message: `Not enough cargo (need ${neededCargo}, have ${cargoFree})`,
-      level: 'error',
-    };
+  if (error) {
+    return { ok: false, message: error, level: 'error' };
   }
 
   return {

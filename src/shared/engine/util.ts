@@ -92,38 +92,84 @@ export const hasOrdnanceCapacity = (ship: Ship): boolean => {
   return stats.cargo - ship.cargoUsed >= minMass;
 };
 
+// Ship-level eligibility to launch a specific ordnance type.
+// Returns an error message or null if the launch is allowed.
+// Does NOT check contextual rules (scenario allowed types,
+// mine course change, resupply turn, owner).
+export const validateShipOrdnanceLaunch = (
+  ship: Ship,
+  ordnanceType: Ordnance['type'],
+): string | null => {
+  const stats = SHIP_STATS[ship.type];
+  if (!stats) return 'Unknown ship type';
+
+  if (ship.destroyed) return 'Ship is destroyed';
+  if (ship.landed) return 'Cannot launch ordnance while landed';
+  if (ship.captured) return 'Captured ships cannot launch ordnance';
+
+  // Orbital bases may launch at D1 damage (rulebook p.6)
+  if (ship.damage.disabledTurns > 0) {
+    if (ship.type !== 'orbitalBase' || ship.damage.disabledTurns > 1) {
+      return 'Ship is disabled';
+    }
+  }
+
+  if (ship.type === 'orbitalBase' && ordnanceType !== 'torpedo') {
+    return 'Orbital bases can only launch torpedoes';
+  }
+
+  if (
+    ordnanceType === 'torpedo' &&
+    !stats.canOverload &&
+    ship.type !== 'orbitalBase'
+  ) {
+    return 'Only warships and orbital bases can launch torpedoes';
+  }
+
+  if (
+    ordnanceType === 'nuke' &&
+    !stats.canOverload &&
+    (ship.nukesLaunchedSinceResupply ?? 0) >= 1
+  ) {
+    return 'Non-warships may carry only one nuke between resupplies';
+  }
+
+  const mass = ORDNANCE_MASS[ordnanceType];
+  if (mass == null) return 'Invalid ordnance type';
+
+  if (ship.cargoUsed + mass > stats.cargo) {
+    const free = stats.cargo - ship.cargoUsed;
+    return `Not enough cargo (need ${mass}, have ${free})`;
+  }
+
+  return null;
+};
+
+// Quick boolean: can this ship launch any ordnance at all?
+// Checks ship status and minimum cargo capacity.
+export const canLaunchOrdnance = (ship: Ship): boolean => {
+  if (ship.destroyed || ship.landed || ship.captured) return false;
+
+  // Orbital bases may launch at D1 damage (rulebook p.6)
+  if (ship.damage.disabledTurns > 0) {
+    if (ship.type !== 'orbitalBase' || ship.damage.disabledTurns > 1) {
+      return false;
+    }
+  }
+
+  return hasOrdnanceCapacity(ship);
+};
+
 export const hasLaunchableOrdnanceCapacity = (
   ship: Ship,
   allowedTypes: Set<Ordnance['type']>,
 ): boolean => {
-  const stats = SHIP_STATS[ship.type];
-  if (!stats) return false;
+  if (!canLaunchOrdnance(ship)) return false;
 
   for (const ordnanceType of allowedTypes) {
-    const mass = ORDNANCE_MASS[ordnanceType];
-
-    if (mass == null || ship.cargoUsed + mass > stats.cargo) {
-      continue;
+    if (validateShipOrdnanceLaunch(ship, ordnanceType) === null) {
+      return true;
     }
-    if (ship.type === 'orbitalBase' && ordnanceType !== 'torpedo') {
-      continue;
-    }
-    if (
-      ordnanceType === 'torpedo' &&
-      !stats.canOverload &&
-      ship.type !== 'orbitalBase'
-    ) {
-      continue;
-    }
-    if (
-      ordnanceType === 'nuke' &&
-      !stats.canOverload &&
-      (ship.nukesLaunchedSinceResupply ?? 0) >= 1
-    ) {
-      continue;
-    }
-
-    return true;
   }
 
   return false;
