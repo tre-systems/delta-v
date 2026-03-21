@@ -20,37 +20,47 @@ The project is in a good place mechanically. The next work
 should focus on reducing shell complexity and tightening
 authority boundaries rather than rewriting the engine.
 
-### Phase 0. Reliability fixes
+### ~~Phase 0. Reliability fixes~~ *(done)*
 
-- Persist authoritative game state before broadcasting it to clients.
-- Make intentional client disconnects bypass reconnect logic.
-- Keep docs aligned with the current file layout and feature set.
+- Persist authoritative game state before broadcasting.
+- Intentional client disconnects bypass reconnect logic.
+- Docs alignment (ongoing).
 
-### Phase 1. Client shell decomposition
+### ~~Phase 1. Client shell decomposition~~ *(done)*
 
-- Split `src/client/main.ts` into a thin coordinator plus focused modules:
-  command routing, UI event routing, phase flow, and client state storage.
-- Keep coordination in the shell; keep decision logic in pure
-  `derive*` / `resolve*` helpers.
+`main.ts` reduced from ~1500 to ~1040 LOC. Extracted modules:
+command routing (`game/command-router.ts`), UI event routing
+(`game/ui-event-router.ts`), phase flow (`game/phase.ts`,
+`game/phase-entry.ts`), phase telemetry
+(`game/turn-telemetry.ts`). Coordination stays in the shell;
+decision logic in pure `derive*` / `resolve*` helpers.
 
-### Phase 2. UI shell decomposition
+### ~~Phase 2. UI shell decomposition~~ *(done)*
 
-- Break `src/client/ui/ui.ts` into focused menu, HUD, fleet,
-  log, and overlay modules behind the existing `UIManager`
-  facade.
-- Replace repeated button wiring with a small declarative
-  registry.
+`ui.ts` reduced from ~800 to ~590 LOC. Extracted modules:
+button bindings (`ui/button-bindings.ts`), game log view
+(`ui/game-log-view.ts`), fleet building view
+(`ui/fleet-building-view.ts`), ship list view
+(`ui/ship-list-view.ts`), overlay view
+(`ui/overlay-view.ts`). Declarative button registry replaces
+repeated wiring.
 
-### Reactive experiment note
+### Reactive signals note
 
-- `src/client/reactive.ts` should stay experimental until it has
-  owner-scoped cleanup for nested effects, a disposal strategy for
-  `computed()`, and clearer propagation semantics.
-- Current review findings: nested effects leak subscriptions,
-  `computed()` stays permanently hot, and shared-dependency updates
-  can emit glitchy intermediate states.
-- Do not make it a core UI pattern yet; reconsider after those
-  lifecycle and scheduling gaps are closed with tests.
+`src/client/reactive.ts` is a standalone signals library
+(signal, computed, effect, batch, DOM helpers) with 26 tests
+including property-based coverage. Known limitations:
+
+- Nested effects created inside an outer effect are not
+  auto-disposed when the outer re-runs.
+- `computed()` has no dispose — its internal effect stays
+  permanently subscribed.
+- Diamond dependencies can emit glitchy intermediate states
+  outside of `batch()`.
+
+These are acceptable for the current standalone/experimental
+scope. Address lifecycle gaps before wiring into core UI
+state (PlanningState, HUD).
 
 ### Phase 3. Shared model boundaries
 
@@ -77,9 +87,9 @@ authority boundaries rather than rewriting the engine.
 
 ### Delivery order
 
-1. Reliability fixes with tests.
-2. `main.ts` coordinator extraction.
-3. `ui.ts` view extraction.
+1. ~~Reliability fixes.~~
+2. ~~`main.ts` coordinator extraction.~~
+3. ~~`ui.ts` view extraction.~~
 4. Shared type/module split.
 5. Rules consolidation.
 6. Optional stronger state-model refactors.

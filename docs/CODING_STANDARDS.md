@@ -241,7 +241,7 @@ Client game modules use two patterns depending on purity (see [dependency inject
 
 - **Managers** use a factory pattern: `createXxx(deps: XxxDeps): XxxManager`. The returned object's methods close over the deps. Examples: `createConnectionManager()`, `createTurnTimerManager()`, `createLocalTransport()`.
 
-`GameClient` in `main.ts` wires deps objects via lazy getters that bind callbacks to live context. The `dispatch()` switch routes commands to the extracted action functions.
+`GameClient` in `main.ts` wires deps objects via lazy getters that bind callbacks to live context. `dispatchGameCommand()` in `game/command-router.ts` routes commands to the extracted action functions.
 
 When adding new side-effecting logic, prefer extending an existing `*Deps` interface over adding methods to `GameClient`. Keep pure derivation functions as direct-parameter exports — they don't need deps.
 
