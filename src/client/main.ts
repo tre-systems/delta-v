@@ -16,6 +16,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../shared/map-data';
+import { computeCourse } from '../shared/movement';
 import type {
   CombatResult,
   FleetPurchase,
@@ -1405,6 +1406,7 @@ class GameClient {
         allShipsHaveBurns: hud.allShipsHaveBurns,
         multipleShipsAlive: hud.multipleShipsAlive,
         hasSelection: hud.selectedId !== null,
+        ...this.computeCrashWarning(),
       },
     });
 
@@ -1421,6 +1423,49 @@ class GameClient {
       hud.selectedId,
       this.ctx.planningState.burns,
     );
+  }
+
+  private computeCrashWarning(): {
+    anyCrashed: boolean;
+    crashBody: string | null;
+  } {
+    if (!this.ctx.gameState || !this.map) {
+      return { anyCrashed: false, crashBody: null };
+    }
+
+    const state = this.ctx.gameState;
+    if (state.phase !== 'astrogation') {
+      return { anyCrashed: false, crashBody: null };
+    }
+
+    for (const ship of state.ships) {
+      if (ship.owner !== this.ctx.playerId || ship.destroyed) {
+        continue;
+      }
+
+      const burn = this.ctx.planningState.burns.get(ship.id) ?? null;
+
+      if (burn === null) continue;
+
+      const overload = this.ctx.planningState.overloads.get(ship.id) ?? null;
+      const weakGravityChoices =
+        this.ctx.planningState.weakGravityChoices.get(ship.id) ?? {};
+
+      const course = computeCourse(ship, burn, this.map, {
+        overload,
+        weakGravityChoices,
+        destroyedBases: state.destroyedBases,
+      });
+
+      if (course.crashed) {
+        return {
+          anyCrashed: true,
+          crashBody: course.crashBody,
+        };
+      }
+    }
+
+    return { anyCrashed: false, crashBody: null };
   }
 
   private logScenarioBriefing() {

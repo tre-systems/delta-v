@@ -327,6 +327,7 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
 export const SCENARIOS: Record<string, ScenarioDefinition> = {
   biplanetary: {
     name: 'Bi-Planetary',
+    tags: ['Beginner'],
     description: '1v1 corvettes race to land on the ' + "opponent's world",
     players: [
       {
@@ -374,6 +375,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
 
   escape: {
     name: 'Escape',
+    tags: ['Asymmetric'],
     description:
       '3 pilgrim transports flee Terra ' + '— enforcers must stop them',
     rules: {
@@ -449,6 +451,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
 
   convoy: {
     name: 'Convoy',
+    tags: ['Escort'],
     description: 'Escort a tanker from Mars to Venus ' + '— pirates intercept',
     rules: { logisticsEnabled: true },
     players: [
@@ -502,6 +505,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
 
   duel: {
     name: 'Duel',
+    tags: ['Combat'],
     description: 'Frigates clash near Mercury ' + '— last ship standing wins',
     startingPlayer: 1,
     players: [
@@ -538,6 +542,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
 
   blockade: {
     name: 'Blockade Runner',
+    tags: ['Speed'],
     description: 'Packet ship races past a corvette ' + 'to reach Mars',
     startingPlayer: 1,
     players: [
@@ -575,6 +580,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
 
   interplanetaryWar: {
     name: 'Interplanetary War',
+    tags: ['Epic'],
     description:
       'Build your fleet with MegaCredits ' +
       '— total war across the solar system',
@@ -609,6 +615,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
 
   fleetAction: {
     name: 'Fleet Action',
+    tags: ['Fleet'],
     description: 'Build your fleet and clash ' + '— Mars vs Venus',
     rules: { logisticsEnabled: true },
     startingPlayer: 1,
@@ -638,6 +645,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
 
   grandTour: {
     name: 'Grand Tour',
+    tags: ['Race'],
     description:
       'Race past every major body in the solar ' + 'system and return home',
     rules: {
