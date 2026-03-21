@@ -6,22 +6,16 @@ import type {
   MovementEvent,
   Ship,
 } from '../../shared/types';
-import { byId, el, hide, show, visible } from '../dom';
+import { byId, hide, show, visible } from '../dom';
 import { ACTION_BUTTON_IDS, STATIC_BUTTON_BINDINGS } from './button-bindings';
 import type { UIEvent } from './events';
 import { FleetBuildingView } from './fleet-building-view';
-import {
-  getLatencyStatus,
-  getPhaseAlertCopy,
-  parseJoinInput,
-} from './formatters';
+import { getLatencyStatus, parseJoinInput } from './formatters';
 import { GameLogView } from './game-log-view';
 import { buildHUDView, type HUDInput } from './hud';
 import { deriveHudLayoutOffsets } from './layout';
+import { OverlayView } from './overlay-view';
 import {
-  buildGameOverView,
-  buildReconnectView,
-  buildRematchPendingView,
   buildScreenVisibility,
   buildWaitingScreenCopy,
   type UIScreenMode,
@@ -46,6 +40,7 @@ export class UIManager {
   private readonly fleetBuildingView: FleetBuildingView;
   private readonly gameLogView: GameLogView;
   private readonly shipListView: ShipListView;
+  private readonly overlayView: OverlayView;
 
   onEvent: ((event: UIEvent) => void) | null = null;
 
@@ -83,6 +78,7 @@ export class UIManager {
         this.emit({ type: 'selectShip', shipId });
       },
     });
+    this.overlayView = new OverlayView();
 
     const mobileQuery = window.matchMedia('(max-width: 760px)');
     this.isMobile = mobileQuery.matches;
@@ -343,7 +339,7 @@ export class UIManager {
 
     if (this.lastPhase !== phaseKey) {
       this.lastPhase = phaseKey;
-      this.showPhaseAlert(phase, isMyTurn);
+      this.overlayView.showPhaseAlert(phase, isMyTurn);
     }
 
     byId('fuelGauge').textContent = hudView.fuelGaugeText;
@@ -495,88 +491,29 @@ export class UIManager {
       enemyShipsTotal: number;
     },
   ) {
-    const view = buildGameOverView(won, reason, stats);
-
-    show(this.gameOverEl, 'flex');
-
-    byId('gameOverText').textContent = view.titleText;
-
-    const reasonEl = byId('gameOverReason');
-    reasonEl.textContent = view.reasonText;
-    reasonEl.style.whiteSpace = 'pre-line';
-
-    const rematchBtn = byId('rematchBtn');
-    rematchBtn.textContent = view.rematchText;
-    rematchBtn.removeAttribute('disabled');
+    this.overlayView.showGameOver(won, reason, stats);
   }
 
   showRematchPending() {
-    const view = buildRematchPendingView();
-    const btn = byId('rematchBtn');
-    btn.textContent = view.rematchText;
-
-    if (view.rematchDisabled) {
-      btn.setAttribute('disabled', 'true');
-    }
+    this.overlayView.showRematchPending();
   }
 
   showReconnecting(attempt: number, maxAttempts: number, onCancel: () => void) {
-    const view = buildReconnectView(attempt, maxAttempts);
-    const overlay = byId('reconnectOverlay');
-
-    show(overlay, 'flex');
-
-    byId('reconnectText').textContent = view.reconnectText;
-    byId('reconnectAttempt').textContent = view.attemptText;
-
-    const cancelBtn = byId('reconnectCancelBtn');
-    cancelBtn.onclick = () => {
-      this.hideReconnecting();
-      onCancel();
-    };
+    this.overlayView.showReconnecting(attempt, maxAttempts, onCancel);
   }
 
   hideReconnecting() {
-    hide(byId('reconnectOverlay'));
+    this.overlayView.hideReconnecting();
   }
 
   // --- Toast notifications ---
 
   showToast(message: string, type: 'error' | 'info' | 'success' = 'info') {
-    const container = byId('toastContainer');
-
-    const toast = el('div', {
-      class: `toast toast-${type}`,
-      text: message,
-    });
-
-    container.appendChild(toast);
-
-    setTimeout(() => {
-      if (toast.parentNode) {
-        toast.parentNode.removeChild(toast);
-      }
-    }, 3100);
+    this.overlayView.showToast(message, type);
   }
 
   showPhaseAlert(phase: string, isMyTurn: boolean) {
-    const alertEl = byId('phaseAlert');
-
-    const titleEl = alertEl.querySelector('.phase-alert-title') as HTMLElement;
-    const subEl = alertEl.querySelector('.phase-alert-subtitle') as HTMLElement;
-
-    const copy = getPhaseAlertCopy(phase, isMyTurn);
-    titleEl.textContent = copy.title;
-    subEl.textContent = copy.subtitle;
-    subEl.style.color = copy.subtitleColor;
-
-    alertEl.classList.remove('active');
-    void alertEl.offsetWidth; // trigger reflow
-    alertEl.classList.add('active');
-
-    setTimeout(() => {
-      alertEl.classList.remove('active');
-    }, 1200);
+    this.overlayView.showPhaseAlert(phase, isMyTurn);
   }
 
   // --- Game log ---
