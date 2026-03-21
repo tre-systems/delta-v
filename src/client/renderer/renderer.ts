@@ -541,8 +541,8 @@ export class Renderer {
 
   private resize() {
     const dpr = window.devicePixelRatio || 1;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
 
     this.canvas.width = w * dpr;
     this.canvas.height = h * dpr;
@@ -553,8 +553,8 @@ export class Renderer {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
 
-    const cw = window.innerWidth;
-    const ch = window.innerHeight;
+    const cw = this.canvas.clientWidth;
+    const ch = this.canvas.clientHeight;
 
     this.camera.update(dt, cw, ch);
     this.render(now, cw, ch);
