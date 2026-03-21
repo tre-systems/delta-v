@@ -8,6 +8,7 @@ import type {
   Ship,
 } from '../../shared/types';
 import { byId, el, hide, show, visible } from '../dom';
+import { ACTION_BUTTON_IDS, STATIC_BUTTON_BINDINGS } from './button-bindings';
 import type { UIEvent } from './events';
 import { canAddFleetShip, getFleetCartView, getFleetShopView } from './fleet';
 import {
@@ -56,20 +57,7 @@ export class UIManager {
   private playerId: number = -1;
   private layoutSyncFrame: number | null = null;
 
-  private readonly actionButtonIds = [
-    'undoBtn',
-    'confirmBtn',
-    'launchMineBtn',
-    'launchTorpedoBtn',
-    'launchNukeBtn',
-    'emplaceBaseBtn',
-    'skipOrdnanceBtn',
-    'attackBtn',
-    'fireBtn',
-    'skipCombatBtn',
-    'skipLogisticsBtn',
-    'confirmTransfersBtn',
-  ];
+  private readonly actionButtonIds = ACTION_BUTTON_IDS;
 
   onEvent: ((event: UIEvent) => void) | null = null;
 
@@ -100,20 +88,7 @@ export class UIManager {
     this.chatInput = byId('chatInput') as HTMLInputElement;
     this.fleetBuildingEl = byId('fleetBuilding');
 
-    this.chatInput.addEventListener('keydown', (e) => {
-      // Prevent game keyboard shortcuts while
-      // typing
-      e.stopPropagation();
-
-      if (e.key === 'Enter') {
-        const text = this.chatInput.value.trim();
-
-        if (text && this.onEvent) {
-          this.onEvent({ type: 'chat', text });
-          this.chatInput.value = '';
-        }
-      }
-    });
+    this.bindChatInput();
 
     const mobileQuery = window.matchMedia('(max-width: 760px)');
     this.isMobile = mobileQuery.matches;
@@ -133,7 +108,42 @@ export class UIManager {
       this.handleViewportResize,
     );
 
-    // Wire up buttons
+    this.bindMenuControls();
+    this.bindDifficultyButtons();
+    // Generate scenario buttons from data
+    this.buildScenarioList();
+    this.bindJoinControls();
+    this.bindCopyButton();
+    this.bindStaticButtons();
+    this.bindLogControls();
+  }
+
+  private emit(event: UIEvent) {
+    this.onEvent?.(event);
+  }
+
+  private bindChatInput() {
+    this.chatInput.addEventListener('keydown', (e) => {
+      // Prevent game keyboard shortcuts while
+      // typing
+      e.stopPropagation();
+
+      if (e.key !== 'Enter') {
+        return;
+      }
+
+      const text = this.chatInput.value.trim();
+
+      if (!text) {
+        return;
+      }
+
+      this.emit({ type: 'chat', text });
+      this.chatInput.value = '';
+    });
+  }
+
+  private bindMenuControls() {
     byId('createBtn').addEventListener('click', () => {
       this.showScenarioSelect();
     });
@@ -143,70 +153,60 @@ export class UIManager {
       this.showScenarioSelect();
     });
 
-    // Difficulty buttons
-    for (const btn of Array.from(
-      document.querySelectorAll('.btn-difficulty'),
-    )) {
+    byId('backBtn').addEventListener('click', () => {
+      this.emit({ type: 'backToMenu' });
+      this.showMenu();
+    });
+  }
+
+  private bindDifficultyButtons() {
+    const buttons = Array.from(
+      document.querySelectorAll<HTMLElement>('.btn-difficulty'),
+    );
+
+    for (const btn of buttons) {
       btn.addEventListener('click', (e: Event) => {
         e.stopPropagation();
 
-        const diff = (btn as HTMLElement).dataset.difficulty as
-          | 'easy'
-          | 'normal'
-          | 'hard';
+        const diff = btn.dataset.difficulty as 'easy' | 'normal' | 'hard';
         this.aiDifficulty = diff;
 
-        // Update active state
-        for (const b of Array.from(
-          document.querySelectorAll('.btn-difficulty'),
-        )) {
-          b.classList.remove('active');
+        for (const button of buttons) {
+          button.classList.remove('active');
         }
 
         btn.classList.add('active');
       });
     }
+  }
 
-    // Generate scenario buttons from data
-    this.buildScenarioList();
+  private submitJoin(rawValue: string) {
+    const parsed = parseJoinInput(rawValue, CODE_LENGTH);
 
-    byId('backBtn').addEventListener('click', () => {
-      this.onEvent?.({ type: 'backToMenu' });
-      this.showMenu();
+    if (!parsed) {
+      return;
+    }
+
+    this.emit({
+      type: 'join',
+      code: parsed.code,
+      playerToken: parsed.playerToken,
     });
+  }
 
+  private bindJoinControls() {
     byId('joinBtn').addEventListener('click', () => {
-      const parsed = parseJoinInput(
-        (byId('codeInput') as HTMLInputElement).value,
-        CODE_LENGTH,
-      );
-
-      if (parsed) {
-        this.onEvent?.({
-          type: 'join',
-          code: parsed.code,
-          playerToken: parsed.playerToken,
-        });
-      }
+      this.submitJoin((byId('codeInput') as HTMLInputElement).value);
     });
 
     byId('codeInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        const parsed = parseJoinInput(
-          (e.target as HTMLInputElement).value,
-          CODE_LENGTH,
-        );
-
-        if (parsed) {
-          this.onEvent?.({
-            type: 'join',
-            code: parsed.code,
-            playerToken: parsed.playerToken,
-          });
-        }
+        this.submitJoin((e.target as HTMLInputElement).value);
       }
     });
+  }
 
+  private bindCopyButton() {
     byId('copyBtn').addEventListener('click', () => {
       const code = byId('gameCode').textContent;
       const url = `${window.location.origin}/?code=${code}`;
@@ -219,77 +219,26 @@ export class UIManager {
         }, 2000);
       });
     });
+  }
 
-    byId('undoBtn').addEventListener('click', () =>
-      this.onEvent?.({ type: 'undo' }),
-    );
+  private bindStaticButtons() {
+    for (const binding of STATIC_BUTTON_BINDINGS) {
+      byId(binding.id).addEventListener('click', () => {
+        this.emit(binding.event);
+      });
+    }
+  }
 
-    byId('confirmBtn').addEventListener('click', () =>
-      this.onEvent?.({ type: 'confirm' }),
-    );
+  private setDesktopLogVisible(visibleOnDesktop: boolean) {
+    this.logVisible = visibleOnDesktop;
 
-    byId('launchMineBtn').addEventListener('click', () =>
-      this.onEvent?.({
-        type: 'launchOrdnance',
-        ordType: 'mine',
-      }),
-    );
+    const visibility = buildScreenVisibility('hud', this.logVisible);
 
-    byId('launchTorpedoBtn').addEventListener('click', () =>
-      this.onEvent?.({
-        type: 'launchOrdnance',
-        ordType: 'torpedo',
-      }),
-    );
+    this.gameLogEl.style.display = visibility.gameLog;
+    this.logShowBtn.style.display = visibility.logShowBtn;
+  }
 
-    byId('launchNukeBtn').addEventListener('click', () =>
-      this.onEvent?.({
-        type: 'launchOrdnance',
-        ordType: 'nuke',
-      }),
-    );
-
-    byId('emplaceBaseBtn').addEventListener('click', () =>
-      this.onEvent?.({ type: 'emplaceBase' }),
-    );
-
-    byId('skipOrdnanceBtn').addEventListener('click', () =>
-      this.onEvent?.({ type: 'skipOrdnance' }),
-    );
-
-    byId('attackBtn').addEventListener('click', () =>
-      this.onEvent?.({ type: 'attack' }),
-    );
-
-    byId('fireBtn').addEventListener('click', () =>
-      this.onEvent?.({ type: 'fireAll' }),
-    );
-
-    byId('skipCombatBtn').addEventListener('click', () =>
-      this.onEvent?.({ type: 'skipCombat' }),
-    );
-
-    byId('skipLogisticsBtn').addEventListener('click', () =>
-      this.onEvent?.({
-        type: 'skipLogistics',
-      }),
-    );
-
-    byId('confirmTransfersBtn').addEventListener('click', () =>
-      this.onEvent?.({
-        type: 'confirmTransfers',
-      }),
-    );
-
-    byId('rematchBtn').addEventListener('click', () =>
-      this.onEvent?.({ type: 'rematch' }),
-    );
-
-    byId('exitBtn').addEventListener('click', () =>
-      this.onEvent?.({ type: 'exit' }),
-    );
-
-    // Game log toggle
+  private bindLogControls() {
     byId('logToggleBtn').addEventListener('click', () => {
       if (this.isMobile) {
         this.collapseMobileLog();
@@ -297,21 +246,11 @@ export class UIManager {
         return;
       }
 
-      this.logVisible = false;
-
-      const visibility = buildScreenVisibility('hud', this.logVisible);
-
-      this.gameLogEl.style.display = visibility.gameLog;
-      this.logShowBtn.style.display = visibility.logShowBtn;
+      this.setDesktopLogVisible(false);
     });
 
     this.logShowBtn.addEventListener('click', () => {
-      this.logVisible = true;
-
-      const visibility = buildScreenVisibility('hud', this.logVisible);
-
-      this.gameLogEl.style.display = visibility.gameLog;
-      this.logShowBtn.style.display = visibility.logShowBtn;
+      this.setDesktopLogVisible(true);
     });
   }
 
