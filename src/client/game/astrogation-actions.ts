@@ -4,6 +4,7 @@ import { playConfirm, playSelect } from '../audio';
 import { deriveBurnChangePlan } from './burn';
 import { buildAstrogationOrders } from './helpers';
 import type { PlanningState } from './planning';
+import { clearShipPlanning, setShipBurn } from './planning-store';
 import type { GameTransport } from './transport';
 export interface AstrogationActionDeps {
   getGameState: () => GameState | null;
@@ -23,9 +24,7 @@ export const setBurnDirection = (
   const targetId = shipId ?? deps.planningState.selectedShipId;
   if (!targetId) return;
   if (dir === null) {
-    deps.planningState.burns.delete(targetId);
-    deps.planningState.overloads.delete(targetId);
-    deps.planningState.weakGravityChoices.delete(targetId);
+    clearShipPlanning(deps.planningState, targetId);
     deps.updateHUD();
     return;
   }
@@ -43,10 +42,12 @@ export const setBurnDirection = (
   if (plan.kind === 'noop') {
     return;
   }
-  deps.planningState.burns.set(plan.shipId, plan.nextBurn);
-  if (plan.clearOverload) {
-    deps.planningState.overloads.delete(plan.shipId);
-  }
+  setShipBurn(
+    deps.planningState,
+    plan.shipId,
+    plan.nextBurn,
+    plan.clearOverload,
+  );
   playSelect();
   deps.updateHUD();
 };
@@ -55,9 +56,7 @@ export const clearSelectedBurn = (deps: AstrogationActionDeps) => {
     return;
   const shipId = deps.planningState.selectedShipId;
   if (!shipId) return;
-  deps.planningState.burns.delete(shipId);
-  deps.planningState.overloads.delete(shipId);
-  deps.planningState.weakGravityChoices.delete(shipId);
+  clearShipPlanning(deps.planningState, shipId);
   deps.updateHUD();
 };
 export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
@@ -65,9 +64,7 @@ export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
     return;
   const shipId = deps.planningState.selectedShipId;
   if (shipId) {
-    deps.planningState.burns.delete(shipId);
-    deps.planningState.overloads.delete(shipId);
-    deps.planningState.weakGravityChoices.delete(shipId);
+    clearShipPlanning(deps.planningState, shipId);
   }
   deps.updateHUD();
 };
