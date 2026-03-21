@@ -15,7 +15,7 @@
 
 Command your fleet, master astrogation trajectories, sling-shot around celestial bodies, and engage in high-stakes combat where positioning and velocity are just as crucial as firepower.
 
-Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SHIP_AESTHETICS.md) to see the high-fidelity concept art for our fleet.
+Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) and [**Technology & Lore Guide**](./docs/TECHNOLOGY.md) to understand the high-fidelity NASA-punk concept art and hard sci-fi grounding of our fleet.
 
 ## 🌟 Features
 
