@@ -77,6 +77,9 @@ export const getAllowedOrdnanceTypes = (
   return new Set(allowed);
 };
 
+export const RESUPPLY_ORDNANCE_ERROR =
+  'Ships cannot launch ordnance during a turn in which they resupply';
+
 export const getNextOrdnanceId = (state: Pick<GameState, 'ordnance'>): number =>
   state.ordnance.reduce((maxId, ord) => {
     const match = /^ord(\d+)$/.exec(ord.id);
@@ -143,6 +146,26 @@ export const validateShipOrdnanceLaunch = (
   }
 
   return null;
+};
+
+// Full launch validation including scenario restrictions
+// and turn-level ship constraints.
+export const validateOrdnanceLaunch = (
+  state: Pick<GameState, 'scenarioRules'>,
+  ship: Ship,
+  ordnanceType: Ordnance['type'],
+): string | null => {
+  const allowedTypes = getAllowedOrdnanceTypes(state);
+
+  if (!allowedTypes.has(ordnanceType)) {
+    return `This scenario does not allow ${ordnanceType} launches`;
+  }
+
+  if (ship.resuppliedThisTurn) {
+    return RESUPPLY_ORDNANCE_ERROR;
+  }
+
+  return validateShipOrdnanceLaunch(ship, ordnanceType);
 };
 
 // Quick boolean: can this ship launch any ordnance at all?

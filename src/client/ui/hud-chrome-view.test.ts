@@ -38,8 +38,22 @@ const buildInput = (
   cargoFree: 6,
   cargoMax: 8,
   objective: 'Hold Mars',
-  isWarship: true,
   canEmplaceBase: false,
+  launchMineState: {
+    visible: true,
+    disabled: false,
+    title: '',
+  },
+  launchTorpedoState: {
+    visible: true,
+    disabled: false,
+    title: '',
+  },
+  launchNukeState: {
+    visible: true,
+    disabled: true,
+    title: 'Not enough cargo (need 20, have 6)',
+  },
   astrogationCtx: {
     selectedShipLanded: false,
     selectedShipDisabled: false,

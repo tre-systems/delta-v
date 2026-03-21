@@ -245,6 +245,8 @@ Client game modules use two patterns depending on purity (see [dependency inject
 
 When adding new side-effecting logic, prefer extending an existing `*Deps` interface over adding methods to `GameClient`. Keep pure derivation functions as direct-parameter exports — they don't need deps.
 
+When the client needs to decide whether an action is legal or should be shown/enabled, prefer reusing shared rule helpers from `src/shared/engine/` over duplicating lighter-weight UI heuristics. The ordnance HUD and ordnance-phase auto-selection follow this pattern: the client derives button visibility/disabled state and default selection from the same validation helpers the engine uses.
+
 ### Transport adapter
 
 Network vs. local game branching is handled by `GameTransport` (`src/client/game/transport.ts`), not by `if (isLocalGame)` checks in action handlers:

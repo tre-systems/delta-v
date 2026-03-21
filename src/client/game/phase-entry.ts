@@ -82,7 +82,7 @@ export const deriveClientStateEntryPlan = (
         frameOnShips: false,
         clearAstrogationPlanning: false,
         selectedShipId: getUnambiguousLaunchableShipId(
-          gameState ?? { ships: [] },
+          gameState ?? { ships: [], scenarioRules: {} },
           playerId,
         ),
         resetCombatState: false,

@@ -22,13 +22,12 @@ import {
   shouldEnterOrdnancePhase,
 } from './ordnance';
 import {
-  getAllowedOrdnanceTypes,
   getNextOrdnanceId,
   getOwnedPlanetaryBases,
   parseBaseKey,
   usesEscapeInspectionRules,
+  validateOrdnanceLaunch,
   validatePhaseAction,
-  validateShipOrdnanceLaunch,
 } from './util';
 import {
   advanceTurn,
@@ -682,7 +681,6 @@ export const processOrdnance = (
   if (phaseError) return { error: phaseError };
   let nextOrdId = getNextOrdnanceId(state);
   const launchedShips = new Set<string>();
-  const allowedOrdnanceTypes = getAllowedOrdnanceTypes(state);
   for (const launch of launches) {
     if (launchedShips.has(launch.shipId)) {
       return {
@@ -695,18 +693,7 @@ export const processOrdnance = (
         error: 'Invalid ship for ordnance launch',
       };
     }
-    if (ship.resuppliedThisTurn) {
-      return {
-        error:
-          'Ships cannot launch ordnance during a turn in which they resupply',
-      };
-    }
-    if (!allowedOrdnanceTypes.has(launch.ordnanceType)) {
-      return {
-        error: `This scenario does not allow ${launch.ordnanceType} launches`,
-      };
-    }
-    const shipError = validateShipOrdnanceLaunch(ship, launch.ordnanceType);
+    const shipError = validateOrdnanceLaunch(state, ship, launch.ordnanceType);
     if (shipError) return { error: shipError };
     const mass = ORDNANCE_MASS[launch.ordnanceType];
     if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {

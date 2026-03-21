@@ -1,6 +1,15 @@
 import { SHIP_STATS } from '../../shared/constants';
+import {
+  getAllowedOrdnanceTypes,
+  validateOrdnanceLaunch,
+} from '../../shared/engine/util';
 import { hexVecLength } from '../../shared/hex';
-import type { AstrogationOrder, GameState, Ship } from '../../shared/types';
+import type {
+  AstrogationOrder,
+  GameState,
+  Ordnance,
+  Ship,
+} from '../../shared/types';
 import { count } from '../../shared/util';
 import type { PlanningState } from './planning';
 
@@ -34,6 +43,15 @@ export interface HudViewModel {
   multipleShipsAlive: boolean;
   speed: number;
   fuelToStop: number;
+  launchMineState: OrdnanceActionState;
+  launchTorpedoState: OrdnanceActionState;
+  launchNukeState: OrdnanceActionState;
+}
+
+export interface OrdnanceActionState {
+  visible: boolean;
+  disabled: boolean;
+  title: string;
 }
 
 type PlanningSnapshot = Pick<
@@ -182,6 +200,38 @@ export const deriveHudViewModel = (
   );
 
   const stats = selectedShip ? SHIP_STATS[selectedShip.type] : null;
+  const allowedOrdnanceTypes = getAllowedOrdnanceTypes(state);
+
+  const getOrdnanceActionState = (
+    ordnanceType: Ordnance['type'],
+  ): OrdnanceActionState => {
+    if (!allowedOrdnanceTypes.has(ordnanceType)) {
+      return {
+        visible: false,
+        disabled: true,
+        title: '',
+      };
+    }
+
+    if (!selectedShip) {
+      return {
+        visible: true,
+        disabled: true,
+        title: '',
+      };
+    }
+
+    const error = validateOrdnanceLaunch(state, selectedShip, ordnanceType);
+
+    return {
+      visible: true,
+      disabled: error !== null,
+      title:
+        error === 'Only warships and orbital bases can launch torpedoes'
+          ? 'Warships only'
+          : (error ?? ''),
+    };
+  };
 
   return {
     turn: state.turnNumber,
@@ -212,6 +262,9 @@ export const deriveHudViewModel = (
     multipleShipsAlive: myShips.filter((s) => !s.destroyed).length > 1,
     speed: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
     fuelToStop: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
+    launchMineState: getOrdnanceActionState('mine'),
+    launchTorpedoState: getOrdnanceActionState('torpedo'),
+    launchNukeState: getOrdnanceActionState('nuke'),
   };
 };
 
