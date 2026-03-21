@@ -40,25 +40,25 @@ This is the heart of the project. All game rules live in a shared folder, making
 |--------|-----|---------|-------------|
 | `hex.ts` | 306 | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
 | `util.ts` | 170 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
-| `types.ts` | 364 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios | Game-specific |
+| `types/` | 389 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts` with barrel re-export) | Game-specific |
 | `constants.ts` | 135 | Ship stats, ordnance mass, detection ranges, animation timing | Game-specific |
 | `movement.ts` | 435 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
 | `combat.ts` | 627 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
 | `map-data.ts` | 712 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
 | `ai.ts` | 860 | Rule-based AI with three difficulty levels | Game-specific |
-| `engine/game-engine.ts` | 838 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
+| `engine/game-engine.ts` | 798 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
 | `engine/combat.ts` | 537 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
 | `engine/ordnance.ts` | 522 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
 | `engine/logistics.ts` | 284 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
 | `engine/victory.ts` | 634 | Victory conditions, turn advancement, reinforcements, fleet conversion | Game-specific |
-| `engine/util.ts` | 180 | Game rule helpers: base ownership, escape checks, ordnance capacity | Game-specific |
+| `engine/util.ts` | 226 | Game rule helpers: base ownership, escape checks, ordnance launch eligibility | Game-specific |
 
 #### Key Design Patterns
 
 - **`engine/game-engine.ts`**: A side-effect-free state machine. It takes the current `GameState` and player actions (e.g., astrogation orders, combat declarations) and returns a new `GameState` along with events (movements, combat results). **It has no I/O side effects (no DOM, no network, no storage)** and never mutates the caller's state — see [Engine Mutation Model](#engine-mutation-model).
 - **`movement.ts`**: Contains the complex vector math, gravity well logic, and collision detection. Moving a ship is resolved strictly on an axial hex grid (using `hex.ts`).
 - **`combat.ts`**: Evaluates line-of-sight, calculates combat odds based on velocity/range modifiers, and resolves damage. Mutates ships directly (e.g., `applyDamage`, `target.destroyed = true`, heroism flags).
-- **`types.ts`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads). This ensures the client and server never fall out of sync.
+- **`types/`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads), split into `domain.ts`, `protocol.ts`, and `scenario.ts` with a barrel re-export. This ensures the client and server never fall out of sync.
 - **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [RNG Injection](#rng-injection).
 - **Event-driven resolution**: Movement produces events (crashes, mine hits, captures) that flow to the client for animation and logging.
 
@@ -119,9 +119,9 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 | Directory | Files | LOC | Purpose |
 |-----------|-------|-----|---------|
 | `client/` (root) | 8 | ~2300 | Entry point (`main.ts` ~1040 LOC), raw input, audio, tutorial, DOM helpers, telemetry, viewport, reactive signals |
-| `client/game/` | 39 | ~5650 | Game logic: command routing, planning, phases, transport, presentation, connection, actions |
+| `client/game/` | 39 | ~5600 | Game logic: command routing, planning, phases, transport, presentation, connection, actions |
 | `client/renderer/` | 13 | ~4600 | Canvas rendering: camera, scene, entities, effects, overlays |
-| `client/ui/` | 13 | ~2100 | DOM overlays: menu, HUD, ship list, fleet building, game log, formatters, button bindings, screens |
+| `client/ui/` | 15 | ~2200 | DOM overlays: menu, HUD, ship list, fleet building, game log, formatters, button bindings, screens |
 
 #### Three-Layer Input Architecture
 
@@ -206,7 +206,7 @@ main.ts (GameClient)
   ├→ game/helpers.ts (derive HUD view models)
   ├→ game/[combat|burn|ordnance]-actions.ts (phase-specific actions)
   ├→ game/planning.ts (user input accumulation)
-  ├→ shared/types.ts (GameState, Ship, Ordnance, etc.)
+  ├→ shared/types/ (GameState, Ship, Ordnance, etc.)
   ├→ shared/engine/game-engine.ts (createGame, local resolution)
   ├→ shared/hex.ts (coordinate math)
   └→ shared/constants.ts (ship stats, animation timing)
@@ -296,36 +296,12 @@ A game implementation would provide:
 
 ---
 
-## 6. Improvement Opportunities & Commercial Readiness
+## 6. Remaining Architectural Decisions
 
-See BACKLOG.md for the full prioritised backlog. Below summarises the architectural decisions and their rationale.
-
-### ~~Priority 1: Engine Safety (BACKLOG 1a, 1b, 1c)~~ *(done)*
-
-All three engine safety items are complete:
-- **1a. Clone-on-entry** — `structuredClone` on entry at all 11 engine entry points.
-- **1b. Server rollback** — try/catch in `runGameStateAction` and `handleTurnTimeout`; structured error logging.
-- **1c. Event log** — 5 event types (`gameStarted`, `movementResolved`, `combatResolved`, `phaseChanged`, `gameOver`) in `src/shared/events.ts`. Server appends events to DO storage after every action. Reconnecting clients receive the full log via the `gameStart` message. Unlocks turn replay, spectator catch-up, and smooth reconnection.
-
-### ~~Priority 1: Error Reporting & Telemetry (BACKLOG 1d, 1e)~~ *(done)*
-
-- **1d. Error reporting** — Global `window.onerror`/`unhandledrejection` handlers POST structured JSON to `/error`. Server-side `handleReport()` validates Content-Type (415), caps body at 4 KB (413), parses JSON (400), logs via `console.error`, returns 204. No payload echo. Errors stored in D1 as `client_error` events with hashed IP and browser UA. Server-side engine exceptions already logged (1b).
-- **1e. Telemetry** — `track(event, props)` in `src/client/telemetry.ts` POSTs to `/telemetry`, logged via `console.log` and stored in D1 `events` table. Anonymous persistent client ID (`crypto.randomUUID()` + localStorage). Events tracked: `game_created` (scenario, mode, difficulty), `turn_completed` (turn number, phase durations, total time), `game_over` (won, reason, turn), `scenario_browsed`, tutorial progress (`tutorial_started`, `tutorial_completed`, `tutorial_skipped`). Fire-and-forget with `keepalive: true`, D1 writes via `ctx.waitUntil()`. IP hashed (SHA-256 truncated to 16 hex chars) — no raw IPs stored. Same `handleReport()` handler with same security measures. D1 schema in `migrations/0001_create_events.sql`.
-
-### ~~Priority 2: Code Quality (BACKLOG 2a, 2b)~~ *(done)*
-
-- **2a. Client integration tests** — 20 tests in `src/client/game/integration.test.ts` covering full connection-to-game flow, movement/combat/state-update presentation, game over, chat, errors, latency, and reconnection. Uses injectable deps pattern — no DOM or canvas needed.
-- **2b. Centralise phase validation** — `validatePhaseAction(state, playerId, requiredPhase)` in `src/shared/engine/util.ts`. All 10 standard engine entry points (all except `processFleetReady`) replaced ad-hoc phase + activePlayer checks with the single helper. 4 unit tests.
-
-### ~~Priority 3: Test Coverage (BACKLOG 3a)~~ *(done)*
-
-- **3a. Client coordination tests** — 22 tests in `src/client/game/dispatch.test.ts` covering planning state mutations (overloads, weak gravity, combat plans, queued attacks, torpedo accel, hover hex, ship selection, astrogation clearing), logistics transport guards (skip/confirm with phase checks), and phase transition output interpretation. Tests extracted pure logic from the `dispatch()` switch without needing a full `GameClient`.
-
-### Explicitly Deferred
+See [BACKLOG.md](BACKLOG.md) for open work. Below captures deferred decisions and their rationale.
 
 - **User accounts / auth**: Adds login friction that hurts adoption during user testing. The current anonymous token model is sufficient. Revisit for native app store distribution or payment integration.
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.
-- **Generic `RuleSet<S, C, E, P>` interface**: Designing a framework from N=1 games is premature abstraction. The current code is readable because it knows what a Ship is.
-- **Full package extraction** (`hex-core`, `match-runtime`, `delta-v-rules`): Wait until game #2 exists. Build the framework from two concrete implementations, not one.
+- **Generic hex engine extraction**: Designing a framework from N=1 games is premature abstraction. Fork Delta-V when game #2 starts and build the framework from two concrete implementations.
 - **Serialisation codec**: `GameState` is plain JSON. A codec adds overhead with zero current benefit.
-- **UI framework adoption**: The DOM UI layer is ~2100 LOC across 13 files. A framework (Preact, etc.) adds build complexity and migration risk for a layer that works and is small enough to iterate on directly.
+- **UI framework adoption**: The DOM UI layer is ~2200 LOC across 15 files. A framework (Preact, etc.) adds build complexity and migration risk for a layer that works and is small enough to iterate on directly.
