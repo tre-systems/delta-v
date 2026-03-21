@@ -38,6 +38,7 @@ Resize to 375x812 or use a phone:
 8. **Touch language** — status messages say "Tap" not "Click", no "(Enter)" hints
 9. **Burn markers** — direction circles have no 1-6 number labels
 10. **Help overlay** — shows "Tap ship/arrow/enemy", no keyboard shortcuts
+11. **Landscape** — rotate to landscape; HUD bars compact, canvas area usable
 
 ## Combat Test (2 minutes)
 
