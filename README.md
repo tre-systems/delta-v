@@ -122,7 +122,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Engine safety (clone-on-entry, server rollback, event log)
 - [x] Error reporting and anonymous telemetry (D1 storage)
-- [x] 1200+ tests across 80 suites, 8 scenario AI simulations
+- [x] 1240+ tests across 85 suites, 8 scenario AI simulations with per-scenario balance thresholds
 - [x] Client/engine decomposition and rules consolidation
 
 ### Planned

@@ -17,9 +17,9 @@ Since the core `engine/game-engine.ts` is purely functional and deterministic ap
 The current runner executes entirely in Node.js, outside the browser and Cloudflare Worker runtime.
 
 1. **Setup:** Initialize `GameState` using `createGame(SCENARIOS[name], map, ...)`.
-   For balance-oriented runs, randomize the starting `activePlayer`
-   so repeated simulations measure faction/scenario balance rather
-   than first-mover bias.
+   The starting player follows the scenario definition — some
+   scenarios set `startingPlayer: 1` to compensate for positional
+   asymmetry.
 2. **Game Loop:** Put the engine in a `while (state.phase !== 'gameOver')` loop.
 3. **Turn Execution:**
    - **Astrogation:** If it's Player 0's turn, call `aiAstrogation(state, 0, map, 'hard')`. Same for Player 1. Pass the orders into `processAstrogation()`.
@@ -31,9 +31,7 @@ The current runner executes entirely in Node.js, outside the browser and Cloudfl
 - Because the `game-engine.ts` has no DOM or Canvas dependencies, this runs very quickly in practice.
 - You can run Monte Carlo simulations (e.g., 10,000 runs of the 'Escape' scenario) to definitively prove if the scenario favors the escaping player or the blockading player.
 - **Randomness:** All engine entry points (`processAstrogation`, `processCombat`, `processOrdnance`, etc.) require a mandatory `rng: () => number` parameter — there are no `Math.random` fallbacks in the turn-resolution path. Passing a seeded RNG allows completely reproducible replays when a simulation encounters a crash or an infinite loop.
-- The current runner randomizes the starting player during bulk runs, which makes the reported win rates more meaningful for balance checks.
-- CI balance warnings use per-scenario decided-game win-rate bands rather than one global threshold.
-- Cooperative or race-style scenarios can opt out of those warnings, and the runner keeps their original seat order instead of randomizing starts.
+- CI balance warnings use per-scenario decided-game win-rate bands rather than one global threshold. Cooperative or race scenarios (e.g. Grand Tour) are excluded from balance checks.
 
 **Current usage:**
 - `npm run simulate` runs 100 headless games of the default scenario.
