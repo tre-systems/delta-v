@@ -138,7 +138,7 @@ describe('ui hud helpers', () => {
     });
   });
 
-  it('shows all burns set when every ship has a burn', () => {
+  it('shows all burns set when every ship has a burn in multi-ship', () => {
     expect(
       buildHUDView(
         buildInput({
@@ -147,11 +147,49 @@ describe('ui hud helpers', () => {
             ...defaultCtx,
             selectedShipHasBurn: true,
             allShipsHaveBurns: true,
+            multipleShipsAlive: true,
           },
         }),
       ),
     ).toMatchObject({
       statusText: 'All burns set · Confirm (Enter)',
+    });
+  });
+
+  it('shows burn set (not all burns set) for single ship', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          hasBurns: true,
+          astrogationCtx: {
+            ...defaultCtx,
+            selectedShipHasBurn: true,
+            allShipsHaveBurns: true,
+            multipleShipsAlive: false,
+          },
+        }),
+      ),
+    ).toMatchObject({
+      statusText: 'Burn set · Confirm (Enter)',
+    });
+  });
+
+  it('shows crash warning when course hits a body', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          hasBurns: true,
+          astrogationCtx: {
+            ...defaultCtx,
+            selectedShipHasBurn: true,
+            allShipsHaveBurns: true,
+            anyCrashed: true,
+            crashBody: 'Mercury',
+          },
+        }),
+      ),
+    ).toMatchObject({
+      statusText: 'Warning: course crashes into Mercury!',
     });
   });
 

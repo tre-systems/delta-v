@@ -1,4 +1,5 @@
 import { CODE_LENGTH } from '../../shared/constants';
+import { SCENARIOS } from '../../shared/map-data';
 import type {
   CombatResult,
   FleetPurchase,
@@ -166,27 +167,8 @@ export class UIManager {
       });
     }
 
-    // Scenario buttons — dispatch to multiplayer or
-    // AI based on context
-    for (const btn of Array.from(document.querySelectorAll('.btn-scenario'))) {
-      btn.addEventListener('click', () => {
-        const scenario = (btn as HTMLElement).dataset.scenario!;
-
-        if (this.pendingAIGame) {
-          this.pendingAIGame = false;
-          this.onEvent?.({
-            type: 'startSinglePlayer',
-            scenario,
-            difficulty: this.aiDifficulty,
-          });
-        } else {
-          this.onEvent?.({
-            type: 'selectScenario',
-            scenario,
-          });
-        }
-      });
-    }
+    // Generate scenario buttons from data
+    this.buildScenarioList();
 
     byId('backBtn').addEventListener('click', () => {
       this.onEvent?.({ type: 'backToMenu' });
@@ -380,6 +362,42 @@ export class UIManager {
 
   setPlayerId(id: number) {
     this.playerId = id;
+  }
+
+  private buildScenarioList() {
+    const container = byId('scenarioList');
+
+    for (const [key, def] of Object.entries(SCENARIOS)) {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-scenario';
+      btn.dataset.scenario = key;
+
+      const tags = (def.tags ?? [])
+        .map((t) => `<span class="scenario-tag">${t}</span>`)
+        .join('');
+
+      btn.innerHTML =
+        `<div class="scenario-name">${def.name}${tags}</div>` +
+        `<div class="scenario-desc">${def.description}</div>`;
+
+      btn.addEventListener('click', () => {
+        if (this.pendingAIGame) {
+          this.pendingAIGame = false;
+          this.onEvent?.({
+            type: 'startSinglePlayer',
+            scenario: key,
+            difficulty: this.aiDifficulty,
+          });
+        } else {
+          this.onEvent?.({
+            type: 'selectScenario',
+            scenario: key,
+          });
+        }
+      });
+
+      container.appendChild(btn);
+    }
   }
 
   showMenu() {

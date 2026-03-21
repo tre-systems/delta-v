@@ -42,6 +42,8 @@ export interface AstrogationContext {
   allShipsHaveBurns: boolean;
   multipleShipsAlive: boolean;
   hasSelection: boolean;
+  anyCrashed?: boolean;
+  crashBody?: string | null;
 }
 
 const getAstrogationStatusText = (ctx: AstrogationContext): string => {
@@ -57,7 +59,12 @@ const getAstrogationStatusText = (ctx: AstrogationContext): string => {
     return 'Click a direction to take off (costs 1 fuel)';
   }
 
-  if (ctx.allShipsHaveBurns) {
+  if (ctx.anyCrashed) {
+    const body = ctx.crashBody ?? 'a body';
+    return `Warning: course crashes into ${body}!`;
+  }
+
+  if (ctx.allShipsHaveBurns && ctx.multipleShipsAlive) {
     return 'All burns set \u00b7 Confirm (Enter)';
   }
 
