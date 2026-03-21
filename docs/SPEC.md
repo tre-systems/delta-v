@@ -151,11 +151,15 @@ Each game turn consists of one player-turn per player. The player-turn is:
    - Gravity entered earlier applies now; newly entered gravity is queued for later
    - Crashes, landings, asteroid entry, ordnance contact, and ramming positions are established
 
-4. COMBAT PHASE
+4. LOGISTICS PHASE (conditional — only in scenarios with logisticsEnabled)
+   - Transfer fuel or cargo between friendly ships at the same hex and velocity
+   - Loot disabled or surrendered enemy ships
+
+5. COMBAT PHASE
    - Resolve asteroid hazard rolls for asteroid hexes entered at speed > 1
    - Resolve gunfire, counterattacks, planetary defense, and attacks against nukes
 
-5. RESUPPLY PHASE
+6. RESUPPLY PHASE
    - Bases refuel, repair, reload, transfer cargo/fuel, and provide maintenance
    - Damaged ships recover 1 disabled turn at the end of the turn
 ```
@@ -402,7 +406,7 @@ Eight scenarios are implemented, selectable from the menu:
 - Pilgrims (3 transports from Terra) vs. Enforcers (1 corvette near Terra, 1 corsair near Venus)
 - Pilgrims must escape the solar system; Enforcers must stop them
 - Hidden identity: one transport carries the fugitives (opponent doesn't know which)
-- Server strips the `hasFugitives` flag from opponent state
+- Server strips the `identity` object from unrevealed opponent ships
 - Moral victory is tracked per the 2018 rules if the Pilgrims disable an Enforcer ship before being lost
 
 ### Convoy (Escort Mission)
@@ -548,12 +552,11 @@ type S2C =
   | { type: 'stateUpdate'; state: GameState }
   | { type: 'gameOver'; winner: number; reason: string }
   | { type: 'rematchPending' }
-  | { type: 'opponentDisconnected' }
   | { type: 'error'; message: string }
   | { type: 'pong'; t: number }
 ```
 
-All game-mutating messages include the full updated `GameState`. For hidden-information scenarios, the server filters state per player (e.g., stripping `hasFugitives` from opponent ships). See `src/shared/types/domain.ts` and `src/shared/types/protocol.ts` for the current split interface definitions.
+All game-mutating messages include the full updated `GameState`. Disconnect forfeits are persisted as authoritative game-over state and broadcast via the normal `stateUpdate` + `gameOver` path. For hidden-information scenarios, the server filters state per player (e.g., stripping `identity` from unrevealed opponent ships). See `src/shared/types/domain.ts` and `src/shared/types/protocol.ts` for the current split interface definitions.
 
 ## Game State
 
@@ -583,6 +586,7 @@ interface Ship {
   id: string
   type: string                                   // key into SHIP_STATS
   owner: number                                  // 0 or 1
+  originalOwner: number                          // player who originally owned this ship (stable after capture)
   position: HexCoord
   lastMovementPath?: HexCoord[]                  // path from most recent movement
   velocity: HexVec                               // (dq, dr) displacement per turn
@@ -593,13 +597,14 @@ interface Ship {
   landed: boolean
   destroyed: boolean
   detected: boolean
-  captured?: boolean                             // captured by enemy — cannot fire until base resupply
+  controlStatus?: 'captured' | 'surrendered'     // absent = under normal player control
   heroismAvailable?: boolean                     // heroic ships add +1 to gun combat attack rolls
   overloadUsed?: boolean                         // true if overload used since last maintenance
-  carryingOrbitalBase?: boolean                  // transport/packet carrying an unemplaced orbital base
-  emplaced?: boolean                             // orbital base placed (stationary, cannot move)
-  hasFugitives?: boolean                         // hidden from opponent in Escape
-  identityRevealed?: boolean                     // hidden-identity: true once inspection reveals role
+  baseStatus?: 'carryingBase' | 'emplaced'       // orbital base lifecycle
+  identity?: {                                   // hidden-identity scenarios only
+    hasFugitives: boolean                        // true for the ship carrying fugitives
+    revealed: boolean                            // true once inspection or capture reveals role
+  }
   pendingGravityEffects?: GravityEffect[]
   damage: { disabledTurns: number }              // 0 = operational, ≥6 = eliminated
 }
@@ -613,7 +618,7 @@ interface PlayerState {
   escapeWins: boolean
 }
 
-type Phase = 'waiting' | 'fleetBuilding' | 'astrogation' | 'ordnance' | 'movement' | 'combat' | 'resupply' | 'gameOver'
+type Phase = 'waiting' | 'fleetBuilding' | 'astrogation' | 'ordnance' | 'movement' | 'logistics' | 'combat' | 'resupply' | 'gameOver'
 ```
 
 ## Hex Math

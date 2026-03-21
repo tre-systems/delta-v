@@ -32,12 +32,6 @@ Remaining work only. Completed items are in git history.
   target cycling, filtered astrogation order construction, and
   astrogation confirm behavior with partially planned fleets.
 
-### Phase 2. Docs refresh
-
-- Sync `docs/SPEC.md` to the current ship state model and the
-  split shared type files so the documented rules/state shape
-  match the code again after the rules audit.
-
 ---
 
 ## Features
