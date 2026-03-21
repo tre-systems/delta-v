@@ -15,6 +15,7 @@ import { SHIP_STATS } from '../src/shared/constants';
 import { GameState, FleetPurchase } from '../src/shared/types';
 
 interface SimulationMetrics {
+  scenario: string;
   totalGames: number;
   player0Wins: number;
   player1Wins: number;
@@ -23,6 +24,20 @@ interface SimulationMetrics {
   crashes: number; // Internal engine errors during simulation
   reasons: Record<string, number>;
 }
+
+// Per-scenario P0 decided-game rate thresholds (min, max).
+// Decided games = total minus draws/timeouts.
+// null = skip balance check (cooperative/race scenarios).
+const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
+  biplanetary: [0.30, 0.85],
+  escape: [0.55, 0.95],
+  convoy: [0.25, 0.75],
+  duel: [0.30, 0.70],
+  blockade: [0.20, 0.70],
+  interplanetaryWar: [0.30, 0.75],
+  fleetAction: [0.30, 0.70],
+  grandTour: null,
+};
 
 function simFleetBuild(state: GameState, playerId: number, difficulty: AIDifficulty, availableTypes?: string[]): FleetPurchase[] {
   const credits = state.players[playerId].credits ?? 0;
@@ -153,6 +168,7 @@ async function runSimulation(scenarioName: string, iterations: number) {
   console.log(`\n=== Starting Simulation: ${scenarioName} (${iterations} iterations) ===\n`);
   
   const metrics: SimulationMetrics = {
+    scenario: scenarioName,
     totalGames: 0,
     player0Wins: 0,
     player1Wins: 0,
@@ -166,8 +182,14 @@ async function runSimulation(scenarioName: string, iterations: number) {
 
   for (let i = 0; i < iterations; i++) {
     try {
+      // Randomize starting player to cancel first-mover
+      // bias, except for cooperative races where starting
+      // order is part of the scenario design.
+      const scenario = SCENARIOS[scenarioName];
+      const isCooperative =
+        scenario?.rules?.combatDisabled === true;
       const result = await runSingleGame(
-        scenarioName, 'hard', 'hard', true,
+        scenarioName, 'hard', 'hard', !isCooperative,
       );
       metrics.totalGames++;
       metrics.totalTurns += result.turns;
@@ -228,16 +250,25 @@ async function main() {
     let failed = false;
     for (const metrics of allMetrics) {
       if (metrics.crashes > 0) {
-        console.error(`❌ CI FAILURE: Engine crashed ${metrics.crashes} times.`);
+        console.error(`❌ CI FAILURE: ${metrics.scenario} — Engine crashed ${metrics.crashes} times.`);
         failed = true;
       }
-      
-      const decidedGames = metrics.player0Wins + metrics.player1Wins;
-      if (decidedGames > 0) {
-        const p0Rate = metrics.player0Wins / decidedGames;
-        if (p0Rate < 0.20 || p0Rate > 0.80) {
-          console.warn(`⚠️  Unbalanced Win Rate (${(p0Rate * 100).toFixed(1)}%). (Checks skipped per user request)`);
-        }
+
+      const threshold = BALANCE_THRESHOLDS[metrics.scenario];
+      if (!threshold) continue;
+
+      const decidedGames =
+        metrics.player0Wins + metrics.player1Wins;
+      if (decidedGames < 5) continue;
+
+      const p0Rate = metrics.player0Wins / decidedGames;
+      const [lo, hi] = threshold;
+      if (p0Rate < lo || p0Rate > hi) {
+        console.warn(
+          `⚠️  ${metrics.scenario}: P0 decided rate ` +
+          `${(p0Rate * 100).toFixed(1)}% outside ` +
+          `[${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}%]`,
+        );
       }
     }
 
