@@ -4,16 +4,6 @@ Remaining work only. Completed items are in git history.
 
 ---
 
-## Open issues
-
-#### 26. Minimap is not interactive
-
-The minimap shows planet/ship positions but clicking it
-doesn't pan the main camera. Click-to-navigate would solve
-the "can't find my ship" problem.
-
----
-
 ## Maintenance
 
 ### Phase 5. Stronger entity state models
