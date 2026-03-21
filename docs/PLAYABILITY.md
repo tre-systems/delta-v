@@ -73,6 +73,7 @@ Verify with a single-ship fleet:
 
 Run `npm run simulate all 25` — all 8 scenarios should complete with 0 engine crashes.
 The simulation runner now randomizes the starting player during bulk balance runs, so the win-rate output is less biased by seat order.
+CI balance warnings are scenario-specific and can skip cooperative or race-style scenarios where seat order is part of the design.
 
 ## What These Tests Don't Cover
 

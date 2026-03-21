@@ -32,6 +32,8 @@ The current runner executes entirely in Node.js, outside the browser and Cloudfl
 - You can run Monte Carlo simulations (e.g., 10,000 runs of the 'Escape' scenario) to definitively prove if the scenario favors the escaping player or the blockading player.
 - **Randomness:** All engine entry points (`processAstrogation`, `processCombat`, `processOrdnance`, etc.) require a mandatory `rng: () => number` parameter — there are no `Math.random` fallbacks in the turn-resolution path. Passing a seeded RNG allows completely reproducible replays when a simulation encounters a crash or an infinite loop.
 - The current runner randomizes the starting player during bulk runs, which makes the reported win rates more meaningful for balance checks.
+- CI balance warnings use per-scenario decided-game win-rate bands rather than one global threshold.
+- Cooperative or race-style scenarios can opt out of those warnings, and the runner keeps their original seat order instead of randomizing starts.
 
 **Current usage:**
 - `npm run simulate` runs 100 headless games of the default scenario.
