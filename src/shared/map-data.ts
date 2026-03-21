@@ -547,11 +547,12 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     startingPlayer: 1,
     players: [
       {
-        // Runner: fast packet ship from Venus
+        // Runner: fast packet ship from Venus with
+        // a head start toward Mars
         ships: [
           {
             type: 'packet',
-            position: { q: -7, r: 5 },
+            position: { q: -7, r: 3 },
             velocity: { dq: 0, dr: -2 },
             startLanded: false,
           },
@@ -586,7 +587,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       '— total war across the solar system',
     rules: { logisticsEnabled: true },
     startingPlayer: 1,
-    startingCredits: [900, 800],
+    startingCredits: 850,
     availableShipTypes: [
       'transport',
       'packet',

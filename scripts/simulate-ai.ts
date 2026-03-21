@@ -29,14 +29,14 @@ interface SimulationMetrics {
 // Decided games = total minus draws/timeouts.
 // null = skip balance check (cooperative/race scenarios).
 const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
-  biplanetary: [0.30, 0.85],
-  escape: [0.55, 0.95],
-  convoy: [0.25, 0.75],
-  duel: [0.30, 0.70],
-  blockade: [0.20, 0.70],
-  interplanetaryWar: [0.30, 0.75],
-  fleetAction: [0.30, 0.70],
-  grandTour: null,
+  biplanetary: [0.45, 0.85],     // Mars→Venus has nav advantage
+  escape: [0.55, 0.90],          // Asymmetric — fugitives favored
+  convoy: [0.30, 0.70],          // Asymmetric escort
+  duel: [0.30, 0.70],            // Symmetric combat
+  blockade: [0.25, 0.65],        // Asymmetric speed vs combat
+  interplanetaryWar: [0.30, 0.70], // Equal credits, different bases
+  fleetAction: [0.45, 0.80],     // Mars has nav advantage
+  grandTour: null,               // Cooperative race
 };
 
 function simFleetBuild(state: GameState, playerId: number, difficulty: AIDifficulty, availableTypes?: string[]): FleetPurchase[] {
@@ -182,14 +182,8 @@ async function runSimulation(scenarioName: string, iterations: number) {
 
   for (let i = 0; i < iterations; i++) {
     try {
-      // Randomize starting player to cancel first-mover
-      // bias, except for cooperative races where starting
-      // order is part of the scenario design.
-      const scenario = SCENARIOS[scenarioName];
-      const isCooperative =
-        scenario?.rules?.combatDisabled === true;
       const result = await runSingleGame(
-        scenarioName, 'hard', 'hard', !isCooperative,
+        scenarioName, 'hard', 'hard',
       );
       metrics.totalGames++;
       metrics.totalTurns += result.turns;
