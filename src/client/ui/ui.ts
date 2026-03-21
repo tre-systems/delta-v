@@ -1,5 +1,3 @@
-import { CODE_LENGTH } from '../../shared/constants';
-import { SCENARIOS } from '../../shared/map-data';
 import type {
   CombatResult,
   GameState,
@@ -10,16 +8,13 @@ import { byId, hide, show, visible } from '../dom';
 import { ACTION_BUTTON_IDS, STATIC_BUTTON_BINDINGS } from './button-bindings';
 import type { UIEvent } from './events';
 import { FleetBuildingView } from './fleet-building-view';
-import { getLatencyStatus, parseJoinInput } from './formatters';
+import { getLatencyStatus } from './formatters';
 import { GameLogView } from './game-log-view';
 import { buildHUDView, type HUDInput } from './hud';
 import { deriveHudLayoutOffsets } from './layout';
+import { LobbyView } from './lobby-view';
 import { OverlayView } from './overlay-view';
-import {
-  buildScreenVisibility,
-  buildWaitingScreenCopy,
-  type UIScreenMode,
-} from './screens';
+import { buildScreenVisibility, type UIScreenMode } from './screens';
 import { ShipListView } from './ship-list-view';
 
 export class UIManager {
@@ -40,14 +35,10 @@ export class UIManager {
   private readonly fleetBuildingView: FleetBuildingView;
   private readonly gameLogView: GameLogView;
   private readonly shipListView: ShipListView;
+  private readonly lobbyView: LobbyView;
   private readonly overlayView: OverlayView;
 
   onEvent: ((event: UIEvent) => void) | null = null;
-
-  private aiDifficulty: 'easy' | 'normal' | 'hard' = 'normal';
-
-  // true when scenario selection is for AI game
-  private pendingAIGame = false;
 
   private readonly handleViewportResize = () => {
     this.queueLayoutSync();
@@ -72,6 +63,11 @@ export class UIManager {
       onChat: (text) => {
         this.emit({ type: 'chat', text });
       },
+    });
+    this.lobbyView = new LobbyView({
+      emit: (event) => this.emit(event),
+      showMenu: () => this.showMenu(),
+      showScenarioSelect: () => this.showScenarioSelect(),
     });
     this.shipListView = new ShipListView({
       onSelectShip: (shipId) => {
@@ -101,95 +97,11 @@ export class UIManager {
       this.handleViewportResize,
     );
 
-    this.bindMenuControls();
-    this.bindDifficultyButtons();
-    // Generate scenario buttons from data
-    this.buildScenarioList();
-    this.bindJoinControls();
-    this.bindCopyButton();
     this.bindStaticButtons();
   }
 
   private emit(event: UIEvent) {
     this.onEvent?.(event);
-  }
-
-  private bindMenuControls() {
-    byId('createBtn').addEventListener('click', () => {
-      this.showScenarioSelect();
-    });
-
-    byId('singlePlayerBtn').addEventListener('click', () => {
-      this.pendingAIGame = true;
-      this.showScenarioSelect();
-    });
-
-    byId('backBtn').addEventListener('click', () => {
-      this.emit({ type: 'backToMenu' });
-      this.showMenu();
-    });
-  }
-
-  private bindDifficultyButtons() {
-    const buttons = Array.from(
-      document.querySelectorAll<HTMLElement>('.btn-difficulty'),
-    );
-
-    for (const btn of buttons) {
-      btn.addEventListener('click', (e: Event) => {
-        e.stopPropagation();
-
-        const diff = btn.dataset.difficulty as 'easy' | 'normal' | 'hard';
-        this.aiDifficulty = diff;
-
-        for (const button of buttons) {
-          button.classList.remove('active');
-        }
-
-        btn.classList.add('active');
-      });
-    }
-  }
-
-  private submitJoin(rawValue: string) {
-    const parsed = parseJoinInput(rawValue, CODE_LENGTH);
-
-    if (!parsed) {
-      return;
-    }
-
-    this.emit({
-      type: 'join',
-      code: parsed.code,
-      playerToken: parsed.playerToken,
-    });
-  }
-
-  private bindJoinControls() {
-    byId('joinBtn').addEventListener('click', () => {
-      this.submitJoin((byId('codeInput') as HTMLInputElement).value);
-    });
-
-    byId('codeInput').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        this.submitJoin((e.target as HTMLInputElement).value);
-      }
-    });
-  }
-
-  private bindCopyButton() {
-    byId('copyBtn').addEventListener('click', () => {
-      const code = byId('gameCode').textContent;
-      const url = `${window.location.origin}/?code=${code}`;
-
-      navigator.clipboard?.writeText(url).then(() => {
-        byId('copyBtn').textContent = 'Copied!';
-
-        setTimeout(() => {
-          byId('copyBtn').textContent = 'Copy Link';
-        }, 2000);
-      });
-    });
   }
 
   private bindStaticButtons() {
@@ -231,54 +143,14 @@ export class UIManager {
     this.gameLogView.setPlayerId(id);
   }
 
-  private buildScenarioList() {
-    const container = byId('scenarioList');
-
-    for (const [key, def] of Object.entries(SCENARIOS)) {
-      const btn = document.createElement('button');
-      btn.className = 'btn btn-scenario';
-      btn.dataset.scenario = key;
-
-      const tags = (def.tags ?? [])
-        .map((t) => `<span class="scenario-tag">${t}</span>`)
-        .join('');
-
-      btn.innerHTML =
-        `<div class="scenario-name">${def.name}${tags}</div>` +
-        `<div class="scenario-desc">${def.description}</div>`;
-
-      btn.addEventListener('click', () => {
-        if (this.pendingAIGame) {
-          this.pendingAIGame = false;
-          this.onEvent?.({
-            type: 'startSinglePlayer',
-            scenario: key,
-            difficulty: this.aiDifficulty,
-          });
-        } else {
-          this.onEvent?.({
-            type: 'selectScenario',
-            scenario: key,
-          });
-        }
-      });
-
-      container.appendChild(btn);
-    }
-  }
-
   showMenu() {
     this.hideAll();
     this.applyScreenVisibility('menu');
-    // Reset state
-    this.pendingAIGame = false;
+    this.lobbyView.onMenuShown();
   }
 
   setMenuLoading(loading: boolean) {
-    const btn = byId<HTMLButtonElement>('createBtn');
-
-    btn.disabled = loading;
-    btn.textContent = loading ? 'CREATING...' : 'Create Game';
+    this.lobbyView.setMenuLoading(loading);
   }
 
   showScenarioSelect() {
@@ -289,21 +161,13 @@ export class UIManager {
   showWaiting(code: string) {
     this.hideAll();
     this.applyScreenVisibility('waiting');
-
-    const copy = buildWaitingScreenCopy(code, false);
-
-    byId('gameCode').textContent = copy.codeText;
-    byId('waitingStatus').textContent = copy.statusText;
+    this.lobbyView.showWaiting(code);
   }
 
   showConnecting() {
     this.hideAll();
     this.applyScreenVisibility('waiting');
-
-    const copy = buildWaitingScreenCopy('', true);
-
-    byId('gameCode').textContent = copy.codeText;
-    byId('waitingStatus').textContent = copy.statusText;
+    this.lobbyView.showConnecting();
   }
 
   showHUD() {
