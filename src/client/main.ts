@@ -119,6 +119,7 @@ import { installGlobalErrorHandlers, track } from './telemetry';
 import { Tutorial } from './tutorial';
 import type { UIEvent } from './ui/events';
 import { UIManager } from './ui/ui';
+import { installViewportSizing } from './viewport';
 
 interface ClientContext {
   state: ClientState;
@@ -1278,6 +1279,7 @@ class GameClient {
 }
 // --- Bootstrap ---
 installGlobalErrorHandlers();
+installViewportSizing();
 const __game = new GameClient();
 (window as Window & { __game?: GameClient }).__game = __game;
 window.addEventListener('offline', () => {
