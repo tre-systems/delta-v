@@ -918,8 +918,10 @@ class GameClient {
       cargoFree: hud.cargoFree,
       cargoMax: hud.cargoMax,
       objective: hud.objective,
-      isWarship: hud.canOverload,
       canEmplaceBase: hud.canEmplaceBase,
+      launchMineState: hud.launchMineState,
+      launchTorpedoState: hud.launchTorpedoState,
+      launchNukeState: hud.launchNukeState,
       speed: hud.speed,
       fuelToStop: hud.fuelToStop,
       astrogationCtx: {

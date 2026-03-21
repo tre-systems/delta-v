@@ -1,5 +1,3 @@
-import { ORDNANCE_MASS } from '../../shared/constants';
-
 export interface UIButtonView {
   visible: boolean;
   disabled: boolean;
@@ -102,12 +100,20 @@ export interface HUDInput {
   cargoFree: number;
   cargoMax: number;
   objective: string;
-  isWarship: boolean;
   canEmplaceBase: boolean;
+  launchMineState: HUDActionState;
+  launchTorpedoState: HUDActionState;
+  launchNukeState: HUDActionState;
   astrogationCtx: AstrogationContext;
   speed: number;
   fuelToStop: number;
   isMobile: boolean;
+}
+
+export interface HUDActionState {
+  visible: boolean;
+  disabled: boolean;
+  title: string;
 }
 
 export const buildHUDView = (input: HUDInput): HUDView => {
@@ -121,8 +127,10 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     cargoFree,
     cargoMax,
     objective,
-    isWarship,
     canEmplaceBase,
+    launchMineState,
+    launchTorpedoState,
+    launchNukeState,
     astrogationCtx,
     speed,
     fuelToStop,
@@ -130,9 +138,6 @@ export const buildHUDView = (input: HUDInput): HUDView => {
   } = input;
 
   const showOrdnance = isMyTurn && phase === 'ordnance';
-  const canMine = cargoFree >= ORDNANCE_MASS.mine;
-  const canTorpedo = isWarship && cargoFree >= ORDNANCE_MASS.torpedo;
-  const canNuke = cargoFree >= ORDNANCE_MASS.nuke;
 
   return {
     turnText: `Turn ${turn}`,
@@ -168,28 +173,28 @@ export const buildHUDView = (input: HUDInput): HUDView => {
 
     launchMine: showOrdnance
       ? {
-          visible: true,
-          disabled: !canMine,
-          opacity: canMine ? '1' : '0.4',
-          title: '',
+          visible: launchMineState.visible,
+          disabled: launchMineState.disabled,
+          opacity: launchMineState.disabled ? '0.4' : '1',
+          title: launchMineState.title,
         }
       : createHiddenButton(),
 
     launchTorpedo: showOrdnance
       ? {
-          visible: true,
-          disabled: !canTorpedo,
-          opacity: canTorpedo ? '1' : '0.4',
-          title: isWarship ? '' : 'Warships only',
+          visible: launchTorpedoState.visible,
+          disabled: launchTorpedoState.disabled,
+          opacity: launchTorpedoState.disabled ? '0.4' : '1',
+          title: launchTorpedoState.title,
         }
       : createHiddenButton(),
 
     launchNuke: showOrdnance
       ? {
-          visible: true,
-          disabled: !canNuke,
-          opacity: canNuke ? '1' : '0.4',
-          title: '',
+          visible: launchNukeState.visible,
+          disabled: launchNukeState.disabled,
+          opacity: launchNukeState.disabled ? '0.4' : '1',
+          title: launchNukeState.title,
         }
       : createHiddenButton(),
 

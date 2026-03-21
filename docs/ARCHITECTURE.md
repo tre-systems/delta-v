@@ -23,6 +23,7 @@ client/          → State machine + Canvas renderer + DOM UI
 - **Transport abstraction.** `GameTransport` decouples the client from WebSocket vs local (AI) play. The client doesn't know or care where state comes from.
 - **Functional style throughout.** Pure derivation functions (`deriveHudViewModel`, `deriveKeyboardAction`, `deriveBurnChangePlan`), mandatory injectable RNG, `cond()` for branching.
 - **Scenario-driven.** `ScenarioRules` controls behaviour: ordnance types, base sharing, combat enabled, checkpoints, escape edges. New scenarios can vary gameplay without engine changes.
+- **Shared rule reuse across layers.** Client ordnance entry, HUD button visibility, and engine validation now all derive from the same shared ordnance-rule helpers, so restricted scenarios do not drift between UI and server authority.
 - **Hidden state filtering.** `filterStateForPlayer` hides fugitive identities in escape scenarios — the server never leaks information the client shouldn't have.
 
 ---
@@ -144,7 +145,7 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 - **`main.ts`**: The client-side coordinator. Manages WebSocket connections, local-AI execution, and phase transitions. Orchestrates the Renderer, Input, and UI through a centralized **`ClientContext`**. Commands are dispatched via `dispatchGameCommand()` in `game/command-router.ts`.
 - **`renderer/renderer.ts`**: A highly optimized Canvas 2D renderer. It separates logical hex coordinates from pixel coordinates. It features smooth camera interpolation, persistent trails, and movement/combat animations that occur *between* turn phases.
 - **`input.ts`**: Manages user interaction (panning, zooming, clicking). It translates raw browser events into `InputEvent` objects. Pure `interpretInput()` then maps these to `GameCommand[]`, ensuring the input layer never directly mutates the application state.
-- **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), phase derivation, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic.
+- **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), phase derivation, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
 - **`renderer/`**: Canvas drawing layers (scene, entities, vectors, effects, overlays), camera, minimap, and animation management.
 - **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, and layout metrics.
 - **`ui/ui.ts`** / **`audio.ts`**: Handles the HTML overlay (menus, HUD) and Web Audio API interactions.

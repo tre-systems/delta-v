@@ -1,7 +1,8 @@
 import { SHIP_STATS } from '../../shared/constants';
 import {
-  canLaunchOrdnance,
-  validateShipOrdnanceLaunch,
+  getAllowedOrdnanceTypes,
+  hasLaunchableOrdnanceCapacity,
+  validateOrdnanceLaunch,
 } from '../../shared/engine/util';
 import type {
   GameState,
@@ -11,7 +12,7 @@ import type {
 } from '../../shared/types';
 import type { PlanningState } from './planning';
 
-type OrdnanceState = Pick<GameState, 'ships'>;
+type OrdnanceState = Pick<GameState, 'ships' | 'scenarioRules'>;
 
 type OrdnancePlanning = Pick<
   PlanningState,
@@ -58,9 +59,14 @@ export const getFirstLaunchableShipId = (
   state: OrdnanceState,
   playerId: number,
 ): string | null => {
+  const allowedTypes = getAllowedOrdnanceTypes(state);
+
   return (
     state.ships.find(
-      (ship) => ship.owner === playerId && canLaunchOrdnance(ship),
+      (ship) =>
+        ship.owner === playerId &&
+        !ship.resuppliedThisTurn &&
+        hasLaunchableOrdnanceCapacity(ship, allowedTypes),
     )?.id ?? null
   );
 };
@@ -69,8 +75,12 @@ export const getUnambiguousLaunchableShipId = (
   state: OrdnanceState,
   playerId: number,
 ): string | null => {
+  const allowedTypes = getAllowedOrdnanceTypes(state);
   const launchable = state.ships.filter(
-    (ship) => ship.owner === playerId && canLaunchOrdnance(ship),
+    (ship) =>
+      ship.owner === playerId &&
+      !ship.resuppliedThisTurn &&
+      hasLaunchableOrdnanceCapacity(ship, allowedTypes),
   );
 
   return launchable.length === 1 ? launchable[0].id : null;
@@ -95,7 +105,7 @@ export const resolveOrdnanceLaunchPlan = (
     return { ok: false, message: null, level: 'error' };
   }
 
-  const error = validateShipOrdnanceLaunch(ship, ordnanceType);
+  const error = validateOrdnanceLaunch(state, ship, ordnanceType);
 
   if (error) {
     return { ok: false, message: error, level: 'error' };

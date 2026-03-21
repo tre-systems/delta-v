@@ -21,7 +21,10 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
   };
 }
 
-function createState(ships: Ship[]): GameState {
+function createState(
+  ships: Ship[],
+  overrides: Partial<GameState> = {},
+): GameState {
   return {
     gameId: 'LOCAL',
     scenario: 'Bi-Planetary',
@@ -56,6 +59,7 @@ function createState(ships: Ship[]): GameState {
     ],
     winner: null,
     winReason: null,
+    ...overrides,
   };
 }
 
@@ -81,15 +85,39 @@ describe('game-client-phase-entry', () => {
   it('derives ordnance selection from the first launchable ship', () => {
     const plan = deriveClientStateEntryPlan(
       'playing_ordnance',
-      createState([
-        createShip({ id: 'empty', cargoUsed: 50 }),
-        createShip({ id: 'launchable' }),
-      ]),
+      createState(
+        [
+          createShip({
+            id: 'restricted',
+            type: 'corsair',
+          }),
+          createShip({ id: 'launchable', type: 'packet' }),
+        ],
+        { scenarioRules: { allowedOrdnanceTypes: ['nuke'] } },
+      ),
       0,
     );
 
     expect(plan.selectedShipId).toBe('launchable');
     expect(plan.tutorialPhase).toBe('ordnance');
+  });
+
+  it('returns null ordnance selection when no ship can launch the allowed types', () => {
+    const plan = deriveClientStateEntryPlan(
+      'playing_ordnance',
+      createState(
+        [
+          createShip({
+            id: 'restricted',
+            type: 'corsair',
+          }),
+        ],
+        { scenarioRules: { allowedOrdnanceTypes: ['nuke'] } },
+      ),
+      0,
+    );
+
+    expect(plan.selectedShipId).toBeNull();
   });
 
   it('returns null selectedShipId when multiple alive ships exist', () => {
