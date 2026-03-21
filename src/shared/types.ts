@@ -355,6 +355,7 @@ export interface ScenarioPlayer {
 export interface ScenarioDefinition {
   name: string;
   description: string;
+  tags?: string[];
   players: ScenarioPlayer[];
   rules?: ScenarioRules;
   startingPlayer?: 0 | 1;

@@ -9,7 +9,7 @@ import {
   type PixelCoord,
 } from '../../shared/hex';
 import { computeCourse, predictDestination } from '../../shared/movement';
-import type { GameState, SolarSystemMap } from '../../shared/types';
+import type { GameState, Ship, SolarSystemMap } from '../../shared/types';
 
 export interface CoursePreviewPlanningState {
   selectedShipId: string | null;
@@ -62,6 +62,12 @@ export interface FuelCostLabelView {
   color: string;
 }
 
+export interface DriftSegment {
+  points: PixelCoord[];
+  color: string;
+  alpha: number;
+}
+
 export interface CoursePreviewView {
   shipId: string;
   linePoints: PixelCoord[];
@@ -75,6 +81,7 @@ export interface CoursePreviewView {
   weakGravityMarkers: WeakGravityMarkerView[];
   pendingGravityArrows: CourseArrowView[];
   fuelCostLabel: FuelCostLabelView | null;
+  driftSegments: DriftSegment[];
 }
 
 const buildDirectionMarker = (
@@ -251,6 +258,52 @@ const buildOverloadMarkers = (
   });
 };
 
+const DRIFT_ALPHAS = [0.25, 0.15];
+
+const buildDriftSegments = (
+  ship: Ship,
+  course: ReturnType<typeof computeCourse>,
+  map: SolarSystemMap,
+  hexSize: number,
+): DriftSegment[] => {
+  if (course.crashed || course.landedAt !== null) return [];
+
+  const segments: DriftSegment[] = [];
+  let pos = course.destination;
+  let vel = course.newVelocity;
+  let pending = course.enteredGravityEffects;
+
+  for (let i = 0; i < DRIFT_ALPHAS.length; i++) {
+    const synthetic: Ship = {
+      ...ship,
+      position: pos,
+      velocity: vel,
+      pendingGravityEffects: pending,
+      landed: false,
+    };
+
+    const drift = computeCourse(synthetic, null, map);
+
+    const points = [pos, ...drift.path.slice(1)].map((hex) =>
+      hexToPixel(hex, hexSize),
+    );
+
+    segments.push({
+      points,
+      color: drift.crashed ? '#ff4444' : '#4fc3f7',
+      alpha: DRIFT_ALPHAS[i],
+    });
+
+    if (drift.crashed || drift.landedAt !== null) break;
+
+    pos = drift.destination;
+    vel = drift.newVelocity;
+    pending = drift.enteredGravityEffects;
+  }
+
+  return segments;
+};
+
 export const buildAstrogationCoursePreviewViews = (
   state: GameState,
   playerId: number,
@@ -377,6 +430,10 @@ export const buildAstrogationCoursePreviewViews = (
               color: '#ffcc00',
             }
           : null,
+
+      driftSegments: isSelected
+        ? buildDriftSegments(ship, course, map, hexSize)
+        : [],
     });
   }
 

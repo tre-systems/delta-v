@@ -866,6 +866,25 @@ export class Renderer {
         ctx.setLineDash([]);
       }
 
+      // Drift segments — faded future-turn paths
+      for (const seg of preview.driftSegments) {
+        ctx.save();
+        ctx.globalAlpha = seg.alpha;
+        ctx.strokeStyle = seg.color;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 6]);
+        ctx.beginPath();
+        ctx.moveTo(seg.points[0].x, seg.points[0].y);
+
+        for (let i = 1; i < seg.points.length; i++) {
+          ctx.lineTo(seg.points[i].x, seg.points[i].y);
+        }
+
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+
       if (preview.ghostShip) {
         this.drawShipIcon(
           ctx,
