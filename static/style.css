@@ -79,6 +79,10 @@ body::before {
   z-index: 0;
 }
 
+.touch-only {
+  display: none;
+}
+
 .screen {
   position: fixed;
   inset: 0;
@@ -1342,6 +1346,10 @@ body::before {
 
   .keyboard-only {
     display: none;
+  }
+
+  .touch-only {
+    display: flex;
   }
 
   .help-key {

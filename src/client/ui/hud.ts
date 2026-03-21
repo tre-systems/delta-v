@@ -46,7 +46,10 @@ export interface AstrogationContext {
   crashBody?: string | null;
 }
 
-const getAstrogationStatusText = (ctx: AstrogationContext): string => {
+const getAstrogationStatusText = (
+  ctx: AstrogationContext,
+  isMobile: boolean,
+): string => {
   if (!ctx.hasSelection && ctx.multipleShipsAlive) {
     return 'Select a ship to begin';
   }
@@ -56,7 +59,9 @@ const getAstrogationStatusText = (ctx: AstrogationContext): string => {
   }
 
   if (ctx.selectedShipLanded && !ctx.selectedShipHasBurn) {
-    return 'Click a direction to take off (costs 1 fuel)';
+    return isMobile
+      ? 'Tap a direction to take off (costs 1 fuel)'
+      : 'Click a direction to take off (costs 1 fuel)';
   }
 
   if (ctx.anyCrashed) {
@@ -65,18 +70,26 @@ const getAstrogationStatusText = (ctx: AstrogationContext): string => {
   }
 
   if (ctx.allShipsHaveBurns && ctx.multipleShipsAlive) {
-    return 'All burns set \u00b7 Confirm (Enter)';
+    return isMobile
+      ? 'All burns set \u00b7 Confirm'
+      : 'All burns set \u00b7 Confirm (Enter)';
   }
 
   if (ctx.selectedShipHasBurn && ctx.multipleShipsAlive) {
-    return 'Burn set \u00b7 Select another ship or Confirm (Enter)';
+    return isMobile
+      ? 'Burn set \u00b7 Select another ship or Confirm'
+      : 'Burn set \u00b7 Select another ship or Confirm (Enter)';
   }
 
   if (ctx.selectedShipHasBurn) {
-    return 'Burn set \u00b7 Confirm (Enter)';
+    return isMobile
+      ? 'Burn set \u00b7 Confirm'
+      : 'Burn set \u00b7 Confirm (Enter)';
   }
 
-  return 'Click adjacent hex to set burn direction';
+  return isMobile
+    ? 'Tap adjacent hex to set burn direction'
+    : 'Click adjacent hex to set burn direction';
 };
 
 export interface HUDInput {
@@ -94,6 +107,7 @@ export interface HUDInput {
   astrogationCtx: AstrogationContext;
   speed: number;
   fuelToStop: number;
+  isMobile: boolean;
 }
 
 export const buildHUDView = (input: HUDInput): HUDView => {
@@ -112,6 +126,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     astrogationCtx,
     speed,
     fuelToStop,
+    isMobile,
   } = input;
 
   const showOrdnance = isMyTurn && phase === 'ordnance';
@@ -134,13 +149,19 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     statusText: !isMyTurn
       ? null
       : phase === 'astrogation'
-        ? getAstrogationStatusText(astrogationCtx)
+        ? getAstrogationStatusText(astrogationCtx, isMobile)
         : phase === 'ordnance'
-          ? 'Launch ordnance or skip (Enter)'
+          ? isMobile
+            ? 'Launch ordnance or skip'
+            : 'Launch ordnance or skip (Enter)'
           : phase === 'combat'
-            ? 'Click enemies to target \u00b7 Fire All to attack (Enter)'
+            ? isMobile
+              ? 'Tap enemies to target \u00b7 Fire All to attack'
+              : 'Click enemies to target \u00b7 Fire All to attack (Enter)'
             : phase === 'logistics'
-              ? 'Transfer fuel/cargo or skip (Enter)'
+              ? isMobile
+                ? 'Transfer fuel/cargo or skip'
+                : 'Transfer fuel/cargo or skip (Enter)'
               : null,
     undoVisible: isMyTurn && phase === 'astrogation' && hasBurns,
     confirmVisible: isMyTurn && phase === 'astrogation',
