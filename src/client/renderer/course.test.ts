@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { must } from '../../shared/assert';
 import { hexKey } from '../../shared/hex';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type {
@@ -169,7 +170,7 @@ describe('renderer course helpers', () => {
 
     const pendingGravity: GravityEffect = {
       hex: gravityHex,
-      direction: gravity!.direction,
+      direction: must(gravity).direction,
       bodyName: 'Mars',
       strength: 'full',
       ignored: false,

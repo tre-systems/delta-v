@@ -137,10 +137,10 @@ describe('client integration: connection flow', () => {
 
     expect(deps.ctx.playerId).toBe(0);
     expect(deps.ctx.gameCode).toBe('ABCDE');
-    expect(deps.calls['storePlayerToken']).toEqual([['ABCDE', 'tok-123']]);
+    expect(deps.calls.storePlayerToken).toEqual([['ABCDE', 'tok-123']]);
     expect(deps.calls['renderer.setPlayerId']).toEqual([[0]]);
     expect(deps.calls['ui.setPlayerId']).toEqual([[0]]);
-    expect(deps.calls['setState']).toEqual([['waitingForOpponent']]);
+    expect(deps.calls.setState).toEqual([['waitingForOpponent']]);
   });
 
   it('welcome during reconnect shows toast and clears reconnect count', () => {
@@ -158,7 +158,7 @@ describe('client integration: connection flow', () => {
     expect(deps.calls['ui.hideReconnecting']).toHaveLength(1);
     expect(deps.calls['ui.showToast']).toEqual([['Reconnected!', 'success']]);
     // No state transition when already playing
-    expect(deps.calls['setState']).toBeUndefined();
+    expect(deps.calls.setState).toBeUndefined();
   });
 
   it('gameStart applies state, clears UI, and transitions to playing', () => {
@@ -170,12 +170,12 @@ describe('client integration: connection flow', () => {
       state,
     } as S2C);
 
-    expect(deps.calls['applyGameState']).toEqual([[state]]);
+    expect(deps.calls.applyGameState).toEqual([[state]]);
     expect(deps.calls['renderer.clearTrails']).toHaveLength(1);
     expect(deps.calls['ui.clearLog']).toHaveLength(1);
     expect(deps.calls['ui.setChatEnabled']).toEqual([[true]]);
-    expect(deps.calls['logScenarioBriefing']).toHaveLength(1);
-    expect(deps.calls['setState']).toEqual([['playing_astrogation']]);
+    expect(deps.calls.logScenarioBriefing).toHaveLength(1);
+    expect(deps.calls.setState).toEqual([['playing_astrogation']]);
   });
 
   it('gameStart with fleet building transitions to fleet phase', () => {
@@ -187,7 +187,7 @@ describe('client integration: connection flow', () => {
       state,
     } as S2C);
 
-    expect(deps.calls['setState']).toEqual([['playing_fleetBuilding']]);
+    expect(deps.calls.setState).toEqual([['playing_fleetBuilding']]);
   });
 
   it('gameStart as non-active player transitions to opponent turn', () => {
@@ -199,7 +199,7 @@ describe('client integration: connection flow', () => {
       state,
     } as S2C);
 
-    expect(deps.calls['setState']).toEqual([['playing_opponentTurn']]);
+    expect(deps.calls.setState).toEqual([['playing_opponentTurn']]);
   });
 });
 
@@ -235,9 +235,9 @@ describe('client integration: movement flow', () => {
       events,
     });
 
-    expect(deps.calls['presentMovementResult']).toHaveLength(1);
+    expect(deps.calls.presentMovementResult).toHaveLength(1);
 
-    const args = deps.calls['presentMovementResult'][0];
+    const args = deps.calls.presentMovementResult[0];
     expect(args[0]).toEqual(state);
     expect(args[1]).toEqual(movements);
     expect(args[2]).toEqual(ordnanceMovements);
@@ -258,10 +258,10 @@ describe('client integration: movement flow', () => {
     });
 
     // Invoke the animation complete callback
-    const onComplete = deps.calls['presentMovementResult'][0][4];
+    const onComplete = deps.calls.presentMovementResult[0][4];
     (onComplete as () => void)();
 
-    expect(deps.calls['onAnimationComplete']).toHaveLength(1);
+    expect(deps.calls.onAnimationComplete).toHaveLength(1);
   });
 });
 
@@ -278,8 +278,8 @@ describe('client integration: state update flow', () => {
       state: nextState,
     });
 
-    expect(deps.calls['applyGameState']).toEqual([[nextState]]);
-    expect(deps.calls['transitionToPhase']).toHaveLength(1);
+    expect(deps.calls.applyGameState).toEqual([[nextState]]);
+    expect(deps.calls.transitionToPhase).toHaveLength(1);
   });
 
   it('state update during movement animation does not transition', () => {
@@ -291,8 +291,8 @@ describe('client integration: state update flow', () => {
       state: nextState,
     });
 
-    expect(deps.calls['applyGameState']).toEqual([[nextState]]);
-    expect(deps.calls['transitionToPhase']).toBeUndefined();
+    expect(deps.calls.applyGameState).toEqual([[nextState]]);
+    expect(deps.calls.transitionToPhase).toBeUndefined();
   });
 });
 
@@ -330,12 +330,12 @@ describe('client integration: combat flow', () => {
       results,
     });
 
-    expect(deps.calls['presentCombatResults']).toHaveLength(1);
-    const args = deps.calls['presentCombatResults'][0];
+    expect(deps.calls.presentCombatResults).toHaveLength(1);
+    const args = deps.calls.presentCombatResults[0];
     expect(args[0]).toEqual(prevState);
     expect(args[1]).toEqual(nextState);
     expect(args[2]).toEqual(results);
-    expect(deps.calls['transitionToPhase']).toHaveLength(1);
+    expect(deps.calls.transitionToPhase).toHaveLength(1);
   });
 });
 
@@ -349,7 +349,7 @@ describe('client integration: game over flow', () => {
       reason: 'Fleet eliminated!',
     });
 
-    expect(deps.calls['showGameOverOutcome']).toEqual([
+    expect(deps.calls.showGameOverOutcome).toEqual([
       [true, 'Fleet eliminated!'],
     ]);
   });
@@ -363,7 +363,7 @@ describe('client integration: game over flow', () => {
       reason: 'Fleet eliminated!',
     });
 
-    expect(deps.calls['showGameOverOutcome']).toEqual([
+    expect(deps.calls.showGameOverOutcome).toEqual([
       [false, 'Fleet eliminated!'],
     ]);
   });
@@ -375,7 +375,7 @@ describe('client integration: game over flow', () => {
       type: 'opponentDisconnected',
     } as S2C);
 
-    expect(deps.calls['setState']).toEqual([['gameOver']]);
+    expect(deps.calls.setState).toEqual([['gameOver']]);
     expect(deps.calls['ui.showGameOver']).toEqual([
       [true, 'Opponent disconnected'],
     ]);
@@ -470,7 +470,7 @@ describe('client integration: full connection-to-game sequence', () => {
 
     expect(deps.ctx.playerId).toBe(0);
     expect(deps.ctx.gameCode).toBe('GAME1');
-    expect(deps.calls['setState']).toEqual([['waitingForOpponent']]);
+    expect(deps.calls.setState).toEqual([['waitingForOpponent']]);
 
     // Update client state to reflect transition
     deps.ctx.state = 'waitingForOpponent';
@@ -482,8 +482,8 @@ describe('client integration: full connection-to-game sequence', () => {
       state: gameState,
     } as S2C);
 
-    expect(deps.calls['applyGameState']).toEqual([[gameState]]);
-    expect(deps.calls['setState']).toEqual([
+    expect(deps.calls.applyGameState).toEqual([[gameState]]);
+    expect(deps.calls.setState).toEqual([
       ['waitingForOpponent'],
       ['playing_astrogation'],
     ]);
@@ -502,7 +502,7 @@ describe('client integration: full connection-to-game sequence', () => {
       state: updatedState,
     });
 
-    expect(deps.calls['applyGameState']).toEqual([[gameState], [updatedState]]);
-    expect(deps.calls['transitionToPhase']).toHaveLength(1);
+    expect(deps.calls.applyGameState).toEqual([[gameState], [updatedState]]);
+    expect(deps.calls.transitionToPhase).toHaveLength(1);
   });
 });

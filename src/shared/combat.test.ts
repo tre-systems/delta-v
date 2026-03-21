@@ -571,8 +571,8 @@ describe('resolveCombat', () => {
 
     expect(result.damageResult.type).toBe('none');
     expect(result.counterattack).not.toBeNull();
-    expect(result.counterattack!.attackerIds).toEqual(['t']);
-    expect(result.counterattack!.targetId).toBe('a');
+    expect(result.counterattack?.attackerIds).toEqual(['t']);
+    expect(result.counterattack?.targetId).toBe('a');
   });
 
   it('target still counterattacks even if the attack destroys it', () => {
@@ -675,8 +675,8 @@ describe('resolveCombat', () => {
     );
 
     expect(result.counterattack).not.toBeNull();
-    expect(result.counterattack!.defendStrength).toBe(15);
-    expect(result.counterattack!.odds).toBe('1:4');
+    expect(result.counterattack?.defendStrength).toBe(15);
+    expect(result.counterattack?.odds).toBe('1:4');
   });
 });
 

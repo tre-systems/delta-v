@@ -1,4 +1,5 @@
-import type { S2C } from '../../shared/types';
+import { must } from '../../shared/assert';
+import type { GameState, S2C } from '../../shared/types';
 import {
   deriveDisconnectHandling,
   deriveReconnectAttemptPlan,
@@ -6,10 +7,9 @@ import {
 import type { ClientState } from './phase';
 import { buildWebSocketUrl } from './session';
 import { createWebSocketTransport, type GameTransport } from './transport';
-
 export interface ConnectionDeps {
   getGameCode: () => string | null;
-  getGameState: () => unknown;
+  getGameState: () => GameState | null;
   getClientState: () => ClientState;
   getStoredPlayerToken: (code: string) => string | null;
   getReconnectAttempts: () => number;
@@ -26,7 +26,6 @@ export interface ConnectionDeps {
   hideReconnecting: () => void;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
 }
-
 export interface ConnectionManager {
   connect: (code: string) => void;
   send: (msg: unknown) => void;
@@ -37,9 +36,7 @@ export interface ConnectionManager {
   close: () => void;
   getWs: () => WebSocket | null;
 }
-
 const MAX_RECONNECT_ATTEMPTS = 5;
-
 export const createConnectionManager = (
   deps: ConnectionDeps,
 ): ConnectionManager => {
@@ -47,13 +44,11 @@ export const createConnectionManager = (
   let pingInterval: number | null = null;
   let lastPingSent = 0;
   let reconnectTimer: number | null = null;
-
   const send = (msg: unknown) => {
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
     }
   };
-
   const stopPing = () => {
     if (pingInterval !== null) {
       clearInterval(pingInterval);
@@ -61,7 +56,6 @@ export const createConnectionManager = (
     }
     deps.setLatencyMs(-1);
   };
-
   const startPing = () => {
     stopPing();
     deps.setLatencyMs(-1);
@@ -72,7 +66,6 @@ export const createConnectionManager = (
       }
     }, 5000);
   };
-
   const connect = (code: string) => {
     ws = new WebSocket(
       buildWebSocketUrl(location, code, deps.getStoredPlayerToken(code)),
@@ -83,7 +76,6 @@ export const createConnectionManager = (
     deps.setTransport(createWebSocketTransport((msg) => send(msg)));
     startPing();
   };
-
   const attemptReconnect = () => {
     const plan = deriveReconnectAttemptPlan(
       deps.getGameCode(),
@@ -96,27 +88,30 @@ export const createConnectionManager = (
       deps.setState('menu');
       return;
     }
-    deps.setReconnectAttempts(plan.nextAttempt!);
-    deps.showReconnecting(plan.nextAttempt!, MAX_RECONNECT_ATTEMPTS, () => {
-      // Cancel reconnection and return to menu
-      if (reconnectTimer !== null) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-      }
-      deps.setReconnectAttempts(0);
-      deps.setState('menu');
-    });
+    deps.setReconnectAttempts(must(plan.nextAttempt));
+    deps.showReconnecting(
+      must(plan.nextAttempt),
+      MAX_RECONNECT_ATTEMPTS,
+      () => {
+        // Cancel reconnection and return to menu
+        if (reconnectTimer !== null) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+        deps.setReconnectAttempts(0);
+        deps.setState('menu');
+      },
+    );
     reconnectTimer = window.setTimeout(() => {
-      connect(deps.getGameCode()!);
-    }, plan.delayMs!);
+      connect(must(deps.getGameCode()));
+    }, must(plan.delayMs));
   };
-
   const handleDisconnect = () => {
     stopPing();
     const handling = deriveDisconnectHandling(
       deps.getClientState(),
       deps.getGameCode(),
-      deps.getGameState() as any,
+      deps.getGameState(),
     );
     if (handling.attemptReconnect) {
       attemptReconnect();
@@ -126,12 +121,10 @@ export const createConnectionManager = (
       deps.setState(handling.nextState);
     }
   };
-
   const close = () => {
     ws?.close();
     ws = null;
   };
-
   return {
     connect,
     send,

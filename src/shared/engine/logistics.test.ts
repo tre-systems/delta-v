@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { must } from '../assert';
 import { buildSolarSystemMap } from '../map-data';
 import type { GameState, Ship, TransferOrder } from '../types';
 import {
@@ -25,7 +25,6 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   damage: { disabledTurns: 0 },
   ...overrides,
 });
-
 const makeState = (
   ships: Ship[],
   overrides: Partial<GameState> = {},
@@ -65,9 +64,7 @@ const makeState = (
   winReason: null,
   ...overrides,
 });
-
 const map = buildSolarSystemMap();
-
 describe('processSurrender', () => {
   it('marks ship as surrendered', () => {
     const ship = makeShip({ id: 's1', owner: 0 });
@@ -75,28 +72,22 @@ describe('processSurrender', () => {
       phase: 'astrogation',
       activePlayer: 0,
     });
-
     const result = processSurrender(state, 0, ['s1']);
-
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
-      const s = result.state.ships.find((s) => s.id === 's1')!;
+      const s = must(result.state.ships.find((s) => s.id === 's1'));
       expect(s.surrendered).toBe(true);
     }
   });
-
   it('rejects surrender of enemy ship', () => {
     const ship = makeShip({ id: 's1', owner: 1 });
     const state = makeState([ship], {
       phase: 'astrogation',
       activePlayer: 0,
     });
-
     const result = processSurrender(state, 0, ['s1']);
-
     expect('error' in result).toBe(true);
   });
-
   it('rejects surrender of destroyed ship', () => {
     const ship = makeShip({
       id: 's1',
@@ -107,12 +98,9 @@ describe('processSurrender', () => {
       phase: 'astrogation',
       activePlayer: 0,
     });
-
     const result = processSurrender(state, 0, ['s1']);
-
     expect('error' in result).toBe(true);
   });
-
   it('rejects surrender of already surrendered ship', () => {
     const ship = makeShip({
       id: 's1',
@@ -123,24 +111,18 @@ describe('processSurrender', () => {
       phase: 'astrogation',
       activePlayer: 0,
     });
-
     const result = processSurrender(state, 0, ['s1']);
-
     expect('error' in result).toBe(true);
   });
-
   it('rejects surrender when not in astrogation phase', () => {
     const ship = makeShip({ id: 's1', owner: 0 });
     const state = makeState([ship], {
       phase: 'combat',
       activePlayer: 0,
     });
-
     const result = processSurrender(state, 0, ['s1']);
-
     expect('error' in result).toBe(true);
   });
-
   it('rejects surrender when logistics not enabled', () => {
     const ship = makeShip({ id: 's1', owner: 0 });
     const state = makeState([ship], {
@@ -148,12 +130,9 @@ describe('processSurrender', () => {
       activePlayer: 0,
       scenarioRules: {},
     });
-
     const result = processSurrender(state, 0, ['s1']);
-
     expect('error' in result).toBe(true);
   });
-
   it('surrenders multiple ships', () => {
     const s1 = makeShip({ id: 's1', owner: 0 });
     const s2 = makeShip({ id: 's2', owner: 0 });
@@ -161,21 +140,18 @@ describe('processSurrender', () => {
       phase: 'astrogation',
       activePlayer: 0,
     });
-
     const result = processSurrender(state, 0, ['s1', 's2']);
-
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
-      expect(result.state.ships.find((s) => s.id === 's1')!.surrendered).toBe(
+      expect(result.state.ships.find((s) => s.id === 's1')?.surrendered).toBe(
         true,
       );
-      expect(result.state.ships.find((s) => s.id === 's2')!.surrendered).toBe(
+      expect(result.state.ships.find((s) => s.id === 's2')?.surrendered).toBe(
         true,
       );
     }
   });
 });
-
 describe('getTransferEligiblePairs', () => {
   it('finds friendly ship pairs at same hex+velocity', () => {
     const source = makeShip({
@@ -191,14 +167,11 @@ describe('getTransferEligiblePairs', () => {
       fuel: 5,
     });
     const state = makeState([source, target]);
-
     const pairs = getTransferEligiblePairs(state, 0);
-
     expect(pairs.length).toBe(1);
     expect(pairs[0].canTransferFuel).toBe(true);
     expect(pairs[0].maxFuel).toBe(15);
   });
-
   it('excludes pairs at different hexes', () => {
     const source = makeShip({
       id: 's1',
@@ -214,10 +187,8 @@ describe('getTransferEligiblePairs', () => {
       position: { q: 6, r: 5 },
     });
     const state = makeState([source, target]);
-
     expect(getTransferEligiblePairs(state, 0)).toHaveLength(0);
   });
-
   it('excludes pairs with different velocity', () => {
     const source = makeShip({
       id: 's1',
@@ -233,10 +204,8 @@ describe('getTransferEligiblePairs', () => {
       velocity: { dq: 2, dr: 0 },
     });
     const state = makeState([source, target]);
-
     expect(getTransferEligiblePairs(state, 0)).toHaveLength(0);
   });
-
   it('torch ships cannot transfer fuel', () => {
     const source = makeShip({
       id: 'torch',
@@ -251,15 +220,12 @@ describe('getTransferEligiblePairs', () => {
       fuel: 5,
     });
     const state = makeState([source, target]);
-
     const pairs = getTransferEligiblePairs(state, 0);
-
     // Torch can transfer cargo but not fuel
     if (pairs.length > 0) {
       expect(pairs[0].canTransferFuel).toBe(false);
     }
   });
-
   it('allows looting disabled enemy ships', () => {
     const enemy = makeShip({
       id: 'enemy',
@@ -275,14 +241,11 @@ describe('getTransferEligiblePairs', () => {
       fuel: 5,
     });
     const state = makeState([enemy, friendly]);
-
     const pairs = getTransferEligiblePairs(state, 0);
-
     expect(pairs.length).toBe(1);
     expect(pairs[0].source.id).toBe('enemy');
     expect(pairs[0].canTransferFuel).toBe(true);
   });
-
   it('allows looting surrendered enemy ships', () => {
     const enemy = makeShip({
       id: 'enemy',
@@ -298,12 +261,9 @@ describe('getTransferEligiblePairs', () => {
       fuel: 5,
     });
     const state = makeState([enemy, friendly]);
-
     const pairs = getTransferEligiblePairs(state, 0);
-
     expect(pairs.length).toBe(1);
   });
-
   it('blocks looting operational enemy ships', () => {
     const enemy = makeShip({
       id: 'enemy',
@@ -318,10 +278,8 @@ describe('getTransferEligiblePairs', () => {
       fuel: 5,
     });
     const state = makeState([enemy, friendly]);
-
     expect(getTransferEligiblePairs(state, 0)).toHaveLength(0);
   });
-
   it('excludes destroyed ships', () => {
     const source = makeShip({
       id: 's1',
@@ -337,11 +295,9 @@ describe('getTransferEligiblePairs', () => {
       fuel: 5,
     });
     const state = makeState([source, target]);
-
     expect(getTransferEligiblePairs(state, 0)).toHaveLength(0);
   });
 });
-
 describe('shouldEnterLogisticsPhase', () => {
   it('returns false when logistics disabled', () => {
     const s1 = makeShip({
@@ -357,10 +313,8 @@ describe('shouldEnterLogisticsPhase', () => {
       fuel: 5,
     });
     const state = makeState([s1, s2], { scenarioRules: {} });
-
     expect(shouldEnterLogisticsPhase(state)).toBe(false);
   });
-
   it('returns false when no eligible pairs', () => {
     const s1 = makeShip({
       id: 's1',
@@ -369,10 +323,8 @@ describe('shouldEnterLogisticsPhase', () => {
       fuel: 20,
     });
     const state = makeState([s1]);
-
     expect(shouldEnterLogisticsPhase(state)).toBe(false);
   });
-
   it('returns true when eligible pairs exist', () => {
     const s1 = makeShip({
       id: 's1',
@@ -387,11 +339,9 @@ describe('shouldEnterLogisticsPhase', () => {
       fuel: 5,
     });
     const state = makeState([s1, s2]);
-
     expect(shouldEnterLogisticsPhase(state)).toBe(true);
   });
 });
-
 describe('processLogistics', () => {
   it('transfers fuel between ships', () => {
     const source = makeShip({
@@ -413,18 +363,15 @@ describe('processLogistics', () => {
       transferType: 'fuel',
       amount: 10,
     };
-
     const result = processLogistics(state, 0, [transfer], map);
-
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
-      const src = result.state.ships.find((s) => s.id === 's1')!;
-      const tgt = result.state.ships.find((s) => s.id === 's2')!;
+      const src = must(result.state.ships.find((s) => s.id === 's1'));
+      const tgt = must(result.state.ships.find((s) => s.id === 's2'));
       expect(src.fuel).toBe(40);
       expect(tgt.fuel).toBe(15);
     }
   });
-
   it('transfers cargo between ships', () => {
     const source = makeShip({
       id: 's1',
@@ -445,18 +392,15 @@ describe('processLogistics', () => {
       transferType: 'cargo',
       amount: 2,
     };
-
     const result = processLogistics(state, 0, [transfer], map);
-
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
-      const src = result.state.ships.find((s) => s.id === 's1')!;
-      const tgt = result.state.ships.find((s) => s.id === 's2')!;
+      const src = must(result.state.ships.find((s) => s.id === 's1'));
+      const tgt = must(result.state.ships.find((s) => s.id === 's2'));
       expect(src.cargoUsed).toBe(2);
       expect(tgt.cargoUsed).toBe(1);
     }
   });
-
   it('rejects transfer exceeding source fuel', () => {
     const source = makeShip({
       id: 's1',
@@ -477,12 +421,9 @@ describe('processLogistics', () => {
       transferType: 'fuel',
       amount: 10,
     };
-
     const result = processLogistics(state, 0, [transfer], map);
-
     expect('error' in result).toBe(true);
   });
-
   it('rejects transfer exceeding target fuel capacity', () => {
     const source = makeShip({
       id: 's1',
@@ -503,12 +444,9 @@ describe('processLogistics', () => {
       transferType: 'fuel',
       amount: 5,
     };
-
     const result = processLogistics(state, 0, [transfer], map);
-
     expect('error' in result).toBe(true);
   });
-
   it('rejects torch fuel transfer', () => {
     const source = makeShip({
       id: 's1',
@@ -528,12 +466,9 @@ describe('processLogistics', () => {
       transferType: 'fuel',
       amount: 5,
     };
-
     const result = processLogistics(state, 0, [transfer], map);
-
     expect('error' in result).toBe(true);
   });
-
   it('rejects when not in logistics phase', () => {
     const source = makeShip({
       id: 's1',
@@ -556,12 +491,9 @@ describe('processLogistics', () => {
       transferType: 'fuel',
       amount: 5,
     };
-
     const result = processLogistics(state, 0, [transfer], map);
-
     expect('error' in result).toBe(true);
   });
-
   it('rejects ships at different positions', () => {
     const source = makeShip({
       id: 's1',
@@ -583,40 +515,29 @@ describe('processLogistics', () => {
       transferType: 'fuel',
       amount: 5,
     };
-
     const result = processLogistics(state, 0, [transfer], map);
-
     expect('error' in result).toBe(true);
   });
 });
-
 describe('skipLogistics', () => {
   it('advances past logistics phase', () => {
     const state = makeState([makeShip()]);
-
     const result = skipLogistics(state, 0, map);
-
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
       expect(result.state.phase).not.toBe('logistics');
     }
   });
-
   it('rejects when not in logistics phase', () => {
     const state = makeState([makeShip()], {
       phase: 'astrogation',
     });
-
     const result = skipLogistics(state, 0, map);
-
     expect('error' in result).toBe(true);
   });
-
   it('rejects wrong player', () => {
     const state = makeState([makeShip()]);
-
     const result = skipLogistics(state, 1, map);
-
     expect('error' in result).toBe(true);
   });
 });

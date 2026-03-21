@@ -60,8 +60,8 @@ describe('isValidPlayerToken', () => {
   });
 
   it('rejects strings with invalid characters', () => {
-    expect(isValidPlayerToken('A'.repeat(31) + '!')).toBe(false);
-    expect(isValidPlayerToken('A'.repeat(31) + ' ')).toBe(false);
+    expect(isValidPlayerToken(`${'A'.repeat(31)}!`)).toBe(false);
+    expect(isValidPlayerToken(`${'A'.repeat(31)} `)).toBe(false);
   });
 });
 

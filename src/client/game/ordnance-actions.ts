@@ -1,3 +1,4 @@
+import { must } from '../../shared/assert';
 import type { GameState } from '../../shared/types';
 import {
   resolveBaseEmplacementPlan,
@@ -5,7 +6,6 @@ import {
 } from './ordnance';
 import type { PlanningState } from './planning';
 import type { GameTransport } from './transport';
-
 export interface OrdnanceActionDeps {
   getGameState: () => GameState | null;
   getClientState: () => string;
@@ -14,7 +14,6 @@ export interface OrdnanceActionDeps {
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   logText: (text: string) => void;
 }
-
 export const sendOrdnanceLaunch = (
   deps: OrdnanceActionDeps,
   ordType: 'mine' | 'torpedo' | 'nuke',
@@ -30,14 +29,13 @@ export const sendOrdnanceLaunch = (
   );
   if (!plan.ok) {
     if (plan.message) {
-      deps.showToast(plan.message, plan.level!);
+      deps.showToast(plan.message, must(plan.level));
     }
     return;
   }
   deps.logText(`${plan.shipName} launched ${ordType}`);
-  transport.submitOrdnance([plan.launch!]);
+  transport.submitOrdnance([must(plan.launch)]);
 };
-
 export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
@@ -45,17 +43,16 @@ export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
     return;
   const plan = resolveBaseEmplacementPlan(
     gameState,
-    deps.planningState.selectedShipId!,
+    must(deps.planningState.selectedShipId),
   );
   if (!plan.ok) {
     if (plan.message) {
-      deps.showToast(plan.message, plan.level!);
+      deps.showToast(plan.message, must(plan.level));
     }
     return;
   }
-  transport.submitEmplacement(plan.emplacements!);
+  transport.submitEmplacement(must(plan.emplacements));
 };
-
 export const sendSkipOrdnance = (deps: OrdnanceActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();

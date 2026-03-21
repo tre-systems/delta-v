@@ -44,32 +44,20 @@ import {
 } from './victory';
 
 export type { CombatPhaseResult } from './combat';
-
 // Re-export public API from sub-modules
 // for backward compatibility
-export {
-  beginCombatPhase,
-  processCombat,
-  skipCombat,
-} from './combat';
-export {
-  processLogistics,
-  processSurrender,
-  skipLogistics,
-} from './logistics';
+export { beginCombatPhase, processCombat, skipCombat } from './combat';
+export { processLogistics, processSurrender, skipLogistics } from './logistics';
 export { processEmplacement } from './ordnance';
-
 export interface MovementResult {
   movements: ShipMovement[];
   ordnanceMovements: OrdnanceMovement[];
   events: MovementEvent[];
   state: GameState;
 }
-
 export interface StateUpdateResult {
   state: GameState;
 }
-
 const resolveControlledBases = (
   player: ScenarioDefinition['players'][number],
   map: SolarSystemMap,
@@ -77,16 +65,13 @@ const resolveControlledBases = (
   if (player.bases && player.bases.length > 0) {
     return [...new Set(player.bases.map((base) => hexKey(base)))];
   }
-
   if (!player.homeBody) {
     return [];
   }
-
   return [...map.hexes.entries()]
     .filter(([, hex]) => hex.base?.bodyName === player.homeBody)
     .map(([key]) => key);
 };
-
 const getScenarioStartingCredits = (
   scenario: ScenarioDefinition,
   playerId: number,
@@ -94,12 +79,10 @@ const getScenarioStartingCredits = (
   if (scenario.startingCredits == null) {
     return undefined;
   }
-
   return Array.isArray(scenario.startingCredits)
     ? scenario.startingCredits[playerId]
     : scenario.startingCredits;
 };
-
 const getStartingVisitedBodies = (
   ships: Ship[],
   playerId: number,
@@ -117,10 +100,8 @@ const getStartingVisitedBodies = (
       }
       return acc;
     }, new Set<string>());
-
   return [...visited];
 };
-
 const assertScenarioPlayerCount = (scenario: ScenarioDefinition): void => {
   if (scenario.players.length !== 2) {
     throw new Error(
@@ -128,7 +109,6 @@ const assertScenarioPlayerCount = (scenario: ScenarioDefinition): void => {
     );
   }
 };
-
 const resolveStartingPlacement = (
   def: ScenarioDefinition['players'][number]['ships'][number],
   player: ScenarioDefinition['players'][number],
@@ -137,51 +117,51 @@ const resolveStartingPlacement = (
   findBaseHex: (
     map: SolarSystemMap,
     bodyName: string,
-  ) => { q: number; r: number } | null,
-): { position: { q: number; r: number }; landed: boolean } => {
+  ) => {
+    q: number;
+    r: number;
+  } | null,
+): {
+  position: {
+    q: number;
+    r: number;
+  };
+  landed: boolean;
+} => {
   const shouldLand = def.startLanded !== false;
-
   if (!shouldLand) {
     return {
       position: { ...def.position },
       landed: false,
     };
   }
-
   const defHex = map.hexes.get(hexKey(def.position));
-
   if (defHex?.base) {
     return {
       position: { ...def.position },
       landed: true,
     };
   }
-
   if (playerBases[0]) {
     return {
       position: parseBaseKey(playerBases[0]),
       landed: true,
     };
   }
-
   if (defHex?.body) {
     return {
       position: { ...def.position },
       landed: true,
     };
   }
-
   const homeBase = player.homeBody ? findBaseHex(map, player.homeBody) : null;
-
   if (homeBase) {
     return { position: homeBase, landed: true };
   }
-
   throw new Error(
     `No valid landed starting hex for ${player.homeBody || 'player'} ${def.type}`,
   );
 };
-
 export const filterStateForPlayer = (
   state: GameState,
   playerId: number,
@@ -192,7 +172,6 @@ export const filterStateForPlayer = (
   ) {
     return state;
   }
-
   return {
     ...state,
     ships: state.ships.map((ship) => {
@@ -202,14 +181,11 @@ export const filterStateForPlayer = (
       if (ship.identityRevealed) {
         return ship;
       }
-
       const { hasFugitives, identityRevealed, ...rest } = ship;
-
       return rest;
     }),
   };
 };
-
 /**
  * Pure game engine -- no IO, no networking,
  * no storage. All game logic lives here so it can
@@ -222,36 +198,34 @@ export const createGame = (
   findBaseHex: (
     map: SolarSystemMap,
     bodyName: string,
-  ) => { q: number; r: number } | null,
+  ) => {
+    q: number;
+    r: number;
+  } | null,
   rng: () => number = Math.random,
 ): GameState => {
   assertScenarioPlayerCount(scenario);
-
   const playerBases = scenario.players.map((player) =>
     resolveControlledBases(player, map),
   );
-
   // Shared bases: add fuel-body bases to both players
   // (Grand Tour race)
   if (scenario.rules?.sharedBases) {
     const sharedBaseKeys = [...map.hexes.entries()]
       .filter(
         ([, hex]) =>
-          hex.base && scenario.rules!.sharedBases!.includes(hex.base!.bodyName),
+          hex.base && scenario.rules?.sharedBases?.includes(hex.base?.bodyName),
       )
       .map(([key]) => key);
-
     for (const bases of playerBases) {
       for (const key of sharedBaseKeys) {
         if (!bases.includes(key)) bases.push(key);
       }
     }
   }
-
   const ships: Ship[] = scenario.players.flatMap((player, p) =>
     player.ships.map((def, s) => {
       const stats = SHIP_STATS[def.type];
-
       const { position, landed } = resolveStartingPlacement(
         def,
         player,
@@ -259,9 +233,7 @@ export const createGame = (
         map,
         findBaseHex,
       );
-
       const startHex = map.hexes.get(hexKey(position));
-
       const initialGravity =
         !landed && def.startInOrbit && startHex?.gravity
           ? [
@@ -274,7 +246,6 @@ export const createGame = (
               },
             ]
           : [];
-
       return {
         id: `p${p}s${s}`,
         type: def.type,
@@ -295,28 +266,21 @@ export const createGame = (
       };
     }),
   );
-
   // Assign fugitive identity for hidden-identity
   // scenarios
   for (const player of scenario.players) {
     if (!player.hiddenIdentity) continue;
-
     const p = scenario.players.indexOf(player);
     const playerShips = ships.filter((s) => s.owner === p);
-
     if (playerShips.length === 0) continue;
-
     randomChoice(playerShips, rng).hasFugitives = true;
-
     for (const ship of playerShips) {
       ship.identityRevealed = false;
     }
   }
-
   const hasFleetBuilding = [0, 1].some(
     (playerId) => (getScenarioStartingCredits(scenario, playerId) ?? 0) > 0,
   );
-
   return {
     gameId: gameCode,
     scenario: scenario.name,
@@ -382,7 +346,6 @@ export const createGame = (
     winReason: null,
   };
 };
-
 /**
  * Process fleet purchases for a player during
  * the fleet-building phase.
@@ -393,27 +356,31 @@ export const processFleetReady = (
   purchases: FleetPurchase[],
   map: SolarSystemMap,
   availableShipTypes?: string[],
-): StateUpdateResult | { error: string } => {
+):
+  | StateUpdateResult
+  | {
+      error: string;
+    } => {
   const state = structuredClone(inputState);
-
   if (state.phase !== 'fleetBuilding') {
     return { error: 'Not in fleet building phase' };
   }
   if (playerId !== 0 && playerId !== 1) {
     return { error: 'Invalid player' };
   }
-
   const player = state.players[playerId];
   const credits = player.credits ?? 0;
-
   const totalCostOrError = purchases.reduce<
-    { cost: number } | { error: string }
+    | {
+        cost: number;
+      }
+    | {
+        error: string;
+      }
   >(
     (acc, purchase) => {
       if ('error' in acc) return acc;
-
       const stats = SHIP_STATS[purchase.shipType];
-
       if (!stats) {
         return {
           error: `Unknown ship type: ${purchase.shipType}`,
@@ -433,39 +400,30 @@ export const processFleetReady = (
           error: `Ship type not available: ${purchase.shipType}`,
         };
       }
-
       return { cost: acc.cost + stats.cost };
     },
     { cost: 0 },
   );
-
   if ('error' in totalCostOrError) {
     return totalCostOrError;
   }
-
   const totalCost = totalCostOrError.cost;
-
   if (totalCost > credits) {
     return {
       error: `Not enough credits: need ${totalCost}, have ${credits}`,
     };
   }
-
   const bases = getOwnedPlanetaryBases(state, playerId, map);
-
   if (bases.length === 0) {
     return {
       error: 'Player has no bases to spawn ships at',
     };
   }
-
   const existingCount = state.ships.filter((s) => s.owner === playerId).length;
-
   for (let i = 0; i < purchases.length; i++) {
     const purchase = purchases[i];
     const stats = SHIP_STATS[purchase.shipType];
     const base = bases[i % bases.length];
-
     const ship: Ship = {
       id: `p${playerId}s${existingCount + i}`,
       type: purchase.shipType,
@@ -483,66 +441,51 @@ export const processFleetReady = (
       pendingGravityEffects: [],
       damage: { disabledTurns: 0 },
     };
-
     state.ships.push(ship);
   }
-
   player.credits = credits - totalCost;
   player.ready = true;
-
   const otherPlayer = state.players[1 - playerId];
-
   if (otherPlayer.ready) {
     state.phase = 'astrogation';
   }
-
   return { state };
 };
-
 const validateAstrogationOrders = (
   state: GameState,
   playerId: number,
   orders: AstrogationOrder[],
 ): string | null => {
   const seenShips = new Set<string>();
-
   for (const order of orders) {
     if (seenShips.has(order.shipId)) {
       return 'Each ship may receive at most one astrogation order';
     }
     seenShips.add(order.shipId);
-
     const ship = state.ships.find((s) => s.id === order.shipId);
-
     if (!ship || ship.owner !== playerId || ship.destroyed) {
       return 'Invalid ship for astrogation order';
     }
     if (ship.emplaced) {
       return 'Emplaced orbital bases cannot move';
     }
-
     const isDisabled = ship.damage.disabledTurns > 0;
     const burn = isDisabled ? null : order.burn;
     const overload = isDisabled ? null : (order.overload ?? null);
-
     if (burn !== null && (burn < 0 || burn > 5)) {
       return 'Invalid burn direction';
     }
     if (burn !== null && ship.fuel <= 0) {
       return 'No fuel remaining';
     }
-
     if (overload !== null && (overload < 0 || overload > 5)) {
       return 'Invalid overload direction';
     }
-
     if (overload !== null) {
       if (burn === null) {
         return 'Overload requires a primary burn';
       }
-
       const stats = SHIP_STATS[ship.type];
-
       if (!stats?.canOverload) {
         return 'This ship cannot overload';
       }
@@ -554,10 +497,8 @@ const validateAstrogationOrders = (
       }
     }
   }
-
   return null;
 };
-
 /**
  * Central movement orchestrator -- resolves queued
  * orders, then runs all post-movement checks
@@ -572,31 +513,25 @@ const resolveMovementPhase = (
   const movements: ShipMovement[] = [];
   const ordnanceMovements: OrdnanceMovement[] = [];
   const events: MovementEvent[] = [];
-
   const queuedOrders = new Map(
     (state.pendingAstrogationOrders ?? []).map(
       (order) => [order.shipId, order] as const,
     ),
   );
-
   state.pendingAstrogationOrders = null;
-
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
     if (ship.destroyed) continue;
     if (ship.emplaced) continue;
-
     const isDisabled = ship.damage.disabledTurns > 0;
     const order = queuedOrders.get(ship.id);
     const burn = isDisabled ? null : (order?.burn ?? null);
     const overload = isDisabled ? null : (order?.overload ?? null);
-
     const course = computeCourse(ship, burn, map, {
       overload,
       weakGravityChoices: order?.weakGravityChoices,
       destroyedBases: state.destroyedBases,
     });
-
     movements.push({
       shipId: ship.id,
       from: { ...ship.position },
@@ -608,36 +543,29 @@ const resolveMovementPhase = (
       crashed: course.crashed,
       landedAt: course.landedAt,
     });
-
     ship.position = course.destination;
     ship.lastMovementPath = course.path.map((hex) => ({ ...hex }));
     ship.velocity = course.newVelocity;
     ship.fuel -= course.fuelSpent;
-
     if (overload !== null) {
       ship.overloadUsed = true;
     }
-
     ship.landed = course.landedAt !== null;
     ship.pendingGravityEffects = course.landedAt
       ? []
       : course.enteredGravityEffects.map((effect) => ({ ...effect }));
-
     if (course.landedAt) {
       ship.velocity = { dq: 0, dr: 0 };
       applyResupply(ship, state, map);
     }
-
     if (course.crashed) {
       ship.destroyed = true;
       ship.velocity = { dq: 0, dr: 0 };
       ship.pendingGravityEffects = [];
-
       const crashHex =
         course.path.find(
           (hex, idx) => idx > 0 && map.hexes.get(hexKey(hex))?.body,
         ) ?? course.destination;
-
       events.push({
         type: 'crash',
         shipId: ship.id,
@@ -647,28 +575,25 @@ const resolveMovementPhase = (
         disabledTurns: 0,
       });
     }
-
     if (!ship.destroyed) {
       queueAsteroidHazards(ship, course.path, course.newVelocity, state, map);
     }
   }
-
   // Track checkpoint visits and fuel for race
   // scenarios
   if (state.scenarioRules.checkpointBodies) {
     for (const m of movements) {
       const ship = state.ships.find((s) => s.id === m.shipId);
-
       if (ship && !ship.destroyed) {
         applyCheckpoints(state, ship.owner, m.path, map);
-
-        if (state.players[ship.owner].totalFuelSpent !== undefined) {
-          state.players[ship.owner].totalFuelSpent! += m.fuelSpent;
+        const totalFuelSpent = state.players[ship.owner].totalFuelSpent;
+        if (totalFuelSpent !== undefined) {
+          state.players[ship.owner].totalFuelSpent =
+            totalFuelSpent + m.fuelSpent;
         }
       }
     }
   }
-
   checkOrbitalBaseResupply(state, playerId);
   checkInspection(state, playerId);
   checkCapture(state, playerId, events);
@@ -677,7 +602,6 @@ const resolveMovementPhase = (
   applyDetection(state, map);
   applyEscapeMoralVictory(state);
   checkImmediateVictory(state, map);
-
   if (state.winner === null) {
     if (shouldEnterLogisticsPhase(state)) {
       state.phase = 'logistics';
@@ -685,13 +609,11 @@ const resolveMovementPhase = (
       state.phase = 'combat';
     } else {
       checkGameEnd(state, map);
-
       if (state.winner === null) {
         advanceTurn(state);
       }
     }
   }
-
   return {
     movements,
     ordnanceMovements,
@@ -699,7 +621,6 @@ const resolveMovementPhase = (
     state,
   };
 };
-
 /**
  * Process astrogation orders for the active player.
  */
@@ -709,18 +630,19 @@ export const processAstrogation = (
   orders: AstrogationOrder[],
   map: SolarSystemMap,
   rng: () => number,
-): MovementResult | StateUpdateResult | { error: string } => {
+):
+  | MovementResult
+  | StateUpdateResult
+  | {
+      error: string;
+    } => {
   const state = structuredClone(inputState);
-
   const phaseError = validatePhaseAction(state, playerId, 'astrogation');
   if (phaseError) return { error: phaseError };
-
   const validationError = validateAstrogationOrders(state, playerId, orders);
-
   if (validationError) {
     return { error: validationError };
   }
-
   state.pendingAstrogationOrders = orders.map((order) => ({
     shipId: order.shipId,
     burn: order.burn,
@@ -729,22 +651,17 @@ export const processAstrogation = (
       ? { ...order.weakGravityChoices }
       : undefined,
   }));
-
   checkGameEnd(state, map);
-
   if (state.winner !== null) {
     state.pendingAstrogationOrders = null;
     return { state };
   }
-
   if (shouldEnterOrdnancePhase(state)) {
     state.phase = 'ordnance';
     return { state };
   }
-
   return resolveMovementPhase(state, playerId, map, rng);
 };
-
 /**
  * Process ordnance launches for the active player.
  */
@@ -754,31 +671,29 @@ export const processOrdnance = (
   launches: OrdnanceLaunch[],
   map: SolarSystemMap,
   rng: () => number,
-): MovementResult | { error: string } => {
+):
+  | MovementResult
+  | {
+      error: string;
+    } => {
   const state = structuredClone(inputState);
-
   const phaseError = validatePhaseAction(state, playerId, 'ordnance');
   if (phaseError) return { error: phaseError };
-
   let nextOrdId = getNextOrdnanceId(state);
   const launchedShips = new Set<string>();
   const allowedOrdnanceTypes = getAllowedOrdnanceTypes(state);
-
   for (const launch of launches) {
     if (launchedShips.has(launch.shipId)) {
       return {
         error: 'Each ship may launch only one ordnance per turn',
       };
     }
-
     const ship = state.ships.find((s) => s.id === launch.shipId);
-
     if (!ship || ship.owner !== playerId || ship.destroyed || ship.landed) {
       return {
         error: 'Invalid ship for ordnance launch',
       };
     }
-
     if (ship.damage.disabledTurns > 0) {
       // Orbital bases may launch ordnance at D1
       // damage (rulebook p.6)
@@ -788,42 +703,34 @@ export const processOrdnance = (
         };
       }
     }
-
     if (ship.captured) {
       return {
         error: 'Captured ships cannot launch ordnance',
       };
     }
-
     if (ship.resuppliedThisTurn) {
       return {
         error:
           'Ships cannot launch ordnance during a turn in which they resupply',
       };
     }
-
     const mass = ORDNANCE_MASS[launch.ordnanceType];
     if (!mass) return { error: 'Invalid ordnance type' };
-
     if (!allowedOrdnanceTypes.has(launch.ordnanceType)) {
       return {
         error: `This scenario does not allow ${launch.ordnanceType} launches`,
       };
     }
-
     const stats = SHIP_STATS[ship.type];
     if (!stats) return { error: 'Unknown ship type' };
-
     if (ship.cargoUsed + mass > stats.cargo) {
       return { error: 'Insufficient cargo capacity' };
     }
-
     if (ship.type === 'orbitalBase' && launch.ordnanceType !== 'torpedo') {
       return {
         error: 'Orbital bases can only launch torpedoes',
       };
     }
-
     if (
       launch.ordnanceType === 'torpedo' &&
       !stats.canOverload &&
@@ -833,7 +740,6 @@ export const processOrdnance = (
         error: 'Only warships and orbital bases can launch torpedoes',
       };
     }
-
     if (
       launch.ordnanceType === 'nuke' &&
       !stats.canOverload &&
@@ -843,14 +749,12 @@ export const processOrdnance = (
         error: 'Non-warships may carry only one nuke between resupplies',
       };
     }
-
     if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
       if (launch.torpedoAccel < 0 || launch.torpedoAccel > 5) {
         return {
           error: 'Invalid torpedo acceleration direction',
         };
       }
-
       if (
         launch.torpedoAccelSteps != null &&
         launch.torpedoAccelSteps !== 1 &&
@@ -868,24 +772,19 @@ export const processOrdnance = (
         error: 'Only torpedoes use launch acceleration',
       };
     }
-
     if (launch.ordnanceType === 'mine') {
       const pendingOrder = (state.pendingAstrogationOrders ?? []).find(
         (o) => o.shipId === ship.id,
       );
-
       const hasBurn =
         pendingOrder?.burn != null || pendingOrder?.overload != null;
-
       if (!hasBurn) {
         return {
           error: 'Ship must change course when launching a mine',
         };
       }
     }
-
     const baseVelocity = { ...ship.velocity };
-
     const velocity =
       launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null
         ? (() => {
@@ -897,7 +796,6 @@ export const processOrdnance = (
             };
           })()
         : baseVelocity;
-
     state.ordnance.push({
       id: `ord${nextOrdId++}`,
       type: launch.ordnanceType,
@@ -909,20 +807,15 @@ export const processOrdnance = (
       destroyed: false,
       pendingGravityEffects: [],
     });
-
     ship.cargoUsed += mass;
-
     if (launch.ordnanceType === 'nuke') {
       ship.nukesLaunchedSinceResupply =
         (ship.nukesLaunchedSinceResupply ?? 0) + 1;
     }
-
     launchedShips.add(launch.shipId);
   }
-
   return resolveMovementPhase(state, playerId, map, rng);
 };
-
 /**
  * Skip ordnance phase and resolve the queued
  * movement phase.
@@ -932,11 +825,14 @@ export const skipOrdnance = (
   playerId: number,
   map: SolarSystemMap,
   rng: () => number,
-): MovementResult | StateUpdateResult | { error: string } => {
+):
+  | MovementResult
+  | StateUpdateResult
+  | {
+      error: string;
+    } => {
   const state = structuredClone(inputState);
-
   const phaseError = validatePhaseAction(state, playerId, 'ordnance');
   if (phaseError) return { error: phaseError };
-
   return resolveMovementPhase(state, playerId, map, rng);
 };

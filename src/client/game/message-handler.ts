@@ -1,9 +1,9 @@
+import { must } from '../../shared/assert';
 import type { MovementResult } from '../../shared/engine/game-engine';
 import type { CombatResult, GameState, S2C } from '../../shared/types';
 import { playPhaseChange } from '../audio';
 import { deriveClientMessagePlan } from './messages';
 import type { ClientState } from './phase';
-
 export interface MessageHandlerDeps {
   readonly ctx: {
     state: ClientState;
@@ -49,7 +49,6 @@ export interface MessageHandlerDeps {
     updateLatency: (ms: number) => void;
   };
 }
-
 export const handleServerMessage = (
   deps: MessageHandlerDeps,
   msg: S2C,
@@ -78,11 +77,9 @@ export const handleServerMessage = (
       }
       break;
     }
-
     case 'matchFound':
       playPhaseChange();
       break;
-
     case 'gameStart':
       deps.applyGameState(deps.deserializeState(plan.state));
       deps.renderer.clearTrails();
@@ -91,7 +88,6 @@ export const handleServerMessage = (
       deps.logScenarioBriefing();
       deps.setState(plan.nextState);
       break;
-
     case 'movementResult':
       deps.presentMovementResult(
         deps.deserializeState(plan.state),
@@ -103,11 +99,10 @@ export const handleServerMessage = (
         },
       );
       break;
-
     case 'combatResult': {
       const previousState = deps.ctx.gameState;
       deps.presentCombatResults(
-        previousState!,
+        must(previousState),
         deps.deserializeState(plan.state),
         plan.results,
       );
@@ -116,32 +111,26 @@ export const handleServerMessage = (
       }
       break;
     }
-
     case 'stateUpdate':
       deps.applyGameState(deps.deserializeState(plan.state));
       if (plan.shouldTransition) {
         deps.transitionToPhase();
       }
       break;
-
     case 'gameOver':
       deps.showGameOverOutcome(plan.won, plan.reason);
       break;
-
     case 'rematchPending':
       deps.ui.showRematchPending();
       break;
-
     case 'opponentDisconnected':
       deps.setState(plan.nextState);
       deps.ui.showGameOver(plan.won, plan.reason);
       break;
-
     case 'error':
       console.error('Server error:', plan.message);
       deps.ui.showToast(plan.message, 'error');
       break;
-
     case 'chat': {
       const isOwn = plan.playerId === deps.ctx.playerId;
       const label = isOwn ? 'You' : 'Opponent';
@@ -151,7 +140,6 @@ export const handleServerMessage = (
       );
       break;
     }
-
     case 'pong':
       if (plan.latencyMs !== null) {
         deps.ctx.latencyMs = plan.latencyMs;
