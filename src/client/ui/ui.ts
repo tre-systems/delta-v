@@ -4,13 +4,13 @@ import type {
   MovementEvent,
   Ship,
 } from '../../shared/types';
-import { byId, hide, show, visible } from '../dom';
-import { ACTION_BUTTON_IDS, STATIC_BUTTON_BINDINGS } from './button-bindings';
+import { byId } from '../dom';
+import { STATIC_BUTTON_BINDINGS } from './button-bindings';
 import type { UIEvent } from './events';
 import { FleetBuildingView } from './fleet-building-view';
-import { getLatencyStatus } from './formatters';
 import { GameLogView } from './game-log-view';
-import { buildHUDView, type HUDInput } from './hud';
+import type { HUDInput } from './hud';
+import { HUDChromeView } from './hud-chrome-view';
 import { deriveHudLayoutOffsets } from './layout';
 import { LobbyView } from './lobby-view';
 import { OverlayView } from './overlay-view';
@@ -26,14 +26,13 @@ export class UIManager {
   private bottomBarEl: HTMLElement;
   private gameOverEl: HTMLElement;
   private shipListEl: HTMLElement;
-  private lastPhase: string | null = null;
   private fleetBuildingEl: HTMLElement;
   private isMobile: boolean;
   private layoutSyncFrame: number | null = null;
 
-  private readonly actionButtonIds = ACTION_BUTTON_IDS;
   private readonly fleetBuildingView: FleetBuildingView;
   private readonly gameLogView: GameLogView;
+  private readonly hudChromeView: HUDChromeView;
   private readonly shipListView: ShipListView;
   private readonly lobbyView: LobbyView;
   private readonly overlayView: OverlayView;
@@ -75,6 +74,13 @@ export class UIManager {
       },
     });
     this.overlayView = new OverlayView();
+    this.hudChromeView = new HUDChromeView({
+      getIsMobile: () => this.isMobile,
+      queueLayoutSync: () => this.queueLayoutSync(),
+      showPhaseAlert: (phase, isMyTurn) => {
+        this.overlayView.showPhaseAlert(phase, isMyTurn);
+      },
+    });
 
     const mobileQuery = window.matchMedia('(max-width: 760px)');
     this.isMobile = mobileQuery.matches;
@@ -188,125 +194,31 @@ export class UIManager {
   }
 
   updateHUD(input: Omit<HUDInput, 'isMobile'>) {
-    const hudView = buildHUDView({
-      ...input,
-      isMobile: this.isMobile,
-    });
-    const { turn, phase, isMyTurn } = input;
-
-    byId('turnInfo').textContent = hudView.turnText;
-    byId('phaseInfo').textContent = hudView.phaseText;
-    byId('objective').textContent = hudView.objectiveText;
-
-    // Trigger phase alert if turn or phase changed
-    const phaseKey = `${turn}-${phase}-${isMyTurn}`;
-
-    if (this.lastPhase !== phaseKey) {
-      this.lastPhase = phaseKey;
-      this.overlayView.showPhaseAlert(phase, isMyTurn);
-    }
-
-    byId('fuelGauge').textContent = hudView.fuelGaugeText;
-
-    visible(byId('undoBtn'), hudView.undoVisible, 'inline-block');
-    visible(byId('confirmBtn'), hudView.confirmVisible, 'inline-block');
-
-    const launchMineBtn = byId<HTMLButtonElement>('launchMineBtn');
-    const launchTorpedoBtn = byId<HTMLButtonElement>('launchTorpedoBtn');
-    const launchNukeBtn = byId<HTMLButtonElement>('launchNukeBtn');
-    const emplaceBaseBtn = byId<HTMLButtonElement>('emplaceBaseBtn');
-
-    visible(launchMineBtn, hudView.launchMine.visible, 'inline-block');
-    visible(launchTorpedoBtn, hudView.launchTorpedo.visible, 'inline-block');
-    visible(launchNukeBtn, hudView.launchNuke.visible, 'inline-block');
-    visible(emplaceBaseBtn, hudView.emplaceBaseVisible, 'inline-block');
-    visible(
-      byId('skipOrdnanceBtn'),
-      hudView.skipOrdnanceVisible,
-      'inline-block',
-    );
-
-    launchMineBtn.disabled = hudView.launchMine.disabled;
-    launchTorpedoBtn.disabled = hudView.launchTorpedo.disabled;
-    launchNukeBtn.disabled = hudView.launchNuke.disabled;
-
-    launchMineBtn.style.opacity = hudView.launchMine.opacity;
-    launchTorpedoBtn.style.opacity = hudView.launchTorpedo.opacity;
-    launchNukeBtn.style.opacity = hudView.launchNuke.opacity;
-
-    launchMineBtn.title = hudView.launchMine.title;
-    launchTorpedoBtn.title = hudView.launchTorpedo.title;
-    launchNukeBtn.title = hudView.launchNuke.title;
-
-    visible(byId('skipCombatBtn'), hudView.skipCombatVisible, 'inline-block');
-    visible(
-      byId('skipLogisticsBtn'),
-      hudView.skipLogisticsVisible,
-      'inline-block',
-    );
-    visible(
-      byId('confirmTransfersBtn'),
-      hudView.confirmTransfersVisible,
-      'inline-block',
-    );
-    visible(byId('transferPanel'), hudView.showTransferPanel, 'block');
-
-    const statusMsg = byId('statusMsg');
-
-    if (hudView.statusText) {
-      statusMsg.textContent = hudView.statusText;
-      show(statusMsg, 'block');
-    } else {
-      hide(statusMsg);
-    }
-
-    this.queueLayoutSync();
+    this.hudChromeView.update(input);
   }
 
   updateLatency(latencyMs: number | null) {
-    const latencyEl = byId('latencyInfo');
-    const status = getLatencyStatus(latencyMs);
-
-    latencyEl.textContent = status.text;
-    latencyEl.className = status.className;
+    this.hudChromeView.updateLatency(latencyMs);
   }
 
   updateFleetStatus(status: string) {
-    byId('fleetStatus').textContent = status;
+    this.hudChromeView.updateFleetStatus(status);
   }
 
   toggleHelpOverlay() {
-    const helpOverlay = byId('helpOverlay');
-
-    visible(helpOverlay, helpOverlay.style.display === 'none', 'flex');
+    this.hudChromeView.toggleHelpOverlay();
   }
 
   updateSoundButton(muted: boolean) {
-    const btn = byId('soundBtn');
-    btn.textContent = muted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
-    btn.title = muted ? 'Sound off' : 'Sound on';
-    btn.setAttribute(
-      'aria-label',
-      muted ? 'Enable sound effects' : 'Disable sound effects',
-    );
-    btn.classList.toggle('muted', muted);
+    this.hudChromeView.updateSoundButton(muted);
   }
 
   setTurnTimer(text: string, className: string) {
-    const timerEl = byId('turnTimer');
-    timerEl.textContent = text;
-    timerEl.className = className;
-    this.queueLayoutSync();
+    this.hudChromeView.setTurnTimer(text, className);
   }
 
   clearTurnTimer() {
-    const timerEl = byId('turnTimer');
-
-    if (timerEl) {
-      timerEl.textContent = '';
-    }
-
-    this.queueLayoutSync();
+    this.hudChromeView.clearTurnTimer();
   }
 
   updateShipList(
@@ -318,30 +230,15 @@ export class UIManager {
   }
 
   showAttackButton(isVisible: boolean) {
-    visible(byId('attackBtn'), isVisible, 'inline-block');
-    this.queueLayoutSync();
+    this.hudChromeView.showAttackButton(isVisible);
   }
 
   showFireButton(isVisible: boolean, count: number) {
-    const btn = byId('fireBtn');
-
-    visible(btn, isVisible, 'inline-block');
-
-    btn.textContent = count > 0 ? `FIRE ALL (${count})` : 'FIRE ALL';
-
-    this.queueLayoutSync();
+    this.hudChromeView.showFireButton(isVisible, count);
   }
 
   showMovementStatus() {
-    const statusMsg = byId('statusMsg');
-    statusMsg.textContent = 'Ships moving...';
-    show(statusMsg, 'block');
-
-    for (const id of this.actionButtonIds) {
-      hide(byId(id));
-    }
-
-    this.queueLayoutSync();
+    this.hudChromeView.showMovementStatus();
   }
 
   showGameOver(
@@ -374,10 +271,6 @@ export class UIManager {
 
   showToast(message: string, type: 'error' | 'info' | 'success' = 'info') {
     this.overlayView.showToast(message, type);
-  }
-
-  showPhaseAlert(phase: string, isMyTurn: boolean) {
-    this.overlayView.showPhaseAlert(phase, isMyTurn);
   }
 
   // --- Game log ---
