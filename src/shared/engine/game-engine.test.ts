@@ -2805,8 +2805,8 @@ describe('fleet building (MegaCredit economy)', () => {
       findBaseHex,
     );
     expect(state.phase).toBe('fleetBuilding');
-    expect(state.players[0].credits).toBe(900);
-    expect(state.players[1].credits).toBe(800);
+    expect(state.players[0].credits).toBe(850);
+    expect(state.players[1].credits).toBe(850);
     expect(state.players[0].ready).toBe(false);
     expect(state.players[1].ready).toBe(false);
     expect(state.ships).toHaveLength(0);
@@ -2832,7 +2832,7 @@ describe('fleet building (MegaCredit economy)', () => {
       expect(p0Ships[0].type).toBe('corvette');
       expect(p0Ships[1].type).toBe('corsair');
       expect(p0Ships[0].landed).toBe(true);
-      expect(result.state.players[0].credits).toBe(780);
+      expect(result.state.players[0].credits).toBe(730);
       expect(result.state.players[0].ready).toBe(true);
       expect(result.state.phase).toBe('fleetBuilding');
     }
