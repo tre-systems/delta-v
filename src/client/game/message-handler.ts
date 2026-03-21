@@ -30,6 +30,7 @@ export interface MessageHandlerDeps {
   ) => void;
   showGameOverOutcome: (won: boolean, reason: string) => void;
   storePlayerToken: (code: string, token: string) => void;
+  resetTurnTelemetry: () => void;
   onAnimationComplete: () => void;
   logScenarioBriefing: () => void;
   deserializeState: (raw: GameState) => GameState;
@@ -81,6 +82,7 @@ export const handleServerMessage = (
       playPhaseChange();
       break;
     case 'gameStart':
+      deps.resetTurnTelemetry();
       deps.applyGameState(deps.deserializeState(plan.state));
       deps.renderer.clearTrails();
       deps.ui.clearLog();
