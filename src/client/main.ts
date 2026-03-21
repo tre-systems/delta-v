@@ -2,8 +2,23 @@ import { must } from '../shared/assert';
 
 // Register service worker for PWA support
 if ('serviceWorker' in navigator) {
+  let hadServiceWorkerController = navigator.serviceWorker.controller !== null;
+  let isReloadingForServiceWorker = false;
+
   navigator.serviceWorker.register('/sw.js').catch(() => {});
+
   navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadServiceWorkerController) {
+      hadServiceWorkerController = true;
+
+      return;
+    }
+
+    if (isReloadingForServiceWorker) {
+      return;
+    }
+
+    isReloadingForServiceWorker = true;
     window.location.reload();
   });
 }
