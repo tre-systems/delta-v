@@ -1,5 +1,5 @@
 import { type HexCoord, hexEqual, pixelToHex } from '../shared/hex';
-import type { SolarSystemMap } from '../shared/types';
+import type { SolarSystemMap } from '../shared/types/domain';
 import type { InputEvent } from './game/input-events';
 import {
   createMinimapLayout,

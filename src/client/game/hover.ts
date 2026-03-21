@@ -1,5 +1,5 @@
 import { type HexCoord, hexEqual } from '../../shared/hex';
-import type { GameState, Ship } from '../../shared/types';
+import type { GameState, Ship } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 
 const TOOLTIP_HIDDEN_STATES = new Set<ClientState>([

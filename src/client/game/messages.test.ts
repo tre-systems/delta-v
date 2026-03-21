@@ -5,10 +5,10 @@ import type {
   GameState,
   MovementEvent,
   OrdnanceMovement,
-  S2C,
   Ship,
   ShipMovement,
-} from '../../shared/types';
+} from '../../shared/types/domain';
+import type { S2C } from '../../shared/types/protocol';
 import { deriveClientMessagePlan } from './messages';
 import type { ClientState } from './phase';
 

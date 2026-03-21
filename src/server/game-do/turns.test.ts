@@ -6,7 +6,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
-import type { GameState } from '../../shared/types';
+import type { GameState } from '../../shared/types/domain';
 import { resolveTurnTimeoutOutcome } from './turns';
 
 function createState(): GameState {

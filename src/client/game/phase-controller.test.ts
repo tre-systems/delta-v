@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { GameState, PlayerState, Ship } from '../../shared/types';
+import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 import {
   type PhaseControllerDeps,

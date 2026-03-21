@@ -1,6 +1,6 @@
 import type { HexCoord } from '../../shared/hex';
 import { hexToPixel } from '../../shared/hex';
-import type { GameState, Ship } from '../../shared/types';
+import type { GameState, Ship } from '../../shared/types/domain';
 
 const getOwnedShips = (state: GameState, playerId: number): Ship[] => {
   return state.ships.filter(

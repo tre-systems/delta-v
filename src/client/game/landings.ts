@@ -1,7 +1,7 @@
 import { must } from '../../shared/assert';
 import { SHIP_STATS } from '../../shared/constants';
 import { type HexCoord, hexKey } from '../../shared/hex';
-import type { GameState, ShipMovement } from '../../shared/types';
+import type { GameState, ShipMovement } from '../../shared/types/domain';
 export interface LandingLogEntry {
   destination: HexCoord;
   shipName: string;

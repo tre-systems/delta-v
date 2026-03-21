@@ -17,7 +17,7 @@ import type {
   OrdnanceLaunch,
   SolarSystemMap,
   TransferOrder,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 
 export type LocalResolution =
   | { kind: 'error'; error: string }

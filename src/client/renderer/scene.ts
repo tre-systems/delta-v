@@ -11,7 +11,7 @@ import {
   hexToPixel,
   parseHexKey,
 } from '../../shared/hex';
-import type { GameState, SolarSystemMap } from '../../shared/types';
+import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import {
   buildAsteroidDebrisView,
   buildBaseMarkerView,

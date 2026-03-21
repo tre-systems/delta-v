@@ -18,7 +18,7 @@ import type {
   Ordnance,
   Ship,
   SolarSystemMap,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import { clamp, filterMap } from '../../shared/util';
 
 export interface CombatOverlayPlanningState {

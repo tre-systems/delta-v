@@ -1,5 +1,5 @@
 import type { HexCoord } from '../../shared/hex';
-import type { FleetPurchase } from '../../shared/types';
+import type { FleetPurchase } from '../../shared/types/domain';
 import type { CombatTargetPlan } from '../game/combat';
 import type { KeyboardAction } from './keyboard';
 

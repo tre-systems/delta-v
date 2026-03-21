@@ -5,7 +5,7 @@ import type {
   GameState,
   MovementEvent,
   Ship,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import {
   buildCombatResultToastLines,
   formatMovementEventToast,

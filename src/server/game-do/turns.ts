@@ -8,7 +8,7 @@ import type {
   AstrogationOrder,
   GameState,
   SolarSystemMap,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import {
   deriveCombatEvents,
   deriveMovementEvents,

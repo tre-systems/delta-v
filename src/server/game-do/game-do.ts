@@ -25,15 +25,14 @@ import {
 import { validateClientMessage } from '../../shared/protocol';
 import type {
   AstrogationOrder,
-  C2S,
   CombatAttack,
   FleetPurchase,
   GameState,
   OrbitalBaseEmplacement,
   OrdnanceLaunch,
-  S2C,
   TransferOrder,
-} from '../../shared/types';
+} from '../../shared/types/domain';
+import type { C2S, S2C } from '../../shared/types/protocol';
 import {
   createRoomConfig,
   generatePlayerToken,

@@ -5,7 +5,8 @@ import type {
   StateUpdateResult,
 } from '../../shared/engine/game-engine';
 import type { GameEvent } from '../../shared/events';
-import type { CombatResult, GameState, S2C } from '../../shared/types';
+import type { CombatResult, GameState } from '../../shared/types/domain';
+import type { S2C } from '../../shared/types/protocol';
 export type StatefulServerMessage = Extract<
   S2C,
   {

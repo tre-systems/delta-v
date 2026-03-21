@@ -96,7 +96,7 @@ Do not create meaningless wrapper functions or over-fragment files just to hit n
 Union types with a literal discriminator field, narrowed via `switch` or `if`. See [TypeScript Handbook — Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html).
 
 - **Client-side variants** use `kind` as discriminator: `LocalResolution`, `AIActionPlan`, `GameCommand`, `KeyboardAction`, `BurnChangePlan`.
-- **Network messages** use `type` as discriminator: `C2S`, `S2C` message unions in `types.ts`.
+- **Network messages** use `type` as discriminator: `C2S`, `S2C` message unions in `types/protocol.ts`.
 
 Always handle all variants with a `switch` — TypeScript's exhaustive checking catches missing cases.
 

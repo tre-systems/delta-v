@@ -1,4 +1,4 @@
-import type { GameState } from '../../shared/types';
+import type { GameState } from '../../shared/types/domain';
 
 export type ClientState =
   | 'menu'
