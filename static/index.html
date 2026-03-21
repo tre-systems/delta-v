@@ -14,6 +14,22 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="/style.css">
+  <script>
+    // Fix iOS PWA viewport gap: the web view can be shorter
+    // than the physical screen on initial load. Force a reflow
+    // by briefly scrolling, which triggers iOS to recalculate.
+    if (window.navigator.standalone ||
+        window.matchMedia('(display-mode: standalone)').matches) {
+      document.addEventListener('DOMContentLoaded', function() {
+        requestAnimationFrame(function() {
+          window.scrollTo(0, 1);
+          requestAnimationFrame(function() {
+            window.scrollTo(0, 0);
+          });
+        });
+      });
+    }
+  </script>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
