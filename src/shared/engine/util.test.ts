@@ -13,8 +13,10 @@ import {
   hasOrdnanceCapacity,
   isPlanetaryDefenseEnabled,
   playerControlsBase,
+  RESUPPLY_ORDNANCE_ERROR,
   shuffle,
   usesEscapeInspectionRules,
+  validateOrdnanceLaunch,
   validatePhaseAction,
   validateShipOrdnanceLaunch,
 } from './util';
@@ -251,6 +253,38 @@ describe('getAllowedOrdnanceTypes', () => {
     );
 
     expect(result).toEqual(new Set(['nuke']));
+  });
+});
+
+describe('validateOrdnanceLaunch', () => {
+  it('rejects launches disallowed by the scenario', () => {
+    expect(
+      validateOrdnanceLaunch(
+        makeScenarioRulesState({ allowedOrdnanceTypes: ['nuke'] }),
+        makeShip({ type: 'packet' }),
+        'mine',
+      ),
+    ).toBe('This scenario does not allow mine launches');
+  });
+
+  it('rejects launches on a resupply turn', () => {
+    expect(
+      validateOrdnanceLaunch(
+        makeScenarioRulesState(),
+        makeShip({ resuppliedThisTurn: true }),
+        'mine',
+      ),
+    ).toBe(RESUPPLY_ORDNANCE_ERROR);
+  });
+
+  it('delegates ship-level validation for otherwise allowed launches', () => {
+    expect(
+      validateOrdnanceLaunch(
+        makeScenarioRulesState(),
+        makeShip({ type: 'transport' }),
+        'torpedo',
+      ),
+    ).toBe('Only warships and orbital bases can launch torpedoes');
   });
 });
 

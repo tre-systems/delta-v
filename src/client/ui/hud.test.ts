@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { AstrogationContext, HUDInput } from './hud';
 import { buildHUDView } from './hud';
 
+const defaultLaunchState = {
+  visible: false,
+  disabled: true,
+  title: '',
+};
+
 const defaultCtx: AstrogationContext = {
   selectedShipLanded: false,
   selectedShipDisabled: false,
@@ -22,8 +28,10 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   cargoFree: 0,
   cargoMax: 0,
   objective: '',
-  isWarship: false,
   canEmplaceBase: false,
+  launchMineState: defaultLaunchState,
+  launchTorpedoState: defaultLaunchState,
+  launchNukeState: defaultLaunchState,
   astrogationCtx: defaultCtx,
   speed: 0,
   fuelToStop: 0,
@@ -56,6 +64,21 @@ describe('ui hud helpers', () => {
         cargoMax: 20,
         objective: 'Hold Mars',
         canEmplaceBase: true,
+        launchMineState: {
+          visible: true,
+          disabled: false,
+          title: '',
+        },
+        launchTorpedoState: {
+          visible: true,
+          disabled: true,
+          title: 'Warships only',
+        },
+        launchNukeState: {
+          visible: true,
+          disabled: true,
+          title: 'Not enough cargo (need 20, have 10)',
+        },
       }),
     );
 
@@ -85,6 +108,38 @@ describe('ui hud helpers', () => {
       visible: true,
       disabled: true,
       opacity: '0.4',
+      title: 'Not enough cargo (need 20, have 10)',
+    });
+  });
+
+  it('hides ordnance buttons that the scenario does not allow', () => {
+    const view = buildHUDView(
+      buildInput({
+        phase: 'ordnance',
+        launchMineState: {
+          visible: false,
+          disabled: true,
+          title: '',
+        },
+        launchTorpedoState: {
+          visible: false,
+          disabled: true,
+          title: '',
+        },
+        launchNukeState: {
+          visible: true,
+          disabled: false,
+          title: '',
+        },
+      }),
+    );
+
+    expect(view.launchMine.visible).toBe(false);
+    expect(view.launchTorpedo.visible).toBe(false);
+    expect(view.launchNuke).toMatchObject({
+      visible: true,
+      disabled: false,
+      opacity: '1',
     });
   });
 

@@ -246,6 +246,68 @@ describe('game client helpers', () => {
       canOverload: true,
       canEmplaceBase: true,
       fleetStatus: '⚔ 1v0 1M/1N',
+      launchMineState: {
+        visible: true,
+        disabled: false,
+        title: '',
+      },
+      launchTorpedoState: {
+        visible: true,
+        disabled: false,
+        title: '',
+      },
+      launchNukeState: {
+        visible: true,
+        disabled: false,
+        title: '',
+      },
+    });
+  });
+
+  it('hides disallowed ordnance buttons and disables illegal launches', () => {
+    const state = createState({
+      phase: 'ordnance',
+      scenarioRules: {
+        allowedOrdnanceTypes: ['nuke'],
+      },
+      ships: [
+        createShip({
+          id: 'p0s0',
+          type: 'corsair',
+          cargoUsed: 0,
+        }),
+        createShip({
+          id: 'p1s0',
+          type: 'corsair',
+          owner: 1,
+          destroyed: true,
+        }),
+      ],
+    });
+
+    const planning = {
+      selectedShipId: 'p0s0',
+      burns: new Map(),
+      overloads: new Map(),
+      weakGravityChoices: new Map(),
+    };
+
+    expect(deriveHudViewModel(state, 0, planning)).toMatchObject({
+      launchMineState: {
+        visible: false,
+        disabled: true,
+        title: '',
+      },
+      launchTorpedoState: {
+        visible: false,
+        disabled: true,
+        title: '',
+      },
+      launchNukeState: {
+        visible: true,
+        disabled: true,
+        title: 'Not enough cargo (need 20, have 10)',
+      },
     });
   });
 

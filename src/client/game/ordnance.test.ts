@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameState, Ship } from '../../shared/types';
 import {
   getFirstLaunchableShipId,
+  getUnambiguousLaunchableShipId,
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
 } from './ordnance';
@@ -26,8 +27,11 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
   };
 }
 
-function createState(ships: Ship[]): Pick<GameState, 'ships'> {
-  return { ships };
+function createState(
+  ships: Ship[],
+  scenarioRules: GameState['scenarioRules'] = {},
+): Pick<GameState, 'ships' | 'scenarioRules'> {
+  return { ships, scenarioRules };
 }
 
 function createPlanning(
@@ -58,6 +62,30 @@ describe('game-client-ordnance', () => {
     expect(getFirstLaunchableShipId(state, 0)).toBe('launchable');
 
     expect(getFirstLaunchableShipId(state, 1)).toBe('enemy');
+  });
+
+  it('skips ships that cannot launch any allowed ordnance this turn', () => {
+    const state = createState(
+      [
+        createShip({
+          id: 'corsair',
+          type: 'corsair',
+        }),
+        createShip({
+          id: 'packet',
+          type: 'packet',
+        }),
+        createShip({
+          id: 'resupplied',
+          type: 'packet',
+          resuppliedThisTurn: true,
+        }),
+      ],
+      { allowedOrdnanceTypes: ['nuke'] },
+    );
+
+    expect(getFirstLaunchableShipId(state, 0)).toBe('packet');
+    expect(getUnambiguousLaunchableShipId(state, 0)).toBe('packet');
   });
 
   it('builds a launch plan for torpedoes', () => {
@@ -103,6 +131,38 @@ describe('game-client-ordnance', () => {
     ).toEqual({
       ok: false,
       message: 'Cannot launch ordnance while landed',
+      level: 'error',
+    });
+
+    expect(
+      resolveOrdnanceLaunchPlan(
+        createState([createShip({ type: 'packet' })], {
+          allowedOrdnanceTypes: ['nuke'],
+        }),
+        createPlanning(),
+        'mine',
+      ),
+    ).toEqual({
+      ok: false,
+      message: 'This scenario does not allow mine launches',
+      level: 'error',
+    });
+
+    expect(
+      resolveOrdnanceLaunchPlan(
+        createState([
+          createShip({
+            type: 'packet',
+            resuppliedThisTurn: true,
+          }),
+        ]),
+        createPlanning(),
+        'nuke',
+      ),
+    ).toEqual({
+      ok: false,
+      message:
+        'Ships cannot launch ordnance during a turn in which they resupply',
       level: 'error',
     });
 
