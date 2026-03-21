@@ -42,6 +42,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `hex.ts` | 306 | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
 | `util.ts` | 170 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
 | `types/` | 389 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts` with barrel re-export) | Game-specific |
+| `protocol.ts` | 433 | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads) | Mostly generic |
 | `constants.ts` | 135 | Ship stats, ordnance mass, detection ranges, animation timing | Game-specific |
 | `movement.ts` | 435 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
 | `combat.ts` | 627 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
@@ -92,7 +93,7 @@ The backend leverages Cloudflare's edge network.
 | Module | Purpose | Reusability |
 |--------|---------|-------------|
 | `index.ts` | Worker entry: `/create`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern |
-| `protocol.ts` | Room codes, tokens, seat assignment, message validation | **~80% generic** — room/token/seat logic is game-agnostic |
+| `protocol.ts` | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export | **~85% generic** — room/token/seat logic is game-agnostic |
 | `game-do/game-do.ts` | Durable Object: WebSocket lifecycle, state persistence, broadcasting | **~70% generic** — multiplayer plumbing is reusable |
 | `game-do/messages.ts` | S2C message construction from engine results | Game-specific |
 | `game-do/session.ts` | Disconnect grace period, alarm scheduling | **Fully generic** |
@@ -103,6 +104,8 @@ The backend leverages Cloudflare's edge network.
 - **[WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/api/websockets/)**: The DO uses Cloudflare's hibernatable WebSocket API (`acceptWebSocket`, `webSocketMessage`, `webSocketClose`) instead of the standard `addEventListener` pattern. This allows the DO to hibernate between messages, reducing costs. Sockets are tagged with `player:${playerId}` on accept, enabling player lookup via `getWebSockets(['player:0'])` without maintaining an in-memory map.
 
 - **`runGameStateAction(ws, action, onSuccess)`**: Generic handler that reduces boilerplate across all 12+ action handlers. Fetches current state from storage → runs engine function in try/catch → on validation error sends error message to the WebSocket → on exception logs with game code/phase/turn and sends error (state is preserved via clone-on-entry) → on success invokes `onSuccess` callback (typically save state + broadcast). `handleTurnTimeout` has equivalent try/catch protection for the alarm-driven code path.
+
+- **Shared protocol validation**: Runtime C2S validation now lives in `shared/protocol.ts` instead of the server shell. The Durable Object still consumes `validateClientMessage()`, but the message-shape ownership sits beside the shared protocol types rather than inside server-only plumbing.
 
 - **Single state-bearing outbound message per action**: `publishStateChange()` persists state and events first, then emits exactly one state-bearing message (`movementResult`, `combatResult`, or `stateUpdate`). If the resulting state is terminal, the DO appends a separate `gameOver` notification after that state-bearing message. This keeps client phase transitions aligned with a one-action/one-update contract.
 
@@ -180,7 +183,7 @@ Delta-V is a fully installable PWA. A lightweight hand-written service worker pr
 
 **Server→Client (S2C)**: `welcome`, `matchFound`, `gameStart`, `movementResult`, `combatResult`, `stateUpdate`, `gameOver`, `rematchPending`, `opponentDisconnected`, `chat`, `error`, `pong`
 
-All messages are discriminated unions validated at the protocol boundary. `GameState` is the single source of truth — clients never mutate it; server owns all state mutations.
+All messages are discriminated unions validated at the protocol boundary. Chat payloads are trimmed before validation and blank post-trim messages are rejected, so non-UI clients cannot inject empty log entries. `GameState` is the single source of truth — clients never mutate it; server owns all state mutations.
 
 ### Multiplayer Session Lifecycle
 
