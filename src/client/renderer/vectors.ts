@@ -17,7 +17,7 @@ import type {
   GameState,
   ShipMovement,
   SolarSystemMap,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 
 export interface CircleOverlayView {
   center: PixelCoord;

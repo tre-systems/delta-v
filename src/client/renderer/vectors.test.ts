@@ -6,7 +6,7 @@ import type {
   Ship,
   ShipMovement,
   SolarSystemMap,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import {
   buildDetectionRangeViews,
   buildMovementPathViews,

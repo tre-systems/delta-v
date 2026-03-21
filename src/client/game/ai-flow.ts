@@ -12,7 +12,7 @@ import type {
   GameState,
   OrdnanceLaunch,
   SolarSystemMap,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import { hasOwnedPendingAsteroidHazards } from './local';
 
 export interface AIDecisionGenerators {

@@ -8,7 +8,7 @@ import type {
   GravityEffect,
   PlayerState,
   Ship,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import {
   buildAstrogationCoursePreviewViews,
   type CoursePreviewPlanningState,

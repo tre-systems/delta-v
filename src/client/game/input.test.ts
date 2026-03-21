@@ -7,7 +7,7 @@ import type {
   PlayerState,
   Ship,
   SolarSystemMap,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import { resolveAstrogationClick, resolveOrdnanceClick } from './input';
 import type { PlanningState } from './planning';
 

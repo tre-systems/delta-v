@@ -9,7 +9,11 @@ import {
   type PixelCoord,
 } from '../../shared/hex';
 import { computeCourse, predictDestination } from '../../shared/movement';
-import type { GameState, Ship, SolarSystemMap } from '../../shared/types';
+import type {
+  GameState,
+  Ship,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 
 export interface CoursePreviewPlanningState {
   selectedShipId: string | null;

@@ -9,7 +9,7 @@ import type {
   CombatAttack,
   GameState,
   SolarSystemMap,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import { clamp, filterMap } from '../../shared/util';
 import type { PlanningState } from './planning';
 

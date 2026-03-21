@@ -5,7 +5,7 @@ import type {
   Ordnance,
   PlayerState,
   Ship,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import {
   buildAstrogationOrders,
   deriveHudViewModel,

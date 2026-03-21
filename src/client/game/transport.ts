@@ -8,7 +8,7 @@ import type {
   OrdnanceLaunch,
   SolarSystemMap,
   TransferOrder,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import {
   type LocalResolution,
   resolveAstrogationStep,

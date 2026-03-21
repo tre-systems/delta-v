@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GameState, Ship } from '../../shared/types';
+import type { GameState, Ship } from '../../shared/types/domain';
 import { deriveClientStateEntryPlan } from './phase-entry';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {

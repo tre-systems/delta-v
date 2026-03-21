@@ -9,7 +9,7 @@ import type {
   OrbitalBaseEmplacement,
   OrdnanceLaunch,
   Ship,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import type { PlanningState } from './planning';
 
 type OrdnanceState = Pick<GameState, 'ships' | 'scenarioRules'>;

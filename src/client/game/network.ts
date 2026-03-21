@@ -1,4 +1,4 @@
-import type { GameState } from '../../shared/types';
+import type { GameState } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 
 export interface WelcomeHandling {

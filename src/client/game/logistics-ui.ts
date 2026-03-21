@@ -3,7 +3,7 @@ import {
   getTransferEligiblePairs,
   type TransferPair,
 } from '../../shared/engine/logistics';
-import type { GameState, TransferOrder } from '../../shared/types';
+import type { GameState, TransferOrder } from '../../shared/types/domain';
 import { el } from '../dom';
 
 export interface LogisticsUIState {

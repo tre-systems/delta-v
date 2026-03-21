@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CombatAttack } from '../../shared/types';
+import type { CombatAttack } from '../../shared/types/domain';
 import type { CombatTargetPlan } from './combat';
 import { createInitialPlanningState } from './planning';
 import {

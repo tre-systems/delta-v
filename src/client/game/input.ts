@@ -7,7 +7,11 @@ import {
   hexKey,
 } from '../../shared/hex';
 import { computeCourse, predictDestination } from '../../shared/movement';
-import type { GameState, Ship, SolarSystemMap } from '../../shared/types';
+import type {
+  GameState,
+  Ship,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import type { PlanningState } from './planning';
 
 type InputPlanningSnapshot = Pick<

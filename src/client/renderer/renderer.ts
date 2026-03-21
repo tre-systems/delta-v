@@ -15,7 +15,7 @@ import type {
   Ship,
   ShipMovement,
   SolarSystemMap,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import { createMinimapLayout } from '../game/minimap';
 import { Camera } from './camera';
 import { getCombatTargetEntity } from './combat';

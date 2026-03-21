@@ -13,7 +13,7 @@ import {
   hexToPixel,
   type PixelCoord,
 } from '../../shared/hex';
-import type { GameState, SolarSystemMap } from '../../shared/types';
+import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import type { PlanningState } from '../game/planning';
 import {
   getCombatOverlayHighlights,

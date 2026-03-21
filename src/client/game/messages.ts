@@ -3,9 +3,9 @@ import type {
   GameState,
   MovementEvent,
   OrdnanceMovement,
-  S2C,
   ShipMovement,
-} from '../../shared/types';
+} from '../../shared/types/domain';
+import type { S2C } from '../../shared/types/protocol';
 import {
   deriveGameStartClientState,
   deriveWelcomeHandling,

@@ -41,7 +41,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 |--------|-----|---------|-------------|
 | `hex.ts` | 306 | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
 | `util.ts` | 170 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
-| `types/` | 389 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts`; new imports should target those bounded files directly, with the barrel retained for compatibility while migration completes) | Game-specific |
+| `types/` | 389 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts`; all imports use bounded files directly, barrel retained for compatibility only) | Game-specific |
 | `protocol.ts` | 478 | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads) | Mostly generic |
 | `constants.ts` | 135 | Ship stats, ordnance mass, detection ranges, animation timing | Game-specific |
 | `movement.ts` | 435 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
@@ -244,7 +244,7 @@ game-do.ts (Durable Object)
 | Renderer → PlanningState | **High** | Reads by reference for UI overlays (previews, selections) |
 | UI → GameState | **High** | HUD needs ship stats, phase, fuel, objective |
 | Client → Shared Engine | **Medium** | Local transport delegates to shared engine; types must align |
-| ALL → shared/types/* | **Very High** | Shared types remain the integration point, but direct bounded imports (`domain` / `protocol` / `scenario`) are preferred over the legacy barrel |
+| ALL → shared/types/* | **Very High** | Shared types remain the integration point; all imports use bounded modules (`domain` / `protocol` / `scenario`) directly |
 
 ---
 

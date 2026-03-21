@@ -9,7 +9,7 @@ import type {
   GameState,
   Ordnance,
   Ship,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import { count } from '../../shared/util';
 import type { PlanningState } from './planning';
 

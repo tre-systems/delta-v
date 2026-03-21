@@ -5,7 +5,7 @@ import type {
   PlayerState,
   Ship,
   ShipMovement,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import { deriveLandingLogEntries } from './landings';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {

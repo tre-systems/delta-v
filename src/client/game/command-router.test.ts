@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { TransferPair } from '../../shared/engine/logistics';
 import { buildSolarSystemMap } from '../../shared/map-data';
-import type { FleetPurchase, GameState, Ship } from '../../shared/types';
+import type { FleetPurchase, GameState, Ship } from '../../shared/types/domain';
 import { type CommandRouterDeps, dispatchGameCommand } from './command-router';
 import type { LogisticsUIState } from './logistics-ui';
 import { createInitialPlanningState } from './planning';

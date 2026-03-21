@@ -4,9 +4,9 @@ import { processFleetReady } from '../../shared/engine/game-engine';
 import type {
   FleetPurchase,
   GameState,
-  ScenarioDefinition,
   SolarSystemMap,
-} from '../../shared/types';
+} from '../../shared/types/domain';
+import type { ScenarioDefinition } from '../../shared/types/scenario';
 
 const AI_FLEET_PRIORITIES: Record<AIDifficulty, string[]> = {
   easy: ['corvette', 'corsair', 'packet'],

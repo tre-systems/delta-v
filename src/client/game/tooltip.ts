@@ -8,7 +8,11 @@ import {
 } from '../../shared/combat';
 import { SHIP_STATS } from '../../shared/constants';
 import { hexVecLength } from '../../shared/hex';
-import type { GameState, Ship, SolarSystemMap } from '../../shared/types';
+import type {
+  GameState,
+  Ship,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 
 const getCombatSummary = (
   state: GameState,

@@ -6,7 +6,8 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
-import type { FleetPurchase, ScenarioDefinition } from '../../shared/types';
+import type { FleetPurchase } from '../../shared/types/domain';
+import type { ScenarioDefinition } from '../../shared/types/scenario';
 import { buildAIFleetPurchases, resolveLocalFleetReady } from './fleet';
 
 describe('game-client-fleet', () => {

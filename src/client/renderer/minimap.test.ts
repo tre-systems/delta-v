@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GameState, Ship, SolarSystemMap } from '../../shared/types';
+import type {
+  GameState,
+  Ship,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import { createMinimapLayout } from '../game/minimap';
 import { buildMinimapSceneView } from './minimap';
 

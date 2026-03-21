@@ -7,7 +7,7 @@ import {
   hexToPixel,
   hexVecLength,
 } from '../../shared/hex';
-import type { GameState, Ship } from '../../shared/types';
+import type { GameState, Ship } from '../../shared/types/domain';
 
 export interface ShipStackOffset {
   xOffset: number;

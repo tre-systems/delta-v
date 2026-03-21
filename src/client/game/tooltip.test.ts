@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GameState, Ship, SolarSystemMap } from '../../shared/types';
+import type {
+  GameState,
+  Ship,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import { buildShipTooltipHtml } from './tooltip';
 
 function createShip(overrides: Partial<Ship> = {}): Ship {

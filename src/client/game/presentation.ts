@@ -8,7 +8,7 @@ import type {
   OrdnanceMovement,
   Ship,
   ShipMovement,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import {
   playCombat,
   playDefeat,

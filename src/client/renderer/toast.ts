@@ -2,7 +2,7 @@ import type {
   CombatResult,
   GameState,
   MovementEvent,
-} from '../../shared/types';
+} from '../../shared/types/domain';
 import { formatCombatResult } from './combat';
 
 export interface ToastLine {

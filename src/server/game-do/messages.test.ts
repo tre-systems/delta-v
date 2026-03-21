@@ -9,7 +9,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
-import type { CombatResult, GameState } from '../../shared/types';
+import type { CombatResult, GameState } from '../../shared/types/domain';
 import {
   deriveCombatEvents,
   deriveMovementEvents,
