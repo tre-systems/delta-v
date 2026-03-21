@@ -70,13 +70,15 @@ Split `src/shared/types.ts` into `src/shared/types/` directory:
 ScenarioPlayer). Barrel `index.ts` preserves all existing
 import paths.
 
-### Phase 4. Rules consolidation
+### ~~Phase 4. Rules consolidation~~ *(done)*
 
-- Centralize scenario capability checks and ordnance launch
-  legality so client helpers and engine validation do not
-  encode the same rules in different places.
-- Continue preferring extracted pure helpers over larger
-  architectural moves.
+Centralized ordnance launch rules into shared helpers in
+`engine/util.ts`: `validateShipOrdnanceLaunch` (per-ship
+per-type eligibility) and `canLaunchOrdnance` (quick boolean
+filter). Client `ordnance.ts` and engine `game-engine.ts`
+both use the shared helpers. Fixes: client now correctly
+allows orbital bases to launch at D1 damage and includes
+orbital base exception in torpedo rules.
 
 ### Phase 5. Stronger entity state models
 
@@ -92,7 +94,7 @@ import paths.
 2. ~~`main.ts` coordinator extraction.~~
 3. ~~`ui.ts` view extraction.~~
 4. ~~Shared type/module split.~~
-5. Rules consolidation.
+5. ~~Rules consolidation.~~
 6. Optional stronger state-model refactors.
 
 ---
