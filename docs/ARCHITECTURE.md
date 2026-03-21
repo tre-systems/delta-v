@@ -40,16 +40,16 @@ This is the heart of the project. All game rules live in a shared folder, making
 |--------|-----|---------|-------------|
 | `hex.ts` | 306 | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
 | `util.ts` | 170 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
-| `types.ts` | 358 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios | Game-specific |
+| `types.ts` | 364 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios | Game-specific |
 | `constants.ts` | 135 | Ship stats, ordnance mass, detection ranges, animation timing | Game-specific |
 | `movement.ts` | 435 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
 | `combat.ts` | 627 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
-| `map-data.ts` | 704 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
-| `ai.ts` | 981 | Rule-based AI with three difficulty levels | Game-specific |
-| `engine/game-engine.ts` | 945 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
+| `map-data.ts` | 712 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
+| `ai.ts` | 860 | Rule-based AI with three difficulty levels | Game-specific |
+| `engine/game-engine.ts` | 838 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
 | `engine/combat.ts` | 537 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
 | `engine/ordnance.ts` | 522 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
-| `engine/logistics.ts` | 315 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
+| `engine/logistics.ts` | 284 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
 | `engine/victory.ts` | 634 | Victory conditions, turn advancement, reinforcements, fleet conversion | Game-specific |
 | `engine/util.ts` | 180 | Game rule helpers: base ownership, escape checks, ordnance capacity | Game-specific |
 
@@ -118,16 +118,16 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 | Directory | Files | LOC | Purpose |
 |-----------|-------|-----|---------|
-| `client/` (root) | 6 | ~2300 | Entry point (`main.ts` ~1510 LOC), raw input, audio, tutorial, DOM helpers, telemetry |
-| `client/game/` | 35 | ~5200 | Game logic: planning, commands, phases, transport, presentation, connection, actions |
-| `client/renderer/` | 13 | ~4500 | Canvas rendering: camera, scene, entities, effects, overlays |
-| `client/ui/` | 8 | ~1900 | DOM overlays: menu, HUD, ship list, fleet shop, formatters |
+| `client/` (root) | 8 | ~2300 | Entry point (`main.ts` ~1040 LOC), raw input, audio, tutorial, DOM helpers, telemetry, viewport, reactive signals |
+| `client/game/` | 39 | ~5650 | Game logic: command routing, planning, phases, transport, presentation, connection, actions |
+| `client/renderer/` | 13 | ~4600 | Canvas rendering: camera, scene, entities, effects, overlays |
+| `client/ui/` | 13 | ~2100 | DOM overlays: menu, HUD, ship list, fleet building, game log, formatters, button bindings, screens |
 
 #### Three-Layer Input Architecture
 
 1. **Raw Input** (`input.ts`): Mouse/touch/keyboard → `InputEvent` (clickHex, hoverHex). No game knowledge.
 2. **Game Interpretation** (`game/input-events.ts`): `InputEvent` + phase + state → `GameCommand[]`. Pure function.
-3. **Command Dispatch** (`main.ts`): `GameCommand` → local state update or network transmission.
+3. **Command Dispatch** (`game/command-router.ts`): `GameCommand` → local state update or network transmission.
 
 #### Client State Machine (`ClientState`)
 - `menu` → `connecting` → `waitingForOpponent` → `playing_*` → `gameOver`
@@ -141,10 +141,12 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 #### Key Design Patterns
 
-- **`main.ts`**: The client-side controller. Manages WebSocket connections, local-AI execution, and phase transitions. It orchestrates the Renderer, Input, and UI through a centralized **`ClientContext`** and a single **`dispatch(GameCommand)`** entry point.
+- **`main.ts`**: The client-side coordinator. Manages WebSocket connections, local-AI execution, and phase transitions. Orchestrates the Renderer, Input, and UI through a centralized **`ClientContext`**. Commands are dispatched via `dispatchGameCommand()` in `game/command-router.ts`.
 - **`renderer/renderer.ts`**: A highly optimized Canvas 2D renderer. It separates logical hex coordinates from pixel coordinates. It features smooth camera interpolation, persistent trails, and movement/combat animations that occur *between* turn phases.
 - **`input.ts`**: Manages user interaction (panning, zooming, clicking). It translates raw browser events into `InputEvent` objects. Pure `interpretInput()` then maps these to `GameCommand[]`, ensuring the input layer never directly mutates the application state.
-- **`game/` / `renderer/` / `ui/` subfolders**: Pure client-side helpers for combat selection, input planning, minimap geometry, phase derivation, formatting, and tooltip/view-model logic.
+- **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), phase derivation, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic.
+- **`renderer/`**: Canvas drawing layers (scene, entities, vectors, effects, overlays), camera, minimap, and animation management.
+- **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, and layout metrics.
 - **`ui/ui.ts`** / **`audio.ts`**: Handles the HTML overlay (menus, HUD) and Web Audio API interactions.
 - **Visual Polish**: Employs a premium design system with glassmorphism tokens (backdrop-filters), tactile micro-animations (recoil, scaling glows), and pulsing orbital effects for high-end UX.
 
@@ -196,12 +198,13 @@ main.ts (GameClient)
   ├→ renderer/renderer.ts (draw canvas, reads planningState by reference)
   ├→ input.ts (parse mouse/keyboard → InputEvent)
   ├→ ui/ui.ts (manage screens, accept UIEvent)
+  ├→ game/command-router.ts (GameCommand → state mutation or network)
   ├→ game/network.ts, game/messages.ts (handle S2C)
   ├→ game/transport.ts (choose WebSocket or Local)
   ├→ game/phase.ts (derive ClientState from GameState)
   ├→ game/keyboard.ts (KeyboardAction → GameCommand)
   ├→ game/helpers.ts (derive HUD view models)
-  ├→ game/[combat|burn|ordnance].ts (game-specific UI logic)
+  ├→ game/[combat|burn|ordnance]-actions.ts (phase-specific actions)
   ├→ game/planning.ts (user input accumulation)
   ├→ shared/types.ts (GameState, Ship, Ordnance, etc.)
   ├→ shared/engine/game-engine.ts (createGame, local resolution)
@@ -242,7 +245,7 @@ An analysis of what could be extracted as a reusable hex-grid multiplayer game f
 
 | Component | LOC | Reusability | Notes |
 |-----------|-----|-------------|-------|
-| `shared/hex.ts` | 289 | **100%** | Zero game knowledge. Axial coords, line draw, pixel conversion. |
+| `shared/hex.ts` | 306 | **100%** | Zero game knowledge. Axial coords, line draw, pixel conversion. |
 | `shared/util.ts` | 170 | **100%** | Pure FP collection helpers. |
 | `renderer/camera.ts` | 96 | **95%** | Pan/zoom/lerp. Only tie: `HEX_SIZE` constant. |
 | `client/input.ts` | 234 | **90%** | Mouse/touch/pinch → clickHex/hoverHex. No game knowledge. |
@@ -325,4 +328,4 @@ All three engine safety items are complete:
 - **Generic `RuleSet<S, C, E, P>` interface**: Designing a framework from N=1 games is premature abstraction. The current code is readable because it knows what a Ship is.
 - **Full package extraction** (`hex-core`, `match-runtime`, `delta-v-rules`): Wait until game #2 exists. Build the framework from two concrete implementations, not one.
 - **Serialisation codec**: `GameState` is plain JSON. A codec adds overhead with zero current benefit.
-- **UI framework adoption**: The DOM UI layer is ~1900 LOC across 8 files. A framework (Preact, etc.) adds build complexity and migration risk for a layer that works and is small enough to iterate on directly.
+- **UI framework adoption**: The DOM UI layer is ~2100 LOC across 13 files. A framework (Preact, etc.) adds build complexity and migration risk for a layer that works and is small enough to iterate on directly.
