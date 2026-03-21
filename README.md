@@ -60,7 +60,7 @@ src/
 scripts/                 # Automated Bot & AI Simulation tests
 ```
 
-**Design Highlight:** The core `game-engine.ts` is side-effect-free — no DOM, no network, no storage. It receives inputs (astrogation orders, combat declarations) and produces the new state, making the game highly unit testable. The engine mutates state in place rather than returning immutable snapshots (see [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details and improvement plan). The backend stays authoritative through **Cloudflare Durable Objects**, handling room lifecycle, tokenized joins, validation, and state persistence.
+**Design Highlight:** The core `game-engine.ts` is side-effect-free — no DOM, no network, no storage. It receives inputs (astrogation orders, combat declarations) and returns a new state, making the game highly unit testable. All engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details. The backend stays authoritative through **Cloudflare Durable Objects**, handling room lifecycle, tokenized joins, validation, and state persistence.
 
 For project conventions and refactoring guidance, see [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md).
 
@@ -115,36 +115,21 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 ## 🗺️ Roadmap
 
 ### Complete
-- [x] Server hardening (tokenized rooms, authenticated reconnects, runtime payload validation)
-- [x] Hidden information (Fog of War, server-side state filtering for *Escape*)
-- [x] AI opponent (Easy/Normal/Hard, gravity-aware pathfinding)
-- [x] Orbital bases (carrying, emplacing, torpedo launching)
+- [x] 8 playable scenarios with AI opponent (Easy/Normal/Hard)
+- [x] Server hardening (tokenized rooms, authenticated reconnects, runtime validation)
+- [x] Hidden information (server-side state filtering for *Escape*)
+- [x] Orbital bases, logistics, reinforcements, fleet conversion
 - [x] PWA support (installable, offline single-player)
-- [x] Premium polish (glassmorphism UI, procedural SFX, micro-animations)
-- [x] Multiplayer chat (inline in game log, rate-limited, XSS-safe)
-- [x] 1120+ tests across 66 suites (unit, property-based, integration), 8 scenario AI simulations
-- [x] Deep architectural analysis and reusability assessment ([docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md))
-- [x] Asteroid map visuals matching reference map
-- [x] Logistics system: surrender, fuel/cargo transfers, looting with transfer picker UI
-- [x] Reinforcement spawning and fleet conversion infrastructure
-- [x] Make RNG fully injectable, decompose main.ts, eliminate map singleton, fix local.ts state aliasing
+- [x] Engine safety (clone-on-entry, server rollback, event log)
+- [x] Error reporting and anonymous telemetry (D1 storage)
+- [x] 1200+ tests across 80 suites, 8 scenario AI simulations
+- [x] Client/engine decomposition and rules consolidation
 
-### Done — Architecture & Production Safety
-- [x] **Clone-on-entry at engine entry points**: `structuredClone` at all engine entry points for rollback safety
-- [x] **Server-side state rollback**: Try/catch around engine calls with state restoration on failure
-- [x] **Event log for network protocol**: Append-only event log alongside state snapshots
-- [x] **Error reporting**: Client error boundary + server-side exception logging, stored in D1
-- [x] **Analytics / telemetry**: Anonymous event tracking with D1 storage (scenario picks, turn timing, tutorial progress)
-
-### Done — Code Quality
-- [x] **Client integration tests**: End-to-end dispatch + message handler tests with mock transport
-- [x] **Centralise phase validation**: Single `validatePhaseAction()` helper replacing scattered phase guards
-
-### Planned — Features
-- [ ] **Turn Replay**: Review past turns and full game history (depends on clone-on-entry + event log)
-- [ ] **Spectator Mode**: Third-party connections to watch ongoing battles (depends on event log)
-- [ ] **New Scenarios**: Lateral 7, Fleet Mutiny, Retribution (require additional mechanics)
-- [ ] **Rescue/passenger transfer**: Transfer passengers between ships for rescue scenarios
+### Planned
+- [ ] **Turn Replay**: Review past turns and full game history
+- [ ] **Spectator Mode**: Watch ongoing battles
+- [ ] **New Scenarios**: Lateral 7, Fleet Mutiny, Retribution
+- [ ] **Rescue/passenger transfer**: For rescue scenarios
 
 ---
 

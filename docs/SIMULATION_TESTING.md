@@ -31,7 +31,7 @@ The current runner executes entirely in Node.js, outside the browser and Cloudfl
 
 **Current usage:**
 - `npm run simulate` runs 100 headless games of the default scenario.
-- `npm run simulate all 100 -- --ci` is the current CI stress pass across all scenarios.
+- `npm run simulate all 25 -- --ci` runs 25 games per scenario across all 8 scenarios (pre-commit hook).
 - `--ci` fails the process on engine crashes and prints balance warnings without making them fatal.
 
 ---
