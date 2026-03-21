@@ -72,10 +72,16 @@ describe('game-client-network', () => {
     );
 
     expect(shouldAttemptReconnect('playing_astrogation', 'ABCDE', null)).toBe(
-      false,
+      true,
     );
 
     expect(shouldAttemptReconnect('playing_astrogation', 'ABCDE', state)).toBe(
+      true,
+    );
+
+    expect(shouldAttemptReconnect('connecting', 'ABCDE', null)).toBe(true);
+
+    expect(shouldAttemptReconnect('waitingForOpponent', 'ABCDE', null)).toBe(
       true,
     );
   });
@@ -91,9 +97,14 @@ describe('game-client-network', () => {
       nextState: null,
     });
 
-    expect(deriveDisconnectHandling('connecting', null, state)).toEqual({
+    expect(deriveDisconnectHandling('connecting', null, null)).toEqual({
       attemptReconnect: false,
       nextState: 'menu',
+    });
+
+    expect(deriveDisconnectHandling('connecting', 'ABCDE', null)).toEqual({
+      attemptReconnect: true,
+      nextState: null,
     });
 
     expect(deriveDisconnectHandling('gameOver', 'ABCDE', state)).toEqual({

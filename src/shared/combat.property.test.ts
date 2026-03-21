@@ -22,6 +22,7 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'test',
   type: 'corvette',
   owner: 0,
+  originalOwner: 0,
   position: { q: 0, r: 0 },
   velocity: { dq: 0, dr: 0 },
   fuel: 20,
@@ -592,12 +593,14 @@ describe('resolveCombat properties', () => {
               id: 'a1',
               type: 'corvette',
               owner: 0,
+              originalOwner: 0,
             }),
           ];
           const target = makeShip({
             id: 't1',
             type: 'corvette',
             owner: 1,
+            originalOwner: 0,
             position: { q: 1, r: 0 },
           });
           const allShips = [...attackers, target];

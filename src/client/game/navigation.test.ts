@@ -12,6 +12,7 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
     id: 'ship-0',
     type: 'transport',
     owner: 0,
+    originalOwner: 0,
     position: { q: 0, r: 0 },
     velocity: { dq: 0, dr: 0 },
     fuel: 10,
@@ -75,6 +76,7 @@ describe('game client navigation helpers', () => {
       createShip({
         id: 'b',
         owner: 0,
+        originalOwner: 0,
         position: { q: 1, r: 0 },
       }),
       createShip({ id: 'c', owner: 1 }),
@@ -89,11 +91,13 @@ describe('game client navigation helpers', () => {
       createShip({
         id: 'far',
         owner: 1,
+        originalOwner: 0,
         position: { q: 6, r: 0 },
       }),
       createShip({
         id: 'near',
         owner: 1,
+        originalOwner: 0,
         position: { q: 1, r: 0 },
       }),
     ]);
@@ -106,11 +110,13 @@ describe('game client navigation helpers', () => {
       createShip({
         id: 'a',
         owner: 0,
+        originalOwner: 0,
         position: { q: 3, r: 0 },
       }),
       createShip({
         id: 'b',
         owner: 0,
+        originalOwner: 0,
         position: { q: 1, r: 2 },
       }),
       createShip({ id: 'enemy', owner: 1 }),

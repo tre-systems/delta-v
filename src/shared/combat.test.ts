@@ -23,6 +23,7 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'test',
   type: 'corvette',
   owner: 0,
+  originalOwner: 0,
   position: { q: 0, r: 0 },
   velocity: { dq: 0, dr: 0 },
   fuel: 20,
@@ -317,12 +318,14 @@ describe('counterattack groups', () => {
     const target = makeShip({
       id: 'target',
       owner: 1,
+      originalOwner: 0,
       position: { q: 1, r: 0 },
       velocity: { dq: 1, dr: 0 },
     });
     const escort = makeShip({
       id: 'escort',
       owner: 1,
+      originalOwner: 0,
       type: 'packet',
       position: { q: 1, r: 0 },
       velocity: { dq: 1, dr: 0 },
@@ -330,6 +333,7 @@ describe('counterattack groups', () => {
     const outsider = makeShip({
       id: 'outsider',
       owner: 1,
+      originalOwner: 0,
       position: { q: 2, r: 0 },
       velocity: { dq: 1, dr: 0 },
     });
@@ -529,11 +533,13 @@ describe('resolveCombat', () => {
     const attacker = makeShip({
       id: 'a',
       owner: 0,
+      originalOwner: 0,
       position: { q: 0, r: 0 },
     });
     const target = makeShip({
       id: 't',
       owner: 1,
+      originalOwner: 0,
       position: { q: 1, r: 0 },
     });
     const rng = () => 0.7; // roll 5
@@ -558,11 +564,13 @@ describe('resolveCombat', () => {
     const attacker = makeShip({
       id: 'a',
       owner: 0,
+      originalOwner: 0,
       position: { q: 0, r: 0 },
     });
     const target = makeShip({
       id: 't',
       owner: 1,
+      originalOwner: 0,
       position: { q: 1, r: 0 },
     });
     const rng = () => 0.0; // roll 1, modifiedRoll = 0 -> no effect at 1:1
@@ -579,11 +587,13 @@ describe('resolveCombat', () => {
     const attacker = makeShip({
       id: 'a',
       owner: 0,
+      originalOwner: 0,
       type: 'dreadnaught',
     });
     const target = makeShip({
       id: 't',
       owner: 1,
+      originalOwner: 0,
       position: { q: 0, r: 0 },
     });
     const rng = () => 0.99; // roll 6
@@ -601,6 +611,7 @@ describe('resolveCombat', () => {
     const target = makeShip({
       id: 't',
       owner: 1,
+      originalOwner: 0,
       type: 'transport',
     });
     const rng = () => 0.0; // roll 1
@@ -616,6 +627,7 @@ describe('resolveCombat', () => {
     const target = makeShip({
       id: 't',
       owner: 1,
+      originalOwner: 0,
       position: { q: 1, r: 0 },
     });
     const rng = () => 0.5;
@@ -631,11 +643,13 @@ describe('resolveCombat', () => {
     const attacker = makeShip({
       id: 'a',
       owner: 0,
+      originalOwner: 0,
       type: 'dreadnaught',
     });
     const target = makeShip({
       id: 't',
       owner: 1,
+      originalOwner: 0,
       position: { q: 0, r: 0 },
     });
 
@@ -657,11 +671,13 @@ describe('resolveCombat', () => {
     const attacker = makeShip({
       id: 'a',
       owner: 0,
+      originalOwner: 0,
       type: 'dreadnaught',
     });
     const target = makeShip({
       id: 't',
       owner: 1,
+      originalOwner: 0,
       position: { q: 0, r: 0 },
     });
 
@@ -705,12 +721,14 @@ describe('heroism', () => {
     const attacker = makeShip({
       id: 'a',
       owner: 0,
+      originalOwner: 0,
       type: 'corvette',
       position: { q: 0, r: 0 },
     });
     const target = makeShip({
       id: 't',
       owner: 1,
+      originalOwner: 0,
       type: 'corsair',
       position: { q: 0, r: 0 },
     });
@@ -725,12 +743,14 @@ describe('heroism', () => {
     const attacker = makeShip({
       id: 'a',
       owner: 0,
+      originalOwner: 0,
       type: 'corvette',
       position: { q: 0, r: 0 },
     });
     const target = makeShip({
       id: 't',
       owner: 1,
+      originalOwner: 0,
       type: 'corvette',
       position: { q: 0, r: 0 },
     });
@@ -745,6 +765,7 @@ describe('heroism', () => {
     const attacker = makeShip({
       id: 'a',
       owner: 0,
+      originalOwner: 0,
       type: 'corvette',
       position: { q: 0, r: 0 },
       heroismAvailable: true,
@@ -752,6 +773,7 @@ describe('heroism', () => {
     const target = makeShip({
       id: 't',
       owner: 1,
+      originalOwner: 0,
       type: 'corvette',
       position: { q: 0, r: 0 },
     });
@@ -772,6 +794,7 @@ describe('heroism', () => {
     const attacker = makeShip({
       id: 'a',
       owner: 0,
+      originalOwner: 0,
       type: 'corvette',
       position: { q: 0, r: 0 },
       heroismAvailable: true,
@@ -779,6 +802,7 @@ describe('heroism', () => {
     const target = makeShip({
       id: 't',
       owner: 1,
+      originalOwner: 0,
       type: 'corvette',
       position: { q: 0, r: 0 },
     });

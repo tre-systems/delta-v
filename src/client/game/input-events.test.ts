@@ -15,6 +15,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'ship-0',
   type: 'corvette',
   owner: 0,
+  originalOwner: 0,
   position: { q: 0, r: 0 },
   velocity: { dq: 0, dr: 0 },
   fuel: 10,
@@ -60,6 +61,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
     createShip({
       id: 'ship-1',
       owner: 1,
+      originalOwner: 0,
       position: { q: 2, r: 0 },
     }),
   ],
@@ -311,6 +313,7 @@ describe('interpretInput', () => {
           createShip({
             id: 'ship-1',
             owner: 1,
+            originalOwner: 0,
             position: { q: 1, r: 0 },
           }),
         ],

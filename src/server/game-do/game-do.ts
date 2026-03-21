@@ -273,11 +273,9 @@ export class GameDO extends DurableObject<Env> {
     const gameState = await this.getGameState();
     if (gameState) {
       const filteredState = filterStateForPlayer(gameState, playerId);
-      const eventLog = await this.getEventLog();
       this.send(server, {
         type: 'gameStart',
         state: filteredState,
-        eventLog,
       });
     }
     // Both players connected — start the game
@@ -405,11 +403,29 @@ export class GameDO extends DurableObject<Env> {
       ...(await this.getAlarmDeadlines()),
     });
     switch (action.type) {
-      case 'disconnectExpired':
+      case 'disconnectExpired': {
         await this.clearDisconnectMarker();
-        this.broadcast({ type: 'opponentDisconnected' });
-        await this.rescheduleAlarm();
+        const gameState = await this.getGameState();
+        if (!gameState || gameState.phase === 'gameOver') {
+          await this.rescheduleAlarm();
+          return;
+        }
+        gameState.phase = 'gameOver';
+        gameState.winner = 1 - action.playerId;
+        gameState.winReason = 'Opponent disconnected';
+        await this.publishStateChange(gameState, undefined, {
+          restartTurnTimer: false,
+          events: [
+            {
+              type: 'gameOver',
+              turn: gameState.turnNumber,
+              winner: gameState.winner,
+              reason: gameState.winReason,
+            },
+          ],
+        });
         return;
+      }
       case 'turnTimeout':
         await this.handleTurnTimeout();
         return;

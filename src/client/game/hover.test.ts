@@ -8,6 +8,7 @@ function createShip(overrides: Partial<Ship> = {}): Ship {
     id: 'ship-0',
     type: 'packet',
     owner: 0,
+    originalOwner: 0,
     position: { q: 0, r: 0 },
     velocity: { dq: 0, dr: 0 },
     fuel: 5,
@@ -87,6 +88,7 @@ describe('game-client-hover', () => {
     const enemy = createShip({
       id: 'enemy',
       owner: 1,
+      originalOwner: 0,
       position: { q: 1, r: 0 },
     });
     const state = createState([friendly, enemy]);
@@ -105,6 +107,7 @@ describe('game-client-hover', () => {
     const hiddenEnemy = createShip({
       id: 'enemy',
       owner: 1,
+      originalOwner: 0,
       detected: false,
       position: { q: 1, r: 0 },
     });

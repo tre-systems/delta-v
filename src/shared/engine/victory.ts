@@ -81,6 +81,7 @@ const applyReinforcements = (state: GameState): void => {
         id,
         type: shipDef.type,
         owner: r.playerId,
+        originalOwner: r.playerId,
         position: { ...shipDef.position },
         velocity: { ...shipDef.velocity },
         fuel: stats.fuel,
@@ -300,14 +301,14 @@ export const checkGameEnd = (state: GameState, map?: SolarSystemMap): void => {
     }
 
     if (map && hasReturnedCapturedFugitivesToBase(state, map)) {
-      const fugitiveOwner = fugitive?.owner ?? 1;
+      const fugitiveOriginalOwner = fugitive?.originalOwner ?? 1;
 
       if (state.escapeMoralVictoryAchieved) {
-        state.winner = 1 - fugitiveOwner;
+        state.winner = fugitiveOriginalOwner;
         state.winReason =
           'Pilgrims moral victory — the fugitives were captured, but they disabled an Enforcer ship.';
       } else {
-        state.winner = fugitiveOwner;
+        state.winner = 1 - fugitiveOriginalOwner;
         state.winReason =
           'Enforcers decisive victory — the fugitives were captured and returned to base.';
       }
@@ -349,7 +350,7 @@ export const applyEscapeMoralVictory = (state: GameState): void => {
   }
 
   const fugitiveOwner =
-    getFugitiveShip(state)?.owner ??
+    getFugitiveShip(state)?.originalOwner ??
     state.players.findIndex((player) => player.escapeWins);
 
   if (fugitiveOwner < 0) {

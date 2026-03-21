@@ -36,6 +36,7 @@ export interface Ship {
   id: string;
   type: string;
   owner: number;
+  originalOwner: number;
   position: HexCoord;
   lastMovementPath?: HexCoord[];
   velocity: HexVec;

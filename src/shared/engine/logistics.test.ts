@@ -14,6 +14,7 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'test',
   type: 'corvette',
   owner: 0,
+  originalOwner: 0,
   position: { q: 5, r: 5 },
   velocity: { dq: 1, dr: 0 },
   fuel: 20,
@@ -92,6 +93,7 @@ describe('processSurrender', () => {
     const ship = makeShip({
       id: 's1',
       owner: 0,
+      originalOwner: 0,
       destroyed: true,
     });
     const state = makeState([ship], {
@@ -105,6 +107,7 @@ describe('processSurrender', () => {
     const ship = makeShip({
       id: 's1',
       owner: 0,
+      originalOwner: 0,
       controlStatus: 'surrendered',
     });
     const state = makeState([ship], {
@@ -158,12 +161,14 @@ describe('getTransferEligiblePairs', () => {
       id: 'tanker',
       type: 'tanker',
       owner: 0,
+      originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
       id: 'corvette',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const state = makeState([source, target]);
@@ -177,12 +182,14 @@ describe('getTransferEligiblePairs', () => {
       id: 's1',
       type: 'tanker',
       owner: 0,
+      originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
       id: 's2',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
       position: { q: 6, r: 5 },
     });
@@ -194,12 +201,14 @@ describe('getTransferEligiblePairs', () => {
       id: 's1',
       type: 'tanker',
       owner: 0,
+      originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
       id: 's2',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
       velocity: { dq: 2, dr: 0 },
     });
@@ -211,12 +220,14 @@ describe('getTransferEligiblePairs', () => {
       id: 'torch',
       type: 'torch',
       owner: 0,
+      originalOwner: 0,
       fuel: Infinity,
     });
     const target = makeShip({
       id: 'corvette',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const state = makeState([source, target]);
@@ -231,6 +242,7 @@ describe('getTransferEligiblePairs', () => {
       id: 'enemy',
       type: 'frigate',
       owner: 1,
+      originalOwner: 0,
       fuel: 15,
       damage: { disabledTurns: 2 },
     });
@@ -238,6 +250,7 @@ describe('getTransferEligiblePairs', () => {
       id: 'friendly',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const state = makeState([enemy, friendly]);
@@ -251,6 +264,7 @@ describe('getTransferEligiblePairs', () => {
       id: 'enemy',
       type: 'frigate',
       owner: 1,
+      originalOwner: 0,
       fuel: 15,
       controlStatus: 'surrendered',
     });
@@ -258,6 +272,7 @@ describe('getTransferEligiblePairs', () => {
       id: 'friendly',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const state = makeState([enemy, friendly]);
@@ -269,12 +284,14 @@ describe('getTransferEligiblePairs', () => {
       id: 'enemy',
       type: 'frigate',
       owner: 1,
+      originalOwner: 0,
       fuel: 15,
     });
     const friendly = makeShip({
       id: 'friendly',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const state = makeState([enemy, friendly]);
@@ -285,6 +302,7 @@ describe('getTransferEligiblePairs', () => {
       id: 's1',
       type: 'tanker',
       owner: 0,
+      originalOwner: 0,
       fuel: 50,
       destroyed: true,
     });
@@ -292,6 +310,7 @@ describe('getTransferEligiblePairs', () => {
       id: 's2',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const state = makeState([source, target]);
@@ -304,12 +323,14 @@ describe('shouldEnterLogisticsPhase', () => {
       id: 's1',
       type: 'tanker',
       owner: 0,
+      originalOwner: 0,
       fuel: 50,
     });
     const s2 = makeShip({
       id: 's2',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const state = makeState([s1, s2], { scenarioRules: {} });
@@ -320,6 +341,7 @@ describe('shouldEnterLogisticsPhase', () => {
       id: 's1',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 20,
     });
     const state = makeState([s1]);
@@ -330,12 +352,14 @@ describe('shouldEnterLogisticsPhase', () => {
       id: 's1',
       type: 'tanker',
       owner: 0,
+      originalOwner: 0,
       fuel: 50,
     });
     const s2 = makeShip({
       id: 's2',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const state = makeState([s1, s2]);
@@ -348,12 +372,14 @@ describe('processLogistics', () => {
       id: 's1',
       type: 'tanker',
       owner: 0,
+      originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
       id: 's2',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const state = makeState([source, target]);
@@ -377,12 +403,14 @@ describe('processLogistics', () => {
       id: 's1',
       type: 'frigate',
       owner: 0,
+      originalOwner: 0,
       cargoUsed: 0,
     });
     const target = makeShip({
       id: 's2',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       cargoUsed: 3,
     });
     const state = makeState([source, target]);
@@ -406,12 +434,14 @@ describe('processLogistics', () => {
       id: 's1',
       type: 'tanker',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const target = makeShip({
       id: 's2',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const state = makeState([source, target]);
@@ -429,12 +459,14 @@ describe('processLogistics', () => {
       id: 's1',
       type: 'tanker',
       owner: 0,
+      originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
       id: 's2',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 18,
     });
     const state = makeState([source, target]);
@@ -452,11 +484,13 @@ describe('processLogistics', () => {
       id: 's1',
       type: 'torch',
       owner: 0,
+      originalOwner: 0,
     });
     const target = makeShip({
       id: 's2',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const state = makeState([source, target]);
@@ -474,12 +508,14 @@ describe('processLogistics', () => {
       id: 's1',
       type: 'tanker',
       owner: 0,
+      originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
       id: 's2',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
     });
     const state = makeState([source, target], {
@@ -499,12 +535,14 @@ describe('processLogistics', () => {
       id: 's1',
       type: 'tanker',
       owner: 0,
+      originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
       id: 's2',
       type: 'corvette',
       owner: 0,
+      originalOwner: 0,
       fuel: 5,
       position: { q: 6, r: 5 },
     });

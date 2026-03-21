@@ -53,12 +53,6 @@ export type ClientMessagePlan =
     }
   | { kind: 'rematchPending' }
   | {
-      kind: 'opponentDisconnected';
-      nextState: 'gameOver';
-      won: true;
-      reason: 'Opponent disconnected';
-    }
-  | {
       kind: 'error';
       message: string;
     }
@@ -128,13 +122,6 @@ export const deriveClientMessagePlan = (
       };
     case 'rematchPending':
       return { kind: 'rematchPending' };
-    case 'opponentDisconnected':
-      return {
-        kind: 'opponentDisconnected',
-        nextState: 'gameOver',
-        won: true,
-        reason: 'Opponent disconnected',
-      };
     case 'error':
       return {
         kind: 'error',
