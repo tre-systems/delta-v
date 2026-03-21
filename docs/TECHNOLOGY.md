@@ -12,7 +12,7 @@ By understanding these visual motifs, players can immediately recognize the capa
 Current chemical rockets have high thrust but terrible fuel efficiency (Specific Impulse / ISP), while ion drives have incredible ISP but microscopic thrust. Delta-V ships rely on sustained **Magnetic Confinement Fusion Drives**. Using Deuterium/Helium-3 reactions, these engines direct exhausted plasma out the back via a magnetic nozzle, providing both brutal thrust and incredible fuel efficiency, allowing for continuous rapid brachistochrone trajectories across the solar system.
 
 **Visual Description & Image Placeholder:**
-> *[IMAGE: To be generated - Close up of a massive Torch Drive]*
+![Torch Drive](./assets/torch_drive_1774105359319.png)
 - Massive, realistically scaled engine bells or exposed magnetic nozzle rings.
 - Emits a blinding, high-energy cyan or pure white exhaust plume.
 - Usually surrounded by heavy, cylindrical magnetic confinement coil rings.
@@ -25,7 +25,7 @@ Current chemical rockets have high thrust but terrible fuel efficiency (Specific
 In the vacuum of space, dissipating the extreme waste heat from fusion drives and railguns is a monumental challenge. Older ship designs use bulky, fragile radiator fins. The modern Delta-V fleet uses **Liquid Droplet Radiators** (spraying a stream of hot molten coolant directly into the vacuum and catching it meters away to radiate heat) and **Micro-Channel Cooling Arrays** (pumping coolant through hair-thin channels etched directly into the hull plating).
 
 **Visual Description & Image Placeholder:**
-> *[IMAGE: To be generated - Close up of a droplet radiator/glowing hull array]*
+![Droplet Radiator](./assets/droplet_radiator_1774105375024.png)
 - Sleek, flush-mounted hull panels that glow faintly cherry-red or amber under load.
 - Exposed mechanical arrays where a precise, glowing stream of liquid stretches momentarily through the vacuum between two catch-basins. 
 - *Absence* of protruding, vulnerable traditional fins.
@@ -38,7 +38,7 @@ In the vacuum of space, dissipating the extreme waste heat from fusion drives an
 Combat in Delta-V happens over vast distances, requiring extreme projectile speeds. Ship weaponry relies on electromagnetism rather than chemical explosives to accelerate solid tungsten or depleted uranium slugs to significant fractions of light speed. Firing these weapons requires massive bursts of energy, pulling directly from the ship's capacitor banks and reactor.
 
 **Visual Description & Image Placeholder:**
-> *[IMAGE: To be generated - Close up of a spine-mounted Railgun]*
+![Spine Railgun](./assets/spine_railgun_1774105392008.png)
 - Extremely long, heavy, spine-mounted or turreted barrels.
 - Exposed magnetic coils spaced evenly along the length of the barrel.
 - Flanked by incredibly thick power conduits and hazard warnings due to massive electromagnetic fields.
@@ -51,7 +51,7 @@ Combat in Delta-V happens over vast distances, requiring extreme projectile spee
 To survive kinetic railgun impacts, deep space warships utilize layered defenses. The outermost layer is a **Whipple Shield**—a thin, sacrificial bumper designed to vaporize incoming high-velocity slugs upon impact. This spreads the kinetic energy over a much wider area so that the underlying, thick **Ablative Armor** can absorb and slowly slough off the remaining energy without the vital modules being penetrated.
 
 **Visual Description & Image Placeholder:**
-> *[IMAGE: To be generated - Close up of scarred ablative armor overlapping]*
+![Ablative Armor](./assets/ablative_armor_1774105408814.png)
 - Thick, dense, overlapping hexagonal outer plating.
 - Highly utilitarian aesthetic, commonly painted in gunmetal or navy tones.
 - Frequently marred with impact craters, scorch marks, and replaced modular segments.
@@ -64,7 +64,7 @@ To survive kinetic railgun impacts, deep space warships utilize layered defenses
 Deep space logistics requires standardized mass optimization. Fuel (liquid hydrogen and oxygen) is stored in perfect spheres—the most efficient shape for maintaining pressure with minimal material weight. To prevent the cryogenic fuel from boiling off due to solar radiation, the tanks are wrapped in highly reflective Multi-Layer Insulation (MLI).
 
 **Visual Description & Image Placeholder:**
-> *[IMAGE: To be generated - Close up of gold-foil spherical tanks on a bare truss]*
+![Spherical Tanks](./assets/spherical_tanks_1774105429347.png)
 - Clusters of perfectly spherical tanks exposed to space.
 - Wrapped heavily in crinkled, highly reflective metallic silver or Kapton gold foil.
 - Supported firmly by a skeletal framework of exposed, bare-metal modular trusses.
@@ -77,7 +77,7 @@ Deep space logistics requires standardized mass optimization. Fuel (liquid hydro
 While massive fusion drives handle main acceleration, ships still need to pitch, yaw, roll, and perform delicate docking maneuvers over short distances in zero-g. They rely on networked clusters of small, hypergolic chemical thrusters or cold-gas jets to provide this precise rotational thrust on all axes.
 
 **Visual Description & Image Placeholder:**
-> *[IMAGE: To be generated - Close up of an RCS thruster quad block]*
+![RCS Thruster](./assets/rcs_thruster_1774105445305.png)
 - Small "quad-block" thruster nozzles protruding from the corners and extremities of the hull.
 - Often feature scorch marks radiating out from the tiny bells against the plating.
 - Visually emits short, sharp, pale bursts of exhaust.
@@ -90,7 +90,7 @@ While massive fusion drives handle main acceleration, ships still need to pitch,
 For vessels that don't need continuous massive fusion power (like Orbital Bases) or as auxiliary power backups, enormous deployed solar panels are used to convert sunlight directly into electricity. Because sunlight significantly weakens in deep space, these arrays must be incredibly large to generate sufficient voltage for the station's needs.
 
 **Visual Description & Image Placeholder:**
-> *[IMAGE: To be generated - Close up of deploying solar panels against the void]*
+![Solar Arrays](./assets/solar_arrays_1774105459204.png)
 - Enormous, flat, dark-blue or black rectangular grid arrays extending far from the main hull.
 - Supported by delicate-looking unfolding rigid booms and trusses.
 - Highly reflective, flat, and fragile appearance compared to the armored main hull.
@@ -103,7 +103,7 @@ For vessels that don't need continuous massive fusion power (like Orbital Bases)
 In the vast, silent void of the solar system, communicating telemetry and targeting data requires highly focused, narrow-beam frequency transmissions. Large parabolic dish antennas are designed to pierce through background radiation to maintain contact with planetary bases or other ships at extreme ranges.
 
 **Visual Description & Image Placeholder:**
-> *[IMAGE: To be generated - Close up of a massive targeting/comms dish antenna]*
+![Comms Dish](./assets/comms_dish_1774105476101.png)
 - Large parabolic dishes mounted on articulating mechanical gimbals.
 - Extensive wiring and complex central receiver feeds bridging the center of the dish.
 - Often clustered near the command deck or sensor booms to minimize signal delay.
@@ -116,7 +116,7 @@ In the vast, silent void of the solar system, communicating telemetry and target
 Visual confirmation is useless at engagement ranges of thousands of kilometers. Ships rely on sophisticated active and passive sensor suites, including LiDAR (Light Detection and Ranging) arrays and thermal imaging, to detect enemies, debris, and navigation hazards. These are mounted on extendable booms to get them away from the electronic "noise" and radiation of their own primary fusion drives.
 
 **Visual Description & Image Placeholder:**
-> *[IMAGE: To be generated - Close up of sensor spine extending from a warship]*
+![Sensor Spine](./assets/sensor_spine_1774105490297.png)
 - Long, fragile-looking structural spines protruding from the prow or sides of the ship.
 - Tipped with irregular, geometric sensor heads, domed cameras, and flat phased-array radar panels.
 - Highly detailed, asymmetrical, and purely utilitarian visual clutter.
@@ -129,7 +129,7 @@ Visual confirmation is useless at engagement ranges of thousands of kilometers. 
 Directly extrapolated from modern naval Close-In Weapon Systems (CIWS) like the Phalanx, PDCs are fast-tracking rotary cannons designed as a ship's last line of defense. They fire curtains of solid tungsten slugs or proximity-fused flak intended to physically shred incoming missiles and drones before they hit the hull.
 
 **Visual Description & Image Placeholder:**
-> *[IMAGE: To be generated - Close up of an articulated multi-barrel rotary cannon]*
+![Rotary Cannon](./assets/rotary_cannon_1774105506192.png)
 - Small, aggressively spiked multi-barreled rotary cannons housed in armored turrets.
 - Mounted on extremely fast-turning spherical or pivoting gimbals scattered across the hull to provide 360-degree overlapping fields of fire.
 - Thick, heavy ammunition feed tracks leading down into the ship's magazines.
@@ -142,7 +142,7 @@ Directly extrapolated from modern naval Close-In Weapon Systems (CIWS) like the 
 Because stealth is virtually impossible in the frozen vacuum of space (where the heat of a drive plume shines like a star against the background), combat relies heavily on sheer velocity and overwhelming numbers. Space-rated missiles are essentially autonomous drone-ships, featuring their own sophisticated hypergolic chemical or dirty fusion drives, designed to out-accelerate PDCs through swarm tactics.
 
 **Visual Description & Image Placeholder:**
-> *[IMAGE: To be generated - Close up of flush hexagonal missile launch tubes]*
+![Missile Tubes](./assets/missile_tubes_1774105521423.png)
 - Deeply recessed, flush-mounted clusters of hexagonal or cylindrical launch tubes built directly into the armor plating.
 - Often glowing amber or red from internal pre-heating before a launch sequence.
 - Clean, heavy-duty armored hatch covers meant to protect unfired ordnance from glancing blows.

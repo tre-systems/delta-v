@@ -420,6 +420,13 @@ describe('validateClientMessage', () => {
       });
     });
 
+    it('rejects whitespace-only text', () => {
+      expect(validateClientMessage({ type: 'chat', text: '   ' })).toEqual({
+        ok: false,
+        error: 'Invalid chat payload',
+      });
+    });
+
     it('rejects missing text', () => {
       expect(validateClientMessage({ type: 'chat' })).toEqual({
         ok: false,

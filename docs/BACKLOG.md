@@ -10,14 +10,6 @@ Current direction is good. This plan is aimed at removing the
 main correctness and coordination risks found in the latest
 project review without rewriting working systems.
 
-### Phase 0.5. Tighten protocol boundary consistency
-
-- Trim chat text before validating it in `src/server/protocol.ts`.
-- Reject messages that become empty after trimming so non-UI
-  clients cannot produce blank chat log entries.
-- Add protocol tests for whitespace-only chat and normal trimmed
-  chat payloads.
-
 ### Phase 1. Consolidate protocol validation
 
 - Move C2S/S2C runtime schema ownership next to the shared
@@ -58,10 +50,9 @@ project review without rewriting working systems.
 
 ### Suggested order
 
-1. Phase 0.5: chat boundary tightening.
-2. Phase 1: protocol schema consolidation.
-3. Phase 2: client store/transition consolidation.
-4. Phase 3: direct shared-type imports and boundary enforcement.
+1. Phase 1: protocol schema consolidation.
+2. Phase 2: client store/transition consolidation.
+3. Phase 3: direct shared-type imports and boundary enforcement.
 
 ---
 
