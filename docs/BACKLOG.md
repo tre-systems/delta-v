@@ -8,6 +8,20 @@ Remaining work only. Completed items are in git history.
 
 ### Phase 0. Correctness fixes
 
+- Block captured ships from astrogation. `validateAstrogationOrders`
+  and `resolveMovementPhase` skip destroyed/emplaced ships but not
+  captured ones — captured ships should drift, not accept orders
+  (SPEC line 330: "must be brought to a friendly base before reuse").
+- Fix cargo transfer direction. `processLogistics` cargo apply
+  (line 188-189) adds to source and subtracts from target, which
+  is backwards — cargo should move source→target matching the UI
+  and fuel transfer logic.
+- Fix escape decisive-victory sequencing. `applyResupply` clears
+  `controlStatus` (including `'captured'`) before `checkGameEnd`
+  can detect the returned-fugitives condition via
+  `hasReturnedCapturedFugitivesToBase`. Either check victory
+  before resupply or preserve the captured status until after
+  the victory check.
 - Align base resupply with the rulebook: bases provide unlimited
   fuel, mines, and torpedoes, but should not implicitly reload
   nukes or reset nuke allowance for free.
