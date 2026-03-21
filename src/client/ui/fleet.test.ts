@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { FleetPurchase } from '../../shared/types';
+import type { FleetPurchase } from '../../shared/types/domain';
 import {
   canAddFleetShip,
   getFleetCartCost,

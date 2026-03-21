@@ -1,4 +1,4 @@
-import type { FleetPurchase, GameState } from '../../shared/types';
+import type { FleetPurchase, GameState } from '../../shared/types/domain';
 import { byId, hide, show } from '../dom';
 import { canAddFleetShip, getFleetCartView, getFleetShopView } from './fleet';
 

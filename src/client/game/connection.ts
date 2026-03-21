@@ -1,5 +1,6 @@
 import { must } from '../../shared/assert';
-import type { GameState, S2C } from '../../shared/types';
+import type { GameState } from '../../shared/types/domain';
+import type { S2C } from '../../shared/types/protocol';
 import {
   deriveDisconnectHandling,
   deriveReconnectAttemptPlan,
