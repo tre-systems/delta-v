@@ -136,7 +136,6 @@ export const installViewportSizing = (
 ): (() => void) => {
   let frame: number | null = null;
   let settleTimer: number | null = null;
-  let startupSettled = false;
 
   const syncNow = () => {
     if (frame !== null) {
@@ -169,18 +168,15 @@ export const installViewportSizing = (
   };
 
   const handlePageShow = (event: PageTransitionEvent) => {
-    if (!startupSettled && !event.persisted) {
-      return;
+    if (event.persisted) {
+      queueSync();
     }
-
-    queueSync();
   };
 
   syncNow();
 
   settleTimer = windowLike.setTimeout(() => {
     settleTimer = null;
-    startupSettled = true;
     syncNow();
   }, 250);
 
