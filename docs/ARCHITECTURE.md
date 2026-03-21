@@ -147,10 +147,10 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 #### Key Design Patterns
 
-- **`main.ts`**: The client-side coordinator. Manages WebSocket connections, local-AI execution, and phase transitions. Orchestrates the Renderer, Input, and UI through a centralized **`ClientContext`**. Commands are dispatched via `dispatchGameCommand()` in `game/command-router.ts`.
+- **`main.ts`**: The client-side coordinator. Manages WebSocket connections, local-AI execution, and top-level composition. It now delegates command dispatch to `game/command-router.ts` and client state-entry side effects to `game/state-transition.ts` instead of keeping the whole transition block inline.
 - **`renderer/renderer.ts`**: A highly optimized Canvas 2D renderer. It separates logical hex coordinates from pixel coordinates. It features smooth camera interpolation, persistent trails, and movement/combat animations that occur *between* turn phases.
 - **`input.ts`**: Manages user interaction (panning, zooming, clicking). It translates raw browser events into `InputEvent` objects. Pure `interpretInput()` then maps these to `GameCommand[]`, ensuring the input layer never directly mutates the application state.
-- **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), phase derivation, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
+- **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), phase derivation, transition helpers, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
 - **`renderer/`**: Canvas drawing layers (scene, entities, vectors, effects, overlays), camera, minimap, and animation management.
 - **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, and layout metrics.
 - **`ui/ui.ts`** / **`audio.ts`**: Handles the HTML overlay (menus, HUD) and Web Audio API interactions.
@@ -205,6 +205,7 @@ main.ts (GameClient)
   ├→ input.ts (parse mouse/keyboard → InputEvent)
   ├→ ui/ui.ts (manage screens, accept UIEvent)
   ├→ game/command-router.ts (GameCommand → state mutation or network)
+  ├→ game/state-transition.ts (client-state entry effects and screen changes)
   ├→ game/network.ts, game/messages.ts (handle S2C)
   ├→ game/transport.ts (choose WebSocket or Local)
   ├→ game/phase.ts (derive ClientState from GameState)
