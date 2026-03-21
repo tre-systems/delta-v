@@ -474,17 +474,33 @@ export class Renderer {
   }
   private resize() {
     const dpr = window.devicePixelRatio || 1;
-    const w = this.canvas.clientWidth;
-    const h = this.canvas.clientHeight;
-    this.canvas.width = w * dpr;
-    this.canvas.height = h * dpr;
+    const w = Math.round(this.canvas.clientWidth);
+    const h = Math.round(this.canvas.clientHeight);
+
+    if (w <= 0 || h <= 0) {
+      return;
+    }
+
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   private loop(now: number) {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
-    const cw = this.canvas.clientWidth;
-    const ch = this.canvas.clientHeight;
+    const cw = Math.round(this.canvas.clientWidth);
+    const ch = Math.round(this.canvas.clientHeight);
+    const dpr = window.devicePixelRatio || 1;
+
+    if (
+      cw > 0 &&
+      ch > 0 &&
+      (this.canvas.width !== Math.round(cw * dpr) ||
+        this.canvas.height !== Math.round(ch * dpr))
+    ) {
+      this.resize();
+    }
+
     this.camera.update(dt, cw, ch);
     this.render(now, cw, ch);
     // Check animation completion
