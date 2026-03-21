@@ -68,3 +68,55 @@ Deep space logistics requires standardized mass optimization. Fuel (liquid hydro
 - Clusters of perfectly spherical tanks exposed to space.
 - Wrapped heavily in crinkled, highly reflective metallic silver or Kapton gold foil.
 - Supported firmly by a skeletal framework of exposed, bare-metal modular trusses.
+
+---
+
+## 6. Reaction Control Systems (RCS)
+
+**How It Works:** 
+While massive fusion drives handle main acceleration, ships still need to pitch, yaw, roll, and perform delicate docking maneuvers over short distances in zero-g. They rely on networked clusters of small, hypergolic chemical thrusters or cold-gas jets to provide this precise rotational thrust on all axes.
+
+**Visual Description & Image Placeholder:**
+> *[IMAGE: To be generated - Close up of an RCS thruster quad block]*
+- Small "quad-block" thruster nozzles protruding from the corners and extremities of the hull.
+- Often feature scorch marks radiating out from the tiny bells against the plating.
+- Visually emits short, sharp, pale bursts of exhaust.
+
+---
+
+## 7. Photovoltaic Solar Arrays
+
+**How It Works:** 
+For vessels that don't need continuous massive fusion power (like Orbital Bases) or as auxiliary power backups, enormous deployed solar panels are used to convert sunlight directly into electricity. Because sunlight significantly weakens in deep space, these arrays must be incredibly large to generate sufficient voltage for the station's needs.
+
+**Visual Description & Image Placeholder:**
+> *[IMAGE: To be generated - Close up of deploying solar panels against the void]*
+- Enormous, flat, dark-blue or black rectangular grid arrays extending far from the main hull.
+- Supported by delicate-looking unfolding rigid booms and trusses.
+- Highly reflective, flat, and fragile appearance compared to the armored main hull.
+
+---
+
+## 8. High-Gain Communication Arrays
+
+**How It Works:** 
+In the vast, silent void of the solar system, communicating telemetry and targeting data requires highly focused, narrow-beam frequency transmissions. Large parabolic dish antennas are designed to pierce through background radiation to maintain contact with planetary bases or other ships at extreme ranges.
+
+**Visual Description & Image Placeholder:**
+> *[IMAGE: To be generated - Close up of a massive targeting/comms dish antenna]*
+- Large parabolic dishes mounted on articulating mechanical gimbals.
+- Extensive wiring and complex central receiver feeds bridging the center of the dish.
+- Often clustered near the command deck or sensor booms to minimize signal delay.
+
+---
+
+## 9. LiDAR and Sensor Booms
+
+**How It Works:** 
+Visual confirmation is useless at engagement ranges of thousands of kilometers. Ships rely on sophisticated active and passive sensor suites, including LiDAR (Light Detection and Ranging) arrays and thermal imaging, to detect enemies, debris, and navigation hazards. These are mounted on extendable booms to get them away from the electronic "noise" and radiation of their own primary fusion drives.
+
+**Visual Description & Image Placeholder:**
+> *[IMAGE: To be generated - Close up of sensor spine extending from a warship]*
+- Long, fragile-looking structural spines protruding from the prow or sides of the ship.
+- Tipped with irregular, geometric sensor heads, domed cameras, and flat phased-array radar panels.
+- Highly detailed, asymmetrical, and purely utilitarian visual clutter.
