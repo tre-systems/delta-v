@@ -65,9 +65,9 @@ describe('game-do-turns', () => {
     const outcome = resolveTurnTimeoutOutcome(state, map);
 
     expect(outcome).not.toBeNull();
-    expect(outcome!.events.length).toBeGreaterThan(0);
+    expect(outcome?.events.length).toBeGreaterThan(0);
 
-    const types = outcome!.events.map((e) => e.type);
+    const types = outcome?.events.map((e) => e.type);
     expect(types).toContain('phaseChanged');
   });
 
@@ -78,7 +78,7 @@ describe('game-do-turns', () => {
 
     expect(outcome).not.toBeNull();
 
-    const movementEvents = outcome!.events.filter(
+    const movementEvents = outcome?.events.filter(
       (e) => e.type === 'movementResolved',
     );
     expect(movementEvents).toHaveLength(1);
@@ -93,7 +93,7 @@ describe('game-do-turns', () => {
     expect(outcome).not.toBeNull();
     // Skip combat produces no combat results,
     // so no combatResolved event — just phaseChanged
-    const types = outcome!.events.map((e) => e.type);
+    const types = outcome?.events.map((e) => e.type);
     expect(types).toContain('phaseChanged');
   });
 });

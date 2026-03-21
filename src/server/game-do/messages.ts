@@ -1,3 +1,4 @@
+import { must } from '../../shared/assert';
 import type {
   CombatPhaseResult,
   MovementResult,
@@ -5,16 +6,20 @@ import type {
 } from '../../shared/engine/game-engine';
 import type { GameEvent } from '../../shared/events';
 import type { CombatResult, GameState, S2C } from '../../shared/types';
-
-export type StatefulServerMessage = Extract<S2C, { state: GameState }>;
-
+export type StatefulServerMessage = Extract<
+  S2C,
+  {
+    state: GameState;
+  }
+>;
 type MovementResolution = MovementResult | StateUpdateResult;
-
 type CombatResolution =
   | StateUpdateResult
   | CombatPhaseResult
-  | { state: GameState; results?: CombatResult[] };
-
+  | {
+      state: GameState;
+      results?: CombatResult[];
+    };
 export const toMovementResultMessage = ({
   movements,
   ordnanceMovements,
@@ -27,7 +32,6 @@ export const toMovementResultMessage = ({
   events,
   state,
 });
-
 export const toCombatResultMessage = (
   state: GameState,
   results: CombatResult[],
@@ -36,14 +40,12 @@ export const toCombatResultMessage = (
   results,
   state,
 });
-
 export const toStateUpdateMessage = (
   state: GameState,
 ): StatefulServerMessage => ({
   type: 'stateUpdate',
   state,
 });
-
 export const resolveMovementBroadcast = (
   result: MovementResolution,
   fallback: 'none' | 'stateUpdate' = 'none',
@@ -51,35 +53,28 @@ export const resolveMovementBroadcast = (
   if ('movements' in result) {
     return toMovementResultMessage(result);
   }
-
   return fallback === 'stateUpdate'
     ? toStateUpdateMessage(result.state)
     : undefined;
 };
-
 export const resolveCombatBroadcast = (
   result: CombatResolution,
   fallback: 'none' | 'stateUpdate' = 'none',
 ): StatefulServerMessage | undefined => {
   const results = 'results' in result ? result.results : undefined;
-
   if (results && results.length > 0) {
     return toCombatResultMessage(result.state, results);
   }
-
   return fallback === 'stateUpdate'
     ? toStateUpdateMessage(result.state)
     : undefined;
 };
-
 // --- Event log derivation ---
-
 export const deriveMovementEvents = (
   result: MovementResolution,
 ): GameEvent[] => {
   const { state } = result;
   const events: GameEvent[] = [];
-
   if ('movements' in result) {
     events.push({
       type: 'movementResolved',
@@ -91,31 +86,26 @@ export const deriveMovementEvents = (
       events: result.events,
     });
   }
-
   events.push({
     type: 'phaseChanged',
     turn: state.turnNumber,
     phase: state.phase,
     activePlayer: state.activePlayer,
   });
-
   if (state.phase === 'gameOver') {
     events.push({
       type: 'gameOver',
       turn: state.turnNumber,
-      winner: state.winner!,
-      reason: state.winReason!,
+      winner: must(state.winner),
+      reason: must(state.winReason),
     });
   }
-
   return events;
 };
-
 export const deriveCombatEvents = (result: CombatResolution): GameEvent[] => {
   const { state } = result;
   const results = 'results' in result ? result.results : undefined;
   const events: GameEvent[] = [];
-
   if (results && results.length > 0) {
     events.push({
       type: 'combatResolved',
@@ -125,26 +115,22 @@ export const deriveCombatEvents = (result: CombatResolution): GameEvent[] => {
       results,
     });
   }
-
   events.push({
     type: 'phaseChanged',
     turn: state.turnNumber,
     phase: state.phase,
     activePlayer: state.activePlayer,
   });
-
   if (state.phase === 'gameOver') {
     events.push({
       type: 'gameOver',
       turn: state.turnNumber,
-      winner: state.winner!,
-      reason: state.winReason!,
+      winner: must(state.winner),
+      reason: must(state.winReason),
     });
   }
-
   return events;
 };
-
 export const derivePhaseChangeEvents = (state: GameState): GameEvent[] => {
   const events: GameEvent[] = [
     {
@@ -154,15 +140,13 @@ export const derivePhaseChangeEvents = (state: GameState): GameEvent[] => {
       activePlayer: state.activePlayer,
     },
   ];
-
   if (state.phase === 'gameOver') {
     events.push({
       type: 'gameOver',
       turn: state.turnNumber,
-      winner: state.winner!,
-      reason: state.winReason!,
+      winner: must(state.winner),
+      reason: must(state.winReason),
     });
   }
-
   return events;
 };

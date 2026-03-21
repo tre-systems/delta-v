@@ -193,8 +193,8 @@ describe('renderer minimap helpers', () => {
     ]);
 
     expect(scene.viewport).not.toBeNull();
-    expect(scene.viewport!.width).toBeGreaterThan(2);
-    expect(scene.viewport!.height).toBeGreaterThan(2);
+    expect(scene.viewport?.width).toBeGreaterThan(2);
+    expect(scene.viewport?.height).toBeGreaterThan(2);
   });
 
   it('returns no viewport when the clipped view would be too small', () => {

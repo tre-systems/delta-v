@@ -1,10 +1,10 @@
+import { must } from '../../shared/assert';
 import type { GameState } from '../../shared/types';
 import { playConfirm, playSelect } from '../audio';
 import { deriveBurnChangePlan } from './burn';
 import { buildAstrogationOrders } from './helpers';
 import type { PlanningState } from './planning';
 import type { GameTransport } from './transport';
-
 export interface AstrogationActionDeps {
   getGameState: () => GameState | null;
   getClientState: () => string;
@@ -14,7 +14,6 @@ export interface AstrogationActionDeps {
   updateHUD: () => void;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
 }
-
 export const setBurnDirection = (
   deps: AstrogationActionDeps,
   dir: number | null,
@@ -23,7 +22,6 @@ export const setBurnDirection = (
   if (deps.getClientState() !== 'playing_astrogation') return;
   const targetId = shipId ?? deps.planningState.selectedShipId;
   if (!targetId) return;
-
   if (dir === null) {
     deps.planningState.burns.delete(targetId);
     deps.planningState.overloads.delete(targetId);
@@ -31,7 +29,6 @@ export const setBurnDirection = (
     deps.updateHUD();
     return;
   }
-
   const currentBurn = deps.planningState.burns.get(targetId) ?? null;
   const plan = deriveBurnChangePlan(
     deps.getGameState(),
@@ -39,15 +36,13 @@ export const setBurnDirection = (
     dir,
     currentBurn,
   );
-
   if (plan.kind === 'error') {
-    deps.showToast(plan.message, plan.level!);
+    deps.showToast(plan.message, must(plan.level));
     return;
   }
   if (plan.kind === 'noop') {
     return;
   }
-
   deps.planningState.burns.set(plan.shipId, plan.nextBurn);
   if (plan.clearOverload) {
     deps.planningState.overloads.delete(plan.shipId);
@@ -55,7 +50,6 @@ export const setBurnDirection = (
   playSelect();
   deps.updateHUD();
 };
-
 export const clearSelectedBurn = (deps: AstrogationActionDeps) => {
   if (!deps.getGameState() || deps.getClientState() !== 'playing_astrogation')
     return;
@@ -66,7 +60,6 @@ export const clearSelectedBurn = (deps: AstrogationActionDeps) => {
   deps.planningState.weakGravityChoices.delete(shipId);
   deps.updateHUD();
 };
-
 export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
   if (!deps.getGameState() || deps.getClientState() !== 'playing_astrogation')
     return;
@@ -78,7 +71,6 @@ export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
   }
   deps.updateHUD();
 };
-
 export const confirmOrders = (deps: AstrogationActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
@@ -93,7 +85,6 @@ export const confirmOrders = (deps: AstrogationActionDeps) => {
     deps.getPlayerId(),
     deps.planningState,
   );
-
   playConfirm();
   transport.submitAstrogation(orders);
 };

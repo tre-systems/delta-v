@@ -272,7 +272,7 @@ describe('dispatch: logistics transport guards', () => {
       transport.skipLogistics();
     }
 
-    expect(transport.calls['skipLogistics']).toHaveLength(1);
+    expect(transport.calls.skipLogistics).toHaveLength(1);
   });
 
   it('skipLogistics does not call transport in other states', () => {
@@ -283,7 +283,7 @@ describe('dispatch: logistics transport guards', () => {
       transport.skipLogistics();
     }
 
-    expect(transport.calls['skipLogistics']).toBeUndefined();
+    expect(transport.calls.skipLogistics).toBeUndefined();
   });
 
   it('confirmTransfers submits orders when transfers exist', () => {
@@ -304,7 +304,7 @@ describe('dispatch: logistics transport guards', () => {
       transport.submitLogistics(orders);
     }
 
-    expect(transport.calls['submitLogistics']).toEqual([[orders]]);
+    expect(transport.calls.submitLogistics).toEqual([[orders]]);
   });
 
   it('confirmTransfers falls back to skipLogistics when no transfers', () => {
@@ -320,8 +320,8 @@ describe('dispatch: logistics transport guards', () => {
       }
     }
 
-    expect(transport.calls['submitLogistics']).toBeUndefined();
-    expect(transport.calls['skipLogistics']).toHaveLength(1);
+    expect(transport.calls.submitLogistics).toBeUndefined();
+    expect(transport.calls.skipLogistics).toHaveLength(1);
   });
 
   it('confirmTransfers does nothing outside logistics state', () => {
@@ -332,8 +332,8 @@ describe('dispatch: logistics transport guards', () => {
       transport.skipLogistics();
     }
 
-    expect(transport.calls['skipLogistics']).toBeUndefined();
-    expect(transport.calls['submitLogistics']).toBeUndefined();
+    expect(transport.calls.skipLogistics).toBeUndefined();
+    expect(transport.calls.submitLogistics).toBeUndefined();
   });
 });
 

@@ -4,6 +4,7 @@
  * Pure functions extracted from Renderer — no class state dependencies.
  */
 
+import { must } from '../../shared/assert';
 import {
   HEX_DIRECTIONS,
   hexAdd,
@@ -19,21 +20,18 @@ import {
   buildMapBorderView,
 } from './map';
 import { buildDetectionRangeViews } from './vectors';
-
 export interface Star {
   x: number;
   y: number;
   brightness: number;
   size: number;
 }
-
 export const generateStars = (count: number, range: number): Star[] => {
   let seed = 42;
   const rand = (): number => {
     seed = (seed * 16807 + 0) % 2147483647;
     return seed / 2147483647;
   };
-
   return Array.from({ length: count }, () => ({
     x: (rand() - 0.5) * range * 2,
     y: (rand() - 0.5) * range * 2,
@@ -41,13 +39,11 @@ export const generateStars = (count: number, range: number): Star[] => {
     size: 0.5 + rand() * 1.5,
   }));
 };
-
 // Precomputed flat-top hex vertex offsets (cos/sin at 60-degree intervals)
 const HEX_OFFSETS: [number, number][] = Array.from({ length: 7 }, (_, i) => {
   const angle = (Math.PI / 3) * i;
   return [Math.cos(angle), Math.sin(angle)] as [number, number];
 });
-
 export const renderStars = (
   ctx: CanvasRenderingContext2D,
   stars: Star[],
@@ -60,7 +56,6 @@ export const renderStars = (
     ctx.fill();
   }
 };
-
 export const renderHexGrid = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -103,7 +98,6 @@ export const renderHexGrid = (
   }
   ctx.stroke();
 };
-
 export const renderGravityIndicators = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -117,7 +111,6 @@ export const renderGravityIndicators = (
     if (!isVisible(p.x, p.y)) continue;
     const dir = HEX_DIRECTIONS[hex.gravity.direction];
     const target = hexToPixel(hexAdd(coord, dir), hexSize);
-
     ctx.strokeStyle =
       hex.gravity.strength === 'weak'
         ? 'rgba(100, 140, 255, 0.12)'
@@ -127,7 +120,6 @@ export const renderGravityIndicators = (
     ctx.moveTo(p.x, p.y);
     ctx.lineTo(p.x + (target.x - p.x) * 0.4, p.y + (target.y - p.y) * 0.4);
     ctx.stroke();
-
     const ax = p.x + (target.x - p.x) * 0.4;
     const ay = p.y + (target.y - p.y) * 0.4;
     const angle = Math.atan2(target.y - p.y, target.x - p.x);
@@ -146,7 +138,6 @@ export const renderGravityIndicators = (
     ctx.stroke();
   }
 };
-
 export const renderBodies = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -157,7 +148,6 @@ export const renderBodies = (
     const view = buildBodyView(body, hexSize, now);
     const p = view.center;
     const r = view.radius;
-
     for (const ripple of view.ripples) {
       ctx.strokeStyle = body.color;
       ctx.globalAlpha = ripple.alpha;
@@ -167,7 +157,6 @@ export const renderBodies = (
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
-
     const glow = ctx.createRadialGradient(p.x, p.y, r * 0.5, p.x, p.y, r * 3);
     glow.addColorStop(0, view.glowStops[0]);
     glow.addColorStop(0.4, view.glowStops[1]);
@@ -176,7 +165,6 @@ export const renderBodies = (
     ctx.beginPath();
     ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2);
     ctx.fill();
-
     const grad = ctx.createRadialGradient(
       p.x - r * 0.3,
       p.y - r * 0.3,
@@ -191,14 +179,12 @@ export const renderBodies = (
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fill();
-
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.font = '600 11px var(--font-display), sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(view.label, p.x, view.labelY);
   }
 };
-
 export const renderBaseMarkers = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -222,11 +208,9 @@ export const renderBaseMarkers = (
       ctx.stroke();
       continue;
     }
-
-    ctx.fillStyle = markerView.fillStyle!;
+    ctx.fillStyle = must(markerView.fillStyle);
     ctx.strokeStyle = markerView.strokeStyle;
     ctx.lineWidth = markerView.lineWidth;
-
     const s = 5;
     ctx.beginPath();
     ctx.moveTo(p.x, p.y - s);
@@ -238,7 +222,6 @@ export const renderBaseMarkers = (
     ctx.stroke();
   }
 };
-
 export const renderMapBorder = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -264,7 +247,6 @@ export const renderMapBorder = (
   );
   ctx.setLineDash([]);
 };
-
 export const renderAsteroids = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -278,7 +260,6 @@ export const renderAsteroids = (
     if (destroyed.has(key)) continue;
     const debrisView = buildAsteroidDebrisView(parseHexKey(key), hexSize);
     if (!isVisible(debrisView.center.x, debrisView.center.y)) continue;
-
     // Rock particles
     ctx.fillStyle = 'rgba(100, 100, 100, 0.65)';
     for (const particle of debrisView.particles) {
@@ -294,7 +275,6 @@ export const renderAsteroids = (
     }
   }
 };
-
 export const renderLandingTarget = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -319,7 +299,6 @@ export const renderLandingTarget = (
     }
     return;
   }
-
   ctx.strokeStyle = objectiveView.strokeStyle;
   ctx.lineWidth = 2;
   ctx.setLineDash([6, 4]);
@@ -333,7 +312,6 @@ export const renderLandingTarget = (
   );
   ctx.stroke();
   ctx.setLineDash([]);
-
   ctx.fillStyle = objectiveView.labelStyle;
   ctx.font = 'bold 8px monospace';
   ctx.textAlign = 'center';
@@ -343,7 +321,6 @@ export const renderLandingTarget = (
     objectiveView.labelY,
   );
 };
-
 export const renderDetectionRanges = (
   ctx: CanvasRenderingContext2D,
   state: GameState,

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.7/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
   "formatter": {
     "indentStyle": "space",
     "indentWidth": 2,
@@ -17,9 +17,9 @@
     "rules": {
       "style": {
         "useConst": "error",
-        "useTemplate": "warn",
-        "useExponentiationOperator": "warn",
-        "noNonNullAssertion": "warn",
+        "useTemplate": "error",
+        "useExponentiationOperator": "error",
+        "noNonNullAssertion": "error",
         "useNodejsImportProtocol": "error",
         "noNamespace": "error"
       },
@@ -32,21 +32,21 @@
       },
       "suspicious": {
         "noVar": "error",
-        "noExplicitAny": "warn",
+        "noExplicitAny": "error",
         "noDoubleEquals": "error",
         "noFallthroughSwitchClause": "error",
         "noGlobalAssign": "error",
         "noShadowRestrictedNames": "error"
       },
       "correctness": {
-        "noUnusedVariables": "warn",
+        "noUnusedVariables": "error",
         "noUnusedImports": "error",
         "noUndeclaredVariables": "error",
-        "useExhaustiveDependencies": "warn"
+        "useExhaustiveDependencies": "error"
       },
       "performance": {
-        "noAccumulatingSpread": "warn",
-        "noDelete": "warn"
+        "noAccumulatingSpread": "error",
+        "noDelete": "error"
       }
     }
   },

@@ -4,7 +4,24 @@ vi.mock('./game-do/game-do', () => ({
   GameDO: class GameDO {},
 }));
 
-import worker, { hashIp } from './index';
+import worker, { type Env, hashIp } from './index';
+
+type MockDb = ReturnType<typeof mockDb>;
+type MockExecutionContext = ExecutionContext & {
+  waitUntil: ReturnType<typeof vi.fn<(p: Promise<unknown>) => void>>;
+  passThroughOnException: ReturnType<typeof vi.fn<() => void>>;
+  props: Record<string, never>;
+};
+type MockEnv = {
+  ASSETS: {
+    fetch: ReturnType<typeof vi.fn<(request: Request) => Promise<Response>>>;
+  };
+  GAME: {
+    idFromName: ReturnType<typeof vi.fn<(code: string) => DurableObjectId>>;
+    get: ReturnType<typeof vi.fn<(id: DurableObjectId) => DurableObjectStub>>;
+  };
+  DB: MockDb;
+};
 
 const mockDb = () => {
   const runFn = vi.fn(async () => ({}));
@@ -18,8 +35,10 @@ const mockDb = () => {
   };
 };
 
-const mockCtx = () => ({
-  waitUntil: vi.fn((p: Promise<unknown>) => p.catch(() => {})),
+const mockCtx = (): MockExecutionContext => ({
+  waitUntil: vi.fn((p: Promise<unknown>) => {
+    void p.catch(() => {});
+  }),
   passThroughOnException: vi.fn(),
   props: {},
 });
@@ -36,12 +55,16 @@ const createEnv = (
     return Response.json({ ok: true }, { status: 201 });
   });
 
-  const stub = { fetch: initFetch };
+  const stub = {
+    fetch: initFetch,
+  } as unknown as DurableObjectStub;
 
-  const env = {
+  const env: MockEnv = {
     ASSETS: { fetch: assetsFetch },
     GAME: {
-      idFromName: vi.fn((code: string) => `id:${code}`),
+      idFromName: vi.fn(
+        (code: string) => `id:${code}` as unknown as DurableObjectId,
+      ),
       get: vi.fn(() => stub),
     },
     DB: mockDb(),
@@ -56,10 +79,10 @@ describe('server index worker', () => {
   });
 
   it('creates rooms with generated tokens and defaults invalid payloads to biplanetary', async () => {
-    let initPayload: any = null;
+    let initPayload: Record<string, unknown> | null = null;
 
     const { env, initFetch } = createEnv(async (request) => {
-      initPayload = await request.json();
+      initPayload = (await request.json()) as Record<string, unknown>;
       return Response.json({ ok: true }, { status: 201 });
     });
 
@@ -71,23 +94,24 @@ describe('server index worker', () => {
         },
         body: '{',
       }),
-      env as any,
+      env as unknown as Env,
       mockCtx(),
     );
+    const payload = initPayload as unknown as Record<string, unknown>;
 
     expect(response.status).toBe(200);
     expect(initFetch).toHaveBeenCalledTimes(1);
     expect(initPayload).toMatchObject({
       scenario: 'biplanetary',
     });
-    expect(initPayload.code).toMatch(/^[A-Z2-9]{5}$/);
-    expect(initPayload.playerToken).toMatch(/^[A-Za-z0-9_-]{32}$/);
-    expect(initPayload.inviteToken).toBeUndefined();
+    expect(payload.code).toMatch(/^[A-Z2-9]{5}$/);
+    expect(payload.playerToken).toMatch(/^[A-Za-z0-9_-]{32}$/);
+    expect(payload.inviteToken).toBeUndefined();
 
     const data = (await response.json()) as Record<string, string>;
 
-    expect(data.code).toBe(initPayload.code);
-    expect(data.playerToken).toBe(initPayload.playerToken);
+    expect(data.code).toBe(payload.code);
+    expect(data.playerToken).toBe(payload.playerToken);
     expect(data.inviteToken).toBeUndefined();
   });
 
@@ -100,7 +124,7 @@ describe('server index worker', () => {
       new Request('https://delta-v.test/create', {
         method: 'POST',
       }),
-      env as any,
+      env as unknown as Env,
       mockCtx(),
     );
 
@@ -122,7 +146,7 @@ describe('server index worker', () => {
         },
         body: JSON.stringify({ scenario: 'escape' }),
       }),
-      env as any,
+      env as unknown as Env,
       mockCtx(),
     );
 
@@ -140,7 +164,11 @@ describe('server index worker', () => {
       headers: { Upgrade: 'websocket' },
     });
 
-    const response = await worker.fetch(request, env as any, mockCtx());
+    const response = await worker.fetch(
+      request,
+      env as unknown as Env,
+      mockCtx(),
+    );
 
     expect(response.status).toBe(200);
     expect(env.GAME.idFromName).toHaveBeenCalledWith('ABCDE');
@@ -151,7 +179,11 @@ describe('server index worker', () => {
     const { env, assetsFetch } = createEnv();
     const request = new Request('https://delta-v.test/');
 
-    const response = await worker.fetch(request, env as any, mockCtx());
+    const response = await worker.fetch(
+      request,
+      env as unknown as Env,
+      mockCtx(),
+    );
 
     expect(assetsFetch).toHaveBeenCalledWith(request);
     expect(await response.text()).toBe('asset ok');
@@ -174,7 +206,7 @@ describe('/error endpoint', () => {
           ts: 123,
         }),
       }),
-      env as any,
+      env as unknown as Env,
       mockCtx(),
     );
 
@@ -205,7 +237,7 @@ describe('/error endpoint', () => {
           ts: 100,
         }),
       }),
-      env as any,
+      env as unknown as Env,
       ctx,
     );
 
@@ -213,7 +245,7 @@ describe('/error endpoint', () => {
     expect(ctx.waitUntil).toHaveBeenCalled();
 
     // Wait for the D1 insert promise
-    await (ctx.waitUntil as any).mock.calls[0][0];
+    await ctx.waitUntil.mock.calls[0][0];
 
     expect(env.DB.prepare).toHaveBeenCalled();
     const bindArgs = env.DB._bind.mock.calls[0] as unknown[];
@@ -226,7 +258,7 @@ describe('/error endpoint', () => {
 
     const response = await worker.fetch(
       new Request('https://delta-v.test/error'),
-      env as any,
+      env as unknown as Env,
       mockCtx(),
     );
 
@@ -244,7 +276,7 @@ describe('/error endpoint', () => {
         headers: { 'Content-Type': 'text/plain' },
         body: 'not json',
       }),
-      env as any,
+      env as unknown as Env,
       mockCtx(),
     );
 
@@ -263,7 +295,7 @@ describe('/error endpoint', () => {
         },
         body: JSON.stringify({ error: 'big' }),
       }),
-      env as any,
+      env as unknown as Env,
       mockCtx(),
     );
 
@@ -284,7 +316,7 @@ describe('/error endpoint', () => {
         },
         body: bigBody,
       }),
-      env as any,
+      env as unknown as Env,
       mockCtx(),
     );
 
@@ -302,7 +334,7 @@ describe('/error endpoint', () => {
         },
         body: '{invalid',
       }),
-      env as any,
+      env as unknown as Env,
       mockCtx(),
     );
 
@@ -326,7 +358,7 @@ describe('/telemetry endpoint', () => {
           scenario: 'biplanetary',
         }),
       }),
-      env as any,
+      env as unknown as Env,
       mockCtx(),
     );
 
@@ -359,11 +391,11 @@ describe('/telemetry endpoint', () => {
           scenario: 'duel',
         }),
       }),
-      env as any,
+      env as unknown as Env,
       ctx,
     );
 
-    await (ctx.waitUntil as any).mock.calls[0][0];
+    await ctx.waitUntil.mock.calls[0][0];
 
     expect(env.DB.prepare).toHaveBeenCalled();
     const bindArgs = env.DB._bind.mock.calls[0] as unknown[];
@@ -393,14 +425,14 @@ describe('/telemetry endpoint', () => {
           event: 'test',
         }),
       }),
-      env as any,
+      env as unknown as Env,
       ctx,
     );
 
     expect(response.status).toBe(204);
 
     // D1 error is caught gracefully
-    await (ctx.waitUntil as any).mock.calls[0][0];
+    await ctx.waitUntil.mock.calls[0][0];
   });
 
   it('rejects non-JSON content type with 415', async () => {
@@ -414,7 +446,7 @@ describe('/telemetry endpoint', () => {
         },
         body: 'not json',
       }),
-      env as any,
+      env as unknown as Env,
       mockCtx(),
     );
 
@@ -433,7 +465,7 @@ describe('/telemetry endpoint', () => {
         },
         body: JSON.stringify({ event: 'test' }),
       }),
-      env as any,
+      env as unknown as Env,
       mockCtx(),
     );
 
