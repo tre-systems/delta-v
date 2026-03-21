@@ -66,11 +66,11 @@ export const getTransferEligiblePairs = (
       const maxFuel = canTransferFuel
         ? Math.min(source.fuel, targetStats.fuel - target.fuel)
         : 0;
-      const sourceCargoAvailable = sourceStats.cargo - source.cargoUsed;
+      const sourceCargoLoaded = source.cargoUsed;
       const targetCargoSpace = targetStats.cargo - target.cargoUsed;
-      const canTransferCargo = sourceCargoAvailable > 0 && targetCargoSpace > 0;
+      const canTransferCargo = sourceCargoLoaded > 0 && targetCargoSpace > 0;
       const maxCargo = canTransferCargo
-        ? Math.min(sourceCargoAvailable, targetCargoSpace)
+        ? Math.min(sourceCargoLoaded, targetCargoSpace)
         : 0;
       if (canTransferFuel || canTransferCargo) {
         pairs.push({
@@ -138,11 +138,10 @@ const validateTransfer = (
       return 'Target fuel capacity exceeded';
     }
   } else if (transfer.transferType === 'cargo') {
-    const available = sourceStats.cargo - source.cargoUsed;
-    const space = targetStats.cargo - target.cargoUsed;
-    if (transfer.amount > available) {
+    if (transfer.amount > source.cargoUsed) {
       return 'Insufficient cargo';
     }
+    const space = targetStats.cargo - target.cargoUsed;
     if (transfer.amount > space) {
       return 'Target cargo capacity exceeded';
     }
@@ -185,8 +184,8 @@ export const processLogistics = (
       source.fuel -= transfer.amount;
       target.fuel += transfer.amount;
     } else {
-      source.cargoUsed += transfer.amount;
-      target.cargoUsed -= transfer.amount;
+      source.cargoUsed -= transfer.amount;
+      target.cargoUsed += transfer.amount;
     }
   }
   // Continue to combat or advance turn

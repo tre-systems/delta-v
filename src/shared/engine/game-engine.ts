@@ -471,6 +471,12 @@ const validateAstrogationOrders = (
     if (ship.baseStatus === 'emplaced') {
       return 'Emplaced orbital bases cannot move';
     }
+    if (ship.controlStatus === 'captured') {
+      if (order.burn !== null || order.overload) {
+        return 'Captured ships cannot receive orders';
+      }
+      continue;
+    }
     const isDisabled = ship.damage.disabledTurns > 0;
     const burn = isDisabled ? null : order.burn;
     const overload = isDisabled ? null : (order.overload ?? null);
