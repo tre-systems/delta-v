@@ -402,9 +402,9 @@ export const aiAstrogation = (
     if (ship.owner !== playerId) continue;
     if (ship.destroyed) continue;
     // Orbital bases don't need astrogation
-    if (ship.emplaced) continue;
+    if (ship.baseStatus === 'emplaced') continue;
     // Captured ships can't act
-    if (ship.captured) {
+    if (ship.controlStatus === 'captured') {
       orders.push({
         shipId: ship.id,
         burn: null,

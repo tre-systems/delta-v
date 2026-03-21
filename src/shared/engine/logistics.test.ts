@@ -76,7 +76,7 @@ describe('processSurrender', () => {
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
       const s = must(result.state.ships.find((s) => s.id === 's1'));
-      expect(s.surrendered).toBe(true);
+      expect(s.controlStatus).toBe('surrendered');
     }
   });
   it('rejects surrender of enemy ship', () => {
@@ -105,7 +105,7 @@ describe('processSurrender', () => {
     const ship = makeShip({
       id: 's1',
       owner: 0,
-      surrendered: true,
+      controlStatus: 'surrendered',
     });
     const state = makeState([ship], {
       phase: 'astrogation',
@@ -143,11 +143,11 @@ describe('processSurrender', () => {
     const result = processSurrender(state, 0, ['s1', 's2']);
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
-      expect(result.state.ships.find((s) => s.id === 's1')?.surrendered).toBe(
-        true,
+      expect(result.state.ships.find((s) => s.id === 's1')?.controlStatus).toBe(
+        'surrendered',
       );
-      expect(result.state.ships.find((s) => s.id === 's2')?.surrendered).toBe(
-        true,
+      expect(result.state.ships.find((s) => s.id === 's2')?.controlStatus).toBe(
+        'surrendered',
       );
     }
   });
@@ -252,7 +252,7 @@ describe('getTransferEligiblePairs', () => {
       type: 'frigate',
       owner: 1,
       fuel: 15,
-      surrendered: true,
+      controlStatus: 'surrendered',
     });
     const friendly = makeShip({
       id: 'friendly',

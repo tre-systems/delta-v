@@ -39,7 +39,7 @@ const makeTransportWithBase = (
     landed: false,
     destroyed: false,
     detected: true,
-    carryingOrbitalBase: true,
+    baseStatus: 'carryingBase',
     pendingGravityEffects: [],
     damage: { disabledTurns: 0 },
   };
@@ -385,7 +385,7 @@ describe('processEmplacement', () => {
       { q: -9, r: -6 },
       { dq: 0, dr: 0 },
     );
-    ship.carryingOrbitalBase = false;
+    ship.baseStatus = undefined;
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
     expect('error' in result).toBe(true);
   });
@@ -419,12 +419,12 @@ describe('processEmplacement', () => {
       const base = rs.ships[rs.ships.length - 1];
       expect(base.type).toBe('orbitalBase');
       expect(base.owner).toBe(0);
-      expect(base.emplaced).toBe(true);
+      expect(base.baseStatus).toBe('emplaced');
       expect(base.position).toEqual(marsGravityHex);
       expect(base.velocity).toEqual({ dq: 1, dr: 0 });
     }
   });
-  it('clears carryingOrbitalBase and reduces cargo after emplacement', () => {
+  it('clears baseStatus and reduces cargo after emplacement', () => {
     const state = createConvoyGame();
     state.phase = 'ordnance';
     state.activePlayer = 0;
@@ -438,7 +438,7 @@ describe('processEmplacement', () => {
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
       const updated = must(result.state.ships.find((s) => s.id === ship.id));
-      expect(updated.carryingOrbitalBase).toBe(false);
+      expect(updated.baseStatus).toBeUndefined();
       expect(updated.cargoUsed).toBe(10);
     }
   });

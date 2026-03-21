@@ -192,8 +192,8 @@ describe('game client helpers', () => {
           type: 'frigate',
           fuel: 14,
           cargoUsed: 20,
-          carryingOrbitalBase: true,
-          hasFugitives: true,
+          baseStatus: 'carryingBase',
+          identity: { hasFugitives: true, revealed: false },
         }),
         createShip({
           id: 'p0s1',

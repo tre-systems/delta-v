@@ -92,7 +92,9 @@ describe('game-client-briefing', () => {
       deriveScenarioBriefingEntries(
         createState({
           ships: [
-            createShip({ hasFugitives: true }),
+            createShip({
+              identity: { hasFugitives: true, revealed: false },
+            }),
             createShip({ id: 'enemy', owner: 1 }),
           ],
         }),

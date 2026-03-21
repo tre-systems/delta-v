@@ -4,18 +4,6 @@ Remaining work only. Completed items are in git history.
 
 ---
 
-## Maintenance
-
-### Phase 5. Stronger entity state models
-
-- Replace growing optional-flag bags on entities with clearer
-  status/capability models where invalid combinations are harder
-  to represent.
-- Do this incrementally, starting with the most heavily used
-  shapes such as `Ship`.
-
----
-
 ## Features
 
 ### Turn replay

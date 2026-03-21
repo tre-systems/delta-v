@@ -225,7 +225,7 @@ describe('game-client-ordnance', () => {
   });
 
   it('builds and validates orbital base emplacement plans', () => {
-    const state = createState([createShip({ carryingOrbitalBase: true })]);
+    const state = createState([createShip({ baseStatus: 'carryingBase' })]);
 
     expect(resolveBaseEmplacementPlan(state, 'ship-1')).toEqual({
       ok: true,

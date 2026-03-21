@@ -52,7 +52,7 @@ describe('ui ship list helpers', () => {
         }),
         createShip({
           id: 'b',
-          captured: true,
+          controlStatus: 'captured',
         }),
         createShip({
           id: 'c',
@@ -113,7 +113,7 @@ describe('ui ship list helpers', () => {
       [
         createShip({
           id: 'a',
-          captured: true,
+          controlStatus: 'captured',
           damage: { disabledTurns: 3 },
         }),
       ],

@@ -167,7 +167,7 @@ const hasReturnedCapturedFugitivesToBase = (
   if (
     !fugitive ||
     fugitive.destroyed ||
-    !fugitive.captured ||
+    fugitive.controlStatus !== 'captured' ||
     !fugitive.landed
   ) {
     return false;
@@ -242,16 +242,16 @@ export const checkImmediateVictory = (
     if (!fugitiveHasEscaped(state, ship, map)) continue;
 
     const hasFugitiveScenario = state.ships.some(
-      (s) => s.owner === ship.owner && s.hasFugitives,
+      (s) => s.owner === ship.owner && s.identity?.hasFugitives,
     );
 
-    if (hasFugitiveScenario && !ship.hasFugitives) {
+    if (hasFugitiveScenario && !ship.identity?.hasFugitives) {
       continue;
     }
 
     state.winner = ship.owner;
 
-    if (ship.hasFugitives) {
+    if (ship.identity?.hasFugitives) {
       const fuelNeededToStop = hexVecLength(ship.velocity) + 1;
 
       state.winReason =
@@ -268,7 +268,7 @@ export const checkImmediateVictory = (
 };
 
 export const getFugitiveShip = (state: GameState): Ship | undefined =>
-  state.ships.find((ship) => ship.hasFugitives);
+  state.ships.find((ship) => ship.identity?.hasFugitives);
 
 /**
  * Check if the game has ended (victory or all ships
@@ -388,7 +388,8 @@ export const checkRamming = (
       if (a.owner === b.owner) continue;
       if (!hexEqual(a.position, b.position)) continue;
       if (a.landed || b.landed) continue;
-      if (a.captured || b.captured) continue;
+      if (a.controlStatus === 'captured' || b.controlStatus === 'captured')
+        continue;
 
       for (const ship of [a, b]) {
         if (ship.destroyed) continue;
@@ -431,7 +432,7 @@ export const checkInspection = (state: GameState, playerId: number): void => {
       if (target.owner === playerId || target.destroyed) {
         continue;
       }
-      if (target.identityRevealed) continue;
+      if (!target.identity || target.identity.revealed) continue;
       if (!hexEqual(inspector.position, target.position)) {
         continue;
       }
@@ -442,7 +443,7 @@ export const checkInspection = (state: GameState, playerId: number): void => {
         continue;
       }
 
-      target.identityRevealed = true;
+      target.identity.revealed = true;
     }
   }
 };
@@ -470,7 +471,7 @@ export const checkCapture = (
         continue;
       }
       if (target.damage.disabledTurns <= 0) continue;
-      if (target.captured) continue;
+      if (target.controlStatus === 'captured') continue;
       if (!hexEqual(captor.position, target.position)) {
         continue;
       }
@@ -481,9 +482,9 @@ export const checkCapture = (
         continue;
       }
 
-      target.captured = true;
+      target.controlStatus = 'captured';
       target.owner = playerId;
-      target.identityRevealed = true;
+      if (target.identity) target.identity.revealed = true;
 
       events.push({
         type: 'capture',
@@ -510,12 +511,16 @@ export const checkOrbitalBaseResupply = (
     (s) =>
       s.owner === playerId &&
       !s.destroyed &&
-      s.emplaced &&
+      s.baseStatus === 'emplaced' &&
       s.type === 'orbitalBase',
   );
 
   for (const ship of state.ships) {
-    if (ship.owner !== playerId || ship.destroyed || ship.emplaced) {
+    if (
+      ship.owner !== playerId ||
+      ship.destroyed ||
+      ship.baseStatus === 'emplaced'
+    ) {
       continue;
     }
     if (ship.resuppliedThisTurn) continue;
@@ -538,8 +543,7 @@ export const checkOrbitalBaseResupply = (
         ship.cargoUsed = 0;
         ship.nukesLaunchedSinceResupply = 0;
         ship.damage = { disabledTurns: 0 };
-        ship.captured = false;
-        ship.surrendered = false;
+        ship.controlStatus = undefined;
         ship.resuppliedThisTurn = true;
         ob.resuppliedThisTurn = true;
       }
@@ -576,8 +580,7 @@ export const applyResupply = (
     ship.nukesLaunchedSinceResupply = 0;
     ship.overloadUsed = false;
     ship.damage = { disabledTurns: 0 };
-    ship.captured = false;
-    ship.surrendered = false;
+    ship.controlStatus = undefined;
     ship.resuppliedThisTurn = true;
   }
 };

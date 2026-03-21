@@ -409,7 +409,7 @@ describe('validateShipOrdnanceLaunch', () => {
   });
 
   it('rejects captured ships', () => {
-    const ship = makeShip({ captured: true });
+    const ship = makeShip({ controlStatus: 'captured' });
 
     expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe(
       'Captured ships cannot launch ordnance',
@@ -510,7 +510,9 @@ describe('canLaunchOrdnance', () => {
 
   it('returns false for captured ship', () => {
     expect(
-      canLaunchOrdnance(makeShip({ type: 'corsair', captured: true })),
+      canLaunchOrdnance(
+        makeShip({ type: 'corsair', controlStatus: 'captured' }),
+      ),
     ).toBe(false);
   });
 

@@ -118,16 +118,16 @@ export const getShipIdentityMarker = (
 ): ShipIdentityMarker | null => {
   if (isAnimating) return null;
 
-  if (ship.hasFugitives && ship.owner === playerId) {
+  if (ship.identity?.hasFugitives && ship.owner === playerId) {
     return 'friendlyFugitive';
   }
 
   if (
     hiddenIdentityInspection &&
     ship.owner !== playerId &&
-    ship.identityRevealed
+    ship.identity?.revealed
   ) {
-    return ship.hasFugitives ? 'enemyFugitive' : 'enemyDecoy';
+    return ship.identity.hasFugitives ? 'enemyFugitive' : 'enemyDecoy';
   }
 
   return null;

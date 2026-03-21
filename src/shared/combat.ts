@@ -120,7 +120,7 @@ export const getDeclaredCombatStrength = (
 export const canAttack = (ship: Ship): boolean => {
   if (ship.destroyed || ship.landed) return false;
   if (ship.resuppliedThisTurn) return false;
-  if (ship.captured || ship.surrendered) return false;
+  if (ship.controlStatus) return false;
 
   const stats = SHIP_STATS[ship.type];
   if (!stats || stats.defensiveOnly) return false;
@@ -144,7 +144,7 @@ export const canAttack = (ship: Ship): boolean => {
 export const canCounterattack = (ship: Ship): boolean => {
   if (ship.destroyed || ship.landed) return false;
   if (ship.resuppliedThisTurn) return false;
-  if (ship.captured || ship.surrendered) return false;
+  if (ship.controlStatus) return false;
 
   const stats = SHIP_STATS[ship.type];
   if (!stats || stats.combat <= 0 || stats.defensiveOnly) {
