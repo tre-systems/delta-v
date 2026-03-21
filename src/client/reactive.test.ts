@@ -120,6 +120,38 @@ describe('computed', () => {
     base.value = 5;
     expect(quadrupled.value).toBe(20);
   });
+
+  it('stops updating after dispose', () => {
+    const s = signal(1);
+    const c = computed(() => s.value * 10);
+
+    expect(c.value).toBe(10);
+
+    c.dispose();
+    s.value = 5;
+
+    // Internal effect is disposed — value is stale
+    expect(c.peek()).toBe(10);
+  });
+
+  it('auto-disposes when created inside an effect', () => {
+    const source = signal(0);
+    const spy = vi.fn();
+
+    effect(() => {
+      const c = computed(() => source.value * 2);
+      spy(c.value);
+    });
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenLastCalledWith(0);
+
+    // Outer re-runs, old computed's effect is disposed
+    source.value = 3;
+
+    // New computed created, spy called with new value
+    expect(spy).toHaveBeenLastCalledWith(6);
+  });
 });
 
 // ── Effect ──────────────────────────────────────────────
@@ -202,6 +234,86 @@ describe('effect', () => {
     // Both run once on creation
     expect(outer).toHaveBeenCalledTimes(1);
     expect(inner).toHaveBeenCalledTimes(1);
+  });
+
+  it('auto-disposes nested effects on parent re-run', () => {
+    const source = signal(0);
+    const innerSpy = vi.fn();
+
+    effect(() => {
+      // Read source to track it
+      const v = source.value;
+      effect(() => {
+        // Inner also tracks source
+        innerSpy(v, source.value);
+      });
+    });
+
+    // Initial: outer runs, creates inner, both fire
+    expect(innerSpy).toHaveBeenCalledTimes(1);
+
+    // Change source: outer re-runs, old inner disposed,
+    // new inner created
+    source.value = 1;
+
+    // Inner from first run was disposed, so only the
+    // new inner fires (not the old one too)
+    // outer re-run (1 call) + new inner creation (1 call)
+    expect(innerSpy).toHaveBeenCalledTimes(2);
+    expect(innerSpy).toHaveBeenLastCalledWith(1, 1);
+  });
+
+  it('disposes deeply nested effects on root dispose', () => {
+    const s = signal(0);
+    const spyL1 = vi.fn();
+    const spyL2 = vi.fn();
+    const spyL3 = vi.fn();
+
+    const dispose = effect(() => {
+      spyL1(s.value);
+      effect(() => {
+        spyL2(s.value);
+        effect(() => {
+          spyL3(s.value);
+        });
+      });
+    });
+
+    expect(spyL1).toHaveBeenCalledTimes(1);
+    expect(spyL2).toHaveBeenCalledTimes(1);
+    expect(spyL3).toHaveBeenCalledTimes(1);
+
+    dispose();
+    s.value = 1;
+
+    // None should fire — all disposed
+    expect(spyL1).toHaveBeenCalledTimes(1);
+    expect(spyL2).toHaveBeenCalledTimes(1);
+    expect(spyL3).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not leak effects across re-runs', () => {
+    const source = signal(0);
+    const innerCount = vi.fn();
+
+    effect(() => {
+      source.value;
+      effect(() => {
+        innerCount();
+      });
+    });
+
+    // Initial: 1 inner created
+    expect(innerCount).toHaveBeenCalledTimes(1);
+
+    // Re-run 5 times: each creates 1 new inner,
+    // disposes the old one. No accumulation.
+    for (let i = 1; i <= 5; i++) {
+      source.value = i;
+    }
+
+    // 1 initial + 5 re-runs = 6 inner creations
+    expect(innerCount).toHaveBeenCalledTimes(6);
   });
 });
 
