@@ -198,9 +198,9 @@ The shared engine is data-oriented by design. Lean into that with functional pat
   ```typescript
   // cond: multiple independent conditions → value
   const status = cond(
-    [ship.destroyed, 'destroyed'],
-    [ship.captured, 'captured'],
-    [ship.landed, 'landed'],
+    [ship.lifecycle === 'destroyed', 'destroyed'],
+    [ship.control === 'captured', 'captured'],
+    [ship.lifecycle === 'landed', 'landed'],
   ) ?? 'active';
 
   // switch: discriminated union narrowing
