@@ -57,10 +57,11 @@ Open the same multiplayer room in two real browser tabs or windows:
 
 Start a Duel game (frigates near Mercury):
 
-1. **Click enemy ship** — combat preview shows odds, "Range: X  Velocity: Y" with color coding
-2. **Fire** — toast shows result ("Frigate: Disabled 2T" or "Frigate: DESTROYED")
-3. **Counterattack** — if applicable, result logged and toasted
-4. **Ship destroyed** — selection highlight clears, no ghost highlight on wreck
+1. **Click enemy ship** — combat preview shows odds, "Range −X" and "CAN COUNTER" labels
+2. **Click ATTACK** — attack is queued with all legal attackers auto-drafted
+3. **Fire All** — toast shows result ("Frigate: Disabled 2T" or "Frigate: DESTROYED")
+4. **Counterattack** — if applicable, result logged and toasted
+5. **Ship destroyed** — selection highlight clears, no ghost highlight on wreck
 
 ## Takeoff/Landing Test (2 minutes)
 
@@ -88,9 +89,19 @@ Run `npm run simulate -- all 25` — all 8 scenarios should complete with 0 engi
 The simulation runner now randomizes the starting player during bulk balance runs, so the win-rate output is less biased by seat order.
 CI balance warnings are scenario-specific and can skip cooperative or race-style scenarios where seat order is part of the design.
 
+## Fleet Building Test (2 minutes)
+
+Start a Fleet Action or Interplanetary War game:
+
+1. **Budget display** — shows starting MegaCredits (e.g. "400 MC remaining")
+2. **Click ship type** — ship added to "YOUR FLEET", budget decreases
+3. **Over-budget ships** — ship types costing more than remaining MC are greyed out
+4. **Remove ship** — click × next to a ship in YOUR FLEET, budget restored
+5. **Clear** — removes all ships, budget fully restored
+6. **Launch Fleet** — game starts with selected ships at home planet
+
 ## What These Tests Don't Cover
 
 - Multiplayer WebSocket synchronisation (requires two clients)
 - PWA offline mode
 - Turn timer expiry edge cases
-- Fleet building phase (Interplanetary War scenario)
