@@ -17,6 +17,7 @@ export interface Env {
   GAME: DurableObjectNamespace;
   DB: D1Database;
   CREATE_RATE_LIMITER?: CreateRateLimiterBinding;
+  MATCH_ARCHIVE?: R2Bucket;
 }
 
 const corsHeaders: Record<string, string> = {
