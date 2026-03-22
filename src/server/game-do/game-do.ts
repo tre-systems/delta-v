@@ -23,13 +23,7 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import { validateClientMessage } from '../../shared/protocol';
-import {
-  buildMatchId,
-  createReplayArchive,
-  type ReplayArchive,
-  type ReplayMessage,
-  toReplayEntry,
-} from '../../shared/replay';
+import type { ReplayArchive } from '../../shared/replay';
 import type {
   AstrogationOrder,
   CombatAttack,
@@ -48,6 +42,13 @@ import {
   type RoomConfig,
   resolveSeatAssignment,
 } from '../protocol';
+import {
+  allocateMatchIdentity,
+  appendEvents,
+  appendReplayMessage,
+  getReplayArchive,
+  resetEventLog,
+} from './archive';
 import {
   resolveCombatBroadcast,
   resolveMovementBroadcast,
@@ -102,55 +103,6 @@ export class GameDO extends DurableObject<Env> {
   private async saveGameState(state: GameState): Promise<void> {
     await this.ctx.storage.put('gameState', state);
   }
-  private async getEventLog(): Promise<EngineEvent[]> {
-    return (await this.ctx.storage.get<EngineEvent[]>('eventLog')) ?? [];
-  }
-  private async appendEvents(...events: EngineEvent[]): Promise<void> {
-    const log = await this.getEventLog();
-    log.push(...events);
-    const MAX_EVENTS = 500;
-    if (log.length > MAX_EVENTS) {
-      log.splice(0, log.length - MAX_EVENTS);
-    }
-    await this.ctx.storage.put('eventLog', log);
-  }
-  private async resetEventLog(): Promise<void> {
-    await this.ctx.storage.put('eventLog', []);
-  }
-  private replayKey(gameId: string): string {
-    return `replayArchive:${gameId}`;
-  }
-  private async getReplayArchive(
-    gameId: string,
-  ): Promise<ReplayArchive | null> {
-    return (
-      (await this.ctx.storage.get<ReplayArchive>(this.replayKey(gameId))) ??
-      null
-    );
-  }
-  private async saveReplayArchive(archive: ReplayArchive): Promise<void> {
-    await this.ctx.storage.put(this.replayKey(archive.gameId), archive);
-  }
-  private async appendReplayMessage(
-    roomCode: string,
-    matchNumber: number,
-    message: ReplayMessage,
-  ): Promise<void> {
-    const recordedAt = Date.now();
-    const existing = await this.getReplayArchive(message.state.gameId);
-
-    if (!existing) {
-      await this.saveReplayArchive(
-        createReplayArchive(roomCode, matchNumber, message, recordedAt),
-      );
-      return;
-    }
-
-    existing.entries.push(
-      toReplayEntry(existing.entries.length + 1, message, recordedAt),
-    );
-    await this.saveReplayArchive(existing);
-  }
   private async getRoomConfig(): Promise<RoomConfig | null> {
     return (await this.ctx.storage.get<RoomConfig>('roomConfig')) ?? null;
   }
@@ -167,18 +119,6 @@ export class GameDO extends DurableObject<Env> {
   }
   private async setGameCode(code: string): Promise<void> {
     await this.ctx.storage.put('gameCode', code);
-  }
-  private async allocateMatchIdentity(
-    code: string,
-  ): Promise<{ gameId: string; matchNumber: number }> {
-    const matchNumber =
-      ((await this.ctx.storage.get<number>('matchNumber')) ?? 0) + 1;
-    await this.ctx.storage.put('matchNumber', matchNumber);
-
-    return {
-      gameId: buildMatchId(code, matchNumber),
-      matchNumber,
-    };
   }
   private async touchInactivity(): Promise<void> {
     const now = Date.now();
@@ -675,10 +615,15 @@ export class GameDO extends DurableObject<Env> {
     const replayMessage = resolveStateBearingMessage(state, primaryMessage);
     await this.saveGameState(state);
     if (events.length > 0) {
-      await this.appendEvents(...events);
+      await appendEvents(this.ctx.storage, ...events);
     }
     if (matchNumber !== undefined) {
-      await this.appendReplayMessage(roomCode, matchNumber, replayMessage);
+      await appendReplayMessage(
+        this.ctx.storage,
+        roomCode,
+        matchNumber,
+        replayMessage,
+      );
     }
     if (restartTurnTimer) {
       await this.startTurnTimer(state);
@@ -808,7 +753,7 @@ export class GameDO extends DurableObject<Env> {
       });
     }
 
-    const archive = await this.getReplayArchive(gameId);
+    const archive = await getReplayArchive(this.ctx.storage, gameId);
 
     if (!archive) {
       return new Response('Replay not found', {
@@ -827,15 +772,21 @@ export class GameDO extends DurableObject<Env> {
     ]);
     const map = this.map;
     const code = roomConfig?.code ?? (await this.getGameCode());
-    const { gameId, matchNumber } = await this.allocateMatchIdentity(code);
+    const { gameId, matchNumber } = await allocateMatchIdentity(
+      this.ctx.storage,
+      code,
+    );
     const gameState = createGame(scenario, map, gameId, findBaseHex);
     const gameStartMessage = toGameStartMessage(gameState);
     await this.saveGameState(gameState);
-    await this.resetEventLog();
-    await this.saveReplayArchive(
-      createReplayArchive(code, matchNumber, gameStartMessage, Date.now()),
+    await resetEventLog(this.ctx.storage);
+    await appendReplayMessage(
+      this.ctx.storage,
+      code,
+      matchNumber,
+      gameStartMessage,
     );
-    await this.appendEvents({
+    await appendEvents(this.ctx.storage, {
       type: 'gameCreated',
       scenario: gameState.scenario,
       turn: gameState.turnNumber,
