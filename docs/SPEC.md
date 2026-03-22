@@ -24,15 +24,16 @@ src/
 
   client/
     main.ts            Client state machine, WebSocket handling, AI turn runner
-    input.ts           Mouse/touch/keyboard input, burn direction selection
+    input.ts           Raw browser input shell (mouse/touch/keyboard)
+    input-interaction.ts Pointer/minimap gesture helpers for the input shell
     audio.ts           Procedural sound effects (Web Audio API)
     tutorial.ts        Phase-based tutorial tips for new players
     game/              Client game logic helpers (combat, phase, burn, ordnance, etc.)
-    renderer/          Canvas rendering, camera, animations, trails, minimap
+    renderer/          Canvas rendering, camera, animation manager, trails, minimap
     ui/                DOM overlays (menu, HUD, game log, game over)
 
   shared/
-    types.ts           All interfaces (Ship, GameState, messages, map types)
+    types/             Shared domain, protocol, and scenario interfaces
     hex.ts             Hex math (axial coords, line draw, pixel conversion)
     movement.ts        Vector movement, gravity, crash/landing/takeoff
     combat.ts          Gun combat, counterattack, odds, line of sight

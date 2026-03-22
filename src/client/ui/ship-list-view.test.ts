@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Ship } from '../../shared/types/domain';
-import { ShipListView } from './ship-list-view';
+import { createShipListView } from './ship-list-view';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'ship-0',
@@ -35,7 +35,7 @@ describe('ShipListView', () => {
 
   it('renders selected details and emits select events for live ships', () => {
     const onSelectShip = vi.fn<(shipId: string) => void>();
-    const view = new ShipListView({ onSelectShip });
+    const view = createShipListView({ onSelectShip });
 
     view.update(
       [
@@ -71,7 +71,7 @@ describe('ShipListView', () => {
 
   it('marks destroyed ships and does not emit clicks for them', () => {
     const onSelectShip = vi.fn<(shipId: string) => void>();
-    const view = new ShipListView({ onSelectShip });
+    const view = createShipListView({ onSelectShip });
 
     view.update(
       [
@@ -92,7 +92,7 @@ describe('ShipListView', () => {
   });
 
   it('disposes the reactive render pipeline cleanly', () => {
-    const view = new ShipListView({
+    const view = createShipListView({
       onSelectShip: vi.fn(),
     });
 

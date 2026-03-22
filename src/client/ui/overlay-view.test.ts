@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { OverlayView } from './overlay-view';
+import { createOverlayView } from './overlay-view';
 
 const installFixture = () => {
   document.body.innerHTML = `
@@ -32,7 +32,7 @@ describe('OverlayView', () => {
   });
 
   it('renders game-over and rematch-pending states', () => {
-    const view = new OverlayView();
+    const view = createOverlayView();
 
     view.showGameOver(true, 'Fleet eliminated!', {
       turns: 12,
@@ -63,7 +63,7 @@ describe('OverlayView', () => {
   });
 
   it('shows reconnect overlay and runs cancel handler', () => {
-    const view = new OverlayView();
+    const view = createOverlayView();
     const onCancel = vi.fn();
 
     view.showReconnecting(2, 5, onCancel);
@@ -89,7 +89,7 @@ describe('OverlayView', () => {
   });
 
   it('shows toast and phase alert with timed cleanup', () => {
-    const view = new OverlayView();
+    const view = createOverlayView();
 
     view.showToast('Warning', 'error');
     expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(1);
@@ -113,5 +113,25 @@ describe('OverlayView', () => {
 
     vi.advanceTimersByTime(1200);
     expect(phaseAlert.classList.contains('active')).toBe(false);
+  });
+
+  it('disposes reconnect handlers and pending timers', () => {
+    const view = createOverlayView();
+    const onCancel = vi.fn();
+
+    view.showReconnecting(1, 3, onCancel);
+    view.showToast('Warning', 'error');
+    view.showPhaseAlert('combat', false);
+    view.dispose();
+
+    document.getElementById('reconnectCancelBtn')?.click();
+    vi.advanceTimersByTime(5000);
+
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(
+      (document.getElementById('reconnectOverlay') as HTMLElement).style
+        .display,
+    ).toBe('none');
+    expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(1);
   });
 });

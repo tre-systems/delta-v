@@ -17,6 +17,16 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { createMinimapLayout } from '../game/minimap';
+// CombatEffect and HexFlash types imported from
+// renderer-effects.ts
+// PlanningState is owned by GameClient, passed in as
+// a reference
+import type { PlanningState } from '../game/planning';
+import {
+  type AnimationState,
+  collectAnimatedHexes,
+  createMovementAnimationManager,
+} from './animation-manager';
 import { Camera } from './camera';
 import { getCombatTargetEntity } from './combat';
 import { buildAstrogationCoursePreviewViews } from './course';
@@ -73,20 +83,6 @@ import {
   buildShipTrailViews,
   buildVelocityVectorViews,
 } from './vectors';
-// --- Animation state ---
-export interface AnimationState {
-  movements: ShipMovement[];
-  ordnanceMovements: OrdnanceMovement[];
-  startTime: number;
-  duration: number;
-  onComplete: () => void;
-}
-
-// CombatEffect and HexFlash types imported from
-// renderer-effects.ts
-// PlanningState is owned by GameClient, passed in as
-// a reference
-import type { PlanningState } from '../game/planning';
 // --- Renderer ---
 export const HEX_SIZE = 28; // pixels per hex radius
 export class Renderer {
@@ -97,8 +93,6 @@ export class Renderer {
   private map: SolarSystemMap | null = null;
   private gameState: GameState | null = null;
   private playerId = -1;
-  private animState: AnimationState | null = null;
-  private animFallbackTimer: ReturnType<typeof setTimeout> | null = null;
   private planningState: PlanningState;
   private combatResults: {
     results: CombatResult[];
@@ -113,10 +107,20 @@ export class Renderer {
   // Phase banner removed — DOM phase alert in ui.ts
   // is the sole overlay
   private lastTime = 0;
-  // Persistent ship trails: shipId -> array of hex
-  // positions visited across turns
-  private shipTrails: Map<string, HexCoord[]> = new Map();
-  private ordnanceTrails: Map<string, HexCoord[]> = new Map();
+  private readonly movementAnimation = createMovementAnimationManager();
+
+  private get animState(): AnimationState | null {
+    return this.movementAnimation.getAnimationState();
+  }
+
+  private get shipTrails(): Map<string, HexCoord[]> {
+    return this.movementAnimation.getShipTrails();
+  }
+
+  private get ordnanceTrails(): Map<string, HexCoord[]> {
+    return this.movementAnimation.getOrdnanceTrails();
+  }
+
   constructor(canvas: HTMLCanvasElement, planningState: PlanningState) {
     this.canvas = canvas;
     this.ctx = must(canvas.getContext('2d'));
@@ -129,19 +133,10 @@ export class Renderer {
     // immediately. When visible again: catch any that
     // slipped through.
     document.addEventListener('visibilitychange', () => {
-      if (!this.animState) return;
-      if (
-        document.visibilityState === 'hidden' ||
-        performance.now() - this.animState.startTime >= this.animState.duration
-      ) {
-        if (this.animFallbackTimer !== null) {
-          clearTimeout(this.animFallbackTimer);
-          this.animFallbackTimer = null;
-        }
-        const cb = this.animState.onComplete;
-        this.animState = null;
-        cb();
-      }
+      this.movementAnimation.handleVisibilityChange(
+        document.visibilityState,
+        performance.now(),
+      );
     });
   }
   setMap(map: SolarSystemMap) {
@@ -154,89 +149,16 @@ export class Renderer {
     this.playerId = id;
   }
   clearTrails() {
-    this.shipTrails.clear();
-    this.ordnanceTrails.clear();
+    this.movementAnimation.clearTrails();
   }
   animateMovements(
     movements: ShipMovement[],
     ordnanceMovements: OrdnanceMovement[],
     onComplete: () => void,
   ) {
-    // Record movement paths into persistent trails
-    for (const m of movements) {
-      const trail = this.shipTrails.get(m.shipId);
-      if (trail) {
-        // Append path (skip first point if it matches
-        // the trail's last point)
-        const start =
-          trail.length > 0 &&
-          m.path.length > 0 &&
-          trail[trail.length - 1].q === m.path[0].q &&
-          trail[trail.length - 1].r === m.path[0].r
-            ? 1
-            : 0;
-        for (let i = start; i < m.path.length; i++) {
-          trail.push(m.path[i]);
-        }
-      } else {
-        this.shipTrails.set(m.shipId, [...m.path]);
-      }
-    }
-    for (const m of ordnanceMovements) {
-      const trail = this.ordnanceTrails.get(m.ordnanceId);
-      if (trail) {
-        const start =
-          trail.length > 0 &&
-          m.path.length > 0 &&
-          trail[trail.length - 1].q === m.path[0].q &&
-          trail[trail.length - 1].r === m.path[0].r
-            ? 1
-            : 0;
-        for (let i = start; i < m.path.length; i++) {
-          trail.push(m.path[i]);
-        }
-      } else {
-        this.ordnanceTrails.set(m.ordnanceId, [...m.path]);
-      }
-    }
-    // If the page is hidden, skip animation entirely
-    // — rAF and setTimeout may both be fully suspended
-    // by the browser.
-    if (document.hidden) {
-      onComplete();
-      return;
-    }
-    this.animState = {
-      movements,
-      ordnanceMovements,
-      startTime: performance.now(),
-      duration: MOVEMENT_ANIM_DURATION,
-      onComplete,
-    };
-    // Safety net: if rAF is throttled (mobile screen
-    // off, background tab), ensure the animation
-    // callback still fires via setTimeout.
-    if (this.animFallbackTimer !== null) {
-      clearTimeout(this.animFallbackTimer);
-    }
-    this.animFallbackTimer = setTimeout(() => {
-      this.animFallbackTimer = null;
-      if (this.animState) {
-        const cb = this.animState.onComplete;
-        this.animState = null;
-        cb();
-      }
-    }, MOVEMENT_ANIM_DURATION + 500);
+    this.movementAnimation.start(movements, ordnanceMovements, onComplete);
     // Frame camera on all moving ships and ordnance
-    const allFrom = [
-      ...movements.map((m) => m.from),
-      ...ordnanceMovements.map((m) => m.from),
-    ];
-    const allTo = [
-      ...movements.map((m) => m.to),
-      ...ordnanceMovements.map((m) => m.to),
-    ];
-    const allHexes = [...allFrom, ...allTo];
+    const allHexes = collectAnimatedHexes(movements, ordnanceMovements);
     if (this.map && allHexes.length > 0) {
       let minX = Infinity,
         maxX = -Infinity,
@@ -425,7 +347,7 @@ export class Renderer {
   // showPhaseBanner removed — DOM phase alert in
   // ui.ts is the sole overlay
   isAnimating(): boolean {
-    return this.animState !== null;
+    return this.movementAnimation.isAnimating();
   }
   resetCamera() {
     this.camera.targetX = 0;
@@ -503,19 +425,7 @@ export class Renderer {
 
     this.camera.update(dt, cw, ch);
     this.render(now, cw, ch);
-    // Check animation completion
-    if (
-      this.animState &&
-      now - this.animState.startTime >= this.animState.duration
-    ) {
-      if (this.animFallbackTimer !== null) {
-        clearTimeout(this.animFallbackTimer);
-        this.animFallbackTimer = null;
-      }
-      const cb = this.animState.onComplete;
-      this.animState = null;
-      cb();
-    }
+    this.movementAnimation.completeIfElapsed(now);
     requestAnimationFrame((t) => this.loop(t));
   }
   private render(

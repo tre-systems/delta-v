@@ -15,6 +15,7 @@ import {
 } from '../../shared/hex';
 import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import type { PlanningState } from '../game/planning';
+import type { AnimationState } from './animation-manager';
 import {
   getCombatOverlayHighlights,
   getCombatPreview,
@@ -28,7 +29,6 @@ import {
   getOrdnanceLifetimeView,
   getOrdnancePulse,
 } from './entities';
-import type { AnimationState } from './renderer';
 
 export const renderOrdnance = (
   ctx: CanvasRenderingContext2D,
