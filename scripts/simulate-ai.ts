@@ -39,7 +39,12 @@ const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
   grandTour: null,               // Cooperative race
 };
 
-function simFleetBuild(state: GameState, playerId: number, difficulty: AIDifficulty, availableTypes?: string[]): FleetPurchase[] {
+const simFleetBuild = (
+  state: GameState,
+  playerId: number,
+  difficulty: AIDifficulty,
+  availableTypes?: string[],
+): FleetPurchase[] => {
   const credits = state.players[playerId].credits ?? 0;
   const available = availableTypes ?? Object.keys(SHIP_STATS).filter(t => t !== 'orbitalBase');
   const purchases: FleetPurchase[] = [];
@@ -61,14 +66,14 @@ function simFleetBuild(state: GameState, playerId: number, difficulty: AIDifficu
     }
   }
   return purchases;
-}
+};
 
-async function runSingleGame(
+const runSingleGame = async (
   scenarioName: string,
   p0Diff: AIDifficulty,
   p1Diff: AIDifficulty,
   randomizeStart = false,
-): Promise<{ winner: number | null, turns: number, reason: string | null }> {
+): Promise<{ winner: number | null, turns: number, reason: string | null }> => {
   const scenario = SCENARIOS[scenarioName];
   if (!scenario) throw new Error(`Unknown scenario: ${scenarioName}`);
 
@@ -162,9 +167,9 @@ async function runSingleGame(
   }
 
   return { winner: state.winner, turns: state.turnNumber, reason: state.winReason };
-}
+};
 
-async function runSimulation(scenarioName: string, iterations: number) {
+const runSimulation = async (scenarioName: string, iterations: number) => {
   console.log(`\n=== Starting Simulation: ${scenarioName} (${iterations} iterations) ===\n`);
   
   const metrics: SimulationMetrics = {
@@ -219,9 +224,9 @@ async function runSimulation(scenarioName: string, iterations: number) {
   }
 
   return metrics;
-}
+};
 
-async function main() {
+const main = async () => {
   const args = process.argv.slice(2);
   const isCiMode = args.includes('--ci');
   const filteredArgs = args.filter(a => a !== '--ci');
@@ -273,7 +278,7 @@ async function main() {
       console.log('\n✅ CI Constraints Passed. Engine is stable and balanced.');
     }
   }
-}
+};
 
 main().catch((err) => {
   console.error(err);

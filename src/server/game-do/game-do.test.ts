@@ -62,7 +62,7 @@ const createGameDO = (
   env: Partial<Env> = {},
 ): GameDO => new GameDO(ctx as unknown as DurableObjectState, env as Env);
 
-function createCtx(): MockDurableObjectState {
+const createCtx = (): MockDurableObjectState => {
   const storage = new MockStorage();
   const sockets: object[] = [];
   const tags = new WeakMap<object, string[]>();
@@ -80,7 +80,7 @@ function createCtx(): MockDurableObjectState {
       return sockets.filter((ws) => (tags.get(ws) ?? []).includes(tag));
     },
   };
-}
+};
 
 const createSocket = () => ({
   sent: [] as string[],

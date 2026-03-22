@@ -9,27 +9,27 @@ import {
 import type { GameState } from '../../shared/types/domain';
 import { resolveTurnTimeoutOutcome } from './turns';
 
-function createState(): GameState {
+const createState = (): GameState => {
   return createGame(
     SCENARIOS.biplanetary,
     buildSolarSystemMap(),
     'TURN1',
     findBaseHex,
   );
-}
+};
 
-function createEscapeState(): GameState {
+const createEscapeState = (): GameState => {
   return createGame(
     SCENARIOS.escape,
     buildSolarSystemMap(),
     'TURNX',
     findBaseHex,
   );
-}
+};
 
-function createShip(
+const createShip = (
   overrides: Partial<GameState['ships'][number]> = {},
-): GameState['ships'][number] {
+): GameState['ships'][number] => {
   return {
     id: 'extra-ship',
     type: 'transport',
@@ -49,7 +49,7 @@ function createShip(
     damage: { disabledTurns: 0 },
     ...overrides,
   };
-}
+};
 
 describe('game-do-turns', () => {
   it('auto-submits empty burns for timed-out astrogation turns', () => {
