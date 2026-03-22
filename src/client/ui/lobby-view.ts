@@ -1,6 +1,6 @@
 import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
-import { byId, setTrustedHTML } from '../dom';
+import { byId, listen, setTrustedHTML } from '../dom';
 import { createDisposalScope, effect, signal } from '../reactive';
 import type { AIDifficulty, UIEvent } from './events';
 import { parseJoinInput } from './formatters';
@@ -96,47 +96,36 @@ export class LobbyView {
   }
 
   private bindMenuControls(): void {
-    const handleCreateClick = () => {
-      this.deps.showScenarioSelect();
-    };
-    this.createBtn.addEventListener('click', handleCreateClick);
-    this.scope.add(() => {
-      this.createBtn.removeEventListener('click', handleCreateClick);
-    });
+    this.scope.add(
+      listen(this.createBtn, 'click', () => {
+        this.deps.showScenarioSelect();
+      }),
+    );
 
-    const handleSinglePlayerClick = () => {
-      this.pendingAIGameSignal.value = true;
-      this.deps.showScenarioSelect();
-    };
-    this.singlePlayerBtn.addEventListener('click', handleSinglePlayerClick);
-    this.scope.add(() => {
-      this.singlePlayerBtn.removeEventListener(
-        'click',
-        handleSinglePlayerClick,
-      );
-    });
+    this.scope.add(
+      listen(this.singlePlayerBtn, 'click', () => {
+        this.pendingAIGameSignal.value = true;
+        this.deps.showScenarioSelect();
+      }),
+    );
 
-    const handleBackClick = () => {
-      this.deps.emit({ type: 'backToMenu' });
-      this.deps.showMenu();
-    };
-    this.backBtn.addEventListener('click', handleBackClick);
-    this.scope.add(() => {
-      this.backBtn.removeEventListener('click', handleBackClick);
-    });
+    this.scope.add(
+      listen(this.backBtn, 'click', () => {
+        this.deps.emit({ type: 'backToMenu' });
+        this.deps.showMenu();
+      }),
+    );
   }
 
   private bindDifficultyButtons(): void {
     for (const btn of this.difficultyButtons) {
-      const handleDifficultyClick = (event: Event) => {
-        event.stopPropagation();
-        this.aiDifficultySignal.value = btn.dataset.difficulty as AIDifficulty;
-      };
-
-      btn.addEventListener('click', handleDifficultyClick);
-      this.scope.add(() => {
-        btn.removeEventListener('click', handleDifficultyClick);
-      });
+      this.scope.add(
+        listen(btn, 'click', (event) => {
+          event.stopPropagation();
+          this.aiDifficultySignal.value = btn.dataset
+            .difficulty as AIDifficulty;
+        }),
+      );
     }
   }
 
@@ -154,54 +143,47 @@ export class LobbyView {
   }
 
   private bindJoinControls(): void {
-    const handleJoinClick = () => {
-      this.submitJoin(this.codeInputEl.value);
-    };
-    this.joinBtn.addEventListener('click', handleJoinClick);
-    this.scope.add(() => {
-      this.joinBtn.removeEventListener('click', handleJoinClick);
-    });
+    this.scope.add(
+      listen(this.joinBtn, 'click', () => {
+        this.submitJoin(this.codeInputEl.value);
+      }),
+    );
 
-    const handleCodeInputKeydown = (event: KeyboardEvent) => {
-      if (event.key === 'Enter') {
-        this.submitJoin((event.target as HTMLInputElement).value);
-      }
-    };
-    this.codeInputEl.addEventListener('keydown', handleCodeInputKeydown);
-    this.scope.add(() => {
-      this.codeInputEl.removeEventListener('keydown', handleCodeInputKeydown);
-    });
+    this.scope.add(
+      listen(this.codeInputEl, 'keydown', (e) => {
+        if ((e as KeyboardEvent).key === 'Enter') {
+          this.submitJoin((e.target as HTMLInputElement).value);
+        }
+      }),
+    );
   }
 
   private bindCopyButton(): void {
-    const handleCopyClick = () => {
-      const code = this.gameCodeEl.textContent ?? '';
-      const url = `${window.location.origin}/?code=${code}`;
-      const copyText =
-        this.deps.copyText ??
-        ((text: string) => navigator.clipboard?.writeText(text));
-      const copyPromise = copyText(url);
+    this.scope.add(
+      listen(this.copyBtn, 'click', () => {
+        const code = this.gameCodeEl.textContent ?? '';
+        const url = `${window.location.origin}/?code=${code}`;
+        const copyText =
+          this.deps.copyText ??
+          ((text: string) => navigator.clipboard?.writeText(text));
+        const copyPromise = copyText(url);
 
-      void copyPromise
-        ?.then(() => {
-          this.copyButtonTextSignal.value = 'Copied!';
+        void copyPromise
+          ?.then(() => {
+            this.copyButtonTextSignal.value = 'Copied!';
 
-          if (this.copyResetTimer !== null) {
-            window.clearTimeout(this.copyResetTimer);
-          }
+            if (this.copyResetTimer !== null) {
+              window.clearTimeout(this.copyResetTimer);
+            }
 
-          this.copyResetTimer = window.setTimeout(() => {
-            this.copyButtonTextSignal.value = 'Copy Link';
-            this.copyResetTimer = null;
-          }, 2000);
-        })
-        .catch(() => {});
-    };
-
-    this.copyBtn.addEventListener('click', handleCopyClick);
-    this.scope.add(() => {
-      this.copyBtn.removeEventListener('click', handleCopyClick);
-    });
+            this.copyResetTimer = window.setTimeout(() => {
+              this.copyButtonTextSignal.value = 'Copy Link';
+              this.copyResetTimer = null;
+            }, 2000);
+          })
+          .catch(() => {});
+      }),
+    );
   }
 
   private buildScenarioList(): void {
@@ -223,36 +205,31 @@ export class LobbyView {
       this.scenarioListEl.appendChild(btn);
     }
 
-    const handleScenarioClick = (event: MouseEvent) => {
-      const button = (event.target as HTMLElement).closest<HTMLElement>(
-        '.btn-scenario',
-      );
-      const scenario = button?.dataset.scenario;
+    this.scope.add(
+      listen(this.scenarioListEl, 'click', (event) => {
+        const button = (event.target as HTMLElement).closest<HTMLElement>(
+          '.btn-scenario',
+        );
+        const scenario = button?.dataset.scenario;
 
-      if (!scenario) {
-        return;
-      }
+        if (!scenario) return;
 
-      if (this.pendingAIGameSignal.peek()) {
-        this.pendingAIGameSignal.value = false;
+        if (this.pendingAIGameSignal.peek()) {
+          this.pendingAIGameSignal.value = false;
+          this.deps.emit({
+            type: 'startSinglePlayer',
+            scenario,
+            difficulty: this.aiDifficultySignal.peek(),
+          });
+          return;
+        }
+
         this.deps.emit({
-          type: 'startSinglePlayer',
+          type: 'selectScenario',
           scenario,
-          difficulty: this.aiDifficultySignal.peek(),
         });
-        return;
-      }
-
-      this.deps.emit({
-        type: 'selectScenario',
-        scenario,
-      });
-    };
-
-    this.scenarioListEl.addEventListener('click', handleScenarioClick);
-    this.scope.add(() => {
-      this.scenarioListEl.removeEventListener('click', handleScenarioClick);
-    });
+      }),
+    );
   }
 
   dispose(): void {

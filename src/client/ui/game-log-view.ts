@@ -3,7 +3,7 @@ import type {
   MovementEvent,
   Ship,
 } from '../../shared/types/domain';
-import { byId, clearHTML, el } from '../dom';
+import { byId, clearHTML, el, listen } from '../dom';
 import { computed, createDisposalScope, effect, signal } from '../reactive';
 import {
   formatCombatResultEntries,
@@ -227,48 +227,37 @@ export class GameLogView {
   }
 
   private bindChatInput(): void {
-    const handleChatInput = (event: KeyboardEvent) => {
-      event.stopPropagation();
+    this.scope.add(
+      listen(this.chatInput, 'keydown', (event) => {
+        event.stopPropagation();
+        const ke = event as KeyboardEvent;
 
-      if (event.key !== 'Enter') {
-        return;
-      }
+        if (ke.key !== 'Enter') return;
 
-      const text = this.chatInput.value.trim();
-      if (!text) {
-        return;
-      }
+        const text = this.chatInput.value.trim();
+        if (!text) return;
 
-      this.deps.onChat(text);
-      this.chatInput.value = '';
-    };
-
-    this.chatInput.addEventListener('keydown', handleChatInput);
-    this.scope.add(() => {
-      this.chatInput.removeEventListener('keydown', handleChatInput);
-    });
+        this.deps.onChat(text);
+        this.chatInput.value = '';
+      }),
+    );
   }
 
   private bindLogControls(): void {
-    const handleLatestBarClick = () => {
-      this.expand();
-    };
-    this.logLatestBar.addEventListener('click', handleLatestBarClick);
-    this.scope.add(() => {
-      this.logLatestBar.removeEventListener('click', handleLatestBarClick);
-    });
+    this.scope.add(
+      listen(this.logLatestBar, 'click', () => {
+        this.expand();
+      }),
+    );
 
-    const handleLogClick = (e: MouseEvent) => {
-      if ((e.target as HTMLElement).closest('.chat-input')) {
-        return;
-      }
-
-      this.collapse();
-    };
-    this.gameLogEl.addEventListener('click', handleLogClick);
-    this.scope.add(() => {
-      this.gameLogEl.removeEventListener('click', handleLogClick);
-    });
+    this.scope.add(
+      listen(this.gameLogEl, 'click', (e) => {
+        if ((e.target as HTMLElement).closest('.chat-input')) {
+          return;
+        }
+        this.collapse();
+      }),
+    );
   }
 
   private scrollToBottom(): void {

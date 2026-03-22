@@ -95,34 +95,6 @@ behavior for the covered flow.
 `src/client/game/session-controller.ts`,
 `src/client/main.ts`
 
-### Reduce UI binding boilerplate
-
-Trim the repetitive event-binding and pass-through wiring in
-the imperative UI layer without introducing a heavyweight UI
-framework.
-
-The current view classes are functional, but they still pay
-too much ceremony for `addEventListener` / cleanup pairs,
-simple button forwarding, and repetitive disposal-scoped
-handler setup. A small local helper layer should reduce that
-cost while preserving explicit ownership.
-
-Near-term slice: add a disposal-aware event-binding helper and
-use it in the lobby, HUD, and other long-lived views that still
-repeat manual bind / unbind pairs.
-
-Definition of done: UI views use a shared disposal-aware
-event-binding helper (or equivalent local utility) for the
-common add/remove-listener pattern, and the affected classes
-become materially shorter or simpler without hiding control
-flow.
-
-**Files:** `src/client/ui/ui.ts`,
-`src/client/ui/lobby-view.ts`,
-`src/client/ui/fleet-building-view.ts`,
-`src/client/ui/hud-chrome-view.ts`,
-shared UI helper module(s)
-
 ### Narrow the `UIManager` surface
 
 Reduce pass-through verbosity in `UIManager` so it remains a
