@@ -3,6 +3,7 @@ import { SHIP_STATS } from '../constants';
 import { hexEqual } from '../hex';
 import type { GameState, Ship, SolarSystemMap, TransferOrder } from '../types';
 import { shouldEnterCombatPhase } from './combat';
+import type { EngineEvent } from './engine-events';
 import { validatePhaseAction } from './util';
 import { advanceTurn, checkGameEnd } from './victory';
 export interface TransferPair {
@@ -161,17 +162,22 @@ export const processLogistics = (
 ):
   | {
       state: GameState;
+      engineEvents: EngineEvent[];
     }
   | {
       error: string;
     } => {
   const state = structuredClone(inputState);
+  const engineEvents: EngineEvent[] = [];
+
   const phaseError = validatePhaseAction(state, playerId, 'logistics');
   if (phaseError) return { error: phaseError };
+
   for (const transfer of transfers) {
     const error = validateTransfer(state, playerId, transfer);
     if (error) return { error };
   }
+
   // Apply transfers
   for (const transfer of transfers) {
     const source = must(
@@ -180,24 +186,45 @@ export const processLogistics = (
     const target = must(
       state.ships.find((s) => s.id === transfer.targetShipId),
     );
+
     if (transfer.transferType === 'fuel') {
       source.fuel -= transfer.amount;
       target.fuel += transfer.amount;
+      engineEvents.push({
+        type: 'fuelTransferred',
+        fromShipId: source.id,
+        toShipId: target.id,
+        amount: transfer.amount,
+      });
     } else {
       source.cargoUsed -= transfer.amount;
       target.cargoUsed += transfer.amount;
+      engineEvents.push({
+        type: 'cargoTransferred',
+        fromShipId: source.id,
+        toShipId: target.id,
+        amount: transfer.amount,
+      });
     }
   }
+
   // Continue to combat or advance turn
   if (shouldEnterCombatPhase(state, map)) {
     state.phase = 'combat';
+    engineEvents.push({
+      type: 'phaseChanged',
+      phase: 'combat',
+      turn: state.turnNumber,
+      activePlayer: state.activePlayer,
+    });
   } else {
-    checkGameEnd(state, map);
+    checkGameEnd(state, map, engineEvents);
     if (state.winner === null) {
-      advanceTurn(state);
+      advanceTurn(state, engineEvents);
     }
   }
-  return { state };
+
+  return { state, engineEvents };
 };
 /**
  * Skip logistics phase without making transfers.
@@ -209,22 +236,33 @@ export const skipLogistics = (
 ):
   | {
       state: GameState;
+      engineEvents: EngineEvent[];
     }
   | {
       error: string;
     } => {
   const state = structuredClone(inputState);
+  const engineEvents: EngineEvent[] = [];
+
   const phaseError = validatePhaseAction(state, playerId, 'logistics');
   if (phaseError) return { error: phaseError };
+
   if (shouldEnterCombatPhase(state, map)) {
     state.phase = 'combat';
+    engineEvents.push({
+      type: 'phaseChanged',
+      phase: 'combat',
+      turn: state.turnNumber,
+      activePlayer: state.activePlayer,
+    });
   } else {
-    checkGameEnd(state, map);
+    checkGameEnd(state, map, engineEvents);
     if (state.winner === null) {
-      advanceTurn(state);
+      advanceTurn(state, engineEvents);
     }
   }
-  return { state };
+
+  return { state, engineEvents };
 };
 /**
  * Process surrender declarations during
@@ -237,22 +275,29 @@ export const processSurrender = (
 ):
   | {
       state: GameState;
+      engineEvents: EngineEvent[];
     }
   | {
       error: string;
     } => {
   const state = structuredClone(inputState);
+  const engineEvents: EngineEvent[] = [];
+
   const phaseError = validatePhaseAction(state, playerId, 'astrogation');
   if (phaseError) return { error: phaseError };
+
   if (!state.scenarioRules.logisticsEnabled) {
     return {
       error: 'Logistics not enabled for this scenario',
     };
   }
+
   for (const shipId of shipIds) {
     const ship = state.ships.find((s) => s.id === shipId);
     if (!ship) {
-      return { error: `Ship ${shipId} not found` };
+      return {
+        error: `Ship ${shipId} not found`,
+      };
     }
     if (ship.owner !== playerId) {
       return {
@@ -275,9 +320,15 @@ export const processSurrender = (
       };
     }
   }
+
   for (const shipId of shipIds) {
     const ship = must(state.ships.find((s) => s.id === shipId));
     ship.control = 'surrendered';
+    engineEvents.push({
+      type: 'shipSurrendered',
+      shipId,
+    });
   }
-  return { state };
+
+  return { state, engineEvents };
 };

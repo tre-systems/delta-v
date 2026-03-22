@@ -14,6 +14,7 @@ import {
 } from '../hex';
 import type { GameState, MovementEvent, Ship, SolarSystemMap } from '../types';
 import { count } from '../util';
+import type { EngineEvent } from './engine-events';
 import {
   getEscapeEdge,
   hasEscaped,
@@ -27,7 +28,10 @@ import {
  * combat/resupply. Handles damage recovery and
  * turn counter.
  */
-export const advanceTurn = (state: GameState): void => {
+export const advanceTurn = (
+  state: GameState,
+  engineEvents?: EngineEvent[],
+): void => {
   for (const ship of state.ships) {
     if (ship.owner !== state.activePlayer) continue;
     if (ship.lifecycle === 'destroyed') continue;
@@ -52,6 +56,18 @@ export const advanceTurn = (state: GameState): void => {
   applyFleetConversion(state);
 
   state.phase = 'astrogation';
+
+  engineEvents?.push({
+    type: 'turnAdvanced',
+    turn: state.turnNumber,
+    activePlayer: state.activePlayer,
+  });
+  engineEvents?.push({
+    type: 'phaseChanged',
+    phase: 'astrogation',
+    turn: state.turnNumber,
+    activePlayer: state.activePlayer,
+  });
 };
 
 const getNextShipId = (state: GameState): string => {
@@ -127,6 +143,7 @@ export const applyCheckpoints = (
   playerId: number,
   path: HexCoord[],
   map: SolarSystemMap,
+  engineEvents?: EngineEvent[],
 ): void => {
   const checkpoints = state.scenarioRules.checkpointBodies;
   const visited = state.players[playerId].visitedBodies;
@@ -144,6 +161,11 @@ export const applyCheckpoints = (
       !visited.includes(bodyName)
     ) {
       visited.push(bodyName);
+      engineEvents?.push({
+        type: 'checkpointVisited',
+        playerId,
+        body: bodyName,
+      });
     }
   }
 };
@@ -192,6 +214,7 @@ const hasReturnedCapturedFugitivesToBase = (
 export const checkImmediateVictory = (
   state: GameState,
   map?: SolarSystemMap,
+  engineEvents?: EngineEvent[],
 ): void => {
   if (!map) return;
 
@@ -218,6 +241,11 @@ export const checkImmediateVictory = (
         state.winner = ship.owner;
         state.winReason = `Grand Tour complete! Visited all ${state.scenarioRules.checkpointBodies.length} bodies.`;
         state.phase = 'gameOver';
+        engineEvents?.push({
+          type: 'gameOver',
+          winner: state.winner,
+          reason: state.winReason,
+        });
         return;
       }
     }
@@ -235,6 +263,11 @@ export const checkImmediateVictory = (
       state.winner = ship.owner;
       state.winReason = `Landed on ${targetBody}!`;
       state.phase = 'gameOver';
+      engineEvents?.push({
+        type: 'gameOver',
+        winner: state.winner,
+        reason: state.winReason,
+      });
       return;
     }
   }
@@ -266,6 +299,11 @@ export const checkImmediateVictory = (
     }
 
     state.phase = 'gameOver';
+    engineEvents?.push({
+      type: 'gameOver',
+      winner: state.winner,
+      reason: state.winReason ?? '',
+    });
     return;
   }
 };
@@ -277,8 +315,12 @@ export const getFugitiveShip = (state: GameState): Ship | undefined =>
  * Check if the game has ended (victory or all ships
  * destroyed).
  */
-export const checkGameEnd = (state: GameState, map?: SolarSystemMap): void => {
-  checkImmediateVictory(state, map);
+export const checkGameEnd = (
+  state: GameState,
+  map?: SolarSystemMap,
+  engineEvents?: EngineEvent[],
+): void => {
+  checkImmediateVictory(state, map, engineEvents);
 
   if (state.winner !== null) {
     return;
@@ -299,6 +341,11 @@ export const checkGameEnd = (state: GameState, map?: SolarSystemMap): void => {
           'Enforcers marginal victory — the fugitive transport was destroyed.';
       }
       state.phase = 'gameOver';
+      engineEvents?.push({
+        type: 'gameOver',
+        winner: state.winner,
+        reason: state.winReason,
+      });
       return;
     }
 
@@ -315,6 +362,11 @@ export const checkGameEnd = (state: GameState, map?: SolarSystemMap): void => {
           'Enforcers decisive victory — the fugitives were captured and returned to base.';
       }
       state.phase = 'gameOver';
+      engineEvents?.push({
+        type: 'gameOver',
+        winner: state.winner,
+        reason: state.winReason,
+      });
       return;
     }
 
@@ -334,6 +386,11 @@ export const checkGameEnd = (state: GameState, map?: SolarSystemMap): void => {
     state.winner = 1 - state.activePlayer;
     state.winReason = 'Mutual destruction — last attacker loses!';
     state.phase = 'gameOver';
+    engineEvents?.push({
+      type: 'gameOver',
+      winner: state.winner,
+      reason: state.winReason,
+    });
     return;
   }
 
@@ -341,6 +398,11 @@ export const checkGameEnd = (state: GameState, map?: SolarSystemMap): void => {
     state.winner = 1;
     state.winReason = 'Fleet eliminated!';
     state.phase = 'gameOver';
+    engineEvents?.push({
+      type: 'gameOver',
+      winner: state.winner,
+      reason: state.winReason,
+    });
     return;
   }
 
@@ -348,6 +410,11 @@ export const checkGameEnd = (state: GameState, map?: SolarSystemMap): void => {
     state.winner = 0;
     state.winReason = 'Fleet eliminated!';
     state.phase = 'gameOver';
+    engineEvents?.push({
+      type: 'gameOver',
+      winner: state.winner,
+      reason: state.winReason,
+    });
     return;
   }
 };
@@ -386,6 +453,7 @@ export const checkRamming = (
   state: GameState,
   events: MovementEvent[],
   rng: () => number,
+  engineEvents?: EngineEvent[],
 ): void => {
   const alive = state.ships.filter((s) => s.lifecycle !== 'destroyed');
 
@@ -406,6 +474,7 @@ export const checkRamming = (
       for (const ship of [a, b]) {
         if (ship.lifecycle === 'destroyed') continue;
 
+        const otherShip = ship === a ? b : a;
         const dieRoll = rollD6(rng);
         const result = lookupOtherDamage(dieRoll, 'ram');
 
@@ -418,7 +487,25 @@ export const checkRamming = (
           disabledTurns: result.disabledTurns,
         });
 
+        engineEvents?.push({
+          type: 'ramming',
+          shipId: ship.id,
+          otherShipId: otherShip.id,
+          hex: ship.position,
+          roll: dieRoll,
+          damageType: result.type,
+          disabledTurns: result.disabledTurns,
+        });
+
         applyDamage(ship, result);
+
+        if ((ship.lifecycle as string) === 'destroyed') {
+          engineEvents?.push({
+            type: 'shipDestroyed',
+            shipId: ship.id,
+            cause: 'ramming',
+          });
+        }
       }
     }
   }
@@ -428,7 +515,11 @@ export const checkRamming = (
  * Reveal hidden-identity ships when an enemy matches
  * courses with them.
  */
-export const checkInspection = (state: GameState, playerId: number): void => {
+export const checkInspection = (
+  state: GameState,
+  playerId: number,
+  engineEvents?: EngineEvent[],
+): void => {
   if (!usesEscapeInspectionRules(state)) return;
 
   const inspectingShips = state.ships.filter(
@@ -443,7 +534,9 @@ export const checkInspection = (state: GameState, playerId: number): void => {
       if (target.owner === playerId || target.lifecycle === 'destroyed') {
         continue;
       }
-      if (!target.identity || target.identity.revealed) continue;
+      if (!target.identity || target.identity.revealed) {
+        continue;
+      }
       if (!hexEqual(inspector.position, target.position)) {
         continue;
       }
@@ -455,6 +548,10 @@ export const checkInspection = (state: GameState, playerId: number): void => {
       }
 
       target.identity.revealed = true;
+      engineEvents?.push({
+        type: 'identityRevealed',
+        shipId: target.id,
+      });
     }
   }
 };
@@ -467,6 +564,7 @@ export const checkCapture = (
   state: GameState,
   playerId: number,
   events: MovementEvent[],
+  engineEvents?: EngineEvent[],
 ): void => {
   const playerShips = state.ships.filter(
     (s) =>
@@ -494,7 +592,9 @@ export const checkCapture = (
 
       target.control = 'captured';
       target.owner = playerId;
-      if (target.identity) target.identity.revealed = true;
+      if (target.identity) {
+        target.identity.revealed = true;
+      }
 
       events.push({
         type: 'capture',
@@ -504,6 +604,12 @@ export const checkCapture = (
         damageType: 'captured',
         disabledTurns: 0,
         capturedBy: captor.id,
+      });
+
+      engineEvents?.push({
+        type: 'shipCaptured',
+        shipId: target.id,
+        capturedBy: playerId,
       });
     }
   }
@@ -516,6 +622,7 @@ export const checkCapture = (
 export const checkOrbitalBaseResupply = (
   state: GameState,
   playerId: number,
+  engineEvents?: EngineEvent[],
 ): void => {
   const orbitalBases = state.ships.filter(
     (s) =>
@@ -556,6 +663,10 @@ export const checkOrbitalBaseResupply = (
         ship.control = 'own';
         ship.resuppliedThisTurn = true;
         ob.resuppliedThisTurn = true;
+        engineEvents?.push({
+          type: 'shipResupplied',
+          shipId: ship.id,
+        });
       }
 
       break;
@@ -570,6 +681,7 @@ export const applyResupply = (
   ship: Ship,
   state: GameState,
   map: SolarSystemMap,
+  engineEvents?: EngineEvent[],
 ): void => {
   const baseKey = hexKey(ship.position);
   const hex = map.hexes.get(baseKey);
@@ -592,6 +704,10 @@ export const applyResupply = (
     ship.damage = { disabledTurns: 0 };
     ship.control = 'own';
     ship.resuppliedThisTurn = true;
+    engineEvents?.push({
+      type: 'shipResupplied',
+      shipId: ship.id,
+    });
   }
 };
 

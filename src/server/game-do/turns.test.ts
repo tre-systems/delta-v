@@ -71,7 +71,7 @@ describe('game-do-turns', () => {
     expect(types).toContain('phaseChanged');
   });
 
-  it('includes movementResolved event for astrogation', () => {
+  it('includes shipMoved events for astrogation', () => {
     const state = createState();
     const map = buildSolarSystemMap();
     const outcome = resolveTurnTimeoutOutcome(state, map);
@@ -79,9 +79,9 @@ describe('game-do-turns', () => {
     expect(outcome).not.toBeNull();
 
     const movementEvents = outcome?.events.filter(
-      (e) => e.type === 'movementResolved',
+      (e) => e.type === 'shipMoved',
     );
-    expect(movementEvents).toHaveLength(1);
+    expect(movementEvents?.length).toBeGreaterThan(0);
   });
 
   it('includes combatResolved event for combat timeout', () => {

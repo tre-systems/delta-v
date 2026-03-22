@@ -8,6 +8,7 @@ import type {
   SolarSystemMap,
 } from '../types';
 import { shouldEnterCombatPhase } from './combat';
+import type { EngineEvent } from './engine-events';
 import type { MovementResult } from './game-engine';
 import { shouldEnterLogisticsPhase } from './logistics';
 import { moveOrdnance, queueAsteroidHazards } from './ordnance';
@@ -65,28 +66,36 @@ export const resolveMovementPhase = (
   const movements: ShipMovement[] = [];
   const ordnanceMovements: OrdnanceMovement[] = [];
   const events: MovementEvent[] = [];
+  const engineEvents: EngineEvent[] = [];
+
   const queuedOrders = new Map(
     (state.pendingAstrogationOrders ?? []).map(
       (order) => [order.shipId, order] as const,
     ),
   );
   state.pendingAstrogationOrders = null;
+
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
     if (ship.lifecycle === 'destroyed') continue;
     if (ship.baseStatus === 'emplaced') continue;
+
     const isDisabled = ship.damage.disabledTurns > 0;
     const order = queuedOrders.get(ship.id);
     const burn = isDisabled ? null : (order?.burn ?? null);
     const overload = isDisabled ? null : (order?.overload ?? null);
+
+    const from = { ...ship.position };
+
     const course = computeCourse(ship, burn, map, {
       overload,
       weakGravityChoices: order?.weakGravityChoices,
       destroyedBases: state.destroyedBases,
     });
+
     movements.push({
       shipId: ship.id,
-      from: { ...ship.position },
+      from,
       to: course.destination,
       path: course.path,
       newVelocity: course.newVelocity,
@@ -95,31 +104,49 @@ export const resolveMovementPhase = (
       crashed: course.crashed,
       landedAt: course.landedAt,
     });
+
     ship.position = course.destination;
     ship.lastMovementPath = course.path.map((hex) => ({ ...hex }));
     ship.velocity = course.newVelocity;
     ship.fuel -= course.fuelSpent;
+
     if (overload !== null) {
       ship.overloadUsed = true;
     }
+
     ship.lifecycle = course.landedAt !== null ? 'landed' : 'active';
     ship.pendingGravityEffects = course.landedAt
       ? []
-      : course.enteredGravityEffects.map((effect) => ({
-          ...effect,
-        }));
+      : course.enteredGravityEffects.map((effect) => ({ ...effect }));
+
+    engineEvents.push({
+      type: 'shipMoved',
+      shipId: ship.id,
+      from,
+      to: course.destination,
+      fuelSpent: course.fuelSpent,
+      newVelocity: course.newVelocity,
+    });
+
     if (course.landedAt) {
       ship.velocity = { dq: 0, dr: 0 };
-      applyResupply(ship, state, map);
+      applyResupply(ship, state, map, engineEvents);
+      engineEvents.push({
+        type: 'shipLanded',
+        shipId: ship.id,
+      });
     }
+
     if (course.crashed) {
       ship.lifecycle = 'destroyed';
       ship.velocity = { dq: 0, dr: 0 };
       ship.pendingGravityEffects = [];
+
       const crashHex =
         course.path.find(
           (hex, idx) => idx > 0 && map.hexes.get(hexKey(hex))?.body,
         ) ?? course.destination;
+
       events.push({
         type: 'crash',
         shipId: ship.id,
@@ -128,18 +155,31 @@ export const resolveMovementPhase = (
         damageType: 'eliminated',
         disabledTurns: 0,
       });
+
+      engineEvents.push({
+        type: 'shipCrashed',
+        shipId: ship.id,
+        hex: crashHex,
+      });
+      engineEvents.push({
+        type: 'shipDestroyed',
+        shipId: ship.id,
+        cause: 'crash',
+      });
     }
+
     if (ship.lifecycle !== 'destroyed') {
       queueAsteroidHazards(ship, course.path, course.newVelocity, state, map);
     }
   }
+
   // Track checkpoint visits and fuel for race
   // scenarios
   if (state.scenarioRules.checkpointBodies) {
     for (const m of movements) {
       const ship = state.ships.find((s) => s.id === m.shipId);
       if (ship && ship.lifecycle !== 'destroyed') {
-        applyCheckpoints(state, ship.owner, m.path, map);
+        applyCheckpoints(state, ship.owner, m.path, map, engineEvents);
         const totalFuelSpent = state.players[ship.owner].totalFuelSpent;
         if (totalFuelSpent !== undefined) {
           state.players[ship.owner].totalFuelSpent =
@@ -148,30 +188,46 @@ export const resolveMovementPhase = (
       }
     }
   }
-  checkOrbitalBaseResupply(state, playerId);
-  checkInspection(state, playerId);
-  checkCapture(state, playerId, events);
-  checkRamming(state, events, rng);
-  moveOrdnance(state, map, ordnanceMovements, events, rng);
+
+  checkOrbitalBaseResupply(state, playerId, engineEvents);
+  checkInspection(state, playerId, engineEvents);
+  checkCapture(state, playerId, events, engineEvents);
+  checkRamming(state, events, rng, engineEvents);
+  moveOrdnance(state, map, ordnanceMovements, events, rng, engineEvents);
   applyDetection(state, map);
   applyEscapeMoralVictory(state);
-  checkImmediateVictory(state, map);
+  checkImmediateVictory(state, map, engineEvents);
+
   if (state.winner === null) {
     if (shouldEnterLogisticsPhase(state)) {
       state.phase = 'logistics';
+      engineEvents.push({
+        type: 'phaseChanged',
+        phase: 'logistics',
+        turn: state.turnNumber,
+        activePlayer: state.activePlayer,
+      });
     } else if (shouldEnterCombatPhase(state, map)) {
       state.phase = 'combat';
+      engineEvents.push({
+        type: 'phaseChanged',
+        phase: 'combat',
+        turn: state.turnNumber,
+        activePlayer: state.activePlayer,
+      });
     } else {
-      checkGameEnd(state, map);
+      checkGameEnd(state, map, engineEvents);
       if (state.winner === null) {
-        advanceTurn(state);
+        advanceTurn(state, engineEvents);
       }
     }
   }
+
   return {
     movements,
     ordnanceMovements,
     events,
+    engineEvents,
     state,
   };
 };

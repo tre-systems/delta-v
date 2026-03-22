@@ -22,6 +22,7 @@ import type {
   SolarSystemMap,
 } from '../types';
 import { sumBy } from '../util';
+import type { EngineEvent } from './engine-events';
 import { resolvePendingAsteroidHazards } from './ordnance';
 import {
   getOwnedPlanetaryBases,
@@ -34,6 +35,7 @@ import { advanceTurn, applyEscapeMoralVictory, checkGameEnd } from './victory';
 export interface CombatPhaseResult {
   results: CombatResult[];
   state: GameState;
+  engineEvents: EngineEvent[];
 }
 
 const toCombatResult = (r: CombatResolution): CombatResult => ({
@@ -194,6 +196,18 @@ const shouldRemainInCombatPhase = (
   );
 };
 
+const combatResultToEvent = (r: CombatResult): EngineEvent => ({
+  type: 'combatAttack',
+  attackerIds: r.attackerIds,
+  targetId: r.targetId,
+  targetType: r.targetType,
+  attackType: r.attackType,
+  roll: r.dieRoll,
+  modifiedRoll: r.modifiedRoll,
+  damageType: r.damageType,
+  disabledTurns: r.disabledTurns,
+});
+
 /**
  * Resolve automatic combat-step effects that happen
  * before attack declarations.
@@ -203,31 +217,52 @@ export const beginCombatPhase = (
   playerId: number,
   map: SolarSystemMap,
   rng: () => number,
-): CombatPhaseResult | { state: GameState } | { error: string } => {
+):
+  | CombatPhaseResult
+  | { state: GameState; engineEvents: EngineEvent[] }
+  | { error: string } => {
   const state = structuredClone(inputState);
+  const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'combat');
   if (phaseError) return { error: phaseError };
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
+  for (const r of results) {
+    engineEvents.push(combatResultToEvent(r));
+    if (r.damageType === 'eliminated') {
+      engineEvents.push({
+        type: 'shipDestroyed',
+        shipId: r.targetId,
+        cause: r.attackType,
+      });
+    }
+  }
+
   applyEscapeMoralVictory(state);
 
   if (map) {
-    checkGameEnd(state, map);
+    checkGameEnd(state, map, engineEvents);
   }
 
   if (state.winner !== null) {
-    return results.length > 0 ? { results, state } : { state };
+    return results.length > 0
+      ? { results, state, engineEvents }
+      : { state, engineEvents };
   }
 
   if (!shouldRemainInCombatPhase(state, map)) {
-    advanceTurn(state);
+    advanceTurn(state, engineEvents);
 
-    return results.length > 0 ? { results, state } : { state };
+    return results.length > 0
+      ? { results, state, engineEvents }
+      : { state, engineEvents };
   }
 
-  return results.length > 0 ? { results, state } : { state };
+  return results.length > 0
+    ? { results, state, engineEvents }
+    : { state, engineEvents };
 };
 
 /**
@@ -241,20 +276,34 @@ export const processCombat = (
   rng: () => number,
 ): CombatPhaseResult | { error: string } => {
   const state = structuredClone(inputState);
+  const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'combat');
   if (phaseError) return { error: phaseError };
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
+  for (const r of results) {
+    engineEvents.push(combatResultToEvent(r));
+    if (r.damageType === 'eliminated') {
+      engineEvents.push({
+        type: 'shipDestroyed',
+        shipId: r.targetId,
+        cause: r.attackType,
+      });
+    }
+  }
+
   applyEscapeMoralVictory(state);
 
   if (state.winner === null) {
-    checkGameEnd(state, map);
+    checkGameEnd(state, map, engineEvents);
   }
   if (state.winner !== null) {
-    return { results, state };
+    return { results, state, engineEvents };
   }
+
+  const hazardCount = results.length;
 
   if (state.scenarioRules.combatDisabled && attacks.length > 0) {
     return {
@@ -456,14 +505,26 @@ export const processCombat = (
 
   state.ordnance = state.ordnance.filter((o) => o.lifecycle !== 'destroyed');
 
-  applyEscapeMoralVictory(state);
-  checkGameEnd(state, map);
-
-  if (state.winner === null) {
-    advanceTurn(state);
+  for (let i = hazardCount; i < results.length; i++) {
+    const r = results[i];
+    engineEvents.push(combatResultToEvent(r));
+    if (r.damageType === 'eliminated') {
+      engineEvents.push({
+        type: 'shipDestroyed',
+        shipId: r.targetId,
+        cause: r.attackType,
+      });
+    }
   }
 
-  return { results, state };
+  applyEscapeMoralVictory(state);
+  checkGameEnd(state, map, engineEvents);
+
+  if (state.winner === null) {
+    advanceTurn(state, engineEvents);
+  }
+
+  return { results, state, engineEvents };
 };
 
 /**
@@ -474,37 +535,66 @@ export const skipCombat = (
   playerId: number,
   map: SolarSystemMap,
   rng: () => number,
-): { state: GameState; results?: CombatResult[] } | { error: string } => {
+):
+  | { state: GameState; results?: CombatResult[]; engineEvents: EngineEvent[] }
+  | { error: string } => {
   const state = structuredClone(inputState);
+  const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'combat');
   if (phaseError) return { error: phaseError };
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
+  for (const r of results) {
+    engineEvents.push(combatResultToEvent(r));
+    if (r.damageType === 'eliminated') {
+      engineEvents.push({
+        type: 'shipDestroyed',
+        shipId: r.targetId,
+        cause: r.attackType,
+      });
+    }
+  }
+
   applyEscapeMoralVictory(state);
 
   if (map) {
-    checkGameEnd(state, map);
+    checkGameEnd(state, map, engineEvents);
   }
 
   if (state.winner !== null) {
-    return results.length > 0 ? { state, results } : { state };
+    return results.length > 0
+      ? { state, results, engineEvents }
+      : { state, engineEvents };
   }
 
   if (map && isPlanetaryDefenseEnabled(state)) {
     const baseResults = resolveBaseDefense(state, playerId, map, rng);
 
+    for (const r of baseResults) {
+      engineEvents.push(combatResultToEvent(r));
+      if (r.damageType === 'eliminated') {
+        engineEvents.push({
+          type: 'shipDestroyed',
+          shipId: r.targetId,
+          cause: r.attackType,
+        });
+      }
+    }
+
     results.push(...baseResults);
     applyEscapeMoralVictory(state);
-    checkGameEnd(state, map);
+    checkGameEnd(state, map, engineEvents);
   }
 
   if (state.winner === null) {
-    advanceTurn(state);
+    advanceTurn(state, engineEvents);
   }
 
-  return results.length > 0 ? { state, results } : { state };
+  return results.length > 0
+    ? { state, results, engineEvents }
+    : { state, engineEvents };
 };
 
 /**
