@@ -1,5 +1,6 @@
 import { SHIP_STATS } from '../constants';
 import type { FleetPurchase, GameState, Ship, SolarSystemMap } from '../types';
+import type { EngineEvent } from './engine-events';
 import type { StateUpdateResult } from './game-engine';
 import { getOwnedPlanetaryBases } from './util';
 
@@ -19,6 +20,8 @@ export const processFleetReady = (
       error: string;
     } => {
   const state = structuredClone(inputState);
+  const engineEvents: EngineEvent[] = [];
+
   if (state.phase !== 'fleetBuilding') {
     return { error: 'Not in fleet building phase' };
   }
@@ -101,9 +104,25 @@ export const processFleetReady = (
   }
   player.credits = credits - totalCost;
   player.ready = true;
+
+  engineEvents.push({
+    type: 'fleetPurchased',
+    playerId,
+    shipTypes: purchases.map((p) => p.shipType),
+  });
+
   const otherPlayer = state.players[1 - playerId];
+
   if (otherPlayer.ready) {
     state.phase = 'astrogation';
   }
-  return { state };
+
+  engineEvents.push({
+    type: 'phaseChanged',
+    phase: state.phase,
+    turn: state.turnNumber,
+    activePlayer: state.activePlayer,
+  });
+
+  return { state, engineEvents };
 };

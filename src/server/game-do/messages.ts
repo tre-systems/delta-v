@@ -1,10 +1,8 @@
-import { must } from '../../shared/assert';
 import type {
   CombatPhaseResult,
   MovementResult,
   StateUpdateResult,
 } from '../../shared/engine/game-engine';
-import type { GameEvent } from '../../shared/events';
 import type { CombatResult, GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 export type StatefulServerMessage = Extract<
@@ -84,85 +82,4 @@ export const resolveCombatBroadcast = (
   return fallback === 'stateUpdate'
     ? toStateUpdateMessage(result.state)
     : undefined;
-};
-// --- Event log derivation ---
-export const deriveMovementEvents = (
-  result: MovementResolution,
-): GameEvent[] => {
-  const { state } = result;
-  const events: GameEvent[] = [];
-  if ('movements' in result) {
-    events.push({
-      type: 'movementResolved',
-      turn: state.turnNumber,
-      phase: state.phase,
-      activePlayer: state.activePlayer,
-      movements: result.movements,
-      ordnanceMovements: result.ordnanceMovements,
-      events: result.events,
-    });
-  }
-  events.push({
-    type: 'phaseChanged',
-    turn: state.turnNumber,
-    phase: state.phase,
-    activePlayer: state.activePlayer,
-  });
-  if (state.phase === 'gameOver') {
-    events.push({
-      type: 'gameOver',
-      turn: state.turnNumber,
-      winner: must(state.winner),
-      reason: must(state.winReason),
-    });
-  }
-  return events;
-};
-export const deriveCombatEvents = (result: CombatResolution): GameEvent[] => {
-  const { state } = result;
-  const results = 'results' in result ? result.results : undefined;
-  const events: GameEvent[] = [];
-  if (results && results.length > 0) {
-    events.push({
-      type: 'combatResolved',
-      turn: state.turnNumber,
-      phase: state.phase,
-      activePlayer: state.activePlayer,
-      results,
-    });
-  }
-  events.push({
-    type: 'phaseChanged',
-    turn: state.turnNumber,
-    phase: state.phase,
-    activePlayer: state.activePlayer,
-  });
-  if (state.phase === 'gameOver') {
-    events.push({
-      type: 'gameOver',
-      turn: state.turnNumber,
-      winner: must(state.winner),
-      reason: must(state.winReason),
-    });
-  }
-  return events;
-};
-export const derivePhaseChangeEvents = (state: GameState): GameEvent[] => {
-  const events: GameEvent[] = [
-    {
-      type: 'phaseChanged',
-      turn: state.turnNumber,
-      phase: state.phase,
-      activePlayer: state.activePlayer,
-    },
-  ];
-  if (state.phase === 'gameOver') {
-    events.push({
-      type: 'gameOver',
-      turn: state.turnNumber,
-      winner: must(state.winner),
-      reason: must(state.winReason),
-    });
-  }
-  return events;
 };

@@ -4,6 +4,7 @@ import type {
   OrdnanceMovement,
   ShipMovement,
 } from '../types';
+import type { EngineEvent } from './engine-events';
 
 // --- Result types ---
 
@@ -11,11 +12,13 @@ export interface MovementResult {
   movements: ShipMovement[];
   ordnanceMovements: OrdnanceMovement[];
   events: MovementEvent[];
+  engineEvents: EngineEvent[];
   state: GameState;
 }
 
 export interface StateUpdateResult {
   state: GameState;
+  engineEvents: EngineEvent[];
 }
 
 // --- Re-exports: public engine API ---
