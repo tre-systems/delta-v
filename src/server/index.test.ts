@@ -4,7 +4,7 @@ vi.mock('./game-do/game-do', () => ({
   GameDO: class GameDO {},
 }));
 
-import worker, { type Env, hashIp } from './index';
+import worker, { createRateMap, type Env, hashIp } from './index';
 
 type MockDb = ReturnType<typeof mockDb>;
 type MockExecutionContext = ExecutionContext & {
@@ -520,5 +520,84 @@ describe('hashIp', () => {
     const b = await hashIp('10.0.0.2');
 
     expect(a).not.toBe(b);
+  });
+});
+
+describe('/create rate limiting', () => {
+  beforeEach(() => {
+    createRateMap.clear();
+  });
+
+  it('allows up to 5 creates per IP per minute', async () => {
+    const { env } = createEnv();
+    for (let i = 0; i < 5; i++) {
+      const response = await worker.fetch(
+        new Request('https://delta-v.test/create', {
+          method: 'POST',
+          headers: {
+            'cf-connecting-ip': '1.2.3.4',
+          },
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+      expect(response.status).toBe(200);
+    }
+  });
+
+  it('returns 429 after 5 creates from same IP', async () => {
+    const { env } = createEnv();
+    for (let i = 0; i < 5; i++) {
+      await worker.fetch(
+        new Request('https://delta-v.test/create', {
+          method: 'POST',
+          headers: {
+            'cf-connecting-ip': '1.2.3.4',
+          },
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+    }
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'cf-connecting-ip': '1.2.3.4',
+        },
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get('Retry-After')).toBe('60');
+  });
+
+  it('rate limits are independent per IP', async () => {
+    const { env } = createEnv();
+    for (let i = 0; i < 5; i++) {
+      await worker.fetch(
+        new Request('https://delta-v.test/create', {
+          method: 'POST',
+          headers: {
+            'cf-connecting-ip': '1.2.3.4',
+          },
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+    }
+    // Different IP should still succeed
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'cf-connecting-ip': '5.6.7.8',
+        },
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(response.status).toBe(200);
   });
 });

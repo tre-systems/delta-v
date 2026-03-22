@@ -119,6 +119,37 @@ export const hashIp = async (ip: string): Promise<string> => {
     .join('');
 };
 
+// --- /create rate limiter (per-isolate) ---
+
+const CREATE_RATE_WINDOW_MS = 60_000;
+const CREATE_RATE_LIMIT = 5;
+
+export const createRateMap = new Map<
+  string,
+  { count: number; windowStart: number }
+>();
+
+export const isCreateRateLimited = (ipHash: string): boolean => {
+  const now = Date.now();
+  if (createRateMap.size > 1000) {
+    for (const [key, val] of createRateMap) {
+      if (now - val.windowStart >= CREATE_RATE_WINDOW_MS) {
+        createRateMap.delete(key);
+      }
+    }
+  }
+  const entry = createRateMap.get(ipHash);
+  if (!entry || now - entry.windowStart >= CREATE_RATE_WINDOW_MS) {
+    createRateMap.set(ipHash, {
+      count: 1,
+      windowStart: now,
+    });
+    return false;
+  }
+  entry.count++;
+  return entry.count > CREATE_RATE_LIMIT;
+};
+
 // Insert an event row into D1. Fire-and-forget via
 // waitUntil — never blocks the response.
 const insertEvent = async (
@@ -247,6 +278,14 @@ export default {
 
     // Create a new game
     if (url.pathname === '/create' && request.method === 'POST') {
+      const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+      const ipHash = await hashIp(ip);
+      if (isCreateRateLimited(ipHash)) {
+        return new Response('Too many requests', {
+          status: 429,
+          headers: { 'Retry-After': '60' },
+        });
+      }
       return handleCreate(request, env);
     }
 

@@ -497,4 +497,133 @@ describe('GameDO', () => {
       },
     ]);
   });
+
+  it('closes sockets that exceed the message rate limit', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'RATE1',
+      scenario: 'biplanetary',
+      playerTokens: ['A'.repeat(32), null],
+      inviteTokens: [null, null],
+    });
+    await ctx.storage.put('gameState', {
+      phase: 'astrogation',
+    });
+    const ws = {
+      sent: [] as string[],
+      closed: false,
+      closeCode: 0,
+      closeReason: '',
+      send(payload: string) {
+        this.sent.push(payload);
+      },
+      close(code: number, reason: string) {
+        this.closed = true;
+        this.closeCode = code;
+        this.closeReason = reason;
+      },
+    };
+    ctx.acceptWebSocket(ws, ['player:0']);
+    const game = createGameDO(ctx);
+
+    // 10 messages within the same window — allowed
+    for (let i = 0; i < 10; i++) {
+      await game.webSocketMessage(
+        ws as unknown as WebSocket,
+        JSON.stringify({ type: 'ping', t: i }),
+      );
+    }
+    expect(ws.closed).toBe(false);
+
+    // 11th message exceeds rate limit — socket closed
+    await game.webSocketMessage(
+      ws as unknown as WebSocket,
+      JSON.stringify({ type: 'ping', t: 10 }),
+    );
+    expect(ws.closed).toBe(true);
+    expect(ws.closeCode).toBe(1008);
+  });
+
+  it('debounces inactivity storage writes', async () => {
+    const ctx = createCtx();
+    const game = createGameDO(ctx);
+    const touch = (
+      game as unknown as {
+        touchInactivity: () => Promise<void>;
+      }
+    ).touchInactivity.bind(game);
+
+    // First call always flushes (100000 - 0 >= 60000)
+    vi.spyOn(Date, 'now').mockReturnValue(100_000);
+    await touch();
+    const first = await ctx.storage.get<number>('inactivityAt');
+    expect(first).toBeDefined();
+
+    // Second call 10 s later — no storage write
+    vi.spyOn(Date, 'now').mockReturnValue(110_000);
+    await touch();
+    expect(await ctx.storage.get<number>('inactivityAt')).toBe(first);
+
+    // Call after 60 s — flushes again
+    vi.spyOn(Date, 'now').mockReturnValue(170_000);
+    await touch();
+    const updated = await ctx.storage.get<number>('inactivityAt');
+    expect(updated).not.toBe(first);
+    expect(must(updated)).toBeGreaterThan(must(first));
+  });
+
+  it('uses cached inactivity for alarm scheduling', async () => {
+    const ctx = createCtx();
+    const game = createGameDO(ctx);
+    const touch = (
+      game as unknown as {
+        touchInactivity: () => Promise<void>;
+      }
+    ).touchInactivity.bind(game);
+    const getDeadlines = (
+      game as unknown as {
+        getAlarmDeadlines: () => Promise<{
+          inactivityAt?: number;
+        }>;
+      }
+    ).getAlarmDeadlines.bind(game);
+
+    vi.spyOn(Date, 'now').mockReturnValue(100_000);
+    await touch();
+
+    // Touch again without flushing (10 s later)
+    vi.spyOn(Date, 'now').mockReturnValue(110_000);
+    await touch();
+
+    // getAlarmDeadlines should use the cached
+    // (newer) value, not the stale stored one
+    const deadlines = await getDeadlines();
+    const storedValue = await ctx.storage.get<number>('inactivityAt');
+    expect(must(deadlines.inactivityAt)).toBeGreaterThan(must(storedValue));
+  });
+
+  it('chat rate limiting uses in-memory state', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('gameState', {
+      phase: 'astrogation',
+    });
+    const ws = {
+      sent: [] as string[],
+      send(payload: string) {
+        this.sent.push(payload);
+      },
+    };
+    ctx.acceptWebSocket(ws, ['player:0']);
+    const game = createGameDO(ctx);
+
+    // Send a chat message
+    await game.webSocketMessage(
+      ws as unknown as WebSocket,
+      JSON.stringify({ type: 'chat', text: 'hi' }),
+    );
+
+    // Chat rate limit should NOT have written to storage
+    const chatKey = await ctx.storage.get('lastChat:0');
+    expect(chatKey).toBeUndefined();
+  });
 });

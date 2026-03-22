@@ -231,25 +231,52 @@ State belongs to the coordinator that manages its lifecycle, and is passed by re
 
 - **GameState** is owned by `GameClient`, updated via `applyGameState()`. Other modules receive it as function arguments, never as stored references.
 
-### Reactive signals (available, not yet adopted)
+### Reactive signals (adopted selectively in UI)
 
 `src/client/reactive.ts` is a zero-dependency signals library
 (~150 LOC) providing `signal`, `computed`, `effect`, `batch`,
-and DOM helpers (`bindText`, `bindClass`). It has full lifecycle
-management — nested effects auto-dispose on parent re-run,
-computed exposes `dispose()` — and 31 tests including
-property-based coverage.
+DOM helpers (`bindText`, `bindClass`), and
+`createDisposalScope()`. It is now used in the DOM UI layer
+for view-local state and derived DOM synchronization:
+`HUDChromeView`, `GameLogView`, `LobbyView`,
+`FleetBuildingView`, `ShipListView`, and `UIManager`
+ownership/cleanup.
 
-The library is **not currently wired into the UI**. The
-existing derive/plan pattern handles current needs well. Use
-reactive signals when the UI layer grows to a point where
-manual DOM-sync boilerplate becomes a drag — e.g. settings
-panels, lobby state, or rich interactive overlays where
-declarative bindings would reduce wiring code.
+Use `reactive.ts` for **small, local, stateful DOM views**:
+copy, visibility, button state, breakpoint-driven text, and
+other derived UI state that would otherwise be manually kept
+in sync across several methods.
 
-Known trade-off: diamond dependencies can emit intermediate
-states outside of `batch()`. Always wrap multi-signal updates
-in `batch()` when they feed the same computed or effect.
+Do **not** use it as a general app-state store. `GameClient`,
+the renderer, the transport/session layer, and the shared
+engine should remain explicit and imperative unless there is a
+clear synchronization problem being solved.
+
+Rules for reactive UI code:
+
+- Own effects explicitly. Any class that creates `computed()`
+  or `effect()` graphs should own a `DisposalScope` and
+  expose `dispose()`.
+- Keep derivation pure. Use `computed()` for pure derived
+  values and `effect()` for DOM writes, event-driven side
+  effects, or layout sync hooks.
+- Batch related writes. Known trade-off: diamond dependencies
+  can emit intermediate states outside `batch()`. Wrap
+  multi-signal updates in `batch()` when they feed the same
+  computed or effect.
+- Avoid hidden identity contracts. If callers may reuse and
+  mutate the same object reference, clone before writing it to
+  a signal or pair it with a version signal.
+- Keep the boundary local. Prefer signals inside a view over
+  passing signals through the whole client graph.
+- Register teardown in one place. Timers, event listeners, and
+  child-view disposal should be owned by the same scope where
+  practical.
+
+The current pattern is intentionally narrow: pure functions
+still derive most game-facing state, while reactive signals
+handle repetitive DOM synchronization and lifecycle cleanup in
+the overlay layer.
 
 ### Dependency injection
 
