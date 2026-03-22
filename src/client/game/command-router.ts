@@ -52,8 +52,10 @@ interface CommandRouterContext {
 interface CommandRouterUI {
   showAttackButton: (visible: boolean) => void;
   showFireButton: (visible: boolean, count: number) => void;
-  showToast: (message: string, type: 'error' | 'info' | 'success') => void;
-  toggleLog: () => void;
+  overlay: {
+    showToast: (message: string, type: 'error' | 'info' | 'success') => void;
+  };
+  log: { toggle: () => void };
 }
 
 interface CommandRouterRenderer {
@@ -95,7 +97,7 @@ const undoQueuedAttack = (deps: CommandRouterDeps): void => {
   const count = popQueuedAttack(deps.ctx.planningState);
 
   deps.ui.showFireButton(count > 0, count);
-  deps.ui.showToast(
+  deps.ui.overlay.showToast(
     count > 0 ? `Undid last attack (${count} queued)` : 'Attack queue cleared',
     'info',
   );
@@ -149,7 +151,7 @@ const selectShip = (
 
     if (myAlive && myAlive.length > 1) {
       const name = SHIP_STATS[ship.type]?.name ?? ship.type;
-      deps.ui.showToast(`Selected: ${name}`, 'info');
+      deps.ui.overlay.showToast(`Selected: ${name}`, 'info');
     }
   } else {
     setSelectedShipId(deps.ctx.planningState, shipId);
@@ -257,7 +259,7 @@ export const dispatchGameCommand = (
       return;
     }
     case 'toggleLog':
-      deps.ui.toggleLog();
+      deps.ui.log.toggle();
       return;
     case 'toggleHelp':
       deps.toggleHelp();

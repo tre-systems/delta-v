@@ -41,14 +41,18 @@ export interface MessageHandlerDeps {
     clearTrails: () => void;
   };
   ui: {
-    showToast: (message: string, type: 'error' | 'info' | 'success') => void;
-    logText: (text: string, cssClass?: string) => void;
-    setChatEnabled: (enabled: boolean) => void;
-    hideReconnecting: () => void;
     setPlayerId: (id: number) => void;
-    clearLog: () => void;
-    showRematchPending: () => void;
-    showGameOver: (won: boolean, reason: string) => void;
+    log: {
+      logText: (text: string, cssClass?: string) => void;
+      setChatEnabled: (enabled: boolean) => void;
+      clear: () => void;
+    };
+    overlay: {
+      showToast: (message: string, type: 'error' | 'info' | 'success') => void;
+      hideReconnecting: () => void;
+      showRematchPending: () => void;
+      showGameOver: (won: boolean, reason: string) => void;
+    };
     updateLatency: (ms: number) => void;
   };
 }
@@ -68,8 +72,8 @@ export const handleServerMessage = (
       applyWelcomeSession(deps.ctx, plan.playerId, plan.code);
       deps.storePlayerToken(plan.code, plan.playerToken);
       if (plan.showReconnectToast) {
-        deps.ui.hideReconnecting();
-        deps.ui.showToast('Reconnected!', 'success');
+        deps.ui.overlay.hideReconnecting();
+        deps.ui.overlay.showToast('Reconnected!', 'success');
       }
       deps.renderer.setPlayerId(plan.playerId);
       deps.ui.setPlayerId(plan.playerId);
@@ -85,8 +89,8 @@ export const handleServerMessage = (
       deps.resetTurnTelemetry();
       deps.applyGameState(deps.deserializeState(plan.state));
       deps.renderer.clearTrails();
-      deps.ui.clearLog();
-      deps.ui.setChatEnabled(true);
+      deps.ui.log.clear();
+      deps.ui.log.setChatEnabled(true);
       deps.logScenarioBriefing();
       deps.setState(plan.nextState);
       break;
@@ -123,16 +127,16 @@ export const handleServerMessage = (
       deps.showGameOverOutcome(plan.won, plan.reason);
       break;
     case 'rematchPending':
-      deps.ui.showRematchPending();
+      deps.ui.overlay.showRematchPending();
       break;
     case 'error':
       console.error('Server error:', plan.message);
-      deps.ui.showToast(plan.message, 'error');
+      deps.ui.overlay.showToast(plan.message, 'error');
       break;
     case 'chat': {
       const isOwn = plan.playerId === deps.ctx.playerId;
       const label = isOwn ? 'You' : 'Opponent';
-      deps.ui.logText(
+      deps.ui.log.logText(
         `${label}: ${plan.text}`,
         isOwn ? 'log-chat' : 'log-chat-opponent',
       );

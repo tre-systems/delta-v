@@ -192,7 +192,7 @@ class GameClient {
         getTransport: () => this.ctx.transport,
         planningState: this.ctx.planningState,
         updateHUD: () => this.updateHUD(),
-        showToast: (msg, type) => this.ui.showToast(msg, type),
+        showToast: (msg, type) => this.ui.overlay.showToast(msg, type),
       };
     }
     return this._astrogationDeps;
@@ -207,7 +207,7 @@ class GameClient {
         getTransport: () => this.ctx.transport,
         getMap: () => this.map,
         planningState: this.ctx.planningState,
-        showToast: (msg, type) => this.ui.showToast(msg, type),
+        showToast: (msg, type) => this.ui.overlay.showToast(msg, type),
         showAttackButton: (v) => this.ui.showAttackButton(v),
         showFireButton: (v, c) => this.ui.showFireButton(v, c),
       };
@@ -222,8 +222,8 @@ class GameClient {
         getClientState: () => this.ctx.state,
         getTransport: () => this.ctx.transport,
         planningState: this.ctx.planningState,
-        showToast: (msg, type) => this.ui.showToast(msg, type),
-        logText: (text) => this.ui.logText(text),
+        showToast: (msg, type) => this.ui.overlay.showToast(msg, type),
+        logText: (text) => this.ui.log.logText(text),
       };
     }
     return this._ordnanceDeps;
@@ -257,7 +257,7 @@ class GameClient {
         showGameOverOutcome: (won, reason) =>
           this.showGameOverOutcome(won, reason),
         transitionToPhase: () => this.transitionToPhase(),
-        logText: (text) => this.ui.logText(text),
+        logText: (text) => this.ui.log.logText(text),
       };
     }
     return this._localGameFlowDeps;
@@ -290,15 +290,15 @@ class GameClient {
       setState: (s) => this.setState(s),
       handleMessage: (msg) => this.handleMessage(msg),
       showReconnecting: (attempt, max, onCancel) =>
-        this.ui.showReconnecting(attempt, max, onCancel),
-      hideReconnecting: () => this.ui.hideReconnecting(),
-      showToast: (msg, type) => this.ui.showToast(msg, type),
+        this.ui.overlay.showReconnecting(attempt, max, onCancel),
+      hideReconnecting: () => this.ui.overlay.hideReconnecting(),
+      showToast: (msg, type) => this.ui.overlay.showToast(msg, type),
       exitToMenu: () => this.exitToMenu(),
     });
     this.turnTimer = createTurnTimerManager({
       setTurnTimer: (text, className) => this.ui.setTurnTimer(text, className),
       clearTurnTimer: () => this.ui.clearTurnTimer(),
-      showToast: (msg, type) => this.ui.showToast(msg, type),
+      showToast: (msg, type) => this.ui.overlay.showToast(msg, type),
       playWarning,
     });
     this.renderer.setMap(this.map);
@@ -417,7 +417,7 @@ class GameClient {
       });
       clearTimeout(timer);
       if (!res.ok) {
-        this.ui.showToast(
+        this.ui.overlay.showToast(
           'Server error \u2014 try again in a moment.',
           'error',
         );
@@ -444,14 +444,17 @@ class GameClient {
       );
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
-        this.ui.showToast('Game creation timed out. Try again.', 'error');
+        this.ui.overlay.showToast(
+          'Game creation timed out. Try again.',
+          'error',
+        );
       } else if (err instanceof TypeError) {
-        this.ui.showToast(
+        this.ui.overlay.showToast(
           'Network error \u2014 check your connection.',
           'error',
         );
       } else {
-        this.ui.showToast('Failed to create game. Try again.', 'error');
+        this.ui.overlay.showToast('Failed to create game. Try again.', 'error');
       }
       console.error('Failed to create game:', err);
       this.setState('menu');
@@ -474,9 +477,9 @@ class GameClient {
         resetTurnTelemetry: () => this.turnTelemetry.reset(),
         setRendererPlayerId: (playerId) => this.renderer.setPlayerId(playerId),
         clearTrails: () => this.renderer.clearTrails(),
-        clearLog: () => this.ui.clearLog(),
-        setChatEnabled: (enabled) => this.ui.setChatEnabled(enabled),
-        logText: (text) => this.ui.logText(text),
+        clearLog: () => this.ui.log.clear(),
+        setChatEnabled: (enabled) => this.ui.log.setChatEnabled(enabled),
+        logText: (text) => this.ui.log.logText(text),
         trackGameCreated: (details) => track('game_created', details),
         applyGameState: (state) => this.applyGameState(state),
         logScenarioBriefing: () => this.logScenarioBriefing(),
@@ -498,7 +501,7 @@ class GameClient {
         connect: (gameCode) => this.connect(gameCode),
         setState: (state) => this.setState(state),
         validateJoin: (gameCode, token) => this.validateJoin(gameCode, token),
-        showToast: (message, type) => this.ui.showToast(message, type),
+        showToast: (message, type) => this.ui.overlay.showToast(message, type),
         exitToMenu: () => this.exitToMenu(),
       },
       code,
@@ -751,7 +754,7 @@ class GameClient {
       onTurnLogged: (turnNumber, context) =>
         this.turnTelemetry.onTurnLogged(turnNumber, context),
       logTurn: (turnNumber, playerLabel) =>
-        this.ui.logTurn(turnNumber, playerLabel),
+        this.ui.log.logTurn(turnNumber, playerLabel),
       beginCombat: () => beginCombat(this.combatDeps),
       setState: (state) => this.setState(state),
       runLocalAI: () => this.runAITurn(),
@@ -809,11 +812,11 @@ class GameClient {
       onTransitionToPhase: () => this.transitionToPhase(),
       onEmplacementResult: (result) => {
         if ('error' in result) {
-          this.ui.showToast(result.error, 'error');
+          this.ui.overlay.showToast(result.error, 'error');
           return;
         }
         this.applyGameState(result.state);
-        this.ui.showToast('Orbital base emplaced!', 'success');
+        this.ui.overlay.showToast('Orbital base emplaced!', 'success');
         this.updateHUD();
       },
       onFleetReady: (purchases) => {
@@ -829,7 +832,7 @@ class GameClient {
           this.ctx.aiDifficulty,
         );
         if (result.kind === 'error') {
-          this.ui.showToast(result.error, 'error');
+          this.ui.overlay.showToast(result.error, 'error');
           return;
         }
         this.applyGameState(result.state);
@@ -868,7 +871,7 @@ class GameClient {
       HEX_SIZE,
     );
     if (!position) {
-      this.ui.showToast('No detected enemies', 'info');
+      this.ui.overlay.showToast('No detected enemies', 'info');
       return;
     }
     this.renderer.centerOnHex(position);
@@ -976,7 +979,7 @@ class GameClient {
       this.ctx.gameState,
       this.ctx.playerId,
     )) {
-      this.ui.logText(entry.text, entry.cssClass);
+      this.ui.log.logText(entry.text, entry.cssClass);
     }
   }
   private toggleHelp() {
@@ -1009,7 +1012,7 @@ class GameClient {
     this.tooltipEl.style.top = `${screenY - 10}px`;
   }
   showToast(message: string, type: 'error' | 'info' | 'success' = 'info') {
-    this.ui.showToast(message, type);
+    this.ui.overlay.showToast(message, type);
   }
   // Deserialize state from server
   private deserializeState(raw: GameState): GameState {

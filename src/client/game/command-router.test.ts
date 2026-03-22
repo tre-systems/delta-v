@@ -152,8 +152,8 @@ const createDeps = (overrides?: {
   };
   const showAttackButton = vi.fn<CommandRouterDeps['ui']['showAttackButton']>();
   const showFireButton = vi.fn<CommandRouterDeps['ui']['showFireButton']>();
-  const showToast = vi.fn<CommandRouterDeps['ui']['showToast']>();
-  const toggleLog = vi.fn<CommandRouterDeps['ui']['toggleLog']>();
+  const showToast = vi.fn<CommandRouterDeps['ui']['overlay']['showToast']>();
+  const toggleLog = vi.fn<CommandRouterDeps['ui']['log']['toggle']>();
   const updateHUD = vi.fn<() => void>();
   const renderer = {
     centerOnHex: vi.fn<(position: { q: number; r: number }) => void>(),
@@ -196,8 +196,8 @@ const createDeps = (overrides?: {
     ui: {
       showAttackButton,
       showFireButton,
-      showToast,
-      toggleLog,
+      overlay: { showToast },
+      log: { toggle: toggleLog },
     },
     renderer,
     getCanvasCenter: () => ({ x: 400, y: 300 }),
@@ -256,7 +256,7 @@ describe('game-command-router', () => {
 
     expect(deps.ctx.planningState.queuedAttacks).toHaveLength(1);
     expect(ui.showFireButton).toHaveBeenCalledWith(true, 1);
-    expect(ui.showToast).toHaveBeenCalledWith(
+    expect(ui.overlay.showToast).toHaveBeenCalledWith(
       'Undid last attack (1 queued)',
       'info',
     );
@@ -318,7 +318,10 @@ describe('game-command-router', () => {
     expect(deps.ctx.planningState.selectedShipId).toBe('ship-1');
     expect(deps.ctx.planningState.lastSelectedHex).toBe('0,0');
     expect(renderer.centerOnHex).toHaveBeenCalledWith({ q: 0, r: 0 });
-    expect(ui.showToast).toHaveBeenCalledWith('Selected: Packet', 'info');
+    expect(ui.overlay.showToast).toHaveBeenCalledWith(
+      'Selected: Packet',
+      'info',
+    );
     expect(updateHUD).toHaveBeenCalledTimes(1);
   });
 

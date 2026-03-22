@@ -95,25 +95,6 @@ behavior for the covered flow.
 `src/client/game/session-controller.ts`,
 `src/client/main.ts`
 
-### Narrow the `UIManager` surface
-
-Reduce pass-through verbosity in `UIManager` so it remains a
-coordinator, not a large forwarding facade.
-
-`UIManager` currently owns the right boundaries, but it still
-contains many thin methods that simply relay calls into
-subviews. The next step is to group or collapse those
-operations around clearer screen/view-model boundaries rather
-than one-method-per-button/per-label style forwarding.
-
-Definition of done: `UIManager` exposes a smaller, more
-coherent API grouped around screen mode and major UI domains,
-with no regression in ownership clarity or testability.
-
-**Files:** `src/client/ui/ui.ts`,
-`src/client/main.ts`,
-affected UI subviews and tests
-
 ### Reduce repetitive UI collection rendering
 
 Introduce a clearer pattern for list-like UI rendering where
