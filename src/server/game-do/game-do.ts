@@ -53,6 +53,7 @@ import {
   resetEventLog,
   saveCheckpoint,
 } from './archive';
+import { archiveCompletedMatch } from './match-archive';
 import {
   resolveCombatBroadcast,
   resolveMovementBroadcast,
@@ -74,6 +75,7 @@ export interface Env {
   ASSETS: Fetcher;
   GAME: DurableObjectNamespace;
   DB: D1Database;
+  MATCH_ARCHIVE?: R2Bucket;
 }
 const CHAT_RATE_LIMIT_MS = 500;
 const WS_MSG_RATE_LIMIT = 10;
@@ -519,7 +521,23 @@ export class GameDO extends DurableObject<Env> {
       case 'turnTimeout':
         await this.handleTurnTimeout();
         return;
-      case 'inactivityTimeout':
+      case 'inactivityTimeout': {
+        // Archive any unarchived match before cleanup
+        if (this.env.MATCH_ARCHIVE) {
+          const gameState = await this.getGameState();
+          if (gameState) {
+            const code = await this.getGameCode();
+            this.ctx.waitUntil(
+              archiveCompletedMatch(
+                this.ctx.storage,
+                this.env.MATCH_ARCHIVE,
+                this.env.DB,
+                gameState,
+                code,
+              ),
+            );
+          }
+        }
         for (const ws of this.ctx.getWebSockets()) {
           try {
             ws.close(1000, 'Inactivity timeout');
@@ -527,6 +545,7 @@ export class GameDO extends DurableObject<Env> {
         }
         await this.ctx.storage.deleteAll();
         return;
+      }
       case 'reschedule':
         await this.rescheduleAlarm();
         return;
@@ -610,6 +629,19 @@ export class GameDO extends DurableObject<Env> {
     if (hasTurnBoundary) {
       const seq = await getEventStreamLength(this.ctx.storage, state.gameId);
       await saveCheckpoint(this.ctx.storage, state.gameId, state, seq);
+    }
+    // Archive completed match to R2 for persistent analysis
+    const hasGameOver = events.some((e) => e.type === 'gameOver');
+    if (hasGameOver && this.env.MATCH_ARCHIVE) {
+      this.ctx.waitUntil(
+        archiveCompletedMatch(
+          this.ctx.storage,
+          this.env.MATCH_ARCHIVE,
+          this.env.DB,
+          state,
+          roomCode,
+        ),
+      );
     }
     if (restartTurnTimer) {
       await this.startTurnTimer(state);

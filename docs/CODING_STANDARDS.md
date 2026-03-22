@@ -7,7 +7,7 @@ This document captures the coding conventions that fit this codebase as it exist
 - Prefer readability over cleverness.
 - Prefer small, testable extractions over large architectural rewrites.
 - Keep the shared rules engine functional and data-oriented.
-- Accept classes at imperative boundaries where long-lived mutable state is natural.
+- Prefer functions and factory managers by default. Use classes only at imperative boundaries where long-lived mutable state is natural or the platform requires them.
 - Keep docs aligned with the actual implementation.
 
 ## Project Shape
@@ -26,15 +26,35 @@ Avoid pushing browser, network, storage, or rendering concerns into the shared e
 
 ### Imperative boundaries
 
+Default to plain functions, typed data, and
+`createXxx()` managers. Do not introduce a class just to
+group methods around private state.
+
 Classes are acceptable in places like:
 
 - `src/server/game-do/game-do.ts`
 - `src/client/main.ts`
 - `src/client/renderer/renderer.ts`
+- `src/client/renderer/camera.ts`
 - `src/client/input.ts`
 - `src/client/ui/ui.ts`
 
 These files coordinate long-lived state, timers, DOM, canvas, sockets, or platform APIs. That is a legitimate use of classes in this project.
+
+Guidance:
+
+- `GameDO` must remain a class because Cloudflare Durable
+  Objects require `extends DurableObject`.
+- `GameClient`, `Renderer`, `Camera`, and `InputHandler`
+  are reasonable class shells while they own long-lived
+  mutable browser/runtime state.
+- Smaller DOM views and helper managers should usually
+  prefer `createXxx()` factories unless class identity
+  materially simplifies the code.
+- Do not rewrite a large coordinator from class syntax
+  to closure syntax as the first step. Extract
+  responsibilities first, then decide whether the
+  remaining shell still wants to be a class.
 
 ### DOM helpers
 
@@ -320,9 +340,9 @@ clear synchronization problem being solved.
 
 Rules for reactive UI code:
 
-- Own effects explicitly. Any class that creates `computed()`
-  or `effect()` graphs should own a `DisposalScope` and
-  expose `dispose()`.
+- Own effects explicitly. Any view or manager that
+  creates `computed()` or `effect()` graphs should own a
+  `DisposalScope` and expose `dispose()`.
 - Keep derivation pure. Use `computed()` for pure derived
   values and `effect()` for DOM writes, event-driven side
   effects, or layout sync hooks.
@@ -362,6 +382,12 @@ and Mark Seemann on
 - **Side-effecting functions** take a `deps` object as their first parameter. The `deps` interface declares the callbacks and state accessors the function needs (e.g. `getGameState()`, `showToast()`, `getTransport()`). This avoids long parameter lists and makes testing easy via mock objects. Examples: `CombatActionDeps`, `AstrogationActionDeps`, `PresentationDeps`, `LocalGameFlowDeps`.
 
 - **Managers** use a factory pattern: `createXxx(deps: XxxDeps): XxxManager`. The returned object's methods close over the deps. Examples: `createConnectionManager()`, `createTurnTimerManager()`, `createLocalTransport()`.
+
+- **Prefer factory managers for new small stateful client
+  helpers.** DOM views, telemetry helpers, and similar
+  modules should usually follow the same `createXxx()`
+  pattern unless a class shape is clearly doing real
+  work.
 
 `GameClient` in `main.ts` wires deps objects via lazy getters that bind callbacks to live context. `dispatchGameCommand()` in `game/command-router.ts` routes commands to the extracted action functions.
 
