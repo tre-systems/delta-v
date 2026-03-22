@@ -2,14 +2,16 @@
 
 Remaining work only. Completed items are in git history.
 
-This backlog is ordered by architectural priority for the
-next phase. Replay and spectator tests are part of each
-item's definition of done and should land with the
-feature, not as a cleanup pass afterward.
+This backlog is ordered by near-term delivery priority,
+not by subsystem ownership. The immediate slice comes
+first even when it crosses protocol, security, client,
+and server boundaries. Replay and spectator tests are
+part of each item's definition of done and should land
+with the feature, not as a cleanup pass afterward.
 
 ---
 
-## Reliability & Simplification
+## Immediate Priorities
 
 ### Decide whether invite tokens stay or go
 
@@ -20,7 +22,9 @@ The codebase still carries invite-token storage and seat
 assignment logic, but the create flow currently issues
 only the creator token. Keeping an incomplete branch of
 join semantics increases protocol and session complexity
-without current product value.
+without current product value. It also leaves the docs
+describing a stricter guest-seat model than the current
+create / join path actually enforces.
 
 Definition of done: the chosen direction is reflected in
 worker create responses, client session helpers, join
@@ -31,6 +35,53 @@ left behind.
 `src/server/protocol.ts`,
 `src/client/game/session.ts`,
 `README.md`, `docs/ARCHITECTURE.md`
+
+### Imperative-shell coverage and smoke tests
+
+Add targeted tests around the runtime shells that still
+carry most of the coordination risk.
+
+The shared engine is well-covered; the main remaining
+blind spots are `GameClient` bootstrap, renderer / UI
+coordination, and an end-to-end multiplayer happy path
+that exercises the full runtime shell.
+
+Definition of done: targeted tests or smoke harnesses
+cover `main.ts` bootstrap, renderer / UI coordination,
+and one end-to-end multiplayer happy path, with
+coverage improving on `main.ts`, `ui.ts`,
+`renderer.ts`, and `game-do.ts`.
+
+**Files:** `src/client/main.ts`,
+`src/client/ui/ui.ts`,
+`src/client/renderer/renderer.ts`,
+`src/server/game-do/game-do.ts`, related tests
+
+### Public-lobby hardening
+
+Finish the public-facing abuse controls before treating
+the current private-room flow as suitable for open
+deployment.
+
+Today `/create` already supports worker throttling and an
+optional Cloudflare rate-limit binding, but the remaining
+work is larger than "verify the rule exists." The code
+still uses short human-shareable room codes, and the
+security review still treats room secrecy / public
+matchmaking readiness as weak.
+
+Definition of done: production room creation is backed by
+verified edge-global rate limiting, the deployment path
+for optional bot challenge protection is documented, and
+the product explicitly chooses between (a) longer opaque
+public room identifiers or (b) an invite-only scope that
+is documented as such. Remove any ambiguity between
+worker-local fallback behavior and real deployment
+enforcement.
+
+**Files:** deployment / Cloudflare config,
+`docs/SECURITY.md`, `src/server/index.ts`,
+`src/server/protocol.ts`, `wrangler.toml`
 
 ### Consolidate engine-result adaptation
 
@@ -56,55 +107,9 @@ removed from the coordinator modules.
 `src/server/game-do/turns.ts`,
 `src/server/game-do/game-do.ts`
 
-### OffscreenCanvas layer caching for renderer
-
-Pre-render static visual layers (starfield, hex grid, gravity
-indicators, planetary bodies) to offscreen canvases and
-composite via `drawImage()` instead of redrawing from
-scratch every frame.
-
-The starfield data is already generated once in the
-`Renderer` constructor, but the actual canvas draw calls
-repeat every frame. The hex grid, gravity wells, and
-celestial bodies are similarly static within a given
-camera position. Caching these layers reduces per-frame
-draw-call overhead, especially on lower-end devices.
-
-Invalidate cached layers only on camera pan, zoom, or
-window resize.
-
-Definition of done: static layers render to offscreen
-canvases, `drawImage()` composites them per frame, and
-invalidation fires on camera or viewport changes. No
-visible rendering regression.
-
-**Files:** `src/client/renderer/renderer.ts`,
-`src/client/renderer/scene.ts`
-
-### Imperative-shell coverage and smoke tests
-
-Add targeted tests around the runtime shells that still
-carry most of the coordination risk.
-
-The shared engine is well-covered; the main remaining
-blind spots are `GameClient` bootstrap, renderer / UI
-coordination, and an end-to-end multiplayer happy path
-that exercises the full runtime shell.
-
-Definition of done: targeted tests or smoke harnesses
-cover `main.ts` bootstrap, renderer / UI coordination,
-and one end-to-end multiplayer happy path, with
-coverage improving on `main.ts`, `ui.ts`,
-`renderer.ts`, and `game-do.ts`.
-
-**Files:** `src/client/main.ts`,
-`src/client/ui/ui.ts`,
-`src/client/renderer/renderer.ts`,
-`src/server/game-do/game-do.ts`, related tests
-
 ---
 
-## Architecture & Platform
+## Event-Sourced Match Architecture
 
 ### Event-sourced match persistence
 
@@ -244,6 +249,35 @@ lightweight metadata in D1 or room storage.
 
 ---
 
+## Performance & UX
+
+### OffscreenCanvas layer caching for renderer
+
+Pre-render static visual layers (starfield, hex grid,
+gravity indicators, planetary bodies) to offscreen
+canvases and composite via `drawImage()` instead of
+redrawing from scratch every frame.
+
+The starfield data is already generated once in the
+`Renderer` constructor, but the actual canvas draw calls
+repeat every frame. The hex grid, gravity wells, and
+celestial bodies are similarly static within a given
+camera position. Caching these layers reduces per-frame
+draw-call overhead, especially on lower-end devices.
+
+Invalidate cached layers only on camera pan, zoom, or
+window resize.
+
+Definition of done: static layers render to offscreen
+canvases, `drawImage()` composites them per frame, and
+invalidation fires on camera or viewport changes. No
+visible rendering regression.
+
+**Files:** `src/client/renderer/renderer.ts`,
+`src/client/renderer/scene.ts`
+
+---
+
 ## Gameplay & Content
 
 ### Passenger rescue mechanics
@@ -273,23 +307,3 @@ waves.
 `src/shared/engine/`, client scenario presentation
 
 ---
-
-## Security & Abuse Prevention
-
-### Verify and document global room creation rate limiting
-
-`/create` throttling is implemented in worker code and
-supports an optional Cloudflare rate-limit binding.
-What remains is to confirm the production deployment is
-actually backed by edge-global Cloudflare enforcement
-and to document that setup alongside the worker config.
-
-If a Cloudflare WAF or rate-limit rule is already in
-place outside this repo, remove this item after adding
-the relevant deployment notes. If not, provision that
-rule so enforcement is not dependent on worker instance
-locality, fallback behavior, or process lifetime.
-
-**Files:** deployment / Cloudflare config,
-`docs/SECURITY.md`, `src/server/index.ts`,
-`wrangler.toml`
