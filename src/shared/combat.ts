@@ -1,4 +1,10 @@
-import { DAMAGE_ELIMINATION_THRESHOLD, SHIP_STATS } from './constants';
+import {
+  BASE_COMBAT_ODDS,
+  BASE_FIRE_RANGE,
+  DAMAGE_ELIMINATION_THRESHOLD,
+  SHIP_STATS,
+  VELOCITY_MODIFIER_THRESHOLD,
+} from './constants';
 import { hexDistance, hexEqual, hexKey, hexLineDraw, parseHexKey } from './hex';
 import { bodyHasGravity } from './map-data';
 import type { CombatResult, Ordnance, Ship, SolarSystemMap } from './types';
@@ -215,13 +221,14 @@ export const computeVelocityModToTarget = (
   );
   const velDiff = Math.max(dq, dr, ds);
 
-  return Math.max(0, velDiff - 2);
+  return Math.max(0, velDiff - VELOCITY_MODIFIER_THRESHOLD);
 };
 
 /**
  * Compute velocity modifier: subtract 1 per hex of
- * velocity difference > 2. Velocity difference is the
- * hex distance between their velocity vectors.
+ * velocity difference above threshold. Velocity
+ * difference is the hex distance between their
+ * velocity vectors.
  */
 export const computeVelocityMod = (attacker: Ship, target: Ship): number =>
   computeVelocityModToTarget(attacker, target);
@@ -559,10 +566,9 @@ export const resolveBaseDefense = (
       // Check if this gravity hex is adjacent to
       // the base hex
       const dist = hexDistance(ship.position, baseCoord);
-      if (dist !== 1) continue;
+      if (dist > BASE_FIRE_RANGE) continue;
 
-      // Base fires at 2:1, no range/velocity modifiers
-      const odds = '2:1' as const;
+      const odds = BASE_COMBAT_ODDS;
       const dieRoll = rollD6(rng);
       const modifiedRoll = dieRoll;
       const damageResult = lookupGunCombat(odds, modifiedRoll);
@@ -593,7 +599,7 @@ export const resolveBaseDefense = (
         continue;
       }
 
-      const odds = '2:1' as const;
+      const odds = BASE_COMBAT_ODDS;
       const rangeMod = computeBaseRangeMod(baseCoord, ord);
       const velocityMod = computeBaseVelocityMod(ord);
       const dieRoll = rollD6(rng);

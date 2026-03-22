@@ -125,6 +125,17 @@ export const DAMAGE_ELIMINATION_THRESHOLD = 6;
 export const SHIP_DETECTION_RANGE = 3;
 export const BASE_DETECTION_RANGE = 5;
 
+// Combat modifiers
+export const VELOCITY_MODIFIER_THRESHOLD = 2;
+export const BASE_COMBAT_ODDS = '2:1';
+export const ANTI_NUKE_ODDS = '2:1';
+export const BASE_FIRE_RANGE = 1;
+
+// Movement costs
+export const BURN_FUEL_COST = 1;
+export const OVERLOAD_TOTAL_FUEL_COST = 2;
+export const LANDING_SPEED_REQUIRED = 1;
+
 // Animation durations (ms)
 export const MOVEMENT_ANIM_DURATION = 2000;
 export const CAMERA_LERP_SPEED = 5;
