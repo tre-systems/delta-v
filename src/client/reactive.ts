@@ -2,6 +2,16 @@
 // Zero dependencies. Auto-tracking reactivity.
 
 export type Dispose = () => void;
+type DisposableLike = Dispose | { dispose: Dispose };
+
+export interface DisposalScope {
+  add<T extends DisposableLike>(disposable: T): T;
+  dispose: Dispose;
+}
+
+const getDispose = (disposable: DisposableLike): Dispose => {
+  return typeof disposable === 'function' ? disposable : disposable.dispose;
+};
 
 // ── Tracking context ────────────────────────────────────
 
@@ -50,6 +60,35 @@ export const signal = <T>(initial: T): Signal<T> => {
     peek: () => val,
     update(fn) {
       this.value = fn(val);
+    },
+  };
+};
+
+export const createDisposalScope = (): DisposalScope => {
+  const disposers: DisposableLike[] = [];
+  let disposed = false;
+
+  return {
+    add(disposable) {
+      if (disposed) {
+        getDispose(disposable)();
+        return disposable;
+      }
+
+      disposers.push(disposable);
+      return disposable;
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+
+      while (disposers.length > 0) {
+        const disposable = disposers.pop();
+        if (!disposable) {
+          continue;
+        }
+        getDispose(disposable)();
+      }
     },
   };
 };
