@@ -23,6 +23,8 @@ export class GameLogView {
   private readonly chatInput = byId<HTMLInputElement>('chatInput');
   private readonly logLatestBar = byId('logLatestBar');
   private readonly logLatestText = byId('logLatestText');
+  private readonly logStatusBar: HTMLElement;
+  private readonly logStatusText: HTMLElement;
 
   private lastTurnHeader: HTMLElement | null = null;
   private playerId = -1;
@@ -35,6 +37,16 @@ export class GameLogView {
   private readonly statusTextSignal = signal<string | null>(null);
 
   constructor(private readonly deps: GameLogViewDeps) {
+    this.logStatusText = el('span', {
+      class: 'log-status-text',
+    });
+    this.logStatusBar = el('div', {
+      class: 'log-status-bar',
+    });
+    this.logStatusBar.style.display = 'none';
+    this.logStatusBar.appendChild(this.logStatusText);
+    this.gameLogEl.insertBefore(this.logStatusBar, this.gameLogEl.firstChild);
+
     this.bindChatInput();
     this.bindLogControls();
 
@@ -87,6 +99,14 @@ export class GameLogView {
 
         this.gameLogEl.style.display = visibility.gameLog;
         this.logLatestBar.style.display = visibility.latestBar;
+      }),
+    );
+
+    this.scope.add(
+      effect(() => {
+        const status = this.statusTextSignal.value;
+        this.logStatusBar.style.display = status ? '' : 'none';
+        this.logStatusText.textContent = status ?? '';
       }),
     );
 
