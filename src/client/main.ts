@@ -23,21 +23,17 @@ if ('serviceWorker' in navigator) {
 
 import type { AIDifficulty } from '../shared/ai';
 import { CODE_LENGTH } from '../shared/constants';
-import { createGame, type MovementResult } from '../shared/engine/game-engine';
+import { createGame } from '../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
   SCENARIOS,
 } from '../shared/map-data';
-import type {
-  CombatResult,
-  FleetPurchase,
-  GameState,
-} from '../shared/types/domain';
+import type { FleetPurchase, GameState } from '../shared/types/domain';
 import type { S2C } from '../shared/types/protocol';
 import { initAudio, isMuted, playWarning, setMuted } from './audio';
 import { byId, hide } from './dom';
-import type { AstrogationActionDeps } from './game/astrogation-actions';
+import { type ActionDeps, createActionDeps } from './game/action-deps';
 import {
   type CameraController,
   createCameraController,
@@ -51,7 +47,6 @@ import {
 } from './game/client-context-store';
 import {
   beginCombatPhase as beginCombat,
-  type CombatActionDeps,
   resetCombatState as resetCombat,
   startCombatTargetWatch as startCombatWatch,
 } from './game/combat-actions';
@@ -61,16 +56,11 @@ import {
   type ConnectionManager,
   createConnectionManager,
 } from './game/connection';
-import { resolveLocalFleetReady } from './game/fleet';
 import { applyClientGameState } from './game/game-state-store';
 import { createHudController, type HudController } from './game/hud-controller';
 import { type InputEvent, interpretInput } from './game/input-events';
 import { deriveKeyboardAction, type KeyboardAction } from './game/keyboard';
-import {
-  handleLocalResolution,
-  type LocalGameFlowDeps,
-  runAITurn as runAI,
-} from './game/local-game-flow';
+import { runAITurn as runAI } from './game/local-game-flow';
 import {
   type LogisticsUIState,
   renderTransferPanel,
@@ -79,36 +69,22 @@ import {
   handleServerMessage,
   type MessageHandlerDeps,
 } from './game/message-handler';
-import type { OrdnanceActionDeps } from './game/ordnance-actions';
 import type { ClientState } from './game/phase';
 import { transitionClientPhase } from './game/phase-controller';
 import {
   createInitialPlanningState,
   type PlanningState,
 } from './game/planning';
-import {
-  type PresentationDeps,
-  presentCombatResults as presentCombat,
-  presentMovementResult as presentMovement,
-  showGameOverOutcome as showGameOver,
-} from './game/presentation';
-import {
-  buildGameRoute,
-  buildJoinCheckUrl,
-  getStoredPlayerToken,
-  loadTokenStore,
-  saveTokenStore,
-  setStoredPlayerToken,
-} from './game/session';
+import { buildGameRoute } from './game/session';
+import { createSessionApi, type SessionApi } from './game/session-api';
 import {
   beginJoinGameSession,
-  completeCreatedGameSession,
   exitToMenuSession,
   startLocalGameSession,
 } from './game/session-controller';
 import { applyClientStateTransition } from './game/state-transition';
 import { createTurnTimerManager, type TurnTimerManager } from './game/timer';
-import { createLocalTransport, type GameTransport } from './game/transport';
+import { createLocalGameTransport, type GameTransport } from './game/transport';
 import {
   createTurnTelemetryTracker,
   type TurnTelemetryTracker,
@@ -163,104 +139,8 @@ class GameClient {
     createTurnTelemetryTracker();
   private hud!: HudController;
   private camera!: CameraController;
-  // Presentation orchestration deps
-  // (lazy — renderer/ui available after constructor)
-  private _presentationDeps: PresentationDeps | null = null;
-  private get presentationDeps(): PresentationDeps {
-    if (!this._presentationDeps) {
-      this._presentationDeps = {
-        applyGameState: (state) => this.applyGameState(state),
-        setState: (newState) => this.setState(newState as ClientState),
-        resetCombatState: () => this.resetCombatState(),
-        getGameState: () => this.ctx.gameState,
-        getPlayerId: () => this.ctx.playerId,
-        renderer: this.renderer,
-        ui: this.ui,
-      };
-    }
-    return this._presentationDeps;
-  }
-  // Action deps (lazy — wired to live ctx)
-  private _astrogationDeps: AstrogationActionDeps | null = null;
-  private get astrogationDeps(): AstrogationActionDeps {
-    if (!this._astrogationDeps) {
-      this._astrogationDeps = {
-        getGameState: () => this.ctx.gameState,
-        getClientState: () => this.ctx.state,
-        getPlayerId: () => this.ctx.playerId,
-        getTransport: () => this.ctx.transport,
-        planningState: this.ctx.planningState,
-        updateHUD: () => this.hud.updateHUD(),
-        showToast: (msg, type) => this.ui.overlay.showToast(msg, type),
-      };
-    }
-    return this._astrogationDeps;
-  }
-  private _combatDeps: CombatActionDeps | null = null;
-  private get combatDeps(): CombatActionDeps {
-    if (!this._combatDeps) {
-      this._combatDeps = {
-        getGameState: () => this.ctx.gameState,
-        getClientState: () => this.ctx.state,
-        getPlayerId: () => this.ctx.playerId,
-        getTransport: () => this.ctx.transport,
-        getMap: () => this.map,
-        planningState: this.ctx.planningState,
-        showToast: (msg, type) => this.ui.overlay.showToast(msg, type),
-        showAttackButton: (v) => this.ui.showAttackButton(v),
-        showFireButton: (v, c) => this.ui.showFireButton(v, c),
-      };
-    }
-    return this._combatDeps;
-  }
-  private _ordnanceDeps: OrdnanceActionDeps | null = null;
-  private get ordnanceDeps(): OrdnanceActionDeps {
-    if (!this._ordnanceDeps) {
-      this._ordnanceDeps = {
-        getGameState: () => this.ctx.gameState,
-        getClientState: () => this.ctx.state,
-        getTransport: () => this.ctx.transport,
-        planningState: this.ctx.planningState,
-        showToast: (msg, type) => this.ui.overlay.showToast(msg, type),
-        logText: (text) => this.ui.log.logText(text),
-      };
-    }
-    return this._ordnanceDeps;
-  }
-  // Local game flow deps (lazy — wired to live ctx)
-  private _localGameFlowDeps: LocalGameFlowDeps | null = null;
-  private get localGameFlowDeps(): LocalGameFlowDeps {
-    if (!this._localGameFlowDeps) {
-      this._localGameFlowDeps = {
-        getGameState: () => this.ctx.gameState,
-        getPlayerId: () => this.ctx.playerId,
-        getMap: () => this.map,
-        getAIDifficulty: () => this.ctx.aiDifficulty,
-        applyGameState: (state) => this.applyGameState(state),
-        presentMovementResult: (
-          state,
-          movements,
-          ordnanceMovements,
-          events,
-          onComplete,
-        ) =>
-          this.presentMovementResult(
-            state,
-            movements,
-            ordnanceMovements,
-            events,
-            onComplete,
-          ),
-        presentCombatResults: (prev, state, results, resetCombat) =>
-          this.presentCombatResults(prev, state, results, resetCombat),
-        showGameOverOutcome: (won, reason) =>
-          this.showGameOverOutcome(won, reason),
-        transitionToPhase: () => this.transitionToPhase(),
-        logText: (text) => this.ui.log.logText(text),
-      };
-    }
-    return this._localGameFlowDeps;
-  }
+  private actionDeps!: ActionDeps;
+  private sessionApi!: SessionApi;
   constructor() {
     this.canvas = byId<HTMLCanvasElement>('gameCanvas');
     this.renderer = new Renderer(this.canvas, this.ctx.planningState);
@@ -275,7 +155,8 @@ class GameClient {
       getGameCode: () => this.ctx.gameCode,
       getGameState: () => this.ctx.gameState,
       getClientState: () => this.ctx.state,
-      getStoredPlayerToken: (code) => this.getStoredPlayerToken(code),
+      getStoredPlayerToken: (code) =>
+        this.sessionApi.getStoredPlayerToken(code),
       getReconnectAttempts: () => this.ctx.reconnectAttempts,
       setReconnectAttempts: (n) => {
         setReconnectAttempts(this.ctx, n);
@@ -319,6 +200,34 @@ class GameClient {
       renderer: this.renderer,
       overlay: this.ui.overlay,
       onShipSelected: () => this.hud.updateHUD(),
+    });
+    this.actionDeps = createActionDeps({
+      getGameState: () => this.ctx.gameState,
+      getClientState: () => this.ctx.state,
+      getPlayerId: () => this.ctx.playerId,
+      getTransport: () => this.ctx.transport,
+      getMap: () => this.map,
+      getAIDifficulty: () => this.ctx.aiDifficulty,
+      getScenario: () => this.ctx.scenario,
+      getIsLocalGame: () => this.ctx.isLocalGame,
+      planningState: this.ctx.planningState,
+      hud: this.hud,
+      ui: this.ui,
+      renderer: this.renderer,
+      setState: (s) => this.setState(s),
+      applyGameState: (s) => this.applyGameState(s),
+      resetCombatState: () => this.resetCombatState(),
+      transitionToPhase: () => this.transitionToPhase(),
+      track,
+    });
+    this.sessionApi = createSessionApi({
+      ctx: this.ctx,
+      showToast: (msg, type) => this.ui.overlay.showToast(msg, type),
+      setMenuLoading: (loading) => this.ui.setMenuLoading(loading),
+      setState: (s) => this.setState(s),
+      setScenario: (scenario) => setScenario(this.ctx, scenario),
+      connect: (code) => this.connect(code),
+      track,
     });
     this.renderer.setMap(this.map);
     this.input.setMap(this.map);
@@ -420,67 +329,6 @@ class GameClient {
     );
   }
   // --- Network ---
-  private async createGame(scenario: string) {
-    this.ui.setMenuLoading(true);
-    try {
-      setScenario(this.ctx, scenario);
-      const abort = new AbortController();
-      const timer = setTimeout(() => abort.abort(), 10000);
-      const res = await fetch('/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ scenario }),
-        signal: abort.signal,
-      });
-      clearTimeout(timer);
-      if (!res.ok) {
-        this.ui.overlay.showToast(
-          'Server error \u2014 try again in a moment.',
-          'error',
-        );
-        this.setState('menu');
-        return;
-      }
-      const data = (await res.json()) as {
-        code: string;
-        playerToken: string;
-      };
-      completeCreatedGameSession(
-        {
-          ctx: this.ctx,
-          storePlayerToken: (code, token) => this.storePlayerToken(code, token),
-          replaceRoute: (route) => history.replaceState(null, '', route),
-          buildGameRoute,
-          connect: (code) => this.connect(code),
-          setState: (state) => this.setState(state),
-          trackGameCreated: (details) => track('game_created', details),
-        },
-        scenario,
-        data.code,
-        data.playerToken,
-      );
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        this.ui.overlay.showToast(
-          'Game creation timed out. Try again.',
-          'error',
-        );
-      } else if (err instanceof TypeError) {
-        this.ui.overlay.showToast(
-          'Network error \u2014 check your connection.',
-          'error',
-        );
-      } else {
-        this.ui.overlay.showToast('Failed to create game. Try again.', 'error');
-      }
-      console.error('Failed to create game:', err);
-      this.setState('menu');
-    } finally {
-      this.ui.setMenuLoading(false);
-    }
-  }
   private startLocalGame(scenario: string) {
     startLocalGameSession(
       {
@@ -513,90 +361,20 @@ class GameClient {
       {
         ctx: this.ctx,
         storePlayerToken: (gameCode, token) =>
-          this.storePlayerToken(gameCode, token),
+          this.sessionApi.storePlayerToken(gameCode, token),
         resetTurnTelemetry: () => this.turnTelemetry.reset(),
         replaceRoute: (route) => history.replaceState(null, '', route),
         buildGameRoute,
         connect: (gameCode) => this.connect(gameCode),
         setState: (state) => this.setState(state),
-        validateJoin: (gameCode, token) => this.validateJoin(gameCode, token),
+        validateJoin: (gameCode, token) =>
+          this.sessionApi.validateJoin(gameCode, token),
         showToast: (message, type) => this.ui.overlay.showToast(message, type),
         exitToMenu: () => this.exitToMenu(),
       },
       code,
       playerToken,
     );
-  }
-  private async validateJoin(
-    code: string,
-    playerToken: string | null,
-  ): Promise<{ ok: true } | { ok: false; message: string }> {
-    const abort = new AbortController();
-    const timer = setTimeout(() => abort.abort(), 10000);
-    try {
-      const response = await fetch(
-        buildJoinCheckUrl(window.location, code, playerToken),
-        {
-          signal: abort.signal,
-        },
-      );
-      clearTimeout(timer);
-      if (response.ok) {
-        return { ok: true };
-      }
-      const message = (await response.text()) || 'Could not join game';
-      return { ok: false, message };
-    } catch (err) {
-      clearTimeout(timer);
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        return {
-          ok: false,
-          message: 'Join check timed out. Try again.',
-        };
-      }
-      if (err instanceof TypeError) {
-        return {
-          ok: false,
-          message: 'Network error — check your connection.',
-        };
-      }
-      return {
-        ok: false,
-        message: 'Could not join game',
-      };
-    }
-  }
-  private getTokenStore(): Record<
-    string,
-    {
-      playerToken?: string;
-      ts: number;
-    }
-  > {
-    return loadTokenStore(localStorage);
-  }
-  private saveTokenStore(
-    store: Record<
-      string,
-      {
-        playerToken?: string;
-        ts: number;
-      }
-    >,
-  ): void {
-    saveTokenStore(localStorage, store, Date.now());
-  }
-  private getStoredPlayerToken(code: string): string | null {
-    return getStoredPlayerToken(this.getTokenStore(), code);
-  }
-  private storePlayerToken(code: string, token: string): void {
-    const store = setStoredPlayerToken(
-      this.getTokenStore(),
-      code,
-      token,
-      Date.now(),
-    );
-    this.saveTokenStore(store);
   }
   private connect(code: string) {
     this.connection.connect(code);
@@ -613,46 +391,6 @@ class GameClient {
       state,
     );
   }
-  private presentMovementResult(
-    state: GameState,
-    movements: MovementResult['movements'],
-    ordnanceMovements: MovementResult['ordnanceMovements'],
-    events: MovementResult['events'],
-    onComplete: () => void,
-  ) {
-    presentMovement(
-      this.presentationDeps,
-      state,
-      movements,
-      ordnanceMovements,
-      events,
-      onComplete,
-    );
-  }
-  private presentCombatResults(
-    previousState: GameState,
-    state: GameState,
-    results: CombatResult[],
-    resetCombat = true,
-  ) {
-    presentCombat(
-      this.presentationDeps,
-      previousState,
-      state,
-      results,
-      resetCombat,
-    );
-  }
-  private showGameOverOutcome(won: boolean, reason: string) {
-    track('game_over', {
-      won,
-      reason,
-      scenario: this.ctx.scenario,
-      mode: this.ctx.isLocalGame ? 'local' : 'multiplayer',
-      turn: this.ctx.gameState?.turnNumber,
-    });
-    showGameOver(this.presentationDeps, won, reason);
-  }
   private handleMessage(msg: S2C) {
     const deps: MessageHandlerDeps = {
       ctx: this.ctx,
@@ -666,7 +404,7 @@ class GameClient {
         events,
         onComplete,
       ) =>
-        this.presentMovementResult(
+        this.actionDeps.presentMovementResult(
           state,
           movements,
           ordnanceMovements,
@@ -674,10 +412,11 @@ class GameClient {
           onComplete,
         ),
       presentCombatResults: (prev, state, results) =>
-        this.presentCombatResults(prev, state, results),
+        this.actionDeps.presentCombatResults(prev, state, results),
       showGameOverOutcome: (won, reason) =>
-        this.showGameOverOutcome(won, reason),
-      storePlayerToken: (code, token) => this.storePlayerToken(code, token),
+        this.actionDeps.showGameOverOutcome(won, reason),
+      storePlayerToken: (code, token) =>
+        this.sessionApi.storePlayerToken(code, token),
       resetTurnTelemetry: () => this.turnTelemetry.reset(),
       onAnimationComplete: () => this.onAnimationComplete(),
       logScenarioBriefing: () => this.hud.logScenarioBriefing(),
@@ -699,7 +438,7 @@ class GameClient {
 
     switch (plan.kind) {
       case 'createGame':
-        this.createGame(plan.scenario);
+        this.sessionApi.createGame(plan.scenario);
         return;
       case 'startSinglePlayer':
         setAIDifficulty(this.ctx, plan.difficulty);
@@ -736,9 +475,9 @@ class GameClient {
     dispatchGameCommand(
       {
         ctx: this.ctx,
-        astrogationDeps: this.astrogationDeps,
-        combatDeps: this.combatDeps,
-        ordnanceDeps: this.ordnanceDeps,
+        astrogationDeps: this.actionDeps.astrogationDeps,
+        combatDeps: this.actionDeps.combatDeps,
+        ordnanceDeps: this.actionDeps.ordnanceDeps,
         logisticsUIState: this.logisticsUIState,
         ui: this.ui,
         renderer: this.renderer,
@@ -774,18 +513,18 @@ class GameClient {
         this.turnTelemetry.onTurnLogged(turnNumber, context),
       logTurn: (turnNumber, playerLabel) =>
         this.ui.log.logTurn(turnNumber, playerLabel),
-      beginCombat: () => beginCombat(this.combatDeps),
+      beginCombat: () => beginCombat(this.actionDeps.combatDeps),
       setState: (state) => this.setState(state),
       runLocalAI: () => this.runAITurn(),
     });
   }
   private resetCombatState() {
-    resetCombat(this.combatDeps);
+    resetCombat(this.actionDeps.combatDeps);
   }
   private stopCombatWatch: (() => void) | null = null;
   private startCombatTargetWatch() {
     this.stopCombatWatch?.();
-    this.stopCombatWatch = startCombatWatch(this.combatDeps);
+    this.stopCombatWatch = startCombatWatch(this.actionDeps.combatDeps);
   }
   private sendFleetReady(purchases: FleetPurchase[]) {
     if (
@@ -816,56 +555,26 @@ class GameClient {
   }
   // --- Local game (single player) ---
   private createLocalTransport(): GameTransport {
-    return createLocalTransport({
-      getState: () => this.ctx.gameState,
+    return createLocalGameTransport({
+      getGameState: () => this.ctx.gameState,
       getPlayerId: () => this.ctx.playerId,
       getMap: () => this.map,
-      onResolution: (resolution, onContinue, errorPrefix) =>
-        handleLocalResolution(
-          this.localGameFlowDeps,
-          resolution,
-          onContinue,
-          errorPrefix,
-        ),
+      getScenario: () => this.ctx.scenario,
+      getScenarioDef: () =>
+        SCENARIOS[this.ctx.scenario] ?? SCENARIOS.biplanetary,
+      getAIDifficulty: () => this.ctx.aiDifficulty,
+      localGameFlowDeps: this.actionDeps.localGameFlowDeps,
+      applyGameState: (s) => this.applyGameState(s),
+      showToast: (msg, type) => this.ui.overlay.showToast(msg, type),
+      updateHUD: () => this.hud.updateHUD(),
+      logScenarioBriefing: () => this.hud.logScenarioBriefing(),
+      transitionToPhase: () => this.transitionToPhase(),
       onAnimationComplete: () => this.onAnimationComplete(),
-      onTransitionToPhase: () => this.transitionToPhase(),
-      onEmplacementResult: (result) => {
-        if ('error' in result) {
-          this.ui.overlay.showToast(result.error, 'error');
-          return;
-        }
-        this.applyGameState(result.state);
-        this.ui.overlay.showToast('Orbital base emplaced!', 'success');
-        this.hud.updateHUD();
-      },
-      onFleetReady: (purchases) => {
-        if (!this.ctx.gameState) return;
-        const scenarioDef =
-          SCENARIOS[this.ctx.scenario] ?? SCENARIOS.biplanetary;
-        const result = resolveLocalFleetReady(
-          this.ctx.gameState,
-          this.ctx.playerId,
-          purchases,
-          this.map,
-          scenarioDef,
-          this.ctx.aiDifficulty,
-        );
-        if (result.kind === 'error') {
-          this.ui.overlay.showToast(result.error, 'error');
-          return;
-        }
-        this.applyGameState(result.state);
-        if (result.aiError) {
-          console.error('AI fleet build error:', result.aiError);
-        }
-        this.hud.logScenarioBriefing();
-        this.transitionToPhase();
-      },
-      onRematch: () => this.startLocalGame(this.ctx.scenario),
+      startLocalGame: (scenario) => this.startLocalGame(scenario),
     });
   }
   private runAITurn = async () => {
-    await runAI(this.localGameFlowDeps);
+    await runAI(this.actionDeps.localGameFlowDeps);
   };
   private toggleHelp() {
     this.ui.toggleHelpOverlay();
