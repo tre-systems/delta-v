@@ -80,32 +80,6 @@ behavior for the covered flow.
 `src/client/game/session-controller.ts`,
 `src/client/main.ts`
 
-### Public-lobby hardening
-
-Finish the public-facing abuse controls before treating
-the current private-room flow as suitable for open
-deployment.
-
-Today `/create` already supports worker throttling and an
-optional Cloudflare rate-limit binding, but the remaining
-work is larger than "verify the rule exists." The code
-still uses short human-shareable room codes, and the
-security review still treats room secrecy / public
-matchmaking readiness as weak.
-
-Definition of done: production room creation is backed by
-verified edge-global rate limiting, the deployment path
-for optional bot challenge protection is documented, and
-the product either adopts longer opaque public room
-identifiers or documents room-code joins as invite-only
-scope. Remove any ambiguity between
-worker-local fallback behavior and real deployment
-enforcement.
-
-**Files:** deployment / Cloudflare config,
-`docs/SECURITY.md`, `src/server/index.ts`,
-`src/server/protocol.ts`, `wrangler.toml`
-
 ### Reduce UI binding boilerplate
 
 Trim the repetitive event-binding and pass-through wiring in
