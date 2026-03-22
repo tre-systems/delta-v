@@ -13,24 +13,6 @@ with the feature, not as a cleanup pass afterward.
 
 ## Event-Sourced Match Architecture
 
-### Viewer-aware state filtering
-
-Replace the current player-only hidden-information
-filter with a viewer-aware model that supports player 0,
-player 1, and spectator / public views.
-
-Filtering rules must apply consistently to live
-broadcasts, replay responses, catch-up payloads, and any
-derived projection export so hidden data cannot leak
-through an alternate path.
-
-Definition of done: hidden-information tests cover live
-play, replay fetches, and spectator joins.
-
-**Files:** `src/shared/engine/game-engine.ts`,
-`src/server/game-do/game-do.ts`,
-`src/server/game-do/messages.ts`
-
 ### Post-game turn replay UI
 
 Let players step backward and forward through recorded
