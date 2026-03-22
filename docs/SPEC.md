@@ -592,14 +592,13 @@ interface Ship {
   velocity: HexVec                               // (dq, dr) displacement per turn
   fuel: number
   cargoUsed: number                              // mass of ordnance consumed
-  nukesLaunchedSinceResupply?: number
+  nukesLaunchedSinceResupply: number              // reset on resupply
   resuppliedThisTurn: boolean
-  landed: boolean
-  destroyed: boolean
+  lifecycle: 'active' | 'landed' | 'destroyed'   // mutually exclusive ship state
+  control: 'own' | 'captured' | 'surrendered'    // who controls this ship
   detected: boolean
-  controlStatus?: 'captured' | 'surrendered'     // absent = under normal player control
-  heroismAvailable?: boolean                     // heroic ships add +1 to gun combat attack rolls
-  overloadUsed?: boolean                         // true if overload used since last maintenance
+  heroismAvailable: boolean                      // heroic ships add +1 to gun combat attack rolls
+  overloadUsed: boolean                          // true if overload used since last maintenance
   baseStatus?: 'carryingBase' | 'emplaced'       // orbital base lifecycle
   identity?: {                                   // hidden-identity scenarios only
     hasFugitives: boolean                        // true for the ship carrying fugitives
