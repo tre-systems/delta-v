@@ -14,7 +14,6 @@ import type {
   GameState,
   Ordnance,
   OrdnanceLaunch,
-  ScenarioDefinition,
   SolarSystemMap,
 } from '../types';
 import {
@@ -23,7 +22,6 @@ import {
   type MovementResult,
   processAstrogation,
   processCombat,
-  processFleetReady,
   processOrdnance,
   type StateUpdateResult,
   skipCombat,
@@ -68,98 +66,7 @@ const resolveAstrogationMovement = (
   }
   return expectMovement(followUp);
 };
-describe('createGame', () => {
-  it('creates game with correct scenario name', () => {
-    expect(initialState.scenario).toBe('Bi-Planetary');
-  });
-  it('creates 2 ships for Bi-Planetary', () => {
-    expect(initialState.ships).toHaveLength(2);
-    expect(initialState.ships[0].owner).toBe(0);
-    expect(initialState.ships[1].owner).toBe(1);
-  });
-  it('ships start landed at their home bases', () => {
-    expect(initialState.ships[0].lifecycle).toBe('landed');
-    expect(initialState.ships[1].lifecycle).toBe('landed');
-  });
-  it('ships start with full fuel', () => {
-    const stats = SHIP_STATS.corvette;
-    expect(initialState.ships[0].fuel).toBe(stats.fuel);
-    expect(initialState.ships[1].fuel).toBe(stats.fuel);
-  });
-  it('ships start with zero damage', () => {
-    expect(initialState.ships[0].damage.disabledTurns).toBe(0);
-    expect(initialState.ships[1].damage.disabledTurns).toBe(0);
-  });
-  it('player 0 targets Venus, player 1 targets Mars', () => {
-    expect(initialState.players[0].targetBody).toBe('Venus');
-    expect(initialState.players[1].targetBody).toBe('Mars');
-  });
-  it('starts on turn 1 in astrogation phase', () => {
-    expect(initialState.turnNumber).toBe(1);
-    expect(initialState.phase).toBe('astrogation');
-    expect(initialState.activePlayer).toBe(0);
-  });
-  it('ships are placed at actual base hexes', () => {
-    const marsHex = map.hexes.get(hexKey(initialState.ships[0].position));
-    const venusHex = map.hexes.get(hexKey(initialState.ships[1].position));
-    expect(marsHex?.base?.bodyName).toBe('Mars');
-    expect(venusHex?.base?.bodyName).toBe('Venus');
-  });
-  it('supports explicit split base ownership for shared worlds', () => {
-    const duelState = createGame(SCENARIOS.duel, map, 'DUEL1', findBaseHex);
-    expect(duelState.players[0].bases).toEqual(['5,2']);
-    expect(duelState.players[1].bases).toEqual(['3,2']);
-  });
-  it('rejects scenarios that do not define exactly two players', () => {
-    const invalidScenario: ScenarioDefinition = {
-      ...SCENARIOS.duel,
-      players: [SCENARIOS.duel.players[0]],
-    };
-    expect(() =>
-      createGame(invalidScenario, map, 'BADPLY', findBaseHex),
-    ).toThrow('Scenario must define exactly 2 players');
-  });
-  it('throws when a landed ship has no valid starting hex', () => {
-    const barrenMap: SolarSystemMap = {
-      hexes: new Map(),
-      bodies: [],
-      bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
-    };
-    const invalidScenario: ScenarioDefinition = {
-      name: 'Broken',
-      description: 'Invalid landed placement',
-      players: [
-        {
-          ships: [
-            {
-              type: 'corvette',
-              position: { q: 99, r: 99 },
-              velocity: { dq: 0, dr: 0 },
-            },
-          ],
-          targetBody: '',
-          homeBody: '',
-          escapeWins: false,
-        },
-        {
-          ships: [
-            {
-              type: 'corvette',
-              position: { q: -99, r: -99 },
-              velocity: { dq: 0, dr: 0 },
-            },
-          ],
-          targetBody: '',
-          homeBody: '',
-          escapeWins: true,
-        },
-      ],
-    };
-    expect(() =>
-      createGame(invalidScenario, barrenMap, 'BADHEX', findBaseHex),
-    ).toThrow('No valid landed starting hex');
-  });
-});
+// createGame tests moved to game-creation.test.ts
 describe('processAstrogation', () => {
   it('rejects orders from wrong player', () => {
     const result = processAstrogation(initialState, 1, [], map, Math.random);
@@ -2872,121 +2779,7 @@ describe('capture mechanics', () => {
     }
   });
 });
-describe('fleet building (MegaCredit economy)', () => {
-  it('Interplanetary War scenario starts in fleetBuilding phase', () => {
-    const state = createGame(
-      SCENARIOS.interplanetaryWar,
-      map,
-      'WAR01',
-      findBaseHex,
-    );
-    expect(state.phase).toBe('fleetBuilding');
-    expect(state.players[0].credits).toBe(850);
-    expect(state.players[1].credits).toBe(850);
-    expect(state.players[0].ready).toBe(false);
-    expect(state.players[1].ready).toBe(false);
-    expect(state.ships).toHaveLength(0);
-  });
-  it('processFleetReady spawns purchased ships at bases', () => {
-    const state = createGame(
-      SCENARIOS.interplanetaryWar,
-      map,
-      'WAR01',
-      findBaseHex,
-    );
-    const result = processFleetReady(
-      state,
-      0,
-      [{ shipType: 'corvette' }, { shipType: 'corsair' }],
-      map,
-      SCENARIOS.interplanetaryWar.availableShipTypes,
-    );
-    expect('error' in result).toBe(false);
-    if ('state' in result) {
-      const p0Ships = result.state.ships.filter((s) => s.owner === 0);
-      expect(p0Ships).toHaveLength(2);
-      expect(p0Ships[0].type).toBe('corvette');
-      expect(p0Ships[1].type).toBe('corsair');
-      expect(p0Ships[0].lifecycle).toBe('landed');
-      expect(result.state.players[0].credits).toBe(730);
-      expect(result.state.players[0].ready).toBe(true);
-      expect(result.state.phase).toBe('fleetBuilding');
-    }
-  });
-  it('transitions to astrogation when both players submit', () => {
-    const state = createGame(
-      SCENARIOS.interplanetaryWar,
-      map,
-      'WAR01',
-      findBaseHex,
-    );
-    const r1 = processFleetReady(state, 0, [{ shipType: 'corvette' }], map);
-    if ('error' in r1) throw new Error(r1.error);
-    const r2 = processFleetReady(r1.state, 1, [{ shipType: 'corsair' }], map);
-    expect('error' in r2).toBe(false);
-    if ('state' in r2) {
-      expect(r2.state.phase).toBe('astrogation');
-      expect(r2.state.ships).toHaveLength(2);
-    }
-  });
-  it('rejects purchases exceeding credits', () => {
-    const state = createGame(
-      SCENARIOS.interplanetaryWar,
-      map,
-      'WAR01',
-      findBaseHex,
-    );
-    // Dreadnaught costs 600, torch costs 400 -- total 1000 > 800
-    const result = processFleetReady(
-      state,
-      0,
-      [{ shipType: 'dreadnaught' }, { shipType: 'torch' }],
-      map,
-    );
-    expect('error' in result).toBe(true);
-    if ('error' in result) {
-      expect(result.error).toContain('Not enough credits');
-    }
-  });
-  it('rejects unknown ship type', () => {
-    const state = createGame(
-      SCENARIOS.interplanetaryWar,
-      map,
-      'WAR01',
-      findBaseHex,
-    );
-    const result = processFleetReady(
-      state,
-      0,
-      [{ shipType: 'battlecruiser' }],
-      map,
-    );
-    expect('error' in result).toBe(true);
-  });
-  it('rejects direct orbital base purchase', () => {
-    const state = createGame(
-      SCENARIOS.interplanetaryWar,
-      map,
-      'WAR01',
-      findBaseHex,
-    );
-    const result = processFleetReady(
-      state,
-      0,
-      [{ shipType: 'orbitalBase' }],
-      map,
-    );
-    expect('error' in result).toBe(true);
-  });
-  it('rejects fleet ready when not in fleetBuilding phase', () => {
-    const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
-    const result = processFleetReady(state, 0, [], map);
-    expect('error' in result).toBe(true);
-    if ('error' in result) {
-      expect(result.error).toContain('Not in fleet building');
-    }
-  });
-});
+// Fleet building tests moved to fleet-building.test.ts
 describe('Grand Tour', () => {
   let tourState: GameState;
   beforeEach(() => {

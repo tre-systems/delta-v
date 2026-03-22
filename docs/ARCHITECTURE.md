@@ -63,7 +63,11 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `combat.ts` | 627 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
 | `map-data.ts` | 713 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
 | `ai.ts` | 924 | Rule-based AI with three difficulty levels and enforcer interception | Game-specific |
-| `engine/game-engine.ts` | 795 | Pure state machine: game creation, phase orchestration, state filtering | Game-specific |
+| `engine/game-engine.ts` | 44 | Barrel re-export: public engine API + result types | Game-specific |
+| `engine/game-creation.ts` | 334 | Game initialization from scenario definition | Game-specific |
+| `engine/fleet-building.ts` | 121 | Fleet purchase phase (MegaCredit economy) | Game-specific |
+| `engine/astrogation.ts` | 315 | Order validation, ordnance launches, movement dispatch | Game-specific |
+| `engine/resolve-movement.ts` | 212 | Movement orchestrator: resolve orders, post-movement checks | Game-specific |
 | `engine/combat.ts` | 537 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
 | `engine/ordnance.ts` | 523 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
 | `engine/logistics.ts` | 283 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
