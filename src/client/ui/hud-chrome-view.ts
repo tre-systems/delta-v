@@ -1,4 +1,5 @@
 import { byId, hide, visible } from '../dom';
+import { computed, effect, signal } from '../reactive';
 import { ACTION_BUTTON_IDS } from './button-bindings';
 import { getLatencyStatus } from './formatters';
 import { buildHUDView, type HUDInput } from './hud';
@@ -12,6 +13,9 @@ export interface HUDChromeViewDeps {
 
 export class HUDChromeView {
   private lastPhase: string | null = null;
+  private readonly inputSignal = signal<Omit<HUDInput, 'isMobile'> | null>(
+    null,
+  );
 
   private readonly turnInfoEl = byId('turnInfo');
   private readonly phaseInfoEl = byId('phaseInfo');
@@ -37,69 +41,89 @@ export class HUDChromeView {
   private readonly attackBtn = byId('attackBtn');
   private readonly fireBtn = byId('fireBtn');
 
-  constructor(private readonly deps: HUDChromeViewDeps) {}
+  constructor(private readonly deps: HUDChromeViewDeps) {
+    const viewSignal = computed(() => {
+      const input = this.inputSignal.value;
+      if (!input) return null;
+      return {
+        input,
+        hudView: buildHUDView({
+          ...input,
+          isMobile: this.deps.getIsMobile(),
+        }),
+      };
+    });
+
+    effect(() => {
+      const state = viewSignal.value;
+      if (!state) return;
+      const { input, hudView } = state;
+
+      const { turn, phase, isMyTurn } = input;
+
+      this.turnInfoEl.textContent = hudView.turnText;
+      this.phaseInfoEl.textContent = hudView.phaseText;
+      this.objectiveEl.textContent = hudView.objectiveText;
+
+      const phaseKey = `${turn}-${phase}-${isMyTurn}`;
+
+      if (this.lastPhase !== phaseKey) {
+        this.lastPhase = phaseKey;
+        this.deps.showPhaseAlert(phase, isMyTurn);
+      }
+
+      this.fuelGaugeEl.textContent = hudView.fuelGaugeText;
+
+      visible(this.undoBtn, hudView.undoVisible, 'inline-block');
+      visible(this.confirmBtn, hudView.confirmVisible, 'inline-block');
+
+      visible(this.launchMineBtn, hudView.launchMine.visible, 'inline-block');
+      visible(
+        this.launchTorpedoBtn,
+        hudView.launchTorpedo.visible,
+        'inline-block',
+      );
+      visible(this.launchNukeBtn, hudView.launchNuke.visible, 'inline-block');
+      visible(this.emplaceBaseBtn, hudView.emplaceBaseVisible, 'inline-block');
+      visible(
+        this.skipOrdnanceBtn,
+        hudView.skipOrdnanceVisible,
+        'inline-block',
+      );
+
+      this.launchMineBtn.disabled = hudView.launchMine.disabled;
+      this.launchTorpedoBtn.disabled = hudView.launchTorpedo.disabled;
+      this.launchNukeBtn.disabled = hudView.launchNuke.disabled;
+
+      this.launchMineBtn.style.opacity = hudView.launchMine.opacity;
+      this.launchTorpedoBtn.style.opacity = hudView.launchTorpedo.opacity;
+      this.launchNukeBtn.style.opacity = hudView.launchNuke.opacity;
+
+      this.launchMineBtn.title = hudView.launchMine.title;
+      this.launchTorpedoBtn.title = hudView.launchTorpedo.title;
+      this.launchNukeBtn.title = hudView.launchNuke.title;
+
+      visible(this.skipCombatBtn, hudView.skipCombatVisible, 'inline-block');
+      visible(
+        this.skipLogisticsBtn,
+        hudView.skipLogisticsVisible,
+        'inline-block',
+      );
+      visible(
+        this.confirmTransfersBtn,
+        hudView.confirmTransfersVisible,
+        'inline-block',
+      );
+      visible(this.transferPanelEl, hudView.showTransferPanel, 'block');
+
+      this.deps.onStatusText(hudView.statusText);
+
+      this.deps.queueLayoutSync();
+    });
+  }
 
   update(input: Omit<HUDInput, 'isMobile'>): void {
-    const hudView = buildHUDView({
-      ...input,
-      isMobile: this.deps.getIsMobile(),
-    });
-    const { turn, phase, isMyTurn } = input;
-
-    this.turnInfoEl.textContent = hudView.turnText;
-    this.phaseInfoEl.textContent = hudView.phaseText;
-    this.objectiveEl.textContent = hudView.objectiveText;
-
-    const phaseKey = `${turn}-${phase}-${isMyTurn}`;
-
-    if (this.lastPhase !== phaseKey) {
-      this.lastPhase = phaseKey;
-      this.deps.showPhaseAlert(phase, isMyTurn);
-    }
-
-    this.fuelGaugeEl.textContent = hudView.fuelGaugeText;
-
-    visible(this.undoBtn, hudView.undoVisible, 'inline-block');
-    visible(this.confirmBtn, hudView.confirmVisible, 'inline-block');
-
-    visible(this.launchMineBtn, hudView.launchMine.visible, 'inline-block');
-    visible(
-      this.launchTorpedoBtn,
-      hudView.launchTorpedo.visible,
-      'inline-block',
-    );
-    visible(this.launchNukeBtn, hudView.launchNuke.visible, 'inline-block');
-    visible(this.emplaceBaseBtn, hudView.emplaceBaseVisible, 'inline-block');
-    visible(this.skipOrdnanceBtn, hudView.skipOrdnanceVisible, 'inline-block');
-
-    this.launchMineBtn.disabled = hudView.launchMine.disabled;
-    this.launchTorpedoBtn.disabled = hudView.launchTorpedo.disabled;
-    this.launchNukeBtn.disabled = hudView.launchNuke.disabled;
-
-    this.launchMineBtn.style.opacity = hudView.launchMine.opacity;
-    this.launchTorpedoBtn.style.opacity = hudView.launchTorpedo.opacity;
-    this.launchNukeBtn.style.opacity = hudView.launchNuke.opacity;
-
-    this.launchMineBtn.title = hudView.launchMine.title;
-    this.launchTorpedoBtn.title = hudView.launchTorpedo.title;
-    this.launchNukeBtn.title = hudView.launchNuke.title;
-
-    visible(this.skipCombatBtn, hudView.skipCombatVisible, 'inline-block');
-    visible(
-      this.skipLogisticsBtn,
-      hudView.skipLogisticsVisible,
-      'inline-block',
-    );
-    visible(
-      this.confirmTransfersBtn,
-      hudView.confirmTransfersVisible,
-      'inline-block',
-    );
-    visible(this.transferPanelEl, hudView.showTransferPanel, 'block');
-
-    this.deps.onStatusText(hudView.statusText);
-
-    this.deps.queueLayoutSync();
+    this.inputSignal.value = input;
   }
 
   updateLatency(latencyMs: number | null): void {
