@@ -147,3 +147,12 @@ export type EngineEvent =
       playerId: number;
       body: string;
     };
+
+/** Versioned event envelope for match-scoped persistence. */
+export interface EventEnvelope {
+  gameId: string;
+  seq: number;
+  ts: number;
+  actor: number | null;
+  event: EngineEvent;
+}

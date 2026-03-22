@@ -13,25 +13,6 @@ with the feature, not as a cleanup pass afterward.
 
 ## Event-Sourced Match Architecture
 
-### Event-sourced match persistence
-
-The engine already emits granular `EngineEvent[]` (22
-types) from all entry points, and the server stores
-them in an event log. The next step is making the event
-stream authoritative: versioned event envelopes with
-`gameId`, sequence number, actor identity, and
-timestamp. Snapshots become checkpoints, not the source
-of truth.
-
-Definition of done: rematches create isolated streams,
-append ordering is enforced, duplicate / out-of-order
-writes are rejected or ignored safely, and rebuild-from-
-events tests exist for the covered flows.
-
-**Files:** `src/shared/engine/engine-events.ts`,
-`src/server/game-do/archive.ts`,
-`src/server/game-do/game-do.ts`
-
 ### Explicit RNG outcome capture
 
 Persist authoritative random outcomes inside the event
