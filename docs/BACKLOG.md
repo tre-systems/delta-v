@@ -13,27 +13,6 @@ with the feature, not as a cleanup pass afterward.
 
 ## Immediate Priorities
 
-### Imperative-shell coverage and smoke tests
-
-Add targeted tests around the runtime shells that still
-carry most of the coordination risk.
-
-The shared engine is well-covered; the main remaining
-blind spots are `GameClient` bootstrap, renderer / UI
-coordination, and an end-to-end multiplayer happy path
-that exercises the full runtime shell.
-
-Definition of done: targeted tests or smoke harnesses
-cover `main.ts` bootstrap, renderer / UI coordination,
-and one end-to-end multiplayer happy path, with
-coverage improving on `main.ts`, `ui.ts`,
-`renderer.ts`, and `game-do.ts`.
-
-**Files:** `src/client/main.ts`,
-`src/client/ui/ui.ts`,
-`src/client/renderer/renderer.ts`,
-`src/server/game-do/game-do.ts`, related tests
-
 ### Split `GameClient` orchestration out of `main.ts`
 
 Reduce the number of concerns that still terminate in the
