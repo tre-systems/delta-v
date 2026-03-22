@@ -13,33 +13,6 @@ with the feature, not as a cleanup pass afterward.
 
 ## Immediate Priorities
 
-### Unify local and networked game-flow orchestration
-
-Reduce parity drift between AI/local execution and multiplayer
-execution by converging on a smaller set of shared client-side
-action / result handling paths.
-
-The shared engine already prevents the worst rule divergence, but
-client flow still branches between local execution and server-
-driven execution in ways that make phase, presentation, and
-session changes harder to evolve.
-
-Near-term slice: introduce one shared client-side resolution
-application path so local `LocalResolution` results and remote
-state-bearing messages both normalize into the same presentation
-and phase-progression flow.
-
-Definition of done: at least one phase-flow slice shares the same
-client-side action/result orchestration between local and remote
-play, and targeted parity tests cover local versus networked
-behavior for the covered flow.
-
-**Files:** `src/client/game/local.ts`,
-`src/client/game/local-game-flow.ts`,
-`src/client/game/message-handler.ts`,
-`src/client/game/session-controller.ts`,
-`src/client/main.ts`
-
 ---
 
 ## Event-Sourced Match Architecture

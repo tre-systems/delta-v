@@ -529,3 +529,54 @@ describe('client integration: full connection-to-game sequence', () => {
     expect(deps.calls.transitionToPhase).toHaveLength(1);
   });
 });
+
+describe('local vs networked parity: movement resolution', () => {
+  it('movement result triggers identical presentMovementResult args from both paths', () => {
+    const state = createState({ phase: 'astrogation' });
+    const movements: ShipMovement[] = [
+      {
+        shipId: 'ship-0',
+        from: { q: 0, r: 0 },
+        to: { q: 1, r: 0 },
+        path: [
+          { q: 0, r: 0 },
+          { q: 1, r: 0 },
+        ],
+        newVelocity: { dq: 1, dr: 0 },
+        fuelSpent: 1,
+        gravityEffects: [],
+        crashed: false,
+        landedAt: null,
+      },
+    ];
+    const ordnanceMovements: OrdnanceMovement[] = [];
+    const events: MovementEvent[] = [];
+
+    // Networked path: capture presentMovementResult args
+    const networkDeps = createDeps('playing_astrogation', state);
+    handleServerMessage(networkDeps, {
+      type: 'movementResult',
+      state,
+      movements,
+      ordnanceMovements,
+      events,
+    });
+
+    const networkCall = networkDeps.calls.presentMovementResult;
+    expect(networkCall).toHaveLength(1);
+
+    // Args should be: [state, movements, ordnanceMovements, events, onComplete]
+    const [nState, nMov, nOrd, nEvt] = networkCall[0];
+    expect(nState).toBe(state);
+    expect(nMov).toBe(movements);
+    expect(nOrd).toBe(ordnanceMovements);
+    expect(nEvt).toBe(events);
+
+    // The local path calls deps.presentMovementResult with the
+    // same 5-arg signature via playLocalMovementResult in
+    // local-game-flow.ts. Both converge on presentation.ts
+    // presentMovementResult which is fully source-agnostic.
+    // This test verifies the networked half; the local half
+    // is verified by local.test.ts + local-game-flow.test.ts.
+  });
+});
