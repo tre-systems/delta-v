@@ -4,7 +4,7 @@ import type {
   MovementEvent,
   Ship,
 } from '../../shared/types/domain';
-import { byId } from '../dom';
+import { byId, listen } from '../dom';
 import { createDisposalScope } from '../reactive';
 import { STATIC_BUTTON_BINDINGS } from './button-bindings';
 import type { UIEvent } from './events';
@@ -102,52 +102,37 @@ export class UIManager {
       this.hudEl.style.display !== 'none',
     );
 
-    const handleMobileQueryChange = (e: MediaQueryListEvent) => {
-      this.isMobile = e.matches;
-      this.hudChromeView.setMobile(e.matches);
-      this.gameLogView.setMobile(
-        e.matches,
-        this.hudEl.style.display !== 'none',
-      );
-    };
-    this.mobileQuery.addEventListener('change', handleMobileQueryChange);
-    this.scope.add(() => {
-      this.mobileQuery.removeEventListener('change', handleMobileQueryChange);
-    });
-
-    window.addEventListener('resize', this.handleViewportResize);
-    this.scope.add(() => {
-      window.removeEventListener('resize', this.handleViewportResize);
-    });
-    window.visualViewport?.addEventListener(
-      'resize',
-      this.handleViewportResize,
+    this.scope.add(
+      listen(this.mobileQuery, 'change', (e) => {
+        const matches = (e as MediaQueryListEvent).matches;
+        this.isMobile = matches;
+        this.hudChromeView.setMobile(matches);
+        this.gameLogView.setMobile(
+          matches,
+          this.hudEl.style.display !== 'none',
+        );
+      }),
     );
-    this.scope.add(() => {
-      window.visualViewport?.removeEventListener(
-        'resize',
-        this.handleViewportResize,
-      );
-    });
 
-    this.bindStaticButtons();
+    this.scope.add(listen(window, 'resize', this.handleViewportResize));
+
+    if (window.visualViewport) {
+      this.scope.add(
+        listen(window.visualViewport, 'resize', this.handleViewportResize),
+      );
+    }
+
+    for (const binding of STATIC_BUTTON_BINDINGS) {
+      this.scope.add(
+        listen(byId(binding.id), 'click', () => {
+          this.emit(binding.event);
+        }),
+      );
+    }
   }
 
   private emit(event: UIEvent) {
     this.onEvent?.(event);
-  }
-
-  private bindStaticButtons() {
-    for (const binding of STATIC_BUTTON_BINDINGS) {
-      const handleClick = () => {
-        this.emit(binding.event);
-      };
-      const button = byId(binding.id);
-      button.addEventListener('click', handleClick);
-      this.scope.add(() => {
-        button.removeEventListener('click', handleClick);
-      });
-    }
   }
 
   toggleLog() {

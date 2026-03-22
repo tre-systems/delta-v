@@ -1,5 +1,5 @@
 import type { FleetPurchase, GameState } from '../../shared/types/domain';
-import { byId, clearHTML, hide, setTrustedHTML, show } from '../dom';
+import { byId, clearHTML, hide, listen, setTrustedHTML, show } from '../dom';
 import {
   batch,
   computed,
@@ -30,21 +30,17 @@ export class FleetBuildingView {
   private readonly waitingEl = byId('fleetWaiting');
 
   constructor(private readonly deps: FleetBuildingViewDeps) {
-    const handleReady = () => {
-      this.deps.onFleetReady([...this.cartSignal.value]);
-    };
-    this.readyBtn.addEventListener('click', handleReady);
-    this.scope.add(() => {
-      this.readyBtn.removeEventListener('click', handleReady);
-    });
+    this.scope.add(
+      listen(this.readyBtn, 'click', () => {
+        this.deps.onFleetReady([...this.cartSignal.value]);
+      }),
+    );
 
-    const handleClear = () => {
-      this.cartSignal.value = [];
-    };
-    this.clearBtn.addEventListener('click', handleClear);
-    this.scope.add(() => {
-      this.clearBtn.removeEventListener('click', handleClear);
-    });
+    this.scope.add(
+      listen(this.clearBtn, 'click', () => {
+        this.cartSignal.value = [];
+      }),
+    );
 
     const cartViewSignal = this.scope.add(
       computed(() =>

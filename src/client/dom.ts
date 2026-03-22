@@ -122,6 +122,24 @@ export const clearHTML = (element: HTMLElement): void => {
   element.innerHTML = '';
 };
 
+// --- Event binding ---
+
+/**
+ * Bind an event listener and return a disposer that
+ * removes it. Use with `scope.add(listen(...))` to
+ * replace the 3-line addEventListener/scope.add/
+ * removeEventListener pattern.
+ */
+export const listen = <T extends EventTarget, K extends string>(
+  target: T,
+  event: K,
+  handler: (e: Event) => void,
+  options?: AddEventListenerOptions,
+): (() => void) => {
+  target.addEventListener(event, handler, options);
+  return () => target.removeEventListener(event, handler, options);
+};
+
 // --- Visibility ---
 
 /** Hide an element by setting display to 'none'. */
