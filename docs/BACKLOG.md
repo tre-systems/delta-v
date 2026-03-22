@@ -67,14 +67,6 @@ behavior for the covered flow.
 `src/client/game/session-controller.ts`,
 `src/client/main.ts`
 
-
-
-**Files:** `src/shared/protocol.ts`,
-`src/shared/protocol.test.ts`,
-`src/shared/replay.ts`,
-`src/server/game-do/messages.ts`,
-related replay / protocol fixture tests
-
 ---
 
 ## Event-Sourced Match Architecture
