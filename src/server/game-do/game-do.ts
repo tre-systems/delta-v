@@ -43,6 +43,7 @@ import {
 } from '../protocol';
 import {
   allocateMatchIdentity,
+  appendEnvelopedEvents,
   appendEvents,
   appendReplayMessage,
   filterReplayArchiveForPlayer,
@@ -585,6 +586,12 @@ export class GameDO extends DurableObject<Env> {
     await this.saveGameState(state);
     if (events.length > 0) {
       await appendEvents(this.ctx.storage, ...events);
+      await appendEnvelopedEvents(
+        this.ctx.storage,
+        state.gameId,
+        state.activePlayer,
+        ...events,
+      );
     }
     if (matchNumber !== undefined) {
       await appendReplayMessage(
@@ -755,12 +762,19 @@ export class GameDO extends DurableObject<Env> {
       matchNumber,
       gameStartMessage,
     );
-    await appendEvents(this.ctx.storage, {
-      type: 'gameCreated',
+    const gameCreatedEvent = {
+      type: 'gameCreated' as const,
       scenario: gameState.scenario,
       turn: gameState.turnNumber,
       phase: gameState.phase,
-    });
+    };
+    await appendEvents(this.ctx.storage, gameCreatedEvent);
+    await appendEnvelopedEvents(
+      this.ctx.storage,
+      gameId,
+      null,
+      gameCreatedEvent,
+    );
     this.broadcastFiltered(gameStartMessage);
     await this.startTurnTimer(gameState);
   }
