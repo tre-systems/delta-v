@@ -23,6 +23,7 @@ import type {
   Ship,
   SolarSystemMap,
 } from '../types';
+import type { EngineEvent } from './engine-events';
 import {
   getAllowedOrdnanceTypes,
   hasLaunchableOrdnanceCapacity,
@@ -61,8 +62,9 @@ export const processEmplacement = (
   playerId: number,
   emplacements: OrbitalBaseEmplacement[],
   map: SolarSystemMap,
-): { state: GameState } | { error: string } => {
+): { state: GameState; engineEvents: EngineEvent[] } | { error: string } => {
   const state = structuredClone(inputState);
+  const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'ordnance');
   if (phaseError) return { error: phaseError };
@@ -80,7 +82,7 @@ export const processEmplacement = (
     }
     if (ship.type !== 'transport' && ship.type !== 'packet') {
       return {
-        error: 'Only transports and packets can carry orbital bases',
+        error: 'Only transports and packets can' + ' carry orbital bases',
       };
     }
     if (ship.resuppliedThisTurn) {
@@ -98,7 +100,8 @@ export const processEmplacement = (
     if (!inOrbit && !onWorldSide) {
       return {
         error:
-          'Must be in orbit or on a world hex side to emplace an orbital base',
+          'Must be in orbit or on a world hex side' +
+          ' to emplace an orbital base',
       };
     }
 
@@ -127,11 +130,17 @@ export const processEmplacement = (
 
     state.ships.push(newBase);
 
+    engineEvents.push({
+      type: 'baseEmplaced',
+      shipId: baseId,
+      position: { ...ship.position },
+    });
+
     ship.baseStatus = undefined;
     ship.cargoUsed = Math.max(0, ship.cargoUsed - ORBITAL_BASE_MASS);
   }
 
-  return { state };
+  return { state, engineEvents };
 };
 
 /**
@@ -156,6 +165,7 @@ const resolveTorpedoDetonation = (
   hex: { q: number; r: number },
   events: MovementEvent[],
   rng: () => number,
+  engineEvents?: EngineEvent[],
 ): boolean => {
   if (ships.length === 0 && contactedOrdnance.length === 0) {
     return false;
@@ -196,6 +206,26 @@ const resolveTorpedoDetonation = (
 
     if (result.type !== 'none') {
       applyDamage(candidate.ship, result);
+
+      engineEvents?.push({
+        type: 'ordnanceDetonated',
+        ordnanceId: ord.id,
+        ordnanceType: 'torpedo',
+        hex,
+        targetShipId: candidate.ship.id,
+        roll: dieRoll,
+        damageType: result.type,
+        disabledTurns: result.disabledTurns,
+      });
+
+      if (candidate.ship.lifecycle === 'destroyed') {
+        engineEvents?.push({
+          type: 'shipDestroyed',
+          shipId: candidate.ship.id,
+          cause: 'torpedo',
+        });
+      }
+
       return true;
     }
   }
@@ -210,6 +240,7 @@ const checkOrdnanceDetonation = (
   events: MovementEvent[],
   map: SolarSystemMap,
   rng: () => number,
+  engineEvents?: EngineEvent[],
 ): boolean => {
   for (let i = 0; i < path.length; i++) {
     const pathHex = path[i];
@@ -266,6 +297,7 @@ const checkOrdnanceDetonation = (
           pathHex,
           events,
           rng,
+          engineEvents,
         )
       ) {
         return true;
@@ -296,7 +328,27 @@ const checkOrdnanceDetonation = (
         ordnanceId: ord.id,
       });
 
+      engineEvents?.push({
+        type: 'ordnanceDetonated',
+        ordnanceId: ord.id,
+        ordnanceType: ord.type,
+        hex: pathHex,
+        targetShipId: ship.id,
+        roll: dieRoll,
+        damageType: result.type,
+        disabledTurns: result.disabledTurns,
+      });
+
       applyDamage(ship, result);
+
+      if (ship.lifecycle === 'destroyed') {
+        engineEvents?.push({
+          type: 'shipDestroyed',
+          shipId: ship.id,
+          cause: ord.type,
+        });
+      }
+
       hitSomething = true;
     }
 
@@ -323,6 +375,7 @@ export const moveOrdnance = (
   ordnanceMovements: OrdnanceMovement[],
   events: MovementEvent[],
   rng: () => number,
+  engineEvents?: EngineEvent[],
 ): void => {
   for (const ord of state.ordnance) {
     if (ord.lifecycle === 'destroyed') continue;
@@ -343,6 +396,10 @@ export const moveOrdnance = (
 
     if (ord.turnsRemaining <= 0) {
       ord.lifecycle = 'destroyed';
+      engineEvents?.push({
+        type: 'ordnanceExpired',
+        ordnanceId: ord.id,
+      });
     }
 
     let nukeDevastated = false;
@@ -381,6 +438,22 @@ export const moveOrdnance = (
                 disabledTurns: 0,
                 ordnanceId: ord.id,
               });
+
+              engineEvents?.push({
+                type: 'ordnanceDetonated',
+                ordnanceId: ord.id,
+                ordnanceType: ord.type,
+                hex: entryHex,
+                targetShipId: ship.id,
+                roll: 0,
+                damageType: 'eliminated',
+                disabledTurns: 0,
+              });
+              engineEvents?.push({
+                type: 'shipDestroyed',
+                shipId: ship.id,
+                cause: ord.type,
+              });
             }
           }
 
@@ -403,7 +476,15 @@ export const moveOrdnance = (
     const detonated =
       nukeDevastated ||
       (ord.lifecycle !== 'destroyed' &&
-        checkOrdnanceDetonation(ord, state, finalPath, events, map, rng));
+        checkOrdnanceDetonation(
+          ord,
+          state,
+          finalPath,
+          events,
+          map,
+          rng,
+          engineEvents,
+        ));
 
     ordnanceMovements.push({
       ordnanceId: ord.id,

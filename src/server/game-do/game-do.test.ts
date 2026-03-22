@@ -527,6 +527,7 @@ describe('GameDO', () => {
       movements: [],
       ordnanceMovements: [],
       events: [],
+      engineEvents: [],
     };
 
     await (

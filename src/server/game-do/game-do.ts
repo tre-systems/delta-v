@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { must } from '../../shared/assert';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../../shared/constants';
+import type { EngineEvent } from '../../shared/engine/engine-events';
 import {
   beginCombatPhase,
   createGame,
@@ -16,7 +17,6 @@ import {
   skipLogistics,
   skipOrdnance,
 } from '../../shared/engine/game-engine';
-import type { GameEvent } from '../../shared/events';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -49,9 +49,6 @@ import {
   resolveSeatAssignment,
 } from '../protocol';
 import {
-  deriveCombatEvents,
-  deriveMovementEvents,
-  derivePhaseChangeEvents,
   resolveCombatBroadcast,
   resolveMovementBroadcast,
   resolveStateBearingMessage,
@@ -105,10 +102,10 @@ export class GameDO extends DurableObject<Env> {
   private async saveGameState(state: GameState): Promise<void> {
     await this.ctx.storage.put('gameState', state);
   }
-  private async getEventLog(): Promise<GameEvent[]> {
-    return (await this.ctx.storage.get<GameEvent[]>('eventLog')) ?? [];
+  private async getEventLog(): Promise<EngineEvent[]> {
+    return (await this.ctx.storage.get<EngineEvent[]>('eventLog')) ?? [];
   }
-  private async appendEvents(...events: GameEvent[]): Promise<void> {
+  private async appendEvents(...events: EngineEvent[]): Promise<void> {
     const log = await this.getEventLog();
     log.push(...events);
     const MAX_EVENTS = 500;
@@ -599,10 +596,9 @@ export class GameDO extends DurableObject<Env> {
           restartTurnTimer: false,
           events: [
             {
-              type: 'gameOver',
-              turn: gameState.turnNumber,
+              type: 'gameOver' as const,
               winner: gameState.winner,
-              reason: gameState.winReason,
+              reason: gameState.winReason ?? '',
             },
           ],
         });
@@ -670,7 +666,7 @@ export class GameDO extends DurableObject<Env> {
     primaryMessage?: StatefulServerMessage,
     options?: {
       restartTurnTimer?: boolean;
-      events?: GameEvent[];
+      events?: EngineEvent[];
     },
   ) {
     const { restartTurnTimer = true, events = [] } = options ?? {};
@@ -840,7 +836,8 @@ export class GameDO extends DurableObject<Env> {
       createReplayArchive(code, matchNumber, gameStartMessage, Date.now()),
     );
     await this.appendEvents({
-      type: 'gameStarted',
+      type: 'gameCreated',
+      scenario: gameState.scenario,
       turn: gameState.turnNumber,
       phase: gameState.phase,
     });
@@ -867,7 +864,7 @@ export class GameDO extends DurableObject<Env> {
       async (result) => {
         await this.publishStateChange(result.state, undefined, {
           restartTurnTimer: result.state.phase === 'astrogation',
-          events: derivePhaseChangeEvents(result.state),
+          events: result.engineEvents,
         });
       },
     );
@@ -885,7 +882,7 @@ export class GameDO extends DurableObject<Env> {
         await this.publishStateChange(
           result.state,
           resolveMovementBroadcast(result),
-          { events: deriveMovementEvents(result) },
+          { events: result.engineEvents },
         );
       },
     );
@@ -904,7 +901,7 @@ export class GameDO extends DurableObject<Env> {
           toStateUpdateMessage(result.state),
           {
             restartTurnTimer: false,
-            events: derivePhaseChangeEvents(result.state),
+            events: result.engineEvents,
           },
         );
       },
@@ -923,7 +920,7 @@ export class GameDO extends DurableObject<Env> {
           result.state,
           toStateUpdateMessage(result.state),
           {
-            events: derivePhaseChangeEvents(result.state),
+            events: result.engineEvents,
           },
         );
       },
@@ -938,7 +935,7 @@ export class GameDO extends DurableObject<Env> {
           result.state,
           toStateUpdateMessage(result.state),
           {
-            events: derivePhaseChangeEvents(result.state),
+            events: result.engineEvents,
           },
         );
       },
@@ -957,7 +954,7 @@ export class GameDO extends DurableObject<Env> {
         await this.publishStateChange(
           result.state,
           toMovementResultMessage(result),
-          { events: deriveMovementEvents(result) },
+          { events: result.engineEvents },
         );
       },
     );
@@ -977,7 +974,7 @@ export class GameDO extends DurableObject<Env> {
           toStateUpdateMessage(result.state),
           {
             restartTurnTimer: false,
-            events: derivePhaseChangeEvents(result.state),
+            events: result.engineEvents,
           },
         );
       },
@@ -991,7 +988,7 @@ export class GameDO extends DurableObject<Env> {
         await this.publishStateChange(
           result.state,
           resolveMovementBroadcast(result, 'stateUpdate'),
-          { events: deriveMovementEvents(result) },
+          { events: result.engineEvents },
         );
       },
     );
@@ -1009,7 +1006,7 @@ export class GameDO extends DurableObject<Env> {
         await this.publishStateChange(
           result.state,
           must(resolveCombatBroadcast(result)),
-          { events: deriveCombatEvents(result) },
+          { events: result.engineEvents },
         );
       },
     );
@@ -1023,7 +1020,7 @@ export class GameDO extends DurableObject<Env> {
         await this.publishStateChange(
           result.state,
           resolveCombatBroadcast(result, 'stateUpdate'),
-          { events: deriveCombatEvents(result) },
+          { events: result.engineEvents },
         );
       },
     );
@@ -1036,7 +1033,7 @@ export class GameDO extends DurableObject<Env> {
         await this.publishStateChange(
           result.state,
           resolveCombatBroadcast(result),
-          { events: deriveCombatEvents(result) },
+          { events: result.engineEvents },
         );
       },
     );
