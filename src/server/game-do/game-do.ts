@@ -23,7 +23,6 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import { validateClientMessage } from '../../shared/protocol';
-import type { ReplayArchive } from '../../shared/replay';
 import type {
   AstrogationOrder,
   CombatAttack,
@@ -46,7 +45,9 @@ import {
   allocateMatchIdentity,
   appendEvents,
   appendReplayMessage,
+  filterReplayArchiveForPlayer,
   getReplayArchive,
+  getReplayViewerId,
   resetEventLog,
 } from './archive';
 import {
@@ -243,39 +244,6 @@ export class GameDO extends DurableObject<Env> {
     if (alarmAt !== null) {
       await this.ctx.storage.setAlarm(alarmAt);
     }
-  }
-  private getReplayViewerId(
-    roomConfig: RoomConfig,
-    presentedTokenRaw: string | null,
-  ): 0 | 1 | null {
-    if (!presentedTokenRaw || !isValidPlayerToken(presentedTokenRaw)) {
-      return null;
-    }
-
-    if (roomConfig.playerTokens[0] === presentedTokenRaw) {
-      return 0;
-    }
-
-    if (roomConfig.playerTokens[1] === presentedTokenRaw) {
-      return 1;
-    }
-
-    return null;
-  }
-  private filterReplayArchiveForPlayer(
-    archive: ReplayArchive,
-    playerId: number,
-  ): ReplayArchive {
-    return {
-      ...archive,
-      entries: archive.entries.map((entry) => ({
-        ...entry,
-        message: {
-          ...entry.message,
-          state: filterStateForPlayer(entry.message.state, playerId),
-        },
-      })),
-    };
   }
   // --- Error telemetry ---
   private reportEngineError = (
@@ -734,7 +702,7 @@ export class GameDO extends DurableObject<Env> {
     }
 
     const url = new URL(request.url);
-    const playerId = this.getReplayViewerId(
+    const playerId = getReplayViewerId(
       roomConfig,
       url.searchParams.get('playerToken'),
     );
@@ -764,7 +732,7 @@ export class GameDO extends DurableObject<Env> {
 
     await this.touchInactivity();
 
-    return Response.json(this.filterReplayArchiveForPlayer(archive, playerId));
+    return Response.json(filterReplayArchiveForPlayer(archive, playerId));
   }
   private async initGame() {
     const [roomConfig, scenario] = await Promise.all([
