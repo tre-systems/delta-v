@@ -108,7 +108,7 @@ Get your thrusters firing locally in seconds:
 4. **Play the Game**
    - Open your browser to `http://localhost:8787`
    - Open a **second tab** or window to the same URL.
-   - Create a game in tab 1, then use the generated invite link in tab 2.
+   - Create a game in tab 1, then join from tab 2 using the copied room link or the 5-character room code.
 
 ### CLI Commands
 
@@ -135,7 +135,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 
 ### Complete
 - [x] 8 playable scenarios with AI opponent (Easy/Normal/Hard)
-- [x] Server hardening (tokenized rooms, authenticated reconnects, runtime validation)
+- [x] Server hardening (authoritative room creation, authenticated reconnects, runtime validation)
 - [x] Hidden information (server-side state filtering for *Escape*)
 - [x] Orbital bases, logistics, reinforcements, fleet conversion
 - [x] PWA support (installable, offline single-player)

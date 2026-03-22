@@ -11,32 +11,32 @@ Delta-V now has a materially stronger authoritative-server boundary than the ori
 - WebSocket actions are still resolved server-side against the authoritative game engine.
 - Hidden-identity state is filtered per player before broadcast, so the fugitive flag itself is not sent to the opponent.
 - Room creation is now authoritative: `/create` initializes the room, locks the scenario up front, and rejects room-code collisions.
-- The room creator receives a reserved player token for seat 0, and the copied invite link carries a guest invite token for seat 1.
-- Once the guest joins, that invite token is rotated into a private reconnect token for that player.
+- The room creator receives a reserved player token for seat 0.
+- The default shipped create flow still shares the guest seat by room code or copied room link; dormant invite-token plumbing exists in the protocol, but it is not yet wired end to end in the worker create response.
 - Reconnects require the stored player token, and seat reclamation is keyed to player identity even if the previous WebSocket has not finished closing yet.
 - Client-to-server WebSocket messages are runtime-validated before any engine handler executes, and malformed payloads are rejected instead of being trusted structurally.
 - Room codes are generated from a cryptographically strong RNG rather than `Math.random()`.
 
-These changes make private competitive play substantially safer than before.
+These changes make private multiplayer substantially safer than before, especially for host-seat integrity, reconnect safety, and server authority.
 
 ## Remaining Competitive Risks
 
-### 1. Invite links are still bearer credentials
+### 1. Guest-seat claiming is still code/link based in the default flow
 
-Current status: **good for invited play, not ideal for public matchmaking**
+Current status: **acceptable for friendly matches, weak for public matchmaking**
 
-- Both player seats are now token-protected.
-- The guest seat is accessed through possession of the invite link.
-- If that invite link is leaked before the intended guest uses it, another player can still claim the seat.
+- The creator seat is token-protected.
+- The guest seat is still usually claimed through possession of the 5-character room code or the copied `/?code=ROOM1` link.
+- The client and server still contain invite-token support, but `/create` does not currently mint a guest token for the default room-creation path.
 
 Implications:
 
-- This is a standard private-link security model and is a large improvement over the old code-only guest join.
-- It is still not the same as authenticated accounts, out-of-band invites, or tournament admin tooling.
+- Anyone who gets the room code before the intended guest can still occupy seat 1.
+- This is weaker than a true tokenized private-link model, and much weaker than authenticated accounts, signed invites, or tournament admin tooling.
 
 Recommended next step:
 
-- Add optional signed invite issuance, account binding, or one-time accept flows for stricter organized play.
+- First resolve the backlog decision: either finish the invite-token flow end to end or remove the dormant abstraction and document code-only guest joins as the deliberate product model.
 
 ### 2. Room secrecy is still limited by short codes
 
@@ -48,7 +48,7 @@ Current status: **acceptable for friendly matches, still weak for public matchma
 
 Implications:
 
-- Code guessing is harder than before, but still more realistic than it should be for a ladder, tournament, or public lobby environment.
+- Code guessing and accidental seat capture are both more realistic than they should be for a ladder, tournament, or public lobby environment.
 - Opportunistic room-creation abuse is somewhat better contained, but public deployment still needs global edge enforcement rather than worker-local fallback behavior.
 
 Recommended next step:
@@ -84,16 +84,17 @@ Current assessment:
 - **Rules authority:** good
 - **Reconnect / seat hijack resistance:** good
 - **Host-seat integrity:** good
-- **Guest-seat integrity via invite links:** good
+- **Guest-seat integrity in default code/link flow:** weak
 - **Match availability under hostile payloads:** good
 - **Room secrecy / public matchmaking readiness:** weak
 
-Delta-V is now in much better shape for competitive matches between invited players. It is still not fully hardened for public matchmaking or tournament-style open lobbies until room secrecy, rate limiting, and stronger identity layers are tightened further.
+Delta-V is in much better shape for private matches than the early prototype, but it is not fully hardened for public matchmaking or tournament-style open lobbies. The biggest remaining gaps are guest-seat claiming, room secrecy, and deployment-level abuse controls.
 
-## Next Priority
+## Near-Term Priorities
 
-The next security-focused engineering step should be public-lobby hardening:
+The next security-focused work should be:
 
+- resolve whether guest invite tokens are part of the real product flow
 - longer room identifiers and/or rate limiting
 - optional edge-side bot protection for public deployments
 - stronger identity/account binding if organized competitive play matters

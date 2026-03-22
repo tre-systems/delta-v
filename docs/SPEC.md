@@ -53,7 +53,7 @@ static/
 
 **Worker (lobby-worker):**
 - `GET /` — Serves the SPA (index.html + bundled JS/CSS)
-- `POST /create` — Generates a 5-character invite code plus a creator reconnect token and a guest invite token, initializes the Durable Object room, and locks the chosen scenario
+- `POST /create` — Generates a 5-character room code plus a creator reconnect token, initializes the Durable Object room, and locks the chosen scenario
 - `GET /ws/:code` — WebSocket upgrade, proxied to the Durable Object
 
 **Durable Object (game-do):**
@@ -64,18 +64,20 @@ static/
 - Uses DO alarms for disconnect grace, turn timeout, and idle cleanup (currently 5 min inactivity)
 - Persists game state to DO storage so games survive DO evictions
 
-### Invite / Join Flow (No Lobby, No Login)
+### Current Invite / Join Flow (No Lobby, No Login)
 
-1. Player 1 clicks "Create Game" → `POST /create` → receives a 5-char code plus a creator reconnect token and a guest invite token
-2. UI shows the code prominently + a shareable invite link (`https://delta-v.example.com/?code=K7M2X&playerToken=...`)
+1. Player 1 clicks "Create Game" → `POST /create` → receives a 5-char code plus a creator reconnect token
+2. UI shows the code prominently + a shareable room link (`https://delta-v.example.com/?code=K7M2X`)
 3. Player 1 can copy link or share via native Share API
-4. Player 2 receives the invite link or an equivalent tokenized join URL
-5. If URL has `?code=` and `playerToken=` params, the client stores the token and auto-joins on page load
-6. Both players connect via WebSocket to `/ws/K7M2X?playerToken=...` → same DO instance
-7. Guest invite tokens rotate into reconnect tokens after first successful join
+4. Player 2 receives the room link or enters the room code manually
+5. If URL has `?code=` and optional `playerToken=` params, the client auto-joins on page load and stores the token when present
+6. The creator connects via WebSocket to `/ws/K7M2X?playerToken=...`; the guest usually joins via `/ws/K7M2X` with no token on first entry
+7. On successful guest join, the server issues that seat a private reconnect token in the `welcome` message for later reconnects
 8. When both players are connected, the game setup phase begins
 
-Players are still seat-based for gameplay purposes (Player 1 / Player 2), but room access and reconnects are tokenized. There are still no accounts or long-term player identities.
+Players are still seat-based for gameplay purposes (Player 1 / Player 2). Reconnects are tokenized after a seat has been claimed, but the default guest-seat claim is still room-code based. There are still no accounts or long-term player identities.
+
+The protocol and client helpers still contain invite-token support for a stricter guest-seat flow, but the default worker create path does not currently issue those tokens. That gap is tracked explicitly in the backlog.
 
 ## Game Concepts
 
