@@ -44,7 +44,7 @@ export const renderOrdnance = (
   }
 
   for (const ord of state.ordnance) {
-    if (ord.destroyed) continue;
+    if (ord.lifecycle === 'destroyed') continue;
 
     const p: PixelCoord = (() => {
       if (animState) {
@@ -192,7 +192,7 @@ export const renderTorpedoGuidance = (
   if (!selectedId) return;
 
   const ship = state.ships.find((s) => s.id === selectedId);
-  if (!ship || ship.destroyed || ship.landed) return;
+  if (!ship || ship.lifecycle !== 'active') return;
 
   const stats = SHIP_STATS[ship.type];
   if (!stats?.canOverload) return;

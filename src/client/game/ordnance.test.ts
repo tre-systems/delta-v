@@ -9,44 +9,44 @@ import {
 } from './ordnance';
 import type { PlanningState } from './planning';
 
-function createShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'ship-1',
-    type: 'packet',
-    owner: 0,
-    originalOwner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 10,
-    cargoUsed: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-1',
+  type: 'packet',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 10,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
-function createState(
+const createState = (
   ships: Ship[],
   scenarioRules: GameState['scenarioRules'] = {},
-): Pick<GameState, 'ships' | 'scenarioRules'> {
-  return { ships, scenarioRules };
-}
+): Pick<GameState, 'ships' | 'scenarioRules'> => ({
+  ships,
+  scenarioRules,
+});
 
-function createPlanning(
+const createPlanning = (
   overrides: Partial<
     Pick<PlanningState, 'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'>
   > = {},
-) {
-  return {
-    selectedShipId: 'ship-1',
-    torpedoAccel: null,
-    torpedoAccelSteps: null,
-    ...overrides,
-  };
-}
+) => ({
+  selectedShipId: 'ship-1',
+  torpedoAccel: null,
+  torpedoAccelSteps: null,
+  ...overrides,
+});
 
 describe('game-client-ordnance', () => {
   it('finds the first launchable ship for the active player', () => {
@@ -125,7 +125,7 @@ describe('game-client-ordnance', () => {
 
     expect(
       resolveOrdnanceLaunchPlan(
-        createState([createShip({ landed: true })]),
+        createState([createShip({ lifecycle: 'landed' })]),
         createPlanning(),
         'mine',
       ),

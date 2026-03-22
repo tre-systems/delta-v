@@ -32,6 +32,9 @@ export interface GameState {
   winReason: string | null;
 }
 
+export type ShipLifecycle = 'active' | 'landed' | 'destroyed';
+export type ShipControl = 'own' | 'captured' | 'surrendered';
+
 export interface Ship {
   id: string;
   type: string;
@@ -42,14 +45,13 @@ export interface Ship {
   velocity: HexVec;
   fuel: number;
   cargoUsed: number;
-  nukesLaunchedSinceResupply?: number;
+  nukesLaunchedSinceResupply: number;
   resuppliedThisTurn: boolean;
-  landed: boolean;
-  destroyed: boolean;
+  lifecycle: ShipLifecycle;
+  control: ShipControl;
   detected: boolean;
-  controlStatus?: 'captured' | 'surrendered';
-  heroismAvailable?: boolean;
-  overloadUsed?: boolean;
+  heroismAvailable: boolean;
+  overloadUsed: boolean;
   baseStatus?: 'carryingBase' | 'emplaced';
   identity?: { hasFugitives: boolean; revealed: boolean };
   pendingGravityEffects?: GravityEffect[];
@@ -59,6 +61,8 @@ export interface Ship {
   };
 }
 
+export type OrdnanceLifecycle = 'active' | 'destroyed';
+
 export interface Ordnance {
   id: string;
   type: 'mine' | 'torpedo' | 'nuke';
@@ -67,7 +71,7 @@ export interface Ordnance {
   position: HexCoord;
   velocity: HexVec;
   turnsRemaining: number;
-  destroyed: boolean;
+  lifecycle: OrdnanceLifecycle;
   pendingGravityEffects?: GravityEffect[];
 }
 

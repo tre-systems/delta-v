@@ -13,25 +13,25 @@ import {
   parseJoinInput,
 } from './formatters';
 
-function createShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'ship-0',
-    type: 'corsair',
-    owner: 0,
-    originalOwner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 20,
-    cargoUsed: 0,
-    nukesLaunchedSinceResupply: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-0',
+  type: 'corsair',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 20,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
 describe('ui formatters', () => {
   it('parses invite links and raw codes', () => {

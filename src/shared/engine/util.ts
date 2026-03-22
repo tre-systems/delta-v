@@ -9,6 +9,20 @@ import type {
   SolarSystemMap,
 } from '../types';
 
+// --- Ship state helpers ---
+
+export const isAlive = (s: Pick<Ship, 'lifecycle'>): boolean =>
+  s.lifecycle !== 'destroyed';
+
+export const isInSpace = (s: Pick<Ship, 'lifecycle'>): boolean =>
+  s.lifecycle === 'active';
+
+export const isLanded = (s: Pick<Ship, 'lifecycle'>): boolean =>
+  s.lifecycle === 'landed';
+
+export const isDestroyed = (s: Pick<Ship, 'lifecycle'>): boolean =>
+  s.lifecycle === 'destroyed';
+
 // Phase + player validation for engine entry points.
 // Returns an error string if the action is not allowed,
 // or null if validation passes.
@@ -106,9 +120,9 @@ export const validateShipOrdnanceLaunch = (
   const stats = SHIP_STATS[ship.type];
   if (!stats) return 'Unknown ship type';
 
-  if (ship.destroyed) return 'Ship is destroyed';
-  if (ship.landed) return 'Cannot launch ordnance while landed';
-  if (ship.controlStatus === 'captured')
+  if (ship.lifecycle === 'destroyed') return 'Ship is destroyed';
+  if (ship.lifecycle === 'landed') return 'Cannot launch ordnance while landed';
+  if (ship.control === 'captured')
     return 'Captured ships cannot launch ordnance';
 
   // Orbital bases may launch at D1 damage (rulebook p.6)
@@ -133,7 +147,7 @@ export const validateShipOrdnanceLaunch = (
   if (
     ordnanceType === 'nuke' &&
     !stats.canOverload &&
-    (ship.nukesLaunchedSinceResupply ?? 0) >= 1
+    ship.nukesLaunchedSinceResupply >= 1
   ) {
     return 'Non-warships may carry only one nuke between resupplies';
   }
@@ -172,8 +186,7 @@ export const validateOrdnanceLaunch = (
 // Quick boolean: can this ship launch any ordnance at all?
 // Checks ship status and minimum cargo capacity.
 export const canLaunchOrdnance = (ship: Ship): boolean => {
-  if (ship.destroyed || ship.landed || ship.controlStatus === 'captured')
-    return false;
+  if (ship.lifecycle !== 'active' || ship.control === 'captured') return false;
 
   // Orbital bases may launch at D1 damage (rulebook p.6)
   if (ship.damage.disabledTurns > 0) {
@@ -201,14 +214,16 @@ export const hasLaunchableOrdnanceCapacity = (
 };
 
 export const isOrderableShip = (ship: Ship): boolean =>
-  !ship.destroyed &&
+  ship.lifecycle !== 'destroyed' &&
   ship.baseStatus !== 'emplaced' &&
-  ship.controlStatus !== 'captured';
+  ship.control !== 'captured';
 
 export const hasAnyEnemyShips = (state: GameState): boolean => {
   const { activePlayer } = state;
 
-  return state.ships.some((s) => s.owner !== activePlayer && !s.destroyed);
+  return state.ships.some(
+    (s) => s.owner !== activePlayer && s.lifecycle !== 'destroyed',
+  );
 };
 
 export const shuffle = <T>(items: T[], rng: () => number): T[] => {

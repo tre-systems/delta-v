@@ -143,7 +143,8 @@ const selectShip = (
 
     const myAlive = deps.ctx.gameState?.ships.filter(
       (candidate) =>
-        candidate.owner === deps.ctx.playerId && !candidate.destroyed,
+        candidate.owner === deps.ctx.playerId &&
+        candidate.lifecycle !== 'destroyed',
     );
 
     if (myAlive && myAlive.length > 1) {

@@ -32,7 +32,7 @@ export const applyClientGameState = (
   }
 
   const selectedShip = state.ships.find((ship) => ship.id === selectedId);
-  if (!selectedShip || selectedShip.destroyed) {
+  if (!selectedShip || selectedShip.lifecycle === 'destroyed') {
     setSelectedShipId(deps.ctx.planningState, null);
   }
 };

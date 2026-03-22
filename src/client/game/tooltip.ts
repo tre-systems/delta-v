@@ -28,7 +28,7 @@ const getCombatSummary = (
     .filter(
       (candidate) =>
         candidate.owner === playerId &&
-        !candidate.destroyed &&
+        candidate.lifecycle !== 'destroyed' &&
         canAttack(candidate),
     )
     .filter((candidate) => hasLineOfSight(candidate, ship, map));
@@ -86,7 +86,7 @@ export const buildShipTooltipHtml = (
     );
   }
 
-  if (ship.landed) {
+  if (ship.lifecycle === 'landed') {
     parts.push('<div class="tt-stat">Landed</div>');
   }
 

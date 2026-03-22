@@ -7,63 +7,61 @@ import type {
 } from '../../shared/types/domain';
 import { buildShipTooltipHtml } from './tooltip';
 
-function createShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'ship-0',
-    type: 'transport',
-    owner: 0,
-    originalOwner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 10,
-    cargoUsed: 0,
-    nukesLaunchedSinceResupply: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-0',
+  type: 'transport',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 10,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
-function createState(ships: Ship[]): GameState {
-  return {
-    gameId: 'TEST',
-    scenario: 'test',
-    scenarioRules: {},
-    escapeMoralVictoryAchieved: false,
-    turnNumber: 1,
-    phase: 'combat',
-    activePlayer: 0,
-    ships,
-    ordnance: [],
-    pendingAstrogationOrders: null,
-    pendingAsteroidHazards: [],
-    destroyedAsteroids: [],
-    destroyedBases: [],
-    players: [
-      {
-        connected: true,
-        ready: true,
-        targetBody: '',
-        homeBody: 'Terra',
-        bases: [],
-        escapeWins: false,
-      },
-      {
-        connected: true,
-        ready: true,
-        targetBody: '',
-        homeBody: 'Mars',
-        bases: [],
-        escapeWins: false,
-      },
-    ],
-    winner: null,
-    winReason: null,
-  };
-}
+const createState = (ships: Ship[]): GameState => ({
+  gameId: 'TEST',
+  scenario: 'test',
+  scenarioRules: {},
+  escapeMoralVictoryAchieved: false,
+  turnNumber: 1,
+  phase: 'combat',
+  activePlayer: 0,
+  ships,
+  ordnance: [],
+  pendingAstrogationOrders: null,
+  pendingAsteroidHazards: [],
+  destroyedAsteroids: [],
+  destroyedBases: [],
+  players: [
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Terra',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: '',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
+  ],
+  winner: null,
+  winReason: null,
+});
 
 const map: SolarSystemMap = {
   hexes: new Map(),

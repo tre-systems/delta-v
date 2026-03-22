@@ -37,8 +37,11 @@ const makeTransportWithBase = (
     fuel: 10,
     cargoUsed: ORBITAL_BASE_MASS,
     resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
+    lifecycle: 'active' as const,
+    control: 'own' as const,
+    heroismAvailable: false,
+    overloadUsed: false,
+    nukesLaunchedSinceResupply: 0,
     detected: true,
     baseStatus: 'carryingBase',
     pendingGravityEffects: [],
@@ -60,8 +63,11 @@ const makeTestShip = (overrides: Partial<Ship> = {}): Ship => ({
   fuel: 10,
   cargoUsed: 0,
   resuppliedThisTurn: false,
-  landed: false,
-  destroyed: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  nukesLaunchedSinceResupply: 0,
   detected: true,
   pendingGravityEffects: [],
   damage: { disabledTurns: 0 },
@@ -301,7 +307,7 @@ describe('resolvePendingAsteroidHazards', () => {
     expect(state.pendingAsteroidHazards).toHaveLength(1);
   });
   it('skips hazards for destroyed ships', () => {
-    const ship = makeTestShip({ destroyed: true });
+    const ship = makeTestShip({ lifecycle: 'destroyed' });
     const state = makeMinimalState({
       ships: [ship],
       pendingAsteroidHazards: [{ shipId: ship.id, hex: { q: 1, r: 0 } }],
@@ -454,7 +460,7 @@ describe('processEmplacement', () => {
       { q: -9, r: -6 },
       { dq: 1, dr: 0 },
     );
-    ship.destroyed = true;
+    ship.lifecycle = 'destroyed';
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
     expect('error' in result).toBe(true);
   });
@@ -481,7 +487,7 @@ describe('processEmplacement', () => {
       dq: 0,
       dr: 0,
     });
-    ship.landed = true;
+    ship.lifecycle = 'landed';
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
     expect('error' in result).toBe(false);
   });

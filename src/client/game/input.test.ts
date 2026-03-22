@@ -11,95 +11,91 @@ import type {
 import { resolveAstrogationClick, resolveOrdnanceClick } from './input';
 import type { PlanningState } from './planning';
 
-function createShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'ship-0',
-    type: 'corvette',
-    owner: 0,
-    originalOwner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 10,
-    cargoUsed: 0,
-    nukesLaunchedSinceResupply: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-0',
+  type: 'corvette',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 10,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
-function createPlayers(): [PlayerState, PlayerState] {
-  return [
-    {
-      connected: true,
-      ready: true,
-      targetBody: '',
-      homeBody: 'Terra',
-      bases: [],
-      escapeWins: false,
-    },
-    {
-      connected: true,
-      ready: true,
-      targetBody: '',
-      homeBody: 'Mars',
-      bases: [],
-      escapeWins: false,
-    },
-  ];
-}
+const createPlayers = (): [PlayerState, PlayerState] => [
+  {
+    connected: true,
+    ready: true,
+    targetBody: '',
+    homeBody: 'Terra',
+    bases: [],
+    escapeWins: false,
+  },
+  {
+    connected: true,
+    ready: true,
+    targetBody: '',
+    homeBody: 'Mars',
+    bases: [],
+    escapeWins: false,
+  },
+];
 
-function createState(overrides: Partial<GameState> = {}): GameState {
-  return {
-    gameId: 'TEST',
-    scenario: 'test',
-    scenarioRules: {},
-    escapeMoralVictoryAchieved: false,
-    turnNumber: 1,
-    phase: 'astrogation',
-    activePlayer: 0,
-    ships: [
-      createShip(),
-      createShip({
-        id: 'ship-1',
-        owner: 1,
-        originalOwner: 0,
-        position: { q: 2, r: 0 },
-      }),
-    ],
-    ordnance: [],
-    pendingAstrogationOrders: null,
-    pendingAsteroidHazards: [],
-    destroyedAsteroids: [],
-    destroyedBases: [],
-    players: createPlayers(),
-    winner: null,
-    winReason: null,
-    ...overrides,
-  };
-}
+const createState = (overrides: Partial<GameState> = {}): GameState => ({
+  gameId: 'TEST',
+  scenario: 'test',
+  scenarioRules: {},
+  escapeMoralVictoryAchieved: false,
+  turnNumber: 1,
+  phase: 'astrogation',
+  activePlayer: 0,
+  ships: [
+    createShip(),
+    createShip({
+      id: 'ship-1',
+      owner: 1,
+      originalOwner: 0,
+      position: { q: 2, r: 0 },
+    }),
+  ],
+  ordnance: [],
+  pendingAstrogationOrders: null,
+  pendingAsteroidHazards: [],
+  destroyedAsteroids: [],
+  destroyedBases: [],
+  players: createPlayers(),
+  winner: null,
+  winReason: null,
+  ...overrides,
+});
 
-function createPlanning(overrides: Partial<PlanningState> = {}): PlanningState {
-  return {
-    selectedShipId: null,
-    burns: new Map(),
-    overloads: new Map(),
-    weakGravityChoices: new Map(),
-    torpedoAccel: null,
-    torpedoAccelSteps: null,
-    combatTargetId: null,
-    combatTargetType: null,
-    combatAttackerIds: [],
-    combatAttackStrength: null,
-    queuedAttacks: [],
-    hoverHex: null,
-    lastSelectedHex: null,
-    ...overrides,
-  };
-}
+const createPlanning = (
+  overrides: Partial<PlanningState> = {},
+): PlanningState => ({
+  selectedShipId: null,
+  burns: new Map(),
+  overloads: new Map(),
+  weakGravityChoices: new Map(),
+  torpedoAccel: null,
+  torpedoAccelSteps: null,
+  combatTargetId: null,
+  combatTargetType: null,
+  combatAttackerIds: [],
+  combatAttackStrength: null,
+  queuedAttacks: [],
+  hoverHex: null,
+  lastSelectedHex: null,
+  ...overrides,
+});
 
 const simpleMap: SolarSystemMap = {
   hexes: new Map(),

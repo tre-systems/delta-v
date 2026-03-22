@@ -12,101 +12,96 @@ import {
   getToastFadeAlpha,
 } from './toast';
 
-function createShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'ship-1',
-    type: 'packet',
-    owner: 0,
-    originalOwner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 10,
-    cargoUsed: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-1',
+  type: 'packet',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 10,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
-function createState(): GameState {
-  return {
-    gameId: 'LOCAL',
-    scenario: 'Bi-Planetary',
-    scenarioRules: {},
-    escapeMoralVictoryAchieved: false,
-    turnNumber: 1,
-    phase: 'combat',
-    activePlayer: 0,
-    ships: [
-      createShip(),
-      createShip({ id: 'enemy', owner: 1, type: 'freighter' }),
-    ],
-    ordnance: [],
-    pendingAstrogationOrders: null,
-    pendingAsteroidHazards: [],
-    destroyedAsteroids: [],
-    destroyedBases: [],
-    players: [
-      {
-        connected: true,
-        ready: true,
-        targetBody: 'Mars',
-        homeBody: 'Venus',
-        bases: [],
-        escapeWins: false,
-      },
-      {
-        connected: true,
-        ready: true,
-        targetBody: 'Venus',
-        homeBody: 'Mars',
-        bases: [],
-        escapeWins: false,
-      },
-    ],
-    winner: null,
-    winReason: null,
-  };
-}
+const createState = (): GameState => ({
+  gameId: 'LOCAL',
+  scenario: 'Bi-Planetary',
+  scenarioRules: {},
+  escapeMoralVictoryAchieved: false,
+  turnNumber: 1,
+  phase: 'combat',
+  activePlayer: 0,
+  ships: [
+    createShip(),
+    createShip({ id: 'enemy', owner: 1, type: 'freighter' }),
+  ],
+  ordnance: [],
+  pendingAstrogationOrders: null,
+  pendingAsteroidHazards: [],
+  destroyedAsteroids: [],
+  destroyedBases: [],
+  players: [
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Mars',
+      homeBody: 'Venus',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Venus',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
+  ],
+  winner: null,
+  winReason: null,
+});
 
-function createMovementEvent(
+const createMovementEvent = (
   overrides: Partial<MovementEvent> = {},
-): MovementEvent {
-  return {
-    type: 'asteroidHit',
-    shipId: 'ship-1',
-    hex: { q: 0, r: 0 },
-    dieRoll: 4,
-    damageType: 'none',
-    disabledTurns: 0,
-    ...overrides,
-  };
-}
+): MovementEvent => ({
+  type: 'asteroidHit',
+  shipId: 'ship-1',
+  hex: { q: 0, r: 0 },
+  dieRoll: 4,
+  damageType: 'none',
+  disabledTurns: 0,
+  ...overrides,
+});
 
-function createCombatResult(
+const createCombatResult = (
   overrides: Partial<CombatResult> = {},
-): CombatResult {
-  return {
-    attackerIds: ['ship-1'],
-    targetId: 'enemy',
-    targetType: 'ship',
-    attackType: 'gun',
-    odds: '2:1',
-    attackStrength: 2,
-    defendStrength: 1,
-    rangeMod: 0,
-    velocityMod: 0,
-    dieRoll: 4,
-    modifiedRoll: 4,
-    damageType: 'none',
-    disabledTurns: 0,
-    counterattack: null,
-    ...overrides,
-  };
-}
+): CombatResult => ({
+  attackerIds: ['ship-1'],
+  targetId: 'enemy',
+  targetType: 'ship',
+  attackType: 'gun',
+  odds: '2:1',
+  attackStrength: 2,
+  defendStrength: 1,
+  rangeMod: 0,
+  velocityMod: 0,
+  dieRoll: 4,
+  modifiedRoll: 4,
+  damageType: 'none',
+  disabledTurns: 0,
+  counterattack: null,
+  ...overrides,
+});
 
 describe('renderer toast helpers', () => {
   it('formats movement event toast text and color', () => {

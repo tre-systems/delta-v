@@ -3,66 +3,65 @@ import { describe, expect, it } from 'vitest';
 import type { GameState, Ship } from '../../shared/types/domain';
 import { deriveClientStateEntryPlan } from './phase-entry';
 
-function createShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'ship-1',
-    type: 'packet',
-    owner: 0,
-    originalOwner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 10,
-    cargoUsed: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-1',
+  type: 'packet',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 10,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
-function createState(
+const createState = (
   ships: Ship[],
   overrides: Partial<GameState> = {},
-): GameState {
-  return {
-    gameId: 'LOCAL',
-    scenario: 'Bi-Planetary',
-    scenarioRules: {},
-    escapeMoralVictoryAchieved: false,
-    turnNumber: 3,
-    phase: 'astrogation',
-    activePlayer: 0,
-    ships,
-    ordnance: [],
-    pendingAstrogationOrders: null,
-    pendingAsteroidHazards: [],
-    destroyedAsteroids: [],
-    destroyedBases: [],
-    players: [
-      {
-        connected: true,
-        ready: true,
-        targetBody: 'Venus',
-        homeBody: 'Mars',
-        bases: [],
-        escapeWins: false,
-      },
-      {
-        connected: true,
-        ready: true,
-        targetBody: 'Mars',
-        homeBody: 'Venus',
-        bases: [],
-        escapeWins: false,
-      },
-    ],
-    winner: null,
-    winReason: null,
-    ...overrides,
-  };
-}
+): GameState => ({
+  gameId: 'LOCAL',
+  scenario: 'Bi-Planetary',
+  scenarioRules: {},
+  escapeMoralVictoryAchieved: false,
+  turnNumber: 3,
+  phase: 'astrogation',
+  activePlayer: 0,
+  ships,
+  ordnance: [],
+  pendingAstrogationOrders: null,
+  pendingAsteroidHazards: [],
+  destroyedAsteroids: [],
+  destroyedBases: [],
+  players: [
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Venus',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Mars',
+      homeBody: 'Venus',
+      bases: [],
+      escapeWins: false,
+    },
+  ],
+  winner: null,
+  winReason: null,
+  ...overrides,
+});
 
 describe('game-client-phase-entry', () => {
   it('derives astrogation entry behavior', () => {

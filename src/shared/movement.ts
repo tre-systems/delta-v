@@ -242,7 +242,7 @@ export const computeCourse = (
 
   const destroyedBases = new Set(destroyedBasesList);
 
-  if (ship.landed) {
+  if (ship.lifecycle === 'landed') {
     // No burn = stay landed
     if (burn === null) {
       return {
@@ -426,7 +426,7 @@ export const canBurn = (ship: Ship): boolean => ship.fuel > 0;
  * (for display).
  */
 export const predictDestination = (ship: Ship): HexCoord => {
-  if (ship.landed) return ship.position;
+  if (ship.lifecycle === 'landed') return ship.position;
 
   return applyPendingGravityEffects(
     hexAdd(ship.position, ship.velocity),

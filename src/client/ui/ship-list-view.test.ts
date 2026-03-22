@@ -15,8 +15,10 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   cargoUsed: 0,
   nukesLaunchedSinceResupply: 0,
   resuppliedThisTurn: false,
-  landed: false,
-  destroyed: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
   detected: true,
   damage: { disabledTurns: 0 },
   ...overrides,
@@ -41,7 +43,7 @@ describe('ShipListView', () => {
           id: 'selected',
           type: 'packet',
           cargoUsed: 15,
-          landed: true,
+          lifecycle: 'landed',
         }),
         createShip({
           id: 'burning',
@@ -75,7 +77,7 @@ describe('ShipListView', () => {
       [
         createShip({
           id: 'destroyed',
-          destroyed: true,
+          lifecycle: 'destroyed',
         }),
       ],
       null,
