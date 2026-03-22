@@ -38,7 +38,7 @@ import type {
 } from '../shared/types/domain';
 import type { S2C } from '../shared/types/protocol';
 import { initAudio, isMuted, playWarning, setMuted } from './audio';
-import { byId, hide, show } from './dom';
+import { byId, hide, setTrustedHTML, show } from './dom';
 import type { AstrogationActionDeps } from './game/astrogation-actions';
 import { deriveScenarioBriefingEntries } from './game/briefing';
 import {
@@ -548,7 +548,6 @@ class GameClient {
     string,
     {
       playerToken?: string;
-      inviteToken?: string;
       ts: number;
     }
   > {
@@ -559,7 +558,6 @@ class GameClient {
       string,
       {
         playerToken?: string;
-        inviteToken?: string;
         ts: number;
       }
     >,
@@ -1001,11 +999,9 @@ class GameClient {
       hide(this.tooltipEl);
       return;
     }
-    this.tooltipEl.innerHTML = buildShipTooltipHtml(
-      gameState,
-      ship,
-      this.ctx.playerId,
-      this.map,
+    setTrustedHTML(
+      this.tooltipEl,
+      buildShipTooltipHtml(gameState, ship, this.ctx.playerId, this.map),
     );
     show(this.tooltipEl, 'block');
     // Position tooltip offset from cursor

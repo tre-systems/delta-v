@@ -13,29 +13,6 @@ with the feature, not as a cleanup pass afterward.
 
 ## Immediate Priorities
 
-### Decide whether invite tokens stay or go
-
-Either finish the invite-token flow end to end or remove
-the dormant abstraction.
-
-The codebase still carries invite-token storage and seat
-assignment logic, but the create flow currently issues
-only the creator token. Keeping an incomplete branch of
-join semantics increases protocol and session complexity
-without current product value. It also leaves the docs
-describing a stricter guest-seat model than the current
-create / join path actually enforces.
-
-Definition of done: the chosen direction is reflected in
-worker create responses, client session helpers, join
-validation, and docs, with no dead invite-token path
-left behind.
-
-**Files:** `src/server/index.ts`,
-`src/server/protocol.ts`,
-`src/client/game/session.ts`,
-`README.md`, `docs/ARCHITECTURE.md`
-
 ### Imperative-shell coverage and smoke tests
 
 Add targeted tests around the runtime shells that still
@@ -57,6 +34,73 @@ coverage improving on `main.ts`, `ui.ts`,
 `src/client/renderer/renderer.ts`,
 `src/server/game-do/game-do.ts`, related tests
 
+### Split `GameClient` orchestration out of `main.ts`
+
+Reduce the number of concerns that still terminate in the
+top-level client shell.
+
+`main.ts` currently coordinates session lifecycle, transport
+setup, message handling, local-AI flow, input routing, and HUD
+refresh from one class. The extracted helper modules are moving
+in the right direction, but new features still tend to thread
+through the same large coordinator.
+
+Definition of done: `main.ts` keeps bootstrap and composition-
+root responsibilities, while session flow, message orchestration,
+and HUD / renderer coordination are pushed behind smaller
+controller modules with clear ownership and focused tests.
+
+**Files:** `src/client/main.ts`,
+`src/client/game/message-handler.ts`,
+`src/client/game/session-controller.ts`,
+`src/client/game/phase-controller.ts`,
+new or extracted client controller module(s)
+
+### Split `GameDO` coordination responsibilities
+
+Break the Durable Object shell into narrower units before more
+reconnect, replay, spectator, or public-lobby features pile onto
+the same class.
+
+`GameDO` currently owns HTTP routing, websocket lifecycle,
+reconnect / seat assignment, alarm scheduling, persistence,
+replay export, and engine-result publication. That is workable,
+but it makes each new server-side feature more coupled than it
+needs to be.
+
+Definition of done: `GameDO` remains the composition point for
+Cloudflare runtime hooks, but join / session policy, turn-timeout
+handling, and state-publication / replay adaptation live behind
+smaller helpers or modules with direct tests.
+
+**Files:** `src/server/game-do/game-do.ts`,
+`src/server/game-do/session.ts`,
+`src/server/game-do/turns.ts`,
+`src/server/game-do/messages.ts`,
+`src/server/protocol.ts`
+
+### Unify local and networked game-flow orchestration
+
+Reduce parity drift between AI/local execution and multiplayer
+execution by converging on a smaller set of shared client-side
+action / result handling paths.
+
+The shared engine already prevents the worst rule divergence, but
+client flow still branches between local execution and server-
+driven execution in ways that make phase, presentation, and
+session changes harder to evolve.
+
+Definition of done: at least one phase-flow slice shares the same
+client-side action/result orchestration between local and remote
+play, and targeted parity tests cover local versus networked
+behavior for the covered flow.
+
+**Files:** `src/client/game/local.ts`,
+`src/client/game/local-game-flow.ts`,
+`src/client/game/message-handler.ts`,
+`src/client/game/session-controller.ts`,
+`src/client/main.ts`
+
 ### Public-lobby hardening
 
 Finish the public-facing abuse controls before treating
@@ -73,9 +117,9 @@ matchmaking readiness as weak.
 Definition of done: production room creation is backed by
 verified edge-global rate limiting, the deployment path
 for optional bot challenge protection is documented, and
-the product explicitly chooses between (a) longer opaque
-public room identifiers or (b) an invite-only scope that
-is documented as such. Remove any ambiguity between
+the product either adopts longer opaque public room
+identifiers or documents room-code joins as invite-only
+scope. Remove any ambiguity between
 worker-local fallback behavior and real deployment
 enforcement.
 
@@ -83,29 +127,116 @@ enforcement.
 `docs/SECURITY.md`, `src/server/index.ts`,
 `src/server/protocol.ts`, `wrangler.toml`
 
-### Consolidate engine-result adaptation
+### Reduce UI binding boilerplate
 
-Reduce the number of places that translate shared engine
-results into client-local resolutions and server
-broadcast messages.
+Trim the repetitive event-binding and pass-through wiring in
+the imperative UI layer without introducing a heavyweight UI
+framework.
 
-Movement / state-update / combat result adaptation is
-currently spread across the local transport path, the
-local resolution helpers, timeout helpers, and Durable
-Object message construction. A thinner shared adapter
-layer would reduce drift between local play, multiplayer,
-and timeout automation.
+The current view classes are functional, but they still pay
+too much ceremony for `addEventListener` / cleanup pairs,
+simple button forwarding, and repetitive disposal-scoped
+handler setup. A small local helper layer should reduce that
+cost while preserving explicit ownership.
 
-Definition of done: local play, timeout automation, and
-server broadcasts all use the same result-shape
-classification helpers, and duplicate result branching is
-removed from the coordinator modules.
+Definition of done: UI views use a shared disposal-aware
+event-binding helper (or equivalent local utility) for the
+common add/remove-listener pattern, and the affected classes
+become materially shorter or simpler without hiding control
+flow.
 
-**Files:** `src/client/game/local.ts`,
-`src/client/game/transport.ts`,
+**Files:** `src/client/ui/ui.ts`,
+`src/client/ui/lobby-view.ts`,
+`src/client/ui/fleet-building-view.ts`,
+`src/client/ui/hud-chrome-view.ts`,
+shared UI helper module(s)
+
+### Narrow the `UIManager` surface
+
+Reduce pass-through verbosity in `UIManager` so it remains a
+coordinator, not a large forwarding facade.
+
+`UIManager` currently owns the right boundaries, but it still
+contains many thin methods that simply relay calls into
+subviews. The next step is to group or collapse those
+operations around clearer screen/view-model boundaries rather
+than one-method-per-button/per-label style forwarding.
+
+Definition of done: `UIManager` exposes a smaller, more
+coherent API grouped around screen mode and major UI domains,
+with no regression in ownership clarity or testability.
+
+**Files:** `src/client/ui/ui.ts`,
+`src/client/main.ts`,
+affected UI subviews and tests
+
+### Reduce repetitive UI collection rendering
+
+Introduce a clearer pattern for list-like UI rendering where
+the current code repeatedly clears DOM, rebuilds nodes, and
+attaches fresh handlers.
+
+This is most obvious in fleet-building and ship-list style
+views. Even if the rendering remains imperative, a small
+keyed render helper or view-model-to-DOM utility would make
+the code easier to read and less error-prone.
+
+Definition of done: at least one collection-heavy view uses
+a shared rendering helper or extracted pattern for keyed or
+structured item rendering, and that pattern is documented as
+the preferred approach for similar UI lists.
+
+**Files:** `src/client/ui/fleet-building-view.ts`,
+`src/client/ui/ship-list-view.ts`,
+shared UI helper module(s),
+`docs/CODING_STANDARDS.md`
+
+### Trusted HTML boundary for future freeform content
+
+Decide and document how UI markup is allowed to enter the
+DOM before any broader user-generated or externally sourced
+content ships.
+
+Today `innerHTML` is acceptable only because the rendered
+markup is trusted internal content. That becomes fragile if
+chat, player names, modded scenarios, richer replay text,
+or other freeform content expands.
+
+Definition of done: raw `innerHTML` use is either confined
+behind a clearly named trusted-HTML helper/boundary or
+replaced with text-node / DOM-builder paths where
+appropriate, and the chosen policy is documented alongside
+the security notes. If truly untrusted HTML must be
+rendered, add a sanitizer as part of the same change.
+
+**Files:** `src/client/dom.ts`,
+`src/client/ui/`,
+`src/client/main.ts`,
+`docs/CODING_STANDARDS.md`,
+`docs/SECURITY.md`
+
+### Protocol contract fixtures and replay goldens
+
+Freeze representative wire-level examples for validated
+client messages, server responses, and replay payloads
+before the event-sourced migration expands those contracts.
+
+The runtime validators are explicit and well-tested, but the
+project still leans more on behavioral tests than on durable
+fixture-style contract coverage. A small corpus of canonical
+payloads would make protocol and replay changes safer and more
+reviewable.
+
+Definition of done: fixture-based tests cover key C2S message
+shapes, state-bearing S2C responses, and replay archive payloads,
+with golden updates treated as explicit contract changes rather
+than incidental test fallout.
+
+**Files:** `src/shared/protocol.ts`,
+`src/shared/protocol.test.ts`,
+`src/shared/replay.ts`,
 `src/server/game-do/messages.ts`,
-`src/server/game-do/turns.ts`,
-`src/server/game-do/game-do.ts`
+related replay / protocol fixture tests
 
 ---
 

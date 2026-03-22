@@ -65,7 +65,6 @@ export interface InitPayload {
   code: string;
   scenario: string;
   playerToken: string;
-  inviteToken: string | null;
 }
 
 export const parseInitPayload = (
@@ -91,20 +90,12 @@ export const parseInitPayload = (
     return { ok: false, error: 'Invalid player token' };
   }
 
-  const inviteToken =
-    raw.inviteToken === undefined || raw.inviteToken === null
-      ? null
-      : isValidPlayerToken(raw.inviteToken)
-        ? raw.inviteToken
-        : null;
-
   return {
     ok: true,
     value: {
       code: raw.code,
       scenario: raw.scenario,
       playerToken: raw.playerToken,
-      inviteToken,
     },
   };
 };
@@ -113,19 +104,16 @@ export interface RoomConfig {
   code: string;
   scenario: string;
   playerTokens: [string, string | null];
-  inviteTokens: [string | null, string | null];
 }
 
 export const createRoomConfig = ({
   code,
   scenario,
   playerToken,
-  inviteToken,
 }: InitPayload): RoomConfig => ({
   code,
   scenario,
   playerTokens: [playerToken, null],
-  inviteTokens: [null, inviteToken],
 });
 
 export interface SeatAssignmentInput {
@@ -133,7 +121,6 @@ export interface SeatAssignmentInput {
   disconnectedPlayer: number | null;
   seatOpen: [boolean, boolean];
   playerTokens: [string, string | null];
-  inviteTokens: [string | null, string | null];
 }
 
 export type SeatAssignmentDecision =
@@ -141,7 +128,6 @@ export type SeatAssignmentDecision =
       type: 'join';
       playerId: 0 | 1;
       issueNewToken: boolean;
-      consumeInviteToken: boolean;
     }
   | {
       type: 'reject';
@@ -152,12 +138,12 @@ export type SeatAssignmentDecision =
 export const resolveSeatAssignment = (
   input: SeatAssignmentInput,
 ): SeatAssignmentDecision => {
-  const { presentedToken, seatOpen, playerTokens, inviteTokens } = input;
+  const { presentedToken, seatOpen, playerTokens } = input;
 
   const seats = [0, 1] as const;
 
-  // Stored player tokens reclaim by player identity, even
-  // if the old socket has not closed yet.
+  // Stored player tokens reclaim by player identity,
+  // even if the old socket has not closed yet.
   const tokenMatch = seats.find(
     (p) => playerTokens[p] && presentedToken === playerTokens[p],
   );
@@ -167,20 +153,6 @@ export const resolveSeatAssignment = (
       type: 'join',
       playerId: tokenMatch,
       issueNewToken: false,
-      consumeInviteToken: false,
-    };
-  }
-
-  const inviteMatch = seats.find(
-    (p) => inviteTokens[p] && seatOpen[p] && presentedToken === inviteTokens[p],
-  );
-
-  if (inviteMatch !== undefined) {
-    return {
-      type: 'join',
-      playerId: inviteMatch,
-      issueNewToken: true,
-      consumeInviteToken: true,
     };
   }
 
@@ -192,19 +164,15 @@ export const resolveSeatAssignment = (
     };
   }
 
-  // Tokenless join: allow joining seats that have no
-  // invite token. Seat 1 has no invite token by default,
-  // so anyone with the room code can join.
-  const openSeat = seats.find(
-    (p) => seatOpen[p] && playerTokens[p] === null && inviteTokens[p] === null,
-  );
+  // Tokenless join: anyone with the room code can
+  // claim an unclaimed open seat.
+  const openSeat = seats.find((p) => seatOpen[p] && playerTokens[p] === null);
 
   if (openSeat !== undefined) {
     return {
       type: 'join',
       playerId: openSeat,
       issueNewToken: true,
-      consumeInviteToken: false,
     };
   }
 
@@ -212,7 +180,7 @@ export const resolveSeatAssignment = (
     return {
       type: 'reject',
       status: 403,
-      message: 'Join token required',
+      message: 'Player token required for reconnection',
     };
   }
 

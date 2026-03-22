@@ -190,7 +190,6 @@ export class GameDO extends DurableObject<Env> {
         roomConfig: RoomConfig;
         playerId: 0 | 1;
         issueNewToken: boolean;
-        consumeInviteToken: boolean;
         disconnectedPlayer: number | null;
         seatOpen: [boolean, boolean];
       }
@@ -221,7 +220,6 @@ export class GameDO extends DurableObject<Env> {
       disconnectedPlayer,
       seatOpen,
       playerTokens: roomConfig.playerTokens,
-      inviteTokens: roomConfig.inviteTokens,
     });
     if (seatDecision.type === 'reject') {
       return {
@@ -236,7 +234,6 @@ export class GameDO extends DurableObject<Env> {
       roomConfig,
       playerId: seatDecision.playerId,
       issueNewToken: seatDecision.issueNewToken,
-      consumeInviteToken: seatDecision.consumeInviteToken,
       disconnectedPlayer,
       seatOpen,
     };
@@ -345,7 +342,6 @@ export class GameDO extends DurableObject<Env> {
       roomConfig,
       playerId,
       issueNewToken,
-      consumeInviteToken,
       disconnectedPlayer,
       seatOpen,
     } = joinAttempt;
@@ -355,9 +351,6 @@ export class GameDO extends DurableObject<Env> {
     );
     if (issueNewToken) {
       roomConfig.playerTokens[playerId] = generatePlayerToken();
-      if (consumeInviteToken) {
-        roomConfig.inviteTokens[playerId] = null;
-      }
       await this.saveRoomConfig(roomConfig);
     }
     const playerToken = roomConfig.playerTokens[playerId];

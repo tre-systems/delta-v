@@ -2,7 +2,6 @@ import { pickBy } from '../../shared/util';
 
 export interface TokenStoreEntry {
   playerToken?: string;
-  inviteToken?: string;
   ts: number;
 }
 
@@ -66,13 +65,6 @@ export const getStoredPlayerToken = (
   return store[code]?.playerToken ?? null;
 };
 
-export const getStoredInviteToken = (
-  store: TokenStore,
-  code: string,
-): string | null => {
-  return store[code]?.inviteToken ?? null;
-};
-
 export const setStoredPlayerToken = (
   store: TokenStore,
   code: string,
@@ -87,30 +79,6 @@ export const setStoredPlayerToken = (
       ts: now,
     },
   };
-};
-
-export const setStoredInviteToken = (
-  store: TokenStore,
-  code: string,
-  inviteToken: string,
-  now: number,
-): TokenStore => {
-  return {
-    ...store,
-    [code]: {
-      ...store[code],
-      inviteToken,
-      ts: now,
-    },
-  };
-};
-
-export const buildInviteLink = (
-  origin: string,
-  code: string,
-  inviteToken: string,
-): string => {
-  return `${origin}/?code=${code}&playerToken=${encodeURIComponent(inviteToken)}`;
 };
 
 export const buildGameRoute = (code: string): string => {
