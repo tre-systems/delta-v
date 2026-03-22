@@ -60,7 +60,7 @@ src/
 scripts/                 # Automated Bot & AI Simulation tests
 ```
 
-**Design Highlight:** The core `game-engine.ts` is side-effect-free — no DOM, no network, no storage. It receives inputs (astrogation orders, combat declarations) and returns a new state, making the game highly unit testable. All engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details. The backend stays authoritative through **Cloudflare Durable Objects**, handling room lifecycle, tokenized joins, validation, and state persistence.
+**Design Highlight:** The core `game-engine.ts` is side-effect-free — no DOM, no network, no storage. It receives inputs (astrogation orders, combat declarations) and returns a new state, making the game highly unit testable. All engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. The DOM overlay stays framework-free, with a tiny local signals layer used only where view-local reactive state pays for itself. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details. The backend stays authoritative through **Cloudflare Durable Objects**, handling room lifecycle, tokenized joins, join preflight validation, and state persistence.
 
 For project conventions and refactoring guidance, see [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md).
 
@@ -122,7 +122,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Engine safety (clone-on-entry, server rollback, event log)
 - [x] Error reporting and anonymous telemetry (D1 storage)
-- [x] 1260+ tests across 86 suites, 8 scenario AI simulations with per-scenario balance thresholds
+- [x] 1280+ tests across 87 suites, plus scenario AI simulations with per-scenario balance thresholds
 - [x] Client/engine decomposition and rules consolidation
 - [x] Bounded type imports (`types/domain`, `types/protocol`, `types/scenario`)
 - [x] Typed Ship state models (controlStatus, baseStatus, identity unions)

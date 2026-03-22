@@ -6,28 +6,73 @@ Remaining work only. Completed items are in git history.
 
 ## Gameplay & Content
 
-### Turn replay
+### Replay archive foundation
+
+Introduce a durable replay archive built from the
+server's authoritative state-bearing outbound messages
+(`gameStart`, `movementResult`, `combatResult`,
+`stateUpdate`) rather than switching the engine to full
+event sourcing.
+
+The current lightweight `GameEvent` log is useful for
+animation/logging, but it is not rich enough to rebuild
+arbitrary historical game state. Replay should be based
+on a `ReplayEntry[]` history plus a stable per-match
+identity so rematches do not overwrite prior history.
+
+**Files:** `src/shared/events.ts` or new
+`src/shared/replay.ts`, `src/server/game-do/game-do.ts`,
+`src/server/game-do/messages.ts`,
+`src/server/protocol.ts`
+
+### Post-game turn replay UI
 
 Let players step backward and forward through recorded
-turn history after a game ends, and optionally during
-play.
+turn history after game end. Reuse the existing
+presentation pipeline where practical rather than
+building a second renderer stack.
 
-The current lightweight `GameEvent` log is already in
-place; remaining work is replay presentation, history
-loading/catch-up, and timeline controls.
+Initial scope: previous/next, jump to start/end, replay
+timeline labels, and exit back to the finished-match
+screen. Defer in-live-match scrubbing until the
+post-game flow is stable.
 
-**Files:** `src/shared/events.ts`,
-`src/server/game-do/game-do.ts`, client replay UI
+**Files:** `src/client/main.ts`,
+`src/client/game/`, `src/client/ui/overlay-view.ts`,
+`src/client/ui/ui.ts`
 
 ### Spectator mode
 
 Allow read-only third-party connections that receive
-state broadcasts and replay/catch-up data but cannot
-submit actions.
+live state broadcasts and replay/catch-up history but
+cannot submit actions, occupy seats, or affect
+disconnect-forfeit logic.
 
-**Files:** `src/server/game-do/game-do.ts` (spectator seat
-type / auth), `src/server/protocol.ts`,
-client spectator UI
+Default spectator visibility should be public-state
+only. Hidden-information scenarios must not leak
+player-private data to spectators unless an explicit
+omniscient/debug mode is added later.
+
+**Files:** `src/server/game-do/game-do.ts`,
+`src/server/protocol.ts`,
+`src/shared/types/protocol.ts`,
+`src/shared/engine/game-engine.ts`,
+`src/client/main.ts`, client spectator UI
+
+### Viewer-aware state filtering
+
+Replace the current player-only hidden-information
+filter with a viewer-aware model that supports player 0,
+player 1, and spectator/public views.
+
+Filtering rules should apply consistently to live
+broadcasts, replay history, and catch-up payloads so
+future hidden data does not leak through alternate
+delivery paths.
+
+**Files:** `src/shared/engine/game-engine.ts`,
+`src/server/game-do/game-do.ts`,
+`src/server/game-do/messages.ts`
 
 ### Scenario expansion
 
@@ -59,30 +104,51 @@ and the related UI / log presentation.
 
 ## Operations & Performance
 
-### Reduce DO inactivity write amplification
+### Replay retention and archive storage
 
-The Durable Object currently updates inactivity storage
-on every valid client message, including frequent `ping`
-traffic.
+Decide how long replay history should live and where it
+should be stored.
 
-Debounce / cache `inactivityAt` in memory and keep chat
-rate-limit state in memory where possible to reduce DO
-I/O and alarm rescheduling churn.
+For short-lived replay while a room remains active,
+Durable Object storage is sufficient. For persistent
+replay links that outlive room inactivity cleanup,
+archive completed matches to R2 and keep only lightweight
+metadata in D1 or room storage.
 
-**Files:** `src/server/game-do/game-do.ts`
+**Files:** `src/server/game-do/game-do.ts`,
+`src/server/index.ts`, deployment/storage config
 
-### Event Sourcing for Replays
+### Replay and spectator integration tests
 
-To support the "Turn Replay" feature without state-snapshot bloat, transition the engine to [Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html), emitting a strict append-only log of domain events (`ShipMoved`, `DamageTaken` etc.).
+Add integration coverage for replay history ordering,
+rematch isolation, spectator join/auth, viewer-aware
+filtering in hidden-information scenarios, and client
+replay stepping controls.
+
+This work should land alongside implementation rather
+than as a cleanup pass afterward, since replay and
+spectator bugs are mostly lifecycle bugs at the
+server/client boundary.
+
+**Files:** `src/server/game-do/*.test.ts`,
+`src/server/index.test.ts`,
+`src/client/game/*.test.ts`,
+`src/client/ui/*.test.ts`
 
 ---
 
 ## Security & Abuse Prevention
 
-### Rate Limit Room Creation
+### Globalize room creation rate limiting
 
-To prevent malicious actors from spamming `POST /create` and instantiating thousands of empty Durable Objects (incurring compute and storage overhead), apply a Cloudflare WAF Rate Limiting rule restricting `/create` to ~5 requests per IP per minute.
+Basic `/create` throttling now exists in application
+code, but it is only a per-isolate in-memory limit.
 
-### In-Memory WebSocket Throttling
+If this endpoint needs stronger abuse resistance in
+production, move the control to a Cloudflare WAF or
+other edge-global rate limiting rule so enforcement is
+not dependent on worker instance locality or process
+lifetime.
 
-To prevent an attacker from joining a room and blasting 10,000 garbage WebSocket messages a second (which could force DO I/O or cpu spikes), add an in-memory counter in the `webSocketMessage` handler. Drop connections that exceed reasonable client bounds (e.g., > 10 messages/sec).
+**Files:** deployment / Cloudflare config,
+`src/server/index.ts`

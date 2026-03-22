@@ -65,9 +65,19 @@ export interface Env {
   DB: D1Database;
 }
 const CHAT_RATE_LIMIT_MS = 500;
+const WS_MSG_RATE_LIMIT = 10;
+const WS_MSG_RATE_WINDOW_MS = 1_000;
+const INACTIVITY_FLUSH_MS = 60_000;
 export class GameDO extends DurableObject<Env> {
   private readonly map = buildSolarSystemMap();
   private readonly replacedSockets = new WeakSet<WebSocket>();
+  private readonly msgRates = new WeakMap<
+    WebSocket,
+    { count: number; windowStart: number }
+  >();
+  private readonly lastChatAt = new Map<number, number>();
+  private cachedInactivityAt: number | null = null;
+  private lastInactivityFlush = 0;
   // --- WebSocket tag-based player tracking ---
   private getPlayerId(ws: WebSocket): number | null {
     const tag = this.ctx.getTags(ws).find((t) => t.startsWith('player:'));
@@ -119,19 +129,32 @@ export class GameDO extends DurableObject<Env> {
     await this.ctx.storage.put('gameCode', code);
   }
   private async touchInactivity(): Promise<void> {
-    await this.ctx.storage.put(
-      'inactivityAt',
-      Date.now() + INACTIVITY_TIMEOUT_MS,
-    );
-    await this.rescheduleAlarm();
+    const now = Date.now();
+    const shouldFlushImmediately = this.cachedInactivityAt === null;
+
+    this.cachedInactivityAt = now + INACTIVITY_TIMEOUT_MS;
+    if (
+      shouldFlushImmediately ||
+      now - this.lastInactivityFlush >= INACTIVITY_FLUSH_MS
+    ) {
+      await this.ctx.storage.put('inactivityAt', this.cachedInactivityAt);
+      this.lastInactivityFlush = now;
+      await this.rescheduleAlarm();
+    }
   }
   private async getAlarmDeadlines() {
-    const [disconnectAt, turnTimeoutAt, inactivityAt] = await Promise.all([
-      this.ctx.storage.get<number>('disconnectAt'),
-      this.ctx.storage.get<number>('turnTimeoutAt'),
-      this.ctx.storage.get<number>('inactivityAt'),
-    ]);
-    return { disconnectAt, turnTimeoutAt, inactivityAt };
+    const [disconnectAt, turnTimeoutAt, storedInactivityAt] = await Promise.all(
+      [
+        this.ctx.storage.get<number>('disconnectAt'),
+        this.ctx.storage.get<number>('turnTimeoutAt'),
+        this.ctx.storage.get<number>('inactivityAt'),
+      ],
+    );
+    return {
+      disconnectAt,
+      turnTimeoutAt,
+      inactivityAt: this.cachedInactivityAt ?? storedInactivityAt,
+    };
   }
   private async clearDisconnectMarker(): Promise<void> {
     await Promise.all([
@@ -344,6 +367,22 @@ export class GameDO extends DurableObject<Env> {
     message: string | ArrayBuffer,
   ): Promise<void> {
     if (typeof message !== 'string') return;
+    const now = Date.now();
+    const rate = this.msgRates.get(ws);
+    if (rate && now - rate.windowStart < WS_MSG_RATE_WINDOW_MS) {
+      rate.count++;
+      if (rate.count > WS_MSG_RATE_LIMIT) {
+        try {
+          ws.close(1008, 'Rate limit exceeded');
+        } catch {}
+        return;
+      }
+    } else {
+      this.msgRates.set(ws, {
+        count: 1,
+        windowStart: now,
+      });
+    }
     let raw: unknown;
     try {
       raw = JSON.parse(message);
@@ -405,11 +444,10 @@ export class GameDO extends DurableObject<Env> {
           await this.handleRematch(playerId, ws);
           break;
         case 'chat': {
-          const now = Date.now();
-          const chatKey = `lastChat:${playerId}`;
-          const last = (await this.ctx.storage.get<number>(chatKey)) ?? 0;
-          if (now - last < CHAT_RATE_LIMIT_MS) break;
-          await this.ctx.storage.put(chatKey, now);
+          const chatTime = Date.now();
+          const last = this.lastChatAt.get(playerId) ?? 0;
+          if (chatTime - last < CHAT_RATE_LIMIT_MS) break;
+          this.lastChatAt.set(playerId, chatTime);
           this.broadcast({
             type: 'chat',
             playerId,
