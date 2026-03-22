@@ -439,6 +439,8 @@ body::before {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  padding: 0.2rem;
+  margin: -0.2rem;
 }
 
 #scenarioList::-webkit-scrollbar {
