@@ -7,9 +7,9 @@ import {
   createFleetBuildingView,
   type FleetBuildingView,
 } from './fleet-building-view';
-import { GameLogView } from './game-log-view';
+import { createGameLogView, type GameLogView } from './game-log-view';
 import type { HUDInput } from './hud';
-import { HUDChromeView } from './hud-chrome-view';
+import { createHUDChromeView, type HUDChromeView } from './hud-chrome-view';
 import { deriveHudLayoutOffsets } from './layout';
 import { createLobbyView, type LobbyView } from './lobby-view';
 import { createOverlayView, type OverlayView } from './overlay-view';
@@ -59,7 +59,7 @@ export class UIManager {
         this.emit({ type: 'fleetReady', purchases });
       },
     });
-    this.log = new GameLogView({
+    this.log = createGameLogView({
       onChat: (text) => {
         this.emit({ type: 'chat', text });
       },
@@ -75,7 +75,7 @@ export class UIManager {
       },
     });
     this.overlay = createOverlayView();
-    this.hudChromeView = new HUDChromeView({
+    this.hudChromeView = createHUDChromeView({
       queueLayoutSync: () => this.queueLayoutSync(),
       showPhaseAlert: (phase, isMyTurn) => {
         this.overlay.showPhaseAlert(phase, isMyTurn);

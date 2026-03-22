@@ -15,161 +15,219 @@ export interface GameLogViewDeps {
   onChat: (text: string) => void;
 }
 
-export class GameLogView {
-  private readonly scope = createDisposalScope();
-  private readonly gameLogEl = byId('gameLog');
-  private readonly logEntriesEl = byId('logEntries');
-  private readonly chatInputRow = byId('chatInputRow');
-  private readonly chatInput = byId<HTMLInputElement>('chatInput');
-  private readonly logLatestBar = byId('logLatestBar');
-  private readonly logLatestText = byId('logLatestText');
-  private readonly logStatusBar: HTMLElement;
-  private readonly logStatusText: HTMLElement;
+export interface GameLogView {
+  setPlayerId: (id: number) => void;
+  setMobile: (isMobile: boolean, hudVisible: boolean) => void;
+  applyScreenVisibility: (mode: UIScreenMode) => void;
+  resetVisibilityState: () => void;
+  showHUD: () => void;
+  toggle: () => void;
+  clear: () => void;
+  setChatEnabled: (enabled: boolean) => void;
+  logTurn: (turn: number, player: string) => void;
+  logText: (text: string, cssClass?: string) => void;
+  logMovementEvents: (events: MovementEvent[], ships: Ship[]) => void;
+  logCombatResults: (results: CombatResult[], ships: Ship[]) => void;
+  logLanding: (shipName: string, bodyName: string) => void;
+  setStatusText: (text: string | null) => void;
+  dispose: () => void;
+}
 
-  private lastTurnHeader: HTMLElement | null = null;
-  private playerId = -1;
+export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
+  const scope = createDisposalScope();
+  const gameLogEl = byId('gameLog');
+  const logEntriesEl = byId('logEntries');
+  const chatInputRow = byId('chatInputRow');
+  const chatInput = byId<HTMLInputElement>('chatInput');
+  const logLatestBar = byId('logLatestBar');
+  const logLatestText = byId('logLatestText');
+  const logStatusText = el('span', {
+    class: 'log-status-text',
+  });
+  const logStatusBar = el('div', {
+    class: 'log-status-bar',
+  });
 
-  private readonly screenModeSignal = signal<UIScreenMode>('hidden');
-  private readonly expandedSignal = signal(false);
-  private readonly chatEnabledSignal = signal(false);
-  private readonly lastLogTextSignal = signal('');
-  private readonly lastLogClassSignal = signal('');
-  private readonly statusTextSignal = signal<string | null>(null);
+  let lastTurnHeader: HTMLElement | null = null;
+  let playerId = -1;
 
-  constructor(private readonly deps: GameLogViewDeps) {
-    this.logStatusText = el('span', {
-      class: 'log-status-text',
-    });
-    this.logStatusBar = el('div', {
-      class: 'log-status-bar',
-    });
-    this.logStatusBar.style.display = 'none';
-    this.logStatusBar.appendChild(this.logStatusText);
-    this.gameLogEl.insertBefore(this.logStatusBar, this.gameLogEl.firstChild);
+  const screenModeSignal = signal<UIScreenMode>('hidden');
+  const expandedSignal = signal(false);
+  const chatEnabledSignal = signal(false);
+  const lastLogTextSignal = signal('');
+  const lastLogClassSignal = signal('');
+  const statusTextSignal = signal<string | null>(null);
 
-    this.bindChatInput();
-    this.bindLogControls();
+  logStatusBar.style.display = 'none';
+  logStatusBar.appendChild(logStatusText);
+  gameLogEl.insertBefore(logStatusBar, gameLogEl.firstChild);
 
-    const latestBarCopySignal = this.scope.add(
-      computed(() => {
-        const statusText = this.statusTextSignal.value;
-        const lastLogText = this.lastLogTextSignal.value;
-        const lastLogClass = this.lastLogClassSignal.value;
+  const scrollToBottom = (): void => {
+    logEntriesEl.scrollTop = logEntriesEl.scrollHeight;
+  };
 
-        return {
-          text: statusText ?? lastLogText,
-          cssClass: statusText ? 'log-status' : lastLogClass,
-        };
-      }),
-    );
+  const updateLatestBar = (text: string, cssClass: string): void => {
+    lastLogTextSignal.value = text;
+    lastLogClassSignal.value = cssClass;
+  };
 
-    const visibilitySignal = this.scope.add(
-      computed(() => {
-        const mode = this.screenModeSignal.value;
+  const collapse = (): void => {
+    expandedSignal.value = false;
+  };
 
-        if (mode === 'hud') {
-          const expanded = this.expandedSignal.value;
-
-          return {
-            gameLog: expanded ? 'flex' : 'none',
-            latestBar: expanded ? 'none' : 'block',
-          };
-        }
-
-        const visibility = buildScreenVisibility(mode);
-
-        return {
-          gameLog: visibility.gameLog,
-          latestBar: 'none',
-        };
-      }),
-    );
-
-    this.scope.add(
-      effect(() => {
-        const copy = latestBarCopySignal.value;
-        this.logLatestText.textContent = copy.text;
-        this.logLatestText.className = `log-latest-text ${copy.cssClass}`;
-      }),
-    );
-
-    this.scope.add(
-      effect(() => {
-        const visibility = visibilitySignal.value;
-
-        this.gameLogEl.style.display = visibility.gameLog;
-        this.logLatestBar.style.display = visibility.latestBar;
-      }),
-    );
-
-    this.scope.add(
-      effect(() => {
-        const status = this.statusTextSignal.value;
-        this.logStatusBar.style.display = status ? '' : 'none';
-        this.logStatusText.textContent = status ?? '';
-      }),
-    );
-
-    this.scope.add(
-      effect(() => {
-        this.chatInputRow.style.display = this.chatEnabledSignal.value
-          ? ''
-          : 'none';
-      }),
-    );
-  }
-
-  setPlayerId(id: number): void {
-    this.playerId = id;
-  }
-
-  setMobile(_isMobile: boolean, hudVisible: boolean): void {
-    if (hudVisible) {
-      this.expandedSignal.value = false;
-    }
-  }
-
-  applyScreenVisibility(mode: UIScreenMode): void {
-    this.screenModeSignal.value = mode;
-  }
-
-  resetVisibilityState(): void {
-    this.expandedSignal.value = false;
-  }
-
-  showHUD(): void {
-    this.screenModeSignal.value = 'hud';
-    this.expandedSignal.value = false;
-  }
-
-  toggle(): void {
-    if (this.screenModeSignal.peek() !== 'hud') {
+  const expand = (): void => {
+    if (screenModeSignal.peek() !== 'hud') {
       return;
     }
 
-    if (this.expandedSignal.peek()) {
-      this.collapse();
-    } else {
-      this.expand();
+    expandedSignal.value = true;
+    scrollToBottom();
+  };
+
+  scope.add(
+    listen(chatInput, 'keydown', (event) => {
+      event.stopPropagation();
+      const ke = event as KeyboardEvent;
+
+      if (ke.key !== 'Enter') return;
+
+      const text = chatInput.value.trim();
+      if (!text) return;
+
+      deps.onChat(text);
+      chatInput.value = '';
+    }),
+  );
+
+  scope.add(
+    listen(logLatestBar, 'click', () => {
+      expand();
+    }),
+  );
+
+  scope.add(
+    listen(gameLogEl, 'click', (event) => {
+      if ((event.target as HTMLElement).closest('.chat-input')) {
+        return;
+      }
+      collapse();
+    }),
+  );
+
+  const latestBarCopySignal = scope.add(
+    computed(() => {
+      const statusText = statusTextSignal.value;
+      const lastLogText = lastLogTextSignal.value;
+      const lastLogClass = lastLogClassSignal.value;
+
+      return {
+        text: statusText ?? lastLogText,
+        cssClass: statusText ? 'log-status' : lastLogClass,
+      };
+    }),
+  );
+
+  const visibilitySignal = scope.add(
+    computed(() => {
+      const mode = screenModeSignal.value;
+
+      if (mode === 'hud') {
+        const expanded = expandedSignal.value;
+
+        return {
+          gameLog: expanded ? 'flex' : 'none',
+          latestBar: expanded ? 'none' : 'block',
+        };
+      }
+
+      const visibility = buildScreenVisibility(mode);
+
+      return {
+        gameLog: visibility.gameLog,
+        latestBar: 'none',
+      };
+    }),
+  );
+
+  scope.add(
+    effect(() => {
+      const copy = latestBarCopySignal.value;
+      logLatestText.textContent = copy.text;
+      logLatestText.className = `log-latest-text ${copy.cssClass}`;
+    }),
+  );
+
+  scope.add(
+    effect(() => {
+      const visibility = visibilitySignal.value;
+
+      gameLogEl.style.display = visibility.gameLog;
+      logLatestBar.style.display = visibility.latestBar;
+    }),
+  );
+
+  scope.add(
+    effect(() => {
+      const status = statusTextSignal.value;
+      logStatusBar.style.display = status ? '' : 'none';
+      logStatusText.textContent = status ?? '';
+    }),
+  );
+
+  scope.add(
+    effect(() => {
+      chatInputRow.style.display = chatEnabledSignal.value ? '' : 'none';
+    }),
+  );
+
+  const setPlayerId = (id: number): void => {
+    playerId = id;
+  };
+
+  const setMobile = (_isMobile: boolean, hudVisible: boolean): void => {
+    if (hudVisible) {
+      expandedSignal.value = false;
     }
-  }
+  };
 
-  clear(): void {
-    clearHTML(this.logEntriesEl);
-    this.lastTurnHeader = null;
-  }
+  const applyScreenVisibility = (mode: UIScreenMode): void => {
+    screenModeSignal.value = mode;
+  };
 
-  setChatEnabled(enabled: boolean): void {
-    this.chatEnabledSignal.value = enabled;
-    this.chatInput.value = '';
-  }
+  const resetVisibilityState = (): void => {
+    expandedSignal.value = false;
+  };
 
-  logTurn(turn: number, player: string): void {
-    if (
-      this.lastTurnHeader &&
-      this.lastTurnHeader === this.logEntriesEl.lastElementChild
-    ) {
-      this.logEntriesEl.removeChild(this.lastTurnHeader);
+  const showHUD = (): void => {
+    screenModeSignal.value = 'hud';
+    expandedSignal.value = false;
+  };
+
+  const toggle = (): void => {
+    if (screenModeSignal.peek() !== 'hud') {
+      return;
+    }
+
+    if (expandedSignal.peek()) {
+      collapse();
+    } else {
+      expand();
+    }
+  };
+
+  const clear = (): void => {
+    clearHTML(logEntriesEl);
+    lastTurnHeader = null;
+  };
+
+  const setChatEnabled = (enabled: boolean): void => {
+    chatEnabledSignal.value = enabled;
+    chatInput.value = '';
+  };
+
+  const logTurn = (turn: number, player: string): void => {
+    if (lastTurnHeader && lastTurnHeader === logEntriesEl.lastElementChild) {
+      logEntriesEl.removeChild(lastTurnHeader);
     }
 
     const text = `\u2014 Turn ${turn}: ${player} \u2014`;
@@ -178,111 +236,69 @@ export class GameLogView {
       text,
     });
 
-    this.logEntriesEl.appendChild(header);
-    this.lastTurnHeader = header;
+    logEntriesEl.appendChild(header);
+    lastTurnHeader = header;
 
-    this.scrollToBottom();
-    this.updateLatestBar(text, 'log-turn');
-  }
+    scrollToBottom();
+    updateLatestBar(text, 'log-turn');
+  };
 
-  logText(text: string, cssClass = ''): void {
-    this.logEntriesEl.appendChild(
+  const logText = (text: string, cssClass = ''): void => {
+    logEntriesEl.appendChild(
       el('div', {
         class: `log-entry ${cssClass}`,
         text,
       }),
     );
 
-    this.scrollToBottom();
-    this.updateLatestBar(text, cssClass);
-  }
+    scrollToBottom();
+    updateLatestBar(text, cssClass);
+  };
 
-  logMovementEvents(events: MovementEvent[], ships: Ship[]): void {
+  const logMovementEvents = (events: MovementEvent[], ships: Ship[]): void => {
     for (const event of events) {
       const entry = formatMovementEventEntry(event, ships);
       if (entry) {
-        this.logText(entry.text, entry.className);
+        logText(entry.text, entry.className);
       }
     }
-  }
+  };
 
-  logCombatResults(results: CombatResult[], ships: Ship[]): void {
+  const logCombatResults = (results: CombatResult[], ships: Ship[]): void => {
     for (const result of results) {
-      for (const entry of formatCombatResultEntries(
-        result,
-        ships,
-        this.playerId,
-      )) {
-        this.logText(entry.text, entry.className);
+      for (const entry of formatCombatResultEntries(result, ships, playerId)) {
+        logText(entry.text, entry.className);
       }
     }
-  }
+  };
 
-  logLanding(shipName: string, bodyName: string): void {
-    this.logText(`${shipName} landed at ${bodyName}`, 'log-landed');
-  }
+  const logLanding = (shipName: string, bodyName: string): void => {
+    logText(`${shipName} landed at ${bodyName}`, 'log-landed');
+  };
 
-  setStatusText(text: string | null): void {
-    this.statusTextSignal.value = text;
-  }
+  const setStatusText = (text: string | null): void => {
+    statusTextSignal.value = text;
+  };
 
-  private bindChatInput(): void {
-    this.scope.add(
-      listen(this.chatInput, 'keydown', (event) => {
-        event.stopPropagation();
-        const ke = event as KeyboardEvent;
+  const dispose = (): void => {
+    scope.dispose();
+  };
 
-        if (ke.key !== 'Enter') return;
-
-        const text = this.chatInput.value.trim();
-        if (!text) return;
-
-        this.deps.onChat(text);
-        this.chatInput.value = '';
-      }),
-    );
-  }
-
-  private bindLogControls(): void {
-    this.scope.add(
-      listen(this.logLatestBar, 'click', () => {
-        this.expand();
-      }),
-    );
-
-    this.scope.add(
-      listen(this.gameLogEl, 'click', (e) => {
-        if ((e.target as HTMLElement).closest('.chat-input')) {
-          return;
-        }
-        this.collapse();
-      }),
-    );
-  }
-
-  private scrollToBottom(): void {
-    this.logEntriesEl.scrollTop = this.logEntriesEl.scrollHeight;
-  }
-
-  private updateLatestBar(text: string, cssClass: string): void {
-    this.lastLogTextSignal.value = text;
-    this.lastLogClassSignal.value = cssClass;
-  }
-
-  private expand(): void {
-    if (this.screenModeSignal.peek() !== 'hud') {
-      return;
-    }
-
-    this.expandedSignal.value = true;
-    this.scrollToBottom();
-  }
-
-  private collapse(): void {
-    this.expandedSignal.value = false;
-  }
-
-  dispose(): void {
-    this.scope.dispose();
-  }
-}
+  return {
+    setPlayerId,
+    setMobile,
+    applyScreenVisibility,
+    resetVisibilityState,
+    showHUD,
+    toggle,
+    clear,
+    setChatEnabled,
+    logTurn,
+    logText,
+    logMovementEvents,
+    logCombatResults,
+    logLanding,
+    setStatusText,
+    dispose,
+  };
+};
