@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { deriveKeyboardAction, type KeyboardShortcutContext } from './keyboard';
 import type { ClientState } from './phase';
 
-function createContext(
+const createContext = (
   overrides: Partial<KeyboardShortcutContext> = {},
-): KeyboardShortcutContext {
+): KeyboardShortcutContext => {
   return {
     state: 'menu',
     hasGameState: false,
@@ -15,15 +15,15 @@ function createContext(
     torpedoAccelActive: false,
     ...overrides,
   };
-}
+};
 
-function actionFor(
+const actionFor = (
   key: string,
   overrides: Partial<KeyboardShortcutContext> = {},
   shiftKey = false,
-) {
+) => {
   return deriveKeyboardAction(createContext(overrides), { key, shiftKey });
-}
+};
 
 describe('game-client-keyboard', () => {
   it('ignores shortcuts while typing in an input', () => {

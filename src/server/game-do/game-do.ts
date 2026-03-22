@@ -47,9 +47,11 @@ import {
   appendEvents,
   appendReplayMessage,
   filterReplayArchiveForPlayer,
+  getEventStreamLength,
   getReplayArchive,
   getReplayViewerId,
   resetEventLog,
+  saveCheckpoint,
 } from './archive';
 import {
   resolveCombatBroadcast,
@@ -600,6 +602,14 @@ export class GameDO extends DurableObject<Env> {
         matchNumber,
         replayMessage,
       );
+    }
+    // Save checkpoint at turn boundaries and game end
+    const hasTurnBoundary = events.some(
+      (e) => e.type === 'turnAdvanced' || e.type === 'gameOver',
+    );
+    if (hasTurnBoundary) {
+      const seq = await getEventStreamLength(this.ctx.storage, state.gameId);
+      await saveCheckpoint(this.ctx.storage, state.gameId, state, seq);
     }
     if (restartTurnTimer) {
       await this.startTurnTimer(state);

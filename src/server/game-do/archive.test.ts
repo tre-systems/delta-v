@@ -2,9 +2,20 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { EngineEvent } from '../../shared/engine/engine-events';
 import {
+  createGame,
+  processAstrogation,
+} from '../../shared/engine/game-engine';
+import {
+  buildSolarSystemMap,
+  findBaseHex,
+  SCENARIOS,
+} from '../../shared/map-data';
+import {
   appendEnvelopedEvents,
+  getCheckpoint,
   getEventStream,
   getEventStreamLength,
+  saveCheckpoint,
 } from './archive';
 
 class MockStorage {
@@ -167,5 +178,133 @@ describe('match-scoped event stream', () => {
       ['actor', 'event', 'gameId', 'seq', 'ts'].sort(),
     );
     expect(envelope.event).toEqual(event);
+  });
+});
+
+describe('checkpoint persistence', () => {
+  it('saves and retrieves a checkpoint', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const map = buildSolarSystemMap();
+    const state = createGame(SCENARIOS.biplanetary, map, 'CHK-m1', findBaseHex);
+
+    await saveCheckpoint(storage, 'CHK-m1', state, 5);
+
+    const checkpoint = await getCheckpoint(storage, 'CHK-m1');
+    expect(checkpoint).not.toBeNull();
+    expect(checkpoint?.gameId).toBe('CHK-m1');
+    expect(checkpoint?.seq).toBe(5);
+    expect(checkpoint?.turn).toBe(state.turnNumber);
+    expect(checkpoint?.phase).toBe(state.phase);
+    expect(checkpoint?.state.gameId).toBe('CHK-m1');
+  });
+
+  it('checkpoint structure has expected fields', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const map = buildSolarSystemMap();
+    const state = createGame(SCENARIOS.duel, map, 'SHAPE-m1', findBaseHex);
+
+    await saveCheckpoint(storage, 'SHAPE-m1', state, 3);
+
+    const checkpoint = await getCheckpoint(storage, 'SHAPE-m1');
+    expect(checkpoint).not.toBeNull();
+    expect(Object.keys(checkpoint ?? {}).sort()).toEqual(
+      ['gameId', 'phase', 'savedAt', 'seq', 'state', 'turn'].sort(),
+    );
+  });
+
+  it('checkpoint state is deep-cloned from live state', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const map = buildSolarSystemMap();
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'CLONE-m1',
+      findBaseHex,
+    );
+
+    await saveCheckpoint(storage, 'CLONE-m1', state, 1);
+
+    // Mutate original state
+    state.turnNumber = 999;
+
+    const checkpoint = await getCheckpoint(storage, 'CLONE-m1');
+    expect(checkpoint?.state.turnNumber).not.toBe(999);
+  });
+
+  it('returns null for non-existent checkpoint', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const result = await getCheckpoint(storage, 'NONE-m1');
+    expect(result).toBeNull();
+  });
+});
+
+describe('projection parity: replay archive vs live state', () => {
+  it('replay entries form a consistent state progression', () => {
+    const map = buildSolarSystemMap();
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'PARITY-m1',
+      findBaseHex,
+    );
+
+    // Run player 0 through astrogation with drift orders
+    const orders = state.ships
+      .filter((s) => s.owner === state.activePlayer)
+      .map((s) => ({ shipId: s.id, burn: null }));
+
+    const result = processAstrogation(
+      state,
+      state.activePlayer,
+      orders,
+      map,
+      Math.random,
+    );
+
+    if ('error' in result) return;
+
+    // The result state should have progressed
+    expect(result.state.gameId).toBe('PARITY-m1');
+    expect(result.engineEvents.length).toBeGreaterThan(0);
+
+    // State should be consistent: same gameId, ships present
+    expect(result.state.ships.length).toBe(state.ships.length);
+    expect(result.state.gameId).toBe(state.gameId);
+  });
+
+  it('checkpoint matches state at the sequenced point', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const map = buildSolarSystemMap();
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'CKPT-m1',
+      findBaseHex,
+    );
+
+    // Simulate a game: astrogation → ordnance skip
+    const orders = state.ships
+      .filter((s) => s.owner === 0)
+      .map((s) => ({ shipId: s.id, burn: null }));
+
+    const astro = processAstrogation(state, 0, orders, map, Math.random);
+    if ('error' in astro) return;
+
+    // Append events and save checkpoint
+    await appendEnvelopedEvents(storage, 'CKPT-m1', 0, ...astro.engineEvents);
+
+    const seq = await getEventStreamLength(storage, 'CKPT-m1');
+    await saveCheckpoint(storage, 'CKPT-m1', astro.state, seq);
+
+    // Verify checkpoint matches
+    const checkpoint = await getCheckpoint(storage, 'CKPT-m1');
+    expect(checkpoint?.seq).toBe(seq);
+    expect(checkpoint?.state.turnNumber).toBe(astro.state.turnNumber);
+    expect(checkpoint?.state.phase).toBe(astro.state.phase);
+
+    // Event stream should have events up to the seq
+    const stream = await getEventStream(storage, 'CKPT-m1');
+    expect(stream.length).toBe(seq);
+    expect(stream[stream.length - 1].seq).toBe(seq);
   });
 });

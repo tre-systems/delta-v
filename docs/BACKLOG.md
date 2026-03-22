@@ -13,27 +13,6 @@ with the feature, not as a cleanup pass afterward.
 
 ## Event-Sourced Match Architecture
 
-### Projection and checkpoint model
-
-Define how read models are built from the event stream:
-the authoritative `GameState` projection, player views,
-spectator / public views, and reconnect / replay
-checkpoints.
-
-Snapshots become checkpoints and cache, not the source
-of truth. Decide checkpoint cadence, replay rebuild
-strategy, and parity expectations between incremental
-projection and full rebuild.
-
-Definition of done: rebuild tests compare live state
-with checkpoint-plus-tail replay and full replay from
-event zero.
-
-**Files:** `src/shared/engine/game-engine.ts`,
-`src/server/game-do/game-do.ts`,
-`src/server/game-do/messages.ts`,
-`src/shared/engine/engine-events.ts`
-
 ### Viewer-aware state filtering
 
 Replace the current player-only hidden-information

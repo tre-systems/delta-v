@@ -14,7 +14,7 @@ import {
   lightenColor,
 } from './map';
 
-function createPlayer(overrides: Partial<PlayerState> = {}): PlayerState {
+const createPlayer = (overrides: Partial<PlayerState> = {}): PlayerState => {
   return {
     connected: true,
     ready: true,
@@ -24,9 +24,9 @@ function createPlayer(overrides: Partial<PlayerState> = {}): PlayerState {
     escapeWins: false,
     ...overrides,
   };
-}
+};
 
-function createState(): GameState {
+const createState = (): GameState => {
   return {
     gameId: 'LOCAL',
     scenario: 'Bi-Planetary',
@@ -48,9 +48,9 @@ function createState(): GameState {
     winner: null,
     winReason: null,
   };
-}
+};
 
-function createMap(): SolarSystemMap {
+const createMap = (): SolarSystemMap => {
   return {
     hexes: new Map(),
     bodies: [
@@ -71,7 +71,7 @@ function createMap(): SolarSystemMap {
     ],
     bounds: { minQ: -10, maxQ: 10, minR: -8, maxR: 8 },
   };
-}
+};
 
 describe('renderer map helpers', () => {
   it('builds body visuals and lightens colors', () => {
