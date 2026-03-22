@@ -139,6 +139,11 @@ export type EngineEvent =
 
   // Hidden identity / race
   | {
+      type: 'fugitiveDesignated';
+      shipId: string;
+      playerId: number;
+    }
+  | {
       type: 'identityRevealed';
       shipId: string;
     }
