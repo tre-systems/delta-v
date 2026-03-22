@@ -34,7 +34,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 
 describe('ui formatters', () => {
-  it('parses invite links and raw codes', () => {
+  it('parses room links and raw codes', () => {
     expect(
       parseJoinInput(
         ' https://delta-v.example/?code=abcde&playerToken=pt-1 ',

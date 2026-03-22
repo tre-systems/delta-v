@@ -3,7 +3,7 @@ import type {
   MovementEvent,
   Ship,
 } from '../../shared/types/domain';
-import { byId, el } from '../dom';
+import { byId, clearHTML, el } from '../dom';
 import { computed, createDisposalScope, effect, signal } from '../reactive';
 import {
   formatCombatResultEntries,
@@ -155,7 +155,7 @@ export class GameLogView {
   }
 
   clear(): void {
-    this.logEntriesEl.innerHTML = '';
+    clearHTML(this.logEntriesEl);
     this.lastTurnHeader = null;
   }
 

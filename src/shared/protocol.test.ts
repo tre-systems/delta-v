@@ -1202,3 +1202,227 @@ describe('validateClientMessage', () => {
     });
   });
 });
+
+describe('C2S contract fixtures', () => {
+  it('fleetReady wire shape', () => {
+    const result = validateClientMessage({
+      type: 'fleetReady',
+      purchases: [{ shipType: 'corvette' }],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        type: 'fleetReady',
+        purchases: [{ shipType: 'corvette' }],
+      },
+    });
+  });
+
+  it('astrogation wire shape with burn and overload', () => {
+    const result = validateClientMessage({
+      type: 'astrogation',
+      orders: [
+        {
+          shipId: 'p0s0',
+          burn: 2,
+          overload: 1,
+          weakGravityChoices: { q3r5: true },
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        type: 'astrogation',
+        orders: [
+          {
+            shipId: 'p0s0',
+            burn: 2,
+            overload: 1,
+            weakGravityChoices: { q3r5: true },
+          },
+        ],
+      },
+    });
+  });
+
+  it('astrogation wire shape with null burn (drift)', () => {
+    const result = validateClientMessage({
+      type: 'astrogation',
+      orders: [{ shipId: 'p0s0', burn: null }],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        type: 'astrogation',
+        orders: [
+          {
+            shipId: 'p0s0',
+            burn: null,
+            overload: null,
+            weakGravityChoices: undefined,
+          },
+        ],
+      },
+    });
+  });
+
+  it('ordnance wire shape with torpedo', () => {
+    const result = validateClientMessage({
+      type: 'ordnance',
+      launches: [
+        {
+          shipId: 'p0s0',
+          ordnanceType: 'torpedo',
+          torpedoAccel: 3,
+          torpedoAccelSteps: 2,
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        type: 'ordnance',
+        launches: [
+          {
+            shipId: 'p0s0',
+            ordnanceType: 'torpedo',
+            torpedoAccel: 3,
+            torpedoAccelSteps: 2,
+          },
+        ],
+      },
+    });
+  });
+
+  it('combat wire shape with multi-attacker and target type', () => {
+    const result = validateClientMessage({
+      type: 'combat',
+      attacks: [
+        {
+          attackerIds: ['p0s0', 'p0s1'],
+          targetId: 'p1s0',
+          targetType: 'ship',
+          attackStrength: 4,
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        type: 'combat',
+        attacks: [
+          {
+            attackerIds: ['p0s0', 'p0s1'],
+            targetId: 'p1s0',
+            targetType: 'ship',
+            attackStrength: 4,
+          },
+        ],
+      },
+    });
+  });
+
+  it('logistics wire shape', () => {
+    const result = validateClientMessage({
+      type: 'logistics',
+      transfers: [
+        {
+          sourceShipId: 'p0s0',
+          targetShipId: 'p0s1',
+          transferType: 'fuel',
+          amount: 3,
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        type: 'logistics',
+        transfers: [
+          {
+            sourceShipId: 'p0s0',
+            targetShipId: 'p0s1',
+            transferType: 'fuel',
+            amount: 3,
+          },
+        ],
+      },
+    });
+  });
+
+  it('emplaceBase wire shape', () => {
+    const result = validateClientMessage({
+      type: 'emplaceBase',
+      emplacements: [{ shipId: 'p0s0' }],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        type: 'emplaceBase',
+        emplacements: [{ shipId: 'p0s0' }],
+      },
+    });
+  });
+
+  it('surrender wire shape', () => {
+    const result = validateClientMessage({
+      type: 'surrender',
+      shipIds: ['p0s0', 'p0s1'],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        type: 'surrender',
+        shipIds: ['p0s0', 'p0s1'],
+      },
+    });
+  });
+
+  it('parameterless action wire shapes', () => {
+    for (const type of [
+      'skipOrdnance',
+      'beginCombat',
+      'skipCombat',
+      'skipLogistics',
+      'rematch',
+    ] as const) {
+      expect(validateClientMessage({ type })).toEqual({
+        ok: true,
+        value: { type },
+      });
+    }
+  });
+
+  it('chat wire shape', () => {
+    const result = validateClientMessage({
+      type: 'chat',
+      text: 'gg',
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: { type: 'chat', text: 'gg' },
+    });
+  });
+
+  it('ping wire shape', () => {
+    const result = validateClientMessage({
+      type: 'ping',
+      t: 1711234567890,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: { type: 'ping', t: 1711234567890 },
+    });
+  });
+});

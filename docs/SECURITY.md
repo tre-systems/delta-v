@@ -12,7 +12,7 @@ Delta-V now has a materially stronger authoritative-server boundary than the ori
 - Hidden-identity state is filtered per player before broadcast, so the fugitive flag itself is not sent to the opponent.
 - Room creation is now authoritative: `/create` initializes the room, locks the scenario up front, and rejects room-code collisions.
 - The room creator receives a reserved player token for seat 0.
-- The default shipped create flow still shares the guest seat by room code or copied room link; dormant invite-token plumbing exists in the protocol, but it is not yet wired end to end in the worker create response.
+- The guest seat is shared by room code or copied room link — anyone with the 5-character code can claim the open seat.
 - Reconnects require the stored player token, and seat reclamation is keyed to player identity even if the previous WebSocket has not finished closing yet.
 - Client-to-server WebSocket messages are runtime-validated before any engine handler executes, and malformed payloads are rejected instead of being trusted structurally.
 - Room codes are generated from a cryptographically strong RNG rather than `Math.random()`.
@@ -27,16 +27,16 @@ Current status: **acceptable for friendly matches, weak for public matchmaking**
 
 - The creator seat is token-protected.
 - The guest seat is still usually claimed through possession of the 5-character room code or the copied `/?code=ROOM1` link.
-- The client and server still contain invite-token support, but `/create` does not currently mint a guest token for the default room-creation path.
+- Room-code guest joins are the deliberate product model for now — designed for friends sharing codes in conversation.
 
 Implications:
 
 - Anyone who gets the room code before the intended guest can still occupy seat 1.
-- This is weaker than a true tokenized private-link model, and much weaker than authenticated accounts, signed invites, or tournament admin tooling.
+- This is weaker than authenticated accounts, signed invites, or tournament admin tooling, but appropriate for the current friendly-match scope.
 
 Recommended next step:
 
-- First resolve the backlog decision: either finish the invite-token flow end to end or remove the dormant abstraction and document code-only guest joins as the deliberate product model.
+- For public matchmaking or tournament play, add longer opaque room identifiers or authenticated invite links.
 
 ### 2. Room secrecy is still limited by short codes
 
@@ -75,7 +75,20 @@ Random outcomes are server-controlled, which is the key anti-cheat requirement h
 
 ### Frontend XSS posture
 
-The client still uses `innerHTML` in several UI paths. Today those paths render internal game data and static markup rather than arbitrary user-generated content, so the practical risk is low. If chat, player names, modded scenarios, or other freeform text are added later, those paths should be revisited immediately.
+All `innerHTML` writes are now confined behind
+`setTrustedHTML()` and `clearHTML()` in `src/client/dom.ts`.
+No production code outside that file touches `innerHTML`
+directly, making the boundary grep-able and auditable.
+
+Today all callers pass internally generated markup (game
+state, static constants, computed display strings) — no
+user input or external content flows through this path.
+
+If chat, player names, modded scenarios, or other freeform
+text are added later, add a sanitizer such as `DOMPurify`
+inside `setTrustedHTML()` rather than scattering raw
+`innerHTML` writes. For plain text, prefer `textContent`
+or the `el()` helper's `text` prop.
 
 ## Competitive Readiness Summary
 
@@ -94,7 +107,7 @@ Delta-V is in much better shape for private matches than the early prototype, bu
 
 The next security-focused work should be:
 
-- resolve whether guest invite tokens are part of the real product flow
+- (resolved) room-code guest joins are the deliberate product model
 - longer room identifiers and/or rate limiting
 - optional edge-side bot protection for public deployments
 - stronger identity/account binding if organized competitive play matters
@@ -104,3 +117,5 @@ The next security-focused work should be:
 - [Cloudflare WAF rate limiting rules](https://developers.cloudflare.com/waf/rate-limiting-rules/)
 - [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/)
 - [OWASP XSS overview](https://owasp.org/www-community/attacks/xss/)
+- [OWASP Cross Site Scripting Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)
+- [OWASP DOM-based XSS Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html)

@@ -1,6 +1,6 @@
 import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
-import { byId } from '../dom';
+import { byId, setTrustedHTML } from '../dom';
 import { createDisposalScope, effect, signal } from '../reactive';
 import type { AIDifficulty, UIEvent } from './events';
 import { parseJoinInput } from './formatters';
@@ -214,9 +214,11 @@ export class LobbyView {
         .map((tag) => `<span class="scenario-tag">${tag}</span>`)
         .join('');
 
-      btn.innerHTML =
+      setTrustedHTML(
+        btn,
         `<div class="scenario-name">${def.name}${tags}</div>` +
-        `<div class="scenario-desc">${def.description}</div>`;
+          `<div class="scenario-desc">${def.description}</div>`,
+      );
 
       this.scenarioListEl.appendChild(btn);
     }

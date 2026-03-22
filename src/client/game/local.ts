@@ -1,5 +1,7 @@
 import {
   beginCombatPhase,
+  hasCombatResults,
+  isMovementResult,
   type MovementResult,
   processAstrogation,
   processCombat,
@@ -41,7 +43,7 @@ export const resolveAstrogationStep = (
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
-  if ('movements' in result) {
+  if (isMovementResult(result)) {
     return { kind: 'movement', result };
   }
   return { kind: 'state', state: result.state };
@@ -69,7 +71,7 @@ export const resolveSkipOrdnanceStep = (
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
-  if ('movements' in result) {
+  if (isMovementResult(result)) {
     return { kind: 'movement', result };
   }
   return { kind: 'state', state: result.state };
@@ -85,7 +87,7 @@ export const resolveBeginCombatStep = (
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
-  if ('results' in result && result.results.length > 0) {
+  if (hasCombatResults(result)) {
     return {
       kind: 'combat',
       previousState,
@@ -128,7 +130,7 @@ export const resolveSkipCombatStep = (
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
-  if (result.results && result.results.length > 0) {
+  if (hasCombatResults(result)) {
     return {
       kind: 'combat',
       previousState,

@@ -44,7 +44,20 @@ Use `src/client/dom.ts` helpers for declarative DOM construction in UI code:
 - **`visible(el, condition)` / `show(el)` / `hide(el)`** — Toggle display instead of writing `.style.display = condition ? 'block' : 'none'` everywhere.
 - **`byId(id)`** — Typed `getElementById` that throws on missing elements, replacing `document.getElementById('x')!` non-null assertions.
 
-Prefer `el()` for building element trees programmatically. Continue using `innerHTML` for complex HTML templates where `el()` would be awkward.
+Prefer `el()` for building element trees programmatically.
+
+All `innerHTML` writes go through `setTrustedHTML()` or
+`clearHTML()` in `dom.ts` — never write `innerHTML`
+directly outside that file. These helpers accept only
+trusted internal markup (game state, static constants).
+For plain text, use `textContent` or `el()`'s `text` prop.
+
+If untrusted content (user names, chat, external data)
+ever needs to render as HTML, add a sanitizer (e.g.
+`DOMPurify`) inside `setTrustedHTML()`. See OWASP's
+[XSS Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)
+and
+[DOM-based XSS Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html).
 
 ## Refactoring Guidance
 
@@ -77,6 +90,11 @@ Do not create meaningless wrapper functions or over-fragment files just to hit n
 - Use **property-based tests** (`fast-check`) for invariant verification on core engine functions. Co-locate as `*.property.test.ts` next to the source file. Property tests complement unit tests by fuzzing inputs to verify that invariants hold universally (e.g., "fuel never goes negative", "hex distance is symmetric", "higher odds never produce worse combat results").
 - Coverage thresholds are enforced on `src/shared/` via vitest config — the pre-commit hook and CI both run `test:coverage` to prevent backsliding.
 
+For a good overview of when property tests add value, see
+fast-check's
+[Why Property-Based Testing?](https://fast-check.dev/docs/introduction/why-property-based/)
+guide.
+
 ## Constants And Configuration
 
 - Avoid magic numbers when a value is shared across client/server behavior.
@@ -88,12 +106,20 @@ Do not create meaningless wrapper functions or over-fragment files just to hit n
 - Update docs when behavior changes materially.
 - Do not leave roadmap items marked as future work once they are implemented.
 - Architecture docs should describe the real join flow, validation model, and authority boundaries.
+- When a cross-cutting product or protocol decision is made
+  and is likely to be referenced from multiple docs, prefer
+  adding a short ADR-style note under `docs/` instead of
+  relying on prose updates alone.
 
 ## Common Patterns
 
 ### Discriminated unions
 
-Union types with a literal discriminator field, narrowed via `switch` or `if`. See [TypeScript Handbook — Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html).
+Union types with a literal discriminator field, narrowed
+via `switch` or `if`. See the TypeScript Handbook on
+[Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
+and
+[Union Exhaustiveness Checking](https://www.typescriptlang.org/docs/handbook/unions-and-intersections.html).
 
 - **Client-side variants** use `kind` as discriminator: `LocalResolution`, `AIActionPlan`, `GameCommand`, `KeyboardAction`, `BurnChangePlan`.
 - **Network messages** use `type` as discriminator: `C2S`, `S2C` message unions in `types/protocol.ts`.
@@ -114,6 +140,44 @@ Examples: `deriveClientScreenPlan`, `deriveGameOverPlan`, `deriveClientMessagePl
 The `deriveClientStateEntryPlan()` function in `game/phase-entry.ts` is the most elaborate example — it returns a `ClientStateEntryPlan` with ~15 boolean/enum flags controlling camera reset, HUD visibility, timer start, tutorial triggers, and combat state on each phase entry. The caller (`setState()` in `main.ts`) applies the plan imperatively.
 
 This is the [functional core / imperative shell](https://www.destroyallsoftware.com/talks/boundaries) pattern (Gary Bernhardt, ["Boundaries"](https://www.destroyallsoftware.com/talks/boundaries), SCNA 2012) — pure derivation in the core, side effects at the boundary. See also Mark Seemann's [dependency rejection](https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/) series for the same idea applied to functional programming.
+
+### Single choke points for side effects
+
+When a side-effecting domain has one obvious owner, keep
+it that way. Prefer a single applier/dispatcher module
+instead of many call sites performing "small" pieces of
+the same mutation or publication flow.
+
+Current examples:
+
+- `dispatchGameCommand()` owns client command routing.
+- `applyClientStateTransition()` owns client state-entry
+  side effects.
+- `applyClientGameState()` owns authoritative state apply
+  plus renderer sync.
+- `UIManager.applyScreenVisibility()` owns top-level
+  screen toggling.
+- `GameDO.publishStateChange()` owns persistence,
+  archival append, timer reschedule, and outbound
+  state-bearing messages.
+
+This pattern is a good fit here because it reduces drift
+between similar flows and gives tests a narrow seam to
+assert on. It is also why "small convenience writes"
+inside unrelated modules are often a bad trade.
+
+### Contract fixtures for protocols
+
+When a shape is meant to remain stable across modules or
+over time, do not rely only on behavioral tests. Add
+representative fixture-style tests for:
+
+- validated client protocol messages
+- state-bearing server messages
+- replay payloads and future event envelopes
+
+These tests are especially valuable before event-sourced
+replay work broadens the transport surface.
 
 ### Error returns
 
@@ -278,9 +342,18 @@ still derive most game-facing state, while reactive signals
 handle repetitive DOM synchronization and lifecycle cleanup in
 the overlay layer.
 
+For background on fine-grained reactivity, see Solid's
+[Fine-grained reactivity](https://docs.solidjs.com/advanced-concepts/fine-grained-reactivity)
+write-up and Preact's
+[Signals guide](https://preactjs.com/guide/v10/signals/).
+
 ### Dependency injection
 
-Client game modules use two patterns depending on purity (see [dependency injection](https://en.wikipedia.org/wiki/Dependency_injection)):
+Client game modules use two patterns depending on purity.
+For the underlying ideas, see Martin Fowler on
+[Dependency Injection](https://martinfowler.com/articles/injection.html)
+and Mark Seemann on
+[Composition Root](https://blog.ploeh.dk/2011/07/28/CompositionRoot/):
 
 - **Pure functions** take only what they need as direct parameters. These are the `derive*`, `build*`, `resolve*`, `get*` functions in `game/helpers.ts`, `game/keyboard.ts`, `game/navigation.ts`, `game/burn.ts`, `game/combat.ts`, `game/messages.ts`, etc. They return values and have no side effects.
 
@@ -293,6 +366,36 @@ Client game modules use two patterns depending on purity (see [dependency inject
 When adding new side-effecting logic, prefer extending an existing `*Deps` interface over adding methods to `GameClient`. Keep pure derivation functions as direct-parameter exports — they don't need deps.
 
 When the client needs to decide whether an action is legal or should be shown/enabled, prefer reusing shared rule helpers from `src/shared/engine/` over duplicating lighter-weight UI heuristics. The ordnance HUD and ordnance-phase auto-selection follow this pattern: the client derives button visibility/disabled state and default selection from the same validation helpers the engine uses.
+
+### Library adoption policy
+
+Default to no new runtime library. Add one only if it does
+at least one of these clearly:
+
+- removes a real security risk
+- removes a repeated maintenance burden the current code is
+  already paying
+- simplifies a broad class of code without hiding control
+  flow or ownership
+
+Current stance:
+
+- **Good candidate when needed**: `DOMPurify` for any
+  future user-controlled or external HTML.
+- **Reasonable later if schemas grow**: `Valibot` or `Zod`
+  for protocol/event schema ownership.
+- **Do not add by default**: React, Vue, Redux, Zustand,
+  RxJS, XState, Immer, or rendering frameworks.
+- **Do not replace `reactive.ts` just to use a library**:
+  switch only if the project decides it no longer wants to
+  own that implementation.
+
+New library proposals should explain:
+
+- why the existing code is insufficient
+- which files/modules will simplify
+- what bundle/runtime/test costs are introduced
+- how the library fits the existing architecture boundaries
 
 ### Transport adapter
 

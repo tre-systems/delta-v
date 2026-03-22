@@ -17,6 +17,16 @@ Platform references:
 - [MDN Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
 - [MDN Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
 
+Pattern references:
+- [MDN `structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone)
+- [Gary Bernhardt, "Boundaries"](https://www.destroyallsoftware.com/talks/boundaries)
+- [Martin Fowler, Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html)
+- [Martin Fowler, CQRS](https://martinfowler.com/bliki/CQRS.html)
+- [Martin Fowler, Dependency Injection](https://martinfowler.com/articles/injection.html)
+- [Mark Seemann, Composition Root](https://blog.ploeh.dk/2011/07/28/CompositionRoot/)
+- [Solid Docs, Fine-grained reactivity](https://docs.solidjs.com/advanced-concepts/fine-grained-reactivity)
+- [Preact Signals guide](https://preactjs.com/guide/v10/signals/)
+
 ## 1. High-Level Architecture
 
 Delta-V employs a full-stack TypeScript architecture
@@ -43,10 +53,41 @@ client/          → State machine + Canvas renderer + DOM UI
 - **Side-effect-free engine.** The shared engine has no I/O: no DOM, no network, no storage. The DO wraps it with persistence and WebSocket plumbing. This makes everything testable and portable. All engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. See [Engine Mutation Model](#engine-mutation-model) for details.
 - **Transport abstraction.** `GameTransport` decouples the client from WebSocket vs local (AI) play. The client doesn't know or care where state comes from.
 - **Functional style throughout.** Pure derivation functions (`deriveHudViewModel`, `deriveKeyboardAction`, `deriveBurnChangePlan`), mandatory injectable RNG, `cond()` for branching.
+- **Pure planner + narrow applier flows.** Client screen changes, phase entry, message handling, and game-state application route through pure planners plus a small number of side-effect owners instead of scattering equivalent writes across many call sites.
 - **Scenario-driven.** `ScenarioRules` controls behaviour: ordnance types, base sharing, combat enabled, checkpoints, escape edges. New scenarios can vary gameplay without engine changes.
 - **Shared rule reuse across layers.** Client ordnance entry, HUD button visibility, and engine validation now all derive from the same shared ordnance-rule helpers, so restricted scenarios do not drift between UI and server authority.
 - **Hidden state filtering.** `filterStateForPlayer` hides fugitive identities in escape scenarios — the server never leaks information the client shouldn't have.
 - **Migration-friendly boundaries.** Mandatory RNG injection, stable per-match IDs, side-effect-free engine entry points, and narrow server/client contracts make an event-sourced migration feasible without throwing away the whole engine.
+
+### Patterns To Adopt Next
+
+These are patterns the current architecture is already
+leaning toward, but has not finished adopting end to end:
+
+- **Versioned event envelopes, not raw event arrays.**
+  `EngineEvent[]` is already a solid domain-level seam, but
+  the next step is wrapping those events in authoritative
+  envelopes with sequence numbers, actor identity,
+  timestamps, match identity, and explicit random outcomes.
+- **Projection parity tests.** Event-sourced rebuilds should
+  be checked against live state via full replay and
+  checkpoint-plus-tail replay, not assumed correct by
+  architecture alone.
+- **Contract fixtures for protocol and replay payloads.**
+  The validation layer is strong, but representative
+  request/response fixtures would make later event/replay
+  changes safer and more observable.
+- **Single trusted-HTML boundary.** The client still renders
+  some complex markup imperatively. If freeform or external
+  content expands, HTML injection should pass through one
+  reviewed boundary rather than ad hoc `innerHTML` writes.
+- **Decision records for cross-cutting choices.** Protocol,
+  auth, and product-shape decisions have historically
+  drifted across docs. Small ADR-style records would reduce
+  future mismatches.
+- **Profiling before renderer optimization.** Performance
+  work such as layer caching should be driven by measured
+  frame-time or device pain, not by intuition alone.
 
 ---
 
@@ -138,6 +179,8 @@ The backend leverages Cloudflare's edge network.
 
 - **Single state-bearing outbound message per action**: `publishStateChange()` currently persists state and events first, then emits exactly one state-bearing message (`movementResult`, `combatResult`, or `stateUpdate`). If the resulting state is terminal, the DO appends a separate `gameOver` notification after that state-bearing message. This one-action / one-update client contract should remain intact through the event-sourced migration even if the server starts projecting that message from appended domain events instead of mutating and saving a snapshot first.
 
+- **Single choke points for coordination**: The current codebase deliberately concentrates high-risk side effects behind a few owner functions rather than spreading them around. On the server, `publishStateChange()` owns persist/archive/broadcast/timer restart for state transitions. On the client, `dispatchGameCommand()`, `applyClientGameState()`, and `applyClientStateTransition()` are the corresponding choke points for command routing, authoritative-state application, and state-entry side effects.
+
 - **Replay archive foundation (transitional)**: The server currently persists a per-match replay archive built from those same authoritative state-bearing outbound messages. `initGame()` allocates a stable match identity (`gameId` like `ROOM1-m2`), archives the initial `gameStart`, and `publishStateChange()` appends each later state-bearing transition in sequence. Replay fetches are authenticated by player token and currently return player-filtered history. This is now a migration foothold, not the intended long-term source of truth.
 
 - **Accepted direction: event-sourced authoritative matches**: The next architectural phase moves the DO from snapshot-first persistence to an append-only authoritative event stream. Each validated command should append versioned domain events with sequence numbers, actor identity, correlation id, match identity, and explicit random outcomes where needed. Authoritative `GameState`, player views, spectator views, replay payloads, and reconnect state then become projections built from the stream and optional checkpoints.
@@ -150,7 +193,7 @@ The backend leverages Cloudflare's edge network.
 
 - **Room creation rate limit**: The Worker hashes the client IP and checks `POST /create` against either a configured Cloudflare rate-limit binding or an in-memory fallback (5 requests per IP per 60s window, 429 with `Retry-After`). The fallback protects a single worker isolate; production deployments should still configure a Cloudflare-global rule.
 
-- **Seat assignment**: `resolveSeatAssignment()` in `protocol.ts` implements a multi-step fallback: (1) player token match → returning player gets their original seat, even if the previous socket is still open; (2) invite token match → new player consumes the token and gets the open seat; (3) tokenless join → allowed when a seat has neither player token nor invite token; (4) no seats available → reject. The current worker create flow does not issue a guest invite token, so path (3) is the active seat-1 join path today. Duplicate sockets are replaced only after reclaim is accepted, and match start uses unique connected seats rather than raw socket count.
+- **Seat assignment**: `resolveSeatAssignment()` in `protocol.ts` implements a multi-step fallback: (1) player token match → returning player gets their original seat, even if the previous socket is still open; (2) tokenless join → allowed when an open seat has no player token (the default guest-join path); (3) no seats available → reject. Duplicate sockets are replaced only after reclaim is accepted, and match start uses unique connected seats rather than raw socket count.
 
 - **Disconnect grace period**: When a player disconnects, the DO stores a disconnect marker (player ID + 30s deadline) and schedules an alarm. If the player reconnects within 30s with a valid player token, the marker is cleared and the game continues. If the alarm fires with an unexpired marker, the game ends by forfeit. The marker is validated on reconnect, and reclaim succeeds during the grace window even if the stale socket has not yet fully torn down.
 
@@ -185,6 +228,7 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 #### Key Design Patterns
 
 - **`main.ts`**: The client-side coordinator. Manages WebSocket connections, local-AI execution, and top-level composition. It now delegates command dispatch to `game/command-router.ts`, game-state apply/clear ownership to `game/game-state-store.ts`, planning mutations to `game/planning-store.ts`, runtime/session field updates to `game/client-context-store.ts`, client state-entry side effects to `game/state-transition.ts`, and session lifecycle flows to `game/session-controller.ts` instead of keeping those blocks inline.
+- **`main.ts` as composition root**: `GameClient` wires together transports, timers, renderer, UI managers, and extracted `*Deps` objects. The goal is to keep construction and ownership centralized there while leaving downstream helpers narrower and easier to test.
 - **`renderer/renderer.ts`**: A highly optimized Canvas 2D renderer. It separates logical hex coordinates from pixel coordinates. It features smooth camera interpolation, persistent trails, and movement/combat animations that occur *between* turn phases.
 - **`input.ts`**: Manages user interaction (panning, zooming, clicking). It translates raw browser events into `InputEvent` objects. Pure `interpretInput()` then maps these to `GameCommand[]`, ensuring the input layer never directly mutates the application state.
 - **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), planning-state helpers, runtime/session helpers, phase derivation, game-state helpers, transition helpers, session helpers, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
@@ -201,6 +245,29 @@ Delta-V is a fully installable PWA. A lightweight hand-written service worker pr
 - **Network/API passthrough**: The service worker never intercepts non-`GET` requests and explicitly bypasses multiplayer/reporting routes (`/ws/*`, `/create`, `/join/*`, `/error`, `/telemetry`), ensuring sockets, join validation, and reporting stay authoritative.
 - **Stale-while-revalidate** for static assets and **network-first** for navigation, complementing Cloudflare's edge caching rather than fighting it.
 - **Automatic cache busting**: The build script (`esbuild.client.mjs`) injects a content hash into the SW cache name, so every deploy with code changes triggers automatic SW update and page reload.
+
+### Library Stance
+
+The architecture currently benefits from a narrow
+dependency surface. That remains the default.
+
+- **Do not add framework/state-machine/rendering stacks by
+  default.** React, Vue, Redux, Zustand, RxJS, XState, and
+  canvas/game frameworks would blur boundaries that are
+  currently explicit and testable.
+- **Prefer targeted libraries only when they remove a real
+  maintenance or security burden.**
+- **Potentially good additions later**:
+  `DOMPurify` if any user-controlled or external HTML needs
+  to be rendered; a schema library such as `Valibot` or
+  `Zod` if protocol or event-envelope schemas expand enough
+  that handwritten validators become harder to reason
+  about.
+- **Not worth swapping right now**:
+  the custom `reactive.ts` layer. It is small, tested, and
+  intentionally scoped. Replacing it with a library would
+  only make sense if the project no longer wants to own
+  reactive internals.
 
 ---
 

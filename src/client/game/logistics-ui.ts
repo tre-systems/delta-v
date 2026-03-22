@@ -4,7 +4,7 @@ import {
   type TransferPair,
 } from '../../shared/engine/logistics';
 import type { GameState, TransferOrder } from '../../shared/types/domain';
-import { el } from '../dom';
+import { clearHTML, el } from '../dom';
 
 export interface LogisticsUIState {
   pairs: TransferPair[];
@@ -72,7 +72,7 @@ export const renderTransferPanel = (
   uiState: LogisticsUIState,
   onChanged: () => void,
 ): void => {
-  container.innerHTML = '';
+  clearHTML(container);
 
   if (uiState.pairs.length === 0) {
     container.appendChild(

@@ -1,5 +1,5 @@
 import type { Ship } from '../../shared/types/domain';
-import { byId } from '../dom';
+import { byId, clearHTML, setTrustedHTML } from '../dom';
 import { computed, createDisposalScope, effect, signal } from '../reactive';
 import { buildShipListView } from './ship-list';
 
@@ -34,7 +34,7 @@ export class ShipListView {
         if (!state) return;
         const { input, view } = state;
 
-        this.shipListEl.innerHTML = '';
+        clearHTML(this.shipListEl);
 
         for (const [index, ship] of input.ships.entries()) {
           const entryView = view[index];
@@ -48,14 +48,17 @@ export class ShipListView {
             entry.classList.add('destroyed');
           }
 
-          entry.innerHTML = `
+          setTrustedHTML(
+            entry,
+            `
           <span class="ship-name">${entryView.displayName}</span>
           <span class="ship-status">
             ${entryView.statusText}
             ${entryView.hasBurn ? '<span class="burn-dot"></span>' : ''}
           </span>
           <span class="ship-fuel">${entryView.fuelText}</span>
-        `;
+        `,
+          );
 
           if (entryView.detailRows.length > 0) {
             const details = document.createElement('div');
@@ -67,7 +70,7 @@ export class ShipListView {
               return `<div class="ship-detail-row"><span class="ship-detail-label">${row.label}</span><span class="ship-detail-value"${style}>${row.value}</span></div>`;
             });
 
-            details.innerHTML = rows.join('');
+            setTrustedHTML(details, rows.join(''));
             entry.appendChild(details);
           }
 
@@ -93,6 +96,6 @@ export class ShipListView {
 
   dispose(): void {
     this.scope.dispose();
-    this.shipListEl.innerHTML = '';
+    clearHTML(this.shipListEl);
   }
 }

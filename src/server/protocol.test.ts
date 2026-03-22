@@ -131,23 +131,12 @@ describe('parseInitPayload', () => {
     code: 'ABCDE',
     scenario: 'escape',
     playerToken: 'A'.repeat(32),
-    inviteToken: 'B'.repeat(32),
   };
 
   it('parses valid init payloads', () => {
     const result = parseInitPayload(validPayload, keys);
 
     expect(result).toEqual({ ok: true, value: validPayload });
-  });
-
-  it('parses payloads without invite token', () => {
-    const { inviteToken: _, ...noInvite } = validPayload;
-    const result = parseInitPayload(noInvite, keys);
-
-    expect(result).toEqual({
-      ok: true,
-      value: { ...noInvite, inviteToken: null },
-    });
   });
 
   it('rejects non-object payloads', () => {
@@ -220,28 +209,6 @@ describe('parseInitPayload', () => {
       error: 'Invalid player token',
     });
   });
-
-  it('treats invalid or missing invite tokens as null', () => {
-    const badResult = parseInitPayload(
-      { ...validPayload, inviteToken: 'bad' },
-      keys,
-    );
-
-    expect(badResult).toEqual({
-      ok: true,
-      value: { ...validPayload, inviteToken: null },
-    });
-
-    const nullResult = parseInitPayload(
-      { ...validPayload, inviteToken: null },
-      keys,
-    );
-
-    expect(nullResult).toEqual({
-      ok: true,
-      value: { ...validPayload, inviteToken: null },
-    });
-  });
 });
 
 describe('createRoomConfig', () => {
@@ -251,79 +218,43 @@ describe('createRoomConfig', () => {
         code: 'ABCDE',
         scenario: 'escape',
         playerToken: 'A'.repeat(32),
-        inviteToken: 'B'.repeat(32),
       }),
     ).toEqual({
       code: 'ABCDE',
       scenario: 'escape',
       playerTokens: ['A'.repeat(32), null],
-      inviteTokens: [null, 'B'.repeat(32)],
-    });
-  });
-
-  it('builds room config with null invite token', () => {
-    expect(
-      createRoomConfig({
-        code: 'ABCDE',
-        scenario: 'escape',
-        playerToken: 'A'.repeat(32),
-        inviteToken: null,
-      }),
-    ).toEqual({
-      code: 'ABCDE',
-      scenario: 'escape',
-      playerTokens: ['A'.repeat(32), null],
-      inviteTokens: [null, null],
     });
   });
 });
 
 describe('seat assignment', () => {
-  it('lets the creator claim the reserved seat with the issued token', () => {
+  it('lets the creator reclaim their seat with the issued token', () => {
     expect(
       resolveSeatAssignment({
         presentedToken: 'creator-token',
         disconnectedPlayer: null,
         seatOpen: [true, true],
         playerTokens: ['creator-token', null],
-        inviteTokens: [null, 'invite-token'],
       }),
     ).toEqual({
       type: 'join',
       playerId: 0,
       issueNewToken: false,
-      consumeInviteToken: false,
     });
   });
 
-  it('requires an invite token for the guest seat and rotates it into a player token', () => {
+  it('allows tokenless join for the open guest seat', () => {
     expect(
       resolveSeatAssignment({
         presentedToken: null,
         disconnectedPlayer: null,
-        seatOpen: [true, true],
+        seatOpen: [false, true],
         playerTokens: ['creator-token', null],
-        inviteTokens: [null, 'invite-token'],
-      }),
-    ).toEqual({
-      type: 'reject',
-      status: 403,
-      message: 'Join token required',
-    });
-
-    expect(
-      resolveSeatAssignment({
-        presentedToken: 'invite-token',
-        disconnectedPlayer: null,
-        seatOpen: [true, true],
-        playerTokens: ['creator-token', null],
-        inviteTokens: [null, 'invite-token'],
       }),
     ).toEqual({
       type: 'join',
       playerId: 1,
       issueNewToken: true,
-      consumeInviteToken: true,
     });
   });
 
@@ -334,7 +265,6 @@ describe('seat assignment', () => {
         disconnectedPlayer: null,
         seatOpen: [true, true],
         playerTokens: ['creator-token', null],
-        inviteTokens: [null, 'invite-token'],
       }),
     ).toEqual({
       type: 'reject',
@@ -350,12 +280,11 @@ describe('seat assignment', () => {
         disconnectedPlayer: 1,
         seatOpen: [false, true],
         playerTokens: ['creator-token', 'guest-token'],
-        inviteTokens: [null, null],
       }),
     ).toEqual({
       type: 'reject',
       status: 403,
-      message: 'Join token required',
+      message: 'Player token required for reconnection',
     });
 
     expect(
@@ -364,25 +293,21 @@ describe('seat assignment', () => {
         disconnectedPlayer: 1,
         seatOpen: [false, true],
         playerTokens: ['creator-token', 'guest-token'],
-        inviteTokens: [null, null],
       }),
     ).toEqual({
       type: 'join',
       playerId: 1,
       issueNewToken: false,
-      consumeInviteToken: false,
     });
   });
 
   it('rejects when game is full with no disconnected player', () => {
-    // presentedToken must be null to avoid hitting "Invalid player token" first
     expect(
       resolveSeatAssignment({
         presentedToken: null,
         disconnectedPlayer: null,
         seatOpen: [false, false],
         playerTokens: ['creator-token', 'guest-token'],
-        inviteTokens: [null, null],
       }),
     ).toEqual({
       type: 'reject',
@@ -398,7 +323,6 @@ describe('seat assignment', () => {
         disconnectedPlayer: null,
         seatOpen: [false, false],
         playerTokens: ['creator-token', 'guest-token'],
-        inviteTokens: [null, null],
       }),
     ).toEqual({
       type: 'reject',
@@ -414,7 +338,6 @@ describe('seat assignment', () => {
         disconnectedPlayer: 1,
         seatOpen: [false, false],
         playerTokens: ['creator-token', 'guest-token'],
-        inviteTokens: [null, null],
       }),
     ).toEqual({
       type: 'reject',
@@ -423,55 +346,18 @@ describe('seat assignment', () => {
     });
   });
 
-  it('allows tokenless fallback for seats with no tokens assigned', () => {
+  it('allows tokenless join for seats with no token assigned', () => {
     expect(
       resolveSeatAssignment({
         presentedToken: null,
         disconnectedPlayer: null,
         seatOpen: [true, true],
         playerTokens: [null as unknown as string, null],
-        inviteTokens: [null, null],
       }),
     ).toEqual({
       type: 'join',
       playerId: 0,
       issueNewToken: true,
-      consumeInviteToken: false,
-    });
-  });
-
-  it('tokenless fallback allows joining second seat when it has no tokens', () => {
-    // Seat 1 is open with no playerToken and no inviteToken — tokenless fallback applies
-    expect(
-      resolveSeatAssignment({
-        presentedToken: null,
-        disconnectedPlayer: null,
-        seatOpen: [false, true],
-        playerTokens: ['creator-token', null],
-        inviteTokens: [null, null],
-      }),
-    ).toEqual({
-      type: 'join',
-      playerId: 1,
-      issueNewToken: true,
-      consumeInviteToken: false,
-    });
-  });
-
-  it('requires token when open seat has an invite token assigned', () => {
-    // Seat 1 is open but has an inviteToken — tokenless fallback does NOT apply
-    expect(
-      resolveSeatAssignment({
-        presentedToken: null,
-        disconnectedPlayer: null,
-        seatOpen: [false, true],
-        playerTokens: ['creator-token', null],
-        inviteTokens: [null, 'invite-token'],
-      }),
-    ).toEqual({
-      type: 'reject',
-      status: 403,
-      message: 'Join token required',
     });
   });
 
@@ -482,13 +368,11 @@ describe('seat assignment', () => {
         disconnectedPlayer: null,
         seatOpen: [false, true],
         playerTokens: ['creator-token', null],
-        inviteTokens: [null, 'invite-token'],
       }),
     ).toEqual({
       type: 'join',
       playerId: 0,
       issueNewToken: false,
-      consumeInviteToken: false,
     });
   });
 });

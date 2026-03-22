@@ -2,15 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildGameRoute,
-  buildInviteLink,
   buildJoinCheckUrl,
   buildWebSocketUrl,
-  getStoredInviteToken,
   getStoredPlayerToken,
   loadTokenStore,
   pruneExpiredTokens,
   saveTokenStore,
-  setStoredInviteToken,
   setStoredPlayerToken,
   TOKEN_STORE_KEY,
 } from './session';
@@ -32,22 +29,18 @@ describe('game client session helpers', () => {
     ).toEqual({});
   });
 
-  it('sets and reads player and invite tokens while preserving existing entries', () => {
-    const playerStore = setStoredPlayerToken({}, 'ABCDE', 'pt-1', 100);
-    const fullStore = setStoredInviteToken(playerStore, 'ABCDE', 'it-1', 200);
+  it('sets and reads player tokens', () => {
+    const store = setStoredPlayerToken({}, 'ABCDE', 'pt-1', 100);
 
-    expect(getStoredPlayerToken(fullStore, 'ABCDE')).toBe('pt-1');
-
-    expect(getStoredInviteToken(fullStore, 'ABCDE')).toBe('it-1');
-
-    expect(fullStore.ABCDE.ts).toBe(200);
+    expect(getStoredPlayerToken(store, 'ABCDE')).toBe('pt-1');
+    expect(store.ABCDE.ts).toBe(100);
   });
 
   it('prunes expired entries before saving to storage', () => {
     const setItem = vi.fn();
     const store = {
       FRESH: { playerToken: 'pt-1', ts: 900 },
-      STALE: { inviteToken: 'it-1', ts: 0 },
+      STALE: { playerToken: 'pt-2', ts: 0 },
     };
 
     const pruned = saveTokenStore(
@@ -70,11 +63,7 @@ describe('game client session helpers', () => {
     );
   });
 
-  it('builds invite links, routes, and websocket URLs with optional tokens', () => {
-    expect(
-      buildInviteLink('https://delta-v.example', 'ABCDE', 'invite token'),
-    ).toBe('https://delta-v.example/?code=ABCDE&playerToken=invite%20token');
-
+  it('builds routes and websocket URLs with optional tokens', () => {
     expect(buildGameRoute('ABCDE')).toBe('/?code=ABCDE');
 
     expect(

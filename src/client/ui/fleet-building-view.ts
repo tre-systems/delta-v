@@ -1,5 +1,5 @@
 import type { FleetPurchase, GameState } from '../../shared/types/domain';
-import { byId, hide, show } from '../dom';
+import { byId, clearHTML, hide, setTrustedHTML, show } from '../dom';
 import {
   batch,
   computed,
@@ -62,17 +62,20 @@ export class FleetBuildingView {
         const cartView = cartViewSignal.value;
 
         this.creditsEl.textContent = cartView.remainingLabel;
-        this.cartEl.innerHTML = '';
+        clearHTML(this.cartEl);
 
         if (cartView.isEmpty) {
-          this.cartEl.innerHTML = EMPTY_CART_HTML;
+          setTrustedHTML(this.cartEl, EMPTY_CART_HTML);
           return;
         }
 
         for (const [index, itemView] of cartView.items.entries()) {
           const chip = document.createElement('div');
           chip.className = 'fleet-cart-chip';
-          chip.innerHTML = `${itemView.label} <span class="chip-remove">&times;</span>`;
+          setTrustedHTML(
+            chip,
+            `${itemView.label} <span class="chip-remove">&times;</span>`,
+          );
 
           chip.addEventListener('click', () => {
             const newCart = [...this.cartSignal.peek()];
@@ -89,20 +92,23 @@ export class FleetBuildingView {
       effect(() => {
         const shopView = shopViewSignal.value;
 
-        this.shopEl.innerHTML = '';
+        clearHTML(this.shopEl);
 
         for (const itemView of shopView) {
           const item = document.createElement('div');
           item.className = 'fleet-shop-item';
           item.classList.toggle('disabled', itemView.disabled);
 
-          item.innerHTML = `
+          setTrustedHTML(
+            item,
+            `
           <div>
             <div class="fleet-shop-name">${itemView.name}</div>
             <div class="fleet-shop-stats">${itemView.statsText}</div>
           </div>
           <div class="fleet-shop-cost">${itemView.cost} MC</div>
-        `;
+        `,
+          );
 
           item.addEventListener('click', () => {
             if (
@@ -173,7 +179,7 @@ export class FleetBuildingView {
 
   dispose(): void {
     this.scope.dispose();
-    this.shopEl.innerHTML = '';
-    this.cartEl.innerHTML = '';
+    clearHTML(this.shopEl);
+    clearHTML(this.cartEl);
   }
 }
