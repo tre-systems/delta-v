@@ -29,8 +29,11 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   fuel: 20,
   cargoUsed: 0,
   resuppliedThisTurn: false,
-  landed: false,
-  destroyed: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  nukesLaunchedSinceResupply: 0,
   detected: true,
   damage: { disabledTurns: 0 },
   ...overrides,
@@ -130,7 +133,7 @@ describe('getCombatStrength', () => {
   });
 
   it('returns 0 for destroyed ship', () => {
-    expect(getCombatStrength([makeShip({ destroyed: true })])).toBe(0);
+    expect(getCombatStrength([makeShip({ lifecycle: 'destroyed' })])).toBe(0);
   });
 
   it('returns 0 for disabled ship', () => {
@@ -171,9 +174,9 @@ describe('canAttack', () => {
   });
 
   it('destroyed dreadnaught cannot attack', () => {
-    expect(canAttack(makeShip({ type: 'dreadnaught', destroyed: true }))).toBe(
-      false,
-    );
+    expect(
+      canAttack(makeShip({ type: 'dreadnaught', lifecycle: 'destroyed' })),
+    ).toBe(false);
   });
 
   it('D1-disabled orbital base can still attack (rulebook p.6)', () => {
@@ -199,7 +202,7 @@ describe('canAttack', () => {
   });
 
   it('destroyed ship cannot attack', () => {
-    expect(canAttack(makeShip({ destroyed: true }))).toBe(false);
+    expect(canAttack(makeShip({ lifecycle: 'destroyed' }))).toBe(false);
   });
 });
 
@@ -227,7 +230,9 @@ describe('canCounterattack', () => {
 
   it('destroyed dreadnaught cannot counterattack', () => {
     expect(
-      canCounterattack(makeShip({ type: 'dreadnaught', destroyed: true })),
+      canCounterattack(
+        makeShip({ type: 'dreadnaught', lifecycle: 'destroyed' }),
+      ),
     ).toBe(false);
   });
 
@@ -470,7 +475,7 @@ describe('applyDamage', () => {
     });
 
     expect(result).toBe(false);
-    expect(ship.destroyed).toBe(false);
+    expect(ship.lifecycle).toBe('active');
   });
 
   it('eliminated destroys ship', () => {
@@ -482,7 +487,7 @@ describe('applyDamage', () => {
     });
 
     expect(result).toBe(true);
-    expect(ship.destroyed).toBe(true);
+    expect(ship.lifecycle).toBe('destroyed');
   });
 
   it('disabled adds turns cumulatively', () => {
@@ -508,7 +513,7 @@ describe('applyDamage', () => {
     });
 
     expect(result).toBe(true);
-    expect(ship.destroyed).toBe(true);
+    expect(ship.lifecycle).toBe('destroyed');
   });
 });
 
@@ -601,7 +606,7 @@ describe('resolveCombat', () => {
     const result = resolveCombat([attacker], target, [attacker, target], rng);
 
     expect(result.damageResult.type).toBe('eliminated');
-    expect(target.destroyed).toBe(true);
+    expect(target.lifecycle).toBe('destroyed');
     expect(result.counterattack).not.toBeNull();
     expect(attacker.damage.disabledTurns).toBeGreaterThan(0);
   });
@@ -698,13 +703,13 @@ describe('resolveCombat', () => {
 
 describe('capture mechanics', () => {
   it('captured ships cannot attack', () => {
-    const ship = makeShip({ controlStatus: 'captured' });
+    const ship = makeShip({ control: 'captured' });
 
     expect(canAttack(ship)).toBe(false);
   });
 
   it('captured ships cannot counterattack', () => {
-    const ship = makeShip({ controlStatus: 'captured' });
+    const ship = makeShip({ control: 'captured' });
 
     expect(canCounterattack(ship)).toBe(false);
   });

@@ -28,8 +28,11 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   fuel: 20,
   cargoUsed: 0,
   resuppliedThisTurn: false,
-  landed: false,
-  destroyed: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  nukesLaunchedSinceResupply: 0,
   detected: true,
   pendingGravityEffects: [],
   damage: { disabledTurns: 0 },
@@ -82,7 +85,7 @@ describe('advanceTurn', () => {
     const state = setupState();
     state.activePlayer = 0;
     const ship = must(state.ships.find((s) => s.owner === 0));
-    ship.destroyed = true;
+    ship.lifecycle = 'destroyed';
     ship.damage.disabledTurns = 3;
     advanceTurn(state);
     // Destroyed ship should not have its disabled turns decremented
@@ -143,7 +146,9 @@ describe('advanceTurn', () => {
       fromPlayer: 1,
       toPlayer: 0,
     };
-    const p1Ships = state.ships.filter((s) => s.owner === 1 && !s.destroyed);
+    const p1Ships = state.ships.filter(
+      (s) => s.owner === 1 && s.lifecycle !== 'destroyed',
+    );
     advanceTurn(state);
     for (const ship of p1Ships) {
       expect(ship.owner).toBe(0);
@@ -242,7 +247,7 @@ describe('checkImmediateVictory', () => {
       ...(state.scenarioRules.checkpointBodies ?? []),
     ];
     // Land at home body (Terra for player 0)
-    ship.landed = true;
+    ship.lifecycle = 'landed';
     const terraBase = must(findBaseHex(map, 'Terra'));
     ship.position = terraBase;
     checkImmediateVictory(state, map);
@@ -255,7 +260,7 @@ describe('checkImmediateVictory', () => {
     const state = createGame(SCENARIOS.grandTour, map, 'GT02', findBaseHex);
     const ship = must(state.ships.find((s) => s.owner === 0));
     state.players[0].visitedBodies = ['Sol', 'Mars']; // Not all visited
-    ship.landed = true;
+    ship.lifecycle = 'landed';
     const terraBase = must(findBaseHex(map, 'Terra'));
     ship.position = terraBase;
     checkImmediateVictory(state, map);
@@ -314,7 +319,7 @@ describe('checkGameEnd', () => {
     const state = createGame(SCENARIOS.escape, map, 'GE01', findBaseHex);
     const fugitive = state.ships.find((s) => s.identity?.hasFugitives);
     if (fugitive) {
-      fugitive.destroyed = true;
+      fugitive.lifecycle = 'destroyed';
       state.escapeMoralVictoryAchieved = false;
       checkGameEnd(state, map);
       expect(state.winner).toBe(1 - fugitive.owner);
@@ -326,7 +331,7 @@ describe('checkGameEnd', () => {
     const state = createGame(SCENARIOS.escape, map, 'GE02', findBaseHex);
     const fugitive = state.ships.find((s) => s.identity?.hasFugitives);
     if (fugitive) {
-      fugitive.destroyed = true;
+      fugitive.lifecycle = 'destroyed';
       state.escapeMoralVictoryAchieved = true;
       checkGameEnd(state, map);
       expect(state.winner).toBe(fugitive.owner);
@@ -337,7 +342,7 @@ describe('checkGameEnd', () => {
     const state = setupState();
     state.activePlayer = 0;
     for (const ship of state.ships) {
-      ship.destroyed = true;
+      ship.lifecycle = 'destroyed';
     }
     checkGameEnd(state, map);
     expect(state.winner).toBe(1); // Last attacker (active player 0) loses
@@ -346,7 +351,7 @@ describe('checkGameEnd', () => {
   it('detects fleet elimination of player 0', () => {
     const state = setupState();
     for (const ship of state.ships) {
-      if (ship.owner === 0) ship.destroyed = true;
+      if (ship.owner === 0) ship.lifecycle = 'destroyed';
     }
     checkGameEnd(state, map);
     expect(state.winner).toBe(1);
@@ -355,7 +360,7 @@ describe('checkGameEnd', () => {
   it('detects fleet elimination of player 1', () => {
     const state = setupState();
     for (const ship of state.ships) {
-      if (ship.owner === 1) ship.destroyed = true;
+      if (ship.owner === 1) ship.lifecycle = 'destroyed';
     }
     checkGameEnd(state, map);
     expect(state.winner).toBe(0);
@@ -369,7 +374,7 @@ describe('applyEscapeMoralVictory', () => {
     state.escapeMoralVictoryAchieved = false;
     // Destroy an enforcer ship
     const enforcer = must(state.ships.find((s) => s.owner === 1));
-    enforcer.destroyed = true;
+    enforcer.lifecycle = 'destroyed';
     applyEscapeMoralVictory(state);
     expect(state.escapeMoralVictoryAchieved).toBe(true);
   });
@@ -409,9 +414,9 @@ describe('checkRamming', () => {
     const ship0 = must(state.ships.find((s) => s.owner === 0));
     const ship1 = must(state.ships.find((s) => s.owner === 1));
     ship0.position = { q: 5, r: 5 };
-    ship0.landed = false;
+    ship0.lifecycle = 'active';
     ship1.position = { q: 5, r: 5 };
-    ship1.landed = false;
+    ship1.lifecycle = 'active';
     const events: MovementEvent[] = [];
     // Use fixed RNG for deterministic results
     checkRamming(state, events, () => 1);
@@ -429,11 +434,10 @@ describe('checkRamming', () => {
         owner: 0,
         originalOwner: 0,
         position: { q: 5, r: 5 },
-        landed: false,
       }),
     );
     state.ships[0].position = { q: 5, r: 5 };
-    state.ships[0].landed = false;
+    state.ships[0].lifecycle = 'active';
     const events: MovementEvent[] = [];
     checkRamming(state, events, Math.random);
     expect(events.filter((e) => e.type === 'ramming')).toHaveLength(0);
@@ -443,9 +447,9 @@ describe('checkRamming', () => {
     const ship0 = must(state.ships.find((s) => s.owner === 0));
     const ship1 = must(state.ships.find((s) => s.owner === 1));
     ship0.position = { q: 5, r: 5 };
-    ship0.landed = true;
+    ship0.lifecycle = 'landed';
     ship1.position = { q: 5, r: 5 };
-    ship1.landed = false;
+    ship1.lifecycle = 'active';
     const events: MovementEvent[] = [];
     checkRamming(state, events, Math.random);
     expect(events.filter((e) => e.type === 'ramming')).toHaveLength(0);
@@ -455,10 +459,10 @@ describe('checkRamming', () => {
     const ship0 = must(state.ships.find((s) => s.owner === 0));
     const ship1 = must(state.ships.find((s) => s.owner === 1));
     ship0.position = { q: 5, r: 5 };
-    ship0.landed = false;
-    ship0.controlStatus = 'captured';
+    ship0.lifecycle = 'active';
+    ship0.control = 'captured';
     ship1.position = { q: 5, r: 5 };
-    ship1.landed = false;
+    ship1.lifecycle = 'active';
     const events: MovementEvent[] = [];
     checkRamming(state, events, Math.random);
     expect(events.filter((e) => e.type === 'ramming')).toHaveLength(0);
@@ -472,10 +476,10 @@ describe('checkInspection', () => {
     const pilgrim = must(state.ships.find((s) => s.owner === 0));
     enforcer.position = { q: 5, r: 5 };
     enforcer.velocity = { dq: 1, dr: 0 };
-    enforcer.landed = false;
+    enforcer.lifecycle = 'active';
     pilgrim.position = { q: 5, r: 5 };
     pilgrim.velocity = { dq: 1, dr: 0 };
-    pilgrim.landed = false;
+    pilgrim.lifecycle = 'active';
     if (pilgrim.identity) pilgrim.identity.revealed = false;
     checkInspection(state, 1);
     expect(pilgrim.identity?.revealed).toBe(true);
@@ -487,10 +491,10 @@ describe('checkInspection', () => {
     const pilgrim = must(state.ships.find((s) => s.owner === 0));
     enforcer.position = { q: 5, r: 5 };
     enforcer.velocity = { dq: 1, dr: 0 };
-    enforcer.landed = false;
+    enforcer.lifecycle = 'active';
     pilgrim.position = { q: 5, r: 5 };
     pilgrim.velocity = { dq: 0, dr: 1 }; // Different velocity
-    pilgrim.landed = false;
+    pilgrim.lifecycle = 'active';
     if (pilgrim.identity) pilgrim.identity.revealed = false;
     checkInspection(state, 1);
     expect(pilgrim.identity?.revealed).toBe(false);
@@ -508,14 +512,14 @@ describe('checkCapture', () => {
     const target = must(state.ships.find((s) => s.owner === 1));
     captor.position = { q: 5, r: 5 };
     captor.velocity = { dq: 1, dr: 0 };
-    captor.landed = false;
+    captor.lifecycle = 'active';
     target.position = { q: 5, r: 5 };
     target.velocity = { dq: 1, dr: 0 };
-    target.landed = false;
+    target.lifecycle = 'active';
     target.damage.disabledTurns = 3;
     const events: MovementEvent[] = [];
     checkCapture(state, 0, events);
-    expect(target.controlStatus).toBe('captured');
+    expect(target.control).toBe('captured');
     expect(target.owner).toBe(0);
     expect(events.length).toBe(1);
     expect(events[0].type).toBe('capture');
@@ -526,14 +530,14 @@ describe('checkCapture', () => {
     const target = must(state.ships.find((s) => s.owner === 1));
     captor.position = { q: 5, r: 5 };
     captor.velocity = { dq: 1, dr: 0 };
-    captor.landed = false;
+    captor.lifecycle = 'active';
     target.position = { q: 5, r: 5 };
     target.velocity = { dq: 1, dr: 0 };
-    target.landed = false;
+    target.lifecycle = 'active';
     target.damage.disabledTurns = 0;
     const events: MovementEvent[] = [];
     checkCapture(state, 0, events);
-    expect(target.controlStatus).toBeUndefined();
+    expect(target.control).toBe('own');
     expect(events).toHaveLength(0);
   });
   it('does not capture already-captured ships', () => {
@@ -542,12 +546,12 @@ describe('checkCapture', () => {
     const target = must(state.ships.find((s) => s.owner === 1));
     captor.position = { q: 5, r: 5 };
     captor.velocity = { dq: 1, dr: 0 };
-    captor.landed = false;
+    captor.lifecycle = 'active';
     target.position = { q: 5, r: 5 };
     target.velocity = { dq: 1, dr: 0 };
-    target.landed = false;
+    target.lifecycle = 'active';
     target.damage.disabledTurns = 3;
-    target.controlStatus = 'captured';
+    target.control = 'captured';
     const events: MovementEvent[] = [];
     checkCapture(state, 0, events);
     expect(events).toHaveLength(0);
@@ -562,7 +566,7 @@ describe('checkOrbitalBaseResupply', () => {
     ship.fuel = 5;
     ship.cargoUsed = 3;
     ship.damage.disabledTurns = 2;
-    ship.landed = false;
+    ship.lifecycle = 'active';
     // Add an orbital base at the same position/velocity
     state.ships.push(
       makeShip({
@@ -573,7 +577,6 @@ describe('checkOrbitalBaseResupply', () => {
         position: { q: 5, r: 5 },
         velocity: { dq: 1, dr: 0 },
         baseStatus: 'emplaced',
-        landed: false,
       }),
     );
     checkOrbitalBaseResupply(state, 0);
@@ -589,7 +592,7 @@ describe('checkOrbitalBaseResupply', () => {
     ship.position = { q: 5, r: 5 };
     ship.velocity = { dq: 1, dr: 0 };
     ship.fuel = 5;
-    ship.landed = false;
+    ship.lifecycle = 'active';
     state.ships.push(
       makeShip({
         id: 'ob-2',
@@ -599,7 +602,6 @@ describe('checkOrbitalBaseResupply', () => {
         position: { q: 5, r: 5 },
         velocity: { dq: 0, dr: 1 }, // Different velocity
         baseStatus: 'emplaced',
-        landed: false,
       }),
     );
     checkOrbitalBaseResupply(state, 0);
@@ -611,7 +613,7 @@ describe('checkOrbitalBaseResupply', () => {
     ship.position = { q: 5, r: 5 };
     ship.velocity = { dq: 1, dr: 0 };
     ship.fuel = 5;
-    ship.landed = false;
+    ship.lifecycle = 'active';
     state.ships.push(
       makeShip({
         id: 'ob-3',
@@ -621,7 +623,6 @@ describe('checkOrbitalBaseResupply', () => {
         position: { q: 5, r: 5 },
         velocity: { dq: 1, dr: 0 },
         baseStatus: 'emplaced',
-        landed: false,
       }),
     );
     checkOrbitalBaseResupply(state, 0);
@@ -634,7 +635,7 @@ describe('checkOrbitalBaseResupply', () => {
     ship.velocity = { dq: 1, dr: 0 };
     ship.fuel = 5;
     ship.resuppliedThisTurn = true;
-    ship.landed = false;
+    ship.lifecycle = 'active';
     state.ships.push(
       makeShip({
         id: 'ob-4',
@@ -644,7 +645,6 @@ describe('checkOrbitalBaseResupply', () => {
         position: { q: 5, r: 5 },
         velocity: { dq: 1, dr: 0 },
         baseStatus: 'emplaced',
-        landed: false,
       }),
     );
     checkOrbitalBaseResupply(state, 0);
@@ -657,7 +657,7 @@ describe('applyDetection', () => {
     map = buildSolarSystemMap();
     const ship = must(state.ships.find((s) => s.owner === 0));
     ship.detected = true;
-    ship.landed = true;
+    ship.lifecycle = 'landed';
     // Ship is at its home base (Mars base)
     const marsBase = must(findBaseHex(map, 'Mars'));
     ship.position = marsBase;
@@ -672,7 +672,7 @@ describe('applyDetection', () => {
     map = buildSolarSystemMap();
     const ship = must(state.ships.find((s) => s.owner === 0));
     ship.detected = false;
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: 10, r: 10 };
     const enemy = must(state.ships.find((s) => s.owner === 1));
     enemy.position = { q: 12, r: 10 }; // Within SHIP_DETECTION_RANGE (3)
@@ -684,7 +684,7 @@ describe('applyDetection', () => {
     map = buildSolarSystemMap();
     const ship = must(state.ships.find((s) => s.owner === 0));
     ship.detected = false;
-    ship.landed = false;
+    ship.lifecycle = 'active';
     // Move all enemy ships far away to isolate base detection
     for (const s of state.ships) {
       if (s.owner === 1) {
@@ -702,7 +702,7 @@ describe('applyDetection', () => {
     map = buildSolarSystemMap();
     const ship = must(state.ships.find((s) => s.owner === 0));
     ship.detected = false;
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: 40, r: 40 }; // Far from everything
     // Move all enemies far away
     for (const s of state.ships) {

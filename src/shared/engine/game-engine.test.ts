@@ -78,8 +78,8 @@ describe('createGame', () => {
     expect(initialState.ships[1].owner).toBe(1);
   });
   it('ships start landed at their home bases', () => {
-    expect(initialState.ships[0].landed).toBe(true);
-    expect(initialState.ships[1].landed).toBe(true);
+    expect(initialState.ships[0].lifecycle).toBe('landed');
+    expect(initialState.ships[1].lifecycle).toBe('landed');
   });
   it('ships start with full fuel', () => {
     const stats = SHIP_STATS.corvette;
@@ -217,12 +217,12 @@ describe('processAstrogation', () => {
       // Ship should have moved
       expect(hexEqual(result.state.ships[0].position, startPos)).toBe(false);
       // Ship should no longer be landed
-      expect(result.state.ships[0].landed).toBe(false);
+      expect(result.state.ships[0].lifecycle).toBe('active');
     }
   });
   it('applies gravity on the turn after a ship enters a gravity hex', () => {
     const ship = initialState.ships[0];
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: -8, r: -4 };
     ship.velocity = { dq: 0, dr: -1 };
     const first = resolveAstrogationMovement(initialState, 0, [
@@ -257,7 +257,7 @@ describe('processAstrogation', () => {
       findBaseHex,
     );
     const ship = state.ships[0];
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: -1, r: 0 };
     ship.velocity = { dq: 2, dr: 0 };
     const first = processAstrogation(
@@ -307,7 +307,7 @@ describe('processAstrogation', () => {
       findBaseHex,
     );
     const ship = state.ships[0];
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: 0, r: 0 };
     ship.velocity = { dq: 2, dr: -1 };
     const result = processAstrogation(
@@ -345,7 +345,7 @@ describe('processAstrogation', () => {
       findBaseHex,
     );
     const ship = state.ships[0];
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: 0, r: 0 };
     ship.velocity = { dq: 2, dr: -1 };
     const result = processAstrogation(
@@ -385,7 +385,7 @@ describe('processAstrogation', () => {
   });
   it('accepts overload order for warship and spends 2 fuel', () => {
     const ship = initialState.ships[0]; // corvette, canOverload = true
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.velocity = { dq: 0, dr: 0 };
     ship.position = { q: 0, r: 0 };
     const orders: AstrogationOrder[] = [
@@ -410,7 +410,7 @@ describe('processAstrogation', () => {
   });
   it('rejects invalid overload direction', () => {
     const ship = initialState.ships[0];
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.velocity = { dq: 0, dr: 0 };
     ship.position = { q: 0, r: 0 };
     const orders: AstrogationOrder[] = [
@@ -432,11 +432,11 @@ describe('processAstrogation', () => {
   it('enters combat phase after astrogation when enemies exist', () => {
     const ship0 = initialState.ships[0];
     const ship1 = initialState.ships[1];
-    ship0.landed = false;
+    ship0.lifecycle = 'active';
     ship0.position = { q: 0, r: 0 };
     ship0.velocity = { dq: 0, dr: 0 };
     ship0.cargoUsed = SHIP_STATS[ship0.type].cargo;
-    ship1.landed = false;
+    ship1.lifecycle = 'active';
     ship1.position = { q: 2, r: 0 };
     ship1.velocity = { dq: 0, dr: 0 };
     const result = processAstrogation(
@@ -454,7 +454,7 @@ describe('processAstrogation', () => {
   it('queues movement and enters ordnance before movement for launch-capable ships', () => {
     const escapeState = createGame(SCENARIOS.escape, map, 'ORDPH', findBaseHex);
     const ship = escapeState.ships[0];
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: 15, r: 0 };
     ship.velocity = { dq: 1, dr: 0 };
     const result = processAstrogation(
@@ -476,11 +476,11 @@ describe('processAstrogation', () => {
   it('switches active player after skipping combat', () => {
     const ship0 = initialState.ships[0];
     const ship1 = initialState.ships[1];
-    ship0.landed = false;
+    ship0.lifecycle = 'active';
     ship0.position = { q: 0, r: 0 };
     ship0.velocity = { dq: 0, dr: 0 };
     ship0.cargoUsed = SHIP_STATS[ship0.type].cargo;
-    ship1.landed = false;
+    ship1.lifecycle = 'active';
     ship1.position = { q: 2, r: 0 };
     ship1.velocity = { dq: 0, dr: 0 };
     const result = processAstrogation(
@@ -500,7 +500,7 @@ describe('processAstrogation', () => {
   });
   it('increments turn number after both players complete turns', () => {
     for (const [idx, ship] of initialState.ships.entries()) {
-      ship.landed = false;
+      ship.lifecycle = 'active';
       ship.position = { q: idx * 3, r: 0 };
       ship.velocity = { dq: 0, dr: 0 };
       ship.cargoUsed = SHIP_STATS[ship.type].cargo;
@@ -567,7 +567,7 @@ describe('resupply on landing', () => {
     const marsBase = must(findBaseHex(map, 'Mars'));
     movedShip.position = { q: marsBase.q, r: marsBase.r + 1 };
     movedShip.velocity = { dq: 0, dr: -1 };
-    movedShip.landed = false;
+    movedShip.lifecycle = 'active';
     movedShip.fuel = 5; // Low fuel
     movedShip.pendingGravityEffects = [
       {
@@ -593,7 +593,7 @@ describe('resupply on landing', () => {
     );
     if ('error' in landResult) return;
     const landedShip = landResult.state.ships[0];
-    expect(landedShip.landed).toBe(true);
+    expect(landedShip.lifecycle).toBe('landed');
     const stats = SHIP_STATS[landedShip.type];
     expect(landedShip.fuel).toBe(stats.fuel);
     expect(landedShip.damage.disabledTurns).toBe(0);
@@ -615,7 +615,7 @@ describe('resupply on landing', () => {
     result.state.players[0].bases = [hexKey(venusBase)];
     movedShip.position = { q: marsBase.q, r: marsBase.r + 1 };
     movedShip.velocity = { dq: 0, dr: -1 };
-    movedShip.landed = false;
+    movedShip.lifecycle = 'active';
     movedShip.fuel = 5;
     movedShip.pendingGravityEffects = [
       {
@@ -637,7 +637,7 @@ describe('resupply on landing', () => {
     );
     if ('error' in landResult) return;
     const landedShip = landResult.state.ships[0];
-    expect(landedShip.landed).toBe(true);
+    expect(landedShip.lifecycle).toBe('landed');
     expect(landedShip.fuel).toBe(4);
   });
 });
@@ -648,7 +648,7 @@ describe('victory conditions', () => {
     initialState.players[0].targetBody = 'Mars';
     ship.position = { q: marsBase.q, r: marsBase.r + 1 };
     ship.velocity = { dq: 0, dr: -1 };
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.pendingGravityEffects = [
       {
         hex: { q: marsBase.q, r: marsBase.r + 1 },
@@ -668,7 +668,7 @@ describe('victory conditions', () => {
     );
     if ('error' in result) return;
     const landedShip = result.state.ships[0];
-    expect(landedShip.landed).toBe(true);
+    expect(landedShip.lifecycle).toBe('landed');
     expect(result.state.phase).toBe('gameOver');
     expect(result.state.winner).toBe(0);
     expect(result.state.winReason).toContain('Mars');
@@ -689,13 +689,13 @@ describe('Escape scenario', () => {
     const p0Ships = escapeState.ships.filter((s) => s.owner === 0);
     for (const ship of p0Ships) {
       expect(ship.type).toBe('transport');
-      expect(ship.landed).toBe(true);
+      expect(ship.lifecycle).toBe('landed');
     }
   });
   it('enforcer ships start not landed', () => {
     const p1Ships = escapeState.ships.filter((s) => s.owner === 1);
     for (const ship of p1Ships) {
-      expect(ship.landed).toBe(false);
+      expect(ship.lifecycle).toBe('active');
     }
   });
   it('enforcer ship types are corvettes and corsair', () => {
@@ -714,7 +714,7 @@ describe('Escape scenario', () => {
     );
     fugitive.position = { q: 0, r: map.bounds.minR - 5 };
     fugitive.velocity = { dq: 0, dr: -2 };
-    fugitive.landed = false;
+    fugitive.lifecycle = 'active';
     const orders: AstrogationOrder[] = escapeState.ships
       .filter((s) => s.owner === 0)
       .map((s) => ({ shipId: s.id, burn: null }));
@@ -728,7 +728,7 @@ describe('Escape scenario', () => {
     // Destroy all pilgrim ships
     for (const ship of escapeState.ships) {
       if (ship.owner === 0) {
-        ship.destroyed = true;
+        ship.lifecycle = 'destroyed';
       }
     }
     // Enforcer makes a move — checkGameEnd should trigger (fugitive destroyed)
@@ -759,7 +759,7 @@ describe('ordnance system', () => {
   it('launches a mine from cargo', () => {
     // Take off first to get ship airborne
     const ship = initialState.ships[0]; // corvette, cargo=5
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.velocity = { dq: 1, dr: 0 };
     ship.position = { q: 0, r: 0 };
     // Advance to ordnance phase
@@ -800,7 +800,7 @@ describe('ordnance system', () => {
   it('assigns a fresh ordnance id even when earlier ids are still present', () => {
     const state = createGame(SCENARIOS.blockade, map, 'ORD02', findBaseHex);
     const ship = must(state.ships.find((s) => s.type === 'packet'));
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.velocity = { dq: 1, dr: 0 };
     ship.position = { q: 0, r: 0 };
     state.phase = 'ordnance';
@@ -814,7 +814,7 @@ describe('ordnance system', () => {
         position: { q: -1, r: 0 },
         velocity: { dq: 1, dr: 0 },
         turnsRemaining: 4,
-        destroyed: false,
+        lifecycle: 'active' as const,
       },
       {
         id: 'ord3',
@@ -823,7 +823,7 @@ describe('ordnance system', () => {
         position: { q: 2, r: 0 },
         velocity: { dq: -1, dr: 0 },
         turnsRemaining: 4,
-        destroyed: false,
+        lifecycle: 'active' as const,
       },
     ];
     const result = processOrdnance(
@@ -860,7 +860,7 @@ describe('ordnance system', () => {
     const transport = must(
       blockadeState.ships.find((s) => s.type === 'packet'),
     );
-    transport.landed = false;
+    transport.lifecycle = 'active';
     transport.velocity = { dq: 1, dr: 0 };
     blockadeState.phase = 'ordnance';
     blockadeState.activePlayer = 0;
@@ -881,7 +881,7 @@ describe('ordnance system', () => {
   });
   it('rejects launch when cargo full', () => {
     const ship = initialState.ships[0]; // corvette, cargo=5
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.velocity = { dq: 1, dr: 0 };
     ship.position = { q: 0, r: 0 };
     ship.cargoUsed = 5; // all cargo used
@@ -913,11 +913,11 @@ describe('ordnance system', () => {
         position: { q: 0, r: 0 },
         velocity: { dq: 1, dr: 0 },
         turnsRemaining: 1, // will self-destruct this turn
-        destroyed: false,
+        lifecycle: 'active' as const,
       },
     ];
     const ship = initialState.ships[0];
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.velocity = { dq: 0, dr: 0 };
     ship.position = { q: 5, r: 5 };
     const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: null }];
@@ -960,12 +960,12 @@ describe('ordnance system', () => {
         position: { q: 1, r: 1 },
         velocity: { dq: 0, dr: -1 },
         turnsRemaining: 5,
-        destroyed: false,
+        lifecycle: 'active' as const,
         pendingGravityEffects: [],
       },
     ];
     const ship = state.ships[0];
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.velocity = { dq: 0, dr: 0 };
     ship.position = { q: 20, r: 20 };
     const firstResult = processAstrogation(
@@ -1023,7 +1023,7 @@ describe('ordnance system', () => {
   it('torpedoes detonate on friendly ships in their path', () => {
     const ship = initialState.ships[0];
     ship.type = 'frigate';
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: 15, r: 0 };
     ship.velocity = { dq: 1, dr: 0 };
     initialState.phase = 'ordnance';
@@ -1036,8 +1036,11 @@ describe('ordnance system', () => {
       velocity: { dq: 0, dr: 0 },
       fuel: 10,
       cargoUsed: 0,
-      landed: false,
-      destroyed: false,
+      lifecycle: 'active' as const,
+      control: 'own' as const,
+      heroismAvailable: false,
+      overloadUsed: false,
+      nukesLaunchedSinceResupply: 0,
       detected: true,
       resuppliedThisTurn: false,
       damage: { disabledTurns: 0 },
@@ -1065,7 +1068,7 @@ describe('ordnance system', () => {
   it('torpedoes can use a 2-hex launch boost', () => {
     const ship = initialState.ships[0];
     ship.type = 'frigate';
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: 10, r: 0 };
     ship.velocity = { dq: 1, dr: 0 };
     initialState.phase = 'ordnance';
@@ -1096,7 +1099,7 @@ describe('ordnance system', () => {
     const [aq, ar] = asteroidKey.split(',').map(Number);
     const ship = initialState.ships[0];
     ship.type = 'frigate';
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: aq - 2, r: ar };
     ship.velocity = { dq: 1, dr: 0 };
     initialState.phase = 'ordnance';
@@ -1126,7 +1129,7 @@ describe('ordnance system', () => {
     if (!asteroidKey) return;
     const [aq, ar] = asteroidKey.split(',').map(Number);
     const ship = initialState.ships[0];
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: aq - 1, r: ar };
     ship.velocity = { dq: 1, dr: 0 };
     ship.type = 'frigate';
@@ -1153,10 +1156,10 @@ describe('detection / fog of war', () => {
   it('detects ships within ship detection range after movement', () => {
     const ship0 = initialState.ships[0];
     const ship1 = initialState.ships[1];
-    ship0.landed = false;
+    ship0.lifecycle = 'active';
     ship0.position = { q: 0, r: 0 };
     ship0.velocity = { dq: 0, dr: 0 };
-    ship1.landed = false;
+    ship1.lifecycle = 'active';
     ship1.position = { q: 2, r: 0 }; // within range 3
     ship1.velocity = { dq: 0, dr: 0 };
     ship1.detected = false; // pretend undetected
@@ -1178,10 +1181,10 @@ describe('detection / fog of war', () => {
   it('does not detect ships beyond detection range', () => {
     const ship0 = initialState.ships[0];
     const ship1 = initialState.ships[1];
-    ship0.landed = false;
+    ship0.lifecycle = 'active';
     ship0.position = { q: -20, r: -20 };
     ship0.velocity = { dq: 0, dr: 0 };
-    ship1.landed = false;
+    ship1.lifecycle = 'active';
     ship1.position = { q: 20, r: 20 }; // far from ship0 and any bases
     ship1.velocity = { dq: 0, dr: 0 };
     ship1.detected = false; // start undetected
@@ -1202,10 +1205,10 @@ describe('detection / fog of war', () => {
   it('detected status persists once set', () => {
     const ship0 = initialState.ships[0];
     const ship1 = initialState.ships[1];
-    ship0.landed = false;
+    ship0.lifecycle = 'active';
     ship0.position = { q: 0, r: 0 };
     ship0.velocity = { dq: 0, dr: 0 };
-    ship1.landed = false;
+    ship1.lifecycle = 'active';
     ship1.position = { q: 10, r: 0 }; // beyond range
     ship1.velocity = { dq: 0, dr: 0 };
     ship1.detected = true; // already detected
@@ -1256,8 +1259,11 @@ describe('base defense fire', () => {
           velocity: { dq: 0, dr: 0 },
           fuel: 20,
           cargoUsed: 0,
-          landed: false,
-          destroyed: false,
+          lifecycle: 'active' as const,
+          control: 'own' as const,
+          heroismAvailable: false,
+          overloadUsed: false,
+          nukesLaunchedSinceResupply: 0,
           detected: true,
           resuppliedThisTurn: false,
           damage: { disabledTurns: 0 },
@@ -1290,8 +1296,11 @@ describe('base defense fire', () => {
           velocity: { dq: 0, dr: 0 },
           fuel: 20,
           cargoUsed: 0,
-          landed: true, // landed at base
-          destroyed: false,
+          lifecycle: 'landed' as const,
+          control: 'own' as const,
+          heroismAvailable: false,
+          overloadUsed: false,
+          nukesLaunchedSinceResupply: 0,
           detected: true,
           resuppliedThisTurn: false,
           damage: { disabledTurns: 0 },
@@ -1333,8 +1342,11 @@ describe('base defense fire', () => {
             velocity: { dq: 0, dr: 0 },
             fuel: 20,
             cargoUsed: 0,
-            landed: false,
-            destroyed: false,
+            lifecycle: 'active' as const,
+            control: 'own' as const,
+            heroismAvailable: false,
+            overloadUsed: false,
+            nukesLaunchedSinceResupply: 0,
             detected: true,
             resuppliedThisTurn: false,
             damage: { disabledTurns: 0 },
@@ -1366,8 +1378,11 @@ describe('base defense fire', () => {
           velocity: { dq: 0, dr: 0 },
           fuel: 20,
           cargoUsed: 0,
-          landed: false,
-          destroyed: false,
+          lifecycle: 'active' as const,
+          control: 'own' as const,
+          heroismAvailable: false,
+          overloadUsed: false,
+          nukesLaunchedSinceResupply: 0,
           detected: true,
           resuppliedThisTurn: false,
           damage: { disabledTurns: 0 },
@@ -1396,7 +1411,7 @@ describe('base defense fire', () => {
           position: { q: marsBase.q + 2, r: marsBase.r },
           velocity: { dq: 3, dr: 0 },
           turnsRemaining: 5,
-          destroyed: false,
+          lifecycle: 'active' as const,
           pendingGravityEffects: [],
         },
       ] as Ordnance[],
@@ -1420,10 +1435,10 @@ describe('ramming', () => {
     // Position both ships to collide at the same hex
     const ship0 = initialState.ships[0];
     const ship1 = initialState.ships[1];
-    ship0.landed = false;
+    ship0.lifecycle = 'active';
     ship0.position = { q: 5, r: 5 };
     ship0.velocity = { dq: 1, dr: 0 };
-    ship1.landed = false;
+    ship1.lifecycle = 'active';
     ship1.position = { q: 7, r: 5 };
     ship1.velocity = { dq: -1, dr: 0 };
     // Both heading toward q:6, r:5
@@ -1452,7 +1467,7 @@ describe('nuke ordnance', () => {
     // Corvette has cargo=5, nuke needs 20. Use a frigate (cargo=40) instead.
     const ship = initialState.ships[0];
     ship.type = 'frigate'; // canOverload=true, cargo=40
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.velocity = { dq: 0, dr: 0 };
     ship.position = { q: 15, r: 0 };
     initialState.phase = 'ordnance';
@@ -1471,7 +1486,7 @@ describe('nuke ordnance', () => {
   it('allows nuke from non-warship with enough cargo', () => {
     const escState = createGame(SCENARIOS.escape, map, 'NUK01', findBaseHex);
     const transport = escState.ships[0]; // transport
-    transport.landed = false;
+    transport.lifecycle = 'active';
     transport.position = { q: 15, r: 0 };
     transport.velocity = { dq: 1, dr: 0 };
     escState.phase = 'ordnance';
@@ -1486,7 +1501,7 @@ describe('nuke ordnance', () => {
   it('rejects a second nuke launch from a non-warship without resupply', () => {
     const escState = createGame(SCENARIOS.escape, map, 'NUK02', findBaseHex);
     const transport = escState.ships[0];
-    transport.landed = false;
+    transport.lifecycle = 'active';
     transport.velocity = { dq: 1, dr: 0 };
     escState.phase = 'ordnance';
     const first = processOrdnance(
@@ -1516,7 +1531,7 @@ describe('nuke ordnance', () => {
     const marsBase = must(findBaseHex(map, 'Mars'));
     const ship = initialState.ships[0];
     ship.type = 'frigate';
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: marsBase.q - 1, r: marsBase.r };
     ship.velocity = { dq: 1, dr: 0 };
     initialState.phase = 'ordnance';
@@ -1562,8 +1577,11 @@ describe('nuke ordnance', () => {
             velocity: { dq: 0, dr: 0 },
             fuel: 20,
             cargoUsed: 0,
-            landed: false,
-            destroyed: false,
+            lifecycle: 'active' as const,
+            control: 'own' as const,
+            heroismAvailable: false,
+            overloadUsed: false,
+            nukesLaunchedSinceResupply: 0,
             detected: true,
             resuppliedThisTurn: false,
             damage: { disabledTurns: 0 },
@@ -1587,7 +1605,7 @@ describe('ordnance validation', () => {
   it('rejects multiple launches from the same ship', () => {
     const ship = initialState.ships[0];
     ship.type = 'frigate';
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.fuel = 20;
     initialState.phase = 'ordnance';
     initialState.pendingAstrogationOrders = [{ shipId: ship.id, burn: 0 }];
@@ -1613,16 +1631,16 @@ describe('ordnance validation', () => {
     );
     const enemyA = must(fleetState.ships.find((s) => s.owner === 1));
     const enemyB = must(fleetState.ships.filter((s) => s.owner === 1)[1]);
-    attacker.landed = false;
+    attacker.lifecycle = 'active';
     attacker.position = { q: 0, r: 0 };
     attacker.lastMovementPath = [{ q: 0, r: 0 }];
-    ally.landed = false;
+    ally.lifecycle = 'active';
     ally.position = { q: 1, r: 0 };
     ally.lastMovementPath = [{ q: 1, r: 0 }];
-    enemyA.landed = false;
+    enemyA.lifecycle = 'active';
     enemyA.position = { q: 2, r: 0 };
     enemyA.lastMovementPath = [{ q: 2, r: 0 }];
-    enemyB.landed = false;
+    enemyB.lifecycle = 'active';
     enemyB.position = { q: 3, r: 0 };
     enemyB.lastMovementPath = [{ q: 3, r: 0 }];
     const result = processCombat(
@@ -1649,13 +1667,13 @@ describe('ordnance validation', () => {
     );
     const enemyShips = fleetState.ships.filter((s) => s.owner === 1);
     const [enemyA, enemyB] = enemyShips;
-    attacker.landed = false;
+    attacker.lifecycle = 'active';
     attacker.position = { q: 0, r: 0 };
     attacker.lastMovementPath = [{ q: 0, r: 0 }];
-    enemyA.landed = false;
+    enemyA.lifecycle = 'active';
     enemyA.position = { q: 2, r: 0 };
     enemyA.lastMovementPath = [{ q: 2, r: 0 }];
-    enemyB.landed = false;
+    enemyB.lifecycle = 'active';
     enemyB.position = { q: 2, r: 0 };
     enemyB.lastMovementPath = [{ q: 2, r: 0 }];
     const result = processCombat(
@@ -1681,12 +1699,12 @@ describe('ordnance validation', () => {
     const attackers = fleetState.ships.filter((s) => s.owner === 1);
     const enemies = fleetState.ships.filter((s) => s.owner === 0);
     for (const [idx, ship] of attackers.entries()) {
-      ship.landed = false;
+      ship.lifecycle = 'active';
       ship.position = { q: idx, r: 0 };
       ship.lastMovementPath = [{ ...ship.position }];
     }
     for (const [idx, ship] of enemies.entries()) {
-      ship.landed = false;
+      ship.lifecycle = 'active';
       ship.position = { q: idx + 1, r: 0 };
       ship.lastMovementPath = [{ ...ship.position }];
     }
@@ -1711,8 +1729,8 @@ describe('ordnance validation', () => {
     state.activePlayer = 0;
     const attacker = state.ships[0];
     const target = state.ships[1];
-    attacker.landed = false;
-    target.landed = false;
+    attacker.lifecycle = 'active';
+    target.lifecycle = 'active';
     attacker.position = { q: 0, r: 0 };
     attacker.lastMovementPath = [{ q: 0, r: 0 }];
     target.position = { q: 2, r: 0 };
@@ -1753,8 +1771,8 @@ describe('ordnance validation', () => {
     state.activePlayer = 0;
     const attacker = state.ships[0];
     const target = state.ships[1];
-    attacker.landed = true;
-    target.landed = false;
+    attacker.lifecycle = 'landed';
+    target.lifecycle = 'active';
     attacker.position = { q: 0, r: 0 };
     attacker.lastMovementPath = [{ q: 0, r: 0 }];
     target.position = { q: 1, r: 0 };
@@ -1782,8 +1800,8 @@ describe('ordnance validation', () => {
     state.activePlayer = 0;
     const attacker = state.ships[0];
     const target = state.ships[1];
-    attacker.landed = false;
-    target.landed = false;
+    attacker.lifecycle = 'active';
+    target.lifecycle = 'active';
     attacker.position = { q: 0, r: 0 };
     attacker.lastMovementPath = [{ q: 0, r: 0 }];
     target.position = { q: 1, r: 0 };
@@ -1812,8 +1830,8 @@ describe('ordnance validation', () => {
     const attacker = state.ships[0];
     const target = state.ships[1];
     attacker.type = 'dreadnaught';
-    attacker.landed = false;
-    target.landed = false;
+    attacker.lifecycle = 'active';
+    target.lifecycle = 'active';
     attacker.position = { q: 0, r: 0 };
     attacker.lastMovementPath = [{ q: 0, r: 0 }];
     target.position = { q: 0, r: 0 };
@@ -1840,7 +1858,7 @@ describe('ordnance validation', () => {
     state.phase = 'combat';
     state.activePlayer = 0;
     const attacker = state.ships[0];
-    attacker.landed = false;
+    attacker.lifecycle = 'active';
     attacker.position = { q: 0, r: 0 };
     attacker.lastMovementPath = [{ q: 0, r: 0 }];
     attacker.velocity = { dq: 0, dr: 0 };
@@ -1851,7 +1869,7 @@ describe('ordnance validation', () => {
       position: { q: 1, r: 0 },
       velocity: { dq: 0, dr: 0 },
       turnsRemaining: 5,
-      destroyed: false,
+      lifecycle: 'active' as const,
       pendingGravityEffects: [],
     });
     const result = processCombat(
@@ -1882,7 +1900,7 @@ describe('mutual destruction', () => {
   it('awards win to defender when all ships destroyed simultaneously', () => {
     // Simulate mutual destruction: destroy all ships for both players
     for (const ship of initialState.ships) {
-      ship.destroyed = true;
+      ship.lifecycle = 'destroyed';
     }
     initialState.activePlayer = 0;
     initialState.phase = 'astrogation';
@@ -1929,7 +1947,7 @@ describe('Blockade Runner scenario', () => {
   });
   it('blocker starts unlanded in space', () => {
     const blocker = must(blockadeState.ships.find((s) => s.owner === 1));
-    expect(blocker.landed).toBe(false);
+    expect(blocker.lifecycle).toBe('active');
   });
 });
 describe('Fleet Action scenario', () => {
@@ -1991,7 +2009,7 @@ describe('Edge cases', () => {
   });
   it('destroyed ships are skipped in movement', () => {
     const ship = initialState.ships[0];
-    ship.destroyed = true;
+    ship.lifecycle = 'destroyed';
     const orders: AstrogationOrder[] = [];
     const result = processAstrogation(
       initialState,
@@ -2011,7 +2029,7 @@ describe('Edge cases', () => {
     );
     // Destroy all of player 1's ships
     for (const s of fleetState.ships.filter((s) => s.owner === 1)) {
-      s.destroyed = true;
+      s.lifecycle = 'destroyed';
     }
     // Run a no-op astrogation to trigger checkGameEnd
     const orders: AstrogationOrder[] = fleetState.ships
@@ -2036,7 +2054,7 @@ describe('Edge cases', () => {
     const marsBase = must(findBaseHex(map, 'Mars'));
     runner.position = { q: marsBase.q, r: marsBase.r + 1 };
     runner.velocity = { dq: 0, dr: -1 };
-    runner.landed = false;
+    runner.lifecycle = 'active';
     runner.pendingGravityEffects = [
       {
         hex: { q: marsBase.q, r: marsBase.r + 1 },
@@ -2068,8 +2086,8 @@ describe('landed ship immunity', () => {
     state.activePlayer = 0;
     const attacker = state.ships[0];
     const target = state.ships[1];
-    attacker.landed = false;
-    target.landed = true;
+    attacker.lifecycle = 'active';
+    target.lifecycle = 'landed';
     attacker.position = { q: 0, r: 0 };
     attacker.lastMovementPath = [{ q: 0, r: 0 }];
     target.position = { q: 1, r: 0 };
@@ -2095,7 +2113,7 @@ describe('landed ship immunity', () => {
     );
     state.activePlayer = 0;
     const target = state.ships[1];
-    target.landed = true;
+    target.lifecycle = 'landed';
     target.position = { q: 5, r: 0 };
     target.lastMovementPath = [{ q: 5, r: 0 }];
     // Place a mine that will move through the landed ship's hex
@@ -2106,11 +2124,11 @@ describe('landed ship immunity', () => {
       position: { q: 4, r: 0 },
       velocity: { dq: 1, dr: 0 },
       turnsRemaining: 5,
-      destroyed: false,
+      lifecycle: 'active' as const,
       pendingGravityEffects: [],
     });
     const attacker = state.ships[0];
-    attacker.landed = false;
+    attacker.lifecycle = 'active';
     attacker.position = { q: -10, r: 0 };
     attacker.lastMovementPath = [{ q: -10, r: 0 }];
     attacker.velocity = { dq: 0, dr: 0 };
@@ -2118,7 +2136,7 @@ describe('landed ship immunity', () => {
       { shipId: attacker.id, burn: null },
     ]);
     // Mine should not have hit the landed ship
-    expect(target.destroyed).toBe(false);
+    expect(target.lifecycle).toBe('landed');
     expect(target.damage.disabledTurns).toBe(0);
   });
   it('landed ships are NOT immune to nukes', () => {
@@ -2130,7 +2148,7 @@ describe('landed ship immunity', () => {
     );
     state.activePlayer = 0;
     const target = state.ships[1];
-    target.landed = true;
+    target.lifecycle = 'landed';
     target.position = { q: 5, r: 0 };
     target.lastMovementPath = [{ q: 5, r: 0 }];
     // Place a nuke that will move through the landed ship's hex
@@ -2141,11 +2159,11 @@ describe('landed ship immunity', () => {
       position: { q: 4, r: 0 },
       velocity: { dq: 1, dr: 0 },
       turnsRemaining: 5,
-      destroyed: false,
+      lifecycle: 'active' as const,
       pendingGravityEffects: [],
     });
     const attacker = state.ships[0];
-    attacker.landed = false;
+    attacker.lifecycle = 'active';
     attacker.position = { q: -10, r: 0 };
     attacker.lastMovementPath = [{ q: -10, r: 0 }];
     attacker.velocity = { dq: 0, dr: 0 };
@@ -2156,7 +2174,7 @@ describe('landed ship immunity', () => {
     const updatedTarget = must(
       result.state.ships.find((s) => s.id === target.id),
     );
-    expect(updatedTarget.destroyed).toBe(true);
+    expect(updatedTarget.lifecycle).toBe('destroyed');
   });
   it('landed ships are immune to ramming', () => {
     const state = createGame(
@@ -2169,8 +2187,8 @@ describe('landed ship immunity', () => {
     state.activePlayer = 0;
     const attacker = state.ships[0];
     const target = state.ships[1];
-    attacker.landed = false;
-    target.landed = true;
+    attacker.lifecycle = 'active';
+    target.lifecycle = 'landed';
     // Place both ships on the same hex (simulates post-movement overlap)
     attacker.position = { q: 5, r: 0 };
     attacker.lastMovementPath = [
@@ -2190,10 +2208,10 @@ describe('landed ship immunity', () => {
       { shipId: attacker.id, burn: null },
     ]);
     // Landed target should be immune to ramming
-    expect(target.destroyed).toBe(false);
+    expect(target.lifecycle).toBe('landed');
     expect(target.damage.disabledTurns).toBe(0);
     // Attacker also should not take ramming damage (ramming skipped entirely)
-    expect(attacker.destroyed).toBe(false);
+    expect(attacker.lifecycle).toBe('active');
   });
 });
 describe('resupply restrictions', () => {
@@ -2208,9 +2226,9 @@ describe('resupply restrictions', () => {
     state.activePlayer = 0;
     const attacker = state.ships[0];
     const target = state.ships[1];
-    attacker.landed = false;
+    attacker.lifecycle = 'active';
     attacker.resuppliedThisTurn = true;
-    target.landed = false;
+    target.lifecycle = 'active';
     attacker.position = { q: 0, r: 0 };
     attacker.lastMovementPath = [{ q: 0, r: 0 }];
     target.position = { q: 1, r: 0 };
@@ -2238,7 +2256,7 @@ describe('resupply restrictions', () => {
     state.activePlayer = 0;
     state.pendingAstrogationOrders = [];
     const ship = state.ships[0];
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.resuppliedThisTurn = true;
     ship.position = { q: 0, r: 0 };
     const result = processOrdnance(
@@ -2285,7 +2303,7 @@ describe('mine launch restrictions', () => {
     state.activePlayer = 0;
     const ship = state.ships[0];
     ship.type = 'frigate'; // cargo 40, enough for mine mass 10
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: 0, r: 0 };
     ship.velocity = { dq: 1, dr: 0 };
     // Pending orders with no burn
@@ -2313,7 +2331,7 @@ describe('mine launch restrictions', () => {
     state.activePlayer = 0;
     const ship = state.ships[0];
     ship.type = 'frigate'; // cargo 40, enough for mine mass 10
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: 0, r: 0 };
     ship.velocity = { dq: 1, dr: 0 };
     state.pendingAstrogationOrders = [{ shipId: ship.id, burn: 2 }];
@@ -2358,18 +2376,18 @@ describe('nuke planetary devastation', () => {
       position: { ...must(gravHex) },
       velocity: vel,
       turnsRemaining: 5,
-      destroyed: false,
+      lifecycle: 'active' as const,
       pendingGravityEffects: [],
     });
     // Place a ship on the gravity hex (it should be destroyed by devastation)
     const victim = state.ships[1];
-    victim.landed = false;
+    victim.lifecycle = 'active';
     victim.position = { ...must(gravHex) };
     victim.lastMovementPath = [{ ...must(gravHex) }];
     victim.velocity = { dq: 0, dr: 0 };
     // Place player 0's ship far away
     const attacker = state.ships[0];
-    attacker.landed = false;
+    attacker.lifecycle = 'active';
     attacker.position = { q: -30, r: -30 };
     attacker.lastMovementPath = [{ q: -30, r: -30 }];
     attacker.velocity = { dq: 0, dr: 0 };
@@ -2380,7 +2398,7 @@ describe('nuke planetary devastation', () => {
     const updatedVictim = must(
       result.state.ships.find((s) => s.id === victim.id),
     );
-    expect(updatedVictim.destroyed).toBe(true);
+    expect(updatedVictim.lifecycle).toBe('destroyed');
     // And any base on that hex should be destroyed
     const gravKey = hexKey(must(gravHex));
     if (map.hexes.get(gravKey)?.base) {
@@ -2405,13 +2423,13 @@ describe('hidden identity (Escape scenario)', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
     const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
     const inspector = must(state.ships.find((s) => s.owner === 1));
-    fugitive.landed = false;
+    fugitive.lifecycle = 'active';
     fugitive.position = { q: 0, r: 0 };
     fugitive.velocity = { dq: 0, dr: 0 };
     if (fugitive.identity) fugitive.identity.revealed = false;
     inspector.position = { q: 0, r: 0 };
     inspector.velocity = { dq: 0, dr: 0 };
-    inspector.landed = false;
+    inspector.lifecycle = 'active';
     state.activePlayer = 1;
     const result = resolveAstrogationMovement(
       state,
@@ -2428,7 +2446,7 @@ describe('hidden identity (Escape scenario)', () => {
   it('fugitive ship escape triggers victory', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
     const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
-    fugitive.landed = false;
+    fugitive.lifecycle = 'active';
     fugitive.position = { q: 0, r: map.bounds.minR - 5 };
     fugitive.velocity = { dq: 0, dr: -2 };
     state.activePlayer = 0;
@@ -2445,7 +2463,7 @@ describe('hidden identity (Escape scenario)', () => {
     const nonFugitive = must(
       state.ships.find((s) => s.owner === 0 && !s.identity?.hasFugitives),
     );
-    nonFugitive.landed = false;
+    nonFugitive.lifecycle = 'active';
     nonFugitive.position = { q: 0, r: map.bounds.minR - 5 };
     nonFugitive.velocity = { dq: 0, dr: -2 };
     state.activePlayer = 0;
@@ -2460,7 +2478,7 @@ describe('hidden identity (Escape scenario)', () => {
   it('destroying the fugitive ship triggers opponent victory', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
     const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
-    fugitive.destroyed = true;
+    fugitive.lifecycle = 'destroyed';
     state.phase = 'combat';
     state.activePlayer = 1;
     const result = skipCombat(state, 1, map, Math.random);
@@ -2474,8 +2492,8 @@ describe('hidden identity (Escape scenario)', () => {
     const enforcerBase = must(state.players[1].bases[0]);
     const [q, r] = enforcerBase.split(',').map(Number);
     fugitive.owner = 1;
-    fugitive.controlStatus = 'captured';
-    fugitive.landed = true;
+    fugitive.control = 'captured';
+    fugitive.lifecycle = 'landed';
     fugitive.position = { q, r };
     state.phase = 'combat';
     state.activePlayer = 1;
@@ -2506,8 +2524,11 @@ describe('capture mechanics', () => {
           fuel: 20,
           cargoUsed: 0,
           resuppliedThisTurn: false,
-          landed: false,
-          destroyed: false,
+          lifecycle: 'active' as const,
+          control: 'own' as const,
+          heroismAvailable: false,
+          overloadUsed: false,
+          nukesLaunchedSinceResupply: 0,
           detected: true,
           damage: { disabledTurns: 0 },
           pendingGravityEffects: [],
@@ -2522,8 +2543,11 @@ describe('capture mechanics', () => {
           fuel: 20,
           cargoUsed: 0,
           resuppliedThisTurn: false,
-          landed: false,
-          destroyed: false,
+          lifecycle: 'active' as const,
+          control: 'own' as const,
+          heroismAvailable: false,
+          overloadUsed: false,
+          nukesLaunchedSinceResupply: 0,
           detected: true,
           damage: { disabledTurns: 3 },
           pendingGravityEffects: [],
@@ -2572,7 +2596,7 @@ describe('capture mechanics', () => {
     const mr = 'movements' in result ? result : null;
     expect(mr).not.toBeNull();
     const target = must(result.state.ships.find((s) => s.id === 'target'));
-    expect(target.controlStatus).toBe('captured');
+    expect(target.control).toBe('captured');
     expect(target.owner).toBe(0); // ownership transferred
     // Check capture event
     if (mr) {
@@ -2602,8 +2626,11 @@ describe('capture mechanics', () => {
           fuel: 20,
           cargoUsed: 0,
           resuppliedThisTurn: false,
-          landed: false,
-          destroyed: false,
+          lifecycle: 'active' as const,
+          control: 'own' as const,
+          heroismAvailable: false,
+          overloadUsed: false,
+          nukesLaunchedSinceResupply: 0,
           detected: true,
           damage: { disabledTurns: 0 },
           pendingGravityEffects: [],
@@ -2618,8 +2645,11 @@ describe('capture mechanics', () => {
           fuel: 20,
           cargoUsed: 0,
           resuppliedThisTurn: false,
-          landed: false,
-          destroyed: false,
+          lifecycle: 'active' as const,
+          control: 'own' as const,
+          heroismAvailable: false,
+          overloadUsed: false,
+          nukesLaunchedSinceResupply: 0,
           detected: true,
           damage: { disabledTurns: 0 },
           pendingGravityEffects: [],
@@ -2660,7 +2690,7 @@ describe('capture mechanics', () => {
     );
     if ('error' in result) throw new Error(result.error);
     const target = must(result.state.ships.find((s) => s.id === 'target'));
-    expect(target.controlStatus).toBeUndefined();
+    expect(target.control).toBe('own');
     expect(target.owner).toBe(1); // unchanged
   });
   it('does not capture with mismatched velocity', () => {
@@ -2683,8 +2713,11 @@ describe('capture mechanics', () => {
           fuel: 20,
           cargoUsed: 0,
           resuppliedThisTurn: false,
-          landed: false,
-          destroyed: false,
+          lifecycle: 'active' as const,
+          control: 'own' as const,
+          heroismAvailable: false,
+          overloadUsed: false,
+          nukesLaunchedSinceResupply: 0,
           detected: true,
           damage: { disabledTurns: 0 },
           pendingGravityEffects: [],
@@ -2699,8 +2732,11 @@ describe('capture mechanics', () => {
           fuel: 20,
           cargoUsed: 0,
           resuppliedThisTurn: false,
-          landed: false,
-          destroyed: false,
+          lifecycle: 'active' as const,
+          control: 'own' as const,
+          heroismAvailable: false,
+          overloadUsed: false,
+          nukesLaunchedSinceResupply: 0,
           detected: true,
           damage: { disabledTurns: 3 },
           pendingGravityEffects: [],
@@ -2741,7 +2777,7 @@ describe('capture mechanics', () => {
     );
     if ('error' in result) throw new Error(result.error);
     const target = must(result.state.ships.find((s) => s.id === 'target'));
-    expect(target.controlStatus).toBeUndefined();
+    expect(target.control).toBe('own');
     expect(target.owner).toBe(1);
   });
   it('captured ships cannot receive astrogation orders', () => {
@@ -2752,7 +2788,7 @@ describe('capture mechanics', () => {
       findBaseHex,
     );
     const ship = must(state.ships.find((s) => s.owner === 0));
-    ship.controlStatus = 'captured';
+    ship.control = 'captured';
     state.phase = 'astrogation';
     state.activePlayer = 0;
     const result = processAstrogation(
@@ -2787,10 +2823,12 @@ describe('capture mechanics', () => {
           fuel: 20,
           cargoUsed: 0,
           resuppliedThisTurn: false,
-          landed: false,
-          destroyed: false,
+          lifecycle: 'active' as const,
+          control: 'captured' as const,
+          heroismAvailable: false,
+          overloadUsed: false,
+          nukesLaunchedSinceResupply: 0,
           detected: true,
-          controlStatus: 'captured',
           damage: { disabledTurns: 0 },
           pendingGravityEffects: [],
         },
@@ -2869,7 +2907,7 @@ describe('fleet building (MegaCredit economy)', () => {
       expect(p0Ships).toHaveLength(2);
       expect(p0Ships[0].type).toBe('corvette');
       expect(p0Ships[1].type).toBe('corsair');
-      expect(p0Ships[0].landed).toBe(true);
+      expect(p0Ships[0].lifecycle).toBe('landed');
       expect(result.state.players[0].credits).toBe(730);
       expect(result.state.players[0].ready).toBe(true);
       expect(result.state.phase).toBe('fleetBuilding');
@@ -3026,8 +3064,7 @@ describe('Grand Tour', () => {
     const ship = must(tourState.ships.find((s) => s.owner === 0));
     const terraBase = findBaseHexes(map, 'Terra')[0];
     ship.position = terraBase;
-    ship.landed = true;
-    ship.destroyed = false;
+    ship.lifecycle = 'landed';
     checkImmediateVictory(tourState, map);
     expect(tourState.winner).toBe(0);
     expect(tourState.winReason).toContain('Grand Tour complete');
@@ -3037,8 +3074,7 @@ describe('Grand Tour', () => {
     const ship = must(tourState.ships.find((s) => s.owner === 0));
     const terraBase = findBaseHexes(map, 'Terra')[0];
     ship.position = terraBase;
-    ship.landed = true;
-    ship.destroyed = false;
+    ship.lifecycle = 'landed';
     checkImmediateVictory(tourState, map);
     expect(tourState.winner).toBeNull();
   });
@@ -3049,8 +3085,7 @@ describe('Grand Tour', () => {
     const ship = must(tourState.ships.find((s) => s.owner === 0));
     const marsBase = findBaseHexes(map, 'Mars')[0];
     ship.position = marsBase;
-    ship.landed = true;
-    ship.destroyed = false;
+    ship.lifecycle = 'landed';
     checkImmediateVictory(tourState, map);
     expect(tourState.winner).toBeNull();
   });
@@ -3058,10 +3093,10 @@ describe('Grand Tour', () => {
     const ship0 = must(tourState.ships.find((s) => s.owner === 0));
     const ship1 = must(tourState.ships.find((s) => s.owner === 1));
     ship0.position = { q: 0, r: 0 };
-    ship0.landed = false;
+    ship0.lifecycle = 'active';
     ship0.velocity = { dq: 0, dr: 0 };
     ship1.position = { q: 1, r: 0 };
-    ship1.landed = false;
+    ship1.lifecycle = 'active';
     ship1.velocity = { dq: 0, dr: 0 };
     const _result = processAstrogation(
       tourState,
@@ -3074,7 +3109,7 @@ describe('Grand Tour', () => {
   });
   it('tracks fuel consumption', () => {
     const ship = must(tourState.ships.find((s) => s.owner === 0));
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.velocity = { dq: 0, dr: 0 };
     tourState.phase = 'astrogation';
     tourState.activePlayer = 0;

@@ -71,7 +71,7 @@ export class ShipListView {
             entry.appendChild(details);
           }
 
-          if (!ship.destroyed) {
+          if (ship.lifecycle !== 'destroyed') {
             entry.addEventListener('click', () => {
               this.deps.onSelectShip(ship.id);
             });

@@ -78,7 +78,7 @@ const getOwnShipAtHex = (
     (ship) =>
       ship.owner === playerId &&
       (!options.requireOperational ||
-        (!ship.destroyed && ship.damage.disabledTurns === 0 && !ship.landed)) &&
+        (ship.lifecycle === 'active' && ship.damage.disabledTurns === 0)) &&
       hexEqual(clickHex, ship.position),
   );
 
@@ -158,7 +158,8 @@ const resolveOverloadToggle = (
     return null;
   }
 
-  const predictedDestination = ship.landed ? null : predictDestination(ship);
+  const predictedDestination =
+    ship.lifecycle === 'landed' ? null : predictDestination(ship);
 
   const launchHex = predictedDestination ?? ship.position;
 
@@ -188,11 +189,12 @@ const resolveBurnToggle = (
 ) => {
   const currentBurn = planning.burns.get(ship.id) ?? null;
 
-  const predictedDestination = ship.landed
-    ? computeCourse(ship, null, map, {
-        destroyedBases: state.destroyedBases,
-      }).path[0]
-    : predictDestination(ship);
+  const predictedDestination =
+    ship.lifecycle === 'landed'
+      ? computeCourse(ship, null, map, {
+          destroyedBases: state.destroyedBases,
+        }).path[0]
+      : predictDestination(ship);
 
   const direction = HEX_DIRECTIONS.findIndex((dir) =>
     hexEqual(clickHex, hexAdd(predictedDestination, dir)),

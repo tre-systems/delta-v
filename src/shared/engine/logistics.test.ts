@@ -20,8 +20,11 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   fuel: 20,
   cargoUsed: 0,
   resuppliedThisTurn: false,
-  landed: false,
-  destroyed: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  nukesLaunchedSinceResupply: 0,
   detected: true,
   damage: { disabledTurns: 0 },
   ...overrides,
@@ -77,7 +80,7 @@ describe('processSurrender', () => {
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
       const s = must(result.state.ships.find((s) => s.id === 's1'));
-      expect(s.controlStatus).toBe('surrendered');
+      expect(s.control).toBe('surrendered');
     }
   });
   it('rejects surrender of enemy ship', () => {
@@ -94,7 +97,7 @@ describe('processSurrender', () => {
       id: 's1',
       owner: 0,
       originalOwner: 0,
-      destroyed: true,
+      lifecycle: 'destroyed',
     });
     const state = makeState([ship], {
       phase: 'astrogation',
@@ -108,7 +111,7 @@ describe('processSurrender', () => {
       id: 's1',
       owner: 0,
       originalOwner: 0,
-      controlStatus: 'surrendered',
+      control: 'surrendered',
     });
     const state = makeState([ship], {
       phase: 'astrogation',
@@ -146,10 +149,10 @@ describe('processSurrender', () => {
     const result = processSurrender(state, 0, ['s1', 's2']);
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
-      expect(result.state.ships.find((s) => s.id === 's1')?.controlStatus).toBe(
+      expect(result.state.ships.find((s) => s.id === 's1')?.control).toBe(
         'surrendered',
       );
-      expect(result.state.ships.find((s) => s.id === 's2')?.controlStatus).toBe(
+      expect(result.state.ships.find((s) => s.id === 's2')?.control).toBe(
         'surrendered',
       );
     }
@@ -266,7 +269,7 @@ describe('getTransferEligiblePairs', () => {
       owner: 1,
       originalOwner: 0,
       fuel: 15,
-      controlStatus: 'surrendered',
+      control: 'surrendered',
     });
     const friendly = makeShip({
       id: 'friendly',
@@ -304,7 +307,7 @@ describe('getTransferEligiblePairs', () => {
       owner: 0,
       originalOwner: 0,
       fuel: 50,
-      destroyed: true,
+      lifecycle: 'destroyed',
     });
     const target = makeShip({
       id: 's2',

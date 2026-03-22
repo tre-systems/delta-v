@@ -950,7 +950,7 @@ class GameClient {
       return { anyCrashed: false, crashBody: null };
     }
     for (const ship of state.ships) {
-      if (ship.owner !== this.ctx.playerId || ship.destroyed) {
+      if (ship.owner !== this.ctx.playerId || ship.lifecycle === 'destroyed') {
         continue;
       }
       const burn = this.ctx.planningState.burns.get(ship.id) ?? null;

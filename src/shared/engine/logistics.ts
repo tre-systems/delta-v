@@ -16,18 +16,18 @@ export interface TransferPair {
 const velocityMatch = (a: Ship, b: Ship): boolean =>
   a.velocity.dq === b.velocity.dq && a.velocity.dr === b.velocity.dr;
 const isTransferEligibleSource = (ship: Ship, playerId: number): boolean => {
-  if (ship.destroyed || ship.landed) return false;
+  if (ship.lifecycle !== 'active') return false;
   // Friendly ship: must be operational
   if (ship.owner === playerId) {
-    return !ship.controlStatus;
+    return ship.control === 'own';
   }
   // Enemy ship: must be disabled or surrendered
   // (looting)
-  return ship.damage.disabledTurns > 0 || ship.controlStatus === 'surrendered';
+  return ship.damage.disabledTurns > 0 || ship.control === 'surrendered';
 };
 const isTransferEligibleTarget = (ship: Ship, playerId: number): boolean => {
-  if (ship.destroyed) return false;
-  return ship.owner === playerId && !ship.controlStatus;
+  if (ship.lifecycle === 'destroyed') return false;
+  return ship.owner === playerId && ship.control === 'own';
 };
 /**
  * Get all valid transfer pairs for a player.
@@ -259,17 +259,17 @@ export const processSurrender = (
         error: `Ship ${shipId} not owned by player`,
       };
     }
-    if (ship.destroyed) {
+    if (ship.lifecycle === 'destroyed') {
       return {
         error: `Ship ${shipId} is destroyed`,
       };
     }
-    if (ship.controlStatus === 'surrendered') {
+    if (ship.control === 'surrendered') {
       return {
         error: `Ship ${shipId} already surrendered`,
       };
     }
-    if (ship.controlStatus === 'captured') {
+    if (ship.control === 'captured') {
       return {
         error: `Ship ${shipId} is captured`,
       };
@@ -277,7 +277,7 @@ export const processSurrender = (
   }
   for (const shipId of shipIds) {
     const ship = must(state.ships.find((s) => s.id === shipId));
-    ship.controlStatus = 'surrendered';
+    ship.control = 'surrendered';
   }
   return { state };
 };

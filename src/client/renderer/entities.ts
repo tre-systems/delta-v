@@ -46,7 +46,7 @@ export const getVisibleShips = (
   isAnimating: boolean,
 ): Ship[] => {
   return state.ships.filter((ship) => {
-    if (ship.destroyed && !isAnimating) return false;
+    if (ship.lifecycle === 'destroyed' && !isAnimating) return false;
     if (ship.owner === playerId) return true;
 
     return ship.detected;
@@ -138,7 +138,7 @@ export const shouldShowOrbitIndicator = (
   inGravity: boolean,
   isAnimating: boolean,
 ): boolean => {
-  if (ship.landed || ship.destroyed || isAnimating) {
+  if (ship.lifecycle !== 'active' || isAnimating) {
     return false;
   }
 
@@ -149,7 +149,7 @@ export const shouldShowLandedIndicator = (
   ship: Ship,
   isAnimating: boolean,
 ): boolean => {
-  return ship.landed && !isAnimating;
+  return ship.lifecycle === 'landed' && !isAnimating;
 };
 
 export const buildShipLabelView = (
@@ -163,14 +163,15 @@ export const buildShipLabelView = (
   if (ship.owner === playerId) {
     const orbiting = hexVecLength(ship.velocity) === 1 && inGravity;
 
-    const statusTag = ship.landed ? 'Landed' : orbiting ? 'Orbit' : null;
+    const isLanded = ship.lifecycle === 'landed';
+    const statusTag = isLanded ? 'Landed' : orbiting ? 'Orbit' : null;
 
     return {
       typeName,
       typeColor: 'rgba(255, 255, 255, 0.7)',
       typeFont: '600 9px Inter, sans-serif',
       statusTag,
-      statusColor: ship.landed
+      statusColor: isLanded
         ? 'rgba(149, 214, 135, 0.5)'
         : statusTag
           ? 'rgba(255, 255, 255, 0.35)'

@@ -127,37 +127,37 @@ const resolveStartingPlacement = (
     q: number;
     r: number;
   };
-  landed: boolean;
+  lifecycle: 'active' | 'landed';
 } => {
   const shouldLand = def.startLanded !== false;
   if (!shouldLand) {
     return {
       position: { ...def.position },
-      landed: false,
+      lifecycle: 'active',
     };
   }
   const defHex = map.hexes.get(hexKey(def.position));
   if (defHex?.base) {
     return {
       position: { ...def.position },
-      landed: true,
+      lifecycle: 'landed',
     };
   }
   if (playerBases[0]) {
     return {
       position: parseBaseKey(playerBases[0]),
-      landed: true,
+      lifecycle: 'landed',
     };
   }
   if (defHex?.body) {
     return {
       position: { ...def.position },
-      landed: true,
+      lifecycle: 'landed',
     };
   }
   const homeBase = player.homeBody ? findBaseHex(map, player.homeBody) : null;
   if (homeBase) {
-    return { position: homeBase, landed: true };
+    return { position: homeBase, lifecycle: 'landed' };
   }
   throw new Error(
     `No valid landed starting hex for ${player.homeBody || 'player'} ${def.type}`,
@@ -227,7 +227,7 @@ export const createGame = (
   const ships: Ship[] = scenario.players.flatMap((player, p) =>
     player.ships.map((def, s) => {
       const stats = SHIP_STATS[def.type];
-      const { position, landed } = resolveStartingPlacement(
+      const { position, lifecycle } = resolveStartingPlacement(
         def,
         player,
         playerBases[p],
@@ -236,7 +236,7 @@ export const createGame = (
       );
       const startHex = map.hexes.get(hexKey(position));
       const initialGravity =
-        !landed && def.startInOrbit && startHex?.gravity
+        lifecycle === 'active' && def.startInOrbit && startHex?.gravity
           ? [
               {
                 hex: { ...position },
@@ -259,8 +259,10 @@ export const createGame = (
         cargoUsed: 0,
         nukesLaunchedSinceResupply: 0,
         resuppliedThisTurn: false,
-        landed,
-        destroyed: false,
+        lifecycle,
+        control: 'own',
+        heroismAvailable: false,
+        overloadUsed: false,
         detected: true,
         pendingGravityEffects: initialGravity,
         damage: { disabledTurns: 0 },
@@ -438,8 +440,10 @@ export const processFleetReady = (
       cargoUsed: 0,
       nukesLaunchedSinceResupply: 0,
       resuppliedThisTurn: false,
-      landed: true,
-      destroyed: false,
+      lifecycle: 'landed',
+      control: 'own',
+      heroismAvailable: false,
+      overloadUsed: false,
       detected: true,
       pendingGravityEffects: [],
       damage: { disabledTurns: 0 },
@@ -471,7 +475,7 @@ const validateAstrogationOrders = (
     }
     if (!isOrderableShip(ship)) {
       if (
-        ship.controlStatus === 'captured' &&
+        ship.control === 'captured' &&
         order.burn === null &&
         !order.overload
       ) {
@@ -531,7 +535,7 @@ const resolveMovementPhase = (
   state.pendingAstrogationOrders = null;
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
-    if (ship.destroyed) continue;
+    if (ship.lifecycle === 'destroyed') continue;
     if (ship.baseStatus === 'emplaced') continue;
     const isDisabled = ship.damage.disabledTurns > 0;
     const order = queuedOrders.get(ship.id);
@@ -560,7 +564,7 @@ const resolveMovementPhase = (
     if (overload !== null) {
       ship.overloadUsed = true;
     }
-    ship.landed = course.landedAt !== null;
+    ship.lifecycle = course.landedAt !== null ? 'landed' : 'active';
     ship.pendingGravityEffects = course.landedAt
       ? []
       : course.enteredGravityEffects.map((effect) => ({ ...effect }));
@@ -569,7 +573,7 @@ const resolveMovementPhase = (
       applyResupply(ship, state, map);
     }
     if (course.crashed) {
-      ship.destroyed = true;
+      ship.lifecycle = 'destroyed';
       ship.velocity = { dq: 0, dr: 0 };
       ship.pendingGravityEffects = [];
       const crashHex =
@@ -585,7 +589,7 @@ const resolveMovementPhase = (
         disabledTurns: 0,
       });
     }
-    if (!ship.destroyed) {
+    if (ship.lifecycle !== 'destroyed') {
       queueAsteroidHazards(ship, course.path, course.newVelocity, state, map);
     }
   }
@@ -594,7 +598,7 @@ const resolveMovementPhase = (
   if (state.scenarioRules.checkpointBodies) {
     for (const m of movements) {
       const ship = state.ships.find((s) => s.id === m.shipId);
-      if (ship && !ship.destroyed) {
+      if (ship && ship.lifecycle !== 'destroyed') {
         applyCheckpoints(state, ship.owner, m.path, map);
         const totalFuelSpent = state.players[ship.owner].totalFuelSpent;
         if (totalFuelSpent !== undefined) {
@@ -761,13 +765,12 @@ export const processOrdnance = (
       position: { ...ship.position },
       velocity,
       turnsRemaining: ORDNANCE_LIFETIME,
-      destroyed: false,
+      lifecycle: 'active',
       pendingGravityEffects: [],
     });
     ship.cargoUsed += mass;
     if (launch.ordnanceType === 'nuke') {
-      ship.nukesLaunchedSinceResupply =
-        (ship.nukesLaunchedSinceResupply ?? 0) + 1;
+      ship.nukesLaunchedSinceResupply += 1;
     }
     launchedShips.add(launch.shipId);
   }

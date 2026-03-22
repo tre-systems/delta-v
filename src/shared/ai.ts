@@ -147,7 +147,7 @@ const scoreCourse = (
     score += speed * 5 * mult;
     // Never stay landed when trying to escape
     if (
-      ship.landed &&
+      ship.lifecycle === 'landed' &&
       course.destination.q === ship.position.q &&
       course.destination.r === ship.position.r
     ) {
@@ -173,7 +173,7 @@ const scoreCourse = (
     }
     // Heavy penalty for staying landed at home
     if (
-      ship.landed &&
+      ship.lifecycle === 'landed' &&
       course.destination.q === ship.position.q &&
       course.destination.r === ship.position.r
     ) {
@@ -221,7 +221,7 @@ const scoreCourse = (
   const noPrimaryObjective = !escapeWins && !targetHex;
   if (
     noPrimaryObjective &&
-    ship.landed &&
+    ship.lifecycle === 'landed' &&
     course.destination.q === ship.position.q &&
     course.destination.r === ship.position.r
   ) {
@@ -395,16 +395,16 @@ export const aiAstrogation = (
   const checkpoints = state.scenarioRules.checkpointBodies;
   // Find enemy ships for combat positioning
   const enemyShips = state.ships.filter(
-    (s) => s.owner !== playerId && !s.destroyed,
+    (s) => s.owner !== playerId && s.lifecycle !== 'destroyed',
   );
   let shipIdx = 0;
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
-    if (ship.destroyed) continue;
+    if (ship.lifecycle === 'destroyed') continue;
     // Orbital bases don't need astrogation
     if (ship.baseStatus === 'emplaced') continue;
     // Captured ships can't act
-    if (ship.controlStatus === 'captured') {
+    if (ship.control === 'captured') {
       orders.push({
         shipId: ship.id,
         burn: null,
@@ -432,7 +432,7 @@ export const aiAstrogation = (
         : null;
       // Refuel strategy: divert to nearest base
       // when fuel won't reach the target
-      if (shipTargetHex && !ship.landed) {
+      if (shipTargetHex && ship.lifecycle !== 'landed') {
         const distToTarget = hexDistance(ship.position, shipTargetHex);
         const speed = hexVecLength(ship.velocity);
         // Need fuel to navigate: roughly distance/3
@@ -689,14 +689,14 @@ export const aiOrdnance = (
     return launches;
   }
   const enemyShips = state.ships.filter(
-    (s) => s.owner !== playerId && !s.destroyed,
+    (s) => s.owner !== playerId && s.lifecycle !== 'destroyed',
   );
   if (enemyShips.length === 0) return launches;
   // Difficulty-based range thresholds
   const torpedoRange = difficulty === 'hard' ? 12 : 8;
   const mineRange = difficulty === 'hard' ? 6 : 4;
   for (const ship of state.ships) {
-    if (ship.owner !== playerId || ship.destroyed || ship.landed) {
+    if (ship.owner !== playerId || ship.lifecycle !== 'active') {
       continue;
     }
     if (ship.damage.disabledTurns > 0) continue;
@@ -712,7 +712,7 @@ export const aiOrdnance = (
     // Hard AI: launch nuke at enemies within range
     // if cargo allows
     const canLaunchNuke =
-      stats.canOverload || (ship.nukesLaunchedSinceResupply ?? 0) < 1;
+      stats.canOverload || ship.nukesLaunchedSinceResupply < 1;
     if (
       allowedTypes.has('nuke') &&
       difficulty === 'hard' &&
@@ -811,14 +811,15 @@ export const aiCombat = (
   difficulty: AIDifficulty = 'normal',
 ): CombatAttack[] => {
   const myShips = state.ships.filter(
-    (s) => s.owner === playerId && !s.destroyed && canAttack(s),
+    (s) => s.owner === playerId && s.lifecycle !== 'destroyed' && canAttack(s),
   );
   if (myShips.length === 0) return [];
   const enemyShips = state.ships.filter(
-    (s) => s.owner !== playerId && !s.destroyed,
+    (s) => s.owner !== playerId && s.lifecycle !== 'destroyed',
   );
   const enemyNukes = state.ordnance.filter(
-    (o) => o.owner !== playerId && !o.destroyed && o.type === 'nuke',
+    (o) =>
+      o.owner !== playerId && o.lifecycle !== 'destroyed' && o.type === 'nuke',
   );
   if (enemyShips.length === 0 && enemyNukes.length === 0) {
     return [];
@@ -832,7 +833,7 @@ export const aiCombat = (
   }
   const scored: ScoredTarget[] = [];
   for (const enemy of enemyShips) {
-    if (enemy.landed) continue;
+    if (enemy.lifecycle === 'landed') continue;
     const attackersForTarget = myShips.filter((attacker) =>
       hasLineOfSight(attacker, enemy, map),
     );
@@ -863,7 +864,7 @@ export const aiCombat = (
     const rangeMod = computeGroupRangeModToTarget(attackersForTarget, nuke);
     const velMod = computeGroupVelocityModToTarget(attackersForTarget, nuke);
     const ownShips = state.ships.filter(
-      (ship) => ship.owner === playerId && !ship.destroyed,
+      (ship) => ship.owner === playerId && ship.lifecycle !== 'destroyed',
     );
     const closestOwn = minBy(ownShips, (ship) =>
       hexDistance(ship.position, nuke.position),

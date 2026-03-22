@@ -74,7 +74,7 @@ describe('applyClientGameState', () => {
   it('clears the selected ship when it was destroyed', () => {
     const state = createState({
       ships: createState().ships.map((ship, index) =>
-        index === 0 ? { ...ship, destroyed: true } : ship,
+        index === 0 ? { ...ship, lifecycle: 'destroyed' as const } : ship,
       ),
     });
     const destroyedShipId = state.ships[0]?.id ?? null;

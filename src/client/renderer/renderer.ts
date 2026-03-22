@@ -441,7 +441,7 @@ export class Renderer {
   frameOnShips() {
     if (!this.gameState) return;
     const myShips = this.gameState.ships.filter(
-      (s) => s.owner === this.playerId && !s.destroyed,
+      (s) => s.owner === this.playerId && s.lifecycle !== 'destroyed',
     );
     if (myShips.length === 0) return;
     let minX = Infinity,

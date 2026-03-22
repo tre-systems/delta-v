@@ -44,11 +44,10 @@ export const shouldEnterOrdnancePhase = (state: GameState): boolean => {
   return state.ships.some(
     (s) =>
       s.owner === state.activePlayer &&
-      !s.destroyed &&
-      !s.landed &&
+      s.lifecycle === 'active' &&
       s.damage.disabledTurns === 0 &&
       !s.resuppliedThisTurn &&
-      s.controlStatus !== 'captured' &&
+      s.control !== 'captured' &&
       hasLaunchableOrdnanceCapacity(s, allowedOrdnanceTypes),
   );
 };
@@ -71,7 +70,7 @@ export const processEmplacement = (
   for (const emp of emplacements) {
     const ship = state.ships.find((s) => s.id === emp.shipId);
 
-    if (!ship || ship.owner !== playerId || ship.destroyed) {
+    if (!ship || ship.owner !== playerId || ship.lifecycle === 'destroyed') {
       return { error: 'Invalid ship for emplacement' };
     }
     if (ship.baseStatus !== 'carryingBase') {
@@ -94,7 +93,7 @@ export const processEmplacement = (
     const hex = map.hexes.get(posKey);
     const speed = hexVecLength(ship.velocity);
     const inOrbit = hex?.gravity && speed === 1;
-    const onWorldSide = hex?.gravity && ship.landed;
+    const onWorldSide = hex?.gravity && ship.lifecycle === 'landed';
 
     if (!inOrbit && !onWorldSide) {
       return {
@@ -114,9 +113,12 @@ export const processEmplacement = (
       velocity: { ...ship.velocity },
       fuel: Infinity,
       cargoUsed: 0,
+      nukesLaunchedSinceResupply: 0,
       resuppliedThisTurn: false,
-      landed: false,
-      destroyed: false,
+      lifecycle: 'active',
+      control: 'own',
+      heroismAvailable: false,
+      overloadUsed: false,
       detected: true,
       baseStatus: 'emplaced',
       pendingGravityEffects: [],
@@ -175,7 +177,7 @@ const resolveTorpedoDetonation = (
 
   for (const candidate of candidates) {
     if (candidate.type === 'ordnance') {
-      candidate.other.destroyed = true;
+      candidate.other.lifecycle = 'destroyed';
       return true;
     }
 
@@ -240,17 +242,17 @@ const checkOrdnanceDetonation = (
 
     const contactedShips = state.ships.filter(
       (ship) =>
-        !ship.destroyed &&
+        ship.lifecycle !== 'destroyed' &&
         ship.id !== ord.sourceShipId &&
         (!isLaunchHex || ship.owner !== ord.owner) &&
         hexEqual(ship.position, pathHex) &&
-        (!ship.landed || ord.type === 'nuke'),
+        (ship.lifecycle !== 'landed' || ord.type === 'nuke'),
     );
 
     const contactedOrdnance = state.ordnance.filter(
       (other) =>
         other.id !== ord.id &&
-        !other.destroyed &&
+        other.lifecycle !== 'destroyed' &&
         (!isLaunchHex || other.owner !== ord.owner) &&
         hexEqual(other.position, pathHex),
     );
@@ -299,7 +301,7 @@ const checkOrdnanceDetonation = (
     }
 
     for (const other of contactedOrdnance) {
-      other.destroyed = true;
+      other.lifecycle = 'destroyed';
       hitSomething = true;
     }
 
@@ -323,7 +325,7 @@ export const moveOrdnance = (
   rng: () => number,
 ): void => {
   for (const ord of state.ordnance) {
-    if (ord.destroyed) continue;
+    if (ord.lifecycle === 'destroyed') continue;
 
     const from = { ...ord.position };
     const dest = hexAdd(ord.position, ord.velocity);
@@ -340,7 +342,7 @@ export const moveOrdnance = (
     ord.turnsRemaining--;
 
     if (ord.turnsRemaining <= 0) {
-      ord.destroyed = true;
+      ord.lifecycle = 'destroyed';
     }
 
     let nukeDevastated = false;
@@ -363,8 +365,11 @@ export const moveOrdnance = (
           }
 
           for (const ship of state.ships) {
-            if (!ship.destroyed && hexEqual(ship.position, entryHex)) {
-              ship.destroyed = true;
+            if (
+              ship.lifecycle !== 'destroyed' &&
+              hexEqual(ship.position, entryHex)
+            ) {
+              ship.lifecycle = 'destroyed';
               ship.velocity = { dq: 0, dr: 0 };
 
               events.push({
@@ -382,22 +387,22 @@ export const moveOrdnance = (
           for (const other of state.ordnance) {
             if (
               other.id !== ord.id &&
-              !other.destroyed &&
+              other.lifecycle !== 'destroyed' &&
               hexEqual(other.position, entryHex)
             ) {
-              other.destroyed = true;
+              other.lifecycle = 'destroyed';
             }
           }
         }
 
-        ord.destroyed = true;
+        ord.lifecycle = 'destroyed';
         break;
       }
     }
 
     const detonated =
       nukeDevastated ||
-      (!ord.destroyed &&
+      (ord.lifecycle !== 'destroyed' &&
         checkOrdnanceDetonation(ord, state, finalPath, events, map, rng));
 
     ordnanceMovements.push({
@@ -409,11 +414,11 @@ export const moveOrdnance = (
     });
 
     if (detonated) {
-      ord.destroyed = true;
+      ord.lifecycle = 'destroyed';
     }
   }
 
-  state.ordnance = state.ordnance.filter((o) => !o.destroyed);
+  state.ordnance = state.ordnance.filter((o) => o.lifecycle !== 'destroyed');
 };
 
 /**
@@ -490,7 +495,7 @@ export const resolvePendingAsteroidHazards = (
       remaining.push(hazard);
       continue;
     }
-    if (ship.destroyed) {
+    if (ship.lifecycle === 'destroyed') {
       continue;
     }
 

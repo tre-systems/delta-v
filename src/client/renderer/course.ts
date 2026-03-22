@@ -284,7 +284,7 @@ const buildDriftSegments = (
       position: pos,
       velocity: vel,
       pendingGravityEffects: pending,
-      landed: false,
+      lifecycle: 'active',
     };
 
     const drift = computeCourse(synthetic, null, map);
@@ -323,7 +323,7 @@ export const buildAstrogationCoursePreviewViews = (
   const previews: CoursePreviewView[] = [];
 
   for (const ship of state.ships) {
-    if (ship.owner !== playerId || ship.destroyed) {
+    if (ship.owner !== playerId || ship.lifecycle === 'destroyed') {
       continue;
     }
 
@@ -341,16 +341,18 @@ export const buildAstrogationCoursePreviewViews = (
       destroyedBases: state.destroyedBases,
     });
 
-    const fromHex = ship.landed ? course.path[0] : ship.position;
+    const fromHex =
+      ship.lifecycle === 'landed' ? course.path[0] : ship.position;
     const destination = hexToPixel(course.destination, hexSize);
-    const predictedDestination = ship.landed
-      ? course.path[0]
-      : predictDestination(ship);
+    const predictedDestination =
+      ship.lifecycle === 'landed' ? course.path[0] : predictDestination(ship);
 
     // For takeoff: show full path from
     // base hex -> launch hex -> destination
     const takeoffPrefix =
-      ship.landed && burn !== null && !hexEqual(ship.position, course.path[0])
+      ship.lifecycle === 'landed' &&
+      burn !== null &&
+      !hexEqual(ship.position, course.path[0])
         ? [ship.position]
         : [];
 

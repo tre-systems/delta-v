@@ -39,8 +39,11 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   fuel: 20,
   cargoUsed: 0,
   resuppliedThisTurn: false,
-  landed: false,
-  destroyed: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  nukesLaunchedSinceResupply: 0,
   detected: true,
   pendingGravityEffects: [],
   damage: { disabledTurns: 0 },
@@ -184,7 +187,7 @@ describe('hasAnyEnemyShips', () => {
   it('returns false when all enemies are destroyed', () => {
     const state = {
       activePlayer: 0,
-      ships: [makeShip({ owner: 1, destroyed: true })],
+      ships: [makeShip({ owner: 1, lifecycle: 'destroyed' })],
     } as GameState;
 
     expect(hasAnyEnemyShips(state)).toBe(false);
@@ -397,13 +400,13 @@ describe('validateShipOrdnanceLaunch', () => {
   });
 
   it('rejects destroyed ships', () => {
-    const ship = makeShip({ destroyed: true });
+    const ship = makeShip({ lifecycle: 'destroyed' });
 
     expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe('Ship is destroyed');
   });
 
   it('rejects landed ships', () => {
-    const ship = makeShip({ landed: true });
+    const ship = makeShip({ lifecycle: 'landed' });
 
     expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe(
       'Cannot launch ordnance while landed',
@@ -411,7 +414,7 @@ describe('validateShipOrdnanceLaunch', () => {
   });
 
   it('rejects captured ships', () => {
-    const ship = makeShip({ controlStatus: 'captured' });
+    const ship = makeShip({ control: 'captured' });
 
     expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe(
       'Captured ships cannot launch ordnance',
@@ -500,21 +503,19 @@ describe('canLaunchOrdnance', () => {
 
   it('returns false for destroyed ship', () => {
     expect(
-      canLaunchOrdnance(makeShip({ type: 'corsair', destroyed: true })),
+      canLaunchOrdnance(makeShip({ type: 'corsair', lifecycle: 'destroyed' })),
     ).toBe(false);
   });
 
   it('returns false for landed ship', () => {
-    expect(canLaunchOrdnance(makeShip({ type: 'corsair', landed: true }))).toBe(
-      false,
-    );
+    expect(
+      canLaunchOrdnance(makeShip({ type: 'corsair', lifecycle: 'landed' })),
+    ).toBe(false);
   });
 
   it('returns false for captured ship', () => {
     expect(
-      canLaunchOrdnance(
-        makeShip({ type: 'corsair', controlStatus: 'captured' }),
-      ),
+      canLaunchOrdnance(makeShip({ type: 'corsair', control: 'captured' })),
     ).toBe(false);
   });
 
@@ -553,7 +554,7 @@ describe('isOrderableShip', () => {
   });
 
   it('returns false for destroyed ships', () => {
-    expect(isOrderableShip(makeShip({ destroyed: true }))).toBe(false);
+    expect(isOrderableShip(makeShip({ lifecycle: 'destroyed' }))).toBe(false);
   });
 
   it('returns false for emplaced orbital bases', () => {
@@ -561,9 +562,7 @@ describe('isOrderableShip', () => {
   });
 
   it('returns false for captured ships', () => {
-    expect(isOrderableShip(makeShip({ controlStatus: 'captured' }))).toBe(
-      false,
-    );
+    expect(isOrderableShip(makeShip({ control: 'captured' }))).toBe(false);
   });
 
   it('returns true for disabled ships', () => {
@@ -573,8 +572,6 @@ describe('isOrderableShip', () => {
   });
 
   it('returns true for surrendered ships', () => {
-    expect(isOrderableShip(makeShip({ controlStatus: 'surrendered' }))).toBe(
-      true,
-    );
+    expect(isOrderableShip(makeShip({ control: 'surrendered' }))).toBe(true);
   });
 });

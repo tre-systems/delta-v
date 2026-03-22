@@ -28,8 +28,11 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   fuel: 20,
   cargoUsed: 0,
   resuppliedThisTurn: false,
-  landed: false,
-  destroyed: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  nukesLaunchedSinceResupply: 0,
   detected: true,
   damage: { disabledTurns: 0 },
   ...overrides,
@@ -228,7 +231,7 @@ describe('applyDamage properties', () => {
         });
 
         expect(eliminated).toBe(false);
-        expect(ship.destroyed).toBe(false);
+        expect(ship.lifecycle).toBe('active');
       }),
     );
   });
@@ -244,7 +247,7 @@ describe('applyDamage properties', () => {
         });
 
         expect(eliminated).toBe(true);
-        expect(ship.destroyed).toBe(true);
+        expect(ship.lifecycle).toBe('destroyed');
         expect(ship.velocity).toEqual({ dq: 0, dr: 0 });
       }),
     );
@@ -268,10 +271,10 @@ describe('applyDamage properties', () => {
 
           if (existing + added >= DAMAGE_ELIMINATION_THRESHOLD) {
             expect(eliminated).toBe(true);
-            expect(ship.destroyed).toBe(true);
+            expect(ship.lifecycle).toBe('destroyed');
           } else {
             expect(eliminated).toBe(false);
-            expect(ship.destroyed).toBe(false);
+            expect(ship.lifecycle).toBe('active');
             expect(ship.damage.disabledTurns).toBe(existing + added);
           }
         },
@@ -284,7 +287,7 @@ describe('getCombatStrength properties', () => {
   it('destroyed ships contribute 0 strength', () => {
     fc.assert(
       fc.property(arbShipType(), (shipType) => {
-        const ships = [makeShip({ type: shipType, destroyed: true })];
+        const ships = [makeShip({ type: shipType, lifecycle: 'destroyed' })];
 
         expect(getCombatStrength(ships)).toBe(0);
       }),
@@ -348,7 +351,7 @@ describe('canAttack / canCounterattack properties', () => {
       fc.property(arbShipType(), (shipType) => {
         const ship = makeShip({
           type: shipType,
-          destroyed: true,
+          lifecycle: 'destroyed',
         });
 
         expect(canAttack(ship)).toBe(false);
@@ -360,7 +363,7 @@ describe('canAttack / canCounterattack properties', () => {
   it('landed ships cannot attack', () => {
     fc.assert(
       fc.property(arbShipType(), (shipType) => {
-        const ship = makeShip({ type: shipType, landed: true });
+        const ship = makeShip({ type: shipType, lifecycle: 'landed' });
 
         expect(canAttack(ship)).toBe(false);
         expect(canCounterattack(ship)).toBe(false);
@@ -387,7 +390,7 @@ describe('canAttack / canCounterattack properties', () => {
       fc.property(arbShipType(), (shipType) => {
         const ship = makeShip({
           type: shipType,
-          controlStatus: 'surrendered',
+          control: 'surrendered',
         });
 
         expect(canAttack(ship)).toBe(false);
@@ -401,7 +404,7 @@ describe('canAttack / canCounterattack properties', () => {
       fc.property(arbShipType(), (shipType) => {
         const ship = makeShip({
           type: shipType,
-          controlStatus: 'captured',
+          control: 'captured',
         });
 
         expect(canAttack(ship)).toBe(false);

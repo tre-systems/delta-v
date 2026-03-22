@@ -96,7 +96,7 @@ export const computeOdds = (
  */
 export const getCombatStrength = (ships: Ship[]): number =>
   sumBy(ships, (ship) => {
-    if (ship.destroyed || ship.damage.disabledTurns > 0) {
+    if (ship.lifecycle === 'destroyed' || ship.damage.disabledTurns > 0) {
       return 0;
     }
 
@@ -118,9 +118,9 @@ export const getDeclaredCombatStrength = (
  * (not defensive-only, not disabled).
  */
 export const canAttack = (ship: Ship): boolean => {
-  if (ship.destroyed || ship.landed) return false;
+  if (ship.lifecycle !== 'active') return false;
   if (ship.resuppliedThisTurn) return false;
-  if (ship.controlStatus) return false;
+  if (ship.control !== 'own') return false;
 
   const stats = SHIP_STATS[ship.type];
   if (!stats || stats.defensiveOnly) return false;
@@ -142,9 +142,9 @@ export const canAttack = (ship: Ship): boolean => {
  * may counterattack at D1 damage.
  */
 export const canCounterattack = (ship: Ship): boolean => {
-  if (ship.destroyed || ship.landed) return false;
+  if (ship.lifecycle !== 'active') return false;
   if (ship.resuppliedThisTurn) return false;
-  if (ship.controlStatus) return false;
+  if (ship.control !== 'own') return false;
 
   const stats = SHIP_STATS[ship.type];
   if (!stats || stats.combat <= 0 || stats.defensiveOnly) {
@@ -363,7 +363,7 @@ export const applyDamage = (ship: Ship, result: DamageResult): boolean => {
   if (result.type === 'none') return false;
 
   if (result.type === 'eliminated') {
-    ship.destroyed = true;
+    ship.lifecycle = 'destroyed';
     ship.velocity = { dq: 0, dr: 0 };
 
     return true;
@@ -373,7 +373,7 @@ export const applyDamage = (ship: Ship, result: DamageResult): boolean => {
   ship.damage.disabledTurns += result.disabledTurns;
 
   if (ship.damage.disabledTurns >= DAMAGE_ELIMINATION_THRESHOLD) {
-    ship.destroyed = true;
+    ship.lifecycle = 'destroyed';
     ship.velocity = { dq: 0, dr: 0 };
 
     return true;
@@ -530,7 +530,9 @@ export const resolveBaseDefense = (
   const enemyNukes =
     state.ordnance?.filter(
       (ord) =>
-        ord.type === 'nuke' && ord.owner !== activePlayer && !ord.destroyed,
+        ord.type === 'nuke' &&
+        ord.owner !== activePlayer &&
+        ord.lifecycle !== 'destroyed',
     ) ?? [];
 
   for (const key of ownedBases) {
@@ -546,10 +548,9 @@ export const resolveBaseDefense = (
     // Find enemy ships in gravity hexes adjacent
     // to this base
     for (const ship of state.ships) {
-      if (ship.owner === activePlayer || ship.destroyed) {
+      if (ship.owner === activePlayer || ship.lifecycle !== 'active') {
         continue;
       }
-      if (ship.landed) continue;
 
       const shipHex = map.hexes.get(hexKey(ship.position));
       if (!shipHex?.gravity) continue;
@@ -587,7 +588,7 @@ export const resolveBaseDefense = (
     }
 
     for (const ord of enemyNukes) {
-      if (ord.destroyed) continue;
+      if (ord.lifecycle === 'destroyed') continue;
       if (!hasBaseLineOfSight(baseCoord, ord, map)) {
         continue;
       }
@@ -601,7 +602,7 @@ export const resolveBaseDefense = (
       const destroyed = damageResult.type !== 'none';
 
       if (destroyed) {
-        ord.destroyed = true;
+        ord.lifecycle = 'destroyed';
       }
 
       results.push({

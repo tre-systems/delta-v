@@ -66,7 +66,7 @@ const resolveAntiNukeAttack = (
   const destroyed = rolledResult.type !== 'none';
 
   if (destroyed) {
-    target.destroyed = true;
+    target.lifecycle = 'destroyed';
   }
 
   return {
@@ -92,7 +92,10 @@ const hasManualCombatTargets = (
   map: SolarSystemMap,
 ): boolean => {
   const attackers = state.ships.filter(
-    (s) => s.owner === state.activePlayer && !s.destroyed && canAttack(s),
+    (s) =>
+      s.owner === state.activePlayer &&
+      s.lifecycle !== 'destroyed' &&
+      canAttack(s),
   );
 
   if (attackers.length === 0) return false;
@@ -101,8 +104,7 @@ const hasManualCombatTargets = (
     state.ships.some(
       (target) =>
         target.owner !== state.activePlayer &&
-        !target.destroyed &&
-        !target.landed &&
+        target.lifecycle === 'active' &&
         attackers.some((attacker) => hasLineOfSight(attacker, target, map)),
     )
   ) {
@@ -113,7 +115,7 @@ const hasManualCombatTargets = (
     (ord) =>
       ord.type === 'nuke' &&
       ord.owner !== state.activePlayer &&
-      !ord.destroyed &&
+      ord.lifecycle !== 'destroyed' &&
       attackers.some((attacker) => hasLineOfSightToTarget(attacker, ord, map)),
   );
 };
@@ -132,7 +134,7 @@ const hasBaseDefenseTargets = (
     if (!bodyName) continue;
 
     for (const ship of state.ships) {
-      if (ship.owner === state.activePlayer || ship.destroyed || ship.landed) {
+      if (ship.owner === state.activePlayer || ship.lifecycle !== 'active') {
         continue;
       }
 
@@ -150,7 +152,7 @@ const hasBaseDefenseTargets = (
     for (const ord of state.ordnance) {
       if (
         ord.owner === state.activePlayer ||
-        ord.destroyed ||
+        ord.lifecycle === 'destroyed' ||
         ord.type !== 'nuke'
       ) {
         continue;
@@ -172,7 +174,9 @@ const shouldRemainInCombatPhase = (
   if (
     state.pendingAsteroidHazards.some((hazard) => {
       const ship = state.ships.find((s) => s.id === hazard.shipId);
-      return ship?.owner === state.activePlayer && !ship.destroyed;
+      return (
+        ship?.owner === state.activePlayer && ship.lifecycle !== 'destroyed'
+      );
     })
   ) {
     return true;
@@ -369,7 +373,7 @@ export const processCombat = (
       if (
         !target ||
         target.owner === playerId ||
-        target.destroyed ||
+        target.lifecycle === 'destroyed' ||
         target.type !== 'nuke'
       ) {
         return { error: 'Invalid combat target' };
@@ -395,12 +399,7 @@ export const processCombat = (
 
     const target = state.ships.find((s) => s.id === attack.targetId);
 
-    if (
-      !target ||
-      target.owner === playerId ||
-      target.destroyed ||
-      target.landed
-    ) {
+    if (!target || target.owner === playerId || target.lifecycle !== 'active') {
       return { error: 'Invalid combat target' };
     }
 
@@ -455,7 +454,7 @@ export const processCombat = (
     results.push(...baseResults);
   }
 
-  state.ordnance = state.ordnance.filter((o) => !o.destroyed);
+  state.ordnance = state.ordnance.filter((o) => o.lifecycle !== 'destroyed');
 
   applyEscapeMoralVictory(state);
   checkGameEnd(state, map);
@@ -519,7 +518,9 @@ export const shouldEnterCombatPhase = (
   if (
     state.pendingAsteroidHazards.some((hazard) => {
       const ship = state.ships.find((s) => s.id === hazard.shipId);
-      return ship?.owner === state.activePlayer && !ship.destroyed;
+      return (
+        ship?.owner === state.activePlayer && ship.lifecycle !== 'destroyed'
+      );
     })
   ) {
     return true;

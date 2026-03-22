@@ -19,7 +19,9 @@ export const deriveGameOverPlan = (
 
   const loserShipIds =
     state?.ships
-      .filter((ship) => ship.owner === loserId && !ship.destroyed)
+      .filter(
+        (ship) => ship.owner === loserId && ship.lifecycle !== 'destroyed',
+      )
       .map((ship) => ship.id) ?? [];
 
   return {

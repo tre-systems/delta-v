@@ -3,25 +3,25 @@ import { describe, expect, it } from 'vitest';
 import type { Ship } from '../../shared/types/domain';
 import { buildShipListView } from './ship-list';
 
-function createShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'ship-0',
-    type: 'transport',
-    owner: 0,
-    originalOwner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 10,
-    cargoUsed: 0,
-    nukesLaunchedSinceResupply: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-0',
+  type: 'transport',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 10,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
 describe('ui ship list helpers', () => {
   it('numbers repeated ship types and preserves unique names', () => {
@@ -53,11 +53,11 @@ describe('ui ship list helpers', () => {
         }),
         createShip({
           id: 'b',
-          controlStatus: 'captured',
+          control: 'captured',
         }),
         createShip({
           id: 'c',
-          destroyed: true,
+          lifecycle: 'destroyed',
         }),
       ],
       null,
@@ -91,7 +91,7 @@ describe('ui ship list helpers', () => {
           cargoUsed: 15,
           velocity: { dq: 2, dr: -1 },
           heroismAvailable: true,
-          landed: true,
+          lifecycle: 'landed',
         }),
         createShip({ id: 'b' }),
       ],
@@ -114,7 +114,7 @@ describe('ui ship list helpers', () => {
       [
         createShip({
           id: 'a',
-          controlStatus: 'captured',
+          control: 'captured',
           damage: { disabledTurns: 3 },
         }),
       ],

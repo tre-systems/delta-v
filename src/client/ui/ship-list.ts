@@ -39,9 +39,9 @@ const getDisplayNames = (ships: Ship[]) => {
 
 const getStatusText = (ship: Ship): string =>
   [
-    ship.destroyed
+    ship.lifecycle === 'destroyed'
       ? 'X'
-      : ship.controlStatus === 'captured'
+      : ship.control === 'captured'
         ? 'CAP'
         : ship.damage.disabledTurns > 0
           ? `D${ship.damage.disabledTurns}`
@@ -64,7 +64,7 @@ const getShipDetailRows = (
   isSelected: boolean,
 ): ShipDetailRowView[] => {
   const stats = SHIP_STATS[ship.type];
-  if (!isSelected || ship.destroyed || !stats) {
+  if (!isSelected || ship.lifecycle === 'destroyed' || !stats) {
     return [];
   }
 
@@ -93,14 +93,14 @@ const getShipDetailRows = (
           tone: 'warning' as const,
         }
       : null,
-    ship.controlStatus === 'captured'
+    ship.control === 'captured'
       ? {
           label: 'Status',
           value: 'Captured',
           tone: 'danger' as const,
         }
       : null,
-    ship.controlStatus !== 'captured' && ship.landed
+    ship.control !== 'captured' && ship.lifecycle === 'landed'
       ? {
           label: 'Status',
           value: 'Landed',
@@ -121,12 +121,13 @@ export const buildShipListView = (
     shipId: ship.id,
     displayName: displayNames[index],
     isSelected: ship.id === selectedId,
-    isDestroyed: ship.destroyed,
+    isDestroyed: ship.lifecycle === 'destroyed',
     statusText: getStatusText(ship),
     hasBurn: burns.has(ship.id) && burns.get(ship.id) !== null,
-    fuelText: ship.destroyed
-      ? ''
-      : `${ship.fuel}/${SHIP_STATS[ship.type]?.fuel ?? '?'}`,
+    fuelText:
+      ship.lifecycle === 'destroyed'
+        ? ''
+        : `${ship.fuel}/${SHIP_STATS[ship.type]?.fuel ?? '?'}`,
     detailRows: getShipDetailRows(ship, ship.id === selectedId),
   }));
 };

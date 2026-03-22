@@ -95,7 +95,9 @@ const buildShipDots = (
 ): MinimapDotView[] => {
   return state.ships
     .filter(
-      (ship) => !ship.destroyed && (ship.owner === playerId || ship.detected),
+      (ship) =>
+        ship.lifecycle !== 'destroyed' &&
+        (ship.owner === playerId || ship.detected),
     )
     .map((ship) => ({
       position: projectHex(layout, ship.position, hexSize),
@@ -111,7 +113,7 @@ const buildOrdnanceDots = (
   hexSize: number,
 ): MinimapDotView[] => {
   return state.ordnance
-    .filter((ordnance) => !ordnance.destroyed)
+    .filter((ordnance) => ordnance.lifecycle !== 'destroyed')
     .map((ordnance) => ({
       position: projectHex(layout, ordnance.position, hexSize),
       radius: 1.5,

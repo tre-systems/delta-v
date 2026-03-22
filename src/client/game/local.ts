@@ -173,6 +173,6 @@ export const hasOwnedPendingAsteroidHazards = (
     const ship = state.ships.find(
       (candidate) => candidate.id === hazard.shipId,
     );
-    return ship?.owner === playerId && !ship.destroyed;
+    return ship?.owner === playerId && ship.lifecycle !== 'destroyed';
   });
 };

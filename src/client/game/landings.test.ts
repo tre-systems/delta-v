@@ -8,76 +8,72 @@ import type {
 } from '../../shared/types/domain';
 import { deriveLandingLogEntries } from './landings';
 
-function createShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'ship-0',
-    type: 'packet',
-    owner: 0,
-    originalOwner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 5,
-    cargoUsed: 0,
-    nukesLaunchedSinceResupply: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-0',
+  type: 'packet',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 5,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
-function createPlayers(): [PlayerState, PlayerState] {
-  return [
-    {
-      connected: true,
-      ready: true,
-      targetBody: 'Mars',
-      homeBody: 'Terra',
-      bases: ['1,0'],
-      escapeWins: false,
-    },
-    {
-      connected: true,
-      ready: true,
-      targetBody: 'Terra',
-      homeBody: 'Mars',
-      bases: [],
-      escapeWins: false,
-    },
-  ];
-}
+const createPlayers = (): [PlayerState, PlayerState] => [
+  {
+    connected: true,
+    ready: true,
+    targetBody: 'Mars',
+    homeBody: 'Terra',
+    bases: ['1,0'],
+    escapeWins: false,
+  },
+  {
+    connected: true,
+    ready: true,
+    targetBody: 'Terra',
+    homeBody: 'Mars',
+    bases: [],
+    escapeWins: false,
+  },
+];
 
-function createState(overrides: Partial<GameState> = {}): GameState {
-  return {
-    gameId: 'LAND',
-    scenario: 'test',
-    scenarioRules: {},
-    escapeMoralVictoryAchieved: false,
-    turnNumber: 1,
-    phase: 'movement',
-    activePlayer: 0,
-    ships: [
-      createShip(),
-      createShip({
-        id: 'enemy',
-        owner: 1,
-        originalOwner: 0,
-        type: 'corsair',
-      }),
-    ],
-    ordnance: [],
-    pendingAstrogationOrders: null,
-    pendingAsteroidHazards: [],
-    destroyedAsteroids: [],
-    destroyedBases: [],
-    players: createPlayers(),
-    winner: null,
-    winReason: null,
-    ...overrides,
-  };
-}
+const createState = (overrides: Partial<GameState> = {}): GameState => ({
+  gameId: 'LAND',
+  scenario: 'test',
+  scenarioRules: {},
+  escapeMoralVictoryAchieved: false,
+  turnNumber: 1,
+  phase: 'movement',
+  activePlayer: 0,
+  ships: [
+    createShip(),
+    createShip({
+      id: 'enemy',
+      owner: 1,
+      originalOwner: 0,
+      type: 'corsair',
+    }),
+  ],
+  ordnance: [],
+  pendingAstrogationOrders: null,
+  pendingAsteroidHazards: [],
+  destroyedAsteroids: [],
+  destroyedBases: [],
+  players: createPlayers(),
+  winner: null,
+  winReason: null,
+  ...overrides,
+});
 
 describe('game-client-landings', () => {
   it('builds landing log entries and resupply text from completed landings', () => {

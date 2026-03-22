@@ -35,7 +35,10 @@ export const getNearestEnemyPosition = (
   hexSize: number,
 ): HexCoord | null => {
   const enemies = state.ships.filter(
-    (ship) => ship.owner !== playerId && !ship.destroyed && ship.detected,
+    (ship) =>
+      ship.owner !== playerId &&
+      ship.lifecycle !== 'destroyed' &&
+      ship.detected,
   );
 
   if (enemies.length === 0) {

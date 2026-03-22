@@ -22,8 +22,11 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   fuel: 20,
   cargoUsed: 0,
   resuppliedThisTurn: false,
-  landed: false,
-  destroyed: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  nukesLaunchedSinceResupply: 0,
   detected: true,
   pendingGravityEffects: [],
   damage: { disabledTurns: 0 },
@@ -490,7 +493,7 @@ describe('computeCourse - takeoff', () => {
     const marsBase = must(findBaseHex(map, 'Mars'));
     const ship = makeShip({
       position: marsBase,
-      landed: true,
+      lifecycle: 'landed',
       velocity: { dq: 0, dr: 0 },
     });
     const course = computeCourse(ship, null, map);
@@ -503,7 +506,7 @@ describe('computeCourse - takeoff', () => {
     const marsBase = must(findBaseHex(map, 'Mars'));
     const ship = makeShip({
       position: marsBase,
-      landed: true,
+      lifecycle: 'landed',
       velocity: { dq: 0, dr: 0 },
       fuel: 20,
     });
@@ -518,7 +521,7 @@ describe('computeCourse - takeoff', () => {
     const marsBase = must(findBaseHex(map, 'Mars'));
     const ship = makeShip({
       position: marsBase,
-      landed: true,
+      lifecycle: 'landed',
       fuel: 20,
     });
     // Try all 6 burn directions — none should crash into Mars
@@ -606,7 +609,7 @@ describe('computeCourse - takeoff edge cases', () => {
     };
     const ship = makeShip({
       position: { q: 1, r: 0 },
-      landed: true,
+      lifecycle: 'landed',
       velocity: { dq: 0, dr: 0 },
       fuel: 20,
     });
@@ -629,7 +632,7 @@ describe('computeCourse - takeoff edge cases', () => {
     const ship = makeShip({
       type: 'corvette',
       position: marsBase,
-      landed: true,
+      lifecycle: 'landed',
       velocity: { dq: 0, dr: 0 },
       fuel: 20,
     });
@@ -642,7 +645,7 @@ describe('computeCourse - takeoff edge cases', () => {
     const ship = makeShip({
       type: 'transport',
       position: marsBase,
-      landed: true,
+      lifecycle: 'landed',
       velocity: { dq: 0, dr: 0 },
       fuel: 20,
     });
@@ -655,7 +658,7 @@ describe('computeCourse - takeoff edge cases', () => {
     const ship = makeShip({
       type: 'corvette',
       position: marsBase,
-      landed: true,
+      lifecycle: 'landed',
       velocity: { dq: 0, dr: 0 },
       fuel: 1,
     });
@@ -779,7 +782,7 @@ describe('predictDestination', () => {
   it('returns position for landed ship', () => {
     const ship = makeShip({
       position: { q: 3, r: 4 },
-      landed: true,
+      lifecycle: 'landed',
     });
     expect(predictDestination(ship)).toEqual({ q: 3, r: 4 });
   });

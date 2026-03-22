@@ -21,8 +21,11 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   fuel: 20,
   cargoUsed: 0,
   resuppliedThisTurn: false,
-  landed: false,
-  destroyed: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  nukesLaunchedSinceResupply: 0,
   detected: true,
   damage: { disabledTurns: 0 },
   ...overrides,
@@ -34,7 +37,7 @@ const makeOrdnance = (overrides: Partial<Ordnance> = {}): Ordnance => ({
   position: { q: 1, r: 0 },
   velocity: { dq: 0, dr: 0 },
   turnsRemaining: 5,
-  destroyed: false,
+  lifecycle: 'active' as const,
   ...overrides,
 });
 const openMap: SolarSystemMap = {
@@ -188,7 +191,7 @@ describe('processCombat', () => {
   });
   it('rejects attacking landed ship', () => {
     const state = makeCombatState();
-    state.ships[1].landed = true;
+    state.ships[1].lifecycle = 'landed';
     const result = processCombat(
       state,
       0,
@@ -371,7 +374,7 @@ describe('processCombat', () => {
         id: 'ord0',
         owner: 1,
         position: { q: 2, r: 0 },
-        destroyed: true,
+        lifecycle: 'destroyed',
       }),
     ];
     const result = processCombat(
@@ -498,7 +501,7 @@ describe('processCombat', () => {
       const antiNuke = result.results.find((r) => r.targetType === 'ordnance');
       expect(antiNuke).toBeDefined();
       expect(antiNuke?.damageType).toBe('none');
-      expect(state.ordnance[0].destroyed).toBe(false);
+      expect(state.ordnance[0].lifecycle).toBe('active');
     }
   });
   it('resolves anti-nuke attack that hits', () => {
@@ -532,7 +535,7 @@ describe('processCombat', () => {
   });
   it('returns results when winner found after hazards', () => {
     const state = makeCombatState();
-    state.ships[1].destroyed = true;
+    state.ships[1].lifecycle = 'destroyed';
     const result = processCombat(state, 0, [], openMap, Math.random);
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
@@ -562,7 +565,7 @@ describe('skipCombat', () => {
   });
   it('returns results when winner found during hazards', () => {
     const state = makeCombatState();
-    state.ships[1].destroyed = true;
+    state.ships[1].lifecycle = 'destroyed';
     const result = skipCombat(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
     if ('state' in result) {
@@ -588,7 +591,7 @@ describe('shouldEnterCombatPhase', () => {
   });
   it('returns false when no attackable enemy ships (all destroyed)', () => {
     const state = makeCombatState();
-    state.ships[1].destroyed = true;
+    state.ships[1].lifecycle = 'destroyed';
     expect(shouldEnterCombatPhase(state, openMap)).toBe(false);
   });
   it('returns false when all own ships are disabled', () => {
@@ -608,8 +611,7 @@ describe('shouldEnterCombatPhase', () => {
       const bodyName = baseHex?.base?.bodyName;
       if (bodyName) {
         const enemy = must(state.ships.find((s) => s.owner === 1));
-        enemy.landed = false;
-        enemy.destroyed = false;
+        enemy.lifecycle = 'active';
         enemy.position = { q: bq + 1, r: br };
         enemy.lastMovementPath = [enemy.position];
         const adjKey = hexKey(enemy.position);
@@ -871,7 +873,7 @@ describe('shouldRemainInCombatPhase edge cases', () => {
   });
   it('without map advances turn when no enemies', () => {
     const state = makeCombatState();
-    state.ships[1].destroyed = true;
+    state.ships[1].lifecycle = 'destroyed';
     const result = beginCombatPhase(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
     if ('state' in result) {
@@ -892,8 +894,7 @@ describe('base defense with skipCombat', () => {
       const bodyName = baseHex?.base?.bodyName;
       if (bodyName) {
         const enemy = must(state.ships.find((s) => s.owner === 1));
-        enemy.landed = false;
-        enemy.destroyed = false;
+        enemy.lifecycle = 'active';
         enemy.position = { q: bq + 1, r: br };
         enemy.lastMovementPath = [enemy.position];
         const adjKey = hexKey(enemy.position);

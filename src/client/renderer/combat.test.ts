@@ -18,115 +18,107 @@ import {
   getQueuedCombatOverlayAttacks,
 } from './combat';
 
-function createShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'ship-0',
-    type: 'corsair',
-    owner: 0,
-    originalOwner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 20,
-    cargoUsed: 0,
-    nukesLaunchedSinceResupply: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-0',
+  type: 'corsair',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 20,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
-function createOrdnance(overrides: Partial<Ordnance> = {}): Ordnance {
-  return {
-    id: 'ord-0',
-    type: 'nuke',
-    owner: 1,
-    sourceShipId: null,
-    position: { q: 1, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    turnsRemaining: 5,
-    destroyed: false,
-    ...overrides,
-  };
-}
+const createOrdnance = (overrides: Partial<Ordnance> = {}): Ordnance => ({
+  id: 'ord-0',
+  type: 'nuke',
+  owner: 1,
+  sourceShipId: null,
+  position: { q: 1, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  turnsRemaining: 5,
+  lifecycle: 'active' as const,
+  ...overrides,
+});
 
-function createPlayers(): [PlayerState, PlayerState] {
-  return [
-    {
-      connected: true,
-      ready: true,
-      targetBody: '',
-      homeBody: 'Terra',
-      bases: [],
-      escapeWins: false,
-    },
-    {
-      connected: true,
-      ready: true,
-      targetBody: '',
-      homeBody: 'Mars',
-      bases: [],
-      escapeWins: false,
-    },
-  ];
-}
+const createPlayers = (): [PlayerState, PlayerState] => [
+  {
+    connected: true,
+    ready: true,
+    targetBody: '',
+    homeBody: 'Terra',
+    bases: [],
+    escapeWins: false,
+  },
+  {
+    connected: true,
+    ready: true,
+    targetBody: '',
+    homeBody: 'Mars',
+    bases: [],
+    escapeWins: false,
+  },
+];
 
-function createState(overrides: Partial<GameState> = {}): GameState {
-  return {
-    gameId: 'TEST',
-    scenario: 'test',
-    scenarioRules: {},
-    escapeMoralVictoryAchieved: false,
-    turnNumber: 1,
-    phase: 'combat',
-    activePlayer: 0,
-    ships: [
-      createShip({ id: 'a', owner: 0, type: 'corsair' }),
-      createShip({
-        id: 'b',
-        owner: 0,
-        type: 'corvette',
-        position: { q: 0, r: 1 },
-      }),
-      createShip({
-        id: 'x',
-        owner: 1,
-        type: 'frigate',
-        position: { q: 1, r: 0 },
-      }),
-      createShip({
-        id: 'y',
-        owner: 1,
-        type: 'packet',
-        position: { q: 1, r: 1 },
-      }),
-    ],
-    ordnance: [],
-    pendingAstrogationOrders: null,
-    pendingAsteroidHazards: [],
-    destroyedAsteroids: [],
-    destroyedBases: [],
-    players: createPlayers(),
-    winner: null,
-    winReason: null,
-    ...overrides,
-  };
-}
+const createState = (overrides: Partial<GameState> = {}): GameState => ({
+  gameId: 'TEST',
+  scenario: 'test',
+  scenarioRules: {},
+  escapeMoralVictoryAchieved: false,
+  turnNumber: 1,
+  phase: 'combat',
+  activePlayer: 0,
+  ships: [
+    createShip({ id: 'a', owner: 0, type: 'corsair' }),
+    createShip({
+      id: 'b',
+      owner: 0,
+      type: 'corvette',
+      position: { q: 0, r: 1 },
+    }),
+    createShip({
+      id: 'x',
+      owner: 1,
+      type: 'frigate',
+      position: { q: 1, r: 0 },
+    }),
+    createShip({
+      id: 'y',
+      owner: 1,
+      type: 'packet',
+      position: { q: 1, r: 1 },
+    }),
+  ],
+  ordnance: [],
+  pendingAstrogationOrders: null,
+  pendingAsteroidHazards: [],
+  destroyedAsteroids: [],
+  destroyedBases: [],
+  players: createPlayers(),
+  winner: null,
+  winReason: null,
+  ...overrides,
+});
 
-function createPlanning(
+const createPlanning = (
   overrides: Partial<CombatOverlayPlanningState> = {},
-): CombatOverlayPlanningState {
-  return {
-    combatTargetId: null,
-    combatTargetType: null,
-    combatAttackerIds: [],
-    combatAttackStrength: null,
-    queuedAttacks: [],
-    ...overrides,
-  };
-}
+): CombatOverlayPlanningState => ({
+  combatTargetId: null,
+  combatTargetType: null,
+  combatAttackerIds: [],
+  combatAttackStrength: null,
+  queuedAttacks: [],
+  ...overrides,
+});
 
 const map: SolarSystemMap = {
   hexes: new Map(),

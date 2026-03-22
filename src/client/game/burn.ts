@@ -30,7 +30,7 @@ export const deriveBurnChangePlan = (
 
   const ship = state.ships.find((candidate) => candidate.id === selectedShipId);
 
-  if (!ship || ship.destroyed) {
+  if (!ship || ship.lifecycle === 'destroyed') {
     return { kind: 'noop' };
   }
 
