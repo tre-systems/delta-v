@@ -13,26 +13,6 @@ with the feature, not as a cleanup pass afterward.
 
 ## Event-Sourced Match Architecture
 
-### Explicit RNG outcome capture
-
-Persist authoritative random outcomes inside the event
-stream so replay and rebuild do not depend on rerunning
-`Math.random()` against future code.
-
-Combat rolls, heroism, asteroid hazards, reinforcement
-draws, and any other non-deterministic results should be
-recorded as facts in the emitted events.
-
-Definition of done: replay from events reproduces live
-resolution for the covered movement, ordnance, and
-combat flows.
-
-**Files:** `src/shared/combat.ts`,
-`src/shared/movement.ts`,
-`src/shared/engine/combat.ts`,
-`src/shared/engine/ordnance.ts`,
-`src/shared/engine/engine-events.ts`
-
 ### Projection and checkpoint model
 
 Define how read models are built from the event stream:
