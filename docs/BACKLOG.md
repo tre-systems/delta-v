@@ -13,33 +13,6 @@ with the feature, not as a cleanup pass afterward.
 
 ## Immediate Priorities
 
-### Split `GameClient` orchestration out of `main.ts`
-
-Reduce the number of concerns that still terminate in the
-top-level client shell.
-
-`main.ts` currently coordinates session lifecycle, transport
-setup, message handling, local-AI flow, input routing, and HUD
-refresh from one class. The extracted helper modules are moving
-in the right direction, but new features still tend to thread
-through the same large coordinator.
-
-Near-term slice: extract focused client controllers for
-session / network flow, gameplay / phase flow, and HUD /
-presentation coordination so `main.ts` stops assembling large
-ad hoc dependency objects inline.
-
-Definition of done: `main.ts` keeps bootstrap and composition-
-root responsibilities, while session flow, message orchestration,
-and HUD / renderer coordination are pushed behind smaller
-controller modules with clear ownership and focused tests.
-
-**Files:** `src/client/main.ts`,
-`src/client/game/message-handler.ts`,
-`src/client/game/session-controller.ts`,
-`src/client/game/phase-controller.ts`,
-new or extracted client controller module(s)
-
 ### Unify local and networked game-flow orchestration
 
 Reduce parity drift between AI/local execution and multiplayer
