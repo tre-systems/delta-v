@@ -57,7 +57,7 @@ static/
 - `GET /ws/:code` — WebSocket upgrade, proxied to the Durable Object
 
 **Durable Object (game-do):**
-- One instance per active game, keyed by invite code
+- One instance per active game, keyed by room code
 - Maintains authoritative game state: map, ships, turn order, phase
 - Receives player actions via WebSocket, runtime-validates them, and applies state changes
 - Broadcasts updated state to all connected players
@@ -75,9 +75,7 @@ static/
 7. On successful guest join, the server issues that seat a private reconnect token in the `welcome` message for later reconnects
 8. When both players are connected, the game setup phase begins
 
-Players are still seat-based for gameplay purposes (Player 1 / Player 2). Reconnects are tokenized after a seat has been claimed, but the default guest-seat claim is still room-code based. There are still no accounts or long-term player identities.
-
-The protocol and client helpers still contain invite-token support for a stricter guest-seat flow, but the default worker create path does not currently issue those tokens. That gap is tracked explicitly in the backlog.
+Players are seat-based for gameplay purposes (Player 1 / Player 2). Reconnects are tokenized after a seat has been claimed — the guest seat is claimed by room code alone. There are no accounts or long-term player identities.
 
 ## Game Concepts
 
@@ -787,7 +785,7 @@ interface ScenarioPlayer {
 - [x] Course planning UI (select ship, set burn, see prediction, confirm)
 - [x] Movement animation (smooth ship glide with thrust trail)
 - [x] Durable Object: game state management, turn sequencing
-- [x] Worker: invite code creation, WebSocket routing
+- [x] Worker: room code creation, WebSocket routing
 - [x] Client WebSocket: state sync, turn submission
 - [x] Victory detection (first to land on opponent's world)
 - [x] Basic mobile-responsive touch controls

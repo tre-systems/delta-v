@@ -1,4 +1,5 @@
 import type {
+  CombatResult,
   GameState,
   MovementEvent,
   OrdnanceMovement,
@@ -20,6 +21,18 @@ export interface StateUpdateResult {
   state: GameState;
   engineEvents: EngineEvent[];
 }
+
+// --- Result classification helpers ---
+
+export const isMovementResult = (
+  result: MovementResult | StateUpdateResult,
+): result is MovementResult => 'movements' in result;
+
+export const hasCombatResults = (result: {
+  state: GameState;
+  results?: unknown[];
+}): result is { state: GameState; results: CombatResult[] } =>
+  Array.isArray(result.results) && result.results.length > 0;
 
 // --- Re-exports: public engine API ---
 

@@ -213,7 +213,7 @@ describe('session-controller', () => {
     expect(deps.calls.runLocalAI).toBeUndefined();
   });
 
-  it('validates and stores invite tokens when joining a multiplayer room', async () => {
+  it('validates and stores player tokens when joining a multiplayer room', async () => {
     const deps = createJoinGameDeps();
 
     await beginJoinGameSession(deps, 'FGHIJ', 'token-2');

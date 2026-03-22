@@ -1,7 +1,9 @@
-import type {
-  CombatPhaseResult,
-  MovementResult,
-  StateUpdateResult,
+import {
+  type CombatPhaseResult,
+  hasCombatResults,
+  isMovementResult,
+  type MovementResult,
+  type StateUpdateResult,
 } from '../../shared/engine/game-engine';
 import type { CombatResult, GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
@@ -64,7 +66,7 @@ export const resolveMovementBroadcast = (
   result: MovementResolution,
   fallback: 'none' | 'stateUpdate' = 'none',
 ): StatefulServerMessage | undefined => {
-  if ('movements' in result) {
+  if (isMovementResult(result)) {
     return toMovementResultMessage(result);
   }
   return fallback === 'stateUpdate'
@@ -75,9 +77,11 @@ export const resolveCombatBroadcast = (
   result: CombatResolution,
   fallback: 'none' | 'stateUpdate' = 'none',
 ): StatefulServerMessage | undefined => {
-  const results = 'results' in result ? result.results : undefined;
-  if (results && results.length > 0) {
-    return toCombatResultMessage(result.state, results);
+  if (hasCombatResults(result)) {
+    return toCombatResultMessage(
+      result.state,
+      (result as CombatPhaseResult).results,
+    );
   }
   return fallback === 'stateUpdate'
     ? toStateUpdateMessage(result.state)

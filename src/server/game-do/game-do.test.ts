@@ -176,7 +176,6 @@ describe('GameDO', () => {
       code: 'ABCDE',
       scenario: 'escape',
       playerTokens: ['A'.repeat(32), null],
-      inviteTokens: [null, null],
     });
     const inactivityAt = await ctx.storage.get<number>('inactivityAt');
     expect(typeof inactivityAt).toBe('number');
@@ -200,7 +199,6 @@ describe('GameDO', () => {
       code: 'ABCDE',
       scenario: 'biplanetary',
       playerTokens: ['A'.repeat(32), null],
-      inviteTokens: [null, null],
     });
     const game = createGameDO(ctx);
     const response = await game.fetch(
@@ -217,7 +215,6 @@ describe('GameDO', () => {
       code: 'ABCDE',
       scenario: 'biplanetary',
       playerTokens: ['A'.repeat(32), null] as [string, string | null],
-      inviteTokens: [null, null] as [string | null, string | null],
     };
     await ctx.storage.put('roomConfig', roomConfig);
     const game = createGameDO(ctx);
@@ -237,7 +234,6 @@ describe('GameDO', () => {
       code: 'ABCDE',
       scenario: 'biplanetary',
       playerTokens: ['A'.repeat(32), null],
-      inviteTokens: [null, null],
     });
     const oldSocket = createSocket();
     ctx.acceptWebSocket(oldSocket, ['player:0']);
@@ -251,7 +247,6 @@ describe('GameDO', () => {
               ok: true;
               playerId: 0 | 1;
               issueNewToken: boolean;
-              consumeInviteToken: boolean;
               disconnectedPlayer: number | null;
               seatOpen: [boolean, boolean];
             }
@@ -263,7 +258,6 @@ describe('GameDO', () => {
       ok: true,
       playerId: 0,
       issueNewToken: false,
-      consumeInviteToken: false,
       disconnectedPlayer: null,
       seatOpen: [false, true],
     });
@@ -312,7 +306,6 @@ describe('GameDO', () => {
       code: 'ABCDE',
       scenario: 'biplanetary',
       playerTokens: ['A'.repeat(32), null],
-      inviteTokens: [null, null],
     });
     const oldSocket = createSocket();
     ctx.acceptWebSocket(oldSocket, ['player:0']);
@@ -338,7 +331,6 @@ describe('GameDO', () => {
       code: 'ABCDE',
       scenario: 'biplanetary',
       playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
-      inviteTokens: [null, null],
     });
     await ctx.storage.put('disconnectedPlayer', 1);
     const game = createGameDO(ctx);
@@ -370,7 +362,6 @@ describe('GameDO', () => {
       code: 'ABCDE',
       scenario: 'biplanetary',
       playerTokens: ['A'.repeat(32), null],
-      inviteTokens: [null, null],
     });
     await ctx.storage.put('gameCode', 'ABCDE');
     const game = createGameDO(ctx);
@@ -405,7 +396,6 @@ describe('GameDO', () => {
       code: 'ABCDE',
       scenario: 'biplanetary',
       playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
-      inviteTokens: [null, null],
     });
     await ctx.storage.put('gameCode', 'ABCDE');
     const game = createGameDO(ctx);
@@ -746,7 +736,6 @@ describe('GameDO', () => {
       code: 'RATE1',
       scenario: 'biplanetary',
       playerTokens: ['A'.repeat(32), null],
-      inviteTokens: [null, null],
     });
     await ctx.storage.put('gameState', {
       phase: 'astrogation',
@@ -874,7 +863,6 @@ describe('GameDO', () => {
       code: 'ABCDE',
       scenario: 'escape',
       playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
-      inviteTokens: [null, null],
     });
     await ctx.storage.put('gameCode', 'ABCDE');
     const game = createGameDO(ctx);

@@ -52,7 +52,7 @@ export const el = (
     }
 
     if (props.text) element.textContent = props.text;
-    if (props.html) element.innerHTML = props.html;
+    if (props.html) setTrustedHTML(element, props.html);
 
     if (props.style) {
       Object.assign(element.style, props.style);
@@ -94,6 +94,32 @@ export const el = (
   }
 
   return element;
+};
+
+// --- Trusted HTML boundary ---
+//
+// All innerHTML writes must go through these helpers so
+// the boundary is auditable in one place. The content is
+// trusted — it comes from internal game state and static
+// markup, never from user input or external sources.
+// If untrusted content is ever needed, add a sanitizer
+// (e.g. DOMPurify) here instead of scattering raw
+// innerHTML writes.
+
+/**
+ * Set innerHTML from a trusted internal source.
+ *
+ * Use this instead of raw `element.innerHTML = ...`
+ * so the security boundary is grep-able. All callers
+ * must pass only internally generated markup.
+ */
+export const setTrustedHTML = (element: HTMLElement, html: string): void => {
+  element.innerHTML = html;
+};
+
+/** Clear an element's children via innerHTML. */
+export const clearHTML = (element: HTMLElement): void => {
+  element.innerHTML = '';
 };
 
 // --- Visibility ---

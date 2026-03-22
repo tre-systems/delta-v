@@ -6,7 +6,7 @@
  * localStorage so it only shows once.
  */
 
-import { byId, hide, show } from './dom';
+import { byId, hide, setTrustedHTML, show } from './dom';
 
 const STORAGE_KEY = 'deltav_tutorial_done';
 
@@ -143,15 +143,18 @@ export class Tutorial {
     this.tipEl.style.animation = '';
 
     // Update progress dots
-    this.progressEl.innerHTML = STEPS.map((s, _i) => {
-      const cls = this.shownSteps.has(s.id)
-        ? 'done'
-        : s.id === step.id
-          ? 'active'
-          : '';
+    setTrustedHTML(
+      this.progressEl,
+      STEPS.map((s, _i) => {
+        const cls = this.shownSteps.has(s.id)
+          ? 'done'
+          : s.id === step.id
+            ? 'active'
+            : '';
 
-      return `<div class="tutorial-dot ${cls}"></div>`;
-    }).join('');
+        return `<div class="tutorial-dot ${cls}"></div>`;
+      }).join(''),
+    );
   }
 
   private advance() {

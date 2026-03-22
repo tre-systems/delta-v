@@ -113,13 +113,11 @@ describe('server index worker', () => {
     });
     expect(payload.code).toMatch(/^[A-Z2-9]{5}$/);
     expect(payload.playerToken).toMatch(/^[A-Za-z0-9_-]{32}$/);
-    expect(payload.inviteToken).toBeUndefined();
 
     const data = (await response.json()) as Record<string, string>;
 
     expect(data.code).toBe(payload.code);
     expect(data.playerToken).toBe(payload.playerToken);
-    expect(data.inviteToken).toBeUndefined();
   });
 
   it('retries collisions up to 12 times before returning 503', async () => {
