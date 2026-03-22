@@ -76,7 +76,7 @@ const getAvailableAttackers = (
   return state.ships.filter(
     (ship) =>
       ship.owner === playerId &&
-      !ship.destroyed &&
+      ship.lifecycle !== 'destroyed' &&
       canAttack(ship) &&
       !committedAttackers.has(ship.id),
   );
@@ -95,7 +95,7 @@ const getCurrentCombatTarget = (
     const ordnance = state.ordnance.find(
       (item) =>
         item.id === targetId &&
-        !item.destroyed &&
+        item.lifecycle !== 'destroyed' &&
         item.owner !== playerId &&
         item.type === 'nuke',
     );
@@ -159,8 +159,7 @@ export const getCombatOverlayHighlights = (
     .filter(
       (ship) =>
         ship.owner !== playerId &&
-        !ship.destroyed &&
-        !ship.landed &&
+        ship.lifecycle === 'active' &&
         ship.detected &&
         !queuedTargetKeys.has(`ship:${ship.id}`) &&
         myAttackers.some((attacker) => hasLineOfSight(attacker, ship, map)),
@@ -173,7 +172,7 @@ export const getCombatOverlayHighlights = (
   const ordnanceTargets = state.ordnance
     .filter(
       (ordnance) =>
-        !ordnance.destroyed &&
+        ordnance.lifecycle !== 'destroyed' &&
         ordnance.owner !== playerId &&
         ordnance.type === 'nuke' &&
         myAttackers.some((attacker) =>

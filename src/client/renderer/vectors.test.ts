@@ -15,116 +15,113 @@ import {
   buildVelocityVectorViews,
 } from './vectors';
 
-function createShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'ship-1',
-    type: 'packet',
-    owner: 0,
-    originalOwner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 10,
-    cargoUsed: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-1',
+  type: 'packet',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 10,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
-function createState(): GameState {
-  return {
-    gameId: 'LOCAL',
-    scenario: 'Bi-Planetary',
-    scenarioRules: {},
-    escapeMoralVictoryAchieved: false,
-    turnNumber: 1,
-    phase: 'astrogation',
-    activePlayer: 0,
-    ships: [
-      createShip({
-        id: 'selected',
-        owner: 0,
-        position: { q: 0, r: 0 },
-        velocity: { dq: 1, dr: 0 },
-      }),
-      createShip({
-        id: 'enemy-visible',
-        owner: 1,
-        position: { q: 2, r: -1 },
-        velocity: { dq: 0, dr: 1 },
-        detected: true,
-      }),
-      createShip({
-        id: 'enemy-hidden',
-        owner: 1,
-        position: { q: 3, r: -2 },
-        velocity: { dq: 1, dr: -1 },
-        detected: false,
-      }),
-    ],
-    ordnance: [
-      {
-        id: 'mine-1',
-        type: 'mine',
-        owner: 0,
-        position: { q: 1, r: 1 },
-        velocity: { dq: 0, dr: 0 },
-        turnsRemaining: 3,
-        destroyed: false,
-      },
-    ],
-    pendingAstrogationOrders: null,
-    pendingAsteroidHazards: [],
-    destroyedAsteroids: [],
-    destroyedBases: [],
-    players: [
-      {
-        connected: true,
-        ready: true,
-        targetBody: 'Mars',
-        homeBody: 'Venus',
-        bases: ['0,1'],
-        escapeWins: false,
-      },
-      {
-        connected: true,
-        ready: true,
-        targetBody: 'Venus',
-        homeBody: 'Mars',
-        bases: ['2,2'],
-        escapeWins: false,
-      },
-    ],
-    winner: null,
-    winReason: null,
-  };
-}
+const createState = (): GameState => ({
+  gameId: 'LOCAL',
+  scenario: 'Bi-Planetary',
+  scenarioRules: {},
+  escapeMoralVictoryAchieved: false,
+  turnNumber: 1,
+  phase: 'astrogation',
+  activePlayer: 0,
+  ships: [
+    createShip({
+      id: 'selected',
+      owner: 0,
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+    }),
+    createShip({
+      id: 'enemy-visible',
+      owner: 1,
+      position: { q: 2, r: -1 },
+      velocity: { dq: 0, dr: 1 },
+      detected: true,
+    }),
+    createShip({
+      id: 'enemy-hidden',
+      owner: 1,
+      position: { q: 3, r: -2 },
+      velocity: { dq: 1, dr: -1 },
+      detected: false,
+    }),
+  ],
+  ordnance: [
+    {
+      id: 'mine-1',
+      type: 'mine',
+      owner: 0,
+      position: { q: 1, r: 1 },
+      velocity: { dq: 0, dr: 0 },
+      turnsRemaining: 3,
+      lifecycle: 'active' as const,
+    },
+  ],
+  pendingAstrogationOrders: null,
+  pendingAsteroidHazards: [],
+  destroyedAsteroids: [],
+  destroyedBases: [],
+  players: [
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Mars',
+      homeBody: 'Venus',
+      bases: ['0,1'],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Venus',
+      homeBody: 'Mars',
+      bases: ['2,2'],
+      escapeWins: false,
+    },
+  ],
+  winner: null,
+  winReason: null,
+});
 
-function createMap(): SolarSystemMap {
-  return {
-    hexes: new Map<string, MapHex>([
-      [
-        '0,1',
-        {
-          terrain: 'space',
-          base: { name: 'Mars Base', bodyName: 'Mars' },
-        },
-      ],
-      [
-        '2,2',
-        {
-          terrain: 'space',
-          base: { name: 'Venus Base', bodyName: 'Venus' },
-        },
-      ],
-    ]),
-    bodies: [],
-    bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
-  };
-}
+const createMap = (): SolarSystemMap => ({
+  hexes: new Map<string, MapHex>([
+    [
+      '0,1',
+      {
+        terrain: 'space',
+        base: { name: 'Mars Base', bodyName: 'Mars' },
+      },
+    ],
+    [
+      '2,2',
+      {
+        terrain: 'space',
+        base: { name: 'Venus Base', bodyName: 'Venus' },
+      },
+    ],
+  ]),
+  bodies: [],
+  bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
+});
 
 describe('renderer vector helpers', () => {
   it('builds selected ship and base detection overlays', () => {

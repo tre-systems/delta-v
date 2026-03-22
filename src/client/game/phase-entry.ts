@@ -25,7 +25,7 @@ const getUnambiguousOwnedShipId = (
 ): string | null => {
   if (!gameState) return null;
   const alive = gameState.ships.filter(
-    (ship) => ship.owner === playerId && !ship.destroyed,
+    (ship) => ship.owner === playerId && ship.lifecycle !== 'destroyed',
   );
   return alive.length === 1 ? alive[0].id : null;
 };

@@ -78,7 +78,9 @@ export const buildDetectionRangeViews = (
 
   const selectedShip = state.ships.find(
     (ship) =>
-      ship.id === selectedShipId && ship.owner === playerId && !ship.destroyed,
+      ship.id === selectedShipId &&
+      ship.owner === playerId &&
+      ship.lifecycle !== 'destroyed',
   );
 
   if (selectedShip) {
@@ -147,8 +149,7 @@ export const buildVelocityVectorViews = (
   return state.ships
     .filter(
       (ship) =>
-        !ship.landed &&
-        !ship.destroyed &&
+        ship.lifecycle === 'active' &&
         (ship.owner === playerId || ship.detected),
     )
     .map((ship) => {

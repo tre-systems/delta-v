@@ -84,8 +84,8 @@ export const pickBy = <V>(
  * if no predicate matches.
  *
  *   cond(
- *     [ship.destroyed, 'skip'],
- *     [ship.landed && !isNuke, 'immune'],
+ *     [ship.lifecycle === 'destroyed', 'skip'],
+ *     [ship.lifecycle === 'landed' && !isNuke, 'immune'],
  *     [distance <= range, 'in-range'],
  *   ) ?? 'out-of-range'
  */
@@ -110,7 +110,9 @@ export const compact = <T>(arr: readonly (T | null | undefined)[]): T[] =>
  * Map and filter in one pass. The projection returns
  * T | null | undefined; nullish results are dropped.
  *
- *   filterMap(ships, s => s.destroyed ? null : s.position)
+ *   filterMap(ships, s =>
+ *     s.lifecycle === 'destroyed' ? null : s.position
+ *   )
  */
 export const filterMap = <T, U>(
   arr: readonly T[],

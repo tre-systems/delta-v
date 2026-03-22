@@ -41,7 +41,7 @@ describe('game-client-local', () => {
     const ship = state.ships[0];
 
     state.activePlayer = 0;
-    ship.landed = false;
+    ship.lifecycle = 'active';
     ship.position = { q: 20, r: 0 };
     ship.velocity = { dq: 0, dr: 0 };
 
@@ -62,7 +62,7 @@ describe('game-client-local', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST3', findBaseHex);
     const ship = state.ships[0];
 
-    ship.landed = false;
+    ship.lifecycle = 'active';
     state.phase = 'combat';
     state.activePlayer = 0;
     state.pendingAsteroidHazards = [
@@ -99,8 +99,8 @@ describe('game-client-local', () => {
 
     state.phase = 'combat';
     state.activePlayer = 0;
-    state.ships[0].landed = false;
-    state.ships[1].landed = false;
+    state.ships[0].lifecycle = 'active';
+    state.ships[1].lifecycle = 'active';
     state.ships[0].position = { q: 20, r: 0 };
     state.ships[1].position = { q: 21, r: 0 };
     state.ships[0].velocity = { dq: 0, dr: 0 };
@@ -145,7 +145,7 @@ describe('game-client-local', () => {
 
     expect(hasOwnedPendingAsteroidHazards(state, 0)).toBe(true);
 
-    myShip.destroyed = true;
+    myShip.lifecycle = 'destroyed';
 
     expect(hasOwnedPendingAsteroidHazards(state, 0)).toBe(false);
   });

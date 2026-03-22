@@ -73,7 +73,7 @@ export const getSelectedShip = (
     if (match) return match;
   }
 
-  const alive = myShips.filter((ship) => !ship.destroyed);
+  const alive = myShips.filter((ship) => ship.lifecycle !== 'destroyed');
 
   return alive.length === 1 ? alive[0] : null;
 };
@@ -118,9 +118,12 @@ const getFleetStatus = (state: GameState, playerId: number): string => {
 
   const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
 
-  const myAlive = count(myShips, (ship) => !ship.destroyed);
+  const myAlive = count(myShips, (ship) => ship.lifecycle !== 'destroyed');
 
-  const enemyAlive = count(enemyShips, (ship) => !ship.destroyed);
+  const enemyAlive = count(
+    enemyShips,
+    (ship) => ship.lifecycle !== 'destroyed',
+  );
 
   const statusParts: string[] = [];
 
@@ -129,7 +132,7 @@ const getFleetStatus = (state: GameState, playerId: number): string => {
   }
 
   const activeOrdnance = state.ordnance.filter(
-    (ordnance) => !ordnance.destroyed,
+    (ordnance) => ordnance.lifecycle !== 'destroyed',
   );
 
   if (activeOrdnance.length === 0) {
@@ -249,10 +252,10 @@ export const deriveHudViewModel = (
     canOverload: stats?.canOverload ?? false,
     canEmplaceBase:
       selectedShip?.baseStatus === 'carryingBase' &&
-      !selectedShip.destroyed &&
+      selectedShip.lifecycle !== 'destroyed' &&
       !selectedShip.resuppliedThisTurn,
     fleetStatus: getFleetStatus(state, playerId),
-    selectedShipLanded: selectedShip?.landed ?? false,
+    selectedShipLanded: selectedShip?.lifecycle === 'landed',
     selectedShipDisabled: (selectedShip?.damage.disabledTurns ?? 0) > 0,
     selectedShipHasBurn: selectedShip
       ? (planning.burns.get(selectedShip.id) ?? null) !== null
@@ -279,9 +282,12 @@ export const getGameOverStats = (
 
   return {
     turns: state.turnNumber,
-    myShipsAlive: count(myShips, (ship) => !ship.destroyed),
+    myShipsAlive: count(myShips, (ship) => ship.lifecycle !== 'destroyed'),
     myShipsTotal: myShips.length,
-    enemyShipsAlive: count(enemyShips, (ship) => !ship.destroyed),
+    enemyShipsAlive: count(
+      enemyShips,
+      (ship) => ship.lifecycle !== 'destroyed',
+    ),
     enemyShipsTotal: enemyShips.length,
   };
 };

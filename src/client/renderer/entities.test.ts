@@ -13,62 +13,61 @@ import {
   shouldShowOrbitIndicator,
 } from './entities';
 
-function createShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'ship-1',
-    type: 'packet',
-    owner: 0,
-    originalOwner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 10,
-    cargoUsed: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-1',
+  type: 'packet',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 10,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
-function createState(ships: Ship[]): GameState {
-  return {
-    gameId: 'LOCAL',
-    scenario: 'Bi-Planetary',
-    scenarioRules: {},
-    escapeMoralVictoryAchieved: false,
-    turnNumber: 1,
-    phase: 'astrogation',
-    activePlayer: 0,
-    ships,
-    ordnance: [],
-    pendingAstrogationOrders: null,
-    pendingAsteroidHazards: [],
-    destroyedAsteroids: [],
-    destroyedBases: [],
-    players: [
-      {
-        connected: true,
-        ready: true,
-        targetBody: 'Mars',
-        homeBody: 'Venus',
-        bases: [],
-        escapeWins: false,
-      },
-      {
-        connected: true,
-        ready: true,
-        targetBody: 'Venus',
-        homeBody: 'Mars',
-        bases: [],
-        escapeWins: false,
-      },
-    ],
-    winner: null,
-    winReason: null,
-  };
-}
+const createState = (ships: Ship[]): GameState => ({
+  gameId: 'LOCAL',
+  scenario: 'Bi-Planetary',
+  scenarioRules: {},
+  escapeMoralVictoryAchieved: false,
+  turnNumber: 1,
+  phase: 'astrogation',
+  activePlayer: 0,
+  ships,
+  ordnance: [],
+  pendingAstrogationOrders: null,
+  pendingAsteroidHazards: [],
+  destroyedAsteroids: [],
+  destroyedBases: [],
+  players: [
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Mars',
+      homeBody: 'Venus',
+      bases: [],
+      escapeWins: false,
+    },
+    {
+      connected: true,
+      ready: true,
+      targetBody: 'Venus',
+      homeBody: 'Mars',
+      bases: [],
+      escapeWins: false,
+    },
+  ],
+  winner: null,
+  winReason: null,
+});
 
 describe('renderer entity helpers', () => {
   it('filters visible ships by ownership, detection, and animation state', () => {
@@ -76,7 +75,11 @@ describe('renderer entity helpers', () => {
       createShip({ id: 'mine', owner: 0, detected: false }),
       createShip({ id: 'enemy-visible', owner: 1, detected: true }),
       createShip({ id: 'enemy-hidden', owner: 1, detected: false }),
-      createShip({ id: 'destroyed', owner: 0, destroyed: true }),
+      createShip({
+        id: 'destroyed',
+        owner: 0,
+        lifecycle: 'destroyed',
+      }),
     ]);
 
     expect(getVisibleShips(state, 0, false).map((ship) => ship.id)).toEqual([

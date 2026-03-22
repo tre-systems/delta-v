@@ -54,7 +54,7 @@ describe('aiAstrogation', () => {
   it('destroyed ships are skipped (no order generated)', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
-    aiShip.destroyed = true;
+    aiShip.lifecycle = 'destroyed';
     const orders = aiAstrogation(state, 1, map);
     const destroyedOrder = orders.find((o) => o.shipId === aiShip.id);
     expect(destroyedOrder).toBeUndefined();
@@ -63,7 +63,7 @@ describe('aiAstrogation', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     // AI is player 1, starts landed at Venus, target is Mars
     const aiShip = must(state.ships.find((s) => s.owner === 1));
-    expect(aiShip.landed).toBe(true);
+    expect(aiShip.lifecycle).toBe('landed');
     const orders = aiAstrogation(state, 1, map);
     // AI should burn to take off, not stay landed
     expect(orders[0].burn).not.toBeNull();
@@ -96,7 +96,7 @@ describe('aiAstrogation', () => {
   it('does not choose overload after the ship has already used its allowance', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.position = { q: 10, r: 0 };
     aiShip.velocity = { dq: 0, dr: 0 };
     aiShip.fuel = 10;
@@ -112,7 +112,7 @@ describe('aiOrdnance', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     // Destroy all enemy ships
     for (const s of state.ships.filter((s) => s.owner === 0)) {
-      s.destroyed = true;
+      s.lifecycle = 'destroyed';
     }
     const launches = aiOrdnance(state, 1, map);
     expect(launches).toHaveLength(0);
@@ -135,7 +135,7 @@ describe('aiOrdnance', () => {
   it('does not launch from disabled ships', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.damage.disabledTurns = 2;
     const launches = aiOrdnance(state, 1, map);
     expect(launches).toHaveLength(0);
@@ -146,9 +146,9 @@ describe('aiOrdnance', () => {
     const enemyShip = must(state.ships.find((s) => s.owner === 0));
     // Place ships close together and not landed
     aiShip.position = { q: 0, r: 0 };
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     enemyShip.position = { q: 3, r: 0 };
-    enemyShip.landed = false;
+    enemyShip.lifecycle = 'active';
     const launches = aiOrdnance(state, 1, map);
     // Corvette can overload and has enough cargo for torpedo
     if (launches.length > 0) {
@@ -164,10 +164,10 @@ describe('aiOrdnance', () => {
     const ship1 = must(state.ships.find((s) => s.owner === 1));
     // Place ships close together, not landed
     ship0.position = { q: 0, r: 0 };
-    ship0.landed = false;
+    ship0.lifecycle = 'active';
     ship0.velocity = { dq: 0, dr: 0 };
     ship1.position = { q: 4, r: 0 };
-    ship1.landed = false;
+    ship1.lifecycle = 'active';
     ship1.velocity = { dq: 0, dr: 0 };
     // Make ship1 outgunned by giving ship0 extra combat strength (simulate damage)
     // ship1 is a frigate with cargo=40, so it can launch nukes
@@ -183,11 +183,11 @@ describe('aiOrdnance', () => {
     const enforcers = state.ships.filter((s) => s.owner === 1);
     const pilgrims = state.ships.filter((s) => s.owner === 0);
     enforcers.forEach((s, i) => {
-      s.landed = false;
+      s.lifecycle = 'active';
       s.position = { q: i * 2, r: 0 };
     });
     pilgrims.forEach((s, i) => {
-      s.landed = false;
+      s.lifecycle = 'active';
       s.position = { q: i * 2 + 1, r: 0 };
     });
     const launches = aiOrdnance(state, 1, map);
@@ -202,7 +202,7 @@ describe('aiCombat', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     // Destroy AI ships
     for (const s of state.ships.filter((s) => s.owner === 1)) {
-      s.destroyed = true;
+      s.lifecycle = 'destroyed';
     }
     const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(0);
@@ -210,7 +210,7 @@ describe('aiCombat', () => {
   it('returns empty when no enemies exist', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     for (const s of state.ships.filter((s) => s.owner === 0)) {
-      s.destroyed = true;
+      s.lifecycle = 'destroyed';
     }
     const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(0);
@@ -223,11 +223,11 @@ describe('aiCombat', () => {
     aiShip.position = { q: 0, r: 0 };
     aiShip.lastMovementPath = [{ q: 0, r: 0 }];
     aiShip.velocity = { dq: 0, dr: 0 };
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     enemyShip.position = { q: 1, r: 0 };
     enemyShip.lastMovementPath = [{ q: 1, r: 0 }];
     enemyShip.velocity = { dq: 0, dr: 0 };
-    enemyShip.landed = false;
+    enemyShip.lifecycle = 'active';
     const attacks = aiCombat(state, 1, openMap);
     // At adjacent range with equal strength, AI should attack
     expect(attacks.length).toBeGreaterThanOrEqual(1);
@@ -243,11 +243,11 @@ describe('aiCombat', () => {
     aiShip.position = { q: 0, r: 0 };
     aiShip.lastMovementPath = [{ q: 0, r: 0 }];
     aiShip.velocity = { dq: 0, dr: 0 };
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     enemyShip.position = { q: 2, r: 0 };
     enemyShip.lastMovementPath = [{ q: 2, r: 0 }];
     enemyShip.velocity = { dq: 0, dr: 0 };
-    enemyShip.landed = false;
+    enemyShip.lifecycle = 'active';
     const blockedMap: SolarSystemMap = {
       hexes: new Map([
         [
@@ -272,17 +272,17 @@ describe('aiCombat', () => {
       enforcers[i].position = { q: 0, r: i };
       enforcers[i].lastMovementPath = [{ q: 0, r: i }];
       enforcers[i].velocity = { dq: 0, dr: 0 };
-      enforcers[i].landed = false;
+      enforcers[i].lifecycle = 'active';
     }
     pilgrim.position = { q: 1, r: 0 };
     pilgrim.lastMovementPath = [{ q: 1, r: 0 }];
     pilgrim.velocity = { dq: 0, dr: 0 };
-    pilgrim.landed = false;
+    pilgrim.lifecycle = 'active';
     // Destroy other pilgrims
     for (const s of state.ships.filter(
       (s) => s.owner === 0 && s.id !== pilgrim.id,
     )) {
-      s.destroyed = true;
+      s.lifecycle = 'destroyed';
     }
     const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(1);
@@ -297,10 +297,10 @@ describe('aiCombat', () => {
     // Place them far apart -- poor odds
     aiShip.position = { q: 0, r: 0 };
     aiShip.velocity = { dq: 0, dr: 0 };
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     enemyShip.position = { q: 8, r: 0 };
     enemyShip.velocity = { dq: 3, dr: 0 };
-    enemyShip.landed = false;
+    enemyShip.lifecycle = 'active';
     // Easy AI should skip combat with bad range + velocity mods
     const attacks = aiCombat(state, 1, map, 'easy');
     expect(attacks).toHaveLength(0);
@@ -311,10 +311,10 @@ describe('aiCombat', () => {
     const enemyShip = must(state.ships.find((s) => s.owner === 0));
     aiShip.position = { q: 0, r: 0 };
     aiShip.velocity = { dq: 0, dr: 0 };
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     enemyShip.position = { q: 1, r: 0 };
     enemyShip.velocity = { dq: 0, dr: 0 };
-    enemyShip.landed = false;
+    enemyShip.lifecycle = 'active';
     const attacks = aiCombat(state, 1, map);
     if (attacks.length > 0) {
       const allShipIds = new Set(state.ships.map((s) => s.id));
@@ -338,7 +338,7 @@ describe('AI scenario handling', () => {
     const state = createGame(SCENARIOS.duel, map, 'FA02', findBaseHex);
     // Unland all ships and place opposing fleets far apart
     for (const ship of state.ships) {
-      ship.landed = false;
+      ship.lifecycle = 'active';
       ship.position = ship.owner === 0 ? { q: -10, r: 0 } : { q: 10, r: 0 };
       ship.velocity = { dq: 0, dr: 0 };
     }
@@ -351,7 +351,7 @@ describe('AI scenario handling', () => {
     const state = createGame(SCENARIOS.blockade, map, 'BK01', findBaseHex);
     // The corvette (player 1) starts in space
     const dreadnaught = must(state.ships.find((s) => s.owner === 1));
-    expect(dreadnaught.landed).toBe(false);
+    expect(dreadnaught.lifecycle).toBe('active');
     const orders = aiAstrogation(state, 1, map);
     expect(orders).toHaveLength(1);
   });
@@ -359,7 +359,7 @@ describe('AI scenario handling', () => {
     const state = createGame(SCENARIOS.blockade, map, 'BK02', findBaseHex);
     const runner = must(state.ships.find((s) => s.owner === 0));
     // Unland runner and place it in open space
-    runner.landed = false;
+    runner.lifecycle = 'active';
     runner.position = { q: -3, r: -5 };
     runner.velocity = { dq: 0, dr: 0 };
     const orders = aiAstrogation(state, 0, map, 'hard');
@@ -384,8 +384,8 @@ describe('AI scenario handling', () => {
         const state = createGame(scenario, map, 'DF01', findBaseHex);
         // Unland ships for meaningful AI decisions
         for (const s of state.ships) {
-          if (!s.destroyed) {
-            s.landed = false;
+          if (s.lifecycle !== 'destroyed') {
+            s.lifecycle = 'active';
             s.velocity = { dq: 0, dr: 0 };
           }
         }
@@ -403,7 +403,7 @@ describe('aiAstrogation — escape strategy', () => {
   it('escape AI prefers directions that increase distance from center', () => {
     const state = createGame(SCENARIOS.escape, map, 'ESC1', findBaseHex);
     const pilgrim = must(state.ships.find((s) => s.owner === 0));
-    pilgrim.landed = false;
+    pilgrim.lifecycle = 'active';
     pilgrim.position = { q: 0, r: -15 };
     pilgrim.velocity = { dq: 0, dr: -2 };
     const orders = aiAstrogation(state, 0, map, 'hard');
@@ -425,7 +425,7 @@ describe('aiAstrogation — captured ships', () => {
   it('captured ships get null burn', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'CAP1', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
-    aiShip.controlStatus = 'captured';
+    aiShip.control = 'captured';
     const orders = aiAstrogation(state, 1, map);
     const capturedOrder = orders.find((o) => o.shipId === aiShip.id);
     expect(capturedOrder).toBeDefined();
@@ -446,7 +446,7 @@ describe('aiAstrogation — checkpoint race', () => {
   it('grandTour: AI navigates toward unvisited bodies', () => {
     const state = createGame(SCENARIOS.grandTour, map, 'GT01', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
-    expect(aiShip.landed).toBe(true);
+    expect(aiShip.lifecycle).toBe('landed');
     const orders = aiAstrogation(state, 1, map, 'normal');
     expect(orders).toHaveLength(1);
     // Should take off
@@ -456,7 +456,7 @@ describe('aiAstrogation — checkpoint race', () => {
     const state = createGame(SCENARIOS.grandTour, map, 'GT02', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
     // Place ship in open space away from gravity wells
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.position = { q: -5, r: 0 };
     aiShip.velocity = { dq: -1, dr: -1 };
     aiShip.fuel = 20;
@@ -472,7 +472,7 @@ describe('aiAstrogation — checkpoint race', () => {
   it('grandTour: AI diverts to nearest base when low on fuel', () => {
     const state = createGame(SCENARIOS.grandTour, map, 'GT03', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.position = { q: 0, r: 0 };
     aiShip.velocity = { dq: 1, dr: 0 };
     aiShip.fuel = 3; // Very low fuel
@@ -487,7 +487,7 @@ describe('aiAstrogation — checkpoint race', () => {
   it('grandTour: does not use overloads since combatDisabled', () => {
     const state = createGame(SCENARIOS.grandTour, map, 'GT04', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.position = { q: 5, r: 0 };
     aiShip.velocity = { dq: 0, dr: 0 };
     aiShip.fuel = 20;
@@ -504,7 +504,7 @@ describe('aiAstrogation — easy AI randomization', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.1); // < 0.25 -> triggers random
     const state = createGame(SCENARIOS.biplanetary, map, 'RAND', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.position = { q: 0, r: 0 };
     aiShip.velocity = { dq: 0, dr: 0 };
     aiShip.fuel = 10;
@@ -522,7 +522,7 @@ describe('aiAstrogation — easy AI randomization', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5); // >= 0.25 -> no random
     const state = createGame(SCENARIOS.biplanetary, map, 'RAND', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.position = { q: 0, r: 0 };
     aiShip.velocity = { dq: 0, dr: 0 };
     aiShip.fuel = 10;
@@ -535,11 +535,11 @@ describe('aiAstrogation — pure combat positioning', () => {
     const state = createGame(SCENARIOS.duel, map, 'CMB1', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
     const enemyShip = must(state.ships.find((s) => s.owner === 0));
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.position = { q: 15, r: 0 };
     aiShip.velocity = { dq: -1, dr: 0 };
     aiShip.fuel = 20;
-    enemyShip.landed = false;
+    enemyShip.lifecycle = 'active';
     enemyShip.position = { q: -15, r: 0 };
     enemyShip.velocity = { dq: 1, dr: 0 };
     const orders = aiAstrogation(state, 1, map, 'hard');
@@ -551,9 +551,9 @@ describe('aiAstrogation — pure combat positioning', () => {
     const aiShip = must(state.ships.find((s) => s.owner === 1));
     const enemyShip = must(state.ships.find((s) => s.owner === 0));
     // AI is landed but has fuel
-    aiShip.landed = true;
+    aiShip.lifecycle = 'landed';
     aiShip.fuel = 20;
-    enemyShip.landed = false;
+    enemyShip.lifecycle = 'active';
     enemyShip.position = { q: 10, r: 0 };
     enemyShip.velocity = { dq: 0, dr: 0 };
     const orders = aiAstrogation(state, 1, map, 'hard');
@@ -567,12 +567,12 @@ describe('aiOrdnance — defensive mine-laying', () => {
     const pilgrim = must(state.ships.find((s) => s.owner === 0));
     const enforcer = must(state.ships.find((s) => s.owner === 1));
     // Set up escape scenario: pilgrim fleeing with velocity, enforcer close behind
-    pilgrim.landed = false;
+    pilgrim.lifecycle = 'active';
     pilgrim.position = { q: 0, r: -10 };
     pilgrim.velocity = { dq: 0, dr: -3 };
     pilgrim.fuel = 10;
     pilgrim.cargoUsed = 0;
-    enforcer.landed = false;
+    enforcer.lifecycle = 'active';
     enforcer.position = { q: 1, r: -8 };
     enforcer.velocity = { dq: 0, dr: -2 };
     // Pilgrim needs a pending burn order (mine rule requires burn)
@@ -597,13 +597,13 @@ describe('aiOrdnance — defensive mine-laying', () => {
     const state = createGame(SCENARIOS.escape, map, 'DFM2', findBaseHex);
     const pilgrim = must(state.ships.find((s) => s.owner === 0));
     const enforcer = must(state.ships.find((s) => s.owner === 1));
-    pilgrim.landed = false;
+    pilgrim.lifecycle = 'active';
     pilgrim.position = { q: 0, r: -10 };
     pilgrim.velocity = { dq: 0, dr: -3 };
     pilgrim.cargoUsed = 0;
     // Place enforcer far enough to avoid regular mine range (>4 for easy)
     // but within defensive mine range (<=8)
-    enforcer.landed = false;
+    enforcer.lifecycle = 'active';
     enforcer.position = { q: 0, r: -4 };
     state.pendingAstrogationOrders = [
       { shipId: pilgrim.id, burn: 0, overload: null },
@@ -623,10 +623,10 @@ describe('aiOrdnance — mine burn requirement', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'MBR1', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
     const enemy = must(state.ships.find((s) => s.owner === 0));
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.position = { q: 0, r: 0 };
     aiShip.cargoUsed = 0;
-    enemy.landed = false;
+    enemy.lifecycle = 'active';
     enemy.position = { q: 2, r: 0 };
     // No pending orders -> no burn -> no mine
     state.pendingAstrogationOrders = [];
@@ -638,13 +638,13 @@ describe('aiOrdnance — mine burn requirement', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'MBR2', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
     const enemy = must(state.ships.find((s) => s.owner === 0));
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.position = { q: 0, r: 0 };
     aiShip.cargoUsed = 0;
     // Corvette: cargo=5, mine=10 -> too small! Use a ship with more cargo.
     // Set up a frigate scenario instead
     aiShip.type = 'frigate';
-    enemy.landed = false;
+    enemy.lifecycle = 'active';
     enemy.position = { q: 3, r: 0 };
     state.pendingAstrogationOrders = [
       { shipId: aiShip.id, burn: 2, overload: null },
@@ -662,13 +662,13 @@ describe('aiOrdnance — nuke launch conditions', () => {
     const enemy = must(state.ships.find((s) => s.owner === 0));
     // Use frigate for both -- frigate has canOverload=true and cargo=40
     aiShip.type = 'frigate';
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.position = { q: 0, r: 0 };
     aiShip.velocity = { dq: 0, dr: 0 };
     aiShip.cargoUsed = 0;
     // Make enemy very strong (dreadnaught)
     enemy.type = 'dreadnaught';
-    enemy.landed = false;
+    enemy.lifecycle = 'active';
     enemy.position = { q: 4, r: 0 };
     enemy.velocity = { dq: 0, dr: 0 };
     const launches = aiOrdnance(state, 1, map, 'hard');
@@ -682,11 +682,11 @@ describe('aiOrdnance — nuke launch conditions', () => {
     const aiShip = must(state.ships.find((s) => s.owner === 1));
     const enemy = must(state.ships.find((s) => s.owner === 0));
     aiShip.type = 'frigate';
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.position = { q: 0, r: 0 };
     aiShip.cargoUsed = 0;
     enemy.type = 'dreadnaught';
-    enemy.landed = false;
+    enemy.lifecycle = 'active';
     enemy.position = { q: 4, r: 0 };
     const launches = aiOrdnance(state, 1, map, 'normal');
     const nukeLaunch = launches.find((l) => l.ordnanceType === 'nuke');
@@ -703,9 +703,9 @@ describe('aiOrdnance — easy AI skip', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'SKIP', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
     const enemy = must(state.ships.find((s) => s.owner === 0));
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     aiShip.position = { q: 0, r: 0 };
-    enemy.landed = false;
+    enemy.lifecycle = 'active';
     enemy.position = { q: 2, r: 0 };
     const launches = aiOrdnance(state, 1, map, 'easy');
     expect(launches).toHaveLength(0);
@@ -719,10 +719,10 @@ describe('aiCombat — anti-nuke targeting', () => {
     aiShip.position = { q: 0, r: 0 };
     aiShip.lastMovementPath = [{ q: 0, r: 0 }];
     aiShip.velocity = { dq: 0, dr: 0 };
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     // Move enemy far away (no LOS for ship combat)
     enemy.position = { q: 50, r: 0 };
-    enemy.landed = false;
+    enemy.lifecycle = 'active';
     // Place a nuke near AI ship
     state.ordnance.push({
       id: 'nuke-1',
@@ -730,7 +730,7 @@ describe('aiCombat — anti-nuke targeting', () => {
       owner: 0,
       position: { q: 2, r: 0 },
       velocity: { dq: -1, dr: 0 },
-      destroyed: false,
+      lifecycle: 'active' as const,
       turnsRemaining: 3,
     });
     const attacks = aiCombat(state, 1, openMap);
@@ -748,12 +748,12 @@ describe('aiCombat — anti-nuke targeting', () => {
     aiShip.position = { q: 0, r: 0 };
     aiShip.lastMovementPath = [{ q: 0, r: 0 }];
     aiShip.velocity = { dq: 0, dr: 0 };
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     // Enemy far away
     enemy.position = { q: 8, r: 0 };
     enemy.lastMovementPath = [{ q: 8, r: 0 }];
     enemy.velocity = { dq: 0, dr: 0 };
-    enemy.landed = false;
+    enemy.lifecycle = 'active';
     // Nuke very close
     state.ordnance.push({
       id: 'nuke-close',
@@ -761,7 +761,7 @@ describe('aiCombat — anti-nuke targeting', () => {
       owner: 0,
       position: { q: 1, r: 0 },
       velocity: { dq: 0, dr: 0 },
-      destroyed: false,
+      lifecycle: 'active' as const,
       turnsRemaining: 3,
     });
     const attacks = aiCombat(state, 1, openMap);
@@ -783,13 +783,13 @@ describe('aiCombat — easy AI single attack', () => {
       s.position = { q: 0, r: i };
       s.lastMovementPath = [{ q: 0, r: i }];
       s.velocity = { dq: 0, dr: 0 };
-      s.landed = false;
+      s.lifecycle = 'active';
     }
     for (const [i, s] of pilgrims.entries()) {
       s.position = { q: 1, r: i };
       s.lastMovementPath = [{ q: 1, r: i }];
       s.velocity = { dq: 0, dr: 0 };
-      s.landed = false;
+      s.lifecycle = 'active';
     }
     const attacks = aiCombat(state, 1, openMap, 'easy');
     // Easy AI should attack at most one target
@@ -804,11 +804,11 @@ describe('aiCombat — landed enemy skipping', () => {
     aiShip.position = { q: 0, r: 0 };
     aiShip.lastMovementPath = [{ q: 0, r: 0 }];
     aiShip.velocity = { dq: 0, dr: 0 };
-    aiShip.landed = false;
+    aiShip.lifecycle = 'active';
     enemy.position = { q: 1, r: 0 };
     enemy.lastMovementPath = [{ q: 1, r: 0 }];
     enemy.velocity = { dq: 0, dr: 0 };
-    enemy.landed = true; // Landed ships can't be attacked
+    enemy.lifecycle = 'landed'; // Landed ships can't be attacked
     const attacks = aiCombat(state, 1, openMap);
     expect(attacks).toHaveLength(0);
   });
@@ -823,13 +823,13 @@ describe('aiCombat — multiple targets', () => {
       s.position = { q: 0, r: 0 };
       s.lastMovementPath = [{ q: 0, r: 0 }];
       s.velocity = { dq: 0, dr: 0 };
-      s.landed = false;
+      s.lifecycle = 'active';
     }
     for (const [i, s] of pilgrims.entries()) {
       s.position = { q: 2, r: i };
       s.lastMovementPath = [{ q: 2, r: i }];
       s.velocity = { dq: 0, dr: 0 };
-      s.landed = false;
+      s.lifecycle = 'active';
     }
     const attacks = aiCombat(state, 1, openMap, 'hard');
     // Verify no attacker appears in multiple attacks

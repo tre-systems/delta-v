@@ -14,99 +14,93 @@ import {
   getSelectedShip,
 } from './helpers';
 
-function createShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: 'ship-0',
-    type: 'transport',
-    owner: 0,
-    originalOwner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    fuel: 10,
-    cargoUsed: 0,
-    nukesLaunchedSinceResupply: 0,
-    resuppliedThisTurn: false,
-    landed: false,
-    destroyed: false,
-    detected: true,
-    damage: { disabledTurns: 0 },
-    ...overrides,
-  };
-}
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-0',
+  type: 'transport',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 10,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
 
-function createOrdnance(overrides: Partial<Ordnance> = {}): Ordnance {
-  return {
-    id: 'ord-0',
-    type: 'mine',
-    owner: 0,
-    position: { q: 0, r: 0 },
-    velocity: { dq: 0, dr: 0 },
-    turnsRemaining: 5,
-    destroyed: false,
-    ...overrides,
-  };
-}
+const createOrdnance = (overrides: Partial<Ordnance> = {}): Ordnance => ({
+  id: 'ord-0',
+  type: 'mine',
+  owner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  turnsRemaining: 5,
+  lifecycle: 'active' as const,
+  ...overrides,
+});
 
-function createPlayers(): [PlayerState, PlayerState] {
-  return [
-    {
-      connected: true,
-      ready: true,
-      targetBody: '',
-      homeBody: 'Terra',
-      bases: ['0,0'],
-      escapeWins: false,
-    },
-    {
-      connected: true,
-      ready: true,
-      targetBody: 'Mars',
-      homeBody: 'Mars',
-      bases: ['1,1'],
-      escapeWins: false,
-    },
-  ];
-}
+const createPlayers = (): [PlayerState, PlayerState] => [
+  {
+    connected: true,
+    ready: true,
+    targetBody: '',
+    homeBody: 'Terra',
+    bases: ['0,0'],
+    escapeWins: false,
+  },
+  {
+    connected: true,
+    ready: true,
+    targetBody: 'Mars',
+    homeBody: 'Mars',
+    bases: ['1,1'],
+    escapeWins: false,
+  },
+];
 
-function createState(overrides: Partial<GameState> = {}): GameState {
-  return {
-    gameId: 'TEST',
-    scenario: 'test',
-    scenarioRules: {},
-    escapeMoralVictoryAchieved: false,
-    turnNumber: 3,
-    phase: 'astrogation',
-    activePlayer: 0,
-    ships: [
-      createShip({
-        id: 'p0s0',
-        type: 'packet',
-        cargoUsed: 10,
-      }),
-      createShip({
-        id: 'p0s1',
-        type: 'transport',
-        owner: 0,
-        position: { q: 1, r: 0 },
-      }),
-      createShip({
-        id: 'p1s0',
-        type: 'corsair',
-        owner: 1,
-        position: { q: 5, r: 0 },
-      }),
-    ],
-    ordnance: [],
-    pendingAstrogationOrders: null,
-    pendingAsteroidHazards: [],
-    destroyedAsteroids: [],
-    destroyedBases: [],
-    players: createPlayers(),
-    winner: null,
-    winReason: null,
-    ...overrides,
-  };
-}
+const createState = (overrides: Partial<GameState> = {}): GameState => ({
+  gameId: 'TEST',
+  scenario: 'test',
+  scenarioRules: {},
+  escapeMoralVictoryAchieved: false,
+  turnNumber: 3,
+  phase: 'astrogation',
+  activePlayer: 0,
+  ships: [
+    createShip({
+      id: 'p0s0',
+      type: 'packet',
+      cargoUsed: 10,
+    }),
+    createShip({
+      id: 'p0s1',
+      type: 'transport',
+      owner: 0,
+      position: { q: 1, r: 0 },
+    }),
+    createShip({
+      id: 'p1s0',
+      type: 'corsair',
+      owner: 1,
+      position: { q: 5, r: 0 },
+    }),
+  ],
+  ordnance: [],
+  pendingAstrogationOrders: null,
+  pendingAsteroidHazards: [],
+  destroyedAsteroids: [],
+  destroyedBases: [],
+  players: createPlayers(),
+  winner: null,
+  winReason: null,
+  ...overrides,
+});
 
 describe('getSelectedShip', () => {
   it('returns the ship matching selectedId', () => {
@@ -146,7 +140,7 @@ describe('getSelectedShip', () => {
         createShip({
           id: 'dead',
           owner: 0,
-          destroyed: true,
+          lifecycle: 'destroyed',
         }),
         createShip({ id: 'enemy', owner: 1 }),
       ],
@@ -200,13 +194,13 @@ describe('game client helpers', () => {
           id: 'p0s1',
           type: 'packet',
           owner: 0,
-          destroyed: true,
+          lifecycle: 'destroyed',
         }),
         createShip({
           id: 'p1s0',
           type: 'corsair',
           owner: 1,
-          destroyed: true,
+          lifecycle: 'destroyed',
         }),
       ],
       ordnance: [
@@ -281,7 +275,7 @@ describe('game client helpers', () => {
           id: 'p1s0',
           type: 'corsair',
           owner: 1,
-          destroyed: true,
+          lifecycle: 'destroyed',
         }),
       ],
     });
@@ -319,17 +313,16 @@ describe('game client helpers', () => {
         createShip({
           id: 'p0s0',
           owner: 0,
-          destroyed: false,
         }),
         createShip({
           id: 'p0s1',
           owner: 0,
-          destroyed: true,
+          lifecycle: 'destroyed',
         }),
         createShip({
           id: 'p1s0',
           owner: 1,
-          destroyed: true,
+          lifecycle: 'destroyed',
         }),
       ],
     });

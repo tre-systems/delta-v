@@ -19,8 +19,11 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   fuel: 20,
   cargoUsed: 0,
   resuppliedThisTurn: false,
-  landed: false,
-  destroyed: false,
+  lifecycle: 'active' as const,
+  control: 'own' as const,
+  heroismAvailable: false,
+  overloadUsed: false,
+  nukesLaunchedSinceResupply: 0,
   detected: true,
   pendingGravityEffects: [],
   damage: { disabledTurns: 0 },
@@ -338,7 +341,7 @@ describe('landed ship properties', () => {
       fc.property(arbOpenPosition(), (pos) => {
         const ship = makeShip({
           position: pos,
-          landed: true,
+          lifecycle: 'landed',
           velocity: { dq: 0, dr: 0 },
         });
         const course = computeCourse(ship, null, map);
