@@ -140,6 +140,29 @@ export const listen = <T extends EventTarget, K extends string>(
   return () => target.removeEventListener(event, handler, options);
 };
 
+// --- List rendering ---
+
+/**
+ * Clear a container and render a list of items into it.
+ *
+ * Each item is rendered by the `renderItem` callback,
+ * which receives the item and its index and returns an
+ * HTMLElement to append. This replaces the common
+ * clearHTML → for-loop → createElement → appendChild
+ * pattern across view classes.
+ */
+export const renderList = <T>(
+  container: HTMLElement,
+  items: T[],
+  renderItem: (item: T, index: number) => HTMLElement,
+): void => {
+  clearHTML(container);
+
+  for (let i = 0; i < items.length; i++) {
+    container.appendChild(renderItem(items[i], i));
+  }
+};
+
 // --- Visibility ---
 
 /** Hide an element by setting display to 'none'. */

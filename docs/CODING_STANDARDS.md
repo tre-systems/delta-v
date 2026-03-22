@@ -43,6 +43,8 @@ Use `src/client/dom.ts` helpers for declarative DOM construction in UI code:
 - **`el(tag, props, ...children)`** — Create elements with class, text, handlers, and children in one expression instead of multi-line createElement/className/addEventListener/appendChild chains.
 - **`visible(el, condition)` / `show(el)` / `hide(el)`** — Toggle display instead of writing `.style.display = condition ? 'block' : 'none'` everywhere.
 - **`byId(id)`** — Typed `getElementById` that throws on missing elements, replacing `document.getElementById('x')!` non-null assertions.
+- **`listen(target, event, handler)`** — Bind an event listener and return a disposer. Use `scope.add(listen(...))` instead of manual addEventListener/removeEventListener pairs.
+- **`renderList(container, items, renderItem)`** — Clear a container and render a list of items. Use for collection-heavy views (ship lists, fleet shop/cart) instead of manual clearHTML → for-loop → appendChild.
 
 Prefer `el()` for building element trees programmatically.
 
