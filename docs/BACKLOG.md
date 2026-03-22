@@ -11,10 +11,6 @@ with the feature, not as a cleanup pass afterward.
 
 ---
 
-## Immediate Priorities
-
----
-
 ## Event-Sourced Match Architecture
 
 ### Event-sourced match persistence
