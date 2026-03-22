@@ -529,7 +529,8 @@ export const buildCurrentAttack = (
     planning.combatAttackerIds.includes(ship.id),
   );
 
-  const attackers = selectedAttackers;
+  const attackers =
+    selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
 
   const attackStrength = clampAttackStrength(
     getCombatStrength(attackers),

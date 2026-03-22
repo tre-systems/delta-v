@@ -537,7 +537,7 @@ body::before {
 
 .ship-entry.active {
   border-color: rgba(122, 215, 255, 0.42);
-  background: rgba(122, 215, 255, 0.1);
+  background: rgba(10, 24, 44, 0.88);
 }
 
 .ship-entry.destroyed {
