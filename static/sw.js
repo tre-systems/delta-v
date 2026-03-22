@@ -31,8 +31,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Never intercept WebSocket upgrades or API routes
-  if (url.pathname.startsWith('/ws/') || url.pathname === '/create') {
+  // Never intercept non-GET requests or API routes
+  if (
+    event.request.method !== 'GET' ||
+    url.pathname.startsWith('/ws/') ||
+    url.pathname === '/create' ||
+    url.pathname.startsWith('/join/') ||
+    url.pathname === '/error' ||
+    url.pathname === '/telemetry'
+  ) {
     return;
   }
 

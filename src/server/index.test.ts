@@ -175,6 +175,32 @@ describe('server index worker', () => {
     expect(initFetch).toHaveBeenCalledWith(request);
   });
 
+  it('proxies join preflight requests to the room durable object', async () => {
+    const { env, initFetch } = createEnv(async () =>
+      Response.json({ ok: true }, { status: 200 }),
+    );
+
+    const response = await worker.fetch(
+      new Request(
+        'https://delta-v.test/join/ABCDE?playerToken=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        {
+          method: 'GET',
+        },
+      ),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(env.GAME.idFromName).toHaveBeenCalledWith('ABCDE');
+    expect(initFetch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        url: 'https://room.internal/join?playerToken=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      }),
+    );
+  });
+
   it('falls back to static assets for non-game routes', async () => {
     const { env, assetsFetch } = createEnv();
     const request = new Request('https://delta-v.test/');

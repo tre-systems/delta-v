@@ -80,6 +80,9 @@ export class UIManager {
       showPhaseAlert: (phase, isMyTurn) => {
         this.overlayView.showPhaseAlert(phase, isMyTurn);
       },
+      onStatusText: (text) => {
+        this.gameLogView.setStatusText(text);
+      },
     });
 
     const mobileQuery = window.matchMedia('(max-width: 760px)');
@@ -123,7 +126,7 @@ export class UIManager {
   }
 
   private applyScreenVisibility(mode: UIScreenMode) {
-    const visibility = buildScreenVisibility(mode, true);
+    const visibility = buildScreenVisibility(mode);
 
     this.menuEl.style.display = visibility.menu;
     this.scenarioEl.style.display = visibility.scenario;

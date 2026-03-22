@@ -15,7 +15,6 @@ const installFixture = () => {
     <div id="phaseInfo"></div>
     <div id="objective"></div>
     <div id="fuelGauge"></div>
-    <div id="statusMsg" style="display:none"></div>
     <div id="latencyInfo"></div>
     <div id="fleetStatus"></div>
     <div id="helpOverlay" style="display:none"></div>
@@ -75,10 +74,12 @@ describe('HUDChromeView', () => {
   it('renders HUD state and alerts only when the phase key changes', () => {
     const queueLayoutSync = vi.fn();
     const showPhaseAlert = vi.fn();
+    const onStatusText = vi.fn();
     const view = new HUDChromeView({
       getIsMobile: () => false,
       queueLayoutSync,
       showPhaseAlert,
+      onStatusText,
     });
 
     view.update(buildInput());
@@ -91,8 +92,8 @@ describe('HUDChromeView', () => {
     expect(document.getElementById('fuelGauge')?.textContent).toBe(
       'Fuel: 8/12',
     );
-    expect(document.getElementById('statusMsg')?.textContent).toContain(
-      'Confirm',
+    expect(onStatusText).toHaveBeenCalledWith(
+      expect.stringContaining('Confirm'),
     );
     expect(
       (document.getElementById('undoBtn') as HTMLElement).style.display,
@@ -113,10 +114,12 @@ describe('HUDChromeView', () => {
 
   it('updates HUD chrome helpers and hides action buttons during movement', () => {
     const queueLayoutSync = vi.fn();
+    const onStatusText = vi.fn();
     const view = new HUDChromeView({
       getIsMobile: () => false,
       queueLayoutSync,
       showPhaseAlert: vi.fn(),
+      onStatusText,
     });
 
     view.updateLatency(275);
@@ -161,9 +164,7 @@ describe('HUDChromeView', () => {
     );
 
     view.showMovementStatus();
-    expect(document.getElementById('statusMsg')?.textContent).toBe(
-      'Ships moving...',
-    );
+    expect(onStatusText).toHaveBeenCalledWith('Ships moving...');
     for (const id of ACTION_BUTTON_IDS) {
       expect((document.getElementById(id) as HTMLElement).style.display).toBe(
         'none',

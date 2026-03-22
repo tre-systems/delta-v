@@ -41,9 +41,11 @@ const createCreatedGameDeps = (): CreatedGameSessionDeps & {
     ctx: {
       scenario: 'biplanetary',
       isLocalGame: false,
+      latencyMs: -1,
       playerId: -1,
       gameCode: null,
       gameState: null,
+      reconnectAttempts: 0,
       transport: null,
       aiDifficulty: 'normal',
     },
@@ -76,9 +78,11 @@ const createLocalGameDeps = (): LocalGameSessionDeps & {
     ctx: {
       scenario: 'biplanetary',
       isLocalGame: false,
+      latencyMs: -1,
       playerId: -1,
       gameCode: null,
       gameState: null,
+      reconnectAttempts: 0,
       transport: null,
       aiDifficulty: 'hard',
     },
@@ -129,6 +133,9 @@ const createJoinGameDeps = (): JoinGameSessionDeps & {
     buildGameRoute: (code) => `/game/${code}`,
     connect: track('connect'),
     setState: track('setState'),
+    validateJoin: async () => ({ ok: true }),
+    showToast: track('showToast'),
+    exitToMenu: track('exitToMenu'),
     calls,
   };
 };
@@ -147,8 +154,12 @@ const createExitToMenuDeps = (): ExitToMenuSessionDeps & {
 
   return {
     ctx: {
+      gameCode: 'ABCDE',
       gameState: createState(),
       isLocalGame: true,
+      latencyMs: 250,
+      playerId: 1,
+      reconnectAttempts: 3,
       transport: { kind: 'local' } as never,
     },
     stopPing: track('stopPing'),
@@ -202,17 +213,36 @@ describe('session-controller', () => {
     expect(deps.calls.runLocalAI).toBeUndefined();
   });
 
-  it('stores invite tokens when joining a multiplayer room', () => {
+  it('validates and stores invite tokens when joining a multiplayer room', async () => {
     const deps = createJoinGameDeps();
 
-    beginJoinGameSession(deps, 'FGHIJ', 'token-2');
+    await beginJoinGameSession(deps, 'FGHIJ', 'token-2');
 
     expect(deps.ctx.gameCode).toBe('FGHIJ');
     expect(deps.calls.storePlayerToken).toEqual([['FGHIJ', 'token-2']]);
     expect(deps.calls.resetTurnTelemetry).toHaveLength(1);
     expect(deps.calls.replaceRoute).toEqual([['/game/FGHIJ']]);
-    expect(deps.calls.connect).toEqual([['FGHIJ']]);
     expect(deps.calls.setState).toEqual([['connecting']]);
+    expect(deps.calls.connect).toEqual([['FGHIJ']]);
+  });
+
+  it('aborts join flow when preflight validation fails', async () => {
+    const deps = createJoinGameDeps();
+    deps.validateJoin = async () => ({
+      ok: false,
+      message: 'Game is full',
+    });
+
+    await beginJoinGameSession(deps, 'FGHIJ', 'token-2');
+
+    expect(deps.ctx.gameCode).toBeNull();
+    expect(deps.calls.showToast).toEqual([['Game is full', 'error']]);
+    expect(deps.calls.exitToMenu).toHaveLength(1);
+    expect(deps.calls.storePlayerToken).toBeUndefined();
+    expect(deps.calls.resetTurnTelemetry).toBeUndefined();
+    expect(deps.calls.replaceRoute).toBeUndefined();
+    expect(deps.calls.setState).toBeUndefined();
+    expect(deps.calls.connect).toBeUndefined();
   });
 
   it('clears the active session when returning to menu', () => {
@@ -224,8 +254,12 @@ describe('session-controller', () => {
     expect(deps.calls.stopTurnTimer).toHaveLength(1);
     expect(deps.calls.closeConnection).toHaveLength(1);
     expect(deps.calls.resetTurnTelemetry).toHaveLength(1);
+    expect(deps.ctx.gameCode).toBeNull();
     expect(deps.ctx.gameState).toBeNull();
     expect(deps.ctx.isLocalGame).toBe(false);
+    expect(deps.ctx.latencyMs).toBe(-1);
+    expect(deps.ctx.playerId).toBe(-1);
+    expect(deps.ctx.reconnectAttempts).toBe(0);
     expect(deps.ctx.transport).toBeNull();
     expect(deps.calls.replaceRoute).toEqual([['/']]);
     expect(deps.calls.setState).toEqual([['menu']]);

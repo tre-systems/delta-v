@@ -8,11 +8,7 @@ import {
   formatCombatResultEntries,
   formatMovementEventEntry,
 } from './formatters';
-import {
-  buildScreenVisibility,
-  toggleLogVisible,
-  type UIScreenMode,
-} from './screens';
+import { buildScreenVisibility, type UIScreenMode } from './screens';
 
 export interface GameLogViewDeps {
   onChat: (text: string) => void;
@@ -23,16 +19,15 @@ export class GameLogView {
   private readonly logEntriesEl = byId('logEntries');
   private readonly chatInputRow = byId('chatInputRow');
   private readonly chatInput = byId<HTMLInputElement>('chatInput');
-  private readonly logShowBtn = byId('logShowBtn');
   private readonly logLatestBar = byId('logLatestBar');
   private readonly logLatestText = byId('logLatestText');
-  private readonly logToggleBtn = byId('logToggleBtn');
 
   private lastTurnHeader: HTMLElement | null = null;
   private playerId = -1;
-  private isMobile = false;
-  private logVisible = true;
-  private logExpandedOnMobile = false;
+  private expanded = false;
+  private lastLogText = '';
+  private lastLogClass = '';
+  private statusText: string | null = null;
 
   constructor(private readonly deps: GameLogViewDeps) {
     this.bindChatInput();
@@ -43,51 +38,33 @@ export class GameLogView {
     this.playerId = id;
   }
 
-  setMobile(isMobile: boolean, hudVisible: boolean): void {
-    this.isMobile = isMobile;
-    this.syncVisibility(hudVisible);
+  setMobile(_isMobile: boolean, hudVisible: boolean): void {
+    if (hudVisible) {
+      this.collapse();
+    }
   }
 
   applyScreenVisibility(mode: UIScreenMode): void {
-    const visibility = buildScreenVisibility(mode, this.logVisible);
+    const visibility = buildScreenVisibility(mode);
 
     this.gameLogEl.style.display = visibility.gameLog;
-    this.logShowBtn.style.display = visibility.logShowBtn;
   }
 
   resetVisibilityState(): void {
     this.logLatestBar.style.display = 'none';
-    this.logExpandedOnMobile = false;
-    this.gameLogEl.classList.remove('mobile-expanded');
+    this.expanded = false;
   }
 
   showHUD(): void {
-    this.applyScreenVisibility('hud');
-
-    if (!this.isMobile) {
-      return;
-    }
-
-    this.gameLogEl.classList.remove('mobile-expanded');
-    this.gameLogEl.style.display = 'none';
-    this.logShowBtn.style.display = 'none';
-    this.logLatestBar.style.display = 'block';
-    this.logExpandedOnMobile = false;
+    this.collapse();
   }
 
   toggle(): void {
-    if (this.isMobile) {
-      if (this.logExpandedOnMobile) {
-        this.collapseMobileLog();
-      } else {
-        this.expandMobileLog();
-      }
-
-      return;
+    if (this.expanded) {
+      this.collapse();
+    } else {
+      this.expand();
     }
-
-    this.logVisible = toggleLogVisible(this.logVisible);
-    this.applyScreenVisibility('hud');
   }
 
   clear(): void {
@@ -158,6 +135,11 @@ export class GameLogView {
     this.logText(`${shipName} landed at ${bodyName}`, 'log-landed');
   }
 
+  setStatusText(text: string | null): void {
+    this.statusText = text;
+    this.syncLatestBar();
+  }
+
   private bindChatInput(): void {
     this.chatInput.addEventListener('keydown', (event) => {
       event.stopPropagation();
@@ -178,23 +160,15 @@ export class GameLogView {
 
   private bindLogControls(): void {
     this.logLatestBar.addEventListener('click', () => {
-      this.expandMobileLog();
+      this.expand();
     });
 
-    this.logToggleBtn.addEventListener('click', () => {
-      if (this.isMobile) {
-        this.collapseMobileLog();
-
+    this.gameLogEl.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.chat-input')) {
         return;
       }
 
-      this.logVisible = false;
-      this.applyScreenVisibility('hud');
-    });
-
-    this.logShowBtn.addEventListener('click', () => {
-      this.logVisible = true;
-      this.applyScreenVisibility('hud');
+      this.collapse();
     });
   }
 
@@ -203,46 +177,29 @@ export class GameLogView {
   }
 
   private updateLatestBar(text: string, cssClass: string): void {
-    if (!this.isMobile) {
-      return;
-    }
+    this.lastLogText = text;
+    this.lastLogClass = cssClass;
+    this.syncLatestBar();
+  }
+
+  private syncLatestBar(): void {
+    const text = this.statusText ?? this.lastLogText;
+    const cssClass = this.statusText ? 'log-status' : this.lastLogClass;
 
     this.logLatestText.textContent = text;
     this.logLatestText.className = `log-latest-text ${cssClass}`;
   }
 
-  private expandMobileLog(): void {
-    this.logExpandedOnMobile = true;
-    this.gameLogEl.classList.add('mobile-expanded');
+  private expand(): void {
+    this.expanded = true;
     this.gameLogEl.style.display = 'flex';
     this.logLatestBar.style.display = 'none';
     this.scrollToBottom();
   }
 
-  private collapseMobileLog(): void {
-    this.logExpandedOnMobile = false;
-    this.gameLogEl.classList.remove('mobile-expanded');
+  private collapse(): void {
+    this.expanded = false;
     this.gameLogEl.style.display = 'none';
     this.logLatestBar.style.display = 'block';
-  }
-
-  private syncVisibility(hudVisible: boolean): void {
-    if (!hudVisible) {
-      return;
-    }
-
-    if (this.isMobile) {
-      this.gameLogEl.classList.remove('mobile-expanded');
-      this.gameLogEl.style.display = 'none';
-      this.logShowBtn.style.display = 'none';
-      this.logLatestBar.style.display = 'block';
-      this.logExpandedOnMobile = false;
-      return;
-    }
-
-    this.gameLogEl.classList.remove('mobile-expanded');
-    this.logLatestBar.style.display = 'none';
-    this.logExpandedOnMobile = false;
-    this.applyScreenVisibility('hud');
   }
 }

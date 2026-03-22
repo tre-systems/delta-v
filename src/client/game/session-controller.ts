@@ -1,8 +1,10 @@
 import type { AIDifficulty } from '../../shared/ai';
 import type { GameState } from '../../shared/types/domain';
 import {
+  resetReconnectAttempts,
   setGameCode,
   setIsLocalGame,
+  setLatencyMs,
   setPlayerId,
   setScenario,
   setTransport,
@@ -20,6 +22,8 @@ interface SessionContext {
   gameState: GameState | null;
   transport: GameTransport | null;
   aiDifficulty: AIDifficulty;
+  reconnectAttempts: number;
+  latencyMs: number;
 }
 
 export interface CreatedGameSessionDeps {
@@ -65,10 +69,25 @@ export interface JoinGameSessionDeps {
   buildGameRoute: (code: string) => string;
   connect: (code: string) => void;
   setState: (state: ClientState) => void;
+  validateJoin: (
+    code: string,
+    playerToken: string | null,
+  ) => Promise<{ ok: true } | { ok: false; message: string }>;
+  showToast: (message: string, type: 'error' | 'info' | 'success') => void;
+  exitToMenu: () => void;
 }
 
 export interface ExitToMenuSessionDeps {
-  ctx: Pick<SessionContext, 'gameState' | 'isLocalGame' | 'transport'>;
+  ctx: Pick<
+    SessionContext,
+    | 'gameCode'
+    | 'gameState'
+    | 'isLocalGame'
+    | 'latencyMs'
+    | 'playerId'
+    | 'reconnectAttempts'
+    | 'transport'
+  >;
   stopPing: () => void;
   stopTurnTimer: () => void;
   closeConnection: () => void;
@@ -91,8 +110,8 @@ export const completeCreatedGameSession = (
     scenario,
     mode: 'multiplayer',
   });
-  deps.connect(code);
   deps.setState('waitingForOpponent');
+  deps.connect(code);
 };
 
 export const startLocalGameSession = (
@@ -135,19 +154,26 @@ export const startLocalGameSession = (
   }
 };
 
-export const beginJoinGameSession = (
+export const beginJoinGameSession = async (
   deps: JoinGameSessionDeps,
   code: string,
   playerToken: string | null = null,
-): void => {
+): Promise<void> => {
+  const validation = await deps.validateJoin(code, playerToken);
+
+  if (!validation.ok) {
+    deps.showToast(validation.message, 'error');
+    deps.exitToMenu();
+    return;
+  }
   if (playerToken) {
     deps.storePlayerToken(code, playerToken);
   }
   deps.resetTurnTelemetry();
   setGameCode(deps.ctx, code);
   deps.replaceRoute(deps.buildGameRoute(code));
-  deps.connect(code);
   deps.setState('connecting');
+  deps.connect(code);
 };
 
 export const exitToMenuSession = (deps: ExitToMenuSessionDeps): void => {
@@ -156,7 +182,11 @@ export const exitToMenuSession = (deps: ExitToMenuSessionDeps): void => {
   deps.closeConnection();
   deps.resetTurnTelemetry();
   clearClientGameState(deps.ctx);
+  setGameCode(deps.ctx, null);
   setIsLocalGame(deps.ctx, false);
+  setLatencyMs(deps.ctx, -1);
+  setPlayerId(deps.ctx, -1);
+  resetReconnectAttempts(deps.ctx);
   setTransport(deps.ctx, null);
   deps.replaceRoute('/');
   deps.setState('menu');

@@ -1,4 +1,4 @@
-import { byId, hide, show, visible } from '../dom';
+import { byId, hide, visible } from '../dom';
 import { ACTION_BUTTON_IDS } from './button-bindings';
 import { getLatencyStatus } from './formatters';
 import { buildHUDView, type HUDInput } from './hud';
@@ -7,6 +7,7 @@ export interface HUDChromeViewDeps {
   getIsMobile: () => boolean;
   queueLayoutSync: () => void;
   showPhaseAlert: (phase: string, isMyTurn: boolean) => void;
+  onStatusText: (text: string | null) => void;
 }
 
 export class HUDChromeView {
@@ -28,7 +29,6 @@ export class HUDChromeView {
   private readonly skipLogisticsBtn = byId('skipLogisticsBtn');
   private readonly confirmTransfersBtn = byId('confirmTransfersBtn');
   private readonly transferPanelEl = byId('transferPanel');
-  private readonly statusMsgEl = byId('statusMsg');
   private readonly latencyEl = byId('latencyInfo');
   private readonly fleetStatusEl = byId('fleetStatus');
   private readonly helpOverlayEl = byId('helpOverlay');
@@ -97,12 +97,7 @@ export class HUDChromeView {
     );
     visible(this.transferPanelEl, hudView.showTransferPanel, 'block');
 
-    if (hudView.statusText) {
-      this.statusMsgEl.textContent = hudView.statusText;
-      show(this.statusMsgEl, 'block');
-    } else {
-      hide(this.statusMsgEl);
-    }
+    this.deps.onStatusText(hudView.statusText);
 
     this.deps.queueLayoutSync();
   }
@@ -159,8 +154,7 @@ export class HUDChromeView {
   }
 
   showMovementStatus(): void {
-    this.statusMsgEl.textContent = 'Ships moving...';
-    show(this.statusMsgEl, 'block');
+    this.deps.onStatusText('Ships moving...');
 
     for (const id of ACTION_BUTTON_IDS) {
       hide(byId(id));
