@@ -1,5 +1,5 @@
 import type { Ship } from '../../shared/types/domain';
-import { byId, clearHTML, setTrustedHTML } from '../dom';
+import { byId, clearHTML, renderList, setTrustedHTML } from '../dom';
 import { computed, createDisposalScope, effect, signal } from '../reactive';
 import { buildShipListView } from './ship-list';
 
@@ -34,9 +34,7 @@ export class ShipListView {
         if (!state) return;
         const { input, view } = state;
 
-        clearHTML(this.shipListEl);
-
-        for (const [index, ship] of input.ships.entries()) {
+        renderList(this.shipListEl, input.ships, (ship, index) => {
           const entryView = view[index];
           const entry = document.createElement('div');
           entry.className = 'ship-entry';
@@ -80,8 +78,8 @@ export class ShipListView {
             });
           }
 
-          this.shipListEl.appendChild(entry);
-        }
+          return entry;
+        });
       }),
     );
   }

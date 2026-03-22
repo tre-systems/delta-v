@@ -67,53 +67,7 @@ behavior for the covered flow.
 `src/client/game/session-controller.ts`,
 `src/client/main.ts`
 
-### Reduce repetitive UI collection rendering
 
-Introduce a clearer pattern for list-like UI rendering where
-the current code repeatedly clears DOM, rebuilds nodes, and
-attaches fresh handlers.
-
-This is most obvious in fleet-building and ship-list style
-views. Even if the rendering remains imperative, a small
-keyed render helper or view-model-to-DOM utility would make
-the code easier to read and less error-prone.
-
-Near-term slice: apply the shared collection-rendering pattern
-to fleet shop / cart and ship-list views first, where full DOM
-rebuilds and freshly attached click handlers are currently the
-most obvious.
-
-Definition of done: at least one collection-heavy view uses
-a shared rendering helper or extracted pattern for keyed or
-structured item rendering, and that pattern is documented as
-the preferred approach for similar UI lists.
-
-**Files:** `src/client/ui/fleet-building-view.ts`,
-`src/client/ui/ship-list-view.ts`,
-shared UI helper module(s),
-`docs/CODING_STANDARDS.md`
-
-### Protocol contract fixtures and replay goldens
-
-Freeze representative wire-level examples for validated
-client messages, server responses, and replay payloads
-before the event-sourced migration expands those contracts.
-
-The runtime validators are explicit and well-tested, but the
-project still leans more on behavioral tests than on durable
-fixture-style contract coverage. A small corpus of canonical
-payloads would make protocol and replay changes safer and more
-reviewable.
-
-Near-term slice: freeze canonical fixtures for `gameStart`,
-`movementResult`, `combatResult`, `stateUpdate`, and replay
-archive payloads so later transport and event-sourced work does
-not broaden contracts silently.
-
-Definition of done: fixture-based tests cover key C2S message
-shapes, state-bearing S2C responses, and replay archive payloads,
-with golden updates treated as explicit contract changes rather
-than incidental test fallout.
 
 **Files:** `src/shared/protocol.ts`,
 `src/shared/protocol.test.ts`,
