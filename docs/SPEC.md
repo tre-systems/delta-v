@@ -360,7 +360,7 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 - Escape inspection, concealment, and moral-victory flow
 - Counterattack targets strongest attacker by default
 
-**Remaining divergences** (cross-referenced against Triplanetary 2018 rulebook):
+**Remaining divergences** (cross-referenced against [Triplanetary 2018 rulebook](http://www.sjgames.com/triplanetary/)):
 
 - **Contact geometry** *(accepted — low priority):* Mine/torpedo contact approximated by hex occupancy/path, not the stricter board geometric rule. The rulebook requires literal geometric line intersection with the printed hex area; two courses can pass through the same hex without their drawn lines touching. Hex-path intersection is a standard digital approximation. Fixing would require sub-hex geometry incompatible with axial coordinate math.
 
@@ -378,7 +378,7 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 - **Torch ship fuel transfer restriction** *(implemented):* The rulebook (p.8) states torch ships "may not transfer fuel to other ships." Enforced in `logistics.ts` — torch ships are excluded from fuel transfer eligibility.
 
-**Unimplemented rulebook scenarios** (from the Triplanetary 2018 PDF):
+**Unimplemented rulebook scenarios** (from the [Triplanetary 2018 PDF](http://www.sjgames.com/triplanetary/)):
 
 | Scenario | Type | Key Dependencies |
 |---|---|---|

@@ -131,7 +131,7 @@ I/O and alarm rescheduling churn.
 
 ### Event Sourcing for Replays
 
-To support the "Turn Replay" feature without state-snapshot bloat, transition the engine to emit a strict append-only log of domain events (`ShipMoved`, `DamageTaken` etc.).
+To support the "Turn Replay" feature without state-snapshot bloat, transition the engine to [Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html), emitting a strict append-only log of domain events (`ShipMoved`, `DamageTaken` etc.).
 
 ### Adopt `reactive.ts` for Complex UI
 
@@ -139,7 +139,7 @@ Begin adopting the existing zero-dependency `reactive.ts` signals library to con
 
 ### Engine Mutation Optimization
 
-Investigate adopting structural sharing (e.g., Immer) to optimize the `structuredClone(inputState)` brute-force deep-cloning occurring on every engine entry point.
+Investigate adopting structural sharing (e.g., [Immer](https://immerjs.github.io/immer/)) to optimize the `structuredClone(inputState)` brute-force deep-cloning occurring on every engine entry point.
 
 ---
 
