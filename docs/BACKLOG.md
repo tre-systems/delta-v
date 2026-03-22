@@ -11,6 +11,77 @@ with the feature, not as a cleanup pass afterward.
 
 ---
 
+## Review Follow-ups
+
+### Persist inactivity deadlines safely across DO hibernation
+
+`touchInactivity()` currently relies on an in-memory
+deadline cache between periodic storage flushes. That
+is unsafe for a hibernatable Durable Object because the
+newest deadline can be lost while an older stored alarm
+remains scheduled.
+
+Definition of done: the inactivity timeout survives
+hibernation without expiring early after recent
+traffic, and tests cover alarm behavior when the
+persisted deadline lags behind the last observed
+message.
+
+**Files:** `src/server/game-do/game-do.ts`,
+`src/server/game-do/session.ts`,
+`src/server/game-do/game-do.test.ts`
+
+### Record authoritative event actors explicitly
+
+`publishStateChange()` currently envelopes engine
+events using the post-transition `activePlayer`. That
+breaks actor provenance for turn-ending commands and
+system-driven actions such as disconnect forfeits and
+turn timeouts.
+
+Definition of done: player actions record the acting
+seat, system actions record `null`, and tests cover
+turn advance, timeout, and disconnect-forfeit paths.
+
+**Files:** `src/server/game-do/game-do.ts`,
+`src/server/game-do/archive.ts`,
+`src/server/game-do/archive.test.ts`,
+`src/shared/engine/engine-events.ts`
+
+### Make archived replays retrievable after room cleanup
+
+Completed matches are copied to R2, but replay fetches
+still read only Durable Object local storage. Once
+inactivity cleanup runs, archived matches become
+unreachable even though a persisted copy exists.
+
+Definition of done: replay fetch falls back to the
+archived store after local cleanup, auth still respects
+player visibility, and tests cover current-match and
+archived-match retrieval.
+
+**Files:** `src/server/game-do/game-do.ts`,
+`src/server/game-do/match-archive.ts`,
+`src/server/game-do/game-do.test.ts`,
+`src/server/index.ts`
+
+### Store match creation time independently from checkpoints
+
+Match archive metadata currently derives `createdAt`
+from the latest checkpoint timestamp. That drifts
+forward over long matches and makes duration analytics
+incorrect.
+
+Definition of done: match creation time is written once
+at match init, reused by archive export, and covered by
+tests across rematches and long-running games.
+
+**Files:** `src/server/game-do/game-do.ts`,
+`src/server/game-do/match-archive.ts`,
+`src/server/game-do/match-archive.test.ts`
+
+---
+
 ## Client Boundary Cleanup
 
 ### Continue shrinking `GameClient` into a composition root
