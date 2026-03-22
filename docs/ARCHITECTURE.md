@@ -106,6 +106,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `util.ts` | 170 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
 | `types/` | 384 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts`; all imports use bounded files directly, barrel retained for compatibility only) | Game-specific |
 | `protocol.ts` | 478 | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads) | Mostly generic |
+| `replay.ts` | 56 | Replay archive structure, entry helpers, match identity builder | Game-specific |
 | `constants.ts` | 146 | Ship stats, ordnance mass, detection ranges, combat/movement constants | Game-specific |
 | `movement.ts` | 435 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
 | `combat.ts` | 634 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
@@ -113,7 +114,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `ai.ts` | 688 | Rule-based AI with three difficulty levels and enforcer interception | Game-specific |
 | `ai-config.ts` | 250 | Per-difficulty AI scoring weights and strategy parameters | Game-specific |
 | `ai-scoring.ts` | 372 | Composable AI course scoring strategies (escape, nav, combat, gravity, race) | Game-specific |
-| `engine/game-engine.ts` | 45 | Barrel re-export: public engine API + result types | Game-specific |
+| `engine/game-engine.ts` | 58 | Barrel re-export: public engine API, result types, result classification helpers | Game-specific |
 | `engine/engine-events.ts` | 149 | `EngineEvent` discriminated union (22 granular domain event types) | Game-specific |
 | `engine/game-creation.ts` | 287 | Game initialization from scenario definition | Game-specific |
 | `engine/fleet-building.ts` | 128 | Fleet purchase phase (MegaCredit economy) | Game-specific |
@@ -165,6 +166,7 @@ The backend leverages Cloudflare's edge network.
 | `index.ts` | Worker entry: `/create`, `/join/:code`, `/replay/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern |
 | `protocol.ts` | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export | **~85% generic** — room/token/seat logic is game-agnostic |
 | `game-do/game-do.ts` | Durable Object: WebSocket lifecycle, state persistence, broadcasting | **~70% generic** — multiplayer plumbing is reusable |
+| `game-do/archive.ts` | Event log persistence, replay archive management, match identity | Game-specific |
 | `game-do/messages.ts` | S2C message construction from engine results | Game-specific |
 | `game-do/session.ts` | Disconnect grace period, alarm scheduling | **Fully generic** |
 | `game-do/turns.ts` | Turn timeout auto-advance | Mostly generic |
