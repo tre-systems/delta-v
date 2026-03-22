@@ -1,6 +1,12 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
 import { MOVEMENT_ANIM_DURATION } from '../../shared/constants';
+import { createGame } from '../../shared/engine/game-engine';
+import {
+  buildSolarSystemMap,
+  findBaseHex,
+  SCENARIOS,
+} from '../../shared/map-data';
 
 /**
  * Tests for the animation fallback timer in the Renderer.
@@ -248,5 +254,140 @@ describe('animation fallback timer', () => {
 
     expect(completed).toBe(false);
     expect(ctrl.animState).not.toBeNull();
+  });
+});
+
+describe('Renderer initialization and state methods', () => {
+  // The Renderer class requires an HTMLCanvasElement with a 2d context.
+  // In node/vitest, we use a minimal mock that satisfies the constructor.
+
+  const createMockCanvas = () => {
+    const ctx = {
+      fillRect: vi.fn(),
+      clearRect: vi.fn(),
+      beginPath: vi.fn(),
+      closePath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate: vi.fn(),
+      scale: vi.fn(),
+      setTransform: vi.fn(),
+      drawImage: vi.fn(),
+      measureText: vi.fn(() => ({ width: 0 })),
+      fillText: vi.fn(),
+      strokeText: vi.fn(),
+      createLinearGradient: vi.fn(() => ({
+        addColorStop: vi.fn(),
+      })),
+      createRadialGradient: vi.fn(() => ({
+        addColorStop: vi.fn(),
+      })),
+      canvas: { width: 800, height: 600 },
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      globalAlpha: 1,
+      font: '',
+      textAlign: '',
+      textBaseline: '',
+      lineCap: '',
+      lineJoin: '',
+      shadowBlur: 0,
+      shadowColor: '',
+      globalCompositeOperation: '',
+      setLineDash: vi.fn(),
+    };
+
+    return {
+      width: 800,
+      height: 600,
+      getContext: vi.fn(() => ctx),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      getBoundingClientRect: vi.fn(() => ({
+        left: 0,
+        top: 0,
+        width: 800,
+        height: 600,
+      })),
+      _ctx: ctx,
+    };
+  };
+
+  const createPlanningState = () => ({
+    selectedShipId: null,
+    burns: new Map<string, number | null>(),
+    overloads: new Map<string, number | null>(),
+    weakGravityChoices: new Map<string, Record<string, boolean>>(),
+    torpedoAccel: null as number | null,
+    torpedoAccelSteps: null as 1 | 2 | null,
+    ordnanceLaunches: [],
+    combatTargetId: null as string | null,
+    combatTargetType: null as 'ship' | 'ordnance' | null,
+    combatAttackerIds: [] as string[],
+    combatAttackStrength: null as number | null,
+    queuedAttacks: [] as { attackerIds: string[]; targetId: string }[],
+    hoverHex: null as { q: number; r: number } | null,
+    lastSelectedHex: null as string | null,
+    baseEmplacements: [] as string[],
+    transferPlan: [] as unknown[],
+  });
+
+  // Dynamic import to avoid pulling in DOM-dependent
+  // module at the top level in non-jsdom suites.
+  const importRenderer = async () => {
+    const mod = await import('./renderer');
+    return mod.Renderer;
+  };
+
+  it('constructs with a canvas mock and exposes camera', async () => {
+    const Renderer = await importRenderer();
+    const canvas = createMockCanvas();
+    const planning = createPlanningState();
+
+    const renderer = new Renderer(
+      canvas as unknown as HTMLCanvasElement,
+      planning,
+    );
+
+    expect(renderer).toBeDefined();
+    expect(renderer.camera).toBeDefined();
+    expect(canvas.getContext).toHaveBeenCalledWith('2d');
+  });
+
+  it('setMap, setPlayerId, and setGameState do not throw', async () => {
+    const Renderer = await importRenderer();
+    const canvas = createMockCanvas();
+    const planning = createPlanningState();
+    const renderer = new Renderer(
+      canvas as unknown as HTMLCanvasElement,
+      planning,
+    );
+
+    const map = buildSolarSystemMap();
+    const state = createGame(SCENARIOS.biplanetary, map, 'REND1', findBaseHex);
+
+    expect(() => renderer.setMap(map)).not.toThrow();
+    expect(() => renderer.setPlayerId(0)).not.toThrow();
+    expect(() => renderer.setGameState(state)).not.toThrow();
+  });
+
+  it('clearTrails resets trail state', async () => {
+    const Renderer = await importRenderer();
+    const canvas = createMockCanvas();
+    const planning = createPlanningState();
+    const renderer = new Renderer(
+      canvas as unknown as HTMLCanvasElement,
+      planning,
+    );
+
+    // Call clearTrails — should not throw even
+    // when no trails have been added
+    expect(() => renderer.clearTrails()).not.toThrow();
   });
 });
