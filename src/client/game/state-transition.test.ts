@@ -25,9 +25,29 @@ const createDeps = (
 ): StateTransitionDeps & {
   calls: Record<string, unknown[][]>;
   logisticsState: unknown;
+  hudSnapshots: Array<{
+    selectedShipId: string | null;
+    burnsSize: number;
+    overloadsSize: number;
+    weakGravityChoicesSize: number;
+    combatTargetId: string | null;
+    combatAttackerIds: string[];
+    queuedAttacksSize: number;
+    combatAttackStrength: number | null;
+  }>;
 } => {
   const calls: Record<string, unknown[][]> = {};
   let logisticsState: unknown;
+  const hudSnapshots: Array<{
+    selectedShipId: string | null;
+    burnsSize: number;
+    overloadsSize: number;
+    weakGravityChoicesSize: number;
+    combatTargetId: string | null;
+    combatAttackerIds: string[];
+    queuedAttacksSize: number;
+    combatAttackStrength: number | null;
+  }> = [];
 
   const track =
     (name: string) =>
@@ -39,6 +59,16 @@ const createDeps = (
   const deps: StateTransitionDeps & {
     calls: Record<string, unknown[][]>;
     logisticsState: unknown;
+    hudSnapshots: Array<{
+      selectedShipId: string | null;
+      burnsSize: number;
+      overloadsSize: number;
+      weakGravityChoicesSize: number;
+      combatTargetId: string | null;
+      combatAttackerIds: string[];
+      queuedAttacksSize: number;
+      combatAttackStrength: number | null;
+    }>;
   } = {
     ctx: {
       state: 'menu',
@@ -70,8 +100,27 @@ const createDeps = (
     },
     onStateChanged: track('onStateChanged'),
     hideTooltip: track('hideTooltip'),
-    updateHUD: track('updateHUD'),
-    resetCombatState: track('resetCombatState'),
+    updateHUD: () => {
+      hudSnapshots.push({
+        selectedShipId: deps.ctx.planningState.selectedShipId,
+        burnsSize: deps.ctx.planningState.burns.size,
+        overloadsSize: deps.ctx.planningState.overloads.size,
+        weakGravityChoicesSize: deps.ctx.planningState.weakGravityChoices.size,
+        combatTargetId: deps.ctx.planningState.combatTargetId,
+        combatAttackerIds: [...deps.ctx.planningState.combatAttackerIds],
+        queuedAttacksSize: deps.ctx.planningState.queuedAttacks.length,
+        combatAttackStrength: deps.ctx.planningState.combatAttackStrength,
+      });
+      track('updateHUD')();
+    },
+    resetCombatState: () => {
+      deps.ctx.planningState.combatTargetId = null;
+      deps.ctx.planningState.combatTargetType = null;
+      deps.ctx.planningState.combatAttackerIds = [];
+      deps.ctx.planningState.combatAttackStrength = null;
+      deps.ctx.planningState.queuedAttacks = [];
+      track('resetCombatState')();
+    },
     startCombatTargetWatch: track('startCombatTargetWatch'),
     setLogisticsUIState: (state) => {
       logisticsState = state;
@@ -81,6 +130,7 @@ const createDeps = (
     renderLogisticsPanel: track('renderLogisticsPanel'),
     calls,
     logisticsState,
+    hudSnapshots,
   };
 
   return deps;
@@ -111,6 +161,18 @@ describe('applyClientStateTransition', () => {
     expect(deps.calls['tutorial.onPhaseChange']).toEqual([
       ['astrogation', state.turnNumber],
     ]);
+    expect(deps.hudSnapshots).toEqual([
+      {
+        selectedShipId: state.ships[0].id,
+        burnsSize: 0,
+        overloadsSize: 0,
+        weakGravityChoicesSize: 0,
+        combatTargetId: null,
+        combatAttackerIds: [],
+        queuedAttacksSize: 0,
+        combatAttackStrength: null,
+      },
+    ]);
 
     expect(deps.ctx.planningState.selectedShipId).toBe(state.ships[0].id);
     expect(deps.ctx.planningState.lastSelectedHex).toBeNull();
@@ -134,5 +196,76 @@ describe('applyClientStateTransition', () => {
     expect(deps.calls.renderLogisticsPanel).toHaveLength(1);
     expect(deps.logisticsState).not.toBeNull();
     expect(deps.calls['tutorial.onPhaseChange']).toBeUndefined();
+  });
+
+  it('refreshes HUD after applying default ordnance selection', () => {
+    const baseState = createState();
+    const state = createState({
+      phase: 'ordnance',
+      scenarioRules: { allowedOrdnanceTypes: ['nuke'] },
+      ships: [
+        {
+          ...baseState.ships[0],
+          id: 'restricted',
+          type: 'packet',
+          owner: 0,
+          nukesLaunchedSinceResupply: 1,
+        },
+        {
+          ...baseState.ships[0],
+          id: 'launchable',
+          type: 'packet',
+          owner: 0,
+        },
+        {
+          ...baseState.ships[1],
+          id: 'enemy',
+          owner: 1,
+        },
+      ],
+    });
+    const deps = createDeps(state);
+    deps.ctx.planningState.selectedShipId = 'stale';
+
+    applyClientStateTransition(deps, 'playing_ordnance');
+
+    expect(deps.calls.updateHUD).toHaveLength(1);
+    expect(deps.hudSnapshots[0]?.selectedShipId).toBe('launchable');
+    expect(deps.ctx.planningState.selectedShipId).toBe('launchable');
+  });
+
+  it('refreshes HUD after combat planning state is reset', () => {
+    const state = createState({
+      phase: 'combat',
+    });
+    const deps = createDeps(state);
+
+    deps.ctx.planningState.combatTargetId = 'enemy';
+    deps.ctx.planningState.combatTargetType = 'ship';
+    deps.ctx.planningState.combatAttackerIds = ['p0s0'];
+    deps.ctx.planningState.combatAttackStrength = 3;
+    deps.ctx.planningState.queuedAttacks = [
+      { attackerIds: ['p0s0'], targetId: 'enemy' },
+    ];
+
+    applyClientStateTransition(deps, 'playing_combat');
+
+    expect(deps.calls.resetCombatState).toHaveLength(1);
+    expect(deps.calls.updateHUD).toHaveLength(1);
+    expect(deps.hudSnapshots).toEqual([
+      {
+        selectedShipId: null,
+        burnsSize: 0,
+        overloadsSize: 0,
+        weakGravityChoicesSize: 0,
+        combatTargetId: null,
+        combatAttackerIds: [],
+        queuedAttacksSize: 0,
+        combatAttackStrength: null,
+      },
+    ]);
+    expect(deps.ctx.planningState.combatTargetId).toBeNull();
+    expect(deps.ctx.planningState.combatAttackerIds).toEqual([]);
+    expect(deps.ctx.planningState.queuedAttacks).toEqual([]);
   });
 });

@@ -135,8 +135,7 @@ body::before {
 }
 
 .screen-page > .menu-content {
-  margin: 0 auto;
-  min-height: 100%;
+  margin: auto;
 }
 
 .menu-eyebrow {

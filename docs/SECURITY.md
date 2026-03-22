@@ -2,6 +2,8 @@
 
 This document describes the current security posture of Delta-V with emphasis on competitive multiplayer. It distinguishes protections that are already enforced from the risks that still remain if the game were exposed to untrusted public players.
 
+Related docs: [ARCHITECTURE](./ARCHITECTURE.md), [BACKLOG](./BACKLOG.md), [PLAYABILITY](./PLAYABILITY.md).
+
 ## Current Protections
 
 Delta-V now has a materially stronger authoritative-server boundary than the original prototype:
@@ -11,7 +13,7 @@ Delta-V now has a materially stronger authoritative-server boundary than the ori
 - Room creation is now authoritative: `/create` initializes the room, locks the scenario up front, and rejects room-code collisions.
 - The room creator receives a reserved player token for seat 0, and the copied invite link carries a guest invite token for seat 1.
 - Once the guest joins, that invite token is rotated into a private reconnect token for that player.
-- Reconnects require the stored player token, which prevents the old "next socket steals the disconnected seat" failure mode.
+- Reconnects require the stored player token, and seat reclamation is keyed to player identity even if the previous WebSocket has not finished closing yet.
 - Client-to-server WebSocket messages are runtime-validated before any engine handler executes, and malformed payloads are rejected instead of being trusted structurally.
 - Room codes are generated from a cryptographically strong RNG rather than `Math.random()`.
 
@@ -95,3 +97,9 @@ The next security-focused engineering step should be public-lobby hardening:
 - longer room identifiers and/or rate limiting
 - optional edge-side bot protection for public deployments
 - stronger identity/account binding if organized competitive play matters
+
+## Operational References
+
+- [Cloudflare WAF rate limiting rules](https://developers.cloudflare.com/waf/rate-limiting-rules/)
+- [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/)
+- [OWASP XSS overview](https://owasp.org/www-community/attacks/xss/)

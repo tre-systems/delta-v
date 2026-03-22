@@ -90,11 +90,27 @@ export class GameDO extends DurableObject<Env> {
     const tag = this.ctx.getTags(ws).find((t) => t.startsWith('player:'));
     return tag ? parseInt(tag.split(':')[1], 10) : null;
   }
-  private getPlayerCount(): number {
-    return (
-      this.ctx.getWebSockets('player:0').length +
-      this.ctx.getWebSockets('player:1').length
-    );
+  private getSeatOpen(): [boolean, boolean] {
+    return [
+      this.ctx.getWebSockets('player:0').length === 0,
+      this.ctx.getWebSockets('player:1').length === 0,
+    ];
+  }
+  private getConnectedSeatCountAfterJoin(
+    seatOpen: [boolean, boolean],
+    playerId: 0 | 1,
+  ): number {
+    const connectedSeats = seatOpen.filter((open) => !open).length;
+
+    return connectedSeats + (seatOpen[playerId] ? 1 : 0);
+  }
+  private replacePlayerSockets(playerId: 0 | 1): void {
+    for (const old of this.ctx.getWebSockets(`player:${playerId}`)) {
+      try {
+        this.replacedSockets.add(old);
+        old.close(1000, 'Replaced by new connection');
+      } catch {}
+    }
   }
   // --- State management ---
   private async getGameState(): Promise<GameState | null> {
@@ -176,7 +192,7 @@ export class GameDO extends DurableObject<Env> {
         issueNewToken: boolean;
         consumeInviteToken: boolean;
         disconnectedPlayer: number | null;
-        playerCount: number;
+        seatOpen: [boolean, boolean];
       }
   > {
     const roomConfig = await this.getRoomConfig();
@@ -196,14 +212,10 @@ export class GameDO extends DurableObject<Env> {
         }),
       };
     }
-    const playerCount = this.getPlayerCount();
     const disconnectedPlayer = normalizeDisconnectedPlayer(
       await this.ctx.storage.get<number>('disconnectedPlayer'),
     );
-    const seatOpen: [boolean, boolean] = [
-      this.ctx.getWebSockets('player:0').length === 0,
-      this.ctx.getWebSockets('player:1').length === 0,
-    ];
+    const seatOpen = this.getSeatOpen();
     const seatDecision = resolveSeatAssignment({
       presentedToken: presentedTokenRaw,
       disconnectedPlayer,
@@ -226,7 +238,7 @@ export class GameDO extends DurableObject<Env> {
       issueNewToken: seatDecision.issueNewToken,
       consumeInviteToken: seatDecision.consumeInviteToken,
       disconnectedPlayer,
-      playerCount,
+      seatOpen,
     };
   }
   private async rescheduleAlarm(): Promise<void> {
@@ -335,8 +347,12 @@ export class GameDO extends DurableObject<Env> {
       issueNewToken,
       consumeInviteToken,
       disconnectedPlayer,
-      playerCount,
+      seatOpen,
     } = joinAttempt;
+    const connectedSeatCountAfterJoin = this.getConnectedSeatCountAfterJoin(
+      seatOpen,
+      playerId,
+    );
     if (issueNewToken) {
       roomConfig.playerTokens[playerId] = generatePlayerToken();
       if (consumeInviteToken) {
@@ -353,15 +369,7 @@ export class GameDO extends DurableObject<Env> {
     if (shouldClearDisconnectMarker(disconnectedPlayer, playerId)) {
       await this.clearDisconnectMarker();
     }
-    // Close any existing sockets for this player
-    // to prevent duplicate broadcasts
-    const existing = this.ctx.getWebSockets(`player:${playerId}`);
-    for (const old of existing) {
-      try {
-        this.replacedSockets.add(old);
-        old.close(1000, 'Replaced by new connection');
-      } catch {}
-    }
+    this.replacePlayerSockets(playerId);
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server, [`player:${playerId}`]);
@@ -380,7 +388,7 @@ export class GameDO extends DurableObject<Env> {
       });
     }
     // Both players connected — start the game
-    if (!gameState && playerCount + 1 >= 2) {
+    if (!gameState && connectedSeatCountAfterJoin >= 2) {
       this.broadcast({ type: 'matchFound' });
       await this.initGame();
     }

@@ -4,6 +4,7 @@ import {
   skipCombat,
   skipOrdnance,
 } from '../../shared/engine/game-engine';
+import { getOrderableShipsForPlayer } from '../../shared/engine/util';
 import type {
   AstrogationOrder,
   GameState,
@@ -28,9 +29,10 @@ export const resolveTurnTimeoutOutcome = (
   const { activePlayer: playerId, phase } = gameState;
 
   if (phase === 'astrogation') {
-    const orders: AstrogationOrder[] = gameState.ships
-      .filter((ship) => ship.owner === playerId)
-      .map((ship) => ({ shipId: ship.id, burn: null }));
+    const orders: AstrogationOrder[] = getOrderableShipsForPlayer(
+      gameState,
+      playerId,
+    ).map((ship) => ({ shipId: ship.id, burn: null }));
 
     const result = processAstrogation(
       gameState,

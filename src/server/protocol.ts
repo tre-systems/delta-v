@@ -156,8 +156,10 @@ export const resolveSeatAssignment = (
 
   const seats = [0, 1] as const;
 
+  // Stored player tokens reclaim by player identity, even
+  // if the old socket has not closed yet.
   const tokenMatch = seats.find(
-    (p) => playerTokens[p] && seatOpen[p] && presentedToken === playerTokens[p],
+    (p) => playerTokens[p] && presentedToken === playerTokens[p],
   );
 
   if (tokenMatch !== undefined) {

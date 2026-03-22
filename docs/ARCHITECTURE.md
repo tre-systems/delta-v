@@ -10,6 +10,13 @@ archive helpers, while the next major phase moves the
 server toward an event-sourced match log with
 projections and checkpoints.
 
+Platform references:
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/)
+- [Cloudflare Durable Objects](https://developers.cloudflare.com/durable-objects/)
+- [Cloudflare Durable Objects WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/api/websockets/)
+- [MDN Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
+- [MDN Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
+
 ## 1. High-Level Architecture
 
 Delta-V employs a full-stack TypeScript architecture
@@ -143,9 +150,9 @@ The backend leverages Cloudflare's edge network.
 
 - **Room creation rate limit**: The Worker hashes the client IP and checks `POST /create` against either a configured Cloudflare rate-limit binding or an in-memory fallback (5 requests per IP per 60s window, 429 with `Retry-After`). The fallback protects a single worker isolate; production deployments should still configure a Cloudflare-global rule.
 
-- **Seat assignment**: `resolveSeatAssignment()` in `protocol.ts` implements a multi-step fallback: (1) player token match → returning player gets their original seat; (2) invite token match → new player consumes the token and gets the open seat; (3) tokenless join → safety net for future open lobbies; (4) no seats available → reject. Invite tokens are consumed on first use, preventing replay attacks.
+- **Seat assignment**: `resolveSeatAssignment()` in `protocol.ts` implements a multi-step fallback: (1) player token match → returning player gets their original seat, even if the previous socket is still open; (2) invite token match → new player consumes the token and gets the open seat; (3) tokenless join → safety net for future open lobbies; (4) no seats available → reject. Duplicate sockets are replaced only after reclaim is accepted, and match start uses unique connected seats rather than raw socket count.
 
-- **Disconnect grace period**: When a player disconnects, the DO stores a disconnect marker (player ID + 30s deadline) and schedules an alarm. If the player reconnects within 30s with a valid player token, the marker is cleared and the game continues. If the alarm fires with an unexpired marker, the game ends by forfeit. The marker is validated on reconnect — only the original player can reclaim the seat.
+- **Disconnect grace period**: When a player disconnects, the DO stores a disconnect marker (player ID + 30s deadline) and schedules an alarm. If the player reconnects within 30s with a valid player token, the marker is cleared and the game continues. If the alarm fires with an unexpired marker, the game ends by forfeit. The marker is validated on reconnect, and reclaim succeeds during the grace window even if the stale socket has not yet fully torn down.
 
 ### C. The Client (`client/`)
 The frontend renders the pure hex-grid state into a smooth, continuous graphical experience.
@@ -223,7 +230,7 @@ POST /create → Worker generates room code + tokens → DO /init
 GET /join/{code}?playerToken=X → optional preflight join validation
 GET /replay/{code}?playerToken=X&gameId=Y → authenticated replay / history fetch (currently archive-backed)
 WebSocket /ws/{code}?playerToken=X → DO accepts, tags socket with player ID
-Both players connected → createGame() → broadcast gameStart
+Both unique seats connected → createGame() → broadcast gameStart
 Game loop: C2S action → engine → save state/events → restart timer → broadcast S2C result
 Disconnect → 30s grace period → reconnect with token or forfeit
 ```
