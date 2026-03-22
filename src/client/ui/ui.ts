@@ -1,9 +1,4 @@
-import type {
-  CombatResult,
-  GameState,
-  MovementEvent,
-  Ship,
-} from '../../shared/types/domain';
+import type { GameState, Ship } from '../../shared/types/domain';
 import { byId, listen } from '../dom';
 import { createDisposalScope } from '../reactive';
 import { STATIC_BUTTON_BINDINGS } from './button-bindings';
@@ -34,11 +29,11 @@ export class UIManager {
   private layoutSyncFrame: number | null = null;
 
   private readonly fleetBuildingView: FleetBuildingView;
-  private readonly gameLogView: GameLogView;
+  readonly log: GameLogView;
   private readonly hudChromeView: HUDChromeView;
   private readonly shipListView: ShipListView;
   private readonly lobbyView: LobbyView;
-  private readonly overlayView: OverlayView;
+  readonly overlay: OverlayView;
 
   onEvent: ((event: UIEvent) => void) | null = null;
 
@@ -61,7 +56,7 @@ export class UIManager {
         this.emit({ type: 'fleetReady', purchases });
       },
     });
-    this.gameLogView = new GameLogView({
+    this.log = new GameLogView({
       onChat: (text) => {
         this.emit({ type: 'chat', text });
       },
@@ -76,19 +71,19 @@ export class UIManager {
         this.emit({ type: 'selectShip', shipId });
       },
     });
-    this.overlayView = new OverlayView();
+    this.overlay = new OverlayView();
     this.hudChromeView = new HUDChromeView({
       queueLayoutSync: () => this.queueLayoutSync(),
       showPhaseAlert: (phase, isMyTurn) => {
-        this.overlayView.showPhaseAlert(phase, isMyTurn);
+        this.overlay.showPhaseAlert(phase, isMyTurn);
       },
       onStatusText: (text) => {
-        this.gameLogView.setStatusText(text);
+        this.log.setStatusText(text);
       },
     });
     this.scope.add(() => {
       this.fleetBuildingView.dispose();
-      this.gameLogView.dispose();
+      this.log.dispose();
       this.hudChromeView.dispose();
       this.lobbyView.dispose();
       this.shipListView.dispose();
@@ -97,20 +92,14 @@ export class UIManager {
     this.mobileQuery = window.matchMedia('(max-width: 760px)');
     this.isMobile = this.mobileQuery.matches;
     this.hudChromeView.setMobile(this.isMobile);
-    this.gameLogView.setMobile(
-      this.isMobile,
-      this.hudEl.style.display !== 'none',
-    );
+    this.log.setMobile(this.isMobile, this.hudEl.style.display !== 'none');
 
     this.scope.add(
       listen(this.mobileQuery, 'change', (e) => {
         const matches = (e as MediaQueryListEvent).matches;
         this.isMobile = matches;
         this.hudChromeView.setMobile(matches);
-        this.gameLogView.setMobile(
-          matches,
-          this.hudEl.style.display !== 'none',
-        );
+        this.log.setMobile(matches, this.hudEl.style.display !== 'none');
       }),
     );
 
@@ -135,10 +124,6 @@ export class UIManager {
     this.onEvent?.(event);
   }
 
-  toggleLog() {
-    this.gameLogView.toggle();
-  }
-
   private applyScreenVisibility(mode: UIScreenMode) {
     const visibility = buildScreenVisibility(mode);
 
@@ -149,7 +134,7 @@ export class UIManager {
     this.gameOverEl.style.display = visibility.gameOver;
     this.shipListEl.style.display = visibility.shipList;
     this.fleetBuildingEl.style.display = visibility.fleetBuilding;
-    this.gameLogView.applyScreenVisibility(mode);
+    this.log.applyScreenVisibility(mode);
 
     byId('helpBtn').style.display = visibility.helpBtn;
     byId('soundBtn').style.display = visibility.soundBtn;
@@ -158,12 +143,12 @@ export class UIManager {
 
   hideAll() {
     this.applyScreenVisibility('hidden');
-    this.gameLogView.resetVisibilityState();
+    this.log.resetVisibilityState();
     this.resetLayoutMetrics();
   }
 
   setPlayerId(id: number) {
-    this.gameLogView.setPlayerId(id);
+    this.log.setPlayerId(id);
   }
 
   showMenu() {
@@ -196,7 +181,7 @@ export class UIManager {
   showHUD() {
     this.hideAll();
     this.applyScreenVisibility('hud');
-    this.gameLogView.showHUD();
+    this.log.showHUD();
     this.queueLayoutSync();
   }
 
@@ -222,6 +207,14 @@ export class UIManager {
     this.hudChromeView.updateFleetStatus(status);
   }
 
+  updateShipList(
+    ships: Ship[],
+    selectedId: string | null,
+    burns: Map<string, number | null>,
+  ) {
+    this.shipListView.update(ships, selectedId, burns);
+  }
+
   toggleHelpOverlay() {
     this.hudChromeView.toggleHelpOverlay();
   }
@@ -238,14 +231,6 @@ export class UIManager {
     this.hudChromeView.clearTurnTimer();
   }
 
-  updateShipList(
-    ships: Ship[],
-    selectedId: string | null,
-    burns: Map<string, number | null>,
-  ) {
-    this.shipListView.update(ships, selectedId, burns);
-  }
-
   showAttackButton(isVisible: boolean) {
     this.hudChromeView.showAttackButton(isVisible);
   }
@@ -256,68 +241,6 @@ export class UIManager {
 
   showMovementStatus() {
     this.hudChromeView.showMovementStatus();
-  }
-
-  showGameOver(
-    won: boolean,
-    reason: string,
-    stats?: {
-      turns: number;
-      myShipsAlive: number;
-      myShipsTotal: number;
-      enemyShipsAlive: number;
-      enemyShipsTotal: number;
-    },
-  ) {
-    this.overlayView.showGameOver(won, reason, stats);
-  }
-
-  showRematchPending() {
-    this.overlayView.showRematchPending();
-  }
-
-  showReconnecting(attempt: number, maxAttempts: number, onCancel: () => void) {
-    this.overlayView.showReconnecting(attempt, maxAttempts, onCancel);
-  }
-
-  hideReconnecting() {
-    this.overlayView.hideReconnecting();
-  }
-
-  // --- Toast notifications ---
-
-  showToast(message: string, type: 'error' | 'info' | 'success' = 'info') {
-    this.overlayView.showToast(message, type);
-  }
-
-  // --- Game log ---
-
-  clearLog() {
-    this.gameLogView.clear();
-  }
-
-  setChatEnabled(enabled: boolean) {
-    this.gameLogView.setChatEnabled(enabled);
-  }
-
-  logTurn(turn: number, player: string) {
-    this.gameLogView.logTurn(turn, player);
-  }
-
-  logText(text: string, cssClass = '') {
-    this.gameLogView.logText(text, cssClass);
-  }
-
-  logMovementEvents(events: MovementEvent[], ships: Ship[]) {
-    this.gameLogView.logMovementEvents(events, ships);
-  }
-
-  logCombatResults(results: CombatResult[], ships: Ship[]) {
-    this.gameLogView.logCombatResults(results, ships);
-  }
-
-  logLanding(shipName: string, bodyName: string) {
-    this.gameLogView.logLanding(shipName, bodyName);
   }
 
   private queueLayoutSync() {

@@ -41,12 +41,20 @@ export interface PresentationDeps {
     showLandingEffect: (hex: HexCoord) => void;
   };
   ui: {
-    logMovementEvents: (events: MovementEvent[], ships: Ship[]) => void;
-    logCombatResults: (results: CombatResult[], ships: Ship[]) => void;
-    showToast: (message: string, type: 'error' | 'info' | 'success') => void;
-    logText: (text: string, cssClass?: string) => void;
-    logLanding: (shipName: string, bodyName: string) => void;
-    showGameOver: (won: boolean, reason: string, stats?: GameOverStats) => void;
+    log: {
+      logMovementEvents: (events: MovementEvent[], ships: Ship[]) => void;
+      logCombatResults: (results: CombatResult[], ships: Ship[]) => void;
+      logText: (text: string, cssClass?: string) => void;
+      logLanding: (shipName: string, bodyName: string) => void;
+    };
+    overlay: {
+      showToast: (message: string, type: 'error' | 'info' | 'success') => void;
+      showGameOver: (
+        won: boolean,
+        reason: string,
+        stats?: GameOverStats,
+      ) => void;
+    };
   };
 }
 
@@ -54,10 +62,10 @@ const logLandings = (deps: PresentationDeps, movements: ShipMovement[]) => {
   const gameState = deps.getGameState();
   if (!gameState) return;
   for (const entry of deriveLandingLogEntries(gameState, movements)) {
-    deps.ui.logLanding(entry.shipName, entry.bodyName);
+    deps.ui.log.logLanding(entry.shipName, entry.bodyName);
     deps.renderer.showLandingEffect(entry.destination);
     if (entry.resupplyText) {
-      deps.ui.logText(entry.resupplyText);
+      deps.ui.log.logText(entry.resupplyText);
     }
   }
 };
@@ -75,7 +83,7 @@ export const presentMovementResult = (
   playThrust();
   if (events.length > 0) {
     deps.renderer.showMovementEvents(events);
-    deps.ui.logMovementEvents(events, state.ships);
+    deps.ui.log.logMovementEvents(events, state.ships);
     if (
       events.some(
         (event) => event.damageType === 'eliminated' || event.type === 'crash',
@@ -97,7 +105,7 @@ export const presentCombatResults = (
 ) => {
   deps.applyGameState(state);
   deps.renderer.showCombatResults(results, previousState);
-  deps.ui.logCombatResults(results, state.ships);
+  deps.ui.log.logCombatResults(results, state.ships);
   for (const [i, result] of results.entries()) {
     const target =
       result.targetType === 'ship'
@@ -119,7 +127,7 @@ export const presentCombatResults = (
           ? 'info'
           : 'info';
     setTimeout(
-      () => deps.ui.showToast(`${targetName}: ${outcome}`, toastType),
+      () => deps.ui.overlay.showToast(`${targetName}: ${outcome}`, toastType),
       i * 400,
     );
   }
@@ -141,13 +149,13 @@ export const showGameOverOutcome = (
   const gameState = deps.getGameState();
   const playerId = deps.getPlayerId();
   const plan = deriveGameOverPlan(gameState, playerId, won, reason);
-  deps.ui.logText(plan.logText, plan.logClass);
+  deps.ui.log.logText(plan.logText, plan.logClass);
   const loserShips =
     gameState?.ships.filter((ship: Ship) =>
       plan.loserShipIds.includes(ship.id),
     ) ?? [];
   if (loserShips.length === 0) {
-    deps.ui.showGameOver(won, reason, plan.stats);
+    deps.ui.overlay.showGameOver(won, reason, plan.stats);
     if (plan.resultSound === 'victory') {
       playVictory();
     } else {
@@ -158,7 +166,7 @@ export const showGameOverOutcome = (
   playExplosion();
   const animDuration = deps.renderer.triggerGameOverExplosions(loserShips);
   setTimeout(() => {
-    deps.ui.showGameOver(won, reason, plan.stats);
+    deps.ui.overlay.showGameOver(won, reason, plan.stats);
     if (plan.resultSound === 'victory') {
       playVictory();
     } else {

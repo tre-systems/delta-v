@@ -137,14 +137,18 @@ const createMessageHandlerDeps = (
       clearTrails() {},
     },
     ui: {
-      showToast() {},
-      logText() {},
-      setChatEnabled() {},
-      hideReconnecting() {},
       setPlayerId() {},
-      clearLog() {},
-      showRematchPending() {},
-      showGameOver() {},
+      log: {
+        logText() {},
+        setChatEnabled() {},
+        clear() {},
+      },
+      overlay: {
+        showToast() {},
+        hideReconnecting() {},
+        showRematchPending() {},
+        showGameOver() {},
+      },
       updateLatency() {},
     },
   };
