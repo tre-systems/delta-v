@@ -48,6 +48,10 @@ Guidance:
 - `GameClient`, `Renderer`, `Camera`, and `InputHandler`
   are reasonable class shells while they own long-lived
   mutable browser/runtime state.
+- If an imperative boundary binds DOM, window, or other
+  long-lived event listeners, it should own explicit
+  teardown via `dispose()` or equivalent returned
+  disposers rather than relying on page lifetime.
 - Smaller DOM views and helper managers should usually
   prefer `createXxx()` factories unless class identity
   materially simplifies the code.

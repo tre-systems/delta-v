@@ -64,6 +64,12 @@ describe('input interaction helpers', () => {
     expect(interactions.endPointer(15, 15)).toEqual({ x: 15, y: 15 });
   });
 
+  it('ignores pointer end events when no pointer is active', () => {
+    const interactions = createPointerInteractionManager(28);
+
+    expect(interactions.endPointer(10, 10)).toBeNull();
+  });
+
   it('computes pinch and wheel zoom factors', () => {
     const interactions = createPointerInteractionManager(28);
 
