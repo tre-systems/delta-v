@@ -6,12 +6,11 @@ import {
   buildRematchPendingView,
   buildScreenVisibility,
   buildWaitingScreenCopy,
-  toggleLogVisible,
 } from './screens';
 
 describe('ui-screens', () => {
   it('builds hidden visibility defaults', () => {
-    expect(buildScreenVisibility('hidden', true)).toEqual({
+    expect(buildScreenVisibility('hidden')).toEqual({
       menu: 'none',
       scenario: 'none',
       waiting: 'none',
@@ -19,7 +18,6 @@ describe('ui-screens', () => {
       gameOver: 'none',
       shipList: 'none',
       gameLog: 'none',
-      logShowBtn: 'none',
       fleetBuilding: 'none',
       helpBtn: 'none',
       soundBtn: 'none',
@@ -27,19 +25,13 @@ describe('ui-screens', () => {
     });
   });
 
-  it('builds HUD visibility using current log visibility', () => {
-    expect(buildScreenVisibility('hud', true)).toMatchObject({
+  it('builds HUD visibility with log hidden by default', () => {
+    expect(buildScreenVisibility('hud')).toMatchObject({
       hud: 'block',
       shipList: 'flex',
-      gameLog: 'flex',
-      logShowBtn: 'none',
+      gameLog: 'none',
       helpBtn: 'flex',
       soundBtn: 'flex',
-    });
-
-    expect(buildScreenVisibility('hud', false)).toMatchObject({
-      gameLog: 'none',
-      logShowBtn: 'block',
     });
   });
 
@@ -81,10 +73,5 @@ describe('ui-screens', () => {
       rematchText: 'Waiting...',
       rematchDisabled: true,
     });
-  });
-
-  it('toggles game-log visibility', () => {
-    expect(toggleLogVisible(true)).toBe(false);
-    expect(toggleLogVisible(false)).toBe(true);
   });
 });

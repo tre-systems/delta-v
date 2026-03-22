@@ -131,10 +131,10 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] Shared `isOrderableShip` rule, combat click/targeting fixes, nuke resupply fix
 
 ### Planned
-- [ ] **Turn Replay**: Review past turns and full game history
-- [ ] **Spectator Mode**: Watch ongoing battles
-- [ ] **New Scenarios**: Lateral 7, Fleet Mutiny, Retribution
-- [ ] **Rescue/passenger transfer**: For rescue scenarios
+- [ ] **Turn Replay**: Step through recorded turn history
+- [ ] **Spectator Mode**: Read-only live battle viewing
+- [ ] **Scenario Expansion**: Lateral 7, Fleet Mutiny, Retribution
+- [ ] **Passenger Rescue Mechanics**: Rescue-specific transfer and objective rules
 
 ---
 

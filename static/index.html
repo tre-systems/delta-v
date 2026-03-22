@@ -152,7 +152,6 @@
         <button id="confirmTransfersBtn" class="btn btn-confirm" style="display:none">CONFIRM TRANSFERS</button>
       </div>
       <div id="transferPanel" class="transfer-panel" style="display:none"></div>
-      <div id="statusMsg" class="status-msg"></div>
     </div>
   </div>
 
@@ -177,16 +176,12 @@
 
   <!-- Game log panel -->
   <div id="gameLog" class="game-log glass" style="display:none">
-    <div class="game-log-header">
-      <span>LOG</span>
-      <button id="logToggleBtn" class="log-toggle">×</button>
-    </div>
     <div id="logEntries" class="log-entries"></div>
     <div id="chatInputRow" class="chat-input-row" style="display:none">
-      <input id="chatInput" class="chat-input" type="text" maxlength="200" placeholder="Chat..." autocomplete="off">
+      <input id="chatInput" class="chat-input" type="text" maxlength="200"
+        placeholder="Chat..." autocomplete="off">
     </div>
   </div>
-  <button id="logShowBtn" class="log-show-btn" style="display:none">LOG</button>
   <div id="logLatestBar" class="log-latest-bar" style="display:none">
     <span id="logLatestText" class="log-latest-text"></span>
   </div>

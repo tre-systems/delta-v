@@ -61,7 +61,7 @@ describe('game-client-network', () => {
     expect(getReconnectDelayMs(7)).toBe(8000);
   });
 
-  it('only attempts reconnects for active games', () => {
+  it('only attempts reconnects after a session has connected', () => {
     const map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.duel, map, 'NET3', findBaseHex);
 
@@ -79,7 +79,7 @@ describe('game-client-network', () => {
       true,
     );
 
-    expect(shouldAttemptReconnect('connecting', 'ABCDE', null)).toBe(true);
+    expect(shouldAttemptReconnect('connecting', 'ABCDE', null)).toBe(false);
 
     expect(shouldAttemptReconnect('waitingForOpponent', 'ABCDE', null)).toBe(
       true,
@@ -103,8 +103,8 @@ describe('game-client-network', () => {
     });
 
     expect(deriveDisconnectHandling('connecting', 'ABCDE', null)).toEqual({
-      attemptReconnect: true,
-      nextState: null,
+      attemptReconnect: false,
+      nextState: 'menu',
     });
 
     expect(deriveDisconnectHandling('gameOver', 'ABCDE', state)).toEqual({

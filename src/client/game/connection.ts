@@ -26,6 +26,7 @@ export interface ConnectionDeps {
   ) => void;
   hideReconnecting: () => void;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
+  exitToMenu: () => void;
 }
 export interface ConnectionManager {
   connect: (code: string) => void;
@@ -70,18 +71,22 @@ export const createConnectionManager = (
   };
   const connect = (code: string) => {
     suppressDisconnectHandling = false;
-    ws = new WebSocket(
+    const socket = new WebSocket(
       buildWebSocketUrl(location, code, deps.getStoredPlayerToken(code)),
     );
-    ws.onmessage = (e) => deps.handleMessage(JSON.parse(e.data));
-    ws.onclose = () => {
+    ws = socket;
+    socket.onmessage = (e) => deps.handleMessage(JSON.parse(e.data));
+    socket.onclose = () => {
+      if (ws === socket) {
+        ws = null;
+      }
       const shouldHandleDisconnect = !suppressDisconnectHandling;
       suppressDisconnectHandling = false;
       if (shouldHandleDisconnect) {
         handleDisconnect();
       }
     };
-    ws.onerror = () => {}; // onclose fires after onerror
+    socket.onerror = () => {}; // onclose fires after onerror
     deps.setTransport(createWebSocketTransport((msg) => send(msg)));
     startPing();
   };
@@ -94,7 +99,7 @@ export const createConnectionManager = (
     if (plan.giveUp) {
       deps.hideReconnecting();
       deps.showToast('Could not reconnect to game', 'error');
-      deps.setState('menu');
+      deps.exitToMenu();
       return;
     }
     deps.setReconnectAttempts(must(plan.nextAttempt));
@@ -107,8 +112,7 @@ export const createConnectionManager = (
           clearTimeout(reconnectTimer);
           reconnectTimer = null;
         }
-        deps.setReconnectAttempts(0);
-        deps.setState('menu');
+        deps.exitToMenu();
       },
     );
     reconnectTimer = window.setTimeout(() => {
@@ -118,13 +122,21 @@ export const createConnectionManager = (
   };
   const handleDisconnect = () => {
     stopPing();
+    const currentState = deps.getClientState();
     const handling = deriveDisconnectHandling(
-      deps.getClientState(),
+      currentState,
       deps.getGameCode(),
       deps.getGameState(),
     );
     if (handling.attemptReconnect) {
       attemptReconnect();
+      return;
+    }
+    if (handling.nextState === 'menu') {
+      if (currentState === 'connecting') {
+        deps.showToast('Could not connect to game', 'error');
+      }
+      deps.exitToMenu();
       return;
     }
     if (handling.nextState) {

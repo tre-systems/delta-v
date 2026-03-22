@@ -31,6 +31,28 @@ const handleWebSocket = (
   return stub.fetch(request);
 };
 
+const handleJoinCheck = (
+  request: Request,
+  env: Env,
+  code: string,
+): Promise<Response> => {
+  const id = env.GAME.idFromName(code);
+  const stub = env.GAME.get(id);
+  const url = new URL(request.url);
+  const internalUrl = new URL('https://room.internal/join');
+  const playerToken = url.searchParams.get('playerToken');
+
+  if (playerToken) {
+    internalUrl.searchParams.set('playerToken', playerToken);
+  }
+
+  return stub.fetch(
+    new Request(internalUrl.toString(), {
+      method: 'GET',
+    }),
+  );
+};
+
 const handleCreate = async (request: Request, env: Env): Promise<Response> => {
   let payload: unknown = null;
 
@@ -226,6 +248,12 @@ export default {
     // Create a new game
     if (url.pathname === '/create' && request.method === 'POST') {
       return handleCreate(request, env);
+    }
+
+    const joinMatch = url.pathname.match(/^\/join\/([A-Z0-9]{5})$/);
+
+    if (joinMatch && request.method === 'GET') {
+      return handleJoinCheck(request, env, joinMatch[1]);
     }
 
     // Client error reports

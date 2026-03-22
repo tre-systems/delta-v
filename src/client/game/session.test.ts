@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildGameRoute,
   buildInviteLink,
+  buildJoinCheckUrl,
   buildWebSocketUrl,
   getStoredInviteToken,
   getStoredPlayerToken,
@@ -75,6 +76,26 @@ describe('game client session helpers', () => {
     ).toBe('https://delta-v.example/?code=ABCDE&playerToken=invite%20token');
 
     expect(buildGameRoute('ABCDE')).toBe('/?code=ABCDE');
+
+    expect(
+      buildJoinCheckUrl(
+        {
+          origin: 'https://delta-v.example',
+        },
+        'ABCDE',
+        'player token',
+      ),
+    ).toBe('https://delta-v.example/join/ABCDE?playerToken=player+token');
+
+    expect(
+      buildJoinCheckUrl(
+        {
+          origin: 'https://delta-v.example',
+        },
+        'ABCDE',
+        null,
+      ),
+    ).toBe('https://delta-v.example/join/ABCDE');
 
     expect(
       buildWebSocketUrl(
