@@ -60,7 +60,7 @@ src/
 scripts/                 # Automated Bot & AI Simulation tests
 ```
 
-**Design Highlight:** The core `game-engine.ts` is side-effect-free — no DOM, no network, no storage. It receives inputs (astrogation orders, combat declarations) and returns a new state, making the game highly unit testable. All engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. The DOM overlay stays framework-free, with a tiny local signals layer used only where view-local reactive state pays for itself. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details. The backend stays authoritative through **Cloudflare Durable Objects**, handling room lifecycle, tokenized joins, join preflight validation, and state persistence.
+**Design Highlight:** The core `game-engine.ts` is side-effect-free — no DOM, no network, no storage. It receives inputs (astrogation orders, combat declarations) and returns a new state, making the game highly unit testable. All engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. The DOM overlay stays framework-free, with a tiny local signals layer used only where view-local reactive state pays for itself. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details. The backend stays authoritative through **Cloudflare Durable Objects**, handling room lifecycle, tokenized joins, join preflight validation, per-match replay archives, and state persistence.
 
 For project conventions and refactoring guidance, see [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md).
 
@@ -129,6 +129,8 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] Authoritative disconnect-forfeit persistence
 - [x] Stable escape-role ownership after capture (`originalOwner`)
 - [x] Shared `isOrderableShip` rule, combat click/targeting fixes, nuke resupply fix
+- [x] Replay archive foundation (per-match archived state transitions)
+- [x] Application-layer room creation throttling with optional rate-limit binding support
 
 ### Planned
 - [ ] **Turn Replay**: Step through recorded turn history

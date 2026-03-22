@@ -21,6 +21,11 @@ type MockEnv = {
     get: ReturnType<typeof vi.fn<(id: DurableObjectId) => DurableObjectStub>>;
   };
   DB: MockDb;
+  CREATE_RATE_LIMITER?: {
+    limit: ReturnType<
+      typeof vi.fn<(options: { key: string }) => Promise<{ success: boolean }>>
+    >;
+  };
 };
 
 const mockDb = () => {
@@ -45,6 +50,7 @@ const mockCtx = (): MockExecutionContext => ({
 
 const createEnv = (
   initHandler?: (request: Request) => Promise<Response> | Response,
+  overrides: Partial<MockEnv> = {},
 ) => {
   const assetsFetch = vi.fn(async () => new Response('asset ok'));
 
@@ -68,6 +74,7 @@ const createEnv = (
       get: vi.fn(() => stub),
     },
     DB: mockDb(),
+    ...overrides,
   };
 
   return { env, assetsFetch, initFetch };
@@ -197,6 +204,32 @@ describe('server index worker', () => {
       expect.objectContaining({
         method: 'GET',
         url: 'https://room.internal/join?playerToken=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      }),
+    );
+  });
+
+  it('proxies replay requests to the room durable object', async () => {
+    const { env, initFetch } = createEnv(async () =>
+      Response.json({ ok: true }, { status: 200 }),
+    );
+
+    const response = await worker.fetch(
+      new Request(
+        'https://delta-v.test/replay/ABCDE?playerToken=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&gameId=ABCDE-m2',
+        {
+          method: 'GET',
+        },
+      ),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(env.GAME.idFromName).toHaveBeenCalledWith('ABCDE');
+    expect(initFetch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        url: 'https://room.internal/replay?playerToken=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&gameId=ABCDE-m2',
       }),
     );
   });
@@ -599,5 +632,54 @@ describe('/create rate limiting', () => {
       mockCtx(),
     );
     expect(response.status).toBe(200);
+  });
+
+  it('uses the configured rate-limit binding when present', async () => {
+    const limiter = {
+      limit: vi.fn(async () => ({ success: true })),
+    };
+    const { env } = createEnv(undefined, {
+      CREATE_RATE_LIMITER: limiter,
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'cf-connecting-ip': '1.2.3.4',
+        },
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(limiter.limit).toHaveBeenCalledTimes(1);
+    expect(limiter.limit).toHaveBeenCalledWith({
+      key: expect.stringMatching(/^create:/),
+    });
+  });
+
+  it('returns 429 when the configured rate-limit binding rejects the request', async () => {
+    const limiter = {
+      limit: vi.fn(async () => ({ success: false })),
+    };
+    const { env } = createEnv(undefined, {
+      CREATE_RATE_LIMITER: limiter,
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'cf-connecting-ip': '1.2.3.4',
+        },
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('Retry-After')).toBe('60');
   });
 });

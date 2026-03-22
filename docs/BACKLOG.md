@@ -6,31 +6,13 @@ Remaining work only. Completed items are in git history.
 
 ## Gameplay & Content
 
-### Replay archive foundation
-
-Introduce a durable replay archive built from the
-server's authoritative state-bearing outbound messages
-(`gameStart`, `movementResult`, `combatResult`,
-`stateUpdate`) rather than switching the engine to full
-event sourcing.
-
-The current lightweight `GameEvent` log is useful for
-animation/logging, but it is not rich enough to rebuild
-arbitrary historical game state. Replay should be based
-on a `ReplayEntry[]` history plus a stable per-match
-identity so rematches do not overwrite prior history.
-
-**Files:** `src/shared/events.ts` or new
-`src/shared/replay.ts`, `src/server/game-do/game-do.ts`,
-`src/server/game-do/messages.ts`,
-`src/server/protocol.ts`
-
 ### Post-game turn replay UI
 
 Let players step backward and forward through recorded
-turn history after game end. Reuse the existing
-presentation pipeline where practical rather than
-building a second renderer stack.
+turn history after game end using the existing replay
+archive foundation. Reuse the current presentation
+pipeline where practical rather than building a second
+renderer stack.
 
 Initial scope: previous/next, jump to start/end, replay
 timeline labels, and exit back to the finished-match
@@ -141,14 +123,16 @@ server/client boundary.
 
 ### Globalize room creation rate limiting
 
-Basic `/create` throttling now exists in application
-code, but it is only a per-isolate in-memory limit.
+`/create` throttling now exists in worker code and can
+optionally call a configured rate-limit binding, but
+production-grade global enforcement still depends on
+deployment-side Cloudflare configuration.
 
 If this endpoint needs stronger abuse resistance in
 production, move the control to a Cloudflare WAF or
 other edge-global rate limiting rule so enforcement is
-not dependent on worker instance locality or process
-lifetime.
+not dependent on worker instance locality, fallback
+behavior, or process lifetime.
 
 **Files:** deployment / Cloudflare config,
-`src/server/index.ts`
+`src/server/index.ts`, `wrangler.toml`
