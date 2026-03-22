@@ -1,4 +1,7 @@
-import type { EngineEvent } from '../../shared/engine/engine-events';
+import type {
+  EngineEvent,
+  EventEnvelope,
+} from '../../shared/engine/engine-events';
 import { filterStateForPlayer } from '../../shared/engine/game-engine';
 import {
   buildMatchId,
@@ -34,6 +37,43 @@ export const appendEvents = async (
 
 export const resetEventLog = async (storage: Storage): Promise<void> => {
   await storage.put('eventLog', []);
+};
+
+// --- Match-scoped event stream ---
+
+const eventStreamKey = (gameId: string): string => `events:${gameId}`;
+const eventSeqKey = (gameId: string): string => `eventSeq:${gameId}`;
+
+export const getEventStream = async (
+  storage: Storage,
+  gameId: string,
+): Promise<EventEnvelope[]> =>
+  (await storage.get<EventEnvelope[]>(eventStreamKey(gameId))) ?? [];
+
+export const getEventStreamLength = async (
+  storage: Storage,
+  gameId: string,
+): Promise<number> => (await storage.get<number>(eventSeqKey(gameId))) ?? 0;
+
+export const appendEnvelopedEvents = async (
+  storage: Storage,
+  gameId: string,
+  actor: number | null,
+  ...events: EngineEvent[]
+): Promise<void> => {
+  if (events.length === 0) return;
+
+  const stream = await getEventStream(storage, gameId);
+  let seq = (await storage.get<number>(eventSeqKey(gameId))) ?? 0;
+  const now = Date.now();
+
+  for (const event of events) {
+    seq++;
+    stream.push({ gameId, seq, ts: now, actor, event });
+  }
+
+  await storage.put(eventStreamKey(gameId), stream);
+  await storage.put(eventSeqKey(gameId), seq);
 };
 
 // --- Replay archive ---
