@@ -11,6 +11,7 @@
  *           use, always attacks when possible
  */
 
+import { AI_CONFIG } from './ai-config';
 import { must } from './assert';
 import {
   canAttack,
@@ -135,41 +136,42 @@ const scoreCourse = (
   enemyEscaping?: boolean,
   shipIndex?: number,
 ): number => {
+  const cfg = AI_CONFIG[difficulty];
   let score = 0;
   // Difficulty multiplier for scoring precision
-  const mult = difficulty === 'hard' ? 1.5 : difficulty === 'easy' ? 0.7 : 1.0;
+  const mult = cfg.multiplier;
   if (escapeWins) {
     // Escape strategy: maximize distance from center
     // + velocity
     const distFromCenter = hexDistance(course.destination, { q: 0, r: 0 });
-    score += distFromCenter * 10 * mult;
+    score += distFromCenter * cfg.escapeDistWeight * mult;
     const speed = hexVecLength(course.newVelocity);
-    score += speed * 5 * mult;
+    score += speed * cfg.escapeSpeedWeight * mult;
     // Never stay landed when trying to escape
     if (
       ship.lifecycle === 'landed' &&
       course.destination.q === ship.position.q &&
       course.destination.r === ship.position.r
     ) {
-      score -= 100 * mult;
+      score -= cfg.escapeLandedPenalty * mult;
     }
   } else if (targetHex) {
     // Navigate to target strategy
     const currentDist = hexDistance(ship.position, targetHex);
     const newDist = hexDistance(course.destination, targetHex);
     // Reward getting closer to target
-    score += (currentDist - newDist) * 20 * mult;
+    score += (currentDist - newDist) * cfg.navDistWeight * mult;
     // Bonus for landing on target body (not home!)
     if (targetBody && course.landedAt === targetBody) {
-      score += 1000;
+      score += cfg.navTargetLandingBonus;
     } else if (course.landedAt && !targetBody) {
       // Fuel-seeking: landing at any base is great
-      score += 500;
+      score += cfg.navBaseLandingBonus;
     } else if (course.landedAt) {
       // Landing at wrong body — generally bad, but
       // in checkpoint races any base landing provides
       // a refuel opportunity
-      score -= 30 * mult;
+      score -= cfg.navWrongBodyPenalty * mult;
     }
     // Heavy penalty for staying landed at home
     if (
@@ -177,7 +179,7 @@ const scoreCourse = (
       course.destination.q === ship.position.q &&
       course.destination.r === ship.position.r
     ) {
-      score -= 50 * mult;
+      score -= cfg.navStayLandedPenalty * mult;
     }
     // Velocity alignment: prefer velocity pointing
     // toward target
@@ -185,13 +187,13 @@ const scoreCourse = (
       hexAdd(course.destination, course.newVelocity),
       targetHex,
     );
-    score -= velDist * 2 * mult;
+    score -= velDist * cfg.navVelocityAlignWeight * mult;
     // Penalty for overshooting (velocity too high
     // near target)
-    if (newDist < 8) {
+    if (newDist < cfg.navOvershootRange) {
       const speed = hexVecLength(course.newVelocity);
       if (speed > newDist + 1) {
-        score -= (speed - newDist) * 15 * mult;
+        score -= (speed - newDist) * cfg.navOvershootPenalty * mult;
       }
     }
   }
@@ -201,19 +203,21 @@ const scoreCourse = (
     const speed = hexVecLength(course.newVelocity);
     for (const body of map.bodies) {
       const bodyDist = hexDistance(course.destination, body.center);
-      const dangerZone = body.surfaceRadius + 5;
+      const dangerZone = body.surfaceRadius + cfg.gravityDangerPadding;
       if (
         bodyDist < dangerZone &&
         speed > Math.max(1, bodyDist - body.surfaceRadius)
       ) {
-        score -= (speed - bodyDist + body.surfaceRadius + 1) * 15;
+        score -=
+          (speed - bodyDist + body.surfaceRadius + 1) *
+          cfg.gravityDangerSpeedPenalty;
       }
     }
     // Must be nearly stopped to land
     if (targetHex) {
       const newDist2 = hexDistance(course.destination, targetHex);
       if (newDist2 < 3 && speed > 1) {
-        score -= speed * 25;
+        score -= speed * cfg.navBrakingPenalty;
       }
     }
   }
@@ -225,7 +229,7 @@ const scoreCourse = (
     course.destination.q === ship.position.q &&
     course.destination.r === ship.position.r
   ) {
-    score -= 80 * mult;
+    score -= cfg.combatStayLandedPenalty * mult;
   }
   // Deferred gravity matters most for the following
   // turn, so look one move ahead.
@@ -238,20 +242,24 @@ const scoreCourse = (
       score +=
         (hexDistance(nextTurnDest, { q: 0, r: 0 }) -
           hexDistance(course.destination, { q: 0, r: 0 })) *
-        4 *
+        cfg.gravityEscapeWeight *
         mult;
     } else if (targetHex) {
       score +=
         (hexDistance(course.destination, targetHex) -
           hexDistance(nextTurnDest, targetHex)) *
-        6 *
+        cfg.gravityNavWeight *
         mult;
     } else if (enemyShips.length > 0) {
       const closest = must(
         minBy(enemyShips, (enemy) => hexDistance(nextTurnDest, enemy.position)),
       );
       score +=
-        Math.max(0, 5 - hexDistance(nextTurnDest, closest.position)) * mult;
+        Math.max(
+          0,
+          cfg.gravityCombatProximity -
+            hexDistance(nextTurnDest, closest.position),
+        ) * mult;
     }
   }
   // Combat positioning
@@ -279,14 +287,14 @@ const scoreCourse = (
         // Predict where the fugitive will be next turn
         const predicted = hexAdd(enemy.position, enemy.velocity);
 
-        if (dist <= 5) {
+        if (dist <= cfg.interceptCloseRange) {
           // Close range: aggressive combat positioning.
           // Stop predicting — close and attack.
-          score += Math.max(0, 50 - dist) * 4 * mult;
-          if (dist <= 3) score += 60 * mult;
+          score += Math.max(0, 50 - dist) * cfg.interceptCloseWeight * mult;
+          if (dist <= 3) score += cfg.interceptCloseBonus * mult;
           const nextPos = hexAdd(course.destination, course.newVelocity);
           const nextDist = hexDistance(nextPos, enemy.position);
-          score += (dist - nextDist) * 6 * mult;
+          score += (dist - nextDist) * cfg.interceptImprovementWeight * mult;
           // Match velocity to maintain engagement
           const velMatchDist = hexDistance(
             {
@@ -298,38 +306,42 @@ const scoreCourse = (
               r: enemy.velocity.dr,
             },
           );
-          score -= velMatchDist * 5 * mult;
+          score -= velMatchDist * cfg.interceptVelocityPenalty * mult;
         } else {
           // Far range: intercept by heading toward
           // the predicted position, not the current one.
           const interceptDist = hexDistance(course.destination, predicted);
-          score += Math.max(0, 50 - interceptDist) * 3 * mult;
-          if (interceptDist <= 3) score += 50 * mult;
+          score +=
+            Math.max(0, 50 - interceptDist) * cfg.interceptFarWeight * mult;
+          if (interceptDist <= 3) score += cfg.interceptFarBonus * mult;
           const nextPos = hexAdd(course.destination, course.newVelocity);
           const nextIntDist = hexDistance(nextPos, predicted);
-          score += (interceptDist - nextIntDist) * 6 * mult;
+          score +=
+            (interceptDist - nextIntDist) *
+            cfg.interceptImprovementWeight *
+            mult;
         }
         // Hard AI: focus on assigned target,
         // de-prioritize others
         if (assignedTarget && enemy !== assignedTarget) {
-          score -= Math.max(0, 50 - dist) * 2 * mult;
+          score -= Math.max(0, 50 - dist) * cfg.interceptAssignedPenalty * mult;
         }
       } else if (noPrimaryObjective) {
         // Pure combat mode: aggressively seek
         // combat range. Strong closing incentive that
         // always outweighs other penalties.
-        score += Math.max(0, 50 - dist) * 3 * mult;
+        score += Math.max(0, 50 - dist) * cfg.combatClosingWeight * mult;
         // Extra strong bonus for being at combat
         // range 1-3
-        if (dist <= 3) score += 40 * mult;
+        if (dist <= cfg.combatCloseRange) score += cfg.combatCloseBonus * mult;
         // Velocity toward enemy: prefer velocity
         // pointing at enemy
         const nextPos = hexAdd(course.destination, course.newVelocity);
         const nextDist = hexDistance(nextPos, enemy.position);
-        score += (dist - nextDist) * 5 * mult;
+        score += (dist - nextDist) * cfg.combatImprovementWeight * mult;
         // Velocity matching: only at close range to
         // maintain engagement
-        if (dist < 6) {
+        if (dist < cfg.combatVelocityMatchRange) {
           const velMatchDist = hexDistance(
             {
               q: course.newVelocity.dq,
@@ -340,15 +352,21 @@ const scoreCourse = (
               r: enemy.velocity.dr,
             },
           );
-          score -= velMatchDist * (dist < 3 ? 4 : 2) * mult;
+          score -=
+            velMatchDist *
+            (dist < cfg.combatCloseRange ? 4 : cfg.combatVelocityPenalty) *
+            mult;
         }
         // Speed management: prefer moderate velocity
         // near enemies
         const speed = hexVecLength(course.newVelocity);
-        if (dist < 5 && speed > 5) {
+        if (
+          dist < cfg.combatSpeedManageRange &&
+          speed > cfg.combatSpeedThreshold
+        ) {
           const enemySpeed = hexVecLength(enemy.velocity);
           if (speed > enemySpeed + 2) {
-            score -= (speed - enemySpeed) * 3 * mult;
+            score -= (speed - enemySpeed) * cfg.combatSpeedDiffPenalty * mult;
           }
         }
       } else if (myStrength > 0) {
@@ -356,11 +374,11 @@ const scoreCourse = (
         if (myStrength >= enemyStr) {
           // If we are stronger or equal, push toward
           // them if they are nearby
-          score += Math.max(0, 10 - dist) * 1.5 * mult;
+          score += Math.max(0, 10 - dist) * cfg.objectiveStrongWeight * mult;
         } else {
           // If we are weaker, maintain some distance
           // but don't just run away
-          score += Math.min(dist, 8) * 0.5 * mult;
+          score += Math.min(dist, 8) * cfg.objectiveWeakWeight * mult;
         }
       }
     }
@@ -380,6 +398,7 @@ export const aiAstrogation = (
   difficulty: AIDifficulty = 'normal',
   rng: () => number = Math.random,
 ): AstrogationOrder[] => {
+  const cfg = AI_CONFIG[difficulty];
   const orders: AstrogationOrder[] = [];
   const { targetBody, escapeWins } = state.players[playerId];
   const player = state.players[playerId];
@@ -559,7 +578,7 @@ export const aiAstrogation = (
           // No escape, hard reject
           if (!canSurvive) continue;
           // Survivable but needs corrective burns
-          gravityRiskPenalty = -20;
+          gravityRiskPenalty = cfg.gravityRiskPenalty;
         }
       }
       let score =
@@ -579,15 +598,15 @@ export const aiAstrogation = (
       // Fuel-seeking: big bonus for landing at any
       // body (base refuel)
       if (seekingFuel && course.landedAt) {
-        score += 800;
+        score += cfg.fuelSeekLandingBonus;
       }
       // Fuel efficiency: slight preference for
       // conserving fuel
       if (opt.burn === null) {
-        score += 0.5;
+        score += cfg.fuelDriftBonus;
       } else if (opt.overload !== null) {
         // Small penalty for extra fuel cost
-        score -= 1;
+        score -= cfg.fuelOverloadPenalty;
       }
       // For normal/hard AI, also try ignoring weak
       // gravity choices
@@ -680,12 +699,13 @@ export const aiOrdnance = (
   difficulty: AIDifficulty = 'normal',
   rng: () => number = Math.random,
 ): OrdnanceLaunch[] => {
+  const cfg = AI_CONFIG[difficulty];
   const launches: OrdnanceLaunch[] = [];
   const allowedTypes = new Set(
     state.scenarioRules.allowedOrdnanceTypes ?? ['mine', 'torpedo', 'nuke'],
   );
   // Easy AI rarely uses ordnance (30% chance to skip)
-  if (difficulty === 'easy' && rng() < 0.3) {
+  if (cfg.ordnanceSkipChance > 0 && rng() < cfg.ordnanceSkipChance) {
     return launches;
   }
   const enemyShips = state.ships.filter(
@@ -693,8 +713,8 @@ export const aiOrdnance = (
   );
   if (enemyShips.length === 0) return launches;
   // Difficulty-based range thresholds
-  const torpedoRange = difficulty === 'hard' ? 12 : 8;
-  const mineRange = difficulty === 'hard' ? 6 : 4;
+  const torpedoRange = cfg.torpedoRange;
+  const mineRange = cfg.mineRange;
   for (const ship of state.ships) {
     if (ship.owner !== playerId || ship.lifecycle !== 'active') {
       continue;
@@ -724,7 +744,7 @@ export const aiOrdnance = (
       // is strong
       const enemyStr = getCombatStrength([nearestEnemy]);
       const myStr = getCombatStrength([ship]);
-      if (enemyStr >= myStr && nearestDist <= 6) {
+      if (enemyStr >= myStr && nearestDist <= cfg.nukeStrengthRange) {
         launches.push({
           shipId: ship.id,
           ordnanceType: 'nuke',
@@ -810,6 +830,7 @@ export const aiCombat = (
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
 ): CombatAttack[] => {
+  const cfg = AI_CONFIG[difficulty];
   const myShips = state.ships.filter(
     (s) => s.owner === playerId && s.lifecycle !== 'destroyed' && canAttack(s),
   );
@@ -845,7 +866,10 @@ export const aiCombat = (
     const rangeMod = computeGroupRangeMod(attackersForTarget, enemy);
     const velMod = computeGroupVelocityMod(attackersForTarget, enemy);
     const totalMod = rangeMod + velMod;
-    const score = -avgDist * 2 - totalMod * 3 + enemy.damage.disabledTurns * 5;
+    const score =
+      -avgDist * cfg.targetDistPenalty -
+      totalMod * cfg.targetModPenalty +
+      enemy.damage.disabledTurns * cfg.targetDisabledBonus;
     scored.push({
       targetId: enemy.id,
       targetType: 'ship',
@@ -870,9 +894,16 @@ export const aiCombat = (
       hexDistance(ship.position, nuke.position),
     );
     const threat = closestOwn
-      ? Math.max(0, 6 - hexDistance(closestOwn.position, nuke.position))
+      ? Math.max(
+          0,
+          cfg.nukeThreatRange - hexDistance(closestOwn.position, nuke.position),
+        )
       : 0;
-    const score = 18 + threat * 8 - avgDist * 2 - (rangeMod + velMod) * 3;
+    const score =
+      cfg.nukeThreatBase +
+      threat * cfg.nukeThreatWeight -
+      avgDist * cfg.targetDistPenalty -
+      (rangeMod + velMod) * cfg.targetModPenalty;
     scored.push({
       targetId: nuke.id,
       targetType: 'ordnance',
@@ -888,8 +919,7 @@ export const aiCombat = (
   const attacks: CombatAttack[] = [];
   const committedAttackers = new Set<string>();
   const committedTargets = new Set<string>();
-  const minRollThreshold =
-    difficulty === 'easy' ? 3 : difficulty === 'hard' ? 0 : 1;
+  const minRollThreshold = cfg.minRollThreshold;
   for (const target of scored) {
     const targetKey = `${target.targetType}:${target.targetId}`;
     if (committedTargets.has(targetKey)) continue;
@@ -919,7 +949,7 @@ export const aiCombat = (
     }
     committedTargets.add(targetKey);
     // Easy AI: only one attack per combat phase
-    if (difficulty === 'easy') break;
+    if (cfg.singleAttackOnly) break;
   }
   return attacks;
 };

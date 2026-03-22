@@ -11,7 +11,7 @@ import {
   resolveCombat,
   rollD6,
 } from '../combat';
-import { SHIP_STATS } from '../constants';
+import { ANTI_NUKE_ODDS, SHIP_STATS } from '../constants';
 import { hexDistance, hexKey } from '../hex';
 import type {
   CombatAttack,
@@ -64,7 +64,7 @@ const resolveAntiNukeAttack = (
   const velocityMod = computeGroupVelocityModToTarget(attackers, target);
   const dieRoll = rollD6(rng);
   const modifiedRoll = dieRoll - rangeMod - velocityMod;
-  const rolledResult = lookupGunCombat('2:1', modifiedRoll);
+  const rolledResult = lookupGunCombat(ANTI_NUKE_ODDS, modifiedRoll);
   const destroyed = rolledResult.type !== 'none';
 
   if (destroyed) {
@@ -76,7 +76,7 @@ const resolveAntiNukeAttack = (
     targetId: target.id,
     targetType: 'ordnance',
     attackType: 'antiNuke',
-    odds: '2:1',
+    odds: ANTI_NUKE_ODDS,
     attackStrength: 0,
     defendStrength: 0,
     rangeMod,
