@@ -1,6 +1,7 @@
 import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
 import { byId } from '../dom';
+import { effect, signal } from '../reactive';
 import type { AIDifficulty, UIEvent } from './events';
 import { parseJoinInput } from './formatters';
 import { buildWaitingScreenCopy } from './screens';
@@ -13,8 +14,9 @@ export interface LobbyViewDeps {
 }
 
 export class LobbyView {
-  private aiDifficulty: AIDifficulty = 'normal';
-  private pendingAIGame = false;
+  private readonly aiDifficultySignal = signal<AIDifficulty>('normal');
+  private readonly pendingAIGameSignal = signal(false);
+  private readonly loadingSignal = signal(false);
 
   constructor(private readonly deps: LobbyViewDeps) {
     this.bindMenuControls();
@@ -22,17 +24,29 @@ export class LobbyView {
     this.buildScenarioList();
     this.bindJoinControls();
     this.bindCopyButton();
+
+    effect(() => {
+      const loading = this.loadingSignal.value;
+      const btn = byId<HTMLButtonElement>('createBtn');
+      btn.disabled = loading;
+      btn.textContent = loading ? 'CREATING...' : 'Create Game';
+    });
+
+    effect(() => {
+      const diff = this.aiDifficultySignal.value;
+      const buttons = document.querySelectorAll<HTMLElement>('.btn-difficulty');
+      for (const btn of Array.from(buttons)) {
+        btn.classList.toggle('active', btn.dataset.difficulty === diff);
+      }
+    });
   }
 
   onMenuShown(): void {
-    this.pendingAIGame = false;
+    this.pendingAIGameSignal.value = false;
   }
 
   setMenuLoading(loading: boolean): void {
-    const btn = byId<HTMLButtonElement>('createBtn');
-
-    btn.disabled = loading;
-    btn.textContent = loading ? 'CREATING...' : 'Create Game';
+    this.loadingSignal.value = loading;
   }
 
   showWaiting(code: string): void {
@@ -53,7 +67,7 @@ export class LobbyView {
     });
 
     byId('singlePlayerBtn').addEventListener('click', () => {
-      this.pendingAIGame = true;
+      this.pendingAIGameSignal.value = true;
       this.deps.showScenarioSelect();
     });
 
@@ -71,14 +85,7 @@ export class LobbyView {
     for (const btn of buttons) {
       btn.addEventListener('click', (event: Event) => {
         event.stopPropagation();
-
-        this.aiDifficulty = btn.dataset.difficulty as AIDifficulty;
-
-        for (const button of buttons) {
-          button.classList.remove('active');
-        }
-
-        btn.classList.add('active');
+        this.aiDifficultySignal.value = btn.dataset.difficulty as AIDifficulty;
       });
     }
   }
@@ -146,12 +153,12 @@ export class LobbyView {
         `<div class="scenario-desc">${def.description}</div>`;
 
       btn.addEventListener('click', () => {
-        if (this.pendingAIGame) {
-          this.pendingAIGame = false;
+        if (this.pendingAIGameSignal.peek()) {
+          this.pendingAIGameSignal.value = false;
           this.deps.emit({
             type: 'startSinglePlayer',
             scenario: key,
-            difficulty: this.aiDifficulty,
+            difficulty: this.aiDifficultySignal.peek(),
           });
           return;
         }
