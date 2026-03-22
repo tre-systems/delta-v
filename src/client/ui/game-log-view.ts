@@ -4,6 +4,7 @@ import type {
   Ship,
 } from '../../shared/types/domain';
 import { byId, el } from '../dom';
+import { computed, effect, signal } from '../reactive';
 import {
   formatCombatResultEntries,
   formatMovementEventEntry,
@@ -25,13 +26,31 @@ export class GameLogView {
   private lastTurnHeader: HTMLElement | null = null;
   private playerId = -1;
   private expanded = false;
-  private lastLogText = '';
-  private lastLogClass = '';
-  private statusText: string | null = null;
+
+  private readonly lastLogTextSignal = signal('');
+  private readonly lastLogClassSignal = signal('');
+  private readonly statusTextSignal = signal<string | null>(null);
 
   constructor(private readonly deps: GameLogViewDeps) {
     this.bindChatInput();
     this.bindLogControls();
+
+    const latestBarCopySignal = computed(() => {
+      const statusText = this.statusTextSignal.value;
+      const lastLogText = this.lastLogTextSignal.value;
+      const lastLogClass = this.lastLogClassSignal.value;
+
+      return {
+        text: statusText ?? lastLogText,
+        cssClass: statusText ? 'log-status' : lastLogClass,
+      };
+    });
+
+    effect(() => {
+      const copy = latestBarCopySignal.value;
+      this.logLatestText.textContent = copy.text;
+      this.logLatestText.className = `log-latest-text ${copy.cssClass}`;
+    });
   }
 
   setPlayerId(id: number): void {
@@ -46,7 +65,6 @@ export class GameLogView {
 
   applyScreenVisibility(mode: UIScreenMode): void {
     const visibility = buildScreenVisibility(mode);
-
     this.gameLogEl.style.display = visibility.gameLog;
   }
 
@@ -136,8 +154,7 @@ export class GameLogView {
   }
 
   setStatusText(text: string | null): void {
-    this.statusText = text;
-    this.syncLatestBar();
+    this.statusTextSignal.value = text;
   }
 
   private bindChatInput(): void {
@@ -177,17 +194,8 @@ export class GameLogView {
   }
 
   private updateLatestBar(text: string, cssClass: string): void {
-    this.lastLogText = text;
-    this.lastLogClass = cssClass;
-    this.syncLatestBar();
-  }
-
-  private syncLatestBar(): void {
-    const text = this.statusText ?? this.lastLogText;
-    const cssClass = this.statusText ? 'log-status' : this.lastLogClass;
-
-    this.logLatestText.textContent = text;
-    this.logLatestText.className = `log-latest-text ${cssClass}`;
+    this.lastLogTextSignal.value = text;
+    this.lastLogClassSignal.value = cssClass;
   }
 
   private expand(): void {
