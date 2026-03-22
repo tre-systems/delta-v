@@ -191,30 +191,6 @@ the preferred approach for similar UI lists.
 shared UI helper module(s),
 `docs/CODING_STANDARDS.md`
 
-### Trusted HTML boundary for future freeform content
-
-Decide and document how UI markup is allowed to enter the
-DOM before any broader user-generated or externally sourced
-content ships.
-
-Today `innerHTML` is acceptable only because the rendered
-markup is trusted internal content. That becomes fragile if
-chat, player names, modded scenarios, richer replay text,
-or other freeform content expands.
-
-Definition of done: raw `innerHTML` use is either confined
-behind a clearly named trusted-HTML helper/boundary or
-replaced with text-node / DOM-builder paths where
-appropriate, and the chosen policy is documented alongside
-the security notes. If truly untrusted HTML must be
-rendered, add a sanitizer as part of the same change.
-
-**Files:** `src/client/dom.ts`,
-`src/client/ui/`,
-`src/client/main.ts`,
-`docs/CODING_STANDARDS.md`,
-`docs/SECURITY.md`
-
 ### Protocol contract fixtures and replay goldens
 
 Freeze representative wire-level examples for validated
