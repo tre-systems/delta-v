@@ -92,7 +92,7 @@ The backend leverages Cloudflare's edge network.
 
 | Module | Purpose | Reusability |
 |--------|---------|-------------|
-| `index.ts` | Worker entry: `/create`, `/join/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern |
+| `index.ts` | Worker entry: `/create`, `/join/:code`, `/replay/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern |
 | `protocol.ts` | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export | **~85% generic** — room/token/seat logic is game-agnostic |
 | `game-do/game-do.ts` | Durable Object: WebSocket lifecycle, state persistence, broadcasting | **~70% generic** — multiplayer plumbing is reusable |
 | `game-do/messages.ts` | S2C message construction from engine results | Game-specific |
@@ -109,13 +109,15 @@ The backend leverages Cloudflare's edge network.
 
 - **Single state-bearing outbound message per action**: `publishStateChange()` persists state and events first, then emits exactly one state-bearing message (`movementResult`, `combatResult`, or `stateUpdate`). If the resulting state is terminal, the DO appends a separate `gameOver` notification after that state-bearing message. This keeps client phase transitions aligned with a one-action/one-update contract.
 
+- **Replay archive foundation**: The server now persists a per-match replay archive built from those same authoritative state-bearing outbound messages. `initGame()` allocates a stable match identity (`gameId` like `ROOM1-m2`), archives the initial `gameStart`, and `publishStateChange()` appends each later state-bearing transition in sequence. Replay fetches are authenticated by player token and currently return player-filtered history.
+
 - **Filtered broadcasting**: `broadcastFiltered()` checks whether the current scenario has hidden information (fugitive identities in escape scenarios). If no hidden info, the same state goes to both players. If hidden info, `filterStateForPlayer(state, playerId)` is called separately per player — own ships are fully visible, unrevealed enemy ships show `type: 'unknown'`. When adding new hidden state, extend `filterStateForPlayer()` and the check in `broadcastFiltered()`.
 
 - **Single-alarm scheduling**: One alarm per DO, rescheduled after each state change. Three independent deadlines are tracked: `disconnectAt` (30s grace), `turnTimeoutAt` (2 min), `inactivityAt` (5 min). `getNextAlarmAt()` computes the nearest deadline. When the alarm fires, `resolveAlarmAction()` returns a discriminated action (`disconnectExpired`, `turnTimeout`, `inactivityTimeout`) and the handler dispatches accordingly. `inactivityAt` is cached in memory and flushed to storage at most once per 60s to avoid write amplification from frequent pings. Chat rate limiting is also in-memory (not storage-backed).
 
 - **WebSocket throttle**: A per-socket message counter (in-memory `WeakMap`) limits clients to 10 messages per second. Connections exceeding this are closed with code 1008. This prevents garbage-message floods from spiking DO CPU or I/O.
 
-- **Room creation rate limit**: The Worker applies a per-isolate, per-IP-hash rate limit on `POST /create` (5 requests per IP per 60s window, 429 with `Retry-After`). This is defense-in-depth — supplement with Cloudflare WAF rate limiting rules for global enforcement.
+- **Room creation rate limit**: The Worker hashes the client IP and checks `POST /create` against either a configured Cloudflare rate-limit binding or an in-memory fallback (5 requests per IP per 60s window, 429 with `Retry-After`). The fallback protects a single worker isolate; production deployments should still configure a Cloudflare-global rule.
 
 - **Seat assignment**: `resolveSeatAssignment()` in `protocol.ts` implements a multi-step fallback: (1) player token match → returning player gets their original seat; (2) invite token match → new player consumes the token and gets the open seat; (3) tokenless join → safety net for future open lobbies; (4) no seats available → reject. Invite tokens are consumed on first use, preventing replay attacks.
 
@@ -195,6 +197,7 @@ All messages are discriminated unions validated at the protocol boundary. Chat p
 ```
 POST /create → Worker generates room code + tokens → DO /init
 GET /join/{code}?playerToken=X → optional preflight join validation
+GET /replay/{code}?playerToken=X&gameId=Y → authenticated replay archive fetch
 WebSocket /ws/{code}?playerToken=X → DO accepts, tags socket with player ID
 Both players connected → createGame() → broadcast gameStart
 Game loop: C2S action → engine → save state/events → restart timer → broadcast S2C result

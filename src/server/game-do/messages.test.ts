@@ -16,7 +16,9 @@ import {
   derivePhaseChangeEvents,
   resolveCombatBroadcast,
   resolveMovementBroadcast,
+  resolveStateBearingMessage,
   toCombatResultMessage,
+  toGameStartMessage,
   toMovementResultMessage,
   toStateUpdateMessage,
 } from './messages';
@@ -55,6 +57,24 @@ describe('game-do-messages', () => {
     expect(resolveMovementBroadcast({ state }, 'stateUpdate')).toEqual(
       toStateUpdateMessage(state),
     );
+  });
+
+  it('formats game start and fallback state-bearing messages', () => {
+    const map = buildSolarSystemMap();
+    const state = createGame(SCENARIOS.biplanetary, map, 'SRV2B', findBaseHex);
+
+    expect(toGameStartMessage(state)).toEqual({
+      type: 'gameStart',
+      state,
+    });
+
+    expect(resolveStateBearingMessage(state)).toEqual(
+      toStateUpdateMessage(state),
+    );
+
+    expect(
+      resolveStateBearingMessage(state, toStateUpdateMessage(state)),
+    ).toEqual(toStateUpdateMessage(state));
   });
 
   it('formats combat results for broadcast', () => {

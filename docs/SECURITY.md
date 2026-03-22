@@ -42,15 +42,16 @@ Current status: **acceptable for friendly matches, still weak for public matchma
 
 - Room codes are now collision-checked and cryptographically generated.
 - They are still only 5 characters long.
-- There is still no explicit application-layer throttling or bot protection around room creation and join attempts.
+- There is now basic application-layer throttling on room creation, but it is not yet a complete edge-global abuse-control story.
 
 Implications:
 
 - Code guessing is harder than before, but still more realistic than it should be for a ladder, tournament, or public lobby environment.
+- Opportunistic room-creation abuse is somewhat better contained, but public deployment still needs global edge enforcement rather than worker-local fallback behavior.
 
 Recommended next step:
 
-- Move to longer opaque room identifiers or add application-layer rate limiting / challenge protection at the edge.
+- Move to longer opaque room identifiers and complete edge-global rate limiting / challenge protection for public deployments.
 
 ## Lower-Risk Notes
 

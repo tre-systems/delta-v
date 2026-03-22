@@ -23,6 +23,13 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import { validateClientMessage } from '../../shared/protocol';
+import {
+  buildMatchId,
+  createReplayArchive,
+  type ReplayArchive,
+  type ReplayMessage,
+  toReplayEntry,
+} from '../../shared/replay';
 import type {
   AstrogationOrder,
   CombatAttack,
@@ -47,7 +54,9 @@ import {
   derivePhaseChangeEvents,
   resolveCombatBroadcast,
   resolveMovementBroadcast,
+  resolveStateBearingMessage,
   type StatefulServerMessage,
+  toGameStartMessage,
   toMovementResultMessage,
   toStateUpdateMessage,
 } from './messages';
@@ -111,6 +120,40 @@ export class GameDO extends DurableObject<Env> {
   private async resetEventLog(): Promise<void> {
     await this.ctx.storage.put('eventLog', []);
   }
+  private replayKey(gameId: string): string {
+    return `replayArchive:${gameId}`;
+  }
+  private async getReplayArchive(
+    gameId: string,
+  ): Promise<ReplayArchive | null> {
+    return (
+      (await this.ctx.storage.get<ReplayArchive>(this.replayKey(gameId))) ??
+      null
+    );
+  }
+  private async saveReplayArchive(archive: ReplayArchive): Promise<void> {
+    await this.ctx.storage.put(this.replayKey(archive.gameId), archive);
+  }
+  private async appendReplayMessage(
+    roomCode: string,
+    matchNumber: number,
+    message: ReplayMessage,
+  ): Promise<void> {
+    const recordedAt = Date.now();
+    const existing = await this.getReplayArchive(message.state.gameId);
+
+    if (!existing) {
+      await this.saveReplayArchive(
+        createReplayArchive(roomCode, matchNumber, message, recordedAt),
+      );
+      return;
+    }
+
+    existing.entries.push(
+      toReplayEntry(existing.entries.length + 1, message, recordedAt),
+    );
+    await this.saveReplayArchive(existing);
+  }
   private async getRoomConfig(): Promise<RoomConfig | null> {
     return (await this.ctx.storage.get<RoomConfig>('roomConfig')) ?? null;
   }
@@ -127,6 +170,18 @@ export class GameDO extends DurableObject<Env> {
   }
   private async setGameCode(code: string): Promise<void> {
     await this.ctx.storage.put('gameCode', code);
+  }
+  private async allocateMatchIdentity(
+    code: string,
+  ): Promise<{ gameId: string; matchNumber: number }> {
+    const matchNumber =
+      ((await this.ctx.storage.get<number>('matchNumber')) ?? 0) + 1;
+    await this.ctx.storage.put('matchNumber', matchNumber);
+
+    return {
+      gameId: buildMatchId(code, matchNumber),
+      matchNumber,
+    };
   }
   private async touchInactivity(): Promise<void> {
     const now = Date.now();
@@ -243,6 +298,39 @@ export class GameDO extends DurableObject<Env> {
       await this.ctx.storage.setAlarm(alarmAt);
     }
   }
+  private getReplayViewerId(
+    roomConfig: RoomConfig,
+    presentedTokenRaw: string | null,
+  ): 0 | 1 | null {
+    if (!presentedTokenRaw || !isValidPlayerToken(presentedTokenRaw)) {
+      return null;
+    }
+
+    if (roomConfig.playerTokens[0] === presentedTokenRaw) {
+      return 0;
+    }
+
+    if (roomConfig.playerTokens[1] === presentedTokenRaw) {
+      return 1;
+    }
+
+    return null;
+  }
+  private filterReplayArchiveForPlayer(
+    archive: ReplayArchive,
+    playerId: number,
+  ): ReplayArchive {
+    return {
+      ...archive,
+      entries: archive.entries.map((entry) => ({
+        ...entry,
+        message: {
+          ...entry.message,
+          state: filterStateForPlayer(entry.message.state, playerId),
+        },
+      })),
+    };
+  }
   // --- Error telemetry ---
   private reportEngineError = (
     code: string,
@@ -289,6 +377,9 @@ export class GameDO extends DurableObject<Env> {
     }
     if (url.pathname === '/join' && request.method === 'GET') {
       return this.handleJoinCheck(request);
+    }
+    if (url.pathname === '/replay' && request.method === 'GET') {
+      return this.handleReplayRequest(request);
     }
     const upgradeHeader = request.headers.get('Upgrade');
     if (upgradeHeader !== 'websocket') {
@@ -583,14 +674,20 @@ export class GameDO extends DurableObject<Env> {
     },
   ) {
     const { restartTurnTimer = true, events = [] } = options ?? {};
+    const roomCode = await this.getGameCode();
+    const matchNumber = await this.ctx.storage.get<number>('matchNumber');
+    const replayMessage = resolveStateBearingMessage(state, primaryMessage);
     await this.saveGameState(state);
     if (events.length > 0) {
       await this.appendEvents(...events);
     }
+    if (matchNumber !== undefined) {
+      await this.appendReplayMessage(roomCode, matchNumber, replayMessage);
+    }
     if (restartTurnTimer) {
       await this.startTurnTimer(state);
     }
-    this.broadcastStateChange(state, primaryMessage);
+    this.broadcastStateChange(state, replayMessage);
   }
   private async runGameStateAction<
     Success extends {
@@ -685,6 +782,48 @@ export class GameDO extends DurableObject<Env> {
       ? Response.json({ ok: true }, { status: 200 })
       : joinAttempt.response;
   }
+  private async handleReplayRequest(request: Request): Promise<Response> {
+    const roomConfig = await this.getRoomConfig();
+
+    if (!roomConfig) {
+      return new Response('Game not found', {
+        status: 404,
+      });
+    }
+
+    const url = new URL(request.url);
+    const playerId = this.getReplayViewerId(
+      roomConfig,
+      url.searchParams.get('playerToken'),
+    );
+
+    if (playerId === null) {
+      return new Response('Invalid player token', {
+        status: 403,
+      });
+    }
+
+    const gameId =
+      url.searchParams.get('gameId') ?? (await this.getGameState())?.gameId;
+
+    if (!gameId) {
+      return new Response('Replay not found', {
+        status: 404,
+      });
+    }
+
+    const archive = await this.getReplayArchive(gameId);
+
+    if (!archive) {
+      return new Response('Replay not found', {
+        status: 404,
+      });
+    }
+
+    await this.touchInactivity();
+
+    return Response.json(this.filterReplayArchiveForPlayer(archive, playerId));
+  }
   private async initGame() {
     const [roomConfig, scenario] = await Promise.all([
       this.getRoomConfig(),
@@ -692,18 +831,20 @@ export class GameDO extends DurableObject<Env> {
     ]);
     const map = this.map;
     const code = roomConfig?.code ?? (await this.getGameCode());
-    const gameState = createGame(scenario, map, code, findBaseHex);
+    const { gameId, matchNumber } = await this.allocateMatchIdentity(code);
+    const gameState = createGame(scenario, map, gameId, findBaseHex);
+    const gameStartMessage = toGameStartMessage(gameState);
     await this.saveGameState(gameState);
     await this.resetEventLog();
+    await this.saveReplayArchive(
+      createReplayArchive(code, matchNumber, gameStartMessage, Date.now()),
+    );
     await this.appendEvents({
       type: 'gameStarted',
       turn: gameState.turnNumber,
       phase: gameState.phase,
     });
-    this.broadcastFiltered({
-      type: 'gameStart',
-      state: gameState,
-    });
+    this.broadcastFiltered(gameStartMessage);
     await this.startTurnTimer(gameState);
   }
   private async handleFleetReady(
