@@ -1,21 +1,68 @@
 import { byId, hide, visible } from '../dom';
-import { computed, effect, signal } from '../reactive';
+import {
+  batch,
+  computed,
+  createDisposalScope,
+  effect,
+  signal,
+} from '../reactive';
 import { ACTION_BUTTON_IDS } from './button-bindings';
 import { getLatencyStatus } from './formatters';
 import { buildHUDView, type HUDInput } from './hud';
 
 export interface HUDChromeViewDeps {
-  getIsMobile: () => boolean;
   queueLayoutSync: () => void;
   showPhaseAlert: (phase: string, isMyTurn: boolean) => void;
   onStatusText: (text: string | null) => void;
 }
 
+interface FireButtonState {
+  isVisible: boolean;
+  count: number;
+}
+
+const cloneHUDInput = (
+  input: Omit<HUDInput, 'isMobile'>,
+): Omit<HUDInput, 'isMobile'> => {
+  return {
+    ...input,
+    astrogationCtx: {
+      ...input.astrogationCtx,
+    },
+    launchMineState: {
+      ...input.launchMineState,
+    },
+    launchTorpedoState: {
+      ...input.launchTorpedoState,
+    },
+    launchNukeState: {
+      ...input.launchNukeState,
+    },
+  };
+};
+
 export class HUDChromeView {
+  private readonly scope = createDisposalScope();
   private lastPhase: string | null = null;
   private readonly inputSignal = signal<Omit<HUDInput, 'isMobile'> | null>(
     null,
   );
+  private readonly isMobileSignal = signal(false);
+  private readonly statusOverrideSignal = signal<string | null>(null);
+  private readonly suppressActionButtonsSignal = signal(false);
+  private readonly latencySignal = signal<number | null>(null);
+  private readonly fleetStatusSignal = signal('');
+  private readonly helpOverlayVisibleSignal = signal(false);
+  private readonly soundMutedSignal = signal(false);
+  private readonly turnTimerSignal = signal<{
+    text: string;
+    className: string;
+  } | null>(null);
+  private readonly attackButtonVisibleSignal = signal(false);
+  private readonly fireButtonSignal = signal<FireButtonState>({
+    isVisible: false,
+    count: 0,
+  });
 
   private readonly turnInfoEl = byId('turnInfo');
   private readonly phaseInfoEl = byId('phaseInfo');
@@ -42,148 +89,278 @@ export class HUDChromeView {
   private readonly fireBtn = byId('fireBtn');
 
   constructor(private readonly deps: HUDChromeViewDeps) {
-    const viewSignal = computed(() => {
-      const input = this.inputSignal.value;
-      if (!input) return null;
-      return {
-        input,
-        hudView: buildHUDView({
+    const viewSignal = this.scope.add(
+      computed(() => {
+        const input = this.inputSignal.value;
+        if (!input) return null;
+
+        const hudView = buildHUDView({
           ...input,
-          isMobile: this.deps.getIsMobile(),
-        }),
-      };
-    });
+          isMobile: this.isMobileSignal.value,
+        });
 
-    effect(() => {
-      const state = viewSignal.value;
-      if (!state) return;
-      const { input, hudView } = state;
+        return {
+          input,
+          hudView,
+          suppressActionButtons: this.suppressActionButtonsSignal.value,
+        };
+      }),
+    );
 
-      const { turn, phase, isMyTurn } = input;
+    const statusTextSignal = this.scope.add(
+      computed(() => {
+        const statusOverride = this.statusOverrideSignal.value;
+        const state = viewSignal.value;
 
-      this.turnInfoEl.textContent = hudView.turnText;
-      this.phaseInfoEl.textContent = hudView.phaseText;
-      this.objectiveEl.textContent = hudView.objectiveText;
+        return statusOverride ?? state?.hudView.statusText ?? null;
+      }),
+    );
 
-      const phaseKey = `${turn}-${phase}-${isMyTurn}`;
+    this.scope.add(
+      effect(() => {
+        const state = viewSignal.value;
+        if (!state) return;
+        const { input, hudView } = state;
+        const hideActions = state.suppressActionButtons;
 
-      if (this.lastPhase !== phaseKey) {
-        this.lastPhase = phaseKey;
-        this.deps.showPhaseAlert(phase, isMyTurn);
-      }
+        const { turn, phase, isMyTurn } = input;
 
-      this.fuelGaugeEl.textContent = hudView.fuelGaugeText;
+        this.turnInfoEl.textContent = hudView.turnText;
+        this.phaseInfoEl.textContent = hudView.phaseText;
+        this.objectiveEl.textContent = hudView.objectiveText;
 
-      visible(this.undoBtn, hudView.undoVisible, 'inline-block');
-      visible(this.confirmBtn, hudView.confirmVisible, 'inline-block');
+        const phaseKey = `${turn}-${phase}-${isMyTurn}`;
 
-      visible(this.launchMineBtn, hudView.launchMine.visible, 'inline-block');
-      visible(
-        this.launchTorpedoBtn,
-        hudView.launchTorpedo.visible,
-        'inline-block',
-      );
-      visible(this.launchNukeBtn, hudView.launchNuke.visible, 'inline-block');
-      visible(this.emplaceBaseBtn, hudView.emplaceBaseVisible, 'inline-block');
-      visible(
-        this.skipOrdnanceBtn,
-        hudView.skipOrdnanceVisible,
-        'inline-block',
-      );
+        if (this.lastPhase !== phaseKey) {
+          this.lastPhase = phaseKey;
+          this.deps.showPhaseAlert(phase, isMyTurn);
+        }
 
-      this.launchMineBtn.disabled = hudView.launchMine.disabled;
-      this.launchTorpedoBtn.disabled = hudView.launchTorpedo.disabled;
-      this.launchNukeBtn.disabled = hudView.launchNuke.disabled;
+        this.fuelGaugeEl.textContent = hudView.fuelGaugeText;
 
-      this.launchMineBtn.style.opacity = hudView.launchMine.opacity;
-      this.launchTorpedoBtn.style.opacity = hudView.launchTorpedo.opacity;
-      this.launchNukeBtn.style.opacity = hudView.launchNuke.opacity;
+        visible(
+          this.undoBtn,
+          !hideActions && hudView.undoVisible,
+          'inline-block',
+        );
+        visible(
+          this.confirmBtn,
+          !hideActions && hudView.confirmVisible,
+          'inline-block',
+        );
 
-      this.launchMineBtn.title = hudView.launchMine.title;
-      this.launchTorpedoBtn.title = hudView.launchTorpedo.title;
-      this.launchNukeBtn.title = hudView.launchNuke.title;
+        visible(
+          this.launchMineBtn,
+          !hideActions && hudView.launchMine.visible,
+          'inline-block',
+        );
+        visible(
+          this.launchTorpedoBtn,
+          !hideActions && hudView.launchTorpedo.visible,
+          'inline-block',
+        );
+        visible(
+          this.launchNukeBtn,
+          !hideActions && hudView.launchNuke.visible,
+          'inline-block',
+        );
+        visible(
+          this.emplaceBaseBtn,
+          !hideActions && hudView.emplaceBaseVisible,
+          'inline-block',
+        );
+        visible(
+          this.skipOrdnanceBtn,
+          !hideActions && hudView.skipOrdnanceVisible,
+          'inline-block',
+        );
 
-      visible(this.skipCombatBtn, hudView.skipCombatVisible, 'inline-block');
-      visible(
-        this.skipLogisticsBtn,
-        hudView.skipLogisticsVisible,
-        'inline-block',
-      );
-      visible(
-        this.confirmTransfersBtn,
-        hudView.confirmTransfersVisible,
-        'inline-block',
-      );
-      visible(this.transferPanelEl, hudView.showTransferPanel, 'block');
+        this.launchMineBtn.disabled = hudView.launchMine.disabled;
+        this.launchTorpedoBtn.disabled = hudView.launchTorpedo.disabled;
+        this.launchNukeBtn.disabled = hudView.launchNuke.disabled;
 
-      this.deps.onStatusText(hudView.statusText);
+        this.launchMineBtn.style.opacity = hudView.launchMine.opacity;
+        this.launchTorpedoBtn.style.opacity = hudView.launchTorpedo.opacity;
+        this.launchNukeBtn.style.opacity = hudView.launchNuke.opacity;
 
-      this.deps.queueLayoutSync();
-    });
+        this.launchMineBtn.title = hudView.launchMine.title;
+        this.launchTorpedoBtn.title = hudView.launchTorpedo.title;
+        this.launchNukeBtn.title = hudView.launchNuke.title;
+
+        visible(
+          this.skipCombatBtn,
+          !hideActions && hudView.skipCombatVisible,
+          'inline-block',
+        );
+        visible(
+          this.skipLogisticsBtn,
+          !hideActions && hudView.skipLogisticsVisible,
+          'inline-block',
+        );
+        visible(
+          this.confirmTransfersBtn,
+          !hideActions && hudView.confirmTransfersVisible,
+          'inline-block',
+        );
+        visible(
+          this.transferPanelEl,
+          !hideActions && hudView.showTransferPanel,
+          'block',
+        );
+
+        this.deps.queueLayoutSync();
+      }),
+    );
+
+    this.scope.add(
+      effect(() => {
+        this.deps.onStatusText(statusTextSignal.value);
+      }),
+    );
+
+    this.scope.add(
+      effect(() => {
+        const status = getLatencyStatus(this.latencySignal.value);
+
+        this.latencyEl.textContent = status.text;
+        this.latencyEl.className = status.className;
+      }),
+    );
+
+    this.scope.add(
+      effect(() => {
+        this.fleetStatusEl.textContent = this.fleetStatusSignal.value;
+      }),
+    );
+
+    this.scope.add(
+      effect(() => {
+        visible(
+          this.helpOverlayEl,
+          this.helpOverlayVisibleSignal.value,
+          'flex',
+        );
+      }),
+    );
+
+    this.scope.add(
+      effect(() => {
+        const muted = this.soundMutedSignal.value;
+
+        this.soundBtn.textContent = muted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
+        this.soundBtn.title = muted ? 'Sound off' : 'Sound on';
+        this.soundBtn.setAttribute(
+          'aria-label',
+          muted ? 'Enable sound effects' : 'Disable sound effects',
+        );
+        this.soundBtn.classList.toggle('muted', muted);
+      }),
+    );
+
+    this.scope.add(
+      effect(() => {
+        const timer = this.turnTimerSignal.value;
+
+        this.timerEl.textContent = timer?.text ?? '';
+        this.timerEl.className = timer?.className ?? '';
+      }),
+    );
+
+    this.scope.add(
+      effect(() => {
+        visible(
+          this.attackBtn,
+          this.attackButtonVisibleSignal.value,
+          'inline-block',
+        );
+      }),
+    );
+
+    this.scope.add(
+      effect(() => {
+        const fireButton = this.fireButtonSignal.value;
+
+        visible(this.fireBtn, fireButton.isVisible, 'inline-block');
+        this.fireBtn.textContent =
+          fireButton.count > 0 ? `FIRE ALL (${fireButton.count})` : 'FIRE ALL';
+      }),
+    );
+  }
+
+  setMobile(isMobile: boolean): void {
+    this.isMobileSignal.value = isMobile;
   }
 
   update(input: Omit<HUDInput, 'isMobile'>): void {
-    this.inputSignal.value = input;
+    batch(() => {
+      this.statusOverrideSignal.value = null;
+      this.suppressActionButtonsSignal.value = false;
+      this.inputSignal.value = cloneHUDInput(input);
+    });
   }
 
   updateLatency(latencyMs: number | null): void {
-    const status = getLatencyStatus(latencyMs);
-
-    this.latencyEl.textContent = status.text;
-    this.latencyEl.className = status.className;
+    this.latencySignal.value = latencyMs;
   }
 
   updateFleetStatus(status: string): void {
-    this.fleetStatusEl.textContent = status;
+    this.fleetStatusSignal.value = status;
   }
 
   toggleHelpOverlay(): void {
-    visible(
-      this.helpOverlayEl,
-      this.helpOverlayEl.style.display === 'none',
-      'flex',
-    );
+    this.helpOverlayVisibleSignal.update((value) => !value);
   }
 
   updateSoundButton(muted: boolean): void {
-    this.soundBtn.textContent = muted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
-    this.soundBtn.title = muted ? 'Sound off' : 'Sound on';
-    this.soundBtn.setAttribute(
-      'aria-label',
-      muted ? 'Enable sound effects' : 'Disable sound effects',
-    );
-    this.soundBtn.classList.toggle('muted', muted);
+    this.soundMutedSignal.value = muted;
   }
 
   setTurnTimer(text: string, className: string): void {
-    this.timerEl.textContent = text;
-    this.timerEl.className = className;
+    this.turnTimerSignal.value = { text, className };
     this.deps.queueLayoutSync();
   }
 
   clearTurnTimer(): void {
-    this.timerEl.textContent = '';
+    this.turnTimerSignal.value = null;
     this.deps.queueLayoutSync();
   }
 
   showAttackButton(isVisible: boolean): void {
-    visible(this.attackBtn, isVisible, 'inline-block');
+    this.attackButtonVisibleSignal.value = isVisible;
     this.deps.queueLayoutSync();
   }
 
   showFireButton(isVisible: boolean, count: number): void {
-    visible(this.fireBtn, isVisible, 'inline-block');
-    this.fireBtn.textContent = count > 0 ? `FIRE ALL (${count})` : 'FIRE ALL';
+    this.fireButtonSignal.value = {
+      isVisible,
+      count,
+    };
     this.deps.queueLayoutSync();
   }
 
   showMovementStatus(): void {
-    this.deps.onStatusText('Ships moving...');
+    const hasInput = this.inputSignal.peek() !== null;
+
+    batch(() => {
+      this.statusOverrideSignal.value = 'Ships moving...';
+      this.suppressActionButtonsSignal.value = true;
+      this.attackButtonVisibleSignal.value = false;
+      this.fireButtonSignal.value = {
+        isVisible: false,
+        count: 0,
+      };
+    });
 
     for (const id of ACTION_BUTTON_IDS) {
       hide(byId(id));
     }
 
-    this.deps.queueLayoutSync();
+    if (!hasInput) {
+      this.deps.queueLayoutSync();
+    }
+  }
+
+  dispose(): void {
+    this.scope.dispose();
   }
 }

@@ -8,6 +8,7 @@ import {
   bindClass,
   bindText,
   computed,
+  createDisposalScope,
   effect,
   signal,
 } from './reactive';
@@ -474,6 +475,35 @@ describe('bindClass', () => {
     dispose();
     s.value = true;
     expect(el.classList.contains('active')).toBe(false);
+  });
+});
+
+describe('createDisposalScope', () => {
+  it('disposes registered cleanups in reverse order and only once', () => {
+    const scope = createDisposalScope();
+    const calls: string[] = [];
+
+    scope.add(() => {
+      calls.push('first');
+    });
+    scope.add(() => {
+      calls.push('second');
+    });
+
+    scope.dispose();
+    scope.dispose();
+
+    expect(calls).toEqual(['second', 'first']);
+  });
+
+  it('immediately disposes cleanups added after the scope is closed', () => {
+    const scope = createDisposalScope();
+    const dispose = vi.fn();
+
+    scope.dispose();
+    scope.add(dispose);
+
+    expect(dispose).toHaveBeenCalledTimes(1);
   });
 });
 

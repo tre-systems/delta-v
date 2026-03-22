@@ -57,64 +57,6 @@ and the related UI / log presentation.
 
 ---
 
-## Reliability & Hardening
-
-### Replacement socket disconnect race
-
-Prevent server-initiated socket replacement during
-reconnect from creating a disconnect marker and later
-forfeit.
-
-The Durable Object should distinguish between a genuine
-disconnect and an intentional socket swap for the same
-player.
-
-**Files:** `src/server/game-do/game-do.ts`,
-`src/server/game-do/session.ts`
-
-### First-connect failure handling
-
-Differentiate initial WebSocket join failure from an
-in-progress game disconnect.
-
-Handshake failures like "game full", "join token
-required", or "game not found" should surface clearly to
-the user instead of entering the reconnect backoff loop.
-
-Possible approaches: add an HTTP preflight join check or
-track whether the client has ever reached a successful
-connected session before enabling reconnect behavior.
-
-**Files:** `src/client/game/network.ts`,
-`src/client/game/connection.ts`,
-`src/client/main.ts`
-
-### Reconnect teardown consistency
-
-Route all reconnect cancel / reconnect exhausted exits
-through the same session teardown path as normal
-"Exit to Menu" flow.
-
-Prevents stale `gameCode`, transport, and history state
-from surviving after the UI has returned to the menu.
-
-**Files:** `src/client/game/connection.ts`,
-`src/client/game/session-controller.ts`,
-`src/client/main.ts`
-
-### Service worker API bypass rules
-
-Restrict service-worker caching to safe GET asset /
-navigation traffic and explicitly bypass reporting and
-other API routes.
-
-Prevents `/telemetry`, `/error`, and future non-GET
-endpoints from being intercepted by cache logic.
-
-**Files:** `static/sw.js`
-
----
-
 ## Operations & Performance
 
 ### Reduce DO inactivity write amplification
@@ -132,14 +74,6 @@ I/O and alarm rescheduling churn.
 ### Event Sourcing for Replays
 
 To support the "Turn Replay" feature without state-snapshot bloat, transition the engine to [Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html), emitting a strict append-only log of domain events (`ShipMoved`, `DamageTaken` etc.).
-
-### Adopt `reactive.ts` for Complex UI
-
-Begin adopting the existing zero-dependency `reactive.ts` signals library to consolidate DOM synchronization logic for complex overlays (like lobbies or fleet building) and prevent the manual `ui.ts` layer from becoming brittle.
-
-### Engine Mutation Optimization
-
-Investigate adopting structural sharing (e.g., [Immer](https://immerjs.github.io/immer/)) to optimize the `structuredClone(inputState)` brute-force deep-cloning occurring on every engine entry point.
 
 ---
 

@@ -76,7 +76,6 @@ describe('HUDChromeView', () => {
     const showPhaseAlert = vi.fn();
     const onStatusText = vi.fn();
     const view = new HUDChromeView({
-      getIsMobile: () => false,
       queueLayoutSync,
       showPhaseAlert,
       onStatusText,
@@ -116,7 +115,6 @@ describe('HUDChromeView', () => {
     const queueLayoutSync = vi.fn();
     const onStatusText = vi.fn();
     const view = new HUDChromeView({
-      getIsMobile: () => false,
       queueLayoutSync,
       showPhaseAlert: vi.fn(),
       onStatusText,
@@ -174,5 +172,96 @@ describe('HUDChromeView', () => {
     view.clearTurnTimer();
     expect(document.getElementById('turnTimer')?.textContent).toBe('');
     expect(queueLayoutSync).toHaveBeenCalledTimes(5);
+  });
+
+  it('recomputes status text when the mobile breakpoint changes', () => {
+    const onStatusText = vi.fn();
+    const view = new HUDChromeView({
+      queueLayoutSync: vi.fn(),
+      showPhaseAlert: vi.fn(),
+      onStatusText,
+    });
+
+    view.update(
+      buildInput({
+        astrogationCtx: {
+          selectedShipLanded: true,
+          selectedShipDisabled: false,
+          selectedShipHasBurn: false,
+          allShipsHaveBurns: false,
+          multipleShipsAlive: false,
+          hasSelection: true,
+        },
+      }),
+    );
+
+    expect(onStatusText).toHaveBeenLastCalledWith(
+      'Click a direction to take off (costs 1 fuel)',
+    );
+
+    view.setMobile(true);
+
+    expect(onStatusText).toHaveBeenLastCalledWith(
+      'Tap a direction to take off (costs 1 fuel)',
+    );
+  });
+
+  it('re-renders even when update reuses the same input object reference', () => {
+    const onStatusText = vi.fn();
+    const view = new HUDChromeView({
+      queueLayoutSync: vi.fn(),
+      showPhaseAlert: vi.fn(),
+      onStatusText,
+    });
+    const input = buildInput({
+      astrogationCtx: {
+        selectedShipLanded: true,
+        selectedShipDisabled: false,
+        selectedShipHasBurn: false,
+        allShipsHaveBurns: false,
+        multipleShipsAlive: false,
+        hasSelection: true,
+      },
+    });
+
+    view.update(input);
+    expect(onStatusText).toHaveBeenLastCalledWith(
+      'Click a direction to take off (costs 1 fuel)',
+    );
+
+    input.astrogationCtx.selectedShipLanded = false;
+    input.astrogationCtx.selectedShipHasBurn = true;
+    view.update(input);
+
+    expect(onStatusText).toHaveBeenLastCalledWith('Burn set · Confirm (Enter)');
+  });
+
+  it('disposes the reactive HUD effects cleanly', () => {
+    const onStatusText = vi.fn();
+    const view = new HUDChromeView({
+      queueLayoutSync: vi.fn(),
+      showPhaseAlert: vi.fn(),
+      onStatusText,
+    });
+
+    view.update(buildInput());
+    const callsBeforeDispose = onStatusText.mock.calls.length;
+
+    view.dispose();
+    view.setMobile(true);
+    view.update(
+      buildInput({
+        astrogationCtx: {
+          selectedShipLanded: true,
+          selectedShipDisabled: false,
+          selectedShipHasBurn: false,
+          allShipsHaveBurns: false,
+          multipleShipsAlive: false,
+          hasSelection: true,
+        },
+      }),
+    );
+
+    expect(onStatusText).toHaveBeenCalledTimes(callsBeforeDispose);
   });
 });

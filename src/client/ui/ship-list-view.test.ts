@@ -88,4 +88,18 @@ describe('ShipListView', () => {
     entry?.click();
     expect(onSelectShip).not.toHaveBeenCalled();
   });
+
+  it('disposes the reactive render pipeline cleanly', () => {
+    const view = new ShipListView({
+      onSelectShip: vi.fn(),
+    });
+
+    view.update([createShip()], null, new Map());
+    expect(document.querySelectorAll('#shipList .ship-entry')).toHaveLength(1);
+
+    view.dispose();
+    view.update([createShip({ id: 'ship-1' })], 'ship-1', new Map());
+
+    expect(document.querySelectorAll('#shipList .ship-entry')).toHaveLength(0);
+  });
 });

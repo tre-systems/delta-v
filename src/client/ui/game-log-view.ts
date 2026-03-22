@@ -4,7 +4,7 @@ import type {
   Ship,
 } from '../../shared/types/domain';
 import { byId, el } from '../dom';
-import { computed, effect, signal } from '../reactive';
+import { computed, createDisposalScope, effect, signal } from '../reactive';
 import {
   formatCombatResultEntries,
   formatMovementEventEntry,
@@ -16,6 +16,7 @@ export interface GameLogViewDeps {
 }
 
 export class GameLogView {
+  private readonly scope = createDisposalScope();
   private readonly gameLogEl = byId('gameLog');
   private readonly logEntriesEl = byId('logEntries');
   private readonly chatInputRow = byId('chatInputRow');
@@ -25,8 +26,10 @@ export class GameLogView {
 
   private lastTurnHeader: HTMLElement | null = null;
   private playerId = -1;
-  private expanded = false;
 
+  private readonly screenModeSignal = signal<UIScreenMode>('hidden');
+  private readonly expandedSignal = signal(false);
+  private readonly chatEnabledSignal = signal(false);
   private readonly lastLogTextSignal = signal('');
   private readonly lastLogClassSignal = signal('');
   private readonly statusTextSignal = signal<string | null>(null);
@@ -35,22 +38,65 @@ export class GameLogView {
     this.bindChatInput();
     this.bindLogControls();
 
-    const latestBarCopySignal = computed(() => {
-      const statusText = this.statusTextSignal.value;
-      const lastLogText = this.lastLogTextSignal.value;
-      const lastLogClass = this.lastLogClassSignal.value;
+    const latestBarCopySignal = this.scope.add(
+      computed(() => {
+        const statusText = this.statusTextSignal.value;
+        const lastLogText = this.lastLogTextSignal.value;
+        const lastLogClass = this.lastLogClassSignal.value;
 
-      return {
-        text: statusText ?? lastLogText,
-        cssClass: statusText ? 'log-status' : lastLogClass,
-      };
-    });
+        return {
+          text: statusText ?? lastLogText,
+          cssClass: statusText ? 'log-status' : lastLogClass,
+        };
+      }),
+    );
 
-    effect(() => {
-      const copy = latestBarCopySignal.value;
-      this.logLatestText.textContent = copy.text;
-      this.logLatestText.className = `log-latest-text ${copy.cssClass}`;
-    });
+    const visibilitySignal = this.scope.add(
+      computed(() => {
+        const mode = this.screenModeSignal.value;
+
+        if (mode === 'hud') {
+          const expanded = this.expandedSignal.value;
+
+          return {
+            gameLog: expanded ? 'flex' : 'none',
+            latestBar: expanded ? 'none' : 'block',
+          };
+        }
+
+        const visibility = buildScreenVisibility(mode);
+
+        return {
+          gameLog: visibility.gameLog,
+          latestBar: 'none',
+        };
+      }),
+    );
+
+    this.scope.add(
+      effect(() => {
+        const copy = latestBarCopySignal.value;
+        this.logLatestText.textContent = copy.text;
+        this.logLatestText.className = `log-latest-text ${copy.cssClass}`;
+      }),
+    );
+
+    this.scope.add(
+      effect(() => {
+        const visibility = visibilitySignal.value;
+
+        this.gameLogEl.style.display = visibility.gameLog;
+        this.logLatestBar.style.display = visibility.latestBar;
+      }),
+    );
+
+    this.scope.add(
+      effect(() => {
+        this.chatInputRow.style.display = this.chatEnabledSignal.value
+          ? ''
+          : 'none';
+      }),
+    );
   }
 
   setPlayerId(id: number): void {
@@ -59,26 +105,29 @@ export class GameLogView {
 
   setMobile(_isMobile: boolean, hudVisible: boolean): void {
     if (hudVisible) {
-      this.collapse();
+      this.expandedSignal.value = false;
     }
   }
 
   applyScreenVisibility(mode: UIScreenMode): void {
-    const visibility = buildScreenVisibility(mode);
-    this.gameLogEl.style.display = visibility.gameLog;
+    this.screenModeSignal.value = mode;
   }
 
   resetVisibilityState(): void {
-    this.logLatestBar.style.display = 'none';
-    this.expanded = false;
+    this.expandedSignal.value = false;
   }
 
   showHUD(): void {
-    this.collapse();
+    this.screenModeSignal.value = 'hud';
+    this.expandedSignal.value = false;
   }
 
   toggle(): void {
-    if (this.expanded) {
+    if (this.screenModeSignal.peek() !== 'hud') {
+      return;
+    }
+
+    if (this.expandedSignal.peek()) {
       this.collapse();
     } else {
       this.expand();
@@ -91,7 +140,7 @@ export class GameLogView {
   }
 
   setChatEnabled(enabled: boolean): void {
-    this.chatInputRow.style.display = enabled ? '' : 'none';
+    this.chatEnabledSignal.value = enabled;
     this.chatInput.value = '';
   }
 
@@ -158,7 +207,7 @@ export class GameLogView {
   }
 
   private bindChatInput(): void {
-    this.chatInput.addEventListener('keydown', (event) => {
+    const handleChatInput = (event: KeyboardEvent) => {
       event.stopPropagation();
 
       if (event.key !== 'Enter') {
@@ -172,20 +221,33 @@ export class GameLogView {
 
       this.deps.onChat(text);
       this.chatInput.value = '';
+    };
+
+    this.chatInput.addEventListener('keydown', handleChatInput);
+    this.scope.add(() => {
+      this.chatInput.removeEventListener('keydown', handleChatInput);
     });
   }
 
   private bindLogControls(): void {
-    this.logLatestBar.addEventListener('click', () => {
+    const handleLatestBarClick = () => {
       this.expand();
+    };
+    this.logLatestBar.addEventListener('click', handleLatestBarClick);
+    this.scope.add(() => {
+      this.logLatestBar.removeEventListener('click', handleLatestBarClick);
     });
 
-    this.gameLogEl.addEventListener('click', (e) => {
+    const handleLogClick = (e: MouseEvent) => {
       if ((e.target as HTMLElement).closest('.chat-input')) {
         return;
       }
 
       this.collapse();
+    };
+    this.gameLogEl.addEventListener('click', handleLogClick);
+    this.scope.add(() => {
+      this.gameLogEl.removeEventListener('click', handleLogClick);
     });
   }
 
@@ -199,15 +261,19 @@ export class GameLogView {
   }
 
   private expand(): void {
-    this.expanded = true;
-    this.gameLogEl.style.display = 'flex';
-    this.logLatestBar.style.display = 'none';
+    if (this.screenModeSignal.peek() !== 'hud') {
+      return;
+    }
+
+    this.expandedSignal.value = true;
     this.scrollToBottom();
   }
 
   private collapse(): void {
-    this.expanded = false;
-    this.gameLogEl.style.display = 'none';
-    this.logLatestBar.style.display = 'block';
+    this.expandedSignal.value = false;
+  }
+
+  dispose(): void {
+    this.scope.dispose();
   }
 }
