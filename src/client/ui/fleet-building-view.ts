@@ -1,5 +1,13 @@
 import type { FleetPurchase, GameState } from '../../shared/types/domain';
-import { byId, clearHTML, hide, listen, setTrustedHTML, show } from '../dom';
+import {
+  byId,
+  clearHTML,
+  hide,
+  listen,
+  renderList,
+  setTrustedHTML,
+  show,
+} from '../dom';
 import {
   batch,
   computed,
@@ -58,14 +66,13 @@ export class FleetBuildingView {
         const cartView = cartViewSignal.value;
 
         this.creditsEl.textContent = cartView.remainingLabel;
-        clearHTML(this.cartEl);
-
         if (cartView.isEmpty) {
+          clearHTML(this.cartEl);
           setTrustedHTML(this.cartEl, EMPTY_CART_HTML);
           return;
         }
 
-        for (const [index, itemView] of cartView.items.entries()) {
+        renderList(this.cartEl, cartView.items, (itemView, index) => {
           const chip = document.createElement('div');
           chip.className = 'fleet-cart-chip';
           setTrustedHTML(
@@ -79,8 +86,8 @@ export class FleetBuildingView {
             this.cartSignal.value = newCart;
           });
 
-          this.cartEl.appendChild(chip);
-        }
+          return chip;
+        });
       }),
     );
 
@@ -88,9 +95,7 @@ export class FleetBuildingView {
       effect(() => {
         const shopView = shopViewSignal.value;
 
-        clearHTML(this.shopEl);
-
-        for (const itemView of shopView) {
+        renderList(this.shopEl, shopView, (itemView) => {
           const item = document.createElement('div');
           item.className = 'fleet-shop-item';
           item.classList.toggle('disabled', itemView.disabled);
@@ -121,8 +126,8 @@ export class FleetBuildingView {
             }
           });
 
-          this.shopEl.appendChild(item);
-        }
+          return item;
+        });
       }),
     );
 
