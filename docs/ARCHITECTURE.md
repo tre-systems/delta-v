@@ -166,7 +166,7 @@ The backend leverages Cloudflare's edge network.
 | `index.ts` | Worker entry: `/create`, `/join/:code`, `/replay/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern |
 | `protocol.ts` | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export | **~85% generic** — room/token/seat logic is game-agnostic |
 | `game-do/game-do.ts` | Durable Object: WebSocket lifecycle, state persistence, broadcasting | **~70% generic** — multiplayer plumbing is reusable |
-| `game-do/archive.ts` | Event log persistence, replay archive management, match identity | Game-specific |
+| `game-do/archive.ts` | Event log, match-scoped event envelopes (gameId/seq/ts/actor), replay archive, match identity | Game-specific |
 | `game-do/messages.ts` | S2C message construction from engine results | Game-specific |
 | `game-do/session.ts` | Disconnect grace period, alarm scheduling | **Fully generic** |
 | `game-do/turns.ts` | Turn timeout auto-advance | Mostly generic |
@@ -445,6 +445,6 @@ currently exist.
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.
 - **Generic hex engine extraction**: Designing a framework from N=1 games is premature abstraction. Fork Delta-V when game #2 starts and build the framework from two concrete implementations.
 - **Serialisation codec**: `GameState` is plain JSON. A codec adds overhead with zero current benefit.
-- **Replay architecture / event sourcing**: This has now been accepted as the target direction. The project will move from snapshot-authoritative rooms toward append-only per-match domain events with sequence numbers, explicit RNG outcomes, projection rebuilds, and checkpoints. The current replay archive and snapshot persistence are transitional scaffolding that should be retired or downgraded to cache once the event stream becomes authoritative.
+- **Replay architecture / event sourcing**: Accepted as the target direction. Match-scoped event streams with versioned envelopes (`EventEnvelope`: gameId, seq, ts, actor, event) are now implemented alongside the existing snapshot-based replay archive. The next steps are explicit RNG outcome capture, projection rebuilds, and checkpoints. The snapshot persistence is transitional scaffolding that should be downgraded to cache once projections are verified.
 - **UI framework adoption**: The DOM UI layer is still small enough to own directly. The current compromise is a tiny local signals layer for view-local state and cleanup, without paying the cost of adopting a full framework (Preact, etc.) across the entire client.
 - **Structural sharing / Immer**: Reconsidered alongside the event-sourcing shift. Immer is still not a prerequisite and should not block the migration. The immediate value is in stable event schemas, append ordering, explicit RNG facts, and projector correctness, not in rewriting the whole engine around Proxy-based updates. Revisit only if projector reducers or future command handlers become materially clearer with Immer; if adopted at all, it should start at the projection layer rather than as an all-at-once engine rewrite.

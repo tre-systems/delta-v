@@ -141,7 +141,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Engine safety (clone-on-entry, server rollback, event log)
 - [x] Error reporting and anonymous telemetry (D1 storage)
-- [x] 2,600+ automated tests across 91 test files, plus scenario AI simulations with per-scenario balance thresholds
+- [x] 2,600+ automated tests across 92 test files, plus scenario AI simulations with per-scenario balance thresholds
 - [x] Engine decomposition into focused phase processors (game-creation, astrogation, resolve-movement, combat, etc.)
 - [x] Typed Ship state models (`lifecycle`, `control` fields with impossible states unrepresentable)
 - [x] Granular engine events (22 `EngineEvent` types emitted by engine, replacing server-side derivation)
