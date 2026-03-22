@@ -9,29 +9,157 @@ feature, not as a cleanup pass afterward.
 
 ---
 
+## Reliability & Simplification
+
+### Reconnect seat reclamation without socket races
+
+Allow a valid stored player token to reclaim its seat
+even when the old WebSocket has not closed yet.
+
+Today seat assignment treats a still-open socket as a
+hard blocker, which makes refresh / reconnect flows race
+the old connection teardown and reject valid tokens.
+Seat reclamation should be keyed off player identity,
+with duplicate sockets replaced only after the reclaim
+decision is accepted.
+
+Definition of done: reconnect tests cover refresh while
+the old socket is still open, reconnect during the
+disconnect grace window, and rejection of truly invalid
+tokens without regressing duplicate-socket cleanup.
+
+**Files:** `src/server/protocol.ts`,
+`src/server/game-do/game-do.ts`,
+`src/server/protocol.test.ts`,
+`src/server/game-do/game-do.test.ts`
+
+### Robust astrogation timeout auto-advance
+
+Make turn-timeout astrogation orders derive from the
+same "orderable ship" rules as the normal engine path.
+
+The timeout helper should not synthesize no-op orders
+for destroyed, captured, or otherwise non-orderable
+ships, or it can fail to advance the match in damaged
+late-game states.
+
+Definition of done: timeout tests cover destroyed ships,
+captured ships, emplaced bases, and mixed-fleet cases
+without returning `null` for otherwise recoverable
+turns.
+
+**Files:** `src/server/game-do/turns.ts`,
+`src/shared/engine/astrogation.ts`,
+`src/shared/engine/util.ts`,
+`src/server/game-do/turns.test.ts`
+
+### Deterministic client phase-entry state application
+
+Apply planning resets and default ship selection before
+deriving HUD state on client phase entry.
+
+Right now phase-entry effects can compute HUD state from
+stale planning data, which risks showing outdated burn,
+selection, and ordnance controls until another
+interaction forces a refresh.
+
+Definition of done: state-transition tests assert the
+ordering of planning reset, selection, and HUD refresh
+for astrogation, ordnance, and combat entry.
+
+**Files:** `src/client/game/state-transition.ts`,
+`src/client/game/helpers.ts`,
+`src/client/game/state-transition.test.ts`,
+`src/client/game/helpers.test.ts`
+
+### Decide whether invite tokens stay or go
+
+Either finish the invite-token flow end to end or remove
+the dormant abstraction.
+
+The codebase still carries invite-token storage and seat
+assignment logic, but the create flow currently issues
+only the creator token. Keeping an incomplete branch of
+join semantics increases protocol and session complexity
+without current product value.
+
+Definition of done: the chosen direction is reflected in
+worker create responses, client session helpers, join
+validation, and docs, with no dead invite-token path
+left behind.
+
+**Files:** `src/server/index.ts`,
+`src/server/protocol.ts`,
+`src/client/game/session.ts`,
+`README.md`, `docs/ARCHITECTURE.md`
+
+### Consolidate engine-result adaptation
+
+Reduce the number of places that translate shared engine
+results into client-local resolutions and server
+broadcast messages.
+
+Movement / state-update / combat result adaptation is
+currently spread across the local transport path, the
+local resolution helpers, timeout helpers, and Durable
+Object message construction. A thinner shared adapter
+layer would reduce drift between local play, multiplayer,
+and timeout automation.
+
+Definition of done: local play, timeout automation, and
+server broadcasts all use the same result-shape
+classification helpers, and duplicate result branching is
+removed from the coordinator modules.
+
+**Files:** `src/client/game/local.ts`,
+`src/client/game/transport.ts`,
+`src/server/game-do/messages.ts`,
+`src/server/game-do/turns.ts`,
+`src/server/game-do/game-do.ts`
+
+### Imperative-shell coverage and smoke tests
+
+Add targeted tests around the runtime shells that still
+carry most of the coordination risk.
+
+The shared engine is well-covered; the main remaining
+blind spots are reconnect flow, `GameClient` bootstrap
+and phase entry, renderer / UI coordination, and Durable
+Object orchestration.
+
+Definition of done: targeted tests or smoke harnesses
+cover reconnect, phase-entry HUD refresh, timeout
+automation, and one end-to-end multiplayer happy path,
+with coverage improving on `main.ts`, `ui.ts`,
+`renderer.ts`, and `game-do.ts`.
+
+**Files:** `src/client/main.ts`,
+`src/client/ui/ui.ts`,
+`src/client/renderer/renderer.ts`,
+`src/server/game-do/game-do.ts`, related tests
+
+---
+
 ## Architecture & Platform
 
-### Event-sourced match log foundation
+### Event-sourced match persistence
 
-Adopt an append-only authoritative event stream per
-match. Each validated command should append a versioned
-event envelope with `gameId`, sequence number, actor
-identity, correlation id, turn / phase context, and a
-timestamp.
-
-The current snapshot persistence and replay archive
-should be treated as transitional compatibility layers
-until projectors and checkpoints are in place.
+The engine already emits granular `EngineEvent[]` (22
+types) from all entry points, and the server stores
+them in an event log. The next step is making the event
+stream authoritative: versioned event envelopes with
+`gameId`, sequence number, actor identity, and
+timestamp. Snapshots become checkpoints, not the source
+of truth.
 
 Definition of done: rematches create isolated streams,
 append ordering is enforced, duplicate / out-of-order
 writes are rejected or ignored safely, and rebuild-from-
 events tests exist for the covered flows.
 
-**Files:** `src/shared/events.ts`,
-`src/shared/types/`, `src/server/game-do/game-do.ts`,
-`src/server/game-do/messages.ts`,
-`src/server/protocol.ts`
+**Files:** `src/shared/engine/engine-events.ts`,
+`src/server/game-do/archive.ts`,
+`src/server/game-do/game-do.ts`
 
 ### Explicit RNG outcome capture
 
@@ -51,7 +179,7 @@ combat flows.
 `src/shared/movement.ts`,
 `src/shared/engine/combat.ts`,
 `src/shared/engine/ordnance.ts`,
-`src/shared/events.ts`
+`src/shared/engine/engine-events.ts`
 
 ### Projection and checkpoint model
 
@@ -72,7 +200,7 @@ event zero.
 **Files:** `src/shared/engine/game-engine.ts`,
 `src/server/game-do/game-do.ts`,
 `src/server/game-do/messages.ts`,
-`src/shared/events.ts`
+`src/shared/engine/engine-events.ts`
 
 ### Viewer-aware state filtering
 
