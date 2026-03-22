@@ -11,6 +11,97 @@ with the feature, not as a cleanup pass afterward.
 
 ---
 
+## Client Boundary Cleanup
+
+### Continue shrinking `GameClient` into a composition root
+
+Keep `main.ts` focused on bootstrap, ownership, and
+wiring rather than growing a larger class-shaped
+coordinator.
+
+`GameClient` still owns runtime context, controller
+wiring, lazy deps objects, presentation callbacks, and
+several user-flow branches. Replacing the class with a
+closure today would mostly move the same responsibilities
+into a giant factory; the real work is extracting more
+focused client controllers first.
+
+Near-term slice: continue pushing session flow,
+local/network resolution handling, HUD/logistics UI
+coordination, and other side-effect clusters behind
+focused modules so the remaining shell owns lifecycle
+and composition only.
+
+Definition of done: `main.ts` is smaller, newly
+extracted modules have focused tests, and the remaining
+top-level shell could stay a class or later become a
+factory without another large semantic rewrite.
+
+**Files:** `src/client/main.ts`,
+`src/client/game/`, `src/client/ui/ui.ts`,
+new or extracted client controller module(s)
+
+### Convert optional client view/helper classes to factory managers
+
+Reduce stylistic class usage where instance inheritance
+or platform lifecycle is not required.
+
+Several smaller DOM/helper modules currently use classes
+mainly as method bags around private state: overlay,
+lobby, fleet-building, ship-list, tutorial, and turn
+telemetry. These are better aligned with the existing
+`createXxx(deps): XxxManager` pattern used elsewhere in
+the client.
+
+Near-term slice: convert one coherent slice of these
+modules to factory managers with explicit `dispose()`
+ownership and stable public interfaces, then use that
+pattern for new similar code.
+
+Definition of done: the covered modules export
+`createXxx()` factories instead of classes, `UIManager`
+consumes them through narrow interfaces, and tests cover
+lifecycle/disposal behavior for the converted slice.
+
+**Files:** `src/client/ui/overlay-view.ts`,
+`src/client/ui/lobby-view.ts`,
+`src/client/ui/fleet-building-view.ts`,
+`src/client/ui/ship-list-view.ts`,
+`src/client/tutorial.ts`,
+`src/client/game/turn-telemetry.ts`,
+`src/client/ui/ui.ts`
+
+### Decompose renderer/input state before any class-to-factory rewrite
+
+Treat `Renderer`, `Camera`, and `InputHandler` as
+acceptable imperative shells for now, but keep pressure
+on internal decomposition.
+
+These modules own canvas state, camera interpolation,
+DOM event listeners, animation timers, and per-frame
+mutable caches. They are the strongest current case for
+classes, but their size still creates review and testing
+friction.
+
+Near-term slice: extract more pure scene/view builders
+and small stateful helpers around animation, caching,
+overlays, and pointer interpretation before
+reconsidering whether the outer shells should remain
+classes.
+
+Definition of done: `renderer.ts` and `input.ts` shrink
+through focused extractions, new helper seams have
+targeted tests, and any future class removal would be
+optional cleanup rather than a blocker for
+maintainability.
+
+**Files:** `src/client/renderer/renderer.ts`,
+`src/client/renderer/camera.ts`,
+`src/client/input.ts`,
+`src/client/renderer/`
+
+---
+
 ## Event-Sourced Match Architecture
 
 ### Post-game turn replay UI
@@ -55,21 +146,6 @@ integration tests.
 `src/shared/types/protocol.ts`,
 `src/shared/engine/game-engine.ts`,
 `src/client/main.ts`, client spectator UI
-
-### Replay retention and archive storage
-
-Once event streams and checkpoints exist, decide how
-long raw events, checkpoints, and derived replay payloads
-should live and where they should be stored.
-
-For short-lived replay while a room remains active,
-Durable Object storage may be sufficient. For
-persistent replay links that outlive room inactivity
-cleanup, archive completed matches to R2 and keep only
-lightweight metadata in D1 or room storage.
-
-**Files:** `src/server/game-do/game-do.ts`,
-`src/server/index.ts`, deployment / storage config
 
 ---
 
