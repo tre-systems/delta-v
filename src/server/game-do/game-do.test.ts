@@ -84,8 +84,16 @@ function createCtx(): MockDurableObjectState {
 
 const createSocket = () => ({
   sent: [] as string[],
+  closed: false,
+  closeCode: 0,
+  closeReason: '',
   send(payload: string) {
     this.sent.push(payload);
+  },
+  close(code: number, reason: string) {
+    this.closed = true;
+    this.closeCode = code;
+    this.closeReason = reason;
   },
 });
 
@@ -222,6 +230,139 @@ describe('GameDO', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
     expect(await ctx.storage.get('roomConfig')).toEqual(roomConfig);
+  });
+  it('accepts a stored player token even while the old socket is still open', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'biplanetary',
+      playerTokens: ['A'.repeat(32), null],
+      inviteTokens: [null, null],
+    });
+    const oldSocket = createSocket();
+    ctx.acceptWebSocket(oldSocket, ['player:0']);
+    const game = createGameDO(ctx);
+
+    const joinAttempt = await (
+      game as unknown as {
+        resolveJoinAttempt: (playerToken: string | null) => Promise<
+          | { ok: false; response: Response }
+          | {
+              ok: true;
+              playerId: 0 | 1;
+              issueNewToken: boolean;
+              consumeInviteToken: boolean;
+              disconnectedPlayer: number | null;
+              seatOpen: [boolean, boolean];
+            }
+        >;
+      }
+    ).resolveJoinAttempt('A'.repeat(32));
+
+    expect(joinAttempt).toMatchObject({
+      ok: true,
+      playerId: 0,
+      issueNewToken: false,
+      consumeInviteToken: false,
+      disconnectedPlayer: null,
+      seatOpen: [false, true],
+    });
+    expect(oldSocket.closed).toBe(false);
+  });
+  it('counts unique connected seats after a reclaim instead of raw socket count', async () => {
+    const ctx = createCtx();
+    const game = createGameDO(ctx);
+
+    const getConnectedSeatCountAfterJoin = (
+      game as unknown as {
+        getConnectedSeatCountAfterJoin: (
+          seatOpen: [boolean, boolean],
+          playerId: 0 | 1,
+        ) => number;
+      }
+    ).getConnectedSeatCountAfterJoin.bind(game);
+
+    expect(getConnectedSeatCountAfterJoin([false, true], 0)).toBe(1);
+    expect(getConnectedSeatCountAfterJoin([true, false], 0)).toBe(2);
+  });
+  it('closes existing sockets only after a reclaim is accepted', async () => {
+    const ctx = createCtx();
+    const oldSocket = createSocket();
+    ctx.acceptWebSocket(oldSocket, ['player:0']);
+    const game = createGameDO(ctx);
+
+    (
+      game as unknown as {
+        replacePlayerSockets: (playerId: 0 | 1) => void;
+      }
+    ).replacePlayerSockets(0);
+
+    expect(oldSocket.closed).toBe(true);
+    expect(oldSocket.closeCode).toBe(1000);
+    expect(oldSocket.closeReason).toBe('Replaced by new connection');
+    expect(
+      (
+        game as unknown as { replacedSockets: WeakSet<WebSocket> }
+      ).replacedSockets.has(oldSocket as unknown as WebSocket),
+    ).toBe(true);
+  });
+  it('keeps existing sockets open when a wrong but well-formed token is rejected', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'biplanetary',
+      playerTokens: ['A'.repeat(32), null],
+      inviteTokens: [null, null],
+    });
+    const oldSocket = createSocket();
+    ctx.acceptWebSocket(oldSocket, ['player:0']);
+    const game = createGameDO(ctx);
+
+    const joinAttempt = await (
+      game as unknown as {
+        resolveJoinAttempt: (
+          playerToken: string | null,
+        ) => Promise<{ ok: false; response: Response } | { ok: true }>;
+      }
+    ).resolveJoinAttempt('B'.repeat(32));
+
+    expect(joinAttempt.ok).toBe(false);
+    if (!joinAttempt.ok) {
+      expect(joinAttempt.response.status).toBe(403);
+    }
+    expect(oldSocket.closed).toBe(false);
+  });
+  it('accepts reconnect during the disconnect grace window and surfaces the marker', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'biplanetary',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+      inviteTokens: [null, null],
+    });
+    await ctx.storage.put('disconnectedPlayer', 1);
+    const game = createGameDO(ctx);
+
+    const joinAttempt = await (
+      game as unknown as {
+        resolveJoinAttempt: (playerToken: string | null) => Promise<
+          | { ok: false; response: Response }
+          | {
+              ok: true;
+              playerId: 0 | 1;
+              disconnectedPlayer: number | null;
+              seatOpen: [boolean, boolean];
+            }
+        >;
+      }
+    ).resolveJoinAttempt('B'.repeat(32));
+
+    expect(joinAttempt).toMatchObject({
+      ok: true,
+      playerId: 1,
+      disconnectedPlayer: 1,
+      seatOpen: [true, true],
+    });
   });
   it('creates a replay archive with a match-specific game id on game start', async () => {
     const ctx = createCtx();

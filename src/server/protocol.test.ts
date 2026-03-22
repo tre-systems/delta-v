@@ -475,7 +475,7 @@ describe('seat assignment', () => {
     });
   });
 
-  it('does not match token against a closed seat', () => {
+  it('lets stored player tokens reclaim occupied seats before the old socket closes', () => {
     expect(
       resolveSeatAssignment({
         presentedToken: 'creator-token',
@@ -485,9 +485,10 @@ describe('seat assignment', () => {
         inviteTokens: [null, 'invite-token'],
       }),
     ).toEqual({
-      type: 'reject',
-      status: 403,
-      message: 'Invalid player token',
+      type: 'join',
+      playerId: 0,
+      issueNewToken: false,
+      consumeInviteToken: false,
     });
   });
 });
