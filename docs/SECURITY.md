@@ -38,22 +38,55 @@ Recommended next step:
 
 - For public matchmaking or tournament play, add longer opaque room identifiers or authenticated invite links.
 
-### 2. Room secrecy is still limited by short codes
+### 2. Room secrecy is limited by short codes
 
-Current status: **acceptable for friendly matches, still weak for public matchmaking**
+Current status: **acceptable for friendly matches, weak for public matchmaking**
 
-- Room codes are now collision-checked and cryptographically generated.
-- They are still only 5 characters long.
-- There is now basic application-layer throttling on room creation, but it is not yet a complete edge-global abuse-control story.
+- Room codes are collision-checked and cryptographically generated (5 characters from a 28-char alphabet = ~17M combinations).
+- Short codes are a deliberate product choice — designed for voice/chat sharing between friends.
+- For public matchmaking or tournament play, longer opaque identifiers would be needed to prevent code guessing.
 
-Implications:
+### 3. Rate limiting architecture
 
-- Code guessing and accidental seat capture are both more realistic than they should be for a ladder, tournament, or public lobby environment.
-- Opportunistic room-creation abuse is somewhat better contained, but public deployment still needs global edge enforcement rather than worker-local fallback behavior.
+The worker enforces a two-tier rate limit on `POST /create`:
 
-Recommended next step:
+**Tier 1 — Cloudflare edge binding (production):**
+When `CREATE_RATE_LIMITER` is bound in `wrangler.toml`, the worker delegates to Cloudflare's edge-global rate limiter. This enforces limits across all edge locations, not just within a single isolate.
 
-- Move to longer opaque room identifiers and complete edge-global rate limiting / challenge protection for public deployments.
+To enable, add to `wrangler.toml`:
+
+```toml
+[[unsafe.bindings]]
+name = "CREATE_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { period = 60, limit = 5 }
+```
+
+**Tier 2 — In-memory fallback (development / missing binding):**
+When no binding is configured, the worker uses a per-isolate in-memory map (5 creates per hashed IP per 60s window, stale entries evicted when map exceeds 1000 entries). This protects a single isolate but does not enforce globally across Cloudflare's edge.
+
+**What's enforced vs. what's not:**
+
+| Control | In-memory fallback | Edge binding |
+|---|---|---|
+| Per-IP create throttle | per-isolate only | global |
+| WebSocket join throttle | not rate-limited | not rate-limited |
+| Bot challenge (Turnstile) | not present | configurable via CF dashboard |
+| Room-code guessing | 5-char codes, no join throttle | same — mitigated only by code entropy |
+
+**Deployment recommendation:**
+For any deployment exposed to untrusted traffic, configure the edge rate-limit binding and consider adding a Cloudflare Turnstile challenge on the `/create` path. WebSocket joins are implicitly constrained by the room model (two seats per room) and don't need dedicated rate limiting.
+
+### 4. Bot challenge protection (optional)
+
+Cloudflare Turnstile can be added to the room creation flow without changing the game server:
+
+1. Add a Turnstile widget to the client's "Create Game" UI
+2. Include the Turnstile token in the `POST /create` body
+3. Validate the token server-side via the Turnstile `/siteverify` API before proceeding
+
+This is not currently implemented but the integration surface is narrow — only the `/create` handler and the lobby UI need changes. See [Cloudflare Turnstile docs](https://developers.cloudflare.com/turnstile/).
 
 ## Lower-Risk Notes
 
@@ -97,20 +130,22 @@ Current assessment:
 - **Rules authority:** good
 - **Reconnect / seat hijack resistance:** good
 - **Host-seat integrity:** good
-- **Guest-seat integrity in default code/link flow:** weak
+- **Guest-seat integrity:** acceptable for friendly matches (room-code model is deliberate)
 - **Match availability under hostile payloads:** good
-- **Room secrecy / public matchmaking readiness:** weak
+- **Rate limiting:** good with edge binding configured, per-isolate only without it
+- **XSS posture:** good (trusted HTML boundary, no user-generated content)
+- **Room secrecy / public matchmaking readiness:** weak (short codes, no join throttle)
 
-Delta-V is in much better shape for private matches than the early prototype, but it is not fully hardened for public matchmaking or tournament-style open lobbies. The biggest remaining gaps are guest-seat claiming, room secrecy, and deployment-level abuse controls.
+Delta-V is well-hardened for private matches between friends. For public matchmaking, tournament play, or open lobbies, the remaining gaps are longer room identifiers, edge-global rate limiting (configurable today, not yet default), and optional bot challenge protection.
 
-## Near-Term Priorities
+## Future Security Work
 
-The next security-focused work should be:
+If the product scope expands beyond friendly matches:
 
-- (resolved) room-code guest joins are the deliberate product model
-- longer room identifiers and/or rate limiting
-- optional edge-side bot protection for public deployments
-- stronger identity/account binding if organized competitive play matters
+- Longer opaque room identifiers for public matchmaking
+- Turnstile integration on `/create` for bot protection
+- Account binding for organized competitive play
+- Join throttling if room-code guessing becomes a real vector
 
 ## Operational References
 
