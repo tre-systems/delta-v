@@ -835,9 +835,11 @@ interface ScenarioPlayer {
 - [x] Grand Tour checkpoint race scenario
 - [x] Asteroid map visuals matching reference map
 - [x] Logistics: surrender, looting, fuel/cargo transfer (passenger rescue remains open)
+- [ ] Event-sourced match history (authoritative event log, projections, checkpoints)
+- [ ] Turn replay
 - [ ] Scenario expansion: Lateral 7, Fleet Mutiny, Retribution
 - [ ] Spectator mode
-- [ ] Turn replay
+- [ ] Passenger rescue mechanics
 
 ## Design Decisions
 
