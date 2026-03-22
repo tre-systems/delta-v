@@ -43,15 +43,21 @@ Delta-V adopts an elegant, robust architecture utilizing modern web primitives:
 ```text
 src/
 ├── shared/              # Game Engine — side-effect-free (shared between client & server)
-│   ├── engine/            # Core state machine (createGame, processAstrogation, combat, ordnance, victory)
+│   ├── engine/            # Phase processors: game-creation, astrogation, combat, ordnance, etc.
+│   │   ├── engine-events.ts # EngineEvent domain event types (22 granular event types)
+│   │   ├── game-engine.ts   # Barrel re-export (public API)
+│   │   └── ...              # game-creation, fleet-building, astrogation, resolve-movement,
+│   │                        # combat, ordnance, logistics, victory, util
 │   ├── movement.ts        # Vector astrogation & gravity logic
 │   ├── combat.ts          # Odds resolution & damage tables
 │   ├── hex.ts             # Axial hex coordinate math
 │   ├── map-data.ts        # Solar system bodies, gravity, bases, scenarios
-│   └── ai.ts              # AI opponent for single-player
+│   ├── ai.ts              # AI opponent for single-player
+│   ├── ai-config.ts       # Per-difficulty AI tuning parameters
+│   └── ai-scoring.ts      # Composable AI course scoring strategies
 ├── server/              # Cloudflare Workers Backend
 │   ├── index.ts           # HTTP entry point & WebSocket routing
-│   └── game-do/           # Durable Object: state, messages, sessions, turns
+│   └── game-do/           # Durable Object: state, messages, sessions, turns, archive
 └── client/              # Browser Frontend
     ├── main.ts            # Client-side state machine & networking
     ├── game/              # Game logic helpers (combat, burn, phase, ordnance, input)
@@ -60,7 +66,7 @@ src/
 scripts/                 # Automated Bot & AI Simulation tests
 ```
 
-**Design Highlight:** The core `game-engine.ts` is side-effect-free — no DOM, no network, no storage. It receives inputs (astrogation orders, combat declarations) and returns a new state, making the game highly unit testable. All engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. The DOM overlay stays framework-free, with a tiny local signals layer used only where view-local reactive state pays for itself. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details. The backend stays authoritative through **Cloudflare Durable Objects**, handling room lifecycle, tokenized joins, join preflight validation, replay history, and state persistence. The next architectural phase is a move from snapshot-first replay helpers to an event-sourced match log with projections and checkpoints.
+**Design Highlight:** The shared engine is side-effect-free — no DOM, no network, no storage. Engine functions receive inputs and return new state plus domain events (`EngineEvent[]`), making the game highly testable. All entry points clone input state on entry (`structuredClone`) — callers' state is never mutated. The engine is decomposed into focused phase processors (game-creation, astrogation, resolve-movement, combat, etc.) behind a barrel re-export. AI scoring is split into composable strategies with a data-driven config table. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details.
 
 For project conventions and refactoring guidance, see [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md).
 
@@ -122,18 +128,18 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Engine safety (clone-on-entry, server rollback, event log)
 - [x] Error reporting and anonymous telemetry (D1 storage)
-- [x] 1280+ tests across 87 suites, plus scenario AI simulations with per-scenario balance thresholds
-- [x] Client/engine decomposition and rules consolidation
-- [x] Bounded type imports (`types/domain`, `types/protocol`, `types/scenario`)
-- [x] Typed Ship state models (controlStatus, baseStatus, identity unions)
-- [x] Authoritative disconnect-forfeit persistence
-- [x] Stable escape-role ownership after capture (`originalOwner`)
-- [x] Shared `isOrderableShip` rule, combat click/targeting fixes, nuke resupply fix
-- [x] Replay archive foundation (transitional step toward event-sourced match history)
-- [x] Application-layer room creation throttling with optional rate-limit binding support
+- [x] 1285 tests across 89 suites, plus scenario AI simulations with per-scenario balance thresholds
+- [x] Engine decomposition into focused phase processors (game-creation, astrogation, resolve-movement, combat, etc.)
+- [x] Typed Ship state models (`lifecycle`, `control` fields with impossible states unrepresentable)
+- [x] Granular engine events (22 `EngineEvent` types emitted by engine, replacing server-side derivation)
+- [x] Data-driven AI configuration (per-difficulty scoring weights in `ai-config.ts`)
+- [x] AI scoring decomposition (5 composable strategy functions in `ai-scoring.ts`)
+- [x] Archive persistence extracted from Durable Object into standalone module
+- [x] Replay archive foundation (transitional step toward event-sourced match persistence)
+- [x] Shared rule consolidation, bounded type imports, authoritative disconnect-forfeit
 
 ### Planned
-- [ ] **Event-Sourced Match History**: Append-only authoritative events, projections, and checkpoints
+- [ ] **Event-Sourced Match Persistence**: Move from snapshot-first to append-only event stream with projections and checkpoints
 - [ ] **Turn Replay**: Step through per-match recorded history with rematch selection
 - [ ] **Spectator Mode**: Read-only live battle viewing from public filtered projections
 - [ ] **Scenario Expansion**: Lateral 7, Fleet Mutiny, Retribution
