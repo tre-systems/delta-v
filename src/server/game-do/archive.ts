@@ -76,6 +76,42 @@ export const appendEnvelopedEvents = async (
   await storage.put(eventSeqKey(gameId), seq);
 };
 
+// --- Checkpoints ---
+
+const checkpointKey = (gameId: string): string => `checkpoint:${gameId}`;
+
+export interface Checkpoint {
+  gameId: string;
+  seq: number;
+  turn: number;
+  phase: string;
+  state: import('../../shared/types/domain').GameState;
+  savedAt: number;
+}
+
+export const saveCheckpoint = async (
+  storage: Storage,
+  gameId: string,
+  state: import('../../shared/types/domain').GameState,
+  seq: number,
+): Promise<void> => {
+  const checkpoint: Checkpoint = {
+    gameId,
+    seq,
+    turn: state.turnNumber,
+    phase: state.phase,
+    state: structuredClone(state),
+    savedAt: Date.now(),
+  };
+  await storage.put(checkpointKey(gameId), checkpoint);
+};
+
+export const getCheckpoint = async (
+  storage: Storage,
+  gameId: string,
+): Promise<Checkpoint | null> =>
+  (await storage.get<Checkpoint>(checkpointKey(gameId))) ?? null;
+
 // --- Replay archive ---
 
 export const getReplayArchive = async (

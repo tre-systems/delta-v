@@ -3,9 +3,9 @@ import { SCENARIOS } from '../src/shared/map-data';
 
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:8787';
 
-function delay(ms: number) {
+const delay = (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
+};
 
 class BotClient {
   private ws: WebSocket | null = null;
@@ -91,7 +91,7 @@ class BotClient {
   }
 }
 
-async function spawnGame(botPairId: number) {
+const spawnGame = async (botPairId: number) => {
   // 1. Create a game lobby
   let code = '';
   try {
@@ -117,9 +117,9 @@ async function spawnGame(botPairId: number) {
   // Small delay so bot2 definitely gets assigned player 1
   await delay(100);
   await bot2.connect();
-}
+};
 
-async function main() {
+const main = async () => {
   const args = process.argv.slice(2);
   const concurrentGames = parseInt(args[0] || '10', 10);
   const spawnDelayMs = 250; 
@@ -130,6 +130,6 @@ async function main() {
     spawnGame(i).catch(console.error);
     await delay(spawnDelayMs);
   }
-}
+};
 
 main().catch(console.error);
