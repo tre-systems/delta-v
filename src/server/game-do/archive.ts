@@ -1,4 +1,5 @@
 import type { EngineEvent } from '../../shared/engine/engine-events';
+import { filterStateForPlayer } from '../../shared/engine/game-engine';
 import {
   buildMatchId,
   createReplayArchive,
@@ -6,6 +7,7 @@ import {
   type ReplayMessage,
   toReplayEntry,
 } from '../../shared/replay';
+import { isValidPlayerToken, type RoomConfig } from '../protocol';
 
 type Storage = DurableObjectStorage;
 
@@ -71,6 +73,41 @@ export const appendReplayMessage = async (
   );
   await saveReplayArchive(storage, existing);
 };
+
+// --- Replay viewer identity ---
+
+export const getReplayViewerId = (
+  roomConfig: RoomConfig,
+  presentedTokenRaw: string | null,
+): 0 | 1 | null => {
+  if (!presentedTokenRaw || !isValidPlayerToken(presentedTokenRaw)) {
+    return null;
+  }
+
+  if (roomConfig.playerTokens[0] === presentedTokenRaw) {
+    return 0;
+  }
+
+  if (roomConfig.playerTokens[1] === presentedTokenRaw) {
+    return 1;
+  }
+
+  return null;
+};
+
+export const filterReplayArchiveForPlayer = (
+  archive: ReplayArchive,
+  playerId: number,
+): ReplayArchive => ({
+  ...archive,
+  entries: archive.entries.map((entry) => ({
+    ...entry,
+    message: {
+      ...entry.message,
+      state: filterStateForPlayer(entry.message.state, playerId),
+    },
+  })),
+});
 
 // --- Match identity ---
 
