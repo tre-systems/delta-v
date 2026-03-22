@@ -41,12 +41,27 @@ export const toCombatResultMessage = (
   results,
   state,
 });
+export const toGameStartMessage = (
+  state: GameState,
+): Extract<
+  S2C,
+  {
+    type: 'gameStart';
+  }
+> => ({
+  type: 'gameStart',
+  state,
+});
 export const toStateUpdateMessage = (
   state: GameState,
 ): StatefulServerMessage => ({
   type: 'stateUpdate',
   state,
 });
+export const resolveStateBearingMessage = (
+  state: GameState,
+  primaryMessage?: StatefulServerMessage,
+): StatefulServerMessage => primaryMessage ?? toStateUpdateMessage(state);
 export const resolveMovementBroadcast = (
   result: MovementResolution,
   fallback: 'none' | 'stateUpdate' = 'none',

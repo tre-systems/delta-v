@@ -8,10 +8,15 @@ import {
 
 export { GameDO };
 
+export interface CreateRateLimiterBinding {
+  limit: (options: { key: string }) => Promise<{ success: boolean }>;
+}
+
 export interface Env {
   ASSETS: Fetcher;
   GAME: DurableObjectNamespace;
   DB: D1Database;
+  CREATE_RATE_LIMITER?: CreateRateLimiterBinding;
 }
 
 const corsHeaders: Record<string, string> = {
@@ -44,6 +49,33 @@ const handleJoinCheck = (
 
   if (playerToken) {
     internalUrl.searchParams.set('playerToken', playerToken);
+  }
+
+  return stub.fetch(
+    new Request(internalUrl.toString(), {
+      method: 'GET',
+    }),
+  );
+};
+
+const handleReplayFetch = (
+  request: Request,
+  env: Env,
+  code: string,
+): Promise<Response> => {
+  const id = env.GAME.idFromName(code);
+  const stub = env.GAME.get(id);
+  const url = new URL(request.url);
+  const internalUrl = new URL('https://room.internal/replay');
+  const playerToken = url.searchParams.get('playerToken');
+  const gameId = url.searchParams.get('gameId');
+
+  if (playerToken) {
+    internalUrl.searchParams.set('playerToken', playerToken);
+  }
+
+  if (gameId) {
+    internalUrl.searchParams.set('gameId', gameId);
   }
 
   return stub.fetch(
@@ -129,7 +161,7 @@ export const createRateMap = new Map<
   { count: number; windowStart: number }
 >();
 
-export const isCreateRateLimited = (ipHash: string): boolean => {
+export const isCreateRateLimitedInMemory = (ipHash: string): boolean => {
   const now = Date.now();
   if (createRateMap.size > 1000) {
     for (const [key, val] of createRateMap) {
@@ -148,6 +180,20 @@ export const isCreateRateLimited = (ipHash: string): boolean => {
   }
   entry.count++;
   return entry.count > CREATE_RATE_LIMIT;
+};
+
+export const isCreateRateLimited = async (
+  env: Env,
+  ipHash: string,
+): Promise<boolean> => {
+  if (env.CREATE_RATE_LIMITER) {
+    const result = await env.CREATE_RATE_LIMITER.limit({
+      key: `create:${ipHash}`,
+    });
+    return !result.success;
+  }
+
+  return isCreateRateLimitedInMemory(ipHash);
 };
 
 // Insert an event row into D1. Fire-and-forget via
@@ -280,7 +326,7 @@ export default {
     if (url.pathname === '/create' && request.method === 'POST') {
       const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
       const ipHash = await hashIp(ip);
-      if (isCreateRateLimited(ipHash)) {
+      if (await isCreateRateLimited(env, ipHash)) {
         return new Response('Too many requests', {
           status: 429,
           headers: { 'Retry-After': '60' },
@@ -293,6 +339,12 @@ export default {
 
     if (joinMatch && request.method === 'GET') {
       return handleJoinCheck(request, env, joinMatch[1]);
+    }
+
+    const replayMatch = url.pathname.match(/^\/replay\/([A-Z0-9]{5})$/);
+
+    if (replayMatch && request.method === 'GET') {
+      return handleReplayFetch(request, env, replayMatch[1]);
     }
 
     // Client error reports

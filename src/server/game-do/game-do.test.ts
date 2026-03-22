@@ -26,6 +26,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
+import type { ReplayArchive } from '../../shared/replay';
 import { GameDO } from './game-do';
 import { toMovementResultMessage, toStateUpdateMessage } from './messages';
 
@@ -222,6 +223,69 @@ describe('GameDO', () => {
     expect(await response.json()).toEqual({ ok: true });
     expect(await ctx.storage.get('roomConfig')).toEqual(roomConfig);
   });
+  it('creates a replay archive with a match-specific game id on game start', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'biplanetary',
+      playerTokens: ['A'.repeat(32), null],
+      inviteTokens: [null, null],
+    });
+    await ctx.storage.put('gameCode', 'ABCDE');
+    const game = createGameDO(ctx);
+
+    await (
+      game as unknown as {
+        initGame: () => Promise<void>;
+      }
+    ).initGame();
+
+    const state = await ctx.storage.get<GameState>('gameState');
+    expect(must(state).gameId).toBe('ABCDE-m1');
+
+    const archive = await ctx.storage.get<ReplayArchive>(
+      'replayArchive:ABCDE-m1',
+    );
+    expect(archive).toMatchObject({
+      gameId: 'ABCDE-m1',
+      roomCode: 'ABCDE',
+      matchNumber: 1,
+      scenario: SCENARIOS.biplanetary.name,
+    });
+    expect(archive?.entries).toHaveLength(1);
+    expect(archive?.entries[0]?.message).toEqual({
+      type: 'gameStart',
+      state,
+    });
+  });
+  it('keeps replay archives isolated across rematches', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'biplanetary',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+      inviteTokens: [null, null],
+    });
+    await ctx.storage.put('gameCode', 'ABCDE');
+    const game = createGameDO(ctx);
+
+    const initGame = (
+      game as unknown as {
+        initGame: () => Promise<void>;
+      }
+    ).initGame.bind(game);
+
+    await initGame();
+    const firstState = await ctx.storage.get<GameState>('gameState');
+
+    await initGame();
+    const secondState = await ctx.storage.get<GameState>('gameState');
+
+    expect(must(firstState).gameId).toBe('ABCDE-m1');
+    expect(must(secondState).gameId).toBe('ABCDE-m2');
+    expect(await ctx.storage.get('replayArchive:ABCDE-m1')).toBeDefined();
+    expect(await ctx.storage.get('replayArchive:ABCDE-m2')).toBeDefined();
+  });
   it('rejects malformed client payloads before dispatching handlers', async () => {
     const ctx = createCtx();
     const game = createGameDO(ctx);
@@ -370,6 +434,42 @@ describe('GameDO', () => {
     expect(trace).toContain('send');
     expect(trace.indexOf('put:gameState')).toBeLessThan(trace.indexOf('send'));
     expect(await ctx.storage.get('gameState')).toEqual(state);
+  });
+
+  it('archives state-bearing updates alongside stored state', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('gameCode', 'ABCDE');
+    await ctx.storage.put('matchNumber', 1);
+    const ws = createSocket();
+    ctx.acceptWebSocket(ws, ['player:0']);
+    const game = createGameDO(ctx);
+    const state = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'ABCDE-m1',
+      findBaseHex,
+    );
+
+    await (
+      game as unknown as {
+        publishStateChange: (
+          state: GameState,
+          primaryMessage?: unknown,
+          options?: { restartTurnTimer?: boolean; events?: unknown[] },
+        ) => Promise<void>;
+      }
+    ).publishStateChange(state, toStateUpdateMessage(state), {
+      restartTurnTimer: false,
+    });
+
+    const archive = await ctx.storage.get<ReplayArchive>(
+      'replayArchive:ABCDE-m1',
+    );
+    expect(archive?.entries).toHaveLength(1);
+    expect(archive?.entries[0]?.message).toEqual({
+      type: 'stateUpdate',
+      state,
+    });
   });
 
   it('emits one state-bearing message for state-update actions', async () => {
@@ -625,5 +725,37 @@ describe('GameDO', () => {
     // Chat rate limit should NOT have written to storage
     const chatKey = await ctx.storage.get('lastChat:0');
     expect(chatKey).toBeUndefined();
+  });
+  it('returns filtered replay archives for authenticated players', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'escape',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+      inviteTokens: [null, null],
+    });
+    await ctx.storage.put('gameCode', 'ABCDE');
+    const game = createGameDO(ctx);
+
+    await (
+      game as unknown as {
+        initGame: () => Promise<void>;
+      }
+    ).initGame();
+
+    const response = await game.fetch(
+      new Request(
+        `https://room.internal/replay?playerToken=${'A'.repeat(32)}&gameId=ABCDE-m1`,
+        {
+          method: 'GET',
+        },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    const archive = (await response.json()) as ReplayArchive;
+    expect(archive.gameId).toBe('ABCDE-m1');
+    expect(archive.entries).toHaveLength(1);
+    expect(archive.entries[0]?.message.type).toBe('gameStart');
   });
 });
