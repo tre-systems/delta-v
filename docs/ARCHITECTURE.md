@@ -58,21 +58,24 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `util.ts` | 170 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
 | `types/` | 384 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts`; all imports use bounded files directly, barrel retained for compatibility only) | Game-specific |
 | `protocol.ts` | 478 | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads) | Mostly generic |
-| `constants.ts` | 135 | Ship stats, ordnance mass, detection ranges, animation timing | Game-specific |
+| `constants.ts` | 146 | Ship stats, ordnance mass, detection ranges, combat/movement constants | Game-specific |
 | `movement.ts` | 435 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
-| `combat.ts` | 627 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
+| `combat.ts` | 634 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
 | `map-data.ts` | 713 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
-| `ai.ts` | 924 | Rule-based AI with three difficulty levels and enforcer interception | Game-specific |
-| `engine/game-engine.ts` | 44 | Barrel re-export: public engine API + result types | Game-specific |
-| `engine/game-creation.ts` | 334 | Game initialization from scenario definition | Game-specific |
-| `engine/fleet-building.ts` | 121 | Fleet purchase phase (MegaCredit economy) | Game-specific |
-| `engine/astrogation.ts` | 315 | Order validation, ordnance launches, movement dispatch | Game-specific |
-| `engine/resolve-movement.ts` | 212 | Movement orchestrator: resolve orders, post-movement checks | Game-specific |
-| `engine/combat.ts` | 537 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
-| `engine/ordnance.ts` | 523 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
-| `engine/logistics.ts` | 283 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
-| `engine/victory.ts` | 636 | Victory conditions, turn advancement, reinforcements, fleet conversion | Game-specific |
-| `engine/util.ts` | 256 | Game rule helpers: base ownership, escape checks, ordnance launch eligibility | Game-specific |
+| `ai.ts` | 688 | Rule-based AI with three difficulty levels and enforcer interception | Game-specific |
+| `ai-config.ts` | 250 | Per-difficulty AI scoring weights and strategy parameters | Game-specific |
+| `ai-scoring.ts` | 372 | Composable AI course scoring strategies (escape, nav, combat, gravity, race) | Game-specific |
+| `engine/game-engine.ts` | 45 | Barrel re-export: public engine API + result types | Game-specific |
+| `engine/engine-events.ts` | 149 | `EngineEvent` discriminated union (22 granular domain event types) | Game-specific |
+| `engine/game-creation.ts` | 287 | Game initialization from scenario definition | Game-specific |
+| `engine/fleet-building.ts` | 128 | Fleet purchase phase (MegaCredit economy) | Game-specific |
+| `engine/astrogation.ts` | 277 | Order validation, ordnance launches, movement dispatch | Game-specific |
+| `engine/resolve-movement.ts` | 233 | Movement orchestrator: resolve orders, post-movement checks | Game-specific |
+| `engine/combat.ts` | 628 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
+| `engine/ordnance.ts` | 609 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
+| `engine/logistics.ts` | 334 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
+| `engine/victory.ts` | 763 | Victory conditions, turn advancement, reinforcements, fleet conversion | Game-specific |
+| `engine/util.ts` | 271 | Ship state helpers, game rule helpers, ordnance launch eligibility | Game-specific |
 
 #### Key Design Patterns
 
@@ -81,7 +84,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 - **`combat.ts`**: Evaluates line-of-sight, calculates combat odds based on velocity/range modifiers, and resolves damage. Mutates ships directly (e.g., `applyDamage`, updating `ship.lifecycle`, heroism flags).
 - **`types/`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads), split into `domain.ts`, `protocol.ts`, and `scenario.ts` with a barrel re-export. This ensures the client and server never fall out of sync.
 - **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [RNG Injection](#rng-injection).
-- **Event-driven resolution**: Movement currently produces animation/logging events (crashes, mine hits, captures) that flow to the client. These are useful scaffolding for the planned authoritative event model, but they are not yet the final domain event taxonomy.
+- **Domain event emission**: All engine entry points emit `EngineEvent[]` (22 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, etc.) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
 
 #### Engine Mutation Model
 
