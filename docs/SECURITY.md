@@ -59,6 +59,14 @@ Recommended next step:
 
 The current hidden-identity filtering is sound for the implemented Escape-style fugitive mechanic, because the hidden `hasFugitives` flag is stripped before broadcast. If the game expands toward dummy counters, concealed movement, or more scenario-specific secrets, that filtering layer will need another audit.
 
+That becomes more important as the project moves toward
+event-sourced match history. Raw internal event streams
+should be treated as authoritative private data, not as
+safe spectator or replay payloads. Replay and spectator
+APIs should serve filtered projections or explicitly
+redacted event views rather than exposing the internal
+event log directly.
+
 ### Randomness
 
 Random outcomes are server-controlled, which is the key anti-cheat requirement here. The code no longer relies on client-provided randomness, but it should still be described as server-controlled rather than as a cryptographically audited randomness system.

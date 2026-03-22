@@ -2,9 +2,23 @@
 
 Delta-V is an online multiplayer space combat and racing game. This document outlines the high-level architecture, core systems, design patterns, module-level analysis, and guidance for future work including reusability across other hex-based games.
 
+Where the codebase is in transition, this document
+distinguishes the current implementation from the
+accepted target architecture. In particular, replay and
+multiplayer state are currently snapshot-first with
+archive helpers, while the next major phase moves the
+server toward an event-sourced match log with
+projections and checkpoints.
+
 ## 1. High-Level Architecture
 
-Delta-V employs a full-stack TypeScript architecture built around a **shared side-effect-free engine with authoritative edge sessions** model.
+Delta-V employs a full-stack TypeScript architecture
+built around a **shared side-effect-free engine with
+authoritative edge sessions** model. Today the
+authoritative room still persists snapshots directly;
+the committed next step is to shift that authority to an
+append-only event stream and treat snapshots as derived
+checkpoints.
 
 ```
 shared/          → Game logic (no I/O, fully testable, side-effect-free)
@@ -25,6 +39,7 @@ client/          → State machine + Canvas renderer + DOM UI
 - **Scenario-driven.** `ScenarioRules` controls behaviour: ordnance types, base sharing, combat enabled, checkpoints, escape edges. New scenarios can vary gameplay without engine changes.
 - **Shared rule reuse across layers.** Client ordnance entry, HUD button visibility, and engine validation now all derive from the same shared ordnance-rule helpers, so restricted scenarios do not drift between UI and server authority.
 - **Hidden state filtering.** `filterStateForPlayer` hides fugitive identities in escape scenarios — the server never leaks information the client shouldn't have.
+- **Migration-friendly boundaries.** Mandatory RNG injection, stable per-match IDs, side-effect-free engine entry points, and narrow server/client contracts make an event-sourced migration feasible without throwing away the whole engine.
 
 ---
 
@@ -62,7 +77,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 - **`combat.ts`**: Evaluates line-of-sight, calculates combat odds based on velocity/range modifiers, and resolves damage. Mutates ships directly (e.g., `applyDamage`, updating `ship.lifecycle`, heroism flags).
 - **`types/`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads), split into `domain.ts`, `protocol.ts`, and `scenario.ts` with a barrel re-export. This ensures the client and server never fall out of sync.
 - **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [RNG Injection](#rng-injection).
-- **Event-driven resolution**: Movement produces events (crashes, mine hits, captures) that flow to the client for animation and logging.
+- **Event-driven resolution**: Movement currently produces animation/logging events (crashes, mine hits, captures) that flow to the client. These are useful scaffolding for the planned authoritative event model, but they are not yet the final domain event taxonomy.
 
 #### Engine Mutation Model
 
@@ -71,7 +86,7 @@ The shared engine is **side-effect-free** (no I/O) and **externally immutable**.
 This design provides:
 - **Rollback safety**: if the engine throws mid-mutation, the server's state is untouched.
 - **Snapshot diffing**: before/after state snapshots are naturally available without manual cloning.
-- **Speculative branching**: AI search and replay can call engine functions without defensive cloning.
+- **Speculative branching**: AI search and projection verification can call engine functions without defensive cloning.
 
 Internal mutation patterns (e.g. `applyDamage()`, `ship.lifecycle = 'destroyed'`, phase transitions) remain unchanged — they operate on the cloned state.
 
@@ -83,7 +98,7 @@ All engine entry points (`processAstrogation`, `processCombat`, `skipCombat`, `b
 
 `createGame` and AI functions (`aiAstrogation`, `aiOrdnance`) accept optional `rng` with `Math.random` default, since they are setup/heuristic functions rather than turn-resolution functions.
 
-All server and client callers pass `Math.random` at the API boundary. Tests can pass deterministic RNGs for reproducible results. This enables reproducible replays, deterministic debugging, and AI comparison testing.
+All server and client callers pass `Math.random` at the API boundary. Tests can pass deterministic RNGs for reproducible results. This enables deterministic debugging, simulation reproducibility, and AI comparison testing. In the planned event-sourced architecture, persisted events should record authoritative random outcomes explicitly rather than relying on replaying a seed through future code.
 
 ### B. The Server (`server/`)
 The backend leverages Cloudflare's edge network.
@@ -107,11 +122,13 @@ The backend leverages Cloudflare's edge network.
 
 - **Shared protocol validation**: Runtime C2S validation now lives in `shared/protocol.ts` instead of the server shell. The Durable Object still consumes `validateClientMessage()`, but the message-shape ownership sits beside the shared protocol types rather than inside server-only plumbing.
 
-- **Single state-bearing outbound message per action**: `publishStateChange()` persists state and events first, then emits exactly one state-bearing message (`movementResult`, `combatResult`, or `stateUpdate`). If the resulting state is terminal, the DO appends a separate `gameOver` notification after that state-bearing message. This keeps client phase transitions aligned with a one-action/one-update contract.
+- **Single state-bearing outbound message per action**: `publishStateChange()` currently persists state and events first, then emits exactly one state-bearing message (`movementResult`, `combatResult`, or `stateUpdate`). If the resulting state is terminal, the DO appends a separate `gameOver` notification after that state-bearing message. This one-action / one-update client contract should remain intact through the event-sourced migration even if the server starts projecting that message from appended domain events instead of mutating and saving a snapshot first.
 
-- **Replay archive foundation**: The server now persists a per-match replay archive built from those same authoritative state-bearing outbound messages. `initGame()` allocates a stable match identity (`gameId` like `ROOM1-m2`), archives the initial `gameStart`, and `publishStateChange()` appends each later state-bearing transition in sequence. Replay fetches are authenticated by player token and currently return player-filtered history.
+- **Replay archive foundation (transitional)**: The server currently persists a per-match replay archive built from those same authoritative state-bearing outbound messages. `initGame()` allocates a stable match identity (`gameId` like `ROOM1-m2`), archives the initial `gameStart`, and `publishStateChange()` appends each later state-bearing transition in sequence. Replay fetches are authenticated by player token and currently return player-filtered history. This is now a migration foothold, not the intended long-term source of truth.
 
-- **Filtered broadcasting**: `broadcastFiltered()` checks whether the current scenario has hidden information (fugitive identities in escape scenarios). If no hidden info, the same state goes to both players. If hidden info, `filterStateForPlayer(state, playerId)` is called separately per player — own ships are fully visible, unrevealed enemy ships show `type: 'unknown'`. When adding new hidden state, extend `filterStateForPlayer()` and the check in `broadcastFiltered()`.
+- **Accepted direction: event-sourced authoritative matches**: The next architectural phase moves the DO from snapshot-first persistence to an append-only authoritative event stream. Each validated command should append versioned domain events with sequence numbers, actor identity, correlation id, match identity, and explicit random outcomes where needed. Authoritative `GameState`, player views, spectator views, replay payloads, and reconnect state then become projections built from the stream and optional checkpoints.
+
+- **Filtered broadcasting (current) and viewer-aware filtering (next)**: `broadcastFiltered()` currently checks whether the current scenario has hidden information (fugitive identities in escape scenarios). If no hidden info, the same state goes to both players. If hidden info, `filterStateForPlayer(state, playerId)` is called separately per player — own ships are fully visible, unrevealed enemy ships show `type: 'unknown'`. The next step is a viewer model that supports player 0, player 1, and spectator / public projections so event-sourced replay and spectator delivery cannot leak hidden data.
 
 - **Single-alarm scheduling**: One alarm per DO, rescheduled after each state change. Three independent deadlines are tracked: `disconnectAt` (30s grace), `turnTimeoutAt` (2 min), `inactivityAt` (5 min). `getNextAlarmAt()` computes the nearest deadline. When the alarm fires, `resolveAlarmAction()` returns a discriminated action (`disconnectExpired`, `turnTimeout`, `inactivityTimeout`) and the handler dispatches accordingly. `inactivityAt` is cached in memory and flushed to storage at most once per 60s to avoid write amplification from frequent pings. Chat rate limiting is also in-memory (not storage-backed).
 
@@ -190,19 +207,38 @@ Delta-V is a fully installable PWA. A lightweight hand-written service worker pr
 
 **Server→Client (S2C)**: `welcome`, `matchFound`, `gameStart`, `movementResult`, `combatResult`, `stateUpdate`, `gameOver`, `rematchPending`, `chat`, `error`, `pong`
 
-All messages are discriminated unions validated at the protocol boundary. Chat payloads are trimmed before validation and blank post-trim messages are rejected, so non-UI clients cannot inject empty log entries. `GameState` is the single source of truth — clients never mutate it; server owns all state mutations.
+All messages are discriminated unions validated at the protocol boundary. Chat payloads are trimmed before validation and blank post-trim messages are rejected, so non-UI clients cannot inject empty log entries. In the current implementation, `GameState` snapshots are the live source of truth — clients never mutate them, and the server owns all state mutations. The planned event-sourced migration keeps server authority, but shifts persisted truth to the match event stream.
 
 ### Multiplayer Session Lifecycle
 
 ```
 POST /create → Worker generates room code + tokens → DO /init
 GET /join/{code}?playerToken=X → optional preflight join validation
-GET /replay/{code}?playerToken=X&gameId=Y → authenticated replay archive fetch
+GET /replay/{code}?playerToken=X&gameId=Y → authenticated replay / history fetch (currently archive-backed)
 WebSocket /ws/{code}?playerToken=X → DO accepts, tags socket with player ID
 Both players connected → createGame() → broadcast gameStart
 Game loop: C2S action → engine → save state/events → restart timer → broadcast S2C result
 Disconnect → 30s grace period → reconnect with token or forfeit
 ```
+
+### Planned Event-Sourced Match Lifecycle
+
+The current implementation still persists snapshots
+directly. The accepted target flow is:
+
+1. Client submits a validated command.
+2. The Durable Object appends canonical, versioned
+   domain events to a per-match stream.
+3. Authoritative state is rebuilt or incrementally
+   projected from checkpoint plus event tail.
+4. Player and spectator/public views are derived from
+   that projection.
+5. The server broadcasts one state-bearing update plus
+   any animation/log summaries needed by the client.
+
+Under that model, `GameState` snapshots become cached
+checkpoints and transport payloads rather than the
+authoritative persisted truth.
 
 ---
 
@@ -316,14 +352,16 @@ A game implementation would provide:
 
 ---
 
-## 6. Remaining Architectural Decisions
+## 6. Current Decisions and Planned Shifts
 
-See [BACKLOG.md](BACKLOG.md) for open work. Below captures deferred decisions and their rationale.
+See [BACKLOG.md](BACKLOG.md) for open work. Below
+captures the main architectural stances and why they
+currently exist.
 
 - **User accounts / auth**: Adds login friction that hurts adoption during user testing. The current anonymous token model is sufficient. Revisit for native app store distribution or payment integration.
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.
 - **Generic hex engine extraction**: Designing a framework from N=1 games is premature abstraction. Fork Delta-V when game #2 starts and build the framework from two concrete implementations.
 - **Serialisation codec**: `GameState` is plain JSON. A codec adds overhead with zero current benefit.
-- **Replay architecture / event sourcing**: Reconsidered during replay and spectator planning and rejected for now. The current engine and server are snapshot-authoritative: game state is persisted directly, and the lightweight `GameEvent` log is only a replay/logging aid. Full event sourcing would require redesigning every authoritative mutation path around stable persisted domain events, explicit RNG outcomes, replay-versioning, and projection rebuilds. That is a much larger rewrite than replay/spectator support currently needs. The intended path is a replay archive built from authoritative state-bearing server transitions plus optional action summaries.
+- **Replay architecture / event sourcing**: This has now been accepted as the target direction. The project will move from snapshot-authoritative rooms toward append-only per-match domain events with sequence numbers, explicit RNG outcomes, projection rebuilds, and checkpoints. The current replay archive and snapshot persistence are transitional scaffolding that should be retired or downgraded to cache once the event stream becomes authoritative.
 - **UI framework adoption**: The DOM UI layer is still small enough to own directly. The current compromise is a tiny local signals layer for view-local state and cleanup, without paying the cost of adopting a full framework (Preact, etc.) across the entire client.
-- **Structural sharing / Immer**: Reconsidered alongside replay/event-sourcing planning and still rejected. The engine's `structuredClone` + internal mutation pattern is incompatible with Immer's Proxy-based approach — adopting it would require rewriting 800+ LOC of engine logic while not solving the real replay problem, which is historical persistence and reconstruction strategy rather than reducer ergonomics. State nests only 3–4 levels deep, spread usage is contained, and the current pattern already provides rollback safety and snapshot diffing.
+- **Structural sharing / Immer**: Reconsidered alongside the event-sourcing shift. Immer is still not a prerequisite and should not block the migration. The immediate value is in stable event schemas, append ordering, explicit RNG facts, and projector correctness, not in rewriting the whole engine around Proxy-based updates. Revisit only if projector reducers or future command handlers become materially clearer with Immer; if adopted at all, it should start at the projection layer rather than as an all-at-once engine rewrite.
