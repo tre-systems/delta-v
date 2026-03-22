@@ -1,3 +1,4 @@
+import type { AIDifficulty } from '../../shared/ai';
 import { processEmplacement } from '../../shared/engine/game-engine';
 import type {
   AstrogationOrder,
@@ -9,6 +10,8 @@ import type {
   SolarSystemMap,
   TransferOrder,
 } from '../../shared/types/domain';
+import type { ScenarioDefinition } from '../../shared/types/scenario';
+import { resolveLocalFleetReady } from './fleet';
 import {
   type LocalResolution,
   resolveAstrogationStep,
@@ -20,6 +23,10 @@ import {
   resolveSkipLogisticsStep,
   resolveSkipOrdnanceStep,
 } from './local';
+import {
+  handleLocalResolution,
+  type LocalGameFlowDeps,
+} from './local-game-flow';
 
 export interface GameTransport {
   submitAstrogation(orders: AstrogationOrder[]): void;
@@ -165,6 +172,78 @@ export const createLocalTransport = (
     // No chat in local/AI games
   },
 });
+
+export interface LocalGameTransportDeps {
+  getGameState: () => GameState | null;
+  getPlayerId: () => number;
+  getMap: () => SolarSystemMap;
+  getScenario: () => string;
+  getScenarioDef: () => ScenarioDefinition;
+  getAIDifficulty: () => AIDifficulty;
+  localGameFlowDeps: LocalGameFlowDeps;
+  applyGameState: (state: GameState) => void;
+  showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
+  updateHUD: () => void;
+  logScenarioBriefing: () => void;
+  transitionToPhase: () => void;
+  onAnimationComplete: () => void;
+  startLocalGame: (scenario: string) => void;
+}
+
+/**
+ * Higher-level factory that wraps `createLocalTransport`
+ * with fleet-ready resolution, emplacement handling, and
+ * game-flow callbacks. Used by single-player mode.
+ */
+export const createLocalGameTransport = (
+  deps: LocalGameTransportDeps,
+): GameTransport =>
+  createLocalTransport({
+    getState: deps.getGameState,
+    getPlayerId: deps.getPlayerId,
+    getMap: deps.getMap,
+    onResolution: (resolution, onContinue, errorPrefix) =>
+      handleLocalResolution(
+        deps.localGameFlowDeps,
+        resolution,
+        onContinue,
+        errorPrefix,
+      ),
+    onAnimationComplete: deps.onAnimationComplete,
+    onTransitionToPhase: deps.transitionToPhase,
+    onEmplacementResult: (result) => {
+      if ('error' in result) {
+        deps.showToast(result.error, 'error');
+        return;
+      }
+      deps.applyGameState(result.state);
+      deps.showToast('Orbital base emplaced!', 'success');
+      deps.updateHUD();
+    },
+    onFleetReady: (purchases) => {
+      const state = deps.getGameState();
+      if (!state) return;
+      const result = resolveLocalFleetReady(
+        state,
+        deps.getPlayerId(),
+        purchases,
+        deps.getMap(),
+        deps.getScenarioDef(),
+        deps.getAIDifficulty(),
+      );
+      if (result.kind === 'error') {
+        deps.showToast(result.error, 'error');
+        return;
+      }
+      deps.applyGameState(result.state);
+      if (result.aiError) {
+        console.error('AI fleet build error:', result.aiError);
+      }
+      deps.logScenarioBriefing();
+      deps.transitionToPhase();
+    },
+    onRematch: () => deps.startLocalGame(deps.getScenario()),
+  });
 
 export const createWebSocketTransport = (
   send: (msg: unknown) => void,

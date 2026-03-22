@@ -19,27 +19,22 @@ Keep `main.ts` focused on bootstrap, ownership, and
 wiring rather than growing a larger class-shaped
 coordinator.
 
-`GameClient` still owns runtime context, controller
-wiring, lazy deps objects, presentation callbacks, and
-several user-flow branches. Replacing the class with a
-closure today would mostly move the same responsibilities
-into a giant factory; the real work is extracting more
-focused client controllers first.
+Lazy deps, presentation delegates, session HTTP calls,
+token persistence, and the local transport factory have
+been extracted to `action-deps.ts`, `session-api.ts`,
+and `transport.ts`. `main.ts` is now ~600 LOC. The
+remaining code is imports, constructor wiring, event
+routing, and thin delegation — appropriate for a
+composition root.
 
-Near-term slice: continue pushing session flow,
-local/network resolution handling, HUD/logistics UI
-coordination, and other side-effect clusters behind
-focused modules so the remaining shell owns lifecycle
-and composition only.
-
-Definition of done: `main.ts` is smaller, newly
-extracted modules have focused tests, and the remaining
-top-level shell could stay a class or later become a
-factory without another large semantic rewrite.
+Further shrinking would target `handleMessage()` deps
+building (~35 LOC), `handleUIEvent()` routing (~25 LOC),
+or the game-flow orchestration cluster (~55 LOC), but
+these are diminishing returns since they are genuine
+composition root responsibilities.
 
 **Files:** `src/client/main.ts`,
-`src/client/game/`, `src/client/ui/ui.ts`,
-new or extracted client controller module(s)
+`src/client/game/`, `src/client/ui/ui.ts`
 
 ---
 

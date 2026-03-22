@@ -179,6 +179,7 @@ The backend leverages Cloudflare's edge network.
 | `protocol.ts` | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export | **~85% generic** — room/token/seat logic is game-agnostic |
 | `game-do/game-do.ts` | Durable Object: WebSocket lifecycle, state persistence, broadcasting | **~70% generic** — multiplayer plumbing is reusable |
 | `game-do/archive.ts` | Event log, match-scoped event envelopes (gameId/seq/ts/actor), replay archive, match identity | Game-specific |
+| `game-do/match-archive.ts` | Persistent archival of completed matches to R2 + D1 metadata | **Fully generic** |
 | `game-do/messages.ts` | S2C message construction from engine results | Game-specific |
 | `game-do/session.ts` | Disconnect grace period, alarm scheduling | **Fully generic** |
 | `game-do/turns.ts` | Turn timeout auto-advance | Mostly generic |
@@ -349,9 +350,11 @@ main.ts (GameClient)
   ├→ game/game-state-store.ts (apply/clear authoritative game state + renderer sync)
   ├→ game/planning-store.ts (apply shared planning-state mutations)
   ├→ game/session-controller.ts (create/join/local-start/exit session lifecycle)
+  ├→ game/session-api.ts (HTTP create/join + token persistence)
+  ├→ game/action-deps.ts (lazy-cached deps for action handlers + presentation)
   ├→ game/state-transition.ts (client-state entry effects and screen changes)
   ├→ game/network.ts, game/messages.ts (handle S2C)
-  ├→ game/transport.ts (choose WebSocket or Local)
+  ├→ game/transport.ts (WebSocket, Local, and LocalGame transport factories)
   ├→ game/phase.ts (derive ClientState from GameState)
   ├→ game/keyboard.ts (KeyboardAction → GameCommand)
   ├→ game/helpers.ts (derive HUD view models)
