@@ -24,6 +24,11 @@ refresh from one class. The extracted helper modules are moving
 in the right direction, but new features still tend to thread
 through the same large coordinator.
 
+Near-term slice: extract focused client controllers for
+session / network flow, gameplay / phase flow, and HUD /
+presentation coordination so `main.ts` stops assembling large
+ad hoc dependency objects inline.
+
 Definition of done: `main.ts` keeps bootstrap and composition-
 root responsibilities, while session flow, message orchestration,
 and HUD / renderer coordination are pushed behind smaller
@@ -47,6 +52,11 @@ replay export, and engine-result publication. That is workable,
 but it makes each new server-side feature more coupled than it
 needs to be.
 
+Near-term slice: split join / session policy and state-
+publication / replay adaptation out of the main Durable Object
+class before spectator and event-sourced work deepen those
+couplings further.
+
 Definition of done: `GameDO` remains the composition point for
 Cloudflare runtime hooks, but join / session policy, turn-timeout
 handling, and state-publication / replay adaptation live behind
@@ -68,6 +78,11 @@ The shared engine already prevents the worst rule divergence, but
 client flow still branches between local execution and server-
 driven execution in ways that make phase, presentation, and
 session changes harder to evolve.
+
+Near-term slice: introduce one shared client-side resolution
+application path so local `LocalResolution` results and remote
+state-bearing messages both normalize into the same presentation
+and phase-progression flow.
 
 Definition of done: at least one phase-flow slice shares the same
 client-side action/result orchestration between local and remote
@@ -91,6 +106,10 @@ too much ceremony for `addEventListener` / cleanup pairs,
 simple button forwarding, and repetitive disposal-scoped
 handler setup. A small local helper layer should reduce that
 cost while preserving explicit ownership.
+
+Near-term slice: add a disposal-aware event-binding helper and
+use it in the lobby, HUD, and other long-lived views that still
+repeat manual bind / unbind pairs.
 
 Definition of done: UI views use a shared disposal-aware
 event-binding helper (or equivalent local utility) for the
@@ -134,6 +153,11 @@ views. Even if the rendering remains imperative, a small
 keyed render helper or view-model-to-DOM utility would make
 the code easier to read and less error-prone.
 
+Near-term slice: apply the shared collection-rendering pattern
+to fleet shop / cart and ship-list views first, where full DOM
+rebuilds and freshly attached click handlers are currently the
+most obvious.
+
 Definition of done: at least one collection-heavy view uses
 a shared rendering helper or extracted pattern for keyed or
 structured item rendering, and that pattern is documented as
@@ -155,6 +179,11 @@ project still leans more on behavioral tests than on durable
 fixture-style contract coverage. A small corpus of canonical
 payloads would make protocol and replay changes safer and more
 reviewable.
+
+Near-term slice: freeze canonical fixtures for `gameStart`,
+`movementResult`, `combatResult`, `stateUpdate`, and replay
+archive payloads so later transport and event-sourced work does
+not broaden contracts silently.
 
 Definition of done: fixture-based tests cover key C2S message
 shapes, state-bearing S2C responses, and replay archive payloads,
