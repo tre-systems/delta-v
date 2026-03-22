@@ -5,6 +5,7 @@ import type {
   Ship,
 } from '../../shared/types/domain';
 import { byId } from '../dom';
+import { createDisposalScope } from '../reactive';
 import { STATIC_BUTTON_BINDINGS } from './button-bindings';
 import type { UIEvent } from './events';
 import { FleetBuildingView } from './fleet-building-view';
@@ -18,6 +19,7 @@ import { buildScreenVisibility, type UIScreenMode } from './screens';
 import { ShipListView } from './ship-list-view';
 
 export class UIManager {
+  private readonly scope = createDisposalScope();
   private menuEl: HTMLElement;
   private scenarioEl: HTMLElement;
   private waitingEl: HTMLElement;
@@ -27,6 +29,7 @@ export class UIManager {
   private gameOverEl: HTMLElement;
   private shipListEl: HTMLElement;
   private fleetBuildingEl: HTMLElement;
+  private readonly mobileQuery: MediaQueryList;
   private isMobile: boolean;
   private layoutSyncFrame: number | null = null;
 
@@ -75,7 +78,6 @@ export class UIManager {
     });
     this.overlayView = new OverlayView();
     this.hudChromeView = new HUDChromeView({
-      getIsMobile: () => this.isMobile,
       queueLayoutSync: () => this.queueLayoutSync(),
       showPhaseAlert: (phase, isMyTurn) => {
         this.overlayView.showPhaseAlert(phase, isMyTurn);
@@ -84,27 +86,49 @@ export class UIManager {
         this.gameLogView.setStatusText(text);
       },
     });
+    this.scope.add(() => {
+      this.fleetBuildingView.dispose();
+      this.gameLogView.dispose();
+      this.hudChromeView.dispose();
+      this.lobbyView.dispose();
+      this.shipListView.dispose();
+    });
 
-    const mobileQuery = window.matchMedia('(max-width: 760px)');
-    this.isMobile = mobileQuery.matches;
+    this.mobileQuery = window.matchMedia('(max-width: 760px)');
+    this.isMobile = this.mobileQuery.matches;
+    this.hudChromeView.setMobile(this.isMobile);
     this.gameLogView.setMobile(
       this.isMobile,
       this.hudEl.style.display !== 'none',
     );
 
-    mobileQuery.addEventListener('change', (e) => {
+    const handleMobileQueryChange = (e: MediaQueryListEvent) => {
       this.isMobile = e.matches;
+      this.hudChromeView.setMobile(e.matches);
       this.gameLogView.setMobile(
         e.matches,
         this.hudEl.style.display !== 'none',
       );
+    };
+    this.mobileQuery.addEventListener('change', handleMobileQueryChange);
+    this.scope.add(() => {
+      this.mobileQuery.removeEventListener('change', handleMobileQueryChange);
     });
 
     window.addEventListener('resize', this.handleViewportResize);
+    this.scope.add(() => {
+      window.removeEventListener('resize', this.handleViewportResize);
+    });
     window.visualViewport?.addEventListener(
       'resize',
       this.handleViewportResize,
     );
+    this.scope.add(() => {
+      window.visualViewport?.removeEventListener(
+        'resize',
+        this.handleViewportResize,
+      );
+    });
 
     this.bindStaticButtons();
   }
@@ -115,8 +139,13 @@ export class UIManager {
 
   private bindStaticButtons() {
     for (const binding of STATIC_BUTTON_BINDINGS) {
-      byId(binding.id).addEventListener('click', () => {
+      const handleClick = () => {
         this.emit(binding.event);
+      };
+      const button = byId(binding.id);
+      button.addEventListener('click', handleClick);
+      this.scope.add(() => {
+        button.removeEventListener('click', handleClick);
       });
     }
   }
@@ -347,5 +376,10 @@ export class UIManager {
 
     rootStyle.removeProperty('--hud-top-offset');
     rootStyle.removeProperty('--hud-bottom-offset');
+  }
+
+  dispose() {
+    this.resetLayoutMetrics();
+    this.scope.dispose();
   }
 }
