@@ -623,6 +623,16 @@ body::before {
 }
 
 
+.log-status-bar {
+  padding: 0.4rem 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--muted);
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
 .log-entries {
   flex: 1;
   overflow-y: auto;
@@ -709,8 +719,10 @@ body::before {
 .log-latest-bar {
   position: fixed;
   bottom: calc(var(--hud-bottom-offset) + 0.1rem);
-  left: 0.5rem;
-  right: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: fit-content;
+  max-width: calc(100% - 1rem);
   padding: 0.4rem 0.75rem;
   background: var(--panel);
   backdrop-filter: blur(24px) saturate(180%);
