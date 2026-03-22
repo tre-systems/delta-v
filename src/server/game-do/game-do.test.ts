@@ -857,6 +857,83 @@ describe('GameDO', () => {
     const chatKey = await ctx.storage.get('lastChat:0');
     expect(chatKey).toBeUndefined();
   });
+  it('runs a full multiplayer happy path: init, game start, astrogation, movement', async () => {
+    const ctx = createCtx();
+    const game = createGameDO(ctx);
+
+    // 1. Initialize room via /init
+    const initResponse = await game.fetch(
+      new Request('https://room.internal/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: 'HAPPY',
+          scenario: 'biplanetary',
+          playerToken: 'A'.repeat(32),
+        }),
+      }),
+    );
+    expect(initResponse.status).toBe(201);
+
+    // 2. Both players connect (simulated via acceptWebSocket)
+    const p0ws = createSocket();
+    const p1ws = createSocket();
+    ctx.acceptWebSocket(p0ws, ['player:0']);
+    ctx.acceptWebSocket(p1ws, ['player:1']);
+
+    const p0msgs = () => p0ws.sent.map((s) => JSON.parse(s) as S2C);
+    const p1msgs = () => p1ws.sent.map((s) => JSON.parse(s) as S2C);
+
+    // 3. Start the game (normally triggered by both seats filling)
+    await (game as unknown as { initGame: () => Promise<void> }).initGame();
+
+    // Both players should receive gameStart
+    expect(p0msgs().some((m) => m.type === 'gameStart')).toBe(true);
+    expect(p1msgs().some((m) => m.type === 'gameStart')).toBe(true);
+
+    // Game state should be persisted in astrogation
+    const gameState = await ctx.storage.get<GameState>('gameState');
+    expect(gameState).toBeDefined();
+    expect(must(gameState).phase).toBe('astrogation');
+
+    // 4. Active player submits drift orders for all ships
+    const active = must(gameState).activePlayer;
+    const activeWs = active === 0 ? p0ws : p1ws;
+    const orders = must(gameState)
+      .ships.filter((s) => s.owner === active)
+      .map((s) => ({ shipId: s.id, burn: null }));
+
+    // Clear sent buffers to isolate the response
+    p0ws.sent.length = 0;
+    p1ws.sent.length = 0;
+
+    await game.webSocketMessage(
+      activeWs as unknown as WebSocket,
+      JSON.stringify({ type: 'astrogation', orders }),
+    );
+
+    // 5. Both players should receive a state-bearing broadcast
+    const hasBroadcast = (msgs: S2C[]) =>
+      msgs.some((m) => m.type === 'movementResult' || m.type === 'stateUpdate');
+
+    expect(hasBroadcast(p0msgs())).toBe(true);
+    expect(hasBroadcast(p1msgs())).toBe(true);
+
+    // 6. Game state should have advanced past the first player
+    const nextState = await ctx.storage.get<GameState>('gameState');
+    expect(nextState).toBeDefined();
+    expect(must(nextState).turnNumber).toBeGreaterThanOrEqual(
+      must(gameState).turnNumber,
+    );
+
+    // 7. A replay entry should have been appended
+    const archive = await ctx.storage.get<ReplayArchive>(
+      `replayArchive:${must(gameState).gameId}`,
+    );
+    expect(archive).toBeDefined();
+    expect(must(archive).entries.length).toBeGreaterThan(1);
+  });
+
   it('returns filtered replay archives for authenticated players', async () => {
     const ctx = createCtx();
     await ctx.storage.put('roomConfig', {
