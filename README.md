@@ -1,7 +1,7 @@
 # 🚀 Delta-V
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/workers/)
 [![HTML5 Canvas](https://img.shields.io/badge/HTML5_Canvas-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
 [![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
 
@@ -11,11 +11,22 @@
 
 ![Delta-V Tactical Map](./screenshot.png)
 
-**Delta-V** is an online, real-time multiplayer tactical space combat and racing game featuring realistic vector movement and orbital gravity mechanics across the inner Solar System, heavily inspired by the classic [Triplanetary (Steve Jackson Games)](http://www.sjgames.com/triplanetary/) board game.
+**Delta-V** is an online, real-time multiplayer tactical space combat and racing game featuring realistic vector movement and orbital gravity mechanics across the inner Solar System, heavily inspired by the classic [Triplanetary (Steve Jackson Games)](https://www.sjgames.com/triplanetary/) board game.
 
 Command your fleet, master astrogation trajectories, sling-shot around celestial bodies, and engage in high-stakes combat where positioning and velocity are just as crucial as firepower.
 
 Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) and [**Technology & Lore Guide**](./docs/TECHNOLOGY.md) to understand the high-fidelity NASA-punk concept art and hard sci-fi grounding of our fleet.
+
+## 📚 Documentation Guide
+
+- [**SPEC.md**](./docs/SPEC.md): complete rules reference, protocol shapes, scenario definitions, and implementation notes
+- [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md): system boundaries, data flow, Durable Object design, and event-sourcing direction
+- [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md): coding conventions, refactoring guidance, and shared patterns
+- [**PLAYABILITY.md**](./docs/PLAYABILITY.md): manual smoke, mobile, combat, and reconnect QA passes
+- [**SIMULATION_TESTING.md**](./docs/SIMULATION_TESTING.md): headless AI-vs-AI coverage and planned load/stress testing
+- [**SECURITY.md**](./docs/SECURITY.md): competitive-integrity posture, remaining risks, and deployment hardening notes
+- [**BACKLOG.md**](./docs/BACKLOG.md): remaining open work only
+- [**SPACESHIPS.md**](./docs/SPACESHIPS.md) and [**TECHNOLOGY.md**](./docs/TECHNOLOGY.md): visual direction and real-world technology anchors
 
 ## 🌟 Features
 
@@ -109,8 +120,10 @@ Get your thrusters firing locally in seconds:
 | `npm test` | Run all unit tests via Vitest |
 | `npm run test:coverage` | Run tests with a coverage report under `coverage/` |
 | `npm run test:watch` | Run Vitest in continuous watch mode |
-| `npm run simulate` | Run headless AI vs AI matches to test game balance and engine stability |
+| `npm run simulate -- [scenario] [iterations] [--ci]` | Run headless AI vs AI matches to test engine stability and scenario balance |
 | `npm run deploy` | Deploy straight to Cloudflare Workers |
+
+Pass simulation arguments after npm's `--`, for example `npm run simulate -- all 25 --ci`.
 
 ---
 
@@ -128,7 +141,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Engine safety (clone-on-entry, server rollback, event log)
 - [x] Error reporting and anonymous telemetry (D1 storage)
-- [x] 1285 tests across 89 suites, plus scenario AI simulations with per-scenario balance thresholds
+- [x] 2,500+ automated tests across 178 test files, plus scenario AI simulations with per-scenario balance thresholds
 - [x] Engine decomposition into focused phase processors (game-creation, astrogation, resolve-movement, combat, etc.)
 - [x] Typed Ship state models (`lifecycle`, `control` fields with impossible states unrepresentable)
 - [x] Granular engine events (22 `EngineEvent` types emitted by engine, replacing server-side derivation)
@@ -144,6 +157,14 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [ ] **Spectator Mode**: Read-only live battle viewing from public filtered projections
 - [ ] **Scenario Expansion**: Lateral 7, Fleet Mutiny, Retribution
 - [ ] **Passenger Rescue Mechanics**: Rescue-specific transfer and objective rules
+
+## 🔗 External References
+
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/) and [Durable Objects](https://developers.cloudflare.com/durable-objects/)
+- [MDN Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) and [MDN Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
+- [web.dev Learn PWA](https://web.dev/learn/pwa/)
+- [TypeScript Handbook: Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
+- [Triplanetary overview](https://www.sjgames.com/triplanetary/)
 
 ---
 

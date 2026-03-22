@@ -7,6 +7,8 @@ Delta-V now has one established simulation layer and one still-planned layer:
 
 Since the core `engine/game-engine.ts` is purely functional and deterministic apart from injected RNG, high-speed simulation is practical.
 
+Related docs: [PLAYABILITY](./PLAYABILITY.md), [SPEC](./SPEC.md), [ARCHITECTURE](./ARCHITECTURE.md).
+
 ---
 
 ## 1. Headless Engine Simulation (AI vs AI)
@@ -35,8 +37,9 @@ The current runner executes entirely in Node.js, outside the browser and Cloudfl
 
 **Current usage:**
 - `npm run simulate` runs 100 headless games of the default scenario.
-- `npm run simulate all 25 -- --ci` runs 25 games per scenario across all 8 scenarios (pre-commit hook).
+- `npm run simulate -- all 25 --ci` runs 25 games per scenario across all 8 scenarios (pre-commit hook / CI path).
 - `--ci` fails the process on engine crashes and prints balance warnings without making them fatal.
+- When using npm scripts, pass simulation arguments after `--`.
 
 ---
 

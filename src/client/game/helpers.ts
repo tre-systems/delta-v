@@ -1,6 +1,7 @@
 import { SHIP_STATS } from '../../shared/constants';
 import {
   getAllowedOrdnanceTypes,
+  getOrderableShipsForPlayer,
   isOrderableShip,
   validateOrdnanceLaunch,
 } from '../../shared/engine/util';
@@ -164,30 +165,28 @@ export const buildAstrogationOrders = (
   playerId: number,
   planning: PlanningSnapshot,
 ): AstrogationOrder[] => {
-  return state.ships
-    .filter((ship) => ship.owner === playerId && isOrderableShip(ship))
-    .map((ship) => {
-      const burn = planning.burns.get(ship.id) ?? null;
+  return getOrderableShipsForPlayer(state, playerId).map((ship) => {
+    const burn = planning.burns.get(ship.id) ?? null;
 
-      const overload = planning.overloads.get(ship.id) ?? null;
+    const overload = planning.overloads.get(ship.id) ?? null;
 
-      const weakGravityChoices = planning.weakGravityChoices.get(ship.id);
+    const weakGravityChoices = planning.weakGravityChoices.get(ship.id);
 
-      const order: AstrogationOrder = {
-        shipId: ship.id,
-        burn,
-      };
+    const order: AstrogationOrder = {
+      shipId: ship.id,
+      burn,
+    };
 
-      if (overload !== null) {
-        order.overload = overload;
-      }
+    if (overload !== null) {
+      order.overload = overload;
+    }
 
-      if (weakGravityChoices && Object.keys(weakGravityChoices).length > 0) {
-        order.weakGravityChoices = weakGravityChoices;
-      }
+    if (weakGravityChoices && Object.keys(weakGravityChoices).length > 0) {
+      order.weakGravityChoices = weakGravityChoices;
+    }
 
-      return order;
-    });
+    return order;
+  });
 };
 
 export const deriveHudViewModel = (

@@ -4,6 +4,8 @@ The Delta-V universe is built on a "NASA-Punk" hard sci-fi foundation. While per
 
 By understanding these visual motifs, players can immediately recognize the capabilities and loadout of a ship simply by looking at its silhouette.
 
+These are not claims about present-day deployed fusion torchships. They are speculative extrapolations anchored to real aerospace constraints such as specific impulse, thermal management, shielding, solar power, deep-space communications, and sensing.
+
 ---
 
 ## 1. High-ISP Fusion Propulsion ("Torch Drives")
@@ -146,3 +148,15 @@ Because stealth is virtually impossible in the frozen vacuum of space (where the
 - Deeply recessed, flush-mounted clusters of hexagonal or cylindrical launch tubes built directly into the armor plating.
 - Often glowing amber or red from internal pre-heating before a launch sequence.
 - Clean, heavy-duty armored hatch covers meant to protect unfired ordnance from glancing blows.
+
+---
+
+## Reality Anchors & Further Reading
+
+These references are not one-to-one blueprints for Delta-V ships, but they are the real-world technical anchors behind the visual language and fiction:
+
+- [NASA Glenn: Specific Impulse](https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/specific-impulse/) for the propulsion tradeoff Delta-V extrapolates into torch-drive fiction
+- [NASA JSC Hypervelocity Impact Technology](https://hvit.jsc.nasa.gov/shield-development/) for the real shielding and impact environment behind Whipple-shield-inspired defenses
+- [NASA: Europa Clipper gets super-size solar arrays](https://www.nasa.gov/missions/europa-clipper/nasas-europa-clipper-gets-set-of-super-size-solar-arrays/) for the scale logic behind large deep-space photovoltaic surfaces
+- [NASA Deep Space Network](https://www.nasa.gov/directorates/heo/scan/services/networks/deep_space_network) for the communications model behind large high-gain arrays
+- [NASA Airborne Science: LiDAR](https://airbornescience.nasa.gov/category/type/Lidar) for the sensing concepts behind active ranging and long sensor booms

@@ -107,9 +107,6 @@ export const applyClientStateTransition = (
   if (entryPlan.startTurnTimer) {
     deps.turnTimer.start();
   }
-  if (entryPlan.updateHUD) {
-    deps.updateHUD();
-  }
   if (entryPlan.clearAstrogationPlanning) {
     resetAstrogationPlanning(deps.ctx.planningState);
   }
@@ -118,6 +115,9 @@ export const applyClientStateTransition = (
   }
   if (entryPlan.resetCombatState) {
     deps.resetCombatState();
+  }
+  if (entryPlan.updateHUD) {
+    deps.updateHUD();
   }
   if (entryPlan.clearAttackButton) {
     deps.ui.showAttackButton(false);

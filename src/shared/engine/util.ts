@@ -218,6 +218,14 @@ export const isOrderableShip = (ship: Ship): boolean =>
   ship.baseStatus !== 'emplaced' &&
   ship.control !== 'captured';
 
+export const getOrderableShipsForPlayer = (
+  state: Pick<GameState, 'ships'>,
+  playerId: number,
+): Ship[] =>
+  state.ships.filter(
+    (ship) => ship.owner === playerId && isOrderableShip(ship),
+  );
+
 export const hasAnyEnemyShips = (state: GameState): boolean => {
   const { activePlayer } = state;
 

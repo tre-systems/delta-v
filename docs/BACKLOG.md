@@ -11,67 +11,6 @@ feature, not as a cleanup pass afterward.
 
 ## Reliability & Simplification
 
-### Reconnect seat reclamation without socket races
-
-Allow a valid stored player token to reclaim its seat
-even when the old WebSocket has not closed yet.
-
-Today seat assignment treats a still-open socket as a
-hard blocker, which makes refresh / reconnect flows race
-the old connection teardown and reject valid tokens.
-Seat reclamation should be keyed off player identity,
-with duplicate sockets replaced only after the reclaim
-decision is accepted.
-
-Definition of done: reconnect tests cover refresh while
-the old socket is still open, reconnect during the
-disconnect grace window, and rejection of truly invalid
-tokens without regressing duplicate-socket cleanup.
-
-**Files:** `src/server/protocol.ts`,
-`src/server/game-do/game-do.ts`,
-`src/server/protocol.test.ts`,
-`src/server/game-do/game-do.test.ts`
-
-### Robust astrogation timeout auto-advance
-
-Make turn-timeout astrogation orders derive from the
-same "orderable ship" rules as the normal engine path.
-
-The timeout helper should not synthesize no-op orders
-for destroyed, captured, or otherwise non-orderable
-ships, or it can fail to advance the match in damaged
-late-game states.
-
-Definition of done: timeout tests cover destroyed ships,
-captured ships, emplaced bases, and mixed-fleet cases
-without returning `null` for otherwise recoverable
-turns.
-
-**Files:** `src/server/game-do/turns.ts`,
-`src/shared/engine/astrogation.ts`,
-`src/shared/engine/util.ts`,
-`src/server/game-do/turns.test.ts`
-
-### Deterministic client phase-entry state application
-
-Apply planning resets and default ship selection before
-deriving HUD state on client phase entry.
-
-Right now phase-entry effects can compute HUD state from
-stale planning data, which risks showing outdated burn,
-selection, and ordnance controls until another
-interaction forces a refresh.
-
-Definition of done: state-transition tests assert the
-ordering of planning reset, selection, and HUD refresh
-for astrogation, ordnance, and combat entry.
-
-**Files:** `src/client/game/state-transition.ts`,
-`src/client/game/helpers.ts`,
-`src/client/game/state-transition.test.ts`,
-`src/client/game/helpers.test.ts`
-
 ### Decide whether invite tokens stay or go
 
 Either finish the invite-token flow end to end or remove
@@ -117,20 +56,45 @@ removed from the coordinator modules.
 `src/server/game-do/turns.ts`,
 `src/server/game-do/game-do.ts`
 
+### OffscreenCanvas layer caching for renderer
+
+Pre-render static visual layers (starfield, hex grid, gravity
+indicators, planetary bodies) to offscreen canvases and
+composite via `drawImage()` instead of redrawing from
+scratch every frame.
+
+The starfield data is already generated once in the
+`Renderer` constructor, but the actual canvas draw calls
+repeat every frame. The hex grid, gravity wells, and
+celestial bodies are similarly static within a given
+camera position. Caching these layers reduces per-frame
+draw-call overhead, especially on lower-end devices.
+
+Invalidate cached layers only on camera pan, zoom, or
+window resize.
+
+Definition of done: static layers render to offscreen
+canvases, `drawImage()` composites them per frame, and
+invalidation fires on camera or viewport changes. No
+visible rendering regression.
+
+**Files:** `src/client/renderer/renderer.ts`,
+`src/client/renderer/scene.ts`
+
 ### Imperative-shell coverage and smoke tests
 
 Add targeted tests around the runtime shells that still
 carry most of the coordination risk.
 
 The shared engine is well-covered; the main remaining
-blind spots are reconnect flow, `GameClient` bootstrap
-and phase entry, renderer / UI coordination, and Durable
-Object orchestration.
+blind spots are `GameClient` bootstrap, renderer / UI
+coordination, and an end-to-end multiplayer happy path
+that exercises the full runtime shell.
 
 Definition of done: targeted tests or smoke harnesses
-cover reconnect, phase-entry HUD refresh, timeout
-automation, and one end-to-end multiplayer happy path,
-with coverage improving on `main.ts`, `ui.ts`,
+cover `main.ts` bootstrap, renderer / UI coordination,
+and one end-to-end multiplayer happy path, with
+coverage improving on `main.ts`, `ui.ts`,
 `renderer.ts`, and `game-do.ts`.
 
 **Files:** `src/client/main.ts`,
