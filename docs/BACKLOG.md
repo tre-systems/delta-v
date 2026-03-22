@@ -40,34 +40,6 @@ controller modules with clear ownership and focused tests.
 `src/client/game/phase-controller.ts`,
 new or extracted client controller module(s)
 
-### Split `GameDO` coordination responsibilities
-
-Break the Durable Object shell into narrower units before more
-reconnect, replay, spectator, or public-lobby features pile onto
-the same class.
-
-`GameDO` currently owns HTTP routing, websocket lifecycle,
-reconnect / seat assignment, alarm scheduling, persistence,
-replay export, and engine-result publication. That is workable,
-but it makes each new server-side feature more coupled than it
-needs to be.
-
-Near-term slice: split join / session policy and state-
-publication / replay adaptation out of the main Durable Object
-class before spectator and event-sourced work deepen those
-couplings further.
-
-Definition of done: `GameDO` remains the composition point for
-Cloudflare runtime hooks, but join / session policy, turn-timeout
-handling, and state-publication / replay adaptation live behind
-smaller helpers or modules with direct tests.
-
-**Files:** `src/server/game-do/game-do.ts`,
-`src/server/game-do/session.ts`,
-`src/server/game-do/turns.ts`,
-`src/server/game-do/messages.ts`,
-`src/server/protocol.ts`
-
 ### Unify local and networked game-flow orchestration
 
 Reduce parity drift between AI/local execution and multiplayer
