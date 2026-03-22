@@ -762,19 +762,29 @@ export class GameDO extends DurableObject<Env> {
       matchNumber,
       gameStartMessage,
     );
-    const gameCreatedEvent = {
-      type: 'gameCreated' as const,
-      scenario: gameState.scenario,
-      turn: gameState.turnNumber,
-      phase: gameState.phase,
-    };
-    await appendEvents(this.ctx.storage, gameCreatedEvent);
-    await appendEnvelopedEvents(
-      this.ctx.storage,
-      gameId,
-      null,
-      gameCreatedEvent,
-    );
+    const initEvents: import('../../shared/engine/engine-events').EngineEvent[] =
+      [
+        {
+          type: 'gameCreated' as const,
+          scenario: gameState.scenario,
+          turn: gameState.turnNumber,
+          phase: gameState.phase,
+        },
+      ];
+
+    // Capture fugitive designation for replay
+    for (const ship of gameState.ships) {
+      if (ship.identity?.hasFugitives) {
+        initEvents.push({
+          type: 'fugitiveDesignated' as const,
+          shipId: ship.id,
+          playerId: ship.owner,
+        });
+      }
+    }
+
+    await appendEvents(this.ctx.storage, ...initEvents);
+    await appendEnvelopedEvents(this.ctx.storage, gameId, null, ...initEvents);
     this.broadcastFiltered(gameStartMessage);
     await this.startTurnTimer(gameState);
   }
