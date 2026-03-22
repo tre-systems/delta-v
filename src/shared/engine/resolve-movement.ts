@@ -27,9 +27,12 @@ import {
   checkRamming,
 } from './victory';
 
+/** Viewer identity: player seat or spectator/public. */
+export type ViewerId = number | 'spectator';
+
 export const filterStateForPlayer = (
   state: GameState,
-  playerId: number,
+  viewer: ViewerId,
 ): GameState => {
   if (
     !usesEscapeInspectionRules(state) &&
@@ -40,12 +43,15 @@ export const filterStateForPlayer = (
   return {
     ...state,
     ships: state.ships.map((ship) => {
-      if (ship.owner === playerId) {
-        return ship;
+      // Spectators see no hidden identity
+      if (viewer === 'spectator') {
+        if (ship.identity?.revealed) return ship;
+        const { identity, ...rest } = ship;
+        return rest;
       }
-      if (ship.identity?.revealed) {
-        return ship;
-      }
+      // Players see own ships' identity
+      if (ship.owner === viewer) return ship;
+      if (ship.identity?.revealed) return ship;
       const { identity, ...rest } = ship;
       return rest;
     }),

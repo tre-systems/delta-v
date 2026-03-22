@@ -55,4 +55,4 @@ export {
   skipLogistics,
 } from './logistics';
 export { processEmplacement } from './ordnance';
-export { filterStateForPlayer } from './resolve-movement';
+export { filterStateForPlayer, type ViewerId } from './resolve-movement';
