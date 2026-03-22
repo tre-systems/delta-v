@@ -95,6 +95,10 @@ export const createPointerInteractionManager = (
   };
 
   const endPointer = (x = dragStartX, y = dragStartY): ScreenPoint | null => {
+    if (!isDragging) {
+      return null;
+    }
+
     isDragging = false;
 
     return dragMoved ? null : { x, y };
