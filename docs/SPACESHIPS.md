@@ -38,11 +38,11 @@ A gritty, mismatched raider used for deep-space intercepts.
 
 ### The Industrial Fleet
 A modular transport system carrying fuel and cargo across the system.
-> *[IMAGE: To be generated - A modular transport system carrying fuel and cargo across the system]*
+![Industrial Fleet](./assets/transport_1774168766115.png)
 
 ### The Orbital Base
 A sprawling industrial hub and defensive fortress.
-> *[IMAGE: To be generated - A sprawling industrial hub and defensive fortress]*
+![Orbital Base](./assets/orbital_base_1774168783200.png)
 
 ## Implementation Notes
 These images serve as the "mood board" for future asset development. Key color palettes identified:
