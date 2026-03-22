@@ -112,14 +112,18 @@ const createDeps = (
       clearTrails: track('renderer.clearTrails'),
     },
     ui: {
-      showToast: track('ui.showToast'),
-      logText: track('ui.logText'),
-      setChatEnabled: track('ui.setChatEnabled'),
-      hideReconnecting: track('ui.hideReconnecting'),
       setPlayerId: track('ui.setPlayerId'),
-      clearLog: track('ui.clearLog'),
-      showRematchPending: track('ui.showRematchPending'),
-      showGameOver: track('ui.showGameOver'),
+      log: {
+        logText: track('ui.log.logText'),
+        setChatEnabled: track('ui.log.setChatEnabled'),
+        clear: track('ui.log.clear'),
+      },
+      overlay: {
+        showToast: track('ui.overlay.showToast'),
+        hideReconnecting: track('ui.overlay.hideReconnecting'),
+        showRematchPending: track('ui.overlay.showRematchPending'),
+        showGameOver: track('ui.overlay.showGameOver'),
+      },
       updateLatency: track('ui.updateLatency'),
     },
     calls,
@@ -159,8 +163,10 @@ describe('client integration: connection flow', () => {
     });
 
     expect(deps.ctx.reconnectAttempts).toBe(0);
-    expect(deps.calls['ui.hideReconnecting']).toHaveLength(1);
-    expect(deps.calls['ui.showToast']).toEqual([['Reconnected!', 'success']]);
+    expect(deps.calls['ui.overlay.hideReconnecting']).toHaveLength(1);
+    expect(deps.calls['ui.overlay.showToast']).toEqual([
+      ['Reconnected!', 'success'],
+    ]);
     // No state transition when already playing
     expect(deps.calls.setState).toBeUndefined();
   });
@@ -177,8 +183,8 @@ describe('client integration: connection flow', () => {
     expect(deps.calls.resetTurnTelemetry).toHaveLength(1);
     expect(deps.calls.applyGameState).toEqual([[state]]);
     expect(deps.calls['renderer.clearTrails']).toHaveLength(1);
-    expect(deps.calls['ui.clearLog']).toHaveLength(1);
-    expect(deps.calls['ui.setChatEnabled']).toEqual([[true]]);
+    expect(deps.calls['ui.log.clear']).toHaveLength(1);
+    expect(deps.calls['ui.log.setChatEnabled']).toEqual([[true]]);
     expect(deps.calls.logScenarioBriefing).toHaveLength(1);
     expect(deps.calls.setState).toEqual([['playing_astrogation']]);
   });
@@ -408,7 +414,7 @@ describe('client integration: chat and errors', () => {
       text: 'hello',
     });
 
-    expect(deps.calls['ui.logText']).toEqual([['You: hello', 'log-chat']]);
+    expect(deps.calls['ui.log.logText']).toEqual([['You: hello', 'log-chat']]);
   });
 
   it('opponent chat message logs with "Opponent" label', () => {
@@ -421,7 +427,7 @@ describe('client integration: chat and errors', () => {
       text: 'gg',
     });
 
-    expect(deps.calls['ui.logText']).toEqual([
+    expect(deps.calls['ui.log.logText']).toEqual([
       ['Opponent: gg', 'log-chat-opponent'],
     ]);
   });
@@ -434,7 +440,9 @@ describe('client integration: chat and errors', () => {
       message: 'Invalid action',
     });
 
-    expect(deps.calls['ui.showToast']).toEqual([['Invalid action', 'error']]);
+    expect(deps.calls['ui.overlay.showToast']).toEqual([
+      ['Invalid action', 'error'],
+    ]);
   });
 
   it('rematch pending shows UI', () => {
@@ -444,7 +452,7 @@ describe('client integration: chat and errors', () => {
       type: 'rematchPending',
     } as S2C);
 
-    expect(deps.calls['ui.showRematchPending']).toHaveLength(1);
+    expect(deps.calls['ui.overlay.showRematchPending']).toHaveLength(1);
   });
 });
 
