@@ -69,7 +69,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 The shared engine is **side-effect-free** (no I/O) and **externally immutable**. All 11 engine entry points (`processAstrogation`, `processOrdnance`, `skipOrdnance`, `processFleetReady`, `beginCombatPhase`, `processCombat`, `skipCombat`, `processLogistics`, `skipLogistics`, `processSurrender`, `processEmplacement`) call `structuredClone(inputState)` on entry. Internally, the clone is mutated in place for efficiency, but the caller's state is never touched. Callers must use the returned `result.state`.
 
 This design provides:
-- **Rollback safety**: if the engine throws mid-mutation, the server's state is untouched (see BACKLOG 1b).
+- **Rollback safety**: if the engine throws mid-mutation, the server's state is untouched.
 - **Snapshot diffing**: before/after state snapshots are naturally available without manual cloning.
 - **Speculative branching**: AI search and replay can call engine functions without defensive cloning.
 
@@ -92,7 +92,7 @@ The backend leverages Cloudflare's edge network.
 
 | Module | Purpose | Reusability |
 |--------|---------|-------------|
-| `index.ts` | Worker entry: `/create`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern |
+| `index.ts` | Worker entry: `/create`, `/join/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern |
 | `protocol.ts` | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export | **~85% generic** — room/token/seat logic is game-agnostic |
 | `game-do/game-do.ts` | Durable Object: WebSocket lifecycle, state persistence, broadcasting | **~70% generic** — multiplayer plumbing is reusable |
 | `game-do/messages.ts` | S2C message construction from engine results | Game-specific |
@@ -111,7 +111,11 @@ The backend leverages Cloudflare's edge network.
 
 - **Filtered broadcasting**: `broadcastFiltered()` checks whether the current scenario has hidden information (fugitive identities in escape scenarios). If no hidden info, the same state goes to both players. If hidden info, `filterStateForPlayer(state, playerId)` is called separately per player — own ships are fully visible, unrevealed enemy ships show `type: 'unknown'`. When adding new hidden state, extend `filterStateForPlayer()` and the check in `broadcastFiltered()`.
 
-- **Single-alarm scheduling**: One alarm per DO, rescheduled after each state change. Three independent deadlines are stored: `disconnectAt` (30s grace), `turnTimeoutAt` (2 min), `inactivityAt` (5 min). `getNextAlarmAt()` computes the nearest deadline. When the alarm fires, `resolveAlarmAction()` returns a discriminated action (`disconnectExpired`, `turnTimeout`, `inactivityTimeout`) and the handler dispatches accordingly.
+- **Single-alarm scheduling**: One alarm per DO, rescheduled after each state change. Three independent deadlines are tracked: `disconnectAt` (30s grace), `turnTimeoutAt` (2 min), `inactivityAt` (5 min). `getNextAlarmAt()` computes the nearest deadline. When the alarm fires, `resolveAlarmAction()` returns a discriminated action (`disconnectExpired`, `turnTimeout`, `inactivityTimeout`) and the handler dispatches accordingly. `inactivityAt` is cached in memory and flushed to storage at most once per 60s to avoid write amplification from frequent pings. Chat rate limiting is also in-memory (not storage-backed).
+
+- **WebSocket throttle**: A per-socket message counter (in-memory `WeakMap`) limits clients to 10 messages per second. Connections exceeding this are closed with code 1008. This prevents garbage-message floods from spiking DO CPU or I/O.
+
+- **Room creation rate limit**: The Worker applies a per-isolate, per-IP-hash rate limit on `POST /create` (5 requests per IP per 60s window, 429 with `Retry-After`). This is defense-in-depth — supplement with Cloudflare WAF rate limiting rules for global enforcement.
 
 - **Seat assignment**: `resolveSeatAssignment()` in `protocol.ts` implements a multi-step fallback: (1) player token match → returning player gets their original seat; (2) invite token match → new player consumes the token and gets the open seat; (3) tokenless join → safety net for future open lobbies; (4) no seats available → reject. Invite tokens are consumed on first use, preventing replay attacks.
 
@@ -124,10 +128,10 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 | Directory | Files | LOC | Purpose |
 |-----------|-------|-----|---------|
-| `client/` (root) | 8 | ~2290 | Entry point (`main.ts` ~990 LOC), raw input, audio, tutorial, DOM helpers, telemetry, viewport, reactive signals |
-| `client/game/` | 44 | ~6260 | Game logic: command routing, planning store, game-state store, state transitions, session control, phases, transport, actions |
+| `client/` (root) | 8 | ~2370 | Entry point (`main.ts` ~1030 LOC), raw input, audio, tutorial, DOM helpers, telemetry, viewport, reactive signals |
+| `client/game/` | 44 | ~6320 | Game logic: command routing, planning store, game-state store, state transitions, session control, phases, transport, actions |
 | `client/renderer/` | 13 | ~4590 | Canvas rendering: camera, scene, entities, effects, overlays |
-| `client/ui/` | 15 | ~2240 | DOM overlays: menu, HUD, ship list, fleet building, game log, formatters, button bindings, screens |
+| `client/ui/` | 15 | ~2670 | DOM overlays: menu, HUD, ship list, fleet building, game log, formatters, button bindings, screens |
 
 #### Three-Layer Input Architecture
 
@@ -152,15 +156,16 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 - **`input.ts`**: Manages user interaction (panning, zooming, clicking). It translates raw browser events into `InputEvent` objects. Pure `interpretInput()` then maps these to `GameCommand[]`, ensuring the input layer never directly mutates the application state.
 - **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), planning-state helpers, runtime/session helpers, phase derivation, game-state helpers, transition helpers, session helpers, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
 - **`renderer/`**: Canvas drawing layers (scene, entities, vectors, effects, overlays), camera, minimap, and animation management.
-- **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, and layout metrics.
-- **`ui/ui.ts`** / **`audio.ts`**: Handles the HTML overlay (menus, HUD) and Web Audio API interactions.
+- **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, layout metrics, and small reactive DOM view models.
+- **`reactive.ts` + `ui/ui.ts`**: The overlay layer stays framework-free, but stateful DOM views now use a small signals runtime for derived copy/visibility and explicit disposal. `UIManager` owns long-lived view instances and their teardown; the game loop and renderer remain imperative.
+- **`audio.ts`**: Handles Web Audio API interactions.
 - **Visual Polish**: Employs a premium design system with glassmorphism tokens (backdrop-filters), tactile micro-animations (recoil, scaling glows), and pulsing orbital effects for high-end UX.
 
 ### D. Progressive Web App (`static/sw.js`, `static/site.webmanifest`)
 Delta-V is a fully installable PWA. A lightweight hand-written service worker provides:
 - **Precaching** of the app shell (`/`, `client.js`, `style.css`, icons) for instant repeat loads.
 - **Offline single-player**: The AI opponent works entirely client-side, so cached assets allow full gameplay without network.
-- **WebSocket passthrough**: The service worker explicitly skips `/ws/*` and `/create` routes, ensuring multiplayer connections are never intercepted.
+- **Network/API passthrough**: The service worker never intercepts non-`GET` requests and explicitly bypasses multiplayer/reporting routes (`/ws/*`, `/create`, `/join/*`, `/error`, `/telemetry`), ensuring sockets, join validation, and reporting stay authoritative.
 - **Stale-while-revalidate** for static assets and **network-first** for navigation, complementing Cloudflare's edge caching rather than fighting it.
 - **Automatic cache busting**: The build script (`esbuild.client.mjs`) injects a content hash into the SW cache name, so every deploy with code changes triggers automatic SW update and page reload.
 
@@ -189,6 +194,7 @@ All messages are discriminated unions validated at the protocol boundary. Chat p
 
 ```
 POST /create → Worker generates room code + tokens → DO /init
+GET /join/{code}?playerToken=X → optional preflight join validation
 WebSocket /ws/{code}?playerToken=X → DO accepts, tags socket with player ID
 Both players connected → createGame() → broadcast gameStart
 Game loop: C2S action → engine → save state/events → restart timer → broadcast S2C result
@@ -315,5 +321,6 @@ See [BACKLOG.md](BACKLOG.md) for open work. Below captures deferred decisions an
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.
 - **Generic hex engine extraction**: Designing a framework from N=1 games is premature abstraction. Fork Delta-V when game #2 starts and build the framework from two concrete implementations.
 - **Serialisation codec**: `GameState` is plain JSON. A codec adds overhead with zero current benefit.
-- **UI framework adoption**: The DOM UI layer is ~2200 LOC across 15 files. A framework (Preact, etc.) adds build complexity and migration risk for a layer that works and is small enough to iterate on directly.
-- **Structural sharing / Immer**: Evaluated and rejected. The engine's `structuredClone` + internal mutation pattern is incompatible with Immer's Proxy-based approach — adopting it would require rewriting 800+ LOC of engine logic for zero functional benefit. State nests only 3–4 levels deep, so spread operators aren't verbose. Zero mutation bugs have been reported; the clone-on-entry test suite validates all 11 entry points. The current pattern also gives free rollback safety and snapshot diffing, which Immer would not improve.
+- **Replay architecture / event sourcing**: Reconsidered during replay and spectator planning and rejected for now. The current engine and server are snapshot-authoritative: game state is persisted directly, and the lightweight `GameEvent` log is only a replay/logging aid. Full event sourcing would require redesigning every authoritative mutation path around stable persisted domain events, explicit RNG outcomes, replay-versioning, and projection rebuilds. That is a much larger rewrite than replay/spectator support currently needs. The intended path is a replay archive built from authoritative state-bearing server transitions plus optional action summaries.
+- **UI framework adoption**: The DOM UI layer is still small enough to own directly. The current compromise is a tiny local signals layer for view-local state and cleanup, without paying the cost of adopting a full framework (Preact, etc.) across the entire client.
+- **Structural sharing / Immer**: Reconsidered alongside replay/event-sourcing planning and still rejected. The engine's `structuredClone` + internal mutation pattern is incompatible with Immer's Proxy-based approach — adopting it would require rewriting 800+ LOC of engine logic while not solving the real replay problem, which is historical persistence and reconstruction strategy rather than reducer ergonomics. State nests only 3–4 levels deep, spread usage is contained, and the current pattern already provides rollback safety and snapshot diffing.
