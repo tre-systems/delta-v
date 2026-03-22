@@ -1,10 +1,12 @@
 // Lightweight event log for replay, reconnection,
 // and spectator catch-up.
 //
-// This is NOT event sourcing — snapshots remain the
-// source of truth. The event log is an append-only
-// complement that captures the animation-relevant data
-// from each action so clients can replay what happened.
+// Today this remains a transitional append-only log:
+// snapshots are still the persisted source of truth.
+// The project is moving toward event-sourced match
+// history, so these event shapes should be treated as a
+// stepping stone rather than the final authoritative
+// event model.
 
 import type {
   CombatResult,
