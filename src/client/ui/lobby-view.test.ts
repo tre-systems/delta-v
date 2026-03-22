@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { LobbyView } from './lobby-view';
+import { createLobbyView } from './lobby-view';
 
 const installFixture = () => {
   document.body.innerHTML = `
@@ -34,7 +34,7 @@ describe('LobbyView', () => {
     const emit = vi.fn();
     const showMenu = vi.fn();
     const showScenarioSelect = vi.fn();
-    new LobbyView({
+    createLobbyView({
       emit,
       showMenu,
       showScenarioSelect,
@@ -67,7 +67,7 @@ describe('LobbyView', () => {
   it('parses join input and back navigation', () => {
     const emit = vi.fn();
     const showMenu = vi.fn();
-    new LobbyView({
+    createLobbyView({
       emit,
       showMenu,
       showScenarioSelect: vi.fn(),
@@ -92,7 +92,7 @@ describe('LobbyView', () => {
     const copyText = vi
       .fn<(text: string) => Promise<void>>()
       .mockResolvedValue();
-    const view = new LobbyView({
+    const view = createLobbyView({
       emit: vi.fn(),
       showMenu: vi.fn(),
       showScenarioSelect: vi.fn(),
@@ -133,5 +133,26 @@ describe('LobbyView', () => {
 
     vi.advanceTimersByTime(2000);
     expect(document.getElementById('copyBtn')?.textContent).toBe('Copy Link');
+  });
+
+  it('removes button listeners on dispose', () => {
+    const emit = vi.fn();
+    const showMenu = vi.fn();
+    const showScenarioSelect = vi.fn();
+    const view = createLobbyView({
+      emit,
+      showMenu,
+      showScenarioSelect,
+    });
+
+    view.dispose();
+
+    document.getElementById('createBtn')?.click();
+    document.getElementById('backBtn')?.click();
+    document.getElementById('joinBtn')?.click();
+
+    expect(showScenarioSelect).not.toHaveBeenCalled();
+    expect(showMenu).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
   });
 });

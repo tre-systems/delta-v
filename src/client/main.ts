@@ -109,12 +109,15 @@ import {
 import { applyClientStateTransition } from './game/state-transition';
 import { createTurnTimerManager, type TurnTimerManager } from './game/timer';
 import { createLocalTransport, type GameTransport } from './game/transport';
-import { TurnTelemetryTracker } from './game/turn-telemetry';
+import {
+  createTurnTelemetryTracker,
+  type TurnTelemetryTracker,
+} from './game/turn-telemetry';
 import { resolveUIEventPlan } from './game/ui-event-router';
 import { InputHandler } from './input';
 import { Renderer } from './renderer/renderer';
 import { installGlobalErrorHandlers, track } from './telemetry';
-import { Tutorial } from './tutorial';
+import { createTutorial, type Tutorial } from './tutorial';
 import type { UIEvent } from './ui/events';
 import { UIManager } from './ui/ui';
 import { installViewportSizing } from './viewport';
@@ -156,7 +159,8 @@ class GameClient {
   private logisticsUIState: LogisticsUIState | null = null;
   private connection: ConnectionManager;
   private turnTimer!: TurnTimerManager;
-  private readonly turnTelemetry = new TurnTelemetryTracker();
+  private readonly turnTelemetry: TurnTelemetryTracker =
+    createTurnTelemetryTracker();
   private hud!: HudController;
   private camera!: CameraController;
   // Presentation orchestration deps
@@ -264,7 +268,7 @@ class GameClient {
       this.handleInput(event),
     );
     this.ui = new UIManager();
-    this.tutorial = new Tutorial();
+    this.tutorial = createTutorial();
     this.tutorial.onTelemetry = (evt) => track(evt);
     this.tooltipEl = byId('shipTooltip');
     this.connection = createConnectionManager({

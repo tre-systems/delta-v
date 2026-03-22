@@ -3,15 +3,18 @@ import { byId, listen } from '../dom';
 import { createDisposalScope } from '../reactive';
 import { STATIC_BUTTON_BINDINGS } from './button-bindings';
 import type { UIEvent } from './events';
-import { FleetBuildingView } from './fleet-building-view';
+import {
+  createFleetBuildingView,
+  type FleetBuildingView,
+} from './fleet-building-view';
 import { GameLogView } from './game-log-view';
 import type { HUDInput } from './hud';
 import { HUDChromeView } from './hud-chrome-view';
 import { deriveHudLayoutOffsets } from './layout';
-import { LobbyView } from './lobby-view';
-import { OverlayView } from './overlay-view';
+import { createLobbyView, type LobbyView } from './lobby-view';
+import { createOverlayView, type OverlayView } from './overlay-view';
 import { buildScreenVisibility, type UIScreenMode } from './screens';
-import { ShipListView } from './ship-list-view';
+import { createShipListView, type ShipListView } from './ship-list-view';
 
 export class UIManager {
   private readonly scope = createDisposalScope();
@@ -51,7 +54,7 @@ export class UIManager {
     this.gameOverEl = byId('gameOver');
     this.shipListEl = byId('shipList');
     this.fleetBuildingEl = byId('fleetBuilding');
-    this.fleetBuildingView = new FleetBuildingView({
+    this.fleetBuildingView = createFleetBuildingView({
       onFleetReady: (purchases) => {
         this.emit({ type: 'fleetReady', purchases });
       },
@@ -61,17 +64,17 @@ export class UIManager {
         this.emit({ type: 'chat', text });
       },
     });
-    this.lobbyView = new LobbyView({
+    this.lobbyView = createLobbyView({
       emit: (event) => this.emit(event),
       showMenu: () => this.showMenu(),
       showScenarioSelect: () => this.showScenarioSelect(),
     });
-    this.shipListView = new ShipListView({
+    this.shipListView = createShipListView({
       onSelectShip: (shipId) => {
         this.emit({ type: 'selectShip', shipId });
       },
     });
-    this.overlay = new OverlayView();
+    this.overlay = createOverlayView();
     this.hudChromeView = new HUDChromeView({
       queueLayoutSync: () => this.queueLayoutSync(),
       showPhaseAlert: (phase, isMyTurn) => {
@@ -86,6 +89,7 @@ export class UIManager {
       this.log.dispose();
       this.hudChromeView.dispose();
       this.lobbyView.dispose();
+      this.overlay.dispose();
       this.shipListView.dispose();
     });
 

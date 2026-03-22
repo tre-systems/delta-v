@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { TurnTelemetryTracker } from './turn-telemetry';
+import { createTurnTelemetryTracker } from './turn-telemetry';
 
 describe('TurnTelemetryTracker', () => {
   it('tracks player phase durations and emits turn telemetry on rollover', () => {
     let now = 100;
     const trackEvent =
       vi.fn<(event: string, props?: Record<string, unknown>) => void>();
-    const telemetry = new TurnTelemetryTracker({
+    const telemetry = createTurnTelemetryTracker({
       now: () => now,
       trackEvent,
     });
@@ -51,7 +51,7 @@ describe('TurnTelemetryTracker', () => {
     let now = 10;
     const trackEvent =
       vi.fn<(event: string, props?: Record<string, unknown>) => void>();
-    const telemetry = new TurnTelemetryTracker({
+    const telemetry = createTurnTelemetryTracker({
       now: () => now,
       trackEvent,
     });

@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { FleetPurchase, GameState } from '../../shared/types/domain';
-import { FleetBuildingView } from './fleet-building-view';
+import { createFleetBuildingView } from './fleet-building-view';
 
 const createState = (credits: number): GameState => ({
   gameId: 'FLEET',
@@ -60,7 +60,7 @@ describe('FleetBuildingView', () => {
 
   it('renders the shop, adds a ship, and emits purchases when ready', () => {
     const onFleetReady = vi.fn<(purchases: FleetPurchase[]) => void>();
-    const view = new FleetBuildingView({
+    const view = createFleetBuildingView({
       onFleetReady,
     });
 
@@ -88,7 +88,7 @@ describe('FleetBuildingView', () => {
   });
 
   it('clears the cart back to the empty prompt', () => {
-    const view = new FleetBuildingView({
+    const view = createFleetBuildingView({
       onFleetReady: vi.fn(),
     });
 
@@ -108,7 +108,7 @@ describe('FleetBuildingView', () => {
   });
 
   it('shows waiting state and restores controls when shown again', () => {
-    const view = new FleetBuildingView({
+    const view = createFleetBuildingView({
       onFleetReady: vi.fn(),
     });
     const state = createState(25);
@@ -132,7 +132,7 @@ describe('FleetBuildingView', () => {
 
   it('cleans up rendered state and controls on dispose', () => {
     const onFleetReady = vi.fn<(purchases: FleetPurchase[]) => void>();
-    const view = new FleetBuildingView({
+    const view = createFleetBuildingView({
       onFleetReady,
     });
 

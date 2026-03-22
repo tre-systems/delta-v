@@ -11,79 +11,92 @@ interface TurnTelemetryDeps {
   trackEvent?: (event: string, props?: Record<string, unknown>) => void;
 }
 
-export class TurnTelemetryTracker {
-  private phaseStartedAt: number | null = null;
-  private turnStartedAt: number | null = null;
-  private phaseDurations: Record<string, number> = {};
-  private lastTurnNumber = -1;
-  private lastLoggedTurn = -1;
+export interface TurnTelemetryTracker {
+  getLastLoggedTurn: () => number;
+  onStateChanged: (prevState: ClientState, nextState: ClientState) => void;
+  onTurnLogged: (turnNumber: number, context: TurnTelemetryContext) => void;
+  reset: () => void;
+}
 
-  private readonly now: () => number;
-  private readonly trackEvent: (
-    event: string,
-    props?: Record<string, unknown>,
-  ) => void;
+export const createTurnTelemetryTracker = ({
+  now = Date.now,
+  trackEvent = track,
+}: TurnTelemetryDeps = {}): TurnTelemetryTracker => {
+  let phaseStartedAt: number | null = null;
+  let turnStartedAt: number | null = null;
+  let phaseDurations: Record<string, number> = {};
+  let lastTurnNumber = -1;
+  let lastLoggedTurn = -1;
 
-  constructor({ now = Date.now, trackEvent = track }: TurnTelemetryDeps = {}) {
-    this.now = now;
-    this.trackEvent = trackEvent;
-  }
+  const getLastLoggedTurn = (): number => {
+    return lastLoggedTurn;
+  };
 
-  getLastLoggedTurn(): number {
-    return this.lastLoggedTurn;
-  }
-
-  onStateChanged(prevState: ClientState, nextState: ClientState): void {
-    this.recordPhaseDuration(prevState);
-    if (nextState.startsWith('playing_')) {
-      this.phaseStartedAt = this.now();
-    }
-  }
-
-  onTurnLogged(turnNumber: number, context: TurnTelemetryContext): void {
-    if (this.lastTurnNumber > 0) {
-      this.emitTurnCompleted(context);
-    }
-    this.turnStartedAt = this.now();
-    this.lastTurnNumber = turnNumber;
-    this.lastLoggedTurn = turnNumber;
-  }
-
-  reset(): void {
-    this.phaseStartedAt = null;
-    this.turnStartedAt = null;
-    this.phaseDurations = {};
-    this.lastTurnNumber = -1;
-    this.lastLoggedTurn = -1;
-  }
-
-  private recordPhaseDuration(prevState: ClientState): void {
-    if (this.phaseStartedAt === null || !prevState.startsWith('playing_')) {
+  const recordPhaseDuration = (prevState: ClientState): void => {
+    if (phaseStartedAt === null || !prevState.startsWith('playing_')) {
       return;
     }
 
     const phase = prevState.replace('playing_', '');
     if (phase !== 'opponentTurn' && phase !== 'movementAnim') {
-      const elapsed = this.now() - this.phaseStartedAt;
-      this.phaseDurations[phase] = (this.phaseDurations[phase] ?? 0) + elapsed;
+      const elapsed = now() - phaseStartedAt;
+      phaseDurations[phase] = (phaseDurations[phase] ?? 0) + elapsed;
     }
 
-    this.phaseStartedAt = null;
-  }
+    phaseStartedAt = null;
+  };
 
-  private emitTurnCompleted(context: TurnTelemetryContext): void {
-    if (this.turnStartedAt === null) {
+  const emitTurnCompleted = (context: TurnTelemetryContext): void => {
+    if (turnStartedAt === null) {
       return;
     }
 
-    this.trackEvent('turn_completed', {
-      turn: this.lastTurnNumber,
-      totalMs: this.now() - this.turnStartedAt,
-      phases: { ...this.phaseDurations },
+    trackEvent('turn_completed', {
+      turn: lastTurnNumber,
+      totalMs: now() - turnStartedAt,
+      phases: { ...phaseDurations },
       scenario: context.scenario,
       mode: context.isLocalGame ? 'local' : 'multiplayer',
     });
 
-    this.phaseDurations = {};
-  }
-}
+    phaseDurations = {};
+  };
+
+  const onStateChanged = (
+    prevState: ClientState,
+    nextState: ClientState,
+  ): void => {
+    recordPhaseDuration(prevState);
+    if (nextState.startsWith('playing_')) {
+      phaseStartedAt = now();
+    }
+  };
+
+  const onTurnLogged = (
+    turnNumber: number,
+    context: TurnTelemetryContext,
+  ): void => {
+    if (lastTurnNumber > 0) {
+      emitTurnCompleted(context);
+    }
+
+    turnStartedAt = now();
+    lastTurnNumber = turnNumber;
+    lastLoggedTurn = turnNumber;
+  };
+
+  const reset = (): void => {
+    phaseStartedAt = null;
+    turnStartedAt = null;
+    phaseDurations = {};
+    lastTurnNumber = -1;
+    lastLoggedTurn = -1;
+  };
+
+  return {
+    getLastLoggedTurn,
+    onStateChanged,
+    onTurnLogged,
+    reset,
+  };
+};

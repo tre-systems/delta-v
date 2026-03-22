@@ -1,11 +1,12 @@
-import { type HexCoord, hexEqual, pixelToHex } from '../shared/hex';
+import { pixelToHex } from '../shared/hex';
 import type { SolarSystemMap } from '../shared/types/domain';
 import type { InputEvent } from './game/input-events';
 import {
-  createMinimapLayout,
-  isPointInMinimap,
-  projectMinimapToWorld,
-} from './game/minimap';
+  createPointerInteractionManager,
+  getPinchDistance,
+  getWheelZoomFactor,
+  resolveMinimapCameraTarget,
+} from './input-interaction';
 import type { Camera } from './renderer/camera';
 import { HEX_SIZE } from './renderer/renderer';
 
@@ -13,19 +14,7 @@ export class InputHandler {
   private camera: Camera;
   private map: SolarSystemMap | null = null;
   private onInput: (event: InputEvent) => void;
-
-  // Drag state
-  private isDragging = false;
-  private dragStartX = 0;
-  private dragStartY = 0;
-  private dragMoved = false;
-  private isTouch = false;
-
-  // Pinch zoom
-  private lastPinchDist = 0;
-
-  // Hover dedup
-  private lastHoverHex: HexCoord | null = null;
+  private readonly interactions = createPointerInteractionManager(HEX_SIZE);
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -53,16 +42,8 @@ export class InputHandler {
       'wheel',
       (e) => {
         e.preventDefault();
-
-        if (e.ctrlKey) {
-          // Trackpad pinch-to-zoom
-          const factor = 1 - e.deltaY * 0.01;
-          this.camera.zoomAt(e.clientX, e.clientY, factor);
-        } else {
-          // Standard scroll wheel — zoom
-          const factor = 1 - e.deltaY * 0.001;
-          this.camera.zoomAt(e.clientX, e.clientY, factor);
-        }
+        const factor = getWheelZoomFactor(e.deltaY, e.ctrlKey);
+        this.camera.zoomAt(e.clientX, e.clientY, factor);
       },
       { passive: false },
     );
@@ -84,45 +65,20 @@ export class InputHandler {
   // --- Pointer handling ---
 
   private onPointerDown(x: number, y: number, touch = false) {
-    this.isDragging = true;
-    this.isTouch = touch;
-    this.dragStartX = x;
-    this.dragStartY = y;
-    this.dragMoved = false;
+    this.interactions.beginPointer(x, y, touch);
   }
 
   private onPointerMove(x: number, y: number) {
-    if (this.isDragging) {
-      const dx = x - this.dragStartX;
-      const dy = y - this.dragStartY;
-      const threshold = this.isTouch ? 8 : 3;
-
-      if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
-        this.dragMoved = true;
-      }
-
-      if (this.dragMoved) {
-        this.camera.pan(dx, dy);
-        this.dragStartX = x;
-        this.dragStartY = y;
-      }
-    }
-
-    // Track hover hex
-    const worldPos = this.camera.screenToWorld(x, y);
-    const hex = pixelToHex(worldPos, HEX_SIZE);
-
-    if (!this.lastHoverHex || !hexEqual(hex, this.lastHoverHex)) {
-      this.lastHoverHex = hex;
+    const hex = this.interactions.handlePointerMove(this.camera, x, y);
+    if (hex) {
       this.onInput({ type: 'hoverHex', hex });
     }
   }
 
   private onPointerUp(x: number, y: number) {
-    this.isDragging = false;
-
-    if (!this.dragMoved) {
-      this.handleClick(x, y);
+    const clickPoint = this.interactions.endPointer(x, y);
+    if (clickPoint) {
+      this.handleClick(clickPoint.x, clickPoint.y);
     }
   }
 
@@ -134,8 +90,12 @@ export class InputHandler {
     if (e.touches.length === 1) {
       this.onPointerDown(e.touches[0].clientX, e.touches[0].clientY, true);
     } else if (e.touches.length === 2) {
-      this.isDragging = false;
-      this.lastPinchDist = this.getPinchDist(e);
+      this.interactions.beginPinch(
+        getPinchDistance(
+          { x: e.touches[0].clientX, y: e.touches[0].clientY },
+          { x: e.touches[1].clientX, y: e.touches[1].clientY },
+        ),
+      );
     }
   }
 
@@ -145,31 +105,29 @@ export class InputHandler {
     if (e.touches.length === 1) {
       this.onPointerMove(e.touches[0].clientX, e.touches[0].clientY);
     } else if (e.touches.length === 2) {
-      const dist = this.getPinchDist(e);
+      const factor = this.interactions.updatePinch(
+        getPinchDistance(
+          { x: e.touches[0].clientX, y: e.touches[0].clientY },
+          { x: e.touches[1].clientX, y: e.touches[1].clientY },
+        ),
+      );
 
-      if (this.lastPinchDist > 0) {
-        const factor = dist / this.lastPinchDist;
+      if (factor !== null) {
         const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
         this.camera.zoomAt(cx, cy, factor);
       }
-
-      this.lastPinchDist = dist;
     }
   }
 
   private onTouchEnd(e: TouchEvent) {
     if (e.touches.length === 0) {
-      this.onPointerUp(this.dragStartX, this.dragStartY);
-      this.lastPinchDist = 0;
+      const clickPoint = this.interactions.endPointer();
+      if (clickPoint) {
+        this.handleClick(clickPoint.x, clickPoint.y);
+      }
+      this.interactions.clearPinch();
     }
-  }
-
-  private getPinchDist(e: TouchEvent): number {
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-
-    return Math.sqrt(dx * dx + dy * dy);
   }
 
   // --- Click logic ---
@@ -189,38 +147,28 @@ export class InputHandler {
    * position. Returns true if the click was consumed.
    */
   private handleMinimapClick(screenX: number, screenY: number): boolean {
-    if (!this.map) return false;
-
     const hudTopOffset = parseFloat(
       getComputedStyle(document.documentElement).getPropertyValue(
         '--hud-top-offset',
       ) || '0',
     );
 
-    const layout = createMinimapLayout(
-      this.map.bounds,
-      window.innerWidth,
-      window.innerHeight,
-      HEX_SIZE,
+    const target = resolveMinimapCameraTarget({
+      map: this.map,
+      screenWidth: window.innerWidth,
+      screenHeight: window.innerHeight,
+      screenX,
+      screenY,
+      hexSize: HEX_SIZE,
       hudTopOffset,
-    );
+    });
 
-    if (
-      !isPointInMinimap(layout, {
-        x: screenX,
-        y: screenY,
-      })
-    ) {
+    if (!target) {
       return false;
     }
 
-    const worldClick = projectMinimapToWorld(layout, {
-      x: screenX,
-      y: screenY,
-    });
-
-    this.camera.targetX = worldClick.x;
-    this.camera.targetY = worldClick.y;
+    this.camera.targetX = target.x;
+    this.camera.targetY = target.y;
 
     return true;
   }

@@ -6,7 +6,8 @@
  * localStorage so it only shows once.
  */
 
-import { byId, hide, setTrustedHTML, show } from './dom';
+import { byId, hide, listen, setTrustedHTML, show } from './dom';
+import { createDisposalScope } from './reactive';
 
 const STORAGE_KEY = 'deltav_tutorial_done';
 
@@ -20,6 +21,15 @@ interface TutorialStep {
   minTurn?: number;
   /** Only show once per game */
   once?: boolean;
+}
+
+export interface Tutorial {
+  onTelemetry: ((event: string) => void) | null;
+  isActive: () => boolean;
+  onPhaseChange: (phase: string, turn: number) => void;
+  hideTip: () => void;
+  reset: () => void;
+  dispose: () => void;
 }
 
 const STEPS: TutorialStep[] = [
@@ -65,129 +75,137 @@ const STEPS: TutorialStep[] = [
   },
 ];
 
-export class Tutorial {
-  private completed = false;
-  private shownSteps = new Set<string>();
-  private tipEl: HTMLElement;
-  private textEl: HTMLElement;
-  private progressEl: HTMLElement;
-  private activeStepId: string | null = null;
+export const createTutorial = (): Tutorial => {
+  const scope = createDisposalScope();
+  const tipEl = byId('tutorialTip');
+  const textEl = byId('tutorialTipText');
+  const progressEl = byId('tutorialProgress');
 
-  /** External callback for telemetry events */
-  onTelemetry: ((event: string) => void) | null = null;
+  let completed = localStorage.getItem(STORAGE_KEY) === '1';
+  let shownSteps = new Set<string>();
+  let activeStepId: string | null = null;
+  let telemetryHandler: ((event: string) => void) | null = null;
 
-  constructor() {
-    this.tipEl = byId('tutorialTip');
-    this.textEl = byId('tutorialTipText');
-    this.progressEl = byId('tutorialProgress');
+  const emitTelemetry = (event: string): void => {
+    telemetryHandler?.(event);
+  };
 
-    // Check if tutorial already completed
-    if (localStorage.getItem(STORAGE_KEY) === '1') {
-      this.completed = true;
+  const hideTip = (): void => {
+    hide(tipEl);
+    activeStepId = null;
+  };
+
+  const complete = (): void => {
+    completed = true;
+    localStorage.setItem(STORAGE_KEY, '1');
+  };
+
+  const showStep = (step: TutorialStep): void => {
+    if (shownSteps.size === 0) {
+      emitTelemetry('tutorial_started');
     }
 
-    // Wire buttons
-    byId('tutorialNextBtn').addEventListener('click', () => this.advance());
-    byId('tutorialSkipBtn').addEventListener('click', () => this.skip());
-  }
-
-  /** Check if tutorial is active (not completed) */
-  isActive(): boolean {
-    return !this.completed;
-  }
-
-  /** Called when game phase changes. Shows relevant tip. */
-  onPhaseChange(phase: string, turn: number) {
-    if (this.completed) return;
-
-    // Find the next step that matches this phase
-    const step = STEPS.find((s) => {
-      if (this.shownSteps.has(s.id)) return false;
-      if (s.phase !== 'any' && s.phase !== phase) {
-        return false;
-      }
-      if (s.minTurn && turn < s.minTurn) return false;
-
-      return true;
-    });
-
-    if (step) {
-      this.showStep(step);
-    } else {
-      this.hideTip();
-    }
-  }
-
-  /** Hide the tutorial tip */
-  hideTip() {
-    hide(this.tipEl);
-    this.activeStepId = null;
-  }
-
-  private showStep(step: TutorialStep) {
-    if (this.shownSteps.size === 0) {
-      this.onTelemetry?.('tutorial_started');
-    }
-
-    this.activeStepId = step.id;
+    activeStepId = step.id;
 
     const isMobile = window.innerWidth <= 760;
-    this.textEl.textContent =
+    textEl.textContent =
       isMobile && step.mobileText ? step.mobileText : step.text;
 
-    show(this.tipEl, 'block');
+    show(tipEl, 'block');
 
-    // Re-trigger animation
-    this.tipEl.style.animation = 'none';
-    void this.tipEl.offsetHeight; // force reflow
-    this.tipEl.style.animation = '';
+    tipEl.style.animation = 'none';
+    void tipEl.offsetHeight;
+    tipEl.style.animation = '';
 
-    // Update progress dots
     setTrustedHTML(
-      this.progressEl,
-      STEPS.map((s, _i) => {
-        const cls = this.shownSteps.has(s.id)
+      progressEl,
+      STEPS.map((candidate) => {
+        const cls = shownSteps.has(candidate.id)
           ? 'done'
-          : s.id === step.id
+          : candidate.id === step.id
             ? 'active'
             : '';
 
         return `<div class="tutorial-dot ${cls}"></div>`;
       }).join(''),
     );
-  }
+  };
 
-  private advance() {
-    // Mark current step as shown
-    if (this.activeStepId) {
-      this.shownSteps.add(this.activeStepId);
+  const advance = (): void => {
+    if (activeStepId) {
+      shownSteps.add(activeStepId);
     }
 
-    // Check if all steps are shown
-    if (this.shownSteps.size >= STEPS.length) {
-      this.onTelemetry?.('tutorial_completed');
-      this.complete();
+    if (shownSteps.size >= STEPS.length) {
+      emitTelemetry('tutorial_completed');
+      complete();
     }
 
-    this.hideTip();
-  }
+    hideTip();
+  };
 
-  private skip() {
-    this.onTelemetry?.('tutorial_skipped');
-    this.complete();
-    this.hideTip();
-  }
+  const skip = (): void => {
+    emitTelemetry('tutorial_skipped');
+    complete();
+    hideTip();
+  };
 
-  private complete() {
-    this.completed = true;
-    localStorage.setItem(STORAGE_KEY, '1');
-  }
+  scope.add(listen(byId('tutorialNextBtn'), 'click', () => advance()));
+  scope.add(listen(byId('tutorialSkipBtn'), 'click', () => skip()));
 
-  /** Reset tutorial (for testing or replay) */
-  reset() {
-    this.completed = false;
-    this.shownSteps.clear();
-    this.activeStepId = null;
+  const isActive = (): boolean => {
+    return !completed;
+  };
+
+  const onPhaseChange = (phase: string, turn: number): void => {
+    if (completed) {
+      return;
+    }
+
+    const step = STEPS.find((candidate) => {
+      if (shownSteps.has(candidate.id)) {
+        return false;
+      }
+      if (candidate.phase !== 'any' && candidate.phase !== phase) {
+        return false;
+      }
+      if (candidate.minTurn && turn < candidate.minTurn) {
+        return false;
+      }
+
+      return true;
+    });
+
+    if (step) {
+      showStep(step);
+      return;
+    }
+
+    hideTip();
+  };
+
+  const reset = (): void => {
+    completed = false;
+    shownSteps = new Set<string>();
+    activeStepId = null;
     localStorage.removeItem(STORAGE_KEY);
-  }
-}
+  };
+
+  const dispose = (): void => {
+    scope.dispose();
+  };
+
+  return {
+    get onTelemetry() {
+      return telemetryHandler;
+    },
+    set onTelemetry(nextHandler) {
+      telemetryHandler = nextHandler;
+    },
+    isActive,
+    onPhaseChange,
+    hideTip,
+    reset,
+    dispose,
+  };
+};
