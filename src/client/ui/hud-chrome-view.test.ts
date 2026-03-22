@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ACTION_BUTTON_IDS } from './button-bindings';
 import type { HUDInput } from './hud';
-import { HUDChromeView } from './hud-chrome-view';
+import { createHUDChromeView } from './hud-chrome-view';
 
 const installFixture = () => {
   const actionButtons = ACTION_BUTTON_IDS.map(
@@ -75,7 +75,7 @@ describe('HUDChromeView', () => {
     const queueLayoutSync = vi.fn();
     const showPhaseAlert = vi.fn();
     const onStatusText = vi.fn();
-    const view = new HUDChromeView({
+    const view = createHUDChromeView({
       queueLayoutSync,
       showPhaseAlert,
       onStatusText,
@@ -114,7 +114,7 @@ describe('HUDChromeView', () => {
   it('updates HUD chrome helpers and hides action buttons during movement', () => {
     const queueLayoutSync = vi.fn();
     const onStatusText = vi.fn();
-    const view = new HUDChromeView({
+    const view = createHUDChromeView({
       queueLayoutSync,
       showPhaseAlert: vi.fn(),
       onStatusText,
@@ -176,7 +176,7 @@ describe('HUDChromeView', () => {
 
   it('recomputes status text when the mobile breakpoint changes', () => {
     const onStatusText = vi.fn();
-    const view = new HUDChromeView({
+    const view = createHUDChromeView({
       queueLayoutSync: vi.fn(),
       showPhaseAlert: vi.fn(),
       onStatusText,
@@ -208,7 +208,7 @@ describe('HUDChromeView', () => {
 
   it('re-renders even when update reuses the same input object reference', () => {
     const onStatusText = vi.fn();
-    const view = new HUDChromeView({
+    const view = createHUDChromeView({
       queueLayoutSync: vi.fn(),
       showPhaseAlert: vi.fn(),
       onStatusText,
@@ -238,7 +238,7 @@ describe('HUDChromeView', () => {
 
   it('disposes the reactive HUD effects cleanly', () => {
     const onStatusText = vi.fn();
-    const view = new HUDChromeView({
+    const view = createHUDChromeView({
       queueLayoutSync: vi.fn(),
       showPhaseAlert: vi.fn(),
       onStatusText,

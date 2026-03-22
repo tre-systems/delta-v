@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { GameLogView } from './game-log-view';
+import { createGameLogView } from './game-log-view';
 
 const installFixture = () => {
   document.body.innerHTML = `
@@ -22,7 +22,7 @@ describe('GameLogView', () => {
 
   it('emits trimmed chat messages and clears the input', () => {
     const onChat = vi.fn<(text: string) => void>();
-    const view = new GameLogView({ onChat });
+    const view = createGameLogView({ onChat });
     const input = document.getElementById('chatInput') as HTMLInputElement;
 
     view.setChatEnabled(true);
@@ -37,7 +37,7 @@ describe('GameLogView', () => {
   });
 
   it('collapses to latest bar and expands on toggle', () => {
-    const view = new GameLogView({ onChat: vi.fn() });
+    const view = createGameLogView({ onChat: vi.fn() });
     const gameLog = document.getElementById('gameLog') as HTMLElement;
     const latestBar = document.getElementById('logLatestBar') as HTMLElement;
 
@@ -55,7 +55,7 @@ describe('GameLogView', () => {
   });
 
   it('shows log entries and updates latest bar', () => {
-    const view = new GameLogView({ onChat: vi.fn() });
+    const view = createGameLogView({ onChat: vi.fn() });
     const latestText = document.getElementById('logLatestText') as HTMLElement;
 
     view.showHUD();
@@ -76,7 +76,7 @@ describe('GameLogView', () => {
   });
 
   it('shows status text in latest bar, overriding log text', () => {
-    const view = new GameLogView({ onChat: vi.fn() });
+    const view = createGameLogView({ onChat: vi.fn() });
     const latestText = document.getElementById('logLatestText') as HTMLElement;
 
     view.showHUD();
@@ -93,7 +93,7 @@ describe('GameLogView', () => {
   });
 
   it('closes expanded log when clicking on it', () => {
-    const view = new GameLogView({ onChat: vi.fn() });
+    const view = createGameLogView({ onChat: vi.fn() });
     const gameLog = document.getElementById('gameLog') as HTMLElement;
     const latestBar = document.getElementById('logLatestBar') as HTMLElement;
 
@@ -104,5 +104,25 @@ describe('GameLogView', () => {
     gameLog.click();
     expect(gameLog.style.display).toBe('none');
     expect(latestBar.style.display).toBe('block');
+  });
+
+  it('disposes chat and toggle listeners cleanly', () => {
+    const onChat = vi.fn<(text: string) => void>();
+    const view = createGameLogView({ onChat });
+    const input = document.getElementById('chatInput') as HTMLInputElement;
+    const latestBar = document.getElementById('logLatestBar') as HTMLElement;
+
+    view.setChatEnabled(true);
+    view.showHUD();
+    view.dispose();
+
+    input.value = 'hello there';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    latestBar.click();
+
+    expect(onChat).not.toHaveBeenCalled();
+    expect(
+      (document.getElementById('gameLog') as HTMLElement).style.display,
+    ).toBe('none');
   });
 });
