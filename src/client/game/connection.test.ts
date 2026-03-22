@@ -42,6 +42,9 @@ const createDeps = () => {
     'CONN1',
     findBaseHex,
   );
+  let clientState: ConnectionDeps['getClientState'] extends () => infer T
+    ? T
+    : never = 'playing_astrogation';
   const setReconnectAttempts = vi.fn<ConnectionDeps['setReconnectAttempts']>();
   const setTransport = vi.fn<ConnectionDeps['setTransport']>();
   const setLatencyMs = vi.fn<ConnectionDeps['setLatencyMs']>();
@@ -50,10 +53,11 @@ const createDeps = () => {
   const showReconnecting = vi.fn<ConnectionDeps['showReconnecting']>();
   const hideReconnecting = vi.fn<ConnectionDeps['hideReconnecting']>();
   const showToast = vi.fn<ConnectionDeps['showToast']>();
+  const exitToMenu = vi.fn<ConnectionDeps['exitToMenu']>();
   const deps: ConnectionDeps = {
     getGameCode: () => 'ABCDE',
     getGameState: () => state,
-    getClientState: () => 'playing_astrogation',
+    getClientState: () => clientState,
     getStoredPlayerToken: () => null,
     getReconnectAttempts: () => 0,
     setReconnectAttempts,
@@ -64,10 +68,14 @@ const createDeps = () => {
     showReconnecting,
     hideReconnecting,
     showToast,
+    exitToMenu,
   };
 
   return {
     deps,
+    setClientState: (state: typeof clientState) => {
+      clientState = state;
+    },
     spies: {
       setReconnectAttempts,
       setTransport,
@@ -77,6 +85,7 @@ const createDeps = () => {
       showReconnecting,
       hideReconnecting,
       showToast,
+      exitToMenu,
     },
   };
 };
@@ -102,6 +111,7 @@ describe('game-client-connection', () => {
     expect(FakeWebSocket.instances).toHaveLength(1);
     expect(spies.showReconnecting).not.toHaveBeenCalled();
     expect(spies.setState).not.toHaveBeenCalled();
+    expect(spies.exitToMenu).not.toHaveBeenCalled();
   });
 
   it('cancels any scheduled reconnect when closing intentionally', () => {
@@ -122,5 +132,51 @@ describe('game-client-connection', () => {
 
     expect(spies.showReconnecting).toHaveBeenCalledTimes(1);
     expect(FakeWebSocket.instances).toHaveLength(0);
+  });
+
+  it('routes reconnect give-up through shared session teardown', () => {
+    const { deps, spies } = createDeps();
+    deps.getReconnectAttempts = () => 5;
+    const manager = createConnectionManager(deps);
+
+    manager.attemptReconnect();
+
+    expect(spies.hideReconnecting).toHaveBeenCalledTimes(1);
+    expect(spies.showToast).toHaveBeenCalledWith(
+      'Could not reconnect to game',
+      'error',
+    );
+    expect(spies.exitToMenu).toHaveBeenCalledTimes(1);
+    expect(spies.setState).not.toHaveBeenCalled();
+  });
+
+  it('routes reconnect cancel through shared session teardown', () => {
+    vi.useFakeTimers();
+    const { deps, spies } = createDeps();
+    const manager = createConnectionManager(deps);
+
+    manager.attemptReconnect();
+
+    expect(spies.showReconnecting).toHaveBeenCalledTimes(1);
+    const onCancel = spies.showReconnecting.mock.calls[0][2] as () => void;
+    onCancel();
+
+    expect(spies.exitToMenu).toHaveBeenCalledTimes(1);
+    expect(spies.setState).not.toHaveBeenCalled();
+  });
+
+  it('does not reconnect after an initial connect failure', () => {
+    const { deps, setClientState, spies } = createDeps();
+    setClientState('connecting');
+    const manager = createConnectionManager(deps);
+
+    manager.handleDisconnect();
+
+    expect(spies.showReconnecting).not.toHaveBeenCalled();
+    expect(spies.showToast).toHaveBeenCalledWith(
+      'Could not connect to game',
+      'error',
+    );
+    expect(spies.exitToMenu).toHaveBeenCalledTimes(1);
   });
 });

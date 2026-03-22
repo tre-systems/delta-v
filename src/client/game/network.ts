@@ -49,7 +49,11 @@ export const shouldAttemptReconnect = (
   gameCode: string | null,
   _gameState: GameState | null,
 ): boolean => {
-  if (currentState === 'menu' || currentState === 'gameOver') {
+  if (
+    currentState === 'menu' ||
+    currentState === 'gameOver' ||
+    currentState === 'connecting'
+  ) {
     return false;
   }
 

@@ -9,10 +9,9 @@ const installFixture = () => {
     <div id="logEntries"></div>
     <div id="chatInputRow" style="display:none"></div>
     <input id="chatInput" />
-    <button id="logShowBtn" style="display:none"></button>
-    <button id="logToggleBtn"></button>
-    <div id="logLatestBar" style="display:none"></div>
-    <div id="logLatestText"></div>
+    <div id="logLatestBar" style="display:none">
+      <span id="logLatestText"></span>
+    </div>
   `;
 };
 
@@ -37,36 +36,29 @@ describe('GameLogView', () => {
     ).toBe('');
   });
 
-  it('toggles desktop log visibility between panel and show button', () => {
-    const view = new GameLogView({ onChat: vi.fn() });
-    const gameLog = document.getElementById('gameLog') as HTMLElement;
-    const logShowBtn = document.getElementById('logShowBtn') as HTMLElement;
-    const logToggleBtn = document.getElementById('logToggleBtn') as HTMLElement;
-
-    view.setMobile(false, true);
-    view.showHUD();
-    expect(gameLog.style.display).toBe('flex');
-    expect(logShowBtn.style.display).toBe('none');
-
-    logToggleBtn.click();
-    expect(gameLog.style.display).toBe('none');
-    expect(logShowBtn.style.display).toBe('block');
-
-    logShowBtn.click();
-    expect(gameLog.style.display).toBe('flex');
-    expect(logShowBtn.style.display).toBe('none');
-  });
-
-  it('uses latest-bar behavior on mobile and removes empty turn headers', () => {
+  it('collapses to latest bar and expands on toggle', () => {
     const view = new GameLogView({ onChat: vi.fn() });
     const gameLog = document.getElementById('gameLog') as HTMLElement;
     const latestBar = document.getElementById('logLatestBar') as HTMLElement;
-    const latestText = document.getElementById('logLatestText') as HTMLElement;
 
-    view.setMobile(true, false);
     view.showHUD();
     expect(gameLog.style.display).toBe('none');
     expect(latestBar.style.display).toBe('block');
+
+    view.toggle();
+    expect(gameLog.style.display).toBe('flex');
+    expect(latestBar.style.display).toBe('none');
+
+    view.toggle();
+    expect(gameLog.style.display).toBe('none');
+    expect(latestBar.style.display).toBe('block');
+  });
+
+  it('shows log entries and updates latest bar', () => {
+    const view = new GameLogView({ onChat: vi.fn() });
+    const latestText = document.getElementById('logLatestText') as HTMLElement;
+
+    view.showHUD();
 
     view.logTurn(1, 'You');
     view.logTurn(2, 'Opponent');
@@ -75,17 +67,41 @@ describe('GameLogView', () => {
     const entries = Array.from(
       document.querySelectorAll('#logEntries .log-entry'),
     );
+
     expect(entries).toHaveLength(2);
-    expect(entries[0]?.textContent).toBe('— Turn 2: Opponent —');
+    expect(entries[0]?.textContent).toBe('\u2014 Turn 2: Opponent \u2014');
     expect(entries[1]?.textContent).toBe('Shot fired');
     expect(latestText.textContent).toBe('Shot fired');
     expect(latestText.className).toContain('log-combat');
+  });
 
+  it('shows status text in latest bar, overriding log text', () => {
+    const view = new GameLogView({ onChat: vi.fn() });
+    const latestText = document.getElementById('logLatestText') as HTMLElement;
+
+    view.showHUD();
+    view.logText('Ship moved', 'log-env');
+    expect(latestText.textContent).toBe('Ship moved');
+
+    view.setStatusText('Click to set burn direction');
+    expect(latestText.textContent).toBe('Click to set burn direction');
+    expect(latestText.className).toContain('log-status');
+
+    view.setStatusText(null);
+    expect(latestText.textContent).toBe('Ship moved');
+    expect(latestText.className).toContain('log-env');
+  });
+
+  it('closes expanded log when clicking on it', () => {
+    const view = new GameLogView({ onChat: vi.fn() });
+    const gameLog = document.getElementById('gameLog') as HTMLElement;
+    const latestBar = document.getElementById('logLatestBar') as HTMLElement;
+
+    view.showHUD();
     view.toggle();
     expect(gameLog.style.display).toBe('flex');
-    expect(latestBar.style.display).toBe('none');
 
-    view.toggle();
+    gameLog.click();
     expect(gameLog.style.display).toBe('none');
     expect(latestBar.style.display).toBe('block');
   });

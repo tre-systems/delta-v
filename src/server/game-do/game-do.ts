@@ -67,6 +67,7 @@ export interface Env {
 const CHAT_RATE_LIMIT_MS = 500;
 export class GameDO extends DurableObject<Env> {
   private readonly map = buildSolarSystemMap();
+  private readonly replacedSockets = new WeakSet<WebSocket>();
   // --- WebSocket tag-based player tracking ---
   private getPlayerId(ws: WebSocket): number | null {
     const tag = this.ctx.getTags(ws).find((t) => t.startsWith('player:'));
@@ -148,6 +149,71 @@ export class GameDO extends DurableObject<Env> {
     ]);
     await this.rescheduleAlarm();
   }
+  private async resolveJoinAttempt(presentedTokenRaw: string | null): Promise<
+    | {
+        ok: false;
+        response: Response;
+      }
+    | {
+        ok: true;
+        roomConfig: RoomConfig;
+        playerId: 0 | 1;
+        issueNewToken: boolean;
+        consumeInviteToken: boolean;
+        disconnectedPlayer: number | null;
+        playerCount: number;
+      }
+  > {
+    const roomConfig = await this.getRoomConfig();
+    if (!roomConfig) {
+      return {
+        ok: false,
+        response: new Response('Game not found', {
+          status: 404,
+        }),
+      };
+    }
+    if (presentedTokenRaw !== null && !isValidPlayerToken(presentedTokenRaw)) {
+      return {
+        ok: false,
+        response: new Response('Invalid player token', {
+          status: 400,
+        }),
+      };
+    }
+    const playerCount = this.getPlayerCount();
+    const disconnectedPlayer = normalizeDisconnectedPlayer(
+      await this.ctx.storage.get<number>('disconnectedPlayer'),
+    );
+    const seatOpen: [boolean, boolean] = [
+      this.ctx.getWebSockets('player:0').length === 0,
+      this.ctx.getWebSockets('player:1').length === 0,
+    ];
+    const seatDecision = resolveSeatAssignment({
+      presentedToken: presentedTokenRaw,
+      disconnectedPlayer,
+      seatOpen,
+      playerTokens: roomConfig.playerTokens,
+      inviteTokens: roomConfig.inviteTokens,
+    });
+    if (seatDecision.type === 'reject') {
+      return {
+        ok: false,
+        response: new Response(seatDecision.message, {
+          status: seatDecision.status,
+        }),
+      };
+    }
+    return {
+      ok: true,
+      roomConfig,
+      playerId: seatDecision.playerId,
+      issueNewToken: seatDecision.issueNewToken,
+      consumeInviteToken: seatDecision.consumeInviteToken,
+      disconnectedPlayer,
+      playerCount,
+    };
+  }
   private async rescheduleAlarm(): Promise<void> {
     const alarmAt = getNextAlarmAt(await this.getAlarmDeadlines());
     if (alarmAt !== null) {
@@ -198,48 +264,31 @@ export class GameDO extends DurableObject<Env> {
     if (url.pathname === '/init' && request.method === 'POST') {
       return this.handleInit(request);
     }
+    if (url.pathname === '/join' && request.method === 'GET') {
+      return this.handleJoinCheck(request);
+    }
     const upgradeHeader = request.headers.get('Upgrade');
     if (upgradeHeader !== 'websocket') {
       return new Response('Expected WebSocket', {
         status: 426,
       });
     }
-    const roomConfig = await this.getRoomConfig();
-    if (!roomConfig) {
-      return new Response('Game not found', {
-        status: 404,
-      });
-    }
     const presentedTokenRaw = url.searchParams.get('playerToken');
-    if (presentedTokenRaw !== null && !isValidPlayerToken(presentedTokenRaw)) {
-      return new Response('Invalid player token', {
-        status: 400,
-      });
+    const joinAttempt = await this.resolveJoinAttempt(presentedTokenRaw);
+    if (!joinAttempt.ok) {
+      return joinAttempt.response;
     }
-    const playerCount = this.getPlayerCount();
-    const disconnectedPlayer = normalizeDisconnectedPlayer(
-      await this.ctx.storage.get<number>('disconnectedPlayer'),
-    );
-    const seatOpen: [boolean, boolean] = [
-      this.ctx.getWebSockets('player:0').length === 0,
-      this.ctx.getWebSockets('player:1').length === 0,
-    ];
-    const seatDecision = resolveSeatAssignment({
-      presentedToken: presentedTokenRaw,
+    const {
+      roomConfig,
+      playerId,
+      issueNewToken,
+      consumeInviteToken,
       disconnectedPlayer,
-      seatOpen,
-      playerTokens: roomConfig.playerTokens,
-      inviteTokens: roomConfig.inviteTokens,
-    });
-    if (seatDecision.type === 'reject') {
-      return new Response(seatDecision.message, {
-        status: seatDecision.status,
-      });
-    }
-    const playerId = seatDecision.playerId;
-    if (seatDecision.issueNewToken) {
+      playerCount,
+    } = joinAttempt;
+    if (issueNewToken) {
       roomConfig.playerTokens[playerId] = generatePlayerToken();
-      if (seatDecision.consumeInviteToken) {
+      if (consumeInviteToken) {
         roomConfig.inviteTokens[playerId] = null;
       }
       await this.saveRoomConfig(roomConfig);
@@ -258,6 +307,7 @@ export class GameDO extends DurableObject<Env> {
     const existing = this.ctx.getWebSockets(`player:${playerId}`);
     for (const old of existing) {
       try {
+        this.replacedSockets.add(old);
         old.close(1000, 'Replaced by new connection');
       } catch {}
     }
@@ -380,6 +430,9 @@ export class GameDO extends DurableObject<Env> {
     }
   }
   async webSocketClose(ws: WebSocket): Promise<void> {
+    if (this.replacedSockets.delete(ws)) {
+      return;
+    }
     const playerId = this.getPlayerId(ws);
     const gameState = await this.getGameState();
     // If no game in progress, just clean up
@@ -583,6 +636,16 @@ export class GameDO extends DurableObject<Env> {
     await this.setGameCode(roomConfig.code);
     await this.touchInactivity();
     return Response.json({ ok: true }, { status: 201 });
+  }
+  private async handleJoinCheck(request: Request): Promise<Response> {
+    const presentedTokenRaw = new URL(request.url).searchParams.get(
+      'playerToken',
+    );
+    const joinAttempt = await this.resolveJoinAttempt(presentedTokenRaw);
+
+    return joinAttempt.ok
+      ? Response.json({ ok: true }, { status: 200 })
+      : joinAttempt.response;
   }
   private async initGame() {
     const [roomConfig, scenario] = await Promise.all([

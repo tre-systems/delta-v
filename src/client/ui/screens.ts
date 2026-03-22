@@ -14,7 +14,6 @@ export interface UIScreenVisibility {
   gameOver: 'none' | 'flex';
   shipList: 'none' | 'flex';
   gameLog: 'none' | 'flex';
-  logShowBtn: 'none' | 'block';
   fleetBuilding: 'none' | 'flex';
   helpBtn: 'none' | 'flex';
   soundBtn: 'none' | 'flex';
@@ -59,7 +58,6 @@ const HIDDEN_VISIBILITY: UIScreenVisibility = {
   gameOver: 'none',
   shipList: 'none',
   gameLog: 'none',
-  logShowBtn: 'none',
   fleetBuilding: 'none',
   helpBtn: 'none',
   soundBtn: 'none',
@@ -68,7 +66,6 @@ const HIDDEN_VISIBILITY: UIScreenVisibility = {
 
 export const buildScreenVisibility = (
   mode: UIScreenMode,
-  logVisible: boolean,
 ): UIScreenVisibility => {
   switch (mode) {
     case 'menu':
@@ -97,8 +94,6 @@ export const buildScreenVisibility = (
         ...HIDDEN_VISIBILITY,
         hud: 'block',
         shipList: 'flex',
-        gameLog: logVisible ? 'flex' : 'none',
-        logShowBtn: logVisible ? 'none' : 'block',
         helpBtn: 'flex',
         soundBtn: 'flex',
       };
@@ -159,8 +154,4 @@ export const buildReconnectView = (
     reconnectText: 'Connection lost',
     attemptText: `Attempt ${attempt} of ${maxAttempts}`,
   };
-};
-
-export const toggleLogVisible = (logVisible: boolean): boolean => {
-  return !logVisible;
 };

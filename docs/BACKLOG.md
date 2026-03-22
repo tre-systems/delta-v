@@ -4,73 +4,60 @@ Remaining work only. Completed items are in git history.
 
 ---
 
-## Features
+## Gameplay & Content
 
 ### Turn replay
 
-Allow players to review past turns after a game ends
-(or during, stepping back through history).
+Let players step backward and forward through recorded
+turn history after a game ends, and optionally during
+play.
+
+The current lightweight `GameEvent` log is already in
+place; remaining work is replay presentation, history
+loading/catch-up, and timeline controls.
+
+**Files:** `src/shared/events.ts`,
+`src/server/game-do/game-do.ts`, client replay UI
 
 ### Spectator mode
 
-Third-party WebSocket connections that receive state
-broadcasts but cannot submit actions.
+Allow read-only third-party connections that receive
+state broadcasts and replay/catch-up data but cannot
+submit actions.
 
 **Files:** `src/server/game-do/game-do.ts` (spectator seat
-type), `src/server/protocol.ts`, client spectator UI
+type / auth), `src/server/protocol.ts`,
+client spectator UI
 
-### New scenarios
+### Scenario expansion
 
-Lateral 7, Fleet Mutiny, Retribution — require mechanics
-beyond what's currently implemented (rescue/passenger
-transfer, fleet mutiny trigger, advanced reinforcement
-waves).
+Implement Lateral 7, Fleet Mutiny, and Retribution.
 
-### Rescue / passenger transfer
+These depend on mechanics that are not fully present
+yet: concealment / dummy counters, passenger rescue,
+fleet mutiny triggers, and more advanced reinforcement
+waves.
 
-Transfer passengers between ships for rescue scenarios.
-Extends the logistics phase with a new transfer type.
+**Files:** `src/shared/map-data.ts`,
+`src/shared/engine/`, client scenario presentation
 
----
+### Passenger rescue mechanics
 
-## Technical Debt & Architecture
+Add passenger-specific transfer / rescue rules for
+rescue scenarios.
 
-### Fix DO Write Amplification
+Fuel and cargo transfer are already implemented; the
+remaining work is passenger state, rescue objectives,
+and the related UI / log presentation.
 
-Cloudflare Durable Object (`game-do.ts`) writes to storage on every valid client message (including frequent `ping` and `chat` messages) by calling `touchInactivity()` which triggers `this.ctx.storage.put('inactivityAt', ...)` and `rescheduleAlarm()` (forcing 3 more reads).
-* **Task:** Implement in-memory debouncing for `inactivityAt` and use in-memory rate limiting for chat to save DO I/O and reduce costs.
-
-### Event Sourcing for Replays
-
-To support the "Turn Replay" feature, broadcasting and saving full state snapshots will become a bottleneck.
-* **Task:** Transition the engine to emit a strict append-only log of domain events (`ShipMoved`, `OrdnanceFired`, `DamageTaken` etc.). Turn replays can then act as a state reduction over the event array.
-
-### Adopt `reactive.ts` for Complex UI
-
-The UI overlay currently relies on heavy manual DOM manipulation in `ui.ts` (~2200 LOC). As features like Spectator Mode and Replays are added, this will become brittle.
-* **Task:** Begin adopting the existing Zero-dependency `reactive.ts` signals library for complex overlays like fleet building and lobby state to consolidate DOM synchronization logic.
-
-### Engine Mutation Optimization
-
-Every engine entry point deep-clones the entire state (`structuredClone(inputState)`). While incredibly safe (guarantees rollback), this is a brute-force approach that will degrade performance as state size and turn histories grow.
-* **Task:** Investigate adopting structural sharing (e.g., Immer) or relying solely on Event Sourcing deltas instead of full deep copies on every turn constraint.
+**Files:** `src/shared/engine/logistics.ts`,
+`src/shared/engine/victory.ts`, `src/shared/types/`,
+`src/client/game/logistics-ui.ts`,
+`src/client/ui/game-log-view.ts`
 
 ---
 
-## Hardening
-
-### Reconnect teardown consistency
-
-Route all reconnect cancel / reconnect exhausted exits
-through the same session teardown path as normal
-"Exit to Menu" flow.
-
-Prevents stale `gameCode`, transport, and history state
-from surviving after the UI has returned to the menu.
-
-**Files:** `src/client/game/connection.ts`,
-`src/client/game/session-controller.ts`,
-`src/client/main.ts`
+## Reliability & Hardening
 
 ### Replacement socket disconnect race
 
@@ -84,17 +71,6 @@ player.
 
 **Files:** `src/server/game-do/game-do.ts`,
 `src/server/game-do/session.ts`
-
-### Service worker API bypass rules
-
-Restrict service-worker caching to safe GET asset /
-navigation traffic and explicitly bypass reporting and
-other API routes.
-
-Prevents `/telemetry`, `/error`, and future non-GET
-endpoints from being intercepted by cache logic.
-
-**Files:** `static/sw.js`
 
 ### First-connect failure handling
 
@@ -112,3 +88,67 @@ connected session before enabling reconnect behavior.
 **Files:** `src/client/game/network.ts`,
 `src/client/game/connection.ts`,
 `src/client/main.ts`
+
+### Reconnect teardown consistency
+
+Route all reconnect cancel / reconnect exhausted exits
+through the same session teardown path as normal
+"Exit to Menu" flow.
+
+Prevents stale `gameCode`, transport, and history state
+from surviving after the UI has returned to the menu.
+
+**Files:** `src/client/game/connection.ts`,
+`src/client/game/session-controller.ts`,
+`src/client/main.ts`
+
+### Service worker API bypass rules
+
+Restrict service-worker caching to safe GET asset /
+navigation traffic and explicitly bypass reporting and
+other API routes.
+
+Prevents `/telemetry`, `/error`, and future non-GET
+endpoints from being intercepted by cache logic.
+
+**Files:** `static/sw.js`
+
+---
+
+## Operations & Performance
+
+### Reduce DO inactivity write amplification
+
+The Durable Object currently updates inactivity storage
+on every valid client message, including frequent `ping`
+traffic.
+
+Debounce / cache `inactivityAt` in memory and keep chat
+rate-limit state in memory where possible to reduce DO
+I/O and alarm rescheduling churn.
+
+**Files:** `src/server/game-do/game-do.ts`
+
+### Event Sourcing for Replays
+
+To support the "Turn Replay" feature without state-snapshot bloat, transition the engine to emit a strict append-only log of domain events (`ShipMoved`, `DamageTaken` etc.).
+
+### Adopt `reactive.ts` for Complex UI
+
+Begin adopting the existing zero-dependency `reactive.ts` signals library to consolidate DOM synchronization logic for complex overlays (like lobbies or fleet building) and prevent the manual `ui.ts` layer from becoming brittle.
+
+### Engine Mutation Optimization
+
+Investigate adopting structural sharing (e.g., Immer) to optimize the `structuredClone(inputState)` brute-force deep-cloning occurring on every engine entry point.
+
+---
+
+## Security & Abuse Prevention
+
+### Rate Limit Room Creation
+
+To prevent malicious actors from spamming `POST /create` and instantiating thousands of empty Durable Objects (incurring compute and storage overhead), apply a Cloudflare WAF Rate Limiting rule restricting `/create` to ~5 requests per IP per minute.
+
+### In-Memory WebSocket Throttling
+
+To prevent an attacker from joining a room and blasting 10,000 garbage WebSocket messages a second (which could force DO I/O or cpu spikes), add an in-memory counter in the `webSocketMessage` handler. Drop connections that exceed reasonable client bounds (e.g., > 10 messages/sec).

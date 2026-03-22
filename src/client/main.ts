@@ -100,6 +100,7 @@ import {
 } from './game/presentation';
 import {
   buildGameRoute,
+  buildJoinCheckUrl,
   getStoredPlayerToken,
   loadTokenStore,
   saveTokenStore,
@@ -292,6 +293,7 @@ class GameClient {
         this.ui.showReconnecting(attempt, max, onCancel),
       hideReconnecting: () => this.ui.hideReconnecting(),
       showToast: (msg, type) => this.ui.showToast(msg, type),
+      exitToMenu: () => this.exitToMenu(),
     });
     this.turnTimer = createTurnTimerManager({
       setTurnTimer: (text, className) => this.ui.setTurnTimer(text, className),
@@ -362,12 +364,9 @@ class GameClient {
     const playerToken = urlParams.get('playerToken');
     if (code && code.length === CODE_LENGTH) {
       const normalizedCode = code.toUpperCase();
-      if (playerToken) {
-        this.storePlayerToken(normalizedCode, playerToken);
-      }
       // Strip token from URL to avoid leaking it
       history.replaceState(null, '', buildGameRoute(normalizedCode));
-      this.joinGame(normalizedCode);
+      this.joinGame(normalizedCode, playerToken);
     } else {
       this.setState('menu');
     }
@@ -488,7 +487,7 @@ class GameClient {
     );
   }
   private joinGame(code: string, playerToken: string | null = null) {
-    beginJoinGameSession(
+    void beginJoinGameSession(
       {
         ctx: this.ctx,
         storePlayerToken: (gameCode, token) =>
@@ -498,10 +497,52 @@ class GameClient {
         buildGameRoute,
         connect: (gameCode) => this.connect(gameCode),
         setState: (state) => this.setState(state),
+        validateJoin: (gameCode, token) => this.validateJoin(gameCode, token),
+        showToast: (message, type) => this.ui.showToast(message, type),
+        exitToMenu: () => this.exitToMenu(),
       },
       code,
       playerToken,
     );
+  }
+  private async validateJoin(
+    code: string,
+    playerToken: string | null,
+  ): Promise<{ ok: true } | { ok: false; message: string }> {
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 10000);
+    try {
+      const response = await fetch(
+        buildJoinCheckUrl(window.location, code, playerToken),
+        {
+          signal: abort.signal,
+        },
+      );
+      clearTimeout(timer);
+      if (response.ok) {
+        return { ok: true };
+      }
+      const message = (await response.text()) || 'Could not join game';
+      return { ok: false, message };
+    } catch (err) {
+      clearTimeout(timer);
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return {
+          ok: false,
+          message: 'Join check timed out. Try again.',
+        };
+      }
+      if (err instanceof TypeError) {
+        return {
+          ok: false,
+          message: 'Network error — check your connection.',
+        };
+      }
+      return {
+        ok: false,
+        message: 'Could not join game',
+      };
+    }
   }
   private getTokenStore(): Record<
     string,

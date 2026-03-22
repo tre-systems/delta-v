@@ -202,6 +202,26 @@ describe('GameDO', () => {
     expect(response.status).toBe(400);
     expect(await response.text()).toContain('Invalid player token');
   });
+  it('supports join preflight checks without mutating room tokens', async () => {
+    const ctx = createCtx();
+    const roomConfig = {
+      code: 'ABCDE',
+      scenario: 'biplanetary',
+      playerTokens: ['A'.repeat(32), null] as [string, string | null],
+      inviteTokens: [null, null] as [string | null, string | null],
+    };
+    await ctx.storage.put('roomConfig', roomConfig);
+    const game = createGameDO(ctx);
+    const response = await game.fetch(
+      new Request(`https://room.internal/join?playerToken=${'A'.repeat(32)}`, {
+        method: 'GET',
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+    expect(await ctx.storage.get('roomConfig')).toEqual(roomConfig);
+  });
   it('rejects malformed client payloads before dispatching handlers', async () => {
     const ctx = createCtx();
     const game = createGameDO(ctx);
@@ -234,6 +254,22 @@ describe('GameDO', () => {
     expect(await ctx.storage.get('disconnectTime')).toBe(1000);
     expect(await ctx.storage.get('disconnectAt')).toBe(31000);
     expect(ctx.storage.alarmAt).toBe(31000);
+  });
+  it('ignores close events for intentionally replaced sockets', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('gameState', { phase: 'astrogation' });
+    const ws = { send() {} };
+    ctx.acceptWebSocket(ws, ['player:0']);
+    const game = createGameDO(ctx);
+
+    (
+      game as unknown as { replacedSockets: WeakSet<WebSocket> }
+    ).replacedSockets.add(ws as unknown as WebSocket);
+
+    await game.webSocketClose(ws as unknown as WebSocket);
+
+    expect(await ctx.storage.get('disconnectedPlayer')).toBeUndefined();
+    expect(await ctx.storage.get('disconnectAt')).toBeUndefined();
   });
   it('clears an expired disconnect marker and ends game as forfeit', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(10000);

@@ -368,7 +368,7 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 - **Asteroid hexside rule** *(resolved):* The rulebook (p.7) states "a ship passing along a hexside between two asteroid hexes is considered to have entered one asteroid hex" — one hazard roll, not two. Resolved via `analyzeHexLine()`: `queueAsteroidHazards()` queues exactly one hazard for `ambiguousPairs` where both hexes are asteroids.
 
-- **Logistics** *(partially implemented):* Surrender (unilateral declaration during astrogation), fuel/cargo transfer (new logistics phase after movement, requires position+velocity match), and looting of disabled/surrendered enemy ships are implemented. Torch fuel transfer restriction enforced. Enabled on Convoy, Fleet Action, and Interplanetary War scenarios. Remaining: dummy counters for concealment scenarios, passenger rescue mechanics, and a visual transfer picker UI (currently skip-only).
+- **Logistics** *(partially implemented):* Surrender (unilateral declaration during astrogation), fuel/cargo transfer (new logistics phase after movement, requires position+velocity match), and looting of disabled/surrendered enemy ships are implemented. Torch fuel transfer restriction enforced. Enabled on Convoy, Fleet Action, and Interplanetary War scenarios. Remaining: dummy counters for concealment scenarios and passenger rescue mechanics.
 
 - **Advanced combat system** *(resolved):* The rulebook uses the standard D1–D5/E damage system throughout; no separate advanced subsystem damage tracks exist. Dreadnaught gun exception (fire while disabled) is implemented in `canAttack`/`canCounterattack`. Orbital base D1 resilience (fire guns, launch torpedoes, and resupply at D1 damage) is implemented via `canOperateWhileDisabled()` in `combat.ts` and ordnance launch validation in `game-engine.ts`.
 
@@ -835,10 +835,10 @@ interface ScenarioPlayer {
 - [x] PWA support (installable shell with offline-capable single-player)
 - [x] Grand Tour checkpoint race scenario
 - [x] Asteroid map visuals matching reference map
-- [x] Logistics: surrender, looting, fuel/cargo transfer (rescue deferred — see BACKLOG.md 3d)
-- [ ] New scenarios: Lateral 7, Fleet Mutiny, Retribution (BACKLOG.md 3c)
-- [ ] Spectator mode (BACKLOG.md 3b)
-- [ ] Turn history replay (BACKLOG.md 3a)
+- [x] Logistics: surrender, looting, fuel/cargo transfer (passenger rescue remains open)
+- [ ] Scenario expansion: Lateral 7, Fleet Mutiny, Retribution
+- [ ] Spectator mode
+- [ ] Turn replay
 
 ## Design Decisions
 
