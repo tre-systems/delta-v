@@ -127,6 +127,7 @@ const createJoinGameDeps = (): JoinGameSessionDeps & {
     ctx: {
       gameCode: null,
     },
+    getStoredPlayerToken: () => null,
     storePlayerToken: track('storePlayerToken'),
     resetTurnTelemetry: track('resetTurnTelemetry'),
     replaceRoute: track('replaceRoute'),
@@ -243,6 +244,20 @@ describe('session-controller', () => {
     expect(deps.calls.replaceRoute).toBeUndefined();
     expect(deps.calls.setState).toBeUndefined();
     expect(deps.calls.connect).toBeUndefined();
+  });
+
+  it('reuses the stored token when rejoining from a saved room route', async () => {
+    const deps = createJoinGameDeps();
+    deps.getStoredPlayerToken = () => 'stored-token';
+
+    await beginJoinGameSession(deps, 'FGHIJ');
+
+    expect(deps.ctx.gameCode).toBe('FGHIJ');
+    expect(deps.calls.storePlayerToken).toEqual([['FGHIJ', 'stored-token']]);
+    expect(deps.calls.resetTurnTelemetry).toHaveLength(1);
+    expect(deps.calls.replaceRoute).toEqual([['/game/FGHIJ']]);
+    expect(deps.calls.setState).toEqual([['connecting']]);
+    expect(deps.calls.connect).toEqual([['FGHIJ']]);
   });
 
   it('clears the active session when returning to menu', () => {
