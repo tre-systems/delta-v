@@ -7,7 +7,7 @@ Delta-V now has one established simulation layer and one still-planned layer:
 
 Since the core `engine/game-engine.ts` is purely functional and deterministic apart from injected RNG, high-speed simulation is practical.
 
-Related docs: [PLAYABILITY](./PLAYABILITY.md), [SPEC](./SPEC.md), [ARCHITECTURE](./ARCHITECTURE.md).
+Related docs: [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md), [SPEC](./SPEC.md), [ARCHITECTURE](./ARCHITECTURE.md).
 
 ---
 

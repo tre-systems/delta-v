@@ -52,6 +52,7 @@ import {
   getReplayViewerId,
   resetEventLog,
   saveCheckpoint,
+  saveMatchCreatedAt,
 } from './archive';
 import { archiveCompletedMatch } from './match-archive';
 import {
@@ -80,7 +81,6 @@ export interface Env {
 const CHAT_RATE_LIMIT_MS = 500;
 const WS_MSG_RATE_LIMIT = 10;
 const WS_MSG_RATE_WINDOW_MS = 1_000;
-const INACTIVITY_FLUSH_MS = 60_000;
 export class GameDO extends DurableObject<Env> {
   private readonly map = buildSolarSystemMap();
   private readonly replacedSockets = new WeakSet<WebSocket>();
@@ -89,8 +89,6 @@ export class GameDO extends DurableObject<Env> {
     { count: number; windowStart: number }
   >();
   private readonly lastChatAt = new Map<number, number>();
-  private cachedInactivityAt: number | null = null;
-  private lastInactivityFlush = 0;
   // --- WebSocket tag-based player tracking ---
   private getPlayerId(ws: WebSocket): number | null {
     const tag = this.ctx.getTags(ws).find((t) => t.startsWith('player:'));
@@ -143,32 +141,60 @@ export class GameDO extends DurableObject<Env> {
     await this.ctx.storage.put('gameCode', code);
   }
   private async touchInactivity(): Promise<void> {
-    const now = Date.now();
-    const shouldFlushImmediately = this.cachedInactivityAt === null;
-
-    this.cachedInactivityAt = now + INACTIVITY_TIMEOUT_MS;
-    if (
-      shouldFlushImmediately ||
-      now - this.lastInactivityFlush >= INACTIVITY_FLUSH_MS
-    ) {
-      await this.ctx.storage.put('inactivityAt', this.cachedInactivityAt);
-      this.lastInactivityFlush = now;
-      await this.rescheduleAlarm();
-    }
+    await this.ctx.storage.put(
+      'inactivityAt',
+      Date.now() + INACTIVITY_TIMEOUT_MS,
+    );
+    await this.rescheduleAlarm();
   }
   private async getAlarmDeadlines() {
-    const [disconnectAt, turnTimeoutAt, storedInactivityAt] = await Promise.all(
-      [
-        this.ctx.storage.get<number>('disconnectAt'),
-        this.ctx.storage.get<number>('turnTimeoutAt'),
-        this.ctx.storage.get<number>('inactivityAt'),
-      ],
-    );
+    const [disconnectAt, turnTimeoutAt, inactivityAt] = await Promise.all([
+      this.ctx.storage.get<number>('disconnectAt'),
+      this.ctx.storage.get<number>('turnTimeoutAt'),
+      this.ctx.storage.get<number>('inactivityAt'),
+    ]);
     return {
       disconnectAt,
       turnTimeoutAt,
-      inactivityAt: this.cachedInactivityAt ?? storedInactivityAt,
+      inactivityAt,
     };
+  }
+  private async isRoomArchived(): Promise<boolean> {
+    return (await this.ctx.storage.get<boolean>('roomArchived')) === true;
+  }
+  private async archiveRoomState(): Promise<void> {
+    await Promise.all([
+      this.ctx.storage.put('roomArchived', true),
+      this.ctx.storage.delete('gameState'),
+      this.ctx.storage.delete('disconnectAt'),
+      this.ctx.storage.delete('disconnectTime'),
+      this.ctx.storage.delete('disconnectedPlayer'),
+      this.ctx.storage.delete('eventLog'),
+      this.ctx.storage.delete('inactivityAt'),
+      this.ctx.storage.delete('rematchRequests'),
+      this.ctx.storage.delete('turnTimeoutAt'),
+    ]);
+  }
+  private async clearRoomArchivedFlag(): Promise<void> {
+    await this.ctx.storage.delete('roomArchived');
+  }
+  private async getLatestGameId(): Promise<string | null> {
+    const currentGameId = (await this.getGameState())?.gameId;
+
+    if (currentGameId) {
+      return currentGameId;
+    }
+
+    const [code, matchNumber] = await Promise.all([
+      this.getGameCode(),
+      this.ctx.storage.get<number>('matchNumber'),
+    ]);
+
+    if (!code || matchNumber === undefined) {
+      return null;
+    }
+
+    return `${code}-m${matchNumber}`;
   }
   private async clearDisconnectMarker(): Promise<void> {
     await Promise.all([
@@ -214,6 +240,14 @@ export class GameDO extends DurableObject<Env> {
         ok: false,
         response: new Response('Invalid player token', {
           status: 400,
+        }),
+      };
+    }
+    if (await this.isRoomArchived()) {
+      return {
+        ok: false,
+        response: new Response('Game archived', {
+          status: 410,
         }),
       };
     }
@@ -507,6 +541,7 @@ export class GameDO extends DurableObject<Env> {
         gameState.winner = 1 - action.playerId;
         gameState.winReason = 'Opponent disconnected';
         await this.publishStateChange(gameState, undefined, {
+          actor: null,
           restartTurnTimer: false,
           events: [
             {
@@ -543,7 +578,7 @@ export class GameDO extends DurableObject<Env> {
             ws.close(1000, 'Inactivity timeout');
           } catch {}
         }
-        await this.ctx.storage.deleteAll();
+        await this.archiveRoomState();
         return;
       }
       case 'reschedule':
@@ -579,6 +614,7 @@ export class GameDO extends DurableObject<Env> {
       return;
     }
     await this.publishStateChange(outcome.state, outcome.primaryMessage, {
+      actor: null,
       events: outcome.events,
     });
   }
@@ -596,11 +632,16 @@ export class GameDO extends DurableObject<Env> {
     state: GameState,
     primaryMessage?: StatefulServerMessage,
     options?: {
+      actor?: number | null;
       restartTurnTimer?: boolean;
       events?: EngineEvent[];
     },
   ) {
-    const { restartTurnTimer = true, events = [] } = options ?? {};
+    const {
+      actor = null,
+      restartTurnTimer = true,
+      events = [],
+    } = options ?? {};
     const roomCode = await this.getGameCode();
     const matchNumber = await this.ctx.storage.get<number>('matchNumber');
     const replayMessage = resolveStateBearingMessage(state, primaryMessage);
@@ -610,7 +651,7 @@ export class GameDO extends DurableObject<Env> {
       await appendEnvelopedEvents(
         this.ctx.storage,
         state.gameId,
-        state.activePlayer,
+        actor,
         ...events,
       );
     }
@@ -763,7 +804,7 @@ export class GameDO extends DurableObject<Env> {
     }
 
     const gameId =
-      url.searchParams.get('gameId') ?? (await this.getGameState())?.gameId;
+      url.searchParams.get('gameId') ?? (await this.getLatestGameId());
 
     if (!gameId) {
       return new Response('Replay not found', {
@@ -796,6 +837,8 @@ export class GameDO extends DurableObject<Env> {
     );
     const gameState = createGame(scenario, map, gameId, findBaseHex);
     const gameStartMessage = toGameStartMessage(gameState);
+    await this.clearRoomArchivedFlag();
+    await saveMatchCreatedAt(this.ctx.storage, gameId, Date.now());
     await this.saveGameState(gameState);
     await resetEventLog(this.ctx.storage);
     await appendReplayMessage(
@@ -849,6 +892,7 @@ export class GameDO extends DurableObject<Env> {
       },
       async (result) => {
         await this.publishStateChange(result.state, undefined, {
+          actor: playerId,
           restartTurnTimer: result.state.phase === 'astrogation',
           events: result.engineEvents,
         });
@@ -868,7 +912,7 @@ export class GameDO extends DurableObject<Env> {
         await this.publishStateChange(
           result.state,
           resolveMovementBroadcast(result),
-          { events: result.engineEvents },
+          { actor: playerId, events: result.engineEvents },
         );
       },
     );
@@ -886,6 +930,7 @@ export class GameDO extends DurableObject<Env> {
           result.state,
           toStateUpdateMessage(result.state),
           {
+            actor: playerId,
             restartTurnTimer: false,
             events: result.engineEvents,
           },
@@ -906,6 +951,7 @@ export class GameDO extends DurableObject<Env> {
           result.state,
           toStateUpdateMessage(result.state),
           {
+            actor: playerId,
             events: result.engineEvents,
           },
         );
@@ -921,6 +967,7 @@ export class GameDO extends DurableObject<Env> {
           result.state,
           toStateUpdateMessage(result.state),
           {
+            actor: playerId,
             events: result.engineEvents,
           },
         );
@@ -940,7 +987,7 @@ export class GameDO extends DurableObject<Env> {
         await this.publishStateChange(
           result.state,
           toMovementResultMessage(result),
-          { events: result.engineEvents },
+          { actor: playerId, events: result.engineEvents },
         );
       },
     );
@@ -959,6 +1006,7 @@ export class GameDO extends DurableObject<Env> {
           result.state,
           toStateUpdateMessage(result.state),
           {
+            actor: playerId,
             restartTurnTimer: false,
             events: result.engineEvents,
           },
@@ -974,7 +1022,7 @@ export class GameDO extends DurableObject<Env> {
         await this.publishStateChange(
           result.state,
           resolveMovementBroadcast(result, 'stateUpdate'),
-          { events: result.engineEvents },
+          { actor: playerId, events: result.engineEvents },
         );
       },
     );
@@ -992,7 +1040,7 @@ export class GameDO extends DurableObject<Env> {
         await this.publishStateChange(
           result.state,
           must(resolveCombatBroadcast(result)),
-          { events: result.engineEvents },
+          { actor: playerId, events: result.engineEvents },
         );
       },
     );
@@ -1006,7 +1054,7 @@ export class GameDO extends DurableObject<Env> {
         await this.publishStateChange(
           result.state,
           resolveCombatBroadcast(result, 'stateUpdate'),
-          { events: result.engineEvents },
+          { actor: playerId, events: result.engineEvents },
         );
       },
     );
@@ -1019,7 +1067,7 @@ export class GameDO extends DurableObject<Env> {
         await this.publishStateChange(
           result.state,
           resolveCombatBroadcast(result),
-          { events: result.engineEvents },
+          { actor: playerId, events: result.engineEvents },
         );
       },
     );

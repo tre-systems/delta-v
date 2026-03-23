@@ -43,6 +43,8 @@ export const resetEventLog = async (storage: Storage): Promise<void> => {
 
 const eventStreamKey = (gameId: string): string => `events:${gameId}`;
 const eventSeqKey = (gameId: string): string => `eventSeq:${gameId}`;
+const matchCreatedAtKey = (gameId: string): string =>
+  `matchCreatedAt:${gameId}`;
 
 export const getEventStream = async (
   storage: Storage,
@@ -111,6 +113,20 @@ export const getCheckpoint = async (
   gameId: string,
 ): Promise<Checkpoint | null> =>
   (await storage.get<Checkpoint>(checkpointKey(gameId))) ?? null;
+
+export const saveMatchCreatedAt = async (
+  storage: Storage,
+  gameId: string,
+  createdAt: number,
+): Promise<void> => {
+  await storage.put(matchCreatedAtKey(gameId), createdAt);
+};
+
+export const getMatchCreatedAt = async (
+  storage: Storage,
+  gameId: string,
+): Promise<number | null> =>
+  (await storage.get<number>(matchCreatedAtKey(gameId))) ?? null;
 
 // --- Replay archive ---
 
