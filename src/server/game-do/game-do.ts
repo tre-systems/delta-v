@@ -638,6 +638,11 @@ export class GameDO extends DurableObject<Env> {
         status: 426,
       });
     }
+    if (url.searchParams.get('viewer') === 'spectator') {
+      return new Response('Spectator websocket joins are not supported', {
+        status: 501,
+      });
+    }
     const presentedTokenRaw = url.searchParams.get('playerToken');
     const joinAttempt = await this.resolveJoinAttempt(presentedTokenRaw);
 
