@@ -15,9 +15,10 @@ The project follows a modern full-stack TypeScript architecture:
 ```
 src/
   server/
-    index.ts           Cloudflare Worker — HTTP routing (/create, /ws/:code)
+    index.ts           Cloudflare Worker — HTTP routing (/create, /join/:code, /replay/:code, /ws/:code)
     game-do/
-      game-do.ts       Durable Object — authoritative game state, WebSocket plumbing
+      game-do.ts       Durable Object — authoritative room/session coordinator, WebSocket plumbing
+      archive.ts       Match event stream, checkpoints, replay projection
       messages.ts      Message handling and dispatch
       session.ts       Session management and auth
       turns.ts         Turn processing and resolution
@@ -55,15 +56,17 @@ static/
 **Worker (lobby-worker):**
 - `GET /` — Serves the SPA (index.html + bundled JS/CSS)
 - `POST /create` — Generates a 5-character room code plus a creator reconnect token, initializes the Durable Object room, and locks the chosen scenario
+- `GET /join/:code` — Optional join / reconnect preflight validation
+- `GET /replay/:code` — Authenticated replay history fetch for a specific match
 - `GET /ws/:code` — WebSocket upgrade, proxied to the Durable Object
 
 **Durable Object (game-do):**
 - One instance per active game, keyed by room code
-- Maintains authoritative game state: map, ships, turn order, phase
+- Maintains the authoritative match event stream and current live room session
 - Receives player actions via WebSocket, runtime-validates them, and applies state changes
 - Broadcasts updated state to all connected players
 - Uses DO alarms for disconnect grace, turn timeout, and idle cleanup (currently 5 min inactivity)
-- Persists game state to DO storage so games survive DO evictions
+- Persists versioned match events plus checkpoints to DO storage so matches survive DO evictions and can be replayed or recovered
 
 ### Current Invite / Join Flow (No Lobby, No Login)
 
@@ -360,6 +363,7 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 - Ramming, asteroid hazards, crash detection
 - Escape inspection, concealment, and moral-victory flow
 - Counterattack targets strongest attacker by default
+- Event-sourced server recovery from persisted match stream plus checkpoints
 
 **Remaining divergences** (cross-referenced against [Triplanetary 2018 rulebook](https://www.sjgames.com/triplanetary/)):
 
