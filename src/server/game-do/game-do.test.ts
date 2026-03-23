@@ -27,6 +27,7 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import type { ReplayArchive } from '../../shared/replay';
+import { getEventStream } from './archive';
 import { GameDO } from './game-do';
 import { toMovementResultMessage, toStateUpdateMessage } from './messages';
 
@@ -393,6 +394,9 @@ describe('GameDO', () => {
       type: 'gameStart',
       state,
     });
+    expect(await ctx.storage.get('matchCreatedAt:ABCDE-m1')).toEqual(
+      expect.any(Number),
+    );
   });
   it('keeps replay archives isolated across rematches', async () => {
     const ctx = createCtx();
@@ -779,7 +783,7 @@ describe('GameDO', () => {
     expect(ws.closeCode).toBe(1008);
   });
 
-  it('debounces inactivity storage writes', async () => {
+  it('persists inactivity deadlines on every touch', async () => {
     const ctx = createCtx();
     const game = createGameDO(ctx);
     const touch = (
@@ -788,33 +792,23 @@ describe('GameDO', () => {
       }
     ).touchInactivity.bind(game);
 
-    // First call always flushes (100000 - 0 >= 60000)
     vi.spyOn(Date, 'now').mockReturnValue(100_000);
     await touch();
     const first = await ctx.storage.get<number>('inactivityAt');
     expect(first).toBeDefined();
+    expect(first).toBe(100_000 + 300_000);
 
-    // Second call 10 s later — no storage write
     vi.spyOn(Date, 'now').mockReturnValue(110_000);
     await touch();
-    expect(await ctx.storage.get<number>('inactivityAt')).toBe(first);
-
-    // Call after 60 s — flushes again
-    vi.spyOn(Date, 'now').mockReturnValue(170_000);
-    await touch();
     const updated = await ctx.storage.get<number>('inactivityAt');
+    expect(updated).toBe(110_000 + 300_000);
     expect(updated).not.toBe(first);
-    expect(must(updated)).toBeGreaterThan(must(first));
+    expect(ctx.storage.alarmAt).toBe(updated);
   });
 
-  it('uses cached inactivity for alarm scheduling', async () => {
+  it('reads inactivity deadlines from storage for alarm scheduling', async () => {
     const ctx = createCtx();
     const game = createGameDO(ctx);
-    const touch = (
-      game as unknown as {
-        touchInactivity: () => Promise<void>;
-      }
-    ).touchInactivity.bind(game);
     const getDeadlines = (
       game as unknown as {
         getAlarmDeadlines: () => Promise<{
@@ -823,18 +817,10 @@ describe('GameDO', () => {
       }
     ).getAlarmDeadlines.bind(game);
 
-    vi.spyOn(Date, 'now').mockReturnValue(100_000);
-    await touch();
+    await ctx.storage.put('inactivityAt', 123_456);
 
-    // Touch again without flushing (10 s later)
-    vi.spyOn(Date, 'now').mockReturnValue(110_000);
-    await touch();
-
-    // getAlarmDeadlines should use the cached
-    // (newer) value, not the stale stored one
     const deadlines = await getDeadlines();
-    const storedValue = await ctx.storage.get<number>('inactivityAt');
-    expect(must(deadlines.inactivityAt)).toBeGreaterThan(must(storedValue));
+    expect(deadlines.inactivityAt).toBe(123_456);
   });
 
   it('chat rate limiting uses in-memory state', async () => {
@@ -968,5 +954,153 @@ describe('GameDO', () => {
     expect(archive.gameId).toBe('ABCDE-m1');
     expect(archive.entries).toHaveLength(1);
     expect(archive.entries[0]?.message.type).toBe('gameStart');
+  });
+
+  it('keeps replay access available after inactivity cleanup', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(100_000);
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'escape',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+    });
+    await ctx.storage.put('gameCode', 'ABCDE');
+    const game = createGameDO(ctx);
+
+    await (
+      game as unknown as {
+        initGame: () => Promise<void>;
+      }
+    ).initGame();
+
+    await ctx.storage.put('inactivityAt', 99_000);
+    await game.alarm();
+
+    expect(await ctx.storage.get('gameState')).toBeUndefined();
+    expect(await ctx.storage.get('roomArchived')).toBe(true);
+    expect(await ctx.storage.get('roomConfig')).toBeDefined();
+
+    const response = await game.fetch(
+      new Request(
+        `https://room.internal/replay?playerToken=${'A'.repeat(32)}`,
+        {
+          method: 'GET',
+        },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    const archive = (await response.json()) as ReplayArchive;
+    expect(archive.gameId).toBe('ABCDE-m1');
+  });
+
+  it('rejects new joins for archived rooms', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'biplanetary',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+    });
+    await ctx.storage.put('roomArchived', true);
+    const game = createGameDO(ctx);
+
+    const response = await game.fetch(
+      new Request('https://room.internal/join', {
+        method: 'GET',
+      }),
+    );
+
+    expect(response.status).toBe(410);
+    expect(await response.text()).toContain('Game archived');
+  });
+
+  it('stores the acting player on enveloped events even after the turn advances', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('gameCode', 'ABCDE');
+    await ctx.storage.put('matchNumber', 1);
+    const game = createGameDO(ctx);
+    const state = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'ABCDE-m1',
+      findBaseHex,
+    );
+    state.activePlayer = 1;
+
+    await (
+      game as unknown as {
+        publishStateChange: (
+          state: GameState,
+          primaryMessage?: unknown,
+          options?: {
+            actor?: number | null;
+            restartTurnTimer?: boolean;
+            events?: unknown[];
+          },
+        ) => Promise<void>;
+      }
+    ).publishStateChange(state, toStateUpdateMessage(state), {
+      actor: 0,
+      restartTurnTimer: false,
+      events: [
+        {
+          type: 'turnAdvanced',
+          turn: state.turnNumber,
+          activePlayer: state.activePlayer,
+        },
+      ],
+    });
+
+    const stream = await getEventStream(
+      ctx.storage as unknown as DurableObjectStorage,
+      'ABCDE-m1',
+    );
+    expect(stream[0]?.actor).toBe(0);
+  });
+
+  it('stores null actor for system-driven event envelopes', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('gameCode', 'SYS01');
+    await ctx.storage.put('matchNumber', 1);
+    const game = createGameDO(ctx);
+    const state = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'SYS01-m1',
+      findBaseHex,
+    );
+    state.phase = 'gameOver';
+    state.winner = 0;
+    state.winReason = 'Timeout';
+
+    await (
+      game as unknown as {
+        publishStateChange: (
+          state: GameState,
+          primaryMessage?: unknown,
+          options?: {
+            actor?: number | null;
+            restartTurnTimer?: boolean;
+            events?: unknown[];
+          },
+        ) => Promise<void>;
+      }
+    ).publishStateChange(state, toStateUpdateMessage(state), {
+      actor: null,
+      restartTurnTimer: false,
+      events: [
+        {
+          type: 'gameOver',
+          winner: 0,
+          reason: 'Timeout',
+        },
+      ],
+    });
+
+    const stream = await getEventStream(
+      ctx.storage as unknown as DurableObjectStorage,
+      'SYS01-m1',
+    );
+    expect(stream[0]?.actor).toBeNull();
   });
 });

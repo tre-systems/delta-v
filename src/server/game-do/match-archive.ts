@@ -1,6 +1,11 @@
 import type { EventEnvelope } from '../../shared/engine/engine-events';
 import type { GameState } from '../../shared/types/domain';
-import { type Checkpoint, getCheckpoint, getEventStream } from './archive';
+import {
+  type Checkpoint,
+  getCheckpoint,
+  getEventStream,
+  getMatchCreatedAt,
+} from './archive';
 
 /** Persistent archive of a completed match. */
 export interface MatchArchive {
@@ -33,9 +38,10 @@ export const archiveCompletedMatch = async (
   const { gameId } = state;
 
   try {
-    const [eventStream, checkpoint] = await Promise.all([
+    const [eventStream, checkpoint, matchCreatedAt] = await Promise.all([
       getEventStream(storage, gameId),
       getCheckpoint(storage, gameId),
+      getMatchCreatedAt(storage, gameId),
     ]);
 
     const archive: MatchArchive = {
@@ -45,7 +51,7 @@ export const archiveCompletedMatch = async (
       winner: state.winner,
       winReason: state.winReason,
       turnCount: state.turnNumber,
-      createdAt: checkpoint?.savedAt ?? Date.now(),
+      createdAt: matchCreatedAt ?? checkpoint?.savedAt ?? Date.now(),
       completedAt: Date.now(),
       eventStream,
       checkpoint,

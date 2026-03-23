@@ -2,7 +2,7 @@
 
 This document describes the current security posture of Delta-V with emphasis on competitive multiplayer. It distinguishes protections that are already enforced from the risks that still remain if the game were exposed to untrusted public players.
 
-Related docs: [ARCHITECTURE](./ARCHITECTURE.md), [BACKLOG](./BACKLOG.md), [PLAYABILITY](./PLAYABILITY.md).
+Related docs: [ARCHITECTURE](./ARCHITECTURE.md), [BACKLOG](./BACKLOG.md), [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md).
 
 ## Current Protections
 
