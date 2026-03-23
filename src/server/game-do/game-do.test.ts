@@ -271,6 +271,25 @@ describe('GameDO', () => {
     expect(response.status).toBe(400);
     expect(await response.text()).toContain('Invalid player token');
   });
+  it('rejects spectator websocket fetches explicitly at the durable object boundary', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'biplanetary',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+    });
+    const game = createGameDO(ctx);
+    const response = await game.fetch(
+      new Request('https://room.internal/ws/ABCDE?viewer=spectator', {
+        headers: { Upgrade: 'websocket' },
+      }),
+    );
+
+    expect(response.status).toBe(501);
+    expect(await response.text()).toContain(
+      'Spectator websocket joins are not supported',
+    );
+  });
   it('supports join preflight checks without mutating room tokens', async () => {
     const ctx = createCtx();
     const roomConfig = {
