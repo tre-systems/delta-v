@@ -56,7 +56,7 @@ client/          → State machine + Canvas renderer + DOM UI
   mutable boundaries such as `GameDO`, `GameClient`,
   `Renderer`, `Camera`, and `InputHandler`.
 - **Pure planner + narrow applier flows.** Client screen changes, phase entry, message handling, and game-state application route through pure planners plus a small number of side-effect owners instead of scattering equivalent writes across many call sites.
-- **Scenario-driven.** `ScenarioRules` controls behaviour: ordnance types, base sharing, combat enabled, checkpoints, escape edges. New scenarios can vary gameplay without engine changes.
+- **Scenario-driven.** `ScenarioRules` controls behaviour: ordnance types, base sharing, combat enabled, logistics, checkpoints, escape edges, reinforcements, and fleet conversion. New scenarios can vary gameplay without engine changes.
 - **Shared rule reuse across layers.** Client ordnance entry, HUD button visibility, and engine validation now all derive from the same shared ordnance-rule helpers, so restricted scenarios do not drift between UI and server authority.
 - **Hidden state filtering.** `filterStateForPlayer` hides fugitive identities in escape scenarios — the server never leaks information the client shouldn't have.
 - **Stable event-sourced boundaries.** Mandatory RNG injection, stable per-match IDs, side-effect-free engine entry points, and narrow server/client contracts make the authoritative event stream practical without throwing away the whole engine.
@@ -114,7 +114,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `map-data.ts` | Solar system bodies, gravity rings, bases, and scenario definitions | Game-specific |
 | `ai.ts` / `ai-config.ts` / `ai-scoring.ts` | Rule-based AI and its scoring configuration | Game-specific |
 | `engine/game-engine.ts` | Barrel re-export for the public engine API | Game-specific |
-| `engine/engine-events.ts` | `EngineEvent` discriminated union (30 granular domain event types) | Game-specific |
+| `engine/engine-events.ts` | `EngineEvent` discriminated union (31 granular domain event types) | Game-specific |
 | `engine/*` phase modules | Game creation, fleet building, astrogation, movement, combat, ordnance, logistics, victory, and shared helpers | Game-specific |
 
 #### Key Design Patterns
@@ -124,7 +124,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 - **`combat.ts`**: Evaluates line-of-sight, calculates combat odds based on velocity/range modifiers, and resolves damage. Mutates ships directly (e.g., `applyDamage`, updating `ship.lifecycle`, heroism flags).
 - **`types/`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads), split into `domain.ts`, `protocol.ts`, and `scenario.ts` with a barrel re-export. This ensures the client and server never fall out of sync.
 - **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [RNG Injection](#rng-injection).
-- **Domain event emission**: All engine entry points emit `EngineEvent[]` (30 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
+- **Domain event emission**: All engine entry points emit `EngineEvent[]` (31 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
 
 #### Engine Mutation Model
 
