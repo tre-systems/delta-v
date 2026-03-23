@@ -29,7 +29,6 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../shared/map-data';
-import type { ReplayTimeline } from '../shared/replay';
 import type { FleetPurchase, GameState } from '../shared/types/domain';
 import type { S2C } from '../shared/types/protocol';
 import { initAudio, isMuted, playWarning, setMuted } from './audio';
@@ -82,9 +81,9 @@ import {
   type PlanningState,
 } from './game/planning';
 import {
-  deriveReplaySelection,
-  shiftReplaySelection,
-} from './game/replay-selection';
+  createReplayController,
+  type ReplayController,
+} from './game/replay-controller';
 import { buildGameRoute } from './game/session';
 import { createSessionApi, type SessionApi } from './game/session-api';
 import {
@@ -146,10 +145,7 @@ class GameClient {
   private logisticsUIState: LogisticsUIState | null = null;
   private connection: ConnectionManager;
   private turnTimer!: TurnTimerManager;
-  private replayTimeline: ReplayTimeline | null = null;
-  private replayIndex: number | null = null;
-  private replaySourceState: GameState | null = null;
-  private selectedReplayGameId: string | null = null;
+  private replayController!: ReplayController;
   private readonly turnTelemetry: TurnTelemetryTracker =
     createTurnTelemetryTracker();
   private hud!: HudController;
@@ -234,10 +230,7 @@ class GameClient {
       applyGameState: (s) => this.applyGameState(s),
       resetCombatState: () => this.resetCombatState(),
       transitionToPhase: () => this.transitionToPhase(),
-      onGameOverShown: () => {
-        this.selectedReplayGameId = this.ctx.gameState?.gameId ?? null;
-        this.updateReplayOverlay();
-      },
+      onGameOverShown: () => this.replayController.onGameOverShown(),
       track,
     });
     this.sessionApi = createSessionApi({
@@ -248,6 +241,20 @@ class GameClient {
       setScenario: (scenario) => setScenario(this.ctx, scenario),
       connect: (code) => this.connect(code),
       track,
+    });
+    this.replayController = createReplayController({
+      getClientContext: () => ({
+        state: this.ctx.state,
+        isLocalGame: this.ctx.isLocalGame,
+        gameCode: this.ctx.gameCode,
+        gameState: this.ctx.gameState,
+      }),
+      fetchReplay: (code, gameId) => this.sessionApi.fetchReplay(code, gameId),
+      setReplayControls: (view) => this.ui.overlay.setReplayControls(view),
+      showToast: (message, type) => this.ui.overlay.showToast(message, type),
+      clearTrails: () => this.renderer.clearTrails(),
+      applyGameState: (state) => this.applyGameState(state),
+      updateHUD: () => this.hud.updateHUD(),
     });
     this.renderer.setMap(this.map);
     this.input.setMap(this.map);
@@ -324,12 +331,7 @@ class GameClient {
   }
 
   private setState(newState: ClientState) {
-    if (newState !== 'gameOver') {
-      this.replayTimeline = null;
-      this.replayIndex = null;
-      this.replaySourceState = null;
-      this.selectedReplayGameId = null;
-    }
+    this.replayController.clearForState(newState);
     applyClientStateTransition(
       createMainStateTransitionDeps({
         ctx: this.ctx,
@@ -450,7 +452,7 @@ class GameClient {
     handleServerMessage(deps, msg);
 
     if (msg.type === 'gameOver') {
-      this.updateReplayOverlay();
+      this.replayController.onGameOverMessage();
     }
   }
 
@@ -482,13 +484,13 @@ class GameClient {
         this.dispatch(plan.command);
         return;
       case 'selectReplayMatch':
-        this.selectReplayMatch(plan.direction);
+        this.replayController.selectMatch(plan.direction);
         return;
       case 'toggleReplay':
-        void this.toggleReplay();
+        void this.replayController.toggleReplay();
         return;
       case 'replayNav':
-        this.stepReplay(plan.direction);
+        this.replayController.stepReplay(plan.direction);
         return;
       case 'sendChat':
         this.ctx.transport?.sendChat(plan.text);
@@ -627,229 +629,6 @@ class GameClient {
   private runAITurn = async () => {
     await runAI(this.actionDeps.localGameFlowDeps);
   };
-
-  private buildReplayStatusText(timeline: ReplayTimeline, index: number) {
-    const entry = timeline.entries[index];
-
-    if (!entry) {
-      return timeline.gameId;
-    }
-
-    return `${timeline.gameId} • Turn ${entry.turn} • ${entry.phase.toUpperCase()} • ${index + 1}/${timeline.entries.length}`;
-  }
-
-  private getReplaySelection() {
-    const gameState = this.ctx.gameState;
-
-    if (!gameState) {
-      return null;
-    }
-    const replaySelection = deriveReplaySelection(
-      gameState.gameId,
-      this.ctx.gameCode,
-      this.selectedReplayGameId,
-    );
-
-    if (
-      replaySelection &&
-      this.selectedReplayGameId !== replaySelection.selectedGameId
-    ) {
-      this.selectedReplayGameId = replaySelection.selectedGameId;
-    }
-
-    return replaySelection;
-  }
-
-  private updateReplayOverlay() {
-    const available =
-      !this.ctx.isLocalGame &&
-      this.ctx.state === 'gameOver' &&
-      this.ctx.gameCode !== null &&
-      this.ctx.gameState !== null;
-
-    if (!available) {
-      this.ui.overlay.setReplayControls({
-        available: false,
-        active: false,
-        loading: false,
-        statusText: '',
-        selectedGameId: '',
-        canSelectPrevMatch: false,
-        canSelectNextMatch: false,
-        canStart: false,
-        canPrev: false,
-        canNext: false,
-        canEnd: false,
-      });
-      return;
-    }
-
-    const gameState = this.ctx.gameState;
-    if (gameState === null) {
-      return;
-    }
-
-    const replaySelection = this.getReplaySelection();
-    if (replaySelection === null) {
-      return;
-    }
-
-    if (this.replayTimeline === null || this.replayIndex === null) {
-      this.ui.overlay.setReplayControls({
-        available: true,
-        active: false,
-        loading: false,
-        statusText:
-          replaySelection.latestMatchNumber > 1
-            ? `Selected ${replaySelection.selectedGameId} for replay`
-            : `Ready to replay ${gameState.gameId}`,
-        selectedGameId: replaySelection.selectedGameId,
-        canSelectPrevMatch: replaySelection.selectedMatchNumber > 1,
-        canSelectNextMatch:
-          replaySelection.selectedMatchNumber <
-          replaySelection.latestMatchNumber,
-        canStart: false,
-        canPrev: false,
-        canNext: false,
-        canEnd: false,
-      });
-      return;
-    }
-
-    const timeline = this.replayTimeline;
-    const index = this.replayIndex;
-    const canAdvance = index < timeline.entries.length - 1;
-
-    this.ui.overlay.setReplayControls({
-      available: true,
-      active: true,
-      loading: false,
-      statusText: this.buildReplayStatusText(timeline, index),
-      selectedGameId: replaySelection.selectedGameId,
-      canSelectPrevMatch: replaySelection.selectedMatchNumber > 1,
-      canSelectNextMatch:
-        replaySelection.selectedMatchNumber < replaySelection.latestMatchNumber,
-      canStart: index > 0,
-      canPrev: index > 0,
-      canNext: canAdvance,
-      canEnd: canAdvance,
-    });
-  }
-
-  private selectReplayMatch(direction: 'prev' | 'next') {
-    if (this.replayTimeline !== null) {
-      return;
-    }
-
-    const replaySelection = this.getReplaySelection();
-
-    if (replaySelection === null || replaySelection.latestMatchNumber <= 1) {
-      return;
-    }
-
-    const nextSelection = shiftReplaySelection(replaySelection, direction);
-
-    if (nextSelection.selectedGameId === replaySelection.selectedGameId) {
-      return;
-    }
-
-    this.selectedReplayGameId = nextSelection.selectedGameId;
-    this.updateReplayOverlay();
-  }
-
-  private async toggleReplay() {
-    if (this.replayTimeline && this.replayIndex !== null) {
-      if (this.replaySourceState) {
-        this.renderer.clearTrails();
-        this.applyGameState(this.replaySourceState);
-        this.hud.updateHUD();
-      }
-      this.replayTimeline = null;
-      this.replayIndex = null;
-      this.replaySourceState = null;
-      this.updateReplayOverlay();
-      return;
-    }
-
-    if (this.ctx.isLocalGame) {
-      this.ui.overlay.showToast(
-        'Replay is only available for multiplayer matches right now.',
-        'info',
-      );
-      return;
-    }
-
-    const replaySelection = this.getReplaySelection();
-
-    if (!this.ctx.gameCode || !this.ctx.gameState?.gameId || !replaySelection) {
-      return;
-    }
-
-    this.ui.overlay.setReplayControls({
-      available: true,
-      active: false,
-      loading: true,
-      statusText: `Loading ${replaySelection.selectedGameId}...`,
-      selectedGameId: replaySelection.selectedGameId,
-      canSelectPrevMatch: replaySelection.selectedMatchNumber > 1,
-      canSelectNextMatch:
-        replaySelection.selectedMatchNumber < replaySelection.latestMatchNumber,
-      canStart: false,
-      canPrev: false,
-      canNext: false,
-      canEnd: false,
-    });
-
-    const timeline = await this.sessionApi.fetchReplay(
-      this.ctx.gameCode,
-      replaySelection.selectedGameId,
-    );
-
-    if (!timeline || timeline.entries.length === 0) {
-      this.ui.overlay.showToast('Replay unavailable for this match.', 'error');
-      this.updateReplayOverlay();
-      return;
-    }
-
-    this.replaySourceState = structuredClone(this.ctx.gameState);
-    this.replayTimeline = timeline;
-    this.replayIndex = timeline.entries.length - 1;
-    this.stepReplay('end');
-  }
-
-  private stepReplay(direction: 'start' | 'prev' | 'next' | 'end') {
-    if (!this.replayTimeline || this.replayIndex === null) {
-      return;
-    }
-
-    const maxIndex = this.replayTimeline.entries.length - 1;
-
-    switch (direction) {
-      case 'start':
-        this.replayIndex = 0;
-        break;
-      case 'prev':
-        this.replayIndex = Math.max(0, this.replayIndex - 1);
-        break;
-      case 'next':
-        this.replayIndex = Math.min(maxIndex, this.replayIndex + 1);
-        break;
-      case 'end':
-        this.replayIndex = maxIndex;
-        break;
-    }
-
-    const entry = this.replayTimeline.entries[this.replayIndex];
-
-    if (!entry) {
-      return;
-    }
-
-    this.renderer.clearTrails();
-    this.applyGameState(entry.message.state);
-    this.hud.updateHUD();
-    this.updateReplayOverlay();
-  }
 
   private toggleHelp() {
     this.ui.toggleHelpOverlay();

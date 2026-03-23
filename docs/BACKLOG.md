@@ -14,9 +14,10 @@ Lazy deps, presentation delegates, session HTTP calls,
 token persistence, local transport creation, and the
 main dependency-bag builders have been extracted to
 `action-deps.ts`, `session-api.ts`, `transport.ts`, and
-`main-deps.ts`. `main.ts` is now mostly bootstrap,
-constructor wiring, event routing, and thin
-delegation.
+`main-deps.ts`. The post-game replay flow now also
+lives in a dedicated `replay-controller.ts`. `main.ts`
+is now mostly bootstrap, constructor wiring, event
+routing, and thin delegation.
 
 Further shrinking should only happen where a real seam
 exists. The remaining candidates are UI-event routing,
