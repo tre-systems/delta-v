@@ -884,6 +884,18 @@ devices
 3. Click **EXIT** from the end screen — it should
    return cleanly to the menu.
 
+### 16g. Post-game replay selection
+
+1. Finish two matches in the same room so the latest
+   game ID advances to `...-m2`.
+2. On the game-over screen, use the replay match
+   selector to switch between `...-m1` and `...-m2`.
+3. Click **VIEW REPLAY** and verify start / prev /
+   next / end navigation updates the board state and
+   status label.
+4. Click **EXIT REPLAY** and verify the finished-match
+   screen restores the latest match outcome.
+
 **Pass:** Create, join, chat, reconnect, forfeit,
 and rematch all work correctly, and failure states
 are clearly communicated.

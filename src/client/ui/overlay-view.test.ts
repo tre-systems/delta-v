@@ -9,6 +9,17 @@ const installFixture = () => {
     <div id="gameOverText"></div>
     <div id="gameOverReason"></div>
     <div id="gameOverStats"></div>
+    <div id="replayStatus" style="display:none"></div>
+    <div id="replayControls" style="display:none"></div>
+    <button id="replayMatchPrevBtn"></button>
+    <span id="replayMatchLabel"></span>
+    <button id="replayMatchNextBtn"></button>
+    <button id="replayToggleBtn"></button>
+    <div id="replayNav" style="display:none"></div>
+    <button id="replayStartBtn"></button>
+    <button id="replayPrevBtn"></button>
+    <button id="replayNextBtn"></button>
+    <button id="replayEndBtn"></button>
     <button id="rematchBtn" disabled>Rematch</button>
     <div id="reconnectOverlay" style="display:none"></div>
     <div id="reconnectText"></div>
@@ -93,6 +104,55 @@ describe('OverlayView', () => {
       (document.getElementById('reconnectOverlay') as HTMLElement).style
         .display,
     ).toBe('none');
+  });
+
+  it('shows replay controls and updates navigation state', () => {
+    const view = createOverlayView();
+
+    view.showGameOver(true, 'Fleet eliminated!');
+    view.setReplayControls({
+      available: true,
+      active: true,
+      loading: false,
+      statusText: 'ABCDE-m1 • Turn 2',
+      selectedGameId: 'ABCDE-m1',
+      canSelectPrevMatch: false,
+      canSelectNextMatch: true,
+      canStart: false,
+      canPrev: false,
+      canNext: true,
+      canEnd: true,
+    });
+
+    expect(
+      (document.getElementById('replayControls') as HTMLElement).style.display,
+    ).not.toBe('none');
+    expect(
+      (document.getElementById('replayNav') as HTMLElement).style.display,
+    ).not.toBe('none');
+    expect(document.getElementById('replayStatus')?.textContent).toContain(
+      'ABCDE-m1',
+    );
+    expect(document.getElementById('replayMatchLabel')?.textContent).toBe(
+      'ABCDE-m1',
+    );
+    expect(document.getElementById('replayToggleBtn')?.textContent).toBe(
+      'Exit Replay',
+    );
+    expect(
+      (document.getElementById('replayMatchPrevBtn') as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(
+      (document.getElementById('replayMatchNextBtn') as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(
+      (document.getElementById('replayStartBtn') as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (document.getElementById('replayNextBtn') as HTMLButtonElement).disabled,
+    ).toBe(false);
   });
 
   it('shows toast and phase alert with timed cleanup', () => {

@@ -13,9 +13,16 @@ describe('ui-button-bindings', () => {
     );
   });
 
-  it('includes rematch and exit in the static button binding set', () => {
-    expect(STATIC_BUTTON_BINDINGS.slice(-2)).toEqual([
+  it('includes replay, rematch, and exit in the static button binding set', () => {
+    expect(STATIC_BUTTON_BINDINGS.slice(-9)).toEqual([
       { id: 'rematchBtn', event: { type: 'rematch' } },
+      { id: 'replayMatchPrevBtn', event: { type: 'replayMatchPrev' } },
+      { id: 'replayMatchNextBtn', event: { type: 'replayMatchNext' } },
+      { id: 'replayToggleBtn', event: { type: 'toggleReplay' } },
+      { id: 'replayStartBtn', event: { type: 'replayStart' } },
+      { id: 'replayPrevBtn', event: { type: 'replayPrev' } },
+      { id: 'replayNextBtn', event: { type: 'replayNext' } },
+      { id: 'replayEndBtn', event: { type: 'replayEnd' } },
       { id: 'exitBtn', event: { type: 'exit' } },
     ]);
   });
