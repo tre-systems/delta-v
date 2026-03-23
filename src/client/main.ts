@@ -358,9 +358,7 @@ class GameClient {
     const panel = byId('transferPanel');
 
     if (!this.logisticsUIState) return;
-    renderTransferPanel(panel, this.logisticsUIState, () =>
-      this.renderLogisticsPanel(),
-    );
+    renderTransferPanel(panel, this.logisticsUIState);
   }
 
   // --- Network ---
