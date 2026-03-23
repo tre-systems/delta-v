@@ -22,25 +22,14 @@ database_name = "delta-v-telemetry"
 database_id = "4339886a-2344-4b8a-b8bc-26aa22da79b6"
 migrations_dir = "migrations"
 
-# --- Match archive (optional, enables persistent replays) ---
-# Uncomment to archive completed matches to R2 for
-# post-game analysis and debugging. Without this, match
-# data is lost when the room goes inactive.
-#
-# [[r2_buckets]]
-# binding = "MATCH_ARCHIVE"
-# bucket_name = "delta-v-match-archive"
+[[r2_buckets]]
+binding = "MATCH_ARCHIVE"
+bucket_name = "delta-v-match-archive"
 
-# --- Rate limiting (optional, recommended for production) ---
-# Uncomment to enable edge-global rate limiting on /create.
-# Without this, the worker falls back to a per-isolate
-# in-memory limiter (5 req/IP/min). See docs/SECURITY.md.
-#
-# [[unsafe.bindings]]
-# name = "CREATE_RATE_LIMITER"
-# type = "ratelimit"
-# namespace_id = "1001"
-# simple = { period = 60, limit = 5 }
+[[ratelimits]]
+name = "CREATE_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 5, period = 60 }
 
 [observability]
 enabled = true
