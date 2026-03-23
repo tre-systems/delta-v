@@ -55,8 +55,15 @@ class MockStorage {
   async get<T>(key: string): Promise<T | undefined> {
     return this.data.get(key) as T | undefined;
   }
-  async put<T>(key: string, value: T): Promise<void> {
-    this.data.set(key, value);
+  async put<T>(key: string | Record<string, T>, value?: T): Promise<void> {
+    if (typeof key === 'string') {
+      this.data.set(key, value);
+      return;
+    }
+
+    for (const [entryKey, entryValue] of Object.entries(key)) {
+      this.data.set(entryKey, entryValue);
+    }
   }
   async delete(key: string): Promise<void> {
     this.data.delete(key);
@@ -642,7 +649,13 @@ describe('GameDO', () => {
     const trace: string[] = [];
     const originalPut = ctx.storage.put.bind(ctx.storage);
     vi.spyOn(ctx.storage, 'put').mockImplementation(async (key, value) => {
-      if (key.startsWith('events:SAVE1')) {
+      if (
+        (typeof key === 'string' && key.startsWith('events:SAVE1')) ||
+        (typeof key !== 'string' &&
+          Object.keys(key).some((entryKey) =>
+            entryKey.startsWith('events:SAVE1'),
+          ))
+      ) {
         trace.push('put:events');
       }
       await originalPut(key, value);

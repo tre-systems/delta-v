@@ -11,6 +11,12 @@
 export const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
+export const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+export const isString = (value: unknown): value is string =>
+  typeof value === 'string';
+
 // Pick a random element from a non-empty array.
 export const randomChoice = <T>(arr: readonly T[], rng: () => number): T =>
   arr[Math.floor(rng() * arr.length)];

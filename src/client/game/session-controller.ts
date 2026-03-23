@@ -73,7 +73,9 @@ export interface JoinGameSessionDeps {
   validateJoin: (
     code: string,
     playerToken: string | null,
-  ) => Promise<{ ok: true } | { ok: false; message: string }>;
+  ) => Promise<
+    { ok: true; playerToken: string | null } | { ok: false; message: string }
+  >;
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
   exitToMenu: () => void;
 }
@@ -171,8 +173,8 @@ export const beginJoinGameSession = async (
     return;
   }
 
-  if (effectiveToken) {
-    deps.storePlayerToken(code, effectiveToken);
+  if (validation.playerToken) {
+    deps.storePlayerToken(code, validation.playerToken);
   }
   deps.resetTurnTelemetry();
   setGameCode(deps.ctx, code);

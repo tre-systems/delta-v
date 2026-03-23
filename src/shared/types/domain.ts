@@ -13,7 +13,10 @@ export type Phase =
   | 'resupply'
   | 'gameOver';
 
+export const CURRENT_GAME_STATE_SCHEMA_VERSION = 1;
+
 export interface GameState {
+  schemaVersion?: number;
   gameId: string;
   scenario: string;
   scenarioRules: ScenarioRules;
@@ -181,6 +184,7 @@ export interface CelestialBody {
 export interface SolarSystemMap {
   hexes: Map<string, MapHex>;
   bodies: CelestialBody[];
+  gravityBodies?: Set<string>;
   bounds: {
     minQ: number;
     maxQ: number;

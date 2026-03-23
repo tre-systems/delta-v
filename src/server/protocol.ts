@@ -1,12 +1,9 @@
+import { isObject, isString } from '../shared/util';
+
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const TOKEN_CHARS =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const isString = (value: unknown): value is string => typeof value === 'string';
 
 const getRandomInt = (maxExclusive: number): number => {
   // Rejection sampling to avoid modulo bias
@@ -173,17 +170,6 @@ export const resolveSeatAssignment = (
       type: 'join',
       playerId: openSeat,
       issueNewToken: true,
-    };
-  }
-
-  // Once both seats are claimed, tokenless joins should
-  // get a stable "room unavailable" answer instead of
-  // leaking transient reconnect state.
-  if (seatOpen.some(Boolean) || input.disconnectedPlayer !== null) {
-    return {
-      type: 'reject',
-      status: 409,
-      message: 'Game is full',
     };
   }
 

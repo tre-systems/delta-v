@@ -4,6 +4,7 @@ import {
   buildGameRoute,
   buildJoinCheckUrl,
   buildWebSocketUrl,
+  deleteStoredPlayerToken,
   getStoredPlayerToken,
   loadTokenStore,
   pruneExpiredTokens,
@@ -32,8 +33,18 @@ describe('game client session helpers', () => {
   it('sets and reads player tokens', () => {
     const store = setStoredPlayerToken({}, 'ABCDE', 'pt-1', 100);
 
-    expect(getStoredPlayerToken(store, 'ABCDE')).toBe('pt-1');
+    expect(getStoredPlayerToken(store, 'ABCDE', 100)).toBe('pt-1');
     expect(store.ABCDE.ts).toBe(100);
+  });
+
+  it('treats expired stored tokens as missing and can delete them', () => {
+    const store = {
+      ABCDE: { playerToken: 'pt-1', ts: 100 },
+    };
+
+    expect(getStoredPlayerToken(store, 'ABCDE', 100)).toBe('pt-1');
+    expect(getStoredPlayerToken(store, 'ABCDE', 1000, 200)).toBeNull();
+    expect(deleteStoredPlayerToken(store, 'ABCDE')).toEqual({});
   });
 
   it('prunes expired entries before saving to storage', () => {

@@ -134,7 +134,7 @@ const createJoinGameDeps = (): JoinGameSessionDeps & {
     buildGameRoute: (code) => `/game/${code}`,
     connect: track('connect'),
     setState: track('setState'),
-    validateJoin: async () => ({ ok: true }),
+    validateJoin: async (_code, playerToken) => ({ ok: true, playerToken }),
     showToast: track('showToast'),
     exitToMenu: track('exitToMenu'),
     calls,
@@ -257,6 +257,17 @@ describe('session-controller', () => {
     expect(deps.calls.resetTurnTelemetry).toHaveLength(1);
     expect(deps.calls.replaceRoute).toEqual([['/game/FGHIJ']]);
     expect(deps.calls.setState).toEqual([['connecting']]);
+    expect(deps.calls.connect).toEqual([['FGHIJ']]);
+  });
+
+  it('does not re-store a token when join preflight falls back to tokenless access', async () => {
+    const deps = createJoinGameDeps();
+    deps.getStoredPlayerToken = () => 'stale-token';
+    deps.validateJoin = async () => ({ ok: true, playerToken: null });
+
+    await beginJoinGameSession(deps, 'FGHIJ');
+
+    expect(deps.calls.storePlayerToken).toBeUndefined();
     expect(deps.calls.connect).toEqual([['FGHIJ']]);
   });
 

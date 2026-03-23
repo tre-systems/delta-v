@@ -91,6 +91,28 @@ describe('ShipListView', () => {
     expect(onSelectShip).not.toHaveBeenCalled();
   });
 
+  it('removes stale row listeners when the list rerenders', () => {
+    const onSelectShip = vi.fn<(shipId: string) => void>();
+    const view = createShipListView({ onSelectShip });
+
+    view.update([createShip({ id: 'ship-0' })], null, new Map());
+
+    const staleEntry = document.querySelector<HTMLElement>(
+      '#shipList .ship-entry',
+    ) as HTMLElement;
+    const removeSpy = vi.spyOn(staleEntry, 'removeEventListener');
+
+    view.update([createShip({ id: 'ship-1' })], null, new Map());
+
+    expect(removeSpy).toHaveBeenCalledWith(
+      'click',
+      expect.any(Function),
+      undefined,
+    );
+    staleEntry.click();
+    expect(onSelectShip).not.toHaveBeenCalled();
+  });
+
   it('disposes the reactive render pipeline cleanly', () => {
     const view = createShipListView({
       onSelectShip: vi.fn(),

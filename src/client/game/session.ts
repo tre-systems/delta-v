@@ -61,8 +61,25 @@ export const saveTokenStore = (
 export const getStoredPlayerToken = (
   store: TokenStore,
   code: string,
+  now = Date.now(),
+  ttlMs = TOKEN_TTL_MS,
 ): string | null => {
-  return store[code]?.playerToken ?? null;
+  const entry = store[code];
+
+  if (!entry || now - entry.ts > ttlMs) {
+    return null;
+  }
+
+  return entry.playerToken ?? null;
+};
+
+export const deleteStoredPlayerToken = (
+  store: TokenStore,
+  code: string,
+): TokenStore => {
+  const { [code]: _removed, ...rest } = store;
+
+  return rest;
 };
 
 export const setStoredPlayerToken = (
