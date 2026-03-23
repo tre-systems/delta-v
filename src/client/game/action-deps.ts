@@ -37,6 +37,7 @@ export interface ActionDepsArgs {
   applyGameState: (state: GameState) => void;
   resetCombatState: () => void;
   transitionToPhase: () => void;
+  onGameOverShown: () => void;
   track: (event: string, props?: Record<string, unknown>) => void;
 }
 
@@ -55,6 +56,7 @@ export const createActionDeps = (args: ActionDepsArgs) => {
         resetCombatState: () => args.resetCombatState(),
         getGameState: args.getGameState,
         getPlayerId: args.getPlayerId,
+        onGameOverShown: () => args.onGameOverShown(),
         renderer: args.renderer,
         ui: args.ui,
       };

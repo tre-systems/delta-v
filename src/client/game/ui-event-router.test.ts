@@ -81,4 +81,22 @@ describe('game-client-ui-event-router', () => {
       event: 'scenario_browsed',
     });
   });
+
+  it('routes replay controls to replay plans', () => {
+    expect(resolveUIEventPlan({ type: 'replayMatchPrev' })).toEqual({
+      kind: 'selectReplayMatch',
+      direction: 'prev',
+    });
+    expect(resolveUIEventPlan({ type: 'replayMatchNext' })).toEqual({
+      kind: 'selectReplayMatch',
+      direction: 'next',
+    });
+    expect(resolveUIEventPlan({ type: 'toggleReplay' })).toEqual({
+      kind: 'toggleReplay',
+    });
+    expect(resolveUIEventPlan({ type: 'replayEnd' })).toEqual({
+      kind: 'replayNav',
+      direction: 'end',
+    });
+  });
 });

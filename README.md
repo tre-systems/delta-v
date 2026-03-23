@@ -178,7 +178,6 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] Shared rule consolidation, bounded type imports, authoritative disconnect-forfeit
 
 ### Planned
-- [ ] **Turn Replay**: Step through per-match recorded history with rematch selection
 - [ ] **Spectator Mode**: Read-only live battle viewing from public filtered projections
 - [ ] **Scenario Expansion**: Lateral 7, Fleet Mutiny, Retribution
 - [ ] **Passenger Rescue Mechanics**: Rescue-specific transfer and objective rules
