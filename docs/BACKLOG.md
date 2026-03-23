@@ -2,48 +2,6 @@
 
 Remaining work only. Completed items are in git history.
 
-## Release Readiness & Operability
-
-### Production hardening defaults
-
-The codebase now supports global create-rate limiting and
-match archiving, but the checked-in deployment config
-still treats both as optional comments. Before broader
-user onboarding, make the production path opinionated:
-configured rate limiting, persistent archive storage where
-replay / support need it, and an explicit documented
-fallback story for lower environments.
-
-Definition of done: production deployment config enables
-the intended hardening features by default, docs describe
-which environments may run without them, and deploy-time
-checks fail loudly when required bindings are missing.
-
-**Files:** `wrangler.toml`,
-`.github/workflows/ci.yml`,
-`docs/SECURITY.md`,
-`docs/ARCHITECTURE.md`
-
-### Network integration load / chaos tester
-
-Add the planned headless PvP bot stress harness for the
-Durable Object and websocket layer.
-
-This should validate room creation, live message flow,
-disconnect / reconnect behavior, and server stability
-under many concurrent matches without relying on manual
-multi-tab testing.
-
-Definition of done: a scripted load path can create many
-games, drive valid turns over websockets, inject
-disconnects, and report crash / timeout / reconnect
-failures clearly enough to use before releases.
-
-**Files:** `scripts/`, `src/server/index.ts`,
-`src/server/game-do/`
-
----
-
 ## Performance & UX
 
 ### OffscreenCanvas layer caching for renderer
