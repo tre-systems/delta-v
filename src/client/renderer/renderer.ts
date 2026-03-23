@@ -12,7 +12,6 @@ import type {
   GameState,
   MovementEvent,
   OrdnanceMovement,
-  Ship,
   ShipMovement,
   SolarSystemMap,
 } from '../../shared/types/domain';
@@ -102,6 +101,11 @@ export class Renderer {
   } | null = null;
   private combatEffects: CombatEffect[] = [];
   private hexFlashes: HexFlash[] = [];
+  private screenFlash: {
+    startTime: number;
+    duration: number;
+    color: string;
+  } | null = null;
 
   private movementEvents: {
     events: MovementEvent[];
@@ -335,37 +339,20 @@ export class Renderer {
     });
   }
 
-  // Trigger dramatic staggered explosions on the
-  // losing player's ships.
-  // Returns the total animation duration in ms.
-  triggerGameOverExplosions(ships: Ship[]): number {
+  // Trigger dramatic screen shake and flash for
+  // game-over. Returns the animation duration in ms.
+  triggerGameOverEffect(won: boolean): number {
     const now = performance.now();
-    const stagger = 250;
+    const color = won ? '#4488ff' : '#ff4444';
 
-    for (let i = 0; i < ships.length; i++) {
-      const p = hexToPixel(ships[i].position, HEX_SIZE);
-      const delay = i * stagger;
-      // Large dramatic explosion
-      this.combatEffects.push({
-        type: 'gameOverExplosion',
-        from: p,
-        to: p,
-        startTime: now + delay,
-        duration: 1500,
-        color: '#ff4444',
-      });
-      // Secondary orange ring slightly delayed
-      this.combatEffects.push({
-        type: 'gameOverExplosion',
-        from: p,
-        to: p,
-        startTime: now + delay + 200,
-        duration: 1200,
-        color: '#ff8800',
-      });
-    }
+    this.camera.shake(12, 3);
+    this.screenFlash = {
+      startTime: now,
+      duration: 600,
+      color,
+    };
 
-    return ships.length * stagger + 1500;
+    return 600;
   }
 
   // showPhaseBanner removed — DOM phase alert in
@@ -507,6 +494,20 @@ export class Renderer {
       this.renderCombatEffects(ctx, now);
     }
     ctx.restore();
+    // Full-screen flash overlay (screen-space)
+    if (
+      this.screenFlash &&
+      now < this.screenFlash.startTime + this.screenFlash.duration
+    ) {
+      const p = (now - this.screenFlash.startTime) / this.screenFlash.duration;
+      const alpha = (1 - p) * 0.35;
+      ctx.fillStyle = this.screenFlash.color;
+      ctx.globalAlpha = alpha;
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalAlpha = 1;
+    } else if (this.screenFlash) {
+      this.screenFlash = null;
+    }
     // Combat results toast (screen-space)
     if (this.combatResults && this.gameState) {
       if (now > this.combatResults.showUntil) {

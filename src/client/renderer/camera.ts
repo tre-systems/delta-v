@@ -13,6 +13,12 @@ export class Camera {
   private canvasW = 0;
   private canvasH = 0;
 
+  // Screen shake state
+  private shakeIntensity = 0;
+  private shakeDecay = 0;
+  private shakeOffsetX = 0;
+  private shakeOffsetY = 0;
+
   readonly minZoom = 0.15;
   readonly maxZoom = 4.0;
 
@@ -25,12 +31,35 @@ export class Camera {
     this.x += (this.targetX - this.x) * speed;
     this.y += (this.targetY - this.y) * speed;
     this.zoom += (this.targetZoom - this.zoom) * speed;
+
+    // Decay screen shake
+    if (this.shakeIntensity > 0.5) {
+      this.shakeIntensity *= 1 - this.shakeDecay * dt;
+      const angle = Math.random() * Math.PI * 2;
+      this.shakeOffsetX = Math.cos(angle) * this.shakeIntensity;
+      this.shakeOffsetY = Math.sin(angle) * this.shakeIntensity;
+    } else {
+      this.shakeIntensity = 0;
+      this.shakeOffsetX = 0;
+      this.shakeOffsetY = 0;
+    }
   }
 
   applyTransform(ctx: CanvasRenderingContext2D) {
-    ctx.translate(this.canvasW / 2, this.canvasH / 2);
+    ctx.translate(
+      this.canvasW / 2 + this.shakeOffsetX,
+      this.canvasH / 2 + this.shakeOffsetY,
+    );
     ctx.scale(this.zoom, this.zoom);
     ctx.translate(-this.x, -this.y);
+  }
+
+  // Trigger screen shake with given pixel intensity
+  // and decay rate (0-1 per second, higher = faster
+  // decay).
+  shake(intensity: number, decay = 4) {
+    this.shakeIntensity = intensity;
+    this.shakeDecay = decay;
   }
 
   screenToWorld(sx: number, sy: number): PixelCoord {

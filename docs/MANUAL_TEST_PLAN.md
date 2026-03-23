@@ -1057,12 +1057,18 @@ These complement manual testing and run in CI:
 | Command | What it checks |
 |---------|----------------|
 | `npm test` | Unit, property, and regression tests across engine, client, and server |
+| `npm run test:e2e` | Thin Playwright browser smoke coverage for boot, basic turn flow, mobile HUD/help, and core multiplayer join/chat/reconnect paths |
 | `npm run simulate -- all 25` | Engine stability / balance sweep across all 8 scenarios |
 | `npm run lint` | Code style |
 | `npm run typecheck` | Type safety |
 
 All must pass before any release, but they do **not**
 replace the manual experience checks above.
+
+Playwright is intentionally limited in scope. It should stay
+fast enough to run routinely, so it is not the place for full
+scenario walkthroughs, long-session UX checks, or detailed
+rule validation already covered by Vitest and simulation.
 
 ---
 

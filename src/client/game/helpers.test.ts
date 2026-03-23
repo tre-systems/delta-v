@@ -333,6 +333,12 @@ describe('game client helpers', () => {
       myShipsTotal: 2,
       enemyShipsAlive: 0,
       enemyShipsTotal: 1,
+      myShipsDestroyed: 1,
+      enemyShipsDestroyed: 1,
+      myFuelSpent: 0,
+      enemyFuelSpent: 0,
+      basesDestroyed: 0,
+      ordnanceInFlight: 0,
     });
   });
 

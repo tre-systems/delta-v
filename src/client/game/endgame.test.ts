@@ -76,40 +76,42 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
 });
 
 describe('game-client-endgame', () => {
-  it('derives victory presentation with surviving loser ships for animation', () => {
-    expect(
-      deriveGameOverPlan(createState(), 0, true, 'Fleet eliminated!'),
-    ).toEqual({
-      stats: {
-        turns: 7,
-        myShipsAlive: 1,
-        myShipsTotal: 2,
-        enemyShipsAlive: 1,
-        enemyShipsTotal: 2,
-      },
-      logText: 'VICTORY: Fleet eliminated!',
-      logClass: 'log-landed',
-      loserShipIds: ['p1a'],
-      resultSound: 'victory',
+  it('derives victory presentation with stats', () => {
+    const plan = deriveGameOverPlan(
+      createState(),
+      0,
+      true,
+      'Fleet eliminated!',
+    );
+
+    expect(plan.logText).toBe('VICTORY: Fleet eliminated!');
+    expect(plan.logClass).toBe('log-landed');
+    expect(plan.resultSound).toBe('victory');
+    expect(plan.stats).toMatchObject({
+      turns: 7,
+      myShipsAlive: 1,
+      myShipsTotal: 2,
+      enemyShipsAlive: 1,
+      enemyShipsTotal: 2,
+      myShipsDestroyed: 1,
+      enemyShipsDestroyed: 1,
     });
   });
 
   it('derives defeat presentation and falls back cleanly with no state', () => {
-    expect(
-      deriveGameOverPlan(createState(), 0, false, 'Transport destroyed'),
-    ).toMatchObject({
-      logText: 'DEFEAT: Transport destroyed',
-      logClass: 'log-eliminated',
-      loserShipIds: ['p0a'],
-      resultSound: 'defeat',
-    });
+    const defeatPlan = deriveGameOverPlan(
+      createState(),
+      0,
+      false,
+      'Transport destroyed',
+    );
+    expect(defeatPlan.logText).toBe('DEFEAT: Transport destroyed');
+    expect(defeatPlan.logClass).toBe('log-eliminated');
+    expect(defeatPlan.resultSound).toBe('defeat');
 
-    expect(deriveGameOverPlan(null, 0, true, 'Disconnected')).toEqual({
-      stats: undefined,
-      logText: 'VICTORY: Disconnected',
-      logClass: 'log-landed',
-      loserShipIds: [],
-      resultSound: 'victory',
-    });
+    const nullPlan = deriveGameOverPlan(null, 0, true, 'Disconnected');
+    expect(nullPlan.stats).toBeUndefined();
+    expect(nullPlan.logText).toBe('VICTORY: Disconnected');
+    expect(nullPlan.resultSound).toBe('victory');
   });
 });

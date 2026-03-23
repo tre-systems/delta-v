@@ -133,6 +133,22 @@ Get your thrusters firing locally in seconds:
 
 Pass simulation arguments after npm's `--`, for example `npm run simulate -- all 25 --ci`.
 
+### Test Strategy
+
+Delta-V uses three complementary automated test layers:
+
+- **Vitest** is the main regression net. Keep engine, protocol, client helper, and server logic covered with direct unit / property tests close to the source.
+- **AI simulation** (`npm run simulate`) covers scenario-wide engine stability and balance much more cheaply than browser automation.
+- **Playwright** stays intentionally small and fast. It is a **browser smoke suite**, not a full scenario matrix. Use it for a few end-to-end contracts that only a real browser can prove, such as booting the app, starting a match, basic multiplayer join/chat/reconnect, and other thin UI integration checks.
+
+When deciding where a new test belongs:
+
+- If the assertion is about rules, combat, movement, scenario logic, or protocol validation, prefer Vitest.
+- If the assertion is about broad scenario behavior over many turns, prefer headless simulation.
+- If the assertion requires a real browser, multiple pages, storage, layout, or websocket wiring, consider Playwright.
+
+Keep Playwright additions focused on browser-only risks so the suite remains fast and easy to maintain.
+
 ---
 
 ## 📜 Game Rules Reference

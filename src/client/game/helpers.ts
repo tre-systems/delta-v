@@ -21,6 +21,12 @@ export interface GameOverStats {
   myShipsTotal: number;
   enemyShipsAlive: number;
   enemyShipsTotal: number;
+  myShipsDestroyed: number;
+  enemyShipsDestroyed: number;
+  myFuelSpent: number;
+  enemyFuelSpent: number;
+  basesDestroyed: number;
+  ordnanceInFlight: number;
 }
 
 export interface HudViewModel {
@@ -278,18 +284,24 @@ export const getGameOverStats = (
   playerId: number,
 ): GameOverStats => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
-
   const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
+  const enemyId = 1 - playerId;
+
+  const myDestroyed = count(myShips, (s) => s.lifecycle === 'destroyed');
+  const enemyDestroyed = count(enemyShips, (s) => s.lifecycle === 'destroyed');
 
   return {
     turns: state.turnNumber,
-    myShipsAlive: count(myShips, (ship) => ship.lifecycle !== 'destroyed'),
+    myShipsAlive: myShips.length - myDestroyed,
     myShipsTotal: myShips.length,
-    enemyShipsAlive: count(
-      enemyShips,
-      (ship) => ship.lifecycle !== 'destroyed',
-    ),
+    enemyShipsAlive: enemyShips.length - enemyDestroyed,
     enemyShipsTotal: enemyShips.length,
+    myShipsDestroyed: myDestroyed,
+    enemyShipsDestroyed: enemyDestroyed,
+    myFuelSpent: state.players[playerId]?.totalFuelSpent ?? 0,
+    enemyFuelSpent: state.players[enemyId]?.totalFuelSpent ?? 0,
+    basesDestroyed: state.destroyedBases.length,
+    ordnanceInFlight: count(state.ordnance, (o) => o.lifecycle === 'active'),
   };
 };
 

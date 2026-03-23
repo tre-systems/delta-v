@@ -6,7 +6,6 @@ import type {
   GameState,
   MovementEvent,
   OrdnanceMovement,
-  Ship,
   ShipMovement,
 } from '../../shared/types/domain';
 import {
@@ -37,13 +36,19 @@ export interface PresentationDeps {
       results: CombatResult[],
       previousState?: GameState | null,
     ) => void;
-    triggerGameOverExplosions: (ships: Ship[]) => number;
+    triggerGameOverEffect: (won: boolean) => number;
     showLandingEffect: (hex: HexCoord) => void;
   };
   ui: {
     log: {
-      logMovementEvents: (events: MovementEvent[], ships: Ship[]) => void;
-      logCombatResults: (results: CombatResult[], ships: Ship[]) => void;
+      logMovementEvents: (
+        events: MovementEvent[],
+        ships: GameState['ships'],
+      ) => void;
+      logCombatResults: (
+        results: CombatResult[],
+        ships: GameState['ships'],
+      ) => void;
       logText: (text: string, cssClass?: string) => void;
       logLanding: (shipName: string, bodyName: string) => void;
     };
@@ -158,24 +163,9 @@ export const showGameOverOutcome = (
   const playerId = deps.getPlayerId();
   const plan = deriveGameOverPlan(gameState, playerId, won, reason);
   deps.ui.log.logText(plan.logText, plan.logClass);
-  const loserShips =
-    gameState?.ships.filter((ship: Ship) =>
-      plan.loserShipIds.includes(ship.id),
-    ) ?? [];
 
-  if (loserShips.length === 0) {
-    deps.ui.overlay.showGameOver(won, reason, plan.stats);
+  const effectDuration = deps.renderer.triggerGameOverEffect(won);
 
-    if (plan.resultSound === 'victory') {
-      playVictory();
-    } else {
-      playDefeat();
-    }
-    return;
-  }
-
-  playExplosion();
-  const animDuration = deps.renderer.triggerGameOverExplosions(loserShips);
   setTimeout(() => {
     deps.ui.overlay.showGameOver(won, reason, plan.stats);
 
@@ -184,5 +174,5 @@ export const showGameOverOutcome = (
     } else {
       playDefeat();
     }
-  }, animDuration);
+  }, effectDuration);
 };

@@ -58,6 +58,7 @@ const installFixture = () => {
     <div id="logLatestText"></div>
     <div id="gameOverText"></div>
     <div id="gameOverReason"></div>
+    <div id="gameOverStats"></div>
     <div id="reconnectOverlay"></div>
     <div id="reconnectText"></div>
     <div id="reconnectAttempt"></div>

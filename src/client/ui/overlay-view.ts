@@ -5,18 +5,15 @@ import {
   buildGameOverView,
   buildReconnectView,
   buildRematchPendingView,
+  type GameOverStatsLike,
 } from './screens';
 
-interface GameOverStats {
-  turns: number;
-  myShipsAlive: number;
-  myShipsTotal: number;
-  enemyShipsAlive: number;
-  enemyShipsTotal: number;
-}
-
 export interface OverlayView {
-  showGameOver: (won: boolean, reason: string, stats?: GameOverStats) => void;
+  showGameOver: (
+    won: boolean,
+    reason: string,
+    stats?: GameOverStatsLike,
+  ) => void;
   showRematchPending: () => void;
   showReconnecting: (
     attempt: number,
@@ -68,17 +65,44 @@ export const createOverlayView = (): OverlayView => {
     }),
   );
 
+  const gameOverStatsEl = byId('gameOverStats');
+
   const showGameOver = (
     won: boolean,
     reason: string,
-    stats?: GameOverStats,
+    stats?: GameOverStatsLike,
   ): void => {
     const view = buildGameOverView(won, reason, stats);
 
-    show(gameOverEl, 'flex');
     gameOverTextEl.textContent = view.titleText;
+    gameOverTextEl.className = won ? 'game-over-victory' : 'game-over-defeat';
     gameOverReasonEl.textContent = view.reasonText;
-    gameOverReasonEl.style.whiteSpace = 'pre-line';
+
+    // Render stat lines
+    gameOverStatsEl.innerHTML = '';
+    for (const line of view.statLines) {
+      const row = el('div', { class: 'stat-row' });
+      row.appendChild(
+        el('span', {
+          class: 'stat-label',
+          text: line.label,
+        }),
+      );
+      row.appendChild(
+        el('span', {
+          class: 'stat-value',
+          text: line.value,
+        }),
+      );
+      gameOverStatsEl.appendChild(row);
+    }
+
+    // Entrance animation
+    gameOverEl.classList.remove('game-over-enter');
+    show(gameOverEl, 'flex');
+    void gameOverEl.offsetWidth;
+    gameOverEl.classList.add('game-over-enter');
+
     rematchBtn.textContent = view.rematchText;
     rematchBtn.removeAttribute('disabled');
   };
