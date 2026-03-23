@@ -259,47 +259,52 @@ describe('Renderer initialization and state methods', () => {
   // The Renderer class requires an HTMLCanvasElement with a 2d context.
   // In node/vitest, we use a minimal mock that satisfies the constructor.
 
+  const createMockContext = () => ({
+    fillRect: vi.fn(),
+    strokeRect: vi.fn(),
+    clearRect: vi.fn(),
+    beginPath: vi.fn(),
+    closePath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    arc: vi.fn(),
+    roundRect: vi.fn(),
+    fill: vi.fn(),
+    stroke: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    translate: vi.fn(),
+    scale: vi.fn(),
+    rotate: vi.fn(),
+    setTransform: vi.fn(),
+    drawImage: vi.fn(),
+    measureText: vi.fn(() => ({ width: 0 })),
+    fillText: vi.fn(),
+    strokeText: vi.fn(),
+    createLinearGradient: vi.fn(() => ({
+      addColorStop: vi.fn(),
+    })),
+    createRadialGradient: vi.fn(() => ({
+      addColorStop: vi.fn(),
+    })),
+    canvas: { width: 800, height: 600 },
+    fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 1,
+    globalAlpha: 1,
+    font: '',
+    textAlign: '',
+    textBaseline: '',
+    lineCap: '',
+    lineJoin: '',
+    shadowBlur: 0,
+    shadowColor: '',
+    globalCompositeOperation: '',
+    setLineDash: vi.fn(),
+  });
+
   const createMockCanvas = () => {
-    const ctx = {
-      fillRect: vi.fn(),
-      clearRect: vi.fn(),
-      beginPath: vi.fn(),
-      closePath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      arc: vi.fn(),
-      fill: vi.fn(),
-      stroke: vi.fn(),
-      save: vi.fn(),
-      restore: vi.fn(),
-      translate: vi.fn(),
-      scale: vi.fn(),
-      setTransform: vi.fn(),
-      drawImage: vi.fn(),
-      measureText: vi.fn(() => ({ width: 0 })),
-      fillText: vi.fn(),
-      strokeText: vi.fn(),
-      createLinearGradient: vi.fn(() => ({
-        addColorStop: vi.fn(),
-      })),
-      createRadialGradient: vi.fn(() => ({
-        addColorStop: vi.fn(),
-      })),
-      canvas: { width: 800, height: 600 },
-      fillStyle: '',
-      strokeStyle: '',
-      lineWidth: 1,
-      globalAlpha: 1,
-      font: '',
-      textAlign: '',
-      textBaseline: '',
-      lineCap: '',
-      lineJoin: '',
-      shadowBlur: 0,
-      shadowColor: '',
-      globalCompositeOperation: '',
-      setLineDash: vi.fn(),
-    };
+    const ctx = createMockContext();
 
     return {
       width: 800,
@@ -387,5 +392,163 @@ describe('Renderer initialization and state methods', () => {
     // Call clearTrails — should not throw even
     // when no trails have been added
     expect(() => renderer.clearTrails()).not.toThrow();
+  });
+
+  it('reuses the static scene layer when camera and state are unchanged', async () => {
+    vi.resetModules();
+    const staticCalls = {
+      renderStars: vi.fn(),
+      renderHexGrid: vi.fn(),
+      renderAsteroids: vi.fn(),
+      renderGravityIndicators: vi.fn(),
+      renderBodies: vi.fn(),
+    };
+
+    vi.doMock('./scene', async () => {
+      const actual = await vi.importActual<typeof import('./scene')>('./scene');
+
+      return {
+        ...actual,
+        renderStars: vi.fn((...args: Parameters<typeof actual.renderStars>) => {
+          staticCalls.renderStars();
+          return actual.renderStars(...args);
+        }),
+        renderHexGrid: vi.fn(
+          (...args: Parameters<typeof actual.renderHexGrid>) => {
+            staticCalls.renderHexGrid();
+            return actual.renderHexGrid(...args);
+          },
+        ),
+        renderAsteroids: vi.fn(
+          (...args: Parameters<typeof actual.renderAsteroids>) => {
+            staticCalls.renderAsteroids();
+            return actual.renderAsteroids(...args);
+          },
+        ),
+        renderGravityIndicators: vi.fn(
+          (...args: Parameters<typeof actual.renderGravityIndicators>) => {
+            staticCalls.renderGravityIndicators();
+            return actual.renderGravityIndicators(...args);
+          },
+        ),
+        renderBodies: vi.fn(
+          (...args: Parameters<typeof actual.renderBodies>) => {
+            staticCalls.renderBodies();
+            return actual.renderBodies(...args);
+          },
+        ),
+      };
+    });
+
+    const offscreenCtx = createMockContext();
+
+    vi.stubGlobal(
+      'OffscreenCanvas',
+      class {
+        width: number;
+        height: number;
+        constructor(width: number, height: number) {
+          this.width = width;
+          this.height = height;
+        }
+        getContext() {
+          return offscreenCtx;
+        }
+      },
+    );
+
+    const { Renderer } = await import('./renderer');
+    const canvas = createMockCanvas();
+    const renderer = new Renderer(
+      canvas as unknown as HTMLCanvasElement,
+      createPlanningState(),
+    );
+    const map = buildSolarSystemMap();
+    const state = createGame(SCENARIOS.biplanetary, map, 'REND2', findBaseHex);
+
+    renderer.setMap(map);
+    renderer.setGameState(state);
+    const renderFrame = Reflect.get(renderer, 'render').bind(renderer) as (
+      now: number,
+      width: number,
+      height: number,
+    ) => void;
+
+    renderFrame(1000, 800, 600);
+    renderFrame(1100, 800, 600);
+
+    expect(staticCalls.renderStars).toHaveBeenCalledTimes(1);
+    expect(staticCalls.renderHexGrid).toHaveBeenCalledTimes(1);
+    expect(staticCalls.renderAsteroids).toHaveBeenCalledTimes(1);
+    expect(staticCalls.renderGravityIndicators).toHaveBeenCalledTimes(1);
+    expect(staticCalls.renderBodies).toHaveBeenCalledTimes(1);
+    expect(canvas.ctx.drawImage).toHaveBeenCalledTimes(2);
+
+    vi.unstubAllGlobals();
+    vi.doUnmock('./scene');
+  });
+
+  it('invalidates the static scene layer when the camera changes', async () => {
+    vi.resetModules();
+    const staticCalls = {
+      renderStars: vi.fn(),
+    };
+
+    vi.doMock('./scene', async () => {
+      const actual = await vi.importActual<typeof import('./scene')>('./scene');
+
+      return {
+        ...actual,
+        renderStars: vi.fn((...args: Parameters<typeof actual.renderStars>) => {
+          staticCalls.renderStars();
+          return actual.renderStars(...args);
+        }),
+      };
+    });
+
+    const offscreenCtx = createMockContext();
+
+    vi.stubGlobal(
+      'OffscreenCanvas',
+      class {
+        width: number;
+        height: number;
+        constructor(width: number, height: number) {
+          this.width = width;
+          this.height = height;
+        }
+        getContext() {
+          return offscreenCtx;
+        }
+      },
+    );
+
+    const { Renderer } = await import('./renderer');
+    const canvas = createMockCanvas();
+    const renderer = new Renderer(
+      canvas as unknown as HTMLCanvasElement,
+      createPlanningState(),
+    );
+    const map = buildSolarSystemMap();
+
+    renderer.setMap(map);
+    renderer.setGameState(
+      createGame(SCENARIOS.biplanetary, map, 'REND3', findBaseHex),
+    );
+    const renderFrame = Reflect.get(renderer, 'render').bind(renderer) as (
+      now: number,
+      width: number,
+      height: number,
+    ) => void;
+
+    renderFrame(1000, 800, 600);
+    renderer.camera.x = 12;
+    renderer.camera.y = 8;
+    renderFrame(1100, 800, 600);
+
+    expect(staticCalls.renderStars).toHaveBeenCalledTimes(2);
+
+    vi.unstubAllGlobals();
+    vi.doUnmock('./scene');
   });
 });
