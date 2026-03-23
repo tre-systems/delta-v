@@ -110,8 +110,12 @@ export type EngineEvent =
       type: 'ordnanceLaunched';
       ordnanceId: string;
       ordnanceType: string;
+      owner: number;
       sourceShipId: string;
       position: HexCoord;
+      velocity: HexVec;
+      turnsRemaining: number;
+      pendingGravityEffects: GravityEffect[];
     }
   | {
       type: 'ordnanceDetonated';

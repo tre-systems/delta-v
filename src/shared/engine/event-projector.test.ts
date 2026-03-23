@@ -152,11 +152,13 @@ describe('projectMatchSetupFromStream', () => {
           ts: 2,
           actor: 0,
           event: {
-            type: 'ordnanceLaunched',
+            type: 'ordnanceDetonated',
             ordnanceId: 'ord1',
             ordnanceType: 'mine',
-            sourceShipId: 'p0s0',
-            position: { q: 0, r: 0 },
+            hex: { q: 0, r: 0 },
+            roll: 6,
+            damageType: 'eliminated',
+            disabledTurns: 0,
           },
         },
       ],
@@ -165,7 +167,7 @@ describe('projectMatchSetupFromStream', () => {
 
     expect(projected).toEqual({
       ok: false,
-      error: 'unsupported setup event: ordnanceLaunched',
+      error: 'unsupported setup event: ordnanceDetonated',
     });
   });
 
@@ -333,5 +335,59 @@ describe('projectMatchSetupFromStream', () => {
     expect(player1Ship?.position).toEqual({ q: 9, r: -7 });
     expect(player1Ship?.lifecycle).toBe('destroyed');
     expect(player1Ship?.velocity).toEqual({ dq: 0, dr: 0 });
+  });
+
+  it('applies ordnance launch and expiry events', () => {
+    const projected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: 'BIPLA-m1',
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Bi-Planetary',
+            turn: 1,
+            phase: 'astrogation',
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'ordnanceLaunched',
+            ordnanceId: 'ord1',
+            ordnanceType: 'mine',
+            owner: 0,
+            sourceShipId: 'p0s0',
+            position: { q: -9, r: -4 },
+            velocity: { dq: 0, dr: 0 },
+            turnsRemaining: 5,
+            pendingGravityEffects: [],
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 3,
+          ts: 3,
+          actor: 0,
+          event: {
+            type: 'ordnanceExpired',
+            ordnanceId: 'ord1',
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) {
+      return;
+    }
+
+    expect(projected.state.ordnance).toHaveLength(0);
   });
 });

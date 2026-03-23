@@ -273,8 +273,12 @@ export const processOrdnance = (
       type: 'ordnanceLaunched',
       ordnanceId: ordId,
       ordnanceType: launch.ordnanceType,
+      owner: playerId,
       sourceShipId: ship.id,
       position: { ...ship.position },
+      velocity: { ...velocity },
+      turnsRemaining: ORDNANCE_LIFETIME,
+      pendingGravityEffects: [],
     });
 
     ship.cargoUsed += mass;
