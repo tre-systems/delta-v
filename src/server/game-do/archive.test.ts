@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { aiAstrogation, aiCombat, aiOrdnance } from '../../shared/ai';
 import { processOrdnance, skipOrdnance } from '../../shared/engine/astrogation';
 import { processCombat } from '../../shared/engine/combat';
-import type { EngineEvent } from '../../shared/engine/engine-events';
+import type {
+  EngineEvent,
+  EventEnvelope,
+} from '../../shared/engine/engine-events';
 import {
   createGame,
   processAstrogation,
@@ -19,6 +22,7 @@ import {
   getCheckpoint,
   getEventStream,
   getEventStreamLength,
+  getEventStreamTail,
   getProjectedCurrentState,
   getProjectedCurrentStateRaw,
   getProjectedReplayTimeline,
@@ -246,6 +250,80 @@ describe('match-scoped event stream', () => {
 
     const stream = await getEventStream(storage, 'SYS-m1');
     expect(stream[0].actor).toBeNull();
+  });
+
+  it('spills appends across chunk boundaries without losing sequence', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+
+    await appendEnvelopedEvents(
+      storage,
+      'CHUNK-m1',
+      0,
+      ...Array.from({ length: 70 }, (_, index) => ({
+        type: 'shipLanded' as const,
+        shipId: `s${index}`,
+      })),
+    );
+
+    const stream = await getEventStream(storage, 'CHUNK-m1');
+
+    expect(stream).toHaveLength(70);
+    expect(stream[0].seq).toBe(1);
+    expect(stream[63].seq).toBe(64);
+    expect(stream[64].seq).toBe(65);
+    expect(stream[69].seq).toBe(70);
+    expect(await getEventStreamLength(storage, 'CHUNK-m1')).toBe(70);
+  });
+
+  it('reads only the requested tail from chunked storage', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+
+    await appendEnvelopedEvents(
+      storage,
+      'TAIL-READ-m1',
+      0,
+      ...Array.from({ length: 70 }, (_, index) => ({
+        type: 'shipLanded' as const,
+        shipId: `tail-${index}`,
+      })),
+    );
+
+    const tail = await getEventStreamTail(storage, 'TAIL-READ-m1', 64);
+
+    expect(tail).toHaveLength(6);
+    expect(tail[0].seq).toBe(65);
+    expect(tail.at(-1)?.seq).toBe(70);
+  });
+
+  it('lazily migrates legacy array-backed streams before appending', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+
+    await storage.put<EventEnvelope[]>('events:LEGACY-m1', [
+      {
+        gameId: 'LEGACY-m1',
+        seq: 1,
+        ts: 1000,
+        actor: null,
+        event: {
+          type: 'gameCreated',
+          scenario: 'duel',
+          turn: 1,
+          phase: 'astrogation',
+        },
+      },
+    ]);
+
+    await appendEnvelopedEvents(storage, 'LEGACY-m1', 0, {
+      type: 'shipLanded',
+      shipId: 'legacy-ship',
+    });
+
+    const stream = await getEventStream(storage, 'LEGACY-m1');
+
+    expect(stream).toHaveLength(2);
+    expect(stream[0].seq).toBe(1);
+    expect(stream[1].seq).toBe(2);
+    expect(await getEventStreamLength(storage, 'LEGACY-m1')).toBe(2);
   });
 
   it('envelope structure matches EventEnvelope interface', async () => {
