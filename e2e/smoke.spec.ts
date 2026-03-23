@@ -175,9 +175,7 @@ test.describe('browser smoke tests', () => {
     await intruder.fill('#codeInput', roomCode);
     await intruder.click('#joinBtn');
 
-    await expect(intruder.locator('#toastContainer')).toContainText(
-      /Game is full|Player token required for reconnection|Waiting for player reconnection/,
-    );
+    await expect(intruder.locator('#toastContainer')).toContainText('Game is full');
     await waitForDisplay(intruder, '#menu', 'flex');
 
     await host.close();

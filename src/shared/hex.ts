@@ -65,8 +65,6 @@ const axialToCube = ({ q, r }: HexCoord): CubeCoord => ({
   s: -q - r,
 });
 
-const _cubeToAxial = ({ q, r }: CubeCoord): HexCoord => ({ q, r });
-
 export const cubeRound = (fq: number, fr: number, fs: number): HexCoord => {
   let q = Math.round(fq);
   let r = Math.round(fr);

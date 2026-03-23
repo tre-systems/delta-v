@@ -273,7 +273,7 @@ describe('seat assignment', () => {
     });
   });
 
-  it('requires the stored token to reclaim a disconnected seat', () => {
+  it('rejects tokenless reclaim attempts with a consistent full-room message', () => {
     expect(
       resolveSeatAssignment({
         presentedToken: null,
@@ -283,8 +283,8 @@ describe('seat assignment', () => {
       }),
     ).toEqual({
       type: 'reject',
-      status: 403,
-      message: 'Player token required for reconnection',
+      status: 409,
+      message: 'Game is full',
     });
 
     expect(
@@ -331,7 +331,7 @@ describe('seat assignment', () => {
     });
   });
 
-  it('reports waiting for reconnection when disconnected player exists but no seats open', () => {
+  it('uses the same full-room message while a disconnected player owns a seat', () => {
     expect(
       resolveSeatAssignment({
         presentedToken: null,
@@ -342,7 +342,7 @@ describe('seat assignment', () => {
     ).toEqual({
       type: 'reject',
       status: 409,
-      message: 'Waiting for player reconnection',
+      message: 'Game is full',
     });
   });
 

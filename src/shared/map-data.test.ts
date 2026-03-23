@@ -137,7 +137,7 @@ describe('findBaseHex / findBaseHexes', () => {
 });
 describe('SCENARIOS', () => {
   it('all scenarios have valid player definitions', () => {
-    for (const [_name, scenario] of Object.entries(SCENARIOS)) {
+    for (const scenario of Object.values(SCENARIOS)) {
       expect(scenario.players.length).toBeGreaterThanOrEqual(2);
       expect(scenario.name).toBeTruthy();
       expect(scenario.description).toBeTruthy();

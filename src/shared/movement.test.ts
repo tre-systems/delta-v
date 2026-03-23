@@ -348,7 +348,6 @@ describe('computeCourse - gravity', () => {
 describe('computeCourse - weak gravity', () => {
   it('player can ignore single weak gravity hex', () => {
     // Luna has weak gravity at distance 1
-    const _lunaCenter = { q: 13, r: -9 };
     const lunaGravHex = { q: 12, r: -9 }; // W of Luna
     const hex = map.hexes.get(hexKey(lunaGravHex));
     if (hex?.gravity?.strength !== 'weak') {
@@ -391,7 +390,6 @@ describe('computeCourse - crash detection', () => {
     expect(course.crashBody).toBe('Sol');
   });
   it('ship passing through planet body crashes', () => {
-    const _venusCenter = { q: -7, r: 7 };
     const ship = makeShip({
       position: { q: -7, r: 5 },
       velocity: { dq: 0, dr: 2 },

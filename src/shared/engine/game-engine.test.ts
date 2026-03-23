@@ -2039,9 +2039,7 @@ describe('landed ship immunity', () => {
     attacker.position = { q: -10, r: 0 };
     attacker.lastMovementPath = [{ q: -10, r: 0 }];
     attacker.velocity = { dq: 0, dr: 0 };
-    const _result = resolveAstrogationMovement(state, 0, [
-      { shipId: attacker.id, burn: null },
-    ]);
+    resolveAstrogationMovement(state, 0, [{ shipId: attacker.id, burn: null }]);
     // Mine should not have hit the landed ship
     expect(target.lifecycle).toBe('landed');
     expect(target.damage.disabledTurns).toBe(0);
@@ -2111,9 +2109,7 @@ describe('landed ship immunity', () => {
     state.phase = 'astrogation';
     attacker.position = { q: 4, r: 0 };
     attacker.lastMovementPath = [{ q: 4, r: 0 }];
-    const _result = resolveAstrogationMovement(state, 0, [
-      { shipId: attacker.id, burn: null },
-    ]);
+    resolveAstrogationMovement(state, 0, [{ shipId: attacker.id, burn: null }]);
     // Landed target should be immune to ramming
     expect(target.lifecycle).toBe('landed');
     expect(target.damage.disabledTurns).toBe(0);
@@ -2891,7 +2887,7 @@ describe('Grand Tour', () => {
     ship1.position = { q: 1, r: 0 };
     ship1.lifecycle = 'active';
     ship1.velocity = { dq: 0, dr: 0 };
-    const _result = processAstrogation(
+    processAstrogation(
       tourState,
       0,
       [{ shipId: ship0.id, burn: null }],

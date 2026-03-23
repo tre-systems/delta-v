@@ -313,7 +313,7 @@ describe('Renderer initialization and state methods', () => {
         width: 800,
         height: 600,
       })),
-      _ctx: ctx,
+      ctx: ctx,
     };
   };
 
