@@ -11,77 +11,6 @@ with the feature, not as a cleanup pass afterward.
 
 ---
 
-## Review Follow-ups
-
-### Persist inactivity deadlines safely across DO hibernation
-
-`touchInactivity()` currently relies on an in-memory
-deadline cache between periodic storage flushes. That
-is unsafe for a hibernatable Durable Object because the
-newest deadline can be lost while an older stored alarm
-remains scheduled.
-
-Definition of done: the inactivity timeout survives
-hibernation without expiring early after recent
-traffic, and tests cover alarm behavior when the
-persisted deadline lags behind the last observed
-message.
-
-**Files:** `src/server/game-do/game-do.ts`,
-`src/server/game-do/session.ts`,
-`src/server/game-do/game-do.test.ts`
-
-### Record authoritative event actors explicitly
-
-`publishStateChange()` currently envelopes engine
-events using the post-transition `activePlayer`. That
-breaks actor provenance for turn-ending commands and
-system-driven actions such as disconnect forfeits and
-turn timeouts.
-
-Definition of done: player actions record the acting
-seat, system actions record `null`, and tests cover
-turn advance, timeout, and disconnect-forfeit paths.
-
-**Files:** `src/server/game-do/game-do.ts`,
-`src/server/game-do/archive.ts`,
-`src/server/game-do/archive.test.ts`,
-`src/shared/engine/engine-events.ts`
-
-### Make archived replays retrievable after room cleanup
-
-Completed matches are copied to R2, but replay fetches
-still read only Durable Object local storage. Once
-inactivity cleanup runs, archived matches become
-unreachable even though a persisted copy exists.
-
-Definition of done: replay fetch falls back to the
-archived store after local cleanup, auth still respects
-player visibility, and tests cover current-match and
-archived-match retrieval.
-
-**Files:** `src/server/game-do/game-do.ts`,
-`src/server/game-do/match-archive.ts`,
-`src/server/game-do/game-do.test.ts`,
-`src/server/index.ts`
-
-### Store match creation time independently from checkpoints
-
-Match archive metadata currently derives `createdAt`
-from the latest checkpoint timestamp. That drifts
-forward over long matches and makes duration analytics
-incorrect.
-
-Definition of done: match creation time is written once
-at match init, reused by archive export, and covered by
-tests across rematches and long-running games.
-
-**Files:** `src/server/game-do/game-do.ts`,
-`src/server/game-do/match-archive.ts`,
-`src/server/game-do/match-archive.test.ts`
-
----
-
 ## Client Boundary Cleanup
 
 ### Continue shrinking `GameClient` into a composition root
@@ -91,18 +20,18 @@ wiring rather than growing a larger class-shaped
 coordinator.
 
 Lazy deps, presentation delegates, session HTTP calls,
-token persistence, and the local transport factory have
-been extracted to `action-deps.ts`, `session-api.ts`,
-and `transport.ts`. `main.ts` is now ~600 LOC. The
-remaining code is imports, constructor wiring, event
-routing, and thin delegation — appropriate for a
-composition root.
+token persistence, local transport creation, and the
+main dependency-bag builders have been extracted to
+`action-deps.ts`, `session-api.ts`, `transport.ts`, and
+`main-deps.ts`. `main.ts` is now mostly bootstrap,
+constructor wiring, event routing, and thin
+delegation.
 
-Further shrinking would target `handleMessage()` deps
-building (~35 LOC), `handleUIEvent()` routing (~25 LOC),
-or the game-flow orchestration cluster (~55 LOC), but
-these are diminishing returns since they are genuine
-composition root responsibilities.
+Further shrinking should only happen where a real seam
+exists. The remaining candidates are UI-event routing,
+the local game-flow cluster, or other repeated
+composition glue that can move out without turning the
+composition root into indirection for its own sake.
 
 **Files:** `src/client/main.ts`,
 `src/client/game/`, `src/client/ui/ui.ts`

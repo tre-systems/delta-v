@@ -1,7 +1,7 @@
 import type { HexCoord, HexVec } from '../hex';
 import type { Phase } from '../types';
 
-/** Granular domain events emitted by engine functions. */
+// Granular domain events emitted by engine functions.
 export type EngineEvent =
   // Game lifecycle
   | {
@@ -153,7 +153,7 @@ export type EngineEvent =
       body: string;
     };
 
-/** Versioned event envelope for match-scoped persistence. */
+// Versioned event envelope for match-scoped persistence.
 export interface EventEnvelope {
   gameId: string;
   seq: number;

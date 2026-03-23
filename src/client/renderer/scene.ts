@@ -1,8 +1,6 @@
-/**
- * Map/scene-level Canvas drawing: stars, hex grid, gravity indicators,
- * bodies, base markers, map border, asteroids, landing targets, detection ranges.
- * Pure functions extracted from Renderer — no class state dependencies.
- */
+// Map/scene-level Canvas drawing: stars, hex grid, gravity indicators,
+// bodies, base markers, map border, asteroids, landing targets, detection ranges.
+// Pure functions extracted from Renderer — no class state dependencies.
 
 import { must } from '../../shared/assert';
 import {

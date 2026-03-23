@@ -1,7 +1,5 @@
-/**
- * Procedural sound effects using Web Audio API.
- * No audio assets needed — everything is synthesized.
- */
+// Procedural sound effects using Web Audio API.
+// No audio assets needed — everything is synthesized.
 
 let ctx: AudioContext | null = null;
 let muted = false;
@@ -29,7 +27,7 @@ const getCtx = (): AudioContext | null => {
   return ctx;
 };
 
-/** Resume audio context after user gesture (required by browsers). */
+// Resume audio context after user gesture (required by browsers).
 export const initAudio = () => {
   // Load saved mute preference
   try {
@@ -50,7 +48,7 @@ export const initAudio = () => {
   document.addEventListener('touchstart', resume);
 };
 
-/** Short blip for UI interactions (button clicks, selections). */
+// Short blip for UI interactions (button clicks, selections).
 export const playSelect = () => {
   const ac = getCtx();
   if (!ac) return;
@@ -72,7 +70,7 @@ export const playSelect = () => {
   osc.stop(ac.currentTime + 0.1);
 };
 
-/** Confirm/submit sound — ascending tone. */
+// Confirm/submit sound — ascending tone.
 export const playConfirm = () => {
   const ac = getCtx();
   if (!ac) return;
@@ -94,7 +92,7 @@ export const playConfirm = () => {
   osc.stop(ac.currentTime + 0.2);
 };
 
-/** Thruster sound for movement. */
+// Thruster sound for movement.
 export const playThrust = () => {
   const ac = getCtx();
   if (!ac) return;
@@ -125,7 +123,7 @@ export const playThrust = () => {
   src.start(ac.currentTime);
 };
 
-/** Laser/beam sound for combat. */
+// Laser/beam sound for combat.
 export const playCombat = () => {
   const ac = getCtx();
   if (!ac) return;
@@ -147,7 +145,7 @@ export const playCombat = () => {
   osc.stop(ac.currentTime + 0.35);
 };
 
-/** Explosion sound for ship destruction or detonation. */
+// Explosion sound for ship destruction or detonation.
 export const playExplosion = () => {
   const ac = getCtx();
   if (!ac) return;
@@ -178,7 +176,7 @@ export const playExplosion = () => {
   src.start(ac.currentTime);
 };
 
-/** Alert tone for phase changes. */
+// Alert tone for phase changes.
 export const playPhaseChange = () => {
   const ac = getCtx();
   if (!ac) return;
@@ -215,7 +213,7 @@ export const playPhaseChange = () => {
   osc2.stop(ac.currentTime + 0.25);
 };
 
-/** Warning beep for low timer. */
+// Warning beep for low timer.
 export const playWarning = () => {
   const ac = getCtx();
   if (!ac) return;
@@ -240,7 +238,7 @@ export const playWarning = () => {
   }
 };
 
-/** Victory fanfare. */
+// Victory fanfare.
 export const playVictory = () => {
   const ac = getCtx();
   if (!ac) return;
@@ -266,7 +264,7 @@ export const playVictory = () => {
   });
 };
 
-/** Defeat sound. */
+// Defeat sound.
 export const playDefeat = () => {
   const ac = getCtx();
   if (!ac) return;

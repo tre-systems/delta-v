@@ -25,10 +25,8 @@ export interface CourseOptions {
   destroyedBases?: string[];
 }
 
-/**
- * Apply pending gravity deflections entered on the
- * previous turn.
- */
+// Apply pending gravity deflections entered on the
+// previous turn.
 export const applyPendingGravityEffects = (
   destination: HexCoord,
   effects: GravityEffect[] | undefined,
@@ -39,18 +37,16 @@ export const applyPendingGravityEffects = (
     destination,
   );
 
-/**
- * Collect gravity hexes entered during this move.
- *
- * The starting hex is skipped because its effect would
- * already have been queued on a previous turn. The
- * destination hex is included because entering it now
- * means its gravity applies on the following turn.
- *
- * Weak gravity: player may choose to ignore a single
- * weak gravity hex. Two consecutive weak gravity hexes
- * from the same body = mandatory on the second.
- */
+// Collect gravity hexes entered during this move.
+//
+// The starting hex is skipped because its effect would
+// already have been queued on a previous turn. The
+// destination hex is included because entering it now
+// means its gravity applies on the following turn.
+//
+// Weak gravity: player may choose to ignore a single
+// weak gravity hex. Two consecutive weak gravity hexes
+// from the same body = mandatory on the second.
 export const collectEnteredGravityEffects = (
   path: HexCoord[],
   map: SolarSystemMap,
@@ -127,9 +123,7 @@ const canLandAtPlanetaryBase = (
   );
 };
 
-/**
- * Check whether the ship completes a legal landing.
- */
+// Check whether the ship completes a legal landing.
 const checkLanding = (
   ship: Ship,
   destination: HexCoord,
@@ -168,12 +162,10 @@ const checkLanding = (
   return null;
 };
 
-/**
- * Check if any hex in the path causes a crash.
- * Intermediate body hexes = crash (except skipBody
- * for takeoff). Final hex: destructive bodies crash,
- * non-destructive = landing.
- */
+// Check if any hex in the path causes a crash.
+// Intermediate body hexes = crash (except skipBody
+// for takeoff). Final hex: destructive bodies crash,
+// non-destructive = landing.
 const checkCrash = (
   path: HexCoord[],
   map: SolarSystemMap,
@@ -207,27 +199,25 @@ const checkCrash = (
   return { crashed: false, crashBody: null };
 };
 
-/**
- * Compute the course for a ship given a burn direction.
- *
- * Pipeline (order matters — each stage feeds the next):
- * 1. Predict destination = position + velocity (inertia)
- * 2. Apply burn (optional): shift destination by 1 hex
- * 3. Apply overload (optional, warships only): shift
- *    by another hex, costs 2 fuel total
- * 4. Apply pending gravity from hexes entered last turn
- *    (gravity is always one turn delayed)
- * 5. Trace the path via hexLineDraw and collect new
- *    gravity hexes entered this turn (queued for step 4
- *    next turn). Weak gravity choices are resolved here:
- *    one weak hex per turn may be ignored, but two
- *    consecutive weak hexes from the same body forces
- *    the second.
- * 6. Determine outcome: crash (path crosses a body),
- *    landing (speed 1 at a gravity hex + base), or
- *    normal movement. Takeoff is a special case that
- *    replaces steps 1-3 with a booster launch.
- */
+// Compute the course for a ship given a burn direction.
+//
+// Pipeline (order matters — each stage feeds the next):
+// 1. Predict destination = position + velocity (inertia)
+// 2. Apply burn (optional): shift destination by 1 hex
+// 3. Apply overload (optional, warships only): shift
+//    by another hex, costs 2 fuel total
+// 4. Apply pending gravity from hexes entered last turn
+//    (gravity is always one turn delayed)
+// 5. Trace the path via hexLineDraw and collect new
+//    gravity hexes entered this turn (queued for step 4
+//    next turn). Weak gravity choices are resolved here:
+//    one weak hex per turn may be ignored, but two
+//    consecutive weak hexes from the same body forces
+//    the second.
+// 6. Determine outcome: crash (path crosses a body),
+//    landing (speed 1 at a gravity hex + base), or
+//    normal movement. Takeoff is a special case that
+//    replaces steps 1-3 with a booster launch.
 export const computeCourse = (
   ship: Ship,
   burn: number | null,
@@ -416,15 +406,11 @@ export const computeCourse = (
   };
 };
 
-/**
- * Check if a ship can burn fuel.
- */
+// Check if a ship can burn fuel.
 export const canBurn = (ship: Ship): boolean => ship.fuel > 0;
 
-/**
- * Predict where a ship will be next turn with no burn
- * (for display).
- */
+// Predict where a ship will be next turn with no burn
+// (for display).
 export const predictDestination = (ship: Ship): HexCoord => {
   if (ship.lifecycle === 'landed') return ship.position;
 

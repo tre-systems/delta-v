@@ -44,7 +44,7 @@ export const hexEqual = (a: HexCoord, b: HexCoord): boolean =>
 
 export const hexKey = ({ q, r }: HexCoord): string => `${q},${r}`;
 
-/** Inverse of hexKey: parse "q,r" string back. */
+// Inverse of hexKey: parse "q,r" string back.
 export const parseHexKey = (key: string): HexCoord => {
   const [q, r] = key.split(',').map(Number);
 

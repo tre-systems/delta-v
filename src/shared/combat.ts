@@ -75,10 +75,8 @@ export interface DamageResult {
   disabledTurns: number;
 }
 
-/**
- * Compute combat odds ratio from attacker and
- * defender strengths.
- */
+// Compute combat odds ratio from attacker and
+// defender strengths.
 export const computeOdds = (
   attackStrength: number,
   defendStrength: number,
@@ -97,9 +95,7 @@ export const computeOdds = (
   return '1:4';
 };
 
-/**
- * Get total combat strength for a group of attackers.
- */
+// Get total combat strength for a group of attackers.
 export const getCombatStrength = (ships: Ship[]): number =>
   sumBy(ships, (ship) => {
     if (ship.lifecycle === 'destroyed' || ship.damage.disabledTurns > 0) {
@@ -119,10 +115,8 @@ export const getDeclaredCombatStrength = (
   return clamp(declaredStrength, 1, maxStrength);
 };
 
-/**
- * Check if a ship can initiate an attack
- * (not defensive-only, not disabled).
- */
+// Check if a ship can initiate an attack
+// (not defensive-only, not disabled).
 export const canAttack = (ship: Ship): boolean => {
   if (ship.lifecycle !== 'active') return false;
   if (ship.resuppliedThisTurn) return false;
@@ -141,12 +135,10 @@ export const canAttack = (ship: Ship): boolean => {
   return true;
 };
 
-/**
- * Check if a ship can counterattack (non-commercial,
- * not destroyed, not disabled). Dreadnaughts may
- * counterattack even when disabled. Orbital bases
- * may counterattack at D1 damage.
- */
+// Check if a ship can counterattack (non-commercial,
+// not destroyed, not disabled). Dreadnaughts may
+// counterattack even when disabled. Orbital bases
+// may counterattack at D1 damage.
 export const canCounterattack = (ship: Ship): boolean => {
   if (ship.lifecycle !== 'active') return false;
   if (ship.resuppliedThisTurn) return false;
@@ -164,10 +156,8 @@ export const canCounterattack = (ship: Ship): boolean => {
   return true;
 };
 
-/**
- * Dreadnaughts operate at any damage level.
- * Orbital bases operate at D1 only.
- */
+// Dreadnaughts operate at any damage level.
+// Orbital bases operate at D1 only.
 const canOperateWhileDisabled = (ship: Ship): boolean =>
   ship.type === 'dreadnaught' ||
   (ship.type === 'orbitalBase' && ship.damage.disabledTurns <= 1);
@@ -193,12 +183,10 @@ export const getClosestApproachHex = (
     },
   ).hex;
 
-/**
- * Compute range modifier: subtract 1 per hex of
- * distance. Range is measured from the attacker's
- * closest approach this turn to the target's final
- * position.
- */
+// Compute range modifier: subtract 1 per hex of
+// distance. Range is measured from the attacker's
+// closest approach this turn to the target's final
+// position.
 export const computeRangeModToTarget = (
   attacker: Ship,
   target: Pick<Ship | Ordnance, 'position'>,
@@ -224,12 +212,10 @@ export const computeVelocityModToTarget = (
   return Math.max(0, velDiff - VELOCITY_MODIFIER_THRESHOLD);
 };
 
-/**
- * Compute velocity modifier: subtract 1 per hex of
- * velocity difference above threshold. Velocity
- * difference is the hex distance between their
- * velocity vectors.
- */
+// Compute velocity modifier: subtract 1 per hex of
+// velocity difference above threshold. Velocity
+// difference is the hex distance between their
+// velocity vectors.
 export const computeVelocityMod = (attacker: Ship, target: Ship): number =>
   computeVelocityModToTarget(attacker, target);
 
@@ -318,9 +304,7 @@ export const getCounterattackers = (target: Ship, allShips: Ship[]): Ship[] =>
       ship.velocity.dr === target.velocity.dr,
   );
 
-/**
- * Look up result on the Gun Combat table.
- */
+// Look up result on the Gun Combat table.
 export const lookupGunCombat = (
   odds: OddsRatio,
   modifiedRoll: number,
@@ -339,12 +323,10 @@ export const lookupGunCombat = (
   return { type: 'disabled', disabledTurns: value };
 };
 
-/**
- * Look up result on the Other Damage table
- * (asteroids, mines, torpedoes, ramming).
- * Each source type has its own damage column per
- * the Triplanetary 2018 rulebook.
- */
+// Look up result on the Other Damage table
+// (asteroids, mines, torpedoes, ramming).
+// Each source type has its own damage column per
+// the Triplanetary 2018 rulebook.
 export const lookupOtherDamage = (
   dieRoll: number,
   source: OtherDamageSource = 'torpedo',
@@ -362,10 +344,8 @@ export const lookupOtherDamage = (
   return { type: 'disabled', disabledTurns: value };
 };
 
-/**
- * Apply damage to a ship.
- * Returns true if the ship was eliminated.
- */
+// Apply damage to a ship.
+// Returns true if the ship was eliminated.
 export const applyDamage = (ship: Ship, result: DamageResult): boolean => {
   if (result.type === 'none') return false;
 
@@ -389,10 +369,8 @@ export const applyDamage = (ship: Ship, result: DamageResult): boolean => {
   return false;
 };
 
-/**
- * Roll a d6 (1-6). Uses crypto.getRandomValues if
- * available, else Math.random.
- */
+// Roll a d6 (1-6). Uses crypto.getRandomValues if
+// available, else Math.random.
 export const rollD6 = (rng: () => number): number => Math.floor(rng() * 6) + 1;
 
 const chooseCounterattackTarget = (attackers: Ship[]): Ship =>
@@ -410,9 +388,7 @@ const chooseCounterattackTarget = (attackers: Ship[]): Ship =>
     return a.id.localeCompare(b.id);
   })[0];
 
-/**
- * Resolve a single combat attack.
- */
+// Resolve a single combat attack.
 export const resolveCombat = (
   attackers: Ship[],
   target: Ship,
@@ -513,12 +489,10 @@ export const resolveCombat = (
   };
 };
 
-/**
- * Resolve base defense fire.
- * Bases fire at 2:1 odds against enemy ships in gravity
- * hexes adjacent to the base. No range or velocity
- * modifiers apply.
- */
+// Resolve base defense fire.
+// Bases fire at 2:1 odds against enemy ships in gravity
+// hexes adjacent to the base. No range or velocity
+// modifiers apply.
 export const resolveBaseDefense = (
   state: {
     ships: Ship[];

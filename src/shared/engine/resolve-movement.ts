@@ -27,7 +27,7 @@ import {
   checkRamming,
 } from './victory';
 
-/** Viewer identity: player seat or spectator/public. */
+// Viewer identity: player seat or spectator/public.
 export type ViewerId = number | 'spectator';
 
 export const filterStateForPlayer = (
@@ -58,11 +58,9 @@ export const filterStateForPlayer = (
   };
 };
 
-/**
- * Central movement orchestrator -- resolves queued
- * orders, then runs all post-movement checks
- * (resupply, ramming, ordnance, detection, victory).
- */
+// Central movement orchestrator -- resolves queued
+// orders, then runs all post-movement checks
+// (resupply, ramming, ordnance, detection, victory).
 export const resolveMovementPhase = (
   state: GameState,
   playerId: number,
