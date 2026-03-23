@@ -2,14 +2,19 @@ import type {
   EngineEvent,
   EventEnvelope,
 } from '../../shared/engine/engine-events';
-import { filterStateForPlayer } from '../../shared/engine/game-engine';
+import {
+  filterStateForPlayer,
+  type ViewerId,
+} from '../../shared/engine/game-engine';
 import {
   buildMatchId,
   createReplayArchive,
   type ReplayArchive,
+  type ReplayEntry,
   type ReplayMessage,
   toReplayEntry,
 } from '../../shared/replay';
+import type { Phase } from '../../shared/types/domain';
 import { isValidPlayerToken, type RoomConfig } from '../protocol';
 
 type Storage = DurableObjectStorage;
@@ -190,17 +195,66 @@ export const getReplayViewerId = (
 
 export const filterReplayArchiveForPlayer = (
   archive: ReplayArchive,
-  playerId: number,
+  viewerId: ViewerId,
 ): ReplayArchive => ({
   ...archive,
   entries: archive.entries.map((entry) => ({
     ...entry,
     message: {
       ...entry.message,
-      state: filterStateForPlayer(entry.message.state, playerId),
+      state: filterStateForPlayer(entry.message.state, viewerId),
     },
   })),
 });
+
+const toCheckpointReplayEntry = (checkpoint: Checkpoint): ReplayEntry => ({
+  sequence: 1,
+  recordedAt: checkpoint.savedAt,
+  turn: checkpoint.turn,
+  phase: checkpoint.phase as Phase,
+  message: {
+    type: 'stateUpdate',
+    state: structuredClone(checkpoint.state),
+  } satisfies ReplayMessage,
+});
+
+export const projectReplayArchive = (
+  archive: ReplayArchive | null,
+  checkpoint: Checkpoint | null,
+  viewerId: ViewerId,
+): ReplayArchive | null => {
+  const baseArchive =
+    archive ??
+    (checkpoint
+      ? {
+          gameId: checkpoint.gameId,
+          roomCode: '',
+          matchNumber: 0,
+          scenario: checkpoint.state.scenario,
+          createdAt: checkpoint.savedAt,
+          entries: [toCheckpointReplayEntry(checkpoint)],
+        }
+      : null);
+
+  if (!baseArchive) {
+    return null;
+  }
+
+  return filterReplayArchiveForPlayer(baseArchive, viewerId);
+};
+
+export const getProjectedReplayArchive = async (
+  storage: Storage,
+  gameId: string,
+  viewerId: ViewerId,
+): Promise<ReplayArchive | null> => {
+  const [archive, checkpoint] = await Promise.all([
+    getReplayArchive(storage, gameId),
+    getCheckpoint(storage, gameId),
+  ]);
+
+  return projectReplayArchive(archive, checkpoint, viewerId);
+};
 
 // --- Match identity ---
 

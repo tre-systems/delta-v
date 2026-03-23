@@ -27,7 +27,7 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import type { ReplayArchive } from '../../shared/replay';
-import { getEventStream } from './archive';
+import { getEventStream, saveCheckpoint } from './archive';
 import { GameDO } from './game-do';
 import { toMovementResultMessage, toStateUpdateMessage } from './messages';
 
@@ -954,6 +954,47 @@ describe('GameDO', () => {
     expect(archive.gameId).toBe('ABCDE-m1');
     expect(archive.entries).toHaveLength(1);
     expect(archive.entries[0]?.message.type).toBe('gameStart');
+  });
+
+  it('falls back to checkpoint-backed replay when archive is unavailable', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'duel',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+    });
+    await ctx.storage.put('gameCode', 'ABCDE');
+    await ctx.storage.put('matchNumber', 1);
+    const state = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'ABCDE-m1',
+      findBaseHex,
+    );
+    state.turnNumber = 3;
+    state.phase = 'combat';
+    await saveCheckpoint(
+      ctx.storage as unknown as DurableObjectStorage,
+      'ABCDE-m1',
+      state,
+      9,
+    );
+    const game = createGameDO(ctx);
+
+    const response = await game.fetch(
+      new Request(
+        `https://room.internal/replay?playerToken=${'A'.repeat(32)}&gameId=ABCDE-m1`,
+        { method: 'GET' },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    const archive = (await response.json()) as ReplayArchive;
+    expect(archive.gameId).toBe('ABCDE-m1');
+    expect(archive.entries).toHaveLength(1);
+    expect(archive.entries[0]?.message.type).toBe('stateUpdate');
+    expect(archive.entries[0]?.turn).toBe(3);
+    expect(archive.entries[0]?.phase).toBe('combat');
   });
 
   it('keeps replay access available after inactivity cleanup', async () => {
