@@ -205,6 +205,16 @@ export const getProjectedCurrentStateRaw = async (
   return projectCurrentStateFromStream(eventStream, checkpoint);
 };
 
+const normalizeStateForParity = (
+  state: import('../../shared/types/domain').GameState,
+): import('../../shared/types/domain').GameState => ({
+  ...state,
+  players: state.players.map((player) => ({
+    ...player,
+    connected: false,
+  })) as import('../../shared/types/domain').GameState['players'],
+});
+
 export const hasProjectionParity = async (
   storage: Storage,
   gameId: string,
@@ -214,7 +224,8 @@ export const hasProjectionParity = async (
 
   return (
     projectedState !== null &&
-    JSON.stringify(projectedState) === JSON.stringify(liveState)
+    JSON.stringify(normalizeStateForParity(projectedState)) ===
+      JSON.stringify(normalizeStateForParity(liveState))
   );
 };
 

@@ -1,4 +1,4 @@
-import { ORBITAL_BASE_MASS, SHIP_STATS } from '../constants';
+import { ORBITAL_BASE_MASS, ORDNANCE_MASS, SHIP_STATS } from '../constants';
 import { hexKey } from '../hex';
 import { findBaseHex, SCENARIOS } from '../map-data';
 import type { ScenarioDefinition, SolarSystemMap } from '../types';
@@ -63,6 +63,33 @@ const requireShip = (
     : {
         ok: false,
         error: `ship not found: ${shipId}`,
+      };
+};
+
+const requireOrdnance = (
+  state: GameState,
+  ordnanceId: string,
+):
+  | {
+      ok: true;
+      ordnance: GameState['ordnance'][number];
+    }
+  | {
+      ok: false;
+      error: string;
+    } => {
+  const ordnance = state.ordnance.find(
+    (candidate) => candidate.id === ordnanceId,
+  );
+
+  return ordnance
+    ? {
+        ok: true,
+        ordnance,
+      }
+    : {
+        ok: false,
+        error: `ordnance not found: ${ordnanceId}`,
       };
 };
 
@@ -144,6 +171,19 @@ const projectSetupEvent = (
         return baseState;
       }
 
+      if (event.type === 'astrogationOrdersCommitted') {
+        baseState.state.pendingAstrogationOrders = event.orders.map(
+          (order) => ({
+            shipId: order.shipId,
+            burn: order.burn,
+            overload: order.overload ?? null,
+            weakGravityChoices: order.weakGravityChoices
+              ? { ...order.weakGravityChoices }
+              : undefined,
+          }),
+        );
+      }
+
       return baseState;
     }
 
@@ -207,7 +247,21 @@ const projectSetupEvent = (
       }
 
       state = baseState.state;
+      const previousActivePlayer = 1 - event.activePlayer;
 
+      for (const ship of state.ships) {
+        if (ship.owner !== previousActivePlayer) continue;
+
+        if (ship.lifecycle === 'destroyed') continue;
+
+        ship.resuppliedThisTurn = false;
+
+        if (ship.damage.disabledTurns > 0) {
+          ship.damage.disabledTurns--;
+        }
+      }
+
+      state.pendingAstrogationOrders = null;
       state.turnNumber = event.turn;
       state.activePlayer = event.activePlayer;
 
@@ -225,6 +279,7 @@ const projectSetupEvent = (
       }
 
       state = baseState.state;
+      state.pendingAstrogationOrders = null;
       const projectedShip = requireShip(state, event.shipId);
 
       if (!projectedShip.ok) {
@@ -519,6 +574,18 @@ const projectSetupEvent = (
       }
 
       state = baseState.state;
+      const sourceShip = requireShip(state, event.sourceShipId);
+
+      if (!sourceShip.ok) {
+        return sourceShip;
+      }
+
+      sourceShip.ship.cargoUsed += ORDNANCE_MASS[event.ordnanceType];
+
+      if (event.ordnanceType === 'nuke') {
+        sourceShip.ship.nukesLaunchedSinceResupply += 1;
+      }
+
       state.ordnance.push({
         id: event.ordnanceId,
         type: event.ordnanceType as 'mine' | 'torpedo' | 'nuke',
@@ -540,6 +607,36 @@ const projectSetupEvent = (
       };
     }
 
+    case 'ordnanceMoved': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      state.pendingAstrogationOrders = null;
+      const projectedOrdnance = requireOrdnance(state, event.ordnanceId);
+
+      if (!projectedOrdnance.ok) {
+        return projectedOrdnance;
+      }
+
+      projectedOrdnance.ordnance.position = { ...event.position };
+      projectedOrdnance.ordnance.velocity = { ...event.velocity };
+      projectedOrdnance.ordnance.turnsRemaining = event.turnsRemaining;
+      projectedOrdnance.ordnance.pendingGravityEffects =
+        event.pendingGravityEffects.map((effect) => ({
+          ...effect,
+          hex: { ...effect.hex },
+        }));
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
     case 'ordnanceExpired': {
       const baseState = requireState(state, event.type);
 
@@ -548,18 +645,13 @@ const projectSetupEvent = (
       }
 
       state = baseState.state;
-      const ordnance = state.ordnance.find(
-        (item) => item.id === event.ordnanceId,
-      );
+      const ordnance = requireOrdnance(state, event.ordnanceId);
 
-      if (!ordnance) {
-        return {
-          ok: false,
-          error: `ordnance not found: ${event.ordnanceId}`,
-        };
+      if (!ordnance.ok) {
+        return ordnance;
       }
 
-      ordnance.lifecycle = 'destroyed';
+      ordnance.ordnance.lifecycle = 'destroyed';
       state.ordnance = state.ordnance.filter(
         (item) => item.lifecycle !== 'destroyed',
       );
@@ -593,10 +685,7 @@ const projectSetupEvent = (
       }
 
       if (event.damageType === 'disabled') {
-        projectedShip.ship.damage.disabledTurns = Math.max(
-          projectedShip.ship.damage.disabledTurns,
-          event.disabledTurns,
-        );
+        projectedShip.ship.damage.disabledTurns += event.disabledTurns;
       }
 
       return {
@@ -627,10 +716,7 @@ const projectSetupEvent = (
         return projectedShip;
       }
 
-      projectedShip.ship.damage.disabledTurns = Math.max(
-        projectedShip.ship.damage.disabledTurns,
-        event.disabledTurns,
-      );
+      projectedShip.ship.damage.disabledTurns += event.disabledTurns;
 
       return {
         ok: true,
@@ -646,18 +732,13 @@ const projectSetupEvent = (
       }
 
       state = baseState.state;
-      const ordnance = state.ordnance.find(
-        (item) => item.id === event.ordnanceId,
-      );
+      const ordnance = requireOrdnance(state, event.ordnanceId);
 
-      if (!ordnance) {
-        return {
-          ok: false,
-          error: `ordnance not found: ${event.ordnanceId}`,
-        };
+      if (!ordnance.ok) {
+        return ordnance;
       }
 
-      ordnance.lifecycle = 'destroyed';
+      ordnance.ordnance.lifecycle = 'destroyed';
       state.ordnance = state.ordnance.filter(
         (item) => item.lifecycle !== 'destroyed',
       );
@@ -697,10 +778,7 @@ const projectSetupEvent = (
         return projectedShip;
       }
 
-      projectedShip.ship.damage.disabledTurns = Math.max(
-        projectedShip.ship.damage.disabledTurns,
-        event.disabledTurns,
-      );
+      projectedShip.ship.damage.disabledTurns += event.disabledTurns;
 
       return {
         ok: true,

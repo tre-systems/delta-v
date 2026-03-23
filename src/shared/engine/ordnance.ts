@@ -330,6 +330,7 @@ const checkOrdnanceDetonation = (
         pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
         forcedDetonation = true;
       } else {
+        pushDestroyedOrdnance(ord.id, 'asteroidCollision', engineEvents);
         return true;
       }
     }
@@ -349,6 +350,7 @@ const checkOrdnanceDetonation = (
         pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
         forcedDetonation = true;
       } else {
+        pushDestroyedOrdnance(ord.id, 'baseCollision', engineEvents);
         return true;
       }
     }
@@ -475,6 +477,17 @@ export const moveOrdnance = (
     ord.velocity = hexSubtract(finalDest, from);
     ord.pendingGravityEffects = collectEnteredGravityEffects(finalPath, map);
     ord.turnsRemaining--;
+    engineEvents?.push({
+      type: 'ordnanceMoved',
+      ordnanceId: ord.id,
+      position: { ...ord.position },
+      velocity: { ...ord.velocity },
+      turnsRemaining: ord.turnsRemaining,
+      pendingGravityEffects: ord.pendingGravityEffects.map((effect) => ({
+        ...effect,
+        hex: { ...effect.hex },
+      })),
+    });
 
     if (ord.turnsRemaining <= 0) {
       ord.lifecycle = 'destroyed';
@@ -571,6 +584,9 @@ export const moveOrdnance = (
           }
         }
 
+        if (ord.type !== 'nuke') {
+          pushDestroyedOrdnance(ord.id, 'bodyCollision', engineEvents);
+        }
         ord.lifecycle = 'destroyed';
         break;
       }
