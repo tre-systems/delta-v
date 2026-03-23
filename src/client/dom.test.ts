@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { byId, cls, el, hide, show, text, visible } from './dom';
-import { signal } from './reactive';
+import { createDisposalScope, signal, withScope } from './reactive';
 
 describe('el', () => {
   it('creates an element with the given tag', () => {
@@ -138,6 +138,30 @@ describe('el', () => {
     select.dispatchEvent(new Event('change'));
 
     expect(fired).toBe(true);
+  });
+
+  it('registers prop listeners with the active disposal scope', () => {
+    const scope = createDisposalScope();
+    let button: HTMLButtonElement | null = null;
+
+    withScope(scope, () => {
+      button = el('button', {
+        onClick: () => {},
+      }) as HTMLButtonElement;
+    });
+
+    const removeSpy = vi.spyOn(
+      button as HTMLButtonElement | null as HTMLButtonElement,
+      'removeEventListener',
+    );
+
+    scope.dispose();
+
+    expect(removeSpy).toHaveBeenCalledWith(
+      'click',
+      expect.any(Function),
+      undefined,
+    );
   });
 
   it('appends HTMLElement children', () => {
