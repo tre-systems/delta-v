@@ -54,6 +54,7 @@ const createDeps = () => {
   const hideReconnecting = vi.fn<ConnectionDeps['hideReconnecting']>();
   const showToast = vi.fn<ConnectionDeps['showToast']>();
   const exitToMenu = vi.fn<ConnectionDeps['exitToMenu']>();
+  const trackEvent = vi.fn<ConnectionDeps['trackEvent']>();
   const deps: ConnectionDeps = {
     getGameCode: () => 'ABCDE',
     getGameState: () => state,
@@ -69,6 +70,7 @@ const createDeps = () => {
     hideReconnecting,
     showToast,
     exitToMenu,
+    trackEvent,
   };
 
   return {
@@ -86,6 +88,7 @@ const createDeps = () => {
       hideReconnecting,
       showToast,
       exitToMenu,
+      trackEvent,
     },
   };
 };
@@ -146,8 +149,33 @@ describe('game-client-connection', () => {
       'Could not reconnect to game',
       'error',
     );
+    expect(spies.trackEvent).toHaveBeenCalledWith('reconnect_failed', {
+      attempts: 5,
+    });
     expect(spies.exitToMenu).toHaveBeenCalledTimes(1);
     expect(spies.setState).not.toHaveBeenCalled();
+  });
+
+  it('tracks scheduled reconnect attempts', () => {
+    let reconnectAttempts = 0;
+    const { deps, spies } = createDeps();
+    deps.getReconnectAttempts = () => reconnectAttempts;
+    deps.setReconnectAttempts = vi.fn<ConnectionDeps['setReconnectAttempts']>(
+      (value) => {
+        reconnectAttempts = value;
+      },
+    );
+    const manager = createConnectionManager(deps);
+
+    manager.attemptReconnect();
+
+    expect(spies.trackEvent).toHaveBeenCalledWith(
+      'reconnect_attempt_scheduled',
+      {
+        attempt: 1,
+        delayMs: 1000,
+      },
+    );
   });
 
   it('routes reconnect cancel through shared session teardown', () => {
