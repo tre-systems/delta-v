@@ -250,9 +250,9 @@ const formatPreviewLabel = (
 
   const modParts: string[] = [];
 
-  if (rangeMod > 0) modParts.push(`Range -${rangeMod}`);
+  if (rangeMod > 0) modParts.push(`Range ${rangeMod} (-${rangeMod})`);
 
-  if (velMod > 0) modParts.push(`Velocity -${velMod}`);
+  if (velMod > 0) modParts.push(`Velocity ${velMod + 2} (-${velMod})`);
 
   const modLabel = modParts.length > 0 ? modParts.join('  ') : 'No penalty';
 
@@ -300,7 +300,17 @@ export const getCombatPreview = (
     map,
   );
 
-  if (legalAttackers.length === 0) return null;
+  if (legalAttackers.length === 0) {
+    return {
+      targetPosition: targetInfo.target.position,
+      attackerPositions: [],
+      label: 'NO LINE OF SIGHT',
+      modLabel: 'Target is blocked by a celestial body',
+      modColor: '#ff6b6b',
+      totalMod: 0,
+      counterattackLabel: null,
+    };
+  }
 
   const selectedAttackers = legalAttackers.filter((ship) =>
     planning.combatAttackerIds.includes(ship.id),

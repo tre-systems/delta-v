@@ -65,9 +65,10 @@ export const renderOrdnance = (
 
     const color = getOrdnanceColor(ord.owner, playerId);
     const pulse = getOrdnancePulse(now);
+    const isFriendly = ord.owner === playerId;
 
     if (ord.type === 'nuke') {
-      const s = 6;
+      const s = 7;
       const nukeColor = '#ff4444';
 
       ctx.fillStyle = nukeColor;
@@ -81,25 +82,33 @@ export const renderOrdnance = (
       ctx.fill();
 
       ctx.strokeStyle = '#ff8888';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.globalAlpha = 1;
     } else if (ord.type === 'mine') {
-      const s = 4;
+      const s = 5;
+      const mineColor = isFriendly ? '#4fc3f7' : '#ff9800';
 
-      ctx.fillStyle = color;
-      ctx.globalAlpha = pulse;
+      // Mine glow
+      ctx.save();
+      ctx.shadowBlur = 4;
+      ctx.shadowColor = mineColor;
+      ctx.fillStyle = mineColor;
+      ctx.globalAlpha = 0.4 + pulse * 0.4;
       ctx.beginPath();
-      ctx.moveTo(p.x, p.y - s);
-      ctx.lineTo(p.x + s, p.y);
-      ctx.lineTo(p.x, p.y + s);
-      ctx.lineTo(p.x - s, p.y);
-      ctx.closePath();
+      ctx.arc(p.x, p.y, s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = 0.8;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
     } else {
       const heading = getOrdnanceHeading(ord.position, ord.velocity, hexSize);
-      const s = 5;
+      const s = 6;
 
       ctx.save();
       ctx.translate(p.x, p.y);
@@ -112,12 +121,30 @@ export const renderOrdnance = (
       ctx.lineTo(-s * 0.6, s * 0.4);
       ctx.closePath();
       ctx.fill();
+
+      // Torpedo glow
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
       ctx.globalAlpha = 1;
       ctx.restore();
     }
 
     if (!animState) {
       drawOrdnanceVelocity(ctx, ord.position, ord.velocity, p, color, hexSize);
+
+      // Labels for clarity
+      ctx.fillStyle = color;
+      ctx.font = 'bold 7px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      const labelY = ord.type === 'mine' ? p.y - 10 : p.y - 12;
+      const typeLabel = ord.type.toUpperCase();
+      ctx.fillText(typeLabel, p.x, labelY);
+
+      const ownershipLabel = isFriendly ? 'FRIENDLY' : 'ENEMY';
+      ctx.font = '5px Inter, sans-serif';
+      ctx.fillText(ownershipLabel, p.x, labelY - 7);
     }
 
     const lifetimeView = getOrdnanceLifetimeView(
@@ -127,9 +154,9 @@ export const renderOrdnance = (
 
     if (lifetimeView) {
       ctx.fillStyle = lifetimeView.color;
-      ctx.font = 'bold 6px monospace';
+      ctx.font = 'bold 8px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(lifetimeView.text, p.x, p.y + 10);
+      ctx.fillText(lifetimeView.text, p.x, p.y + 12);
     }
   }
 
