@@ -22,6 +22,12 @@ import {
   validateShipOrdnanceLaunch,
 } from './util';
 
+const errorMessage = (
+  result: ReturnType<
+    typeof validateOrdnanceLaunch | typeof validateShipOrdnanceLaunch
+  >,
+): string | null => result?.message ?? null;
+
 const bounds = { minQ: -10, maxQ: 10, minR: -10, maxR: 10 };
 const makeScenarioRulesState = (
   scenarioRules: GameState['scenarioRules'] = {},
@@ -269,7 +275,7 @@ describe('validateOrdnanceLaunch', () => {
         makeShip({ type: 'packet' }),
         'mine',
       ),
-    ).toBe('This scenario does not allow mine launches');
+    ).toMatchObject({ message: 'This scenario does not allow mine launches' });
   });
 
   it('rejects launches on a resupply turn', () => {
@@ -279,7 +285,7 @@ describe('validateOrdnanceLaunch', () => {
         makeShip({ resuppliedThisTurn: true }),
         'mine',
       ),
-    ).toBe(RESUPPLY_ORDNANCE_ERROR);
+    ).toMatchObject({ message: RESUPPLY_ORDNANCE_ERROR });
   });
 
   it('delegates ship-level validation for otherwise allowed launches', () => {
@@ -289,7 +295,9 @@ describe('validateOrdnanceLaunch', () => {
         makeShip({ type: 'transport' }),
         'torpedo',
       ),
-    ).toBe('Only warships and orbital bases can launch torpedoes');
+    ).toMatchObject({
+      message: 'Only warships and orbital bases can launch torpedoes',
+    });
   });
 });
 
@@ -376,15 +384,19 @@ describe('validatePhaseAction', () => {
   });
 
   it('returns error when phase does not match', () => {
-    expect(validatePhaseAction(state, 0, 'combat')).toBe('Not in combat phase');
+    expect(validatePhaseAction(state, 0, 'combat')?.message).toBe(
+      'Not in combat phase',
+    );
   });
 
   it('returns error when player is not active', () => {
-    expect(validatePhaseAction(state, 1, 'astrogation')).toBe('Not your turn');
+    expect(validatePhaseAction(state, 1, 'astrogation')?.message).toBe(
+      'Not your turn',
+    );
   });
 
   it('checks phase before player', () => {
-    expect(validatePhaseAction(state, 1, 'ordnance')).toBe(
+    expect(validatePhaseAction(state, 1, 'ordnance')?.message).toBe(
       'Not in ordnance phase',
     );
   });
@@ -402,29 +414,33 @@ describe('validateShipOrdnanceLaunch', () => {
   it('rejects destroyed ships', () => {
     const ship = makeShip({ lifecycle: 'destroyed' });
 
-    expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe('Ship is destroyed');
+    expect(validateShipOrdnanceLaunch(ship, 'mine')).toMatchObject({
+      message: 'Ship is destroyed',
+    });
   });
 
   it('rejects landed ships', () => {
     const ship = makeShip({ lifecycle: 'landed' });
 
-    expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe(
-      'Cannot launch ordnance while landed',
-    );
+    expect(validateShipOrdnanceLaunch(ship, 'mine')).toMatchObject({
+      message: 'Cannot launch ordnance while landed',
+    });
   });
 
   it('rejects captured ships', () => {
     const ship = makeShip({ control: 'captured' });
 
-    expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe(
-      'Captured ships cannot launch ordnance',
-    );
+    expect(validateShipOrdnanceLaunch(ship, 'mine')).toMatchObject({
+      message: 'Captured ships cannot launch ordnance',
+    });
   });
 
   it('rejects disabled ships', () => {
     const ship = makeShip({ damage: { disabledTurns: 2 } });
 
-    expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe('Ship is disabled');
+    expect(validateShipOrdnanceLaunch(ship, 'mine')).toMatchObject({
+      message: 'Ship is disabled',
+    });
   });
 
   it('allows orbital bases at D1 damage', () => {
@@ -442,29 +458,29 @@ describe('validateShipOrdnanceLaunch', () => {
       damage: { disabledTurns: 2 },
     });
 
-    expect(validateShipOrdnanceLaunch(ship, 'torpedo')).toBe(
-      'Ship is disabled',
-    );
+    expect(validateShipOrdnanceLaunch(ship, 'torpedo')).toMatchObject({
+      message: 'Ship is disabled',
+    });
   });
 
   it('orbital bases can only launch torpedoes', () => {
     const ship = makeShip({ type: 'orbitalBase' });
 
     expect(validateShipOrdnanceLaunch(ship, 'torpedo')).toBeNull();
-    expect(validateShipOrdnanceLaunch(ship, 'mine')).toBe(
-      'Orbital bases can only launch torpedoes',
-    );
-    expect(validateShipOrdnanceLaunch(ship, 'nuke')).toBe(
-      'Orbital bases can only launch torpedoes',
-    );
+    expect(validateShipOrdnanceLaunch(ship, 'mine')).toMatchObject({
+      message: 'Orbital bases can only launch torpedoes',
+    });
+    expect(validateShipOrdnanceLaunch(ship, 'nuke')).toMatchObject({
+      message: 'Orbital bases can only launch torpedoes',
+    });
   });
 
   it('non-warships cannot launch torpedoes', () => {
     const ship = makeShip({ type: 'packet' });
 
-    expect(validateShipOrdnanceLaunch(ship, 'torpedo')).toBe(
-      'Only warships and orbital bases can launch torpedoes',
-    );
+    expect(validateShipOrdnanceLaunch(ship, 'torpedo')).toMatchObject({
+      message: 'Only warships and orbital bases can launch torpedoes',
+    });
   });
 
   it('non-warships limited to one nuke per resupply', () => {
@@ -473,9 +489,9 @@ describe('validateShipOrdnanceLaunch', () => {
       nukesLaunchedSinceResupply: 1,
     });
 
-    expect(validateShipOrdnanceLaunch(ship, 'nuke')).toBe(
-      'Non-warships may carry only one nuke between resupplies',
-    );
+    expect(validateShipOrdnanceLaunch(ship, 'nuke')).toMatchObject({
+      message: 'Non-warships may carry only one nuke between resupplies',
+    });
   });
 
   it('non-warships can launch first nuke', () => {
@@ -490,7 +506,7 @@ describe('validateShipOrdnanceLaunch', () => {
       cargoUsed: 10,
     });
 
-    expect(validateShipOrdnanceLaunch(ship, 'mine')).toMatch(
+    expect(errorMessage(validateShipOrdnanceLaunch(ship, 'mine'))).toMatch(
       /Not enough cargo/,
     );
   });

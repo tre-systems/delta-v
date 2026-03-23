@@ -165,7 +165,7 @@ const projectSetupEvent = (
       );
 
       return 'error' in result
-        ? { ok: false, error: result.error }
+        ? { ok: false, error: result.error.message }
         : { ok: true, state: result.state };
     }
 

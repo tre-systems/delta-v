@@ -98,19 +98,6 @@ root rather than a second event-binding layer.
 `src/client/ui/ui.ts`,
 `src/client/input.ts`
 
-## Code Quality
-
-### Typed engine error codes
-
-Engine errors use `{ error: string }` with no error code
-or enum. This prevents programmatic error handling on the
-client. Add an `ErrorCode` enum and a structured
-`EngineError` type.
-
-**Files:** `src/shared/engine/`,
-`src/shared/types/domain.ts`,
-`src/server/game-do/game-do.ts`
-
 ## Gameplay & Content
 
 ### Passenger rescue mechanics

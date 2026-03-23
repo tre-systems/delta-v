@@ -1,12 +1,14 @@
 import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
 import { parseHexKey } from '../hex';
 import { bodyHasGravity } from '../map-data';
-import type {
-  GameState,
-  Ordnance,
-  Phase,
-  Ship,
-  SolarSystemMap,
+import {
+  type EngineError,
+  ErrorCode,
+  type GameState,
+  type Ordnance,
+  type Phase,
+  type Ship,
+  type SolarSystemMap,
 } from '../types';
 
 // --- Ship state helpers ---
@@ -30,16 +32,31 @@ export const validatePhaseAction = (
   state: GameState,
   playerId: number,
   requiredPhase: Phase,
-): string | null => {
+): EngineError | null => {
   if (state.phase !== requiredPhase) {
-    return `Not in ${requiredPhase} phase`;
+    return {
+      code: ErrorCode.INVALID_PHASE,
+      message: `Not in ${requiredPhase} phase`,
+    };
   }
 
   if (playerId !== state.activePlayer) {
-    return 'Not your turn';
+    return {
+      code: ErrorCode.NOT_YOUR_TURN,
+      message: 'Not your turn',
+    };
   }
   return null;
 };
+
+export const engineError = (code: ErrorCode, message: string): EngineError => ({
+  code,
+  message,
+});
+
+export const engineFailure = (code: ErrorCode, message: string) => ({
+  error: engineError(code, message),
+});
 
 export const playerControlsBase = (
   state: GameState,
@@ -119,27 +136,40 @@ export const hasOrdnanceCapacity = (ship: Ship): boolean => {
 export const validateShipOrdnanceLaunch = (
   ship: Ship,
   ordnanceType: Ordnance['type'],
-): string | null => {
+): EngineError | null => {
   const stats = SHIP_STATS[ship.type];
 
-  if (!stats) return 'Unknown ship type';
+  if (!stats) return engineError(ErrorCode.INVALID_INPUT, 'Unknown ship type');
 
-  if (ship.lifecycle === 'destroyed') return 'Ship is destroyed';
+  if (ship.lifecycle === 'destroyed') {
+    return engineError(ErrorCode.STATE_CONFLICT, 'Ship is destroyed');
+  }
 
-  if (ship.lifecycle === 'landed') return 'Cannot launch ordnance while landed';
+  if (ship.lifecycle === 'landed') {
+    return engineError(
+      ErrorCode.STATE_CONFLICT,
+      'Cannot launch ordnance while landed',
+    );
+  }
 
   if (ship.control === 'captured')
-    return 'Captured ships cannot launch ordnance';
+    return engineError(
+      ErrorCode.NOT_ALLOWED,
+      'Captured ships cannot launch ordnance',
+    );
 
   // Orbital bases may launch at D1 damage (rulebook p.6)
   if (ship.damage.disabledTurns > 0) {
     if (ship.type !== 'orbitalBase' || ship.damage.disabledTurns > 1) {
-      return 'Ship is disabled';
+      return engineError(ErrorCode.STATE_CONFLICT, 'Ship is disabled');
     }
   }
 
   if (ship.type === 'orbitalBase' && ordnanceType !== 'torpedo') {
-    return 'Orbital bases can only launch torpedoes';
+    return engineError(
+      ErrorCode.NOT_ALLOWED,
+      'Orbital bases can only launch torpedoes',
+    );
   }
 
   if (
@@ -147,7 +177,10 @@ export const validateShipOrdnanceLaunch = (
     !stats.canOverload &&
     ship.type !== 'orbitalBase'
   ) {
-    return 'Only warships and orbital bases can launch torpedoes';
+    return engineError(
+      ErrorCode.NOT_ALLOWED,
+      'Only warships and orbital bases can launch torpedoes',
+    );
   }
 
   if (
@@ -155,16 +188,24 @@ export const validateShipOrdnanceLaunch = (
     !stats.canOverload &&
     ship.nukesLaunchedSinceResupply >= 1
   ) {
-    return 'Non-warships may carry only one nuke between resupplies';
+    return engineError(
+      ErrorCode.RESOURCE_LIMIT,
+      'Non-warships may carry only one nuke between resupplies',
+    );
   }
 
   const mass = ORDNANCE_MASS[ordnanceType];
 
-  if (mass == null) return 'Invalid ordnance type';
+  if (mass == null) {
+    return engineError(ErrorCode.INVALID_INPUT, 'Invalid ordnance type');
+  }
 
   if (ship.cargoUsed + mass > stats.cargo) {
     const free = stats.cargo - ship.cargoUsed;
-    return `Not enough cargo (need ${mass}, have ${free})`;
+    return engineError(
+      ErrorCode.RESOURCE_LIMIT,
+      `Not enough cargo (need ${mass}, have ${free})`,
+    );
   }
 
   return null;
@@ -176,15 +217,18 @@ export const validateOrdnanceLaunch = (
   state: Pick<GameState, 'scenarioRules'>,
   ship: Ship,
   ordnanceType: Ordnance['type'],
-): string | null => {
+): EngineError | null => {
   const allowedTypes = getAllowedOrdnanceTypes(state);
 
   if (!allowedTypes.has(ordnanceType)) {
-    return `This scenario does not allow ${ordnanceType} launches`;
+    return engineError(
+      ErrorCode.NOT_ALLOWED,
+      `This scenario does not allow ${ordnanceType} launches`,
+    );
   }
 
   if (ship.resuppliedThisTurn) {
-    return RESUPPLY_ORDNANCE_ERROR;
+    return engineError(ErrorCode.NOT_ALLOWED, RESUPPLY_ORDNANCE_ERROR);
   }
 
   return validateShipOrdnanceLaunch(ship, ordnanceType);

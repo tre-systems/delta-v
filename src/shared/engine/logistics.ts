@@ -1,10 +1,17 @@
 import { must } from '../assert';
 import { SHIP_STATS } from '../constants';
 import { hexEqual } from '../hex';
-import type { GameState, Ship, SolarSystemMap, TransferOrder } from '../types';
+import {
+  type EngineError,
+  ErrorCode,
+  type GameState,
+  type Ship,
+  type SolarSystemMap,
+  type TransferOrder,
+} from '../types';
 import { shouldEnterCombatPhase } from './combat';
 import type { EngineEvent } from './engine-events';
-import { validatePhaseAction } from './util';
+import { engineFailure, validatePhaseAction } from './util';
 import { advanceTurn, checkGameEnd } from './victory';
 export interface TransferPair {
   source: Ship;
@@ -108,65 +115,96 @@ const validateTransfer = (
   state: GameState,
   playerId: number,
   transfer: TransferOrder,
-): string | null => {
+): EngineError | null => {
   const source = state.ships.find((s) => s.id === transfer.sourceShipId);
   const target = state.ships.find((s) => s.id === transfer.targetShipId);
 
-  if (!source || !target) return 'Ship not found';
+  if (!source || !target) {
+    return engineFailure(ErrorCode.INVALID_SHIP, 'Ship not found').error;
+  }
 
   if (!isTransferEligibleSource(source, playerId)) {
-    return 'Source ship not eligible for transfer';
+    return engineFailure(
+      ErrorCode.NOT_ALLOWED,
+      'Source ship not eligible for transfer',
+    ).error;
   }
 
   if (!isTransferEligibleTarget(target, playerId)) {
-    return 'Target ship not eligible for transfer';
+    return engineFailure(
+      ErrorCode.NOT_ALLOWED,
+      'Target ship not eligible for transfer',
+    ).error;
   }
 
   if (!hexEqual(source.position, target.position)) {
-    return 'Ships must be in the same hex';
+    return engineFailure(
+      ErrorCode.INVALID_INPUT,
+      'Ships must be in the same hex',
+    ).error;
   }
 
   if (!velocityMatch(source, target)) {
-    return 'Ships must have matching velocity';
+    return engineFailure(
+      ErrorCode.INVALID_INPUT,
+      'Ships must have matching velocity',
+    ).error;
   }
 
   if (transfer.amount <= 0) {
-    return 'Transfer amount must be positive';
+    return engineFailure(
+      ErrorCode.INVALID_INPUT,
+      'Transfer amount must be positive',
+    ).error;
   }
 
   if (!Number.isInteger(transfer.amount)) {
-    return 'Transfer amount must be an integer';
+    return engineFailure(
+      ErrorCode.INVALID_INPUT,
+      'Transfer amount must be an integer',
+    ).error;
   }
   const sourceStats = SHIP_STATS[source.type];
   const targetStats = SHIP_STATS[target.type];
 
   if (!sourceStats || !targetStats) {
-    return 'Invalid ship type';
+    return engineFailure(ErrorCode.INVALID_INPUT, 'Invalid ship type').error;
   }
 
   if (transfer.transferType === 'fuel') {
     if (source.type === 'torch') {
-      return 'Torch ships cannot transfer fuel';
+      return engineFailure(
+        ErrorCode.NOT_ALLOWED,
+        'Torch ships cannot transfer fuel',
+      ).error;
     }
 
     if (transfer.amount > source.fuel) {
-      return 'Insufficient fuel';
+      return engineFailure(ErrorCode.RESOURCE_LIMIT, 'Insufficient fuel').error;
     }
 
     if (target.fuel + transfer.amount > targetStats.fuel) {
-      return 'Target fuel capacity exceeded';
+      return engineFailure(
+        ErrorCode.RESOURCE_LIMIT,
+        'Target fuel capacity exceeded',
+      ).error;
     }
   } else if (transfer.transferType === 'cargo') {
     if (transfer.amount > source.cargoUsed) {
-      return 'Insufficient cargo';
+      return engineFailure(ErrorCode.RESOURCE_LIMIT, 'Insufficient cargo')
+        .error;
     }
     const space = targetStats.cargo - target.cargoUsed;
 
     if (transfer.amount > space) {
-      return 'Target cargo capacity exceeded';
+      return engineFailure(
+        ErrorCode.RESOURCE_LIMIT,
+        'Target cargo capacity exceeded',
+      ).error;
     }
   } else {
-    return 'Invalid transfer type';
+    return engineFailure(ErrorCode.INVALID_INPUT, 'Invalid transfer type')
+      .error;
   }
   return null;
 };
@@ -182,7 +220,7 @@ export const processLogistics = (
       engineEvents: EngineEvent[];
     }
   | {
-      error: string;
+      error: EngineError;
     } => {
   const state = structuredClone(inputState);
   const engineEvents: EngineEvent[] = [];
@@ -263,7 +301,7 @@ export const skipLogistics = (
       engineEvents: EngineEvent[];
     }
   | {
-      error: string;
+      error: EngineError;
     } => {
   const state = structuredClone(inputState);
   const engineEvents: EngineEvent[] = [];
@@ -302,7 +340,7 @@ export const processSurrender = (
       engineEvents: EngineEvent[];
     }
   | {
-      error: string;
+      error: EngineError;
     } => {
   const state = structuredClone(inputState);
   const engineEvents: EngineEvent[] = [];
@@ -312,42 +350,45 @@ export const processSurrender = (
   if (phaseError) return { error: phaseError };
 
   if (!state.scenarioRules.logisticsEnabled) {
-    return {
-      error: 'Logistics not enabled for this scenario',
-    };
+    return engineFailure(
+      ErrorCode.NOT_ALLOWED,
+      'Logistics not enabled for this scenario',
+    );
   }
 
   for (const shipId of shipIds) {
     const ship = state.ships.find((s) => s.id === shipId);
 
     if (!ship) {
-      return {
-        error: `Ship ${shipId} not found`,
-      };
+      return engineFailure(ErrorCode.INVALID_SHIP, `Ship ${shipId} not found`);
     }
 
     if (ship.owner !== playerId) {
-      return {
-        error: `Ship ${shipId} not owned by player`,
-      };
+      return engineFailure(
+        ErrorCode.NOT_ALLOWED,
+        `Ship ${shipId} not owned by player`,
+      );
     }
 
     if (ship.lifecycle === 'destroyed') {
-      return {
-        error: `Ship ${shipId} is destroyed`,
-      };
+      return engineFailure(
+        ErrorCode.STATE_CONFLICT,
+        `Ship ${shipId} is destroyed`,
+      );
     }
 
     if (ship.control === 'surrendered') {
-      return {
-        error: `Ship ${shipId} already surrendered`,
-      };
+      return engineFailure(
+        ErrorCode.STATE_CONFLICT,
+        `Ship ${shipId} already surrendered`,
+      );
     }
 
     if (ship.control === 'captured') {
-      return {
-        error: `Ship ${shipId} is captured`,
-      };
+      return engineFailure(
+        ErrorCode.STATE_CONFLICT,
+        `Ship ${shipId} is captured`,
+      );
     }
   }
 
