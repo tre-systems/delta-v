@@ -25,15 +25,152 @@ const map = buildSolarSystemMap();
 // --- Match-scoped event stream ---
 
 const eventStreamKey = (gameId: string): string => `events:${gameId}`;
+const eventChunkKey = (gameId: string, chunkIndex: number): string =>
+  `events:${gameId}:chunk:${chunkIndex}`;
+const eventChunkCountKey = (gameId: string): string =>
+  `eventChunkCount:${gameId}`;
 const eventSeqKey = (gameId: string): string => `eventSeq:${gameId}`;
 const matchCreatedAtKey = (gameId: string): string =>
   `matchCreatedAt:${gameId}`;
+const EVENT_CHUNK_SIZE = 64;
+
+const getEventChunkCount = async (
+  storage: Storage,
+  gameId: string,
+): Promise<number> =>
+  (await storage.get<number>(eventChunkCountKey(gameId))) ?? 0;
+
+const getEventChunk = async (
+  storage: Storage,
+  gameId: string,
+  chunkIndex: number,
+): Promise<EventEnvelope[]> =>
+  (await storage.get<EventEnvelope[]>(eventChunkKey(gameId, chunkIndex))) ?? [];
+
+const writeChunkedEventStream = async (
+  storage: Storage,
+  gameId: string,
+  stream: EventEnvelope[],
+): Promise<void> => {
+  const chunkCount =
+    stream.length === 0 ? 0 : Math.ceil(stream.length / EVENT_CHUNK_SIZE);
+
+  for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
+    const start = chunkIndex * EVENT_CHUNK_SIZE;
+    const end = start + EVENT_CHUNK_SIZE;
+    await storage.put(
+      eventChunkKey(gameId, chunkIndex),
+      stream.slice(start, end),
+    );
+  }
+
+  await storage.put(eventChunkCountKey(gameId), chunkCount);
+  await storage.put(eventSeqKey(gameId), stream.at(-1)?.seq ?? 0);
+};
+
+const migrateLegacyEventStreamIfNeeded = async (
+  storage: Storage,
+  gameId: string,
+): Promise<void> => {
+  const chunkCount = await getEventChunkCount(storage, gameId);
+
+  if (chunkCount > 0) {
+    return;
+  }
+
+  const legacyStream = await storage.get<EventEnvelope[]>(
+    eventStreamKey(gameId),
+  );
+
+  if (!legacyStream || legacyStream.length === 0) {
+    return;
+  }
+
+  await writeChunkedEventStream(storage, gameId, legacyStream);
+};
+
+const readChunkedEventStream = async (
+  storage: Storage,
+  gameId: string,
+): Promise<EventEnvelope[]> => {
+  const chunkCount = await getEventChunkCount(storage, gameId);
+
+  if (chunkCount === 0) {
+    return [];
+  }
+
+  const stream: EventEnvelope[] = [];
+
+  for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
+    stream.push(...(await getEventChunk(storage, gameId, chunkIndex)));
+  }
+
+  return stream;
+};
+
+const readChunkedEventStreamTail = async (
+  storage: Storage,
+  gameId: string,
+  afterSeqExclusive: number,
+): Promise<EventEnvelope[]> => {
+  const chunkCount = await getEventChunkCount(storage, gameId);
+
+  if (chunkCount === 0) {
+    return [];
+  }
+
+  const stream: EventEnvelope[] = [];
+  const startChunkIndex = Math.max(
+    0,
+    Math.floor(afterSeqExclusive / EVENT_CHUNK_SIZE),
+  );
+
+  for (
+    let chunkIndex = startChunkIndex;
+    chunkIndex < chunkCount;
+    chunkIndex++
+  ) {
+    const chunk = await getEventChunk(storage, gameId, chunkIndex);
+    stream.push(
+      ...chunk.filter((envelope) => envelope.seq > afterSeqExclusive),
+    );
+  }
+
+  return stream;
+};
 
 export const getEventStream = async (
   storage: Storage,
   gameId: string,
-): Promise<EventEnvelope[]> =>
-  (await storage.get<EventEnvelope[]>(eventStreamKey(gameId))) ?? [];
+): Promise<EventEnvelope[]> => {
+  await migrateLegacyEventStreamIfNeeded(storage, gameId);
+
+  const chunkedStream = await readChunkedEventStream(storage, gameId);
+
+  if (chunkedStream.length > 0) {
+    return chunkedStream;
+  }
+
+  return (await storage.get<EventEnvelope[]>(eventStreamKey(gameId))) ?? [];
+};
+
+export const getEventStreamTail = async (
+  storage: Storage,
+  gameId: string,
+  afterSeqExclusive: number,
+): Promise<EventEnvelope[]> => {
+  await migrateLegacyEventStreamIfNeeded(storage, gameId);
+
+  const chunkCount = await getEventChunkCount(storage, gameId);
+
+  if (chunkCount > 0) {
+    return readChunkedEventStreamTail(storage, gameId, afterSeqExclusive);
+  }
+
+  return (await getEventStream(storage, gameId)).filter(
+    (envelope) => envelope.seq > afterSeqExclusive,
+  );
+};
 
 export const getEventStreamLength = async (
   storage: Storage,
@@ -48,16 +185,37 @@ export const appendEnvelopedEvents = async (
 ): Promise<void> => {
   if (events.length === 0) return;
 
-  const stream = await getEventStream(storage, gameId);
+  await migrateLegacyEventStreamIfNeeded(storage, gameId);
+  const chunkCount = await getEventChunkCount(storage, gameId);
   let seq = (await storage.get<number>(eventSeqKey(gameId))) ?? 0;
   const now = Date.now();
+  const updatedChunks = new Map<number, EventEnvelope[]>();
+  let nextChunkCount = chunkCount;
 
   for (const event of events) {
-    seq++;
-    stream.push({ gameId, seq, ts: now, actor, event });
+    const nextSeq = seq + 1;
+    const chunkIndex = Math.floor((nextSeq - 1) / EVENT_CHUNK_SIZE);
+    const currentChunk =
+      updatedChunks.get(chunkIndex) ??
+      (await getEventChunk(storage, gameId, chunkIndex));
+
+    currentChunk.push({
+      gameId,
+      seq: nextSeq,
+      ts: now,
+      actor,
+      event,
+    });
+    updatedChunks.set(chunkIndex, currentChunk);
+    seq = nextSeq;
+    nextChunkCount = Math.max(nextChunkCount, chunkIndex + 1);
   }
 
-  await storage.put(eventStreamKey(gameId), stream);
+  for (const [chunkIndex, chunk] of updatedChunks) {
+    await storage.put(eventChunkKey(gameId, chunkIndex), chunk);
+  }
+
+  await storage.put(eventChunkCountKey(gameId), nextChunkCount);
   await storage.put(eventSeqKey(gameId), seq);
 };
 
@@ -159,15 +317,11 @@ const toCheckpointReplayEntry = (checkpoint: Checkpoint): ReplayEntry => ({
 });
 
 const projectCurrentStateFromStream = (
-  eventStream: EventEnvelope[],
+  eventStreamTail: EventEnvelope[],
   checkpoint: Checkpoint | null,
 ): import('../../shared/types/domain').GameState | null => {
-  const tail =
-    checkpoint === null
-      ? eventStream
-      : eventStream.filter((envelope) => envelope.seq > checkpoint.seq);
   const projected = projectGameStateFromStream(
-    tail,
+    eventStreamTail,
     map,
     checkpoint?.state ?? null,
   );
@@ -180,12 +334,17 @@ export const getProjectedCurrentState = async (
   gameId: string,
   viewerId: ViewerId,
 ): Promise<import('../../shared/types/domain').GameState | null> => {
-  const [eventStream, checkpoint] = await Promise.all([
-    getEventStream(storage, gameId),
-    getCheckpoint(storage, gameId),
-  ]);
+  const checkpoint = await getCheckpoint(storage, gameId);
+  const eventStreamTail = await getEventStreamTail(
+    storage,
+    gameId,
+    checkpoint?.seq ?? 0,
+  );
 
-  const latestState = projectCurrentStateFromStream(eventStream, checkpoint);
+  const latestState = projectCurrentStateFromStream(
+    eventStreamTail,
+    checkpoint,
+  );
 
   if (!latestState) {
     return null;
@@ -198,50 +357,24 @@ export const getProjectedCurrentStateRaw = async (
   storage: Storage,
   gameId: string,
 ): Promise<import('../../shared/types/domain').GameState | null> => {
-  const [eventStream, checkpoint] = await Promise.all([
-    getEventStream(storage, gameId),
-    getCheckpoint(storage, gameId),
-  ]);
-
-  return projectCurrentStateFromStream(eventStream, checkpoint);
-};
-
-const normalizeStateForParity = (
-  state: import('../../shared/types/domain').GameState,
-): import('../../shared/types/domain').GameState => ({
-  ...state,
-  players: state.players.map((player) => ({
-    ...player,
-    connected: false,
-  })) as import('../../shared/types/domain').GameState['players'],
-});
-
-export const hasProjectionParity = async (
-  storage: Storage,
-  gameId: string,
-  liveState: import('../../shared/types/domain').GameState,
-): Promise<boolean> => {
-  const projectedState = await getProjectedCurrentStateRaw(storage, gameId);
-
-  return (
-    projectedState !== null &&
-    JSON.stringify(normalizeStateForParity(projectedState)) ===
-      JSON.stringify(normalizeStateForParity(liveState))
+  const checkpoint = await getCheckpoint(storage, gameId);
+  const eventStreamTail = await getEventStreamTail(
+    storage,
+    gameId,
+    checkpoint?.seq ?? 0,
   );
+
+  return projectCurrentStateFromStream(eventStreamTail, checkpoint);
 };
 
 const toReplayEntriesFromStream = (
-  eventStream: EventEnvelope[],
+  eventStreamTail: EventEnvelope[],
   checkpoint: Checkpoint | null,
 ): ReplayEntry[] => {
-  const visibleEvents =
-    checkpoint === null
-      ? eventStream
-      : eventStream.filter((envelope) => envelope.seq > checkpoint.seq);
   const entries = checkpoint ? [toCheckpointReplayEntry(checkpoint)] : [];
   let currentState = checkpoint?.state ?? null;
 
-  for (const envelope of visibleEvents) {
+  for (const envelope of eventStreamTail) {
     const projected = projectGameStateFromStream([envelope], map, currentState);
 
     if (!projected.ok) {
@@ -281,7 +414,7 @@ const toReplayEntriesFromStream = (
 
 const createProjectedTimelineMetadata = (
   gameId: string,
-  eventStream: EventEnvelope[],
+  eventStreamTail: EventEnvelope[],
   checkpoint: Checkpoint | null,
   createdAt: number | null,
 ): Pick<
@@ -289,7 +422,7 @@ const createProjectedTimelineMetadata = (
   'gameId' | 'roomCode' | 'matchNumber' | 'scenario' | 'createdAt'
 > | null => {
   const parsed = parseMatchId(gameId);
-  const gameCreated = eventStream.find(
+  const gameCreated = eventStreamTail.find(
     (envelope) => envelope.event.type === 'gameCreated',
   );
   const scenario =
@@ -315,15 +448,15 @@ const createProjectedTimelineMetadata = (
 
 export const projectReplayTimeline = (
   checkpoint: Checkpoint | null,
-  eventStream: EventEnvelope[],
+  eventStreamTail: EventEnvelope[],
   viewerId: ViewerId,
   createdAt: number | null = null,
 ): ReplayTimeline | null => {
   const baseTimeline = (() => {
-    if (eventStream.length > 0 || checkpoint) {
+    if (eventStreamTail.length > 0 || checkpoint) {
       const metadata = createProjectedTimelineMetadata(
-        checkpoint?.gameId ?? eventStream[0]?.gameId ?? '',
-        eventStream,
+        checkpoint?.gameId ?? eventStreamTail[0]?.gameId ?? '',
+        eventStreamTail,
         checkpoint,
         createdAt,
       );
@@ -334,7 +467,7 @@ export const projectReplayTimeline = (
 
       return {
         ...metadata,
-        entries: toReplayEntriesFromStream(eventStream, checkpoint),
+        entries: toReplayEntriesFromStream(eventStreamTail, checkpoint),
       };
     }
     return null;
@@ -352,13 +485,46 @@ export const getProjectedReplayTimeline = async (
   gameId: string,
   viewerId: ViewerId,
 ): Promise<ReplayTimeline | null> => {
-  const [checkpoint, eventStream, createdAt] = await Promise.all([
+  const [checkpoint, createdAt] = await Promise.all([
     getCheckpoint(storage, gameId),
-    getEventStream(storage, gameId),
     getMatchCreatedAt(storage, gameId),
   ]);
+  const eventStreamTail = await getEventStreamTail(
+    storage,
+    gameId,
+    checkpoint?.seq ?? 0,
+  );
 
-  return projectReplayTimeline(checkpoint, eventStream, viewerId, createdAt);
+  return projectReplayTimeline(
+    checkpoint,
+    eventStreamTail,
+    viewerId,
+    createdAt,
+  );
+};
+
+const normalizeStateForParity = (
+  state: import('../../shared/types/domain').GameState,
+): import('../../shared/types/domain').GameState => ({
+  ...state,
+  players: state.players.map((player) => ({
+    ...player,
+    connected: false,
+  })) as import('../../shared/types/domain').GameState['players'],
+});
+
+export const hasProjectionParity = async (
+  storage: Storage,
+  gameId: string,
+  liveState: import('../../shared/types/domain').GameState,
+): Promise<boolean> => {
+  const projectedState = await getProjectedCurrentStateRaw(storage, gameId);
+
+  return (
+    projectedState !== null &&
+    JSON.stringify(normalizeStateForParity(projectedState)) ===
+      JSON.stringify(normalizeStateForParity(liveState))
+  );
 };
 
 // --- Match identity ---
