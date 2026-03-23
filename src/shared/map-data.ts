@@ -271,6 +271,7 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
       for (const gh of ringHexes) {
         // Don't override another body's surface
         const existing = hexes.get(hexKey(gh));
+
         if (
           existing &&
           (existing.terrain === 'planetSurface' ||

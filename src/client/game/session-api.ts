@@ -57,6 +57,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         signal: abort.signal,
       });
       clearTimeout(timer);
+
       if (!res.ok) {
         deps.showToast('Server error \u2014 try again in a moment.', 'error');
         deps.setState('menu');
@@ -107,17 +108,20 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         { signal: abort.signal },
       );
       clearTimeout(timer);
+
       if (response.ok) return { ok: true };
       const message = (await response.text()) || 'Could not join game';
       return { ok: false, message };
     } catch (err) {
       clearTimeout(timer);
+
       if (err instanceof DOMException && err.name === 'AbortError') {
         return {
           ok: false,
           message: 'Join check timed out. Try again.',
         };
       }
+
       if (err instanceof TypeError) {
         return {
           ok: false,

@@ -22,6 +22,7 @@ export interface CameraControllerDeps {
 export const createCameraController = (deps: CameraControllerDeps) => ({
   cycleShip: (direction: number) => {
     const state = deps.getGameState();
+
     if (!state) return;
     const nextShip = getNextSelectedShip(
       state,
@@ -29,6 +30,7 @@ export const createCameraController = (deps: CameraControllerDeps) => ({
       deps.getPlanningState().selectedShipId,
       direction,
     );
+
     if (!nextShip) return;
     setSelectedShipId(deps.getPlanningState(), nextShip.id);
     deps.renderer.centerOnHex(nextShip.position);
@@ -37,6 +39,7 @@ export const createCameraController = (deps: CameraControllerDeps) => ({
 
   focusNearestEnemy: () => {
     const state = deps.getGameState();
+
     if (!state) return;
     const position = getNearestEnemyPosition(
       state,
@@ -45,6 +48,7 @@ export const createCameraController = (deps: CameraControllerDeps) => ({
       deps.renderer.camera.y,
       HEX_SIZE,
     );
+
     if (!position) {
       deps.overlay.showToast('No detected enemies', 'info');
       return;
@@ -54,12 +58,14 @@ export const createCameraController = (deps: CameraControllerDeps) => ({
 
   focusOwnFleet: () => {
     const state = deps.getGameState();
+
     if (!state) return;
     const position = getOwnFleetFocusPosition(
       state,
       deps.getPlayerId(),
       deps.getPlanningState().selectedShipId,
     );
+
     if (!position) return;
     deps.renderer.centerOnHex(position);
   },

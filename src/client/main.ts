@@ -262,9 +262,11 @@ class GameClient {
           },
           { key: e.key, shiftKey: e.shiftKey },
         );
+
         if (action.kind === 'none') {
           return;
         }
+
         if (action.preventDefault) {
           e.preventDefault();
         }
@@ -296,6 +298,7 @@ class GameClient {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const playerToken = urlParams.get('playerToken');
+
     if (code && code.length === CODE_LENGTH) {
       const normalizedCode = code.toUpperCase();
       // Strip token from URL to avoid leaking it
@@ -331,6 +334,7 @@ class GameClient {
 
   private renderLogisticsPanel() {
     const panel = byId('transferPanel');
+
     if (!this.logisticsUIState) return;
     renderTransferPanel(panel, this.logisticsUIState, () =>
       this.renderLogisticsPanel(),
@@ -429,6 +433,7 @@ class GameClient {
 
   private handleKeyboardAction(action: KeyboardAction) {
     const cmd = keyboardActionToCommand(action);
+
     if (cmd) this.dispatch(cmd);
   }
 
@@ -540,6 +545,7 @@ class GameClient {
       return;
     }
     this.ctx.transport.submitFleetReady(purchases);
+
     if (!this.ctx.isLocalGame) {
       this.ui.showFleetWaiting();
     }

@@ -32,6 +32,7 @@ export const advanceTurn = (
 ): void => {
   for (const ship of state.ships) {
     if (ship.owner !== state.activePlayer) continue;
+
     if (ship.lifecycle === 'destroyed') continue;
 
     ship.resuppliedThisTurn = false;
@@ -79,14 +80,17 @@ const getNextShipId = (state: GameState): string => {
 
 const applyReinforcements = (state: GameState): void => {
   const reinforcements = state.scenarioRules.reinforcements;
+
   if (!reinforcements) return;
 
   for (const r of reinforcements) {
     if (r.turn !== state.turnNumber) continue;
+
     if (r.playerId !== state.activePlayer) continue;
 
     for (const shipDef of r.ships) {
       const stats = SHIP_STATS[shipDef.type];
+
       if (!stats) continue;
 
       const id = getNextShipId(state);
@@ -115,12 +119,14 @@ const applyReinforcements = (state: GameState): void => {
 
 const applyFleetConversion = (state: GameState): void => {
   const conversion = state.scenarioRules.fleetConversion;
+
   if (!conversion || conversion.turn !== state.turnNumber) {
     return;
   }
 
   for (const ship of state.ships) {
     if (ship.owner !== conversion.fromPlayer) continue;
+
     if (ship.lifecycle === 'destroyed') continue;
 
     if (conversion.shipTypes && !conversion.shipTypes.includes(ship.type)) {
@@ -143,10 +149,12 @@ export const applyCheckpoints = (
 ): void => {
   const checkpoints = state.scenarioRules.checkpointBodies;
   const visited = state.players[playerId].visitedBodies;
+
   if (!checkpoints || !visited) return;
 
   for (const hex of path) {
     const mapHex = map.hexes.get(hexKey(hex));
+
     if (!mapHex) continue;
 
     const bodyName = mapHex.gravity?.bodyName ?? mapHex.body?.name;
@@ -218,6 +226,7 @@ export const checkImmediateVictory = (
       if (ship.lifecycle !== 'landed') continue;
 
       const player = state.players[ship.owner];
+
       if (!player.visitedBodies) continue;
 
       const allVisited = state.scenarioRules.checkpointBodies.every((b) =>
@@ -249,6 +258,7 @@ export const checkImmediateVictory = (
     if (ship.lifecycle !== 'landed') continue;
 
     const targetBody = state.players[ship.owner].targetBody;
+
     if (!targetBody) continue;
 
     const hex = map.hexes.get(hexKey(ship.position));
@@ -268,7 +278,9 @@ export const checkImmediateVictory = (
 
   for (const ship of state.ships) {
     if (ship.lifecycle === 'destroyed') continue;
+
     if (!state.players[ship.owner].escapeWins) continue;
+
     if (!fugitiveHasEscaped(state, ship, map)) continue;
 
     const hasFugitiveScenario = state.ships.some(
@@ -453,10 +465,13 @@ export const checkRamming = (
       const b = alive[j];
 
       if (a.owner === b.owner) continue;
+
       if (!hexEqual(a.position, b.position)) continue;
+
       if (a.lifecycle === 'landed' || b.lifecycle === 'landed') {
         continue;
       }
+
       if (a.control === 'captured' || b.control === 'captured') {
         continue;
       }
@@ -522,12 +537,15 @@ export const checkInspection = (
       if (target.owner === playerId || target.lifecycle === 'destroyed') {
         continue;
       }
+
       if (!target.identity || target.identity.revealed) {
         continue;
       }
+
       if (!hexEqual(inspector.position, target.position)) {
         continue;
       }
+
       if (
         inspector.velocity.dq !== target.velocity.dq ||
         inspector.velocity.dr !== target.velocity.dr
@@ -564,11 +582,15 @@ export const checkCapture = (
       if (target.owner === playerId || target.lifecycle === 'destroyed') {
         continue;
       }
+
       if (target.damage.disabledTurns <= 0) continue;
+
       if (target.control === 'captured') continue;
+
       if (!hexEqual(captor.position, target.position)) {
         continue;
       }
+
       if (
         captor.velocity.dq !== target.velocity.dq ||
         captor.velocity.dr !== target.velocity.dr
@@ -578,6 +600,7 @@ export const checkCapture = (
 
       target.control = 'captured';
       target.owner = playerId;
+
       if (target.identity) {
         target.identity.revealed = true;
       }
@@ -624,12 +647,14 @@ export const checkOrbitalBaseResupply = (
     ) {
       continue;
     }
+
     if (ship.resuppliedThisTurn) continue;
 
     for (const ob of orbitalBases) {
       if (!hexEqual(ship.position, ob.position)) {
         continue;
       }
+
       if (
         ship.velocity.dq !== ob.velocity.dq ||
         ship.velocity.dr !== ob.velocity.dr
@@ -729,7 +754,9 @@ export const applyDetection = (state: GameState, map: SolarSystemMap): void => {
 
     for (const key of state.players[1 - ship.owner].bases) {
       const hex = map.hexes.get(key);
+
       if (!hex?.base) continue;
+
       if (state.destroyedBases.includes(key)) continue;
 
       const baseCoord = parseHexKey(key);

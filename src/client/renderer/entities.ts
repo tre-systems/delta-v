@@ -47,6 +47,7 @@ export const getVisibleShips = (
 ): Ship[] => {
   return state.ships.filter((ship) => {
     if (ship.lifecycle === 'destroyed' && !isAnimating) return false;
+
     if (ship.owner === playerId) return true;
 
     return ship.detected;

@@ -164,9 +164,11 @@ export const createTutorial = (): Tutorial => {
       if (shownSteps.has(candidate.id)) {
         return false;
       }
+
       if (candidate.phase !== 'any' && candidate.phase !== phase) {
         return false;
       }
+
       if (candidate.minTurn && turn < candidate.minTurn) {
         return false;
       }

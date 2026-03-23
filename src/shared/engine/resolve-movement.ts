@@ -51,6 +51,7 @@ export const filterStateForPlayer = (
       }
       // Players see own ships' identity
       if (ship.owner === viewer) return ship;
+
       if (ship.identity?.revealed) return ship;
       const { identity, ...rest } = ship;
       return rest;
@@ -81,7 +82,9 @@ export const resolveMovementPhase = (
 
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
+
     if (ship.lifecycle === 'destroyed') continue;
+
     if (ship.baseStatus === 'emplaced') continue;
 
     const isDisabled = ship.damage.disabledTurns > 0;
@@ -182,9 +185,11 @@ export const resolveMovementPhase = (
   if (state.scenarioRules.checkpointBodies) {
     for (const m of movements) {
       const ship = state.ships.find((s) => s.id === m.shipId);
+
       if (ship && ship.lifecycle !== 'destroyed') {
         applyCheckpoints(state, ship.owner, m.path, map, engineEvents);
         const totalFuelSpent = state.players[ship.owner].totalFuelSpent;
+
         if (totalFuelSpent !== undefined) {
           state.players[ship.owner].totalFuelSpent =
             totalFuelSpent + m.fuelSpent;
@@ -221,6 +226,7 @@ export const resolveMovementPhase = (
       });
     } else {
       checkGameEnd(state, map, engineEvents);
+
       if (state.winner === null) {
         advanceTurn(state, engineEvents);
       }

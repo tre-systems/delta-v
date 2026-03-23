@@ -21,6 +21,7 @@ export const sendOrdnanceLaunch = (
 ) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
+
   if (!gameState || deps.getClientState() !== 'playing_ordnance' || !transport)
     return;
   const plan = resolveOrdnanceLaunchPlan(
@@ -28,6 +29,7 @@ export const sendOrdnanceLaunch = (
     deps.planningState,
     ordType,
   );
+
   if (!plan.ok) {
     if (plan.message) {
       deps.showToast(plan.message, must(plan.level));
@@ -41,12 +43,14 @@ export const sendOrdnanceLaunch = (
 export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
+
   if (!gameState || deps.getClientState() !== 'playing_ordnance' || !transport)
     return;
   const plan = resolveBaseEmplacementPlan(
     gameState,
     must(deps.planningState.selectedShipId),
   );
+
   if (!plan.ok) {
     if (plan.message) {
       deps.showToast(plan.message, must(plan.level));
@@ -59,6 +63,7 @@ export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
 export const sendSkipOrdnance = (deps: OrdnanceActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
+
   if (!gameState || deps.getClientState() !== 'playing_ordnance' || !transport)
     return;
   transport.skipOrdnance();

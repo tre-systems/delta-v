@@ -233,6 +233,7 @@ const buildOverloadMarkers = (
   if (burn === null) return [];
 
   const stats = SHIP_STATS[ship.type];
+
   if (!stats?.canOverload || ship.fuel < 2 || ship.overloadUsed) {
     return [];
   }

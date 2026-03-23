@@ -153,6 +153,7 @@ export const createOverlayView = (): OverlayView => {
     for (const timer of toastTimers) {
       clearTimeout(timer);
     }
+
     toastTimers.clear();
     scope.dispose();
   };

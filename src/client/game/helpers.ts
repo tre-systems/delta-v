@@ -152,7 +152,9 @@ const getFleetStatus = (state: GameState, playerId: number): string => {
   const nukes = count(activeOrdnance, (ordnance) => ordnance.type === 'nuke');
 
   if (mines > 0) ordnanceParts.push(`${mines}M`);
+
   if (torpedoes > 0) ordnanceParts.push(`${torpedoes}T`);
+
   if (nukes > 0) ordnanceParts.push(`${nukes}N`);
 
   statusParts.push(ordnanceParts.join('/'));

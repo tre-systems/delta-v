@@ -22,6 +22,7 @@ export const selectShip = (
   lastSelectedHex?: string | null,
 ): void => {
   planningState.selectedShipId = shipId;
+
   if (lastSelectedHex !== undefined) {
     planningState.lastSelectedHex = lastSelectedHex;
   }
@@ -53,6 +54,7 @@ export const setShipBurn = (
   clearOverload = false,
 ): void => {
   planningState.burns.set(shipId, burn);
+
   if (clearOverload) {
     planningState.overloads.delete(shipId);
   }
@@ -80,6 +82,7 @@ export const applyCombatPlanUpdate = (
   selectedShipId?: string,
 ): void => {
   Object.assign(planningState, plan);
+
   if (selectedShipId !== undefined) {
     planningState.selectedShipId = selectedShipId;
   }

@@ -34,9 +34,11 @@ export const createHudController = (deps: HudControllerDeps) => {
   } => {
     const state = deps.getGameState();
     const map = deps.getMap();
+
     if (!state || !map) {
       return { anyCrashed: false, crashBody: null };
     }
+
     if (state.phase !== 'astrogation') {
       return { anyCrashed: false, crashBody: null };
     }
@@ -46,6 +48,7 @@ export const createHudController = (deps: HudControllerDeps) => {
         continue;
       }
       const burn = planning.burns.get(ship.id) ?? null;
+
       if (burn === null) continue;
       const overload = planning.overloads.get(ship.id) ?? null;
       const weakGravityChoices = planning.weakGravityChoices.get(ship.id) ?? {};
@@ -54,16 +57,19 @@ export const createHudController = (deps: HudControllerDeps) => {
         weakGravityChoices,
         destroyedBases: state.destroyedBases,
       });
+
       if (course.crashed) {
         return { anyCrashed: true, crashBody: course.crashBody };
       }
     }
+
     return { anyCrashed: false, crashBody: null };
   };
 
   return {
     updateHUD: () => {
       const state = deps.getGameState();
+
       if (!state) return;
       const planning = deps.getPlanningState();
       const hud = deriveHudViewModel(state, deps.getPlayerId(), planning);
@@ -120,6 +126,7 @@ export const createHudController = (deps: HudControllerDeps) => {
         deps.getPlayerId(),
         hoverHex,
       );
+
       if (!ship || !gameState) {
         hide(deps.tooltipEl);
         return;
@@ -140,6 +147,7 @@ export const createHudController = (deps: HudControllerDeps) => {
 
     logScenarioBriefing: () => {
       const state = deps.getGameState();
+
       if (!state) return;
       for (const entry of deriveScenarioBriefingEntries(
         state,

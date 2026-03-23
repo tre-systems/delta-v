@@ -138,6 +138,7 @@ const hexLineDrawWithNudge = (
   eps: number,
 ): HexCoord[] => {
   const n = hexDistance(a, b);
+
   if (n === 0) return [a];
 
   const ac = axialToCube(a);
@@ -201,6 +202,7 @@ export const analyzeHexLine = (a: HexCoord, b: HexCoord): HexLineAnalysis => {
 
   for (const hex of primary) {
     const key = hexKey(hex);
+
     if (!alternateKeys.has(key) || seenDefinite.has(key)) {
       continue;
     }

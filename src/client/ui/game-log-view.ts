@@ -92,6 +92,7 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
       if (ke.key !== 'Enter') return;
 
       const text = chatInput.value.trim();
+
       if (!text) return;
 
       deps.onChat(text);
@@ -258,6 +259,7 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   const logMovementEvents = (events: MovementEvent[], ships: Ship[]): void => {
     for (const event of events) {
       const entry = formatMovementEventEntry(event, ships);
+
       if (entry) {
         logText(entry.text, entry.className);
       }

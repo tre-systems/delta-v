@@ -87,6 +87,7 @@ export const buildBodyView = (
       alpha: (0.15 / i) * (1 - pulse * 0.3),
     });
   }
+
   return {
     center,
     radius,
@@ -105,6 +106,7 @@ export const buildBaseMarkerView = (
   playerId: number,
 ): BaseMarkerView => {
   const destroyed = new Set(state?.destroyedBases ?? []);
+
   if (destroyed.has(baseKey)) {
     return {
       kind: 'destroyed',
@@ -122,6 +124,7 @@ export const buildBaseMarkerView = (
     state && playerId >= 0
       ? new Set(state.players[1 - playerId]?.bases ?? [])
       : new Set<string>();
+
   if (myBases.has(baseKey)) {
     return {
       kind: 'friendly',
@@ -162,6 +165,7 @@ export const buildMapBorderView = (
     { q: bounds.maxQ + margin, r: bounds.maxR + margin },
     hexSize,
   );
+
   if (isEscape) {
     const pulse = 0.15 + 0.1 * Math.sin(now / 1000);
     return {
@@ -239,13 +243,16 @@ export const buildLandingObjectiveView = (
   hexSize: number,
 ): LandingObjectiveView | null => {
   if (!player) return null;
+
   if (player.escapeWins)
     return buildEscapeObjectiveView(map.bounds, now, hexSize);
+
   if (!player.targetBody) return null;
 
   const body = map.bodies.find(
     (candidate) => candidate.name === player.targetBody,
   );
+
   if (!body) return null;
 
   const center = hexToPixel(body.center, hexSize);

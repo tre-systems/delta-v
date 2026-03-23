@@ -29,6 +29,7 @@ export const appendEvents = async (
 ): Promise<void> => {
   const log = await getEventLog(storage);
   log.push(...events);
+
   if (log.length > MAX_EVENTS) {
     log.splice(0, log.length - MAX_EVENTS);
   }

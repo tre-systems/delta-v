@@ -23,6 +23,7 @@ export const getTooltipShip = (
   return (
     state.ships.find((ship) => {
       if (ship.lifecycle === 'destroyed') return false;
+
       if (ship.owner !== playerId && !ship.detected) return false;
 
       return hexEqual(ship.position, hoverHex);

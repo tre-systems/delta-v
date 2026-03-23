@@ -51,6 +51,7 @@ export const signal = <T>(initial: T): Signal<T> => {
     set value(next: T) {
       if (next === val) return;
       val = next;
+
       if (batchDepth > 0) {
         for (const sub of subs) pending.add(sub);
       } else {
@@ -84,6 +85,7 @@ export const createDisposalScope = (): DisposalScope => {
 
       while (disposers.length > 0) {
         const disposable = disposers.pop();
+
         if (!disposable) {
           continue;
         }
@@ -169,6 +171,7 @@ export const batch = (fn: () => void): void => {
     fn();
   } finally {
     batchDepth--;
+
     if (batchDepth === 0) {
       const fns = [...pending];
       pending.clear();

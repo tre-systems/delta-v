@@ -55,6 +55,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
 
   const submitJoin = (rawValue: string): void => {
     const parsed = parseJoinInput(rawValue, CODE_LENGTH);
+
     if (!parsed) {
       return;
     }

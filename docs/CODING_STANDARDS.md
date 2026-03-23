@@ -468,7 +468,16 @@ The server directory (`src/server/`) has `noUndeclaredVariables` disabled becaus
 ## Formatting
 
 - **Line width**: keep lines under 80 characters where practical. Break long lines at natural points (after commas, before operators, at arrow functions). Some lines will be longer — that's fine if breaking them would hurt readability.
-- **Generous whitespace**: add blank lines between logical blocks — between functions, after import blocks, between distinct steps within a function, before return statements that follow logic, between groups of related declarations. Code should look simple, clear, and airy — not dense or cramped.
+- **Generous whitespace**: add blank lines to keep code airy and scannable. Specifically:
+  - Between class methods and properties
+  - Between top-level declarations (functions, consts, types, interfaces)
+  - After import blocks before the first declaration
+  - Before and after loops (`for`, `while`)
+  - Before `if` statements (but not before `else if` in a chain)
+  - After the closing `}` of an `if`/`else` chain when more code follows
+  - Before and after groups of related `const`/`let` declarations when they form a logical block (but not between every individual binding in a tight group)
+  - Before `return` statements that follow logic
+  - Between distinct logical steps within a function
 - **Long signatures**: put each parameter on its own line when the signature exceeds ~80 chars.
 - **Long objects/arrays**: put each property or element on its own line.
 - **Long conditionals**: break `if` conditions and ternaries across multiple lines.

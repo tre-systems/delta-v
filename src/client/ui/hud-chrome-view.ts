@@ -103,6 +103,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const viewSignal = scope.add(
     computed(() => {
       const input = inputSignal.value;
+
       if (!input) return null;
 
       const hudView = buildHUDView({
@@ -130,6 +131,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   scope.add(
     effect(() => {
       const state = viewSignal.value;
+
       if (!state) return;
       const { input, hudView } = state;
       const hideActions = state.suppressActionButtons;

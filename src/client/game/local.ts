@@ -40,6 +40,7 @@ export const resolveAstrogationStep = (
   map: SolarSystemMap,
 ): LocalResolution => {
   const result = processAstrogation(state, playerId, orders, map, Math.random);
+
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
@@ -57,6 +58,7 @@ export const resolveOrdnanceStep = (
   map: SolarSystemMap,
 ): LocalResolution => {
   const result = processOrdnance(state, playerId, launches, map, Math.random);
+
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
@@ -69,6 +71,7 @@ export const resolveSkipOrdnanceStep = (
   map: SolarSystemMap,
 ): LocalResolution => {
   const result = skipOrdnance(state, playerId, map, Math.random);
+
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
@@ -86,6 +89,7 @@ export const resolveBeginCombatStep = (
 ): LocalResolution => {
   const previousState = structuredClone(state);
   const result = beginCombatPhase(state, playerId, map, Math.random);
+
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
@@ -111,6 +115,7 @@ export const resolveCombatStep = (
 ): LocalResolution => {
   const previousState = structuredClone(state);
   const result = processCombat(state, playerId, attacks, map, Math.random);
+
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
@@ -130,6 +135,7 @@ export const resolveSkipCombatStep = (
 ): LocalResolution => {
   const previousState = structuredClone(state);
   const result = skipCombat(state, playerId, map, Math.random);
+
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
@@ -153,6 +159,7 @@ export const resolveLogisticsStep = (
   map: SolarSystemMap,
 ): LocalResolution => {
   const result = processLogistics(state, playerId, transfers, map);
+
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
@@ -165,6 +172,7 @@ export const resolveSkipLogisticsStep = (
   map: SolarSystemMap,
 ): LocalResolution => {
   const result = skipLogistics(state, playerId, map);
+
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }

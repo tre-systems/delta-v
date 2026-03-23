@@ -48,6 +48,7 @@ export const el = (
     }
 
     if (props.text) element.textContent = props.text;
+
     if (props.html) setTrustedHTML(element, props.html);
 
     if (props.style) {

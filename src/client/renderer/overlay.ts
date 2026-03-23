@@ -143,6 +143,7 @@ export const renderOrdnance = (
       if (!om.detonated) continue;
 
       const overlay = getDetonatedOrdnanceOverlay(progress);
+
       if (!overlay) continue;
 
       if (overlay.kind === 'diamond') {
@@ -188,12 +189,15 @@ export const renderTorpedoGuidance = (
   if (isAnimating) return;
 
   const selectedId = planningState.selectedShipId;
+
   if (!selectedId) return;
 
   const ship = state.ships.find((s) => s.id === selectedId);
+
   if (!ship || ship.lifecycle !== 'active') return;
 
   const stats = SHIP_STATS[ship.type];
+
   if (!stats?.canOverload) return;
 
   const shipPos = hexToPixel(ship.position, hexSize);
@@ -324,6 +328,7 @@ export const renderCombatOverlay = (
 
   // Preview
   const preview = getCombatPreview(state, playerId, planningState, map);
+
   if (preview === null) return;
 
   const targetPos = hexToPixel(preview.targetPosition, hexSize);

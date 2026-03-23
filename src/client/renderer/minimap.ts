@@ -70,7 +70,9 @@ const buildShipTrailViews = (
     if (trail.length < 2) continue;
 
     const ship = state.ships.find((candidate) => candidate.id === shipId);
+
     if (!ship) continue;
+
     if (ship.owner !== playerId && !ship.detected) {
       continue;
     }

@@ -73,6 +73,7 @@ export const createFleetBuildingView = (
       const cartView = cartViewSignal.value;
 
       creditsEl.textContent = cartView.remainingLabel;
+
       if (cartView.isEmpty) {
         clearHTML(cartEl);
         setTrustedHTML(cartEl, EMPTY_CART_HTML);

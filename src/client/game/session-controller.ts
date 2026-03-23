@@ -142,6 +142,7 @@ export const startLocalGameSession = (
   deps.logScenarioBriefing();
 
   const gameState = deps.ctx.gameState;
+
   if (!gameState) {
     return;
   }
@@ -149,6 +150,7 @@ export const startLocalGameSession = (
   const nextState = deriveGameStartClientState(gameState, deps.ctx.playerId);
 
   deps.setState(nextState);
+
   if (nextState === 'playing_opponentTurn') {
     deps.runLocalAI();
   }

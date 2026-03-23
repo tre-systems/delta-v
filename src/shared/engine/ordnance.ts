@@ -63,6 +63,7 @@ export const processEmplacement = (
   const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'ordnance');
+
   if (phaseError) return { error: phaseError };
 
   for (const emp of emplacements) {
@@ -71,16 +72,19 @@ export const processEmplacement = (
     if (!ship || ship.owner !== playerId || ship.lifecycle === 'destroyed') {
       return { error: 'Invalid ship for emplacement' };
     }
+
     if (ship.baseStatus !== 'carryingBase') {
       return {
         error: 'Ship is not carrying an orbital base',
       };
     }
+
     if (ship.type !== 'transport' && ship.type !== 'packet') {
       return {
         error: 'Only transports and packets can' + ' carry orbital bases',
       };
     }
+
     if (ship.resuppliedThisTurn) {
       return {
         error: 'Cannot emplace during a resupply turn',
@@ -504,7 +508,9 @@ export const queueAsteroidHazards = (
   map: SolarSystemMap,
 ): void => {
   const speed = hexVecLength(velocity);
+
   if (speed <= 1) return;
+
   if (path.length < 2) return;
 
   const line = analyzeHexLine(path[0], path[path.length - 1]);
@@ -564,6 +570,7 @@ export const resolvePendingAsteroidHazards = (
       remaining.push(hazard);
       continue;
     }
+
     if (ship.lifecycle === 'destroyed') {
       continue;
     }

@@ -164,6 +164,7 @@ export class Renderer {
     this.movementAnimation.start(movements, ordnanceMovements, onComplete);
     // Frame camera on all moving ships and ordnance
     const allHexes = collectAnimatedHexes(movements, ordnanceMovements);
+
     if (this.map && allHexes.length > 0) {
       let minX = Infinity,
         maxX = -Infinity,
@@ -176,6 +177,7 @@ export class Renderer {
         minY = Math.min(minY, p.y);
         maxY = Math.max(maxY, p.y);
       }
+
       this.camera.frameBounds(minX, maxX, minY, maxY, 150);
     }
   }
@@ -193,14 +195,17 @@ export class Renderer {
         this.gameState,
         previousState ?? null,
       );
+
       if (!target) continue;
       const targetPos = hexToPixel(target.position, HEX_SIZE);
       // Beam from attacker(s) to target
       if (r.attackerIds.length > 0) {
         const firstId = r.attackerIds[0];
         let attackerPos: PixelCoord | null = null;
+
         if (firstId.startsWith('base:')) {
           const baseRef = firstId.slice(5);
+
           if (baseRef.includes(',')) {
             attackerPos = hexToPixel(parseHexKey(baseRef), HEX_SIZE);
           } else if (this.map) {
@@ -209,16 +214,19 @@ export class Renderer {
             const baseEntry = [...this.map.hexes.entries()].find(
               ([, hex]) => hex.base?.bodyName === baseRef,
             );
+
             if (baseEntry) {
               attackerPos = hexToPixel(parseHexKey(baseEntry[0]), HEX_SIZE);
             }
           }
         } else {
           const attacker = this.gameState?.ships.find((s) => s.id === firstId);
+
           if (attacker) {
             attackerPos = hexToPixel(attacker.position, HEX_SIZE);
           }
         }
+
         if (attackerPos && r.attackType !== 'asteroidHazard') {
           const beamColor = firstId.startsWith('base:')
             ? '#66bb6a'
@@ -253,6 +261,7 @@ export class Renderer {
         const counterTarget = this.gameState?.ships.find(
           (s) => s.id === r.counterattack?.targetId,
         );
+
         if (counterTarget) {
           const counterPos = hexToPixel(counterTarget.position, HEX_SIZE);
           this.combatEffects.push({
@@ -349,6 +358,7 @@ export class Renderer {
         color: '#ff8800',
       });
     }
+
     return ships.length * stagger + 1500;
   }
 
@@ -376,6 +386,7 @@ export class Renderer {
     const myShips = this.gameState.ships.filter(
       (s) => s.owner === this.playerId && s.lifecycle !== 'destroyed',
     );
+
     if (myShips.length === 0) return;
     let minX = Infinity,
       maxX = -Infinity,
@@ -388,6 +399,7 @@ export class Renderer {
       minY = Math.min(minY, p.y);
       maxY = Math.max(maxY, p.y);
     }
+
     this.camera.frameBounds(minX, maxX, minY, maxY, 200);
     // Clamp zoom so hex grid is visible but enough
     // context is shown for orientation
@@ -455,8 +467,10 @@ export class Renderer {
     ctx.save();
     this.camera.applyTransform(ctx);
     this.renderStars(ctx);
+
     if (this.map) {
       this.renderHexGrid(ctx, this.map);
+
       if (this.gameState) {
         this.renderMapBorder(ctx, this.map, this.gameState, now);
       }
@@ -464,10 +478,12 @@ export class Renderer {
       this.renderGravityIndicators(ctx, this.map);
       this.renderBodies(ctx, now, this.map);
       this.renderBaseMarkers(ctx, this.map, this.gameState);
+
       if (this.gameState) {
         this.renderLandingTarget(ctx, this.map, this.gameState, now);
       }
     }
+
     if (this.gameState && this.map) {
       this.renderBaseThreatZones(ctx, this.gameState, this.map);
       this.renderDetectionRanges(ctx, this.gameState, this.map);
@@ -622,6 +638,7 @@ export class Renderer {
       ctx.lineTo(vector.to.x, vector.to.y);
       ctx.stroke();
       ctx.setLineDash([]);
+
       if (vector.arrowHead) {
         ctx.beginPath();
         ctx.moveTo(vector.to.x, vector.to.y);
@@ -630,6 +647,7 @@ export class Renderer {
         ctx.lineTo(vector.arrowHead.right.x, vector.arrowHead.right.y);
         ctx.stroke();
       }
+
       if (vector.ghostDot) {
         ctx.fillStyle = vector.ghostDot.color;
         ctx.beginPath();
@@ -642,6 +660,7 @@ export class Renderer {
         );
         ctx.fill();
       }
+
       if (vector.speedLabel) {
         ctx.fillStyle = vector.speedLabel.color;
         ctx.font = '7px monospace';
@@ -653,6 +672,7 @@ export class Renderer {
         );
       }
     }
+
     for (const preview of buildAstrogationCoursePreviewViews(
       state,
       this.playerId,
@@ -668,6 +688,7 @@ export class Renderer {
       for (let i = 1; i < preview.linePoints.length; i++) {
         ctx.lineTo(preview.linePoints[i].x, preview.linePoints[i].y);
       }
+
       ctx.stroke();
       ctx.setLineDash([]);
       for (const arrow of preview.gravityArrows) {
@@ -684,6 +705,7 @@ export class Renderer {
         ctx.lineTo(arrow.headRight.x, arrow.headRight.y);
         ctx.stroke();
       }
+
       // Pending gravity arrows (next-turn effects)
       // in cyan
       for (const arrow of preview.pendingGravityArrows) {
@@ -702,6 +724,7 @@ export class Renderer {
         ctx.stroke();
         ctx.setLineDash([]);
       }
+
       // Drift segments — faded future-turn paths
       for (const seg of preview.driftSegments) {
         ctx.save();
@@ -714,10 +737,12 @@ export class Renderer {
         for (let i = 1; i < seg.points.length; i++) {
           ctx.lineTo(seg.points[i].x, seg.points[i].y);
         }
+
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.restore();
       }
+
       if (preview.ghostShip) {
         this.drawShipIcon(
           ctx,
@@ -752,6 +777,7 @@ export class Renderer {
         ctx.fill();
         ctx.stroke();
         ctx.shadowBlur = 0;
+
         if (marker.label && marker.labelColor) {
           ctx.fillStyle = marker.labelColor;
           ctx.font = 'bold 9px monospace';
@@ -760,6 +786,7 @@ export class Renderer {
           ctx.fillText(marker.label, marker.position.x, marker.position.y);
         }
       }
+
       for (const marker of preview.weakGravityMarkers) {
         ctx.strokeStyle = marker.strokeColor;
         ctx.fillStyle = marker.fillColor;
@@ -772,6 +799,7 @@ export class Renderer {
         ctx.font = 'bold 8px monospace';
         ctx.textAlign = 'center';
         ctx.fillText('G', marker.position.x, marker.position.y + 3);
+
         if (marker.strikeFrom && marker.strikeTo) {
           ctx.strokeStyle = 'rgba(255, 100, 100, 0.7)';
           ctx.lineWidth = 1;
@@ -781,6 +809,7 @@ export class Renderer {
           ctx.stroke();
         }
       }
+
       if (preview.fuelCostLabel) {
         ctx.fillStyle = preview.fuelCostLabel.color;
         ctx.font = 'bold 9px monospace';
@@ -809,7 +838,9 @@ export class Renderer {
       for (let i = 1; i < trail.points.length; i++) {
         ctx.lineTo(trail.points[i].x, trail.points[i].y);
       }
+
       ctx.stroke();
+
       if (trail.waypointColor) {
         for (const point of trail.points) {
           if (!this.camera.isVisible(point.x, point.y)) {
@@ -822,6 +853,7 @@ export class Renderer {
         }
       }
     }
+
     for (const trail of buildOrdnanceTrailViews(
       state,
       this.playerId,
@@ -836,6 +868,7 @@ export class Renderer {
       for (let i = 1; i < trail.points.length; i++) {
         ctx.lineTo(trail.points[i].x, trail.points[i].y);
       }
+
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -866,6 +899,7 @@ export class Renderer {
       for (let i = 1; i < pathView.points.length; i++) {
         ctx.lineTo(pathView.points[i].x, pathView.points[i].y);
       }
+
       ctx.stroke();
       ctx.setLineDash([]);
       for (const waypoint of pathView.passedWaypoints) {
@@ -905,6 +939,7 @@ export class Renderer {
         const movement = this.animState.movements.find(
           (m) => m.shipId === ship.id,
         );
+
         if (movement) {
           const progress = Math.min(
             (now - this.animState.startTime) / this.animState.duration,
@@ -930,6 +965,7 @@ export class Renderer {
       }
       // Offset for stacked ships at same hex
       const stackOffset = stackOffsets?.get(ship.id);
+
       if (stackOffset) {
         pos = {
           x: pos.x + stackOffset.xOffset,
@@ -941,6 +977,7 @@ export class Renderer {
       const heading = getShipHeading(ship.position, velocity, HEX_SIZE);
       // Selection highlight — pulsing glow
       const isSelected = ship.id === this.planningState.selectedShipId;
+
       if (isSelected) {
         const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 300);
         ctx.save();
@@ -993,6 +1030,7 @@ export class Renderer {
         Boolean(this.gameState?.scenarioRules.hiddenIdentityInspection),
         this.animState !== null,
       );
+
       if (identityMarker === 'friendlyFugitive') {
         ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
         ctx.font = 'bold 9px monospace';
@@ -1003,6 +1041,7 @@ export class Renderer {
         identityMarker === 'enemyDecoy'
       ) {
         ctx.textAlign = 'center';
+
         if (identityMarker === 'enemyFugitive') {
           ctx.fillStyle = 'rgba(255, 120, 120, 0.95)';
           ctx.font = 'bold 9px monospace';
@@ -1018,6 +1057,7 @@ export class Renderer {
       const inGravity = Boolean(
         this.map?.hexes.get(hexKey(ship.position))?.gravity,
       );
+
       if (shouldShowOrbitIndicator(ship, inGravity, this.animState !== null)) {
         const phase = now / 2000 + pos.x * 0.01;
         ctx.strokeStyle = 'rgba(150, 200, 255, 0.35)';
@@ -1026,6 +1066,7 @@ export class Renderer {
         ctx.arc(pos.x, pos.y, 16, phase, phase + Math.PI * 1.5);
         ctx.stroke();
       }
+
       if (shouldShowLandedIndicator(ship, this.animState !== null)) {
         ctx.strokeStyle = 'rgba(100, 200, 100, 0.5)';
         ctx.lineWidth = 1;
@@ -1041,11 +1082,13 @@ export class Renderer {
         inGravity,
         this.animState !== null,
       );
+
       if (labelView) {
         ctx.textAlign = 'center';
         ctx.fillStyle = labelView.typeColor;
         ctx.font = labelView.typeFont;
         ctx.fillText(labelView.typeName, pos.x, pos.y + labelYOffset);
+
         if (
           labelView.statusTag &&
           labelView.statusColor &&
@@ -1151,6 +1194,7 @@ export class Renderer {
   ) {
     if (events.length === 0) return;
     const showUntil = this.movementEvents?.showUntil;
+
     if (showUntil === undefined) return;
     const alpha = getToastFadeAlpha(showUntil, now);
     ctx.save();
@@ -1160,6 +1204,7 @@ export class Renderer {
       const ship = this.gameState?.ships.find((s) => s.id === ev.shipId);
       const shipName = ship ? ship.type : ev.shipId;
       const line = formatMovementEventToast(ev, shipName);
+
       if (!line) continue;
       ctx.font = 'bold 12px monospace';
       const w = ctx.measureText(line.text).width;
@@ -1171,6 +1216,7 @@ export class Renderer {
       ctx.fillText(line.text, x, y + 2);
       y += 26;
     }
+
     ctx.restore();
   }
 
@@ -1182,6 +1228,7 @@ export class Renderer {
   ) {
     if (results.length === 0) return;
     const showUntil = this.combatResults?.showUntil;
+
     if (showUntil === undefined) return;
     const alpha = getToastFadeAlpha(showUntil, now);
     ctx.save();
@@ -1204,6 +1251,7 @@ export class Renderer {
       ctx.fillText(line.text, x, y + 2);
       y += isSecondary ? 24 : 26;
     }
+
     ctx.restore();
   }
 
@@ -1255,6 +1303,7 @@ export class Renderer {
       ctx.arc(body.position.x, body.position.y, body.radius, 0, Math.PI * 2);
       ctx.fill();
     }
+
     ctx.globalAlpha = 1;
     for (const trail of scene.shipTrails) {
       if (trail.points.length < 2) continue;
@@ -1265,8 +1314,10 @@ export class Renderer {
       for (let i = 1; i < trail.points.length; i++) {
         ctx.lineTo(trail.points[i].x, trail.points[i].y);
       }
+
       ctx.stroke();
     }
+
     for (const ship of scene.ships) {
       ctx.fillStyle = ship.color;
       ctx.globalAlpha = ship.alpha;
@@ -1274,6 +1325,7 @@ export class Renderer {
       ctx.arc(ship.position.x, ship.position.y, ship.radius, 0, Math.PI * 2);
       ctx.fill();
     }
+
     ctx.globalAlpha = 1;
     for (const ordnance of scene.ordnance) {
       ctx.fillStyle = ordnance.color;
@@ -1288,7 +1340,9 @@ export class Renderer {
       );
       ctx.fill();
     }
+
     ctx.globalAlpha = 1;
+
     if (scene.viewport) {
       ctx.fillStyle = 'rgba(79, 195, 247, 0.06)';
       ctx.fillRect(

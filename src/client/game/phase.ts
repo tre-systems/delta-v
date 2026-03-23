@@ -63,6 +63,7 @@ export const derivePhaseTransition = (
   }
 
   const isMyTurn = state.activePlayer === playerId;
+
   if (state.phase === 'combat' && isMyTurn) {
     if (hasPendingOwnedAsteroidHazards(state, playerId)) {
       return {

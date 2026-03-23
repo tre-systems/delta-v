@@ -36,6 +36,7 @@ const formatDamageResult = (
   missLabel = 'Miss',
 ): string => {
   if (damageType === 'eliminated') return 'DESTROYED';
+
   if (damageType === 'disabled') {
     return `DISABLED (${disabledTurns}T)`;
   }
@@ -48,6 +49,7 @@ export const parseJoinInput = (
   codeLength: number,
 ): ParsedJoinInput | null => {
   const trimmed = rawValue.trim();
+
   if (!trimmed) return null;
 
   try {

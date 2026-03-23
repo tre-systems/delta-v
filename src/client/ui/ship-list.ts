@@ -64,6 +64,7 @@ const getShipDetailRows = (
   isSelected: boolean,
 ): ShipDetailRowView[] => {
   const stats = SHIP_STATS[ship.type];
+
   if (!isSelected || ship.lifecycle === 'destroyed' || !stats) {
     return [];
   }

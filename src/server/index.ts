@@ -164,6 +164,7 @@ export const createRateMap = new Map<
 
 export const isCreateRateLimitedInMemory = (ipHash: string): boolean => {
   const now = Date.now();
+
   if (createRateMap.size > 1000) {
     for (const [key, val] of createRateMap) {
       if (now - val.windowStart >= CREATE_RATE_WINDOW_MS) {
@@ -172,6 +173,7 @@ export const isCreateRateLimitedInMemory = (ipHash: string): boolean => {
     }
   }
   const entry = createRateMap.get(ipHash);
+
   if (!entry || now - entry.windowStart >= CREATE_RATE_WINDOW_MS) {
     createRateMap.set(ipHash, {
       count: 1,
@@ -241,6 +243,7 @@ const handleReport = async (
   label: string,
 ): Promise<{ response: Response; payload?: Record<string, unknown> }> => {
   const contentType = request.headers.get('content-type');
+
   if (!contentType?.includes('application/json')) {
     return {
       response: new Response('Content-Type must be JSON', {
@@ -251,6 +254,7 @@ const handleReport = async (
   }
 
   const contentLength = request.headers.get('content-length');
+
   if (contentLength && parseInt(contentLength, 10) > MAX_REPORT_BODY) {
     return {
       response: new Response('Payload too large', {
@@ -327,6 +331,7 @@ export default {
     if (url.pathname === '/create' && request.method === 'POST') {
       const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
       const ipHash = await hashIp(ip);
+
       if (await isCreateRateLimited(env, ipHash)) {
         return new Response('Too many requests', {
           status: 429,

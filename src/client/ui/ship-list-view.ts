@@ -28,6 +28,7 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
   const listSignal = scope.add(
     computed(() => {
       const input = inputSignal.value;
+
       if (!input) {
         return null;
       }
@@ -42,6 +43,7 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
   scope.add(
     effect(() => {
       const state = listSignal.value;
+
       if (!state) {
         return;
       }
@@ -56,6 +58,7 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
         if (entryView.isSelected) {
           entry.classList.add('active');
         }
+
         if (entryView.isDestroyed) {
           entry.classList.add('destroyed');
         }

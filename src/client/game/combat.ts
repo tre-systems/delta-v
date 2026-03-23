@@ -196,6 +196,7 @@ export const getCombatAttackerIdAtHex = (
   );
 
   if (matches.length === 0) return null;
+
   if (matches.length === 1) return matches[0].id;
 
   // Cycle: if selected ship is at this hex, pick the next one
@@ -243,6 +244,7 @@ export const getCombatTargetAtHex = (
   );
 
   if (matches.length === 0) return null;
+
   if (matches.length === 1) {
     return { targetId: matches[0].id, targetType: 'ship' };
   }
@@ -250,6 +252,7 @@ export const getCombatTargetAtHex = (
   // Cycle through stacked targets
   if (currentTargetId) {
     const idx = matches.findIndex((s) => s.id === currentTargetId);
+
     if (idx >= 0) {
       const next = matches[(idx + 1) % matches.length];
       return { targetId: next.id, targetType: 'ship' };
