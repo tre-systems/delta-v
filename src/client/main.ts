@@ -180,6 +180,7 @@ class GameClient {
       hideReconnecting: () => this.ui.overlay.hideReconnecting(),
       showToast: (msg, type) => this.ui.overlay.showToast(msg, type),
       exitToMenu: () => this.exitToMenu(),
+      trackEvent: (event, props) => track(event, props),
     });
     this.turnTimer = createTurnTimerManager({
       setTurnTimer: (text, className) => this.ui.setTurnTimer(text, className),
@@ -425,6 +426,7 @@ class GameClient {
       transitionToPhase: () => this.transitionToPhase(),
       onAnimationComplete: () => this.onAnimationComplete(),
       logScenarioBriefing: () => this.hud.logScenarioBriefing(),
+      trackEvent: (event, props) => track(event, props),
     });
     handleServerMessage(deps, msg);
   }

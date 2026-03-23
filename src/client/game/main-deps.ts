@@ -72,6 +72,7 @@ export interface MainMessageHandlerDepsArgs extends SharedMainDepsArgs {
   transitionToPhase: () => void;
   onAnimationComplete: () => void;
   logScenarioBriefing: () => void;
+  trackEvent: (event: string, props?: Record<string, unknown>) => void;
 }
 
 export const createMainMessageHandlerDeps = (
@@ -104,6 +105,7 @@ export const createMainMessageHandlerDeps = (
   resetTurnTelemetry: () => args.turnTelemetry.reset(),
   onAnimationComplete: () => args.onAnimationComplete(),
   logScenarioBriefing: () => args.logScenarioBriefing(),
+  trackEvent: (event, props) => args.trackEvent(event, props),
   deserializeState: (raw) => raw,
   renderer: args.renderer,
   ui: args.ui,

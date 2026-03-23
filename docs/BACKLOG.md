@@ -61,6 +61,52 @@ Remaining follow-up work:
 `src/shared/replay.ts`,
 `src/shared/engine/`
 
+### Replace array-backed event storage with append-friendly match persistence
+
+The current event stream is persisted as a single
+`EventEnvelope[]` blob per match and rewritten on each
+append. That keeps the model simple, but it makes long
+matches and replay-heavy rooms pay full-history read /
+write costs that do not scale with usage.
+
+Refactor match persistence behind a small repository /
+event-store boundary so appends, tail reads, checkpoints,
+and replay projection are explicit operations rather than
+ad hoc storage-key conventions. Favor chunked / paged
+event storage or another append-friendly layout that
+avoids rewriting the full stream for every turn.
+
+Definition of done: authoritative event append no longer
+rewrites whole-match history, replay / reconnect can read
+from checkpoint plus tail efficiently, and tests cover
+long-match recovery without depending on full-array
+storage behavior.
+
+**Files:** `src/server/game-do/archive.ts`,
+`src/server/game-do/game-do.ts`,
+`src/shared/engine/event-projector.ts`
+
+### Protocol and replay contract fixtures
+
+The runtime validation layer is strong, but the project
+still relies mostly on unit tests rather than stable
+golden fixtures for the wire contracts. Add representative
+fixtures for create / join / replay responses, websocket
+state-bearing messages, and replay timeline entries so
+future protocol or event changes fail loudly when payload
+shapes drift.
+
+Definition of done: fixture-backed tests cover the main
+`C2S`, `S2C`, and replay payloads, fixture updates are
+intentional and reviewed, and hidden-information views are
+covered for at least one asymmetric scenario.
+
+**Files:** `src/shared/protocol.ts`,
+`src/server/protocol.ts`,
+`src/server/game-do/messages.ts`,
+`src/shared/replay.ts`,
+`src/shared/types/protocol.ts`
+
 ### Post-game turn replay UI
 
 Let players step backward and forward through recorded
@@ -115,7 +161,7 @@ The in-game HUD is extremely tight on 375px viewports (standard mobile).
 - **Issue**: Ship status cards are flush against the left edge, potentially conflicting with device "safe areas" (notches/rounded corners).
 - **Fix**: Add padding to the top bar and status cards; use a more resilient layout for long objective text.
 
-**Files:** `src/client/ui/ui.css`, `src/client/ui/ui.ts`
+**Files:** `static/style.css`, `src/client/ui/ui.ts`
 
 ### Logistics Phase "Quality of Life"
 
@@ -169,6 +215,68 @@ failures clearly enough to use before releases.
 `src/server/game-do/`
 
 ---
+
+## Release Readiness & Operability
+
+### Production hardening defaults
+
+The codebase now supports global create-rate limiting and
+match archiving, but the checked-in deployment config
+still treats both as optional comments. Before broader
+user onboarding, make the production path opinionated:
+configured rate limiting, persistent archive storage where
+replay / support need it, and an explicit documented
+fallback story for lower environments.
+
+Definition of done: production deployment config enables
+the intended hardening features by default, docs describe
+which environments may run without them, and deploy-time
+checks fail loudly when required bindings are missing.
+
+**Files:** `wrangler.toml`,
+`.github/workflows/ci.yml`,
+`docs/SECURITY.md`,
+`docs/ARCHITECTURE.md`
+
+### Release gate automation
+
+The manual release plan is strong, but it still lives
+primarily as prose. Add a lightweight release candidate
+workflow that bundles the automated checks already used in
+practice and points to the required manual cross-device
+verification so onboarding does not depend on tribal
+memory.
+
+Definition of done: one documented pre-release command or
+workflow runs lint, typecheck, unit tests, coverage,
+browser smoke, and AI simulations, and the remaining
+manual device / browser checks are captured in a short
+release checklist rather than spread across notes.
+
+**Files:** `.github/workflows/ci.yml`,
+`package.json`,
+`README.md`,
+`docs/MANUAL_TEST_PLAN.md`
+
+### Onboarding funnel telemetry
+
+The project already records generic telemetry and client
+errors, but there is no clear product funnel for where
+new players drop out. Add explicit events for create-game,
+join success / failure reason, first turn completed,
+reconnect success / failure, rematch, and game-end so the
+first wave of users produces actionable onboarding data.
+
+Definition of done: key onboarding milestones are tracked
+with stable event names, dashboard queries or example SQL
+exist for the common questions, and telemetry avoids
+duplicating per-turn noise.
+
+**Files:** `src/client/telemetry.ts`,
+`src/client/main.ts`,
+`src/client/game/session-api.ts`,
+`src/server/index.ts`,
+`migrations/`
 
 ## Gameplay & Content
 
