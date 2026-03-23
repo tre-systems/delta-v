@@ -907,6 +907,7 @@ export class GameDO extends DurableObject<Env> {
     const playerId = getReplayViewerId(
       roomConfig,
       url.searchParams.get('playerToken'),
+      url.searchParams.get('viewer'),
     );
 
     if (playerId === null) {
@@ -1269,6 +1270,23 @@ export class GameDO extends DurableObject<Env> {
           ws.send(data);
         } catch {}
       }
+    }
+
+    const spectatorSockets = this.ctx.getWebSockets('spectator');
+
+    if (spectatorSockets.length === 0) {
+      return;
+    }
+
+    const spectatorData = JSON.stringify({
+      ...msg,
+      state: filterStateForPlayer(msg.state, 'spectator'),
+    });
+
+    for (const ws of spectatorSockets) {
+      try {
+        ws.send(spectatorData);
+      } catch {}
     }
   }
 }

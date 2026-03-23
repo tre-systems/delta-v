@@ -116,9 +116,10 @@ export const getMatchCreatedAt = async (
 export const getReplayViewerId = (
   roomConfig: RoomConfig,
   presentedTokenRaw: string | null,
-): 0 | 1 | null => {
+  requestedViewerRaw: string | null = null,
+): ViewerId | null => {
   if (!presentedTokenRaw || !isValidPlayerToken(presentedTokenRaw)) {
-    return null;
+    return requestedViewerRaw === 'spectator' ? 'spectator' : null;
   }
 
   if (roomConfig.playerTokens[0] === presentedTokenRaw) {
@@ -129,7 +130,7 @@ export const getReplayViewerId = (
     return 1;
   }
 
-  return null;
+  return requestedViewerRaw === 'spectator' ? 'spectator' : null;
 };
 
 export const filterReplayTimelineForViewer = (

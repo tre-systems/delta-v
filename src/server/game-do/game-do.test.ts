@@ -1050,6 +1050,86 @@ describe('GameDO', () => {
     expect(timeline.entries[0]?.message.type).toBe('gameStart');
   });
 
+  it('returns filtered replay timelines for spectator viewers', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'escape',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+    });
+    await ctx.storage.put('gameCode', 'ABCDE');
+    const game = createGameDO(ctx);
+
+    await (
+      game as unknown as {
+        initGame: () => Promise<void>;
+      }
+    ).initGame();
+
+    const response = await game.fetch(
+      new Request(
+        'https://room.internal/replay?viewer=spectator&gameId=ABCDE-m1',
+        {
+          method: 'GET',
+        },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    const timeline = (await response.json()) as ReplayTimeline;
+    expect(timeline.gameId).toBe('ABCDE-m1');
+    expect(timeline.entries.length).toBeGreaterThanOrEqual(1);
+
+    const firstState = timeline.entries[0]?.message.state;
+    const concealedShip = firstState?.ships.find(
+      (ship) => ship.owner === 1 && ship.identity?.revealed !== true,
+    );
+    expect(concealedShip?.identity).toBeUndefined();
+  });
+
+  it('broadcasts state updates to spectator sockets with spectator filtering', async () => {
+    const ctx = createCtx();
+    const game = createGameDO(ctx);
+    const spectator = createSocket();
+    ctx.acceptWebSocket(spectator, ['spectator']);
+
+    const state = createGame(
+      SCENARIOS.escape,
+      buildSolarSystemMap(),
+      'SPEC1-m1',
+      findBaseHex,
+    );
+    state.scenarioRules = {
+      ...state.scenarioRules,
+      hiddenIdentityInspection: true,
+    };
+    const hiddenShip = state.ships.find((ship) => ship.owner === 1);
+
+    if (hiddenShip) {
+      hiddenShip.identity = {
+        hasFugitives: true,
+        revealed: false,
+      };
+    }
+
+    await (
+      game as unknown as {
+        broadcastFiltered: (msg: Extract<S2C, { state: GameState }>) => void;
+      }
+    ).broadcastFiltered({
+      type: 'stateUpdate',
+      state,
+    });
+
+    expect(spectator.sent).toHaveLength(1);
+    const message = JSON.parse(spectator.sent[0] ?? '') as Extract<
+      S2C,
+      { state: GameState }
+    >;
+    const spectatorShip = message.state.ships.find((ship) => ship.owner === 1);
+    expect(spectatorShip?.identity).toBeUndefined();
+  });
+
   it('stores replayable events for game start and later state changes', async () => {
     const ctx = createCtx();
     await ctx.storage.put('roomConfig', {
