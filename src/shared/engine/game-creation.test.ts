@@ -54,6 +54,62 @@ describe('createGame', () => {
     expect(duelState.players[0].bases).toEqual(['5,2']);
     expect(duelState.players[1].bases).toEqual(['3,2']);
   });
+  it('copies logistics and turn-rule scenario settings into runtime state', () => {
+    const state = createGame(
+      {
+        ...SCENARIOS.convoy,
+        rules: {
+          logisticsEnabled: true,
+          reinforcements: [
+            {
+              turn: 4,
+              playerId: 1,
+              ships: [
+                {
+                  type: 'corvette',
+                  position: { q: 1, r: 2 },
+                  velocity: { dq: 0, dr: 1 },
+                  startLanded: false,
+                },
+              ],
+            },
+          ],
+          fleetConversion: {
+            turn: 6,
+            fromPlayer: 0,
+            toPlayer: 1,
+            shipTypes: ['transport'],
+          },
+        },
+      },
+      map,
+      'RULES1',
+      findBaseHex,
+    );
+
+    expect(state.scenarioRules.logisticsEnabled).toBe(true);
+    expect(state.scenarioRules.reinforcements).toEqual([
+      {
+        turn: 4,
+        playerId: 1,
+        ships: [
+          {
+            type: 'corvette',
+            position: { q: 1, r: 2 },
+            velocity: { dq: 0, dr: 1 },
+            startLanded: false,
+            startInOrbit: undefined,
+          },
+        ],
+      },
+    ]);
+    expect(state.scenarioRules.fleetConversion).toEqual({
+      turn: 6,
+      fromPlayer: 0,
+      toPlayer: 1,
+      shipTypes: ['transport'],
+    });
+  });
   it('rejects scenarios that do not define exactly two players', () => {
     const invalidScenario: ScenarioDefinition = {
       ...SCENARIOS.duel,
