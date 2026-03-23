@@ -10,12 +10,16 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
+import { createReplayArchive } from '../../shared/replay';
 import {
   appendEnvelopedEvents,
   getCheckpoint,
   getEventStream,
   getEventStreamLength,
+  getProjectedReplayArchive,
+  projectReplayArchive,
   saveCheckpoint,
+  saveReplayArchive,
 } from './archive';
 
 class MockStorage {
@@ -27,6 +31,8 @@ class MockStorage {
     this.data.set(key, value);
   }
 }
+
+const map = buildSolarSystemMap();
 
 describe('match-scoped event stream', () => {
   it('appends enveloped events with sequential seq numbers', async () => {
@@ -306,5 +312,74 @@ describe('projection parity: replay archive vs live state', () => {
     const stream = await getEventStream(storage, 'CKPT-m1');
     expect(stream.length).toBe(seq);
     expect(stream[stream.length - 1].seq).toBe(seq);
+  });
+});
+
+describe('replay projection', () => {
+  it('filters projected replay archives per viewer', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'VIEW-m1',
+      findBaseHex,
+    );
+    state.ships[0].identity = {
+      hasFugitives: true,
+      revealed: false,
+    };
+    state.scenarioRules = {
+      ...state.scenarioRules,
+      hiddenIdentityInspection: true,
+    };
+
+    await saveReplayArchive(
+      storage,
+      createReplayArchive(
+        'VIEW1',
+        1,
+        { type: 'gameStart', state },
+        1_700_000_000_000,
+      ),
+    );
+
+    const projected = await getProjectedReplayArchive(storage, 'VIEW-m1', 1);
+
+    expect(projected).not.toBeNull();
+    const projectedState = projected?.entries[0]?.message.state;
+    const enemyShip = projectedState?.ships.find((ship) => ship.owner === 0);
+
+    expect(enemyShip?.identity).toBeUndefined();
+  });
+
+  it('falls back to a synthetic checkpoint replay when archive is missing', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'CKREPLAY-m1',
+      findBaseHex,
+    );
+    state.turnNumber = 4;
+    state.phase = 'combat';
+
+    await saveCheckpoint(storage, 'CKREPLAY-m1', state, 12);
+
+    const projected = await getProjectedReplayArchive(
+      storage,
+      'CKREPLAY-m1',
+      0,
+    );
+
+    expect(projected).not.toBeNull();
+    expect(projected?.gameId).toBe('CKREPLAY-m1');
+    expect(projected?.entries).toHaveLength(1);
+    expect(projected?.entries[0]?.message.type).toBe('stateUpdate');
+    expect(projected?.entries[0]?.turn).toBe(4);
+    expect(projected?.entries[0]?.phase).toBe('combat');
+  });
+
+  it('returns null when neither replay archive nor checkpoint exists', () => {
+    expect(projectReplayArchive(null, null, 0)).toBeNull();
   });
 });

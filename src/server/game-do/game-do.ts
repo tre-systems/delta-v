@@ -46,9 +46,8 @@ import {
   appendEnvelopedEvents,
   appendEvents,
   appendReplayMessage,
-  filterReplayArchiveForPlayer,
   getEventStreamLength,
-  getReplayArchive,
+  getProjectedReplayArchive,
   getReplayViewerId,
   resetEventLog,
   saveCheckpoint,
@@ -877,7 +876,11 @@ export class GameDO extends DurableObject<Env> {
       });
     }
 
-    const archive = await getReplayArchive(this.ctx.storage, gameId);
+    const archive = await getProjectedReplayArchive(
+      this.ctx.storage,
+      gameId,
+      playerId,
+    );
 
     if (!archive) {
       return new Response('Replay not found', {
@@ -887,7 +890,7 @@ export class GameDO extends DurableObject<Env> {
 
     await this.touchInactivity();
 
-    return Response.json(filterReplayArchiveForPlayer(archive, playerId));
+    return Response.json(archive);
   }
 
   private async initGame() {
