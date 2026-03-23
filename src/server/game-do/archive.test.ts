@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { aiAstrogation, aiCombat, aiOrdnance } from '../../shared/ai';
+import { processOrdnance, skipOrdnance } from '../../shared/engine/astrogation';
+import { processCombat } from '../../shared/engine/combat';
 import type { EngineEvent } from '../../shared/engine/engine-events';
 import {
   createGame,
   processAstrogation,
 } from '../../shared/engine/game-engine';
+import { processLogistics } from '../../shared/engine/logistics';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -23,6 +27,7 @@ import {
   saveCheckpoint,
   saveMatchCreatedAt,
 } from './archive';
+import { resolveTurnTimeoutOutcome } from './turns';
 
 class MockStorage {
   private data = new Map<string, unknown>();
@@ -35,6 +40,63 @@ class MockStorage {
 }
 
 const map = buildSolarSystemMap();
+
+const diffStates = (
+  actual: unknown,
+  expected: unknown,
+  path = '',
+): Array<{ path: string; actual: unknown; expected: unknown }> => {
+  if (typeof actual !== typeof expected) {
+    return [{ path, actual, expected }];
+  }
+
+  if (
+    actual === null ||
+    expected === null ||
+    typeof actual !== 'object' ||
+    typeof expected !== 'object'
+  ) {
+    return Object.is(actual, expected) ? [] : [{ path, actual, expected }];
+  }
+
+  if (Array.isArray(actual) || Array.isArray(expected)) {
+    if (!Array.isArray(actual) || !Array.isArray(expected)) {
+      return [{ path, actual, expected }];
+    }
+
+    const diffs: Array<{ path: string; actual: unknown; expected: unknown }> =
+      [];
+    const length = Math.max(actual.length, expected.length);
+
+    for (let index = 0; index < length; index++) {
+      diffs.push(
+        ...diffStates(actual[index], expected[index], `${path}[${index}]`),
+      );
+    }
+
+    return diffs;
+  }
+
+  const actualRecord = actual as Record<string, unknown>;
+  const expectedRecord = expected as Record<string, unknown>;
+  const keys = new Set([
+    ...Object.keys(actualRecord),
+    ...Object.keys(expectedRecord),
+  ]);
+  const diffs: Array<{ path: string; actual: unknown; expected: unknown }> = [];
+
+  for (const key of [...keys].sort()) {
+    diffs.push(
+      ...diffStates(
+        actualRecord[key],
+        expectedRecord[key],
+        path ? `${path}.${key}` : key,
+      ),
+    );
+  }
+
+  return diffs;
+};
 
 describe('match-scoped event stream', () => {
   it('appends enveloped events with sequential seq numbers', async () => {
@@ -591,6 +653,93 @@ describe('replay projection', () => {
     expect(await hasProjectionParity(storage, 'PARITY2-m1', liveState)).toBe(
       true,
     );
+  });
+
+  it('ignores transient connection state in parity checks', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const projectedState = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'PARITY-CONN-m1',
+      findBaseHex,
+    );
+    const liveState = structuredClone(projectedState);
+    liveState.players[0].connected = true;
+    liveState.players[1].connected = true;
+
+    await saveCheckpoint(storage, 'PARITY-CONN-m1', projectedState, 1);
+
+    expect(
+      await hasProjectionParity(storage, 'PARITY-CONN-m1', liveState),
+    ).toBe(true);
+  });
+
+  it('maintains projection parity through a complete duel flow', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    let liveState = createGame(SCENARIOS.duel, map, 'PARITY4-m1', findBaseHex);
+
+    await appendEnvelopedEvents(storage, 'PARITY4-m1', null, {
+      type: 'gameCreated',
+      scenario: liveState.scenario,
+      turn: liveState.turnNumber,
+      phase: liveState.phase,
+    });
+
+    for (let step = 0; step < 30 && liveState.phase !== 'gameOver'; step++) {
+      const actor = liveState.activePlayer;
+      const outcome =
+        liveState.phase === 'astrogation'
+          ? processAstrogation(
+              liveState,
+              actor,
+              aiAstrogation(liveState, actor, map, 'normal'),
+              map,
+              () => 0.5,
+            )
+          : liveState.phase === 'ordnance'
+            ? (() => {
+                const launches = aiOrdnance(liveState, actor, map, 'normal');
+
+                return launches.length > 0
+                  ? processOrdnance(liveState, actor, launches, map, () => 0.5)
+                  : skipOrdnance(liveState, actor, map, () => 0.5);
+              })()
+            : liveState.phase === 'combat'
+              ? (() => {
+                  const attacks = aiCombat(liveState, actor, map, 'normal');
+
+                  return attacks.length > 0
+                    ? processCombat(liveState, actor, attacks, map, () => 0.5)
+                    : resolveTurnTimeoutOutcome(liveState, map);
+                })()
+              : liveState.phase === 'logistics'
+                ? processLogistics(liveState, actor, [], map)
+                : resolveTurnTimeoutOutcome(liveState, map);
+
+      expect(outcome).not.toBeNull();
+      expect(outcome && 'error' in outcome).toBe(false);
+
+      if (!outcome || 'error' in outcome) {
+        return;
+      }
+
+      const events =
+        'engineEvents' in outcome ? outcome.engineEvents : outcome.events;
+
+      await appendEnvelopedEvents(storage, liveState.gameId, actor, ...events);
+      liveState = outcome.state;
+
+      const projectedState = await getProjectedCurrentStateRaw(
+        storage,
+        liveState.gameId,
+      );
+      const diffs = diffStates(liveState, projectedState).filter(
+        (diff) =>
+          !diff.path.endsWith('.connected') && !diff.path.endsWith('.ready'),
+      );
+
+      expect(diffs).toEqual([]);
+    }
   });
 
   it('detects parity mismatch when live state diverges from projection', async () => {
