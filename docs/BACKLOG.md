@@ -53,18 +53,6 @@ deterministically replayed.
 `src/shared/engine/combat.ts`,
 `src/shared/engine/ordnance.ts`
 
-### Declarative DO handler table
-
-The 11 `handle*` methods in `GameDO` all follow the same
-`runGameStateAction → publishStateChange` pattern.
-Replace with a declarative registration table mapping
-message types to engine processors and broadcast
-resolvers to reduce ~200 lines and enforce consistent
-wiring.
-
-**Files:** `src/server/game-do/game-do.ts`,
-`src/server/game-do/game-do.test.ts`
-
 ### Reactive DOM listener cleanup
 
 Audit rerendered client views that bind event listeners
