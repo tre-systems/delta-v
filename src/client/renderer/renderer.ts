@@ -345,14 +345,14 @@ export class Renderer {
     const now = performance.now();
     const color = won ? '#4488ff' : '#ff4444';
 
-    this.camera.shake(12, 3);
+    this.camera.shake(12, 1.5);
     this.screenFlash = {
       startTime: now,
-      duration: 600,
+      duration: 1200,
       color,
     };
 
-    return 600;
+    return 1200;
   }
 
   // showPhaseBanner removed — DOM phase alert in
