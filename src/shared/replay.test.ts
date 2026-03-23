@@ -4,8 +4,8 @@ import { createGame, filterStateForPlayer } from './engine/game-engine';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from './map-data';
 import {
   buildMatchId,
-  createReplayArchive,
   parseMatchId,
+  type ReplayArchive,
   type ReplayEntry,
   type ReplayMessage,
   toProjectionFrame,
@@ -77,12 +77,22 @@ describe('replay shape fixtures', () => {
 
   it('ReplayArchive has the expected wire shape', () => {
     const state = createTestState('ARCHV-m1');
-    const message: ReplayMessage = {
-      type: 'gameStart',
-      state,
+    const archive: ReplayArchive = {
+      gameId: 'ARCHV-m1',
+      roomCode: 'ARCHV',
+      matchNumber: 1,
+      scenario: 'Bi-Planetary',
+      createdAt: 1700000000000,
+      entries: [
+        {
+          sequence: 1,
+          recordedAt: 1700000000000,
+          turn: state.turnNumber,
+          phase: state.phase,
+          message: { type: 'gameStart', state },
+        },
+      ],
     };
-
-    const archive = createReplayArchive('ARCHV', 1, message, 1700000000000);
 
     expect(Object.keys(archive).sort()).toEqual(
       [
@@ -120,12 +130,14 @@ describe('replay shape fixtures', () => {
       activePlayer: 1,
     });
 
-    const archive = createReplayArchive(
-      'GROW',
-      1,
-      { type: 'gameStart', state: state1 },
-      1000,
-    );
+    const archive: ReplayArchive = {
+      gameId: 'GROW-m1',
+      roomCode: 'GROW',
+      matchNumber: 1,
+      scenario: state1.scenario,
+      createdAt: 1000,
+      entries: [toReplayEntry(1, { type: 'gameStart', state: state1 }, 1000)],
+    };
 
     const entry2 = toReplayEntry(
       2,
