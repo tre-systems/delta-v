@@ -427,6 +427,36 @@ describe('replay projection', () => {
     expect(enemyShip?.identity).toBeUndefined();
   });
 
+  it('prefers projection metadata over replay archive metadata when frames exist', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'META1-m1',
+      findBaseHex,
+    );
+
+    await saveReplayArchive(storage, {
+      gameId: 'META1-m1',
+      roomCode: 'WRONG',
+      matchNumber: 99,
+      scenario: 'Wrong Scenario',
+      createdAt: 1,
+      entries: [],
+    });
+    await appendProjectionMessage(storage, 'META1-m1', 1, {
+      type: 'gameStart',
+      state,
+    });
+
+    const projected = await getProjectedReplayArchive(storage, 'META1-m1', 0);
+
+    expect(projected?.roomCode).toBe('META1');
+    expect(projected?.matchNumber).toBe(1);
+    expect(projected?.scenario).toBe('Bi-Planetary');
+    expect(projected?.createdAt).not.toBe(1);
+  });
+
   it('falls back to a synthetic checkpoint replay when archive is missing', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const state = createGame(
@@ -490,6 +520,48 @@ describe('replay projection', () => {
     expect(projected?.entries[0]?.turn).toBe(2);
     expect(projected?.entries[1]?.turn).toBe(3);
     expect(projected?.entries[1]?.phase).toBe('combat');
+  });
+
+  it('ignores stale replay-archive state when newer projection frames exist', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const staleState = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'STALE-m1',
+      findBaseHex,
+    );
+    staleState.turnNumber = 1;
+
+    const freshState = structuredClone(staleState);
+    freshState.turnNumber = 4;
+    freshState.phase = 'combat';
+
+    await saveReplayArchive(
+      storage,
+      createReplayArchive(
+        'STALE',
+        1,
+        { type: 'stateUpdate', state: staleState },
+        1000,
+      ),
+    );
+    await appendProjectionMessage(storage, 'STALE-m1', 4, {
+      type: 'stateUpdate',
+      state: freshState,
+    });
+
+    const projectedState = await getProjectedCurrentStateRaw(
+      storage,
+      'STALE-m1',
+    );
+    const projectedArchive = await getProjectedReplayArchive(
+      storage,
+      'STALE-m1',
+      0,
+    );
+
+    expect(projectedState?.turnNumber).toBe(4);
+    expect(projectedArchive?.entries.at(-1)?.turn).toBe(4);
   });
 
   it('reports parity when live state matches checkpoint plus tail projection', async () => {
