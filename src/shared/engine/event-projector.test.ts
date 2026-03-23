@@ -131,7 +131,7 @@ describe('projectMatchSetupFromStream', () => {
     expect(fugitiveShips[0]?.id).toBe('p0s0');
   });
 
-  it('fails explicitly on unsupported non-setup events', () => {
+  it('fails explicitly on malformed event streams', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
@@ -152,13 +152,10 @@ describe('projectMatchSetupFromStream', () => {
           ts: 2,
           actor: 0,
           event: {
-            type: 'ramming',
-            shipId: 'p0s0',
-            otherShipId: 'p1s0',
-            hex: { q: 0, r: 0 },
-            roll: 6,
-            damageType: 'eliminated',
-            disabledTurns: 0,
+            type: 'gameCreated',
+            scenario: 'Interplanetary War',
+            turn: 1,
+            phase: 'fleetBuilding',
           },
         },
       ],
@@ -167,7 +164,7 @@ describe('projectMatchSetupFromStream', () => {
 
     expect(projected).toEqual({
       ok: false,
-      error: 'unsupported setup event: ramming',
+      error: 'duplicate gameCreated event',
     });
   });
 
@@ -777,6 +774,106 @@ describe('projectMatchSetupFromStream', () => {
 
     expect(
       escapeProjected.state.ships.find((ship) => ship.id === 'p0s0')?.identity
+        ?.revealed,
+    ).toBe(true);
+  });
+
+  it('applies ramming, capture, and committed command audit events', () => {
+    const projected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: 'ESCAP-m3',
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Escape',
+            turn: 1,
+            phase: 'astrogation',
+          },
+        },
+        {
+          gameId: 'ESCAP-m3',
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'astrogationOrdersCommitted',
+            playerId: 0,
+            orders: [{ shipId: 'p0s0', burn: null }],
+          },
+        },
+        {
+          gameId: 'ESCAP-m3',
+          seq: 3,
+          ts: 3,
+          actor: 0,
+          event: {
+            type: 'ordnanceLaunchesCommitted',
+            playerId: 0,
+            launches: [{ shipId: 'p0s0', ordnanceType: 'mine' }],
+          },
+        },
+        {
+          gameId: 'ESCAP-m3',
+          seq: 4,
+          ts: 4,
+          actor: 0,
+          event: {
+            type: 'ramming',
+            shipId: 'p0s0',
+            otherShipId: 'p1s0',
+            hex: { q: 0, r: 0 },
+            roll: 5,
+            damageType: 'disabled',
+            disabledTurns: 2,
+          },
+        },
+        {
+          gameId: 'ESCAP-m3',
+          seq: 5,
+          ts: 5,
+          actor: 0,
+          event: {
+            type: 'shipCaptured',
+            shipId: 'p0s0',
+            capturedBy: 1,
+            capturedByShipId: 'p1s0',
+          },
+        },
+        {
+          gameId: 'ESCAP-m3',
+          seq: 6,
+          ts: 6,
+          actor: 1,
+          event: {
+            type: 'surrenderDeclared',
+            playerId: 1,
+            shipIds: ['p1s0'],
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) {
+      return;
+    }
+
+    expect(
+      projected.state.ships.find((ship) => ship.id === 'p0s0')?.damage
+        .disabledTurns,
+    ).toBe(2);
+    expect(
+      projected.state.ships.find((ship) => ship.id === 'p0s0')?.owner,
+    ).toBe(1);
+    expect(
+      projected.state.ships.find((ship) => ship.id === 'p0s0')?.control,
+    ).toBe('captured');
+    expect(
+      projected.state.ships.find((ship) => ship.id === 'p0s0')?.identity
         ?.revealed,
     ).toBe(true);
   });

@@ -134,6 +134,19 @@ const projectSetupEvent = (
         : { ok: true, state: result.state };
     }
 
+    case 'astrogationOrdersCommitted':
+    case 'ordnanceLaunchesCommitted':
+    case 'logisticsTransfersCommitted':
+    case 'surrenderDeclared': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      return baseState;
+    }
+
     case 'fugitiveDesignated': {
       const baseState = requireState(state, event.type);
 
@@ -280,6 +293,33 @@ const projectSetupEvent = (
       projectedShip.ship.lifecycle = 'destroyed';
       projectedShip.ship.velocity = { dq: 0, dr: 0 };
       projectedShip.ship.pendingGravityEffects = [];
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'shipCaptured': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const projectedShip = requireShip(state, event.shipId);
+
+      if (!projectedShip.ok) {
+        return projectedShip;
+      }
+
+      projectedShip.ship.owner = event.capturedBy;
+      projectedShip.ship.control = 'captured';
+
+      if (projectedShip.ship.identity) {
+        projectedShip.ship.identity.revealed = true;
+      }
 
       return {
         ok: true,
@@ -565,6 +605,39 @@ const projectSetupEvent = (
       };
     }
 
+    case 'ramming': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+
+      if (event.damageType === 'none' || event.damageType === 'eliminated') {
+        return {
+          ok: true,
+          state,
+        };
+      }
+
+      const projectedShip = requireShip(state, event.shipId);
+
+      if (!projectedShip.ok) {
+        return projectedShip;
+      }
+
+      projectedShip.ship.damage.disabledTurns = Math.max(
+        projectedShip.ship.damage.disabledTurns,
+        event.disabledTurns,
+      );
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
     case 'ordnanceDestroyed': {
       const baseState = requireState(state, event.type);
 
@@ -697,11 +770,13 @@ const projectSetupEvent = (
       };
     }
 
-    default:
+    default: {
+      const unreachable: never = event;
       return {
         ok: false,
-        error: `unsupported setup event: ${event.type satisfies EngineEvent['type']}`,
+        error: `unsupported setup event: ${String(unreachable)}`,
       };
+    }
   }
 };
 
