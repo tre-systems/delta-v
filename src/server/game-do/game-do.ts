@@ -23,16 +23,7 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import { validateClientMessage } from '../../shared/protocol';
-import type {
-  AstrogationOrder,
-  CombatAttack,
-  EngineError,
-  FleetPurchase,
-  GameState,
-  OrbitalBaseEmplacement,
-  OrdnanceLaunch,
-  TransferOrder,
-} from '../../shared/types/domain';
+import type { EngineError, GameState } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
 import {
   createRoomConfig,
@@ -79,6 +70,31 @@ export interface Env {
   MATCH_ARCHIVE?: R2Bucket;
 }
 
+type EngineFailure = { error: EngineError };
+type StatefulActionSuccess = {
+  state: GameState;
+  engineEvents: EngineEvent[];
+};
+type GameStateActionMessage = Exclude<
+  C2S,
+  { type: 'chat' } | { type: 'ping' } | { type: 'rematch' }
+>;
+type GameStateActionType = GameStateActionMessage['type'];
+type GameStateActionMessageOf<
+  T extends GameStateActionType = GameStateActionType,
+> = Extract<GameStateActionMessage, { type: T }>;
+type GameStateActionHandler<
+  T extends GameStateActionType,
+  Success extends StatefulActionSuccess = StatefulActionSuccess,
+> = {
+  run: (
+    gameState: GameState,
+    playerId: number,
+    message: GameStateActionMessageOf<T>,
+  ) => Success | EngineFailure | Promise<Success | EngineFailure>;
+  publish: (playerId: number, result: Success) => Promise<void>;
+};
+
 const CHAT_RATE_LIMIT_MS = 500;
 const WS_MSG_RATE_LIMIT = 10;
 const WS_MSG_RATE_WINDOW_MS = 1_000;
@@ -90,10 +106,204 @@ export class GameDO extends DurableObject<Env> {
     { count: number; windowStart: number }
   >();
   private readonly lastChatAt = new Map<number, number>();
+  private readonly gameStateActionHandlers = {
+    fleetReady: this.defineGameStateActionHandler({
+      run: async (
+        gameState,
+        playerId,
+        message: GameStateActionMessageOf<'fleetReady'>,
+      ) => {
+        const scenario = await this.getScenario();
+        return processFleetReady(
+          gameState,
+          playerId,
+          message.purchases,
+          this.map,
+          scenario.availableShipTypes,
+        );
+      },
+      publish: async (playerId, result) => {
+        await this.publishStateChange(result.state, undefined, {
+          actor: playerId,
+          restartTurnTimer: result.state.phase === 'astrogation',
+          events: result.engineEvents,
+        });
+      },
+    }),
+    astrogation: this.defineGameStateActionHandler({
+      run: (
+        gameState,
+        playerId,
+        message: GameStateActionMessageOf<'astrogation'>,
+      ) =>
+        processAstrogation(
+          gameState,
+          playerId,
+          message.orders,
+          this.map,
+          Math.random,
+        ),
+      publish: async (playerId, result) => {
+        await this.publishStateChange(
+          result.state,
+          resolveMovementBroadcast(result),
+          { actor: playerId, events: result.engineEvents },
+        );
+      },
+    }),
+    surrender: this.defineGameStateActionHandler({
+      run: (
+        gameState,
+        playerId,
+        message: GameStateActionMessageOf<'surrender'>,
+      ) => processSurrender(gameState, playerId, message.shipIds),
+      publish: async (playerId, result) => {
+        await this.publishStateChange(
+          result.state,
+          toStateUpdateMessage(result.state),
+          {
+            actor: playerId,
+            restartTurnTimer: false,
+            events: result.engineEvents,
+          },
+        );
+      },
+    }),
+    ordnance: this.defineGameStateActionHandler({
+      run: (
+        gameState,
+        playerId,
+        message: GameStateActionMessageOf<'ordnance'>,
+      ) =>
+        processOrdnance(
+          gameState,
+          playerId,
+          message.launches,
+          this.map,
+          Math.random,
+        ),
+      publish: async (playerId, result) => {
+        await this.publishStateChange(
+          result.state,
+          toMovementResultMessage(result),
+          { actor: playerId, events: result.engineEvents },
+        );
+      },
+    }),
+    emplaceBase: this.defineGameStateActionHandler({
+      run: (
+        gameState,
+        playerId,
+        message: GameStateActionMessageOf<'emplaceBase'>,
+      ) =>
+        processEmplacement(gameState, playerId, message.emplacements, this.map),
+      publish: async (playerId, result) => {
+        await this.publishStateChange(
+          result.state,
+          toStateUpdateMessage(result.state),
+          {
+            actor: playerId,
+            restartTurnTimer: false,
+            events: result.engineEvents,
+          },
+        );
+      },
+    }),
+    skipOrdnance: this.defineGameStateActionHandler({
+      run: (gameState, playerId) =>
+        skipOrdnance(gameState, playerId, this.map, Math.random),
+      publish: async (playerId, result) => {
+        await this.publishStateChange(
+          result.state,
+          resolveMovementBroadcast(result, 'stateUpdate'),
+          { actor: playerId, events: result.engineEvents },
+        );
+      },
+    }),
+    beginCombat: this.defineGameStateActionHandler({
+      run: (gameState, playerId) =>
+        beginCombatPhase(gameState, playerId, this.map, Math.random),
+      publish: async (playerId, result) => {
+        await this.publishStateChange(
+          result.state,
+          resolveCombatBroadcast(result, 'stateUpdate'),
+          { actor: playerId, events: result.engineEvents },
+        );
+      },
+    }),
+    combat: this.defineGameStateActionHandler({
+      run: (gameState, playerId, message: GameStateActionMessageOf<'combat'>) =>
+        processCombat(
+          gameState,
+          playerId,
+          message.attacks,
+          this.map,
+          Math.random,
+        ),
+      publish: async (playerId, result) => {
+        await this.publishStateChange(
+          result.state,
+          must(resolveCombatBroadcast(result)),
+          { actor: playerId, events: result.engineEvents },
+        );
+      },
+    }),
+    skipCombat: this.defineGameStateActionHandler({
+      run: (gameState, playerId) =>
+        skipCombat(gameState, playerId, this.map, Math.random),
+      publish: async (playerId, result) => {
+        await this.publishStateChange(
+          result.state,
+          resolveCombatBroadcast(result),
+          { actor: playerId, events: result.engineEvents },
+        );
+      },
+    }),
+    logistics: this.defineGameStateActionHandler({
+      run: (
+        gameState,
+        playerId,
+        message: GameStateActionMessageOf<'logistics'>,
+      ) => processLogistics(gameState, playerId, message.transfers, this.map),
+      publish: async (playerId, result) => {
+        await this.publishStateChange(
+          result.state,
+          toStateUpdateMessage(result.state),
+          { actor: playerId, events: result.engineEvents },
+        );
+      },
+    }),
+    skipLogistics: this.defineGameStateActionHandler({
+      run: (gameState, playerId) =>
+        skipLogistics(gameState, playerId, this.map),
+      publish: async (playerId, result) => {
+        await this.publishStateChange(
+          result.state,
+          toStateUpdateMessage(result.state),
+          { actor: playerId, events: result.engineEvents },
+        );
+      },
+    }),
+  } satisfies Record<GameStateActionType, unknown>;
   // --- WebSocket tag-based player tracking ---
   private getPlayerId(ws: WebSocket): number | null {
     const tag = this.ctx.getTags(ws).find((t) => t.startsWith('player:'));
     return tag ? parseInt(tag.split(':')[1], 10) : null;
+  }
+
+  private defineGameStateActionHandler<
+    T extends GameStateActionType,
+    Success extends StatefulActionSuccess = StatefulActionSuccess,
+  >(
+    handler: GameStateActionHandler<T, Success>,
+  ): GameStateActionHandler<T, Success> {
+    return handler;
+  }
+
+  private isGameStateActionMessage(
+    message: C2S,
+  ): message is GameStateActionMessage {
+    return message.type in this.gameStateActionHandlers;
   }
 
   private getSeatOpen(): [boolean, boolean] {
@@ -542,40 +752,11 @@ export class GameDO extends DurableObject<Env> {
     if (playerId === null) return;
     await this.touchInactivity();
     try {
+      if (this.isGameStateActionMessage(msg)) {
+        await this.dispatchGameStateAction(playerId, ws, msg);
+        return;
+      }
       switch (msg.type) {
-        case 'fleetReady':
-          await this.handleFleetReady(playerId, ws, msg.purchases);
-          break;
-        case 'astrogation':
-          await this.handleAstrogation(playerId, ws, msg.orders);
-          break;
-        case 'surrender':
-          await this.handleSurrender(playerId, ws, msg.shipIds);
-          break;
-        case 'ordnance':
-          await this.handleOrdnance(playerId, ws, msg.launches);
-          break;
-        case 'emplaceBase':
-          await this.handleEmplaceBase(playerId, ws, msg.emplacements);
-          break;
-        case 'skipOrdnance':
-          await this.handleSkipOrdnance(playerId, ws);
-          break;
-        case 'beginCombat':
-          await this.handleBeginCombat(playerId, ws);
-          break;
-        case 'combat':
-          await this.handleCombat(playerId, ws, msg.attacks);
-          break;
-        case 'skipCombat':
-          await this.handleSkipCombat(playerId, ws);
-          break;
-        case 'logistics':
-          await this.handleLogistics(playerId, ws, msg.transfers);
-          break;
-        case 'skipLogistics':
-          await this.handleSkipLogistics(playerId, ws);
-          break;
         case 'rematch':
           await this.handleRematch(playerId, ws);
           break;
@@ -844,6 +1025,32 @@ export class GameDO extends DurableObject<Env> {
     await onSuccess(result);
   }
 
+  private async dispatchGameStateAction(
+    playerId: number,
+    ws: WebSocket,
+    message: GameStateActionMessage,
+  ): Promise<void> {
+    const handler = this.gameStateActionHandlers[message.type] as unknown as {
+      run: (
+        gameState: GameState,
+        playerId: number,
+        message: GameStateActionMessage,
+      ) =>
+        | StatefulActionSuccess
+        | EngineFailure
+        | Promise<StatefulActionSuccess | EngineFailure>;
+      publish: (
+        playerId: number,
+        result: StatefulActionSuccess,
+      ) => Promise<void>;
+    };
+    await this.runGameStateAction(
+      ws,
+      (gameState) => handler.run(gameState, playerId, message),
+      (result) => handler.publish(playerId, result),
+    );
+  }
+
   // --- Game logic (delegates to engine) ---
   private async handleInit(request: Request): Promise<Response> {
     const existing = await this.getRoomConfig();
@@ -971,216 +1178,6 @@ export class GameDO extends DurableObject<Env> {
     await this.startTurnTimer(gameState);
   }
 
-  private async handleFleetReady(
-    playerId: number,
-    ws: WebSocket,
-    purchases: FleetPurchase[],
-  ) {
-    await this.runGameStateAction(
-      ws,
-      async (gameState) => {
-        const scenario = await this.getScenario();
-        return processFleetReady(
-          gameState,
-          playerId,
-          purchases,
-          this.map,
-          scenario.availableShipTypes,
-        );
-      },
-      async (result) => {
-        await this.publishStateChange(result.state, undefined, {
-          actor: playerId,
-          restartTurnTimer: result.state.phase === 'astrogation',
-          events: result.engineEvents,
-        });
-      },
-    );
-  }
-
-  private async handleAstrogation(
-    playerId: number,
-    ws: WebSocket,
-    orders: AstrogationOrder[],
-  ) {
-    await this.runGameStateAction(
-      ws,
-      (gameState) =>
-        processAstrogation(gameState, playerId, orders, this.map, Math.random),
-      async (result) => {
-        await this.publishStateChange(
-          result.state,
-          resolveMovementBroadcast(result),
-          { actor: playerId, events: result.engineEvents },
-        );
-      },
-    );
-  }
-
-  private async handleSurrender(
-    playerId: number,
-    ws: WebSocket,
-    shipIds: string[],
-  ) {
-    await this.runGameStateAction(
-      ws,
-      (gameState) => processSurrender(gameState, playerId, shipIds),
-      async (result) => {
-        await this.publishStateChange(
-          result.state,
-          toStateUpdateMessage(result.state),
-          {
-            actor: playerId,
-            restartTurnTimer: false,
-            events: result.engineEvents,
-          },
-        );
-      },
-    );
-  }
-
-  private async handleLogistics(
-    playerId: number,
-    ws: WebSocket,
-    transfers: TransferOrder[],
-  ) {
-    await this.runGameStateAction(
-      ws,
-      (gameState) => processLogistics(gameState, playerId, transfers, this.map),
-      async (result) => {
-        await this.publishStateChange(
-          result.state,
-          toStateUpdateMessage(result.state),
-          {
-            actor: playerId,
-            events: result.engineEvents,
-          },
-        );
-      },
-    );
-  }
-
-  private async handleSkipLogistics(playerId: number, ws: WebSocket) {
-    await this.runGameStateAction(
-      ws,
-      (gameState) => skipLogistics(gameState, playerId, this.map),
-      async (result) => {
-        await this.publishStateChange(
-          result.state,
-          toStateUpdateMessage(result.state),
-          {
-            actor: playerId,
-            events: result.engineEvents,
-          },
-        );
-      },
-    );
-  }
-
-  private async handleOrdnance(
-    playerId: number,
-    ws: WebSocket,
-    launches: OrdnanceLaunch[],
-  ) {
-    await this.runGameStateAction(
-      ws,
-      (gameState) =>
-        processOrdnance(gameState, playerId, launches, this.map, Math.random),
-      async (result) => {
-        await this.publishStateChange(
-          result.state,
-          toMovementResultMessage(result),
-          { actor: playerId, events: result.engineEvents },
-        );
-      },
-    );
-  }
-
-  private async handleEmplaceBase(
-    playerId: number,
-    ws: WebSocket,
-    emplacements: OrbitalBaseEmplacement[],
-  ) {
-    await this.runGameStateAction(
-      ws,
-      (gameState) =>
-        processEmplacement(gameState, playerId, emplacements, this.map),
-      async (result) => {
-        await this.publishStateChange(
-          result.state,
-          toStateUpdateMessage(result.state),
-          {
-            actor: playerId,
-            restartTurnTimer: false,
-            events: result.engineEvents,
-          },
-        );
-      },
-    );
-  }
-
-  private async handleSkipOrdnance(playerId: number, ws: WebSocket) {
-    await this.runGameStateAction(
-      ws,
-      (gameState) => skipOrdnance(gameState, playerId, this.map, Math.random),
-      async (result) => {
-        await this.publishStateChange(
-          result.state,
-          resolveMovementBroadcast(result, 'stateUpdate'),
-          { actor: playerId, events: result.engineEvents },
-        );
-      },
-    );
-  }
-
-  private async handleCombat(
-    playerId: number,
-    ws: WebSocket,
-    attacks: CombatAttack[],
-  ) {
-    await this.runGameStateAction(
-      ws,
-      (gameState) =>
-        processCombat(gameState, playerId, attacks, this.map, Math.random),
-      async (result) => {
-        await this.publishStateChange(
-          result.state,
-          must(resolveCombatBroadcast(result)),
-          { actor: playerId, events: result.engineEvents },
-        );
-      },
-    );
-  }
-
-  private async handleBeginCombat(playerId: number, ws: WebSocket) {
-    await this.runGameStateAction(
-      ws,
-      (gameState) =>
-        beginCombatPhase(gameState, playerId, this.map, Math.random),
-      async (result) => {
-        await this.publishStateChange(
-          result.state,
-          resolveCombatBroadcast(result, 'stateUpdate'),
-          { actor: playerId, events: result.engineEvents },
-        );
-      },
-    );
-  }
-
-  private async handleSkipCombat(playerId: number, ws: WebSocket) {
-    await this.runGameStateAction(
-      ws,
-      (gameState) => skipCombat(gameState, playerId, this.map, Math.random),
-      async (result) => {
-        await this.publishStateChange(
-          result.state,
-          resolveCombatBroadcast(result),
-          { actor: playerId, events: result.engineEvents },
-        );
-      },
-    );
-  }
-
   private async handleRematch(playerId: number, _ws: WebSocket) {
     const requests =
       (await this.ctx.storage.get<number[]>('rematchRequests')) ?? [];
@@ -1280,4 +1277,3 @@ export class GameDO extends DurableObject<Env> {
     }
   }
 }
-type EngineFailure = { error: EngineError };

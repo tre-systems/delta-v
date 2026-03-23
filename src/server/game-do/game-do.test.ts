@@ -511,6 +511,25 @@ describe('GameDO', () => {
       message: 'Invalid combat payload',
     });
   });
+  it('registers every stateful websocket action in the declarative handler table', () => {
+    const game = createGameDO(createCtx()) as unknown as {
+      gameStateActionHandlers: Record<string, unknown>;
+    };
+
+    expect(Object.keys(game.gameStateActionHandlers).sort()).toEqual([
+      'astrogation',
+      'beginCombat',
+      'combat',
+      'emplaceBase',
+      'fleetReady',
+      'logistics',
+      'ordnance',
+      'skipCombat',
+      'skipLogistics',
+      'skipOrdnance',
+      'surrender',
+    ]);
+  });
   it('stores a disconnect marker and alarm when a live player disconnects', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1000);
     const ctx = createCtx();
