@@ -1,6 +1,37 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { validateClientMessage } from './protocol';
+
+const sharedContractFixtures = JSON.parse(
+  readFileSync(
+    new URL('./__fixtures__/contracts.json', import.meta.url),
+    'utf8',
+  ),
+) as {
+  c2s: Record<string, { raw: unknown; expected: unknown }>;
+};
+
+const normalizeFixtureValue = (value: unknown): unknown => {
+  if (value === undefined) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(normalizeFixtureValue);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        normalizeFixtureValue(entry),
+      ]),
+    );
+  }
+
+  return value;
+};
 
 describe('validateClientMessage', () => {
   describe('basic validation', () => {
@@ -1424,5 +1455,13 @@ describe('C2S contract fixtures', () => {
       ok: true,
       value: { type: 'ping', t: 1711234567890 },
     });
+  });
+
+  it('matches the reviewed C2S fixture set', () => {
+    for (const fixture of Object.values(sharedContractFixtures.c2s)) {
+      expect(normalizeFixtureValue(validateClientMessage(fixture.raw))).toEqual(
+        fixture.expected,
+      );
+    }
   });
 });

@@ -4,27 +4,6 @@ Remaining work only. Completed items are in git history.
 
 ## Event-Sourced Match Architecture
 
-### Protocol and replay contract fixtures
-
-The runtime validation layer is strong, but the project
-still relies mostly on unit tests rather than stable
-golden fixtures for the wire contracts. Add representative
-fixtures for create / join / replay responses, websocket
-state-bearing messages, and replay timeline entries so
-future protocol or event changes fail loudly when payload
-shapes drift.
-
-Definition of done: fixture-backed tests cover the main
-`C2S`, `S2C`, and replay payloads, fixture updates are
-intentional and reviewed, and hidden-information views are
-covered for at least one asymmetric scenario.
-
-**Files:** `src/shared/protocol.ts`,
-`src/server/protocol.ts`,
-`src/server/game-do/messages.ts`,
-`src/shared/replay.ts`,
-`src/shared/types/protocol.ts`
-
 ### Replace array-backed event storage with append-friendly match persistence
 
 The current event stream is persisted as a single

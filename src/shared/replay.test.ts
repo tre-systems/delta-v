@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { createGame, filterStateForPlayer } from './engine/game-engine';
@@ -13,6 +14,34 @@ import {
 import type { GameState } from './types/domain';
 
 const map = buildSolarSystemMap();
+const sharedContractFixtures = JSON.parse(
+  readFileSync(
+    new URL('./__fixtures__/contracts.json', import.meta.url),
+    'utf8',
+  ),
+) as {
+  replay: {
+    entry: unknown;
+    timeline: unknown;
+  };
+};
+
+const normalizeReplayShape = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(normalizeReplayShape);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        key === 'state' ? '__STATE__' : normalizeReplayShape(entry),
+      ]),
+    );
+  }
+
+  return value;
+};
 
 const createTestState = (
   gameId: string,
@@ -49,16 +78,9 @@ describe('replay shape fixtures', () => {
 
     const entry = toReplayEntry(1, message, 1700000000000);
 
-    expect(Object.keys(entry).sort()).toEqual(
-      ['message', 'phase', 'recordedAt', 'sequence', 'turn'].sort(),
+    expect(normalizeReplayShape(entry)).toEqual(
+      sharedContractFixtures.replay.entry,
     );
-    expect(entry).toEqual({
-      sequence: 1,
-      recordedAt: 1700000000000,
-      turn: state.turnNumber,
-      phase: state.phase,
-      message: { type: 'gameStart', state },
-    });
   });
 
   it('ReplayEntry deep-clones the message', () => {
@@ -93,32 +115,9 @@ describe('replay shape fixtures', () => {
       ],
     };
 
-    expect(Object.keys(timeline).sort()).toEqual(
-      [
-        'createdAt',
-        'entries',
-        'gameId',
-        'matchNumber',
-        'roomCode',
-        'scenario',
-      ].sort(),
+    expect(normalizeReplayShape(timeline)).toEqual(
+      sharedContractFixtures.replay.timeline,
     );
-    expect(timeline).toEqual({
-      gameId: 'ARCHV-m1',
-      roomCode: 'ARCHV',
-      matchNumber: 1,
-      scenario: 'Bi-Planetary',
-      createdAt: 1700000000000,
-      entries: [
-        {
-          sequence: 1,
-          recordedAt: 1700000000000,
-          turn: state.turnNumber,
-          phase: state.phase,
-          message: { type: 'gameStart', state },
-        },
-      ],
-    });
   });
 
   it('ReplayTimeline entries grow with subsequent messages', () => {

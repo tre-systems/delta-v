@@ -1,0 +1,176 @@
+{
+  "c2s": {
+    "fleetReady": {
+      "raw": {
+        "type": "fleetReady",
+        "purchases": [{ "shipType": "corvette" }]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "fleetReady",
+          "purchases": [{ "shipType": "corvette" }]
+        }
+      }
+    },
+    "astrogationFull": {
+      "raw": {
+        "type": "astrogation",
+        "orders": [
+          {
+            "shipId": "p0s0",
+            "burn": 2,
+            "overload": 1,
+            "weakGravityChoices": { "q3r5": true }
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "astrogation",
+          "orders": [
+            {
+              "shipId": "p0s0",
+              "burn": 2,
+              "overload": 1,
+              "weakGravityChoices": { "q3r5": true }
+            }
+          ]
+        }
+      }
+    },
+    "astrogationDrift": {
+      "raw": {
+        "type": "astrogation",
+        "orders": [{ "shipId": "p0s0", "burn": null }]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "astrogation",
+          "orders": [
+            {
+              "shipId": "p0s0",
+              "burn": null,
+              "overload": null,
+              "weakGravityChoices": null
+            }
+          ]
+        }
+      }
+    },
+    "ordnance": {
+      "raw": {
+        "type": "ordnance",
+        "launches": [
+          {
+            "shipId": "p0s0",
+            "ordnanceType": "torpedo",
+            "torpedoAccel": 3,
+            "torpedoAccelSteps": 2
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "ordnance",
+          "launches": [
+            {
+              "shipId": "p0s0",
+              "ordnanceType": "torpedo",
+              "torpedoAccel": 3,
+              "torpedoAccelSteps": 2
+            }
+          ]
+        }
+      }
+    },
+    "combat": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0", "p0s1"],
+            "targetId": "p1s0",
+            "targetType": "ship",
+            "attackStrength": 4
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "combat",
+          "attacks": [
+            {
+              "attackerIds": ["p0s0", "p0s1"],
+              "targetId": "p1s0",
+              "targetType": "ship",
+              "attackStrength": 4
+            }
+          ]
+        }
+      }
+    },
+    "logistics": {
+      "raw": {
+        "type": "logistics",
+        "transfers": [
+          {
+            "sourceShipId": "p0s0",
+            "targetShipId": "p0s1",
+            "transferType": "fuel",
+            "amount": 3
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "logistics",
+          "transfers": [
+            {
+              "sourceShipId": "p0s0",
+              "targetShipId": "p0s1",
+              "transferType": "fuel",
+              "amount": 3
+            }
+          ]
+        }
+      }
+    }
+  },
+  "replay": {
+    "entry": {
+      "sequence": 1,
+      "recordedAt": 1700000000000,
+      "turn": 1,
+      "phase": "astrogation",
+      "message": {
+        "type": "gameStart",
+        "state": "__STATE__"
+      }
+    },
+    "timeline": {
+      "gameId": "ARCHV-m1",
+      "roomCode": "ARCHV",
+      "matchNumber": 1,
+      "scenario": "Bi-Planetary",
+      "createdAt": 1700000000000,
+      "entries": [
+        {
+          "sequence": 1,
+          "recordedAt": 1700000000000,
+          "turn": 1,
+          "phase": "astrogation",
+          "message": {
+            "type": "gameStart",
+            "state": "__STATE__"
+          }
+        }
+      ]
+    }
+  }
+}
