@@ -2799,8 +2799,8 @@ describe('Grand Tour', () => {
     expect(tourState.players[1].totalFuelSpent).toBe(0);
   });
   it('pre-marks starting body as visited', () => {
-    // Player 0 starts at Terra, Player 1 at Mars
-    expect(tourState.players[0].visitedBodies).toContain('Terra');
+    // Player 0 starts at Luna, Player 1 at Mars
+    expect(tourState.players[0].visitedBodies).toContain('Luna');
     expect(tourState.players[1].visitedBodies).toContain('Mars');
   });
   it('gives both players shared bases for fuel', () => {
@@ -2849,20 +2849,20 @@ describe('Grand Tour', () => {
     tourState.players[0].visitedBodies = [
       ...must(tourState.scenarioRules.checkpointBodies),
     ];
-    // Land the ship at a Terra base
+    // Land the ship at a Luna base
     const ship = must(tourState.ships.find((s) => s.owner === 0));
-    const terraBase = findBaseHexes(map, 'Terra')[0];
-    ship.position = terraBase;
+    const homeBase = findBaseHexes(map, 'Luna')[0];
+    ship.position = homeBase;
     ship.lifecycle = 'landed';
     checkImmediateVictory(tourState, map);
     expect(tourState.winner).toBe(0);
     expect(tourState.winReason).toContain('Grand Tour complete');
   });
   it('does not win with incomplete checkpoints', () => {
-    tourState.players[0].visitedBodies = ['Terra', 'Mercury', 'Venus'];
+    tourState.players[0].visitedBodies = ['Luna', 'Mercury', 'Venus'];
     const ship = must(tourState.ships.find((s) => s.owner === 0));
-    const terraBase = findBaseHexes(map, 'Terra')[0];
-    ship.position = terraBase;
+    const homeBase = findBaseHexes(map, 'Luna')[0];
+    ship.position = homeBase;
     ship.lifecycle = 'landed';
     checkImmediateVictory(tourState, map);
     expect(tourState.winner).toBeNull();

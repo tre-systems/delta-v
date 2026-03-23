@@ -585,6 +585,7 @@ export const aiCombat = (
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
 ): CombatAttack[] => {
+  if (state.scenarioRules.combatDisabled) return [];
   const cfg = AI_CONFIG[difficulty];
   const myShips = state.ships.filter(
     (s) => s.owner === playerId && s.lifecycle !== 'destroyed' && canAttack(s),

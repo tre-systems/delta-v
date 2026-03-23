@@ -18,8 +18,10 @@ import {
   getEventStream,
   getEventStreamLength,
   getProjectedCurrentState,
+  getProjectedCurrentStateRaw,
   getProjectedReplayArchive,
   getProjectionFrames,
+  hasProjectionParity,
   projectReplayArchive,
   saveCheckpoint,
   saveReplayArchive,
@@ -368,6 +370,22 @@ describe('replay projection', () => {
     expect(projectedState?.phase).toBe('combat');
   });
 
+  it('derives raw current state for parity checks', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const state = createGame(SCENARIOS.biplanetary, map, 'RAW-m1', findBaseHex);
+    state.turnNumber = 5;
+    state.phase = 'gameOver';
+
+    await appendProjectionMessage(storage, 'RAW-m1', 11, {
+      type: 'stateUpdate',
+      state,
+    });
+
+    const projectedState = await getProjectedCurrentStateRaw(storage, 'RAW-m1');
+
+    expect(projectedState).toEqual(state);
+  });
+
   it('filters projected replay archives per viewer', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const state = createGame(
@@ -472,5 +490,52 @@ describe('replay projection', () => {
     expect(projected?.entries[0]?.turn).toBe(2);
     expect(projected?.entries[1]?.turn).toBe(3);
     expect(projected?.entries[1]?.phase).toBe('combat');
+  });
+
+  it('reports parity when live state matches checkpoint plus tail projection', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const checkpointState = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'PARITY2-m1',
+      findBaseHex,
+    );
+    checkpointState.turnNumber = 2;
+    checkpointState.phase = 'ordnance';
+
+    const liveState = structuredClone(checkpointState);
+    liveState.turnNumber = 3;
+    liveState.phase = 'combat';
+
+    await saveCheckpoint(storage, 'PARITY2-m1', checkpointState, 4);
+    await appendProjectionMessage(storage, 'PARITY2-m1', 5, {
+      type: 'stateUpdate',
+      state: liveState,
+    });
+
+    expect(await hasProjectionParity(storage, 'PARITY2-m1', liveState)).toBe(
+      true,
+    );
+  });
+
+  it('detects parity mismatch when live state diverges from projection', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const projectedState = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'PARITY3-m1',
+      findBaseHex,
+    );
+    const liveState = structuredClone(projectedState);
+    liveState.turnNumber = projectedState.turnNumber + 1;
+
+    await appendProjectionMessage(storage, 'PARITY3-m1', 1, {
+      type: 'gameStart',
+      state: projectedState,
+    });
+
+    expect(await hasProjectionParity(storage, 'PARITY3-m1', liveState)).toBe(
+      false,
+    );
   });
 });

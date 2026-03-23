@@ -246,10 +246,10 @@ describe('checkImmediateVictory', () => {
     state.players[0].visitedBodies = [
       ...(state.scenarioRules.checkpointBodies ?? []),
     ];
-    // Land at home body (Terra for player 0)
+    // Land at home body (Luna for player 0)
     ship.lifecycle = 'landed';
-    const terraBase = must(findBaseHex(map, 'Terra'));
-    ship.position = terraBase;
+    const homeBase = must(findBaseHex(map, 'Luna'));
+    ship.position = homeBase;
     checkImmediateVictory(state, map);
     expect(state.winner).toBe(0);
     expect(state.winReason).toContain('Grand Tour');

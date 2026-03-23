@@ -72,8 +72,8 @@ const runSingleGame = async (
   scenarioName: string,
   p0Diff: AIDifficulty,
   p1Diff: AIDifficulty,
-  randomizeStart = false,
-): Promise<{ winner: number | null, turns: number, reason: string | null }> => {
+  randomizeStart = true,
+) => {
   const scenario = SCENARIOS[scenarioName];
   if (!scenario) throw new Error(`Unknown scenario: ${scenarioName}`);
 
@@ -188,7 +188,7 @@ const runSimulation = async (scenarioName: string, iterations: number) => {
   for (let i = 0; i < iterations; i++) {
     try {
       const result = await runSingleGame(
-        scenarioName, 'hard', 'hard',
+        scenarioName, 'hard', 'hard', true,
       );
       metrics.totalGames++;
       metrics.totalTurns += result.turns;
