@@ -35,22 +35,6 @@ view.
 `src/client/ui/ship-list-view.ts`,
 `src/client/ui/fleet-building-view.ts`
 
-### Client composition-root lifecycle cleanup
-
-Bring `GameClient` in line with the rest of the client
-manager pattern by centralizing global listener binding
-and teardown instead of leaving ad hoc browser listeners
-attached in `main.ts`.
-
-Definition of done: `GameClient` owns explicit teardown
-for keyboard, tooltip, connectivity, and other global
-listeners, and `main.ts` becomes a clearer composition
-root rather than a second event-binding layer.
-
-**Files:** `src/client/main.ts`,
-`src/client/ui/ui.ts`,
-`src/client/input.ts`
-
 ## Gameplay & Content
 
 ### Passenger rescue mechanics
