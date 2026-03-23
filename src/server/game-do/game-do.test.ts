@@ -730,6 +730,7 @@ describe('GameDO', () => {
           scenario: state.scenario,
           turn: state.turnNumber,
           phase: state.phase,
+          matchSeed: 0,
         },
       ],
     });
@@ -775,6 +776,7 @@ describe('GameDO', () => {
           scenario: state.scenario,
           turn: state.turnNumber,
           phase: state.phase,
+          matchSeed: 0,
         },
       ],
     });
@@ -789,6 +791,7 @@ describe('GameDO', () => {
       scenario: state.scenario,
       turn: state.turnNumber,
       phase: state.phase,
+      matchSeed: 0,
     });
   });
 
@@ -820,6 +823,7 @@ describe('GameDO', () => {
           scenario: state.scenario,
           turn: state.turnNumber,
           phase: state.phase,
+          matchSeed: 0,
         },
       ],
     });
@@ -1310,6 +1314,7 @@ describe('GameDO', () => {
         scenario: state.scenario,
         turn: state.turnNumber,
         phase: state.phase,
+        matchSeed: 0,
       },
       {
         type: 'turnAdvanced',

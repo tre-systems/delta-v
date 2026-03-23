@@ -17,6 +17,7 @@ export type EngineEvent =
       scenario: string;
       turn: number;
       phase: Phase;
+      matchSeed: number;
     }
   | {
       type: 'phaseChanged';
