@@ -248,6 +248,28 @@ export const createGame = (
       sharedBases: scenario.rules?.sharedBases
         ? [...scenario.rules.sharedBases]
         : undefined,
+      logisticsEnabled: scenario.rules?.logisticsEnabled,
+      reinforcements: scenario.rules?.reinforcements?.map((reinforcement) => ({
+        turn: reinforcement.turn,
+        playerId: reinforcement.playerId,
+        ships: reinforcement.ships.map((ship) => ({
+          type: ship.type,
+          position: { ...ship.position },
+          velocity: { ...ship.velocity },
+          startLanded: ship.startLanded,
+          startInOrbit: ship.startInOrbit,
+        })),
+      })),
+      fleetConversion: scenario.rules?.fleetConversion
+        ? {
+            turn: scenario.rules.fleetConversion.turn,
+            fromPlayer: scenario.rules.fleetConversion.fromPlayer,
+            toPlayer: scenario.rules.fleetConversion.toPlayer,
+            shipTypes: scenario.rules.fleetConversion.shipTypes
+              ? [...scenario.rules.fleetConversion.shipTypes]
+              : undefined,
+          }
+        : undefined,
     },
     escapeMoralVictoryAchieved: false,
     turnNumber: 1,
