@@ -34,27 +34,21 @@ and the related UI / log presentation.
 `src/client/game/logistics-ui.ts`,
 `src/client/ui/game-log-view.ts`
 
-### Spectator mode
+### Spectator mode — client UI and live stream
 
-Allow read-only third-party connections backed by
-public / spectator projections. Spectators may receive
-live state broadcasts and replay / catch-up history but
-cannot submit actions, occupy seats, or affect
-disconnect-forfeit logic.
+Server-side spectator transport is complete: viewer-
+aware filtering, spectator replay delivery, spectator-
+tagged broadcasts, and WebSocket boundary enforcement
+are all wired and tested. Live spectator WebSocket
+joins are explicitly rejected (501) for now.
 
-This depends on viewer-aware filtering and projection
-catch-up being correct first. Default spectator
-visibility should be public-state only unless an
-explicit omniscient debug mode is added later.
-
-Definition of done: join / auth, live updates, replay /
-catch-up, and no-action enforcement are all covered by
-integration tests.
+Remaining work is client-side: a spectator join flow,
+real-time spectator state display during live games,
+and the protocol extension to accept live spectator
+WebSocket connections.
 
 **Files:** `src/server/game-do/game-do.ts`,
 `src/server/protocol.ts`,
-`src/shared/types/protocol.ts`,
-`src/shared/engine/game-engine.ts`,
 `src/client/main.ts`, client spectator UI
 
 ### Scenario expansion
