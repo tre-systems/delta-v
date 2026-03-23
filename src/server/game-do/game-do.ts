@@ -46,7 +46,6 @@ import {
   appendEnvelopedEvents,
   appendEvents,
   appendProjectionMessage,
-  appendReplayMessage,
   getEventStreamLength,
   getProjectedCurrentState,
   getProjectedCurrentStateRaw,
@@ -771,7 +770,6 @@ export class GameDO extends DurableObject<Env> {
       events = [],
     } = options ?? {};
     const roomCode = await this.getGameCode();
-    const matchNumber = await this.ctx.storage.get<number>('matchNumber');
     const replayMessage = resolveStateBearingMessage(state, primaryMessage);
     await this.saveGameState(state);
     let eventSeq = await getEventStreamLength(this.ctx.storage, state.gameId);
@@ -785,15 +783,6 @@ export class GameDO extends DurableObject<Env> {
         ...events,
       );
       eventSeq = await getEventStreamLength(this.ctx.storage, state.gameId);
-    }
-
-    if (matchNumber !== undefined) {
-      await appendReplayMessage(
-        this.ctx.storage,
-        roomCode,
-        matchNumber,
-        replayMessage,
-      );
     }
     await appendProjectionMessage(
       this.ctx.storage,
@@ -985,22 +974,13 @@ export class GameDO extends DurableObject<Env> {
     ]);
     const map = this.map;
     const code = roomConfig?.code ?? (await this.getGameCode());
-    const { gameId, matchNumber } = await allocateMatchIdentity(
-      this.ctx.storage,
-      code,
-    );
+    const { gameId } = await allocateMatchIdentity(this.ctx.storage, code);
     const gameState = createGame(scenario, map, gameId, findBaseHex);
     const gameStartMessage = toGameStartMessage(gameState);
     await this.clearRoomArchivedFlag();
     await saveMatchCreatedAt(this.ctx.storage, gameId, Date.now());
     await this.saveGameState(gameState);
     await resetEventLog(this.ctx.storage);
-    await appendReplayMessage(
-      this.ctx.storage,
-      code,
-      matchNumber,
-      gameStartMessage,
-    );
     const initEvents: import('../../shared/engine/engine-events').EngineEvent[] =
       [
         {
