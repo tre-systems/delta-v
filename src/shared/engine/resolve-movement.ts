@@ -131,8 +131,18 @@ export const resolveMovementPhase = (
       shipId: ship.id,
       from,
       to: course.destination,
+      path: course.path.map((hex) => ({ ...hex })),
       fuelSpent: course.fuelSpent,
+      fuelRemaining: ship.fuel,
       newVelocity: course.newVelocity,
+      lifecycle: ship.lifecycle,
+      overloadUsed: ship.overloadUsed,
+      pendingGravityEffects: (ship.pendingGravityEffects ?? []).map(
+        (effect) => ({
+          ...effect,
+          hex: { ...effect.hex },
+        }),
+      ),
     });
 
     if (course.landedAt) {

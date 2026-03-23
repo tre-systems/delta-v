@@ -152,12 +152,11 @@ describe('projectMatchSetupFromStream', () => {
           ts: 2,
           actor: 0,
           event: {
-            type: 'shipMoved',
-            shipId: 'p0s0',
-            from: { q: 0, r: 0 },
-            to: { q: 1, r: 0 },
-            fuelSpent: 1,
-            newVelocity: { dq: 1, dr: 0 },
+            type: 'ordnanceLaunched',
+            ordnanceId: 'ord1',
+            ordnanceType: 'mine',
+            sourceShipId: 'p0s0',
+            position: { q: 0, r: 0 },
           },
         },
       ],
@@ -166,7 +165,7 @@ describe('projectMatchSetupFromStream', () => {
 
     expect(projected).toEqual({
       ok: false,
-      error: 'unsupported setup event: shipMoved',
+      error: 'unsupported setup event: ordnanceLaunched',
     });
   });
 
@@ -220,5 +219,119 @@ describe('projectMatchSetupFromStream', () => {
     expect(projected.state.turnNumber).toBe(2);
     expect(projected.state.activePlayer).toBe(1);
     expect(projected.state.phase).toBe('combat');
+  });
+
+  it('applies movement, landing, crash, and resupply events', () => {
+    const projected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: 'BIPLA-m1',
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Bi-Planetary',
+            turn: 1,
+            phase: 'astrogation',
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'shipMoved',
+            shipId: 'p0s0',
+            from: { q: -9, r: -4 },
+            to: { q: -9, r: -4 },
+            path: [{ q: -9, r: -4 }],
+            fuelSpent: 0,
+            fuelRemaining: 20,
+            newVelocity: { dq: 0, dr: 0 },
+            lifecycle: 'landed',
+            overloadUsed: false,
+            pendingGravityEffects: [],
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 3,
+          ts: 3,
+          actor: 0,
+          event: {
+            type: 'shipLanded',
+            shipId: 'p0s0',
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 4,
+          ts: 4,
+          actor: 0,
+          event: {
+            type: 'shipResupplied',
+            shipId: 'p0s0',
+            source: 'base',
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 5,
+          ts: 5,
+          actor: 1,
+          event: {
+            type: 'shipMoved',
+            shipId: 'p1s0',
+            from: { q: 10, r: -7 },
+            to: { q: 9, r: -7 },
+            path: [
+              { q: 10, r: -7 },
+              { q: 9, r: -7 },
+            ],
+            fuelSpent: 1,
+            fuelRemaining: 19,
+            newVelocity: { dq: -1, dr: 0 },
+            lifecycle: 'active',
+            overloadUsed: false,
+            pendingGravityEffects: [],
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 6,
+          ts: 6,
+          actor: 1,
+          event: {
+            type: 'shipCrashed',
+            shipId: 'p1s0',
+            hex: { q: 9, r: -7 },
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) {
+      return;
+    }
+
+    const player0Ship = projected.state.ships.find(
+      (ship) => ship.id === 'p0s0',
+    );
+    const player1Ship = projected.state.ships.find(
+      (ship) => ship.id === 'p1s0',
+    );
+
+    expect(player0Ship?.lifecycle).toBe('landed');
+    expect(player0Ship?.velocity).toEqual({ dq: 0, dr: 0 });
+    expect(player0Ship?.resuppliedThisTurn).toBe(true);
+    expect(player0Ship?.lastMovementPath).toEqual([{ q: -9, r: -4 }]);
+
+    expect(player1Ship?.position).toEqual({ q: 9, r: -7 });
+    expect(player1Ship?.lifecycle).toBe('destroyed');
+    expect(player1Ship?.velocity).toEqual({ dq: 0, dr: 0 });
   });
 });
