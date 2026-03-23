@@ -2,32 +2,6 @@
 
 Remaining work only. Completed items are in git history.
 
-## Client Boundary Cleanup
-
-### Continue shrinking `GameClient` into a composition root
-
-Keep `main.ts` focused on bootstrap, ownership, and
-wiring rather than growing a larger class-shaped
-coordinator.
-
-Lazy deps, presentation delegates, session HTTP calls,
-token persistence, local transport creation, and the
-main dependency-bag builders have been extracted to
-`action-deps.ts`, `session-api.ts`, `transport.ts`, and
-`main-deps.ts`. The post-game replay flow now also
-lives in a dedicated `replay-controller.ts`. `main.ts`
-is now mostly bootstrap, constructor wiring, event
-routing, and thin delegation.
-
-Further shrinking should only happen where a real seam
-exists. The remaining candidates are UI-event routing,
-the local game-flow cluster, or other repeated
-composition glue that can move out without turning the
-composition root into indirection for its own sake.
-
-**Files:** `src/client/main.ts`,
-`src/client/game/`, `src/client/ui/ui.ts`
-
 ## Gameplay & Content
 
 ### Passenger rescue mechanics
