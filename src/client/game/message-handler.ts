@@ -72,12 +72,14 @@ export const handleServerMessage = (
     case 'welcome': {
       applyWelcomeSession(deps.ctx, plan.playerId, plan.code);
       deps.storePlayerToken(plan.code, plan.playerToken);
+
       if (plan.showReconnectToast) {
         deps.ui.overlay.hideReconnecting();
         deps.ui.overlay.showToast('Reconnected!', 'success');
       }
       deps.renderer.setPlayerId(plan.playerId);
       deps.ui.setPlayerId(plan.playerId);
+
       if (plan.nextState) {
         deps.setState(plan.nextState);
       }
@@ -113,6 +115,7 @@ export const handleServerMessage = (
         deps.deserializeState(plan.state),
         plan.results,
       );
+
       if (plan.shouldTransition) {
         deps.transitionToPhase();
       }
@@ -120,6 +123,7 @@ export const handleServerMessage = (
     }
     case 'stateUpdate':
       deps.applyGameState(deps.deserializeState(plan.state));
+
       if (plan.shouldTransition) {
         deps.transitionToPhase();
       }

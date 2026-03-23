@@ -32,6 +32,7 @@ export const initAudio = () => {
   // Load saved mute preference
   try {
     const saved = localStorage.getItem('delta-v-mute');
+
     if (saved === '1') muted = true;
   } catch {}
 
@@ -51,6 +52,7 @@ export const initAudio = () => {
 // Short blip for UI interactions (button clicks, selections).
 export const playSelect = () => {
   const ac = getCtx();
+
   if (!ac) return;
 
   const osc = ac.createOscillator();
@@ -73,6 +75,7 @@ export const playSelect = () => {
 // Confirm/submit sound — ascending tone.
 export const playConfirm = () => {
   const ac = getCtx();
+
   if (!ac) return;
 
   const osc = ac.createOscillator();
@@ -95,6 +98,7 @@ export const playConfirm = () => {
 // Thruster sound for movement.
 export const playThrust = () => {
   const ac = getCtx();
+
   if (!ac) return;
 
   const bufSize = ac.sampleRate * 0.3;
@@ -126,6 +130,7 @@ export const playThrust = () => {
 // Laser/beam sound for combat.
 export const playCombat = () => {
   const ac = getCtx();
+
   if (!ac) return;
 
   const osc = ac.createOscillator();
@@ -148,6 +153,7 @@ export const playCombat = () => {
 // Explosion sound for ship destruction or detonation.
 export const playExplosion = () => {
   const ac = getCtx();
+
   if (!ac) return;
 
   const bufSize = ac.sampleRate * 0.5;
@@ -179,6 +185,7 @@ export const playExplosion = () => {
 // Alert tone for phase changes.
 export const playPhaseChange = () => {
   const ac = getCtx();
+
   if (!ac) return;
 
   const osc = ac.createOscillator();
@@ -216,6 +223,7 @@ export const playPhaseChange = () => {
 // Warning beep for low timer.
 export const playWarning = () => {
   const ac = getCtx();
+
   if (!ac) return;
 
   // Two short beeps
@@ -241,6 +249,7 @@ export const playWarning = () => {
 // Victory fanfare.
 export const playVictory = () => {
   const ac = getCtx();
+
   if (!ac) return;
 
   const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
@@ -267,6 +276,7 @@ export const playVictory = () => {
 // Defeat sound.
 export const playDefeat = () => {
   const ac = getCtx();
+
   if (!ac) return;
 
   const notes = [400, 350, 300, 200]; // Descending

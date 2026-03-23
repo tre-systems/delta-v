@@ -85,9 +85,11 @@ export const deriveKeyboardAction = (
     if (context.combatTargetId) {
       return { kind: 'clearCombatSelection', preventDefault: false };
     }
+
     if (context.queuedAttackCount > 0) {
       return { kind: 'undoQueuedAttack', preventDefault: false };
     }
+
     if (context.torpedoAccelActive) {
       return { kind: 'clearTorpedoAcceleration', preventDefault: false };
     }
@@ -98,16 +100,20 @@ export const deriveKeyboardAction = (
     if (context.state === 'playing_astrogation') {
       return { kind: 'confirmOrders', preventDefault: true };
     }
+
     if (context.state === 'playing_ordnance') {
       return { kind: 'skipOrdnance', preventDefault: true };
     }
+
     if (context.state === 'playing_logistics') {
       return { kind: 'confirmTransfers', preventDefault: true };
     }
+
     if (context.state === 'playing_combat') {
       if (context.combatTargetId) {
         return { kind: 'queueAttack', preventDefault: true };
       }
+
       if (context.queuedAttackCount > 0) {
         return { kind: 'fireAllAttacks', preventDefault: true };
       }
@@ -130,6 +136,7 @@ export const deriveKeyboardAction = (
   }
 
   const lowerKey = input.key.toLowerCase();
+
   if (lowerKey === 'n' && context.state === 'playing_ordnance') {
     return {
       kind: 'launchOrdnance',

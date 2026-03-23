@@ -30,9 +30,11 @@ const validateAstrogationOrders = (
     }
     seenShips.add(order.shipId);
     const ship = state.ships.find((s) => s.id === order.shipId);
+
     if (!ship || ship.owner !== playerId) {
       return 'Invalid ship for astrogation order';
     }
+
     if (!isOrderableShip(ship)) {
       if (
         ship.control === 'captured' &&
@@ -46,31 +48,39 @@ const validateAstrogationOrders = (
     const isDisabled = ship.damage.disabledTurns > 0;
     const burn = isDisabled ? null : order.burn;
     const overload = isDisabled ? null : (order.overload ?? null);
+
     if (burn !== null && (burn < 0 || burn > 5)) {
       return 'Invalid burn direction';
     }
+
     if (burn !== null && ship.fuel <= 0) {
       return 'No fuel remaining';
     }
+
     if (overload !== null && (overload < 0 || overload > 5)) {
       return 'Invalid overload direction';
     }
+
     if (overload !== null) {
       if (burn === null) {
         return 'Overload requires a primary burn';
       }
       const stats = SHIP_STATS[ship.type];
+
       if (!stats?.canOverload) {
         return 'This ship cannot overload';
       }
+
       if (ship.fuel < 2) {
         return 'Insufficient fuel for overload';
       }
+
       if (ship.overloadUsed) {
         return 'Overload already used since last' + ' maintenance';
       }
     }
   }
+
   return null;
 };
 
@@ -86,9 +96,11 @@ export const processAstrogation = (
   const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'astrogation');
+
   if (phaseError) return { error: phaseError };
 
   const validationError = validateAstrogationOrders(state, playerId, orders);
+
   if (validationError) {
     return { error: validationError };
   }
@@ -140,6 +152,7 @@ export const processOrdnance = (
   const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'ordnance');
+
   if (phaseError) return { error: phaseError };
 
   let nextOrdId = getNextOrdnanceId(state);
@@ -161,6 +174,7 @@ export const processOrdnance = (
     }
 
     const shipError = validateOrdnanceLaunch(state, ship, launch.ordnanceType);
+
     if (shipError) return { error: shipError };
 
     const mass = ORDNANCE_MASS[launch.ordnanceType];
@@ -171,6 +185,7 @@ export const processOrdnance = (
           error: 'Invalid torpedo acceleration direction',
         };
       }
+
       if (
         launch.torpedoAccelSteps != null &&
         launch.torpedoAccelSteps !== 1 &&
@@ -195,6 +210,7 @@ export const processOrdnance = (
       );
       const hasBurn =
         pendingOrder?.burn != null || pendingOrder?.overload != null;
+
       if (!hasBurn) {
         return {
           error: 'Ship must change course when' + ' launching a mine',
@@ -265,6 +281,7 @@ export const skipOrdnance = (
   const state = structuredClone(inputState);
 
   const phaseError = validatePhaseAction(state, playerId, 'ordnance');
+
   if (phaseError) return { error: phaseError };
 
   return resolveMovementPhase(state, playerId, map, rng);

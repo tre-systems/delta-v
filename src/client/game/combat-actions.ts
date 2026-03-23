@@ -39,8 +39,10 @@ export const resetCombatState = (deps: CombatActionDeps) => {
 
 export const fireAllAttacks = (deps: CombatActionDeps) => {
   const transport = deps.getTransport();
+
   if (!transport) return;
   const attacks = takeQueuedAttacks(deps.planningState);
+
   if (attacks.length === 0) {
     sendSkipCombat(deps);
     return;
@@ -52,6 +54,7 @@ export const fireAllAttacks = (deps: CombatActionDeps) => {
 const sendSkipCombat = (deps: CombatActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
+
   if (!gameState || deps.getClientState() !== 'playing_combat' || !transport)
     return;
   transport.skipCombat();
@@ -61,6 +64,7 @@ export { sendSkipCombat };
 
 export const queueAttack = (deps: CombatActionDeps) => {
   const gameState = deps.getGameState();
+
   if (!gameState || deps.getClientState() !== 'playing_combat') return;
   const attack = buildCurrentAttack(
     gameState,
@@ -68,6 +72,7 @@ export const queueAttack = (deps: CombatActionDeps) => {
     deps.planningState,
     deps.getMap(),
   );
+
   if (!attack) {
     deps.showToast('Select an enemy ship or nuke to target', 'info');
     return;
@@ -82,6 +87,7 @@ export const queueAttack = (deps: CombatActionDeps) => {
     deps.getPlayerId(),
     deps.planningState.queuedAttacks,
   );
+
   if (
     remainingAttackers === 0 &&
     !hasSplitFireOptions(
@@ -104,6 +110,7 @@ export const queueAttack = (deps: CombatActionDeps) => {
 export const beginCombatPhase = (deps: CombatActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
+
   if (!gameState || gameState.phase !== 'combat' || !transport) return;
   transport.beginCombat();
 };
@@ -112,6 +119,7 @@ export const startCombatTargetWatch = (
   deps: CombatActionDeps,
 ): (() => void) => {
   let combatWatchInterval: number | null = null;
+
   if (combatWatchInterval) clearInterval(combatWatchInterval);
   combatWatchInterval = window.setInterval(() => {
     if (deps.getClientState() !== 'playing_combat') {
@@ -132,12 +140,15 @@ export const startCombatTargetWatch = (
 
 export const adjustCombatStrength = (deps: CombatActionDeps, delta: number) => {
   const gameState = deps.getGameState();
+
   if (!gameState || deps.getClientState() !== 'playing_combat') return;
+
   if (deps.planningState.combatTargetType !== 'ship') return;
   const maxStrength = getAttackStrengthForSelection(
     gameState,
     deps.planningState.combatAttackerIds,
   );
+
   if (maxStrength <= 0) return;
 
   const current = deps.planningState.combatAttackStrength ?? maxStrength;
@@ -149,12 +160,15 @@ export const adjustCombatStrength = (deps: CombatActionDeps, delta: number) => {
 
 export const resetCombatStrengthToMax = (deps: CombatActionDeps) => {
   const gameState = deps.getGameState();
+
   if (!gameState || deps.getClientState() !== 'playing_combat') return;
+
   if (deps.planningState.combatTargetType !== 'ship') return;
   const maxStrength = getAttackStrengthForSelection(
     gameState,
     deps.planningState.combatAttackerIds,
   );
+
   if (maxStrength > 0) {
     setCombatAttackStrength(deps.planningState, maxStrength);
   }

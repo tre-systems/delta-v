@@ -65,9 +65,11 @@ const parseWeakGravityChoices = (
   raw: unknown,
 ): Record<string, boolean> | undefined | null => {
   if (raw == null) return undefined;
+
   if (!isObject(raw)) return null;
 
   const entries = Object.entries(raw);
+
   if (entries.length > MAX_WEAK_GRAVITY_CHOICES) {
     return null;
   }
@@ -448,6 +450,7 @@ export const validateClientMessage = (
       }
 
       const text = raw.text.trim();
+
       if (text.length === 0 || text.length > 200) {
         return {
           ok: false,

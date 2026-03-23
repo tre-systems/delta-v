@@ -81,8 +81,10 @@ export const renderHexGrid = (
   for (let q = minQ - qPad; q <= maxQ + qPad; q++) {
     for (let r = minR - qPad; r <= maxR + qPad; r++) {
       const p = hexToPixel({ q, r }, size);
+
       if (p.x < pxMinX || p.x > pxMaxX || p.y < pxMinY || p.y > pxMaxY)
         continue;
+
       if (!isVisible(p.x, p.y)) continue;
       ctx.moveTo(
         p.x + HEX_OFFSETS[0][0] * size,
@@ -96,6 +98,7 @@ export const renderHexGrid = (
       }
     }
   }
+
   ctx.stroke();
 };
 
@@ -109,6 +112,7 @@ export const renderGravityIndicators = (
     if (!hex.gravity) continue;
     const coord = parseHexKey(key);
     const p = hexToPixel(coord, hexSize);
+
     if (!isVisible(p.x, p.y)) continue;
     const dir = HEX_DIRECTIONS[hex.gravity.direction];
     const target = hexToPixel(hexAdd(coord, dir), hexSize);
@@ -158,6 +162,7 @@ export const renderBodies = (
       ctx.arc(p.x, p.y, ripple.radius, 0, Math.PI * 2);
       ctx.stroke();
     }
+
     ctx.globalAlpha = 1;
     const glow = ctx.createRadialGradient(p.x, p.y, r * 0.5, p.x, p.y, r * 3);
     glow.addColorStop(0, view.glowStops[0]);
@@ -200,6 +205,7 @@ export const renderBaseMarkers = (
     const coord = parseHexKey(key);
     const p = hexToPixel(coord, hexSize);
     const markerView = buildBaseMarkerView(key, state, playerId);
+
     if (markerView.kind === 'destroyed') {
       ctx.strokeStyle = 'rgba(255, 90, 90, 0.8)';
       ctx.lineWidth = markerView.lineWidth;
@@ -262,8 +268,10 @@ export const renderAsteroids = (
   const destroyed = new Set(destroyedAsteroids);
   for (const [key, hex] of map.hexes) {
     if (hex.terrain !== 'asteroid') continue;
+
     if (destroyed.has(key)) continue;
     const debrisView = buildAsteroidDebrisView(parseHexKey(key), hexSize);
+
     if (!isVisible(debrisView.center.x, debrisView.center.y)) continue;
     // Rock particles
     ctx.fillStyle = 'rgba(100, 100, 100, 0.65)';
@@ -295,7 +303,9 @@ export const renderLandingTarget = (
     now,
     hexSize,
   );
+
   if (!objectiveView) return;
+
   if (objectiveView.kind === 'escape') {
     ctx.fillStyle = objectiveView.color;
     ctx.font = 'bold 9px monospace';
@@ -303,6 +313,7 @@ export const renderLandingTarget = (
     for (const marker of objectiveView.markers) {
       ctx.fillText(marker.text, marker.position.x, marker.position.y);
     }
+
     return;
   }
   ctx.strokeStyle = objectiveView.strokeStyle;

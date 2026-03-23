@@ -35,11 +35,13 @@ export const processFleetReady = (
     (acc, purchase) => {
       if ('error' in acc) return acc;
       const stats = SHIP_STATS[purchase.shipType];
+
       if (!stats) {
         return {
           error: `Unknown ship type: ${purchase.shipType}`,
         };
       }
+
       if (purchase.shipType === 'orbitalBase') {
         return {
           error:
@@ -47,6 +49,7 @@ export const processFleetReady = (
             ' — buy a transport and base cargo',
         };
       }
+
       if (
         availableShipTypes &&
         !availableShipTypes.includes(purchase.shipType)
@@ -59,16 +62,19 @@ export const processFleetReady = (
     },
     { cost: 0 },
   );
+
   if ('error' in totalCostOrError) {
     return totalCostOrError;
   }
   const totalCost = totalCostOrError.cost;
+
   if (totalCost > credits) {
     return {
       error: `Not enough credits: need ${totalCost}, have ${credits}`,
     };
   }
   const bases = getOwnedPlanetaryBases(state, playerId, map);
+
   if (bases.length === 0) {
     return {
       error: 'Player has no bases to spawn ships at',
@@ -101,6 +107,7 @@ export const processFleetReady = (
     };
     state.ships.push(ship);
   }
+
   player.credits = credits - totalCost;
   player.ready = true;
 

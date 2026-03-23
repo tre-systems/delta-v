@@ -46,6 +46,7 @@ export const isGameOver = (deps: LocalGameFlowDeps): boolean =>
   !deps.getGameState() || deps.getGameState()?.phase === 'gameOver';
 export const localCheckGameEnd = (deps: LocalGameFlowDeps): void => {
   const gameState = deps.getGameState();
+
   if (!gameState || gameState.phase !== 'gameOver') return;
   deps.showGameOverOutcome(
     gameState.winner === deps.getPlayerId(),
@@ -81,6 +82,7 @@ export const handleLocalResolution = (
   if (resolution.kind === 'movement') {
     playLocalMovementResult(deps, resolution.result, () => {
       localCheckGameEnd(deps);
+
       if (deps.getGameState()?.phase !== 'gameOver') {
         onContinue();
       }
@@ -100,6 +102,7 @@ export const handleLocalResolution = (
   }
 
   localCheckGameEnd(deps);
+
   if (deps.getGameState()?.phase !== 'gameOver') {
     onContinue();
   }
@@ -140,17 +143,21 @@ export const runAITurn = async (deps: LocalGameFlowDeps): Promise<void> => {
       deps.getMap(),
       deps.getAIDifficulty(),
     );
+
     if (plan.kind === 'none') {
       deps.transitionToPhase();
       return;
     }
+
     if (plan.kind === 'transition') {
       localCheckGameEnd(deps);
+
       if (!isGameOver(deps)) {
         deps.transitionToPhase();
       }
       return;
     }
+
     if (plan.kind === 'ordnance') {
       for (const entry of plan.logEntries) {
         deps.logText(entry);
@@ -171,7 +178,9 @@ export const runAITurn = async (deps: LocalGameFlowDeps): Promise<void> => {
         plan.errorPrefix,
       );
     });
+
     if (isGameOver(deps)) return;
+
     if (isCombatEnd) return;
   }
 };

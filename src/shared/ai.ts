@@ -95,11 +95,14 @@ const pickNextCheckpoint = (
 ): string | null => {
   const visited = new Set(player.visitedBodies ?? []);
   const unvisited = checkpoints.filter((b) => !visited.has(b));
+
   if (unvisited.length === 0) return player.homeBody;
+
   if (!shipPos) return unvisited[0];
   // Find nearest unvisited body
   const bestBody = unvisited.reduce((best, name) => {
     const body = map.bodies.find((b) => b.name === name);
+
     if (!body) return best;
     const dist = hexDistance(shipPos, body.center);
     const bestBodyObj = map.bodies.find((b) => b.name === best);
@@ -142,6 +145,7 @@ export const aiAstrogation = (
   let shipIdx = 0;
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
+
     if (ship.lifecycle === 'destroyed') continue;
     // Orbital bases don't need astrogation
     if (ship.baseStatus === 'emplaced') continue;
@@ -165,6 +169,7 @@ export const aiAstrogation = (
     let shipTargetHex = defaultTargetHex;
     let shipTargetBody = targetBody;
     let seekingFuel = false;
+
     if (checkpoints && player.visitedBodies) {
       const nextBody =
         pickNextCheckpoint(player, checkpoints, map, ship.position) ?? '';
@@ -180,8 +185,10 @@ export const aiAstrogation = (
         // Need fuel to navigate: roughly distance/3
         // for accel + distance/3 for decel + margin
         const fuelForTrip = Math.ceil((distToTarget * 2) / 3) + speed + 1;
+
         if (ship.fuel < fuelForTrip) {
           const basePos = findNearestBase(ship.position, player.bases, map);
+
           if (basePos) {
             const baseDist = hexDistance(ship.position, basePos);
             // Only divert if base is reasonably
@@ -242,6 +249,7 @@ export const aiAstrogation = (
       // Look ahead: skip courses that will inevitably
       // crash.
       let gravityRiskPenalty = 0;
+
       if (!course.landedAt) {
         const simShip = {
           ...ship,
@@ -253,6 +261,7 @@ export const aiAstrogation = (
         const driftCourse = computeCourse(simShip, null, map, {
           destroyedBases: state.destroyedBases,
         });
+
         if (driftCourse.crashed) {
           if (!checkpoints) {
             // Combat scenarios: simple hard reject
@@ -267,6 +276,7 @@ export const aiAstrogation = (
             const escapeResult = computeCourse(simShip, d2, map, {
               destroyedBases: state.destroyedBases,
             });
+
             if (escapeResult.crashed) continue;
             // Also check the turn after the escape
             // burn
@@ -280,17 +290,20 @@ export const aiAstrogation = (
               const drift2 = computeCourse(sim2, null, map, {
                 destroyedBases: state.destroyedBases,
               });
+
               if (drift2.crashed) {
                 let canSurvive2 = false;
                 for (let d3 = 0; d3 < 6; d3++) {
                   const esc2 = computeCourse(sim2, d3, map, {
                     destroyedBases: state.destroyedBases,
                   });
+
                   if (!esc2.crashed) {
                     canSurvive2 = true;
                     break;
                   }
                 }
+
                 // Escape leads to another trap
                 if (!canSurvive2) continue;
               }
@@ -298,6 +311,7 @@ export const aiAstrogation = (
             canSurvive = true;
             break;
           }
+
           // No escape, hard reject
           if (!canSurvive) continue;
           // Survivable but needs corrective burns
@@ -335,6 +349,7 @@ export const aiAstrogation = (
       // For normal/hard AI, also try ignoring weak
       // gravity choices
       let bestLocalWG: Record<string, boolean> | undefined;
+
       if (
         difficulty !== 'easy' &&
         course.enteredGravityEffects.some((g) => g.strength === 'weak')
@@ -351,7 +366,9 @@ export const aiAstrogation = (
             ...courseOpts,
             weakGravityChoices: wgChoices,
           });
+
           if (altCourse.crashed) continue;
+
           if (!altCourse.landedAt) {
             const simShip2 = {
               ...ship,
@@ -362,6 +379,7 @@ export const aiAstrogation = (
             const nextAlt = computeCourse(simShip2, null, map, {
               destroyedBases: state.destroyedBases,
             });
+
             if (nextAlt.crashed) continue;
           }
           const altScore = scoreCourse({
@@ -378,12 +396,14 @@ export const aiAstrogation = (
             enemyEscaping,
             shipIndex: shipIdx,
           });
+
           if (altScore > score) {
             score = altScore;
             bestLocalWG = wgChoices;
           }
         }
       }
+
       if (score > bestScore) {
         bestScore = score;
         bestBurn = opt.burn;
@@ -391,6 +411,7 @@ export const aiAstrogation = (
         bestWeakGrav = bestLocalWG;
       }
     }
+
     // Easy AI: 25% chance to pick a random suboptimal
     // direction instead
     if (difficulty === 'easy' && rng() < 0.25 && canBurnFuel) {
@@ -398,6 +419,7 @@ export const aiAstrogation = (
       const course = computeCourse(ship, randomDir, map, {
         destroyedBases: state.destroyedBases,
       });
+
       if (!course.crashed) {
         bestBurn = randomDir;
         bestOverload = null;
@@ -411,6 +433,7 @@ export const aiAstrogation = (
     });
     shipIdx++;
   }
+
   return orders;
 };
 // Generate ordnance launches for an AI player.
@@ -434,6 +457,7 @@ export const aiOrdnance = (
   const enemyShips = state.ships.filter(
     (s) => s.owner !== playerId && s.lifecycle !== 'destroyed',
   );
+
   if (enemyShips.length === 0) return launches;
   // Difficulty-based range thresholds
   const torpedoRange = cfg.torpedoRange;
@@ -442,20 +466,24 @@ export const aiOrdnance = (
     if (ship.owner !== playerId || ship.lifecycle !== 'active') {
       continue;
     }
+
     if (ship.damage.disabledTurns > 0) continue;
     const stats = SHIP_STATS[ship.type];
+
     if (!stats) continue;
     const cargoFree = stats.cargo - ship.cargoUsed;
     // Find nearest enemy
     const nearestEnemy = minBy(enemyShips, (enemy) =>
       hexDistance(ship.position, enemy.position),
     );
+
     if (!nearestEnemy) continue;
     const nearestDist = hexDistance(ship.position, nearestEnemy.position);
     // Hard AI: launch nuke at enemies within range
     // if cargo allows
     const canLaunchNuke =
       stats.canOverload || ship.nukesLaunchedSinceResupply < 1;
+
     if (
       allowedTypes.has('nuke') &&
       difficulty === 'hard' &&
@@ -467,6 +495,7 @@ export const aiOrdnance = (
       // is strong
       const enemyStr = getCombatStrength([nearestEnemy]);
       const myStr = getCombatStrength([ship]);
+
       if (enemyStr >= myStr && nearestDist <= cfg.nukeStrengthRange) {
         launches.push({
           shipId: ship.id,
@@ -506,6 +535,7 @@ export const aiOrdnance = (
       );
       const hasBurn =
         pendingOrder?.burn != null || pendingOrder?.overload != null;
+
       if (hasBurn) {
         launches.push({
           shipId: ship.id,
@@ -517,6 +547,7 @@ export const aiOrdnance = (
     // Defensive mine-laying: drop mines behind when
     // being pursued (escape scenarios)
     const player = state.players[playerId];
+
     if (
       allowedTypes.has('mine') &&
       player?.escapeWins &&
@@ -525,6 +556,7 @@ export const aiOrdnance = (
     ) {
       // Only if enemy is approaching from behind
       const speed = hexVecLength(ship.velocity);
+
       if (speed >= 2 && difficulty !== 'easy') {
         // Also check for burn rule
         const pendingOrder = (state.pendingAstrogationOrders ?? []).find(
@@ -532,6 +564,7 @@ export const aiOrdnance = (
         );
         const hasBurn =
           pendingOrder?.burn != null || pendingOrder?.overload != null;
+
         if (hasBurn) {
           launches.push({
             shipId: ship.id,
@@ -541,6 +574,7 @@ export const aiOrdnance = (
       }
     }
   }
+
   return launches;
 };
 // Generate combat attacks for an AI player.
@@ -555,6 +589,7 @@ export const aiCombat = (
   const myShips = state.ships.filter(
     (s) => s.owner === playerId && s.lifecycle !== 'destroyed' && canAttack(s),
   );
+
   if (myShips.length === 0) return [];
   const enemyShips = state.ships.filter(
     (s) => s.owner !== playerId && s.lifecycle !== 'destroyed',
@@ -563,6 +598,7 @@ export const aiCombat = (
     (o) =>
       o.owner !== playerId && o.lifecycle !== 'destroyed' && o.type === 'nuke',
   );
+
   if (enemyShips.length === 0 && enemyNukes.length === 0) {
     return [];
   }
@@ -580,6 +616,7 @@ export const aiCombat = (
     const attackersForTarget = myShips.filter((attacker) =>
       hasLineOfSight(attacker, enemy, map),
     );
+
     if (attackersForTarget.length === 0) continue;
     const avgDist =
       sumBy(attackersForTarget, (a) =>
@@ -604,6 +641,7 @@ export const aiCombat = (
     const attackersForTarget = myShips.filter((attacker) =>
       hasLineOfSightToTarget(attacker, nuke, map),
     );
+
     if (attackersForTarget.length === 0) continue;
     const avgDist =
       sumBy(attackersForTarget, (a) => hexDistance(a.position, nuke.position)) /
@@ -646,19 +684,23 @@ export const aiCombat = (
   const minRollThreshold = cfg.minRollThreshold;
   for (const target of scored) {
     const targetKey = `${target.targetType}:${target.targetId}`;
+
     if (committedTargets.has(targetKey)) continue;
     const available = target.attackers.filter(
       (a) => !committedAttackers.has(a.id),
     );
+
     if (available.length === 0) continue;
     // Check if odds are reasonable
     if (target.targetType === 'ship') {
       const enemy = enemyShips.find((s) => s.id === target.targetId);
+
       if (!enemy) continue;
       const attackStr = getCombatStrength(available);
       const defendStr = getCombatStrength([enemy]);
       const rangeMod = computeGroupRangeMod(available, enemy);
       const velMod = computeGroupVelocityMod(available, enemy);
+
       if (6 - rangeMod - velMod < minRollThreshold && attackStr <= defendStr) {
         continue;
       }
@@ -671,9 +713,11 @@ export const aiCombat = (
     for (const a of available) {
       committedAttackers.add(a.id);
     }
+
     committedTargets.add(targetKey);
     // Easy AI: only one attack per combat phase
     if (cfg.singleAttackOnly) break;
   }
+
   return attacks;
 };

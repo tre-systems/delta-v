@@ -60,10 +60,12 @@ export interface PresentationDeps {
 
 const logLandings = (deps: PresentationDeps, movements: ShipMovement[]) => {
   const gameState = deps.getGameState();
+
   if (!gameState) return;
   for (const entry of deriveLandingLogEntries(gameState, movements)) {
     deps.ui.log.logLanding(entry.shipName, entry.bodyName);
     deps.renderer.showLandingEffect(entry.destination);
+
     if (entry.resupplyText) {
       deps.ui.log.logText(entry.resupplyText);
     }
@@ -81,9 +83,11 @@ export const presentMovementResult = (
   deps.applyGameState(state);
   deps.setState('playing_movementAnim');
   playThrust();
+
   if (events.length > 0) {
     deps.renderer.showMovementEvents(events);
     deps.ui.log.logMovementEvents(events, state.ships);
+
     if (
       events.some(
         (event) => event.damageType === 'eliminated' || event.type === 'crash',
@@ -138,6 +142,7 @@ export const presentCombatResults = (
   }
 
   playCombat();
+
   if (results.some((result) => result.damageType === 'eliminated')) {
     setTimeout(() => playExplosion(), 300);
   }
@@ -157,8 +162,10 @@ export const showGameOverOutcome = (
     gameState?.ships.filter((ship: Ship) =>
       plan.loserShipIds.includes(ship.id),
     ) ?? [];
+
   if (loserShips.length === 0) {
     deps.ui.overlay.showGameOver(won, reason, plan.stats);
+
     if (plan.resultSound === 'victory') {
       playVictory();
     } else {
@@ -171,6 +178,7 @@ export const showGameOverOutcome = (
   const animDuration = deps.renderer.triggerGameOverExplosions(loserShips);
   setTimeout(() => {
     deps.ui.overlay.showGameOver(won, reason, plan.stats);
+
     if (plan.resultSound === 'victory') {
       playVictory();
     } else {

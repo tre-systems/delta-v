@@ -91,6 +91,7 @@ export const deriveAIActionPlan = (
   }
 
   const aiPlayer = state.activePlayer;
+
   if (aiPlayer === playerId) {
     return { kind: 'none' };
   }
