@@ -258,7 +258,7 @@ const getLatestProjectedState = (
   archive: ReplayArchive | null,
 ): import('../../shared/types/domain').GameState | null =>
   projectionFrames.at(-1)?.message.state ??
-  checkpoint?.state ??
+  (projectionFrames.length > 0 ? null : checkpoint?.state) ??
   archive?.entries.at(-1)?.message.state ??
   null;
 
@@ -341,14 +341,19 @@ const toReplayEntriesFromFrames = (
 
 const createProjectedArchiveMetadata = (
   gameId: string,
+  projectionFrames: ProjectionFrame[],
   checkpoint: Checkpoint | null,
 ): Pick<
   ReplayArchive,
   'gameId' | 'roomCode' | 'matchNumber' | 'scenario' | 'createdAt'
 > | null => {
   const parsed = parseMatchId(gameId);
+  const firstFrame = projectionFrames[0];
+  const scenario =
+    firstFrame?.message.state.scenario ?? checkpoint?.state.scenario ?? '';
+  const createdAt = firstFrame?.recordedAt ?? checkpoint?.savedAt ?? 0;
 
-  if (!parsed && !checkpoint) {
+  if (!parsed && !checkpoint && !firstFrame) {
     return null;
   }
 
@@ -356,8 +361,8 @@ const createProjectedArchiveMetadata = (
     gameId,
     roomCode: parsed?.roomCode ?? '',
     matchNumber: parsed?.matchNumber ?? 0,
-    scenario: checkpoint?.state.scenario ?? '',
-    createdAt: checkpoint?.savedAt ?? 0,
+    scenario,
+    createdAt,
   };
 };
 
@@ -369,12 +374,11 @@ export const projectReplayArchive = (
 ): ReplayArchive | null => {
   const baseArchive = (() => {
     if (projectionFrames.length > 0) {
-      const metadata =
-        archive ??
-        createProjectedArchiveMetadata(
-          projectionFrames[0].message.state.gameId,
-          checkpoint,
-        );
+      const metadata = createProjectedArchiveMetadata(
+        projectionFrames[0].message.state.gameId,
+        projectionFrames,
+        checkpoint,
+      );
 
       if (!metadata) {
         return null;
