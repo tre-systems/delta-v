@@ -46,14 +46,6 @@ failures clearly enough to use before releases.
 
 ## Performance & UX
 
-### Logistics Phase "Quality of Life"
-
-Triggering the Logistics phase (fuel transfer) is currently too difficult for average players.
-- **Issue**: Requires exact hex and velocity matching, which is tedious to plot across multiple turns.
-- **Improvement**: Add a "Match Velocity" or "Plot Intercept" helper to the astrogation UI when a friendly ship is nearby.
-
-**Files:** `src/client/game/planning.ts`, `src/client/renderer/vectors.ts`
-
 ### OffscreenCanvas layer caching for renderer
 
 Pre-render static visual layers (starfield, hex grid,

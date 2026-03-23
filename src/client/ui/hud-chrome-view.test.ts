@@ -37,6 +37,11 @@ const buildInput = (
   cargoFree: 6,
   cargoMax: 8,
   objective: 'Hold Mars',
+  matchVelocityState: {
+    visible: true,
+    disabled: false,
+    title: 'Match velocity with escort',
+  },
   canEmplaceBase: false,
   launchMineState: {
     visible: true,
@@ -99,6 +104,10 @@ describe('HUDChromeView', () => {
     ).toBe('inline-block');
     expect(
       (document.getElementById('confirmBtn') as HTMLElement).style.display,
+    ).toBe('inline-block');
+    expect(
+      (document.getElementById('matchVelocityBtn') as HTMLElement).style
+        .display,
     ).toBe('inline-block');
     expect(showPhaseAlert).toHaveBeenCalledWith('astrogation', true);
     expect(queueLayoutSync).toHaveBeenCalledTimes(1);

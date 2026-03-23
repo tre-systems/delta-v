@@ -6,6 +6,7 @@ import {
   type AstrogationActionDeps,
   clearSelectedBurn,
   confirmOrders,
+  matchVelocityWithNearbyFriendly,
   setBurnDirection,
   undoSelectedShipBurn,
 } from './astrogation-actions';
@@ -170,6 +171,9 @@ export const dispatchGameCommand = (
       return;
     case 'undoBurn':
       undoSelectedShipBurn(deps.astrogationDeps);
+      return;
+    case 'matchVelocity':
+      matchVelocityWithNearbyFriendly(deps.astrogationDeps);
       return;
     case 'setBurnDirection':
       setBurnDirection(deps.astrogationDeps, cmd.direction, cmd.shipId);

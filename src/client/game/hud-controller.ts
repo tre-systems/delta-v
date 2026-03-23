@@ -91,6 +91,7 @@ export const createHudController = (deps: HudControllerDeps) => {
         cargoFree: hud.cargoFree,
         cargoMax: hud.cargoMax,
         objective: hud.objective,
+        matchVelocityState: hud.matchVelocityState,
         canEmplaceBase: hud.canEmplaceBase,
         launchMineState: hud.launchMineState,
         launchTorpedoState: hud.launchTorpedoState,

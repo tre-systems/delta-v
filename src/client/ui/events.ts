@@ -10,6 +10,7 @@ export type UIEvent =
   // In-game actions
   | { type: 'undo' }
   | { type: 'confirm' }
+  | { type: 'matchVelocity' }
   | { type: 'launchOrdnance'; ordType: 'mine' | 'torpedo' | 'nuke' }
   | { type: 'emplaceBase' }
   | { type: 'skipOrdnance' }
