@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   handleServerMessage,
@@ -35,6 +36,18 @@ import {
 } from './archive';
 import { GameDO } from './game-do';
 import { toMovementResultMessage, toStateUpdateMessage } from './messages';
+
+const transportFixtures = JSON.parse(
+  readFileSync(
+    new URL('./__fixtures__/transport.json', import.meta.url),
+    'utf8',
+  ),
+) as {
+  http: {
+    initResponse: unknown;
+    joinResponse: unknown;
+  };
+};
 
 class MockStorage {
   private data = new Map<string, unknown>();
@@ -192,6 +205,37 @@ describe('GameDO', () => {
     expect(typeof inactivityAt).toBe('number');
     expect(must(inactivityAt)).toBeGreaterThan(Date.now());
     expect(ctx.storage.alarmAt).toBe(inactivityAt);
+  });
+
+  it('returns fixture-backed create and join responses', async () => {
+    const ctx = createCtx();
+    const game = createGameDO(ctx);
+
+    const initResponse = await game.fetch(
+      new Request('https://room.internal/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: 'ABCDE',
+          scenario: 'escape',
+          playerToken: 'A'.repeat(32),
+        }),
+      }),
+    );
+
+    expect(await initResponse.json()).toEqual(
+      transportFixtures.http.initResponse,
+    );
+
+    const joinResponse = await game.fetch(
+      new Request(`https://room.internal/join?playerToken=${'A'.repeat(32)}`, {
+        method: 'GET',
+      }),
+    );
+
+    expect(await joinResponse.json()).toEqual(
+      transportFixtures.http.joinResponse,
+    );
   });
   it('rejects websocket fetches for uninitialized rooms', async () => {
     const ctx = createCtx();

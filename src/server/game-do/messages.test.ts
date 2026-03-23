@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -19,6 +20,32 @@ import {
   toMovementResultMessage,
   toStateUpdateMessage,
 } from './messages';
+
+const transportFixtures = JSON.parse(
+  readFileSync(
+    new URL('./__fixtures__/transport.json', import.meta.url),
+    'utf8',
+  ),
+) as {
+  s2c: Record<string, unknown>;
+};
+
+const normalizeStateEnvelope = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(normalizeStateEnvelope);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        key === 'state' ? '__STATE__' : normalizeStateEnvelope(entry),
+      ]),
+    );
+  }
+
+  return value;
+};
 
 describe('game-do-messages', () => {
   it('formats movement results for broadcast', () => {
@@ -136,16 +163,17 @@ describe('S2C state-bearing payload fixtures', () => {
   it('gameStart payload has exactly { type, state }', () => {
     const msg = toGameStartMessage(state);
 
-    expect(Object.keys(msg).sort()).toEqual(['state', 'type'].sort());
-    expect(msg.type).toBe('gameStart');
-    expect(msg.state).toBe(state);
+    expect(normalizeStateEnvelope(msg)).toEqual(
+      transportFixtures.s2c.gameStart,
+    );
   });
 
   it('stateUpdate payload has exactly { type, state }', () => {
     const msg = toStateUpdateMessage(state);
 
-    expect(Object.keys(msg).sort()).toEqual(['state', 'type'].sort());
-    expect(msg.type).toBe('stateUpdate');
+    expect(normalizeStateEnvelope(msg)).toEqual(
+      transportFixtures.s2c.stateUpdate,
+    );
   });
 
   it('movementResult payload has exactly { type, movements, ordnanceMovements, events, state }', () => {
@@ -193,19 +221,9 @@ describe('S2C state-bearing payload fixtures', () => {
       state,
     });
 
-    expect(Object.keys(msg).sort()).toEqual(
-      ['events', 'movements', 'ordnanceMovements', 'state', 'type'].sort(),
+    expect(normalizeStateEnvelope(msg)).toEqual(
+      transportFixtures.s2c.movementResult,
     );
-    expect(msg.type).toBe('movementResult');
-
-    const m = msg as {
-      movements: unknown[];
-      ordnanceMovements: unknown[];
-      events: unknown[];
-    };
-    expect(m.movements).toHaveLength(1);
-    expect(m.ordnanceMovements).toHaveLength(1);
-    expect(m.events).toHaveLength(1);
   });
 
   it('combatResult payload has exactly { type, results, state }', () => {
@@ -245,13 +263,9 @@ describe('S2C state-bearing payload fixtures', () => {
 
     const msg = toCombatResultMessage(state, results);
 
-    expect(Object.keys(msg).sort()).toEqual(
-      ['results', 'state', 'type'].sort(),
+    expect(normalizeStateEnvelope(msg)).toEqual(
+      transportFixtures.s2c.combatResult,
     );
-    expect(msg.type).toBe('combatResult');
-    expect(
-      (msg as { results: CombatResult[] }).results[0].counterattack,
-    ).not.toBeNull();
   });
 
   it('GameState fixture includes all expected top-level fields', () => {
