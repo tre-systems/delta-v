@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 
-import { byId, el, hide, show, visible } from './dom';
+import { byId, cls, el, hide, show, text, visible } from './dom';
+import { signal } from './reactive';
 
 describe('el', () => {
   it('creates an element with the given tag', () => {
@@ -262,6 +263,71 @@ describe('visible', () => {
 
     visible(div, true, 'flex');
     expect(div.style.display).toBe('flex');
+  });
+
+  it('toggles reactively when given a signal', () => {
+    const div = document.createElement('div');
+    const s = signal(false);
+
+    visible(div, s, 'flex');
+
+    expect(div.style.display).toBe('none');
+    s.value = true;
+    expect(div.style.display).toBe('flex');
+    s.value = false;
+    expect(div.style.display).toBe('none');
+  });
+});
+
+describe('text', () => {
+  it('sets textContent static value', () => {
+    const el = document.createElement('span');
+    text(el, 'hello');
+    expect(el.textContent).toBe('hello');
+  });
+
+  it('sets textContent reactively when given a signal', () => {
+    const el = document.createElement('span');
+    const s = signal('hello');
+
+    text(el, s);
+
+    expect(el.textContent).toBe('hello');
+    s.value = 'world';
+    expect(el.textContent).toBe('world');
+  });
+
+  it('coerces non-strings', () => {
+    const el = document.createElement('span');
+    text(el, 42);
+    expect(el.textContent).toBe('42');
+
+    const s = signal(100 as unknown);
+    text(el, s);
+    expect(el.textContent).toBe('100');
+  });
+});
+
+describe('cls', () => {
+  it('toggles class static value', () => {
+    const el = document.createElement('div');
+    cls(el, 'active', true);
+    expect(el.classList.contains('active')).toBe(true);
+    cls(el, 'active', false);
+    expect(el.classList.contains('active')).toBe(false);
+  });
+
+  it('toggles class reactively when given a signal', () => {
+    const el = document.createElement('div');
+    const s = signal(false);
+
+    cls(el, 'active', s);
+
+    expect(el.classList.contains('active')).toBe(false);
+    s.value = true;
+    expect(el.classList.contains('active')).toBe(true);
+    s.value = false;
+    expect(el.classList.contains('active')).toBe(false);
   });
 });
 

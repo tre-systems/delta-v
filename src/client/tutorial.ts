@@ -4,8 +4,8 @@
 // by the player. Tutorial state is persisted in
 // localStorage so it only shows once.
 
-import { byId, hide, listen, setTrustedHTML, show } from './dom';
-import { createDisposalScope } from './reactive';
+import { byId, listen, setTrustedHTML, text, visible } from './dom';
+import { createDisposalScope, withScope } from './reactive';
 
 const STORAGE_KEY = 'deltav_tutorial_done';
 
@@ -89,7 +89,7 @@ export const createTutorial = (): Tutorial => {
   };
 
   const hideTip = (): void => {
-    hide(tipEl);
+    visible(tipEl, false);
     activeStepId = null;
   };
 
@@ -106,10 +106,9 @@ export const createTutorial = (): Tutorial => {
     activeStepId = step.id;
 
     const isMobile = window.innerWidth <= 760;
-    textEl.textContent =
-      isMobile && step.mobileText ? step.mobileText : step.text;
+    text(textEl, isMobile && step.mobileText ? step.mobileText : step.text);
 
-    show(tipEl, 'block');
+    visible(tipEl, true, 'block');
 
     tipEl.style.animation = 'none';
     void tipEl.offsetHeight;
@@ -147,9 +146,6 @@ export const createTutorial = (): Tutorial => {
     complete();
     hideTip();
   };
-
-  scope.add(listen(byId('tutorialNextBtn'), 'click', () => advance()));
-  scope.add(listen(byId('tutorialSkipBtn'), 'click', () => skip()));
 
   const isActive = (): boolean => {
     return !completed;
@@ -194,6 +190,11 @@ export const createTutorial = (): Tutorial => {
   const dispose = (): void => {
     scope.dispose();
   };
+
+  withScope(scope, () => {
+    listen(byId('tutorialNextBtn'), 'click', () => advance());
+    listen(byId('tutorialSkipBtn'), 'click', () => skip());
+  });
 
   return {
     get onTelemetry() {

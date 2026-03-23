@@ -6,6 +6,8 @@
 // building element trees, `show`/`hide`/`visible` for
 // display toggling, and `byId` for typed lookups.
 
+import { effect, type ReadonlySignal, registerDisposer } from './reactive';
+
 // --- Element creation ---
 
 interface ElProps {
@@ -130,7 +132,11 @@ export const listen = <T extends EventTarget, K extends string>(
   options?: AddEventListenerOptions,
 ): (() => void) => {
   target.addEventListener(event, handler, options);
-  return () => target.removeEventListener(event, handler, options);
+  const dispose = () => target.removeEventListener(event, handler, options);
+
+  registerDisposer(dispose);
+
+  return dispose;
 };
 
 // --- List rendering ---
@@ -166,13 +172,49 @@ export const show = (element: HTMLElement, display = ''): void => {
   element.style.display = display;
 };
 
-// Set element visibility based on a boolean condition.
+// Set element visibility based on a boolean condition or signal.
 export const visible = (
   element: HTMLElement,
-  condition: boolean,
+  condition: boolean | ReadonlySignal<boolean>,
   display = '',
 ): void => {
-  element.style.display = condition ? display : 'none';
+  if (typeof condition === 'boolean') {
+    element.style.display = condition ? display : 'none';
+  } else {
+    effect(() => {
+      element.style.display = condition.value ? display : 'none';
+    });
+  }
+};
+
+// Set element text content based on a value or signal.
+export const text = (
+  element: HTMLElement,
+  val: unknown | ReadonlySignal<unknown>,
+): void => {
+  // Check if 'val' is an object and has a 'value' property, which is characteristic of a ReadonlySignal.
+  if (val && typeof val === 'object' && 'value' in val) {
+    effect(() => {
+      element.textContent = String((val as ReadonlySignal<unknown>).value);
+    });
+  } else {
+    element.textContent = String(val);
+  }
+};
+
+// Toggle an element class based on a boolean condition or signal.
+export const cls = (
+  element: HTMLElement,
+  className: string,
+  condition: boolean | ReadonlySignal<boolean>,
+): void => {
+  if (typeof condition === 'boolean') {
+    element.classList.toggle(className, condition);
+  } else {
+    effect(() => {
+      element.classList.toggle(className, condition.value);
+    });
+  }
 };
 
 // --- Lookup ---

@@ -27,7 +27,7 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import type { ReplayArchive } from '../../shared/replay';
-import { getEventStream, saveCheckpoint } from './archive';
+import { getEventStream, getProjectionFrames, saveCheckpoint } from './archive';
 import { GameDO } from './game-do';
 import { toMovementResultMessage, toStateUpdateMessage } from './messages';
 
@@ -954,6 +954,69 @@ describe('GameDO', () => {
     expect(archive.gameId).toBe('ABCDE-m1');
     expect(archive.entries).toHaveLength(1);
     expect(archive.entries[0]?.message.type).toBe('gameStart');
+  });
+
+  it('stores projection frames for game start and later state changes', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'duel',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+    });
+    await ctx.storage.put('gameCode', 'ABCDE');
+    const game = createGameDO(ctx);
+
+    await (
+      game as unknown as {
+        initGame: () => Promise<void>;
+      }
+    ).initGame();
+
+    let frames = await getProjectionFrames(
+      ctx.storage as unknown as DurableObjectStorage,
+      'ABCDE-m1',
+    );
+    expect(frames).toHaveLength(1);
+    expect(frames[0]?.message.type).toBe('gameStart');
+
+    const state = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'ABCDE-m1',
+      findBaseHex,
+    );
+    state.turnNumber = 2;
+
+    await (
+      game as unknown as {
+        publishStateChange: (
+          state: GameState,
+          primaryMessage?: unknown,
+          options?: {
+            actor?: number | null;
+            restartTurnTimer?: boolean;
+            events?: unknown[];
+          },
+        ) => Promise<void>;
+      }
+    ).publishStateChange(state, toStateUpdateMessage(state), {
+      actor: 0,
+      restartTurnTimer: false,
+      events: [
+        {
+          type: 'turnAdvanced',
+          turn: state.turnNumber,
+          activePlayer: state.activePlayer,
+        },
+      ],
+    });
+
+    frames = await getProjectionFrames(
+      ctx.storage as unknown as DurableObjectStorage,
+      'ABCDE-m1',
+    );
+    expect(frames).toHaveLength(2);
+    expect(frames[1]?.message.type).toBe('stateUpdate');
   });
 
   it('falls back to checkpoint-backed replay when archive is unavailable', async () => {

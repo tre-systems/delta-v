@@ -1,6 +1,6 @@
 import type { GameState, Ship } from '../../shared/types/domain';
-import { byId, listen } from '../dom';
-import { createDisposalScope } from '../reactive';
+import { byId, listen, visible } from '../dom';
+import { createDisposalScope, withScope } from '../reactive';
 import { STATIC_BUTTON_BINDINGS } from './button-bindings';
 import type { UIEvent } from './events';
 import {
@@ -98,30 +98,26 @@ export class UIManager {
     this.hudChromeView.setMobile(this.isMobile);
     this.log.setMobile(this.isMobile, this.hudEl.style.display !== 'none');
 
-    this.scope.add(
+    withScope(this.scope, () => {
       listen(this.mobileQuery, 'change', (e) => {
         const matches = (e as MediaQueryListEvent).matches;
         this.isMobile = matches;
         this.hudChromeView.setMobile(matches);
         this.log.setMobile(matches, this.hudEl.style.display !== 'none');
-      }),
-    );
+      });
 
-    this.scope.add(listen(window, 'resize', this.handleViewportResize));
+      listen(window, 'resize', this.handleViewportResize);
 
-    if (window.visualViewport) {
-      this.scope.add(
-        listen(window.visualViewport, 'resize', this.handleViewportResize),
-      );
-    }
+      if (window.visualViewport) {
+        listen(window.visualViewport, 'resize', this.handleViewportResize);
+      }
 
-    for (const binding of STATIC_BUTTON_BINDINGS) {
-      this.scope.add(
+      for (const binding of STATIC_BUTTON_BINDINGS) {
         listen(byId(binding.id), 'click', () => {
           this.emit(binding.event);
-        }),
-      );
-    }
+        });
+      }
+    });
   }
 
   private emit(event: UIEvent) {
@@ -129,20 +125,20 @@ export class UIManager {
   }
 
   private applyScreenVisibility(mode: UIScreenMode) {
-    const visibility = buildScreenVisibility(mode);
+    const v = buildScreenVisibility(mode);
 
-    this.menuEl.style.display = visibility.menu;
-    this.scenarioEl.style.display = visibility.scenario;
-    this.waitingEl.style.display = visibility.waiting;
-    this.hudEl.style.display = visibility.hud;
-    this.gameOverEl.style.display = visibility.gameOver;
-    this.shipListEl.style.display = visibility.shipList;
-    this.fleetBuildingEl.style.display = visibility.fleetBuilding;
+    visible(this.menuEl, v.menu !== 'none', v.menu);
+    visible(this.scenarioEl, v.scenario !== 'none', v.scenario);
+    visible(this.waitingEl, v.waiting !== 'none', v.waiting);
+    visible(this.hudEl, v.hud !== 'none', v.hud);
+    visible(this.gameOverEl, v.gameOver !== 'none', v.gameOver);
+    visible(this.shipListEl, v.shipList !== 'none', v.shipList);
+    visible(this.fleetBuildingEl, v.fleetBuilding !== 'none', v.fleetBuilding);
     this.log.applyScreenVisibility(mode);
 
-    byId('helpBtn').style.display = visibility.helpBtn;
-    byId('soundBtn').style.display = visibility.soundBtn;
-    byId('helpOverlay').style.display = visibility.helpOverlay;
+    visible(byId('helpBtn'), v.helpBtn !== 'none', v.helpBtn);
+    visible(byId('soundBtn'), v.soundBtn !== 'none', v.soundBtn);
+    visible(byId('helpOverlay'), v.helpOverlay !== 'none', v.helpOverlay);
   }
 
   hideAll() {
