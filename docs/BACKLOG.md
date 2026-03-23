@@ -46,15 +46,6 @@ failures clearly enough to use before releases.
 
 ## Performance & UX
 
-### Mobile HUD Margins & Crowding
-
-The in-game HUD is extremely tight on 375px viewports (standard mobile).
-- **Issue**: Top bar text (Turn, Fuel, Objective) has almost zero margin and may overflow with long objectives.
-- **Issue**: Ship status cards are flush against the left edge, potentially conflicting with device "safe areas" (notches/rounded corners).
-- **Fix**: Add padding to the top bar and status cards; use a more resilient layout for long objective text.
-
-**Files:** `static/style.css`, `src/client/ui/ui.ts`
-
 ### Logistics Phase "Quality of Life"
 
 Triggering the Logistics phase (fuel transfer) is currently too difficult for average players.

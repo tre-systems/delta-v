@@ -220,6 +220,58 @@ describe('projectMatchSetupFromStream', () => {
     expect(projected.state.phase).toBe('combat');
   });
 
+  it('projects committed astrogation orders until movement begins', () => {
+    const projected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: 'BIPLA-m2',
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Bi-Planetary',
+            turn: 1,
+            phase: 'astrogation',
+          },
+        },
+        {
+          gameId: 'BIPLA-m2',
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'astrogationOrdersCommitted',
+            playerId: 0,
+            orders: [
+              {
+                shipId: 'p0s0',
+                burn: 2,
+                overload: null,
+                weakGravityChoices: { Io: true },
+              },
+            ],
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) {
+      return;
+    }
+
+    expect(projected.state.pendingAstrogationOrders).toEqual([
+      {
+        shipId: 'p0s0',
+        burn: 2,
+        overload: null,
+        weakGravityChoices: { Io: true },
+      },
+    ]);
+  });
+
   it('applies movement, landing, crash, and resupply events', () => {
     const projected = projectMatchSetupFromStream(
       [
@@ -386,6 +438,102 @@ describe('projectMatchSetupFromStream', () => {
     }
 
     expect(projected.state.ordnance).toHaveLength(0);
+  });
+
+  it('projects ordnance movement and launch-side ship state', () => {
+    const gravityEffect = {
+      hex: { q: -8, r: -4 },
+      direction: 2,
+      bodyName: 'Earth',
+      strength: 'weak' as const,
+      ignored: false,
+    };
+    const projected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: 'BIPLA-m3',
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Bi-Planetary',
+            turn: 1,
+            phase: 'astrogation',
+          },
+        },
+        {
+          gameId: 'BIPLA-m3',
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'astrogationOrdersCommitted',
+            playerId: 0,
+            orders: [{ shipId: 'p0s0', burn: 0 }],
+          },
+        },
+        {
+          gameId: 'BIPLA-m3',
+          seq: 3,
+          ts: 3,
+          actor: 0,
+          event: {
+            type: 'ordnanceLaunched',
+            ordnanceId: 'ord1',
+            ordnanceType: 'nuke',
+            owner: 0,
+            sourceShipId: 'p0s0',
+            position: { q: -9, r: -4 },
+            velocity: { dq: 1, dr: 0 },
+            turnsRemaining: 5,
+            pendingGravityEffects: [],
+          },
+        },
+        {
+          gameId: 'BIPLA-m3',
+          seq: 4,
+          ts: 4,
+          actor: 0,
+          event: {
+            type: 'ordnanceMoved',
+            ordnanceId: 'ord1',
+            position: { q: -8, r: -4 },
+            velocity: { dq: 1, dr: 0 },
+            turnsRemaining: 4,
+            pendingGravityEffects: [gravityEffect],
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) {
+      return;
+    }
+
+    expect(projected.state.pendingAstrogationOrders).toBeNull();
+    expect(
+      projected.state.ships.find((ship) => ship.id === 'p0s0')?.cargoUsed,
+    ).toBe(20);
+    expect(
+      projected.state.ships.find((ship) => ship.id === 'p0s0')
+        ?.nukesLaunchedSinceResupply,
+    ).toBe(1);
+    expect(projected.state.ordnance).toEqual([
+      {
+        id: 'ord1',
+        type: 'nuke',
+        owner: 0,
+        sourceShipId: 'p0s0',
+        position: { q: -8, r: -4 },
+        velocity: { dq: 1, dr: 0 },
+        turnsRemaining: 4,
+        lifecycle: 'active',
+        pendingGravityEffects: [gravityEffect],
+      },
+    ]);
   });
 
   it('applies ordnance detonation side effects from explicit events', () => {
@@ -876,5 +1024,80 @@ describe('projectMatchSetupFromStream', () => {
       projected.state.ships.find((ship) => ship.id === 'p0s0')?.identity
         ?.revealed,
     ).toBe(true);
+  });
+
+  it('applies turn advancement side effects for the outgoing player', () => {
+    const projected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: 'BIPLA-m4',
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Bi-Planetary',
+            turn: 1,
+            phase: 'resupply',
+          },
+        },
+        {
+          gameId: 'BIPLA-m4',
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'shipResupplied',
+            shipId: 'p0s0',
+            source: 'base',
+          },
+        },
+        {
+          gameId: 'BIPLA-m4',
+          seq: 3,
+          ts: 3,
+          actor: 1,
+          event: {
+            type: 'combatAttack',
+            attackerIds: ['p1s0'],
+            targetId: 'p0s0',
+            targetType: 'ship',
+            attackType: 'gun',
+            roll: 5,
+            modifiedRoll: 5,
+            damageType: 'disabled',
+            disabledTurns: 2,
+          },
+        },
+        {
+          gameId: 'BIPLA-m4',
+          seq: 4,
+          ts: 4,
+          actor: 0,
+          event: {
+            type: 'turnAdvanced',
+            turn: 1,
+            activePlayer: 1,
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) {
+      return;
+    }
+
+    expect(projected.state.activePlayer).toBe(1);
+    expect(projected.state.turnNumber).toBe(1);
+    expect(
+      projected.state.ships.find((ship) => ship.id === 'p0s0')
+        ?.resuppliedThisTurn,
+    ).toBe(false);
+    expect(
+      projected.state.ships.find((ship) => ship.id === 'p0s0')?.damage
+        .disabledTurns,
+    ).toBe(1);
   });
 });

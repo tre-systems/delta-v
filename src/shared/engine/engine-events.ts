@@ -126,6 +126,14 @@ export type EngineEvent =
       pendingGravityEffects: GravityEffect[];
     }
   | {
+      type: 'ordnanceMoved';
+      ordnanceId: string;
+      position: HexCoord;
+      velocity: HexVec;
+      turnsRemaining: number;
+      pendingGravityEffects: GravityEffect[];
+    }
+  | {
       type: 'ordnanceDetonated';
       ordnanceId: string;
       ordnanceType: string;
