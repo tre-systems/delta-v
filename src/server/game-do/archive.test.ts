@@ -724,6 +724,58 @@ describe('replay projection', () => {
     expect(projected?.entries[2]?.phase).toBe('combat');
   });
 
+  it('preserves replay history that predates a later checkpoint', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+
+    await appendEnvelopedEvents(
+      storage,
+      'HISTORY-m1',
+      null,
+      {
+        type: 'gameCreated',
+        scenario: 'Bi-Planetary',
+        turn: 1,
+        phase: 'astrogation',
+      },
+      {
+        type: 'turnAdvanced',
+        turn: 2,
+        activePlayer: 1,
+      },
+    );
+
+    const checkpointState = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'HISTORY-m1',
+      findBaseHex,
+    );
+    checkpointState.turnNumber = 2;
+    checkpointState.activePlayer = 1;
+
+    await saveCheckpoint(storage, 'HISTORY-m1', checkpointState, 2);
+    await appendEnvelopedEvents(storage, 'HISTORY-m1', 1, {
+      type: 'phaseChanged',
+      phase: 'combat',
+      turn: 2,
+      activePlayer: 1,
+    });
+
+    const projected = await getProjectedReplayTimeline(
+      storage,
+      'HISTORY-m1',
+      0,
+    );
+
+    expect(projected?.entries).toHaveLength(3);
+    expect(projected?.entries[0]?.message.type).toBe('gameStart');
+    expect(projected?.entries[0]?.turn).toBe(1);
+    expect(projected?.entries[1]?.turn).toBe(2);
+    expect(projected?.entries[1]?.phase).toBe('astrogation');
+    expect(projected?.entries[2]?.turn).toBe(2);
+    expect(projected?.entries[2]?.phase).toBe('combat');
+  });
+
   it('prefers newer event-tail state over older checkpoint state', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const checkpointState = createGame(

@@ -392,13 +392,23 @@ export const getProjectedCurrentStateRaw = async (
 };
 
 const toReplayEntriesFromStream = (
-  eventStreamTail: EventEnvelope[],
+  eventStream: EventEnvelope[],
   checkpoint: Checkpoint | null,
 ): ReplayEntry[] => {
-  const entries = checkpoint ? [toCheckpointReplayEntry(checkpoint)] : [];
-  let currentState = checkpoint?.state ?? null;
+  const hasFullHistory = eventStream.some(
+    (envelope) => envelope.event.type === 'gameCreated',
+  );
+  const replayStream =
+    checkpoint && !hasFullHistory
+      ? eventStream.filter((envelope) => envelope.seq > checkpoint.seq)
+      : eventStream;
+  const useCheckpointFallback = checkpoint !== null && !hasFullHistory;
+  const entries = useCheckpointFallback
+    ? [toCheckpointReplayEntry(checkpoint)]
+    : [];
+  let currentState = useCheckpointFallback ? checkpoint.state : null;
 
-  for (const envelope of eventStreamTail) {
+  for (const envelope of replayStream) {
     const projected = projectGameStateFromStream([envelope], map, currentState);
 
     if (!projected.ok) {
@@ -438,7 +448,7 @@ const toReplayEntriesFromStream = (
 
 const createProjectedTimelineMetadata = (
   gameId: string,
-  eventStreamTail: EventEnvelope[],
+  eventStream: EventEnvelope[],
   checkpoint: Checkpoint | null,
   createdAt: number | null,
 ): Pick<
@@ -446,7 +456,7 @@ const createProjectedTimelineMetadata = (
   'gameId' | 'roomCode' | 'matchNumber' | 'scenario' | 'createdAt'
 > | null => {
   const parsed = parseMatchId(gameId);
-  const gameCreated = eventStreamTail.find(
+  const gameCreated = eventStream.find(
     (envelope) => envelope.event.type === 'gameCreated',
   );
   const scenario =
@@ -472,15 +482,15 @@ const createProjectedTimelineMetadata = (
 
 export const projectReplayTimeline = (
   checkpoint: Checkpoint | null,
-  eventStreamTail: EventEnvelope[],
+  eventStream: EventEnvelope[],
   viewerId: ViewerId,
   createdAt: number | null = null,
 ): ReplayTimeline | null => {
   const baseTimeline = (() => {
-    if (eventStreamTail.length > 0 || checkpoint) {
+    if (eventStream.length > 0 || checkpoint) {
       const metadata = createProjectedTimelineMetadata(
-        checkpoint?.gameId ?? eventStreamTail[0]?.gameId ?? '',
-        eventStreamTail,
+        checkpoint?.gameId ?? eventStream[0]?.gameId ?? '',
+        eventStream,
         checkpoint,
         createdAt,
       );
@@ -491,7 +501,7 @@ export const projectReplayTimeline = (
 
       return {
         ...metadata,
-        entries: toReplayEntriesFromStream(eventStreamTail, checkpoint),
+        entries: toReplayEntriesFromStream(eventStream, checkpoint),
       };
     }
     return null;
@@ -513,18 +523,9 @@ export const getProjectedReplayTimeline = async (
     getCheckpoint(storage, gameId),
     getMatchCreatedAt(storage, gameId),
   ]);
-  const eventStreamTail = await getEventStreamTail(
-    storage,
-    gameId,
-    checkpoint?.seq ?? 0,
-  );
+  const eventStream = await getEventStream(storage, gameId);
 
-  return projectReplayTimeline(
-    checkpoint,
-    eventStreamTail,
-    viewerId,
-    createdAt,
-  );
+  return projectReplayTimeline(checkpoint, eventStream, viewerId, createdAt);
 };
 
 const normalizeStateForParity = (
