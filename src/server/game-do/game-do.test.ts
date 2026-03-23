@@ -27,7 +27,12 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import type { ReplayArchive } from '../../shared/replay';
-import { getEventStream, getProjectionFrames, saveCheckpoint } from './archive';
+import {
+  appendProjectionMessage,
+  getEventStream,
+  getProjectionFrames,
+  saveCheckpoint,
+} from './archive';
 import { GameDO } from './game-do';
 import { toMovementResultMessage, toStateUpdateMessage } from './messages';
 
@@ -1017,6 +1022,42 @@ describe('GameDO', () => {
     );
     expect(frames).toHaveLength(2);
     expect(frames[1]?.message.type).toBe('stateUpdate');
+  });
+
+  it('reports projection parity mismatches without throwing', async () => {
+    const ctx = createCtx();
+    const game = createGameDO(ctx);
+    const state = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'PARCHK-m1',
+      findBaseHex,
+    );
+    const projected = structuredClone(state);
+    projected.turnNumber = state.turnNumber + 1;
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await appendProjectionMessage(
+      ctx.storage as unknown as DurableObjectStorage,
+      'PARCHK-m1',
+      1,
+      { type: 'stateUpdate', state: projected },
+    );
+
+    await (
+      game as unknown as {
+        verifyProjectionParity: (state: GameState) => Promise<void>;
+      }
+    ).verifyProjectionParity(state);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[projection parity mismatch]',
+      expect.objectContaining({
+        gameId: 'PARCHK-m1',
+        liveTurn: state.turnNumber,
+        projectedTurn: projected.turnNumber,
+      }),
+    );
   });
 
   it('falls back to checkpoint-backed replay when archive is unavailable', async () => {
