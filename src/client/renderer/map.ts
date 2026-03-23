@@ -130,6 +130,7 @@ export const buildBaseMarkerView = (
       lineWidth: 1,
     };
   }
+
   if (enemyBases.has(baseKey)) {
     return {
       kind: 'enemy',

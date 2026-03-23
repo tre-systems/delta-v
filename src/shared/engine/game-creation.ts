@@ -16,6 +16,7 @@ const resolveControlledBases = (
   if (player.bases && player.bases.length > 0) {
     return [...new Set(player.bases.map((base) => hexKey(base)))];
   }
+
   if (!player.homeBody) {
     return [];
   }
@@ -95,12 +96,14 @@ const resolveStartingPlacement = (
       lifecycle: 'landed',
     };
   }
+
   if (playerBases[0]) {
     return {
       position: parseBaseKey(playerBases[0]),
       lifecycle: 'landed',
     };
   }
+
   if (defHex?.body) {
     return {
       position: { ...def.position },

@@ -184,6 +184,7 @@ export const renderTorpedoGuidance = (
   if (state.phase !== 'ordnance' || state.activePlayer !== playerId) {
     return;
   }
+
   if (isAnimating) return;
 
   const selectedId = planningState.selectedShipId;
@@ -248,6 +249,7 @@ export const renderCombatOverlay = (
   if (state.phase !== 'combat' || state.activePlayer !== playerId) {
     return;
   }
+
   if (isAnimating) return;
 
   const pulse = 0.5 + 0.3 * Math.sin(now / 300);

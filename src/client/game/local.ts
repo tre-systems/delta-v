@@ -43,6 +43,7 @@ export const resolveAstrogationStep = (
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
+
   if (isMovementResult(result)) {
     return { kind: 'movement', result };
   }
@@ -71,6 +72,7 @@ export const resolveSkipOrdnanceStep = (
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
+
   if (isMovementResult(result)) {
     return { kind: 'movement', result };
   }
@@ -87,6 +89,7 @@ export const resolveBeginCombatStep = (
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
+
   if (hasCombatResults(result)) {
     return {
       kind: 'combat',
@@ -130,6 +133,7 @@ export const resolveSkipCombatStep = (
   if ('error' in result) {
     return { kind: 'error', error: result.error };
   }
+
   if (hasCombatResults(result)) {
     return {
       kind: 'combat',

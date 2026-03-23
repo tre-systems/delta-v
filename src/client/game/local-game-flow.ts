@@ -41,6 +41,7 @@ export interface LocalGameFlowDeps {
   transitionToPhase: () => void;
   logText: (text: string) => void;
 }
+
 export const isGameOver = (deps: LocalGameFlowDeps): boolean =>
   !deps.getGameState() || deps.getGameState()?.phase === 'gameOver';
 export const localCheckGameEnd = (deps: LocalGameFlowDeps): void => {
@@ -51,6 +52,7 @@ export const localCheckGameEnd = (deps: LocalGameFlowDeps): void => {
     gameState.winReason ?? '',
   );
 };
+
 export const playLocalMovementResult = (
   deps: LocalGameFlowDeps,
   result: MovementResult,
@@ -64,6 +66,7 @@ export const playLocalMovementResult = (
     onComplete,
   );
 };
+
 export const handleLocalResolution = (
   deps: LocalGameFlowDeps,
   resolution: LocalResolution,
@@ -74,6 +77,7 @@ export const handleLocalResolution = (
     console.error(errorPrefix, resolution.error);
     return;
   }
+
   if (resolution.kind === 'movement') {
     playLocalMovementResult(deps, resolution.result, () => {
       localCheckGameEnd(deps);
@@ -83,6 +87,7 @@ export const handleLocalResolution = (
     });
     return;
   }
+
   if (resolution.kind === 'combat') {
     deps.presentCombatResults(
       resolution.previousState,
@@ -93,11 +98,13 @@ export const handleLocalResolution = (
   } else {
     deps.applyGameState(resolution.state);
   }
+
   localCheckGameEnd(deps);
   if (deps.getGameState()?.phase !== 'gameOver') {
     onContinue();
   }
 };
+
 export const resolveAIPlan = (
   deps: LocalGameFlowDeps,
   plan: AIActionPlan,
@@ -123,6 +130,7 @@ export const resolveAIPlan = (
       return { kind: 'error', error: 'Unexpected AI plan kind' };
   }
 };
+
 export const runAITurn = async (deps: LocalGameFlowDeps): Promise<void> => {
   await new Promise((r) => setTimeout(r, 500));
   while (!isGameOver(deps)) {

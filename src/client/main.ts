@@ -116,6 +116,7 @@ interface ClientContext {
   latencyMs: number;
   reconnectAttempts: number;
 }
+
 class GameClient {
   private ctx: ClientContext = {
     state: 'menu',
@@ -304,6 +305,7 @@ class GameClient {
       this.setState('menu');
     }
   }
+
   private setState(newState: ClientState) {
     applyClientStateTransition(
       createMainStateTransitionDeps({
@@ -326,6 +328,7 @@ class GameClient {
       newState,
     );
   }
+
   private renderLogisticsPanel() {
     const panel = byId('transferPanel');
     if (!this.logisticsUIState) return;
@@ -333,6 +336,7 @@ class GameClient {
       this.renderLogisticsPanel(),
     );
   }
+
   // --- Network ---
   private startLocalGame(scenario: string) {
     startLocalGameSession(
@@ -361,6 +365,7 @@ class GameClient {
       scenario,
     );
   }
+
   private joinGame(code: string, playerToken: string | null = null) {
     void beginJoinGameSession(
       {
@@ -381,12 +386,15 @@ class GameClient {
       playerToken,
     );
   }
+
   private connect(code: string) {
     this.connection.connect(code);
   }
+
   private send(msg: unknown) {
     this.connection.send(msg);
   }
+
   private applyGameState(state: GameState) {
     applyClientGameState(
       {
@@ -396,6 +404,7 @@ class GameClient {
       state,
     );
   }
+
   private handleMessage(msg: S2C) {
     const deps: MessageHandlerDeps = createMainMessageHandlerDeps({
       ctx: this.ctx,
@@ -413,13 +422,16 @@ class GameClient {
     });
     handleServerMessage(deps, msg);
   }
+
   private handleDisconnect() {
     this.connection.handleDisconnect();
   }
+
   private handleKeyboardAction(action: KeyboardAction) {
     const cmd = keyboardActionToCommand(action);
     if (cmd) this.dispatch(cmd);
   }
+
   private handleUIEvent(event: UIEvent) {
     const plan = resolveUIEventPlan(event);
 
@@ -445,6 +457,7 @@ class GameClient {
         return;
     }
   }
+
   private handleInput(event: InputEvent) {
     if (this.ctx.state === 'playing_movementAnim') return;
     const commands = interpretInput(
@@ -458,6 +471,7 @@ class GameClient {
       this.dispatch(cmd);
     }
   }
+
   private dispatch(cmd: GameCommand) {
     dispatchGameCommand(
       {
@@ -485,10 +499,12 @@ class GameClient {
       cmd,
     );
   }
+
   // --- Game actions ---
   private onAnimationComplete() {
     this.transitionToPhase();
   }
+
   private transitionToPhase() {
     transitionClientPhase(
       createMainPhaseTransitionDeps({
@@ -504,14 +520,17 @@ class GameClient {
       }),
     );
   }
+
   private resetCombatState() {
     resetCombat(this.actionDeps.combatDeps);
   }
+
   private stopCombatWatch: (() => void) | null = null;
   private startCombatTargetWatch() {
     this.stopCombatWatch?.();
     this.stopCombatWatch = startCombatWatch(this.actionDeps.combatDeps);
   }
+
   private sendFleetReady(purchases: FleetPurchase[]) {
     if (
       !this.ctx.gameState ||
@@ -525,9 +544,11 @@ class GameClient {
       this.ui.showFleetWaiting();
     }
   }
+
   private sendRematch() {
     this.ctx.transport?.requestRematch();
   }
+
   private exitToMenu() {
     exitToMenuSession({
       ctx: this.ctx,
@@ -539,6 +560,7 @@ class GameClient {
       setState: (state) => this.setState(state),
     });
   }
+
   // --- Local game (single player) ---
   private createLocalTransport(): GameTransport {
     return createLocalGameTransport({
@@ -559,16 +581,19 @@ class GameClient {
       startLocalGame: (scenario) => this.startLocalGame(scenario),
     });
   }
+
   private runAITurn = async () => {
     await runAI(this.actionDeps.localGameFlowDeps);
   };
   private toggleHelp() {
     this.ui.toggleHelpOverlay();
   }
+
   showToast(message: string, type: 'error' | 'info' | 'success' = 'info') {
     this.ui.overlay.showToast(message, type);
   }
 }
+
 // --- Bootstrap ---
 installGlobalErrorHandlers();
 installViewportSizing();

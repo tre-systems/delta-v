@@ -28,6 +28,7 @@ export interface ConnectionDeps {
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   exitToMenu: () => void;
 }
+
 export interface ConnectionManager {
   connect: (code: string) => void;
   send: (msg: unknown) => void;
@@ -38,6 +39,7 @@ export interface ConnectionManager {
   close: () => void;
   getWs: () => WebSocket | null;
 }
+
 const MAX_RECONNECT_ATTEMPTS = 5;
 export const createConnectionManager = (
   deps: ConnectionDeps,

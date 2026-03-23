@@ -1,12 +1,69 @@
 # Manual Test Plan
 
-A hands-on guide to verifying Delta-V works correctly.
-Use this after significant changes or before a release.
-Each section is self-contained — run whichever sections
-are relevant to the changes you're testing.
+A hands-on guide to verifying Delta-V works correctly
+and feels good to play. Use this after significant
+changes or before a release. Each section is
+self-contained — run whichever sections are relevant
+to the changes you're testing.
+
+This plan intentionally covers both rule correctness
+and user experience. A build is not ready if the
+simulation is technically correct but the game is
+confusing, fragile, noisy, or frustrating for real
+players.
 
 Related docs: [SPEC](./SPEC.md), [ARCHITECTURE](./ARCHITECTURE.md),
 [SIMULATION_TESTING](./SIMULATION_TESTING.md).
+
+---
+
+## Release Gate
+
+Treat any of the following as release blockers:
+
+- A new player cannot start **Bi-Planetary** and
+  finish the first turn using only in-game guidance.
+- The current player, selected ship, objective, or
+  next required action is hard to understand at any
+  point.
+- Multiplayer create, join, reconnect, chat,
+  rematch, or disconnect resolution is unreliable or
+  confusing.
+- Mobile / touch play has blocked actions,
+  overlapping HUD, accidental browser gestures, or
+  unreadable text.
+- PWA / offline single-player regresses relative to
+  the product promise.
+- A 20-30 minute session produces serious stutter,
+  dropped input, stale UI, or unclear win/loss
+  messaging.
+
+When a test fails, record the browser, device,
+scenario, player seat, reproduction steps, and
+whether the problem is correctness, clarity,
+performance, or recovery.
+
+---
+
+## Recommended Test Matrix
+
+For a release candidate, run the highest-risk
+sections in at least:
+
+- Desktop Chromium with mouse + keyboard
+- Desktop Safari or Firefox / trackpad workflow
+- Phone-sized viewport (375×812) and one real mobile
+  device if available
+- Installed PWA shell if supported by the browser
+- A fresh browser profile once (tutorial, audio,
+  reconnect token, and help-state coverage)
+
+Cover these modes:
+
+- Single-player online
+- Single-player offline
+- Multiplayer two-tab / two-device
+- Refresh / reconnect / rematch flow
 
 ---
 
@@ -30,6 +87,45 @@ Related docs: [SPEC](./SPEC.md), [ARCHITECTURE](./ARCHITECTURE.md),
    then it's your turn again.
 
 **Pass:** You can take off, move, and see the AI respond.
+
+### 1a. First-time user experience
+
+**Goal:** Verify a new player can understand the game
+without reading external docs.
+**Time:** 5 minutes — **Scenario:** Bi-Planetary vs AI
+in a fresh browser profile or with cleared local
+storage
+
+1. Start from the main menu without opening the SPEC
+   or this plan.
+2. Confirm the menu makes it obvious how to start a
+   game and what the default scenario / difficulty
+   mean.
+3. Launch **Bi-Planetary** and rely only on the
+   objective text, status line, tutorial tips, and
+   help overlay to decide what to do.
+4. Within the first 10 seconds, it should be obvious
+   which ship is yours, what your goal is, and what
+   action is expected next.
+5. Complete the first turn. The tester should not
+   need to guess what **CONFIRM** will do.
+6. Make a deliberate mistake before confirming
+   (wrong burn, wrong ship, accidental selection)
+   and recover using in-game affordances such as
+   deselect, undo, or help.
+7. After the AI turn, the tester should be able to
+   answer within 3 seconds:
+   - what the objective is
+   - which ship is selected
+   - what the next action should be
+   - why the last movement or combat result happened
+8. Finish a second turn and note any moment that
+   felt ambiguous, intimidating, or noisy.
+
+**Pass:** A first-time player can reach turn 3
+confidently, with no need for external explanation
+and no "I don't know what the game wants from me"
+moments.
 
 ---
 
@@ -515,6 +611,34 @@ Triplanetary rules.
    each player.
 3. REMATCH and EXIT buttons are functional.
 
+### 11f. Clarity and trust
+
+1. At any point during a turn, you can tell within
+   3 seconds:
+   - whose turn it is
+   - which ship is selected
+   - whether the game is waiting for input or
+     resolving queued actions
+   - what pressing CONFIRM / FIRE ALL will do
+2. If an action is unavailable, the UI explains why
+   (wrong phase, no fuel, landed, resupplied,
+   defensive-only ship, etc.).
+3. Important outcomes appear in the log, toast,
+   status line, and animation without contradiction.
+4. No stale highlights, banners, or status text
+   remain after the game state changes.
+
+### 11g. Readability and accessibility basics
+
+1. Increase browser zoom to 150% on desktop.
+2. Verify the top bar, action buttons, help overlay,
+   and game-over screen remain readable and usable.
+3. Critical states such as low fuel, urgent timer,
+   victory/defeat, and selected ship are not
+   conveyed by colour alone.
+4. Important text remains legible over the map
+   background and on smaller laptop screens.
+
 **Pass:** All HUD elements display accurate information
 throughout the game.
 
@@ -570,6 +694,19 @@ throughout the game.
 | WASD / Arrows | Pan camera |
 | +/− | Zoom |
 
+### 13a. Focus and input safety
+
+1. From the menu, use **Tab** / **Shift+Tab** to
+   move through buttons and inputs. Visible focus
+   styling should always be present.
+2. Press **Enter** or **Space** on a focused control
+   — it should activate the expected action.
+3. Click into chat input (multiplayer) and type a
+   message. Game hotkeys should **not** trigger
+   while text entry is focused.
+4. Click back into the game — shortcuts should work
+   again immediately.
+
 **Pass:** All shortcuts work as described.
 
 ---
@@ -615,6 +752,18 @@ use a phone
 1. Rotate to landscape — HUD bars compact,
    canvas area is usable, no overlapping elements.
 
+### 14e. Touch comfort and recovery
+
+1. Tap-drag to pan does not accidentally issue ship
+   commands or browser text selection.
+2. Pinch-to-zoom works without the page itself
+   scrolling or zooming instead of the game.
+3. Opening and closing the log, help overlay, or
+   chat input does not leave controls hidden behind
+   safe areas or the mobile keyboard.
+4. Background the app briefly, then return. Layout,
+   input, and selected state should still be valid.
+
 **Pass:** Full game is playable via touch with
 appropriate touch-specific language and layout.
 
@@ -648,36 +797,88 @@ ordnance. Resupply-turn restrictions are enforced.
 
 ## 16. Multiplayer
 
-**Goal:** Verify the multiplayer connection flow.
+**Goal:** Verify multiplayer feels dependable,
+low-friction, and socially usable.
 
-**Time:** 5 minutes — requires two browser tabs
+**Time:** 10 minutes — requires two browser tabs or
+devices
 
-### 16a. Game creation and joining
+### 16a. Game creation and join flow
 
 1. Click **Create Game**, select a scenario.
-2. The waiting screen shows a 5-character code and
-   a "Copy Link" button.
-3. In a second tab, enter the code or paste the
+2. The waiting screen shows a 5-character code, the
+   chosen scenario, and a working **Copy Link**
+   button.
+3. In a second tab or device, join using the copied
    link. The game should start once both players
    are connected.
+4. Repeat using manual room-code entry instead of
+   the copied link.
+5. Enter an invalid room code — the game should
+   show a clear error and a way back to the menu.
+6. Try to join an already-full or unavailable room
+   if practical — it should fail clearly instead of
+   hanging or silently reloading.
 
-### 16b. Reconnection
+### 16b. Presence, chat, and shared context
 
-1. Both players reach the astrogation phase.
-2. Refresh one tab quickly — it should reconnect
-   to the same seat without errors.
+1. Both players see the transition from waiting room
+   to active match.
+2. Send a short chat message from each side.
+3. Each message appears once, with correct speaker
+   attribution, and the chat input clears after
+   send.
+4. Objective text, turn ownership, and visible ship
+   state are consistent between both players.
+5. The latency indicator appears when connected and
+   does not overlap more important HUD information.
+
+### 16c. Turn timer and pressure
+
+1. Leave one player idle until the timer appears
+   after its grace period.
+2. Verify the timer styling becomes more urgent as
+   expiry approaches.
+3. Low-time warning sound / visual cue should fire
+   once, not continuously spam.
+4. Taking an action or ending the turn resets the
+   timer display appropriately.
+
+### 16d. Reconnection
+
+1. Both players reach astrogation.
+2. Refresh one tab quickly — it should reconnect to
+   the same seat without errors.
 3. The stale tab (if still open) should no longer
-   receive live updates.
+   receive live updates or be able to issue actions.
 4. Close one tab for less than 30 seconds, reopen
-   with the stored token — the match continues.
+   with the stored token — the match should
+   continue without seat swapping or duplicate
+   ownership.
+5. After reconnect, selected ship, turn, log, and
+   action availability should still match the other
+   player's view of the game.
 
-### 16c. Disconnect forfeit
+### 16e. Disconnect forfeit
 
 1. Disconnect one player for more than 30 seconds.
-2. The remaining player should win by forfeit.
+2. The remaining player should see a clear waiting /
+   resolution flow, then win by forfeit.
+3. The result screen should explain why the game
+   ended.
 
-**Pass:** Create, join, reconnect, and forfeit all
-work correctly.
+### 16f. Rematch and exit
+
+1. Finish a match normally.
+2. Click **REMATCH** on both sides — a fresh match
+   should start with reset turn count, cleared stale
+   highlights, and the same scenario / opponent.
+3. Click **EXIT** from the end screen — it should
+   return cleanly to the menu.
+
+**Pass:** Create, join, chat, reconnect, forfeit,
+and rematch all work correctly, and failure states
+are clearly communicated.
 
 ---
 
@@ -727,42 +928,90 @@ Simulation shows 0 crashes and reasonable win rates.
 
 ## 18. Sound and Audio
 
-**Goal:** Verify sound effects play correctly.
+**Goal:** Verify sound adds useful feedback without
+surprising the player.
 
 **Time:** 2 minutes — any scenario
 
-1. Press **M** to toggle sound on.
-2. Set a burn and confirm — thrust sound plays.
-3. During combat — gun/explosion sounds play.
-4. Phase transitions — a chime or tone sounds.
-5. Press **M** again — all sound stops.
-6. Verify no audio on page load (sound should
-   start muted or require interaction first).
+1. Load the page fresh — no audio should play
+   before user interaction.
+2. Press **M** to toggle sound on.
+3. Set a burn and confirm — thrust sound plays.
+4. During combat — gun / explosion sounds play.
+5. Phase transitions — a chime or tone sounds.
+6. Let the turn timer reach the warning window —
+   the warning sound should play once.
+7. Press **M** again — all sound stops.
+8. Verify the game never blasts unexpected audio on
+   menu load, reconnect, or rematch.
 
-**Pass:** Sound effects work and can be toggled.
+**Pass:** Sound cues are helpful, timely, and fully
+toggleable.
 
 ---
 
 ## 19. Help and Tutorial
 
-**Goal:** Verify the help system works.
+**Goal:** Verify the help system teaches without
+getting in the way.
 
-**Time:** 1 minute — any scenario
+**Time:** 2 minutes — any scenario
 
 1. Press **?** — help overlay appears with sections
    for Navigation, Astrogation, Ordnance, Combat,
    and Other controls.
 2. Content matches the current control scheme.
 3. Press **?** again — overlay closes.
-4. On first play, tutorial tips should appear
-   during each phase explaining what to do.
+4. In a fresh profile or with tutorial storage
+   cleared, tutorial tips should appear during each
+   relevant phase explaining what to do next.
+5. Tutorial copy should match the current device
+   ("Click" on desktop, "Tap" on touch).
+6. Tips should not cover the primary action buttons
+   or linger after the player has moved on.
+7. Skip the tutorial — it should dismiss cleanly
+   and return immediate control.
+8. Returning players should not be forced through
+   the tutorial again unless the saved state was
+   intentionally cleared.
 
-**Pass:** Help overlay shows correct, up-to-date
-controls. Tutorial tips appear for new players.
+**Pass:** Help overlay stays accurate and tutorial
+tips are helpful, contextual, and non-intrusive.
 
 ---
 
-## 20. Edge Cases and Regressions
+## 20. PWA / Offline Single-Player
+
+**Goal:** Verify the installable/offline experience
+matches the product promise.
+
+**Time:** 5 minutes — supported desktop or mobile
+browser
+
+1. Install the app if the browser offers install /
+   add-to-home-screen.
+2. Launch the installed app or standalone shell —
+   title, icon, and menu should look correct.
+3. While online, start a local AI game to confirm
+   the installed shell behaves like the normal app.
+4. Disable network (or use DevTools offline), then
+   reload the app shell. The menu should still
+   appear.
+5. Start a single-player AI game while offline and
+   play at least three turns.
+6. Attempt a multiplayer create or join while
+   offline — it should fail clearly instead of
+   hanging forever.
+7. Re-enable network and confirm online play
+   recovers after retry or reload.
+
+**Pass:** The app installs cleanly, offline
+single-player works, and offline limitations are
+clear to the user.
+
+---
+
+## 21. Edge Cases and Regressions
 
 A grab-bag of things that have broken in the past
 or are easy to miss.
@@ -807,12 +1056,13 @@ These complement manual testing and run in CI:
 
 | Command | What it checks |
 |---------|----------------|
-| `npm test` | 2660+ unit/property tests |
-| `npm run simulate -- all 25` | Engine stability across all 8 scenarios |
+| `npm test` | Unit, property, and regression tests across engine, client, and server |
+| `npm run simulate -- all 25` | Engine stability / balance sweep across all 8 scenarios |
 | `npm run lint` | Code style |
 | `npm run typecheck` | Type safety |
 
-All must pass before any release.
+All must pass before any release, but they do **not**
+replace the manual experience checks above.
 
 ---
 
@@ -820,9 +1070,14 @@ All must pass before any release.
 
 - **WebSocket synchronisation edge cases** — race
   conditions between simultaneous messages
-- **PWA offline mode** — service worker caching
-- **Turn timer server-side enforcement** — requires
-  real clock manipulation
-- **Load testing** — many concurrent games
-- **Cross-browser rendering** — differences between
-  Chrome, Firefox, Safari canvas
+- **Server alarm / timeout exactness** — turn timer,
+  reconnect grace, and inactivity cleanup under real
+  clock manipulation or tab suspension
+- **Load / soak testing** — many concurrent games or
+  very long-running sessions
+- **Device performance profiling** — FPS, battery,
+  thermal throttling, and memory pressure on older
+  hardware
+- **Formal accessibility audit** — screen readers,
+  measured colour contrast, reduced-motion
+  preferences, and assistive-tech compatibility

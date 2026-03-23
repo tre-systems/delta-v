@@ -98,42 +98,54 @@ export const applyClientStateTransition = (
   if (entryPlan.hideTutorial) {
     deps.tutorial.hideTip();
   }
+
   if (entryPlan.resetCamera) {
     deps.renderer.resetCamera();
   }
+
   if (entryPlan.stopTurnTimer) {
     deps.turnTimer.stop();
   }
+
   if (entryPlan.startTurnTimer) {
     deps.turnTimer.start();
   }
+
   if (entryPlan.clearAstrogationPlanning) {
     resetAstrogationPlanning(deps.ctx.planningState);
   }
+
   if (entryPlan.selectedShipId !== undefined) {
     setSelectedShipId(deps.ctx.planningState, entryPlan.selectedShipId);
   }
+
   if (entryPlan.resetCombatState) {
     deps.resetCombatState();
   }
+
   if (entryPlan.updateHUD) {
     deps.updateHUD();
   }
+
   if (entryPlan.clearAttackButton) {
     deps.ui.showAttackButton(false);
   }
+
   if (entryPlan.showMovementStatus) {
     deps.ui.showMovementStatus();
   }
+
   if (entryPlan.startCombatTargetWatch) {
     deps.startCombatTargetWatch();
   }
+
   if (entryPlan.tutorialPhase && deps.ctx.gameState) {
     deps.tutorial.onPhaseChange(
       entryPlan.tutorialPhase,
       deps.ctx.gameState.turnNumber,
     );
   }
+
   if (entryPlan.frameOnShips) {
     deps.renderer.frameOnShips();
   }

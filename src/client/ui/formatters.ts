@@ -227,9 +227,11 @@ const getCombatAttackerDescription = (
   if (result.attackType === 'baseDefense') {
     return 'Planetary Base';
   }
+
   if (result.attackType === 'antiNuke') {
     return 'Defensive Battery';
   }
+
   if (result.attackType === 'asteroidHazard') {
     return '';
   }

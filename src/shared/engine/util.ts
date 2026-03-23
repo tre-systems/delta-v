@@ -34,6 +34,7 @@ export const validatePhaseAction = (
   if (state.phase !== requiredPhase) {
     return `Not in ${requiredPhase} phase`;
   }
+
   if (playerId !== state.activePlayer) {
     return 'Not your turn';
   }

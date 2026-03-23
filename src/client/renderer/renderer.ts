@@ -139,18 +139,23 @@ export class Renderer {
       );
     });
   }
+
   setMap(map: SolarSystemMap) {
     this.map = map;
   }
+
   setGameState(state: GameState) {
     this.gameState = state;
   }
+
   setPlayerId(id: number) {
     this.playerId = id;
   }
+
   clearTrails() {
     this.movementAnimation.clearTrails();
   }
+
   animateMovements(
     movements: ShipMovement[],
     ordnanceMovements: OrdnanceMovement[],
@@ -174,6 +179,7 @@ export class Renderer {
       this.camera.frameBounds(minX, maxX, minY, maxY, 150);
     }
   }
+
   showCombatResults(results: CombatResult[], previousState?: GameState | null) {
     const now = performance.now();
     this.combatResults = {
@@ -275,6 +281,7 @@ export class Renderer {
       }
     }
   }
+
   showMovementEvents(events: MovementEvent[]) {
     if (events.length > 0) {
       const now = performance.now();
@@ -302,6 +309,7 @@ export class Renderer {
       }
     }
   }
+
   showLandingEffect(hex: HexCoord) {
     const p = hexToPixel(hex, HEX_SIZE);
     const now = performance.now();
@@ -312,6 +320,7 @@ export class Renderer {
       color: '#66bb6a',
     });
   }
+
   // Trigger dramatic staggered explosions on the
   // losing player's ships.
   // Returns the total animation duration in ms.
@@ -342,22 +351,26 @@ export class Renderer {
     }
     return ships.length * stagger + 1500;
   }
+
   // showPhaseBanner removed — DOM phase alert in
   // ui.ts is the sole overlay
   isAnimating(): boolean {
     return this.movementAnimation.isAnimating();
   }
+
   resetCamera() {
     this.camera.targetX = 0;
     this.camera.targetY = 0;
     this.camera.targetZoom = 0.3;
     this.camera.snapToTarget();
   }
+
   centerOnHex(hex: HexCoord) {
     const p = hexToPixel(hex, HEX_SIZE);
     this.camera.targetX = p.x;
     this.camera.targetY = p.y;
   }
+
   frameOnShips() {
     if (!this.gameState) return;
     const myShips = this.gameState.ships.filter(
@@ -385,6 +398,7 @@ export class Renderer {
       Math.min(MAX_FRAME_ZOOM, this.camera.targetZoom),
     );
   }
+
   start() {
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -392,6 +406,7 @@ export class Renderer {
     this.lastTime = performance.now();
     requestAnimationFrame((t) => this.loop(t));
   }
+
   private resize() {
     const dpr = window.devicePixelRatio || 1;
     const w = Math.round(this.canvas.clientWidth);
@@ -405,6 +420,7 @@ export class Renderer {
     this.canvas.height = Math.round(h * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
+
   private loop(now: number) {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
@@ -426,6 +442,7 @@ export class Renderer {
     this.movementAnimation.completeIfElapsed(now);
     requestAnimationFrame((t) => this.loop(t));
   }
+
   private render(
     now: number,
     w = this.canvas.clientWidth,
@@ -487,13 +504,16 @@ export class Renderer {
       this.renderMinimap(ctx, w, h);
     }
   }
+
   // --- Render layers ---
   private renderStars(ctx: CanvasRenderingContext2D) {
     renderStarsFn(ctx, this.stars, this.camera.zoom);
   }
+
   private renderHexGrid(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
     renderHexGridFn(ctx, map, HEX_SIZE, (x, y) => this.camera.isVisible(x, y));
   }
+
   private renderGravityIndicators(
     ctx: CanvasRenderingContext2D,
     map: SolarSystemMap,
@@ -502,6 +522,7 @@ export class Renderer {
       this.camera.isVisible(x, y),
     );
   }
+
   private renderBodies(
     ctx: CanvasRenderingContext2D,
     now: number,
@@ -509,6 +530,7 @@ export class Renderer {
   ) {
     renderBodiesFn(ctx, map, HEX_SIZE, now);
   }
+
   private renderBaseMarkers(
     ctx: CanvasRenderingContext2D,
     map: SolarSystemMap,
@@ -516,6 +538,7 @@ export class Renderer {
   ) {
     renderBaseMarkersFn(ctx, map, state, this.playerId, HEX_SIZE);
   }
+
   private renderMapBorder(
     ctx: CanvasRenderingContext2D,
     map: SolarSystemMap,
@@ -524,6 +547,7 @@ export class Renderer {
   ) {
     renderMapBorderFn(ctx, map, state, this.playerId, HEX_SIZE, now);
   }
+
   private renderAsteroids(ctx: CanvasRenderingContext2D, map: SolarSystemMap) {
     renderAsteroidsFn(
       ctx,
@@ -533,6 +557,7 @@ export class Renderer {
       (x, y) => this.camera.isVisible(x, y),
     );
   }
+
   private renderLandingTarget(
     ctx: CanvasRenderingContext2D,
     map: SolarSystemMap,
@@ -541,6 +566,7 @@ export class Renderer {
   ) {
     renderLandingTargetFn(ctx, map, state, this.playerId, HEX_SIZE, now);
   }
+
   private renderBaseThreatZones(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -558,6 +584,7 @@ export class Renderer {
       ctx.stroke();
     }
   }
+
   private renderDetectionRanges(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -573,6 +600,7 @@ export class Renderer {
       this.animState !== null,
     );
   }
+
   private renderCourseVectors(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -765,6 +793,7 @@ export class Renderer {
       }
     }
   }
+
   private renderTrails(ctx: CanvasRenderingContext2D, state: GameState) {
     for (const trail of buildShipTrailViews(
       state,
@@ -811,6 +840,7 @@ export class Renderer {
       ctx.setLineDash([]);
     }
   }
+
   private renderMovementPaths(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -852,6 +882,7 @@ export class Renderer {
       }
     }
   }
+
   private renderShips(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -1027,6 +1058,7 @@ export class Renderer {
       }
     }
   }
+
   private drawShipIcon(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -1039,6 +1071,7 @@ export class Renderer {
   ) {
     drawShipIconFn(ctx, x, y, owner, alpha, heading, disabledTurns, shipType);
   }
+
   private drawThrustTrail(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -1048,9 +1081,11 @@ export class Renderer {
   ) {
     drawThrustTrailFn(ctx, x, y, angle, progress);
   }
+
   private interpolatePath(path: HexCoord[], progress: number): PixelCoord {
     return interpolatePathFn(path, progress, HEX_SIZE);
   }
+
   private renderOrdnance(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -1066,6 +1101,7 @@ export class Renderer {
       (path, progress) => this.interpolatePath(path, progress),
     );
   }
+
   private renderTorpedoGuidance(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -1081,6 +1117,7 @@ export class Renderer {
       now,
     );
   }
+
   private renderCombatOverlay(
     ctx: CanvasRenderingContext2D,
     state: GameState,
@@ -1097,12 +1134,15 @@ export class Renderer {
       now,
     );
   }
+
   private renderHexFlashes(ctx: CanvasRenderingContext2D, now: number) {
     this.hexFlashes = drawHexFlashes(ctx, this.hexFlashes, now, HEX_SIZE);
   }
+
   private renderCombatEffects(ctx: CanvasRenderingContext2D, now: number) {
     this.combatEffects = drawCombatEffects(ctx, this.combatEffects, now);
   }
+
   private renderMovementEventsToast(
     ctx: CanvasRenderingContext2D,
     events: MovementEvent[],
@@ -1133,6 +1173,7 @@ export class Renderer {
     }
     ctx.restore();
   }
+
   private renderCombatResultsToast(
     ctx: CanvasRenderingContext2D,
     results: CombatResult[],
@@ -1165,6 +1206,7 @@ export class Renderer {
     }
     ctx.restore();
   }
+
   // renderPhaseBanner removed — DOM overlay handles
   // phase announcements
   private renderMinimap(

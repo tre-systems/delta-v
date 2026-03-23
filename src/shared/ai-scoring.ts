@@ -58,6 +58,7 @@ export const scoreNavigation = (
   } else if (course.landedAt) {
     score -= cfg.navWrongBodyPenalty * mult;
   }
+
   // Heavy penalty for staying landed at home
   if (
     ship.lifecycle === 'landed' &&
@@ -66,6 +67,7 @@ export const scoreNavigation = (
   ) {
     score -= cfg.navStayLandedPenalty * mult;
   }
+
   // Velocity alignment: prefer velocity pointing
   // toward target
   const velDist = hexDistance(
@@ -106,6 +108,7 @@ export const scoreRaceDanger = (
         cfg.gravityDangerSpeedPenalty;
     }
   }
+
   // Must be nearly stopped to land
   if (targetHex) {
     const newDist = hexDistance(course.destination, targetHex);
@@ -143,6 +146,7 @@ export const scoreGravityLookAhead = (
       mult
     );
   }
+
   if (targetHex) {
     return (
       (hexDistance(course.destination, targetHex) -
@@ -151,6 +155,7 @@ export const scoreGravityLookAhead = (
       mult
     );
   }
+
   if (enemyShips.length > 0) {
     const closest = must(
       minBy(enemyShips, (enemy) => hexDistance(nextTurnDest, enemy.position)),

@@ -73,6 +73,7 @@ export const resolveMovementBroadcast = (
     ? toStateUpdateMessage(result.state)
     : undefined;
 };
+
 export const resolveCombatBroadcast = (
   result: CombatResolution,
   fallback: 'none' | 'stateUpdate' = 'none',

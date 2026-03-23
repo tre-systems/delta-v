@@ -295,6 +295,7 @@ export const processCombat = (
   if (state.winner === null) {
     checkGameEnd(state, map, engineEvents);
   }
+
   if (state.winner !== null) {
     return { results, state, engineEvents };
   }
