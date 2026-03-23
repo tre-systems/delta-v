@@ -176,19 +176,14 @@ export const resolveSeatAssignment = (
     };
   }
 
-  if (seatOpen.some(Boolean)) {
-    return {
-      type: 'reject',
-      status: 403,
-      message: 'Player token required for reconnection',
-    };
-  }
-
-  if (input.disconnectedPlayer !== null) {
+  // Once both seats are claimed, tokenless joins should
+  // get a stable "room unavailable" answer instead of
+  // leaking transient reconnect state.
+  if (seatOpen.some(Boolean) || input.disconnectedPlayer !== null) {
     return {
       type: 'reject',
       status: 409,
-      message: 'Waiting for player reconnection',
+      message: 'Game is full',
     };
   }
 

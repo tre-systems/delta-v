@@ -125,7 +125,7 @@ describe('viewer-aware state filtering', () => {
 
     // Simulate the three filtering contexts
     const liveP0 = filterStateForPlayer(state, 0);
-    const _liveP1 = filterStateForPlayer(state, 1);
+    filterStateForPlayer(state, 1);
     const spectator = filterStateForPlayer(state, 'spectator');
 
     // Player 0 sees more than spectator

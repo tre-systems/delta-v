@@ -605,11 +605,11 @@ class GameClient {
 // --- Bootstrap ---
 installGlobalErrorHandlers();
 installViewportSizing();
-const __game = new GameClient();
-(window as Window & { __game?: GameClient }).__game = __game;
+const game = new GameClient();
+(window as Window & { game?: GameClient }).game = game;
 window.addEventListener('offline', () => {
-  __game.showToast("You're offline \u2014 check your connection", 'error');
+  game.showToast("You're offline \u2014 check your connection", 'error');
 });
 window.addEventListener('online', () => {
-  __game.showToast('Back online', 'success');
+  game.showToast('Back online', 'success');
 });

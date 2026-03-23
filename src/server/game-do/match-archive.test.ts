@@ -38,7 +38,7 @@ const createMockR2 = () => {
       if (!body) return null;
       return { json: async () => JSON.parse(body) };
     }),
-    _objects: objects,
+    objects: objects,
   };
 };
 
@@ -46,7 +46,7 @@ const createMockDb = () => {
   const bindFn = vi.fn(() => ({ run: vi.fn(async () => ({})) }));
   return {
     prepare: vi.fn(() => ({ bind: bindFn })),
-    _bind: bindFn,
+    bind: bindFn,
   };
 };
 
@@ -84,7 +84,7 @@ describe('match archival', () => {
     const r2Key = r2.put.mock.calls[0][0] as string;
     expect(r2Key).toBe('matches/ARC-m1.json');
 
-    const body = JSON.parse(r2._objects.get(r2Key) ?? '{}') as MatchArchive;
+    const body = JSON.parse(r2.objects.get(r2Key) ?? '{}') as MatchArchive;
     expect(body.gameId).toBe('ARC-m1');
     expect(body.roomCode).toBe('ARCROOM');
     expect(body.scenario).toBe('Duel');
@@ -97,7 +97,7 @@ describe('match archival', () => {
 
     // D1 should have metadata
     expect(db.prepare).toHaveBeenCalledTimes(1);
-    expect(db._bind).toHaveBeenCalledWith(
+    expect(db.bind).toHaveBeenCalledWith(
       'ARC-m1',
       'ARCROOM',
       'Duel',
@@ -124,7 +124,7 @@ describe('match archival', () => {
       checkpoint: null,
     };
 
-    r2._objects.set('matches/FETCH-m1.json', JSON.stringify(archive));
+    r2.objects.set('matches/FETCH-m1.json', JSON.stringify(archive));
 
     const result = await fetchArchivedMatch(
       r2 as unknown as R2Bucket,
@@ -217,7 +217,7 @@ describe('match archival', () => {
     );
 
     const body = JSON.parse(
-      r2._objects.get('matches/FALL-m1.json') ?? '{}',
+      r2.objects.get('matches/FALL-m1.json') ?? '{}',
     ) as MatchArchive;
 
     expect(body.createdAt).toBe(5000);

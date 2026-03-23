@@ -35,8 +35,8 @@ const mockDb = () => {
 
   return {
     prepare: prepareFn,
-    _bind: bindFn,
-    _run: runFn,
+    bind: bindFn,
+    run: runFn,
   };
 };
 
@@ -305,7 +305,7 @@ describe('/error endpoint', () => {
     await ctx.waitUntil.mock.calls[0][0];
 
     expect(env.DB.prepare).toHaveBeenCalled();
-    const bindArgs = env.DB._bind.mock.calls[0] as unknown[];
+    const bindArgs = env.DB.bind.mock.calls[0] as unknown[];
     // event should be 'client_error'
     expect(bindArgs[2]).toBe('client_error');
   });
@@ -455,7 +455,7 @@ describe('/telemetry endpoint', () => {
     await ctx.waitUntil.mock.calls[0][0];
 
     expect(env.DB.prepare).toHaveBeenCalled();
-    const bindArgs = env.DB._bind.mock.calls[0] as unknown[];
+    const bindArgs = env.DB.bind.mock.calls[0] as unknown[];
     // ts, anonId, event, props, ipHash, ua
     expect(bindArgs[0]).toBe(999); // ts
     expect(bindArgs[1]).toBe('abc-123'); // anonId
@@ -466,7 +466,7 @@ describe('/telemetry endpoint', () => {
 
   it('returns 204 even if D1 insert fails', async () => {
     const { env } = createEnv();
-    env.DB._run.mockRejectedValueOnce(new Error('D1 down'));
+    env.DB.run.mockRejectedValueOnce(new Error('D1 down'));
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
