@@ -531,7 +531,79 @@ describe('processCombat', () => {
       const antiNuke = result.results.find((r) => r.targetType === 'ordnance');
       expect(antiNuke).toBeDefined();
       expect(antiNuke?.damageType).toBe('eliminated');
+      expect(result.engineEvents).toContainEqual({
+        type: 'combatAttack',
+        attackerIds: ['a0'],
+        targetId: 'ord0',
+        targetType: 'ordnance',
+        attackType: 'antiNuke',
+        roll: 6,
+        modifiedRoll: 4,
+        damageType: 'eliminated',
+        disabledTurns: 0,
+      });
+      expect(result.engineEvents).toContainEqual({
+        type: 'ordnanceDestroyed',
+        ordnanceId: 'ord0',
+        cause: 'antiNuke',
+      });
     }
+  });
+  it('emits explicit counterattack events', () => {
+    const state = makeCombatState({
+      ships: [
+        makeShip({
+          id: 'a0',
+          owner: 0,
+          position: { q: 0, r: 0 },
+          lastMovementPath: [{ q: 0, r: 0 }],
+        }),
+        makeShip({
+          id: 'e0',
+          owner: 1,
+          position: { q: 1, r: 0 },
+          lastMovementPath: [{ q: 1, r: 0 }],
+        }),
+      ],
+    });
+    const result = processCombat(
+      state,
+      0,
+      [{ attackerIds: ['a0'], targetId: 'e0' }],
+      openMap,
+      () => 0.7,
+    );
+    expect('error' in result).toBe(false);
+    if ('error' in result) {
+      return;
+    }
+
+    expect(
+      result.engineEvents.filter((event) => event.type === 'combatAttack'),
+    ).toContainEqual({
+      type: 'combatAttack',
+      attackerIds: ['a0'],
+      targetId: 'e0',
+      targetType: 'ship',
+      attackType: 'gun',
+      roll: 5,
+      modifiedRoll: 4,
+      damageType: 'disabled',
+      disabledTurns: 2,
+    });
+    expect(
+      result.engineEvents.filter((event) => event.type === 'combatAttack'),
+    ).toContainEqual({
+      type: 'combatAttack',
+      attackerIds: ['e0'],
+      targetId: 'a0',
+      targetType: 'ship',
+      attackType: 'gun',
+      roll: 5,
+      modifiedRoll: 4,
+      damageType: 'disabled',
+      disabledTurns: 2,
+    });
   });
   it('returns results when winner found after hazards', () => {
     const state = makeCombatState();
