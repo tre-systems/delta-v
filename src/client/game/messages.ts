@@ -55,6 +55,7 @@ export type ClientMessagePlan =
   | {
       kind: 'error';
       message: string;
+      code?: import('../../shared/types/domain').ErrorCode;
     }
   | {
       kind: 'chat';
@@ -126,6 +127,7 @@ export const deriveClientMessagePlan = (
       return {
         kind: 'error',
         message: msg.message,
+        code: msg.code,
       };
     case 'chat':
       return { kind: 'chat', playerId: msg.playerId, text: msg.text };

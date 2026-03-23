@@ -1,16 +1,19 @@
 import { ORDNANCE_LIFETIME, ORDNANCE_MASS, SHIP_STATS } from '../constants';
 import { HEX_DIRECTIONS } from '../hex';
-import type {
-  AstrogationOrder,
-  GameState,
-  OrdnanceLaunch,
-  SolarSystemMap,
+import {
+  type AstrogationOrder,
+  type EngineError,
+  ErrorCode,
+  type GameState,
+  type OrdnanceLaunch,
+  type SolarSystemMap,
 } from '../types';
 import type { EngineEvent } from './engine-events';
 import type { MovementResult, StateUpdateResult } from './game-engine';
 import { shouldEnterOrdnancePhase } from './ordnance';
 import { resolveMovementPhase } from './resolve-movement';
 import {
+  engineFailure,
   getNextOrdnanceId,
   isOrderableShip,
   validateOrdnanceLaunch,
@@ -22,17 +25,23 @@ const validateAstrogationOrders = (
   state: GameState,
   playerId: number,
   orders: AstrogationOrder[],
-): string | null => {
+): EngineError | null => {
   const seenShips = new Set<string>();
   for (const order of orders) {
     if (seenShips.has(order.shipId)) {
-      return 'Each ship may receive at most one' + ' astrogation order';
+      return {
+        code: ErrorCode.INVALID_INPUT,
+        message: 'Each ship may receive at most one' + ' astrogation order',
+      };
     }
     seenShips.add(order.shipId);
     const ship = state.ships.find((s) => s.id === order.shipId);
 
     if (!ship || ship.owner !== playerId) {
-      return 'Invalid ship for astrogation order';
+      return {
+        code: ErrorCode.INVALID_SHIP,
+        message: 'Invalid ship for astrogation order',
+      };
     }
 
     if (!isOrderableShip(ship)) {
@@ -43,40 +52,64 @@ const validateAstrogationOrders = (
       ) {
         continue;
       }
-      return 'Ship cannot receive astrogation orders';
+      return {
+        code: ErrorCode.NOT_ALLOWED,
+        message: 'Ship cannot receive astrogation orders',
+      };
     }
     const isDisabled = ship.damage.disabledTurns > 0;
     const burn = isDisabled ? null : order.burn;
     const overload = isDisabled ? null : (order.overload ?? null);
 
     if (burn !== null && (burn < 0 || burn > 5)) {
-      return 'Invalid burn direction';
+      return {
+        code: ErrorCode.INVALID_INPUT,
+        message: 'Invalid burn direction',
+      };
     }
 
     if (burn !== null && ship.fuel <= 0) {
-      return 'No fuel remaining';
+      return {
+        code: ErrorCode.RESOURCE_LIMIT,
+        message: 'No fuel remaining',
+      };
     }
 
     if (overload !== null && (overload < 0 || overload > 5)) {
-      return 'Invalid overload direction';
+      return {
+        code: ErrorCode.INVALID_INPUT,
+        message: 'Invalid overload direction',
+      };
     }
 
     if (overload !== null) {
       if (burn === null) {
-        return 'Overload requires a primary burn';
+        return {
+          code: ErrorCode.INVALID_INPUT,
+          message: 'Overload requires a primary burn',
+        };
       }
       const stats = SHIP_STATS[ship.type];
 
       if (!stats?.canOverload) {
-        return 'This ship cannot overload';
+        return {
+          code: ErrorCode.NOT_ALLOWED,
+          message: 'This ship cannot overload',
+        };
       }
 
       if (ship.fuel < 2) {
-        return 'Insufficient fuel for overload';
+        return {
+          code: ErrorCode.RESOURCE_LIMIT,
+          message: 'Insufficient fuel for overload',
+        };
       }
 
       if (ship.overloadUsed) {
-        return 'Overload already used since last' + ' maintenance';
+        return {
+          code: ErrorCode.STATE_CONFLICT,
+          message: 'Overload already used since last' + ' maintenance',
+        };
       }
     }
   }
@@ -91,7 +124,7 @@ export const processAstrogation = (
   orders: AstrogationOrder[],
   map: SolarSystemMap,
   rng: () => number,
-): MovementResult | StateUpdateResult | { error: string } => {
+): MovementResult | StateUpdateResult | { error: EngineError } => {
   const state = structuredClone(inputState);
   const engineEvents: EngineEvent[] = [];
 
@@ -153,7 +186,7 @@ export const processOrdnance = (
   launches: OrdnanceLaunch[],
   map: SolarSystemMap,
   rng: () => number,
-): MovementResult | { error: string } => {
+): MovementResult | { error: EngineError } => {
   const state = structuredClone(inputState);
   const engineEvents: EngineEvent[] = [];
 
@@ -165,17 +198,19 @@ export const processOrdnance = (
 
   for (const launch of launches) {
     if (launchedShips.has(launch.shipId)) {
-      return {
-        error: 'Each ship may launch only one' + ' ordnance per turn',
-      };
+      return engineFailure(
+        ErrorCode.INVALID_INPUT,
+        'Each ship may launch only one' + ' ordnance per turn',
+      );
     }
 
     const ship = state.ships.find((s) => s.id === launch.shipId);
 
     if (!ship || ship.owner !== playerId) {
-      return {
-        error: 'Invalid ship for ordnance launch',
-      };
+      return engineFailure(
+        ErrorCode.INVALID_SHIP,
+        'Invalid ship for ordnance launch',
+      );
     }
 
     const shipError = validateOrdnanceLaunch(state, ship, launch.ordnanceType);
@@ -184,9 +219,10 @@ export const processOrdnance = (
 
     if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
       if (launch.torpedoAccel < 0 || launch.torpedoAccel > 5) {
-        return {
-          error: 'Invalid torpedo acceleration direction',
-        };
+        return engineFailure(
+          ErrorCode.INVALID_INPUT,
+          'Invalid torpedo acceleration direction',
+        );
       }
 
       if (
@@ -194,17 +230,19 @@ export const processOrdnance = (
         launch.torpedoAccelSteps !== 1 &&
         launch.torpedoAccelSteps !== 2
       ) {
-        return {
-          error: 'Invalid torpedo acceleration distance',
-        };
+        return engineFailure(
+          ErrorCode.INVALID_INPUT,
+          'Invalid torpedo acceleration distance',
+        );
       }
     } else if (
       launch.torpedoAccel != null ||
       launch.torpedoAccelSteps != null
     ) {
-      return {
-        error: 'Only torpedoes use launch acceleration',
-      };
+      return engineFailure(
+        ErrorCode.INVALID_INPUT,
+        'Only torpedoes use launch acceleration',
+      );
     }
 
     if (launch.ordnanceType === 'mine') {
@@ -215,9 +253,10 @@ export const processOrdnance = (
         pendingOrder?.burn != null || pendingOrder?.overload != null;
 
       if (!hasBurn) {
-        return {
-          error: 'Ship must change course when' + ' launching a mine',
-        };
+        return engineFailure(
+          ErrorCode.NOT_ALLOWED,
+          'Ship must change course when' + ' launching a mine',
+        );
       }
     }
 
@@ -236,9 +275,10 @@ export const processOrdnance = (
     const ship = state.ships.find((s) => s.id === launch.shipId);
 
     if (!ship || ship.owner !== playerId) {
-      return {
-        error: 'Invalid ship for ordnance launch',
-      };
+      return engineFailure(
+        ErrorCode.INVALID_SHIP,
+        'Invalid ship for ordnance launch',
+      );
     }
 
     const mass = ORDNANCE_MASS[launch.ordnanceType];
@@ -303,7 +343,7 @@ export const skipOrdnance = (
   playerId: number,
   map: SolarSystemMap,
   rng: () => number,
-): MovementResult | StateUpdateResult | { error: string } => {
+): MovementResult | StateUpdateResult | { error: EngineError } => {
   const state = structuredClone(inputState);
 
   const phaseError = validatePhaseAction(state, playerId, 'ordnance');

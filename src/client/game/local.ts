@@ -42,7 +42,7 @@ export const resolveAstrogationStep = (
   const result = processAstrogation(state, playerId, orders, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error };
+    return { kind: 'error', error: result.error.message };
   }
 
   if (isMovementResult(result)) {
@@ -60,7 +60,7 @@ export const resolveOrdnanceStep = (
   const result = processOrdnance(state, playerId, launches, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error };
+    return { kind: 'error', error: result.error.message };
   }
   return { kind: 'movement', result };
 };
@@ -73,7 +73,7 @@ export const resolveSkipOrdnanceStep = (
   const result = skipOrdnance(state, playerId, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error };
+    return { kind: 'error', error: result.error.message };
   }
 
   if (isMovementResult(result)) {
@@ -91,7 +91,7 @@ export const resolveBeginCombatStep = (
   const result = beginCombatPhase(state, playerId, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error };
+    return { kind: 'error', error: result.error.message };
   }
 
   if (hasCombatResults(result)) {
@@ -117,7 +117,7 @@ export const resolveCombatStep = (
   const result = processCombat(state, playerId, attacks, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error };
+    return { kind: 'error', error: result.error.message };
   }
   return {
     kind: 'combat',
@@ -137,7 +137,7 @@ export const resolveSkipCombatStep = (
   const result = skipCombat(state, playerId, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error };
+    return { kind: 'error', error: result.error.message };
   }
 
   if (hasCombatResults(result)) {
@@ -161,7 +161,7 @@ export const resolveLogisticsStep = (
   const result = processLogistics(state, playerId, transfers, map);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error };
+    return { kind: 'error', error: result.error.message };
   }
   return { kind: 'state', state: result.state };
 };
@@ -174,7 +174,7 @@ export const resolveSkipLogisticsStep = (
   const result = skipLogistics(state, playerId, map);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error };
+    return { kind: 'error', error: result.error.message };
   }
   return { kind: 'state', state: result.state };
 };

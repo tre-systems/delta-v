@@ -108,7 +108,7 @@ export const resolveOrdnanceLaunchPlan = (
   const error = validateOrdnanceLaunch(state, ship, ordnanceType);
 
   if (error) {
-    return { ok: false, message: error, level: 'error' };
+    return { ok: false, message: error.message, level: 'error' };
   }
 
   return {

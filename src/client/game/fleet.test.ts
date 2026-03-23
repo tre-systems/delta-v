@@ -6,7 +6,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
-import type { FleetPurchase } from '../../shared/types/domain';
+import { ErrorCode, type FleetPurchase } from '../../shared/types/domain';
 import type { ScenarioDefinition } from '../../shared/types/scenario';
 import { buildAIFleetPurchases, resolveLocalFleetReady } from './fleet';
 
@@ -104,7 +104,12 @@ describe('game-client-fleet', () => {
     const processReady = vi
       .fn()
       .mockReturnValueOnce({ state })
-      .mockReturnValueOnce({ error: 'AI fleet build failed' });
+      .mockReturnValueOnce({
+        error: {
+          code: ErrorCode.STATE_CONFLICT,
+          message: 'AI fleet build failed',
+        },
+      });
 
     const buildAIPurchases = vi.fn((): FleetPurchase[] => [
       { shipType: 'corsair' },

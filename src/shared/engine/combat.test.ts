@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { must } from '../assert';
 import { hexKey } from '../hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
-import type { GameState, Ordnance, Ship, SolarSystemMap } from '../types';
+import type {
+  EngineError,
+  GameState,
+  Ordnance,
+  Ship,
+  SolarSystemMap,
+} from '../types';
 import {
   beginCombatPhase,
   processCombat,
@@ -94,16 +100,21 @@ const makeCombatState = (overrides: Partial<GameState> = {}): GameState => ({
   winReason: null,
   ...overrides,
 });
+const getErrorMessage = (error: EngineError): string => error.message;
 describe('beginCombatPhase', () => {
   it('rejects when not in combat phase', () => {
     const state = makeCombatState({ phase: 'astrogation' });
     const result = beginCombatPhase(state, 0, openMap, Math.random);
-    expect('error' in result && result.error).toContain('Not in combat phase');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'Not in combat phase',
+    );
   });
   it('rejects when not active player', () => {
     const state = makeCombatState({ activePlayer: 1 });
     const result = beginCombatPhase(state, 0, openMap, Math.random);
-    expect('error' in result && result.error).toContain('Not your turn');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'Not your turn',
+    );
   });
   it('returns state when winner exists after asteroid hazards', () => {
     const state = makeCombatState({ winner: null });
@@ -136,12 +147,16 @@ describe('processCombat', () => {
   it('rejects when not in combat phase', () => {
     const state = makeCombatState({ phase: 'astrogation' });
     const result = processCombat(state, 0, [], openMap, Math.random);
-    expect('error' in result && result.error).toContain('Not in combat phase');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'Not in combat phase',
+    );
   });
   it('rejects when not active player', () => {
     const state = makeCombatState({ activePlayer: 1 });
     const result = processCombat(state, 0, [], openMap, Math.random);
-    expect('error' in result && result.error).toContain('Not your turn');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'Not your turn',
+    );
   });
   it('rejects attacks when combatDisabled', () => {
     const state = makeCombatState({
@@ -154,7 +169,9 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain('not allowed');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'not allowed',
+    );
   });
   it('rejects duplicate attacker ids within same attack', () => {
     const state = makeCombatState();
@@ -165,7 +182,9 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain('at most once');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'at most once',
+    );
   });
   it('rejects invalid attacker (wrong owner)', () => {
     const state = makeCombatState();
@@ -176,7 +195,9 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain('Invalid attacker');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'Invalid attacker',
+    );
   });
   it('rejects empty attackers', () => {
     const state = makeCombatState();
@@ -187,7 +208,9 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain('Invalid attacker');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'Invalid attacker',
+    );
   });
   it('rejects attacking landed ship', () => {
     const state = makeCombatState();
@@ -199,7 +222,7 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain(
+    expect('error' in result && getErrorMessage(result.error)).toContain(
       'Invalid combat target',
     );
   });
@@ -244,7 +267,9 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain('same hex');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'same hex',
+    );
   });
   it('rejects invalid declared attack strength', () => {
     const state = makeCombatState();
@@ -261,7 +286,7 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain(
+    expect('error' in result && getErrorMessage(result.error)).toContain(
       'Invalid declared attack strength',
     );
   });
@@ -317,7 +342,7 @@ describe('processCombat', () => {
       openMap,
       () => 0.99,
     );
-    expect('error' in result && result.error).toContain(
+    expect('error' in result && getErrorMessage(result.error)).toContain(
       'no strength remaining',
     );
   });
@@ -363,7 +388,7 @@ describe('processCombat', () => {
       openMap,
       () => 0.99,
     );
-    expect('error' in result && result.error).toContain(
+    expect('error' in result && getErrorMessage(result.error)).toContain(
       'cannot split fire between ship and ordnance',
     );
   });
@@ -390,7 +415,7 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain(
+    expect('error' in result && getErrorMessage(result.error)).toContain(
       'Invalid combat target',
     );
   });
@@ -417,7 +442,7 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain(
+    expect('error' in result && getErrorMessage(result.error)).toContain(
       'Reduced-strength attacks are only supported against ships',
     );
   });
@@ -443,7 +468,7 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain(
+    expect('error' in result && getErrorMessage(result.error)).toContain(
       'Invalid combat target',
     );
   });
@@ -470,7 +495,7 @@ describe('processCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain(
+    expect('error' in result && getErrorMessage(result.error)).toContain(
       'Invalid combat target',
     );
   });
@@ -619,12 +644,16 @@ describe('skipCombat', () => {
   it('rejects when not in combat phase', () => {
     const state = makeCombatState({ phase: 'astrogation' });
     const result = skipCombat(state, 0, openMap, Math.random);
-    expect('error' in result && result.error).toContain('Not in combat phase');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'Not in combat phase',
+    );
   });
   it('rejects when not active player', () => {
     const state = makeCombatState({ activePlayer: 1 });
     const result = skipCombat(state, 0, openMap, Math.random);
-    expect('error' in result && result.error).toContain('Not your turn');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'Not your turn',
+    );
   });
   it('advances turn when no base defense', () => {
     const state = makeCombatState();
@@ -742,7 +771,9 @@ describe('processCombat -- additional edge cases', () => {
       openMap,
       () => 0.99,
     );
-    expect('error' in result && result.error).toContain('attacked only once');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'attacked only once',
+    );
   });
   it('rejects ordnance attack when group has no remaining strength', () => {
     const state = makeCombatState();
@@ -791,7 +822,7 @@ describe('processCombat -- additional edge cases', () => {
       openMap,
       () => 0.99,
     );
-    expect('error' in result && result.error).toContain(
+    expect('error' in result && getErrorMessage(result.error)).toContain(
       'no strength remaining',
     );
   });
@@ -852,7 +883,9 @@ describe('processCombat -- additional edge cases', () => {
       bodyMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain('line of sight');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'line of sight',
+    );
   });
   it('rejects ship attack when attacker lacks LOS through body', () => {
     const bodyMap: SolarSystemMap = {
@@ -898,7 +931,9 @@ describe('processCombat -- additional edge cases', () => {
       bodyMap,
       Math.random,
     );
-    expect('error' in result && result.error).toContain('line of sight');
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'line of sight',
+    );
   });
   it('resolves successful ship combat with results', () => {
     const state = makeCombatState();

@@ -13,18 +13,21 @@ import {
 } from '../combat';
 import { ANTI_NUKE_ODDS, SHIP_STATS } from '../constants';
 import { hexDistance, hexKey } from '../hex';
-import type {
-  CombatAttack,
-  CombatResult,
-  GameState,
-  Ordnance,
-  Ship,
-  SolarSystemMap,
+import {
+  type CombatAttack,
+  type CombatResult,
+  type EngineError,
+  ErrorCode,
+  type GameState,
+  type Ordnance,
+  type Ship,
+  type SolarSystemMap,
 } from '../types';
 import { sumBy } from '../util';
 import type { EngineEvent } from './engine-events';
 import { resolvePendingAsteroidHazards } from './ordnance';
 import {
+  engineFailure,
   getOwnedPlanetaryBases,
   hasAnyEnemyShips,
   isPlanetaryDefenseEnabled,
@@ -245,7 +248,7 @@ export const beginCombatPhase = (
 ):
   | CombatPhaseResult
   | { state: GameState; engineEvents: EngineEvent[] }
-  | { error: string } => {
+  | { error: EngineError } => {
   const state = structuredClone(inputState);
   const engineEvents: EngineEvent[] = [];
 
@@ -291,7 +294,7 @@ export const processCombat = (
   attacks: CombatAttack[],
   map: SolarSystemMap,
   rng: () => number,
-): CombatPhaseResult | { error: string } => {
+): CombatPhaseResult | { error: EngineError } => {
   const state = structuredClone(inputState);
   const engineEvents: EngineEvent[] = [];
 
@@ -318,9 +321,10 @@ export const processCombat = (
   const hazardCount = results.length;
 
   if (state.scenarioRules.combatDisabled && attacks.length > 0) {
-    return {
-      error: 'Combat is not allowed in this scenario',
-    };
+    return engineFailure(
+      ErrorCode.NOT_ALLOWED,
+      'Combat is not allowed in this scenario',
+    );
   }
 
   const committedAttackers = new Map<string, string>();
@@ -343,7 +347,11 @@ export const processCombat = (
     for (const id of attack.attackerIds) {
       if (attackSeen.has(id)) {
         return {
-          error: 'Each ship may appear at most once in an attack declaration',
+          error: {
+            code: ErrorCode.INVALID_INPUT,
+            message:
+              'Each ship may appear at most once in an attack declaration',
+          },
         };
       }
 
@@ -351,18 +359,27 @@ export const processCombat = (
 
       if (existingGroup && existingGroup !== groupKey) {
         return {
-          error: 'Each ship may attack only once per combat phase',
+          error: {
+            code: ErrorCode.STATE_CONFLICT,
+            message: 'Each ship may attack only once per combat phase',
+          },
         };
       }
 
       const ship = state.ships.find((s) => s.id === id);
 
       if (!ship || ship.owner !== playerId) {
-        return { error: 'Invalid attacker selection' };
+        return engineFailure(
+          ErrorCode.INVALID_SELECTION,
+          'Invalid attacker selection',
+        );
       }
 
       if (!existingGroup && !canAttack(ship)) {
-        return { error: 'Invalid attacker selection' };
+        return engineFailure(
+          ErrorCode.INVALID_SELECTION,
+          'Invalid attacker selection',
+        );
       }
 
       attackSeen.add(id);
@@ -370,7 +387,10 @@ export const processCombat = (
     }
 
     if (attackers.length === 0) {
-      return { error: 'Invalid attacker selection' };
+      return engineFailure(
+        ErrorCode.INVALID_SELECTION,
+        'Invalid attacker selection',
+      );
     }
 
     const targetType = attack.targetType ?? 'ship';
@@ -383,7 +403,10 @@ export const processCombat = (
 
     if (committedTargets.has(targetKey)) {
       return {
-        error: 'Each ship may be attacked only once per combat phase',
+        error: {
+          code: ErrorCode.STATE_CONFLICT,
+          message: 'Each ship may be attacked only once per combat phase',
+        },
       };
     }
 
@@ -403,8 +426,11 @@ export const processCombat = (
       attackGroups.set(groupKey, group);
     } else if (group.targetType !== targetType) {
       return {
-        error:
-          'An attacking group cannot split fire between ship and ordnance targets',
+        error: {
+          code: ErrorCode.INVALID_INPUT,
+          message:
+            'An attacking group cannot split fire between ship and ordnance targets',
+        },
       };
     }
 
@@ -412,7 +438,10 @@ export const processCombat = (
 
     if (remainingStrength <= 0) {
       return {
-        error: 'Attack group has no strength remaining to allocate',
+        error: {
+          code: ErrorCode.RESOURCE_LIMIT,
+          message: 'Attack group has no strength remaining to allocate',
+        },
       };
     }
 
@@ -421,14 +450,19 @@ export const processCombat = (
     if (targetType === 'ordnance') {
       if (group.allocatedStrength > 0) {
         return {
-          error: 'Split fire is only supported against ships in the same hex',
+          error: {
+            code: ErrorCode.INVALID_INPUT,
+            message:
+              'Split fire is only supported against ships in the same hex',
+          },
         };
       }
 
       if (attack.attackStrength != null) {
-        return {
-          error: 'Reduced-strength attacks are only supported against ships',
-        };
+        return engineFailure(
+          ErrorCode.INVALID_INPUT,
+          'Reduced-strength attacks are only supported against ships',
+        );
       }
 
       const target = state.ordnance.find((o) => o.id === attack.targetId);
@@ -439,7 +473,7 @@ export const processCombat = (
         target.lifecycle === 'destroyed' ||
         target.type !== 'nuke'
       ) {
-        return { error: 'Invalid combat target' };
+        return engineFailure(ErrorCode.INVALID_TARGET, 'Invalid combat target');
       }
 
       if (
@@ -449,7 +483,10 @@ export const processCombat = (
         )
       ) {
         return {
-          error: 'Attacker lacks line of sight to target',
+          error: {
+            code: ErrorCode.NOT_ALLOWED,
+            message: 'Attacker lacks line of sight to target',
+          },
         };
       }
 
@@ -463,14 +500,17 @@ export const processCombat = (
     const target = state.ships.find((s) => s.id === attack.targetId);
 
     if (!target || target.owner === playerId || target.lifecycle !== 'active') {
-      return { error: 'Invalid combat target' };
+      return engineFailure(ErrorCode.INVALID_TARGET, 'Invalid combat target');
     }
 
     const targetHexKey = hexKey(target.position);
 
     if (group.targetHexKey && group.targetHexKey !== targetHexKey) {
       return {
-        error: 'Split fire may only target ships in the same hex',
+        error: {
+          code: ErrorCode.INVALID_INPUT,
+          message: 'Split fire may only target ships in the same hex',
+        },
       };
     }
 
@@ -481,7 +521,10 @@ export const processCombat = (
         attack.attackStrength > remainingStrength
       ) {
         return {
-          error: 'Invalid declared attack strength',
+          error: {
+            code: ErrorCode.INVALID_INPUT,
+            message: 'Invalid declared attack strength',
+          },
         };
       }
     }
@@ -491,7 +534,10 @@ export const processCombat = (
       attackers.some((attacker) => !hasLineOfSight(attacker, target, map))
     ) {
       return {
-        error: 'Attacker lacks line of sight to target',
+        error: {
+          code: ErrorCode.NOT_ALLOWED,
+          message: 'Attacker lacks line of sight to target',
+        },
       };
     }
 
@@ -542,7 +588,7 @@ export const skipCombat = (
   rng: () => number,
 ):
   | { state: GameState; results?: CombatResult[]; engineEvents: EngineEvent[] }
-  | { error: string } => {
+  | { error: EngineError } => {
   const state = structuredClone(inputState);
   const engineEvents: EngineEvent[] = [];
 

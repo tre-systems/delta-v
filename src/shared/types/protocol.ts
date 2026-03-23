@@ -2,6 +2,7 @@ import type {
   AstrogationOrder,
   CombatAttack,
   CombatResult,
+  ErrorCode,
   FleetPurchase,
   GameState,
   MovementEvent,
@@ -65,5 +66,5 @@ export type S2C =
       playerId: number;
       text: string;
     }
-  | { type: 'error'; message: string }
+  | { type: 'error'; message: string; code?: ErrorCode }
   | { type: 'pong'; t: number };

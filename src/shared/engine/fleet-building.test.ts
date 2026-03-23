@@ -65,7 +65,7 @@ describe('fleet building (MegaCredit economy)', () => {
       findBaseHex,
     );
     const r1 = processFleetReady(state, 0, [{ shipType: 'corvette' }], map);
-    if ('error' in r1) throw new Error(r1.error);
+    if ('error' in r1) throw new Error(r1.error.message);
     const r2 = processFleetReady(r1.state, 1, [{ shipType: 'corsair' }], map);
     expect('error' in r2).toBe(false);
     if ('state' in r2) {
@@ -88,7 +88,7 @@ describe('fleet building (MegaCredit economy)', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('Not enough credits');
+      expect(result.error.message).toContain('Not enough credits');
     }
   });
   it('rejects unknown ship type', () => {
@@ -126,7 +126,7 @@ describe('fleet building (MegaCredit economy)', () => {
     const result = processFleetReady(state, 0, [], map);
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('Not in fleet building');
+      expect(result.error.message).toContain('Not in fleet building');
     }
   });
 });
