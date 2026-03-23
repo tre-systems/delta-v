@@ -126,6 +126,19 @@ This is the heart of the project. All game rules live in a shared folder, making
 - **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [RNG Injection](#rng-injection).
 - **Domain event emission**: All engine entry points emit `EngineEvent[]` (31 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
 
+#### AI Strategy Design (`ai.ts`, `ai-config.ts`, `ai-scoring.ts`)
+
+The AI uses a **config-weighted composable scoring** architecture rather than a monolithic decision tree:
+
+- **`ai-config.ts`** defines `AIDifficultyConfig` — a flat record of ~70 numeric weights and boolean flags. Three presets (`easy`, `normal`, `hard`) tune aggression, accuracy, and capability without changing any logic. This is the [Strategy pattern](https://refactoring.guru/design-patterns/strategy) expressed as data rather than class hierarchies.
+- **`ai-scoring.ts`** contains composable scoring functions, each handling one concern: `scoreNavigation` (distance/speed toward objective), `scoreEscape` (distance from center + velocity), `scoreRaceDanger` (gravity well proximity penalty), `scoreCombatTarget` (threat assessment). Each takes a course candidate and a config, returns a number.
+- **`ai.ts`** orchestrates: for each AI ship, enumerate all 7 burn options (6 hex directions + null), compute each course via `computeCourse()`, sum scores across all strategies, pick the highest. Combat and ordnance decisions follow the same evaluate-all-options-then-pick pattern.
+
+This separation means:
+- New scoring dimensions are added by writing a new function and a new config weight — no existing functions change.
+- Difficulty tuning is pure data: adjust weights in `AI_CONFIG` without touching scoring logic.
+- All AI functions accept `rng` for deterministic testing of decision quality.
+
 #### Engine Mutation Model
 
 The shared engine is **side-effect-free** (no I/O) and **externally immutable**. All 11 engine entry points (`processAstrogation`, `processOrdnance`, `skipOrdnance`, `processFleetReady`, `beginCombatPhase`, `processCombat`, `skipCombat`, `processLogistics`, `skipLogistics`, `processSurrender`, `processEmplacement`) call `structuredClone(inputState)` on entry. Internally, the clone is mutated in place for efficiency, but the caller's state is never touched. Callers must use the returned `result.state`.
@@ -241,6 +254,76 @@ Delta-V is a fully installable PWA. A lightweight hand-written service worker pr
 - **Network/API passthrough**: The service worker never intercepts non-`GET` requests and explicitly bypasses multiplayer/reporting routes (`/ws/*`, `/create`, `/join/*`, `/error`, `/telemetry`), ensuring sockets, join validation, and reporting stay authoritative.
 - **Stale-while-revalidate** for static assets and **network-first** for navigation, complementing Cloudflare's edge caching rather than fighting it.
 - **Automatic cache busting**: The build script (`esbuild.client.mjs`) injects a content hash into the SW cache name, so every deploy with code changes triggers automatic SW update and page reload.
+
+### E. Build Pipeline
+
+The project uses minimal, fast build tooling with no
+heavy bundler configuration:
+
+- **Client bundle**: `esbuild.client.mjs` produces a
+  single ESM bundle from `src/client/main.ts`. Production
+  builds minify; dev builds include source maps. esbuild
+  was chosen for sub-second build times.
+- **Server bundle**: `wrangler` handles server
+  compilation and deployment. `wrangler dev` provides
+  local development with Durable Object simulation.
+- **Cache busting**: The build script hashes the output
+  bundle and CSS, then injects the hash into the service
+  worker's cache name (`delta-v-${hash}`). Every deploy
+  with code changes triggers automatic SW update.
+- **Type checking**: `tsc --noEmit` runs separately from
+  bundling — esbuild strips types without checking them.
+- **Linting**: Biome runs as a pre-commit hook and in CI.
+- **Cloudflare bindings** (`wrangler.toml`):
+
+  | Binding | Type | Purpose |
+  |---------|------|---------|
+  | `GAME` | Durable Object | Authoritative game rooms |
+  | `DB` | D1 | Telemetry database |
+  | `MATCH_ARCHIVE` | R2 | Completed match storage |
+  | `CREATE_RATE_LIMITER` | Rate Limit | 5 creates/IP/60s |
+
+### F. Testing Infrastructure
+
+Testing uses vitest with co-located test files, property-
+based testing via fast-check, and coverage enforcement on
+the shared engine.
+
+**Test organization:**
+- Unit tests: `foo.test.ts` next to `foo.ts`
+- Property tests: `foo.property.test.ts` next to `foo.ts`
+- Contract fixtures: JSON files in `__fixtures__/`
+  directories for protocol shape assertions
+- No `__tests__/` folders
+
+**Mock patterns for Durable Objects:**
+- `MockStorage`: In-memory `Map<string, unknown>` with
+  `get`, `put`, `delete`, `list` matching the DO storage
+  API. Supports atomic multi-key `put(Record<string, T>)`.
+- `MockDurableObjectState`: Tracks sockets via `WeakMap`
+  for tag-based lookup, matching the hibernatable
+  WebSocket API surface (`acceptWebSocket`,
+  `getWebSockets`, `getTags`).
+
+**Deterministic RNG in tests:**
+Engine tests pass a deterministic `rng` function
+(e.g. `() => 0.5` or a seeded sequence) to reproduce
+exact outcomes. This is why RNG injection is mandatory
+for all turn-resolution entry points.
+
+**Property-based test generators:**
+Custom fast-check arbitraries generate valid game inputs
+within bounded ranges (`arbCoord()` for hex coordinates,
+`arbSmallVelocity()` for velocity vectors, etc.). Tests
+verify invariants that must hold across all inputs:
+fuel never goes negative, hex distance is symmetric,
+movement preserves conservation laws.
+
+**Coverage thresholds:**
+`src/shared/` has enforced coverage thresholds (statements,
+branches, functions, lines) via vitest config. The
+pre-commit hook and CI both run `test:coverage` to
+prevent backsliding.
 
 ### Library Stance
 

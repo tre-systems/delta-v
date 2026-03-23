@@ -208,6 +208,35 @@ representative fixture-style tests for:
 These tests are especially valuable before event-sourced
 replay work broadens the transport surface.
 
+### Guard validation (null-or-error helpers)
+
+Internal validation helpers return `null` on success or an
+error object on failure. This separates validation from
+control flow — the caller decides what to do with the error.
+
+```typescript
+const validatePhaseAction = (
+  state: GameState,
+  playerId: number,
+  requiredPhase: Phase,
+): EngineError | null => {
+  if (state.phase !== requiredPhase) {
+    return {
+      code: ErrorCode.INVALID_PHASE,
+      message: `Not in ${requiredPhase} phase`,
+    };
+  }
+  return null;
+};
+
+// Caller:
+const phaseError = validatePhaseAction(state, playerId, 'astrogation');
+if (phaseError) return { error: phaseError };
+```
+
+All validation happens before any mutations — fail fast,
+then proceed with a known-good state.
+
 ### Error returns
 
 Two error-return conventions exist, each for a different context:
@@ -233,6 +262,177 @@ if (!parsed.ok) return sendError(ws, parsed.error);
 ```
 
 Use **engine-style** for game logic results with heterogeneous success shapes. Use **protocol-style** for parse/validate functions that extract a typed value from untrusted input.
+
+### Event accumulation
+
+Engine functions collect domain events in a local array
+and return them alongside the result state. Events are
+never emitted as side effects — they are data returned
+from pure functions.
+
+```typescript
+const engineEvents: EngineEvent[] = [];
+
+// Push events as logic proceeds
+engineEvents.push({
+  type: 'shipMoved',
+  shipId: ship.id,
+  from, to, fuelSpent,
+});
+
+if (course.crashed) {
+  engineEvents.push({
+    type: 'shipCrashed', shipId: ship.id, hex,
+  });
+}
+
+// Compose events from sub-calls
+const subResult = resolvePostMovement(state, map, rng);
+engineEvents.push(...subResult.engineEvents);
+
+return { state, engineEvents };
+```
+
+Every engine entry point returns `engineEvents: EngineEvent[]`.
+Sub-functions return their own arrays, and the caller
+spreads them into its accumulator. The server reads
+`result.engineEvents` directly for persistence and
+broadcasting — no server-side event derivation.
+
+### Data-driven lookup tables
+
+Prefer declarative `Record<string, T>` tables and
+indexed arrays over scattered `if`/`switch` trees for
+game data such as ship stats, damage odds, ordnance mass,
+and detection ranges. Tables are easier to audit, diff,
+and extend than equivalent branching logic. See Steve
+McConnell's *Code Complete* (ch. 18, "Table-Driven
+Methods") for the underlying idea.
+
+```typescript
+// Named record table — lookup by key
+const SHIP_STATS: Record<string, ShipStats> = {
+  transport: {
+    name: 'Transport', combat: 1,
+    fuel: 10, cargo: 50,
+  },
+  corvette: {
+    name: 'Corvette', combat: 3,
+    fuel: 16, cargo: 0,
+  },
+};
+const stats = SHIP_STATS[ship.type];
+
+// Indexed array table — lookup by numeric index
+const GUN_COMBAT_TABLE: number[][] = [
+  [0, 0, 0, 0, 0, 0], // modified roll <= 0
+  [0, 0, 0, 0, 0, 2], // modified roll 1
+  [0, 0, 0, 0, 2, 3], // modified roll 2
+];
+const damage = GUN_COMBAT_TABLE[modRoll][oddsIndex];
+```
+
+When adding a new dimension of game data, create a new
+record constant in `constants.ts` rather than encoding
+it into function logic. This keeps the engine functions
+short and the data auditable in one place.
+
+### Composable configuration objects
+
+When behaviour varies by mode (difficulty level, scenario
+type, etc.), separate the *scoring/decision logic* from
+the *tuning weights*. Define a config type with numeric
+weights and flags, then pass it to pure scoring functions.
+
+```typescript
+// Config: what varies
+interface AIDifficultyConfig {
+  multiplier: number;
+  escapeDistWeight: number;
+  ordnanceSkipChance: number;
+  singleAttackOnly: boolean;
+}
+
+const AI_CONFIG: Record<AIDifficulty, AIDifficultyConfig> = {
+  easy:   { multiplier: 0.7, ordnanceSkipChance: 0.3, ... },
+  normal: { multiplier: 1.0, ordnanceSkipChance: 0,   ... },
+  hard:   { multiplier: 1.5, ordnanceSkipChance: 0,   ... },
+};
+
+// Scorer: how it's used (pure, composable)
+const scoreEscape = (
+  ship: Ship,
+  course: CourseResult,
+  cfg: AIDifficultyConfig,
+): number => {
+  let score = 0;
+  score += distFromCenter * cfg.escapeDistWeight * cfg.multiplier;
+  return score;
+};
+```
+
+Each scoring function handles one concern. The caller
+composes them by summing scores across all strategies.
+New behaviours are added by writing a new scorer and a
+new config weight — no existing functions change. This
+is the [Strategy pattern](https://refactoring.guru/design-patterns/strategy)
+expressed as plain functions + config data rather than
+class hierarchies.
+
+### Scenario rules as feature flags
+
+`ScenarioRules` controls behaviour variation across
+scenarios without engine changes. The engine checks rule
+flags at decision points:
+
+```typescript
+interface ScenarioRules {
+  allowedOrdnanceTypes?: Ordnance['type'][];
+  combatDisabled?: boolean;
+  logisticsEnabled?: boolean;
+  escapeEdge?: 'any' | 'north';
+  sharedBases?: string[];
+  reinforcements?: Reinforcement[];
+}
+
+// Engine checks:
+if (state.scenarioRules.combatDisabled) {
+  state.phase = 'resupply';
+  return { state, engineEvents };
+}
+```
+
+Defaults are permissive — omitting a field means the
+feature is available. This keeps simple scenarios minimal
+while complex ones opt-in to restrictions. Both engine
+validation and client UI derive from the same rule
+helpers, so restricted scenarios stay consistent across
+layers.
+
+### String-key serialization for Map lookups
+
+JavaScript `Map` and `Set` use reference equality for
+object keys. Coordinate-style value objects need a string
+serialization to serve as map keys. The `hexKey` /
+`parseHexKey` pair is the canonical example:
+
+```typescript
+const hexKey = ({ q, r }: HexCoord): string => `${q},${r}`;
+const parseHexKey = (key: string): HexCoord => {
+  const [q, r] = key.split(',').map(Number);
+  return { q, r };
+};
+
+// Usage:
+map.hexes.get(hexKey(ship.position));
+visited.add(hexKey(neighbor));
+```
+
+Use the same pattern for any value-object key: define a
+`xxxKey()` serializer and, if needed, a `parseXxxKey()`
+deserializer. See Red Blob Games'
+[Hexagonal Grids](https://www.redblobgames.com/grids/hexagons/)
+guide for background on hex coordinate systems.
 
 ### Function prefix conventions
 
@@ -262,6 +462,67 @@ Use **engine-style** for game logic results with heterogeneous success shapes. U
 - **Types/Interfaces**: PascalCase (`GameState`, `Ship`, `CombatActionDeps`)
 - **`interface`** for extensible data shapes (`GameState`, `Ship`, `CourseResult`)
 - **`type`** for discriminated unions and aliases (`C2S`, `S2C`, `GameCommand`, `LocalResolution`)
+
+### Type patterns
+
+**Bounded type modules.** Types are split across three
+files by ownership boundary: `types/domain.ts` (game
+state, ships, phases), `types/protocol.ts` (C2S/S2C
+messages), `types/scenario.ts` (scenario definitions,
+rules). A barrel `types/index.ts` re-exports all three.
+Import from the barrel in most code; import from the
+specific module only when you need to emphasise the
+boundary.
+
+**`Pick<T, K>` for narrow function signatures.** When a
+function only needs a few fields of a large interface,
+use `Pick` to document the minimal dependency. This
+makes the function easier to test (callers can pass a
+partial object) and signals intent to readers. See the
+TypeScript Handbook on
+[Utility Types](https://www.typescriptlang.org/docs/handbook/utility-types.html).
+
+```typescript
+const isAlive = (
+  s: Pick<Ship, 'lifecycle'>,
+): boolean => s.lifecycle !== 'destroyed';
+
+const isPlanetaryDefenseEnabled = (
+  state: Pick<GameState, 'scenarioRules'>,
+): boolean =>
+  state.scenarioRules.planetaryDefenseEnabled !== false;
+```
+
+Use `Pick` for helpers and predicates that are called
+from many sites. Full interfaces are fine for top-level
+engine entry points where the caller already has the
+complete object.
+
+**Lifecycle + control fields.** Entities with complex
+state use a small set of string-literal fields rather
+than boolean flags. `Ship` uses `lifecycle` (`active`,
+`landed`, `destroyed`) and `control` (`own`, `captured`,
+`surrendered`). Narrowing on these fields is more
+readable and exhaustive than checking multiple booleans.
+
+**`ReturnType<typeof createXxx>` for factory types.**
+When a factory function returns an object literal, derive
+the type from the function rather than declaring a
+separate interface:
+
+```typescript
+const createConnectionManager = (
+  deps: ConnectionManagerDeps,
+) => {
+  return { connect, disconnect, isConnected };
+};
+
+type ConnectionManager =
+  ReturnType<typeof createConnectionManager>;
+```
+
+This keeps the type in sync with the implementation
+automatically.
 
 ## Functional Style
 
@@ -389,6 +650,21 @@ and Mark Seemann on
 - **Pure functions** take only what they need as direct parameters. These are the `derive*`, `build*`, `resolve*`, `get*` functions in `game/helpers.ts`, `game/keyboard.ts`, `game/navigation.ts`, `game/burn.ts`, `game/combat.ts`, `game/messages.ts`, etc. They return values and have no side effects.
 
 - **Side-effecting functions** take a `deps` object as their first parameter. The `deps` interface declares the callbacks and state accessors the function needs (e.g. `getGameState()`, `showToast()`, `getTransport()`). This avoids long parameter lists and makes testing easy via mock objects. Examples: `CombatActionDeps`, `AstrogationActionDeps`, `PresentationDeps`, `LocalGameFlowDeps`.
+
+- **Callable getter deps** (`getXxx: () => T`): deps interfaces use getter functions rather than direct value references. This ensures the consumer always reads fresh state, breaks circular init-order dependencies, and makes the call site self-documenting about what varies:
+
+  ```typescript
+  interface HudControllerDeps {
+    getGameState: () => GameState | null;
+    getPlayerId: () => number;
+    getPlanningState: () => PlanningState;
+    getIsLocalGame: () => boolean;
+    ui: UIManager;    // stable reference, not a getter
+  }
+  ```
+
+  Use getters for state that changes over time. Use direct
+  references for stable service objects.
 
 - **Managers** use a factory pattern: `createXxx(deps: XxxDeps): XxxManager`. The returned object's methods close over the deps. Examples: `createConnectionManager()`, `createTurnTimerManager()`, `createLocalTransport()`, `createOverlayView()`, `createLobbyView()`, `createHUDChromeView()`, `createGameLogView()`, `createTurnTelemetryTracker()`.
 
