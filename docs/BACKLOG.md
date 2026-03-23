@@ -18,23 +18,6 @@ deterministically replayed.
 `src/shared/engine/combat.ts`,
 `src/shared/engine/ordnance.ts`
 
-### Reactive DOM listener cleanup
-
-Audit rerendered client views that bind event listeners
-inside reactive effects and ensure listeners tied to
-detached DOM nodes are cleaned up on each rerender, not
-only on final view disposal.
-
-Definition of done: list-style views can rerender
-repeatedly without accumulating stale listener cleanup
-callbacks, and tests cover at least one rerender-heavy
-view.
-
-**Files:** `src/client/reactive.ts`,
-`src/client/dom.ts`,
-`src/client/ui/ship-list-view.ts`,
-`src/client/ui/fleet-building-view.ts`
-
 ## Gameplay & Content
 
 ### Passenger rescue mechanics

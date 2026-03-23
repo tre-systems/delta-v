@@ -70,19 +70,19 @@ export const el = (
     }
 
     if (props.onClick) {
-      element.addEventListener('click', props.onClick as EventListener);
+      listen(element, 'click', props.onClick as EventListener);
     }
 
     if (props.onKeydown) {
-      element.addEventListener('keydown', props.onKeydown as EventListener);
+      listen(element, 'keydown', props.onKeydown as EventListener);
     }
 
     if (props.onInput) {
-      element.addEventListener('input', props.onInput as EventListener);
+      listen(element, 'input', props.onInput as EventListener);
     }
 
     if (props.onChange) {
-      element.addEventListener('change', props.onChange as EventListener);
+      listen(element, 'change', props.onChange as EventListener);
     }
   }
 
