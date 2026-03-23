@@ -25,7 +25,7 @@ export interface ProjectionFrame {
   message: ReplayMessage;
 }
 
-export interface ReplayArchive {
+export interface ReplayTimeline {
   gameId: string;
   roomCode: string;
   matchNumber: number;

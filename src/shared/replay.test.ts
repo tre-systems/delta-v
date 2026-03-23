@@ -5,9 +5,9 @@ import { buildSolarSystemMap, findBaseHex, SCENARIOS } from './map-data';
 import {
   buildMatchId,
   parseMatchId,
-  type ReplayArchive,
   type ReplayEntry,
   type ReplayMessage,
+  type ReplayTimeline,
   toProjectionFrame,
   toReplayEntry,
 } from './replay';
@@ -75,9 +75,9 @@ describe('replay shape fixtures', () => {
     expect(entry.message).toEqual(message);
   });
 
-  it('ReplayArchive has the expected wire shape', () => {
+  it('ReplayTimeline has the expected wire shape', () => {
     const state = createTestState('ARCHV-m1');
-    const archive: ReplayArchive = {
+    const timeline: ReplayTimeline = {
       gameId: 'ARCHV-m1',
       roomCode: 'ARCHV',
       matchNumber: 1,
@@ -94,7 +94,7 @@ describe('replay shape fixtures', () => {
       ],
     };
 
-    expect(Object.keys(archive).sort()).toEqual(
+    expect(Object.keys(timeline).sort()).toEqual(
       [
         'createdAt',
         'entries',
@@ -104,7 +104,7 @@ describe('replay shape fixtures', () => {
         'scenario',
       ].sort(),
     );
-    expect(archive).toEqual({
+    expect(timeline).toEqual({
       gameId: 'ARCHV-m1',
       roomCode: 'ARCHV',
       matchNumber: 1,
@@ -122,7 +122,7 @@ describe('replay shape fixtures', () => {
     });
   });
 
-  it('ReplayArchive entries grow with subsequent messages', () => {
+  it('ReplayTimeline entries grow with subsequent messages', () => {
     const state1 = createTestState('GROW-m1');
     const state2 = createTestState('GROW-m1', {
       turnNumber: 2,
@@ -130,7 +130,7 @@ describe('replay shape fixtures', () => {
       activePlayer: 1,
     });
 
-    const archive: ReplayArchive = {
+    const timeline: ReplayTimeline = {
       gameId: 'GROW-m1',
       roomCode: 'GROW',
       matchNumber: 1,
@@ -144,13 +144,13 @@ describe('replay shape fixtures', () => {
       { type: 'stateUpdate', state: state2 },
       2000,
     );
-    archive.entries.push(entry2);
+    timeline.entries.push(entry2);
 
-    expect(archive.entries).toHaveLength(2);
-    expect(archive.entries[0].sequence).toBe(1);
-    expect(archive.entries[1].sequence).toBe(2);
-    expect(archive.entries[1].turn).toBe(2);
-    expect(archive.entries[1].phase).toBe('astrogation');
+    expect(timeline.entries).toHaveLength(2);
+    expect(timeline.entries[0].sequence).toBe(1);
+    expect(timeline.entries[1].sequence).toBe(2);
+    expect(timeline.entries[1].turn).toBe(2);
+    expect(timeline.entries[1].phase).toBe('astrogation');
   });
 
   it('replay response filtered for player strips hidden state', () => {

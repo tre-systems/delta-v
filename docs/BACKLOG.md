@@ -51,13 +51,12 @@ Complete the transition from snapshot-first Durable Object
 state to an append-only authoritative match log with
 projection rebuild support.
 
-The replay archive, stable `gameId`, and match-scoped
-event storage are already in place as migration
-scaffolding. Remaining work is to persist authoritative
-random outcomes with the event stream, rebuild
-authoritative projections from stored events rather than
-assuming the archive is truth, and add checkpoints so
-replay / reconnect do not require full re-walks forever.
+Stable `gameId`, match-scoped event storage, projection
+frames, and checkpoints are already in place. Remaining
+work is to persist authoritative random outcomes with
+the event stream and rebuild authoritative projections
+from stored events rather than depending on live
+snapshots for parity.
 
 Definition of done: a match can be reconstructed from
 its persisted event stream plus optional checkpoints;

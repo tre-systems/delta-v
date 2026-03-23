@@ -44,15 +44,13 @@ import {
 import {
   allocateMatchIdentity,
   appendEnvelopedEvents,
-  appendEvents,
   appendProjectionMessage,
   getEventStreamLength,
   getProjectedCurrentState,
   getProjectedCurrentStateRaw,
-  getProjectedReplayArchive,
+  getProjectedReplayTimeline,
   getReplayViewerId,
   hasProjectionParity,
-  resetEventLog,
   saveCheckpoint,
   saveMatchCreatedAt,
 } from './archive';
@@ -186,7 +184,6 @@ export class GameDO extends DurableObject<Env> {
       this.ctx.storage.delete('disconnectAt'),
       this.ctx.storage.delete('disconnectTime'),
       this.ctx.storage.delete('disconnectedPlayer'),
-      this.ctx.storage.delete('eventLog'),
       this.ctx.storage.delete('inactivityAt'),
       this.ctx.storage.delete('rematchRequests'),
       this.ctx.storage.delete('turnTimeoutAt'),
@@ -775,7 +772,6 @@ export class GameDO extends DurableObject<Env> {
     let eventSeq = await getEventStreamLength(this.ctx.storage, state.gameId);
 
     if (events.length > 0) {
-      await appendEvents(this.ctx.storage, ...events);
       await appendEnvelopedEvents(
         this.ctx.storage,
         state.gameId,
@@ -950,13 +946,13 @@ export class GameDO extends DurableObject<Env> {
       });
     }
 
-    const archive = await getProjectedReplayArchive(
+    const timeline = await getProjectedReplayTimeline(
       this.ctx.storage,
       gameId,
       playerId,
     );
 
-    if (!archive) {
+    if (!timeline) {
       return new Response('Replay not found', {
         status: 404,
       });
@@ -964,7 +960,7 @@ export class GameDO extends DurableObject<Env> {
 
     await this.touchInactivity();
 
-    return Response.json(archive);
+    return Response.json(timeline);
   }
 
   private async initGame() {
@@ -980,7 +976,6 @@ export class GameDO extends DurableObject<Env> {
     await this.clearRoomArchivedFlag();
     await saveMatchCreatedAt(this.ctx.storage, gameId, Date.now());
     await this.saveGameState(gameState);
-    await resetEventLog(this.ctx.storage);
     const initEvents: import('../../shared/engine/engine-events').EngineEvent[] =
       [
         {
@@ -1002,7 +997,6 @@ export class GameDO extends DurableObject<Env> {
       }
     }
 
-    await appendEvents(this.ctx.storage, ...initEvents);
     await appendEnvelopedEvents(this.ctx.storage, gameId, null, ...initEvents);
     await appendProjectionMessage(
       this.ctx.storage,

@@ -1,5 +1,6 @@
 import type { HexCoord, HexVec } from '../hex';
 import type { Phase } from '../types';
+import type { FleetPurchase } from '../types/domain';
 
 // Granular domain events emitted by engine functions.
 export type EngineEvent =
@@ -31,6 +32,7 @@ export type EngineEvent =
   | {
       type: 'fleetPurchased';
       playerId: number;
+      purchases: FleetPurchase[];
       shipTypes: string[];
     }
 
