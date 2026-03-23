@@ -8,6 +8,7 @@ const installFixture = () => {
     <div id="gameOver" style="display:none"></div>
     <div id="gameOverText"></div>
     <div id="gameOverReason"></div>
+    <div id="gameOverStats"></div>
     <button id="rematchBtn" disabled>Rematch</button>
     <div id="reconnectOverlay" style="display:none"></div>
     <div id="reconnectText"></div>
@@ -40,6 +41,12 @@ describe('OverlayView', () => {
       myShipsTotal: 3,
       enemyShipsAlive: 0,
       enemyShipsTotal: 2,
+      myShipsDestroyed: 1,
+      enemyShipsDestroyed: 2,
+      myFuelSpent: 18,
+      enemyFuelSpent: 12,
+      basesDestroyed: 0,
+      ordnanceInFlight: 0,
     });
 
     expect(

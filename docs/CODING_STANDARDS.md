@@ -111,6 +111,8 @@ Do not create meaningless wrapper functions or over-fragment files just to hit n
 - Co-locate unit tests next to the source file as `*.test.ts`.
 - Keep rules-heavy logic covered with direct unit tests.
 - When extracting pure helpers from client/server coordinators, add tests for those helpers.
+- Keep Playwright focused on a thin browser smoke layer. Do not use it as the default place for gameplay rules, per-scenario combinatorics, or deep engine assertions that are cheaper and clearer in Vitest.
+- Add Playwright coverage only for browser-only contracts such as app boot, multi-page join/reconnect/chat flows, storage/session recovery, and critical UI wiring.
 - Prefer targeted tests around risky logic over shallow coverage inflation.
 - Use data-driven tests (`it.each` / `describe.each`) to reduce verbosity when testing tables, mappings, or many input-output pairs. This is especially useful for combat tables, damage lookups, and hex math.
 - Use **property-based tests** (`fast-check`) for invariant verification on core engine functions. Co-locate as `*.property.test.ts` next to the source file. Property tests complement unit tests by fuzzing inputs to verify that invariants hold universally (e.g., "fuel never goes negative", "hex distance is symmetric", "higher odds never produce worse combat results").
