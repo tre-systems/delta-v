@@ -93,6 +93,14 @@ export type EngineEvent =
       shipId: string;
       cause: string;
     }
+  | {
+      type: 'asteroidDestroyed';
+      hex: HexCoord;
+    }
+  | {
+      type: 'baseDestroyed';
+      hex: HexCoord;
+    }
 
   // Ramming
   | {
@@ -126,6 +134,11 @@ export type EngineEvent =
       roll: number;
       damageType: string;
       disabledTurns: number;
+    }
+  | {
+      type: 'ordnanceDestroyed';
+      ordnanceId: string;
+      cause: string;
     }
   | {
       type: 'ordnanceExpired';
@@ -175,7 +188,10 @@ export type EngineEvent =
   | {
       type: 'baseEmplaced';
       shipId: string;
+      sourceShipId: string;
+      owner: number;
       position: HexCoord;
+      velocity: HexVec;
     }
 
   // Hidden identity / race

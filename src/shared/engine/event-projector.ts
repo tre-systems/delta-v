@@ -1,4 +1,5 @@
-import { SHIP_STATS } from '../constants';
+import { ORBITAL_BASE_MASS, SHIP_STATS } from '../constants';
+import { hexKey } from '../hex';
 import { findBaseHex, SCENARIOS } from '../map-data';
 import type { ScenarioDefinition, SolarSystemMap } from '../types';
 import type { GameState } from '../types/domain';
@@ -286,6 +287,46 @@ const projectSetupEvent = (
       };
     }
 
+    case 'asteroidDestroyed': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const key = hexKey(event.hex);
+
+      if (!state.destroyedAsteroids.includes(key)) {
+        state.destroyedAsteroids.push(key);
+      }
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'baseDestroyed': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const key = hexKey(event.hex);
+
+      if (!state.destroyedBases.includes(key)) {
+        state.destroyedBases.push(key);
+      }
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
     case 'shipResupplied': {
       const baseState = requireState(state, event.type);
 
@@ -319,6 +360,110 @@ const projectSetupEvent = (
       if (event.source === 'base') {
         projectedShip.ship.overloadUsed = false;
       }
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'fuelTransferred':
+    case 'cargoTransferred': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const source = requireShip(state, event.fromShipId);
+
+      if (!source.ok) {
+        return source;
+      }
+
+      const target = requireShip(state, event.toShipId);
+
+      if (!target.ok) {
+        return target;
+      }
+
+      if (event.type === 'fuelTransferred') {
+        source.ship.fuel -= event.amount;
+        target.ship.fuel += event.amount;
+      } else {
+        source.ship.cargoUsed -= event.amount;
+        target.ship.cargoUsed += event.amount;
+      }
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'shipSurrendered': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const projectedShip = requireShip(state, event.shipId);
+
+      if (!projectedShip.ok) {
+        return projectedShip;
+      }
+
+      projectedShip.ship.control = 'surrendered';
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'baseEmplaced': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const sourceShip = requireShip(state, event.sourceShipId);
+
+      if (!sourceShip.ok) {
+        return sourceShip;
+      }
+
+      sourceShip.ship.baseStatus = undefined;
+      sourceShip.ship.cargoUsed = Math.max(
+        0,
+        sourceShip.ship.cargoUsed - ORBITAL_BASE_MASS,
+      );
+
+      state.ships.push({
+        id: event.shipId,
+        type: 'orbitalBase',
+        owner: event.owner,
+        originalOwner: event.owner,
+        position: { ...event.position },
+        velocity: { ...event.velocity },
+        fuel: Infinity,
+        cargoUsed: 0,
+        nukesLaunchedSinceResupply: 0,
+        resuppliedThisTurn: false,
+        lifecycle: 'active',
+        control: 'own',
+        heroismAvailable: false,
+        overloadUsed: false,
+        detected: true,
+        baseStatus: 'emplaced',
+        pendingGravityEffects: [],
+        damage: { disabledTurns: 0 },
+      });
 
       return {
         ok: true,
@@ -378,6 +523,173 @@ const projectSetupEvent = (
       state.ordnance = state.ordnance.filter(
         (item) => item.lifecycle !== 'destroyed',
       );
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'ordnanceDetonated': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+
+      if (!event.targetShipId || event.damageType === 'none') {
+        return {
+          ok: true,
+          state,
+        };
+      }
+
+      const projectedShip = requireShip(state, event.targetShipId);
+
+      if (!projectedShip.ok) {
+        return projectedShip;
+      }
+
+      if (event.damageType === 'disabled') {
+        projectedShip.ship.damage.disabledTurns = Math.max(
+          projectedShip.ship.damage.disabledTurns,
+          event.disabledTurns,
+        );
+      }
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'ordnanceDestroyed': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const ordnance = state.ordnance.find(
+        (item) => item.id === event.ordnanceId,
+      );
+
+      if (!ordnance) {
+        return {
+          ok: false,
+          error: `ordnance not found: ${event.ordnanceId}`,
+        };
+      }
+
+      ordnance.lifecycle = 'destroyed';
+      state.ordnance = state.ordnance.filter(
+        (item) => item.lifecycle !== 'destroyed',
+      );
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'combatAttack': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+
+      if (event.targetType === 'ordnance') {
+        return {
+          ok: true,
+          state,
+        };
+      }
+
+      if (event.damageType === 'none' || event.damageType === 'eliminated') {
+        return {
+          ok: true,
+          state,
+        };
+      }
+
+      const projectedShip = requireShip(state, event.targetId);
+
+      if (!projectedShip.ok) {
+        return projectedShip;
+      }
+
+      projectedShip.ship.damage.disabledTurns = Math.max(
+        projectedShip.ship.damage.disabledTurns,
+        event.disabledTurns,
+      );
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'identityRevealed': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const projectedShip = requireShip(state, event.shipId);
+
+      if (!projectedShip.ok) {
+        return projectedShip;
+      }
+
+      if (projectedShip.ship.identity) {
+        projectedShip.ship.identity.revealed = true;
+      }
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'checkpointVisited': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const visitedBodies = state.players[event.playerId]?.visitedBodies;
+
+      if (visitedBodies && !visitedBodies.includes(event.body)) {
+        visitedBodies.push(event.body);
+      }
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'gameOver': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      state.winner = event.winner;
+      state.winReason = event.reason;
+      state.phase = 'gameOver';
 
       return {
         ok: true,
