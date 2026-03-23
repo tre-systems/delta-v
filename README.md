@@ -20,7 +20,7 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 ## 📚 Documentation Guide
 
 - [**SPEC.md**](./docs/SPEC.md): complete rules reference, protocol shapes, scenario definitions, and implementation notes
-- [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md): system boundaries, data flow, Durable Object design, and event-sourcing direction
+- [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md): system boundaries, data flow, Durable Object design, and the current event-sourced server model
 - [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md): coding conventions, refactoring guidance, and shared patterns
 - [**MANUAL_TEST_PLAN.md**](./docs/MANUAL_TEST_PLAN.md): comprehensive manual test plan covering all scenarios, mechanics, and edge cases
 - [**SIMULATION_TESTING.md**](./docs/SIMULATION_TESTING.md): headless AI-vs-AI coverage and planned load/stress testing
@@ -43,7 +43,7 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 ### 🎮 Multiple Game Modes
 - **8 Playable Scenarios**: Features *Bi-Planetary*, *Escape*, *Convoy*, *Duel*, *Blockade Runner*, *Fleet Action*, *Interplanetary War*, and *Grand Tour* race.
 - **Local AI Opponent**: Test your skills offline against an AI component with configurable difficulty levels.
-- **Real-Time Multiplayer**: Built for fast, responsive web-socket based remote play.
+- **Real-Time Multiplayer**: Built for fast, responsive WebSocket-based remote play.
 
 ---
 
@@ -55,7 +55,7 @@ Delta-V adopts an elegant, robust architecture utilizing modern web primitives:
 src/
 ├── shared/              # Game Engine — side-effect-free (shared between client & server)
 │   ├── engine/            # Phase processors: game-creation, astrogation, combat, ordnance, etc.
-│   │   ├── engine-events.ts # EngineEvent domain event types (22 granular event types)
+│   │   ├── engine-events.ts # EngineEvent domain event types (30 granular event types)
 │   │   ├── game-engine.ts   # Barrel re-export (public API)
 │   │   └── ...              # game-creation, fleet-building, astrogation, resolve-movement,
 │   │                        # combat, ordnance, logistics, victory, util
@@ -77,7 +77,7 @@ src/
 scripts/                 # Automated Bot & AI Simulation tests
 ```
 
-**Design Highlight:** The shared engine is side-effect-free — no DOM, no network, no storage. Engine functions receive inputs and return new state plus domain events (`EngineEvent[]`), making the game highly testable. All entry points clone input state on entry (`structuredClone`) — callers' state is never mutated. The engine is decomposed into focused phase processors (game-creation, astrogation, resolve-movement, combat, etc.) behind a barrel re-export. AI scoring is split into composable strategies with a data-driven config table. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details.
+**Design Highlight:** The shared engine is side-effect-free — no DOM, no network, no storage. Engine functions receive inputs and return new state plus domain events (`EngineEvent[]`), making the game highly testable. All entry points clone input state on entry (`structuredClone`) — callers' state is never mutated. The authoritative server persists versioned match events plus checkpoints and rebuilds state from that stream for replay and recovery. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details.
 
 For project conventions and refactoring guidance, see [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md).
 
@@ -163,20 +163,19 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] Hidden information (server-side state filtering for *Escape*)
 - [x] Orbital bases, logistics, reinforcements, fleet conversion
 - [x] PWA support (installable, offline single-player)
-- [x] Engine safety (clone-on-entry, server rollback, event log)
+- [x] Engine safety (clone-on-entry, server rollback, event-sourced recovery)
 - [x] Error reporting and anonymous telemetry (D1 storage)
-- [x] 2,660+ automated tests across 98 test files, plus scenario AI simulations with per-scenario balance thresholds
+- [x] 1,400+ automated tests across 99 test files, plus browser smoke coverage and scenario AI simulations
 - [x] Engine decomposition into focused phase processors (game-creation, astrogation, resolve-movement, combat, etc.)
 - [x] Typed Ship state models (`lifecycle`, `control` fields with impossible states unrepresentable)
-- [x] Granular engine events (22 `EngineEvent` types emitted by engine, replacing server-side derivation)
+- [x] Granular engine events (30 `EngineEvent` types emitted by engine, replacing server-side derivation)
 - [x] Data-driven AI configuration (per-difficulty scoring weights in `ai-config.ts`)
 - [x] AI scoring decomposition (5 composable strategy functions in `ai-scoring.ts`)
 - [x] Archive persistence extracted from Durable Object into standalone module
-- [x] Replay archive foundation (transitional step toward event-sourced match persistence)
+- [x] Event-sourced authoritative match persistence with replay/reconnect recovery from event stream plus checkpoints
 - [x] Shared rule consolidation, bounded type imports, authoritative disconnect-forfeit
 
 ### Planned
-- [ ] **Event-Sourced Match Persistence**: Move from snapshot-first to append-only event stream with projections and checkpoints
 - [ ] **Turn Replay**: Step through per-match recorded history with rematch selection
 - [ ] **Spectator Mode**: Read-only live battle viewing from public filtered projections
 - [ ] **Scenario Expansion**: Lateral 7, Fleet Mutiny, Retribution
