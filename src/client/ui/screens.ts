@@ -37,6 +37,11 @@ export interface GameOverStatsLike {
   enemyFuelSpent: number;
   basesDestroyed: number;
   ordnanceInFlight: number;
+  shipFates?: Array<{
+    name: string;
+    status: string;
+    owner: number;
+  }>;
 }
 
 export interface GameOverStatLine {
@@ -166,6 +171,18 @@ const buildStatLines = (stats: GameOverStatsLike): GameOverStatLine[] => {
       label: 'Bases destroyed',
       value: String(stats.basesDestroyed),
     });
+  }
+
+  if (stats.shipFates && stats.shipFates.length > 0) {
+    lines.push({ label: '', value: '' }); // Spacer
+    lines.push({ label: 'SHIP FATES', value: '' });
+
+    for (const fate of stats.shipFates) {
+      lines.push({
+        label: fate.name,
+        value: fate.status.toUpperCase(),
+      });
+    }
   }
 
   return lines;

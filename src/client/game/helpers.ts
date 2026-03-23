@@ -20,6 +20,14 @@ import type {
 import { count } from '../../shared/util';
 import type { PlanningState } from './planning';
 
+export interface ShipFate {
+  id: string;
+  name: string;
+  type: string;
+  status: 'survived' | 'destroyed' | 'captured';
+  owner: number;
+}
+
 export interface GameOverStats {
   turns: number;
   myShipsAlive: number;
@@ -32,6 +40,7 @@ export interface GameOverStats {
   enemyFuelSpent: number;
   basesDestroyed: number;
   ordnanceInFlight: number;
+  shipFates: ShipFate[];
 }
 
 export interface HudViewModel {
@@ -439,6 +448,19 @@ export const getGameOverStats = (
   const myDestroyed = count(myShips, (s) => s.lifecycle === 'destroyed');
   const enemyDestroyed = count(enemyShips, (s) => s.lifecycle === 'destroyed');
 
+  const shipFates: ShipFate[] = state.ships.map((s) => ({
+    id: s.id,
+    name: SHIP_STATS[s.type]?.name ?? s.type,
+    type: s.type,
+    status:
+      s.lifecycle === 'destroyed'
+        ? 'destroyed'
+        : s.control === 'captured'
+          ? 'captured'
+          : 'survived',
+    owner: s.owner,
+  }));
+
   return {
     turns: state.turnNumber,
     myShipsAlive: myShips.length - myDestroyed,
@@ -451,6 +473,7 @@ export const getGameOverStats = (
     enemyFuelSpent: state.players[enemyId]?.totalFuelSpent ?? 0,
     basesDestroyed: state.destroyedBases.length,
     ordnanceInFlight: count(state.ordnance, (o) => o.lifecycle === 'active'),
+    shipFates,
   };
 };
 
