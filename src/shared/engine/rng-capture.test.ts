@@ -8,12 +8,10 @@ import {
   skipCombat,
 } from './game-engine';
 
-/**
- * Verify that all non-deterministic game outcomes are
- * captured as explicit facts in the emitted EngineEvents,
- * so event-sourced replay does not depend on re-running
- * the same Math.random() sequence.
- */
+// Verify that all non-deterministic game outcomes are
+// captured as explicit facts in the emitted EngineEvents,
+// so event-sourced replay does not depend on re-running
+// the same Math.random() sequence.
 
 const map = buildSolarSystemMap();
 

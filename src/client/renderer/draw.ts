@@ -1,9 +1,7 @@
-/**
- * Low-level Canvas drawing primitives for ships, ordnance,
- * and movement interpolation.
- * Pure functions extracted from Renderer — no class state
- * dependencies.
- */
+// Low-level Canvas drawing primitives for ships, ordnance,
+// and movement interpolation.
+// Pure functions extracted from Renderer — no class state
+// dependencies.
 
 import { SHIP_STATS } from '../../shared/constants';
 import {
@@ -13,10 +11,8 @@ import {
   type PixelCoord,
 } from '../../shared/hex';
 
-/**
- * Draw a ship icon (arrow or octagon for orbital base)
- * at the given position.
- */
+// Draw a ship icon (arrow or octagon for orbital base)
+// at the given position.
 export const drawShipIcon = (
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -96,9 +92,7 @@ export const drawShipIcon = (
   ctx.restore();
 };
 
-/**
- * Draw a thrust exhaust trail behind a moving ship.
- */
+// Draw a thrust exhaust trail behind a moving ship.
 export const drawThrustTrail = (
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -131,10 +125,8 @@ export const drawThrustTrail = (
   ctx.restore();
 };
 
-/**
- * Smoothly interpolate a position along a hex path
- * with ease-in-out.
- */
+// Smoothly interpolate a position along a hex path
+// with ease-in-out.
 export const interpolatePath = (
   path: HexCoord[],
   progress: number,
@@ -160,10 +152,8 @@ export const interpolatePath = (
   };
 };
 
-/**
- * Draw an ordnance velocity vector (dashed line from
- * current position to next).
- */
+// Draw an ordnance velocity vector (dashed line from
+// current position to next).
 export const drawOrdnanceVelocity = (
   ctx: CanvasRenderingContext2D,
   position: HexCoord,

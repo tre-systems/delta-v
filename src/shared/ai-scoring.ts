@@ -1,8 +1,6 @@
-/**
- * Decomposed AI scoring strategies for course
- * evaluation. Each function scores one concern
- * independently — the combiner adds them.
- */
+// Decomposed AI scoring strategies for course
+// evaluation. Each function scores one concern
+// independently — the combiner adds them.
 
 import type { AIDifficultyConfig } from './ai-config';
 import { must } from './assert';
@@ -14,7 +12,7 @@ import { minBy } from './util';
 
 // --- Individual scoring strategies ---
 
-/** Maximize distance from center + velocity. */
+// Maximize distance from center + velocity.
 export const scoreEscape = (
   ship: Ship,
   course: CourseResult,
@@ -37,7 +35,7 @@ export const scoreEscape = (
   return score;
 };
 
-/** Navigate toward a target body/hex. */
+// Navigate toward a target body/hex.
 export const scoreNavigation = (
   ship: Ship,
   course: CourseResult,
@@ -86,7 +84,7 @@ export const scoreNavigation = (
   return score;
 };
 
-/** Penalize high speed near gravity wells in races. */
+// Penalize high speed near gravity wells in races.
 export const scoreRaceDanger = (
   course: CourseResult,
   map: SolarSystemMap,
@@ -118,7 +116,7 @@ export const scoreRaceDanger = (
   return score;
 };
 
-/** Score deferred gravity effects one turn ahead. */
+// Score deferred gravity effects one turn ahead.
 export const scoreGravityLookAhead = (
   course: CourseResult,
   escapeWins: boolean,
@@ -168,8 +166,8 @@ export const scoreGravityLookAhead = (
   return 0;
 };
 
-/** Combat positioning: interception, engagement,
- * or objective-balanced fighting. */
+// Combat positioning: interception, engagement,
+// or objective-balanced fighting.
 export const scoreCombatPositioning = (
   ship: Ship,
   course: CourseResult,
@@ -304,8 +302,8 @@ export interface ScoreCourseParams {
   shipIndex?: number;
 }
 
-/** Combine all scoring strategies into a single
- * course score. */
+// Combine all scoring strategies into a single
+// course score.
 export const scoreCourse = (p: ScoreCourseParams): number => {
   const {
     ship,

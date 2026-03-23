@@ -117,11 +117,9 @@ const resolveStartingPlacement = (
   );
 };
 
-/**
- * Pure game engine -- no IO, no networking,
- * no storage. All game logic lives here so it can
- * be unit tested.
- */
+// Pure game engine -- no IO, no networking,
+// no storage. All game logic lives here so it can
+// be unit tested.
 export const createGame = (
   scenario: ScenarioDefinition,
   map: SolarSystemMap,

@@ -4,10 +4,8 @@ import type { EngineEvent } from './engine-events';
 import type { StateUpdateResult } from './game-engine';
 import { getOwnedPlanetaryBases } from './util';
 
-/**
- * Process fleet purchases for a player during
- * the fleet-building phase.
- */
+// Process fleet purchases for a player during
+// the fleet-building phase.
 export const processFleetReady = (
   inputState: GameState,
   playerId: number,

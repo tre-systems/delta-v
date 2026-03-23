@@ -1,7 +1,5 @@
-/**
- * Combat visual effects and hex flash rendering.
- * Pure Canvas drawing functions extracted from Renderer.
- */
+// Combat visual effects and hex flash rendering.
+// Pure Canvas drawing functions extracted from Renderer.
 
 import type { PixelCoord } from '../../shared/hex';
 
@@ -21,11 +19,9 @@ export interface HexFlash {
   color: string;
 }
 
-/**
- * Render and prune active combat visual effects
- * (beams, explosions, game-over blasts).
- * Returns the filtered array with expired effects removed.
- */
+// Render and prune active combat visual effects
+// (beams, explosions, game-over blasts).
+// Returns the filtered array with expired effects removed.
 export const drawCombatEffects = (
   ctx: CanvasRenderingContext2D,
   effects: CombatEffect[],
@@ -193,10 +189,8 @@ const drawGameOverExplosionEffect = (
   ctx.globalAlpha = 1;
 };
 
-/**
- * Render and prune hex flash highlights.
- * Returns the filtered array with expired flashes removed.
- */
+// Render and prune hex flash highlights.
+// Returns the filtered array with expired flashes removed.
 export const drawHexFlashes = (
   ctx: CanvasRenderingContext2D,
   flashes: HexFlash[],

@@ -74,9 +74,7 @@ const validateAstrogationOrders = (
   return null;
 };
 
-/**
- * Process astrogation orders for the active player.
- */
+// Process astrogation orders for the active player.
 export const processAstrogation = (
   inputState: GameState,
   playerId: number,
@@ -130,9 +128,7 @@ export const processAstrogation = (
   };
 };
 
-/**
- * Process ordnance launches for the active player.
- */
+// Process ordnance launches for the active player.
 export const processOrdnance = (
   inputState: GameState,
   playerId: number,
@@ -258,10 +254,8 @@ export const processOrdnance = (
   };
 };
 
-/**
- * Skip ordnance phase and resolve the queued
- * movement phase.
- */
+// Skip ordnance phase and resolve the queued
+// movement phase.
 export const skipOrdnance = (
   inputState: GameState,
   playerId: number,

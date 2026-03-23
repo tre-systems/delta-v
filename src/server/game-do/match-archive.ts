@@ -7,7 +7,7 @@ import {
   getMatchCreatedAt,
 } from './archive';
 
-/** Persistent archive of a completed match. */
+// Persistent archive of a completed match.
 export interface MatchArchive {
   gameId: string;
   roomCode: string;
@@ -23,11 +23,9 @@ export interface MatchArchive {
 
 const r2Key = (gameId: string): string => `matches/${gameId}.json`;
 
-/**
- * Archive a completed match to R2 and insert metadata
- * into D1. Fire-and-forget — errors are logged but
- * never block game flow.
- */
+// Archive a completed match to R2 and insert metadata
+// into D1. Fire-and-forget — errors are logged but
+// never block game flow.
 export const archiveCompletedMatch = async (
   storage: DurableObjectStorage,
   r2: R2Bucket,
@@ -90,11 +88,9 @@ export const archiveCompletedMatch = async (
   }
 };
 
-/**
- * Fetch a previously archived match from R2.
- * Returns null if R2 is not bound or the archive
- * doesn't exist.
- */
+// Fetch a previously archived match from R2.
+// Returns null if R2 is not bound or the archive
+// doesn't exist.
 export const fetchArchivedMatch = async (
   r2: R2Bucket | undefined,
   gameId: string,

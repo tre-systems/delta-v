@@ -1,9 +1,7 @@
-/**
- * Gameplay overlay Canvas drawing: ordnance, torpedo
- * guidance, combat overlay.
- * Pure functions extracted from Renderer — no class
- * state dependencies.
- */
+// Gameplay overlay Canvas drawing: ordnance, torpedo
+// guidance, combat overlay.
+// Pure functions extracted from Renderer — no class
+// state dependencies.
 
 import { SHIP_STATS } from '../../shared/constants';
 import {

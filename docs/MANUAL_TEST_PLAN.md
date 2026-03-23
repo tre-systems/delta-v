@@ -807,7 +807,7 @@ These complement manual testing and run in CI:
 
 | Command | What it checks |
 |---------|----------------|
-| `npm test` | 2600+ unit/property tests |
+| `npm test` | 2660+ unit/property tests |
 | `npm run simulate -- all 25` | Engine stability across all 8 scenarios |
 | `npm run lint` | Code style |
 | `npm run typecheck` | Type safety |
