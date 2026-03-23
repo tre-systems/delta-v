@@ -9,6 +9,7 @@ import type {
 import {
   buildAstrogationOrders,
   deriveHudViewModel,
+  findMatchVelocityPlan,
   getGameOverStats,
   getScenarioBriefingLines,
   getSelectedShip,
@@ -256,6 +257,101 @@ describe('game client helpers', () => {
         disabled: false,
         title: '',
       },
+    });
+  });
+
+  it('finds a nearby friendly velocity match with a single burn', () => {
+    const state = createState({
+      ships: [
+        createShip({
+          id: 'p0s0',
+          type: 'packet',
+          velocity: { dq: 0, dr: 0 },
+        }),
+        createShip({
+          id: 'p0s1',
+          owner: 0,
+          position: { q: 1, r: 0 },
+          velocity: { dq: 1, dr: 0 },
+        }),
+        createShip({
+          id: 'p1s0',
+          owner: 1,
+          position: { q: 5, r: 0 },
+        }),
+      ],
+    });
+
+    expect(findMatchVelocityPlan(state, 0, 'p0s0')).toEqual({
+      targetShipId: 'p0s1',
+      burn: 0,
+      overload: null,
+    });
+  });
+
+  it('uses overload when that is the only reachable friendly velocity match', () => {
+    const state = createState({
+      ships: [
+        createShip({
+          id: 'p0s0',
+          type: 'corsair',
+          velocity: { dq: 0, dr: 0 },
+          fuel: 10,
+        }),
+        createShip({
+          id: 'p0s1',
+          owner: 0,
+          position: { q: 1, r: 0 },
+          velocity: { dq: 2, dr: 0 },
+        }),
+        createShip({
+          id: 'p1s0',
+          owner: 1,
+          position: { q: 5, r: 0 },
+        }),
+      ],
+    });
+
+    expect(findMatchVelocityPlan(state, 0, 'p0s0')).toEqual({
+      targetShipId: 'p0s1',
+      burn: 0,
+      overload: 0,
+    });
+  });
+
+  it('surfaces match velocity availability in the HUD view model', () => {
+    const state = createState({
+      ships: [
+        createShip({
+          id: 'p0s0',
+          type: 'packet',
+          velocity: { dq: 0, dr: 0 },
+        }),
+        createShip({
+          id: 'p0s1',
+          owner: 0,
+          position: { q: 1, r: 0 },
+          velocity: { dq: 1, dr: 0 },
+        }),
+        createShip({
+          id: 'p1s0',
+          owner: 1,
+          position: { q: 5, r: 0 },
+        }),
+      ],
+    });
+
+    const planning = {
+      selectedShipId: 'p0s0',
+      burns: new Map(),
+      overloads: new Map(),
+      weakGravityChoices: new Map(),
+    };
+
+    expect(deriveHudViewModel(state, 0, planning).matchVelocityState).toEqual({
+      visible: true,
+      disabled: false,
+      title: 'Match velocity with p0s1',
     });
   });
 

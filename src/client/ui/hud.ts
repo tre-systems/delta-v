@@ -13,6 +13,7 @@ export interface HUDView {
   statusText: string | null;
   undoVisible: boolean;
   confirmVisible: boolean;
+  matchVelocity: UIButtonView;
   launchMine: UIButtonView;
   launchTorpedo: UIButtonView;
   launchNuke: UIButtonView;
@@ -100,6 +101,7 @@ export interface HUDInput {
   cargoFree: number;
   cargoMax: number;
   objective: string;
+  matchVelocityState: HUDActionState;
   canEmplaceBase: boolean;
   launchMineState: HUDActionState;
   launchTorpedoState: HUDActionState;
@@ -127,6 +129,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     cargoFree,
     cargoMax,
     objective,
+    matchVelocityState,
     canEmplaceBase,
     launchMineState,
     launchTorpedoState,
@@ -170,6 +173,15 @@ export const buildHUDView = (input: HUDInput): HUDView => {
               : null,
     undoVisible: isMyTurn && phase === 'astrogation' && hasBurns,
     confirmVisible: isMyTurn && phase === 'astrogation',
+    matchVelocity:
+      isMyTurn && phase === 'astrogation'
+        ? {
+            visible: matchVelocityState.visible,
+            disabled: matchVelocityState.disabled,
+            opacity: matchVelocityState.disabled ? '0.4' : '1',
+            title: matchVelocityState.title,
+          }
+        : createHiddenButton(),
 
     launchMine: showOrdnance
       ? {

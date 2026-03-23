@@ -84,6 +84,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const fuelGaugeEl = byId('fuelGauge');
   const undoBtn = byId('undoBtn');
   const confirmBtn = byId('confirmBtn');
+  const matchVelocityBtn = byId<HTMLButtonElement>('matchVelocityBtn');
   const launchMineBtn = byId<HTMLButtonElement>('launchMineBtn');
   const launchTorpedoBtn = byId<HTMLButtonElement>('launchTorpedoBtn');
   const launchNukeBtn = byId<HTMLButtonElement>('launchNukeBtn');
@@ -231,6 +232,14 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
         !hideActions && hudView.confirmVisible,
         'inline-block',
       );
+      visible(
+        matchVelocityBtn,
+        !hideActions && hudView.matchVelocity.visible,
+        'inline-block',
+      );
+      matchVelocityBtn.disabled = hudView.matchVelocity.disabled;
+      matchVelocityBtn.style.opacity = hudView.matchVelocity.opacity;
+      matchVelocityBtn.title = hudView.matchVelocity.title;
 
       visible(
         launchMineBtn,

@@ -28,6 +28,7 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   cargoFree: 0,
   cargoMax: 0,
   objective: '',
+  matchVelocityState: defaultLaunchState,
   canEmplaceBase: false,
   launchMineState: defaultLaunchState,
   launchTorpedoState: defaultLaunchState,
@@ -50,7 +51,31 @@ describe('ui hud helpers', () => {
       statusText: 'Click adjacent hex to set burn direction',
       undoVisible: true,
       confirmVisible: true,
+      matchVelocity: {
+        visible: false,
+      },
       skipCombatVisible: false,
+    });
+  });
+
+  it('shows the match velocity helper during astrogation when available', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          matchVelocityState: {
+            visible: true,
+            disabled: false,
+            title: 'Match velocity with escort',
+          },
+        }),
+      ),
+    ).toMatchObject({
+      matchVelocity: {
+        visible: true,
+        disabled: false,
+        opacity: '1',
+        title: 'Match velocity with escort',
+      },
     });
   });
 
