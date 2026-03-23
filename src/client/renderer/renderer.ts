@@ -86,6 +86,18 @@ import {
 
 export const HEX_SIZE = 28; // pixels per hex radius
 
+type LayerContext =
+  | CanvasRenderingContext2D
+  | OffscreenCanvasRenderingContext2D;
+
+interface StaticSceneLayer {
+  canvas: CanvasImageSource;
+  ctx: LayerContext;
+  width: number;
+  height: number;
+  key: string | null;
+}
+
 export class Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -115,6 +127,7 @@ export class Renderer {
   // is the sole overlay
   private lastTime = 0;
   private readonly movementAnimation = createMovementAnimationManager();
+  private staticSceneLayer: StaticSceneLayer | null = null;
 
   private get animState(): AnimationState | null {
     return this.movementAnimation.getAnimationState();
@@ -149,6 +162,7 @@ export class Renderer {
 
   setMap(map: SolarSystemMap) {
     this.map = map;
+    this.invalidateStaticSceneLayer();
   }
 
   setGameState(state: GameState) {
@@ -426,6 +440,126 @@ export class Renderer {
     this.canvas.width = Math.round(w * dpr);
     this.canvas.height = Math.round(h * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.invalidateStaticSceneLayer();
+  }
+
+  private invalidateStaticSceneLayer() {
+    if (this.staticSceneLayer) {
+      this.staticSceneLayer.key = null;
+    }
+  }
+
+  private createStaticSceneLayer(
+    width: number,
+    height: number,
+  ): StaticSceneLayer | null {
+    if (typeof OffscreenCanvas !== 'undefined') {
+      const canvas = new OffscreenCanvas(width, height);
+      const ctx = canvas.getContext('2d');
+
+      if (ctx) {
+        return {
+          canvas,
+          ctx,
+          width,
+          height,
+          key: null,
+        };
+      }
+    }
+
+    if (typeof document !== 'undefined') {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      if (ctx) {
+        return {
+          canvas,
+          ctx,
+          width,
+          height,
+          key: null,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  private getStaticSceneLayerKey(
+    now: number,
+    width: number,
+    height: number,
+  ): string | null {
+    if (!this.map) {
+      return null;
+    }
+
+    const bodyAnimationBucket = Math.floor(now / 250);
+    const destroyedAsteroids =
+      this.gameState?.destroyedAsteroids.join('|') ?? '';
+
+    return [
+      width,
+      height,
+      this.camera.x.toFixed(2),
+      this.camera.y.toFixed(2),
+      this.camera.zoom.toFixed(4),
+      bodyAnimationBucket,
+      destroyedAsteroids,
+    ].join(':');
+  }
+
+  private renderStaticSceneLayer(
+    now: number,
+    width: number,
+    height: number,
+  ): boolean {
+    if (!this.map) {
+      return false;
+    }
+
+    const key = this.getStaticSceneLayerKey(now, width, height);
+
+    if (key === null) {
+      return false;
+    }
+
+    if (
+      !this.staticSceneLayer ||
+      this.staticSceneLayer.width !== width ||
+      this.staticSceneLayer.height !== height
+    ) {
+      this.staticSceneLayer = this.createStaticSceneLayer(width, height);
+    }
+
+    if (!this.staticSceneLayer) {
+      return false;
+    }
+
+    if (this.staticSceneLayer.key !== key) {
+      const layer = this.staticSceneLayer;
+
+      layer.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      layer.ctx.clearRect(0, 0, width, height);
+      layer.ctx.save();
+      this.camera.applyTransform(layer.ctx as CanvasRenderingContext2D);
+      this.renderStars(layer.ctx as CanvasRenderingContext2D);
+      this.renderHexGrid(layer.ctx as CanvasRenderingContext2D, this.map);
+      this.renderAsteroids(layer.ctx as CanvasRenderingContext2D, this.map);
+      this.renderGravityIndicators(
+        layer.ctx as CanvasRenderingContext2D,
+        this.map,
+      );
+      this.renderBodies(layer.ctx as CanvasRenderingContext2D, now, this.map);
+      layer.ctx.restore();
+      layer.key = key;
+    }
+
+    this.ctx.drawImage(this.staticSceneLayer.canvas, 0, 0);
+    return true;
   }
 
   private loop(now: number) {
@@ -459,20 +593,22 @@ export class Renderer {
     // Clear
     ctx.fillStyle = '#08081a';
     ctx.fillRect(0, 0, w, h);
+    const renderedStaticLayer = this.renderStaticSceneLayer(now, w, h);
     ctx.save();
     this.camera.applyTransform(ctx);
 
-    this.renderStars(ctx);
-
     if (this.map) {
-      this.renderHexGrid(ctx, this.map);
+      if (!renderedStaticLayer) {
+        this.renderStars(ctx);
+        this.renderHexGrid(ctx, this.map);
+        this.renderAsteroids(ctx, this.map);
+        this.renderGravityIndicators(ctx, this.map);
+        this.renderBodies(ctx, now, this.map);
+      }
 
       if (this.gameState) {
         this.renderMapBorder(ctx, this.map, this.gameState, now);
       }
-      this.renderAsteroids(ctx, this.map);
-      this.renderGravityIndicators(ctx, this.map);
-      this.renderBodies(ctx, now, this.map);
       this.renderBaseMarkers(ctx, this.map, this.gameState);
 
       if (this.gameState) {
