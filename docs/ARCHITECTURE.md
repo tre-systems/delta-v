@@ -65,12 +65,6 @@ client/          → State machine + Canvas renderer + DOM UI
 
 These are the main architectural follow-ups still open:
 
-- **Persist explicit RNG outcomes where replay truly depends on chance.**
-  Event envelopes already carry sequence, actor, timestamp,
-  and match identity. The remaining deterministic gap is
-  storing authoritative random outcomes explicitly anywhere
-  future rebuilds should not depend on replaying `Math.random`
-  through changed code.
 - **Single trusted-HTML boundary.** The client still renders
   some complex markup imperatively. If freeform or external
   content expands, HTML injection should pass through one
@@ -158,7 +152,9 @@ All engine entry points (`processAstrogation`, `processCombat`, `skipCombat`, `b
 
 `createGame` and AI functions (`aiAstrogation`, `aiOrdnance`) accept optional `rng` with `Math.random` default, since they are setup/heuristic functions rather than turn-resolution functions.
 
-All server and client callers pass `Math.random` at the API boundary. Tests can pass deterministic RNGs for reproducible results. This enables deterministic debugging, simulation reproducibility, and AI comparison testing. The remaining event-sourcing refinement here is to persist authoritative random outcomes explicitly anywhere future rebuilds should not depend on replaying a seed through future code.
+The server generates a random 32-bit seed per match (via `crypto.getRandomValues` in `allocateMatchIdentity`) and persists it in DO storage. Before each engine call, `getActionRng()` derives a fresh deterministic PRNG from the match seed and the current event sequence number using `deriveActionRng(matchSeed, eventSeq)` from `shared/prng.ts`. This gives each action a reproducible RNG stream without persisting a mutable counter. The seed is also recorded in the `gameCreated` engine event so the event stream alone is sufficient for offline replay validation.
+
+Client callers (local AI play) still pass `Math.random`. Tests can pass deterministic RNGs for reproducible results. Pre-seed matches fall back to `Math.random` for backward compatibility.
 
 ### B. The Server (`server/`)
 The backend leverages Cloudflare's edge network.
