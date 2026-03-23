@@ -67,6 +67,7 @@ export const createLocalTransport = (
 ): GameTransport => ({
   submitAstrogation(orders) {
     const state = deps.getState();
+
     if (!state) return;
     deps.onResolution(
       resolveAstrogationStep(state, deps.getPlayerId(), orders, deps.getMap()),
@@ -77,6 +78,7 @@ export const createLocalTransport = (
 
   submitCombat(attacks) {
     const state = deps.getState();
+
     if (!state) return;
     deps.onResolution(
       resolveCombatStep(state, deps.getPlayerId(), attacks, deps.getMap()),
@@ -87,6 +89,7 @@ export const createLocalTransport = (
 
   submitOrdnance(launches) {
     const state = deps.getState();
+
     if (!state) return;
     deps.onResolution(
       resolveOrdnanceStep(state, deps.getPlayerId(), launches, deps.getMap()),
@@ -97,6 +100,7 @@ export const createLocalTransport = (
 
   submitEmplacement(emplacements) {
     const state = deps.getState();
+
     if (!state) return;
     const result = processEmplacement(
       state,
@@ -113,6 +117,7 @@ export const createLocalTransport = (
 
   submitLogistics(transfers) {
     const state = deps.getState();
+
     if (!state) return;
     deps.onResolution(
       resolveLogisticsStep(state, deps.getPlayerId(), transfers, deps.getMap()),
@@ -127,6 +132,7 @@ export const createLocalTransport = (
 
   skipOrdnance() {
     const state = deps.getState();
+
     if (!state) return;
     deps.onResolution(
       resolveSkipOrdnanceStep(state, deps.getPlayerId(), deps.getMap()),
@@ -137,6 +143,7 @@ export const createLocalTransport = (
 
   skipLogistics() {
     const state = deps.getState();
+
     if (!state) return;
     deps.onResolution(
       resolveSkipLogisticsStep(state, deps.getPlayerId(), deps.getMap()),
@@ -147,6 +154,7 @@ export const createLocalTransport = (
 
   skipCombat() {
     const state = deps.getState();
+
     if (!state) return;
     deps.onResolution(
       resolveSkipCombatStep(state, deps.getPlayerId(), deps.getMap()),
@@ -157,6 +165,7 @@ export const createLocalTransport = (
 
   beginCombat() {
     const state = deps.getState();
+
     if (!state) return;
     deps.onResolution(
       resolveBeginCombatStep(state, deps.getPlayerId(), deps.getMap()),
@@ -220,6 +229,7 @@ export const createLocalGameTransport = (
     },
     onFleetReady: (purchases) => {
       const state = deps.getGameState();
+
       if (!state) return;
       const result = resolveLocalFleetReady(
         state,
@@ -229,11 +239,13 @@ export const createLocalGameTransport = (
         deps.getScenarioDef(),
         deps.getAIDifficulty(),
       );
+
       if (result.kind === 'error') {
         deps.showToast(result.error, 'error');
         return;
       }
       deps.applyGameState(result.state);
+
       if (result.aiError) {
         console.error('AI fleet build error:', result.aiError);
       }

@@ -56,6 +56,7 @@ export const groupBy = <T>(
 ): Record<string, T[]> =>
   arr.reduce<Record<string, T[]>>((acc, item) => {
     const key = fn(item);
+
     if (!acc[key]) acc[key] = [];
     acc[key].push(item);
 
@@ -104,6 +105,7 @@ export const filterMap = <T, U>(
 ): U[] =>
   arr.reduce<U[]>((acc, item) => {
     const result = fn(item);
+
     if (result != null) acc.push(result);
 
     return acc;
@@ -119,6 +121,7 @@ export const uniqueBy = <T>(
 
   return arr.filter((item) => {
     const key = fn(item);
+
     if (seen.has(key)) return false;
     seen.add(key);
 

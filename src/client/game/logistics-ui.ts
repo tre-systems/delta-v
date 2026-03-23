@@ -35,6 +35,7 @@ export const buildTransferOrders = (
     const key = pairKey(pair.source.id, pair.target.id);
     const fuelAmt = uiState.fuelAmounts.get(key) ?? 0;
     const cargoAmt = uiState.cargoAmounts.get(key) ?? 0;
+
     if (fuelAmt > 0) {
       orders.push({
         sourceShipId: pair.source.id,
@@ -43,6 +44,7 @@ export const buildTransferOrders = (
         amount: fuelAmt,
       });
     }
+
     if (cargoAmt > 0) {
       orders.push({
         sourceShipId: pair.source.id,
@@ -52,6 +54,7 @@ export const buildTransferOrders = (
       });
     }
   }
+
   return orders;
 };
 
@@ -63,6 +66,7 @@ export const hasQueuedTransfers = (uiState: LogisticsUIState): boolean => {
   for (const amt of uiState.cargoAmounts.values()) {
     if (amt > 0) return true;
   }
+
   return false;
 };
 
@@ -145,6 +149,7 @@ const buildAmountRow = (
   const minusBtn = el('button', { class: 'btn-transfer-adj', text: '−' });
   minusBtn.addEventListener('click', () => {
     const newAmt = Math.max(0, current - 1);
+
     if (newAmt !== current) {
       onChange(newAmt);
     }
@@ -160,6 +165,7 @@ const buildAmountRow = (
   const plusBtn = el('button', { class: 'btn-transfer-adj', text: '+' });
   plusBtn.addEventListener('click', () => {
     const newAmt = Math.min(max, current + 1);
+
     if (newAmt !== current) {
       onChange(newAmt);
     }

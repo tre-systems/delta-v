@@ -99,13 +99,19 @@ Get your thrusters firing locally in seconds:
    npm install
    ```
 
-3. **Start the Local Development Server**
+3. **Install Playwright's Chromium Browser**
+   ```bash
+   npx playwright install chromium
+   ```
+   *Required for the browser smoke tests that now run in pre-commit and CI.*
+
+4. **Start the Local Development Server**
    ```bash
    npm run dev
    ```
    *This starts the Wrangler server.*
 
-4. **Play the Game**
+5. **Play the Game**
    - Open your browser to `http://localhost:8787`
    - Open a **second tab** or window to the same URL.
    - Create a game in tab 1, then join from tab 2 using the copied room link or the 5-character room code.
@@ -119,6 +125,8 @@ Get your thrusters firing locally in seconds:
 | `npm run typecheck` | Run TypeScript type checking across the project |
 | `npm test` | Run all unit tests via Vitest |
 | `npm run test:coverage` | Run tests with a coverage report under `coverage/` |
+| `npm run test:e2e` | Run Playwright browser smoke tests against a local Wrangler server |
+| `npm run test:e2e:headed` | Run the same Playwright suite with a visible browser |
 | `npm run test:watch` | Run Vitest in continuous watch mode |
 | `npm run simulate -- [scenario] [iterations] [--ci]` | Run headless AI vs AI matches to test engine stability and scenario balance |
 | `npm run deploy` | Deploy straight to Cloudflare Workers |

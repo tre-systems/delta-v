@@ -127,6 +127,7 @@ export class InputHandler {
 
   private onPointerMove(x: number, y: number) {
     const hex = this.interactions.handlePointerMove(this.camera, x, y);
+
     if (hex) {
       this.onInput({ type: 'hoverHex', hex });
     }
@@ -134,6 +135,7 @@ export class InputHandler {
 
   private onPointerUp(x: number, y: number) {
     const clickPoint = this.interactions.endPointer(x, y);
+
     if (clickPoint) {
       this.handleClick(clickPoint.x, clickPoint.y);
     }
@@ -180,6 +182,7 @@ export class InputHandler {
   private onTouchEnd(e: TouchEvent) {
     if (e.touches.length === 0) {
       const clickPoint = this.interactions.endPointer();
+
       if (clickPoint) {
         this.handleClick(clickPoint.x, clickPoint.y);
       }

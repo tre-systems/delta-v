@@ -46,9 +46,11 @@ const getStartingVisitedBodies = (
     .filter((ship) => ship.owner === playerId)
     .reduce((acc, ship) => {
       const hex = map.hexes.get(hexKey(ship.position));
+
       if (hex?.gravity?.bodyName) {
         acc.add(hex.gravity.bodyName);
       }
+
       if (hex?.body?.name) {
         acc.add(hex.body.name);
       }
@@ -83,6 +85,7 @@ const resolveStartingPlacement = (
   lifecycle: 'active' | 'landed';
 } => {
   const shouldLand = def.startLanded !== false;
+
   if (!shouldLand) {
     return {
       position: { ...def.position },
@@ -90,6 +93,7 @@ const resolveStartingPlacement = (
     };
   }
   const defHex = map.hexes.get(hexKey(def.position));
+
   if (defHex?.base) {
     return {
       position: { ...def.position },
@@ -111,6 +115,7 @@ const resolveStartingPlacement = (
     };
   }
   const homeBase = player.homeBody ? findBaseHex(map, player.homeBody) : null;
+
   if (homeBase) {
     return { position: homeBase, lifecycle: 'landed' };
   }
@@ -206,6 +211,7 @@ export const createGame = (
     if (!player.hiddenIdentity) continue;
     const p = scenario.players.indexOf(player);
     const playerShips = ships.filter((s) => s.owner === p);
+
     if (playerShips.length === 0) continue;
     for (const ship of playerShips) {
       ship.identity = {
@@ -213,11 +219,14 @@ export const createGame = (
         revealed: false,
       };
     }
+
     const fugitive = randomChoice(playerShips, rng);
+
     if (fugitive.identity) {
       fugitive.identity.hasFugitives = true;
     }
   }
+
   const hasFleetBuilding = [0, 1].some(
     (playerId) => (getScenarioStartingCredits(scenario, playerId) ?? 0) > 0,
   );

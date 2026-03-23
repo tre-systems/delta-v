@@ -99,6 +99,7 @@ export const fetchArchivedMatch = async (
 
   try {
     const obj = await r2.get(r2Key(gameId));
+
     if (!obj) return null;
     return (await obj.json()) as MatchArchive;
   } catch {

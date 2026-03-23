@@ -133,6 +133,7 @@ const hasBaseDefenseTargets = (
   )) {
     const baseHex = map.hexes.get(hexKey(baseCoord));
     const bodyName = baseHex?.base?.bodyName;
+
     if (!bodyName) continue;
 
     for (const ship of state.ships) {
@@ -223,12 +224,14 @@ export const beginCombatPhase = (
   const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'combat');
+
   if (phaseError) return { error: phaseError };
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
   for (const r of results) {
     engineEvents.push(combatResultToEvent(r));
+
     if (r.damageType === 'eliminated') {
       engineEvents.push({
         type: 'shipDestroyed',
@@ -275,12 +278,14 @@ export const processCombat = (
   const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'combat');
+
   if (phaseError) return { error: phaseError };
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
   for (const r of results) {
     engineEvents.push(combatResultToEvent(r));
+
     if (r.damageType === 'eliminated') {
       engineEvents.push({
         type: 'shipDestroyed',
@@ -345,6 +350,7 @@ export const processCombat = (
       if (!ship || ship.owner !== playerId) {
         return { error: 'Invalid attacker selection' };
       }
+
       if (!existingGroup && !canAttack(ship)) {
         return { error: 'Invalid attacker selection' };
       }
@@ -408,6 +414,7 @@ export const processCombat = (
           error: 'Split fire is only supported against ships in the same hex',
         };
       }
+
       if (attack.attackStrength != null) {
         return {
           error: 'Reduced-strength attacks are only supported against ships',
@@ -505,6 +512,7 @@ export const processCombat = (
   for (let i = hazardCount; i < results.length; i++) {
     const r = results[i];
     engineEvents.push(combatResultToEvent(r));
+
     if (r.damageType === 'eliminated') {
       engineEvents.push({
         type: 'shipDestroyed',
@@ -537,12 +545,14 @@ export const skipCombat = (
   const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'combat');
+
   if (phaseError) return { error: phaseError };
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
   for (const r of results) {
     engineEvents.push(combatResultToEvent(r));
+
     if (r.damageType === 'eliminated') {
       engineEvents.push({
         type: 'shipDestroyed',
@@ -569,6 +579,7 @@ export const skipCombat = (
 
     for (const r of baseResults) {
       engineEvents.push(combatResultToEvent(r));
+
       if (r.damageType === 'eliminated') {
         engineEvents.push({
           type: 'shipDestroyed',

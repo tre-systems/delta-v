@@ -38,6 +38,7 @@ export const createTurnTelemetryTracker = ({
     }
 
     const phase = prevState.replace('playing_', '');
+
     if (phase !== 'opponentTurn' && phase !== 'movementAnim') {
       const elapsed = now() - phaseStartedAt;
       phaseDurations[phase] = (phaseDurations[phase] ?? 0) + elapsed;
@@ -67,6 +68,7 @@ export const createTurnTelemetryTracker = ({
     nextState: ClientState,
   ): void => {
     recordPhaseDuration(prevState);
+
     if (nextState.startsWith('playing_')) {
       phaseStartedAt = now();
     }

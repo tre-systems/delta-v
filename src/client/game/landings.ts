@@ -22,6 +22,7 @@ export const deriveLandingLogEntries = (
       const ship = state.ships.find(
         (candidate) => candidate.id === movement.shipId,
       );
+
       if (!ship) return null;
       const shipName = SHIP_STATS[ship.type]?.name ?? ship.type;
       const player = state.players[ship.owner];

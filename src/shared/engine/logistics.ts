@@ -49,16 +49,21 @@ export const getTransferEligiblePairs = (
     if (!isTransferEligibleSource(source, playerId)) {
       continue;
     }
+
     if (source.baseStatus === 'emplaced') continue;
     const sourceStats = SHIP_STATS[source.type];
+
     if (!sourceStats) continue;
     for (const target of targets) {
       if (source.id === target.id) continue;
+
       if (!hexEqual(source.position, target.position)) {
         continue;
       }
+
       if (!velocityMatch(source, target)) continue;
       const targetStats = SHIP_STATS[target.type];
+
       if (!targetStats) continue;
       // Torch ships cannot transfer fuel (SPEC p.8)
       const canTransferFuel =
@@ -74,6 +79,7 @@ export const getTransferEligiblePairs = (
       const maxCargo = canTransferCargo
         ? Math.min(sourceCargoLoaded, targetCargoSpace)
         : 0;
+
       if (canTransferFuel || canTransferCargo) {
         pairs.push({
           source,
@@ -86,6 +92,7 @@ export const getTransferEligiblePairs = (
       }
     }
   }
+
   return pairs;
 };
 // Check if the logistics phase should be entered
@@ -104,7 +111,9 @@ const validateTransfer = (
 ): string | null => {
   const source = state.ships.find((s) => s.id === transfer.sourceShipId);
   const target = state.ships.find((s) => s.id === transfer.targetShipId);
+
   if (!source || !target) return 'Ship not found';
+
   if (!isTransferEligibleSource(source, playerId)) {
     return 'Source ship not eligible for transfer';
   }
@@ -130,6 +139,7 @@ const validateTransfer = (
   }
   const sourceStats = SHIP_STATS[source.type];
   const targetStats = SHIP_STATS[target.type];
+
   if (!sourceStats || !targetStats) {
     return 'Invalid ship type';
   }
@@ -138,9 +148,11 @@ const validateTransfer = (
     if (source.type === 'torch') {
       return 'Torch ships cannot transfer fuel';
     }
+
     if (transfer.amount > source.fuel) {
       return 'Insufficient fuel';
     }
+
     if (target.fuel + transfer.amount > targetStats.fuel) {
       return 'Target fuel capacity exceeded';
     }
@@ -149,6 +161,7 @@ const validateTransfer = (
       return 'Insufficient cargo';
     }
     const space = targetStats.cargo - target.cargoUsed;
+
     if (transfer.amount > space) {
       return 'Target cargo capacity exceeded';
     }
@@ -175,10 +188,12 @@ export const processLogistics = (
   const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'logistics');
+
   if (phaseError) return { error: phaseError };
 
   for (const transfer of transfers) {
     const error = validateTransfer(state, playerId, transfer);
+
     if (error) return { error };
   }
 
@@ -223,6 +238,7 @@ export const processLogistics = (
     });
   } else {
     checkGameEnd(state, map, engineEvents);
+
     if (state.winner === null) {
       advanceTurn(state, engineEvents);
     }
@@ -247,6 +263,7 @@ export const skipLogistics = (
   const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'logistics');
+
   if (phaseError) return { error: phaseError };
 
   if (shouldEnterCombatPhase(state, map)) {
@@ -259,6 +276,7 @@ export const skipLogistics = (
     });
   } else {
     checkGameEnd(state, map, engineEvents);
+
     if (state.winner === null) {
       advanceTurn(state, engineEvents);
     }
@@ -284,6 +302,7 @@ export const processSurrender = (
   const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'astrogation');
+
   if (phaseError) return { error: phaseError };
 
   if (!state.scenarioRules.logisticsEnabled) {
@@ -294,26 +313,31 @@ export const processSurrender = (
 
   for (const shipId of shipIds) {
     const ship = state.ships.find((s) => s.id === shipId);
+
     if (!ship) {
       return {
         error: `Ship ${shipId} not found`,
       };
     }
+
     if (ship.owner !== playerId) {
       return {
         error: `Ship ${shipId} not owned by player`,
       };
     }
+
     if (ship.lifecycle === 'destroyed') {
       return {
         error: `Ship ${shipId} is destroyed`,
       };
     }
+
     if (ship.control === 'surrendered') {
       return {
         error: `Ship ${shipId} already surrendered`,
       };
     }
+
     if (ship.control === 'captured') {
       return {
         error: `Ship ${shipId} is captured`,

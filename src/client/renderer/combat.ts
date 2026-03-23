@@ -249,7 +249,9 @@ const formatPreviewLabel = (
   const totalMod = -(rangeMod + velMod);
 
   const modParts: string[] = [];
+
   if (rangeMod > 0) modParts.push(`Range -${rangeMod}`);
+
   if (velMod > 0) modParts.push(`Velocity -${velMod}`);
 
   const modLabel = modParts.length > 0 ? modParts.join('  ') : 'No penalty';
@@ -282,6 +284,7 @@ export const getCombatPreview = (
   if (map === null) return null;
 
   const targetInfo = getCurrentCombatTarget(state, playerId, planning);
+
   if (!targetInfo) return null;
 
   const myAttackers = getAvailableAttackers(
@@ -296,6 +299,7 @@ export const getCombatPreview = (
     myAttackers,
     map,
   );
+
   if (legalAttackers.length === 0) return null;
 
   const selectedAttackers = legalAttackers.filter((ship) =>
@@ -362,11 +366,13 @@ export const getCombatTargetEntity = (
       const ordnance = source.ordnance.find(
         (item) => item.id === result.targetId,
       );
+
       if (ordnance) return ordnance;
       continue;
     }
 
     const ship = source.ships.find((item) => item.id === result.targetId);
+
     if (ship) return ship;
   }
 

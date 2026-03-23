@@ -15,6 +15,7 @@ const ANON_ID_KEY = 'deltav_anon_id';
 export const getOrCreateAnonId = (storage: StorageLike): string => {
   try {
     const existing = storage.getItem(ANON_ID_KEY);
+
     if (existing) return existing;
 
     const id = crypto.randomUUID();

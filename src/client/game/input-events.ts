@@ -180,6 +180,7 @@ const interpretClickHex = (
   planning: PlanningState,
 ): GameCommand[] => {
   if (!state || !map) return [];
+
   if (state.activePlayer !== playerId) return [];
 
   switch (state.phase) {
@@ -206,6 +207,7 @@ export const interpretInput = (
       return interpretClickHex(event.hex, state, map, playerId, planning);
     case 'hoverHex':
       if (state) return [{ type: 'setHoverHex', hex: event.hex }];
+
       if (planning.hoverHex) return [{ type: 'setHoverHex', hex: null }];
 
       return [];

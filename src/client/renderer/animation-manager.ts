@@ -42,6 +42,7 @@ const appendTrailPath = (
   path: HexCoord[],
 ): void => {
   const existing = trails.get(id);
+
   if (!existing) {
     trails.set(id, [...path]);
     return;
@@ -105,6 +106,7 @@ export const createMovementAnimationManager = ({
 
   const completeAnimation = (): void => {
     clearFallbackTimer();
+
     if (!animationState) {
       return;
     }

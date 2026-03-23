@@ -84,6 +84,7 @@ export const createConnectionManager = (
       }
       const shouldHandleDisconnect = !suppressDisconnectHandling;
       suppressDisconnectHandling = false;
+
       if (shouldHandleDisconnect) {
         handleDisconnect();
       }
@@ -98,6 +99,7 @@ export const createConnectionManager = (
       deps.getReconnectAttempts(),
       MAX_RECONNECT_ATTEMPTS,
     );
+
     if (plan.giveUp) {
       deps.hideReconnecting();
       deps.showToast('Could not reconnect to game', 'error');
@@ -130,10 +132,12 @@ export const createConnectionManager = (
       deps.getGameCode(),
       deps.getGameState(),
     );
+
     if (handling.attemptReconnect) {
       attemptReconnect();
       return;
     }
+
     if (handling.nextState === 'menu') {
       if (currentState === 'connecting') {
         deps.showToast('Could not connect to game', 'error');
@@ -141,6 +145,7 @@ export const createConnectionManager = (
       deps.exitToMenu();
       return;
     }
+
     if (handling.nextState) {
       deps.setState(handling.nextState);
     }
@@ -148,6 +153,7 @@ export const createConnectionManager = (
   const close = () => {
     suppressDisconnectHandling = true;
     stopPing();
+
     if (reconnectTimer !== null) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;

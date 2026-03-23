@@ -79,6 +79,7 @@ export const scoreNavigation = (
   // near target)
   if (newDist < cfg.navOvershootRange) {
     const speed = hexVecLength(course.newVelocity);
+
     if (speed > newDist + 1) {
       score -= (speed - newDist) * cfg.navOvershootPenalty * mult;
     }
@@ -99,6 +100,7 @@ export const scoreRaceDanger = (
   for (const body of map.bodies) {
     const bodyDist = hexDistance(course.destination, body.center);
     const dangerZone = body.surfaceRadius + cfg.gravityDangerPadding;
+
     if (
       bodyDist < dangerZone &&
       speed > Math.max(1, bodyDist - body.surfaceRadius)
@@ -112,6 +114,7 @@ export const scoreRaceDanger = (
   // Must be nearly stopped to land
   if (targetHex) {
     const newDist = hexDistance(course.destination, targetHex);
+
     if (newDist < 3 && speed > 1) {
       score -= speed * cfg.navBrakingPenalty;
     }
@@ -135,6 +138,7 @@ export const scoreGravityLookAhead = (
     hexAdd(course.destination, course.newVelocity),
     course.enteredGravityEffects,
   );
+
   if (escapeWins) {
     return (
       (hexDistance(nextTurnDest, { q: 0, r: 0 }) -
@@ -203,9 +207,11 @@ export const scoreCombatPositioning = (
 
     if (intercepting) {
       const predicted = hexAdd(enemy.position, enemy.velocity);
+
       if (dist <= cfg.interceptCloseRange) {
         // Close range: aggressive combat positioning
         score += Math.max(0, 50 - dist) * cfg.interceptCloseWeight * mult;
+
         if (dist <= 3) {
           score += cfg.interceptCloseBonus * mult;
         }
@@ -229,6 +235,7 @@ export const scoreCombatPositioning = (
         const interceptDist = hexDistance(course.destination, predicted);
         score +=
           Math.max(0, 50 - interceptDist) * cfg.interceptFarWeight * mult;
+
         if (interceptDist <= 3) {
           score += cfg.interceptFarBonus * mult;
         }
@@ -244,6 +251,7 @@ export const scoreCombatPositioning = (
     } else if (noPrimaryObjective) {
       // Pure combat mode
       score += Math.max(0, 50 - dist) * cfg.combatClosingWeight * mult;
+
       if (dist <= cfg.combatCloseRange) {
         score += cfg.combatCloseBonus * mult;
       }
@@ -269,11 +277,13 @@ export const scoreCombatPositioning = (
       }
       // Speed management near enemies
       const speed = hexVecLength(course.newVelocity);
+
       if (
         dist < cfg.combatSpeedManageRange &&
         speed > cfg.combatSpeedThreshold
       ) {
         const enemySpeed = hexVecLength(enemy.velocity);
+
         if (speed > enemySpeed + 2) {
           score -= (speed - enemySpeed) * cfg.combatSpeedDiffPenalty * mult;
         }
@@ -287,6 +297,7 @@ export const scoreCombatPositioning = (
       }
     }
   }
+
   return score;
 };
 

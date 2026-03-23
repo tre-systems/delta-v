@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
     "test:watch": "vitest",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
@@ -21,6 +23,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
     "@cloudflare/workers-types": "^4.20260317.1",
+    "@playwright/test": "^1.58.2",
     "@types/node": "^25.5.0",
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.1.0",

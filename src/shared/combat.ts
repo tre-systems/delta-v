@@ -82,14 +82,19 @@ export const computeOdds = (
   defendStrength: number,
 ): OddsRatio => {
   if (defendStrength <= 0) return '4:1';
+
   if (attackStrength <= 0) return '1:4';
 
   const ratio = attackStrength / defendStrength;
 
   if (ratio >= 4) return '4:1';
+
   if (ratio >= 3) return '3:1';
+
   if (ratio >= 2) return '2:1';
+
   if (ratio >= 1) return '1:1';
+
   if (ratio >= 0.5) return '1:2';
 
   return '1:4';
@@ -110,6 +115,7 @@ export const getDeclaredCombatStrength = (
   declaredStrength?: number | null,
 ): number => {
   const maxStrength = getCombatStrength(ships);
+
   if (declaredStrength == null) return maxStrength;
 
   return clamp(declaredStrength, 1, maxStrength);
@@ -119,10 +125,13 @@ export const getDeclaredCombatStrength = (
 // (not defensive-only, not disabled).
 export const canAttack = (ship: Ship): boolean => {
   if (ship.lifecycle !== 'active') return false;
+
   if (ship.resuppliedThisTurn) return false;
+
   if (ship.control !== 'own') return false;
 
   const stats = SHIP_STATS[ship.type];
+
   if (!stats || stats.defensiveOnly) return false;
 
   // Dreadnaughts may still fire their guns even when
@@ -141,10 +150,13 @@ export const canAttack = (ship: Ship): boolean => {
 // may counterattack at D1 damage.
 export const canCounterattack = (ship: Ship): boolean => {
   if (ship.lifecycle !== 'active') return false;
+
   if (ship.resuppliedThisTurn) return false;
+
   if (ship.control !== 'own') return false;
 
   const stats = SHIP_STATS[ship.type];
+
   if (!stats || stats.combat <= 0 || stats.defensiveOnly) {
     return false;
   }
@@ -383,6 +395,7 @@ const chooseCounterattackTarget = (attackers: Ship[]): Ship =>
     if (bStrength !== aStrength) {
       return bStrength - aStrength;
     }
+
     if (b.damage.disabledTurns !== a.damage.disabledTurns) {
       return b.damage.disabledTurns - a.damage.disabledTurns;
     }
@@ -522,7 +535,9 @@ export const resolveBaseDefense = (
     if (destroyedBases.has(key)) continue;
 
     const hex = map.hexes.get(key);
+
     if (!hex?.base) continue;
+
     if (!bodyHasGravity(hex.base.bodyName, map)) continue;
 
     const { bodyName } = hex.base;
@@ -536,12 +551,15 @@ export const resolveBaseDefense = (
       }
 
       const shipHex = map.hexes.get(hexKey(ship.position));
+
       if (!shipHex?.gravity) continue;
+
       if (shipHex.gravity.bodyName !== bodyName) continue;
 
       // Check if this gravity hex is adjacent to
       // the base hex
       const dist = hexDistance(ship.position, baseCoord);
+
       if (dist > BASE_FIRE_RANGE) continue;
 
       const odds = BASE_COMBAT_ODDS;
@@ -571,6 +589,7 @@ export const resolveBaseDefense = (
 
     for (const ord of enemyNukes) {
       if (ord.lifecycle === 'destroyed') continue;
+
       if (!hasBaseLineOfSight(baseCoord, ord, map)) {
         continue;
       }

@@ -100,6 +100,7 @@ export const buildDetectionRangeViews = (
     if (destroyed.has(key)) continue;
 
     const hex = map.hexes.get(key);
+
     if (!hex?.base) continue;
 
     views.push({
@@ -122,6 +123,7 @@ const buildArrowHead = (
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const len = Math.sqrt(dx * dx + dy * dy);
+
   if (len === 0) return { left: to, right: to };
 
   const ux = dx / len;
@@ -214,7 +216,9 @@ export const buildShipTrailViews = (
     if (trail.length < 2) continue;
 
     const ship = state.ships.find((candidate) => candidate.id === shipId);
+
     if (!ship) continue;
+
     if (ship.owner !== playerId && !ship.detected) {
       continue;
     }
@@ -286,6 +290,7 @@ export const buildBaseThreatZoneViews = (
       if (destroyed.has(key)) continue;
 
       const hex = map.hexes.get(key);
+
       if (!hex?.base) continue;
 
       const baseCoord = parseHexKey(key);
@@ -293,10 +298,13 @@ export const buildBaseThreatZoneViews = (
       for (const dir of HEX_DIRECTIONS) {
         const adj = hexAdd(baseCoord, dir);
         const adjKey = hexKey(adj);
+
         if (seen.has(adjKey)) continue;
 
         const adjHex = map.hexes.get(adjKey);
+
         if (!adjHex?.gravity) continue;
+
         if (adjHex.gravity.bodyName !== hex.base.bodyName) {
           continue;
         }
@@ -326,10 +334,13 @@ export const buildMovementPathViews = (
     const ship = state.ships.find(
       (candidate) => candidate.id === movement.shipId,
     );
+
     if (!ship) continue;
+
     if (ship.owner !== playerId && !ship.detected) {
       continue;
     }
+
     if (movement.path.length < 2) continue;
 
     const totalSegments = movement.path.length - 1;

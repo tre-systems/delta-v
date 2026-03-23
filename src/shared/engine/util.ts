@@ -72,6 +72,7 @@ export const getOwnedPlanetaryBases = (
     if (state.destroyedBases.includes(key)) return [];
 
     const hex = map.hexes.get(key);
+
     if (!hex?.base || !bodyHasGravity(hex.base.bodyName, map)) {
       return [];
     }
@@ -103,6 +104,7 @@ export const getNextOrdnanceId = (state: Pick<GameState, 'ordnance'>): number =>
 
 export const hasOrdnanceCapacity = (ship: Ship): boolean => {
   const stats = SHIP_STATS[ship.type];
+
   if (!stats) return false;
 
   const minMass = ORDNANCE_MASS.mine;
@@ -119,10 +121,13 @@ export const validateShipOrdnanceLaunch = (
   ordnanceType: Ordnance['type'],
 ): string | null => {
   const stats = SHIP_STATS[ship.type];
+
   if (!stats) return 'Unknown ship type';
 
   if (ship.lifecycle === 'destroyed') return 'Ship is destroyed';
+
   if (ship.lifecycle === 'landed') return 'Cannot launch ordnance while landed';
+
   if (ship.control === 'captured')
     return 'Captured ships cannot launch ordnance';
 
@@ -154,6 +159,7 @@ export const validateShipOrdnanceLaunch = (
   }
 
   const mass = ORDNANCE_MASS[ordnanceType];
+
   if (mass == null) return 'Invalid ordnance type';
 
   if (ship.cargoUsed + mass > stats.cargo) {

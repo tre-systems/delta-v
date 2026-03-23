@@ -100,9 +100,11 @@ const canLandAtPlanetaryBase = (
   destroyedBases: Set<string>,
 ): boolean => {
   if (fuelSpent !== 1) return false;
+
   if (hexVecLength(ship.velocity) !== 1) return false;
 
   const currentHex = map.hexes.get(hexKey(ship.position));
+
   if (currentHex?.gravity?.bodyName !== bodyName) {
     return false;
   }
