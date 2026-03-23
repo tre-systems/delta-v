@@ -326,6 +326,65 @@ const projectSetupEvent = (
       };
     }
 
+    case 'ordnanceLaunched': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      state.ordnance.push({
+        id: event.ordnanceId,
+        type: event.ordnanceType as 'mine' | 'torpedo' | 'nuke',
+        owner: event.owner,
+        sourceShipId: event.sourceShipId,
+        position: { ...event.position },
+        velocity: { ...event.velocity },
+        turnsRemaining: event.turnsRemaining,
+        lifecycle: 'active',
+        pendingGravityEffects: event.pendingGravityEffects.map((effect) => ({
+          ...effect,
+          hex: { ...effect.hex },
+        })),
+      });
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'ordnanceExpired': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const ordnance = state.ordnance.find(
+        (item) => item.id === event.ordnanceId,
+      );
+
+      if (!ordnance) {
+        return {
+          ok: false,
+          error: `ordnance not found: ${event.ordnanceId}`,
+        };
+      }
+
+      ordnance.lifecycle = 'destroyed';
+      state.ordnance = state.ordnance.filter(
+        (item) => item.lifecycle !== 'destroyed',
+      );
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
     default:
       return {
         ok: false,
