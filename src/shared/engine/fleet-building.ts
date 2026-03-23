@@ -114,6 +114,7 @@ export const processFleetReady = (
   engineEvents.push({
     type: 'fleetPurchased',
     playerId,
+    purchases: structuredClone(purchases),
     shipTypes: purchases.map((p) => p.shipType),
   });
 

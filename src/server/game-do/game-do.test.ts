@@ -26,7 +26,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
-import type { ReplayArchive } from '../../shared/replay';
+import type { ReplayTimeline } from '../../shared/replay';
 import {
   appendProjectionMessage,
   getEventStream,
@@ -935,7 +935,7 @@ describe('GameDO', () => {
     expect(frames.length).toBeGreaterThan(1);
   });
 
-  it('returns filtered replay archives for authenticated players', async () => {
+  it('returns filtered replay timelines for authenticated players', async () => {
     const ctx = createCtx();
     await ctx.storage.put('roomConfig', {
       code: 'ABCDE',
@@ -961,10 +961,10 @@ describe('GameDO', () => {
     );
 
     expect(response.status).toBe(200);
-    const archive = (await response.json()) as ReplayArchive;
-    expect(archive.gameId).toBe('ABCDE-m1');
-    expect(archive.entries).toHaveLength(1);
-    expect(archive.entries[0]?.message.type).toBe('gameStart');
+    const timeline = (await response.json()) as ReplayTimeline;
+    expect(timeline.gameId).toBe('ABCDE-m1');
+    expect(timeline.entries).toHaveLength(1);
+    expect(timeline.entries[0]?.message.type).toBe('gameStart');
   });
 
   it('stores projection frames for game start and later state changes', async () => {
@@ -1099,12 +1099,12 @@ describe('GameDO', () => {
     );
 
     expect(response.status).toBe(200);
-    const archive = (await response.json()) as ReplayArchive;
-    expect(archive.gameId).toBe('ABCDE-m1');
-    expect(archive.entries).toHaveLength(1);
-    expect(archive.entries[0]?.message.type).toBe('stateUpdate');
-    expect(archive.entries[0]?.turn).toBe(3);
-    expect(archive.entries[0]?.phase).toBe('combat');
+    const timeline = (await response.json()) as ReplayTimeline;
+    expect(timeline.gameId).toBe('ABCDE-m1');
+    expect(timeline.entries).toHaveLength(1);
+    expect(timeline.entries[0]?.message.type).toBe('stateUpdate');
+    expect(timeline.entries[0]?.turn).toBe(3);
+    expect(timeline.entries[0]?.phase).toBe('combat');
   });
 
   it('keeps replay access available after inactivity cleanup', async () => {
@@ -1141,8 +1141,8 @@ describe('GameDO', () => {
     );
 
     expect(response.status).toBe(200);
-    const archive = (await response.json()) as ReplayArchive;
-    expect(archive.gameId).toBe('ABCDE-m1');
+    const timeline = (await response.json()) as ReplayTimeline;
+    expect(timeline.gameId).toBe('ABCDE-m1');
   });
 
   it('rejects new joins for archived rooms', async () => {
