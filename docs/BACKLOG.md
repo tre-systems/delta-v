@@ -2,22 +2,6 @@
 
 Remaining work only. Completed items are in git history.
 
-## Reliability & Architecture
-
-### Seeded PRNG for server game logic
-
-Server-side engine calls use `Math.random` for combat
-dice, asteroid hazards, and ordnance detonation. This
-prevents deterministic replay validation and server-side
-simulation testing. Pass a seeded PRNG (or capture RNG
-outputs in engine events) so matches can be
-deterministically replayed.
-
-**Files:** `src/server/game-do/game-do.ts`,
-`src/shared/engine/astrogation.ts`,
-`src/shared/engine/combat.ts`,
-`src/shared/engine/ordnance.ts`
-
 ## Gameplay & Content
 
 ### Passenger rescue mechanics
