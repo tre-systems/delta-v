@@ -8,14 +8,12 @@ import {
 } from '../../shared/engine/game-engine';
 import {
   buildMatchId,
-  createReplayArchive,
   type ProjectionFrame,
   parseMatchId,
   type ReplayArchive,
   type ReplayEntry,
   type ReplayMessage,
   toProjectionFrame,
-  toReplayEntry,
   toReplayEntryFromProjectionFrame,
 } from '../../shared/replay';
 import type { Phase } from '../../shared/types/domain';
@@ -25,7 +23,6 @@ type Storage = DurableObjectStorage;
 
 const MAX_EVENTS = 500;
 
-const replayKey = (gameId: string): string => `replayArchive:${gameId}`;
 const projectionFramesKey = (gameId: string): string => `projection:${gameId}`;
 
 // --- Event log ---
@@ -170,42 +167,6 @@ export const appendProjectionMessage = async (
   await saveProjectionFrames(storage, gameId, frames);
 };
 
-export const getReplayArchive = async (
-  storage: Storage,
-  gameId: string,
-): Promise<ReplayArchive | null> =>
-  (await storage.get<ReplayArchive>(replayKey(gameId))) ?? null;
-
-export const saveReplayArchive = async (
-  storage: Storage,
-  archive: ReplayArchive,
-): Promise<void> => {
-  await storage.put(replayKey(archive.gameId), archive);
-};
-
-export const appendReplayMessage = async (
-  storage: Storage,
-  roomCode: string,
-  matchNumber: number,
-  message: ReplayMessage,
-): Promise<void> => {
-  const recordedAt = Date.now();
-  const existing = await getReplayArchive(storage, message.state.gameId);
-
-  if (!existing) {
-    await saveReplayArchive(
-      storage,
-      createReplayArchive(roomCode, matchNumber, message, recordedAt),
-    );
-    return;
-  }
-
-  existing.entries.push(
-    toReplayEntry(existing.entries.length + 1, message, recordedAt),
-  );
-  await saveReplayArchive(storage, existing);
-};
-
 // --- Replay viewer identity ---
 
 export const getReplayViewerId = (
@@ -255,11 +216,9 @@ const toCheckpointReplayEntry = (checkpoint: Checkpoint): ReplayEntry => ({
 const getLatestProjectedState = (
   projectionFrames: ProjectionFrame[],
   checkpoint: Checkpoint | null,
-  archive: ReplayArchive | null,
 ): import('../../shared/types/domain').GameState | null =>
   projectionFrames.at(-1)?.message.state ??
   (projectionFrames.length > 0 ? null : checkpoint?.state) ??
-  archive?.entries.at(-1)?.message.state ??
   null;
 
 export const getProjectedCurrentState = async (
@@ -267,17 +226,12 @@ export const getProjectedCurrentState = async (
   gameId: string,
   viewerId: ViewerId,
 ): Promise<import('../../shared/types/domain').GameState | null> => {
-  const [projectionFrames, checkpoint, archive] = await Promise.all([
+  const [projectionFrames, checkpoint] = await Promise.all([
     getProjectionFrames(storage, gameId),
     getCheckpoint(storage, gameId),
-    getReplayArchive(storage, gameId),
   ]);
 
-  const latestState = getLatestProjectedState(
-    projectionFrames,
-    checkpoint,
-    archive,
-  );
+  const latestState = getLatestProjectedState(projectionFrames, checkpoint);
 
   if (!latestState) {
     return null;
@@ -290,13 +244,12 @@ export const getProjectedCurrentStateRaw = async (
   storage: Storage,
   gameId: string,
 ): Promise<import('../../shared/types/domain').GameState | null> => {
-  const [projectionFrames, checkpoint, archive] = await Promise.all([
+  const [projectionFrames, checkpoint] = await Promise.all([
     getProjectionFrames(storage, gameId),
     getCheckpoint(storage, gameId),
-    getReplayArchive(storage, gameId),
   ]);
 
-  return getLatestProjectedState(projectionFrames, checkpoint, archive);
+  return getLatestProjectedState(projectionFrames, checkpoint);
 };
 
 export const hasProjectionParity = async (
@@ -367,7 +320,6 @@ const createProjectedArchiveMetadata = (
 };
 
 export const projectReplayArchive = (
-  archive: ReplayArchive | null,
   checkpoint: Checkpoint | null,
   projectionFrames: ProjectionFrame[],
   viewerId: ViewerId,
@@ -390,19 +342,16 @@ export const projectReplayArchive = (
       };
     }
 
-    return (
-      archive ??
-      (checkpoint
-        ? {
-            gameId: checkpoint.gameId,
-            roomCode: '',
-            matchNumber: 0,
-            scenario: checkpoint.state.scenario,
-            createdAt: checkpoint.savedAt,
-            entries: [toCheckpointReplayEntry(checkpoint)],
-          }
-        : null)
-    );
+    return checkpoint
+      ? {
+          gameId: checkpoint.gameId,
+          roomCode: '',
+          matchNumber: 0,
+          scenario: checkpoint.state.scenario,
+          createdAt: checkpoint.savedAt,
+          entries: [toCheckpointReplayEntry(checkpoint)],
+        }
+      : null;
   })();
 
   if (!baseArchive) {
@@ -417,13 +366,12 @@ export const getProjectedReplayArchive = async (
   gameId: string,
   viewerId: ViewerId,
 ): Promise<ReplayArchive | null> => {
-  const [archive, checkpoint, projectionFrames] = await Promise.all([
-    getReplayArchive(storage, gameId),
+  const [checkpoint, projectionFrames] = await Promise.all([
     getCheckpoint(storage, gameId),
     getProjectionFrames(storage, gameId),
   ]);
 
-  return projectReplayArchive(archive, checkpoint, projectionFrames, viewerId);
+  return projectReplayArchive(checkpoint, projectionFrames, viewerId);
 };
 
 // --- Match identity ---
