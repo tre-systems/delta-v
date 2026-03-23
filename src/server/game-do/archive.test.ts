@@ -365,21 +365,31 @@ describe('replay projection', () => {
     expect(frames[0]?.message.type).toBe('gameStart');
   });
 
-  it('derives current state from the latest projection frame', async () => {
+  it('derives current state from checkpoint plus event tail', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const state = createGame(
+    const checkpointState = createGame(
       SCENARIOS.biplanetary,
       map,
       'CURR-m1',
       findBaseHex,
     );
-    state.turnNumber = 3;
-    state.phase = 'combat';
-
-    await appendProjectionMessage(storage, 'CURR-m1', 8, {
-      type: 'stateUpdate',
-      state,
-    });
+    await saveCheckpoint(storage, 'CURR-m1', checkpointState, 1);
+    await appendEnvelopedEvents(
+      storage,
+      'CURR-m1',
+      0,
+      {
+        type: 'turnAdvanced',
+        turn: 3,
+        activePlayer: 0,
+      },
+      {
+        type: 'phaseChanged',
+        phase: 'combat',
+        turn: 3,
+        activePlayer: 0,
+      },
+    );
 
     const projectedState = await getProjectedCurrentState(
       storage,
@@ -396,12 +406,9 @@ describe('replay projection', () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const state = createGame(SCENARIOS.biplanetary, map, 'RAW-m1', findBaseHex);
     state.turnNumber = 5;
-    state.phase = 'gameOver';
+    state.phase = 'combat';
 
-    await appendProjectionMessage(storage, 'RAW-m1', 11, {
-      type: 'stateUpdate',
-      state,
-    });
+    await saveCheckpoint(storage, 'RAW-m1', state, 11);
 
     const projectedState = await getProjectedCurrentStateRaw(storage, 'RAW-m1');
 
@@ -526,7 +533,7 @@ describe('replay projection', () => {
     expect(projected?.entries[1]?.phase).toBe('combat');
   });
 
-  it('prefers newer projection-frame state over older checkpoint state', async () => {
+  it('prefers newer event-tail state over older checkpoint state', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const checkpointState = createGame(
       SCENARIOS.biplanetary,
@@ -541,6 +548,22 @@ describe('replay projection', () => {
     freshState.phase = 'combat';
 
     await saveCheckpoint(storage, 'STALE-m1', checkpointState, 1);
+    await appendEnvelopedEvents(
+      storage,
+      'STALE-m1',
+      0,
+      {
+        type: 'turnAdvanced',
+        turn: 4,
+        activePlayer: 0,
+      },
+      {
+        type: 'phaseChanged',
+        phase: 'combat',
+        turn: 4,
+        activePlayer: 0,
+      },
+    );
     await appendProjectionMessage(storage, 'STALE-m1', 4, {
       type: 'stateUpdate',
       state: freshState,
@@ -560,26 +583,18 @@ describe('replay projection', () => {
     expect(projectedTimeline?.entries.at(-1)?.turn).toBe(4);
   });
 
-  it('reports parity when live state matches checkpoint plus tail projection', async () => {
+  it('reports parity when live state matches persisted checkpoint state', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const checkpointState = createGame(
+    const liveState = createGame(
       SCENARIOS.biplanetary,
       map,
       'PARITY2-m1',
       findBaseHex,
     );
-    checkpointState.turnNumber = 2;
-    checkpointState.phase = 'ordnance';
+    liveState.turnNumber = 2;
+    liveState.phase = 'ordnance';
 
-    const liveState = structuredClone(checkpointState);
-    liveState.turnNumber = 3;
-    liveState.phase = 'combat';
-
-    await saveCheckpoint(storage, 'PARITY2-m1', checkpointState, 4);
-    await appendProjectionMessage(storage, 'PARITY2-m1', 5, {
-      type: 'stateUpdate',
-      state: liveState,
-    });
+    await saveCheckpoint(storage, 'PARITY2-m1', liveState, 4);
 
     expect(await hasProjectionParity(storage, 'PARITY2-m1', liveState)).toBe(
       true,
@@ -597,9 +612,11 @@ describe('replay projection', () => {
     const liveState = structuredClone(projectedState);
     liveState.turnNumber = projectedState.turnNumber + 1;
 
-    await appendProjectionMessage(storage, 'PARITY3-m1', 1, {
-      type: 'gameStart',
-      state: projectedState,
+    await appendEnvelopedEvents(storage, 'PARITY3-m1', null, {
+      type: 'gameCreated',
+      scenario: projectedState.scenario,
+      turn: projectedState.turnNumber,
+      phase: projectedState.phase,
     });
 
     expect(await hasProjectionParity(storage, 'PARITY3-m1', liveState)).toBe(

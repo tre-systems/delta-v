@@ -122,12 +122,14 @@ export class GameDO extends DurableObject<Env> {
   }
 
   // --- State management ---
-  private async getGameState(): Promise<GameState | null> {
-    return (await this.ctx.storage.get<GameState>('gameState')) ?? null;
-  }
+  private async getCurrentGameState(): Promise<GameState | null> {
+    const gameId = await this.getLatestGameId();
 
-  private async saveGameState(state: GameState): Promise<void> {
-    await this.ctx.storage.put('gameState', state);
+    if (!gameId) {
+      return null;
+    }
+
+    return getProjectedCurrentStateRaw(this.ctx.storage, gameId);
   }
 
   private async getRoomConfig(): Promise<RoomConfig | null> {
@@ -195,12 +197,6 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async getLatestGameId(): Promise<string | null> {
-    const currentGameId = (await this.getGameState())?.gameId;
-
-    if (currentGameId) {
-      return currentGameId;
-    }
-
     const [code, matchNumber] = await Promise.all([
       this.getGameCode(),
       this.ctx.storage.get<number>('matchNumber'),
@@ -476,19 +472,10 @@ export class GameDO extends DurableObject<Env> {
       code: roomConfig.code,
       playerToken,
     });
-    const gameState = await this.getGameState();
-    const projectedState =
-      gameState !== null ? filterStateForPlayer(gameState, playerId) : null;
-    const latestGameId = gameState?.gameId ?? (await this.getLatestGameId());
-    const reconnectState =
-      projectedState ??
-      (latestGameId
-        ? await getProjectedCurrentState(
-            this.ctx.storage,
-            latestGameId,
-            playerId,
-          )
-        : null);
+    const latestGameId = await this.getLatestGameId();
+    const reconnectState = latestGameId
+      ? await getProjectedCurrentState(this.ctx.storage, latestGameId, playerId)
+      : null;
 
     if (reconnectState) {
       this.send(server, {
@@ -624,7 +611,7 @@ export class GameDO extends DurableObject<Env> {
       return;
     }
     const playerId = this.getPlayerId(ws);
-    const gameState = await this.getGameState();
+    const gameState = await this.getCurrentGameState();
     // If no game in progress, just clean up
     if (!gameState || gameState.phase === 'gameOver') {
       return;
@@ -649,7 +636,7 @@ export class GameDO extends DurableObject<Env> {
     switch (action.type) {
       case 'disconnectExpired': {
         await this.clearDisconnectMarker();
-        const gameState = await this.getGameState();
+        const gameState = await this.getCurrentGameState();
 
         if (!gameState || gameState.phase === 'gameOver') {
           await this.rescheduleAlarm();
@@ -677,7 +664,7 @@ export class GameDO extends DurableObject<Env> {
       case 'inactivityTimeout': {
         // Archive any unarchived match before cleanup
         if (this.env.MATCH_ARCHIVE) {
-          const gameState = await this.getGameState();
+          const gameState = await this.getCurrentGameState();
 
           if (gameState) {
             const code = await this.getGameCode();
@@ -708,7 +695,7 @@ export class GameDO extends DurableObject<Env> {
 
   private async handleTurnTimeout(): Promise<void> {
     await this.ctx.storage.delete('turnTimeoutAt');
-    const gameState = await this.getGameState();
+    const gameState = await this.getCurrentGameState();
 
     if (!gameState || gameState.phase === 'gameOver') {
       await this.rescheduleAlarm();
@@ -768,7 +755,7 @@ export class GameDO extends DurableObject<Env> {
     } = options ?? {};
     const roomCode = await this.getGameCode();
     const replayMessage = resolveStateBearingMessage(state, primaryMessage);
-    await this.saveGameState(state);
+    await this.ctx.storage.delete('gameState');
     let eventSeq = await getEventStreamLength(this.ctx.storage, state.gameId);
 
     if (events.length > 0) {
@@ -835,7 +822,7 @@ export class GameDO extends DurableObject<Env> {
         >,
     onSuccess: (result: Success) => Promise<void> | void,
   ): Promise<void> {
-    const gameState = await this.getGameState();
+    const gameState = await this.getCurrentGameState();
 
     if (!gameState) {
       return;
@@ -975,7 +962,7 @@ export class GameDO extends DurableObject<Env> {
     const gameStartMessage = toGameStartMessage(gameState);
     await this.clearRoomArchivedFlag();
     await saveMatchCreatedAt(this.ctx.storage, gameId, Date.now());
-    await this.saveGameState(gameState);
+    await this.ctx.storage.delete('gameState');
     const initEvents: import('../../shared/engine/engine-events').EngineEvent[] =
       [
         {

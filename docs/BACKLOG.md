@@ -45,24 +45,17 @@ composition root into indirection for its own sake.
 
 ## Event-Sourced Match Architecture
 
-### Finish the event-sourced server migration
+### Event-sourced server migration
 
-Complete the transition from snapshot-first Durable Object
-state to an append-only authoritative match log with
-projection rebuild support.
+Done for authoritative server recovery:
+- no separate Durable Object `gameState` snapshot slot
+- authoritative recovery from persisted event stream plus optional checkpoints
+- parity checks against event-sourced recovery
+- replay and reconnect on projection-backed paths
 
-Stable `gameId`, match-scoped event storage, projection
-frames, and checkpoints are already in place. Remaining
-work is to persist authoritative random outcomes with
-the event stream and rebuild authoritative projections
-from stored events rather than depending on live
-snapshots for parity.
-
-Definition of done: a match can be reconstructed from
-its persisted event stream plus optional checkpoints;
-projection parity is verified against live state; replay,
-reconnect, and future spectator views all read from the
-same projection path.
+Remaining follow-up work:
+- decide whether replay transport should stay cached as projection frames or be regenerated directly from the event stream on demand
+- extend the same viewer model to spectator delivery
 
 **Files:** `src/server/game-do/archive.ts`,
 `src/server/game-do/game-do.ts`,

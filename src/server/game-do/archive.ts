@@ -2,10 +2,12 @@ import type {
   EngineEvent,
   EventEnvelope,
 } from '../../shared/engine/engine-events';
+import { projectGameStateFromStream } from '../../shared/engine/event-projector';
 import {
   filterStateForPlayer,
   type ViewerId,
 } from '../../shared/engine/game-engine';
+import { buildSolarSystemMap } from '../../shared/map-data';
 import {
   buildMatchId,
   type ProjectionFrame,
@@ -20,6 +22,7 @@ import type { Phase } from '../../shared/types/domain';
 import { isValidPlayerToken, type RoomConfig } from '../protocol';
 
 type Storage = DurableObjectStorage;
+const map = buildSolarSystemMap();
 
 const projectionFramesKey = (gameId: string): string => `projection:${gameId}`;
 
@@ -189,25 +192,34 @@ const toCheckpointReplayEntry = (checkpoint: Checkpoint): ReplayEntry => ({
   } satisfies ReplayMessage,
 });
 
-const getLatestProjectedState = (
-  projectionFrames: ProjectionFrame[],
+const projectCurrentStateFromStream = (
+  eventStream: EventEnvelope[],
   checkpoint: Checkpoint | null,
-): import('../../shared/types/domain').GameState | null =>
-  projectionFrames.at(-1)?.message.state ??
-  (projectionFrames.length > 0 ? null : checkpoint?.state) ??
-  null;
+): import('../../shared/types/domain').GameState | null => {
+  const tail =
+    checkpoint === null
+      ? eventStream
+      : eventStream.filter((envelope) => envelope.seq > checkpoint.seq);
+  const projected = projectGameStateFromStream(
+    tail,
+    map,
+    checkpoint?.state ?? null,
+  );
+
+  return projected.ok ? projected.state : null;
+};
 
 export const getProjectedCurrentState = async (
   storage: Storage,
   gameId: string,
   viewerId: ViewerId,
 ): Promise<import('../../shared/types/domain').GameState | null> => {
-  const [projectionFrames, checkpoint] = await Promise.all([
-    getProjectionFrames(storage, gameId),
+  const [eventStream, checkpoint] = await Promise.all([
+    getEventStream(storage, gameId),
     getCheckpoint(storage, gameId),
   ]);
 
-  const latestState = getLatestProjectedState(projectionFrames, checkpoint);
+  const latestState = projectCurrentStateFromStream(eventStream, checkpoint);
 
   if (!latestState) {
     return null;
@@ -220,12 +232,12 @@ export const getProjectedCurrentStateRaw = async (
   storage: Storage,
   gameId: string,
 ): Promise<import('../../shared/types/domain').GameState | null> => {
-  const [projectionFrames, checkpoint] = await Promise.all([
-    getProjectionFrames(storage, gameId),
+  const [eventStream, checkpoint] = await Promise.all([
+    getEventStream(storage, gameId),
     getCheckpoint(storage, gameId),
   ]);
 
-  return getLatestProjectedState(projectionFrames, checkpoint);
+  return projectCurrentStateFromStream(eventStream, checkpoint);
 };
 
 export const hasProjectionParity = async (

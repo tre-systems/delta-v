@@ -6,9 +6,9 @@ Where the codebase is in transition, this document
 distinguishes the current implementation from the
 accepted target architecture. The server now persists a
 match-scoped event stream plus projection frames and
-checkpoints. The remaining migration work is to make
-that event stream sufficient to rebuild authoritative
-state without leaning on the live snapshot.
+checkpoints, and authoritative server recovery comes
+from checkpoint plus event tail rather than a separate
+Durable Object `gameState` snapshot slot.
 
 Platform references:
 - [Cloudflare Workers](https://developers.cloudflare.com/workers/)
@@ -31,10 +31,9 @@ Pattern references:
 
 Delta-V employs a full-stack TypeScript architecture
 built around a **shared side-effect-free engine with
-authoritative edge sessions** model. Today the
-authoritative room still persists snapshots directly;
-the committed next step is to shift that authority to an
-append-only event stream and treat snapshots as derived
+authoritative edge sessions** model. The authoritative
+room persists an append-only match stream and derives
+current state from that stream plus optional
 checkpoints.
 
 ```
@@ -192,13 +191,13 @@ The backend leverages Cloudflare's edge network.
 
 - **Shared protocol validation**: Runtime C2S validation now lives in `shared/protocol.ts` instead of the server shell. The Durable Object still consumes `validateClientMessage()`, but the message-shape ownership sits beside the shared protocol types rather than inside server-only plumbing.
 
-- **Single state-bearing outbound message per action**: `publishStateChange()` currently persists state and events first, then emits exactly one state-bearing message (`movementResult`, `combatResult`, or `stateUpdate`). If the resulting state is terminal, the DO appends a separate `gameOver` notification after that state-bearing message. This one-action / one-update client contract should remain intact through the event-sourced migration even if the server starts projecting that message from appended domain events instead of mutating and saving a snapshot first.
+- **Single state-bearing outbound message per action**: `publishStateChange()` appends domain events and a corresponding projection frame, then emits exactly one state-bearing message (`movementResult`, `combatResult`, or `stateUpdate`). If the resulting state is terminal, the DO appends a separate `gameOver` notification after that state-bearing message. This one-action / one-update client contract remains intact even though server recovery no longer depends on a separate persisted live snapshot.
 
 - **Single choke points for coordination**: The current codebase deliberately concentrates high-risk side effects behind a few owner functions rather than spreading them around. On the server, `publishStateChange()` owns persist/archive/broadcast/timer restart for state transitions. On the client, `dispatchGameCommand()`, `applyClientGameState()`, and `applyClientStateTransition()` are the corresponding choke points for command routing, authoritative-state application, and state-entry side effects.
 
-- **Projection-backed replay and reconnect**: `initGame()` allocates a stable match identity (`gameId` like `ROOM1-m2`). `publishStateChange()` appends versioned event envelopes and a corresponding projection frame for each state-bearing outbound message, while checkpoints are saved at turn boundaries and match end. Replay fetches are authenticated by player token and return player-filtered timelines projected from checkpoint plus frame tail; reconnect falls back to the same projected state path.
+- **Projection-backed replay and reconnect**: `initGame()` allocates a stable match identity (`gameId` like `ROOM1-m2`). `publishStateChange()` appends versioned event envelopes and a corresponding projection frame for each state-bearing outbound message, while checkpoints are saved at turn boundaries and match end. Replay fetches are authenticated by player token and return player-filtered timelines projected from checkpoint plus frame tail; reconnect and alarm-path recovery rebuild current state from checkpoint plus persisted event tail.
 
-- **Accepted direction: event-sourced authoritative matches**: The remaining architectural work is to make the append-only match stream itself sufficient to rebuild authoritative state. Each validated command should append versioned domain events with sequence numbers, actor identity, correlation id, match identity, and explicit random outcomes where needed. Authoritative `GameState`, player views, spectator views, replay payloads, and reconnect state should then all be projections built from the stream and optional checkpoints, with snapshots kept only as verified caches.
+- **Accepted direction: event-sourced authoritative matches**: The authoritative server path now recovers `GameState` from the append-only match stream plus optional checkpoints, and parity checks validate that against the just-computed live state before transport. Projection frames remain as cached state-bearing transport snapshots for replay delivery. The remaining architectural work is mainly viewer-model expansion and deciding whether replay transport should eventually be regenerated directly from the event stream instead of stored projection frames.
 
 - **Filtered broadcasting (current) and viewer-aware filtering (next)**: `broadcastFiltered()` currently checks whether the current scenario has hidden information (fugitive identities in escape scenarios). If no hidden info, the same state goes to both players. If hidden info, `filterStateForPlayer(state, playerId)` is called separately per player — own ships are fully visible, unrevealed enemy ships show `type: 'unknown'`. The next step is a viewer model that supports player 0, player 1, and spectator / public projections so event-sourced replay and spectator delivery cannot leak hidden data.
 
@@ -319,8 +318,7 @@ Disconnect → 30s grace period → reconnect with token or forfeit
 
 ### Planned Event-Sourced Match Lifecycle
 
-The current implementation still persists snapshots
-directly. The accepted target flow is:
+The current implementation follows this flow:
 
 1. Client submits a validated command.
 2. The Durable Object appends canonical, versioned
