@@ -6,6 +6,7 @@ import type {
   Ship,
   SolarSystemMap,
 } from '../types';
+import { CURRENT_GAME_STATE_SCHEMA_VERSION } from '../types';
 import { randomChoice } from '../util';
 import { parseBaseKey } from './util';
 
@@ -231,6 +232,7 @@ export const createGame = (
     (playerId) => (getScenarioStartingCredits(scenario, playerId) ?? 0) > 0,
   );
   return {
+    schemaVersion: CURRENT_GAME_STATE_SCHEMA_VERSION,
     gameId: gameCode,
     scenario: scenario.name,
     scenarioRules: {

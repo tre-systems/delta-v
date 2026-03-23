@@ -182,18 +182,21 @@ const getTrackedPath = (ship: Ship) =>
 export const getClosestApproachHex = (
   attacker: Ship,
   target: Pick<Ship | Ordnance, 'position'>,
-) =>
-  getTrackedPath(attacker).reduce(
+): Ship['position'] => {
+  const trackedPath = getTrackedPath(attacker);
+
+  return trackedPath.reduce(
     (best, pathHex) => {
       const distance = hexDistance(pathHex, target.position);
 
       return distance < best.distance ? { hex: pathHex, distance } : best;
     },
     {
-      hex: getTrackedPath(attacker)[0],
-      distance: hexDistance(getTrackedPath(attacker)[0], target.position),
+      hex: trackedPath[0],
+      distance: hexDistance(trackedPath[0], target.position),
     },
   ).hex;
+};
 
 // Compute range modifier: subtract 1 per hex of
 // distance. Range is measured from the attacker's

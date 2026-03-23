@@ -7,6 +7,7 @@ import type {
   OrdnanceLaunch,
   TransferOrder,
 } from './types';
+import { isObject, isString } from './util';
 
 const MAX_FLEET_PURCHASES = 64;
 const MAX_ASTROGATION_ORDERS = 64;
@@ -17,11 +18,6 @@ const MAX_ATTACKERS_PER_COMBAT = 16;
 const MAX_WEAK_GRAVITY_CHOICES = 64;
 const MAX_SURRENDER_SHIPS = 64;
 const MAX_TRANSFER_ORDERS = 64;
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const isString = (value: unknown): value is string => typeof value === 'string';
 
 const isIntegerInRange = (
   value: unknown,
