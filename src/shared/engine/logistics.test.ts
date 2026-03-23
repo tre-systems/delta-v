@@ -81,6 +81,11 @@ describe('processSurrender', () => {
     if (!('error' in result)) {
       const s = must(result.state.ships.find((s) => s.id === 's1'));
       expect(s.control).toBe('surrendered');
+      expect(result.engineEvents).toContainEqual({
+        type: 'surrenderDeclared',
+        playerId: 0,
+        shipIds: ['s1'],
+      });
     }
   });
   it('rejects surrender of enemy ship', () => {
@@ -399,6 +404,11 @@ describe('processLogistics', () => {
       const tgt = must(result.state.ships.find((s) => s.id === 's2'));
       expect(src.fuel).toBe(40);
       expect(tgt.fuel).toBe(15);
+      expect(result.engineEvents).toContainEqual({
+        type: 'logisticsTransfersCommitted',
+        playerId: 0,
+        transfers: [transfer],
+      });
     }
   });
   it('transfers cargo between ships', () => {
