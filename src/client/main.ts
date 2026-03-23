@@ -66,6 +66,11 @@ import {
   renderTransferPanel,
 } from './game/logistics-ui';
 import {
+  createMainMessageHandlerDeps,
+  createMainPhaseTransitionDeps,
+  createMainStateTransitionDeps,
+} from './game/main-deps';
+import {
   handleServerMessage,
   type MessageHandlerDeps,
 } from './game/message-handler';
@@ -301,23 +306,23 @@ class GameClient {
   }
   private setState(newState: ClientState) {
     applyClientStateTransition(
-      {
+      createMainStateTransitionDeps({
         ctx: this.ctx,
-        ui: this.ui,
-        tutorial: this.tutorial,
         renderer: this.renderer,
+        ui: this.ui,
+        hud: this.hud,
+        actionDeps: this.actionDeps,
+        turnTelemetry: this.turnTelemetry,
+        tutorial: this.tutorial,
         turnTimer: this.turnTimer,
-        onStateChanged: (prevState, nextState) =>
-          this.turnTelemetry.onStateChanged(prevState, nextState),
-        hideTooltip: () => hide(this.tooltipEl),
-        updateHUD: () => this.hud.updateHUD(),
+        tooltipEl: this.tooltipEl,
         resetCombatState: () => this.resetCombatState(),
         startCombatTargetWatch: () => this.startCombatTargetWatch(),
         setLogisticsUIState: (state) => {
           this.logisticsUIState = state;
         },
         renderLogisticsPanel: () => this.renderLogisticsPanel(),
-      },
+      }),
       newState,
     );
   }
@@ -392,38 +397,20 @@ class GameClient {
     );
   }
   private handleMessage(msg: S2C) {
-    const deps: MessageHandlerDeps = {
+    const deps: MessageHandlerDeps = createMainMessageHandlerDeps({
       ctx: this.ctx,
-      setState: (s) => this.setState(s),
-      applyGameState: (s) => this.applyGameState(s),
-      transitionToPhase: () => this.transitionToPhase(),
-      presentMovementResult: (
-        state,
-        movements,
-        ordnanceMovements,
-        events,
-        onComplete,
-      ) =>
-        this.actionDeps.presentMovementResult(
-          state,
-          movements,
-          ordnanceMovements,
-          events,
-          onComplete,
-        ),
-      presentCombatResults: (prev, state, results) =>
-        this.actionDeps.presentCombatResults(prev, state, results),
-      showGameOverOutcome: (won, reason) =>
-        this.actionDeps.showGameOverOutcome(won, reason),
-      storePlayerToken: (code, token) =>
-        this.sessionApi.storePlayerToken(code, token),
-      resetTurnTelemetry: () => this.turnTelemetry.reset(),
-      onAnimationComplete: () => this.onAnimationComplete(),
-      logScenarioBriefing: () => this.hud.logScenarioBriefing(),
-      deserializeState: (raw) => this.deserializeState(raw),
       renderer: this.renderer,
       ui: this.ui,
-    };
+      hud: this.hud,
+      actionDeps: this.actionDeps,
+      turnTelemetry: this.turnTelemetry,
+      sessionApi: this.sessionApi,
+      setState: (state) => this.setState(state),
+      applyGameState: (state) => this.applyGameState(state),
+      transitionToPhase: () => this.transitionToPhase(),
+      onAnimationComplete: () => this.onAnimationComplete(),
+      logScenarioBriefing: () => this.hud.logScenarioBriefing(),
+    });
     handleServerMessage(deps, msg);
   }
   private handleDisconnect() {
@@ -503,20 +490,19 @@ class GameClient {
     this.transitionToPhase();
   }
   private transitionToPhase() {
-    transitionClientPhase({
-      gameState: this.ctx.gameState,
-      playerId: this.ctx.playerId,
-      lastLoggedTurn: this.turnTelemetry.getLastLoggedTurn(),
-      isLocalGame: this.ctx.isLocalGame,
-      scenario: this.ctx.scenario,
-      onTurnLogged: (turnNumber, context) =>
-        this.turnTelemetry.onTurnLogged(turnNumber, context),
-      logTurn: (turnNumber, playerLabel) =>
-        this.ui.log.logTurn(turnNumber, playerLabel),
-      beginCombat: () => beginCombat(this.actionDeps.combatDeps),
-      setState: (state) => this.setState(state),
-      runLocalAI: () => this.runAITurn(),
-    });
+    transitionClientPhase(
+      createMainPhaseTransitionDeps({
+        ctx: this.ctx,
+        renderer: this.renderer,
+        ui: this.ui,
+        hud: this.hud,
+        actionDeps: this.actionDeps,
+        turnTelemetry: this.turnTelemetry,
+        setState: (state) => this.setState(state),
+        runLocalAI: () => this.runAITurn(),
+        beginCombat: () => beginCombat(this.actionDeps.combatDeps),
+      }),
+    );
   }
   private resetCombatState() {
     resetCombat(this.actionDeps.combatDeps);
@@ -581,10 +567,6 @@ class GameClient {
   }
   showToast(message: string, type: 'error' | 'info' | 'success' = 'info') {
     this.ui.overlay.showToast(message, type);
-  }
-  // Deserialize state from server
-  private deserializeState(raw: GameState): GameState {
-    return raw; // JSON types are already compatible
   }
 }
 // --- Bootstrap ---

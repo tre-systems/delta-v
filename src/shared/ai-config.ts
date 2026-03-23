@@ -1,7 +1,7 @@
 import type { AIDifficulty } from './ai';
 
 export interface AIDifficultyConfig {
-  /** Global scoring multiplier */
+  // Global scoring multiplier
   multiplier: number;
 
   // --- Escape strategy ---
