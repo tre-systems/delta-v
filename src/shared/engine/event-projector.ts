@@ -1,3 +1,4 @@
+import { SHIP_STATS } from '../constants';
 import { findBaseHex, SCENARIOS } from '../map-data';
 import type { ScenarioDefinition, SolarSystemMap } from '../types';
 import type { GameState } from '../types/domain';
@@ -15,6 +16,53 @@ const resolveScenarioByName = (
   }
 
   return null;
+};
+
+const requireState = (
+  state: GameState | null,
+  eventType: EngineEvent['type'],
+):
+  | {
+      ok: true;
+      state: GameState;
+    }
+  | {
+      ok: false;
+      error: string;
+    } =>
+  state === null
+    ? {
+        ok: false,
+        error: `${eventType} before gameCreated`,
+      }
+    : {
+        ok: true,
+        state,
+      };
+
+const requireShip = (
+  state: GameState,
+  shipId: string,
+):
+  | {
+      ok: true;
+      ship: GameState['ships'][number];
+    }
+  | {
+      ok: false;
+      error: string;
+    } => {
+  const ship = state.ships.find((candidate) => candidate.id === shipId);
+
+  return ship
+    ? {
+        ok: true,
+        ship,
+      }
+    : {
+        ok: false,
+        error: `ship not found: ${shipId}`,
+      };
 };
 
 const projectSetupEvent = (
@@ -57,24 +105,23 @@ const projectSetupEvent = (
     }
 
     case 'fleetPurchased': {
-      if (state === null) {
-        return {
-          ok: false,
-          error: 'fleetPurchased before gameCreated',
-        };
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
       }
 
-      const scenario = resolveScenarioByName(state.scenario);
+      const scenario = resolveScenarioByName(baseState.state.scenario);
 
       if (!scenario) {
         return {
           ok: false,
-          error: `unknown scenario: ${state.scenario}`,
+          error: `unknown scenario: ${baseState.state.scenario}`,
         };
       }
 
       const result = processFleetReady(
-        state,
+        baseState.state,
         event.playerId,
         event.purchases,
         map,
@@ -87,12 +134,13 @@ const projectSetupEvent = (
     }
 
     case 'fugitiveDesignated': {
-      if (state === null) {
-        return {
-          ok: false,
-          error: 'fugitiveDesignated before gameCreated',
-        };
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
       }
+
+      state = baseState.state;
 
       for (const ship of state.ships) {
         if (ship.owner === event.playerId && ship.identity) {
@@ -119,12 +167,13 @@ const projectSetupEvent = (
     }
 
     case 'phaseChanged': {
-      if (state === null) {
-        return {
-          ok: false,
-          error: 'phaseChanged before gameCreated',
-        };
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
       }
+
+      state = baseState.state;
 
       state.phase = event.phase;
       state.turnNumber = event.turn;
@@ -137,15 +186,139 @@ const projectSetupEvent = (
     }
 
     case 'turnAdvanced': {
-      if (state === null) {
-        return {
-          ok: false,
-          error: 'turnAdvanced before gameCreated',
-        };
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
       }
+
+      state = baseState.state;
 
       state.turnNumber = event.turn;
       state.activePlayer = event.activePlayer;
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'shipMoved': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const projectedShip = requireShip(state, event.shipId);
+
+      if (!projectedShip.ok) {
+        return projectedShip;
+      }
+
+      projectedShip.ship.position = { ...event.to };
+      projectedShip.ship.lastMovementPath = event.path.map((hex) => ({
+        ...hex,
+      }));
+      projectedShip.ship.velocity = { ...event.newVelocity };
+      projectedShip.ship.fuel = event.fuelRemaining;
+      projectedShip.ship.lifecycle = event.lifecycle;
+      projectedShip.ship.overloadUsed = event.overloadUsed;
+      projectedShip.ship.pendingGravityEffects =
+        event.pendingGravityEffects.map((effect) => ({
+          ...effect,
+          hex: { ...effect.hex },
+        }));
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'shipLanded': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const projectedShip = requireShip(state, event.shipId);
+
+      if (!projectedShip.ok) {
+        return projectedShip;
+      }
+
+      projectedShip.ship.lifecycle = 'landed';
+      projectedShip.ship.velocity = { dq: 0, dr: 0 };
+      projectedShip.ship.pendingGravityEffects = [];
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'shipCrashed':
+    case 'shipDestroyed': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const projectedShip = requireShip(state, event.shipId);
+
+      if (!projectedShip.ok) {
+        return projectedShip;
+      }
+
+      projectedShip.ship.lifecycle = 'destroyed';
+      projectedShip.ship.velocity = { dq: 0, dr: 0 };
+      projectedShip.ship.pendingGravityEffects = [];
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'shipResupplied': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.state;
+      const projectedShip = requireShip(state, event.shipId);
+
+      if (!projectedShip.ok) {
+        return projectedShip;
+      }
+
+      const stats = SHIP_STATS[projectedShip.ship.type];
+
+      if (!stats) {
+        return {
+          ok: false,
+          error: `unknown ship type: ${projectedShip.ship.type}`,
+        };
+      }
+
+      projectedShip.ship.fuel = stats.fuel;
+      projectedShip.ship.cargoUsed = 0;
+      projectedShip.ship.nukesLaunchedSinceResupply = 0;
+      projectedShip.ship.damage = { disabledTurns: 0 };
+      projectedShip.ship.control = 'own';
+      projectedShip.ship.resuppliedThisTurn = true;
+
+      if (event.source === 'base') {
+        projectedShip.ship.overloadUsed = false;
+      }
 
       return {
         ok: true,

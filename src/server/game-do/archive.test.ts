@@ -46,8 +46,16 @@ describe('match-scoped event stream', () => {
       shipId: 'p0s0',
       from: { q: 0, r: 0 },
       to: { q: 1, r: 0 },
+      path: [
+        { q: 0, r: 0 },
+        { q: 1, r: 0 },
+      ],
       fuelSpent: 1,
+      fuelRemaining: 9,
       newVelocity: { dq: 1, dr: 0 },
+      lifecycle: 'active',
+      overloadUsed: false,
+      pendingGravityEffects: [],
     });
 
     await appendEnvelopedEvents(storage, 'ROOM1-m1', 1, {
@@ -55,8 +63,16 @@ describe('match-scoped event stream', () => {
       shipId: 'p1s0',
       from: { q: 10, r: 10 },
       to: { q: 9, r: 10 },
+      path: [
+        { q: 10, r: 10 },
+        { q: 9, r: 10 },
+      ],
       fuelSpent: 1,
+      fuelRemaining: 9,
       newVelocity: { dq: -1, dr: 0 },
+      lifecycle: 'active',
+      overloadUsed: false,
+      pendingGravityEffects: [],
     });
 
     const stream = await getEventStream(storage, 'ROOM1-m1');
@@ -96,8 +112,16 @@ describe('match-scoped event stream', () => {
       shipId: 's1',
       from: { q: 0, r: 0 },
       to: { q: 1, r: 0 },
+      path: [
+        { q: 0, r: 0 },
+        { q: 1, r: 0 },
+      ],
       fuelSpent: 1,
+      fuelRemaining: 9,
       newVelocity: { dq: 1, dr: 0 },
+      lifecycle: 'active',
+      overloadUsed: false,
+      pendingGravityEffects: [],
     });
 
     expect(await getEventStreamLength(storage, 'LEN-m1')).toBe(1);

@@ -3,7 +3,9 @@ import type { Phase } from '../types';
 import type {
   AstrogationOrder,
   FleetPurchase,
+  GravityEffect,
   OrdnanceLaunch,
+  ShipLifecycle,
   TransferOrder,
 } from '../types/domain';
 
@@ -57,8 +59,13 @@ export type EngineEvent =
       shipId: string;
       from: HexCoord;
       to: HexCoord;
+      path: HexCoord[];
       fuelSpent: number;
+      fuelRemaining: number;
       newVelocity: HexVec;
+      lifecycle: ShipLifecycle;
+      overloadUsed: boolean;
+      pendingGravityEffects: GravityEffect[];
     }
   | {
       type: 'shipLanded';
