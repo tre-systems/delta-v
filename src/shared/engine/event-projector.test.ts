@@ -22,6 +22,7 @@ describe('projectMatchSetupFromStream', () => {
           scenario: 'Interplanetary War',
           turn: 1,
           phase: 'fleetBuilding',
+          matchSeed: 0,
         },
       },
       {
@@ -101,6 +102,7 @@ describe('projectMatchSetupFromStream', () => {
           scenario: 'Escape',
           turn: 1,
           phase: 'astrogation',
+          matchSeed: 0,
         },
       },
       {
@@ -144,6 +146,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Interplanetary War',
             turn: 1,
             phase: 'fleetBuilding',
+            matchSeed: 0,
           },
         },
         {
@@ -156,6 +159,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Interplanetary War',
             turn: 1,
             phase: 'fleetBuilding',
+            matchSeed: 0,
           },
         },
       ],
@@ -181,6 +185,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Interplanetary War',
             turn: 1,
             phase: 'fleetBuilding',
+            matchSeed: 0,
           },
         },
         {
@@ -233,6 +238,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Bi-Planetary',
             turn: 1,
             phase: 'astrogation',
+            matchSeed: 0,
           },
         },
         {
@@ -285,6 +291,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Bi-Planetary',
             turn: 1,
             phase: 'astrogation',
+            matchSeed: 0,
           },
         },
         {
@@ -399,6 +406,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Bi-Planetary',
             turn: 1,
             phase: 'astrogation',
+            matchSeed: 0,
           },
         },
         {
@@ -460,6 +468,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Bi-Planetary',
             turn: 1,
             phase: 'astrogation',
+            matchSeed: 0,
           },
         },
         {
@@ -549,6 +558,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Bi-Planetary',
             turn: 1,
             phase: 'movement',
+            matchSeed: 0,
           },
         },
         {
@@ -674,6 +684,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Bi-Planetary',
             turn: 1,
             phase: 'combat',
+            matchSeed: 0,
           },
         },
         {
@@ -767,6 +778,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Convoy',
             turn: 1,
             phase: 'logistics',
+            matchSeed: 0,
           },
         },
         {
@@ -863,6 +875,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Grand Tour',
             turn: 1,
             phase: 'astrogation',
+            matchSeed: 0,
           },
         },
         {
@@ -899,6 +912,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Escape',
             turn: 1,
             phase: 'astrogation',
+            matchSeed: 0,
           },
         },
         {
@@ -939,6 +953,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Escape',
             turn: 1,
             phase: 'astrogation',
+            matchSeed: 0,
           },
         },
         {
@@ -1039,6 +1054,7 @@ describe('projectMatchSetupFromStream', () => {
             scenario: 'Bi-Planetary',
             turn: 1,
             phase: 'resupply',
+            matchSeed: 0,
           },
         },
         {

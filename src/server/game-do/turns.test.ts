@@ -55,7 +55,11 @@ describe('game-do-turns', () => {
   it('auto-submits empty burns for timed-out astrogation turns', () => {
     const state = createState();
 
-    const outcome = resolveTurnTimeoutOutcome(state, buildSolarSystemMap());
+    const outcome = resolveTurnTimeoutOutcome(
+      state,
+      buildSolarSystemMap(),
+      () => 0.5,
+    );
 
     expect(outcome).not.toBeNull();
     expect(outcome?.primaryMessage?.type).toBe('movementResult');
@@ -66,7 +70,11 @@ describe('game-do-turns', () => {
     const state = createState();
     state.phase = 'ordnance';
 
-    const outcome = resolveTurnTimeoutOutcome(state, buildSolarSystemMap());
+    const outcome = resolveTurnTimeoutOutcome(
+      state,
+      buildSolarSystemMap(),
+      () => 0.5,
+    );
 
     expect(outcome).not.toBeNull();
     expect(outcome?.primaryMessage?.type).toMatch(
@@ -79,7 +87,11 @@ describe('game-do-turns', () => {
     const state = createState();
     state.phase = 'combat';
 
-    const outcome = resolveTurnTimeoutOutcome(state, buildSolarSystemMap());
+    const outcome = resolveTurnTimeoutOutcome(
+      state,
+      buildSolarSystemMap(),
+      () => 0.5,
+    );
 
     expect(outcome).not.toBeNull();
     expect(outcome?.state.activePlayer).toBe(1);
@@ -89,13 +101,15 @@ describe('game-do-turns', () => {
     const state = createState();
     state.phase = 'gameOver';
 
-    expect(resolveTurnTimeoutOutcome(state, buildSolarSystemMap())).toBeNull();
+    expect(
+      resolveTurnTimeoutOutcome(state, buildSolarSystemMap(), () => 0.5),
+    ).toBeNull();
   });
 
   it('includes event log entries in outcome', () => {
     const state = createState();
     const map = buildSolarSystemMap();
-    const outcome = resolveTurnTimeoutOutcome(state, map);
+    const outcome = resolveTurnTimeoutOutcome(state, map, () => 0.5);
 
     expect(outcome).not.toBeNull();
     expect(outcome?.events.length).toBeGreaterThan(0);
@@ -107,7 +121,7 @@ describe('game-do-turns', () => {
   it('includes shipMoved events for astrogation', () => {
     const state = createState();
     const map = buildSolarSystemMap();
-    const outcome = resolveTurnTimeoutOutcome(state, map);
+    const outcome = resolveTurnTimeoutOutcome(state, map, () => 0.5);
 
     expect(outcome).not.toBeNull();
 
@@ -121,7 +135,7 @@ describe('game-do-turns', () => {
     const state = createState();
     state.phase = 'combat';
     const map = buildSolarSystemMap();
-    const outcome = resolveTurnTimeoutOutcome(state, map);
+    const outcome = resolveTurnTimeoutOutcome(state, map, () => 0.5);
 
     expect(outcome).not.toBeNull();
     // Skip combat produces no combat results,
@@ -134,7 +148,11 @@ describe('game-do-turns', () => {
     const state = createEscapeState();
     state.ships[0].lifecycle = 'destroyed';
 
-    const outcome = resolveTurnTimeoutOutcome(state, buildSolarSystemMap());
+    const outcome = resolveTurnTimeoutOutcome(
+      state,
+      buildSolarSystemMap(),
+      () => 0.5,
+    );
 
     expect(outcome).not.toBeNull();
     expect(outcome?.events.length).toBeGreaterThan(0);
@@ -144,7 +162,11 @@ describe('game-do-turns', () => {
     const state = createEscapeState();
     state.ships[0].control = 'captured';
 
-    const outcome = resolveTurnTimeoutOutcome(state, buildSolarSystemMap());
+    const outcome = resolveTurnTimeoutOutcome(
+      state,
+      buildSolarSystemMap(),
+      () => 0.5,
+    );
 
     expect(outcome).not.toBeNull();
     expect(outcome?.state.activePlayer).toBe(1);
@@ -154,7 +176,11 @@ describe('game-do-turns', () => {
     const state = createEscapeState();
     state.ships[0].baseStatus = 'emplaced';
 
-    const outcome = resolveTurnTimeoutOutcome(state, buildSolarSystemMap());
+    const outcome = resolveTurnTimeoutOutcome(
+      state,
+      buildSolarSystemMap(),
+      () => 0.5,
+    );
 
     expect(outcome).not.toBeNull();
     expect(outcome?.state.activePlayer).toBe(1);
@@ -167,7 +193,11 @@ describe('game-do-turns', () => {
     state.ships[2].baseStatus = 'emplaced';
     state.ships.push(createShip({ id: 'survivor', position: { q: 1, r: 0 } }));
 
-    const outcome = resolveTurnTimeoutOutcome(state, buildSolarSystemMap());
+    const outcome = resolveTurnTimeoutOutcome(
+      state,
+      buildSolarSystemMap(),
+      () => 0.5,
+    );
 
     expect(outcome).not.toBeNull();
     expect(outcome?.events.length).toBeGreaterThan(0);

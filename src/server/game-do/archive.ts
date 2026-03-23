@@ -36,6 +36,7 @@ const eventChunkCountKey = (gameId: string): string =>
 const eventSeqKey = (gameId: string): string => `eventSeq:${gameId}`;
 const matchCreatedAtKey = (gameId: string): string =>
   `matchCreatedAt:${gameId}`;
+const matchSeedKey = (gameId: string): string => `matchSeed:${gameId}`;
 const EVENT_CHUNK_SIZE = 64;
 
 const migrateGameState = (state: GameState): GameState => ({
@@ -292,6 +293,12 @@ export const getMatchCreatedAt = async (
   gameId: string,
 ): Promise<number | null> =>
   (await storage.get<number>(matchCreatedAtKey(gameId))) ?? null;
+
+export const getMatchSeed = async (
+  storage: Storage,
+  gameId: string,
+): Promise<number | null> =>
+  (await storage.get<number>(matchSeedKey(gameId))) ?? null;
 
 // --- Replay viewer identity ---
 
@@ -560,11 +567,16 @@ export const allocateMatchIdentity = async (
 ): Promise<{
   gameId: string;
   matchNumber: number;
+  matchSeed: number;
 }> => {
   const matchNumber = ((await storage.get<number>('matchNumber')) ?? 0) + 1;
+  const gameId = buildMatchId(code, matchNumber);
+  const seedBuf = new Uint32Array(1);
+  crypto.getRandomValues(seedBuf);
+  const matchSeed = seedBuf[0];
+
   await storage.put('matchNumber', matchNumber);
-  return {
-    gameId: buildMatchId(code, matchNumber),
-    matchNumber,
-  };
+  await storage.put(matchSeedKey(gameId), matchSeed);
+
+  return { gameId, matchNumber, matchSeed };
 };

@@ -5,6 +5,7 @@ import {
   getCheckpoint,
   getEventStream,
   getMatchCreatedAt,
+  getMatchSeed,
 } from './archive';
 
 // Persistent archive of a completed match.
@@ -19,6 +20,7 @@ export interface MatchArchive {
   completedAt: number;
   eventStream: EventEnvelope[];
   checkpoint: Checkpoint | null;
+  matchSeed: number | null;
 }
 
 const r2Key = (gameId: string): string => `matches/${gameId}.json`;
@@ -36,11 +38,13 @@ export const archiveCompletedMatch = async (
   const { gameId } = state;
 
   try {
-    const [eventStream, checkpoint, matchCreatedAt] = await Promise.all([
-      getEventStream(storage, gameId),
-      getCheckpoint(storage, gameId),
-      getMatchCreatedAt(storage, gameId),
-    ]);
+    const [eventStream, checkpoint, matchCreatedAt, matchSeed] =
+      await Promise.all([
+        getEventStream(storage, gameId),
+        getCheckpoint(storage, gameId),
+        getMatchCreatedAt(storage, gameId),
+        getMatchSeed(storage, gameId),
+      ]);
 
     const archive: MatchArchive = {
       gameId,
@@ -53,6 +57,7 @@ export const archiveCompletedMatch = async (
       completedAt: Date.now(),
       eventStream,
       checkpoint,
+      matchSeed,
     };
 
     await r2.put(r2Key(gameId), JSON.stringify(archive), {

@@ -187,6 +187,7 @@ describe('match-scoped event stream', () => {
       scenario: 'biplanetary',
       turn: 1,
       phase: 'astrogation',
+      matchSeed: 0,
     });
 
     const stream = await getEventStream(storage, 'TS-m1');
@@ -238,6 +239,7 @@ describe('match-scoped event stream', () => {
       scenario: 'duel',
       turn: 1,
       phase: 'astrogation',
+      matchSeed: 0,
     });
 
     await appendEnvelopedEvents(storage, 'ISO-m2', null, {
@@ -245,6 +247,7 @@ describe('match-scoped event stream', () => {
       scenario: 'duel',
       turn: 1,
       phase: 'astrogation',
+      matchSeed: 0,
     });
 
     const m1 = await getEventStream(storage, 'ISO-m1');
@@ -337,6 +340,7 @@ describe('match-scoped event stream', () => {
           scenario: 'duel',
           turn: 1,
           phase: 'astrogation',
+          matchSeed: 0,
         },
       },
     ]);
@@ -521,6 +525,7 @@ describe('replay projection', () => {
         scenario: 'Bi-Planetary',
         turn: 1,
         phase: 'astrogation',
+        matchSeed: 0,
       },
       {
         type: 'turnAdvanced',
@@ -644,6 +649,7 @@ describe('replay projection', () => {
       scenario: 'Bi-Planetary',
       turn: 1,
       phase: 'astrogation',
+      matchSeed: 0,
     });
 
     const projected = await getProjectedReplayTimeline(storage, 'META1-m1', 0);
@@ -736,6 +742,7 @@ describe('replay projection', () => {
         scenario: 'Bi-Planetary',
         turn: 1,
         phase: 'astrogation',
+        matchSeed: 0,
       },
       {
         type: 'turnAdvanced',
@@ -863,6 +870,7 @@ describe('replay projection', () => {
       scenario: liveState.scenario,
       turn: liveState.turnNumber,
       phase: liveState.phase,
+      matchSeed: 0,
     });
 
     for (let step = 0; step < 30 && liveState.phase !== 'gameOver'; step++) {
@@ -890,11 +898,11 @@ describe('replay projection', () => {
 
                   return attacks.length > 0
                     ? processCombat(liveState, actor, attacks, map, () => 0.5)
-                    : resolveTurnTimeoutOutcome(liveState, map);
+                    : resolveTurnTimeoutOutcome(liveState, map, () => 0.5);
                 })()
               : liveState.phase === 'logistics'
                 ? processLogistics(liveState, actor, [], map)
-                : resolveTurnTimeoutOutcome(liveState, map);
+                : resolveTurnTimeoutOutcome(liveState, map, () => 0.5);
 
       expect(outcome).not.toBeNull();
       expect(outcome && 'error' in outcome).toBe(false);
@@ -938,6 +946,7 @@ describe('replay projection', () => {
       scenario: projectedState.scenario,
       turn: projectedState.turnNumber,
       phase: projectedState.phase,
+      matchSeed: 0,
     });
 
     expect(await hasProjectionParity(storage, 'PARITY3-m1', liveState)).toBe(

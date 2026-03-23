@@ -22,6 +22,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
+import { deriveActionRng } from '../../shared/prng';
 import { validateClientMessage } from '../../shared/protocol';
 import type { EngineError, GameState } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
@@ -37,6 +38,7 @@ import {
   allocateMatchIdentity,
   appendEnvelopedEvents,
   getEventStreamLength,
+  getMatchSeed,
   getProjectedCurrentState,
   getProjectedCurrentStateRaw,
   getProjectedReplayTimeline,
@@ -131,7 +133,7 @@ export class GameDO extends DurableObject<Env> {
       },
     }),
     astrogation: this.defineGameStateActionHandler({
-      run: (
+      run: async (
         gameState,
         playerId,
         message: GameStateActionMessageOf<'astrogation'>,
@@ -141,7 +143,7 @@ export class GameDO extends DurableObject<Env> {
           playerId,
           message.orders,
           this.map,
-          Math.random,
+          await this.getActionRng(),
         ),
       publish: async (playerId, result) => {
         await this.publishStateChange(
@@ -170,7 +172,7 @@ export class GameDO extends DurableObject<Env> {
       },
     }),
     ordnance: this.defineGameStateActionHandler({
-      run: (
+      run: async (
         gameState,
         playerId,
         message: GameStateActionMessageOf<'ordnance'>,
@@ -180,7 +182,7 @@ export class GameDO extends DurableObject<Env> {
           playerId,
           message.launches,
           this.map,
-          Math.random,
+          await this.getActionRng(),
         ),
       publish: async (playerId, result) => {
         await this.publishStateChange(
@@ -210,8 +212,8 @@ export class GameDO extends DurableObject<Env> {
       },
     }),
     skipOrdnance: this.defineGameStateActionHandler({
-      run: (gameState, playerId) =>
-        skipOrdnance(gameState, playerId, this.map, Math.random),
+      run: async (gameState, playerId) =>
+        skipOrdnance(gameState, playerId, this.map, await this.getActionRng()),
       publish: async (playerId, result) => {
         await this.publishStateChange(
           result.state,
@@ -221,8 +223,13 @@ export class GameDO extends DurableObject<Env> {
       },
     }),
     beginCombat: this.defineGameStateActionHandler({
-      run: (gameState, playerId) =>
-        beginCombatPhase(gameState, playerId, this.map, Math.random),
+      run: async (gameState, playerId) =>
+        beginCombatPhase(
+          gameState,
+          playerId,
+          this.map,
+          await this.getActionRng(),
+        ),
       publish: async (playerId, result) => {
         await this.publishStateChange(
           result.state,
@@ -232,13 +239,17 @@ export class GameDO extends DurableObject<Env> {
       },
     }),
     combat: this.defineGameStateActionHandler({
-      run: (gameState, playerId, message: GameStateActionMessageOf<'combat'>) =>
+      run: async (
+        gameState,
+        playerId,
+        message: GameStateActionMessageOf<'combat'>,
+      ) =>
         processCombat(
           gameState,
           playerId,
           message.attacks,
           this.map,
-          Math.random,
+          await this.getActionRng(),
         ),
       publish: async (playerId, result) => {
         await this.publishStateChange(
@@ -249,8 +260,8 @@ export class GameDO extends DurableObject<Env> {
       },
     }),
     skipCombat: this.defineGameStateActionHandler({
-      run: (gameState, playerId) =>
-        skipCombat(gameState, playerId, this.map, Math.random),
+      run: async (gameState, playerId) =>
+        skipCombat(gameState, playerId, this.map, await this.getActionRng()),
       publish: async (playerId, result) => {
         await this.publishStateChange(
           result.state,
@@ -416,6 +427,25 @@ export class GameDO extends DurableObject<Env> {
     }
 
     return `${code}-m${matchNumber}`;
+  }
+
+  private async getActionRng(): Promise<() => number> {
+    const gameId = await this.getLatestGameId();
+
+    if (!gameId) {
+      return Math.random;
+    }
+
+    const [seed, seq] = await Promise.all([
+      getMatchSeed(this.ctx.storage, gameId),
+      getEventStreamLength(this.ctx.storage, gameId),
+    ]);
+
+    if (seed === null) {
+      return Math.random;
+    }
+
+    return deriveActionRng(seed, seq);
   }
 
   private async clearDisconnectMarker(): Promise<void> {
@@ -888,7 +918,8 @@ export class GameDO extends DurableObject<Env> {
     }
     let outcome: ReturnType<typeof resolveTurnTimeoutOutcome>;
     try {
-      outcome = resolveTurnTimeoutOutcome(gameState, this.map);
+      const rng = await this.getActionRng();
+      outcome = resolveTurnTimeoutOutcome(gameState, this.map, rng);
     } catch (err) {
       const code = await this.getGameCode();
       console.error(
@@ -1151,20 +1182,23 @@ export class GameDO extends DurableObject<Env> {
     ]);
     const map = this.map;
     const code = roomConfig?.code ?? (await this.getGameCode());
-    const { gameId } = await allocateMatchIdentity(this.ctx.storage, code);
+    const { gameId, matchSeed } = await allocateMatchIdentity(
+      this.ctx.storage,
+      code,
+    );
     const gameState = createGame(scenario, map, gameId, findBaseHex);
     const gameStartMessage = toGameStartMessage(gameState);
     await this.clearRoomArchivedFlag();
     await saveMatchCreatedAt(this.ctx.storage, gameId, Date.now());
-    const initEvents: import('../../shared/engine/engine-events').EngineEvent[] =
-      [
-        {
-          type: 'gameCreated' as const,
-          scenario: gameState.scenario,
-          turn: gameState.turnNumber,
-          phase: gameState.phase,
-        },
-      ];
+    const initEvents: EngineEvent[] = [
+      {
+        type: 'gameCreated' as const,
+        scenario: gameState.scenario,
+        turn: gameState.turnNumber,
+        phase: gameState.phase,
+        matchSeed,
+      },
+    ];
 
     // Capture fugitive designation for replay
     for (const ship of gameState.ships) {
