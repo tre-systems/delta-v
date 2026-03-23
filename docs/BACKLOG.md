@@ -2,153 +2,45 @@
 
 Remaining work only. Completed items are in git history.
 
----
+## Release Readiness & Operability
 
-## CRITICAL BUGS
+### Production hardening defaults
 
-### Missing Combat Preview UI
+The codebase now supports global create-rate limiting and
+match archiving, but the checked-in deployment config
+still treats both as optional comments. Before broader
+user onboarding, make the production path opinionated:
+configured rate limiting, persistent archive storage where
+replay / support need it, and an explicit documented
+fallback story for lower environments.
 
-The combat preview overlay (odds, range/velocity modifiers, and counterattack label) is not rendered when a target is selected. This makes it impossible for players to evaluate tactical risk without manual calculation. 
+Definition of done: production deployment config enables
+the intended hardening features by default, docs describe
+which environments may run without them, and deploy-time
+checks fail loudly when required bindings are missing.
 
-- **Symptom**: Red selection circle appears, but no tactical overlay is shown. `FIRE ALL` and `ATTACK` buttons are hidden in the DOM.
-- **Fix**: Verify why `getCombatPreview` returns null or why the rendering loop in `overlay.ts` is skipped.
-- **Files:** `src/client/renderer/combat.ts`, `src/client/renderer/overlay.ts`
+**Files:** `wrangler.toml`,
+`.github/workflows/ci.yml`,
+`docs/SECURITY.md`,
+`docs/ARCHITECTURE.md`
 
----
+### Network integration load / chaos tester
 
-## Client Boundary Cleanup
+Add the planned headless PvP bot stress harness for the
+Durable Object and websocket layer.
 
-### Continue shrinking `GameClient` into a composition root
+This should validate room creation, live message flow,
+disconnect / reconnect behavior, and server stability
+under many concurrent matches without relying on manual
+multi-tab testing.
 
-Keep `main.ts` focused on bootstrap, ownership, and
-wiring rather than growing a larger class-shaped
-coordinator.
+Definition of done: a scripted load path can create many
+games, drive valid turns over websockets, inject
+disconnects, and report crash / timeout / reconnect
+failures clearly enough to use before releases.
 
-Lazy deps, presentation delegates, session HTTP calls,
-token persistence, local transport creation, and the
-main dependency-bag builders have been extracted to
-`action-deps.ts`, `session-api.ts`, `transport.ts`, and
-`main-deps.ts`. `main.ts` is now mostly bootstrap,
-constructor wiring, event routing, and thin
-delegation.
-
-Further shrinking should only happen where a real seam
-exists. The remaining candidates are UI-event routing,
-the local game-flow cluster, or other repeated
-composition glue that can move out without turning the
-composition root into indirection for its own sake.
-
-**Files:** `src/client/main.ts`,
-`src/client/game/`, `src/client/ui/ui.ts`
-
----
-
-## Event-Sourced Match Architecture
-
-### Event-sourced server migration
-
-Done for authoritative server recovery:
-- no separate Durable Object `gameState` snapshot slot
-- authoritative recovery from persisted event stream plus optional checkpoints
-- parity checks against event-sourced recovery
-- replay and reconnect derived from the persisted event stream plus checkpoints
-
-Remaining follow-up work:
-- extend the same viewer model to spectator delivery
-
-**Files:** `src/server/game-do/archive.ts`,
-`src/server/game-do/game-do.ts`,
-`src/shared/replay.ts`,
-`src/shared/engine/`
-
-### Replace array-backed event storage with append-friendly match persistence
-
-The current event stream is persisted as a single
-`EventEnvelope[]` blob per match and rewritten on each
-append. That keeps the model simple, but it makes long
-matches and replay-heavy rooms pay full-history read /
-write costs that do not scale with usage.
-
-Refactor match persistence behind a small repository /
-event-store boundary so appends, tail reads, checkpoints,
-and replay projection are explicit operations rather than
-ad hoc storage-key conventions. Favor chunked / paged
-event storage or another append-friendly layout that
-avoids rewriting the full stream for every turn.
-
-Definition of done: authoritative event append no longer
-rewrites whole-match history, replay / reconnect can read
-from checkpoint plus tail efficiently, and tests cover
-long-match recovery without depending on full-array
-storage behavior.
-
-**Files:** `src/server/game-do/archive.ts`,
-`src/server/game-do/game-do.ts`,
-`src/shared/engine/event-projector.ts`
-
-### Protocol and replay contract fixtures
-
-The runtime validation layer is strong, but the project
-still relies mostly on unit tests rather than stable
-golden fixtures for the wire contracts. Add representative
-fixtures for create / join / replay responses, websocket
-state-bearing messages, and replay timeline entries so
-future protocol or event changes fail loudly when payload
-shapes drift.
-
-Definition of done: fixture-backed tests cover the main
-`C2S`, `S2C`, and replay payloads, fixture updates are
-intentional and reviewed, and hidden-information views are
-covered for at least one asymmetric scenario.
-
-**Files:** `src/shared/protocol.ts`,
-`src/server/protocol.ts`,
-`src/server/game-do/messages.ts`,
-`src/shared/replay.ts`,
-`src/shared/types/protocol.ts`
-
-### Post-game turn replay UI
-
-Let players step backward and forward through recorded
-turn history after game end using the new event /
-projection history rather than a bespoke renderer path.
-
-Initial scope: previous / next, jump to start / end,
-timeline labels, exit back to the finished-match
-screen, and explicit `gameId` selection when a room has
-multiple completed matches.
-
-Definition of done: client tests cover stepping
-controls, rematch selection, and exit back to the
-finished-match screen rather than assuming "latest
-match" implicitly.
-
-**Files:** `src/client/main.ts`,
-`src/client/game/`, `src/client/ui/overlay-view.ts`,
-`src/client/ui/ui.ts`
-
-### Spectator mode
-
-Allow read-only third-party connections backed by
-public / spectator projections. Spectators may receive
-live state broadcasts and replay / catch-up history but
-cannot submit actions, occupy seats, or affect
-disconnect-forfeit logic.
-
-This depends on viewer-aware filtering and projection
-catch-up being correct first. Default spectator
-visibility should be public-state only unless an
-explicit omniscient debug mode is added later.
-
-Definition of done: join / auth, live updates, replay /
-catch-up, and no-action enforcement are all covered by
-integration tests.
-
-**Files:** `src/server/game-do/game-do.ts`,
-`src/server/protocol.ts`,
-`src/shared/types/protocol.ts`,
-`src/shared/engine/game-engine.ts`,
-`src/client/main.ts`, client spectator UI
+**Files:** `scripts/`, `src/server/index.ts`,
+`src/server/game-do/`
 
 ---
 
@@ -196,87 +88,141 @@ visible rendering regression.
 **Files:** `src/client/renderer/renderer.ts`,
 `src/client/renderer/scene.ts`
 
-### Network integration load / chaos tester
+---
 
-Add the planned headless PvP bot stress harness for the
-Durable Object and websocket layer.
+## Event-Sourced Match Architecture
 
-This should validate room creation, live message flow,
-disconnect / reconnect behavior, and server stability
-under many concurrent matches without relying on manual
-multi-tab testing.
+### Event-sourced server migration
 
-Definition of done: a scripted load path can create many
-games, drive valid turns over websockets, inject
-disconnects, and report crash / timeout / reconnect
-failures clearly enough to use before releases.
+Done for authoritative server recovery:
+- no separate Durable Object `gameState` snapshot slot
+- authoritative recovery from persisted event stream plus optional checkpoints
+- parity checks against event-sourced recovery
+- replay and reconnect derived from the persisted event stream plus checkpoints
 
-**Files:** `scripts/`, `src/server/index.ts`,
-`src/server/game-do/`
+Remaining follow-up work:
+- extend the same viewer model to spectator delivery
+
+**Files:** `src/server/game-do/archive.ts`,
+`src/server/game-do/game-do.ts`,
+`src/shared/replay.ts`,
+`src/shared/engine/`
+
+### Protocol and replay contract fixtures
+
+The runtime validation layer is strong, but the project
+still relies mostly on unit tests rather than stable
+golden fixtures for the wire contracts. Add representative
+fixtures for create / join / replay responses, websocket
+state-bearing messages, and replay timeline entries so
+future protocol or event changes fail loudly when payload
+shapes drift.
+
+Definition of done: fixture-backed tests cover the main
+`C2S`, `S2C`, and replay payloads, fixture updates are
+intentional and reviewed, and hidden-information views are
+covered for at least one asymmetric scenario.
+
+**Files:** `src/shared/protocol.ts`,
+`src/server/protocol.ts`,
+`src/server/game-do/messages.ts`,
+`src/shared/replay.ts`,
+`src/shared/types/protocol.ts`
+
+### Replace array-backed event storage with append-friendly match persistence
+
+The current event stream is persisted as a single
+`EventEnvelope[]` blob per match and rewritten on each
+append. That keeps the model simple, but it makes long
+matches and replay-heavy rooms pay full-history read /
+write costs that do not scale with usage.
+
+Refactor match persistence behind a small repository /
+event-store boundary so appends, tail reads, checkpoints,
+and replay projection are explicit operations rather than
+ad hoc storage-key conventions. Favor chunked / paged
+event storage or another append-friendly layout that
+avoids rewriting the full stream for every turn.
+
+Definition of done: authoritative event append no longer
+rewrites whole-match history, replay / reconnect can read
+from checkpoint plus tail efficiently, and tests cover
+long-match recovery without depending on full-array
+storage behavior.
+
+**Files:** `src/server/game-do/archive.ts`,
+`src/server/game-do/game-do.ts`,
+`src/shared/engine/event-projector.ts`
+
+### Post-game turn replay UI
+
+Let players step backward and forward through recorded
+turn history after game end using the new event /
+projection history rather than a bespoke renderer path.
+
+Initial scope: previous / next, jump to start / end,
+timeline labels, exit back to the finished-match
+screen, and explicit `gameId` selection when a room has
+multiple completed matches.
+
+Definition of done: client tests cover stepping
+controls, rematch selection, and exit back to the
+finished-match screen rather than assuming "latest
+match" implicitly.
+
+**Files:** `src/client/main.ts`,
+`src/client/game/`, `src/client/ui/overlay-view.ts`,
+`src/client/ui/ui.ts`
+
+### Spectator mode
+
+Allow read-only third-party connections backed by
+public / spectator projections. Spectators may receive
+live state broadcasts and replay / catch-up history but
+cannot submit actions, occupy seats, or affect
+disconnect-forfeit logic.
+
+This depends on viewer-aware filtering and projection
+catch-up being correct first. Default spectator
+visibility should be public-state only unless an
+explicit omniscient debug mode is added later.
+
+Definition of done: join / auth, live updates, replay /
+catch-up, and no-action enforcement are all covered by
+integration tests.
+
+**Files:** `src/server/game-do/game-do.ts`,
+`src/server/protocol.ts`,
+`src/shared/types/protocol.ts`,
+`src/shared/engine/game-engine.ts`,
+`src/client/main.ts`, client spectator UI
 
 ---
 
-## Release Readiness & Operability
+## Client Boundary Cleanup
 
-### Production hardening defaults
+### Continue shrinking `GameClient` into a composition root
 
-The codebase now supports global create-rate limiting and
-match archiving, but the checked-in deployment config
-still treats both as optional comments. Before broader
-user onboarding, make the production path opinionated:
-configured rate limiting, persistent archive storage where
-replay / support need it, and an explicit documented
-fallback story for lower environments.
+Keep `main.ts` focused on bootstrap, ownership, and
+wiring rather than growing a larger class-shaped
+coordinator.
 
-Definition of done: production deployment config enables
-the intended hardening features by default, docs describe
-which environments may run without them, and deploy-time
-checks fail loudly when required bindings are missing.
+Lazy deps, presentation delegates, session HTTP calls,
+token persistence, local transport creation, and the
+main dependency-bag builders have been extracted to
+`action-deps.ts`, `session-api.ts`, `transport.ts`, and
+`main-deps.ts`. `main.ts` is now mostly bootstrap,
+constructor wiring, event routing, and thin
+delegation.
 
-**Files:** `wrangler.toml`,
-`.github/workflows/ci.yml`,
-`docs/SECURITY.md`,
-`docs/ARCHITECTURE.md`
+Further shrinking should only happen where a real seam
+exists. The remaining candidates are UI-event routing,
+the local game-flow cluster, or other repeated
+composition glue that can move out without turning the
+composition root into indirection for its own sake.
 
-### Release gate automation
-
-The manual release plan is strong, but it still lives
-primarily as prose. Add a lightweight release candidate
-workflow that bundles the automated checks already used in
-practice and points to the required manual cross-device
-verification so onboarding does not depend on tribal
-memory.
-
-Definition of done: one documented pre-release command or
-workflow runs lint, typecheck, unit tests, coverage,
-browser smoke, and AI simulations, and the remaining
-manual device / browser checks are captured in a short
-release checklist rather than spread across notes.
-
-**Files:** `.github/workflows/ci.yml`,
-`package.json`,
-`README.md`,
-`docs/MANUAL_TEST_PLAN.md`
-
-### Onboarding funnel telemetry
-
-The project already records generic telemetry and client
-errors, but there is no clear product funnel for where
-new players drop out. Add explicit events for create-game,
-join success / failure reason, first turn completed,
-reconnect success / failure, rematch, and game-end so the
-first wave of users produces actionable onboarding data.
-
-Definition of done: key onboarding milestones are tracked
-with stable event names, dashboard queries or example SQL
-exist for the common questions, and telemetry avoids
-duplicating per-turn noise.
-
-**Files:** `src/client/telemetry.ts`,
-`src/client/main.ts`,
-`src/client/game/session-api.ts`,
-`src/server/index.ts`,
-`migrations/`
+**Files:** `src/client/main.ts`,
+`src/client/game/`, `src/client/ui/ui.ts`
 
 ## Gameplay & Content
 
