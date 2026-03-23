@@ -148,7 +148,7 @@ describe('ui formatters', () => {
 
     expect(formatCombatResultEntries(result, ships, 0)).toEqual([
       {
-        text: 'Corsair & Corvette fired on Frigate [Odds: 1:1 (R-1)] -> Roll: 4 -> DISABLED (2T)',
+        text: 'Corsair & Corvette fired on Frigate [Odds: 1:1 (Range 1 (-1))] -> Roll: 4 -> DISABLED (2T)',
         className: 'log-damage',
       },
       {

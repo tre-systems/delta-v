@@ -435,6 +435,29 @@ describe('game client helpers', () => {
       enemyFuelSpent: 0,
       basesDestroyed: 0,
       ordnanceInFlight: 0,
+      shipFates: [
+        {
+          id: 'p0s0',
+          name: 'Transport',
+          type: 'transport',
+          status: 'survived',
+          owner: 0,
+        },
+        {
+          id: 'p0s1',
+          name: 'Transport',
+          type: 'transport',
+          status: 'destroyed',
+          owner: 0,
+        },
+        {
+          id: 'p1s0',
+          name: 'Transport',
+          type: 'transport',
+          status: 'destroyed',
+          owner: 1,
+        },
+      ],
     });
   });
 

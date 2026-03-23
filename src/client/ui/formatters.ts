@@ -286,11 +286,13 @@ export const formatCombatResultEntries = (
     const mods = [];
 
     if (result.rangeMod !== 0) {
-      mods.push(`R${result.rangeMod > 0 ? '+' : ''}${result.rangeMod}`);
+      const absMod = Math.abs(result.rangeMod);
+      mods.push(`Range ${absMod} (-${absMod})`);
     }
 
     if (result.velocityMod !== 0) {
-      mods.push(`V${result.velocityMod > 0 ? '+' : ''}${result.velocityMod}`);
+      const absMod = Math.abs(result.velocityMod);
+      mods.push(`Velocity ${absMod + 2} (-${absMod})`);
     }
 
     const modText = mods.length > 0 ? ` (${mods.join(', ')})` : '';

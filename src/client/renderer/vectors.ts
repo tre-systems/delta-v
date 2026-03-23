@@ -148,25 +148,46 @@ export const buildVelocityVectorViews = (
   playerId: number,
   hexSize: number,
 ): VelocityVectorView[] => {
-  return state.ships
-    .filter(
-      (ship) =>
-        ship.lifecycle === 'active' &&
-        (ship.owner === playerId || ship.detected),
-    )
-    .map((ship) => {
-      const from = hexToPixel(ship.position, hexSize);
-      const predicted = predictDestination(ship);
-      const to = hexToPixel(predicted, hexSize);
+  const views: VelocityVectorView[] = [];
 
-      if (predicted.q === ship.position.q && predicted.r === ship.position.r) {
-        return null;
-      }
+  // Ship vectors
+  for (const ship of state.ships) {
+    if (
+      ship.lifecycle !== 'active' ||
+      (ship.owner !== playerId && !ship.detected)
+    ) {
+      continue;
+    }
 
-      const isOwn = ship.owner === playerId;
-      const speed = hexVecLength(ship.velocity);
+    const from = hexToPixel(ship.position, hexSize);
+    const predicted = predictDestination(ship);
+    const to = hexToPixel(predicted, hexSize);
 
-      const speedLabel =
+    if (predicted.q === ship.position.q && predicted.r === ship.position.r) {
+      continue;
+    }
+
+    const isOwn = ship.owner === playerId;
+    const speed = hexVecLength(ship.velocity);
+    const color = isOwn
+      ? 'rgba(79, 195, 247, 0.45)'
+      : 'rgba(255, 152, 0, 0.45)';
+
+    views.push({
+      from,
+      to,
+      color,
+      lineWidth: 1.5,
+      lineDash: [4, 4],
+      arrowHead: buildArrowHead(from, to, 6),
+      ghostDot: isOwn
+        ? {
+            position: to,
+            color: 'rgba(79, 195, 247, 0.3)',
+            radius: 4,
+          }
+        : null,
+      speedLabel:
         !isOwn && speed >= 1
           ? {
               text: `v${Math.round(speed)}`,
@@ -176,32 +197,43 @@ export const buildVelocityVectorViews = (
               },
               color: 'rgba(255, 152, 0, 0.5)',
             }
-          : null;
-
-      const color = isOwn
-        ? 'rgba(79, 195, 247, 0.45)'
-        : 'rgba(255, 152, 0, 0.45)';
-
-      return {
-        from,
-        to,
-        color,
-        lineWidth: 1.5,
-        lineDash: [4, 4],
-        arrowHead: buildArrowHead(from, to, 6),
-        ghostDot: isOwn
-          ? {
-              position: to,
-              color: 'rgba(79, 195, 247, 0.3)',
-              radius: 4,
-            }
           : null,
-        speedLabel,
-      };
-    })
-    .filter(
-      (view): view is NonNullable<typeof view> => view !== null,
-    ) as VelocityVectorView[];
+    });
+  }
+
+  // Ordnance vectors (torpedoes, nukes)
+  for (const ordnance of state.ordnance) {
+    if (ordnance.lifecycle !== 'active' || ordnance.type === 'mine') {
+      continue;
+    }
+
+    const from = hexToPixel(ordnance.position, hexSize);
+    const predicted = predictDestination(ordnance);
+    const to = hexToPixel(predicted, hexSize);
+
+    if (
+      predicted.q === ordnance.position.q &&
+      predicted.r === ordnance.position.r
+    ) {
+      continue;
+    }
+
+    const isOwn = ordnance.owner === playerId;
+    const color = isOwn ? 'rgba(79, 195, 247, 0.3)' : 'rgba(255, 152, 0, 0.3)';
+
+    views.push({
+      from,
+      to,
+      color,
+      lineWidth: 1,
+      lineDash: [2, 4],
+      arrowHead: buildArrowHead(from, to, 4),
+      ghostDot: null,
+      speedLabel: null,
+    });
+  }
+
+  return views;
 };
 
 export const buildShipTrailViews = (

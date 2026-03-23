@@ -411,13 +411,18 @@ export const computeCourse = (
 // Check if a ship can burn fuel.
 export const canBurn = (ship: Ship): boolean => ship.fuel > 0;
 
-// Predict where a ship will be next turn with no burn
-// (for display).
-export const predictDestination = (ship: Ship): HexCoord => {
-  if (ship.lifecycle === 'landed') return ship.position;
+// Predict where an entity (ship or ordnance) will be next turn with
+// no burn (for display).
+export const predictDestination = (entity: {
+  position: HexCoord;
+  velocity: HexVec;
+  lifecycle?: string;
+  pendingGravityEffects?: GravityEffect[];
+}): HexCoord => {
+  if (entity.lifecycle === 'landed') return entity.position;
 
   return applyPendingGravityEffects(
-    hexAdd(ship.position, ship.velocity),
-    ship.pendingGravityEffects,
+    hexAdd(entity.position, entity.velocity),
+    entity.pendingGravityEffects,
   );
 };
