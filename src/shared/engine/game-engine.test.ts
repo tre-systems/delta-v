@@ -99,6 +99,11 @@ describe('processAstrogation', () => {
       const movement = expectMovement(result);
       expect(movement.movements).toHaveLength(1);
       expect(movement.movements[0].fuelSpent).toBe(0);
+      expect(movement.engineEvents).toContainEqual({
+        type: 'astrogationOrdersCommitted',
+        playerId: 0,
+        orders,
+      });
     }
   });
   it('accepts valid burn order and moves ship', () => {
@@ -742,6 +747,11 @@ describe('ordnance system', () => {
     );
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
+      expect(result.engineEvents).toContainEqual({
+        type: 'ordnanceLaunchesCommitted',
+        playerId: 0,
+        launches: [{ shipId: ship.id, ordnanceType: 'mine' }],
+      });
       expect(
         result.ordnanceMovements.some((move) => move.ordnanceId === 'ord4'),
       ).toBe(true);

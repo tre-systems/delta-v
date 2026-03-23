@@ -1,6 +1,10 @@
 import type { HexCoord, HexVec } from '../hex';
 import type { Phase } from '../types';
-import type { FleetPurchase } from '../types/domain';
+import type {
+  AstrogationOrder,
+  FleetPurchase,
+  OrdnanceLaunch,
+} from '../types/domain';
 
 // Granular domain events emitted by engine functions.
 export type EngineEvent =
@@ -34,6 +38,16 @@ export type EngineEvent =
       playerId: number;
       purchases: FleetPurchase[];
       shipTypes: string[];
+    }
+  | {
+      type: 'astrogationOrdersCommitted';
+      playerId: number;
+      orders: AstrogationOrder[];
+    }
+  | {
+      type: 'ordnanceLaunchesCommitted';
+      playerId: number;
+      launches: OrdnanceLaunch[];
     }
 
   // Ship movement
