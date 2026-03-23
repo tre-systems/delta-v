@@ -74,6 +74,7 @@ describe('match archival', () => {
       scenario: 'Duel',
       turn: 1,
       phase: 'astrogation',
+      matchSeed: 0,
     });
     await saveMatchCreatedAt(storage, 'ARC-m1', 1234);
     await saveCheckpoint(storage, 'ARC-m1', state, 1);
@@ -129,6 +130,7 @@ describe('match archival', () => {
       completedAt: 2000,
       eventStream: [],
       checkpoint: null,
+      matchSeed: null,
     };
 
     r2.objects.set('matches/FETCH-m1.json', JSON.stringify(archive));

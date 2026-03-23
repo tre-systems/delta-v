@@ -25,6 +25,7 @@ export interface TurnTimeoutOutcome {
 export const resolveTurnTimeoutOutcome = (
   gameState: GameState,
   map: SolarSystemMap,
+  rng: () => number,
 ): TurnTimeoutOutcome | null => {
   const { activePlayer: playerId, phase } = gameState;
 
@@ -34,13 +35,7 @@ export const resolveTurnTimeoutOutcome = (
       playerId,
     ).map((ship) => ({ shipId: ship.id, burn: null }));
 
-    const result = processAstrogation(
-      gameState,
-      playerId,
-      orders,
-      map,
-      Math.random,
-    );
+    const result = processAstrogation(gameState, playerId, orders, map, rng);
 
     return 'error' in result
       ? null

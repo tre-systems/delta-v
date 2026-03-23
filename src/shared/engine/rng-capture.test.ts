@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
+import { deriveActionRng } from '../prng';
 import type { EngineEvent } from './engine-events';
 import {
   createGame,
@@ -161,5 +162,34 @@ describe('RNG outcome capture in EngineEvents', () => {
     };
 
     expect(event.type).toBe('fugitiveDesignated');
+  });
+
+  it('seeded PRNG produces identical combat outcomes', () => {
+    const seed = 12345;
+    const seq = 7;
+
+    const makeState = () => {
+      const s = createGame(SCENARIOS.duel, map, 'SEED1', findBaseHex);
+      s.phase = 'combat';
+      s.activePlayer = 0;
+      s.ships[0].position = { q: 10, r: 10 };
+      s.ships[1].position = { q: 10, r: 11 };
+      s.ships[0].velocity = { dq: 0, dr: 0 };
+      s.ships[1].velocity = { dq: 0, dr: 0 };
+      return s;
+    };
+
+    const r1 = skipCombat(makeState(), 0, map, deriveActionRng(seed, seq));
+    const r2 = skipCombat(makeState(), 0, map, deriveActionRng(seed, seq));
+
+    expect('error' in r1).toBe(false);
+    expect('error' in r2).toBe(false);
+
+    if ('error' in r1 || 'error' in r2) return;
+
+    const rolls1 = collectDiceEvents(r1.engineEvents);
+    const rolls2 = collectDiceEvents(r2.engineEvents);
+    expect(rolls1).toEqual(rolls2);
+    expect(r1.state).toEqual(r2.state);
   });
 });
