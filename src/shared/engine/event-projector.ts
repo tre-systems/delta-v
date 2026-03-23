@@ -780,9 +780,10 @@ const projectSetupEvent = (
   }
 };
 
-export const projectMatchSetupFromStream = (
+export const projectGameStateFromStream = (
   events: EventEnvelope[],
   map: SolarSystemMap,
+  initialState: GameState | null = null,
 ):
   | {
       ok: true;
@@ -792,7 +793,7 @@ export const projectMatchSetupFromStream = (
       ok: false;
       error: string;
     } => {
-  let state: GameState | null = null;
+  let state = initialState ? structuredClone(initialState) : null;
 
   for (const envelope of events) {
     const projected = projectSetupEvent(state, envelope, map);
@@ -814,3 +815,16 @@ export const projectMatchSetupFromStream = (
         state,
       };
 };
+
+export const projectMatchSetupFromStream = (
+  events: EventEnvelope[],
+  map: SolarSystemMap,
+):
+  | {
+      ok: true;
+      state: GameState;
+    }
+  | {
+      ok: false;
+      error: string;
+    } => projectGameStateFromStream(events, map);
