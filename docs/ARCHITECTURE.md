@@ -4,11 +4,11 @@ Delta-V is an online multiplayer space combat and racing game. This document out
 
 Where the codebase is in transition, this document
 distinguishes the current implementation from the
-accepted target architecture. In particular, replay and
-multiplayer state are currently snapshot-first with
-archive helpers, while the next major phase moves the
-server toward an event-sourced match log with
-projections and checkpoints.
+accepted target architecture. The server now persists a
+match-scoped event stream plus projection frames and
+checkpoints. The remaining migration work is to make
+that event stream sufficient to rebuild authoritative
+state without leaning on the live snapshot.
 
 Platform references:
 - [Cloudflare Workers](https://developers.cloudflare.com/workers/)
@@ -118,7 +118,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `util.ts` | 150 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
 | `types/` | 384 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts`; all imports use bounded files directly, barrel retained for compatibility only) | Game-specific |
 | `protocol.ts` | 478 | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads) | Mostly generic |
-| `replay.ts` | 55 | Replay archive structure, entry helpers, match identity builder | Game-specific |
+| `replay.ts` | 55 | Replay timeline structure, projection-frame entry helpers, match identity builder | Game-specific |
 | `constants.ts` | 146 | Ship stats, ordnance mass, detection ranges, combat/movement constants | Game-specific |
 | `movement.ts` | 421 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
 | `combat.ts` | 608 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
@@ -178,7 +178,7 @@ The backend leverages Cloudflare's edge network.
 | `index.ts` | Worker entry: `/create`, `/join/:code`, `/replay/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern |
 | `protocol.ts` | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export | **~85% generic** — room/token/seat logic is game-agnostic |
 | `game-do/game-do.ts` | Durable Object: WebSocket lifecycle, state persistence, broadcasting | **~70% generic** — multiplayer plumbing is reusable |
-| `game-do/archive.ts` | Event log, match-scoped event envelopes (gameId/seq/ts/actor), replay archive, match identity | Game-specific |
+| `game-do/archive.ts` | Match-scoped event envelopes (gameId/seq/ts/actor), projection frames, checkpoints, match identity | Game-specific |
 | `game-do/match-archive.ts` | Persistent archival of completed matches to R2 + D1 metadata | **Fully generic** |
 | `game-do/messages.ts` | S2C message construction from engine results | Game-specific |
 | `game-do/session.ts` | Disconnect grace period, alarm scheduling | **Fully generic** |
@@ -196,9 +196,9 @@ The backend leverages Cloudflare's edge network.
 
 - **Single choke points for coordination**: The current codebase deliberately concentrates high-risk side effects behind a few owner functions rather than spreading them around. On the server, `publishStateChange()` owns persist/archive/broadcast/timer restart for state transitions. On the client, `dispatchGameCommand()`, `applyClientGameState()`, and `applyClientStateTransition()` are the corresponding choke points for command routing, authoritative-state application, and state-entry side effects.
 
-- **Replay archive foundation (transitional)**: The server currently persists a per-match replay archive built from those same authoritative state-bearing outbound messages. `initGame()` allocates a stable match identity (`gameId` like `ROOM1-m2`), archives the initial `gameStart`, and `publishStateChange()` appends each later state-bearing transition in sequence. Replay fetches are authenticated by player token and currently return player-filtered history. This is now a migration foothold, not the intended long-term source of truth.
+- **Projection-backed replay and reconnect**: `initGame()` allocates a stable match identity (`gameId` like `ROOM1-m2`). `publishStateChange()` appends versioned event envelopes and a corresponding projection frame for each state-bearing outbound message, while checkpoints are saved at turn boundaries and match end. Replay fetches are authenticated by player token and return player-filtered timelines projected from checkpoint plus frame tail; reconnect falls back to the same projected state path.
 
-- **Accepted direction: event-sourced authoritative matches**: The next architectural phase moves the DO from snapshot-first persistence to an append-only authoritative event stream. Each validated command should append versioned domain events with sequence numbers, actor identity, correlation id, match identity, and explicit random outcomes where needed. Authoritative `GameState`, player views, spectator views, replay payloads, and reconnect state then become projections built from the stream and optional checkpoints.
+- **Accepted direction: event-sourced authoritative matches**: The remaining architectural work is to make the append-only match stream itself sufficient to rebuild authoritative state. Each validated command should append versioned domain events with sequence numbers, actor identity, correlation id, match identity, and explicit random outcomes where needed. Authoritative `GameState`, player views, spectator views, replay payloads, and reconnect state should then all be projections built from the stream and optional checkpoints, with snapshots kept only as verified caches.
 
 - **Filtered broadcasting (current) and viewer-aware filtering (next)**: `broadcastFiltered()` currently checks whether the current scenario has hidden information (fugitive identities in escape scenarios). If no hidden info, the same state goes to both players. If hidden info, `filterStateForPlayer(state, playerId)` is called separately per player — own ships are fully visible, unrevealed enemy ships show `type: 'unknown'`. The next step is a viewer model that supports player 0, player 1, and spectator / public projections so event-sourced replay and spectator delivery cannot leak hidden data.
 
@@ -303,14 +303,14 @@ dependency surface. That remains the default.
 
 **Server→Client (S2C)**: `welcome`, `matchFound`, `gameStart`, `movementResult`, `combatResult`, `stateUpdate`, `gameOver`, `rematchPending`, `chat`, `error`, `pong`
 
-All messages are discriminated unions validated at the protocol boundary. Chat payloads are trimmed before validation and blank post-trim messages are rejected, so non-UI clients cannot inject empty log entries. In the current implementation, `GameState` snapshots are the live source of truth — clients never mutate them, and the server owns all state mutations. The planned event-sourced migration keeps server authority, but shifts persisted truth to the match event stream.
+All messages are discriminated unions validated at the protocol boundary. Chat payloads are trimmed before validation and blank post-trim messages are rejected, so non-UI clients cannot inject empty log entries. Clients never mutate authoritative state. The server currently writes the live `GameState` snapshot, but replay and reconnect reads already come from projection data derived from the persisted match stream.
 
 ### Multiplayer Session Lifecycle
 
 ```
 POST /create → Worker generates room code + creator token → DO /init
 GET /join/{code}?playerToken=X → optional preflight join validation
-GET /replay/{code}?playerToken=X&gameId=Y → authenticated replay / history fetch (currently archive-backed)
+GET /replay/{code}?playerToken=X&gameId=Y → authenticated replay / history fetch from checkpoint + projection frames
 WebSocket /ws/{code}[?playerToken=X] → DO accepts, tags socket with player ID
 Both unique seats connected → createGame() → broadcast gameStart
 Game loop: C2S action → engine → save state/events → restart timer → broadcast S2C result
@@ -460,6 +460,6 @@ currently exist.
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.
 - **Generic hex engine extraction**: Designing a framework from N=1 games is premature abstraction. Fork Delta-V when game #2 starts and build the framework from two concrete implementations.
 - **Serialisation codec**: `GameState` is plain JSON. A codec adds overhead with zero current benefit.
-- **Replay architecture / event sourcing**: Accepted as the target direction. Match-scoped event streams with versioned envelopes (`EventEnvelope`: gameId, seq, ts, actor, event) are now implemented alongside the existing snapshot-based replay archive. The next steps are explicit RNG outcome capture, projection rebuilds, and checkpoints. The snapshot persistence is transitional scaffolding that should be downgraded to cache once projections are verified.
+- **Replay architecture / event sourcing**: Accepted as the target direction. Match-scoped event streams with versioned envelopes (`EventEnvelope`: gameId, seq, ts, actor, event), projection frames, checkpoints, and parity checks are already in place. The next steps are explicit RNG outcome capture and full authoritative rebuilds from the stored stream so the live snapshot can be treated purely as a verified cache.
 - **UI framework adoption**: The DOM UI layer is still small enough to own directly. The current compromise is a tiny local signals layer for view-local state and cleanup, without paying the cost of adopting a full framework (Preact, etc.) across the entire client.
 - **Structural sharing / Immer**: Reconsidered alongside the event-sourcing shift. Immer is still not a prerequisite and should not block the migration. The immediate value is in stable event schemas, append ordering, explicit RNG facts, and projector correctness, not in rewriting the whole engine around Proxy-based updates. Revisit only if projector reducers or future command handlers become materially clearer with Immer; if adopted at all, it should start at the projection layer rather than as an all-at-once engine rewrite.

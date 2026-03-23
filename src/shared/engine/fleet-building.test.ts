@@ -31,10 +31,11 @@ describe('fleet building (MegaCredit economy)', () => {
       'WAR01',
       findBaseHex,
     );
+    const purchases = [{ shipType: 'corvette' }, { shipType: 'corsair' }];
     const result = processFleetReady(
       state,
       0,
-      [{ shipType: 'corvette' }, { shipType: 'corsair' }],
+      purchases,
       map,
       SCENARIOS.interplanetaryWar.availableShipTypes,
     );
@@ -48,6 +49,12 @@ describe('fleet building (MegaCredit economy)', () => {
       expect(result.state.players[0].credits).toBe(730);
       expect(result.state.players[0].ready).toBe(true);
       expect(result.state.phase).toBe('fleetBuilding');
+      expect(result.engineEvents).toContainEqual({
+        type: 'fleetPurchased',
+        playerId: 0,
+        purchases,
+        shipTypes: ['corvette', 'corsair'],
+      });
     }
   });
   it('transitions to astrogation when both players submit', () => {

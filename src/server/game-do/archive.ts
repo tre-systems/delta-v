@@ -10,9 +10,9 @@ import {
   buildMatchId,
   type ProjectionFrame,
   parseMatchId,
-  type ReplayArchive,
   type ReplayEntry,
   type ReplayMessage,
+  type ReplayTimeline,
   toProjectionFrame,
   toReplayEntryFromProjectionFrame,
 } from '../../shared/replay';
@@ -21,31 +21,7 @@ import { isValidPlayerToken, type RoomConfig } from '../protocol';
 
 type Storage = DurableObjectStorage;
 
-const MAX_EVENTS = 500;
-
 const projectionFramesKey = (gameId: string): string => `projection:${gameId}`;
-
-// --- Event log ---
-
-export const getEventLog = async (storage: Storage): Promise<EngineEvent[]> =>
-  (await storage.get<EngineEvent[]>('eventLog')) ?? [];
-
-export const appendEvents = async (
-  storage: Storage,
-  ...events: EngineEvent[]
-): Promise<void> => {
-  const log = await getEventLog(storage);
-  log.push(...events);
-
-  if (log.length > MAX_EVENTS) {
-    log.splice(0, log.length - MAX_EVENTS);
-  }
-  await storage.put('eventLog', log);
-};
-
-export const resetEventLog = async (storage: Storage): Promise<void> => {
-  await storage.put('eventLog', []);
-};
 
 // --- Match-scoped event stream ---
 
@@ -136,7 +112,7 @@ export const getMatchCreatedAt = async (
 ): Promise<number | null> =>
   (await storage.get<number>(matchCreatedAtKey(gameId))) ?? null;
 
-// --- Replay archive ---
+// --- Projection-backed replay timeline ---
 
 export const getProjectionFrames = async (
   storage: Storage,
@@ -188,12 +164,12 @@ export const getReplayViewerId = (
   return null;
 };
 
-export const filterReplayArchiveForPlayer = (
-  archive: ReplayArchive,
+export const filterReplayTimelineForViewer = (
+  timeline: ReplayTimeline,
   viewerId: ViewerId,
-): ReplayArchive => ({
-  ...archive,
-  entries: archive.entries.map((entry) => ({
+): ReplayTimeline => ({
+  ...timeline,
+  entries: timeline.entries.map((entry) => ({
     ...entry,
     message: {
       ...entry.message,
@@ -292,12 +268,12 @@ const toReplayEntriesFromFrames = (
   return entries;
 };
 
-const createProjectedArchiveMetadata = (
+const createProjectedTimelineMetadata = (
   gameId: string,
   projectionFrames: ProjectionFrame[],
   checkpoint: Checkpoint | null,
 ): Pick<
-  ReplayArchive,
+  ReplayTimeline,
   'gameId' | 'roomCode' | 'matchNumber' | 'scenario' | 'createdAt'
 > | null => {
   const parsed = parseMatchId(gameId);
@@ -319,14 +295,14 @@ const createProjectedArchiveMetadata = (
   };
 };
 
-export const projectReplayArchive = (
+export const projectReplayTimeline = (
   checkpoint: Checkpoint | null,
   projectionFrames: ProjectionFrame[],
   viewerId: ViewerId,
-): ReplayArchive | null => {
-  const baseArchive = (() => {
+): ReplayTimeline | null => {
+  const baseTimeline = (() => {
     if (projectionFrames.length > 0) {
-      const metadata = createProjectedArchiveMetadata(
+      const metadata = createProjectedTimelineMetadata(
         projectionFrames[0].message.state.gameId,
         projectionFrames,
         checkpoint,
@@ -354,24 +330,24 @@ export const projectReplayArchive = (
       : null;
   })();
 
-  if (!baseArchive) {
+  if (!baseTimeline) {
     return null;
   }
 
-  return filterReplayArchiveForPlayer(baseArchive, viewerId);
+  return filterReplayTimelineForViewer(baseTimeline, viewerId);
 };
 
-export const getProjectedReplayArchive = async (
+export const getProjectedReplayTimeline = async (
   storage: Storage,
   gameId: string,
   viewerId: ViewerId,
-): Promise<ReplayArchive | null> => {
+): Promise<ReplayTimeline | null> => {
   const [checkpoint, projectionFrames] = await Promise.all([
     getCheckpoint(storage, gameId),
     getProjectionFrames(storage, gameId),
   ]);
 
-  return projectReplayArchive(checkpoint, projectionFrames, viewerId);
+  return projectReplayTimeline(checkpoint, projectionFrames, viewerId);
 };
 
 // --- Match identity ---

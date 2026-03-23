@@ -18,10 +18,10 @@ import {
   getEventStreamLength,
   getProjectedCurrentState,
   getProjectedCurrentStateRaw,
-  getProjectedReplayArchive,
+  getProjectedReplayTimeline,
   getProjectionFrames,
   hasProjectionParity,
-  projectReplayArchive,
+  projectReplayTimeline,
   saveCheckpoint,
 } from './archive';
 
@@ -247,7 +247,7 @@ describe('checkpoint persistence', () => {
   });
 });
 
-describe('projection parity: replay archive vs live state', () => {
+describe('projection parity: replay timeline vs live state', () => {
   it('replay entries form a consistent state progression', () => {
     const map = buildSolarSystemMap();
     const state = createGame(
@@ -384,7 +384,7 @@ describe('replay projection', () => {
     expect(projectedState).toEqual(state);
   });
 
-  it('filters projected replay archives per viewer', async () => {
+  it('filters projected replay timelines per viewer', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const state = createGame(
       SCENARIOS.biplanetary,
@@ -406,7 +406,7 @@ describe('replay projection', () => {
       state,
     });
 
-    const projected = await getProjectedReplayArchive(storage, 'VIEW-m1', 1);
+    const projected = await getProjectedReplayTimeline(storage, 'VIEW-m1', 1);
 
     expect(projected).not.toBeNull();
     const projectedState = projected?.entries[0]?.message.state;
@@ -429,7 +429,7 @@ describe('replay projection', () => {
       state,
     });
 
-    const projected = await getProjectedReplayArchive(storage, 'META1-m1', 0);
+    const projected = await getProjectedReplayTimeline(storage, 'META1-m1', 0);
 
     expect(projected?.roomCode).toBe('META1');
     expect(projected?.matchNumber).toBe(1);
@@ -450,7 +450,7 @@ describe('replay projection', () => {
 
     await saveCheckpoint(storage, 'CKREPLAY-m1', state, 12);
 
-    const projected = await getProjectedReplayArchive(
+    const projected = await getProjectedReplayTimeline(
       storage,
       'CKREPLAY-m1',
       0,
@@ -464,11 +464,11 @@ describe('replay projection', () => {
     expect(projected?.entries[0]?.phase).toBe('combat');
   });
 
-  it('returns null when neither replay archive nor checkpoint exists', () => {
-    expect(projectReplayArchive(null, [], 0)).toBeNull();
+  it('returns null when neither replay timeline nor checkpoint exists', () => {
+    expect(projectReplayTimeline(null, [], 0)).toBeNull();
   });
 
-  it('projects checkpoint plus tail frames instead of replay archive snapshots', async () => {
+  it('projects checkpoint plus tail frames into a replay timeline', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const checkpointState = createGame(
       SCENARIOS.biplanetary,
@@ -493,7 +493,7 @@ describe('replay projection', () => {
       state: tailState,
     });
 
-    const projected = await getProjectedReplayArchive(storage, 'TAILS-m1', 0);
+    const projected = await getProjectedReplayTimeline(storage, 'TAILS-m1', 0);
 
     expect(projected).not.toBeNull();
     expect(projected?.entries).toHaveLength(2);
@@ -526,14 +526,14 @@ describe('replay projection', () => {
       storage,
       'STALE-m1',
     );
-    const projectedArchive = await getProjectedReplayArchive(
+    const projectedTimeline = await getProjectedReplayTimeline(
       storage,
       'STALE-m1',
       0,
     );
 
     expect(projectedState?.turnNumber).toBe(4);
-    expect(projectedArchive?.entries.at(-1)?.turn).toBe(4);
+    expect(projectedTimeline?.entries.at(-1)?.turn).toBe(4);
   });
 
   it('reports parity when live state matches checkpoint plus tail projection', async () => {
