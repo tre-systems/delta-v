@@ -193,6 +193,21 @@
       <h2 id="gameOverText">VICTORY</h2>
       <p id="gameOverReason"></p>
       <div id="gameOverStats" class="game-over-stats"></div>
+      <div id="replayStatus" class="replay-status" style="display:none"></div>
+      <div id="replayControls" class="replay-controls" style="display:none">
+        <div class="replay-match-selector">
+          <button id="replayMatchPrevBtn" class="btn btn-secondary">&lt;</button>
+          <span id="replayMatchLabel" class="replay-match-label"></span>
+          <button id="replayMatchNextBtn" class="btn btn-secondary">&gt;</button>
+        </div>
+        <button id="replayToggleBtn" class="btn btn-secondary">View Replay</button>
+        <div id="replayNav" class="replay-nav" style="display:none">
+          <button id="replayStartBtn" class="btn btn-secondary">|&lt;</button>
+          <button id="replayPrevBtn" class="btn btn-secondary">&lt;</button>
+          <button id="replayNextBtn" class="btn btn-secondary">&gt;</button>
+          <button id="replayEndBtn" class="btn btn-secondary">&gt;|</button>
+        </div>
+      </div>
       <button id="rematchBtn" class="btn btn-primary">Rematch</button>
       <button id="exitBtn" class="btn btn-secondary">Exit</button>
     </div>

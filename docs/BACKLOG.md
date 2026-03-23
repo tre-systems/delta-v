@@ -2,28 +2,6 @@
 
 Remaining work only. Completed items are in git history.
 
-## Event-Sourced Match Architecture
-
-### Post-game turn replay UI
-
-Let players step backward and forward through recorded
-turn history after game end using the new event /
-projection history rather than a bespoke renderer path.
-
-Initial scope: previous / next, jump to start / end,
-timeline labels, exit back to the finished-match
-screen, and explicit `gameId` selection when a room has
-multiple completed matches.
-
-Definition of done: client tests cover stepping
-controls, rematch selection, and exit back to the
-finished-match screen rather than assuming "latest
-match" implicitly.
-
-**Files:** `src/client/main.ts`,
-`src/client/game/`, `src/client/ui/overlay-view.ts`,
-`src/client/ui/ui.ts`
-
 ## Client Boundary Cleanup
 
 ### Continue shrinking `GameClient` into a composition root

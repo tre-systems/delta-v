@@ -21,6 +21,13 @@ export type UIEvent =
   | { type: 'confirmTransfers' }
   | { type: 'fleetReady'; purchases: FleetPurchase[] }
   | { type: 'rematch' }
+  | { type: 'replayMatchPrev' }
+  | { type: 'replayMatchNext' }
+  | { type: 'toggleReplay' }
+  | { type: 'replayStart' }
+  | { type: 'replayPrev' }
+  | { type: 'replayNext' }
+  | { type: 'replayEnd' }
   | { type: 'exit' }
   | { type: 'selectShip'; shipId: string }
   | { type: 'chat'; text: string }

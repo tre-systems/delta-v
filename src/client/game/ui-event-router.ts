@@ -10,6 +10,9 @@ export type UIEventPlan =
     }
   | { kind: 'joinGame'; code: string; playerToken: string | null }
   | { kind: 'command'; command: GameCommand }
+  | { kind: 'selectReplayMatch'; direction: 'prev' | 'next' }
+  | { kind: 'toggleReplay' }
+  | { kind: 'replayNav'; direction: 'start' | 'prev' | 'next' | 'end' }
   | { kind: 'sendChat'; text: string }
   | { kind: 'trackOnly'; event: 'scenario_browsed' };
 
@@ -67,6 +70,20 @@ export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
       };
     case 'rematch':
       return { kind: 'command', command: { type: 'requestRematch' } };
+    case 'replayMatchPrev':
+      return { kind: 'selectReplayMatch', direction: 'prev' };
+    case 'replayMatchNext':
+      return { kind: 'selectReplayMatch', direction: 'next' };
+    case 'toggleReplay':
+      return { kind: 'toggleReplay' };
+    case 'replayStart':
+      return { kind: 'replayNav', direction: 'start' };
+    case 'replayPrev':
+      return { kind: 'replayNav', direction: 'prev' };
+    case 'replayNext':
+      return { kind: 'replayNav', direction: 'next' };
+    case 'replayEnd':
+      return { kind: 'replayNav', direction: 'end' };
     case 'exit':
       return { kind: 'command', command: { type: 'exitToMenu' } };
     case 'selectShip':

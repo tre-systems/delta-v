@@ -170,9 +170,59 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     }
   };
 
+  const fetchReplay = async (
+    code: string,
+    gameId: string,
+  ): Promise<import('../../shared/replay').ReplayTimeline | null> => {
+    const playerToken = getPlayerToken(code);
+
+    if (!playerToken) {
+      deps.track('replay_fetch_failed', {
+        reason: 'missing_token',
+        gameId,
+      });
+      return null;
+    }
+
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 10000);
+    try {
+      const url = new URL(`/replay/${code}`, window.location.origin);
+      url.searchParams.set('playerToken', playerToken);
+      url.searchParams.set('gameId', gameId);
+      const response = await fetch(url.toString(), { signal: abort.signal });
+      clearTimeout(timer);
+
+      if (!response.ok) {
+        deps.track('replay_fetch_failed', {
+          reason: 'server',
+          status: response.status,
+          gameId,
+        });
+        return null;
+      }
+
+      deps.track('replay_fetch_succeeded', {
+        gameId,
+      });
+      return (await response.json()) as import('../../shared/replay').ReplayTimeline;
+    } catch (err) {
+      clearTimeout(timer);
+      deps.track('replay_fetch_failed', {
+        reason:
+          err instanceof DOMException && err.name === 'AbortError'
+            ? 'timeout'
+            : 'network',
+        gameId,
+      });
+      return null;
+    }
+  };
+
   return {
     createGame,
     validateJoin,
+    fetchReplay,
     getStoredPlayerToken: getPlayerToken,
     storePlayerToken,
   };

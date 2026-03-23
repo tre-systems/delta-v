@@ -33,6 +33,13 @@ export const ACTION_BUTTON_BINDINGS = [
 export const STATIC_BUTTON_BINDINGS = [
   ...ACTION_BUTTON_BINDINGS,
   { id: 'rematchBtn', event: { type: 'rematch' } },
+  { id: 'replayMatchPrevBtn', event: { type: 'replayMatchPrev' } },
+  { id: 'replayMatchNextBtn', event: { type: 'replayMatchNext' } },
+  { id: 'replayToggleBtn', event: { type: 'toggleReplay' } },
+  { id: 'replayStartBtn', event: { type: 'replayStart' } },
+  { id: 'replayPrevBtn', event: { type: 'replayPrev' } },
+  { id: 'replayNextBtn', event: { type: 'replayNext' } },
+  { id: 'replayEndBtn', event: { type: 'replayEnd' } },
   { id: 'exitBtn', event: { type: 'exit' } },
 ] as const satisfies readonly UIButtonEventBinding[];
 

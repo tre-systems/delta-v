@@ -59,6 +59,17 @@ const installFixture = () => {
     <div id="gameOverText"></div>
     <div id="gameOverReason"></div>
     <div id="gameOverStats"></div>
+    <div id="replayStatus"></div>
+    <div id="replayControls"></div>
+    <button id="replayMatchPrevBtn"></button>
+    <span id="replayMatchLabel"></span>
+    <button id="replayMatchNextBtn"></button>
+    <button id="replayToggleBtn"></button>
+    <div id="replayNav"></div>
+    <button id="replayStartBtn"></button>
+    <button id="replayPrevBtn"></button>
+    <button id="replayNextBtn"></button>
+    <button id="replayEndBtn"></button>
     <div id="reconnectOverlay"></div>
     <div id="reconnectText"></div>
     <div id="reconnectAttempt"></div>
@@ -122,11 +133,13 @@ describe('UIManager', () => {
     document.getElementById('confirmBtn')?.click();
     document.getElementById('undoBtn')?.click();
     document.getElementById('rematchBtn')?.click();
+    document.getElementById('replayToggleBtn')?.click();
 
     expect(events).toEqual([
       { type: 'confirm' },
       { type: 'undo' },
       { type: 'rematch' },
+      { type: 'toggleReplay' },
     ]);
   });
 

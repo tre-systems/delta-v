@@ -841,7 +841,7 @@ interface ScenarioPlayer {
 - [x] Asteroid map visuals matching reference map
 - [x] Logistics: surrender, looting, fuel/cargo transfer (passenger rescue remains open)
 - [x] Event-sourced match history (authoritative match stream, projection rebuilds, checkpoints)
-- [ ] Turn replay
+- [x] Turn replay
 - [ ] Scenario expansion: Lateral 7, Fleet Mutiny, Retribution
 - [ ] Spectator mode
 - [ ] Passenger rescue mechanics
