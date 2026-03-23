@@ -31,11 +31,23 @@ export interface GameOverStatsLike {
   myShipsTotal: number;
   enemyShipsAlive: number;
   enemyShipsTotal: number;
+  myShipsDestroyed: number;
+  enemyShipsDestroyed: number;
+  myFuelSpent: number;
+  enemyFuelSpent: number;
+  basesDestroyed: number;
+  ordnanceInFlight: number;
+}
+
+export interface GameOverStatLine {
+  label: string;
+  value: string;
 }
 
 export interface GameOverView {
   titleText: 'VICTORY' | 'DEFEAT';
   reasonText: string;
+  statLines: GameOverStatLine[];
   rematchText: 'Rematch';
   rematchDisabled: false;
 }
@@ -122,22 +134,54 @@ export const buildWaitingScreenCopy = (
       };
 };
 
+const buildStatLines = (stats: GameOverStatsLike): GameOverStatLine[] => {
+  const lines: GameOverStatLine[] = [
+    { label: 'Turns', value: String(stats.turns) },
+    {
+      label: 'Your fleet',
+      value: `${stats.myShipsAlive}/${stats.myShipsTotal} survived`,
+    },
+    {
+      label: 'Enemy fleet',
+      value: `${stats.enemyShipsAlive}/${stats.enemyShipsTotal} survived`,
+    },
+  ];
+
+  if (stats.enemyShipsDestroyed > 0) {
+    lines.push({
+      label: 'Kills',
+      value: String(stats.enemyShipsDestroyed),
+    });
+  }
+
+  if (stats.myFuelSpent > 0) {
+    lines.push({
+      label: 'Fuel spent',
+      value: String(stats.myFuelSpent),
+    });
+  }
+
+  if (stats.basesDestroyed > 0) {
+    lines.push({
+      label: 'Bases destroyed',
+      value: String(stats.basesDestroyed),
+    });
+  }
+
+  return lines;
+};
+
 export const buildGameOverView = (
   won: boolean,
   reason: string,
   stats?: GameOverStatsLike,
-): GameOverView => {
-  const reasonText = stats
-    ? `${reason}\n\nTurns: ${stats.turns} | Your ships: ${stats.myShipsAlive}/${stats.myShipsTotal} | Enemy: ${stats.enemyShipsAlive}/${stats.enemyShipsTotal}`
-    : reason;
-
-  return {
-    titleText: won ? 'VICTORY' : 'DEFEAT',
-    reasonText,
-    rematchText: 'Rematch',
-    rematchDisabled: false,
-  };
-};
+): GameOverView => ({
+  titleText: won ? 'VICTORY' : 'DEFEAT',
+  reasonText: reason,
+  statLines: stats ? buildStatLines(stats) : [],
+  rematchText: 'Rematch',
+  rematchDisabled: false,
+});
 
 export const buildRematchPendingView = (): RematchPendingView => {
   return {

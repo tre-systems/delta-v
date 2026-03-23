@@ -85,6 +85,8 @@ integration tests.
 
 ---
 
+---
+
 ## Performance & UX
 
 ### OffscreenCanvas layer caching for renderer
