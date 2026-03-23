@@ -115,28 +115,28 @@ This is the heart of the project. All game rules live in a shared folder, making
 | Module | LOC | Purpose | Reusability |
 |--------|-----|---------|-------------|
 | `hex.ts` | 306 | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
-| `util.ts` | 170 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
+| `util.ts` | 150 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
 | `types/` | 384 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts`; all imports use bounded files directly, barrel retained for compatibility only) | Game-specific |
 | `protocol.ts` | 478 | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads) | Mostly generic |
-| `replay.ts` | 56 | Replay archive structure, entry helpers, match identity builder | Game-specific |
+| `replay.ts` | 55 | Replay archive structure, entry helpers, match identity builder | Game-specific |
 | `constants.ts` | 146 | Ship stats, ordnance mass, detection ranges, combat/movement constants | Game-specific |
-| `movement.ts` | 435 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
-| `combat.ts` | 634 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
+| `movement.ts` | 421 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
+| `combat.ts` | 608 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
 | `map-data.ts` | 713 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
-| `ai.ts` | 688 | Rule-based AI with three difficulty levels and enforcer interception | Game-specific |
+| `ai.ts` | 676 | Rule-based AI with three difficulty levels and enforcer interception | Game-specific |
 | `ai-config.ts` | 250 | Per-difficulty AI scoring weights and strategy parameters | Game-specific |
-| `ai-scoring.ts` | 372 | Composable AI course scoring strategies (escape, nav, combat, gravity, race) | Game-specific |
+| `ai-scoring.ts` | 370 | Composable AI course scoring strategies (escape, nav, combat, gravity, race) | Game-specific |
 | `engine/game-engine.ts` | 58 | Barrel re-export: public engine API, result types, result classification helpers | Game-specific |
-| `engine/engine-events.ts` | 149 | `EngineEvent` discriminated union (22 granular domain event types) | Game-specific |
-| `engine/game-creation.ts` | 287 | Game initialization from scenario definition | Game-specific |
-| `engine/fleet-building.ts` | 128 | Fleet purchase phase (MegaCredit economy) | Game-specific |
-| `engine/astrogation.ts` | 277 | Order validation, ordnance launches, movement dispatch | Game-specific |
-| `engine/resolve-movement.ts` | 233 | Movement orchestrator: resolve orders, post-movement checks | Game-specific |
-| `engine/combat.ts` | 628 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
-| `engine/ordnance.ts` | 609 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
-| `engine/logistics.ts` | 334 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
-| `engine/victory.ts` | 763 | Victory conditions, turn advancement, reinforcements, fleet conversion | Game-specific |
-| `engine/util.ts` | 271 | Ship state helpers, game rule helpers, ordnance launch eligibility | Game-specific |
+| `engine/engine-events.ts` | 163 | `EngineEvent` discriminated union (22 granular domain event types) | Game-specific |
+| `engine/game-creation.ts` | 285 | Game initialization from scenario definition | Game-specific |
+| `engine/fleet-building.ts` | 126 | Fleet purchase phase (MegaCredit economy) | Game-specific |
+| `engine/astrogation.ts` | 271 | Order validation, ordnance launches, movement dispatch | Game-specific |
+| `engine/resolve-movement.ts` | 237 | Movement orchestrator: resolve orders, post-movement checks | Game-specific |
+| `engine/combat.ts` | 620 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
+| `engine/ordnance.ts` | 597 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
+| `engine/logistics.ts` | 324 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
+| `engine/victory.ts` | 743 | Victory conditions, turn advancement, reinforcements, fleet conversion | Game-specific |
+| `engine/util.ts` | 279 | Ship state helpers, game rule helpers, ordnance launch eligibility | Game-specific |
 
 #### Key Design Patterns
 

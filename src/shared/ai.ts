@@ -1,15 +1,13 @@
-/**
- * Client-side AI opponent using rule-based heuristics.
- * Runs entirely in the browser — no server cost.
- *
- * Difficulty levels:
- * - easy:   No overloads, sometimes picks suboptimal
- *           burns, skips ordnance, less aggressive
- * - normal: Uses overloads, good heuristic scoring,
- *           launches ordnance, reasonable combat
- * - hard:   Better scoring weights, aggressive ordnance
- *           use, always attacks when possible
- */
+// Client-side AI opponent using rule-based heuristics.
+// Runs entirely in the browser — no server cost.
+//
+// Difficulty levels:
+// - easy:   No overloads, sometimes picks suboptimal
+//           burns, skips ordnance, less aggressive
+// - normal: Uses overloads, good heuristic scoring,
+//           launches ordnance, reasonable combat
+// - hard:   Better scoring weights, aggressive ordnance
+//           use, always attacks when possible
 
 import { AI_CONFIG } from './ai-config';
 import { scoreCourse } from './ai-scoring';
@@ -63,9 +61,7 @@ const findDirectionToward = (
   );
   return dir;
 };
-/**
- * Find the nearest base hex the player controls.
- */
+// Find the nearest base hex the player controls.
 const findNearestBase = (
   shipPos: {
     q: number;
@@ -82,11 +78,9 @@ const findNearestBase = (
   );
   return nearest ? parseHexKey(nearest) : null;
 };
-/**
- * Pick the next checkpoint body to visit, or homeBody
- * if all visited. Uses nearest-neighbor heuristic from
- * the player's ship position.
- */
+// Pick the next checkpoint body to visit, or homeBody
+// if all visited. Uses nearest-neighbor heuristic from
+// the player's ship position.
 const pickNextCheckpoint = (
   player: {
     visitedBodies?: string[];
@@ -116,12 +110,10 @@ const pickNextCheckpoint = (
   }, unvisited[0]);
   return bestBody;
 };
-/**
- * Generate astrogation orders for an AI player.
- * Strategy: for each ship, evaluate all 7 options
- * (6 burn directions + no burn) and pick the one that
- * brings us closest to our goal.
- */
+// Generate astrogation orders for an AI player.
+// Strategy: for each ship, evaluate all 7 options
+// (6 burn directions + no burn) and pick the one that
+// brings us closest to our goal.
 export const aiAstrogation = (
   state: GameState,
   playerId: number,
@@ -421,10 +413,8 @@ export const aiAstrogation = (
   }
   return orders;
 };
-/**
- * Generate ordnance launches for an AI player.
- * Strategy: launch torpedoes at nearby enemy ships.
- */
+// Generate ordnance launches for an AI player.
+// Strategy: launch torpedoes at nearby enemy ships.
 export const aiOrdnance = (
   state: GameState,
   playerId: number,
@@ -553,10 +543,8 @@ export const aiOrdnance = (
   }
   return launches;
 };
-/**
- * Generate combat attacks for an AI player.
- * Strategy: concentrate fire on the weakest enemy.
- */
+// Generate combat attacks for an AI player.
+// Strategy: concentrate fire on the weakest enemy.
 export const aiCombat = (
   state: GameState,
   playerId: number,

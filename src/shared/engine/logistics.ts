@@ -30,12 +30,10 @@ const isTransferEligibleTarget = (ship: Ship, playerId: number): boolean => {
   if (ship.lifecycle === 'destroyed') return false;
   return ship.owner === playerId && ship.control === 'own';
 };
-/**
- * Get all valid transfer pairs for a player.
- * A pair requires same hex + same velocity.
- * Friendly-to-friendly is unrestricted; enemy looting
- * requires the source to be disabled or surrendered.
- */
+// Get all valid transfer pairs for a player.
+// A pair requires same hex + same velocity.
+// Friendly-to-friendly is unrestricted; enemy looting
+// requires the source to be disabled or surrendered.
 export const getTransferEligiblePairs = (
   state: GameState,
   playerId: number,
@@ -87,10 +85,8 @@ export const getTransferEligiblePairs = (
   }
   return pairs;
 };
-/**
- * Check if the logistics phase should be entered
- * after movement.
- */
+// Check if the logistics phase should be entered
+// after movement.
 export const shouldEnterLogisticsPhase = (state: GameState): boolean => {
   if (!state.scenarioRules.logisticsEnabled) {
     return false;
@@ -151,9 +147,7 @@ const validateTransfer = (
   }
   return null;
 };
-/**
- * Process logistics transfers for the active player.
- */
+// Process logistics transfers for the active player.
 export const processLogistics = (
   inputState: GameState,
   playerId: number,
@@ -226,9 +220,7 @@ export const processLogistics = (
 
   return { state, engineEvents };
 };
-/**
- * Skip logistics phase without making transfers.
- */
+// Skip logistics phase without making transfers.
 export const skipLogistics = (
   inputState: GameState,
   playerId: number,
@@ -264,10 +256,8 @@ export const skipLogistics = (
 
   return { state, engineEvents };
 };
-/**
- * Process surrender declarations during
- * astrogation phase.
- */
+// Process surrender declarations during
+// astrogation phase.
 export const processSurrender = (
   inputState: GameState,
   playerId: number,

@@ -1,12 +1,10 @@
-/**
- * Lightweight DOM helpers for declarative UI construction.
- *
- * These reduce the verbosity of
- * createElement/className/addEventListener/appendChild
- * chains without introducing a framework. Use `el()` for
- * building element trees, `show`/`hide`/`visible` for
- * display toggling, and `byId` for typed lookups.
- */
+// Lightweight DOM helpers for declarative UI construction.
+//
+// These reduce the verbosity of
+// createElement/className/addEventListener/appendChild
+// chains without introducing a framework. Use `el()` for
+// building element trees, `show`/`hide`/`visible` for
+// display toggling, and `byId` for typed lookups.
 
 // --- Element creation ---
 
@@ -27,14 +25,12 @@ interface ElProps {
 
 type Child = HTMLElement | string;
 
-/**
- * Create an HTML element declaratively.
- *
- *   el('div', { class: 'card', onClick: handler },
- *     el('span', { class: 'title', text: 'Hello' }),
- *     'some text',
- *   )
- */
+// Create an HTML element declaratively.
+//
+//   el('div', { class: 'card', onClick: handler },
+//     el('span', { class: 'title', text: 'Hello' }),
+//     'some text',
+//   )
 export const el = (
   tag: string,
   props?: ElProps,
@@ -106,30 +102,26 @@ export const el = (
 // (e.g. DOMPurify) here instead of scattering raw
 // innerHTML writes.
 
-/**
- * Set innerHTML from a trusted internal source.
- *
- * Use this instead of raw `element.innerHTML = ...`
- * so the security boundary is grep-able. All callers
- * must pass only internally generated markup.
- */
+// Set innerHTML from a trusted internal source.
+//
+// Use this instead of raw `element.innerHTML = ...`
+// so the security boundary is grep-able. All callers
+// must pass only internally generated markup.
 export const setTrustedHTML = (element: HTMLElement, html: string): void => {
   element.innerHTML = html;
 };
 
-/** Clear an element's children via innerHTML. */
+// Clear an element's children via innerHTML.
 export const clearHTML = (element: HTMLElement): void => {
   element.innerHTML = '';
 };
 
 // --- Event binding ---
 
-/**
- * Bind an event listener and return a disposer that
- * removes it. Use with `scope.add(listen(...))` to
- * replace the 3-line addEventListener/scope.add/
- * removeEventListener pattern.
- */
+// Bind an event listener and return a disposer that
+// removes it. Use with `scope.add(listen(...))` to
+// replace the 3-line addEventListener/scope.add/
+// removeEventListener pattern.
 export const listen = <T extends EventTarget, K extends string>(
   target: T,
   event: K,
@@ -142,15 +134,13 @@ export const listen = <T extends EventTarget, K extends string>(
 
 // --- List rendering ---
 
-/**
- * Clear a container and render a list of items into it.
- *
- * Each item is rendered by the `renderItem` callback,
- * which receives the item and its index and returns an
- * HTMLElement to append. This replaces the common
- * clearHTML → for-loop → createElement → appendChild
- * pattern across view classes.
- */
+// Clear a container and render a list of items into it.
+//
+// Each item is rendered by the `renderItem` callback,
+// which receives the item and its index and returns an
+// HTMLElement to append. This replaces the common
+// clearHTML → for-loop → createElement → appendChild
+// pattern across view classes.
 export const renderList = <T>(
   container: HTMLElement,
   items: T[],
@@ -165,17 +155,17 @@ export const renderList = <T>(
 
 // --- Visibility ---
 
-/** Hide an element by setting display to 'none'. */
+// Hide an element by setting display to 'none'.
 export const hide = (element: HTMLElement): void => {
   element.style.display = 'none';
 };
 
-/** Show an element by restoring its display value. */
+// Show an element by restoring its display value.
 export const show = (element: HTMLElement, display = ''): void => {
   element.style.display = display;
 };
 
-/** Set element visibility based on a boolean condition. */
+// Set element visibility based on a boolean condition.
 export const visible = (
   element: HTMLElement,
   condition: boolean,
@@ -186,7 +176,7 @@ export const visible = (
 
 // --- Lookup ---
 
-/** Typed getElementById that throws if the element doesn't exist. */
+// Typed getElementById that throws if the element doesn't exist.
 export const byId = <T extends HTMLElement = HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
 

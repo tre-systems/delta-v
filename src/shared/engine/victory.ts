@@ -23,11 +23,9 @@ import {
   usesEscapeInspectionRules,
 } from './util';
 
-/**
- * Advance to the next player's turn after
- * combat/resupply. Handles damage recovery and
- * turn counter.
- */
+// Advance to the next player's turn after
+// combat/resupply. Handles damage recovery and
+// turn counter.
 export const advanceTurn = (
   state: GameState,
   engineEvents?: EngineEvent[],
@@ -133,11 +131,9 @@ const applyFleetConversion = (state: GameState): void => {
   }
 };
 
-/**
- * Update checkpoint body visits for race scenarios.
- * Checks each hex in the path for gravity or surface
- * belonging to a checkpoint body.
- */
+// Update checkpoint body visits for race scenarios.
+// Checks each hex in the path for gravity or surface
+// belonging to a checkpoint body.
 export const applyCheckpoints = (
   state: GameState,
   playerId: number,
@@ -208,9 +204,7 @@ const hasReturnedCapturedFugitivesToBase = (
   );
 };
 
-/**
- * Check immediate movement-based victory conditions.
- */
+// Check immediate movement-based victory conditions.
 export const checkImmediateVictory = (
   state: GameState,
   map?: SolarSystemMap,
@@ -311,10 +305,8 @@ export const checkImmediateVictory = (
 export const getFugitiveShip = (state: GameState): Ship | undefined =>
   state.ships.find((ship) => ship.identity?.hasFugitives);
 
-/**
- * Check if the game has ended (victory or all ships
- * destroyed).
- */
+// Check if the game has ended (victory or all ships
+// destroyed).
 export const checkGameEnd = (
   state: GameState,
   map?: SolarSystemMap,
@@ -445,10 +437,8 @@ export const applyEscapeMoralVictory = (state: GameState): void => {
   }
 };
 
-/**
- * Check for ramming: opposing ships on the same hex
- * after movement.
- */
+// Check for ramming: opposing ships on the same hex
+// after movement.
 export const checkRamming = (
   state: GameState,
   events: MovementEvent[],
@@ -511,10 +501,8 @@ export const checkRamming = (
   }
 };
 
-/**
- * Reveal hidden-identity ships when an enemy matches
- * courses with them.
- */
+// Reveal hidden-identity ships when an enemy matches
+// courses with them.
 export const checkInspection = (
   state: GameState,
   playerId: number,
@@ -556,10 +544,8 @@ export const checkInspection = (
   }
 };
 
-/**
- * Check for capture: moving player's ship on same
- * hex/velocity as disabled enemy.
- */
+// Check for capture: moving player's ship on same
+// hex/velocity as disabled enemy.
 export const checkCapture = (
   state: GameState,
   playerId: number,
@@ -615,10 +601,8 @@ export const checkCapture = (
   }
 };
 
-/**
- * Check if any moving player's ships can resupply
- * from friendly emplaced orbital bases.
- */
+// Check if any moving player's ships can resupply
+// from friendly emplaced orbital bases.
 export const checkOrbitalBaseResupply = (
   state: GameState,
   playerId: number,
@@ -674,9 +658,7 @@ export const checkOrbitalBaseResupply = (
   }
 };
 
-/**
- * Resupply a ship that has landed at a base.
- */
+// Resupply a ship that has landed at a base.
 export const applyResupply = (
   ship: Ship,
   state: GameState,
@@ -711,9 +693,7 @@ export const applyResupply = (
   }
 };
 
-/**
- * Update detection status for all ships.
- */
+// Update detection status for all ships.
 export const applyDetection = (state: GameState, map: SolarSystemMap): void => {
   for (const ship of state.ships) {
     if (ship.lifecycle === 'destroyed') continue;

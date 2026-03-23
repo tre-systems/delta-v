@@ -190,11 +190,9 @@ export interface LocalGameTransportDeps {
   startLocalGame: (scenario: string) => void;
 }
 
-/**
- * Higher-level factory that wraps `createLocalTransport`
- * with fleet-ready resolution, emplacement handling, and
- * game-flow callbacks. Used by single-player mode.
- */
+// Higher-level factory that wraps `createLocalTransport`
+// with fleet-ready resolution, emplacement handling, and
+// game-flow callbacks. Used by single-player mode.
 export const createLocalGameTransport = (
   deps: LocalGameTransportDeps,
 ): GameTransport =>

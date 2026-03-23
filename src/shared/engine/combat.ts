@@ -208,10 +208,8 @@ const combatResultToEvent = (r: CombatResult): EngineEvent => ({
   disabledTurns: r.disabledTurns,
 });
 
-/**
- * Resolve automatic combat-step effects that happen
- * before attack declarations.
- */
+// Resolve automatic combat-step effects that happen
+// before attack declarations.
 export const beginCombatPhase = (
   inputState: GameState,
   playerId: number,
@@ -265,9 +263,7 @@ export const beginCombatPhase = (
     : { state, engineEvents };
 };
 
-/**
- * Process combat attacks for the active player.
- */
+// Process combat attacks for the active player.
 export const processCombat = (
   inputState: GameState,
   playerId: number,
@@ -527,9 +523,7 @@ export const processCombat = (
   return { results, state, engineEvents };
 };
 
-/**
- * Skip combat phase (player has no attacks to make).
- */
+// Skip combat phase (player has no attacks to make).
 export const skipCombat = (
   inputState: GameState,
   playerId: number,
@@ -597,10 +591,8 @@ export const skipCombat = (
     : { state, engineEvents };
 };
 
-/**
- * Determine whether the active player should enter
- * combat after movement.
- */
+// Determine whether the active player should enter
+// combat after movement.
 export const shouldEnterCombatPhase = (
   state: GameState,
   map: SolarSystemMap,

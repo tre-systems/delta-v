@@ -31,10 +31,8 @@ import {
   validatePhaseAction,
 } from './util';
 
-/**
- * Determine whether the active player should receive
- * an ordnance phase this turn.
- */
+// Determine whether the active player should receive
+// an ordnance phase this turn.
 export const shouldEnterOrdnancePhase = (state: GameState): boolean => {
   const allowedOrdnanceTypes = getAllowedOrdnanceTypes(state);
 
@@ -53,10 +51,8 @@ export const shouldEnterOrdnancePhase = (state: GameState): boolean => {
   );
 };
 
-/**
- * Emplace orbital bases from carrying ships during
- * the ordnance phase.
- */
+// Emplace orbital bases from carrying ships during
+// the ordnance phase.
 export const processEmplacement = (
   inputState: GameState,
   playerId: number,
@@ -143,10 +139,8 @@ export const processEmplacement = (
   return { state, engineEvents };
 };
 
-/**
- * Check if a hex is an asteroid that hasn't been
- * destroyed.
- */
+// Check if a hex is an asteroid that hasn't been
+// destroyed.
 export const isAsteroidHex = (
   state: GameState,
   map: SolarSystemMap,
@@ -365,10 +359,8 @@ const checkOrdnanceDetonation = (
   return false;
 };
 
-/**
- * Move all ordnance, then check for detonations
- * against ships and other ordnance.
- */
+// Move all ordnance, then check for detonations
+// against ships and other ordnance.
 export const moveOrdnance = (
   state: GameState,
   map: SolarSystemMap,
@@ -502,10 +494,8 @@ export const moveOrdnance = (
   state.ordnance = state.ordnance.filter((o) => o.lifecycle !== 'destroyed');
 };
 
-/**
- * Queue asteroid hazards so they resolve during
- * combat.
- */
+// Queue asteroid hazards so they resolve during
+// combat.
 export const queueAsteroidHazards = (
   ship: Ship,
   path: { q: number; r: number }[],
@@ -558,9 +548,7 @@ export const queueAsteroidHazards = (
   }
 };
 
-/**
- * Resolve pending asteroid collision damage.
- */
+// Resolve pending asteroid collision damage.
 export const resolvePendingAsteroidHazards = (
   state: GameState,
   playerId: number,
