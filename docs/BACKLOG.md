@@ -4,24 +4,6 @@ Remaining work only. Completed items are in git history.
 
 ## Reliability & Architecture
 
-### Spectator path completion
-
-Finish the end-to-end spectator transport path so the
-public worker, Durable Object routing, and replay
-endpoints all expose the spectator behavior that already
-exists in lower layers.
-
-Definition of done: spectator replay requests can flow
-through the public worker, spectator websocket joins are
-explicitly supported or explicitly rejected at the top
-boundary, and integration tests cover the chosen
-contract.
-
-**Files:** `src/server/index.ts`,
-`src/server/game-do/game-do.ts`,
-`src/server/index.test.ts`,
-`src/server/game-do/game-do.test.ts`
-
 ### Seeded PRNG for server game logic
 
 Server-side engine calls use `Math.random` for combat
