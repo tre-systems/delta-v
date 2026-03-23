@@ -56,6 +56,7 @@ export interface MessageHandlerDeps {
     updateLatency: (ms: number) => void;
   };
 }
+
 export const handleServerMessage = (
   deps: MessageHandlerDeps,
   msg: S2C,

@@ -59,6 +59,7 @@ export const hasQueuedTransfers = (uiState: LogisticsUIState): boolean => {
   for (const amt of uiState.fuelAmounts.values()) {
     if (amt > 0) return true;
   }
+
   for (const amt of uiState.cargoAmounts.values()) {
     if (amt > 0) return true;
   }

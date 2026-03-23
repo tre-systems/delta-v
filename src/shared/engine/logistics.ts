@@ -14,6 +14,7 @@ export interface TransferPair {
   maxFuel: number;
   maxCargo: number;
 }
+
 const velocityMatch = (a: Ship, b: Ship): boolean =>
   a.velocity.dq === b.velocity.dq && a.velocity.dr === b.velocity.dr;
 const isTransferEligibleSource = (ship: Ship, playerId: number): boolean => {
@@ -22,10 +23,12 @@ const isTransferEligibleSource = (ship: Ship, playerId: number): boolean => {
   if (ship.owner === playerId) {
     return ship.control === 'own';
   }
+
   // Enemy ship: must be disabled or surrendered
   // (looting)
   return ship.damage.disabledTurns > 0 || ship.control === 'surrendered';
 };
+
 const isTransferEligibleTarget = (ship: Ship, playerId: number): boolean => {
   if (ship.lifecycle === 'destroyed') return false;
   return ship.owner === playerId && ship.control === 'own';
@@ -93,6 +96,7 @@ export const shouldEnterLogisticsPhase = (state: GameState): boolean => {
   }
   return getTransferEligiblePairs(state, state.activePlayer).length > 0;
 };
+
 const validateTransfer = (
   state: GameState,
   playerId: number,
@@ -104,18 +108,23 @@ const validateTransfer = (
   if (!isTransferEligibleSource(source, playerId)) {
     return 'Source ship not eligible for transfer';
   }
+
   if (!isTransferEligibleTarget(target, playerId)) {
     return 'Target ship not eligible for transfer';
   }
+
   if (!hexEqual(source.position, target.position)) {
     return 'Ships must be in the same hex';
   }
+
   if (!velocityMatch(source, target)) {
     return 'Ships must have matching velocity';
   }
+
   if (transfer.amount <= 0) {
     return 'Transfer amount must be positive';
   }
+
   if (!Number.isInteger(transfer.amount)) {
     return 'Transfer amount must be an integer';
   }
@@ -124,6 +133,7 @@ const validateTransfer = (
   if (!sourceStats || !targetStats) {
     return 'Invalid ship type';
   }
+
   if (transfer.transferType === 'fuel') {
     if (source.type === 'torch') {
       return 'Torch ships cannot transfer fuel';

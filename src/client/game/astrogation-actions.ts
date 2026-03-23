@@ -15,6 +15,7 @@ export interface AstrogationActionDeps {
   updateHUD: () => void;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
 }
+
 export const setBurnDirection = (
   deps: AstrogationActionDeps,
   dir: number | null,
@@ -39,9 +40,11 @@ export const setBurnDirection = (
     deps.showToast(plan.message, must(plan.level));
     return;
   }
+
   if (plan.kind === 'noop') {
     return;
   }
+
   setShipBurn(
     deps.planningState,
     plan.shipId,
@@ -51,6 +54,7 @@ export const setBurnDirection = (
   playSelect();
   deps.updateHUD();
 };
+
 export const clearSelectedBurn = (deps: AstrogationActionDeps) => {
   if (!deps.getGameState() || deps.getClientState() !== 'playing_astrogation')
     return;
@@ -59,6 +63,7 @@ export const clearSelectedBurn = (deps: AstrogationActionDeps) => {
   clearShipPlanning(deps.planningState, shipId);
   deps.updateHUD();
 };
+
 export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
   if (!deps.getGameState() || deps.getClientState() !== 'playing_astrogation')
     return;
@@ -68,6 +73,7 @@ export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
   }
   deps.updateHUD();
 };
+
 export const confirmOrders = (deps: AstrogationActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();

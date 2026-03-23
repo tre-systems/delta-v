@@ -14,6 +14,7 @@ export interface OrdnanceActionDeps {
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   logText: (text: string) => void;
 }
+
 export const sendOrdnanceLaunch = (
   deps: OrdnanceActionDeps,
   ordType: 'mine' | 'torpedo' | 'nuke',
@@ -36,6 +37,7 @@ export const sendOrdnanceLaunch = (
   deps.logText(`${plan.shipName} launched ${ordType}`);
   transport.submitOrdnance([must(plan.launch)]);
 };
+
 export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
@@ -53,6 +55,7 @@ export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
   }
   transport.submitEmplacement(must(plan.emplacements));
 };
+
 export const sendSkipOrdnance = (deps: OrdnanceActionDeps) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();

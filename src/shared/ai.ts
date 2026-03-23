@@ -566,6 +566,7 @@ export const aiCombat = (
   if (enemyShips.length === 0 && enemyNukes.length === 0) {
     return [];
   }
+
   // Score all potential targets
   interface ScoredTarget {
     targetId: string;
@@ -598,6 +599,7 @@ export const aiCombat = (
       score,
     });
   }
+
   for (const nuke of enemyNukes) {
     const attackersForTarget = myShips.filter((attacker) =>
       hasLineOfSightToTarget(attacker, nuke, map),
@@ -632,6 +634,7 @@ export const aiCombat = (
       score,
     });
   }
+
   if (scored.length === 0) return [];
   // Sort by score descending
   scored.sort((a, b) => b.score - a.score);

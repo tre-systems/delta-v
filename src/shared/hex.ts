@@ -82,6 +82,7 @@ export const cubeRound = (fq: number, fr: number, fs: number): HexCoord => {
   } else if (dr > ds) {
     r = -q - s;
   }
+
   // else s = -q - r (implicit, we only need q and r)
 
   return { q, r };
