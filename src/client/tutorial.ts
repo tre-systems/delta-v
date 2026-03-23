@@ -1,10 +1,8 @@
-/**
- * Interactive tutorial system for new players.
- * Shows contextual tips during the first game.
- * Tips are shown at specific game phases and dismissed
- * by the player. Tutorial state is persisted in
- * localStorage so it only shows once.
- */
+// Interactive tutorial system for new players.
+// Shows contextual tips during the first game.
+// Tips are shown at specific game phases and dismissed
+// by the player. Tutorial state is persisted in
+// localStorage so it only shows once.
 
 import { byId, hide, listen, setTrustedHTML, show } from './dom';
 import { createDisposalScope } from './reactive';
@@ -15,11 +13,11 @@ interface TutorialStep {
   id: string;
   phase: 'astrogation' | 'ordnance' | 'combat' | 'movement' | 'any';
   text: string;
-  /** Touch-friendly text shown on mobile */
+  // Touch-friendly text shown on mobile
   mobileText?: string;
-  /** Only show after this turn number */
+  // Only show after this turn number
   minTurn?: number;
-  /** Only show once per game */
+  // Only show once per game
   once?: boolean;
 }
 

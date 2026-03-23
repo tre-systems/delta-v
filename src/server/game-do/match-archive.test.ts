@@ -6,7 +6,11 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
-import { appendEnvelopedEvents, saveCheckpoint } from './archive';
+import {
+  appendEnvelopedEvents,
+  saveCheckpoint,
+  saveMatchCreatedAt,
+} from './archive';
 import {
   archiveCompletedMatch,
   fetchArchivedMatch,
@@ -64,6 +68,7 @@ describe('match archival', () => {
       turn: 1,
       phase: 'astrogation',
     });
+    await saveMatchCreatedAt(storage, 'ARC-m1', 1234);
     await saveCheckpoint(storage, 'ARC-m1', state, 1);
 
     await archiveCompletedMatch(
@@ -86,6 +91,7 @@ describe('match archival', () => {
     expect(body.winner).toBe(0);
     expect(body.winReason).toBe('Fleet eliminated!');
     expect(body.turnCount).toBe(state.turnNumber);
+    expect(body.createdAt).toBe(1234);
     expect(body.eventStream).toHaveLength(1);
     expect(body.checkpoint).not.toBeNull();
 
@@ -189,5 +195,32 @@ describe('match archival', () => {
 
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
+  });
+
+  it('falls back to checkpoint time when no match start time is stored', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const r2 = createMockR2();
+    const map = buildSolarSystemMap();
+    const state = createGame(SCENARIOS.duel, map, 'FALL-m1', findBaseHex);
+    state.phase = 'gameOver';
+
+    vi.spyOn(Date, 'now').mockReturnValue(5000);
+    await saveCheckpoint(storage, 'FALL-m1', state, 1);
+    vi.spyOn(Date, 'now').mockReturnValue(9000);
+
+    await archiveCompletedMatch(
+      storage,
+      r2 as unknown as R2Bucket,
+      undefined,
+      state,
+      'FALL',
+    );
+
+    const body = JSON.parse(
+      r2._objects.get('matches/FALL-m1.json') ?? '{}',
+    ) as MatchArchive;
+
+    expect(body.createdAt).toBe(5000);
+    expect(body.completedAt).toBe(9000);
   });
 });

@@ -203,11 +203,9 @@ export class InputHandler {
     this.onInput({ type: 'clickHex', hex });
   }
 
-  /**
-   * Check if a screen click falls within the minimap.
-   * If so, pan the camera to the corresponding world
-   * position. Returns true if the click was consumed.
-   */
+  // Check if a screen click falls within the minimap.
+  // If so, pan the camera to the corresponding world
+  // position. Returns true if the click was consumed.
   private handleMinimapClick(screenX: number, screenY: number): boolean {
     const hudTopOffset = parseFloat(
       getComputedStyle(document.documentElement).getPropertyValue(

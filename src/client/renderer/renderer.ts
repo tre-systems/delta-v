@@ -312,11 +312,9 @@ export class Renderer {
       color: '#66bb6a',
     });
   }
-  /**
-   * Trigger dramatic staggered explosions on the
-   * losing player's ships.
-   * Returns the total animation duration in ms.
-   */
+  // Trigger dramatic staggered explosions on the
+  // losing player's ships.
+  // Returns the total animation duration in ms.
   triggerGameOverExplosions(ships: Ship[]): number {
     const now = performance.now();
     const stagger = 250;

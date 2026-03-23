@@ -8,17 +8,15 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 
-/**
- * Tests for the animation fallback timer in the Renderer.
- *
- * The Renderer uses requestAnimationFrame to detect animation completion,
- * but rAF is throttled or paused when the tab is backgrounded or the phone
- * screen is locked. A setTimeout fallback ensures animation callbacks fire
- * even when rAF stops.
- *
- * Since the Renderer class requires Canvas/DOM, we test the fallback logic
- * pattern directly rather than instantiating the full Renderer.
- */
+// Tests for the animation fallback timer in the Renderer.
+//
+// The Renderer uses requestAnimationFrame to detect animation completion,
+// but rAF is throttled or paused when the tab is backgrounded or the phone
+// screen is locked. A setTimeout fallback ensures animation callbacks fire
+// even when rAF stops.
+//
+// Since the Renderer class requires Canvas/DOM, we test the fallback logic
+// pattern directly rather than instantiating the full Renderer.
 
 interface AnimState {
   startTime: number;
@@ -26,7 +24,7 @@ interface AnimState {
   onComplete: () => void;
 }
 
-/** Minimal reproduction of the Renderer's animation + fallback logic. */
+// Minimal reproduction of the Renderer's animation + fallback logic.
 const createAnimController = (pageHidden = false) => {
   let animState: AnimState | null = null;
   let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
@@ -56,7 +54,7 @@ const createAnimController = (pageHidden = false) => {
       }, duration + 500);
     },
 
-    /** Simulates what the rAF loop does when enough time has passed. */
+    // Simulates what the rAF loop does when enough time has passed.
     completeViaRAF: () => {
       if (animState) {
         if (fallbackTimer !== null) {
@@ -69,7 +67,7 @@ const createAnimController = (pageHidden = false) => {
       }
     },
 
-    /** Simulates the visibilitychange handler checking for stale animations. */
+    // Simulates the visibilitychange handler checking for stale animations.
     handleVisibilityChange: (nowVisible: boolean) => {
       if (!animState) return;
 
