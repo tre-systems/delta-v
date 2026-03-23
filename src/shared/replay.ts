@@ -90,17 +90,3 @@ export const toReplayEntryFromProjectionFrame = (
   phase: frame.phase,
   message: structuredClone(frame.message),
 });
-
-export const createReplayArchive = (
-  roomCode: string,
-  matchNumber: number,
-  message: ReplayMessage,
-  recordedAt: number,
-): ReplayArchive => ({
-  gameId: message.state.gameId,
-  roomCode,
-  matchNumber,
-  scenario: message.state.scenario,
-  createdAt: recordedAt,
-  entries: [toReplayEntry(1, message, recordedAt)],
-});

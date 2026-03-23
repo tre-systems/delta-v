@@ -10,7 +10,6 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
-import { createReplayArchive } from '../../shared/replay';
 import {
   appendEnvelopedEvents,
   appendProjectionMessage,
@@ -24,7 +23,6 @@ import {
   hasProjectionParity,
   projectReplayArchive,
   saveCheckpoint,
-  saveReplayArchive,
 } from './archive';
 
 class MockStorage {
@@ -403,16 +401,6 @@ describe('replay projection', () => {
       hiddenIdentityInspection: true,
     };
 
-    await saveReplayArchive(
-      storage,
-      createReplayArchive(
-        'VIEW1',
-        1,
-        { type: 'gameStart', state },
-        1_700_000_000_000,
-      ),
-    );
-
     await appendProjectionMessage(storage, 'VIEW-m1', 1, {
       type: 'gameStart',
       state,
@@ -427,7 +415,7 @@ describe('replay projection', () => {
     expect(enemyShip?.identity).toBeUndefined();
   });
 
-  it('prefers projection metadata over replay archive metadata when frames exist', async () => {
+  it('derives projection metadata from frames without replay-archive storage', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const state = createGame(
       SCENARIOS.biplanetary,
@@ -436,14 +424,6 @@ describe('replay projection', () => {
       findBaseHex,
     );
 
-    await saveReplayArchive(storage, {
-      gameId: 'META1-m1',
-      roomCode: 'WRONG',
-      matchNumber: 99,
-      scenario: 'Wrong Scenario',
-      createdAt: 1,
-      entries: [],
-    });
     await appendProjectionMessage(storage, 'META1-m1', 1, {
       type: 'gameStart',
       state,
@@ -485,7 +465,7 @@ describe('replay projection', () => {
   });
 
   it('returns null when neither replay archive nor checkpoint exists', () => {
-    expect(projectReplayArchive(null, null, [], 0)).toBeNull();
+    expect(projectReplayArchive(null, [], 0)).toBeNull();
   });
 
   it('projects checkpoint plus tail frames instead of replay archive snapshots', async () => {
@@ -522,29 +502,21 @@ describe('replay projection', () => {
     expect(projected?.entries[1]?.phase).toBe('combat');
   });
 
-  it('ignores stale replay-archive state when newer projection frames exist', async () => {
+  it('prefers newer projection-frame state over older checkpoint state', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const staleState = createGame(
+    const checkpointState = createGame(
       SCENARIOS.biplanetary,
       map,
       'STALE-m1',
       findBaseHex,
     );
-    staleState.turnNumber = 1;
+    checkpointState.turnNumber = 1;
 
-    const freshState = structuredClone(staleState);
+    const freshState = structuredClone(checkpointState);
     freshState.turnNumber = 4;
     freshState.phase = 'combat';
 
-    await saveReplayArchive(
-      storage,
-      createReplayArchive(
-        'STALE',
-        1,
-        { type: 'stateUpdate', state: staleState },
-        1000,
-      ),
-    );
+    await saveCheckpoint(storage, 'STALE-m1', checkpointState, 1);
     await appendProjectionMessage(storage, 'STALE-m1', 4, {
       type: 'stateUpdate',
       state: freshState,
