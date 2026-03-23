@@ -316,6 +316,7 @@ export const lookupGunCombat = (
   if (value === 0) {
     return { type: 'none', disabledTurns: 0 };
   }
+
   if (value === 6) {
     return { type: 'eliminated', disabledTurns: 0 };
   }
@@ -337,6 +338,7 @@ export const lookupOtherDamage = (
   if (value === 0) {
     return { type: 'none', disabledTurns: 0 };
   }
+
   if (value === 6) {
     return { type: 'eliminated', disabledTurns: 0 };
   }

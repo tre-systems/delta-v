@@ -78,6 +78,7 @@ export interface Env {
   DB: D1Database;
   MATCH_ARCHIVE?: R2Bucket;
 }
+
 const CHAT_RATE_LIMIT_MS = 500;
 const WS_MSG_RATE_LIMIT = 10;
 const WS_MSG_RATE_WINDOW_MS = 1_000;
@@ -94,12 +95,14 @@ export class GameDO extends DurableObject<Env> {
     const tag = this.ctx.getTags(ws).find((t) => t.startsWith('player:'));
     return tag ? parseInt(tag.split(':')[1], 10) : null;
   }
+
   private getSeatOpen(): [boolean, boolean] {
     return [
       this.ctx.getWebSockets('player:0').length === 0,
       this.ctx.getWebSockets('player:1').length === 0,
     ];
   }
+
   private getConnectedSeatCountAfterJoin(
     seatOpen: [boolean, boolean],
     playerId: 0 | 1,
@@ -108,6 +111,7 @@ export class GameDO extends DurableObject<Env> {
 
     return connectedSeats + (seatOpen[playerId] ? 1 : 0);
   }
+
   private replacePlayerSockets(playerId: 0 | 1): void {
     for (const old of this.ctx.getWebSockets(`player:${playerId}`)) {
       try {
@@ -116,30 +120,38 @@ export class GameDO extends DurableObject<Env> {
       } catch {}
     }
   }
+
   // --- State management ---
   private async getGameState(): Promise<GameState | null> {
     return (await this.ctx.storage.get<GameState>('gameState')) ?? null;
   }
+
   private async saveGameState(state: GameState): Promise<void> {
     await this.ctx.storage.put('gameState', state);
   }
+
   private async getRoomConfig(): Promise<RoomConfig | null> {
     return (await this.ctx.storage.get<RoomConfig>('roomConfig')) ?? null;
   }
+
   private async saveRoomConfig(config: RoomConfig): Promise<void> {
     await this.ctx.storage.put('roomConfig', config);
   }
+
   private async getGameCode(): Promise<string> {
     return (await this.ctx.storage.get<string>('gameCode')) ?? '';
   }
+
   private async getScenario() {
     const scenarioName =
       (await this.getRoomConfig())?.scenario ?? 'biplanetary';
     return SCENARIOS[scenarioName] ?? SCENARIOS.biplanetary;
   }
+
   private async setGameCode(code: string): Promise<void> {
     await this.ctx.storage.put('gameCode', code);
   }
+
   private async touchInactivity(): Promise<void> {
     await this.ctx.storage.put(
       'inactivityAt',
@@ -147,6 +159,7 @@ export class GameDO extends DurableObject<Env> {
     );
     await this.rescheduleAlarm();
   }
+
   private async getAlarmDeadlines() {
     const [disconnectAt, turnTimeoutAt, inactivityAt] = await Promise.all([
       this.ctx.storage.get<number>('disconnectAt'),
@@ -159,9 +172,11 @@ export class GameDO extends DurableObject<Env> {
       inactivityAt,
     };
   }
+
   private async isRoomArchived(): Promise<boolean> {
     return (await this.ctx.storage.get<boolean>('roomArchived')) === true;
   }
+
   private async archiveRoomState(): Promise<void> {
     await Promise.all([
       this.ctx.storage.put('roomArchived', true),
@@ -175,9 +190,11 @@ export class GameDO extends DurableObject<Env> {
       this.ctx.storage.delete('turnTimeoutAt'),
     ]);
   }
+
   private async clearRoomArchivedFlag(): Promise<void> {
     await this.ctx.storage.delete('roomArchived');
   }
+
   private async getLatestGameId(): Promise<string | null> {
     const currentGameId = (await this.getGameState())?.gameId;
 
@@ -196,6 +213,7 @@ export class GameDO extends DurableObject<Env> {
 
     return `${code}-m${matchNumber}`;
   }
+
   private async clearDisconnectMarker(): Promise<void> {
     await Promise.all([
       this.ctx.storage.delete('disconnectedPlayer'),
@@ -203,6 +221,7 @@ export class GameDO extends DurableObject<Env> {
       this.ctx.storage.delete('disconnectAt'),
     ]);
   }
+
   private async setDisconnectMarker(playerId: number): Promise<void> {
     const marker = createDisconnectMarker(playerId, Date.now());
     await Promise.all([
@@ -212,6 +231,7 @@ export class GameDO extends DurableObject<Env> {
     ]);
     await this.rescheduleAlarm();
   }
+
   private async resolveJoinAttempt(presentedTokenRaw: string | null): Promise<
     | {
         ok: false;
@@ -278,12 +298,14 @@ export class GameDO extends DurableObject<Env> {
       seatOpen,
     };
   }
+
   private async rescheduleAlarm(): Promise<void> {
     const alarmAt = getNextAlarmAt(await this.getAlarmDeadlines());
     if (alarmAt !== null) {
       await this.ctx.storage.setAlarm(alarmAt);
     }
   }
+
   // --- Error telemetry ---
   private reportEngineError = (
     code: string,
@@ -398,6 +420,7 @@ export class GameDO extends DurableObject<Env> {
       webSocket: client,
     });
   }
+
   async webSocketMessage(
     ws: WebSocket,
     message: string | ArrayBuffer,
@@ -503,6 +526,7 @@ export class GameDO extends DurableObject<Env> {
       });
     }
   }
+
   async webSocketClose(ws: WebSocket): Promise<void> {
     if (this.replacedSockets.delete(ws)) {
       return;
@@ -519,6 +543,7 @@ export class GameDO extends DurableObject<Env> {
       await this.setDisconnectMarker(playerId);
     }
   }
+
   async alarm(): Promise<void> {
     const now = Date.now();
     const disconnectedPlayer = normalizeDisconnectedPlayer(
@@ -586,6 +611,7 @@ export class GameDO extends DurableObject<Env> {
         return;
     }
   }
+
   private async handleTurnTimeout(): Promise<void> {
     await this.ctx.storage.delete('turnTimeoutAt');
     const gameState = await this.getGameState();
@@ -618,6 +644,7 @@ export class GameDO extends DurableObject<Env> {
       events: outcome.events,
     });
   }
+
   private async startTurnTimer(state: GameState): Promise<void> {
     if (state.phase === 'gameOver') {
       await this.ctx.storage.delete('turnTimeoutAt');
@@ -628,6 +655,7 @@ export class GameDO extends DurableObject<Env> {
     await this.ctx.storage.put('turnTimeoutAt', timeoutAt);
     await this.rescheduleAlarm();
   }
+
   private async publishStateChange(
     state: GameState,
     primaryMessage?: StatefulServerMessage,
@@ -689,6 +717,7 @@ export class GameDO extends DurableObject<Env> {
     }
     this.broadcastStateChange(state, replayMessage);
   }
+
   private async runGameStateAction<
     Success extends {
       state: GameState;
@@ -746,6 +775,7 @@ export class GameDO extends DurableObject<Env> {
     }
     await onSuccess(result);
   }
+
   // --- Game logic (delegates to engine) ---
   private async handleInit(request: Request): Promise<Response> {
     const existing = await this.getRoomConfig();
@@ -772,6 +802,7 @@ export class GameDO extends DurableObject<Env> {
     await this.touchInactivity();
     return Response.json({ ok: true }, { status: 201 });
   }
+
   private async handleJoinCheck(request: Request): Promise<Response> {
     const presentedTokenRaw = new URL(request.url).searchParams.get(
       'playerToken',
@@ -782,6 +813,7 @@ export class GameDO extends DurableObject<Env> {
       ? Response.json({ ok: true }, { status: 200 })
       : joinAttempt.response;
   }
+
   private async handleReplayRequest(request: Request): Promise<Response> {
     const roomConfig = await this.getRoomConfig();
 
@@ -824,6 +856,7 @@ export class GameDO extends DurableObject<Env> {
 
     return Response.json(filterReplayArchiveForPlayer(archive, playerId));
   }
+
   private async initGame() {
     const [roomConfig, scenario] = await Promise.all([
       this.getRoomConfig(),
@@ -873,6 +906,7 @@ export class GameDO extends DurableObject<Env> {
     this.broadcastFiltered(gameStartMessage);
     await this.startTurnTimer(gameState);
   }
+
   private async handleFleetReady(
     playerId: number,
     ws: WebSocket,
@@ -899,6 +933,7 @@ export class GameDO extends DurableObject<Env> {
       },
     );
   }
+
   private async handleAstrogation(
     playerId: number,
     ws: WebSocket,
@@ -917,6 +952,7 @@ export class GameDO extends DurableObject<Env> {
       },
     );
   }
+
   private async handleSurrender(
     playerId: number,
     ws: WebSocket,
@@ -938,6 +974,7 @@ export class GameDO extends DurableObject<Env> {
       },
     );
   }
+
   private async handleLogistics(
     playerId: number,
     ws: WebSocket,
@@ -958,6 +995,7 @@ export class GameDO extends DurableObject<Env> {
       },
     );
   }
+
   private async handleSkipLogistics(playerId: number, ws: WebSocket) {
     await this.runGameStateAction(
       ws,
@@ -974,6 +1012,7 @@ export class GameDO extends DurableObject<Env> {
       },
     );
   }
+
   private async handleOrdnance(
     playerId: number,
     ws: WebSocket,
@@ -992,6 +1031,7 @@ export class GameDO extends DurableObject<Env> {
       },
     );
   }
+
   private async handleEmplaceBase(
     playerId: number,
     ws: WebSocket,
@@ -1014,6 +1054,7 @@ export class GameDO extends DurableObject<Env> {
       },
     );
   }
+
   private async handleSkipOrdnance(playerId: number, ws: WebSocket) {
     await this.runGameStateAction(
       ws,
@@ -1027,6 +1068,7 @@ export class GameDO extends DurableObject<Env> {
       },
     );
   }
+
   private async handleCombat(
     playerId: number,
     ws: WebSocket,
@@ -1045,6 +1087,7 @@ export class GameDO extends DurableObject<Env> {
       },
     );
   }
+
   private async handleBeginCombat(playerId: number, ws: WebSocket) {
     await this.runGameStateAction(
       ws,
@@ -1059,6 +1102,7 @@ export class GameDO extends DurableObject<Env> {
       },
     );
   }
+
   private async handleSkipCombat(playerId: number, ws: WebSocket) {
     await this.runGameStateAction(
       ws,
@@ -1072,6 +1116,7 @@ export class GameDO extends DurableObject<Env> {
       },
     );
   }
+
   private async handleRematch(playerId: number, _ws: WebSocket) {
     const requests =
       (await this.ctx.storage.get<number[]>('rematchRequests')) ?? [];
@@ -1088,6 +1133,7 @@ export class GameDO extends DurableObject<Env> {
       this.broadcast({ type: 'rematchPending' });
     }
   }
+
   private broadcastStateChange(
     state: GameState,
     primaryMessage?: StatefulServerMessage,
@@ -1101,12 +1147,14 @@ export class GameDO extends DurableObject<Env> {
       });
     }
   }
+
   // --- Messaging ---
   private send(ws: WebSocket, msg: S2C) {
     try {
       ws.send(JSON.stringify(msg));
     } catch {}
   }
+
   private broadcast(msg: S2C) {
     const data = JSON.stringify(msg);
     for (const ws of this.ctx.getWebSockets()) {
@@ -1115,6 +1163,7 @@ export class GameDO extends DurableObject<Env> {
       } catch {}
     }
   }
+
   // Broadcast a message containing game state,
   // filtering hidden information per player.
   private broadcastFiltered(

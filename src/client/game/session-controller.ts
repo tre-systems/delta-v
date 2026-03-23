@@ -166,6 +166,7 @@ export const beginJoinGameSession = async (
     deps.exitToMenu();
     return;
   }
+
   if (playerToken) {
     deps.storePlayerToken(code, playerToken);
   }

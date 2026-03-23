@@ -8,6 +8,7 @@ export interface LandingLogEntry {
   bodyName: string;
   resupplyText: string | null;
 }
+
 export const deriveLandingLogEntries = (
   state: GameState | null,
   movements: ShipMovement[],

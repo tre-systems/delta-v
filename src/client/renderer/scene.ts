@@ -24,6 +24,7 @@ export interface Star {
   brightness: number;
   size: number;
 }
+
 export const generateStars = (count: number, range: number): Star[] => {
   let seed = 42;
   const rand = (): number => {
@@ -54,6 +55,7 @@ export const renderStars = (
     ctx.fill();
   }
 };
+
 export const renderHexGrid = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -96,6 +98,7 @@ export const renderHexGrid = (
   }
   ctx.stroke();
 };
+
 export const renderGravityIndicators = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -136,6 +139,7 @@ export const renderGravityIndicators = (
     ctx.stroke();
   }
 };
+
 export const renderBodies = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -183,6 +187,7 @@ export const renderBodies = (
     ctx.fillText(view.label, p.x, view.labelY);
   }
 };
+
 export const renderBaseMarkers = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -220,6 +225,7 @@ export const renderBaseMarkers = (
     ctx.stroke();
   }
 };
+
 export const renderMapBorder = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -245,6 +251,7 @@ export const renderMapBorder = (
   );
   ctx.setLineDash([]);
 };
+
 export const renderAsteroids = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -273,6 +280,7 @@ export const renderAsteroids = (
     }
   }
 };
+
 export const renderLandingTarget = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
@@ -319,6 +327,7 @@ export const renderLandingTarget = (
     objectiveView.labelY,
   );
 };
+
 export const renderDetectionRanges = (
   ctx: CanvasRenderingContext2D,
   state: GameState,

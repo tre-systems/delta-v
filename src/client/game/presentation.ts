@@ -92,6 +92,7 @@ export const presentMovementResult = (
       setTimeout(() => playExplosion(), 500);
     }
   }
+
   logLandings(deps, movements);
   deps.renderer.animateMovements(movements, ordnanceMovements, onComplete);
 };
@@ -131,9 +132,11 @@ export const presentCombatResults = (
       i * 400,
     );
   }
+
   if (resetCombat) {
     deps.resetCombatState();
   }
+
   playCombat();
   if (results.some((result) => result.damageType === 'eliminated')) {
     setTimeout(() => playExplosion(), 300);
@@ -163,6 +166,7 @@ export const showGameOverOutcome = (
     }
     return;
   }
+
   playExplosion();
   const animDuration = deps.renderer.triggerGameOverExplosions(loserShips);
   setTimeout(() => {

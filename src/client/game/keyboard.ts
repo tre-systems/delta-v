@@ -137,6 +137,7 @@ export const deriveKeyboardAction = (
       ordnanceType: 'mine',
     };
   }
+
   if (lowerKey === 't' && context.state === 'playing_ordnance') {
     return {
       kind: 'launchOrdnance',
@@ -144,6 +145,7 @@ export const deriveKeyboardAction = (
       ordnanceType: 'torpedo',
     };
   }
+
   if (lowerKey === 'k' && context.state === 'playing_ordnance') {
     return {
       kind: 'launchOrdnance',
@@ -195,12 +197,15 @@ export const deriveKeyboardAction = (
   if (lowerKey === 'w' || input.key === 'ArrowUp') {
     return { kind: 'panCamera', preventDefault: false, dx: 0, dy: 40 };
   }
+
   if (lowerKey === 's' || input.key === 'ArrowDown') {
     return { kind: 'panCamera', preventDefault: false, dx: 0, dy: -40 };
   }
+
   if (lowerKey === 'a' || input.key === 'ArrowLeft') {
     return { kind: 'panCamera', preventDefault: false, dx: 40, dy: 0 };
   }
+
   if (lowerKey === 'd' || input.key === 'ArrowRight') {
     return { kind: 'panCamera', preventDefault: false, dx: -40, dy: 0 };
   }
@@ -208,6 +213,7 @@ export const deriveKeyboardAction = (
   if (input.key === '=' || input.key === '+') {
     return { kind: 'zoomCamera', preventDefault: false, factor: 1.15 };
   }
+
   if (input.key === '-' || input.key === '_') {
     return { kind: 'zoomCamera', preventDefault: false, factor: 0.87 };
   }

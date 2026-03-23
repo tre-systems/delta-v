@@ -23,6 +23,7 @@ export const processFleetReady = (
   if (state.phase !== 'fleetBuilding') {
     return { error: 'Not in fleet building phase' };
   }
+
   if (playerId !== 0 && playerId !== 1) {
     return { error: 'Invalid player' };
   }
