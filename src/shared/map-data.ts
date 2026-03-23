@@ -669,12 +669,12 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ships: [
           {
             type: 'corvette',
-            position: { q: 10, r: -8 },
+            position: { q: 14, r: -10 },
             velocity: { dq: 0, dr: 0 },
           },
         ],
         targetBody: '',
-        homeBody: 'Terra',
+        homeBody: 'Luna',
         escapeWins: false,
       },
       {

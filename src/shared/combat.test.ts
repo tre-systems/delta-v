@@ -502,14 +502,14 @@ describe('applyDamage', () => {
     expect(ship.damage.disabledTurns).toBe(5);
   });
 
-  it('cumulative disabled >= 6 eliminates ship', () => {
+  it('cumulative disabled >= 8 eliminates ship', () => {
     const ship = makeShip();
 
     applyDamage(ship, { type: 'disabled', disabledTurns: 4 });
 
     const result = applyDamage(ship, {
       type: 'disabled',
-      disabledTurns: 3,
+      disabledTurns: 4,
     });
 
     expect(result).toBe(true);
