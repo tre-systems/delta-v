@@ -366,7 +366,7 @@ describe('GameDO', () => {
       seatOpen: [true, true],
     });
   });
-  it('creates a replay archive with a match-specific game id on game start', async () => {
+  it('creates a projection-backed match id on game start', async () => {
     const ctx = createCtx();
     await ctx.storage.put('roomConfig', {
       code: 'ABCDE',
@@ -385,17 +385,12 @@ describe('GameDO', () => {
     const state = await ctx.storage.get<GameState>('gameState');
     expect(must(state).gameId).toBe('ABCDE-m1');
 
-    const archive = await ctx.storage.get<ReplayArchive>(
-      'replayArchive:ABCDE-m1',
+    const frames = await getProjectionFrames(
+      ctx.storage as unknown as DurableObjectStorage,
+      'ABCDE-m1',
     );
-    expect(archive).toMatchObject({
-      gameId: 'ABCDE-m1',
-      roomCode: 'ABCDE',
-      matchNumber: 1,
-      scenario: SCENARIOS.biplanetary.name,
-    });
-    expect(archive?.entries).toHaveLength(1);
-    expect(archive?.entries[0]?.message).toEqual({
+    expect(frames).toHaveLength(1);
+    expect(frames[0]?.message).toEqual({
       type: 'gameStart',
       state,
     });
@@ -403,7 +398,7 @@ describe('GameDO', () => {
       expect.any(Number),
     );
   });
-  it('keeps replay archives isolated across rematches', async () => {
+  it('keeps projection frames isolated across rematches', async () => {
     const ctx = createCtx();
     await ctx.storage.put('roomConfig', {
       code: 'ABCDE',
@@ -427,8 +422,18 @@ describe('GameDO', () => {
 
     expect(must(firstState).gameId).toBe('ABCDE-m1');
     expect(must(secondState).gameId).toBe('ABCDE-m2');
-    expect(await ctx.storage.get('replayArchive:ABCDE-m1')).toBeDefined();
-    expect(await ctx.storage.get('replayArchive:ABCDE-m2')).toBeDefined();
+    expect(
+      await getProjectionFrames(
+        ctx.storage as unknown as DurableObjectStorage,
+        'ABCDE-m1',
+      ),
+    ).toHaveLength(1);
+    expect(
+      await getProjectionFrames(
+        ctx.storage as unknown as DurableObjectStorage,
+        'ABCDE-m2',
+      ),
+    ).toHaveLength(1);
   });
   it('rejects malformed client payloads before dispatching handlers', async () => {
     const ctx = createCtx();
@@ -606,11 +611,12 @@ describe('GameDO', () => {
       restartTurnTimer: false,
     });
 
-    const archive = await ctx.storage.get<ReplayArchive>(
-      'replayArchive:ABCDE-m1',
+    const frames = await getProjectionFrames(
+      ctx.storage as unknown as DurableObjectStorage,
+      'ABCDE-m1',
     );
-    expect(archive?.entries).toHaveLength(1);
-    expect(archive?.entries[0]?.message).toEqual({
+    expect(frames).toHaveLength(1);
+    expect(frames[0]?.message).toEqual({
       type: 'stateUpdate',
       state,
     });
@@ -921,12 +927,12 @@ describe('GameDO', () => {
       must(gameState).turnNumber,
     );
 
-    // 7. A replay entry should have been appended
-    const archive = await ctx.storage.get<ReplayArchive>(
-      `replayArchive:${must(gameState).gameId}`,
+    // 7. Projection frames should have been appended
+    const frames = await getProjectionFrames(
+      ctx.storage as unknown as DurableObjectStorage,
+      must(gameState).gameId,
     );
-    expect(archive).toBeDefined();
-    expect(must(archive).entries.length).toBeGreaterThan(1);
+    expect(frames.length).toBeGreaterThan(1);
   });
 
   it('returns filtered replay archives for authenticated players', async () => {
