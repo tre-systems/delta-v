@@ -3,6 +3,23 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createSessionApi } from './session-api';
 
+const createStorage = (initial: Record<string, string> = {}) => {
+  const data = new Map(Object.entries(initial));
+
+  return {
+    getItem: vi.fn((key: string) => data.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      data.set(key, value);
+    }),
+    removeItem: vi.fn((key: string) => {
+      data.delete(key);
+    }),
+    clear: vi.fn(() => {
+      data.clear();
+    }),
+  };
+};
+
 const createDeps = () => {
   const track =
     vi.fn<(event: string, props?: Record<string, unknown>) => void>();
@@ -83,12 +100,12 @@ describe('session-api telemetry', () => {
 
   it('retries join without a stale token and prunes it from storage', async () => {
     const { deps, track } = createDeps();
-    localStorage.setItem(
-      'delta-v:tokens',
-      JSON.stringify({
+    const storage = createStorage({
+      'delta-v:tokens': JSON.stringify({
         ABCDE: { playerToken: 'stale-token', ts: Date.now() },
       }),
-    );
+    });
+    vi.stubGlobal('localStorage', storage);
     vi.stubGlobal(
       'fetch',
       vi
@@ -110,6 +127,6 @@ describe('session-api telemetry', () => {
         reason: 'invalid_stored_token',
       },
     );
-    expect(localStorage.getItem('delta-v:tokens')).toBe('{}');
+    expect(storage.getItem('delta-v:tokens')).toBe('{}');
   });
 });
