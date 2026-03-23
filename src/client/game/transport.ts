@@ -56,7 +56,12 @@ export interface LocalTransportDeps {
   onAnimationComplete: () => void;
   onTransitionToPhase: () => void;
   onEmplacementResult: (
-    result: { state: GameState } | { error: string },
+    result:
+      | {
+          state: GameState;
+          engineEvents: import('../../shared/engine/engine-events').EngineEvent[];
+        }
+      | { error: import('../../shared/types/domain').EngineError },
   ) => void;
   onFleetReady: (purchases: FleetPurchase[]) => void;
   onRematch: () => void;
@@ -220,7 +225,7 @@ export const createLocalGameTransport = (
     onTransitionToPhase: deps.transitionToPhase,
     onEmplacementResult: (result) => {
       if ('error' in result) {
-        deps.showToast(result.error, 'error');
+        deps.showToast(result.error.message, 'error');
         return;
       }
       deps.applyGameState(result.state);

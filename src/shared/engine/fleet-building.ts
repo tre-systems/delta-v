@@ -1,8 +1,15 @@
 import { SHIP_STATS } from '../constants';
-import type { FleetPurchase, GameState, Ship, SolarSystemMap } from '../types';
+import {
+  type EngineError,
+  ErrorCode,
+  type FleetPurchase,
+  type GameState,
+  type Ship,
+  type SolarSystemMap,
+} from '../types';
 import type { EngineEvent } from './engine-events';
 import type { StateUpdateResult } from './game-engine';
-import { getOwnedPlanetaryBases } from './util';
+import { engineFailure, getOwnedPlanetaryBases } from './util';
 
 // Process fleet purchases for a player during
 // the fleet-building phase.
@@ -15,48 +22,53 @@ export const processFleetReady = (
 ):
   | StateUpdateResult
   | {
-      error: string;
+      error: EngineError;
     } => {
   const state = structuredClone(inputState);
   const engineEvents: EngineEvent[] = [];
 
   if (state.phase !== 'fleetBuilding') {
-    return { error: 'Not in fleet building phase' };
+    return engineFailure(
+      ErrorCode.INVALID_PHASE,
+      'Not in fleet building phase',
+    );
   }
 
   if (playerId !== 0 && playerId !== 1) {
-    return { error: 'Invalid player' };
+    return engineFailure(ErrorCode.INVALID_PLAYER, 'Invalid player');
   }
   const player = state.players[playerId];
   const credits = player.credits ?? 0;
   const totalCostOrError = purchases.reduce<
-    { cost: number } | { error: string }
+    { cost: number } | { error: EngineError }
   >(
     (acc, purchase) => {
       if ('error' in acc) return acc;
       const stats = SHIP_STATS[purchase.shipType];
 
       if (!stats) {
-        return {
-          error: `Unknown ship type: ${purchase.shipType}`,
-        };
+        return engineFailure(
+          ErrorCode.INVALID_INPUT,
+          `Unknown ship type: ${purchase.shipType}`,
+        );
       }
 
       if (purchase.shipType === 'orbitalBase') {
-        return {
-          error:
-            'Cannot purchase orbital bases directly' +
+        return engineFailure(
+          ErrorCode.NOT_ALLOWED,
+          'Cannot purchase orbital bases directly' +
             ' — buy a transport and base cargo',
-        };
+        );
       }
 
       if (
         availableShipTypes &&
         !availableShipTypes.includes(purchase.shipType)
       ) {
-        return {
-          error: `Ship type not available: ${purchase.shipType}`,
-        };
+        return engineFailure(
+          ErrorCode.NOT_ALLOWED,
+          `Ship type not available: ${purchase.shipType}`,
+        );
       }
       return { cost: acc.cost + stats.cost };
     },
@@ -69,16 +81,18 @@ export const processFleetReady = (
   const totalCost = totalCostOrError.cost;
 
   if (totalCost > credits) {
-    return {
-      error: `Not enough credits: need ${totalCost}, have ${credits}`,
-    };
+    return engineFailure(
+      ErrorCode.RESOURCE_LIMIT,
+      `Not enough credits: need ${totalCost}, have ${credits}`,
+    );
   }
   const bases = getOwnedPlanetaryBases(state, playerId, map);
 
   if (bases.length === 0) {
-    return {
-      error: 'Player has no bases to spawn ships at',
-    };
+    return engineFailure(
+      ErrorCode.STATE_CONFLICT,
+      'Player has no bases to spawn ships at',
+    );
   }
   const existingCount = state.ships.filter((s) => s.owner === playerId).length;
   for (let i = 0; i < purchases.length; i++) {

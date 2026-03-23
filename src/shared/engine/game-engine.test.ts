@@ -11,6 +11,7 @@ import {
 } from '../map-data';
 import type {
   AstrogationOrder,
+  EngineError,
   GameState,
   Ordnance,
   OrdnanceLaunch,
@@ -31,6 +32,7 @@ import { applyCheckpoints, checkImmediateVictory } from './victory';
 
 let map: SolarSystemMap;
 let initialState: GameState;
+const getErrorMessage = (error: EngineError): string => error.message;
 const openMap: SolarSystemMap = {
   hexes: new Map(),
   bodies: [],
@@ -55,14 +57,14 @@ const resolveAstrogationMovement = (
 ): MovementResult => {
   const result = processAstrogation(state, playerId, orders, map, Math.random);
   if ('error' in result) {
-    throw new Error(result.error);
+    throw new Error(getErrorMessage(result.error));
   }
   if ('movements' in result) {
     return result;
   }
   const followUp = skipOrdnance(result.state, playerId, map, Math.random);
   if ('error' in followUp) {
-    throw new Error(followUp.error);
+    throw new Error(getErrorMessage(followUp.error));
   }
   return expectMovement(followUp);
 };
@@ -72,7 +74,7 @@ describe('processAstrogation', () => {
     const result = processAstrogation(initialState, 1, [], map, Math.random);
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toBe('Not your turn');
+      expect(getErrorMessage(result.error)).toBe('Not your turn');
     }
   });
   it('rejects orders in wrong phase', () => {
@@ -186,7 +188,7 @@ describe('processAstrogation', () => {
       movement = first;
     } else {
       const skipped = skipOrdnance(first.state, 0, hazardMap, Math.random);
-      if ('error' in skipped) throw new Error(skipped.error);
+      if ('error' in skipped) throw new Error(getErrorMessage(skipped.error));
       movement = expectMovement(skipped);
     }
     expect(
@@ -236,7 +238,7 @@ describe('processAstrogation', () => {
       movement = result;
     } else {
       const skipped = skipOrdnance(result.state, 0, edgeMap, Math.random);
-      if ('error' in skipped) throw new Error(skipped.error);
+      if ('error' in skipped) throw new Error(getErrorMessage(skipped.error));
       movement = expectMovement(skipped);
     }
     expect(movement.state.pendingAsteroidHazards).toHaveLength(0);
@@ -274,7 +276,7 @@ describe('processAstrogation', () => {
       movement = result;
     } else {
       const skipped = skipOrdnance(result.state, 0, edgeMap, Math.random);
-      if ('error' in skipped) throw new Error(skipped.error);
+      if ('error' in skipped) throw new Error(getErrorMessage(skipped.error));
       movement = expectMovement(skipped);
     }
     expect(movement.state.pendingAsteroidHazards).toHaveLength(1);
@@ -793,7 +795,7 @@ describe('ordnance system', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('warship');
+      expect(getErrorMessage(result.error)).toContain('warship');
     }
   });
   it('rejects launch when cargo full', () => {
@@ -809,7 +811,7 @@ describe('ordnance system', () => {
     const result = processOrdnance(initialState, 0, launches, map, Math.random);
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('cargo');
+      expect(getErrorMessage(result.error)).toContain('cargo');
     }
   });
   it('skipOrdnance advances to combat phase', () => {
@@ -904,7 +906,7 @@ describe('ordnance system', () => {
         gravityMap,
         Math.random,
       );
-      if ('error' in skipped) throw new Error(skipped.error);
+      if ('error' in skipped) throw new Error(getErrorMessage(skipped.error));
       first = expectMovement(skipped);
     }
     expect(first.state.ordnance).toHaveLength(1);
@@ -931,7 +933,7 @@ describe('ordnance system', () => {
         gravityMap,
         Math.random,
       );
-      if ('error' in skipped) throw new Error(skipped.error);
+      if ('error' in skipped) throw new Error(getErrorMessage(skipped.error));
       second = expectMovement(skipped);
     }
     expect(second.state.ordnance).toHaveLength(1);
@@ -1459,7 +1461,7 @@ describe('nuke ordnance', () => {
     );
     expect('error' in second).toBe(true);
     if ('error' in second) {
-      expect(second.error).toContain('one nuke');
+      expect(getErrorMessage(second.error)).toContain('one nuke');
     }
   });
   it('destroyed bases stay destroyed and stop defending', () => {
@@ -1551,7 +1553,7 @@ describe('ordnance validation', () => {
     const result = processOrdnance(initialState, 0, launches, map, Math.random);
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('one ordnance per turn');
+      expect(getErrorMessage(result.error)).toContain('one ordnance per turn');
     }
   });
   it('rejects reusing the same attacker across combat declarations', () => {
@@ -1590,7 +1592,7 @@ describe('ordnance validation', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('only once');
+      expect(getErrorMessage(result.error)).toContain('only once');
     }
   });
   it('allows split fire against multiple ships in the same hex when total strength is allocated legally', () => {
@@ -1655,7 +1657,7 @@ describe('ordnance validation', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('attacked only once');
+      expect(getErrorMessage(result.error)).toContain('attacked only once');
     }
   });
   it('rejects attacks without line of sight through a body', () => {
@@ -1692,7 +1694,7 @@ describe('ordnance validation', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('line of sight');
+      expect(getErrorMessage(result.error)).toContain('line of sight');
     }
   });
   it('rejects landed ships as attackers', () => {
@@ -1721,7 +1723,7 @@ describe('ordnance validation', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('Invalid attacker');
+      expect(getErrorMessage(result.error)).toContain('Invalid attacker');
     }
   });
   it('rejects declared attack strength above the selected ships total', () => {
@@ -1750,7 +1752,7 @@ describe('ordnance validation', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('attack strength');
+      expect(getErrorMessage(result.error)).toContain('attack strength');
     }
   });
   it('uses declared reduced attack strength in combat resolution', () => {
@@ -2036,7 +2038,7 @@ describe('landed ship immunity', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('Invalid combat target');
+      expect(getErrorMessage(result.error)).toContain('Invalid combat target');
     }
   });
   it('landed ships are immune to mines', () => {
@@ -2173,7 +2175,7 @@ describe('resupply restrictions', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('Invalid attacker');
+      expect(getErrorMessage(result.error)).toContain('Invalid attacker');
     }
   });
   it('ships that resupply cannot launch ordnance in the same turn', () => {
@@ -2199,7 +2201,7 @@ describe('resupply restrictions', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('resupply');
+      expect(getErrorMessage(result.error)).toContain('resupply');
     }
   });
   it('resupply flag is cleared on next turn', () => {
@@ -2248,7 +2250,7 @@ describe('mine launch restrictions', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('change course');
+      expect(getErrorMessage(result.error)).toContain('change course');
     }
   });
   it('allows mine launch when ship has a burn committed', () => {
@@ -2385,7 +2387,7 @@ describe('hidden identity (Escape scenario)', () => {
       .filter((s) => s.owner === 0)
       .map((s) => ({ shipId: s.id, burn: null }));
     const result = processAstrogation(state, 0, orders, map, Math.random);
-    if ('error' in result) throw new Error(result.error);
+    if ('error' in result) throw new Error(getErrorMessage(result.error));
     expect(result.state.winner).toBe(0);
     expect(result.state.winReason).toContain('escaped beyond Jupiter');
   });
@@ -2402,7 +2404,7 @@ describe('hidden identity (Escape scenario)', () => {
       .filter((s) => s.owner === 0)
       .map((s) => ({ shipId: s.id, burn: null }));
     const result = processAstrogation(state, 0, orders, map, Math.random);
-    if ('error' in result) throw new Error(result.error);
+    if ('error' in result) throw new Error(getErrorMessage(result.error));
     // Should not win -- the fugitive ship hasn't escaped
     expect(result.state.winner).toBeNull();
   });
@@ -2413,7 +2415,7 @@ describe('hidden identity (Escape scenario)', () => {
     state.phase = 'combat';
     state.activePlayer = 1;
     const result = skipCombat(state, 1, map, Math.random);
-    if ('error' in result) throw new Error(result.error);
+    if ('error' in result) throw new Error(getErrorMessage(result.error));
     expect(result.state.winner).toBe(1);
     expect(result.state.winReason).toContain('fugitive transport');
   });
@@ -2429,7 +2431,7 @@ describe('hidden identity (Escape scenario)', () => {
     state.phase = 'combat';
     state.activePlayer = 1;
     const result = skipCombat(state, 1, map, Math.random);
-    if ('error' in result) throw new Error(result.error);
+    if ('error' in result) throw new Error(getErrorMessage(result.error));
     expect(result.state.winner).toBe(1);
     expect(result.state.winReason).toContain('returned to base');
   });
@@ -2523,7 +2525,7 @@ describe('capture mechanics', () => {
       openMap,
       Math.random,
     );
-    if ('error' in result) throw new Error(result.error);
+    if ('error' in result) throw new Error(getErrorMessage(result.error));
     const mr = 'movements' in result ? result : null;
     expect(mr).not.toBeNull();
     const target = must(result.state.ships.find((s) => s.id === 'target'));
@@ -2619,7 +2621,7 @@ describe('capture mechanics', () => {
       openMap,
       Math.random,
     );
-    if ('error' in result) throw new Error(result.error);
+    if ('error' in result) throw new Error(getErrorMessage(result.error));
     const target = must(result.state.ships.find((s) => s.id === 'target'));
     expect(target.control).toBe('own');
     expect(target.owner).toBe(1); // unchanged
@@ -2706,7 +2708,7 @@ describe('capture mechanics', () => {
       openMap,
       Math.random,
     );
-    if ('error' in result) throw new Error(result.error);
+    if ('error' in result) throw new Error(getErrorMessage(result.error));
     const target = must(result.state.ships.find((s) => s.id === 'target'));
     expect(target.control).toBe('own');
     expect(target.owner).toBe(1);
@@ -2731,7 +2733,7 @@ describe('capture mechanics', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('cannot receive');
+      expect(getErrorMessage(result.error)).toContain('cannot receive');
     }
   });
   it('captured ships cannot launch ordnance', () => {
@@ -2799,7 +2801,7 @@ describe('capture mechanics', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(result.error).toContain('Captured');
+      expect(getErrorMessage(result.error)).toContain('Captured');
     }
   });
 });

@@ -66,7 +66,7 @@ describe('projectMatchSetupFromStream', () => {
     );
 
     if ('error' in player0Ready) {
-      throw new Error(player0Ready.error);
+      throw new Error(player0Ready.error.message);
     }
 
     const expected = processFleetReady(
@@ -78,7 +78,7 @@ describe('projectMatchSetupFromStream', () => {
     );
 
     if ('error' in expected) {
-      throw new Error(expected.error);
+      throw new Error(expected.error.message);
     }
 
     const projected = projectMatchSetupFromStream(events, map);

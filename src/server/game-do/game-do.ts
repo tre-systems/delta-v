@@ -26,6 +26,7 @@ import { validateClientMessage } from '../../shared/protocol';
 import type {
   AstrogationOrder,
   CombatAttack,
+  EngineError,
   FleetPurchase,
   GameState,
   OrbitalBaseEmplacement,
@@ -800,17 +801,9 @@ export class GameDO extends DurableObject<Env> {
     },
   >(
     ws: WebSocket,
-    action: (gameState: GameState) =>
-      | Success
-      | {
-          error: string;
-        }
-      | Promise<
-          | Success
-          | {
-              error: string;
-            }
-        >,
+    action: (
+      gameState: GameState,
+    ) => Success | EngineFailure | Promise<Success | EngineFailure>,
     onSuccess: (result: Success) => Promise<void> | void,
   ): Promise<void> {
     const gameState = await this.getCurrentGameState();
@@ -822,11 +815,7 @@ export class GameDO extends DurableObject<Env> {
     // gameState is never mutated — if the engine throws,
     // the stored state remains intact and the game
     // continues from where it was.
-    let result:
-      | Success
-      | {
-          error: string;
-        };
+    let result: Success | EngineFailure;
     try {
       result = await action(gameState);
     } catch (err) {
@@ -847,7 +836,8 @@ export class GameDO extends DurableObject<Env> {
     if ('error' in result) {
       this.send(ws, {
         type: 'error',
-        message: result.error,
+        message: result.error.message,
+        code: result.error.code,
       });
       return;
     }
@@ -1290,3 +1280,4 @@ export class GameDO extends DurableObject<Env> {
     }
   }
 }
+type EngineFailure = { error: EngineError };

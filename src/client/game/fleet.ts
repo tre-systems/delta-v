@@ -69,7 +69,7 @@ export const resolveLocalFleetReady = (
   );
 
   if ('error' in playerResult) {
-    return { kind: 'error', error: playerResult.error };
+    return { kind: 'error', error: playerResult.error.message };
   }
 
   const buildAIPurchases = deps.buildAIPurchases ?? buildAIFleetPurchases;
@@ -92,7 +92,7 @@ export const resolveLocalFleetReady = (
     return {
       kind: 'success',
       state: playerResult.state,
-      aiError: aiResult.error,
+      aiError: aiResult.error.message,
     };
   }
 

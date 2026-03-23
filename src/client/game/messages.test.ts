@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type {
   CombatResult,
+  ErrorCode,
   GameState,
   MovementEvent,
   OrdnanceMovement,
@@ -214,10 +215,18 @@ describe('game-client-messages', () => {
     });
 
     expect(
-      derive({ type: 'error', message: 'Bad request' }, 'playing_astrogation'),
+      derive(
+        {
+          type: 'error',
+          message: 'Bad request',
+          code: 'INVALID_INPUT' as ErrorCode,
+        },
+        'playing_astrogation',
+      ),
     ).toEqual({
       kind: 'error',
       message: 'Bad request',
+      code: 'INVALID_INPUT' as ErrorCode,
     });
 
     expect(derive({ type: 'pong', t: 4_000 }, 'playing_astrogation')).toEqual({

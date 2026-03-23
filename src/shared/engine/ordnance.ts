@@ -13,18 +13,21 @@ import {
   applyPendingGravityEffects,
   collectEnteredGravityEffects,
 } from '../movement';
-import type {
-  CombatResult,
-  GameState,
-  MovementEvent,
-  OrbitalBaseEmplacement,
-  Ordnance,
-  OrdnanceMovement,
-  Ship,
-  SolarSystemMap,
+import {
+  type CombatResult,
+  type EngineError,
+  ErrorCode,
+  type GameState,
+  type MovementEvent,
+  type OrbitalBaseEmplacement,
+  type Ordnance,
+  type OrdnanceMovement,
+  type Ship,
+  type SolarSystemMap,
 } from '../types';
 import type { EngineEvent } from './engine-events';
 import {
+  engineFailure,
   getAllowedOrdnanceTypes,
   hasLaunchableOrdnanceCapacity,
   shuffle,
@@ -58,7 +61,9 @@ export const processEmplacement = (
   playerId: number,
   emplacements: OrbitalBaseEmplacement[],
   map: SolarSystemMap,
-): { state: GameState; engineEvents: EngineEvent[] } | { error: string } => {
+):
+  | { state: GameState; engineEvents: EngineEvent[] }
+  | { error: EngineError } => {
   const state = structuredClone(inputState);
   const engineEvents: EngineEvent[] = [];
 
@@ -70,25 +75,31 @@ export const processEmplacement = (
     const ship = state.ships.find((s) => s.id === emp.shipId);
 
     if (!ship || ship.owner !== playerId || ship.lifecycle === 'destroyed') {
-      return { error: 'Invalid ship for emplacement' };
+      return engineFailure(
+        ErrorCode.INVALID_SHIP,
+        'Invalid ship for emplacement',
+      );
     }
 
     if (ship.baseStatus !== 'carryingBase') {
-      return {
-        error: 'Ship is not carrying an orbital base',
-      };
+      return engineFailure(
+        ErrorCode.STATE_CONFLICT,
+        'Ship is not carrying an orbital base',
+      );
     }
 
     if (ship.type !== 'transport' && ship.type !== 'packet') {
-      return {
-        error: 'Only transports and packets can' + ' carry orbital bases',
-      };
+      return engineFailure(
+        ErrorCode.NOT_ALLOWED,
+        'Only transports and packets can' + ' carry orbital bases',
+      );
     }
 
     if (ship.resuppliedThisTurn) {
-      return {
-        error: 'Cannot emplace during a resupply turn',
-      };
+      return engineFailure(
+        ErrorCode.NOT_ALLOWED,
+        'Cannot emplace during a resupply turn',
+      );
     }
 
     const posKey = hexKey(ship.position);
@@ -98,11 +109,11 @@ export const processEmplacement = (
     const onWorldSide = hex?.gravity && ship.lifecycle === 'landed';
 
     if (!inOrbit && !onWorldSide) {
-      return {
-        error:
-          'Must be in orbit or on a world hex side' +
+      return engineFailure(
+        ErrorCode.NOT_ALLOWED,
+        'Must be in orbit or on a world hex side' +
           ' to emplace an orbital base',
-      };
+      );
     }
 
     const baseId = `ob${state.ships.length}`;

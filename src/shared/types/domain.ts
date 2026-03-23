@@ -13,6 +13,24 @@ export type Phase =
   | 'resupply'
   | 'gameOver';
 
+export enum ErrorCode {
+  INVALID_PHASE = 'INVALID_PHASE',
+  NOT_YOUR_TURN = 'NOT_YOUR_TURN',
+  INVALID_PLAYER = 'INVALID_PLAYER',
+  INVALID_SHIP = 'INVALID_SHIP',
+  INVALID_TARGET = 'INVALID_TARGET',
+  INVALID_SELECTION = 'INVALID_SELECTION',
+  INVALID_INPUT = 'INVALID_INPUT',
+  NOT_ALLOWED = 'NOT_ALLOWED',
+  RESOURCE_LIMIT = 'RESOURCE_LIMIT',
+  STATE_CONFLICT = 'STATE_CONFLICT',
+}
+
+export interface EngineError {
+  code: ErrorCode;
+  message: string;
+}
+
 export const CURRENT_GAME_STATE_SCHEMA_VERSION = 1;
 
 export interface GameState {

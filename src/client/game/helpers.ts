@@ -255,9 +255,10 @@ export const deriveHudViewModel = (
       visible: true,
       disabled: error !== null,
       title:
-        error === 'Only warships and orbital bases can launch torpedoes'
+        error?.message ===
+        'Only warships and orbital bases can launch torpedoes'
           ? 'Warships only'
-          : (error ?? ''),
+          : (error?.message ?? ''),
     };
   };
 
