@@ -4,6 +4,7 @@ import type {
   AstrogationOrder,
   FleetPurchase,
   OrdnanceLaunch,
+  TransferOrder,
 } from '../types/domain';
 
 // Granular domain events emitted by engine functions.
@@ -146,6 +147,16 @@ export type EngineEvent =
   | {
       type: 'shipSurrendered';
       shipId: string;
+    }
+  | {
+      type: 'logisticsTransfersCommitted';
+      playerId: number;
+      transfers: TransferOrder[];
+    }
+  | {
+      type: 'surrenderDeclared';
+      playerId: number;
+      shipIds: string[];
     }
   | {
       type: 'baseEmplaced';

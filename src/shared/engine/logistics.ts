@@ -197,6 +197,12 @@ export const processLogistics = (
     if (error) return { error };
   }
 
+  engineEvents.push({
+    type: 'logisticsTransfersCommitted',
+    playerId,
+    transfers: structuredClone(transfers),
+  });
+
   // Apply transfers
   for (const transfer of transfers) {
     const source = must(
@@ -348,6 +354,13 @@ export const processSurrender = (
   for (const shipId of shipIds) {
     const ship = must(state.ships.find((s) => s.id === shipId));
     ship.control = 'surrendered';
+    if (engineEvents.length === 0) {
+      engineEvents.push({
+        type: 'surrenderDeclared',
+        playerId,
+        shipIds: structuredClone(shipIds),
+      });
+    }
     engineEvents.push({
       type: 'shipSurrendered',
       shipId,
