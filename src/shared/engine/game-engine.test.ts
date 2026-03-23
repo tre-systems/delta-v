@@ -1061,6 +1061,24 @@ describe('ordnance system', () => {
     expect('error' in result).toBe(false);
     if ('error' in result) return;
     expect(result.state.destroyedAsteroids).toContain(asteroidKey);
+    expect(result.engineEvents).toContainEqual({
+      type: 'asteroidDestroyed',
+      hex: { q: aq, r: ar },
+    });
+    expect(result.engineEvents).toContainEqual({
+      type: 'ordnanceDetonated',
+      ordnanceId: 'ord0',
+      ordnanceType: 'nuke',
+      hex: { q: aq, r: ar },
+      roll: 0,
+      damageType: 'none',
+      disabledTurns: 0,
+    });
+    expect(result.engineEvents).toContainEqual({
+      type: 'ordnanceDestroyed',
+      ordnanceId: 'ord0',
+      cause: 'nuke',
+    });
     expect(map.hexes.get(asteroidKey)?.terrain).toBe('asteroid');
   });
 });

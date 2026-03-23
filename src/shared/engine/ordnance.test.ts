@@ -430,6 +430,14 @@ describe('processEmplacement', () => {
       expect(base.baseStatus).toBe('emplaced');
       expect(base.position).toEqual(marsGravityHex);
       expect(base.velocity).toEqual({ dq: 1, dr: 0 });
+      expect(result.engineEvents).toContainEqual({
+        type: 'baseEmplaced',
+        shipId: base.id,
+        sourceShipId: ship.id,
+        owner: 0,
+        position: marsGravityHex,
+        velocity: { dq: 1, dr: 0 },
+      });
     }
   });
   it('clears baseStatus and reduces cargo after emplacement', () => {

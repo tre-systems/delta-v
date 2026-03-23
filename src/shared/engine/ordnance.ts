@@ -133,7 +133,10 @@ export const processEmplacement = (
     engineEvents.push({
       type: 'baseEmplaced',
       shipId: baseId,
+      sourceShipId: ship.id,
+      owner: playerId,
       position: { ...ship.position },
+      velocity: { ...ship.velocity },
     });
 
     ship.baseStatus = undefined;
@@ -154,6 +157,59 @@ export const isAsteroidHex = (
   const hex = map.hexes.get(key);
 
   return hex?.terrain === 'asteroid' && !state.destroyedAsteroids.includes(key);
+};
+
+const pushDestroyedAsteroid = (
+  state: GameState,
+  coord: { q: number; r: number },
+  engineEvents?: EngineEvent[],
+): void => {
+  const key = hexKey(coord);
+
+  if (!state.destroyedAsteroids.includes(key)) {
+    state.destroyedAsteroids.push(key);
+    engineEvents?.push({
+      type: 'asteroidDestroyed',
+      hex: { ...coord },
+    });
+  }
+};
+
+const pushDestroyedBase = (
+  state: GameState,
+  coord: { q: number; r: number },
+  engineEvents?: EngineEvent[],
+): void => {
+  const key = hexKey(coord);
+
+  if (!state.destroyedBases.includes(key)) {
+    state.destroyedBases.push(key);
+    engineEvents?.push({
+      type: 'baseDestroyed',
+      hex: { ...coord },
+    });
+  }
+};
+
+const pushDestroyedOrdnance = (
+  ordnanceId: string,
+  cause: string,
+  engineEvents?: EngineEvent[],
+): void => {
+  if (
+    engineEvents?.some(
+      (event) =>
+        event.type === 'ordnanceDestroyed' && event.ordnanceId === ordnanceId,
+    )
+  ) {
+    return;
+  }
+
+  engineEvents?.push({
+    type: 'ordnanceDestroyed',
+    ordnanceId,
+    cause,
+  });
 };
 
 const resolveTorpedoDetonation = (
@@ -186,6 +242,17 @@ const resolveTorpedoDetonation = (
   for (const candidate of candidates) {
     if (candidate.type === 'ordnance') {
       candidate.other.lifecycle = 'destroyed';
+      engineEvents?.push({
+        type: 'ordnanceDetonated',
+        ordnanceId: ord.id,
+        ordnanceType: 'torpedo',
+        hex,
+        roll: 0,
+        damageType: 'none',
+        disabledTurns: 0,
+      });
+      pushDestroyedOrdnance(ord.id, 'torpedo', engineEvents);
+      pushDestroyedOrdnance(candidate.other.id, 'torpedo', engineEvents);
       return true;
     }
 
@@ -215,6 +282,7 @@ const resolveTorpedoDetonation = (
         damageType: result.type,
         disabledTurns: result.disabledTurns,
       });
+      pushDestroyedOrdnance(ord.id, 'torpedo', engineEvents);
 
       if (candidate.ship.lifecycle === 'destroyed') {
         engineEvents?.push({
@@ -249,9 +317,17 @@ const checkOrdnanceDetonation = (
 
     if (isAsteroidHex(state, map, pathHex)) {
       if (ord.type === 'nuke') {
-        if (!state.destroyedAsteroids.includes(key)) {
-          state.destroyedAsteroids.push(key);
-        }
+        pushDestroyedAsteroid(state, pathHex, engineEvents);
+        engineEvents?.push({
+          type: 'ordnanceDetonated',
+          ordnanceId: ord.id,
+          ordnanceType: ord.type,
+          hex: pathHex,
+          roll: 0,
+          damageType: 'none',
+          disabledTurns: 0,
+        });
+        pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
         forcedDetonation = true;
       } else {
         return true;
@@ -260,9 +336,17 @@ const checkOrdnanceDetonation = (
 
     if (mapHex?.base && !state.destroyedBases.includes(key)) {
       if (ord.type === 'nuke') {
-        if (!state.destroyedBases.includes(key)) {
-          state.destroyedBases.push(key);
-        }
+        pushDestroyedBase(state, pathHex, engineEvents);
+        engineEvents?.push({
+          type: 'ordnanceDetonated',
+          ordnanceId: ord.id,
+          ordnanceType: ord.type,
+          hex: pathHex,
+          roll: 0,
+          damageType: 'none',
+          disabledTurns: 0,
+        });
+        pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
         forcedDetonation = true;
       } else {
         return true;
@@ -336,6 +420,7 @@ const checkOrdnanceDetonation = (
         damageType: result.type,
         disabledTurns: result.disabledTurns,
       });
+      pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
 
       applyDamage(ship, result);
 
@@ -352,6 +437,7 @@ const checkOrdnanceDetonation = (
 
     for (const other of contactedOrdnance) {
       other.lifecycle = 'destroyed';
+      pushDestroyedOrdnance(other.id, ord.type, engineEvents);
       hitSomething = true;
     }
 
@@ -414,7 +500,7 @@ export const moveOrdnance = (
             map.hexes.get(entryKey)?.base &&
             !state.destroyedBases.includes(entryKey)
           ) {
-            state.destroyedBases.push(entryKey);
+            pushDestroyedBase(state, entryHex, engineEvents);
           }
 
           for (const ship of state.ships) {
@@ -445,6 +531,7 @@ export const moveOrdnance = (
                 damageType: 'eliminated',
                 disabledTurns: 0,
               });
+              pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
               engineEvents?.push({
                 type: 'shipDestroyed',
                 shipId: ship.id,
@@ -460,7 +547,27 @@ export const moveOrdnance = (
               hexEqual(other.position, entryHex)
             ) {
               other.lifecycle = 'destroyed';
+              pushDestroyedOrdnance(other.id, ord.type, engineEvents);
             }
+          }
+
+          if (
+            !engineEvents?.some(
+              (event) =>
+                event.type === 'ordnanceDestroyed' &&
+                event.ordnanceId === ord.id,
+            )
+          ) {
+            engineEvents?.push({
+              type: 'ordnanceDetonated',
+              ordnanceId: ord.id,
+              ordnanceType: ord.type,
+              hex: entryHex,
+              roll: 0,
+              damageType: 'none',
+              disabledTurns: 0,
+            });
+            pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
           }
         }
 

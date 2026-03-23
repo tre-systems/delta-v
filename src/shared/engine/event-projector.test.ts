@@ -152,9 +152,9 @@ describe('projectMatchSetupFromStream', () => {
           ts: 2,
           actor: 0,
           event: {
-            type: 'ordnanceDetonated',
-            ordnanceId: 'ord1',
-            ordnanceType: 'mine',
+            type: 'ramming',
+            shipId: 'p0s0',
+            otherShipId: 'p1s0',
             hex: { q: 0, r: 0 },
             roll: 6,
             damageType: 'eliminated',
@@ -167,7 +167,7 @@ describe('projectMatchSetupFromStream', () => {
 
     expect(projected).toEqual({
       ok: false,
-      error: 'unsupported setup event: ordnanceDetonated',
+      error: 'unsupported setup event: ramming',
     });
   });
 
@@ -389,5 +389,395 @@ describe('projectMatchSetupFromStream', () => {
     }
 
     expect(projected.state.ordnance).toHaveLength(0);
+  });
+
+  it('applies ordnance detonation side effects from explicit events', () => {
+    const projected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: 'BIPLA-m1',
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Bi-Planetary',
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'ordnanceLaunched',
+            ordnanceId: 'ord1',
+            ordnanceType: 'mine',
+            owner: 0,
+            sourceShipId: 'p0s0',
+            position: { q: -9, r: -4 },
+            velocity: { dq: 0, dr: 0 },
+            turnsRemaining: 5,
+            pendingGravityEffects: [],
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 3,
+          ts: 3,
+          actor: 1,
+          event: {
+            type: 'ordnanceLaunched',
+            ordnanceId: 'ord2',
+            ordnanceType: 'torpedo',
+            owner: 1,
+            sourceShipId: 'p1s0',
+            position: { q: -9, r: -4 },
+            velocity: { dq: 1, dr: 0 },
+            turnsRemaining: 4,
+            pendingGravityEffects: [],
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 4,
+          ts: 4,
+          actor: 0,
+          event: {
+            type: 'ordnanceDetonated',
+            ordnanceId: 'ord1',
+            ordnanceType: 'mine',
+            hex: { q: -9, r: -4 },
+            targetShipId: 'p1s0',
+            roll: 5,
+            damageType: 'disabled',
+            disabledTurns: 2,
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 5,
+          ts: 5,
+          actor: 0,
+          event: {
+            type: 'ordnanceDestroyed',
+            ordnanceId: 'ord1',
+            cause: 'mine',
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 6,
+          ts: 6,
+          actor: 0,
+          event: {
+            type: 'ordnanceDestroyed',
+            ordnanceId: 'ord2',
+            cause: 'mine',
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 7,
+          ts: 7,
+          actor: 0,
+          event: {
+            type: 'asteroidDestroyed',
+            hex: { q: 1, r: 0 },
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 8,
+          ts: 8,
+          actor: 0,
+          event: {
+            type: 'baseDestroyed',
+            hex: { q: -9, r: -5 },
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) {
+      return;
+    }
+
+    expect(projected.state.ordnance).toHaveLength(0);
+    expect(
+      projected.state.ships.find((ship) => ship.id === 'p1s0')?.damage
+        .disabledTurns,
+    ).toBe(2);
+    expect(projected.state.destroyedAsteroids).toContain('1,0');
+    expect(projected.state.destroyedBases).toContain('-9,-5');
+  });
+
+  it('applies combat attack damage and explicit destruction events', () => {
+    const projected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: 'BIPLA-m1',
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Bi-Planetary',
+            turn: 1,
+            phase: 'combat',
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'ordnanceLaunched',
+            ordnanceId: 'ord1',
+            ordnanceType: 'nuke',
+            owner: 1,
+            sourceShipId: 'p1s0',
+            position: { q: 9, r: -7 },
+            velocity: { dq: -1, dr: 0 },
+            turnsRemaining: 3,
+            pendingGravityEffects: [],
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 3,
+          ts: 3,
+          actor: 0,
+          event: {
+            type: 'combatAttack',
+            attackerIds: ['p0s0'],
+            targetId: 'p1s0',
+            targetType: 'ship',
+            attackType: 'gun',
+            roll: 4,
+            modifiedRoll: 4,
+            damageType: 'disabled',
+            disabledTurns: 1,
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 4,
+          ts: 4,
+          actor: 0,
+          event: {
+            type: 'combatAttack',
+            attackerIds: ['p0s1'],
+            targetId: 'ord1',
+            targetType: 'ordnance',
+            attackType: 'antiNuke',
+            roll: 6,
+            modifiedRoll: 5,
+            damageType: 'eliminated',
+            disabledTurns: 0,
+          },
+        },
+        {
+          gameId: 'BIPLA-m1',
+          seq: 5,
+          ts: 5,
+          actor: 0,
+          event: {
+            type: 'ordnanceDestroyed',
+            ordnanceId: 'ord1',
+            cause: 'antiNuke',
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) {
+      return;
+    }
+
+    expect(
+      projected.state.ships.find((ship) => ship.id === 'p1s0')?.damage
+        .disabledTurns,
+    ).toBe(1);
+    expect(projected.state.ordnance).toHaveLength(0);
+  });
+
+  it('applies logistics, emplacement, and game-over events', () => {
+    const projected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: 'CONV-m1',
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Convoy',
+            turn: 1,
+            phase: 'logistics',
+          },
+        },
+        {
+          gameId: 'CONV-m1',
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'fuelTransferred',
+            fromShipId: 'p0s0',
+            toShipId: 'p0s1',
+            amount: 2,
+          },
+        },
+        {
+          gameId: 'CONV-m1',
+          seq: 3,
+          ts: 3,
+          actor: 0,
+          event: {
+            type: 'cargoTransferred',
+            fromShipId: 'p0s0',
+            toShipId: 'p0s1',
+            amount: 1,
+          },
+        },
+        {
+          gameId: 'CONV-m1',
+          seq: 4,
+          ts: 4,
+          actor: 0,
+          event: {
+            type: 'shipSurrendered',
+            shipId: 'p0s1',
+          },
+        },
+        {
+          gameId: 'CONV-m1',
+          seq: 5,
+          ts: 5,
+          actor: 0,
+          event: {
+            type: 'baseEmplaced',
+            shipId: 'ob9',
+            sourceShipId: 'p0s0',
+            owner: 0,
+            position: { q: -9, r: -6 },
+            velocity: { dq: 1, dr: 0 },
+          },
+        },
+        {
+          gameId: 'CONV-m1',
+          seq: 6,
+          ts: 6,
+          actor: null,
+          event: {
+            type: 'gameOver',
+            winner: 0,
+            reason: 'Projected victory',
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) {
+      return;
+    }
+
+    expect(projected.state.ships.find((ship) => ship.id === 'p0s0')?.fuel).toBe(
+      48,
+    );
+    expect(
+      projected.state.ships.find((ship) => ship.id === 'p0s1')?.control,
+    ).toBe('surrendered');
+    expect(projected.state.ships.find((ship) => ship.id === 'ob9')?.type).toBe(
+      'orbitalBase',
+    );
+    expect(projected.state.winner).toBe(0);
+    expect(projected.state.phase).toBe('gameOver');
+  });
+
+  it('applies identity reveal and checkpoint progress events', () => {
+    const projected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: 'TOUR-m1',
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Grand Tour',
+            turn: 1,
+            phase: 'astrogation',
+          },
+        },
+        {
+          gameId: 'TOUR-m1',
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'checkpointVisited',
+            playerId: 0,
+            body: 'Mercury',
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) {
+      return;
+    }
+
+    expect(projected.state.players[0].visitedBodies).toContain('Mercury');
+
+    const escapeProjected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: 'ESCAP-m2',
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Escape',
+            turn: 1,
+            phase: 'astrogation',
+          },
+        },
+        {
+          gameId: 'ESCAP-m2',
+          seq: 2,
+          ts: 2,
+          actor: 1,
+          event: {
+            type: 'identityRevealed',
+            shipId: 'p0s0',
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(escapeProjected.ok).toBe(true);
+    if (!escapeProjected.ok) {
+      return;
+    }
+
+    expect(
+      escapeProjected.state.ships.find((ship) => ship.id === 'p0s0')?.identity
+        ?.revealed,
+    ).toBe(true);
   });
 });
