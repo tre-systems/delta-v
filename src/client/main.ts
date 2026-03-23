@@ -1,26 +1,3 @@
-// Register service worker for PWA support
-if ('serviceWorker' in navigator) {
-  let hadServiceWorkerController = navigator.serviceWorker.controller !== null;
-  let isReloadingForServiceWorker = false;
-
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
-
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadServiceWorkerController) {
-      hadServiceWorkerController = true;
-
-      return;
-    }
-
-    if (isReloadingForServiceWorker) {
-      return;
-    }
-
-    isReloadingForServiceWorker = true;
-    window.location.reload();
-  });
-}
-
 import type { AIDifficulty } from '../shared/ai';
 import { CODE_LENGTH } from '../shared/constants';
 import { createGame } from '../shared/engine/game-engine';
@@ -99,6 +76,10 @@ import {
   type TurnTelemetryTracker,
 } from './game/turn-telemetry';
 import { resolveUIEventPlan } from './game/ui-event-router';
+import {
+  bindGameClientBrowserEvents,
+  bindServiceWorkerControllerReload,
+} from './game-client-browser';
 import { InputHandler } from './input';
 import { Renderer } from './renderer/renderer';
 import { installGlobalErrorHandlers, track } from './telemetry';
@@ -122,6 +103,7 @@ interface ClientContext {
 }
 
 class GameClient {
+  private readonly disposeBrowserEvents: () => void;
   private ctx: ClientContext = {
     state: 'menu',
     playerId: -1,
@@ -258,59 +240,43 @@ class GameClient {
     });
     this.renderer.setMap(this.map);
     this.input.setMap(this.map);
-    // Wire UI events
     this.ui.onEvent = (event) => this.handleUIEvent(event);
-    // Keyboard shortcuts — capture phase so events
-    // arrive before any child stopPropagation (e.g.
-    // chat input)
-    document.addEventListener(
-      'keydown',
-      (e) => {
-        // Escape blurs focused inputs so shortcuts
-        // resume working
-        if (e.key === 'Escape' && e.target instanceof HTMLInputElement) {
-          (e.target as HTMLInputElement).blur();
-          return;
-        }
-        const action = deriveKeyboardAction(
+    const soundBtn = byId('soundBtn');
+    this.hud.updateSoundButton();
+    this.disposeBrowserEvents = bindGameClientBrowserEvents({
+      canvas: this.canvas,
+      helpCloseBtn: byId('helpCloseBtn'),
+      helpBtn: byId('helpBtn'),
+      soundBtn,
+      getKeyboardAction: (event) =>
+        deriveKeyboardAction(
           {
             state: this.ctx.state,
             hasGameState: !!this.ctx.gameState,
-            typingInInput: e.target instanceof HTMLInputElement,
+            typingInInput: event.target instanceof HTMLInputElement,
             combatTargetId: this.ctx.planningState.combatTargetId,
             queuedAttackCount: this.ctx.planningState.queuedAttacks.length,
             torpedoAccelActive: this.ctx.planningState.torpedoAccel !== null,
           },
-          { key: e.key, shiftKey: e.shiftKey },
-        );
-
-        if (action.kind === 'none') {
-          return;
-        }
-
-        if (action.preventDefault) {
-          e.preventDefault();
-        }
-        this.handleKeyboardAction(action);
+          { key: event.key, shiftKey: event.shiftKey },
+        ),
+      onKeyboardAction: (action) => this.handleKeyboardAction(action),
+      onToggleHelp: () => this.toggleHelp(),
+      onToggleSound: () => {
+        setMuted(!isMuted());
+        this.hud.updateSoundButton();
       },
-      true,
-    );
-    // Help overlay
-    byId('helpCloseBtn').addEventListener('click', () => this.toggleHelp());
-    byId('helpBtn').addEventListener('click', () => this.toggleHelp());
-    // Sound toggle
-    const soundBtn = byId('soundBtn');
-    this.hud.updateSoundButton();
-    soundBtn.addEventListener('click', () => {
-      setMuted(!isMuted());
-      this.hud.updateSoundButton();
-    });
-    // Ship hover tooltip
-    this.canvas.addEventListener('mousemove', (e) =>
-      this.hud.updateTooltip(e.clientX, e.clientY),
-    );
-    this.canvas.addEventListener('mouseleave', () => {
-      hide(this.tooltipEl);
+      onTooltipMove: (clientX, clientY) =>
+        this.hud.updateTooltip(clientX, clientY),
+      onTooltipLeave: () => {
+        hide(this.tooltipEl);
+      },
+      onOffline: () => {
+        this.showToast("You're offline \u2014 check your connection", 'error');
+      },
+      onOnline: () => {
+        this.showToast('Back online', 'success');
+      },
     });
     // Start render loop and audio
     initAudio();
@@ -635,16 +601,25 @@ class GameClient {
   showToast(message: string, type: 'error' | 'info' | 'success' = 'info') {
     this.ui.overlay.showToast(message, type);
   }
+
+  dispose() {
+    this.stopCombatWatch?.();
+    this.connection.close();
+    this.turnTimer.stop();
+    this.disposeBrowserEvents();
+    this.input.dispose();
+    this.ui.dispose();
+    this.tutorial.dispose();
+  }
 }
 
 // --- Bootstrap ---
 installGlobalErrorHandlers();
 installViewportSizing();
+
+if ('serviceWorker' in navigator) {
+  bindServiceWorkerControllerReload(navigator.serviceWorker, window.location);
+}
+
 const game = new GameClient();
 (window as Window & { game?: GameClient }).game = game;
-window.addEventListener('offline', () => {
-  game.showToast("You're offline \u2014 check your connection", 'error');
-});
-window.addEventListener('online', () => {
-  game.showToast('Back online', 'success');
-});
