@@ -252,6 +252,16 @@ const toCheckpointReplayEntry = (checkpoint: Checkpoint): ReplayEntry => ({
   } satisfies ReplayMessage,
 });
 
+const getLatestProjectedState = (
+  projectionFrames: ProjectionFrame[],
+  checkpoint: Checkpoint | null,
+  archive: ReplayArchive | null,
+): import('../../shared/types/domain').GameState | null =>
+  projectionFrames.at(-1)?.message.state ??
+  checkpoint?.state ??
+  archive?.entries.at(-1)?.message.state ??
+  null;
+
 export const getProjectedCurrentState = async (
   storage: Storage,
   gameId: string,
@@ -263,17 +273,43 @@ export const getProjectedCurrentState = async (
     getReplayArchive(storage, gameId),
   ]);
 
-  const latestState =
-    projectionFrames.at(-1)?.message.state ??
-    checkpoint?.state ??
-    archive?.entries.at(-1)?.message.state ??
-    null;
+  const latestState = getLatestProjectedState(
+    projectionFrames,
+    checkpoint,
+    archive,
+  );
 
   if (!latestState) {
     return null;
   }
 
   return filterStateForPlayer(latestState, viewerId);
+};
+
+export const getProjectedCurrentStateRaw = async (
+  storage: Storage,
+  gameId: string,
+): Promise<import('../../shared/types/domain').GameState | null> => {
+  const [projectionFrames, checkpoint, archive] = await Promise.all([
+    getProjectionFrames(storage, gameId),
+    getCheckpoint(storage, gameId),
+    getReplayArchive(storage, gameId),
+  ]);
+
+  return getLatestProjectedState(projectionFrames, checkpoint, archive);
+};
+
+export const hasProjectionParity = async (
+  storage: Storage,
+  gameId: string,
+  liveState: import('../../shared/types/domain').GameState,
+): Promise<boolean> => {
+  const projectedState = await getProjectedCurrentStateRaw(storage, gameId);
+
+  return (
+    projectedState !== null &&
+    JSON.stringify(projectedState) === JSON.stringify(liveState)
+  );
 };
 
 const toReplayEntriesFromFrames = (

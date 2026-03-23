@@ -119,7 +119,7 @@ export const ORDNANCE_LIFETIME = 5;
 
 // Damage thresholds
 // Cumulative disabled turns that destroy a ship
-export const DAMAGE_ELIMINATION_THRESHOLD = 6;
+export const DAMAGE_ELIMINATION_THRESHOLD = 8;
 
 // Detection ranges
 export const SHIP_DETECTION_RANGE = 3;
