@@ -41,15 +41,15 @@ export interface ActionDepsArgs {
 }
 
 export const createActionDeps = (args: ActionDepsArgs) => {
-  let _presentationDeps: PresentationDeps | null = null;
-  let _astrogationDeps: AstrogationActionDeps | null = null;
-  let _combatDeps: CombatActionDeps | null = null;
-  let _ordnanceDeps: OrdnanceActionDeps | null = null;
-  let _localGameFlowDeps: LocalGameFlowDeps | null = null;
+  let cachedPresentation: PresentationDeps | null = null;
+  let cachedAstrogation: AstrogationActionDeps | null = null;
+  let cachedCombat: CombatActionDeps | null = null;
+  let cachedOrdnance: OrdnanceActionDeps | null = null;
+  let cachedLocalFlow: LocalGameFlowDeps | null = null;
 
   const getPresentationDeps = (): PresentationDeps => {
-    if (!_presentationDeps) {
-      _presentationDeps = {
+    if (!cachedPresentation) {
+      cachedPresentation = {
         applyGameState: (state) => args.applyGameState(state),
         setState: (newState) => args.setState(newState as ClientState),
         resetCombatState: () => args.resetCombatState(),
@@ -59,12 +59,12 @@ export const createActionDeps = (args: ActionDepsArgs) => {
         ui: args.ui,
       };
     }
-    return _presentationDeps;
+    return cachedPresentation;
   };
 
   const getAstrogationDeps = (): AstrogationActionDeps => {
-    if (!_astrogationDeps) {
-      _astrogationDeps = {
+    if (!cachedAstrogation) {
+      cachedAstrogation = {
         getGameState: args.getGameState,
         getClientState: args.getClientState,
         getPlayerId: args.getPlayerId,
@@ -75,12 +75,12 @@ export const createActionDeps = (args: ActionDepsArgs) => {
         showToast: (msg, type) => args.ui.overlay.showToast(msg, type),
       };
     }
-    return _astrogationDeps;
+    return cachedAstrogation;
   };
 
   const getCombatDeps = (): CombatActionDeps => {
-    if (!_combatDeps) {
-      _combatDeps = {
+    if (!cachedCombat) {
+      cachedCombat = {
         getGameState: args.getGameState,
         getClientState: args.getClientState,
         getPlayerId: args.getPlayerId,
@@ -92,12 +92,12 @@ export const createActionDeps = (args: ActionDepsArgs) => {
         showFireButton: (v, c) => args.ui.showFireButton(v, c),
       };
     }
-    return _combatDeps;
+    return cachedCombat;
   };
 
   const getOrdnanceDeps = (): OrdnanceActionDeps => {
-    if (!_ordnanceDeps) {
-      _ordnanceDeps = {
+    if (!cachedOrdnance) {
+      cachedOrdnance = {
         getGameState: args.getGameState,
         getClientState: args.getClientState,
         getTransport: args.getTransport as OrdnanceActionDeps['getTransport'],
@@ -106,12 +106,12 @@ export const createActionDeps = (args: ActionDepsArgs) => {
         logText: (text) => args.ui.log.logText(text),
       };
     }
-    return _ordnanceDeps;
+    return cachedOrdnance;
   };
 
   const getLocalGameFlowDeps = (): LocalGameFlowDeps => {
-    if (!_localGameFlowDeps) {
-      _localGameFlowDeps = {
+    if (!cachedLocalFlow) {
+      cachedLocalFlow = {
         getGameState: args.getGameState,
         getPlayerId: args.getPlayerId,
         getMap: args.getMap,
@@ -140,7 +140,7 @@ export const createActionDeps = (args: ActionDepsArgs) => {
         logText: (text) => args.ui.log.logText(text),
       };
     }
-    return _localGameFlowDeps;
+    return cachedLocalFlow;
   };
 
   const presentMovementResult = (
