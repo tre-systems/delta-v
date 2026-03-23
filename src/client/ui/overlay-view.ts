@@ -1,5 +1,5 @@
-import { byId, el, listen, text, visible } from '../dom';
-import { createDisposalScope, withScope } from '../reactive';
+import { byId, clearHTML, el, listen, text, visible } from '../dom';
+import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { getPhaseAlertCopy } from './formatters';
 import {
   buildGameOverView,
@@ -72,6 +72,53 @@ export const createOverlayView = (): OverlayView => {
   let reconnectCancelHandler: (() => void) | null = null;
   let phaseAlertTimer: ReturnType<typeof setTimeout> | null = null;
   const toastTimers = new Set<ReturnType<typeof setTimeout>>();
+  let nextToastId = 0;
+
+  const gameOverViewSignal = signal({
+    visible: false,
+    titleText: '',
+    titleClass: '',
+    reasonText: '',
+    statLines: [] as GameOverStatsLike extends infer _
+      ? Array<{
+          label: string;
+          value: string;
+        }>
+      : never,
+    rematchText: 'Rematch',
+    rematchDisabled: false,
+  });
+  const replayControlsSignal = signal({
+    available: false,
+    active: false,
+    loading: false,
+    statusText: '',
+    selectedGameId: '',
+    canSelectPrevMatch: false,
+    canSelectNextMatch: false,
+    canStart: false,
+    canPrev: false,
+    canNext: false,
+    canEnd: false,
+  });
+  const reconnectViewSignal = signal({
+    visible: false,
+    reconnectText: '',
+    attemptText: '',
+  });
+  const phaseAlertViewSignal = signal({
+    active: false,
+    title: '',
+    subtitle: '',
+    subtitleColor: '',
+  });
+  const toastsSignal = signal(
+    [] as Array<{
+      id: number;
+      message: string;
+      type: 'error' | 'info' | 'success';
+    }>,
+  );
 
   const clearPhaseAlertTimer = () => {
     if (phaseAlertTimer === null) {
@@ -97,34 +144,7 @@ export const createOverlayView = (): OverlayView => {
     canNext: boolean;
     canEnd: boolean;
   }): void => {
-    visible(replayControlsEl, view.available);
-    visible(replayStatusEl, view.available);
-
-    if (!view.available) {
-      return;
-    }
-
-    visible(replayNavEl, view.active);
-    text(replayStatusEl, view.statusText);
-    text(replayMatchLabelEl, view.selectedGameId);
-
-    text(
-      replayToggleBtn,
-      view.loading
-        ? 'Loading Replay...'
-        : view.active
-          ? 'Exit Replay'
-          : 'View Replay',
-    );
-    replayMatchPrevBtn.disabled =
-      view.loading || view.active || !view.canSelectPrevMatch;
-    replayMatchNextBtn.disabled =
-      view.loading || view.active || !view.canSelectNextMatch;
-    replayToggleBtn.disabled = view.loading;
-    replayStartBtn.disabled = !view.canStart;
-    replayPrevBtn.disabled = !view.canPrev;
-    replayNextBtn.disabled = !view.canNext;
-    replayEndBtn.disabled = !view.canEnd;
+    replayControlsSignal.value = view;
   };
 
   const showGameOver = (
@@ -134,37 +154,20 @@ export const createOverlayView = (): OverlayView => {
   ): void => {
     const view = buildGameOverView(won, reason, stats);
 
-    text(gameOverTextEl, view.titleText);
-    gameOverTextEl.className = won ? 'game-over-victory' : 'game-over-defeat';
-    text(gameOverReasonEl, view.reasonText);
+    gameOverViewSignal.value = {
+      visible: true,
+      titleText: view.titleText,
+      titleClass: won ? 'game-over-victory' : 'game-over-defeat',
+      reasonText: view.reasonText,
+      statLines: view.statLines,
+      rematchText: view.rematchText,
+      rematchDisabled: false,
+    };
 
-    // Render stat lines
-    gameOverStatsEl.innerHTML = '';
-    for (const line of view.statLines) {
-      const row = el('div', { class: 'stat-row' });
-      row.appendChild(
-        el('span', {
-          class: 'stat-label',
-          text: line.label,
-        }),
-      );
-      row.appendChild(
-        el('span', {
-          class: 'stat-value',
-          text: line.value,
-        }),
-      );
-      gameOverStatsEl.appendChild(row);
-    }
-
-    // Entrance animation
     gameOverEl.classList.remove('game-over-enter');
-    visible(gameOverEl, true, 'flex');
+    gameOverEl.style.display = 'flex';
     void gameOverEl.offsetWidth;
     gameOverEl.classList.add('game-over-enter');
-
-    text(rematchBtn, view.rematchText);
-    rematchBtn.removeAttribute('disabled');
     setReplayControls({
       available: false,
       active: false,
@@ -182,16 +185,20 @@ export const createOverlayView = (): OverlayView => {
 
   const showRematchPending = (): void => {
     const view = buildRematchPendingView();
-    text(rematchBtn, view.rematchText);
-
-    if (view.rematchDisabled) {
-      rematchBtn.setAttribute('disabled', 'true');
-    }
+    gameOverViewSignal.update((current) => ({
+      ...current,
+      rematchText: view.rematchText,
+      rematchDisabled: view.rematchDisabled,
+    }));
   };
 
   const hideReconnecting = (): void => {
     reconnectCancelHandler = null;
-    visible(reconnectOverlayEl, false);
+    reconnectViewSignal.value = {
+      visible: false,
+      reconnectText: '',
+      attemptText: '',
+    };
   };
 
   const showReconnecting = (
@@ -202,25 +209,25 @@ export const createOverlayView = (): OverlayView => {
     const view = buildReconnectView(attempt, maxAttempts);
 
     reconnectCancelHandler = onCancel;
-    visible(reconnectOverlayEl, true, 'flex');
-    text(reconnectTextEl, view.reconnectText);
-    text(reconnectAttemptEl, view.attemptText);
+    reconnectViewSignal.value = {
+      visible: true,
+      reconnectText: view.reconnectText,
+      attemptText: view.attemptText,
+    };
   };
 
   const showToast = (
     message: string,
     type: 'error' | 'info' | 'success' = 'info',
   ): void => {
-    const toast = el('div', {
-      class: `toast toast-${type}`,
-      text: message,
-    });
-
-    toastContainerEl.appendChild(toast);
+    const id = nextToastId++;
+    toastsSignal.update((toasts) => [...toasts, { id, message, type }]);
 
     const timer = setTimeout(() => {
       toastTimers.delete(timer);
-      toast.remove();
+      toastsSignal.update((toasts) =>
+        toasts.filter((toast) => toast.id !== id),
+      );
     }, 3100);
 
     toastTimers.add(timer);
@@ -229,17 +236,22 @@ export const createOverlayView = (): OverlayView => {
   const showPhaseAlert = (phase: string, isMyTurn: boolean): void => {
     const copy = getPhaseAlertCopy(phase, isMyTurn);
 
-    text(phaseAlertTitleEl, copy.title);
-    text(phaseAlertSubtitleEl, copy.subtitle);
-    phaseAlertSubtitleEl.style.color = copy.subtitleColor;
-
     phaseAlertEl.classList.remove('active');
     void phaseAlertEl.offsetWidth;
+    phaseAlertViewSignal.value = {
+      active: true,
+      title: copy.title,
+      subtitle: copy.subtitle,
+      subtitleColor: copy.subtitleColor,
+    };
     phaseAlertEl.classList.add('active');
 
     clearPhaseAlertTimer();
     phaseAlertTimer = setTimeout(() => {
-      phaseAlertEl.classList.remove('active');
+      phaseAlertViewSignal.update((current) => ({
+        ...current,
+        active: false,
+      }));
       phaseAlertTimer = null;
     }, 1200);
   };
@@ -256,9 +268,116 @@ export const createOverlayView = (): OverlayView => {
   };
 
   withScope(scope, () => {
+    visible(
+      gameOverEl,
+      {
+        get value() {
+          return gameOverViewSignal.value.visible;
+        },
+        peek: () => gameOverViewSignal.peek().visible,
+      },
+      'flex',
+    );
+
+    effect(() => {
+      const gameOverView = gameOverViewSignal.value;
+
+      text(gameOverTextEl, gameOverView.titleText);
+      gameOverTextEl.className = gameOverView.titleClass;
+      text(gameOverReasonEl, gameOverView.reasonText);
+      text(rematchBtn, gameOverView.rematchText);
+      rematchBtn.disabled = gameOverView.rematchDisabled;
+
+      clearHTML(gameOverStatsEl);
+      for (const line of gameOverView.statLines) {
+        const row = el('div', { class: 'stat-row' });
+        row.appendChild(
+          el('span', {
+            class: 'stat-label',
+            text: line.label,
+          }),
+        );
+        row.appendChild(
+          el('span', {
+            class: 'stat-value',
+            text: line.value,
+          }),
+        );
+        gameOverStatsEl.appendChild(row);
+      }
+    });
+
+    effect(() => {
+      const replayView = replayControlsSignal.value;
+
+      visible(replayControlsEl, replayView.available);
+      visible(replayStatusEl, replayView.available);
+
+      if (!replayView.available) {
+        return;
+      }
+
+      visible(replayNavEl, replayView.active);
+      text(replayStatusEl, replayView.statusText);
+      text(replayMatchLabelEl, replayView.selectedGameId);
+      text(
+        replayToggleBtn,
+        replayView.loading
+          ? 'Loading Replay...'
+          : replayView.active
+            ? 'Exit Replay'
+            : 'View Replay',
+      );
+      replayMatchPrevBtn.disabled =
+        replayView.loading ||
+        replayView.active ||
+        !replayView.canSelectPrevMatch;
+      replayMatchNextBtn.disabled =
+        replayView.loading ||
+        replayView.active ||
+        !replayView.canSelectNextMatch;
+      replayToggleBtn.disabled = replayView.loading;
+      replayStartBtn.disabled = !replayView.canStart;
+      replayPrevBtn.disabled = !replayView.canPrev;
+      replayNextBtn.disabled = !replayView.canNext;
+      replayEndBtn.disabled = !replayView.canEnd;
+    });
+
+    effect(() => {
+      const reconnectView = reconnectViewSignal.value;
+
+      visible(reconnectOverlayEl, reconnectView.visible, 'flex');
+      text(reconnectTextEl, reconnectView.reconnectText);
+      text(reconnectAttemptEl, reconnectView.attemptText);
+    });
+
+    effect(() => {
+      const phaseAlertView = phaseAlertViewSignal.value;
+
+      text(phaseAlertTitleEl, phaseAlertView.title);
+      text(phaseAlertSubtitleEl, phaseAlertView.subtitle);
+      phaseAlertSubtitleEl.style.color = phaseAlertView.subtitleColor;
+      phaseAlertEl.classList.toggle('active', phaseAlertView.active);
+    });
+
+    effect(() => {
+      const toasts = toastsSignal.value;
+
+      clearHTML(toastContainerEl);
+      for (const toast of toasts) {
+        toastContainerEl.appendChild(
+          el('div', {
+            class: `toast toast-${toast.type}`,
+            text: toast.message,
+          }),
+        );
+      }
+    });
+
     listen(reconnectCancelBtn, 'click', () => {
-      visible(reconnectOverlayEl, false);
-      reconnectCancelHandler?.();
+      const onCancel = reconnectCancelHandler;
+      hideReconnecting();
+      onCancel?.();
     });
   });
 
