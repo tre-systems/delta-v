@@ -4,31 +4,6 @@ Remaining work only. Completed items are in git history.
 
 ## Event-Sourced Match Architecture
 
-### Replace array-backed event storage with append-friendly match persistence
-
-The current event stream is persisted as a single
-`EventEnvelope[]` blob per match and rewritten on each
-append. That keeps the model simple, but it makes long
-matches and replay-heavy rooms pay full-history read /
-write costs that do not scale with usage.
-
-Refactor match persistence behind a small repository /
-event-store boundary so appends, tail reads, checkpoints,
-and replay projection are explicit operations rather than
-ad hoc storage-key conventions. Favor chunked / paged
-event storage or another append-friendly layout that
-avoids rewriting the full stream for every turn.
-
-Definition of done: authoritative event append no longer
-rewrites whole-match history, replay / reconnect can read
-from checkpoint plus tail efficiently, and tests cover
-long-match recovery without depending on full-array
-storage behavior.
-
-**Files:** `src/server/game-do/archive.ts`,
-`src/server/game-do/game-do.ts`,
-`src/shared/engine/event-projector.ts`
-
 ### Post-game turn replay UI
 
 Let players step backward and forward through recorded
@@ -48,31 +23,6 @@ match" implicitly.
 **Files:** `src/client/main.ts`,
 `src/client/game/`, `src/client/ui/overlay-view.ts`,
 `src/client/ui/ui.ts`
-
-### Spectator mode
-
-Allow read-only third-party connections backed by
-public / spectator projections. Spectators may receive
-live state broadcasts and replay / catch-up history but
-cannot submit actions, occupy seats, or affect
-disconnect-forfeit logic.
-
-This depends on viewer-aware filtering and projection
-catch-up being correct first. Default spectator
-visibility should be public-state only unless an
-explicit omniscient debug mode is added later.
-
-Definition of done: join / auth, live updates, replay /
-catch-up, and no-action enforcement are all covered by
-integration tests.
-
-**Files:** `src/server/game-do/game-do.ts`,
-`src/server/protocol.ts`,
-`src/shared/types/protocol.ts`,
-`src/shared/engine/game-engine.ts`,
-`src/client/main.ts`, client spectator UI
-
----
 
 ## Client Boundary Cleanup
 
@@ -126,5 +76,28 @@ waves.
 
 **Files:** `src/shared/map-data.ts`,
 `src/shared/engine/`, client scenario presentation
+
+### Spectator mode
+
+Allow read-only third-party connections backed by
+public / spectator projections. Spectators may receive
+live state broadcasts and replay / catch-up history but
+cannot submit actions, occupy seats, or affect
+disconnect-forfeit logic.
+
+This depends on viewer-aware filtering and projection
+catch-up being correct first. Default spectator
+visibility should be public-state only unless an
+explicit omniscient debug mode is added later.
+
+Definition of done: join / auth, live updates, replay /
+catch-up, and no-action enforcement are all covered by
+integration tests.
+
+**Files:** `src/server/game-do/game-do.ts`,
+`src/server/protocol.ts`,
+`src/shared/types/protocol.ts`,
+`src/shared/engine/game-engine.ts`,
+`src/client/main.ts`, client spectator UI
 
 ---

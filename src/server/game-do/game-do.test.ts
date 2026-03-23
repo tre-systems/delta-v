@@ -642,7 +642,7 @@ describe('GameDO', () => {
     const trace: string[] = [];
     const originalPut = ctx.storage.put.bind(ctx.storage);
     vi.spyOn(ctx.storage, 'put').mockImplementation(async (key, value) => {
-      if (key === 'events:SAVE1') {
+      if (key.startsWith('events:SAVE1')) {
         trace.push('put:events');
       }
       await originalPut(key, value);
