@@ -1115,10 +1115,8 @@ export class GameDO extends DurableObject<Env> {
       } catch {}
     }
   }
-  /**
-   * Broadcast a message containing game state,
-   * filtering hidden information per player.
-   */
+  // Broadcast a message containing game state,
+  // filtering hidden information per player.
   private broadcastFiltered(
     msg: S2C & {
       state: GameState;
