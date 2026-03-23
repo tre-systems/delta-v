@@ -84,7 +84,9 @@ import {
   buildVelocityVectorViews,
 } from './vectors';
 // --- Renderer ---
+
 export const HEX_SIZE = 28; // pixels per hex radius
+
 export class Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -100,6 +102,7 @@ export class Renderer {
   } | null = null;
   private combatEffects: CombatEffect[] = [];
   private hexFlashes: HexFlash[] = [];
+
   private movementEvents: {
     events: MovementEvent[];
     showUntil: number;
@@ -162,6 +165,7 @@ export class Renderer {
     onComplete: () => void,
   ) {
     this.movementAnimation.start(movements, ordnanceMovements, onComplete);
+
     // Frame camera on all moving ships and ordnance
     const allHexes = collectAnimatedHexes(movements, ordnanceMovements);
 
@@ -170,6 +174,7 @@ export class Renderer {
         maxX = -Infinity,
         minY = Infinity,
         maxY = -Infinity;
+
       for (const h of allHexes) {
         const p = hexToPixel(h, HEX_SIZE);
         minX = Math.min(minX, p.x);
@@ -336,6 +341,7 @@ export class Renderer {
   triggerGameOverExplosions(ships: Ship[]): number {
     const now = performance.now();
     const stagger = 250;
+
     for (let i = 0; i < ships.length; i++) {
       const p = hexToPixel(ships[i].position, HEX_SIZE);
       const delay = i * stagger;
@@ -388,10 +394,12 @@ export class Renderer {
     );
 
     if (myShips.length === 0) return;
+
     let minX = Infinity,
       maxX = -Infinity,
       minY = Infinity,
       maxY = -Infinity;
+
     for (const s of myShips) {
       const p = hexToPixel(s.position, HEX_SIZE);
       minX = Math.min(minX, p.x);
@@ -466,6 +474,7 @@ export class Renderer {
     ctx.fillRect(0, 0, w, h);
     ctx.save();
     this.camera.applyTransform(ctx);
+
     this.renderStars(ctx);
 
     if (this.map) {
@@ -589,7 +598,9 @@ export class Renderer {
     map: SolarSystemMap,
   ) {
     if (this.animState) return;
+
     const zones = buildBaseThreatZoneViews(state, this.playerId, map, HEX_SIZE);
+
     for (const zone of zones) {
       ctx.fillStyle = 'rgba(255, 80, 60, 0.08)';
       ctx.strokeStyle = 'rgba(255, 80, 60, 0.2)';
@@ -625,6 +636,7 @@ export class Renderer {
   ) {
     // During animation, don't show planning vectors
     if (this.animState) return;
+
     for (const vector of buildVelocityVectorViews(
       state,
       this.playerId,
@@ -691,6 +703,7 @@ export class Renderer {
 
       ctx.stroke();
       ctx.setLineDash([]);
+
       for (const arrow of preview.gravityArrows) {
         ctx.strokeStyle = arrow.color;
         ctx.lineWidth = arrow.lineWidth;
@@ -755,6 +768,7 @@ export class Renderer {
           preview.ghostShip.shipType,
         );
       }
+
       for (const marker of [
         ...preview.burnMarkers,
         ...preview.overloadMarkers,
@@ -880,10 +894,12 @@ export class Renderer {
     now: number,
   ) {
     if (!this.animState) return;
+
     const progress = Math.min(
       (now - this.animState.startTime) / this.animState.duration,
       1,
     );
+
     for (const pathView of buildMovementPathViews(
       state,
       this.playerId,
@@ -930,6 +946,7 @@ export class Renderer {
     const stackOffsets = this.animState
       ? null
       : getShipStackOffsets(visibleShips);
+
     for (const ship of visibleShips) {
       let pos: PixelCoord;
       let velocity = ship.velocity;
@@ -975,6 +992,7 @@ export class Renderer {
       }
       // Ship heading based on velocity
       const heading = getShipHeading(ship.position, velocity, HEX_SIZE);
+
       // Selection highlight — pulsing glow
       const isSelected = ship.id === this.planningState.selectedShipId;
 
@@ -992,6 +1010,7 @@ export class Renderer {
       }
       // Disabled ships shown dimmer
       const disabledLabel = getDisabledShipLabel(ship, this.animState !== null);
+
       this.drawShipIcon(
         ctx,
         pos.x,
@@ -1002,6 +1021,7 @@ export class Renderer {
         ship.damage.disabledTurns,
         ship.type,
       );
+
       // Disabled indicator — background plate for
       // visibility
       if (disabledLabel) {
@@ -1024,6 +1044,7 @@ export class Renderer {
         ctx.fillStyle = '#ffffff';
         ctx.fillText(disabledLabel, labelX, labelY);
       }
+
       const identityMarker = getShipIdentityMarker(
         ship,
         this.playerId,
@@ -1054,6 +1075,7 @@ export class Renderer {
           ctx.stroke();
         }
       }
+
       const inGravity = Boolean(
         this.map?.hexes.get(hexKey(ship.position))?.gravity,
       );
@@ -1076,6 +1098,7 @@ export class Renderer {
         ctx.stroke();
         ctx.setLineDash([]);
       }
+
       const labelView = buildShipLabelView(
         ship,
         this.playerId,
@@ -1196,10 +1219,12 @@ export class Renderer {
     const showUntil = this.movementEvents?.showUntil;
 
     if (showUntil === undefined) return;
+
     const alpha = getToastFadeAlpha(showUntil, now);
     ctx.save();
     ctx.globalAlpha = alpha;
     let y = 60;
+
     for (const ev of events) {
       const ship = this.gameState?.ships.find((s) => s.id === ev.shipId);
       const shipName = ship ? ship.type : ev.shipId;
@@ -1230,10 +1255,12 @@ export class Renderer {
     const showUntil = this.combatResults?.showUntil;
 
     if (showUntil === undefined) return;
+
     const alpha = getToastFadeAlpha(showUntil, now);
     ctx.save();
     ctx.globalAlpha = alpha;
     let y = 60;
+
     for (const line of buildCombatResultToastLines(
       results,
       must(this.gameState),
@@ -1263,6 +1290,7 @@ export class Renderer {
     screenH: number,
   ) {
     if (!this.map || !this.gameState) return;
+
     const hudTopOffset = parseFloat(
       getComputedStyle(document.documentElement).getPropertyValue(
         '--hud-top-offset',
@@ -1276,6 +1304,7 @@ export class Renderer {
       hudTopOffset,
     );
     const { x: mmX, y: mmY, width: mmW, height: mmH } = layout;
+
     // Background
     ctx.save();
     ctx.fillStyle = 'rgba(10, 10, 26, 0.8)';
@@ -1285,6 +1314,7 @@ export class Renderer {
     ctx.roundRect(mmX, mmY, mmW, mmH, 4);
     ctx.fill();
     ctx.stroke();
+
     const scene = buildMinimapSceneView(
       this.map,
       this.gameState,
@@ -1296,6 +1326,7 @@ export class Renderer {
       screenH,
       HEX_SIZE,
     );
+
     for (const body of scene.bodies) {
       ctx.fillStyle = body.color;
       ctx.globalAlpha = body.alpha;
@@ -1305,6 +1336,7 @@ export class Renderer {
     }
 
     ctx.globalAlpha = 1;
+
     for (const trail of scene.shipTrails) {
       if (trail.points.length < 2) continue;
       ctx.strokeStyle = trail.color;
@@ -1327,6 +1359,7 @@ export class Renderer {
     }
 
     ctx.globalAlpha = 1;
+
     for (const ordnance of scene.ordnance) {
       ctx.fillStyle = ordnance.color;
       ctx.globalAlpha = ordnance.alpha;
