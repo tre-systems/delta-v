@@ -85,32 +85,6 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
 
       scenarioListEl.appendChild(btn);
     }
-
-    listen(scenarioListEl, 'click', (event) => {
-      const button = (event.target as HTMLElement).closest<HTMLElement>(
-        '.btn-scenario',
-      );
-      const scenario = button?.dataset.scenario;
-
-      if (!scenario) {
-        return;
-      }
-
-      if (pendingAIGameSignal.peek()) {
-        pendingAIGameSignal.value = false;
-        deps.emit({
-          type: 'startSinglePlayer',
-          scenario,
-          difficulty: aiDifficultySignal.peek(),
-        });
-        return;
-      }
-
-      deps.emit({
-        type: 'selectScenario',
-        scenario,
-      });
-    });
   };
 
   const onMenuShown = (): void => {
@@ -137,6 +111,32 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   bindScenarioList();
 
   withScope(scope, () => {
+    listen(scenarioListEl, 'click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLElement>(
+        '.btn-scenario',
+      );
+      const scenario = button?.dataset.scenario;
+
+      if (!scenario) {
+        return;
+      }
+
+      if (pendingAIGameSignal.peek()) {
+        pendingAIGameSignal.value = false;
+        deps.emit({
+          type: 'startSinglePlayer',
+          scenario,
+          difficulty: aiDifficultySignal.peek(),
+        });
+        return;
+      }
+
+      deps.emit({
+        type: 'selectScenario',
+        scenario,
+      });
+    });
+
     listen(createBtn, 'click', () => {
       deps.showScenarioSelect();
     });

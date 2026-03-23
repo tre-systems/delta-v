@@ -102,7 +102,10 @@ const installFixture = () => {
     <button id="helpBtn"></button>
     <button id="soundBtn"></button>
     <div id="helpOverlay"></div>
-    <div id="phaseAlert"></div>
+    <div id="phaseAlert">
+      <div class="phase-alert-title"></div>
+      <div class="phase-alert-subtitle"></div>
+    </div>
     <div id="reconnecting">
       <div id="reconnectStatus"></div>
     </div>
