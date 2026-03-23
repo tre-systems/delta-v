@@ -49,8 +49,10 @@ import {
   appendReplayMessage,
   getEventStreamLength,
   getProjectedCurrentState,
+  getProjectedCurrentStateRaw,
   getProjectedReplayArchive,
   getReplayViewerId,
+  hasProjectionParity,
   resetEventLog,
   saveCheckpoint,
   saveMatchCreatedAt,
@@ -351,6 +353,68 @@ export class GameDO extends DurableObject<Env> {
         ),
     );
   };
+
+  private reportProjectionParityMismatch = async (
+    gameId: string,
+    liveState: GameState,
+  ): Promise<void> => {
+    const projectedState = await getProjectedCurrentStateRaw(
+      this.ctx.storage,
+      gameId,
+    );
+    console.error('[projection parity mismatch]', {
+      gameId,
+      liveTurn: liveState.turnNumber,
+      livePhase: liveState.phase,
+      projectedTurn: projectedState?.turnNumber ?? null,
+      projectedPhase: projectedState?.phase ?? null,
+    });
+
+    const db = this.env.DB;
+
+    if (!db) {
+      return;
+    }
+
+    this.ctx.waitUntil(
+      db
+        .prepare(
+          'INSERT INTO events ' +
+            '(ts, anon_id, event, props, ip_hash, ua) ' +
+            'VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .bind(
+          Date.now(),
+          null,
+          'projection_parity_mismatch',
+          JSON.stringify({
+            gameId,
+            liveTurn: liveState.turnNumber,
+            livePhase: liveState.phase,
+            projectedTurn: projectedState?.turnNumber ?? null,
+            projectedPhase: projectedState?.phase ?? null,
+          }),
+          'server',
+          null,
+        )
+        .run()
+        .catch((e: unknown) =>
+          console.error('[D1 projection parity insert failed]', e),
+        ),
+    );
+  };
+
+  private async verifyProjectionParity(state: GameState): Promise<void> {
+    const hasParity = await hasProjectionParity(
+      this.ctx.storage,
+      state.gameId,
+      state,
+    );
+
+    if (!hasParity) {
+      await this.reportProjectionParityMismatch(state.gameId, state);
+    }
+  }
   // --- WebSocket lifecycle ---
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -745,6 +809,7 @@ export class GameDO extends DurableObject<Env> {
     if (hasTurnBoundary) {
       await saveCheckpoint(this.ctx.storage, state.gameId, state, eventSeq);
     }
+    await this.verifyProjectionParity(state);
     // Archive completed match to R2 for persistent analysis
     const hasGameOver = events.some((e) => e.type === 'gameOver');
 
@@ -965,6 +1030,7 @@ export class GameDO extends DurableObject<Env> {
       await getEventStreamLength(this.ctx.storage, gameId),
       gameStartMessage,
     );
+    await this.verifyProjectionParity(gameState);
     this.broadcastFiltered(gameStartMessage);
     await this.startTurnTimer(gameState);
   }
