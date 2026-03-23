@@ -118,6 +118,41 @@ const projectSetupEvent = (
       };
     }
 
+    case 'phaseChanged': {
+      if (state === null) {
+        return {
+          ok: false,
+          error: 'phaseChanged before gameCreated',
+        };
+      }
+
+      state.phase = event.phase;
+      state.turnNumber = event.turn;
+      state.activePlayer = event.activePlayer;
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
+    case 'turnAdvanced': {
+      if (state === null) {
+        return {
+          ok: false,
+          error: 'turnAdvanced before gameCreated',
+        };
+      }
+
+      state.turnNumber = event.turn;
+      state.activePlayer = event.activePlayer;
+
+      return {
+        ok: true,
+        state,
+      };
+    }
+
     default:
       return {
         ok: false,

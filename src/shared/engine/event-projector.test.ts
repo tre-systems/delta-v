@@ -152,10 +152,12 @@ describe('projectMatchSetupFromStream', () => {
           ts: 2,
           actor: 0,
           event: {
-            type: 'phaseChanged',
-            phase: 'astrogation',
-            turn: 1,
-            activePlayer: 0,
+            type: 'shipMoved',
+            shipId: 'p0s0',
+            from: { q: 0, r: 0 },
+            to: { q: 1, r: 0 },
+            fuelSpent: 1,
+            newVelocity: { dq: 1, dr: 0 },
           },
         },
       ],
@@ -164,7 +166,59 @@ describe('projectMatchSetupFromStream', () => {
 
     expect(projected).toEqual({
       ok: false,
-      error: 'unsupported setup event: phaseChanged',
+      error: 'unsupported setup event: shipMoved',
     });
+  });
+
+  it('applies turn and phase metadata events', () => {
+    const projected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: 'WAR01-m1',
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Interplanetary War',
+            turn: 1,
+            phase: 'fleetBuilding',
+          },
+        },
+        {
+          gameId: 'WAR01-m1',
+          seq: 2,
+          ts: 2,
+          actor: 1,
+          event: {
+            type: 'turnAdvanced',
+            turn: 2,
+            activePlayer: 1,
+          },
+        },
+        {
+          gameId: 'WAR01-m1',
+          seq: 3,
+          ts: 3,
+          actor: 1,
+          event: {
+            type: 'phaseChanged',
+            phase: 'combat',
+            turn: 2,
+            activePlayer: 1,
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) {
+      return;
+    }
+
+    expect(projected.state.turnNumber).toBe(2);
+    expect(projected.state.activePlayer).toBe(1);
+    expect(projected.state.phase).toBe('combat');
   });
 });
