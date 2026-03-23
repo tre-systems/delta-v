@@ -130,6 +130,7 @@ Get your thrusters firing locally in seconds:
 | `npm run test:watch` | Run Vitest in continuous watch mode |
 | `npm run verify` | Run the pre-release verification sweep: lint, typecheck, coverage, build, browser smoke, and AI simulations |
 | `npm run simulate -- [scenario] [iterations] [--ci]` | Run headless AI vs AI matches to test engine stability and scenario balance |
+| `npm run load:test -- --games 20 --concurrency 5` | Run the websocket load / chaos harness against a Wrangler or deployed server |
 | `npm run deploy` | Deploy straight to Cloudflare Workers |
 
 Pass simulation arguments after npm's `--`, for example `npm run simulate -- all 25 --ci`.
