@@ -35,6 +35,7 @@ export interface MessageHandlerDeps {
   resetTurnTelemetry: () => void;
   onAnimationComplete: () => void;
   logScenarioBriefing: () => void;
+  trackEvent: (event: string, props?: Record<string, unknown>) => void;
   deserializeState: (raw: GameState) => GameState;
   renderer: {
     setPlayerId: (id: number) => void;
@@ -70,12 +71,18 @@ export const handleServerMessage = (
   );
   switch (plan.kind) {
     case 'welcome': {
+      const reconnectAttempts = deps.ctx.reconnectAttempts;
       applyWelcomeSession(deps.ctx, plan.playerId, plan.code);
       deps.storePlayerToken(plan.code, plan.playerToken);
 
       if (plan.showReconnectToast) {
+        deps.trackEvent('reconnect_succeeded', {
+          attempts: reconnectAttempts,
+        });
         deps.ui.overlay.hideReconnecting();
         deps.ui.overlay.showToast('Reconnected!', 'success');
+      } else if (deps.ctx.state === 'connecting') {
+        deps.trackEvent('join_game_succeeded', {});
       }
       deps.renderer.setPlayerId(plan.playerId);
       deps.ui.setPlayerId(plan.playerId);

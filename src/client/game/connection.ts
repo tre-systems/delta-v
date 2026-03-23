@@ -27,6 +27,7 @@ export interface ConnectionDeps {
   hideReconnecting: () => void;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   exitToMenu: () => void;
+  trackEvent: (event: string, props?: Record<string, unknown>) => void;
 }
 
 export interface ConnectionManager {
@@ -101,12 +102,19 @@ export const createConnectionManager = (
     );
 
     if (plan.giveUp) {
+      deps.trackEvent('reconnect_failed', {
+        attempts: deps.getReconnectAttempts(),
+      });
       deps.hideReconnecting();
       deps.showToast('Could not reconnect to game', 'error');
       deps.exitToMenu();
       return;
     }
     deps.setReconnectAttempts(must(plan.nextAttempt));
+    deps.trackEvent('reconnect_attempt_scheduled', {
+      attempt: must(plan.nextAttempt),
+      delayMs: must(plan.delayMs),
+    });
     deps.showReconnecting(
       must(plan.nextAttempt),
       MAX_RECONNECT_ATTEMPTS,

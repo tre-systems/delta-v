@@ -45,6 +45,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     getStoredPlayerToken(getTokenStore(), code);
 
   const createGame = async (scenario: string) => {
+    deps.track('create_game_attempted', { scenario });
     deps.setMenuLoading(true);
     try {
       deps.setScenario(scenario);
@@ -59,6 +60,11 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       clearTimeout(timer);
 
       if (!res.ok) {
+        deps.track('create_game_failed', {
+          scenario,
+          reason: 'server',
+          status: res.status,
+        });
         deps.showToast('Server error \u2014 try again in a moment.', 'error');
         deps.setState('menu');
         return;
@@ -83,10 +89,22 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       );
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
+        deps.track('create_game_failed', {
+          scenario,
+          reason: 'timeout',
+        });
         deps.showToast('Game creation timed out. Try again.', 'error');
       } else if (err instanceof TypeError) {
+        deps.track('create_game_failed', {
+          scenario,
+          reason: 'network',
+        });
         deps.showToast('Network error \u2014 check your connection.', 'error');
       } else {
+        deps.track('create_game_failed', {
+          scenario,
+          reason: 'unknown',
+        });
         deps.showToast('Failed to create game. Try again.', 'error');
       }
       console.error('Failed to create game:', err);
@@ -100,6 +118,9 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     code: string,
     playerToken: string | null,
   ): Promise<{ ok: true } | { ok: false; message: string }> => {
+    deps.track('join_game_attempted', {
+      hasPlayerToken: playerToken !== null,
+    });
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), 10000);
     try {
@@ -111,11 +132,20 @@ export const createSessionApi = (deps: SessionApiDeps) => {
 
       if (response.ok) return { ok: true };
       const message = (await response.text()) || 'Could not join game';
+      deps.track('join_game_failed', {
+        reason: message,
+        status: response.status,
+        hasPlayerToken: playerToken !== null,
+      });
       return { ok: false, message };
     } catch (err) {
       clearTimeout(timer);
 
       if (err instanceof DOMException && err.name === 'AbortError') {
+        deps.track('join_game_failed', {
+          reason: 'timeout',
+          hasPlayerToken: playerToken !== null,
+        });
         return {
           ok: false,
           message: 'Join check timed out. Try again.',
@@ -123,11 +153,19 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       }
 
       if (err instanceof TypeError) {
+        deps.track('join_game_failed', {
+          reason: 'network',
+          hasPlayerToken: playerToken !== null,
+        });
         return {
           ok: false,
           message: 'Network error \u2014 check your connection.',
         };
       }
+      deps.track('join_game_failed', {
+        reason: 'unknown',
+        hasPlayerToken: playerToken !== null,
+      });
       return { ok: false, message: 'Could not join game' };
     }
   };

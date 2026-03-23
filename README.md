@@ -128,6 +128,7 @@ Get your thrusters firing locally in seconds:
 | `npm run test:e2e` | Run Playwright browser smoke tests against a local Wrangler server |
 | `npm run test:e2e:headed` | Run the same Playwright suite with a visible browser |
 | `npm run test:watch` | Run Vitest in continuous watch mode |
+| `npm run verify` | Run the pre-release verification sweep: lint, typecheck, coverage, build, browser smoke, and AI simulations |
 | `npm run simulate -- [scenario] [iterations] [--ci]` | Run headless AI vs AI matches to test engine stability and scenario balance |
 | `npm run deploy` | Deploy straight to Cloudflare Workers |
 

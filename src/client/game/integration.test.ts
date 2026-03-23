@@ -106,6 +106,7 @@ const createDeps = (
     resetTurnTelemetry: track('resetTurnTelemetry'),
     onAnimationComplete: track('onAnimationComplete'),
     logScenarioBriefing: track('logScenarioBriefing'),
+    trackEvent: track('trackEvent'),
     deserializeState: (raw: GameState) => raw,
     renderer: {
       setPlayerId: track('renderer.setPlayerId'),
@@ -149,6 +150,7 @@ describe('client integration: connection flow', () => {
     expect(deps.calls['renderer.setPlayerId']).toEqual([[0]]);
     expect(deps.calls['ui.setPlayerId']).toEqual([[0]]);
     expect(deps.calls.setState).toEqual([['waitingForOpponent']]);
+    expect(deps.calls.trackEvent).toEqual([['join_game_succeeded', {}]]);
   });
 
   it('welcome during reconnect shows toast and clears reconnect count', () => {
@@ -166,6 +168,9 @@ describe('client integration: connection flow', () => {
     expect(deps.calls['ui.overlay.hideReconnecting']).toHaveLength(1);
     expect(deps.calls['ui.overlay.showToast']).toEqual([
       ['Reconnected!', 'success'],
+    ]);
+    expect(deps.calls.trackEvent).toEqual([
+      ['reconnect_succeeded', { attempts: 3 }],
     ]);
     // No state transition when already playing
     expect(deps.calls.setState).toBeUndefined();

@@ -52,13 +52,19 @@ export const createTurnTelemetryTracker = ({
       return;
     }
 
-    trackEvent('turn_completed', {
+    const props = {
       turn: lastTurnNumber,
       totalMs: now() - turnStartedAt,
       phases: { ...phaseDurations },
       scenario: context.scenario,
       mode: context.isLocalGame ? 'local' : 'multiplayer',
-    });
+    };
+
+    trackEvent('turn_completed', props);
+
+    if (lastTurnNumber === 1) {
+      trackEvent('first_turn_completed', props);
+    }
 
     phaseDurations = {};
   };

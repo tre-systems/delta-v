@@ -13,6 +13,7 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:watch": "vitest",
+    "verify": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run test:e2e && npm run simulate all 25 -- --ci",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
     "format": "biome format --write src/",

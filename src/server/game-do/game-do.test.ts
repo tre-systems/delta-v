@@ -135,6 +135,7 @@ const createMessageHandlerDeps = (
     resetTurnTelemetry() {},
     onAnimationComplete() {},
     logScenarioBriefing() {},
+    trackEvent() {},
     deserializeState(raw) {
       return raw;
     },
