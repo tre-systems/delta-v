@@ -40,6 +40,31 @@ composition root into indirection for its own sake.
 
 ## Event-Sourced Match Architecture
 
+### Finish the event-sourced server migration
+
+Complete the transition from snapshot-first Durable Object
+state to an append-only authoritative match log with
+projection rebuild support.
+
+The replay archive, stable `gameId`, and match-scoped
+event storage are already in place as migration
+scaffolding. Remaining work is to persist authoritative
+random outcomes with the event stream, rebuild
+authoritative projections from stored events rather than
+assuming the archive is truth, and add checkpoints so
+replay / reconnect do not require full re-walks forever.
+
+Definition of done: a match can be reconstructed from
+its persisted event stream plus optional checkpoints;
+projection parity is verified against live state; replay,
+reconnect, and future spectator views all read from the
+same projection path.
+
+**Files:** `src/server/game-do/archive.ts`,
+`src/server/game-do/game-do.ts`,
+`src/shared/replay.ts`,
+`src/shared/engine/`
+
 ### Post-game turn replay UI
 
 Let players step backward and forward through recorded
@@ -85,8 +110,6 @@ integration tests.
 
 ---
 
----
-
 ## Performance & UX
 
 ### OffscreenCanvas layer caching for renderer
@@ -113,6 +136,24 @@ visible rendering regression.
 
 **Files:** `src/client/renderer/renderer.ts`,
 `src/client/renderer/scene.ts`
+
+### Network integration load / chaos tester
+
+Add the planned headless PvP bot stress harness for the
+Durable Object and websocket layer.
+
+This should validate room creation, live message flow,
+disconnect / reconnect behavior, and server stability
+under many concurrent matches without relying on manual
+multi-tab testing.
+
+Definition of done: a scripted load path can create many
+games, drive valid turns over websockets, inject
+disconnects, and report crash / timeout / reconnect
+failures clearly enough to use before releases.
+
+**Files:** `scripts/`, `src/server/index.ts`,
+`src/server/game-do/`
 
 ---
 
