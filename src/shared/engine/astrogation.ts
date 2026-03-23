@@ -105,6 +105,12 @@ export const processAstrogation = (
     return { error: validationError };
   }
 
+  engineEvents.push({
+    type: 'astrogationOrdersCommitted',
+    playerId,
+    orders: structuredClone(orders),
+  });
+
   state.pendingAstrogationOrders = orders.map((order) => ({
     shipId: order.shipId,
     burn: order.burn,
@@ -155,7 +161,6 @@ export const processOrdnance = (
 
   if (phaseError) return { error: phaseError };
 
-  let nextOrdId = getNextOrdnanceId(state);
   const launchedShips = new Set<string>();
 
   for (const launch of launches) {
@@ -176,8 +181,6 @@ export const processOrdnance = (
     const shipError = validateOrdnanceLaunch(state, ship, launch.ordnanceType);
 
     if (shipError) return { error: shipError };
-
-    const mass = ORDNANCE_MASS[launch.ordnanceType];
 
     if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
       if (launch.torpedoAccel < 0 || launch.torpedoAccel > 5) {
@@ -218,6 +221,27 @@ export const processOrdnance = (
       }
     }
 
+    launchedShips.add(launch.shipId);
+  }
+
+  engineEvents.push({
+    type: 'ordnanceLaunchesCommitted',
+    playerId,
+    launches: structuredClone(launches),
+  });
+
+  let nextOrdId = getNextOrdnanceId(state);
+
+  for (const launch of launches) {
+    const ship = state.ships.find((s) => s.id === launch.shipId);
+
+    if (!ship || ship.owner !== playerId) {
+      return {
+        error: 'Invalid ship for ordnance launch',
+      };
+    }
+
+    const mass = ORDNANCE_MASS[launch.ordnanceType];
     const baseVelocity = { ...ship.velocity };
     const velocity =
       launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null
@@ -258,8 +282,6 @@ export const processOrdnance = (
     if (launch.ordnanceType === 'nuke') {
       ship.nukesLaunchedSinceResupply += 1;
     }
-
-    launchedShips.add(launch.shipId);
   }
 
   const movementResult = resolveMovementPhase(state, playerId, map, rng);
