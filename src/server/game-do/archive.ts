@@ -10,21 +10,17 @@ import {
 import { buildSolarSystemMap } from '../../shared/map-data';
 import {
   buildMatchId,
-  type ProjectionFrame,
   parseMatchId,
   type ReplayEntry,
   type ReplayMessage,
   type ReplayTimeline,
-  toProjectionFrame,
-  toReplayEntryFromProjectionFrame,
+  toReplayEntry,
 } from '../../shared/replay';
 import type { Phase } from '../../shared/types/domain';
 import { isValidPlayerToken, type RoomConfig } from '../protocol';
 
 type Storage = DurableObjectStorage;
 const map = buildSolarSystemMap();
-
-const projectionFramesKey = (gameId: string): string => `projection:${gameId}`;
 
 // --- Match-scoped event stream ---
 
@@ -114,37 +110,6 @@ export const getMatchCreatedAt = async (
   gameId: string,
 ): Promise<number | null> =>
   (await storage.get<number>(matchCreatedAtKey(gameId))) ?? null;
-
-// --- Projection-backed replay timeline ---
-
-export const getProjectionFrames = async (
-  storage: Storage,
-  gameId: string,
-): Promise<ProjectionFrame[]> =>
-  (await storage.get<ProjectionFrame[]>(projectionFramesKey(gameId))) ?? [];
-
-export const saveProjectionFrames = async (
-  storage: Storage,
-  gameId: string,
-  frames: ProjectionFrame[],
-): Promise<void> => {
-  await storage.put(projectionFramesKey(gameId), frames);
-};
-
-export const appendProjectionMessage = async (
-  storage: Storage,
-  gameId: string,
-  eventSeq: number,
-  message: ReplayMessage,
-): Promise<void> => {
-  const recordedAt = Date.now();
-  const frames = await getProjectionFrames(storage, gameId);
-
-  frames.push(
-    toProjectionFrame(frames.length + 1, eventSeq, message, recordedAt),
-  );
-  await saveProjectionFrames(storage, gameId, frames);
-};
 
 // --- Replay viewer identity ---
 
@@ -253,28 +218,50 @@ export const hasProjectionParity = async (
   );
 };
 
-const toReplayEntriesFromFrames = (
-  frames: ProjectionFrame[],
+const toReplayEntriesFromStream = (
+  eventStream: EventEnvelope[],
   checkpoint: Checkpoint | null,
 ): ReplayEntry[] => {
-  const startIndex =
+  const visibleEvents =
     checkpoint === null
-      ? 0
-      : frames.findIndex((frame) => frame.eventSeq > checkpoint.seq);
-  const visibleFrames =
-    checkpoint === null
-      ? frames
-      : startIndex === -1
-        ? []
-        : frames.slice(startIndex);
-
+      ? eventStream
+      : eventStream.filter((envelope) => envelope.seq > checkpoint.seq);
   const entries = checkpoint ? [toCheckpointReplayEntry(checkpoint)] : [];
+  let currentState = checkpoint?.state ?? null;
 
-  for (const frame of visibleFrames) {
-    entries.push({
-      ...toReplayEntryFromProjectionFrame(frame),
-      sequence: entries.length + 1,
-    });
+  for (const envelope of visibleEvents) {
+    const projected = projectGameStateFromStream([envelope], map, currentState);
+
+    if (!projected.ok) {
+      continue;
+    }
+
+    const nextState = projected.state;
+    const previousSerialized =
+      currentState === null ? null : JSON.stringify(currentState);
+    const nextSerialized = JSON.stringify(nextState);
+
+    currentState = nextState;
+
+    if (previousSerialized === nextSerialized) {
+      continue;
+    }
+
+    entries.push(
+      toReplayEntry(
+        entries.length + 1,
+        entries.length === 0
+          ? {
+              type: 'gameStart',
+              state: nextState,
+            }
+          : {
+              type: 'stateUpdate',
+              state: nextState,
+            },
+        envelope.ts,
+      ),
+    );
   }
 
   return entries;
@@ -282,19 +269,26 @@ const toReplayEntriesFromFrames = (
 
 const createProjectedTimelineMetadata = (
   gameId: string,
-  projectionFrames: ProjectionFrame[],
+  eventStream: EventEnvelope[],
   checkpoint: Checkpoint | null,
+  createdAt: number | null,
 ): Pick<
   ReplayTimeline,
   'gameId' | 'roomCode' | 'matchNumber' | 'scenario' | 'createdAt'
 > | null => {
   const parsed = parseMatchId(gameId);
-  const firstFrame = projectionFrames[0];
+  const gameCreated = eventStream.find(
+    (envelope) => envelope.event.type === 'gameCreated',
+  );
   const scenario =
-    firstFrame?.message.state.scenario ?? checkpoint?.state.scenario ?? '';
-  const createdAt = firstFrame?.recordedAt ?? checkpoint?.savedAt ?? 0;
+    checkpoint?.state.scenario ??
+    (gameCreated?.event.type === 'gameCreated'
+      ? gameCreated.event.scenario
+      : '');
+  const replayCreatedAt =
+    createdAt ?? gameCreated?.ts ?? checkpoint?.savedAt ?? 0;
 
-  if (!parsed && !checkpoint && !firstFrame) {
+  if (!parsed && !checkpoint && !gameCreated) {
     return null;
   }
 
@@ -303,21 +297,23 @@ const createProjectedTimelineMetadata = (
     roomCode: parsed?.roomCode ?? '',
     matchNumber: parsed?.matchNumber ?? 0,
     scenario,
-    createdAt,
+    createdAt: replayCreatedAt,
   };
 };
 
 export const projectReplayTimeline = (
   checkpoint: Checkpoint | null,
-  projectionFrames: ProjectionFrame[],
+  eventStream: EventEnvelope[],
   viewerId: ViewerId,
+  createdAt: number | null = null,
 ): ReplayTimeline | null => {
   const baseTimeline = (() => {
-    if (projectionFrames.length > 0) {
+    if (eventStream.length > 0 || checkpoint) {
       const metadata = createProjectedTimelineMetadata(
-        projectionFrames[0].message.state.gameId,
-        projectionFrames,
+        checkpoint?.gameId ?? eventStream[0]?.gameId ?? '',
+        eventStream,
         checkpoint,
+        createdAt,
       );
 
       if (!metadata) {
@@ -326,20 +322,10 @@ export const projectReplayTimeline = (
 
       return {
         ...metadata,
-        entries: toReplayEntriesFromFrames(projectionFrames, checkpoint),
+        entries: toReplayEntriesFromStream(eventStream, checkpoint),
       };
     }
-
-    return checkpoint
-      ? {
-          gameId: checkpoint.gameId,
-          roomCode: '',
-          matchNumber: 0,
-          scenario: checkpoint.state.scenario,
-          createdAt: checkpoint.savedAt,
-          entries: [toCheckpointReplayEntry(checkpoint)],
-        }
-      : null;
+    return null;
   })();
 
   if (!baseTimeline) {
@@ -354,12 +340,13 @@ export const getProjectedReplayTimeline = async (
   gameId: string,
   viewerId: ViewerId,
 ): Promise<ReplayTimeline | null> => {
-  const [checkpoint, projectionFrames] = await Promise.all([
+  const [checkpoint, eventStream, createdAt] = await Promise.all([
     getCheckpoint(storage, gameId),
-    getProjectionFrames(storage, gameId),
+    getEventStream(storage, gameId),
+    getMatchCreatedAt(storage, gameId),
   ]);
 
-  return projectReplayTimeline(checkpoint, projectionFrames, viewerId);
+  return projectReplayTimeline(checkpoint, eventStream, viewerId, createdAt);
 };
 
 // --- Match identity ---

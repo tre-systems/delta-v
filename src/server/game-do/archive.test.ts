@@ -12,17 +12,16 @@ import {
 } from '../../shared/map-data';
 import {
   appendEnvelopedEvents,
-  appendProjectionMessage,
   getCheckpoint,
   getEventStream,
   getEventStreamLength,
   getProjectedCurrentState,
   getProjectedCurrentStateRaw,
   getProjectedReplayTimeline,
-  getProjectionFrames,
   hasProjectionParity,
   projectReplayTimeline,
   saveCheckpoint,
+  saveMatchCreatedAt,
 } from './archive';
 
 class MockStorage {
@@ -343,26 +342,30 @@ describe('projection parity: replay timeline vs live state', () => {
 });
 
 describe('replay projection', () => {
-  it('persists projection frames with event sequence metadata', async () => {
+  it('builds replay entries from persisted event stream state changes', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const state = createGame(
-      SCENARIOS.biplanetary,
-      map,
+    await appendEnvelopedEvents(
+      storage,
       'FRAME-m1',
-      findBaseHex,
+      null,
+      {
+        type: 'gameCreated',
+        scenario: 'Bi-Planetary',
+        turn: 1,
+        phase: 'astrogation',
+      },
+      {
+        type: 'turnAdvanced',
+        turn: 2,
+        activePlayer: 1,
+      },
     );
 
-    await appendProjectionMessage(storage, 'FRAME-m1', 7, {
-      type: 'gameStart',
-      state,
-    });
+    const projected = await getProjectedReplayTimeline(storage, 'FRAME-m1', 0);
 
-    const frames = await getProjectionFrames(storage, 'FRAME-m1');
-
-    expect(frames).toHaveLength(1);
-    expect(frames[0]?.sequence).toBe(1);
-    expect(frames[0]?.eventSeq).toBe(7);
-    expect(frames[0]?.message.type).toBe('gameStart');
+    expect(projected?.entries).toHaveLength(2);
+    expect(projected?.entries[0]?.message.type).toBe('gameStart');
+    expect(projected?.entries[1]?.message.type).toBe('stateUpdate');
   });
 
   it('derives current state from checkpoint plus event tail', async () => {
@@ -432,10 +435,7 @@ describe('replay projection', () => {
       hiddenIdentityInspection: true,
     };
 
-    await appendProjectionMessage(storage, 'VIEW-m1', 1, {
-      type: 'gameStart',
-      state,
-    });
+    await saveCheckpoint(storage, 'VIEW-m1', state, 1);
 
     const projected = await getProjectedReplayTimeline(storage, 'VIEW-m1', 1);
 
@@ -446,18 +446,14 @@ describe('replay projection', () => {
     expect(enemyShip?.identity).toBeUndefined();
   });
 
-  it('derives projection metadata from frames without replay-archive storage', async () => {
+  it('derives replay metadata from match identity and event stream', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const state = createGame(
-      SCENARIOS.biplanetary,
-      map,
-      'META1-m1',
-      findBaseHex,
-    );
-
-    await appendProjectionMessage(storage, 'META1-m1', 1, {
-      type: 'gameStart',
-      state,
+    await saveMatchCreatedAt(storage, 'META1-m1', 1234);
+    await appendEnvelopedEvents(storage, 'META1-m1', null, {
+      type: 'gameCreated',
+      scenario: 'Bi-Planetary',
+      turn: 1,
+      phase: 'astrogation',
     });
 
     const projected = await getProjectedReplayTimeline(storage, 'META1-m1', 0);
@@ -465,7 +461,7 @@ describe('replay projection', () => {
     expect(projected?.roomCode).toBe('META1');
     expect(projected?.matchNumber).toBe(1);
     expect(projected?.scenario).toBe('Bi-Planetary');
-    expect(projected?.createdAt).not.toBe(1);
+    expect(projected?.createdAt).toBe(1234);
   });
 
   it('falls back to a synthetic checkpoint replay when archive is missing', async () => {
@@ -499,7 +495,7 @@ describe('replay projection', () => {
     expect(projectReplayTimeline(null, [], 0)).toBeNull();
   });
 
-  it('projects checkpoint plus tail frames into a replay timeline', async () => {
+  it('projects checkpoint plus tail events into a replay timeline', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const checkpointState = createGame(
       SCENARIOS.biplanetary,
@@ -509,28 +505,33 @@ describe('replay projection', () => {
     );
     checkpointState.turnNumber = 2;
     checkpointState.phase = 'ordnance';
-
-    const tailState = structuredClone(checkpointState);
-    tailState.turnNumber = 3;
-    tailState.phase = 'combat';
-
-    await saveCheckpoint(storage, 'TAILS-m1', checkpointState, 4);
-    await appendProjectionMessage(storage, 'TAILS-m1', 4, {
-      type: 'stateUpdate',
-      state: checkpointState,
-    });
-    await appendProjectionMessage(storage, 'TAILS-m1', 5, {
-      type: 'stateUpdate',
-      state: tailState,
-    });
+    await saveCheckpoint(storage, 'TAILS-m1', checkpointState, 0);
+    await appendEnvelopedEvents(
+      storage,
+      'TAILS-m1',
+      0,
+      {
+        type: 'turnAdvanced',
+        turn: 3,
+        activePlayer: 0,
+      },
+      {
+        type: 'phaseChanged',
+        phase: 'combat',
+        turn: 3,
+        activePlayer: 0,
+      },
+    );
 
     const projected = await getProjectedReplayTimeline(storage, 'TAILS-m1', 0);
 
     expect(projected).not.toBeNull();
-    expect(projected?.entries).toHaveLength(2);
+    expect(projected?.entries).toHaveLength(3);
     expect(projected?.entries[0]?.turn).toBe(2);
     expect(projected?.entries[1]?.turn).toBe(3);
-    expect(projected?.entries[1]?.phase).toBe('combat');
+    expect(projected?.entries[1]?.phase).toBe('ordnance');
+    expect(projected?.entries[2]?.turn).toBe(3);
+    expect(projected?.entries[2]?.phase).toBe('combat');
   });
 
   it('prefers newer event-tail state over older checkpoint state', async () => {
@@ -542,10 +543,6 @@ describe('replay projection', () => {
       findBaseHex,
     );
     checkpointState.turnNumber = 1;
-
-    const freshState = structuredClone(checkpointState);
-    freshState.turnNumber = 4;
-    freshState.phase = 'combat';
 
     await saveCheckpoint(storage, 'STALE-m1', checkpointState, 1);
     await appendEnvelopedEvents(
@@ -564,11 +561,6 @@ describe('replay projection', () => {
         activePlayer: 0,
       },
     );
-    await appendProjectionMessage(storage, 'STALE-m1', 4, {
-      type: 'stateUpdate',
-      state: freshState,
-    });
-
     const projectedState = await getProjectedCurrentStateRaw(
       storage,
       'STALE-m1',

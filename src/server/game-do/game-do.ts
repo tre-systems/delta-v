@@ -44,7 +44,6 @@ import {
 import {
   allocateMatchIdentity,
   appendEnvelopedEvents,
-  appendProjectionMessage,
   getEventStreamLength,
   getProjectedCurrentState,
   getProjectedCurrentStateRaw,
@@ -182,7 +181,6 @@ export class GameDO extends DurableObject<Env> {
   private async archiveRoomState(): Promise<void> {
     await Promise.all([
       this.ctx.storage.put('roomArchived', true),
-      this.ctx.storage.delete('gameState'),
       this.ctx.storage.delete('disconnectAt'),
       this.ctx.storage.delete('disconnectTime'),
       this.ctx.storage.delete('disconnectedPlayer'),
@@ -755,7 +753,6 @@ export class GameDO extends DurableObject<Env> {
     } = options ?? {};
     const roomCode = await this.getGameCode();
     const replayMessage = resolveStateBearingMessage(state, primaryMessage);
-    await this.ctx.storage.delete('gameState');
     let eventSeq = await getEventStreamLength(this.ctx.storage, state.gameId);
 
     if (events.length > 0) {
@@ -767,12 +764,6 @@ export class GameDO extends DurableObject<Env> {
       );
       eventSeq = await getEventStreamLength(this.ctx.storage, state.gameId);
     }
-    await appendProjectionMessage(
-      this.ctx.storage,
-      state.gameId,
-      eventSeq,
-      replayMessage,
-    );
     // Save checkpoint at turn boundaries and game end
     const hasTurnBoundary = events.some(
       (e) => e.type === 'turnAdvanced' || e.type === 'gameOver',
@@ -962,7 +953,6 @@ export class GameDO extends DurableObject<Env> {
     const gameStartMessage = toGameStartMessage(gameState);
     await this.clearRoomArchivedFlag();
     await saveMatchCreatedAt(this.ctx.storage, gameId, Date.now());
-    await this.ctx.storage.delete('gameState');
     const initEvents: import('../../shared/engine/engine-events').EngineEvent[] =
       [
         {
@@ -985,12 +975,6 @@ export class GameDO extends DurableObject<Env> {
     }
 
     await appendEnvelopedEvents(this.ctx.storage, gameId, null, ...initEvents);
-    await appendProjectionMessage(
-      this.ctx.storage,
-      gameId,
-      await getEventStreamLength(this.ctx.storage, gameId),
-      gameStartMessage,
-    );
     await this.verifyProjectionParity(gameState);
     this.broadcastFiltered(gameStartMessage);
     await this.startTurnTimer(gameState);

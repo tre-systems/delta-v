@@ -16,15 +16,6 @@ export interface ReplayEntry {
   message: ReplayMessage;
 }
 
-export interface ProjectionFrame {
-  sequence: number;
-  eventSeq: number;
-  recordedAt: number;
-  turn: number;
-  phase: Phase;
-  message: ReplayMessage;
-}
-
 export interface ReplayTimeline {
   gameId: string;
   roomCode: string;
@@ -65,28 +56,4 @@ export const toReplayEntry = (
   turn: message.state.turnNumber,
   phase: message.state.phase,
   message: structuredClone(message),
-});
-
-export const toProjectionFrame = (
-  sequence: number,
-  eventSeq: number,
-  message: ReplayMessage,
-  recordedAt: number,
-): ProjectionFrame => ({
-  sequence,
-  eventSeq,
-  recordedAt,
-  turn: message.state.turnNumber,
-  phase: message.state.phase,
-  message: structuredClone(message),
-});
-
-export const toReplayEntryFromProjectionFrame = (
-  frame: ProjectionFrame,
-): ReplayEntry => ({
-  sequence: frame.sequence,
-  recordedAt: frame.recordedAt,
-  turn: frame.turn,
-  phase: frame.phase,
-  message: structuredClone(frame.message),
 });

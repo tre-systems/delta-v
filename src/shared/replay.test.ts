@@ -8,7 +8,6 @@ import {
   type ReplayEntry,
   type ReplayMessage,
   type ReplayTimeline,
-  toProjectionFrame,
   toReplayEntry,
 } from './replay';
 import type { GameState } from './types/domain';
@@ -196,23 +195,6 @@ describe('replay shape fixtures', () => {
       expect(entry.message.type).toBe(msg.type);
       expect(entry.message.state).toEqual(state);
     }
-  });
-
-  it('ProjectionFrame captures event sequence and cloned message', () => {
-    const state = createTestState('PROJ-m1');
-    const frame = toProjectionFrame(
-      2,
-      7,
-      { type: 'stateUpdate', state },
-      1700000001000,
-    );
-
-    expect(frame.sequence).toBe(2);
-    expect(frame.eventSeq).toBe(7);
-    expect(frame.recordedAt).toBe(1700000001000);
-    expect(frame.turn).toBe(state.turnNumber);
-    expect(frame.phase).toBe(state.phase);
-    expect(frame.message).toEqual({ type: 'stateUpdate', state });
   });
 
   it('ReplayEntry preserves phase and turn from embedded state', () => {

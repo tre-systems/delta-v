@@ -51,10 +51,9 @@ Done for authoritative server recovery:
 - no separate Durable Object `gameState` snapshot slot
 - authoritative recovery from persisted event stream plus optional checkpoints
 - parity checks against event-sourced recovery
-- replay and reconnect on projection-backed paths
+- replay and reconnect derived from the persisted event stream plus checkpoints
 
 Remaining follow-up work:
-- decide whether replay transport should stay cached as projection frames or be regenerated directly from the event stream on demand
 - extend the same viewer model to spectator delivery
 
 **Files:** `src/server/game-do/archive.ts`,
