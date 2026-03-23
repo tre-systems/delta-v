@@ -48,6 +48,7 @@ import {
   appendProjectionMessage,
   appendReplayMessage,
   getEventStreamLength,
+  getProjectedCurrentState,
   getProjectedReplayArchive,
   getReplayViewerId,
   resetEventLog,
@@ -416,16 +417,27 @@ export class GameDO extends DurableObject<Env> {
       playerToken,
     });
     const gameState = await this.getGameState();
+    const projectedState =
+      gameState !== null ? filterStateForPlayer(gameState, playerId) : null;
+    const latestGameId = gameState?.gameId ?? (await this.getLatestGameId());
+    const reconnectState =
+      projectedState ??
+      (latestGameId
+        ? await getProjectedCurrentState(
+            this.ctx.storage,
+            latestGameId,
+            playerId,
+          )
+        : null);
 
-    if (gameState) {
-      const filteredState = filterStateForPlayer(gameState, playerId);
+    if (reconnectState) {
       this.send(server, {
         type: 'gameStart',
-        state: filteredState,
+        state: reconnectState,
       });
     }
     // Both players connected — start the game
-    if (!gameState && connectedSeatCountAfterJoin >= 2) {
+    if (!reconnectState && connectedSeatCountAfterJoin >= 2) {
       this.broadcast({ type: 'matchFound' });
       await this.initGame();
     }

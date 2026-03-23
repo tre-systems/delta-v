@@ -252,6 +252,30 @@ const toCheckpointReplayEntry = (checkpoint: Checkpoint): ReplayEntry => ({
   } satisfies ReplayMessage,
 });
 
+export const getProjectedCurrentState = async (
+  storage: Storage,
+  gameId: string,
+  viewerId: ViewerId,
+): Promise<import('../../shared/types/domain').GameState | null> => {
+  const [projectionFrames, checkpoint, archive] = await Promise.all([
+    getProjectionFrames(storage, gameId),
+    getCheckpoint(storage, gameId),
+    getReplayArchive(storage, gameId),
+  ]);
+
+  const latestState =
+    projectionFrames.at(-1)?.message.state ??
+    checkpoint?.state ??
+    archive?.entries.at(-1)?.message.state ??
+    null;
+
+  if (!latestState) {
+    return null;
+  }
+
+  return filterStateForPlayer(latestState, viewerId);
+};
+
 const toReplayEntriesFromFrames = (
   frames: ProjectionFrame[],
   checkpoint: Checkpoint | null,

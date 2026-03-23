@@ -17,6 +17,7 @@ import {
   getCheckpoint,
   getEventStream,
   getEventStreamLength,
+  getProjectedCurrentState,
   getProjectedReplayArchive,
   getProjectionFrames,
   projectReplayArchive,
@@ -338,6 +339,33 @@ describe('replay projection', () => {
     expect(frames[0]?.sequence).toBe(1);
     expect(frames[0]?.eventSeq).toBe(7);
     expect(frames[0]?.message.type).toBe('gameStart');
+  });
+
+  it('derives current state from the latest projection frame', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'CURR-m1',
+      findBaseHex,
+    );
+    state.turnNumber = 3;
+    state.phase = 'combat';
+
+    await appendProjectionMessage(storage, 'CURR-m1', 8, {
+      type: 'stateUpdate',
+      state,
+    });
+
+    const projectedState = await getProjectedCurrentState(
+      storage,
+      'CURR-m1',
+      0,
+    );
+
+    expect(projectedState?.gameId).toBe('CURR-m1');
+    expect(projectedState?.turnNumber).toBe(3);
+    expect(projectedState?.phase).toBe('combat');
   });
 
   it('filters projected replay archives per viewer', async () => {
