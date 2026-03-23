@@ -72,11 +72,14 @@ export type EngineEvent =
   | {
       type: 'shipResupplied';
       shipId: string;
+      source: 'base' | 'orbitalBase';
+      sourceId?: string;
     }
   | {
       type: 'shipCaptured';
       shipId: string;
       capturedBy: number;
+      capturedByShipId: string;
     }
   | {
       type: 'shipDestroyed';
