@@ -1,14 +1,12 @@
 # Delta-V Architecture & Design Document
 
-Delta-V is an online multiplayer space combat and racing game. This document outlines the high-level architecture, core systems, design patterns, module-level analysis, and guidance for future work including reusability across other hex-based games.
+Delta-V is an online multiplayer space combat and racing game. This document outlines the current high-level architecture, core systems, design patterns, module-level analysis, and the main follow-up areas still worth pursuing.
 
-Where the codebase is in transition, this document
-distinguishes the current implementation from the
-accepted target architecture. The server now persists a
-match-scoped event stream plus checkpoints, and
-authoritative server recovery comes from checkpoint
-plus event tail rather than a separate
-Durable Object `gameState` snapshot slot.
+The authoritative server model is now event-sourced:
+the Durable Object persists a match-scoped event
+stream plus checkpoints, and authoritative recovery
+comes from checkpoint plus event tail rather than a
+separate persisted `gameState` snapshot slot.
 
 Platform references:
 - [Cloudflare Workers](https://developers.cloudflare.com/workers/)
@@ -61,22 +59,18 @@ client/          → State machine + Canvas renderer + DOM UI
 - **Scenario-driven.** `ScenarioRules` controls behaviour: ordnance types, base sharing, combat enabled, checkpoints, escape edges. New scenarios can vary gameplay without engine changes.
 - **Shared rule reuse across layers.** Client ordnance entry, HUD button visibility, and engine validation now all derive from the same shared ordnance-rule helpers, so restricted scenarios do not drift between UI and server authority.
 - **Hidden state filtering.** `filterStateForPlayer` hides fugitive identities in escape scenarios — the server never leaks information the client shouldn't have.
-- **Migration-friendly boundaries.** Mandatory RNG injection, stable per-match IDs, side-effect-free engine entry points, and narrow server/client contracts make an event-sourced migration feasible without throwing away the whole engine.
+- **Stable event-sourced boundaries.** Mandatory RNG injection, stable per-match IDs, side-effect-free engine entry points, and narrow server/client contracts make the authoritative event stream practical without throwing away the whole engine.
 
-### Patterns To Adopt Next
+### Next Improvements
 
-These are patterns the current architecture is already
-leaning toward, but has not finished adopting end to end:
+These are the main architectural follow-ups still open:
 
-- **Versioned event envelopes, not raw event arrays.**
-  `EngineEvent[]` is already a solid domain-level seam, but
-  the next step is wrapping those events in authoritative
-  envelopes with sequence numbers, actor identity,
-  timestamps, match identity, and explicit random outcomes.
-- **Projection parity tests.** Event-sourced rebuilds should
-  be checked against live state via full replay and
-  checkpoint-plus-tail replay, not assumed correct by
-  architecture alone.
+- **Persist explicit RNG outcomes where replay truly depends on chance.**
+  Event envelopes already carry sequence, actor, timestamp,
+  and match identity. The remaining deterministic gap is
+  storing authoritative random outcomes explicitly anywhere
+  future rebuilds should not depend on replaying `Math.random`
+  through changed code.
 - **Contract fixtures for protocol and replay payloads.**
   The validation layer is strong, but representative
   request/response fixtures would make later event/replay
@@ -111,31 +105,21 @@ This is the heart of the project. All game rules live in a shared folder, making
 
 #### Module Inventory
 
-| Module | LOC | Purpose | Reusability |
-|--------|-----|---------|-------------|
-| `hex.ts` | 306 | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
-| `util.ts` | 150 | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
-| `types/` | 384 | All interfaces: `GameState`, `Ship`, `Ordnance`, C2S/S2C messages, scenarios (split into `domain.ts`, `protocol.ts`, `scenario.ts`; all imports use bounded files directly, barrel retained for compatibility only) | Game-specific |
-| `protocol.ts` | 478 | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads) | Mostly generic |
-| `replay.ts` | 55 | Replay timeline structure and match identity builder | Game-specific |
-| `constants.ts` | 146 | Ship stats, ordnance mass, detection ranges, combat/movement constants | Game-specific |
-| `movement.ts` | 421 | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
-| `combat.ts` | 608 | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
-| `map-data.ts` | 713 | Solar system bodies, gravity rings, bases, 8 scenario definitions | Game-specific |
-| `ai.ts` | 676 | Rule-based AI with three difficulty levels and enforcer interception | Game-specific |
-| `ai-config.ts` | 250 | Per-difficulty AI scoring weights and strategy parameters | Game-specific |
-| `ai-scoring.ts` | 370 | Composable AI course scoring strategies (escape, nav, combat, gravity, race) | Game-specific |
-| `engine/game-engine.ts` | 58 | Barrel re-export: public engine API, result types, result classification helpers | Game-specific |
-| `engine/engine-events.ts` | 163 | `EngineEvent` discriminated union (22 granular domain event types) | Game-specific |
-| `engine/game-creation.ts` | 285 | Game initialization from scenario definition | Game-specific |
-| `engine/fleet-building.ts` | 126 | Fleet purchase phase (MegaCredit economy) | Game-specific |
-| `engine/astrogation.ts` | 271 | Order validation, ordnance launches, movement dispatch | Game-specific |
-| `engine/resolve-movement.ts` | 237 | Movement orchestrator: resolve orders, post-movement checks | Game-specific |
-| `engine/combat.ts` | 620 | Combat phase controller: asteroid hazards, attack validation, base defence | Game-specific |
-| `engine/ordnance.ts` | 597 | Ordnance launch/movement/detonation, asteroid hazard queuing | Game-specific |
-| `engine/logistics.ts` | 324 | Surrender, fuel/cargo transfers, looting, logistics phase | Game-specific |
-| `engine/victory.ts` | 743 | Victory conditions, turn advancement, reinforcements, fleet conversion | Game-specific |
-| `engine/util.ts` | 279 | Ship state helpers, game rule helpers, ordnance launch eligibility | Game-specific |
+| Module | Purpose | Reusability |
+|--------|---------|-------------|
+| `hex.ts` | Axial hex math: distance, neighbours, line draw, pixel conversion | **Fully generic** — zero game knowledge |
+| `util.ts` | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.) | **Fully generic** — no game knowledge |
+| `types/` | Shared interfaces for domain, protocol, and scenario data | Game-specific |
+| `protocol.ts` | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads) | Mostly generic |
+| `replay.ts` | Replay timeline structure and match identity builder | Game-specific |
+| `constants.ts` | Ship stats, ordnance mass, detection ranges, combat/movement constants | Game-specific |
+| `movement.ts` | Vector movement with gravity, fuel, takeoff/landing, crash detection | Game-specific |
+| `combat.ts` | Gun combat tables, LOS, range/velocity mods, heroism, counterattack | Game-specific |
+| `map-data.ts` | Solar system bodies, gravity rings, bases, and scenario definitions | Game-specific |
+| `ai.ts` / `ai-config.ts` / `ai-scoring.ts` | Rule-based AI and its scoring configuration | Game-specific |
+| `engine/game-engine.ts` | Barrel re-export for the public engine API | Game-specific |
+| `engine/engine-events.ts` | `EngineEvent` discriminated union (30 granular domain event types) | Game-specific |
+| `engine/*` phase modules | Game creation, fleet building, astrogation, movement, combat, ordnance, logistics, victory, and shared helpers | Game-specific |
 
 #### Key Design Patterns
 
@@ -144,7 +128,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 - **`combat.ts`**: Evaluates line-of-sight, calculates combat odds based on velocity/range modifiers, and resolves damage. Mutates ships directly (e.g., `applyDamage`, updating `ship.lifecycle`, heroism flags).
 - **`types/`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads), split into `domain.ts`, `protocol.ts`, and `scenario.ts` with a barrel re-export. This ensures the client and server never fall out of sync.
 - **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [RNG Injection](#rng-injection).
-- **Domain event emission**: All engine entry points emit `EngineEvent[]` (22 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, etc.) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
+- **Domain event emission**: All engine entry points emit `EngineEvent[]` (30 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
 
 #### Engine Mutation Model
 
@@ -165,7 +149,7 @@ All engine entry points (`processAstrogation`, `processCombat`, `skipCombat`, `b
 
 `createGame` and AI functions (`aiAstrogation`, `aiOrdnance`) accept optional `rng` with `Math.random` default, since they are setup/heuristic functions rather than turn-resolution functions.
 
-All server and client callers pass `Math.random` at the API boundary. Tests can pass deterministic RNGs for reproducible results. This enables deterministic debugging, simulation reproducibility, and AI comparison testing. In the planned event-sourced architecture, persisted events should record authoritative random outcomes explicitly rather than relying on replaying a seed through future code.
+All server and client callers pass `Math.random` at the API boundary. Tests can pass deterministic RNGs for reproducible results. This enables deterministic debugging, simulation reproducibility, and AI comparison testing. The remaining event-sourcing refinement here is to persist authoritative random outcomes explicitly anywhere future rebuilds should not depend on replaying a seed through future code.
 
 ### B. The Server (`server/`)
 The backend leverages Cloudflare's edge network.
@@ -216,12 +200,12 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 #### Module Inventory
 
-| Directory | Files | LOC | Purpose |
-|-----------|-------|-----|---------|
-| `client/` (root) | 8 | ~2290 | Entry point (`main.ts` ~890 LOC), raw input, audio, tutorial, DOM helpers, telemetry, viewport, reactive signals |
-| `client/game/` | 46 | ~6540 | Game logic: command routing, planning store, game-state store, state transitions, session control, phases, transport, actions, HUD controller, camera controller |
-| `client/renderer/` | 13 | ~4590 | Canvas rendering: camera, scene, entities, effects, overlays |
-| `client/ui/` | 15 | ~2670 | DOM overlays: menu, HUD, ship list, fleet building, game log, formatters, button bindings, screens |
+| Directory | Purpose |
+|-----------|---------|
+| `client/` (root) | Entry point, raw input, audio, tutorial, DOM helpers, telemetry, viewport, reactive signals |
+| `client/game/` | Game logic: command routing, planning store, game-state store, state transitions, session control, phases, transport, actions, HUD controller, camera controller |
+| `client/renderer/` | Canvas rendering: camera, scene, entities, effects, overlays |
+| `client/ui/` | DOM overlays: menu, HUD, ship list, fleet building, game log, formatters, button bindings, screens |
 
 #### Three-Layer Input Architecture
 
@@ -316,7 +300,7 @@ Game loop: C2S action → engine → save state/events → restart timer → bro
 Disconnect → 30s grace period → reconnect with token or forfeit
 ```
 
-### Planned Event-Sourced Match Lifecycle
+### Event-Sourced Match Lifecycle
 
 The current implementation follows this flow:
 
@@ -330,8 +314,8 @@ The current implementation follows this flow:
 5. The server broadcasts one state-bearing update plus
    any animation/log summaries needed by the client.
 
-Under that model, `GameState` snapshots become cached
-checkpoints and transport payloads rather than the
+Under that model, `GameState` snapshots are transport
+payloads and optional checkpoints rather than the
 authoritative persisted truth.
 
 ---
