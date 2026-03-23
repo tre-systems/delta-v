@@ -6,6 +6,8 @@ type DisposableLike = Dispose | { dispose: Dispose };
 
 export interface DisposalScope {
   add<T extends DisposableLike>(disposable: T): T;
+  effect(fn: () => void): Dispose;
+  computed<T>(fn: () => T): Computed<T>;
   dispose: Dispose;
 }
 
@@ -21,8 +23,29 @@ interface Context {
 }
 
 let active: Context | null = null;
+let activeScope: DisposalScope | null = null;
 let batchDepth = 0;
 const pending = new Set<() => void>();
+
+export const withScope = <T>(scope: DisposalScope, fn: () => T): T => {
+  const prev = activeScope;
+  activeScope = scope;
+  try {
+    return fn();
+  } finally {
+    activeScope = prev;
+  }
+};
+
+export const getCurrentScope = (): DisposalScope | null => activeScope;
+
+export const registerDisposer = (dispose: Dispose): void => {
+  if (ownerCleanups) {
+    ownerCleanups.push(dispose);
+  } else if (activeScope) {
+    activeScope.add(dispose);
+  }
+};
 
 // ── Signal ──────────────────────────────────────────────
 
@@ -69,7 +92,7 @@ export const createDisposalScope = (): DisposalScope => {
   const disposers: DisposableLike[] = [];
   let disposed = false;
 
-  return {
+  const scope: DisposalScope = {
     add(disposable) {
       if (disposed) {
         getDispose(disposable)();
@@ -78,6 +101,12 @@ export const createDisposalScope = (): DisposalScope => {
 
       disposers.push(disposable);
       return disposable;
+    },
+    effect(fn) {
+      return this.add(effect(fn));
+    },
+    computed(fn) {
+      return this.add(computed(fn));
     },
     dispose() {
       if (disposed) return;
@@ -93,6 +122,8 @@ export const createDisposalScope = (): DisposalScope => {
       }
     },
   };
+
+  return scope;
 };
 
 // ── Computed ────────────────────────────────────────────
@@ -158,7 +189,8 @@ export const effect = (fn: () => void): Dispose => {
     }
   };
 
-  if (ownerCleanups) ownerCleanups.push(dispose);
+  registerDisposer(dispose);
+
   run();
   return dispose;
 };
@@ -179,22 +211,3 @@ export const batch = (fn: () => void): void => {
     }
   }
 };
-
-// ── DOM helpers ─────────────────────────────────────────
-
-export const bindText = (
-  s: ReadonlySignal<unknown>,
-  el: HTMLElement,
-): Dispose =>
-  effect(() => {
-    el.textContent = String(s.value);
-  });
-
-export const bindClass = (
-  s: ReadonlySignal<boolean>,
-  el: HTMLElement,
-  cls: string,
-): Dispose =>
-  effect(() => {
-    el.classList.toggle(cls, s.value);
-  });

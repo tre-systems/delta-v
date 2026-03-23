@@ -5,12 +5,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   batch,
-  bindClass,
-  bindText,
   computed,
   createDisposalScope,
   effect,
+  getCurrentScope,
   signal,
+  withScope,
 } from './reactive';
 
 // ── Signal ──────────────────────────────────────────────
@@ -433,51 +433,6 @@ describe('diamond dependency', () => {
 
 // ── DOM helpers ─────────────────────────────────────────
 
-describe('bindText', () => {
-  it('sets textContent reactively', () => {
-    const el = document.createElement('span');
-    const s = signal('hello');
-
-    const dispose = bindText(s, el);
-
-    expect(el.textContent).toBe('hello');
-    s.value = 'world';
-    expect(el.textContent).toBe('world');
-
-    dispose();
-    s.value = 'gone';
-    expect(el.textContent).toBe('world');
-  });
-
-  it('coerces non-strings', () => {
-    const el = document.createElement('span');
-    const s = signal(42 as unknown);
-
-    bindText(s, el);
-
-    expect(el.textContent).toBe('42');
-  });
-});
-
-describe('bindClass', () => {
-  it('toggles class reactively', () => {
-    const el = document.createElement('div');
-    const s = signal(false);
-
-    const dispose = bindClass(s, el, 'active');
-
-    expect(el.classList.contains('active')).toBe(false);
-    s.value = true;
-    expect(el.classList.contains('active')).toBe(true);
-    s.value = false;
-    expect(el.classList.contains('active')).toBe(false);
-
-    dispose();
-    s.value = true;
-    expect(el.classList.contains('active')).toBe(false);
-  });
-});
-
 describe('createDisposalScope', () => {
   it('disposes registered cleanups in reverse order and only once', () => {
     const scope = createDisposalScope();
@@ -504,6 +459,110 @@ describe('createDisposalScope', () => {
     scope.add(dispose);
 
     expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('provides helper for scoped effect', () => {
+    const scope = createDisposalScope();
+    const s = signal(0);
+    const spy = vi.fn();
+
+    scope.effect(() => {
+      spy(s.value);
+    });
+
+    expect(spy).toHaveBeenCalledWith(0);
+    s.value = 1;
+    expect(spy).toHaveBeenCalledWith(1);
+
+    scope.dispose();
+    s.value = 2;
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('provides helper for scoped computed', () => {
+    const scope = createDisposalScope();
+    const s = signal(10);
+    const c = scope.computed(() => s.value * 2);
+
+    expect(c.value).toBe(20);
+    s.value = 5;
+    expect(c.value).toBe(10);
+
+    scope.dispose();
+    s.value = 100;
+    // Disposed computed should stop updating
+    expect(c.peek()).toBe(10);
+  });
+
+  describe('implicit scoping', () => {
+    it('returns value from withScope', () => {
+      const scope = createDisposalScope();
+      const result = withScope(scope, () => 42);
+      expect(result).toBe(42);
+    });
+
+    it('sets and restores activeScope', () => {
+      const scope = createDisposalScope();
+      expect(getCurrentScope()).toBeNull();
+
+      withScope(scope, () => {
+        expect(getCurrentScope()).toBe(scope);
+      });
+
+      expect(getCurrentScope()).toBeNull();
+    });
+
+    it('auto-registers effects with withScope', () => {
+      const scope = createDisposalScope();
+      const s = signal(0);
+      const spy = vi.fn();
+
+      withScope(scope, () => {
+        effect(() => {
+          spy(s.value);
+        });
+      });
+
+      expect(spy).toHaveBeenCalledWith(0);
+      s.value = 1;
+      expect(spy).toHaveBeenCalledWith(1);
+
+      scope.dispose();
+      s.value = 2;
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it('prefers ownerCleanups over activeScope', () => {
+      const scope = createDisposalScope();
+      const s = signal(0);
+      const outerSpy = vi.fn();
+      const innerSpy = vi.fn();
+
+      withScope(scope, () => {
+        effect(() => {
+          outerSpy(s.value);
+          // This inner effect should be owned by the outer effect,
+          // not directly by the scope.
+          effect(() => {
+            innerSpy(s.value);
+          });
+        });
+      });
+
+      expect(outerSpy).toHaveBeenCalledTimes(1);
+      expect(innerSpy).toHaveBeenCalledTimes(1);
+
+      // Change signal: outer re-runs, should dispose inner
+      s.value = 1;
+      expect(outerSpy).toHaveBeenCalledTimes(2);
+      expect(innerSpy).toHaveBeenCalledTimes(2);
+
+      // Dispose scope: should dispose outer (and thus inner)
+      scope.dispose();
+      s.value = 2;
+      expect(outerSpy).toHaveBeenCalledTimes(2);
+      expect(innerSpy).toHaveBeenCalledTimes(2);
+    });
   });
 });
 

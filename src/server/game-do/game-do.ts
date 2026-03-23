@@ -45,6 +45,7 @@ import {
   allocateMatchIdentity,
   appendEnvelopedEvents,
   appendEvents,
+  appendProjectionMessage,
   appendReplayMessage,
   getEventStreamLength,
   getProjectedReplayArchive,
@@ -697,6 +698,7 @@ export class GameDO extends DurableObject<Env> {
     const matchNumber = await this.ctx.storage.get<number>('matchNumber');
     const replayMessage = resolveStateBearingMessage(state, primaryMessage);
     await this.saveGameState(state);
+    let eventSeq = await getEventStreamLength(this.ctx.storage, state.gameId);
 
     if (events.length > 0) {
       await appendEvents(this.ctx.storage, ...events);
@@ -706,6 +708,7 @@ export class GameDO extends DurableObject<Env> {
         actor,
         ...events,
       );
+      eventSeq = await getEventStreamLength(this.ctx.storage, state.gameId);
     }
 
     if (matchNumber !== undefined) {
@@ -716,14 +719,19 @@ export class GameDO extends DurableObject<Env> {
         replayMessage,
       );
     }
+    await appendProjectionMessage(
+      this.ctx.storage,
+      state.gameId,
+      eventSeq,
+      replayMessage,
+    );
     // Save checkpoint at turn boundaries and game end
     const hasTurnBoundary = events.some(
       (e) => e.type === 'turnAdvanced' || e.type === 'gameOver',
     );
 
     if (hasTurnBoundary) {
-      const seq = await getEventStreamLength(this.ctx.storage, state.gameId);
-      await saveCheckpoint(this.ctx.storage, state.gameId, state, seq);
+      await saveCheckpoint(this.ctx.storage, state.gameId, state, eventSeq);
     }
     // Archive completed match to R2 for persistent analysis
     const hasGameOver = events.some((e) => e.type === 'gameOver');
@@ -939,6 +947,12 @@ export class GameDO extends DurableObject<Env> {
 
     await appendEvents(this.ctx.storage, ...initEvents);
     await appendEnvelopedEvents(this.ctx.storage, gameId, null, ...initEvents);
+    await appendProjectionMessage(
+      this.ctx.storage,
+      gameId,
+      await getEventStreamLength(this.ctx.storage, gameId),
+      gameStartMessage,
+    );
     this.broadcastFiltered(gameStartMessage);
     await this.startTurnTimer(gameState);
   }

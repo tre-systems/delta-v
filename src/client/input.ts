@@ -8,7 +8,7 @@ import {
   getWheelZoomFactor,
   resolveMinimapCameraTarget,
 } from './input-interaction';
-import { createDisposalScope } from './reactive';
+import { createDisposalScope, withScope } from './reactive';
 import type { Camera } from './renderer/camera';
 import { HEX_SIZE } from './renderer/renderer';
 
@@ -27,88 +27,70 @@ export class InputHandler {
     this.camera = camera;
     this.onInput = onInput;
 
-    // Mouse events
-    this.scope.add(
+    withScope(this.scope, () => {
+      // Mouse events
       listen(canvas, 'mousedown', (event) => {
         const e = event as MouseEvent;
-
         this.onPointerDown(e.clientX, e.clientY);
-      }),
-    );
-    this.scope.add(
+      });
+
       listen(canvas, 'mousemove', (event) => {
         const e = event as MouseEvent;
-
         this.onPointerMove(e.clientX, e.clientY);
-      }),
-    );
-    this.scope.add(
+      });
+
       listen(window, 'mouseup', (event) => {
         const e = event as MouseEvent;
-
         this.onPointerUp(e.clientX, e.clientY);
-      }),
-    );
-    this.scope.add(
+      });
+
       listen(canvas, 'dblclick', (event) => {
         const e = event as MouseEvent;
-
         this.handleDoubleClick(e.clientX, e.clientY);
-      }),
-    );
+      });
 
-    this.scope.add(
       listen(
         canvas,
         'wheel',
         (event) => {
           const e = event as WheelEvent;
-
           e.preventDefault();
           const factor = getWheelZoomFactor(e.deltaY, e.ctrlKey);
           this.camera.zoomAt(e.clientX, e.clientY, factor);
         },
         { passive: false },
-      ),
-    );
+      );
 
-    // Touch events
-    this.scope.add(
+      // Touch events
       listen(
         canvas,
         'touchstart',
         (event) => {
           const e = event as TouchEvent;
-
           this.onTouchStart(e);
         },
         { passive: false },
-      ),
-    );
-    this.scope.add(
+      );
+
       listen(
         canvas,
         'touchmove',
         (event) => {
           const e = event as TouchEvent;
-
           this.onTouchMove(e);
         },
         { passive: false },
-      ),
-    );
-    this.scope.add(
+      );
+
       listen(canvas, 'touchend', (event) => {
         const e = event as TouchEvent;
-
         this.onTouchEnd(e);
-      }),
-    );
-    this.scope.add(
+      });
+
       listen(canvas, 'touchcancel', () => {
         this.onTouchCancel();
-      }),
-    );
+      });
+    });
   }
 
   setMap(map: SolarSystemMap) {

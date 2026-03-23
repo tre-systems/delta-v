@@ -3,8 +3,14 @@ import type {
   MovementEvent,
   Ship,
 } from '../../shared/types/domain';
-import { byId, clearHTML, el, listen } from '../dom';
-import { computed, createDisposalScope, effect, signal } from '../reactive';
+import { byId, clearHTML, el, listen, text, visible } from '../dom';
+import {
+  computed,
+  createDisposalScope,
+  effect,
+  signal,
+  withScope,
+} from '../reactive';
 import {
   formatCombatResultEntries,
   formatMovementEventEntry,
@@ -83,103 +89,6 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
     expandedSignal.value = true;
     scrollToBottom();
   };
-
-  scope.add(
-    listen(chatInput, 'keydown', (event) => {
-      event.stopPropagation();
-      const ke = event as KeyboardEvent;
-
-      if (ke.key !== 'Enter') return;
-
-      const text = chatInput.value.trim();
-
-      if (!text) return;
-
-      deps.onChat(text);
-      chatInput.value = '';
-    }),
-  );
-
-  scope.add(
-    listen(logLatestBar, 'click', () => {
-      expand();
-    }),
-  );
-
-  scope.add(
-    listen(gameLogEl, 'click', (event) => {
-      if ((event.target as HTMLElement).closest('.chat-input')) {
-        return;
-      }
-      collapse();
-    }),
-  );
-
-  const latestBarCopySignal = scope.add(
-    computed(() => {
-      const statusText = statusTextSignal.value;
-      const lastLogText = lastLogTextSignal.value;
-      const lastLogClass = lastLogClassSignal.value;
-
-      return {
-        text: statusText ?? lastLogText,
-        cssClass: statusText ? 'log-status' : lastLogClass,
-      };
-    }),
-  );
-
-  const visibilitySignal = scope.add(
-    computed(() => {
-      const mode = screenModeSignal.value;
-
-      if (mode === 'hud') {
-        const expanded = expandedSignal.value;
-
-        return {
-          gameLog: expanded ? 'flex' : 'none',
-          latestBar: expanded ? 'none' : 'block',
-        };
-      }
-
-      const visibility = buildScreenVisibility(mode);
-
-      return {
-        gameLog: visibility.gameLog,
-        latestBar: 'none',
-      };
-    }),
-  );
-
-  scope.add(
-    effect(() => {
-      const copy = latestBarCopySignal.value;
-      logLatestText.textContent = copy.text;
-      logLatestText.className = `log-latest-text ${copy.cssClass}`;
-    }),
-  );
-
-  scope.add(
-    effect(() => {
-      const visibility = visibilitySignal.value;
-
-      gameLogEl.style.display = visibility.gameLog;
-      logLatestBar.style.display = visibility.latestBar;
-    }),
-  );
-
-  scope.add(
-    effect(() => {
-      const status = statusTextSignal.value;
-      logStatusBar.style.display = status ? '' : 'none';
-      logStatusText.textContent = status ?? '';
-    }),
-  );
-
-  scope.add(
-    effect(() => {
-      chatInputRow.style.display = chatEnabledSignal.value ? '' : 'none';
-    }),
-  );
 
   const setPlayerId = (id: number): void => {
     playerId = id;
@@ -285,6 +194,84 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   const dispose = (): void => {
     scope.dispose();
   };
+
+  withScope(scope, () => {
+    listen(chatInput, 'keydown', (event) => {
+      event.stopPropagation();
+      const ke = event as KeyboardEvent;
+
+      if (ke.key !== 'Enter') return;
+
+      const text = chatInput.value.trim();
+
+      if (!text) return;
+
+      deps.onChat(text);
+      chatInput.value = '';
+    });
+
+    listen(logLatestBar, 'click', () => {
+      expand();
+    });
+
+    listen(gameLogEl, 'click', (event) => {
+      if ((event.target as HTMLElement).closest('.chat-input')) {
+        return;
+      }
+      collapse();
+    });
+
+    const latestBarCopySignal = computed(() => {
+      const statusText = statusTextSignal.value;
+      const lastLogText = lastLogTextSignal.value;
+      const lastLogClass = lastLogClassSignal.value;
+
+      return {
+        text: statusText ?? lastLogText,
+        cssClass: statusText ? 'log-status' : lastLogClass,
+      };
+    });
+
+    const visibilitySignal = computed(() => {
+      const mode = screenModeSignal.value;
+
+      if (mode === 'hud') {
+        const expanded = expandedSignal.value;
+
+        return {
+          gameLog: expanded ? 'flex' : 'none',
+          latestBar: expanded ? 'none' : 'block',
+        };
+      }
+
+      const visibility = buildScreenVisibility(mode);
+
+      return {
+        gameLog: visibility.gameLog,
+        latestBar: 'none',
+      };
+    });
+
+    effect(() => {
+      const copy = latestBarCopySignal.value;
+      text(logLatestText, copy.text);
+      logLatestText.className = `log-latest-text ${copy.cssClass}`;
+    });
+
+    effect(() => {
+      const v = visibilitySignal.value;
+      visible(gameLogEl, v.gameLog !== 'none', v.gameLog);
+      visible(logLatestBar, v.latestBar !== 'none', v.latestBar);
+    });
+
+    effect(() => {
+      const status = statusTextSignal.value;
+      visible(logStatusBar, !!status);
+      text(logStatusText, status ?? '');
+    });
+
+    visible(chatInputRow, chatEnabledSignal);
+  });
 
   return {
     setPlayerId,

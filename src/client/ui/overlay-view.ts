@@ -1,5 +1,5 @@
-import { byId, el, hide, listen, show } from '../dom';
-import { createDisposalScope } from '../reactive';
+import { byId, el, listen, text, visible } from '../dom';
+import { createDisposalScope, withScope } from '../reactive';
 import { getPhaseAlertCopy } from './formatters';
 import {
   buildGameOverView,
@@ -58,13 +58,6 @@ export const createOverlayView = (): OverlayView => {
     phaseAlertTimer = null;
   };
 
-  scope.add(
-    listen(reconnectCancelBtn, 'click', () => {
-      hide(reconnectOverlayEl);
-      reconnectCancelHandler?.();
-    }),
-  );
-
   const gameOverStatsEl = byId('gameOverStats');
 
   const showGameOver = (
@@ -74,9 +67,9 @@ export const createOverlayView = (): OverlayView => {
   ): void => {
     const view = buildGameOverView(won, reason, stats);
 
-    gameOverTextEl.textContent = view.titleText;
+    text(gameOverTextEl, view.titleText);
     gameOverTextEl.className = won ? 'game-over-victory' : 'game-over-defeat';
-    gameOverReasonEl.textContent = view.reasonText;
+    text(gameOverReasonEl, view.reasonText);
 
     // Render stat lines
     gameOverStatsEl.innerHTML = '';
@@ -99,17 +92,17 @@ export const createOverlayView = (): OverlayView => {
 
     // Entrance animation
     gameOverEl.classList.remove('game-over-enter');
-    show(gameOverEl, 'flex');
+    visible(gameOverEl, true, 'flex');
     void gameOverEl.offsetWidth;
     gameOverEl.classList.add('game-over-enter');
 
-    rematchBtn.textContent = view.rematchText;
+    text(rematchBtn, view.rematchText);
     rematchBtn.removeAttribute('disabled');
   };
 
   const showRematchPending = (): void => {
     const view = buildRematchPendingView();
-    rematchBtn.textContent = view.rematchText;
+    text(rematchBtn, view.rematchText);
 
     if (view.rematchDisabled) {
       rematchBtn.setAttribute('disabled', 'true');
@@ -118,7 +111,7 @@ export const createOverlayView = (): OverlayView => {
 
   const hideReconnecting = (): void => {
     reconnectCancelHandler = null;
-    hide(reconnectOverlayEl);
+    visible(reconnectOverlayEl, false);
   };
 
   const showReconnecting = (
@@ -129,9 +122,9 @@ export const createOverlayView = (): OverlayView => {
     const view = buildReconnectView(attempt, maxAttempts);
 
     reconnectCancelHandler = onCancel;
-    show(reconnectOverlayEl, 'flex');
-    reconnectTextEl.textContent = view.reconnectText;
-    reconnectAttemptEl.textContent = view.attemptText;
+    visible(reconnectOverlayEl, true, 'flex');
+    text(reconnectTextEl, view.reconnectText);
+    text(reconnectAttemptEl, view.attemptText);
   };
 
   const showToast = (
@@ -156,8 +149,8 @@ export const createOverlayView = (): OverlayView => {
   const showPhaseAlert = (phase: string, isMyTurn: boolean): void => {
     const copy = getPhaseAlertCopy(phase, isMyTurn);
 
-    phaseAlertTitleEl.textContent = copy.title;
-    phaseAlertSubtitleEl.textContent = copy.subtitle;
+    text(phaseAlertTitleEl, copy.title);
+    text(phaseAlertSubtitleEl, copy.subtitle);
     phaseAlertSubtitleEl.style.color = copy.subtitleColor;
 
     phaseAlertEl.classList.remove('active');
@@ -181,6 +174,13 @@ export const createOverlayView = (): OverlayView => {
     toastTimers.clear();
     scope.dispose();
   };
+
+  withScope(scope, () => {
+    listen(reconnectCancelBtn, 'click', () => {
+      visible(reconnectOverlayEl, false);
+      reconnectCancelHandler?.();
+    });
+  });
 
   return {
     showGameOver,

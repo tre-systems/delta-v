@@ -13,10 +13,12 @@ import {
 import { createReplayArchive } from '../../shared/replay';
 import {
   appendEnvelopedEvents,
+  appendProjectionMessage,
   getCheckpoint,
   getEventStream,
   getEventStreamLength,
   getProjectedReplayArchive,
+  getProjectionFrames,
   projectReplayArchive,
   saveCheckpoint,
   saveReplayArchive,
@@ -316,6 +318,28 @@ describe('projection parity: replay archive vs live state', () => {
 });
 
 describe('replay projection', () => {
+  it('persists projection frames with event sequence metadata', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'FRAME-m1',
+      findBaseHex,
+    );
+
+    await appendProjectionMessage(storage, 'FRAME-m1', 7, {
+      type: 'gameStart',
+      state,
+    });
+
+    const frames = await getProjectionFrames(storage, 'FRAME-m1');
+
+    expect(frames).toHaveLength(1);
+    expect(frames[0]?.sequence).toBe(1);
+    expect(frames[0]?.eventSeq).toBe(7);
+    expect(frames[0]?.message.type).toBe('gameStart');
+  });
+
   it('filters projected replay archives per viewer', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const state = createGame(
@@ -342,6 +366,11 @@ describe('replay projection', () => {
         1_700_000_000_000,
       ),
     );
+
+    await appendProjectionMessage(storage, 'VIEW-m1', 1, {
+      type: 'gameStart',
+      state,
+    });
 
     const projected = await getProjectedReplayArchive(storage, 'VIEW-m1', 1);
 
@@ -380,6 +409,40 @@ describe('replay projection', () => {
   });
 
   it('returns null when neither replay archive nor checkpoint exists', () => {
-    expect(projectReplayArchive(null, null, 0)).toBeNull();
+    expect(projectReplayArchive(null, null, [], 0)).toBeNull();
+  });
+
+  it('projects checkpoint plus tail frames instead of replay archive snapshots', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const checkpointState = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'TAILS-m1',
+      findBaseHex,
+    );
+    checkpointState.turnNumber = 2;
+    checkpointState.phase = 'ordnance';
+
+    const tailState = structuredClone(checkpointState);
+    tailState.turnNumber = 3;
+    tailState.phase = 'combat';
+
+    await saveCheckpoint(storage, 'TAILS-m1', checkpointState, 4);
+    await appendProjectionMessage(storage, 'TAILS-m1', 4, {
+      type: 'stateUpdate',
+      state: checkpointState,
+    });
+    await appendProjectionMessage(storage, 'TAILS-m1', 5, {
+      type: 'stateUpdate',
+      state: tailState,
+    });
+
+    const projected = await getProjectedReplayArchive(storage, 'TAILS-m1', 0);
+
+    expect(projected).not.toBeNull();
+    expect(projected?.entries).toHaveLength(2);
+    expect(projected?.entries[0]?.turn).toBe(2);
+    expect(projected?.entries[1]?.turn).toBe(3);
+    expect(projected?.entries[1]?.phase).toBe('combat');
   });
 });

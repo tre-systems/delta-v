@@ -2,12 +2,17 @@
 
 Remaining work only. Completed items are in git history.
 
-This backlog is ordered by near-term delivery priority,
-not by subsystem ownership. The immediate slice comes
-first even when it crosses protocol, security, client,
-and server boundaries. Replay and spectator tests are
-part of each item's definition of done and should land
-with the feature, not as a cleanup pass afterward.
+---
+
+## CRITICAL BUGS
+
+### Missing Combat Preview UI
+
+The combat preview overlay (odds, range/velocity modifiers, and counterattack label) is not rendered when a target is selected. This makes it impossible for players to evaluate tactical risk without manual calculation. 
+
+- **Symptom**: Red selection circle appears, but no tactical overlay is shown. `FIRE ALL` and `ATTACK` buttons are hidden in the DOM.
+- **Fix**: Verify why `getCombatPreview` returns null or why the rendering loop in `overlay.ts` is skipped.
+- **Files:** `src/client/renderer/combat.ts`, `src/client/renderer/overlay.ts`
 
 ---
 
@@ -111,6 +116,23 @@ integration tests.
 ---
 
 ## Performance & UX
+
+### Mobile HUD Margins & Crowding
+
+The in-game HUD is extremely tight on 375px viewports (standard mobile).
+- **Issue**: Top bar text (Turn, Fuel, Objective) has almost zero margin and may overflow with long objectives.
+- **Issue**: Ship status cards are flush against the left edge, potentially conflicting with device "safe areas" (notches/rounded corners).
+- **Fix**: Add padding to the top bar and status cards; use a more resilient layout for long objective text.
+
+**Files:** `src/client/ui/ui.css`, `src/client/ui/ui.ts`
+
+### Logistics Phase "Quality of Life"
+
+Triggering the Logistics phase (fuel transfer) is currently too difficult for average players.
+- **Issue**: Requires exact hex and velocity matching, which is tedious to plot across multiple turns.
+- **Improvement**: Add a "Match Velocity" or "Plot Intercept" helper to the astrogation UI when a friendly ship is nearby.
+
+**Files:** `src/client/game/planning.ts`, `src/client/renderer/vectors.ts`
 
 ### OffscreenCanvas layer caching for renderer
 

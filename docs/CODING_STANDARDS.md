@@ -63,12 +63,13 @@ Guidance:
 ### DOM helpers
 
 Use `src/client/dom.ts` helpers for declarative DOM construction in UI code:
-
-- **`el(tag, props, ...children)`** — Create elements with class, text, handlers, and children in one expression instead of multi-line createElement/className/addEventListener/appendChild chains.
-- **`visible(el, condition)` / `show(el)` / `hide(el)`** — Toggle display instead of writing `.style.display = condition ? 'block' : 'none'` everywhere.
-- **`byId(id)`** — Typed `getElementById` that throws on missing elements, replacing `document.getElementById('x')!` non-null assertions.
-- **`listen(target, event, handler)`** — Bind an event listener and return a disposer. Use `scope.add(listen(...))` instead of manual addEventListener/removeEventListener pairs.
-- **`renderList(container, items, renderItem)`** — Clear a container and render a list of items. Use for collection-heavy views (ship lists, fleet shop/cart) instead of manual clearHTML → for-loop → appendChild.
+- **`el(tag, props, ...children)`** — Create elements with class, text, handlers, and children in one expression.
+- **`visible(el, condition, display?)`** — "Smart Helper" that accepts a boolean or a `ReadonlySignal<boolean>`. If a signal is provided, it automatically creates an `effect` within the active scope.
+- **`text(el, value)`** — "Smart Helper" that sets `textContent`. Accepts static values or `ReadonlySignal<unknown>`, automatically creating an `effect` for signals.
+- **`cls(el, name, condition)`** — "Smart Helper" that toggles a class. Accepts a boolean or `ReadonlySignal<boolean>`, automatically creating an `effect` for signals.
+- **`byId(id)`** — Typed `getElementById` that throws on missing elements.
+- **`listen(target, event, handler)`** — Bind an event listener and automatically register it with the active scope for cleanup.
+- **`renderList(container, items, renderItem)`** — Clear a container and render a list of items.
 
 Prefer `el()` for building element trees programmatically.
 
@@ -327,17 +328,19 @@ State belongs to the coordinator that manages its lifecycle, and is passed by re
 
 `src/client/reactive.ts` is a zero-dependency signals library
 (~150 LOC) providing `signal`, `computed`, `effect`, `batch`,
-DOM helpers (`bindText`, `bindClass`), and
-`createDisposalScope()`. It is now used in the DOM UI layer
-for view-local state and derived DOM synchronization:
-`HUDChromeView`, `GameLogView`, `LobbyView`,
-`FleetBuildingView`, `ShipListView`, and `UIManager`
-ownership/cleanup.
+`withScope`, `registerDisposer`, and `createDisposalScope()`.
+It is used in the DOM UI layer for view-local state and derived
+DOM synchronization.
 
-Use `reactive.ts` for **small, local, stateful DOM views**:
-copy, visibility, button state, breakpoint-driven text, and
-other derived UI state that would otherwise be manually kept
-in sync across several methods.
+Use `reactive.ts` for **small, local, stateful DOM views**.
+The "Smart Helpers" (`visible`, `text`, `cls`) in `dom.ts`
+automatically leverage signals when provided, reducing boilerplate.
+
+Rules for reactive UI code:
+
+- **Use implicit scoping**. Wrap UI initialization in `withScope(scope, () => { ... })` at the end of factory functions. This automatically registers `effect`, `computed`, and `listen` calls for cleanup.
+- Own effects explicitly. Any view or manager that creates a scope should expose `dispose()`.
+- Keep the `withScope` block minimal and consistent. Prefer placing it at the very beginning or end of the UI definition function.
 
 Do **not** use it as a general app-state store. `GameClient`,
 the renderer, the transport/session layer, and the shared

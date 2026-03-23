@@ -1,7 +1,7 @@
 import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
-import { byId, listen, setTrustedHTML } from '../dom';
-import { createDisposalScope, effect, signal } from '../reactive';
+import { byId, cls, listen, setTrustedHTML, text } from '../dom';
+import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import type { AIDifficulty, UIEvent } from './events';
 import { parseJoinInput } from './formatters';
 import { buildWaitingScreenCopy } from './screens';
@@ -86,134 +86,32 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       scenarioListEl.appendChild(btn);
     }
 
-    scope.add(
-      listen(scenarioListEl, 'click', (event) => {
-        const button = (event.target as HTMLElement).closest<HTMLElement>(
-          '.btn-scenario',
-        );
-        const scenario = button?.dataset.scenario;
+    listen(scenarioListEl, 'click', (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLElement>(
+        '.btn-scenario',
+      );
+      const scenario = button?.dataset.scenario;
 
-        if (!scenario) {
-          return;
-        }
+      if (!scenario) {
+        return;
+      }
 
-        if (pendingAIGameSignal.peek()) {
-          pendingAIGameSignal.value = false;
-          deps.emit({
-            type: 'startSinglePlayer',
-            scenario,
-            difficulty: aiDifficultySignal.peek(),
-          });
-          return;
-        }
-
+      if (pendingAIGameSignal.peek()) {
+        pendingAIGameSignal.value = false;
         deps.emit({
-          type: 'selectScenario',
+          type: 'startSinglePlayer',
           scenario,
+          difficulty: aiDifficultySignal.peek(),
         });
-      }),
-    );
+        return;
+      }
+
+      deps.emit({
+        type: 'selectScenario',
+        scenario,
+      });
+    });
   };
-
-  scope.add(
-    listen(createBtn, 'click', () => {
-      deps.showScenarioSelect();
-    }),
-  );
-
-  scope.add(
-    listen(singlePlayerBtn, 'click', () => {
-      pendingAIGameSignal.value = true;
-      deps.showScenarioSelect();
-    }),
-  );
-
-  scope.add(
-    listen(backBtn, 'click', () => {
-      deps.emit({ type: 'backToMenu' });
-      deps.showMenu();
-    }),
-  );
-
-  for (const btn of difficultyButtons) {
-    scope.add(
-      listen(btn, 'click', (event) => {
-        event.stopPropagation();
-        aiDifficultySignal.value = btn.dataset.difficulty as AIDifficulty;
-      }),
-    );
-  }
-
-  scope.add(
-    listen(joinBtn, 'click', () => {
-      submitJoin(codeInputEl.value);
-    }),
-  );
-
-  scope.add(
-    listen(codeInputEl, 'keydown', (event) => {
-      if ((event as KeyboardEvent).key === 'Enter') {
-        submitJoin((event.target as HTMLInputElement).value);
-      }
-    }),
-  );
-
-  scope.add(
-    listen(copyBtn, 'click', () => {
-      const code = gameCodeEl.textContent ?? '';
-      const url = `${window.location.origin}/?code=${code}`;
-      const copyText =
-        deps.copyText ??
-        ((text: string) => navigator.clipboard?.writeText(text));
-      const copyPromise = copyText(url);
-
-      void copyPromise
-        ?.then(() => {
-          copyButtonTextSignal.value = 'Copied!';
-          clearCopyResetTimer();
-          copyResetTimer = window.setTimeout(() => {
-            copyButtonTextSignal.value = 'Copy Link';
-            copyResetTimer = null;
-          }, 2000);
-        })
-        .catch(() => {});
-    }),
-  );
-
-  scope.add(
-    effect(() => {
-      const loading = loadingSignal.value;
-      createBtn.disabled = loading;
-      createBtn.textContent = loading ? 'CREATING...' : 'Create Game';
-    }),
-  );
-
-  scope.add(
-    effect(() => {
-      const diff = aiDifficultySignal.value;
-
-      for (const btn of difficultyButtons) {
-        btn.classList.toggle('active', btn.dataset.difficulty === diff);
-      }
-    }),
-  );
-
-  scope.add(
-    effect(() => {
-      const copy = waitingCopySignal.value;
-
-      gameCodeEl.textContent = copy.codeText;
-      waitingStatusEl.textContent = copy.statusText;
-    }),
-  );
-
-  scope.add(
-    effect(() => {
-      copyBtn.textContent = copyButtonTextSignal.value;
-    }),
-  );
-
-  bindScenarioList();
 
   const onMenuShown = (): void => {
     pendingAIGameSignal.value = false;
@@ -235,6 +133,84 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     clearCopyResetTimer();
     scope.dispose();
   };
+
+  bindScenarioList();
+
+  withScope(scope, () => {
+    listen(createBtn, 'click', () => {
+      deps.showScenarioSelect();
+    });
+
+    listen(singlePlayerBtn, 'click', () => {
+      pendingAIGameSignal.value = true;
+      deps.showScenarioSelect();
+    });
+
+    listen(backBtn, 'click', () => {
+      deps.emit({ type: 'backToMenu' });
+      deps.showMenu();
+    });
+
+    for (const btn of difficultyButtons) {
+      listen(btn, 'click', (event) => {
+        event.stopPropagation();
+        aiDifficultySignal.value = btn.dataset.difficulty as AIDifficulty;
+      });
+    }
+
+    listen(joinBtn, 'click', () => {
+      submitJoin(codeInputEl.value);
+    });
+
+    listen(codeInputEl, 'keydown', (event) => {
+      if ((event as KeyboardEvent).key === 'Enter') {
+        submitJoin((event.target as HTMLInputElement).value);
+      }
+    });
+
+    listen(copyBtn, 'click', () => {
+      const code = gameCodeEl.textContent ?? '';
+      const url = `${window.location.origin}/?code=${code}`;
+      const copyText =
+        deps.copyText ??
+        ((text: string) => navigator.clipboard?.writeText(text));
+      const copyPromise = copyText(url);
+
+      void copyPromise
+        ?.then(() => {
+          copyButtonTextSignal.value = 'Copied!';
+          clearCopyResetTimer();
+          copyResetTimer = window.setTimeout(() => {
+            copyButtonTextSignal.value = 'Copy Link';
+            copyResetTimer = null;
+          }, 2000);
+        })
+        .catch(() => {});
+    });
+
+    effect(() => {
+      const loading = loadingSignal.value;
+      createBtn.disabled = loading;
+      text(createBtn, loading ? 'CREATING...' : 'Create Game');
+    });
+
+    effect(() => {
+      const diff = aiDifficultySignal.value;
+
+      for (const btn of difficultyButtons) {
+        cls(btn, 'active', btn.dataset.difficulty === diff);
+      }
+    });
+
+    effect(() => {
+      const copy = waitingCopySignal.value;
+
+      text(gameCodeEl, copy.codeText);
+      text(waitingStatusEl, copy.statusText);
+    });
+
+    text(copyBtn, copyButtonTextSignal);
+  });
 
   return {
     onMenuShown,

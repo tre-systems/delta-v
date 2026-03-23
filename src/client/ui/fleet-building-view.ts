@@ -1,19 +1,12 @@
 import type { FleetPurchase, GameState } from '../../shared/types/domain';
-import {
-  byId,
-  clearHTML,
-  hide,
-  listen,
-  renderList,
-  setTrustedHTML,
-  show,
-} from '../dom';
+import { byId, clearHTML, el, listen, renderList, text, visible } from '../dom';
 import {
   batch,
   computed,
   createDisposalScope,
   effect,
   signal,
+  withScope,
 } from '../reactive';
 import { canAddFleetShip, getFleetCartView, getFleetShopView } from './fleet';
 
@@ -26,9 +19,6 @@ export interface FleetBuildingView {
   showWaiting: () => void;
   dispose: () => void;
 }
-
-const EMPTY_CART_HTML =
-  '<span style="color:#556;font-size:0.75rem;padding:0.2rem">Click ships above to add</span>';
 
 export const createFleetBuildingView = (
   deps: FleetBuildingViewDeps,
@@ -44,132 +34,6 @@ export const createFleetBuildingView = (
   const readyBtn = byId('fleetReadyBtn');
   const clearBtn = byId('fleetClearBtn');
   const waitingEl = byId('fleetWaiting');
-
-  scope.add(
-    listen(readyBtn, 'click', () => {
-      deps.onFleetReady([...cartSignal.value]);
-    }),
-  );
-
-  scope.add(
-    listen(clearBtn, 'click', () => {
-      cartSignal.value = [];
-    }),
-  );
-
-  const cartViewSignal = scope.add(
-    computed(() =>
-      getFleetCartView(cartSignal.value, totalCreditsSignal.value),
-    ),
-  );
-  const shopViewSignal = scope.add(
-    computed(() =>
-      getFleetShopView(cartSignal.value, totalCreditsSignal.value),
-    ),
-  );
-
-  scope.add(
-    effect(() => {
-      const cartView = cartViewSignal.value;
-
-      creditsEl.textContent = cartView.remainingLabel;
-
-      if (cartView.isEmpty) {
-        clearHTML(cartEl);
-        setTrustedHTML(cartEl, EMPTY_CART_HTML);
-        return;
-      }
-
-      renderList(cartEl, cartView.items, (itemView, index) => {
-        const chip = document.createElement('div');
-        chip.className = 'fleet-cart-chip';
-        setTrustedHTML(
-          chip,
-          `${itemView.label} <span class="chip-remove">&times;</span>`,
-        );
-
-        chip.addEventListener('click', () => {
-          const newCart = [...cartSignal.peek()];
-          newCart.splice(index, 1);
-          cartSignal.value = newCart;
-        });
-
-        return chip;
-      });
-    }),
-  );
-
-  scope.add(
-    effect(() => {
-      const shopView = shopViewSignal.value;
-
-      renderList(shopEl, shopView, (itemView) => {
-        const item = document.createElement('div');
-        item.className = 'fleet-shop-item';
-        item.classList.toggle('disabled', itemView.disabled);
-
-        setTrustedHTML(
-          item,
-          `
-          <div>
-            <div class="fleet-shop-name">${itemView.name}</div>
-            <div class="fleet-shop-stats">${itemView.statsText}</div>
-          </div>
-          <div class="fleet-shop-cost">${itemView.cost} MC</div>
-        `,
-        );
-
-        item.addEventListener('click', () => {
-          if (
-            canAddFleetShip(
-              cartSignal.peek(),
-              totalCreditsSignal.peek(),
-              itemView.shipType,
-            )
-          ) {
-            cartSignal.value = [
-              ...cartSignal.peek(),
-              { shipType: itemView.shipType },
-            ];
-          }
-        });
-
-        return item;
-      });
-    }),
-  );
-
-  let lastCartLength = 0;
-  scope.add(
-    effect(() => {
-      const currentLength = cartSignal.value.length;
-
-      if (currentLength > lastCartLength) {
-        cartEl.classList.remove('recoil-anim');
-        void cartEl.offsetWidth;
-        cartEl.classList.add('recoil-anim');
-      }
-
-      lastCartLength = currentLength;
-    }),
-  );
-
-  scope.add(
-    effect(() => {
-      const waiting = waitingSignal.value;
-
-      if (waiting) {
-        hide(readyBtn);
-        hide(clearBtn);
-        show(waitingEl, 'block');
-        return;
-      }
-
-      show(readyBtn);
-      show(clearBtn);
-      hide(waitingEl);
-    }),
-  );
 
   const showFleetBuilding = (state: GameState, playerId: number): void => {
     const credits = state.players[playerId].credits ?? 0;
@@ -190,6 +54,121 @@ export const createFleetBuildingView = (
     clearHTML(shopEl);
     clearHTML(cartEl);
   };
+
+  withScope(scope, () => {
+    listen(readyBtn, 'click', () => {
+      deps.onFleetReady([...cartSignal.value]);
+    });
+
+    listen(clearBtn, 'click', () => {
+      cartSignal.value = [];
+    });
+
+    const cartViewSignal = computed(() =>
+      getFleetCartView(cartSignal.value, totalCreditsSignal.value),
+    );
+
+    const shopViewSignal = computed(() =>
+      getFleetShopView(cartSignal.value, totalCreditsSignal.value),
+    );
+
+    effect(() => {
+      const cartView = cartViewSignal.value;
+
+      text(creditsEl, cartView.remainingLabel);
+
+      if (cartView.isEmpty) {
+        clearHTML(cartEl);
+        cartEl.appendChild(
+          el('span', {
+            style: {
+              color: '#556',
+              fontSize: '0.75rem',
+              padding: '0.2rem',
+            },
+            text: 'Click ships above to add',
+          }),
+        );
+        return;
+      }
+
+      renderList(cartEl, cartView.items, (itemView, index) => {
+        const chip = el(
+          'div',
+          { class: 'fleet-cart-chip' },
+          itemView.label,
+          el('span', { class: 'chip-remove', text: '×' }),
+        );
+
+        listen(chip, 'click', () => {
+          const newCart = [...cartSignal.peek()];
+          newCart.splice(index, 1);
+          cartSignal.value = newCart;
+        });
+
+        return chip;
+      });
+    });
+
+    effect(() => {
+      const shopView = shopViewSignal.value;
+
+      renderList(shopEl, shopView, (itemView) => {
+        const item = el(
+          'div',
+          {
+            class: 'fleet-shop-item',
+            classList: { disabled: itemView.disabled },
+          },
+          el(
+            'div',
+            {},
+            el('div', { class: 'fleet-shop-name', text: itemView.name }),
+            el('div', { class: 'fleet-shop-stats', text: itemView.statsText }),
+          ),
+          el('div', { class: 'fleet-shop-cost', text: `${itemView.cost} MC` }),
+        );
+
+        listen(item, 'click', () => {
+          if (
+            canAddFleetShip(
+              cartSignal.peek(),
+              totalCreditsSignal.peek(),
+              itemView.shipType,
+            )
+          ) {
+            cartSignal.value = [
+              ...cartSignal.peek(),
+              { shipType: itemView.shipType },
+            ];
+          }
+        });
+
+        return item;
+      });
+    });
+
+    let lastCartLength = 0;
+    effect(() => {
+      const currentLength = cartSignal.value.length;
+
+      if (currentLength > lastCartLength) {
+        cartEl.classList.remove('recoil-anim');
+        void cartEl.offsetWidth;
+        cartEl.classList.add('recoil-anim');
+      }
+
+      lastCartLength = currentLength;
+    });
+
+    effect(() => {
+      const waiting = waitingSignal.value;
+
+      visible(readyBtn, !waiting);
+      visible(clearBtn, !waiting);
+      visible(waitingEl, waiting, 'block');
+    });
+  });
 
   return {
     show: showFleetBuilding,

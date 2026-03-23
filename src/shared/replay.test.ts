@@ -5,8 +5,10 @@ import { buildSolarSystemMap, findBaseHex, SCENARIOS } from './map-data';
 import {
   buildMatchId,
   createReplayArchive,
+  parseMatchId,
   type ReplayEntry,
   type ReplayMessage,
+  toProjectionFrame,
   toReplayEntry,
 } from './replay';
 import type { GameState } from './types/domain';
@@ -25,6 +27,18 @@ describe('replay shape fixtures', () => {
   it('buildMatchId produces the canonical format', () => {
     expect(buildMatchId('ABCDE', 1)).toBe('ABCDE-m1');
     expect(buildMatchId('ZZZZZ', 42)).toBe('ZZZZZ-m42');
+  });
+
+  it('parseMatchId reads the canonical format', () => {
+    expect(parseMatchId('ABCDE-m1')).toEqual({
+      roomCode: 'ABCDE',
+      matchNumber: 1,
+    });
+    expect(parseMatchId('ZZZZZ-m42')).toEqual({
+      roomCode: 'ZZZZZ',
+      matchNumber: 42,
+    });
+    expect(parseMatchId('not-a-match-id')).toBeNull();
   });
 
   it('ReplayEntry has the expected wire shape', () => {
@@ -170,6 +184,23 @@ describe('replay shape fixtures', () => {
       expect(entry.message.type).toBe(msg.type);
       expect(entry.message.state).toEqual(state);
     }
+  });
+
+  it('ProjectionFrame captures event sequence and cloned message', () => {
+    const state = createTestState('PROJ-m1');
+    const frame = toProjectionFrame(
+      2,
+      7,
+      { type: 'stateUpdate', state },
+      1700000001000,
+    );
+
+    expect(frame.sequence).toBe(2);
+    expect(frame.eventSeq).toBe(7);
+    expect(frame.recordedAt).toBe(1700000001000);
+    expect(frame.turn).toBe(state.turnNumber);
+    expect(frame.phase).toBe(state.phase);
+    expect(frame.message).toEqual({ type: 'stateUpdate', state });
   });
 
   it('ReplayEntry preserves phase and turn from embedded state', () => {
