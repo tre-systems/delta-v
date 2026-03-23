@@ -4,23 +4,6 @@ Remaining work only. Completed items are in git history.
 
 ## Reliability & Architecture
 
-### Replay history integrity with checkpoints
-
-Preserve full replay history even after checkpoints are
-introduced for recovery. The current replay projection
-path should not collapse earlier state transitions into
-a single synthetic checkpoint entry once a later
-checkpoint exists.
-
-Definition of done: replay projection returns the same
-historical sequence before and after checkpoint writes,
-and tests cover multi-turn matches with at least one
-mid-match checkpoint.
-
-**Files:** `src/server/game-do/archive.ts`,
-`src/server/game-do/archive.test.ts`,
-`src/shared/engine/event-projector.ts`
-
 ### Spectator path completion
 
 Finish the end-to-end spectator transport path so the
