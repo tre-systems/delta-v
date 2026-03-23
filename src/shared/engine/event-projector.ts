@@ -2,10 +2,16 @@ import { ORBITAL_BASE_MASS, ORDNANCE_MASS, SHIP_STATS } from '../constants';
 import { hexKey } from '../hex';
 import { findBaseHex, SCENARIOS } from '../map-data';
 import type { ScenarioDefinition, SolarSystemMap } from '../types';
+import { CURRENT_GAME_STATE_SCHEMA_VERSION } from '../types';
 import type { GameState } from '../types/domain';
 import type { EngineEvent, EventEnvelope } from './engine-events';
 import { processFleetReady } from './fleet-building';
 import { createGame } from './game-creation';
+
+const migrateGameState = (state: GameState): GameState => ({
+  ...state,
+  schemaVersion: state.schemaVersion ?? CURRENT_GAME_STATE_SCHEMA_VERSION,
+});
 
 const resolveScenarioByName = (
   scenarioName: string,
@@ -128,7 +134,9 @@ const projectSetupEvent = (
 
       return {
         ok: true,
-        state: createGame(scenario, map, gameId, findBaseHex, () => 0),
+        state: migrateGameState(
+          createGame(scenario, map, gameId, findBaseHex, () => 0),
+        ),
       };
     }
 
@@ -871,7 +879,9 @@ export const projectGameStateFromStream = (
       ok: false;
       error: string;
     } => {
-  let state = initialState ? structuredClone(initialState) : null;
+  let state = initialState
+    ? migrateGameState(structuredClone(initialState))
+    : null;
 
   for (const envelope of events) {
     const projected = projectSetupEvent(state, envelope, map);

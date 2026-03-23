@@ -232,6 +232,46 @@ describe('server index worker', () => {
     );
   });
 
+  it('forwards spectator replay requests to the room durable object', async () => {
+    const { env, initFetch } = createEnv(async () =>
+      Response.json({ ok: true }, { status: 200 }),
+    );
+
+    const response = await worker.fetch(
+      new Request(
+        'https://delta-v.test/replay/ABCDE?viewer=spectator&gameId=ABCDE-m2',
+        {
+          method: 'GET',
+        },
+      ),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(initFetch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        url: 'https://room.internal/replay?gameId=ABCDE-m2&viewer=spectator',
+      }),
+    );
+  });
+
+  it('rejects spectator websocket requests at the worker boundary', async () => {
+    const { env, initFetch } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/ws/ABCDE?viewer=spectator', {
+        headers: { Upgrade: 'websocket' },
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(501);
+    expect(initFetch).not.toHaveBeenCalled();
+  });
+
   it('falls back to static assets for non-game routes', async () => {
     const { env, assetsFetch } = createEnv();
     const request = new Request('https://delta-v.test/');

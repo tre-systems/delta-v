@@ -30,7 +30,15 @@ const handleWebSocket = (
   request: Request,
   env: Env,
   code: string,
-): Promise<Response> => {
+): Promise<Response> | Response => {
+  const viewer = new URL(request.url).searchParams.get('viewer');
+
+  if (viewer === 'spectator') {
+    return new Response('Spectator websocket joins are not supported', {
+      status: 501,
+    });
+  }
+
   const id = env.GAME.idFromName(code);
   const stub = env.GAME.get(id);
 
@@ -70,6 +78,7 @@ const handleReplayFetch = (
   const internalUrl = new URL('https://room.internal/replay');
   const playerToken = url.searchParams.get('playerToken');
   const gameId = url.searchParams.get('gameId');
+  const viewer = url.searchParams.get('viewer');
 
   if (playerToken) {
     internalUrl.searchParams.set('playerToken', playerToken);
@@ -77,6 +86,10 @@ const handleReplayFetch = (
 
   if (gameId) {
     internalUrl.searchParams.set('gameId', gameId);
+  }
+
+  if (viewer === 'spectator') {
+    internalUrl.searchParams.set('viewer', viewer);
   }
 
   return stub.fetch(

@@ -190,6 +190,7 @@ const generateAsteroidHexes = (): HexCoord[] => [
 export const buildSolarSystemMap = (): SolarSystemMap => {
   const hexes = new Map<string, MapHex>();
   const bodies: CelestialBody[] = [];
+  const gravityBodies = new Set<string>();
 
   let minQ = Infinity;
   let maxQ = -Infinity;
@@ -289,6 +290,7 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
           strength: def.gravityStrength,
           bodyName: def.name,
         };
+        gravityBodies.add(def.name);
         gravityHexes.push(gh);
       }
     }
@@ -314,6 +316,7 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
   return {
     hexes,
     bodies,
+    gravityBodies,
     bounds: {
       minQ: minQ - 5,
       maxQ: maxQ + 5,
@@ -711,4 +714,5 @@ export const bodyHasGravity = (
   bodyName: string,
   map: SolarSystemMap,
 ): boolean =>
+  map.gravityBodies?.has(bodyName) ??
   [...map.hexes.values()].some((hex) => hex.gravity?.bodyName === bodyName);

@@ -130,6 +130,30 @@ describe('FleetBuildingView', () => {
     expect(waitingEl.style.display).toBe('none');
   });
 
+  it('removes stale cart listeners when the cart rerenders', () => {
+    const view = createFleetBuildingView({
+      onFleetReady: vi.fn(),
+    });
+
+    view.show(createState(25), 0);
+    document
+      .querySelector<HTMLElement>('.fleet-shop-item:not(.disabled)')
+      ?.click();
+
+    const staleChip = document.querySelector('.fleet-cart-chip') as HTMLElement;
+    const removeSpy = vi.spyOn(staleChip, 'removeEventListener');
+
+    document.getElementById('fleetClearBtn')?.click();
+
+    expect(removeSpy).toHaveBeenCalledWith(
+      'click',
+      expect.any(Function),
+      undefined,
+    );
+    staleChip.click();
+    expect(document.querySelectorAll('.fleet-cart-chip')).toHaveLength(0);
+  });
+
   it('cleans up rendered state and controls on dispose', () => {
     const onFleetReady = vi.fn<(purchases: FleetPurchase[]) => void>();
     const view = createFleetBuildingView({

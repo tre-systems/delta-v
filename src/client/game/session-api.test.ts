@@ -68,7 +68,9 @@ describe('session-api telemetry', () => {
     const api = createSessionApi(deps);
     const result = await api.validateJoin('ABCDE', 'token');
 
-    expect(result).toEqual({ ok: false, message: 'Game is full' });
+    expect(result).toEqual(
+      expect.objectContaining({ ok: false, message: 'Game is full' }),
+    );
     expect(track).toHaveBeenNthCalledWith(1, 'join_game_attempted', {
       hasPlayerToken: true,
     });
@@ -77,5 +79,37 @@ describe('session-api telemetry', () => {
       status: 409,
       hasPlayerToken: true,
     });
+  });
+
+  it('retries join without a stale token and prunes it from storage', async () => {
+    const { deps, track } = createDeps();
+    localStorage.setItem(
+      'delta-v:tokens',
+      JSON.stringify({
+        ABCDE: { playerToken: 'stale-token', ts: Date.now() },
+      }),
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response('Invalid player token', { status: 403 }),
+        )
+        .mockResolvedValueOnce(Response.json({ ok: true }, { status: 200 })),
+    );
+
+    const api = createSessionApi(deps);
+    const result = await api.validateJoin('ABCDE', 'stale-token');
+
+    expect(result).toEqual({ ok: true, playerToken: null });
+    expect(track).toHaveBeenNthCalledWith(
+      2,
+      'join_game_retried_without_token',
+      {
+        reason: 'invalid_stored_token',
+      },
+    );
+    expect(localStorage.getItem('delta-v:tokens')).toBe('{}');
   });
 });

@@ -38,8 +38,15 @@ class MockStorage {
   async get<T>(key: string): Promise<T | undefined> {
     return this.data.get(key) as T | undefined;
   }
-  async put<T>(key: string, value: T): Promise<void> {
-    this.data.set(key, value);
+  async put<T>(key: string | Record<string, T>, value?: T): Promise<void> {
+    if (typeof key === 'string') {
+      this.data.set(key, value);
+      return;
+    }
+
+    for (const [entryKey, entryValue] of Object.entries(key)) {
+      this.data.set(entryKey, entryValue);
+    }
   }
 }
 
@@ -148,6 +155,27 @@ describe('match-scoped event stream', () => {
     expect(stream[1].gameId).toBe('ROOM1-m1');
     expect(stream[0].actor).toBe(0);
     expect(stream[1].actor).toBe(1);
+  });
+
+  it('batches append writes into a single storage put call', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const putSpy = vi.spyOn(storage, 'put');
+
+    await appendEnvelopedEvents(storage, 'BATCH-m1', 0, {
+      type: 'phaseChanged',
+      phase: 'combat',
+      turn: 2,
+      activePlayer: 0,
+    });
+
+    expect(putSpy).toHaveBeenCalledTimes(1);
+    expect(putSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        'events:BATCH-m1:chunk:0': expect.any(Array),
+        'eventChunkCount:BATCH-m1': 1,
+        'eventSeq:BATCH-m1': 1,
+      }),
+    );
   });
 
   it('assigns timestamps to all envelopes', async () => {
@@ -556,6 +584,28 @@ describe('replay projection', () => {
     const projectedState = await getProjectedCurrentStateRaw(storage, 'RAW-m1');
 
     expect(projectedState).toEqual(state);
+  });
+
+  it('migrates legacy checkpoints without a schema version', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'LEGACY-SCHEMA-m1',
+      findBaseHex,
+    );
+    state.schemaVersion = undefined;
+
+    await saveCheckpoint(storage, 'LEGACY-SCHEMA-m1', state, 11);
+
+    const checkpoint = await getCheckpoint(storage, 'LEGACY-SCHEMA-m1');
+    const projectedState = await getProjectedCurrentStateRaw(
+      storage,
+      'LEGACY-SCHEMA-m1',
+    );
+
+    expect(checkpoint?.state.schemaVersion).toBe(1);
+    expect(projectedState?.schemaVersion).toBe(1);
   });
 
   it('filters projected replay timelines per viewer', async () => {

@@ -2,8 +2,10 @@ import type { ClientState } from './phase';
 import {
   buildGameRoute,
   buildJoinCheckUrl,
+  deleteStoredPlayerToken,
   getStoredPlayerToken,
   loadTokenStore,
+  pruneExpiredTokens,
   saveTokenStore,
   setStoredPlayerToken,
 } from './session';
@@ -23,7 +25,16 @@ export interface SessionApiDeps {
 }
 
 export const createSessionApi = (deps: SessionApiDeps) => {
-  const getTokenStore = () => loadTokenStore(localStorage);
+  const getTokenStore = () => {
+    const store = loadTokenStore(localStorage);
+    const prunedStore = pruneExpiredTokens(store, Date.now());
+
+    if (Object.keys(prunedStore).length !== Object.keys(store).length) {
+      saveTokenStore(localStorage, prunedStore, Date.now());
+    }
+
+    return prunedStore;
+  };
 
   const doSaveTokenStore = (
     store: Record<string, { playerToken?: string; ts: number }>,
@@ -43,6 +54,10 @@ export const createSessionApi = (deps: SessionApiDeps) => {
 
   const getPlayerToken = (code: string): string | null =>
     getStoredPlayerToken(getTokenStore(), code);
+
+  const clearPlayerToken = (code: string) => {
+    doSaveTokenStore(deleteStoredPlayerToken(getTokenStore(), code));
+  };
 
   const createGame = async (scenario: string) => {
     deps.track('create_game_attempted', { scenario });
@@ -117,57 +132,93 @@ export const createSessionApi = (deps: SessionApiDeps) => {
   const validateJoin = async (
     code: string,
     playerToken: string | null,
-  ): Promise<{ ok: true } | { ok: false; message: string }> => {
+  ): Promise<
+    { ok: true; playerToken: string | null } | { ok: false; message: string }
+  > => {
+    const attemptJoin = async (
+      token: string | null,
+    ): Promise<
+      | { ok: true; playerToken: string | null }
+      | { ok: false; message: string; status?: number }
+    > => {
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), 10000);
+
+      try {
+        const response = await fetch(
+          buildJoinCheckUrl(window.location, code, token),
+          {
+            signal: abort.signal,
+          },
+        );
+        clearTimeout(timer);
+
+        if (response.ok) {
+          return { ok: true, playerToken: token };
+        }
+
+        const message = (await response.text()) || 'Could not join game';
+        return { ok: false, message, status: response.status };
+      } catch (err) {
+        clearTimeout(timer);
+
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return {
+            ok: false,
+            message: 'Join check timed out. Try again.',
+          };
+        }
+
+        if (err instanceof TypeError) {
+          return {
+            ok: false,
+            message: 'Network error \u2014 check your connection.',
+          };
+        }
+
+        return { ok: false, message: 'Could not join game' };
+      }
+    };
+
     deps.track('join_game_attempted', {
       hasPlayerToken: playerToken !== null,
     });
-    const abort = new AbortController();
-    const timer = setTimeout(() => abort.abort(), 10000);
-    try {
-      const response = await fetch(
-        buildJoinCheckUrl(window.location, code, playerToken),
-        { signal: abort.signal },
-      );
-      clearTimeout(timer);
 
-      if (response.ok) return { ok: true };
-      const message = (await response.text()) || 'Could not join game';
-      deps.track('join_game_failed', {
-        reason: message,
-        status: response.status,
-        hasPlayerToken: playerToken !== null,
-      });
-      return { ok: false, message };
-    } catch (err) {
-      clearTimeout(timer);
+    const initialAttempt = await attemptJoin(playerToken);
 
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        deps.track('join_game_failed', {
-          reason: 'timeout',
-          hasPlayerToken: playerToken !== null,
-        });
-        return {
-          ok: false,
-          message: 'Join check timed out. Try again.',
-        };
-      }
-
-      if (err instanceof TypeError) {
-        deps.track('join_game_failed', {
-          reason: 'network',
-          hasPlayerToken: playerToken !== null,
-        });
-        return {
-          ok: false,
-          message: 'Network error \u2014 check your connection.',
-        };
-      }
-      deps.track('join_game_failed', {
-        reason: 'unknown',
-        hasPlayerToken: playerToken !== null,
-      });
-      return { ok: false, message: 'Could not join game' };
+    if (initialAttempt.ok) {
+      return initialAttempt;
     }
+
+    if (
+      playerToken &&
+      initialAttempt.status === 403 &&
+      initialAttempt.message === 'Invalid player token'
+    ) {
+      clearPlayerToken(code);
+      const retryAttempt = await attemptJoin(null);
+
+      if (retryAttempt.ok) {
+        deps.track('join_game_retried_without_token', {
+          reason: 'invalid_stored_token',
+        });
+        return retryAttempt;
+      }
+
+      deps.track('join_game_failed', {
+        reason: retryAttempt.message,
+        status: 'status' in retryAttempt ? retryAttempt.status : undefined,
+        hasPlayerToken: false,
+      });
+      return retryAttempt;
+    }
+
+    deps.track('join_game_failed', {
+      reason: initialAttempt.message,
+      status: initialAttempt.status,
+      hasPlayerToken: playerToken !== null,
+    });
+    return initialAttempt;
   };
 
   const fetchReplay = async (
@@ -194,6 +245,9 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       clearTimeout(timer);
 
       if (!response.ok) {
+        if (response.status === 403) {
+          clearPlayerToken(code);
+        }
         deps.track('replay_fetch_failed', {
           reason: 'server',
           status: response.status,

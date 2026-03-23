@@ -16,7 +16,11 @@ import {
   type ReplayTimeline,
   toReplayEntry,
 } from '../../shared/replay';
-import type { Phase } from '../../shared/types/domain';
+import {
+  CURRENT_GAME_STATE_SCHEMA_VERSION,
+  type GameState,
+  type Phase,
+} from '../../shared/types/domain';
 import { isValidPlayerToken, type RoomConfig } from '../protocol';
 
 type Storage = DurableObjectStorage;
@@ -33,6 +37,19 @@ const eventSeqKey = (gameId: string): string => `eventSeq:${gameId}`;
 const matchCreatedAtKey = (gameId: string): string =>
   `matchCreatedAt:${gameId}`;
 const EVENT_CHUNK_SIZE = 64;
+
+const migrateGameState = (state: GameState): GameState => ({
+  ...state,
+  schemaVersion: state.schemaVersion ?? CURRENT_GAME_STATE_SCHEMA_VERSION,
+});
+
+const migrateCheckpoint = (checkpoint: Checkpoint | null): Checkpoint | null =>
+  checkpoint
+    ? {
+        ...checkpoint,
+        state: migrateGameState(checkpoint.state),
+      }
+    : null;
 
 const getEventChunkCount = async (
   storage: Storage,
@@ -55,17 +72,18 @@ const writeChunkedEventStream = async (
   const chunkCount =
     stream.length === 0 ? 0 : Math.ceil(stream.length / EVENT_CHUNK_SIZE);
 
+  const entries: Record<string, unknown> = {};
+
   for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
     const start = chunkIndex * EVENT_CHUNK_SIZE;
     const end = start + EVENT_CHUNK_SIZE;
-    await storage.put(
-      eventChunkKey(gameId, chunkIndex),
-      stream.slice(start, end),
-    );
+    entries[eventChunkKey(gameId, chunkIndex)] = stream.slice(start, end);
   }
 
-  await storage.put(eventChunkCountKey(gameId), chunkCount);
-  await storage.put(eventSeqKey(gameId), stream.at(-1)?.seq ?? 0);
+  entries[eventChunkCountKey(gameId)] = chunkCount;
+  entries[eventSeqKey(gameId)] = stream.at(-1)?.seq ?? 0;
+
+  await storage.put(entries);
 };
 
 const migrateLegacyEventStreamIfNeeded = async (
@@ -211,12 +229,16 @@ export const appendEnvelopedEvents = async (
     nextChunkCount = Math.max(nextChunkCount, chunkIndex + 1);
   }
 
+  const entries: Record<string, unknown> = {};
+
   for (const [chunkIndex, chunk] of updatedChunks) {
-    await storage.put(eventChunkKey(gameId, chunkIndex), chunk);
+    entries[eventChunkKey(gameId, chunkIndex)] = chunk;
   }
 
-  await storage.put(eventChunkCountKey(gameId), nextChunkCount);
-  await storage.put(eventSeqKey(gameId), seq);
+  entries[eventChunkCountKey(gameId)] = nextChunkCount;
+  entries[eventSeqKey(gameId)] = seq;
+
+  await storage.put(entries);
 };
 
 // --- Checkpoints ---
@@ -228,7 +250,7 @@ export interface Checkpoint {
   seq: number;
   turn: number;
   phase: string;
-  state: import('../../shared/types/domain').GameState;
+  state: GameState;
   savedAt: number;
 }
 
@@ -243,7 +265,7 @@ export const saveCheckpoint = async (
     seq,
     turn: state.turnNumber,
     phase: state.phase,
-    state: structuredClone(state),
+    state: migrateGameState(structuredClone(state)),
     savedAt: Date.now(),
   };
   await storage.put(checkpointKey(gameId), checkpoint);
@@ -253,7 +275,9 @@ export const getCheckpoint = async (
   storage: Storage,
   gameId: string,
 ): Promise<Checkpoint | null> =>
-  (await storage.get<Checkpoint>(checkpointKey(gameId))) ?? null;
+  migrateCheckpoint(
+    (await storage.get<Checkpoint>(checkpointKey(gameId))) ?? null,
+  );
 
 export const saveMatchCreatedAt = async (
   storage: Storage,
