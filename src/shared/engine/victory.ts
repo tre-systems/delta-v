@@ -619,6 +619,7 @@ export const checkCapture = (
         type: 'shipCaptured',
         shipId: target.id,
         capturedBy: playerId,
+        capturedByShipId: captor.id,
       });
     }
   }
@@ -675,6 +676,8 @@ export const checkOrbitalBaseResupply = (
         engineEvents?.push({
           type: 'shipResupplied',
           shipId: ship.id,
+          source: 'orbitalBase',
+          sourceId: ob.id,
         });
       }
 
@@ -714,6 +717,7 @@ export const applyResupply = (
     engineEvents?.push({
       type: 'shipResupplied',
       shipId: ship.id,
+      source: 'base',
     });
   }
 };

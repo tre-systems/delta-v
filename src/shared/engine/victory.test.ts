@@ -3,6 +3,7 @@ import { must } from '../assert';
 import { SHIP_STATS } from '../constants';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { GameState, MovementEvent, Ship, SolarSystemMap } from '../types';
+import type { EngineEvent } from './engine-events';
 import { createGame } from './game-engine';
 import {
   advanceTurn,
@@ -518,11 +519,18 @@ describe('checkCapture', () => {
     target.lifecycle = 'active';
     target.damage.disabledTurns = 3;
     const events: MovementEvent[] = [];
-    checkCapture(state, 0, events);
+    const engineEvents: EngineEvent[] = [];
+    checkCapture(state, 0, events, engineEvents);
     expect(target.control).toBe('captured');
     expect(target.owner).toBe(0);
     expect(events.length).toBe(1);
     expect(events[0].type).toBe('capture');
+    expect(engineEvents).toContainEqual({
+      type: 'shipCaptured',
+      shipId: target.id,
+      capturedBy: 0,
+      capturedByShipId: captor.id,
+    });
   });
   it('does not capture non-disabled enemy', () => {
     const state = setupState();
@@ -579,12 +587,19 @@ describe('checkOrbitalBaseResupply', () => {
         baseStatus: 'emplaced',
       }),
     );
-    checkOrbitalBaseResupply(state, 0);
+    const engineEvents: EngineEvent[] = [];
+    checkOrbitalBaseResupply(state, 0, engineEvents);
     const stats = SHIP_STATS[ship.type];
     expect(ship.fuel).toBe(stats.fuel);
     expect(ship.cargoUsed).toBe(0);
     expect(ship.damage.disabledTurns).toBe(0);
     expect(ship.resuppliedThisTurn).toBe(true);
+    expect(engineEvents).toContainEqual({
+      type: 'shipResupplied',
+      shipId: ship.id,
+      source: 'orbitalBase',
+      sourceId: 'ob-1',
+    });
   });
   it('does not resupply when velocities differ', () => {
     const state = setupState();

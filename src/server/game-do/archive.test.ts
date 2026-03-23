@@ -107,7 +107,7 @@ describe('match-scoped event stream', () => {
       'LEN-m1',
       0,
       { type: 'shipLanded', shipId: 's1' },
-      { type: 'shipResupplied', shipId: 's1' },
+      { type: 'shipResupplied', shipId: 's1', source: 'base' },
     );
 
     expect(await getEventStreamLength(storage, 'LEN-m1')).toBe(3);
