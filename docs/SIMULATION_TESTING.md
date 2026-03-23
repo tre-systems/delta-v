@@ -47,16 +47,34 @@ The current runner executes entirely in Node.js, outside the browser and Cloudfl
 
 **Goal:** Validate the Cloudflare Durable Object lifecycle, WebSocket handling, reconnection logic, and server scaling.
 
-**Approach (planned):**
-Create a headless WebSocket bot client using a library like `ws` in Node.js (e.g., `scripts/load-test.ts`).
+**Approach (implemented as a first usable harness):**
+Use `scripts/load-test.ts` to create real rooms over HTTP,
+join both seats over WebSockets, and drive valid turns with
+the existing AI helpers.
 
 1. **Lobby Creation:** The script makes an HTTP POST request to `/create` to get a 5-letter game code.
-2. **Client Connections:** Spawn two separate WebSocket connections to the local Wrangler server (or the deployed Cloudflare staging environment) using that code.
-3. **Bot Logic:** Instead of complex AI, these headless clients run a state machine listening to `S2C` messages:
-   - On `gameStart` / `stateUpdate`: Automatically wait a random delay (50ms - 2000ms to simulate human think time) and then fire back a `C2S` message (astrogation, ordnance, combat).
-   - Use the existing `aiAstrogation()` etc. functions to generate valid payloads, or intentionally generate invalid payloads to test server validation rejection.
-4. **Stress Testing:** Spawn 100+ concurrent pairs of these bots to simulate 100 simultaneous active games, pushing the Durable Objects to their limits.
-5. **Chaos Testing:** Intentionally drop WebSocket connections mid-turn on 10% of the bots and attempt to reconnect 15 seconds later, validating the grace-period disconnect logic.
+2. **Seat-aware Connections:** The host joins with the creator token returned by `/create`; the guest joins tokenless, receives its `welcome.playerToken`, and reuses that token on reconnect.
+3. **Bot Logic:** On each state-bearing `S2C` message, the active player waits a short randomized think delay and sends a valid `C2S` action:
+   - `fleetReady` purchases for fleet-building scenarios
+   - `astrogation` orders from `aiAstrogation()`
+   - `ordnance` launches from `aiOrdnance()` or `skipOrdnance`
+   - `beginCombat` for owned asteroid hazards, then `combat` attacks from `aiCombat()` or `skipCombat`
+   - `skipLogistics` for logistics
+4. **Stress Testing:** Run many concurrent matches with `--games` and `--concurrency` to exercise room creation, seat assignment, turn flow, and completion under load.
+5. **Chaos Testing:** Use `--disconnect-rate` and `--reconnect-delay-ms` to force a percentage of bots to drop once and reconnect with their stored token during live play.
+
+**Current usage:**
+- `npm run load:test -- --games 20 --concurrency 5`
+- `npm run load:test -- --games 10 --concurrency 3 --scenario duel`
+- `npm run load:test -- --games 12 --concurrency 4 --disconnect-rate 0.25`
+
+**Local setup note:**
+- If your local Wrangler D1 state predates the latest schema, apply migrations before long stress runs:
+  `npx wrangler d1 migrations apply delta-v-telemetry --local`
+
+**Current reporting:**
+- Per-match summary with room code, winner, turns, duration, actions sent, and reconnect count
+- Aggregate summary for completed/failed matches, reconnect success, server/socket errors, total actions sent, and win reasons
 
 ---
 
@@ -64,4 +82,4 @@ Create a headless WebSocket bot client using a library like `ws` in Node.js (e.g
 
 1. **RNG Injection**: Completed. All engine entry points require mandatory `rng` parameter for deterministic simulations.
 2. **AI Runner**: Implemented. `npm run simulate` executes headless matches, and CI runs the multi-scenario `--ci` pass.
-3. **Load Tester**: Planned for future infrastructure stress testing.
+3. **Load Tester**: Implemented as a first usable websocket load / chaos harness. Future work can extend it with invalid-payload fuzzing, larger soak runs, and CI/staging automation.
