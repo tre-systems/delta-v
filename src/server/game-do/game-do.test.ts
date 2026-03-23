@@ -28,8 +28,10 @@ import {
 } from '../../shared/map-data';
 import type { ReplayTimeline } from '../../shared/replay';
 import {
+  appendEnvelopedEvents,
   appendProjectionMessage,
   getEventStream,
+  getProjectedCurrentStateRaw,
   getProjectionFrames,
   saveCheckpoint,
 } from './archive';
@@ -382,7 +384,10 @@ describe('GameDO', () => {
       }
     ).initGame();
 
-    const state = await ctx.storage.get<GameState>('gameState');
+    const state = await getProjectedCurrentStateRaw(
+      ctx.storage as unknown as DurableObjectStorage,
+      'ABCDE-m1',
+    );
     expect(must(state).gameId).toBe('ABCDE-m1');
 
     const frames = await getProjectionFrames(
@@ -415,10 +420,16 @@ describe('GameDO', () => {
     ).initGame.bind(game);
 
     await initGame();
-    const firstState = await ctx.storage.get<GameState>('gameState');
+    const firstState = await getProjectedCurrentStateRaw(
+      ctx.storage as unknown as DurableObjectStorage,
+      'ABCDE-m1',
+    );
 
     await initGame();
-    const secondState = await ctx.storage.get<GameState>('gameState');
+    const secondState = await getProjectedCurrentStateRaw(
+      ctx.storage as unknown as DurableObjectStorage,
+      'ABCDE-m2',
+    );
 
     expect(must(firstState).gameId).toBe('ABCDE-m1');
     expect(must(secondState).gameId).toBe('ABCDE-m2');
@@ -457,7 +468,26 @@ describe('GameDO', () => {
   it('stores a disconnect marker and alarm when a live player disconnects', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1000);
     const ctx = createCtx();
-    await ctx.storage.put('gameState', { phase: 'astrogation' });
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      buildSolarSystemMap(),
+      'DISC1-m1',
+      findBaseHex,
+    );
+    await ctx.storage.put('gameCode', 'DISC1');
+    await ctx.storage.put('matchNumber', 1);
+    await saveCheckpoint(
+      ctx.storage as unknown as DurableObjectStorage,
+      'DISC1-m1',
+      state,
+      0,
+    );
+    await appendProjectionMessage(
+      ctx.storage as unknown as DurableObjectStorage,
+      'DISC1-m1',
+      0,
+      toStateUpdateMessage(state),
+    );
     await ctx.storage.put('inactivityAt', 99999);
     const ws = { send() {} };
     ctx.acceptWebSocket(ws, ['player:1']);
@@ -470,7 +500,26 @@ describe('GameDO', () => {
   });
   it('ignores close events for intentionally replaced sockets', async () => {
     const ctx = createCtx();
-    await ctx.storage.put('gameState', { phase: 'astrogation' });
+    const state = createGame(
+      SCENARIOS.biplanetary,
+      buildSolarSystemMap(),
+      'DISC2-m1',
+      findBaseHex,
+    );
+    await ctx.storage.put('gameCode', 'DISC2');
+    await ctx.storage.put('matchNumber', 1);
+    await saveCheckpoint(
+      ctx.storage as unknown as DurableObjectStorage,
+      'DISC2-m1',
+      state,
+      0,
+    );
+    await appendProjectionMessage(
+      ctx.storage as unknown as DurableObjectStorage,
+      'DISC2-m1',
+      0,
+      toStateUpdateMessage(state),
+    );
     const ws = { send() {} };
     ctx.acceptWebSocket(ws, ['player:0']);
     const game = createGameDO(ctx);
@@ -490,11 +539,24 @@ describe('GameDO', () => {
     const state = createGame(
       SCENARIOS.biplanetary,
       buildSolarSystemMap(),
-      'DC01',
+      'DC01-m1',
       findBaseHex,
     );
     state.phase = 'astrogation';
-    await ctx.storage.put('gameState', state);
+    await ctx.storage.put('gameCode', 'DC01');
+    await ctx.storage.put('matchNumber', 1);
+    await saveCheckpoint(
+      ctx.storage as unknown as DurableObjectStorage,
+      'DC01-m1',
+      state,
+      0,
+    );
+    await appendProjectionMessage(
+      ctx.storage as unknown as DurableObjectStorage,
+      'DC01-m1',
+      0,
+      toStateUpdateMessage(state),
+    );
     await ctx.storage.put('disconnectedPlayer', 0);
     await ctx.storage.put('disconnectTime', 5000);
     await ctx.storage.put('disconnectAt', 9000);
@@ -509,7 +571,10 @@ describe('GameDO', () => {
     const game = createGameDO(ctx);
     await game.alarm();
     expect(await ctx.storage.get('disconnectedPlayer')).toBeUndefined();
-    const saved = await ctx.storage.get<GameState>('gameState');
+    const saved = await getProjectedCurrentStateRaw(
+      ctx.storage as unknown as DurableObjectStorage,
+      'DC01-m1',
+    );
     expect(saved?.phase).toBe('gameOver');
     expect(saved?.winner).toBe(1);
     expect(saved?.winReason).toBe('Opponent disconnected');
@@ -527,15 +592,31 @@ describe('GameDO', () => {
     const state = createGame(
       SCENARIOS.biplanetary,
       buildSolarSystemMap(),
-      'TIME1',
+      'TIME1-m1',
       findBaseHex,
     );
-    await ctx.storage.put('gameState', state);
+    await ctx.storage.put('gameCode', 'TIME1');
+    await ctx.storage.put('matchNumber', 1);
+    await saveCheckpoint(
+      ctx.storage as unknown as DurableObjectStorage,
+      'TIME1-m1',
+      state,
+      0,
+    );
+    await appendProjectionMessage(
+      ctx.storage as unknown as DurableObjectStorage,
+      'TIME1-m1',
+      0,
+      toStateUpdateMessage(state),
+    );
     await ctx.storage.put('turnTimeoutAt', 9500);
     await ctx.storage.put('inactivityAt', 30000);
     const game = createGameDO(ctx);
     await game.alarm();
-    const nextState = await ctx.storage.get<GameState>('gameState');
+    const nextState = await getProjectedCurrentStateRaw(
+      ctx.storage as unknown as DurableObjectStorage,
+      'TIME1-m1',
+    );
     expect(must(nextState).activePlayer).toBe(1);
     expect(await ctx.storage.get('turnTimeoutAt')).toBeGreaterThan(10000);
     expect(ctx.storage.alarmAt).toBe(30000);
@@ -546,8 +627,8 @@ describe('GameDO', () => {
     const trace: string[] = [];
     const originalPut = ctx.storage.put.bind(ctx.storage);
     vi.spyOn(ctx.storage, 'put').mockImplementation(async (key, value) => {
-      if (key === 'gameState') {
-        trace.push('put:gameState');
+      if (key === 'projection:SAVE1') {
+        trace.push('put:projection');
       }
       await originalPut(key, value);
     });
@@ -577,12 +658,25 @@ describe('GameDO', () => {
       }
     ).publishStateChange(state, undefined, {
       restartTurnTimer: false,
+      events: [
+        {
+          type: 'gameCreated',
+          scenario: state.scenario,
+          turn: state.turnNumber,
+          phase: state.phase,
+        },
+      ],
     });
 
-    expect(trace).toContain('put:gameState');
+    expect(trace).toContain('put:projection');
     expect(trace).toContain('send');
-    expect(trace.indexOf('put:gameState')).toBeLessThan(trace.indexOf('send'));
-    expect(await ctx.storage.get('gameState')).toEqual(state);
+    expect(trace.indexOf('put:projection')).toBeLessThan(trace.indexOf('send'));
+    expect(
+      await getProjectedCurrentStateRaw(
+        ctx.storage as unknown as DurableObjectStorage,
+        'SAVE1',
+      ),
+    ).toEqual(state);
   });
 
   it('archives state-bearing updates alongside stored state', async () => {
@@ -609,6 +703,14 @@ describe('GameDO', () => {
       }
     ).publishStateChange(state, toStateUpdateMessage(state), {
       restartTurnTimer: false,
+      events: [
+        {
+          type: 'gameCreated',
+          scenario: state.scenario,
+          turn: state.turnNumber,
+          phase: state.phase,
+        },
+      ],
     });
 
     const frames = await getProjectionFrames(
@@ -644,6 +746,14 @@ describe('GameDO', () => {
       }
     ).publishStateChange(state, toStateUpdateMessage(state), {
       restartTurnTimer: false,
+      events: [
+        {
+          type: 'gameCreated',
+          scenario: state.scenario,
+          turn: state.turnNumber,
+          phase: state.phase,
+        },
+      ],
     });
 
     const messages = ws.sent.map((payload) => JSON.parse(payload) as S2C);
@@ -756,9 +866,6 @@ describe('GameDO', () => {
       scenario: 'biplanetary',
       playerTokens: ['A'.repeat(32), null],
     });
-    await ctx.storage.put('gameState', {
-      phase: 'astrogation',
-    });
     const ws = {
       sent: [] as string[],
       closed: false,
@@ -836,9 +943,6 @@ describe('GameDO', () => {
 
   it('chat rate limiting uses in-memory state', async () => {
     const ctx = createCtx();
-    await ctx.storage.put('gameState', {
-      phase: 'astrogation',
-    });
     const ws = {
       sent: [] as string[],
       send(payload: string) {
@@ -893,7 +997,10 @@ describe('GameDO', () => {
     expect(p1msgs().some((m) => m.type === 'gameStart')).toBe(true);
 
     // Game state should be persisted in astrogation
-    const gameState = await ctx.storage.get<GameState>('gameState');
+    const gameState = await getProjectedCurrentStateRaw(
+      ctx.storage as unknown as DurableObjectStorage,
+      'HAPPY-m1',
+    );
     expect(gameState).toBeDefined();
     expect(must(gameState).phase).toBe('astrogation');
 
@@ -921,7 +1028,10 @@ describe('GameDO', () => {
     expect(hasBroadcast(p1msgs())).toBe(true);
 
     // 6. Game state should have advanced past the first player
-    const nextState = await ctx.storage.get<GameState>('gameState');
+    const nextState = await getProjectedCurrentStateRaw(
+      ctx.storage as unknown as DurableObjectStorage,
+      'HAPPY-m1',
+    );
     expect(nextState).toBeDefined();
     expect(must(nextState).turnNumber).toBeGreaterThanOrEqual(
       must(gameState).turnNumber,
@@ -1043,11 +1153,21 @@ describe('GameDO', () => {
     projected.turnNumber = state.turnNumber + 1;
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    await appendProjectionMessage(
+    await appendEnvelopedEvents(
       ctx.storage as unknown as DurableObjectStorage,
       'PARCHK-m1',
-      1,
-      { type: 'stateUpdate', state: projected },
+      null,
+      {
+        type: 'gameCreated',
+        scenario: state.scenario,
+        turn: state.turnNumber,
+        phase: state.phase,
+      },
+      {
+        type: 'turnAdvanced',
+        turn: projected.turnNumber,
+        activePlayer: projected.activePlayer,
+      },
     );
 
     await (
