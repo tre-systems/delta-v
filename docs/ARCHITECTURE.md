@@ -179,7 +179,7 @@ The backend leverages Cloudflare's edge network.
 
 - **Event-sourced authoritative matches**: The authoritative server path recovers `GameState` from the append-only match stream plus optional checkpoints, and parity checks validate that against the just-computed live state before transport. Replay delivery is also projected directly from the same persisted stream, so there is no parallel state-bearing replay cache to keep in sync. Match events are now stored in chunked pages rather than one rewritten `EventEnvelope[]` blob, so appends stay incremental while reconnect/replay can project from checkpoint plus tail. The same viewer filter now spans reconnect state, player replay, spectator replay, and spectator-tagged live broadcasts.
 
-- **Filtered broadcasting (current) and viewer-aware filtering (next)**: `broadcastFiltered()` currently checks whether the current scenario has hidden information (fugitive identities in escape scenarios). If no hidden info, the same state goes to both players. If hidden info, `filterStateForPlayer(state, playerId)` is called separately per player — own ships are fully visible, unrevealed enemy ships show `type: 'unknown'`. The next step is a viewer model that supports player 0, player 1, and spectator / public projections so event-sourced replay and spectator delivery cannot leak hidden data.
+- **Viewer-aware filtered broadcasting**: `broadcastFiltered()` checks whether the current scenario has hidden information (fugitive identities in escape scenarios). If no hidden info, the same state goes to all viewers. If hidden info, `filterStateForPlayer(state, viewerId)` is called per viewer — players see own ships fully, unrevealed enemy ships show `type: 'unknown'`, and spectators see all unrevealed identities stripped. The same viewer filter spans player reconnect, player replay, spectator replay, and spectator-tagged live broadcasts. Live spectator WebSocket joins are currently rejected (501); spectators access completed match replays via the replay endpoint with `?viewer=spectator`.
 
 - **Single-alarm scheduling**: One alarm per DO, rescheduled after each state change. Three independent deadlines are tracked: `disconnectAt` (30s grace), `turnTimeoutAt` (2 min), `inactivityAt` (5 min). `getNextAlarmAt()` computes the nearest deadline. When the alarm fires, `resolveAlarmAction()` returns a discriminated action (`disconnectExpired`, `turnTimeout`, `inactivityTimeout`) and the handler dispatches accordingly. `inactivityAt` is cached in memory and flushed to storage at most once per 60s to avoid write amplification from frequent pings. Chat rate limiting is also in-memory (not storage-backed).
 
@@ -379,12 +379,12 @@ An analysis of what could be extracted as a reusable hex-grid multiplayer game f
 
 | Component | LOC | Reusability | Notes |
 |-----------|-----|-------------|-------|
-| `shared/hex.ts` | 306 | **100%** | Zero game knowledge. Axial coords, line draw, pixel conversion. |
-| `shared/util.ts` | 170 | **100%** | Pure FP collection helpers. |
-| `renderer/camera.ts` | 96 | **95%** | Pan/zoom/lerp. Only tie: `HEX_SIZE` constant. |
-| `client/input.ts` | 234 | **90%** | Mouse/touch/pinch → clickHex/hoverHex. No game knowledge. |
+| `shared/hex.ts` | 307 | **100%** | Zero game knowledge. Axial coords, line draw, pixel conversion. |
+| `shared/util.ts` | 159 | **100%** | Pure FP collection helpers. |
+| `renderer/camera.ts` | 125 | **95%** | Pan/zoom/lerp. Only tie: `HEX_SIZE` constant. |
+| `client/input.ts` | 227 | **90%** | Mouse/touch/pinch → clickHex/hoverHex. No game knowledge. |
 | Server multiplayer plumbing | ~400 | **80%** | Room codes, tokens, seat assignment, disconnect grace, alarms. |
-| `game/transport.ts` | 211 | **70%** | Command submission pattern. Interface is game-specific but pattern is generic. |
+| `game/transport.ts` | 305 | **70%** | Command submission pattern. Interface is game-specific but pattern is generic. |
 | Renderer orchestration | ~200 | **60%** | Render loop, effect management, animation interpolation. |
 | Everything else | ~12000 | **0–20%** | Deeply game-specific. |
 
@@ -440,6 +440,6 @@ currently exist.
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.
 - **Generic hex engine extraction**: Designing a framework from N=1 games is premature abstraction. Fork Delta-V when game #2 starts and build the framework from two concrete implementations.
 - **Serialisation codec**: `GameState` is plain JSON. A codec adds overhead with zero current benefit.
-- **Replay architecture / event sourcing**: Implemented for the authoritative path. Match-scoped event streams with versioned envelopes (`EventEnvelope`: gameId, seq, ts, actor, event), checkpoints, and parity checks are in place, and replay is projected directly from the stored stream. The shipped client replay UI now lets players step through completed matches, including explicit match selection when a room has multiple rematches. The remaining follow-up is spectator UX and any further protocol simplification, not a server-authority migration.
+- **Replay architecture / event sourcing**: Implemented for the authoritative path. Match-scoped event streams with versioned envelopes (`EventEnvelope`: gameId, seq, ts, actor, event), checkpoints, and parity checks are in place, and replay is projected directly from the stored stream. The shipped client replay UI lets players step through completed matches, including explicit match selection when a room has multiple rematches. Spectator replay delivery is also complete: spectator-filtered state projections, authenticated replay endpoints, and viewer-aware broadcasting are all wired. The remaining follow-up is client spectator UX (join flow, live game viewing) and any further protocol simplification.
 - **UI framework adoption**: The DOM UI layer is still small enough to own directly. The current compromise is a tiny local signals layer for view-local state and cleanup, without paying the cost of adopting a full framework (Preact, etc.) across the entire client.
 - **Structural sharing / Immer**: Reconsidered alongside the event-sourcing shift. Immer is still not a prerequisite and should not block the migration. The immediate value is in stable event schemas, append ordering, explicit RNG facts, and projector correctness, not in rewriting the whole engine around Proxy-based updates. Revisit only if projector reducers or future command handlers become materially clearer with Immer; if adopted at all, it should start at the projection layer rather than as an all-at-once engine rewrite.
