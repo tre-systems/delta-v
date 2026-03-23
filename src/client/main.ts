@@ -374,6 +374,8 @@ class GameClient {
     void beginJoinGameSession(
       {
         ctx: this.ctx,
+        getStoredPlayerToken: (gameCode) =>
+          this.sessionApi.getStoredPlayerToken(gameCode),
         storePlayerToken: (gameCode, token) =>
           this.sessionApi.storePlayerToken(gameCode, token),
         resetTurnTelemetry: () => this.turnTelemetry.reset(),

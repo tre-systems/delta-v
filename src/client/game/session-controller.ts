@@ -63,6 +63,7 @@ export interface LocalGameSessionDeps {
 
 export interface JoinGameSessionDeps {
   ctx: Pick<SessionContext, 'gameCode'>;
+  getStoredPlayerToken: (code: string) => string | null;
   storePlayerToken: (code: string, token: string) => void;
   resetTurnTelemetry: () => void;
   replaceRoute: (route: string) => void;
@@ -161,7 +162,8 @@ export const beginJoinGameSession = async (
   code: string,
   playerToken: string | null = null,
 ): Promise<void> => {
-  const validation = await deps.validateJoin(code, playerToken);
+  const effectiveToken = playerToken ?? deps.getStoredPlayerToken(code);
+  const validation = await deps.validateJoin(code, effectiveToken);
 
   if (!validation.ok) {
     deps.showToast(validation.message, 'error');
@@ -169,8 +171,8 @@ export const beginJoinGameSession = async (
     return;
   }
 
-  if (playerToken) {
-    deps.storePlayerToken(code, playerToken);
+  if (effectiveToken) {
+    deps.storePlayerToken(code, effectiveToken);
   }
   deps.resetTurnTelemetry();
   setGameCode(deps.ctx, code);
