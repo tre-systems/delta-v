@@ -71,10 +71,6 @@ These are the main architectural follow-ups still open:
   storing authoritative random outcomes explicitly anywhere
   future rebuilds should not depend on replaying `Math.random`
   through changed code.
-- **Contract fixtures for protocol and replay payloads.**
-  The validation layer is strong, but representative
-  request/response fixtures would make later event/replay
-  changes safer and more observable.
 - **Single trusted-HTML boundary.** The client still renders
   some complex markup imperatively. If freeform or external
   content expands, HTML injection should pass through one
