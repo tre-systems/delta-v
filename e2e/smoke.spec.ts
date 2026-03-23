@@ -26,6 +26,43 @@ const launchSinglePlayer = async (page: Page): Promise<void> => {
   await waitForDisplay(page, '#hud', 'block');
 };
 
+const createMultiplayerRoom = async (
+  host: Page,
+  guest: Page,
+): Promise<string> => {
+  for (const page of [host, guest]) {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('deltav_tutorial_done', '1');
+    });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+  }
+
+  await host.click('#createBtn');
+  await host.click('[data-scenario="biplanetary"]');
+  await waitForDisplay(host, '#waiting', 'flex');
+
+  const roomCode = (await host.locator('#gameCode').textContent())?.trim() ?? '';
+  expect(roomCode).toMatch(/^[A-Z0-9]{5}$/);
+
+  await guest.fill('#codeInput', roomCode);
+  await guest.click('#joinBtn');
+
+  await waitForDisplay(host, '#hud', 'block');
+  await waitForDisplay(guest, '#hud', 'block');
+
+  return roomCode;
+};
+
+const expandDesktopLog = async (page: Page): Promise<void> => {
+  const tutorialSkip = page.locator('#tutorialSkipBtn');
+
+  if (await tutorialSkip.isVisible().catch(() => false)) {
+    await tutorialSkip.click();
+  }
+  await page.click('#logLatestBar');
+  await waitForDisplay(page, '#gameLog', 'flex');
+};
+
 test.describe('browser smoke tests', () => {
   test('boots the menu and launches a single-player match', async ({
     page,
@@ -78,33 +115,73 @@ test.describe('browser smoke tests', () => {
     const host = await browser.newPage();
     const guest = await browser.newPage();
 
-    for (const page of [host, guest]) {
-      await page.goto('/', { waitUntil: 'domcontentloaded' });
-    }
+    await createMultiplayerRoom(host, guest);
 
-    await host.click('#createBtn');
-    await host.click('[data-scenario="biplanetary"]');
-    await waitForDisplay(host, '#waiting', 'flex');
-
-    const roomCode = (await host.locator('#gameCode').textContent())?.trim() ?? '';
-    expect(roomCode).toMatch(/^[A-Z0-9]{5}$/);
-
-    await guest.fill('#codeInput', roomCode);
-    await guest.click('#joinBtn');
-
-    await waitForDisplay(host, '#hud', 'block');
-    await waitForDisplay(guest, '#hud', 'block');
-
-    await expect
-      .poll(async () => displayOf(host, '#chatInputRow'))
-      .not.toBe('none');
-    await expect
-      .poll(async () => displayOf(guest, '#chatInputRow'))
-      .not.toBe('none');
     await expect(host.locator('#objective')).toContainText('Land on');
     await expect(guest.locator('#objective')).toContainText('Land on');
 
     await host.close();
     await guest.close();
+  });
+
+  test('delivers chat messages between multiplayer players', async ({
+    browser,
+  }) => {
+    const host = await browser.newPage();
+    const guest = await browser.newPage();
+
+    await createMultiplayerRoom(host, guest);
+    await expandDesktopLog(host);
+    await expandDesktopLog(guest);
+
+    await host.locator('#chatInput').fill('hello from host');
+    await host.locator('#chatInput').press('Enter');
+
+    await expect(guest.locator('#logEntries')).toContainText(
+      'Opponent: hello from host',
+    );
+
+    await host.close();
+    await guest.close();
+  });
+
+  test('reconnects a joined player after a full page refresh', async ({
+    browser,
+  }) => {
+    const host = await browser.newPage();
+    const guest = await browser.newPage();
+
+    await createMultiplayerRoom(host, guest);
+
+    await guest.reload({ waitUntil: 'domcontentloaded' });
+    await waitForDisplay(guest, '#hud', 'block');
+    await expect(guest.locator('#objective')).toContainText('Land on');
+    await expect(guest.locator('#reconnectOverlay')).toBeHidden();
+
+    await host.close();
+    await guest.close();
+  });
+
+  test('rejects a third player from joining a full room', async ({
+    browser,
+  }) => {
+    const host = await browser.newPage();
+    const guest = await browser.newPage();
+    const intruder = await browser.newPage();
+
+    const roomCode = await createMultiplayerRoom(host, guest);
+
+    await intruder.goto('/', { waitUntil: 'domcontentloaded' });
+    await intruder.fill('#codeInput', roomCode);
+    await intruder.click('#joinBtn');
+
+    await expect(intruder.locator('#toastContainer')).toContainText(
+      /Game is full|Player token required for reconnection|Waiting for player reconnection/,
+    );
+    await waitForDisplay(intruder, '#menu', 'flex');
+
+    await host.close();
+    await guest.close();
+    await intruder.close();
   });
 });
