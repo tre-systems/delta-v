@@ -16,6 +16,15 @@ export interface ReplayEntry {
   message: ReplayMessage;
 }
 
+export interface ProjectionFrame {
+  sequence: number;
+  eventSeq: number;
+  recordedAt: number;
+  turn: number;
+  phase: Phase;
+  message: ReplayMessage;
+}
+
 export interface ReplayArchive {
   gameId: string;
   roomCode: string;
@@ -28,6 +37,24 @@ export interface ReplayArchive {
 export const buildMatchId = (roomCode: string, matchNumber: number): string =>
   `${roomCode}-m${matchNumber}`;
 
+export const parseMatchId = (
+  gameId: string,
+): {
+  roomCode: string;
+  matchNumber: number;
+} | null => {
+  const match = /^([A-Z0-9]{5})-m(\d+)$/.exec(gameId);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    roomCode: match[1],
+    matchNumber: Number(match[2]),
+  };
+};
+
 export const toReplayEntry = (
   sequence: number,
   message: ReplayMessage,
@@ -38,6 +65,30 @@ export const toReplayEntry = (
   turn: message.state.turnNumber,
   phase: message.state.phase,
   message: structuredClone(message),
+});
+
+export const toProjectionFrame = (
+  sequence: number,
+  eventSeq: number,
+  message: ReplayMessage,
+  recordedAt: number,
+): ProjectionFrame => ({
+  sequence,
+  eventSeq,
+  recordedAt,
+  turn: message.state.turnNumber,
+  phase: message.state.phase,
+  message: structuredClone(message),
+});
+
+export const toReplayEntryFromProjectionFrame = (
+  frame: ProjectionFrame,
+): ReplayEntry => ({
+  sequence: frame.sequence,
+  recordedAt: frame.recordedAt,
+  turn: frame.turn,
+  phase: frame.phase,
+  message: structuredClone(frame.message),
 });
 
 export const createReplayArchive = (

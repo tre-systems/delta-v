@@ -1,6 +1,12 @@
 import type { Ship } from '../../shared/types/domain';
-import { byId, clearHTML, renderList, setTrustedHTML } from '../dom';
-import { computed, createDisposalScope, effect, signal } from '../reactive';
+import { byId, clearHTML, listen, renderList, setTrustedHTML } from '../dom';
+import {
+  computed,
+  createDisposalScope,
+  effect,
+  signal,
+  withScope,
+} from '../reactive';
 import { buildShipListView } from './ship-list';
 
 export interface ShipListViewDeps {
@@ -25,8 +31,21 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
     burns: Map<string, number | null>;
   } | null>(null);
 
-  const listSignal = scope.add(
-    computed(() => {
+  const update = (
+    ships: Ship[],
+    selectedId: string | null,
+    burns: Map<string, number | null>,
+  ): void => {
+    inputSignal.value = { ships, selectedId, burns };
+  };
+
+  const dispose = (): void => {
+    scope.dispose();
+    clearHTML(shipListEl);
+  };
+
+  withScope(scope, () => {
+    const listSignal = computed(() => {
       const input = inputSignal.value;
 
       if (!input) {
@@ -37,10 +56,8 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
         input,
         view: buildShipListView(input.ships, input.selectedId, input.burns),
       };
-    }),
-  );
+    });
 
-  scope.add(
     effect(() => {
       const state = listSignal.value;
 
@@ -90,28 +107,15 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
         }
 
         if (ship.lifecycle !== 'destroyed') {
-          entry.addEventListener('click', () => {
+          listen(entry, 'click', () => {
             deps.onSelectShip(ship.id);
           });
         }
 
         return entry;
       });
-    }),
-  );
-
-  const update = (
-    ships: Ship[],
-    selectedId: string | null,
-    burns: Map<string, number | null>,
-  ): void => {
-    inputSignal.value = { ships, selectedId, burns };
-  };
-
-  const dispose = (): void => {
-    scope.dispose();
-    clearHTML(shipListEl);
-  };
+    });
+  });
 
   return {
     update,
