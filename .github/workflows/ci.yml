@@ -40,6 +40,9 @@ jobs:
       - name: Run Headless Engine Simulations
         run: npm run simulate all 100 -- --ci
 
+      - name: Validate production deploy config
+        run: npx wrangler deploy --dry-run
+
       - name: Apply D1 migrations
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:

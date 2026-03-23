@@ -51,16 +51,28 @@ Current status: **acceptable for friendly matches, weak for public matchmaking**
 The worker enforces a two-tier rate limit on `POST /create`:
 
 **Tier 1 — Cloudflare edge binding (production):**
-When `CREATE_RATE_LIMITER` is bound in `wrangler.toml`, the worker delegates to Cloudflare's edge-global rate limiter. This enforces limits across all edge locations, not just within a single isolate.
-
-To enable, add to `wrangler.toml`:
+The checked-in production `wrangler.toml` binds
+`CREATE_RATE_LIMITER` via Cloudflare's first-class
+`[[ratelimits]]` config. This enforces limits across all
+edge locations, not just within a single isolate.
 
 ```toml
-[[unsafe.bindings]]
+[[ratelimits]]
 name = "CREATE_RATE_LIMITER"
-type = "ratelimit"
 namespace_id = "1001"
-simple = { period = 60, limit = 5 }
+simple = { limit = 5, period = 60 }
+```
+
+**Tier 1.5 — Match archive storage (production):**
+The checked-in production config also binds
+`MATCH_ARCHIVE` to the `delta-v-match-archive` R2 bucket
+so completed rooms can persist replay/support data after
+the Durable Object goes inactive.
+
+```toml
+[[r2_buckets]]
+binding = "MATCH_ARCHIVE"
+bucket_name = "delta-v-match-archive"
 ```
 
 **Tier 2 — In-memory fallback (development / missing binding):**
@@ -76,7 +88,17 @@ When no binding is configured, the worker uses a per-isolate in-memory map (5 cr
 | Room-code guessing | 5-char codes, no join throttle | same — mitigated only by code entropy |
 
 **Deployment recommendation:**
-For any deployment exposed to untrusted traffic, configure the edge rate-limit binding and consider adding a Cloudflare Turnstile challenge on the `/create` path. WebSocket joins are implicitly constrained by the room model (two seats per room) and don't need dedicated rate limiting.
+Treat the checked-in `wrangler.toml` as the production
+baseline. If the `delta-v-match-archive` bucket does not
+exist yet, `wrangler deploy` should fail until it is
+created rather than silently shipping without replay
+storage. Lower environments may still choose local
+simulation or intentionally omit remote resources, but
+public-facing production should keep the rate-limit and
+archive bindings enabled. Consider adding a Cloudflare
+Turnstile challenge on the `/create` path next. WebSocket
+joins are implicitly constrained by the room model (two
+seats per room) and don't need dedicated rate limiting.
 
 ### 4. Bot challenge protection (optional)
 
@@ -132,11 +154,15 @@ Current assessment:
 - **Host-seat integrity:** good
 - **Guest-seat integrity:** acceptable for friendly matches (room-code model is deliberate)
 - **Match availability under hostile payloads:** good
-- **Rate limiting:** good with edge binding configured, per-isolate only without it
+- **Rate limiting:** good in the checked-in production config, per-isolate only in lower environments without the binding
 - **XSS posture:** good (trusted HTML boundary, no user-generated content)
 - **Room secrecy / public matchmaking readiness:** weak (short codes, no join throttle)
 
-Delta-V is well-hardened for private matches between friends. For public matchmaking, tournament play, or open lobbies, the remaining gaps are longer room identifiers, edge-global rate limiting (configurable today, not yet default), and optional bot challenge protection.
+Delta-V is well-hardened for private matches between
+friends. For public matchmaking, tournament play, or open
+lobbies, the remaining gaps are longer room identifiers,
+join throttling if guessing becomes real, and optional
+bot challenge protection.
 
 ## Future Security Work
 
