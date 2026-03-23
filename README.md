@@ -22,7 +22,7 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 - [**SPEC.md**](./docs/SPEC.md): complete rules reference, protocol shapes, scenario definitions, and implementation notes
 - [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md): system boundaries, data flow, Durable Object design, and event-sourcing direction
 - [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md): coding conventions, refactoring guidance, and shared patterns
-- [**PLAYABILITY.md**](./docs/PLAYABILITY.md): manual smoke, mobile, combat, and reconnect QA passes
+- [**MANUAL_TEST_PLAN.md**](./docs/MANUAL_TEST_PLAN.md): comprehensive manual test plan covering all scenarios, mechanics, and edge cases
 - [**SIMULATION_TESTING.md**](./docs/SIMULATION_TESTING.md): headless AI-vs-AI coverage and planned load/stress testing
 - [**SECURITY.md**](./docs/SECURITY.md): competitive-integrity posture, remaining risks, and deployment hardening notes
 - [**BACKLOG.md**](./docs/BACKLOG.md): remaining open work only
