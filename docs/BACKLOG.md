@@ -2,35 +2,6 @@
 
 Remaining work only. Completed items are in git history.
 
-## Performance & UX
-
-### OffscreenCanvas layer caching for renderer
-
-Pre-render static visual layers (starfield, hex grid,
-gravity indicators, planetary bodies) to offscreen
-canvases and composite via `drawImage()` instead of
-redrawing from scratch every frame.
-
-The starfield data is already generated once in the
-`Renderer` constructor, but the actual canvas draw calls
-repeat every frame. The hex grid, gravity wells, and
-celestial bodies are similarly static within a given
-camera position. Caching these layers reduces per-frame
-draw-call overhead, especially on lower-end devices.
-
-Invalidate cached layers only on camera pan, zoom, or
-window resize.
-
-Definition of done: static layers render to offscreen
-canvases, `drawImage()` composites them per frame, and
-invalidation fires on camera or viewport changes. No
-visible rendering regression.
-
-**Files:** `src/client/renderer/renderer.ts`,
-`src/client/renderer/scene.ts`
-
----
-
 ## Event-Sourced Match Architecture
 
 ### Event-sourced server migration
