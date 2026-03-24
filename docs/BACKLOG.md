@@ -102,7 +102,7 @@ Capture measured frame cost (Chrome Performance or equivalent, optional per-fram
 
 ### 12. Re-baseline client bundle size — **Human**
 
-After large renderer or dependency changes, re-measure `dist/client.js` (raw + gzip) and update the **Client bundle and release hygiene** table in [ARCHITECTURE.md](./ARCHITECTURE.md) (or append a dated row there).
+After large renderer or dependency changes, re-measure `dist/client.js` (raw + gzip) and update the **Client bundle and release hygiene** table in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene) (or append a dated row there).
 
 **Owner:** whoever ships the change.
 
