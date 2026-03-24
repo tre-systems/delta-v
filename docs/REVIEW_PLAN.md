@@ -255,4 +255,13 @@ Initial documentation and tooling pass **2026-03-24**: configs fixed where safe;
 
 Open follow-up tasks from each review area are tracked in [BACKLOG.md](./BACKLOG.md) (items marked **Human**, and the numbered list overall).
 
+## What this review pass does *not* guarantee
+
+- **Completeness:** The backlog captures major, agreed themes — not every possible bug, edge case, or future product idea.
+- **Permanent factual truth:** Numbers in [ARCHITECTURE.md](./ARCHITECTURE.md) (bundle table, Node version) and similar are **baselines**; they go stale until someone updates them after meaningful changes.
+- **Legal or compliance sign-off:** Technical docs (including [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md)) are not policies; counsel and public notices stay outside this repo unless you add them.
+- **Manual QA:** DOM accessibility and keyboard flows still need a human pass per [A11Y.md](./A11Y.md) and [BACKLOG.md](./BACKLOG.md).
+
+When behavior or ops reality changes, update the relevant `docs/` file in the same PR as the code when practical.
+
 A link to this file is in [README.md](../README.md) under the documentation guide.
