@@ -81,15 +81,15 @@ When no binding is configured, the worker uses a per-isolate in-memory map (5 cr
 
 **What's enforced vs. what's not:**
 
-| Control                                 | In-memory fallback                               | Edge binding                                                                    |
-| --------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------- |
-| Per-IP create throttle                  | per-isolate only                                 | global                                                                          |
-| WebSocket **connection** / join storm   | not app-rate-limited                             | not app-rate-limited (two seats cap abuse impact per room)                      |
-| WebSocket **messages** (after connect)  | 10 msg/s per socket (DO)                         | same                                                                            |
-| `POST /telemetry` and `POST /error`     | **no per-IP app limit**; body capped at 4KB JSON | add **WAF / rate limit rules** or app-level limiter if D1 spam becomes an issue |
-| Bot challenge (Turnstile)               | not present                                      | configurable via CF dashboard                                                   |
-| `GET /join/:code` / `GET /replay/:code` | not app-rate-limited                             | optional WAF if enumeration or DO wake cost matters                             |
-| Room-code guessing                      | 5-char codes, ~33.6M space, no join throttle     | same                                                                            |
+| Control                                 | In-memory fallback                                                                  | Edge binding                                               |
+| --------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Per-IP create throttle                  | per-isolate only                                                                    | global                                                     |
+| WebSocket **connection** / join storm   | not app-rate-limited                                                                | not app-rate-limited (two seats cap abuse impact per room) |
+| WebSocket **messages** (after connect)  | 10 msg/s per socket (DO)                                                            | same                                                       |
+| `POST /telemetry` and `POST /error`     | **120** / **40** posts per hashed IP per 60s (per isolate); body capped at 4KB JSON | add **WAF** or `[[ratelimits]]` for global / stricter caps |
+| Bot challenge (Turnstile)               | not present                                                                         | configurable via CF dashboard                              |
+| `GET /join/:code` / `GET /replay/:code` | **100** combined GETs per hashed IP per 60s (per isolate)                           | optional WAF for global / stricter caps                    |
+| Room-code guessing                      | 5-char codes, ~33.6M space, no join throttle                                        | same                                                       |
 
 **Deployment recommendation:**
 Treat the checked-in `wrangler.toml` as the production
@@ -99,11 +99,10 @@ created rather than silently shipping without replay
 storage. Lower environments may still choose local
 simulation or intentionally omit remote resources, but
 public-facing production should keep the rate-limit and
-archive bindings enabled. Consider **Cloudflare WAF rate
-limiting** on `POST /telemetry` and `POST /error` to cap
-D1 write and Worker cost under distributed spam, and a
-**Turnstile** challenge on `/create` if automated room
-creation becomes a problem. WebSocket **upgrades** are not
+archive bindings enabled. **Cloudflare WAF** (or extra `[[ratelimits]]` namespaces) can still cap
+`POST /telemetry`, `POST /error`, and join/replay probes **across all edge
+isolates** if per-isolate limits are not enough. Add a **Turnstile** challenge
+on `/create` if automated room creation becomes a problem. WebSocket **upgrades** are not
 message-throttled at the edge; abuse is partly mitigated
 by two seats per room and by **per-socket message** limits
 once connected.
@@ -162,7 +161,7 @@ Current assessment:
 - **Host-seat integrity:** good
 - **Guest-seat integrity:** acceptable for friendly matches (room-code model is deliberate)
 - **Match availability under hostile payloads:** good
-- **Rate limiting:** good for `/create` in the checked-in production config, per-isolate only in lower environments without the binding; WebSocket **message** flood capped per socket; **telemetry/error** endpoints rely on small bodies and optional WAF (see rate limiting table above)
+- **Rate limiting:** good for `/create` in the checked-in production config, per-isolate only in lower environments without the binding; WebSocket **message** flood capped per socket; **telemetry/error** and **join/replay** HTTP probes have per-isolate hashed-IP windows (see table above); optional WAF for global caps
 - **XSS posture:** good (trusted HTML boundary, no user-generated content)
 - **Room secrecy / public matchmaking readiness:** weak (short codes, no join throttle)
 
@@ -180,9 +179,9 @@ If the product scope expands beyond friendly matches:
 - Turnstile integration on `/create` for bot protection
 - Account binding for organized competitive play
 - Join / replay HTTP throttling if room-code guessing or DO wake abuse becomes measurable
-- Application or edge rate limits on `POST /telemetry` and `POST /error` (see [BACKLOG](./BACKLOG.md))
+- Optional **global** (cross-edge) rate limits via WAF / `[[ratelimits]]` for reporting and join/replay if needed (see [BACKLOG.md](./BACKLOG.md) priorities **1**, **6**)
 
-Concrete implementation tasks for abuse hardening and cost control are listed at the top of [BACKLOG.md](./BACKLOG.md) (priorities **1**, **6**, **10**, **13**).
+Concrete abuse-hardening follow-ups: [BACKLOG.md](./BACKLOG.md) priorities **1**, **6** (optional edge), **10**, **13** (product-shaped).
 
 ## Data retention (D1, R2, DO)
 

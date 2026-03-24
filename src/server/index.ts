@@ -165,6 +165,55 @@ export const hashIp = async (ip: string): Promise<string> => {
     .join('');
 };
 
+// --- Sliding-window per-key rate limits (per-isolate) ---
+//
+// When map grows large, drop expired windows. Limits are keyed by hashed IP
+// (or `unknown`). Cloudflare WAF / [[ratelimits]] remain optional for
+// cross-edge enforcement — see SECURITY.md.
+
+const RATE_LIMIT_MAP_MAX_KEYS = 1000;
+
+/**
+ * Increment usage for `key` and return **true** if the caller should reject
+ * the request (limit exceeded within the current window).
+ */
+export const checkWindowedRateLimit = (
+  map: Map<string, { count: number; windowStart: number }>,
+  key: string,
+  limit: number,
+  windowMs: number,
+  maxKeys: number,
+): boolean => {
+  const now = Date.now();
+
+  if (map.size > maxKeys) {
+    for (const [k, val] of map) {
+      if (now - val.windowStart >= windowMs) {
+        map.delete(k);
+      }
+    }
+  }
+
+  const entry = map.get(key);
+
+  if (!entry || now - entry.windowStart >= windowMs) {
+    map.set(key, { count: 1, windowStart: now });
+    return false;
+  }
+
+  entry.count++;
+  return entry.count > limit;
+};
+
+const tooManyRequests = (): Response =>
+  new Response('Too many requests', {
+    status: 429,
+    headers: {
+      ...corsHeaders,
+      'Retry-After': '60',
+    },
+  });
+
 // --- /create rate limiter (per-isolate) ---
 
 const CREATE_RATE_WINDOW_MS = 60_000;
@@ -175,28 +224,42 @@ export const createRateMap = new Map<
   { count: number; windowStart: number }
 >();
 
-export const isCreateRateLimitedInMemory = (ipHash: string): boolean => {
-  const now = Date.now();
+export const isCreateRateLimitedInMemory = (ipHash: string): boolean =>
+  checkWindowedRateLimit(
+    createRateMap,
+    ipHash,
+    CREATE_RATE_LIMIT,
+    CREATE_RATE_WINDOW_MS,
+    RATE_LIMIT_MAP_MAX_KEYS,
+  );
 
-  if (createRateMap.size > 1000) {
-    for (const [key, val] of createRateMap) {
-      if (now - val.windowStart >= CREATE_RATE_WINDOW_MS) {
-        createRateMap.delete(key);
-      }
-    }
-  }
-  const entry = createRateMap.get(ipHash);
+// --- Reporting endpoints (D1 write cost) ---
 
-  if (!entry || now - entry.windowStart >= CREATE_RATE_WINDOW_MS) {
-    createRateMap.set(ipHash, {
-      count: 1,
-      windowStart: now,
-    });
-    return false;
-  }
-  entry.count++;
-  return entry.count > CREATE_RATE_LIMIT;
-};
+const TELEMETRY_RATE_WINDOW_MS = 60_000;
+const TELEMETRY_RATE_LIMIT = 120;
+
+const ERROR_REPORT_RATE_WINDOW_MS = 60_000;
+const ERROR_REPORT_RATE_LIMIT = 40;
+
+export const telemetryReportRateMap = new Map<
+  string,
+  { count: number; windowStart: number }
+>();
+
+export const errorReportRateMap = new Map<
+  string,
+  { count: number; windowStart: number }
+>();
+
+// --- HTTP probes: join / replay (DO wake + projection CPU) ---
+
+const JOIN_REPLAY_PROBE_WINDOW_MS = 60_000;
+const JOIN_REPLAY_PROBE_LIMIT = 100;
+
+export const joinReplayProbeRateMap = new Map<
+  string,
+  { count: number; windowStart: number }
+>();
 
 export const isCreateRateLimited = async (
   env: Env,
@@ -346,10 +409,7 @@ export default {
       const ipHash = await hashIp(ip);
 
       if (await isCreateRateLimited(env, ipHash)) {
-        return new Response('Too many requests', {
-          status: 429,
-          headers: { 'Retry-After': '60' },
-        });
+        return tooManyRequests();
       }
       return handleCreate(request, env);
     }
@@ -357,17 +417,60 @@ export default {
     const joinMatch = url.pathname.match(/^\/join\/([A-Z0-9]{5})$/);
 
     if (joinMatch && request.method === 'GET') {
+      const ipHash = await hashIp(
+        request.headers.get('cf-connecting-ip') ?? 'unknown',
+      );
+      if (
+        checkWindowedRateLimit(
+          joinReplayProbeRateMap,
+          ipHash,
+          JOIN_REPLAY_PROBE_LIMIT,
+          JOIN_REPLAY_PROBE_WINDOW_MS,
+          2000,
+        )
+      ) {
+        return tooManyRequests();
+      }
       return handleJoinCheck(request, env, joinMatch[1]);
     }
 
     const replayMatch = url.pathname.match(/^\/replay\/([A-Z0-9]{5})$/);
 
     if (replayMatch && request.method === 'GET') {
+      const ipHash = await hashIp(
+        request.headers.get('cf-connecting-ip') ?? 'unknown',
+      );
+      if (
+        checkWindowedRateLimit(
+          joinReplayProbeRateMap,
+          ipHash,
+          JOIN_REPLAY_PROBE_LIMIT,
+          JOIN_REPLAY_PROBE_WINDOW_MS,
+          2000,
+        )
+      ) {
+        return tooManyRequests();
+      }
       return handleReplayFetch(request, env, replayMatch[1]);
     }
 
     // Client error reports
     if (url.pathname === '/error' && request.method === 'POST') {
+      const ipHash = await hashIp(
+        request.headers.get('cf-connecting-ip') ?? 'unknown',
+      );
+      if (
+        checkWindowedRateLimit(
+          errorReportRateMap,
+          ipHash,
+          ERROR_REPORT_RATE_LIMIT,
+          ERROR_REPORT_RATE_WINDOW_MS,
+          RATE_LIMIT_MAP_MAX_KEYS,
+        )
+      ) {
+        return tooManyRequests();
+      }
+
       const { response, payload } = await handleReport(
         request,
         console.error,
@@ -375,13 +478,12 @@ export default {
       );
 
       if (payload && env.DB) {
-        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
         const ua = (payload.ua as string) ?? request.headers.get('user-agent');
         ctx.waitUntil(
           insertEvent(
             env.DB,
             { event: 'client_error', ...payload },
-            await hashIp(ip),
+            ipHash,
             ua,
           ),
         );
@@ -392,6 +494,21 @@ export default {
 
     // Client telemetry events
     if (url.pathname === '/telemetry' && request.method === 'POST') {
+      const ipHash = await hashIp(
+        request.headers.get('cf-connecting-ip') ?? 'unknown',
+      );
+      if (
+        checkWindowedRateLimit(
+          telemetryReportRateMap,
+          ipHash,
+          TELEMETRY_RATE_LIMIT,
+          TELEMETRY_RATE_WINDOW_MS,
+          RATE_LIMIT_MAP_MAX_KEYS,
+        )
+      ) {
+        return tooManyRequests();
+      }
+
       const { response, payload } = await handleReport(
         request,
         console.log,
@@ -399,9 +516,8 @@ export default {
       );
 
       if (payload && env.DB) {
-        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
         const ua = request.headers.get('user-agent');
-        ctx.waitUntil(insertEvent(env.DB, payload, await hashIp(ip), ua));
+        ctx.waitUntil(insertEvent(env.DB, payload, ipHash, ua));
       }
 
       return response;
