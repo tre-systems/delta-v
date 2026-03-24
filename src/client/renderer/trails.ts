@@ -9,7 +9,41 @@ import {
   type TrailView,
 } from './vectors';
 
-export function drawShipAndOrdnanceTrails(
+const drawPolylineTrail = (
+  ctx: CanvasRenderingContext2D,
+  points: { x: number; y: number }[],
+  lineColor: string,
+  lineWidth: number,
+  lineDash: number[],
+): void => {
+  if (points.length < 2) return;
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = lineWidth;
+  ctx.setLineDash(lineDash);
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.stroke();
+};
+
+const drawTrailWaypoints = (
+  ctx: CanvasRenderingContext2D,
+  trail: TrailView,
+  camera: Camera,
+): void => {
+  if (!trail.waypointColor) return;
+  for (const point of trail.points) {
+    if (!camera.isVisible(point.x, point.y)) continue;
+    ctx.fillStyle = trail.waypointColor;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, trail.waypointRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+};
+
+export const drawShipAndOrdnanceTrails = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   playerId: number,
@@ -17,7 +51,7 @@ export function drawShipAndOrdnanceTrails(
   ordnanceTrails: Map<string, HexCoord[]>,
   hexSize: number,
   camera: Camera,
-): void {
+): void => {
   for (const trail of buildShipTrailViews(
     state,
     playerId,
@@ -48,50 +82,16 @@ export function drawShipAndOrdnanceTrails(
     );
     ctx.setLineDash([]);
   }
-}
+};
 
-function drawPolylineTrail(
-  ctx: CanvasRenderingContext2D,
-  points: { x: number; y: number }[],
-  lineColor: string,
-  lineWidth: number,
-  lineDash: number[],
-): void {
-  if (points.length < 2) return;
-  ctx.strokeStyle = lineColor;
-  ctx.lineWidth = lineWidth;
-  ctx.setLineDash(lineDash);
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(points[i].x, points[i].y);
-  }
-  ctx.stroke();
-}
-
-function drawTrailWaypoints(
-  ctx: CanvasRenderingContext2D,
-  trail: TrailView,
-  camera: Camera,
-): void {
-  if (!trail.waypointColor) return;
-  for (const point of trail.points) {
-    if (!camera.isVisible(point.x, point.y)) continue;
-    ctx.fillStyle = trail.waypointColor;
-    ctx.beginPath();
-    ctx.arc(point.x, point.y, trail.waypointRadius, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
-export function drawAnimatedMovementPaths(
+export const drawAnimatedMovementPaths = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   playerId: number,
   animState: AnimationState,
   now: number,
   hexSize: number,
-): void {
+): void => {
   const progress = Math.min(
     (now - animState.startTime) / animState.duration,
     1,
@@ -120,4 +120,4 @@ export function drawAnimatedMovementPaths(
       ctx.fill();
     }
   }
-}
+};

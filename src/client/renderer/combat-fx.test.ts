@@ -8,26 +8,24 @@ import {
 import type { CombatResult } from '../../shared/types/domain';
 import { buildCombatEffectsForResults } from './combat-fx';
 
-function minimalCombatResult(
+const minimalCombatResult = (
   overrides: Partial<CombatResult> &
     Pick<CombatResult, 'targetId' | 'targetType'>,
-): CombatResult {
-  return {
-    attackerIds: [],
-    attackType: 'gun',
-    odds: '50%',
-    attackStrength: 1,
-    defendStrength: 1,
-    rangeMod: 0,
-    velocityMod: 0,
-    dieRoll: 1,
-    modifiedRoll: 1,
-    damageType: 'none',
-    disabledTurns: 0,
-    counterattack: null,
-    ...overrides,
-  };
-}
+): CombatResult => ({
+  attackerIds: [],
+  attackType: 'gun',
+  odds: '50%',
+  attackStrength: 1,
+  defendStrength: 1,
+  rangeMod: 0,
+  velocityMod: 0,
+  dieRoll: 1,
+  modifiedRoll: 1,
+  damageType: 'none',
+  disabledTurns: 0,
+  counterattack: null,
+  ...overrides,
+});
 
 describe('buildCombatEffectsForResults', () => {
   it('returns empty when target entity cannot be resolved', () => {

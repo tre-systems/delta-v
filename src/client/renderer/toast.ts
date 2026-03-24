@@ -3,6 +3,7 @@ import type {
   GameState,
   MovementEvent,
 } from '../../shared/types/domain';
+import { matchEqOr } from '../../shared/util';
 import { formatCombatResult } from './combat';
 
 export interface ToastLine {
@@ -11,38 +12,35 @@ export interface ToastLine {
   variant: 'primary' | 'secondary';
 }
 
-const getResultColor = (damageType: CombatResult['damageType']): string => {
-  return damageType === 'eliminated'
-    ? '#ff4444'
-    : damageType === 'disabled'
-      ? '#ffaa00'
-      : '#88ff88';
-};
+const getResultColor = (damageType: CombatResult['damageType']): string =>
+  matchEqOr(
+    damageType,
+    '#88ff88',
+    ['eliminated', '#ff4444'],
+    ['disabled', '#ffaa00'],
+  );
 
 const getMovementDamageText = (
   event: MovementEvent,
   missLabel: string,
-): string => {
-  return event.damageType === 'eliminated'
-    ? 'ELIMINATED'
-    : event.damageType === 'disabled'
-      ? `DISABLED ${event.disabledTurns}T`
-      : missLabel;
-};
+): string =>
+  matchEqOr(
+    event.damageType,
+    missLabel,
+    ['eliminated', 'ELIMINATED'],
+    ['disabled', `DISABLED ${event.disabledTurns}T`],
+  );
 
-const getMovementDamageColor = (event: MovementEvent): string => {
-  return event.damageType === 'eliminated'
-    ? '#ff4444'
-    : event.damageType === 'disabled'
-      ? '#ffaa00'
-      : '#88ff88';
-};
+const getMovementDamageColor = (event: MovementEvent): string =>
+  matchEqOr(
+    event.damageType,
+    '#88ff88',
+    ['eliminated', '#ff4444'],
+    ['disabled', '#ffaa00'],
+  );
 
-export const getToastFadeAlpha = (showUntil: number, now: number): number => {
-  const fadeStart = showUntil - 1000;
-
-  return now > fadeStart ? Math.max(0, (showUntil - now) / 1000) : 1;
-};
+export const getToastFadeAlpha = (showUntil: number, now: number): number =>
+  now > showUntil - 1000 ? Math.max(0, (showUntil - now) / 1000) : 1;
 
 export const formatMovementEventToast = (
   event: MovementEvent,
@@ -99,24 +97,24 @@ export const formatMovementEventToast = (
 export const buildCombatResultToastLines = (
   results: CombatResult[],
   state: GameState,
-): ToastLine[] => {
-  const lines: ToastLine[] = [];
-
-  for (const result of results) {
-    lines.push({
+): ToastLine[] =>
+  results.flatMap((result) => {
+    const primary: ToastLine = {
       text: formatCombatResult(result, state),
       color: getResultColor(result.damageType),
       variant: 'primary',
-    });
+    };
 
-    if (result.counterattack) {
-      lines.push({
+    if (!result.counterattack) {
+      return [primary];
+    }
+
+    return [
+      primary,
+      {
         text: formatCombatResult(result.counterattack, state),
         color: getResultColor(result.counterattack.damageType),
         variant: 'secondary',
-      });
-    }
-  }
-
-  return lines;
-};
+      },
+    ];
+  });

@@ -5,6 +5,7 @@ This document captures the coding conventions that fit this codebase as it exist
 ## Core Principles
 
 - Prefer readability over cleverness.
+- Prefer a single options object over long positional parameter lists (about five or more parameters), especially for public renderer and UI helpers.
 - Prefer small, testable extractions over large architectural rewrites.
 - Keep the shared rules engine functional and data-oriented.
 - Prefer functions and factory managers by default. Use classes only at imperative boundaries where long-lived mutable state is natural or the platform requires them.
@@ -45,6 +46,13 @@ and `createCamera()` in `src/client/renderer/camera.ts` own
 long-lived mutable browser state (animation managers, static
 scene cache, listeners). The public type is
 `ReturnType<typeof createRenderer>` (exported as `Renderer`).
+Frame drawing is split across focused modules under
+`src/client/renderer/` (for example `scene.ts`, `ships.ts`,
+`overlay.ts`, `toast-draw.ts`, `minimap-draw.ts`); the factory
+wires them. Public draw helpers with many parameters take a
+single typed input object (`DrawShipsLayerInput`,
+`DrawMinimapOverlayInput`, `DrawShipIconInput`, etc.) — see Core
+Principles.
 
 Guidance:
 
@@ -68,6 +76,7 @@ Guidance:
 ### DOM helpers
 
 Use `src/client/dom.ts` helpers for declarative DOM construction in UI code:
+
 - **`el(tag, props, ...children)`** — Create elements with class, text, handlers, and children in one expression.
 - **`visible(el, condition, display?)`** — "Smart Helper" that accepts a boolean or a `ReadonlySignal<boolean>`. If a signal is provided, it automatically creates an `effect` within the active scope.
 - **`text(el, value)`** — "Smart Helper" that sets `textContent`. Accepts static values or `ReadonlySignal<unknown>`, automatically creating an `effect` for signals.
@@ -171,7 +180,7 @@ setState(plan.nextState)                               // impure: apply it
 
 Examples: `deriveClientScreenPlan`, `deriveGameOverPlan`, `deriveClientMessagePlan`, `deriveBurnChangePlan`, `deriveHudViewModel`, `deriveKeyboardAction`, `deriveAIActionPlan`, `deriveClientStateEntryPlan`, `derivePhaseTransition`.
 
-The `deriveClientStateEntryPlan()` function in `game/phase-entry.ts` is the most elaborate example — it returns a `ClientStateEntryPlan` with ~15 boolean/enum flags controlling camera reset, HUD visibility, timer start, tutorial triggers, and combat state on each phase entry. The caller (`setState()` in `main.ts`) applies the plan imperatively.
+The `deriveClientStateEntryPlan()` function in `game/phase-entry.ts` is the most elaborate example — it returns a `ClientStateEntryPlan` with ~15 boolean/enum flags controlling camera reset, HUD visibility, timer start, tutorial triggers, and combat state on each phase entry. `GameClient.setState()` in `main.ts` delegates to `applyClientStateTransition()` in `game/state-transition.ts`, which reads that plan (and `deriveClientScreenPlan`) and applies the imperative side effects.
 
 This is the [functional core / imperative shell](https://www.destroyallsoftware.com/talks/boundaries) pattern (Gary Bernhardt, ["Boundaries"](https://www.destroyallsoftware.com/talks/boundaries), SCNA 2012) — pure derivation in the core, side effects at the boundary. See also Mark Seemann's [dependency rejection](https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/) series for the same idea applied to functional programming.
 
@@ -235,7 +244,7 @@ const validatePhaseAction = (
 };
 
 // Caller:
-const phaseError = validatePhaseAction(state, playerId, 'astrogation');
+const phaseError = validatePhaseAction(state, playerId, "astrogation");
 if (phaseError) return { error: phaseError };
 ```
 
@@ -249,11 +258,9 @@ Two error-return conventions exist, each for a different context:
 **Engine results** — `{ state, ... } | { error: string }`. Used by engine entry points (`processAstrogation`, `processCombat`, etc.) where the success shape varies by function. Callers narrow with `'error' in result`:
 
 ```typescript
-const result = processAstrogation(
-  state, playerId, orders, map, rng,
-);
-if ('error' in result) {
-  return { kind: 'error', error: result.error };
+const result = processAstrogation(state, playerId, orders, map, rng);
+if ("error" in result) {
+  return { kind: "error", error: result.error };
 }
 // result.state, result.movements, etc.
 ```
@@ -280,14 +287,18 @@ const engineEvents: EngineEvent[] = [];
 
 // Push events as logic proceeds
 engineEvents.push({
-  type: 'shipMoved',
+  type: "shipMoved",
   shipId: ship.id,
-  from, to, fuelSpent,
+  from,
+  to,
+  fuelSpent,
 });
 
 if (course.crashed) {
   engineEvents.push({
-    type: 'shipCrashed', shipId: ship.id, hex,
+    type: "shipCrashed",
+    shipId: ship.id,
+    hex,
   });
 }
 
@@ -311,19 +322,23 @@ indexed arrays over scattered `if`/`switch` trees for
 game data such as ship stats, damage odds, ordnance mass,
 and detection ranges. Tables are easier to audit, diff,
 and extend than equivalent branching logic. See Steve
-McConnell's *Code Complete* (ch. 18, "Table-Driven
+McConnell's _Code Complete_ (ch. 18, "Table-Driven
 Methods") for the underlying idea.
 
 ```typescript
 // Named record table — lookup by key
 const SHIP_STATS: Record<string, ShipStats> = {
   transport: {
-    name: 'Transport', combat: 1,
-    fuel: 10, cargo: 50,
+    name: "Transport",
+    combat: 1,
+    fuel: 10,
+    cargo: 50,
   },
   corvette: {
-    name: 'Corvette', combat: 3,
-    fuel: 16, cargo: 0,
+    name: "Corvette",
+    combat: 3,
+    fuel: 16,
+    cargo: 0,
   },
 };
 const stats = SHIP_STATS[ship.type];
@@ -345,8 +360,8 @@ short and the data auditable in one place.
 ### Composable configuration objects
 
 When behaviour varies by mode (difficulty level, scenario
-type, etc.), separate the *scoring/decision logic* from
-the *tuning weights*. Define a config type with numeric
+type, etc.), separate the _scoring/decision logic_ from
+the _tuning weights_. Define a config type with numeric
 weights and flags, then pass it to pure scoring functions.
 
 ```typescript
@@ -392,17 +407,17 @@ flags at decision points:
 
 ```typescript
 interface ScenarioRules {
-  allowedOrdnanceTypes?: Ordnance['type'][];
+  allowedOrdnanceTypes?: Ordnance["type"][];
   combatDisabled?: boolean;
   logisticsEnabled?: boolean;
-  escapeEdge?: 'any' | 'north';
+  escapeEdge?: "any" | "north";
   sharedBases?: string[];
   reinforcements?: Reinforcement[];
 }
 
 // Engine checks:
 if (state.scenarioRules.combatDisabled) {
-  state.phase = 'resupply';
+  state.phase = "resupply";
   return { state, engineEvents };
 }
 ```
@@ -424,7 +439,7 @@ serialization to serve as map keys. The `hexKey` /
 ```typescript
 const hexKey = ({ q, r }: HexCoord): string => `${q},${r}`;
 const parseHexKey = (key: string): HexCoord => {
-  const [q, r] = key.split(',').map(Number);
+  const [q, r] = key.split(",").map(Number);
   return { q, r };
 };
 
@@ -441,24 +456,25 @@ guide for background on hex coordinate systems.
 
 ### Function prefix conventions
 
-| Prefix | Meaning | Side effects? | Examples |
-|--------|---------|---------------|----------|
-| `derive*` | Compute a view/plan from state | No | `deriveHudViewModel`, `derivePhaseTransition` |
-| `build*` | Construct a complex object | No | `buildAstrogationOrders`, `buildShipTooltipHtml` |
-| `resolve*` | Interpret input, produce structured result | No | `resolveAIPlan`, `resolveBaseEmplacementPlan` |
-| `process*` | Apply game logic, return new state | Clone-on-entry | `processAstrogation`, `processCombat` |
-| `create*` | Construct new instance/manager | No | `createGame`, `createConnectionManager` |
-| `check*` | Detect condition, may mutate state | Sometimes | `checkRamming`, `checkGameEnd` |
-| `apply*` | Apply transformation to state | Yes | `applyGameState`, `applyDamage` |
-| `get*` | Retrieve/lookup | No | `getTooltipShip`, `getNextSelectedShip` |
-| `is*` / `has*` | Boolean predicate | No | `isGameOver`, `hasLineOfSight` |
-| `present*` | Show result/outcome to user | Yes (client) | `presentMovementResult`, `presentCombatResults` |
-| `show*` | Display UI element or feedback | Yes (client) | `showGameOverOutcome`, `showToast` |
-| `render*` | Build/update DOM elements | Yes (client) | `renderTransferPanel`, `renderMinimap` |
-| `handle*` | React to an event or message | Yes | `handleLocalResolution`, `handleMessage` |
-| `play*` | Trigger animation or sequence | Yes (client) | `playLocalMovementResult`, `playSound` |
-| `move*` | Relocate entity in game state | Yes (engine) | `moveOrdnance`, `moveShip` |
-| `queue*` | Schedule future action/event | Yes (engine) | `queueAsteroidHazards`, `queueAttack` |
+| Prefix         | Meaning                                      | Side effects?  | Examples                                                 |
+| -------------- | -------------------------------------------- | -------------- | -------------------------------------------------------- |
+| `derive*`      | Compute a view/plan from state               | No             | `deriveHudViewModel`, `derivePhaseTransition`            |
+| `build*`       | Construct a complex object                   | No             | `buildAstrogationOrders`, `buildShipTooltipHtml`         |
+| `resolve*`     | Interpret input, produce structured result   | No             | `resolveAIPlan`, `resolveBaseEmplacementPlan`            |
+| `process*`     | Apply game logic, return new state           | Clone-on-entry | `processAstrogation`, `processCombat`                    |
+| `create*`      | Construct new instance/manager               | No             | `createGame`, `createConnectionManager`                  |
+| `check*`       | Detect condition, may mutate state           | Sometimes      | `checkRamming`, `checkGameEnd`                           |
+| `apply*`       | Apply transformation to state                | Yes            | `applyClientGameState`, `applyDamage`                    |
+| `get*`         | Retrieve/lookup                              | No             | `getTooltipShip`, `getNextSelectedShip`                  |
+| `is*` / `has*` | Boolean predicate                            | No             | `isGameOver`, `hasLineOfSight`                           |
+| `present*`     | Show result/outcome to user                  | Yes (client)   | `presentMovementResult`, `presentCombatResults`          |
+| `show*`        | Display UI element or feedback               | Yes (client)   | `showGameOverOutcome`, `showToast`                       |
+| `render*`      | Paint Canvas layers or build/update DOM      | Yes (client)   | `renderHexGrid`, `renderOrdnance`, `renderTransferPanel` |
+| `draw*`        | Paint Canvas overlays, icons, trails, toasts | Yes (client)   | `drawShipsLayer`, `drawMinimapOverlay`, `drawShipIcon`   |
+| `handle*`      | React to an event or message                 | Yes            | `handleLocalResolution`, `handleMessage`                 |
+| `play*`        | Trigger animation or sequence                | Yes (client)   | `playLocalMovementResult`, `playSound`                   |
+| `move*`        | Relocate entity in game state                | Yes (engine)   | `moveOrdnance`, `moveShip`                               |
+| `queue*`       | Schedule future action/event                 | Yes (engine)   | `queueAsteroidHazards`, `queueAttack`                    |
 
 ### Naming conventions
 
@@ -488,14 +504,12 @@ TypeScript Handbook on
 [Utility Types](https://www.typescriptlang.org/docs/handbook/utility-types.html).
 
 ```typescript
-const isAlive = (
-  s: Pick<Ship, 'lifecycle'>,
-): boolean => s.lifecycle !== 'destroyed';
+const isAlive = (s: Pick<Ship, "lifecycle">): boolean =>
+  s.lifecycle !== "destroyed";
 
 const isPlanetaryDefenseEnabled = (
-  state: Pick<GameState, 'scenarioRules'>,
-): boolean =>
-  state.scenarioRules.planetaryDefenseEnabled !== false;
+  state: Pick<GameState, "scenarioRules">,
+): boolean => state.scenarioRules.planetaryDefenseEnabled !== false;
 ```
 
 Use `Pick` for helpers and predicates that are called
@@ -516,14 +530,11 @@ the type from the function rather than declaring a
 separate interface:
 
 ```typescript
-const createConnectionManager = (
-  deps: ConnectionManagerDeps,
-) => {
+const createConnectionManager = (deps: ConnectionManagerDeps) => {
   return { connect, disconnect, isConnected };
 };
 
-type ConnectionManager =
-  ReturnType<typeof createConnectionManager>;
+type ConnectionManager = ReturnType<typeof createConnectionManager>;
 ```
 
 This keeps the type in sync with the implementation
@@ -535,24 +546,26 @@ The shared engine is data-oriented by design. Lean into that with functional pat
 
 - **Use `src/shared/util.ts` helpers** instead of writing manual reduce/loop equivalents. They exist to make intent obvious. The full set:
 
-  | Helper | Replaces |
-  |---|---|
-  | `sumBy(arr, fn)` | `arr.reduce((s, x) => s + fn(x), 0)` |
-  | `minBy(arr, fn)` / `maxBy` | Loops tracking `bestVal` / `bestItem` |
-  | `count(arr, fn)` | `arr.filter(fn).length` (avoids intermediate array) |
-  | `indexBy(arr, fn)` | `new Map(arr.map(x => [fn(x), x]))` |
-  | `groupBy(arr, fn)` | Reduce building `Record<string, T[]>` |
-  | `partition(arr, fn)` | Two `.filter()` calls with opposite predicates |
-  | `compact(arr)` | `.filter(x => x != null)` with correct narrowing |
-  | `filterMap(arr, fn)` | `.map(fn).filter(x => x != null)` in one pass |
-  | `uniqueBy(arr, fn)` | `[...new Set(arr.map(fn))]` or manual Set dedup |
-  | `pickBy(obj, fn)` | `Object.fromEntries(Object.entries(obj).filter(...))` |
-  | `mapValues(obj, fn)` | `Object.fromEntries(Object.entries(obj).map(...))` |
-  | `cond([p, v], ...)` | Chains of `if (p) return v;` (Clojure-style cond) |
-  | `clamp(n, min, max)` | `Math.min(Math.max(n, min), max)` |
-  | `randomChoice(arr, rng)` | `arr[Math.floor(rng() * arr.length)]` (injectable RNG) |
+  | Helper                     | Replaces                                                                                                     |
+  | -------------------------- | ------------------------------------------------------------------------------------------------------------ |
+  | `sumBy(arr, fn)`           | `arr.reduce((s, x) => s + fn(x), 0)`                                                                         |
+  | `minBy(arr, fn)` / `maxBy` | Loops tracking `bestVal` / `bestItem`                                                                        |
+  | `count(arr, fn)`           | `arr.filter(fn).length` (avoids intermediate array)                                                          |
+  | `indexBy(arr, fn)`         | `new Map(arr.map(x => [fn(x), x]))`                                                                          |
+  | `groupBy(arr, fn)`         | Reduce building `Record<string, T[]>`                                                                        |
+  | `partition(arr, fn)`       | Two `.filter()` calls with opposite predicates                                                               |
+  | `compact(arr)`             | `.filter(x => x != null)` with correct narrowing                                                             |
+  | `filterMap(arr, fn)`       | `.map(fn).filter(x => x != null)` in one pass                                                                |
+  | `uniqueBy(arr, fn)`        | `[...new Set(arr.map(fn))]` or manual Set dedup                                                              |
+  | `pickBy(obj, fn)`          | `Object.fromEntries(Object.entries(obj).filter(...))`                                                        |
+  | `mapValues(obj, fn)`       | `Object.fromEntries(Object.entries(obj).map(...))`                                                           |
+  | `cond([p, v], ...)`        | Chains of `if (p) return v;` (Clojure-style cond)                                                            |
+  | `condp` / `matchEq`        | Clojure-style `condp`: same `expr` vs many `test` values with one `pred`; `matchEq` is strict-equality sugar |
+  | `condpOr` / `matchEqOr`    | Same as above, but with an explicit fallback/default (avoids trailing `??`)                                  |
+  | `clamp(n, min, max)`       | `Math.min(Math.max(n, min), max)`                                                                            |
+  | `randomChoice(arr, rng)`   | `arr[Math.floor(rng() * arr.length)]` (injectable RNG)                                                       |
 
-- **`cond()` vs `switch` vs ternaries.** Use `cond()` when selecting a value from a list of independent boolean conditions — it reads like a decision table and avoids nested ternaries. Use `switch` when narrowing a discriminated union (TypeScript's exhaustive checking catches missing cases). Use a ternary for simple two-branch expressions.
+- **`cond()` vs `condp` / `matchEq` vs `switch` vs ternaries.** Use `cond()` when each clause is an arbitrary boolean (different fields, compound logic). Use `condp(pred, expr, [test, result], ...)` when every clause is the same comparison pattern between a fixed `expr` and successive `test` values (Clojure `condp`). Use `matchEq(expr, [k1, v1], [k2, v2], ...)` when that pattern is strict equality — it avoids repeating `expr ===`. Prefer `condpOr` / `matchEqOr` when you would otherwise append `?? default`. Use `switch` when narrowing a discriminated union (TypeScript's exhaustive checking catches missing cases). Use a ternary for simple two-branch expressions.
 
   ```typescript
   // cond: multiple independent conditions → value
@@ -588,12 +601,12 @@ State belongs to the coordinator that manages its lifecycle, and is passed by re
 
   Key fields: `burns` (Map of ship → burn direction), `overloads` (Map of ship → overload direction), `queuedAttacks` (buffered combat declarations), `selectedShipId`, `hoverHex`, `combatTargetId`/`combatAttackerIds` (combat planning), `torpedoAccel` (torpedo launch direction). Reset via `createInitialPlanningState()` on phase transitions.
 
-- **GameState** is owned by `GameClient`, updated via `applyGameState()`. Other modules receive it as function arguments, never as stored references.
+- **GameState** is owned by `GameClient`. Authoritative updates go through `applyClientGameState()` in `game/game-state-store.ts` (called from `GameClient.applyGameState()` and from injected deps in session/transport code). Other modules receive it as function arguments, never as stored references.
 
 ### Reactive signals (adopted selectively in UI)
 
 `src/client/reactive.ts` is a zero-dependency signals library
-(~150 LOC) providing `signal`, `computed`, `effect`, `batch`,
+(~210 LOC) providing `signal`, `computed`, `effect`, `batch`,
 `withScope`, `registerDisposer`, and `createDisposalScope()`.
 It is used in the DOM UI layer for view-local state and derived
 DOM synchronization.
@@ -602,12 +615,6 @@ Use `reactive.ts` for **small, local, stateful DOM views**.
 The "Smart Helpers" (`visible`, `text`, `cls`) in `dom.ts`
 automatically leverage signals when provided, reducing boilerplate.
 
-Rules for reactive UI code:
-
-- **Use implicit scoping**. Wrap UI initialization in `withScope(scope, () => { ... })` at the end of factory functions. This automatically registers `effect`, `computed`, and `listen` calls for cleanup.
-- Own effects explicitly. Any view or manager that creates a scope should expose `dispose()`.
-- Keep the `withScope` block minimal and consistent. Prefer placing it at the very beginning or end of the UI definition function.
-
 Do **not** use it as a general app-state store. `GameClient`,
 the renderer, the transport/session layer, and the shared
 engine should remain explicit and imperative unless there is a
@@ -615,24 +622,13 @@ clear synchronization problem being solved.
 
 Rules for reactive UI code:
 
-- Own effects explicitly. Any view or manager that
-  creates `computed()` or `effect()` graphs should own a
-  `DisposalScope` and expose `dispose()`.
-- Keep derivation pure. Use `computed()` for pure derived
-  values and `effect()` for DOM writes, event-driven side
-  effects, or layout sync hooks.
-- Batch related writes. Known trade-off: diamond dependencies
-  can emit intermediate states outside `batch()`. Wrap
-  multi-signal updates in `batch()` when they feed the same
-  computed or effect.
-- Avoid hidden identity contracts. If callers may reuse and
-  mutate the same object reference, clone before writing it to
-  a signal or pair it with a version signal.
-- Keep the boundary local. Prefer signals inside a view over
-  passing signals through the whole client graph.
-- Register teardown in one place. Timers, event listeners, and
-  child-view disposal should be owned by the same scope where
-  practical.
+- **Use implicit scoping.** Wrap UI initialization in `withScope(scope, () => { ... })` so `effect`, `computed`, and `listen` register for cleanup. Keep that block minimal; placing it at the start or end of the factory is fine.
+- Own effects explicitly. Any view or manager that creates `computed()` or `effect()` graphs should own a `DisposalScope` and expose `dispose()`.
+- Keep derivation pure. Use `computed()` for pure derived values and `effect()` for DOM writes, event-driven side effects, or layout sync hooks.
+- Batch related writes. Known trade-off: diamond dependencies can emit intermediate states outside `batch()`. Wrap multi-signal updates in `batch()` when they feed the same computed or effect.
+- Avoid hidden identity contracts. If callers may reuse and mutate the same object reference, clone before writing it to a signal or pair it with a version signal.
+- Keep the boundary local. Prefer signals inside a view over passing signals through the whole client graph.
+- Register teardown in one place. Timers, event listeners, and child-view disposal should be owned by the same scope where practical.
 
 The current pattern is intentionally narrow: pure functions
 still derive most game-facing state, while reactive signals
@@ -652,7 +648,7 @@ For the underlying ideas, see Martin Fowler on
 and Mark Seemann on
 [Composition Root](https://blog.ploeh.dk/2011/07/28/CompositionRoot/):
 
-- **Pure functions** take only what they need as direct parameters. These are the `derive*`, `build*`, `resolve*`, `get*` functions in `game/helpers.ts`, `game/keyboard.ts`, `game/navigation.ts`, `game/burn.ts`, `game/combat.ts`, `game/messages.ts`, etc. They return values and have no side effects.
+- **Pure functions** take only what they need as direct parameters (or a small options object when the API is naturally grouped). These are the `derive*`, `build*`, `resolve*`, `get*` functions in `game/helpers.ts`, `game/keyboard.ts`, `game/navigation.ts`, `game/burn.ts`, `game/combat.ts`, `game/messages.ts`, etc. They return values and have no side effects. Canvas drawing modules are pure at the function level but often take one typed input object for wide draw entry points, matching the options-object guideline in Core Principles.
 
 - **Side-effecting functions** take a `deps` object as their first parameter. The `deps` interface declares the callbacks and state accessors the function needs (e.g. `getGameState()`, `showToast()`, `getTransport()`). This avoids long parameter lists and makes testing easy via mock objects. Examples: `CombatActionDeps`, `AstrogationActionDeps`, `PresentationDeps`, `LocalGameFlowDeps`.
 
@@ -664,7 +660,7 @@ and Mark Seemann on
     getPlayerId: () => number;
     getPlanningState: () => PlanningState;
     getIsLocalGame: () => boolean;
-    ui: UIManager;    // stable reference, not a getter
+    ui: UIManager; // stable reference, not a getter
   }
   ```
 
@@ -681,7 +677,7 @@ and Mark Seemann on
 
 `GameClient` in `main.ts` wires deps objects via lazy getters that bind callbacks to live context. `dispatchGameCommand()` in `game/command-router.ts` routes commands to the extracted action functions.
 
-When adding new side-effecting logic, prefer extending an existing `*Deps` interface over adding methods to `GameClient`. Keep pure derivation functions as direct-parameter exports — they don't need deps.
+When adding new side-effecting logic, prefer extending an existing `*Deps` interface over adding methods to `GameClient`. Keep pure derivation functions as direct-parameter exports (or a single typed options object when arity is large) — they don't need deps.
 
 When the client needs to decide whether an action is legal or should be shown/enabled, prefer reusing shared rule helpers from `src/shared/engine/` over duplicating lighter-weight UI heuristics. The ordnance HUD and ordnance-phase auto-selection follow this pattern: the client derives button visibility/disabled state and default selection from the same validation helpers the engine uses.
 
@@ -737,15 +733,19 @@ The `applyScreenVisibility` pattern in `UIManager` is the single choke point for
 
 Biome enforces the following as errors (not just warnings):
 
-| Rule | What it enforces |
-|---|---|
-| `useConst` | Immutable bindings where possible |
-| `noVar` | No `var` declarations |
-| `noDoubleEquals` | Strict equality only |
+| Rule               | What it enforces                          |
+| ------------------ | ----------------------------------------- |
+| `useConst`         | Immutable bindings where possible         |
+| `noVar`            | No `var` declarations                     |
+| `noDoubleEquals`   | Strict equality only                      |
 | `useArrowFunction` | Arrow functions over function expressions |
-| `noForEach` | `for...of` instead of `.forEach()` |
-| `useFlatMap` | `.flatMap()` instead of `.map().flat()` |
-| `noUnusedImports` | Clean imports |
+| `noForEach`        | `for...of` instead of `.forEach()`        |
+| `useFlatMap`       | `.flatMap()` instead of `.map().flat()`   |
+| `noUnusedImports`  | Clean imports                             |
+
+Additional enforced rules include `noExplicitAny`, `noUnusedVariables`,
+`useTemplate`, `noNonNullAssertion`, and others — see `biome.json` for the full
+set.
 
 The repository currently treats core lint rules as strict errors for active
 project code. The exceptions are explicitly configured in `biome.json` (for
@@ -753,6 +753,7 @@ example the server override for Cloudflare globals) and should be documented
 there rather than assumed in prose.
 
 Type checking is also strict and split intentionally:
+
 - `tsconfig.json` checks application code under `src/`.
 - `tsconfig.tools.json` checks tooling and test harness code (`scripts/`,
   `e2e/`, and root `*.ts` config files) with Node types enabled.
@@ -763,17 +764,19 @@ The server directory (`src/server/`) has `noUndeclaredVariables` disabled becaus
 ## Formatting
 
 - **Line width**: keep lines under 80 characters where practical. Break long lines at natural points (after commas, before operators, at arrow functions). Some lines will be longer — that's fine if breaking them would hurt readability.
-- **Generous whitespace**: add blank lines to keep code airy and scannable. Specifically:
+- **Generous whitespace**: add blank lines to keep code airy and scannable. Prefer slightly more vertical space than the minimum when it helps you (or a reader) scan structure quickly. Specifically:
   - Between class methods and properties
   - Between top-level declarations (functions, consts, types, interfaces)
   - After import blocks before the first declaration
+  - After the opening `{` of a function body and before a large `switch` or the first substantial statement, when it separates the “header” from the logic
   - Before and after loops (`for`, `while`)
   - Before `if` statements (but not before `else if` in a chain)
   - After the closing `}` of an `if`/`else` chain when more code follows
   - Before and after groups of related `const`/`let` declarations when they form a logical block (but not between every individual binding in a tight group)
   - Before `return` statements that follow logic
-  - Between distinct logical steps within a function
-- **Long signatures**: put each parameter on its own line when the signature exceeds ~80 chars.
+  - Between distinct logical steps within a function (e.g. after building a `const` object literal before the next branch or return)
+  - Biome collapses consecutive blank lines to one — use a single well-placed blank between sections rather than stacking empty lines
+- **Long signatures**: prefer a single typed options object when you reach about five or more parameters (see Core Principles). For shorter positional signatures, put each parameter on its own line when the line exceeds ~80 characters.
 - **Long objects/arrays**: put each property or element on its own line.
 - **Long conditionals**: break `if` conditions and ternaries across multiple lines.
 - **Chained methods**: put each `.method()` on its own line for long chains (map/filter/reduce etc.).
