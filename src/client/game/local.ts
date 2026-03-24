@@ -1,3 +1,4 @@
+import type { EngineEvent } from '../../shared/engine/engine-events';
 import {
   beginCombatPhase,
   hasCombatResults,
@@ -25,6 +26,11 @@ export type LocalResolution =
   | { kind: 'error'; error: string }
   | { kind: 'movement'; result: MovementResult }
   | { kind: 'state'; state: GameState }
+  | {
+      kind: 'logistics';
+      state: GameState;
+      engineEvents: EngineEvent[];
+    }
   | {
       kind: 'combat';
       previousState: GameState;
@@ -163,7 +169,11 @@ export const resolveLogisticsStep = (
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
   }
-  return { kind: 'state', state: result.state };
+  return {
+    kind: 'logistics',
+    state: result.state,
+    engineEvents: result.engineEvents,
+  };
 };
 
 export const resolveSkipLogisticsStep = (

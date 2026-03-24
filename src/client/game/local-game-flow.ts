@@ -6,6 +6,7 @@ import type {
   GameState,
   SolarSystemMap,
 } from '../../shared/types/domain';
+import { formatLogisticsTransferLogLines } from '../ui/formatters';
 import type { AIActionPlan } from './ai-flow';
 import { deriveAIActionPlan } from './ai-flow';
 import type { LocalResolution } from './local';
@@ -97,6 +98,14 @@ export const handleLocalResolution = (
       resolution.results,
       resolution.resetCombat,
     );
+  } else if (resolution.kind === 'logistics') {
+    for (const line of formatLogisticsTransferLogLines(
+      resolution.engineEvents,
+      resolution.state.ships,
+    )) {
+      deps.logText(line);
+    }
+    deps.applyGameState(resolution.state);
   } else {
     deps.applyGameState(resolution.state);
   }

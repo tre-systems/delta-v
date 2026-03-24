@@ -174,10 +174,15 @@ describe('SCENARIOS', () => {
       }
     }
   });
-  it('convoy has a tanker with frigate escort', () => {
+  it('convoy has liner, tanker, and frigate with passenger rescue rules', () => {
     const s = SCENARIOS.convoy;
     const shipTypes = s.players[0].ships.map((sh) => sh.type);
+    expect(shipTypes).toContain('liner');
     expect(shipTypes).toContain('tanker');
     expect(shipTypes).toContain('frigate');
+    expect(s.rules?.passengerRescueEnabled).toBe(true);
+    expect(s.rules?.targetWinRequiresPassengers).toBe(true);
+    const liner = s.players[0].ships.find((sh) => sh.type === 'liner');
+    expect(liner?.initialPassengers).toBeGreaterThan(0);
   });
 });

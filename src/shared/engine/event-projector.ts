@@ -477,7 +477,8 @@ const projectSetupEvent = (
     }
 
     case 'fuelTransferred':
-    case 'cargoTransferred': {
+    case 'cargoTransferred':
+    case 'passengersTransferred': {
       const baseState = requireState(state, event.type);
 
       if (!baseState.ok) {
@@ -500,9 +501,19 @@ const projectSetupEvent = (
       if (event.type === 'fuelTransferred') {
         source.ship.fuel -= event.amount;
         target.ship.fuel += event.amount;
-      } else {
+      } else if (event.type === 'cargoTransferred') {
         source.ship.cargoUsed -= event.amount;
         target.ship.cargoUsed += event.amount;
+      } else {
+        const fromP = source.ship.passengersAboard ?? 0;
+        const nextFrom = fromP - event.amount;
+        if (nextFrom <= 0) {
+          source.ship.passengersAboard = undefined;
+        } else {
+          source.ship.passengersAboard = nextFrom;
+        }
+        target.ship.passengersAboard =
+          (target.ship.passengersAboard ?? 0) + event.amount;
       }
 
       return {

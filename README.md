@@ -196,7 +196,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 
 ### Planned
 
-- [ ] **Passenger Rescue Mechanics**: Rescue-specific transfer and objective rules
+- [x] **Passenger Rescue Mechanics**: Baseline in engine + Convoy (see `docs/BACKLOG.md` **3** for extensions)
 - [ ] **Scenario Expansion**: Lateral 7, Fleet Mutiny, Retribution
 - [ ] **Spectator Mode**: Read-only live battle viewing from public filtered projections
 

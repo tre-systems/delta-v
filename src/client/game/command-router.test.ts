@@ -114,8 +114,10 @@ const createTransferPair = (): TransferPair => ({
   target: createShip({ id: 'ship-1', position: { q: 0, r: 0 } }),
   canTransferFuel: true,
   canTransferCargo: false,
+  canTransferPassengers: false,
   maxFuel: 3,
   maxCargo: 0,
+  maxPassengers: 0,
 });
 
 const createLogisticsState = (amounts: number[]): LogisticsUIState => {
@@ -126,6 +128,7 @@ const createLogisticsState = (amounts: number[]): LogisticsUIState => {
     pairs: [pair],
     fuelAmounts: new Map([[key, amounts[0] ?? 0]]),
     cargoAmounts: new Map([[key, amounts[1] ?? 0]]),
+    passengerAmounts: new Map([[key, amounts[2] ?? 0]]),
   };
 };
 
