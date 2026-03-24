@@ -9,6 +9,7 @@ import type {
   ShipMovement,
   SolarSystemMap,
 } from '../../shared/types/domain';
+import { cond } from '../../shared/util';
 import type { PlanningState } from '../game/planning';
 import {
   type AnimationState,
@@ -70,12 +71,10 @@ import { buildBaseThreatZoneViews } from './vectors';
 
 export const HEX_SIZE = 28;
 
-export type Renderer = ReturnType<typeof createRenderer>;
-
-export function createRenderer(
+export const createRenderer = (
   canvas: HTMLCanvasElement,
   planningState: PlanningState,
-) {
+) => {
   const ctx = must(canvas.getContext('2d'));
   const camera = createCamera();
   const stars: Star[] = generateStars(600, 2000);
@@ -466,13 +465,11 @@ export function createRenderer(
       for (const ev of events) {
         const p = hexToPixel(ev.hex, HEX_SIZE);
         const color =
-          ev.type === 'crash'
-            ? '#ff4444'
-            : ev.type === 'nukeDetonation'
-              ? '#ff6600'
-              : ev.damageType === 'eliminated'
-                ? '#ff4444'
-                : '#ffaa00';
+          cond(
+            [ev.type === 'crash', '#ff4444'],
+            [ev.type === 'nukeDetonation', '#ff6600'],
+            [ev.damageType === 'eliminated', '#ff4444'],
+          ) ?? '#ffaa00';
         hexFlashes.push({
           position: p,
           startTime: now + MOVEMENT_ANIM_DURATION * 0.8,
@@ -536,4 +533,6 @@ export function createRenderer(
       renderFrame(now, width, height);
     },
   };
-}
+};
+
+export type Renderer = ReturnType<typeof createRenderer>;

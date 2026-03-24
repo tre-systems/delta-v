@@ -34,20 +34,25 @@ Classes are acceptable in places like:
 
 - `src/server/game-do/game-do.ts`
 - `src/client/main.ts`
-- `src/client/renderer/renderer.ts`
-- `src/client/renderer/camera.ts`
 - `src/client/input.ts`
 - `src/client/ui/ui.ts`
 
 These files coordinate long-lived state, timers, DOM, canvas, sockets, or platform APIs. That is a legitimate use of classes in this project.
 
+**Canvas rendering** uses the same factory idea without a
+class: `createRenderer()` in `src/client/renderer/renderer.ts`
+and `createCamera()` in `src/client/renderer/camera.ts` own
+long-lived mutable browser state (animation managers, static
+scene cache, listeners). The public type is
+`ReturnType<typeof createRenderer>` (exported as `Renderer`).
+
 Guidance:
 
 - `GameDO` must remain a class because Cloudflare Durable
   Objects require `extends DurableObject`.
-- `GameClient`, `Renderer`, `Camera`, and `InputHandler`
-  are reasonable class shells while they own long-lived
-  mutable browser/runtime state.
+- `GameClient` and `InputHandler` are reasonable class
+  shells while they own long-lived mutable browser/runtime
+  state.
 - If an imperative boundary binds DOM, window, or other
   long-lived event listeners, it should own explicit
   teardown via `dispose()` or equivalent returned
@@ -579,7 +584,7 @@ The shared engine is data-oriented by design. Lean into that with functional pat
 
 State belongs to the coordinator that manages its lifecycle, and is passed by reference to collaborators:
 
-- **PlanningState** is owned by `GameClient` in `main.ts`, defined in `src/client/game/planning.ts`. It is the client-side "working memory" for the current turn — the uncommitted moves that get sent to the server on confirm. Renderer receives it as a constructor parameter and reads the shared reference each frame to draw previews. `InputHandler` does not receive PlanningState — it emits raw spatial events (`InputEvent`), and `interpretInput()` receives PlanningState as a read-only argument to produce `GameCommand[]`.
+- **PlanningState** is owned by `GameClient` in `main.ts`, defined in `src/client/game/planning.ts`. It is the client-side "working memory" for the current turn — the uncommitted moves that get sent to the server on confirm. The renderer receives it when constructed via `createRenderer(canvas, planningState)` and reads the same reference each frame to draw previews. `InputHandler` does not receive PlanningState — it emits raw spatial events (`InputEvent`), and `interpretInput()` receives PlanningState as a read-only argument to produce `GameCommand[]`.
 
   Key fields: `burns` (Map of ship → burn direction), `overloads` (Map of ship → overload direction), `queuedAttacks` (buffered combat declarations), `selectedShipId`, `hoverHex`, `combatTargetId`/`combatAttackerIds` (combat planning), `torpedoAccel` (torpedo launch direction). Reset via `createInitialPlanningState()` on phase transitions.
 
