@@ -21,10 +21,36 @@ export interface LobbyView {
   dispose: () => void;
 }
 
+/** Node 25 + jsdom (and some test globals) can expose a non-Storage `localStorage`; validate before use. */
+const webLocalStorage = (): Pick<Storage, 'getItem' | 'setItem'> | null => {
+  try {
+    const g = globalThis as typeof globalThis & {
+      localStorage?: unknown;
+      window?: { localStorage?: unknown };
+    };
+    const candidates = [g.localStorage, g.window?.localStorage];
+    for (const ls of candidates) {
+      if (
+        ls !== null &&
+        ls !== undefined &&
+        typeof ls === 'object' &&
+        typeof (ls as Storage).getItem === 'function' &&
+        typeof (ls as Storage).setItem === 'function'
+      ) {
+        return ls as Storage;
+      }
+    }
+  } catch {
+    /* private mode / no storage */
+  }
+  return null;
+};
+
 export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const scope = createDisposalScope();
+  const ls = webLocalStorage();
   const storedDifficulty =
-    (localStorage.getItem('aiDifficulty') as AIDifficulty | null) ?? 'normal';
+    (ls?.getItem('aiDifficulty') as AIDifficulty | null) ?? 'normal';
   const aiDifficultySignal = signal<AIDifficulty>(storedDifficulty);
   const pendingAIGameSignal = signal(false);
   const loadingSignal = signal(false);
@@ -158,7 +184,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         event.stopPropagation();
         const diff = btn.dataset.difficulty as AIDifficulty;
         aiDifficultySignal.value = diff;
-        localStorage.setItem('aiDifficulty', diff);
+        ls?.setItem('aiDifficulty', diff);
       });
     }
 

@@ -30,6 +30,21 @@ describe('LobbyView', () => {
     vi.useRealTimers();
   });
 
+  it('does not throw when global localStorage lacks Storage methods (uses window)', () => {
+    vi.stubGlobal('localStorage', {} as Storage);
+    try {
+      expect(() =>
+        createLobbyView({
+          emit: vi.fn(),
+          showMenu: vi.fn(),
+          showScenarioSelect: vi.fn(),
+        }),
+      ).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('emits multiplayer and single-player scenario events', () => {
     const emit = vi.fn();
     const showMenu = vi.fn();
