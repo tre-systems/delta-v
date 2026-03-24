@@ -75,6 +75,8 @@ export interface Ship {
   overloadUsed: boolean;
   baseStatus?: 'carryingBase' | 'emplaced';
   identity?: { hasFugitives: boolean; revealed: boolean };
+  /** Colonists / passengers (rescue scenarios); share cargo capacity with ordnance mass. */
+  passengersAboard?: number;
   pendingGravityEffects?: GravityEffect[];
   deathCause?: string;
   killedBy?: string; // ship ID or label of the attacker
@@ -272,7 +274,7 @@ export interface FleetPurchase {
 export interface TransferOrder {
   sourceShipId: string;
   targetShipId: string;
-  transferType: 'fuel' | 'cargo';
+  transferType: 'fuel' | 'cargo' | 'passengers';
   amount: number;
 }
 
@@ -300,6 +302,10 @@ export interface ScenarioRules {
   checkpointBodies?: string[];
   sharedBases?: string[];
   logisticsEnabled?: boolean;
+  /** Enable passenger transfers in logistics (same geometry rules as fuel/cargo). */
+  passengerRescueEnabled?: boolean;
+  /** Landing on targetBody only wins if the landed ship carries at least one passenger. */
+  targetWinRequiresPassengers?: boolean;
   reinforcements?: Reinforcement[];
   fleetConversion?: FleetConversion;
 }
@@ -313,4 +319,5 @@ export interface ScenarioShip {
   velocity: HexVec;
   startLanded?: boolean;
   startInOrbit?: boolean;
+  initialPassengers?: number;
 }

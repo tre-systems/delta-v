@@ -396,7 +396,7 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 - **Asteroid hexside rule** _(resolved):_ The rulebook (p.7) states "a ship passing along a hexside between two asteroid hexes is considered to have entered one asteroid hex" — one hazard roll, not two. Resolved via `analyzeHexLine()`: `queueAsteroidHazards()` queues exactly one hazard for `ambiguousPairs` where both hexes are asteroids.
 
-- **Logistics** _(partially implemented):_ Surrender (unilateral declaration during astrogation), fuel/cargo transfer (new logistics phase after movement, requires position+velocity match), and looting of disabled/surrendered enemy ships are implemented. Torch fuel transfer restriction enforced. Enabled on Convoy, Fleet Action, and Interplanetary War scenarios. The astrogation HUD now includes a `MATCH VEL` helper that copies a nearby friendly ship's reachable velocity onto the selected ship when possible, reducing the setup friction for transfers. Remaining: dummy counters for concealment scenarios and passenger rescue mechanics.
+- **Logistics** _(partially implemented):_ Surrender (unilateral declaration during astrogation), fuel/cargo transfer (new logistics phase after movement, requires position+velocity match), and looting of disabled/surrendered enemy ships are implemented. **Passenger / colonist transfer** is implemented when `passengerRescueEnabled` is set on the scenario; passengers share the target ship’s cargo capacity with ordnance mass, and **Convoy** uses `targetWinRequiresPassengers` so a target-body win requires landing with passengers aboard. Torch fuel transfer restriction enforced. Enabled on Convoy, Fleet Action, and Interplanetary War scenarios. The astrogation HUD now includes a `MATCH VEL` helper that copies a nearby friendly ship's reachable velocity onto the selected ship when possible, reducing the setup friction for transfers. Remaining: dummy counters for concealment scenarios and any additional rescue-scenario tuning beyond the Convoy baseline.
 
 - **Advanced combat system** _(resolved):_ The rulebook uses the standard D1–D5/E damage system throughout; no separate advanced subsystem damage tracks exist. Dreadnaught gun exception (fire while disabled) is implemented in `canAttack`/`canCounterattack`. Orbital base D1 resilience (fire guns, launch torpedoes, and resupply at D1 damage) is implemented via `canOperateWhileDisabled()` in `combat.ts` and ordnance launch validation in `game-engine.ts`.
 
@@ -887,12 +887,12 @@ interface ScenarioPlayer {
 - [x] PWA support (installable shell with offline-capable single-player)
 - [x] Grand Tour checkpoint race scenario
 - [x] Asteroid map visuals matching reference map
-- [x] Logistics: surrender, looting, fuel/cargo transfer (passenger rescue remains open)
+- [x] Logistics: surrender, looting, fuel/cargo / passenger transfer (Convoy rescue baseline)
 - [x] Event-sourced match history (authoritative match stream, projection rebuilds, checkpoints)
 - [x] Turn replay
 - [ ] Scenario expansion: Lateral 7, Fleet Mutiny, Retribution
 - [ ] Spectator mode
-- [ ] Passenger rescue mechanics
+- [x] Passenger rescue mechanics (engine + Convoy; further scenarios as needed)
 
 ## Design Decisions
 

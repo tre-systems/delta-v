@@ -18,9 +18,20 @@ export interface TransferPair {
   target: Ship;
   canTransferFuel: boolean;
   canTransferCargo: boolean;
+  canTransferPassengers: boolean;
   maxFuel: number;
   maxCargo: number;
+  maxPassengers: number;
 }
+
+const freeCargoCapacity = (ship: Ship, stats: ShipStatsLike): number => {
+  if (stats.cargo === Number.POSITIVE_INFINITY) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return stats.cargo - ship.cargoUsed - (ship.passengersAboard ?? 0);
+};
+
+type ShipStatsLike = { cargo: number };
 
 const velocityMatch = (a: Ship, b: Ship): boolean =>
   a.velocity.dq === b.velocity.dq && a.velocity.dr === b.velocity.dr;
@@ -81,20 +92,29 @@ export const getTransferEligiblePairs = (
         ? Math.min(source.fuel, targetStats.fuel - target.fuel)
         : 0;
       const sourceCargoLoaded = source.cargoUsed;
-      const targetCargoSpace = targetStats.cargo - target.cargoUsed;
-      const canTransferCargo = sourceCargoLoaded > 0 && targetCargoSpace > 0;
+      const targetFree = freeCargoCapacity(target, targetStats);
+      const canTransferCargo = sourceCargoLoaded > 0 && targetFree > 0;
       const maxCargo = canTransferCargo
-        ? Math.min(sourceCargoLoaded, targetCargoSpace)
+        ? Math.min(sourceCargoLoaded, targetFree)
+        : 0;
+      const sourcePassengers = source.passengersAboard ?? 0;
+      const passengerRescue = !!state.scenarioRules.passengerRescueEnabled;
+      const canTransferPassengers =
+        passengerRescue && sourcePassengers > 0 && targetFree > 0;
+      const maxPassengers = canTransferPassengers
+        ? Math.min(sourcePassengers, targetFree)
         : 0;
 
-      if (canTransferFuel || canTransferCargo) {
+      if (canTransferFuel || canTransferCargo || canTransferPassengers) {
         pairs.push({
           source,
           target,
           canTransferFuel,
           canTransferCargo,
+          canTransferPassengers,
           maxFuel,
           maxCargo,
+          maxPassengers,
         });
       }
     }
@@ -194,12 +214,35 @@ const validateTransfer = (
       return engineFailure(ErrorCode.RESOURCE_LIMIT, 'Insufficient cargo')
         .error;
     }
-    const space = targetStats.cargo - target.cargoUsed;
+    const space = freeCargoCapacity(target, targetStats);
 
     if (transfer.amount > space) {
       return engineFailure(
         ErrorCode.RESOURCE_LIMIT,
         'Target cargo capacity exceeded',
+      ).error;
+    }
+  } else if (transfer.transferType === 'passengers') {
+    if (!state.scenarioRules.passengerRescueEnabled) {
+      return engineFailure(
+        ErrorCode.NOT_ALLOWED,
+        'Passenger transfers are not enabled for this scenario',
+      ).error;
+    }
+    const srcPax = source.passengersAboard ?? 0;
+
+    if (transfer.amount > srcPax) {
+      return engineFailure(
+        ErrorCode.RESOURCE_LIMIT,
+        'Insufficient passengers to transfer',
+      ).error;
+    }
+    const space = freeCargoCapacity(target, targetStats);
+
+    if (transfer.amount > space) {
+      return engineFailure(
+        ErrorCode.RESOURCE_LIMIT,
+        'Target has insufficient capacity for passengers',
       ).error;
     }
   } else {
@@ -259,11 +302,27 @@ export const processLogistics = (
         toShipId: target.id,
         amount: transfer.amount,
       });
-    } else {
+    } else if (transfer.transferType === 'cargo') {
       source.cargoUsed -= transfer.amount;
       target.cargoUsed += transfer.amount;
       engineEvents.push({
         type: 'cargoTransferred',
+        fromShipId: source.id,
+        toShipId: target.id,
+        amount: transfer.amount,
+      });
+    } else {
+      const fromP = source.passengersAboard ?? 0;
+      const nextFrom = fromP - transfer.amount;
+      if (nextFrom <= 0) {
+        source.passengersAboard = undefined;
+      } else {
+        source.passengersAboard = nextFrom;
+      }
+      target.passengersAboard =
+        (target.passengersAboard ?? 0) + transfer.amount;
+      engineEvents.push({
+        type: 'passengersTransferred',
         fromShipId: source.id,
         toShipId: target.id,
         amount: transfer.amount,

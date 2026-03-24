@@ -184,6 +184,10 @@ export const createGame = (
               },
             ]
           : [];
+      const passengersAboard =
+        def.initialPassengers != null && def.initialPassengers > 0
+          ? def.initialPassengers
+          : undefined;
       return {
         id: `p${p}s${s}`,
         type: def.type,
@@ -203,6 +207,7 @@ export const createGame = (
         detected: true,
         pendingGravityEffects: initialGravity,
         damage: { disabledTurns: 0 },
+        ...(passengersAboard != null ? { passengersAboard } : {}),
       };
     }),
   );
@@ -251,6 +256,8 @@ export const createGame = (
         ? [...scenario.rules.sharedBases]
         : undefined,
       logisticsEnabled: scenario.rules?.logisticsEnabled,
+      passengerRescueEnabled: scenario.rules?.passengerRescueEnabled,
+      targetWinRequiresPassengers: scenario.rules?.targetWinRequiresPassengers,
       reinforcements: scenario.rules?.reinforcements?.map((reinforcement) => ({
         turn: reinforcement.turn,
         playerId: reinforcement.playerId,
@@ -260,6 +267,9 @@ export const createGame = (
           velocity: { ...ship.velocity },
           startLanded: ship.startLanded,
           startInOrbit: ship.startInOrbit,
+          ...(ship.initialPassengers != null && ship.initialPassengers > 0
+            ? { initialPassengers: ship.initialPassengers }
+            : {}),
         })),
       })),
       fleetConversion: scenario.rules?.fleetConversion

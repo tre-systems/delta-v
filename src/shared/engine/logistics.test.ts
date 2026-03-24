@@ -185,6 +185,31 @@ describe('getTransferEligiblePairs', () => {
     expect(pairs[0].canTransferFuel).toBe(true);
     expect(pairs[0].maxFuel).toBe(15);
   });
+  it('offers passenger transfers when scenario enables rescue', () => {
+    const source = makeShip({
+      id: 'lin',
+      type: 'liner',
+      owner: 0,
+      originalOwner: 0,
+      passengersAboard: 30,
+    });
+    const target = makeShip({
+      id: 'frig',
+      type: 'frigate',
+      owner: 0,
+      originalOwner: 0,
+    });
+    const state = makeState([source, target], {
+      scenarioRules: {
+        logisticsEnabled: true,
+        passengerRescueEnabled: true,
+      },
+    });
+    const pairs = getTransferEligiblePairs(state, 0);
+    expect(pairs.length).toBe(1);
+    expect(pairs[0].canTransferPassengers).toBe(true);
+    expect(pairs[0].maxPassengers).toBe(30);
+  });
   it('excludes pairs at different hexes', () => {
     const source = makeShip({
       id: 's1',
@@ -441,6 +466,97 @@ describe('processLogistics', () => {
       expect(src.cargoUsed).toBe(3);
       expect(tgt.cargoUsed).toBe(2);
     }
+  });
+  it('transfers passengers when passenger rescue is enabled', () => {
+    const source = makeShip({
+      id: 's1',
+      type: 'liner',
+      owner: 0,
+      originalOwner: 0,
+      passengersAboard: 50,
+    });
+    const target = makeShip({
+      id: 's2',
+      type: 'frigate',
+      owner: 0,
+      originalOwner: 0,
+    });
+    const state = makeState([source, target], {
+      scenarioRules: {
+        logisticsEnabled: true,
+        passengerRescueEnabled: true,
+      },
+    });
+    const transfer: TransferOrder = {
+      sourceShipId: 's1',
+      targetShipId: 's2',
+      transferType: 'passengers',
+      amount: 15,
+    };
+    const result = processLogistics(state, 0, [transfer], map);
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      const src = must(result.state.ships.find((s) => s.id === 's1'));
+      const tgt = must(result.state.ships.find((s) => s.id === 's2'));
+      expect(src.passengersAboard).toBe(35);
+      expect(tgt.passengersAboard).toBe(15);
+      expect(result.engineEvents).toContainEqual({
+        type: 'passengersTransferred',
+        fromShipId: 's1',
+        toShipId: 's2',
+        amount: 15,
+      });
+    }
+  });
+  it('rejects passenger transfer when rescue is not enabled', () => {
+    const source = makeShip({
+      id: 's1',
+      type: 'liner',
+      owner: 0,
+      originalOwner: 0,
+      passengersAboard: 10,
+    });
+    const target = makeShip({
+      id: 's2',
+      type: 'frigate',
+      owner: 0,
+      originalOwner: 0,
+    });
+    const state = makeState([source, target]);
+    const transfer: TransferOrder = {
+      sourceShipId: 's1',
+      targetShipId: 's2',
+      transferType: 'passengers',
+      amount: 5,
+    };
+    const result = processLogistics(state, 0, [transfer], map);
+    expect('error' in result).toBe(true);
+  });
+  it('counts passengers toward target cargo capacity for cargo transfers', () => {
+    const source = makeShip({
+      id: 's1',
+      type: 'frigate',
+      owner: 0,
+      originalOwner: 0,
+      cargoUsed: 10,
+    });
+    const target = makeShip({
+      id: 's2',
+      type: 'corvette',
+      owner: 0,
+      originalOwner: 0,
+      cargoUsed: 0,
+      passengersAboard: 4,
+    });
+    const state = makeState([source, target]);
+    const transfer: TransferOrder = {
+      sourceShipId: 's1',
+      targetShipId: 's2',
+      transferType: 'cargo',
+      amount: 2,
+    };
+    const result = processLogistics(state, 0, [transfer], map);
+    expect('error' in result).toBe(true);
   });
   it('rejects transfer exceeding source fuel', () => {
     const source = makeShip({

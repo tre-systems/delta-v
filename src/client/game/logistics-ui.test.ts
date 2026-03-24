@@ -34,8 +34,10 @@ const createTransferPair = (): TransferPair => ({
   target: createShip({ id: 'ship-1' }),
   canTransferFuel: true,
   canTransferCargo: true,
+  canTransferPassengers: false,
   maxFuel: 3,
   maxCargo: 2,
+  maxPassengers: 0,
 });
 
 const createLogisticsState = (
@@ -48,6 +50,7 @@ const createLogisticsState = (
     pairs: [pair],
     fuelAmounts: new Map([[key, 0]]),
     cargoAmounts: new Map([[key, 0]]),
+    passengerAmounts: new Map([[key, 0]]),
     ...overrides,
   };
 };
@@ -105,6 +108,7 @@ describe('logistics-ui', () => {
       pairs: [],
       fuelAmounts: new Map(),
       cargoAmounts: new Map(),
+      passengerAmounts: new Map(),
     });
 
     stalePlusBtn?.click();

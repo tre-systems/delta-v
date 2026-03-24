@@ -95,6 +95,10 @@ const applyReinforcements = (state: GameState): void => {
 
       const id = getNextShipId(state);
 
+      const passengersAboard =
+        shipDef.initialPassengers != null && shipDef.initialPassengers > 0
+          ? shipDef.initialPassengers
+          : undefined;
       state.ships.push({
         id,
         type: shipDef.type,
@@ -112,6 +116,7 @@ const applyReinforcements = (state: GameState): void => {
         overloadUsed: false,
         detected: true,
         damage: { disabledTurns: 0 },
+        ...(passengersAboard != null ? { passengersAboard } : {}),
       });
     }
   }
@@ -264,8 +269,16 @@ export const checkImmediateVictory = (
     const hex = map.hexes.get(hexKey(ship.position));
 
     if (hex?.base?.bodyName === targetBody || hex?.body?.name === targetBody) {
+      if (state.scenarioRules.targetWinRequiresPassengers) {
+        const pax = ship.passengersAboard ?? 0;
+        if (pax <= 0) {
+          continue;
+        }
+      }
       state.winner = ship.owner;
-      state.winReason = `Landed on ${targetBody}!`;
+      state.winReason = state.scenarioRules.targetWinRequiresPassengers
+        ? `Landed on ${targetBody} with colonists!`
+        : `Landed on ${targetBody}!`;
       state.phase = 'gameOver';
       engineEvents?.push({
         type: 'gameOver',

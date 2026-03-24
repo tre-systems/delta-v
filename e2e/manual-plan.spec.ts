@@ -79,7 +79,7 @@ test.describe('manual test plan coverage', () => {
 
     await expect(page.locator('#objective')).toBeVisible();
     await expect(page.locator('#phaseInfo')).toContainText('ASTROGATION');
-    await expect(page.locator('#shipList .ship-entry')).toHaveCount(2);
+    await expect(page.locator('#shipList .ship-entry')).toHaveCount(3);
   });
 
   test('Escape vs AI boots with multiple pilgrim ships', async ({ page }) => {

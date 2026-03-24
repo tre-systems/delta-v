@@ -313,6 +313,35 @@ describe('checkImmediateVictory', () => {
       expect(state.winner).toBeNull();
     }
   });
+  it('with targetWinRequiresPassengers, ignores target landing without passengers', () => {
+    map = buildSolarSystemMap();
+    const state = createGame(SCENARIOS.convoy, map, 'PW01', findBaseHex);
+    expect(state.scenarioRules.targetWinRequiresPassengers).toBe(true);
+    const venusHex = must(findBaseHex(map, 'Venus'));
+    const ship = must(
+      state.ships.find((s) => s.owner === 0 && s.type === 'tanker'),
+    );
+    ship.lifecycle = 'landed';
+    ship.position = { ...venusHex };
+    ship.passengersAboard = undefined;
+    checkImmediateVictory(state, map);
+    expect(state.winner).toBeNull();
+  });
+  it('with targetWinRequiresPassengers, awards win when landing with passengers', () => {
+    map = buildSolarSystemMap();
+    const state = createGame(SCENARIOS.convoy, map, 'PW02', findBaseHex);
+    const venusHex = must(findBaseHex(map, 'Venus'));
+    const ship = must(
+      state.ships.find((s) => s.owner === 0 && s.type === 'liner'),
+    );
+    ship.lifecycle = 'landed';
+    ship.position = { ...venusHex };
+    ship.passengersAboard = 10;
+    checkImmediateVictory(state, map);
+    expect(state.winner).toBe(0);
+    expect(state.winReason).toContain('colonists');
+    expect(state.phase).toBe('gameOver');
+  });
 });
 describe('checkGameEnd', () => {
   it('awards enforcer victory when fugitive is destroyed (no moral victory)', () => {

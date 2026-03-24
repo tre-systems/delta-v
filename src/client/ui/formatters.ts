@@ -1,4 +1,5 @@
 import { SHIP_STATS } from '../../shared/constants';
+import type { EngineEvent } from '../../shared/engine/engine-events';
 import type {
   CombatResult,
   MovementEvent,
@@ -319,4 +320,46 @@ export const formatCombatResultEntries = (
   }
 
   return entries;
+};
+
+/** Human-readable lines for logistics transfer engine events (local / AI games). */
+export const formatLogisticsTransferLogLines = (
+  events: EngineEvent[],
+  ships: Ship[],
+): string[] => {
+  const lines: string[] = [];
+  for (const e of events) {
+    if (e.type === 'fuelTransferred') {
+      const from = getShipName(
+        ships.find((s) => s.id === e.fromShipId) ?? null,
+        e.fromShipId,
+      );
+      const to = getShipName(
+        ships.find((s) => s.id === e.toShipId) ?? null,
+        e.toShipId,
+      );
+      lines.push(`Transferred ${e.amount} fuel: ${from} → ${to}`);
+    } else if (e.type === 'cargoTransferred') {
+      const from = getShipName(
+        ships.find((s) => s.id === e.fromShipId) ?? null,
+        e.fromShipId,
+      );
+      const to = getShipName(
+        ships.find((s) => s.id === e.toShipId) ?? null,
+        e.toShipId,
+      );
+      lines.push(`Transferred ${e.amount} cargo mass: ${from} → ${to}`);
+    } else if (e.type === 'passengersTransferred') {
+      const from = getShipName(
+        ships.find((s) => s.id === e.fromShipId) ?? null,
+        e.fromShipId,
+      );
+      const to = getShipName(
+        ships.find((s) => s.id === e.toShipId) ?? null,
+        e.toShipId,
+      );
+      lines.push(`Transferred ${e.amount} passengers: ${from} → ${to}`);
+    }
+  }
+  return lines;
 };

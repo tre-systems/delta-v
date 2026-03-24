@@ -788,8 +788,8 @@ describe('projectMatchSetupFromStream', () => {
           actor: 0,
           event: {
             type: 'fuelTransferred',
-            fromShipId: 'p0s0',
-            toShipId: 'p0s1',
+            fromShipId: 'p0s1',
+            toShipId: 'p0s2',
             amount: 2,
           },
         },
@@ -799,10 +799,10 @@ describe('projectMatchSetupFromStream', () => {
           ts: 3,
           actor: 0,
           event: {
-            type: 'cargoTransferred',
+            type: 'passengersTransferred',
             fromShipId: 'p0s0',
-            toShipId: 'p0s1',
-            amount: 1,
+            toShipId: 'p0s2',
+            amount: 5,
           },
         },
         {
@@ -812,7 +812,7 @@ describe('projectMatchSetupFromStream', () => {
           actor: 0,
           event: {
             type: 'shipSurrendered',
-            shipId: 'p0s1',
+            shipId: 'p0s2',
           },
         },
         {
@@ -849,11 +849,15 @@ describe('projectMatchSetupFromStream', () => {
       return;
     }
 
-    expect(projected.state.ships.find((ship) => ship.id === 'p0s0')?.fuel).toBe(
+    expect(projected.state.ships.find((ship) => ship.id === 'p0s1')?.fuel).toBe(
       48,
     );
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p0s1')?.control,
+      projected.state.ships.find((ship) => ship.id === 'p0s0')
+        ?.passengersAboard,
+    ).toBe(115);
+    expect(
+      projected.state.ships.find((ship) => ship.id === 'p0s2')?.control,
     ).toBe('surrendered');
     expect(projected.state.ships.find((ship) => ship.id === 'ob9')?.type).toBe(
       'orbitalBase',

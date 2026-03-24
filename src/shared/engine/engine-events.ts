@@ -181,6 +181,12 @@ export type EngineEvent =
       amount: number;
     }
   | {
+      type: 'passengersTransferred';
+      fromShipId: string;
+      toShipId: string;
+      amount: number;
+    }
+  | {
       type: 'shipSurrendered';
       shipId: string;
     }
