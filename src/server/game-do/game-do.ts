@@ -1066,20 +1066,107 @@ export class GameDO extends DurableObject<Env> {
     ws: WebSocket,
     message: GameStateActionMessage,
   ): Promise<void> {
-    const handler = this.gameStateActionHandlers[message.type] as unknown as {
-      run: (
-        gameState: GameState,
-        playerId: number,
-        message: GameStateActionMessage,
-      ) =>
-        | StatefulActionSuccess
-        | EngineFailure
-        | Promise<StatefulActionSuccess | EngineFailure>;
-      publish: (
-        playerId: number,
-        result: StatefulActionSuccess,
-      ) => Promise<void>;
-    };
+    switch (message.type) {
+      case 'fleetReady':
+        await this.dispatchGameStateActionOfType(
+          playerId,
+          ws,
+          message,
+          this.gameStateActionHandlers.fleetReady,
+        );
+        return;
+      case 'astrogation':
+        await this.dispatchGameStateActionOfType(
+          playerId,
+          ws,
+          message,
+          this.gameStateActionHandlers.astrogation,
+        );
+        return;
+      case 'surrender':
+        await this.dispatchGameStateActionOfType(
+          playerId,
+          ws,
+          message,
+          this.gameStateActionHandlers.surrender,
+        );
+        return;
+      case 'ordnance':
+        await this.dispatchGameStateActionOfType(
+          playerId,
+          ws,
+          message,
+          this.gameStateActionHandlers.ordnance,
+        );
+        return;
+      case 'emplaceBase':
+        await this.dispatchGameStateActionOfType(
+          playerId,
+          ws,
+          message,
+          this.gameStateActionHandlers.emplaceBase,
+        );
+        return;
+      case 'skipOrdnance':
+        await this.dispatchGameStateActionOfType(
+          playerId,
+          ws,
+          message,
+          this.gameStateActionHandlers.skipOrdnance,
+        );
+        return;
+      case 'beginCombat':
+        await this.dispatchGameStateActionOfType(
+          playerId,
+          ws,
+          message,
+          this.gameStateActionHandlers.beginCombat,
+        );
+        return;
+      case 'combat':
+        await this.dispatchGameStateActionOfType(
+          playerId,
+          ws,
+          message,
+          this.gameStateActionHandlers.combat,
+        );
+        return;
+      case 'skipCombat':
+        await this.dispatchGameStateActionOfType(
+          playerId,
+          ws,
+          message,
+          this.gameStateActionHandlers.skipCombat,
+        );
+        return;
+      case 'logistics':
+        await this.dispatchGameStateActionOfType(
+          playerId,
+          ws,
+          message,
+          this.gameStateActionHandlers.logistics,
+        );
+        return;
+      case 'skipLogistics':
+        await this.dispatchGameStateActionOfType(
+          playerId,
+          ws,
+          message,
+          this.gameStateActionHandlers.skipLogistics,
+        );
+        return;
+    }
+  }
+
+  private async dispatchGameStateActionOfType<
+    T extends GameStateActionType,
+    Success extends StatefulActionSuccess,
+  >(
+    playerId: number,
+    ws: WebSocket,
+    message: GameStateActionMessageOf<T>,
+    handler: GameStateActionHandler<T, Success>,
+  ): Promise<void> {
     await this.runGameStateAction(
       ws,
       (gameState) => handler.run(gameState, playerId, message),

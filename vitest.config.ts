@@ -6,11 +6,8 @@ export default defineConfig({
     exclude: ['e2e/**'],
     coverage: {
       provider: 'v8',
-      all: true,
       include: ['src/**/*.ts'],
-      exclude: [
-        'src/**/*.test.ts',
-      ],
+      exclude: ['src/**/*.test.ts'],
       reporter: ['text', 'html', 'json-summary'],
       reportsDirectory: './coverage',
       thresholds: {

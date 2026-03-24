@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 const displayOf = async (page: Page, selector: string): Promise<string> => {
   return page.locator(selector).evaluate((element) => {
@@ -41,7 +41,8 @@ const createMultiplayerRoom = async (
   await host.click('[data-scenario="biplanetary"]');
   await waitForDisplay(host, '#waiting', 'flex');
 
-  const roomCode = (await host.locator('#gameCode').textContent())?.trim() ?? '';
+  const roomCode =
+    (await host.locator('#gameCode').textContent())?.trim() ?? '';
   expect(roomCode).toMatch(/^[A-Z0-9]{5}$/);
 
   await guest.fill('#codeInput', roomCode);
@@ -175,7 +176,9 @@ test.describe('browser smoke tests', () => {
     await intruder.fill('#codeInput', roomCode);
     await intruder.click('#joinBtn');
 
-    await expect(intruder.locator('#toastContainer')).toContainText('Game is full');
+    await expect(intruder.locator('#toastContainer')).toContainText(
+      'Game is full',
+    );
     await waitForDisplay(intruder, '#menu', 'flex');
 
     await host.close();

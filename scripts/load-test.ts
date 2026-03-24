@@ -156,7 +156,10 @@ const parseArgs = (argv: string[]): LoadTestConfig => {
     scenario,
     games,
     concurrency,
-    spawnDelayMs: Math.max(0, parseIntegerFlag(getFlag('--spawn-delay-ms'), 250)),
+    spawnDelayMs: Math.max(
+      0,
+      parseIntegerFlag(getFlag('--spawn-delay-ms'), 250),
+    ),
     thinkMinMs: Math.max(0, parseIntegerFlag(getFlag('--think-min-ms'), 150)),
     thinkMaxMs: Math.max(0, parseIntegerFlag(getFlag('--think-max-ms'), 600)),
     disconnectRate: clamp(
@@ -183,8 +186,9 @@ const buildFleetPurchases = (
 ): FleetPurchase[] => {
   const credits = state.players[playerId].credits ?? 0;
   const scenarioDef =
-    Object.values(SCENARIOS).find((scenario) => scenario.name === state.scenario) ??
-    null;
+    Object.values(SCENARIOS).find(
+      (scenario) => scenario.name === state.scenario,
+    ) ?? null;
   const available =
     scenarioDef?.availableShipTypes ??
     Object.keys(SHIP_STATS).filter((type) => type !== 'orbitalBase');
@@ -215,9 +219,7 @@ const buildIdleAstrogationOrders = (
   playerId: number,
 ): AstrogationOrder[] =>
   state.ships
-    .filter(
-      (ship) => ship.owner === playerId && ship.lifecycle !== 'destroyed',
-    )
+    .filter((ship) => ship.owner === playerId && ship.lifecycle !== 'destroyed')
     .map((ship) => ({
       shipId: ship.id,
       burn: null,
@@ -229,7 +231,9 @@ const hasOwnedPendingAsteroidHazards = (
   playerId: number,
 ): boolean =>
   state.pendingAsteroidHazards.some((hazard) => {
-    const ship = state.ships.find((candidate) => candidate.id === hazard.shipId);
+    const ship = state.ships.find(
+      (candidate) => candidate.id === hazard.shipId,
+    );
 
     return ship?.owner === playerId && ship.lifecycle !== 'destroyed';
   });
@@ -244,8 +248,6 @@ class BotClient {
   private reconnectPending = false;
   private readonly actionKeys = new Set<string>();
   private actionTimer: NodeJS.Timeout | null = null;
-  private settleOpen: (() => void) | null = null;
-  private settleReject: ((error: Error) => void) | null = null;
   private settledResult = false;
 
   constructor(
@@ -269,8 +271,6 @@ class BotClient {
       `/ws/${this.gameCode}${tokenQuery}`;
 
     await new Promise<void>((resolve, reject) => {
-      this.settleOpen = resolve;
-      this.settleReject = reject;
       this.settledResult = false;
 
       const ws = new WebSocket(wsUrl);
@@ -315,8 +315,6 @@ class BotClient {
   private finishConnect(resolve: () => void): void {
     if (this.settledResult) return;
     this.settledResult = true;
-    this.settleOpen = null;
-    this.settleReject = null;
     resolve();
   }
 
@@ -326,8 +324,6 @@ class BotClient {
   ): void {
     if (this.settledResult) return;
     this.settledResult = true;
-    this.settleOpen = null;
-    this.settleReject = null;
     reject(error);
   }
 
@@ -425,9 +421,10 @@ class BotClient {
 
         this.send({
           type: 'astrogation',
-          orders: orders.length > 0
-            ? orders
-            : buildIdleAstrogationOrders(state, this.playerId),
+          orders:
+            orders.length > 0
+              ? orders
+              : buildIdleAstrogationOrders(state, this.playerId),
         });
         return;
       }
@@ -446,7 +443,7 @@ class BotClient {
         }
         return;
       }
-      case 'combat':
+      case 'combat': {
         if (hasOwnedPendingAsteroidHazards(state, this.playerId)) {
           this.send({ type: 'beginCombat' });
           return;
@@ -465,6 +462,7 @@ class BotClient {
           this.send({ type: 'skipCombat' });
         }
         return;
+      }
       case 'logistics':
         this.send({ type: 'skipLogistics' });
         return;
@@ -522,7 +520,9 @@ class BotClient {
   }
 }
 
-const createGame = async (config: LoadTestConfig): Promise<CreateGameResponse> => {
+const createGame = async (
+  config: LoadTestConfig,
+): Promise<CreateGameResponse> => {
   const response = await fetch(`${config.serverUrl}/create`, {
     method: 'POST',
     headers: {
@@ -766,9 +766,7 @@ const main = async (): Promise<void> => {
     }
   };
 
-  await Promise.all(
-    Array.from({ length: config.concurrency }, () => worker()),
-  );
+  await Promise.all(Array.from({ length: config.concurrency }, () => worker()));
 
   printSummary(config, aggregate);
 

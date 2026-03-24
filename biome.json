@@ -63,6 +63,6 @@
     }
   ],
   "files": {
-    "includes": ["src/**/*.ts", "*.mjs"]
+    "includes": ["src/**/*.ts", "scripts/**/*.ts", "e2e/**/*.ts", "*.ts", "*.mjs"]
   }
 }

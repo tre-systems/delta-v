@@ -1,6 +1,6 @@
+import { createHash } from 'node:crypto';
+import { cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { build } from 'esbuild';
-import { cpSync, readFileSync, writeFileSync } from 'fs';
-import { createHash } from 'crypto';
 
 // Bundle client TypeScript into a single JS file
 await build({
@@ -19,7 +19,11 @@ cpSync('static', 'dist', { recursive: true });
 // Inject build hash into service worker cache name
 const clientJs = readFileSync('dist/client.js');
 const styleCss = readFileSync('dist/style.css');
-const hash = createHash('sha256').update(clientJs).update(styleCss).digest('hex').slice(0, 8);
+const hash = createHash('sha256')
+  .update(clientJs)
+  .update(styleCss)
+  .digest('hex')
+  .slice(0, 8);
 const swSource = readFileSync('dist/sw.js', 'utf8');
 writeFileSync('dist/sw.js', swSource.replace('delta-v-v1', `delta-v-${hash}`));
 
