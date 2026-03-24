@@ -1,11 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
-import { must } from '../../shared/assert';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../../shared/constants';
 import type { EngineEvent } from '../../shared/engine/engine-events';
-import {
-  createGame,
-  filterStateForPlayer,
-} from '../../shared/engine/game-engine';
+import { createGame } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -42,12 +38,17 @@ import {
   saveCheckpoint,
   saveMatchCreatedAt,
 } from './archive';
+import {
+  broadcastFilteredMessage,
+  broadcastMessage,
+  broadcastStateChange,
+  sendSocketMessage,
+} from './broadcast';
 import { archiveCompletedMatch } from './match-archive';
 import {
   resolveStateBearingMessage,
   type StatefulServerMessage,
   toGameStartMessage,
-  toStateUpdateMessage,
 } from './messages';
 import {
   createDisconnectMarker,
@@ -943,31 +944,16 @@ export class GameDO extends DurableObject<Env> {
     state: GameState,
     primaryMessage?: StatefulServerMessage,
   ) {
-    this.broadcastFiltered(primaryMessage ?? toStateUpdateMessage(state));
-
-    if (state.phase === 'gameOver') {
-      this.broadcast({
-        type: 'gameOver',
-        winner: must(state.winner),
-        reason: must(state.winReason),
-      });
-    }
+    broadcastStateChange(this.ctx, state, primaryMessage);
   }
 
   // --- Messaging ---
   private send(ws: WebSocket, msg: S2C) {
-    try {
-      ws.send(JSON.stringify(msg));
-    } catch {}
+    sendSocketMessage(ws, msg);
   }
 
   private broadcast(msg: S2C) {
-    const data = JSON.stringify(msg);
-    for (const ws of this.ctx.getWebSockets()) {
-      try {
-        ws.send(data);
-      } catch {}
-    }
+    broadcastMessage(this.ctx, msg);
   }
 
   // Broadcast a message containing game state,
@@ -977,45 +963,6 @@ export class GameDO extends DurableObject<Env> {
       state: GameState;
     },
   ) {
-    const hasHiddenInfo =
-      msg.state.scenarioRules.hiddenIdentityInspection ||
-      msg.state.ships.some((s) => s.identity && !s.identity.revealed);
-
-    if (!hasHiddenInfo) {
-      this.broadcast(msg);
-      return;
-    }
-    for (let playerId = 0; playerId < 2; playerId++) {
-      const sockets = this.ctx.getWebSockets(`player:${playerId}`);
-
-      if (sockets.length === 0) continue;
-      const filtered = {
-        ...msg,
-        state: filterStateForPlayer(msg.state, playerId),
-      };
-      const data = JSON.stringify(filtered);
-      for (const ws of sockets) {
-        try {
-          ws.send(data);
-        } catch {}
-      }
-    }
-
-    const spectatorSockets = this.ctx.getWebSockets('spectator');
-
-    if (spectatorSockets.length === 0) {
-      return;
-    }
-
-    const spectatorData = JSON.stringify({
-      ...msg,
-      state: filterStateForPlayer(msg.state, 'spectator'),
-    });
-
-    for (const ws of spectatorSockets) {
-      try {
-        ws.send(spectatorData);
-      } catch {}
-    }
+    broadcastFilteredMessage(this.ctx, msg);
   }
 }
