@@ -73,14 +73,14 @@ src/
 │   ├── index.ts           # HTTP entry point & WebSocket routing
 │   └── game-do/           # Durable Object: state, messages, sessions, turns, archive
 └── client/              # Browser Frontend
-    ├── main.ts            # createGameClient() — state machine & networking bootstrap
-    ├── game/              # Game logic helpers (combat, burn, phase, ordnance, input)
+    ├── main.ts            # Browser entry — bootstrap, then createGameClient()
+    ├── game/              # client-kernel (composition root), command routing, session, transport, …
     ├── renderer/          # Canvas rendering, camera, animations, minimap
     └── ui/                # DOM overlays (menu, HUD, game log, game over)
 scripts/                 # Automated Bot & AI Simulation tests
 ```
 
-**Design Highlight:** The shared engine is side-effect-free — no DOM, no network, no storage. Engine functions receive inputs and return new state plus domain events (`EngineEvent[]`), making the game highly testable. All entry points clone input state on entry (`structuredClone`) — callers' state is never mutated. The authoritative server persists versioned match events plus checkpoints and rebuilds state from that stream for replay and recovery. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details.
+**Design Highlight:** The shared engine is side-effect-free — no DOM, no network, no storage. Turn-resolution engine functions receive inputs and return new state plus domain events (`EngineEvent[]`), making the game highly testable. Those entry points clone input state on entry (`structuredClone`) — callers' state is never mutated. The authoritative server persists versioned match events plus checkpoints and rebuilds state from that stream for replay and recovery. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details.
 
 For project conventions and refactoring guidance, see [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md).
 
@@ -127,20 +127,22 @@ Get your thrusters firing locally in seconds:
 
 ### CLI Commands
 
-| Command                                              | Description                                                                                                 |
-| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `npm run dev`                                        | Start local development server (Wrangler/esbuild)                                                           |
-| `npm run build`                                      | Build the client bundle                                                                                     |
-| `npm run typecheck`                                  | Run TypeScript type checking across the project                                                             |
-| `npm test`                                           | Run all unit tests via Vitest                                                                               |
-| `npm run test:coverage`                              | Run tests with a coverage report under `coverage/`                                                          |
-| `npm run test:e2e`                                   | Run Playwright browser smoke tests against a local Wrangler server                                          |
-| `npm run test:e2e:headed`                            | Run the same Playwright suite with a visible browser                                                        |
-| `npm run test:watch`                                 | Run Vitest in continuous watch mode                                                                         |
-| `npm run verify`                                     | Run the pre-release verification sweep: lint, typecheck, coverage, build, browser smoke, and AI simulations |
-| `npm run simulate -- [scenario] [iterations] [--ci]` | Run headless AI vs AI matches to test engine stability and scenario balance                                 |
-| `npm run load:test -- --games 20 --concurrency 5`    | Run the websocket load / chaos harness against a Wrangler or deployed server                                |
-| `npm run deploy`                                     | Deploy straight to Cloudflare Workers                                                                       |
+| Command                                              | Description                                                                                  |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `npm run dev`                                        | Start local development server (Wrangler/esbuild)                                            |
+| `npm run build`                                      | Build the client bundle                                                                      |
+| `npm run lint`                                       | Run Biome lint + format check on `src/`, `scripts/`, `e2e/`, and config files                |
+| `npm run typecheck`                                  | Typecheck application code (`src/` via `tsconfig.json`)                                      |
+| `npm run typecheck:all`                              | Typecheck app + tooling (`scripts/`, `e2e/`, root TS configs via `tsconfig.tools.json`)      |
+| `npm test`                                           | Run all unit tests via Vitest                                                                |
+| `npm run test:coverage`                              | Run tests with a coverage report under `coverage/`                                           |
+| `npm run test:e2e`                                   | Run Playwright browser smoke tests against a local Wrangler server                           |
+| `npm run test:e2e:headed`                            | Run the same Playwright suite with a visible browser                                         |
+| `npm run test:watch`                                 | Run Vitest in continuous watch mode                                                          |
+| `npm run verify`                                     | Pre-release sweep: lint, `typecheck:all`, coverage, build, browser smoke, and AI simulations |
+| `npm run simulate -- [scenario] [iterations] [--ci]` | Run headless AI vs AI matches to test engine stability and scenario balance                  |
+| `npm run load:test -- --games 20 --concurrency 5`    | Run the websocket load / chaos harness against a Wrangler or deployed server                 |
+| `npm run deploy`                                     | Deploy straight to Cloudflare Workers                                                        |
 
 Pass simulation arguments after npm's `--`, for example `npm run simulate -- all 25 --ci`.
 
@@ -177,7 +179,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Engine safety (clone-on-entry, server rollback, event-sourced recovery)
 - [x] Error reporting and anonymous telemetry (D1 storage)
-- [x] 1,450+ automated tests across 100+ test files, plus browser smoke coverage and scenario AI simulations
+- [x] 1,500+ automated tests across 110+ test files, plus browser smoke coverage and scenario AI simulations
 - [x] Engine decomposition into focused phase processors (game-creation, astrogation, resolve-movement, combat, etc.)
 - [x] Typed Ship state models (`lifecycle`, `control` fields with impossible states unrepresentable)
 - [x] Granular engine events (31 `EngineEvent` types emitted by engine, replacing server-side derivation)
