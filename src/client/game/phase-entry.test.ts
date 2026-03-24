@@ -74,7 +74,6 @@ describe('game-client-phase-entry', () => {
     expect(plan).toMatchObject({
       startTurnTimer: true,
       showHUD: true,
-      updateHUD: true,
       clearAstrogationPlanning: true,
       selectedShipId: 'ship-1',
       frameOnShips: true,
@@ -184,7 +183,6 @@ describe('game-client-phase-entry', () => {
     ).toMatchObject({
       stopTurnTimer: true,
       showHUD: true,
-      updateHUD: true,
       frameOnShips: true,
     });
 

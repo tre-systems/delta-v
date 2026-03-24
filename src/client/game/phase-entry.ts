@@ -9,7 +9,6 @@ export interface ClientStateEntryPlan {
   resetCamera: boolean;
   showHUD: boolean;
   showMovementStatus: boolean;
-  updateHUD: boolean;
   frameOnShips: boolean;
   clearAstrogationPlanning: boolean;
   selectedShipId: string | null | undefined;
@@ -44,7 +43,6 @@ export const deriveClientStateEntryPlan = (
         resetCamera: true,
         showHUD: false,
         showMovementStatus: false,
-        updateHUD: false,
         frameOnShips: false,
         clearAstrogationPlanning: false,
         selectedShipId: undefined,
@@ -61,7 +59,6 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
         showHUD: true,
         showMovementStatus: false,
-        updateHUD: true,
         frameOnShips: true,
         clearAstrogationPlanning: true,
         selectedShipId: getUnambiguousOwnedShipId(gameState, playerId),
@@ -78,7 +75,6 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
         showHUD: true,
         showMovementStatus: false,
-        updateHUD: true,
         frameOnShips: false,
         clearAstrogationPlanning: false,
         selectedShipId: getUnambiguousLaunchableShipId(
@@ -98,7 +94,6 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
         showHUD: true,
         showMovementStatus: false,
-        updateHUD: true,
         frameOnShips: false,
         clearAstrogationPlanning: false,
         selectedShipId: undefined,
@@ -115,7 +110,6 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
         showHUD: true,
         showMovementStatus: false,
-        updateHUD: true,
         frameOnShips: false,
         clearAstrogationPlanning: false,
         selectedShipId: undefined,
@@ -132,7 +126,6 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
         showHUD: true,
         showMovementStatus: true,
-        updateHUD: false,
         frameOnShips: false,
         clearAstrogationPlanning: false,
         selectedShipId: undefined,
@@ -149,7 +142,6 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
         showHUD: true,
         showMovementStatus: false,
-        updateHUD: true,
         frameOnShips: true,
         clearAstrogationPlanning: false,
         selectedShipId: undefined,
@@ -166,7 +158,6 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
         showHUD: false,
         showMovementStatus: false,
-        updateHUD: false,
         frameOnShips: false,
         clearAstrogationPlanning: false,
         selectedShipId: undefined,
@@ -183,7 +174,6 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
         showHUD: false,
         showMovementStatus: false,
-        updateHUD: false,
         frameOnShips: false,
         clearAstrogationPlanning: false,
         selectedShipId: undefined,

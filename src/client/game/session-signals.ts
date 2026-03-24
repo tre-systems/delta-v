@@ -19,7 +19,11 @@ export const createSessionReactiveMirror = (initial: {
   planningRevision: signal(0),
 });
 
-/** Runs `hud.updateHUD` when mirrored game/client state or planning revision changes. */
+/**
+ * Subscribes the HUD to session mirrors: a single reactive pipeline from
+ * `gameState` / `clientState` / `planningRevision` to `updateHUD` (declarative
+ * refresh instead of imperative calls after each command).
+ */
 export const attachSessionMirrorHudEffect = (
   mirror: SessionReactiveMirror,
   hud: { updateHUD: () => void },
