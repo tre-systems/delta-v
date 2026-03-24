@@ -118,7 +118,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 **Deliverables**
 
-- Baseline numbers in [ARCHITECTURE.md](./ARCHITECTURE.md) §7 (bundle table); ties to [BACKLOG.md](./BACKLOG.md) priority **11** (renderer baseline).
+- Baseline numbers in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene) (bundle table); ties to [BACKLOG.md](./BACKLOG.md) priority **11** (renderer baseline).
 
 ---
 
@@ -133,12 +133,12 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 **Steps**
 
 1. `npm audit` (document accept vs fix policy).
-2. Confirm CI Node version matches `.nvmrc` / README.
+2. Confirm local and CI Node versions match [README.md](../README.md), [`.nvmrc`](../.nvmrc), and `.github/workflows/ci.yml`.
 3. Document **D1 migration rollback** story (restore from backup vs forward-only fixes).
 
 **Deliverables**
 
-- Short **dependency & upgrade policy** in [CODING_STANDARDS.md](./CODING_STANDARDS.md) or [ARCHITECTURE.md](./ARCHITECTURE.md) §7.
+- Short **dependency & upgrade policy** in [CODING_STANDARDS.md](./CODING_STANDARDS.md) or [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene).
 
 ---
 
@@ -197,7 +197,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 **Deliverables**
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) §6 (i18n stance) and/or [BACKLOG.md](./BACKLOG.md): **non-goal** vs **phase 1 string extraction** when priorities change.
+- [ARCHITECTURE.md](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts) (i18n stance) and/or [BACKLOG.md](./BACKLOG.md): **non-goal** vs **phase 1 string extraction** when priorities change.
 
 ---
 
@@ -231,11 +231,11 @@ Initial documentation and tooling pass **2026-03-24**: configs fixed where safe;
 | 2   | Observability           | 2026-03-24      | —     | [OBSERVABILITY.md](./OBSERVABILITY.md)                                                                         |
 | 3   | Data lifecycle          | 2026-03-24      | —     | [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do)                                                           |
 | 4   | Accessibility           | 2026-03-24      | —     | [A11Y.md](./A11Y.md) — **manual audit still due**                                                              |
-| 5   | Bundle / runtime        | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) §7 bundle table; Chrome profiling optional                                |
-| 6   | Supply chain / release  | 2026-03-24      | —     | `npm audit` clean at review; D1 rollback in [ARCHITECTURE.md](./ARCHITECTURE.md) §7                            |
-| 7   | Protocol compatibility  | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) deployment assumption (top + §6)                                          |
+| 5   | Bundle / runtime        | 2026-03-24      | —     | [Bundle baseline](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene); Chrome profiling optional           |
+| 6   | Supply chain / release | 2026-03-24      | —     | `npm audit` clean at review; D1 rollback in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene) |
+| 7   | Protocol compatibility | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) intro + [section 6](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts) |
 | 8   | Replay / parity         | 2026-03-24      | —     | [CODING_STANDARDS.md](./CODING_STANDARDS.md) Testing bullet                                                    |
-| 9   | i18n                    | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) §6 (English-only stance)                                                  |
+| 9   | i18n                    | 2026-03-24      | —     | [English-only stance](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts)                                |
 | 10  | Privacy / compliance    | 2026-03-24      | —     | [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) — **legal review out of band**                                  |
 
 ---

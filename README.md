@@ -101,7 +101,7 @@ Get your thrusters firing locally in seconds:
    nvm use
    ```
 
-   Delta-V is tested in CI with **Node 25.x**.
+   Uses [`.nvmrc`](./.nvmrc) (**25**); CI matches `.github/workflows/ci.yml`.
 
 2. **Install Dependencies**
 
