@@ -32,7 +32,7 @@ Default to plain functions, typed data, and
 group methods around private state.
 
 **Required class:** `GameDO` in `src/server/game-do/game-do.ts` must
-`extend DurableObject` — Cloudflare’s API, not a stylistic choice.
+`extend DurableObject` — Cloudflare's API, not a stylistic choice.
 
 **Everything else** at those imperative boundaries uses the same
 `createXxx()` factory pattern as the rest of the client: `createGameClient()`
