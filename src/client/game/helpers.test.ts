@@ -440,19 +440,21 @@ describe('game client helpers', () => {
       shipFates: [
         {
           id: 'p0s0',
-          name: 'Transport',
+          name: 'Transport 1',
           type: 'transport',
           status: 'survived',
           owner: 0,
           deathCause: undefined,
+          killedBy: undefined,
         },
         {
           id: 'p0s1',
-          name: 'Transport',
+          name: 'Transport 2',
           type: 'transport',
           status: 'destroyed',
           owner: 0,
           deathCause: undefined,
+          killedBy: undefined,
         },
         {
           id: 'p1s0',
@@ -461,6 +463,7 @@ describe('game client helpers', () => {
           status: 'destroyed',
           owner: 1,
           deathCause: undefined,
+          killedBy: undefined,
         },
       ],
     });

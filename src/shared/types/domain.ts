@@ -77,6 +77,7 @@ export interface Ship {
   identity?: { hasFugitives: boolean; revealed: boolean };
   pendingGravityEffects?: GravityEffect[];
   deathCause?: string;
+  killedBy?: string; // ship ID or label of the attacker
 
   damage: {
     disabledTurns: number;
