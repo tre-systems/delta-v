@@ -1,43 +1,27 @@
 import type { AIDifficulty } from '../../shared/ai';
+import type { ClientSession } from './session-model';
 import type { GameTransport } from './transport';
 
-type PlayerIdentityState = {
-  playerId: number;
-  gameCode: string | null;
-  reconnectAttempts: number;
-};
+type PlayerIdentityState = Pick<
+  ClientSession,
+  'playerId' | 'gameCode' | 'reconnectAttempts'
+>;
 
-type ReconnectState = {
-  reconnectAttempts: number;
-};
+type ReconnectState = Pick<ClientSession, 'reconnectAttempts'>;
 
-type TransportState = {
-  transport: GameTransport | null;
-};
+type TransportState = Pick<ClientSession, 'transport'>;
 
-type LatencyState = {
-  latencyMs: number;
-};
+type LatencyState = Pick<ClientSession, 'latencyMs'>;
 
-type ScenarioState = {
-  scenario: string;
-};
+type ScenarioState = Pick<ClientSession, 'scenario'>;
 
-type LocalGameState = {
-  isLocalGame: boolean;
-};
+type LocalGameState = Pick<ClientSession, 'isLocalGame'>;
 
-type DifficultyState = {
-  aiDifficulty: AIDifficulty;
-};
+type DifficultyState = Pick<ClientSession, 'aiDifficulty'>;
 
-type PlayerState = {
-  playerId: number;
-};
+type PlayerState = Pick<ClientSession, 'playerId'>;
 
-type GameCodeState = {
-  gameCode: string | null;
-};
+type GameCodeState = Pick<ClientSession, 'gameCode'>;
 
 export const applyWelcomeSession = (
   ctx: PlayerIdentityState,

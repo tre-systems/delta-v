@@ -20,9 +20,5 @@ export const bindMobileSync = ({
   };
 
   apply(isMobile);
-  bindViewport((matches) => apply(matches));
-
-  return {
-    getIsMobile: () => isMobile,
-  };
+  bindViewport(apply);
 };

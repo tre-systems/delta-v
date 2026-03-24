@@ -1,7 +1,7 @@
-import { byId } from '../dom';
 import { createDisposalScope, withScope } from '../reactive';
 import { bindStaticButtonEvents } from './button-events';
 import { composeDisposers } from './dispose-group';
+import { getUIElements } from './elements';
 import { createUIEventBridge } from './event-bridge';
 import type { UIEvent } from './events';
 import { createFleetBuildingView } from './fleet-building-view';
@@ -22,15 +22,17 @@ import { applyUIVisibility } from './visibility';
 
 export const createUIManager = () => {
   const scope = createDisposalScope();
-  const menuEl = byId('menu');
-  const scenarioEl = byId('scenarioSelect');
-  const waitingEl = byId('waiting');
-  const hudEl = byId('hud');
-  const topBarEl = byId('topBar');
-  const bottomBarEl = byId('bottomBar');
-  const gameOverEl = byId('gameOver');
-  const shipListEl = byId('shipList');
-  const fleetBuildingEl = byId('fleetBuilding');
+  const {
+    menuEl,
+    scenarioEl,
+    waitingEl,
+    hudEl,
+    topBarEl,
+    bottomBarEl,
+    gameOverEl,
+    shipListEl,
+    fleetBuildingEl,
+  } = getUIElements();
   const mobileQuery = window.matchMedia('(max-width: 760px)');
 
   const eventBridge = createUIEventBridge();
@@ -47,10 +49,6 @@ export const createUIManager = () => {
         ),
       clearMetrics: () => clearHudLayoutMetrics(),
     });
-
-  const handleViewportResize = () => {
-    queueLayoutSync();
-  };
 
   const fleetBuildingView = createFleetBuildingView({
     onFleetReady: (purchases) => {
@@ -130,7 +128,7 @@ export const createUIManager = () => {
         bindViewportEvents({
           mobileQuery,
           onMobileChange,
-          onViewportResize: handleViewportResize,
+          onViewportResize: queueLayoutSync,
           trackDispose: (dispose) => scope.add(dispose),
         });
       });

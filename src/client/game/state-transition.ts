@@ -4,17 +4,9 @@ import type { LogisticsUIState } from './logistics-ui';
 import { createLogisticsUIState } from './logistics-ui';
 import type { ClientState } from './phase';
 import { deriveClientStateEntryPlan } from './phase-entry';
-import type { PlanningState } from './planning';
 import { resetAstrogationPlanning, setSelectedShipId } from './planning-store';
 import { deriveClientScreenPlan } from './screen';
-
-interface TransitionContext {
-  state: ClientState;
-  playerId: number;
-  gameCode: string | null;
-  gameState: GameState | null;
-  planningState: PlanningState;
-}
+import type { ClientSessionStateTransitionContext } from './session-model';
 
 interface TransitionUI {
   showMenu: () => void;
@@ -45,7 +37,7 @@ interface TransitionTurnTimer {
 }
 
 export interface StateTransitionDeps {
-  ctx: TransitionContext;
+  ctx: ClientSessionStateTransitionContext;
   ui: TransitionUI;
   tutorial: TransitionTutorial;
   renderer: TransitionRenderer;

@@ -20,6 +20,10 @@ import {
   showGameOverOutcome as showGameOver,
 } from './presentation';
 
+// Sub-dep bundles are created lazily and cached so `createActionDeps` does not
+// allocate fresh astrogation/combat/ordnance/local-flow objects on every access
+// (those getters are read frequently from input and the game loop).
+
 export interface ActionDepsArgs {
   getGameState: () => GameState | null;
   getClientState: () => ClientState;

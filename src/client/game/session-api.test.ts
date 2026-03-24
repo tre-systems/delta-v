@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createSessionApi } from './session-api';
+import { stubClientSession } from './session-model';
 
 const createStorage = (initial: Record<string, string> = {}) => {
   const data = new Map(Object.entries(initial));
@@ -26,17 +27,17 @@ const createDeps = () => {
 
   return {
     deps: {
-      ctx: {
+      ctx: stubClientSession({
         scenario: 'biplanetary',
         isLocalGame: false,
         playerId: -1,
         gameCode: null,
         gameState: null,
         transport: null,
-        aiDifficulty: 'normal' as const,
+        aiDifficulty: 'normal',
         reconnectAttempts: 0,
         latencyMs: -1,
-      },
+      }),
       showToast:
         vi.fn<(msg: string, type: 'error' | 'info' | 'success') => void>(),
       setMenuLoading: vi.fn<(loading: boolean) => void>(),
