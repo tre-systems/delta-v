@@ -502,7 +502,7 @@ export const checkRamming = (
           disabledTurns: result.disabledTurns,
         });
 
-        applyDamage(ship, result);
+        applyDamage(ship, result, 'ramming');
 
         if ((ship.lifecycle as string) === 'destroyed') {
           engineEvents?.push({

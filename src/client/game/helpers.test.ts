@@ -425,6 +425,7 @@ describe('game client helpers', () => {
 
     expect(getGameOverStats(state, 0)).toEqual({
       playerId: 0,
+      scenario: 'test',
       turns: 3,
       myShipsAlive: 1,
       myShipsTotal: 2,
@@ -443,6 +444,7 @@ describe('game client helpers', () => {
           type: 'transport',
           status: 'survived',
           owner: 0,
+          deathCause: undefined,
         },
         {
           id: 'p0s1',
@@ -450,6 +452,7 @@ describe('game client helpers', () => {
           type: 'transport',
           status: 'destroyed',
           owner: 0,
+          deathCause: undefined,
         },
         {
           id: 'p1s0',
@@ -457,6 +460,7 @@ describe('game client helpers', () => {
           type: 'transport',
           status: 'destroyed',
           owner: 1,
+          deathCause: undefined,
         },
       ],
     });

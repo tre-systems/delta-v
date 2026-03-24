@@ -231,40 +231,70 @@ export const renderTorpedoGuidance = (
   const accel = planningState.torpedoAccel;
   const accelSteps = planningState.torpedoAccelSteps;
 
+  const isX2 = accelSteps === 2;
+
   for (let d = 0; d < 6; d++) {
     const targetHex = hexAdd(ship.position, HEX_DIRECTIONS[d]);
     const tp = hexToPixel(targetHex, hexSize);
     const isActive = accel === d;
 
     ctx.fillStyle = isActive
-      ? 'rgba(255, 120, 60, 0.6)'
+      ? isX2
+        ? 'rgba(255, 60, 60, 0.7)'
+        : 'rgba(255, 120, 60, 0.6)'
       : 'rgba(255, 120, 60, 0.12)';
-    ctx.strokeStyle = isActive ? '#ff7744' : 'rgba(255, 120, 60, 0.3)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = isActive
+      ? isX2
+        ? '#ff4444'
+        : '#ff7744'
+      : 'rgba(255, 120, 60, 0.3)';
+    ctx.lineWidth = isActive ? 2 : 1.5;
 
     ctx.beginPath();
-    ctx.arc(tp.x, tp.y, 7, 0, Math.PI * 2);
+    ctx.arc(tp.x, tp.y, 10, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
+    if (isActive && isX2) {
+      ctx.beginPath();
+      ctx.arc(tp.x, tp.y, 13, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
     if (isActive) {
-      ctx.strokeStyle = 'rgba(255, 120, 60, 0.5)';
+      ctx.strokeStyle = isX2
+        ? 'rgba(255, 60, 60, 0.5)'
+        : 'rgba(255, 120, 60, 0.5)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(shipPos.x, shipPos.y);
       ctx.lineTo(tp.x, tp.y);
       ctx.stroke();
 
-      ctx.fillStyle = 'rgba(255, 240, 200, 0.9)';
-      ctx.font = '7px monospace';
-      ctx.fillText(`x${accelSteps ?? 1}`, tp.x, tp.y + 2);
+      ctx.fillStyle = 'rgba(255, 240, 200, 0.95)';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText(`\u00d7${accelSteps ?? 1}`, tp.x, tp.y + 4);
     }
   }
 
-  ctx.fillStyle = 'rgba(255, 120, 60, 0.8)';
-  ctx.font = '8px monospace';
+  ctx.fillStyle = 'rgba(255, 120, 60, 0.9)';
+  ctx.font = '9px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('TORPEDO BOOST', shipPos.x, shipPos.y - 20);
+
+  if (accel !== null) {
+    const hint = isX2 ? 'click again to cancel' : 'click again for \u00d72';
+    ctx.fillText(
+      `TORPEDO \u00d7${accelSteps ?? 1} \u2014 ${hint}`,
+      shipPos.x,
+      shipPos.y - 20,
+    );
+  } else {
+    ctx.fillText(
+      'Click direction for torpedo boost',
+      shipPos.x,
+      shipPos.y - 20,
+    );
+  }
 };
 
 export const renderCombatOverlay = (

@@ -354,6 +354,12 @@ const projectSetupEvent = (
       }
 
       projectedShip.ship.lifecycle = 'destroyed';
+      projectedShip.ship.deathCause =
+        event.type === 'shipCrashed'
+          ? 'crash'
+          : 'cause' in event
+            ? event.cause
+            : undefined;
       projectedShip.ship.velocity = { dq: 0, dr: 0 };
       projectedShip.ship.pendingGravityEffects = [];
 
