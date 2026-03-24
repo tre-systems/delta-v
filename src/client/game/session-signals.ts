@@ -6,6 +6,8 @@ import type { ClientState } from './phase';
 export type SessionReactiveMirror = {
   gameState: Signal<GameState | null>;
   clientState: Signal<ClientState>;
+  /** Incremented from `planning-store` via `setPlanningHudBump` so HUD reflects planning without scattered `updateHUD`. */
+  planningRevision: Signal<number>;
 };
 
 export const createSessionReactiveMirror = (initial: {
@@ -14,9 +16,10 @@ export const createSessionReactiveMirror = (initial: {
 }): SessionReactiveMirror => ({
   gameState: signal(initial.gameState),
   clientState: signal(initial.state),
+  planningRevision: signal(0),
 });
 
-/** Runs `hud.updateHUD` whenever mirrored game or client phase state changes. Planning-only updates still use explicit `updateHUD()` calls. */
+/** Runs `hud.updateHUD` when mirrored game/client state or planning revision changes. */
 export const attachSessionMirrorHudEffect = (
   mirror: SessionReactiveMirror,
   hud: { updateHUD: () => void },
@@ -24,5 +27,6 @@ export const attachSessionMirrorHudEffect = (
   effect(() => {
     mirror.gameState.value;
     mirror.clientState.value;
+    mirror.planningRevision.value;
     hud.updateHUD();
   });

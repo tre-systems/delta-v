@@ -11,7 +11,6 @@ import { deriveActionRng } from '../../shared/prng';
 import type { GameState } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
 import {
-  generatePlayerToken,
   isValidPlayerToken,
   type RoomConfig,
   resolveSeatAssignment,
@@ -28,7 +27,6 @@ import {
   appendEnvelopedEvents,
   getEventStreamLength,
   getMatchSeed,
-  getProjectedCurrentState,
   getProjectedCurrentStateRaw,
   saveCheckpoint,
   saveMatchCreatedAt,
@@ -40,11 +38,16 @@ import {
   sendSocketMessage,
 } from './broadcast';
 import { runGameDoAlarm } from './game-do-alarm';
+import { handleGameDoFetch } from './game-do-fetch';
 import {
   reportGameDoEngineError,
   reportGameDoProjectionParityMismatch,
   verifyGameDoProjectionParity,
 } from './game-do-telemetry';
+import {
+  handleGameDoWebSocketClose,
+  handleGameDoWebSocketMessage,
+} from './game-do-ws';
 import {
   handleInitRequest,
   handleJoinCheckRequest,
@@ -61,13 +64,8 @@ import {
   createDisconnectMarker,
   getNextAlarmAt,
   normalizeDisconnectedPlayer,
-  shouldClearDisconnectMarker,
 } from './session';
-import {
-  applySocketRateLimit,
-  handleAuxMessage,
-  parseClientSocketMessage,
-} from './socket';
+import { type AuxMessageDeps, handleAuxMessage } from './socket';
 export interface Env {
   ASSETS: Fetcher;
   GAME: DurableObjectNamespace;
@@ -328,167 +326,77 @@ export class GameDO extends DurableObject<Env> {
   }
   // --- WebSocket lifecycle ---
   async fetch(request: Request): Promise<Response> {
-    const url = new URL(request.url);
-
-    if (url.pathname === '/init' && request.method === 'POST') {
-      return this.handleInit(request);
-    }
-
-    if (url.pathname === '/join' && request.method === 'GET') {
-      return this.handleJoinCheck(request);
-    }
-
-    if (url.pathname === '/replay' && request.method === 'GET') {
-      return this.handleReplayRequest(request);
-    }
-    const upgradeHeader = request.headers.get('Upgrade');
-
-    if (upgradeHeader !== 'websocket') {
-      return new Response('Expected WebSocket', {
-        status: 426,
-      });
-    }
-    if (url.searchParams.get('viewer') === 'spectator') {
-      return new Response('Spectator websocket joins are not supported', {
-        status: 501,
-      });
-    }
-    const presentedTokenRaw = url.searchParams.get('playerToken');
-    const joinAttempt = await this.resolveJoinAttempt(presentedTokenRaw);
-
-    if (!joinAttempt.ok) {
-      return joinAttempt.response;
-    }
-    const {
-      roomConfig,
-      playerId,
-      issueNewToken,
-      disconnectedPlayer,
-      seatOpen,
-    } = joinAttempt;
-    const connectedSeatCountAfterJoin = this.getConnectedSeatCountAfterJoin(
-      seatOpen,
-      playerId,
+    return handleGameDoFetch(
+      {
+        handleInit: (r) => this.handleInit(r),
+        handleJoinCheck: (r) => this.handleJoinCheck(r),
+        handleReplayRequest: (r) => this.handleReplayRequest(r),
+        resolveJoinAttempt: (token) => this.resolveJoinAttempt(token),
+        getConnectedSeatCountAfterJoin: (seatOpen, playerId) =>
+          this.getConnectedSeatCountAfterJoin(seatOpen, playerId),
+        saveRoomConfig: (roomConfig) => this.saveRoomConfig(roomConfig),
+        clearDisconnectMarker: () => this.clearDisconnectMarker(),
+        replacePlayerSockets: (playerId) => this.replacePlayerSockets(playerId),
+        send: (ws, msg) => this.send(ws, msg),
+        broadcast: (msg) => this.broadcast(msg),
+        getLatestGameId: () => this.getLatestGameId(),
+        storage: this.ctx.storage,
+        initGame: () => this.initGame(),
+        touchInactivity: () => this.touchInactivity(),
+        acceptWebSocket: (server, tags) =>
+          this.ctx.acceptWebSocket(server, tags),
+      },
+      request,
     );
-
-    if (issueNewToken) {
-      roomConfig.playerTokens[playerId] = generatePlayerToken();
-      await this.saveRoomConfig(roomConfig);
-    }
-    const playerToken = roomConfig.playerTokens[playerId];
-
-    if (!playerToken) {
-      return new Response('Player token unavailable', {
-        status: 500,
-      });
-    }
-
-    if (shouldClearDisconnectMarker(disconnectedPlayer, playerId)) {
-      await this.clearDisconnectMarker();
-    }
-    this.replacePlayerSockets(playerId);
-    const pair = new WebSocketPair();
-    const [client, server] = Object.values(pair);
-    this.ctx.acceptWebSocket(server, [`player:${playerId}`]);
-    this.send(server, {
-      type: 'welcome',
-      playerId,
-      code: roomConfig.code,
-      playerToken,
-    });
-    const latestGameId = await this.getLatestGameId();
-    const reconnectState = latestGameId
-      ? await getProjectedCurrentState(this.ctx.storage, latestGameId, playerId)
-      : null;
-
-    if (reconnectState) {
-      this.send(server, {
-        type: 'gameStart',
-        state: reconnectState,
-      });
-    }
-    // Both players connected — start the game
-    if (!reconnectState && connectedSeatCountAfterJoin >= 2) {
-      this.broadcast({ type: 'matchFound' });
-      await this.initGame();
-    }
-    await this.touchInactivity();
-    return new Response(null, {
-      status: 101,
-      webSocket: client,
-    });
   }
 
   async webSocketMessage(
     ws: WebSocket,
     message: string | ArrayBuffer,
   ): Promise<void> {
-    if (typeof message !== 'string') return;
-
-    if (!applySocketRateLimit(ws, Date.now(), this.msgRates)) {
-      return;
-    }
-
-    const parsed = parseClientSocketMessage(message);
-
-    if (!parsed.ok) {
-      this.send(ws, {
-        type: 'error',
-        message: parsed.error,
-      });
-      return;
-    }
-    const msg: C2S = parsed.value;
-    const playerId = this.getPlayerId(ws);
-
-    if (playerId === null) return;
-    await this.touchInactivity();
-    try {
-      if (this.isGameStateActionMessage(msg)) {
-        await dispatchGameStateAction(
-          playerId,
-          ws,
-          msg,
-          this.gameStateActionHandlers,
-          (targetWs, action, onSuccess) =>
-            this.runGameStateAction(targetWs, action, onSuccess),
-        );
-        return;
-      }
-      await handleAuxMessage({
-        ws,
-        playerId,
-        msg,
-        lastChatAt: this.lastChatAt,
+    return handleGameDoWebSocketMessage(
+      {
+        msgRates: this.msgRates,
+        getPlayerId: (socket) => this.getPlayerId(socket),
+        touchInactivity: () => this.touchInactivity(),
         send: (socket, outbound) => this.send(socket, outbound),
-        broadcast: (outbound) => this.broadcast(outbound),
-        handleRematch: (rematchPlayerId, socket) =>
-          this.handleRematch(rematchPlayerId, socket),
-      });
-    } catch (error) {
-      console.error('Unhandled websocket message error', error);
-      this.send(ws, {
-        type: 'error',
-        message: 'Internal server error',
-      });
-    }
+        isGameStateActionMessage: (msg) => this.isGameStateActionMessage(msg),
+        dispatchGameStateAction: (playerId, socket, msg) =>
+          dispatchGameStateAction(
+            playerId,
+            socket,
+            msg,
+            this.gameStateActionHandlers,
+            (targetWs, action, onSuccess) =>
+              this.runGameStateAction(targetWs, action, onSuccess),
+          ),
+        dispatchAuxMessage: (socket, playerId, msg) =>
+          handleAuxMessage({
+            ws: socket,
+            playerId,
+            msg: msg as AuxMessageDeps['msg'],
+            lastChatAt: this.lastChatAt,
+            send: (w, outbound) => this.send(w, outbound),
+            broadcast: (outbound) => this.broadcast(outbound),
+            handleRematch: (rematchPlayerId, w) =>
+              this.handleRematch(rematchPlayerId, w),
+          }),
+      },
+      ws,
+      message,
+    );
   }
 
   async webSocketClose(ws: WebSocket): Promise<void> {
-    if (this.replacedSockets.delete(ws)) {
-      return;
-    }
-    const playerId = this.getPlayerId(ws);
-    const gameState = await this.getCurrentGameState();
-    // If no game in progress, just clean up
-    if (!gameState || gameState.phase === 'gameOver') {
-      return;
-    }
-    // Grace period: set a 30s alarm for disconnect
-    // timeout. The player can reconnect before it fires.
-    if (playerId !== null) {
-      await this.setDisconnectMarker(playerId);
-    }
+    return handleGameDoWebSocketClose(
+      {
+        consumeReplacedSocket: (socket) => this.replacedSockets.delete(socket),
+        getPlayerId: (socket) => this.getPlayerId(socket),
+        getCurrentGameState: () => this.getCurrentGameState(),
+        setDisconnectMarker: (playerId) => this.setDisconnectMarker(playerId),
+      },
+      ws,
+    );
   }
 
   async alarm(): Promise<void> {

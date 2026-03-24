@@ -52,6 +52,7 @@ import {
 import type { MessageHandlerDeps } from './message-handler';
 import type { ClientState } from './phase';
 import { transitionClientPhase } from './phase-controller';
+import { setPlanningHudBump } from './planning-hud-sync';
 import {
   createReplayController,
   type ReplayController,
@@ -82,8 +83,9 @@ export type { ClientSession, MainNetworkDeps };
  * - `setState` — only here (drives `applyClientStateTransition` + `clientState` mirror).
  * - `applyGameState` — wrapper here (`applyClientGameState` + `gameState` mirror).
  * - `exitToMenuSession` — clears game state via `clearClientGameState` + mirror hook.
- * - `hud.updateHUD` — planning-only paths and camera ship select; match/phase
- *   changes also refresh via `attachSessionMirrorHudEffect`.
+ * - `hud.updateHUD` — camera ship select and other non-planning paths; match,
+ *   phase, and planning changes refresh via `attachSessionMirrorHudEffect` and
+ *   `planning-store` → `notifyPlanningChanged`.
  * - `renderer.setGameState` / `clearTrails` — presentation, replay, session lifecycle.
  */
 export const createGameClient = () => {
@@ -94,6 +96,9 @@ export const createGameClient = () => {
   const mirror = createSessionReactiveMirror({
     gameState: ctx.gameState,
     state: ctx.state,
+  });
+  setPlanningHudBump(() => {
+    mirror.planningRevision.update((n) => n + 1);
   });
   const ui = createUIManager();
   const tutorial = createTutorial();
@@ -526,6 +531,7 @@ export const createGameClient = () => {
     showToast,
     dispose() {
       stopCombatWatch?.();
+      setPlanningHudBump(undefined);
       disposeHudMirror?.();
       connection.close();
       turnTimer.stop();

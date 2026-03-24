@@ -53,7 +53,7 @@ export const parseClientSocketMessage = (
   return { ok: true, value: parsed.value };
 };
 
-interface AuxMessageDeps {
+export interface AuxMessageDeps {
   ws: WebSocket;
   playerId: number;
   msg: Exclude<
