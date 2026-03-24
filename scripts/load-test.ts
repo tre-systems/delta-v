@@ -14,170 +14,23 @@ import type {
   GameState,
 } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
+import { parseArgs } from './load-test-config';
+import {
+  createAggregateMetrics,
+  printMatchResult,
+  printSummary,
+  recordMatchResult,
+} from './load-test-reporting';
+import type {
+  CreateGameResponse,
+  LoadTestConfig,
+  MatchMetrics,
+} from './load-test-types';
 
-interface LoadTestConfig {
-  serverUrl: string;
-  scenario: string;
-  games: number;
-  concurrency: number;
-  spawnDelayMs: number;
-  thinkMinMs: number;
-  thinkMaxMs: number;
-  disconnectRate: number;
-  reconnectDelayMs: number;
-  gameTimeoutMs: number;
-  difficulty: AIDifficulty;
-}
-
-interface MatchMetrics {
-  id: number;
-  code: string;
-  turns: number;
-  winner: number | null;
-  reason: string;
-  durationMs: number;
-  reconnectAttempts: number;
-  reconnectSuccesses: number;
-  serverErrors: number;
-  socketErrors: number;
-  actionsSent: number;
-}
-
-interface AggregateMetrics {
-  started: number;
-  completed: number;
-  failed: number;
-  reconnectAttempts: number;
-  reconnectSuccesses: number;
-  serverErrors: number;
-  socketErrors: number;
-  actionsSent: number;
-  totalTurns: number;
-  totalDurationMs: number;
-  winReasons: Map<string, number>;
-}
-
-interface CreateGameResponse {
-  code: string;
-  playerToken: string;
-}
-
-const DEFAULT_SERVER_URL = process.env.SERVER_URL || 'http://127.0.0.1:8787';
 const map = buildSolarSystemMap();
 
 const delay = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
-
-const clamp = (value: number, min: number, max: number): number =>
-  Math.max(min, Math.min(max, value));
-
-const parseIntegerFlag = (
-  value: string | undefined,
-  fallback: number,
-): number => {
-  if (value === undefined) return fallback;
-  const parsed = Number.parseInt(value, 10);
-
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
-
-const parseNumberFlag = (
-  value: string | undefined,
-  fallback: number,
-): number => {
-  if (value === undefined) return fallback;
-  const parsed = Number.parseFloat(value);
-
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
-
-const printUsage = (): void => {
-  console.log(`Delta-V websocket load / chaos tester
-
-Usage:
-  npm run load:test -- --games 20 --concurrency 5
-
-Flags:
-  --server-url         Worker base URL (default: ${DEFAULT_SERVER_URL})
-  --scenario           Scenario key to create (default: biplanetary)
-  --games              Total matches to run (default: 10)
-  --concurrency        Concurrent matches in flight (default: 4)
-  --spawn-delay-ms     Delay between launches (default: 250)
-  --think-min-ms       Minimum per-action think delay (default: 150)
-  --think-max-ms       Maximum per-action think delay (default: 600)
-  --disconnect-rate    Fraction of bots that inject one reconnect (default: 0.1)
-  --reconnect-delay-ms Delay before reconnect after chaos drop (default: 1500)
-  --game-timeout-ms    Fail a match if it runs too long (default: 120000)
-  --difficulty         AI difficulty: easy | normal | hard (default: normal)
-  --help               Show this help
-`);
-};
-
-const parseArgs = (argv: string[]): LoadTestConfig => {
-  const args = [...argv];
-  const getFlag = (name: string): string | undefined => {
-    const index = args.indexOf(name);
-
-    if (index === -1) return undefined;
-
-    return args[index + 1];
-  };
-
-  if (args.includes('--help')) {
-    printUsage();
-    process.exit(0);
-  }
-
-  const scenario = getFlag('--scenario') ?? 'biplanetary';
-
-  if (!(scenario in SCENARIOS)) {
-    throw new Error(`Unknown scenario: ${scenario}`);
-  }
-
-  const difficultyRaw = getFlag('--difficulty') ?? 'normal';
-
-  if (
-    difficultyRaw !== 'easy' &&
-    difficultyRaw !== 'normal' &&
-    difficultyRaw !== 'hard'
-  ) {
-    throw new Error(`Unknown difficulty: ${difficultyRaw}`);
-  }
-
-  const games = Math.max(1, parseIntegerFlag(getFlag('--games'), 10));
-  const concurrency = clamp(
-    parseIntegerFlag(getFlag('--concurrency'), 4),
-    1,
-    games,
-  );
-
-  return {
-    serverUrl: getFlag('--server-url') ?? DEFAULT_SERVER_URL,
-    scenario,
-    games,
-    concurrency,
-    spawnDelayMs: Math.max(
-      0,
-      parseIntegerFlag(getFlag('--spawn-delay-ms'), 250),
-    ),
-    thinkMinMs: Math.max(0, parseIntegerFlag(getFlag('--think-min-ms'), 150)),
-    thinkMaxMs: Math.max(0, parseIntegerFlag(getFlag('--think-max-ms'), 600)),
-    disconnectRate: clamp(
-      parseNumberFlag(getFlag('--disconnect-rate'), 0.1),
-      0,
-      1,
-    ),
-    reconnectDelayMs: Math.max(
-      0,
-      parseIntegerFlag(getFlag('--reconnect-delay-ms'), 1500),
-    ),
-    gameTimeoutMs: Math.max(
-      1000,
-      parseIntegerFlag(getFlag('--game-timeout-ms'), 120_000),
-    ),
-    difficulty: difficultyRaw,
-  };
-};
 
 const buildFleetPurchases = (
   state: GameState,
@@ -626,78 +479,9 @@ const runMatch = async (
   }
 };
 
-const printMatchResult = (metrics: MatchMetrics): void => {
-  const reconnectSummary =
-    metrics.reconnectAttempts > 0
-      ? ` reconnect=${metrics.reconnectSuccesses}/${metrics.reconnectAttempts}`
-      : '';
-
-  console.log(
-    [
-      `[match ${metrics.id}]`,
-      metrics.code,
-      `winner=${metrics.winner ?? 'draw'}`,
-      `turns=${metrics.turns}`,
-      `reason=${metrics.reason}`,
-      `duration=${metrics.durationMs}ms`,
-      `actions=${metrics.actionsSent}`,
-      reconnectSummary,
-    ]
-      .filter(Boolean)
-      .join(' '),
-  );
-};
-
-const printSummary = (
-  config: LoadTestConfig,
-  aggregate: AggregateMetrics,
-): void => {
-  const averageTurns =
-    aggregate.completed > 0 ? aggregate.totalTurns / aggregate.completed : 0;
-  const averageDuration =
-    aggregate.completed > 0
-      ? aggregate.totalDurationMs / aggregate.completed
-      : 0;
-
-  console.log('\n=== Load Test Summary ===');
-  console.log(`server: ${config.serverUrl}`);
-  console.log(`scenario: ${config.scenario}`);
-  console.log(`games: ${aggregate.started}`);
-  console.log(`completed: ${aggregate.completed}`);
-  console.log(`failed: ${aggregate.failed}`);
-  console.log(`average turns: ${averageTurns.toFixed(1)}`);
-  console.log(`average duration: ${averageDuration.toFixed(0)}ms`);
-  console.log(
-    `reconnects: ${aggregate.reconnectSuccesses}/${aggregate.reconnectAttempts}`,
-  );
-  console.log(`server errors: ${aggregate.serverErrors}`);
-  console.log(`socket errors: ${aggregate.socketErrors}`);
-  console.log(`actions sent: ${aggregate.actionsSent}`);
-
-  if (aggregate.winReasons.size > 0) {
-    console.log('\nwin reasons:');
-
-    for (const [reason, count] of aggregate.winReasons.entries()) {
-      console.log(`  - ${reason}: ${count}`);
-    }
-  }
-};
-
 const main = async (): Promise<void> => {
   const config = parseArgs(process.argv.slice(2));
-  const aggregate: AggregateMetrics = {
-    started: 0,
-    completed: 0,
-    failed: 0,
-    reconnectAttempts: 0,
-    reconnectSuccesses: 0,
-    serverErrors: 0,
-    socketErrors: 0,
-    actionsSent: 0,
-    totalTurns: 0,
-    totalDurationMs: 0,
-    winReasons: new Map(),
-  };
+  const aggregate = createAggregateMetrics();
 
   console.log(
     `Starting websocket load test: ${config.games} games, ` +
@@ -714,29 +498,7 @@ const main = async (): Promise<void> => {
 
       try {
         const result = await runMatch(matchId, config);
-
-        if (
-          result.reason === 'match timeout' ||
-          result.reason.startsWith('create failed:') ||
-          result.reason.startsWith('socket error:') ||
-          result.reason.startsWith('server error:')
-        ) {
-          aggregate.failed++;
-        } else {
-          aggregate.completed++;
-        }
-
-        aggregate.reconnectAttempts += result.reconnectAttempts;
-        aggregate.reconnectSuccesses += result.reconnectSuccesses;
-        aggregate.serverErrors += result.serverErrors;
-        aggregate.socketErrors += result.socketErrors;
-        aggregate.actionsSent += result.actionsSent;
-        aggregate.totalTurns += result.turns;
-        aggregate.totalDurationMs += result.durationMs;
-        aggregate.winReasons.set(
-          result.reason,
-          (aggregate.winReasons.get(result.reason) ?? 0) + 1,
-        );
+        recordMatchResult(aggregate, result);
         printMatchResult(result);
       } catch (error) {
         aggregate.failed++;

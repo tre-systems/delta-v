@@ -79,9 +79,11 @@ These are the main architectural follow-ups still open:
   auth, and product-shape decisions have historically
   drifted across docs. Small ADR-style records would reduce
   future mismatches.
-- **Profiling before renderer optimization.** Performance
-  work such as layer caching should be driven by measured
-  frame-time or device pain, not by intuition alone.
+- **Profiling before renderer optimization.** Use Chrome
+  Performance (or equivalent) and per-frame timing around
+  the render loop before investing in layer caching or other
+  micro-optimizations — drive changes from measured frame
+  cost, not intuition alone.
 - **Keep the composition root thin.** `createGameClient()`
   already composes factories; when adding features, extend
   `game/*` modules and `*Deps` shapes rather than growing the
@@ -169,16 +171,21 @@ The backend leverages Cloudflare's edge network.
 
 #### Module Inventory
 
-| Module                     | Purpose                                                                                                          | Reusability                                               |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `index.ts`                 | Worker entry: `/create`, `/join/:code`, `/replay/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern                                           |
-| `protocol.ts`              | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export                            | **~85% generic** — room/token/seat logic is game-agnostic |
-| `game-do/game-do.ts`       | Durable Object: WebSocket lifecycle, state persistence, broadcasting                                             | **~70% generic** — multiplayer plumbing is reusable       |
-| `game-do/archive.ts`       | Match-scoped event envelopes (gameId/seq/ts/actor), checkpoints, replay projection, match identity               | Game-specific                                             |
-| `game-do/match-archive.ts` | Persistent archival of completed matches to R2 + D1 metadata                                                     | **Fully generic**                                         |
-| `game-do/messages.ts`      | S2C message construction from engine results                                                                     | Game-specific                                             |
-| `game-do/session.ts`       | Disconnect grace period, alarm scheduling                                                                        | **Fully generic**                                         |
-| `game-do/turns.ts`         | Turn timeout auto-advance                                                                                        | Mostly generic                                            |
+| Module                            | Purpose                                                                                                          | Reusability                                               |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `index.ts`                        | Worker entry: `/create`, `/join/:code`, `/replay/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern                                           |
+| `protocol.ts`                     | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export                            | **~85% generic** — room/token/seat logic is game-agnostic |
+| `game-do/game-do.ts`              | Durable Object class: composes fetch, WebSocket, and alarm paths                                                 | **~70% generic** — multiplayer plumbing is reusable       |
+| `game-do/game-do-fetch.ts`        | HTTP `/init`, `/join`, `/replay` and WebSocket upgrade + welcome/reconnect                                       | **~70% generic**                                          |
+| `game-do/game-do-ws.ts`           | Hibernation `webSocketMessage` / `webSocketClose` bodies                                                         | **~70% generic**                                          |
+| `game-do/game-do-alarm.ts`        | Alarm handler: disconnect forfeit, turn timeout, inactivity archive/close                                        | Mostly generic                                            |
+| `game-do/game-do-turn-timeout.ts` | Turn-timeout branch: engine outcome + `publishStateChange`                                                       | Game-specific                                             |
+| `game-do/game-do-telemetry.ts`    | Engine/projection error reporting to D1                                                                          | Generic pattern                                           |
+| `game-do/archive.ts`              | Match-scoped event envelopes (gameId/seq/ts/actor), checkpoints, replay projection, match identity               | Game-specific                                             |
+| `game-do/match-archive.ts`        | Persistent archival of completed matches to R2 + D1 metadata                                                     | **Fully generic**                                         |
+| `game-do/messages.ts`             | S2C message construction from engine results                                                                     | Game-specific                                             |
+| `game-do/session.ts`              | Disconnect grace period, alarm scheduling                                                                        | **Fully generic**                                         |
+| `game-do/turns.ts`                | Turn timeout auto-advance                                                                                        | Mostly generic                                            |
 
 #### Key Design Patterns
 
@@ -251,6 +258,7 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 - **`renderer/`**: Canvas drawing layers (scene, entities, vectors, effects, overlays), camera, minimap, and animation management.
 - **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, layout metrics, and small reactive DOM view models.
 - **`reactive.ts` + `ui/ui.ts`**: The overlay layer stays framework-free, but stateful DOM views use a small signals runtime for derived copy/visibility and explicit disposal. `createUIManager()` owns long-lived view instances and their teardown; helpers such as `createScreenActions()` and `createHudActions()` compose screen/HUD behaviors. Overlay, lobby, fleet-building, ship-list, HUD chrome, game log, tutorial, and turn telemetry follow the same factory style as other client modules.
+- **`game/session-signals.ts` + `game/planning-hud-sync.ts`**: `createSessionReactiveMirror()` holds signals for `gameState`, `clientState`, and a monotonic `planningRevision`. The kernel dual-writes session fields into the mirror and registers `setPlanningHudBump()` so `planning-store` mutators call `notifyPlanningChanged()` without importing the HUD. `attachSessionMirrorHudEffect()` runs `hud.updateHUD()` when any of those signals change. `renderer.setGameState` remains owned by `applyClientGameState` (not the mirror) so tests and replay paths that bypass the full client shell keep a single apply path.
 - **`audio.ts`**: Handles Web Audio API interactions.
 - **Visual Polish**: Employs a premium design system with glassmorphism tokens (backdrop-filters), tactile micro-animations (recoil, scaling glows), and pulsing orbital effects for high-end UX.
 

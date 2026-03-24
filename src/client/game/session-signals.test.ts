@@ -38,4 +38,19 @@ describe('session-signals', () => {
 
     dispose();
   });
+
+  it('notifies HUD when planning revision bumps', () => {
+    const mirror = createSessionReactiveMirror({
+      gameState: null,
+      state: 'menu',
+    });
+    const updateHUD = vi.fn();
+    const dispose = attachSessionMirrorHudEffect(mirror, { updateHUD });
+    updateHUD.mockClear();
+
+    mirror.planningRevision.update((n) => n + 1);
+    expect(updateHUD).toHaveBeenCalled();
+
+    dispose();
+  });
 });
