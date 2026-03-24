@@ -41,6 +41,7 @@ const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
   biplanetary: [0.45, 0.85], // Mars→Venus has nav advantage
   escape: [0.55, 0.9], // Asymmetric — fugitives favored
   convoy: [0.3, 0.7], // Asymmetric escort
+  evacuation: null, // Asymmetric sprint — AI balance not representative of human play
   duel: [0.3, 0.7], // Symmetric combat
   blockade: [0.25, 0.65], // Asymmetric speed vs combat
   interplanetaryWar: [0.3, 0.7], // Equal credits, different bases

@@ -453,6 +453,54 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     ],
   },
 
+  evacuation: {
+    name: 'Lunar Evacuation',
+    tags: ['Escort'],
+    description:
+      'A crowded transport flees Luna for Terra with a corvette escort ' +
+      '— win only by landing survivors; a corsair tries to cut you off',
+    rules: {
+      logisticsEnabled: true,
+      passengerRescueEnabled: true,
+      targetWinRequiresPassengers: true,
+    },
+    players: [
+      {
+        ships: [
+          {
+            type: 'transport',
+            position: { q: 13, r: -10 },
+            velocity: { dq: -2, dr: 1 },
+            startLanded: false,
+            initialPassengers: 40,
+          },
+          {
+            type: 'corvette',
+            position: { q: 13, r: -10 },
+            velocity: { dq: -2, dr: 1 },
+            startLanded: false,
+          },
+        ],
+        targetBody: 'Terra',
+        homeBody: 'Luna',
+        escapeWins: false,
+      },
+      {
+        ships: [
+          {
+            type: 'corsair',
+            position: { q: 11, r: -9 },
+            velocity: { dq: 0, dr: 0 },
+            startLanded: false,
+          },
+        ],
+        targetBody: '',
+        homeBody: 'Terra',
+        escapeWins: false,
+      },
+    ],
+  },
+
   convoy: {
     name: 'Convoy',
     tags: ['Escort'],
