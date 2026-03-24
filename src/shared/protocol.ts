@@ -321,157 +321,105 @@ const parseTransferOrders = (raw: unknown): TransferOrder[] | null => {
 export const validateClientMessage = (
   raw: unknown,
 ): { ok: true; value: C2S } | { ok: false; error: string } => {
+  const ok = (value: C2S) => ({ ok: true as const, value });
+  const invalid = (error: string) => ({ ok: false as const, error });
+  const fromParsed = <T>(
+    parsed: T | null,
+    toValue: (value: T) => C2S,
+    error: string,
+  ) => (parsed ? ok(toValue(parsed)) : invalid(error));
+
   if (!isObject(raw) || !isString(raw.type)) {
-    return {
-      ok: false,
-      error: 'Invalid message payload',
-    };
+    return invalid('Invalid message payload');
   }
 
-  switch (raw.type) {
-    case 'fleetReady': {
-      const purchases = parseFleetPurchases(raw.purchases);
+  const message = raw as Record<string, unknown> & {
+    type: C2S['type'] | string;
+  };
 
-      return purchases
-        ? {
-            ok: true,
-            value: { type: 'fleetReady', purchases },
-          }
-        : {
-            ok: false,
-            error: 'Invalid fleet payload',
-          };
+  const validateChat = () => {
+    if (!isString(message.text)) {
+      return invalid('Invalid chat payload');
     }
 
-    case 'astrogation': {
-      const orders = parseAstrogationOrders(raw.orders);
+    const text = message.text.trim();
 
-      return orders
-        ? {
-            ok: true,
-            value: { type: 'astrogation', orders },
-          }
-        : {
-            ok: false,
-            error: 'Invalid astrogation payload',
-          };
+    if (text.length === 0 || text.length > 200) {
+      return invalid('Invalid chat payload');
     }
 
-    case 'ordnance': {
-      const launches = parseOrdnanceLaunches(raw.launches);
+    return ok({ type: 'chat', text });
+  };
 
-      return launches
-        ? {
-            ok: true,
-            value: { type: 'ordnance', launches },
-          }
-        : {
-            ok: false,
-            error: 'Invalid ordnance payload',
-          };
-    }
+  const validatePing = () =>
+    typeof message.t === 'number' && Number.isFinite(message.t)
+      ? ok({ type: 'ping', t: message.t })
+      : invalid('Invalid ping payload');
 
-    case 'emplaceBase': {
-      const emplacements = parseBaseEmplacements(raw.emplacements);
+  switch (message.type) {
+    case 'fleetReady':
+      return fromParsed(
+        parseFleetPurchases(message.purchases),
+        (purchases) => ({ type: 'fleetReady', purchases }),
+        'Invalid fleet payload',
+      );
 
-      return emplacements
-        ? {
-            ok: true,
-            value: {
-              type: 'emplaceBase',
-              emplacements,
-            },
-          }
-        : {
-            ok: false,
-            error: 'Invalid emplacement payload',
-          };
-    }
+    case 'astrogation':
+      return fromParsed(
+        parseAstrogationOrders(message.orders),
+        (orders) => ({ type: 'astrogation', orders }),
+        'Invalid astrogation payload',
+      );
 
-    case 'combat': {
-      const attacks = parseCombatAttacks(raw.attacks);
+    case 'ordnance':
+      return fromParsed(
+        parseOrdnanceLaunches(message.launches),
+        (launches) => ({ type: 'ordnance', launches }),
+        'Invalid ordnance payload',
+      );
 
-      return attacks
-        ? {
-            ok: true,
-            value: { type: 'combat', attacks },
-          }
-        : {
-            ok: false,
-            error: 'Invalid combat payload',
-          };
-    }
+    case 'emplaceBase':
+      return fromParsed(
+        parseBaseEmplacements(message.emplacements),
+        (emplacements) => ({ type: 'emplaceBase', emplacements }),
+        'Invalid emplacement payload',
+      );
 
-    case 'surrender': {
-      const shipIds = parseSurrenderShipIds(raw.shipIds);
+    case 'combat':
+      return fromParsed(
+        parseCombatAttacks(message.attacks),
+        (attacks) => ({ type: 'combat', attacks }),
+        'Invalid combat payload',
+      );
 
-      return shipIds
-        ? {
-            ok: true,
-            value: { type: 'surrender', shipIds },
-          }
-        : {
-            ok: false,
-            error: 'Invalid surrender payload',
-          };
-    }
+    case 'surrender':
+      return fromParsed(
+        parseSurrenderShipIds(message.shipIds),
+        (shipIds) => ({ type: 'surrender', shipIds }),
+        'Invalid surrender payload',
+      );
 
-    case 'logistics': {
-      const transfers = parseTransferOrders(raw.transfers);
-
-      return transfers
-        ? {
-            ok: true,
-            value: { type: 'logistics', transfers },
-          }
-        : {
-            ok: false,
-            error: 'Invalid logistics payload',
-          };
-    }
+    case 'logistics':
+      return fromParsed(
+        parseTransferOrders(message.transfers),
+        (transfers) => ({ type: 'logistics', transfers }),
+        'Invalid logistics payload',
+      );
 
     case 'skipOrdnance':
     case 'beginCombat':
     case 'skipCombat':
     case 'skipLogistics':
     case 'rematch':
-      return { ok: true, value: { type: raw.type } };
+      return ok({ type: message.type });
 
-    case 'chat': {
-      if (!isString(raw.text)) {
-        return {
-          ok: false,
-          error: 'Invalid chat payload',
-        };
-      }
-
-      const text = raw.text.trim();
-
-      if (text.length === 0 || text.length > 200) {
-        return {
-          ok: false,
-          error: 'Invalid chat payload',
-        };
-      }
-
-      return {
-        ok: true,
-        value: { type: 'chat', text },
-      };
-    }
+    case 'chat':
+      return validateChat();
 
     case 'ping':
-      return typeof raw.t === 'number' && Number.isFinite(raw.t)
-        ? {
-            ok: true,
-            value: { type: 'ping', t: raw.t },
-          }
-        : {
-            ok: false,
-            error: 'Invalid ping payload',
-          };
+      return validatePing();
 
     default:
-      return { ok: false, error: 'Unknown message type' };
+      return invalid('Unknown message type');
   }
 };
