@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { Camera } from './camera';
+import { createCamera } from './camera';
 
 describe('renderer-camera', () => {
   it('converts between screen and world coordinates', () => {
-    const camera = new Camera();
+    const camera = createCamera();
     camera.update(0, 1000, 600);
     camera.x = 120;
     camera.y = -40;
@@ -16,7 +16,7 @@ describe('renderer-camera', () => {
   });
 
   it('frames bounds using the current canvas size and padding', () => {
-    const camera = new Camera();
+    const camera = createCamera();
     camera.update(0, 1000, 500);
 
     camera.frameBounds(-100, 300, -50, 150, 50);
@@ -27,7 +27,7 @@ describe('renderer-camera', () => {
   });
 
   it('zooms around the cursor and keeps the target point stable', () => {
-    const camera = new Camera();
+    const camera = createCamera();
     camera.update(0, 1000, 500);
 
     camera.zoomAt(600, 300, 2);
@@ -38,7 +38,7 @@ describe('renderer-camera', () => {
   });
 
   it('pans in screen space and clamps visibility checks to the current view', () => {
-    const camera = new Camera();
+    const camera = createCamera();
     camera.update(0, 800, 400);
     camera.zoom = 2;
     camera.targetX = 40;

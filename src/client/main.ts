@@ -71,7 +71,7 @@ import {
 } from './game/turn-telemetry';
 import { resolveUIEventPlan } from './game/ui-event-router';
 import { InputHandler } from './input';
-import { Renderer } from './renderer/renderer';
+import { createRenderer, type Renderer } from './renderer/renderer';
 import { installGlobalErrorHandlers, track } from './telemetry';
 import { createTutorial, type Tutorial } from './tutorial';
 import type { UIEvent } from './ui/events';
@@ -126,7 +126,7 @@ class GameClient {
   private sessionApi!: SessionApi;
   constructor() {
     this.canvas = byId<HTMLCanvasElement>('gameCanvas');
-    this.renderer = new Renderer(this.canvas, this.ctx.planningState);
+    this.renderer = createRenderer(this.canvas, this.ctx.planningState);
     this.input = new InputHandler(this.canvas, this.renderer.camera, (event) =>
       this.handleInput(event),
     );
