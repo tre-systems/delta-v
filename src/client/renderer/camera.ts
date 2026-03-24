@@ -2,124 +2,164 @@ import { CAMERA_LERP_SPEED } from '../../shared/constants';
 import type { PixelCoord } from '../../shared/hex';
 import { clamp } from '../../shared/util';
 
-export class Camera {
-  x = 0;
-  y = 0;
-  zoom = 1.0;
-  targetX = 0;
-  targetY = 0;
-  targetZoom = 1.0;
+const MIN_ZOOM = 0.15;
+const MAX_ZOOM = 4.0;
 
-  private canvasW = 0;
-  private canvasH = 0;
-
-  // Screen shake state
-  private shakeIntensity = 0;
-  private shakeDecay = 0;
-  private shakeOffsetX = 0;
-  private shakeOffsetY = 0;
-
-  readonly minZoom = 0.15;
-  readonly maxZoom = 4.0;
-
-  update(dt: number, canvasW: number, canvasH: number) {
-    this.canvasW = canvasW;
-    this.canvasH = canvasH;
-
-    const speed = Math.min(CAMERA_LERP_SPEED * dt, 1);
-
-    this.x += (this.targetX - this.x) * speed;
-    this.y += (this.targetY - this.y) * speed;
-    this.zoom += (this.targetZoom - this.zoom) * speed;
-
-    // Decay screen shake
-    if (this.shakeIntensity > 0.5) {
-      this.shakeIntensity *= 1 - this.shakeDecay * dt;
-      const angle = Math.random() * Math.PI * 2;
-      this.shakeOffsetX = Math.cos(angle) * this.shakeIntensity;
-      this.shakeOffsetY = Math.sin(angle) * this.shakeIntensity;
-    } else {
-      this.shakeIntensity = 0;
-      this.shakeOffsetX = 0;
-      this.shakeOffsetY = 0;
-    }
-  }
-
-  applyTransform(ctx: CanvasRenderingContext2D) {
-    ctx.translate(
-      this.canvasW / 2 + this.shakeOffsetX,
-      this.canvasH / 2 + this.shakeOffsetY,
-    );
-    ctx.scale(this.zoom, this.zoom);
-    ctx.translate(-this.x, -this.y);
-  }
-
-  // Trigger screen shake with given pixel intensity
-  // and decay rate (0-1 per second, higher = faster
-  // decay).
-  shake(intensity: number, decay = 4) {
-    this.shakeIntensity = intensity;
-    this.shakeDecay = decay;
-  }
-
-  screenToWorld(sx: number, sy: number): PixelCoord {
-    return {
-      x: (sx - this.canvasW / 2) / this.zoom + this.x,
-      y: (sy - this.canvasH / 2) / this.zoom + this.y,
-    };
-  }
-
-  worldToScreen(wx: number, wy: number): PixelCoord {
-    return {
-      x: (wx - this.x) * this.zoom + this.canvasW / 2,
-      y: (wy - this.y) * this.zoom + this.canvasH / 2,
-    };
-  }
-
+export interface Camera {
+  x: number;
+  y: number;
+  zoom: number;
+  targetX: number;
+  targetY: number;
+  targetZoom: number;
+  readonly minZoom: number;
+  readonly maxZoom: number;
+  update(dt: number, canvasW: number, canvasH: number): void;
+  applyTransform(ctx: CanvasRenderingContext2D): void;
+  shake(intensity: number, decay?: number): void;
+  screenToWorld(sx: number, sy: number): PixelCoord;
+  worldToScreen(wx: number, wy: number): PixelCoord;
   frameBounds(
     minX: number,
     maxX: number,
     minY: number,
     maxY: number,
-    padding = 80,
-  ) {
-    this.targetX = (minX + maxX) / 2;
-    this.targetY = (minY + maxY) / 2;
+    padding?: number,
+  ): void;
+  zoomAt(sx: number, sy: number, factor: number): void;
+  pan(dx: number, dy: number): void;
+  snapToTarget(): void;
+  isVisible(wx: number, wy: number, margin?: number): boolean;
+}
 
-    const w = maxX - minX + padding * 2;
-    const h = maxY - minY + padding * 2;
-    const zx = this.canvasW / w;
-    const zy = this.canvasH / h;
+type CameraPrivate = {
+  canvasW: number;
+  canvasH: number;
+  shakeIntensity: number;
+  shakeDecay: number;
+  shakeOffsetX: number;
+  shakeOffsetY: number;
+};
 
-    this.targetZoom = Math.min(zx, zy, this.maxZoom);
+function lerpTowardTargets(
+  c: Pick<Camera, 'x' | 'y' | 'zoom' | 'targetX' | 'targetY' | 'targetZoom'>,
+  dt: number,
+): void {
+  const speed = Math.min(CAMERA_LERP_SPEED * dt, 1);
+  c.x += (c.targetX - c.x) * speed;
+  c.y += (c.targetY - c.y) * speed;
+  c.zoom += (c.targetZoom - c.zoom) * speed;
+}
+
+function stepShake(p: CameraPrivate, dt: number): void {
+  if (p.shakeIntensity > 0.5) {
+    p.shakeIntensity *= 1 - p.shakeDecay * dt;
+    const angle = Math.random() * Math.PI * 2;
+    p.shakeOffsetX = Math.cos(angle) * p.shakeIntensity;
+    p.shakeOffsetY = Math.sin(angle) * p.shakeIntensity;
+    return;
   }
+  p.shakeIntensity = 0;
+  p.shakeOffsetX = 0;
+  p.shakeOffsetY = 0;
+}
 
-  zoomAt(sx: number, sy: number, factor: number) {
-    const newZoom = clamp(this.targetZoom * factor, this.minZoom, this.maxZoom);
+function applyCameraTransform(
+  ctx: CanvasRenderingContext2D,
+  p: CameraPrivate,
+  c: Pick<Camera, 'x' | 'y' | 'zoom'>,
+): void {
+  ctx.translate(p.canvasW / 2 + p.shakeOffsetX, p.canvasH / 2 + p.shakeOffsetY);
+  ctx.scale(c.zoom, c.zoom);
+  ctx.translate(-c.x, -c.y);
+}
 
-    const worldX = (sx - this.canvasW / 2) / this.targetZoom + this.targetX;
-    const worldY = (sy - this.canvasH / 2) / this.targetZoom + this.targetY;
+export function createCamera(): Camera {
+  const p: CameraPrivate = {
+    canvasW: 0,
+    canvasH: 0,
+    shakeIntensity: 0,
+    shakeDecay: 0,
+    shakeOffsetX: 0,
+    shakeOffsetY: 0,
+  };
 
-    this.targetZoom = newZoom;
-    this.targetX = worldX - (sx - this.canvasW / 2) / newZoom;
-    this.targetY = worldY - (sy - this.canvasH / 2) / newZoom;
-  }
+  const c: Camera = {
+    x: 0,
+    y: 0,
+    zoom: 1.0,
+    targetX: 0,
+    targetY: 0,
+    targetZoom: 1.0,
+    minZoom: MIN_ZOOM,
+    maxZoom: MAX_ZOOM,
 
-  pan(dx: number, dy: number) {
-    this.targetX -= dx / this.zoom;
-    this.targetY -= dy / this.zoom;
-  }
+    update(dt: number, canvasW: number, canvasH: number) {
+      p.canvasW = canvasW;
+      p.canvasH = canvasH;
+      lerpTowardTargets(c, dt);
+      stepShake(p, dt);
+    },
 
-  snapToTarget() {
-    this.x = this.targetX;
-    this.y = this.targetY;
-    this.zoom = this.targetZoom;
-  }
+    applyTransform(ctx: CanvasRenderingContext2D) {
+      applyCameraTransform(ctx, p, c);
+    },
 
-  isVisible(wx: number, wy: number, margin = 50): boolean {
-    const halfW = this.canvasW / 2 / this.zoom + margin;
-    const halfH = this.canvasH / 2 / this.zoom + margin;
+    shake(intensity: number, decay = 4) {
+      p.shakeIntensity = intensity;
+      p.shakeDecay = decay;
+    },
 
-    return Math.abs(wx - this.x) < halfW && Math.abs(wy - this.y) < halfH;
-  }
+    screenToWorld(sx: number, sy: number): PixelCoord {
+      return {
+        x: (sx - p.canvasW / 2) / c.zoom + c.x,
+        y: (sy - p.canvasH / 2) / c.zoom + c.y,
+      };
+    },
+
+    worldToScreen(wx: number, wy: number): PixelCoord {
+      return {
+        x: (wx - c.x) * c.zoom + p.canvasW / 2,
+        y: (wy - c.y) * c.zoom + p.canvasH / 2,
+      };
+    },
+
+    frameBounds(minX, maxX, minY, maxY, padding = 80) {
+      c.targetX = (minX + maxX) / 2;
+      c.targetY = (minY + maxY) / 2;
+      const w = maxX - minX + padding * 2;
+      const h = maxY - minY + padding * 2;
+      const zx = p.canvasW / w;
+      const zy = p.canvasH / h;
+      c.targetZoom = Math.min(zx, zy, c.maxZoom);
+    },
+
+    zoomAt(sx: number, sy: number, factor: number) {
+      const newZoom = clamp(c.targetZoom * factor, c.minZoom, c.maxZoom);
+      const worldX = (sx - p.canvasW / 2) / c.targetZoom + c.targetX;
+      const worldY = (sy - p.canvasH / 2) / c.targetZoom + c.targetY;
+      c.targetZoom = newZoom;
+      c.targetX = worldX - (sx - p.canvasW / 2) / newZoom;
+      c.targetY = worldY - (sy - p.canvasH / 2) / newZoom;
+    },
+
+    pan(dx: number, dy: number) {
+      c.targetX -= dx / c.zoom;
+      c.targetY -= dy / c.zoom;
+    },
+
+    snapToTarget() {
+      c.x = c.targetX;
+      c.y = c.targetY;
+      c.zoom = c.targetZoom;
+    },
+
+    isVisible(wx: number, wy: number, margin = 50): boolean {
+      const halfW = p.canvasW / 2 / c.zoom + margin;
+      const halfH = p.canvasH / 2 / c.zoom + margin;
+      return Math.abs(wx - c.x) < halfW && Math.abs(wy - c.y) < halfH;
+    },
+  };
+
+  return c;
 }
