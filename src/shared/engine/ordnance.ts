@@ -281,7 +281,7 @@ const resolveTorpedoDetonation = (
     });
 
     if (result.type !== 'none') {
-      applyDamage(candidate.ship, result, 'torpedo');
+      applyDamage(candidate.ship, result, 'torpedo', ord.id);
 
       engineEvents?.push({
         type: 'ordnanceDetonated',
@@ -435,7 +435,7 @@ const checkOrdnanceDetonation = (
       });
       pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
 
-      applyDamage(ship, result, ord.type);
+      applyDamage(ship, result, ord.type, ord.id);
 
       if (ship.lifecycle === 'destroyed') {
         engineEvents?.push({
@@ -534,6 +534,7 @@ export const moveOrdnance = (
             ) {
               ship.lifecycle = 'destroyed';
               ship.deathCause = 'nuke';
+              ship.killedBy = ord.id;
               ship.velocity = { dq: 0, dr: 0 };
 
               events.push({
@@ -713,7 +714,7 @@ export const resolvePendingAsteroidHazards = (
     const dieRoll = rollD6(rng);
     const result = lookupOtherDamage(dieRoll, 'asteroid');
 
-    applyDamage(ship, result, 'asteroid');
+    applyDamage(ship, result, 'asteroid', undefined);
 
     results.push({
       attackerIds: [],

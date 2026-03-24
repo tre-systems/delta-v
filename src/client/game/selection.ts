@@ -32,19 +32,51 @@ export const getGameOverStats = (
   const myDestroyed = count(myShips, (s) => s.lifecycle === 'destroyed');
   const enemyDestroyed = count(enemyShips, (s) => s.lifecycle === 'destroyed');
 
-  const shipFates: ShipFate[] = state.ships.map((s) => ({
-    id: s.id,
-    name: SHIP_STATS[s.type]?.name ?? s.type,
-    type: s.type,
-    status:
-      s.lifecycle === 'destroyed'
-        ? 'destroyed'
-        : s.control === 'captured'
-          ? 'captured'
-          : 'survived',
-    owner: s.owner,
-    deathCause: s.deathCause,
-  }));
+  // Build numbered names for duplicate ship types per owner
+  const nameCounters = new Map<string, number>();
+
+  const getNumberedName = (ship: (typeof state.ships)[0]): string => {
+    const base = SHIP_STATS[ship.type]?.name ?? ship.type;
+    const key = `${ship.owner}:${ship.type}`;
+    const sameType = state.ships.filter(
+      (s) => s.owner === ship.owner && s.type === ship.type,
+    );
+
+    if (sameType.length <= 1) return base;
+
+    const idx = (nameCounters.get(key) ?? 0) + 1;
+    nameCounters.set(key, idx);
+    return `${base} ${idx}`;
+  };
+
+  // Build a lookup for resolving killedBy ship IDs to names
+  const shipNameById = new Map<string, string>();
+
+  const shipFates: ShipFate[] = state.ships.map((s) => {
+    const name = getNumberedName(s);
+    shipNameById.set(s.id, name);
+    return {
+      id: s.id,
+      name,
+      type: s.type,
+      status:
+        s.lifecycle === 'destroyed'
+          ? 'destroyed'
+          : s.control === 'captured'
+            ? 'captured'
+            : 'survived',
+      owner: s.owner,
+      deathCause: s.deathCause,
+      killedBy: s.killedBy,
+    };
+  });
+
+  // Resolve killedBy IDs to names
+  for (const fate of shipFates) {
+    if (fate.killedBy && shipNameById.has(fate.killedBy)) {
+      fate.killedBy = shipNameById.get(fate.killedBy) ?? fate.killedBy;
+    }
+  }
 
   return {
     playerId,

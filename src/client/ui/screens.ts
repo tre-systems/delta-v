@@ -46,6 +46,7 @@ export interface GameOverStatsLike {
     status: string;
     owner: number;
     deathCause?: string;
+    killedBy?: string;
   }>;
 }
 
@@ -159,16 +160,22 @@ const DEATH_CAUSE_LABELS: Record<string, string> = {
 const formatFateValue = (fate: {
   status: string;
   deathCause?: string;
+  killedBy?: string;
 }): string => {
   const label = fate.status.toUpperCase();
 
   if (fate.status !== 'destroyed' || !fate.deathCause) return label;
   const cause = DEATH_CAUSE_LABELS[fate.deathCause] ?? fate.deathCause;
-  return `${label} (${cause})`;
+  const killer = fate.killedBy ? ` by ${fate.killedBy}` : '';
+  return `${label}${killer} (${cause})`;
 };
 
 const buildStatLines = (stats: GameOverStatsLike): GameOverStatLine[] => {
-  const scenarioDef = stats.scenario ? SCENARIOS[stats.scenario] : null;
+  const scenarioDef = stats.scenario
+    ? (SCENARIOS[stats.scenario] ??
+      Object.values(SCENARIOS).find((s) => s.name === stats.scenario) ??
+      null)
+    : null;
   const lines: GameOverStatLine[] = [];
 
   if (scenarioDef) {
