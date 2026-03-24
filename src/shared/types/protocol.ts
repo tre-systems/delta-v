@@ -13,6 +13,27 @@ import type {
   TransferOrder,
 } from './domain';
 
+/** Subset of engine events included on `stateUpdate` after logistics (client game log). */
+export type LogisticsTransferLogEvent =
+  | {
+      type: 'fuelTransferred';
+      fromShipId: string;
+      toShipId: string;
+      amount: number;
+    }
+  | {
+      type: 'cargoTransferred';
+      fromShipId: string;
+      toShipId: string;
+      amount: number;
+    }
+  | {
+      type: 'passengersTransferred';
+      fromShipId: string;
+      toShipId: string;
+      amount: number;
+    };
+
 // --- Network messages ---
 
 export type C2S =
@@ -58,7 +79,11 @@ export type S2C =
       results: CombatResult[];
       state: GameState;
     }
-  | { type: 'stateUpdate'; state: GameState }
+  | {
+      type: 'stateUpdate';
+      state: GameState;
+      transferEvents?: LogisticsTransferLogEvent[];
+    }
   | { type: 'gameOver'; winner: number; reason: string }
   | { type: 'rematchPending' }
   | {

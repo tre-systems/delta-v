@@ -1,3 +1,4 @@
+import type { EngineEvent } from '../../shared/engine/engine-events';
 import {
   type CombatPhaseResult,
   hasCombatResults,
@@ -5,6 +6,7 @@ import {
   type MovementResult,
   type StateUpdateResult,
 } from '../../shared/engine/game-engine';
+import { filterLogisticsTransferLogEvents } from '../../shared/engine/transfer-log-events';
 import type { CombatResult, GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 export type StatefulServerMessage = Extract<
@@ -54,10 +56,26 @@ export const toGameStartMessage = (
 });
 export const toStateUpdateMessage = (
   state: GameState,
-): StatefulServerMessage => ({
-  type: 'stateUpdate',
-  state,
-});
+  engineEventsForTransferLog?: readonly EngineEvent[],
+): StatefulServerMessage => {
+  const transferEvents =
+    engineEventsForTransferLog !== undefined
+      ? filterLogisticsTransferLogEvents(engineEventsForTransferLog)
+      : [];
+
+  if (transferEvents.length > 0) {
+    return {
+      type: 'stateUpdate',
+      state,
+      transferEvents,
+    };
+  }
+
+  return {
+    type: 'stateUpdate',
+    state,
+  };
+};
 export const resolveStateBearingMessage = (
   state: GameState,
   primaryMessage?: StatefulServerMessage,

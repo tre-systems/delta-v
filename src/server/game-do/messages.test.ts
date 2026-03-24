@@ -176,6 +176,28 @@ describe('S2C state-bearing payload fixtures', () => {
     );
   });
 
+  it('stateUpdate adds transferEvents when engine events include transfers', () => {
+    const msg = toStateUpdateMessage(state, [
+      {
+        type: 'fuelTransferred',
+        fromShipId: 's0',
+        toShipId: 's1',
+        amount: 4,
+      },
+    ]);
+
+    expect(msg.type).toBe('stateUpdate');
+    if (msg.type !== 'stateUpdate') throw new Error('expected stateUpdate');
+    expect(msg.transferEvents).toEqual([
+      {
+        type: 'fuelTransferred',
+        fromShipId: 's0',
+        toShipId: 's1',
+        amount: 4,
+      },
+    ]);
+  });
+
   it('movementResult payload has exactly { type, movements, ordnanceMovements, events, state }', () => {
     const msg = toMovementResultMessage({
       movements: [
