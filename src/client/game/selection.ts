@@ -46,6 +46,7 @@ export const getGameOverStats = (
   }));
 
   return {
+    playerId,
     turns: state.turnNumber,
     myShipsAlive: myShips.length - myDestroyed,
     myShipsTotal: myShips.length,

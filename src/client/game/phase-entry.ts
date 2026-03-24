@@ -18,21 +18,25 @@ export interface ClientStateEntryPlan {
   tutorialPhase: 'astrogation' | 'ordnance' | 'combat' | null;
 }
 
-const getUnambiguousOwnedShipId = (
+const getFirstActionableShipId = (
   gameState: GameState | null,
   playerId: number,
 ): string | null => {
   if (!gameState) return null;
-  const alive = gameState.ships.filter(
-    (ship) => ship.owner === playerId && ship.lifecycle !== 'destroyed',
+  const actionable = gameState.ships.find(
+    (ship) =>
+      ship.owner === playerId &&
+      ship.lifecycle !== 'destroyed' &&
+      ship.damage.disabledTurns === 0,
   );
-  return alive.length === 1 ? alive[0].id : null;
+  return actionable?.id ?? null;
 };
 
 export const deriveClientStateEntryPlan = (
   state: ClientState,
   gameState: GameState | null,
   playerId: number,
+  isLocalGame = false,
 ): ClientStateEntryPlan => {
   switch (state) {
     case 'menu':
@@ -54,14 +58,14 @@ export const deriveClientStateEntryPlan = (
     case 'playing_astrogation':
       return {
         stopTurnTimer: false,
-        startTurnTimer: true,
+        startTurnTimer: !isLocalGame,
         hideTutorial: false,
         resetCamera: false,
         showHUD: true,
         showMovementStatus: false,
         frameOnShips: true,
         clearAstrogationPlanning: true,
-        selectedShipId: getUnambiguousOwnedShipId(gameState, playerId),
+        selectedShipId: getFirstActionableShipId(gameState, playerId),
         resetCombatState: false,
         clearAttackButton: false,
         startCombatTargetWatch: false,
@@ -70,7 +74,7 @@ export const deriveClientStateEntryPlan = (
     case 'playing_ordnance':
       return {
         stopTurnTimer: false,
-        startTurnTimer: true,
+        startTurnTimer: !isLocalGame,
         hideTutorial: false,
         resetCamera: false,
         showHUD: true,
@@ -89,7 +93,7 @@ export const deriveClientStateEntryPlan = (
     case 'playing_logistics':
       return {
         stopTurnTimer: false,
-        startTurnTimer: true,
+        startTurnTimer: !isLocalGame,
         hideTutorial: true,
         resetCamera: false,
         showHUD: true,
@@ -105,14 +109,14 @@ export const deriveClientStateEntryPlan = (
     case 'playing_combat':
       return {
         stopTurnTimer: false,
-        startTurnTimer: true,
+        startTurnTimer: !isLocalGame,
         hideTutorial: false,
         resetCamera: false,
         showHUD: true,
         showMovementStatus: false,
         frameOnShips: false,
         clearAstrogationPlanning: false,
-        selectedShipId: undefined,
+        selectedShipId: getFirstActionableShipId(gameState, playerId),
         resetCombatState: true,
         clearAttackButton: true,
         startCombatTargetWatch: true,
