@@ -74,7 +74,6 @@ export interface CommandRouterDeps {
   ui: CommandRouterUI;
   renderer: CommandRouterRenderer;
   getCanvasCenter: () => { x: number; y: number };
-  updateHUD: () => void;
   cycleShip: (direction: number) => void;
   focusNearestEnemy: () => void;
   focusOwnFleet: () => void;
@@ -155,8 +154,6 @@ const selectShip = (
   } else {
     setSelectedShipId(deps.ctx.planningState, shipId);
   }
-
-  deps.updateHUD();
 };
 
 export const dispatchGameCommand = (
@@ -179,7 +176,6 @@ export const dispatchGameCommand = (
     case 'setOverloadDirection':
       setShipOverload(deps.ctx.planningState, cmd.shipId, cmd.direction);
       playSelect();
-      deps.updateHUD();
       return;
     case 'setWeakGravityChoices':
       setShipWeakGravityChoices(
@@ -187,7 +183,6 @@ export const dispatchGameCommand = (
         cmd.shipId,
         cmd.choices,
       );
-      deps.updateHUD();
       return;
     case 'clearSelectedBurn':
       clearSelectedBurn(deps.astrogationDeps);
@@ -209,7 +204,6 @@ export const dispatchGameCommand = (
       return;
     case 'setCombatPlan':
       setCombatPlan(deps.ctx.planningState, cmd);
-      deps.updateHUD();
       return;
     case 'clearCombatSelection':
       clearCombatSelection(deps.combatDeps);
@@ -241,7 +235,6 @@ export const dispatchGameCommand = (
       return;
     case 'deselectShip':
       setSelectedShipId(deps.ctx.planningState, null);
-      deps.updateHUD();
       return;
     case 'cycleShip':
       deps.cycleShip(cmd.direction);
@@ -272,11 +265,9 @@ export const dispatchGameCommand = (
       return;
     case 'setTorpedoAccel':
       setTorpedoAcceleration(deps.ctx.planningState, cmd.direction, cmd.steps);
-      deps.updateHUD();
       return;
     case 'clearTorpedoAcceleration':
       clearTorpedoAcceleration(deps.ctx.planningState);
-      deps.updateHUD();
       return;
     case 'setHoverHex':
       setHoverHex(deps.ctx.planningState, cmd.hex);

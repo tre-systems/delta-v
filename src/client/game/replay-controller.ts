@@ -32,7 +32,6 @@ interface ReplayControllerDeps {
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
   clearTrails: () => void;
   applyGameState: (state: GameState) => void;
-  updateHUD: () => void;
 }
 
 const hiddenReplayControls = (): ReplayControlsView => ({
@@ -215,7 +214,6 @@ export const createReplayController = (
         if (replaySourceState) {
           deps.clearTrails();
           deps.applyGameState(replaySourceState);
-          deps.updateHUD();
         }
         replayTimeline = null;
         replayIndex = null;
@@ -272,7 +270,6 @@ export const createReplayController = (
       replayIndex = timeline.entries.length - 1;
       deps.clearTrails();
       deps.applyGameState(timeline.entries[replayIndex].message.state);
-      deps.updateHUD();
       updateOverlay();
     },
     stepReplay: (direction) => {
@@ -305,7 +302,6 @@ export const createReplayController = (
 
       deps.clearTrails();
       deps.applyGameState(entry.message.state);
-      deps.updateHUD();
       updateOverlay();
     },
   };

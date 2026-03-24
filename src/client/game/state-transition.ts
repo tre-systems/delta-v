@@ -44,7 +44,6 @@ export interface StateTransitionDeps {
   turnTimer: TransitionTurnTimer;
   onStateChanged: (prevState: ClientState, nextState: ClientState) => void;
   hideTooltip: () => void;
-  updateHUD: () => void;
   resetCombatState: () => void;
   startCombatTargetWatch: () => void;
   setLogisticsUIState: (state: LogisticsUIState | null) => void;
@@ -113,10 +112,6 @@ export const applyClientStateTransition = (
 
   if (entryPlan.resetCombatState) {
     deps.resetCombatState();
-  }
-
-  if (entryPlan.updateHUD) {
-    deps.updateHUD();
   }
 
   if (entryPlan.clearAttackButton) {

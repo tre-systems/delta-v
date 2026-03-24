@@ -47,7 +47,6 @@ export const createMainStateTransitionDeps = (
   onStateChanged: (prevState, nextState) =>
     args.turnTelemetry.onStateChanged(prevState, nextState),
   hideTooltip: () => hide(args.tooltipEl),
-  updateHUD: () => args.hud.updateHUD(),
   resetCombatState: () => args.resetCombatState(),
   startCombatTargetWatch: () => args.startCombatTargetWatch(),
   setLogisticsUIState: (state) => args.setLogisticsUIState(state),

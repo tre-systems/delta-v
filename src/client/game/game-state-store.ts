@@ -11,8 +11,9 @@
  * - `clearClientGameState`: `exitToMenuSession` only.
  * - `renderer.setGameState` / `clearTrails`: presentation, replay, session
  *   start/exit, and `message-handler` where documented in those modules.
- * - `hud.updateHUD`: non-planning paths (e.g. camera); mirrored `gameState`,
- *   `clientState`, and planning revision also trigger `attachSessionMirrorHudEffect`.
+ * - `hud.updateHUD`: mirrored `gameState`, `clientState`, and planning revision
+ *   drive `attachSessionMirrorHudEffect`; `hud-controller` may also call `updateHUD`
+ *   when reconciling selection from the derived view model.
  */
 import type { GameState } from '../../shared/types/domain';
 import { setSelectedShipId } from './planning-store';

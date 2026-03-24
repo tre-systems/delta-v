@@ -16,7 +16,6 @@ export interface AstrogationActionDeps {
   getPlayerId: () => number;
   getTransport: () => GameTransport | null;
   planningState: PlanningState;
-  updateHUD: () => void;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
 }
 
@@ -32,7 +31,6 @@ export const setBurnDirection = (
 
   if (dir === null) {
     clearShipPlanning(deps.planningState, targetId);
-    deps.updateHUD();
     return;
   }
   const currentBurn = deps.planningState.burns.get(targetId) ?? null;
@@ -59,7 +57,6 @@ export const setBurnDirection = (
     plan.clearOverload,
   );
   playSelect();
-  deps.updateHUD();
 };
 
 export const clearSelectedBurn = (deps: AstrogationActionDeps) => {
@@ -69,7 +66,6 @@ export const clearSelectedBurn = (deps: AstrogationActionDeps) => {
 
   if (!shipId) return;
   clearShipPlanning(deps.planningState, shipId);
-  deps.updateHUD();
 };
 
 export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
@@ -80,7 +76,6 @@ export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
   if (shipId) {
     clearShipPlanning(deps.planningState, shipId);
   }
-  deps.updateHUD();
 };
 
 export const matchVelocityWithNearbyFriendly = (
@@ -108,7 +103,6 @@ export const matchVelocityWithNearbyFriendly = (
   setShipOverload(deps.planningState, shipId, plan.overload);
   playSelect();
   deps.showToast(`Matching velocity with ${plan.targetShipId}`, 'success');
-  deps.updateHUD();
 };
 
 export const confirmOrders = (deps: AstrogationActionDeps) => {

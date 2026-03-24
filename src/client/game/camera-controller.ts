@@ -16,7 +16,6 @@ export interface CameraControllerDeps {
   getPlanningState: () => PlanningState;
   renderer: Renderer;
   overlay: OverlayView;
-  onShipSelected: () => void;
 }
 
 export const createCameraController = (deps: CameraControllerDeps) => ({
@@ -34,7 +33,6 @@ export const createCameraController = (deps: CameraControllerDeps) => ({
     if (!nextShip) return;
     setSelectedShipId(deps.getPlanningState(), nextShip.id);
     deps.renderer.centerOnHex(nextShip.position);
-    deps.onShipSelected();
   },
 
   focusNearestEnemy: () => {

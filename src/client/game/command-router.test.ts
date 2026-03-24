@@ -139,7 +139,6 @@ const createDeps = (overrides?: {
   transport: GameTransport & { calls: Record<string, unknown[][]> };
   ui: CommandRouterDeps['ui'];
   renderer: CommandRouterDeps['renderer'];
-  updateHUD: ReturnType<typeof vi.fn>;
 } => {
   const planningState = createInitialPlanningState();
   const transport = overrides?.transport ?? mockTransport();
@@ -154,7 +153,6 @@ const createDeps = (overrides?: {
   const showFireButton = vi.fn<CommandRouterDeps['ui']['showFireButton']>();
   const showToast = vi.fn<CommandRouterDeps['ui']['overlay']['showToast']>();
   const toggleLog = vi.fn<CommandRouterDeps['ui']['log']['toggle']>();
-  const updateHUD = vi.fn<() => void>();
   const renderer = {
     centerOnHex: vi.fn<(position: { q: number; r: number }) => void>(),
     camera: {
@@ -170,7 +168,6 @@ const createDeps = (overrides?: {
       getPlayerId: () => ctx.playerId,
       getTransport: () => ctx.transport,
       planningState: ctx.planningState,
-      updateHUD,
       showToast,
     },
     combatDeps: {
@@ -201,7 +198,6 @@ const createDeps = (overrides?: {
     },
     renderer,
     getCanvasCenter: () => ({ x: 400, y: 300 }),
-    updateHUD,
     cycleShip: vi.fn<(direction: number) => void>(),
     focusNearestEnemy: vi.fn<() => void>(),
     focusOwnFleet: vi.fn<() => void>(),
@@ -217,13 +213,12 @@ const createDeps = (overrides?: {
     transport,
     ui: deps.ui,
     renderer: deps.renderer,
-    updateHUD,
   };
 };
 
 describe('game-command-router', () => {
-  it('updates overload planning and refreshes HUD', () => {
-    const { deps, updateHUD } = createDeps();
+  it('updates overload planning', () => {
+    const { deps } = createDeps();
 
     dispatchGameCommand(deps, {
       type: 'setOverloadDirection',
@@ -232,11 +227,10 @@ describe('game-command-router', () => {
     });
 
     expect(deps.ctx.planningState.overloads.get('ship-0')).toBe(3);
-    expect(updateHUD).toHaveBeenCalledTimes(1);
   });
 
-  it('matches nearby friendly velocity and refreshes HUD', () => {
-    const { deps, ui, updateHUD } = createDeps({
+  it('matches nearby friendly velocity', () => {
+    const { deps, ui } = createDeps({
       gameState: createState({
         ships: [
           createShip({
@@ -264,7 +258,6 @@ describe('game-command-router', () => {
       'Matching velocity with ship-1',
       'success',
     );
-    expect(updateHUD).toHaveBeenCalledTimes(1);
   });
 
   it('undoes queued attacks and updates fire button state', () => {
@@ -340,7 +333,7 @@ describe('game-command-router', () => {
   });
 
   it('selects ships, centers the camera, and shows a toast for multiple ships', () => {
-    const { deps, renderer, ui, updateHUD } = createDeps();
+    const { deps, renderer, ui } = createDeps();
 
     dispatchGameCommand(deps, {
       type: 'selectShip',
@@ -354,11 +347,10 @@ describe('game-command-router', () => {
       'Selected: Packet',
       'info',
     );
-    expect(updateHUD).toHaveBeenCalledTimes(1);
   });
 
-  it('clears torpedo acceleration and refreshes HUD', () => {
-    const { deps, updateHUD } = createDeps();
+  it('clears torpedo acceleration', () => {
+    const { deps } = createDeps();
     deps.ctx.planningState.torpedoAccel = 2;
     deps.ctx.planningState.torpedoAccelSteps = 1;
 
@@ -366,6 +358,5 @@ describe('game-command-router', () => {
 
     expect(deps.ctx.planningState.torpedoAccel).toBeNull();
     expect(deps.ctx.planningState.torpedoAccelSteps).toBeNull();
-    expect(updateHUD).toHaveBeenCalledTimes(1);
   });
 });

@@ -197,7 +197,6 @@ export interface LocalGameTransportDeps {
   localGameFlowDeps: LocalGameFlowDeps;
   applyGameState: (state: GameState) => void;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
-  updateHUD: () => void;
   logScenarioBriefing: () => void;
   transitionToPhase: () => void;
   onAnimationComplete: () => void;
@@ -230,7 +229,6 @@ export const createLocalGameTransport = (
       }
       deps.applyGameState(result.state);
       deps.showToast('Orbital base emplaced!', 'success');
-      deps.updateHUD();
     },
     onFleetReady: (purchases) => {
       const state = deps.getGameState();
