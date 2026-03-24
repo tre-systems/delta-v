@@ -11,10 +11,8 @@ import { deriveActionRng } from '../../shared/prng';
 import type { GameState } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
 import {
-  createRoomConfig,
   generatePlayerToken,
   isValidPlayerToken,
-  parseInitPayload,
   type RoomConfig,
   resolveSeatAssignment,
 } from '../protocol';
@@ -32,8 +30,6 @@ import {
   getMatchSeed,
   getProjectedCurrentState,
   getProjectedCurrentStateRaw,
-  getProjectedReplayTimeline,
-  getReplayViewerId,
   hasProjectionParity,
   saveCheckpoint,
   saveMatchCreatedAt,
@@ -44,6 +40,12 @@ import {
   broadcastStateChange,
   sendSocketMessage,
 } from './broadcast';
+import {
+  handleInitRequest,
+  handleJoinCheckRequest,
+  handleReplayRequest,
+  resolveJoinAttempt as resolveJoinAttemptRequest,
+} from './http-handlers';
 import { archiveCompletedMatch } from './match-archive';
 import {
   resolveStateBearingMessage,
@@ -260,61 +262,20 @@ export class GameDO extends DurableObject<Env> {
         seatOpen: [boolean, boolean];
       }
   > {
-    const roomConfig = await this.getRoomConfig();
-
-    if (!roomConfig) {
-      return {
-        ok: false,
-        response: new Response('Game not found', {
-          status: 404,
-        }),
-      };
-    }
-
-    if (presentedTokenRaw !== null && !isValidPlayerToken(presentedTokenRaw)) {
-      return {
-        ok: false,
-        response: new Response('Invalid player token', {
-          status: 400,
-        }),
-      };
-    }
-
-    if (await this.isRoomArchived()) {
-      return {
-        ok: false,
-        response: new Response('Game archived', {
-          status: 410,
-        }),
-      };
-    }
-    const disconnectedPlayer = normalizeDisconnectedPlayer(
-      await this.ctx.storage.get<number>('disconnectedPlayer'),
+    return resolveJoinAttemptRequest(
+      {
+        getRoomConfig: () => this.getRoomConfig(),
+        isRoomArchived: () => this.isRoomArchived(),
+        getDisconnectedPlayer: async () =>
+          normalizeDisconnectedPlayer(
+            await this.ctx.storage.get<number>('disconnectedPlayer'),
+          ),
+        getSeatOpen: () => this.getSeatOpen(),
+        isValidPlayerToken,
+        resolveSeatAssignment,
+      },
+      presentedTokenRaw,
     );
-    const seatOpen = this.getSeatOpen();
-    const seatDecision = resolveSeatAssignment({
-      presentedToken: presentedTokenRaw,
-      disconnectedPlayer,
-      seatOpen,
-      playerTokens: roomConfig.playerTokens,
-    });
-
-    if (seatDecision.type === 'reject') {
-      return {
-        ok: false,
-        response: new Response(seatDecision.message, {
-          status: seatDecision.status,
-        }),
-      };
-    }
-    return {
-      ok: true,
-      roomConfig,
-      playerId: seatDecision.playerId,
-      issueNewToken: seatDecision.issueNewToken,
-      disconnectedPlayer,
-      seatOpen,
-    };
   }
 
   private async rescheduleAlarm(): Promise<void> {
@@ -793,90 +754,37 @@ export class GameDO extends DurableObject<Env> {
 
   // --- Game logic (delegates to engine) ---
   private async handleInit(request: Request): Promise<Response> {
-    const existing = await this.getRoomConfig();
-
-    if (existing) {
-      return new Response('Room already initialized', {
-        status: 409,
-      });
-    }
-    let payload: unknown;
-    try {
-      payload = await request.json();
-    } catch {
-      return new Response('Invalid init payload', {
-        status: 400,
-      });
-    }
-    const parsed = parseInitPayload(payload, Object.keys(SCENARIOS));
-
-    if (!parsed.ok) {
-      return new Response(parsed.error, { status: 400 });
-    }
-    const roomConfig = createRoomConfig(parsed.value);
-    await this.saveRoomConfig(roomConfig);
-    await this.setGameCode(roomConfig.code);
-    await this.touchInactivity();
-    return Response.json({ ok: true }, { status: 201 });
+    return handleInitRequest(
+      {
+        getRoomConfig: () => this.getRoomConfig(),
+        saveRoomConfig: (roomConfig) => this.saveRoomConfig(roomConfig),
+        setGameCode: (code) => this.setGameCode(code),
+        touchInactivity: () => this.touchInactivity(),
+      },
+      request,
+    );
   }
 
   private async handleJoinCheck(request: Request): Promise<Response> {
-    const presentedTokenRaw = new URL(request.url).searchParams.get(
-      'playerToken',
+    return handleJoinCheckRequest(
+      {
+        resolveJoinAttempt: (playerToken) =>
+          this.resolveJoinAttempt(playerToken),
+      },
+      request,
     );
-    const joinAttempt = await this.resolveJoinAttempt(presentedTokenRaw);
-
-    return joinAttempt.ok
-      ? Response.json({ ok: true }, { status: 200 })
-      : joinAttempt.response;
   }
 
   private async handleReplayRequest(request: Request): Promise<Response> {
-    const roomConfig = await this.getRoomConfig();
-
-    if (!roomConfig) {
-      return new Response('Game not found', {
-        status: 404,
-      });
-    }
-
-    const url = new URL(request.url);
-    const playerId = getReplayViewerId(
-      roomConfig,
-      url.searchParams.get('playerToken'),
-      url.searchParams.get('viewer'),
+    return handleReplayRequest(
+      {
+        storage: this.ctx.storage,
+        getRoomConfig: () => this.getRoomConfig(),
+        getLatestGameId: () => this.getLatestGameId(),
+        touchInactivity: () => this.touchInactivity(),
+      },
+      request,
     );
-
-    if (playerId === null) {
-      return new Response('Invalid player token', {
-        status: 403,
-      });
-    }
-
-    const gameId =
-      url.searchParams.get('gameId') ?? (await this.getLatestGameId());
-
-    if (!gameId) {
-      return new Response('Replay not found', {
-        status: 404,
-      });
-    }
-
-    const timeline = await getProjectedReplayTimeline(
-      this.ctx.storage,
-      gameId,
-      playerId,
-    );
-
-    if (!timeline) {
-      return new Response('Replay not found', {
-        status: 404,
-      });
-    }
-
-    await this.touchInactivity();
-
-    return Response.json(timeline);
   }
 
   private async initGame() {
