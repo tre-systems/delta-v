@@ -34,3 +34,12 @@ export const attachSessionMirrorHudEffect = (
     mirror.planningRevision.value;
     hud.updateHUD();
   });
+
+/** Keeps the canvas renderer aligned with `mirror.gameState` (including `null` on exit). */
+export const attachRendererGameStateMirrorEffect = (
+  mirror: SessionReactiveMirror,
+  renderer: { setGameState: (state: GameState | null) => void },
+): Dispose =>
+  effect(() => {
+    renderer.setGameState(mirror.gameState.value);
+  });
