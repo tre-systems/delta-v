@@ -10,7 +10,7 @@ import {
 import { createGameLogView, type GameLogView } from './game-log-view';
 import type { HUDInput } from './hud';
 import { createHUDChromeView, type HUDChromeView } from './hud-chrome-view';
-import { deriveHudLayoutOffsets } from './layout';
+import { applyHudLayoutMetrics, clearHudLayoutMetrics } from './layout-metrics';
 import { createLobbyView, type LobbyView } from './lobby-view';
 import { createOverlayView, type OverlayView } from './overlay-view';
 import type { UIScreenMode } from './screens';
@@ -259,18 +259,10 @@ class UIManagerImpl {
       return;
     }
 
-    const offsets = deriveHudLayoutOffsets(
+    applyHudLayoutMetrics(
       window.innerHeight,
       this.topBarEl.getBoundingClientRect(),
       this.bottomBarEl.getBoundingClientRect(),
-    );
-
-    const rootStyle = document.documentElement.style;
-
-    rootStyle.setProperty('--hud-top-offset', `${offsets.hudTopOffsetPx}px`);
-    rootStyle.setProperty(
-      '--hud-bottom-offset',
-      `${offsets.hudBottomOffsetPx}px`,
     );
   }
 
@@ -280,10 +272,7 @@ class UIManagerImpl {
       this.layoutSyncFrame = null;
     }
 
-    const rootStyle = document.documentElement.style;
-
-    rootStyle.removeProperty('--hud-top-offset');
-    rootStyle.removeProperty('--hud-bottom-offset');
+    clearHudLayoutMetrics();
   }
 
   dispose() {
