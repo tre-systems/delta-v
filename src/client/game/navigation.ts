@@ -1,7 +1,11 @@
-import { isOrderableShip } from '../../shared/engine/util';
-import type { HexCoord } from '../../shared/hex';
-import { hexToPixel } from '../../shared/hex';
-import type { GameState, Ship } from '../../shared/types/domain';
+import { getEscapeEdge, isOrderableShip } from '../../shared/engine/util';
+import { getFugitiveShip } from '../../shared/engine/victory';
+import { type HexCoord, hexDistance, hexToPixel } from '../../shared/hex';
+import type {
+  GameState,
+  Ship,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 
 const getOwnedShips = (state: GameState, playerId: number): Ship[] => {
   return state.ships.filter(
@@ -75,4 +79,100 @@ export const getOwnFleetFocusPosition = (
     ships.find((ship) => ship.id === selectedShipId)?.position ??
     ships[0].position
   );
+};
+
+const escapeHintHex = (
+  from: HexCoord,
+  bounds: SolarSystemMap['bounds'],
+  edge: ReturnType<typeof getEscapeEdge>,
+): HexCoord => {
+  const margin = 5;
+
+  if (edge === 'north') {
+    return { q: from.q, r: bounds.minR - margin };
+  }
+
+  const candidates: HexCoord[] = [
+    { q: bounds.minQ - margin, r: from.r },
+    { q: bounds.maxQ + margin, r: from.r },
+    { q: from.q, r: bounds.minR - margin },
+    { q: from.q, r: bounds.maxR + margin },
+  ];
+
+  return candidates.reduce((best, c) =>
+    hexDistance(from, c) < hexDistance(from, best) ? c : best,
+  );
+};
+
+/** Hex to aim the minimap objective arrow toward (mirrors HUD objective modes). */
+export const getObjectiveBearingTargetHex = (
+  state: GameState,
+  playerId: number,
+  map: SolarSystemMap,
+  fromShip: Pick<Ship, 'position'> | null,
+): HexCoord | null => {
+  if (!fromShip) {
+    return null;
+  }
+
+  const player = state.players[playerId];
+
+  const checkpoints = state.scenarioRules.checkpointBodies;
+
+  if (checkpoints && checkpoints.length > 0) {
+    const visited = new Set(player.visitedBodies ?? []);
+    const nextName = checkpoints.find((b) => !visited.has(b));
+
+    if (nextName) {
+      const body = map.bodies.find((b) => b.name === nextName);
+
+      return body?.center ?? null;
+    }
+
+    const home = map.bodies.find((b) => b.name === player.homeBody);
+
+    return home?.center ?? null;
+  }
+
+  if (player.escapeWins) {
+    return escapeHintHex(fromShip.position, map.bounds, getEscapeEdge(state));
+  }
+
+  if (state.scenarioRules.hiddenIdentityInspection) {
+    const fugitive = getFugitiveShip(state);
+
+    if (!fugitive || fugitive.lifecycle === 'destroyed') {
+      return null;
+    }
+
+    if (fugitive.owner === playerId || fugitive.detected) {
+      return fugitive.position;
+    }
+
+    return null;
+  }
+
+  if (player.targetBody) {
+    const body = map.bodies.find((b) => b.name === player.targetBody);
+
+    return body?.center ?? null;
+  }
+
+  const enemies = state.ships.filter(
+    (ship) =>
+      ship.owner !== playerId &&
+      ship.lifecycle !== 'destroyed' &&
+      ship.detected,
+  );
+
+  if (enemies.length === 0) {
+    return null;
+  }
+
+  return enemies.reduce((best, ship) =>
+    hexDistance(fromShip.position, ship.position) <
+    hexDistance(fromShip.position, best.position)
+      ? ship
+      : best,
+  ).position;
 };

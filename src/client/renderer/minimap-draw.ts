@@ -2,7 +2,10 @@ import type { HexCoord } from '../../shared/hex';
 import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import { createMinimapLayout } from '../game/minimap';
 import type { Camera } from './camera';
-import { buildMinimapSceneView } from './minimap';
+import {
+  buildMinimapSceneView,
+  type MinimapObjectiveBearingView,
+} from './minimap';
 
 const drawMinimapChrome = (
   ctx: CanvasRenderingContext2D,
@@ -47,6 +50,51 @@ const drawMinimapViewport = (
   ctx.strokeRect(viewport.x, viewport.y, viewport.width, viewport.height);
 };
 
+const drawMinimapObjectiveBearing = (
+  ctx: CanvasRenderingContext2D,
+  bearing: MinimapObjectiveBearingView,
+): void => {
+  const { from, to } = bearing;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy);
+
+  if (len < 8) {
+    return;
+  }
+
+  const ux = dx / len;
+  const uy = dy / len;
+  const arrowLen = Math.min(34, Math.max(12, len * 0.38));
+  const tipX = from.x + ux * arrowLen;
+  const tipY = from.y + uy * arrowLen;
+  const head = 5;
+  const ang = Math.atan2(uy, ux);
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255, 224, 130, 0.95)';
+  ctx.fillStyle = 'rgba(255, 224, 130, 0.95)';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(tipX, tipY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(tipX, tipY);
+  ctx.lineTo(
+    tipX - head * Math.cos(ang - 0.5),
+    tipY - head * Math.sin(ang - 0.5),
+  );
+  ctx.lineTo(
+    tipX - head * Math.cos(ang + 0.5),
+    tipY - head * Math.sin(ang + 0.5),
+  );
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+};
+
 export type DrawMinimapOverlayInput = {
   ctx: CanvasRenderingContext2D;
   map: SolarSystemMap;
@@ -57,6 +105,7 @@ export type DrawMinimapOverlayInput = {
   screenW: number;
   screenH: number;
   hexSize: number;
+  selectedShipId: string | null;
 };
 
 export const drawMinimapOverlay = (input: DrawMinimapOverlayInput): void => {
@@ -70,6 +119,7 @@ export const drawMinimapOverlay = (input: DrawMinimapOverlayInput): void => {
     screenW,
     screenH,
     hexSize,
+    selectedShipId,
   } = input;
   const hudTopOffset = parseFloat(
     getComputedStyle(document.documentElement).getPropertyValue(
@@ -96,6 +146,7 @@ export const drawMinimapOverlay = (input: DrawMinimapOverlayInput): void => {
     screenW,
     screenH,
     hexSize,
+    selectedShipId,
   );
   for (const body of scene.bodies) {
     ctx.fillStyle = body.color;
@@ -130,6 +181,9 @@ export const drawMinimapOverlay = (input: DrawMinimapOverlayInput): void => {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+  if (scene.objectiveBearing) {
+    drawMinimapObjectiveBearing(ctx, scene.objectiveBearing);
+  }
   if (scene.viewport) {
     drawMinimapViewport(ctx, scene.viewport);
   }

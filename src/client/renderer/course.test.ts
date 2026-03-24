@@ -194,4 +194,27 @@ describe('renderer course helpers', () => {
       lineWidth: 1.5,
     });
   });
+
+  it('draws a crash marker when the plotted course impacts a body', () => {
+    const map = buildSolarSystemMap();
+    const state = createState([
+      createShip({
+        position: { q: 3, r: 0 },
+        velocity: { dq: -3, dr: 0 },
+      }),
+    ]);
+
+    const previews = buildAstrogationCoursePreviewViews(
+      state,
+      0,
+      createPlanning({ selectedShipId: 'ship-0' }),
+      map,
+      28,
+    );
+
+    expect(previews).toHaveLength(1);
+    expect(previews[0].lineColor).toBe('#ff4444');
+    expect(previews[0].ghostShip).toBeNull();
+    expect(previews[0].crashMarker).not.toBeNull();
+  });
 });
