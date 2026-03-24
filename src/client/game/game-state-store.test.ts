@@ -21,9 +21,9 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
 const createDeps = (
   selectedShipId: string | null = null,
 ): ApplyClientGameStateDeps & {
-  rendererCalls: GameState[];
+  rendererCalls: (GameState | null)[];
 } => {
-  const rendererCalls: GameState[] = [];
+  const rendererCalls: (GameState | null)[] = [];
 
   return {
     ctx: {
@@ -50,6 +50,20 @@ describe('applyClientGameState', () => {
 
     expect(deps.ctx.gameState).toBe(state);
     expect(deps.rendererCalls).toEqual([state]);
+  });
+
+  it('updates ctx when renderer is omitted (shell uses mirror effect)', () => {
+    const state = createState();
+    const deps: ApplyClientGameStateDeps = {
+      ctx: {
+        gameState: null,
+        planningState: { selectedShipId: null },
+      },
+    };
+
+    applyClientGameState(deps, state);
+
+    expect(deps.ctx.gameState).toBe(state);
   });
 
   it('keeps the selected ship when it still exists and is alive', () => {

@@ -193,7 +193,9 @@ Current examples:
 - `applyClientStateTransition()` owns client state-entry
   side effects.
 - `applyClientGameState()` owns authoritative state apply
-  plus renderer sync.
+  to `ctx` (and optional test `renderer`); in the full client,
+  `attachRendererGameStateMirrorEffect()` drives `renderer.setGameState`
+  from `mirror.gameState` (see `docs/ARCHITECTURE.md`).
 - `createUIManager()` owns top-level screen toggling via its
   internal `applyScreenVisibility` (wired through
   `createScreenActions()` for the user-facing screen methods),
@@ -601,7 +603,7 @@ State belongs to the coordinator that manages its lifecycle, and is passed by re
 
   Key fields: `burns` (Map of ship → burn direction), `overloads` (Map of ship → overload direction), `queuedAttacks` (buffered combat declarations), `selectedShipId`, `hoverHex`, `combatTargetId`/`combatAttackerIds` (combat planning), `torpedoAccel` (torpedo launch direction). Reset via `createInitialPlanningState()` on phase transitions.
 
-- **GameState** lives on the same client context (`ctx.gameState`). Authoritative updates go through `applyClientGameState()` in `game/game-state-store.ts` (called from the `applyGameState` function inside `createGameClient()` and from injected deps in session/transport code). Other modules receive it as function arguments, never as stored references.
+- **GameState** lives on the same client context (`ctx.gameState`). Authoritative updates go through `applyClientGameState()` in `game/game-state-store.ts` (called from the `applyGameState` function inside `createGameClient()` and from injected deps in session/transport code). The composition root dual-writes into `session-signals` mirrors; `attachRendererGameStateMirrorEffect` keeps the canvas aligned with `mirror.gameState` (including `null` on exit). Other modules receive it as function arguments, never as stored references.
 
 ### Reactive signals (adopted selectively in UI)
 

@@ -63,6 +63,7 @@ import {
   createInitialClientSession,
 } from './session-model';
 import {
+  attachRendererGameStateMirrorEffect,
   attachSessionMirrorHudEffect,
   createSessionReactiveMirror,
 } from './session-signals';
@@ -81,12 +82,14 @@ export type { ClientSession, MainNetworkDeps };
  *
  * **Effect ownership (see also `game-state-store.ts`):**
  * - `setState` — only here (drives `applyClientStateTransition` + `clientState` mirror).
- * - `applyGameState` — wrapper here (`applyClientGameState` + `gameState` mirror).
+ * - `applyGameState` — `applyClientGameState` (ctx + planning cleanup) then
+ *   `mirror.gameState`; `attachRendererGameStateMirrorEffect` pushes that to the canvas.
  * - `exitToMenuSession` — clears game state via `clearClientGameState` + mirror hook.
  * - `hud.updateHUD` — invoked from `attachSessionMirrorHudEffect` when `gameState`,
  *   `clientState`, or `planningRevision` change; also from `hud-controller` internals
  *   (e.g. syncing selection from the derived view model).
- * - `renderer.setGameState` / `clearTrails` — presentation, replay, session lifecycle.
+ * - `renderer.setGameState` — mirror effect (above); `clearTrails` and other renderer
+ *   APIs — presentation, replay, session lifecycle.
  */
 export const createGameClient = () => {
   const ctx: ClientSession = createInitialClientSession();
@@ -121,13 +124,12 @@ export const createGameClient = () => {
   let stopCombatWatch: (() => void) | null = null;
   let setState: (newState: ClientState) => void;
   let transitionToPhase: () => void;
-  let disposeHudMirror: Dispose | undefined;
+  let disposeMirrorSubscriptions: Dispose | undefined;
 
   const applyGameState = (state: GameState) => {
     applyClientGameState(
       {
         ctx,
-        renderer,
         afterApply: (s) => {
           mirror.gameState.value = s;
         },
@@ -218,7 +220,15 @@ export const createGameClient = () => {
     tooltipEl,
   });
 
-  disposeHudMirror = attachSessionMirrorHudEffect(mirror, hud);
+  const disposeHudMirror = attachSessionMirrorHudEffect(mirror, hud);
+  const disposeRendererMirror = attachRendererGameStateMirrorEffect(
+    mirror,
+    renderer,
+  );
+  disposeMirrorSubscriptions = () => {
+    disposeHudMirror();
+    disposeRendererMirror();
+  };
 
   const camera = createCameraController({
     getGameState: () => mirror.gameState.peek(),
@@ -527,7 +537,7 @@ export const createGameClient = () => {
     dispose() {
       stopCombatWatch?.();
       setPlanningHudBump(undefined);
-      disposeHudMirror?.();
+      disposeMirrorSubscriptions?.();
       connection.close();
       turnTimer.stop();
       disposeBrowserEvents();
