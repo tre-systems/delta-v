@@ -51,14 +51,14 @@ client/          → State machine + Canvas renderer + DOM UI
 
 ### Key Architectural Strengths
 
-- **Side-effect-free engine.** The shared engine has no I/O: no DOM, no network, no storage. The DO wraps it with persistence and WebSocket plumbing. This makes everything testable and portable. All engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. See [Engine Mutation Model](#engine-mutation-model) for details.
+- **Side-effect-free engine.** The shared engine has no I/O: no DOM, no network, no storage. The DO wraps it with persistence and WebSocket plumbing. This makes everything testable and portable. Turn-resolution engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. See [Engine Mutation Model](#engine-mutation-model) for details.
 - **Transport abstraction.** `GameTransport` decouples the client from WebSocket vs local (AI) play. The client doesn't know or care where state comes from.
 - **Functional style throughout.** Pure derivation functions (`deriveHudViewModel`, `deriveKeyboardAction`, `deriveBurnChangePlan`), mandatory injectable RNG, `cond()` for branching.
 - **Narrow class usage.** Pure rules and coordination
   helpers stay function/factory-based. The only production
   `class` is `GameDO` (`extends DurableObject`). The client
-  bootstrap uses `createGameClient()`, `createInputHandler()`,
-  and `createUIManager()`; the load harness uses
+  composition root is `createGameClient()` in `game/client-kernel.ts`, alongside
+  `createInputHandler()` and `createUIManager()`; the load harness uses
   `createBotClient()`. Canvas orchestration uses
   `createRenderer()` and `createCamera()` factories.
 - **Pure planner + narrow applier flows.** Client screen changes, phase entry, message handling, and game-state application route through pure planners plus a small number of side-effect owners instead of scattering equivalent writes across many call sites.
@@ -84,10 +84,10 @@ These are the main architectural follow-ups still open:
   the render loop before investing in layer caching or other
   micro-optimizations — drive changes from measured frame
   cost, not intuition alone.
-- **Keep the composition root thin.** `createGameClient()`
-  already composes factories; when adding features, extend
-  `game/*` modules and `*Deps` shapes rather than growing the
-  closure. Apply the same idea to `createRenderer()` and
+- **Keep the composition root thin.** `createGameClient()` in
+  `game/client-kernel.ts` already composes factories; when adding
+  features, extend `game/*` modules and `*Deps` shapes rather than
+  growing the closure. Apply the same idea to `createRenderer()` and
   `createInputHandler()` when their files grow.
 
 ---
@@ -102,21 +102,21 @@ This is the heart of the project. All game rules live in a shared folder, making
 
 #### Module Inventory
 
-| Module                                     | Purpose                                                                                                        | Reusability                             |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| `hex.ts`                                   | Axial hex math: distance, neighbours, line draw, pixel conversion                                              | **Fully generic** — zero game knowledge |
-| `util.ts`                                  | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.)                                      | **Fully generic** — no game knowledge   |
-| `types/`                                   | Shared interfaces for domain, protocol, and scenario data                                                      | Game-specific                           |
-| `protocol.ts`                              | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads)                               | Mostly generic                          |
-| `replay.ts`                                | Replay timeline structure and match identity builder                                                           | Game-specific                           |
-| `constants.ts`                             | Ship stats, ordnance mass, detection ranges, combat/movement constants                                         | Game-specific                           |
-| `movement.ts`                              | Vector movement with gravity, fuel, takeoff/landing, crash detection                                           | Game-specific                           |
-| `combat.ts`                                | Gun combat tables, LOS, range/velocity mods, heroism, counterattack                                            | Game-specific                           |
-| `map-data.ts`                              | Solar system bodies, gravity rings, bases, and scenario definitions                                            | Game-specific                           |
-| `ai.ts` / `ai-config.ts` / `ai-scoring.ts` | Rule-based AI and its scoring configuration                                                                    | Game-specific                           |
-| `engine/game-engine.ts`                    | Barrel re-export for the public engine API                                                                     | Game-specific                           |
-| `engine/engine-events.ts`                  | `EngineEvent` discriminated union (31 granular domain event types)                                             | Game-specific                           |
-| `engine/*` phase modules                   | Game creation, fleet building, astrogation, movement, combat, ordnance, logistics, victory, and shared helpers | Game-specific                           |
+| Module                                     | Purpose                                                                                                           | Reusability                             |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `hex.ts`                                   | Axial hex math: distance, neighbours, line draw, pixel conversion                                                 | **Fully generic** — zero game knowledge |
+| `util.ts`                                  | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.)                                         | **Fully generic** — no game knowledge   |
+| `types/`                                   | Shared interfaces for domain, protocol, and scenario data                                                         | Game-specific                           |
+| `shared/protocol.ts`                       | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads); complements `types/protocol.ts` | Mostly generic                          |
+| `replay.ts`                                | Replay timeline structure and match identity builder                                                              | Game-specific                           |
+| `constants.ts`                             | Ship stats, ordnance mass, detection ranges, combat/movement constants                                            | Game-specific                           |
+| `movement.ts`                              | Vector movement with gravity, fuel, takeoff/landing, crash detection                                              | Game-specific                           |
+| `combat.ts`                                | Gun combat tables, LOS, range/velocity mods, heroism, counterattack                                               | Game-specific                           |
+| `map-data.ts`                              | Solar system bodies, gravity rings, bases, and scenario definitions                                               | Game-specific                           |
+| `ai.ts` / `ai-config.ts` / `ai-scoring.ts` | Rule-based AI and its scoring configuration                                                                       | Game-specific                           |
+| `engine/game-engine.ts`                    | Barrel re-export for the public engine API                                                                        | Game-specific                           |
+| `engine/engine-events.ts`                  | `EngineEvent` discriminated union (31 granular domain event types)                                                | Game-specific                           |
+| `engine/*` phase modules                   | Game creation, fleet building, astrogation, movement, combat, ordnance, logistics, victory, and shared helpers    | Game-specific                           |
 
 #### Key Design Patterns
 
@@ -125,7 +125,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 - **`combat.ts`**: Evaluates line-of-sight, calculates combat odds based on velocity/range modifiers, and resolves damage. Mutates ships directly (e.g., `applyDamage`, updating `ship.lifecycle`, heroism flags).
 - **`types/`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads), split into `domain.ts`, `protocol.ts`, and `scenario.ts` with a barrel re-export. This ensures the client and server never fall out of sync.
 - **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [RNG Injection](#rng-injection).
-- **Domain event emission**: All engine entry points emit `EngineEvent[]` (31 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
+- **Domain event emission**: Turn-resolution engine entry points emit `EngineEvent[]` (31 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
 
 #### AI Strategy Design (`ai.ts`, `ai-config.ts`, `ai-scoring.ts`)
 
@@ -157,7 +157,7 @@ Internal mutation patterns (e.g. `applyDamage()`, `ship.lifecycle = 'destroyed'`
 
 #### RNG Injection
 
-All engine entry points (`processAstrogation`, `processCombat`, `skipCombat`, `beginCombatPhase`, `processOrdnance`, `skipOrdnance`) require a mandatory `rng: () => number` parameter. Internal functions (`rollD6`, `resolveCombat`, `resolveBaseDefense`, `shuffle`, `randomChoice`, `checkRamming`, `moveOrdnance`, `resolvePendingAsteroidHazards`) also require `rng`. There are no `Math.random` fallbacks in the turn-resolution path.
+Turn-resolution entry points (`processAstrogation`, `processCombat`, `skipCombat`, `beginCombatPhase`, `processOrdnance`, `skipOrdnance`, and the other `process*` / `skip*` phase handlers) require a mandatory `rng: () => number` parameter. Internal functions (`rollD6`, `resolveCombat`, `resolveBaseDefense`, `shuffle`, `randomChoice`, `checkRamming`, `moveOrdnance`, `resolvePendingAsteroidHazards`) also require `rng`. There are no `Math.random` fallbacks in the turn-resolution path.
 
 `createGame` and AI functions (`aiAstrogation`, `aiOrdnance`) accept optional `rng` with `Math.random` default, since they are setup/heuristic functions rather than turn-resolution functions.
 
@@ -250,8 +250,8 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 #### Key Design Patterns
 
-- **`main.ts`**: Exports `createGameClient()` — the client-side coordinator factory. Manages WebSocket connections, local-AI execution, and top-level composition. It delegates command dispatch to `game/command-router.ts`, game-state apply/clear ownership to `game/game-state-store.ts`, planning mutations to `game/planning-store.ts`, runtime/session field updates to `game/client-context-store.ts`, client state-entry side effects to `game/state-transition.ts`, and session lifecycle flows to `game/session-controller.ts` instead of keeping those blocks inline.
-- **`main.ts` as composition root**: `createGameClient()` wires together transports, timers, renderer, UI, and extracted `*Deps` objects. The exported `GameClient` type is `ReturnType<typeof createGameClient>`; the runtime bootstrap only exposes `renderer`, `showToast`, and `dispose` on `window.game`. Construction and ownership stay centralized there while downstream modules stay narrower and easier to test.
+- **`main.ts`**: Browser entry only — global setup (error handlers, viewport, service worker reload) and `createGameClient()` from `game/client-kernel.ts`, then assigns `window.game`.
+- **`game/client-kernel.ts`**: Exports `createGameClient()` — the client-side coordinator factory. Manages WebSocket connections, local-AI execution, and top-level composition. It delegates command dispatch to `game/command-router.ts`, game-state apply/clear ownership to `game/game-state-store.ts`, planning mutations to `game/planning-store.ts`, runtime/session field updates to `game/client-context-store.ts`, client state-entry side effects to `game/state-transition.ts`, and session lifecycle flows to `game/session-controller.ts` instead of keeping those blocks inline. The exported `GameClient` type is `ReturnType<typeof createGameClient>`; the runtime bootstrap only exposes `renderer`, `showToast`, and `dispose` on `window.game`.
 - **`renderer/renderer.ts`**: A highly optimized Canvas 2D renderer factory. It separates logical hex coordinates from pixel coordinates, while extracted helpers such as `renderer/animation.ts` now own movement-animation lifecycle and trail state. `createRenderer()` remains the canvas shell and per-frame orchestrator, and now composites a cached static scene layer for stars, grid, gravity, asteroids, and bodies when the camera and viewport are unchanged.
 - **`input.ts`**: Manages user interaction (panning, zooming, clicking). It translates raw browser events into `InputEvent` objects, while `input-interaction.ts` owns pointer drag/pinch/minimap state and math. The input shell now owns its DOM listener lifecycle explicitly, including outside-canvas pointer release and touch-cancel cleanup. Pure `interpretInput()` then maps these to `GameCommand[]`, ensuring the input layer never directly mutates the application state.
 - **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), planning-state helpers, runtime/session helpers, phase derivation, game-state helpers, transition helpers, session helpers, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
@@ -382,7 +382,7 @@ dependency surface. That remains the default.
 4. When both players have submitted (or the turn timer expires), the server calls `processAstrogation()` in the shared engine.
 5. The engine calculates the new physics vectors, resolves gravity effects, and detects crashes.
 6. The Durable Object saves the new state and broadcasts a `movementResult` to both clients.
-7. The clients receive the result, pause input, and `client/renderer.ts` smoothly interpolates the ships along their calculated paths. Once the animation finishes, the game proceeds to the Ordnance/Combat phase.
+7. The clients receive the result, pause input, and `client/renderer/renderer.ts` smoothly interpolates the ships along their calculated paths. Once the animation finishes, the game proceeds to the Ordnance/Combat phase.
 
 ### WebSocket Protocol
 
@@ -427,7 +427,7 @@ authoritative persisted truth.
 ## 4. Dependency Map
 
 ```
-main.ts (createGameClient — client bootstrap)
+main.ts → game/client-kernel.ts (createGameClient — composition root)
   ├→ renderer/renderer.ts (draw canvas, reads planningState by reference)
   ├→ input.ts (parse mouse/keyboard → InputEvent)
   ├→ ui/ui.ts (manage screens, accept UIEvent)
@@ -456,8 +456,8 @@ renderer/renderer.ts
   ├→ renderer/[scene|entities|vectors|effects|overlay|...].ts (pure drawing)
   └→ shared/ (types, hex, constants)
 
-game-do.ts (Durable Object)
-  ├→ protocol.ts (validation, seat assignment)
+game-do/game-do.ts (Durable Object)
+  ├→ server/protocol.ts (validation, seat assignment)
   ├→ session.ts, turns.ts (lifecycle management)
   ├→ messages.ts (S2C construction)
   └→ shared/engine/game-engine.ts (pure game logic)
@@ -483,16 +483,16 @@ An analysis of what could be extracted as a reusable hex-grid multiplayer game f
 
 ### What Is Already Generic
 
-| Component                   | LOC    | Reusability | Notes                                                                          |
-| --------------------------- | ------ | ----------- | ------------------------------------------------------------------------------ |
-| `shared/hex.ts`             | 307    | **100%**    | Zero game knowledge. Axial coords, line draw, pixel conversion.                |
-| `shared/util.ts`            | 159    | **100%**    | Pure FP collection helpers.                                                    |
-| `renderer/camera.ts`        | 125    | **95%**     | Pan/zoom/lerp. Only tie: `HEX_SIZE` constant.                                  |
-| `client/input.ts`           | 227    | **90%**     | Mouse/touch/pinch → clickHex/hoverHex. No game knowledge.                      |
-| Server multiplayer plumbing | ~400   | **80%**     | Room codes, tokens, seat assignment, disconnect grace, alarms.                 |
-| `game/transport.ts`         | 305    | **70%**     | Command submission pattern. Interface is game-specific but pattern is generic. |
-| Renderer orchestration      | ~200   | **60%**     | Render loop, effect management, animation interpolation.                       |
-| Everything else             | ~12000 | **0–20%**   | Deeply game-specific.                                                          |
+| Component                   | Reusability | Notes                                                                          |
+| --------------------------- | ----------- | ------------------------------------------------------------------------------ |
+| `shared/hex.ts`             | **100%**    | Zero game knowledge. Axial coords, line draw, pixel conversion.                |
+| `shared/util.ts`            | **100%**    | Pure FP collection helpers.                                                    |
+| `renderer/camera.ts`        | **95%**     | Pan/zoom/lerp. Only tie: `HEX_SIZE` constant.                                  |
+| `client/input.ts`           | **90%**     | Mouse/touch/pinch → clickHex/hoverHex. No game knowledge.                      |
+| Server multiplayer plumbing | **80%**     | Room codes, tokens, seat assignment, disconnect grace, alarms.                 |
+| `game/transport.ts`         | **70%**     | Command submission pattern. Interface is game-specific but pattern is generic. |
+| Renderer orchestration      | **60%**     | Render loop, effect management, animation interpolation.                       |
+| Everything else             | **0–20%**   | Deeply game-specific.                                                          |
 
 ### What a Generic Framework Would Look Like
 
@@ -519,7 +519,7 @@ A game implementation would provide:
 
 ### Assessment
 
-**The extractable core is ~1400 LOC** — enough to avoid rewriting for a second game, but small enough that copy-paste is also viable.
+The extractable core is a modest fraction of the repo — enough to avoid rewriting for a second game, but small enough that copy-paste is also viable.
 
 **Arguments for extraction:**
 
@@ -530,7 +530,7 @@ A game implementation would provide:
 
 **Arguments against:**
 
-- Game-specific logic is ~80% of the codebase. The "generic" part is small.
+- Game-specific logic dominates the repo. The "generic" part is small.
 - Abstraction has a cost: type parameters and trait interfaces make code harder to read. `processAstrogation` is crystal clear because it knows exactly what a Ship is.
 - Designing a framework from N=1 games is the classic premature abstraction. The right abstractions only emerge after building game #2.
 - The game-specific parts (gravity, vector movement, combat tables) are the interesting and hard parts. The generic hex plumbing is straightforward.

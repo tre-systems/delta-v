@@ -21,7 +21,7 @@ Files under `src/shared/` should remain:
 - plain typed data
 - easy to test in isolation
 
-All engine entry points clone the input state on entry (`structuredClone`) — the caller's state is never mutated. Internally, the clone is mutated in place for efficiency. Callers must use the returned `result.state`. RNG is fully injectable — all engine entry points require a mandatory `rng: () => number` parameter with no `Math.random` fallbacks in the turn-resolution path.
+Turn-resolution engine entry points clone the input state on entry (`structuredClone`) — the caller's state is never mutated. Internally, the clone is mutated in place for efficiency. Callers must use the returned `result.state`. RNG is fully injectable on those paths — they require a mandatory `rng: () => number` parameter with no `Math.random` fallbacks in the turn-resolution path. Setup helpers such as `createGame` build state from scratch and use optional `rng` with a `Math.random` default.
 
 Avoid pushing browser, network, storage, or rendering concerns into the shared engine.
 
@@ -36,7 +36,7 @@ group methods around private state.
 
 **Everything else** at those imperative boundaries uses the same
 `createXxx()` factory pattern as the rest of the client: `createGameClient()`
-in `src/client/main.ts`, `createInputHandler()` in `src/client/input.ts`,
+in `src/client/game/client-kernel.ts`, `createInputHandler()` in `src/client/input.ts`,
 `createUIManager()` in `src/client/ui/ui.ts`, and `createBotClient()` in
 `scripts/load-test.ts`. Returned types are usually
 `ReturnType<typeof create…>` (for example `GameClient`, `InputHandler`,
@@ -65,9 +65,9 @@ Guidance:
 - Prefer `createXxx()` factories for new client modules;
   do not add a class unless the platform requires it (as
   with `GameDO`) or a rare case genuinely needs `instanceof`.
-- When the composition root in `main.ts` grows again,
+- When `game/client-kernel.ts` (`createGameClient`) grows again,
   extract responsibilities into `game/*` helpers first;
-  avoid inflating `createGameClient()` with unrelated logic.
+  avoid inflating the kernel with unrelated logic.
 
 ### DOM helpers
 
@@ -113,7 +113,7 @@ These are heuristics, not hard rules:
 - Files above `500` lines should be reviewed for extraction opportunities.
 - Files above `1000` lines are usually overdue for decomposition.
 
-Imperative boundary orchestrators (`main.ts`, `renderer.ts`, `game-do.ts`) tend to be larger because they coordinate many subsystems. The 1000-line heuristic applies less strictly to these files — focus on whether responsibilities are clearly separated and helper logic has been extracted.
+Imperative boundary orchestrators (`game/client-kernel.ts`, `renderer/renderer.ts`, `game-do/game-do.ts`) tend to be larger because they coordinate many subsystems. The 1000-line heuristic applies less strictly to these files — focus on whether responsibilities are clearly separated and helper logic has been extracted.
 
 Do not create meaningless wrapper functions or over-fragment files just to hit numeric targets.
 
@@ -127,7 +127,7 @@ Do not create meaningless wrapper functions or over-fragment files just to hit n
 - Prefer targeted tests around risky logic over shallow coverage inflation.
 - Use data-driven tests (`it.each` / `describe.each`) to reduce verbosity when testing tables, mappings, or many input-output pairs. This is especially useful for combat tables, damage lookups, and hex math.
 - Use **property-based tests** (`fast-check`) for invariant verification on core engine functions. Co-locate as `*.property.test.ts` next to the source file. Property tests complement unit tests by fuzzing inputs to verify that invariants hold universally (e.g., "fuel never goes negative", "hex distance is symmetric", "higher odds never produce worse combat results").
-- Coverage thresholds are enforced on `src/shared/` via vitest config — the pre-commit hook and CI both run `test:coverage` to prevent backsliding.
+- Coverage thresholds are enforced on `src/shared/` via vitest config — the pre-commit hook runs `test:coverage` to prevent backsliding; CI runs `test:coverage` as well.
 
 For a good overview of when property tests add value, see
 fast-check's
@@ -176,7 +176,7 @@ setState(plan.nextState)                               // impure: apply it
 
 Examples: `deriveClientScreenPlan`, `deriveGameOverPlan`, `deriveClientMessagePlan`, `deriveBurnChangePlan`, `deriveHudViewModel`, `deriveKeyboardAction`, `deriveAIActionPlan`, `deriveClientStateEntryPlan`, `derivePhaseTransition`.
 
-The `deriveClientStateEntryPlan()` function in `game/phase-entry.ts` is the most elaborate example — it returns a `ClientStateEntryPlan` with ~15 boolean/enum flags controlling camera reset, HUD visibility, timer start, tutorial triggers, and combat state on each phase entry. The `setState` function inside `createGameClient()` in `main.ts` delegates to `applyClientStateTransition()` in `game/state-transition.ts`, which reads that plan (and `deriveClientScreenPlan`) and applies the imperative side effects.
+The `deriveClientStateEntryPlan()` function in `game/phase-entry.ts` is the most elaborate example — it returns a `ClientStateEntryPlan` with ~15 boolean/enum flags controlling camera reset, HUD visibility, timer start, tutorial triggers, and combat state on each phase entry. The `setState` function inside `createGameClient()` in `game/client-kernel.ts` delegates to `applyClientStateTransition()` in `game/state-transition.ts`, which reads that plan (and `deriveClientScreenPlan`) and applies the imperative side effects.
 
 This is the [functional core / imperative shell](https://www.destroyallsoftware.com/talks/boundaries) pattern (Gary Bernhardt, ["Boundaries"](https://www.destroyallsoftware.com/talks/boundaries), SCNA 2012) — pure derivation in the core, side effects at the boundary. See also Mark Seemann's [dependency rejection](https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/) series for the same idea applied to functional programming.
 
@@ -309,11 +309,17 @@ engineEvents.push(...subResult.engineEvents);
 return { state, engineEvents };
 ```
 
-Every engine entry point returns `engineEvents: EngineEvent[]`.
-Sub-functions return their own arrays, and the caller
-spreads them into its accumulator. The server reads
-`result.engineEvents` directly for persistence and
-broadcasting — no server-side event derivation.
+Turn-resolution engine entry points (`processAstrogation`,
+`processOrdnance`, `skipOrdnance`, `processFleetReady`,
+`beginCombatPhase`, `processCombat`, `skipCombat`,
+`processLogistics`, `skipLogistics`, `processSurrender`,
+`processEmplacement`, and movement resolution that composes
+sub-results) return `engineEvents: EngineEvent[]`. Helpers such as
+`createGame` (returns `GameState` only) and `filterStateForPlayer`
+(view projection) do not. Sub-functions return their own arrays, and
+the caller spreads them into its accumulator. The server reads
+`result.engineEvents` directly for persistence and broadcasting — no
+server-side event derivation.
 
 ### Data-driven lookup tables
 
@@ -599,7 +605,7 @@ The shared engine is data-oriented by design. Lean into that with functional pat
 
 State belongs to the coordinator that manages its lifecycle, and is passed by reference to collaborators:
 
-- **PlanningState** is owned by the client composition root (`ctx.planningState` inside `createGameClient()` in `main.ts`), defined in `src/client/game/planning.ts`. It is the client-side "working memory" for the current turn — the uncommitted moves that get sent to the server on confirm. The renderer receives it when constructed via `createRenderer(canvas, planningState)` and reads the same reference each frame to draw previews. `InputHandler` (`createInputHandler()`) does not receive PlanningState — it emits raw spatial events (`InputEvent`), and `interpretInput()` receives PlanningState as a read-only argument to produce `GameCommand[]`.
+- **PlanningState** is owned by the client composition root (`ctx.planningState` inside `createGameClient()` in `game/client-kernel.ts`), defined in `src/client/game/planning.ts`. It is the client-side "working memory" for the current turn — the uncommitted moves that get sent to the server on confirm. The renderer receives it when constructed via `createRenderer(canvas, planningState)` and reads the same reference each frame to draw previews. `InputHandler` (`createInputHandler()`) does not receive PlanningState — it emits raw spatial events (`InputEvent`), and `interpretInput()` receives PlanningState as a read-only argument to produce `GameCommand[]`.
 
   Key fields: `burns` (Map of ship → burn direction), `overloads` (Map of ship → overload direction), `queuedAttacks` (buffered combat declarations), `selectedShipId`, `hoverHex`, `combatTargetId`/`combatAttackerIds` (combat planning), `torpedoAccel` (torpedo launch direction). Reset via `createInitialPlanningState()` on phase transitions.
 
@@ -607,8 +613,8 @@ State belongs to the coordinator that manages its lifecycle, and is passed by re
 
 ### Reactive signals (adopted selectively in UI)
 
-`src/client/reactive.ts` is a zero-dependency signals library
-(~210 LOC) providing `signal`, `computed`, `effect`, `batch`,
+`src/client/reactive.ts` is a small zero-dependency signals library
+providing `signal`, `computed`, `effect`, `batch`,
 `withScope`, `registerDisposer`, and `createDisposalScope()`.
 It is used in the DOM UI layer for view-local state and derived
 DOM synchronization.
@@ -618,7 +624,7 @@ The "Smart Helpers" (`visible`, `text`, `cls`) in `dom.ts`
 automatically leverage signals when provided, reducing boilerplate.
 
 Do **not** use it as a general app-state store. The composition
-root in `main.ts`, the renderer, the transport/session layer, and
+root in `game/client-kernel.ts`, the renderer, the transport/session layer, and
 the shared engine should remain explicit and imperative unless
 there is a clear synchronization problem being solved.
 
@@ -677,7 +683,7 @@ and Mark Seemann on
   pattern unless a class shape is clearly doing real
   work.
 
-`createGameClient()` in `main.ts` wires deps objects and closures so callbacks always see current context (including forward `let` bindings where constructors need callbacks before all fields exist). `dispatchGameCommand()` in `game/command-router.ts` routes commands to the extracted action functions.
+`createGameClient()` in `game/client-kernel.ts` wires deps objects and closures so callbacks always see current context (including forward `let` bindings where constructors need callbacks before all fields exist). `dispatchGameCommand()` in `game/command-router.ts` routes commands to the extracted action functions.
 
 When adding new side-effecting logic, prefer extending an existing `*Deps` interface over adding surface area on the bootstrap return value (`renderer`, `showToast`, `dispose`). Keep pure derivation functions as direct-parameter exports (or a single typed options object when arity is large) — they don't need deps.
 
@@ -735,15 +741,15 @@ The `applyScreenVisibility` pattern inside `createUIManager()` is the single cho
 
 Biome enforces the following as errors (not just warnings):
 
-| Rule               | What it enforces                          |
-| ------------------ | ----------------------------------------- |
-| `useConst`         | Immutable bindings where possible         |
-| `noVar`            | No `var` declarations                     |
-| `noDoubleEquals`   | Strict equality only                      |
-| `useArrowFunction` | Arrow functions over function expressions |
-| `noForEach`        | `for...of` instead of `.forEach()`        |
-| `useFlatMap`       | `.flatMap()` instead of `.map().flat()`   |
-| `noUnusedImports`  | Clean imports                             |
+| Rule               | What it enforces                                                    |
+| ------------------ | ------------------------------------------------------------------- |
+| `useConst`         | Immutable bindings where possible                                   |
+| `noVar`            | No `var` declarations                                               |
+| `noDoubleEquals`   | Strict equality only                                                |
+| `useArrowFunction` | Arrow functions over function expressions                           |
+| `noForEach`        | Prefer `for...of` over `.forEach()` on arrays (see Practical Style) |
+| `useFlatMap`       | `.flatMap()` instead of `.map().flat()`                             |
+| `noUnusedImports`  | Clean imports                                                       |
 
 Additional enforced rules include `noExplicitAny`, `noUnusedVariables`,
 `useTemplate`, `noNonNullAssertion`, and others — see `biome.json` for the full
@@ -754,12 +760,18 @@ project code. The exceptions are explicitly configured in `biome.json` (for
 example the server override for Cloudflare globals) and should be documented
 there rather than assumed in prose.
 
-Type checking is also strict and split intentionally:
+**CI and hooks:** `.github/workflows/ci.yml` runs `npm run lint` and
+`npm run typecheck:all`. The Husky pre-commit hook runs the same lint and
+typecheck commands (plus tests and simulation). `npm run verify` includes lint,
+`typecheck:all`, coverage, build, e2e, and simulation.
+
+Type checking is split intentionally:
 
 - `tsconfig.json` checks application code under `src/`.
 - `tsconfig.tools.json` checks tooling and test harness code (`scripts/`,
   `e2e/`, and root `*.ts` config files) with Node types enabled.
-- CI/verification should run `npm run typecheck:all` to keep both scopes green.
+- Use `npm run typecheck` for application code only; use `npm run typecheck:all`
+  before pushing or rely on CI / pre-commit / `verify`.
 
 The server directory (`src/server/`) has `noUndeclaredVariables` disabled because Cloudflare Workers globals (like `WebSocketPair`) are not recognized by biome.
 
@@ -789,6 +801,6 @@ The server directory (`src/server/`) has `noUndeclaredVariables` disabled becaus
 - Add comments sparingly and only where they explain non-obvious intent.
 - Prefer direct control flow over abstract indirection.
 - Keep public-facing behavior changes accompanied by tests or a clear rationale when tests are not practical.
-- **Use `for...of`** instead of `.forEach()` — enforced by biome. When you need the index, use `for (const [i, item] of arr.entries())`.
+- **Prefer `for...of`** over `.forEach()` on arrays when you own the loop body — Biome enables `noForEach`, but it does not flag every `.forEach` call; stay consistent with `for...of` for new code. When you need the index, use `for (const [i, item] of arr.entries())`.
 - **Avoid `.map().filter(x => x != null)`** — use `filterMap()` from `src/shared/util.ts` for a single-pass transform-and-discard.
 - **Prefer `byId()`** over `document.getElementById()!` — it throws on missing elements with a clear error message and avoids non-null assertions.
