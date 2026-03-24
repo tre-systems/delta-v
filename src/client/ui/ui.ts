@@ -1,5 +1,5 @@
 import type { GameState, Ship } from '../../shared/types/domain';
-import { byId, listen, visible } from '../dom';
+import { byId, listen } from '../dom';
 import { createDisposalScope, withScope } from '../reactive';
 import { STATIC_BUTTON_BINDINGS } from './button-bindings';
 import type { UIEvent } from './events';
@@ -13,8 +13,9 @@ import { createHUDChromeView, type HUDChromeView } from './hud-chrome-view';
 import { deriveHudLayoutOffsets } from './layout';
 import { createLobbyView, type LobbyView } from './lobby-view';
 import { createOverlayView, type OverlayView } from './overlay-view';
-import { buildScreenVisibility, type UIScreenMode } from './screens';
+import type { UIScreenMode } from './screens';
 import { createShipListView, type ShipListView } from './ship-list-view';
+import { applyUIVisibility } from './visibility';
 
 class UIManagerImpl {
   private readonly scope = createDisposalScope();
@@ -125,20 +126,19 @@ class UIManagerImpl {
   }
 
   private applyScreenVisibility(mode: UIScreenMode) {
-    const v = buildScreenVisibility(mode);
-
-    visible(this.menuEl, v.menu !== 'none', v.menu);
-    visible(this.scenarioEl, v.scenario !== 'none', v.scenario);
-    visible(this.waitingEl, v.waiting !== 'none', v.waiting);
-    visible(this.hudEl, v.hud !== 'none', v.hud);
-    visible(this.gameOverEl, v.gameOver !== 'none', v.gameOver);
-    visible(this.shipListEl, v.shipList !== 'none', v.shipList);
-    visible(this.fleetBuildingEl, v.fleetBuilding !== 'none', v.fleetBuilding);
+    applyUIVisibility(
+      {
+        menuEl: this.menuEl,
+        scenarioEl: this.scenarioEl,
+        waitingEl: this.waitingEl,
+        hudEl: this.hudEl,
+        gameOverEl: this.gameOverEl,
+        shipListEl: this.shipListEl,
+        fleetBuildingEl: this.fleetBuildingEl,
+      },
+      mode,
+    );
     this.log.applyScreenVisibility(mode);
-
-    visible(byId('helpBtn'), v.helpBtn !== 'none', v.helpBtn);
-    visible(byId('soundBtn'), v.soundBtn !== 'none', v.soundBtn);
-    visible(byId('helpOverlay'), v.helpOverlay !== 'none', v.helpOverlay);
   }
 
   hideAll() {
