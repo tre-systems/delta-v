@@ -1,7 +1,7 @@
 import type { GameState, Ship } from '../../shared/types/domain';
 import { byId, listen } from '../dom';
 import { createDisposalScope, withScope } from '../reactive';
-import { STATIC_BUTTON_BINDINGS } from './button-bindings';
+import { bindStaticButtonEvents } from './button-events';
 import type { UIEvent } from './events';
 import {
   createFleetBuildingView,
@@ -113,11 +113,10 @@ class UIManagerImpl {
         listen(window.visualViewport, 'resize', this.handleViewportResize);
       }
 
-      for (const binding of STATIC_BUTTON_BINDINGS) {
-        listen(byId(binding.id), 'click', () => {
-          this.emit(binding.event);
-        });
-      }
+      bindStaticButtonEvents(
+        (event) => this.emit(event),
+        (dispose) => this.scope.add(dispose),
+      );
     });
   }
 
