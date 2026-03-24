@@ -33,7 +33,7 @@ WebSocket connections.
 
 **Files:** `src/server/game-do/game-do.ts`,
 `src/server/protocol.ts`,
-`src/client/main.ts`, client spectator UI
+`src/client/game/client-kernel.ts`, client spectator UI
 
 ### Scenario expansion
 

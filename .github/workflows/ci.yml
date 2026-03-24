@@ -22,11 +22,14 @@ jobs:
 
       - run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Typecheck (app + tooling)
+        run: npm run typecheck:all
 
       - name: Test with coverage
         run: npm run test:coverage

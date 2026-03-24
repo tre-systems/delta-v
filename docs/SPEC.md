@@ -24,12 +24,12 @@ src/
       turns.ts         Turn processing and resolution
 
   client/
-    main.ts            Client state machine, WebSocket handling, AI turn runner
+    main.ts            Browser entry — bootstrap, then createGameClient()
+    game/              client-kernel.ts (composition root), command routing, combat/burn/ordnance helpers, …
     input.ts           Raw browser input shell (mouse/touch/keyboard)
     input-interaction.ts Pointer/minimap gesture helpers for the input shell
     audio.ts           Procedural sound effects (Web Audio API)
     tutorial.ts        Phase-based tutorial tips for new players
-    game/              Client game logic helpers (combat, phase, burn, ordnance, etc.)
     renderer/          Canvas rendering, camera, animation manager, trails, minimap
     ui/                DOM overlays (menu, HUD, game log, game over)
 
@@ -54,6 +54,7 @@ static/
 ### Cloudflare Components
 
 **Worker (lobby-worker):**
+
 - `GET /` — Serves the SPA (index.html + bundled JS/CSS)
 - `POST /create` — Generates a 5-character room code plus a creator reconnect token, initializes the Durable Object room, and locks the chosen scenario
 - `GET /join/:code` — Optional join / reconnect preflight validation
@@ -61,6 +62,7 @@ static/
 - `GET /ws/:code` — WebSocket upgrade, proxied to the Durable Object
 
 **Durable Object (game-do):**
+
 - One instance per active game, keyed by room code
 - Maintains the authoritative match event stream and current live room session
 - Receives player actions via WebSocket, runtime-validates them, and applies state changes
@@ -90,6 +92,7 @@ The game uses **axial hex coordinates** (q, r) internally. The hex grid is appro
 When a player is planning movement, subtle dot markers or a faint radial guide may appear to indicate valid destination hexes — but no full grid is drawn.
 
 **Coordinate system:**
+
 - Axial coordinates (q, r) with cube coordinate conversion for distance/pathfinding
 - Flat-top hex orientation
 - Hex size calibrated so the full solar system map fits comfortably in the viewport
@@ -99,6 +102,7 @@ When a player is planning movement, subtle dot markers or a faint radial guide m
 The map represents the inner Solar System along the ecliptic plane:
 
 **Celestial Bodies (with gravity hexes):**
+
 - **Sol** (Sun) — center of map, radius-2 body with two full-gravity rings; any contact = destruction
 - **Mercury** — single-hex body with one full-gravity ring and 2 base hexes
 - **Venus** — radius-1 body with one full-gravity ring and bases on all 6 sides
@@ -113,6 +117,7 @@ The map represents the inner Solar System along the ecliptic plane:
 - **Asteroid Belt** — scattered asteroid hexes between the inner planets and Jupiter
 
 **Gravity types:**
+
 - **Full gravity**: mandatory 1-hex deflection toward the body for any object passing through
 - **Weak gravity** (Luna, Io, Callisto, Ganymede): player may choose to use or ignore when passing through a single weak gravity hex. Two consecutive weak gravity hexes = full gravity effect on the second.
 
@@ -132,7 +137,8 @@ The core mechanic. Each ship has a **velocity vector** — a displacement from i
 6. **Queue new gravity:** gravity hexes entered during this move apply on the following turn.
 
 **Additional movement rules:**
-- Gravity takes effect on the turn *after* entry.
+
+- Gravity takes effect on the turn _after_ entry.
 - A single weak-gravity hex may be ignored, but two consecutive weak-gravity hexes of the same body make the second deflection mandatory.
 - A course exactly along the edge of a gravity hex does not count as entering that gravity hex.
 - Ships keep their velocity vectors between turns; stationary ships have a zero vector.
@@ -174,20 +180,21 @@ After both players complete their turns, a new game turn begins.
 
 Nine ship types plus orbital bases:
 
-| Ship Type   | Combat | Fuel | Cargo | Notes |
-|-------------|--------|------|-------|-------|
-| Transport   | 1D     | 10   | 50    | Cargo hauler; may carry orbital bases |
-| Packet      | 2      | 10   | 50    | Armed transport; may carry orbital bases |
-| Tanker      | 1D     | 50   | 0     | Fuel carrier |
-| Liner       | 2D     | 10   | 0     | Passenger ship |
-| Corvette    | 2      | 20   | 5     | Smallest warship |
-| Corsair     | 4      | 20   | 10    | Mid-size warship |
-| Frigate     | 8      | 20   | 40    | Large warship |
-| Dreadnaught | 15     | 15   | 50    | Heavy warship |
-| Torch       | 8      | ∞    | 10    | Unlimited fuel; may not transfer fuel |
-| Orbital Base| 16     | ∞    | ∞     | Stationary emplacement |
+| Ship Type    | Combat | Fuel | Cargo | Notes                                    |
+| ------------ | ------ | ---- | ----- | ---------------------------------------- |
+| Transport    | 1D     | 10   | 50    | Cargo hauler; may carry orbital bases    |
+| Packet       | 2      | 10   | 50    | Armed transport; may carry orbital bases |
+| Tanker       | 1D     | 50   | 0     | Fuel carrier                             |
+| Liner        | 2D     | 10   | 0     | Passenger ship                           |
+| Corvette     | 2      | 20   | 5     | Smallest warship                         |
+| Corsair      | 4      | 20   | 10    | Mid-size warship                         |
+| Frigate      | 8      | 20   | 40    | Large warship                            |
+| Dreadnaught  | 15     | 15   | 50    | Heavy warship                            |
+| Torch        | 8      | ∞    | 10    | Unlimited fuel; may not transfer fuel    |
+| Orbital Base | 16     | ∞    | ∞     | Stationary emplacement                   |
 
 **Cargo and special-capacity rules:**
+
 - A combat factor with the `D` suffix marks a commercial ship that may not attack or counterattack.
 - Only warships may overload.
 - Only warships may launch torpedoes.
@@ -196,6 +203,7 @@ Nine ship types plus orbital bases:
 - Fuel is not cargo.
 
 Each ship tracks:
+
 - Current hex position
 - Velocity vector
 - Fuel remaining
@@ -216,6 +224,7 @@ Each ship tracks:
 6. Counterattack is resolved before attack damage is implemented.
 
 **Combat mechanics:**
+
 - Line of sight is blocked by planets, moons, and Sol.
 - Ships, ordnance, and asteroids do not block line of sight.
 - A defender may counterattack if still eligible, and any ships in the defender's hex that share the defender's course may join that counterattack.
@@ -225,6 +234,7 @@ Each ship tracks:
 - Planetary-defense shots follow normal gunfire rules except where explicitly modified.
 
 **Damage rules:**
+
 - `D1` through `D5` disable a ship for that many turns.
 - Disabled ships drift on their present vectors and may not maneuver, attack, counterattack, or launch ordnance.
 - Damage is cumulative; 6 or more disabled turns eliminates the ship.
@@ -233,17 +243,18 @@ Each ship tracks:
 
 **Other damage sources:**
 
-| Source    | Canonical effect |
-|-----------|------------------|
-| Torpedoes | Roll on the Other Damage Table; only one ship can be hit |
-| Mines     | Roll on the Other Damage Table against every affected ship |
+| Source    | Canonical effect                                                          |
+| --------- | ------------------------------------------------------------------------- |
+| Torpedoes | Roll on the Other Damage Table; only one ship can be hit                  |
+| Mines     | Roll on the Other Damage Table against every affected ship                |
 | Asteroids | Roll on the Other Damage Table for each asteroid hex entered at speed > 1 |
-| Ramming   | Roll on the Other Damage Table for both ships |
-| Nukes     | Destroy everything in the detonated hex automatically |
+| Ramming   | Roll on the Other Damage Table for both ships                             |
+| Nukes     | Destroy everything in the detonated hex automatically                     |
 
 ### Ordnance
 
 **General ordnance rules:**
+
 - All ordnance is affected by gravity.
 - Ordnance moves only during its owner's movement phase.
 - Each ship may release only one item per turn.
@@ -251,6 +262,7 @@ Each ship tracks:
 - Mines, torpedoes, and nukes detonate when they enter a hex containing a ship, astral body, mine, torpedo, or nuke, or when any of those enter their hex.
 
 **Mines** (mass 10):
+
 - Inherit the launching ship's vector.
 - The launching ship must immediately change course so it does not remain in the mine's hex.
 - Remain active for 5 turns, then self-destruct.
@@ -258,6 +270,7 @@ Each ship tracks:
 - Guns and planetary defenses have no effect on mines.
 
 **Torpedoes** (mass 20):
+
 - Inherit the launching ship's vector, then may accelerate one or two hexes in any direction on the launch turn.
 - Only warships may launch them.
 - Hit only a single target.
@@ -265,6 +278,7 @@ Each ship tracks:
 - Continue moving if they miss.
 
 **Nukes** (mass 20):
+
 - Inherit the launching ship's vector.
 - Remain active for 5 turns, then self-destruct.
 - Explode when they enter a hex containing a ship, base, asteroid, mine, or torpedo, or when any of those enter the nuke hex.
@@ -277,11 +291,13 @@ Each ship tracks:
 ### Gravity, Orbit, Landing, and Takeoff
 
 Gravity is the key environmental mechanic:
+
 - Each gravity hex has an arrow pointing toward its parent body.
 - Deflections are cumulative.
 - Orbit is not a special state; it emerges from speed-1 movement through the gravity ring.
 
 **Landing and takeoff rules:**
+
 - To land on a planet or satellite, a ship must first be in orbit and then spend 1 fuel to land on a base hex side.
 - Intersecting a planet or satellite any other way is a crash.
 - A ship may land on Ceres, the clandestine asteroid, or an unnamed asteroid by stopping in that asteroid hex.
@@ -293,17 +309,20 @@ Gravity is the key environmental mechanic:
 ### Bases, Detection, and Support
 
 **Planetary bases:**
+
 - Provide fuel, maintenance, cargo handling, ordnance reloads, detection, and planetary defense.
 - Each base may fire at every enemy ship in the gravity hex directly above that base during its owner's combat phase.
 - Planetary-defense fire is resolved at 2:1 odds with no range or velocity modifiers; all other gunfire rules still apply.
 
 **Asteroid bases:**
+
 - Provide normal base functions.
 - Have no planetary defense.
 - May launch one torpedo per turn.
 - Are harmed only by nukes unless a scenario overrides this.
 
 **Orbital bases:**
+
 - May be carried only by transports or packets.
 - May be emplaced in a gravity hex while the carrying ship is in orbit, or on an unoccupied world hex side.
 - Do not literally orbit once emplaced.
@@ -311,10 +330,12 @@ Gravity is the key environmental mechanic:
 - Cannot be moved once placed.
 
 **Clandestine base:**
+
 - A secret asteroid base that uses orbital-base statistics.
 - Scenario-specific dense-asteroid and scanner rules apply around it.
 
 **Resupply and maintenance:**
+
 - All bases provide unlimited fuel, mines, and torpedoes.
 - Planetary bases resupply landed ships on their base hex side.
 - Asteroid bases resupply ships stopped in the base hex.
@@ -325,10 +346,11 @@ Gravity is the key environmental mechanic:
 - An orbital base that resupplies any ship may not fire guns or launch ordnance that player-turn.
 
 **Detection:**
+
 - Ships and orbital bases detect at range 3.
 - Planetary bases detect at range 5.
 - Once detected, a ship remains detected until it reaches a friendly base.
-- **Inspection**: In hidden-identity scenarios (like *Escape*), an enforcer can reveal a hidden ship by "matching courses": ending a turn in the same hex with the identical velocity vector.
+- **Inspection**: In hidden-identity scenarios (like _Escape_), an enforcer can reveal a hidden ship by "matching courses": ending a turn in the same hex with the identical velocity vector.
 
 Detection matters primarily in hidden-information scenarios such as Piracy and Lateral 7. In open scenarios like Bi-Planetary, all ships may simply be visible.
 
@@ -344,6 +366,7 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 ### Implementation Status
 
 **Implemented faithfully:**
+
 - Vector movement with deferred gravity, weak gravity player choice, overload burns
 - **Overload allowance tracking**: warships may overload once between maintenance stopovers; base resupply restores the allowance
 - Gun Combat Table matching 2018 rulebook (minimum D2 damage threshold, correct per-odds values)
@@ -367,33 +390,33 @@ Detection matters primarily in hidden-information scenarios such as Piracy and L
 
 **Remaining divergences** (cross-referenced against [Triplanetary 2018 rulebook](https://www.sjgames.com/triplanetary/)):
 
-- **Contact geometry** *(accepted — low priority):* Mine/torpedo contact approximated by hex occupancy/path, not the stricter board geometric rule. The rulebook requires literal geometric line intersection with the printed hex area; two courses can pass through the same hex without their drawn lines touching. Hex-path intersection is a standard digital approximation. Fixing would require sub-hex geometry incompatible with axial coordinate math.
+- **Contact geometry** _(accepted — low priority):_ Mine/torpedo contact approximated by hex occupancy/path, not the stricter board geometric rule. The rulebook requires literal geometric line intersection with the printed hex area; two courses can pass through the same hex without their drawn lines touching. Hex-path intersection is a standard digital approximation. Fixing would require sub-hex geometry incompatible with axial coordinate math.
 
-- **Edge-of-gravity rule** *(resolved):* The rulebook (p.3, Figure 7) explicitly states a course running exactly along the edge of a gravity hex does not count as entering it. Resolved via `analyzeHexLine()` which produces `definite` (hexes in both nudge directions) and `ambiguousPairs` (edge-grazing hexes). `collectEnteredGravityEffects()` only iterates `definite`, correctly skipping edge-grazing gravity hexes.
+- **Edge-of-gravity rule** _(resolved):_ The rulebook (p.3, Figure 7) explicitly states a course running exactly along the edge of a gravity hex does not count as entering it. Resolved via `analyzeHexLine()` which produces `definite` (hexes in both nudge directions) and `ambiguousPairs` (edge-grazing hexes). `collectEnteredGravityEffects()` only iterates `definite`, correctly skipping edge-grazing gravity hexes.
 
-- **Asteroid hexside rule** *(resolved):* The rulebook (p.7) states "a ship passing along a hexside between two asteroid hexes is considered to have entered one asteroid hex" — one hazard roll, not two. Resolved via `analyzeHexLine()`: `queueAsteroidHazards()` queues exactly one hazard for `ambiguousPairs` where both hexes are asteroids.
+- **Asteroid hexside rule** _(resolved):_ The rulebook (p.7) states "a ship passing along a hexside between two asteroid hexes is considered to have entered one asteroid hex" — one hazard roll, not two. Resolved via `analyzeHexLine()`: `queueAsteroidHazards()` queues exactly one hazard for `ambiguousPairs` where both hexes are asteroids.
 
-- **Logistics** *(partially implemented):* Surrender (unilateral declaration during astrogation), fuel/cargo transfer (new logistics phase after movement, requires position+velocity match), and looting of disabled/surrendered enemy ships are implemented. Torch fuel transfer restriction enforced. Enabled on Convoy, Fleet Action, and Interplanetary War scenarios. The astrogation HUD now includes a `MATCH VEL` helper that copies a nearby friendly ship's reachable velocity onto the selected ship when possible, reducing the setup friction for transfers. Remaining: dummy counters for concealment scenarios and passenger rescue mechanics.
+- **Logistics** _(partially implemented):_ Surrender (unilateral declaration during astrogation), fuel/cargo transfer (new logistics phase after movement, requires position+velocity match), and looting of disabled/surrendered enemy ships are implemented. Torch fuel transfer restriction enforced. Enabled on Convoy, Fleet Action, and Interplanetary War scenarios. The astrogation HUD now includes a `MATCH VEL` helper that copies a nearby friendly ship's reachable velocity onto the selected ship when possible, reducing the setup friction for transfers. Remaining: dummy counters for concealment scenarios and passenger rescue mechanics.
 
-- **Advanced combat system** *(resolved):* The rulebook uses the standard D1–D5/E damage system throughout; no separate advanced subsystem damage tracks exist. Dreadnaught gun exception (fire while disabled) is implemented in `canAttack`/`canCounterattack`. Orbital base D1 resilience (fire guns, launch torpedoes, and resupply at D1 damage) is implemented via `canOperateWhileDisabled()` in `combat.ts` and ordnance launch validation in `game-engine.ts`.
+- **Advanced combat system** _(resolved):_ The rulebook uses the standard D1–D5/E damage system throughout; no separate advanced subsystem damage tracks exist. Dreadnaught gun exception (fire while disabled) is implemented in `canAttack`/`canCounterattack`. Orbital base D1 resilience (fire guns, launch torpedoes, and resupply at D1 damage) is implemented via `canOperateWhileDisabled()` in `combat.ts` and ordnance launch validation in `game-engine.ts`.
 
-- **Extended Economy** *(deferred — scenario-specific):* Shipping lanes (Piracy trade cycles, cargo delivery) and asteroid prospecting (automated mines, robot guards, ore/CT shards) are scenario-specific economy mechanics from the Piracy and Interplanetary War scenarios. Defer until those scenarios are on the roadmap.
+- **Extended Economy** _(deferred — scenario-specific):_ Shipping lanes (Piracy trade cycles, cargo delivery) and asteroid prospecting (automated mines, robot guards, ore/CT shards) are scenario-specific economy mechanics from the Piracy and Interplanetary War scenarios. Defer until those scenarios are on the roadmap.
 
-- **Orbital base D1 resilience** *(implemented):* The rulebook (p.6) states orbital bases may still launch torpedoes, fire guns, and resupply friendly ships while at D1 damage. Implemented: `canOperateWhileDisabled()` in `combat.ts` allows orbital bases to fire/counterattack at D1, and ordnance launch validation in `game-engine.ts` permits launches at D1. Resupply from orbital bases was already unrestricted by damage level.
+- **Orbital base D1 resilience** _(implemented):_ The rulebook (p.6) states orbital bases may still launch torpedoes, fire guns, and resupply friendly ships while at D1 damage. Implemented: `canOperateWhileDisabled()` in `combat.ts` allows orbital bases to fire/counterattack at D1, and ordnance launch validation in `game-engine.ts` permits launches at D1. Resupply from orbital bases was already unrestricted by damage level.
 
-- **Torch ship fuel transfer restriction** *(implemented):* The rulebook (p.8) states torch ships "may not transfer fuel to other ships." Enforced in `logistics.ts` — torch ships are excluded from fuel transfer eligibility.
+- **Torch ship fuel transfer restriction** _(implemented):_ The rulebook (p.8) states torch ships "may not transfer fuel to other ships." Enforced in `logistics.ts` — torch ships are excluded from fuel transfer eligibility.
 
 **Unimplemented rulebook scenarios** (from the [Triplanetary 2018 PDF](https://www.sjgames.com/triplanetary/)):
 
-| Scenario | Type | Key Dependencies |
-|---|---|---|
-| Lateral 7 | 2-player short | Dummy counters, Clandestine base, scanners, dense asteroids |
-| Piracy | 3-player long | Clandestine, scanners, trade cycles, cargo delivery, Merchants/Patrol/Pirates roles |
-| Nova | 3-player short | Alien fleet AI, nova bombs, multi-faction |
-| Retribution | 2-player medium | Sons of Liberty sequential corvettes, Freedom Fleet conversion |
-| Fleet Mutiny | 2-player long | Hexside suppression, base capture, planetary defense suppression |
-| Prospecting | Multi-player long | Automated mines, robot guards, ore, CT shards, PM grapples |
-| Campaign | Multi-player | Full economy, referee, all of the above |
+| Scenario     | Type              | Key Dependencies                                                                    |
+| ------------ | ----------------- | ----------------------------------------------------------------------------------- |
+| Lateral 7    | 2-player short    | Dummy counters, Clandestine base, scanners, dense asteroids                         |
+| Piracy       | 3-player long     | Clandestine, scanners, trade cycles, cargo delivery, Merchants/Patrol/Pirates roles |
+| Nova         | 3-player short    | Alien fleet AI, nova bombs, multi-faction                                           |
+| Retribution  | 2-player medium   | Sons of Liberty sequential corvettes, Freedom Fleet conversion                      |
+| Fleet Mutiny | 2-player long     | Hexside suppression, base capture, planetary defense suppression                    |
+| Prospecting  | Multi-player long | Automated mines, robot guards, ore, CT shards, PM grapples                          |
+| Campaign     | Multi-player      | Full economy, referee, all of the above                                             |
 
 All of these require Logistics and/or Extended Economy mechanics as prerequisites.
 
@@ -402,12 +425,14 @@ All of these require Logistics and/or Extended Economy mechanics as prerequisite
 Eight scenarios are implemented, selectable from the menu:
 
 ### Bi-Planetary (Learning Scenario)
+
 - **Players:** 2
 - **Setup:** Player 1 starts with a corvette on Mars. Player 2 starts with a corvette on Venus.
 - **Goal:** Navigate to the other player's starting world and land.
 - **Teaches:** Vector movement, fuel management, gravity assists, orbital mechanics
 
 ### Escape (Asymmetric)
+
 - Pilgrims (3 transports from Terra) vs. Enforcers (1 corvette near Terra, 1 corsair near Venus)
 - Pilgrims must escape the solar system; Enforcers must stop them
 - Hidden identity: one transport carries the fugitives (opponent doesn't know which)
@@ -415,27 +440,33 @@ Eight scenarios are implemented, selectable from the menu:
 - Moral victory is tracked per the 2018 rules if the Pilgrims disable an Enforcer ship before being lost
 
 ### Convoy (Escort Mission)
+
 - Escort (1 tanker + 1 frigate from Mars) vs. Pirates (2 corsairs + 1 corvette)
 - Escort must get the tanker to Venus; pirates must stop it
 
 ### Duel (Combat Training)
+
 - 2 frigates near Mercury — last ship standing wins
 - Teaches: combat, ordnance, gravity combat maneuvers
 
 ### Blockade Runner
+
 - 1 packet ship vs. 1 corvette — packet must reach Mars
 - Asymmetric: speed and agility vs. raw firepower
 
 ### Fleet Action
+
 - Fleet-building battle with tuned first-player order for a shorter balanced clash
 - Full combined-arms engagement
 
 ### Interplanetary War
+
 - Tuned fleet-building war scenario using Terran vs. Rebel roles from the rulebook
 - Uses a smaller MegaCredit budget than the full paper campaign for shorter digital play
 - Strategic home-base positioning and mixed-fleet combat
 
 ### Grand Tour (Race)
+
 - Each player starts with a corvette at a different habitable world
 - Must pass through at least one gravity hex of each major body (Sol, Mercury, Venus, Terra, Mars, Jupiter, Io, Callisto) and return to land at the starting world
 - No combat — pure navigation and gravity management
@@ -495,6 +526,7 @@ Since the game is turn-based, animations play during the Movement Phase to show 
 ### Canvas Rendering
 
 HTML5 Canvas 2D with layered rendering:
+
 - Background stars → asteroid hexes → gravity indicators → celestial bodies → base markers → detection ranges → trails → course vectors → ordnance → ships → combat effects → UI overlays
 - Simple geometric ship icons (directional arrows)
 - 60fps rendering via requestAnimationFrame with delta-time camera lerp
@@ -533,32 +565,38 @@ JSON messages over WebSocket. The game is turn-based so message frequency is low
 
 ```typescript
 type C2S =
-  | { type: 'fleetReady'; purchases: FleetPurchase[] }
-  | { type: 'astrogation'; orders: AstrogationOrder[] }
-  | { type: 'ordnance'; launches: OrdnanceLaunch[] }
-  | { type: 'emplaceBase'; emplacements: OrbitalBaseEmplacement[] }
-  | { type: 'skipOrdnance' }
-  | { type: 'beginCombat' }
-  | { type: 'combat'; attacks: CombatAttack[] }
-  | { type: 'skipCombat' }
-  | { type: 'rematch' }
-  | { type: 'ping'; t: number }
+  | { type: "fleetReady"; purchases: FleetPurchase[] }
+  | { type: "astrogation"; orders: AstrogationOrder[] }
+  | { type: "ordnance"; launches: OrdnanceLaunch[] }
+  | { type: "emplaceBase"; emplacements: OrbitalBaseEmplacement[] }
+  | { type: "skipOrdnance" }
+  | { type: "beginCombat" }
+  | { type: "combat"; attacks: CombatAttack[] }
+  | { type: "skipCombat" }
+  | { type: "rematch" }
+  | { type: "ping"; t: number };
 ```
 
 ### Server → Client (S2C)
 
 ```typescript
 type S2C =
-  | { type: 'welcome'; playerId: number; code: string; playerToken: string }
-  | { type: 'matchFound' }
-  | { type: 'gameStart'; state: GameState }
-  | { type: 'movementResult'; movements: ShipMovement[]; ordnanceMovements: OrdnanceMovement[]; events: MovementEvent[]; state: GameState }
-  | { type: 'combatResult'; results: CombatResult[]; state: GameState }
-  | { type: 'stateUpdate'; state: GameState }
-  | { type: 'gameOver'; winner: number; reason: string }
-  | { type: 'rematchPending' }
-  | { type: 'error'; message: string }
-  | { type: 'pong'; t: number }
+  | { type: "welcome"; playerId: number; code: string; playerToken: string }
+  | { type: "matchFound" }
+  | { type: "gameStart"; state: GameState }
+  | {
+      type: "movementResult";
+      movements: ShipMovement[];
+      ordnanceMovements: OrdnanceMovement[];
+      events: MovementEvent[];
+      state: GameState;
+    }
+  | { type: "combatResult"; results: CombatResult[]; state: GameState }
+  | { type: "stateUpdate"; state: GameState }
+  | { type: "gameOver"; winner: number; reason: string }
+  | { type: "rematchPending" }
+  | { type: "error"; message: string }
+  | { type: "pong"; t: number };
 ```
 
 All game-mutating messages include the full updated `GameState`. Disconnect forfeits are persisted as authoritative game-over state and broadcast via the normal `stateUpdate` + `gameOver` path. For hidden-information scenarios, the server filters state per player (e.g., stripping `identity` from unrevealed opponent ships). See `src/shared/types/domain.ts` and `src/shared/types/protocol.ts` for the current split interface definitions.
@@ -569,60 +607,70 @@ The authoritative state held by the Durable Object (see `src/shared/types/domain
 
 ```typescript
 interface GameState {
-  gameId: string
-  scenario: string
-  scenarioRules: ScenarioRules                   // per-scenario flags (ordnance types, escape edge, etc.)
-  escapeMoralVictoryAchieved: boolean            // Escape scenario moral victory tracking
-  turnNumber: number
-  phase: Phase
-  activePlayer: number                           // 0 or 1
-  ships: Ship[]
-  ordnance: Ordnance[]
-  pendingAstrogationOrders: AstrogationOrder[] | null
-  pendingAsteroidHazards: AsteroidHazard[]
-  destroyedAsteroids: string[]                   // hexKey[] removed by nukes
-  destroyedBases: string[]                       // hexKey[] destroyed by nukes
-  players: [PlayerState, PlayerState]
-  winner: number | null
-  winReason: string | null
+  gameId: string;
+  scenario: string;
+  scenarioRules: ScenarioRules; // per-scenario flags (ordnance types, escape edge, etc.)
+  escapeMoralVictoryAchieved: boolean; // Escape scenario moral victory tracking
+  turnNumber: number;
+  phase: Phase;
+  activePlayer: number; // 0 or 1
+  ships: Ship[];
+  ordnance: Ordnance[];
+  pendingAstrogationOrders: AstrogationOrder[] | null;
+  pendingAsteroidHazards: AsteroidHazard[];
+  destroyedAsteroids: string[]; // hexKey[] removed by nukes
+  destroyedBases: string[]; // hexKey[] destroyed by nukes
+  players: [PlayerState, PlayerState];
+  winner: number | null;
+  winReason: string | null;
 }
 
 interface Ship {
-  id: string
-  type: string                                   // key into SHIP_STATS
-  owner: number                                  // 0 or 1
-  originalOwner: number                          // player who originally owned this ship (stable after capture)
-  position: HexCoord
-  lastMovementPath?: HexCoord[]                  // path from most recent movement
-  velocity: HexVec                               // (dq, dr) displacement per turn
-  fuel: number
-  cargoUsed: number                              // mass of ordnance consumed
-  nukesLaunchedSinceResupply: number              // reset on resupply
-  resuppliedThisTurn: boolean
-  lifecycle: 'active' | 'landed' | 'destroyed'   // mutually exclusive ship state
-  control: 'own' | 'captured' | 'surrendered'    // who controls this ship
-  detected: boolean
-  heroismAvailable: boolean                      // heroic ships add +1 to gun combat attack rolls
-  overloadUsed: boolean                          // true if overload used since last maintenance
-  baseStatus?: 'carryingBase' | 'emplaced'       // orbital base lifecycle
-  identity?: {                                   // hidden-identity scenarios only
-    hasFugitives: boolean                        // true for the ship carrying fugitives
-    revealed: boolean                            // true once inspection or capture reveals role
-  }
-  pendingGravityEffects?: GravityEffect[]
-  damage: { disabledTurns: number }              // 0 = operational, ≥6 = eliminated
+  id: string;
+  type: string; // key into SHIP_STATS
+  owner: number; // 0 or 1
+  originalOwner: number; // player who originally owned this ship (stable after capture)
+  position: HexCoord;
+  lastMovementPath?: HexCoord[]; // path from most recent movement
+  velocity: HexVec; // (dq, dr) displacement per turn
+  fuel: number;
+  cargoUsed: number; // mass of ordnance consumed
+  nukesLaunchedSinceResupply: number; // reset on resupply
+  resuppliedThisTurn: boolean;
+  lifecycle: "active" | "landed" | "destroyed"; // mutually exclusive ship state
+  control: "own" | "captured" | "surrendered"; // who controls this ship
+  detected: boolean;
+  heroismAvailable: boolean; // heroic ships add +1 to gun combat attack rolls
+  overloadUsed: boolean; // true if overload used since last maintenance
+  baseStatus?: "carryingBase" | "emplaced"; // orbital base lifecycle
+  identity?: {
+    // hidden-identity scenarios only
+    hasFugitives: boolean; // true for the ship carrying fugitives
+    revealed: boolean; // true once inspection or capture reveals role
+  };
+  pendingGravityEffects?: GravityEffect[];
+  damage: { disabledTurns: number }; // 0 = operational, ≥6 = eliminated
 }
 
 interface PlayerState {
-  connected: boolean
-  ready: boolean
-  targetBody: string                             // body to land on ('' if none)
-  homeBody: string
-  bases: string[]                                // hexKey[] of controlled bases
-  escapeWins: boolean
+  connected: boolean;
+  ready: boolean;
+  targetBody: string; // body to land on ('' if none)
+  homeBody: string;
+  bases: string[]; // hexKey[] of controlled bases
+  escapeWins: boolean;
 }
 
-type Phase = 'waiting' | 'fleetBuilding' | 'astrogation' | 'ordnance' | 'movement' | 'logistics' | 'combat' | 'resupply' | 'gameOver'
+type Phase =
+  | "waiting"
+  | "fleetBuilding"
+  | "astrogation"
+  | "ordnance"
+  | "movement"
+  | "logistics"
+  | "combat"
+  | "resupply"
+  | "gameOver";
 ```
 
 ## Hex Math
@@ -631,19 +679,19 @@ Using **axial coordinates** (q, r) with the standard hex math library approach:
 
 ```typescript
 interface HexCoord {
-  q: number
-  r: number
+  q: number;
+  r: number;
 }
 
 // The 6 hex directions (flat-top orientation)
 const HEX_DIRECTIONS: HexVec[] = [
-  { dq: +1, dr:  0 },  // E
-  { dq: +1, dr: -1 },  // NE
-  { dq:  0, dr: -1 },  // NW
-  { dq: -1, dr:  0 },  // W
-  { dq: -1, dr: +1 },  // SW
-  { dq:  0, dr: +1 },  // SE
-]
+  { dq: +1, dr: 0 }, // E
+  { dq: +1, dr: -1 }, // NE
+  { dq: 0, dr: -1 }, // NW
+  { dq: -1, dr: 0 }, // W
+  { dq: -1, dr: +1 }, // SW
+  { dq: 0, dr: +1 }, // SE
+];
 
 // Key operations needed:
 // - hexDistance(a, b): number of hexes between two points
@@ -688,7 +736,7 @@ function computeCourse(ship, burn, map):
   return { destination: predicted, path: finalPath, newVelocity }
 ```
 
-Note: Gravity application is more nuanced than shown — gravity applies on the turn *after* entering the gravity hex. The implementation must track which gravity hexes were entered on the previous turn to apply deferred effects correctly.
+Note: Gravity application is more nuanced than shown — gravity applies on the turn _after_ entering the gravity hex. The implementation must track which gravity hexes were entered on the previous turn to apply deferred effects correctly.
 
 ## UI / Interaction Design
 
@@ -731,22 +779,22 @@ The map is defined as a JSON structure. Each hex can have multiple properties:
 
 ```typescript
 interface MapHex {
-  q: number
-  r: number
-  terrain: 'space' | 'asteroid' | 'planetSurface' | 'sunSurface'
+  q: number;
+  r: number;
+  terrain: "space" | "asteroid" | "planetSurface" | "sunSurface";
   gravity?: {
-    direction: HexDirection
-    type: 'full' | 'weak'
-    body: string              // Which body this gravity belongs to
-  }
+    direction: HexDirection;
+    type: "full" | "weak";
+    body: string; // Which body this gravity belongs to
+  };
   base?: {
-    owner: string             // 'neutral' or player faction
-    type: 'planetary' | 'asteroid' | 'orbital'
-  }
+    owner: string; // 'neutral' or player faction
+    type: "planetary" | "asteroid" | "orbital";
+  };
   body?: {
-    name: string              // 'Sol', 'Venus', 'Terra', etc.
+    name: string; // 'Sol', 'Venus', 'Terra', etc.
     // The actual body image is rendered separately; this marks hexes covered by the body
-  }
+  };
 }
 ```
 
@@ -758,22 +806,22 @@ Scenarios are defined as configuration objects:
 
 ```typescript
 interface ScenarioDefinition {
-  name: string
-  description: string
-  players: ScenarioPlayer[]
-  rules?: ScenarioRules                    // Ordnance types, escape edge, combat disabled, etc.
-  startingPlayer?: 0 | 1
-  startingCredits?: number | [number, number]   // Per-player MegaCredits for fleet-building
-  availableShipTypes?: string[]            // Restricts purchasable ships
+  name: string;
+  description: string;
+  players: ScenarioPlayer[];
+  rules?: ScenarioRules; // Ordnance types, escape edge, combat disabled, etc.
+  startingPlayer?: 0 | 1;
+  startingCredits?: number | [number, number]; // Per-player MegaCredits for fleet-building
+  availableShipTypes?: string[]; // Restricts purchasable ships
 }
 
 interface ScenarioPlayer {
-  ships: ScenarioShip[]                      // Starting fleet
-  targetBody: string                         // Body to land on ('' if none)
-  homeBody: string                           // Default home world
-  bases?: HexCoord[]                         // Explicit controlled bases
-  escapeWins: boolean                        // True if wins by escaping the map
-  hiddenIdentity?: boolean                   // One ship carries hidden cargo (Escape)
+  ships: ScenarioShip[]; // Starting fleet
+  targetBody: string; // Body to land on ('' if none)
+  homeBody: string; // Default home world
+  bases?: HexCoord[]; // Explicit controlled bases
+  escapeWins: boolean; // True if wins by escaping the map
+  hiddenIdentity?: boolean; // One ship carries hidden cargo (Escape)
 }
 ```
 
