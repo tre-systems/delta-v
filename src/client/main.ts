@@ -1,15 +1,9 @@
 import type { AIDifficulty } from '../shared/ai';
-import { CODE_LENGTH } from '../shared/constants';
-import { createGame } from '../shared/engine/game-engine';
-import {
-  buildSolarSystemMap,
-  findBaseHex,
-  SCENARIOS,
-} from '../shared/map-data';
+import { buildSolarSystemMap, SCENARIOS } from '../shared/map-data';
 import type { FleetPurchase, GameState } from '../shared/types/domain';
 import type { S2C } from '../shared/types/protocol';
-import { initAudio, isMuted, playWarning, setMuted } from './audio';
-import { byId, hide } from './dom';
+import { initAudio, playWarning } from './audio';
+import { byId } from './dom';
 import { type ActionDeps, createActionDeps } from './game/action-deps';
 import {
   type CameraController,
@@ -36,21 +30,27 @@ import {
 import { applyClientGameState } from './game/game-state-store';
 import { createHudController, type HudController } from './game/hud-controller';
 import { type InputEvent, interpretInput } from './game/input-events';
-import { deriveKeyboardAction, type KeyboardAction } from './game/keyboard';
+import type { KeyboardAction } from './game/keyboard';
 import { runAITurn as runAI } from './game/local-game-flow';
 import {
   type LogisticsUIState,
   renderTransferPanel,
 } from './game/logistics-ui';
 import {
-  createMainMessageHandlerDeps,
+  autoJoinFromUrl,
+  bindMainBrowserEvents,
+  setupServiceWorkerReload,
+} from './game/main-composition';
+import {
   createMainPhaseTransitionDeps,
   createMainStateTransitionDeps,
 } from './game/main-deps';
 import {
-  handleServerMessage,
-  type MessageHandlerDeps,
-} from './game/message-handler';
+  beginJoinGameFromMain,
+  exitToMenuFromMain,
+  handleServerMessageFromMain,
+  startLocalGameFromMain,
+} from './game/main-session-network';
 import type { ClientState } from './game/phase';
 import { transitionClientPhase } from './game/phase-controller';
 import {
@@ -61,13 +61,7 @@ import {
   createReplayController,
   type ReplayController,
 } from './game/replay-controller';
-import { buildGameRoute } from './game/session';
 import { createSessionApi, type SessionApi } from './game/session-api';
-import {
-  beginJoinGameSession,
-  exitToMenuSession,
-  startLocalGameSession,
-} from './game/session-controller';
 import { applyClientStateTransition } from './game/state-transition';
 import { createTurnTimerManager, type TurnTimerManager } from './game/timer';
 import { createLocalGameTransport, type GameTransport } from './game/transport';
@@ -76,10 +70,6 @@ import {
   type TurnTelemetryTracker,
 } from './game/turn-telemetry';
 import { resolveUIEventPlan } from './game/ui-event-router';
-import {
-  bindGameClientBrowserEvents,
-  bindServiceWorkerControllerReload,
-} from './game-client-browser';
 import { InputHandler } from './input';
 import { Renderer } from './renderer/renderer';
 import { installGlobalErrorHandlers, track } from './telemetry';
@@ -243,57 +233,28 @@ class GameClient {
     this.ui.onEvent = (event) => this.handleUIEvent(event);
     const soundBtn = byId('soundBtn');
     this.hud.updateSoundButton();
-    this.disposeBrowserEvents = bindGameClientBrowserEvents({
+    this.disposeBrowserEvents = bindMainBrowserEvents({
       canvas: this.canvas,
       helpCloseBtn: byId('helpCloseBtn'),
       helpBtn: byId('helpBtn'),
       soundBtn,
-      getKeyboardAction: (event) =>
-        deriveKeyboardAction(
-          {
-            state: this.ctx.state,
-            hasGameState: !!this.ctx.gameState,
-            typingInInput: event.target instanceof HTMLInputElement,
-            combatTargetId: this.ctx.planningState.combatTargetId,
-            queuedAttackCount: this.ctx.planningState.queuedAttacks.length,
-            torpedoAccelActive: this.ctx.planningState.torpedoAccel !== null,
-          },
-          { key: event.key, shiftKey: event.shiftKey },
-        ),
+      tooltipEl: this.tooltipEl,
+      getState: () => this.ctx.state,
+      hasGameState: () => !!this.ctx.gameState,
+      getPlanningState: () => this.ctx.planningState,
+      updateTooltip: (x, y) => this.hud.updateTooltip(x, y),
       onKeyboardAction: (action) => this.handleKeyboardAction(action),
       onToggleHelp: () => this.toggleHelp(),
-      onToggleSound: () => {
-        setMuted(!isMuted());
-        this.hud.updateSoundButton();
-      },
-      onTooltipMove: (clientX, clientY) =>
-        this.hud.updateTooltip(clientX, clientY),
-      onTooltipLeave: () => {
-        hide(this.tooltipEl);
-      },
-      onOffline: () => {
-        this.showToast("You're offline \u2014 check your connection", 'error');
-      },
-      onOnline: () => {
-        this.showToast('Back online', 'success');
-      },
+      onUpdateSoundButton: () => this.hud.updateSoundButton(),
+      showToast: (message, type) => this.showToast(message, type),
     });
     // Start render loop and audio
     initAudio();
     this.renderer.start();
-    // Check for auto-join code in URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const playerToken = urlParams.get('playerToken');
-
-    if (code && code.length === CODE_LENGTH) {
-      const normalizedCode = code.toUpperCase();
-      // Strip token from URL to avoid leaking it
-      history.replaceState(null, '', buildGameRoute(normalizedCode));
-      this.joinGame(normalizedCode, playerToken);
-    } else {
-      this.setState('menu');
-    }
+    autoJoinFromUrl(
+      (code, playerToken) => this.joinGame(code, playerToken),
+      () => this.setState('menu'),
+    );
   }
 
   private setState(newState: ClientState) {
@@ -329,54 +290,11 @@ class GameClient {
 
   // --- Network ---
   private startLocalGame(scenario: string) {
-    startLocalGameSession(
-      {
-        ctx: this.ctx,
-        createLocalTransport: () => this.createLocalTransport(),
-        createLocalGameState: (selectedScenario) => {
-          const scenarioDef =
-            SCENARIOS[selectedScenario] ?? SCENARIOS.biplanetary;
-          return createGame(scenarioDef, this.map, 'LOCAL', findBaseHex);
-        },
-        getScenarioName: (selectedScenario) =>
-          (SCENARIOS[selectedScenario] ?? SCENARIOS.biplanetary).name,
-        resetTurnTelemetry: () => this.turnTelemetry.reset(),
-        setRendererPlayerId: (playerId) => this.renderer.setPlayerId(playerId),
-        clearTrails: () => this.renderer.clearTrails(),
-        clearLog: () => this.ui.log.clear(),
-        setChatEnabled: (enabled) => this.ui.log.setChatEnabled(enabled),
-        logText: (text) => this.ui.log.logText(text),
-        trackGameCreated: (details) => track('game_created', details),
-        applyGameState: (state) => this.applyGameState(state),
-        logScenarioBriefing: () => this.hud.logScenarioBriefing(),
-        setState: (state) => this.setState(state),
-        runLocalAI: () => this.runAITurn(),
-      },
-      scenario,
-    );
+    startLocalGameFromMain(this.getMainNetworkDeps(), scenario);
   }
 
   private joinGame(code: string, playerToken: string | null = null) {
-    void beginJoinGameSession(
-      {
-        ctx: this.ctx,
-        getStoredPlayerToken: (gameCode) =>
-          this.sessionApi.getStoredPlayerToken(gameCode),
-        storePlayerToken: (gameCode, token) =>
-          this.sessionApi.storePlayerToken(gameCode, token),
-        resetTurnTelemetry: () => this.turnTelemetry.reset(),
-        replaceRoute: (route) => history.replaceState(null, '', route),
-        buildGameRoute,
-        connect: (gameCode) => this.connect(gameCode),
-        setState: (state) => this.setState(state),
-        validateJoin: (gameCode, token) =>
-          this.sessionApi.validateJoin(gameCode, token),
-        showToast: (message, type) => this.ui.overlay.showToast(message, type),
-        exitToMenu: () => this.exitToMenu(),
-      },
-      code,
-      playerToken,
-    );
+    beginJoinGameFromMain(this.getMainNetworkDeps(), code, playerToken);
   }
 
   private connect(code: string) {
@@ -398,26 +316,9 @@ class GameClient {
   }
 
   private handleMessage(msg: S2C) {
-    const deps: MessageHandlerDeps = createMainMessageHandlerDeps({
-      ctx: this.ctx,
-      renderer: this.renderer,
-      ui: this.ui,
-      hud: this.hud,
-      actionDeps: this.actionDeps,
-      turnTelemetry: this.turnTelemetry,
-      sessionApi: this.sessionApi,
-      setState: (state) => this.setState(state),
-      applyGameState: (state) => this.applyGameState(state),
-      transitionToPhase: () => this.transitionToPhase(),
-      onAnimationComplete: () => this.onAnimationComplete(),
-      logScenarioBriefing: () => this.hud.logScenarioBriefing(),
-      trackEvent: (event, props) => track(event, props),
-    });
-    handleServerMessage(deps, msg);
-
-    if (msg.type === 'gameOver') {
-      this.replayController.onGameOverMessage();
-    }
+    handleServerMessageFromMain(this.getMainNetworkDeps(), msg, () =>
+      this.replayController.onGameOverMessage(),
+    );
   }
 
   private handleDisconnect() {
@@ -558,15 +459,7 @@ class GameClient {
   }
 
   private exitToMenu() {
-    exitToMenuSession({
-      ctx: this.ctx,
-      stopPing: () => this.connection.stopPing(),
-      stopTurnTimer: () => this.turnTimer.stop(),
-      closeConnection: () => this.connection.close(),
-      resetTurnTelemetry: () => this.turnTelemetry.reset(),
-      replaceRoute: (route) => history.replaceState(null, '', route),
-      setState: (state) => this.setState(state),
-    });
+    exitToMenuFromMain(this.getMainNetworkDeps());
   }
 
   // --- Local game (single player) ---
@@ -594,6 +487,31 @@ class GameClient {
     await runAI(this.actionDeps.localGameFlowDeps);
   };
 
+  private getMainNetworkDeps() {
+    return {
+      ctx: this.ctx,
+      map: this.map,
+      renderer: this.renderer,
+      ui: this.ui,
+      hud: this.hud,
+      actionDeps: this.actionDeps,
+      turnTelemetry: this.turnTelemetry,
+      sessionApi: this.sessionApi,
+      connection: this.connection,
+      setMenuState: (state: ClientState) => this.setState(state),
+      setState: (state: ClientState) => this.setState(state),
+      applyGameState: (state: GameState) => this.applyGameState(state),
+      transitionToPhase: () => this.transitionToPhase(),
+      onAnimationComplete: () => this.onAnimationComplete(),
+      runLocalAI: () => {
+        void this.runAITurn();
+      },
+      track,
+      createLocalTransport: () => this.createLocalTransport(),
+      stopTurnTimer: () => this.turnTimer.stop(),
+    };
+  }
+
   private toggleHelp() {
     this.ui.toggleHelpOverlay();
   }
@@ -616,10 +534,7 @@ class GameClient {
 // --- Bootstrap ---
 installGlobalErrorHandlers();
 installViewportSizing();
-
-if ('serviceWorker' in navigator) {
-  bindServiceWorkerControllerReload(navigator.serviceWorker, window.location);
-}
+setupServiceWorkerReload();
 
 const game = new GameClient();
 (window as Window & { game?: GameClient }).game = game;
