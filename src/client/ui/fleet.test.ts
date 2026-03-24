@@ -54,7 +54,7 @@ describe('ui fleet helpers', () => {
       shopView.find((item) => item.shipType === 'transport'),
     ).toMatchObject({
       disabled: false,
-      statsText: 'C1D F10',
+      statsText: 'C1D F10 G50',
     });
   });
 });
