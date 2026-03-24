@@ -41,7 +41,11 @@ import {
 } from './planning-store';
 import type { ClientSession } from './session-model';
 
-/** Shallow read model for one `dispatchGameCommand` invocation (live `planningState` for mutations). */
+/**
+ * Live session slice for one `dispatchGameCommand` call. Shallow: same object
+ * references as `ClientSession` (fine unless a handler stashes `ctx` across an
+ * await and expects a frozen snapshot).
+ */
 export type CommandRouterSessionRead = Readonly<
   Pick<ClientSession, 'state' | 'playerId' | 'gameState' | 'transport'>
 > & {
