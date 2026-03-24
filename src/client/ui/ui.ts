@@ -1,6 +1,7 @@
 import { byId } from '../dom';
 import { createDisposalScope, withScope } from '../reactive';
 import { bindStaticButtonEvents } from './button-events';
+import { composeDisposers } from './dispose-group';
 import { createUIEventBridge } from './event-bridge';
 import type { UIEvent } from './events';
 import { createFleetBuildingView } from './fleet-building-view';
@@ -8,10 +9,13 @@ import { createGameLogView } from './game-log-view';
 import { createHudActions } from './hud-actions';
 import { createHUDChromeView } from './hud-chrome-view';
 import { applyHudLayoutMetrics, clearHudLayoutMetrics } from './layout-metrics';
+import { createLayoutSync } from './layout-sync';
 import { createLobbyView, type LobbyView } from './lobby-view';
+import { bindMobileSync } from './mobile-sync';
 import { createOverlayView } from './overlay-view';
 import { createScreenActions } from './screen-actions';
 import type { UIScreenMode } from './screens';
+import { createSessionActions } from './session-actions';
 import { createShipListView } from './ship-list-view';
 import { bindViewportEvents } from './viewport-events';
 import { applyUIVisibility } from './visibility';
@@ -28,43 +32,21 @@ export const createUIManager = () => {
   const shipListEl = byId('shipList');
   const fleetBuildingEl = byId('fleetBuilding');
   const mobileQuery = window.matchMedia('(max-width: 760px)');
-  let isMobile = mobileQuery.matches;
-  let layoutSyncFrame: number | null = null;
 
   const eventBridge = createUIEventBridge();
   const emit = (event: UIEvent) => eventBridge.emit(event);
 
-  const resetLayoutMetrics = () => {
-    if (layoutSyncFrame !== null) {
-      window.cancelAnimationFrame(layoutSyncFrame);
-      layoutSyncFrame = null;
-    }
-
-    clearHudLayoutMetrics();
-  };
-
-  const syncLayoutMetrics = () => {
-    if (hudEl.style.display === 'none') {
-      resetLayoutMetrics();
-
-      return;
-    }
-
-    applyHudLayoutMetrics(
-      window.innerHeight,
-      topBarEl.getBoundingClientRect(),
-      bottomBarEl.getBoundingClientRect(),
-    );
-  };
-
-  const queueLayoutSync = () => {
-    if (layoutSyncFrame !== null) return;
-
-    layoutSyncFrame = window.requestAnimationFrame(() => {
-      layoutSyncFrame = null;
-      syncLayoutMetrics();
+  const { reset: resetLayoutMetrics, queue: queueLayoutSync } =
+    createLayoutSync({
+      isHudVisible: () => hudEl.style.display !== 'none',
+      applyMetrics: () =>
+        applyHudLayoutMetrics(
+          window.innerHeight,
+          topBarEl.getBoundingClientRect(),
+          bottomBarEl.getBoundingClientRect(),
+        ),
+      clearMetrics: () => clearHudLayoutMetrics(),
     });
-  };
 
   const handleViewportResize = () => {
     queueLayoutSync();
@@ -127,30 +109,35 @@ export const createUIManager = () => {
     },
   });
 
-  scope.add(() => {
-    fleetBuildingView.dispose();
-    log.dispose();
-    hudChromeView.dispose();
-    lobbyView.dispose();
-    overlay.dispose();
-    shipListView.dispose();
+  scope.add(
+    composeDisposers(
+      () => fleetBuildingView.dispose(),
+      () => log.dispose(),
+      () => hudChromeView.dispose(),
+      () => lobbyView.dispose(),
+      () => overlay.dispose(),
+      () => shipListView.dispose(),
+    ),
+  );
+
+  bindMobileSync({
+    initialMatches: mobileQuery.matches,
+    setHudMobile: (matches) => hudChromeView.setMobile(matches),
+    setLogMobile: (matches) =>
+      log.setMobile(matches, hudEl.style.display !== 'none'),
+    bindViewport: (onMobileChange) => {
+      withScope(scope, () => {
+        bindViewportEvents({
+          mobileQuery,
+          onMobileChange,
+          onViewportResize: handleViewportResize,
+          trackDispose: (dispose) => scope.add(dispose),
+        });
+      });
+    },
   });
 
-  hudChromeView.setMobile(isMobile);
-  log.setMobile(isMobile, hudEl.style.display !== 'none');
-
   withScope(scope, () => {
-    bindViewportEvents({
-      mobileQuery,
-      onMobileChange: (matches) => {
-        isMobile = matches;
-        hudChromeView.setMobile(matches);
-        log.setMobile(matches, hudEl.style.display !== 'none');
-      },
-      onViewportResize: handleViewportResize,
-      trackDispose: (dispose) => scope.add(dispose),
-    });
-
     bindStaticButtonEvents(emit, (dispose) => scope.add(dispose));
   });
 
@@ -191,6 +178,10 @@ export const createUIManager = () => {
       hudChromeView.showFireButton(isVisible, count),
     showMovementStatus: () => hudChromeView.showMovementStatus(),
   });
+  const sessionActions = createSessionActions({
+    setPlayerId: (id) => log.setPlayerId(id),
+    setMenuLoading: (loading) => lobbyView.setMenuLoading(loading),
+  });
 
   return {
     get onEvent() {
@@ -202,13 +193,8 @@ export const createUIManager = () => {
     log,
     overlay,
     hideAll,
-    setPlayerId(id: number) {
-      log.setPlayerId(id);
-    },
+    ...sessionActions,
     showMenu,
-    setMenuLoading(loading: boolean) {
-      lobbyView.setMenuLoading(loading);
-    },
     showScenarioSelect,
     showWaiting,
     showConnecting,
