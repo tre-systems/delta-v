@@ -17,22 +17,31 @@ import {
   type MatchArchive,
 } from './match-archive';
 
-class MockStorage {
-  private data = new Map<string, unknown>();
-  async get<T>(key: string): Promise<T | undefined> {
-    return this.data.get(key) as T | undefined;
-  }
-  async put<T>(key: string | Record<string, T>, value?: T): Promise<void> {
-    if (typeof key === 'string') {
-      this.data.set(key, value);
-      return;
-    }
+const createMockStorage = (): DurableObjectStorage => {
+  const data = new Map<string, unknown>();
 
-    for (const [entryKey, entryValue] of Object.entries(key)) {
-      this.data.set(entryKey, entryValue);
-    }
-  }
-}
+  return {
+    async get<T>(key: string): Promise<T | undefined> {
+      return data.get(key) as T | undefined;
+    },
+    async put<T>(key: string | Record<string, T>, value?: T): Promise<void> {
+      if (typeof key === 'string') {
+        data.set(key, value);
+        return;
+      }
+
+      for (const [entryKey, entryValue] of Object.entries(key)) {
+        data.set(entryKey, entryValue);
+      }
+    },
+  } as unknown as DurableObjectStorage;
+};
+
+const MockStorage = function MockStorage() {
+  return createMockStorage();
+} as unknown as {
+  new (): DurableObjectStorage;
+};
 
 const createMockR2 = () => {
   const objects = new Map<string, string>();

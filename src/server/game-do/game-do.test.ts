@@ -49,32 +49,56 @@ const transportFixtures = JSON.parse(
   };
 };
 
-class MockStorage {
-  private data = new Map<string, unknown>();
-  alarmAt: number | null = null;
-  async get<T>(key: string): Promise<T | undefined> {
-    return this.data.get(key) as T | undefined;
-  }
-  async put<T>(key: string | Record<string, T>, value?: T): Promise<void> {
-    if (typeof key === 'string') {
-      this.data.set(key, value);
-      return;
-    }
+type MockStorage = DurableObjectStorage & {
+  alarmAt: number | null;
+};
 
-    for (const [entryKey, entryValue] of Object.entries(key)) {
-      this.data.set(entryKey, entryValue);
-    }
-  }
-  async delete(key: string): Promise<void> {
-    this.data.delete(key);
-  }
-  async deleteAll(): Promise<void> {
-    this.data.clear();
-  }
-  async setAlarm(value: number): Promise<void> {
-    this.alarmAt = value;
-  }
-}
+const createMockStorage = (): MockStorage => {
+  const data = new Map<string, unknown>();
+  const storage: {
+    alarmAt: number | null;
+    get: <T>(key: string | string[]) => Promise<T | undefined>;
+    put: <T>(
+      key: string | Record<string, T> | string[],
+      value?: T,
+    ) => Promise<boolean>;
+    delete: (key: string) => Promise<void>;
+    deleteAll: () => Promise<void>;
+    setAlarm: (value: number) => Promise<void>;
+  } = {
+    alarmAt: null,
+    async get<T>(key: string | string[]): Promise<T | undefined> {
+      if (typeof key !== 'string') return undefined;
+      return data.get(key) as T | undefined;
+    },
+    async put<T>(
+      key: string | Record<string, T> | string[],
+      value?: T,
+    ): Promise<boolean> {
+      if (Array.isArray(key)) return true;
+      if (typeof key === 'string') {
+        data.set(key, value);
+        return true;
+      }
+
+      for (const [entryKey, entryValue] of Object.entries(key)) {
+        data.set(entryKey, entryValue);
+      }
+      return true;
+    },
+    async delete(key: string): Promise<void> {
+      data.delete(key);
+    },
+    async deleteAll(): Promise<void> {
+      data.clear();
+    },
+    async setAlarm(value: number): Promise<void> {
+      storage.alarmAt = value;
+    },
+  };
+
+  return storage as unknown as MockStorage;
+};
 
 interface MockDurableObjectState {
   storage: MockStorage;
@@ -89,7 +113,7 @@ const createGameDO = (
 ): GameDO => new GameDO(ctx as unknown as DurableObjectState, env as Env);
 
 const createCtx = (): MockDurableObjectState => {
-  const storage = new MockStorage();
+  const storage = createMockStorage();
   const sockets: object[] = [];
   const tags = new WeakMap<object, string[]>();
   return {
@@ -687,10 +711,13 @@ describe('GameDO', () => {
     const trace: string[] = [];
     const originalPut = ctx.storage.put.bind(ctx.storage);
     vi.spyOn(ctx.storage, 'put').mockImplementation(async (key, value) => {
+      const putKey = key as unknown;
       if (
-        (typeof key === 'string' && key.startsWith('events:SAVE1')) ||
-        (typeof key !== 'string' &&
-          Object.keys(key).some((entryKey) =>
+        (typeof putKey === 'string' && putKey.startsWith('events:SAVE1')) ||
+        (typeof putKey === 'object' &&
+          putKey !== null &&
+          !Array.isArray(putKey) &&
+          Object.keys(putKey).some((entryKey) =>
             entryKey.startsWith('events:SAVE1'),
           ))
       ) {
