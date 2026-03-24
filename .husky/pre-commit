@@ -1,5 +1,7 @@
 npm run lint
 npm run typecheck:all
+# Local D1 for wrangler dev during e2e (idempotent if already applied).
+npx wrangler d1 migrations apply delta-v-telemetry --local
 # Fresh coverage dir avoids occasional ENOENT on coverage/.tmp (stale merge state).
 rm -rf coverage
 npm run test:coverage
