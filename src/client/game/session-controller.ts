@@ -86,6 +86,8 @@ export interface ExitToMenuSessionDeps {
   resetTurnTelemetry: () => void;
   replaceRoute: (route: string) => void;
   setState: (state: ClientState) => void;
+  /** After `ctx.gameState` is cleared (e.g. sync reactive mirrors). */
+  onAfterClearGameState?: () => void;
 }
 
 export const completeCreatedGameSession = (
@@ -177,7 +179,7 @@ export const exitToMenuSession = (deps: ExitToMenuSessionDeps): void => {
   deps.stopTurnTimer();
   deps.closeConnection();
   deps.resetTurnTelemetry();
-  clearClientGameState(deps.ctx);
+  clearClientGameState(deps.ctx, deps.onAfterClearGameState);
   setGameCode(deps.ctx, null);
   setIsLocalGame(deps.ctx, false);
   setLatencyMs(deps.ctx, -1);
