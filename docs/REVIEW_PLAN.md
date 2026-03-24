@@ -118,7 +118,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 **Deliverables**
 
-- Baseline numbers in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene) (bundle table); ties to [BACKLOG.md](./BACKLOG.md) priority **11** (renderer baseline).
+- Baseline numbers in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene) (bundle table); ties to [BACKLOG.md](./BACKLOG.md) priority **13** (renderer baseline).
 
 ---
 
@@ -154,7 +154,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 1. Sketch **single-version** assumption today (SPA + Workers deploy together).
 2. If you ever split deploys: additive fields, `unknown` message handling, min client version header or build hash.
-3. Align with `GameState.schemaVersion` playbook in [BACKLOG.md](./BACKLOG.md) priority **9**.
+3. Align with `GameState.schemaVersion` playbook in [BACKLOG.md](./BACKLOG.md) priority **11**.
 
 **Deliverables**
 

@@ -8,7 +8,7 @@ stream plus checkpoints, and authoritative recovery
 comes from checkpoint plus event tail rather than a
 separate persisted `gameState` snapshot slot.
 
-**Deployment assumption:** Client and Worker ship as a **single version line** (one deploy updates Worker + static assets). Staggered “old client / new server” is **not** a supported requirement today. Breaking protocol changes need a **coordinated deploy** and, if needed, force reload / cache-bust the SPA; prefer **additive** JSON fields. There is no feature-flag protocol negotiation in the client today. When bumping **`GameState.schemaVersion`**, follow [BACKLOG.md](./BACKLOG.md) priority **9** (projector, replay, recovery tests).
+**Deployment assumption:** Client and Worker ship as a **single version line** (one deploy updates Worker + static assets). Staggered “old client / new server” is **not** a supported requirement today. Breaking protocol changes need a **coordinated deploy** and, if needed, force reload / cache-bust the SPA; prefer **additive** JSON fields. There is no feature-flag protocol negotiation in the client today. When bumping **`GameState.schemaVersion`**, follow [BACKLOG.md](./BACKLOG.md) priority **11** (projector, replay, recovery tests).
 
 Platform references:
 

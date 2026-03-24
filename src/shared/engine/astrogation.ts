@@ -245,21 +245,6 @@ export const processOrdnance = (
       );
     }
 
-    if (launch.ordnanceType === 'mine') {
-      const pendingOrder = (state.pendingAstrogationOrders ?? []).find(
-        (o) => o.shipId === ship.id,
-      );
-      const hasBurn =
-        pendingOrder?.burn != null || pendingOrder?.overload != null;
-
-      if (!hasBurn) {
-        return engineFailure(
-          ErrorCode.NOT_ALLOWED,
-          'Ship must change course when' + ' launching a mine',
-        );
-      }
-    }
-
     launchedShips.add(launch.shipId);
   }
 

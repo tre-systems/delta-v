@@ -219,6 +219,7 @@ describe('game client helpers', () => {
         },
         createPlayers()[1],
       ],
+      pendingAstrogationOrders: [{ shipId: 'p0s0', burn: 1 }],
     });
 
     const planning = {

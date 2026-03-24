@@ -32,9 +32,11 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 const createState = (
   ships: Ship[],
   scenarioRules: GameState['scenarioRules'] = {},
-): Pick<GameState, 'ships' | 'scenarioRules'> => ({
+  pendingAstrogationOrders: GameState['pendingAstrogationOrders'] = null,
+): Pick<GameState, 'ships' | 'scenarioRules' | 'pendingAstrogationOrders'> => ({
   ships,
   scenarioRules,
+  pendingAstrogationOrders,
 });
 
 const createPlanning = (
@@ -132,6 +134,20 @@ describe('game-client-ordnance', () => {
     ).toEqual({
       ok: false,
       message: 'Cannot launch ordnance while landed',
+      level: 'error',
+    });
+
+    expect(
+      resolveOrdnanceLaunchPlan(
+        createState([createShip({ type: 'frigate' })], {}, [
+          { shipId: 'ship-1', burn: null },
+        ]),
+        createPlanning(),
+        'mine',
+      ),
+    ).toEqual({
+      ok: false,
+      message: 'Ship must change course when launching a mine',
       level: 'error',
     });
 

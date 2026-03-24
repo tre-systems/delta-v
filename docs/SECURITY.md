@@ -179,9 +179,9 @@ If the product scope expands beyond friendly matches:
 - Turnstile integration on `/create` for bot protection
 - Account binding for organized competitive play
 - Join / replay HTTP throttling if room-code guessing or DO wake abuse becomes measurable
-- Optional **global** (cross-edge) rate limits via WAF / `[[ratelimits]]` for reporting and join/replay if needed (see [BACKLOG.md](./BACKLOG.md) priorities **1**, **6**)
+- Optional **global** (cross-edge) rate limits via WAF / `[[ratelimits]]` for reporting and join/replay if needed (see [BACKLOG.md](./BACKLOG.md) priorities **1**, **8**)
 
-Concrete abuse-hardening follow-ups: [BACKLOG.md](./BACKLOG.md) priorities **1**, **6** (optional edge), **10**, **13** (product-shaped).
+Concrete abuse-hardening follow-ups: [BACKLOG.md](./BACKLOG.md) priorities **1**, **8** (optional edge), **12**, **15** (product-shaped).
 
 ## Data retention (D1, R2, DO)
 
