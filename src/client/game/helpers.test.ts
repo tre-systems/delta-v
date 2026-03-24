@@ -241,7 +241,7 @@ describe('game client helpers', () => {
       objective: '⬡ Escape the ★ ship',
       canOverload: true,
       canEmplaceBase: true,
-      fleetStatus: '⚔ 1v0 1M/1N',
+      fleetStatus: '⚔ 1 vs 0 1M/1N',
       launchMineState: {
         visible: true,
         disabled: false,
@@ -424,6 +424,7 @@ describe('game client helpers', () => {
     });
 
     expect(getGameOverStats(state, 0)).toEqual({
+      playerId: 0,
       turns: 3,
       myShipsAlive: 1,
       myShipsTotal: 2,

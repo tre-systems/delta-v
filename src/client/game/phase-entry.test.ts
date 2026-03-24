@@ -119,7 +119,7 @@ describe('game-client-phase-entry', () => {
     expect(plan.selectedShipId).toBeNull();
   });
 
-  it('returns null selectedShipId when multiple alive ships exist', () => {
+  it('auto-selects the first actionable ship when multiple alive ships exist', () => {
     const plan = deriveClientStateEntryPlan(
       'playing_astrogation',
       createState([
@@ -130,7 +130,7 @@ describe('game-client-phase-entry', () => {
       0,
     );
 
-    expect(plan.selectedShipId).toBeNull();
+    expect(plan.selectedShipId).toBe('ship-a');
   });
 
   it('returns null ordnance selectedShipId when multiple launchable ships exist', () => {

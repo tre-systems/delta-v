@@ -47,7 +47,12 @@ export type ClientSessionMessageContext = Pick<
 /** Subset used by `applyClientStateTransition` (full `ClientSession` is assignable). */
 export type ClientSessionStateTransitionContext = Pick<
   ClientSession,
-  'state' | 'playerId' | 'gameCode' | 'gameState' | 'planningState'
+  | 'state'
+  | 'playerId'
+  | 'gameCode'
+  | 'gameState'
+  | 'planningState'
+  | 'isLocalGame'
 >;
 
 /** Merge defaults for tests and focused fakes. */
