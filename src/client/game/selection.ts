@@ -43,10 +43,12 @@ export const getGameOverStats = (
           ? 'captured'
           : 'survived',
     owner: s.owner,
+    deathCause: s.deathCause,
   }));
 
   return {
     playerId,
+    scenario: state.scenario,
     turns: state.turnNumber,
     myShipsAlive: myShips.length - myDestroyed,
     myShipsTotal: myShips.length,

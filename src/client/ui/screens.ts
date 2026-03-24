@@ -1,3 +1,5 @@
+import { SCENARIOS } from '../../shared/map-data';
+
 export type UIScreenMode =
   | 'hidden'
   | 'menu'
@@ -26,6 +28,7 @@ export interface WaitingScreenCopy {
 }
 
 export interface GameOverStatsLike {
+  scenario?: string;
   turns: number;
   myShipsAlive: number;
   myShipsTotal: number;
@@ -42,6 +45,7 @@ export interface GameOverStatsLike {
     name: string;
     status: string;
     owner: number;
+    deathCause?: string;
   }>;
 }
 
@@ -140,8 +144,39 @@ export const buildWaitingScreenCopy = (
       };
 };
 
+const DEATH_CAUSE_LABELS: Record<string, string> = {
+  gun: 'Guns',
+  baseDefense: 'Base defense',
+  crash: 'Crashed',
+  mine: 'Mine',
+  torpedo: 'Torpedo',
+  nuke: 'Nuke',
+  ramming: 'Rammed',
+  asteroid: 'Asteroid',
+  mapExit: 'Off map',
+};
+
+const formatFateValue = (fate: {
+  status: string;
+  deathCause?: string;
+}): string => {
+  const label = fate.status.toUpperCase();
+
+  if (fate.status !== 'destroyed' || !fate.deathCause) return label;
+  const cause = DEATH_CAUSE_LABELS[fate.deathCause] ?? fate.deathCause;
+  return `${label} (${cause})`;
+};
+
 const buildStatLines = (stats: GameOverStatsLike): GameOverStatLine[] => {
-  const lines: GameOverStatLine[] = [
+  const scenarioDef = stats.scenario ? SCENARIOS[stats.scenario] : null;
+  const lines: GameOverStatLine[] = [];
+
+  if (scenarioDef) {
+    lines.push({ label: 'Scenario', value: scenarioDef.name });
+    lines.push({ label: 'Objective', value: scenarioDef.description });
+  }
+
+  lines.push(
     { label: 'Turns', value: String(stats.turns) },
     {
       label: 'Your fleet',
@@ -151,7 +186,7 @@ const buildStatLines = (stats: GameOverStatsLike): GameOverStatLine[] => {
       label: 'Enemy fleet',
       value: `${stats.enemyShipsAlive}/${stats.enemyShipsTotal} survived`,
     },
-  ];
+  );
 
   if (stats.enemyShipsDestroyed > 0) {
     lines.push({
@@ -185,7 +220,7 @@ const buildStatLines = (stats: GameOverStatsLike): GameOverStatLine[] => {
     for (const fate of myFates) {
       lines.push({
         label: fate.name,
-        value: fate.status.toUpperCase(),
+        value: formatFateValue(fate),
       });
     }
 
@@ -195,7 +230,7 @@ const buildStatLines = (stats: GameOverStatsLike): GameOverStatLine[] => {
       for (const fate of enemyFates) {
         lines.push({
           label: fate.name,
-          value: fate.status.toUpperCase(),
+          value: formatFateValue(fate),
         });
       }
     }

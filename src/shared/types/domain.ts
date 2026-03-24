@@ -76,6 +76,7 @@ export interface Ship {
   baseStatus?: 'carryingBase' | 'emplaced';
   identity?: { hasFugitives: boolean; revealed: boolean };
   pendingGravityEffects?: GravityEffect[];
+  deathCause?: string;
 
   damage: {
     disabledTurns: number;
