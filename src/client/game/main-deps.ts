@@ -23,7 +23,13 @@ interface SharedMainDepsArgs {
   turnTelemetry: TurnTelemetryTracker;
 }
 
-export interface MainStateTransitionDepsArgs extends SharedMainDepsArgs {
+/** State transitions do not touch `HudController`; HUD refresh is mirror-driven. */
+export interface MainStateTransitionDepsArgs {
+  ctx: ClientSession;
+  renderer: Renderer;
+  ui: UIManager;
+  actionDeps: ActionDeps;
+  turnTelemetry: TurnTelemetryTracker;
   tutorial: Tutorial;
   turnTimer: TurnTimerManager;
   tooltipEl: HTMLElement;

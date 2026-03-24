@@ -278,7 +278,6 @@ export const createGameClient = () => {
     ctx,
     renderer,
     ui,
-    hud,
     actionDeps,
     turnTelemetry,
     tutorial,
