@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createGame } from '../../shared/engine/game-engine';
 import {
@@ -93,5 +93,27 @@ describe('applyClientGameState', () => {
     clearClientGameState(deps.ctx);
 
     expect(deps.ctx.gameState).toBeNull();
+  });
+
+  it('invokes afterApply after storing state', () => {
+    const state = createState();
+    const deps = createDeps();
+    const afterApply = vi.fn();
+
+    applyClientGameState({ ...deps, afterApply }, state);
+
+    expect(afterApply).toHaveBeenCalledTimes(1);
+    expect(afterApply).toHaveBeenCalledWith(state);
+  });
+
+  it('invokes afterClear when clearing game state', () => {
+    const state = createState();
+    const deps = createDeps();
+    const afterClear = vi.fn();
+
+    applyClientGameState(deps, state);
+    clearClientGameState(deps.ctx, afterClear);
+
+    expect(afterClear).toHaveBeenCalledTimes(1);
   });
 });
