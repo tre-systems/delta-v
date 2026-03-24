@@ -26,7 +26,25 @@ If the product stays **private friend matches only**, treat the early security i
 
 **Owner:** you + counsel.
 
-### 3. Passenger rescue mechanics
+### 3. Ordnance error toast missing for mine launch restriction
+
+When a player tries to launch a mine without having changed course, `console.error` fires but **no toast is shown**. The player presses N, nothing happens, and they get no feedback. The rule "ship must change course when launching a mine" is non-obvious and should produce a visible toast.
+
+**Files:** `src/client/game/ordnance.ts` (where the console.error is logged)
+
+### 4. Direction-to-objective indicator on the HUD
+
+In navigation-heavy scenarios (Grand Tour, Blockade Runner), new players have no way to know which direction their target body is relative to their ship. An arrow, compass, or minimap highlight pointing toward the objective body would prevent players from flying in the wrong direction entirely.
+
+**Files:** `src/client/renderer/minimap.ts`, `src/client/ui/hud.ts`, `src/client/game/navigation.ts`
+
+### 5. Crash warning on course preview
+
+When a ship's projected course passes through a celestial body, the red dashed line shows the path but nothing flags it as lethal. A skull icon, red X, or highlight at the crash hex would save new players from accidental crashes (especially near gravity wells).
+
+**Files:** `src/client/renderer/course.ts`, `src/client/renderer/course-draw.ts`
+
+### 6. Passenger rescue mechanics
 
 Add passenger-specific transfer / rescue rules for rescue scenarios.
 
@@ -36,7 +54,7 @@ Fuel and cargo transfer are already implemented; the remaining work is passenger
 
 **Files:** `src/shared/engine/logistics.ts`, `src/shared/engine/victory.ts`, `src/shared/types/`, `src/client/game/logistics-ui.ts`, `src/client/ui/game-log-view.ts`
 
-### 4. Spectator mode — client UI and live stream
+### 7. Spectator mode — client UI and live stream
 
 Server-side spectator transport is complete: viewer-aware filtering, spectator replay delivery, spectator-tagged broadcasts, and WebSocket boundary enforcement are all wired and tested. Live spectator WebSocket joins are explicitly rejected (501) for now.
 
@@ -46,13 +64,13 @@ Remaining work is client-side: a spectator join flow, real-time spectator state 
 
 **Files:** `src/server/game-do/game-do.ts`, `src/server/protocol.ts`, `src/client/game/client-kernel.ts`, client spectator UI
 
-### 5. Run DOM accessibility audit — **Human**
+### 8. Run DOM accessibility audit — **Human**
 
 Execute [A11Y.md](./A11Y.md): Lighthouse (or axe) on the SPA shell, manual **keyboard-only** pass through create/join/play/game-over for **DOM** controls (menus, HUD chrome, fleet builder, chat input). The Canvas board remains pointer-first unless product mandates otherwise.
 
 **Owner:** maintainer / QA. **Deliverable:** fix obvious issues or file scoped tasks; update A11Y checklist with dates.
 
-### 6. Global edge limits for join/replay probes — **optional**
+### 9. Global edge limits for join/replay probes — **optional**
 
 **Baseline shipped:** shared per-isolate window per hashed IP — **100** combined `GET /join/:code` + `GET /replay/:code` per **60s**.
 
@@ -60,7 +78,7 @@ Execute [A11Y.md](./A11Y.md): Lighthouse (or axe) on the SPA shell, manual **key
 
 **Files:** `wrangler.toml`, Cloudflare dashboard; tune constants in `src/server/index.ts` if needed
 
-### 7. Scenario expansion
+### 10. Scenario expansion
 
 Implement Lateral 7, Fleet Mutiny, and Retribution.
 
@@ -70,13 +88,13 @@ These depend on mechanics that are not fully present yet: concealment / dummy co
 
 **Files:** `src/shared/map-data.ts`, `src/shared/engine/`, client scenario presentation
 
-### 8. Observability dashboards and alerts — **Human**
+### 11. Observability dashboards and alerts — **Human**
 
 [OBSERVABILITY.md](./OBSERVABILITY.md) maps data sources but does not configure Cloudflare. Optionally add: saved D1 queries, Workers log filters, or alerts on spikes in `client_error`, `engine_error`, or `projection_parity_mismatch`.
 
 **Owner:** you / ops.
 
-### 9. `GameState` schema version and replay compatibility
+### 12. `GameState` schema version and replay compatibility
 
 `GameState` carries `schemaVersion`. When bumping it, document the migration path: projector behavior, replay of older archived matches, and any client assumptions. Add or extend tests around `event-projector` and recovery paths when versions change.
 
@@ -84,7 +102,7 @@ These depend on mechanics that are not fully present yet: concealment / dummy co
 
 **Files:** `src/shared/types/domain.ts`, `src/shared/engine/event-projector.ts`, `docs/ARCHITECTURE.md`, relevant tests
 
-### 10. Optional Turnstile on `POST /create`
+### 13. Optional Turnstile on `POST /create`
 
 Bot-driven room creation can spin many Durable Objects and archive writes. Turnstile validation on `/create` is described in [SECURITY.md](./SECURITY.md).
 
@@ -92,13 +110,13 @@ Bot-driven room creation can spin many Durable Objects and archive writes. Turns
 
 **Files:** client create-game UI, `src/server/index.ts` (`handleCreate`), Turnstile siteverify call
 
-### 11. Renderer performance baseline before major Canvas work
+### 14. Renderer performance baseline before major Canvas work
 
 Capture measured frame cost (Chrome Performance or equivalent, optional per-frame timing hooks) before large renderer refactors or layer caching. Drive optimization from data, not guesswork (see [ARCHITECTURE.md](./ARCHITECTURE.md) “Next improvements”).
 
 **Files:** `src/client/renderer/renderer.ts`, profiling notes in `docs/` if useful
 
-### 12. Re-baseline client bundle size — **Human**
+### 15. Re-baseline client bundle size — **Human**
 
 After large renderer or dependency changes, re-measure `dist/client.js` (raw + gzip) and update the **Client bundle and release hygiene** table in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene) (or append a dated row there).
 
@@ -106,7 +124,7 @@ After large renderer or dependency changes, re-measure `dist/client.js` (raw + g
 
 **Last routine measure:** 2026-03-24 — ~518 KB raw, ~108 KB gzip (see table in ARCHITECTURE §7).
 
-### 13. Public matchmaking prep (longer room identifiers)
+### 16. Public matchmaking prep (longer room identifiers)
 
 If the product moves beyond shared short codes, implement longer opaque IDs or signed invites (see [SECURITY.md](./SECURITY.md) competitive risks).
 
@@ -114,13 +132,13 @@ If the product moves beyond shared short codes, implement longer opaque IDs or s
 
 **Files:** `src/server/protocol.ts`, client lobby/join UX, any link/share format
 
-### 14. Trusted HTML path for user-controlled content (when needed)
+### 17. Trusted HTML path for user-controlled content (when needed)
 
 Today markup is internal/trusted. If chat, player names, or modded scenarios ever render as HTML, add a single sanitizer boundary (e.g. DOMPurify inside `dom.ts`) per [SECURITY.md](./SECURITY.md) and [CODING_STANDARDS.md](./CODING_STANDARDS.md).
 
 **Files:** `src/client/dom.ts`, client call sites, optional dependency add
 
-### 15. Windows-friendly pre-commit (if needed) — **Human**
+### 18. Windows-friendly pre-commit (if needed) — **Human**
 
 Husky is a **POSIX** shell script (`rm`, `export`, dynamic `E2E_PORT` via Node). If **Windows CMD** users cannot commit, add `cross-env` or reinforce **Git Bash / WSL** in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
