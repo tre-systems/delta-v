@@ -481,8 +481,10 @@ guide for background on hex coordinate systems.
 - **Files**: kebab-case (`game-engine.ts`, `combat-actions.ts`, `phase-entry.ts`)
 - **Functions**: camelCase (`processAstrogation`, `derivePhaseTransition`)
 - **Types/Interfaces**: PascalCase (`GameState`, `Ship`, `CombatActionDeps`)
-- **`interface`** for extensible data shapes (`GameState`, `Ship`, `CourseResult`)
-- **`type`** for discriminated unions and aliases (`C2S`, `S2C`, `GameCommand`, `LocalResolution`)
+- **`type` by default** for aliases, unions, intersections, and most local object shapes.
+- **`interface` only when intentional extensibility is valuable**, especially exported object contracts that may be extended or declaration-merged.
+- Prefer consistency within a file/module over churny keyword-only rewrites.
+- **Never force `interface` for unions**; keep discriminated unions as `type` (`C2S`, `S2C`, `GameCommand`, `LocalResolution`).
 
 ### Type patterns
 
