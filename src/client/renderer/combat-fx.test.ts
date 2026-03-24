@@ -6,7 +6,7 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import type { CombatResult } from '../../shared/types/domain';
-import { buildCombatEffectsForResults } from './renderer-combat-effects-build';
+import { buildCombatEffectsForResults } from './combat-fx';
 
 function minimalCombatResult(
   overrides: Partial<CombatResult> &

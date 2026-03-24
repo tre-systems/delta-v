@@ -8,7 +8,7 @@ import {
 import {
   drawCourseMarkerView,
   drawWeakGravityMarkerView,
-} from './renderer-draw-course-markers';
+} from './course-markers';
 
 export type DrawShipIconFn = (
   ctx: CanvasRenderingContext2D,
