@@ -456,12 +456,24 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   convoy: {
     name: 'Convoy',
     tags: ['Escort'],
-    description: 'Escort a tanker from Mars to Venus ' + '— pirates intercept',
-    rules: { logisticsEnabled: true },
+    description:
+      'Escort a liner with colonists (and tanker) from Mars to Venus ' +
+      '— transfer passengers to safety; pirates intercept',
+    rules: {
+      logisticsEnabled: true,
+      passengerRescueEnabled: true,
+      targetWinRequiresPassengers: true,
+    },
     players: [
       {
-        // Convoy: tanker + frigate escort from Mars
+        // Convoy: colonist liner + tanker + frigate from Mars
         ships: [
+          {
+            type: 'liner',
+            position: { q: -9, r: -5 },
+            velocity: { dq: 0, dr: 0 },
+            initialPassengers: 120,
+          },
           {
             type: 'tanker',
             position: { q: -9, r: -5 },

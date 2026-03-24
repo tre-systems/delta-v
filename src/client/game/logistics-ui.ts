@@ -17,6 +17,7 @@ export interface LogisticsUIState {
   pairs: TransferPair[];
   fuelAmounts: Map<string, number>; // pairKey -> fuel amount to transfer
   cargoAmounts: Map<string, number>; // pairKey -> cargo amount to transfer
+  passengerAmounts: Map<string, number>; // pairKey -> passengers to transfer
 }
 
 const pairKey = (source: string, target: string): string =>
@@ -38,6 +39,7 @@ export const createLogisticsUIState = (
     pairs,
     fuelAmounts: new Map(),
     cargoAmounts: new Map(),
+    passengerAmounts: new Map(),
   };
 };
 
@@ -67,6 +69,16 @@ export const buildTransferOrders = (
         amount: cargoAmt,
       });
     }
+    const passengerAmt = uiState.passengerAmounts.get(key) ?? 0;
+
+    if (passengerAmt > 0) {
+      orders.push({
+        sourceShipId: pair.source.id,
+        targetShipId: pair.target.id,
+        transferType: 'passengers',
+        amount: passengerAmt,
+      });
+    }
   }
 
   return orders;
@@ -78,6 +90,10 @@ export const hasQueuedTransfers = (uiState: LogisticsUIState): boolean => {
   }
 
   for (const amt of uiState.cargoAmounts.values()) {
+    if (amt > 0) return true;
+  }
+
+  for (const amt of uiState.passengerAmounts.values()) {
     if (amt > 0) return true;
   }
 
@@ -155,6 +171,20 @@ export const renderTransferPanel = (
             signal(uiState.cargoAmounts.get(key) ?? 0),
             (newAmt) => {
               uiState.cargoAmounts.set(key, newAmt);
+              onChanged?.();
+            },
+          ),
+        );
+      }
+
+      if (pair.canTransferPassengers) {
+        pairEl.appendChild(
+          buildAmountRow(
+            'Passengers',
+            pair.maxPassengers,
+            signal(uiState.passengerAmounts.get(key) ?? 0),
+            (newAmt) => {
+              uiState.passengerAmounts.set(key, newAmt);
               onChanged?.();
             },
           ),

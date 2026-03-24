@@ -44,15 +44,15 @@ When a ship's projected course passes through a celestial body, the red dashed l
 
 **Files:** `src/client/renderer/course.ts`, `src/client/renderer/course-draw.ts`
 
-### 6. Passenger rescue mechanics
+### 6. Passenger rescue mechanics — **partially shipped**
 
-Add passenger-specific transfer / rescue rules for rescue scenarios.
+**Done (baseline):** `passengersAboard` on ships, `initialPassengers` on scenario ships, `passengerRescueEnabled` + `targetWinRequiresPassengers` on `ScenarioRules`, logistics transfers (`transferType: 'passengers'`) with shared cargo capacity, Convoy updated (liner + colonists, win requires passengers on target landing), `passengersTransferred` events and projector support, logistics UI “Passengers” row, local/AI game log lines for fuel/cargo/passenger transfers via `formatLogisticsTransferLogLines`.
 
-Fuel and cargo transfer are already implemented; the remaining work is passenger state, rescue objectives, and the related UI / log presentation.
+**Remaining:** Additional scenarios (e.g. dedicated rescue-only setups), richer objectives (partial delivery, pirate-side rules), and **online** game-log wiring if transfer lines should appear for network games (today they apply as `stateUpdate` only).
+
+**Files:** same as before, plus `src/client/ui/formatters.ts`, `src/client/game/local.ts`, `src/client/game/local-game-flow.ts`
 
 **Depends on:** nothing that blocks starting (foundational for some future scenarios).
-
-**Files:** `src/shared/engine/logistics.ts`, `src/shared/engine/victory.ts`, `src/shared/types/`, `src/client/game/logistics-ui.ts`, `src/client/ui/game-log-view.ts`
 
 ### 7. Spectator mode — client UI and live stream
 
