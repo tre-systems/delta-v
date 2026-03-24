@@ -205,13 +205,13 @@ describe('HUDChromeView', () => {
     );
 
     expect(onStatusText).toHaveBeenLastCalledWith(
-      'Click a direction to take off (costs 1 fuel)',
+      'Click a direction to burn (1 fuel) — booster takeoff is free',
     );
 
     view.setMobile(true);
 
     expect(onStatusText).toHaveBeenLastCalledWith(
-      'Tap a direction to take off (costs 1 fuel)',
+      'Tap a direction to burn (1 fuel) — booster takeoff is free',
     );
   });
 
@@ -235,7 +235,7 @@ describe('HUDChromeView', () => {
 
     view.update(input);
     expect(onStatusText).toHaveBeenLastCalledWith(
-      'Click a direction to take off (costs 1 fuel)',
+      'Click a direction to burn (1 fuel) — booster takeoff is free',
     );
 
     input.astrogationCtx.selectedShipLanded = false;

@@ -178,11 +178,20 @@ export const visible = (
   condition: boolean | ReadonlySignal<boolean>,
   display = '',
 ): void => {
+  const apply = (on: boolean): void => {
+    element.style.display = on ? display : 'none';
+    if (on) {
+      element.removeAttribute('aria-hidden');
+    } else {
+      element.setAttribute('aria-hidden', 'true');
+    }
+  };
+
   if (typeof condition === 'boolean') {
-    element.style.display = condition ? display : 'none';
+    apply(condition);
   } else {
     effect(() => {
-      element.style.display = condition.value ? display : 'none';
+      apply(condition.value);
     });
   }
 };

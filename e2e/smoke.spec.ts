@@ -72,7 +72,9 @@ test.describe('browser smoke tests', () => {
 
     await expect(page).toHaveTitle('Delta-V');
     await expect(page.locator('#objective')).toContainText('Land on');
-    await expect(page.locator('#logLatestText')).toContainText('take off');
+    await expect(page.locator('#logLatestText')).toContainText(
+      'booster takeoff is free',
+    );
     await expect(page.locator('#shipList .ship-entry')).toHaveCount(1);
     await expect(page.locator('#helpBtn')).toBeVisible();
     await expect(page.locator('#tutorialTip')).toBeVisible();

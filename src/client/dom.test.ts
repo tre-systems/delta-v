@@ -258,6 +258,7 @@ describe('visible', () => {
     visible(div, true);
 
     expect(div.style.display).toBe('');
+    expect(div.getAttribute('aria-hidden')).toBeNull();
   });
 
   it('hides element when condition is false', () => {
@@ -266,6 +267,7 @@ describe('visible', () => {
     visible(div, false);
 
     expect(div.style.display).toBe('none');
+    expect(div.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('uses custom display value when showing', () => {
@@ -274,6 +276,7 @@ describe('visible', () => {
     visible(div, true, 'inline-block');
 
     expect(div.style.display).toBe('inline-block');
+    expect(div.getAttribute('aria-hidden')).toBeNull();
   });
 
   it('toggles based on changing condition', () => {
@@ -281,12 +284,15 @@ describe('visible', () => {
 
     visible(div, true);
     expect(div.style.display).toBe('');
+    expect(div.getAttribute('aria-hidden')).toBeNull();
 
     visible(div, false);
     expect(div.style.display).toBe('none');
+    expect(div.getAttribute('aria-hidden')).toBe('true');
 
     visible(div, true, 'flex');
     expect(div.style.display).toBe('flex');
+    expect(div.getAttribute('aria-hidden')).toBeNull();
   });
 
   it('toggles reactively when given a signal', () => {
@@ -296,10 +302,13 @@ describe('visible', () => {
     visible(div, s, 'flex');
 
     expect(div.style.display).toBe('none');
+    expect(div.getAttribute('aria-hidden')).toBe('true');
     s.value = true;
     expect(div.style.display).toBe('flex');
+    expect(div.getAttribute('aria-hidden')).toBeNull();
     s.value = false;
     expect(div.style.display).toBe('none');
+    expect(div.getAttribute('aria-hidden')).toBe('true');
   });
 });
 

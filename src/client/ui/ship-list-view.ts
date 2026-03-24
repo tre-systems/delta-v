@@ -71,6 +71,12 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
         const entryView = view[index];
         const entry = document.createElement('div');
         entry.className = 'ship-entry';
+        entry.setAttribute('role', 'button');
+        entry.setAttribute(
+          'aria-label',
+          `${entryView.displayName}, ${entryView.statusText.replace(/\s+/g, ' ').trim()}`,
+        );
+        entry.setAttribute('aria-pressed', String(entryView.isSelected));
 
         if (entryView.isSelected) {
           entry.classList.add('active');
@@ -78,6 +84,9 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
 
         if (entryView.isDestroyed) {
           entry.classList.add('destroyed');
+          entry.setAttribute('aria-disabled', 'true');
+        } else {
+          entry.removeAttribute('aria-disabled');
         }
 
         setTrustedHTML(
