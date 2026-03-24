@@ -1,4 +1,4 @@
-import type { GameState, Ship } from '../../shared/types/domain';
+import type { Ship } from '../../shared/types/domain';
 import { byId } from '../dom';
 import { createDisposalScope, withScope } from '../reactive';
 import { bindStaticButtonEvents } from './button-events';
@@ -10,6 +10,7 @@ import { createHUDChromeView } from './hud-chrome-view';
 import { applyHudLayoutMetrics, clearHudLayoutMetrics } from './layout-metrics';
 import { createLobbyView, type LobbyView } from './lobby-view';
 import { createOverlayView } from './overlay-view';
+import { createScreenActions } from './screen-actions';
 import type { UIScreenMode } from './screens';
 import { createShipListView } from './ship-list-view';
 import { bindViewportEvents } from './viewport-events';
@@ -107,21 +108,10 @@ export const createUIManager = () => {
 
   let lobbyView: LobbyView;
 
-  const showMenu = () => {
-    hideAll();
-    applyScreenVisibility('menu');
-    lobbyView.onMenuShown();
-  };
-
-  const showScenarioSelect = () => {
-    hideAll();
-    applyScreenVisibility('scenario');
-  };
-
   lobbyView = createLobbyView({
     emit,
-    showMenu,
-    showScenarioSelect,
+    showMenu: () => showMenu(),
+    showScenarioSelect: () => showScenarioSelect(),
   });
 
   const shipListView = createShipListView({
@@ -167,6 +157,27 @@ export const createUIManager = () => {
     bindStaticButtonEvents(emit, (dispose) => scope.add(dispose));
   });
 
+  const {
+    showMenu,
+    showScenarioSelect,
+    showWaiting,
+    showConnecting,
+    showHUD,
+    showFleetBuilding,
+    showFleetWaiting,
+  } = createScreenActions({
+    hideAll,
+    applyScreenVisibility,
+    showMenuChrome: () => lobbyView.onMenuShown(),
+    showWaitingLobby: (code) => lobbyView.showWaiting(code),
+    showConnectingLobby: () => lobbyView.showConnecting(),
+    showHudLog: () => log.showHUD(),
+    queueLayoutSync,
+    showFleetBuildingView: (state, playerId) =>
+      fleetBuildingView.show(state, playerId),
+    showFleetWaitingView: () => fleetBuildingView.showWaiting(),
+  });
+
   return {
     get onEvent() {
       return onEvent;
@@ -185,30 +196,11 @@ export const createUIManager = () => {
       lobbyView.setMenuLoading(loading);
     },
     showScenarioSelect,
-    showWaiting(code: string) {
-      hideAll();
-      applyScreenVisibility('waiting');
-      lobbyView.showWaiting(code);
-    },
-    showConnecting() {
-      hideAll();
-      applyScreenVisibility('waiting');
-      lobbyView.showConnecting();
-    },
-    showHUD() {
-      hideAll();
-      applyScreenVisibility('hud');
-      log.showHUD();
-      queueLayoutSync();
-    },
-    showFleetBuilding(state: GameState, playerId: number) {
-      hideAll();
-      applyScreenVisibility('fleetBuilding');
-      fleetBuildingView.show(state, playerId);
-    },
-    showFleetWaiting() {
-      fleetBuildingView.showWaiting();
-    },
+    showWaiting,
+    showConnecting,
+    showHUD,
+    showFleetBuilding,
+    showFleetWaiting,
     updateHUD(input: Omit<HUDInput, 'isMobile'>) {
       hudChromeView.update(input);
     },
