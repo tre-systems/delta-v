@@ -71,6 +71,7 @@ export const queueAttack = (deps: CombatActionDeps) => {
     deps.getPlayerId(),
     deps.planningState,
     deps.getMap(),
+    deps.planningState.selectedShipId,
   );
 
   if (!attack) {
