@@ -184,11 +184,24 @@ If the product scope expands beyond friendly matches:
 
 Concrete implementation tasks for abuse hardening and cost control are listed at the top of [BACKLOG.md](./BACKLOG.md) (priorities **1**, **6**, **10**, **13**).
 
+## Data retention (D1, R2, DO)
+
+What persists today:
+
+- **D1** `events` (telemetry/errors), `match_archive` (metadata index).
+- **R2** (when bound) `matches/{gameId}.json` full archives.
+- **Durable Object storage** — live match chunks, checkpoints, room config; evicted when the DO is inactive (plus optional R2 archive at match end).
+
+**Default policy:** retain telemetry and match archives until an explicit operations policy says otherwise; there is **no automatic TTL** in application code. Growth is unbounded by default in code.
+
+**Operational control:** Cloudflare D1 export/backup, R2 lifecycle rules (tiering or delete after N days), and manual SQL (`DELETE` batches) when a retention window is mandated.
+
+**User deletion requests:** if a jurisdiction requires erasure, use **`anon_id`** and time windows in `events`; match archives may require **gameId/room_code** correlation — document a runbook when needed. Automated purge or stricter programs are [BACKLOG.md](./BACKLOG.md) ops/engineering work when the product requires it.
+
 ## Operational References
 
 - [OBSERVABILITY.md](./OBSERVABILITY.md) — D1 schema, sample queries, what is logged.
 - [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) — what the stack stores (not legal advice).
-- [ADR 0001: Data retention](./decisions/0001-data-retention.md) — retention stance for D1/R2/DO.
 - [Cloudflare WAF rate limiting rules](https://developers.cloudflare.com/waf/rate-limiting-rules/)
 - [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/)
 - [OWASP XSS overview](https://owasp.org/www-community/attacks/xss/)

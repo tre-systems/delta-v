@@ -8,7 +8,7 @@ stream plus checkpoints, and authoritative recovery
 comes from checkpoint plus event tail rather than a
 separate persisted `gameState` snapshot slot.
 
-**Deployment assumption:** Client and Worker are released as a **single version line** (coordinated deploy). Staggered old-client/new-server compatibility is **not** a current requirement — see [ADR 0002](./decisions/0002-deployment-and-protocol-compatibility.md).
+**Deployment assumption:** Client and Worker ship as a **single version line** (one deploy updates Worker + static assets). Staggered “old client / new server” is **not** a supported requirement today. Breaking protocol changes need a **coordinated deploy** and, if needed, force reload / cache-bust the SPA; prefer **additive** JSON fields. There is no feature-flag protocol negotiation in the client today. When bumping **`GameState.schemaVersion`**, follow [BACKLOG.md](./BACKLOG.md) priority **9** (projector, replay, recovery tests).
 
 Platform references:
 
@@ -135,10 +135,10 @@ These are the main architectural follow-ups still open:
   some complex markup imperatively. If freeform or external
   content expands, HTML injection should pass through one
   reviewed boundary rather than ad hoc `innerHTML` writes.
-- **Decision records for cross-cutting choices.** Protocol,
-  auth, and product-shape decisions have historically
-  drifted across docs. Small ADR-style records would reduce
-  future mismatches.
+- **Docs stay the source of truth.** Protocol, auth, and
+  product-shape decisions should be reflected in this file,
+  [SECURITY.md](./SECURITY.md), and [CODING_STANDARDS.md](./CODING_STANDARDS.md)
+  (plus [BACKLOG.md](./BACKLOG.md) for open work) so they do not drift.
 - **Profiling before renderer optimization.** Use Chrome
   Performance (or equivalent) and per-frame timing around
   the render loop before investing in layer caching or other
@@ -628,3 +628,20 @@ currently exist.
 - **Replay architecture / event sourcing**: Implemented for the authoritative path. Match-scoped event streams with versioned envelopes (`EventEnvelope`: gameId, seq, ts, actor, event), checkpoints, and parity checks are in place, and replay is projected directly from the stored stream. The shipped client replay UI lets players step through completed matches, including explicit match selection when a room has multiple rematches. Spectator replay delivery is also complete: spectator-filtered state projections, authenticated replay endpoints, and viewer-aware broadcasting are all wired. The remaining follow-up is client spectator UX (join flow, live game viewing) and any further protocol simplification.
 - **UI framework adoption**: The DOM UI layer is still small enough to own directly. The current compromise is a tiny local signals layer for view-local state and cleanup, without paying the cost of adopting a full framework (Preact, etc.) across the entire client.
 - **Structural sharing / Immer**: Reconsidered alongside the event-sourcing shift. Immer is still not a prerequisite and should not block the migration. The immediate value is in stable event schemas, append ordering, explicit RNG facts, and projector correctness, not in rewriting the whole engine around Proxy-based updates. Revisit only if projector reducers or future command handlers become materially clearer with Immer; if adopted at all, it should start at the projection layer rather than as an all-at-once engine rewrite.
+- **Internationalization:** **English-only** product surface for now (inline strings in `src/client/ui`, `src/client/game`, toasts, server errors). No message catalogs, locales, or RTL until localization is prioritized. [SPEC.md](./SPEC.md) remains the canonical English rules reference for scenarios.
+
+---
+
+## 7. Client bundle and release hygiene
+
+**Bundle baseline** (recorded 2026-03 review; re-measure after large renderer or dependency changes):
+
+| Artifact | Raw (approx.) | Gzip (approx.) |
+| -------- | ------------- | -------------- |
+| `dist/client.js` | ~525 KB | ~107 KB |
+
+**Supply chain:** run `npm audit` before releases; use `npm run update-deps` judiciously and run `verify` after bumps.
+
+**D1 migrations:** treat as **forward-only** unless Cloudflare backup/restore is used; rollback is **redeploy previous Worker + compatible schema**, not automatic down-migration.
+
+**CI:** Node version is set in `.github/workflows/ci.yml` (Node **25** at last doc update).
