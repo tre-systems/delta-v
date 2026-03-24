@@ -1,12 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../../shared/constants';
 import type { EngineEvent } from '../../shared/engine/engine-events';
-import { createGame } from '../../shared/engine/game-engine';
-import {
-  buildSolarSystemMap,
-  findBaseHex,
-  SCENARIOS,
-} from '../../shared/map-data';
+import { buildSolarSystemMap, SCENARIOS } from '../../shared/map-data';
 import { deriveActionRng } from '../../shared/prng';
 import type { GameState } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
@@ -22,14 +17,13 @@ import {
   type GameStateActionMessage,
   runGameStateAction,
 } from './actions';
+import { runGameDoAlarm } from './alarm';
 import {
-  allocateMatchIdentity,
   appendEnvelopedEvents,
   getEventStreamLength,
   getMatchSeed,
   getProjectedCurrentStateRaw,
   saveCheckpoint,
-  saveMatchCreatedAt,
 } from './archive';
 import {
   broadcastFilteredMessage,
@@ -37,28 +31,18 @@ import {
   broadcastStateChange,
   sendSocketMessage,
 } from './broadcast';
-import { runGameDoAlarm } from './game-do-alarm';
-import { handleGameDoFetch } from './game-do-fetch';
-import {
-  reportGameDoEngineError,
-  reportGameDoProjectionParityMismatch,
-  verifyGameDoProjectionParity,
-} from './game-do-telemetry';
-import {
-  handleGameDoWebSocketClose,
-  handleGameDoWebSocketMessage,
-} from './game-do-ws';
+import { handleGameDoFetch } from './fetch';
 import {
   handleInitRequest,
   handleJoinCheckRequest,
   handleReplayRequest,
   resolveJoinAttempt as resolveJoinAttemptRequest,
 } from './http-handlers';
+import { handleRematchRequest, initGameSession } from './match';
 import { archiveCompletedMatch } from './match-archive';
 import {
   resolveStateBearingMessage,
   type StatefulServerMessage,
-  toGameStartMessage,
 } from './messages';
 import {
   createDisconnectMarker,
@@ -66,6 +50,12 @@ import {
   normalizeDisconnectedPlayer,
 } from './session';
 import { type AuxMessageDeps, handleAuxMessage } from './socket';
+import {
+  reportGameDoEngineError,
+  reportGameDoProjectionParityMismatch,
+  verifyGameDoProjectionParity,
+} from './telemetry';
+import { handleGameDoWebSocketClose, handleGameDoWebSocketMessage } from './ws';
 export interface Env {
   ASSETS: Fetcher;
   GAME: DurableObjectNamespace;
@@ -287,7 +277,7 @@ export class GameDO extends DurableObject<Env> {
     }
   }
 
-  // --- Error telemetry (see game-do-telemetry.ts) ---
+  // --- Error telemetry (see telemetry.ts) ---
   private reportEngineError = (
     code: string,
     phase: string,
@@ -550,64 +540,28 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async initGame() {
-    const [roomConfig, scenario] = await Promise.all([
-      this.getRoomConfig(),
-      this.getScenario(),
-    ]);
-    const map = this.map;
-    const code = roomConfig?.code ?? (await this.getGameCode());
-    const { gameId, matchSeed } = await allocateMatchIdentity(
-      this.ctx.storage,
-      code,
-    );
-    const gameState = createGame(scenario, map, gameId, findBaseHex);
-    const gameStartMessage = toGameStartMessage(gameState);
-    await this.clearRoomArchivedFlag();
-    await saveMatchCreatedAt(this.ctx.storage, gameId, Date.now());
-    const initEvents: EngineEvent[] = [
-      {
-        type: 'gameCreated' as const,
-        scenario: gameState.scenario,
-        turn: gameState.turnNumber,
-        phase: gameState.phase,
-        matchSeed,
-      },
-    ];
-
-    // Capture fugitive designation for replay
-    for (const ship of gameState.ships) {
-      if (ship.identity?.hasFugitives) {
-        initEvents.push({
-          type: 'fugitiveDesignated' as const,
-          shipId: ship.id,
-          playerId: ship.owner,
-        });
-      }
-    }
-
-    await appendEnvelopedEvents(this.ctx.storage, gameId, null, ...initEvents);
-    await this.verifyProjectionParity(gameState);
-    this.broadcastFiltered(gameStartMessage);
-    await this.startTurnTimer(gameState);
+    await initGameSession({
+      storage: this.ctx.storage,
+      map: this.map,
+      getRoomConfig: () => this.getRoomConfig(),
+      getScenario: () => this.getScenario(),
+      getGameCode: () => this.getGameCode(),
+      clearRoomArchivedFlag: () => this.clearRoomArchivedFlag(),
+      verifyProjectionParity: (state) => this.verifyProjectionParity(state),
+      broadcastFiltered: (msg) => this.broadcastFiltered(msg),
+      startTurnTimer: (state) => this.startTurnTimer(state),
+    });
   }
 
   private async handleRematch(playerId: number, _ws: WebSocket) {
-    const requests =
-      (await this.ctx.storage.get<number[]>('rematchRequests')) ?? [];
-
-    if (!requests.includes(playerId)) {
-      requests.push(playerId);
-    }
-
-    if (requests.length >= 2) {
-      // Both players want a rematch — restart
-      await this.ctx.storage.delete('rematchRequests');
-      await this.initGame();
-    } else {
-      // First request — notify both players
-      await this.ctx.storage.put('rematchRequests', requests);
-      this.broadcast({ type: 'rematchPending' });
-    }
+    await handleRematchRequest(
+      {
+        storage: this.ctx.storage,
+        initGame: () => this.initGame(),
+        broadcast: (msg) => this.broadcast(msg),
+      },
+      playerId,
+    );
   }
 
   private broadcastStateChange(

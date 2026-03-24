@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { GameState } from '../../shared/types/domain';
-import { handleGameDoWebSocketClose } from './game-do-ws';
+import { handleGameDoWebSocketClose } from './ws';
 
 describe('handleGameDoWebSocketClose', () => {
   it('does not set disconnect marker when socket was replaced', async () => {

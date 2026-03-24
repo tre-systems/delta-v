@@ -1,4 +1,4 @@
-import type { AIDifficulty } from '../src/shared/ai';
+import type { AIDifficulty } from '../../src/shared/ai';
 
 export interface LoadTestConfig {
   serverUrl: string;

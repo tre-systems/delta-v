@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { GameDoFetchDeps } from './game-do-fetch';
-import { handleGameDoFetch } from './game-do-fetch';
+import type { GameDoFetchDeps } from './fetch';
+import { handleGameDoFetch } from './fetch';
 
 const baseUrl = 'https://do.test';
 

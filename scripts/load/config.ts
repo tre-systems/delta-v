@@ -1,5 +1,5 @@
-import { SCENARIOS } from '../src/shared/map-data';
-import type { LoadTestConfig } from './load-test-types';
+import { SCENARIOS } from '../../src/shared/map-data';
+import type { LoadTestConfig } from './types';
 
 export const DEFAULT_SERVER_URL =
   process.env.SERVER_URL || 'http://127.0.0.1:8787';
