@@ -7,7 +7,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 **How to use**
 
 1. Pick the next numbered review (order below is **recommended**, not mandatory).
-2. Complete the steps; capture findings in `docs/decisions/` (ADR) or update [BACKLOG.md](./BACKLOG.md) / other docs as noted.
+2. Complete the steps; capture findings in [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), or other `docs/` files as appropriate, and update [BACKLOG.md](./BACKLOG.md) when new work is identified.
 3. Mark the section with a date and owner in a short footer table at the bottom of this file (or in your tracker).
 
 ---
@@ -31,7 +31,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 **Deliverables**
 
-- Short ADR or README subsection: **when hooks run, what to do if they fail**.
+- Short note in [CONTRIBUTING.md](./CONTRIBUTING.md) or README: **when hooks run, what to do if they fail**.
 - Optional BACKLOG item if a code/config fix is needed.
 
 ---
@@ -54,7 +54,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 **Deliverables**
 
-- One-page **“Observability map”** (ADR or `docs/` note): sources, retention, PII stance, recommended dashboards.
+- One-page **“Observability map”** ([OBSERVABILITY.md](./OBSERVABILITY.md) or adjacent `docs/` note): sources, retention, PII stance, recommended dashboards.
 
 ---
 
@@ -77,7 +77,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 **Deliverables**
 
-- ADR: **retention and deletion**; update [SECURITY.md](./SECURITY.md) if user data commitments change.
+- **Retention and deletion** in [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do); update if user data commitments change.
 
 ---
 
@@ -118,7 +118,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 **Deliverables**
 
-- Baseline numbers in ADR or ARCHITECTURE appendix; ties to [BACKLOG.md](./BACKLOG.md) priority **11** (renderer baseline).
+- Baseline numbers in [ARCHITECTURE.md](./ARCHITECTURE.md) §7 (bundle table); ties to [BACKLOG.md](./BACKLOG.md) priority **11** (renderer baseline).
 
 ---
 
@@ -138,7 +138,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 **Deliverables**
 
-- Short **dependency & upgrade policy** in CODING_STANDARDS or ADR; migration note in ARCHITECTURE or ops doc.
+- Short **dependency & upgrade policy** in [CODING_STANDARDS.md](./CODING_STANDARDS.md) or [ARCHITECTURE.md](./ARCHITECTURE.md) §7.
 
 ---
 
@@ -158,7 +158,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 **Deliverables**
 
-- ADR only if you commit to **staggered deploys**; else one paragraph in SPEC or ARCHITECTURE stating **same-version deploy** assumption.
+- If you commit to **staggered deploys**, document explicitly in [ARCHITECTURE.md](./ARCHITECTURE.md); today the doc states **same-version deploy** (coordinated Worker + SPA).
 
 ---
 
@@ -197,7 +197,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 **Deliverables**
 
-- ADR or BACKLOG: **i18n non-goal** or **phase 1 string extraction** scope.
+- [ARCHITECTURE.md](./ARCHITECTURE.md) §6 (i18n stance) and/or [BACKLOG.md](./BACKLOG.md): **non-goal** vs **phase 1 string extraction** when priorities change.
 
 ---
 
@@ -223,19 +223,19 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 ## Review log
 
-Initial documentation and tooling pass **2026-03-24**: configs fixed where safe; maps and ADRs added; **manual** follow-ups (Lighthouse/axe tab-through, legal counsel) remain for humans.
+Initial documentation and tooling pass **2026-03-24**: configs fixed where safe; maps and prose docs updated; **manual** follow-ups (Lighthouse/axe tab-through, legal counsel) remain for humans.
 
 | #   | Area                    | Reviewed (date) | Owner | Notes / link                                                                                                |
 | --- | ----------------------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------- |
-| 1   | CI / local dev friction | 2026-03-24      | —     | `test:coverage` + `--no-file-parallelism`; pre-commit `E2E_PORT=8788`; [CONTRIBUTING.md](./CONTRIBUTING.md) |
+| 1   | CI / local dev friction | 2026-03-24      | —     | `test:coverage` + `--no-file-parallelism`; pre-commit dynamic `E2E_PORT`; [CONTRIBUTING.md](./CONTRIBUTING.md) |
 | 2   | Observability           | 2026-03-24      | —     | [OBSERVABILITY.md](./OBSERVABILITY.md)                                                                      |
-| 3   | Data lifecycle          | 2026-03-24      | —     | [ADR 0001](./decisions/0001-data-retention.md)                                                              |
+| 3   | Data lifecycle          | 2026-03-24      | —     | [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do)                                                        |
 | 4   | Accessibility           | 2026-03-24      | —     | [A11Y.md](./A11Y.md) — **manual audit still due**                                                           |
-| 5   | Bundle / runtime        | 2026-03-24      | —     | [ADR 0003](./decisions/0003-bundle-and-supply-chain-baseline.md); Chrome profiling optional                 |
-| 6   | Supply chain / release  | 2026-03-24      | —     | `npm audit` clean at review; D1 rollback in ADR 0003                                                        |
-| 7   | Protocol compatibility  | 2026-03-24      | —     | [ADR 0002](./decisions/0002-deployment-and-protocol-compatibility.md); ARCHITECTURE link                    |
+| 5   | Bundle / runtime        | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) §7 bundle table; Chrome profiling optional                             |
+| 6   | Supply chain / release  | 2026-03-24      | —     | `npm audit` clean at review; D1 rollback in [ARCHITECTURE.md](./ARCHITECTURE.md) §7                         |
+| 7   | Protocol compatibility  | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) deployment assumption (top + §6)                                      |
 | 8   | Replay / parity         | 2026-03-24      | —     | [CODING_STANDARDS.md](./CODING_STANDARDS.md) Testing bullet                                                 |
-| 9   | i18n                    | 2026-03-24      | —     | [ADR 0004](./decisions/0004-internationalization-scope.md)                                                  |
+| 9   | i18n                    | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) §6 (English-only stance)                                               |
 | 10  | Privacy / compliance    | 2026-03-24      | —     | [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) — **legal review out of band**                               |
 
 ---

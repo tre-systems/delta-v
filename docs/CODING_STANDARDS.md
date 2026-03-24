@@ -144,13 +144,10 @@ guide.
 ## Docs
 
 - Update docs when behavior changes materially.
-- Cross-cutting decisions: add an ADR under [docs/decisions/](./decisions/README.md). Contributor workflow and hooks: [CONTRIBUTING.md](./CONTRIBUTING.md).
+- Cross-cutting decisions: record them in [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), or this file as appropriate; keep [BACKLOG.md](./BACKLOG.md) in sync for open work. Contributor workflow: [CONTRIBUTING.md](./CONTRIBUTING.md).
 - Do not leave roadmap items marked as future work once they are implemented.
 - Architecture docs should describe the real join flow, validation model, and authority boundaries.
-- When a cross-cutting product or protocol decision is made
-  and is likely to be referenced from multiple docs, prefer
-  adding a short ADR-style note under `docs/` instead of
-  relying on prose updates alone.
+- When a decision will be referenced from multiple places, add a short anchored subsection to the most relevant doc rather than duplicating prose.
 
 ## Common Patterns
 
