@@ -192,6 +192,36 @@ describe('game-client-messages', () => {
       state: movementState,
       shouldTransition: false,
     });
+
+    expect(
+      derive(
+        {
+          type: 'stateUpdate',
+          state: movementState,
+          transferEvents: [
+            {
+              type: 'fuelTransferred',
+              fromShipId: 'a',
+              toShipId: 'b',
+              amount: 2,
+            },
+          ],
+        },
+        'playing_logistics',
+      ),
+    ).toEqual({
+      kind: 'stateUpdate',
+      state: movementState,
+      shouldTransition: true,
+      transferEvents: [
+        {
+          type: 'fuelTransferred',
+          fromShipId: 'a',
+          toShipId: 'b',
+          amount: 2,
+        },
+      ],
+    });
   });
 
   it('derives endgame, rematch, disconnect, error, and pong plans', () => {

@@ -5,7 +5,10 @@ import type {
   OrdnanceMovement,
   ShipMovement,
 } from '../../shared/types/domain';
-import type { S2C } from '../../shared/types/protocol';
+import type {
+  LogisticsTransferLogEvent,
+  S2C,
+} from '../../shared/types/protocol';
 import {
   deriveGameStartClientState,
   deriveWelcomeHandling,
@@ -45,6 +48,7 @@ export type ClientMessagePlan =
       kind: 'stateUpdate';
       state: GameState;
       shouldTransition: boolean;
+      transferEvents?: LogisticsTransferLogEvent[];
     }
   | {
       kind: 'gameOver';
@@ -109,12 +113,25 @@ export const deriveClientMessagePlan = (
         results: msg.results,
         shouldTransition: true,
       };
-    case 'stateUpdate':
+    case 'stateUpdate': {
+      const shouldTransition = shouldTransitionAfterStateUpdate(currentState);
+      const transfers = msg.transferEvents;
+
+      if (transfers !== undefined && transfers.length > 0) {
+        return {
+          kind: 'stateUpdate',
+          state: msg.state,
+          shouldTransition,
+          transferEvents: transfers,
+        };
+      }
+
       return {
         kind: 'stateUpdate',
         state: msg.state,
-        shouldTransition: shouldTransitionAfterStateUpdate(currentState),
+        shouldTransition,
       };
+    }
     case 'gameOver':
       return {
         kind: 'gameOver',

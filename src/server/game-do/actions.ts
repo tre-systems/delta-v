@@ -251,7 +251,7 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
       publish: async (playerId, result) => {
         await deps.publishStateChange(
           result.state,
-          toStateUpdateMessage(result.state),
+          toStateUpdateMessage(result.state, result.engineEvents),
           {
             actor: playerId,
             events: result.engineEvents,
@@ -265,7 +265,7 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
       publish: async (playerId, result) => {
         await deps.publishStateChange(
           result.state,
-          toStateUpdateMessage(result.state),
+          toStateUpdateMessage(result.state, result.engineEvents),
           {
             actor: playerId,
             events: result.engineEvents,

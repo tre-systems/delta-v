@@ -1,6 +1,7 @@
 import type { AIDifficulty } from '../../shared/ai';
 import { must } from '../../shared/assert';
 import type { MovementResult } from '../../shared/engine/game-engine';
+import { filterLogisticsTransferLogEvents } from '../../shared/engine/transfer-log-events';
 import type {
   CombatResult,
   GameState,
@@ -100,7 +101,7 @@ export const handleLocalResolution = (
     );
   } else if (resolution.kind === 'logistics') {
     for (const line of formatLogisticsTransferLogLines(
-      resolution.engineEvents,
+      filterLogisticsTransferLogEvents(resolution.engineEvents),
       resolution.state.ships,
     )) {
       deps.logText(line);
