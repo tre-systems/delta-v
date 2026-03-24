@@ -16,7 +16,7 @@ import { createOverlayView, type OverlayView } from './overlay-view';
 import { buildScreenVisibility, type UIScreenMode } from './screens';
 import { createShipListView, type ShipListView } from './ship-list-view';
 
-export class UIManager {
+class UIManagerImpl {
   private readonly scope = createDisposalScope();
   private menuEl: HTMLElement;
   private scenarioEl: HTMLElement;
@@ -291,3 +291,7 @@ export class UIManager {
     this.scope.dispose();
   }
 }
+
+export const createUIManager = () => new UIManagerImpl();
+
+export type UIManager = ReturnType<typeof createUIManager>;

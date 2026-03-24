@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { UIManager } from './ui';
+import { createUIManager } from './ui';
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -123,13 +123,13 @@ describe('UIManager', () => {
   });
 
   it('constructs without throwing and wires subviews', () => {
-    const ui = new UIManager();
+    const ui = createUIManager();
     expect(ui).toBeDefined();
     expect(ui.onEvent).toBeNull();
   });
 
   it('routes static button clicks through onEvent', () => {
-    const ui = new UIManager();
+    const ui = createUIManager();
     const events: unknown[] = [];
     ui.onEvent = (e) => events.push(e);
 
@@ -147,7 +147,7 @@ describe('UIManager', () => {
   });
 
   it('showMenu makes menu visible and hides HUD', () => {
-    const ui = new UIManager();
+    const ui = createUIManager();
     ui.showMenu();
 
     expect(document.getElementById('menu')?.style.display).toBe('flex');
@@ -156,7 +156,7 @@ describe('UIManager', () => {
   });
 
   it('showHUD makes HUD visible and hides menu', () => {
-    const ui = new UIManager();
+    const ui = createUIManager();
     ui.showHUD();
 
     expect(document.getElementById('hud')?.style.display).toBe('block');
@@ -165,7 +165,7 @@ describe('UIManager', () => {
   });
 
   it('showWaiting shows waiting screen with room code', () => {
-    const ui = new UIManager();
+    const ui = createUIManager();
     ui.showWaiting('ABC12');
 
     expect(document.getElementById('waiting')?.style.display).toBe('flex');
@@ -173,7 +173,7 @@ describe('UIManager', () => {
   });
 
   it('hideAll hides all screens', () => {
-    const ui = new UIManager();
+    const ui = createUIManager();
     ui.showMenu();
     ui.hideAll();
 
@@ -193,7 +193,7 @@ describe('UIManager', () => {
   });
 
   it('dispose removes event listeners cleanly', () => {
-    const ui = new UIManager();
+    const ui = createUIManager();
     const events: unknown[] = [];
     ui.onEvent = (e) => events.push(e);
 

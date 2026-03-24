@@ -51,17 +51,16 @@ type ShipScreenPlacementInput = {
   ctx: CanvasRenderingContext2D;
 };
 
-export const drawShipsLayer = (input: DrawShipsLayerInput): void => {
-  const {
-    ctx,
-    state,
-    map,
-    now,
-    playerId,
-    planningSelectedShipId,
-    hexSize,
-    animState,
-  } = input;
+export const drawShipsLayer = ({
+  ctx,
+  state,
+  map,
+  now,
+  playerId,
+  planningSelectedShipId,
+  hexSize,
+  animState,
+}: DrawShipsLayerInput): void => {
   const visibleShips = getVisibleShips(state, playerId, animState !== null);
   const stackOffsets = animState ? null : getShipStackOffsets(visibleShips);
 
@@ -81,19 +80,18 @@ export const drawShipsLayer = (input: DrawShipsLayerInput): void => {
   }
 };
 
-const drawOneShip = (input: DrawOneShipInput): void => {
-  const {
-    ctx,
-    ship,
-    state,
-    map,
-    now,
-    playerId,
-    planningSelectedShipId,
-    hexSize,
-    animState,
-    stackOffsets,
-  } = input;
+const drawOneShip = ({
+  ctx,
+  ship,
+  state,
+  map,
+  now,
+  playerId,
+  planningSelectedShipId,
+  hexSize,
+  animState,
+  stackOffsets,
+}: DrawOneShipInput): void => {
   const { pos, velocity, labelYOffset } = shipScreenPlacement({
     ship,
     hexSize,
@@ -139,14 +137,18 @@ const drawOneShip = (input: DrawOneShipInput): void => {
   });
 };
 
-const shipScreenPlacement = (
-  input: ShipScreenPlacementInput,
-): {
+const shipScreenPlacement = ({
+  ship,
+  hexSize,
+  animState,
+  now,
+  stackOffsets,
+  ctx,
+}: ShipScreenPlacementInput): {
   pos: PixelCoord;
   velocity: GameState['ships'][number]['velocity'];
   labelYOffset: number;
 } => {
-  const { ship, hexSize, animState, now, stackOffsets, ctx } = input;
   let pos: PixelCoord;
   let velocity = ship.velocity;
   let labelYOffset = 24;
@@ -256,8 +258,14 @@ type DrawIdentityMarkersInput = {
   animState: AnimationState | null;
 };
 
-const drawIdentityMarkers = (input: DrawIdentityMarkersInput): void => {
-  const { ctx, ship, playerId, state, pos, animState } = input;
+const drawIdentityMarkers = ({
+  ctx,
+  ship,
+  playerId,
+  state,
+  pos,
+  animState,
+}: DrawIdentityMarkersInput): void => {
   const identityMarker = getShipIdentityMarker(
     ship,
     playerId,
@@ -302,8 +310,14 @@ type DrawOrbitAndLandedRingsInput = {
   animState: AnimationState | null;
 };
 
-const drawOrbitAndLandedRings = (input: DrawOrbitAndLandedRingsInput): void => {
-  const { ctx, ship, pos, now, inGravity, animState } = input;
+const drawOrbitAndLandedRings = ({
+  ctx,
+  ship,
+  pos,
+  now,
+  inGravity,
+  animState,
+}: DrawOrbitAndLandedRingsInput): void => {
   if (shouldShowOrbitIndicator(ship, inGravity, animState !== null)) {
     const phase = now / 2000 + pos.x * 0.01;
 
@@ -335,9 +349,15 @@ type DrawShipLabelsInput = {
   animState: AnimationState | null;
 };
 
-const drawShipLabels = (input: DrawShipLabelsInput): void => {
-  const { ctx, ship, playerId, pos, labelYOffset, inGravity, animState } =
-    input;
+const drawShipLabels = ({
+  ctx,
+  ship,
+  playerId,
+  pos,
+  labelYOffset,
+  inGravity,
+  animState,
+}: DrawShipLabelsInput): void => {
   const labelView = buildShipLabelView(
     ship,
     playerId,
