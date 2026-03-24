@@ -1,7 +1,7 @@
 import { buildSolarSystemMap, SCENARIOS } from '../../shared/map-data';
 import type { FleetPurchase, GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
-import { initAudio, playWarning } from '../audio';
+import { playWarning } from '../audio';
 import { byId } from '../dom';
 import { createInputHandler } from '../input';
 import { createRenderer } from '../renderer/renderer';
@@ -18,6 +18,7 @@ import {
   setScenario,
   setTransport,
 } from './client-context-store';
+import { setupClientRuntime } from './client-runtime';
 import {
   beginCombatPhase as beginCombat,
   resetCombatState as resetCombat,
@@ -32,7 +33,6 @@ import { type InputEvent, interpretInput } from './input-events';
 import type { KeyboardAction } from './keyboard';
 import { runAITurn as runAI } from './local-game-flow';
 import { type LogisticsUIState, renderTransferPanel } from './logistics-ui';
-import { autoJoinFromUrl, bindMainBrowserEvents } from './main-composition';
 import {
   createMainMessageHandlerDeps,
   createMainPhaseTransitionDeps,
@@ -455,33 +455,23 @@ export const createGameClient = () => {
     ui.overlay.showToast(message, type);
   };
 
-  renderer.setMap(map);
-  input.setMap(map);
-  ui.onEvent = (event) => handleUIEvent(event);
-  const soundBtn = byId('soundBtn');
-  hud.updateSoundButton();
-  const disposeBrowserEvents = bindMainBrowserEvents({
+  const disposeBrowserEvents = setupClientRuntime({
     canvas,
-    helpCloseBtn: byId('helpCloseBtn'),
-    helpBtn: byId('helpBtn'),
-    soundBtn,
+    map,
     tooltipEl,
-    getState: () => ctx.state,
-    hasGameState: () => !!ctx.gameState,
-    getPlanningState: () => ctx.planningState,
+    renderer,
+    input,
+    ui,
+    ctx,
     updateTooltip: (x, y) => hud.updateTooltip(x, y),
     onKeyboardAction: (action) => handleKeyboardAction(action),
     onToggleHelp: () => toggleHelp(),
     onUpdateSoundButton: () => hud.updateSoundButton(),
     showToast: (message, type) => showToast(message, type),
+    onUIEvent: (event) => handleUIEvent(event),
+    joinGame: (code, playerToken) => joinGame(code, playerToken),
+    setMenuState: () => setState('menu'),
   });
-
-  initAudio();
-  renderer.start();
-  autoJoinFromUrl(
-    (code, playerToken) => joinGame(code, playerToken),
-    () => setState('menu'),
-  );
 
   return {
     renderer,
