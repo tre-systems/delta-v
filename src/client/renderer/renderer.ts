@@ -109,11 +109,11 @@ export const createRenderer = (
     );
   });
 
-  function invalidateStatic() {
+  const invalidateStatic = (): void => {
     invalidateStaticSceneLayer(staticLayerRef.layer);
-  }
+  };
 
-  function resize() {
+  const resize = (): void => {
     const dpr = window.devicePixelRatio || 1;
     const w = Math.round(canvas.clientWidth);
     const h = Math.round(canvas.clientHeight);
@@ -122,13 +122,108 @@ export const createRenderer = (
     canvas.height = Math.round(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     invalidateStatic();
-  }
+  };
 
-  function renderFrame(
+  const drawBaseThreatZones = (
+    layerCtx: CanvasRenderingContext2D,
+    state: GameState,
+    solarMap: SolarSystemMap,
+  ): void => {
+    if (animState()) return;
+    const zones = buildBaseThreatZoneViews(state, playerId, solarMap, HEX_SIZE);
+    for (const zone of zones) {
+      layerCtx.fillStyle = 'rgba(255, 80, 60, 0.08)';
+      layerCtx.strokeStyle = 'rgba(255, 80, 60, 0.2)';
+      layerCtx.lineWidth = 1;
+      layerCtx.beginPath();
+      layerCtx.arc(
+        zone.hexCenter.x,
+        zone.hexCenter.y,
+        zone.radius,
+        0,
+        Math.PI * 2,
+      );
+      layerCtx.fill();
+      layerCtx.stroke();
+    }
+  };
+
+  const drawCourseLayers = (
+    layerCtx: CanvasRenderingContext2D,
+    state: GameState,
+    solarMap: SolarSystemMap,
+  ): void => {
+    if (animState()) return;
+    drawVelocityVectorLayer(layerCtx, state, playerId, HEX_SIZE);
+    drawAstrogationCoursePreviewLayer({
+      ctx: layerCtx,
+      state,
+      playerId,
+      planningState,
+      map: solarMap,
+      hexSize: HEX_SIZE,
+      drawShipIcon: drawShipIconFn,
+    });
+  };
+
+  const drawScreenFlash = (
+    layerCtx: CanvasRenderingContext2D,
+    now: number,
+    w: number,
+    h: number,
+  ): void => {
+    if (screenFlash && now < screenFlash.startTime + screenFlash.duration) {
+      const p = (now - screenFlash.startTime) / screenFlash.duration;
+      const alpha = (1 - p) * 0.35;
+      layerCtx.fillStyle = screenFlash.color;
+      layerCtx.globalAlpha = alpha;
+      layerCtx.fillRect(0, 0, w, h);
+      layerCtx.globalAlpha = 1;
+    } else if (screenFlash) {
+      screenFlash = null;
+    }
+  };
+
+  const drawToasts = (
+    layerCtx: CanvasRenderingContext2D,
+    now: number,
+    w: number,
+  ): void => {
+    if (combatResults && gameState) {
+      if (now > combatResults.showUntil) {
+        combatResults = null;
+      } else {
+        drawCombatResultsToastOverlay({
+          ctx: layerCtx,
+          results: combatResults.results,
+          gameState,
+          now,
+          screenW: w,
+          showUntil: combatResults.showUntil,
+        });
+      }
+    }
+    if (movementEvents && gameState) {
+      if (now > movementEvents.showUntil) {
+        movementEvents = null;
+      } else {
+        drawMovementEventsToastOverlay({
+          ctx: layerCtx,
+          events: movementEvents.events,
+          gameState,
+          now,
+          screenW: w,
+          showUntil: movementEvents.showUntil,
+        });
+      }
+    }
+  };
+
+  const renderFrame = (
     now: number,
     w = canvas.clientWidth,
     h = canvas.clientHeight,
-  ) {
+  ): void => {
     const layerCtx = ctx;
     layerCtx.fillStyle = '#08081a';
     layerCtx.fillRect(0, 0, w, h);
@@ -246,16 +341,16 @@ export const createRenderer = (
           HEX_SIZE,
         );
       }
-      drawShipsLayer(
-        layerCtx,
-        gameState,
+      drawShipsLayer({
+        ctx: layerCtx,
+        state: gameState,
         map,
         now,
         playerId,
-        planningState.selectedShipId,
-        HEX_SIZE,
-        animState(),
-      );
+        planningSelectedShipId: planningState.selectedShipId,
+        hexSize: HEX_SIZE,
+        animState: animState(),
+      });
       hexFlashes = drawHexFlashes(layerCtx, hexFlashes, now, HEX_SIZE);
       combatEffects = drawCombatEffects(layerCtx, combatEffects, now);
     }
@@ -265,116 +360,21 @@ export const createRenderer = (
     drawScreenFlash(layerCtx, now, w, h);
     drawToasts(layerCtx, now, w);
     if (map && gameState) {
-      drawMinimapOverlay(
-        layerCtx,
+      drawMinimapOverlay({
+        ctx: layerCtx,
         map,
-        gameState,
+        state: gameState,
         playerId,
-        shipTrails(),
+        shipTrails: shipTrails(),
         camera,
-        w,
-        h,
-        HEX_SIZE,
-      );
+        screenW: w,
+        screenH: h,
+        hexSize: HEX_SIZE,
+      });
     }
-  }
+  };
 
-  function drawBaseThreatZones(
-    layerCtx: CanvasRenderingContext2D,
-    state: GameState,
-    solarMap: SolarSystemMap,
-  ) {
-    if (animState()) return;
-    const zones = buildBaseThreatZoneViews(state, playerId, solarMap, HEX_SIZE);
-    for (const zone of zones) {
-      layerCtx.fillStyle = 'rgba(255, 80, 60, 0.08)';
-      layerCtx.strokeStyle = 'rgba(255, 80, 60, 0.2)';
-      layerCtx.lineWidth = 1;
-      layerCtx.beginPath();
-      layerCtx.arc(
-        zone.hexCenter.x,
-        zone.hexCenter.y,
-        zone.radius,
-        0,
-        Math.PI * 2,
-      );
-      layerCtx.fill();
-      layerCtx.stroke();
-    }
-  }
-
-  function drawCourseLayers(
-    layerCtx: CanvasRenderingContext2D,
-    state: GameState,
-    solarMap: SolarSystemMap,
-  ) {
-    if (animState()) return;
-    drawVelocityVectorLayer(layerCtx, state, playerId, HEX_SIZE);
-    drawAstrogationCoursePreviewLayer(
-      layerCtx,
-      state,
-      playerId,
-      planningState,
-      solarMap,
-      HEX_SIZE,
-      drawShipIconFn,
-    );
-  }
-
-  function drawScreenFlash(
-    layerCtx: CanvasRenderingContext2D,
-    now: number,
-    w: number,
-    h: number,
-  ) {
-    if (screenFlash && now < screenFlash.startTime + screenFlash.duration) {
-      const p = (now - screenFlash.startTime) / screenFlash.duration;
-      const alpha = (1 - p) * 0.35;
-      layerCtx.fillStyle = screenFlash.color;
-      layerCtx.globalAlpha = alpha;
-      layerCtx.fillRect(0, 0, w, h);
-      layerCtx.globalAlpha = 1;
-    } else if (screenFlash) {
-      screenFlash = null;
-    }
-  }
-
-  function drawToasts(
-    layerCtx: CanvasRenderingContext2D,
-    now: number,
-    w: number,
-  ) {
-    if (combatResults && gameState) {
-      if (now > combatResults.showUntil) {
-        combatResults = null;
-      } else {
-        drawCombatResultsToastOverlay(
-          layerCtx,
-          combatResults.results,
-          gameState,
-          now,
-          w,
-          combatResults.showUntil,
-        );
-      }
-    }
-    if (movementEvents && gameState) {
-      if (now > movementEvents.showUntil) {
-        movementEvents = null;
-      } else {
-        drawMovementEventsToastOverlay(
-          layerCtx,
-          movementEvents.events,
-          gameState,
-          now,
-          w,
-          movementEvents.showUntil,
-        );
-      }
-    }
-  }
-
-  function loop(now: number) {
+  const loop = (now: number): void => {
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
     const cw = Math.round(canvas.clientWidth);
@@ -392,34 +392,34 @@ export const createRenderer = (
     renderFrame(now, cw, ch);
     movementAnimation.completeIfElapsed(now);
     requestAnimationFrame(loop);
-  }
+  };
 
   return {
     canvas,
     camera,
 
-    setMap(next: SolarSystemMap) {
+    setMap: (next: SolarSystemMap) => {
       map = next;
       invalidateStatic();
     },
 
-    setGameState(state: GameState) {
+    setGameState: (state: GameState) => {
       gameState = state;
     },
 
-    setPlayerId(id: number) {
+    setPlayerId: (id: number) => {
       playerId = id;
     },
 
-    clearTrails() {
+    clearTrails: () => {
       movementAnimation.clearTrails();
     },
 
-    animateMovements(
+    animateMovements: (
       movements: ShipMovement[],
       ordnanceMovements: OrdnanceMovement[],
       onComplete: () => void,
-    ) {
+    ) => {
       movementAnimation.start(movements, ordnanceMovements, onComplete);
       const allHexes = collectAnimatedHexes(movements, ordnanceMovements);
       if (map && allHexes.length > 0) {
@@ -434,10 +434,10 @@ export const createRenderer = (
       }
     },
 
-    showCombatResults(
+    showCombatResults: (
       results: CombatResult[],
       previousState?: GameState | null,
-    ) {
+    ) => {
       const now = performance.now();
       combatResults = { results, showUntil: now + 3000 };
       combatEffects.push(
@@ -452,7 +452,7 @@ export const createRenderer = (
       );
     },
 
-    showMovementEvents(events: MovementEvent[]) {
+    showMovementEvents: (events: MovementEvent[]) => {
       if (events.length === 0) return;
       const now = performance.now();
       movementEvents = { events, showUntil: now + 4000 };
@@ -473,7 +473,7 @@ export const createRenderer = (
       }
     },
 
-    showLandingEffect(hex: HexCoord) {
+    showLandingEffect: (hex: HexCoord) => {
       const p = hexToPixel(hex, HEX_SIZE);
       const now = performance.now();
       hexFlashes.push({
@@ -484,7 +484,7 @@ export const createRenderer = (
       });
     },
 
-    triggerGameOverEffect(won: boolean): number {
+    triggerGameOverEffect: (won: boolean): number => {
       const now = performance.now();
       const color = won ? '#4488ff' : '#ff4444';
       camera.shake(12, 1.5);
@@ -492,29 +492,27 @@ export const createRenderer = (
       return 1200;
     },
 
-    isAnimating(): boolean {
-      return movementAnimation.isAnimating();
-    },
+    isAnimating: (): boolean => movementAnimation.isAnimating(),
 
-    resetCamera() {
+    resetCamera: () => {
       camera.targetX = 0;
       camera.targetY = 0;
       camera.targetZoom = 0.3;
       camera.snapToTarget();
     },
 
-    centerOnHex(hex: HexCoord) {
+    centerOnHex: (hex: HexCoord) => {
       const p = hexToPixel(hex, HEX_SIZE);
       camera.targetX = p.x;
       camera.targetY = p.y;
     },
 
-    frameOnShips() {
+    frameOnShips: () => {
       if (!gameState) return;
       frameCameraOnPlayerShips(camera, gameState, playerId, HEX_SIZE);
     },
 
-    start() {
+    start: () => {
       resize();
       window.addEventListener('resize', resize);
       window.visualViewport?.addEventListener('resize', resize);
@@ -523,7 +521,7 @@ export const createRenderer = (
     },
 
     /** @internal Used by tests — full canvas paint for one frame. */
-    renderFrameForTests(now: number, width?: number, height?: number) {
+    renderFrameForTests: (now: number, width?: number, height?: number) => {
       renderFrame(now, width, height);
     },
   };

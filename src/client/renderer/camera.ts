@@ -41,17 +41,17 @@ type CameraPrivate = {
   shakeOffsetY: number;
 };
 
-function lerpTowardTargets(
+const lerpTowardTargets = (
   c: Pick<Camera, 'x' | 'y' | 'zoom' | 'targetX' | 'targetY' | 'targetZoom'>,
   dt: number,
-): void {
+): void => {
   const speed = Math.min(CAMERA_LERP_SPEED * dt, 1);
   c.x += (c.targetX - c.x) * speed;
   c.y += (c.targetY - c.y) * speed;
   c.zoom += (c.targetZoom - c.zoom) * speed;
-}
+};
 
-function stepShake(p: CameraPrivate, dt: number): void {
+const stepShake = (p: CameraPrivate, dt: number): void => {
   if (p.shakeIntensity > 0.5) {
     p.shakeIntensity *= 1 - p.shakeDecay * dt;
     const angle = Math.random() * Math.PI * 2;
@@ -62,19 +62,19 @@ function stepShake(p: CameraPrivate, dt: number): void {
   p.shakeIntensity = 0;
   p.shakeOffsetX = 0;
   p.shakeOffsetY = 0;
-}
+};
 
-function applyCameraTransform(
+const applyCameraTransform = (
   ctx: CanvasRenderingContext2D,
   p: CameraPrivate,
   c: Pick<Camera, 'x' | 'y' | 'zoom'>,
-): void {
+): void => {
   ctx.translate(p.canvasW / 2 + p.shakeOffsetX, p.canvasH / 2 + p.shakeOffsetY);
   ctx.scale(c.zoom, c.zoom);
   ctx.translate(-c.x, -c.y);
-}
+};
 
-export function createCamera(): Camera {
+export const createCamera = (): Camera => {
   const p: CameraPrivate = {
     canvasW: 0,
     canvasH: 0,
@@ -94,37 +94,39 @@ export function createCamera(): Camera {
     minZoom: MIN_ZOOM,
     maxZoom: MAX_ZOOM,
 
-    update(dt: number, canvasW: number, canvasH: number) {
+    update: (dt: number, canvasW: number, canvasH: number): void => {
       p.canvasW = canvasW;
       p.canvasH = canvasH;
       lerpTowardTargets(c, dt);
       stepShake(p, dt);
     },
 
-    applyTransform(ctx: CanvasRenderingContext2D) {
+    applyTransform: (ctx: CanvasRenderingContext2D): void => {
       applyCameraTransform(ctx, p, c);
     },
 
-    shake(intensity: number, decay = 4) {
+    shake: (intensity: number, decay = 4): void => {
       p.shakeIntensity = intensity;
       p.shakeDecay = decay;
     },
 
-    screenToWorld(sx: number, sy: number): PixelCoord {
-      return {
-        x: (sx - p.canvasW / 2) / c.zoom + c.x,
-        y: (sy - p.canvasH / 2) / c.zoom + c.y,
-      };
-    },
+    screenToWorld: (sx: number, sy: number): PixelCoord => ({
+      x: (sx - p.canvasW / 2) / c.zoom + c.x,
+      y: (sy - p.canvasH / 2) / c.zoom + c.y,
+    }),
 
-    worldToScreen(wx: number, wy: number): PixelCoord {
-      return {
-        x: (wx - c.x) * c.zoom + p.canvasW / 2,
-        y: (wy - c.y) * c.zoom + p.canvasH / 2,
-      };
-    },
+    worldToScreen: (wx: number, wy: number): PixelCoord => ({
+      x: (wx - c.x) * c.zoom + p.canvasW / 2,
+      y: (wy - c.y) * c.zoom + p.canvasH / 2,
+    }),
 
-    frameBounds(minX, maxX, minY, maxY, padding = 80) {
+    frameBounds: (
+      minX: number,
+      maxX: number,
+      minY: number,
+      maxY: number,
+      padding = 80,
+    ): void => {
       c.targetX = (minX + maxX) / 2;
       c.targetY = (minY + maxY) / 2;
       const w = maxX - minX + padding * 2;
@@ -134,7 +136,7 @@ export function createCamera(): Camera {
       c.targetZoom = Math.min(zx, zy, c.maxZoom);
     },
 
-    zoomAt(sx: number, sy: number, factor: number) {
+    zoomAt: (sx: number, sy: number, factor: number): void => {
       const newZoom = clamp(c.targetZoom * factor, c.minZoom, c.maxZoom);
       const worldX = (sx - p.canvasW / 2) / c.targetZoom + c.targetX;
       const worldY = (sy - p.canvasH / 2) / c.targetZoom + c.targetY;
@@ -143,18 +145,18 @@ export function createCamera(): Camera {
       c.targetY = worldY - (sy - p.canvasH / 2) / newZoom;
     },
 
-    pan(dx: number, dy: number) {
+    pan: (dx: number, dy: number): void => {
       c.targetX -= dx / c.zoom;
       c.targetY -= dy / c.zoom;
     },
 
-    snapToTarget() {
+    snapToTarget: (): void => {
       c.x = c.targetX;
       c.y = c.targetY;
       c.zoom = c.targetZoom;
     },
 
-    isVisible(wx: number, wy: number, margin = 50): boolean {
+    isVisible: (wx: number, wy: number, margin = 50): boolean => {
       const halfW = p.canvasW / 2 / c.zoom + margin;
       const halfH = p.canvasH / 2 / c.zoom + margin;
       return Math.abs(wx - c.x) < halfW && Math.abs(wy - c.y) < halfH;
@@ -162,4 +164,4 @@ export function createCamera(): Camera {
   };
 
   return c;
-}
+};

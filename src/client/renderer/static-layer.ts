@@ -13,16 +13,16 @@ export interface StaticSceneLayer {
   key: string | null;
 }
 
-export function invalidateStaticSceneLayer(
+export const invalidateStaticSceneLayer = (
   layer: StaticSceneLayer | null,
-): void {
+): void => {
   if (layer) layer.key = null;
-}
+};
 
-export function createStaticSceneLayer(
+export const createStaticSceneLayer = (
   width: number,
   height: number,
-): StaticSceneLayer | null {
+): StaticSceneLayer | null => {
   if (typeof OffscreenCanvas !== 'undefined') {
     const canvas = new OffscreenCanvas(width, height);
     const ctx = canvas.getContext('2d');
@@ -40,16 +40,16 @@ export function createStaticSceneLayer(
     }
   }
   return null;
-}
+};
 
-export function computeStaticSceneLayerKey(input: {
+export const computeStaticSceneLayerKey = (input: {
   map: SolarSystemMap | null;
   camera: Camera;
   gameState: GameState | null;
   now: number;
   width: number;
   height: number;
-}): string | null {
+}): string | null => {
   if (!input.map) return null;
   const bodyAnimationBucket = Math.floor(input.now / 250);
   const destroyedAsteroids =
@@ -63,4 +63,4 @@ export function computeStaticSceneLayerKey(input: {
     bodyAnimationBucket,
     destroyedAsteroids,
   ].join(':');
-}
+};

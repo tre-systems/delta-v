@@ -4,17 +4,73 @@ import { createMinimapLayout } from '../game/minimap';
 import type { Camera } from './camera';
 import { buildMinimapSceneView } from './minimap';
 
-export function drawMinimapOverlay(
+const drawMinimapChrome = (
   ctx: CanvasRenderingContext2D,
-  map: SolarSystemMap,
-  state: GameState,
-  playerId: number,
-  shipTrails: Map<string, HexCoord[]>,
-  camera: Camera,
-  screenW: number,
-  screenH: number,
-  hexSize: number,
-): void {
+  mmX: number,
+  mmY: number,
+  mmW: number,
+  mmH: number,
+): void => {
+  ctx.fillStyle = 'rgba(10, 10, 26, 0.8)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(mmX, mmY, mmW, mmH, 4);
+  ctx.fill();
+  ctx.stroke();
+};
+
+const drawMinimapTrail = (
+  ctx: CanvasRenderingContext2D,
+  points: { x: number; y: number }[],
+  color: string,
+): void => {
+  if (points.length < 2) return;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.stroke();
+};
+
+const drawMinimapViewport = (
+  ctx: CanvasRenderingContext2D,
+  viewport: { x: number; y: number; width: number; height: number },
+): void => {
+  ctx.fillStyle = 'rgba(79, 195, 247, 0.06)';
+  ctx.fillRect(viewport.x, viewport.y, viewport.width, viewport.height);
+  ctx.strokeStyle = 'rgba(79, 195, 247, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(viewport.x, viewport.y, viewport.width, viewport.height);
+};
+
+export type DrawMinimapOverlayInput = {
+  ctx: CanvasRenderingContext2D;
+  map: SolarSystemMap;
+  state: GameState;
+  playerId: number;
+  shipTrails: Map<string, HexCoord[]>;
+  camera: Camera;
+  screenW: number;
+  screenH: number;
+  hexSize: number;
+};
+
+export const drawMinimapOverlay = (input: DrawMinimapOverlayInput): void => {
+  const {
+    ctx,
+    map,
+    state,
+    playerId,
+    shipTrails,
+    camera,
+    screenW,
+    screenH,
+    hexSize,
+  } = input;
   const hudTopOffset = parseFloat(
     getComputedStyle(document.documentElement).getPropertyValue(
       '--hud-top-offset',
@@ -78,47 +134,4 @@ export function drawMinimapOverlay(
     drawMinimapViewport(ctx, scene.viewport);
   }
   ctx.restore();
-}
-
-function drawMinimapChrome(
-  ctx: CanvasRenderingContext2D,
-  mmX: number,
-  mmY: number,
-  mmW: number,
-  mmH: number,
-): void {
-  ctx.fillStyle = 'rgba(10, 10, 26, 0.8)';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.roundRect(mmX, mmY, mmW, mmH, 4);
-  ctx.fill();
-  ctx.stroke();
-}
-
-function drawMinimapTrail(
-  ctx: CanvasRenderingContext2D,
-  points: { x: number; y: number }[],
-  color: string,
-): void {
-  if (points.length < 2) return;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(points[i].x, points[i].y);
-  }
-  ctx.stroke();
-}
-
-function drawMinimapViewport(
-  ctx: CanvasRenderingContext2D,
-  viewport: { x: number; y: number; width: number; height: number },
-): void {
-  ctx.fillStyle = 'rgba(79, 195, 247, 0.06)';
-  ctx.fillRect(viewport.x, viewport.y, viewport.width, viewport.height);
-  ctx.strokeStyle = 'rgba(79, 195, 247, 0.5)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(viewport.x, viewport.y, viewport.width, viewport.height);
-}
+};
