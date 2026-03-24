@@ -316,6 +316,9 @@ the shared engine.
 
 **Mock patterns for Durable Objects:**
 
+- Focused `game-do-*.test.ts` modules (`alarm`, `fetch`, `turn-timeout`, `ws`)
+  stub `DurableObjectStorage` and handler deps with `vi.fn` instead of full DO
+  harnesses where a narrow branch is under test.
 - `MockStorage`: In-memory `Map<string, unknown>` with
   `get`, `put`, `delete`, `list` matching the DO storage
   API. Supports atomic multi-key `put(Record<string, T>)`.

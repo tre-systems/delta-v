@@ -1,4 +1,4 @@
-import { pixelToHex } from '../../shared/hex';
+import { hexKey, pixelToHex } from '../../shared/hex';
 import { computeCourse } from '../../shared/movement';
 import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import { isMuted } from '../audio';
@@ -12,7 +12,7 @@ import { getTooltipShip } from './hover';
 import { buildHudChromeInputFromViewModel } from './hud-chrome-input';
 import type { ClientState } from './phase';
 import type { PlanningState } from './planning';
-import { setSelectedShipId } from './planning-store';
+import { selectShip, setSelectedShipId } from './planning-store';
 import { buildShipTooltipHtml } from './tooltip';
 
 export interface HudControllerDeps {
@@ -80,7 +80,12 @@ export const createHudController = (deps: HudControllerDeps) => {
         hud.selectedId !== null &&
         planning.selectedShipId !== hud.selectedId
       ) {
-        setSelectedShipId(planning, hud.selectedId);
+        const ship = state.ships.find((s) => s.id === hud.selectedId);
+        if (ship) {
+          selectShip(planning, hud.selectedId, hexKey(ship.position));
+        } else {
+          setSelectedShipId(planning, hud.selectedId);
+        }
       }
 
       deps.ui.updateHUD(
