@@ -9,6 +9,7 @@ import type { UIManager } from '../ui/ui';
 import { deriveScenarioBriefingEntries } from './briefing';
 import { deriveHudViewModel } from './helpers';
 import { getTooltipShip } from './hover';
+import { buildHudChromeInputFromViewModel } from './hud-chrome-input';
 import type { ClientState } from './phase';
 import type { PlanningState } from './planning';
 import { setSelectedShipId } from './planning-store';
@@ -67,6 +68,7 @@ export const createHudController = (deps: HudControllerDeps) => {
   };
 
   return {
+    /** Derives HUD state and pushes it through `buildHudChromeInputFromViewModel` (single path to `ui.updateHUD`). */
     updateHUD: () => {
       const state = deps.getGameState();
 
@@ -81,33 +83,9 @@ export const createHudController = (deps: HudControllerDeps) => {
         setSelectedShipId(planning, hud.selectedId);
       }
 
-      deps.ui.updateHUD({
-        turn: hud.turn,
-        phase: hud.phase,
-        isMyTurn: hud.isMyTurn,
-        fuel: hud.fuel,
-        maxFuel: hud.maxFuel,
-        hasBurns: hud.hasBurns,
-        cargoFree: hud.cargoFree,
-        cargoMax: hud.cargoMax,
-        objective: hud.objective,
-        matchVelocityState: hud.matchVelocityState,
-        canEmplaceBase: hud.canEmplaceBase,
-        launchMineState: hud.launchMineState,
-        launchTorpedoState: hud.launchTorpedoState,
-        launchNukeState: hud.launchNukeState,
-        speed: hud.speed,
-        fuelToStop: hud.fuelToStop,
-        astrogationCtx: {
-          selectedShipLanded: hud.selectedShipLanded,
-          selectedShipDisabled: hud.selectedShipDisabled,
-          selectedShipHasBurn: hud.selectedShipHasBurn,
-          allShipsHaveBurns: hud.allShipsHaveBurns,
-          multipleShipsAlive: hud.multipleShipsAlive,
-          hasSelection: hud.selectedId !== null,
-          ...computeCrashWarning(),
-        },
-      });
+      deps.ui.updateHUD(
+        buildHudChromeInputFromViewModel(hud, computeCrashWarning()),
+      );
 
       const latencyMs = deps.getLatencyMs();
       deps.ui.updateLatency(

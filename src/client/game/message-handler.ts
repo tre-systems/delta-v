@@ -6,15 +6,9 @@ import { playPhaseChange } from '../audio';
 import { applyWelcomeSession, setLatencyMs } from './client-context-store';
 import { deriveClientMessagePlan } from './messages';
 import type { ClientState } from './phase';
+import type { ClientSessionMessageContext } from './session-model';
 export interface MessageHandlerDeps {
-  readonly ctx: {
-    state: ClientState;
-    playerId: number;
-    gameCode: string | null;
-    reconnectAttempts: number;
-    latencyMs: number;
-    gameState: GameState | null;
-  };
+  readonly ctx: ClientSessionMessageContext;
   setState: (state: ClientState) => void;
   applyGameState: (state: GameState) => void;
   transitionToPhase: () => void;

@@ -31,17 +31,20 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 ## 🌟 Features
 
 ### ☄️ Realistic Vector Physics Spaceflight
+
 - **Vector Movement Engine**: Your velocity persists between turns. Plan your burns carefully; there's no friction to stop you.
 - **Orbital Mechanics**: Planetary gravity deflects your course. Master "Weak" and "Full" gravity wells to execute slingshot maneuvers.
 - **Continuous Rendering vs Discrete Logic**: The visual rendering provides a smooth, continuous-space aesthetic, whilst all game logic acts on a strict, pure axial hex-coordinate system.
 
 ### ⚔️ Deep Tactical Combat
+
 - **Odds-Based Combat**: Gun combat utilizes a classic odds-based dice resolution system, influenced by relative velocity and range modifiers.
 - **Ordnance Management**: Equip and deploy mines, torpedoes, and devastating nukes.
 - **Damage & Repairs**: Complex damage tracking (disabled turns vs. cumulative elimination). Find safe harbor at planetary bases for repairs and resupply.
 
 ### 🎮 Multiple Game Modes
-- **8 Playable Scenarios**: Features *Bi-Planetary*, *Escape*, *Convoy*, *Duel*, *Blockade Runner*, *Fleet Action*, *Interplanetary War*, and *Grand Tour* race.
+
+- **8 Playable Scenarios**: Features _Bi-Planetary_, _Escape_, _Convoy_, _Duel_, _Blockade Runner_, _Fleet Action_, _Interplanetary War_, and _Grand Tour_ race.
 - **Local AI Opponent**: Test your skills offline against an AI component with configurable difficulty levels.
 - **Real-Time Multiplayer**: Built for fast, responsive WebSocket-based remote play.
 
@@ -88,6 +91,7 @@ For project conventions and refactoring guidance, see [**CODING_STANDARDS.md**](
 Get your thrusters firing locally in seconds:
 
 1. **Use the Project Node Version**
+
    ```bash
    nvm use
    ```
@@ -95,21 +99,26 @@ Get your thrusters firing locally in seconds:
    Delta-V is tested in CI with **Node 25.x**.
 
 2. **Install Dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Install Playwright's Chromium Browser**
+
    ```bash
    npx playwright install chromium
    ```
-   *Required for the browser smoke tests that now run in pre-commit and CI.*
+
+   _Required for the browser smoke tests that now run in pre-commit and CI._
 
 4. **Start the Local Development Server**
+
    ```bash
    npm run dev
    ```
-   *This starts the Wrangler server.*
+
+   _This starts the Wrangler server._
 
 5. **Play the Game**
    - Open your browser to `http://localhost:8787`
@@ -118,20 +127,20 @@ Get your thrusters firing locally in seconds:
 
 ### CLI Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start local development server (Wrangler/esbuild) |
-| `npm run build` | Build the client bundle |
-| `npm run typecheck` | Run TypeScript type checking across the project |
-| `npm test` | Run all unit tests via Vitest |
-| `npm run test:coverage` | Run tests with a coverage report under `coverage/` |
-| `npm run test:e2e` | Run Playwright browser smoke tests against a local Wrangler server |
-| `npm run test:e2e:headed` | Run the same Playwright suite with a visible browser |
-| `npm run test:watch` | Run Vitest in continuous watch mode |
-| `npm run verify` | Run the pre-release verification sweep: lint, typecheck, coverage, build, browser smoke, and AI simulations |
-| `npm run simulate -- [scenario] [iterations] [--ci]` | Run headless AI vs AI matches to test engine stability and scenario balance |
-| `npm run load:test -- --games 20 --concurrency 5` | Run the websocket load / chaos harness against a Wrangler or deployed server |
-| `npm run deploy` | Deploy straight to Cloudflare Workers |
+| Command                                              | Description                                                                                                 |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                                        | Start local development server (Wrangler/esbuild)                                                           |
+| `npm run build`                                      | Build the client bundle                                                                                     |
+| `npm run typecheck`                                  | Run TypeScript type checking across the project                                                             |
+| `npm test`                                           | Run all unit tests via Vitest                                                                               |
+| `npm run test:coverage`                              | Run tests with a coverage report under `coverage/`                                                          |
+| `npm run test:e2e`                                   | Run Playwright browser smoke tests against a local Wrangler server                                          |
+| `npm run test:e2e:headed`                            | Run the same Playwright suite with a visible browser                                                        |
+| `npm run test:watch`                                 | Run Vitest in continuous watch mode                                                                         |
+| `npm run verify`                                     | Run the pre-release verification sweep: lint, typecheck, coverage, build, browser smoke, and AI simulations |
+| `npm run simulate -- [scenario] [iterations] [--ci]` | Run headless AI vs AI matches to test engine stability and scenario balance                                 |
+| `npm run load:test -- --games 20 --concurrency 5`    | Run the websocket load / chaos harness against a Wrangler or deployed server                                |
+| `npm run deploy`                                     | Deploy straight to Cloudflare Workers                                                                       |
 
 Pass simulation arguments after npm's `--`, for example `npm run simulate -- all 25 --ci`.
 
@@ -160,9 +169,10 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 ## 🗺️ Roadmap
 
 ### Complete
+
 - [x] 8 playable scenarios with AI opponent (Easy/Normal/Hard)
 - [x] Server hardening (authoritative room creation, authenticated reconnects, runtime validation)
-- [x] Hidden information (server-side state filtering for *Escape*)
+- [x] Hidden information (server-side state filtering for _Escape_)
 - [x] Orbital bases, core logistics, reinforcements, fleet conversion
 - [x] PWA support (installable, offline single-player)
 - [x] Engine safety (clone-on-entry, server rollback, event-sourced recovery)
@@ -178,6 +188,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] Shared rule consolidation, bounded type imports, authoritative disconnect-forfeit
 
 ### Planned
+
 - [ ] **Passenger Rescue Mechanics**: Rescue-specific transfer and objective rules
 - [ ] **Scenario Expansion**: Lateral 7, Fleet Mutiny, Retribution
 - [ ] **Spectator Mode**: Read-only live battle viewing from public filtered projections
@@ -193,4 +204,5 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 ---
 
 ## 📄 License
+
 All rights reserved.
