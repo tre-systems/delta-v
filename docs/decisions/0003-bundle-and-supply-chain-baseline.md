@@ -20,5 +20,5 @@ Re-measure after large renderer or dependency changes; compare to this row.
 
 ## Consequences
 
-- Performance work should be **evidence-based** (see [BACKLOG.md](../BACKLOG.md) renderer baseline).
+- Performance work should be **evidence-based** (see [BACKLOG.md](../BACKLOG.md) priority **11**, renderer baseline).
 - CI uses **Node 25** (see `.github/workflows/ci.yml` and README).

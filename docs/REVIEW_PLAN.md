@@ -118,7 +118,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 **Deliverables**
 
-- Baseline numbers in ADR or ARCHITECTURE appendix; ties to BACKLOG **renderer performance baseline**.
+- Baseline numbers in ADR or ARCHITECTURE appendix; ties to [BACKLOG.md](./BACKLOG.md) priority **11** (renderer baseline).
 
 ---
 
@@ -154,7 +154,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 1. Sketch **single-version** assumption today (SPA + Workers deploy together).
 2. If you ever split deploys: additive fields, `unknown` message handling, min client version header or build hash.
-3. Align with `GameState.schemaVersion` playbook in [BACKLOG.md](./BACKLOG.md).
+3. Align with `GameState.schemaVersion` playbook in [BACKLOG.md](./BACKLOG.md) priority **9**.
 
 **Deliverables**
 
@@ -253,6 +253,6 @@ Initial documentation and tooling pass **2026-03-24**: configs fixed where safe;
 9. i18n — product decision.
 10. Privacy / compliance — legal calendar, can parallelize with 2–3.
 
-Open follow-up tasks from each review area are tracked in [BACKLOG.md](./BACKLOG.md) (especially **Reviews & compliance (human)**).
+Open follow-up tasks from each review area are tracked in [BACKLOG.md](./BACKLOG.md) (items marked **Human**, and the numbered list overall).
 
 A link to this file is in [README.md](../README.md) under the documentation guide.

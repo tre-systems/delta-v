@@ -12,7 +12,7 @@ The game ships as:
 
 1. **Deploy model:** Treat **client and server as a single version line** for normal releases (one deploy updates Worker + static assets together). Staggered “old client / new server” is **not** a supported product requirement today.
 2. **Breaking protocol changes:** Require a **coordinated deploy** and, if needed, force reload / cache-bust the SPA. Prefer **additive** JSON fields when possible.
-3. **State migrations:** When bumping `schemaVersion`, follow the playbook in [BACKLOG.md](../BACKLOG.md) (projector, replay, recovery tests).
+3. **State migrations:** When bumping `schemaVersion`, follow the playbook in [BACKLOG.md](../BACKLOG.md) priority **9** (projector, replay, recovery tests).
 
 ## Consequences
 

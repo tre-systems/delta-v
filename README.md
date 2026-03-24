@@ -25,7 +25,7 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 - [**MANUAL_TEST_PLAN.md**](./docs/MANUAL_TEST_PLAN.md): comprehensive manual test plan covering all scenarios, mechanics, and edge cases
 - [**SIMULATION_TESTING.md**](./docs/SIMULATION_TESTING.md): headless AI-vs-AI coverage plus the websocket load / chaos harness
 - [**SECURITY.md**](./docs/SECURITY.md): competitive integrity, abuse and cost considerations, rate limits, and deployment hardening
-- [**BACKLOG.md**](./docs/BACKLOG.md): remaining work — gameplay, security, platform, and **human** review tasks (a11y audit, privacy/legal, etc.)
+- [**BACKLOG.md**](./docs/BACKLOG.md): remaining work in **one global priority order** (cost/abuse → compliance → gameplay → ops); **Human** items need QA/counsel/ops
 - [**REVIEW_PLAN.md**](./docs/REVIEW_PLAN.md): sequenced checklist for cross-cutting reviews (CI, observability, data retention, a11y, etc.)
 - [**CONTRIBUTING.md**](./docs/CONTRIBUTING.md): pre-commit behavior, coverage, Playwright ports
 - [**OBSERVABILITY.md**](./docs/OBSERVABILITY.md): logs, D1 events, sample queries
