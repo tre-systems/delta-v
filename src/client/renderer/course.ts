@@ -72,6 +72,10 @@ export interface DriftSegment {
   alpha: number;
 }
 
+export interface CourseCrashMarkerView {
+  position: PixelCoord;
+}
+
 export interface CoursePreviewView {
   shipId: string;
   linePoints: PixelCoord[];
@@ -80,6 +84,7 @@ export interface CoursePreviewView {
   lineDash: number[];
   gravityArrows: CourseArrowView[];
   ghostShip: GhostShipView | null;
+  crashMarker: CourseCrashMarkerView | null;
   burnMarkers: CourseMarkerView[];
   overloadMarkers: CourseMarkerView[];
   weakGravityMarkers: WeakGravityMarkerView[];
@@ -380,6 +385,11 @@ export const buildAstrogationCoursePreviewViews = (
             shipType: ship.type,
             alpha: 0.4,
           },
+
+      crashMarker:
+        course.crashed && course.crashHex
+          ? { position: hexToPixel(course.crashHex, hexSize) }
+          : null,
 
       burnMarkers: isSelected
         ? buildBurnMarkers(

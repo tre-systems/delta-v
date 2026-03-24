@@ -370,6 +370,7 @@ export const createRenderer = (
         screenW: w,
         screenH: h,
         hexSize: HEX_SIZE,
+        selectedShipId: planningState.selectedShipId,
       });
     }
   };

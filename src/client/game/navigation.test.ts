@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import { must } from '../../shared/assert';
+import { buildSolarSystemMap } from '../../shared/map-data';
 import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
 import {
   getNearestEnemyPosition,
   getNextSelectedShip,
+  getObjectiveBearingTargetHex,
   getOwnFleetFocusPosition,
 } from './navigation';
 
@@ -121,5 +124,20 @@ describe('game client navigation helpers', () => {
     expect(getOwnFleetFocusPosition(state, 0, 'b')).toEqual({ q: 1, r: 2 });
 
     expect(getOwnFleetFocusPosition(state, 0, null)).toEqual({ q: 3, r: 0 });
+  });
+
+  it('targets the landing body center for target-body objectives', () => {
+    const map = buildSolarSystemMap();
+    const mars = must(
+      map.bodies.find((b) => b.name === 'Mars'),
+      'test map has Mars',
+    );
+
+    const state = createState([createShip({ id: 'me', owner: 0 })]);
+    state.players[0].targetBody = 'Mars';
+
+    expect(
+      getObjectiveBearingTargetHex(state, 0, map, { position: { q: 0, r: 0 } }),
+    ).toEqual(mars.center);
   });
 });

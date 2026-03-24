@@ -26,17 +26,15 @@ If the product stays **private friend matches only**, treat the early security i
 
 **Owner:** you + counsel.
 
-### 3. Direction-to-objective indicator on the HUD
+### 3. Direction-to-objective indicator on the HUD — **shipped**
 
-In navigation-heavy scenarios (Grand Tour, Blockade Runner), new players have no way to know which direction their target body is relative to their ship. An arrow, compass, or minimap highlight pointing toward the objective body would prevent players from flying in the wrong direction entirely.
+**Done:** Gold minimap arrow from the **selected** ship toward the current objective (Grand Tour next checkpoint / return home, escape edge hint, fugitive transport when inspection rules apply, `targetBody` center, else nearest **detected** enemy). Logic: `getObjectiveBearingTargetHex` in `src/client/game/navigation.ts`; draw: `src/client/renderer/minimap.ts`, `src/client/renderer/minimap-draw.ts` (renderer passes `planningState.selectedShipId`).
 
-**Files:** `src/client/renderer/minimap.ts`, `src/client/ui/hud.ts`, `src/client/game/navigation.ts`
+**Remaining (optional):** Extra HUD compass near the objective line in `src/client/ui/hud.ts` if you want the cue off the minimap.
 
-### 4. Crash warning on course preview
+### 4. Crash warning on course preview — **shipped**
 
-When a ship's projected course passes through a celestial body, the red dashed line shows the path but nothing flags it as lethal. A skull icon, red X, or highlight at the crash hex would save new players from accidental crashes (especially near gravity wells).
-
-**Files:** `src/client/renderer/course.ts`, `src/client/renderer/course-draw.ts`
+**Done:** `crashHex` on `CourseResult` (`src/shared/movement.ts`, `src/shared/types/domain.ts`); course preview draws a red disk + **X** at the impact hex (`src/client/renderer/course.ts`, `src/client/renderer/course-draw.ts`).
 
 ### 5. Passenger rescue mechanics — **partially shipped**
 
