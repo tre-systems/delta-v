@@ -5,7 +5,7 @@ import type {
   ShipMovement,
   SolarSystemMap,
 } from '../../shared/types/domain';
-import { collectAnimatedHexes } from './animation-manager';
+import { collectAnimatedHexes } from './animation';
 import type { Camera } from './camera';
 
 const MIN_FRAME_ZOOM = 0.6;

@@ -15,7 +15,7 @@ import {
   type AnimationState,
   collectAnimatedHexes,
   createMovementAnimationManager,
-} from './animation-manager';
+} from './animation';
 import { createCamera } from './camera';
 import { buildCombatEffectsForResults } from './combat-fx';
 import { drawAstrogationCoursePreviewLayer } from './course-draw';

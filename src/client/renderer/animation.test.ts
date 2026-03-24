@@ -6,7 +6,7 @@ import {
   collectAnimatedHexes,
   createMovementAnimationManager,
   getAnimationProgress,
-} from './animation-manager';
+} from './animation';
 
 const shipMovement: ShipMovement = {
   shipId: 'ship-1',

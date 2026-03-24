@@ -23,6 +23,13 @@ import {
   resolveSeatAssignment,
 } from '../protocol';
 import {
+  createGameStateActionHandlers,
+  dispatchGameStateAction,
+  type EngineFailure,
+  type GameStateActionMessage,
+  runGameStateAction,
+} from './actions';
+import {
   allocateMatchIdentity,
   appendEnvelopedEvents,
   getEventStreamLength,
@@ -35,18 +42,6 @@ import {
   saveCheckpoint,
   saveMatchCreatedAt,
 } from './archive';
-import {
-  createGameStateActionHandlers,
-  dispatchGameStateAction,
-  type EngineFailure,
-  type GameStateActionMessage,
-  runGameStateAction,
-} from './game-do-actions';
-import {
-  applySocketRateLimit,
-  handleAuxMessage,
-  parseClientSocketMessage,
-} from './game-do-socket';
 import { archiveCompletedMatch } from './match-archive';
 import {
   resolveStateBearingMessage,
@@ -61,6 +56,11 @@ import {
   resolveAlarmAction,
   shouldClearDisconnectMarker,
 } from './session';
+import {
+  applySocketRateLimit,
+  handleAuxMessage,
+  parseClientSocketMessage,
+} from './socket';
 import { resolveTurnTimeoutOutcome } from './turns';
 export interface Env {
   ASSETS: Fetcher;

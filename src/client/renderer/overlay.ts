@@ -13,7 +13,7 @@ import {
 } from '../../shared/hex';
 import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import type { PlanningState } from '../game/planning';
-import type { AnimationState } from './animation-manager';
+import type { AnimationState } from './animation';
 import {
   getCombatOverlayHighlights,
   getCombatPreview,

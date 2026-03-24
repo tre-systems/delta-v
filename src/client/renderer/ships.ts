@@ -1,6 +1,6 @@
 import { hexKey, hexToPixel, type PixelCoord } from '../../shared/hex';
 import type { GameState, SolarSystemMap } from '../../shared/types/domain';
-import type { AnimationState } from './animation-manager';
+import type { AnimationState } from './animation';
 import {
   drawShipIcon as drawShipIconFn,
   drawThrustTrail as drawThrustTrailFn,
