@@ -3,6 +3,7 @@ import type { PlanningState } from '../game/planning';
 import {
   buildAstrogationCoursePreviewViews,
   type CourseArrowView,
+  type CourseCrashMarkerView,
   type CoursePreviewView,
 } from './course';
 import type { DrawShipIconInput } from './draw';
@@ -67,6 +68,30 @@ const drawPendingGravityArrow = (
   ctx.setLineDash([]);
 };
 
+const drawCourseCrashMarker = (
+  ctx: CanvasRenderingContext2D,
+  marker: CourseCrashMarkerView,
+): void => {
+  const { x, y } = marker.position;
+  const radius = 11;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 68, 68, 0.35)';
+  ctx.strokeStyle = '#ff3333';
+  ctx.lineWidth = 2.25;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  const arm = 6;
+  ctx.beginPath();
+  ctx.moveTo(x - arm, y - arm);
+  ctx.lineTo(x + arm, y + arm);
+  ctx.moveTo(x + arm, y - arm);
+  ctx.lineTo(x - arm, y + arm);
+  ctx.stroke();
+  ctx.restore();
+};
+
 const drawPreviewPolyline = (
   ctx: CanvasRenderingContext2D,
   preview: CoursePreviewView,
@@ -97,6 +122,9 @@ const drawSingleCoursePreview = (
   }
   for (const seg of preview.driftSegments) {
     drawDriftSegment(ctx, seg);
+  }
+  if (preview.crashMarker) {
+    drawCourseCrashMarker(ctx, preview.crashMarker);
   }
   if (preview.ghostShip) {
     const g = preview.ghostShip;

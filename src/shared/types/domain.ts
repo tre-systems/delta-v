@@ -130,6 +130,8 @@ export interface CourseResult {
   enteredGravityEffects: GravityEffect[];
   crashed: boolean;
   crashBody: string | null;
+  /** Populated when `crashed` is true — the path hex where the impact occurs. */
+  crashHex: HexCoord | null;
   landedAt: string | null;
 }
 

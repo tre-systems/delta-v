@@ -176,6 +176,7 @@ describe('renderer minimap helpers', () => {
       1200,
       800,
       28,
+      null,
     );
 
     expect(scene.bodies).toHaveLength(2);
@@ -203,6 +204,32 @@ describe('renderer minimap helpers', () => {
     expect(scene.viewport?.height).toBeGreaterThan(2);
   });
 
+  it('adds objective bearing from the selected ship toward the target body', () => {
+    const map = createMap();
+    const state = createState();
+    state.ships[0].position = { q: 6, r: -2 };
+
+    const layout = createMinimapLayout(map.bounds, 1200, 800, 28);
+
+    const scene = buildMinimapSceneView(
+      map,
+      state,
+      0,
+      new Map(),
+      layout,
+      { x: 0, y: 0, zoom: 1.5 },
+      1200,
+      800,
+      28,
+      'friendly',
+    );
+
+    expect(scene.objectiveBearing).not.toBeNull();
+    expect(scene.objectiveBearing?.from.x).not.toBe(
+      scene.objectiveBearing?.to.x,
+    );
+  });
+
   it('returns no viewport when the clipped view would be too small', () => {
     const map = createMap();
     const state = createState();
@@ -218,8 +245,10 @@ describe('renderer minimap helpers', () => {
       1,
       1,
       28,
+      null,
     );
 
     expect(scene.viewport).toBeNull();
+    expect(scene.objectiveBearing).toBeNull();
   });
 });

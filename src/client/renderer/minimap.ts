@@ -7,6 +7,7 @@ import {
   type ScreenPoint,
   type ScreenRect,
 } from '../game/minimap';
+import { getObjectiveBearingTargetHex } from '../game/navigation';
 
 export interface MinimapCameraView {
   x: number;
@@ -26,12 +27,18 @@ export interface MinimapTrailView {
   color: string;
 }
 
+export interface MinimapObjectiveBearingView {
+  from: ScreenPoint;
+  to: ScreenPoint;
+}
+
 export interface MinimapSceneView {
   bodies: MinimapDotView[];
   shipTrails: MinimapTrailView[];
   ships: MinimapDotView[];
   ordnance: MinimapDotView[];
   viewport: ScreenRect | null;
+  objectiveBearing: MinimapObjectiveBearingView | null;
 }
 
 const projectHex = (
@@ -163,7 +170,28 @@ export const buildMinimapSceneView = (
   screenWidth: number,
   screenHeight: number,
   hexSize: number,
+  selectedShipId: string | null,
 ): MinimapSceneView => {
+  const selectedShip =
+    selectedShipId === null
+      ? undefined
+      : state.ships.find(
+          (ship) =>
+            ship.id === selectedShipId && ship.lifecycle !== 'destroyed',
+        );
+
+  const targetHex =
+    selectedShip &&
+    getObjectiveBearingTargetHex(state, playerId, map, selectedShip);
+
+  const objectiveBearing =
+    selectedShip && targetHex
+      ? {
+          from: projectHex(layout, selectedShip.position, hexSize),
+          to: projectHex(layout, targetHex, hexSize),
+        }
+      : null;
+
   return {
     bodies: buildBodyDots(map, layout, hexSize),
     shipTrails: buildShipTrailViews(
@@ -176,5 +204,6 @@ export const buildMinimapSceneView = (
     ships: buildShipDots(state, playerId, layout, hexSize),
     ordnance: buildOrdnanceDots(state, layout, hexSize),
     viewport: buildViewportView(layout, camera, screenWidth, screenHeight),
+    objectiveBearing,
   };
 };

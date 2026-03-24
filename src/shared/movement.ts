@@ -173,9 +173,14 @@ const checkCrash = (
   map: SolarSystemMap,
   landedAt: string | null,
   skipBody?: string,
-): { crashed: boolean; crashBody: string | null } => {
+): {
+  crashed: boolean;
+  crashBody: string | null;
+  crashHex: HexCoord | null;
+} => {
   for (let i = 1; i < path.length; i++) {
-    const hex = map.hexes.get(hexKey(path[i]));
+    const coord = path[i];
+    const hex = map.hexes.get(hexKey(coord));
 
     if (hex?.body) {
       if (i < path.length - 1) {
@@ -186,6 +191,7 @@ const checkCrash = (
         return {
           crashed: true,
           crashBody: hex.body.name,
+          crashHex: coord,
         };
       }
 
@@ -193,12 +199,13 @@ const checkCrash = (
         return {
           crashed: true,
           crashBody: hex.body.name,
+          crashHex: coord,
         };
       }
     }
   }
 
-  return { crashed: false, crashBody: null };
+  return { crashed: false, crashBody: null, crashHex: null };
 };
 
 // Compute the course for a ship given a burn direction.
@@ -247,6 +254,7 @@ const computeTakeoffCourse = ({
       enteredGravityEffects: [],
       crashed: false,
       crashBody: null,
+      crashHex: null,
       landedAt: null,
     };
   }
@@ -320,7 +328,7 @@ const computeTakeoffCourse = ({
     map,
     destroyedBases,
   );
-  const { crashed, crashBody } = checkCrash(
+  const { crashed, crashBody, crashHex } = checkCrash(
     finalPath,
     map,
     landedAt,
@@ -336,6 +344,7 @@ const computeTakeoffCourse = ({
     enteredGravityEffects,
     crashed,
     crashBody,
+    crashHex,
     landedAt,
   };
 };
@@ -387,7 +396,7 @@ const computeNormalCourse = ({
     map,
     destroyedBases,
   );
-  const { crashed, crashBody } = checkCrash(finalPath, map, landedAt);
+  const { crashed, crashBody, crashHex } = checkCrash(finalPath, map, landedAt);
 
   return {
     destination,
@@ -398,6 +407,7 @@ const computeNormalCourse = ({
     enteredGravityEffects,
     crashed,
     crashBody,
+    crashHex,
     landedAt,
   };
 };

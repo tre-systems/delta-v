@@ -388,6 +388,8 @@ describe('computeCourse - crash detection', () => {
     const course = computeCourse(ship, null, map);
     expect(course.crashed).toBe(true);
     expect(course.crashBody).toBe('Sol');
+    const crashHex = must(course.crashHex, 'crashed course has crashHex');
+    expect(course.path.some((h) => hexKey(h) === hexKey(crashHex))).toBe(true);
   });
   it('ship passing through planet body crashes', () => {
     const ship = makeShip({
