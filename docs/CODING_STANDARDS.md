@@ -742,7 +742,16 @@ Biome enforces the following as errors (not just warnings):
 | `useFlatMap` | `.flatMap()` instead of `.map().flat()` |
 | `noUnusedImports` | Clean imports |
 
-Additional rules at warning level: `noNonNullAssertion`, `noExplicitAny`, `noAccumulatingSpread`, `noUnusedVariables`.
+The repository currently treats core lint rules as strict errors for active
+project code. The exceptions are explicitly configured in `biome.json` (for
+example the server override for Cloudflare globals) and should be documented
+there rather than assumed in prose.
+
+Type checking is also strict and split intentionally:
+- `tsconfig.json` checks application code under `src/`.
+- `tsconfig.tools.json` checks tooling and test harness code (`scripts/`,
+  `e2e/`, and root `*.ts` config files) with Node types enabled.
+- CI/verification should run `npm run typecheck:all` to keep both scopes green.
 
 The server directory (`src/server/`) has `noUndeclaredVariables` disabled because Cloudflare Workers globals (like `WebSocketPair`) are not recognized by biome.
 
