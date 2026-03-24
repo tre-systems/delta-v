@@ -54,12 +54,13 @@ client/          → State machine + Canvas renderer + DOM UI
 - **Side-effect-free engine.** The shared engine has no I/O: no DOM, no network, no storage. The DO wraps it with persistence and WebSocket plumbing. This makes everything testable and portable. All engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. See [Engine Mutation Model](#engine-mutation-model) for details.
 - **Transport abstraction.** `GameTransport` decouples the client from WebSocket vs local (AI) play. The client doesn't know or care where state comes from.
 - **Functional style throughout.** Pure derivation functions (`deriveHudViewModel`, `deriveKeyboardAction`, `deriveBurnChangePlan`), mandatory injectable RNG, `cond()` for branching.
-- **Narrow class usage.** Pure rules and most
-  coordination helpers stay function/factory-based.
-  Classes are reserved for platform shells or long-lived
-  mutable boundaries such as `GameDO`, `GameClient`, and
-  `InputHandler`. Canvas orchestration uses `createRenderer()`
-  and `createCamera()` factories rather than class shells.
+- **Narrow class usage.** Pure rules and coordination
+  helpers stay function/factory-based. The only production
+  `class` is `GameDO` (`extends DurableObject`). The client
+  bootstrap uses `createGameClient()`, `createInputHandler()`,
+  and `createUIManager()`; the load harness uses
+  `createBotClient()`. Canvas orchestration uses
+  `createRenderer()` and `createCamera()` factories.
 - **Pure planner + narrow applier flows.** Client screen changes, phase entry, message handling, and game-state application route through pure planners plus a small number of side-effect owners instead of scattering equivalent writes across many call sites.
 - **Scenario-driven.** `ScenarioRules` controls behaviour: ordnance types, base sharing, combat enabled, logistics, checkpoints, escape edges, reinforcements, and fleet conversion. New scenarios can vary gameplay without engine changes.
 - **Shared rule reuse across layers.** Client ordnance entry, HUD button visibility, and engine validation now all derive from the same shared ordnance-rule helpers, so restricted scenarios do not drift between UI and server authority.
@@ -81,13 +82,11 @@ These are the main architectural follow-ups still open:
 - **Profiling before renderer optimization.** Performance
   work such as layer caching should be driven by measured
   frame-time or device pain, not by intuition alone.
-- **Decompose large client shells before syntax rewrites.**
-  Smaller stateful DOM wrappers and telemetry helpers now
-  already use the `createXxx()` manager pattern. Keep
-  extracting focused helpers from `GameClient`,
-  `createRenderer()`, and `InputHandler` before any further
-  coordinator churn so refactors do not masquerade as
-  architectural progress.
+- **Keep the composition root thin.** `createGameClient()`
+  already composes factories; when adding features, extend
+  `game/*` modules and `*Deps` shapes rather than growing the
+  closure. Apply the same idea to `createRenderer()` and
+  `createInputHandler()` when their files grow.
 
 ---
 
@@ -244,14 +243,14 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 
 #### Key Design Patterns
 
-- **`main.ts`**: The client-side coordinator. Manages WebSocket connections, local-AI execution, and top-level composition. It now delegates command dispatch to `game/command-router.ts`, game-state apply/clear ownership to `game/game-state-store.ts`, planning mutations to `game/planning-store.ts`, runtime/session field updates to `game/client-context-store.ts`, client state-entry side effects to `game/state-transition.ts`, and session lifecycle flows to `game/session-controller.ts` instead of keeping those blocks inline.
-- **`main.ts` as composition root**: `GameClient` wires together transports, timers, renderer, UI managers, and extracted `*Deps` objects. The goal is to keep construction and ownership centralized there while leaving downstream helpers narrower and easier to test. If class usage is reduced further, the priority is to extract responsibilities first; replacing the shell with a closure is not valuable on its own.
+- **`main.ts`**: Exports `createGameClient()` — the client-side coordinator factory. Manages WebSocket connections, local-AI execution, and top-level composition. It delegates command dispatch to `game/command-router.ts`, game-state apply/clear ownership to `game/game-state-store.ts`, planning mutations to `game/planning-store.ts`, runtime/session field updates to `game/client-context-store.ts`, client state-entry side effects to `game/state-transition.ts`, and session lifecycle flows to `game/session-controller.ts` instead of keeping those blocks inline.
+- **`main.ts` as composition root**: `createGameClient()` wires together transports, timers, renderer, UI, and extracted `*Deps` objects. The exported `GameClient` type is `ReturnType<typeof createGameClient>`; the runtime bootstrap only exposes `renderer`, `showToast`, and `dispose` on `window.game`. Construction and ownership stay centralized there while downstream modules stay narrower and easier to test.
 - **`renderer/renderer.ts`**: A highly optimized Canvas 2D renderer factory. It separates logical hex coordinates from pixel coordinates, while extracted helpers such as `renderer/animation.ts` now own movement-animation lifecycle and trail state. `createRenderer()` remains the canvas shell and per-frame orchestrator, and now composites a cached static scene layer for stars, grid, gravity, asteroids, and bodies when the camera and viewport are unchanged.
 - **`input.ts`**: Manages user interaction (panning, zooming, clicking). It translates raw browser events into `InputEvent` objects, while `input-interaction.ts` owns pointer drag/pinch/minimap state and math. The input shell now owns its DOM listener lifecycle explicitly, including outside-canvas pointer release and touch-cancel cleanup. Pure `interpretInput()` then maps these to `GameCommand[]`, ensuring the input layer never directly mutates the application state.
 - **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), planning-state helpers, runtime/session helpers, phase derivation, game-state helpers, transition helpers, session helpers, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
 - **`renderer/`**: Canvas drawing layers (scene, entities, vectors, effects, overlays), camera, minimap, and animation management.
 - **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, layout metrics, and small reactive DOM view models.
-- **`reactive.ts` + `ui/ui.ts`**: The overlay layer stays framework-free, but stateful DOM views now use a small signals runtime for derived copy/visibility and explicit disposal. `UIManager` owns long-lived view instances and their teardown, and the smaller overlay/lobby/fleet-building/ship-list/HUD chrome/game log views plus tutorial and turn telemetry all now follow the same factory-manager style used in other client modules.
+- **`reactive.ts` + `ui/ui.ts`**: The overlay layer stays framework-free, but stateful DOM views use a small signals runtime for derived copy/visibility and explicit disposal. `createUIManager()` owns long-lived view instances and their teardown; helpers such as `createScreenActions()` and `createHudActions()` compose screen/HUD behaviors. Overlay, lobby, fleet-building, ship-list, HUD chrome, game log, tutorial, and turn telemetry follow the same factory style as other client modules.
 - **`audio.ts`**: Handles Web Audio API interactions.
 - **Visual Polish**: Employs a premium design system with glassmorphism tokens (backdrop-filters), tactile micro-animations (recoil, scaling glows), and pulsing orbital effects for high-end UX.
 
@@ -417,7 +416,7 @@ authoritative persisted truth.
 ## 4. Dependency Map
 
 ```
-main.ts (GameClient)
+main.ts (createGameClient — client bootstrap)
   ├→ renderer/renderer.ts (draw canvas, reads planningState by reference)
   ├→ input.ts (parse mouse/keyboard → InputEvent)
   ├→ ui/ui.ts (manage screens, accept UIEvent)
@@ -458,7 +457,7 @@ game-do.ts (Durable Object)
 | Boundary                 | Coupling      | Notes                                                                                                                    |
 | ------------------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Input → GameCommand      | **Minimal**   | Pure function, no state mutation                                                                                         |
-| GameClient → Transport   | **Minimal**   | Abstraction hides WebSocket vs Local                                                                                     |
+| Coordinator → Transport  | **Minimal**   | `GameTransport` hides WebSocket vs local; wired inside `createGameClient()`                                              |
 | Renderer → GameState     | **High**      | Reads full state for entity positions, damage, etc.                                                                      |
 | Renderer → PlanningState | **High**      | Reads by reference for UI overlays (previews, selections)                                                                |
 | UI → GameState           | **High**      | HUD needs ship stats, phase, fuel, objective                                                                             |

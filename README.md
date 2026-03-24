@@ -70,7 +70,7 @@ src/
 │   ├── index.ts           # HTTP entry point & WebSocket routing
 │   └── game-do/           # Durable Object: state, messages, sessions, turns, archive
 └── client/              # Browser Frontend
-    ├── main.ts            # Client-side state machine & networking
+    ├── main.ts            # createGameClient() — state machine & networking bootstrap
     ├── game/              # Game logic helpers (combat, burn, phase, ordnance, input)
     ├── renderer/          # Canvas rendering, camera, animations, minimap
     └── ui/                # DOM overlays (menu, HUD, game log, game over)
