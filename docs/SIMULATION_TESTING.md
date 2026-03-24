@@ -56,7 +56,7 @@ the existing AI helpers.
 
 1. **Lobby Creation:** The script makes an HTTP POST request to `/create` to get a 5-letter game code.
 2. **Seat-aware Connections:** The host joins with the creator token returned by `/create`; the guest joins tokenless, receives its `welcome.playerToken`, and reuses that token on reconnect.
-3. **Bot Logic:** On each state-bearing `S2C` message, the active player waits a short randomized think delay and sends a valid `C2S` action:
+3. **Bot Logic:** Each seat is a `createBotClient()` instance (closure state, `connect` / `disconnect`). On each state-bearing `S2C` message, the active player waits a short randomized think delay and sends a valid `C2S` action:
    - `fleetReady` purchases for fleet-building scenarios
    - `astrogation` orders from `aiAstrogation()`
    - `ordnance` launches from `aiOrdnance()` or `skipOrdnance`
