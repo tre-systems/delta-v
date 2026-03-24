@@ -176,3 +176,36 @@ export const getObjectiveBearingTargetHex = (
       : best,
   ).position;
 };
+
+const MIN_OBJECTIVE_BEARING_PIXEL_DIST = 10;
+
+/** Degrees for CSS `rotate()` on a right-pointing arrow (→); east = 0°, clockwise positive. */
+export const getObjectiveBearingScreenDegrees = (
+  state: GameState,
+  playerId: number,
+  map: SolarSystemMap,
+  hexSize: number,
+  fromShip: Pick<Ship, 'position'> | null,
+): number | null => {
+  const targetHex = getObjectiveBearingTargetHex(
+    state,
+    playerId,
+    map,
+    fromShip,
+  );
+
+  if (!fromShip || targetHex === null) {
+    return null;
+  }
+
+  const from = hexToPixel(fromShip.position, hexSize);
+  const to = hexToPixel(targetHex, hexSize);
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+
+  if (dx * dx + dy * dy < MIN_OBJECTIVE_BEARING_PIXEL_DIST ** 2) {
+    return null;
+  }
+
+  return (Math.atan2(dy, dx) * 180) / Math.PI;
+};

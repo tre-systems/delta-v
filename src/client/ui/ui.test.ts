@@ -47,7 +47,10 @@ const installFixture = () => {
     </div>
     <div id="turnInfo"></div>
     <div id="phaseInfo"></div>
-    <div id="objective"></div>
+    <span id="objectiveWrap" class="objective-wrap">
+      <span id="objectiveCompass" class="objective-compass"></span>
+      <span id="objective"></span>
+    </span>
     <div id="fuelGauge"></div>
     <div id="transferPanel"></div>
     <div id="latencyInfo"></div>
