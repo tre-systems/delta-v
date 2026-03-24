@@ -70,12 +70,12 @@ import {
   type TurnTelemetryTracker,
 } from './game/turn-telemetry';
 import { resolveUIEventPlan } from './game/ui-event-router';
-import { InputHandler } from './input';
+import { createInputHandler, type InputHandler } from './input';
 import { createRenderer, type Renderer } from './renderer/renderer';
 import { installGlobalErrorHandlers, track } from './telemetry';
 import { createTutorial, type Tutorial } from './tutorial';
 import type { UIEvent } from './ui/events';
-import { UIManager } from './ui/ui';
+import { createUIManager, type UIManager } from './ui/ui';
 import { installViewportSizing } from './viewport';
 
 interface ClientContext {
@@ -127,10 +127,12 @@ class GameClient {
   constructor() {
     this.canvas = byId<HTMLCanvasElement>('gameCanvas');
     this.renderer = createRenderer(this.canvas, this.ctx.planningState);
-    this.input = new InputHandler(this.canvas, this.renderer.camera, (event) =>
-      this.handleInput(event),
+    this.input = createInputHandler(
+      this.canvas,
+      this.renderer.camera,
+      (event) => this.handleInput(event),
     );
-    this.ui = new UIManager();
+    this.ui = createUIManager();
     this.tutorial = createTutorial();
     this.tutorial.onTelemetry = (evt) => track(evt);
     this.tooltipEl = byId('shipTooltip');
