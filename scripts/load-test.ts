@@ -238,257 +238,178 @@ const hasOwnedPendingAsteroidHazards = (
     return ship?.owner === playerId && ship.lifecycle !== 'destroyed';
   });
 
-class BotClient {
-  private ws: WebSocket | null = null;
-  private playerId = -1;
-  private playerToken: string | null;
-  private readonly map = map;
-  private readonly shouldInjectChaos: boolean;
-  private chaosInjected = false;
-  private reconnectPending = false;
-  private readonly actionKeys = new Set<string>();
-  private actionTimer: NodeJS.Timeout | null = null;
-  private settledResult = false;
+const createBotClient = (
+  label: string,
+  gameCode: string,
+  config: LoadTestConfig,
+  metrics: MatchMetrics,
+  initialPlayerToken: string | null,
+  onGameOver: (state: GameState) => void,
+) => {
+  let ws: WebSocket | null = null;
+  let playerId = -1;
+  let playerToken = initialPlayerToken;
+  const solarMap = map;
+  const shouldInjectChaos = Math.random() < config.disconnectRate;
+  let chaosInjected = false;
+  let reconnectPending = false;
+  const actionKeys = new Set<string>();
+  let actionTimer: NodeJS.Timeout | null = null;
+  let settledResult = false;
 
-  constructor(
-    private readonly label: string,
-    private readonly gameCode: string,
-    private readonly config: LoadTestConfig,
-    private readonly metrics: MatchMetrics,
-    playerToken: string | null,
-    private readonly onGameOver: (state: GameState) => void,
-  ) {
-    this.playerToken = playerToken;
-    this.shouldInjectChaos = Math.random() < config.disconnectRate;
-  }
-
-  async connect(): Promise<void> {
-    const tokenQuery = this.playerToken
-      ? `?playerToken=${encodeURIComponent(this.playerToken)}`
-      : '';
-    const wsUrl =
-      this.config.serverUrl.replace(/^http/, 'ws') +
-      `/ws/${this.gameCode}${tokenQuery}`;
-
-    await new Promise<void>((resolve, reject) => {
-      this.settledResult = false;
-
-      const ws = new WebSocket(wsUrl);
-
-      this.ws = ws;
-
-      ws.once('open', () => {
-        this.finishConnect(resolve);
-      });
-
-      ws.once('unexpected-response', (_request, response) => {
-        const reason = response.statusMessage || `HTTP ${response.statusCode}`;
-
-        this.finishConnectReject(reject, new Error(reason));
-      });
-
-      ws.once('error', (error) => {
-        this.metrics.socketErrors++;
-        this.finishConnectReject(reject, error as Error);
-      });
-
-      ws.on('message', (data) => {
-        void this.handleMessage(data);
-      });
-
-      ws.on('close', () => {
-        this.clearActionTimer();
-
-        if (this.reconnectPending) {
-          return;
-        }
-      });
-    });
-  }
-
-  disconnect(): void {
-    this.reconnectPending = false;
-    this.clearActionTimer();
-    this.ws?.close();
-  }
-
-  private finishConnect(resolve: () => void): void {
-    if (this.settledResult) return;
-    this.settledResult = true;
+  const finishConnect = (resolve: () => void) => {
+    if (settledResult) return;
+    settledResult = true;
     resolve();
-  }
+  };
 
-  private finishConnectReject(
+  const finishConnectReject = (
     reject: (error: Error) => void,
     error: Error,
-  ): void {
-    if (this.settledResult) return;
-    this.settledResult = true;
+  ) => {
+    if (settledResult) return;
+    settledResult = true;
     reject(error);
-  }
+  };
 
-  private clearActionTimer(): void {
-    if (this.actionTimer) {
-      clearTimeout(this.actionTimer);
-      this.actionTimer = null;
+  const clearActionTimer = () => {
+    if (actionTimer) {
+      clearTimeout(actionTimer);
+      actionTimer = null;
     }
-  }
+  };
 
-  private send(message: C2S): void {
-    if (this.ws?.readyState !== WebSocket.OPEN) return;
-    this.ws.send(JSON.stringify(message));
-    this.metrics.actionsSent++;
-  }
+  const send = (message: C2S) => {
+    if (ws?.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify(message));
+    metrics.actionsSent++;
+  };
 
-  private scheduleAction(state: GameState): void {
-    if (state.activePlayer !== this.playerId) return;
-
-    const actionKey = [
-      state.gameId,
-      state.turnNumber,
-      state.phase,
-      state.activePlayer,
-      this.playerId,
-    ].join(':');
-
-    if (this.actionKeys.has(actionKey)) {
-      return;
-    }
-    this.actionKeys.add(actionKey);
-
-    if (
-      this.shouldInjectChaos &&
-      !this.chaosInjected &&
-      this.playerToken &&
-      state.phase !== 'gameOver'
-    ) {
-      this.chaosInjected = true;
-      this.metrics.reconnectAttempts++;
-      this.reconnectPending = true;
-      this.clearActionTimer();
-      this.ws?.close();
-      setTimeout(() => {
-        void this.reconnect();
-      }, this.config.reconnectDelayMs);
-      return;
-    }
-
-    const thinkSpan = Math.max(
-      this.config.thinkMaxMs - this.config.thinkMinMs,
-      0,
-    );
-    const thinkDelay =
-      this.config.thinkMinMs + Math.floor(Math.random() * (thinkSpan + 1));
-
-    this.clearActionTimer();
-    this.actionTimer = setTimeout(() => {
-      this.actionTimer = null;
-      this.performAction(state);
-    }, thinkDelay);
-  }
-
-  private async reconnect(): Promise<void> {
-    try {
-      await this.connect();
-      this.metrics.reconnectSuccesses++;
-    } catch (error) {
-      this.metrics.socketErrors++;
-      console.error(`[${this.label}] reconnect failed`, error);
-    } finally {
-      this.reconnectPending = false;
-    }
-  }
-
-  private performAction(state: GameState): void {
+  const performAction = (state: GameState) => {
     switch (state.phase) {
       case 'fleetBuilding':
-        this.send({
+        send({
           type: 'fleetReady',
-          purchases: buildFleetPurchases(
-            state,
-            this.playerId,
-            this.config.difficulty,
-          ),
+          purchases: buildFleetPurchases(state, playerId, config.difficulty),
         });
         return;
       case 'astrogation': {
         const orders = aiAstrogation(
           state,
-          this.playerId,
-          this.map,
-          this.config.difficulty,
+          playerId,
+          solarMap,
+          config.difficulty,
         );
 
-        this.send({
+        send({
           type: 'astrogation',
           orders:
             orders.length > 0
               ? orders
-              : buildIdleAstrogationOrders(state, this.playerId),
+              : buildIdleAstrogationOrders(state, playerId),
         });
         return;
       }
       case 'ordnance': {
         const launches = aiOrdnance(
           state,
-          this.playerId,
-          this.map,
-          this.config.difficulty,
+          playerId,
+          solarMap,
+          config.difficulty,
         );
 
         if (launches.length > 0) {
-          this.send({ type: 'ordnance', launches });
+          send({ type: 'ordnance', launches });
         } else {
-          this.send({ type: 'skipOrdnance' });
+          send({ type: 'skipOrdnance' });
         }
         return;
       }
       case 'combat': {
-        if (hasOwnedPendingAsteroidHazards(state, this.playerId)) {
-          this.send({ type: 'beginCombat' });
+        if (hasOwnedPendingAsteroidHazards(state, playerId)) {
+          send({ type: 'beginCombat' });
           return;
         }
 
-        const attacks = aiCombat(
-          state,
-          this.playerId,
-          this.map,
-          this.config.difficulty,
-        );
+        const attacks = aiCombat(state, playerId, solarMap, config.difficulty);
 
         if (attacks.length > 0) {
-          this.send({ type: 'combat', attacks });
+          send({ type: 'combat', attacks });
         } else {
-          this.send({ type: 'skipCombat' });
+          send({ type: 'skipCombat' });
         }
         return;
       }
       case 'logistics':
-        this.send({ type: 'skipLogistics' });
+        send({ type: 'skipLogistics' });
         return;
       case 'gameOver':
-        this.onGameOver(state);
+        onGameOver(state);
         return;
       default:
         return;
     }
-  }
+  };
 
-  private async handleMessage(raw: WebSocket.RawData): Promise<void> {
+  const scheduleAction = (state: GameState) => {
+    if (state.activePlayer !== playerId) return;
+
+    const actionKey = [
+      state.gameId,
+      state.turnNumber,
+      state.phase,
+      state.activePlayer,
+      playerId,
+    ].join(':');
+
+    if (actionKeys.has(actionKey)) {
+      return;
+    }
+    actionKeys.add(actionKey);
+
+    if (
+      shouldInjectChaos &&
+      !chaosInjected &&
+      playerToken &&
+      state.phase !== 'gameOver'
+    ) {
+      chaosInjected = true;
+      metrics.reconnectAttempts++;
+      reconnectPending = true;
+      clearActionTimer();
+      ws?.close();
+      setTimeout(() => {
+        void reconnect();
+      }, config.reconnectDelayMs);
+      return;
+    }
+
+    const thinkSpan = Math.max(config.thinkMaxMs - config.thinkMinMs, 0);
+    const thinkDelay =
+      config.thinkMinMs + Math.floor(Math.random() * (thinkSpan + 1));
+
+    clearActionTimer();
+    actionTimer = setTimeout(() => {
+      actionTimer = null;
+      performAction(state);
+    }, thinkDelay);
+  };
+
+  const handleMessage = async (raw: WebSocket.RawData): Promise<void> => {
     let message: S2C;
 
     try {
       message = JSON.parse(raw.toString()) as S2C;
     } catch (error) {
-      this.metrics.socketErrors++;
-      console.error(`[${this.label}] invalid message payload`, error);
+      metrics.socketErrors++;
+      console.error(`[${label}] invalid message payload`, error);
       return;
     }
 
     switch (message.type) {
       case 'welcome':
-        this.playerId = message.playerId;
-        this.playerToken = message.playerToken;
+        playerId = message.playerId;
+        playerToken = message.playerToken;
         return;
       case 'matchFound':
         return;
@@ -496,29 +417,91 @@ class BotClient {
       case 'movementResult':
       case 'combatResult':
       case 'stateUpdate':
-        this.metrics.turns = Math.max(
-          this.metrics.turns,
-          message.state.turnNumber,
-        );
-        this.scheduleAction(message.state);
+        metrics.turns = Math.max(metrics.turns, message.state.turnNumber);
+        scheduleAction(message.state);
 
         if (message.state.phase === 'gameOver') {
-          this.onGameOver(message.state);
+          onGameOver(message.state);
         }
         return;
       case 'gameOver':
         return;
       case 'error':
-        this.metrics.serverErrors++;
-        console.error(`[${this.label}] server error: ${message.message}`);
+        metrics.serverErrors++;
+        console.error(`[${label}] server error: ${message.message}`);
         return;
       case 'pong':
       case 'rematchPending':
       case 'chat':
         return;
     }
-  }
-}
+  };
+
+  const connect = async (): Promise<void> => {
+    const tokenQuery = playerToken
+      ? `?playerToken=${encodeURIComponent(playerToken)}`
+      : '';
+    const wsUrl = `${config.serverUrl.replace(/^http/, 'ws')}/ws/${gameCode}${tokenQuery}`;
+
+    await new Promise<void>((resolve, reject) => {
+      settledResult = false;
+
+      const socket = new WebSocket(wsUrl);
+
+      ws = socket;
+
+      socket.once('open', () => {
+        finishConnect(resolve);
+      });
+
+      socket.once('unexpected-response', (_request, response) => {
+        const reason = response.statusMessage || `HTTP ${response.statusCode}`;
+
+        finishConnectReject(reject, new Error(reason));
+      });
+
+      socket.once('error', (error) => {
+        metrics.socketErrors++;
+        finishConnectReject(reject, error as Error);
+      });
+
+      socket.on('message', (data) => {
+        void handleMessage(data);
+      });
+
+      socket.on('close', () => {
+        clearActionTimer();
+
+        if (reconnectPending) {
+          return;
+        }
+      });
+    });
+  };
+
+  const reconnect = async (): Promise<void> => {
+    try {
+      await connect();
+      metrics.reconnectSuccesses++;
+    } catch (error) {
+      metrics.socketErrors++;
+      console.error(`[${label}] reconnect failed`, error);
+    } finally {
+      reconnectPending = false;
+    }
+  };
+
+  return {
+    connect,
+    disconnect(): void {
+      reconnectPending = false;
+      clearActionTimer();
+      ws?.close();
+    },
+  };
+};
+
+type BotClient = ReturnType<typeof createBotClient>;
 
 const createGame = async (
   config: LoadTestConfig,
@@ -606,7 +589,7 @@ const runMatch = async (
         resolve(finish(null, new Error('match timeout')));
       }, config.gameTimeoutMs);
 
-      host = new BotClient(
+      host = createBotClient(
         `match-${id}-host`,
         createResponse.code,
         config,
@@ -614,7 +597,7 @@ const runMatch = async (
         createResponse.playerToken,
         onGameOver,
       );
-      guest = new BotClient(
+      guest = createBotClient(
         `match-${id}-guest`,
         createResponse.code,
         config,
