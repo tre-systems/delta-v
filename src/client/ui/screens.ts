@@ -179,8 +179,7 @@ const buildStatLines = (stats: GameOverStatsLike): GameOverStatLine[] => {
   const lines: GameOverStatLine[] = [];
 
   if (scenarioDef) {
-    lines.push({ label: 'Scenario', value: scenarioDef.name });
-    lines.push({ label: 'Objective', value: scenarioDef.description });
+    lines.push({ label: scenarioDef.name, value: '' });
   }
 
   lines.push(
