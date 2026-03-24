@@ -6,6 +6,7 @@ import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
 import {
   getNearestEnemyPosition,
   getNextSelectedShip,
+  getObjectiveBearingScreenDegrees,
   getObjectiveBearingTargetHex,
   getOwnFleetFocusPosition,
 } from './navigation';
@@ -139,5 +140,28 @@ describe('game client navigation helpers', () => {
     expect(
       getObjectiveBearingTargetHex(state, 0, map, { position: { q: 0, r: 0 } }),
     ).toEqual(mars.center);
+  });
+
+  it('computes screen bearing in degrees for CSS rotation', () => {
+    const map = buildSolarSystemMap();
+    const state = createState([
+      createShip({
+        id: 'me',
+        owner: 0,
+        position: { q: 0, r: 0 },
+      }),
+    ]);
+    state.players[0].targetBody = 'Mars';
+
+    const deg = getObjectiveBearingScreenDegrees(
+      state,
+      0,
+      map,
+      28,
+      state.ships[0],
+    );
+
+    expect(deg).not.toBeNull();
+    expect(typeof deg).toBe('number');
   });
 });

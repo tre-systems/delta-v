@@ -5,6 +5,7 @@ import type { HudViewModel } from './types';
 export const buildHudChromeInputFromViewModel = (
   hud: HudViewModel,
   crashWarning: { anyCrashed: boolean; crashBody: string | null },
+  objectiveBearingDeg: number | null,
 ): Omit<HUDInput, 'isMobile'> => ({
   turn: hud.turn,
   phase: hud.phase,
@@ -15,6 +16,7 @@ export const buildHudChromeInputFromViewModel = (
   cargoFree: hud.cargoFree,
   cargoMax: hud.cargoMax,
   objective: hud.objective,
+  objectiveBearingDeg,
   matchVelocityState: hud.matchVelocityState,
   canEmplaceBase: hud.canEmplaceBase,
   launchMineState: hud.launchMineState,

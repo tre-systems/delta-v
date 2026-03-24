@@ -28,9 +28,7 @@ If the product stays **private friend matches only**, treat the early security i
 
 ### 3. Direction-to-objective indicator on the HUD — **shipped**
 
-**Done:** Gold minimap arrow from the **selected** ship toward the current objective (Grand Tour next checkpoint / return home, escape edge hint, fugitive transport when inspection rules apply, `targetBody` center, else nearest **detected** enemy). Logic: `getObjectiveBearingTargetHex` in `src/client/game/navigation.ts`; draw: `src/client/renderer/minimap.ts`, `src/client/renderer/minimap-draw.ts` (renderer passes `planningState.selectedShipId`).
-
-**Remaining (optional):** Extra HUD compass near the objective line in `src/client/ui/hud.ts` if you want the cue off the minimap.
+**Done:** (1) Gold minimap arrow from the **selected** ship (`getObjectiveBearingTargetHex`, `minimap.ts` / `minimap-draw.ts`, `planningState.selectedShipId`). (2) Rotating **→** in the top bar toward the same target (`objectiveCompass` in `static/index.html`, `hud-chrome-view.ts`, `getObjectiveBearingScreenDegrees` in `navigation.ts`, wired from `hud-controller.ts`).
 
 ### 4. Crash warning on course preview — **shipped**
 
