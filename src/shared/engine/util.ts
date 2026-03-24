@@ -131,8 +131,8 @@ export const hasOrdnanceCapacity = (ship: Ship): boolean => {
 
 // Ship-level eligibility to launch a specific ordnance type.
 // Returns an error message or null if the launch is allowed.
-// Does NOT check contextual rules (scenario allowed types,
-// mine course change, resupply turn, owner).
+// Does NOT check scenario allowed types, mine committed-burn rule,
+// or resupply turn — see validateOrdnanceLaunch.
 export const validateShipOrdnanceLaunch = (
   ship: Ship,
   ordnanceType: Ordnance['type'],
@@ -212,9 +212,9 @@ export const validateShipOrdnanceLaunch = (
 };
 
 // Full launch validation including scenario restrictions
-// and turn-level ship constraints.
+// and turn-level ship constraints (including mine + committed course change).
 export const validateOrdnanceLaunch = (
-  state: Pick<GameState, 'scenarioRules'>,
+  state: Pick<GameState, 'scenarioRules' | 'pendingAstrogationOrders'>,
   ship: Ship,
   ordnanceType: Ordnance['type'],
 ): EngineError | null => {
@@ -231,7 +231,28 @@ export const validateOrdnanceLaunch = (
     return engineError(ErrorCode.NOT_ALLOWED, RESUPPLY_ORDNANCE_ERROR);
   }
 
-  return validateShipOrdnanceLaunch(ship, ordnanceType);
+  const shipError = validateShipOrdnanceLaunch(ship, ordnanceType);
+
+  if (shipError) {
+    return shipError;
+  }
+
+  if (ordnanceType === 'mine') {
+    const pendingOrder = (state.pendingAstrogationOrders ?? []).find(
+      (o) => o.shipId === ship.id,
+    );
+    const hasBurn =
+      pendingOrder?.burn != null || pendingOrder?.overload != null;
+
+    if (!hasBurn) {
+      return engineError(
+        ErrorCode.NOT_ALLOWED,
+        'Ship must change course when launching a mine',
+      );
+    }
+  }
+
+  return null;
 };
 
 // Quick boolean: can this ship launch any ordnance at all?

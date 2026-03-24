@@ -54,6 +54,6 @@ User-facing policy copy is out of scope here; align any public privacy text with
 
 ## Gaps and follow-ups
 
-- No built-in **dashboards** or **alerts** — use Cloudflare + D1 exports or third-party tools; [BACKLOG.md](./BACKLOG.md) priority **8**.
+- No built-in **dashboards** or **alerts** — use Cloudflare + D1 exports or third-party tools; [BACKLOG.md](./BACKLOG.md) priority **10**.
 - **Rate limits:** per-isolate caps on `/telemetry` and `/error` (see [SECURITY.md](./SECURITY.md)); optional global WAF — [BACKLOG.md](./BACKLOG.md) priority **1**.
 - **Sampling** or caps can be added in `src/server/index.ts` before `insertEvent` if volume grows.
