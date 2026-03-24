@@ -1,6 +1,7 @@
 import { byId } from '../dom';
 import { createDisposalScope, withScope } from '../reactive';
 import { bindStaticButtonEvents } from './button-events';
+import { createUIEventBridge } from './event-bridge';
 import type { UIEvent } from './events';
 import { createFleetBuildingView } from './fleet-building-view';
 import { createGameLogView } from './game-log-view';
@@ -30,11 +31,8 @@ export const createUIManager = () => {
   let isMobile = mobileQuery.matches;
   let layoutSyncFrame: number | null = null;
 
-  let onEvent: ((event: UIEvent) => void) | null = null;
-
-  const emit = (event: UIEvent) => {
-    onEvent?.(event);
-  };
+  const eventBridge = createUIEventBridge();
+  const emit = (event: UIEvent) => eventBridge.emit(event);
 
   const resetLayoutMetrics = () => {
     if (layoutSyncFrame !== null) {
@@ -196,10 +194,10 @@ export const createUIManager = () => {
 
   return {
     get onEvent() {
-      return onEvent;
+      return eventBridge.getOnEvent();
     },
     set onEvent(handler: ((event: UIEvent) => void) | null) {
-      onEvent = handler;
+      eventBridge.setOnEvent(handler);
     },
     log,
     overlay,
