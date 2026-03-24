@@ -1,10 +1,10 @@
 import { SHIP_STATS } from '../../shared/constants';
-import type { EngineEvent } from '../../shared/engine/engine-events';
 import type {
   CombatResult,
   MovementEvent,
   Ship,
 } from '../../shared/types/domain';
+import type { LogisticsTransferLogEvent } from '../../shared/types/protocol';
 
 export interface ParsedJoinInput {
   code: string;
@@ -322,9 +322,9 @@ export const formatCombatResultEntries = (
   return entries;
 };
 
-/** Human-readable lines for logistics transfer engine events (local / AI games). */
+/** Human-readable lines for logistics transfer events (local / AI / network stateUpdate). */
 export const formatLogisticsTransferLogLines = (
-  events: EngineEvent[],
+  events: readonly LogisticsTransferLogEvent[],
   ships: Ship[],
 ): string[] => {
   const lines: string[] = [];

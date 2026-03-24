@@ -3,6 +3,7 @@ import type { MovementResult } from '../../shared/engine/game-engine';
 import type { CombatResult, GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playPhaseChange } from '../audio';
+import { formatLogisticsTransferLogLines } from '../ui/formatters';
 import { applyWelcomeSession, setLatencyMs } from './client-context-store';
 import { deriveClientMessagePlan } from './messages';
 import type { ClientState } from './phase';
@@ -122,13 +123,23 @@ export const handleServerMessage = (
       }
       break;
     }
-    case 'stateUpdate':
-      deps.applyGameState(deps.deserializeState(plan.state));
+    case 'stateUpdate': {
+      const nextState = deps.deserializeState(plan.state);
+      if (plan.transferEvents?.length) {
+        for (const line of formatLogisticsTransferLogLines(
+          plan.transferEvents,
+          nextState.ships,
+        )) {
+          deps.ui.log.logText(line);
+        }
+      }
+      deps.applyGameState(nextState);
 
       if (plan.shouldTransition) {
         deps.transitionToPhase();
       }
       break;
+    }
     case 'gameOver':
       deps.showGameOverOutcome(plan.won, plan.reason);
       break;
