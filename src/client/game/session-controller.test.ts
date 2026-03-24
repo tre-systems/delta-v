@@ -17,6 +17,7 @@ import {
   type LocalGameSessionDeps,
   startLocalGameSession,
 } from './session-controller';
+import { stubClientSession } from './session-model';
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
   ...createGame(SCENARIOS.duel, buildSolarSystemMap(), 'SESSION', findBaseHex),
@@ -38,7 +39,7 @@ const createCreatedGameDeps = (): CreatedGameSessionDeps & {
     };
 
   return {
-    ctx: {
+    ctx: stubClientSession({
       scenario: 'biplanetary',
       isLocalGame: false,
       latencyMs: -1,
@@ -48,7 +49,7 @@ const createCreatedGameDeps = (): CreatedGameSessionDeps & {
       reconnectAttempts: 0,
       transport: null,
       aiDifficulty: 'normal',
-    },
+    }),
     storePlayerToken: track('storePlayerToken'),
     replaceRoute: track('replaceRoute'),
     buildGameRoute: (code) => `/game/${code}`,
@@ -75,7 +76,7 @@ const createLocalGameDeps = (): LocalGameSessionDeps & {
   const deps: LocalGameSessionDeps & {
     calls: Record<string, unknown[][]>;
   } = {
-    ctx: {
+    ctx: stubClientSession({
       scenario: 'biplanetary',
       isLocalGame: false,
       latencyMs: -1,
@@ -85,7 +86,7 @@ const createLocalGameDeps = (): LocalGameSessionDeps & {
       reconnectAttempts: 0,
       transport: null,
       aiDifficulty: 'hard',
-    },
+    }),
     createLocalTransport: () => ({ kind: 'local' }) as never,
     createLocalGameState: () => state,
     getScenarioName: (scenario) => SCENARIOS[scenario]?.name ?? 'Unknown',

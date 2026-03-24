@@ -12,22 +12,11 @@ import {
 import { clearClientGameState } from './game-state-store';
 import { deriveGameStartClientState } from './network';
 import type { ClientState } from './phase';
+import type { ClientSession } from './session-model';
 import type { GameTransport } from './transport';
 
-interface SessionContext {
-  scenario: string;
-  isLocalGame: boolean;
-  playerId: number;
-  gameCode: string | null;
-  gameState: GameState | null;
-  transport: GameTransport | null;
-  aiDifficulty: AIDifficulty;
-  reconnectAttempts: number;
-  latencyMs: number;
-}
-
 export interface CreatedGameSessionDeps {
-  ctx: SessionContext;
+  ctx: ClientSession;
   storePlayerToken: (code: string, token: string) => void;
   replaceRoute: (route: string) => void;
   buildGameRoute: (code: string) => string;
@@ -40,7 +29,7 @@ export interface CreatedGameSessionDeps {
 }
 
 export interface LocalGameSessionDeps {
-  ctx: SessionContext;
+  ctx: ClientSession;
   createLocalTransport: () => GameTransport;
   createLocalGameState: (scenario: string) => GameState;
   getScenarioName: (scenario: string) => string;
@@ -62,7 +51,7 @@ export interface LocalGameSessionDeps {
 }
 
 export interface JoinGameSessionDeps {
-  ctx: Pick<SessionContext, 'gameCode'>;
+  ctx: Pick<ClientSession, 'gameCode'>;
   getStoredPlayerToken: (code: string) => string | null;
   storePlayerToken: (code: string, token: string) => void;
   resetTurnTelemetry: () => void;
@@ -82,7 +71,7 @@ export interface JoinGameSessionDeps {
 
 export interface ExitToMenuSessionDeps {
   ctx: Pick<
-    SessionContext,
+    ClientSession,
     | 'gameCode'
     | 'gameState'
     | 'isLocalGame'

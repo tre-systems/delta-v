@@ -9,25 +9,13 @@ import type { LogisticsUIState } from './logistics-ui';
 import type { MessageHandlerDeps } from './message-handler';
 import type { ClientState } from './phase';
 import type { PhaseControllerDeps } from './phase-controller';
-import type { PlanningState } from './planning';
+import type { ClientSession } from './session-model';
 import type { StateTransitionDeps } from './state-transition';
 import type { TurnTimerManager } from './timer';
 import type { TurnTelemetryTracker } from './turn-telemetry';
 
-interface ClientContext {
-  state: ClientState;
-  playerId: number;
-  gameCode: string | null;
-  scenario: string;
-  gameState: GameState | null;
-  isLocalGame: boolean;
-  planningState: PlanningState;
-  latencyMs: number;
-  reconnectAttempts: number;
-}
-
 interface SharedMainDepsArgs {
-  ctx: ClientContext;
+  ctx: ClientSession;
   renderer: Renderer;
   ui: UIManager;
   hud: HudController;
@@ -45,10 +33,13 @@ export interface MainStateTransitionDepsArgs extends SharedMainDepsArgs {
   renderLogisticsPanel: () => void;
 }
 
+/** Built once per client; `ctx` is read via getter so transitions always see current session. */
 export const createMainStateTransitionDeps = (
   args: MainStateTransitionDepsArgs,
 ): StateTransitionDeps => ({
-  ctx: args.ctx,
+  get ctx() {
+    return args.ctx;
+  },
   ui: args.ui,
   tutorial: args.tutorial,
   renderer: args.renderer,
@@ -117,14 +108,25 @@ export interface MainPhaseTransitionDepsArgs extends SharedMainDepsArgs {
   beginCombat: () => void;
 }
 
+/** Built once per client; phase reads use getters so each transition sees live session/telemetry. */
 export const createMainPhaseTransitionDeps = (
   args: MainPhaseTransitionDepsArgs,
 ): PhaseControllerDeps => ({
-  gameState: args.ctx.gameState,
-  playerId: args.ctx.playerId,
-  lastLoggedTurn: args.turnTelemetry.getLastLoggedTurn(),
-  isLocalGame: args.ctx.isLocalGame,
-  scenario: args.ctx.scenario,
+  get gameState() {
+    return args.ctx.gameState;
+  },
+  get playerId() {
+    return args.ctx.playerId;
+  },
+  get lastLoggedTurn() {
+    return args.turnTelemetry.getLastLoggedTurn();
+  },
+  get isLocalGame() {
+    return args.ctx.isLocalGame;
+  },
+  get scenario() {
+    return args.ctx.scenario;
+  },
   onTurnLogged: (turnNumber, context) =>
     args.turnTelemetry.onTurnLogged(turnNumber, context),
   logTurn: (turnNumber, playerLabel) =>

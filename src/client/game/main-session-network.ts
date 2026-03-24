@@ -7,7 +7,6 @@ import type { UIManager } from '../ui/ui';
 import type { ActionDeps } from './action-deps';
 import type { ConnectionManager } from './connection';
 import type { HudController } from './hud-controller';
-import { createMainMessageHandlerDeps } from './main-deps';
 import {
   handleServerMessage,
   type MessageHandlerDeps,
@@ -20,24 +19,11 @@ import {
   exitToMenuSession,
   startLocalGameSession,
 } from './session-controller';
+import type { ClientSession } from './session-model';
 import type { TurnTelemetryTracker } from './turn-telemetry';
 
-interface ClientContextLike {
-  state: ClientState;
-  playerId: number;
-  gameCode: string | null;
-  scenario: string;
-  gameState: GameState | null;
-  isLocalGame: boolean;
-  transport: import('./transport').GameTransport | null;
-  aiDifficulty: import('../../shared/ai').AIDifficulty;
-  planningState: import('./planning').PlanningState;
-  latencyMs: number;
-  reconnectAttempts: number;
-}
-
-interface SharedMainNetworkDeps {
-  ctx: ClientContextLike;
+export interface MainNetworkDeps {
+  ctx: ClientSession;
   map: ReturnType<typeof import('../../shared/map-data').buildSolarSystemMap>;
   renderer: Renderer;
   ui: UIManager;
@@ -58,7 +44,7 @@ interface SharedMainNetworkDeps {
 }
 
 export const startLocalGameFromMain = (
-  deps: SharedMainNetworkDeps,
+  deps: MainNetworkDeps,
   scenario: string,
 ): void => {
   startLocalGameSession(
@@ -89,7 +75,7 @@ export const startLocalGameFromMain = (
 };
 
 export const beginJoinGameFromMain = (
-  deps: SharedMainNetworkDeps,
+  deps: MainNetworkDeps,
   code: string,
   playerToken: string | null,
 ): void => {
@@ -116,25 +102,10 @@ export const beginJoinGameFromMain = (
 };
 
 export const handleServerMessageFromMain = (
-  deps: SharedMainNetworkDeps,
+  handlerDeps: MessageHandlerDeps,
   msg: S2C,
   onGameOver: () => void,
 ): void => {
-  const handlerDeps: MessageHandlerDeps = createMainMessageHandlerDeps({
-    ctx: deps.ctx,
-    renderer: deps.renderer,
-    ui: deps.ui,
-    hud: deps.hud,
-    actionDeps: deps.actionDeps,
-    turnTelemetry: deps.turnTelemetry,
-    sessionApi: deps.sessionApi,
-    setState: (state) => deps.setState(state),
-    applyGameState: (state) => deps.applyGameState(state),
-    transitionToPhase: () => deps.transitionToPhase(),
-    onAnimationComplete: () => deps.onAnimationComplete(),
-    logScenarioBriefing: () => deps.hud.logScenarioBriefing(),
-    trackEvent: (event, props) => deps.track(event, props),
-  });
   handleServerMessage(handlerDeps, msg);
 
   if (msg.type === 'gameOver') {
@@ -142,7 +113,7 @@ export const handleServerMessageFromMain = (
   }
 };
 
-export const exitToMenuFromMain = (deps: SharedMainNetworkDeps): void => {
+export const exitToMenuFromMain = (deps: MainNetworkDeps): void => {
   exitToMenuSession({
     ctx: deps.ctx,
     stopPing: () => deps.connection.stopPing(),
