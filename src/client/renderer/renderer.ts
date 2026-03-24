@@ -17,6 +17,8 @@ import {
   createMovementAnimationManager,
 } from './animation-manager';
 import { createCamera } from './camera';
+import { buildCombatEffectsForResults } from './combat-fx';
+import { drawAstrogationCoursePreviewLayer } from './course-draw';
 import {
   drawShipIcon as drawShipIconFn,
   interpolatePath as interpolatePathFn,
@@ -27,33 +29,13 @@ import {
   drawHexFlashes,
   type HexFlash,
 } from './effects';
+import { frameCameraOnAnimatedHexes, frameCameraOnPlayerShips } from './frame';
+import { drawMinimapOverlay } from './minimap-draw';
 import {
   renderCombatOverlay as renderCombatOverlayFn,
   renderOrdnance as renderOrdnanceFn,
   renderTorpedoGuidance as renderTorpedoGuidanceFn,
 } from './overlay';
-import {
-  frameCameraOnAnimatedHexes,
-  frameCameraOnPlayerShips,
-} from './renderer-bounds';
-import { buildCombatEffectsForResults } from './renderer-combat-effects-build';
-import { drawAstrogationCoursePreviewLayer } from './renderer-draw-course-preview';
-import { drawMinimapOverlay } from './renderer-draw-minimap';
-import { drawShipsLayer } from './renderer-draw-ships';
-import {
-  drawCombatResultsToastOverlay,
-  drawMovementEventsToastOverlay,
-} from './renderer-draw-toasts';
-import {
-  drawAnimatedMovementPaths,
-  drawShipAndOrdnanceTrails,
-} from './renderer-draw-trails-paths';
-import { drawVelocityVectorLayer } from './renderer-draw-velocity-vectors';
-import { drawStaticSceneWithCache } from './renderer-paint-static';
-import {
-  invalidateStaticSceneLayer,
-  type StaticSceneLayer,
-} from './renderer-static-layer';
 import {
   generateStars,
   renderAsteroids as renderAsteroidsFn,
@@ -67,7 +49,19 @@ import {
   renderStars as renderStarsFn,
   type Star,
 } from './scene';
+import { drawShipsLayer } from './ships';
+import {
+  invalidateStaticSceneLayer,
+  type StaticSceneLayer,
+} from './static-layer';
+import { drawStaticSceneWithCache } from './static-scene';
+import {
+  drawCombatResultsToastOverlay,
+  drawMovementEventsToastOverlay,
+} from './toast-draw';
+import { drawAnimatedMovementPaths, drawShipAndOrdnanceTrails } from './trails';
 import { buildBaseThreatZoneViews } from './vectors';
+import { drawVelocityVectorLayer } from './vel-draw';
 
 export const HEX_SIZE = 28;
 
