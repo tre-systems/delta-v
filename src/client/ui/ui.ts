@@ -1,11 +1,10 @@
-import type { Ship } from '../../shared/types/domain';
 import { byId } from '../dom';
 import { createDisposalScope, withScope } from '../reactive';
 import { bindStaticButtonEvents } from './button-events';
 import type { UIEvent } from './events';
 import { createFleetBuildingView } from './fleet-building-view';
 import { createGameLogView } from './game-log-view';
-import type { HUDInput } from './hud';
+import { createHudActions } from './hud-actions';
 import { createHUDChromeView } from './hud-chrome-view';
 import { applyHudLayoutMetrics, clearHudLayoutMetrics } from './layout-metrics';
 import { createLobbyView, type LobbyView } from './lobby-view';
@@ -178,6 +177,23 @@ export const createUIManager = () => {
     showFleetWaitingView: () => fleetBuildingView.showWaiting(),
   });
 
+  const hudActions = createHudActions({
+    update: (input) => hudChromeView.update(input),
+    updateLatency: (latencyMs) => hudChromeView.updateLatency(latencyMs),
+    updateFleetStatus: (status) => hudChromeView.updateFleetStatus(status),
+    updateShipList: (ships, selectedId, burns) =>
+      shipListView.update(ships, selectedId, burns),
+    toggleHelpOverlay: () => hudChromeView.toggleHelpOverlay(),
+    updateSoundButton: (muted) => hudChromeView.updateSoundButton(muted),
+    setTurnTimer: (text, className) =>
+      hudChromeView.setTurnTimer(text, className),
+    clearTurnTimer: () => hudChromeView.clearTurnTimer(),
+    showAttackButton: (isVisible) => hudChromeView.showAttackButton(isVisible),
+    showFireButton: (isVisible, count) =>
+      hudChromeView.showFireButton(isVisible, count),
+    showMovementStatus: () => hudChromeView.showMovementStatus(),
+  });
+
   return {
     get onEvent() {
       return onEvent;
@@ -201,43 +217,7 @@ export const createUIManager = () => {
     showHUD,
     showFleetBuilding,
     showFleetWaiting,
-    updateHUD(input: Omit<HUDInput, 'isMobile'>) {
-      hudChromeView.update(input);
-    },
-    updateLatency(latencyMs: number | null) {
-      hudChromeView.updateLatency(latencyMs);
-    },
-    updateFleetStatus(status: string) {
-      hudChromeView.updateFleetStatus(status);
-    },
-    updateShipList(
-      ships: Ship[],
-      selectedId: string | null,
-      burns: Map<string, number | null>,
-    ) {
-      shipListView.update(ships, selectedId, burns);
-    },
-    toggleHelpOverlay() {
-      hudChromeView.toggleHelpOverlay();
-    },
-    updateSoundButton(muted: boolean) {
-      hudChromeView.updateSoundButton(muted);
-    },
-    setTurnTimer(text: string, className: string) {
-      hudChromeView.setTurnTimer(text, className);
-    },
-    clearTurnTimer() {
-      hudChromeView.clearTurnTimer();
-    },
-    showAttackButton(isVisible: boolean) {
-      hudChromeView.showAttackButton(isVisible);
-    },
-    showFireButton(isVisible: boolean, count: number) {
-      hudChromeView.showFireButton(isVisible, count);
-    },
-    showMovementStatus() {
-      hudChromeView.showMovementStatus();
-    },
+    ...hudActions,
     dispose() {
       resetLayoutMetrics();
       scope.dispose();
