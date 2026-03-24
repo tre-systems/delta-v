@@ -31,14 +31,16 @@ Default to plain functions, typed data, and
 `createXxx()` managers. Do not introduce a class just to
 group methods around private state.
 
-Classes are acceptable in places like:
+**Required class:** `GameDO` in `src/server/game-do/game-do.ts` must
+`extend DurableObject` — Cloudflare’s API, not a stylistic choice.
 
-- `src/server/game-do/game-do.ts`
-- `src/client/main.ts`
-- `src/client/input.ts`
-- `src/client/ui/ui.ts`
-
-These files coordinate long-lived state, timers, DOM, canvas, sockets, or platform APIs. That is a legitimate use of classes in this project.
+**Everything else** at those imperative boundaries uses the same
+`createXxx()` factory pattern as the rest of the client: `createGameClient()`
+in `src/client/main.ts`, `createInputHandler()` in `src/client/input.ts`,
+`createUIManager()` in `src/client/ui/ui.ts`, and `createBotClient()` in
+`scripts/load-test.ts`. Returned types are usually
+`ReturnType<typeof create…>` (for example `GameClient`, `InputHandler`,
+`UIManager`).
 
 **Canvas rendering** uses the same factory idea without a
 class: `createRenderer()` in `src/client/renderer/renderer.ts`
@@ -56,22 +58,16 @@ Principles.
 
 Guidance:
 
-- `GameDO` must remain a class because Cloudflare Durable
-  Objects require `extends DurableObject`.
-- `GameClient` and `InputHandler` are reasonable class
-  shells while they own long-lived mutable browser/runtime
-  state.
 - If an imperative boundary binds DOM, window, or other
   long-lived event listeners, it should own explicit
   teardown via `dispose()` or equivalent returned
   disposers rather than relying on page lifetime.
-- Smaller DOM views and helper managers should usually
-  prefer `createXxx()` factories unless class identity
-  materially simplifies the code.
-- Do not rewrite a large coordinator from class syntax
-  to closure syntax as the first step. Extract
-  responsibilities first, then decide whether the
-  remaining shell still wants to be a class.
+- Prefer `createXxx()` factories for new client modules;
+  do not add a class unless the platform requires it (as
+  with `GameDO`) or a rare case genuinely needs `instanceof`.
+- When the composition root in `main.ts` grows again,
+  extract responsibilities into `game/*` helpers first;
+  avoid inflating `createGameClient()` with unrelated logic.
 
 ### DOM helpers
 
@@ -180,7 +176,7 @@ setState(plan.nextState)                               // impure: apply it
 
 Examples: `deriveClientScreenPlan`, `deriveGameOverPlan`, `deriveClientMessagePlan`, `deriveBurnChangePlan`, `deriveHudViewModel`, `deriveKeyboardAction`, `deriveAIActionPlan`, `deriveClientStateEntryPlan`, `derivePhaseTransition`.
 
-The `deriveClientStateEntryPlan()` function in `game/phase-entry.ts` is the most elaborate example — it returns a `ClientStateEntryPlan` with ~15 boolean/enum flags controlling camera reset, HUD visibility, timer start, tutorial triggers, and combat state on each phase entry. `GameClient.setState()` in `main.ts` delegates to `applyClientStateTransition()` in `game/state-transition.ts`, which reads that plan (and `deriveClientScreenPlan`) and applies the imperative side effects.
+The `deriveClientStateEntryPlan()` function in `game/phase-entry.ts` is the most elaborate example — it returns a `ClientStateEntryPlan` with ~15 boolean/enum flags controlling camera reset, HUD visibility, timer start, tutorial triggers, and combat state on each phase entry. The `setState` function inside `createGameClient()` in `main.ts` delegates to `applyClientStateTransition()` in `game/state-transition.ts`, which reads that plan (and `deriveClientScreenPlan`) and applies the imperative side effects.
 
 This is the [functional core / imperative shell](https://www.destroyallsoftware.com/talks/boundaries) pattern (Gary Bernhardt, ["Boundaries"](https://www.destroyallsoftware.com/talks/boundaries), SCNA 2012) — pure derivation in the core, side effects at the boundary. See also Mark Seemann's [dependency rejection](https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/) series for the same idea applied to functional programming.
 
@@ -198,8 +194,10 @@ Current examples:
   side effects.
 - `applyClientGameState()` owns authoritative state apply
   plus renderer sync.
-- `UIManager.applyScreenVisibility()` owns top-level
-  screen toggling.
+- `createUIManager()` owns top-level screen toggling via its
+  internal `applyScreenVisibility` (wired through
+  `createScreenActions()` for the user-facing screen methods),
+  calling `applyUIVisibility()` from `ui/visibility.ts`.
 - `GameDO.publishStateChange()` owns persistence,
   archival append, timer reschedule, and outbound
   state-bearing messages.
@@ -599,11 +597,11 @@ The shared engine is data-oriented by design. Lean into that with functional pat
 
 State belongs to the coordinator that manages its lifecycle, and is passed by reference to collaborators:
 
-- **PlanningState** is owned by `GameClient` in `main.ts`, defined in `src/client/game/planning.ts`. It is the client-side "working memory" for the current turn — the uncommitted moves that get sent to the server on confirm. The renderer receives it when constructed via `createRenderer(canvas, planningState)` and reads the same reference each frame to draw previews. `InputHandler` does not receive PlanningState — it emits raw spatial events (`InputEvent`), and `interpretInput()` receives PlanningState as a read-only argument to produce `GameCommand[]`.
+- **PlanningState** is owned by the client composition root (`ctx.planningState` inside `createGameClient()` in `main.ts`), defined in `src/client/game/planning.ts`. It is the client-side "working memory" for the current turn — the uncommitted moves that get sent to the server on confirm. The renderer receives it when constructed via `createRenderer(canvas, planningState)` and reads the same reference each frame to draw previews. `InputHandler` (`createInputHandler()`) does not receive PlanningState — it emits raw spatial events (`InputEvent`), and `interpretInput()` receives PlanningState as a read-only argument to produce `GameCommand[]`.
 
   Key fields: `burns` (Map of ship → burn direction), `overloads` (Map of ship → overload direction), `queuedAttacks` (buffered combat declarations), `selectedShipId`, `hoverHex`, `combatTargetId`/`combatAttackerIds` (combat planning), `torpedoAccel` (torpedo launch direction). Reset via `createInitialPlanningState()` on phase transitions.
 
-- **GameState** is owned by `GameClient`. Authoritative updates go through `applyClientGameState()` in `game/game-state-store.ts` (called from `GameClient.applyGameState()` and from injected deps in session/transport code). Other modules receive it as function arguments, never as stored references.
+- **GameState** lives on the same client context (`ctx.gameState`). Authoritative updates go through `applyClientGameState()` in `game/game-state-store.ts` (called from the `applyGameState` function inside `createGameClient()` and from injected deps in session/transport code). Other modules receive it as function arguments, never as stored references.
 
 ### Reactive signals (adopted selectively in UI)
 
@@ -617,10 +615,10 @@ Use `reactive.ts` for **small, local, stateful DOM views**.
 The "Smart Helpers" (`visible`, `text`, `cls`) in `dom.ts`
 automatically leverage signals when provided, reducing boilerplate.
 
-Do **not** use it as a general app-state store. `GameClient`,
-the renderer, the transport/session layer, and the shared
-engine should remain explicit and imperative unless there is a
-clear synchronization problem being solved.
+Do **not** use it as a general app-state store. The composition
+root in `main.ts`, the renderer, the transport/session layer, and
+the shared engine should remain explicit and imperative unless
+there is a clear synchronization problem being solved.
 
 Rules for reactive UI code:
 
@@ -677,9 +675,9 @@ and Mark Seemann on
   pattern unless a class shape is clearly doing real
   work.
 
-`GameClient` in `main.ts` wires deps objects via lazy getters that bind callbacks to live context. `dispatchGameCommand()` in `game/command-router.ts` routes commands to the extracted action functions.
+`createGameClient()` in `main.ts` wires deps objects and closures so callbacks always see current context (including forward `let` bindings where constructors need callbacks before all fields exist). `dispatchGameCommand()` in `game/command-router.ts` routes commands to the extracted action functions.
 
-When adding new side-effecting logic, prefer extending an existing `*Deps` interface over adding methods to `GameClient`. Keep pure derivation functions as direct-parameter exports (or a single typed options object when arity is large) — they don't need deps.
+When adding new side-effecting logic, prefer extending an existing `*Deps` interface over adding surface area on the bootstrap return value (`renderer`, `showToast`, `dispose`). Keep pure derivation functions as direct-parameter exports (or a single typed options object when arity is large) — they don't need deps.
 
 When the client needs to decide whether an action is legal or should be shown/enabled, prefer reusing shared rule helpers from `src/shared/engine/` over duplicating lighter-weight UI heuristics. The ordnance HUD and ordnance-phase auto-selection follow this pattern: the client derives button visibility/disabled state and default selection from the same validation helpers the engine uses.
 
@@ -720,7 +718,7 @@ Network vs. local game branching is handled by `GameTransport` (`src/client/game
 - `createWebSocketTransport(send)` — wraps a WebSocket send function
 - `createLocalTransport(deps)` — dependency-injected local resolution using callbacks
 
-Action handlers call `this.transport.submitAstrogation(orders)` etc. instead of branching on game mode. The `isLocalGame` flag may still exist for scheduling (e.g. AI turns) but should not appear in submission logic.
+Action handlers call `transport.submitAstrogation(orders)` (transport from context or `*Deps`) instead of branching on game mode. The `isLocalGame` flag may still exist for scheduling (e.g. AI turns) but should not appear in submission logic.
 
 ### Async patterns
 
@@ -729,7 +727,7 @@ Action handlers call `this.transport.submitAstrogation(orders)` etc. instead of 
 
 ### Screen visibility
 
-The `applyScreenVisibility` pattern in `UIManager` is the single choke point for screen toggling. It applies the output of the pure `buildScreenVisibility()` function. This is the one place where direct `.style.display` assignment is acceptable — everywhere else, use `show()`/`hide()`/`visible()` from `dom.ts`.
+The `applyScreenVisibility` pattern inside `createUIManager()` is the single choke point for screen toggling. It applies the output of the pure `buildScreenVisibility()` function. This is the one place where direct `.style.display` assignment is acceptable — everywhere else, use `show()`/`hide()`/`visible()` from `dom.ts`.
 
 ## Linting
 
@@ -767,7 +765,7 @@ The server directory (`src/server/`) has `noUndeclaredVariables` disabled becaus
 
 - **Line width**: keep lines under 80 characters where practical. Break long lines at natural points (after commas, before operators, at arrow functions). Some lines will be longer — that's fine if breaking them would hurt readability.
 - **Generous whitespace**: add blank lines to keep code airy and scannable. Prefer slightly more vertical space than the minimum when it helps you (or a reader) scan structure quickly. Specifically:
-  - Between class methods and properties
+  - Between methods on the same object or class
   - Between top-level declarations (functions, consts, types, interfaces)
   - After import blocks before the first declaration
   - After the opening `{` of a function body and before a large `switch` or the first substantial statement, when it separates the “header” from the logic
