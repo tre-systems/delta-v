@@ -111,7 +111,7 @@ describe('ui hud helpers', () => {
       phaseText: 'ORDNANCE',
       objectiveText: 'Hold Mars',
       fuelGaugeText: 'Cargo: 10/20',
-      statusText: 'Launch ordnance or skip (Enter)',
+      statusText: 'Launch Mine (N) \u00b7 skip (Enter)',
       emplaceBaseVisible: true,
       skipOrdnanceVisible: true,
     });
@@ -173,7 +173,7 @@ describe('ui hud helpers', () => {
       buildHUDView(buildInput({ turn: 5, phase: 'combat' })),
     ).toMatchObject({
       phaseText: 'COMBAT',
-      statusText: 'Click enemies to target · Fire All to attack (Enter)',
+      statusText: 'Click enemies to target \u00b7 Fire All (Enter)',
       skipCombatVisible: true,
     });
 
@@ -315,7 +315,7 @@ describe('ui hud helpers', () => {
     expect(
       buildHUDView(buildInput({ isMobile: true, phase: 'ordnance' }))
         .statusText,
-    ).toBe('Launch ordnance or skip');
+    ).toBe('Select a ship to launch ordnance');
 
     expect(
       buildHUDView(buildInput({ isMobile: true, phase: 'combat' })).statusText,

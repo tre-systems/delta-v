@@ -128,6 +128,7 @@ Do not create meaningless wrapper functions or over-fragment files just to hit n
 - Use data-driven tests (`it.each` / `describe.each`) to reduce verbosity when testing tables, mappings, or many input-output pairs. This is especially useful for combat tables, damage lookups, and hex math.
 - Use **property-based tests** (`fast-check`) for invariant verification on core engine functions. Co-locate as `*.property.test.ts` next to the source file. Property tests complement unit tests by fuzzing inputs to verify that invariants hold universally (e.g., "fuel never goes negative", "hex distance is symmetric", "higher odds never produce worse combat results").
 - Coverage thresholds are enforced on `src/shared/` via vitest config — the pre-commit hook runs `test:coverage` to prevent backsliding; CI runs `test:coverage` as well.
+- **Replay / projection:** Changes to **`event-projector`**, **`archive` persistence**, or **engine state shape** should keep **parity tests** (`verifyGameDoProjectionParity`, `game-do` / `event-projector` tests) green and extend them when adding new persisted event types.
 
 For a good overview of when property tests add value, see
 fast-check's
@@ -143,6 +144,7 @@ guide.
 ## Docs
 
 - Update docs when behavior changes materially.
+- Cross-cutting decisions: add an ADR under [docs/decisions/](./decisions/README.md). Contributor workflow and hooks: [CONTRIBUTING.md](./CONTRIBUTING.md).
 - Do not leave roadmap items marked as future work once they are implemented.
 - Architecture docs should describe the real join flow, validation model, and authority boundaries.
 - When a cross-cutting product or protocol decision is made
