@@ -1,3 +1,4 @@
+import { canAttack } from '../../shared/combat';
 import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import { clamp } from '../../shared/util';
 import {
@@ -11,6 +12,7 @@ import {
   queueCombatAttack as appendCombatAttack,
   clearCombatSelectionState,
   resetCombatPlanning,
+  selectShip,
   setCombatAttackStrength,
   takeQueuedAttacks,
 } from './planning-store';
@@ -100,8 +102,28 @@ export const queueAttack = (deps: CombatActionDeps) => {
     // No more attackers available — auto-fire
     fireAllAttacks(deps);
   } else {
+    // Auto-advance to the next attackable ship in rotation
+    const committedIds = new Set(
+      deps.planningState.queuedAttacks.flatMap((a) => a.attackerIds),
+    );
+    const myShips = gameState.ships.filter(
+      (s) =>
+        s.owner === deps.getPlayerId() &&
+        s.lifecycle !== 'destroyed' &&
+        canAttack(s) &&
+        !committedIds.has(s.id),
+    );
+    const currentIdx = myShips.findIndex(
+      (s) => s.id === deps.planningState.selectedShipId,
+    );
+
+    if (myShips.length > 0) {
+      const next = myShips[(currentIdx + 1) % myShips.length];
+      selectShip(deps.planningState, next.id);
+    }
+
     deps.showToast(
-      `Attack queued (${count}). Select next target or press Enter to fire.`,
+      `Attack queued (${count}). Click next target or press Enter to fire.`,
       'info',
     );
     deps.showFireButton(true, count);

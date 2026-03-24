@@ -50,6 +50,13 @@ const interpretCombatClick = (
       map,
     );
 
+    // Auto-queue the attack when a ship is selected, so the player
+    // doesn't have to click ATTACK per ship — just click targets,
+    // then FIRE ALL once at the end.
+    if (planning.selectedShipId) {
+      return [{ type: 'setCombatPlan', plan }, { type: 'queueAttack' }];
+    }
+
     return [{ type: 'setCombatPlan', plan }];
   }
 

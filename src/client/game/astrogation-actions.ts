@@ -1,4 +1,5 @@
 import { must } from '../../shared/assert';
+import { getOrderableShipsForPlayer } from '../../shared/engine/util';
 import type { GameState } from '../../shared/types/domain';
 import { playConfirm, playSelect } from '../audio';
 import { deriveBurnChangePlan } from './burn';
@@ -6,6 +7,7 @@ import { buildAstrogationOrders, findMatchVelocityPlan } from './helpers';
 import type { PlanningState } from './planning';
 import {
   clearShipPlanning,
+  selectShip,
   setShipBurn,
   setShipOverload,
 } from './planning-store';
@@ -57,6 +59,23 @@ export const setBurnDirection = (
     plan.clearOverload,
   );
   playSelect();
+
+  // Auto-advance to the next ship in rotation that still needs a burn
+  const gameState = deps.getGameState();
+
+  if (gameState) {
+    const orderable = getOrderableShipsForPlayer(gameState, deps.getPlayerId());
+    const currentIdx = orderable.findIndex((s) => s.id === plan.shipId);
+
+    for (let offset = 1; offset < orderable.length; offset++) {
+      const next = orderable[(currentIdx + offset) % orderable.length];
+
+      if (!deps.planningState.burns.has(next.id)) {
+        selectShip(deps.planningState, next.id);
+        return;
+      }
+    }
+  }
 };
 
 export const clearSelectedBurn = (deps: AstrogationActionDeps) => {

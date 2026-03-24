@@ -199,7 +199,7 @@ describe('combat action helpers', () => {
     expect(deps.showAttackButton).toHaveBeenLastCalledWith(false);
     expect(deps.showFireButton).toHaveBeenLastCalledWith(true, 1);
     expect(deps.showToast).toHaveBeenLastCalledWith(
-      'Attack queued (1). Select next target or press Enter to fire.',
+      'Attack queued (1). Click next target or press Enter to fire.',
       'info',
     );
     expect(deps.planningState.queuedAttacks).toHaveLength(1);
