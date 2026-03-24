@@ -46,6 +46,7 @@ const createDeps = (
       gameCode: 'ABCDE',
       gameState,
       planningState: createInitialPlanningState(),
+      isLocalGame: false,
     },
     ui: {
       showMenu: track('ui.showMenu'),

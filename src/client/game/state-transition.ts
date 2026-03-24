@@ -63,6 +63,7 @@ export const applyClientStateTransition = (
     newState,
     deps.ctx.gameState,
     deps.ctx.playerId,
+    deps.ctx.isLocalGame,
   );
   const screenPlan = deriveClientScreenPlan(newState, deps.ctx.gameCode);
 

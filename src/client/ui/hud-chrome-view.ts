@@ -221,7 +221,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
 
       if (lastPhase !== phaseKey) {
         lastPhase = phaseKey;
-        if (phase !== 'fleetBuilding') {
+        if (phase !== 'fleetBuilding' && phase !== 'gameOver') {
           deps.showPhaseAlert(phase, isMyTurn);
         }
       }

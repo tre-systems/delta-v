@@ -14,6 +14,7 @@ export interface ShipFate {
 }
 
 export interface GameOverStats {
+  playerId: number;
   turns: number;
   myShipsAlive: number;
   myShipsTotal: number;

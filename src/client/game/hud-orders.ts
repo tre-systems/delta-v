@@ -70,7 +70,7 @@ const getFleetStatus = (state: GameState, playerId: number): string => {
   const statusParts: string[] = [];
 
   if (myShips.length > 1 || enemyShips.length > 1) {
-    statusParts.push(`⚔ ${myAlive}v${enemyAlive}`);
+    statusParts.push(`⚔ ${myAlive} vs ${enemyAlive}`);
   }
 
   const activeOrdnance = state.ordnance.filter(

@@ -23,7 +23,9 @@ export interface LobbyView {
 
 export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const scope = createDisposalScope();
-  const aiDifficultySignal = signal<AIDifficulty>('normal');
+  const storedDifficulty =
+    (localStorage.getItem('aiDifficulty') as AIDifficulty | null) ?? 'normal';
+  const aiDifficultySignal = signal<AIDifficulty>(storedDifficulty);
   const pendingAIGameSignal = signal(false);
   const loadingSignal = signal(false);
   const waitingCopySignal = signal(buildWaitingScreenCopy('', false));
@@ -154,7 +156,9 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     for (const btn of difficultyButtons) {
       listen(btn, 'click', (event) => {
         event.stopPropagation();
-        aiDifficultySignal.value = btn.dataset.difficulty as AIDifficulty;
+        const diff = btn.dataset.difficulty as AIDifficulty;
+        aiDifficultySignal.value = diff;
+        localStorage.setItem('aiDifficulty', diff);
       });
     }
 

@@ -37,6 +37,7 @@ export interface GameOverStatsLike {
   enemyFuelSpent: number;
   basesDestroyed: number;
   ordnanceInFlight: number;
+  playerId?: number;
   shipFates?: Array<{
     name: string;
     status: string;
@@ -174,14 +175,29 @@ const buildStatLines = (stats: GameOverStatsLike): GameOverStatLine[] => {
   }
 
   if (stats.shipFates && stats.shipFates.length > 0) {
-    lines.push({ label: '', value: '' }); // Spacer
-    lines.push({ label: 'SHIP FATES', value: '' });
+    const pid = stats.playerId ?? 0;
+    const myFates = stats.shipFates.filter((f) => f.owner === pid);
+    const enemyFates = stats.shipFates.filter((f) => f.owner !== pid);
 
-    for (const fate of stats.shipFates) {
+    lines.push({ label: '', value: '' }); // Spacer
+    lines.push({ label: 'YOUR SHIPS', value: '' });
+
+    for (const fate of myFates) {
       lines.push({
         label: fate.name,
         value: fate.status.toUpperCase(),
       });
+    }
+
+    if (enemyFates.length > 0) {
+      lines.push({ label: 'ENEMY SHIPS', value: '' });
+
+      for (const fate of enemyFates) {
+        lines.push({
+          label: fate.name,
+          value: fate.status.toUpperCase(),
+        });
+      }
     }
   }
 
