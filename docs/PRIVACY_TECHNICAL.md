@@ -21,4 +21,4 @@ This document **describes what the code does**. It does not replace a **privacy 
 
 - [SECURITY.md](./SECURITY.md) — abuse, XSS, reporting endpoints.
 - [OBSERVABILITY.md](./OBSERVABILITY.md) — D1 schema and queries.
-- [decisions/0001-data-retention.md](./decisions/0001-data-retention.md) — retention stance.
+- [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do) — retention stance (D1, R2, DO).

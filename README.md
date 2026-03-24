@@ -29,7 +29,6 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 - [**REVIEW_PLAN.md**](./docs/REVIEW_PLAN.md): sequenced checklist for cross-cutting reviews (CI, observability, data retention, a11y, etc.)
 - [**CONTRIBUTING.md**](./docs/CONTRIBUTING.md): pre-commit behavior, coverage, Playwright ports
 - [**OBSERVABILITY.md**](./docs/OBSERVABILITY.md): logs, D1 events, sample queries
-- [**decisions/**](./docs/decisions/README.md): architecture decision records (ADRs)
 - [**A11Y.md**](./docs/A11Y.md): DOM accessibility checklist (Canvas limitations noted)
 - [**PRIVACY_TECHNICAL.md**](./docs/PRIVACY_TECHNICAL.md): technical privacy summary (not legal advice)
 - [**SPACESHIPS.md**](./docs/SPACESHIPS.md) and [**TECHNOLOGY.md**](./docs/TECHNOLOGY.md): visual direction and real-world technology anchors

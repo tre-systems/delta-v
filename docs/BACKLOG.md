@@ -24,7 +24,7 @@ If the product stays **private friend matches only**, treat the early security i
 
 ### 2. Legal and user-facing privacy (if applicable) — **Human**
 
-[PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) describes what the code stores; it is **not** a privacy policy. Before broad public launch or regulated regions, have **legal review** and publish whatever notices or consents are required. Align marketing/site copy with telemetry and retention ([ADR 0001](./decisions/0001-data-retention.md)).
+[PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) describes what the code stores; it is **not** a privacy policy. Before broad public launch or regulated regions, have **legal review** and publish whatever notices or consents are required. Align marketing/site copy with telemetry and retention ([SECURITY.md](./SECURITY.md#data-retention-d1-r2-do)).
 
 **Owner:** you + counsel.
 
@@ -84,7 +84,7 @@ These depend on mechanics that are not fully present yet: concealment / dummy co
 
 **Rationale:** Critical **when you bump** schema; routine discipline between bumps.
 
-**Files:** `src/shared/types/domain.ts`, `src/shared/engine/event-projector.ts`, `docs/ARCHITECTURE.md` or ADR, relevant tests
+**Files:** `src/shared/types/domain.ts`, `src/shared/engine/event-projector.ts`, `docs/ARCHITECTURE.md`, relevant tests
 
 ### 10. Optional Turnstile on `POST /create`
 
@@ -98,11 +98,11 @@ Bot-driven room creation can spin many Durable Objects and archive writes. Turns
 
 Capture measured frame cost (Chrome Performance or equivalent, optional per-frame timing hooks) before large renderer refactors or layer caching. Drive optimization from data, not guesswork (see [ARCHITECTURE.md](./ARCHITECTURE.md) “Next improvements”).
 
-**Files:** `src/client/renderer/renderer.ts`, profiling notes in `docs/` or ADR
+**Files:** `src/client/renderer/renderer.ts`, profiling notes in `docs/` if useful
 
 ### 12. Re-baseline client bundle size — **Human**
 
-After large renderer or dependency changes, re-measure `dist/client.js` (raw + gzip) and update [ADR 0003](./decisions/0003-bundle-and-supply-chain-baseline.md) or append a dated row.
+After large renderer or dependency changes, re-measure `dist/client.js` (raw + gzip) and update the **Client bundle and release hygiene** table in [ARCHITECTURE.md](./ARCHITECTURE.md) (or append a dated row there).
 
 **Owner:** whoever ships the change.
 
@@ -120,13 +120,7 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 
 **Files:** `src/client/dom.ts`, client call sites, optional dependency add
 
-### 15. Architecture decision records (ADRs) — **Ongoing**
-
-Cross-cutting choices (protocol shapes, auth model, replay policy) have historically drifted across prose docs. **Started:** [docs/decisions/README.md](./decisions/README.md) indexes ADRs 0001–0004 (retention, deploy/protocol, bundle/supply chain, i18n scope). Add new numbered ADRs when a decision is likely to be revisited.
-
-**Files:** `docs/decisions/`, links from [ARCHITECTURE.md](./ARCHITECTURE.md)
-
-### 16. Windows-friendly pre-commit (if needed) — **Human**
+### 15. Windows-friendly pre-commit (if needed) — **Human**
 
 Husky is a **POSIX** shell script (`rm`, `export`, dynamic `E2E_PORT` via Node). If **Windows CMD** users cannot commit, add `cross-env` or reinforce **Git Bash / WSL** in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
