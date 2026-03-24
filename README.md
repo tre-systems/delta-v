@@ -24,8 +24,8 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 - [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md): coding conventions, refactoring guidance, and shared patterns
 - [**MANUAL_TEST_PLAN.md**](./docs/MANUAL_TEST_PLAN.md): comprehensive manual test plan covering all scenarios, mechanics, and edge cases
 - [**SIMULATION_TESTING.md**](./docs/SIMULATION_TESTING.md): headless AI-vs-AI coverage plus the websocket load / chaos harness
-- [**SECURITY.md**](./docs/SECURITY.md): competitive-integrity posture, remaining risks, and deployment hardening notes
-- [**BACKLOG.md**](./docs/BACKLOG.md): remaining open work only
+- [**SECURITY.md**](./docs/SECURITY.md): competitive integrity, abuse and cost considerations, rate limits, and deployment hardening
+- [**BACKLOG.md**](./docs/BACKLOG.md): remaining open work (including security and abuse-hardening tasks)
 - [**SPACESHIPS.md**](./docs/SPACESHIPS.md) and [**TECHNOLOGY.md**](./docs/TECHNOLOGY.md): visual direction and real-world technology anchors
 
 ## 🌟 Features

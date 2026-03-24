@@ -48,3 +48,35 @@ waves.
 `src/shared/engine/`, client scenario presentation
 
 ---
+
+## Security & abuse hardening
+
+These items complement [SECURITY.md](./SECURITY.md). None of them block the current friendly-match product model; prioritize if traffic is public, adversarial, or unexpectedly expensive.
+
+### Rate-limit reporting endpoints (`/telemetry`, `/error`)
+
+`POST /telemetry` and `POST /error` accept small JSON bodies (4KB cap) and write to D1 via `waitUntil`, but there is **no application-level per-IP rate limit**. A distributed client could inflate D1 rows and Worker CPU.
+
+**Mitigations (pick one or combine):** Cloudflare WAF or rate-limiting rules on those paths; a Workers rate-limit binding keyed on hashed IP (same pattern as `CREATE_RATE_LIMITER`); or sampling / caps in `src/server/index.ts` before `insertEvent`.
+
+**Files:** `src/server/index.ts`, `wrangler.toml`, Cloudflare dashboard
+
+### Optional Turnstile on `POST /create`
+
+Bot-driven room creation can spin many Durable Objects and archive writes. Turnstile validation on `/create` is described in [SECURITY.md](./SECURITY.md).
+
+**Files:** client create-game UI, `src/server/index.ts` (`handleCreate`), Turnstile siteverify call
+
+### Optional throttle on `GET /join/:code` and `GET /replay/:code`
+
+Unauthenticated HTTP probes can wake DOs and run replay projection without joining. Add edge or app limits if metrics show abuse or material cost.
+
+**Files:** `src/server/index.ts`, optional `[[ratelimits]]` or WAF rules
+
+### Public matchmaking prep (longer room identifiers)
+
+If the product moves beyond shared short codes, implement longer opaque IDs or signed invites (see [SECURITY.md](./SECURITY.md) competitive risks).
+
+**Files:** `src/server/protocol.ts`, client lobby/join UX, any link/share format
+
+---

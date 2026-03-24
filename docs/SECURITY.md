@@ -2,7 +2,7 @@
 
 This document describes the current security posture of Delta-V with emphasis on competitive multiplayer. It distinguishes protections that are already enforced from the risks that still remain if the game were exposed to untrusted public players.
 
-Related docs: [ARCHITECTURE](./ARCHITECTURE.md), [BACKLOG](./BACKLOG.md), [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md).
+Related docs: [ARCHITECTURE](./ARCHITECTURE.md), [BACKLOG](./BACKLOG.md) (security and abuse tasks), [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md).
 
 ## Current Protections
 
@@ -15,7 +15,8 @@ Delta-V now has a materially stronger authoritative-server boundary than the ori
 - The guest seat is shared by room code or copied room link — anyone with the 5-character code can claim the open seat.
 - Reconnects require the stored player token, and seat reclamation is keyed to player identity even if the previous WebSocket has not finished closing yet.
 - Client-to-server WebSocket messages are runtime-validated before any engine handler executes, and malformed payloads are rejected instead of being trusted structurally.
-- Room codes are generated from a cryptographically strong RNG rather than `Math.random()`.
+- After a WebSocket is accepted, **per-socket message rate limiting** (10 messages per second, then close with code 1008) caps garbage traffic to the Durable Object. Chat is also throttled in-memory (minimum 500ms between accepted chat messages per player).
+- Room codes are generated from a cryptographically strong RNG rather than `Math.random()` (see `generateRoomCode` in `src/server/protocol.ts`).
 
 These changes make private multiplayer substantially safer than before, especially for host-seat integrity, reconnect safety, and server authority.
 
@@ -42,7 +43,7 @@ Recommended next step:
 
 Current status: **acceptable for friendly matches, weak for public matchmaking**
 
-- Room codes are collision-checked and cryptographically generated (5 characters from a 28-char alphabet = ~17M combinations).
+- Room codes are collision-checked and cryptographically generated from **32** characters (`A–Z` excluding **I** and **O**, plus digits `2–9`): **32⁵ ≈ 33.6M** combinations (`src/server/protocol.ts`, `CODE_CHARS`).
 - Short codes are a deliberate product choice — designed for voice/chat sharing between friends.
 - For public matchmaking or tournament play, longer opaque identifiers would be needed to prevent code guessing.
 
@@ -80,12 +81,15 @@ When no binding is configured, the worker uses a per-isolate in-memory map (5 cr
 
 **What's enforced vs. what's not:**
 
-| Control | In-memory fallback | Edge binding |
-|---|---|---|
-| Per-IP create throttle | per-isolate only | global |
-| WebSocket join throttle | not rate-limited | not rate-limited |
-| Bot challenge (Turnstile) | not present | configurable via CF dashboard |
-| Room-code guessing | 5-char codes, no join throttle | same — mitigated only by code entropy |
+| Control                                 | In-memory fallback                               | Edge binding                                                                    |
+| --------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Per-IP create throttle                  | per-isolate only                                 | global                                                                          |
+| WebSocket **connection** / join storm   | not app-rate-limited                             | not app-rate-limited (two seats cap abuse impact per room)                      |
+| WebSocket **messages** (after connect)  | 10 msg/s per socket (DO)                         | same                                                                            |
+| `POST /telemetry` and `POST /error`     | **no per-IP app limit**; body capped at 4KB JSON | add **WAF / rate limit rules** or app-level limiter if D1 spam becomes an issue |
+| Bot challenge (Turnstile)               | not present                                      | configurable via CF dashboard                                                   |
+| `GET /join/:code` / `GET /replay/:code` | not app-rate-limited                             | optional WAF if enumeration or DO wake cost matters                             |
+| Room-code guessing                      | 5-char codes, ~33.6M space, no join throttle     | same                                                                            |
 
 **Deployment recommendation:**
 Treat the checked-in `wrangler.toml` as the production
@@ -95,10 +99,14 @@ created rather than silently shipping without replay
 storage. Lower environments may still choose local
 simulation or intentionally omit remote resources, but
 public-facing production should keep the rate-limit and
-archive bindings enabled. Consider adding a Cloudflare
-Turnstile challenge on the `/create` path next. WebSocket
-joins are implicitly constrained by the room model (two
-seats per room) and don't need dedicated rate limiting.
+archive bindings enabled. Consider **Cloudflare WAF rate
+limiting** on `POST /telemetry` and `POST /error` to cap
+D1 write and Worker cost under distributed spam, and a
+**Turnstile** challenge on `/create` if automated room
+creation becomes a problem. WebSocket **upgrades** are not
+message-throttled at the edge; abuse is partly mitigated
+by two seats per room and by **per-socket message** limits
+once connected.
 
 ### 4. Bot challenge protection (optional)
 
@@ -154,7 +162,7 @@ Current assessment:
 - **Host-seat integrity:** good
 - **Guest-seat integrity:** acceptable for friendly matches (room-code model is deliberate)
 - **Match availability under hostile payloads:** good
-- **Rate limiting:** good in the checked-in production config, per-isolate only in lower environments without the binding
+- **Rate limiting:** good for `/create` in the checked-in production config, per-isolate only in lower environments without the binding; WebSocket **message** flood capped per socket; **telemetry/error** endpoints rely on small bodies and optional WAF (see rate limiting table above)
 - **XSS posture:** good (trusted HTML boundary, no user-generated content)
 - **Room secrecy / public matchmaking readiness:** weak (short codes, no join throttle)
 
@@ -171,7 +179,10 @@ If the product scope expands beyond friendly matches:
 - Longer opaque room identifiers for public matchmaking
 - Turnstile integration on `/create` for bot protection
 - Account binding for organized competitive play
-- Join throttling if room-code guessing becomes a real vector
+- Join / replay HTTP throttling if room-code guessing or DO wake abuse becomes measurable
+- Application or edge rate limits on `POST /telemetry` and `POST /error` (see [BACKLOG](./BACKLOG.md))
+
+Concrete implementation tasks for abuse hardening and cost control are listed under **Security & abuse hardening** in [BACKLOG.md](./BACKLOG.md).
 
 ## Operational References
 
