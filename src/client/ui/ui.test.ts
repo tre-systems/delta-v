@@ -161,6 +161,9 @@ describe('UIManager', () => {
 
     expect(document.getElementById('hud')?.style.display).toBe('block');
     expect(document.getElementById('menu')?.style.display).toBe('none');
+    expect(document.getElementById('menu')?.getAttribute('aria-hidden')).toBe(
+      'true',
+    );
     expect(document.getElementById('shipList')?.style.display).toBe('flex');
   });
 
