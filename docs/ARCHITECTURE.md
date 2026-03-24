@@ -636,9 +636,9 @@ currently exist.
 
 **Bundle baseline** (recorded 2026-03 review; re-measure after large renderer or dependency changes):
 
-| Artifact | Raw (approx.) | Gzip (approx.) |
-| -------- | ------------- | -------------- |
-| `dist/client.js` | ~525 KB | ~107 KB |
+| Artifact         | Raw (approx.) | Gzip (approx.) |
+| ---------------- | ------------- | -------------- |
+| `dist/client.js` | ~525 KB       | ~107 KB        |
 
 **Supply chain:** run `npm audit` before releases; use `npm run update-deps` judiciously and run `verify` after bumps.
 

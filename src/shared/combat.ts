@@ -363,11 +363,16 @@ export const lookupOtherDamage = (
 
 // Apply damage to a ship.
 // Returns true if the ship was eliminated.
-export const applyDamage = (ship: Ship, result: DamageResult): boolean => {
+export const applyDamage = (
+  ship: Ship,
+  result: DamageResult,
+  cause?: string,
+): boolean => {
   if (result.type === 'none') return false;
 
   if (result.type === 'eliminated') {
     ship.lifecycle = 'destroyed';
+    ship.deathCause = cause;
     ship.velocity = { dq: 0, dr: 0 };
 
     return true;
@@ -378,6 +383,7 @@ export const applyDamage = (ship: Ship, result: DamageResult): boolean => {
 
   if (ship.damage.disabledTurns >= DAMAGE_ELIMINATION_THRESHOLD) {
     ship.lifecycle = 'destroyed';
+    ship.deathCause = cause;
     ship.velocity = { dq: 0, dr: 0 };
 
     return true;
@@ -473,10 +479,10 @@ export const resolveCombat = (
       : null;
 
   if (counterattack) {
-    applyDamage(primaryAttacker, counterattack.damageResult);
+    applyDamage(primaryAttacker, counterattack.damageResult, 'gun');
   }
 
-  applyDamage(target, damageResult);
+  applyDamage(target, damageResult, 'gun');
 
   // Heroism: attackers that win at underdog odds
   // become permanently heroic.
@@ -570,7 +576,7 @@ export const resolveBaseDefense = (
       const modifiedRoll = dieRoll;
       const damageResult = lookupGunCombat(odds, modifiedRoll);
 
-      applyDamage(ship, damageResult);
+      applyDamage(ship, damageResult, 'baseDefense');
 
       results.push({
         attackerIds: [`base:${key}`],

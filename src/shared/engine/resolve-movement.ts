@@ -156,6 +156,7 @@ export const resolveMovementPhase = (
 
     if (course.crashed) {
       ship.lifecycle = 'destroyed';
+      ship.deathCause = 'crash';
       ship.velocity = { dq: 0, dr: 0 };
       ship.pendingGravityEffects = [];
 

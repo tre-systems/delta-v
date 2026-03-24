@@ -11,10 +11,12 @@ export interface ShipFate {
   type: string;
   status: 'survived' | 'destroyed' | 'captured';
   owner: number;
+  deathCause?: string;
 }
 
 export interface GameOverStats {
   playerId: number;
+  scenario: string;
   turns: number;
   myShipsAlive: number;
   myShipsTotal: number;

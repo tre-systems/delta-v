@@ -225,18 +225,18 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 Initial documentation and tooling pass **2026-03-24**: configs fixed where safe; maps and prose docs updated; **manual** follow-ups (Lighthouse/axe tab-through, legal counsel) remain for humans.
 
-| #   | Area                    | Reviewed (date) | Owner | Notes / link                                                                                                |
-| --- | ----------------------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------- |
+| #   | Area                    | Reviewed (date) | Owner | Notes / link                                                                                                   |
+| --- | ----------------------- | --------------- | ----- | -------------------------------------------------------------------------------------------------------------- |
 | 1   | CI / local dev friction | 2026-03-24      | —     | `test:coverage` + `--no-file-parallelism`; pre-commit dynamic `E2E_PORT`; [CONTRIBUTING.md](./CONTRIBUTING.md) |
-| 2   | Observability           | 2026-03-24      | —     | [OBSERVABILITY.md](./OBSERVABILITY.md)                                                                      |
-| 3   | Data lifecycle          | 2026-03-24      | —     | [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do)                                                        |
-| 4   | Accessibility           | 2026-03-24      | —     | [A11Y.md](./A11Y.md) — **manual audit still due**                                                           |
-| 5   | Bundle / runtime        | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) §7 bundle table; Chrome profiling optional                             |
-| 6   | Supply chain / release  | 2026-03-24      | —     | `npm audit` clean at review; D1 rollback in [ARCHITECTURE.md](./ARCHITECTURE.md) §7                         |
-| 7   | Protocol compatibility  | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) deployment assumption (top + §6)                                      |
-| 8   | Replay / parity         | 2026-03-24      | —     | [CODING_STANDARDS.md](./CODING_STANDARDS.md) Testing bullet                                                 |
-| 9   | i18n                    | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) §6 (English-only stance)                                               |
-| 10  | Privacy / compliance    | 2026-03-24      | —     | [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) — **legal review out of band**                               |
+| 2   | Observability           | 2026-03-24      | —     | [OBSERVABILITY.md](./OBSERVABILITY.md)                                                                         |
+| 3   | Data lifecycle          | 2026-03-24      | —     | [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do)                                                           |
+| 4   | Accessibility           | 2026-03-24      | —     | [A11Y.md](./A11Y.md) — **manual audit still due**                                                              |
+| 5   | Bundle / runtime        | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) §7 bundle table; Chrome profiling optional                                |
+| 6   | Supply chain / release  | 2026-03-24      | —     | `npm audit` clean at review; D1 rollback in [ARCHITECTURE.md](./ARCHITECTURE.md) §7                            |
+| 7   | Protocol compatibility  | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) deployment assumption (top + §6)                                          |
+| 8   | Replay / parity         | 2026-03-24      | —     | [CODING_STANDARDS.md](./CODING_STANDARDS.md) Testing bullet                                                    |
+| 9   | i18n                    | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) §6 (English-only stance)                                                  |
+| 10  | Privacy / compliance    | 2026-03-24      | —     | [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) — **legal review out of band**                                  |
 
 ---
 
