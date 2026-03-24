@@ -1,8 +1,4 @@
-import type {
-  AggregateMetrics,
-  LoadTestConfig,
-  MatchMetrics,
-} from './load-test-types';
+import type { AggregateMetrics, LoadTestConfig, MatchMetrics } from './types';
 
 const isFailedMatch = (reason: string): boolean =>
   reason === 'match timeout' ||

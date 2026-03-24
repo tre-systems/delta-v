@@ -171,21 +171,21 @@ The backend leverages Cloudflare's edge network.
 
 #### Module Inventory
 
-| Module                            | Purpose                                                                                                          | Reusability                                               |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `index.ts`                        | Worker entry: `/create`, `/join/:code`, `/replay/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern                                           |
-| `protocol.ts`                     | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export                            | **~85% generic** — room/token/seat logic is game-agnostic |
-| `game-do/game-do.ts`              | Durable Object class: composes fetch, WebSocket, and alarm paths                                                 | **~70% generic** — multiplayer plumbing is reusable       |
-| `game-do/game-do-fetch.ts`        | HTTP `/init`, `/join`, `/replay` and WebSocket upgrade + welcome/reconnect                                       | **~70% generic**                                          |
-| `game-do/game-do-ws.ts`           | Hibernation `webSocketMessage` / `webSocketClose` bodies                                                         | **~70% generic**                                          |
-| `game-do/game-do-alarm.ts`        | Alarm handler: disconnect forfeit, turn timeout, inactivity archive/close                                        | Mostly generic                                            |
-| `game-do/game-do-turn-timeout.ts` | Turn-timeout branch: engine outcome + `publishStateChange`                                                       | Game-specific                                             |
-| `game-do/game-do-telemetry.ts`    | Engine/projection error reporting to D1                                                                          | Generic pattern                                           |
-| `game-do/archive.ts`              | Match-scoped event envelopes (gameId/seq/ts/actor), checkpoints, replay projection, match identity               | Game-specific                                             |
-| `game-do/match-archive.ts`        | Persistent archival of completed matches to R2 + D1 metadata                                                     | **Fully generic**                                         |
-| `game-do/messages.ts`             | S2C message construction from engine results                                                                     | Game-specific                                             |
-| `game-do/session.ts`              | Disconnect grace period, alarm scheduling                                                                        | **Fully generic**                                         |
-| `game-do/turns.ts`                | Turn timeout auto-advance                                                                                        | Mostly generic                                            |
+| Module                     | Purpose                                                                                                          | Reusability                                               |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `index.ts`                 | Worker entry: `/create`, `/join/:code`, `/replay/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern                                           |
+| `protocol.ts`              | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export                            | **~85% generic** — room/token/seat logic is game-agnostic |
+| `game-do/game-do.ts`       | Durable Object class: composes fetch, WebSocket, and alarm paths                                                 | **~70% generic** — multiplayer plumbing is reusable       |
+| `game-do/fetch.ts`         | HTTP `/init`, `/join`, `/replay` and WebSocket upgrade + welcome/reconnect                                       | **~70% generic**                                          |
+| `game-do/ws.ts`            | Hibernation `webSocketMessage` / `webSocketClose` bodies                                                         | **~70% generic**                                          |
+| `game-do/alarm.ts`         | Alarm handler: disconnect forfeit, turn timeout, inactivity archive/close                                        | Mostly generic                                            |
+| `game-do/turn-timeout.ts`  | Turn-timeout branch: engine outcome + `publishStateChange`                                                       | Game-specific                                             |
+| `game-do/telemetry.ts`     | Engine/projection error reporting to D1                                                                          | Generic pattern                                           |
+| `game-do/archive.ts`       | Match-scoped event envelopes (gameId/seq/ts/actor), checkpoints, replay projection, match identity               | Game-specific                                             |
+| `game-do/match-archive.ts` | Persistent archival of completed matches to R2 + D1 metadata                                                     | **Fully generic**                                         |
+| `game-do/messages.ts`      | S2C message construction from engine results                                                                     | Game-specific                                             |
+| `game-do/session.ts`       | Disconnect grace period, alarm scheduling                                                                        | **Fully generic**                                         |
+| `game-do/turns.ts`         | Turn timeout auto-advance                                                                                        | Mostly generic                                            |
 
 #### Key Design Patterns
 
