@@ -11,7 +11,7 @@
     "typecheck:tools": "tsc --noEmit -p tsconfig.tools.json",
     "typecheck:all": "npm run typecheck && npm run typecheck:tools",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --no-file-parallelism",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:watch": "vitest",

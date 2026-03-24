@@ -91,6 +91,45 @@ const getAstrogationStatusText = (
     : 'Click adjacent hex to set burn direction';
 };
 
+const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
+  const { launchMineState, launchTorpedoState, launchNukeState, cargoMax } =
+    input;
+
+  const hasSelection = cargoMax > 0;
+
+  if (!hasSelection) {
+    return isMobile
+      ? 'Select a ship to launch ordnance'
+      : 'Select a ship to launch ordnance, or skip (Enter)';
+  }
+
+  const available: string[] = [];
+
+  if (launchMineState.visible && !launchMineState.disabled)
+    available.push(isMobile ? 'Mine' : 'Mine (N)');
+  if (launchTorpedoState.visible && !launchTorpedoState.disabled)
+    available.push(isMobile ? 'Torpedo' : 'Torpedo (T)');
+  if (launchNukeState.visible && !launchNukeState.disabled)
+    available.push(isMobile ? 'Nuke' : 'Nuke (K)');
+
+  if (available.length === 0) {
+    // Ship is selected but can't launch anything — find the reason
+    const reason =
+      launchMineState.title ||
+      launchTorpedoState.title ||
+      launchNukeState.title;
+    const hint = reason ? ` \u2014 ${reason.toLowerCase()}` : '';
+
+    return isMobile
+      ? `Cannot launch${hint}`
+      : `Cannot launch${hint} \u00b7 skip (Enter)`;
+  }
+
+  return isMobile
+    ? `Launch ${available.join(', ')} or skip`
+    : `Launch ${available.join(', ')} \u00b7 skip (Enter)`;
+};
+
 export interface HUDInput {
   turn: number;
   phase: string;
@@ -159,13 +198,11 @@ export const buildHUDView = (input: HUDInput): HUDView => {
       : phase === 'astrogation'
         ? getAstrogationStatusText(astrogationCtx, isMobile)
         : phase === 'ordnance'
-          ? isMobile
-            ? 'Launch ordnance or skip'
-            : 'Launch ordnance or skip (Enter)'
+          ? getOrdnanceStatusText(input, isMobile)
           : phase === 'combat'
             ? isMobile
               ? 'Tap enemies to target \u00b7 Fire All to attack'
-              : 'Click enemies to target \u00b7 Fire All to attack (Enter)'
+              : 'Click enemies to target \u00b7 Fire All (Enter)'
             : phase === 'logistics'
               ? isMobile
                 ? 'Transfer fuel/cargo or skip'
