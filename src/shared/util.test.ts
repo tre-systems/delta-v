@@ -4,11 +4,15 @@ import {
   clamp,
   compact,
   cond,
+  condp,
+  condpOr,
   count,
   filterMap,
   groupBy,
   indexBy,
   mapValues,
+  matchEq,
+  matchEqOr,
   maxBy,
   minBy,
   partition,
@@ -193,6 +197,79 @@ describe('cond', () => {
 
   it('returns undefined with no pairs', () => {
     expect(cond()).toBeUndefined();
+  });
+});
+
+describe('condp', () => {
+  it('returns the first result whose test matches via pred', () => {
+    expect(
+      condp(
+        (t, e) => e.startsWith(t),
+        'hello',
+        ['x', 1],
+        ['hel', 2],
+        ['he', 3],
+      ),
+    ).toBe(2);
+  });
+
+  it('returns undefined when nothing matches', () => {
+    expect(condp((a, b) => a === b, 'z', ['a', 1], ['b', 2])).toBeUndefined();
+  });
+
+  it('returns undefined with no pairs', () => {
+    expect(condp((a, b) => a === b, 'x')).toBeUndefined();
+  });
+});
+
+describe('condpOr', () => {
+  it('returns first matching result', () => {
+    expect(
+      condpOr(
+        (t, e) => e.startsWith(t),
+        'hello',
+        0,
+        ['x', 1],
+        ['hel', 2],
+        ['he', 3],
+      ),
+    ).toBe(2);
+  });
+
+  it('returns fallback when nothing matches', () => {
+    expect(condpOr((a, b) => a === b, 'z', 9, ['a', 1], ['b', 2])).toBe(9);
+  });
+
+  it('returns fallback with no pairs', () => {
+    expect(condpOr((a, b) => a === b, 'x', 4)).toBe(4);
+  });
+});
+
+describe('matchEq', () => {
+  it('dispatches on strict equality', () => {
+    expect(matchEq('b', ['a', 1], ['b', 2], ['c', 3])).toBe(2);
+  });
+
+  it('returns undefined when nothing matches', () => {
+    expect(matchEq('z', ['a', 1])).toBeUndefined();
+  });
+
+  it('works with nullish coalescing for default', () => {
+    expect(matchEq('z', ['a', 1]) ?? 'none').toBe('none');
+  });
+});
+
+describe('matchEqOr', () => {
+  it('dispatches on strict equality', () => {
+    expect(matchEqOr('b', 0, ['a', 1], ['b', 2], ['c', 3])).toBe(2);
+  });
+
+  it('returns fallback when nothing matches', () => {
+    expect(matchEqOr('z', 7, ['a', 1])).toBe(7);
+  });
+
+  it('returns fallback with no pairs', () => {
+    expect(matchEqOr('z', 5)).toBe(5);
   });
 });
 

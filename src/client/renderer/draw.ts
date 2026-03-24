@@ -11,18 +11,29 @@ import {
   type PixelCoord,
 } from '../../shared/hex';
 
+export type DrawShipIconInput = {
+  ctx: CanvasRenderingContext2D;
+  x: number;
+  y: number;
+  owner: number;
+  alpha: number;
+  heading: number;
+  disabledTurns?: number;
+  shipType?: string;
+};
+
 // Draw a ship icon (arrow or octagon for orbital base)
 // at the given position.
-export const drawShipIcon = (
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  owner: number,
-  alpha: number,
-  heading: number,
+export const drawShipIcon = ({
+  ctx,
+  x,
+  y,
+  owner,
+  alpha,
+  heading,
   disabledTurns = 0,
   shipType = '',
-): void => {
+}: DrawShipIconInput): void => {
   const color =
     owner === 0
       ? `rgba(79, 195, 247, ${alpha})`

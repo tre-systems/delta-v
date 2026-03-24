@@ -1,9 +1,9 @@
 import type { CourseMarkerView, WeakGravityMarkerView } from './course';
 
-export function drawCourseMarkerView(
+export const drawCourseMarkerView = (
   ctx: CanvasRenderingContext2D,
   marker: CourseMarkerView,
-): void {
+): void => {
   if (marker.shadowBlur > 0 && marker.shadowColor) {
     ctx.shadowBlur = marker.shadowBlur;
     ctx.shadowColor = marker.shadowColor;
@@ -23,12 +23,12 @@ export function drawCourseMarkerView(
     ctx.textBaseline = 'middle';
     ctx.fillText(marker.label, marker.position.x, marker.position.y);
   }
-}
+};
 
-export function drawWeakGravityMarkerView(
+export const drawWeakGravityMarkerView = (
   ctx: CanvasRenderingContext2D,
   marker: WeakGravityMarkerView,
-): void {
+): void => {
   ctx.strokeStyle = marker.strokeColor;
   ctx.fillStyle = marker.fillColor;
   ctx.lineWidth = 1.5;
@@ -48,4 +48,4 @@ export function drawWeakGravityMarkerView(
     ctx.lineTo(marker.strikeTo.x, marker.strikeTo.y);
     ctx.stroke();
   }
-}
+};

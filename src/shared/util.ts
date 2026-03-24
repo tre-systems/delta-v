@@ -89,6 +89,50 @@ export const pickBy = <V>(
 export const cond = <T>(...pairs: readonly [boolean, T][]): T | undefined =>
   pairs.find(([pred]) => pred)?.[1];
 
+// Like Clojure's condp: apply `pred(test, expr)` for each [test,
+// result] pair in order; return the first matching result.
+// Use when every clause compares the same `expr` against different
+// `test` values with the same `pred` (often `===`).
+//
+//   condp((t, e) => t === e, phase,
+//     ['combat', handleCombat],
+//     ['astrogation', handleAstro],
+//   ) ?? noop
+//
+// For strict equality on `expr`, prefer `matchEq`.
+export const condp = <TExpr, TTest, TResult>(
+  pred: (test: TTest, expr: TExpr) => boolean,
+  expr: TExpr,
+  ...pairs: readonly (readonly [TTest, TResult])[]
+): TResult | undefined => {
+  for (const [test, result] of pairs) {
+    if (pred(test, expr)) return result;
+  }
+
+  return undefined;
+};
+
+/** Like `condp`, but returns `fallback` when nothing matches. */
+export const condpOr = <TExpr, TTest, TResult>(
+  pred: (test: TTest, expr: TExpr) => boolean,
+  expr: TExpr,
+  fallback: TResult,
+  ...pairs: readonly (readonly [TTest, TResult])[]
+): TResult => condp(pred, expr, ...pairs) ?? fallback;
+
+/** First `result` whose `test` is strictly equal to `expr` (Clojure `condp` with `=`). */
+export const matchEq = <T, R>(
+  expr: T,
+  ...pairs: readonly (readonly [T, R])[]
+): R | undefined => condp((a, b) => a === b, expr, ...pairs);
+
+/** Like `matchEq`, but returns `fallback` when nothing matches. */
+export const matchEqOr = <T, R>(
+  expr: T,
+  fallback: R,
+  ...pairs: readonly (readonly [T, R])[]
+): R => matchEq(expr, ...pairs) ?? fallback;
+
 // Count items matching a predicate, without allocating
 // an intermediate array.
 export const count = <T>(arr: readonly T[], fn: (item: T) => boolean): number =>

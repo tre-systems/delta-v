@@ -10,14 +10,19 @@ import {
   getToastFadeAlpha,
 } from './toast';
 
-export function drawCombatResultsToastOverlay(
-  ctx: CanvasRenderingContext2D,
-  results: CombatResult[],
-  gameState: GameState,
-  now: number,
-  screenW: number,
-  showUntil: number,
-): void {
+export type DrawCombatResultsToastOverlayInput = {
+  ctx: CanvasRenderingContext2D;
+  results: CombatResult[];
+  gameState: GameState;
+  now: number;
+  screenW: number;
+  showUntil: number;
+};
+
+export const drawCombatResultsToastOverlay = (
+  input: DrawCombatResultsToastOverlayInput,
+): void => {
+  const { ctx, results, gameState, now, screenW, showUntil } = input;
   if (results.length === 0) return;
   const alpha = getToastFadeAlpha(showUntil, now);
   ctx.save();
@@ -36,16 +41,21 @@ export function drawCombatResultsToastOverlay(
     y += isSecondary ? 24 : 26;
   }
   ctx.restore();
-}
+};
 
-export function drawMovementEventsToastOverlay(
-  ctx: CanvasRenderingContext2D,
-  events: MovementEvent[],
-  gameState: GameState | null,
-  now: number,
-  screenW: number,
-  showUntil: number,
-): void {
+export type DrawMovementEventsToastOverlayInput = {
+  ctx: CanvasRenderingContext2D;
+  events: MovementEvent[];
+  gameState: GameState | null;
+  now: number;
+  screenW: number;
+  showUntil: number;
+};
+
+export const drawMovementEventsToastOverlay = (
+  input: DrawMovementEventsToastOverlayInput,
+): void => {
+  const { ctx, events, gameState, now, screenW, showUntil } = input;
   if (events.length === 0) return;
   const alpha = getToastFadeAlpha(showUntil, now);
   ctx.save();
@@ -67,4 +77,4 @@ export function drawMovementEventsToastOverlay(
     y += 26;
   }
   ctx.restore();
-}
+};

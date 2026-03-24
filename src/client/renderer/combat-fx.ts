@@ -7,11 +7,11 @@ import type {
 import { getCombatTargetEntity } from './combat';
 import type { CombatEffect } from './effects';
 
-function pixelFromBaseRef(
+const pixelFromBaseRef = (
   baseRef: string,
   map: SolarSystemMap | null,
   hexSize: number,
-): PixelCoord | null {
+): PixelCoord | null => {
   if (baseRef.includes(',')) {
     return hexToPixel(parseHexKey(baseRef), hexSize);
   }
@@ -20,38 +20,38 @@ function pixelFromBaseRef(
     ([, hex]) => hex.base?.bodyName === baseRef,
   );
   return baseEntry ? hexToPixel(parseHexKey(baseEntry[0]), hexSize) : null;
-}
+};
 
-function resolveAttackerPixel(
+const resolveAttackerPixel = (
   firstId: string,
   gameState: GameState | null,
   map: SolarSystemMap | null,
   hexSize: number,
-): PixelCoord | null {
+): PixelCoord | null => {
   if (!firstId.startsWith('base:')) {
     const attacker = gameState?.ships.find((s) => s.id === firstId);
     return attacker ? hexToPixel(attacker.position, hexSize) : null;
   }
   return pixelFromBaseRef(firstId.slice(5), map, hexSize);
-}
+};
 
-function beamColorForAttack(
+const beamColorForAttack = (
   firstId: string,
   damageType: CombatResult['damageType'],
-): string {
+): string => {
   if (firstId.startsWith('base:')) return '#66bb6a';
   if (damageType === 'eliminated') return '#ff4444';
   if (damageType === 'disabled') return '#ffaa00';
   return '#4fc3f7';
-}
+};
 
-function pushAttackerBeamEffects(
+const pushAttackerBeamEffects = (
   out: CombatEffect[],
   r: CombatResult,
   targetPos: PixelCoord,
   attackerPos: PixelCoord,
   now: number,
-): void {
+): void => {
   const firstId = r.attackerIds[0];
   if (!firstId || r.attackType === 'asteroidHazard') return;
   out.push({
@@ -62,14 +62,14 @@ function pushAttackerBeamEffects(
     duration: 600,
     color: beamColorForAttack(firstId, r.damageType),
   });
-}
+};
 
-function pushDamageExplosion(
+const pushDamageExplosion = (
   out: CombatEffect[],
   targetPos: PixelCoord,
   now: number,
   damageType: CombatResult['damageType'],
-): void {
+): void => {
   if (damageType === 'none') return;
   out.push({
     type: 'explosion',
@@ -79,16 +79,16 @@ function pushDamageExplosion(
     duration: 800,
     color: damageType === 'eliminated' ? '#ff4444' : '#ffaa00',
   });
-}
+};
 
-function pushCounterattackEffects(
+const pushCounterattackEffects = (
   out: CombatEffect[],
   r: CombatResult,
   targetPos: PixelCoord,
   gameState: GameState | null,
   now: number,
   hexSize: number,
-): void {
+): void => {
   const ca = r.counterattack;
   if (!ca || ca.damageType === 'none') return;
   const counterTarget = gameState?.ships.find((s) => s.id === ca.targetId);
@@ -110,16 +110,16 @@ function pushCounterattackEffects(
     duration: 800,
     color: ca.damageType === 'eliminated' ? '#ff4444' : '#ffaa00',
   });
-}
+};
 
-function effectsForOneResult(
+const effectsForOneResult = (
   r: CombatResult,
   gameState: GameState | null,
   previousState: GameState | null | undefined,
   map: SolarSystemMap | null,
   now: number,
   hexSize: number,
-): CombatEffect[] {
+): CombatEffect[] => {
   const local: CombatEffect[] = [];
   const target = getCombatTargetEntity(r, gameState, previousState ?? null);
   if (!target) return local;
@@ -134,17 +134,17 @@ function effectsForOneResult(
   pushDamageExplosion(local, targetPos, now, r.damageType);
   pushCounterattackEffects(local, r, targetPos, gameState, now, hexSize);
   return local;
-}
+};
 
 /** Build beam / explosion effects for a batch of combat results (screen space). */
-export function buildCombatEffectsForResults(
+export const buildCombatEffectsForResults = (
   results: CombatResult[],
   gameState: GameState | null,
   previousState: GameState | null | undefined,
   map: SolarSystemMap | null,
   now: number,
   hexSize: number,
-): CombatEffect[] {
+): CombatEffect[] => {
   const out: CombatEffect[] = [];
   for (const r of results) {
     out.push(
@@ -152,4 +152,4 @@ export function buildCombatEffectsForResults(
     );
   }
   return out;
-}
+};

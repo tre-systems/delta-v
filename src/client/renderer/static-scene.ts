@@ -14,7 +14,43 @@ import {
   type StaticSceneLayer,
 } from './static-layer';
 
-export function drawStaticSceneWithCache(input: {
+const repaintStaticLayer = (
+  layer: StaticSceneLayer,
+  input: {
+    width: number;
+    height: number;
+    camera: Camera;
+    map: SolarSystemMap;
+    gameState: GameState | null;
+    stars: Star[];
+    hexSize: number;
+    now: number;
+  },
+): void => {
+  const lctx = layer.ctx as CanvasRenderingContext2D;
+  lctx.setTransform(1, 0, 0, 1, 0, 0);
+  lctx.clearRect(0, 0, input.width, input.height);
+  lctx.save();
+  input.camera.applyTransform(lctx);
+  renderStarsFn(lctx, input.stars, input.camera.zoom);
+  renderHexGridFn(lctx, input.map, input.hexSize, (x, y) =>
+    input.camera.isVisible(x, y),
+  );
+  renderAsteroidsFn(
+    lctx,
+    input.map,
+    input.gameState?.destroyedAsteroids ?? [],
+    input.hexSize,
+    (x, y) => input.camera.isVisible(x, y),
+  );
+  renderGravityIndicatorsFn(lctx, input.map, input.hexSize, (x, y) =>
+    input.camera.isVisible(x, y),
+  );
+  renderBodiesFn(lctx, input.map, input.hexSize, input.now);
+  lctx.restore();
+};
+
+export const drawStaticSceneWithCache = (input: {
   mainCtx: CanvasRenderingContext2D;
   layerRef: { layer: StaticSceneLayer | null };
   now: number;
@@ -25,7 +61,7 @@ export function drawStaticSceneWithCache(input: {
   gameState: GameState | null;
   stars: Star[];
   hexSize: number;
-}): boolean {
+}): boolean => {
   const key = computeStaticSceneLayerKey({
     map: input.map,
     camera: input.camera,
@@ -58,40 +94,4 @@ export function drawStaticSceneWithCache(input: {
   }
   input.mainCtx.drawImage(layer.canvas as CanvasImageSource, 0, 0);
   return true;
-}
-
-function repaintStaticLayer(
-  layer: StaticSceneLayer,
-  input: {
-    width: number;
-    height: number;
-    camera: Camera;
-    map: SolarSystemMap;
-    gameState: GameState | null;
-    stars: Star[];
-    hexSize: number;
-    now: number;
-  },
-): void {
-  const lctx = layer.ctx as CanvasRenderingContext2D;
-  lctx.setTransform(1, 0, 0, 1, 0, 0);
-  lctx.clearRect(0, 0, input.width, input.height);
-  lctx.save();
-  input.camera.applyTransform(lctx);
-  renderStarsFn(lctx, input.stars, input.camera.zoom);
-  renderHexGridFn(lctx, input.map, input.hexSize, (x, y) =>
-    input.camera.isVisible(x, y),
-  );
-  renderAsteroidsFn(
-    lctx,
-    input.map,
-    input.gameState?.destroyedAsteroids ?? [],
-    input.hexSize,
-    (x, y) => input.camera.isVisible(x, y),
-  );
-  renderGravityIndicatorsFn(lctx, input.map, input.hexSize, (x, y) =>
-    input.camera.isVisible(x, y),
-  );
-  renderBodiesFn(lctx, input.map, input.hexSize, input.now);
-  lctx.restore();
-}
+};
