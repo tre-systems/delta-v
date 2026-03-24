@@ -15,8 +15,8 @@ import {
 // screen is locked. A setTimeout fallback ensures animation callbacks fire
 // even when rAF stops.
 //
-// Since the Renderer class requires Canvas/DOM, we test the fallback logic
-// pattern directly rather than instantiating the full Renderer.
+// Since the renderer requires Canvas/DOM, we test the fallback logic
+// pattern directly rather than instantiating the full renderer.
 
 interface AnimState {
   startTime: number;
@@ -256,8 +256,8 @@ describe('animation fallback timer', () => {
 });
 
 describe('Renderer initialization and state methods', () => {
-  // The Renderer class requires an HTMLCanvasElement with a 2d context.
-  // In node/vitest, we use a minimal mock that satisfies the constructor.
+  // createRenderer requires an HTMLCanvasElement with a 2d context.
+  // In node/vitest, we use a minimal mock that satisfies the factory.
 
   const createMockContext = () => ({
     fillRect: vi.fn(),
@@ -343,17 +343,17 @@ describe('Renderer initialization and state methods', () => {
 
   // Dynamic import to avoid pulling in DOM-dependent
   // module at the top level in non-jsdom suites.
-  const importRenderer = async () => {
+  const importCreateRenderer = async () => {
     const mod = await import('./renderer');
-    return mod.Renderer;
+    return mod.createRenderer;
   };
 
   it('constructs with a canvas mock and exposes camera', async () => {
-    const Renderer = await importRenderer();
+    const createRenderer = await importCreateRenderer();
     const canvas = createMockCanvas();
     const planning = createPlanningState();
 
-    const renderer = new Renderer(
+    const renderer = createRenderer(
       canvas as unknown as HTMLCanvasElement,
       planning,
     );
@@ -364,10 +364,10 @@ describe('Renderer initialization and state methods', () => {
   });
 
   it('setMap, setPlayerId, and setGameState do not throw', async () => {
-    const Renderer = await importRenderer();
+    const createRenderer = await importCreateRenderer();
     const canvas = createMockCanvas();
     const planning = createPlanningState();
-    const renderer = new Renderer(
+    const renderer = createRenderer(
       canvas as unknown as HTMLCanvasElement,
       planning,
     );
@@ -381,10 +381,10 @@ describe('Renderer initialization and state methods', () => {
   });
 
   it('clearTrails resets trail state', async () => {
-    const Renderer = await importRenderer();
+    const createRenderer = await importCreateRenderer();
     const canvas = createMockCanvas();
     const planning = createPlanningState();
-    const renderer = new Renderer(
+    const renderer = createRenderer(
       canvas as unknown as HTMLCanvasElement,
       planning,
     );
@@ -457,9 +457,9 @@ describe('Renderer initialization and state methods', () => {
       },
     );
 
-    const { Renderer } = await import('./renderer');
+    const { createRenderer } = await import('./renderer');
     const canvas = createMockCanvas();
-    const renderer = new Renderer(
+    const renderer = createRenderer(
       canvas as unknown as HTMLCanvasElement,
       createPlanningState(),
     );
@@ -468,14 +468,9 @@ describe('Renderer initialization and state methods', () => {
 
     renderer.setMap(map);
     renderer.setGameState(state);
-    const renderFrame = Reflect.get(renderer, 'render').bind(renderer) as (
-      now: number,
-      width: number,
-      height: number,
-    ) => void;
 
-    renderFrame(1000, 800, 600);
-    renderFrame(1100, 800, 600);
+    renderer.renderFrameForTests(1000, 800, 600);
+    renderer.renderFrameForTests(1100, 800, 600);
 
     expect(staticCalls.renderStars).toHaveBeenCalledTimes(1);
     expect(staticCalls.renderHexGrid).toHaveBeenCalledTimes(1);
@@ -523,9 +518,9 @@ describe('Renderer initialization and state methods', () => {
       },
     );
 
-    const { Renderer } = await import('./renderer');
+    const { createRenderer } = await import('./renderer');
     const canvas = createMockCanvas();
-    const renderer = new Renderer(
+    const renderer = createRenderer(
       canvas as unknown as HTMLCanvasElement,
       createPlanningState(),
     );
@@ -535,16 +530,11 @@ describe('Renderer initialization and state methods', () => {
     renderer.setGameState(
       createGame(SCENARIOS.biplanetary, map, 'REND3', findBaseHex),
     );
-    const renderFrame = Reflect.get(renderer, 'render').bind(renderer) as (
-      now: number,
-      width: number,
-      height: number,
-    ) => void;
 
-    renderFrame(1000, 800, 600);
+    renderer.renderFrameForTests(1000, 800, 600);
     renderer.camera.x = 12;
     renderer.camera.y = 8;
-    renderFrame(1100, 800, 600);
+    renderer.renderFrameForTests(1100, 800, 600);
 
     expect(staticCalls.renderStars).toHaveBeenCalledTimes(2);
 
