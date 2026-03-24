@@ -6,8 +6,8 @@ The hook runs, in order:
 
 1. `npm run lint`
 2. `npm run typecheck:all`
-3. `npm run test:coverage`
-4. `npm run test:e2e` (Playwright)
+3. `rm -rf coverage` then `npm run test:coverage` (clean output dir)
+4. `npm run test:e2e` (Playwright; see below)
 5. `npm run simulate all 25 -- --ci`
 
 ### Coverage (`test:coverage`)
@@ -16,18 +16,19 @@ Coverage uses **`--no-file-parallelism`** so Vitest’s v8 merger does not race 
 
 If coverage still fails, remove `coverage/` and retry: `rm -rf coverage && npm run test:coverage`.
 
-### Playwright / port 8787
+### Playwright / ports
 
-Pre-commit sets **`E2E_PORT=8788`** when running e2e so Playwright’s `webServer` can start Wrangler on **8788** while you keep **`npm run dev`** on **8787**.
+Default Playwright port is **8787** (`playwright.config.ts`).
 
-- **CI** (`.github/workflows/ci.yml`) runs `npm run test:e2e` without `E2E_PORT`, so Playwright uses **8787** and starts its own Wrangler via `webServer`.
-- To run e2e manually alongside dev on 8787: `E2E_PORT=8788 npm run test:e2e`
+- **CI** runs `npm run test:e2e` without `E2E_PORT`, so the web server uses **8787**.
+- **Pre-commit** assigns a **free TCP port** via Node, sets `E2E_PORT`, and sets `DELTAV_PRE_COMMIT_E2E=1` so Playwright does **not** reuse an existing server (avoids attaching to the wrong process if a fixed port is busy).
+- To run e2e manually while **`npm run dev`** holds **8787**: `E2E_PORT=8788 npm run test:e2e` (or any free port).
 
 If e2e fails with a port error, check nothing else is bound to the chosen port.
 
 ### Windows
 
-Pre-commit uses `E2E_PORT=8788` in shell form. Use **Git Bash**, **WSL**, or a POSIX shell. If you need **CMD** support, track [BACKLOG.md](./BACKLOG.md) “Windows-friendly pre-commit” or add `cross-env` locally.
+Pre-commit is a POSIX shell script (`rm`, `export`, subshell). Use **Git Bash**, **WSL**, or similar. If you need **CMD** support, track [BACKLOG.md](./BACKLOG.md) “Windows-friendly pre-commit” or add `cross-env` locally.
 
 ### Skipping hooks (emergency only)
 

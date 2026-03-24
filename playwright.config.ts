@@ -3,6 +3,8 @@ import { defineConfig } from '@playwright/test';
 // E2E_PORT avoids clashing with a separate `npm run dev` on 8787 during pre-commit.
 const PORT = Number(process.env.E2E_PORT) || 8787;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
+// Pre-commit picks a free port and must not attach to an unrelated process on that URL.
+const preCommitE2e = process.env.DELTAV_PRE_COMMIT_E2E === '1';
 
 export default defineConfig({
   testDir: './e2e',
@@ -24,7 +26,7 @@ export default defineConfig({
   webServer: {
     command: `npm run dev -- --port ${PORT}`,
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !process.env.CI && !preCommitE2e,
     timeout: 120_000,
   },
 });
