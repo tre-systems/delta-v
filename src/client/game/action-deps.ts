@@ -77,7 +77,6 @@ export const createActionDeps = (args: ActionDepsArgs) => {
         getTransport:
           args.getTransport as AstrogationActionDeps['getTransport'],
         planningState: args.planningState,
-        updateHUD: () => args.hud.updateHUD(),
         showToast: (msg, type) => args.ui.overlay.showToast(msg, type),
       };
     }

@@ -83,9 +83,9 @@ export type { ClientSession, MainNetworkDeps };
  * - `setState` — only here (drives `applyClientStateTransition` + `clientState` mirror).
  * - `applyGameState` — wrapper here (`applyClientGameState` + `gameState` mirror).
  * - `exitToMenuSession` — clears game state via `clearClientGameState` + mirror hook.
- * - `hud.updateHUD` — camera ship select and other non-planning paths; match,
- *   phase, and planning changes refresh via `attachSessionMirrorHudEffect` and
- *   `planning-store` → `notifyPlanningChanged`.
+ * - `hud.updateHUD` — invoked from `attachSessionMirrorHudEffect` when `gameState`,
+ *   `clientState`, or `planningRevision` change; also from `hud-controller` internals
+ *   (e.g. syncing selection from the derived view model).
  * - `renderer.setGameState` / `clearTrails` — presentation, replay, session lifecycle.
  */
 export const createGameClient = () => {
@@ -226,7 +226,6 @@ export const createGameClient = () => {
     getPlanningState: () => ctx.planningState,
     renderer,
     overlay: ui.overlay,
-    onShipSelected: () => hud.updateHUD(),
   });
 
   actionDeps = createActionDeps({
@@ -273,7 +272,6 @@ export const createGameClient = () => {
     showToast: (message, type) => ui.overlay.showToast(message, type),
     clearTrails: () => renderer.clearTrails(),
     applyGameState: (state) => applyGameState(state),
-    updateHUD: () => hud.updateHUD(),
   });
 
   const stateTransitionDeps = createMainStateTransitionDeps({
@@ -350,7 +348,6 @@ export const createGameClient = () => {
       localGameFlowDeps: actionDeps.localGameFlowDeps,
       applyGameState: (s) => applyGameState(s),
       showToast: (msg, type) => ui.overlay.showToast(msg, type),
-      updateHUD: () => hud.updateHUD(),
       logScenarioBriefing: () => hud.logScenarioBriefing(),
       transitionToPhase: () => transitionToPhase(),
       onAnimationComplete: () => onAnimationComplete(),
@@ -444,7 +441,6 @@ export const createGameClient = () => {
           x: canvas.clientWidth / 2,
           y: canvas.clientHeight / 2,
         }),
-        updateHUD: () => hud.updateHUD(),
         cycleShip: (direction) => camera.cycleShip(direction),
         focusNearestEnemy: () => camera.focusNearestEnemy(),
         focusOwnFleet: () => camera.focusOwnFleet(),
