@@ -53,8 +53,9 @@ client/          → State machine + Canvas renderer + DOM UI
 - **Narrow class usage.** Pure rules and most
   coordination helpers stay function/factory-based.
   Classes are reserved for platform shells or long-lived
-  mutable boundaries such as `GameDO`, `GameClient`,
-  `Renderer`, `Camera`, and `InputHandler`.
+  mutable boundaries such as `GameDO`, `GameClient`, and
+  `InputHandler`. Canvas orchestration uses `createRenderer()`
+  and `createCamera()` factories rather than class shells.
 - **Pure planner + narrow applier flows.** Client screen changes, phase entry, message handling, and game-state application route through pure planners plus a small number of side-effect owners instead of scattering equivalent writes across many call sites.
 - **Scenario-driven.** `ScenarioRules` controls behaviour: ordnance types, base sharing, combat enabled, logistics, checkpoints, escape edges, reinforcements, and fleet conversion. New scenarios can vary gameplay without engine changes.
 - **Shared rule reuse across layers.** Client ordnance entry, HUD button visibility, and engine validation now all derive from the same shared ordnance-rule helpers, so restricted scenarios do not drift between UI and server authority.
@@ -80,9 +81,9 @@ These are the main architectural follow-ups still open:
   Smaller stateful DOM wrappers and telemetry helpers now
   already use the `createXxx()` manager pattern. Keep
   extracting focused helpers from `GameClient`,
-  `Renderer`, and `InputHandler` before any further
-  class-to-factory rewrite so syntax churn does not
-  masquerade as architectural progress.
+  `createRenderer()`, and `InputHandler` before any further
+  coordinator churn so refactors do not masquerade as
+  architectural progress.
 
 ---
 
