@@ -4,7 +4,14 @@ vi.mock('./game-do/game-do', () => ({
   GameDO: class GameDO {},
 }));
 
-import worker, { createRateMap, type Env, hashIp } from './index';
+import worker, {
+  createRateMap,
+  type Env,
+  errorReportRateMap,
+  hashIp,
+  joinReplayProbeRateMap,
+  telemetryReportRateMap,
+} from './index';
 
 type MockDb = ReturnType<typeof mockDb>;
 type MockExecutionContext = ExecutionContext & {
@@ -719,5 +726,158 @@ describe('/create rate limiting', () => {
 
     expect(response.status).toBe(429);
     expect(response.headers.get('Retry-After')).toBe('60');
+  });
+});
+
+describe('POST /telemetry rate limiting', () => {
+  beforeEach(() => {
+    telemetryReportRateMap.clear();
+  });
+
+  it('returns 429 after 120 posts per hashed IP per minute', async () => {
+    const { env } = createEnv();
+    const headers = {
+      'Content-Type': 'application/json',
+      'cf-connecting-ip': '9.9.9.9',
+    };
+    const body = JSON.stringify({ event: 't' });
+
+    for (let i = 0; i < 120; i++) {
+      const response = await worker.fetch(
+        new Request('https://delta-v.test/telemetry', {
+          method: 'POST',
+          headers,
+          body,
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+      expect(response.status).toBe(204);
+    }
+
+    const blocked = await worker.fetch(
+      new Request('https://delta-v.test/telemetry', {
+        method: 'POST',
+        headers,
+        body,
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get('Retry-After')).toBe('60');
+  });
+});
+
+describe('POST /error rate limiting', () => {
+  beforeEach(() => {
+    errorReportRateMap.clear();
+  });
+
+  it('returns 429 after 40 posts per hashed IP per minute', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { env } = createEnv();
+    const headers = {
+      'Content-Type': 'application/json',
+      'cf-connecting-ip': '8.8.8.8',
+    };
+    const body = JSON.stringify({ message: 'x' });
+
+    for (let i = 0; i < 40; i++) {
+      const response = await worker.fetch(
+        new Request('https://delta-v.test/error', {
+          method: 'POST',
+          headers,
+          body,
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+      expect(response.status).toBe(204);
+    }
+
+    const blocked = await worker.fetch(
+      new Request('https://delta-v.test/error', {
+        method: 'POST',
+        headers,
+        body,
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(blocked.status).toBe(429);
+  });
+});
+
+describe('GET /join and /replay probe rate limiting', () => {
+  beforeEach(() => {
+    joinReplayProbeRateMap.clear();
+  });
+
+  it('returns 429 when join+replay GETs exceed shared limit per IP', async () => {
+    const { env, initFetch } = createEnv(async () => new Response('ok'));
+
+    for (let i = 0; i < 50; i++) {
+      await worker.fetch(
+        new Request('https://delta-v.test/join/ABCDE', {
+          method: 'GET',
+          headers: { 'cf-connecting-ip': '7.7.7.7' },
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+      await worker.fetch(
+        new Request('https://delta-v.test/replay/VWXYZ', {
+          method: 'GET',
+          headers: { 'cf-connecting-ip': '7.7.7.7' },
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+    }
+    expect(initFetch).toHaveBeenCalledTimes(100);
+
+    const blocked = await worker.fetch(
+      new Request('https://delta-v.test/join/ABCDE', {
+        method: 'GET',
+        headers: { 'cf-connecting-ip': '7.7.7.7' },
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(blocked.status).toBe(429);
+    expect(initFetch).toHaveBeenCalledTimes(100);
+  });
+
+  it('uses independent limits per IP', async () => {
+    const { env } = createEnv(async () => new Response('ok'));
+
+    for (let i = 0; i < 50; i++) {
+      await worker.fetch(
+        new Request('https://delta-v.test/join/ABCDE', {
+          method: 'GET',
+          headers: { 'cf-connecting-ip': '7.7.7.7' },
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+      await worker.fetch(
+        new Request('https://delta-v.test/join/ABCDE', {
+          method: 'GET',
+          headers: { 'cf-connecting-ip': '6.6.6.6' },
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+    }
+    const ok = await worker.fetch(
+      new Request('https://delta-v.test/join/ABCDE', {
+        method: 'GET',
+        headers: { 'cf-connecting-ip': '6.6.6.6' },
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(ok.status).toBe(200);
   });
 });

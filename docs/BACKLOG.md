@@ -12,15 +12,13 @@ If the product stays **private friend matches only**, treat the early security i
 
 ---
 
-### 1. Rate-limit reporting endpoints (`/telemetry`, `/error`)
+### 1. Global edge limits for reporting (`/telemetry`, `/error`) — **optional**
 
-`POST /telemetry` and `POST /error` accept small JSON bodies (4KB cap) and write to D1 via `waitUntil`, but there is **no application-level per-IP rate limit**. A distributed client could inflate D1 rows and Worker CPU.
+**Baseline shipped:** `src/server/index.ts` applies per-isolate sliding windows per hashed IP: **120** `POST /telemetry` and **40** `POST /error` per **60s** (plus 4KB JSON cap and `waitUntil` D1 writes).
 
-**Rationale:** Clearest unbounded cost vector with no product UX change. Complements [SECURITY.md](./SECURITY.md).
+**Remaining:** If traffic is **distributed across many edges** or you need **tighter** ceilings, add Cloudflare **WAF** rules and/or extra `[[ratelimits]]` namespaces (same pattern as `CREATE_RATE_LIMITER`).
 
-**Mitigations (pick one or combine):** Cloudflare WAF or rate-limiting rules on those paths; a Workers rate-limit binding keyed on hashed IP (same pattern as `CREATE_RATE_LIMITER`); or sampling / caps in `src/server/index.ts` before `insertEvent`.
-
-**Files:** `src/server/index.ts`, `wrangler.toml`, Cloudflare dashboard
+**Files:** `wrangler.toml`, Cloudflare dashboard; tune constants in `src/server/index.ts` if product needs change
 
 ### 2. Legal and user-facing privacy (if applicable) — **Human**
 
@@ -54,13 +52,13 @@ Execute [A11Y.md](./A11Y.md): Lighthouse (or axe) on the SPA shell, manual **key
 
 **Owner:** maintainer / QA. **Deliverable:** fix obvious issues or file scoped tasks; update A11Y checklist with dates.
 
-### 6. Optional throttle on `GET /join/:code` and `GET /replay/:code`
+### 6. Global edge limits for join/replay probes — **optional**
 
-Unauthenticated HTTP probes can wake DOs and run replay projection without joining. Add edge or app limits if metrics show abuse or material cost.
+**Baseline shipped:** shared per-isolate window per hashed IP — **100** combined `GET /join/:code` + `GET /replay/:code` per **60s**.
 
-**Rationale:** Cheap defensive layer if scans appear; still no player-visible feature work.
+**Remaining:** WAF or `[[ratelimits]]` if distributed scans still wake DOs or cost too much.
 
-**Files:** `src/server/index.ts`, optional `[[ratelimits]]` or WAF rules
+**Files:** `wrangler.toml`, Cloudflare dashboard; tune constants in `src/server/index.ts` if needed
 
 ### 7. Scenario expansion
 
@@ -105,6 +103,8 @@ Capture measured frame cost (Chrome Performance or equivalent, optional per-fram
 After large renderer or dependency changes, re-measure `dist/client.js` (raw + gzip) and update the **Client bundle and release hygiene** table in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene) (or append a dated row there).
 
 **Owner:** whoever ships the change.
+
+**Last routine measure:** 2026-03-24 — ~518 KB raw, ~108 KB gzip (see table in ARCHITECTURE §7).
 
 ### 13. Public matchmaking prep (longer room identifiers)
 
