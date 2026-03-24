@@ -68,7 +68,7 @@ export const getFleetShopView = (
   return getFleetShopTypes().map(([shipType, stats]) => ({
     shipType,
     name: stats.name,
-    statsText: `C${stats.combat}${stats.defensiveOnly ? 'D' : ''} F${stats.fuel === Infinity ? '\u221e' : stats.fuel}`,
+    statsText: `C${stats.combat}${stats.defensiveOnly ? 'D' : ''} F${stats.fuel === Infinity ? '\u221e' : stats.fuel}${stats.cargo > 0 ? ` G${stats.cargo}` : ''}`,
     cost: stats.cost,
     disabled: stats.cost > remainingCredits,
   }));

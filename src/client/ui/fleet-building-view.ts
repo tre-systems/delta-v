@@ -129,7 +129,14 @@ export const createFleetBuildingView = (
           el('div', { class: 'fleet-shop-cost', text: `${itemView.cost} MC` }),
         );
 
-        listen(item, 'click', () => {
+        item.setAttribute('role', 'button');
+        item.tabIndex = itemView.disabled ? -1 : 0;
+        item.setAttribute(
+          'aria-label',
+          `${itemView.name}, ${itemView.statsText}, ${itemView.cost} MegaCredits`,
+        );
+
+        const addShip = (): void => {
           if (
             canAddFleetShip(
               cartSignal.peek(),
@@ -141,6 +148,15 @@ export const createFleetBuildingView = (
               ...cartSignal.peek(),
               { shipType: itemView.shipType },
             ];
+          }
+        };
+
+        listen(item, 'click', addShip);
+        listen(item, 'keydown', (e: Event) => {
+          const key = (e as KeyboardEvent).key;
+          if (key === 'Enter' || key === ' ') {
+            e.preventDefault();
+            addShip();
           }
         });
 

@@ -221,7 +221,9 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
 
       if (lastPhase !== phaseKey) {
         lastPhase = phaseKey;
-        deps.showPhaseAlert(phase, isMyTurn);
+        if (phase !== 'fleetBuilding') {
+          deps.showPhaseAlert(phase, isMyTurn);
+        }
       }
 
       text(fuelGaugeEl, hudView.fuelGaugeText);

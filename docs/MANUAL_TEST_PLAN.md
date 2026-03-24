@@ -73,7 +73,8 @@ Cover these modes:
 **Time:** 2 minutes — **Scenario:** Bi-Planetary vs AI
 
 1. Open the app. Main menu shows title, difficulty
-   selector, and scenario list.
+   selector, and play options. Click **Play vs AI** to
+   see the scenario list.
 2. Select **Easy** difficulty, then **Bi-Planetary**.
 3. Your corvette starts landed on a base. Status reads
    that the first burn costs 1 fuel and booster takeoff is
@@ -152,8 +153,8 @@ the endpoint, gravity deflects on the following turn.
 1. Select your ship. The predicted course (dashed
    line) shows where you'll end up with no burn.
 2. Click a direction — the predicted destination
-   shifts by one hex in that direction. Fuel cost
-   label reads "1 fuel".
+   shifts by one hex in that direction. A fuel cost
+   label (e.g. "−1") appears near the destination.
 3. Confirm and verify the ship arrives at the
    shifted destination.
 
@@ -462,8 +463,8 @@ Interplanetary War vs AI
 
 1. Fleet building screen shows your starting
    budget (400 MC or 850 MC).
-2. Each ship type shows its stats (combat, fuel,
-   cargo) and cost.
+2. Each ship type shows its stats (combat, fuel, and
+   cargo if non-zero) and cost.
 3. Click a ship type — it appears in YOUR FLEET,
    budget decreases by the ship's cost.
 4. Ships that cost more than remaining budget are
