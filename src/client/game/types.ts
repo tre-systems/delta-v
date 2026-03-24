@@ -12,6 +12,7 @@ export interface ShipFate {
   status: 'survived' | 'destroyed' | 'captured';
   owner: number;
   deathCause?: string;
+  killedBy?: string;
 }
 
 export interface GameOverStats {
