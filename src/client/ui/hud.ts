@@ -59,8 +59,8 @@ const getAstrogationStatusText = (
 
   if (ctx.selectedShipLanded && !ctx.selectedShipHasBurn) {
     return isMobile
-      ? 'Tap a direction to take off (costs 1 fuel)'
-      : 'Click a direction to take off (costs 1 fuel)';
+      ? 'Tap a direction to burn (1 fuel) — booster takeoff is free'
+      : 'Click a direction to burn (1 fuel) — booster takeoff is free';
   }
 
   if (ctx.anyCrashed) {

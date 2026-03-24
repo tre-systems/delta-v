@@ -76,9 +76,11 @@ Cover these modes:
    selector, and scenario list.
 2. Select **Easy** difficulty, then **Bi-Planetary**.
 3. Your corvette starts landed on a base. Status reads
-   "Click a direction to take off (costs 1 fuel)".
+   that the first burn costs 1 fuel and booster takeoff is
+   free (see in-game wording).
 4. Click a direction arrow — a course preview line
-   appears with a fuel cost label.
+   appears with a fuel cost label. (You can also press
+   **1–6** to pick a burn direction, **0** to clear.)
 5. Click **CONFIRM** (or press Enter) — the ship
    animates along the plotted course.
 6. After animation the HUD updates: fuel gauge shows
@@ -201,8 +203,8 @@ warships only.
 
 **Time:** 3 minutes — **Scenario:** Bi-Planetary vs AI
 
-1. Start the game. Your ship is landed. Status says
-   "Click a direction to take off (costs 1 fuel)".
+1. Start the game. Your ship is landed. Status explains
+   the first burn fuel cost and that booster takeoff is free.
 2. Take off — the ship ends up in the gravity hex
    above the base, stationary. Takeoff itself is
    free (boosters), but you spent 1 fuel for the
@@ -684,23 +686,23 @@ throughout the game.
 
 **Time:** 2 minutes — **Scenario:** Duel vs AI
 
-| Key | Expected |
-|-----|----------|
-| 1-6 | Sets burn direction |
-| 0 | Clears burn |
-| Enter | Confirms turn / fires |
-| Escape | Deselects ship |
-| Tab | Cycles ships (multi-ship) |
-| ? | Toggles help overlay |
-| L | Toggles log panel (desktop) |
-| N | Launch mine (ordnance phase) |
-| T | Launch torpedo (ordnance phase) |
-| K | Launch nuke (ordnance phase) |
-| E | Focus nearest enemy |
-| H | Center on own fleet |
-| M | Toggle sound |
-| WASD / Arrows | Pan camera |
-| +/− | Zoom |
+| Key           | Expected                        |
+| ------------- | ------------------------------- |
+| 1-6           | Sets burn direction             |
+| 0             | Clears burn                     |
+| Enter         | Confirms turn / fires           |
+| Escape        | Deselects ship                  |
+| Tab           | Cycles ships (multi-ship)       |
+| ?             | Toggles help overlay            |
+| L             | Toggles log panel (desktop)     |
+| N             | Launch mine (ordnance phase)    |
+| T             | Launch torpedo (ordnance phase) |
+| K             | Launch nuke (ordnance phase)    |
+| E             | Focus nearest enemy             |
+| H             | Center on own fleet             |
+| M             | Toggle sound                    |
+| WASD / Arrows | Pan camera                      |
+| +/−           | Zoom                            |
 
 ### 13a. Focus and input safety
 
@@ -1074,13 +1076,13 @@ or are easy to miss.
 
 These complement manual testing and run in CI:
 
-| Command | What it checks |
-|---------|----------------|
-| `npm test` | Unit, property, and regression tests across engine, client, and server |
-| `npm run test:e2e` | Thin Playwright browser smoke coverage for boot, basic turn flow, mobile HUD/help, and core multiplayer join/chat/reconnect paths |
-| `npm run simulate -- all 25` | Engine stability / balance sweep across all 8 scenarios |
-| `npm run lint` | Code style |
-| `npm run typecheck` | Type safety |
+| Command                      | What it checks                                                                                                                    |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test`                   | Unit, property, and regression tests across engine, client, and server                                                            |
+| `npm run test:e2e`           | Thin Playwright browser smoke coverage for boot, basic turn flow, mobile HUD/help, and core multiplayer join/chat/reconnect paths |
+| `npm run simulate -- all 25` | Engine stability / balance sweep across all 8 scenarios                                                                           |
+| `npm run lint`               | Code style                                                                                                                        |
+| `npm run typecheck`          | Type safety                                                                                                                       |
 
 All must pass before any release, but they do **not**
 replace the manual experience checks above.
