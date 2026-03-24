@@ -31,8 +31,10 @@ const errorMessage = (
 const bounds = { minQ: -10, maxQ: 10, minR: -10, maxR: 10 };
 const makeScenarioRulesState = (
   scenarioRules: GameState['scenarioRules'] = {},
-): Pick<GameState, 'scenarioRules'> => ({
+  pendingAstrogationOrders: GameState['pendingAstrogationOrders'] = null,
+): Pick<GameState, 'scenarioRules' | 'pendingAstrogationOrders'> => ({
   scenarioRules,
+  pendingAstrogationOrders,
 });
 
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
@@ -298,6 +300,29 @@ describe('validateOrdnanceLaunch', () => {
     ).toMatchObject({
       message: 'Only warships and orbital bases can launch torpedoes',
     });
+  });
+
+  it('rejects mine launch without a committed burn or overload', () => {
+    const ship = makeShip({ id: 's1', type: 'frigate' });
+    expect(
+      validateOrdnanceLaunch(
+        makeScenarioRulesState({}, [{ shipId: 's1', burn: null }]),
+        ship,
+        'mine',
+      ),
+    ).toMatchObject({
+      message: 'Ship must change course when launching a mine',
+    });
+  });
+
+  it('allows mine launch when pending astrogation includes a burn', () => {
+    expect(
+      validateOrdnanceLaunch(
+        makeScenarioRulesState({}, [{ shipId: 's1', burn: 2 }]),
+        makeShip({ id: 's1', type: 'frigate' }),
+        'mine',
+      ),
+    ).toBeNull();
   });
 });
 

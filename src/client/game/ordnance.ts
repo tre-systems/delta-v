@@ -12,7 +12,10 @@ import type {
 } from '../../shared/types/domain';
 import type { PlanningState } from './planning';
 
-type OrdnanceState = Pick<GameState, 'ships' | 'scenarioRules'>;
+type OrdnanceState = Pick<
+  GameState,
+  'ships' | 'scenarioRules' | 'pendingAstrogationOrders'
+>;
 
 type OrdnancePlanning = Pick<
   PlanningState,
