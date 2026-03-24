@@ -42,9 +42,14 @@ import {
 import type { ClientSession } from './session-model';
 
 /**
- * Live session slice for one `dispatchGameCommand` call. Shallow: same object
- * references as `ClientSession` (fine unless a handler stashes `ctx` across an
- * await and expects a frozen snapshot).
+ * Live session slice for one `dispatchGameCommand` call.
+ *
+ * **Snapshot semantics:** Shallow — `gameState`, `transport`, and nested fields share
+ * the same references as `ClientSession`. There is **no** per-dispatch deep copy
+ * (e.g. `structuredClone`) to avoid input-path cost; if a handler retains `ctx` or
+ * `gameState` across an `await`, later session mutations may be visible through
+ * those references. Copy only what you need before suspending, or re-read from
+ * session after the await.
  */
 export type CommandRouterSessionRead = Readonly<
   Pick<ClientSession, 'state' | 'playerId' | 'gameState' | 'transport'>

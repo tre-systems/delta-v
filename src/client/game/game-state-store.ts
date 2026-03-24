@@ -9,8 +9,10 @@
  * - `applyGameState`: `createGameClient` wrapper, replay, local transport, and
  *   `message-handler` / presentation paths that apply server or local engine state.
  * - `clearClientGameState`: `exitToMenuSession` only.
- * - `renderer.setGameState` / `clearTrails`: presentation, replay, session
- *   start/exit, and `message-handler` where documented in those modules.
+ * - `renderer.setGameState` / `clearTrails`: optional on `applyClientGameState`
+ *   (unit tests); the shell syncs the canvas from `mirror.gameState` via
+ *   `attachRendererGameStateMirrorEffect`. Also presentation, replay, session
+ *   lifecycle, and `message-handler` where documented in those modules.
  * - `hud.updateHUD`: mirrored `gameState`, `clientState`, and planning revision
  *   drive `attachSessionMirrorHudEffect`; `hud-controller` may also call `updateHUD`
  *   when reconciling selection from the derived view model.
@@ -28,12 +30,13 @@ interface GameStateStoreContext {
 }
 
 interface GameStateStoreRenderer {
-  setGameState: (state: GameState) => void;
+  setGameState: (state: GameState | null) => void;
 }
 
 export interface ApplyClientGameStateDeps {
   ctx: GameStateStoreContext;
-  renderer: GameStateStoreRenderer;
+  /** When set, called after `ctx` is updated (e.g. tests). Omitted in the shell — mirror effect drives the renderer. */
+  renderer?: GameStateStoreRenderer;
   /** Optional sync after ctx/renderer (e.g. reactive mirror signals). */
   afterApply?: (state: GameState) => void;
 }
@@ -43,7 +46,7 @@ export const applyClientGameState = (
   state: GameState,
 ): void => {
   deps.ctx.gameState = state;
-  deps.renderer.setGameState(state);
+  deps.renderer?.setGameState(state);
 
   const selectedId = deps.ctx.planningState.selectedShipId;
 

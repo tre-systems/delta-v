@@ -403,7 +403,7 @@ export const createRenderer = (
       invalidateStatic();
     },
 
-    setGameState: (state: GameState) => {
+    setGameState: (state: GameState | null) => {
       gameState = state;
     },
 
