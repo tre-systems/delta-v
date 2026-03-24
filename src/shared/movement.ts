@@ -220,146 +220,142 @@ const checkCrash = (
 //    landing (speed 1 at a gravity hex + base), or
 //    normal movement. Takeoff is a special case that
 //    replaces steps 1-3 with a booster launch.
-export const computeCourse = (
-  ship: Ship,
-  burn: number | null,
-  map: SolarSystemMap,
-  options?: CourseOptions,
-): CourseResult => {
-  const {
-    overload = null,
-    weakGravityChoices = {},
-    destroyedBases: destroyedBasesList = [],
-  } = options ?? {};
+type ComputeCourseInput = {
+  ship: Ship;
+  burn: number | null;
+  map: SolarSystemMap;
+  overload: number | null;
+  weakGravityChoices: Record<string, boolean>;
+  destroyedBases: Set<string>;
+};
 
-  const destroyedBases = new Set(destroyedBasesList);
+const computeTakeoffCourse = ({
+  ship,
+  burn,
+  map,
+  overload,
+  weakGravityChoices,
+  destroyedBases,
+}: ComputeCourseInput): CourseResult => {
+  if (burn === null) {
+    return {
+      destination: ship.position,
+      path: [ship.position],
+      newVelocity: { dq: 0, dr: 0 },
+      fuelSpent: 0,
+      gravityEffects: [],
+      enteredGravityEffects: [],
+      crashed: false,
+      crashBody: null,
+      landedAt: null,
+    };
+  }
 
-  if (ship.lifecycle === 'landed') {
-    // No burn = stay landed
-    if (burn === null) {
-      return {
-        destination: ship.position,
-        path: [ship.position],
-        newVelocity: { dq: 0, dr: 0 },
-        fuelSpent: 0,
-        gravityEffects: [],
-        enteredGravityEffects: [],
-        crashed: false,
-        crashBody: null,
-        landedAt: null,
-      };
-    }
+  const baseHex = map.hexes.get(hexKey(ship.position));
+  const bodyName = baseHex?.base?.bodyName ?? baseHex?.body?.name;
 
-    // Takeoff: boosters move ship 1 hex away from planet
-    // center. Gravity cancels this, leaving ship
-    // stationary in the gravity hex. Then the player's
-    // burn is applied from there.
-    const baseHex = map.hexes.get(hexKey(ship.position));
-    const bodyName = baseHex?.base?.bodyName ?? baseHex?.body?.name;
+  let launchHex = ship.position;
 
-    let launchHex = ship.position;
+  if (bodyName) {
+    const body = map.bodies.find((candidate) => candidate.name === bodyName);
 
-    if (bodyName) {
-      const body = map.bodies.find((b) => b.name === bodyName);
+    if (body) {
+      const awayDir = hexDirectionToward(body.center, ship.position);
+      const awayNeighbor = hexAdd(ship.position, HEX_DIRECTIONS[awayDir]);
+      const awayHex = map.hexes.get(hexKey(awayNeighbor));
 
-      if (body) {
-        const awayDir = hexDirectionToward(body.center, ship.position);
-        const awayNeighbor = hexAdd(ship.position, HEX_DIRECTIONS[awayDir]);
-        const nh = map.hexes.get(hexKey(awayNeighbor));
+      if (!awayHex?.body) {
+        launchHex = awayNeighbor;
+      } else {
+        for (let d = 0; d < 6; d++) {
+          const neighbor = hexAdd(ship.position, HEX_DIRECTIONS[d]);
+          const neighborHex = map.hexes.get(hexKey(neighbor));
 
-        if (!nh?.body) {
-          launchHex = awayNeighbor;
-        } else {
-          for (let d = 0; d < 6; d++) {
-            const neighbor = hexAdd(ship.position, HEX_DIRECTIONS[d]);
-            const nh2 = map.hexes.get(hexKey(neighbor));
+          if (neighborHex?.gravity?.bodyName === bodyName) {
+            launchHex = neighbor;
+            break;
+          }
 
-            if (nh2?.gravity?.bodyName === bodyName) {
-              launchHex = neighbor;
-              break;
-            }
-
-            if (!nh2?.body && launchHex === ship.position) {
-              launchHex = neighbor;
-            }
+          if (!neighborHex?.body && launchHex === ship.position) {
+            launchHex = neighbor;
           }
         }
       }
     }
-
-    // After booster + gravity cancel, ship is stationary
-    // at launchHex.
-    let destination: HexCoord = hexAdd(launchHex, HEX_DIRECTIONS[burn]);
-    let fuelSpent = 1;
-
-    // Overload on takeoff
-    if (overload !== null) {
-      const stats = SHIP_STATS[ship.type];
-
-      if (stats?.canOverload && ship.fuel >= 2) {
-        destination = hexAdd(destination, HEX_DIRECTIONS[overload]);
-        fuelSpent = 2;
-      }
-    }
-
-    // Takeoff enters the launch gravity hex before the
-    // ship's burn resolves.
-    const takeoffGravityEffects = collectEnteredGravityEffects(
-      [ship.position, launchHex],
-      map,
-      weakGravityChoices,
-    );
-    const gravityEffects = [...takeoffGravityEffects];
-
-    destination = applyPendingGravityEffects(destination, gravityEffects);
-
-    const finalPath = hexLineDraw(launchHex, destination);
-    const enteredGravityEffects = collectEnteredGravityEffects(
-      finalPath,
-      map,
-      weakGravityChoices,
-    );
-    const newVelocity = hexSubtract(destination, launchHex);
-
-    const landedAt = checkLanding(
-      ship,
-      destination,
-      newVelocity,
-      fuelSpent,
-      map,
-      destroyedBases,
-    );
-    const { crashed, crashBody } = checkCrash(
-      finalPath,
-      map,
-      landedAt,
-      bodyName ?? undefined,
-    );
-
-    return {
-      destination,
-      path: finalPath,
-      newVelocity,
-      fuelSpent,
-      gravityEffects,
-      enteredGravityEffects,
-      crashed,
-      crashBody,
-      landedAt,
-    };
   }
 
-  // Normal movement: destination = position + velocity
+  let destination: HexCoord = hexAdd(launchHex, HEX_DIRECTIONS[burn]);
+  let fuelSpent = 1;
+
+  if (overload !== null) {
+    const stats = SHIP_STATS[ship.type];
+
+    if (stats?.canOverload && ship.fuel >= 2) {
+      destination = hexAdd(destination, HEX_DIRECTIONS[overload]);
+      fuelSpent = 2;
+    }
+  }
+
+  const gravityEffects = collectEnteredGravityEffects(
+    [ship.position, launchHex],
+    map,
+    weakGravityChoices,
+  );
+
+  destination = applyPendingGravityEffects(destination, gravityEffects);
+
+  const finalPath = hexLineDraw(launchHex, destination);
+  const enteredGravityEffects = collectEnteredGravityEffects(
+    finalPath,
+    map,
+    weakGravityChoices,
+  );
+  const newVelocity = hexSubtract(destination, launchHex);
+
+  const landedAt = checkLanding(
+    ship,
+    destination,
+    newVelocity,
+    fuelSpent,
+    map,
+    destroyedBases,
+  );
+  const { crashed, crashBody } = checkCrash(
+    finalPath,
+    map,
+    landedAt,
+    bodyName ?? undefined,
+  );
+
+  return {
+    destination,
+    path: finalPath,
+    newVelocity,
+    fuelSpent,
+    gravityEffects,
+    enteredGravityEffects,
+    crashed,
+    crashBody,
+    landedAt,
+  };
+};
+
+const computeNormalCourse = ({
+  ship,
+  burn,
+  map,
+  overload,
+  weakGravityChoices,
+  destroyedBases,
+}: ComputeCourseInput): CourseResult => {
   let destination: HexCoord = hexAdd(ship.position, ship.velocity);
   let fuelSpent = 0;
 
-  // Apply burn
   if (burn !== null && ship.fuel > 0) {
     destination = hexAdd(destination, HEX_DIRECTIONS[burn]);
     fuelSpent = 1;
   }
 
-  // Apply overload (warships only, costs 2 fuel total)
   if (overload !== null && burn !== null) {
     const stats = SHIP_STATS[ship.type];
 
@@ -369,8 +365,6 @@ export const computeCourse = (
     }
   }
 
-  // Gravity applies one turn after entry, so only
-  // previously queued gravity affects this move.
   const gravityEffects = (ship.pendingGravityEffects ?? []).map((effect) => ({
     ...effect,
   }));
@@ -406,6 +400,32 @@ export const computeCourse = (
     crashBody,
     landedAt,
   };
+};
+
+export const computeCourse = (
+  ship: Ship,
+  burn: number | null,
+  map: SolarSystemMap,
+  options?: CourseOptions,
+): CourseResult => {
+  const {
+    overload = null,
+    weakGravityChoices = {},
+    destroyedBases: destroyedBasesList = [],
+  } = options ?? {};
+
+  const input: ComputeCourseInput = {
+    ship,
+    burn,
+    map,
+    overload,
+    weakGravityChoices,
+    destroyedBases: new Set(destroyedBasesList),
+  };
+
+  return ship.lifecycle === 'landed'
+    ? computeTakeoffCourse(input)
+    : computeNormalCourse(input);
 };
 
 // Check if a ship can burn fuel.
