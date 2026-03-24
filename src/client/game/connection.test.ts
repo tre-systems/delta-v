@@ -9,31 +9,59 @@ import {
 } from '../../shared/map-data';
 import { type ConnectionDeps, createConnectionManager } from './connection';
 
-class FakeWebSocket {
-  static readonly OPEN = 1;
-  static instances: FakeWebSocket[] = [];
+type FakeWebSocketInstance = {
+  url: string;
+  readyState: number;
+  onmessage: ((event: { data: string }) => void) | null;
+  onclose: (() => void) | null;
+  onerror: (() => void) | null;
+  sent: string[];
+  send: (payload: string) => void;
+  close: () => void;
+};
 
-  readonly url: string;
-  readyState = FakeWebSocket.OPEN;
-  onmessage: ((event: { data: string }) => void) | null = null;
-  onclose: (() => void) | null = null;
-  onerror: (() => void) | null = null;
-  sent: string[] = [];
+type FakeWebSocketCtor = {
+  new (url: string): FakeWebSocketInstance;
+  OPEN: number;
+  instances: FakeWebSocketInstance[];
+  prototype: {
+    send: (this: FakeWebSocketInstance, payload: string) => void;
+    close: (this: FakeWebSocketInstance) => void;
+  };
+};
 
-  constructor(url: string) {
+const createFakeWebSocketCtor = (): FakeWebSocketCtor => {
+  const instances: FakeWebSocketInstance[] = [];
+  const FakeWebSocket = function FakeWebSocket(
+    this: FakeWebSocketInstance,
+    url: string,
+  ) {
     this.url = url;
-    FakeWebSocket.instances.push(this);
-  }
+    this.readyState = 1;
+    this.onmessage = null;
+    this.onclose = null;
+    this.onerror = null;
+    this.sent = [];
+    instances.push(this);
+  } as unknown as FakeWebSocketCtor;
 
-  send(payload: string) {
+  FakeWebSocket.OPEN = 1;
+  FakeWebSocket.instances = instances;
+  FakeWebSocket.prototype.send = function send(
+    this: FakeWebSocketInstance,
+    payload: string,
+  ) {
     this.sent.push(payload);
-  }
-
-  close() {
+  };
+  FakeWebSocket.prototype.close = function close(this: FakeWebSocketInstance) {
     this.readyState = 3;
     this.onclose?.();
-  }
-}
+  };
+
+  return FakeWebSocket;
+};
+
+const FakeWebSocket = createFakeWebSocketCtor();
 
 const createDeps = () => {
   const state = createGame(
@@ -95,7 +123,7 @@ const createDeps = () => {
 
 describe('game-client-connection', () => {
   beforeEach(() => {
-    FakeWebSocket.instances = [];
+    FakeWebSocket.instances.length = 0;
     vi.stubGlobal('WebSocket', FakeWebSocket);
   });
 

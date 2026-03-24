@@ -33,22 +33,31 @@ import {
 } from './archive';
 import { resolveTurnTimeoutOutcome } from './turns';
 
-class MockStorage {
-  private data = new Map<string, unknown>();
-  async get<T>(key: string): Promise<T | undefined> {
-    return this.data.get(key) as T | undefined;
-  }
-  async put<T>(key: string | Record<string, T>, value?: T): Promise<void> {
-    if (typeof key === 'string') {
-      this.data.set(key, value);
-      return;
-    }
+const createMockStorage = (): DurableObjectStorage => {
+  const data = new Map<string, unknown>();
 
-    for (const [entryKey, entryValue] of Object.entries(key)) {
-      this.data.set(entryKey, entryValue);
-    }
-  }
-}
+  return {
+    async get<T>(key: string): Promise<T | undefined> {
+      return data.get(key) as T | undefined;
+    },
+    async put<T>(key: string | Record<string, T>, value?: T): Promise<void> {
+      if (typeof key === 'string') {
+        data.set(key, value);
+        return;
+      }
+
+      for (const [entryKey, entryValue] of Object.entries(key)) {
+        data.set(entryKey, entryValue);
+      }
+    },
+  } as unknown as DurableObjectStorage;
+};
+
+const MockStorage = function MockStorage() {
+  return createMockStorage();
+} as unknown as {
+  new (): DurableObjectStorage;
+};
 
 const map = buildSolarSystemMap();
 
@@ -111,7 +120,7 @@ const diffStates = (
 
 describe('match-scoped event stream', () => {
   it('appends enveloped events with sequential seq numbers', async () => {
-    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const storage = createMockStorage();
 
     await appendEnvelopedEvents(storage, 'ROOM1-m1', 0, {
       type: 'shipMoved',
@@ -158,7 +167,7 @@ describe('match-scoped event stream', () => {
   });
 
   it('batches append writes into a single storage put call', async () => {
-    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const storage = createMockStorage();
     const putSpy = vi.spyOn(storage, 'put');
 
     await appendEnvelopedEvents(storage, 'BATCH-m1', 0, {
@@ -179,7 +188,7 @@ describe('match-scoped event stream', () => {
   });
 
   it('assigns timestamps to all envelopes', async () => {
-    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const storage = createMockStorage();
     vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
 
     await appendEnvelopedEvents(storage, 'TS-m1', null, {
@@ -197,7 +206,7 @@ describe('match-scoped event stream', () => {
   });
 
   it('tracks stream length via sequence counter', async () => {
-    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const storage = createMockStorage();
 
     expect(await getEventStreamLength(storage, 'LEN-m1')).toBe(0);
 
