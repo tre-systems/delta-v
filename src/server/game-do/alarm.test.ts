@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type { GameState } from '../../shared/types/domain';
-import { runGameDoAlarm } from './game-do-alarm';
+import { runGameDoAlarm } from './alarm';
 
 const archiveCompletedMatchMock = vi.hoisted(() =>
   vi.fn(() => Promise.resolve()),

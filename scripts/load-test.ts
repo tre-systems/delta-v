@@ -14,18 +14,18 @@ import type {
   GameState,
 } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
-import { parseArgs } from './load-test-config';
+import { parseArgs } from './load/config';
 import {
   createAggregateMetrics,
   printMatchResult,
   printSummary,
   recordMatchResult,
-} from './load-test-reporting';
+} from './load/report';
 import type {
   CreateGameResponse,
   LoadTestConfig,
   MatchMetrics,
-} from './load-test-types';
+} from './load/types';
 
 const map = buildSolarSystemMap();
 

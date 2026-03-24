@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type { GameState } from '../../shared/types/domain';
-import { runGameDoTurnTimeout } from './game-do-turn-timeout';
+import { runGameDoTurnTimeout } from './turn-timeout';
 
 const map = buildSolarSystemMap();
 
