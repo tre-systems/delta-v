@@ -1,11 +1,6 @@
 import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import type { Camera } from './camera';
 import {
-  computeStaticSceneLayerKey,
-  createStaticSceneLayer,
-  type StaticSceneLayer,
-} from './renderer-static-layer';
-import {
   renderAsteroids as renderAsteroidsFn,
   renderBodies as renderBodiesFn,
   renderGravityIndicators as renderGravityIndicatorsFn,
@@ -13,6 +8,11 @@ import {
   renderStars as renderStarsFn,
   type Star,
 } from './scene';
+import {
+  computeStaticSceneLayerKey,
+  createStaticSceneLayer,
+  type StaticSceneLayer,
+} from './static-layer';
 
 export function drawStaticSceneWithCache(input: {
   mainCtx: CanvasRenderingContext2D;

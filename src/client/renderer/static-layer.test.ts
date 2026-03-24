@@ -6,7 +6,7 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import { createCamera } from './camera';
-import { computeStaticSceneLayerKey } from './renderer-static-layer';
+import { computeStaticSceneLayerKey } from './static-layer';
 
 describe('computeStaticSceneLayerKey', () => {
   it('returns null when map is missing', () => {
