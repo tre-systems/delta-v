@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { InputHandler } from './input';
+import { createInputHandler } from './input';
 import type { Camera } from './renderer/camera';
 
 const createCamera = (): Camera => {
@@ -37,7 +37,7 @@ describe('InputHandler', () => {
     const camera = createCamera();
     const onInput = vi.fn();
 
-    new InputHandler(canvas, camera, onInput);
+    createInputHandler(canvas, camera, onInput);
 
     canvas.dispatchEvent(
       new MouseEvent('mousemove', {
@@ -75,7 +75,7 @@ describe('InputHandler', () => {
     const camera = createCamera();
     const onInput = vi.fn();
 
-    new InputHandler(canvas, camera, onInput);
+    createInputHandler(canvas, camera, onInput);
 
     window.dispatchEvent(
       new MouseEvent('mouseup', {
@@ -91,7 +91,7 @@ describe('InputHandler', () => {
   it('disposes listeners and stops forwarding input or zoom updates', () => {
     const camera = createCamera();
     const onInput = vi.fn();
-    const handler = new InputHandler(canvas, camera, onInput);
+    const handler = createInputHandler(canvas, camera, onInput);
 
     handler.dispose();
 
