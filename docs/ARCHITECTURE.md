@@ -8,6 +8,8 @@ stream plus checkpoints, and authoritative recovery
 comes from checkpoint plus event tail rather than a
 separate persisted `gameState` snapshot slot.
 
+**Deployment assumption:** Client and Worker are released as a **single version line** (coordinated deploy). Staggered old-client/new-server compatibility is **not** a current requirement — see [ADR 0002](./decisions/0002-deployment-and-protocol-compatibility.md).
+
 Platform references:
 
 - [Cloudflare Workers](https://developers.cloudflare.com/workers/)
@@ -40,6 +42,64 @@ checkpoints.
 shared/          → Game logic (no I/O, fully testable, side-effect-free)
 server/          → Thin Durable Object multiplayer shell
 client/          → State machine + Canvas renderer + DOM UI
+```
+
+### Diagrams (Mermaid)
+
+These render on GitHub and in many Markdown preview tools. They summarize shapes that are spelled out in prose below.
+
+**Runtime layers (who talks to whom):**
+
+```mermaid
+flowchart TB
+  subgraph Browser
+    UI[DOM UI and signals]
+    CV[Canvas renderer]
+    KERNEL[game/client-kernel.ts]
+    UI --> KERNEL
+    CV --> KERNEL
+    KERNEL --> TRANSPORT[GameTransport]
+  end
+  TRANSPORT -->|WebSocket| WORKER[src/server/index.ts]
+  WORKER --> DO[GameDO]
+  DO --> ENGINE[shared/engine]
+  DO --> STORES[(DO storage / optional R2 / D1 telemetry)]
+```
+
+**Authoritative action path (multiplayer):**
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant W as Worker
+  participant DO as GameDO
+  participant V as validateClientMessage
+  participant A as actions.ts dispatch
+  participant E as Shared engine
+  C->>W: WebSocket /ws/ROOM
+  W->>DO: upgrade request
+  C->>DO: C2S JSON message
+  DO->>DO: applySocketRateLimit
+  DO->>V: parse and validate
+  V-->>DO: C2S union
+  DO->>A: dispatchGameStateAction
+  A->>E: processAstrogation / combat / ...
+  E-->>A: state plus engineEvents
+  A-->>DO: onSuccess
+  DO->>DO: appendEnvelopedEvents saveCheckpoint
+  DO->>DO: publishStateChange broadcastFiltered
+  DO-->>C: S2C state-bearing message
+```
+
+**Client command path (local or remote):**
+
+```mermaid
+flowchart LR
+  IN[input.ts] --> IE[game/input-events.ts interpretInput]
+  IE --> CR[game/command-router.ts]
+  CR --> TR[transport.ts]
+  TR -->|local| LG[LocalGameFlow / engine]
+  TR -->|net| WS[WebSocket]
 ```
 
 ### Key Technologies
@@ -102,21 +162,22 @@ This is the heart of the project. All game rules live in a shared folder, making
 
 #### Module Inventory
 
-| Module                                     | Purpose                                                                                                           | Reusability                             |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| `hex.ts`                                   | Axial hex math: distance, neighbours, line draw, pixel conversion                                                 | **Fully generic** — zero game knowledge |
-| `util.ts`                                  | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.)                                         | **Fully generic** — no game knowledge   |
-| `types/`                                   | Shared interfaces for domain, protocol, and scenario data                                                         | Game-specific                           |
-| `shared/protocol.ts`                       | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads); complements `types/protocol.ts` | Mostly generic                          |
-| `replay.ts`                                | Replay timeline structure and match identity builder                                                              | Game-specific                           |
-| `constants.ts`                             | Ship stats, ordnance mass, detection ranges, combat/movement constants                                            | Game-specific                           |
-| `movement.ts`                              | Vector movement with gravity, fuel, takeoff/landing, crash detection                                              | Game-specific                           |
-| `combat.ts`                                | Gun combat tables, LOS, range/velocity mods, heroism, counterattack                                               | Game-specific                           |
-| `map-data.ts`                              | Solar system bodies, gravity rings, bases, and scenario definitions                                               | Game-specific                           |
-| `ai.ts` / `ai-config.ts` / `ai-scoring.ts` | Rule-based AI and its scoring configuration                                                                       | Game-specific                           |
-| `engine/game-engine.ts`                    | Barrel re-export for the public engine API                                                                        | Game-specific                           |
-| `engine/engine-events.ts`                  | `EngineEvent` discriminated union (31 granular domain event types)                                                | Game-specific                           |
-| `engine/*` phase modules                   | Game creation, fleet building, astrogation, movement, combat, ordnance, logistics, victory, and shared helpers    | Game-specific                           |
+| Module                                     | Purpose                                                                                                                 | Reusability                             |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `hex.ts`                                   | Axial hex math: distance, neighbours, line draw, pixel conversion                                                       | **Fully generic** — zero game knowledge |
+| `util.ts`                                  | Functional collection helpers (`sumBy`, `minBy`, `indexBy`, `cond`, etc.)                                               | **Fully generic** — no game knowledge   |
+| `types/`                                   | Shared interfaces for domain, protocol, and scenario data                                                               | Game-specific                           |
+| `shared/protocol.ts`                       | Shared runtime C2S validation and normalization (trimmed chat, bounded payloads); complements `types/protocol.ts`       | Mostly generic                          |
+| `replay.ts`                                | Replay timeline structure and match identity builder                                                                    | Game-specific                           |
+| `constants.ts`                             | Ship stats, ordnance mass, detection ranges, combat/movement constants                                                  | Game-specific                           |
+| `movement.ts`                              | Vector movement with gravity, fuel, takeoff/landing, crash detection                                                    | Game-specific                           |
+| `combat.ts`                                | Gun combat tables, LOS, range/velocity mods, heroism, counterattack                                                     | Game-specific                           |
+| `map-data.ts`                              | Solar system bodies, gravity rings, bases, and scenario definitions                                                     | Game-specific                           |
+| `ai.ts` / `ai-config.ts` / `ai-scoring.ts` | Rule-based AI and its scoring configuration                                                                             | Game-specific                           |
+| `engine/game-engine.ts`                    | Barrel re-export for the public engine API                                                                              | Game-specific                           |
+| `engine/engine-events.ts`                  | `EngineEvent` discriminated union (31 granular domain event types)                                                      | Game-specific                           |
+| `engine/event-projector.ts`                | Deterministic projection from persisted `EventEnvelope` stream (+ checkpoints) to `GameState`; used by server and tests | Game-specific                           |
+| `engine/*` phase modules                   | Game creation, fleet building, astrogation, movement, combat, ordnance, logistics, victory, and shared helpers          | Game-specific                           |
 
 #### Key Design Patterns
 
@@ -171,27 +232,34 @@ The backend leverages Cloudflare's edge network.
 
 #### Module Inventory
 
-| Module                     | Purpose                                                                                                          | Reusability                                               |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `index.ts`                 | Worker entry: `/create`, `/join/:code`, `/replay/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern                                           |
-| `protocol.ts`              | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export                            | **~85% generic** — room/token/seat logic is game-agnostic |
-| `game-do/game-do.ts`       | Durable Object class: composes fetch, WebSocket, and alarm paths                                                 | **~70% generic** — multiplayer plumbing is reusable       |
-| `game-do/fetch.ts`         | HTTP `/init`, `/join`, `/replay` and WebSocket upgrade + welcome/reconnect                                       | **~70% generic**                                          |
-| `game-do/ws.ts`            | Hibernation `webSocketMessage` / `webSocketClose` bodies                                                         | **~70% generic**                                          |
-| `game-do/alarm.ts`         | Alarm handler: disconnect forfeit, turn timeout, inactivity archive/close                                        | Mostly generic                                            |
-| `game-do/turn-timeout.ts`  | Turn-timeout branch: engine outcome + `publishStateChange`                                                       | Game-specific                                             |
-| `game-do/telemetry.ts`     | Engine/projection error reporting to D1                                                                          | Generic pattern                                           |
-| `game-do/archive.ts`       | Match-scoped event envelopes (gameId/seq/ts/actor), checkpoints, replay projection, match identity               | Game-specific                                             |
-| `game-do/match-archive.ts` | Persistent archival of completed matches to R2 + D1 metadata                                                     | **Fully generic**                                         |
-| `game-do/messages.ts`      | S2C message construction from engine results                                                                     | Game-specific                                             |
-| `game-do/session.ts`       | Disconnect grace period, alarm scheduling                                                                        | **Fully generic**                                         |
-| `game-do/turns.ts`         | Turn timeout auto-advance                                                                                        | Mostly generic                                            |
+| Module                       | Purpose                                                                                                          | Reusability                                               |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `index.ts`                   | Worker entry: `/create`, `/join/:code`, `/replay/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern                                           |
+| `protocol.ts`                | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export                            | **~85% generic** — room/token/seat logic is game-agnostic |
+| `game-do/game-do.ts`         | Durable Object class: composes fetch, WebSocket, and alarm paths                                                 | **~70% generic** — multiplayer plumbing is reusable       |
+| `game-do/fetch.ts`           | HTTP `/init`, `/join`, `/replay` and WebSocket upgrade + welcome/reconnect                                       | **~70% generic**                                          |
+| `game-do/ws.ts`              | Hibernation `webSocketMessage` / `webSocketClose` bodies                                                         | **~70% generic**                                          |
+| `game-do/alarm.ts`           | Alarm handler: disconnect forfeit, turn timeout, inactivity archive/close                                        | Mostly generic                                            |
+| `game-do/turn-timeout.ts`    | Turn-timeout branch: engine outcome + `publishStateChange`                                                       | Game-specific                                             |
+| `game-do/telemetry.ts`       | Engine/projection error reporting to D1                                                                          | Generic pattern                                           |
+| `game-do/actions.ts`         | `runGameStateAction`, `dispatchGameStateAction`, per-action engine wiring                                        | Game-specific                                             |
+| `game-do/broadcast.ts`       | `broadcastFiltered`, `publishStateChange`, socket send helpers                                                   | Game-specific                                             |
+| `game-do/http-handlers.ts`   | `handleInitRequest`, `handleJoinCheckRequest`, `handleReplayRequest`, `resolveJoinAttempt`                       | **~70% generic**                                          |
+| `game-do/socket.ts`          | WebSocket message rate limit, `parseClientSocketMessage`, aux messages (chat, ping, rematch)                     | **~70% generic**                                          |
+| `game-do/projection.ts`      | Replay timeline shaping; uses `event-projector`; viewer-filtered replay entries                                  | Game-specific                                             |
+| `game-do/match.ts`           | `initGameSession`, rematch handling                                                                              | Game-specific                                             |
+| `game-do/archive.ts`         | Match-scoped event envelopes (gameId/seq/ts/actor), checkpoints, replay projection helpers, match identity       | Game-specific                                             |
+| `game-do/archive-storage.ts` | Chunked event stream keys in DO storage                                                                          | Game-specific                                             |
+| `game-do/match-archive.ts`   | Persistent archival of completed matches to R2 + D1 metadata                                                     | **Fully generic**                                         |
+| `game-do/messages.ts`        | S2C message construction from engine results                                                                     | Game-specific                                             |
+| `game-do/session.ts`         | Disconnect grace period, alarm scheduling                                                                        | **Fully generic**                                         |
+| `game-do/turns.ts`           | Turn timeout auto-advance                                                                                        | Mostly generic                                            |
 
 #### Key Design Patterns
 
 - **[WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/api/websockets/)**: The DO uses Cloudflare's hibernatable WebSocket API (`acceptWebSocket`, `webSocketMessage`, `webSocketClose`) instead of the standard `addEventListener` pattern. This allows the DO to hibernate between messages, reducing costs. Sockets are tagged with `player:${playerId}` on accept, enabling player lookup via `getWebSockets(['player:0'])` without maintaining an in-memory map.
 
-- **`runGameStateAction(ws, action, onSuccess)`**: Generic handler that reduces boilerplate across all 12+ action handlers. Fetches current state from storage → runs engine function in try/catch → on validation error sends error message to the WebSocket → on exception logs with game code/phase/turn and sends error (state is preserved via clone-on-entry) → on success invokes `onSuccess` callback (typically save state + broadcast). `handleTurnTimeout` has equivalent try/catch protection for the alarm-driven code path.
+- **`runGameStateAction(ws, action, onSuccess)`** (`game-do/actions.ts`, wired from `GameDO`): Generic handler that reduces boilerplate across all 12+ action handlers. Fetches current state from storage → runs engine function in try/catch → on validation error sends error message to the WebSocket → on exception logs with game code/phase/turn and sends error (state is preserved via clone-on-entry) → on success invokes `onSuccess` callback (typically save state + broadcast). `handleTurnTimeout` has equivalent try/catch protection for the alarm-driven code path.
 
 - **Shared protocol validation**: Runtime C2S validation now lives in `shared/protocol.ts` instead of the server shell. The Durable Object still consumes `validateClientMessage()`, but the message-shape ownership sits beside the shared protocol types rather than inside server-only plumbing.
 
@@ -252,7 +320,7 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 #### Key Design Patterns
 
 - **`main.ts`**: Browser entry only — global setup (error handlers, viewport, service worker reload) and `createGameClient()` from `game/client-kernel.ts`, then assigns `window.game`.
-- **`game/client-kernel.ts`**: Exports `createGameClient()` — the client-side coordinator factory. Manages WebSocket connections, local-AI execution, and top-level composition. It delegates command dispatch to `game/command-router.ts`, game-state apply/clear ownership to `game/game-state-store.ts`, planning mutations to `game/planning-store.ts`, runtime/session field updates to `game/client-context-store.ts`, client state-entry side effects to `game/state-transition.ts`, and session lifecycle flows to `game/session-controller.ts` instead of keeping those blocks inline. The exported `GameClient` type is `ReturnType<typeof createGameClient>`; the runtime bootstrap only exposes `renderer`, `showToast`, and `dispose` on `window.game`.
+- **`game/client-kernel.ts`**: Exports `createGameClient()` — the client-side coordinator factory. Manages WebSocket connections, local-AI execution, and top-level composition. It delegates command dispatch to `game/command-router.ts`, game-state apply/clear ownership to `game/game-state-store.ts`, planning mutations to `game/planning-store.ts`, runtime/session field updates to `game/client-context-store.ts`, client state-entry side effects to `game/state-transition.ts`, and session lifecycle flows to `game/session-controller.ts` instead of keeping those blocks inline. The exported `GameClient` type is `ReturnType<typeof createGameClient>`; the runtime bootstrap only exposes `renderer`, `showToast`, and `dispose` on `window.game`. Wiring helpers (`main-deps.ts`, `main-composition.ts`, `client-runtime.ts`), S2C handling (`message-handler.ts`, `network.ts`), and replay UX (`replay-controller.ts`, `replay-selection.ts`) live alongside the kernel in `game/` but are omitted from the dependency tree below for brevity.
 - **`renderer/renderer.ts`**: A highly optimized Canvas 2D renderer factory. It separates logical hex coordinates from pixel coordinates, while extracted helpers such as `renderer/animation.ts` now own movement-animation lifecycle and trail state. `createRenderer()` remains the canvas shell and per-frame orchestrator, and now composites a cached static scene layer for stars, grid, gravity, asteroids, and bodies when the camera and viewport are unchanged.
 - **`input.ts`**: Manages user interaction (panning, zooming, clicking). It translates raw browser events into `InputEvent` objects, while `input-interaction.ts` owns pointer drag/pinch/minimap state and math. The input shell now owns its DOM listener lifecycle explicitly, including outside-canvas pointer release and touch-cancel cleanup. Pure `interpretInput()` then maps these to `GameCommand[]`, ensuring the input layer never directly mutates the application state.
 - **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), planning-state helpers, runtime/session helpers, phase derivation, game-state helpers, transition helpers, session helpers, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
@@ -458,9 +526,16 @@ renderer/renderer.ts
   └→ shared/ (types, hex, constants)
 
 game-do/game-do.ts (Durable Object)
-  ├→ server/protocol.ts (validation, seat assignment)
-  ├→ session.ts, turns.ts (lifecycle management)
-  ├→ messages.ts (S2C construction)
+  ├→ actions.ts (runGameStateAction, dispatch)
+  ├→ archive.ts, archive-storage.ts (event stream, checkpoints)
+  ├→ broadcast.ts (publishStateChange, filtered send)
+  ├→ fetch.ts, http-handlers.ts, ws.ts, socket.ts (HTTP, WS upgrade, hibernation)
+  ├→ projection.ts (replay timelines; uses shared/event-projector)
+  ├→ match.ts, match-archive.ts (session init, rematch, R2 archive)
+  ├→ messages.ts (S2C shapes)
+  ├→ alarm.ts, session.ts, turns.ts, turn-timeout.ts
+  ├→ telemetry.ts (D1 error reporting)
+  ├→ server/protocol.ts (room codes, seat assignment)
   └→ shared/engine/game-engine.ts (pure game logic)
 ```
 

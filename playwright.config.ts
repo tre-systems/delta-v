@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
-const PORT = 8787;
+// E2E_PORT avoids clashing with a separate `npm run dev` on 8787 during pre-commit.
+const PORT = Number(process.env.E2E_PORT) || 8787;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({

@@ -1,5 +1,6 @@
 npm run lint
 npm run typecheck:all
 npm run test:coverage
-npm run test:e2e
+# Use 8788 so a separate `npm run dev` on 8787 does not block Playwright's webServer.
+E2E_PORT=8788 npm run test:e2e
 npm run simulate all 25 -- --ci

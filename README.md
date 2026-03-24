@@ -25,7 +25,13 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 - [**MANUAL_TEST_PLAN.md**](./docs/MANUAL_TEST_PLAN.md): comprehensive manual test plan covering all scenarios, mechanics, and edge cases
 - [**SIMULATION_TESTING.md**](./docs/SIMULATION_TESTING.md): headless AI-vs-AI coverage plus the websocket load / chaos harness
 - [**SECURITY.md**](./docs/SECURITY.md): competitive integrity, abuse and cost considerations, rate limits, and deployment hardening
-- [**BACKLOG.md**](./docs/BACKLOG.md): remaining open work (including security and abuse-hardening tasks)
+- [**BACKLOG.md**](./docs/BACKLOG.md): remaining work — gameplay, security, platform, and **human** review tasks (a11y audit, privacy/legal, etc.)
+- [**REVIEW_PLAN.md**](./docs/REVIEW_PLAN.md): sequenced checklist for cross-cutting reviews (CI, observability, data retention, a11y, etc.)
+- [**CONTRIBUTING.md**](./docs/CONTRIBUTING.md): pre-commit behavior, coverage, Playwright ports
+- [**OBSERVABILITY.md**](./docs/OBSERVABILITY.md): logs, D1 events, sample queries
+- [**decisions/**](./docs/decisions/README.md): architecture decision records (ADRs)
+- [**A11Y.md**](./docs/A11Y.md): DOM accessibility checklist (Canvas limitations noted)
+- [**PRIVACY_TECHNICAL.md**](./docs/PRIVACY_TECHNICAL.md): technical privacy summary (not legal advice)
 - [**SPACESHIPS.md**](./docs/SPACESHIPS.md) and [**TECHNOLOGY.md**](./docs/TECHNOLOGY.md): visual direction and real-world technology anchors
 
 ## 🌟 Features

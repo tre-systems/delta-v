@@ -70,7 +70,10 @@ export const setBurnDirection = (
     for (let offset = 1; offset < orderable.length; offset++) {
       const next = orderable[(currentIdx + offset) % orderable.length];
 
-      if (!deps.planningState.burns.has(next.id)) {
+      if (
+        !deps.planningState.burns.has(next.id) &&
+        next.damage.disabledTurns === 0
+      ) {
         selectShip(deps.planningState, next.id);
         return;
       }

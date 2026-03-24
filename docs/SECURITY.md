@@ -186,6 +186,9 @@ Concrete implementation tasks for abuse hardening and cost control are listed un
 
 ## Operational References
 
+- [OBSERVABILITY.md](./OBSERVABILITY.md) — D1 schema, sample queries, what is logged.
+- [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) — what the stack stores (not legal advice).
+- [ADR 0001: Data retention](./decisions/0001-data-retention.md) — retention stance for D1/R2/DO.
 - [Cloudflare WAF rate limiting rules](https://developers.cloudflare.com/waf/rate-limiting-rules/)
 - [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/)
 - [OWASP XSS overview](https://owasp.org/www-community/attacks/xss/)
