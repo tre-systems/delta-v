@@ -1,285 +1,256 @@
 import type { GameState, Ship } from '../../shared/types/domain';
-import { byId, listen } from '../dom';
+import { byId } from '../dom';
 import { createDisposalScope, withScope } from '../reactive';
 import { bindStaticButtonEvents } from './button-events';
 import type { UIEvent } from './events';
-import {
-  createFleetBuildingView,
-  type FleetBuildingView,
-} from './fleet-building-view';
-import { createGameLogView, type GameLogView } from './game-log-view';
+import { createFleetBuildingView } from './fleet-building-view';
+import { createGameLogView } from './game-log-view';
 import type { HUDInput } from './hud';
-import { createHUDChromeView, type HUDChromeView } from './hud-chrome-view';
+import { createHUDChromeView } from './hud-chrome-view';
 import { applyHudLayoutMetrics, clearHudLayoutMetrics } from './layout-metrics';
 import { createLobbyView, type LobbyView } from './lobby-view';
-import { createOverlayView, type OverlayView } from './overlay-view';
+import { createOverlayView } from './overlay-view';
 import type { UIScreenMode } from './screens';
-import { createShipListView, type ShipListView } from './ship-list-view';
+import { createShipListView } from './ship-list-view';
+import { bindViewportEvents } from './viewport-events';
 import { applyUIVisibility } from './visibility';
 
-class UIManagerImpl {
-  private readonly scope = createDisposalScope();
-  private menuEl: HTMLElement;
-  private scenarioEl: HTMLElement;
-  private waitingEl: HTMLElement;
-  private hudEl: HTMLElement;
-  private topBarEl: HTMLElement;
-  private bottomBarEl: HTMLElement;
-  private gameOverEl: HTMLElement;
-  private shipListEl: HTMLElement;
-  private fleetBuildingEl: HTMLElement;
-  private readonly mobileQuery: MediaQueryList;
-  private isMobile: boolean;
-  private layoutSyncFrame: number | null = null;
+export const createUIManager = () => {
+  const scope = createDisposalScope();
+  const menuEl = byId('menu');
+  const scenarioEl = byId('scenarioSelect');
+  const waitingEl = byId('waiting');
+  const hudEl = byId('hud');
+  const topBarEl = byId('topBar');
+  const bottomBarEl = byId('bottomBar');
+  const gameOverEl = byId('gameOver');
+  const shipListEl = byId('shipList');
+  const fleetBuildingEl = byId('fleetBuilding');
+  const mobileQuery = window.matchMedia('(max-width: 760px)');
+  let isMobile = mobileQuery.matches;
+  let layoutSyncFrame: number | null = null;
 
-  private readonly fleetBuildingView: FleetBuildingView;
-  readonly log: GameLogView;
-  private readonly hudChromeView: HUDChromeView;
-  private readonly shipListView: ShipListView;
-  private readonly lobbyView: LobbyView;
-  readonly overlay: OverlayView;
+  let onEvent: ((event: UIEvent) => void) | null = null;
 
-  onEvent: ((event: UIEvent) => void) | null = null;
-
-  private readonly handleViewportResize = () => {
-    this.queueLayoutSync();
+  const emit = (event: UIEvent) => {
+    onEvent?.(event);
   };
 
-  constructor() {
-    this.menuEl = byId('menu');
-    this.scenarioEl = byId('scenarioSelect');
-    this.waitingEl = byId('waiting');
-    this.hudEl = byId('hud');
-    this.topBarEl = byId('topBar');
-    this.bottomBarEl = byId('bottomBar');
-    this.gameOverEl = byId('gameOver');
-    this.shipListEl = byId('shipList');
-    this.fleetBuildingEl = byId('fleetBuilding');
-    this.fleetBuildingView = createFleetBuildingView({
-      onFleetReady: (purchases) => {
-        this.emit({ type: 'fleetReady', purchases });
-      },
-    });
-    this.log = createGameLogView({
-      onChat: (text) => {
-        this.emit({ type: 'chat', text });
-      },
-    });
-    this.lobbyView = createLobbyView({
-      emit: (event) => this.emit(event),
-      showMenu: () => this.showMenu(),
-      showScenarioSelect: () => this.showScenarioSelect(),
-    });
-    this.shipListView = createShipListView({
-      onSelectShip: (shipId) => {
-        this.emit({ type: 'selectShip', shipId });
-      },
-    });
-    this.overlay = createOverlayView();
-    this.hudChromeView = createHUDChromeView({
-      queueLayoutSync: () => this.queueLayoutSync(),
-      showPhaseAlert: (phase, isMyTurn) => {
-        this.overlay.showPhaseAlert(phase, isMyTurn);
-      },
-      onStatusText: (text) => {
-        this.log.setStatusText(text);
-      },
-    });
-    this.scope.add(() => {
-      this.fleetBuildingView.dispose();
-      this.log.dispose();
-      this.hudChromeView.dispose();
-      this.lobbyView.dispose();
-      this.overlay.dispose();
-      this.shipListView.dispose();
-    });
+  const resetLayoutMetrics = () => {
+    if (layoutSyncFrame !== null) {
+      window.cancelAnimationFrame(layoutSyncFrame);
+      layoutSyncFrame = null;
+    }
 
-    this.mobileQuery = window.matchMedia('(max-width: 760px)');
-    this.isMobile = this.mobileQuery.matches;
-    this.hudChromeView.setMobile(this.isMobile);
-    this.log.setMobile(this.isMobile, this.hudEl.style.display !== 'none');
+    clearHudLayoutMetrics();
+  };
 
-    withScope(this.scope, () => {
-      listen(this.mobileQuery, 'change', (e) => {
-        const matches = (e as MediaQueryListEvent).matches;
-        this.isMobile = matches;
-        this.hudChromeView.setMobile(matches);
-        this.log.setMobile(matches, this.hudEl.style.display !== 'none');
-      });
-
-      listen(window, 'resize', this.handleViewportResize);
-
-      if (window.visualViewport) {
-        listen(window.visualViewport, 'resize', this.handleViewportResize);
-      }
-
-      bindStaticButtonEvents(
-        (event) => this.emit(event),
-        (dispose) => this.scope.add(dispose),
-      );
-    });
-  }
-
-  private emit(event: UIEvent) {
-    this.onEvent?.(event);
-  }
-
-  private applyScreenVisibility(mode: UIScreenMode) {
-    applyUIVisibility(
-      {
-        menuEl: this.menuEl,
-        scenarioEl: this.scenarioEl,
-        waitingEl: this.waitingEl,
-        hudEl: this.hudEl,
-        gameOverEl: this.gameOverEl,
-        shipListEl: this.shipListEl,
-        fleetBuildingEl: this.fleetBuildingEl,
-      },
-      mode,
-    );
-    this.log.applyScreenVisibility(mode);
-  }
-
-  hideAll() {
-    this.applyScreenVisibility('hidden');
-    this.log.resetVisibilityState();
-    this.resetLayoutMetrics();
-  }
-
-  setPlayerId(id: number) {
-    this.log.setPlayerId(id);
-  }
-
-  showMenu() {
-    this.hideAll();
-    this.applyScreenVisibility('menu');
-    this.lobbyView.onMenuShown();
-  }
-
-  setMenuLoading(loading: boolean) {
-    this.lobbyView.setMenuLoading(loading);
-  }
-
-  showScenarioSelect() {
-    this.hideAll();
-    this.applyScreenVisibility('scenario');
-  }
-
-  showWaiting(code: string) {
-    this.hideAll();
-    this.applyScreenVisibility('waiting');
-    this.lobbyView.showWaiting(code);
-  }
-
-  showConnecting() {
-    this.hideAll();
-    this.applyScreenVisibility('waiting');
-    this.lobbyView.showConnecting();
-  }
-
-  showHUD() {
-    this.hideAll();
-    this.applyScreenVisibility('hud');
-    this.log.showHUD();
-    this.queueLayoutSync();
-  }
-
-  showFleetBuilding(state: GameState, playerId: number) {
-    this.hideAll();
-    this.applyScreenVisibility('fleetBuilding');
-    this.fleetBuildingView.show(state, playerId);
-  }
-
-  showFleetWaiting() {
-    this.fleetBuildingView.showWaiting();
-  }
-
-  updateHUD(input: Omit<HUDInput, 'isMobile'>) {
-    this.hudChromeView.update(input);
-  }
-
-  updateLatency(latencyMs: number | null) {
-    this.hudChromeView.updateLatency(latencyMs);
-  }
-
-  updateFleetStatus(status: string) {
-    this.hudChromeView.updateFleetStatus(status);
-  }
-
-  updateShipList(
-    ships: Ship[],
-    selectedId: string | null,
-    burns: Map<string, number | null>,
-  ) {
-    this.shipListView.update(ships, selectedId, burns);
-  }
-
-  toggleHelpOverlay() {
-    this.hudChromeView.toggleHelpOverlay();
-  }
-
-  updateSoundButton(muted: boolean) {
-    this.hudChromeView.updateSoundButton(muted);
-  }
-
-  setTurnTimer(text: string, className: string) {
-    this.hudChromeView.setTurnTimer(text, className);
-  }
-
-  clearTurnTimer() {
-    this.hudChromeView.clearTurnTimer();
-  }
-
-  showAttackButton(isVisible: boolean) {
-    this.hudChromeView.showAttackButton(isVisible);
-  }
-
-  showFireButton(isVisible: boolean, count: number) {
-    this.hudChromeView.showFireButton(isVisible, count);
-  }
-
-  showMovementStatus() {
-    this.hudChromeView.showMovementStatus();
-  }
-
-  private queueLayoutSync() {
-    if (this.layoutSyncFrame !== null) return;
-
-    this.layoutSyncFrame = window.requestAnimationFrame(() => {
-      this.layoutSyncFrame = null;
-      this.syncLayoutMetrics();
-    });
-  }
-
-  private syncLayoutMetrics() {
-    if (this.hudEl.style.display === 'none') {
-      this.resetLayoutMetrics();
+  const syncLayoutMetrics = () => {
+    if (hudEl.style.display === 'none') {
+      resetLayoutMetrics();
 
       return;
     }
 
     applyHudLayoutMetrics(
       window.innerHeight,
-      this.topBarEl.getBoundingClientRect(),
-      this.bottomBarEl.getBoundingClientRect(),
+      topBarEl.getBoundingClientRect(),
+      bottomBarEl.getBoundingClientRect(),
     );
-  }
+  };
 
-  private resetLayoutMetrics() {
-    if (this.layoutSyncFrame !== null) {
-      window.cancelAnimationFrame(this.layoutSyncFrame);
-      this.layoutSyncFrame = null;
-    }
+  const queueLayoutSync = () => {
+    if (layoutSyncFrame !== null) return;
 
-    clearHudLayoutMetrics();
-  }
+    layoutSyncFrame = window.requestAnimationFrame(() => {
+      layoutSyncFrame = null;
+      syncLayoutMetrics();
+    });
+  };
 
-  dispose() {
-    this.resetLayoutMetrics();
-    this.scope.dispose();
-  }
-}
+  const handleViewportResize = () => {
+    queueLayoutSync();
+  };
 
-export const createUIManager = () => new UIManagerImpl();
+  const fleetBuildingView = createFleetBuildingView({
+    onFleetReady: (purchases) => {
+      emit({ type: 'fleetReady', purchases });
+    },
+  });
+  const log = createGameLogView({
+    onChat: (text) => {
+      emit({ type: 'chat', text });
+    },
+  });
+
+  const applyScreenVisibility = (mode: UIScreenMode) => {
+    applyUIVisibility(
+      {
+        menuEl,
+        scenarioEl,
+        waitingEl,
+        hudEl,
+        gameOverEl,
+        shipListEl,
+        fleetBuildingEl,
+      },
+      mode,
+    );
+    log.applyScreenVisibility(mode);
+  };
+
+  const hideAll = () => {
+    applyScreenVisibility('hidden');
+    log.resetVisibilityState();
+    resetLayoutMetrics();
+  };
+
+  let lobbyView: LobbyView;
+
+  const showMenu = () => {
+    hideAll();
+    applyScreenVisibility('menu');
+    lobbyView.onMenuShown();
+  };
+
+  const showScenarioSelect = () => {
+    hideAll();
+    applyScreenVisibility('scenario');
+  };
+
+  lobbyView = createLobbyView({
+    emit,
+    showMenu,
+    showScenarioSelect,
+  });
+
+  const shipListView = createShipListView({
+    onSelectShip: (shipId) => {
+      emit({ type: 'selectShip', shipId });
+    },
+  });
+  const overlay = createOverlayView();
+  const hudChromeView = createHUDChromeView({
+    queueLayoutSync,
+    showPhaseAlert: (phase, isMyTurn) => {
+      overlay.showPhaseAlert(phase, isMyTurn);
+    },
+    onStatusText: (text) => {
+      log.setStatusText(text);
+    },
+  });
+
+  scope.add(() => {
+    fleetBuildingView.dispose();
+    log.dispose();
+    hudChromeView.dispose();
+    lobbyView.dispose();
+    overlay.dispose();
+    shipListView.dispose();
+  });
+
+  hudChromeView.setMobile(isMobile);
+  log.setMobile(isMobile, hudEl.style.display !== 'none');
+
+  withScope(scope, () => {
+    bindViewportEvents({
+      mobileQuery,
+      onMobileChange: (matches) => {
+        isMobile = matches;
+        hudChromeView.setMobile(matches);
+        log.setMobile(matches, hudEl.style.display !== 'none');
+      },
+      onViewportResize: handleViewportResize,
+      trackDispose: (dispose) => scope.add(dispose),
+    });
+
+    bindStaticButtonEvents(emit, (dispose) => scope.add(dispose));
+  });
+
+  return {
+    get onEvent() {
+      return onEvent;
+    },
+    set onEvent(handler: ((event: UIEvent) => void) | null) {
+      onEvent = handler;
+    },
+    log,
+    overlay,
+    hideAll,
+    setPlayerId(id: number) {
+      log.setPlayerId(id);
+    },
+    showMenu,
+    setMenuLoading(loading: boolean) {
+      lobbyView.setMenuLoading(loading);
+    },
+    showScenarioSelect,
+    showWaiting(code: string) {
+      hideAll();
+      applyScreenVisibility('waiting');
+      lobbyView.showWaiting(code);
+    },
+    showConnecting() {
+      hideAll();
+      applyScreenVisibility('waiting');
+      lobbyView.showConnecting();
+    },
+    showHUD() {
+      hideAll();
+      applyScreenVisibility('hud');
+      log.showHUD();
+      queueLayoutSync();
+    },
+    showFleetBuilding(state: GameState, playerId: number) {
+      hideAll();
+      applyScreenVisibility('fleetBuilding');
+      fleetBuildingView.show(state, playerId);
+    },
+    showFleetWaiting() {
+      fleetBuildingView.showWaiting();
+    },
+    updateHUD(input: Omit<HUDInput, 'isMobile'>) {
+      hudChromeView.update(input);
+    },
+    updateLatency(latencyMs: number | null) {
+      hudChromeView.updateLatency(latencyMs);
+    },
+    updateFleetStatus(status: string) {
+      hudChromeView.updateFleetStatus(status);
+    },
+    updateShipList(
+      ships: Ship[],
+      selectedId: string | null,
+      burns: Map<string, number | null>,
+    ) {
+      shipListView.update(ships, selectedId, burns);
+    },
+    toggleHelpOverlay() {
+      hudChromeView.toggleHelpOverlay();
+    },
+    updateSoundButton(muted: boolean) {
+      hudChromeView.updateSoundButton(muted);
+    },
+    setTurnTimer(text: string, className: string) {
+      hudChromeView.setTurnTimer(text, className);
+    },
+    clearTurnTimer() {
+      hudChromeView.clearTurnTimer();
+    },
+    showAttackButton(isVisible: boolean) {
+      hudChromeView.showAttackButton(isVisible);
+    },
+    showFireButton(isVisible: boolean, count: number) {
+      hudChromeView.showFireButton(isVisible, count);
+    },
+    showMovementStatus() {
+      hudChromeView.showMovementStatus();
+    },
+    dispose() {
+      resetLayoutMetrics();
+      scope.dispose();
+    },
+  };
+};
 
 export type UIManager = ReturnType<typeof createUIManager>;
