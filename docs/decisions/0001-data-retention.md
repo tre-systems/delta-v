@@ -20,5 +20,5 @@ Growth is **unbounded by default** in application code.
 ## Consequences
 
 - Cost scales with traffic and completed matches; monitor D1 rows and R2 size.
-- [BACKLOG.md](../BACKLOG.md) “Data lifecycle” item remains valid if product needs automated purge.
+- If the product needs **automated purge** or a stricter retention program, treat that as a new priority in [BACKLOG.md](../BACKLOG.md) (ops/engineering), aligned with this ADR.
 - [SECURITY.md](../SECURITY.md) and [OBSERVABILITY.md](../OBSERVABILITY.md) describe what is stored, not legal guarantees.

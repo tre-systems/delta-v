@@ -182,7 +182,7 @@ If the product scope expands beyond friendly matches:
 - Join / replay HTTP throttling if room-code guessing or DO wake abuse becomes measurable
 - Application or edge rate limits on `POST /telemetry` and `POST /error` (see [BACKLOG](./BACKLOG.md))
 
-Concrete implementation tasks for abuse hardening and cost control are listed under **Security & abuse hardening** in [BACKLOG.md](./BACKLOG.md).
+Concrete implementation tasks for abuse hardening and cost control are listed at the top of [BACKLOG.md](./BACKLOG.md) (priorities **1**, **6**, **10**, **13**).
 
 ## Operational References
 
