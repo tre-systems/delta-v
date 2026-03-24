@@ -1,6 +1,6 @@
 import type { HexCoord } from '../../shared/hex';
 import type { GameState } from '../../shared/types/domain';
-import type { AnimationState } from './animation-manager';
+import type { AnimationState } from './animation';
 import type { Camera } from './camera';
 import {
   buildMovementPathViews,

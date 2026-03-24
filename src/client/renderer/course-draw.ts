@@ -5,11 +5,8 @@ import {
   type CourseArrowView,
   type CoursePreviewView,
 } from './course';
-import {
-  drawCourseMarkerView,
-  drawWeakGravityMarkerView,
-} from './course-markers';
 import type { DrawShipIconInput } from './draw';
+import { drawCourseMarkerView, drawWeakGravityMarkerView } from './markers';
 
 export type DrawShipIconFn = (input: DrawShipIconInput) => void;
 
