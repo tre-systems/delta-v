@@ -185,4 +185,15 @@ describe('SCENARIOS', () => {
     const liner = s.players[0].ships.find((sh) => sh.type === 'liner');
     expect(liner?.initialPassengers).toBeGreaterThan(0);
   });
+  it('evacuation is a minimal passenger-rescue sprint (transport + escort vs corsair)', () => {
+    const s = SCENARIOS.evacuation;
+    expect(s.players[0].targetBody).toBe('Terra');
+    expect(s.players[0].homeBody).toBe('Luna');
+    expect(s.rules?.passengerRescueEnabled).toBe(true);
+    expect(s.rules?.targetWinRequiresPassengers).toBe(true);
+    const t = s.players[0].ships.find((sh) => sh.type === 'transport');
+    expect(t?.initialPassengers).toBeGreaterThan(0);
+    expect(s.players[0].ships.some((sh) => sh.type === 'corvette')).toBe(true);
+    expect(s.players[1].ships[0]?.type).toBe('corsair');
+  });
 });

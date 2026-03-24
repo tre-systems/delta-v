@@ -38,7 +38,7 @@ If the product stays **private friend matches only**, treat the early security i
 
 **Done (baseline):** `passengersAboard` on ships, `initialPassengers` on scenario ships, `passengerRescueEnabled` + `targetWinRequiresPassengers` on `ScenarioRules`, logistics transfers (`transferType: 'passengers'`) with shared cargo capacity, Convoy updated (liner + colonists, win requires passengers on target landing), `passengersTransferred` events and projector support, logistics UI “Passengers” row, game log lines for fuel/cargo/passenger transfers via `formatLogisticsTransferLogLines` (local/AI via `local-game-flow.ts`; **online** via optional `transferEvents` on `stateUpdate` in `protocol.ts`, `toStateUpdateMessage` in `messages.ts`, `message-handler.ts`).
 
-**Remaining:** Additional scenarios (e.g. dedicated rescue-only setups), richer objectives (partial delivery, pirate-side rules).
+**Remaining:** More scenarios (e.g. variants on evacuation / convoy), richer objectives (partial delivery, pirate-side rules). **Shipped:** compact `evacuation` (Luna → Terra transport + corvette vs corsair) in `map-data.ts`.
 
 **Files:** same as before, plus `src/client/ui/formatters.ts`, `src/client/game/local.ts`, `src/client/game/local-game-flow.ts`, `src/shared/engine/transfer-log-events.ts`, `src/server/game-do/messages.ts`, `src/server/game-do/actions.ts`, `src/client/game/messages.ts`, `src/client/game/message-handler.ts`
 
