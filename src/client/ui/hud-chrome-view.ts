@@ -80,6 +80,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
 
   const turnInfoEl = byId('turnInfo');
   const phaseInfoEl = byId('phaseInfo');
+  const objectiveCompassEl = byId('objectiveCompass');
   const objectiveEl = byId('objective');
   const fuelGaugeEl = byId('fuelGauge');
   const undoBtn = byId('undoBtn');
@@ -216,6 +217,17 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       text(turnInfoEl, hudView.turnText);
       text(phaseInfoEl, hudView.phaseText);
       text(objectiveEl, hudView.objectiveText);
+
+      const compassDeg = hudView.objectiveCompassDegrees;
+      if (compassDeg !== null) {
+        objectiveCompassEl.style.display = 'inline-flex';
+        objectiveCompassEl.style.transform = `rotate(${compassDeg}deg)`;
+        objectiveCompassEl.title = 'Direction to objective (map)';
+      } else {
+        objectiveCompassEl.style.display = 'none';
+        objectiveCompassEl.style.transform = '';
+        objectiveCompassEl.title = '';
+      }
 
       const phaseKey = `${turn}-${phase}-${isMyTurn}`;
 

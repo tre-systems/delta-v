@@ -10,9 +10,11 @@ import { deriveScenarioBriefingEntries } from './briefing';
 import { deriveHudViewModel } from './helpers';
 import { getTooltipShip } from './hover';
 import { buildHudChromeInputFromViewModel } from './hud-chrome-input';
+import { getObjectiveBearingScreenDegrees } from './navigation';
 import type { ClientState } from './phase';
 import type { PlanningState } from './planning';
 import { selectShip, setSelectedShipId } from './planning-store';
+import { getSelectedShip } from './selection';
 import { buildShipTooltipHtml } from './tooltip';
 
 export interface HudControllerDeps {
@@ -67,6 +69,30 @@ export const createHudController = (deps: HudControllerDeps) => {
     return { anyCrashed: false, crashBody: null };
   };
 
+  const computeObjectiveBearingDeg = (): number | null => {
+    const state = deps.getGameState();
+    const map = deps.getMap();
+
+    if (!state || !map) {
+      return null;
+    }
+
+    const planning = deps.getPlanningState();
+    const ship = getSelectedShip(
+      state,
+      deps.getPlayerId(),
+      planning.selectedShipId,
+    );
+
+    return getObjectiveBearingScreenDegrees(
+      state,
+      deps.getPlayerId(),
+      map,
+      HEX_SIZE,
+      ship,
+    );
+  };
+
   return {
     /** Derives HUD state and pushes it through `buildHudChromeInputFromViewModel` (single path to `ui.updateHUD`). */
     updateHUD: () => {
@@ -89,7 +115,11 @@ export const createHudController = (deps: HudControllerDeps) => {
       }
 
       deps.ui.updateHUD(
-        buildHudChromeInputFromViewModel(hud, computeCrashWarning()),
+        buildHudChromeInputFromViewModel(
+          hud,
+          computeCrashWarning(),
+          computeObjectiveBearingDeg(),
+        ),
       );
 
       const latencyMs = deps.getLatencyMs();

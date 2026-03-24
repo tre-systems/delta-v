@@ -9,6 +9,8 @@ export interface HUDView {
   turnText: string;
   phaseText: string;
   objectiveText: string;
+  /** Degrees for rotating a right-pointing objective arrow; null hides the compass. */
+  objectiveCompassDegrees: number | null;
   fuelGaugeText: string;
   statusText: string | null;
   undoVisible: boolean;
@@ -140,6 +142,8 @@ export interface HUDInput {
   cargoFree: number;
   cargoMax: number;
   objective: string;
+  /** Screen bearing for HUD compass; computed in `HudController`. */
+  objectiveBearingDeg: number | null;
   matchVelocityState: HUDActionState;
   canEmplaceBase: boolean;
   launchMineState: HUDActionState;
@@ -168,6 +172,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     cargoFree,
     cargoMax,
     objective,
+    objectiveBearingDeg,
     matchVelocityState,
     canEmplaceBase,
     launchMineState,
@@ -181,10 +186,18 @@ export const buildHUDView = (input: HUDInput): HUDView => {
 
   const showOrdnance = isMyTurn && phase === 'ordnance';
 
+  const compassHiddenPhases = new Set(['waiting', 'fleetBuilding', 'gameOver']);
+
+  const objectiveCompassDegrees =
+    !compassHiddenPhases.has(phase) && objectiveBearingDeg !== null
+      ? objectiveBearingDeg
+      : null;
+
   return {
     turnText: `Turn ${turn}`,
     phaseText: isMyTurn ? phase.toUpperCase() : "OPPONENT'S TURN",
     objectiveText: objective,
+    objectiveCompassDegrees,
     fuelGaugeText:
       showOrdnance && cargoMax > 0
         ? `Cargo: ${cargoFree}/${cargoMax}`

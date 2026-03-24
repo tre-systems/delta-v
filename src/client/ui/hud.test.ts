@@ -28,6 +28,7 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   cargoFree: 0,
   cargoMax: 0,
   objective: '',
+  objectiveBearingDeg: null,
   matchVelocityState: defaultLaunchState,
   canEmplaceBase: false,
   launchMineState: defaultLaunchState,
@@ -41,6 +42,23 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
 });
 
 describe('ui hud helpers', () => {
+  it('shows objective compass rotation when a bearing is provided', () => {
+    const view = buildHUDView(
+      buildInput({ objectiveBearingDeg: 90, phase: 'astrogation' }),
+    );
+    expect(view.objectiveCompassDegrees).toBe(90);
+  });
+
+  it('hides objective compass during fleet building regardless of bearing', () => {
+    const view = buildHUDView(
+      buildInput({
+        objectiveBearingDeg: 45,
+        phase: 'fleetBuilding',
+      }),
+    );
+    expect(view.objectiveCompassDegrees).toBeNull();
+  });
+
   it('builds astrogation HUD text and buttons for the active player', () => {
     expect(
       buildHUDView(buildInput({ turn: 3, fuel: 8, hasBurns: true })),

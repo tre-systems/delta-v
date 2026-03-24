@@ -13,7 +13,10 @@ const installFixture = () => {
   document.body.innerHTML = `
     <div id="turnInfo"></div>
     <div id="phaseInfo"></div>
-    <div id="objective"></div>
+    <span id="objectiveWrap" class="objective-wrap">
+      <span id="objectiveCompass" class="objective-compass"></span>
+      <span id="objective"></span>
+    </span>
     <div id="fuelGauge"></div>
     <div id="latencyInfo"></div>
     <div id="fleetStatus"></div>
@@ -37,6 +40,7 @@ const buildInput = (
   cargoFree: 6,
   cargoMax: 8,
   objective: 'Hold Mars',
+  objectiveBearingDeg: null,
   matchVelocityState: {
     visible: true,
     disabled: false,
@@ -118,6 +122,22 @@ describe('HUDChromeView', () => {
     view.update(buildInput({ phase: 'combat', hasBurns: false }));
     expect(showPhaseAlert).toHaveBeenCalledTimes(2);
     expect(showPhaseAlert).toHaveBeenLastCalledWith('combat', true);
+  });
+
+  it('shows and rotates the objective compass when bearing is set', () => {
+    const view = createHUDChromeView({
+      queueLayoutSync: vi.fn(),
+      showPhaseAlert: vi.fn(),
+      onStatusText: vi.fn(),
+    });
+
+    view.update(buildInput());
+    const compass = document.getElementById('objectiveCompass') as HTMLElement;
+    expect(compass.style.display).toBe('none');
+
+    view.update(buildInput({ objectiveBearingDeg: -30 }));
+    expect(compass.style.display).toBe('inline-flex');
+    expect(compass.style.transform).toBe('rotate(-30deg)');
   });
 
   it('updates HUD chrome helpers and hides action buttons during movement', () => {
