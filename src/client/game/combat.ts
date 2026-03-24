@@ -441,6 +441,7 @@ export const buildCurrentAttack = (
   playerId: number,
   planning: CombatPlanningSnapshot,
   map: SolarSystemMap,
+  selectedShipId?: string | null,
 ): CombatAttack | null => {
   const targetId = planning.combatTargetId;
   const targetType = planning.combatTargetType ?? 'ship';
@@ -532,8 +533,19 @@ export const buildCurrentAttack = (
     planning.combatAttackerIds.includes(ship.id),
   );
 
+  // When no explicit attacker selection, use the currently selected ship
+  // rather than drafting every legal attacker (which would auto-fire
+  // immediately, preventing multi-ship attack queuing).
+  const selectedShipFallback = selectedShipId
+    ? legalAttackers.filter((ship) => ship.id === selectedShipId)
+    : [];
+
   const attackers =
-    selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
+    selectedAttackers.length > 0
+      ? selectedAttackers
+      : selectedShipFallback.length > 0
+        ? selectedShipFallback
+        : legalAttackers;
 
   const attackStrength = clampAttackStrength(
     getCombatStrength(attackers),
