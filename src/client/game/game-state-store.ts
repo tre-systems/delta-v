@@ -1,3 +1,19 @@
+/**
+ * Authoritative match state on the client lives on `ClientSession` and is written
+ * only through here (`applyClientGameState` / `clearClientGameState`) plus the
+ * optional mirror hooks used by `session-signals.ts`.
+ *
+ * **Who may call what (client shell):**
+ * - `setState` / `applyClientStateTransition`: only via `createGameClient`’s
+ *   `setState` closure (session + network flows).
+ * - `applyGameState`: `createGameClient` wrapper, replay, local transport, and
+ *   `message-handler` / presentation paths that apply server or local engine state.
+ * - `clearClientGameState`: `exitToMenuSession` only.
+ * - `renderer.setGameState` / `clearTrails`: presentation, replay, session
+ *   start/exit, and `message-handler` where documented in those modules.
+ * - `hud.updateHUD`: explicit calls for planning-only changes; mirrored
+ *   `gameState`/`clientState` also trigger `attachSessionMirrorHudEffect`.
+ */
 import type { GameState } from '../../shared/types/domain';
 import { setSelectedShipId } from './planning-store';
 
@@ -17,6 +33,8 @@ interface GameStateStoreRenderer {
 export interface ApplyClientGameStateDeps {
   ctx: GameStateStoreContext;
   renderer: GameStateStoreRenderer;
+  /** Optional sync after ctx/renderer (e.g. reactive mirror signals). */
+  afterApply?: (state: GameState) => void;
 }
 
 export const applyClientGameState = (
@@ -29,6 +47,7 @@ export const applyClientGameState = (
   const selectedId = deps.ctx.planningState.selectedShipId;
 
   if (!selectedId) {
+    deps.afterApply?.(state);
     return;
   }
 
@@ -37,10 +56,13 @@ export const applyClientGameState = (
   if (!selectedShip || selectedShip.lifecycle === 'destroyed') {
     setSelectedShipId(deps.ctx.planningState, null);
   }
+  deps.afterApply?.(state);
 };
 
 export const clearClientGameState = (
   ctx: Pick<GameStateStoreContext, 'gameState'>,
+  afterClear?: () => void,
 ): void => {
   ctx.gameState = null;
+  afterClear?.();
 };

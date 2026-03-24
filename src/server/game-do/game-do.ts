@@ -30,7 +30,6 @@ import {
   getMatchSeed,
   getProjectedCurrentState,
   getProjectedCurrentStateRaw,
-  hasProjectionParity,
   saveCheckpoint,
   saveMatchCreatedAt,
 } from './archive';
@@ -40,6 +39,12 @@ import {
   broadcastStateChange,
   sendSocketMessage,
 } from './broadcast';
+import { runGameDoAlarm } from './game-do-alarm';
+import {
+  reportGameDoEngineError,
+  reportGameDoProjectionParityMismatch,
+  verifyGameDoProjectionParity,
+} from './game-do-telemetry';
 import {
   handleInitRequest,
   handleJoinCheckRequest,
@@ -56,7 +61,6 @@ import {
   createDisconnectMarker,
   getNextAlarmAt,
   normalizeDisconnectedPlayer,
-  resolveAlarmAction,
   shouldClearDisconnectMarker,
 } from './session';
 import {
@@ -64,7 +68,6 @@ import {
   handleAuxMessage,
   parseClientSocketMessage,
 } from './socket';
-import { resolveTurnTimeoutOutcome } from './turns';
 export interface Env {
   ASSETS: Fetcher;
   GAME: DurableObjectNamespace;
@@ -286,43 +289,19 @@ export class GameDO extends DurableObject<Env> {
     }
   }
 
-  // --- Error telemetry ---
+  // --- Error telemetry (see game-do-telemetry.ts) ---
   private reportEngineError = (
     code: string,
     phase: string,
     turn: number,
     err: unknown,
   ): void => {
-    const db = this.env.DB;
-
-    if (!db) return;
-    const msg = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack : undefined;
-    this.ctx.waitUntil(
-      db
-        .prepare(
-          'INSERT INTO events ' +
-            '(ts, anon_id, event, props, ip_hash, ua) ' +
-            'VALUES (?, ?, ?, ?, ?, ?)',
-        )
-        .bind(
-          Date.now(),
-          null,
-          'engine_error',
-          JSON.stringify({
-            code,
-            phase,
-            turn,
-            message: msg,
-            stack,
-          }),
-          'server',
-          null,
-        )
-        .run()
-        .catch((e: unknown) =>
-          console.error('[D1 engine error insert failed]', e),
-        ),
+    reportGameDoEngineError(
+      { db: this.env.DB, waitUntil: (p) => this.ctx.waitUntil(p) },
+      code,
+      phase,
+      turn,
+      err,
     );
   };
 
@@ -330,62 +309,22 @@ export class GameDO extends DurableObject<Env> {
     gameId: string,
     liveState: GameState,
   ): Promise<void> => {
-    const projectedState = await getProjectedCurrentStateRaw(
-      this.ctx.storage,
+    await reportGameDoProjectionParityMismatch({
+      storage: this.ctx.storage,
+      db: this.env.DB,
+      waitUntil: (p) => this.ctx.waitUntil(p),
       gameId,
-    );
-    console.error('[projection parity mismatch]', {
-      gameId,
-      liveTurn: liveState.turnNumber,
-      livePhase: liveState.phase,
-      projectedTurn: projectedState?.turnNumber ?? null,
-      projectedPhase: projectedState?.phase ?? null,
+      liveState,
     });
-
-    const db = this.env.DB;
-
-    if (!db) {
-      return;
-    }
-
-    this.ctx.waitUntil(
-      db
-        .prepare(
-          'INSERT INTO events ' +
-            '(ts, anon_id, event, props, ip_hash, ua) ' +
-            'VALUES (?, ?, ?, ?, ?, ?)',
-        )
-        .bind(
-          Date.now(),
-          null,
-          'projection_parity_mismatch',
-          JSON.stringify({
-            gameId,
-            liveTurn: liveState.turnNumber,
-            livePhase: liveState.phase,
-            projectedTurn: projectedState?.turnNumber ?? null,
-            projectedPhase: projectedState?.phase ?? null,
-          }),
-          'server',
-          null,
-        )
-        .run()
-        .catch((e: unknown) =>
-          console.error('[D1 projection parity insert failed]', e),
-        ),
-    );
   };
 
   private async verifyProjectionParity(state: GameState): Promise<void> {
-    const hasParity = await hasProjectionParity(
+    await verifyGameDoProjectionParity(
       this.ctx.storage,
-      state.gameId,
       state,
+      (gameId, liveState) =>
+        this.reportProjectionParityMismatch(gameId, liveState),
     );
-
-    if (!hasParity) {
-      await this.reportProjectionParityMismatch(state.gameId, state);
-    }
   }
   // --- WebSocket lifecycle ---
   async fetch(request: Request): Promise<Response> {
@@ -553,108 +492,23 @@ export class GameDO extends DurableObject<Env> {
   }
 
   async alarm(): Promise<void> {
-    const now = Date.now();
-    const disconnectedPlayer = normalizeDisconnectedPlayer(
-      await this.ctx.storage.get<number>('disconnectedPlayer'),
-    );
-    const action = resolveAlarmAction({
-      now,
-      disconnectedPlayer,
-      ...(await this.getAlarmDeadlines()),
-    });
-    switch (action.type) {
-      case 'disconnectExpired': {
-        await this.clearDisconnectMarker();
-        const gameState = await this.getCurrentGameState();
-
-        if (!gameState || gameState.phase === 'gameOver') {
-          await this.rescheduleAlarm();
-          return;
-        }
-        gameState.phase = 'gameOver';
-        gameState.winner = 1 - action.playerId;
-        gameState.winReason = 'Opponent disconnected';
-        await this.publishStateChange(gameState, undefined, {
-          actor: null,
-          restartTurnTimer: false,
-          events: [
-            {
-              type: 'gameOver' as const,
-              winner: gameState.winner,
-              reason: gameState.winReason ?? '',
-            },
-          ],
-        });
-        return;
-      }
-      case 'turnTimeout':
-        await this.handleTurnTimeout();
-        return;
-      case 'inactivityTimeout': {
-        // Archive any unarchived match before cleanup
-        if (this.env.MATCH_ARCHIVE) {
-          const gameState = await this.getCurrentGameState();
-
-          if (gameState) {
-            const code = await this.getGameCode();
-            this.ctx.waitUntil(
-              archiveCompletedMatch(
-                this.ctx.storage,
-                this.env.MATCH_ARCHIVE,
-                this.env.DB,
-                gameState,
-                code,
-              ),
-            );
-          }
-        }
-        for (const ws of this.ctx.getWebSockets()) {
-          try {
-            ws.close(1000, 'Inactivity timeout');
-          } catch {}
-        }
-        await this.archiveRoomState();
-        return;
-      }
-      case 'reschedule':
-        await this.rescheduleAlarm();
-        return;
-    }
-  }
-
-  private async handleTurnTimeout(): Promise<void> {
-    await this.ctx.storage.delete('turnTimeoutAt');
-    const gameState = await this.getCurrentGameState();
-
-    if (!gameState || gameState.phase === 'gameOver') {
-      await this.rescheduleAlarm();
-      return;
-    }
-    let outcome: ReturnType<typeof resolveTurnTimeoutOutcome>;
-    try {
-      const rng = await this.getActionRng();
-      outcome = resolveTurnTimeoutOutcome(gameState, this.map, rng);
-    } catch (err) {
-      const code = await this.getGameCode();
-      console.error(
-        `Engine error during turn timeout in game ${code}`,
-        `(phase=${gameState.phase},` + ` turn=${gameState.turnNumber}):`,
-        err,
-      );
-      this.reportEngineError(code, gameState.phase, gameState.turnNumber, err);
-      // State is preserved — reschedule so
-      // the next player action can proceed
-      await this.rescheduleAlarm();
-      return;
-    }
-
-    if (!outcome) {
-      await this.rescheduleAlarm();
-      return;
-    }
-    await this.publishStateChange(outcome.state, outcome.primaryMessage, {
-      actor: null,
-      events: outcome.events,
+    await runGameDoAlarm({
+      now: Date.now(),
+      storage: this.ctx.storage,
+      env: this.env,
+      waitUntil: (p) => this.ctx.waitUntil(p),
+      getWebSockets: () => this.ctx.getWebSockets(),
+      map: this.map,
+      getCurrentGameState: () => this.getCurrentGameState(),
+      getGameCode: () => this.getGameCode(),
+      getActionRng: () => this.getActionRng(),
+      clearDisconnectMarker: () => this.clearDisconnectMarker(),
+      rescheduleAlarm: () => this.rescheduleAlarm(),
+      publishStateChange: (state, primaryMessage, options) =>
+        this.publishStateChange(state, primaryMessage, options),
+      reportEngineError: (code, phase, turn, err) =>
+        this.reportEngineError(code, phase, turn, err),
+      archiveRoomState: () => this.archiveRoomState(),
     });
   }
 

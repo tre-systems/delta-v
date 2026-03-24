@@ -1,6 +1,6 @@
 import { SHIP_STATS } from '../../shared/constants';
 import { hexKey } from '../../shared/hex';
-import type { FleetPurchase, GameState } from '../../shared/types/domain';
+import type { FleetPurchase } from '../../shared/types/domain';
 import { isMuted, playSelect, setMuted } from '../audio';
 import {
   type AstrogationActionDeps,
@@ -27,7 +27,6 @@ import {
   sendOrdnanceLaunch,
   sendSkipOrdnance,
 } from './ordnance-actions';
-import type { ClientState } from './phase';
 import type { PlanningState } from './planning';
 import {
   applyCombatPlanUpdate,
@@ -40,15 +39,14 @@ import {
   setShipWeakGravityChoices,
   setTorpedoAcceleration,
 } from './planning-store';
-import type { GameTransport } from './transport';
+import type { ClientSession } from './session-model';
 
-interface CommandRouterContext {
-  state: ClientState;
-  playerId: number;
-  gameState: GameState | null;
-  transport: GameTransport | null;
+/** Shallow read model for one `dispatchGameCommand` invocation (live `planningState` for mutations). */
+export type CommandRouterSessionRead = Readonly<
+  Pick<ClientSession, 'state' | 'playerId' | 'gameState' | 'transport'>
+> & {
   planningState: PlanningState;
-}
+};
 
 interface CommandRouterUI {
   showAttackButton: (visible: boolean) => void;
@@ -68,7 +66,7 @@ interface CommandRouterRenderer {
 }
 
 export interface CommandRouterDeps {
-  ctx: CommandRouterContext;
+  ctx: CommandRouterSessionRead;
   astrogationDeps: AstrogationActionDeps;
   combatDeps: CombatActionDeps;
   ordnanceDeps: OrdnanceActionDeps;
