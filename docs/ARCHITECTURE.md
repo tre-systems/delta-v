@@ -210,6 +210,7 @@ The backend leverages Cloudflare's edge network.
 - **WebSocket throttle**: A per-socket message counter (in-memory `WeakMap`) limits clients to 10 messages per second. Connections exceeding this are closed with code 1008. This prevents garbage-message floods from spiking DO CPU or I/O.
 
 - **Room creation rate limit**: The Worker hashes the client IP and checks `POST /create` against the checked-in Cloudflare `[[ratelimits]]` binding in `wrangler.toml` (5 requests per IP per 60s window, 429 with `Retry-After`). Lower environments can still run against Wrangler's local simulation or intentionally omit the binding, in which case the Worker falls back to an in-memory per-isolate limiter.
+- **Reporting endpoints (`/error`, `/telemetry`)**: JSON bodies only, max **4KB**, **204** responses; rows go to D1 asynchronously. There is no in-repo per-IP limit on these routes — see [SECURITY.md](./SECURITY.md) and [BACKLOG.md](./BACKLOG.md) for WAF / rate-limit follow-ups if needed.
 
 - **Match archive binding**: Production config also binds `MATCH_ARCHIVE` to R2 so completed rooms can persist replay/support data after the Durable Object goes inactive. That keeps replay/debug history available in production without forcing lower environments to use remote storage during local development.
 
