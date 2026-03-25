@@ -129,7 +129,10 @@ should be treated as authoritative private data, not as
 safe spectator or replay payloads. Replay and spectator
 APIs should serve filtered projections or explicitly
 redacted event views rather than exposing the internal
-event log directly.
+event log directly. **Live spectator WebSockets** follow the
+same rule in practice: clients receive **filtered `GameState`
+JSON** (same `filterStateForPlayer(..., 'spectator')` path as
+broadcasts), not the append-only event stream.
 
 ### Randomness
 
