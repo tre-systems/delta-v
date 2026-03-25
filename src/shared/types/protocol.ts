@@ -13,26 +13,17 @@ import type {
   TransferOrder,
 } from './domain';
 
+/** Common fields shared by all logistics transfer events. */
+export interface TransferLogFields {
+  fromShipId: string;
+  toShipId: string;
+  amount: number;
+}
+
 /** Subset of engine events included on `stateUpdate` after logistics (client game log). */
-export type LogisticsTransferLogEvent =
-  | {
-      type: 'fuelTransferred';
-      fromShipId: string;
-      toShipId: string;
-      amount: number;
-    }
-  | {
-      type: 'cargoTransferred';
-      fromShipId: string;
-      toShipId: string;
-      amount: number;
-    }
-  | {
-      type: 'passengersTransferred';
-      fromShipId: string;
-      toShipId: string;
-      amount: number;
-    };
+export type LogisticsTransferLogEvent = TransferLogFields & {
+  type: 'fuelTransferred' | 'cargoTransferred' | 'passengersTransferred';
+};
 
 // --- Network messages ---
 

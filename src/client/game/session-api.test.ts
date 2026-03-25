@@ -87,7 +87,7 @@ describe('session-api telemetry', () => {
     const result = await api.validateJoin('ABCDE', 'token');
 
     expect(result).toEqual(
-      expect.objectContaining({ ok: false, message: 'Game is full' }),
+      expect.objectContaining({ ok: false, error: 'Game is full' }),
     );
     expect(track).toHaveBeenNthCalledWith(1, 'join_game_attempted', {
       hasPlayerToken: true,
@@ -120,7 +120,7 @@ describe('session-api telemetry', () => {
     const api = createSessionApi(deps);
     const result = await api.validateJoin('ABCDE', 'stale-token');
 
-    expect(result).toEqual({ ok: true, playerToken: null });
+    expect(result).toEqual({ ok: true, value: null });
     expect(track).toHaveBeenNthCalledWith(
       2,
       'join_game_retried_without_token',

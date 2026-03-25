@@ -1,5 +1,5 @@
 import type { AIDifficulty } from '../../shared/ai';
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, Result } from '../../shared/types/domain';
 import {
   resetReconnectAttempts,
   setGameCode,
@@ -72,9 +72,7 @@ export interface JoinGameSessionDeps {
   validateJoin: (
     code: string,
     playerToken: string | null,
-  ) => Promise<
-    { ok: true; playerToken: string | null } | { ok: false; message: string }
-  >;
+  ) => Promise<Result<string | null>>;
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
   exitToMenu: () => void;
 }
@@ -184,15 +182,15 @@ export const beginJoinGameSession = async (
   const validation = await deps.validateJoin(code, effectiveToken);
 
   if (!validation.ok) {
-    deps.showToast(validation.message, 'error');
+    deps.showToast(validation.error, 'error');
     deps.exitToMenu();
     return;
   }
 
   setSpectatorMode(deps.ctx as ClientSession, false);
 
-  if (validation.playerToken) {
-    deps.storePlayerToken(code, validation.playerToken);
+  if (validation.value) {
+    deps.storePlayerToken(code, validation.value);
   }
   deps.resetTurnTelemetry();
   setGameCode(deps.ctx, code);

@@ -1,5 +1,6 @@
 import type { ViewerId } from '../../shared/engine/game-engine';
 import { SCENARIOS } from '../../shared/map-data';
+import type { Result } from '../../shared/types/domain';
 import {
   createRoomConfig,
   parseInitPayload,
@@ -11,19 +12,13 @@ import { getProjectedReplayTimeline, getReplayViewerId } from './archive';
 
 type Storage = DurableObjectStorage;
 
-type ResolveJoinAttemptResult =
-  | {
-      ok: false;
-      response: Response;
-    }
-  | {
-      ok: true;
-      roomConfig: RoomConfig;
-      playerId: 0 | 1;
-      issueNewToken: boolean;
-      disconnectedPlayer: number | null;
-      seatOpen: [boolean, boolean];
-    };
+export interface JoinAttemptSuccess {
+  roomConfig: RoomConfig;
+  playerId: 0 | 1;
+  issueNewToken: boolean;
+  disconnectedPlayer: number | null;
+  seatOpen: [boolean, boolean];
+}
 
 type ResolveJoinDeps = {
   getRoomConfig: () => Promise<RoomConfig | null>;
@@ -42,15 +37,13 @@ type ResolveJoinDeps = {
 export const resolveJoinAttempt = async (
   deps: ResolveJoinDeps,
   presentedTokenRaw: string | null,
-): Promise<ResolveJoinAttemptResult> => {
+): Promise<Result<JoinAttemptSuccess, Response>> => {
   const roomConfig = await deps.getRoomConfig();
 
   if (!roomConfig) {
     return {
       ok: false,
-      response: new Response('Game not found', {
-        status: 404,
-      }),
+      error: new Response('Game not found', { status: 404 }),
     };
   }
 
@@ -60,18 +53,14 @@ export const resolveJoinAttempt = async (
   ) {
     return {
       ok: false,
-      response: new Response('Invalid player token', {
-        status: 400,
-      }),
+      error: new Response('Invalid player token', { status: 400 }),
     };
   }
 
   if (await deps.isRoomArchived()) {
     return {
       ok: false,
-      response: new Response('Game archived', {
-        status: 410,
-      }),
+      error: new Response('Game archived', { status: 410 }),
     };
   }
 
@@ -87,7 +76,7 @@ export const resolveJoinAttempt = async (
   if (seatDecision.type === 'reject') {
     return {
       ok: false,
-      response: new Response(seatDecision.message, {
+      error: new Response(seatDecision.message, {
         status: seatDecision.status,
       }),
     };
@@ -95,11 +84,13 @@ export const resolveJoinAttempt = async (
 
   return {
     ok: true,
-    roomConfig,
-    playerId: seatDecision.playerId,
-    issueNewToken: seatDecision.issueNewToken,
-    disconnectedPlayer,
-    seatOpen,
+    value: {
+      roomConfig,
+      playerId: seatDecision.playerId,
+      issueNewToken: seatDecision.issueNewToken,
+      disconnectedPlayer,
+      seatOpen,
+    },
   };
 };
 
@@ -149,7 +140,7 @@ export const handleInitRequest = async (
 type HandleJoinCheckDeps = {
   resolveJoinAttempt: (
     playerToken: string | null,
-  ) => Promise<ResolveJoinAttemptResult>;
+  ) => Promise<Result<JoinAttemptSuccess, Response>>;
 };
 
 export const handleJoinCheckRequest = async (
@@ -161,7 +152,7 @@ export const handleJoinCheckRequest = async (
 
   return joinAttempt.ok
     ? Response.json({ ok: true }, { status: 200 })
-    : joinAttempt.response;
+    : joinAttempt.error;
 };
 
 type HandleReplayDeps = {

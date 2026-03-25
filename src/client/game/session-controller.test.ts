@@ -136,7 +136,10 @@ const createJoinGameDeps = (): JoinGameSessionDeps & {
     buildGameRoute: (code) => `/game/${code}`,
     connect: track('connect'),
     setState: track('setState'),
-    validateJoin: async (_code, playerToken) => ({ ok: true, playerToken }),
+    validateJoin: async (_code, playerToken) => ({
+      ok: true,
+      value: playerToken,
+    }),
     showToast: track('showToast'),
     exitToMenu: track('exitToMenu'),
     calls,
@@ -257,7 +260,7 @@ describe('session-controller', () => {
     const deps = createJoinGameDeps();
     deps.validateJoin = async () => ({
       ok: false,
-      message: 'Game is full',
+      error: 'Game is full',
     });
 
     await beginJoinGameSession(deps, 'FGHIJ', 'token-2');
@@ -310,7 +313,7 @@ describe('session-controller', () => {
   it('does not re-store a token when join preflight falls back to tokenless access', async () => {
     const deps = createJoinGameDeps();
     deps.getStoredPlayerToken = () => 'stale-token';
-    deps.validateJoin = async () => ({ ok: true, playerToken: null });
+    deps.validateJoin = async () => ({ ok: true, value: null });
 
     await beginJoinGameSession(deps, 'FGHIJ');
 
