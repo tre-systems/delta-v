@@ -11,20 +11,6 @@ import {
   type SolarSystemMap,
 } from '../types';
 
-// --- Ship state helpers ---
-
-export const isAlive = (s: Pick<Ship, 'lifecycle'>): boolean =>
-  s.lifecycle !== 'destroyed';
-
-export const isInSpace = (s: Pick<Ship, 'lifecycle'>): boolean =>
-  s.lifecycle === 'active';
-
-export const isLanded = (s: Pick<Ship, 'lifecycle'>): boolean =>
-  s.lifecycle === 'landed';
-
-export const isDestroyed = (s: Pick<Ship, 'lifecycle'>): boolean =>
-  s.lifecycle === 'destroyed';
-
 // Phase + player validation for engine entry points.
 // Returns an error string if the action is not allowed,
 // or null if validation passes.
