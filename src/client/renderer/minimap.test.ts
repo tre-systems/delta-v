@@ -187,8 +187,8 @@ describe('renderer minimap helpers', () => {
     expect(scene.bodies[0].radius).toBeGreaterThanOrEqual(2);
 
     expect(scene.shipTrails).toHaveLength(2);
-    expect(scene.shipTrails[0].color).toBe('rgba(79, 195, 247, 0.3)');
-    expect(scene.shipTrails[1].color).toBe('rgba(255, 138, 101, 0.3)');
+    expect(scene.shipTrails[0].color).toBe('rgba(79, 195, 247, 0.14)');
+    expect(scene.shipTrails[1].color).toBe('rgba(255, 138, 101, 0.14)');
 
     expect(scene.ships).toHaveLength(2);
     expect(scene.ships.map((dot) => dot.color)).toEqual(['#4fc3f7', '#ff8a65']);

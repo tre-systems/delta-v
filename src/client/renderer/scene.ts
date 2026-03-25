@@ -62,7 +62,7 @@ export const renderHexGrid = (
   hexSize: number,
   isVisible: (x: number, y: number) => boolean,
 ): void => {
-  ctx.strokeStyle = 'rgba(100, 140, 200, 0.35)';
+  ctx.strokeStyle = 'rgba(100, 140, 200, 0.14)';
   ctx.lineWidth = 1;
   const size = hexSize;
   const { minQ, maxQ, minR, maxR } = map.bounds;
