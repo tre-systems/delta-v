@@ -1,3 +1,4 @@
+import type { Result } from '../shared/types/domain';
 import { isObject, isString } from '../shared/util';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -67,7 +68,7 @@ export interface InitPayload {
 export const parseInitPayload = (
   raw: unknown,
   knownScenarioKeys: readonly string[],
-): { ok: true; value: InitPayload } | { ok: false; error: string } => {
+): Result<InitPayload> => {
   if (!isObject(raw)) {
     return { ok: false, error: 'Invalid init payload' };
   }

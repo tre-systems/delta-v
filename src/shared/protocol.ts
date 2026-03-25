@@ -5,6 +5,7 @@ import type {
   FleetPurchase,
   OrbitalBaseEmplacement,
   OrdnanceLaunch,
+  Result,
   TransferOrder,
 } from './types';
 import { isObject, isString } from './util';
@@ -318,9 +319,7 @@ const parseTransferOrders = (raw: unknown): TransferOrder[] | null => {
   return transfers;
 };
 
-export const validateClientMessage = (
-  raw: unknown,
-): { ok: true; value: C2S } | { ok: false; error: string } => {
+export const validateClientMessage = (raw: unknown): Result<C2S> => {
   const ok = (value: C2S) => ({ ok: true as const, value });
   const invalid = (error: string) => ({ ok: false as const, error });
   const fromParsed = <T>(
