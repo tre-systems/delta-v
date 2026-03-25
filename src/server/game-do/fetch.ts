@@ -1,19 +1,9 @@
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, Result } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { generatePlayerToken, type RoomConfig } from '../protocol';
 import { getProjectedCurrentState } from './archive';
+import type { JoinAttemptSuccess } from './http-handlers';
 import { shouldClearDisconnectMarker } from './session';
-
-export type GameDoJoinAttemptResult =
-  | { ok: false; response: Response }
-  | {
-      ok: true;
-      roomConfig: RoomConfig;
-      playerId: 0 | 1;
-      issueNewToken: boolean;
-      disconnectedPlayer: number | null;
-      seatOpen: [boolean, boolean];
-    };
 
 export type GameDoFetchDeps = {
   handleInit: (request: Request) => Promise<Response>;
@@ -21,7 +11,7 @@ export type GameDoFetchDeps = {
   handleReplayRequest: (request: Request) => Promise<Response>;
   resolveJoinAttempt: (
     presentedTokenRaw: string | null,
-  ) => Promise<GameDoJoinAttemptResult>;
+  ) => Promise<Result<JoinAttemptSuccess, Response>>;
   getConnectedSeatCountAfterJoin: (
     seatOpen: [boolean, boolean],
     playerId: 0 | 1,
@@ -100,10 +90,10 @@ export const handleGameDoFetch = async (
   const joinAttempt = await deps.resolveJoinAttempt(presentedTokenRaw);
 
   if (!joinAttempt.ok) {
-    return joinAttempt.response;
+    return joinAttempt.error;
   }
   const { roomConfig, playerId, issueNewToken, disconnectedPlayer, seatOpen } =
-    joinAttempt;
+    joinAttempt.value;
   const connectedSeatCountAfterJoin = deps.getConnectedSeatCountAfterJoin(
     seatOpen,
     playerId,

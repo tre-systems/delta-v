@@ -3,7 +3,7 @@ import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../../shared/constants';
 import type { EngineEvent } from '../../shared/engine/engine-events';
 import { buildSolarSystemMap, SCENARIOS } from '../../shared/map-data';
 import { deriveActionRng } from '../../shared/prng';
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, Result } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
 import {
   isValidPlayerToken,
@@ -36,6 +36,7 @@ import {
   handleInitRequest,
   handleJoinCheckRequest,
   handleReplayRequest,
+  type JoinAttemptSuccess,
   resolveJoinAttempt as resolveJoinAttemptRequest,
 } from './http-handlers';
 import { handleRematchRequest, initGameSession } from './match';
@@ -239,20 +240,9 @@ export class GameDO extends DurableObject<Env> {
     await this.rescheduleAlarm();
   }
 
-  private async resolveJoinAttempt(presentedTokenRaw: string | null): Promise<
-    | {
-        ok: false;
-        response: Response;
-      }
-    | {
-        ok: true;
-        roomConfig: RoomConfig;
-        playerId: 0 | 1;
-        issueNewToken: boolean;
-        disconnectedPlayer: number | null;
-        seatOpen: [boolean, boolean];
-      }
-  > {
+  private async resolveJoinAttempt(
+    presentedTokenRaw: string | null,
+  ): Promise<Result<JoinAttemptSuccess, Response>> {
     return resolveJoinAttemptRequest(
       {
         getRoomConfig: () => this.getRoomConfig(),

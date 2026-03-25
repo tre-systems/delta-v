@@ -1,3 +1,4 @@
+import type { Result } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 import {
   buildGameRoute,
@@ -132,9 +133,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
   const validateJoin = async (
     code: string,
     playerToken: string | null,
-  ): Promise<
-    { ok: true; playerToken: string | null } | { ok: false; message: string }
-  > => {
+  ): Promise<Result<string | null>> => {
     const attemptJoin = async (
       token: string | null,
     ): Promise<
@@ -187,7 +186,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     const initialAttempt = await attemptJoin(playerToken);
 
     if (initialAttempt.ok) {
-      return initialAttempt;
+      return { ok: true, value: initialAttempt.playerToken };
     }
 
     if (
@@ -202,7 +201,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         deps.track('join_game_retried_without_token', {
           reason: 'invalid_stored_token',
         });
-        return retryAttempt;
+        return { ok: true, value: retryAttempt.playerToken };
       }
 
       deps.track('join_game_failed', {
@@ -210,7 +209,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         status: 'status' in retryAttempt ? retryAttempt.status : undefined,
         hasPlayerToken: false,
       });
-      return retryAttempt;
+      return { ok: false, error: retryAttempt.message };
     }
 
     deps.track('join_game_failed', {
@@ -218,7 +217,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       status: initialAttempt.status,
       hasPlayerToken: playerToken !== null,
     });
-    return initialAttempt;
+    return { ok: false, error: initialAttempt.message };
   };
 
   const fetchReplay = async (
