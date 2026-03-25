@@ -3,7 +3,7 @@ import { hexKey } from '../hex';
 import { findBaseHex, SCENARIOS } from '../map-data';
 import type { ScenarioDefinition, SolarSystemMap } from '../types';
 import { CURRENT_GAME_STATE_SCHEMA_VERSION } from '../types';
-import type { GameState } from '../types/domain';
+import type { GameState, Result } from '../types/domain';
 import type { EngineEvent, EventEnvelope } from './engine-events';
 import { processFleetReady } from './fleet-building';
 import { createGame } from './game-creation';
@@ -28,90 +28,40 @@ const resolveScenarioByName = (
 const requireState = (
   state: GameState | null,
   eventType: EngineEvent['type'],
-):
-  | {
-      ok: true;
-      state: GameState;
-    }
-  | {
-      ok: false;
-      error: string;
-    } =>
+): Result<GameState> =>
   state === null
-    ? {
-        ok: false,
-        error: `${eventType} before gameCreated`,
-      }
-    : {
-        ok: true,
-        state,
-      };
+    ? { ok: false, error: `${eventType} before gameCreated` }
+    : { ok: true, value: state };
 
 const requireShip = (
   state: GameState,
   shipId: string,
-):
-  | {
-      ok: true;
-      ship: GameState['ships'][number];
-    }
-  | {
-      ok: false;
-      error: string;
-    } => {
+): Result<GameState['ships'][number]> => {
   const ship = state.ships.find((candidate) => candidate.id === shipId);
 
   return ship
-    ? {
-        ok: true,
-        ship,
-      }
-    : {
-        ok: false,
-        error: `ship not found: ${shipId}`,
-      };
+    ? { ok: true, value: ship }
+    : { ok: false, error: `ship not found: ${shipId}` };
 };
 
 const requireOrdnance = (
   state: GameState,
   ordnanceId: string,
-):
-  | {
-      ok: true;
-      ordnance: GameState['ordnance'][number];
-    }
-  | {
-      ok: false;
-      error: string;
-    } => {
+): Result<GameState['ordnance'][number]> => {
   const ordnance = state.ordnance.find(
     (candidate) => candidate.id === ordnanceId,
   );
 
   return ordnance
-    ? {
-        ok: true,
-        ordnance,
-      }
-    : {
-        ok: false,
-        error: `ordnance not found: ${ordnanceId}`,
-      };
+    ? { ok: true, value: ordnance }
+    : { ok: false, error: `ordnance not found: ${ordnanceId}` };
 };
 
 const projectSetupEvent = (
   state: GameState | null,
   envelope: EventEnvelope,
   map: SolarSystemMap,
-):
-  | {
-      ok: true;
-      state: GameState;
-    }
-  | {
-      ok: false;
-      error: string;
-    } => {
+): Result<GameState> => {
   const { event, gameId } = envelope;
 
   switch (event.type) {
@@ -134,7 +84,7 @@ const projectSetupEvent = (
 
       return {
         ok: true,
-        state: migrateGameState(
+        value: migrateGameState(
           createGame(scenario, map, gameId, findBaseHex, () => 0),
         ),
       };
@@ -147,17 +97,17 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      const scenario = resolveScenarioByName(baseState.state.scenario);
+      const scenario = resolveScenarioByName(baseState.value.scenario);
 
       if (!scenario) {
         return {
           ok: false,
-          error: `unknown scenario: ${baseState.state.scenario}`,
+          error: `unknown scenario: ${baseState.value.scenario}`,
         };
       }
 
       const result = processFleetReady(
-        baseState.state,
+        baseState.value,
         event.playerId,
         event.purchases,
         map,
@@ -166,7 +116,7 @@ const projectSetupEvent = (
 
       return 'error' in result
         ? { ok: false, error: result.error.message }
-        : { ok: true, state: result.state };
+        : { ok: true, value: result.state };
     }
 
     case 'astrogationOrdersCommitted':
@@ -180,7 +130,7 @@ const projectSetupEvent = (
       }
 
       if (event.type === 'astrogationOrdersCommitted') {
-        baseState.state.pendingAstrogationOrders = event.orders.map(
+        baseState.value.pendingAstrogationOrders = event.orders.map(
           (order) => ({
             shipId: order.shipId,
             burn: order.burn,
@@ -202,7 +152,7 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
 
       for (const ship of state.ships) {
         if (ship.owner === event.playerId && ship.identity) {
@@ -224,7 +174,7 @@ const projectSetupEvent = (
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -235,7 +185,7 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
 
       state.phase = event.phase;
       state.turnNumber = event.turn;
@@ -243,7 +193,7 @@ const projectSetupEvent = (
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -254,7 +204,7 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const previousActivePlayer = 1 - event.activePlayer;
 
       for (const ship of state.ships) {
@@ -275,7 +225,7 @@ const projectSetupEvent = (
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -286,7 +236,7 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       state.pendingAstrogationOrders = null;
       const projectedShip = requireShip(state, event.shipId);
 
@@ -294,15 +244,15 @@ const projectSetupEvent = (
         return projectedShip;
       }
 
-      projectedShip.ship.position = { ...event.to };
-      projectedShip.ship.lastMovementPath = event.path.map((hex) => ({
+      projectedShip.value.position = { ...event.to };
+      projectedShip.value.lastMovementPath = event.path.map((hex) => ({
         ...hex,
       }));
-      projectedShip.ship.velocity = { ...event.newVelocity };
-      projectedShip.ship.fuel = event.fuelRemaining;
-      projectedShip.ship.lifecycle = event.lifecycle;
-      projectedShip.ship.overloadUsed = event.overloadUsed;
-      projectedShip.ship.pendingGravityEffects =
+      projectedShip.value.velocity = { ...event.newVelocity };
+      projectedShip.value.fuel = event.fuelRemaining;
+      projectedShip.value.lifecycle = event.lifecycle;
+      projectedShip.value.overloadUsed = event.overloadUsed;
+      projectedShip.value.pendingGravityEffects =
         event.pendingGravityEffects.map((effect) => ({
           ...effect,
           hex: { ...effect.hex },
@@ -310,7 +260,7 @@ const projectSetupEvent = (
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -321,20 +271,20 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const projectedShip = requireShip(state, event.shipId);
 
       if (!projectedShip.ok) {
         return projectedShip;
       }
 
-      projectedShip.ship.lifecycle = 'landed';
-      projectedShip.ship.velocity = { dq: 0, dr: 0 };
-      projectedShip.ship.pendingGravityEffects = [];
+      projectedShip.value.lifecycle = 'landed';
+      projectedShip.value.velocity = { dq: 0, dr: 0 };
+      projectedShip.value.pendingGravityEffects = [];
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -346,26 +296,26 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const projectedShip = requireShip(state, event.shipId);
 
       if (!projectedShip.ok) {
         return projectedShip;
       }
 
-      projectedShip.ship.lifecycle = 'destroyed';
-      projectedShip.ship.deathCause =
+      projectedShip.value.lifecycle = 'destroyed';
+      projectedShip.value.deathCause =
         event.type === 'shipCrashed'
           ? 'crash'
           : 'cause' in event
             ? event.cause
             : undefined;
-      projectedShip.ship.velocity = { dq: 0, dr: 0 };
-      projectedShip.ship.pendingGravityEffects = [];
+      projectedShip.value.velocity = { dq: 0, dr: 0 };
+      projectedShip.value.pendingGravityEffects = [];
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -376,23 +326,23 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const projectedShip = requireShip(state, event.shipId);
 
       if (!projectedShip.ok) {
         return projectedShip;
       }
 
-      projectedShip.ship.owner = event.capturedBy;
-      projectedShip.ship.control = 'captured';
+      projectedShip.value.owner = event.capturedBy;
+      projectedShip.value.control = 'captured';
 
-      if (projectedShip.ship.identity) {
-        projectedShip.ship.identity.revealed = true;
+      if (projectedShip.value.identity) {
+        projectedShip.value.identity.revealed = true;
       }
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -403,7 +353,7 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const key = hexKey(event.hex);
 
       if (!state.destroyedAsteroids.includes(key)) {
@@ -412,7 +362,7 @@ const projectSetupEvent = (
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -423,7 +373,7 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const key = hexKey(event.hex);
 
       if (!state.destroyedBases.includes(key)) {
@@ -432,7 +382,7 @@ const projectSetupEvent = (
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -443,36 +393,36 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const projectedShip = requireShip(state, event.shipId);
 
       if (!projectedShip.ok) {
         return projectedShip;
       }
 
-      const stats = SHIP_STATS[projectedShip.ship.type];
+      const stats = SHIP_STATS[projectedShip.value.type];
 
       if (!stats) {
         return {
           ok: false,
-          error: `unknown ship type: ${projectedShip.ship.type}`,
+          error: `unknown ship type: ${projectedShip.value.type}`,
         };
       }
 
-      projectedShip.ship.fuel = stats.fuel;
-      projectedShip.ship.cargoUsed = 0;
-      projectedShip.ship.nukesLaunchedSinceResupply = 0;
-      projectedShip.ship.damage = { disabledTurns: 0 };
-      projectedShip.ship.control = 'own';
-      projectedShip.ship.resuppliedThisTurn = true;
+      projectedShip.value.fuel = stats.fuel;
+      projectedShip.value.cargoUsed = 0;
+      projectedShip.value.nukesLaunchedSinceResupply = 0;
+      projectedShip.value.damage = { disabledTurns: 0 };
+      projectedShip.value.control = 'own';
+      projectedShip.value.resuppliedThisTurn = true;
 
       if (event.source === 'base') {
-        projectedShip.ship.overloadUsed = false;
+        projectedShip.value.overloadUsed = false;
       }
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -485,7 +435,7 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const source = requireShip(state, event.fromShipId);
 
       if (!source.ok) {
@@ -499,26 +449,26 @@ const projectSetupEvent = (
       }
 
       if (event.type === 'fuelTransferred') {
-        source.ship.fuel -= event.amount;
-        target.ship.fuel += event.amount;
+        source.value.fuel -= event.amount;
+        target.value.fuel += event.amount;
       } else if (event.type === 'cargoTransferred') {
-        source.ship.cargoUsed -= event.amount;
-        target.ship.cargoUsed += event.amount;
+        source.value.cargoUsed -= event.amount;
+        target.value.cargoUsed += event.amount;
       } else {
-        const fromP = source.ship.passengersAboard ?? 0;
+        const fromP = source.value.passengersAboard ?? 0;
         const nextFrom = fromP - event.amount;
         if (nextFrom <= 0) {
-          source.ship.passengersAboard = undefined;
+          source.value.passengersAboard = undefined;
         } else {
-          source.ship.passengersAboard = nextFrom;
+          source.value.passengersAboard = nextFrom;
         }
-        target.ship.passengersAboard =
-          (target.ship.passengersAboard ?? 0) + event.amount;
+        target.value.passengersAboard =
+          (target.value.passengersAboard ?? 0) + event.amount;
       }
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -529,18 +479,18 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const projectedShip = requireShip(state, event.shipId);
 
       if (!projectedShip.ok) {
         return projectedShip;
       }
 
-      projectedShip.ship.control = 'surrendered';
+      projectedShip.value.control = 'surrendered';
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -551,17 +501,17 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const sourceShip = requireShip(state, event.sourceShipId);
 
       if (!sourceShip.ok) {
         return sourceShip;
       }
 
-      sourceShip.ship.baseStatus = undefined;
-      sourceShip.ship.cargoUsed = Math.max(
+      sourceShip.value.baseStatus = undefined;
+      sourceShip.value.cargoUsed = Math.max(
         0,
-        sourceShip.ship.cargoUsed - ORBITAL_BASE_MASS,
+        sourceShip.value.cargoUsed - ORBITAL_BASE_MASS,
       );
 
       state.ships.push({
@@ -587,7 +537,7 @@ const projectSetupEvent = (
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -598,17 +548,17 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const sourceShip = requireShip(state, event.sourceShipId);
 
       if (!sourceShip.ok) {
         return sourceShip;
       }
 
-      sourceShip.ship.cargoUsed += ORDNANCE_MASS[event.ordnanceType];
+      sourceShip.value.cargoUsed += ORDNANCE_MASS[event.ordnanceType];
 
       if (event.ordnanceType === 'nuke') {
-        sourceShip.ship.nukesLaunchedSinceResupply += 1;
+        sourceShip.value.nukesLaunchedSinceResupply += 1;
       }
 
       state.ordnance.push({
@@ -628,7 +578,7 @@ const projectSetupEvent = (
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -639,7 +589,7 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       state.pendingAstrogationOrders = null;
       const projectedOrdnance = requireOrdnance(state, event.ordnanceId);
 
@@ -647,10 +597,10 @@ const projectSetupEvent = (
         return projectedOrdnance;
       }
 
-      projectedOrdnance.ordnance.position = { ...event.position };
-      projectedOrdnance.ordnance.velocity = { ...event.velocity };
-      projectedOrdnance.ordnance.turnsRemaining = event.turnsRemaining;
-      projectedOrdnance.ordnance.pendingGravityEffects =
+      projectedOrdnance.value.position = { ...event.position };
+      projectedOrdnance.value.velocity = { ...event.velocity };
+      projectedOrdnance.value.turnsRemaining = event.turnsRemaining;
+      projectedOrdnance.value.pendingGravityEffects =
         event.pendingGravityEffects.map((effect) => ({
           ...effect,
           hex: { ...effect.hex },
@@ -658,7 +608,7 @@ const projectSetupEvent = (
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -669,21 +619,21 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const ordnance = requireOrdnance(state, event.ordnanceId);
 
       if (!ordnance.ok) {
         return ordnance;
       }
 
-      ordnance.ordnance.lifecycle = 'destroyed';
+      ordnance.value.lifecycle = 'destroyed';
       state.ordnance = state.ordnance.filter(
         (item) => item.lifecycle !== 'destroyed',
       );
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -694,12 +644,12 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
 
       if (!event.targetShipId || event.damageType === 'none') {
         return {
           ok: true,
-          state,
+          value: state,
         };
       }
 
@@ -710,12 +660,12 @@ const projectSetupEvent = (
       }
 
       if (event.damageType === 'disabled') {
-        projectedShip.ship.damage.disabledTurns += event.disabledTurns;
+        projectedShip.value.damage.disabledTurns += event.disabledTurns;
       }
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -726,12 +676,12 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
 
       if (event.damageType === 'none' || event.damageType === 'eliminated') {
         return {
           ok: true,
-          state,
+          value: state,
         };
       }
 
@@ -741,11 +691,11 @@ const projectSetupEvent = (
         return projectedShip;
       }
 
-      projectedShip.ship.damage.disabledTurns += event.disabledTurns;
+      projectedShip.value.damage.disabledTurns += event.disabledTurns;
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -756,21 +706,21 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const ordnance = requireOrdnance(state, event.ordnanceId);
 
       if (!ordnance.ok) {
         return ordnance;
       }
 
-      ordnance.ordnance.lifecycle = 'destroyed';
+      ordnance.value.lifecycle = 'destroyed';
       state.ordnance = state.ordnance.filter(
         (item) => item.lifecycle !== 'destroyed',
       );
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -781,19 +731,19 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
 
       if (event.targetType === 'ordnance') {
         return {
           ok: true,
-          state,
+          value: state,
         };
       }
 
       if (event.damageType === 'none' || event.damageType === 'eliminated') {
         return {
           ok: true,
-          state,
+          value: state,
         };
       }
 
@@ -803,11 +753,11 @@ const projectSetupEvent = (
         return projectedShip;
       }
 
-      projectedShip.ship.damage.disabledTurns += event.disabledTurns;
+      projectedShip.value.damage.disabledTurns += event.disabledTurns;
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -818,20 +768,20 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const projectedShip = requireShip(state, event.shipId);
 
       if (!projectedShip.ok) {
         return projectedShip;
       }
 
-      if (projectedShip.ship.identity) {
-        projectedShip.ship.identity.revealed = true;
+      if (projectedShip.value.identity) {
+        projectedShip.value.identity.revealed = true;
       }
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -842,7 +792,7 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       const visitedBodies = state.players[event.playerId]?.visitedBodies;
 
       if (visitedBodies && !visitedBodies.includes(event.body)) {
@@ -851,7 +801,7 @@ const projectSetupEvent = (
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -862,14 +812,14 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      state = baseState.state;
+      state = baseState.value;
       state.winner = event.winner;
       state.winReason = event.reason;
       state.phase = 'gameOver';
 
       return {
         ok: true,
-        state,
+        value: state,
       };
     }
 
@@ -887,15 +837,7 @@ export const projectGameStateFromStream = (
   events: EventEnvelope[],
   map: SolarSystemMap,
   initialState: GameState | null = null,
-):
-  | {
-      ok: true;
-      state: GameState;
-    }
-  | {
-      ok: false;
-      error: string;
-    } => {
+): Result<GameState> => {
   let state = initialState
     ? migrateGameState(structuredClone(initialState))
     : null;
@@ -907,7 +849,7 @@ export const projectGameStateFromStream = (
       return projected;
     }
 
-    state = projected.state;
+    state = projected.value;
   }
 
   return state === null
@@ -917,19 +859,11 @@ export const projectGameStateFromStream = (
       }
     : {
         ok: true,
-        state,
+        value: state,
       };
 };
 
 export const projectMatchSetupFromStream = (
   events: EventEnvelope[],
   map: SolarSystemMap,
-):
-  | {
-      ok: true;
-      state: GameState;
-    }
-  | {
-      ok: false;
-      error: string;
-    } => projectGameStateFromStream(events, map);
+): Result<GameState> => projectGameStateFromStream(events, map);

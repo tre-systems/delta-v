@@ -1,4 +1,5 @@
 import { validateClientMessage } from '../../shared/protocol';
+import type { Result } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
 
 export const WS_MSG_RATE_LIMIT = 10;
@@ -36,9 +37,7 @@ export const applySocketRateLimit = (
   return true;
 };
 
-export const parseClientSocketMessage = (
-  message: string,
-): { ok: true; value: C2S } | { ok: false; error: string } => {
+export const parseClientSocketMessage = (message: string): Result<C2S> => {
   let raw: unknown;
   try {
     raw = JSON.parse(message);

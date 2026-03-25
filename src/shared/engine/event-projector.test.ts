@@ -86,7 +86,7 @@ describe('projectMatchSetupFromStream', () => {
 
     expect(projected).toEqual({
       ok: true,
-      state: expected.state,
+      value: expected.state,
     });
   });
 
@@ -125,7 +125,7 @@ describe('projectMatchSetupFromStream', () => {
       return;
     }
 
-    const fugitiveShips = projected.state.ships.filter(
+    const fugitiveShips = projected.value.ships.filter(
       (ship) => ship.owner === 0 && ship.identity?.hasFugitives,
     );
 
@@ -220,9 +220,9 @@ describe('projectMatchSetupFromStream', () => {
       return;
     }
 
-    expect(projected.state.turnNumber).toBe(2);
-    expect(projected.state.activePlayer).toBe(1);
-    expect(projected.state.phase).toBe('combat');
+    expect(projected.value.turnNumber).toBe(2);
+    expect(projected.value.activePlayer).toBe(1);
+    expect(projected.value.phase).toBe('combat');
   });
 
   it('projects committed astrogation orders until movement begins', () => {
@@ -268,7 +268,7 @@ describe('projectMatchSetupFromStream', () => {
       return;
     }
 
-    expect(projected.state.pendingAstrogationOrders).toEqual([
+    expect(projected.value.pendingAstrogationOrders).toEqual([
       {
         shipId: 'p0s0',
         burn: 2,
@@ -376,10 +376,10 @@ describe('projectMatchSetupFromStream', () => {
       return;
     }
 
-    const player0Ship = projected.state.ships.find(
+    const player0Ship = projected.value.ships.find(
       (ship) => ship.id === 'p0s0',
     );
-    const player1Ship = projected.state.ships.find(
+    const player1Ship = projected.value.ships.find(
       (ship) => ship.id === 'p1s0',
     );
 
@@ -445,7 +445,7 @@ describe('projectMatchSetupFromStream', () => {
       return;
     }
 
-    expect(projected.state.ordnance).toHaveLength(0);
+    expect(projected.value.ordnance).toHaveLength(0);
   });
 
   it('projects ordnance movement and launch-side ship state', () => {
@@ -522,15 +522,15 @@ describe('projectMatchSetupFromStream', () => {
       return;
     }
 
-    expect(projected.state.pendingAstrogationOrders).toBeNull();
+    expect(projected.value.pendingAstrogationOrders).toBeNull();
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p0s0')?.cargoUsed,
+      projected.value.ships.find((ship) => ship.id === 'p0s0')?.cargoUsed,
     ).toBe(20);
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p0s0')
+      projected.value.ships.find((ship) => ship.id === 'p0s0')
         ?.nukesLaunchedSinceResupply,
     ).toBe(1);
-    expect(projected.state.ordnance).toEqual([
+    expect(projected.value.ordnance).toEqual([
       {
         id: 'ord1',
         type: 'nuke',
@@ -662,13 +662,13 @@ describe('projectMatchSetupFromStream', () => {
       return;
     }
 
-    expect(projected.state.ordnance).toHaveLength(0);
+    expect(projected.value.ordnance).toHaveLength(0);
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p1s0')?.damage
+      projected.value.ships.find((ship) => ship.id === 'p1s0')?.damage
         .disabledTurns,
     ).toBe(2);
-    expect(projected.state.destroyedAsteroids).toContain('1,0');
-    expect(projected.state.destroyedBases).toContain('-9,-5');
+    expect(projected.value.destroyedAsteroids).toContain('1,0');
+    expect(projected.value.destroyedBases).toContain('-9,-5');
   });
 
   it('applies combat attack damage and explicit destruction events', () => {
@@ -759,10 +759,10 @@ describe('projectMatchSetupFromStream', () => {
     }
 
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p1s0')?.damage
+      projected.value.ships.find((ship) => ship.id === 'p1s0')?.damage
         .disabledTurns,
     ).toBe(1);
-    expect(projected.state.ordnance).toHaveLength(0);
+    expect(projected.value.ordnance).toHaveLength(0);
   });
 
   it('applies logistics, emplacement, and game-over events', () => {
@@ -849,21 +849,21 @@ describe('projectMatchSetupFromStream', () => {
       return;
     }
 
-    expect(projected.state.ships.find((ship) => ship.id === 'p0s1')?.fuel).toBe(
+    expect(projected.value.ships.find((ship) => ship.id === 'p0s1')?.fuel).toBe(
       48,
     );
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p0s0')
+      projected.value.ships.find((ship) => ship.id === 'p0s0')
         ?.passengersAboard,
     ).toBe(115);
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p0s2')?.control,
+      projected.value.ships.find((ship) => ship.id === 'p0s2')?.control,
     ).toBe('surrendered');
-    expect(projected.state.ships.find((ship) => ship.id === 'ob9')?.type).toBe(
+    expect(projected.value.ships.find((ship) => ship.id === 'ob9')?.type).toBe(
       'orbitalBase',
     );
-    expect(projected.state.winner).toBe(0);
-    expect(projected.state.phase).toBe('gameOver');
+    expect(projected.value.winner).toBe(0);
+    expect(projected.value.phase).toBe('gameOver');
   });
 
   it('applies identity reveal and checkpoint progress events', () => {
@@ -902,7 +902,7 @@ describe('projectMatchSetupFromStream', () => {
       return;
     }
 
-    expect(projected.state.players[0].visitedBodies).toContain('Mercury');
+    expect(projected.value.players[0].visitedBodies).toContain('Mercury');
 
     const escapeProjected = projectMatchSetupFromStream(
       [
@@ -939,7 +939,7 @@ describe('projectMatchSetupFromStream', () => {
     }
 
     expect(
-      escapeProjected.state.ships.find((ship) => ship.id === 'p0s0')?.identity
+      escapeProjected.value.ships.find((ship) => ship.id === 'p0s0')?.identity
         ?.revealed,
     ).toBe(true);
   });
@@ -1030,17 +1030,17 @@ describe('projectMatchSetupFromStream', () => {
     }
 
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p0s0')?.damage
+      projected.value.ships.find((ship) => ship.id === 'p0s0')?.damage
         .disabledTurns,
     ).toBe(2);
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p0s0')?.owner,
+      projected.value.ships.find((ship) => ship.id === 'p0s0')?.owner,
     ).toBe(1);
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p0s0')?.control,
+      projected.value.ships.find((ship) => ship.id === 'p0s0')?.control,
     ).toBe('captured');
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p0s0')?.identity
+      projected.value.ships.find((ship) => ship.id === 'p0s0')?.identity
         ?.revealed,
     ).toBe(true);
   });
@@ -1109,14 +1109,14 @@ describe('projectMatchSetupFromStream', () => {
       return;
     }
 
-    expect(projected.state.activePlayer).toBe(1);
-    expect(projected.state.turnNumber).toBe(1);
+    expect(projected.value.activePlayer).toBe(1);
+    expect(projected.value.turnNumber).toBe(1);
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p0s0')
+      projected.value.ships.find((ship) => ship.id === 'p0s0')
         ?.resuppliedThisTurn,
     ).toBe(false);
     expect(
-      projected.state.ships.find((ship) => ship.id === 'p0s0')?.damage
+      projected.value.ships.find((ship) => ship.id === 'p0s0')?.damage
         .disabledTurns,
     ).toBe(1);
   });

@@ -1,5 +1,11 @@
 import type { HexCoord, HexVec } from '../hex';
 
+// --- Result type ---
+
+export type Result<T, E = string> =
+  | { ok: true; value: T }
+  | { ok: false; error: E };
+
 // --- Game state ---
 
 export type Phase =
