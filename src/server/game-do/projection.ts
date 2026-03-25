@@ -52,7 +52,7 @@ const projectCurrentStateFromStream = (
     checkpoint?.state ?? null,
   );
 
-  return projected.ok ? projected.state : null;
+  return projected.ok ? projected.value : null;
 };
 
 export const getProjectedCurrentStateForViewer = (
@@ -97,7 +97,7 @@ const toReplayEntriesFromStream = (
       continue;
     }
 
-    const nextState = projected.state;
+    const nextState = projected.value;
     const previousSerialized =
       currentState === null ? null : JSON.stringify(currentState);
     const nextSerialized = JSON.stringify(nextState);
