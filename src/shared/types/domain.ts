@@ -56,14 +56,17 @@ export interface GameState {
 export type ShipLifecycle = 'active' | 'landed' | 'destroyed';
 export type ShipControl = 'own' | 'captured' | 'surrendered';
 
-export interface Ship {
+export interface PositionedEntity {
+  position: HexCoord;
+  velocity: HexVec;
+}
+
+export interface Ship extends PositionedEntity {
   id: string;
   type: string;
   owner: number;
   originalOwner: number;
-  position: HexCoord;
   lastMovementPath?: HexCoord[];
-  velocity: HexVec;
   fuel: number;
   cargoUsed: number;
   nukesLaunchedSinceResupply: number;
@@ -88,13 +91,11 @@ export interface Ship {
 
 export type OrdnanceLifecycle = 'active' | 'destroyed';
 
-export interface Ordnance {
+export interface Ordnance extends PositionedEntity {
   id: string;
   type: 'mine' | 'torpedo' | 'nuke';
   owner: number;
   sourceShipId?: string | null;
-  position: HexCoord;
-  velocity: HexVec;
   turnsRemaining: number;
   lifecycle: OrdnanceLifecycle;
   pendingGravityEffects?: GravityEffect[];
@@ -155,19 +156,19 @@ export interface OrdnanceLaunch {
   torpedoAccelSteps?: 1 | 2 | null;
 }
 
-export interface OrdnanceMovement {
-  ordnanceId: string;
+export interface PathSegment {
   from: HexCoord;
   to: HexCoord;
   path: HexCoord[];
+}
+
+export interface OrdnanceMovement extends PathSegment {
+  ordnanceId: string;
   detonated: boolean;
 }
 
-export interface ShipMovement {
+export interface ShipMovement extends PathSegment {
   shipId: string;
-  from: HexCoord;
-  to: HexCoord;
-  path: HexCoord[];
   newVelocity: HexVec;
   fuelSpent: number;
   gravityEffects: GravityEffect[];
