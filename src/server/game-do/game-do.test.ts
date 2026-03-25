@@ -378,25 +378,23 @@ describe('GameDO', () => {
 
     const joinAttempt = await (
       game as unknown as {
-        resolveJoinAttempt: (playerToken: string | null) => Promise<
-          | { ok: false; response: Response }
-          | {
-              ok: true;
-              playerId: 0 | 1;
-              issueNewToken: boolean;
-              disconnectedPlayer: number | null;
-              seatOpen: [boolean, boolean];
-            }
+        resolveJoinAttempt: (
+          playerToken: string | null,
+        ) => Promise<
+          | { ok: false; error: Response }
+          | { ok: true; value: Record<string, unknown> }
         >;
       }
     ).resolveJoinAttempt('A'.repeat(32));
 
     expect(joinAttempt).toMatchObject({
       ok: true,
-      playerId: 0,
-      issueNewToken: false,
-      disconnectedPlayer: null,
-      seatOpen: [false, true],
+      value: {
+        playerId: 0,
+        issueNewToken: false,
+        disconnectedPlayer: null,
+        seatOpen: [false, true],
+      },
     });
     expect(oldSocket.closed).toBe(false);
   });
@@ -452,13 +450,13 @@ describe('GameDO', () => {
       game as unknown as {
         resolveJoinAttempt: (
           playerToken: string | null,
-        ) => Promise<{ ok: false; response: Response } | { ok: true }>;
+        ) => Promise<{ ok: false; error: Response } | { ok: true }>;
       }
     ).resolveJoinAttempt('B'.repeat(32));
 
     expect(joinAttempt.ok).toBe(false);
     if (!joinAttempt.ok) {
-      expect(joinAttempt.response.status).toBe(403);
+      expect(joinAttempt.error.status).toBe(403);
     }
     expect(oldSocket.closed).toBe(false);
   });
@@ -474,23 +472,22 @@ describe('GameDO', () => {
 
     const joinAttempt = await (
       game as unknown as {
-        resolveJoinAttempt: (playerToken: string | null) => Promise<
-          | { ok: false; response: Response }
-          | {
-              ok: true;
-              playerId: 0 | 1;
-              disconnectedPlayer: number | null;
-              seatOpen: [boolean, boolean];
-            }
+        resolveJoinAttempt: (
+          playerToken: string | null,
+        ) => Promise<
+          | { ok: false; error: Response }
+          | { ok: true; value: Record<string, unknown> }
         >;
       }
     ).resolveJoinAttempt('B'.repeat(32));
 
     expect(joinAttempt).toMatchObject({
       ok: true,
-      playerId: 1,
-      disconnectedPlayer: 1,
-      seatOpen: [true, true],
+      value: {
+        playerId: 1,
+        disconnectedPlayer: 1,
+        seatOpen: [true, true],
+      },
     });
   });
   it('creates a stable match id on game start', async () => {

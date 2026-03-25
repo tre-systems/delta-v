@@ -142,11 +142,14 @@ export interface CourseResult {
   landedAt: string | null;
 }
 
-export interface GravityEffect {
-  hex: HexCoord;
+export interface GravityInfo {
   direction: number;
   bodyName: string;
   strength: 'full' | 'weak';
+}
+
+export interface GravityEffect extends GravityInfo {
+  hex: HexCoord;
   ignored: boolean;
 }
 
@@ -187,11 +190,7 @@ export interface ShipMovement extends PathSegment {
 export interface MapHex {
   terrain: 'space' | 'asteroid' | 'planetSurface' | 'sunSurface';
 
-  gravity?: {
-    direction: number;
-    strength: 'full' | 'weak';
-    bodyName: string;
-  };
+  gravity?: GravityInfo;
 
   base?: {
     name: string;
