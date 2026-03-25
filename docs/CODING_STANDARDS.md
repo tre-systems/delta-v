@@ -476,7 +476,7 @@ guide for background on hex coordinate systems.
 | `show*`        | Display UI element or feedback               | Yes (client)   | `showGameOverOutcome`, `showToast`                       |
 | `render*`      | Paint Canvas layers or build/update DOM      | Yes (client)   | `renderHexGrid`, `renderOrdnance`, `renderTransferPanel` |
 | `draw*`        | Paint Canvas overlays, icons, trails, toasts | Yes (client)   | `drawShipsLayer`, `drawMinimapOverlay`, `drawShipIcon`   |
-| `handle*`      | React to an event or message                 | Yes            | `handleLocalResolution`, `handleMessage`                 |
+| `handle*`      | React to an event or message                 | Yes            | `handleLocalResolution` (toasts engine errors locally), `handleMessage` |
 | `play*`        | Trigger animation or sequence                | Yes (client)   | `playLocalMovementResult`, `playSound`                   |
 | `move*`        | Relocate entity in game state                | Yes (engine)   | `moveOrdnance`, `moveShip`                               |
 | `queue*`       | Schedule future action/event                 | Yes (engine)   | `queueAsteroidHazards`, `queueAttack`                    |
