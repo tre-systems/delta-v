@@ -219,7 +219,7 @@ export const buildVelocityVectorViews = (
     }
 
     const isOwn = ordnance.owner === playerId;
-    const color = isOwn ? 'rgba(79, 195, 247, 0.3)' : 'rgba(255, 152, 0, 0.3)';
+    const color = isOwn ? 'rgba(79, 195, 247, 0.2)' : 'rgba(255, 152, 0, 0.2)';
 
     views.push({
       from,
@@ -259,13 +259,13 @@ export const buildShipTrailViews = (
 
     views.push({
       points: trail.map((hex) => hexToPixel(hex, hexSize)),
-      lineColor: isOwn ? 'rgba(79, 195, 247, 0.28)' : 'rgba(255, 152, 0, 0.28)',
-      lineWidth: 1.5,
+      lineColor: isOwn ? 'rgba(79, 195, 247, 0.12)' : 'rgba(255, 152, 0, 0.12)',
+      lineWidth: 1.25,
       lineDash: [],
       waypointColor: isOwn
-        ? 'rgba(79, 195, 247, 0.35)'
-        : 'rgba(255, 152, 0, 0.35)',
-      waypointRadius: 1.5,
+        ? 'rgba(79, 195, 247, 0.16)'
+        : 'rgba(255, 152, 0, 0.16)',
+      waypointRadius: 1.25,
     });
   }
 
@@ -290,7 +290,7 @@ export const buildOrdnanceTrailViews = (
 
     views.push({
       points: trail.map((hex) => hexToPixel(hex, hexSize)),
-      lineColor: isOwn ? 'rgba(79, 195, 247, 0.1)' : 'rgba(255, 152, 0, 0.1)',
+      lineColor: isOwn ? 'rgba(79, 195, 247, 0.07)' : 'rgba(255, 152, 0, 0.07)',
       lineWidth: 1,
       lineDash: [2, 4],
       waypointColor: null,
@@ -380,18 +380,18 @@ export const buildMovementPathViews = (
 
     const color =
       ship.owner === playerId
-        ? 'rgba(79, 195, 247, 0.4)'
-        : 'rgba(255, 152, 0, 0.4)';
+        ? 'rgba(79, 195, 247, 0.22)'
+        : 'rgba(255, 152, 0, 0.22)';
 
     views.push({
       points: movement.path.map((hex) => hexToPixel(hex, hexSize)),
       color,
-      lineWidth: 1.5,
+      lineWidth: 1.25,
       lineDash: [3, 5],
       passedWaypoints: movement.path
         .slice(1, Math.min(passedSegments + 1, movement.path.length))
         .map((hex) => hexToPixel(hex, hexSize)),
-      waypointRadius: 2,
+      waypointRadius: 1.75,
     });
   }
 

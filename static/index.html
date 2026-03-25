@@ -262,6 +262,55 @@
         <div class="help-row"><span class="help-key">M</span> Toggle sound</div>
         <div class="help-row"><span class="help-key">?</span> Toggle this help</div>
       </div>
+      <div class="help-section">
+        <h3>Map visuals</h3>
+        <p class="help-legend-lead">Symbols on the tactical map:</p>
+        <ul class="help-legend" aria-label="Map symbol key">
+          <li class="help-legend-item">
+            <span class="help-legend-swatch help-legend-swatch-hex" aria-hidden="true"></span>
+            <span><strong>Hex grid</strong> — playfield; faint blue outlines.</span>
+          </li>
+          <li class="help-legend-item">
+            <span class="help-legend-swatch help-legend-swatch-gravity" aria-hidden="true"></span>
+            <span><strong>Gravity</strong> — short blue arrow in a hex; ships drift one step that way each turn (brighter arrow = stronger pull).</span>
+          </li>
+          <li class="help-legend-item">
+            <span class="help-legend-swatch help-legend-swatch-body" aria-hidden="true"></span>
+            <span><strong>Body</strong> — sun / planet / moon; mass lens and label.</span>
+          </li>
+          <li class="help-legend-item">
+            <div class="help-legend-swatches" aria-hidden="true">
+              <span class="help-legend-swatch help-legend-swatch-ship-own"></span>
+              <span class="help-legend-swatch help-legend-swatch-ship-foe"></span>
+            </div>
+            <span><strong>Ships</strong> — cyan wedge = yours; orange = detected enemy (octagon = orbital station ship).</span>
+          </li>
+          <li class="help-legend-item">
+            <span class="help-legend-swatch help-legend-swatch-vector" aria-hidden="true"></span>
+            <span><strong>Velocity</strong> — dashed arrow from a ship; where it coasts next if you do not burn.</span>
+          </li>
+          <li class="help-legend-item">
+            <span class="help-legend-swatch help-legend-swatch-trail" aria-hidden="true"></span>
+            <span><strong>Movement trail</strong> — very faint path with dots; recent hexes a ship moved through (clears over time).</span>
+          </li>
+          <li class="help-legend-item">
+            <span class="help-legend-swatch help-legend-swatch-ordnance-trail" aria-hidden="true"></span>
+            <span><strong>Ordnance trail</strong> — fainter dashed line = torpedo / nuke path history.</span>
+          </li>
+          <li class="help-legend-item">
+            <span class="help-legend-swatch help-legend-swatch-base" aria-hidden="true"></span>
+            <span><strong>Station</strong> — diamond on a base tile: cyan = yours, orange = enemy, green = neutral, red X = destroyed.</span>
+          </li>
+          <li class="help-legend-item">
+            <span class="help-legend-swatch help-legend-swatch-detect" aria-hidden="true"></span>
+            <span><strong>Sensor ring</strong> — large faint dashed circle around your selected ship or friendly bases.</span>
+          </li>
+          <li class="help-legend-item">
+            <span class="help-legend-swatch help-legend-swatch-threat" aria-hidden="true"></span>
+            <span><strong>Threat halo</strong> — red disks on hexes adjacent to enemy bases (dangerous approach tiles).</span>
+          </li>
+        </ul>
+      </div>
       <button id="helpCloseBtn" class="btn btn-secondary" style="margin-top:1rem;width:100%">Close (?)</button>
     </div>
   </div>

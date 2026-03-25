@@ -88,8 +88,8 @@ const buildShipTrailViews = (
       points: trail.map((hex) => projectHex(layout, hex, hexSize)),
       color:
         ship.owner === playerId
-          ? 'rgba(79, 195, 247, 0.3)'
-          : 'rgba(255, 138, 101, 0.3)',
+          ? 'rgba(79, 195, 247, 0.14)'
+          : 'rgba(255, 138, 101, 0.14)',
     });
   }
 
