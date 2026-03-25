@@ -59,16 +59,22 @@ export const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
 
 export const autoJoinFromUrl = (
   joinGame: (code: string, playerToken: string | null) => void,
+  spectateGame: (code: string) => void,
   setMenuState: () => void,
 ): void => {
   const urlParams = new URLSearchParams(window.location.search);
   const code = urlParams.get('code');
   const playerToken = urlParams.get('playerToken');
+  const viewer = urlParams.get('viewer');
 
   if (code && code.length === CODE_LENGTH) {
     const normalizedCode = code.toUpperCase();
     history.replaceState(null, '', buildGameRoute(normalizedCode));
-    joinGame(normalizedCode, playerToken);
+    if (viewer === 'spectator') {
+      spectateGame(normalizedCode);
+    } else {
+      joinGame(normalizedCode, playerToken);
+    }
     return;
   }
   setMenuState();

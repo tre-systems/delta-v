@@ -87,6 +87,7 @@ const createDeps = () => {
     getGameCode: () => 'ABCDE',
     getGameState: () => state,
     getClientState: () => clientState,
+    isSpectatorSession: () => false,
     getStoredPlayerToken: () => null,
     getReconnectAttempts: () => 0,
     setReconnectAttempts,
@@ -130,6 +131,18 @@ describe('game-client-connection', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it('opens spectator websockets with viewer=spectator and no player token', () => {
+    const { deps } = createDeps();
+    deps.isSpectatorSession = () => true;
+    const manager = createConnectionManager(deps);
+
+    manager.connect('ABCDE');
+
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    expect(FakeWebSocket.instances[0]?.url).toContain('viewer=spectator');
+    expect(FakeWebSocket.instances[0]?.url).not.toContain('playerToken');
   });
 
   it('does not treat an intentional close as a reconnectable disconnect', () => {

@@ -7,6 +7,7 @@ import {
   setLatencyMs,
   setPlayerId,
   setScenario,
+  setSpectatorMode,
   setTransport,
 } from './client-context-store';
 import { clearClientGameState } from './game-state-store';
@@ -50,6 +51,15 @@ export interface LocalGameSessionDeps {
   runLocalAI: () => void;
 }
 
+export interface SpectateGameSessionDeps {
+  ctx: Pick<ClientSession, 'gameCode' | 'spectatorMode'>;
+  resetTurnTelemetry: () => void;
+  replaceRoute: (route: string) => void;
+  buildGameRoute: (code: string) => string;
+  connect: (code: string) => void;
+  setState: (state: ClientState) => void;
+}
+
 export interface JoinGameSessionDeps {
   ctx: Pick<ClientSession, 'gameCode'>;
   getStoredPlayerToken: (code: string) => string | null;
@@ -78,6 +88,7 @@ export interface ExitToMenuSessionDeps {
     | 'latencyMs'
     | 'playerId'
     | 'reconnectAttempts'
+    | 'spectatorMode'
     | 'transport'
   >;
   stopPing: () => void;
@@ -96,6 +107,7 @@ export const completeCreatedGameSession = (
   code: string,
   playerToken: string,
 ): void => {
+  setSpectatorMode(deps.ctx as ClientSession, false);
   setScenario(deps.ctx, scenario);
   setGameCode(deps.ctx, code);
   deps.storePlayerToken(code, playerToken);
@@ -112,6 +124,7 @@ export const startLocalGameSession = (
   deps: LocalGameSessionDeps,
   scenario: string,
 ): void => {
+  setSpectatorMode(deps.ctx as ClientSession, false);
   setIsLocalGame(deps.ctx, true);
   setScenario(deps.ctx, scenario);
   setPlayerId(deps.ctx, 0);
@@ -150,6 +163,18 @@ export const startLocalGameSession = (
   }
 };
 
+export const beginSpectateGameSession = (
+  deps: SpectateGameSessionDeps,
+  code: string,
+): void => {
+  setSpectatorMode(deps.ctx as ClientSession, true);
+  deps.resetTurnTelemetry();
+  setGameCode(deps.ctx, code);
+  deps.replaceRoute(deps.buildGameRoute(code));
+  deps.setState('connecting');
+  deps.connect(code);
+};
+
 export const beginJoinGameSession = async (
   deps: JoinGameSessionDeps,
   code: string,
@@ -163,6 +188,8 @@ export const beginJoinGameSession = async (
     deps.exitToMenu();
     return;
   }
+
+  setSpectatorMode(deps.ctx as ClientSession, false);
 
   if (validation.playerToken) {
     deps.storePlayerToken(code, validation.playerToken);
@@ -181,6 +208,7 @@ export const exitToMenuSession = (deps: ExitToMenuSessionDeps): void => {
   deps.resetTurnTelemetry();
   clearClientGameState(deps.ctx, deps.onAfterClearGameState);
   setGameCode(deps.ctx, null);
+  setSpectatorMode(deps.ctx, false);
   setIsLocalGame(deps.ctx, false);
   setLatencyMs(deps.ctx, -1);
   setPlayerId(deps.ctx, -1);

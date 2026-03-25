@@ -9,14 +9,17 @@ import {
 import type { GameState } from '../../shared/types/domain';
 import {
   beginJoinGameSession,
+  beginSpectateGameSession,
   type CreatedGameSessionDeps,
   completeCreatedGameSession,
   type ExitToMenuSessionDeps,
   exitToMenuSession,
   type JoinGameSessionDeps,
   type LocalGameSessionDeps,
+  type SpectateGameSessionDeps,
   startLocalGameSession,
 } from './session-controller';
+import type { ClientSession } from './session-model';
 import { stubClientSession } from './session-model';
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
@@ -125,9 +128,7 @@ const createJoinGameDeps = (): JoinGameSessionDeps & {
     };
 
   return {
-    ctx: {
-      gameCode: null,
-    },
+    ctx: stubClientSession({ gameCode: null }),
     getStoredPlayerToken: () => null,
     storePlayerToken: track('storePlayerToken'),
     resetTurnTelemetry: track('resetTurnTelemetry'),
@@ -155,20 +156,44 @@ const createExitToMenuDeps = (): ExitToMenuSessionDeps & {
     };
 
   return {
-    ctx: {
+    ctx: stubClientSession({
       gameCode: 'ABCDE',
       gameState: createState(),
       isLocalGame: true,
       latencyMs: 250,
       playerId: 1,
       reconnectAttempts: 3,
+      spectatorMode: true,
       transport: { kind: 'local' } as never,
-    },
+    }),
     stopPing: track('stopPing'),
     stopTurnTimer: track('stopTurnTimer'),
     closeConnection: track('closeConnection'),
     resetTurnTelemetry: track('resetTurnTelemetry'),
     replaceRoute: track('replaceRoute'),
+    setState: track('setState'),
+    calls,
+  };
+};
+
+const createSpectateGameDeps = (): SpectateGameSessionDeps & {
+  calls: Record<string, unknown[][]>;
+} => {
+  const calls: Record<string, unknown[][]> = {};
+
+  const track =
+    (name: string) =>
+    (...args: unknown[]) => {
+      if (!calls[name]) calls[name] = [];
+      calls[name].push(args);
+    };
+
+  return {
+    ctx: stubClientSession({ gameCode: null, spectatorMode: false }),
+    resetTurnTelemetry: track('resetTurnTelemetry'),
+    replaceRoute: track('replaceRoute'),
+    buildGameRoute: (code) => `/game/${code}`,
+    connect: track('connect'),
     setState: track('setState'),
     calls,
   };
@@ -247,6 +272,27 @@ describe('session-controller', () => {
     expect(deps.calls.connect).toBeUndefined();
   });
 
+  it('clears spectator mode after a normal join succeeds', async () => {
+    const deps = createJoinGameDeps();
+    (deps.ctx as ClientSession).spectatorMode = true;
+
+    await beginJoinGameSession(deps, 'FGHIJ');
+
+    expect((deps.ctx as ClientSession).spectatorMode).toBe(false);
+  });
+
+  it('starts spectating without join preflight', () => {
+    const deps = createSpectateGameDeps();
+
+    beginSpectateGameSession(deps, 'ABCDE');
+
+    expect(deps.ctx.spectatorMode).toBe(true);
+    expect(deps.ctx.gameCode).toBe('ABCDE');
+    expect(deps.calls.replaceRoute).toEqual([['/game/ABCDE']]);
+    expect(deps.calls.setState).toEqual([['connecting']]);
+    expect(deps.calls.connect).toEqual([['ABCDE']]);
+  });
+
   it('reuses the stored token when rejoining from a saved room route', async () => {
     const deps = createJoinGameDeps();
     deps.getStoredPlayerToken = () => 'stored-token';
@@ -286,6 +332,7 @@ describe('session-controller', () => {
     expect(deps.ctx.isLocalGame).toBe(false);
     expect(deps.ctx.latencyMs).toBe(-1);
     expect(deps.ctx.playerId).toBe(-1);
+    expect(deps.ctx.spectatorMode).toBe(false);
     expect(deps.ctx.reconnectAttempts).toBe(0);
     expect(deps.ctx.transport).toBeNull();
     expect(deps.calls.replaceRoute).toEqual([['/']]);

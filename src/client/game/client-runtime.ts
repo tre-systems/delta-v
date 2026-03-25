@@ -27,6 +27,7 @@ type SetupClientRuntimeInput = {
   showToast: (message: string, type: BrowserToastType) => void;
   onUIEvent: (event: UIEvent) => void;
   joinGame: (code: string, playerToken: string | null) => void;
+  spectateGame: (code: string) => void;
   setMenuState: () => void;
 };
 
@@ -45,6 +46,7 @@ export const setupClientRuntime = ({
   showToast,
   onUIEvent,
   joinGame,
+  spectateGame,
   setMenuState,
 }: SetupClientRuntimeInput): (() => void) => {
   renderer.setMap(map);
@@ -72,7 +74,7 @@ export const setupClientRuntime = ({
 
   initAudio();
   renderer.start();
-  autoJoinFromUrl(joinGame, setMenuState);
+  autoJoinFromUrl(joinGame, spectateGame, setMenuState);
 
   return disposeBrowserEvents;
 };

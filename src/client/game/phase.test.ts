@@ -118,4 +118,28 @@ describe('derivePhaseTransition', () => {
       runLocalAI: true,
     });
   });
+
+  it('routes negative player ids through spectator-safe phase transitions', () => {
+    const players = createPlayers();
+    players[0].ready = true;
+    const fleet = createState({
+      phase: 'fleetBuilding',
+      players,
+    });
+
+    expect(derivePhaseTransition(fleet, -1, 2, false).nextState).toBe(
+      'playing_fleetBuilding',
+    );
+
+    const ordnance = createState({
+      phase: 'ordnance',
+      activePlayer: 0,
+    });
+
+    expect(derivePhaseTransition(ordnance, -1, 2, false)).toMatchObject({
+      nextState: 'playing_opponentTurn',
+      beginCombatPhase: false,
+      runLocalAI: false,
+    });
+  });
 });

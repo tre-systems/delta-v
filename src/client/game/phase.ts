@@ -43,12 +43,41 @@ export const derivePhaseTransition = (
 ): PhaseTransitionPlan => {
   const shouldLogTurn =
     state.phase === 'astrogation' && state.turnNumber !== lastLoggedTurn;
+  const turnLogNumber = shouldLogTurn ? state.turnNumber : null;
+
+  if (playerId < 0) {
+    const spectatorTurnLabel = shouldLogTurn
+      ? `Player ${state.activePlayer}`
+      : null;
+
+    if (state.phase === 'fleetBuilding') {
+      return {
+        nextState: 'playing_fleetBuilding',
+        banner: null,
+        playPhaseSound: false,
+        beginCombatPhase: false,
+        runLocalAI: false,
+        turnLogNumber,
+        turnLogPlayerLabel: spectatorTurnLabel,
+      };
+    }
+
+    return {
+      nextState: 'playing_opponentTurn',
+      banner: null,
+      playPhaseSound: false,
+      beginCombatPhase: false,
+      runLocalAI: false,
+      turnLogNumber,
+      turnLogPlayerLabel: spectatorTurnLabel,
+    };
+  }
+
   const turnLogPlayerLabel = shouldLogTurn
     ? state.activePlayer === playerId
       ? 'You'
       : 'Opponent'
     : null;
-  const turnLogNumber = shouldLogTurn ? state.turnNumber : null;
 
   if (state.phase === 'fleetBuilding') {
     return {
