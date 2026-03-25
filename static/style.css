@@ -938,7 +938,7 @@ body::before {
 }
 
 .help-content {
-  width: min(420px, 100%);
+  width: min(460px, 100%);
   text-align: left;
 }
 
@@ -971,6 +971,214 @@ body::before {
   color: var(--text);
   font-family: var(--font-mono);
   font-size: 0.7rem;
+}
+
+.help-legend-lead {
+  margin: 0 0 0.2rem;
+  font-size: 0.78rem;
+  color: var(--muted-strong);
+}
+
+.help-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.help-legend-item {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 0.5rem 0.65rem;
+  align-items: center;
+  padding: 0.32rem 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--muted-strong);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.help-legend-item:last-child {
+  border-bottom: none;
+}
+
+.help-legend-item strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.help-legend-swatches {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 44px;
+}
+
+.help-legend-swatch {
+  display: block;
+  box-sizing: border-box;
+  width: 38px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.help-legend-swatches .help-legend-swatch {
+  width: 17px;
+  height: 22px;
+}
+
+.help-legend-swatch-hex {
+  width: 30px;
+  height: 26px;
+  margin: 0 auto;
+  border: 1px solid rgba(100, 140, 200, 0.45);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  background: transparent;
+}
+
+.help-legend-swatch-gravity {
+  width: 36px;
+  height: 22px;
+  margin: 0 auto;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(100, 140, 255, 0.55) 35%,
+    rgba(100, 140, 255, 0.55) 78%,
+    transparent 78%
+  );
+  position: relative;
+}
+
+.help-legend-swatch-gravity::after {
+  content: '';
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-style: solid;
+  border-width: 3px 0 3px 4px;
+  border-color: transparent transparent transparent rgba(100, 140, 255, 0.7);
+}
+
+.help-legend-swatch-body {
+  width: 26px;
+  height: 26px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgba(255, 230, 180, 0.95) 0%,
+    rgba(255, 160, 80, 0.55) 45%,
+    rgba(120, 60, 30, 0.25) 100%
+  );
+  box-shadow: 0 0 8px rgba(255, 180, 100, 0.35);
+}
+
+.help-legend-swatch-ship-own {
+  background: rgba(79, 195, 247, 0.95);
+  clip-path: polygon(100% 50%, 0% 0%, 19% 50%, 0% 100%);
+}
+
+.help-legend-swatch-ship-foe {
+  background: rgba(255, 152, 0, 0.95);
+  clip-path: polygon(100% 50%, 0% 0%, 19% 50%, 0% 100%);
+}
+
+.help-legend-swatch-vector {
+  width: 36px;
+  margin: 0 auto;
+  height: 2px;
+  margin-top: 12px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(79, 195, 247, 0.75) 0 4px,
+    transparent 4px 9px
+  );
+  position: relative;
+}
+
+.help-legend-swatch-vector::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border-style: solid;
+  border-width: 3px 0 3px 5px;
+  border-color: transparent transparent transparent rgba(79, 195, 247, 0.8);
+}
+
+.help-legend-swatch-trail {
+  width: 36px;
+  height: 3px;
+  margin: 0 auto;
+  margin-top: 11px;
+  background: linear-gradient(
+    90deg,
+    rgba(79, 195, 247, 0.25),
+    rgba(79, 195, 247, 0.45)
+  );
+  border-radius: 1px;
+  position: relative;
+}
+
+.help-legend-swatch-trail::before,
+.help-legend-swatch-trail::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(79, 195, 247, 0.35);
+  transform: translateY(-50%);
+}
+
+.help-legend-swatch-trail::before {
+  left: 22%;
+}
+
+.help-legend-swatch-trail::after {
+  left: 58%;
+}
+
+.help-legend-swatch-ordnance-trail {
+  width: 36px;
+  height: 0;
+  margin: 0 auto;
+  margin-top: 13px;
+  border-top: 2px dashed rgba(79, 195, 247, 0.35);
+  opacity: 0.9;
+}
+
+.help-legend-swatch-base {
+  width: 22px;
+  height: 22px;
+  margin: 0 auto;
+  background: rgba(79, 195, 247, 0.85);
+  border: 1px solid rgba(33, 150, 243, 0.95);
+  transform: rotate(45deg);
+}
+
+.help-legend-swatch-detect {
+  width: 24px;
+  height: 24px;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 1px dashed rgba(79, 195, 247, 0.45);
+  background: rgba(79, 195, 247, 0.06);
+}
+
+.help-legend-swatch-threat {
+  width: 24px;
+  height: 24px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: rgba(255, 80, 60, 0.14);
+  border: 1px solid rgba(255, 80, 60, 0.42);
 }
 
 .help-btn,
