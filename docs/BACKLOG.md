@@ -44,15 +44,15 @@ If the product stays **private friend matches only**, treat the early security i
 
 **Depends on:** nothing that blocks starting (foundational for some future scenarios).
 
-### 6. Spectator mode — client UI and live stream
+### 6. Spectator mode — UX polish
 
-Server-side spectator transport is complete: viewer-aware filtering, spectator replay delivery, spectator-tagged broadcasts, and WebSocket boundary enforcement are all wired and tested. Live spectator WebSocket joins are explicitly rejected (501) for now.
+**Shipped:** Live spectator WebSocket upgrades: the worker proxies `GET /ws/:code?viewer=spectator` to the room DO (no player token). The DO tags sockets as `spectator`, sends `spectatorWelcome` plus optional `gameStart` using the same spectator-filtered `GameState` projection as broadcasts, and only answers `ping` on those sockets. Client: open `/?code=CODE&viewer=spectator` to spectate (`spectatorMode` session), WebSocket URL includes `viewer=spectator`, message plan handles `spectatorWelcome` with `playerId` -1, phase routing avoids seat-specific action states, game-over copy is neutral for spectators.
 
-Remaining work is client-side: a spectator join flow, real-time spectator state display during live games, and the protocol extension to accept live spectator WebSocket connections.
+**Remaining:** Lobby affordance (copy/share spectate link), clearer read-only treatment in the fleet builder and action surfaces, optional rate limits or abuse controls for unauthenticated spectator upgrades, any protocol tidy-ups.
 
 **Depends on:** can ship in parallel with passenger work.
 
-**Files:** `src/server/game-do/game-do.ts`, `src/server/protocol.ts`, `src/client/game/client-kernel.ts`, client spectator UI
+**Files:** `src/server/index.ts`, `src/server/game-do/fetch.ts`, `src/server/game-do/ws.ts`, `src/shared/types/protocol.ts`, `src/client/game/session-controller.ts`, `main-composition.ts`, `connection.ts`, `session.ts`, `messages.ts`, `message-handler.ts`, `phase.ts`, `endgame.ts`, `client-kernel.ts`, lobby/UI
 
 ### 7. Run DOM accessibility audit — **Human**
 
