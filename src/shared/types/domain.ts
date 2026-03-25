@@ -232,6 +232,8 @@ export interface CombatAttack {
   attackStrength?: number | null;
 }
 
+export type DamageType = 'none' | 'disabled' | 'eliminated';
+
 export interface CombatResult {
   attackerIds: string[];
   targetId: string;
@@ -244,7 +246,7 @@ export interface CombatResult {
   velocityMod: number;
   dieRoll: number;
   modifiedRoll: number;
-  damageType: 'none' | 'disabled' | 'eliminated';
+  damageType: DamageType;
   disabledTurns: number;
   counterattack: CombatResult | null;
 }
