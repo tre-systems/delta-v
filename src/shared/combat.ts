@@ -7,7 +7,13 @@ import {
 } from './constants';
 import { hexDistance, hexEqual, hexKey, hexLineDraw, parseHexKey } from './hex';
 import { bodyHasGravity } from './map-data';
-import type { CombatResult, Ordnance, Ship, SolarSystemMap } from './types';
+import type {
+  CombatResult,
+  DamageType,
+  Ordnance,
+  Ship,
+  SolarSystemMap,
+} from './types';
 import { clamp, sumBy } from './util';
 
 // --- Damage tables ---
@@ -71,7 +77,7 @@ export interface CombatResolution {
 }
 
 export interface DamageResult {
-  type: 'none' | 'disabled' | 'eliminated';
+  type: DamageType;
   disabledTurns: number;
 }
 
