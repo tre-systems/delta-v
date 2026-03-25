@@ -12,6 +12,7 @@ export interface ConnectionDeps {
   getGameCode: () => string | null;
   getGameState: () => GameState | null;
   getClientState: () => ClientState;
+  isSpectatorSession: () => boolean;
   getStoredPlayerToken: (code: string) => string | null;
   getReconnectAttempts: () => number;
   setReconnectAttempts: (n: number) => void;
@@ -74,8 +75,14 @@ export const createConnectionManager = (
   };
   const connect = (code: string) => {
     suppressDisconnectHandling = false;
+    const spectator = deps.isSpectatorSession();
     const socket = new WebSocket(
-      buildWebSocketUrl(location, code, deps.getStoredPlayerToken(code)),
+      buildWebSocketUrl(
+        location,
+        code,
+        spectator ? null : deps.getStoredPlayerToken(code),
+        spectator ? { viewer: 'spectator' } : undefined,
+      ),
     );
     ws = socket;
     socket.onmessage = (e) => deps.handleMessage(JSON.parse(e.data));

@@ -335,6 +335,7 @@ export class GameDO extends DurableObject<Env> {
         touchInactivity: () => this.touchInactivity(),
         acceptWebSocket: (server, tags) =>
           this.ctx.acceptWebSocket(server, tags),
+        getRoomConfig: () => this.getRoomConfig(),
       },
       request,
     );
@@ -348,6 +349,8 @@ export class GameDO extends DurableObject<Env> {
       {
         msgRates: this.msgRates,
         getPlayerId: (socket) => this.getPlayerId(socket),
+        isSpectatorSocket: (socket) =>
+          this.ctx.getTags(socket).includes('spectator'),
         touchInactivity: () => this.touchInactivity(),
         send: (socket, outbound) => this.send(socket, outbound),
         isGameStateActionMessage: (msg) => this.isGameStateActionMessage(msg),

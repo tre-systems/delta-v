@@ -120,5 +120,18 @@ describe('game client session helpers', () => {
         null,
       ),
     ).toBe('ws://localhost:8787/ws/ABCDE');
+
+    expect(
+      buildWebSocketUrl(
+        {
+          protocol: 'https:',
+          host: 'delta-v.example',
+          origin: 'https://delta-v.example',
+        },
+        'ABCDE',
+        'ignored-token',
+        { viewer: 'spectator' },
+      ),
+    ).toBe('wss://delta-v.example/ws/ABCDE?viewer=spectator');
   });
 });

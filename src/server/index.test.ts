@@ -264,19 +264,27 @@ describe('server index worker', () => {
     );
   });
 
-  it('rejects spectator websocket requests at the worker boundary', async () => {
-    const { env, initFetch } = createEnv();
+  it('proxies spectator websocket requests to the room durable object', async () => {
+    const { env, initFetch } = createEnv(
+      async () => new Response('proxied', { status: 200 }),
+    );
+
+    const request = new Request(
+      'https://delta-v.test/ws/ABCDE?viewer=spectator',
+      {
+        headers: { Upgrade: 'websocket' },
+      },
+    );
 
     const response = await worker.fetch(
-      new Request('https://delta-v.test/ws/ABCDE?viewer=spectator', {
-        headers: { Upgrade: 'websocket' },
-      }),
+      request,
       env as unknown as Env,
       mockCtx(),
     );
 
-    expect(response.status).toBe(501);
-    expect(initFetch).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(env.GAME.idFromName).toHaveBeenCalledWith('ABCDE');
+    expect(initFetch).toHaveBeenCalledWith(request);
   });
 
   it('falls back to static assets for non-game routes', async () => {

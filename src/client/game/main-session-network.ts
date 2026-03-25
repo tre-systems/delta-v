@@ -16,6 +16,7 @@ import { buildGameRoute } from './session';
 import type { SessionApi } from './session-api';
 import {
   beginJoinGameSession,
+  beginSpectateGameSession,
   exitToMenuSession,
   startLocalGameSession,
 } from './session-controller';
@@ -72,6 +73,23 @@ export const startLocalGameFromMain = (
       runLocalAI: () => deps.runLocalAI(),
     },
     scenario,
+  );
+};
+
+export const beginSpectateGameFromMain = (
+  deps: MainNetworkDeps,
+  code: string,
+): void => {
+  beginSpectateGameSession(
+    {
+      ctx: deps.ctx,
+      resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+      replaceRoute: (route) => history.replaceState(null, '', route),
+      buildGameRoute,
+      connect: (gameCode) => deps.connection.connect(gameCode),
+      setState: (state) => deps.setMenuState(state),
+    },
+    code,
   );
 };
 

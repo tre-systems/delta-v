@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   handleServerMessage,
   type MessageHandlerDeps,
@@ -210,6 +210,15 @@ describe('GameDO', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
+    vi.stubGlobal('WebSocketPair', function WebSocketPairStub() {
+      const client = createSocket();
+      const server = createSocket();
+      return { 0: client, 1: server };
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
   it('initializes a room and schedules inactivity cleanup immediately', async () => {
     const ctx = createCtx();
@@ -295,13 +304,8 @@ describe('GameDO', () => {
     expect(response.status).toBe(400);
     expect(await response.text()).toContain('Invalid player token');
   });
-  it('rejects spectator websocket fetches explicitly at the durable object boundary', async () => {
+  it('returns 404 for spectator websocket upgrades when the room is missing', async () => {
     const ctx = createCtx();
-    await ctx.storage.put('roomConfig', {
-      code: 'ABCDE',
-      scenario: 'biplanetary',
-      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
-    });
     const game = createGameDO(ctx);
     const response = await game.fetch(
       new Request('https://room.internal/ws/ABCDE?viewer=spectator', {
@@ -309,10 +313,38 @@ describe('GameDO', () => {
       }),
     );
 
-    expect(response.status).toBe(501);
-    expect(await response.text()).toContain(
-      'Spectator websocket joins are not supported',
-    );
+    expect(response.status).toBe(404);
+  });
+  it('accepts spectator websocket upgrades without a player token', async () => {
+    const OriginalResponse = globalThis.Response;
+    globalThis.Response = class SwitchingProtocolsResponse {
+      readonly status: number;
+      readonly webSocket: WebSocket;
+      constructor(_body: null, init: { status: number; webSocket: WebSocket }) {
+        this.status = init.status;
+        this.webSocket = init.webSocket;
+      }
+    } as unknown as typeof Response;
+
+    try {
+      const ctx = createCtx();
+      await ctx.storage.put('roomConfig', {
+        code: 'ABCDE',
+        scenario: 'biplanetary',
+        playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+      });
+      const game = createGameDO(ctx);
+      const response = await game.fetch(
+        new Request('https://room.internal/ws/ABCDE?viewer=spectator', {
+          headers: { Upgrade: 'websocket' },
+        }),
+      );
+
+      expect(response.status).toBe(101);
+      expect(ctx.getWebSockets('spectator')).toHaveLength(1);
+    } finally {
+      globalThis.Response = OriginalResponse;
+    }
   });
   it('supports join preflight checks without mutating room tokens', async () => {
     const ctx = createCtx();

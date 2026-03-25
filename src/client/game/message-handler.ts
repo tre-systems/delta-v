@@ -65,6 +65,27 @@ export const handleServerMessage = (
     msg,
   );
   switch (plan.kind) {
+    case 'spectatorWelcome': {
+      const reconnectAttempts = deps.ctx.reconnectAttempts;
+      applyWelcomeSession(deps.ctx, -1, plan.code);
+
+      if (plan.showReconnectToast) {
+        deps.trackEvent('reconnect_succeeded', {
+          attempts: reconnectAttempts,
+        });
+        deps.ui.overlay.hideReconnecting();
+        deps.ui.overlay.showToast('Reconnected!', 'success');
+      } else if (deps.ctx.state === 'connecting') {
+        deps.trackEvent('spectate_join_succeeded', {});
+      }
+      deps.renderer.setPlayerId(-1);
+      deps.ui.setPlayerId(-1);
+
+      if (plan.nextState) {
+        deps.setState(plan.nextState);
+      }
+      break;
+    }
     case 'welcome': {
       const reconnectAttempts = deps.ctx.reconnectAttempts;
       applyWelcomeSession(deps.ctx, plan.playerId, plan.code);
