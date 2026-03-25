@@ -42,6 +42,7 @@ export interface LocalGameFlowDeps {
   showGameOverOutcome: (won: boolean, reason: string) => void;
   transitionToPhase: () => void;
   logText: (text: string) => void;
+  showToast: (message: string, type: 'error' | 'info' | 'success') => void;
 }
 
 export const isGameOver = (deps: LocalGameFlowDeps): boolean =>
@@ -78,6 +79,7 @@ export const handleLocalResolution = (
 ): void => {
   if (resolution.kind === 'error') {
     console.error(errorPrefix, resolution.error);
+    deps.showToast(resolution.error, 'error');
     return;
   }
 

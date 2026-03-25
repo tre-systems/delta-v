@@ -143,6 +143,7 @@ export const createActionDeps = (args: ActionDepsArgs) => {
         showGameOverOutcome: (won, reason) => showGameOverOutcome(won, reason),
         transitionToPhase: () => args.transitionToPhase(),
         logText: (text) => args.ui.log.logText(text),
+        showToast: (message, type) => args.ui.overlay.showToast(message, type),
       };
     }
     return cachedLocalFlow;
