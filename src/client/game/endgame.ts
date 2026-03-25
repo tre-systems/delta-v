@@ -13,9 +13,20 @@ export const deriveGameOverPlan = (
   playerId: number,
   won: boolean,
   reason: string,
-): GameOverPlan => ({
-  stats: state ? getGameOverStats(state, playerId) : undefined,
-  logText: `${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`,
-  logClass: won ? 'log-landed' : 'log-eliminated',
-  resultSound: won ? 'victory' : 'defeat',
-});
+): GameOverPlan => {
+  if (playerId < 0) {
+    return {
+      stats: undefined,
+      logText: `GAME OVER: ${reason}`,
+      logClass: 'log-landed',
+      resultSound: 'defeat',
+    };
+  }
+
+  return {
+    stats: state ? getGameOverStats(state, playerId) : undefined,
+    logText: `${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`,
+    logClass: won ? 'log-landed' : 'log-eliminated',
+    resultSound: won ? 'victory' : 'defeat',
+  };
+};

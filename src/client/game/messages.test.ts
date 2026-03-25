@@ -92,6 +92,20 @@ describe('game-client-messages', () => {
     });
   });
 
+  it('derives spectator welcome handling from reconnect and current state', () => {
+    expect(
+      derive({
+        type: 'spectatorWelcome',
+        code: 'ABCDE',
+      }),
+    ).toEqual({
+      kind: 'spectatorWelcome',
+      code: 'ABCDE',
+      showReconnectToast: true,
+      nextState: 'waitingForOpponent',
+    });
+  });
+
   it('derives game start, movement, combat, and state update plans', () => {
     const movementState = createState();
 

@@ -62,6 +62,11 @@ export type S2C =
       code: string;
       playerToken: string;
     }
+  | {
+      /** Live spectator socket handshake (no player token). */
+      type: 'spectatorWelcome';
+      code: string;
+    }
   | { type: 'matchFound' }
   | {
       type: 'gameStart';

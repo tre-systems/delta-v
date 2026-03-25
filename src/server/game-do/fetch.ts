@@ -36,6 +36,7 @@ export type GameDoFetchDeps = {
   initGame: () => Promise<void>;
   touchInactivity: () => Promise<void>;
   acceptWebSocket: (server: WebSocket, tags: string[]) => void;
+  getRoomConfig: () => Promise<{ code: string } | null>;
 };
 
 export const handleGameDoFetch = async (
@@ -63,8 +64,36 @@ export const handleGameDoFetch = async (
     });
   }
   if (url.searchParams.get('viewer') === 'spectator') {
-    return new Response('Spectator websocket joins are not supported', {
-      status: 501,
+    const roomConfig = await deps.getRoomConfig();
+
+    if (!roomConfig) {
+      return new Response('Game not found', {
+        status: 404,
+      });
+    }
+
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair);
+    deps.acceptWebSocket(server, ['spectator']);
+    deps.send(server, {
+      type: 'spectatorWelcome',
+      code: roomConfig.code,
+    });
+    const latestGameId = await deps.getLatestGameId();
+    const spectatorState: GameState | null = latestGameId
+      ? await getProjectedCurrentState(deps.storage, latestGameId, 'spectator')
+      : null;
+
+    if (spectatorState) {
+      deps.send(server, {
+        type: 'gameStart',
+        state: spectatorState,
+      });
+    }
+    await deps.touchInactivity();
+    return new Response(null, {
+      status: 101,
+      webSocket: client,
     });
   }
   const presentedTokenRaw = url.searchParams.get('playerToken');

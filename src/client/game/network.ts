@@ -25,6 +25,10 @@ export const deriveGameStartClientState = (
     return 'playing_fleetBuilding';
   }
 
+  if (playerId < 0) {
+    return 'playing_opponentTurn';
+  }
+
   return state.activePlayer === playerId
     ? 'playing_astrogation'
     : 'playing_opponentTurn';

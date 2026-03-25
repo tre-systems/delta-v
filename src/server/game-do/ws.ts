@@ -6,6 +6,7 @@ import { applySocketRateLimit, parseClientSocketMessage } from './socket';
 export type GameDoWebSocketMessageDeps = {
   msgRates: WeakMap<WebSocket, { count: number; windowStart: number }>;
   getPlayerId: (ws: WebSocket) => number | null;
+  isSpectatorSocket: (ws: WebSocket) => boolean;
   touchInactivity: () => Promise<void>;
   send: (ws: WebSocket, msg: S2C) => void;
   isGameStateActionMessage: (message: C2S) => message is GameStateActionMessage;
@@ -44,7 +45,13 @@ export const handleGameDoWebSocketMessage = async (
   const msg: C2S = parsed.value;
   const playerId = deps.getPlayerId(ws);
 
-  if (playerId === null) return;
+  if (playerId === null) {
+    if (deps.isSpectatorSocket(ws) && msg.type === 'ping') {
+      await deps.touchInactivity();
+      deps.send(ws, { type: 'pong', t: msg.t });
+    }
+    return;
+  }
   await deps.touchInactivity();
   try {
     if (deps.isGameStateActionMessage(msg)) {

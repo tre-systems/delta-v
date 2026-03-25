@@ -25,6 +25,12 @@ export type ClientMessagePlan =
       showReconnectToast: boolean;
       nextState: ClientState | null;
     }
+  | {
+      kind: 'spectatorWelcome';
+      code: string;
+      showReconnectToast: boolean;
+      nextState: ClientState | null;
+    }
   | { kind: 'matchFound' }
   | {
       kind: 'gameStart';
@@ -86,6 +92,15 @@ export const deriveClientMessagePlan = (
         playerId: msg.playerId,
         code: msg.code,
         playerToken: msg.playerToken,
+        showReconnectToast: welcome.showReconnectToast,
+        nextState: welcome.nextState,
+      };
+    }
+    case 'spectatorWelcome': {
+      const welcome = deriveWelcomeHandling(currentState, reconnectAttempts);
+      return {
+        kind: 'spectatorWelcome',
+        code: msg.code,
         showReconnectToast: welcome.showReconnectToast,
         nextState: welcome.nextState,
       };

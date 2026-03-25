@@ -23,6 +23,15 @@ type PlayerState = Pick<ClientSession, 'playerId'>;
 
 type GameCodeState = Pick<ClientSession, 'gameCode'>;
 
+type SpectatorModeState = Pick<ClientSession, 'spectatorMode'>;
+
+export const setSpectatorMode = (
+  ctx: SpectatorModeState,
+  spectator: boolean,
+): void => {
+  ctx.spectatorMode = spectator;
+};
+
 export const applyWelcomeSession = (
   ctx: PlayerIdentityState,
   playerId: number,

@@ -40,6 +40,13 @@ describe('game-client-network', () => {
     expect(
       deriveGameStartClientState(duelState, 1 - duelState.activePlayer),
     ).toBe('playing_opponentTurn');
+
+    expect(deriveGameStartClientState(fleetState, -1)).toBe(
+      'playing_fleetBuilding',
+    );
+    expect(deriveGameStartClientState(duelState, -1)).toBe(
+      'playing_opponentTurn',
+    );
   });
 
   it('derives welcome handling for reconnects and guests', () => {

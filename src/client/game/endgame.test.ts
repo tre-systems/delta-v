@@ -114,4 +114,17 @@ describe('game-client-endgame', () => {
     expect(nullPlan.logText).toBe('VICTORY: Disconnected');
     expect(nullPlan.resultSound).toBe('victory');
   });
+
+  it('uses neutral spectator copy when playerId is negative', () => {
+    const plan = deriveGameOverPlan(
+      createState(),
+      -1,
+      false,
+      'Fleet eliminated!',
+    );
+
+    expect(plan.logText).toBe('GAME OVER: Fleet eliminated!');
+    expect(plan.stats).toBeUndefined();
+    expect(plan.resultSound).toBe('defeat');
+  });
 });

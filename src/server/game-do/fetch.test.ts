@@ -32,6 +32,7 @@ const makeDeps = (
   initGame: vi.fn(),
   touchInactivity: vi.fn(),
   acceptWebSocket: vi.fn(),
+  getRoomConfig: vi.fn().mockResolvedValue(null),
   ...overrides,
 });
 
@@ -71,13 +72,15 @@ describe('handleGameDoFetch', () => {
     expect(deps.resolveJoinAttempt).not.toHaveBeenCalled();
   });
 
-  it('returns 501 for spectator websocket joins', async () => {
-    const deps = makeDeps();
+  it('returns 404 for spectator websocket joins when the room is missing', async () => {
+    const deps = makeDeps({
+      getRoomConfig: vi.fn().mockResolvedValue(null),
+    });
     const req = new Request(`${baseUrl}/ws?viewer=spectator`, {
       headers: { Upgrade: 'websocket' },
     });
     const res = await handleGameDoFetch(deps, req);
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(404);
     expect(deps.resolveJoinAttempt).not.toHaveBeenCalled();
   });
 });

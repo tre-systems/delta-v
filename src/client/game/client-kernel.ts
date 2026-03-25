@@ -44,6 +44,7 @@ import {
 } from './main-deps';
 import {
   beginJoinGameFromMain,
+  beginSpectateGameFromMain,
   exitToMenuFromMain,
   handleServerMessageFromMain,
   type MainNetworkDeps,
@@ -178,6 +179,7 @@ export const createGameClient = () => {
     getGameCode: () => ctx.gameCode,
     getGameState: () => mirror.gameState.peek(),
     getClientState: () => mirror.clientState.peek(),
+    isSpectatorSession: () => ctx.spectatorMode,
     getStoredPlayerToken: (code) =>
       sessionHolder.api?.getStoredPlayerToken(code) ?? null,
     getReconnectAttempts: () => ctx.reconnectAttempts,
@@ -472,6 +474,10 @@ export const createGameClient = () => {
     beginJoinGameFromMain(mainNetworkDeps, code, playerToken);
   };
 
+  const spectateGame = (code: string) => {
+    beginSpectateGameFromMain(mainNetworkDeps, code);
+  };
+
   const handleUIEvent = (event: UIEvent) => {
     const plan = resolveUIEventPlan(event);
     switch (plan.kind) {
@@ -528,6 +534,7 @@ export const createGameClient = () => {
     showToast: (message, type) => showToast(message, type),
     onUIEvent: (event) => handleUIEvent(event),
     joinGame: (code, playerToken) => joinGame(code, playerToken),
+    spectateGame: (code) => spectateGame(code),
     setMenuState: () => setState('menu'),
   });
 

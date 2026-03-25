@@ -8,6 +8,8 @@ import type { GameTransport } from './transport';
 export interface ClientSession {
   state: ClientState;
   playerId: number;
+  /** True while connected as a live spectator (`?viewer=spectator`). */
+  spectatorMode: boolean;
   gameCode: string | null;
   scenario: string;
   gameState: GameState | null;
@@ -22,6 +24,7 @@ export interface ClientSession {
 export const createInitialClientSession = (): ClientSession => ({
   state: 'menu',
   playerId: -1,
+  spectatorMode: false,
   gameCode: null,
   scenario: 'biplanetary',
   gameState: null,

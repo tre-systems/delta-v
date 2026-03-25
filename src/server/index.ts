@@ -31,14 +31,6 @@ const handleWebSocket = (
   env: Env,
   code: string,
 ): Promise<Response> | Response => {
-  const viewer = new URL(request.url).searchParams.get('viewer');
-
-  if (viewer === 'spectator') {
-    return new Response('Spectator websocket joins are not supported', {
-      status: 501,
-    });
-  }
-
   const id = env.GAME.idFromName(code);
   const stub = env.GAME.get(id);
 
