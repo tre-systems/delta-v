@@ -254,7 +254,7 @@ then proceed with a known-good state.
 
 Two error-return conventions exist, each for a different context:
 
-**Engine results** — `{ state, ... } | { error: string }`. Used by engine entry points (`processAstrogation`, `processCombat`, etc.) where the success shape varies by function. Callers narrow with `'error' in result`:
+**Engine results** — `{ state, ... } | { error: EngineError }`. Used by engine entry points (`processAstrogation`, `processCombat`, etc.) where the success shape varies by function. Callers narrow with `'error' in result`:
 
 ```typescript
 const result = processAstrogation(state, playerId, orders, map, rng);
@@ -264,15 +264,17 @@ if ("error" in result) {
 // result.state, result.movements, etc.
 ```
 
-**Protocol validation** — `{ ok: true; value: T } | { ok: false; error: string }`. Used by `protocol.ts` validation functions where the success type is uniform and the caller needs a typed `value`. Callers narrow with `.ok`:
+**Result\<T, E\>** — the shared generic `Result<T, E = string>` type in `domain.ts`. Used by validation functions, protocol parsing, event projection, and any code that returns a typed success value or an error. Callers narrow with `.ok`:
 
 ```typescript
-const parsed = validateAstrogationOrders(raw);
+const parsed = validateClientMessage(raw); // Result<C2S>
 if (!parsed.ok) return sendError(ws, parsed.error);
-// parsed.value is typed AstrogationOrder[]
+// parsed.value is typed C2S
 ```
 
-Use **engine-style** for game logic results with heterogeneous success shapes. Use **protocol-style** for parse/validate functions that extract a typed value from untrusted input.
+The error type `E` defaults to `string` but can be any type (e.g., `Result<JoinAttemptSuccess, Response>`).
+
+Use **engine-style** for game logic results with heterogeneous success shapes. Use **Result\<T, E\>** for parse/validate functions and any code that returns a typed value or an error.
 
 ### Event accumulation
 
@@ -511,8 +513,12 @@ TypeScript Handbook on
 [Utility Types](https://www.typescriptlang.org/docs/handbook/utility-types.html).
 
 ```typescript
-const isAlive = (s: Pick<Ship, "lifecycle">): boolean =>
-  s.lifecycle !== "destroyed";
+const isOrderableShip = (
+  s: Pick<Ship, "lifecycle" | "control" | "damage">,
+): boolean =>
+  s.lifecycle === "active" &&
+  s.control !== "surrendered" &&
+  s.damage.disabledTurns <= 0;
 
 const isPlanetaryDefenseEnabled = (
   state: Pick<GameState, "scenarioRules">,
