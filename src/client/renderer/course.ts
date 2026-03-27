@@ -1,4 +1,4 @@
-import { SHIP_STATS } from '../../shared/constants';
+import { SHIP_STATS, type ShipType } from '../../shared/constants';
 import {
   HEX_DIRECTIONS,
   type HexCoord,
@@ -56,7 +56,7 @@ export interface WeakGravityMarkerView {
 export interface GhostShipView {
   position: PixelCoord;
   owner: number;
-  shipType: string;
+  shipType: ShipType;
   alpha: number;
 }
 

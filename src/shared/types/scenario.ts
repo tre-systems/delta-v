@@ -1,3 +1,4 @@
+import type { ShipType } from '../constants';
 import type { HexCoord } from '../hex';
 import type { ScenarioRules, ScenarioShip } from './domain';
 
@@ -20,5 +21,5 @@ export interface ScenarioDefinition {
   rules?: ScenarioRules;
   startingPlayer?: 0 | 1;
   startingCredits?: number | [number, number];
-  availableShipTypes?: string[];
+  availableShipTypes?: ShipType[];
 }

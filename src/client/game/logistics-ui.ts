@@ -1,4 +1,4 @@
-import { SHIP_STATS } from '../../shared/constants';
+import { SHIP_STATS, type ShipType } from '../../shared/constants';
 import {
   getTransferEligiblePairs,
   type TransferPair,
@@ -104,7 +104,7 @@ export const hasQueuedTransfers = (uiState: LogisticsUIState): boolean => {
   return false;
 };
 
-const shipName = (type: string): string => SHIP_STATS[type]?.name ?? type;
+const shipName = (type: ShipType): string => SHIP_STATS[type].name;
 
 export const renderTransferPanel = (
   container: HTMLElement,

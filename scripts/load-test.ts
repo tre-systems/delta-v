@@ -6,7 +6,7 @@ import {
   aiCombat,
   aiOrdnance,
 } from '../src/shared/ai';
-import { SHIP_STATS } from '../src/shared/constants';
+import { SHIP_STATS, type ShipType } from '../src/shared/constants';
 import { buildSolarSystemMap, SCENARIOS } from '../src/shared/map-data';
 import type {
   AstrogationOrder,
@@ -43,10 +43,12 @@ const buildFleetPurchases = (
     Object.values(SCENARIOS).find(
       (scenario) => scenario.name === state.scenario,
     ) ?? null;
-  const available =
+  const available: ShipType[] =
     scenarioDef?.availableShipTypes ??
-    Object.keys(SHIP_STATS).filter((type) => type !== 'orbitalBase');
-  const priorities =
+    (Object.keys(SHIP_STATS) as ShipType[]).filter(
+      (type) => type !== 'orbitalBase',
+    );
+  const priorities: ShipType[] =
     difficulty === 'hard'
       ? ['dreadnaught', 'frigate', 'torch', 'corsair', 'corvette']
       : difficulty === 'easy'
@@ -57,7 +59,7 @@ const buildFleetPurchases = (
 
   for (const shipType of priorities) {
     if (!available.includes(shipType)) continue;
-    const cost = SHIP_STATS[shipType]?.cost ?? Number.POSITIVE_INFINITY;
+    const cost = SHIP_STATS[shipType].cost;
 
     while (remaining >= cost) {
       purchases.push({ shipType });
@@ -101,7 +103,7 @@ const createBotClient = (
   onGameOver: (state: GameState) => void,
 ) => {
   let ws: WebSocket | null = null;
-  let playerId = -1;
+  let playerId: PlayerId | -1 = -1;
   let playerToken = initialPlayerToken;
   const solarMap = map;
   const shouldInjectChaos = Math.random() < config.disconnectRate;

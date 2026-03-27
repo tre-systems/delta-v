@@ -1,9 +1,13 @@
-import { SHIP_STATS } from '../../shared/constants';
+import {
+  SHIP_STATS,
+  type ShipStats,
+  type ShipType,
+} from '../../shared/constants';
 import type { FleetPurchase } from '../../shared/types/domain';
 import { sumBy } from '../../shared/util';
 
 export interface FleetShopItemView {
-  shipType: string;
+  shipType: ShipType;
   name: string;
   statsText: string;
   cost: number;
@@ -11,7 +15,7 @@ export interface FleetShopItemView {
 }
 
 export interface FleetCartItemView {
-  shipType: string;
+  shipType: ShipType;
   label: string;
 }
 
@@ -22,8 +26,8 @@ export interface FleetCartView {
   isEmpty: boolean;
 }
 
-export const getFleetShopTypes = () => {
-  return Object.entries(SHIP_STATS)
+export const getFleetShopTypes = (): [ShipType, ShipStats][] => {
+  return (Object.entries(SHIP_STATS) as [ShipType, ShipStats][])
     .filter(([shipType]) => shipType !== 'orbitalBase')
     .sort((left, right) => left[1].cost - right[1].cost);
 };
@@ -35,7 +39,7 @@ export const getFleetCartCost = (cart: FleetPurchase[]): number => {
 export const canAddFleetShip = (
   cart: FleetPurchase[],
   totalCredits: number,
-  shipType: string,
+  shipType: ShipType,
 ): boolean => {
   return (
     getFleetCartCost(cart) + (SHIP_STATS[shipType]?.cost ?? 0) <= totalCredits

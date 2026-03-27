@@ -6,6 +6,7 @@ import {
   ORDNANCE_LIFETIME,
   ORDNANCE_MASS,
   SHIP_STATS,
+  type ShipType,
 } from './constants';
 
 describe('SHIP_STATS', () => {
@@ -54,13 +55,13 @@ describe('SHIP_STATS', () => {
       'frigate',
       'dreadnaught',
       'torch',
-    ]) {
+    ] as ShipType[]) {
       expect(SHIP_STATS[type].canOverload, `${type} canOverload`).toBe(true);
     }
   });
 
   it('commercial ships cannot overload', () => {
-    for (const type of ['transport', 'packet', 'tanker']) {
+    for (const type of ['transport', 'packet', 'tanker'] as ShipType[]) {
       expect(SHIP_STATS[type].canOverload, `${type} canOverload`).toBe(false);
     }
   });
@@ -74,9 +75,9 @@ describe('SHIP_STATS', () => {
   });
 
   it('warship combat strength scales with cost', () => {
-    const warships = ['corvette', 'corsair', 'frigate', 'dreadnaught'].map(
-      (t) => SHIP_STATS[t],
-    );
+    const warships = (
+      ['corvette', 'corsair', 'frigate', 'dreadnaught'] as ShipType[]
+    ).map((t) => SHIP_STATS[t]);
 
     for (let i = 1; i < warships.length; i++) {
       expect(warships[i].combat).toBeGreaterThan(warships[i - 1].combat);

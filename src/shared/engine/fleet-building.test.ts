@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { ShipType } from '../constants';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
-import type { SolarSystemMap } from '../types';
+import type { FleetPurchase, SolarSystemMap } from '../types';
 import { processFleetReady } from './fleet-building';
 import { createGame } from './game-creation';
 
@@ -31,7 +32,10 @@ describe('fleet building (MegaCredit economy)', () => {
       'WAR01',
       findBaseHex,
     );
-    const purchases = [{ shipType: 'corvette' }, { shipType: 'corsair' }];
+    const purchases: FleetPurchase[] = [
+      { shipType: 'corvette' },
+      { shipType: 'corsair' },
+    ];
     const result = processFleetReady(
       state,
       0,
@@ -101,7 +105,7 @@ describe('fleet building (MegaCredit economy)', () => {
     const result = processFleetReady(
       state,
       0,
-      [{ shipType: 'battlecruiser' }],
+      [{ shipType: 'battlecruiser' as ShipType }],
       map,
     );
     expect('error' in result).toBe(true);

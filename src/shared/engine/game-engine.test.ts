@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { must } from '../assert';
 import { resolveBaseDefense } from '../combat';
-import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
+import { ORDNANCE_MASS, SHIP_STATS, type ShipType } from '../constants';
 import { hexDistance, hexEqual, hexKey } from '../hex';
 import {
   buildSolarSystemMap,
@@ -1190,7 +1190,7 @@ describe('base defense fire', () => {
       ships: [
         {
           id: 'enemy',
-          type: 'corvette',
+          type: 'corvette' as ShipType,
           owner: 1 as PlayerId,
           originalOwner: 1 as PlayerId,
           position: gravHex,
@@ -1227,7 +1227,7 @@ describe('base defense fire', () => {
       ships: [
         {
           id: 'enemy',
-          type: 'corvette',
+          type: 'corvette' as ShipType,
           owner: 1 as PlayerId,
           originalOwner: 1 as PlayerId,
           position: marsBase,
@@ -1309,7 +1309,7 @@ describe('base defense fire', () => {
       ships: [
         {
           id: 'enemy-east',
-          type: 'corvette',
+          type: 'corvette' as ShipType,
           owner: 1 as PlayerId,
           originalOwner: 1 as PlayerId,
           position: { q: eastBase.q, r: eastBase.r + 1 },

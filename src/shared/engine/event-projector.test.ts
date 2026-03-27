@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
+import type { FleetPurchase } from '../types';
 import type { EventEnvelope } from './engine-events';
 import { projectMatchSetupFromStream } from './event-projector';
 import { processFleetReady } from './fleet-building';
@@ -9,8 +10,11 @@ const map = buildSolarSystemMap();
 
 describe('projectMatchSetupFromStream', () => {
   it('rebuilds fleet-building setup from setup events', () => {
-    const purchases0 = [{ shipType: 'corvette' }, { shipType: 'corsair' }];
-    const purchases1 = [{ shipType: 'frigate' }];
+    const purchases0: FleetPurchase[] = [
+      { shipType: 'corvette' },
+      { shipType: 'corsair' },
+    ];
+    const purchases1: FleetPurchase[] = [{ shipType: 'frigate' }];
     const events: EventEnvelope[] = [
       {
         gameId: 'WAR01-m1',
