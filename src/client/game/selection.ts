@@ -1,11 +1,11 @@
 import { SHIP_STATS } from '../../shared/constants';
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import { count } from '../../shared/util';
 import type { GameOverStats, ShipFate } from './types';
 
 export const getSelectedShip = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   selectedId: string | null,
 ) => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
@@ -23,11 +23,11 @@ export const getSelectedShip = (
 
 export const getGameOverStats = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
 ): GameOverStats => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
   const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
-  const enemyId = 1 - playerId;
+  const enemyId: PlayerId = playerId === 0 ? 1 : 0;
 
   const myDestroyed = count(myShips, (s) => s.lifecycle === 'destroyed');
   const enemyDestroyed = count(enemyShips, (s) => s.lifecycle === 'destroyed');
@@ -98,7 +98,7 @@ export const getGameOverStats = (
 
 export const getScenarioBriefingLines = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
 ): string[] => {
   const player = state.players[playerId];
 

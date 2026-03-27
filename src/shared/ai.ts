@@ -36,6 +36,7 @@ import type {
   CombatAttack,
   GameState,
   OrdnanceLaunch,
+  PlayerId,
   Ship,
   SolarSystemMap,
 } from './types';
@@ -119,7 +120,7 @@ const pickNextCheckpoint = (
 // brings us closest to our goal.
 export const aiAstrogation = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
   rng: () => number = Math.random,
@@ -128,7 +129,7 @@ export const aiAstrogation = (
   const orders: AstrogationOrder[] = [];
   const { targetBody, escapeWins } = state.players[playerId];
   const player = state.players[playerId];
-  const opponentId = 1 - playerId;
+  const opponentId: PlayerId = playerId === 0 ? 1 : 0;
   const enemyEscaping = state.players[opponentId]?.escapeWins === true;
   // Default navigation target (non-checkpoint scenarios)
   const defaultTargetHex: {
@@ -440,7 +441,7 @@ export const aiAstrogation = (
 // Strategy: launch torpedoes at nearby enemy ships.
 export const aiOrdnance = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   _map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
   rng: () => number = Math.random,
@@ -581,7 +582,7 @@ export const aiOrdnance = (
 // Strategy: concentrate fire on the weakest enemy.
 export const aiCombat = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
 ): CombatAttack[] => {

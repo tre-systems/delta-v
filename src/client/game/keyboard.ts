@@ -1,3 +1,4 @@
+import type { OrdnanceType } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 
 const SHIP_SELECTION_STATES = new Set<ClientState>([
@@ -44,7 +45,7 @@ export type KeyboardAction =
   | {
       kind: 'launchOrdnance';
       preventDefault: false;
-      ordnanceType: 'mine' | 'torpedo' | 'nuke';
+      ordnanceType: OrdnanceType;
     }
   | { kind: 'setBurnDirection'; preventDefault: false; direction: number }
   | { kind: 'clearSelectedBurn'; preventDefault: false }

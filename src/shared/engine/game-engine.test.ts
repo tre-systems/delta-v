@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { must } from '../assert';
 import { resolveBaseDefense } from '../combat';
-import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
+import { ORDNANCE_MASS, SHIP_STATS, type ShipType } from '../constants';
 import { hexDistance, hexEqual, hexKey } from '../hex';
 import {
   buildSolarSystemMap,
@@ -15,6 +15,7 @@ import type {
   GameState,
   Ordnance,
   OrdnanceLaunch,
+  PlayerId,
   SolarSystemMap,
 } from '../types';
 import {
@@ -52,7 +53,7 @@ const expectMovement = (
 };
 const resolveAstrogationMovement = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   orders: AstrogationOrder[],
 ): MovementResult => {
   const result = processAstrogation(state, playerId, orders, map, Math.random);
@@ -1189,9 +1190,9 @@ describe('base defense fire', () => {
       ships: [
         {
           id: 'enemy',
-          type: 'corvette',
-          owner: 1,
-          originalOwner: 1,
+          type: 'corvette' as ShipType,
+          owner: 1 as PlayerId,
+          originalOwner: 1 as PlayerId,
           position: gravHex,
           velocity: { dq: 0, dr: 0 },
           fuel: 20,
@@ -1226,9 +1227,9 @@ describe('base defense fire', () => {
       ships: [
         {
           id: 'enemy',
-          type: 'corvette',
-          owner: 1,
-          originalOwner: 1,
+          type: 'corvette' as ShipType,
+          owner: 1 as PlayerId,
+          originalOwner: 1 as PlayerId,
           position: marsBase,
           velocity: { dq: 0, dr: 0 },
           fuel: 20,
@@ -1308,9 +1309,9 @@ describe('base defense fire', () => {
       ships: [
         {
           id: 'enemy-east',
-          type: 'corvette',
-          owner: 1,
-          originalOwner: 1,
+          type: 'corvette' as ShipType,
+          owner: 1 as PlayerId,
+          originalOwner: 1 as PlayerId,
           position: { q: eastBase.q, r: eastBase.r + 1 },
           velocity: { dq: 0, dr: 0 },
           fuel: 20,

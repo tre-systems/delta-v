@@ -7,6 +7,7 @@ import { buildMatchId, type ReplayTimeline } from '../../shared/replay';
 import {
   CURRENT_GAME_STATE_SCHEMA_VERSION,
   type GameState,
+  type PlayerId,
 } from '../../shared/types/domain';
 import { isValidPlayerToken, type RoomConfig } from '../protocol';
 import {
@@ -74,7 +75,7 @@ export const getEventStreamLength = async (
 export const appendEnvelopedEvents = async (
   storage: Storage,
   gameId: string,
-  actor: number | null,
+  actor: PlayerId | null,
   ...events: EngineEvent[]
 ): Promise<void> => {
   await migrateLegacyEventStreamIfNeeded(storage, gameId);

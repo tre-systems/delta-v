@@ -7,6 +7,7 @@ import {
   type GameState,
   type Ordnance,
   type Phase,
+  type PlayerId,
   type Ship,
   type SolarSystemMap,
 } from '../types';
@@ -16,7 +17,7 @@ import {
 // or null if validation passes.
 export const validatePhaseAction = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   requiredPhase: Phase,
 ): EngineError | null => {
   if (state.phase !== requiredPhase) {
@@ -46,7 +47,7 @@ export const engineFailure = (code: ErrorCode, message: string) => ({
 
 export const playerControlsBase = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   baseKey: string,
 ): boolean => state.players[playerId]?.bases.includes(baseKey) ?? false;
 
@@ -66,7 +67,7 @@ export { parseHexKey as parseBaseKey } from '../hex';
 
 export const getOwnedPlanetaryBases = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
 ): { key: string; coord: { q: number; r: number } }[] => {
   const bases = state.players[playerId]?.bases ?? [];
@@ -278,7 +279,7 @@ export const isOrderableShip = (ship: Ship): boolean =>
 
 export const getOrderableShipsForPlayer = (
   state: Pick<GameState, 'ships'>,
-  playerId: number,
+  playerId: PlayerId,
 ): Ship[] =>
   state.ships.filter(
     (ship) => ship.owner === playerId && isOrderableShip(ship),

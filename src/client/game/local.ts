@@ -18,6 +18,7 @@ import type {
   CombatResult,
   GameState,
   OrdnanceLaunch,
+  PlayerId,
   SolarSystemMap,
   TransferOrder,
 } from '../../shared/types/domain';
@@ -45,7 +46,13 @@ export const resolveAstrogationStep = (
   orders: AstrogationOrder[],
   map: SolarSystemMap,
 ): LocalResolution => {
-  const result = processAstrogation(state, playerId, orders, map, Math.random);
+  const result = processAstrogation(
+    state,
+    playerId as PlayerId,
+    orders,
+    map,
+    Math.random,
+  );
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -63,7 +70,13 @@ export const resolveOrdnanceStep = (
   launches: OrdnanceLaunch[],
   map: SolarSystemMap,
 ): LocalResolution => {
-  const result = processOrdnance(state, playerId, launches, map, Math.random);
+  const result = processOrdnance(
+    state,
+    playerId as PlayerId,
+    launches,
+    map,
+    Math.random,
+  );
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -76,7 +89,7 @@ export const resolveSkipOrdnanceStep = (
   playerId: number,
   map: SolarSystemMap,
 ): LocalResolution => {
-  const result = skipOrdnance(state, playerId, map, Math.random);
+  const result = skipOrdnance(state, playerId as PlayerId, map, Math.random);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -94,7 +107,12 @@ export const resolveBeginCombatStep = (
   map: SolarSystemMap,
 ): LocalResolution => {
   const previousState = structuredClone(state);
-  const result = beginCombatPhase(state, playerId, map, Math.random);
+  const result = beginCombatPhase(
+    state,
+    playerId as PlayerId,
+    map,
+    Math.random,
+  );
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -120,7 +138,13 @@ export const resolveCombatStep = (
   resetCombat = true,
 ): LocalResolution => {
   const previousState = structuredClone(state);
-  const result = processCombat(state, playerId, attacks, map, Math.random);
+  const result = processCombat(
+    state,
+    playerId as PlayerId,
+    attacks,
+    map,
+    Math.random,
+  );
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -140,7 +164,7 @@ export const resolveSkipCombatStep = (
   map: SolarSystemMap,
 ): LocalResolution => {
   const previousState = structuredClone(state);
-  const result = skipCombat(state, playerId, map, Math.random);
+  const result = skipCombat(state, playerId as PlayerId, map, Math.random);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -164,7 +188,7 @@ export const resolveLogisticsStep = (
   transfers: TransferOrder[],
   map: SolarSystemMap,
 ): LocalResolution => {
-  const result = processLogistics(state, playerId, transfers, map);
+  const result = processLogistics(state, playerId as PlayerId, transfers, map);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -181,7 +205,7 @@ export const resolveSkipLogisticsStep = (
   playerId: number,
   map: SolarSystemMap,
 ): LocalResolution => {
-  const result = skipLogistics(state, playerId, map);
+  const result = skipLogistics(state, playerId as PlayerId, map);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };

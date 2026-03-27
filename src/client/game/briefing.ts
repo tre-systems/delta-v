@@ -1,4 +1,4 @@
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import { getScenarioBriefingLines } from './helpers';
 
 export interface BriefingLogEntry {
@@ -27,7 +27,7 @@ const getBriefingCssClass = (line: string): string => {
 
 export const deriveScenarioBriefingEntries = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
 ): BriefingLogEntry[] => {
   return getScenarioBriefingLines(state, playerId).map((line) => ({
     text: line,

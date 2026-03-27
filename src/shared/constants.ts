@@ -1,5 +1,17 @@
 // Ship type definitions
 
+export type ShipType =
+  | 'transport'
+  | 'packet'
+  | 'tanker'
+  | 'liner'
+  | 'corvette'
+  | 'corsair'
+  | 'frigate'
+  | 'dreadnaught'
+  | 'torch'
+  | 'orbitalBase';
+
 export interface ShipStats {
   name: string;
   combat: number;
@@ -10,7 +22,7 @@ export interface ShipStats {
   canOverload: boolean;
 }
 
-export const SHIP_STATS: Record<string, ShipStats> = {
+export const SHIP_STATS: Record<ShipType, ShipStats> = {
   transport: {
     name: 'Transport',
     combat: 1,

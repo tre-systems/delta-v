@@ -1,3 +1,4 @@
+import type { ShipType } from '../constants';
 import type { HexCoord, HexVec } from '../hex';
 
 // --- Result type ---
@@ -5,6 +6,11 @@ import type { HexCoord, HexVec } from '../hex';
 export type Result<T, E = string> =
   | { ok: true; value: T }
   | { ok: false; error: E };
+
+// --- Primitive ID types ---
+
+export type PlayerId = 0 | 1;
+export type OrdnanceType = 'mine' | 'torpedo' | 'nuke';
 
 // --- Game state ---
 
@@ -47,7 +53,7 @@ export interface GameState {
   escapeMoralVictoryAchieved: boolean;
   turnNumber: number;
   phase: Phase;
-  activePlayer: number;
+  activePlayer: PlayerId;
   ships: Ship[];
   ordnance: Ordnance[];
   pendingAstrogationOrders: AstrogationOrder[] | null;
@@ -55,7 +61,7 @@ export interface GameState {
   destroyedAsteroids: string[];
   destroyedBases: string[];
   players: [PlayerState, PlayerState];
-  winner: number | null;
+  winner: PlayerId | null;
   winReason: string | null;
 }
 
@@ -69,9 +75,9 @@ export interface PositionedEntity {
 
 export interface Ship extends PositionedEntity {
   id: string;
-  type: string;
-  owner: number;
-  originalOwner: number;
+  type: ShipType;
+  owner: PlayerId;
+  originalOwner: PlayerId;
   lastMovementPath?: HexCoord[];
   fuel: number;
   cargoUsed: number;
@@ -99,8 +105,8 @@ export type OrdnanceLifecycle = 'active' | 'destroyed';
 
 export interface Ordnance extends PositionedEntity {
   id: string;
-  type: 'mine' | 'torpedo' | 'nuke';
-  owner: number;
+  type: OrdnanceType;
+  owner: PlayerId;
   sourceShipId?: string | null;
   turnsRemaining: number;
   lifecycle: OrdnanceLifecycle;
@@ -160,7 +166,7 @@ export interface AsteroidHazard {
 
 export interface OrdnanceLaunch {
   shipId: string;
-  ordnanceType: 'mine' | 'torpedo' | 'nuke';
+  ordnanceType: OrdnanceType;
   torpedoAccel?: number | null;
   torpedoAccelSteps?: 1 | 2 | null;
 }
@@ -278,7 +284,7 @@ export interface OrbitalBaseEmplacement {
 }
 
 export interface FleetPurchase {
-  shipType: string;
+  shipType: ShipType;
 }
 
 export interface TransferOrder {
@@ -292,19 +298,19 @@ export interface TransferOrder {
 
 export interface Reinforcement {
   turn: number;
-  playerId: number;
+  playerId: PlayerId;
   ships: ScenarioShip[];
 }
 
 export interface FleetConversion {
   turn: number;
-  fromPlayer: number;
-  toPlayer: number;
-  shipTypes?: string[];
+  fromPlayer: PlayerId;
+  toPlayer: PlayerId;
+  shipTypes?: ShipType[];
 }
 
 export interface ScenarioRules {
-  allowedOrdnanceTypes?: Array<Ordnance['type']>;
+  allowedOrdnanceTypes?: OrdnanceType[];
   planetaryDefenseEnabled?: boolean;
   hiddenIdentityInspection?: boolean;
   escapeEdge?: 'any' | 'north';
@@ -324,7 +330,7 @@ export interface ScenarioRules {
 // references it. The full scenario config types
 // (ScenarioDefinition, ScenarioPlayer) live in scenario.ts.
 export interface ScenarioShip {
-  type: string;
+  type: ShipType;
   position: HexCoord;
   velocity: HexVec;
   startLanded?: boolean;

@@ -4,6 +4,7 @@ import type {
   GameState,
   MovementEvent,
   OrdnanceMovement,
+  PlayerId,
   ShipMovement,
   SolarSystemMap,
 } from '../types';
@@ -64,7 +65,7 @@ export const filterStateForPlayer = (
 // (resupply, ramming, ordnance, detection, victory).
 export const resolveMovementPhase = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
   rng: () => number,
 ): MovementResult => {

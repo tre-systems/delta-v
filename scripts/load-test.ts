@@ -6,12 +6,13 @@ import {
   aiCombat,
   aiOrdnance,
 } from '../src/shared/ai';
-import { SHIP_STATS } from '../src/shared/constants';
+import { SHIP_STATS, type ShipType } from '../src/shared/constants';
 import { buildSolarSystemMap, SCENARIOS } from '../src/shared/map-data';
 import type {
   AstrogationOrder,
   FleetPurchase,
   GameState,
+  PlayerId,
 } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
 import { parseArgs } from './load/config';
@@ -34,7 +35,7 @@ const delay = (ms: number): Promise<void> =>
 
 const buildFleetPurchases = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   difficulty: AIDifficulty,
 ): FleetPurchase[] => {
   const credits = state.players[playerId].credits ?? 0;
@@ -42,10 +43,12 @@ const buildFleetPurchases = (
     Object.values(SCENARIOS).find(
       (scenario) => scenario.name === state.scenario,
     ) ?? null;
-  const available =
+  const available: ShipType[] =
     scenarioDef?.availableShipTypes ??
-    Object.keys(SHIP_STATS).filter((type) => type !== 'orbitalBase');
-  const priorities =
+    (Object.keys(SHIP_STATS) as ShipType[]).filter(
+      (type) => type !== 'orbitalBase',
+    );
+  const priorities: ShipType[] =
     difficulty === 'hard'
       ? ['dreadnaught', 'frigate', 'torch', 'corsair', 'corvette']
       : difficulty === 'easy'
@@ -56,7 +59,7 @@ const buildFleetPurchases = (
 
   for (const shipType of priorities) {
     if (!available.includes(shipType)) continue;
-    const cost = SHIP_STATS[shipType]?.cost ?? Number.POSITIVE_INFINITY;
+    const cost = SHIP_STATS[shipType].cost;
 
     while (remaining >= cost) {
       purchases.push({ shipType });
@@ -69,7 +72,7 @@ const buildFleetPurchases = (
 
 const buildIdleAstrogationOrders = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
 ): AstrogationOrder[] =>
   state.ships
     .filter((ship) => ship.owner === playerId && ship.lifecycle !== 'destroyed')
@@ -81,7 +84,7 @@ const buildIdleAstrogationOrders = (
 
 const hasOwnedPendingAsteroidHazards = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
 ): boolean =>
   state.pendingAsteroidHazards.some((hazard) => {
     const ship = state.ships.find(
@@ -100,7 +103,7 @@ const createBotClient = (
   onGameOver: (state: GameState) => void,
 ) => {
   let ws: WebSocket | null = null;
-  let playerId = -1;
+  let playerId: PlayerId | -1 = -1;
   let playerToken = initialPlayerToken;
   const solarMap = map;
   const shouldInjectChaos = Math.random() < config.disconnectRate;
@@ -143,13 +146,17 @@ const createBotClient = (
       case 'fleetBuilding':
         send({
           type: 'fleetReady',
-          purchases: buildFleetPurchases(state, playerId, config.difficulty),
+          purchases: buildFleetPurchases(
+            state,
+            playerId as PlayerId,
+            config.difficulty,
+          ),
         });
         return;
       case 'astrogation': {
         const orders = aiAstrogation(
           state,
-          playerId,
+          playerId as PlayerId,
           solarMap,
           config.difficulty,
         );
@@ -159,14 +166,14 @@ const createBotClient = (
           orders:
             orders.length > 0
               ? orders
-              : buildIdleAstrogationOrders(state, playerId),
+              : buildIdleAstrogationOrders(state, playerId as PlayerId),
         });
         return;
       }
       case 'ordnance': {
         const launches = aiOrdnance(
           state,
-          playerId,
+          playerId as PlayerId,
           solarMap,
           config.difficulty,
         );
@@ -179,12 +186,17 @@ const createBotClient = (
         return;
       }
       case 'combat': {
-        if (hasOwnedPendingAsteroidHazards(state, playerId)) {
+        if (hasOwnedPendingAsteroidHazards(state, playerId as PlayerId)) {
           send({ type: 'beginCombat' });
           return;
         }
 
-        const attacks = aiCombat(state, playerId, solarMap, config.difficulty);
+        const attacks = aiCombat(
+          state,
+          playerId as PlayerId,
+          solarMap,
+          config.difficulty,
+        );
 
         if (attacks.length > 0) {
           send({ type: 'combat', attacks });

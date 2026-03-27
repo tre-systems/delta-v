@@ -1,4 +1,4 @@
-import type { FleetPurchase } from '../../shared/types/domain';
+import type { FleetPurchase, OrdnanceType } from '../../shared/types/domain';
 
 export type AIDifficulty = 'easy' | 'normal' | 'hard';
 
@@ -11,7 +11,7 @@ export type UIEvent =
   | { type: 'undo' }
   | { type: 'confirm' }
   | { type: 'matchVelocity' }
-  | { type: 'launchOrdnance'; ordType: 'mine' | 'torpedo' | 'nuke' }
+  | { type: 'launchOrdnance'; ordType: OrdnanceType }
   | { type: 'emplaceBase' }
   | { type: 'skipOrdnance' }
   | { type: 'attack' }

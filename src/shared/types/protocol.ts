@@ -9,6 +9,7 @@ import type {
   OrbitalBaseEmplacement,
   OrdnanceLaunch,
   OrdnanceMovement,
+  PlayerId,
   ShipMovement,
   TransferOrder,
 } from './domain';
@@ -49,7 +50,7 @@ export type C2S =
 export type S2C =
   | {
       type: 'welcome';
-      playerId: number;
+      playerId: PlayerId;
       code: string;
       playerToken: string;
     }
@@ -80,11 +81,11 @@ export type S2C =
       state: GameState;
       transferEvents?: LogisticsTransferLogEvent[];
     }
-  | { type: 'gameOver'; winner: number; reason: string }
+  | { type: 'gameOver'; winner: PlayerId; reason: string }
   | { type: 'rematchPending' }
   | {
       type: 'chat';
-      playerId: number;
+      playerId: PlayerId;
       text: string;
     }
   | { type: 'error'; message: string; code?: ErrorCode }

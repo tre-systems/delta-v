@@ -1,5 +1,9 @@
 import type { EngineEvent } from '../../shared/engine/engine-events';
-import type { GameState, SolarSystemMap } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import { archiveCompletedMatch } from './match-archive';
 import type { StatefulServerMessage } from './messages';
 import { normalizeDisconnectedPlayer, resolveAlarmAction } from './session';
@@ -26,7 +30,7 @@ export type GameDoAlarmDeps = {
     state: GameState,
     primaryMessage?: StatefulServerMessage,
     options?: {
-      actor?: number | null;
+      actor?: PlayerId | null;
       restartTurnTimer?: boolean;
       events?: EngineEvent[];
     },
@@ -61,7 +65,7 @@ export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
         return;
       }
       gameState.phase = 'gameOver';
-      gameState.winner = 1 - action.playerId;
+      gameState.winner = (action.playerId === 0 ? 1 : 0) as PlayerId;
       gameState.winReason = 'Opponent disconnected';
       await deps.publishStateChange(gameState, undefined, {
         actor: null,

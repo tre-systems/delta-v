@@ -1,9 +1,13 @@
-import { SHIP_STATS } from '../../shared/constants';
+import { SHIP_STATS, type ShipType } from '../../shared/constants';
 import {
   getTransferEligiblePairs,
   type TransferPair,
 } from '../../shared/engine/logistics';
-import type { GameState, TransferOrder } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  TransferOrder,
+} from '../../shared/types/domain';
 import { clearHTML, el, listen, text } from '../dom';
 import {
   computed,
@@ -34,7 +38,7 @@ export const createLogisticsUIState = (
   state: GameState,
   playerId: number,
 ): LogisticsUIState => {
-  const pairs = getTransferEligiblePairs(state, playerId);
+  const pairs = getTransferEligiblePairs(state, playerId as PlayerId);
   return {
     pairs,
     fuelAmounts: new Map(),
@@ -100,7 +104,7 @@ export const hasQueuedTransfers = (uiState: LogisticsUIState): boolean => {
   return false;
 };
 
-const shipName = (type: string): string => SHIP_STATS[type]?.name ?? type;
+const shipName = (type: ShipType): string => SHIP_STATS[type].name;
 
 export const renderTransferPanel = (
   container: HTMLElement,
