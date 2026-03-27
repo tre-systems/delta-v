@@ -140,7 +140,7 @@ describe('game-client-ordnance', () => {
     expect(
       resolveOrdnanceLaunchPlan(
         createState([createShip({ type: 'frigate' })], {}, [
-          { shipId: 'ship-1', burn: null },
+          { shipId: 'ship-1', burn: null, overload: null },
         ]),
         createPlanning(),
         'mine',

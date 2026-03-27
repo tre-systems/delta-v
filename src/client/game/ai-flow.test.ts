@@ -96,7 +96,9 @@ describe('game-client-ai-flow', () => {
 
   it('derives astrogation actions from the injected generator', () => {
     const map = buildSolarSystemMap();
-    const orders: AstrogationOrder[] = [{ shipId: 'ai-ship', burn: 2 }];
+    const orders: AstrogationOrder[] = [
+      { shipId: 'ai-ship', burn: 2, overload: null },
+    ];
     const astrogation = vi.fn(() => orders);
 
     expect(
@@ -122,7 +124,12 @@ describe('game-client-ai-flow', () => {
   it('derives ordnance actions, skip behavior, and log entries', () => {
     const map = buildSolarSystemMap();
     const launches: OrdnanceLaunch[] = [
-      { shipId: 'ai-ship', ordnanceType: 'mine' },
+      {
+        shipId: 'ai-ship',
+        ordnanceType: 'mine',
+        torpedoAccel: null,
+        torpedoAccelSteps: null,
+      },
     ];
 
     expect(
@@ -159,7 +166,12 @@ describe('game-client-ai-flow', () => {
   it('derives combat actions, including pending-hazard start and skip paths', () => {
     const map = buildSolarSystemMap();
     const attacks: CombatAttack[] = [
-      { attackerIds: ['ai-ship'], targetId: 'player-ship' },
+      {
+        attackerIds: ['ai-ship'],
+        targetId: 'player-ship',
+        targetType: 'ship',
+        attackStrength: null,
+      },
     ];
 
     expect(

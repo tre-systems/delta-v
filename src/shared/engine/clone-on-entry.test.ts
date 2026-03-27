@@ -35,7 +35,7 @@ describe('clone-on-entry: engine entry points do not mutate input state', () => 
       processAstrogation(
         state,
         0,
-        [{ shipId: ship.id, burn: null }],
+        [{ shipId: ship.id, burn: null, overload: null }],
         map,
         fixedRng,
       );
