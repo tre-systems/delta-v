@@ -1,4 +1,4 @@
-import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
+import { isWarshipType, ORDNANCE_MASS, SHIP_STATS } from '../constants';
 import { type HexKey, parseHexKey } from '../hex';
 import { bodyHasGravity } from '../map-data';
 import {
@@ -162,9 +162,12 @@ export const validateShipOrdnanceLaunch = (
       'Captured ships cannot launch ordnance',
     );
 
-  // Orbital bases may launch at D1 damage (rulebook p.6)
+  // Orbital bases may launch at D1 damage; dreadnaughts operate at any damage (rulebook p.6)
   if (ship.damage.disabledTurns > 0) {
-    if (ship.type !== 'orbitalBase' || ship.damage.disabledTurns > 1) {
+    if (
+      !stats.operatesWhileDisabled &&
+      !(stats.operatesAtD1 && ship.damage.disabledTurns <= 1)
+    ) {
       return engineError(ErrorCode.STATE_CONFLICT, 'Ship is disabled');
     }
   }
@@ -176,11 +179,7 @@ export const validateShipOrdnanceLaunch = (
     );
   }
 
-  if (
-    ordnanceType === 'torpedo' &&
-    !stats.canOverload &&
-    ship.type !== 'orbitalBase'
-  ) {
+  if (ordnanceType === 'torpedo' && !stats.canLaunchTorpedoes) {
     return engineError(
       ErrorCode.NOT_ALLOWED,
       'Only warships and orbital bases can launch torpedoes',
@@ -189,7 +188,7 @@ export const validateShipOrdnanceLaunch = (
 
   if (
     ordnanceType === 'nuke' &&
-    !stats.canOverload &&
+    !isWarshipType(ship.type) &&
     ship.nukesLaunchedSinceResupply >= 1
   ) {
     return engineError(
@@ -266,7 +265,8 @@ export const canLaunchOrdnance = (ship: Ship): boolean => {
 
   // Orbital bases may launch at D1 damage (rulebook p.6)
   if (ship.damage.disabledTurns > 0) {
-    if (ship.type !== 'orbitalBase' || ship.damage.disabledTurns > 1) {
+    const stats = SHIP_STATS[ship.type];
+    if (!stats.operatesAtD1 || ship.damage.disabledTurns > 1) {
       return false;
     }
   }

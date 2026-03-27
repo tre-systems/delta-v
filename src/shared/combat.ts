@@ -177,11 +177,18 @@ export const canCounterattack = (ship: Ship): boolean => {
   return true;
 };
 
-// Dreadnaughts operate at any damage level.
-// Orbital bases operate at D1 only.
-const canOperateWhileDisabled = (ship: Ship): boolean =>
-  ship.type === 'dreadnaught' ||
-  (ship.type === 'orbitalBase' && ship.damage.disabledTurns <= 1);
+/**
+ * Whether a disabled ship can still operate (fire guns, counterattack).
+ * Dreadnaughts: can fire at any damage level (operatesWhileDisabled, rulebook p.6).
+ * Orbital bases: can fire/launch at D1 only (operatesAtD1, rulebook p.6).
+ */
+const canOperateWhileDisabled = (ship: Ship): boolean => {
+  const stats = SHIP_STATS[ship.type];
+  return (
+    stats.operatesWhileDisabled ||
+    (stats.operatesAtD1 && ship.damage.disabledTurns <= 1)
+  );
+};
 
 const getTrackedPath = (ship: Ship) =>
   ship.lastMovementPath && ship.lastMovementPath.length > 0

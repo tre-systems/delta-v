@@ -223,7 +223,12 @@ describe('game-client-ai-flow', () => {
     const map = buildSolarSystemMap();
 
     expect(
-      deriveAIActionPlan(createState({ phase: 'resupply' }), 0, map, 'normal'),
+      deriveAIActionPlan(
+        createState({ phase: 'fleetBuilding' }),
+        0,
+        map,
+        'normal',
+      ),
     ).toEqual({
       kind: 'transition',
       aiPlayer: 1,
