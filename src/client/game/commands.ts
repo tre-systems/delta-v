@@ -1,5 +1,5 @@
 import type { HexCoord } from '../../shared/hex';
-import type { FleetPurchase } from '../../shared/types/domain';
+import type { FleetPurchase, OrdnanceType } from '../../shared/types/domain';
 import type { CombatTargetPlan } from '../game/combat';
 import type { KeyboardAction } from './keyboard';
 
@@ -29,7 +29,7 @@ export type GameCommand =
   | { type: 'skipLogistics' }
   | { type: 'confirmTransfers' }
   // Ordnance
-  | { type: 'launchOrdnance'; ordType: 'mine' | 'torpedo' | 'nuke' }
+  | { type: 'launchOrdnance'; ordType: OrdnanceType }
   | { type: 'emplaceBase' }
   | { type: 'skipOrdnance' }
   // Fleet building

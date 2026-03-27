@@ -20,6 +20,7 @@ import {
   ErrorCode,
   type GameState,
   type Ordnance,
+  type PlayerId,
   type Ship,
   type SolarSystemMap,
 } from '../types';
@@ -242,7 +243,7 @@ const combatResultToEvents = (r: CombatResult): EngineEvent[] => {
 // before attack declarations.
 export const beginCombatPhase = (
   inputState: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
   rng: () => number,
 ):
@@ -290,7 +291,7 @@ export const beginCombatPhase = (
 // Process combat attacks for the active player.
 export const processCombat = (
   inputState: GameState,
-  playerId: number,
+  playerId: PlayerId,
   attacks: CombatAttack[],
   map: SolarSystemMap,
   rng: () => number,
@@ -583,7 +584,7 @@ export const processCombat = (
 // Skip combat phase (player has no attacks to make).
 export const skipCombat = (
   inputState: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
   rng: () => number,
 ):
