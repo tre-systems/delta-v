@@ -249,12 +249,12 @@ export const aiAstrogation = (
       };
       const course = computeCourse(ship, opt.burn, map, courseOpts);
       // Skip crashed courses entirely
-      if (course.crashed) continue;
+      if (course.outcome === 'crash') continue;
       // Look ahead: skip courses that will inevitably
       // crash.
       let gravityRiskPenalty = 0;
 
-      if (!course.landedAt) {
+      if (course.outcome !== 'landing') {
         const simShip = {
           ...ship,
           position: course.destination,
@@ -266,7 +266,7 @@ export const aiAstrogation = (
           destroyedBases: state.destroyedBases,
         });
 
-        if (driftCourse.crashed) {
+        if (driftCourse.outcome === 'crash') {
           if (!checkpoints) {
             // Combat scenarios: simple hard reject
             // if drifting crashes
@@ -281,10 +281,10 @@ export const aiAstrogation = (
               destroyedBases: state.destroyedBases,
             });
 
-            if (escapeResult.crashed) continue;
+            if (escapeResult.outcome === 'crash') continue;
             // Also check the turn after the escape
             // burn
-            if (!escapeResult.landedAt && fuelAfter > 1) {
+            if (escapeResult.outcome !== 'landing' && fuelAfter > 1) {
               const sim2 = {
                 ...simShip,
                 position: escapeResult.destination,
@@ -295,14 +295,14 @@ export const aiAstrogation = (
                 destroyedBases: state.destroyedBases,
               });
 
-              if (drift2.crashed) {
+              if (drift2.outcome === 'crash') {
                 let canSurvive2 = false;
                 for (let d3 = 0; d3 < 6; d3++) {
                   const esc2 = computeCourse(sim2, d3, map, {
                     destroyedBases: state.destroyedBases,
                   });
 
-                  if (!esc2.crashed) {
+                  if (esc2.outcome !== 'crash') {
                     canSurvive2 = true;
                     break;
                   }
@@ -339,7 +339,7 @@ export const aiAstrogation = (
         }) + gravityRiskPenalty;
       // Fuel-seeking: big bonus for landing at any
       // body (base refuel)
-      if (seekingFuel && course.landedAt) {
+      if (seekingFuel && course.outcome === 'landing') {
         score += cfg.fuelSeekLandingBonus;
       }
       // Fuel efficiency: slight preference for
@@ -371,9 +371,9 @@ export const aiAstrogation = (
             weakGravityChoices: wgChoices,
           });
 
-          if (altCourse.crashed) continue;
+          if (altCourse.outcome === 'crash') continue;
 
-          if (!altCourse.landedAt) {
+          if (altCourse.outcome !== 'landing') {
             const simShip2 = {
               ...ship,
               position: altCourse.destination,
@@ -384,7 +384,7 @@ export const aiAstrogation = (
               destroyedBases: state.destroyedBases,
             });
 
-            if (nextAlt.crashed) continue;
+            if (nextAlt.outcome === 'crash') continue;
           }
           const altScore = scoreCourse({
             ship,
@@ -424,7 +424,7 @@ export const aiAstrogation = (
         destroyedBases: state.destroyedBases,
       });
 
-      if (!course.crashed) {
+      if (course.outcome !== 'crash') {
         bestBurn = randomDir;
         bestOverload = null;
       }

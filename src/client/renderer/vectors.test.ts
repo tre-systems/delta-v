@@ -238,8 +238,7 @@ describe('renderer vector helpers', () => {
       newVelocity: { dq: 1, dr: 0 },
       fuelSpent: 1,
       gravityEffects: [],
-      crashed: false,
-      landedAt: null,
+      outcome: 'normal',
     };
 
     const views = buildMovementPathViews(

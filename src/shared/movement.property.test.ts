@@ -255,7 +255,10 @@ describe('velocity and burn relationship', () => {
           });
           const course = computeCourse(ship, dir, map);
 
-          if (course.gravityEffects.length === 0 && !course.crashed) {
+          if (
+            course.gravityEffects.length === 0 &&
+            course.outcome !== 'crash'
+          ) {
             const expected: HexVec = {
               dq: vel.dq + HEX_DIRECTIONS[dir].dq,
               dr: vel.dr + HEX_DIRECTIONS[dir].dr,

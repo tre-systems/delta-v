@@ -212,8 +212,7 @@ describe('S2C state-bearing payload fixtures', () => {
           newVelocity: { dq: 2, dr: -1 },
           fuelSpent: 1,
           gravityEffects: [],
-          crashed: false,
-          landedAt: null,
+          outcome: 'normal',
         },
       ],
       ordnanceMovements: [
