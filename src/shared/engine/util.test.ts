@@ -307,7 +307,9 @@ describe('validateOrdnanceLaunch', () => {
     const ship = makeShip({ id: 's1', type: 'frigate' });
     expect(
       validateOrdnanceLaunch(
-        makeScenarioRulesState({}, [{ shipId: 's1', burn: null }]),
+        makeScenarioRulesState({}, [
+          { shipId: 's1', burn: null, overload: null },
+        ]),
         ship,
         'mine',
       ),
@@ -319,7 +321,7 @@ describe('validateOrdnanceLaunch', () => {
   it('allows mine launch when pending astrogation includes a burn', () => {
     expect(
       validateOrdnanceLaunch(
-        makeScenarioRulesState({}, [{ shipId: 's1', burn: 2 }]),
+        makeScenarioRulesState({}, [{ shipId: 's1', burn: 2, overload: null }]),
         makeShip({ id: 's1', type: 'frigate' }),
         'mine',
       ),

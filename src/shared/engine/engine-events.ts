@@ -2,6 +2,7 @@ import type { HexCoord, HexVec } from '../hex';
 import type { Phase } from '../types';
 import type {
   AstrogationOrder,
+  AttackType,
   DamageType,
   FleetPurchase,
   GravityEffect,
@@ -163,7 +164,7 @@ export type EngineEvent =
       attackerIds: string[];
       targetId: string;
       targetType: 'ship' | 'ordnance';
-      attackType: string;
+      attackType: AttackType;
       roll: number;
       modifiedRoll: number;
       damageType: DamageType;

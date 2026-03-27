@@ -143,7 +143,7 @@ export interface Ordnance extends PositionedEntity {
   id: string;
   type: OrdnanceType;
   owner: PlayerId;
-  sourceShipId?: string | null;
+  sourceShipId: string | null;
   turnsRemaining: number;
   lifecycle: OrdnanceLifecycle;
   pendingGravityEffects?: GravityEffect[];
@@ -166,7 +166,7 @@ export interface PlayerState {
 export interface AstrogationOrder {
   shipId: string;
   burn: number | null;
-  overload?: number | null;
+  overload: number | null;
   weakGravityChoices?: Record<HexKey, boolean>;
 }
 
@@ -203,8 +203,8 @@ export interface AsteroidHazard {
 export interface OrdnanceLaunch {
   shipId: string;
   ordnanceType: OrdnanceType;
-  torpedoAccel?: number | null;
-  torpedoAccelSteps?: 1 | 2 | null;
+  torpedoAccel: number | null;
+  torpedoAccelSteps: 1 | 2 | null;
 }
 
 export interface PathSegment {
@@ -270,17 +270,18 @@ export interface SolarSystemMap {
 export interface CombatAttack {
   attackerIds: string[];
   targetId: string;
-  targetType?: 'ship' | 'ordnance';
-  attackStrength?: number | null;
+  targetType: 'ship' | 'ordnance';
+  attackStrength: number | null;
 }
 
 export type DamageType = 'none' | 'disabled' | 'eliminated';
+export type AttackType = 'gun' | 'baseDefense' | 'asteroidHazard' | 'antiNuke';
 
 export interface CombatResult {
   attackerIds: string[];
   targetId: string;
   targetType: 'ship' | 'ordnance';
-  attackType: 'gun' | 'baseDefense' | 'asteroidHazard' | 'antiNuke';
+  attackType: AttackType;
   odds: string;
   attackStrength: number;
   defendStrength: number;

@@ -464,7 +464,11 @@ describe('projection parity: replay timeline vs live state', () => {
     // Run player 0 through astrogation with drift orders
     const orders = state.ships
       .filter((s) => s.owner === state.activePlayer)
-      .map((s) => ({ shipId: s.id, burn: null }));
+      .map((s) => ({
+        shipId: s.id,
+        burn: null,
+        overload: null as number | null,
+      }));
 
     const result = processAstrogation(
       state,
@@ -498,7 +502,11 @@ describe('projection parity: replay timeline vs live state', () => {
     // Simulate a game: astrogation → ordnance skip
     const orders = state.ships
       .filter((s) => s.owner === 0)
-      .map((s) => ({ shipId: s.id, burn: null }));
+      .map((s) => ({
+        shipId: s.id,
+        burn: null,
+        overload: null as number | null,
+      }));
 
     const astro = processAstrogation(state, 0, orders, map, Math.random);
     if ('error' in astro) return;

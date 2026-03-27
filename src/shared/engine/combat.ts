@@ -394,7 +394,7 @@ export const processCombat = (
       );
     }
 
-    const targetType = attack.targetType ?? 'ship';
+    const { targetType } = attack;
     const targetKey = `${targetType}:${attack.targetId}`;
 
     const maxAttackStrength = sumBy(

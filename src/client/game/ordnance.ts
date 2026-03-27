@@ -122,13 +122,11 @@ export const resolveOrdnanceLaunchPlan = (
       shipId: ship.id,
       ordnanceType,
       torpedoAccel:
-        ordnanceType === 'torpedo'
-          ? (planning.torpedoAccel ?? null)
-          : undefined,
+        ordnanceType === 'torpedo' ? (planning.torpedoAccel ?? null) : null,
       torpedoAccelSteps:
         ordnanceType === 'torpedo'
           ? (planning.torpedoAccelSteps ?? null)
-          : undefined,
+          : null,
     },
   };
 };

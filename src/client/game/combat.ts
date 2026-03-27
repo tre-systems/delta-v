@@ -55,9 +55,7 @@ const getCommittedAttackers = (queuedAttacks: CombatAttack[]): Set<string> => {
 
 const getTargetedKeys = (queuedAttacks: CombatAttack[]): Set<string> => {
   return new Set(
-    queuedAttacks.map(
-      (attack) => `${attack.targetType ?? 'ship'}:${attack.targetId}`,
-    ),
+    queuedAttacks.map((attack) => `${attack.targetType}:${attack.targetId}`),
   );
 };
 
@@ -79,7 +77,7 @@ export const getReusableCombatGroup = (
   for (let index = queuedAttacks.length - 1; index >= 0; index--) {
     const queued = queuedAttacks[index];
 
-    if ((queued.targetType ?? 'ship') !== 'ship') continue;
+    if (queued.targetType !== 'ship') continue;
 
     const queuedTarget = state.ships.find(
       (ship) => ship.id === queued.targetId && ship.lifecycle !== 'destroyed',
@@ -99,7 +97,7 @@ export const getReusableCombatGroup = (
     let allocatedStrength = 0;
 
     for (const attack of queuedAttacks) {
-      if ((attack.targetType ?? 'ship') !== 'ship') {
+      if (attack.targetType !== 'ship') {
         continue;
       }
 
@@ -139,7 +137,7 @@ export const hasSplitFireOptions = (
   const queuedTargets = getTargetedKeys(queuedAttacks);
 
   for (const attack of queuedAttacks) {
-    if ((attack.targetType ?? 'ship') !== 'ship') continue;
+    if (attack.targetType !== 'ship') continue;
 
     const target = state.ships.find(
       (ship) => ship.id === attack.targetId && ship.lifecycle !== 'destroyed',

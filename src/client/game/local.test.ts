@@ -29,7 +29,7 @@ describe('game-client-local', () => {
     const resolution = resolveAstrogationStep(
       state,
       0,
-      [{ shipId: ship.id, burn: 0 }],
+      [{ shipId: ship.id, burn: 0, overload: null }],
       map,
     );
 
@@ -48,7 +48,7 @@ describe('game-client-local', () => {
     const resolution = resolveAstrogationStep(
       state,
       0,
-      [{ shipId: ship.id, burn: null }],
+      [{ shipId: ship.id, burn: null, overload: null }],
       map,
     );
 
@@ -114,6 +114,7 @@ describe('game-client-local', () => {
           attackerIds: [state.ships[0].id],
           targetId: state.ships[1].id,
           targetType: 'ship',
+          attackStrength: null,
         },
       ],
       map,
