@@ -1,14 +1,15 @@
 import type { AIDifficulty } from '../../shared/ai';
-import { SHIP_STATS } from '../../shared/constants';
+import { SHIP_STATS, type ShipType } from '../../shared/constants';
 import { processFleetReady } from '../../shared/engine/game-engine';
 import type {
   FleetPurchase,
   GameState,
+  PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
 import type { ScenarioDefinition } from '../../shared/types/scenario';
 
-const AI_FLEET_PRIORITIES: Record<AIDifficulty, string[]> = {
+const AI_FLEET_PRIORITIES: Record<AIDifficulty, ShipType[]> = {
   easy: ['corvette', 'corsair', 'packet'],
   normal: ['corsair', 'frigate', 'corvette'],
   hard: ['frigate', 'corsair', 'corvette'],
@@ -25,7 +26,7 @@ export interface FleetReadyDeps {
 
 export const buildAIFleetPurchases = (
   credits: number,
-  availableShipTypes: string[] | undefined,
+  availableShipTypes: ShipType[] | undefined,
   difficulty: AIDifficulty,
 ): FleetPurchase[] => {
   const available =
@@ -51,7 +52,7 @@ export const buildAIFleetPurchases = (
 
 export const resolveLocalFleetReady = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   purchases: FleetPurchase[],
   map: SolarSystemMap,
   scenario: ScenarioDefinition,
@@ -74,15 +75,16 @@ export const resolveLocalFleetReady = (
 
   const buildAIPurchases = deps.buildAIPurchases ?? buildAIFleetPurchases;
 
+  const aiPlayerId: PlayerId = playerId === 0 ? 1 : 0;
   const aiPurchases = buildAIPurchases(
-    playerResult.state.players[1 - playerId].credits ?? 0,
+    playerResult.state.players[aiPlayerId].credits ?? 0,
     scenario.availableShipTypes,
     difficulty,
   );
 
   const aiResult = processReady(
     playerResult.state,
-    1 - playerId,
+    aiPlayerId,
     aiPurchases,
     map,
     scenario.availableShipTypes,

@@ -1,6 +1,10 @@
 import { hexKey, pixelToHex } from '../../shared/hex';
 import { computeCourse } from '../../shared/movement';
-import type { GameState, SolarSystemMap } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import { isMuted } from '../audio';
 import { hide, setTrustedHTML, show } from '../dom';
 import type { Renderer } from '../renderer/renderer';
@@ -80,7 +84,7 @@ export const createHudController = (deps: HudControllerDeps) => {
     const planning = deps.getPlanningState();
     const ship = getSelectedShip(
       state,
-      deps.getPlayerId(),
+      deps.getPlayerId() as PlayerId,
       planning.selectedShipId,
     );
 
@@ -100,7 +104,11 @@ export const createHudController = (deps: HudControllerDeps) => {
 
       if (!state) return;
       const planning = deps.getPlanningState();
-      const hud = deriveHudViewModel(state, deps.getPlayerId(), planning);
+      const hud = deriveHudViewModel(
+        state,
+        deps.getPlayerId() as PlayerId,
+        planning,
+      );
 
       if (
         hud.selectedId !== null &&
@@ -165,7 +173,7 @@ export const createHudController = (deps: HudControllerDeps) => {
       if (!state) return;
       for (const entry of deriveScenarioBriefingEntries(
         state,
-        deps.getPlayerId(),
+        deps.getPlayerId() as PlayerId,
       )) {
         deps.ui.log.logText(entry.text, entry.cssClass);
       }

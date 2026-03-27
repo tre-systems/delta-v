@@ -13,7 +13,11 @@ import {
   skipLogistics,
   skipOrdnance,
 } from '../../shared/engine/game-engine';
-import type { EngineError, GameState } from '../../shared/types/domain';
+import type {
+  EngineError,
+  GameState,
+  PlayerId,
+} from '../../shared/types/domain';
 import type { C2S } from '../../shared/types/protocol';
 import type { ScenarioDefinition } from '../../shared/types/scenario';
 import {
@@ -42,10 +46,10 @@ export type GameStateActionHandler<
 > = {
   run: (
     gameState: GameState,
-    playerId: number,
+    playerId: PlayerId,
     message: GameStateActionMessageOf<T>,
   ) => Success | EngineFailure | Promise<Success | EngineFailure>;
-  publish: (playerId: number, result: Success) => Promise<void>;
+  publish: (playerId: PlayerId, result: Success) => Promise<void>;
 };
 
 interface ActionDeps {
@@ -56,7 +60,7 @@ interface ActionDeps {
     state: GameState,
     primaryMessage?: import('./messages').StatefulServerMessage,
     options?: {
-      actor?: number | null;
+      actor?: PlayerId | null;
       restartTurnTimer?: boolean;
       events?: EngineEvent[];
     },
@@ -332,7 +336,7 @@ export const runGameStateAction = async <
 };
 
 export const dispatchGameStateAction = async (
-  playerId: number,
+  playerId: PlayerId,
   ws: WebSocket,
   message: GameStateActionMessage,
   handlers: ReturnType<typeof createGameStateActionHandlers>,
@@ -455,7 +459,7 @@ const dispatchGameStateActionOfType = async <
   T extends GameStateActionType,
   Success extends StatefulActionSuccess,
 >(
-  playerId: number,
+  playerId: PlayerId,
   ws: WebSocket,
   message: GameStateActionMessageOf<T>,
   handler: GameStateActionHandler<T, Success>,

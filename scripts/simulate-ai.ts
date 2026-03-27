@@ -4,7 +4,7 @@ import {
   aiCombat,
   aiOrdnance,
 } from '../src/shared/ai';
-import { SHIP_STATS } from '../src/shared/constants';
+import { SHIP_STATS, type ShipType } from '../src/shared/constants';
 import {
   beginCombatPhase,
   createGame,
@@ -21,7 +21,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../src/shared/map-data';
-import type { FleetPurchase, GameState } from '../src/shared/types';
+import type { FleetPurchase, GameState, PlayerId } from '../src/shared/types';
 
 interface SimulationMetrics {
   scenario: string;
@@ -51,19 +51,19 @@ const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
 
 const simFleetBuild = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   difficulty: AIDifficulty,
-  availableTypes?: string[],
+  availableTypes?: ShipType[],
 ): FleetPurchase[] => {
   const credits = state.players[playerId].credits ?? 0;
   const available =
     availableTypes ??
-    Object.keys(SHIP_STATS).filter((t) => t !== 'orbitalBase');
+    (Object.keys(SHIP_STATS) as ShipType[]).filter((t) => t !== 'orbitalBase');
   const purchases: FleetPurchase[] = [];
   let remaining = credits;
 
   // Strategy varies by difficulty
-  const priorities =
+  const priorities: ShipType[] =
     difficulty === 'hard'
       ? ['dreadnaught', 'frigate', 'torch', 'corsair', 'corvette']
       : difficulty === 'easy'
@@ -72,7 +72,7 @@ const simFleetBuild = (
 
   for (const shipType of priorities) {
     if (!available.includes(shipType)) continue;
-    const cost = SHIP_STATS[shipType]?.cost ?? Infinity;
+    const cost = SHIP_STATS[shipType].cost;
     while (remaining >= cost) {
       purchases.push({ shipType });
       remaining -= cost;
@@ -112,7 +112,7 @@ const runSingleGame = async (
   // Handle fleet building phase (both players submit simultaneously)
   if (state.phase === 'fleetBuilding') {
     const scenario = SCENARIOS[scenarioName];
-    for (let p = 0; p < 2; p++) {
+    for (const p of [0, 1] as PlayerId[]) {
       const diff = p === 0 ? p0Diff : p1Diff;
       const purchases = simFleetBuild(
         state,

@@ -1,5 +1,9 @@
 import type { EngineEvent } from '../../shared/engine/engine-events';
-import type { GameState, SolarSystemMap } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import type { StatefulServerMessage } from './messages';
 import { resolveTurnTimeoutOutcome } from './turns';
 
@@ -19,7 +23,7 @@ export type GameDoTurnTimeoutDeps = {
     state: GameState,
     primaryMessage?: StatefulServerMessage,
     options?: {
-      actor?: number | null;
+      actor?: PlayerId | null;
       restartTurnTimer?: boolean;
       events?: EngineEvent[];
     },

@@ -5,6 +5,7 @@ import {
   type EngineError,
   ErrorCode,
   type GameState,
+  type PlayerId,
   type Ship,
   type SolarSystemMap,
   type TransferOrder,
@@ -35,7 +36,7 @@ type ShipStatsLike = { cargo: number };
 
 const velocityMatch = (a: Ship, b: Ship): boolean =>
   a.velocity.dq === b.velocity.dq && a.velocity.dr === b.velocity.dr;
-const isTransferEligibleSource = (ship: Ship, playerId: number): boolean => {
+const isTransferEligibleSource = (ship: Ship, playerId: PlayerId): boolean => {
   if (ship.lifecycle !== 'active') return false;
   // Friendly ship: must be operational
   if (ship.owner === playerId) {
@@ -47,7 +48,7 @@ const isTransferEligibleSource = (ship: Ship, playerId: number): boolean => {
   return ship.damage.disabledTurns > 0 || ship.control === 'surrendered';
 };
 
-const isTransferEligibleTarget = (ship: Ship, playerId: number): boolean => {
+const isTransferEligibleTarget = (ship: Ship, playerId: PlayerId): boolean => {
   if (ship.lifecycle === 'destroyed') return false;
   return ship.owner === playerId && ship.control === 'own';
 };
@@ -57,7 +58,7 @@ const isTransferEligibleTarget = (ship: Ship, playerId: number): boolean => {
 // requires the source to be disabled or surrendered.
 export const getTransferEligiblePairs = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
 ): TransferPair[] => {
   const pairs: TransferPair[] = [];
   const targets = state.ships.filter((s) =>
@@ -133,7 +134,7 @@ export const shouldEnterLogisticsPhase = (state: GameState): boolean => {
 
 const validateTransfer = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   transfer: TransferOrder,
 ): EngineError | null => {
   const source = state.ships.find((s) => s.id === transfer.sourceShipId);
@@ -254,7 +255,7 @@ const validateTransfer = (
 // Process logistics transfers for the active player.
 export const processLogistics = (
   inputState: GameState,
-  playerId: number,
+  playerId: PlayerId,
   transfers: TransferOrder[],
   map: SolarSystemMap,
 ):
@@ -352,7 +353,7 @@ export const processLogistics = (
 // Skip logistics phase without making transfers.
 export const skipLogistics = (
   inputState: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
 ):
   | {
@@ -391,7 +392,7 @@ export const skipLogistics = (
 // astrogation phase.
 export const processSurrender = (
   inputState: GameState,
-  playerId: number,
+  playerId: PlayerId,
   shipIds: string[],
 ):
   | {

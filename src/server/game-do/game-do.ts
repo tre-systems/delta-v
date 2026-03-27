@@ -3,7 +3,7 @@ import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../../shared/constants';
 import type { EngineEvent } from '../../shared/engine/engine-events';
 import { buildSolarSystemMap, SCENARIOS } from '../../shared/map-data';
 import { deriveActionRng } from '../../shared/prng';
-import type { GameState, Result } from '../../shared/types/domain';
+import type { GameState, PlayerId, Result } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
 import {
   isValidPlayerToken,
@@ -80,9 +80,10 @@ export class GameDO extends DurableObject<Env> {
       this.publishStateChange(state, primaryMessage, options),
   });
   // --- WebSocket tag-based player tracking ---
-  private getPlayerId(ws: WebSocket): number | null {
+  private getPlayerId(ws: WebSocket): PlayerId | null {
     const tag = this.ctx.getTags(ws).find((t) => t.startsWith('player:'));
-    return tag ? parseInt(tag.split(':')[1], 10) : null;
+    const id = tag ? parseInt(tag.split(':')[1], 10) : null;
+    return id === 0 || id === 1 ? id : null;
   }
 
   private isGameStateActionMessage(
@@ -230,7 +231,7 @@ export class GameDO extends DurableObject<Env> {
     ]);
   }
 
-  private async setDisconnectMarker(playerId: number): Promise<void> {
+  private async setDisconnectMarker(playerId: PlayerId): Promise<void> {
     const marker = createDisconnectMarker(playerId, Date.now());
     await Promise.all([
       this.ctx.storage.put('disconnectedPlayer', marker.disconnectedPlayer),
@@ -418,7 +419,7 @@ export class GameDO extends DurableObject<Env> {
     state: GameState,
     primaryMessage?: StatefulServerMessage,
     options?: {
-      actor?: number | null;
+      actor?: PlayerId | null;
       restartTurnTimer?: boolean;
       events?: EngineEvent[];
     },
@@ -546,7 +547,7 @@ export class GameDO extends DurableObject<Env> {
     });
   }
 
-  private async handleRematch(playerId: number, _ws: WebSocket) {
+  private async handleRematch(playerId: PlayerId, _ws: WebSocket) {
     await handleRematchRequest(
       {
         storage: this.ctx.storage,

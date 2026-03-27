@@ -6,6 +6,8 @@ import type {
   FleetPurchase,
   GravityEffect,
   OrdnanceLaunch,
+  OrdnanceType,
+  PlayerId,
   ShipLifecycle,
   TransferOrder,
 } from '../types/domain';
@@ -24,34 +26,34 @@ export type EngineEvent =
       type: 'phaseChanged';
       phase: Phase;
       turn: number;
-      activePlayer: number;
+      activePlayer: PlayerId;
     }
   | {
       type: 'turnAdvanced';
       turn: number;
-      activePlayer: number;
+      activePlayer: PlayerId;
     }
   | {
       type: 'gameOver';
-      winner: number | null;
+      winner: PlayerId | null;
       reason: string;
     }
 
   // Fleet building
   | {
       type: 'fleetPurchased';
-      playerId: number;
+      playerId: PlayerId;
       purchases: FleetPurchase[];
       shipTypes: string[];
     }
   | {
       type: 'astrogationOrdersCommitted';
-      playerId: number;
+      playerId: PlayerId;
       orders: AstrogationOrder[];
     }
   | {
       type: 'ordnanceLaunchesCommitted';
-      playerId: number;
+      playerId: PlayerId;
       launches: OrdnanceLaunch[];
     }
 
@@ -87,7 +89,7 @@ export type EngineEvent =
   | {
       type: 'shipCaptured';
       shipId: string;
-      capturedBy: number;
+      capturedBy: PlayerId;
       capturedByShipId: string;
     }
   | {
@@ -119,8 +121,8 @@ export type EngineEvent =
   | {
       type: 'ordnanceLaunched';
       ordnanceId: string;
-      ordnanceType: string;
-      owner: number;
+      ordnanceType: OrdnanceType;
+      owner: PlayerId;
       sourceShipId: string;
       position: HexCoord;
       velocity: HexVec;
@@ -138,7 +140,7 @@ export type EngineEvent =
   | {
       type: 'ordnanceDetonated';
       ordnanceId: string;
-      ordnanceType: string;
+      ordnanceType: OrdnanceType;
       hex: HexCoord;
       targetShipId?: string;
       roll: number;
@@ -193,19 +195,19 @@ export type EngineEvent =
     }
   | {
       type: 'logisticsTransfersCommitted';
-      playerId: number;
+      playerId: PlayerId;
       transfers: TransferOrder[];
     }
   | {
       type: 'surrenderDeclared';
-      playerId: number;
+      playerId: PlayerId;
       shipIds: string[];
     }
   | {
       type: 'baseEmplaced';
       shipId: string;
       sourceShipId: string;
-      owner: number;
+      owner: PlayerId;
       position: HexCoord;
       velocity: HexVec;
     }
@@ -214,7 +216,7 @@ export type EngineEvent =
   | {
       type: 'fugitiveDesignated';
       shipId: string;
-      playerId: number;
+      playerId: PlayerId;
     }
   | {
       type: 'identityRevealed';
@@ -222,7 +224,7 @@ export type EngineEvent =
     }
   | {
       type: 'checkpointVisited';
-      playerId: number;
+      playerId: PlayerId;
       body: string;
     };
 
@@ -231,6 +233,6 @@ export interface EventEnvelope {
   gameId: string;
   seq: number;
   ts: number;
-  actor: number | null;
+  actor: PlayerId | null;
   event: EngineEvent;
 }

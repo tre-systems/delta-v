@@ -1,4 +1,4 @@
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import { type GameOverStats, getGameOverStats } from './helpers';
 
 export interface GameOverPlan {
@@ -24,7 +24,7 @@ export const deriveGameOverPlan = (
   }
 
   return {
-    stats: state ? getGameOverStats(state, playerId) : undefined,
+    stats: state ? getGameOverStats(state, playerId as PlayerId) : undefined,
     logText: `${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`,
     logClass: won ? 'log-landed' : 'log-eliminated',
     resultSound: won ? 'victory' : 'defeat',
