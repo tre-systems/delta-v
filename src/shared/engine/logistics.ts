@@ -84,9 +84,9 @@ export const getTransferEligiblePairs = (
       const targetStats = SHIP_STATS[target.type];
 
       if (!targetStats) continue;
-      // Torch ships cannot transfer fuel (SPEC p.8)
+      // Sealed fuel (torch ships) cannot be transferred (rulebook p.8)
       const canTransferFuel =
-        source.type !== 'torch' &&
+        !sourceStats.fuelSealed &&
         source.fuel > 0 &&
         target.fuel < targetStats.fuel;
       const maxFuel = canTransferFuel
@@ -193,7 +193,7 @@ const validateTransfer = (
   }
 
   if (transfer.transferType === 'fuel') {
-    if (source.type === 'torch') {
+    if (sourceStats.fuelSealed) {
       return engineFailure(
         ErrorCode.NOT_ALLOWED,
         'Torch ships cannot transfer fuel',

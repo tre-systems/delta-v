@@ -19,15 +19,17 @@ export type GameOutcome = { winner: PlayerId; reason: string };
 
 // --- Game state ---
 
+/**
+ * Game phases (adapted from rulebook p.2 sequence of play).
+ * Movement is resolved inline after astrogation/ordnance; resupply is automatic on landing at a base.
+ */
 export type Phase =
   | 'waiting'
   | 'fleetBuilding'
   | 'astrogation'
   | 'ordnance'
-  | 'movement'
   | 'logistics'
   | 'combat'
-  | 'resupply'
   | 'gameOver';
 
 /**
@@ -35,10 +37,10 @@ export type Phase =
  * `gameOver` is reachable from any in-game phase (via victory checks) and is terminal.
  *
  * ```
- * waiting ──► fleetBuilding ──► astrogation ◄─────────────────────────┐
- *                                   │                                 │
- *                                   ├──► ordnance ──┐                 │
- *                                   │               ▼                 │
+ * waiting ──► fleetBuilding ──► astrogation ◄─────────────────────┐
+ *                                   │                              │
+ *                                   ├──► ordnance ──┐              │
+ *                                   │               ▼              │
  *                                   ├──► logistics ──► combat ──► advanceTurn
  *                                   │               ▲
  *                                   └──► combat ────┘
@@ -51,10 +53,8 @@ export const PHASE_TRANSITIONS: Readonly<Record<Phase, readonly Phase[]>> = {
   fleetBuilding: ['astrogation', 'gameOver'],
   astrogation: ['ordnance', 'logistics', 'combat', 'astrogation', 'gameOver'],
   ordnance: ['logistics', 'combat', 'astrogation', 'gameOver'],
-  movement: ['logistics', 'combat', 'astrogation', 'gameOver'],
   logistics: ['combat', 'astrogation', 'gameOver'],
   combat: ['astrogation', 'gameOver'],
-  resupply: ['astrogation', 'gameOver'],
   gameOver: [],
 } as const;
 
@@ -117,13 +117,18 @@ export interface Ship extends PositionedEntity {
   lastMovementPath?: HexCoord[];
   fuel: number;
   cargoUsed: number;
+  /** Non-warships may carry only one nuke between resupplies (rulebook p.6). Reset on resupply. */
   nukesLaunchedSinceResupply: number;
+  /** True during a turn in which the ship resupplied; prevents firing/ordnance (rulebook p.8). */
   resuppliedThisTurn: boolean;
   lifecycle: ShipLifecycle;
   control: ShipControl;
   detected: boolean;
+  /** True if the ship has not yet earned its one-time heroism bonus (rulebook p.8). */
   heroismAvailable: boolean;
+  /** Warships get one overload maneuver between maintenance stopovers (rulebook p.4). */
   overloadUsed: boolean;
+  /** Only transports and packets (BaseCarrierType) may carry/emplace orbital bases (rulebook p.7). */
   baseStatus?: 'carryingBase' | 'emplaced';
   identity?: { hasFugitives: boolean; revealed: boolean };
   /** Colonists / passengers (rescue scenarios); share cargo capacity with ordnance mass. */
@@ -132,6 +137,10 @@ export interface Ship extends PositionedEntity {
   deathCause?: string;
   killedBy?: string | null; // ship ID or label of the attacker, null for environmental deaths
 
+  /**
+   * Damage state. Ships recover 1 disabled turn per game turn (rulebook p.6).
+   * At DAMAGE_ELIMINATION_THRESHOLD cumulative turns, the ship is destroyed.
+   */
   damage: {
     disabledTurns: number;
   };
