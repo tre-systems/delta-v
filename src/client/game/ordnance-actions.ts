@@ -1,5 +1,5 @@
 import { must } from '../../shared/assert';
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, OrdnanceType } from '../../shared/types/domain';
 import {
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
@@ -17,7 +17,7 @@ export interface OrdnanceActionDeps {
 
 export const sendOrdnanceLaunch = (
   deps: OrdnanceActionDeps,
-  ordType: 'mine' | 'torpedo' | 'nuke',
+  ordType: OrdnanceType,
 ) => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();

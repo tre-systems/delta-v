@@ -6,6 +6,7 @@ import type {
   FleetPurchase,
   GravityEffect,
   OrdnanceLaunch,
+  OrdnanceType,
   PlayerId,
   ShipLifecycle,
   TransferOrder,
@@ -120,7 +121,7 @@ export type EngineEvent =
   | {
       type: 'ordnanceLaunched';
       ordnanceId: string;
-      ordnanceType: string;
+      ordnanceType: OrdnanceType;
       owner: PlayerId;
       sourceShipId: string;
       position: HexCoord;
@@ -139,7 +140,7 @@ export type EngineEvent =
   | {
       type: 'ordnanceDetonated';
       ordnanceId: string;
-      ordnanceType: string;
+      ordnanceType: OrdnanceType;
       hex: HexCoord;
       targetShipId?: string;
       roll: number;

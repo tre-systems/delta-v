@@ -6,12 +6,17 @@ import type {
   FleetPurchase,
   OrbitalBaseEmplacement,
   OrdnanceLaunch,
+  OrdnanceType,
   Result,
   TransferOrder,
 } from './types';
 import { isObject, isString } from './util';
 
 const isShipType = (value: string): value is ShipType => value in SHIP_STATS;
+
+const ORDNANCE_TYPES = new Set<OrdnanceType>(['mine', 'torpedo', 'nuke']);
+const isOrdnanceType = (value: string): value is OrdnanceType =>
+  ORDNANCE_TYPES.has(value as OrdnanceType);
 
 const MAX_FLEET_PURCHASES = 64;
 const MAX_ASTROGATION_ORDERS = 64;
@@ -136,11 +141,7 @@ const parseOrdnanceLaunches = (raw: unknown): OrdnanceLaunch[] | null => {
       return null;
     }
 
-    if (
-      item.ordnanceType !== 'mine' &&
-      item.ordnanceType !== 'torpedo' &&
-      item.ordnanceType !== 'nuke'
-    ) {
+    if (!isString(item.ordnanceType) || !isOrdnanceType(item.ordnanceType)) {
       return null;
     }
 
