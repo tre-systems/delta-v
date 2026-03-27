@@ -715,7 +715,7 @@ export const resolvePendingAsteroidHazards = (
     const dieRoll = rollD6(rng);
     const result = lookupOtherDamage(dieRoll, 'asteroid');
 
-    applyDamage(ship, result, 'asteroid', undefined);
+    applyDamage(ship, result, 'asteroid');
 
     results.push({
       attackerIds: [],

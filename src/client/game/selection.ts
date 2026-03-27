@@ -1,5 +1,9 @@
 import { SHIP_STATS } from '../../shared/constants';
-import type { GameState, PlayerId } from '../../shared/types/domain';
+import {
+  type GameState,
+  isDestroyed,
+  type PlayerId,
+} from '../../shared/types/domain';
 import { count } from '../../shared/util';
 import type { GameOverStats, ShipFate } from './types';
 
@@ -66,8 +70,8 @@ export const getGameOverStats = (
             ? 'captured'
             : 'survived',
       owner: s.owner,
-      deathCause: s.deathCause,
-      killedBy: s.killedBy,
+      deathCause: isDestroyed(s) ? s.deathCause : undefined,
+      killedBy: isDestroyed(s) ? (s.killedBy ?? undefined) : undefined,
     };
   });
 
