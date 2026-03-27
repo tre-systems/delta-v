@@ -1,4 +1,4 @@
-import { SHIP_STATS } from '../constants';
+import { SHIP_STATS, type ShipType } from '../constants';
 import {
   type EngineError,
   ErrorCode,
@@ -19,7 +19,7 @@ export const processFleetReady = (
   playerId: PlayerId,
   purchases: FleetPurchase[],
   map: SolarSystemMap,
-  availableShipTypes?: string[],
+  availableShipTypes?: ShipType[],
 ):
   | StateUpdateResult
   | {

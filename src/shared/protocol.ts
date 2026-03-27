@@ -1,3 +1,4 @@
+import { SHIP_STATS, type ShipType } from './constants';
 import type {
   AstrogationOrder,
   C2S,
@@ -9,6 +10,8 @@ import type {
   TransferOrder,
 } from './types';
 import { isObject, isString } from './util';
+
+const isShipType = (value: string): value is ShipType => value in SHIP_STATS;
 
 const MAX_FLEET_PURCHASES = 64;
 const MAX_ASTROGATION_ORDERS = 64;
@@ -47,7 +50,7 @@ const parseFleetPurchases = (raw: unknown): FleetPurchase[] | null => {
     if (
       !isObject(item) ||
       !isString(item.shipType) ||
-      item.shipType.length === 0
+      !isShipType(item.shipType)
     ) {
       return null;
     }

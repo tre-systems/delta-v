@@ -1,5 +1,5 @@
 import type { AIDifficulty } from '../../shared/ai';
-import { SHIP_STATS } from '../../shared/constants';
+import { SHIP_STATS, type ShipType } from '../../shared/constants';
 import { processFleetReady } from '../../shared/engine/game-engine';
 import type {
   FleetPurchase,
@@ -9,7 +9,7 @@ import type {
 } from '../../shared/types/domain';
 import type { ScenarioDefinition } from '../../shared/types/scenario';
 
-const AI_FLEET_PRIORITIES: Record<AIDifficulty, string[]> = {
+const AI_FLEET_PRIORITIES: Record<AIDifficulty, ShipType[]> = {
   easy: ['corvette', 'corsair', 'packet'],
   normal: ['corsair', 'frigate', 'corvette'],
   hard: ['frigate', 'corsair', 'corvette'],
@@ -26,7 +26,7 @@ export interface FleetReadyDeps {
 
 export const buildAIFleetPurchases = (
   credits: number,
-  availableShipTypes: string[] | undefined,
+  availableShipTypes: ShipType[] | undefined,
   difficulty: AIDifficulty,
 ): FleetPurchase[] => {
   const available =

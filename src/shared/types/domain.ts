@@ -1,3 +1,4 @@
+import type { ShipType } from '../constants';
 import type { HexCoord, HexVec } from '../hex';
 
 // --- Result type ---
@@ -73,7 +74,7 @@ export interface PositionedEntity {
 
 export interface Ship extends PositionedEntity {
   id: string;
-  type: string;
+  type: ShipType;
   owner: PlayerId;
   originalOwner: PlayerId;
   lastMovementPath?: HexCoord[];
@@ -282,7 +283,7 @@ export interface OrbitalBaseEmplacement {
 }
 
 export interface FleetPurchase {
-  shipType: string;
+  shipType: ShipType;
 }
 
 export interface TransferOrder {
@@ -304,7 +305,7 @@ export interface FleetConversion {
   turn: number;
   fromPlayer: PlayerId;
   toPlayer: PlayerId;
-  shipTypes?: string[];
+  shipTypes?: ShipType[];
 }
 
 export interface ScenarioRules {
@@ -328,7 +329,7 @@ export interface ScenarioRules {
 // references it. The full scenario config types
 // (ScenarioDefinition, ScenarioPlayer) live in scenario.ts.
 export interface ScenarioShip {
-  type: string;
+  type: ShipType;
   position: HexCoord;
   velocity: HexVec;
   startLanded?: boolean;
