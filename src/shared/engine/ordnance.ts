@@ -1,5 +1,5 @@
 import { applyDamage, lookupOtherDamage, rollD6 } from '../combat';
-import { ORBITAL_BASE_MASS } from '../constants';
+import { isBaseCarrierType, ORBITAL_BASE_MASS } from '../constants';
 import {
   analyzeHexLine,
   hexAdd,
@@ -89,10 +89,10 @@ export const processEmplacement = (
       );
     }
 
-    if (ship.type !== 'transport' && ship.type !== 'packet') {
+    if (!isBaseCarrierType(ship.type)) {
       return engineFailure(
         ErrorCode.NOT_ALLOWED,
-        'Only transports and packets can' + ' carry orbital bases',
+        'Only transports and packets can carry orbital bases',
       );
     }
 

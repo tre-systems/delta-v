@@ -11,7 +11,7 @@ const STORAGE_KEY = 'deltav_tutorial_done';
 
 interface TutorialStep {
   id: string;
-  phase: 'astrogation' | 'ordnance' | 'combat' | 'movement' | 'any';
+  phase: 'astrogation' | 'ordnance' | 'combat' | 'any';
   text: string;
   // Touch-friendly text shown on mobile
   mobileText?: string;

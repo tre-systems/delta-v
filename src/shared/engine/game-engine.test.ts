@@ -79,7 +79,7 @@ describe('processAstrogation', () => {
     }
   });
   it('rejects orders in wrong phase', () => {
-    initialState.phase = 'movement';
+    initialState.phase = 'combat';
     const result = processAstrogation(initialState, 0, [], map, Math.random);
     expect('error' in result).toBe(true);
   });

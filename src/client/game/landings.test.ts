@@ -54,7 +54,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
   turnNumber: 1,
-  phase: 'movement',
+  phase: 'astrogation',
   activePlayer: 0,
   ships: [
     createShip(),
