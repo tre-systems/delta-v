@@ -60,8 +60,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
       escapeWins: false,
     },
   ],
-  winner: null,
-  winReason: null,
+  outcome: null,
   ...overrides,
 });
 

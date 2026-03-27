@@ -1,4 +1,9 @@
-import { hexToPixel, type PixelCoord, parseHexKey } from '../../shared/hex';
+import {
+  asHexKey,
+  hexToPixel,
+  type PixelCoord,
+  parseHexKey,
+} from '../../shared/hex';
 import type {
   CombatResult,
   GameState,
@@ -13,7 +18,7 @@ const pixelFromBaseRef = (
   hexSize: number,
 ): PixelCoord | null => {
   if (baseRef.includes(',')) {
-    return hexToPixel(parseHexKey(baseRef), hexSize);
+    return hexToPixel(parseHexKey(asHexKey(baseRef)), hexSize);
   }
   if (!map) return null;
   const baseEntry = [...map.hexes.entries()].find(

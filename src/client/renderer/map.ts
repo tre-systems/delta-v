@@ -1,4 +1,9 @@
-import { type HexCoord, hexToPixel, type PixelCoord } from '../../shared/hex';
+import {
+  type HexCoord,
+  type HexKey,
+  hexToPixel,
+  type PixelCoord,
+} from '../../shared/hex';
 import type {
   CelestialBody,
   GameState,
@@ -101,7 +106,7 @@ export const buildBodyView = (
 };
 
 export const buildBaseMarkerView = (
-  baseKey: string,
+  baseKey: HexKey,
   state: GameState | null,
   playerId: number,
 ): BaseMarkerView => {
@@ -119,11 +124,11 @@ export const buildBaseMarkerView = (
   const myBases =
     state && playerId >= 0
       ? new Set(state.players[playerId]?.bases ?? [])
-      : new Set<string>();
+      : new Set<HexKey>();
   const enemyBases =
     state && playerId >= 0
       ? new Set(state.players[1 - playerId]?.bases ?? [])
-      : new Set<string>();
+      : new Set<HexKey>();
 
   if (myBases.has(baseKey)) {
     return {

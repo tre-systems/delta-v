@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   analyzeHexLine,
+  asHexKey,
   cubeRound,
   HEX_DIRECTIONS,
   hexAdd,
@@ -238,12 +239,12 @@ describe('analyzeHexLine', () => {
     const definiteKeys = new Set(result.definite.map(hexKey));
 
     // Start and end are always definite
-    expect(definiteKeys.has('0,0')).toBe(true);
-    expect(definiteKeys.has('2,-1')).toBe(true);
+    expect(definiteKeys.has(asHexKey('0,0'))).toBe(true);
+    expect(definiteKeys.has(asHexKey('2,-1'))).toBe(true);
 
     // Ambiguous hexes should not be in definite
-    expect(definiteKeys.has('1,0')).toBe(false);
-    expect(definiteKeys.has('1,-1')).toBe(false);
+    expect(definiteKeys.has(asHexKey('1,0'))).toBe(false);
+    expect(definiteKeys.has(asHexKey('1,-1'))).toBe(false);
   });
 
   it('longer diagonal produces multiple ambiguous pairs', () => {
@@ -321,8 +322,8 @@ describe('analyzeHexLine', () => {
 
     // Start and end are always definite
     const definiteKeys = new Set(result.definite.map(hexKey));
-    expect(definiteKeys.has('0,0')).toBe(true);
-    expect(definiteKeys.has('1,1')).toBe(true);
+    expect(definiteKeys.has(asHexKey('0,0'))).toBe(true);
+    expect(definiteKeys.has(asHexKey('1,1'))).toBe(true);
   });
 });
 
@@ -334,14 +335,14 @@ describe('parseHexKey', () => {
   });
 
   it('parses positive coords', () => {
-    expect(parseHexKey('5,10')).toEqual({ q: 5, r: 10 });
+    expect(parseHexKey(asHexKey('5,10'))).toEqual({ q: 5, r: 10 });
   });
 
   it('parses negative coords', () => {
-    expect(parseHexKey('-3,-4')).toEqual({ q: -3, r: -4 });
+    expect(parseHexKey(asHexKey('-3,-4'))).toEqual({ q: -3, r: -4 });
   });
 
   it('parses zero', () => {
-    expect(parseHexKey('0,0')).toEqual({ q: 0, r: 0 });
+    expect(parseHexKey(asHexKey('0,0'))).toEqual({ q: 0, r: 0 });
   });
 });

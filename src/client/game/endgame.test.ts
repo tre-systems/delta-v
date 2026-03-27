@@ -70,8 +70,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   destroyedAsteroids: [],
   destroyedBases: [],
   players: createPlayers(),
-  winner: 0,
-  winReason: 'Fleet eliminated!',
+  outcome: { winner: 0, reason: 'Fleet eliminated!' },
   ...overrides,
 });
 

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { must } from '../assert';
 import { resolveBaseDefense } from '../combat';
 import { ORDNANCE_MASS, SHIP_STATS, type ShipType } from '../constants';
-import { hexDistance, hexEqual, hexKey } from '../hex';
+import { asHexKey, hexDistance, hexEqual, hexKey } from '../hex';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -161,7 +161,7 @@ describe('processAstrogation', () => {
   });
   it('defers asteroid hazards until combat begins', () => {
     const hazardMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'asteroid' }]]),
+      hexes: new Map([[asHexKey('1,0'), { terrain: 'asteroid' }]]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
@@ -211,7 +211,7 @@ describe('processAstrogation', () => {
   });
   it('does not queue an asteroid hazard when movement only runs along a single asteroid hex edge', () => {
     const edgeMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'asteroid' }]]),
+      hexes: new Map([[asHexKey('1,0'), { terrain: 'asteroid' }]]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
@@ -247,8 +247,8 @@ describe('processAstrogation', () => {
   it('counts a shared hexside between two asteroid hexes as one asteroid encounter', () => {
     const edgeMap: SolarSystemMap = {
       hexes: new Map([
-        ['1,0', { terrain: 'asteroid' }],
-        ['1,-1', { terrain: 'asteroid' }],
+        [asHexKey('1,0'), { terrain: 'asteroid' }],
+        [asHexKey('1,-1'), { terrain: 'asteroid' }],
       ]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
@@ -585,8 +585,8 @@ describe('victory conditions', () => {
     const landedShip = result.state.ships[0];
     expect(landedShip.lifecycle).toBe('landed');
     expect(result.state.phase).toBe('gameOver');
-    expect(result.state.winner).toBe(0);
-    expect(result.state.winReason).toContain('Mars');
+    expect(result.state.outcome?.winner).toBe(0);
+    expect(result.state.outcome?.reason).toContain('Mars');
   });
 });
 describe('Escape scenario', () => {
@@ -636,8 +636,8 @@ describe('Escape scenario', () => {
     const result = processAstrogation(escapeState, 0, orders, map, Math.random);
     if ('error' in result) return;
     expect(result.state.phase).toBe('gameOver');
-    expect(result.state.winner).toBe(0);
-    expect(result.state.winReason).toContain('escaped beyond Jupiter');
+    expect(result.state.outcome?.winner).toBe(0);
+    expect(result.state.outcome?.reason).toContain('escaped beyond Jupiter');
   });
   it('destroying all pilgrim ships wins for enforcer', () => {
     // Destroy all pilgrim ships
@@ -655,9 +655,9 @@ describe('Escape scenario', () => {
     const result = processAstrogation(escapeState, 1, orders, map, Math.random);
     if ('error' in result) return;
     expect(result.state.phase).toBe('gameOver');
-    expect(result.state.winner).toBe(1);
+    expect(result.state.outcome?.winner).toBe(1);
     // All pilgrim ships destroyed — generic fleet elimination
-    expect(result.state.winReason).toBeTruthy();
+    expect(result.state.outcome?.reason).toBeTruthy();
   });
   it('handles multiple ships with same orders', () => {
     const orders: AstrogationOrder[] = escapeState.ships
@@ -856,7 +856,7 @@ describe('ordnance system', () => {
     const gravityMap: SolarSystemMap = {
       hexes: new Map([
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'space',
             gravity: { direction: 3, strength: 'full', bodyName: 'TestWorld' },
@@ -1676,7 +1676,7 @@ describe('ordnance validation', () => {
     const losMap: SolarSystemMap = {
       hexes: new Map([
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'planetSurface',
             body: { name: 'Blocker', destructive: false },
@@ -1856,8 +1856,8 @@ describe('mutual destruction', () => {
     if (!('error' in result)) {
       expect(result.state.phase).toBe('gameOver');
       // Defender (player 1) should win since active player (0) was the attacker
-      expect(result.state.winner).toBe(1);
-      expect(result.state.winReason).toContain('Mutual destruction');
+      expect(result.state.outcome?.winner).toBe(1);
+      expect(result.state.outcome?.reason).toContain('Mutual destruction');
     }
   });
 });
@@ -1976,8 +1976,8 @@ describe('Edge cases', () => {
     const result = processAstrogation(fleetState, 0, orders, map, Math.random);
     if (!('error' in result)) {
       expect(result.state.phase).toBe('gameOver');
-      expect(result.state.winner).toBe(0);
-      expect(result.state.winReason).toBe('Fleet eliminated!');
+      expect(result.state.outcome?.winner).toBe(0);
+      expect(result.state.outcome?.reason).toBe('Fleet eliminated!');
     }
   });
   it('blockade runner wins by landing on Mars', () => {
@@ -2008,8 +2008,8 @@ describe('Edge cases', () => {
       .map((s) => ({ shipId: s.id, burn: 0 }));
     const result = resolveAstrogationMovement(blockadeState, 0, orders);
     expect(result.state.phase).toBe('gameOver');
-    expect(result.state.winner).toBe(0);
-    expect(result.state.winReason).toContain('Mars');
+    expect(result.state.outcome?.winner).toBe(0);
+    expect(result.state.outcome?.reason).toContain('Mars');
   });
 });
 describe('landed ship immunity', () => {
@@ -2389,8 +2389,8 @@ describe('hidden identity (Escape scenario)', () => {
       .map((s) => ({ shipId: s.id, burn: null }));
     const result = processAstrogation(state, 0, orders, map, Math.random);
     if ('error' in result) throw new Error(getErrorMessage(result.error));
-    expect(result.state.winner).toBe(0);
-    expect(result.state.winReason).toContain('escaped beyond Jupiter');
+    expect(result.state.outcome?.winner).toBe(0);
+    expect(result.state.outcome?.reason).toContain('escaped beyond Jupiter');
   });
   it('non-fugitive ship escape does not trigger victory', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
@@ -2407,7 +2407,7 @@ describe('hidden identity (Escape scenario)', () => {
     const result = processAstrogation(state, 0, orders, map, Math.random);
     if ('error' in result) throw new Error(getErrorMessage(result.error));
     // Should not win -- the fugitive ship hasn't escaped
-    expect(result.state.winner).toBeNull();
+    expect(result.state.outcome).toBeNull();
   });
   it('destroying the fugitive ship triggers opponent victory', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
@@ -2417,8 +2417,8 @@ describe('hidden identity (Escape scenario)', () => {
     state.activePlayer = 1;
     const result = skipCombat(state, 1, map, Math.random);
     if ('error' in result) throw new Error(getErrorMessage(result.error));
-    expect(result.state.winner).toBe(1);
-    expect(result.state.winReason).toContain('fugitive transport');
+    expect(result.state.outcome?.winner).toBe(1);
+    expect(result.state.outcome?.reason).toContain('fugitive transport');
   });
   it('returning a captured fugitive transport to base gives the enforcers a decisive victory', () => {
     const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
@@ -2433,8 +2433,8 @@ describe('hidden identity (Escape scenario)', () => {
     state.activePlayer = 1;
     const result = skipCombat(state, 1, map, Math.random);
     if ('error' in result) throw new Error(getErrorMessage(result.error));
-    expect(result.state.winner).toBe(1);
-    expect(result.state.winReason).toContain('returned to base');
+    expect(result.state.outcome?.winner).toBe(1);
+    expect(result.state.outcome?.reason).toContain('returned to base');
   });
 });
 describe('capture mechanics', () => {
@@ -2510,8 +2510,7 @@ describe('capture mechanics', () => {
           escapeWins: false,
         },
       ],
-      winner: null,
-      winReason: null,
+      outcome: null,
     };
     // Only active player's ships move. Captor at (4,0) vel (1,0) → ends at (5,0) vel (1,0).
     // Target already at (5,0) vel (1,0) — doesn't move during opponent's turn.
@@ -2612,8 +2611,7 @@ describe('capture mechanics', () => {
           escapeWins: false,
         },
       ],
-      winner: null,
-      winReason: null,
+      outcome: null,
     };
     const result = processAstrogation(
       state,
@@ -2699,8 +2697,7 @@ describe('capture mechanics', () => {
           escapeWins: false,
         },
       ],
-      winner: null,
-      winReason: null,
+      outcome: null,
     };
     const result = processAstrogation(
       state,
@@ -2790,8 +2787,7 @@ describe('capture mechanics', () => {
           escapeWins: false,
         },
       ],
-      winner: null,
-      winReason: null,
+      outcome: null,
     };
     const result = processOrdnance(
       state,
@@ -2886,8 +2882,8 @@ describe('Grand Tour', () => {
     ship.position = homeBase;
     ship.lifecycle = 'landed';
     checkImmediateVictory(tourState, map);
-    expect(tourState.winner).toBe(0);
-    expect(tourState.winReason).toContain('Grand Tour complete');
+    expect(tourState.outcome?.winner).toBe(0);
+    expect(tourState.outcome?.reason).toContain('Grand Tour complete');
   });
   it('does not win with incomplete checkpoints', () => {
     tourState.players[0].visitedBodies = ['Luna', 'Mercury', 'Venus'];
@@ -2896,7 +2892,7 @@ describe('Grand Tour', () => {
     ship.position = homeBase;
     ship.lifecycle = 'landed';
     checkImmediateVictory(tourState, map);
-    expect(tourState.winner).toBeNull();
+    expect(tourState.outcome).toBeNull();
   });
   it('does not win at wrong home body', () => {
     tourState.players[0].visitedBodies = [
@@ -2907,7 +2903,7 @@ describe('Grand Tour', () => {
     ship.position = marsBase;
     ship.lifecycle = 'landed';
     checkImmediateVictory(tourState, map);
-    expect(tourState.winner).toBeNull();
+    expect(tourState.outcome).toBeNull();
   });
   it('skips combat phase when combatDisabled', () => {
     const ship0 = must(tourState.ships.find((s) => s.owner === 0));

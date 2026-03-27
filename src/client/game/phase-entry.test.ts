@@ -58,8 +58,7 @@ const createState = (
       escapeWins: false,
     },
   ],
-  winner: null,
-  winReason: null,
+  outcome: null,
   ...overrides,
 });
 

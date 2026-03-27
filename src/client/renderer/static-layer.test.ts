@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createGame } from '../../shared/engine/game-engine';
+import { asHexKey } from '../../shared/hex';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -59,8 +60,11 @@ describe('computeStaticSceneLayerKey', () => {
     const camera = createCamera();
     camera.update(0, 800, 600);
     const baseState = createGame(SCENARIOS.duel, map, 'SK2', findBaseHex);
-    const s1 = { ...baseState, destroyedAsteroids: [] as string[] };
-    const s2 = { ...baseState, destroyedAsteroids: ['a1'] };
+    const s1 = {
+      ...baseState,
+      destroyedAsteroids: [] as typeof baseState.destroyedAsteroids,
+    };
+    const s2 = { ...baseState, destroyedAsteroids: [asHexKey('a1')] };
     const k1 = computeStaticSceneLayerKey({
       map,
       camera,

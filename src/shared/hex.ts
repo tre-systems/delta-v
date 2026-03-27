@@ -42,10 +42,17 @@ export const hexSubtract = (a: HexCoord, b: HexCoord): HexVec => ({
 export const hexEqual = (a: HexCoord, b: HexCoord): boolean =>
   a.q === b.q && a.r === b.r;
 
-export const hexKey = ({ q, r }: HexCoord): string => `${q},${r}`;
+declare const __hexKeyBrand: unique symbol;
+/** Serialized hex coordinate in `"q,r"` format. Branded to prevent mixing with arbitrary strings. */
+export type HexKey = string & { readonly [__hexKeyBrand]: never };
+
+export const hexKey = ({ q, r }: HexCoord): HexKey => `${q},${r}` as HexKey;
+
+/** Cast a trusted `"q,r"` string literal to HexKey. Use only at serialization boundaries and in tests. */
+export const asHexKey = (key: string): HexKey => key as HexKey;
 
 // Inverse of hexKey: parse "q,r" string back.
-export const parseHexKey = (key: string): HexCoord => {
+export const parseHexKey = (key: HexKey): HexCoord => {
   const [q, r] = key.split(',').map(Number);
 
   return { q, r };
