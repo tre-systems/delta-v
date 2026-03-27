@@ -187,7 +187,12 @@ describe('applyClientStateTransition', () => {
     deps.ctx.planningState.combatAttackerIds = ['p0s0'];
     deps.ctx.planningState.combatAttackStrength = 3;
     deps.ctx.planningState.queuedAttacks = [
-      { attackerIds: ['p0s0'], targetId: 'enemy' },
+      {
+        attackerIds: ['p0s0'],
+        targetId: 'enemy',
+        targetType: 'ship',
+        attackStrength: null,
+      },
     ];
 
     applyClientStateTransition(deps, 'playing_combat');

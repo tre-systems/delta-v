@@ -129,7 +129,12 @@ describe('Renderer static scene cache (mocked scene)', () => {
     combatTargetType: null as 'ship' | 'ordnance' | null,
     combatAttackerIds: [] as string[],
     combatAttackStrength: null as number | null,
-    queuedAttacks: [] as { attackerIds: string[]; targetId: string }[],
+    queuedAttacks: [] as {
+      attackerIds: string[];
+      targetId: string;
+      targetType: 'ship' | 'ordnance';
+      attackStrength: number | null;
+    }[],
     hoverHex: null as { q: number; r: number } | null,
     lastSelectedHex: null as string | null,
     baseEmplacements: [] as string[],

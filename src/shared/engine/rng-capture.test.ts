@@ -72,7 +72,7 @@ describe('RNG outcome capture in EngineEvents', () => {
     const result = processAstrogation(
       state,
       0,
-      [{ shipId: state.ships[0].id, burn: null }],
+      [{ shipId: state.ships[0].id, burn: null, overload: null }],
       map,
       () => 0.5,
     );
@@ -104,6 +104,8 @@ describe('RNG outcome capture in EngineEvents', () => {
         {
           shipId: state.ships[0].id,
           ordnanceType: 'mine',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
         },
       ],
       map,

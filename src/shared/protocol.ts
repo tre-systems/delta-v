@@ -254,7 +254,7 @@ const parseCombatAttacks = (raw: unknown): CombatAttack[] | null => {
     attacks.push({
       attackerIds,
       targetId: item.targetId,
-      targetType: item.targetType,
+      targetType: item.targetType ?? 'ship',
       attackStrength,
     });
   }

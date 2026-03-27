@@ -484,7 +484,7 @@ describe('projectMatchSetupFromStream', () => {
           event: {
             type: 'astrogationOrdersCommitted',
             playerId: 0,
-            orders: [{ shipId: 'p0s0', burn: 0 }],
+            orders: [{ shipId: 'p0s0', burn: 0, overload: null }],
           },
         },
         {
@@ -973,7 +973,7 @@ describe('projectMatchSetupFromStream', () => {
           event: {
             type: 'astrogationOrdersCommitted',
             playerId: 0,
-            orders: [{ shipId: 'p0s0', burn: null }],
+            orders: [{ shipId: 'p0s0', burn: null, overload: null }],
           },
         },
         {
@@ -984,7 +984,14 @@ describe('projectMatchSetupFromStream', () => {
           event: {
             type: 'ordnanceLaunchesCommitted',
             playerId: 0,
-            launches: [{ shipId: 'p0s0', ordnanceType: 'mine' }],
+            launches: [
+              {
+                shipId: 'p0s0',
+                ordnanceType: 'mine',
+                torpedoAccel: null,
+                torpedoAccelSteps: null,
+              },
+            ],
           },
         },
         {

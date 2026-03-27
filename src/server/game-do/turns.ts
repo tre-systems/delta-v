@@ -33,7 +33,7 @@ export const resolveTurnTimeoutOutcome = (
     const orders: AstrogationOrder[] = getOrderableShipsForPlayer(
       gameState,
       playerId,
-    ).map((ship) => ({ shipId: ship.id, burn: null }));
+    ).map((ship) => ({ shipId: ship.id, burn: null, overload: null }));
 
     const result = processAstrogation(gameState, playerId, orders, map, rng);
 

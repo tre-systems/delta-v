@@ -88,6 +88,7 @@ describe('processAstrogation', () => {
       {
         shipId: initialState.ships[0].id,
         burn: null,
+        overload: null,
       },
     ];
     const result = processAstrogation(
@@ -116,6 +117,7 @@ describe('processAstrogation', () => {
       {
         shipId: ship.id,
         burn: 0, // E
+        overload: null,
       },
     ];
     const result = processAstrogation(
@@ -141,7 +143,7 @@ describe('processAstrogation', () => {
     ship.position = { q: -8, r: -4 };
     ship.velocity = { dq: 0, dr: -1 };
     const first = resolveAstrogationMovement(initialState, 0, [
-      { shipId: ship.id, burn: null },
+      { shipId: ship.id, burn: null, overload: null },
     ]);
     const afterFirstMove = must(
       first.state.ships.find((s) => s.id === ship.id),
@@ -152,7 +154,7 @@ describe('processAstrogation', () => {
     first.state.phase = 'astrogation';
     first.state.activePlayer = 0;
     const second = resolveAstrogationMovement(first.state, 0, [
-      { shipId: ship.id, burn: null },
+      { shipId: ship.id, burn: null, overload: null },
     ]);
     const afterSecondMove = must(
       second.state.ships.find((s) => s.id === ship.id),
@@ -178,7 +180,7 @@ describe('processAstrogation', () => {
     const first = processAstrogation(
       state,
       0,
-      [{ shipId: ship.id, burn: null }],
+      [{ shipId: ship.id, burn: null, overload: null }],
       hazardMap,
       Math.random,
     );
@@ -228,7 +230,7 @@ describe('processAstrogation', () => {
     const result = processAstrogation(
       state,
       0,
-      [{ shipId: ship.id, burn: null }],
+      [{ shipId: ship.id, burn: null, overload: null }],
       edgeMap,
       Math.random,
     );
@@ -266,7 +268,7 @@ describe('processAstrogation', () => {
     const result = processAstrogation(
       state,
       0,
-      [{ shipId: ship.id, burn: null }],
+      [{ shipId: ship.id, burn: null, overload: null }],
       edgeMap,
       Math.random,
     );
@@ -287,6 +289,7 @@ describe('processAstrogation', () => {
       {
         shipId: initialState.ships[0].id,
         burn: 7, // invalid
+        overload: null,
       },
     ];
     const result = processAstrogation(
@@ -357,7 +360,7 @@ describe('processAstrogation', () => {
     const result = processAstrogation(
       initialState,
       0,
-      [{ shipId: ship0.id, burn: null }],
+      [{ shipId: ship0.id, burn: null, overload: null }],
       openMap,
       Math.random,
     );
@@ -375,7 +378,7 @@ describe('processAstrogation', () => {
     const result = processAstrogation(
       escapeState,
       0,
-      [{ shipId: ship.id, burn: null }],
+      [{ shipId: ship.id, burn: null, overload: null }],
       map,
       Math.random,
     );
@@ -401,7 +404,7 @@ describe('processAstrogation', () => {
     const result = processAstrogation(
       initialState,
       0,
-      [{ shipId: ship0.id, burn: null }],
+      [{ shipId: ship0.id, burn: null, overload: null }],
       openMap,
       Math.random,
     );
@@ -425,6 +428,7 @@ describe('processAstrogation', () => {
       {
         shipId: initialState.ships[0].id,
         burn: null,
+        overload: null,
       },
     ];
     const result0 = processAstrogation(
@@ -445,6 +449,7 @@ describe('processAstrogation', () => {
       {
         shipId: skip0.state.ships[1].id,
         burn: null,
+        overload: null,
       },
     ];
     const result1 = processAstrogation(
@@ -467,7 +472,9 @@ describe('resupply on landing', () => {
   it('refuels ship when landing at a base', () => {
     // Take off first (uses 1 fuel)
     const ship = initialState.ships[0];
-    const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: 0 }];
+    const orders: AstrogationOrder[] = [
+      { shipId: ship.id, burn: 0, overload: null },
+    ];
     const result = processAstrogation(
       initialState,
       0,
@@ -497,7 +504,7 @@ describe('resupply on landing', () => {
     result.state.activePlayer = 0;
     result.state.phase = 'astrogation';
     const landingOrders: AstrogationOrder[] = [
-      { shipId: movedShip.id, burn: 0 },
+      { shipId: movedShip.id, burn: 0, overload: null },
     ];
     const landResult = processAstrogation(
       result.state,
@@ -515,7 +522,9 @@ describe('resupply on landing', () => {
   });
   it('does not resupply when landing at an unowned base', () => {
     const ship = initialState.ships[0];
-    const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: 0 }];
+    const orders: AstrogationOrder[] = [
+      { shipId: ship.id, burn: 0, overload: null },
+    ];
     const result = processAstrogation(
       initialState,
       0,
@@ -546,7 +555,7 @@ describe('resupply on landing', () => {
     const landResult = processAstrogation(
       result.state,
       0,
-      [{ shipId: movedShip.id, burn: 0 }],
+      [{ shipId: movedShip.id, burn: 0, overload: null }],
       map,
       Math.random,
     );
@@ -573,7 +582,9 @@ describe('victory conditions', () => {
         ignored: false,
       },
     ];
-    const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: 0 }];
+    const orders: AstrogationOrder[] = [
+      { shipId: ship.id, burn: 0, overload: null },
+    ];
     const result = processAstrogation(
       initialState,
       0,
@@ -632,7 +643,7 @@ describe('Escape scenario', () => {
     fugitive.lifecycle = 'active';
     const orders: AstrogationOrder[] = escapeState.ships
       .filter((s) => s.owner === 0)
-      .map((s) => ({ shipId: s.id, burn: null }));
+      .map((s) => ({ shipId: s.id, burn: null, overload: null }));
     const result = processAstrogation(escapeState, 0, orders, map, Math.random);
     if ('error' in result) return;
     expect(result.state.phase).toBe('gameOver');
@@ -650,7 +661,7 @@ describe('Escape scenario', () => {
     const enforcerShip = must(escapeState.ships.find((s) => s.owner === 1));
     escapeState.activePlayer = 1;
     const orders: AstrogationOrder[] = [
-      { shipId: enforcerShip.id, burn: null },
+      { shipId: enforcerShip.id, burn: null, overload: null },
     ];
     const result = processAstrogation(escapeState, 1, orders, map, Math.random);
     if ('error' in result) return;
@@ -662,7 +673,7 @@ describe('Escape scenario', () => {
   it('handles multiple ships with same orders', () => {
     const orders: AstrogationOrder[] = escapeState.ships
       .filter((s) => s.owner === 0)
-      .map((s) => ({ shipId: s.id, burn: 1 })); // All burn NE
+      .map((s) => ({ shipId: s.id, burn: 1, overload: null })); // All burn NE
     const result = resolveAstrogationMovement(escapeState, 0, orders);
     expect(result.movements).toHaveLength(3);
     for (const m of result.movements) {
@@ -678,7 +689,9 @@ describe('ordnance system', () => {
     ship.velocity = { dq: 1, dr: 0 };
     ship.position = { q: 0, r: 0 };
     // Advance to ordnance phase
-    const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: null }];
+    const orders: AstrogationOrder[] = [
+      { shipId: ship.id, burn: null, overload: null },
+    ];
     const result = processAstrogation(
       initialState,
       0,
@@ -690,7 +703,12 @@ describe('ordnance system', () => {
     // If ordnance phase was entered
     if (result.state.phase === 'ordnance') {
       const launches: OrdnanceLaunch[] = [
-        { shipId: ship.id, ordnanceType: 'mine' },
+        {
+          shipId: ship.id,
+          ordnanceType: 'mine',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
+        },
       ];
       const ordResult = processOrdnance(
         result.state,
@@ -720,12 +738,15 @@ describe('ordnance system', () => {
     ship.position = { q: 0, r: 0 };
     state.phase = 'ordnance';
     state.activePlayer = 0;
-    state.pendingAstrogationOrders = [{ shipId: ship.id, burn: 0 }];
+    state.pendingAstrogationOrders = [
+      { shipId: ship.id, burn: 0, overload: null },
+    ];
     state.ordnance = [
       {
         id: 'ord0',
         type: 'torpedo',
         owner: 0,
+        sourceShipId: null,
         position: { q: -1, r: 0 },
         velocity: { dq: 1, dr: 0 },
         turnsRemaining: 4,
@@ -735,6 +756,7 @@ describe('ordnance system', () => {
         id: 'ord3',
         type: 'nuke',
         owner: 1,
+        sourceShipId: null,
         position: { q: 2, r: 0 },
         velocity: { dq: -1, dr: 0 },
         turnsRemaining: 4,
@@ -744,7 +766,14 @@ describe('ordnance system', () => {
     const result = processOrdnance(
       state,
       0,
-      [{ shipId: ship.id, ordnanceType: 'mine' }],
+      [
+        {
+          shipId: ship.id,
+          ordnanceType: 'mine',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
+        },
+      ],
       map,
       Math.random,
     );
@@ -753,7 +782,14 @@ describe('ordnance system', () => {
       expect(result.engineEvents).toContainEqual({
         type: 'ordnanceLaunchesCommitted',
         playerId: 0,
-        launches: [{ shipId: ship.id, ordnanceType: 'mine' }],
+        launches: [
+          {
+            shipId: ship.id,
+            ordnanceType: 'mine',
+            torpedoAccel: null,
+            torpedoAccelSteps: null,
+          },
+        ],
       });
       expect(
         result.ordnanceMovements.some((move) => move.ordnanceId === 'ord4'),
@@ -765,7 +801,12 @@ describe('ordnance system', () => {
     // Ship is landed, force ordnance phase
     initialState.phase = 'ordnance';
     const launches: OrdnanceLaunch[] = [
-      { shipId: ship.id, ordnanceType: 'mine' },
+      {
+        shipId: ship.id,
+        ordnanceType: 'mine',
+        torpedoAccel: null,
+        torpedoAccelSteps: null,
+      },
     ];
     const result = processOrdnance(initialState, 0, launches, map, Math.random);
     expect('error' in result).toBe(true);
@@ -785,7 +826,12 @@ describe('ordnance system', () => {
     blockadeState.phase = 'ordnance';
     blockadeState.activePlayer = 0;
     const launches: OrdnanceLaunch[] = [
-      { shipId: transport.id, ordnanceType: 'torpedo' },
+      {
+        shipId: transport.id,
+        ordnanceType: 'torpedo',
+        torpedoAccel: null,
+        torpedoAccelSteps: null,
+      },
     ];
     const result = processOrdnance(
       blockadeState,
@@ -807,7 +853,12 @@ describe('ordnance system', () => {
     ship.cargoUsed = 5; // all cargo used
     initialState.phase = 'ordnance';
     const launches: OrdnanceLaunch[] = [
-      { shipId: ship.id, ordnanceType: 'mine' },
+      {
+        shipId: ship.id,
+        ordnanceType: 'mine',
+        torpedoAccel: null,
+        torpedoAccelSteps: null,
+      },
     ];
     const result = processOrdnance(initialState, 0, launches, map, Math.random);
     expect('error' in result).toBe(true);
@@ -830,6 +881,7 @@ describe('ordnance system', () => {
         id: 'ord0',
         type: 'mine',
         owner: 0,
+        sourceShipId: null,
         position: { q: 0, r: 0 },
         velocity: { dq: 1, dr: 0 },
         turnsRemaining: 1, // will self-destruct this turn
@@ -840,7 +892,9 @@ describe('ordnance system', () => {
     ship.lifecycle = 'active';
     ship.velocity = { dq: 0, dr: 0 };
     ship.position = { q: 5, r: 5 };
-    const orders: AstrogationOrder[] = [{ shipId: ship.id, burn: null }];
+    const orders: AstrogationOrder[] = [
+      { shipId: ship.id, burn: null, overload: null },
+    ];
     const result = processAstrogation(
       initialState,
       0,
@@ -877,6 +931,7 @@ describe('ordnance system', () => {
         id: 'ord0',
         type: 'mine',
         owner: 0,
+        sourceShipId: null,
         position: { q: 1, r: 1 },
         velocity: { dq: 0, dr: -1 },
         turnsRemaining: 5,
@@ -891,7 +946,7 @@ describe('ordnance system', () => {
     const firstResult = processAstrogation(
       state,
       0,
-      [{ shipId: ship.id, burn: null }],
+      [{ shipId: ship.id, burn: null, overload: null }],
       gravityMap,
       Math.random,
     );
@@ -918,7 +973,7 @@ describe('ordnance system', () => {
     const secondResult = processAstrogation(
       first.state,
       0,
-      [{ shipId: ship.id, burn: null }],
+      [{ shipId: ship.id, burn: null, overload: null }],
       gravityMap,
       Math.random,
     );
@@ -973,6 +1028,7 @@ describe('ordnance system', () => {
           shipId: ship.id,
           ordnanceType: 'torpedo',
           torpedoAccel: 0,
+          torpedoAccelSteps: null,
         },
       ],
       map,
@@ -1031,6 +1087,7 @@ describe('ordnance system', () => {
           shipId: ship.id,
           ordnanceType: 'torpedo',
           torpedoAccel: 0,
+          torpedoAccelSteps: null,
         },
       ],
       map,
@@ -1057,7 +1114,14 @@ describe('ordnance system', () => {
     const result = processOrdnance(
       initialState,
       0,
-      [{ shipId: ship.id, ordnanceType: 'nuke' }],
+      [
+        {
+          shipId: ship.id,
+          ordnanceType: 'nuke',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
+        },
+      ],
       map,
       Math.random,
     );
@@ -1101,7 +1165,9 @@ describe('detection / fog of war', () => {
     ship1.position = { q: 2, r: 0 }; // within range 3
     ship1.velocity = { dq: 0, dr: 0 };
     ship1.detected = false; // pretend undetected
-    const orders: AstrogationOrder[] = [{ shipId: ship0.id, burn: null }];
+    const orders: AstrogationOrder[] = [
+      { shipId: ship0.id, burn: null, overload: null },
+    ];
     const result = processAstrogation(
       initialState,
       0,
@@ -1126,7 +1192,9 @@ describe('detection / fog of war', () => {
     ship1.position = { q: 20, r: 20 }; // far from ship0 and any bases
     ship1.velocity = { dq: 0, dr: 0 };
     ship1.detected = false; // start undetected
-    const orders: AstrogationOrder[] = [{ shipId: ship0.id, burn: null }];
+    const orders: AstrogationOrder[] = [
+      { shipId: ship0.id, burn: null, overload: null },
+    ];
     const result = processAstrogation(
       initialState,
       0,
@@ -1150,7 +1218,9 @@ describe('detection / fog of war', () => {
     ship1.position = { q: 10, r: 0 }; // beyond range
     ship1.velocity = { dq: 0, dr: 0 };
     ship1.detected = true; // already detected
-    const orders: AstrogationOrder[] = [{ shipId: ship0.id, burn: null }];
+    const orders: AstrogationOrder[] = [
+      { shipId: ship0.id, burn: null, overload: null },
+    ];
     const result = processAstrogation(
       initialState,
       0,
@@ -1346,6 +1416,7 @@ describe('base defense fire', () => {
           id: 'enemy-nuke',
           type: 'nuke',
           owner: 1,
+          sourceShipId: null,
           position: { q: marsBase.q + 2, r: marsBase.r },
           velocity: { dq: 3, dr: 0 },
           turnsRemaining: 5,
@@ -1380,7 +1451,9 @@ describe('ramming', () => {
     ship1.position = { q: 7, r: 5 };
     ship1.velocity = { dq: -1, dr: 0 };
     // Both heading toward q:6, r:5
-    const orders: AstrogationOrder[] = [{ shipId: ship0.id, burn: null }];
+    const orders: AstrogationOrder[] = [
+      { shipId: ship0.id, burn: null, overload: null },
+    ];
     const result = processAstrogation(
       initialState,
       0,
@@ -1410,7 +1483,12 @@ describe('nuke ordnance', () => {
     ship.position = { q: 15, r: 0 };
     initialState.phase = 'ordnance';
     const launches: OrdnanceLaunch[] = [
-      { shipId: ship.id, ordnanceType: 'nuke' },
+      {
+        shipId: ship.id,
+        ordnanceType: 'nuke',
+        torpedoAccel: null,
+        torpedoAccelSteps: null,
+      },
     ];
     const result = processOrdnance(initialState, 0, launches, map, Math.random);
     expect('error' in result).toBe(false);
@@ -1429,7 +1507,12 @@ describe('nuke ordnance', () => {
     transport.velocity = { dq: 1, dr: 0 };
     escState.phase = 'ordnance';
     const launches: OrdnanceLaunch[] = [
-      { shipId: transport.id, ordnanceType: 'nuke' },
+      {
+        shipId: transport.id,
+        ordnanceType: 'nuke',
+        torpedoAccel: null,
+        torpedoAccelSteps: null,
+      },
     ];
     const result = processOrdnance(escState, 0, launches, map, Math.random);
     expect('error' in result).toBe(false);
@@ -1445,7 +1528,14 @@ describe('nuke ordnance', () => {
     const first = processOrdnance(
       escState,
       0,
-      [{ shipId: transport.id, ordnanceType: 'nuke' }],
+      [
+        {
+          shipId: transport.id,
+          ordnanceType: 'nuke',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
+        },
+      ],
       map,
       Math.random,
     );
@@ -1456,7 +1546,14 @@ describe('nuke ordnance', () => {
     const second = processOrdnance(
       first.state,
       0,
-      [{ shipId: transport.id, ordnanceType: 'nuke' }],
+      [
+        {
+          shipId: transport.id,
+          ordnanceType: 'nuke',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
+        },
+      ],
       map,
       Math.random,
     );
@@ -1476,7 +1573,14 @@ describe('nuke ordnance', () => {
     const result = processOrdnance(
       initialState,
       0,
-      [{ shipId: ship.id, ordnanceType: 'nuke' }],
+      [
+        {
+          shipId: ship.id,
+          ordnanceType: 'nuke',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
+        },
+      ],
       map,
       Math.random,
     );
@@ -1546,10 +1650,22 @@ describe('ordnance validation', () => {
     ship.lifecycle = 'active';
     ship.fuel = 20;
     initialState.phase = 'ordnance';
-    initialState.pendingAstrogationOrders = [{ shipId: ship.id, burn: 0 }];
+    initialState.pendingAstrogationOrders = [
+      { shipId: ship.id, burn: 0, overload: null },
+    ];
     const launches: OrdnanceLaunch[] = [
-      { shipId: ship.id, ordnanceType: 'mine' },
-      { shipId: ship.id, ordnanceType: 'mine' },
+      {
+        shipId: ship.id,
+        ordnanceType: 'mine',
+        torpedoAccel: null,
+        torpedoAccelSteps: null,
+      },
+      {
+        shipId: ship.id,
+        ordnanceType: 'mine',
+        torpedoAccel: null,
+        torpedoAccelSteps: null,
+      },
     ];
     const result = processOrdnance(initialState, 0, launches, map, Math.random);
     expect('error' in result).toBe(true);
@@ -1585,8 +1701,18 @@ describe('ordnance validation', () => {
       fleetState,
       0,
       [
-        { attackerIds: [attacker.id], targetId: enemyA.id },
-        { attackerIds: [attacker.id, ally.id], targetId: enemyB.id },
+        {
+          attackerIds: [attacker.id],
+          targetId: enemyA.id,
+          targetType: 'ship',
+          attackStrength: null,
+        },
+        {
+          attackerIds: [attacker.id, ally.id],
+          targetId: enemyB.id,
+          targetType: 'ship',
+          attackStrength: null,
+        },
       ],
       openMap,
       Math.random,
@@ -1618,8 +1744,18 @@ describe('ordnance validation', () => {
       fleetState,
       0,
       [
-        { attackerIds: [attacker.id], targetId: enemyA.id, attackStrength: 4 },
-        { attackerIds: [attacker.id], targetId: enemyB.id, attackStrength: 4 },
+        {
+          attackerIds: [attacker.id],
+          targetId: enemyA.id,
+          targetType: 'ship',
+          attackStrength: 4,
+        },
+        {
+          attackerIds: [attacker.id],
+          targetId: enemyB.id,
+          targetType: 'ship',
+          attackStrength: 4,
+        },
       ],
       openMap,
       () => 0.5,
@@ -1650,8 +1786,18 @@ describe('ordnance validation', () => {
       fleetState,
       1,
       [
-        { attackerIds: [attackers[0].id], targetId: enemies[0].id },
-        { attackerIds: [attackers[1].id], targetId: enemies[0].id },
+        {
+          attackerIds: [attackers[0].id],
+          targetId: enemies[0].id,
+          targetType: 'ship',
+          attackStrength: null,
+        },
+        {
+          attackerIds: [attackers[1].id],
+          targetId: enemies[0].id,
+          targetType: 'ship',
+          attackStrength: null,
+        },
       ],
       openMap,
       Math.random,
@@ -1689,7 +1835,14 @@ describe('ordnance validation', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: [attacker.id], targetId: target.id }],
+      [
+        {
+          attackerIds: [attacker.id],
+          targetId: target.id,
+          targetType: 'ship',
+          attackStrength: null,
+        },
+      ],
       losMap,
       Math.random,
     );
@@ -1718,7 +1871,14 @@ describe('ordnance validation', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: [attacker.id], targetId: target.id }],
+      [
+        {
+          attackerIds: [attacker.id],
+          targetId: target.id,
+          targetType: 'ship',
+          attackStrength: null,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -1747,7 +1907,14 @@ describe('ordnance validation', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: [attacker.id], targetId: target.id, attackStrength: 3 }],
+      [
+        {
+          attackerIds: [attacker.id],
+          targetId: target.id,
+          targetType: 'ship',
+          attackStrength: 3,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -1777,7 +1944,14 @@ describe('ordnance validation', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: [attacker.id], targetId: target.id, attackStrength: 2 }],
+      [
+        {
+          attackerIds: [attacker.id],
+          targetId: target.id,
+          targetType: 'ship',
+          attackStrength: 2,
+        },
+      ],
       openMap,
       () => 0.5,
     );
@@ -1804,6 +1978,7 @@ describe('ordnance validation', () => {
       id: 'enemy-nuke',
       type: 'nuke',
       owner: 1,
+      sourceShipId: null,
       position: { q: 1, r: 0 },
       velocity: { dq: 0, dr: 0 },
       turnsRemaining: 5,
@@ -1818,6 +1993,7 @@ describe('ordnance validation', () => {
           attackerIds: [attacker.id],
           targetId: 'enemy-nuke',
           targetType: 'ordnance',
+          attackStrength: null,
         },
       ],
       openMap,
@@ -1845,7 +2021,7 @@ describe('mutual destruction', () => {
     // Run a no-op astrogation to trigger checkGameEnd
     const orders: AstrogationOrder[] = initialState.ships
       .filter((s) => s.owner === 0)
-      .map((s) => ({ shipId: s.id, burn: null }));
+      .map((s) => ({ shipId: s.id, burn: null, overload: null }));
     const result = processAstrogation(
       initialState,
       0,
@@ -1911,7 +2087,7 @@ describe('Edge cases', () => {
   it('no-burn orders for all ships produces valid movement', () => {
     const orders: AstrogationOrder[] = initialState.ships
       .filter((s) => s.owner === 0)
-      .map((s) => ({ shipId: s.id, burn: null }));
+      .map((s) => ({ shipId: s.id, burn: null, overload: null }));
     const result = processAstrogation(
       initialState,
       0,
@@ -1935,7 +2111,7 @@ describe('Edge cases', () => {
     // Player 0 is active, try submitting as player 1
     const orders: AstrogationOrder[] = initialState.ships
       .filter((s) => s.owner === 1)
-      .map((s) => ({ shipId: s.id, burn: null }));
+      .map((s) => ({ shipId: s.id, burn: null, overload: null }));
     const result = processAstrogation(
       initialState,
       1,
@@ -1972,7 +2148,7 @@ describe('Edge cases', () => {
     // Run a no-op astrogation to trigger checkGameEnd
     const orders: AstrogationOrder[] = fleetState.ships
       .filter((s) => s.owner === 0)
-      .map((s) => ({ shipId: s.id, burn: null }));
+      .map((s) => ({ shipId: s.id, burn: null, overload: null }));
     const result = processAstrogation(fleetState, 0, orders, map, Math.random);
     if (!('error' in result)) {
       expect(result.state.phase).toBe('gameOver');
@@ -2005,7 +2181,7 @@ describe('Edge cases', () => {
     // Process a legal orbital landing burn.
     const orders: AstrogationOrder[] = blockadeState.ships
       .filter((s) => s.owner === 0)
-      .map((s) => ({ shipId: s.id, burn: 0 }));
+      .map((s) => ({ shipId: s.id, burn: 0, overload: null }));
     const result = resolveAstrogationMovement(blockadeState, 0, orders);
     expect(result.state.phase).toBe('gameOver');
     expect(result.state.outcome?.winner).toBe(0);
@@ -2033,7 +2209,14 @@ describe('landed ship immunity', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: [attacker.id], targetId: target.id }],
+      [
+        {
+          attackerIds: [attacker.id],
+          targetId: target.id,
+          targetType: 'ship',
+          attackStrength: null,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -2059,6 +2242,7 @@ describe('landed ship immunity', () => {
       id: 'mine1',
       type: 'mine',
       owner: 0,
+      sourceShipId: null,
       position: { q: 4, r: 0 },
       velocity: { dq: 1, dr: 0 },
       turnsRemaining: 5,
@@ -2070,7 +2254,9 @@ describe('landed ship immunity', () => {
     attacker.position = { q: -10, r: 0 };
     attacker.lastMovementPath = [{ q: -10, r: 0 }];
     attacker.velocity = { dq: 0, dr: 0 };
-    resolveAstrogationMovement(state, 0, [{ shipId: attacker.id, burn: null }]);
+    resolveAstrogationMovement(state, 0, [
+      { shipId: attacker.id, burn: null, overload: null },
+    ]);
     // Mine should not have hit the landed ship
     expect(target.lifecycle).toBe('landed');
     expect(target.damage.disabledTurns).toBe(0);
@@ -2092,6 +2278,7 @@ describe('landed ship immunity', () => {
       id: 'nuke1',
       type: 'nuke',
       owner: 0,
+      sourceShipId: null,
       position: { q: 4, r: 0 },
       velocity: { dq: 1, dr: 0 },
       turnsRemaining: 5,
@@ -2104,7 +2291,7 @@ describe('landed ship immunity', () => {
     attacker.lastMovementPath = [{ q: -10, r: 0 }];
     attacker.velocity = { dq: 0, dr: 0 };
     const result = resolveAstrogationMovement(state, 0, [
-      { shipId: attacker.id, burn: null },
+      { shipId: attacker.id, burn: null, overload: null },
     ]);
     // Nuke should have destroyed the landed ship
     const updatedTarget = must(
@@ -2140,7 +2327,9 @@ describe('landed ship immunity', () => {
     state.phase = 'astrogation';
     attacker.position = { q: 4, r: 0 };
     attacker.lastMovementPath = [{ q: 4, r: 0 }];
-    resolveAstrogationMovement(state, 0, [{ shipId: attacker.id, burn: null }]);
+    resolveAstrogationMovement(state, 0, [
+      { shipId: attacker.id, burn: null, overload: null },
+    ]);
     // Landed target should be immune to ramming
     expect(target.lifecycle).toBe('landed');
     expect(target.damage.disabledTurns).toBe(0);
@@ -2170,7 +2359,14 @@ describe('resupply restrictions', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: [attacker.id], targetId: target.id }],
+      [
+        {
+          attackerIds: [attacker.id],
+          targetId: target.id,
+          targetType: 'ship',
+          attackStrength: null,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -2196,7 +2392,14 @@ describe('resupply restrictions', () => {
     const result = processOrdnance(
       state,
       0,
-      [{ shipId: ship.id, ordnanceType: 'mine' }],
+      [
+        {
+          shipId: ship.id,
+          ordnanceType: 'mine',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -2241,11 +2444,20 @@ describe('mine launch restrictions', () => {
     ship.position = { q: 0, r: 0 };
     ship.velocity = { dq: 1, dr: 0 };
     // Pending orders with no burn
-    state.pendingAstrogationOrders = [{ shipId: ship.id, burn: null }];
+    state.pendingAstrogationOrders = [
+      { shipId: ship.id, burn: null, overload: null },
+    ];
     const result = processOrdnance(
       state,
       0,
-      [{ shipId: ship.id, ordnanceType: 'mine' }],
+      [
+        {
+          shipId: ship.id,
+          ordnanceType: 'mine',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -2268,11 +2480,20 @@ describe('mine launch restrictions', () => {
     ship.lifecycle = 'active';
     ship.position = { q: 0, r: 0 };
     ship.velocity = { dq: 1, dr: 0 };
-    state.pendingAstrogationOrders = [{ shipId: ship.id, burn: 2 }];
+    state.pendingAstrogationOrders = [
+      { shipId: ship.id, burn: 2, overload: null },
+    ];
     const result = processOrdnance(
       state,
       0,
-      [{ shipId: ship.id, ordnanceType: 'mine' }],
+      [
+        {
+          shipId: ship.id,
+          ordnanceType: 'mine',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -2307,6 +2528,7 @@ describe('nuke planetary devastation', () => {
       id: 'nuke-planet',
       type: 'nuke',
       owner: 0,
+      sourceShipId: null,
       position: { ...must(gravHex) },
       velocity: vel,
       turnsRemaining: 5,
@@ -2326,7 +2548,7 @@ describe('nuke planetary devastation', () => {
     attacker.lastMovementPath = [{ q: -30, r: -30 }];
     attacker.velocity = { dq: 0, dr: 0 };
     const result = resolveAstrogationMovement(state, 0, [
-      { shipId: attacker.id, burn: null },
+      { shipId: attacker.id, burn: null, overload: null },
     ]);
     // The nuke should have devastated the gravity hex, destroying the victim
     const updatedVictim = must(
@@ -2370,7 +2592,7 @@ describe('hidden identity (Escape scenario)', () => {
       1,
       state.ships
         .filter((s) => s.owner === 1)
-        .map((s) => ({ shipId: s.id, burn: null })),
+        .map((s) => ({ shipId: s.id, burn: null, overload: null })),
     );
     const updatedFugitive = must(
       result.state.ships.find((s) => s.id === fugitive.id),
@@ -2386,7 +2608,7 @@ describe('hidden identity (Escape scenario)', () => {
     state.activePlayer = 0;
     const orders = state.ships
       .filter((s) => s.owner === 0)
-      .map((s) => ({ shipId: s.id, burn: null }));
+      .map((s) => ({ shipId: s.id, burn: null, overload: null }));
     const result = processAstrogation(state, 0, orders, map, Math.random);
     if ('error' in result) throw new Error(getErrorMessage(result.error));
     expect(result.state.outcome?.winner).toBe(0);
@@ -2403,7 +2625,7 @@ describe('hidden identity (Escape scenario)', () => {
     state.activePlayer = 0;
     const orders = state.ships
       .filter((s) => s.owner === 0)
-      .map((s) => ({ shipId: s.id, burn: null }));
+      .map((s) => ({ shipId: s.id, burn: null, overload: null }));
     const result = processAstrogation(state, 0, orders, map, Math.random);
     if ('error' in result) throw new Error(getErrorMessage(result.error));
     // Should not win -- the fugitive ship hasn't escaped
@@ -2521,7 +2743,7 @@ describe('capture mechanics', () => {
     const result = processAstrogation(
       state,
       0,
-      [{ shipId: 'captor', burn: null }],
+      [{ shipId: 'captor', burn: null, overload: null }],
       openMap,
       Math.random,
     );
@@ -2616,7 +2838,7 @@ describe('capture mechanics', () => {
     const result = processAstrogation(
       state,
       0,
-      [{ shipId: 'captor', burn: null }],
+      [{ shipId: 'captor', burn: null, overload: null }],
       openMap,
       Math.random,
     );
@@ -2702,7 +2924,7 @@ describe('capture mechanics', () => {
     const result = processAstrogation(
       state,
       0,
-      [{ shipId: 'captor', burn: null }],
+      [{ shipId: 'captor', burn: null, overload: null }],
       openMap,
       Math.random,
     );
@@ -2725,7 +2947,7 @@ describe('capture mechanics', () => {
     const result = processAstrogation(
       state,
       0,
-      [{ shipId: ship.id, burn: 1 }],
+      [{ shipId: ship.id, burn: 1, overload: null }],
       map,
       Math.random,
     );
@@ -2765,7 +2987,9 @@ describe('capture mechanics', () => {
         },
       ],
       ordnance: [],
-      pendingAstrogationOrders: [{ shipId: 'captured', burn: null }],
+      pendingAstrogationOrders: [
+        { shipId: 'captured', burn: null, overload: null },
+      ],
       pendingAsteroidHazards: [],
       destroyedAsteroids: [],
       destroyedBases: [],
@@ -2792,7 +3016,14 @@ describe('capture mechanics', () => {
     const result = processOrdnance(
       state,
       0,
-      [{ shipId: 'captured', ordnanceType: 'mine' }],
+      [
+        {
+          shipId: 'captured',
+          ordnanceType: 'mine',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -2917,7 +3148,7 @@ describe('Grand Tour', () => {
     processAstrogation(
       tourState,
       0,
-      [{ shipId: ship0.id, burn: null }],
+      [{ shipId: ship0.id, burn: null, overload: null }],
       map,
       Math.random,
     );
@@ -2931,7 +3162,7 @@ describe('Grand Tour', () => {
     tourState.activePlayer = 0;
     const initialFuel = tourState.players[0].totalFuelSpent;
     const result = resolveAstrogationMovement(tourState, 0, [
-      { shipId: ship.id, burn: 0 },
+      { shipId: ship.id, burn: 0, overload: null },
     ]);
     expect(result.state.players[0].totalFuelSpent).toBe(must(initialFuel) + 1);
   });

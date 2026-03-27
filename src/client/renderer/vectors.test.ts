@@ -71,6 +71,7 @@ const createState = (): GameState => ({
       id: 'mine-1',
       type: 'mine',
       owner: 0,
+      sourceShipId: null,
       position: { q: 1, r: 1 },
       velocity: { dq: 0, dr: 0 },
       turnsRemaining: 3,

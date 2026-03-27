@@ -177,11 +177,8 @@ export const buildAstrogationOrders = (
     const order: AstrogationOrder = {
       shipId: ship.id,
       burn,
+      overload,
     };
-
-    if (overload !== null) {
-      order.overload = overload;
-    }
 
     if (weakGravityChoices && Object.keys(weakGravityChoices).length > 0) {
       order.weakGravityChoices = weakGravityChoices;

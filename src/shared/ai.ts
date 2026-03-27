@@ -156,6 +156,7 @@ export const aiAstrogation = (
       orders.push({
         shipId: ship.id,
         burn: null,
+        overload: null,
       });
       continue;
     }
@@ -164,6 +165,7 @@ export const aiAstrogation = (
       orders.push({
         shipId: ship.id,
         burn: null,
+        overload: null,
       });
       continue;
     }
@@ -430,8 +432,8 @@ export const aiAstrogation = (
     orders.push({
       shipId: ship.id,
       burn: bestBurn,
-      ...(bestOverload !== null ? { overload: bestOverload } : {}),
-      ...(bestWeakGrav ? { weakGravityChoices: bestWeakGrav } : {}),
+      overload: bestOverload,
+      weakGravityChoices: bestWeakGrav ?? undefined,
     });
     shipIdx++;
   }
@@ -502,6 +504,8 @@ export const aiOrdnance = (
         launches.push({
           shipId: ship.id,
           ordnanceType: 'nuke',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
         });
         continue;
       }
@@ -542,6 +546,8 @@ export const aiOrdnance = (
         launches.push({
           shipId: ship.id,
           ordnanceType: 'mine',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
         });
         continue;
       }
@@ -571,6 +577,8 @@ export const aiOrdnance = (
           launches.push({
             shipId: ship.id,
             ordnanceType: 'mine',
+            torpedoAccel: null,
+            torpedoAccelSteps: null,
           });
         }
       }
@@ -712,6 +720,7 @@ export const aiCombat = (
       attackerIds: available.map((s) => s.id),
       targetId: target.targetId,
       targetType: target.targetType,
+      attackStrength: null,
     });
     for (const a of available) {
       committedAttackers.add(a.id);

@@ -105,7 +105,7 @@ describe('aiAstrogation', () => {
     expect(withAllowance[0].overload).not.toBeNull();
     aiShip.overloadUsed = true;
     const withoutAllowance = aiAstrogation(state, 1, map, 'hard');
-    expect(withoutAllowance[0].overload).toBeUndefined();
+    expect(withoutAllowance[0].overload).toBeNull();
   });
 });
 describe('aiOrdnance', () => {
@@ -494,7 +494,7 @@ describe('aiAstrogation — checkpoint race', () => {
     aiShip.fuel = 20;
     const orders = aiAstrogation(state, 1, map, 'hard');
     // combatDisabled means no overloads
-    expect(orders[0].overload).toBeUndefined();
+    expect(orders[0].overload).toBeNull();
   });
 });
 describe('aiAstrogation — easy AI randomization', () => {
@@ -517,7 +517,7 @@ describe('aiAstrogation — easy AI randomization', () => {
       expect(orders[0].burn).toBeLessThanOrEqual(5);
     }
     // Easy AI never overloads
-    expect(orders[0].overload).toBeUndefined();
+    expect(orders[0].overload).toBeNull();
   });
   it('easy AI skips random direction when Math.random >= 0.25', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5); // >= 0.25 -> no random
@@ -729,6 +729,7 @@ describe('aiCombat — anti-nuke targeting', () => {
       id: 'nuke-1',
       type: 'nuke',
       owner: 0,
+      sourceShipId: null,
       position: { q: 2, r: 0 },
       velocity: { dq: -1, dr: 0 },
       lifecycle: 'active' as const,
@@ -760,6 +761,7 @@ describe('aiCombat — anti-nuke targeting', () => {
       id: 'nuke-close',
       type: 'nuke',
       owner: 0,
+      sourceShipId: null,
       position: { q: 1, r: 0 },
       velocity: { dq: 0, dr: 0 },
       lifecycle: 'active' as const,

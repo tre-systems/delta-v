@@ -40,6 +40,7 @@ const createOrdnance = (overrides: Partial<Ordnance> = {}): Ordnance => ({
   id: 'ord-0',
   type: 'mine',
   owner: 0,
+  sourceShipId: null,
   position: { q: 0, r: 0 },
   velocity: { dq: 0, dr: 0 },
   turnsRemaining: 5,
@@ -175,6 +176,7 @@ describe('game client helpers', () => {
       {
         shipId: 'p0s1',
         burn: null,
+        overload: null,
       },
     ]);
   });
@@ -219,7 +221,7 @@ describe('game client helpers', () => {
         },
         createPlayers()[1],
       ],
-      pendingAstrogationOrders: [{ shipId: 'p0s0', burn: 1 }],
+      pendingAstrogationOrders: [{ shipId: 'p0s0', burn: 1, overload: null }],
     });
 
     const planning = {

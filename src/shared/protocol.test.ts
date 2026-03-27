@@ -906,7 +906,7 @@ describe('validateClientMessage', () => {
             {
               attackerIds: ['p0s0'],
               targetId: 'p1s0',
-              targetType: undefined,
+              targetType: 'ship',
               attackStrength: null,
             },
           ],

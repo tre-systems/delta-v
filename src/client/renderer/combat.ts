@@ -60,9 +60,7 @@ const getCommittedAttackers = (queuedAttacks: CombatAttack[]): Set<string> => {
 
 const getQueuedTargetKeys = (queuedAttacks: CombatAttack[]): Set<string> => {
   return new Set(
-    queuedAttacks.map(
-      (attack) => `${attack.targetType ?? 'ship'}:${attack.targetId}`,
-    ),
+    queuedAttacks.map((attack) => `${attack.targetType}:${attack.targetId}`),
   );
 };
 
@@ -116,7 +114,7 @@ export const getQueuedCombatOverlayAttacks = (
 ): QueuedCombatOverlayAttack[] => {
   return filterMap(queuedAttacks, (queued) => {
     const target =
-      (queued.targetType ?? 'ship') === 'ordnance'
+      queued.targetType === 'ordnance'
         ? state.ordnance.find((item) => item.id === queued.targetId)
         : state.ships.find((item) => item.id === queued.targetId);
 

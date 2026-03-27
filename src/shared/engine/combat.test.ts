@@ -40,6 +40,7 @@ const makeOrdnance = (overrides: Partial<Ordnance> = {}): Ordnance => ({
   id: 'ord0',
   type: 'nuke',
   owner: 1,
+  sourceShipId: null,
   position: { q: 1, r: 0 },
   velocity: { dq: 0, dr: 0 },
   turnsRemaining: 5,
@@ -163,7 +164,14 @@ describe('processCombat', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: ['a0'], targetId: 'e0' }],
+      [
+        {
+          attackerIds: ['a0'],
+          targetId: 'e0',
+          targetType: 'ship',
+          attackStrength: null,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -176,7 +184,14 @@ describe('processCombat', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: ['a0', 'a0'], targetId: 'e0' }],
+      [
+        {
+          attackerIds: ['a0', 'a0'],
+          targetId: 'e0',
+          targetType: 'ship',
+          attackStrength: null,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -189,7 +204,14 @@ describe('processCombat', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: ['e0'], targetId: 'a0' }],
+      [
+        {
+          attackerIds: ['e0'],
+          targetId: 'a0',
+          targetType: 'ship',
+          attackStrength: null,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -202,7 +224,14 @@ describe('processCombat', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: [], targetId: 'e0' }],
+      [
+        {
+          attackerIds: [],
+          targetId: 'e0',
+          targetType: 'ship',
+          attackStrength: null,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -216,7 +245,14 @@ describe('processCombat', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: ['a0'], targetId: 'e0' }],
+      [
+        {
+          attackerIds: ['a0'],
+          targetId: 'e0',
+          targetType: 'ship',
+          attackStrength: null,
+        },
+      ],
       openMap,
       Math.random,
     );
@@ -254,11 +290,13 @@ describe('processCombat', () => {
         {
           attackerIds: ['a0'],
           targetId: 'e0',
+          targetType: 'ship',
           attackStrength: 2,
         },
         {
           attackerIds: ['a0'],
           targetId: 'e1',
+          targetType: 'ship',
           attackStrength: 2,
         },
       ],
@@ -278,6 +316,7 @@ describe('processCombat', () => {
         {
           attackerIds: ['a0'],
           targetId: 'e0',
+          targetType: 'ship',
           attackStrength: 99,
         },
       ],
@@ -324,16 +363,19 @@ describe('processCombat', () => {
         {
           attackerIds: ['a0'],
           targetId: 'e0',
+          targetType: 'ship',
           attackStrength: 2,
         },
         {
           attackerIds: ['a0'],
           targetId: 'e1',
+          targetType: 'ship',
           attackStrength: 2,
         },
         {
           attackerIds: ['a0'],
           targetId: 'e2',
+          targetType: 'ship',
           attackStrength: 1,
         },
       ],
@@ -375,12 +417,14 @@ describe('processCombat', () => {
         {
           attackerIds: ['a0'],
           targetId: 'e0',
+          targetType: 'ship',
           attackStrength: 2,
         },
         {
           attackerIds: ['a0'],
           targetId: 'ord0',
           targetType: 'ordnance',
+          attackStrength: null,
         },
       ],
       openMap,
@@ -408,6 +452,7 @@ describe('processCombat', () => {
           attackerIds: ['a0'],
           targetId: 'ord0',
           targetType: 'ordnance',
+          attackStrength: null,
         },
       ],
       openMap,
@@ -461,6 +506,7 @@ describe('processCombat', () => {
           attackerIds: ['a0'],
           targetId: 'ord0',
           targetType: 'ordnance',
+          attackStrength: null,
         },
       ],
       openMap,
@@ -488,6 +534,7 @@ describe('processCombat', () => {
           attackerIds: ['a0'],
           targetId: 'ord0',
           targetType: 'ordnance',
+          attackStrength: null,
         },
       ],
       openMap,
@@ -514,6 +561,7 @@ describe('processCombat', () => {
           attackerIds: ['a0'],
           targetId: 'ord0',
           targetType: 'ordnance',
+          attackStrength: null,
         },
       ],
       openMap,
@@ -544,6 +592,7 @@ describe('processCombat', () => {
           attackerIds: ['a0'],
           targetId: 'ord0',
           targetType: 'ordnance',
+          attackStrength: null,
         },
       ],
       openMap,
@@ -592,7 +641,14 @@ describe('processCombat', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: ['a0'], targetId: 'e0' }],
+      [
+        {
+          attackerIds: ['a0'],
+          targetId: 'e0',
+          targetType: 'ship',
+          attackStrength: null,
+        },
+      ],
       openMap,
       () => 0.7,
     );
@@ -763,8 +819,18 @@ describe('processCombat -- additional edge cases', () => {
       state,
       0,
       [
-        { attackerIds: ['a0'], targetId: 'e0' },
-        { attackerIds: ['a1'], targetId: 'e0' },
+        {
+          attackerIds: ['a0'],
+          targetId: 'e0',
+          targetType: 'ship',
+          attackStrength: null,
+        },
+        {
+          attackerIds: ['a1'],
+          targetId: 'e0',
+          targetType: 'ship',
+          attackStrength: null,
+        },
       ],
       openMap,
       () => 0.99,
@@ -810,11 +876,13 @@ describe('processCombat -- additional edge cases', () => {
           attackerIds: ['a0'],
           targetId: 'nuke0',
           targetType: 'ordnance',
+          attackStrength: null,
         },
         {
           attackerIds: ['a0'],
           targetId: 'nuke1',
           targetType: 'ordnance',
+          attackStrength: null,
         },
       ],
       openMap,
@@ -876,6 +944,7 @@ describe('processCombat -- additional edge cases', () => {
           attackerIds: ['a0'],
           targetId: 'nuke0',
           targetType: 'ordnance',
+          attackStrength: null,
         },
       ],
       bodyMap,
@@ -925,7 +994,14 @@ describe('processCombat -- additional edge cases', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: ['a0'], targetId: 'e0' }],
+      [
+        {
+          attackerIds: ['a0'],
+          targetId: 'e0',
+          targetType: 'ship',
+          attackStrength: null,
+        },
+      ],
       bodyMap,
       Math.random,
     );
@@ -938,7 +1014,14 @@ describe('processCombat -- additional edge cases', () => {
     const result = processCombat(
       state,
       0,
-      [{ attackerIds: ['a0'], targetId: 'e0' }],
+      [
+        {
+          attackerIds: ['a0'],
+          targetId: 'e0',
+          targetType: 'ship',
+          attackStrength: null,
+        },
+      ],
       openMap,
       () => 0.99,
     );
