@@ -269,7 +269,7 @@ export const beginCombatPhase = (
     checkGameEnd(state, map, engineEvents);
   }
 
-  if (state.winner !== null) {
+  if (state.outcome !== null) {
     return results.length > 0
       ? { results, state, engineEvents }
       : { state, engineEvents };
@@ -311,11 +311,11 @@ export const processCombat = (
 
   applyEscapeMoralVictory(state);
 
-  if (state.winner === null) {
+  if (state.outcome === null) {
     checkGameEnd(state, map, engineEvents);
   }
 
-  if (state.winner !== null) {
+  if (state.outcome !== null) {
     return { results, state, engineEvents };
   }
 
@@ -574,7 +574,7 @@ export const processCombat = (
   applyEscapeMoralVictory(state);
   checkGameEnd(state, map, engineEvents);
 
-  if (state.winner === null) {
+  if (state.outcome === null) {
     advanceTurn(state, engineEvents);
   }
 
@@ -609,7 +609,7 @@ export const skipCombat = (
     checkGameEnd(state, map, engineEvents);
   }
 
-  if (state.winner !== null) {
+  if (state.outcome !== null) {
     return results.length > 0
       ? { state, results, engineEvents }
       : { state, engineEvents };
@@ -627,7 +627,7 @@ export const skipCombat = (
     checkGameEnd(state, map, engineEvents);
   }
 
-  if (state.winner === null) {
+  if (state.outcome === null) {
     advanceTurn(state, engineEvents);
   }
 

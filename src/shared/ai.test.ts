@@ -3,6 +3,7 @@ import { aiAstrogation, aiCombat, aiOrdnance } from './ai';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
 import { createGame } from './engine/game-engine';
+import { asHexKey } from './hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from './map-data';
 import type { SolarSystemMap } from './types';
 
@@ -251,7 +252,7 @@ describe('aiCombat', () => {
     const blockedMap: SolarSystemMap = {
       hexes: new Map([
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'planetSurface',
             body: { name: 'Blocker', destructive: false },

@@ -96,8 +96,7 @@ describe('runGameDoAlarm', () => {
     const gameState = {
       phase: 'astrogation',
       turnNumber: 3,
-      winner: null,
-      winReason: null,
+      outcome: null,
     } as GameState;
     d.getCurrentGameState = vi.fn().mockResolvedValue(gameState);
 
@@ -107,7 +106,7 @@ describe('runGameDoAlarm', () => {
     expect(d.publishStateChange).toHaveBeenCalledTimes(1);
     const [published] = d.publishStateChange.mock.calls;
     expect(published[0].phase).toBe('gameOver');
-    expect(published[0].winner).toBe(1);
+    expect(published[0].outcome?.winner).toBe(1);
     expect(published[2]?.events?.[0]).toMatchObject({
       type: 'gameOver',
       winner: 1,

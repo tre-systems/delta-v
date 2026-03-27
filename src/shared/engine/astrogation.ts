@@ -156,7 +156,7 @@ export const processAstrogation = (
 
   checkGameEnd(state, map, engineEvents);
 
-  if (state.winner !== null) {
+  if (state.outcome !== null) {
     state.pendingAstrogationOrders = null;
     return { state, engineEvents };
   }

@@ -219,7 +219,7 @@ export const resolveMovementPhase = (
   applyEscapeMoralVictory(state);
   checkImmediateVictory(state, map, engineEvents);
 
-  if (state.winner === null) {
+  if (state.outcome === null) {
     if (shouldEnterLogisticsPhase(state)) {
       state.phase = 'logistics';
       engineEvents.push({
@@ -239,7 +239,7 @@ export const resolveMovementPhase = (
     } else {
       checkGameEnd(state, map, engineEvents);
 
-      if (state.winner === null) {
+      if (state.outcome === null) {
         advanceTurn(state, engineEvents);
       }
     }

@@ -36,8 +36,7 @@ const createState = (gameId: string): GameState => ({
       escapeWins: false,
     },
   ],
-  winner: null,
-  winReason: null,
+  outcome: null,
 });
 
 const createTimeline = (gameId: string): ReplayTimeline => ({

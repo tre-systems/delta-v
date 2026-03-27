@@ -1,16 +1,33 @@
 import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
-import { parseHexKey } from '../hex';
+import { type HexKey, parseHexKey } from '../hex';
 import { bodyHasGravity } from '../map-data';
 import {
   type EngineError,
   ErrorCode,
   type GameState,
   type Ordnance,
+  PHASE_TRANSITIONS,
   type Phase,
+  type PhaseSuccessor,
   type PlayerId,
   type Ship,
   type SolarSystemMap,
 } from '../types';
+
+/**
+ * Transition the game to a new phase, validating against the phase transition table.
+ * Throws in development if the transition is not listed in PHASE_TRANSITIONS.
+ */
+export const transitionPhase = <P extends Phase>(
+  state: GameState & { phase: P },
+  next: PhaseSuccessor<P>,
+): void => {
+  const allowed = PHASE_TRANSITIONS[state.phase] as readonly Phase[];
+  if (!allowed.includes(next)) {
+    throw new Error(`Invalid phase transition: ${state.phase} → ${next}`);
+  }
+  (state as GameState).phase = next;
+};
 
 // Phase + player validation for engine entry points.
 // Returns an error string if the action is not allowed,
@@ -48,7 +65,7 @@ export const engineFailure = (code: ErrorCode, message: string) => ({
 export const playerControlsBase = (
   state: GameState,
   playerId: PlayerId,
-  baseKey: string,
+  baseKey: HexKey,
 ): boolean => state.players[playerId]?.bases.includes(baseKey) ?? false;
 
 export const isPlanetaryDefenseEnabled = (

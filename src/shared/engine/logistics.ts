@@ -343,7 +343,7 @@ export const processLogistics = (
   } else {
     checkGameEnd(state, map, engineEvents);
 
-    if (state.winner === null) {
+    if (state.outcome === null) {
       advanceTurn(state, engineEvents);
     }
   }
@@ -381,7 +381,7 @@ export const skipLogistics = (
   } else {
     checkGameEnd(state, map, engineEvents);
 
-    if (state.winner === null) {
+    if (state.outcome === null) {
       advanceTurn(state, engineEvents);
     }
   }

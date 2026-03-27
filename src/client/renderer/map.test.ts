@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { asHexKey } from '../../shared/hex';
 import type {
   GameState,
   PlayerState,
@@ -42,11 +43,10 @@ const createState = (): GameState => {
     destroyedAsteroids: [],
     destroyedBases: [],
     players: [
-      createPlayer({ bases: ['mars-base'] }),
-      createPlayer({ bases: ['venus-base'] }),
+      createPlayer({ bases: [asHexKey('mars-base')] }),
+      createPlayer({ bases: [asHexKey('venus-base')] }),
     ],
-    winner: null,
-    winReason: null,
+    outcome: null,
   };
 };
 
@@ -90,24 +90,30 @@ describe('renderer map helpers', () => {
 
   it('builds base markers for destroyed, friendly, enemy, and neutral bases', () => {
     const state = createState();
-    state.destroyedBases.push('wrecked-base');
+    state.destroyedBases.push(asHexKey('wrecked-base'));
 
-    expect(buildBaseMarkerView('wrecked-base', state, 0)).toMatchObject({
+    expect(
+      buildBaseMarkerView(asHexKey('wrecked-base'), state, 0),
+    ).toMatchObject({
       kind: 'destroyed',
       fillStyle: null,
     });
 
-    expect(buildBaseMarkerView('mars-base', state, 0)).toMatchObject({
+    expect(buildBaseMarkerView(asHexKey('mars-base'), state, 0)).toMatchObject({
       kind: 'friendly',
       fillStyle: '#4fc3f7',
     });
 
-    expect(buildBaseMarkerView('venus-base', state, 0)).toMatchObject({
-      kind: 'enemy',
-      fillStyle: '#ff8a65',
-    });
+    expect(buildBaseMarkerView(asHexKey('venus-base'), state, 0)).toMatchObject(
+      {
+        kind: 'enemy',
+        fillStyle: '#ff8a65',
+      },
+    );
 
-    expect(buildBaseMarkerView('neutral-base', state, 0)).toMatchObject({
+    expect(
+      buildBaseMarkerView(asHexKey('neutral-base'), state, 0),
+    ).toMatchObject({
       kind: 'neutral',
       fillStyle: '#66bb6a',
     });

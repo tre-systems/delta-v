@@ -59,8 +59,7 @@ const createState = (ships: Ship[]): GameState => ({
       escapeWins: false,
     },
   ],
-  winner: null,
-  winReason: null,
+  outcome: null,
 });
 
 const map: SolarSystemMap = {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-
+import type { HexKey } from '../../shared/hex';
+import { asHexKey } from '../../shared/hex';
 import type {
   GameState,
   MapHex,
@@ -86,7 +87,7 @@ const createState = (): GameState => ({
       ready: true,
       targetBody: 'Mars',
       homeBody: 'Venus',
-      bases: ['0,1'],
+      bases: [asHexKey('0,1')],
       escapeWins: false,
     },
     {
@@ -94,25 +95,24 @@ const createState = (): GameState => ({
       ready: true,
       targetBody: 'Venus',
       homeBody: 'Mars',
-      bases: ['2,2'],
+      bases: [asHexKey('2,2')],
       escapeWins: false,
     },
   ],
-  winner: null,
-  winReason: null,
+  outcome: null,
 });
 
 const createMap = (): SolarSystemMap => ({
-  hexes: new Map<string, MapHex>([
+  hexes: new Map<HexKey, MapHex>([
     [
-      '0,1',
+      asHexKey('0,1'),
       {
         terrain: 'space',
         base: { name: 'Mars Base', bodyName: 'Mars' },
       },
     ],
     [
-      '2,2',
+      asHexKey('2,2'),
       {
         terrain: 'space',
         base: { name: 'Venus Base', bodyName: 'Venus' },

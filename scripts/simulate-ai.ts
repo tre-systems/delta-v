@@ -224,9 +224,9 @@ const runSingleGame = async (
   }
 
   return {
-    winner: state.winner,
+    winner: state.outcome?.winner ?? null,
     turns: state.turnNumber,
-    reason: state.winReason,
+    reason: state.outcome?.reason ?? null,
   };
 };
 

@@ -17,6 +17,7 @@ import {
   resolveCombat,
   rollD6,
 } from './combat';
+import { asHexKey } from './hex';
 import type { Ship, SolarSystemMap } from './types';
 
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
@@ -303,7 +304,7 @@ describe('line of sight', () => {
     const map: SolarSystemMap = {
       hexes: new Map([
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'planetSurface',
             body: { name: 'Body', destructive: false },

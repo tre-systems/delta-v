@@ -68,8 +68,7 @@ const createState = (ships: Ship[]): GameState => ({
   destroyedAsteroids: [],
   destroyedBases: [],
   players: createPlayers(),
-  winner: null,
-  winReason: null,
+  outcome: null,
 });
 
 const createPlanning = (

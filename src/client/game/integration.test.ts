@@ -69,8 +69,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
       escapeWins: false,
     },
   ],
-  winner: null,
-  winReason: null,
+  outcome: null,
   ...overrides,
 });
 
@@ -387,8 +386,7 @@ describe('client integration: game over flow', () => {
   it('disconnect forfeit arrives as normal game-over flow', () => {
     const state = createState();
     state.phase = 'gameOver';
-    state.winner = 0;
-    state.winReason = 'Opponent disconnected';
+    state.outcome = { winner: 0, reason: 'Opponent disconnected' };
     const deps = createDeps('playing_astrogation', createState());
 
     handleServerMessage(deps, {

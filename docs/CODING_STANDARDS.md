@@ -444,15 +444,19 @@ serialization to serve as map keys. The `hexKey` /
 `parseHexKey` pair is the canonical example:
 
 ```typescript
-const hexKey = ({ q, r }: HexCoord): string => `${q},${r}`;
-const parseHexKey = (key: string): HexCoord => {
+// HexKey is a branded string — prevents mixing with arbitrary strings.
+const hexKey = ({ q, r }: HexCoord): HexKey => `${q},${r}` as HexKey;
+const parseHexKey = (key: HexKey): HexCoord => {
   const [q, r] = key.split(",").map(Number);
   return { q, r };
 };
 
 // Usage:
-map.hexes.get(hexKey(ship.position));
+map.hexes.get(hexKey(ship.position));  // Map<HexKey, MapHex>
 visited.add(hexKey(neighbor));
+
+// At serialization boundaries or in tests, cast with asHexKey():
+const key = asHexKey("0,0");
 ```
 
 Use the same pattern for any value-object key: define a

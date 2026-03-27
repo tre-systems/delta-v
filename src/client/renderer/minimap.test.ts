@@ -132,8 +132,7 @@ const createState = (): GameState => ({
       escapeWins: false,
     },
   ],
-  winner: null,
-  winReason: null,
+  outcome: null,
 });
 
 describe('renderer minimap helpers', () => {

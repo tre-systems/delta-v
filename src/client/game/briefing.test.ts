@@ -71,8 +71,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   destroyedAsteroids: [],
   destroyedBases: [],
   players: createPlayers(),
-  winner: null,
-  winReason: null,
+  outcome: null,
   ...overrides,
 });
 

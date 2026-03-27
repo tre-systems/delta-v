@@ -91,8 +91,8 @@ export const broadcastStateChange = (
   if (state.phase === 'gameOver') {
     broadcastMessage(sockets, {
       type: 'gameOver',
-      winner: must(state.winner),
-      reason: must(state.winReason),
+      winner: must(state.outcome).winner,
+      reason: must(state.outcome).reason,
     });
   }
 };

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { must } from '../assert';
+import { asHexKey } from '../hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { GameState, SolarSystemMap } from '../types';
 import {
@@ -55,7 +56,7 @@ describe('clone-on-entry: engine entry points do not mutate input state', () => 
           {
             connected: true,
             ready: false,
-            bases: ['0,0'],
+            bases: [asHexKey('0,0')],
             credits: 100,
             targetBody: 'Mars',
             homeBody: 'Earth',
@@ -64,7 +65,7 @@ describe('clone-on-entry: engine entry points do not mutate input state', () => 
           {
             connected: true,
             ready: true,
-            bases: ['0,0'],
+            bases: [asHexKey('0,0')],
             targetBody: 'Earth',
             homeBody: 'Mars',
             escapeWins: false,

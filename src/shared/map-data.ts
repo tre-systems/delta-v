@@ -1,5 +1,6 @@
 import {
   type HexCoord,
+  type HexKey,
   hexDirectionToward,
   hexKey,
   hexNeighbor,
@@ -188,7 +189,7 @@ const generateAsteroidHexes = (): HexCoord[] => [
 // --- Map builder ---
 
 export const buildSolarSystemMap = (): SolarSystemMap => {
-  const hexes = new Map<string, MapHex>();
+  const hexes = new Map<HexKey, MapHex>();
   const bodies: CelestialBody[] = [];
   const gravityBodies = new Set<string>();
 

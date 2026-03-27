@@ -695,8 +695,8 @@ describe('GameDO', () => {
       'DC01-m1',
     );
     expect(saved?.phase).toBe('gameOver');
-    expect(saved?.winner).toBe(1);
-    expect(saved?.winReason).toBe('Opponent disconnected');
+    expect(saved?.outcome?.winner).toBe(1);
+    expect(saved?.outcome?.reason).toBe('Opponent disconnected');
     const msgs = ws.sent.map((s) => JSON.parse(s));
     expect(msgs[0].type).toBe('stateUpdate');
     expect(msgs[1]).toEqual({
@@ -956,8 +956,7 @@ describe('GameDO', () => {
     const state: GameState = {
       ...base,
       phase: 'gameOver',
-      winner: 0,
-      winReason: 'Fleet eliminated!',
+      outcome: { winner: 0, reason: 'Fleet eliminated!' },
     };
 
     await (
@@ -1549,8 +1548,7 @@ describe('GameDO', () => {
       findBaseHex,
     );
     state.phase = 'gameOver';
-    state.winner = 0;
-    state.winReason = 'Timeout';
+    state.outcome = { winner: 0, reason: 'Timeout' };
 
     await (
       game as unknown as {

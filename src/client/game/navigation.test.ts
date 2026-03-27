@@ -65,8 +65,7 @@ const createState = (ships: Ship[]): GameState => ({
   destroyedAsteroids: [],
   destroyedBases: [],
   players: createPlayers(),
-  winner: null,
-  winReason: null,
+  outcome: null,
 });
 
 describe('game client navigation helpers', () => {
