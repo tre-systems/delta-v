@@ -437,8 +437,8 @@ const runMatch = async (
 
     if (state) {
       metrics.turns = Math.max(metrics.turns, state.turnNumber);
-      metrics.winner = state.winner;
-      metrics.reason = state.winReason ?? 'gameOver';
+      metrics.winner = state.outcome?.winner ?? null;
+      metrics.reason = state.outcome?.reason ?? 'gameOver';
     }
 
     return metrics;

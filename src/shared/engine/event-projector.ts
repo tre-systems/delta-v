@@ -813,8 +813,10 @@ const projectSetupEvent = (
       }
 
       state = baseState.value;
-      state.winner = event.winner;
-      state.winReason = event.reason;
+      state.outcome =
+        event.winner !== null
+          ? { winner: event.winner, reason: event.reason }
+          : null;
       state.phase = 'gameOver';
 
       return {

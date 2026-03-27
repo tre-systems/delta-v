@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { asHexKey } from '../hex';
 import type { GameState, Ordnance, Ship } from '../types';
 import {
   canLaunchOrdnance,
@@ -386,7 +387,7 @@ describe('playerControlsBase', () => {
       players: [{ bases: ['1,2'] }, { bases: [] }],
     } as unknown as Pick<GameState, 'players'> as GameState;
 
-    expect(playerControlsBase(state, 0, '1,2')).toBe(true);
+    expect(playerControlsBase(state, 0, asHexKey('1,2'))).toBe(true);
   });
 
   it('returns false when player does not own the base', () => {
@@ -394,7 +395,7 @@ describe('playerControlsBase', () => {
       players: [{ bases: [] }, { bases: ['1,2'] }],
     } as unknown as Pick<GameState, 'players'> as GameState;
 
-    expect(playerControlsBase(state, 0, '1,2')).toBe(false);
+    expect(playerControlsBase(state, 0, asHexKey('1,2'))).toBe(false);
   });
 });
 

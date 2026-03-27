@@ -252,13 +252,15 @@ export const checkImmediateVictory = (
         hex?.base?.bodyName === player.homeBody ||
         hex?.body?.name === player.homeBody
       ) {
-        state.winner = ship.owner;
-        state.winReason = `Grand Tour complete! Visited all ${state.scenarioRules.checkpointBodies.length} bodies.`;
+        state.outcome = {
+          winner: ship.owner,
+          reason: `Grand Tour complete! Visited all ${state.scenarioRules.checkpointBodies.length} bodies.`,
+        };
         state.phase = 'gameOver';
         engineEvents?.push({
           type: 'gameOver',
-          winner: state.winner,
-          reason: state.winReason,
+          winner: state.outcome.winner,
+          reason: state.outcome.reason,
         });
         return;
       }
@@ -281,15 +283,17 @@ export const checkImmediateVictory = (
           continue;
         }
       }
-      state.winner = ship.owner;
-      state.winReason = state.scenarioRules.targetWinRequiresPassengers
-        ? `Landed on ${targetBody} with colonists!`
-        : `Landed on ${targetBody}!`;
+      state.outcome = {
+        winner: ship.owner,
+        reason: state.scenarioRules.targetWinRequiresPassengers
+          ? `Landed on ${targetBody} with colonists!`
+          : `Landed on ${targetBody}!`,
+      };
       state.phase = 'gameOver';
       engineEvents?.push({
         type: 'gameOver',
-        winner: state.winner,
-        reason: state.winReason,
+        winner: state.outcome.winner,
+        reason: state.outcome.reason,
       });
       return;
     }
@@ -310,24 +314,18 @@ export const checkImmediateVictory = (
       continue;
     }
 
-    state.winner = ship.owner;
+    const escapeReason = ship.identity?.hasFugitives
+      ? hexVecLength(ship.velocity) + 1 <= ship.fuel
+        ? 'Pilgrims decisive victory — the fugitives escaped beyond Jupiter with fuel to spare!'
+        : 'Pilgrims marginal victory — the fugitives escaped beyond Jupiter!'
+      : 'Escaped the solar system!';
 
-    if (ship.identity?.hasFugitives) {
-      const fuelNeededToStop = hexVecLength(ship.velocity) + 1;
-
-      state.winReason =
-        ship.fuel >= fuelNeededToStop
-          ? 'Pilgrims decisive victory — the fugitives escaped beyond Jupiter with fuel to spare!'
-          : 'Pilgrims marginal victory — the fugitives escaped beyond Jupiter!';
-    } else {
-      state.winReason = 'Escaped the solar system!';
-    }
-
+    state.outcome = { winner: ship.owner, reason: escapeReason };
     state.phase = 'gameOver';
     engineEvents?.push({
       type: 'gameOver',
-      winner: state.winner,
-      reason: state.winReason ?? '',
+      winner: state.outcome.winner,
+      reason: state.outcome.reason,
     });
     return;
   }
@@ -345,7 +343,7 @@ export const checkGameEnd = (
 ): void => {
   checkImmediateVictory(state, map, engineEvents);
 
-  if (state.winner !== null) {
+  if (state.outcome !== null) {
     return;
   }
 
@@ -354,20 +352,24 @@ export const checkGameEnd = (
 
     if (fugitive?.lifecycle === 'destroyed') {
       if (state.escapeMoralVictoryAchieved) {
-        state.winner = fugitive.owner;
-        state.winReason =
-          'Pilgrims moral victory — the fugitives were lost, but they disabled an Enforcer ship.';
+        state.outcome = {
+          winner: fugitive.owner,
+          reason:
+            'Pilgrims moral victory — the fugitives were lost, but they disabled an Enforcer ship.',
+        };
       } else {
         const opponent: PlayerId = fugitive.owner === 0 ? 1 : 0;
-        state.winner = opponent;
-        state.winReason =
-          'Enforcers marginal victory — the fugitive transport was destroyed.';
+        state.outcome = {
+          winner: opponent,
+          reason:
+            'Enforcers marginal victory — the fugitive transport was destroyed.',
+        };
       }
       state.phase = 'gameOver';
       engineEvents?.push({
         type: 'gameOver',
-        winner: state.winner,
-        reason: state.winReason,
+        winner: state.outcome.winner,
+        reason: state.outcome.reason,
       });
       return;
     }
@@ -376,19 +378,23 @@ export const checkGameEnd = (
       const fugitiveOriginalOwner = fugitive?.originalOwner ?? 1;
 
       if (state.escapeMoralVictoryAchieved) {
-        state.winner = fugitiveOriginalOwner;
-        state.winReason =
-          'Pilgrims moral victory — the fugitives were captured, but they disabled an Enforcer ship.';
+        state.outcome = {
+          winner: fugitiveOriginalOwner,
+          reason:
+            'Pilgrims moral victory — the fugitives were captured, but they disabled an Enforcer ship.',
+        };
       } else {
-        state.winner = fugitiveOriginalOwner === 0 ? 1 : 0;
-        state.winReason =
-          'Enforcers decisive victory — the fugitives were captured and returned to base.';
+        state.outcome = {
+          winner: (fugitiveOriginalOwner === 0 ? 1 : 0) as PlayerId,
+          reason:
+            'Enforcers decisive victory — the fugitives were captured and returned to base.',
+        };
       }
       state.phase = 'gameOver';
       engineEvents?.push({
         type: 'gameOver',
-        winner: state.winner,
-        reason: state.winReason,
+        winner: state.outcome.winner,
+        reason: state.outcome.reason,
       });
       return;
     }
@@ -406,37 +412,37 @@ export const checkGameEnd = (
   );
 
   if (alive0 === 0 && alive1 === 0) {
-    state.winner = state.activePlayer === 0 ? 1 : 0;
-    state.winReason = 'Mutual destruction — last attacker loses!';
+    state.outcome = {
+      winner: (state.activePlayer === 0 ? 1 : 0) as PlayerId,
+      reason: 'Mutual destruction — last attacker loses!',
+    };
     state.phase = 'gameOver';
     engineEvents?.push({
       type: 'gameOver',
-      winner: state.winner,
-      reason: state.winReason,
+      winner: state.outcome.winner,
+      reason: state.outcome.reason,
     });
     return;
   }
 
   if (alive0 === 0) {
-    state.winner = 1;
-    state.winReason = 'Fleet eliminated!';
+    state.outcome = { winner: 1, reason: 'Fleet eliminated!' };
     state.phase = 'gameOver';
     engineEvents?.push({
       type: 'gameOver',
-      winner: state.winner,
-      reason: state.winReason,
+      winner: state.outcome.winner,
+      reason: state.outcome.reason,
     });
     return;
   }
 
   if (alive1 === 0) {
-    state.winner = 0;
-    state.winReason = 'Fleet eliminated!';
+    state.outcome = { winner: 0, reason: 'Fleet eliminated!' };
     state.phase = 'gameOver';
     engineEvents?.push({
       type: 'gameOver',
-      winner: state.winner,
-      reason: state.winReason,
+      winner: state.outcome.winner,
+      reason: state.outcome.reason,
     });
     return;
   }

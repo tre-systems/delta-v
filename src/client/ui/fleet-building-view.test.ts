@@ -38,8 +38,7 @@ const createState = (credits: number): GameState => ({
       credits,
     },
   ],
-  winner: null,
-  winReason: null,
+  outcome: null,
 });
 
 const installFixture = () => {

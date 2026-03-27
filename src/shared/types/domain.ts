@@ -1,5 +1,5 @@
 import type { ShipType } from '../constants';
-import type { HexCoord, HexVec } from '../hex';
+import type { HexCoord, HexKey, HexVec } from '../hex';
 
 // --- Result type ---
 
@@ -11,6 +11,11 @@ export type Result<T, E = string> =
 
 export type PlayerId = 0 | 1;
 export type OrdnanceType = 'mine' | 'torpedo' | 'nuke';
+
+// --- Win condition ---
+
+/** Non-null when the game has ended. Replaces the old `winner` + `winReason` pair. */
+export type GameOutcome = { winner: PlayerId; reason: string };
 
 // --- Game state ---
 
@@ -24,6 +29,38 @@ export type Phase =
   | 'combat'
   | 'resupply'
   | 'gameOver';
+
+/**
+ * Valid phase transitions. Each key maps to the set of phases it can transition to.
+ * `gameOver` is reachable from any in-game phase (via victory checks) and is terminal.
+ *
+ * ```
+ * waiting ──► fleetBuilding ──► astrogation ◄─────────────────────────┐
+ *                                   │                                 │
+ *                                   ├──► ordnance ──┐                 │
+ *                                   │               ▼                 │
+ *                                   ├──► logistics ──► combat ──► advanceTurn
+ *                                   │               ▲
+ *                                   └──► combat ────┘
+ *
+ * Any in-game phase ──► gameOver
+ * ```
+ */
+export const PHASE_TRANSITIONS: Readonly<Record<Phase, readonly Phase[]>> = {
+  waiting: ['fleetBuilding', 'astrogation'],
+  fleetBuilding: ['astrogation', 'gameOver'],
+  astrogation: ['ordnance', 'logistics', 'combat', 'astrogation', 'gameOver'],
+  ordnance: ['logistics', 'combat', 'astrogation', 'gameOver'],
+  movement: ['logistics', 'combat', 'astrogation', 'gameOver'],
+  logistics: ['combat', 'astrogation', 'gameOver'],
+  combat: ['astrogation', 'gameOver'],
+  resupply: ['astrogation', 'gameOver'],
+  gameOver: [],
+} as const;
+
+/** Type-level successor phases for a given phase. */
+export type PhaseSuccessor<P extends Phase> =
+  (typeof PHASE_TRANSITIONS)[P][number];
 
 export enum ErrorCode {
   INVALID_PHASE = 'INVALID_PHASE',
@@ -58,11 +95,10 @@ export interface GameState {
   ordnance: Ordnance[];
   pendingAstrogationOrders: AstrogationOrder[] | null;
   pendingAsteroidHazards: AsteroidHazard[];
-  destroyedAsteroids: string[];
-  destroyedBases: string[];
+  destroyedAsteroids: HexKey[];
+  destroyedBases: HexKey[];
   players: [PlayerState, PlayerState];
-  winner: PlayerId | null;
-  winReason: string | null;
+  outcome: GameOutcome | null;
 }
 
 export type ShipLifecycle = 'active' | 'landed' | 'destroyed';
@@ -118,7 +154,7 @@ export interface PlayerState {
   ready: boolean;
   targetBody: string;
   homeBody: string;
-  bases: string[];
+  bases: HexKey[];
   escapeWins: boolean;
   credits?: number;
   visitedBodies?: string[];
@@ -131,7 +167,7 @@ export interface AstrogationOrder {
   shipId: string;
   burn: number | null;
   overload?: number | null;
-  weakGravityChoices?: Record<string, boolean>;
+  weakGravityChoices?: Record<HexKey, boolean>;
 }
 
 export interface CourseResult {
@@ -218,7 +254,7 @@ export interface CelestialBody {
 }
 
 export interface SolarSystemMap {
-  hexes: Map<string, MapHex>;
+  hexes: Map<HexKey, MapHex>;
   bodies: CelestialBody[];
   gravityBodies?: Set<string>;
   bounds: {

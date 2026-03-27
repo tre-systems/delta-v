@@ -64,8 +64,7 @@ const makeState = (
       escapeWins: false,
     },
   ],
-  winner: null,
-  winReason: null,
+  outcome: null,
   ...overrides,
 });
 const map = buildSolarSystemMap();

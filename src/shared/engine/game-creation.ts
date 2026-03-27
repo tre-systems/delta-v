@@ -1,5 +1,5 @@
 import { SHIP_STATS } from '../constants';
-import { hexKey } from '../hex';
+import { type HexKey, hexKey } from '../hex';
 import type {
   GameState,
   PlayerId,
@@ -14,7 +14,7 @@ import { parseBaseKey } from './util';
 const resolveControlledBases = (
   player: ScenarioDefinition['players'][number],
   map: SolarSystemMap,
-): string[] => {
+): HexKey[] => {
   if (player.bases && player.bases.length > 0) {
     return [...new Set(player.bases.map((base) => hexKey(base)))];
   }
@@ -73,7 +73,7 @@ const assertScenarioPlayerCount = (scenario: ScenarioDefinition): void => {
 const resolveStartingPlacement = (
   def: ScenarioDefinition['players'][number]['ships'][number],
   player: ScenarioDefinition['players'][number],
-  playerBases: string[],
+  playerBases: HexKey[],
   map: SolarSystemMap,
   findBaseHex: (
     map: SolarSystemMap,
@@ -327,7 +327,6 @@ export const createGame = (
           : {}),
       },
     ],
-    winner: null,
-    winReason: null,
+    outcome: null,
   };
 };

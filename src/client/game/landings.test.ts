@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { asHexKey } from '../../shared/hex';
 import type {
   GameState,
   PlayerState,
@@ -34,7 +35,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
     ready: true,
     targetBody: 'Mars',
     homeBody: 'Terra',
-    bases: ['1,0'],
+    bases: [asHexKey('1,0')],
     escapeWins: false,
   },
   {
@@ -70,8 +71,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   destroyedAsteroids: [],
   destroyedBases: [],
   players: createPlayers(),
-  winner: null,
-  winReason: null,
+  outcome: null,
   ...overrides,
 });
 

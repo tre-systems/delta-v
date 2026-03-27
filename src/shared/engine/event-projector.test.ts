@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { asHexKey } from '../hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { FleetPurchase } from '../types';
 import type { EventEnvelope } from './engine-events';
@@ -258,7 +259,7 @@ describe('projectMatchSetupFromStream', () => {
                 shipId: 'p0s0',
                 burn: 2,
                 overload: null,
-                weakGravityChoices: { Io: true },
+                weakGravityChoices: { [asHexKey('Io')]: true },
               },
             ],
           },
@@ -866,7 +867,7 @@ describe('projectMatchSetupFromStream', () => {
     expect(projected.value.ships.find((ship) => ship.id === 'ob9')?.type).toBe(
       'orbitalBase',
     );
-    expect(projected.value.winner).toBe(0);
+    expect(projected.value.outcome?.winner).toBe(0);
     expect(projected.value.phase).toBe('gameOver');
   });
 

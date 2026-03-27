@@ -65,16 +65,18 @@ export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
         return;
       }
       gameState.phase = 'gameOver';
-      gameState.winner = (action.playerId === 0 ? 1 : 0) as PlayerId;
-      gameState.winReason = 'Opponent disconnected';
+      gameState.outcome = {
+        winner: (action.playerId === 0 ? 1 : 0) as PlayerId,
+        reason: 'Opponent disconnected',
+      };
       await deps.publishStateChange(gameState, undefined, {
         actor: null,
         restartTurnTimer: false,
         events: [
           {
             type: 'gameOver' as const,
-            winner: gameState.winner,
-            reason: gameState.winReason ?? '',
+            winner: gameState.outcome.winner,
+            reason: gameState.outcome.reason,
           },
         ],
       });

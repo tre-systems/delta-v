@@ -52,8 +52,8 @@ export const localCheckGameEnd = (deps: LocalGameFlowDeps): void => {
 
   if (!gameState || gameState.phase !== 'gameOver') return;
   deps.showGameOverOutcome(
-    gameState.winner === deps.getPlayerId(),
-    gameState.winReason ?? '',
+    gameState.outcome?.winner === deps.getPlayerId(),
+    gameState.outcome?.reason ?? '',
   );
 };
 

@@ -5,9 +5,17 @@ import {
   SHIP_STATS,
   VELOCITY_MODIFIER_THRESHOLD,
 } from './constants';
-import { hexDistance, hexEqual, hexKey, hexLineDraw, parseHexKey } from './hex';
+import {
+  type HexKey,
+  hexDistance,
+  hexEqual,
+  hexKey,
+  hexLineDraw,
+  parseHexKey,
+} from './hex';
 import { bodyHasGravity } from './map-data';
 import type {
+  CombatAttack,
   CombatResult,
   DamageType,
   Ordnance,
@@ -15,6 +23,8 @@ import type {
   SolarSystemMap,
 } from './types';
 import { clamp, sumBy } from './util';
+
+export type { CombatAttack };
 
 // --- Damage tables ---
 
@@ -54,13 +64,6 @@ const ODDS_RATIOS = ['1:4', '1:2', '1:1', '2:1', '3:1', '4:1'] as const;
 export type OddsRatio = (typeof ODDS_RATIOS)[number];
 
 // --- Combat computation ---
-
-export interface CombatAttack {
-  attackerIds: string[];
-  targetId: string;
-  targetType?: 'ship' | 'ordnance';
-  attackStrength?: number | null;
-}
 
 export interface CombatResolution {
   attackerIds: string[];
@@ -535,8 +538,8 @@ export const resolveBaseDefense = (
   state: {
     ships: Ship[];
     ordnance?: Ordnance[];
-    destroyedBases?: string[];
-    players: { bases: string[] }[];
+    destroyedBases?: HexKey[];
+    players: { bases: HexKey[] }[];
   },
   activePlayer: number,
   map: SolarSystemMap,

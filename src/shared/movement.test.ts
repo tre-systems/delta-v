@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { must } from './assert';
 import {
   analyzeHexLine,
+  asHexKey,
   HEX_DIRECTIONS,
   hexAdd,
   hexEqual,
@@ -224,7 +225,7 @@ describe('computeCourse - gravity', () => {
     const edgeMap: SolarSystemMap = {
       hexes: new Map([
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'space',
             gravity: {
@@ -256,7 +257,7 @@ describe('computeCourse - gravity', () => {
     const gravMap: SolarSystemMap = {
       hexes: new Map([
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'space',
             gravity: {
@@ -283,7 +284,7 @@ describe('computeCourse - gravity', () => {
     const weakGravMap: SolarSystemMap = {
       hexes: new Map([
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'space',
             gravity: {
@@ -310,7 +311,7 @@ describe('computeCourse - gravity', () => {
     const dualGravMap: SolarSystemMap = {
       hexes: new Map([
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'space',
             gravity: {
@@ -321,7 +322,7 @@ describe('computeCourse - gravity', () => {
           },
         ],
         [
-          '1,-1',
+          asHexKey('1,-1'),
           {
             terrain: 'space',
             gravity: {
@@ -538,14 +539,14 @@ describe('computeCourse - takeoff edge cases', () => {
     const customMap: SolarSystemMap = {
       hexes: new Map([
         [
-          '0,0',
+          asHexKey('0,0'),
           {
             terrain: 'planetSurface',
             body: { name: 'TestWorld', destructive: false },
           },
         ],
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'space',
             base: {
@@ -560,14 +561,14 @@ describe('computeCourse - takeoff edge cases', () => {
           },
         ],
         [
-          '2,0',
+          asHexKey('2,0'),
           {
             terrain: 'planetSurface',
             body: { name: 'Blocker', destructive: true },
           },
         ],
         [
-          '0,1',
+          asHexKey('0,1'),
           {
             terrain: 'space',
             gravity: {
@@ -578,7 +579,7 @@ describe('computeCourse - takeoff edge cases', () => {
           },
         ],
         [
-          '1,-1',
+          asHexKey('1,-1'),
           {
             terrain: 'space',
             gravity: {
@@ -672,7 +673,7 @@ describe('computeCourse - weak gravity consecutive rule', () => {
     const customMap: SolarSystemMap = {
       hexes: new Map([
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'space',
             gravity: {
@@ -683,7 +684,7 @@ describe('computeCourse - weak gravity consecutive rule', () => {
           },
         ],
         [
-          '2,0',
+          asHexKey('2,0'),
           {
             terrain: 'space',
             gravity: {
@@ -724,7 +725,7 @@ describe('computeCourse - weak gravity consecutive rule', () => {
     const customMap: SolarSystemMap = {
       hexes: new Map([
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'space',
             gravity: {
@@ -735,7 +736,7 @@ describe('computeCourse - weak gravity consecutive rule', () => {
           },
         ],
         [
-          '2,0',
+          asHexKey('2,0'),
           {
             terrain: 'space',
             gravity: {

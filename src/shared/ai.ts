@@ -24,6 +24,7 @@ import {
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
 import {
   HEX_DIRECTIONS,
+  type HexKey,
   hexAdd,
   hexDistance,
   hexKey,
@@ -68,7 +69,7 @@ const findNearestBase = (
     q: number;
     r: number;
   },
-  playerBases: string[],
+  playerBases: HexKey[],
   _map: SolarSystemMap,
 ): {
   q: number;

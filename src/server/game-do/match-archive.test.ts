@@ -74,8 +74,7 @@ describe('match archival', () => {
     const map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.duel, map, 'ARC-m1', findBaseHex);
     state.phase = 'gameOver';
-    state.winner = 0;
-    state.winReason = 'Fleet eliminated!';
+    state.outcome = { winner: 0, reason: 'Fleet eliminated!' };
 
     // Populate event stream and checkpoint
     await appendEnvelopedEvents(storage, 'ARC-m1', null, {

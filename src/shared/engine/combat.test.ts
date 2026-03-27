@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { must } from '../assert';
-import { hexKey } from '../hex';
+import { asHexKey, hexKey } from '../hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type {
   EngineError,
@@ -96,8 +96,7 @@ const makeCombatState = (overrides: Partial<GameState> = {}): GameState => ({
       escapeWins: false,
     },
   ],
-  winner: null,
-  winReason: null,
+  outcome: null,
   ...overrides,
 });
 const getErrorMessage = (error: EngineError): string => error.message;
@@ -117,9 +116,8 @@ describe('beginCombatPhase', () => {
     );
   });
   it('returns state when winner exists after asteroid hazards', () => {
-    const state = makeCombatState({ winner: null });
-    state.winner = 0;
-    state.winReason = 'All enemy ships destroyed';
+    const state = makeCombatState({ outcome: null });
+    state.outcome = { winner: 0, reason: 'All enemy ships destroyed' };
     const result = beginCombatPhase(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
     expect('state' in result).toBe(true);
@@ -636,7 +634,7 @@ describe('processCombat', () => {
     const result = processCombat(state, 0, [], openMap, Math.random);
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
-      expect(result.state.winner).not.toBeNull();
+      expect(result.state.outcome).not.toBeNull();
     }
   });
 });
@@ -670,7 +668,7 @@ describe('skipCombat', () => {
     const result = skipCombat(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
     if ('state' in result) {
-      expect(result.state.winner).not.toBeNull();
+      expect(result.state.outcome).not.toBeNull();
     }
   });
 });
@@ -830,7 +828,7 @@ describe('processCombat -- additional edge cases', () => {
     const bodyMap: SolarSystemMap = {
       hexes: new Map([
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'planetSurface',
             body: { name: 'Blocker', destructive: false },
@@ -891,7 +889,7 @@ describe('processCombat -- additional edge cases', () => {
     const bodyMap: SolarSystemMap = {
       hexes: new Map([
         [
-          '1,0',
+          asHexKey('1,0'),
           {
             terrain: 'planetSurface',
             body: { name: 'Blocker', destructive: false },

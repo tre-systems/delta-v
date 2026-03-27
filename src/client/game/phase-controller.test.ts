@@ -61,8 +61,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   destroyedAsteroids: [],
   destroyedBases: [],
   players: createPlayers(),
-  winner: null,
-  winReason: null,
+  outcome: null,
   ...overrides,
 });
 
@@ -186,7 +185,10 @@ describe('transitionClientPhase', () => {
 
   it('does nothing once the game is over', () => {
     const controller = createDeps({
-      gameState: createState({ phase: 'gameOver', winner: 0 }),
+      gameState: createState({
+        phase: 'gameOver',
+        outcome: { winner: 0, reason: 'Game over' },
+      }),
     });
 
     transitionClientPhase(controller.deps);

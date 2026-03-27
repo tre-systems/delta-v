@@ -237,7 +237,7 @@ describe('checkImmediateVictory', () => {
   it('is a no-op when no map provided', () => {
     const state = setupState();
     checkImmediateVictory(state);
-    expect(state.winner).toBeNull();
+    expect(state.outcome).toBeNull();
   });
   it('awards checkpoint race victory when all bodies visited and landed at home', () => {
     map = buildSolarSystemMap();
@@ -252,8 +252,8 @@ describe('checkImmediateVictory', () => {
     const homeBase = must(findBaseHex(map, 'Luna'));
     ship.position = homeBase;
     checkImmediateVictory(state, map);
-    expect(state.winner).toBe(0);
-    expect(state.winReason).toContain('Grand Tour');
+    expect(state.outcome?.winner).toBe(0);
+    expect(state.outcome?.reason).toContain('Grand Tour');
     expect(state.phase).toBe('gameOver');
   });
   it('does not award checkpoint victory without visiting all bodies', () => {
@@ -265,7 +265,7 @@ describe('checkImmediateVictory', () => {
     const terraBase = must(findBaseHex(map, 'Terra'));
     ship.position = terraBase;
     checkImmediateVictory(state, map);
-    expect(state.winner).toBeNull();
+    expect(state.outcome).toBeNull();
   });
   it('awards escape victory with decisive win when fugitive has spare fuel', () => {
     map = buildSolarSystemMap();
@@ -279,8 +279,8 @@ describe('checkImmediateVictory', () => {
       fugitive.velocity = { dq: 0, dr: -3 };
       fugitive.fuel = 20; // Plenty of fuel
       checkImmediateVictory(state, map);
-      expect(state.winner).toBe(0);
-      expect(state.winReason).toContain('decisive');
+      expect(state.outcome?.winner).toBe(0);
+      expect(state.outcome?.reason).toContain('decisive');
     }
   });
   it('awards escape victory with marginal win when fugitive has low fuel', () => {
@@ -294,8 +294,8 @@ describe('checkImmediateVictory', () => {
       fugitive.velocity = { dq: 0, dr: -3 };
       fugitive.fuel = 1; // Not enough to stop
       checkImmediateVictory(state, map);
-      expect(state.winner).toBe(0);
-      expect(state.winReason).toContain('marginal');
+      expect(state.outcome?.winner).toBe(0);
+      expect(state.outcome?.reason).toContain('marginal');
     }
   });
   it('does not award escape to non-fugitive ship when fugitive scenario exists', () => {
@@ -310,7 +310,7 @@ describe('checkImmediateVictory', () => {
       nonFugitive.velocity = { dq: 0, dr: -3 };
       checkImmediateVictory(state, map);
       // Should not win since this ship doesn't have fugitives
-      expect(state.winner).toBeNull();
+      expect(state.outcome).toBeNull();
     }
   });
   it('with targetWinRequiresPassengers, ignores target landing without passengers', () => {
@@ -325,7 +325,7 @@ describe('checkImmediateVictory', () => {
     ship.position = { ...venusHex };
     ship.passengersAboard = undefined;
     checkImmediateVictory(state, map);
-    expect(state.winner).toBeNull();
+    expect(state.outcome).toBeNull();
   });
   it('with targetWinRequiresPassengers, awards win when landing with passengers', () => {
     map = buildSolarSystemMap();
@@ -338,8 +338,8 @@ describe('checkImmediateVictory', () => {
     ship.position = { ...venusHex };
     ship.passengersAboard = 10;
     checkImmediateVictory(state, map);
-    expect(state.winner).toBe(0);
-    expect(state.winReason).toContain('colonists');
+    expect(state.outcome?.winner).toBe(0);
+    expect(state.outcome?.reason).toContain('colonists');
     expect(state.phase).toBe('gameOver');
   });
 });
@@ -352,8 +352,8 @@ describe('checkGameEnd', () => {
       fugitive.lifecycle = 'destroyed';
       state.escapeMoralVictoryAchieved = false;
       checkGameEnd(state, map);
-      expect(state.winner).toBe(1 - fugitive.owner);
-      expect(state.winReason).toContain('Enforcers marginal');
+      expect(state.outcome?.winner).toBe(1 - fugitive.owner);
+      expect(state.outcome?.reason).toContain('Enforcers marginal');
     }
   });
   it('awards pilgrim moral victory when fugitive destroyed but enforcer was disabled', () => {
@@ -364,8 +364,8 @@ describe('checkGameEnd', () => {
       fugitive.lifecycle = 'destroyed';
       state.escapeMoralVictoryAchieved = true;
       checkGameEnd(state, map);
-      expect(state.winner).toBe(fugitive.owner);
-      expect(state.winReason).toContain('moral victory');
+      expect(state.outcome?.winner).toBe(fugitive.owner);
+      expect(state.outcome?.reason).toContain('moral victory');
     }
   });
   it('detects mutual destruction', () => {
@@ -375,8 +375,8 @@ describe('checkGameEnd', () => {
       ship.lifecycle = 'destroyed';
     }
     checkGameEnd(state, map);
-    expect(state.winner).toBe(1); // Last attacker (active player 0) loses
-    expect(state.winReason).toContain('Mutual destruction');
+    expect(state.outcome?.winner).toBe(1); // Last attacker (active player 0) loses
+    expect(state.outcome?.reason).toContain('Mutual destruction');
   });
   it('detects fleet elimination of player 0', () => {
     const state = setupState();
@@ -384,8 +384,8 @@ describe('checkGameEnd', () => {
       if (ship.owner === 0) ship.lifecycle = 'destroyed';
     }
     checkGameEnd(state, map);
-    expect(state.winner).toBe(1);
-    expect(state.winReason).toContain('Fleet eliminated');
+    expect(state.outcome?.winner).toBe(1);
+    expect(state.outcome?.reason).toContain('Fleet eliminated');
   });
   it('detects fleet elimination of player 1', () => {
     const state = setupState();
@@ -393,8 +393,8 @@ describe('checkGameEnd', () => {
       if (ship.owner === 1) ship.lifecycle = 'destroyed';
     }
     checkGameEnd(state, map);
-    expect(state.winner).toBe(0);
-    expect(state.winReason).toContain('Fleet eliminated');
+    expect(state.outcome?.winner).toBe(0);
+    expect(state.outcome?.reason).toContain('Fleet eliminated');
   });
 });
 describe('applyEscapeMoralVictory', () => {

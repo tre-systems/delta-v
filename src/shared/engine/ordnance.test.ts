@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { must } from '../assert';
 import { ORBITAL_BASE_MASS } from '../constants';
-import { hexKey } from '../hex';
+import { asHexKey, hexKey } from '../hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { GameState, PlayerId, Ship, SolarSystemMap } from '../types';
 import { createGame } from './game-engine';
@@ -106,14 +106,13 @@ const makeMinimalState = (overrides: Partial<GameState> = {}): GameState =>
     pendingAsteroidHazards: [],
     destroyedAsteroids: [],
     destroyedBases: [],
-    winner: null,
-    winReason: null,
+    outcome: null,
     ...overrides,
   }) as GameState;
 describe('queueAsteroidHazards', () => {
   it('queues hazard when path crosses an asteroid hex', () => {
     const asteroidMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'asteroid' }]]),
+      hexes: new Map([[asHexKey('1,0'), { terrain: 'asteroid' }]]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
@@ -136,7 +135,7 @@ describe('queueAsteroidHazards', () => {
   });
   it('does not queue hazard at speed 1 or less', () => {
     const asteroidMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'asteroid' }]]),
+      hexes: new Map([[asHexKey('1,0'), { terrain: 'asteroid' }]]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
@@ -154,7 +153,7 @@ describe('queueAsteroidHazards', () => {
   });
   it('does not queue hazard for starting hex', () => {
     const asteroidMap: SolarSystemMap = {
-      hexes: new Map([['0,0', { terrain: 'asteroid' }]]),
+      hexes: new Map([[asHexKey('0,0'), { terrain: 'asteroid' }]]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
@@ -173,7 +172,7 @@ describe('queueAsteroidHazards', () => {
   });
   it('does not queue hazard when path only grazes a single asteroid hex edge', () => {
     const asteroidMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'asteroid' }]]),
+      hexes: new Map([[asHexKey('1,0'), { terrain: 'asteroid' }]]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
@@ -192,8 +191,8 @@ describe('queueAsteroidHazards', () => {
   it('queues exactly one hazard when path runs between two adjacent asteroid hexes (hexside rule)', () => {
     const asteroidMap: SolarSystemMap = {
       hexes: new Map([
-        ['1,0', { terrain: 'asteroid' }],
-        ['1,-1', { terrain: 'asteroid' }],
+        [asHexKey('1,0'), { terrain: 'asteroid' }],
+        [asHexKey('1,-1'), { terrain: 'asteroid' }],
       ]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
@@ -213,8 +212,8 @@ describe('queueAsteroidHazards', () => {
   it('queues multiple hazards for multiple definite asteroid hexes', () => {
     const asteroidMap: SolarSystemMap = {
       hexes: new Map([
-        ['1,0', { terrain: 'asteroid' }],
-        ['2,0', { terrain: 'asteroid' }],
+        [asHexKey('1,0'), { terrain: 'asteroid' }],
+        [asHexKey('2,0'), { terrain: 'asteroid' }],
       ]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
@@ -235,7 +234,7 @@ describe('queueAsteroidHazards', () => {
   });
   it('skips destroyed asteroids', () => {
     const asteroidMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'asteroid' }]]),
+      hexes: new Map([[asHexKey('1,0'), { terrain: 'asteroid' }]]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
@@ -245,7 +244,7 @@ describe('queueAsteroidHazards', () => {
     });
     const state = makeMinimalState({
       ships: [ship],
-      destroyedAsteroids: ['1,0'],
+      destroyedAsteroids: [asHexKey('1,0')],
     });
     const path = [
       { q: -1, r: 0 },
@@ -258,8 +257,8 @@ describe('queueAsteroidHazards', () => {
   it('does not double-count the same ambiguous asteroid pair', () => {
     const asteroidMap: SolarSystemMap = {
       hexes: new Map([
-        ['2,0', { terrain: 'asteroid' }],
-        ['2,-1', { terrain: 'asteroid' }],
+        [asHexKey('2,0'), { terrain: 'asteroid' }],
+        [asHexKey('2,-1'), { terrain: 'asteroid' }],
       ]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
@@ -320,7 +319,7 @@ describe('resolvePendingAsteroidHazards', () => {
 describe('isAsteroidHex', () => {
   it('returns true for asteroid terrain', () => {
     const asteroidMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'asteroid' }]]),
+      hexes: new Map([[asHexKey('1,0'), { terrain: 'asteroid' }]]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
@@ -329,18 +328,18 @@ describe('isAsteroidHex', () => {
   });
   it('returns false for destroyed asteroids', () => {
     const asteroidMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'asteroid' }]]),
+      hexes: new Map([[asHexKey('1,0'), { terrain: 'asteroid' }]]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
     const state = makeMinimalState({
-      destroyedAsteroids: ['1,0'],
+      destroyedAsteroids: [asHexKey('1,0')],
     });
     expect(isAsteroidHex(state, asteroidMap, { q: 1, r: 0 })).toBe(false);
   });
   it('returns false for non-asteroid terrain', () => {
     const spaceMap: SolarSystemMap = {
-      hexes: new Map([['1,0', { terrain: 'space' }]]),
+      hexes: new Map([[asHexKey('1,0'), { terrain: 'space' }]]),
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };

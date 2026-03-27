@@ -306,8 +306,7 @@ describe('S2C state-bearing payload fixtures', () => {
       'destroyedAsteroids',
       'destroyedBases',
       'players',
-      'winner',
-      'winReason',
+      'outcome',
     ];
 
     for (const key of expectedKeys) {
