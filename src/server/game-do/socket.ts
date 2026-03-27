@@ -1,5 +1,5 @@
 import { validateClientMessage } from '../../shared/protocol';
-import type { Result } from '../../shared/types/domain';
+import type { PlayerId, Result } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
 
 export const WS_MSG_RATE_LIMIT = 10;
@@ -54,7 +54,7 @@ export const parseClientSocketMessage = (message: string): Result<C2S> => {
 
 export interface AuxMessageDeps {
   ws: WebSocket;
-  playerId: number;
+  playerId: PlayerId;
   msg: Exclude<
     C2S,
     {
@@ -75,7 +75,7 @@ export interface AuxMessageDeps {
   lastChatAt: Map<number, number>;
   send: (ws: WebSocket, msg: S2C) => void;
   broadcast: (msg: S2C) => void;
-  handleRematch: (playerId: number, ws: WebSocket) => Promise<void>;
+  handleRematch: (playerId: PlayerId, ws: WebSocket) => Promise<void>;
 }
 
 export const handleAuxMessage = async (deps: AuxMessageDeps): Promise<void> => {

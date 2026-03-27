@@ -12,7 +12,13 @@ import {
   hexVecLength,
   parseHexKey,
 } from '../hex';
-import type { GameState, MovementEvent, Ship, SolarSystemMap } from '../types';
+import type {
+  GameState,
+  MovementEvent,
+  PlayerId,
+  Ship,
+  SolarSystemMap,
+} from '../types';
 import { count } from '../util';
 import type { EngineEvent } from './engine-events';
 import {
@@ -42,7 +48,7 @@ export const advanceTurn = (
     }
   }
 
-  state.activePlayer = 1 - state.activePlayer;
+  state.activePlayer = state.activePlayer === 0 ? 1 : 0;
 
   if (state.activePlayer === 0) {
     state.turnNumber++;
@@ -147,7 +153,7 @@ const applyFleetConversion = (state: GameState): void => {
 // belonging to a checkpoint body.
 export const applyCheckpoints = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   path: HexCoord[],
   map: SolarSystemMap,
   engineEvents?: EngineEvent[],
@@ -352,7 +358,7 @@ export const checkGameEnd = (
         state.winReason =
           'Pilgrims moral victory — the fugitives were lost, but they disabled an Enforcer ship.';
       } else {
-        const opponent = 1 - fugitive.owner;
+        const opponent: PlayerId = fugitive.owner === 0 ? 1 : 0;
         state.winner = opponent;
         state.winReason =
           'Enforcers marginal victory — the fugitive transport was destroyed.';
@@ -374,7 +380,7 @@ export const checkGameEnd = (
         state.winReason =
           'Pilgrims moral victory — the fugitives were captured, but they disabled an Enforcer ship.';
       } else {
-        state.winner = 1 - fugitiveOriginalOwner;
+        state.winner = fugitiveOriginalOwner === 0 ? 1 : 0;
         state.winReason =
           'Enforcers decisive victory — the fugitives were captured and returned to base.';
       }
@@ -400,7 +406,7 @@ export const checkGameEnd = (
   );
 
   if (alive0 === 0 && alive1 === 0) {
-    state.winner = 1 - state.activePlayer;
+    state.winner = state.activePlayer === 0 ? 1 : 0;
     state.winReason = 'Mutual destruction — last attacker loses!';
     state.phase = 'gameOver';
     engineEvents?.push({
@@ -533,7 +539,7 @@ export const checkRamming = (
 // courses with them.
 export const checkInspection = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   engineEvents?: EngineEvent[],
 ): void => {
   if (!usesEscapeInspectionRules(state)) return;
@@ -579,7 +585,7 @@ export const checkInspection = (
 // hex/velocity as disabled enemy.
 export const checkCapture = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   events: MovementEvent[],
   engineEvents?: EngineEvent[],
 ): void => {
@@ -642,7 +648,7 @@ export const checkCapture = (
 // from friendly emplaced orbital bases.
 export const checkOrbitalBaseResupply = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   engineEvents?: EngineEvent[],
 ): void => {
   const orbitalBases = state.ships.filter(

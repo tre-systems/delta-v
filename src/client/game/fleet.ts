@@ -4,6 +4,7 @@ import { processFleetReady } from '../../shared/engine/game-engine';
 import type {
   FleetPurchase,
   GameState,
+  PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
 import type { ScenarioDefinition } from '../../shared/types/scenario';
@@ -51,7 +52,7 @@ export const buildAIFleetPurchases = (
 
 export const resolveLocalFleetReady = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   purchases: FleetPurchase[],
   map: SolarSystemMap,
   scenario: ScenarioDefinition,
@@ -74,15 +75,16 @@ export const resolveLocalFleetReady = (
 
   const buildAIPurchases = deps.buildAIPurchases ?? buildAIFleetPurchases;
 
+  const aiPlayerId: PlayerId = playerId === 0 ? 1 : 0;
   const aiPurchases = buildAIPurchases(
-    playerResult.state.players[1 - playerId].credits ?? 0,
+    playerResult.state.players[aiPlayerId].credits ?? 0,
     scenario.availableShipTypes,
     difficulty,
   );
 
   const aiResult = processReady(
     playerResult.state,
-    1 - playerId,
+    aiPlayerId,
     aiPurchases,
     map,
     scenario.availableShipTypes,

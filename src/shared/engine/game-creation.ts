@@ -2,6 +2,7 @@ import { SHIP_STATS } from '../constants';
 import { hexKey } from '../hex';
 import type {
   GameState,
+  PlayerId,
   ScenarioDefinition,
   Ship,
   SolarSystemMap,
@@ -28,7 +29,7 @@ const resolveControlledBases = (
 
 const getScenarioStartingCredits = (
   scenario: ScenarioDefinition,
-  playerId: number,
+  playerId: PlayerId,
 ): number | undefined => {
   if (scenario.startingCredits == null) {
     return undefined;
@@ -40,7 +41,7 @@ const getScenarioStartingCredits = (
 
 const getStartingVisitedBodies = (
   ships: Ship[],
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
 ): string[] => {
   const visited = ships
@@ -163,6 +164,7 @@ export const createGame = (
   }
   const ships: Ship[] = scenario.players.flatMap((player, p) =>
     player.ships.map((def, s) => {
+      const playerIdx = p as PlayerId;
       const stats = SHIP_STATS[def.type];
       const { position, lifecycle } = resolveStartingPlacement(
         def,
@@ -191,8 +193,8 @@ export const createGame = (
       return {
         id: `p${p}s${s}`,
         type: def.type,
-        owner: p,
-        originalOwner: p,
+        owner: playerIdx,
+        originalOwner: playerIdx,
         position,
         lastMovementPath: [{ ...position }],
         velocity: { ...def.velocity },
@@ -215,7 +217,7 @@ export const createGame = (
   // scenarios
   for (const player of scenario.players) {
     if (!player.hiddenIdentity) continue;
-    const p = scenario.players.indexOf(player);
+    const p = scenario.players.indexOf(player) as PlayerId;
     const playerShips = ships.filter((s) => s.owner === p);
 
     if (playerShips.length === 0) continue;
@@ -233,7 +235,7 @@ export const createGame = (
     }
   }
 
-  const hasFleetBuilding = [0, 1].some(
+  const hasFleetBuilding = ([0, 1] as PlayerId[]).some(
     (playerId) => (getScenarioStartingCredits(scenario, playerId) ?? 0) > 0,
   );
   return {
