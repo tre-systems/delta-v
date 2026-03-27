@@ -42,7 +42,7 @@ const createState = (): GameState => ({
   activePlayer: 0,
   ships: [
     createShip(),
-    createShip({ id: 'enemy', owner: 1, type: 'freighter' }),
+    createShip({ id: 'enemy', owner: 1, type: 'corvette' }),
   ],
   ordnance: [],
   pendingAstrogationOrders: null,

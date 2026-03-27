@@ -4,7 +4,7 @@ import {
   aiCombat,
   aiOrdnance,
 } from '../src/shared/ai';
-import { SHIP_STATS } from '../src/shared/constants';
+import { SHIP_STATS, type ShipType } from '../src/shared/constants';
 import {
   beginCombatPhase,
   createGame,
@@ -53,17 +53,17 @@ const simFleetBuild = (
   state: GameState,
   playerId: PlayerId,
   difficulty: AIDifficulty,
-  availableTypes?: string[],
+  availableTypes?: ShipType[],
 ): FleetPurchase[] => {
   const credits = state.players[playerId].credits ?? 0;
   const available =
     availableTypes ??
-    Object.keys(SHIP_STATS).filter((t) => t !== 'orbitalBase');
+    (Object.keys(SHIP_STATS) as ShipType[]).filter((t) => t !== 'orbitalBase');
   const purchases: FleetPurchase[] = [];
   let remaining = credits;
 
   // Strategy varies by difficulty
-  const priorities =
+  const priorities: ShipType[] =
     difficulty === 'hard'
       ? ['dreadnaught', 'frigate', 'torch', 'corsair', 'corvette']
       : difficulty === 'easy'
@@ -72,7 +72,7 @@ const simFleetBuild = (
 
   for (const shipType of priorities) {
     if (!available.includes(shipType)) continue;
-    const cost = SHIP_STATS[shipType]?.cost ?? Infinity;
+    const cost = SHIP_STATS[shipType].cost;
     while (remaining >= cost) {
       purchases.push({ shipType });
       remaining -= cost;

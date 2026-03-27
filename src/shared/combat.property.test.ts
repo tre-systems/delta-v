@@ -15,7 +15,12 @@ import {
   resolveCombat,
   rollD6,
 } from './combat';
-import { DAMAGE_ELIMINATION_THRESHOLD, SHIP_STATS } from './constants';
+import {
+  DAMAGE_ELIMINATION_THRESHOLD,
+  SHIP_STATS,
+  type ShipStats,
+  type ShipType,
+} from './constants';
 import type { Ship } from './types';
 
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
@@ -42,7 +47,8 @@ const arbPositiveInt = () => fc.integer({ min: 1, max: 100 });
 
 const arbNonNegInt = () => fc.integer({ min: 0, max: 100 });
 
-const arbShipType = () => fc.constantFrom(...Object.keys(SHIP_STATS));
+const arbShipType = () =>
+  fc.constantFrom(...(Object.keys(SHIP_STATS) as ShipType[]));
 
 const arbOddsRatio = (): fc.Arbitrary<OddsRatio> =>
   fc.constantFrom('1:4', '1:2', '1:1', '2:1', '3:1', '4:1');
@@ -414,7 +420,9 @@ describe('canAttack / canCounterattack properties', () => {
   });
 
   it('defensive-only ships cannot attack', () => {
-    const defensiveTypes = Object.entries(SHIP_STATS)
+    const defensiveTypes = (
+      Object.entries(SHIP_STATS) as [ShipType, ShipStats][]
+    )
       .filter(([, stats]) => stats.defensiveOnly)
       .map(([type]) => type);
 
@@ -443,7 +451,7 @@ describe('canAttack / canCounterattack properties', () => {
   });
 
   it('disabled non-dreadnaught non-orbitalBase warships cannot attack', () => {
-    const warshipTypes = Object.entries(SHIP_STATS)
+    const warshipTypes = (Object.entries(SHIP_STATS) as [ShipType, ShipStats][])
       .filter(
         ([type, stats]) =>
           !stats.defensiveOnly &&

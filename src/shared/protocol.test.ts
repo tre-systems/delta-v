@@ -212,14 +212,14 @@ describe('validateClientMessage', () => {
     it('accepts valid fleet purchases', () => {
       const result = validateClientMessage({
         type: 'fleetReady',
-        purchases: [{ shipType: 'cruiser' }, { shipType: 'destroyer' }],
+        purchases: [{ shipType: 'corvette' }, { shipType: 'frigate' }],
       });
 
       expect(result).toEqual({
         ok: true,
         value: {
           type: 'fleetReady',
-          purchases: [{ shipType: 'cruiser' }, { shipType: 'destroyer' }],
+          purchases: [{ shipType: 'corvette' }, { shipType: 'frigate' }],
         },
       });
     });

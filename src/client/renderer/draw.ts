@@ -3,7 +3,7 @@
 // Pure functions extracted from Renderer — no class state
 // dependencies.
 
-import { SHIP_STATS } from '../../shared/constants';
+import { SHIP_STATS, type ShipType } from '../../shared/constants';
 import {
   type HexCoord,
   hexAdd,
@@ -19,7 +19,7 @@ export type DrawShipIconInput = {
   alpha: number;
   heading: number;
   disabledTurns?: number;
-  shipType?: string;
+  shipType?: ShipType;
 };
 
 // Draw a ship icon (arrow or octagon for orbital base)
@@ -32,14 +32,14 @@ export const drawShipIcon = ({
   alpha,
   heading,
   disabledTurns = 0,
-  shipType = '',
+  shipType,
 }: DrawShipIconInput): void => {
   const color =
     owner === 0
       ? `rgba(79, 195, 247, ${alpha})`
       : `rgba(255, 152, 0, ${alpha})`;
 
-  const stats = SHIP_STATS[shipType];
+  const stats = shipType ? SHIP_STATS[shipType] : undefined;
   const combat = stats?.combat ?? 2;
 
   const size = combat >= 15 ? 12 : combat >= 8 ? 10 : combat >= 4 ? 9 : 8;
