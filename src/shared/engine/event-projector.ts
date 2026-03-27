@@ -563,7 +563,7 @@ const projectSetupEvent = (
 
       state.ordnance.push({
         id: event.ordnanceId,
-        type: event.ordnanceType as 'mine' | 'torpedo' | 'nuke',
+        type: event.ordnanceType,
         owner: event.owner,
         sourceShipId: event.sourceShipId,
         position: { ...event.position },

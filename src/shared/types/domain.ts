@@ -10,6 +10,7 @@ export type Result<T, E = string> =
 // --- Primitive ID types ---
 
 export type PlayerId = 0 | 1;
+export type OrdnanceType = 'mine' | 'torpedo' | 'nuke';
 
 // --- Game state ---
 
@@ -104,7 +105,7 @@ export type OrdnanceLifecycle = 'active' | 'destroyed';
 
 export interface Ordnance extends PositionedEntity {
   id: string;
-  type: 'mine' | 'torpedo' | 'nuke';
+  type: OrdnanceType;
   owner: PlayerId;
   sourceShipId?: string | null;
   turnsRemaining: number;
@@ -165,7 +166,7 @@ export interface AsteroidHazard {
 
 export interface OrdnanceLaunch {
   shipId: string;
-  ordnanceType: 'mine' | 'torpedo' | 'nuke';
+  ordnanceType: OrdnanceType;
   torpedoAccel?: number | null;
   torpedoAccelSteps?: 1 | 2 | null;
 }
@@ -309,7 +310,7 @@ export interface FleetConversion {
 }
 
 export interface ScenarioRules {
-  allowedOrdnanceTypes?: Array<Ordnance['type']>;
+  allowedOrdnanceTypes?: OrdnanceType[];
   planetaryDefenseEnabled?: boolean;
   hiddenIdentityInspection?: boolean;
   escapeEdge?: 'any' | 'north';

@@ -8,6 +8,7 @@ import type {
   GameState,
   OrbitalBaseEmplacement,
   OrdnanceLaunch,
+  OrdnanceType,
   Ship,
 } from '../../shared/types/domain';
 import type { PlanningState } from './planning';
@@ -92,7 +93,7 @@ export const getUnambiguousLaunchableShipId = (
 export const resolveOrdnanceLaunchPlan = (
   state: OrdnanceState,
   planning: OrdnancePlanning,
-  ordnanceType: 'mine' | 'torpedo' | 'nuke',
+  ordnanceType: OrdnanceType,
 ): OrdnanceLaunchPlan => {
   if (!planning.selectedShipId) {
     return {
