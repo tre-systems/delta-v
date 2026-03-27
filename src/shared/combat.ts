@@ -375,8 +375,8 @@ export const lookupOtherDamage = (
 export const applyDamage = (
   ship: Ship,
   result: DamageResult,
-  cause?: string,
-  killedBy?: string,
+  cause: string = 'unknown',
+  killedBy: string | null = null,
 ): boolean => {
   if (result.type === 'none') return false;
 

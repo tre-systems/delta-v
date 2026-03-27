@@ -130,12 +130,31 @@ export interface Ship extends PositionedEntity {
   passengersAboard?: number;
   pendingGravityEffects?: GravityEffect[];
   deathCause?: string;
-  killedBy?: string; // ship ID or label of the attacker
+  killedBy?: string | null; // ship ID or label of the attacker, null for environmental deaths
 
   damage: {
     disabledTurns: number;
   };
 }
+
+// --- Ship lifecycle narrowing ---
+
+/** A ship that is still in play (moving, fighting, etc.). */
+export type ActiveShip = Ship & { lifecycle: 'active' };
+/** A ship that has landed on a celestial body. */
+export type LandedShip = Ship & { lifecycle: 'landed' };
+/** A destroyed ship — deathCause is always present; killedBy identifies the attacker (absent for environmental deaths). */
+export type DestroyedShip = Ship & {
+  lifecycle: 'destroyed';
+  deathCause: string;
+};
+
+export const isActive = (ship: Ship): ship is ActiveShip =>
+  ship.lifecycle === 'active';
+export const isLanded = (ship: Ship): ship is LandedShip =>
+  ship.lifecycle === 'landed';
+export const isDestroyed = (ship: Ship): ship is DestroyedShip =>
+  ship.lifecycle === 'destroyed';
 
 export type OrdnanceLifecycle = 'active' | 'destroyed';
 
