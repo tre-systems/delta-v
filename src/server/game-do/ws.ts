@@ -1,23 +1,23 @@
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
 import type { GameStateActionMessage } from './actions';
 import { applySocketRateLimit, parseClientSocketMessage } from './socket';
 
 export type GameDoWebSocketMessageDeps = {
   msgRates: WeakMap<WebSocket, { count: number; windowStart: number }>;
-  getPlayerId: (ws: WebSocket) => number | null;
+  getPlayerId: (ws: WebSocket) => PlayerId | null;
   isSpectatorSocket: (ws: WebSocket) => boolean;
   touchInactivity: () => Promise<void>;
   send: (ws: WebSocket, msg: S2C) => void;
   isGameStateActionMessage: (message: C2S) => message is GameStateActionMessage;
   dispatchGameStateAction: (
-    playerId: number,
+    playerId: PlayerId,
     ws: WebSocket,
     msg: GameStateActionMessage,
   ) => Promise<void>;
   dispatchAuxMessage: (
     ws: WebSocket,
-    playerId: number,
+    playerId: PlayerId,
     msg: C2S,
   ) => Promise<void>;
 };
@@ -70,9 +70,9 @@ export const handleGameDoWebSocketMessage = async (
 
 export type GameDoWebSocketCloseDeps = {
   consumeReplacedSocket: (ws: WebSocket) => boolean;
-  getPlayerId: (ws: WebSocket) => number | null;
+  getPlayerId: (ws: WebSocket) => PlayerId | null;
   getCurrentGameState: () => Promise<GameState | null>;
-  setDisconnectMarker: (playerId: number) => Promise<void>;
+  setDisconnectMarker: (playerId: PlayerId) => Promise<void>;
 };
 
 export const handleGameDoWebSocketClose = async (

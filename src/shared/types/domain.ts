@@ -6,6 +6,10 @@ export type Result<T, E = string> =
   | { ok: true; value: T }
   | { ok: false; error: E };
 
+// --- Primitive ID types ---
+
+export type PlayerId = 0 | 1;
+
 // --- Game state ---
 
 export type Phase =
@@ -47,7 +51,7 @@ export interface GameState {
   escapeMoralVictoryAchieved: boolean;
   turnNumber: number;
   phase: Phase;
-  activePlayer: number;
+  activePlayer: PlayerId;
   ships: Ship[];
   ordnance: Ordnance[];
   pendingAstrogationOrders: AstrogationOrder[] | null;
@@ -55,7 +59,7 @@ export interface GameState {
   destroyedAsteroids: string[];
   destroyedBases: string[];
   players: [PlayerState, PlayerState];
-  winner: number | null;
+  winner: PlayerId | null;
   winReason: string | null;
 }
 
@@ -70,8 +74,8 @@ export interface PositionedEntity {
 export interface Ship extends PositionedEntity {
   id: string;
   type: string;
-  owner: number;
-  originalOwner: number;
+  owner: PlayerId;
+  originalOwner: PlayerId;
   lastMovementPath?: HexCoord[];
   fuel: number;
   cargoUsed: number;
@@ -100,7 +104,7 @@ export type OrdnanceLifecycle = 'active' | 'destroyed';
 export interface Ordnance extends PositionedEntity {
   id: string;
   type: 'mine' | 'torpedo' | 'nuke';
-  owner: number;
+  owner: PlayerId;
   sourceShipId?: string | null;
   turnsRemaining: number;
   lifecycle: OrdnanceLifecycle;
@@ -292,14 +296,14 @@ export interface TransferOrder {
 
 export interface Reinforcement {
   turn: number;
-  playerId: number;
+  playerId: PlayerId;
   ships: ScenarioShip[];
 }
 
 export interface FleetConversion {
   turn: number;
-  fromPlayer: number;
-  toPlayer: number;
+  fromPlayer: PlayerId;
+  toPlayer: PlayerId;
   shipTypes?: string[];
 }
 

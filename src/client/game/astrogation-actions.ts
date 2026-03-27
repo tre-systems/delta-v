@@ -1,6 +1,6 @@
 import { must } from '../../shared/assert';
 import { getOrderableShipsForPlayer } from '../../shared/engine/util';
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import { playConfirm, playSelect } from '../audio';
 import { deriveBurnChangePlan } from './burn';
 import { buildAstrogationOrders, findMatchVelocityPlan } from './helpers';
@@ -64,7 +64,10 @@ export const setBurnDirection = (
   const gameState = deps.getGameState();
 
   if (gameState) {
-    const orderable = getOrderableShipsForPlayer(gameState, deps.getPlayerId());
+    const orderable = getOrderableShipsForPlayer(
+      gameState,
+      deps.getPlayerId() as PlayerId,
+    );
     const currentIdx = orderable.findIndex((s) => s.id === plan.shipId);
 
     for (let offset = 1; offset < orderable.length; offset++) {
@@ -139,7 +142,7 @@ export const confirmOrders = (deps: AstrogationActionDeps) => {
     return;
   const orders = buildAstrogationOrders(
     gameState,
-    deps.getPlayerId(),
+    deps.getPlayerId() as PlayerId,
     deps.planningState,
   );
   playConfirm();

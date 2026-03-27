@@ -4,6 +4,7 @@ import {
   ErrorCode,
   type FleetPurchase,
   type GameState,
+  type PlayerId,
   type Ship,
   type SolarSystemMap,
 } from '../types';
@@ -15,7 +16,7 @@ import { engineFailure, getOwnedPlanetaryBases } from './util';
 // the fleet-building phase.
 export const processFleetReady = (
   inputState: GameState,
-  playerId: number,
+  playerId: PlayerId,
   purchases: FleetPurchase[],
   map: SolarSystemMap,
   availableShipTypes?: string[],
@@ -34,9 +35,6 @@ export const processFleetReady = (
     );
   }
 
-  if (playerId !== 0 && playerId !== 1) {
-    return engineFailure(ErrorCode.INVALID_PLAYER, 'Invalid player');
-  }
   const player = state.players[playerId];
   const credits = player.credits ?? 0;
   const totalCostOrError = purchases.reduce<
@@ -132,7 +130,7 @@ export const processFleetReady = (
     shipTypes: purchases.map((p) => p.shipType),
   });
 
-  const otherPlayer = state.players[1 - playerId];
+  const otherPlayer = state.players[playerId === 0 ? 1 : 0];
 
   if (otherPlayer.ready) {
     state.phase = 'astrogation';

@@ -3,7 +3,11 @@ import {
   getTransferEligiblePairs,
   type TransferPair,
 } from '../../shared/engine/logistics';
-import type { GameState, TransferOrder } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  TransferOrder,
+} from '../../shared/types/domain';
 import { clearHTML, el, listen, text } from '../dom';
 import {
   computed,
@@ -34,7 +38,7 @@ export const createLogisticsUIState = (
   state: GameState,
   playerId: number,
 ): LogisticsUIState => {
-  const pairs = getTransferEligiblePairs(state, playerId);
+  const pairs = getTransferEligiblePairs(state, playerId as PlayerId);
   return {
     pairs,
     fuelAmounts: new Map(),

@@ -1,5 +1,5 @@
 import type { EventEnvelope } from '../../shared/engine/engine-events';
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import {
   type Checkpoint,
   getCheckpoint,
@@ -13,7 +13,7 @@ export interface MatchArchive {
   gameId: string;
   roomCode: string;
   scenario: string;
-  winner: number | null;
+  winner: PlayerId | null;
   winReason: string | null;
   turnCount: number;
   createdAt: number;

@@ -21,7 +21,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../src/shared/map-data';
-import type { FleetPurchase, GameState } from '../src/shared/types';
+import type { FleetPurchase, GameState, PlayerId } from '../src/shared/types';
 
 interface SimulationMetrics {
   scenario: string;
@@ -51,7 +51,7 @@ const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
 
 const simFleetBuild = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   difficulty: AIDifficulty,
   availableTypes?: string[],
 ): FleetPurchase[] => {
@@ -112,7 +112,7 @@ const runSingleGame = async (
   // Handle fleet building phase (both players submit simultaneously)
   if (state.phase === 'fleetBuilding') {
     const scenario = SCENARIOS[scenarioName];
-    for (let p = 0; p < 2; p++) {
+    for (const p of [0, 1] as PlayerId[]) {
       const diff = p === 0 ? p0Diff : p1Diff;
       const purchases = simFleetBuild(
         state,
