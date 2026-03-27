@@ -233,8 +233,7 @@ describe('client integration: movement flow', () => {
         newVelocity: { dq: 1, dr: 0 },
         fuelSpent: 1,
         gravityEffects: [],
-        crashed: false,
-        landedAt: null,
+        outcome: 'normal',
       },
     ];
     const ordnanceMovements: OrdnanceMovement[] = [];
@@ -548,8 +547,7 @@ describe('local vs networked parity: movement resolution', () => {
         newVelocity: { dq: 1, dr: 0 },
         fuelSpent: 1,
         gravityEffects: [],
-        crashed: false,
-        landedAt: null,
+        outcome: 'normal',
       },
     ];
     const ordnanceMovements: OrdnanceMovement[] = [];

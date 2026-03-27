@@ -86,7 +86,7 @@ describe('game-client-landings', () => {
         newVelocity: { dq: 0, dr: 0 },
         fuelSpent: 1,
         gravityEffects: [],
-        crashed: false,
+        outcome: 'landing',
         landedAt: 'Mars',
       },
       {
@@ -97,7 +97,7 @@ describe('game-client-landings', () => {
         newVelocity: { dq: 0, dr: 0 },
         fuelSpent: 1,
         gravityEffects: [],
-        crashed: false,
+        outcome: 'landing',
         landedAt: 'Venus',
       },
     ];
@@ -128,7 +128,7 @@ describe('game-client-landings', () => {
         newVelocity: { dq: 0, dr: 0 },
         fuelSpent: 1,
         gravityEffects: [],
-        crashed: false,
+        outcome: 'landing',
         landedAt: 'Mars',
       },
       {
@@ -139,8 +139,7 @@ describe('game-client-landings', () => {
         newVelocity: { dq: 0, dr: 0 },
         fuelSpent: 1,
         gravityEffects: [],
-        crashed: false,
-        landedAt: null,
+        outcome: 'normal',
       },
     ];
 

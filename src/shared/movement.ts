@@ -173,11 +173,7 @@ const checkCrash = (
   map: SolarSystemMap,
   landedAt: string | null,
   skipBody?: string,
-): {
-  crashed: boolean;
-  crashBody: string | null;
-  crashHex: HexCoord | null;
-} => {
+): { crashed: true; crashBody: string; crashHex: HexCoord } | null => {
   for (let i = 1; i < path.length; i++) {
     const coord = path[i];
     const hex = map.hexes.get(hexKey(coord));
@@ -205,7 +201,7 @@ const checkCrash = (
     }
   }
 
-  return { crashed: false, crashBody: null, crashHex: null };
+  return null;
 };
 
 // Compute the course for a ship given a burn direction.
@@ -252,10 +248,7 @@ const computeTakeoffCourse = ({
       fuelSpent: 0,
       gravityEffects: [],
       enteredGravityEffects: [],
-      crashed: false,
-      crashBody: null,
-      crashHex: null,
-      landedAt: null,
+      outcome: 'normal',
     };
   }
 
@@ -328,25 +321,29 @@ const computeTakeoffCourse = ({
     map,
     destroyedBases,
   );
-  const { crashed, crashBody, crashHex } = checkCrash(
-    finalPath,
-    map,
-    landedAt,
-    bodyName ?? undefined,
-  );
+  const crash = checkCrash(finalPath, map, landedAt, bodyName ?? undefined);
 
-  return {
+  const base = {
     destination,
     path: finalPath,
     newVelocity,
     fuelSpent,
     gravityEffects,
     enteredGravityEffects,
-    crashed,
-    crashBody,
-    crashHex,
-    landedAt,
   };
+
+  if (crash) {
+    return {
+      ...base,
+      outcome: 'crash' as const,
+      crashBody: crash.crashBody,
+      crashHex: crash.crashHex,
+    };
+  }
+  if (landedAt) {
+    return { ...base, outcome: 'landing' as const, landedAt };
+  }
+  return { ...base, outcome: 'normal' as const };
 };
 
 const computeNormalCourse = ({
@@ -396,20 +393,29 @@ const computeNormalCourse = ({
     map,
     destroyedBases,
   );
-  const { crashed, crashBody, crashHex } = checkCrash(finalPath, map, landedAt);
+  const crash = checkCrash(finalPath, map, landedAt);
 
-  return {
+  const base = {
     destination,
     path: finalPath,
     newVelocity,
     fuelSpent,
     gravityEffects,
     enteredGravityEffects,
-    crashed,
-    crashBody,
-    crashHex,
-    landedAt,
   };
+
+  if (crash) {
+    return {
+      ...base,
+      outcome: 'crash' as const,
+      crashBody: crash.crashBody,
+      crashHex: crash.crashHex,
+    };
+  }
+  if (landedAt) {
+    return { ...base, outcome: 'landing' as const, landedAt };
+  }
+  return { ...base, outcome: 'normal' as const };
 };
 
 export const computeCourse = (

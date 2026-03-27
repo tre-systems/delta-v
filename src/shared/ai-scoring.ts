@@ -50,12 +50,16 @@ export const scoreNavigation = (
   // Reward getting closer to target
   score += (currentDist - newDist) * cfg.navDistWeight * mult;
   // Bonus for landing on target body (not home!)
-  if (targetBody && course.landedAt === targetBody) {
+  if (
+    targetBody &&
+    course.outcome === 'landing' &&
+    course.landedAt === targetBody
+  ) {
     score += cfg.navTargetLandingBonus;
-  } else if (course.landedAt && !targetBody) {
+  } else if (course.outcome === 'landing' && !targetBody) {
     // Fuel-seeking: landing at any base is great
     score += cfg.navBaseLandingBonus;
-  } else if (course.landedAt) {
+  } else if (course.outcome === 'landing') {
     score -= cfg.navWrongBodyPenalty * mult;
   }
 
@@ -94,7 +98,7 @@ export const scoreRaceDanger = (
   targetHex: { q: number; r: number } | null,
   cfg: AIDifficultyConfig,
 ): number => {
-  if (course.landedAt) return 0;
+  if (course.outcome === 'landing') return 0;
   let score = 0;
   const speed = hexVecLength(course.newVelocity);
   for (const body of map.bodies) {
@@ -130,7 +134,10 @@ export const scoreGravityLookAhead = (
   enemyShips: Ship[],
   cfg: AIDifficultyConfig,
 ): number => {
-  if (course.landedAt || course.enteredGravityEffects.length === 0) {
+  if (
+    course.outcome === 'landing' ||
+    course.enteredGravityEffects.length === 0
+  ) {
     return 0;
   }
   const mult = cfg.multiplier;

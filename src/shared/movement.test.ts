@@ -46,8 +46,7 @@ describe('computeCourse - basic movement', () => {
     expect(course.destination).toEqual({ q: 5, r: 5 });
     expect(course.newVelocity).toEqual({ dq: 0, dr: 0 });
     expect(course.fuelSpent).toBe(0);
-    expect(course.crashed).toBe(false);
-    expect(course.landedAt).toBeNull();
+    expect(course.outcome).toBe('normal');
   });
   it('ship with velocity moves along velocity vector', () => {
     const ship = makeShip({
@@ -201,8 +200,8 @@ describe('computeCourse - gravity', () => {
     // Ship should arrive at the base hex (not be deflected past it),
     // but it is still flying unless it executes a legal landing burn from orbit.
     if (hexEqual(course.destination, must(marsBase))) {
-      expect(course.landedAt).toBeNull();
-      expect(course.crashed).toBe(false);
+      expect(course.outcome).not.toBe('landing');
+      expect(course.outcome).not.toBe('crash');
     }
     expect(course.gravityEffects).toHaveLength(0);
     expect(
@@ -387,10 +386,13 @@ describe('computeCourse - crash detection', () => {
       velocity: { dq: -3, dr: 0 },
     });
     const course = computeCourse(ship, null, map);
-    expect(course.crashed).toBe(true);
-    expect(course.crashBody).toBe('Sol');
-    const crashHex = must(course.crashHex, 'crashed course has crashHex');
-    expect(course.path.some((h) => hexKey(h) === hexKey(crashHex))).toBe(true);
+    expect(course.outcome).toBe('crash');
+    if (course.outcome === 'crash') {
+      expect(course.crashBody).toBe('Sol');
+      expect(
+        course.path.some((h) => hexKey(h) === hexKey(course.crashHex)),
+      ).toBe(true);
+    }
   });
   it('ship passing through planet body crashes', () => {
     const ship = makeShip({
@@ -405,7 +407,7 @@ describe('computeCourse - crash detection', () => {
         return hex?.body?.name === 'Venus';
       })
     ) {
-      expect(course.crashed).toBe(true);
+      expect(course.outcome).toBe('crash');
     }
   });
   it('ship ending on a planetary body without a legal landing crashes', () => {
@@ -416,8 +418,7 @@ describe('computeCourse - crash detection', () => {
     });
     const course = computeCourse(ship, null, map);
     if (hexEqual(course.destination, mercuryCenter)) {
-      expect(course.crashed).toBe(true);
-      expect(course.landedAt).toBeNull();
+      expect(course.outcome).toBe('crash');
     }
   });
 });
@@ -431,8 +432,7 @@ describe('computeCourse - landing', () => {
     });
     const course = computeCourse(ship, null, map);
     if (hexEqual(course.destination, marsBase)) {
-      expect(course.landedAt).toBeNull();
-      expect(course.crashed).toBe(false);
+      expect(course.outcome).toBe('normal');
     }
   });
   it('planetary landing requires orbit and a 1-fuel landing burn', () => {
@@ -454,8 +454,10 @@ describe('computeCourse - landing', () => {
     expect(course.destination).toEqual(marsBase);
     expect(course.fuelSpent).toBe(1);
     if (hexEqual(course.destination, marsBase)) {
-      expect(course.landedAt).toBe('Mars');
-      expect(course.crashed).toBe(false);
+      expect(course.outcome).toBe('landing');
+      if (course.outcome === 'landing') {
+        expect(course.landedAt).toBe('Mars');
+      }
     }
   });
   it('destroyed planetary bases are not legal landing targets', () => {
@@ -477,7 +479,7 @@ describe('computeCourse - landing', () => {
       destroyedBases: [hexKey(marsBase)],
     });
     expect(course.destination).toEqual(marsBase);
-    expect(course.landedAt).toBeNull();
+    expect(course.outcome).not.toBe('landing');
   });
   it('asteroid landing requires stopping in the hex', () => {
     const ship = makeShip({
@@ -486,7 +488,10 @@ describe('computeCourse - landing', () => {
     });
     const course = computeCourse(ship, null, map);
     expect(course.destination).toEqual({ q: -4, r: -14 });
-    expect(course.landedAt).toBe('Ceres');
+    expect(course.outcome).toBe('landing');
+    if (course.outcome === 'landing') {
+      expect(course.landedAt).toBe('Ceres');
+    }
   });
 });
 describe('computeCourse - takeoff', () => {
@@ -501,7 +506,7 @@ describe('computeCourse - takeoff', () => {
     expect(course.destination).toEqual(marsBase);
     expect(course.fuelSpent).toBe(0);
     expect(course.newVelocity).toEqual({ dq: 0, dr: 0 });
-    expect(course.landedAt).toBeNull();
+    expect(course.outcome).toBe('normal');
   });
   it('landed ship with burn takes off', () => {
     const marsBase = must(findBaseHex(map, 'Mars'));
@@ -528,7 +533,7 @@ describe('computeCourse - takeoff', () => {
     // Try all 6 burn directions — none should crash into Mars
     for (let d = 0; d < 6; d++) {
       const course = computeCourse(ship, d, map);
-      if (course.crashed) {
+      if (course.outcome === 'crash') {
         expect(course.crashBody).not.toBe('Mars');
       }
     }
@@ -620,7 +625,7 @@ describe('computeCourse - takeoff edge cases', () => {
       const course = computeCourse(ship, d, customMap);
       // Fallback loop ran — ship should spend fuel and compute a course
       expect(course.fuelSpent).toBe(1);
-      if (!course.crashed) {
+      if (course.outcome !== 'crash') {
         found = true;
         break;
       }

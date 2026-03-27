@@ -1,4 +1,3 @@
-import { hexKey } from '../hex';
 import { computeCourse } from '../movement';
 import type {
   GameState,
@@ -101,7 +100,7 @@ export const resolveMovementPhase = (
       destroyedBases: state.destroyedBases,
     });
 
-    movements.push({
+    const movementBase = {
       shipId: ship.id,
       from,
       to: course.destination,
@@ -109,9 +108,19 @@ export const resolveMovementPhase = (
       newVelocity: course.newVelocity,
       fuelSpent: course.fuelSpent,
       gravityEffects: course.gravityEffects,
-      crashed: course.crashed,
-      landedAt: course.landedAt,
-    });
+    };
+
+    if (course.outcome === 'crash') {
+      movements.push({ ...movementBase, outcome: 'crash' });
+    } else if (course.outcome === 'landing') {
+      movements.push({
+        ...movementBase,
+        outcome: 'landing',
+        landedAt: course.landedAt,
+      });
+    } else {
+      movements.push({ ...movementBase, outcome: 'normal' });
+    }
 
     ship.position = course.destination;
     ship.lastMovementPath = course.path.map((hex) => ({ ...hex }));
@@ -122,10 +131,11 @@ export const resolveMovementPhase = (
       ship.overloadUsed = true;
     }
 
-    ship.lifecycle = course.landedAt !== null ? 'landed' : 'active';
-    ship.pendingGravityEffects = course.landedAt
-      ? []
-      : course.enteredGravityEffects.map((effect) => ({ ...effect }));
+    ship.lifecycle = course.outcome === 'landing' ? 'landed' : 'active';
+    ship.pendingGravityEffects =
+      course.outcome === 'landing'
+        ? []
+        : course.enteredGravityEffects.map((effect) => ({ ...effect }));
 
     engineEvents.push({
       type: 'shipMoved',
@@ -146,7 +156,7 @@ export const resolveMovementPhase = (
       ),
     });
 
-    if (course.landedAt) {
+    if (course.outcome === 'landing') {
       ship.velocity = { dq: 0, dr: 0 };
       applyResupply(ship, state, map, engineEvents);
       engineEvents.push({
@@ -155,21 +165,16 @@ export const resolveMovementPhase = (
       });
     }
 
-    if (course.crashed) {
+    if (course.outcome === 'crash') {
       ship.lifecycle = 'destroyed';
       ship.deathCause = 'crash';
       ship.velocity = { dq: 0, dr: 0 };
       ship.pendingGravityEffects = [];
 
-      const crashHex =
-        course.path.find(
-          (hex, idx) => idx > 0 && map.hexes.get(hexKey(hex))?.body,
-        ) ?? course.destination;
-
       events.push({
         type: 'crash',
         shipId: ship.id,
-        hex: crashHex,
+        hex: course.crashHex,
         dieRoll: 0,
         damageType: 'eliminated',
         disabledTurns: 0,
@@ -178,7 +183,7 @@ export const resolveMovementPhase = (
       engineEvents.push({
         type: 'shipCrashed',
         shipId: ship.id,
-        hex: crashHex,
+        hex: course.crashHex,
       });
       engineEvents.push({
         type: 'shipDestroyed',

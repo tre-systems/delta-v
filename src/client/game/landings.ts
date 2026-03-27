@@ -1,4 +1,3 @@
-import { must } from '../../shared/assert';
 import { SHIP_STATS } from '../../shared/constants';
 import { type HexCoord, hexKey } from '../../shared/hex';
 import type { GameState, ShipMovement } from '../../shared/types/domain';
@@ -17,7 +16,14 @@ export const deriveLandingLogEntries = (
     return [];
   }
   return movements
-    .filter((movement) => movement.landedAt)
+    .filter(
+      (
+        movement,
+      ): movement is typeof movement & {
+        outcome: 'landing';
+        landedAt: string;
+      } => movement.outcome === 'landing',
+    )
     .map((movement) => {
       const ship = state.ships.find(
         (candidate) => candidate.id === movement.shipId,
@@ -29,7 +35,7 @@ export const deriveLandingLogEntries = (
       return {
         destination: movement.to,
         shipName,
-        bodyName: must(movement.landedAt),
+        bodyName: movement.landedAt,
         resupplyText: player?.bases.includes(hexKey(movement.to))
           ? `  ${shipName} resupplied: fuel + cargo restored`
           : null,

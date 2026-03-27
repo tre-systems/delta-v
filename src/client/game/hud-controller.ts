@@ -65,7 +65,7 @@ export const createHudController = (deps: HudControllerDeps) => {
         destroyedBases: state.destroyedBases,
       });
 
-      if (course.crashed) {
+      if (course.outcome === 'crash') {
         return { anyCrashed: true, crashBody: course.crashBody };
       }
     }
