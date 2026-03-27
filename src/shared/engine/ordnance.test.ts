@@ -3,7 +3,7 @@ import { must } from '../assert';
 import { ORBITAL_BASE_MASS } from '../constants';
 import { hexKey } from '../hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
-import type { GameState, Ship, SolarSystemMap } from '../types';
+import type { GameState, PlayerId, Ship, SolarSystemMap } from '../types';
 import { createGame } from './game-engine';
 import {
   isAsteroidHex,
@@ -17,7 +17,7 @@ const createConvoyGame = (): GameState =>
   createGame(SCENARIOS.convoy, map, 'TEST', findBaseHex);
 const makeTransportWithBase = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   position: {
     q: number;
     r: number;

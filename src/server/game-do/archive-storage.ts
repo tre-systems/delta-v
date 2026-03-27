@@ -2,6 +2,7 @@ import type {
   EngineEvent,
   EventEnvelope,
 } from '../../shared/engine/engine-events';
+import type { PlayerId } from '../../shared/types/domain';
 
 type Storage = DurableObjectStorage;
 
@@ -132,7 +133,7 @@ export const getEventStreamLength = async (
 export const appendEventsToChunkedStream = async (
   storage: Storage,
   gameId: string,
-  actor: number | null,
+  actor: PlayerId | null,
   events: EngineEvent[],
 ): Promise<void> => {
   if (events.length === 0) return;

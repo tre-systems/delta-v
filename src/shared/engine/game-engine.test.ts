@@ -15,6 +15,7 @@ import type {
   GameState,
   Ordnance,
   OrdnanceLaunch,
+  PlayerId,
   SolarSystemMap,
 } from '../types';
 import {
@@ -52,7 +53,7 @@ const expectMovement = (
 };
 const resolveAstrogationMovement = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   orders: AstrogationOrder[],
 ): MovementResult => {
   const result = processAstrogation(state, playerId, orders, map, Math.random);
@@ -1190,8 +1191,8 @@ describe('base defense fire', () => {
         {
           id: 'enemy',
           type: 'corvette',
-          owner: 1,
-          originalOwner: 1,
+          owner: 1 as PlayerId,
+          originalOwner: 1 as PlayerId,
           position: gravHex,
           velocity: { dq: 0, dr: 0 },
           fuel: 20,
@@ -1227,8 +1228,8 @@ describe('base defense fire', () => {
         {
           id: 'enemy',
           type: 'corvette',
-          owner: 1,
-          originalOwner: 1,
+          owner: 1 as PlayerId,
+          originalOwner: 1 as PlayerId,
           position: marsBase,
           velocity: { dq: 0, dr: 0 },
           fuel: 20,
@@ -1309,8 +1310,8 @@ describe('base defense fire', () => {
         {
           id: 'enemy-east',
           type: 'corvette',
-          owner: 1,
-          originalOwner: 1,
+          owner: 1 as PlayerId,
+          originalOwner: 1 as PlayerId,
           position: { q: eastBase.q, r: eastBase.r + 1 },
           velocity: { dq: 0, dr: 0 },
           fuel: 20,

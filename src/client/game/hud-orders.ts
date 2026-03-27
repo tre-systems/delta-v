@@ -10,6 +10,7 @@ import type {
   AstrogationOrder,
   GameState,
   Ordnance,
+  PlayerId,
 } from '../../shared/types/domain';
 import { count } from '../../shared/util';
 import { findMatchVelocityPlan } from './match-velocity';
@@ -20,7 +21,7 @@ import type {
   PlanningSnapshot,
 } from './types';
 
-const getObjective = (state: GameState, playerId: number): string => {
+const getObjective = (state: GameState, playerId: PlayerId): string => {
   const player = state.players[playerId];
 
   if (state.scenarioRules.checkpointBodies) {
@@ -55,7 +56,7 @@ const getObjective = (state: GameState, playerId: number): string => {
   return '⬡ Destroy all enemies';
 };
 
-const getFleetStatus = (state: GameState, playerId: number): string => {
+const getFleetStatus = (state: GameState, playerId: PlayerId): string => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
 
   const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
@@ -139,7 +140,7 @@ const getOrdnanceActionState = (
 
 const getMatchVelocityState = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   selectedShipId: string | null,
 ): OrdnanceActionState => {
   const matchVelocityPlan = findMatchVelocityPlan(
@@ -163,7 +164,7 @@ const getMatchVelocityState = (
 
 export const buildAstrogationOrders = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: PlanningSnapshot,
 ): AstrogationOrder[] => {
   return getOrderableShipsForPlayer(state, playerId).map((ship) => {
@@ -192,7 +193,7 @@ export const buildAstrogationOrders = (
 
 export const deriveHudViewModel = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: PlanningSnapshot,
 ): HudViewModel => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);

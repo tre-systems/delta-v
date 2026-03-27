@@ -7,6 +7,7 @@ import type {
   GameState,
   OrbitalBaseEmplacement,
   OrdnanceLaunch,
+  PlayerId,
   SolarSystemMap,
   TransferOrder,
 } from '../../shared/types/domain';
@@ -75,7 +76,12 @@ export const createLocalTransport = (
 
     if (!state) return;
     deps.onResolution(
-      resolveAstrogationStep(state, deps.getPlayerId(), orders, deps.getMap()),
+      resolveAstrogationStep(
+        state,
+        deps.getPlayerId() as PlayerId,
+        orders,
+        deps.getMap(),
+      ),
       deps.onAnimationComplete,
       'Local astrogation error:',
     );
@@ -86,7 +92,12 @@ export const createLocalTransport = (
 
     if (!state) return;
     deps.onResolution(
-      resolveCombatStep(state, deps.getPlayerId(), attacks, deps.getMap()),
+      resolveCombatStep(
+        state,
+        deps.getPlayerId() as PlayerId,
+        attacks,
+        deps.getMap(),
+      ),
       deps.onTransitionToPhase,
       'Local combat error:',
     );
@@ -97,7 +108,12 @@ export const createLocalTransport = (
 
     if (!state) return;
     deps.onResolution(
-      resolveOrdnanceStep(state, deps.getPlayerId(), launches, deps.getMap()),
+      resolveOrdnanceStep(
+        state,
+        deps.getPlayerId() as PlayerId,
+        launches,
+        deps.getMap(),
+      ),
       deps.onAnimationComplete,
       'Local ordnance error:',
     );
@@ -109,7 +125,7 @@ export const createLocalTransport = (
     if (!state) return;
     const result = processEmplacement(
       state,
-      deps.getPlayerId(),
+      deps.getPlayerId() as PlayerId,
       emplacements,
       deps.getMap(),
     );
@@ -125,7 +141,12 @@ export const createLocalTransport = (
 
     if (!state) return;
     deps.onResolution(
-      resolveLogisticsStep(state, deps.getPlayerId(), transfers, deps.getMap()),
+      resolveLogisticsStep(
+        state,
+        deps.getPlayerId() as PlayerId,
+        transfers,
+        deps.getMap(),
+      ),
       deps.onTransitionToPhase,
       'Local logistics error:',
     );
@@ -140,7 +161,11 @@ export const createLocalTransport = (
 
     if (!state) return;
     deps.onResolution(
-      resolveSkipOrdnanceStep(state, deps.getPlayerId(), deps.getMap()),
+      resolveSkipOrdnanceStep(
+        state,
+        deps.getPlayerId() as PlayerId,
+        deps.getMap(),
+      ),
       deps.onAnimationComplete,
       'Local skip ordnance error:',
     );
@@ -151,7 +176,11 @@ export const createLocalTransport = (
 
     if (!state) return;
     deps.onResolution(
-      resolveSkipLogisticsStep(state, deps.getPlayerId(), deps.getMap()),
+      resolveSkipLogisticsStep(
+        state,
+        deps.getPlayerId() as PlayerId,
+        deps.getMap(),
+      ),
       deps.onTransitionToPhase,
       'Local skip logistics error:',
     );
@@ -162,7 +191,11 @@ export const createLocalTransport = (
 
     if (!state) return;
     deps.onResolution(
-      resolveSkipCombatStep(state, deps.getPlayerId(), deps.getMap()),
+      resolveSkipCombatStep(
+        state,
+        deps.getPlayerId() as PlayerId,
+        deps.getMap(),
+      ),
       deps.onTransitionToPhase,
       'Local skip combat error:',
     );
@@ -173,7 +206,11 @@ export const createLocalTransport = (
 
     if (!state) return;
     deps.onResolution(
-      resolveBeginCombatStep(state, deps.getPlayerId(), deps.getMap()),
+      resolveBeginCombatStep(
+        state,
+        deps.getPlayerId() as PlayerId,
+        deps.getMap(),
+      ),
       deps.onTransitionToPhase,
       'Local combat start error:',
     );
@@ -236,7 +273,7 @@ export const createLocalGameTransport = (
       if (!state) return;
       const result = resolveLocalFleetReady(
         state,
-        deps.getPlayerId(),
+        deps.getPlayerId() as PlayerId,
         purchases,
         deps.getMap(),
         deps.getScenarioDef(),

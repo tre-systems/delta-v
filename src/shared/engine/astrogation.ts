@@ -6,6 +6,7 @@ import {
   ErrorCode,
   type GameState,
   type OrdnanceLaunch,
+  type PlayerId,
   type SolarSystemMap,
 } from '../types';
 import type { EngineEvent } from './engine-events';
@@ -23,7 +24,7 @@ import { checkGameEnd } from './victory';
 
 const validateAstrogationOrders = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   orders: AstrogationOrder[],
 ): EngineError | null => {
   const seenShips = new Set<string>();
@@ -120,7 +121,7 @@ const validateAstrogationOrders = (
 // Process astrogation orders for the active player.
 export const processAstrogation = (
   inputState: GameState,
-  playerId: number,
+  playerId: PlayerId,
   orders: AstrogationOrder[],
   map: SolarSystemMap,
   rng: () => number,
@@ -182,7 +183,7 @@ export const processAstrogation = (
 // Process ordnance launches for the active player.
 export const processOrdnance = (
   inputState: GameState,
-  playerId: number,
+  playerId: PlayerId,
   launches: OrdnanceLaunch[],
   map: SolarSystemMap,
   rng: () => number,
@@ -325,7 +326,7 @@ export const processOrdnance = (
 // movement phase.
 export const skipOrdnance = (
   inputState: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
   rng: () => number,
 ): MovementResult | StateUpdateResult | { error: EngineError } => {

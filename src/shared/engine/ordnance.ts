@@ -22,6 +22,7 @@ import {
   type OrbitalBaseEmplacement,
   type Ordnance,
   type OrdnanceMovement,
+  type PlayerId,
   type Ship,
   type SolarSystemMap,
 } from '../types';
@@ -58,7 +59,7 @@ export const shouldEnterOrdnancePhase = (state: GameState): boolean => {
 // the ordnance phase.
 export const processEmplacement = (
   inputState: GameState,
-  playerId: number,
+  playerId: PlayerId,
   emplacements: OrbitalBaseEmplacement[],
   map: SolarSystemMap,
 ):
@@ -693,7 +694,7 @@ export const queueAsteroidHazards = (
 // Resolve pending asteroid collision damage.
 export const resolvePendingAsteroidHazards = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   rng: () => number,
 ): CombatResult[] => {
   const results: CombatResult[] = [];
