@@ -277,7 +277,7 @@ const buildDriftSegments = (
   map: SolarSystemMap,
   hexSize: number,
 ): DriftSegment[] => {
-  if (course.crashed || course.landedAt !== null) return [];
+  if (course.outcome === 'crash' || course.outcome === 'landing') return [];
 
   const segments: DriftSegment[] = [];
   let pos = course.destination;
@@ -301,11 +301,11 @@ const buildDriftSegments = (
 
     segments.push({
       points,
-      color: drift.crashed ? '#ff4444' : '#4fc3f7',
+      color: drift.outcome === 'crash' ? '#ff4444' : '#4fc3f7',
       alpha: DRIFT_ALPHAS[i],
     });
 
-    if (drift.crashed || drift.landedAt !== null) break;
+    if (drift.outcome === 'crash' || drift.outcome === 'landing') break;
 
     pos = drift.destination;
     vel = drift.newVelocity;
@@ -367,7 +367,7 @@ export const buildAstrogationCoursePreviewViews = (
       linePoints: [...takeoffPrefix, fromHex, ...course.path.slice(1)].map(
         (hex) => hexToPixel(hex, hexSize),
       ),
-      lineColor: course.crashed ? '#ff4444' : '#4fc3f7',
+      lineColor: course.outcome === 'crash' ? '#ff4444' : '#4fc3f7',
       lineWidth: 2,
       lineDash: burn !== null ? [] : [6, 4],
 
@@ -377,17 +377,18 @@ export const buildAstrogationCoursePreviewViews = (
           buildGravityArrow(gravity.hex, gravity.direction, hexSize),
         ),
 
-      ghostShip: course.crashed
-        ? null
-        : {
-            position: destination,
-            owner: ship.owner,
-            shipType: ship.type,
-            alpha: 0.4,
-          },
+      ghostShip:
+        course.outcome === 'crash'
+          ? null
+          : {
+              position: destination,
+              owner: ship.owner,
+              shipType: ship.type,
+              alpha: 0.4,
+            },
 
       crashMarker:
-        course.crashed && course.crashHex
+        course.outcome === 'crash'
           ? { position: hexToPixel(course.crashHex, hexSize) }
           : null,
 

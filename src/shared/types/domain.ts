@@ -170,19 +170,21 @@ export interface AstrogationOrder {
   weakGravityChoices?: Record<HexKey, boolean>;
 }
 
-export interface CourseResult {
+interface CourseResultBase {
   destination: HexCoord;
   path: HexCoord[];
   newVelocity: HexVec;
   fuelSpent: number;
   gravityEffects: GravityEffect[];
   enteredGravityEffects: GravityEffect[];
-  crashed: boolean;
-  crashBody: string | null;
-  /** Populated when `crashed` is true — the path hex where the impact occurs. */
-  crashHex: HexCoord | null;
-  landedAt: string | null;
 }
+
+export type CourseResult = CourseResultBase &
+  (
+    | { outcome: 'crash'; crashBody: string; crashHex: HexCoord }
+    | { outcome: 'landing'; landedAt: string }
+    | { outcome: 'normal' }
+  );
 
 export interface GravityInfo {
   direction: number;
@@ -218,14 +220,19 @@ export interface OrdnanceMovement extends PathSegment {
   detonated: boolean;
 }
 
-export interface ShipMovement extends PathSegment {
+interface ShipMovementBase extends PathSegment {
   shipId: string;
   newVelocity: HexVec;
   fuelSpent: number;
   gravityEffects: GravityEffect[];
-  crashed: boolean;
-  landedAt: string | null;
 }
+
+export type ShipMovement = ShipMovementBase &
+  (
+    | { outcome: 'crash' }
+    | { outcome: 'landing'; landedAt: string }
+    | { outcome: 'normal' }
+  );
 
 // --- Map ---
 

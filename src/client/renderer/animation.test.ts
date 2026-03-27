@@ -20,8 +20,7 @@ const shipMovement: ShipMovement = {
   newVelocity: { dq: 2, dr: -1 },
   fuelSpent: 1,
   gravityEffects: [],
-  crashed: false,
-  landedAt: null,
+  outcome: 'normal',
 };
 
 const ordnanceMovement: OrdnanceMovement = {
