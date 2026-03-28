@@ -16,6 +16,7 @@ import {
   resolveAstrogationStep,
   resolveBeginCombatStep,
   resolveCombatStep,
+  resolveLogisticsStep,
   resolveOrdnanceStep,
   resolveSkipCombatStep,
   resolveSkipLogisticsStep,
@@ -141,7 +142,9 @@ export const resolveAIPlan = (
         ? resolveSkipCombatStep(gameState, plan.aiPlayer, map)
         : resolveCombatStep(gameState, plan.aiPlayer, plan.attacks, map, false);
     case 'logistics':
-      return resolveSkipLogisticsStep(gameState, plan.aiPlayer, map);
+      return plan.skip
+        ? resolveSkipLogisticsStep(gameState, plan.aiPlayer, map)
+        : resolveLogisticsStep(gameState, plan.aiPlayer, plan.transfers, map);
     default:
       return { kind: 'error', error: 'Unexpected AI plan kind' };
   }

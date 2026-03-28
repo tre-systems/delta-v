@@ -2,6 +2,7 @@ import {
   type AIDifficulty,
   aiAstrogation,
   aiCombat,
+  aiLogistics,
   aiOrdnance,
 } from '../../shared/ai';
 import { SHIP_STATS } from '../../shared/constants';
@@ -13,12 +14,14 @@ import type {
   OrdnanceLaunch,
   PlayerId,
   SolarSystemMap,
+  TransferOrder,
 } from '../../shared/types/domain';
 import { hasOwnedPendingAsteroidHazards } from './local';
 
 export interface AIDecisionGenerators {
   astrogation: typeof aiAstrogation;
   ordnance: typeof aiOrdnance;
+  logistics: typeof aiLogistics;
   combat: typeof aiCombat;
 }
 
@@ -53,8 +56,9 @@ export type AIActionPlan =
   | {
       kind: 'logistics';
       aiPlayer: PlayerId;
-      skip: true;
-      errorPrefix: 'AI skip logistics error:';
+      transfers: TransferOrder[];
+      skip: boolean;
+      errorPrefix: 'AI logistics error:' | 'AI skip logistics error:';
     }
   | {
       kind: 'transition';
@@ -84,6 +88,7 @@ export const deriveAIActionPlan = (
   generators: AIDecisionGenerators = {
     astrogation: aiAstrogation,
     ordnance: aiOrdnance,
+    logistics: aiLogistics,
     combat: aiCombat,
   },
 ): AIActionPlan => {
@@ -130,11 +135,21 @@ export const deriveAIActionPlan = (
   }
 
   if (state.phase === 'logistics') {
+    const transfers = generators.logistics(
+      filterStateForPlayer(state, aiPlayer),
+      aiPlayer,
+      map,
+      difficulty,
+    );
     return {
       kind: 'logistics',
       aiPlayer,
-      skip: true,
-      errorPrefix: 'AI skip logistics error:',
+      transfers,
+      skip: transfers.length === 0,
+      errorPrefix:
+        transfers.length > 0
+          ? 'AI logistics error:'
+          : 'AI skip logistics error:',
     };
   }
 
