@@ -185,9 +185,9 @@ the endpoint, gravity deflects on the following turn.
 1. In **Duel** (frigates are warships), select your
    ship and set a burn. The overload option should
    be available (double circle icon, costs 2 fuel).
-2. In **Convoy** (tanker is commercial), verify the
-   tanker has **no** overload option — commercial
-   ships cannot overload.
+2. In **Convoy** (merchant tanker is non-warship),
+   verify the tanker has **no** overload option —
+   only warships can overload.
 3. After overloading, verify the ship cannot
    overload again until it resupplies at a base.
 
@@ -340,7 +340,9 @@ described in the rules.
 2. A ship **cannot** launch ordnance while landed at
    a base.
 3. Each ship may launch only one item per turn.
-4. Non-warships can carry at most one nuke.
+4. Verify non-warship ordnance limits from the
+   scenario loadout UI and launch controls (cargo is
+   intentionally stricter than warship loadouts).
 
 **Pass:** All three ordnance types launch, move, and
 detonate correctly. Launch restrictions are enforced.
@@ -349,13 +351,13 @@ detonate correctly. Launch restrictions are enforced.
 
 ## 6. Scenarios
 
-### 6a. Bi-Planetary (Beginner)
+### 6a. Bi-Planetary (Landing Objective + Gravity Basics)
 
 - 1 corvette each, Mars vs Venus
 - **Victory:** Land on the opponent's planet first
 - Verify the objective text shows the target body
 
-### 6b. Escape (Asymmetric)
+### 6b. Escape (Hidden Cargo + Intercept/Inspect Loop)
 
 - 3 Pilgrim transports vs 1 corvette + 1 corsair
 - One transport secretly carries the fugitives
@@ -375,41 +377,41 @@ detonate correctly. Launch restrictions are enforced.
 - Nukes are available; mines and torpedoes are not
 - Planetary defense is disabled
 
-### 6c. Convoy (Escort)
+### 6c. Convoy (Merchant Escort + Shared-hex Logistics)
 
-- Tanker + Frigate escort vs 2 Corsairs + Corvette
-- **Victory:** Defenders land the tanker on Venus
+- Merchant tanker + frigate escort vs 2 corsairs + corvette
+- **Victory:** Defenders land the merchant tanker on Venus
 - Logistics enabled — verify fuel transfer works
   between friendly ships at same hex/velocity
 
-### 6d. Duel (Combat)
+### 6d. Duel (Pure Combat + Gravity Pressure)
 
 - 2 Frigates near Mercury
 - **Victory:** Last ship standing
 - Good test for: combat modifiers, ordnance,
   gravity combat near Mercury/Sol
 
-### 6e. Blockade Runner (Speed)
+### 6e. Blockade Runner (Pursuit + Velocity Control)
 
 - 1 Packet (with velocity head-start) vs 1 Corvette
 - **Victory:** Packet lands on Mars
 - Packet starts moving — test high-speed gameplay
 
-### 6f. Fleet Action (Fleet Building)
+### 6f. Fleet Action (Budget Fleet Construction)
 
 - 400 MC budget, combat ships only
 - Mars vs Venus
 - Verify fleet building UI (section 8) then full
   combined-arms combat
 
-### 6g. Interplanetary War (Epic)
+### 6g. Interplanetary War (Large-Scale Logistics + Recovery)
 
 - 850 MC budget, all ship types available
 - Terra vs Mars, logistics enabled
 - Longer game — verify damage recovery, resupply,
   overload restoration, and large-fleet management
 
-### 6h. Grand Tour (Race)
+### 6h. Grand Tour (Checkpoint Race + Combat Disabled)
 
 - 1 Corvette each, visit 8 bodies and return home
 - **Combat disabled** — verify attack buttons are
@@ -789,7 +791,7 @@ Grand Tour vs AI
 
 1. Land a damaged or low-fuel ship at a friendly
    base.
-2. On the next resupply phase, verify:
+2. On the next logistics phase, verify:
    - Fuel is restored to maximum
    - All damage is repaired
    - Overload allowance is restored
@@ -933,8 +935,8 @@ each difficulty
 
 ### 17d. AI simulation (automated)
 
-Run the following command — all 8 scenarios should
-complete with **0 engine crashes**:
+Run the following command — all available scenarios
+should complete with **0 engine crashes**:
 
 ```
 npm run simulate -- all 25
@@ -1077,13 +1079,15 @@ or are easy to miss.
 
 These complement manual testing and run in CI:
 
-| Command                      | What it checks                                                                                                                    |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `npm test`                   | Unit, property, and regression tests across engine, client, and server                                                            |
-| `npm run test:e2e`           | Thin Playwright browser smoke coverage for boot, basic turn flow, mobile HUD/help, and core multiplayer join/chat/reconnect paths |
-| `npm run simulate -- all 25` | Engine stability / balance sweep across all 8 scenarios                                                                           |
-| `npm run lint`               | Code style                                                                                                                        |
-| `npm run typecheck`          | Type safety                                                                                                                       |
+| Command                      | What it checks                                                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run verify`             | Full local release gate: lint, typecheck (app + tools), coverage, build, e2e smoke, a11y e2e, and simulation                      |
+| `npm test`                   | Unit, property, and regression tests across engine, client, and server                                                              |
+| `npm run test:e2e`           | Thin Playwright browser smoke coverage for boot, basic turn flow, mobile HUD/help, and core multiplayer join/chat/reconnect paths  |
+| `npm run test:e2e:a11y`      | Playwright + axe DOM accessibility baseline for menu, lobby, HUD/help overlay, and keyboard focus behaviour                       |
+| `npm run simulate -- all 25` | Engine stability / balance sweep across the current scenario roster                                                                 |
+| `npm run lint`               | Code style                                                                                                                          |
+| `npm run typecheck:all`      | Type safety for app and tooling                                                                             |
 
 All must pass before any release, but they do **not**
 replace the manual experience checks above.
