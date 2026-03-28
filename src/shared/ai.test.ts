@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { aiAstrogation, aiCombat, aiLogistics, aiOrdnance } from './ai';
+import {
+  aiAstrogation,
+  aiCombat,
+  aiLogistics,
+  aiOrdnance,
+  buildAIFleetPurchases,
+} from './ai';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
 import { createGame, processAstrogation } from './engine/game-engine';
@@ -293,6 +299,30 @@ describe('aiOrdnance', () => {
     for (const launch of launches) {
       expect(aiShipIds.has(launch.shipId)).toBe(true);
     }
+  });
+});
+describe('buildAIFleetPurchases', () => {
+  it('prefers many smaller hulls in warship-only fleet skirmishes', () => {
+    const state = createGame(
+      SCENARIOS.fleetAction,
+      map,
+      'FLEET-SWARM',
+      findBaseHex,
+    );
+    const purchases = buildAIFleetPurchases(
+      state,
+      0,
+      'hard',
+      SCENARIOS.fleetAction.availableFleetPurchases,
+    );
+
+    expect(purchases).toHaveLength(10);
+    expect(
+      purchases.every(
+        (purchase) =>
+          purchase.kind === 'ship' && purchase.shipType === 'corvette',
+      ),
+    ).toBe(true);
   });
 });
 describe('aiLogistics', () => {
