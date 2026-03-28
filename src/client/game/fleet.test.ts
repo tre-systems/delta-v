@@ -15,22 +15,22 @@ describe('game-client-fleet', () => {
     expect(
       buildAIFleetPurchases(100, ['corvette', 'corsair', 'packet'], 'easy'),
     ).toEqual([
-      { shipType: 'corvette' },
-      { shipType: 'corvette' },
-      { shipType: 'packet' },
+      { kind: 'ship', shipType: 'corvette' },
+      { kind: 'ship', shipType: 'corvette' },
+      { kind: 'ship', shipType: 'packet' },
     ]);
 
     expect(
       buildAIFleetPurchases(200, ['corvette', 'corsair', 'frigate'], 'normal'),
     ).toEqual([
-      { shipType: 'corsair' },
-      { shipType: 'corsair' },
-      { shipType: 'corvette' },
+      { kind: 'ship', shipType: 'corsair' },
+      { kind: 'ship', shipType: 'corsair' },
+      { kind: 'ship', shipType: 'corvette' },
     ]);
 
     expect(buildAIFleetPurchases(300, ['corsair', 'frigate'], 'hard')).toEqual([
-      { shipType: 'frigate' },
-      { shipType: 'frigate' },
+      { kind: 'ship', shipType: 'frigate' },
+      { kind: 'ship', shipType: 'frigate' },
     ]);
   });
 
@@ -38,12 +38,13 @@ describe('game-client-fleet', () => {
     const map = buildSolarSystemMap();
     const scenario = SCENARIOS.interplanetaryWar;
     const state = createGame(scenario, map, 'LOCAL', findBaseHex);
+    state.players[0].credits = 2000;
 
     expect(
       resolveLocalFleetReady(
         state,
         0,
-        [{ shipType: 'orbitalBase' }],
+        [{ kind: 'orbitalBaseCargo' }],
         map,
         scenario,
         'normal',
@@ -69,7 +70,7 @@ describe('game-client-fleet', () => {
     const result = resolveLocalFleetReady(
       state,
       0,
-      [{ shipType: 'corvette' }],
+      [{ kind: 'ship', shipType: 'corvette' }],
       map,
       scenario,
       'easy',
@@ -96,7 +97,7 @@ describe('game-client-fleet', () => {
     const map = buildSolarSystemMap();
     const scenario: ScenarioDefinition = {
       ...SCENARIOS.interplanetaryWar,
-      availableShipTypes: ['corvette', 'corsair'],
+      availableFleetPurchases: ['corvette', 'corsair'],
     };
     const state = createGame(scenario, map, 'LOCAL', findBaseHex);
 
@@ -111,14 +112,14 @@ describe('game-client-fleet', () => {
       });
 
     const buildAIPurchases = vi.fn((): FleetPurchase[] => [
-      { shipType: 'corsair' },
+      { kind: 'ship', shipType: 'corsair' },
     ]);
 
     expect(
       resolveLocalFleetReady(
         state,
         0,
-        [{ shipType: 'corvette' }],
+        [{ kind: 'ship', shipType: 'corvette' }],
         map,
         scenario,
         'hard',
@@ -137,18 +138,16 @@ describe('game-client-fleet', () => {
       1,
       state,
       0,
-      [{ shipType: 'corvette' }],
+      [{ kind: 'ship', shipType: 'corvette' }],
       map,
-      scenario.availableShipTypes,
     );
 
     expect(processReady).toHaveBeenNthCalledWith(
       2,
       state,
       1,
-      [{ shipType: 'corsair' }],
+      [{ kind: 'ship', shipType: 'corsair' }],
       map,
-      scenario.availableShipTypes,
     );
   });
 });

@@ -1,4 +1,9 @@
-import { isWarshipType, ORDNANCE_MASS, SHIP_STATS } from '../constants';
+import {
+  isWarshipType,
+  ORBITAL_BASE_MASS,
+  ORDNANCE_MASS,
+  SHIP_STATS,
+} from '../constants';
 import { type HexKey, parseHexKey } from '../hex';
 import { bodyHasGravity } from '../map-data';
 import {
@@ -114,6 +119,10 @@ export const getAllowedOrdnanceTypes = (
   return new Set(allowed);
 };
 
+export const getCargoUsedAfterResupply = (
+  ship: Pick<Ship, 'baseStatus'>,
+): number => (ship.baseStatus === 'carryingBase' ? ORBITAL_BASE_MASS : 0);
+
 export const RESUPPLY_ORDNANCE_ERROR =
   'Ships cannot launch ordnance during a turn in which they resupply';
 
@@ -193,7 +202,7 @@ export const validateShipOrdnanceLaunch = (
   ) {
     return engineError(
       ErrorCode.RESOURCE_LIMIT,
-      'Non-warships may launch only one nuke per match',
+      'Non-warships may launch only one nuke between resupplies',
     );
   }
 

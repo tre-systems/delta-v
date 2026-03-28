@@ -21,6 +21,8 @@ const installFixture = () => {
     <div id="latencyInfo"></div>
     <div id="fleetStatus"></div>
     <div id="helpOverlay" style="display:none"></div>
+    <button id="helpBtn"></button>
+    <button id="helpCloseBtn"></button>
     <button id="soundBtn"></button>
     <div id="turnTimer"></div>
     <div id="transferPanel" style="display:none"></div>
@@ -140,7 +142,7 @@ describe('HUDChromeView', () => {
     expect(compass.style.transform).toBe('rotate(-30deg)');
   });
 
-  it('updates HUD chrome helpers and hides action buttons during movement', () => {
+  it('updates HUD chrome helpers and hides action buttons during movement', async () => {
     const queueLayoutSync = vi.fn();
     const onStatusText = vi.fn();
     const view = createHUDChromeView({
@@ -160,14 +162,22 @@ describe('HUDChromeView', () => {
       '2 ships ready',
     );
 
+    const helpBtn = document.getElementById('helpBtn') as HTMLButtonElement;
+    helpBtn.focus();
     view.toggleHelpOverlay();
+    await Promise.resolve();
     expect(
       (document.getElementById('helpOverlay') as HTMLElement).style.display,
     ).toBe('flex');
+    expect(document.activeElement).toBe(
+      document.getElementById('helpCloseBtn'),
+    );
     view.toggleHelpOverlay();
+    await Promise.resolve();
     expect(
       (document.getElementById('helpOverlay') as HTMLElement).style.display,
     ).toBe('none');
+    expect(document.activeElement).toBe(helpBtn);
 
     view.updateSoundButton(true);
     const soundBtn = document.getElementById('soundBtn') as HTMLButtonElement;

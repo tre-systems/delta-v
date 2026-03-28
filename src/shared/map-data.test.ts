@@ -167,8 +167,8 @@ describe('SCENARIOS', () => {
     for (const name of ['interplanetaryWar', 'fleetAction']) {
       const s = SCENARIOS[name];
       expect(s.startingCredits).toBeDefined();
-      expect(s.availableShipTypes).toBeDefined();
-      expect(s.availableShipTypes?.length).toBeGreaterThan(0);
+      expect(s.availableFleetPurchases).toBeDefined();
+      expect(s.availableFleetPurchases?.length).toBeGreaterThan(0);
       for (const p of s.players) {
         expect(p.ships.length).toBe(0);
       }

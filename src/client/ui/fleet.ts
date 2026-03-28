@@ -1,13 +1,17 @@
+import { SHIP_STATS, type ShipType } from '../../shared/constants';
+import type {
+  FleetPurchase,
+  FleetPurchaseOption,
+  PurchasableShipType,
+} from '../../shared/types/domain';
 import {
-  SHIP_STATS,
-  type ShipStats,
-  type ShipType,
-} from '../../shared/constants';
-import type { FleetPurchase } from '../../shared/types/domain';
+  isOrbitalBaseCargoPurchase,
+  isShipFleetPurchase,
+} from '../../shared/types/domain';
 import { sumBy } from '../../shared/util';
 
 export interface FleetShopItemView {
-  shipType: ShipType;
+  purchase: FleetPurchase;
   name: string;
   statsText: string;
   cost: number;
@@ -15,7 +19,7 @@ export interface FleetShopItemView {
 }
 
 export interface FleetCartItemView {
-  shipType: ShipType;
+  purchase: FleetPurchase;
   label: string;
 }
 
@@ -26,28 +30,51 @@ export interface FleetCartView {
   isEmpty: boolean;
 }
 
-export const getFleetShopTypes = (): [ShipType, ShipStats][] => {
-  return (Object.entries(SHIP_STATS) as [ShipType, ShipStats][]).sort(
-    (left, right) => left[1].cost - right[1].cost,
-  );
-};
+const DEFAULT_FLEET_PURCHASE_OPTIONS: FleetPurchaseOption[] = [
+  ...(Object.entries(SHIP_STATS) as [ShipType, (typeof SHIP_STATS)[ShipType]][])
+    .filter(
+      ([shipType]): shipType is PurchasableShipType =>
+        shipType !== 'orbitalBase',
+    )
+    .sort((left, right) => left[1].cost - right[1].cost)
+    .map(([shipType]) => shipType),
+  'orbitalBaseCargo',
+];
+
+export const getFleetPurchaseCost = (purchase: FleetPurchase): number =>
+  isShipFleetPurchase(purchase)
+    ? (SHIP_STATS[purchase.shipType]?.cost ?? 0)
+    : SHIP_STATS.orbitalBase.cost;
+
+export const getFleetPurchaseLabel = (purchase: FleetPurchase): string =>
+  isShipFleetPurchase(purchase)
+    ? (SHIP_STATS[purchase.shipType]?.name ?? purchase.shipType)
+    : 'Orbital Base Cargo';
+
+const toFleetPurchase = (option: FleetPurchaseOption): FleetPurchase =>
+  option === 'orbitalBaseCargo'
+    ? { kind: 'orbitalBaseCargo' }
+    : { kind: 'ship', shipType: option };
+
+export const getFleetShopOptions = (
+  availableFleetPurchases?: FleetPurchaseOption[],
+): FleetPurchaseOption[] =>
+  availableFleetPurchases
+    ? [...availableFleetPurchases]
+    : DEFAULT_FLEET_PURCHASE_OPTIONS;
 
 export const getFleetCartCost = (cart: FleetPurchase[]): number => {
-  return sumBy(cart, (purchase) =>
-    purchase.shipType === 'orbitalBase'
-      ? 0
-      : (SHIP_STATS[purchase.shipType]?.cost ?? 0),
-  );
+  return sumBy(cart, getFleetPurchaseCost);
 };
 
-export const canAddFleetShip = (
+export const canAddFleetPurchase = (
   cart: FleetPurchase[],
   totalCredits: number,
-  shipType: ShipType,
+  purchase: FleetPurchase,
 ): boolean => {
-  const cost =
-    shipType === 'orbitalBase' ? 0 : (SHIP_STATS[shipType]?.cost ?? 0);
-  return getFleetCartCost(cart) + cost <= totalCredits;
+  return (
+    getFleetCartCost(cart) + getFleetPurchaseCost(purchase) <= totalCredits
+  );
 };
 
 export const getFleetCartView = (
@@ -60,8 +87,8 @@ export const getFleetCartView = (
     remainingCredits,
     remainingLabel: `${remainingCredits} MC remaining`,
     items: cart.map((purchase) => ({
-      shipType: purchase.shipType,
-      label: SHIP_STATS[purchase.shipType]?.name ?? purchase.shipType,
+      purchase,
+      label: getFleetPurchaseLabel(purchase),
     })),
     isEmpty: cart.length === 0,
   };
@@ -70,22 +97,27 @@ export const getFleetCartView = (
 export const getFleetShopView = (
   cart: FleetPurchase[],
   totalCredits: number,
+  availableFleetPurchases?: FleetPurchaseOption[],
 ): FleetShopItemView[] => {
   const remainingCredits = totalCredits - getFleetCartCost(cart);
 
-  return getFleetShopTypes().map(([shipType, stats]) => {
-    if (shipType === 'orbitalBase') {
+  return getFleetShopOptions(availableFleetPurchases).map((option) => {
+    const purchase = toFleetPurchase(option);
+
+    if (isOrbitalBaseCargoPurchase(purchase)) {
       return {
-        shipType,
+        purchase,
         name: 'Orbital Base Cargo',
         statsText: 'Requires an available transport or packet',
-        cost: 0,
-        disabled: false,
+        cost: SHIP_STATS.orbitalBase.cost,
+        disabled: SHIP_STATS.orbitalBase.cost > remainingCredits,
       };
     }
 
+    const stats = SHIP_STATS[purchase.shipType];
+
     return {
-      shipType,
+      purchase,
       name: stats.name,
       statsText: `C${stats.combat}${stats.defensiveOnly ? 'D' : ''} F${stats.fuel === Infinity ? '\u221e' : stats.fuel}${stats.cargo > 0 ? ` G${stats.cargo}` : ''}`,
       cost: stats.cost,

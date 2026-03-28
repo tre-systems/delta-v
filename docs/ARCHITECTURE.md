@@ -102,6 +102,63 @@ flowchart LR
   TR -->|net| WS[WebSocket]
 ```
 
+**Engine phase state machine (authoritative `GameState.phase`):**
+
+```mermaid
+stateDiagram-v2
+  [*] --> waiting
+  waiting --> fleetBuilding
+  waiting --> astrogation
+
+  fleetBuilding --> astrogation
+  fleetBuilding --> gameOver
+
+  astrogation --> ordnance
+  astrogation --> logistics
+  astrogation --> combat
+  astrogation --> astrogation: timeout/advance path
+  astrogation --> gameOver
+
+  ordnance --> logistics
+  ordnance --> combat
+  ordnance --> astrogation
+  ordnance --> gameOver
+
+  logistics --> combat
+  logistics --> astrogation
+  logistics --> gameOver
+
+  combat --> astrogation
+  combat --> gameOver
+
+  gameOver --> [*]
+```
+
+**Event-sourced recovery and replay projection:**
+
+```mermaid
+flowchart TB
+  A[Authoritative action] --> B[Engine returns next state + EngineEvent[]]
+  B --> C[Append event envelopes]
+  C --> D[Checkpoint at turn boundaries/end]
+
+  subgraph Rebuild
+    E[Load latest checkpoint]
+    F[Load event tail after checkpoint]
+    G[Project events to current state]
+  end
+
+  D --> E
+  C --> F
+  E --> G
+  F --> G
+
+  G --> H[Reconnect state]
+  G --> I[Replay timeline]
+```
+
+Diagram maintenance rule: when command flow, phase transitions, or persistence/projection behavior changes, update these diagrams in the same PR.
+
 ### Key Technologies
 
 - **Language**: TypeScript (strict mode) across the entire stack.

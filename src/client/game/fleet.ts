@@ -3,8 +3,10 @@ import { SHIP_STATS, type ShipType } from '../../shared/constants';
 import { processFleetReady } from '../../shared/engine/game-engine';
 import type {
   FleetPurchase,
+  FleetPurchaseOption,
   GameState,
   PlayerId,
+  PurchasableShipType,
   SolarSystemMap,
 } from '../../shared/types/domain';
 import type { ScenarioDefinition } from '../../shared/types/scenario';
@@ -26,23 +28,32 @@ export interface FleetReadyDeps {
 
 export const buildAIFleetPurchases = (
   credits: number,
-  availableShipTypes: ShipType[] | undefined,
+  availableFleetPurchases: FleetPurchaseOption[] | undefined,
   difficulty: AIDifficulty,
 ): FleetPurchase[] => {
-  const available =
-    availableShipTypes ??
-    Object.keys(SHIP_STATS).filter((shipType) => shipType !== 'orbitalBase');
+  const availableShips = new Set<PurchasableShipType>(
+    (
+      availableFleetPurchases ??
+      (Object.keys(SHIP_STATS).filter(
+        (shipType): shipType is PurchasableShipType =>
+          shipType !== 'orbitalBase',
+      ) as PurchasableShipType[])
+    ).filter(
+      (purchase): purchase is PurchasableShipType =>
+        purchase !== 'orbitalBaseCargo',
+    ),
+  );
 
   const purchases: FleetPurchase[] = [];
   let remaining = credits;
 
   for (const shipType of AI_FLEET_PRIORITIES[difficulty]) {
-    if (!available.includes(shipType)) continue;
+    if (!availableShips.has(shipType)) continue;
 
     const cost = SHIP_STATS[shipType]?.cost ?? Infinity;
 
     while (remaining >= cost) {
-      purchases.push({ shipType });
+      purchases.push({ kind: 'ship', shipType });
       remaining -= cost;
     }
   }
@@ -60,14 +71,11 @@ export const resolveLocalFleetReady = (
   deps: FleetReadyDeps = {},
 ): LocalFleetReadyResult => {
   const processReady = deps.processReady ?? processFleetReady;
+  const availableFleetPurchases =
+    state.scenarioRules.availableFleetPurchases ??
+    scenario.availableFleetPurchases;
 
-  const playerResult = processReady(
-    state,
-    playerId,
-    purchases,
-    map,
-    scenario.availableShipTypes,
-  );
+  const playerResult = processReady(state, playerId, purchases, map);
 
   if ('error' in playerResult) {
     return { kind: 'error', error: playerResult.error.message };
@@ -78,7 +86,8 @@ export const resolveLocalFleetReady = (
   const aiPlayerId: PlayerId = playerId === 0 ? 1 : 0;
   const aiPurchases = buildAIPurchases(
     playerResult.state.players[aiPlayerId].credits ?? 0,
-    scenario.availableShipTypes,
+    playerResult.state.scenarioRules.availableFleetPurchases ??
+      availableFleetPurchases,
     difficulty,
   );
 
@@ -87,7 +96,6 @@ export const resolveLocalFleetReady = (
     aiPlayerId,
     aiPurchases,
     map,
-    scenario.availableShipTypes,
   );
 
   if ('error' in aiResult) {

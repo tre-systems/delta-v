@@ -224,7 +224,7 @@ describe('game-client-ordnance', () => {
       ),
     ).toEqual({
       ok: false,
-      message: 'Non-warships may launch only one nuke per match',
+      message: 'Non-warships may launch only one nuke between resupplies',
       level: 'error',
     });
 
