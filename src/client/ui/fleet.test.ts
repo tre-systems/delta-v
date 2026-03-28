@@ -85,4 +85,54 @@ describe('ui fleet helpers', () => {
       shopView.find((item) => item.purchase.kind === 'orbitalBaseCargo'),
     ).toBeTruthy();
   });
+
+  it('only allows orbital base cargo when a carrier slot exists', () => {
+    expect(canAddFleetPurchase([], 2000, { kind: 'orbitalBaseCargo' })).toBe(
+      false,
+    );
+
+    expect(
+      canAddFleetPurchase([{ kind: 'ship', shipType: 'transport' }], 2000, {
+        kind: 'orbitalBaseCargo',
+      }),
+    ).toBe(true);
+
+    expect(
+      canAddFleetPurchase([], 2000, { kind: 'orbitalBaseCargo' }, [
+        {
+          type: 'packet',
+          lifecycle: 'active',
+          baseStatus: undefined,
+          cargoUsed: 0,
+        },
+      ]),
+    ).toBe(true);
+
+    expect(
+      canAddFleetPurchase([], 2000, { kind: 'orbitalBaseCargo' }, [
+        {
+          type: 'transport',
+          lifecycle: 'destroyed',
+          baseStatus: undefined,
+          cargoUsed: 0,
+        },
+      ]),
+    ).toBe(false);
+  });
+
+  it('disables orbital base cargo in the shop until a carrier is available', () => {
+    const availableFleetPurchases = ['transport', 'orbitalBaseCargo'] as const;
+
+    expect(
+      getFleetShopView([], 2000, [...availableFleetPurchases]).find(
+        (item) => item.purchase.kind === 'orbitalBaseCargo',
+      ),
+    ).toMatchObject({ disabled: true });
+
+    expect(
+      getFleetShopView([{ kind: 'ship', shipType: 'transport' }], 2000, [
+        ...availableFleetPurchases,
+      ]).find((item) => item.purchase.kind === 'orbitalBaseCargo'),
+    ).toMatchObject({ disabled: false });
+  });
 });

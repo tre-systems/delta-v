@@ -1,12 +1,18 @@
 # Delta-V Architecture & Design Document
 
-Delta-V is an online multiplayer space combat and racing game. This document outlines the current high-level architecture, core systems, design patterns, module-level analysis, and the main follow-up areas still worth pursuing.
+Delta-V is an online multiplayer space combat and racing game. This document describes the current architecture, core systems, major design patterns, and the highest-value follow-ups.
 
-The authoritative server model is now event-sourced:
-the Durable Object persists a match-scoped event
-stream plus checkpoints, and authoritative recovery
-comes from checkpoint plus event tail rather than a
-separate persisted `gameState` snapshot slot.
+The authoritative server model is event-sourced: the Durable Object persists a match-scoped event stream plus checkpoints, and recovers authoritative state from checkpoint + event tail (not from a separate persisted `gameState` snapshot slot).
+
+## Quick Navigation
+
+- [1. High-Level Architecture](#1-high-level-architecture)
+- [2. Core Systems Design](#2-core-systems-design)
+- [3. Data Flow](#3-data-flow)
+- [4. Dependency Map](#4-dependency-map)
+- [5. Reusability Analysis: Generic Hex Game Engine](#5-reusability-analysis-generic-hex-game-engine)
+- [6. Current Decisions and Planned Shifts](#6-current-decisions-and-planned-shifts)
+- [7. Client bundle and release hygiene](#7-client-bundle-and-release-hygiene)
 
 **Deployment assumption:** Client and Worker ship as a **single version line** (one deploy updates Worker + static assets). Staggered “old client / new server” is **not** a supported requirement today. Breaking protocol changes need a **coordinated deploy** and, if needed, force reload / cache-bust the SPA; prefer **additive** JSON fields. There is no feature-flag protocol negotiation in the client today. When bumping **`GameState.schemaVersion`**, follow [BACKLOG.md](./BACKLOG.md) priority **11** (projector, replay, recovery tests).
 
@@ -31,12 +37,7 @@ Pattern references:
 
 ## 1. High-Level Architecture
 
-Delta-V employs a full-stack TypeScript architecture
-built around a **shared side-effect-free engine with
-authoritative edge sessions** model. The authoritative
-room persists an append-only match stream and derives
-current state from that stream plus optional
-checkpoints.
+Delta-V uses a full-stack TypeScript architecture built around a **shared side-effect-free engine with authoritative edge sessions**. The authoritative room persists an append-only match stream and derives current state from that stream plus optional checkpoints.
 
 ```
 shared/          → Game logic (no I/O, fully testable, side-effect-free)
@@ -164,22 +165,16 @@ Diagram maintenance rule: when command flow, phase transitions, or persistence/p
 - **Language**: TypeScript (strict mode) across the entire stack.
 - **Frontend**: HTML5 Canvas 2D API for rendering (`client/renderer/renderer.ts`), raw DOM/Events for UI and Input. No heavy frameworks (React/Vue/etc.) are used, ensuring maximum performance for the game loop.
 - **Backend**: Cloudflare Workers for HTTP routing and Cloudflare Durable Objects for authoritative game state and WebSocket management.
-- **Build & Tools**: `esbuild` for lightning-fast client bundling, `wrangler` for local testing and deployment, and `vitest` for unit testing.
+- **Build & Tools**: `esbuild` for lightning-fast client bundling, `wrangler` for local testing/deployment, and `Vitest` for unit testing.
 
 ### Key Architectural Strengths
 
 - **Side-effect-free engine.** The shared engine has no I/O: no DOM, no network, no storage. The DO wraps it with persistence and WebSocket plumbing. This makes everything testable and portable. Turn-resolution engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. See [Engine Mutation Model](#engine-mutation-model) for details.
 - **Transport abstraction.** `GameTransport` decouples the client from WebSocket vs local (AI) play. The client doesn't know or care where state comes from.
 - **Functional style throughout.** Pure derivation functions (`deriveHudViewModel`, `deriveKeyboardAction`, `deriveBurnChangePlan`), mandatory injectable RNG, `cond()` for branching.
-- **Narrow class usage.** Pure rules and coordination
-  helpers stay function/factory-based. The only production
-  `class` is `GameDO` (`extends DurableObject`). The client
-  composition root is `createGameClient()` in `game/client-kernel.ts`, alongside
-  `createInputHandler()` and `createUIManager()`; the load harness uses
-  `createBotClient()`. Canvas orchestration uses
-  `createRenderer()` and `createCamera()` factories.
+- **Narrow class usage.** Pure rules and coordinators stay function/factory-based. The only production `class` is `GameDO` (`extends DurableObject`). Client composition stays in `createGameClient()` (`game/client-kernel.ts`) with factory-style collaborators (`createInputHandler()`, `createUIManager()`, `createRenderer()`, `createCamera()`, `createBotClient()`).
 - **Pure planner + narrow applier flows.** Client screen changes, phase entry, message handling, and game-state application route through pure planners plus a small number of side-effect owners instead of scattering equivalent writes across many call sites.
-- **Scenario-driven.** `ScenarioRules` controls behaviour: ordnance types, base sharing, combat enabled, logistics, checkpoints, escape edges, reinforcements, and fleet conversion. New scenarios can vary gameplay without engine changes.
+- **Scenario-driven.** `ScenarioRules` controls behavior: ordnance types, base sharing, combat enabled, logistics, checkpoints, escape edges, reinforcements, and fleet conversion. New scenarios can vary gameplay without engine changes.
 - **Shared rule reuse across layers.** Client ordnance entry, HUD button visibility, and engine validation now all derive from the same shared ordnance-rule helpers, so restricted scenarios do not drift between UI and server authority.
 - **Hidden state filtering.** `filterStateForPlayer` hides fugitive identities in escape scenarios — the server never leaks information the client shouldn't have.
 - **Stable event-sourced boundaries.** Mandatory RNG injection, stable per-match IDs, side-effect-free engine entry points, and narrow server/client contracts make the authoritative event stream practical without throwing away the whole engine.
@@ -188,24 +183,10 @@ Diagram maintenance rule: when command flow, phase transitions, or persistence/p
 
 These are the main architectural follow-ups still open:
 
-- **Single trusted-HTML boundary.** The client still renders
-  some complex markup imperatively. If freeform or external
-  content expands, HTML injection should pass through one
-  reviewed boundary rather than ad hoc `innerHTML` writes.
-- **Docs stay the source of truth.** Protocol, auth, and
-  product-shape decisions should be reflected in this file,
-  [SECURITY.md](./SECURITY.md), and [CODING_STANDARDS.md](./CODING_STANDARDS.md)
-  (plus [BACKLOG.md](./BACKLOG.md) for open work) so they do not drift.
-- **Profiling before renderer optimization.** Use Chrome
-  Performance (or equivalent) and per-frame timing around
-  the render loop before investing in layer caching or other
-  micro-optimizations — drive changes from measured frame
-  cost, not intuition alone.
-- **Keep the composition root thin.** `createGameClient()` in
-  `game/client-kernel.ts` already composes factories; when adding
-  features, extend `game/*` modules and `*Deps` shapes rather than
-  growing the closure. Apply the same idea to `createRenderer()` and
-  `createInputHandler()` when their files grow.
+- **Single trusted-HTML boundary.** Some complex client markup is still imperative. If freeform/external content grows, route HTML injection through one reviewed boundary instead of ad hoc `innerHTML` writes.
+- **Docs as source of truth.** Keep protocol, auth, and product-shape decisions aligned across this file, [SECURITY.md](./SECURITY.md), [CODING_STANDARDS.md](./CODING_STANDARDS.md), and [BACKLOG.md](./BACKLOG.md).
+- **Profile before renderer optimization.** Use Chrome Performance (or equivalent) and per-frame timing before investing in layer caching or other micro-optimizations.
+- **Keep composition roots thin.** `createGameClient()` should keep composing modules, not absorb feature logic. Apply the same rule to `createRenderer()` and `createInputHandler()` as those files grow.
 
 ---
 
@@ -232,7 +213,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `map-data.ts`                              | Solar system bodies, gravity rings, bases, and scenario definitions                                                     | Game-specific                           |
 | `ai.ts` / `ai-config.ts` / `ai-scoring.ts` | Rule-based AI and its scoring configuration                                                                             | Game-specific                           |
 | `engine/game-engine.ts`                    | Barrel re-export for the public engine API                                                                              | Game-specific                           |
-| `engine/engine-events.ts`                  | `EngineEvent` discriminated union (31 granular domain event types)                                                      | Game-specific                           |
+| `engine/engine-events.ts`                  | `EngineEvent` discriminated union (32 granular domain event types)                                                      | Game-specific                           |
 | `engine/event-projector.ts`                | Deterministic projection from persisted `EventEnvelope` stream (+ checkpoints) to `GameState`; used by server and tests | Game-specific                           |
 | `engine/*` phase modules                   | Game creation, fleet building, astrogation, movement, combat, ordnance, logistics, victory, and shared helpers          | Game-specific                           |
 
@@ -243,7 +224,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 - **`combat.ts`**: Evaluates line-of-sight, calculates combat odds based on velocity/range modifiers, and resolves damage. Mutates ships directly (e.g., `applyDamage`, updating `ship.lifecycle`, heroism flags).
 - **`types/`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads), split into `domain.ts`, `protocol.ts`, and `scenario.ts` with a barrel re-export. This ensures the client and server never fall out of sync.
 - **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [RNG Injection](#rng-injection).
-- **Domain event emission**: Turn-resolution engine entry points emit `EngineEvent[]` (31 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
+- **Domain event emission**: Turn-resolution engine entry points emit `EngineEvent[]` (32 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
 
 #### AI Strategy Design (`ai.ts`, `ai-config.ts`, `ai-scoring.ts`)
 
@@ -275,11 +256,11 @@ Internal mutation patterns (e.g. `applyDamage()`, `ship.lifecycle = 'destroyed'`
 
 #### RNG Injection
 
-Turn-resolution entry points (`processAstrogation`, `processCombat`, `skipCombat`, `beginCombatPhase`, `processOrdnance`, `skipOrdnance`, and the other `process*` / `skip*` phase handlers) require a mandatory `rng: () => number` parameter. Internal functions (`rollD6`, `resolveCombat`, `resolveBaseDefense`, `shuffle`, `randomChoice`, `checkRamming`, `moveOrdnance`, `resolvePendingAsteroidHazards`) also require `rng`. There are no `Math.random` fallbacks in the turn-resolution path.
+Turn-resolution entry points (`processAstrogation`, `processCombat`, `skipCombat`, `beginCombatPhase`, `processOrdnance`, `skipOrdnance`, and other `process*` / `skip*` handlers) require `rng: () => number`. Internal functions (`rollD6`, `resolveCombat`, `resolveBaseDefense`, `shuffle`, `randomChoice`, `checkRamming`, `moveOrdnance`, `resolvePendingAsteroidHazards`) also require `rng`. There are no `Math.random` fallbacks in the turn-resolution path.
 
 `createGame` and AI functions (`aiAstrogation`, `aiOrdnance`) accept optional `rng` with `Math.random` default, since they are setup/heuristic functions rather than turn-resolution functions.
 
-The server generates a random 32-bit seed per match (via `crypto.getRandomValues` in `allocateMatchIdentity`) and persists it in DO storage. Before each engine call, `getActionRng()` derives a fresh deterministic PRNG from the match seed and the current event sequence number using `deriveActionRng(matchSeed, eventSeq)` from `shared/prng.ts`. This gives each action a reproducible RNG stream without persisting a mutable counter. The seed is also recorded in the `gameCreated` engine event so the event stream alone is sufficient for offline replay validation.
+The server generates a random 32-bit seed per match (via `crypto.getRandomValues` in `allocateMatchIdentity`) and persists it in DO storage. Before each engine call, `getActionRng()` derives a deterministic PRNG from the match seed and current event sequence (`deriveActionRng(matchSeed, eventSeq)` in `shared/prng.ts`). This gives reproducible per-action randomness without persisting a mutable RNG counter. The seed is also recorded in the `gameCreated` event so the event stream alone is sufficient for offline replay validation.
 
 Client callers (local AI play) still pass `Math.random`. Tests can pass deterministic RNGs for reproducible results. Pre-seed matches fall back to `Math.random` for backward compatibility.
 
@@ -316,19 +297,17 @@ The backend leverages Cloudflare's edge network.
 
 - **[WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/api/websockets/)**: The DO uses Cloudflare's hibernatable WebSocket API (`acceptWebSocket`, `webSocketMessage`, `webSocketClose`) instead of the standard `addEventListener` pattern. This allows the DO to hibernate between messages, reducing costs. Sockets are tagged with `player:${playerId}` on accept, enabling player lookup via `getWebSockets(['player:0'])` without maintaining an in-memory map.
 
-- **`runGameStateAction(ws, action, onSuccess)`** (`game-do/actions.ts`, wired from `GameDO`): Generic handler that reduces boilerplate across all 12+ action handlers. Fetches current state from storage → runs engine function in try/catch → on validation error sends error message to the WebSocket → on exception logs with game code/phase/turn and sends error (state is preserved via clone-on-entry) → on success invokes `onSuccess` callback (typically save state + broadcast). `handleTurnTimeout` has equivalent try/catch protection for the alarm-driven code path.
+- **`runGameStateAction(ws, action, onSuccess)`** (`game-do/actions.ts`, wired from `GameDO`): Shared action wrapper that removes boilerplate across 12+ handlers. Flow: load current state, run engine action in try/catch, send validation errors to the socket, report runtime failures with game/phase/turn context, and invoke `onSuccess` (usually persist + broadcast). `handleTurnTimeout` applies equivalent protection for alarm-driven execution.
 
 - **Shared protocol validation**: Runtime C2S validation now lives in `shared/protocol.ts` instead of the server shell. The Durable Object still consumes `validateClientMessage()`, but the message-shape ownership sits beside the shared protocol types rather than inside server-only plumbing.
 
 - **Single state-bearing outbound message per action**: `publishStateChange()` appends domain events, then emits exactly one state-bearing message (`movementResult`, `combatResult`, or `stateUpdate`). If the resulting state is terminal, the DO appends a separate `gameOver` notification after that state-bearing message. This one-action / one-update client contract remains intact even though server recovery no longer depends on a separate persisted live snapshot.
 
-- **Single choke points for coordination**: The current codebase deliberately concentrates high-risk side effects behind a few owner functions rather than spreading them around. On the server, `publishStateChange()` owns persist/archive/broadcast/timer restart for state transitions. On the client, `dispatchGameCommand()`, `applyClientGameState()`, and `applyClientStateTransition()` are the corresponding choke points for command routing, authoritative-state application, and state-entry side effects.
+- **Single choke points for coordination**: High-risk side effects are intentionally concentrated. On the server, `publishStateChange()` owns persist/archive/broadcast/timer restart for state transitions. On the client, `dispatchGameCommand()`, `applyClientGameState()`, and `applyClientStateTransition()` own command routing, authoritative-state application, and state-entry effects.
 
-- **Event-stream replay and reconnect**: `initGame()` allocates a stable match identity (`gameId` like `ROOM1-m2`). `publishStateChange()` appends versioned event envelopes for each authoritative state change, while checkpoints are saved at turn boundaries and match end. Replay fetches are authenticated by player token and return player-filtered timelines projected from checkpoint plus event tail; reconnect and alarm-path recovery rebuild current state from checkpoint plus persisted event tail.
+- **Event-sourced authoritative matches**: `initGame()` allocates a stable match identity (`gameId` like `ROOM1-m2`). `publishStateChange()` appends versioned envelopes to a chunked per-match stream, checkpoints are saved at turn boundaries/match end, and parity checks validate projected state against the live result before transport. Reconnect, alarm-path recovery, and replay are all derived from checkpoint + event tail, so there is no parallel state-bearing replay cache to keep in sync.
 
-- **Event-sourced authoritative matches**: The authoritative server path recovers `GameState` from the append-only match stream plus optional checkpoints, and parity checks validate that against the just-computed live state before transport. Replay delivery is also projected directly from the same persisted stream, so there is no parallel state-bearing replay cache to keep in sync. Match events are now stored in chunked pages rather than one rewritten `EventEnvelope[]` blob, so appends stay incremental while reconnect/replay can project from checkpoint plus tail. The same viewer filter now spans reconnect state, player replay, spectator replay, and spectator-tagged live broadcasts.
-
-- **Viewer-aware filtered broadcasting**: `broadcastFiltered()` checks whether the current scenario has hidden information (fugitive identities in escape scenarios). If no hidden info, the same state goes to all viewers. If hidden info, `filterStateForPlayer(state, viewerId)` is called per viewer — players see own ships fully, unrevealed enemy ships show `type: 'unknown'`, and spectators see all unrevealed identities stripped. The same viewer filter spans player reconnect, player replay, spectator replay, spectator-tagged live broadcasts, and **live spectator WebSockets** (`/ws/:code?viewer=spectator`, handshake `spectatorWelcome` plus filtered `gameStart` / ongoing messages). Completed matches are also available via the replay HTTP endpoint with `?viewer=spectator` for timeline playback.
+- **Viewer-aware filtered broadcasting**: `broadcastFiltered()` applies per-viewer filtering when scenarios contain hidden information (for example, fugitive identities in escape scenarios). Players keep full own-state visibility, unrevealed enemy ships are masked as `type: 'unknown'`, and spectators receive spectator-safe state. The same filter is used for reconnect, replay, spectator-tagged broadcasts, and **live spectator WebSockets** (`/ws/:code?viewer=spectator`, `spectatorWelcome`, filtered `gameStart` and updates).
 
 - **Single-alarm scheduling**: One alarm per DO, rescheduled after each state change. Three independent deadlines are tracked: `disconnectAt` (30s grace), `turnTimeoutAt` (2 min), `inactivityAt` (5 min). `getNextAlarmAt()` computes the nearest deadline. When the alarm fires, `resolveAlarmAction()` returns a discriminated action (`disconnectExpired`, `turnTimeout`, `inactivityTimeout`) and the handler dispatches accordingly. `inactivityAt` is cached in memory and flushed to storage at most once per 60s to avoid write amplification from frequent pings. Chat rate limiting is also in-memory (not storage-backed).
 
@@ -377,14 +356,14 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 #### Key Design Patterns
 
 - **`main.ts`**: Browser entry only — global setup (error handlers, viewport, service worker reload) and `createGameClient()` from `game/client-kernel.ts`, then assigns `window.game`.
-- **`game/client-kernel.ts`**: Exports `createGameClient()` — the client-side coordinator factory. Manages WebSocket connections, local-AI execution, and top-level composition. It delegates command dispatch to `game/command-router.ts`, game-state apply/clear ownership to `game/game-state-store.ts`, planning mutations to `game/planning-store.ts`, runtime/session field updates to `game/client-context-store.ts`, client state-entry side effects to `game/state-transition.ts`, and session lifecycle flows to `game/session-controller.ts` instead of keeping those blocks inline. The exported `GameClient` type is `ReturnType<typeof createGameClient>`; the runtime bootstrap only exposes `renderer`, `showToast`, and `dispose` on `window.game`. Wiring helpers (`main-deps.ts`, `main-composition.ts`, `client-runtime.ts`), S2C handling (`message-handler.ts`, `network.ts`), and replay UX (`replay-controller.ts`, `replay-selection.ts`) live alongside the kernel in `game/` but are omitted from the dependency tree below for brevity.
+- **`game/client-kernel.ts`**: Exports `createGameClient()`, the top-level client coordinator. It owns WebSocket/local-AI orchestration and delegates command dispatch, authoritative-state apply/clear, planning mutations, runtime/session fields, state-entry side effects, and session lifecycle to focused `game/*` modules. `GameClient` is `ReturnType<typeof createGameClient>`, and runtime bootstrap exposes only `renderer`, `showToast`, and `dispose` on `window.game`.
 - **`renderer/renderer.ts`**: A highly optimized Canvas 2D renderer factory. It separates logical hex coordinates from pixel coordinates, while extracted helpers such as `renderer/animation.ts` now own movement-animation lifecycle and trail state. `createRenderer()` remains the canvas shell and per-frame orchestrator, and now composites a cached static scene layer for stars, grid, gravity, asteroids, and bodies when the camera and viewport are unchanged.
 - **`input.ts`**: Manages user interaction (panning, zooming, clicking). It translates raw browser events into `InputEvent` objects, while `input-interaction.ts` owns pointer drag/pinch/minimap state and math. The input shell now owns its DOM listener lifecycle explicitly, including outside-canvas pointer release and touch-cancel cleanup. Pure `interpretInput()` then maps these to `GameCommand[]`, ensuring the input layer never directly mutates the application state.
 - **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), planning-state helpers, runtime/session helpers, phase derivation, game-state helpers, transition helpers, session helpers, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
 - **`renderer/`**: Canvas drawing layers (scene, entities, vectors, effects, overlays), camera, minimap, and animation management.
 - **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, layout metrics, and small reactive DOM view models.
 - **`reactive.ts` + `ui/ui.ts`**: The overlay layer stays framework-free, but stateful DOM views use a small signals runtime for derived copy/visibility and explicit disposal. `createUIManager()` owns long-lived view instances and their teardown; helpers such as `createScreenActions()` and `createHudActions()` compose screen/HUD behaviors. Overlay, lobby, fleet-building, ship-list, HUD chrome, game log, tutorial, and turn telemetry follow the same factory style as other client modules.
-- **`game/session-signals.ts` + `game/planning-hud-sync.ts`**: `createSessionReactiveMirror()` holds signals for `gameState`, `clientState`, and a monotonic `planningRevision`. The kernel dual-writes session fields into the mirror and registers `setPlanningHudBump()` so `planning-store` mutators call `notifyPlanningChanged()` without importing the HUD. `attachSessionMirrorHudEffect()` runs `hud.updateHUD()` when any of those signals change, so command routing, astrogation actions, replay, and phase entry no longer thread redundant `updateHUD` callbacks. `attachRendererGameStateMirrorEffect()` calls `renderer.setGameState` from `mirror.gameState` (including `null` on exit). Authoritative apply still goes through `applyClientGameState` (ctx + planning validation); optional `renderer` on that helper remains for unit tests that assert `setGameState` without spinning the full client shell.
+- **`game/session-signals.ts` + `game/planning-hud-sync.ts`**: `createSessionReactiveMirror()` tracks `gameState`, `clientState`, and `planningRevision`. The kernel updates the mirror, and mirror effects drive `hud.updateHUD()` and `renderer.setGameState()` so command routing, replay, and phase entry no longer thread duplicate HUD/render callbacks through many call sites.
 - **`audio.ts`**: Handles Web Audio API interactions.
 - **Visual Polish**: Employs a premium design system with glassmorphism tokens (backdrop-filters), tactile micro-animations (recoil, scaling glows), and pulsing orbital effects for high-end UX.
 
@@ -428,9 +407,7 @@ heavy bundler configuration:
 
 ### F. Testing Infrastructure
 
-Testing uses vitest with co-located test files, property-
-based testing via fast-check, and coverage enforcement on
-the shared engine.
+Testing uses Vitest with co-located test files, property-based testing via fast-check, and enforced shared-engine coverage.
 
 **Test organization:**
 
@@ -532,7 +509,7 @@ Disconnect → 30s grace period → reconnect with token or forfeit
 
 ### Event-Sourced Match Lifecycle
 
-The current implementation follows this flow:
+At a high level (matching the server section above):
 
 1. Client submits a validated command.
 2. The Durable Object appends canonical, versioned
@@ -674,17 +651,15 @@ The extractable core is a modest fraction of the repo — enough to avoid rewrit
 
 ## 6. Current Decisions and Planned Shifts
 
-See [BACKLOG.md](BACKLOG.md) for open work. Below
-captures the main architectural stances and why they
-currently exist.
+See [BACKLOG.md](BACKLOG.md) for open work. This section captures current architectural stances and why they exist.
 
 - **User accounts / auth**: Adds login friction that hurts adoption during user testing. The current anonymous token model is sufficient. Revisit for native app store distribution or payment integration.
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.
 - **Generic hex engine extraction**: Designing a framework from N=1 games is premature abstraction. Fork Delta-V when game #2 starts and build the framework from two concrete implementations.
 - **Serialisation codec**: `GameState` is plain JSON. A codec adds overhead with zero current benefit.
-- **Replay architecture / event sourcing**: Implemented for the authoritative path. Match-scoped event streams with versioned envelopes (`EventEnvelope`: gameId, seq, ts, actor, event), checkpoints, and parity checks are in place, and replay is projected directly from the stored stream. The shipped client replay UI lets players step through completed matches, including explicit match selection when a room has multiple rematches. Spectator replay delivery is also complete: spectator-filtered state projections, authenticated replay endpoints, and viewer-aware broadcasting are all wired. **Live** spectating uses the same filtered `GameState` over the game WebSocket (see `?viewer=spectator` and `spectatorWelcome` in `protocol.ts`). Remaining follow-up is mostly spectator **UX polish** (lobby links, read-only affordances) and optional rate limits or protocol simplification.
+- **Replay architecture / event sourcing**: Implemented on the authoritative path. Match-scoped event streams with versioned envelopes (`EventEnvelope`: gameId, seq, ts, actor, event), checkpoints, and parity checks are in place. Replay is projected directly from stored events, including spectator-filtered projections and authenticated replay endpoints. **Live** spectating uses the same filtered `GameState` over WebSocket (`?viewer=spectator`, `spectatorWelcome`). Remaining work is mostly spectator UX polish (lobby links, read-only affordances) and optional rate limits/protocol simplification.
 - **UI framework adoption**: The DOM UI layer is still small enough to own directly. The current compromise is a tiny local signals layer for view-local state and cleanup, without paying the cost of adopting a full framework (Preact, etc.) across the entire client.
-- **Structural sharing / Immer**: Reconsidered alongside the event-sourcing shift. Immer is still not a prerequisite and should not block the migration. The immediate value is in stable event schemas, append ordering, explicit RNG facts, and projector correctness, not in rewriting the whole engine around Proxy-based updates. Revisit only if projector reducers or future command handlers become materially clearer with Immer; if adopted at all, it should start at the projection layer rather than as an all-at-once engine rewrite.
+- **Structural sharing / Immer**: Reconsidered with the event-sourcing shift. Immer is not a prerequisite and should not block current work. Near-term value is in event schema stability, append ordering, explicit RNG facts, and projector correctness, not a wholesale Proxy-based rewrite. Revisit only if projector reducers or future command handlers become materially clearer with Immer; if adopted, start at the projection layer.
 - **Internationalization:** **English-only** product surface for now (inline strings in `src/client/ui`, `src/client/game`, toasts, server errors). No message catalogs, locales, or RTL until localization is prioritized. [SPEC.md](./SPEC.md) remains the canonical English rules reference for scenarios.
 
 ---
