@@ -2,6 +2,8 @@
 
 This document describes the current security posture of Delta-V with emphasis on competitive multiplayer. It distinguishes protections that are already enforced from the risks that still remain if the game were exposed to untrusted public players.
 
+Use it as an implementation-level security baseline for engineering decisions. It is not a legal policy document.
+
 Related docs: [ARCHITECTURE](./ARCHITECTURE.md), [BACKLOG](./BACKLOG.md) (security and abuse tasks), [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md).
 
 ## Current Protections
@@ -17,6 +19,8 @@ Delta-V now has a materially stronger authoritative-server boundary than the ori
 - Client-to-server WebSocket messages are runtime-validated before any engine handler executes, and malformed payloads are rejected instead of being trusted structurally.
 - After a WebSocket is accepted, **per-socket message rate limiting** (10 messages per second, then close with code 1008) caps garbage traffic to the Durable Object. Chat is also throttled in-memory (minimum 500ms between accepted chat messages per player).
 - Room codes are generated from a cryptographically strong RNG rather than `Math.random()` (see `generateRoomCode` in `src/server/protocol.ts`).
+- `GET /join/:code` and `GET /replay/:code` have combined hashed-IP probe throttling in the Worker (100 requests / 60s, per isolate), reducing casual room-scan and replay-probe abuse.
+- `POST /telemetry` and `POST /error` are JSON-only with a 4KB cap and hashed-IP window limits, limiting abuse and D1 write amplification in the default path.
 
 These changes make private multiplayer substantially safer than before, especially for host-seat integrity, reconnect safety, and server authority.
 
@@ -89,7 +93,7 @@ When no binding is configured, the worker uses a per-isolate in-memory map (5 cr
 | `POST /telemetry` and `POST /error`     | **120** / **40** posts per hashed IP per 60s (per isolate); body capped at 4KB JSON | add **WAF** or `[[ratelimits]]` for global / stricter caps |
 | Bot challenge (Turnstile)               | not present                                                                         | configurable via CF dashboard                              |
 | `GET /join/:code` / `GET /replay/:code` | **100** combined GETs per hashed IP per 60s (per isolate)                           | optional WAF for global / stricter caps                    |
-| Room-code guessing                      | 5-char codes, ~33.6M space, no join throttle                                        | same                                                       |
+| Room-code guessing                      | 5-char codes, ~33.6M space, only per-isolate join/replay probe throttling by default | same unless extra global controls are configured           |
 
 **Deployment recommendation:**
 Treat the checked-in `wrangler.toml` as the production
@@ -109,7 +113,7 @@ once connected.
 
 ### 4. Bot challenge protection (optional)
 
-Cloudflare Turnstile can be added to the room creation flow without changing the game server:
+Cloudflare Turnstile can be added to the room creation flow with a narrow integration surface:
 
 1. Add a Turnstile widget to the client's "Create Game" UI
 2. Include the Turnstile token in the `POST /create` body
@@ -166,7 +170,7 @@ Current assessment:
 - **Match availability under hostile payloads:** good
 - **Rate limiting:** good for `/create` in the checked-in production config, per-isolate only in lower environments without the binding; WebSocket **message** flood capped per socket; **telemetry/error** and **join/replay** HTTP probes have per-isolate hashed-IP windows (see table above); optional WAF for global caps
 - **XSS posture:** good (trusted HTML boundary, no user-generated content)
-- **Room secrecy / public matchmaking readiness:** weak (short codes, no join throttle)
+- **Room secrecy / public matchmaking readiness:** weak (short codes; default join/replay throttles are per-isolate, not global)
 
 Delta-V is well-hardened for private matches between
 friends. For public matchmaking, tournament play, or open
@@ -181,7 +185,7 @@ If the product scope expands beyond friendly matches:
 - Longer opaque room identifiers for public matchmaking
 - Turnstile integration on `/create` for bot protection
 - Account binding for organized competitive play
-- Join / replay HTTP throttling if room-code guessing or DO wake abuse becomes measurable
+- Stronger join / replay HTTP throttling if room-code guessing or DO wake abuse becomes measurable (global controls, not just per-isolate windows)
 - Optional **global** (cross-edge) rate limits via WAF / `[[ratelimits]]` for reporting and join/replay if needed (see [BACKLOG.md](./BACKLOG.md) priorities **1**, **8**)
 
 Concrete abuse-hardening follow-ups: [BACKLOG.md](./BACKLOG.md) priorities **1**, **8** (optional edge), **12**, **15** (product-shaped).
