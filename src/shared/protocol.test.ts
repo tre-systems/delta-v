@@ -219,7 +219,25 @@ describe('validateClientMessage', () => {
         ok: true,
         value: {
           type: 'fleetReady',
-          purchases: [{ shipType: 'corvette' }, { shipType: 'frigate' }],
+          purchases: [
+            { kind: 'ship', shipType: 'corvette' },
+            { kind: 'ship', shipType: 'frigate' },
+          ],
+        },
+      });
+    });
+
+    it('normalizes legacy orbital-base purchases to orbital-base cargo', () => {
+      const result = validateClientMessage({
+        type: 'fleetReady',
+        purchases: [{ shipType: 'orbitalBase' }],
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        value: {
+          type: 'fleetReady',
+          purchases: [{ kind: 'orbitalBaseCargo' }],
         },
       });
     });
@@ -1238,14 +1256,14 @@ describe('C2S contract fixtures', () => {
   it('fleetReady wire shape', () => {
     const result = validateClientMessage({
       type: 'fleetReady',
-      purchases: [{ shipType: 'corvette' }],
+      purchases: [{ kind: 'ship', shipType: 'corvette' }],
     });
 
     expect(result).toEqual({
       ok: true,
       value: {
         type: 'fleetReady',
-        purchases: [{ shipType: 'corvette' }],
+        purchases: [{ kind: 'ship', shipType: 'corvette' }],
       },
     });
   });

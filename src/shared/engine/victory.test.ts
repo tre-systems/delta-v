@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { must } from '../assert';
-import { SHIP_STATS } from '../constants';
+import { ORBITAL_BASE_MASS, SHIP_STATS } from '../constants';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { GameState, MovementEvent, Ship, SolarSystemMap } from '../types';
 import type { EngineEvent } from './engine-events';
@@ -693,6 +693,35 @@ describe('checkOrbitalBaseResupply', () => {
     );
     checkOrbitalBaseResupply(state, 0);
     expect(ship.fuel).toBe(5);
+  });
+
+  it('preserves carried orbital-base mass while rearming the carrier', () => {
+    const state = setupState();
+    const ship = must(state.ships.find((s) => s.owner === 0));
+    ship.position = { q: 5, r: 5 };
+    ship.velocity = { dq: 1, dr: 0 };
+    ship.type = 'transport';
+    ship.fuel = 5;
+    ship.cargoUsed = ORBITAL_BASE_MASS + 20;
+    ship.nukesLaunchedSinceResupply = 1;
+    ship.baseStatus = 'carryingBase';
+    ship.lifecycle = 'active';
+    state.ships.push(
+      makeShip({
+        id: 'ob-5',
+        type: 'orbitalBase',
+        owner: 0,
+        originalOwner: 0,
+        position: { q: 5, r: 5 },
+        velocity: { dq: 1, dr: 0 },
+        baseStatus: 'emplaced',
+      }),
+    );
+
+    checkOrbitalBaseResupply(state, 0);
+
+    expect(ship.cargoUsed).toBe(ORBITAL_BASE_MASS);
+    expect(ship.nukesLaunchedSinceResupply).toBe(0);
   });
 });
 describe('applyDetection', () => {

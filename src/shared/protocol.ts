@@ -53,15 +53,36 @@ const parseFleetPurchases = (raw: unknown): FleetPurchase[] | null => {
   const purchases: FleetPurchase[] = [];
 
   for (const item of raw) {
-    if (
-      !isObject(item) ||
-      !isString(item.shipType) ||
-      !isShipType(item.shipType)
-    ) {
+    if (!isObject(item)) {
       return null;
     }
 
-    purchases.push({ shipType: item.shipType });
+    if (item.kind === 'orbitalBaseCargo') {
+      purchases.push({ kind: 'orbitalBaseCargo' });
+      continue;
+    }
+
+    if (
+      item.kind === 'ship' &&
+      isString(item.shipType) &&
+      isShipType(item.shipType) &&
+      item.shipType !== 'orbitalBase'
+    ) {
+      purchases.push({ kind: 'ship', shipType: item.shipType });
+      continue;
+    }
+
+    // Backward-compatible parsing for older clients/events that sent raw ship types.
+    if (isString(item.shipType) && isShipType(item.shipType)) {
+      if (item.shipType === 'orbitalBase') {
+        purchases.push({ kind: 'orbitalBaseCargo' });
+      } else {
+        purchases.push({ kind: 'ship', shipType: item.shipType });
+      }
+      continue;
+    }
+
+    return null;
   }
 
   return purchases;

@@ -12,10 +12,10 @@ const map = buildSolarSystemMap();
 describe('projectMatchSetupFromStream', () => {
   it('rebuilds fleet-building setup from setup events', () => {
     const purchases0: FleetPurchase[] = [
-      { shipType: 'corvette' },
-      { shipType: 'corsair' },
+      { kind: 'ship', shipType: 'corvette' },
+      { kind: 'ship', shipType: 'corsair' },
     ];
-    const purchases1: FleetPurchase[] = [{ shipType: 'frigate' }];
+    const purchases1: FleetPurchase[] = [{ kind: 'ship', shipType: 'frigate' }];
     const events: EventEnvelope[] = [
       {
         gameId: 'WAR01-m1',
@@ -39,7 +39,7 @@ describe('projectMatchSetupFromStream', () => {
           type: 'fleetPurchased',
           playerId: 0,
           purchases: purchases0,
-          shipTypes: purchases0.map((purchase) => purchase.shipType),
+          shipTypes: ['corvette', 'corsair'],
         },
       },
       {
@@ -51,7 +51,7 @@ describe('projectMatchSetupFromStream', () => {
           type: 'fleetPurchased',
           playerId: 1,
           purchases: purchases1,
-          shipTypes: purchases1.map((purchase) => purchase.shipType),
+          shipTypes: ['frigate'],
         },
       },
     ];
@@ -63,25 +63,13 @@ describe('projectMatchSetupFromStream', () => {
       findBaseHex,
       () => 0,
     );
-    const player0Ready = processFleetReady(
-      created,
-      0,
-      purchases0,
-      map,
-      SCENARIOS.interplanetaryWar.availableShipTypes,
-    );
+    const player0Ready = processFleetReady(created, 0, purchases0, map);
 
     if ('error' in player0Ready) {
       throw new Error(player0Ready.error.message);
     }
 
-    const expected = processFleetReady(
-      player0Ready.state,
-      1,
-      purchases1,
-      map,
-      SCENARIOS.interplanetaryWar.availableShipTypes,
-    );
+    const expected = processFleetReady(player0Ready.state, 1, purchases1, map);
 
     if ('error' in expected) {
       throw new Error(expected.error.message);

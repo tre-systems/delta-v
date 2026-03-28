@@ -653,7 +653,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     rules: { logisticsEnabled: true },
     startingPlayer: 1,
     startingCredits: 850,
-    availableShipTypes: [
+    availableFleetPurchases: [
       'transport',
       'packet',
       'tanker',
@@ -662,7 +662,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       'frigate',
       'dreadnaught',
       'torch',
-      'orbitalBase',
+      'orbitalBaseCargo',
     ],
     players: [
       {
@@ -687,7 +687,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     rules: { logisticsEnabled: true },
     startingPlayer: 1,
     startingCredits: 400,
-    availableShipTypes: [
+    availableFleetPurchases: [
       'corvette',
       'corsair',
       'frigate',

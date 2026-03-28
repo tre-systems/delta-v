@@ -1,14 +1,12 @@
-import {
-  isBaseCarrierType,
-  ORBITAL_BASE_MASS,
-  SHIP_STATS,
-  type ShipType,
-} from '../constants';
+import { isBaseCarrierType, ORBITAL_BASE_MASS, SHIP_STATS } from '../constants';
 import {
   type EngineError,
   ErrorCode,
   type FleetPurchase,
   type GameState,
+  getFleetPurchaseOption,
+  isOrbitalBaseCargoPurchase,
+  isShipFleetPurchase,
   type PlayerId,
   type Ship,
   type SolarSystemMap,
@@ -24,7 +22,6 @@ export const processFleetReady = (
   playerId: PlayerId,
   purchases: FleetPurchase[],
   map: SolarSystemMap,
-  availableShipTypes?: ShipType[],
 ):
   | StateUpdateResult
   | {
@@ -42,11 +39,30 @@ export const processFleetReady = (
 
   const player = state.players[playerId];
   const credits = player.credits ?? 0;
+  const availableFleetPurchases = state.scenarioRules.availableFleetPurchases
+    ? new Set(state.scenarioRules.availableFleetPurchases)
+    : null;
   const totalCostOrError = purchases.reduce<
     { cost: number } | { error: EngineError }
   >(
     (acc, purchase) => {
       if ('error' in acc) return acc;
+      if (
+        availableFleetPurchases &&
+        !availableFleetPurchases.has(getFleetPurchaseOption(purchase))
+      ) {
+        return engineFailure(
+          ErrorCode.NOT_ALLOWED,
+          isShipFleetPurchase(purchase)
+            ? `Ship type not available: ${purchase.shipType}`
+            : 'Orbital base cargo is not available',
+        );
+      }
+
+      if (isOrbitalBaseCargoPurchase(purchase)) {
+        return { cost: acc.cost + SHIP_STATS.orbitalBase.cost };
+      }
+
       const stats = SHIP_STATS[purchase.shipType];
 
       if (!stats) {
@@ -54,20 +70,6 @@ export const processFleetReady = (
           ErrorCode.INVALID_INPUT,
           `Unknown ship type: ${purchase.shipType}`,
         );
-      }
-
-      if (
-        availableShipTypes &&
-        !availableShipTypes.includes(purchase.shipType)
-      ) {
-        return engineFailure(
-          ErrorCode.NOT_ALLOWED,
-          `Ship type not available: ${purchase.shipType}`,
-        );
-      }
-      if (purchase.shipType === 'orbitalBase') {
-        // Orbital base cargo allocation consumes carrier cargo but no MegaCredits.
-        return acc;
       }
 
       return { cost: acc.cost + stats.cost };
@@ -95,7 +97,7 @@ export const processFleetReady = (
     );
   }
   const baseCargoPurchases = purchases.filter(
-    (purchase) => purchase.shipType === 'orbitalBase',
+    isOrbitalBaseCargoPurchase,
   ).length;
   const existingCount = state.ships.filter((s) => s.owner === playerId).length;
   const createdShips: Ship[] = [];
@@ -103,9 +105,11 @@ export const processFleetReady = (
 
   for (let i = 0; i < purchases.length; i++) {
     const purchase = purchases[i];
-    if (purchase.shipType === 'orbitalBase') {
+
+    if (isOrbitalBaseCargoPurchase(purchase)) {
       continue;
     }
+
     const stats = SHIP_STATS[purchase.shipType];
     const base = bases[spawnedCount % bases.length];
     const ship: Ship = {
@@ -180,7 +184,7 @@ export const processFleetReady = (
     type: 'fleetPurchased',
     playerId,
     purchases: structuredClone(purchases),
-    shipTypes: purchases.map((p) => p.shipType),
+    shipTypes: purchases.filter(isShipFleetPurchase).map((p) => p.shipType),
   });
 
   const otherPlayer = state.players[playerId === 0 ? 1 : 0];

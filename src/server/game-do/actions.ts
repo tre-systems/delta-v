@@ -81,16 +81,7 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
         gameState,
         playerId,
         message: GameStateActionMessageOf<'fleetReady'>,
-      ) => {
-        const scenario = await deps.getScenario();
-        return processFleetReady(
-          gameState,
-          playerId,
-          message.purchases,
-          deps.map,
-          scenario.availableShipTypes,
-        );
-      },
+      ) => processFleetReady(gameState, playerId, message.purchases, deps.map),
       publish: async (playerId, result) => {
         await deps.publishStateChange(result.state, undefined, {
           actor: playerId,

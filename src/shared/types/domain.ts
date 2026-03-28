@@ -113,15 +113,15 @@ export interface Ship extends PositionedEntity {
   lastMovementPath?: HexCoord[];
   fuel: number;
   cargoUsed: number;
-  // Tracks launched nukes for launch-limit enforcement.
-  // Non-warships are limited to one nuke launch per match.
+  // Tracks launched nukes since the last resupply/maintenance stop.
+  // Non-warships may launch only one nuke between resupplies.
   nukesLaunchedSinceResupply: number;
   // True during a turn in which the ship resupplied; prevents firing/ordnance (rulebook p.8).
   resuppliedThisTurn: boolean;
   lifecycle: ShipLifecycle;
   control: ShipControl;
   detected: boolean;
-  // True if the ship has not yet earned its one-time heroism bonus (rulebook p.8).
+  // True once the ship has earned heroism and gains +1 on gun attacks (rulebook p.8).
   heroismAvailable: boolean;
   // Warships get one overload maneuver between maintenance stopovers (rulebook p.4).
   overloadUsed: boolean;
@@ -350,9 +350,33 @@ export interface OrbitalBaseEmplacement {
   shipId: string;
 }
 
-export interface FleetPurchase {
-  shipType: ShipType;
+export type PurchasableShipType = Exclude<ShipType, 'orbitalBase'>;
+
+export type FleetPurchaseOption = PurchasableShipType | 'orbitalBaseCargo';
+
+export interface ShipFleetPurchase {
+  kind: 'ship';
+  shipType: PurchasableShipType;
 }
+
+export interface OrbitalBaseCargoPurchase {
+  kind: 'orbitalBaseCargo';
+}
+
+export type FleetPurchase = ShipFleetPurchase | OrbitalBaseCargoPurchase;
+
+export const isShipFleetPurchase = (
+  purchase: FleetPurchase,
+): purchase is ShipFleetPurchase => purchase.kind === 'ship';
+
+export const isOrbitalBaseCargoPurchase = (
+  purchase: FleetPurchase,
+): purchase is OrbitalBaseCargoPurchase => purchase.kind === 'orbitalBaseCargo';
+
+export const getFleetPurchaseOption = (
+  purchase: FleetPurchase,
+): FleetPurchaseOption =>
+  isShipFleetPurchase(purchase) ? purchase.shipType : 'orbitalBaseCargo';
 
 export interface TransferOrder {
   sourceShipId: string;
@@ -378,6 +402,7 @@ export interface FleetConversion {
 
 export interface ScenarioRules {
   allowedOrdnanceTypes?: OrdnanceType[];
+  availableFleetPurchases?: FleetPurchaseOption[];
   planetaryDefenseEnabled?: boolean;
   hiddenIdentityInspection?: boolean;
   escapeEdge?: 'any' | 'north';

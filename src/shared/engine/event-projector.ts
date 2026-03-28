@@ -1,6 +1,5 @@
 import {
   DAMAGE_ELIMINATION_THRESHOLD,
-  isWarshipType,
   ORBITAL_BASE_MASS,
   ORDNANCE_MASS,
   SHIP_STATS,
@@ -13,6 +12,7 @@ import type { GameState, Result } from '../types/domain';
 import type { EngineEvent, EventEnvelope } from './engine-events';
 import { processFleetReady } from './fleet-building';
 import { createGame } from './game-creation';
+import { getCargoUsedAfterResupply } from './util';
 
 const migrateGameState = (state: GameState): GameState => ({
   ...state,
@@ -117,7 +117,6 @@ const projectSetupEvent = (
         event.playerId,
         event.purchases,
         map,
-        scenario.availableShipTypes,
       );
 
       return 'error' in result
@@ -434,10 +433,10 @@ const projectSetupEvent = (
       }
 
       projectedShip.value.fuel = stats.fuel;
-      projectedShip.value.cargoUsed = 0;
-      if (isWarshipType(projectedShip.value.type)) {
-        projectedShip.value.nukesLaunchedSinceResupply = 0;
-      }
+      projectedShip.value.cargoUsed = getCargoUsedAfterResupply(
+        projectedShip.value,
+      );
+      projectedShip.value.nukesLaunchedSinceResupply = 0;
       projectedShip.value.damage = { disabledTurns: 0 };
       projectedShip.value.control = 'own';
       projectedShip.value.resuppliedThisTurn = true;

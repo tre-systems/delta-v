@@ -246,6 +246,9 @@ export const createGame = (
       allowedOrdnanceTypes: scenario.rules?.allowedOrdnanceTypes
         ? [...scenario.rules.allowedOrdnanceTypes]
         : undefined,
+      availableFleetPurchases: scenario.availableFleetPurchases
+        ? [...scenario.availableFleetPurchases]
+        : undefined,
       planetaryDefenseEnabled: scenario.rules?.planetaryDefenseEnabled ?? true,
       hiddenIdentityInspection:
         scenario.rules?.hiddenIdentityInspection ?? false,
