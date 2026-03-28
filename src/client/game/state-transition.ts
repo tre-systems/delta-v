@@ -1,5 +1,5 @@
 import { must } from '../../shared/assert';
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { LogisticsUIState } from './logistics-ui';
 import { createLogisticsUIState } from './logistics-ui';
 import type { ClientState } from './phase';
@@ -12,7 +12,7 @@ interface TransitionUI {
   showMenu: () => void;
   showConnecting: () => void;
   showWaiting: (code: string) => void;
-  showFleetBuilding: (state: GameState, playerId: number) => void;
+  showFleetBuilding: (state: GameState, playerId: PlayerId) => void;
   showHUD: () => void;
   showAttackButton: (visible: boolean) => void;
   showMovementStatus: () => void;
@@ -62,7 +62,7 @@ export const applyClientStateTransition = (
   const entryPlan = deriveClientStateEntryPlan(
     newState,
     deps.ctx.gameState,
-    deps.ctx.playerId,
+    deps.ctx.playerId as PlayerId,
     deps.ctx.isLocalGame,
   );
   const screenPlan = deriveClientScreenPlan(newState, deps.ctx.gameCode);
@@ -78,7 +78,10 @@ export const applyClientStateTransition = (
       deps.ui.showWaiting(screenPlan.code);
       break;
     case 'fleetBuilding':
-      deps.ui.showFleetBuilding(must(deps.ctx.gameState), deps.ctx.playerId);
+      deps.ui.showFleetBuilding(
+        must(deps.ctx.gameState),
+        deps.ctx.playerId as PlayerId,
+      );
       break;
     case 'hud':
       deps.ui.showHUD();
@@ -140,7 +143,7 @@ export const applyClientStateTransition = (
 
   if (newState === 'playing_logistics' && deps.ctx.gameState) {
     deps.setLogisticsUIState(
-      createLogisticsUIState(deps.ctx.gameState, deps.ctx.playerId),
+      createLogisticsUIState(deps.ctx.gameState, deps.ctx.playerId as PlayerId),
     );
     deps.renderLogisticsPanel();
   } else {

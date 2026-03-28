@@ -1,4 +1,4 @@
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import { getUnambiguousLaunchableShipId } from './ordnance';
 import type { ClientState } from './phase';
 
@@ -20,7 +20,7 @@ export interface ClientStateEntryPlan {
 
 const getFirstActionableShipId = (
   gameState: GameState | null,
-  playerId: number,
+  playerId: PlayerId,
 ): string | null => {
   if (!gameState) return null;
   const actionable = gameState.ships.find(
@@ -35,7 +35,7 @@ const getFirstActionableShipId = (
 export const deriveClientStateEntryPlan = (
   state: ClientState,
   gameState: GameState | null,
-  playerId: number,
+  playerId: PlayerId,
   isLocalGame = false,
 ): ClientStateEntryPlan => {
   switch (state) {

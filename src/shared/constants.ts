@@ -1,6 +1,6 @@
 // Ship type definitions
 
-/** Warships: can overload drives, launch torpedoes, and initiate attacks (rulebook p.4-5). */
+// Warships: can overload drives, launch torpedoes, and initiate attacks (rulebook p.4-5).
 export type WarshipType =
   | 'corvette'
   | 'corsair'
@@ -8,19 +8,17 @@ export type WarshipType =
   | 'dreadnaught'
   | 'torch';
 
-/** Civilian ships: defensive-only, cannot overload or launch torpedoes (rulebook p.4). */
+// Civilian ships: defensive-only, cannot overload or launch torpedoes (rulebook p.4).
 export type CivilianType = 'transport' | 'tanker' | 'liner';
 
-/** Ships that can carry and emplace an orbital base (rulebook p.7). */
+// Ships that can carry and emplace an orbital base (rulebook p.7).
 export type BaseCarrierType = 'transport' | 'packet';
 
-/**
- * All ship types. Packet is neither warship nor civilian: it can attack
- * but cannot overload (rulebook p.4). Orbital base is a stationary structure.
- */
+// All ship types. Packet is neither warship nor civilian: it can attack
+// but cannot overload (rulebook p.4). Orbital base is a stationary structure.
 export type ShipType = WarshipType | CivilianType | 'packet' | 'orbitalBase';
 
-/** Runtime set of warship types, for guards that can't narrow via the type system alone. */
+// Runtime set of warship types, for guards that can't narrow via the type system alone.
 export const WARSHIP_TYPES: ReadonlySet<ShipType> = new Set<WarshipType>([
   'corvette',
   'corsair',
@@ -29,14 +27,14 @@ export const WARSHIP_TYPES: ReadonlySet<ShipType> = new Set<WarshipType>([
   'torch',
 ]);
 
-/** Runtime set of civilian ship types. */
+// Runtime set of civilian ship types.
 export const CIVILIAN_TYPES: ReadonlySet<ShipType> = new Set<CivilianType>([
   'transport',
   'tanker',
   'liner',
 ]);
 
-/** Ship types that can carry and emplace orbital bases. */
+// Ship types that can carry and emplace orbital bases.
 export const BASE_CARRIER_TYPES: ReadonlySet<ShipType> =
   new Set<BaseCarrierType>(['transport', 'packet']);
 
@@ -50,45 +48,33 @@ export const isBaseCarrierType = (type: ShipType): type is BaseCarrierType =>
   BASE_CARRIER_TYPES.has(type);
 
 export interface ShipStats {
-  /** Display name shown in the UI. */
+  // Display name shown in the UI.
   name: string;
-  /** Gun combat strength (rulebook p.1 ship table). */
+  // Gun combat strength (rulebook p.1 ship table).
   combat: number;
-  /**
-   * If true, this ship has a "D" suffix on combat strength: it can only defend,
-   * not initiate attacks or counterattack (rulebook p.1). Civilians only.
-   */
+  // If true, this ship has a "D" suffix on combat strength: it can only defend,
+  // not initiate attacks or counterattack (rulebook p.1). Civilians only.
   defensiveOnly: boolean;
-  /** Maximum fuel capacity. Infinity for torch ships and orbital bases. */
+  // Maximum fuel capacity. Infinity for torch ships and orbital bases.
   fuel: number;
-  /** Maximum cargo capacity in mass units. Infinity for orbital bases. */
+  // Maximum cargo capacity in mass units. Infinity for orbital bases.
   cargo: number;
-  /** Purchase cost in MegaCredits during fleet building (rulebook p.1 ship table). */
+  // Purchase cost in MegaCredits during fleet building (rulebook p.1 ship table).
   cost: number;
-  /**
-   * Whether the ship can use overloaded drive burns (2 fuel for 2-hex acceleration).
-   * Warships only; civilians, packets, and orbital bases cannot (rulebook p.4).
-   */
+  // Whether the ship can use overloaded drive burns (2 fuel for 2-hex acceleration).
+  // Warships only; civilians, packets, and orbital bases cannot (rulebook p.4).
   canOverload: boolean;
-  /**
-   * Whether the ship can launch torpedoes.
-   * Warships and orbital bases only (rulebook p.6).
-   */
+  // Whether the ship can launch torpedoes.
+  // Warships and orbital bases only (rulebook p.6).
   canLaunchTorpedoes: boolean;
-  /**
-   * Whether the ship can operate (fire guns, launch ordnance, resupply) at D1 damage.
-   * Orbital bases only (rulebook p.6).
-   */
+  // Whether the ship can operate (fire guns, launch ordnance, resupply) at D1 damage.
+  // Orbital bases only (rulebook p.6).
   operatesAtD1: boolean;
-  /**
-   * Whether the ship can fire guns at any damage level.
-   * Dreadnaughts only (rulebook p.6).
-   */
+  // Whether the ship can fire guns at any damage level.
+  // Dreadnaughts only (rulebook p.6).
   operatesWhileDisabled: boolean;
-  /**
-   * Whether the ship's fuel supply is sealed and cannot be transferred to other ships.
-   * Torch ships only (rulebook p.8).
-   */
+  // Whether the ship's fuel supply is sealed and cannot be transferred to other ships.
+  // Torch ships only (rulebook p.8).
   fuelSealed: boolean;
 }
 
@@ -227,47 +213,48 @@ export const SHIP_STATS: Record<ShipType, ShipStats> = {
 
 // Ordnance definitions
 
-/** Mass in cargo units per ordnance type (rulebook p.9 equipment table). */
-export const ORDNANCE_MASS: Record<string, number> = {
+// The three ordnance types that ships can launch (rulebook p.5-6).
+export type OrdnanceType = 'mine' | 'torpedo' | 'nuke';
+
+// Mass in cargo units per ordnance type (rulebook p.9 equipment table).
+export const ORDNANCE_MASS: Record<OrdnanceType, number> = {
   mine: 10,
   torpedo: 20,
   nuke: 20,
 };
 
-/** Cargo mass to carry an orbital base (rulebook p.7). */
+// Cargo mass to carry an orbital base (rulebook p.7).
 export const ORBITAL_BASE_MASS = 50;
 
-/** Ordnance self-destructs after this many turns (rulebook p.5-6). */
+// Ordnance self-destructs after this many turns (rulebook p.5-6).
 export const ORDNANCE_LIFETIME = 5;
 
-/**
- * Cumulative disabled turns that destroy a ship.
- * The rulebook says D6 = destroyed; this threshold is higher to account for
- * the game's damage accumulation model (rulebook p.6).
- */
+// Cumulative disabled turns that destroy a ship.
+// The rulebook says D6 = destroyed; this threshold is higher to account for
+// the game's damage accumulation model (rulebook p.6).
 export const DAMAGE_ELIMINATION_THRESHOLD = 8;
 
-/** Ship detector range in hexes (rulebook p.8). */
+// Ship detector range in hexes (rulebook p.8).
 export const SHIP_DETECTION_RANGE = 3;
-/** Planetary base detector range in hexes (rulebook p.8). */
+// Planetary base detector range in hexes (rulebook p.8).
 export const BASE_DETECTION_RANGE = 5;
 
 // Combat modifiers
-/** Relative velocity above this threshold applies die roll penalty (rulebook p.5). */
+// Relative velocity above this threshold applies die roll penalty (rulebook p.5).
 export const VELOCITY_MODIFIER_THRESHOLD = 2;
-/** Planetary defense fires at fixed 2:1 odds (rulebook p.8). */
+// Planetary defense fires at fixed 2:1 odds (rulebook p.8).
 export const BASE_COMBAT_ODDS = '2:1';
-/** Anti-nuke fire uses 2:1 odds (rulebook p.6). */
+// Anti-nuke fire uses 2:1 odds (rulebook p.6).
 export const ANTI_NUKE_ODDS = '2:1';
-/** Planetary defense range: the gravity hex directly above the base (rulebook p.8). */
+// Planetary defense range: the gravity hex directly above the base (rulebook p.8).
 export const BASE_FIRE_RANGE = 1;
 
 // Movement costs
-/** Fuel cost for a single burn (one hex of acceleration, rulebook p.2). */
+// Fuel cost for a single burn (one hex of acceleration, rulebook p.2).
 export const BURN_FUEL_COST = 1;
-/** Total fuel cost for an overload maneuver (two hexes of acceleration, rulebook p.4). */
+// Total fuel cost for an overload maneuver (two hexes of acceleration, rulebook p.4).
 export const OVERLOAD_TOTAL_FUEL_COST = 2;
-/** Ship must be moving at this speed to land via orbit (rulebook p.4). */
+// Ship must be moving at this speed to land via orbit (rulebook p.4).
 export const LANDING_SPEED_REQUIRED = 1;
 
 // Animation durations (ms)

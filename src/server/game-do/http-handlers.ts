@@ -1,6 +1,6 @@
 import type { ViewerId } from '../../shared/engine/game-engine';
 import { SCENARIOS } from '../../shared/map-data';
-import type { Result } from '../../shared/types/domain';
+import type { PlayerId, Result } from '../../shared/types/domain';
 import {
   createRoomConfig,
   parseInitPayload,
@@ -16,14 +16,14 @@ export interface JoinAttemptSuccess {
   roomConfig: RoomConfig;
   playerId: 0 | 1;
   issueNewToken: boolean;
-  disconnectedPlayer: number | null;
+  disconnectedPlayer: PlayerId | null;
   seatOpen: [boolean, boolean];
 }
 
 type ResolveJoinDeps = {
   getRoomConfig: () => Promise<RoomConfig | null>;
   isRoomArchived: () => Promise<boolean>;
-  getDisconnectedPlayer: () => Promise<number | null>;
+  getDisconnectedPlayer: () => Promise<PlayerId | null>;
   getSeatOpen: () => [boolean, boolean];
   isValidPlayerToken: (token: string) => boolean;
   resolveSeatAssignment: (input: {

@@ -7,6 +7,7 @@ import {
 import type {
   CelestialBody,
   GameState,
+  PlayerId,
   PlayerState,
   SolarSystemMap,
 } from '../../shared/types/domain';
@@ -108,7 +109,7 @@ export const buildBodyView = (
 export const buildBaseMarkerView = (
   baseKey: HexKey,
   state: GameState | null,
-  playerId: number,
+  playerId: PlayerId,
 ): BaseMarkerView => {
   const destroyed = new Set(state?.destroyedBases ?? []);
 

@@ -1,4 +1,5 @@
 import { SHIP_STATS, type ShipType } from './constants';
+import type { HexKey } from './hex';
 import type {
   AstrogationOrder,
   C2S,
@@ -68,7 +69,7 @@ const parseFleetPurchases = (raw: unknown): FleetPurchase[] | null => {
 
 const parseWeakGravityChoices = (
   raw: unknown,
-): Record<string, boolean> | undefined | null => {
+): Record<HexKey, boolean> | undefined | null => {
   if (raw == null) return undefined;
 
   if (!isObject(raw)) return null;
@@ -79,11 +80,11 @@ const parseWeakGravityChoices = (
     return null;
   }
 
-  const parsed: Record<string, boolean> = {};
+  const parsed: Record<HexKey, boolean> = {} as Record<HexKey, boolean>;
 
   for (const [key, value] of entries) {
     if (typeof value !== 'boolean') return null;
-    parsed[key] = value;
+    parsed[key as HexKey] = value;
   }
 
   return parsed;

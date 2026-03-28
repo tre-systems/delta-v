@@ -1,5 +1,9 @@
 import { buildSolarSystemMap, SCENARIOS } from '../../shared/map-data';
-import type { FleetPurchase, GameState } from '../../shared/types/domain';
+import type {
+  FleetPurchase,
+  GameState,
+  PlayerId,
+} from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playWarning } from '../audio';
 import { byId } from '../dom';
@@ -211,7 +215,7 @@ export const createGameClient = () => {
 
   const hud = createHudController({
     getGameState: () => mirror.gameState.peek(),
-    getPlayerId: () => ctx.playerId,
+    getPlayerId: () => ctx.playerId as PlayerId,
     getClientState: () => mirror.clientState.peek(),
     getPlanningState: () => ctx.planningState,
     getMap: () => map,
@@ -234,7 +238,7 @@ export const createGameClient = () => {
 
   const camera = createCameraController({
     getGameState: () => mirror.gameState.peek(),
-    getPlayerId: () => ctx.playerId,
+    getPlayerId: () => ctx.playerId as PlayerId,
     getPlanningState: () => ctx.planningState,
     renderer,
     overlay: ui.overlay,
@@ -243,7 +247,7 @@ export const createGameClient = () => {
   actionDeps = createActionDeps({
     getGameState: () => mirror.gameState.peek(),
     getClientState: () => mirror.clientState.peek(),
-    getPlayerId: () => ctx.playerId,
+    getPlayerId: () => ctx.playerId as PlayerId,
     getTransport: () => ctx.transport,
     getMap: () => map,
     getAIDifficulty: () => ctx.aiDifficulty,
@@ -351,7 +355,7 @@ export const createGameClient = () => {
     }
     return createLocalGameTransport({
       getGameState: () => mirror.gameState.peek(),
-      getPlayerId: () => ctx.playerId,
+      getPlayerId: () => ctx.playerId as PlayerId,
       getMap: () => map,
       getScenario: () => ctx.scenario,
       getScenarioDef: () => SCENARIOS[ctx.scenario] ?? SCENARIOS.biplanetary,
@@ -399,7 +403,7 @@ export const createGameClient = () => {
       event,
       mirror.gameState.peek(),
       map,
-      ctx.playerId,
+      ctx.playerId as PlayerId,
       ctx.planningState,
     );
     for (const cmd of commands) {

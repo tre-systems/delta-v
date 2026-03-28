@@ -1,6 +1,7 @@
 import type {
   CombatResult,
   MovementEvent,
+  PlayerId,
   Ship,
 } from '../../shared/types/domain';
 import { byId, clearHTML, el, listen, text, visible } from '../dom';
@@ -22,7 +23,7 @@ export interface GameLogViewDeps {
 }
 
 export interface GameLogView {
-  setPlayerId: (id: number) => void;
+  setPlayerId: (id: PlayerId | -1) => void;
   setMobile: (isMobile: boolean, hudVisible: boolean) => void;
   applyScreenVisibility: (mode: UIScreenMode) => void;
   resetVisibilityState: () => void;
@@ -55,7 +56,7 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   });
 
   let lastTurnHeader: HTMLElement | null = null;
-  let playerId = -1;
+  let playerId: PlayerId | -1 = -1;
 
   const screenModeSignal = signal<UIScreenMode>('hidden');
   const expandedSignal = signal(false);
@@ -90,7 +91,7 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
     scrollToBottom();
   };
 
-  const setPlayerId = (id: number): void => {
+  const setPlayerId = (id: PlayerId | -1): void => {
     playerId = id;
   };
 
@@ -177,7 +178,11 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
 
   const logCombatResults = (results: CombatResult[], ships: Ship[]): void => {
     for (const result of results) {
-      for (const entry of formatCombatResultEntries(result, ships, playerId)) {
+      for (const entry of formatCombatResultEntries(
+        result,
+        ships,
+        playerId as PlayerId,
+      )) {
         logText(entry.text, entry.className);
       }
     }

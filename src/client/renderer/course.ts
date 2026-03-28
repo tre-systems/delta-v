@@ -11,6 +11,7 @@ import {
 import { computeCourse, predictDestination } from '../../shared/movement';
 import type {
   GameState,
+  PlayerId,
   Ship,
   SolarSystemMap,
 } from '../../shared/types/domain';
@@ -55,7 +56,7 @@ export interface WeakGravityMarkerView {
 
 export interface GhostShipView {
   position: PixelCoord;
-  owner: number;
+  owner: PlayerId;
   shipType: ShipType;
   alpha: number;
 }
@@ -317,7 +318,7 @@ const buildDriftSegments = (
 
 export const buildAstrogationCoursePreviewViews = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: CoursePreviewPlanningState,
   map: SolarSystemMap,
   hexSize: number,

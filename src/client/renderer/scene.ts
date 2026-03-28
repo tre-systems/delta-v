@@ -9,7 +9,11 @@ import {
   hexToPixel,
   parseHexKey,
 } from '../../shared/hex';
-import type { GameState, SolarSystemMap } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import {
   buildAsteroidDebrisView,
   buildBaseMarkerView,
@@ -197,7 +201,7 @@ export const renderBaseMarkers = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
   state: GameState | null,
-  playerId: number,
+  playerId: PlayerId,
   hexSize: number,
 ): void => {
   for (const [key, hex] of map.hexes) {
@@ -236,7 +240,7 @@ export const renderMapBorder = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   hexSize: number,
   now: number,
 ): void => {
@@ -293,7 +297,7 @@ export const renderLandingTarget = (
   ctx: CanvasRenderingContext2D,
   map: SolarSystemMap,
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   hexSize: number,
   now: number,
 ): void => {
@@ -342,7 +346,7 @@ export const renderLandingTarget = (
 export const renderDetectionRanges = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   selectedShipId: string | null,
   map: SolarSystemMap,
   hexSize: number,

@@ -1,4 +1,4 @@
-import type { ShipType } from '../constants';
+import type { OrdnanceType, ShipType } from '../constants';
 import type { HexCoord, HexKey, HexVec } from '../hex';
 
 // --- Result type ---
@@ -10,19 +10,19 @@ export type Result<T, E = string> =
 // --- Primitive ID types ---
 
 export type PlayerId = 0 | 1;
-export type OrdnanceType = 'mine' | 'torpedo' | 'nuke';
+
+// Re-export OrdnanceType from constants (where it lives alongside ShipType).
+export type { OrdnanceType } from '../constants';
 
 // --- Win condition ---
 
-/** Non-null when the game has ended. Replaces the old `winner` + `winReason` pair. */
+// Non-null when the game has ended. Replaces the old `winner` + `winReason` pair.
 export type GameOutcome = { winner: PlayerId; reason: string };
 
 // --- Game state ---
 
-/**
- * Game phases (adapted from rulebook p.2 sequence of play).
- * Movement is resolved inline after astrogation/ordnance; resupply is automatic on landing at a base.
- */
+// Game phases (adapted from rulebook p.2 sequence of play).
+// Movement is resolved inline after astrogation/ordnance; resupply is automatic on landing at a base.
 export type Phase =
   | 'waiting'
   | 'fleetBuilding'
@@ -32,22 +32,18 @@ export type Phase =
   | 'combat'
   | 'gameOver';
 
-/**
- * Valid phase transitions. Each key maps to the set of phases it can transition to.
- * `gameOver` is reachable from any in-game phase (via victory checks) and is terminal.
- *
- * ```
- * waiting ──► fleetBuilding ──► astrogation ◄─────────────────────┐
- *                                   │                              │
- *                                   ├──► ordnance ──┐              │
- *                                   │               ▼              │
- *                                   ├──► logistics ──► combat ──► advanceTurn
- *                                   │               ▲
- *                                   └──► combat ────┘
- *
- * Any in-game phase ──► gameOver
- * ```
- */
+// Valid phase transitions. Each key maps to the set of phases it can transition to.
+// `gameOver` is reachable from any in-game phase (via victory checks) and is terminal.
+//
+// waiting ──► fleetBuilding ──► astrogation ◄─────────────────────┐
+//                                   │                              │
+//                                   ├──► ordnance ──┐              │
+//                                   │               ▼              │
+//                                   ├──► logistics ──► combat ──► advanceTurn
+//                                   │               ▲
+//                                   └──► combat ────┘
+//
+// Any in-game phase ──► gameOver
 export const PHASE_TRANSITIONS: Readonly<Record<Phase, readonly Phase[]>> = {
   waiting: ['fleetBuilding', 'astrogation'],
   fleetBuilding: ['astrogation', 'gameOver'],
@@ -58,7 +54,7 @@ export const PHASE_TRANSITIONS: Readonly<Record<Phase, readonly Phase[]>> = {
   gameOver: [],
 } as const;
 
-/** Type-level successor phases for a given phase. */
+// Type-level successor phases for a given phase.
 export type PhaseSuccessor<P extends Phase> =
   (typeof PHASE_TRANSITIONS)[P][number];
 
@@ -117,30 +113,28 @@ export interface Ship extends PositionedEntity {
   lastMovementPath?: HexCoord[];
   fuel: number;
   cargoUsed: number;
-  /** Non-warships may carry only one nuke between resupplies (rulebook p.6). Reset on resupply. */
+  // Non-warships may carry only one nuke between resupplies (rulebook p.6). Reset on resupply.
   nukesLaunchedSinceResupply: number;
-  /** True during a turn in which the ship resupplied; prevents firing/ordnance (rulebook p.8). */
+  // True during a turn in which the ship resupplied; prevents firing/ordnance (rulebook p.8).
   resuppliedThisTurn: boolean;
   lifecycle: ShipLifecycle;
   control: ShipControl;
   detected: boolean;
-  /** True if the ship has not yet earned its one-time heroism bonus (rulebook p.8). */
+  // True if the ship has not yet earned its one-time heroism bonus (rulebook p.8).
   heroismAvailable: boolean;
-  /** Warships get one overload maneuver between maintenance stopovers (rulebook p.4). */
+  // Warships get one overload maneuver between maintenance stopovers (rulebook p.4).
   overloadUsed: boolean;
-  /** Only transports and packets (BaseCarrierType) may carry/emplace orbital bases (rulebook p.7). */
+  // Only transports and packets (BaseCarrierType) may carry/emplace orbital bases (rulebook p.7).
   baseStatus?: 'carryingBase' | 'emplaced';
   identity?: { hasFugitives: boolean; revealed: boolean };
-  /** Colonists / passengers (rescue scenarios); share cargo capacity with ordnance mass. */
+  // Colonists / passengers (rescue scenarios); share cargo capacity with ordnance mass.
   passengersAboard?: number;
   pendingGravityEffects?: GravityEffect[];
   deathCause?: string;
   killedBy?: string | null; // ship ID or label of the attacker, null for environmental deaths
 
-  /**
-   * Damage state. Ships recover 1 disabled turn per game turn (rulebook p.6).
-   * At DAMAGE_ELIMINATION_THRESHOLD cumulative turns, the ship is destroyed.
-   */
+  // Damage state. Ships recover 1 disabled turn per game turn (rulebook p.6).
+  // At DAMAGE_ELIMINATION_THRESHOLD cumulative turns, the ship is destroyed.
   damage: {
     disabledTurns: number;
   };
@@ -148,11 +142,11 @@ export interface Ship extends PositionedEntity {
 
 // --- Ship lifecycle narrowing ---
 
-/** A ship that is still in play (moving, fighting, etc.). */
+// A ship that is still in play (moving, fighting, etc.).
 export type ActiveShip = Ship & { lifecycle: 'active' };
-/** A ship that has landed on a celestial body. */
+// A ship that has landed on a celestial body.
 export type LandedShip = Ship & { lifecycle: 'landed' };
-/** A destroyed ship — deathCause is always present; killedBy identifies the attacker (absent for environmental deaths). */
+// A destroyed ship -- deathCause is always present; killedBy identifies the attacker (absent for environmental deaths).
 export type DestroyedShip = Ship & {
   lifecycle: 'destroyed';
   deathCause: string;
@@ -390,9 +384,9 @@ export interface ScenarioRules {
   checkpointBodies?: string[];
   sharedBases?: string[];
   logisticsEnabled?: boolean;
-  /** Enable passenger transfers in logistics (same geometry rules as fuel/cargo). */
+  // Enable passenger transfers in logistics (same geometry rules as fuel/cargo).
   passengerRescueEnabled?: boolean;
-  /** Landing on targetBody only wins if the landed ship carries at least one passenger. */
+  // Landing on targetBody only wins if the landed ship carries at least one passenger.
   targetWinRequiresPassengers?: boolean;
   reinforcements?: Reinforcement[];
   fleetConversion?: FleetConversion;

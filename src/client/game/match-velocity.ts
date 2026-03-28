@@ -1,7 +1,7 @@
 import { SHIP_STATS } from '../../shared/constants';
 import { isOrderableShip } from '../../shared/engine/util';
 import { HEX_DIRECTIONS, hexDistance, hexKey } from '../../shared/hex';
-import type { GameState, Ship } from '../../shared/types/domain';
+import type { GameState, PlayerId, Ship } from '../../shared/types/domain';
 import type { MatchVelocityPlan } from './types';
 
 const findReachableVelocityPlan = (
@@ -63,7 +63,7 @@ const findReachableVelocityPlan = (
 
 export const findMatchVelocityPlan = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   selectedShipId: string | null,
 ): MatchVelocityPlan | null => {
   if (state.phase !== 'astrogation' || selectedShipId === null) {

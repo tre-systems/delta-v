@@ -8,6 +8,7 @@ import { type HexCoord, hexEqual } from '../../shared/hex';
 import type {
   CombatAttack,
   GameState,
+  PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { clamp, filterMap } from '../../shared/util';
@@ -61,7 +62,7 @@ const getTargetedKeys = (queuedAttacks: CombatAttack[]): Set<string> => {
 
 export const getReusableCombatGroup = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   queuedAttacks: CombatAttack[],
   targetId: string,
 ): ReusableCombatGroup | null => {
@@ -131,7 +132,7 @@ export const getReusableCombatGroup = (
 
 export const hasSplitFireOptions = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   queuedAttacks: CombatAttack[],
 ): boolean => {
   const queuedTargets = getTargetedKeys(queuedAttacks);
@@ -181,7 +182,7 @@ const clampAttackStrength = (
 
 export const getCombatAttackerIdAtHex = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   clickHex: HexCoord,
   selectedShipId?: string | null,
 ): string | null => {
@@ -211,7 +212,7 @@ export const getCombatAttackerIdAtHex = (
 
 export const getCombatTargetAtHex = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   clickHex: HexCoord,
   queuedAttacks: CombatAttack[],
   currentTargetId?: string | null,
@@ -262,7 +263,7 @@ export const getCombatTargetAtHex = (
 
 export const getLegalCombatAttackers = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   queuedAttacks: CombatAttack[],
   targetId: string,
   targetType: 'ship' | 'ordnance',
@@ -325,7 +326,7 @@ export const getLegalCombatAttackers = (
 
 export const createCombatTargetPlan = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: CombatPlanningSnapshot,
   targetId: string,
   targetType: 'ship' | 'ordnance',
@@ -369,7 +370,7 @@ export const createClearedCombatPlan = (): CombatTargetPlan => {
 
 export const toggleCombatAttackerSelection = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: CombatPlanningSnapshot,
   map: SolarSystemMap | null,
   shipId: string,
@@ -436,7 +437,7 @@ export const toggleCombatAttackerSelection = (
 
 export const buildCurrentAttack = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: CombatPlanningSnapshot,
   map: SolarSystemMap,
   selectedShipId?: string | null,
@@ -562,7 +563,7 @@ export const buildCurrentAttack = (
 
 export const countRemainingCombatAttackers = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   queuedAttacks: CombatAttack[],
 ): number => {
   const committedAttackers = getCommittedAttackers(queuedAttacks);

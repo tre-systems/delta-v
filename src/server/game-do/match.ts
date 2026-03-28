@@ -2,7 +2,7 @@ import type { EngineEvent } from '../../shared/engine/engine-events';
 import { createGame } from '../../shared/engine/game-engine';
 import { findBaseHex } from '../../shared/map-data';
 import type { ScenarioDefinition, SolarSystemMap } from '../../shared/types';
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import {
   allocateMatchIdentity,
   appendEnvelopedEvents,
@@ -80,7 +80,7 @@ type HandleRematchDeps = {
 
 export const handleRematchRequest = async (
   deps: HandleRematchDeps,
-  playerId: number,
+  playerId: PlayerId,
 ): Promise<void> => {
   const requests = (await deps.storage.get<number[]>('rematchRequests')) ?? [];
 

@@ -10,12 +10,13 @@ import {
   hexToPixel,
   type PixelCoord,
 } from '../../shared/hex';
+import type { PlayerId } from '../../shared/types/domain';
 
 export type DrawShipIconInput = {
   ctx: CanvasRenderingContext2D;
   x: number;
   y: number;
-  owner: number;
+  owner: PlayerId;
   alpha: number;
   heading: number;
   disabledTurns?: number;

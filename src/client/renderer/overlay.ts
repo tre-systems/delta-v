@@ -11,7 +11,11 @@ import {
   hexToPixel,
   type PixelCoord,
 } from '../../shared/hex';
-import type { GameState, SolarSystemMap } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import type { PlanningState } from '../game/planning';
 import type { AnimationState } from './animation';
 import {
@@ -31,7 +35,7 @@ import {
 export const renderOrdnance = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   animState: AnimationState | null,
   hexSize: number,
   now: number,
@@ -203,7 +207,7 @@ export const renderOrdnance = (
 export const renderTorpedoGuidance = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planningState: PlanningState,
   isAnimating: boolean,
   hexSize: number,
@@ -300,7 +304,7 @@ export const renderTorpedoGuidance = (
 export const renderCombatOverlay = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planningState: PlanningState,
   map: SolarSystemMap | null,
   isAnimating: boolean,

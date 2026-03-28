@@ -36,9 +36,9 @@ const panelViews = new WeakMap<HTMLElement, TransferPanelView>();
 
 export const createLogisticsUIState = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
 ): LogisticsUIState => {
-  const pairs = getTransferEligiblePairs(state, playerId as PlayerId);
+  const pairs = getTransferEligiblePairs(state, playerId);
   return {
     pairs,
     fuelAmounts: new Map(),

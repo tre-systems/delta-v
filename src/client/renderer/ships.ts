@@ -1,5 +1,9 @@
 import { hexKey, hexToPixel, type PixelCoord } from '../../shared/hex';
-import type { GameState, SolarSystemMap } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import type { AnimationState } from './animation';
 import {
   drawShipIcon as drawShipIconFn,
@@ -24,7 +28,7 @@ export type DrawShipsLayerInput = {
   state: GameState;
   map: SolarSystemMap | null;
   now: number;
-  playerId: number;
+  playerId: PlayerId;
   planningSelectedShipId: string | null;
   hexSize: number;
   animState: AnimationState | null;
@@ -36,7 +40,7 @@ type DrawOneShipInput = {
   state: GameState;
   map: SolarSystemMap | null;
   now: number;
-  playerId: number;
+  playerId: PlayerId;
   planningSelectedShipId: string | null;
   hexSize: number;
   animState: AnimationState | null;

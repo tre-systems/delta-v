@@ -1,4 +1,8 @@
-import type { GameState, SolarSystemMap } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import type { PlanningState } from '../game/planning';
 import {
   buildAstrogationCoursePreviewViews,
@@ -157,7 +161,7 @@ const drawSingleCoursePreview = (
 export type DrawAstrogationCoursePreviewLayerInput = {
   ctx: CanvasRenderingContext2D;
   state: GameState;
-  playerId: number;
+  playerId: PlayerId;
   planningState: PlanningState;
   map: SolarSystemMap;
   hexSize: number;

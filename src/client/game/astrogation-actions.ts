@@ -15,7 +15,7 @@ import type { GameTransport } from './transport';
 export interface AstrogationActionDeps {
   getGameState: () => GameState | null;
   getClientState: () => string;
-  getPlayerId: () => number;
+  getPlayerId: () => PlayerId;
   getTransport: () => GameTransport | null;
   planningState: PlanningState;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;

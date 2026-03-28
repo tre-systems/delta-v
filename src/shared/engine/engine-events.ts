@@ -1,3 +1,4 @@
+import type { ShipType } from '../constants';
 import type { HexCoord, HexVec } from '../hex';
 import type { Phase } from '../types';
 import type {
@@ -45,7 +46,7 @@ export type EngineEvent =
       type: 'fleetPurchased';
       playerId: PlayerId;
       purchases: FleetPurchase[];
-      shipTypes: string[];
+      shipTypes: ShipType[];
     }
   | {
       type: 'astrogationOrdersCommitted';

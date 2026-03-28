@@ -1,4 +1,5 @@
 import type { AIDifficulty } from '../../shared/ai';
+import type { PlayerId } from '../../shared/types/domain';
 import type { ClientSession } from './session-model';
 import type { GameTransport } from './transport';
 
@@ -34,7 +35,7 @@ export const setSpectatorMode = (
 
 export const applyWelcomeSession = (
   ctx: PlayerIdentityState,
-  playerId: number,
+  playerId: PlayerId | -1,
   gameCode: string,
 ): void => {
   ctx.playerId = playerId;
@@ -82,7 +83,10 @@ export const setAIDifficulty = (
   ctx.aiDifficulty = aiDifficulty;
 };
 
-export const setPlayerId = (ctx: PlayerState, playerId: number): void => {
+export const setPlayerId = (
+  ctx: PlayerState,
+  playerId: PlayerId | -1,
+): void => {
   ctx.playerId = playerId;
 };
 

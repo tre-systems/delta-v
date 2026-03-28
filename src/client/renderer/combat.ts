@@ -16,6 +16,7 @@ import type {
   CombatResult,
   GameState,
   Ordnance,
+  PlayerId,
   Ship,
   SolarSystemMap,
 } from '../../shared/types/domain';
@@ -66,7 +67,7 @@ const getQueuedTargetKeys = (queuedAttacks: CombatAttack[]): Set<string> => {
 
 const getAvailableAttackers = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   queuedAttacks: CombatAttack[],
 ): Ship[] => {
   const committedAttackers = getCommittedAttackers(queuedAttacks);
@@ -82,7 +83,7 @@ const getAvailableAttackers = (
 
 const getCurrentCombatTarget = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: CombatOverlayPlanningState,
 ) => {
   const { combatTargetId: targetId, combatTargetType } = planning;
@@ -133,7 +134,7 @@ export const getQueuedCombatOverlayAttacks = (
 
 export const getCombatOverlayHighlights = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: CombatOverlayPlanningState,
   map: SolarSystemMap | null,
 ): CombatOverlayHighlights => {
@@ -275,7 +276,7 @@ const formatPreviewLabel = (
 
 export const getCombatPreview = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: CombatOverlayPlanningState,
   map: SolarSystemMap | null,
 ): CombatPreview | null => {

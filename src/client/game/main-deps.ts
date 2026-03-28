@@ -1,4 +1,4 @@
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import { hide } from '../dom';
 import type { Renderer } from '../renderer/renderer';
 import type { Tutorial } from '../tutorial';
@@ -121,7 +121,7 @@ export const createMainPhaseTransitionDeps = (
     return args.ctx.gameState;
   },
   get playerId() {
-    return args.ctx.playerId;
+    return args.ctx.playerId as PlayerId;
   },
   get lastLoggedTurn() {
     return args.turnTelemetry.getLastLoggedTurn();

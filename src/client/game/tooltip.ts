@@ -10,6 +10,7 @@ import { SHIP_STATS } from '../../shared/constants';
 import { hexVecLength } from '../../shared/hex';
 import type {
   GameState,
+  PlayerId,
   Ship,
   SolarSystemMap,
 } from '../../shared/types/domain';
@@ -17,7 +18,7 @@ import type {
 const getCombatSummary = (
   state: GameState,
   ship: Ship,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
 ) => {
   if (ship.owner === playerId) {
@@ -49,7 +50,7 @@ const getCombatSummary = (
 export const buildShipTooltipHtml = (
   state: GameState,
   ship: Ship,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
 ): string => {
   const stats = SHIP_STATS[ship.type];

@@ -1,3 +1,5 @@
+import type { PlayerId } from '../../shared/types/domain';
+
 export const DISCONNECT_GRACE_MS = 30_000;
 
 const TURN_TIMEOUT_GRACE_MS = 500;
@@ -10,26 +12,26 @@ export interface AlarmDeadlines {
 
 export interface AlarmSnapshot extends AlarmDeadlines {
   now: number;
-  disconnectedPlayer: number | null;
+  disconnectedPlayer: PlayerId | null;
 }
 
 export type AlarmAction =
-  | { type: 'disconnectExpired'; playerId: number }
+  | { type: 'disconnectExpired'; playerId: PlayerId }
   | { type: 'turnTimeout' }
   | { type: 'inactivityTimeout' }
   | { type: 'reschedule' };
 
 export interface DisconnectMarker {
-  disconnectedPlayer: number;
+  disconnectedPlayer: PlayerId;
   disconnectTime: number;
   disconnectAt: number;
 }
 
-export const normalizeDisconnectedPlayer = (value: unknown): number | null =>
+export const normalizeDisconnectedPlayer = (value: unknown): PlayerId | null =>
   value === 0 || value === 1 ? value : null;
 
 export const createDisconnectMarker = (
-  playerId: number,
+  playerId: PlayerId,
   now: number,
 ): DisconnectMarker => ({
   disconnectedPlayer: playerId,
@@ -38,8 +40,8 @@ export const createDisconnectMarker = (
 });
 
 export const shouldClearDisconnectMarker = (
-  disconnectedPlayer: number | null,
-  playerId: number,
+  disconnectedPlayer: PlayerId | null,
+  playerId: PlayerId,
 ): boolean => disconnectedPlayer === playerId;
 
 export const getNextAlarmAt = (deadlines: AlarmDeadlines): number | null => {

@@ -3,6 +3,7 @@ import type {
   GameState,
   MovementEvent,
   OrdnanceMovement,
+  PlayerId,
   ShipMovement,
 } from '../../shared/types/domain';
 import type {
@@ -19,7 +20,7 @@ import type { ClientState } from './phase';
 export type ClientMessagePlan =
   | {
       kind: 'welcome';
-      playerId: number;
+      playerId: PlayerId;
       code: string;
       playerToken: string;
       showReconnectToast: boolean;
@@ -69,7 +70,7 @@ export type ClientMessagePlan =
     }
   | {
       kind: 'chat';
-      playerId: number;
+      playerId: PlayerId;
       text: string;
     }
   | {
@@ -80,7 +81,7 @@ export type ClientMessagePlan =
 export const deriveClientMessagePlan = (
   currentState: ClientState,
   reconnectAttempts: number,
-  playerId: number,
+  playerId: PlayerId | -1,
   nowMs: number,
   msg: S2C,
 ): ClientMessagePlan => {

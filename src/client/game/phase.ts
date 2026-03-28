@@ -1,4 +1,4 @@
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 
 export type ClientState =
   | 'menu'
@@ -25,7 +25,7 @@ export interface PhaseTransitionPlan {
 
 const hasPendingOwnedAsteroidHazards = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
 ): boolean => {
   return state.pendingAsteroidHazards.some((hazard) => {
     const ship = state.ships.find(

@@ -1,6 +1,10 @@
 import { must } from '../../shared/assert';
 import type { MovementResult } from '../../shared/engine/game-engine';
-import type { CombatResult, GameState } from '../../shared/types/domain';
+import type {
+  CombatResult,
+  GameState,
+  PlayerId,
+} from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playPhaseChange } from '../audio';
 import { formatLogisticsTransferLogLines } from '../ui/formatters';
@@ -33,11 +37,11 @@ export interface MessageHandlerDeps {
   trackEvent: (event: string, props?: Record<string, unknown>) => void;
   deserializeState: (raw: GameState) => GameState;
   renderer: {
-    setPlayerId: (id: number) => void;
+    setPlayerId: (id: PlayerId | -1) => void;
     clearTrails: () => void;
   };
   ui: {
-    setPlayerId: (id: number) => void;
+    setPlayerId: (id: PlayerId | -1) => void;
     log: {
       logText: (text: string, cssClass?: string) => void;
       setChatEnabled: (enabled: boolean) => void;

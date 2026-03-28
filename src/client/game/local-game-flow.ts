@@ -5,6 +5,7 @@ import { filterLogisticsTransferLogEvents } from '../../shared/engine/transfer-l
 import type {
   CombatResult,
   GameState,
+  PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { formatLogisticsTransferLogLines } from '../ui/formatters';
@@ -22,7 +23,7 @@ import {
 } from './local';
 export interface LocalGameFlowDeps {
   getGameState: () => GameState | null;
-  getPlayerId: () => number;
+  getPlayerId: () => PlayerId;
   getMap: () => SolarSystemMap;
   getAIDifficulty: () => AIDifficulty;
   applyGameState: (state: GameState) => void;
@@ -151,7 +152,7 @@ export const runAITurn = async (deps: LocalGameFlowDeps): Promise<void> => {
   while (!isGameOver(deps)) {
     const plan = deriveAIActionPlan(
       must(deps.getGameState()),
-      deps.getPlayerId(),
+      deps.getPlayerId() as PlayerId,
       deps.getMap(),
       deps.getAIDifficulty(),
     );
