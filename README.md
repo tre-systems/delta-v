@@ -19,7 +19,7 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 
 ## 📚 Documentation Guide
 
-- [**SPEC.md**](./docs/SPEC.md): complete rules reference, protocol shapes, scenario definitions, and implementation notes
+- [**SPEC.md**](./docs/SPEC.md): complete repo rules reference, protocol shapes, scenario definitions, and implementation notes; the official [Triplanetary 2018 PDF](./Triplanetary2018.pdf) takes precedence if prose drifts
 - [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md): system boundaries, data flow, Durable Object design, and the current event-sourced server model
 - [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md): coding conventions, refactoring guidance, and shared patterns
 - [**MANUAL_TEST_PLAN.md**](./docs/MANUAL_TEST_PLAN.md): comprehensive manual test plan covering all scenarios, mechanics, and edge cases
@@ -172,7 +172,7 @@ Keep Playwright additions focused on browser-only risks so the suite remains fas
 
 ## 📜 Game Rules Reference
 
-For the comprehensive ruleset detailing movement edge cases, damage tables, and specific scenario rules, refer to [SPEC.md](./docs/SPEC.md).
+For the comprehensive ruleset detailing movement edge cases, damage tables, and specific scenario rules, refer to [SPEC.md](./docs/SPEC.md). If repo prose and the official rules ever disagree, follow [Triplanetary2018.pdf](./Triplanetary2018.pdf).
 
 ## 🗺️ Roadmap
 
@@ -185,9 +185,9 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] PWA support (installable, offline single-player)
 - [x] Engine safety (clone-on-entry, server rollback, event-sourced recovery)
 - [x] Error reporting and anonymous telemetry (D1 storage)
-- [x] 1,500+ automated tests across 110+ test files, plus browser smoke coverage and scenario AI simulations
+- [x] 1,500+ automated tests across engine, client, and server layers, plus browser smoke coverage and scenario AI simulations
 - [x] Engine decomposition into focused phase processors (game-creation, astrogation, resolve-movement, combat, etc.)
-- [x] Typed Ship state models (`lifecycle`, `control` fields with impossible states unrepresentable)
+- [x] Typed ship lifecycle/control state models that narrow invalid state combinations
 - [x] Granular engine events (32 `EngineEvent` types emitted by engine, replacing server-side derivation)
 - [x] Data-driven AI configuration (per-difficulty scoring weights in `ai-config.ts`)
 - [x] AI scoring decomposition (5 composable strategy functions in `ai-scoring.ts`)

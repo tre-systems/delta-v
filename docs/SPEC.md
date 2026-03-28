@@ -11,6 +11,7 @@ This implementation renders the game as a smooth, continuous-space experience �
 ## How To Read This Spec
 
 - **Gameplay truth:** mechanics and constraints documented here should match `src/shared/engine/` and `src/shared/constants.ts`.
+- **Official rules truth:** when this prose disagrees with the official game, [Triplanetary2018.pdf](../Triplanetary2018.pdf) takes precedence.
 - **Protocol truth:** `src/shared/types/protocol.ts` is authoritative if an inline example drifts.
 - **Domain truth:** `src/shared/types/domain.ts` is authoritative for state shape and phase enums.
 - **Roadmap truth:** active future work lives in [BACKLOG.md](./BACKLOG.md); milestone sections here are historical context.
@@ -407,7 +408,7 @@ Detection is most meaningful in hidden-information scenarios (implemented: Escap
 - Counterattack targets strongest attacker by default
 - Event-sourced server recovery from persisted match stream plus checkpoints
 
-**Remaining divergences** (cross-referenced against [Triplanetary 2018 rulebook](https://www.sjgames.com/triplanetary/)):
+**Remaining divergences** (cross-referenced against [Triplanetary2018.pdf](../Triplanetary2018.pdf)):
 
 - **Contact geometry** _(accepted — low priority):_ Mine/torpedo contact approximated by hex occupancy/path, not the stricter board geometric rule. The rulebook requires literal geometric line intersection with the printed hex area; two courses can pass through the same hex without their drawn lines touching. Hex-path intersection is a standard digital approximation. Fixing would require sub-hex geometry incompatible with axial coordinate math.
 
@@ -421,11 +422,9 @@ Detection is most meaningful in hidden-information scenarios (implemented: Escap
 
 - **Extended Economy** _(deferred — scenario-specific):_ Shipping lanes (Piracy trade cycles, cargo delivery) and asteroid prospecting (automated mines, robot guards, ore/CT shards) are scenario-specific economy mechanics from the Piracy and Interplanetary War scenarios. Defer until those scenarios are on the roadmap.
 
-- **Orbital base D1 resilience** _(implemented):_ The rulebook (p.6) states orbital bases may still launch torpedoes, fire guns, and resupply friendly ships while at D1 damage. Implemented: `canOperateWhileDisabled()` in `combat.ts` allows orbital bases to fire/counterattack at D1, and ordnance launch validation in `game-engine.ts` permits launches at D1. Resupply from orbital bases was already unrestricted by damage level.
-
 - **Torch ship fuel transfer restriction** _(implemented):_ The rulebook (p.8) states torch ships "may not transfer fuel to other ships." Enforced in `logistics.ts` — torch ships are excluded from fuel transfer eligibility.
 
-**Unimplemented rulebook scenarios** (from the [Triplanetary 2018 PDF](https://www.sjgames.com/triplanetary/)):
+**Unimplemented rulebook scenarios** (from [Triplanetary2018.pdf](../Triplanetary2018.pdf)):
 
 | Scenario     | Type              | Key Dependencies                                                                    |
 | ------------ | ----------------- | ----------------------------------------------------------------------------------- |

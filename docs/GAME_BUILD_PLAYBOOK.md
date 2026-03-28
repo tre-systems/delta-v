@@ -9,6 +9,8 @@ This is a practical, end-to-end guide for building a turn-based multiplayer game
 
 Use this as your startup checklist for a new project.
 
+This file is intentionally generic. For the live Delta-V codebase, treat [README.md](../README.md), [SPEC.md](./SPEC.md), [ARCHITECTURE.md](./ARCHITECTURE.md), and [BACKLOG.md](./BACKLOG.md) as the current source of truth.
+
 ---
 
 ## Quick reference checklist

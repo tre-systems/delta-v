@@ -19,13 +19,13 @@ Related docs: [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md), [SPEC](./SPEC.md), [ARC
 The current runner executes entirely in Node.js, outside the browser and Cloudflare Worker runtime.
 
 1. **Setup:** Initialize `GameState` using `createGame(SCENARIOS[name], map, ...)`.
-2. **Seat randomization:** The runner randomizes `activePlayer` per game to reduce first-mover bias during aggregate balance checks.
+2. **Starting player:** By default the runner respects the scenario's authored `startingPlayer`. Pass `--randomize-start` to override that per game when you explicitly want an alternate balance sweep.
 3. **Game Loop:** Put the engine in a `while (state.phase !== 'gameOver')` loop.
-3. **Turn Execution:**
+4. **Turn Execution:**
    - **Astrogation:** If it's Player 0's turn, call `aiAstrogation(state, 0, map, 'hard')`. Same for Player 1. Pass the orders into `processAstrogation()`.
    - **Ordnance:** Call `aiOrdnance()` and pass to `processOrdnance()` (or call `skipOrdnance()`).
    - **Combat:** Call `aiCombat()` and pass to `processCombat()` (or `skipCombat()`).
-4. **Data Collection:** Track metrics like win rates (Player 0 vs Player 1), draws/timeouts, average turns, crash count, and win reasons.
+5. **Data Collection:** Track metrics like win rates (Player 0 vs Player 1), draws/timeouts, average turns, crash count, and win reasons.
 
 **Implementation Details:**
 
@@ -38,7 +38,9 @@ The current runner executes entirely in Node.js, outside the browser and Cloudfl
 
 - `npm run simulate` runs 100 headless games of the default scenario.
 - `npm run simulate -- all 25 -- --ci` runs 25 games per scenario across the current scenario roster (pre-commit hook / CI path).
+- The CI workflow uses `npm run simulate all 100 -- --ci` for the broader balance sweep.
 - `--ci` fails the process on engine crashes and prints balance warnings without making them fatal.
+- `--randomize-start` is opt-in; use it for exploratory start-order analysis, not for the default shipped-scenario baseline.
 - When using npm scripts, pass simulation arguments after `--`.
 
 ---

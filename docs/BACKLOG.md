@@ -136,7 +136,7 @@ After large renderer or dependency changes, re-measure `dist/client.js` (raw + g
 
 **Owner:** whoever ships the change.
 
-**Last routine measure:** 2026-03-28 — ~545 KB raw, ~116 KB gzip (`dist/client.js`; measured after `npm run build`).
+**Last routine measure:** 2026-03-28 — ~596 KB raw, ~123 KB gzip (`dist/client.js`; measured after `npm run build`).
 
 ### 15. Public matchmaking prep (longer room identifiers)
 
@@ -166,15 +166,11 @@ Husky is a **POSIX** shell script (`rm`, `export`, dynamic `E2E_PORT` via Node).
 
 ### 18. Scenario balance and timeout tuning from simulation evidence
 
-**Status:** not started (new from 2026-03-28 review pass).
+**Status:** ongoing monitoring. The severe outliers found in the early 2026-03-28 review pass were materially improved by later AI tuning.
 
-**Remaining:** `npm run simulate -- all 100 -- --ci` reports persistent decided-rate outliers and one severe timeout profile:
+**Baseline shipped:** the current full 25-game `--ci` sweep is back inside the configured scenario bands, including previously noisy cases such as `biplanetary`, `blockade`, `fleetAction`, and `interplanetaryWar`.
 
-- Strong seat/order skew: `biplanetary` (P0 decided ~95.9%), `escape` (~98.0%).
-- Opposite skew: `fleetAction` (~24.2% P0 decided), `interplanetaryWar` (~27.6%).
-- `convoy` timeout-heavy profile (~49% timeouts, ~172.5 average turns).
-
-Investigate scenario setup, AI heuristics, and/or victory pacing so outcomes are less seat-dependent and long-run timeout rates are acceptable.
+**Remaining:** keep rerunning `npm run simulate -- all 100 -- --ci` after major AI, scenario, map, or victory-condition changes; only reopen targeted balance work if scenarios drift back out of band, produce excessive timeouts, or show obviously non-human AI behavior.
 
 **Files:** `scripts/simulate-ai.ts`, `src/shared/ai.ts`, `src/shared/ai-scoring.ts`, `src/shared/map-data.ts`, scenario-specific rules in `src/shared/engine/`
 
@@ -182,11 +178,11 @@ Investigate scenario setup, AI heuristics, and/or victory pacing so outcomes are
 
 ### 19. Patch high-severity `npm audit` advisory (`picomatch`)
 
-**Status:** not started (new from 2026-03-28 review pass).
+**Status:** not started; audit state needs recheck.
 
-`npm audit --audit-level=moderate` currently reports a **high** vulnerability in transitive `picomatch` (`GHSA-3v7f-55p6-f55p`, `GHSA-c2c7-rcm5-vvqj`).
+The last recorded networked `npm audit --audit-level=moderate` run reported a **high** vulnerability in transitive `picomatch` (`GHSA-3v7f-55p6-f55p`, `GHSA-c2c7-rcm5-vvqj`).
 
-**Remaining:** apply dependency updates (for example via `npm audit fix` and/or targeted transitive overrides), then rerun `npm run verify` to confirm no regressions in build, tests, e2e, or simulation.
+**Remaining:** rerun `npm audit --audit-level=moderate` with network access, then apply dependency updates if the advisory is still present (for example via `npm audit fix` and/or targeted transitive overrides), and finally rerun `npm run verify` to confirm no regressions in build, tests, e2e, or simulation.
 
 **Files:** `package-lock.json`, `package.json` (if overrides are needed), CI dependency policy docs if process changes
 
