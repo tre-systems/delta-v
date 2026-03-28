@@ -103,6 +103,7 @@ const installFixture = () => {
     <button id="rematchBtn"></button>
     <button id="exitBtn"></button>
     <button id="helpBtn"></button>
+    <button id="helpCloseBtn"></button>
     <button id="soundBtn"></button>
     <div id="helpOverlay"></div>
     <div id="phaseAlert">

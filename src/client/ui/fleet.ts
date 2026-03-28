@@ -30,12 +30,16 @@ export interface FleetCartView {
   isEmpty: boolean;
 }
 
+const isPurchasableShipType = (
+  shipType: ShipType,
+): shipType is PurchasableShipType => {
+  return shipType !== 'orbitalBase';
+};
+
 const DEFAULT_FLEET_PURCHASE_OPTIONS: FleetPurchaseOption[] = [
-  ...(Object.entries(SHIP_STATS) as [ShipType, (typeof SHIP_STATS)[ShipType]][])
-    .filter(
-      ([shipType]): shipType is PurchasableShipType =>
-        shipType !== 'orbitalBase',
-    )
+  ...(Object.keys(SHIP_STATS) as ShipType[])
+    .filter(isPurchasableShipType)
+    .map((shipType) => [shipType, SHIP_STATS[shipType]] as const)
     .sort((left, right) => left[1].cost - right[1].cost)
     .map(([shipType]) => shipType),
   'orbitalBaseCargo',

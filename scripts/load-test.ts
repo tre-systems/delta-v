@@ -11,8 +11,10 @@ import { buildSolarSystemMap, SCENARIOS } from '../src/shared/map-data';
 import type {
   AstrogationOrder,
   FleetPurchase,
+  FleetPurchaseOption,
   GameState,
   PlayerId,
+  PurchasableShipType,
 } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
 import { parseArgs } from './load/config';
@@ -43,12 +45,18 @@ const buildFleetPurchases = (
     Object.values(SCENARIOS).find(
       (scenario) => scenario.name === state.scenario,
     ) ?? null;
-  const available: ShipType[] =
-    scenarioDef?.availableShipTypes ??
-    (Object.keys(SHIP_STATS) as ShipType[]).filter(
-      (type) => type !== 'orbitalBase',
-    );
-  const priorities: ShipType[] =
+  const availableFleetPurchases: FleetPurchaseOption[] =
+    scenarioDef?.availableFleetPurchases ??
+    ((Object.keys(SHIP_STATS) as ShipType[]).filter(
+      (type): type is PurchasableShipType => type !== 'orbitalBase',
+    ) as FleetPurchaseOption[]);
+  const available = new Set<PurchasableShipType>(
+    availableFleetPurchases.filter(
+      (purchase): purchase is PurchasableShipType =>
+        purchase !== 'orbitalBaseCargo',
+    ),
+  );
+  const priorities: PurchasableShipType[] =
     difficulty === 'hard'
       ? ['dreadnaught', 'frigate', 'torch', 'corsair', 'corvette']
       : difficulty === 'easy'
@@ -58,11 +66,11 @@ const buildFleetPurchases = (
   let remaining = credits;
 
   for (const shipType of priorities) {
-    if (!available.includes(shipType)) continue;
+    if (!available.has(shipType)) continue;
     const cost = SHIP_STATS[shipType].cost;
 
     while (remaining >= cost) {
-      purchases.push({ shipType });
+      purchases.push({ kind: 'ship', shipType });
       remaining -= cost;
     }
   }

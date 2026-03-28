@@ -21,7 +21,13 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../src/shared/map-data';
-import type { FleetPurchase, GameState, PlayerId } from '../src/shared/types';
+import type {
+  FleetPurchase,
+  FleetPurchaseOption,
+  GameState,
+  PlayerId,
+  PurchasableShipType,
+} from '../src/shared/types';
 
 interface SimulationMetrics {
   scenario: string;
@@ -53,17 +59,25 @@ const simFleetBuild = (
   state: GameState,
   playerId: PlayerId,
   difficulty: AIDifficulty,
-  availableTypes?: ShipType[],
+  availableFleetPurchases?: FleetPurchaseOption[],
 ): FleetPurchase[] => {
   const credits = state.players[playerId].credits ?? 0;
-  const available =
-    availableTypes ??
-    (Object.keys(SHIP_STATS) as ShipType[]).filter((t) => t !== 'orbitalBase');
+  const available = new Set<PurchasableShipType>(
+    (
+      availableFleetPurchases ??
+      ((Object.keys(SHIP_STATS) as ShipType[]).filter(
+        (type): type is PurchasableShipType => type !== 'orbitalBase',
+      ) as FleetPurchaseOption[])
+    ).filter(
+      (purchase): purchase is PurchasableShipType =>
+        purchase !== 'orbitalBaseCargo',
+    ),
+  );
   const purchases: FleetPurchase[] = [];
   let remaining = credits;
 
   // Strategy varies by difficulty
-  const priorities: ShipType[] =
+  const priorities: PurchasableShipType[] =
     difficulty === 'hard'
       ? ['dreadnaught', 'frigate', 'torch', 'corsair', 'corvette']
       : difficulty === 'easy'
@@ -71,10 +85,10 @@ const simFleetBuild = (
         : ['frigate', 'corsair', 'corvette', 'packet'];
 
   for (const shipType of priorities) {
-    if (!available.includes(shipType)) continue;
+    if (!available.has(shipType)) continue;
     const cost = SHIP_STATS[shipType].cost;
     while (remaining >= cost) {
-      purchases.push({ shipType });
+      purchases.push({ kind: 'ship', shipType });
       remaining -= cost;
     }
   }
@@ -118,15 +132,9 @@ const runSingleGame = async (
         state,
         p,
         diff,
-        scenario.availableShipTypes,
+        scenario.availableFleetPurchases,
       );
-      const result = processFleetReady(
-        state,
-        p,
-        purchases,
-        map,
-        scenario.availableShipTypes,
-      );
+      const result = processFleetReady(state, p, purchases, map);
       if ('error' in result)
         throw new Error(`Fleet build error P${p}: ${result.error}`);
       state = result.state;
