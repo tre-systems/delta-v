@@ -33,6 +33,7 @@ import {
   type HexKey,
   hexAdd,
   hexDistance,
+  hexEqual,
   hexKey,
   hexVecLength,
   parseHexKey,
@@ -295,34 +296,61 @@ const selectLogisticsTransfer = (
       let bestTransfer: TransferOrder | null = null;
 
       if (pair.canTransferPassengers) {
-        const sourceValue = scorePassengerCarrier(
-          pair.source,
-          playerId,
-          state,
-          map,
-        );
-        const targetValue = scorePassengerCarrier(
-          pair.target,
-          playerId,
-          state,
-          map,
-        );
-        const passengerScore =
-          220 +
-          (targetValue - sourceValue) +
-          (pair.source.damage.disabledTurns > 0 ? 160 : 0) +
-          (pair.source.type === 'liner' || pair.source.type === 'transport'
-            ? 40
-            : 0);
+        const sourcePassengers = pair.source.passengersAboard ?? 0;
+        const partialTransfer = pair.maxPassengers < sourcePassengers;
+        const threatenedDuringCombat =
+          state.scenarioRules.targetWinRequiresPassengers &&
+          partialTransfer &&
+          pair.source.damage.disabledTurns === 0 &&
+          state.ships.some(
+            (enemy) =>
+              enemy.owner !== playerId &&
+              enemy.lifecycle !== 'destroyed' &&
+              canAttack(enemy) &&
+              (hasLineOfSight(enemy, pair.source, map) ||
+                hasLineOfSight(enemy, pair.target, map)),
+          );
 
-        if (passengerScore > bestScore) {
-          bestScore = passengerScore;
-          bestTransfer = {
-            sourceShipId: pair.source.id,
-            targetShipId: pair.target.id,
-            transferType: 'passengers',
-            amount: pair.maxPassengers,
-          };
+        if (!threatenedDuringCombat) {
+          const sourceValue = scorePassengerCarrier(
+            pair.source,
+            playerId,
+            state,
+            map,
+          );
+          const targetValue = scorePassengerCarrier(
+            pair.target,
+            playerId,
+            state,
+            map,
+          );
+          const sourceCanFight = canAttack(pair.source);
+          const targetCanFight = canAttack(pair.target);
+
+          if (
+            (!sourceCanFight && targetCanFight) ||
+            (sourceCanFight === targetCanFight &&
+              targetValue > sourceValue + 10)
+          ) {
+            const passengerScore =
+              220 +
+              (targetValue - sourceValue) +
+              (pair.source.damage.disabledTurns > 0 ? 160 : 0) +
+              (pair.source.type === 'liner' || pair.source.type === 'transport'
+                ? 40
+                : 0) +
+              (!sourceCanFight && targetCanFight ? 60 : 0);
+
+            if (passengerScore > bestScore) {
+              bestScore = passengerScore;
+              bestTransfer = {
+                sourceShipId: pair.source.id,
+                targetShipId: pair.target.id,
+                transferType: 'passengers',
+                amount: pair.maxPassengers,
+              };
+            }
+          }
         }
       }
 
@@ -393,6 +421,127 @@ const applyTransferToState = (
     source.passengersAboard = nextFrom > 0 ? nextFrom : undefined;
     target.passengersAboard = (target.passengersAboard ?? 0) + transfer.amount;
   }
+};
+
+const getPassengerTransferFormationOrders = (
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+  targetHex: { q: number; r: number } | null,
+  targetBody: string,
+  escapeWins: boolean,
+  enemyShips: Ship[],
+  cfg: (typeof AI_CONFIG)[AIDifficulty],
+  difficulty: AIDifficulty,
+  isRace: boolean,
+  enemyEscaping: boolean,
+): Map<string, AstrogationOrder> => {
+  if (!state.scenarioRules.targetWinRequiresPassengers) {
+    return new Map();
+  }
+
+  const sharedOrders = new Map<string, AstrogationOrder>();
+
+  for (const pair of getTransferEligiblePairs(state, playerId)) {
+    if (
+      !pair.canTransferPassengers ||
+      (pair.source.passengersAboard ?? 0) <= 0
+    ) {
+      continue;
+    }
+
+    if (sharedOrders.has(pair.source.id) || sharedOrders.has(pair.target.id)) {
+      continue;
+    }
+
+    const sourceScore = scorePassengerCarrier(
+      pair.source,
+      playerId,
+      state,
+      map,
+    );
+    const targetScore = scorePassengerCarrier(
+      pair.target,
+      playerId,
+      state,
+      map,
+    );
+
+    if (targetScore <= sourceScore + 10) {
+      continue;
+    }
+    let bestBurn: number | null = null;
+    let bestScore = -Infinity;
+
+    for (const burn of [null, 0, 1, 2, 3, 4, 5] as const) {
+      const sourceCourse = computeCourse(pair.source, burn, map, {
+        destroyedBases: state.destroyedBases,
+      });
+      const targetCourse = computeCourse(pair.target, burn, map, {
+        destroyedBases: state.destroyedBases,
+      });
+
+      if (
+        sourceCourse.outcome === 'crash' ||
+        targetCourse.outcome === 'crash'
+      ) {
+        continue;
+      }
+
+      const score =
+        scoreCourse({
+          ship: pair.source,
+          course: sourceCourse,
+          targetHex,
+          targetBody,
+          escapeWins,
+          enemyShips,
+          cfg,
+          difficulty,
+          map,
+          isRace,
+          enemyEscaping,
+          shipIndex: 0,
+        }) +
+        scoreCourse({
+          ship: pair.target,
+          course: targetCourse,
+          targetHex,
+          targetBody,
+          escapeWins,
+          enemyShips,
+          cfg,
+          difficulty,
+          map,
+          isRace,
+          enemyEscaping,
+          shipIndex: 1,
+        }) +
+        120;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestBurn = burn;
+      }
+    }
+
+    if (bestScore === -Infinity) {
+      continue;
+    }
+
+    sharedOrders.set(pair.source.id, {
+      shipId: pair.source.id,
+      burn: bestBurn,
+      overload: null,
+    });
+    sharedOrders.set(pair.target.id, {
+      shipId: pair.target.id,
+      burn: bestBurn,
+      overload: null,
+    });
+  }
+
+  return sharedOrders;
 };
 
 export const aiLogistics = (
@@ -558,6 +707,19 @@ export const aiAstrogation = (
   const enemyShips = state.ships.filter(
     (s) => s.owner !== playerId && s.lifecycle !== 'destroyed',
   );
+  const passengerTransferFormationOrders = getPassengerTransferFormationOrders(
+    state,
+    playerId,
+    map,
+    defaultTargetHex,
+    targetBody,
+    escapeWins,
+    enemyShips,
+    cfg,
+    difficulty,
+    !!checkpoints,
+    enemyEscaping,
+  );
   let shipIdx = 0;
   for (const ship of state.ships) {
     if (ship.owner !== playerId) continue;
@@ -581,6 +743,13 @@ export const aiAstrogation = (
         burn: null,
         overload: null,
       });
+      continue;
+    }
+    const formationOrder = passengerTransferFormationOrders.get(ship.id);
+
+    if (formationOrder) {
+      orders.push(formationOrder);
+      shipIdx++;
       continue;
     }
     // Per-ship checkpoint target or default target
@@ -871,10 +1040,23 @@ export const aiOrdnance = (
     }
 
     if (ship.damage.disabledTurns > 0) continue;
+    if (
+      state.scenarioRules.targetWinRequiresPassengers &&
+      (ship.passengersAboard ?? 0) > 0
+    ) {
+      continue;
+    }
     const stats = SHIP_STATS[ship.type];
 
     if (!stats) continue;
     const cargoFree = stats.cargo - ship.cargoUsed;
+    const hasFriendlyLaunchStack = state.ships.some(
+      (other) =>
+        other.id !== ship.id &&
+        other.owner === playerId &&
+        other.lifecycle !== 'destroyed' &&
+        hexEqual(other.position, ship.position),
+    );
     // Find nearest enemy
     const nearestEnemy = minBy(enemyShips, (enemy) =>
       hexDistance(ship.position, enemy.position),
@@ -885,7 +1067,9 @@ export const aiOrdnance = (
     // Hard AI: launch nuke at enemies within range
     // if cargo allows
     const canLaunchNuke =
-      stats.canOverload || ship.nukesLaunchedSinceResupply < 1;
+      (stats.canOverload || ship.nukesLaunchedSinceResupply < 1) &&
+      !hasFriendlyLaunchStack &&
+      (ship.passengersAboard ?? 0) === 0;
 
     if (
       allowedTypes.has('nuke') &&
@@ -1096,16 +1280,23 @@ export const aiCombat = (
     const targetKey = `${target.targetType}:${target.targetId}`;
 
     if (committedTargets.has(targetKey)) continue;
-    const available = target.attackers.filter(
+    const availableAttackers = target.attackers.filter(
       (a) => !committedAttackers.has(a.id),
     );
 
-    if (available.length === 0) continue;
+    if (availableAttackers.length === 0) continue;
     // Check if odds are reasonable
     if (target.targetType === 'ship') {
       const enemy = enemyShips.find((s) => s.id === target.targetId);
 
       if (!enemy) continue;
+      const nonPassengerAttackers = availableAttackers.filter(
+        (attacker) => (attacker.passengersAboard ?? 0) === 0,
+      );
+      const available =
+        nonPassengerAttackers.length > 0
+          ? nonPassengerAttackers
+          : availableAttackers;
       const attackStr = getCombatStrength(available);
       const defendStr = getCombatStrength([enemy]);
       const rangeMod = computeGroupRangeMod(available, enemy);
@@ -1114,15 +1305,35 @@ export const aiCombat = (
       if (6 - rangeMod - velMod < minRollThreshold && attackStr <= defendStr) {
         continue;
       }
-    }
-    attacks.push({
-      attackerIds: available.map((s) => s.id),
-      targetId: target.targetId,
-      targetType: target.targetType,
-      attackStrength: null,
-    });
-    for (const a of available) {
-      committedAttackers.add(a.id);
+
+      if (
+        nonPassengerAttackers.length === 0 &&
+        available.some((attacker) => (attacker.passengersAboard ?? 0) > 0) &&
+        enemy.damage.disabledTurns === 0 &&
+        attackStr <= defendStr
+      ) {
+        continue;
+      }
+
+      attacks.push({
+        attackerIds: available.map((s) => s.id),
+        targetId: target.targetId,
+        targetType: target.targetType,
+        attackStrength: null,
+      });
+      for (const a of available) {
+        committedAttackers.add(a.id);
+      }
+    } else {
+      attacks.push({
+        attackerIds: availableAttackers.map((s) => s.id),
+        targetId: target.targetId,
+        targetType: target.targetType,
+        attackStrength: null,
+      });
+      for (const a of availableAttackers) {
+        committedAttackers.add(a.id);
+      }
     }
 
     committedTargets.add(targetKey);

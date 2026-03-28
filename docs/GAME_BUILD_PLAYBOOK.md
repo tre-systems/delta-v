@@ -7,7 +7,23 @@ This is a practical, end-to-end guide for building a turn-based multiplayer game
 - Deterministic simulation
 - Strong testing and release gates
 
-Use this as your startup checklist for a new project (for example, Cepheus Engine personal combat).
+Use this as your startup checklist for a new project.
+
+---
+
+## Quick reference checklist
+
+- [ ] Product brief written; turn loop explainable in 60 seconds
+- [ ] Domain types: no `any`, every action is a typed union member
+- [ ] Engine is pure: no network, DOM, or clock calls; all randomness via injected PRNG
+- [ ] Event projector: live state == projected state from events
+- [ ] Protocol types are versioned and runtime-validated
+- [ ] Server delegates all rule evaluation to shared engine
+- [ ] Engine error/recovery strategy decided and documented
+- [ ] Reconnect/stale-tab behavior deterministic and tested
+- [ ] `npm run verify` pipeline passes (unit, property, parity, E2E, a11y)
+- [ ] Simulation runs are evidence-based; pinned regression seed set exists
+- [ ] Observability, rate limits, and telemetry active before launch
 
 ---
 
@@ -114,7 +130,9 @@ Rules:
 
 - No network, DOM, storage, or clock calls in engine layer.
 - All randomness via injected seeded PRNG.
+- `validateAction` must be side-effect-free and must never consume RNG state — consuming RNG in validation is a subtle source of divergence bugs.
 - State transitions emit events; UI does not invent outcomes.
+- AI opponents consume the same `validateAction` / `applyAction` API as human players — no separate rule path.
 
 Deliverables:
 
@@ -192,6 +210,7 @@ Rules:
 - Runtime validate all inbound messages.
 - Reject unknown/invalid payloads safely.
 - Keep protocol types in shared package.
+- Version protocol schema deliberately, independently of event schema — the two can drift if not tracked together.
 
 Deliverables:
 
@@ -202,6 +221,7 @@ Deliverables:
 Exit criteria:
 
 - Protocol fixtures are versioned and tested.
+- Breaking protocol changes increment a version field; old clients receive a clear rejection, not silent corruption.
 
 ---
 
@@ -215,7 +235,7 @@ Keep server responsibilities narrow:
 - Persistence/replay storage
 - Broadcast projected views per player role
 
-Do not duplicate game rules on server orchestration layer.
+Do not duplicate game rules on server orchestration layer. The server calls into `src/shared/engine` for all rule evaluation — it does not reimplement checks.
 
 Recommended boundaries:
 
@@ -229,9 +249,20 @@ Deliverables:
 - `src/server/index.ts`
 - `src/server/game-do/*` (or equivalent room runtime)
 
+### 5.1 Engine error handling
+
+Decide before shipping what the server does when `applyAction` throws:
+
+- **Abort match** — safest; guaranteed consistent state but terminates the session.
+- **Skip action, emit error event** — match continues; requires AI/client to handle no-op turns gracefully.
+- **Roll back to last snapshot** — most complex; requires periodic snapshotting with copy-on-write or immutable state.
+
+Document the chosen strategy in `docs/ARCHITECTURE.md`. Whichever you pick, never silently swallow the error — always emit a telemetry event and log context.
+
 Exit criteria:
 
 - Reconnect and stale-tab behavior are deterministic and tested.
+- Engine error handling strategy is documented and tested.
 
 ---
 
@@ -293,14 +324,15 @@ Exit criteria:
 - Every major rule path and edge case.
 - Invalid action rejection tests.
 
-### 8.2 Property-based tests
+### 8.2 Parity tests
+
+- Runtime state == projector(state from events).
+- These are cheap to write and catch a broad class of bugs early — run these before investing in property-based fuzzing.
+
+### 8.3 Property-based tests
 
 - Invariants (no negative HP, no illegal phase transitions, etc.).
 - Fuzz action sequences within legal action space.
-
-### 8.3 Parity tests
-
-- Runtime state == projector(state from events).
 
 ### 8.4 E2E smoke tests
 
@@ -368,7 +400,9 @@ Balance loop:
 2. Simulate at scale
 3. Review distribution and timeout rates
 4. Apply targeted changes
-5. Re-run with same seed suite where useful
+5. Re-run with same pinned seed suite
+
+Maintain a pinned regression seed set: a small collection of seeds that previously exposed crashes or degenerate outcomes. Grow it over time. Re-running the same seeds after rule changes catches regressions that random sampling may miss.
 
 Deliverables:
 
@@ -429,8 +463,12 @@ src/
     renderer/
 docs/
   PRODUCT_BRIEF.md
+  ARCHITECTURE.md         ← engine error strategy, key design decisions
   EVENT_MODEL.md
   SIMULATION_TESTING.md
+  OBSERVABILITY.md
+  SECURITY.md
+  PRIVACY_TECHNICAL.md
   MANUAL_TEST_PLAN.md
   REVIEW_PLAN.md
   BACKLOG.md

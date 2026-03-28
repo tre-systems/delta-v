@@ -156,6 +156,25 @@ describe('aiAstrogation', () => {
 
     expect(hasSafeFollowUp).toBe(true);
   });
+
+  it('holds formation when a better passenger transfer is immediately available', () => {
+    const state = createGame(
+      SCENARIOS.evacuation,
+      map,
+      'PAX-HOLD',
+      findBaseHex,
+    );
+    const orders = aiAstrogation(state, 0, map, 'hard');
+    const transportOrder = must(
+      orders.find((order) => order.shipId === 'p0s0'),
+    );
+    const corvetteOrder = must(orders.find((order) => order.shipId === 'p0s1'));
+
+    expect(transportOrder.overload).toBeNull();
+    expect(corvetteOrder.overload).toBeNull();
+    expect(transportOrder.burn).not.toBeNull();
+    expect(corvetteOrder.burn).toBe(transportOrder.burn);
+  });
 });
 describe('aiOrdnance', () => {
   it('returns empty array when no enemies exist', () => {
@@ -256,18 +275,32 @@ describe('aiLogistics', () => {
     const corvette = must(
       state.ships.find((ship) => ship.owner === 0 && ship.type === 'corvette'),
     );
+    const enemy = must(state.ships.find((ship) => ship.owner === 1));
 
     state.phase = 'logistics';
     state.activePlayer = 0;
     transport.passengersAboard = 20;
     corvette.cargoUsed = 0;
+    enemy.position = { q: 0, r: 0 };
+    enemy.lastMovementPath = [{ q: 0, r: 0 }];
 
-    expect(aiLogistics(state, 0, map, 'hard')).toContainEqual({
-      sourceShipId: transport.id,
-      targetShipId: corvette.id,
-      transferType: 'passengers',
-      amount: 5,
-    });
+    expect(aiLogistics(state, 0, map, 'hard')).toEqual([
+      {
+        sourceShipId: transport.id,
+        targetShipId: corvette.id,
+        transferType: 'passengers',
+        amount: 5,
+      },
+    ]);
+  });
+
+  it('defers partial passenger transfers when immediate combat is likely', () => {
+    const state = createGame(SCENARIOS.evacuation, map, 'LOG1B', findBaseHex);
+
+    state.phase = 'logistics';
+    state.activePlayer = 0;
+
+    expect(aiLogistics(state, 0, map, 'hard')).toEqual([]);
   });
 
   it('tops up fuel from a tanker when an escort is running short', () => {
@@ -424,6 +457,21 @@ describe('aiCombat', () => {
       }
       expect(allShipIds.has(attacks[0].targetId)).toBe(true);
     }
+  });
+  it('avoids low-odds attacks from ships carrying passengers', () => {
+    const state = createGame(SCENARIOS.evacuation, map, 'PAX-CBT', findBaseHex);
+    const corvette = must(state.ships.find((ship) => ship.id === 'p0s1'));
+    const corsair = must(state.ships.find((ship) => ship.id === 'p1s0'));
+
+    corvette.passengersAboard = 5;
+    corvette.position = { q: 7, r: -6 };
+    corvette.lastMovementPath = [{ q: 7, r: -6 }];
+    corvette.velocity = { dq: 0, dr: 0 };
+    corsair.position = { q: 6, r: -6 };
+    corsair.lastMovementPath = [{ q: 6, r: -6 }];
+    corsair.velocity = { dq: 0, dr: 0 };
+
+    expect(aiCombat(state, 0, map, 'hard')).toEqual([]);
   });
 });
 describe('AI scenario handling', () => {
@@ -793,6 +841,21 @@ describe('aiOrdnance — nuke launch conditions', () => {
     const nukeLaunch = launches.find((l) => l.ordnanceType === 'nuke');
     // Normal AI doesn't launch nukes (only hard does)
     expect(nukeLaunch).toBeUndefined();
+  });
+
+  it('avoids nukes from passenger ships in a friendly stack', () => {
+    const state = createGame(SCENARIOS.evacuation, map, 'NUK3', findBaseHex);
+    const launches = aiOrdnance(state, 0, map, 'hard');
+
+    expect(launches.find((launch) => launch.ordnanceType === 'nuke')).toBe(
+      undefined,
+    );
+  });
+
+  it('does not launch ordnance from ships carrying passengers in rescue scenarios', () => {
+    const state = createGame(SCENARIOS.evacuation, map, 'NUK4', findBaseHex);
+
+    expect(aiOrdnance(state, 0, map, 'hard')).toEqual([]);
   });
 });
 describe('aiOrdnance — easy AI skip', () => {
