@@ -179,6 +179,114 @@ const projectShipAfterCourse = (ship: Ship, course: CourseResult): Ship => ({
   lifecycle: course.outcome === 'landing' ? 'landed' : 'active',
 });
 
+const isSingleShipObjectiveDuel = (state: GameState): boolean => {
+  if (
+    state.scenarioRules.checkpointBodies != null ||
+    state.scenarioRules.targetWinRequiresPassengers
+  ) {
+    return false;
+  }
+
+  return state.players.every((player, playerId) => {
+    if (!player.targetBody || !player.homeBody) {
+      return false;
+    }
+
+    const activeCombatShips = state.ships.filter(
+      (ship) =>
+        ship.owner === playerId &&
+        ship.lifecycle !== 'destroyed' &&
+        ship.baseStatus !== 'emplaced' &&
+        canAttack(ship),
+    );
+
+    return activeCombatShips.length === 1;
+  });
+};
+
+const getHomeDefenseThreat = (
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+  enemyShips: Ship[],
+): Ship | null => {
+  if (!isSingleShipObjectiveDuel(state)) {
+    return null;
+  }
+
+  const player = state.players[playerId];
+  const homeHex = map.bodies.find(
+    (body) => body.name === player.homeBody,
+  )?.center;
+  const targetHex = map.bodies.find(
+    (body) => body.name === player.targetBody,
+  )?.center;
+
+  if (!homeHex || !targetHex) {
+    return null;
+  }
+
+  const myCombatShips = state.ships.filter(
+    (ship) =>
+      ship.owner === playerId &&
+      ship.lifecycle !== 'destroyed' &&
+      ship.baseStatus !== 'emplaced' &&
+      canAttack(ship),
+  );
+  const enemyCombatShips = enemyShips.filter(canAttack);
+
+  if (myCombatShips.length === 0 || enemyCombatShips.length === 0) {
+    return null;
+  }
+
+  const myBestObjectiveDistance = Math.min(
+    ...myCombatShips.map((ship) =>
+      hexDistance(hexAdd(ship.position, ship.velocity), targetHex),
+    ),
+  );
+  const threat = minBy(enemyCombatShips, (enemy) =>
+    hexDistance(hexAdd(enemy.position, enemy.velocity), homeHex),
+  );
+
+  if (!threat) {
+    return null;
+  }
+
+  const threatDistance = hexDistance(
+    hexAdd(threat.position, threat.velocity),
+    homeHex,
+  );
+
+  // If the enemy is clearly reaching our home world sooner than we are
+  // reaching theirs, bias toward interception.
+  return threatDistance + 2 < myBestObjectiveDistance ? threat : null;
+};
+
+const scoreObjectiveHomeDefenseCourse = (
+  ship: Ship,
+  course: CourseResult,
+  threat: Ship,
+  homeHex: { q: number; r: number },
+): number => {
+  const predictedThreat = hexAdd(threat.position, threat.velocity);
+  const currentInterceptDistance = hexDistance(
+    hexAdd(ship.position, ship.velocity),
+    predictedThreat,
+  );
+  const nextInterceptDistance = hexDistance(
+    hexAdd(course.destination, course.newVelocity),
+    predictedThreat,
+  );
+  const threatToHomeDistance = hexDistance(predictedThreat, homeHex);
+  let score = (currentInterceptDistance - nextInterceptDistance) * 18;
+
+  if (threatToHomeDistance <= 10) {
+    score += Math.max(0, 8 - nextInterceptDistance) * 8;
+  }
+
+  return score;
+};
+
 const getInterceptFocusTargets = (enemyShips: Ship[]): Ship[] => {
   const revealedFugitives = enemyShips.filter(
     (enemy) => enemy.identity?.revealed && enemy.identity.hasFugitives,
@@ -1485,6 +1593,15 @@ export const aiAstrogation = (
   const enemyShips = state.ships.filter(
     (s) => s.owner !== playerId && s.lifecycle !== 'destroyed',
   );
+  const homeDefenseThreat =
+    !escapeWins && !passengerEscortMission
+      ? getHomeDefenseThreat(state, playerId, map, enemyShips)
+      : null;
+  const homeDefenseHex =
+    homeDefenseThreat != null
+      ? (map.bodies.find((body) => body.name === player.homeBody)?.center ??
+        null)
+      : null;
   const primaryPassengerCarrier = passengerEscortMission
     ? getPrimaryPassengerCarrier(state, playerId)
     : null;
@@ -1754,6 +1871,18 @@ export const aiAstrogation = (
           enemyEscaping,
           shipIndex: shipIdx,
         }) + gravityRiskPenalty;
+      if (
+        homeDefenseThreat != null &&
+        homeDefenseHex != null &&
+        canAttack(ship)
+      ) {
+        score += scoreObjectiveHomeDefenseCourse(
+          ship,
+          course,
+          homeDefenseThreat,
+          homeDefenseHex,
+        );
+      }
       let comparisonCourse = course;
 
       if (passengerEscortMission) {
@@ -1826,9 +1955,20 @@ export const aiAstrogation = (
             enemyEscaping,
             shipIndex: shipIdx,
           });
+          const altDefenseScore =
+            homeDefenseThreat != null &&
+            homeDefenseHex != null &&
+            canAttack(ship)
+              ? scoreObjectiveHomeDefenseCourse(
+                  ship,
+                  altCourse,
+                  homeDefenseThreat,
+                  homeDefenseHex,
+                )
+              : 0;
 
-          if (altScore > score) {
-            score = altScore;
+          if (altScore + altDefenseScore > score) {
+            score = altScore + altDefenseScore;
             bestLocalWG = wgChoices;
             comparisonCourse = altCourse;
           }
