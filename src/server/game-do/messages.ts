@@ -1,6 +1,5 @@
 import type { EngineEvent } from '../../shared/engine/engine-events';
 import {
-  type CombatPhaseResult,
   hasCombatResults,
   isMovementResult,
   type MovementResult,
@@ -9,20 +8,28 @@ import {
 import { filterLogisticsTransferLogEvents } from '../../shared/engine/transfer-log-events';
 import type { CombatResult, GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
+
 export type StatefulServerMessage = Extract<
   S2C,
   {
     state: GameState;
   }
 >;
+
+type GameStartMessage = Extract<
+  S2C,
+  {
+    type: 'gameStart';
+  }
+>;
+
+type BroadcastFallback = 'none' | 'stateUpdate';
 type MovementResolution = MovementResult | StateUpdateResult;
-type CombatResolution =
-  | StateUpdateResult
-  | CombatPhaseResult
-  | {
-      state: GameState;
-      results?: CombatResult[];
-    };
+type CombatResolution = {
+  state: GameState;
+  results?: CombatResult[];
+};
+
 export const toMovementResultMessage = ({
   movements,
   ordnanceMovements,
@@ -43,50 +50,53 @@ export const toCombatResultMessage = (
   results,
   state,
 });
-export const toGameStartMessage = (
-  state: GameState,
-): Extract<
-  S2C,
-  {
-    type: 'gameStart';
-  }
-> => ({
+export const toGameStartMessage = (state: GameState): GameStartMessage => ({
   type: 'gameStart',
   state,
 });
+
 export const toStateUpdateMessage = (
   state: GameState,
   engineEventsForTransferLog?: readonly EngineEvent[],
 ): StatefulServerMessage => {
-  const transferEvents =
-    engineEventsForTransferLog !== undefined
-      ? filterLogisticsTransferLogEvents(engineEventsForTransferLog)
-      : [];
-
-  if (transferEvents.length > 0) {
+  if (engineEventsForTransferLog === undefined) {
     return {
       type: 'stateUpdate',
       state,
-      transferEvents,
+    };
+  }
+
+  const transferEvents = filterLogisticsTransferLogEvents(
+    engineEventsForTransferLog,
+  );
+
+  if (transferEvents.length === 0) {
+    return {
+      type: 'stateUpdate',
+      state,
     };
   }
 
   return {
     type: 'stateUpdate',
     state,
+    transferEvents,
   };
 };
+
 export const resolveStateBearingMessage = (
   state: GameState,
   primaryMessage?: StatefulServerMessage,
 ): StatefulServerMessage => primaryMessage ?? toStateUpdateMessage(state);
+
 export const resolveMovementBroadcast = (
   result: MovementResolution,
-  fallback: 'none' | 'stateUpdate' = 'none',
+  fallback: BroadcastFallback = 'none',
 ): StatefulServerMessage | undefined => {
   if (isMovementResult(result)) {
     return toMovementResultMessage(result);
   }
+
   return fallback === 'stateUpdate'
     ? toStateUpdateMessage(result.state)
     : undefined;
@@ -94,14 +104,12 @@ export const resolveMovementBroadcast = (
 
 export const resolveCombatBroadcast = (
   result: CombatResolution,
-  fallback: 'none' | 'stateUpdate' = 'none',
+  fallback: BroadcastFallback = 'none',
 ): StatefulServerMessage | undefined => {
   if (hasCombatResults(result)) {
-    return toCombatResultMessage(
-      result.state,
-      (result as CombatPhaseResult).results,
-    );
+    return toCombatResultMessage(result.state, result.results);
   }
+
   return fallback === 'stateUpdate'
     ? toStateUpdateMessage(result.state)
     : undefined;
