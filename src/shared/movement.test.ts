@@ -381,8 +381,11 @@ describe('computeCourse - weak gravity', () => {
 });
 describe('computeCourse - crash detection', () => {
   it('ship crashing into Sol is destroyed', () => {
+    const solCenter = must(
+      map.bodies.find((body) => body.name === 'Sol')?.center,
+    );
     const ship = makeShip({
-      position: { q: 3, r: 0 },
+      position: { q: solCenter.q + 3, r: solCenter.r },
       velocity: { dq: -3, dr: 0 },
     });
     const course = computeCourse(ship, null, map);
@@ -411,9 +414,11 @@ describe('computeCourse - crash detection', () => {
     }
   });
   it('ship ending on a planetary body without a legal landing crashes', () => {
-    const mercuryCenter = { q: 4, r: 2 };
+    const mercuryCenter = must(
+      map.bodies.find((body) => body.name === 'Mercury')?.center,
+    );
     const ship = makeShip({
-      position: { q: 5, r: 2 },
+      position: { q: mercuryCenter.q + 1, r: mercuryCenter.r },
       velocity: { dq: -1, dr: 0 },
     });
     const course = computeCourse(ship, null, map);
@@ -482,12 +487,15 @@ describe('computeCourse - landing', () => {
     expect(course.outcome).not.toBe('landing');
   });
   it('asteroid landing requires stopping in the hex', () => {
+    const ceresCenter = must(
+      map.bodies.find((body) => body.name === 'Ceres')?.center,
+    );
     const ship = makeShip({
-      position: { q: -4, r: -14 },
+      position: ceresCenter,
       velocity: { dq: 0, dr: 0 },
     });
     const course = computeCourse(ship, null, map);
-    expect(course.destination).toEqual({ q: -4, r: -14 });
+    expect(course.destination).toEqual(ceresCenter);
     expect(course.outcome).toBe('landing');
     if (course.outcome === 'landing') {
       expect(course.landedAt).toBe('Ceres');

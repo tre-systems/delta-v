@@ -1099,9 +1099,21 @@ describe('ordnance system', () => {
     expect(result.ordnanceMovements[0].detonated).toBe(true);
   });
   it('tracks asteroid destruction in game state without mutating the map', () => {
-    const asteroidKey = Array.from(map.hexes.entries()).find(
-      ([, hex]) => hex.terrain === 'asteroid',
-    )?.[0];
+    const asteroidKey = Array.from(map.hexes.entries()).find(([key, hex]) => {
+      if (hex.terrain !== 'asteroid') {
+        return false;
+      }
+
+      const [q, r] = key.split(',').map(Number);
+      const westHex = map.hexes.get(hexKey({ q: q - 1, r }));
+
+      return (
+        westHex?.terrain == null ||
+        (westHex.terrain === 'space' &&
+          westHex.body == null &&
+          westHex.base == null)
+      );
+    })?.[0];
     expect(asteroidKey).toBeTruthy();
     if (!asteroidKey) return;
     const [aq, ar] = asteroidKey.split(',').map(Number);

@@ -51,8 +51,8 @@ describe('createGame', () => {
   });
   it('supports explicit split base ownership for shared worlds', () => {
     const duelState = createGame(SCENARIOS.duel, map, 'DUEL1', findBaseHex);
-    expect(duelState.players[0].bases).toEqual(['5,2']);
-    expect(duelState.players[1].bases).toEqual(['3,2']);
+    expect(duelState.players[0].bases).toEqual(['2,3']);
+    expect(duelState.players[1].bases).toEqual(['0,3']);
   });
   it('copies logistics and turn-rule scenario settings into runtime state', () => {
     const state = createGame(
