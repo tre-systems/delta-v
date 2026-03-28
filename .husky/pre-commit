@@ -9,4 +9,5 @@ npm run test:coverage
 E2E_PORT="$(node -e "const n=require('net');const s=n.createServer();s.listen(0,'127.0.0.1',()=>{process.stdout.write(String(s.address().port));s.close();});")"
 export E2E_PORT
 DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e
+DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e:a11y
 npm run simulate all 25 -- --ci
