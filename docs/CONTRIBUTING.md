@@ -38,7 +38,7 @@ Pre-commit is a POSIX shell script (`rm`, `export`, subshell). Use **Git Bash**,
 git commit --no-verify
 ```
 
-Prefer fixing the underlying issue; **CI** still runs the full pipeline.
+Prefer fixing the underlying issue; **CI** still runs lint/typecheck/coverage/build/e2e/simulation (and local hooks run `test:e2e:a11y` as well).
 
 ## Full verification
 
@@ -46,7 +46,7 @@ Prefer fixing the underlying issue; **CI** still runs the full pipeline.
 npm run verify
 ```
 
-Matches release expectations: lint, typecheck (app + tools), coverage, build, e2e, simulation.
+Matches local release expectations: lint, typecheck (app + tools), coverage, build, e2e, a11y e2e, simulation.
 
 ## Documentation
 

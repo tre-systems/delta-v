@@ -1,15 +1,21 @@
 # Delta-V Coding Standards
 
-This document captures the coding conventions that fit this codebase as it exists today. It is intentionally short and pragmatic. Use it to keep the project easy to extend without forcing unnecessary patterns onto it.
+This document captures the coding conventions that fit this codebase as it exists today. It is a pragmatic reference guide: standards that are enforced, conventions that are strongly recommended, and pattern examples that explain the architecture.
+
+## How To Read This
+
+- **Required**: expected for new code and refactors unless there is a documented exception.
+- **Recommended**: preferred default; deviate only when readability, correctness, or platform constraints justify it.
+- **Reference**: explanatory patterns and examples to align implementation style across modules.
 
 ## Core Principles
 
+- **Required:** keep docs aligned with the actual implementation.
 - Prefer readability over cleverness.
 - Prefer a single options object over long positional parameter lists (about five or more parameters), especially for public renderer and UI helpers.
 - Prefer small, testable extractions over large architectural rewrites.
 - Keep the shared rules engine functional and data-oriented.
 - Prefer functions and factory managers by default. Use classes only at imperative boundaries where long-lived mutable state is natural or the platform requires them.
-- Keep docs aligned with the actual implementation.
 
 ## Project Shape
 
@@ -17,6 +23,7 @@ This document captures the coding conventions that fit this codebase as it exist
 
 Files under `src/shared/` should remain:
 
+- **Required** for engine/rules code:
 - side-effect-free (no I/O: no DOM, no network, no storage)
 - plain typed data
 - easy to test in isolation
@@ -98,6 +105,8 @@ and
 
 ## Refactoring Guidance
 
+- **Recommended** by default; apply judgment per module.
+
 - Prefer extracting pure helper modules before introducing new patterns or libraries.
 - Reduce duplication first. Do not split files only to satisfy a size target.
 - Keep orchestrators focused on coordination, not business logic.
@@ -119,6 +128,9 @@ Do not create meaningless wrapper functions or over-fragment files just to hit n
 
 ## Testing
 
+- **Required:** co-location, engine coverage discipline, and parity safety checks for replay/projection changes.
+- **Recommended:** data-driven tests and property-based tests where they reduce risk/boilerplate.
+
 - Co-locate unit tests next to the source file as `*.test.ts`.
 - Keep rules-heavy logic covered with direct unit tests.
 - When extracting pure helpers from client/server coordinators, add tests for those helpers.
@@ -137,11 +149,16 @@ guide.
 
 ## Constants And Configuration
 
+- **Required** when values affect cross-layer behavior or protocol compatibility.
+- **Recommended** for readability and future tuning.
+
 - Avoid magic numbers when a value is shared across client/server behavior.
 - Promote shared gameplay or protocol constants into `src/shared/constants.ts` when appropriate.
 - Keep client UI timing displays aligned with server-enforced timing.
 
 ## Docs
+
+- **Required:** update docs when behavior and architecture decisions materially change.
 
 - Update docs when behavior changes materially.
 - Cross-cutting decisions: record them in [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), or this file as appropriate; keep [BACKLOG.md](./BACKLOG.md) in sync for open work. Contributor workflow: [CONTRIBUTING.md](./CONTRIBUTING.md).
@@ -424,7 +441,7 @@ interface ScenarioRules {
 
 // Engine checks:
 if (state.scenarioRules.combatDisabled) {
-  state.phase = "resupply";
+  state.phase = "logistics";
   return { state, engineEvents };
 }
 ```
@@ -561,7 +578,7 @@ automatically.
 
 The shared engine is data-oriented by design. Lean into that with functional patterns:
 
-- **Use `src/shared/util.ts` helpers** instead of writing manual reduce/loop equivalents. They exist to make intent obvious. The full set:
+- **Prefer `src/shared/util.ts` helpers** over handwritten reduce/loop equivalents when they make intent clearer. The full set:
 
   | Helper                     | Replaces                                                                                                     |
   | -------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -700,6 +717,9 @@ When the client needs to decide whether an action is legal or should be shown/en
 
 ### Library adoption policy
 
+- **Required:** default to no new runtime library unless the proposal clears the criteria below.
+- **Recommended:** bias toward explicit ownership and small local abstractions first.
+
 Default to no new runtime library. Add one only if it does
 at least one of these clearly:
 
@@ -748,6 +768,8 @@ The `applyScreenVisibility` pattern inside `createUIManager()` is the single cho
 
 ## Linting
 
+**Required:** treat Biome and typecheck failures as blockers for merge.
+
 Biome enforces the following as errors (not just warnings):
 
 | Rule               | What it enforces                                                    |
@@ -786,6 +808,8 @@ The server directory (`src/server/`) has `noUndeclaredVariables` disabled becaus
 
 ## Formatting
 
+- **Recommended:** follow these defaults for readability; prefer consistency over rigid rule-lawyering.
+
 - **Line width**: keep lines under 80 characters where practical. Break long lines at natural points (after commas, before operators, at arrow functions). Some lines will be longer — that's fine if breaking them would hurt readability.
 - **Generous whitespace**: add blank lines to keep code airy and scannable. Prefer slightly more vertical space than the minimum when it helps you (or a reader) scan structure quickly. Specifically:
   - Between methods on the same object or class
@@ -805,6 +829,8 @@ The server directory (`src/server/`) has `noUndeclaredVariables` disabled becaus
 - **Chained methods**: put each `.method()` on its own line for long chains (map/filter/reduce etc.).
 
 ## Practical Style
+
+- **Recommended** defaults for day-to-day authoring.
 
 - Use descriptive names over abbreviations unless the abbreviation is already standard in the codebase.
 - Add comments sparingly and only where they explain non-obvious intent.
