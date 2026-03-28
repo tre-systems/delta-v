@@ -92,6 +92,28 @@ describe('aiAstrogation', () => {
     const shipIds = orders.map((o) => o.shipId);
     expect(new Set(shipIds).size).toBe(2);
   });
+  it('starts enforcer pursuit after the fugitives break from Terra', () => {
+    let state = createGame(SCENARIOS.escape, map, 'ESCAPE-CHASE', findBaseHex);
+    const pilgrimOrders = aiAstrogation(state, 0, map, 'hard');
+    const pilgrimResult = processAstrogation(
+      state,
+      0,
+      pilgrimOrders,
+      map,
+      () => 0.5,
+    );
+
+    if ('error' in pilgrimResult) {
+      expect.unreachable(String(pilgrimResult.error));
+    }
+    state = pilgrimResult.state;
+
+    const orders = aiAstrogation(state, 1, map, 'hard');
+    const corvetteOrder = must(orders.find((order) => order.shipId === 'p1s0'));
+
+    expect(corvetteOrder.overload).toBeNull();
+    expect(corvetteOrder.burn).toBe(2);
+  });
   it('does not crash when ship has zero fuel', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
     const aiShip = must(state.ships.find((s) => s.owner === 1));
