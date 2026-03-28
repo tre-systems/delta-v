@@ -15,6 +15,7 @@ import {
 } from '../reactive';
 import {
   canAddFleetPurchase,
+  type FleetExistingShip,
   getFleetCartView,
   getFleetShopView,
 } from './fleet';
@@ -37,6 +38,7 @@ export const createFleetBuildingView = (
   const availableFleetPurchasesSignal = signal<
     FleetPurchaseOption[] | undefined
   >(undefined);
+  const existingShipsSignal = signal<FleetExistingShip[]>([]);
   const totalCreditsSignal = signal(0);
   const waitingSignal = signal(false);
 
@@ -53,6 +55,14 @@ export const createFleetBuildingView = (
     batch(() => {
       availableFleetPurchasesSignal.value =
         state.scenarioRules.availableFleetPurchases;
+      existingShipsSignal.value = state.ships
+        .filter((ship) => ship.owner === playerId)
+        .map((ship) => ({
+          type: ship.type,
+          lifecycle: ship.lifecycle,
+          baseStatus: ship.baseStatus,
+          cargoUsed: ship.cargoUsed,
+        }));
       totalCreditsSignal.value = credits;
       cartSignal.value = [];
       waitingSignal.value = false;
@@ -87,6 +97,7 @@ export const createFleetBuildingView = (
         cartSignal.value,
         totalCreditsSignal.value,
         availableFleetPurchasesSignal.value,
+        existingShipsSignal.value,
       ),
     );
 
@@ -160,6 +171,7 @@ export const createFleetBuildingView = (
               cartSignal.peek(),
               totalCreditsSignal.peek(),
               itemView.purchase,
+              existingShipsSignal.peek(),
             )
           ) {
             cartSignal.value = [...cartSignal.peek(), itemView.purchase];

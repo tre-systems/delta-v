@@ -103,15 +103,6 @@ const projectSetupEvent = (
         return baseState;
       }
 
-      const scenario = resolveScenarioByName(baseState.value.scenario);
-
-      if (!scenario) {
-        return {
-          ok: false,
-          error: `unknown scenario: ${baseState.value.scenario}`,
-        };
-      }
-
       const result = processFleetReady(
         baseState.value,
         event.playerId,
