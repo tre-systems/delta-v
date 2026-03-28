@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { aiAstrogation, aiCombat, aiOrdnance } from './ai';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
-import { createGame } from './engine/game-engine';
+import { createGame, processAstrogation } from './engine/game-engine';
 import { asHexKey } from './hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from './map-data';
+import { computeCourse } from './movement';
 import type { SolarSystemMap } from './types';
 
 let map: SolarSystemMap;
@@ -106,6 +107,54 @@ describe('aiAstrogation', () => {
     aiShip.overloadUsed = true;
     const withoutAllowance = aiAstrogation(state, 1, map, 'hard');
     expect(withoutAllowance[0].overload).toBeNull();
+  });
+  it('avoids takeoff plans that immediately trap the ship in a solar crash line', () => {
+    let state = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'LOOKAHEAD',
+      findBaseHex,
+    );
+    state.activePlayer = 0;
+
+    const p0Orders = aiAstrogation(state, 0, map, 'hard');
+    const p0Result = processAstrogation(state, 0, p0Orders, map, Math.random);
+
+    if ('error' in p0Result) {
+      expect.unreachable(String(p0Result.error));
+    }
+    state = p0Result.state;
+
+    const ship = must(state.ships.find((s) => s.id === 'p1s0'));
+    const [order] = aiAstrogation(state, 1, map, 'hard');
+    expect(order).toBeDefined();
+
+    const course = computeCourse(ship, order?.burn ?? null, map, {
+      overload: order?.overload ?? null,
+      weakGravityChoices: order?.weakGravityChoices,
+      destroyedBases: state.destroyedBases,
+    });
+    expect(course.outcome).not.toBe('crash');
+
+    const projectedShip = {
+      ...ship,
+      position: course.destination,
+      velocity: course.newVelocity,
+      fuel: Math.max(0, ship.fuel - course.fuelSpent),
+      pendingGravityEffects: course.enteredGravityEffects,
+      lifecycle:
+        course.outcome === 'landing'
+          ? ('landed' as const)
+          : ('active' as const),
+    };
+    const hasSafeFollowUp = [null, 0, 1, 2, 3, 4, 5].some(
+      (burn) =>
+        computeCourse(projectedShip, burn, map, {
+          destroyedBases: state.destroyedBases,
+        }).outcome !== 'crash',
+    );
+
+    expect(hasSafeFollowUp).toBe(true);
   });
 });
 describe('aiOrdnance', () => {
