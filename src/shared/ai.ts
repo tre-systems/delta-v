@@ -1736,7 +1736,7 @@ export const aiAstrogation = (
           // No escape, hard reject
           if (!canSurvive) continue;
           // Survivable but needs corrective burns
-          gravityRiskPenalty = cfg.gravityRiskPenalty;
+          gravityRiskPenalty = interceptingEnemy ? 0 : cfg.gravityRiskPenalty;
         }
       }
       let score =

@@ -110,9 +110,12 @@ describe('aiAstrogation', () => {
 
     const orders = aiAstrogation(state, 1, map, 'hard');
     const corvetteOrder = must(orders.find((order) => order.shipId === 'p1s0'));
+    const corsairOrder = must(orders.find((order) => order.shipId === 'p1s1'));
 
     expect(corvetteOrder.overload).toBeNull();
     expect(corvetteOrder.burn).toBe(2);
+    expect(corsairOrder.burn).toBe(0);
+    expect(corsairOrder.overload).toBe(0);
   });
   it('does not crash when ship has zero fuel', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
