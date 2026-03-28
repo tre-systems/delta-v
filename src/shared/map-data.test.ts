@@ -37,6 +37,23 @@ describe('buildSolarSystemMap', () => {
     expect(names).toContain('Ganymede');
     expect(names.length).toBe(11);
   });
+  it('uses the official board centers for all named bodies', () => {
+    expect(
+      Object.fromEntries(map.bodies.map((body) => [body.name, body.center])),
+    ).toEqual({
+      Sol: { q: -2, r: 2 },
+      Mercury: { q: 1, r: 3 },
+      Venus: { q: -7, r: 7 },
+      Terra: { q: 5, r: -5 },
+      Luna: { q: 9, r: -7 },
+      Mars: { q: -9, r: -5 },
+      Ceres: { q: -7, r: -10 },
+      Jupiter: { q: -1, r: -18 },
+      Io: { q: -1, r: -15 },
+      Callisto: { q: -4, r: -16 },
+      Ganymede: { q: 3, r: -21 },
+    });
+  });
   it('marks Sol surface as destructive', () => {
     const solCenter = must(map.bodies.find((b) => b.name === 'Sol')?.center);
     const hex = must(map.hexes.get(hexKey(solCenter)));
@@ -53,7 +70,16 @@ describe('buildSolarSystemMap', () => {
     const asteroids = [...map.hexes.entries()].filter(
       ([, h]) => h.terrain === 'asteroid',
     );
-    expect(asteroids.length).toBeGreaterThan(10);
+    expect(asteroids.length).toBe(43);
+    expect(asteroids.map(([key]) => key)).toContain('6,-16');
+  });
+  it('includes the clandestine base inside the eastern dense field', () => {
+    const clandestineHex = must(map.hexes.get(hexKey({ q: 6, r: -16 })));
+    expect(clandestineHex.terrain).toBe('asteroid');
+    expect(clandestineHex.base).toEqual({
+      name: 'Clandestine Base',
+      bodyName: 'Clandestine',
+    });
   });
 });
 describe('bodyHasGravity', () => {
@@ -110,6 +136,10 @@ describe('findBaseHex / findBaseHexes', () => {
   it('finds a single base for Callisto', () => {
     const bases = findBaseHexes(map, 'Callisto');
     expect(bases.length).toBe(1);
+  });
+  it('finds the clandestine base', () => {
+    const bases = findBaseHexes(map, 'Clandestine');
+    expect(bases).toEqual([{ q: 6, r: -16 }]);
   });
   it('returns no bases for Jupiter (no base directions)', () => {
     const bases = findBaseHexes(map, 'Jupiter');

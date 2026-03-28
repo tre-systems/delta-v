@@ -44,6 +44,46 @@ ORDER BY n DESC
 LIMIT 30;
 ```
 
+## Incident triage quickstart
+
+Use this when someone reports "game is broken" or metrics look wrong.
+
+1. Confirm scope quickly in Workers Logs:
+   - Is it one room code or many?
+   - Is it one browser/device cohort or broad?
+2. Run the error-spike query above, then split by hour:
+
+```sql
+SELECT
+  event,
+  strftime('%Y-%m-%d %H:00', ts / 1000, 'unixepoch') AS hour,
+  COUNT(*) AS n
+FROM events
+WHERE ts > (strftime('%s','now') - 6 * 3600) * 1000
+  AND event IN ('client_error', 'engine_error', 'projection_parity_mismatch')
+GROUP BY event, hour
+ORDER BY hour DESC, n DESC;
+```
+
+3. If `projection_parity_mismatch` or `engine_error` rises:
+   - Treat as server-authority/replay integrity risk first.
+   - Check recent deploy/commit range and disable risky rollout if needed.
+4. If `client_error` rises without server errors:
+   - Suspect client/runtime or browser-specific regressions.
+   - Correlate by `ua` and recent UI changes.
+5. If match completion looks wrong, inspect:
+   - D1 `match_archive` rows for missing/abnormal completions.
+   - R2 `matches/{gameId}.json` for a concrete broken sample.
+
+## Starter alert thresholds (tune to baseline)
+
+These are practical defaults until formal dashboards/alerts are added.
+
+- `engine_error` > 0 in a 15-minute window: page maintainer.
+- `projection_parity_mismatch` > 0 in a 15-minute window: page maintainer (high severity).
+- `client_error`: warn when current 15-minute count is >3x the same weekday/hour baseline.
+- `POST /telemetry` or `POST /error` 429 rate spikes: investigate abuse/noisy clients and consider tighter global WAF caps.
+
 ## PII / privacy stance (technical)
 
 - **Client**: `anonId` is a random UUID in `localStorage` (`deltav_anon_id`); `reportError` may include `url`, `ua`, and arbitrary context — keep context **non-sensitive** at call sites.

@@ -176,11 +176,11 @@ describe('game client input helpers', () => {
 
   it('toggles weak gravity choices before other astrogation interactions', () => {
     const map = buildSolarSystemMap();
-    const weakHex = { q: 15, r: -10 };
+    const weakHex = { q: 10, r: -7 };
     const state = createState({
       ships: [
         createShip({
-          position: { q: 14, r: -10 },
+          position: { q: 9, r: -7 },
           velocity: { dq: 1, dr: 0 },
         }),
       ],

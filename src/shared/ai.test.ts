@@ -405,7 +405,7 @@ describe('aiAstrogation — escape strategy', () => {
     const state = createGame(SCENARIOS.escape, map, 'ESC1', findBaseHex);
     const pilgrim = must(state.ships.find((s) => s.owner === 0));
     pilgrim.lifecycle = 'active';
-    pilgrim.position = { q: 0, r: -15 };
+    pilgrim.position = { q: 0, r: -10 };
     pilgrim.velocity = { dq: 0, dr: -2 };
     const orders = aiAstrogation(state, 0, map, 'hard');
     const order = orders.find((o) => o.shipId === pilgrim.id);

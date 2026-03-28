@@ -37,7 +37,7 @@ interface BodyDefinition {
 const BODY_DEFS: BodyDefinition[] = [
   {
     name: 'Sol',
-    center: { q: 0, r: 0 },
+    center: { q: -2, r: 2 },
     surfaceRadius: 2,
     gravityRings: 2,
     gravityStrength: 'full',
@@ -48,7 +48,7 @@ const BODY_DEFS: BodyDefinition[] = [
   },
   {
     name: 'Mercury',
-    center: { q: 4, r: 2 },
+    center: { q: 1, r: 3 },
     surfaceRadius: 0,
     gravityRings: 1,
     gravityStrength: 'full',
@@ -70,7 +70,7 @@ const BODY_DEFS: BodyDefinition[] = [
   },
   {
     name: 'Terra',
-    center: { q: 10, r: -8 },
+    center: { q: 5, r: -5 },
     surfaceRadius: 1,
     gravityRings: 1,
     gravityStrength: 'full',
@@ -81,7 +81,7 @@ const BODY_DEFS: BodyDefinition[] = [
   },
   {
     name: 'Luna',
-    center: { q: 14, r: -10 },
+    center: { q: 9, r: -7 },
     surfaceRadius: 0,
     gravityRings: 1,
     gravityStrength: 'weak',
@@ -103,7 +103,7 @@ const BODY_DEFS: BodyDefinition[] = [
   },
   {
     name: 'Ceres',
-    center: { q: -4, r: -14 },
+    center: { q: -7, r: -10 },
     surfaceRadius: 0,
     gravityRings: 0,
     gravityStrength: 'full',
@@ -114,7 +114,7 @@ const BODY_DEFS: BodyDefinition[] = [
   },
   {
     name: 'Jupiter',
-    center: { q: 2, r: -24 },
+    center: { q: -1, r: -18 },
     surfaceRadius: 2,
     gravityRings: 2,
     gravityStrength: 'full',
@@ -125,7 +125,7 @@ const BODY_DEFS: BodyDefinition[] = [
   },
   {
     name: 'Io',
-    center: { q: 0, r: -22 },
+    center: { q: -1, r: -15 },
     surfaceRadius: 0,
     gravityRings: 1,
     gravityStrength: 'weak',
@@ -136,7 +136,7 @@ const BODY_DEFS: BodyDefinition[] = [
   },
   {
     name: 'Callisto',
-    center: { q: -2, r: -23 },
+    center: { q: -4, r: -16 },
     surfaceRadius: 0,
     gravityRings: 1,
     gravityStrength: 'weak',
@@ -147,7 +147,7 @@ const BODY_DEFS: BodyDefinition[] = [
   },
   {
     name: 'Ganymede',
-    center: { q: 5, r: -26 },
+    center: { q: 3, r: -21 },
     surfaceRadius: 0,
     gravityRings: 1,
     gravityStrength: 'weak',
@@ -159,32 +159,102 @@ const BODY_DEFS: BodyDefinition[] = [
 ];
 
 // --- Asteroid belt hexes ---
-// Scattered between Mars/Terra and Jupiter orbits,
-// positioned in the band between inner planets and
-// Jupiter.
+// Explicit board-reference layout from docs/map.png.
+// The middle belt is a broad scattered field, and the
+// Clandestine base sits in its own dense asteroid cluster.
+const ASTEROID_BELT_HEXES: HexCoord[] = [
+  { q: -14, r: -8 },
+  { q: -13, r: -8 },
+  { q: -12, r: -8 },
+  { q: -11, r: -8 },
+  { q: -10, r: -9 },
+  { q: -9, r: -9 },
+  { q: -8, r: -9 },
+  { q: -7, r: -8 },
+  { q: -6, r: -10 },
+  { q: -5, r: -11 },
+  { q: -5, r: -9 },
+  { q: -4, r: -11 },
+  { q: -4, r: -9 },
+  { q: -3, r: -11 },
+  { q: -3, r: -10 },
+  { q: -2, r: -10 },
+  { q: -2, r: -9 },
+  { q: -1, r: -10 },
+  { q: -1, r: -8 },
+  { q: 0, r: -11 },
+  { q: 0, r: -9 },
+  { q: 1, r: -9 },
+  { q: 1, r: -8 },
+  { q: 2, r: -9 },
+  { q: 2, r: -8 },
+  { q: 2, r: -6 },
+  { q: 3, r: -8 },
+  { q: 3, r: -7 },
+  { q: 3, r: -6 },
+  { q: 4, r: -7 },
+  { q: 4, r: -6 },
+  { q: 4, r: -13 },
+  { q: 5, r: -14 },
+  { q: 6, r: -14 },
+];
+
+const CLANDESTINE_BASE_HEX: HexCoord = { q: 6, r: -16 };
+
+const CLANDESTINE_CLUSTER_HEXES: HexCoord[] = [
+  { q: 5, r: -17 },
+  { q: 6, r: -17 },
+  { q: 7, r: -17 },
+  { q: 5, r: -16 },
+  { q: 6, r: -16 },
+  { q: 7, r: -16 },
+  { q: 5, r: -15 },
+  { q: 6, r: -15 },
+  { q: 7, r: -15 },
+];
 
 const generateAsteroidHexes = (): HexCoord[] => [
-  { q: -6, r: -11 },
-  { q: -4, r: -12 },
-  { q: -2, r: -13 },
-  { q: 0, r: -13 },
-  { q: 2, r: -12 },
-  { q: 4, r: -11 },
-  { q: 6, r: -10 },
-  { q: 8, r: -10 },
-  { q: -8, r: -12 },
-  { q: -5, r: -13 },
-  { q: -1, r: -14 },
-  { q: 1, r: -14 },
-  { q: 3, r: -13 },
-  { q: 5, r: -12 },
-  { q: 7, r: -11 },
-  { q: 9, r: -11 },
-  { q: -7, r: -13 },
-  { q: -3, r: -15 },
-  { q: 3, r: -15 },
-  { q: 6, r: -13 },
+  ...ASTEROID_BELT_HEXES,
+  ...CLANDESTINE_CLUSTER_HEXES,
 ];
+
+const BODY_DEF_BY_NAME = Object.fromEntries(
+  BODY_DEFS.map((def) => [def.name, def] as const),
+) as Record<string, BodyDefinition>;
+
+const computeBodyBaseHexes = (bodyName: string): HexCoord[] => {
+  const def = BODY_DEF_BY_NAME[bodyName];
+
+  if (!def) {
+    return [];
+  }
+
+  return def.baseDirections.map((dir) => {
+    let baseHex = def.center;
+
+    for (let i = 0; i < def.surfaceRadius + 1; i++) {
+      baseHex = hexNeighbor(baseHex, dir);
+    }
+
+    return baseHex;
+  });
+};
+
+const getBodyOffset = (bodyName: string, dq: number, dr: number): HexCoord => {
+  const def = BODY_DEF_BY_NAME[bodyName];
+
+  if (!def) {
+    throw new Error(`Unknown body in map-data helper: ${bodyName}`);
+  }
+
+  return {
+    q: def.center.q + dq,
+    r: def.center.r + dr,
+  };
+};
+
+const getControlledBaseHexes = (...bodyNames: string[]): HexCoord[] =>
+  bodyNames.flatMap((bodyName) => computeBodyBaseHexes(bodyName));
 
 // --- Map builder ---
 
@@ -314,6 +384,15 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
     }
   }
 
+  const clandestineHex = ensureHex(CLANDESTINE_BASE_HEX);
+  if (clandestineHex.terrain === 'space') {
+    clandestineHex.terrain = 'asteroid';
+  }
+  clandestineHex.base = {
+    name: 'Clandestine Base',
+    bodyName: 'Clandestine',
+  };
+
   return {
     hexes,
     bodies,
@@ -345,14 +424,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ],
         targetBody: 'Venus',
         homeBody: 'Mars',
-        bases: [
-          { q: -9, r: -6 },
-          { q: -8, r: -6 },
-          { q: -10, r: -4 },
-          { q: -8, r: -5 },
-          { q: -10, r: -5 },
-          { q: -9, r: -4 },
-        ],
+        bases: getControlledBaseHexes('Mars'),
         escapeWins: false,
       },
       {
@@ -365,14 +437,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ],
         targetBody: 'Mars',
         homeBody: 'Venus',
-        bases: [
-          { q: -9, r: 7 },
-          { q: -5, r: 7 },
-          { q: -5, r: 5 },
-          { q: -7, r: 5 },
-          { q: -9, r: 9 },
-          { q: -7, r: 9 },
-        ],
+        bases: getControlledBaseHexes('Venus'),
         escapeWins: false,
       },
     ],
@@ -395,17 +460,17 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ships: [
           {
             type: 'transport',
-            position: { q: 8, r: -6 },
+            position: getBodyOffset('Terra', -2, 1),
             velocity: { dq: -2, dr: 1 },
           },
           {
             type: 'transport',
-            position: { q: 8, r: -6 },
+            position: getBodyOffset('Terra', -2, 1),
             velocity: { dq: -2, dr: 1 },
           },
           {
             type: 'transport',
-            position: { q: 8, r: -6 },
+            position: getBodyOffset('Terra', -2, 1),
             velocity: { dq: -2, dr: 1 },
           },
         ],
@@ -421,7 +486,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ships: [
           {
             type: 'corvette',
-            position: { q: 8, r: -7 },
+            position: getBodyOffset('Terra', -2, 1),
             velocity: { dq: 0, dr: 0 },
             startLanded: false,
           },
@@ -434,21 +499,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ],
         targetBody: '',
         homeBody: 'Venus',
-        bases: [
-          { q: 12, r: -10 },
-          { q: 12, r: -8 },
-          { q: 10, r: -10 },
-          { q: 8, r: -8 },
-          { q: 8, r: -6 },
-          { q: 10, r: -6 },
-          { q: -5, r: 7 },
-          { q: -5, r: 5 },
-          { q: -7, r: 5 },
-          { q: -9, r: 7 },
-          { q: -9, r: 9 },
-          { q: -7, r: 9 },
-          { q: 1, r: -22 },
-        ],
+        bases: getControlledBaseHexes('Terra', 'Venus', 'Io'),
         escapeWins: false,
       },
     ],
@@ -470,14 +521,14 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ships: [
           {
             type: 'transport',
-            position: { q: 13, r: -10 },
+            position: getBodyOffset('Luna', -1, 0),
             velocity: { dq: -2, dr: 1 },
             startLanded: false,
             initialPassengers: 40,
           },
           {
             type: 'corvette',
-            position: { q: 13, r: -10 },
+            position: getBodyOffset('Luna', -1, 0),
             velocity: { dq: -2, dr: 1 },
             startLanded: false,
           },
@@ -490,7 +541,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ships: [
           {
             type: 'corsair',
-            position: { q: 11, r: -9 },
+            position: getBodyOffset('Terra', 1, -1),
             velocity: { dq: 0, dr: 0 },
             startLanded: false,
           },
@@ -578,28 +629,28 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ships: [
           {
             type: 'frigate',
-            position: { q: 3, r: 1 },
+            position: getBodyOffset('Mercury', -1, -1),
             velocity: { dq: 0, dr: 0 },
             startLanded: false,
           },
         ],
         targetBody: '',
         homeBody: 'Mercury',
-        bases: [{ q: 5, r: 2 }],
+        bases: [getBodyOffset('Mercury', 1, 0)],
         escapeWins: false,
       },
       {
         ships: [
           {
             type: 'frigate',
-            position: { q: 5, r: 3 },
+            position: getBodyOffset('Mercury', 1, 1),
             velocity: { dq: 0, dr: 0 },
             startLanded: false,
           },
         ],
         targetBody: '',
         homeBody: 'Mercury',
-        bases: [{ q: 3, r: 2 }],
+        bases: [getBodyOffset('Mercury', -1, 0)],
         escapeWins: false,
       },
     ],
@@ -734,7 +785,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
         ships: [
           {
             type: 'corvette',
-            position: { q: 14, r: -10 },
+            position: getBodyOffset('Luna', 0, 0),
             velocity: { dq: 0, dr: 0 },
           },
         ],
