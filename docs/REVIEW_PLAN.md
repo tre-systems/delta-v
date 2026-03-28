@@ -1,6 +1,8 @@
 # Cross-Cutting Review Plan
 
-This document is a **sequenced checklist** for reviewing aspects of Delta-V that are not fully covered by day-to-day feature work. Work through **one section at a time**; each section lists scope, concrete steps, and what to record when done.
+This document is a **sequenced checklist** for reviewing aspects of Delta-V that are not fully covered by day-to-day feature work. Treat it as a **living, recurring review cadence** rather than a one-time audit.
+
+Work through **one section at a time**; each section lists scope, concrete steps, and what to record when done.
 
 **Related docs:** [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), [BACKLOG.md](./BACKLOG.md), [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md).
 
@@ -8,7 +10,14 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 1. Pick the next numbered review (order below is **recommended**, not mandatory).
 2. Complete the steps; capture findings in [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), or other `docs/` files as appropriate, and update [BACKLOG.md](./BACKLOG.md) when new work is identified.
-3. Mark the section with a date and owner in a short footer table at the bottom of this file (or in your tracker).
+3. For each section, set an explicit outcome in the review log: **complete**, **partial**, or **follow-up required**.
+4. Mark the section with date and owner in the review log table at the bottom of this file (or in your tracker).
+
+**When to run this plan**
+
+- After major architecture, protocol, telemetry, or deployment changes.
+- Before release candidates or broad public testing.
+- On a periodic ops cadence (for example monthly or quarterly), even without major feature changes.
 
 ---
 
@@ -19,6 +28,7 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 **Scope**
 
 - Husky pre-commit: lint, `typecheck:all`, coverage, e2e, simulation.
+- Husky pre-commit includes both browser e2e paths (`test:e2e` and `test:e2e:a11y`) plus simulation.
 - Vitest coverage temp-file failures (`ENOENT` under `coverage/.tmp`).
 - Playwright vs occupied `8787` during pre-commit.
 
@@ -92,12 +102,13 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 **Steps**
 
 1. Tab through create/join/play/game-over without a mouse.
-2. Run **axe** or Lighthouse accessibility on static routes (or Playwright + axe).
-3. File concrete fixes: missing `label`, `button` vs `div`, focus trap in modals, live regions for toasts if needed.
+2. Run automated baseline checks (`npm run test:e2e:a11y`) and confirm pass/fail output is actionable.
+3. Run manual checks from [A11Y.md](./A11Y.md) (keyboard flow, focus behavior, contrast review for DOM controls).
+4. File concrete fixes: missing `label`, `button` vs `div`, focus trap in modals, live regions for toasts if needed.
 
 **Deliverables**
 
-- BACKLOG tasks per major gap; optional `docs/A11Y.md` if you want a standing checklist.
+- BACKLOG tasks per major gap; update [A11Y.md](./A11Y.md) audit notes/results after each manual pass.
 
 ---
 
@@ -225,18 +236,18 @@ This document is a **sequenced checklist** for reviewing aspects of Delta-V that
 
 Initial documentation and tooling pass **2026-03-24**: configs fixed where safe; maps and prose docs updated; **manual** follow-ups (Lighthouse/axe tab-through, legal counsel) remain for humans.
 
-| #   | Area                    | Reviewed (date) | Owner | Notes / link                                                                                                   |
-| --- | ----------------------- | --------------- | ----- | -------------------------------------------------------------------------------------------------------------- |
-| 1   | CI / local dev friction | 2026-03-24      | —     | `test:coverage` + `--no-file-parallelism`; pre-commit dynamic `E2E_PORT`; [CONTRIBUTING.md](./CONTRIBUTING.md) |
-| 2   | Observability           | 2026-03-24      | —     | [OBSERVABILITY.md](./OBSERVABILITY.md)                                                                         |
-| 3   | Data lifecycle          | 2026-03-24      | —     | [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do)                                                           |
-| 4   | Accessibility           | 2026-03-24      | —     | [A11Y.md](./A11Y.md) — **manual audit still due**                                                              |
-| 5   | Bundle / runtime        | 2026-03-24      | —     | [Bundle baseline](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene); Chrome profiling optional           |
-| 6   | Supply chain / release | 2026-03-24      | —     | `npm audit` clean at review; D1 rollback in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene) |
-| 7   | Protocol compatibility | 2026-03-24      | —     | [ARCHITECTURE.md](./ARCHITECTURE.md) intro + [section 6](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts) |
-| 8   | Replay / parity         | 2026-03-24      | —     | [CODING_STANDARDS.md](./CODING_STANDARDS.md) Testing bullet                                                    |
-| 9   | i18n                    | 2026-03-24      | —     | [English-only stance](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts)                                |
-| 10  | Privacy / compliance    | 2026-03-24      | —     | [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) — **legal review out of band**                                  |
+| #   | Area                     | Reviewed (date) | Owner | Status             | Notes / link                                                                                                     |
+| --- | ------------------------ | --------------- | ----- | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| 1   | CI / local dev friction  | 2026-03-24      | —     | partial            | `test:coverage` + `--no-file-parallelism`; pre-commit dynamic `E2E_PORT`; [CONTRIBUTING.md](./CONTRIBUTING.md) |
+| 2   | Observability            | 2026-03-24      | —     | complete           | [OBSERVABILITY.md](./OBSERVABILITY.md)                                                                           |
+| 3   | Data lifecycle           | 2026-03-24      | —     | complete           | [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do)                                                             |
+| 4   | Accessibility            | 2026-03-24      | —     | follow-up required | [A11Y.md](./A11Y.md) — automated baseline shipped; manual audit still due                                        |
+| 5   | Bundle / runtime         | 2026-03-24      | —     | partial            | [Bundle baseline](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene); Chrome profiling optional             |
+| 6   | Supply chain / release   | 2026-03-24      | —     | complete           | `npm audit` clean at review; D1 rollback in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene) |
+| 7   | Protocol compatibility   | 2026-03-24      | —     | complete           | [ARCHITECTURE.md](./ARCHITECTURE.md) intro + [section 6](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts) |
+| 8   | Replay / parity          | 2026-03-24      | —     | complete           | [CODING_STANDARDS.md](./CODING_STANDARDS.md) testing guidance                                                     |
+| 9   | i18n                     | 2026-03-24      | —     | complete           | [English-only stance](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts)                                  |
+| 10  | Privacy / compliance     | 2026-03-24      | —     | follow-up required | [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) — legal review out of band                                        |
 
 ---
 
