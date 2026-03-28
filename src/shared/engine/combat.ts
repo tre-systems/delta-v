@@ -201,7 +201,10 @@ const shouldRemainInCombatPhase = (
   );
 };
 
-const combatResultToEvents = (r: CombatResult): EngineEvent[] => {
+const combatResultToEvents = (
+  r: CombatResult,
+  state: GameState,
+): EngineEvent[] => {
   const events: EngineEvent[] = [
     {
       type: 'combatAttack',
@@ -216,24 +219,25 @@ const combatResultToEvents = (r: CombatResult): EngineEvent[] => {
     },
   ];
 
-  if (r.damageType === 'eliminated') {
-    if (r.targetType === 'ship') {
+  if (r.targetType === 'ship') {
+    const target = state.ships.find((ship) => ship.id === r.targetId);
+    if (r.damageType === 'eliminated' || target?.lifecycle === 'destroyed') {
       events.push({
         type: 'shipDestroyed',
         shipId: r.targetId,
         cause: r.attackType,
       });
-    } else {
-      events.push({
-        type: 'ordnanceDestroyed',
-        ordnanceId: r.targetId,
-        cause: r.attackType,
-      });
     }
+  } else if (r.damageType === 'eliminated') {
+    events.push({
+      type: 'ordnanceDestroyed',
+      ordnanceId: r.targetId,
+      cause: r.attackType,
+    });
   }
 
   if (r.counterattack) {
-    events.push(...combatResultToEvents(r.counterattack));
+    events.push(...combatResultToEvents(r.counterattack, state));
   }
 
   return events;
@@ -260,7 +264,7 @@ export const beginCombatPhase = (
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
   for (const r of results) {
-    engineEvents.push(...combatResultToEvents(r));
+    engineEvents.push(...combatResultToEvents(r, state));
   }
 
   applyEscapeMoralVictory(state);
@@ -306,7 +310,7 @@ export const processCombat = (
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
   for (const r of results) {
-    engineEvents.push(...combatResultToEvents(r));
+    engineEvents.push(...combatResultToEvents(r, state));
   }
 
   applyEscapeMoralVictory(state);
@@ -568,7 +572,7 @@ export const processCombat = (
 
   for (let i = hazardCount; i < results.length; i++) {
     const r = results[i];
-    engineEvents.push(...combatResultToEvents(r));
+    engineEvents.push(...combatResultToEvents(r, state));
   }
 
   applyEscapeMoralVictory(state);
@@ -600,7 +604,7 @@ export const skipCombat = (
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
   for (const r of results) {
-    engineEvents.push(...combatResultToEvents(r));
+    engineEvents.push(...combatResultToEvents(r, state));
   }
 
   applyEscapeMoralVictory(state);
@@ -619,7 +623,7 @@ export const skipCombat = (
     const baseResults = resolveBaseDefense(state, playerId, map, rng);
 
     for (const r of baseResults) {
-      engineEvents.push(...combatResultToEvents(r));
+      engineEvents.push(...combatResultToEvents(r, state));
     }
 
     results.push(...baseResults);

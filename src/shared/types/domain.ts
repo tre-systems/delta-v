@@ -113,7 +113,8 @@ export interface Ship extends PositionedEntity {
   lastMovementPath?: HexCoord[];
   fuel: number;
   cargoUsed: number;
-  // Non-warships may carry only one nuke between resupplies (rulebook p.6). Reset on resupply.
+  // Tracks launched nukes for launch-limit enforcement.
+  // Non-warships are limited to one nuke launch per match.
   nukesLaunchedSinceResupply: number;
   // True during a turn in which the ship resupplied; prevents firing/ordnance (rulebook p.8).
   resuppliedThisTurn: boolean;

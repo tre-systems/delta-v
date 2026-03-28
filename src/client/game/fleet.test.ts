@@ -50,8 +50,7 @@ describe('game-client-fleet', () => {
       ),
     ).toEqual({
       kind: 'error',
-      error:
-        'Cannot purchase orbital bases directly — buy a transport and base cargo',
+      error: 'Orbital base cargo requires an available transport or packet',
     });
   });
 

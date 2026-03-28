@@ -10,11 +10,11 @@ import {
 } from './fleet';
 
 describe('ui fleet helpers', () => {
-  it('returns purchasable ship types without orbital bases and sorted by cost', () => {
+  it('returns purchasable ship types (including orbital base cargo) and sorted by cost', () => {
     const shopTypes = getFleetShopTypes();
 
     expect(shopTypes.some(([shipType]) => shipType === 'orbitalBase')).toBe(
-      false,
+      true,
     );
 
     expect(shopTypes[0][1].cost).toBeLessThanOrEqual(

@@ -38,6 +38,21 @@ import {
 // Determine whether the active player should receive
 // an ordnance phase this turn.
 export const shouldEnterOrdnancePhase = (state: GameState): boolean => {
+  const hasEmplaceableBase = state.ships.some(
+    (ship) =>
+      ship.owner === state.activePlayer &&
+      ship.lifecycle === 'active' &&
+      ship.damage.disabledTurns === 0 &&
+      ship.control !== 'captured' &&
+      !ship.resuppliedThisTurn &&
+      isBaseCarrierType(ship.type) &&
+      ship.baseStatus === 'carryingBase',
+  );
+
+  if (hasEmplaceableBase) {
+    return true;
+  }
+
   const allowedOrdnanceTypes = getAllowedOrdnanceTypes(state);
 
   if (allowedOrdnanceTypes.size === 0) {
@@ -100,6 +115,13 @@ export const processEmplacement = (
       return engineFailure(
         ErrorCode.NOT_ALLOWED,
         'Cannot emplace during a resupply turn',
+      );
+    }
+
+    if (ship.damage.disabledTurns > 0) {
+      return engineFailure(
+        ErrorCode.STATE_CONFLICT,
+        'Disabled ships cannot emplace orbital bases',
       );
     }
 

@@ -662,6 +662,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       'frigate',
       'dreadnaught',
       'torch',
+      'orbitalBase',
     ],
     players: [
       {

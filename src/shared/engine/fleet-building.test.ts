@@ -110,7 +110,7 @@ describe('fleet building (MegaCredit economy)', () => {
     );
     expect('error' in result).toBe(true);
   });
-  it('rejects direct orbital base purchase', () => {
+  it('rejects orbital base cargo without an available carrier', () => {
     const state = createGame(
       SCENARIOS.interplanetaryWar,
       map,
@@ -122,8 +122,37 @@ describe('fleet building (MegaCredit economy)', () => {
       0,
       [{ shipType: 'orbitalBase' }],
       map,
+      SCENARIOS.interplanetaryWar.availableShipTypes,
     );
     expect('error' in result).toBe(true);
+  });
+  it('assigns orbital base cargo to a purchased carrier', () => {
+    const state = createGame(
+      SCENARIOS.interplanetaryWar,
+      map,
+      'WAR01',
+      findBaseHex,
+    );
+    const purchases: FleetPurchase[] = [
+      { shipType: 'transport' },
+      { shipType: 'orbitalBase' },
+    ];
+    const result = processFleetReady(
+      state,
+      0,
+      purchases,
+      map,
+      SCENARIOS.interplanetaryWar.availableShipTypes,
+    );
+
+    expect('error' in result).toBe(false);
+    if ('state' in result) {
+      const transport = result.state.ships.find(
+        (ship) => ship.owner === 0 && ship.type === 'transport',
+      );
+      expect(transport?.baseStatus).toBe('carryingBase');
+      expect((transport?.cargoUsed ?? 0) > 0).toBe(true);
+    }
   });
   it('rejects fleet ready when not in fleetBuilding phase', () => {
     const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);

@@ -27,13 +27,17 @@ export interface FleetCartView {
 }
 
 export const getFleetShopTypes = (): [ShipType, ShipStats][] => {
-  return (Object.entries(SHIP_STATS) as [ShipType, ShipStats][])
-    .filter(([shipType]) => shipType !== 'orbitalBase')
-    .sort((left, right) => left[1].cost - right[1].cost);
+  return (Object.entries(SHIP_STATS) as [ShipType, ShipStats][]).sort(
+    (left, right) => left[1].cost - right[1].cost,
+  );
 };
 
 export const getFleetCartCost = (cart: FleetPurchase[]): number => {
-  return sumBy(cart, (purchase) => SHIP_STATS[purchase.shipType]?.cost ?? 0);
+  return sumBy(cart, (purchase) =>
+    purchase.shipType === 'orbitalBase'
+      ? 0
+      : (SHIP_STATS[purchase.shipType]?.cost ?? 0),
+  );
 };
 
 export const canAddFleetShip = (
@@ -41,9 +45,9 @@ export const canAddFleetShip = (
   totalCredits: number,
   shipType: ShipType,
 ): boolean => {
-  return (
-    getFleetCartCost(cart) + (SHIP_STATS[shipType]?.cost ?? 0) <= totalCredits
-  );
+  const cost =
+    shipType === 'orbitalBase' ? 0 : (SHIP_STATS[shipType]?.cost ?? 0);
+  return getFleetCartCost(cart) + cost <= totalCredits;
 };
 
 export const getFleetCartView = (
@@ -69,11 +73,23 @@ export const getFleetShopView = (
 ): FleetShopItemView[] => {
   const remainingCredits = totalCredits - getFleetCartCost(cart);
 
-  return getFleetShopTypes().map(([shipType, stats]) => ({
-    shipType,
-    name: stats.name,
-    statsText: `C${stats.combat}${stats.defensiveOnly ? 'D' : ''} F${stats.fuel === Infinity ? '\u221e' : stats.fuel}${stats.cargo > 0 ? ` G${stats.cargo}` : ''}`,
-    cost: stats.cost,
-    disabled: stats.cost > remainingCredits,
-  }));
+  return getFleetShopTypes().map(([shipType, stats]) => {
+    if (shipType === 'orbitalBase') {
+      return {
+        shipType,
+        name: 'Orbital Base Cargo',
+        statsText: 'Requires an available transport or packet',
+        cost: 0,
+        disabled: false,
+      };
+    }
+
+    return {
+      shipType,
+      name: stats.name,
+      statsText: `C${stats.combat}${stats.defensiveOnly ? 'D' : ''} F${stats.fuel === Infinity ? '\u221e' : stats.fuel}${stats.cargo > 0 ? ` G${stats.cargo}` : ''}`,
+      cost: stats.cost,
+      disabled: stats.cost > remainingCredits,
+    };
+  });
 };
