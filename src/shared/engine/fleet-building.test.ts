@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { ShipType } from '../constants';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
-import type { FleetPurchase, SolarSystemMap } from '../types';
+import type {
+  FleetPurchase,
+  PurchasableShipType,
+  SolarSystemMap,
+} from '../types';
 import { processFleetReady } from './fleet-building';
 import { createGame } from './game-creation';
 
@@ -112,7 +115,12 @@ describe('fleet building (MegaCredit economy)', () => {
     const result = processFleetReady(
       state,
       0,
-      [{ kind: 'ship', shipType: 'battlecruiser' as ShipType }],
+      [
+        {
+          kind: 'ship',
+          shipType: 'battlecruiser' as unknown as PurchasableShipType,
+        },
+      ],
       map,
     );
     expect('error' in result).toBe(true);
