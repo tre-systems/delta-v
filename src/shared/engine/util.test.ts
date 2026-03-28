@@ -511,14 +511,14 @@ describe('validateShipOrdnanceLaunch', () => {
     });
   });
 
-  it('non-warships limited to one nuke per resupply', () => {
+  it('non-warships limited to one nuke per match', () => {
     const ship = makeShip({
       type: 'packet',
       nukesLaunchedSinceResupply: 1,
     });
 
     expect(validateShipOrdnanceLaunch(ship, 'nuke')).toMatchObject({
-      message: 'Non-warships may carry only one nuke between resupplies',
+      message: 'Non-warships may launch only one nuke per match',
     });
   });
 

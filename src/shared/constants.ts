@@ -229,10 +229,8 @@ export const ORBITAL_BASE_MASS = 50;
 // Ordnance self-destructs after this many turns (rulebook p.5-6).
 export const ORDNANCE_LIFETIME = 5;
 
-// Cumulative disabled turns that destroy a ship.
-// The rulebook says D6 = destroyed; this threshold is higher to account for
-// the game's damage accumulation model (rulebook p.6).
-export const DAMAGE_ELIMINATION_THRESHOLD = 8;
+// Cumulative disabled turns that destroy a ship (rulebook p.6: D6 = destroyed).
+export const DAMAGE_ELIMINATION_THRESHOLD = 6;
 
 // Ship detector range in hexes (rulebook p.8).
 export const SHIP_DETECTION_RANGE = 3;

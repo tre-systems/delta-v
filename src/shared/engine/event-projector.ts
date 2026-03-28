@@ -1,4 +1,10 @@
-import { ORBITAL_BASE_MASS, ORDNANCE_MASS, SHIP_STATS } from '../constants';
+import {
+  DAMAGE_ELIMINATION_THRESHOLD,
+  isWarshipType,
+  ORBITAL_BASE_MASS,
+  ORDNANCE_MASS,
+  SHIP_STATS,
+} from '../constants';
 import { hexKey } from '../hex';
 import { findBaseHex, SCENARIOS } from '../map-data';
 import type { ScenarioDefinition, SolarSystemMap } from '../types';
@@ -288,7 +294,31 @@ const projectSetupEvent = (
       };
     }
 
-    case 'shipCrashed':
+    case 'shipCrashed': {
+      const baseState = requireState(state, event.type);
+
+      if (!baseState.ok) {
+        return baseState;
+      }
+
+      state = baseState.value;
+      const projectedShip = requireShip(state, event.shipId);
+
+      if (!projectedShip.ok) {
+        return projectedShip;
+      }
+
+      projectedShip.value.lifecycle = 'destroyed';
+      projectedShip.value.deathCause = 'crash';
+      projectedShip.value.velocity = { dq: 0, dr: 0 };
+      projectedShip.value.pendingGravityEffects = [];
+
+      return {
+        ok: true,
+        value: state,
+      };
+    }
+
     case 'shipDestroyed': {
       const baseState = requireState(state, event.type);
 
@@ -304,14 +334,8 @@ const projectSetupEvent = (
       }
 
       projectedShip.value.lifecycle = 'destroyed';
-      projectedShip.value.deathCause =
-        event.type === 'shipCrashed'
-          ? 'crash'
-          : 'cause' in event
-            ? event.cause
-            : undefined;
+      projectedShip.value.deathCause = event.cause;
       projectedShip.value.velocity = { dq: 0, dr: 0 };
-      projectedShip.value.pendingGravityEffects = [];
 
       return {
         ok: true,
@@ -411,7 +435,9 @@ const projectSetupEvent = (
 
       projectedShip.value.fuel = stats.fuel;
       projectedShip.value.cargoUsed = 0;
-      projectedShip.value.nukesLaunchedSinceResupply = 0;
+      if (isWarshipType(projectedShip.value.type)) {
+        projectedShip.value.nukesLaunchedSinceResupply = 0;
+      }
       projectedShip.value.damage = { disabledTurns: 0 };
       projectedShip.value.control = 'own';
       projectedShip.value.resuppliedThisTurn = true;
@@ -740,7 +766,7 @@ const projectSetupEvent = (
         };
       }
 
-      if (event.damageType === 'none' || event.damageType === 'eliminated') {
+      if (event.damageType === 'none') {
         return {
           ok: true,
           value: state,
@@ -753,7 +779,26 @@ const projectSetupEvent = (
         return projectedShip;
       }
 
+      if (event.damageType === 'eliminated') {
+        projectedShip.value.lifecycle = 'destroyed';
+        projectedShip.value.deathCause = event.attackType;
+        projectedShip.value.killedBy = event.attackerIds[0] ?? null;
+        projectedShip.value.velocity = { dq: 0, dr: 0 };
+        return {
+          ok: true,
+          value: state,
+        };
+      }
+
       projectedShip.value.damage.disabledTurns += event.disabledTurns;
+      if (
+        projectedShip.value.damage.disabledTurns >= DAMAGE_ELIMINATION_THRESHOLD
+      ) {
+        projectedShip.value.lifecycle = 'destroyed';
+        projectedShip.value.deathCause = event.attackType;
+        projectedShip.value.killedBy = event.attackerIds[0] ?? null;
+        projectedShip.value.velocity = { dq: 0, dr: 0 };
+      }
 
       return {
         ok: true,
