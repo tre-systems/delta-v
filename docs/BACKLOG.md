@@ -136,7 +136,7 @@ After large renderer or dependency changes, re-measure `dist/client.js` (raw + g
 
 **Owner:** whoever ships the change.
 
-**Last routine measure:** 2026-03-24 — ~518 KB raw, ~108 KB gzip (see table in ARCHITECTURE §7).
+**Last routine measure:** 2026-03-28 — ~545 KB raw, ~116 KB gzip (`dist/client.js`; measured after `npm run build`).
 
 ### 15. Public matchmaking prep (longer room identifiers)
 
@@ -163,5 +163,33 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 Husky is a **POSIX** shell script (`rm`, `export`, dynamic `E2E_PORT` via Node). If **Windows CMD** users cannot commit, add `cross-env` or reinforce **Git Bash / WSL** in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 **Owner:** you when the first report lands.
+
+### 18. Scenario balance and timeout tuning from simulation evidence
+
+**Status:** not started (new from 2026-03-28 review pass).
+
+**Remaining:** `npm run simulate -- all 100 -- --ci` reports persistent decided-rate outliers and one severe timeout profile:
+
+- Strong seat/order skew: `biplanetary` (P0 decided ~95.9%), `escape` (~98.0%).
+- Opposite skew: `fleetAction` (~24.2% P0 decided), `interplanetaryWar` (~27.6%).
+- `convoy` timeout-heavy profile (~49% timeouts, ~172.5 average turns).
+
+Investigate scenario setup, AI heuristics, and/or victory pacing so outcomes are less seat-dependent and long-run timeout rates are acceptable.
+
+**Files:** `scripts/simulate-ai.ts`, `src/shared/ai.ts`, `src/shared/ai-scoring.ts`, `src/shared/map-data.ts`, scenario-specific rules in `src/shared/engine/`
+
+**Trigger:** after AI heuristic, scenario setup, or victory-condition changes, rerun `npm run simulate -- all 100 -- --ci` and track trend.
+
+### 19. Patch high-severity `npm audit` advisory (`picomatch`)
+
+**Status:** not started (new from 2026-03-28 review pass).
+
+`npm audit --audit-level=moderate` currently reports a **high** vulnerability in transitive `picomatch` (`GHSA-3v7f-55p6-f55p`, `GHSA-c2c7-rcm5-vvqj`).
+
+**Remaining:** apply dependency updates (for example via `npm audit fix` and/or targeted transitive overrides), then rerun `npm run verify` to confirm no regressions in build, tests, e2e, or simulation.
+
+**Files:** `package-lock.json`, `package.json` (if overrides are needed), CI dependency policy docs if process changes
+
+**Owner:** maintainer / release owner before public release.
 
 ---

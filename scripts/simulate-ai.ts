@@ -2,15 +2,17 @@ import {
   type AIDifficulty,
   aiAstrogation,
   aiCombat,
+  aiLogistics,
   aiOrdnance,
+  buildAIFleetPurchases,
 } from '../src/shared/ai';
-import { SHIP_STATS, type ShipType } from '../src/shared/constants';
 import {
   beginCombatPhase,
   createGame,
   processAstrogation,
   processCombat,
   processFleetReady,
+  processLogistics,
   processOrdnance,
   skipCombat,
   skipLogistics,
@@ -21,13 +23,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../src/shared/map-data';
-import type {
-  FleetPurchase,
-  FleetPurchaseOption,
-  GameState,
-  PlayerId,
-  PurchasableShipType,
-} from '../src/shared/types';
+import type { GameState, PlayerId } from '../src/shared/types';
 
 interface SimulationMetrics {
   scenario: string;
@@ -55,51 +51,11 @@ const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
   grandTour: null, // Cooperative race
 };
 
-const simFleetBuild = (
-  state: GameState,
-  playerId: PlayerId,
-  difficulty: AIDifficulty,
-  availableFleetPurchases?: FleetPurchaseOption[],
-): FleetPurchase[] => {
-  const credits = state.players[playerId].credits ?? 0;
-  const available = new Set<PurchasableShipType>(
-    (
-      availableFleetPurchases ??
-      ((Object.keys(SHIP_STATS) as ShipType[]).filter(
-        (type): type is PurchasableShipType => type !== 'orbitalBase',
-      ) as FleetPurchaseOption[])
-    ).filter(
-      (purchase): purchase is PurchasableShipType =>
-        purchase !== 'orbitalBaseCargo',
-    ),
-  );
-  const purchases: FleetPurchase[] = [];
-  let remaining = credits;
-
-  // Strategy varies by difficulty
-  const priorities: PurchasableShipType[] =
-    difficulty === 'hard'
-      ? ['dreadnaught', 'frigate', 'torch', 'corsair', 'corvette']
-      : difficulty === 'easy'
-        ? ['corvette', 'corsair', 'packet', 'transport']
-        : ['frigate', 'corsair', 'corvette', 'packet'];
-
-  for (const shipType of priorities) {
-    if (!available.has(shipType)) continue;
-    const cost = SHIP_STATS[shipType].cost;
-    while (remaining >= cost) {
-      purchases.push({ kind: 'ship', shipType });
-      remaining -= cost;
-    }
-  }
-  return purchases;
-};
-
 const runSingleGame = async (
   scenarioName: string,
   p0Diff: AIDifficulty,
   p1Diff: AIDifficulty,
-  randomizeStart = true,
+  randomizeStart = false,
 ) => {
   const scenario = SCENARIOS[scenarioName];
   if (!scenario) throw new Error(`Unknown scenario: ${scenarioName}`);
@@ -128,7 +84,7 @@ const runSingleGame = async (
     const scenario = SCENARIOS[scenarioName];
     for (const p of [0, 1] as PlayerId[]) {
       const diff = p === 0 ? p0Diff : p1Diff;
-      const purchases = simFleetBuild(
+      const purchases = buildAIFleetPurchases(
         state,
         p,
         diff,
@@ -183,7 +139,11 @@ const runSingleGame = async (
           state = result.state;
         }
       } else if (state.phase === 'logistics') {
-        const result = skipLogistics(state, activePlayer, map);
+        const transfers = aiLogistics(state, activePlayer, map, difficulty);
+        const result =
+          transfers.length > 0
+            ? processLogistics(state, activePlayer, transfers, map)
+            : skipLogistics(state, activePlayer, map);
         if ('error' in result)
           throw new Error(`Logistics Error: ${result.error}`);
         state = result.state;
@@ -238,7 +198,11 @@ const runSingleGame = async (
   };
 };
 
-const runSimulation = async (scenarioName: string, iterations: number) => {
+const runSimulation = async (
+  scenarioName: string,
+  iterations: number,
+  randomizeStart = false,
+) => {
   console.log(
     `\n=== Starting Simulation: ${scenarioName} (${iterations} iterations) ===\n`,
   );
@@ -258,7 +222,12 @@ const runSimulation = async (scenarioName: string, iterations: number) => {
 
   for (let i = 0; i < iterations; i++) {
     try {
-      const result = await runSingleGame(scenarioName, 'hard', 'hard', true);
+      const result = await runSingleGame(
+        scenarioName,
+        'hard',
+        'hard',
+        randomizeStart,
+      );
       metrics.totalGames++;
       metrics.totalTurns += result.turns;
 
@@ -306,7 +275,10 @@ const runSimulation = async (scenarioName: string, iterations: number) => {
 const main = async () => {
   const args = process.argv.slice(2);
   const isCiMode = args.includes('--ci');
-  const filteredArgs = args.filter((a) => a !== '--ci');
+  const randomizeStart = args.includes('--randomize-start');
+  const filteredArgs = args.filter(
+    (a) => a !== '--ci' && a !== '--randomize-start',
+  );
 
   const scenario = filteredArgs[0] || 'biplanetary';
   const iterations = parseInt(filteredArgs[1] || '100', 10);
@@ -315,10 +287,10 @@ const main = async () => {
 
   if (scenario === 'all') {
     for (const key of Object.keys(SCENARIOS)) {
-      allMetrics.push(await runSimulation(key, iterations));
+      allMetrics.push(await runSimulation(key, iterations, randomizeStart));
     }
   } else {
-    allMetrics.push(await runSimulation(scenario, iterations));
+    allMetrics.push(await runSimulation(scenario, iterations, randomizeStart));
   }
 
   // Evaluate strict constraints if running in CI format

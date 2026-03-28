@@ -12,23 +12,45 @@ import { buildAIFleetPurchases, resolveLocalFleetReady } from './fleet';
 
 describe('game-client-fleet', () => {
   it('builds AI purchases from credits, difficulty, and availability', () => {
+    const map = buildSolarSystemMap();
+    const state = createGame(
+      SCENARIOS.interplanetaryWar,
+      map,
+      'FLEET-AI',
+      findBaseHex,
+    );
+
+    state.players[0].credits = 100;
     expect(
-      buildAIFleetPurchases(100, ['corvette', 'corsair', 'packet'], 'easy'),
+      buildAIFleetPurchases(
+        state,
+        0,
+        ['corvette', 'corsair', 'packet'],
+        'easy',
+      ),
     ).toEqual([
       { kind: 'ship', shipType: 'corvette' },
       { kind: 'ship', shipType: 'corvette' },
       { kind: 'ship', shipType: 'packet' },
     ]);
 
+    state.players[0].credits = 200;
     expect(
-      buildAIFleetPurchases(200, ['corvette', 'corsair', 'frigate'], 'normal'),
+      buildAIFleetPurchases(
+        state,
+        0,
+        ['corvette', 'corsair', 'frigate'],
+        'normal',
+      ),
     ).toEqual([
-      { kind: 'ship', shipType: 'corsair' },
-      { kind: 'ship', shipType: 'corsair' },
+      { kind: 'ship', shipType: 'frigate' },
       { kind: 'ship', shipType: 'corvette' },
     ]);
 
-    expect(buildAIFleetPurchases(300, ['corsair', 'frigate'], 'hard')).toEqual([
+    state.players[0].credits = 300;
+    expect(
+      buildAIFleetPurchases(state, 0, ['corsair', 'frigate'], 'hard'),
+    ).toEqual([
       { kind: 'ship', shipType: 'frigate' },
       { kind: 'ship', shipType: 'frigate' },
     ]);
@@ -149,5 +171,29 @@ describe('game-client-fleet', () => {
       [{ kind: 'ship', shipType: 'corsair' }],
       map,
     );
+  });
+
+  it('lets the AI add a tanker in logistics-enabled fleet battles', () => {
+    const map = buildSolarSystemMap();
+    const state = createGame(
+      SCENARIOS.interplanetaryWar,
+      map,
+      'SUPPORT-AI',
+      findBaseHex,
+    );
+
+    state.players[0].credits = 170;
+
+    expect(
+      buildAIFleetPurchases(
+        state,
+        0,
+        ['frigate', 'tanker', 'corvette'],
+        'normal',
+      ),
+    ).toEqual([
+      { kind: 'ship', shipType: 'frigate' },
+      { kind: 'ship', shipType: 'tanker' },
+    ]);
   });
 });

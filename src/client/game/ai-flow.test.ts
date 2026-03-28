@@ -8,6 +8,7 @@ import type {
   OrdnanceLaunch,
   PlayerState,
   Ship,
+  TransferOrder,
 } from '../../shared/types/domain';
 import { deriveAIActionPlan } from './ai-flow';
 
@@ -110,6 +111,7 @@ describe('game-client-ai-flow', () => {
         {
           astrogation,
           ordnance: vi.fn(() => []),
+          logistics: vi.fn(() => []),
           combat: vi.fn(() => []),
         },
       ),
@@ -136,6 +138,7 @@ describe('game-client-ai-flow', () => {
       deriveAIActionPlan(createState({ phase: 'ordnance' }), 0, map, 'normal', {
         astrogation: vi.fn(() => []),
         ordnance: vi.fn(() => launches),
+        logistics: vi.fn(() => []),
         combat: vi.fn(() => []),
       }),
     ).toEqual({
@@ -151,6 +154,7 @@ describe('game-client-ai-flow', () => {
       deriveAIActionPlan(createState({ phase: 'ordnance' }), 0, map, 'normal', {
         astrogation: vi.fn(() => []),
         ordnance: vi.fn(() => []),
+        logistics: vi.fn(() => []),
         combat: vi.fn(() => []),
       }),
     ).toEqual({
@@ -194,6 +198,7 @@ describe('game-client-ai-flow', () => {
       deriveAIActionPlan(createState({ phase: 'combat' }), 0, map, 'normal', {
         astrogation: vi.fn(() => []),
         ordnance: vi.fn(() => []),
+        logistics: vi.fn(() => []),
         combat: vi.fn(() => attacks),
       }),
     ).toEqual({
@@ -208,6 +213,7 @@ describe('game-client-ai-flow', () => {
       deriveAIActionPlan(createState({ phase: 'combat' }), 0, map, 'normal', {
         astrogation: vi.fn(() => []),
         ordnance: vi.fn(() => []),
+        logistics: vi.fn(() => []),
         combat: vi.fn(() => []),
       }),
     ).toEqual({
@@ -232,6 +238,60 @@ describe('game-client-ai-flow', () => {
     ).toEqual({
       kind: 'transition',
       aiPlayer: 1,
+    });
+  });
+
+  it('derives logistics actions and skip behavior', () => {
+    const map = buildSolarSystemMap();
+    const transfers: TransferOrder[] = [
+      {
+        sourceShipId: 'ai-ship',
+        targetShipId: 'player-ship',
+        transferType: 'fuel',
+        amount: 3,
+      },
+    ];
+
+    expect(
+      deriveAIActionPlan(
+        createState({ phase: 'logistics' }),
+        0,
+        map,
+        'normal',
+        {
+          astrogation: vi.fn(() => []),
+          ordnance: vi.fn(() => []),
+          logistics: vi.fn(() => transfers),
+          combat: vi.fn(() => []),
+        },
+      ),
+    ).toEqual({
+      kind: 'logistics',
+      aiPlayer: 1,
+      transfers,
+      skip: false,
+      errorPrefix: 'AI logistics error:',
+    });
+
+    expect(
+      deriveAIActionPlan(
+        createState({ phase: 'logistics' }),
+        0,
+        map,
+        'normal',
+        {
+          astrogation: vi.fn(() => []),
+          ordnance: vi.fn(() => []),
+          logistics: vi.fn(() => []),
+          combat: vi.fn(() => []),
+        },
+      ),
+    ).toEqual({
+      kind: 'logistics',
+      aiPlayer: 1,
+      transfers: [],
+      skip: true,
+      errorPrefix: 'AI skip logistics error:',
     });
   });
 });
