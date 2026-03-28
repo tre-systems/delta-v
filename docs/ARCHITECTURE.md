@@ -230,8 +230,8 @@ This is the heart of the project. All game rules live in a shared folder, making
 
 The AI uses a **config-weighted composable scoring** architecture rather than a monolithic decision tree:
 
-- **`ai-config.ts`** defines `AIDifficultyConfig` — a flat record of ~70 numeric weights and boolean flags. Three presets (`easy`, `normal`, `hard`) tune aggression, accuracy, and capability without changing any logic. This is the [Strategy pattern](https://refactoring.guru/design-patterns/strategy) expressed as data rather than class hierarchies.
-- **`ai-scoring.ts`** contains composable scoring functions, each handling one concern: `scoreNavigation` (distance/speed toward objective), `scoreEscape` (distance from center + velocity), `scoreRaceDanger` (gravity well proximity penalty), `scoreCombatTarget` (threat assessment). Each takes a course candidate and a config, returns a number.
+- **`ai-config.ts`** defines `AIDifficultyConfig` — a flat record of about 50 numeric weights and boolean flags (currently 54 fields). Three presets (`easy`, `normal`, `hard`) tune aggression, accuracy, and capability without changing any logic. This is the [Strategy pattern](https://refactoring.guru/design-patterns/strategy) expressed as data rather than class hierarchies.
+- **`ai-scoring.ts`** contains composable scoring functions, each handling one concern: `scoreNavigation` (distance/speed toward objective), `scoreEscape` (distance from center + velocity), `scoreRaceDanger` (gravity well proximity penalty), `scoreGravityLookAhead` (deferred-gravity next-turn value), and `scoreCombatPositioning` (engagement/interception posture). Each takes a course candidate and a config, returns a number.
 - **`ai.ts`** orchestrates: for each AI ship, enumerate all 7 burn options (6 hex directions + null), compute each course via `computeCourse()`, sum scores across all strategies, pick the highest. Combat and ordnance decisions follow the same evaluate-all-options-then-pick pattern.
 
 This separation means:
@@ -651,7 +651,7 @@ The extractable core is a modest fraction of the repo — enough to avoid rewrit
 
 ## 6. Current Decisions and Planned Shifts
 
-See [BACKLOG.md](BACKLOG.md) for open work. This section captures current architectural stances and why they exist.
+See [BACKLOG.md](./BACKLOG.md) for open work. This section captures current architectural stances and why they exist.
 
 - **User accounts / auth**: Adds login friction that hurts adoption during user testing. The current anonymous token model is sufficient. Revisit for native app store distribution or payment integration.
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.
@@ -666,11 +666,11 @@ See [BACKLOG.md](BACKLOG.md) for open work. This section captures current archit
 
 ## 7. Client bundle and release hygiene
 
-**Bundle baseline** (re-measured **2026-03-24**; update after large renderer or dependency changes):
+**Bundle baseline** (re-measured **2026-03-28** via `npm run build`; update after large renderer or dependency changes):
 
 | Artifact         | Raw (approx.) | Gzip (approx.) |
 | ---------------- | ------------- | -------------- |
-| `dist/client.js` | ~518 KB       | ~108 KB        |
+| `dist/client.js` | ~596 KB       | ~123 KB        |
 
 **Supply chain:** run `npm audit` before releases; use `npm run update-deps` judiciously and run `verify` after bumps.
 
