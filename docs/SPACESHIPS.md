@@ -1,51 +1,55 @@
-# Ship Aesthetics & Concept Art
+# Ship Aesthetics & Visual Direction
 
-This document explores the visual identity of the Delta-V fleet, drawing inspiration from classic hard sci-fi aesthetics.
+This document defines the visual identity of the Delta-V fleet.
+It is a style guide, not the gameplay source of truth.
+
+For gameplay stats and legality, use:
+
+- `src/shared/constants.ts` (`SHIP_STATS`, ship classes, capabilities)
+- [SPEC.md](./SPEC.md) (rules and scenario behavior)
+- [ARCHITECTURE.md](./ARCHITECTURE.md) (system design)
 
 ## Design Philosophy: "Symmetrical NASA-Punk"
 
-In the vacuum of space, form follows delta-v and orbital mechanics. Our ship designs prioritize extreme realism and a grounded, industrial aesthetic. See our deeper dive into these systems in the [**Technology & Lore Guide**](./TECHNOLOGY.md).
-- **Zero-G Symmetrical Optimization**: No "up" or "down" orientation, no aerodynamic shapes, and strictly no airplane-style cockpits. Designs lean heavily into symmetry as it's structurally efficient and visually satisfying.
-- **Visible Propulsion**: Massive, realistically-scaled engine bells and fusion drives.
-- **Advanced Thermal Management**: Sleek, flush-mounted micro-channel cooling arrays and liquid droplet radiators (no bulky or protruding radiator fins).
-- **Functional Materials**: Exposed complex bare-metal trusses, standardized spherical internal pressurized tanks, and extensive use of Kapton gold foil insulation.
+In vacuum, form follows delta-v and orbital mechanics. Ship designs should feel engineered, practical, and zero-g-native.
 
-## Fleet Concept Gallery
+- **Zero-g symmetry first:** no aerodynamic fuselages, no implied "up/down", no airplane cockpits.
+- **Visible propulsion:** large engine bells, obvious thrust vectors, believable maneuvering clusters.
+- **Thermal realism:** integrated radiators / cooling features rather than decorative fins.
+- **Functional materials:** bare trusses, tank geometry, thermal foil, exposed service panels.
 
-### The Corvette
-A compact warship optimized for high-acceleration intercepts.
-![Corvette](./assets/corvette_1774105559884.png)
+## Fleet Visual Taxonomy (Current Roster)
 
-### The Dreadnaught
-A colossal, armored slab of railguns and fusion fire.
-![Dreadnaught](./assets/dreadnaught_1774105575602.png)
+The current playable roster includes:
+`transport`, `packet`, `tanker`, `liner`, `corvette`, `corsair`, `frigate`, `dreadnaught`, `torch`, and `orbitalBase`.
 
-### The Frigate
-An agile missile platform with high-ISP propulsion.
-![Frigate](./assets/frigate_1774105594550.png)
+### Warships
 
-### The Torch
-An experimental vessel built around a massive, high-ISP engine.
-![Torch](./assets/torch_ship_1774105612448.png)
+- **Corvette:** compact interceptor silhouette, aggressive thrust-to-mass look.
+- **Corsair:** improvised raider profile, asymmetry and retrofit cues.
+- **Frigate:** long-range missile/gun platform with mission-flexible geometry.
+- **Dreadnaught:** heavy armored massing, broadside and spinal weapon emphasis.
+- **Torch:** high-energy experimental craft dominated by propulsion architecture.
 
-### The Liner
-A luxurious interplanetary passenger vessel oriented purely for zero-g (no artificial gravity rings).
-![Liner](./assets/liner_1774105633411.png)
+### Civilian and Utility Vessels
 
-### The Corsair
-A gritty, mismatched raider used for deep-space intercepts.
-![Corsair](./assets/corsair_1774105650461.png)
+- **Transport:** modular cargo/passenger hauler; practical logistics frame.
+- **Tanker:** fuel-centric mass distribution (tank volume reads clearly).
+- **Liner:** civilian long-haul comfort vessel, still fully zero-g functional.
+- **Packet:** fast courier form factor; lean hull and high-acceleration identity.
 
-### The Industrial Fleet
-A modular transport system carrying fuel and cargo across the system.
-![Industrial Fleet](./assets/transport_1774168766115.png)
+### Fixed Strategic Structure
 
-### The Orbital Base
-A sprawling industrial hub and defensive fortress.
-![Orbital Base](./assets/orbital_base_1774168783200.png)
+- **Orbital Base:** industrial-defense installation; immobile fortress silhouette with heavy weapon/readiness cues.
 
 ## Implementation Notes
-These images serve as the "mood board" for future asset development. Key color palettes identified:
-- **Military (Corvette, Frigate)**: Gunmetal (#2a2d34), Navy (#1a2c42), and warning Amber (#ffc56a).
-- **Industrial (Transport, Tanker)**: White tiles (#eef4ff), Metallic Silver (#90a0ba), and Kapton Gold (#d4af37).
-- **Experimental (Torch)**: High-energy Cyan (#7ad7ff) and deep Obsidian (#040b16).
+
+- This repo currently tracks textual visual direction; concept bitmap assets are optional and may live outside source control.
+- Keep this guide synchronized with the playable ship roster in `SHIP_STATS`.
+- If a ship is added/removed in gameplay code, update this file in the same PR.
+
+### Color Direction
+
+- **Warships:** Gunmetal `#2a2d34`, Navy `#1a2c42`, Warning Amber `#ffc56a`.
+- **Industrial/civilian:** White tile `#eef4ff`, Metallic Silver `#90a0ba`, Kapton Gold `#d4af37`.
+- **Experimental (Torch family):** High-energy Cyan `#7ad7ff`, Obsidian `#040b16`.

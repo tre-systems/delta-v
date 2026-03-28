@@ -8,6 +8,23 @@ Delta-V is a turn-based strategy game where ships move using realistic vector ph
 
 This implementation renders the game as a smooth, continuous-space experience — no visible hex grid — while using hex coordinates internally for all game logic. Ships animate along their vectors with thrust and gravity effects.
 
+## How To Read This Spec
+
+- **Gameplay truth:** mechanics and constraints documented here should match `src/shared/engine/` and `src/shared/constants.ts`.
+- **Protocol truth:** `src/shared/types/protocol.ts` is authoritative if an inline example drifts.
+- **Domain truth:** `src/shared/types/domain.ts` is authoritative for state shape and phase enums.
+- **Roadmap truth:** active future work lives in [BACKLOG.md](./BACKLOG.md); milestone sections here are historical context.
+
+## Quick Navigation
+
+- [Architecture](#architecture)
+- [Game Concepts](#game-concepts)
+- [Scenarios](#scenarios)
+- [Network Protocol](#network-protocol)
+- [Game State](#game-state)
+- [Implementation Status](#implementation-status)
+- [Design Decisions](#design-decisions)
+
 ## Architecture
 
 The project follows a modern full-stack TypeScript architecture:
@@ -53,7 +70,7 @@ static/
 
 ### Cloudflare Components
 
-**Worker (lobby-worker):**
+**Worker (`delta-v`):**
 
 - `GET /` — Serves the SPA (index.html + bundled JS/CSS)
 - `POST /create` — Generates a 5-character room code plus a creator reconnect token, initializes the Durable Object room, and locks the chosen scenario
@@ -149,32 +166,34 @@ The core mechanic. Each ship has a **velocity vector** — a displacement from i
 Each game turn consists of one player-turn per player. The player-turn is:
 
 ```
-1. ASTROGATION PHASE
+1. ASTROGATION STAGE
    - Plot fuel burns, overloads, and weak-gravity choices for the phasing player's ships
 
-2. ORDNANCE PHASE
+2. ORDNANCE STAGE
    - Launch eligible mines, torpedoes, and nukes
    - Each ship may release at most one item per turn
 
-3. MOVEMENT PHASE
+3. MOVEMENT RESOLUTION STAGE
    - Only the phasing player's ships and the phasing player's ordnance move
    - Gravity entered earlier applies now; newly entered gravity is queued for later
    - Crashes, landings, asteroid entry, ordnance contact, and ramming positions are established
 
-4. LOGISTICS PHASE (conditional — only in scenarios with logisticsEnabled)
+4. LOGISTICS STAGE (conditional — only in scenarios with logisticsEnabled)
    - Transfer fuel or cargo between friendly ships at the same hex and velocity
    - Loot disabled or surrendered enemy ships
 
-5. COMBAT PHASE
+5. COMBAT STAGE
    - Resolve asteroid hazard rolls for asteroid hexes entered at speed > 1
    - Resolve gunfire, counterattacks, planetary defense, and attacks against nukes
 
-6. RESUPPLY PHASE
-   - Bases refuel, repair, reload, transfer cargo/fuel, and provide maintenance
-   - Damaged ships recover 1 disabled turn at the end of the turn
+6. TURN ADVANCE / MAINTENANCE
+   - Base resupply is applied automatically as part of movement-resolution outcomes when legal conditions are met
+   - Damaged ships recover 1 disabled turn as turns advance
 ```
 
 After both players complete their turns, a new game turn begins.
+
+Engine `phase` values remain the compact enum from `domain.ts` (`astrogation`, `ordnance`, `logistics`, `combat`, etc.); "movement resolution" here is a gameplay step name, not a separate phase enum value.
 
 ### Ships and Cargo
 
@@ -198,7 +217,7 @@ Nine ship types plus orbital bases:
 - A combat factor with the `D` suffix marks a commercial ship that may not attack or counterattack.
 - Only warships may overload.
 - Only warships may launch torpedoes.
-- Any ship may carry and launch nukes if it has enough cargo capacity, but non-warships may carry at most one nuke at a time.
+- Any ship may carry and launch nukes if it has enough cargo capacity, but non-warships are limited to one nuke launch between resupplies.
 - Only transports and packets may carry orbital bases.
 - Fuel is not cargo.
 
@@ -352,7 +371,7 @@ Gravity is the key environmental mechanic:
 - Once detected, a ship remains detected until it reaches a friendly base.
 - **Inspection**: In hidden-identity scenarios (like _Escape_), an enforcer can reveal a hidden ship by "matching courses": ending a turn in the same hex with the identical velocity vector.
 
-Detection matters primarily in hidden-information scenarios such as Piracy and Lateral 7. In open scenarios like Bi-Planetary, all ships may simply be visible.
+Detection is most meaningful in hidden-information scenarios (implemented: Escape; rulebook-only future scenarios may extend this further). In fully open scenarios, it has less player-facing impact.
 
 ### Other Rules
 
@@ -422,7 +441,7 @@ All of these require Logistics and/or Extended Economy mechanics as prerequisite
 
 ## Scenarios
 
-Eight scenarios are implemented, selectable from the menu:
+Nine scenarios are implemented, selectable from the menu:
 
 ### Bi-Planetary (Learning Scenario)
 
@@ -439,10 +458,16 @@ Eight scenarios are implemented, selectable from the menu:
 - Server strips the `identity` object from unrevealed opponent ships
 - Moral victory is tracked per the 2018 rules if the Pilgrims disable an Enforcer ship before being lost
 
+### Lunar Evacuation (Escort)
+
+- Evacuees (transport + corvette from Luna) vs. Interceptor (corsair from Terra)
+- Logistics and passenger-rescue rules are enabled
+- Victory condition requires landing survivors at Terra
+
 ### Convoy (Escort Mission)
 
-- Escort (1 tanker + 1 frigate from Mars) vs. Pirates (2 corsairs + 1 corvette)
-- Escort must get the tanker to Venus; pirates must stop it
+- Escort (liner with passengers + tanker + frigate from Mars) vs. Pirates (2 corsairs + 1 corvette)
+- Passenger rescue logistics are enabled; target-body wins require survivors aboard
 
 ### Duel (Combat Training)
 
@@ -555,11 +580,13 @@ gameOver
   └── Exit → menu
 ```
 
-Note: resupply is handled automatically at the start of each turn (no player interaction needed). The AI opponent uses the same state machine, executing its turn during `playing_opponentTurn`.
+Note: resupply is automatic (no separate player interaction phase), and eligibility is resolved from board state during turn processing. The AI opponent uses the same state machine, executing its turn during `playing_opponentTurn`.
 
 ## Network Protocol
 
 JSON messages over WebSocket. The game is turn-based so message frequency is low.
+
+The snippets below are intentionally concise. For canonical message contracts, use `src/shared/types/protocol.ts`.
 
 ### Client → Server (C2S)
 
@@ -567,13 +594,17 @@ JSON messages over WebSocket. The game is turn-based so message frequency is low
 type C2S =
   | { type: "fleetReady"; purchases: FleetPurchase[] }
   | { type: "astrogation"; orders: AstrogationOrder[] }
+  | { type: "surrender"; shipIds: string[] }
   | { type: "ordnance"; launches: OrdnanceLaunch[] }
   | { type: "emplaceBase"; emplacements: OrbitalBaseEmplacement[] }
   | { type: "skipOrdnance" }
   | { type: "beginCombat" }
   | { type: "combat"; attacks: CombatAttack[] }
   | { type: "skipCombat" }
+  | { type: "logistics"; transfers: TransferOrder[] }
+  | { type: "skipLogistics" }
   | { type: "rematch" }
+  | { type: "chat"; text: string }
   | { type: "ping"; t: number };
 ```
 
@@ -588,6 +619,7 @@ type FleetPurchase =
 ```typescript
 type S2C =
   | { type: "welcome"; playerId: number; code: string; playerToken: string }
+  | { type: "spectatorWelcome"; code: string }
   | { type: "matchFound" }
   | { type: "gameStart"; state: GameState }
   | {
@@ -598,10 +630,15 @@ type S2C =
       state: GameState;
     }
   | { type: "combatResult"; results: CombatResult[]; state: GameState }
-  | { type: "stateUpdate"; state: GameState }
+  | {
+      type: "stateUpdate";
+      state: GameState;
+      transferEvents?: LogisticsTransferLogEvent[];
+    }
   | { type: "gameOver"; winner: number; reason: string }
   | { type: "rematchPending" }
-  | { type: "error"; message: string }
+  | { type: "chat"; playerId: number; text: string }
+  | { type: "error"; message: string; code?: ErrorCode }
   | { type: "pong"; t: number };
 ```
 
@@ -613,6 +650,7 @@ The authoritative state held by the Durable Object (see `src/shared/types/domain
 
 ```typescript
 interface GameState {
+  schemaVersion?: number;
   gameId: string;
   scenario: string;
   scenarioRules: ScenarioRules; // per-scenario flags (ordnance types, escape edge, etc.)
@@ -627,8 +665,7 @@ interface GameState {
   destroyedAsteroids: string[]; // hexKey[] removed by nukes
   destroyedBases: string[]; // hexKey[] destroyed by nukes
   players: [PlayerState, PlayerState];
-  winner: number | null;
-  winReason: string | null;
+  outcome: { winner: number; reason: string } | null;
 }
 
 interface Ship {
@@ -672,10 +709,8 @@ type Phase =
   | "fleetBuilding"
   | "astrogation"
   | "ordnance"
-  | "movement"
   | "logistics"
   | "combat"
-  | "resupply"
   | "gameOver";
 ```
 
@@ -781,7 +816,7 @@ This is where players spend most of their time:
 
 ## Map Data Format
 
-The map is defined as a JSON structure. Each hex can have multiple properties:
+The runtime map is authored in TypeScript (`src/shared/map-data.ts`) and built programmatically into typed `MapHex` records. Conceptually, each hex has the following shape:
 
 ```typescript
 interface MapHex {
@@ -804,7 +839,7 @@ interface MapHex {
 }
 ```
 
-The full solar system map has approximately 1,500–2,000 hexes. The map definition is authored by hand and stored as a static asset.
+The full solar system map is generated from static body/ring/asteroid definitions in code (not a standalone JSON asset).
 
 ## Scenarios System
 
@@ -831,78 +866,37 @@ interface ScenarioPlayer {
 }
 ```
 
-## Implementation Plan
+## Implementation Status Snapshot
 
-### Milestone 1: Core Engine + Bi-Planetary (Complete)
+For day-to-day planning, treat [BACKLOG.md](./BACKLOG.md) as the authoritative task list.
+This section is a concise status summary, not a full project tracker.
 
-- [x] Project setup (Wrangler, TypeScript, bundling)
-- [x] Hex math library (coordinates, distance, line drawing, pixel conversion)
-- [x] Map data: define solar system map (Mars–Venus corridor)
-- [x] Canvas renderer: stars background, celestial bodies, gravity indicators
-- [x] Ship rendering with directional icons and velocity arrows
-- [x] Vector movement engine with gravity
-- [x] Course planning UI (select ship, set burn, see prediction, confirm)
-- [x] Movement animation (smooth ship glide with thrust trail)
-- [x] Durable Object: game state management, turn sequencing
-- [x] Worker: room code creation, WebSocket routing
-- [x] Client WebSocket: state sync, turn submission
-- [x] Victory detection (first to land on opponent's world)
-- [x] Basic mobile-responsive touch controls
+### Implemented capabilities (high level)
 
-### Milestone 2: Combat + Escape Scenario (Complete)
+- Authoritative Worker + Durable Object multiplayer flow (create/join/ws/replay), tokenized reconnect, runtime message validation.
+- Core rules engine: vector movement, deferred/weak gravity, ordnance, combat, logistics, resupply/maintenance behavior.
+- Scenario system with nine implemented scenarios, including race/asymmetric/fleet-building variants.
+- Event-sourced match history with checkpoint + replay projection model.
+- AI single-player path, simulation tooling, and browser e2e/a11y automation coverage.
+- Spectator mode and PWA shell support.
 
-- [x] Gun combat system (odds computation, die rolling, damage tables)
-- [x] Combat UI (select attacker/target, show odds, animate results)
-- [x] Damage tracking and recovery
-- [x] Counterattack logic
-- [x] Ordnance system (mines, torpedoes)
-- [x] Ordnance movement and detonation
-- [x] Escape scenario implementation
-- [x] Ship identity concealment (Escape scenario: which transport has the fugitives?)
+### Open product expansions (summary)
 
-### Milestone 3: Full Map + Fleet Building (Complete)
+- Scenario expansion track: Lateral 7, Fleet Mutiny, Retribution.
+- Additional product/ops work as captured in [BACKLOG.md](./BACKLOG.md).
 
-- [x] Complete solar system map (all planets, moons, asteroid belt)
-- [x] MegaCredit economy and ship purchasing
-- [x] Fleet building UI
-- [x] Full ship roster (all 9 types plus orbital base emplacement support)
-- [x] Base mechanics (planetary defense, resupply, landing/takeoff)
-- [x] Orbit mechanics (emergent from speed-1 in gravity hex; visual indicator implemented)
-- [x] Nukes
-- [x] Detection / fog of war
-- [x] Minimap with ship positions, trails, and viewport indicator
-- [x] Additional scenarios: Convoy, Duel, Blockade Runner, Fleet Action
-- [x] Tuned Interplanetary War skirmish variant
+### Legacy milestone summary
 
-### Milestone 4: Polish (Complete)
+Historical delivery grouped into four completed waves:
 
-- [x] Sound effects (procedural Web Audio: thrust, combat, explosions, phase changes)
-- [x] AI opponent (single-player vs AI with Easy/Normal/Hard difficulty)
-- [x] Reconnection handling (WebSocket reconnect with player-slot persistence)
-- [x] Turn timer (2-minute timeout with 30-second warning)
-- [x] Tutorial system (phase-based tips for new players)
-- [x] Ship movement trails (persistent path history on map and minimap)
-- [x] Split-fire combat UI (queue and allocate attacks across targets in one hex)
-- [x] Automation and Simulation scripts for engine testing
-- [x] Visual Refinement: High-fidelity glassmorphism UI, tactile hover effects, and orbital ripples.
-
-### Future Roadmap
-
-- [x] Server hardening for competitive play (tokenized room access, authenticated reconnect tokens, scenario locking at room creation, runtime WebSocket payload validation)
-- [x] Orbital bases (carrying, emplacing, torpedo launching)
-- [x] PWA support (installable shell with offline-capable single-player)
-- [x] Grand Tour checkpoint race scenario
-- [x] Asteroid map visuals matching reference map
-- [x] Logistics: surrender, looting, fuel/cargo / passenger transfer (Convoy rescue baseline)
-- [x] Event-sourced match history (authoritative match stream, projection rebuilds, checkpoints)
-- [x] Turn replay
-- [ ] Scenario expansion: Lateral 7, Fleet Mutiny, Retribution
-- [ ] Spectator mode
-- [x] Passenger rescue mechanics (engine + Convoy; further scenarios as needed)
+1. Core engine + Bi-Planetary foundations.
+2. Combat + Escape hidden-identity path.
+3. Full solar-system map + fleet/economy systems.
+4. Polish, AI, reconnect/timer, replay, and testing hardening.
 
 ## Design Decisions
 
 1. **Alternating turns** (not simultaneous): Matches the original board game. Simultaneous movement would change game dynamics significantly.
-2. **Standard combat system**: The rulebook includes an optional Advanced Combat System with separate weapon/drive/structure damage tracks (p.16). Deferred — the standard D1–D5/E system is used throughout.
+2. **Standard combat system**: The implementation follows the standard D1–D5/E damage model used throughout the current digital ruleset, including implemented exceptions such as dreadnaught disabled-fire behavior and orbital-base D1 operation.
 3. **Contact geometry**: Digital hex-path intersection rather than literal geometric line intersection on the printed map. Standard for digital hex games.
 4. **2-player only**: The original supports 2+ players with referee. Multi-player support would require lobby changes, turn ordering, and faction assignment UI.

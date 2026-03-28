@@ -11,11 +11,11 @@
 
 ![Delta-V Tactical Map](./screenshot.png)
 
-**Delta-V** is an online, real-time multiplayer tactical space combat and racing game featuring realistic vector movement and orbital gravity mechanics across the inner Solar System, heavily inspired by the classic [Triplanetary (Steve Jackson Games)](https://www.sjgames.com/triplanetary/) board game.
+**Delta-V** is an online turn-based multiplayer tactical space combat and racing game featuring realistic vector movement and orbital gravity mechanics across the inner Solar System, heavily inspired by the classic [Triplanetary (Steve Jackson Games)](https://www.sjgames.com/triplanetary/) board game.
 
 Command your fleet, master astrogation trajectories, sling-shot around celestial bodies, and engage in high-stakes combat where positioning and velocity are just as crucial as firepower.
 
-Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) and [**Technology & Lore Guide**](./docs/TECHNOLOGY.md) to understand the high-fidelity NASA-punk concept art and hard sci-fi grounding of our fleet.
+Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) and [**Technology & Lore Guide**](./docs/TECHNOLOGY.md) for visual direction and hard-sci-fi technology grounding.
 
 ## 📚 Documentation Guide
 
@@ -49,9 +49,9 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 
 ### 🎮 Multiple Game Modes
 
-- **8 Playable Scenarios**: Features _Bi-Planetary_, _Escape_, _Convoy_, _Duel_, _Blockade Runner_, _Fleet Action_, _Interplanetary War_, and _Grand Tour_ race.
+- **9 Playable Scenarios**: _Bi-Planetary_, _Escape_, _Lunar Evacuation_, _Convoy_, _Duel_, _Blockade Runner_, _Fleet Action_, _Interplanetary War_, and _Grand Tour_.
 - **Local AI Opponent**: Test your skills offline against an AI component with configurable difficulty levels.
-- **Real-Time Multiplayer**: Built for fast, responsive WebSocket-based remote play.
+- **Online Multiplayer**: WebSocket-based remote play with tokenized reconnects and spectator support.
 
 ---
 
@@ -63,7 +63,7 @@ Delta-V adopts an elegant, robust architecture utilizing modern web primitives:
 src/
 ├── shared/              # Game Engine — side-effect-free (shared between client & server)
 │   ├── engine/            # Phase processors: game-creation, astrogation, combat, ordnance, etc.
-│   │   ├── engine-events.ts # EngineEvent domain event types (31 granular event types)
+│   │   ├── engine-events.ts # EngineEvent domain event types (32 granular event types)
 │   │   ├── game-engine.ts   # Barrel re-export (public API)
 │   │   └── ...              # game-creation, fleet-building, astrogation, resolve-movement,
 │   │                        # combat, ordnance, logistics, victory, util
@@ -144,12 +144,12 @@ Get your thrusters firing locally in seconds:
 | `npm run test:e2e`                                   | Run Playwright browser smoke tests against a local Wrangler server                           |
 | `npm run test:e2e:headed`                            | Run the same Playwright suite with a visible browser                                         |
 | `npm run test:watch`                                 | Run Vitest in continuous watch mode                                                          |
-| `npm run verify`                                     | Pre-release sweep: lint, `typecheck:all`, coverage, build, browser smoke, and AI simulations |
+| `npm run verify`                                     | Pre-release sweep: lint, `typecheck:all`, coverage, build, e2e smoke, a11y e2e, and AI simulations |
 | `npm run simulate -- [scenario] [iterations] [--ci]` | Run headless AI vs AI matches to test engine stability and scenario balance                  |
 | `npm run load:test -- --games 20 --concurrency 5`    | Run the websocket load / chaos harness against a Wrangler or deployed server                 |
 | `npm run deploy`                                     | Deploy straight to Cloudflare Workers                                                        |
 
-Pass simulation arguments after npm's `--`, for example `npm run simulate -- all 25 --ci`.
+Pass simulation arguments after npm's `--`, for example `npm run simulate -- all 25 -- --ci`.
 
 ### Test Strategy
 
@@ -158,6 +158,7 @@ Delta-V uses three complementary automated test layers:
 - **Vitest** is the main regression net. Keep engine, protocol, client helper, and server logic covered with direct unit / property tests close to the source.
 - **AI simulation** (`npm run simulate`) covers scenario-wide engine stability and balance much more cheaply than browser automation.
 - **Playwright** stays intentionally small and fast. It is a **browser smoke suite**, not a full scenario matrix. Use it for a few end-to-end contracts that only a real browser can prove, such as booting the app, starting a match, basic multiplayer join/chat/reconnect, and other thin UI integration checks.
+- **Playwright + axe** (`npm run test:e2e:a11y`) provides a focused DOM accessibility baseline for menu/lobby/HUD/help and keyboard focus behavior.
 
 When deciding where a new test belongs:
 
@@ -177,7 +178,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 
 ### Complete
 
-- [x] 8 playable scenarios with AI opponent (Easy/Normal/Hard)
+- [x] 9 playable scenarios with AI opponent (Easy/Normal/Hard)
 - [x] Server hardening (authoritative room creation, authenticated reconnects, runtime validation)
 - [x] Hidden information (server-side state filtering for _Escape_)
 - [x] Orbital bases, core logistics, reinforcements, fleet conversion
@@ -187,7 +188,7 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] 1,500+ automated tests across 110+ test files, plus browser smoke coverage and scenario AI simulations
 - [x] Engine decomposition into focused phase processors (game-creation, astrogation, resolve-movement, combat, etc.)
 - [x] Typed Ship state models (`lifecycle`, `control` fields with impossible states unrepresentable)
-- [x] Granular engine events (31 `EngineEvent` types emitted by engine, replacing server-side derivation)
+- [x] Granular engine events (32 `EngineEvent` types emitted by engine, replacing server-side derivation)
 - [x] Data-driven AI configuration (per-difficulty scoring weights in `ai-config.ts`)
 - [x] AI scoring decomposition (5 composable strategy functions in `ai-scoring.ts`)
 - [x] Archive persistence extracted from Durable Object into standalone module
@@ -198,7 +199,6 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 
 - [x] **Passenger Rescue Mechanics**: Baseline in engine + Convoy (see `docs/BACKLOG.md` **3** for extensions)
 - [ ] **Scenario Expansion**: Lateral 7, Fleet Mutiny, Retribution
-- [ ] **Spectator Mode**: Read-only live battle viewing from public filtered projections
 
 ## 🔗 External References
 
