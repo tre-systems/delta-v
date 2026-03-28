@@ -7,7 +7,7 @@ import {
   hexToPixel,
   hexVecLength,
 } from '../../shared/hex';
-import type { GameState, Ship } from '../../shared/types/domain';
+import type { GameState, PlayerId, Ship } from '../../shared/types/domain';
 
 export interface ShipStackOffset {
   xOffset: number;
@@ -42,7 +42,7 @@ export interface DetonatedOrdnanceOverlay {
 
 export const getVisibleShips = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   isAnimating: boolean,
 ): Ship[] => {
   return state.ships.filter((ship) => {
@@ -113,7 +113,7 @@ export const getDisabledShipLabel = (
 
 export const getShipIdentityMarker = (
   ship: Ship,
-  playerId: number,
+  playerId: PlayerId,
   hiddenIdentityInspection: boolean,
   isAnimating: boolean,
 ): ShipIdentityMarker | null => {
@@ -155,7 +155,7 @@ export const shouldShowLandedIndicator = (
 
 export const buildShipLabelView = (
   ship: Ship,
-  playerId: number,
+  playerId: PlayerId,
   inGravity: boolean,
   _isAnimating: boolean,
 ): ShipLabelView | null => {
@@ -193,7 +193,10 @@ export const buildShipLabelView = (
   };
 };
 
-export const getOrdnanceColor = (owner: number, playerId: number): string => {
+export const getOrdnanceColor = (
+  owner: PlayerId,
+  playerId: PlayerId,
+): string => {
   return owner === playerId ? '#4fc3f7' : '#ff9800';
 };
 

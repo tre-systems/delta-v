@@ -1,5 +1,9 @@
 import type { HexCoord } from '../../shared/hex';
-import type { GameState, SolarSystemMap } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import {
   type CombatTargetPlan,
   createCombatTargetPlan,
@@ -19,7 +23,7 @@ const interpretCombatClick = (
   hex: HexCoord,
   state: GameState,
   map: SolarSystemMap | null,
-  playerId: number,
+  playerId: PlayerId,
   planning: PlanningState,
 ): GameCommand[] => {
   // Check enemy targets first so mixed hexes prioritise
@@ -101,7 +105,7 @@ const interpretAstrogationClick = (
   hex: HexCoord,
   state: GameState,
   map: SolarSystemMap,
-  playerId: number,
+  playerId: PlayerId,
   planning: PlanningState,
 ): GameCommand[] => {
   const interaction = resolveAstrogationClick(
@@ -152,7 +156,7 @@ const interpretAstrogationClick = (
 const interpretOrdnanceClick = (
   hex: HexCoord,
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: PlanningState,
 ): GameCommand[] => {
   const interaction = resolveOrdnanceClick(state, playerId, planning, hex);
@@ -183,7 +187,7 @@ const interpretClickHex = (
   hex: HexCoord,
   state: GameState | null,
   map: SolarSystemMap | null,
-  playerId: number,
+  playerId: PlayerId,
   planning: PlanningState,
 ): GameCommand[] => {
   if (!state || !map) return [];
@@ -206,7 +210,7 @@ export const interpretInput = (
   event: InputEvent,
   state: GameState | null,
   map: SolarSystemMap | null,
-  playerId: number,
+  playerId: PlayerId,
   planning: PlanningState,
 ): GameCommand[] => {
   switch (event.type) {

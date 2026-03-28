@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { TransferPair } from '../../shared/engine/logistics';
 import { buildSolarSystemMap } from '../../shared/map-data';
-import type { FleetPurchase, GameState, Ship } from '../../shared/types/domain';
+import type {
+  FleetPurchase,
+  GameState,
+  PlayerId,
+  Ship,
+} from '../../shared/types/domain';
 import { type CommandRouterDeps, dispatchGameCommand } from './command-router';
 import type { LogisticsUIState } from './logistics-ui';
 import { createInitialPlanningState } from './planning';
@@ -167,7 +172,7 @@ const createDeps = (overrides?: {
     astrogationDeps: {
       getGameState: () => ctx.gameState,
       getClientState: () => ctx.state,
-      getPlayerId: () => ctx.playerId,
+      getPlayerId: () => ctx.playerId as PlayerId,
       getTransport: () => ctx.transport,
       planningState: ctx.planningState,
       showToast,
@@ -175,7 +180,7 @@ const createDeps = (overrides?: {
     combatDeps: {
       getGameState: () => ctx.gameState,
       getClientState: () => ctx.state,
-      getPlayerId: () => ctx.playerId,
+      getPlayerId: () => ctx.playerId as PlayerId,
       getTransport: () => ctx.transport,
       getMap: () => map,
       planningState: ctx.planningState,

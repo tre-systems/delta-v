@@ -6,6 +6,7 @@ import type {
   GameState,
   MovementEvent,
   OrdnanceMovement,
+  PlayerId,
   ShipMovement,
 } from '../../shared/types/domain';
 import {
@@ -24,7 +25,7 @@ export interface PresentationDeps {
   setState: (newState: string) => void;
   resetCombatState: () => void;
   getGameState: () => GameState | null;
-  getPlayerId: () => number;
+  getPlayerId: () => PlayerId;
   renderer: {
     showMovementEvents: (events: MovementEvent[]) => void;
     animateMovements: (

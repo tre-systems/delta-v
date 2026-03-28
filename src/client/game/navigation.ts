@@ -3,11 +3,12 @@ import { getFugitiveShip } from '../../shared/engine/victory';
 import { type HexCoord, hexDistance, hexToPixel } from '../../shared/hex';
 import type {
   GameState,
+  PlayerId,
   Ship,
   SolarSystemMap,
 } from '../../shared/types/domain';
 
-const getOwnedShips = (state: GameState, playerId: number): Ship[] => {
+const getOwnedShips = (state: GameState, playerId: PlayerId): Ship[] => {
   return state.ships.filter(
     (ship) => ship.owner === playerId && isOrderableShip(ship),
   );
@@ -15,7 +16,7 @@ const getOwnedShips = (state: GameState, playerId: number): Ship[] => {
 
 export const getNextSelectedShip = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   selectedShipId: string | null,
   direction: number,
 ): Ship | null => {
@@ -33,7 +34,7 @@ export const getNextSelectedShip = (
 
 export const getNearestEnemyPosition = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   cameraX: number,
   cameraY: number,
   hexSize: number,
@@ -66,7 +67,7 @@ export const getNearestEnemyPosition = (
 
 export const getOwnFleetFocusPosition = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   selectedShipId: string | null,
 ): HexCoord | null => {
   const ships = getOwnedShips(state, playerId);
@@ -107,7 +108,7 @@ const escapeHintHex = (
 /** Hex to aim the minimap objective arrow toward (mirrors HUD objective modes). */
 export const getObjectiveBearingTargetHex = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
   fromShip: Pick<Ship, 'position'> | null,
 ): HexCoord | null => {
@@ -182,7 +183,7 @@ const MIN_OBJECTIVE_BEARING_PIXEL_DIST = 10;
 /** Degrees for CSS `rotate()` on a right-pointing arrow (→); east = 0°, clockwise positive. */
 export const getObjectiveBearingScreenDegrees = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
   hexSize: number,
   fromShip: Pick<Ship, 'position'> | null,

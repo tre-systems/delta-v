@@ -9,6 +9,7 @@ import {
 import { computeCourse, predictDestination } from '../../shared/movement';
 import type {
   GameState,
+  PlayerId,
   Ship,
   SolarSystemMap,
 } from '../../shared/types/domain';
@@ -66,7 +67,7 @@ const getShipById = (state: GameState, shipId: string | null): Ship | null => {
 
 const getOwnShipAtHex = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   clickHex: HexCoord,
   options: {
     requireOperational?: boolean;
@@ -214,7 +215,7 @@ const resolveBurnToggle = (
 export const resolveAstrogationClick = (
   state: GameState,
   map: SolarSystemMap,
-  playerId: number,
+  playerId: PlayerId,
   planning: InputPlanningSnapshot,
   clickHex: HexCoord,
 ): AstrogationInteraction => {
@@ -302,7 +303,7 @@ const cycleTorpedoAcceleration = (
 
 export const resolveOrdnanceClick = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: InputPlanningSnapshot,
   clickHex: HexCoord,
 ): OrdnanceInteraction => {

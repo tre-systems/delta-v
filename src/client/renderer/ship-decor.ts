@@ -1,5 +1,5 @@
 import type { PixelCoord } from '../../shared/hex';
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { AnimationState } from './animation';
 import {
   buildShipLabelView,
@@ -12,7 +12,7 @@ import {
 type DrawIdentityMarkersInput = {
   ctx: CanvasRenderingContext2D;
   ship: GameState['ships'][number];
-  playerId: number;
+  playerId: PlayerId;
   state: GameState;
   pos: PixelCoord;
   animState: AnimationState | null;
@@ -30,7 +30,7 @@ type DrawOrbitAndLandedRingsInput = {
 type DrawShipLabelsInput = {
   ctx: CanvasRenderingContext2D;
   ship: GameState['ships'][number];
-  playerId: number;
+  playerId: PlayerId;
   pos: PixelCoord;
   labelYOffset: number;
   inGravity: boolean;

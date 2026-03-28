@@ -1,5 +1,9 @@
 import { type HexCoord, hexToPixel } from '../../shared/hex';
-import type { GameState, SolarSystemMap } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import {
   clipViewportToMinimap,
   type MinimapLayout,
@@ -66,7 +70,7 @@ const buildBodyDots = (
 
 const buildShipTrailViews = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   shipTrails: Map<string, HexCoord[]>,
   layout: MinimapLayout,
   hexSize: number,
@@ -98,7 +102,7 @@ const buildShipTrailViews = (
 
 const buildShipDots = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   layout: MinimapLayout,
   hexSize: number,
 ): MinimapDotView[] => {
@@ -163,7 +167,7 @@ const buildViewportView = (
 export const buildMinimapSceneView = (
   map: SolarSystemMap,
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   shipTrails: Map<string, HexCoord[]>,
   layout: MinimapLayout,
   camera: MinimapCameraView,

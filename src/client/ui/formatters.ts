@@ -2,6 +2,7 @@ import { SHIP_STATS } from '../../shared/constants';
 import type {
   CombatResult,
   MovementEvent,
+  PlayerId,
   Ship,
 } from '../../shared/types/domain';
 import type { LogisticsTransferLogEvent } from '../../shared/types/protocol';
@@ -253,7 +254,7 @@ const getCombatAttackerDescription = (
 export const formatCombatResultEntries = (
   result: CombatResult,
   ships: Ship[],
-  playerId: number,
+  playerId: PlayerId,
 ): LogEntryView[] => {
   const entries: LogEntryView[] = [];
 

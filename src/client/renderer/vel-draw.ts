@@ -1,4 +1,4 @@
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import { buildVelocityVectorViews, type VelocityVectorView } from './vectors';
 
 const drawVectorArrowHead = (
@@ -49,7 +49,7 @@ const drawVectorSpeedLabel = (
 export const drawVelocityVectorLayer = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   hexSize: number,
 ): void => {
   for (const vector of buildVelocityVectorViews(state, playerId, hexSize)) {

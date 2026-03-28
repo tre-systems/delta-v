@@ -2,6 +2,7 @@ import type { MovementResult } from '../../shared/engine/game-engine';
 import type {
   CombatResult,
   GameState,
+  PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
 import type { Renderer } from '../renderer/renderer';
@@ -27,7 +28,7 @@ import {
 export interface ActionDepsArgs {
   getGameState: () => GameState | null;
   getClientState: () => ClientState;
-  getPlayerId: () => number;
+  getPlayerId: () => PlayerId;
   getTransport: () => { submitAstrogation: unknown } | null;
   getMap: () => SolarSystemMap;
   getAIDifficulty: () => string;

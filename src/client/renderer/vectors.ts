@@ -15,6 +15,7 @@ import {
 import { predictDestination } from '../../shared/movement';
 import type {
   GameState,
+  PlayerId,
   ShipMovement,
   SolarSystemMap,
 } from '../../shared/types/domain';
@@ -69,7 +70,7 @@ export interface MovementPathView {
 
 export const buildDetectionRangeViews = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   selectedShipId: string | null,
   map: SolarSystemMap,
   hexSize: number,
@@ -145,7 +146,7 @@ const buildArrowHead = (
 
 export const buildVelocityVectorViews = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   hexSize: number,
 ): VelocityVectorView[] => {
   const views: VelocityVectorView[] = [];
@@ -238,7 +239,7 @@ export const buildVelocityVectorViews = (
 
 export const buildShipTrailViews = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   shipTrails: Map<string, HexCoord[]>,
   hexSize: number,
 ): TrailView[] => {
@@ -274,7 +275,7 @@ export const buildShipTrailViews = (
 
 export const buildOrdnanceTrailViews = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   ordnanceTrails: Map<string, HexCoord[]>,
   hexSize: number,
 ): TrailView[] => {
@@ -308,7 +309,7 @@ export interface BaseThreatView {
 
 export const buildBaseThreatZoneViews = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
   hexSize: number,
 ): BaseThreatView[] => {
@@ -355,7 +356,7 @@ export const buildBaseThreatZoneViews = (
 
 export const buildMovementPathViews = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   movements: ShipMovement[],
   progress: number,
   hexSize: number,

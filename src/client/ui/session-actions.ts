@@ -1,5 +1,7 @@
+import type { PlayerId } from '../../shared/types/domain';
+
 type CreateSessionActionsInput = {
-  setPlayerId: (id: number) => void;
+  setPlayerId: (id: PlayerId | -1) => void;
   setMenuLoading: (loading: boolean) => void;
 };
 

@@ -1,5 +1,5 @@
 import { type HexCoord, hexEqual } from '../../shared/hex';
-import type { GameState, Ship } from '../../shared/types/domain';
+import type { GameState, PlayerId, Ship } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 
 const TOOLTIP_HIDDEN_STATES = new Set<ClientState>([
@@ -13,7 +13,7 @@ const TOOLTIP_HIDDEN_STATES = new Set<ClientState>([
 export const getTooltipShip = (
   state: GameState | null,
   clientState: ClientState,
-  playerId: number,
+  playerId: PlayerId,
   hoverHex: HexCoord,
 ): Ship | null => {
   if (!state || TOOLTIP_HIDDEN_STATES.has(clientState)) {
