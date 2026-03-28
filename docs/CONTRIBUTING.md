@@ -8,7 +8,8 @@ The hook runs, in order:
 2. `npm run typecheck:all`
 3. `rm -rf coverage` then `npm run test:coverage` (clean output dir)
 4. `npm run test:e2e` (Playwright; see below)
-5. `npm run simulate all 25 -- --ci`
+5. `npm run test:e2e:a11y` (Playwright + axe baseline)
+6. `npm run simulate all 25 -- --ci`
 
 ### Coverage (`test:coverage`)
 
@@ -20,6 +21,7 @@ If coverage still fails, remove `coverage/` and retry: `rm -rf coverage && npm r
 
 Default Playwright port is **8787** (`playwright.config.ts`).
 
+- Accessibility baseline run: `npm run test:e2e:a11y`
 - **CI** runs `npm run test:e2e` without `E2E_PORT`, so the web server uses **8787**.
 - **Pre-commit** assigns a **free TCP port** via Node, sets `E2E_PORT`, and sets `DELTAV_PRE_COMMIT_E2E=1` so Playwright does **not** reuse an existing server (avoids attaching to the wrong process if a fixed port is busy).
 - To run e2e manually while **`npm run dev`** holds **8787**: `E2E_PORT=8788 npm run test:e2e` (or any free port).
