@@ -179,6 +179,101 @@ const projectShipAfterCourse = (ship: Ship, course: CourseResult): Ship => ({
   lifecycle: course.outcome === 'landing' ? 'landed' : 'active',
 });
 
+const getInterceptFocusTargets = (enemyShips: Ship[]): Ship[] => {
+  const revealedFugitives = enemyShips.filter(
+    (enemy) => enemy.identity?.revealed && enemy.identity.hasFugitives,
+  );
+
+  return revealedFugitives.length > 0 ? revealedFugitives : enemyShips;
+};
+
+const getInterceptContinuationPreference = (
+  ship: Ship,
+  course: CourseResult,
+  enemyShips: Ship[],
+  shipIndex: number,
+  difficulty: AIDifficulty,
+  map: SolarSystemMap,
+  destroyedBases: GameState['destroyedBases'],
+): { bonus: number; tiebreak: number } => {
+  if (enemyShips.length === 0) {
+    return { bonus: 0, tiebreak: -Infinity };
+  }
+
+  const focusTargets = getInterceptFocusTargets(enemyShips);
+  const assignedTarget =
+    difficulty === 'hard' && focusTargets.length > 1
+      ? focusTargets[shipIndex % focusTargets.length]
+      : (minBy(focusTargets, (enemy) =>
+          hexDistance(course.destination, enemy.position),
+        ) ?? focusTargets[0]);
+
+  if (!assignedTarget) {
+    return { bonus: 0, tiebreak: -Infinity };
+  }
+
+  const predictedTargetPosition = hexAdd(
+    assignedTarget.position,
+    assignedTarget.velocity,
+  );
+  const targetVelocity = {
+    q: assignedTarget.velocity.dq,
+    r: assignedTarget.velocity.dr,
+  };
+  const simulatedShip = projectShipAfterCourse(ship, course);
+  const currentDistance = hexDistance(
+    course.destination,
+    predictedTargetPosition,
+  );
+  const currentVelocityDelta = hexDistance(
+    {
+      q: course.newVelocity.dq,
+      r: course.newVelocity.dr,
+    },
+    targetVelocity,
+  );
+  let bestFutureDistance = currentDistance;
+  let bestVelocityDelta = currentVelocityDelta;
+
+  for (const burn of [null, 0, 1, 2, 3, 4, 5] as const) {
+    const followUp = computeCourse(simulatedShip, burn, map, {
+      destroyedBases,
+    });
+
+    if (followUp.outcome === 'crash') {
+      continue;
+    }
+
+    const futureDistance = hexDistance(
+      followUp.destination,
+      predictedTargetPosition,
+    );
+    const velocityDelta = hexDistance(
+      {
+        q: followUp.newVelocity.dq,
+        r: followUp.newVelocity.dr,
+      },
+      targetVelocity,
+    );
+
+    if (
+      futureDistance < bestFutureDistance ||
+      (futureDistance === bestFutureDistance &&
+        velocityDelta < bestVelocityDelta)
+    ) {
+      bestFutureDistance = futureDistance;
+      bestVelocityDelta = velocityDelta;
+    }
+  }
+
+  return {
+    bonus:
+      (currentDistance - bestFutureDistance) * 4 +
+      (currentVelocityDelta - bestVelocityDelta),
+    tiebreak: -bestFutureDistance * 20 - bestVelocityDelta,
+  };
+};
+
 const usesObjectiveFleet = (state: GameState, playerId: PlayerId): boolean => {
   const player = state.players[playerId];
 
@@ -1531,10 +1626,17 @@ export const aiAstrogation = (
     let bestBurn: number | null = null;
     let bestOverload: number | null = null;
     let bestScore = -Infinity;
+    let bestInterceptTiebreak = -Infinity;
+    let bestFuelSpent = Number.POSITIVE_INFINITY;
     const stats = SHIP_STATS[ship.type];
     const canBurnFuel = ship.fuel > 0;
+    const interceptingEnemy =
+      enemyEscaping && !escapeWins && shipTargetHex == null;
     const allowsCorrectiveBurnLookahead =
-      !!checkpoints || shipTargetHex != null || passengerEscortMission;
+      !!checkpoints ||
+      shipTargetHex != null ||
+      passengerEscortMission ||
+      interceptingEnemy;
     // Easy AI never overloads; Normal/Hard can overload
     // warships with enough fuel. No overloads in
     // non-combat races — too risky near gravity wells.
@@ -1652,6 +1754,7 @@ export const aiAstrogation = (
           enemyEscaping,
           shipIndex: shipIdx,
         }) + gravityRiskPenalty;
+      let comparisonCourse = course;
 
       if (passengerEscortMission) {
         score += scorePassengerCarrierEvasion(ship, course, enemyShips);
@@ -1671,7 +1774,9 @@ export const aiAstrogation = (
       // Fuel efficiency: slight preference for
       // conserving fuel
       if (opt.burn === null) {
-        score += cfg.fuelDriftBonus;
+        if (!interceptingEnemy) {
+          score += cfg.fuelDriftBonus;
+        }
       } else if (opt.overload !== null) {
         // Small penalty for extra fuel cost
         score -= cfg.fuelOverloadPenalty;
@@ -1725,15 +1830,39 @@ export const aiAstrogation = (
           if (altScore > score) {
             score = altScore;
             bestLocalWG = wgChoices;
+            comparisonCourse = altCourse;
           }
         }
       }
 
-      if (score > bestScore) {
+      const interceptPreference = interceptingEnemy
+        ? getInterceptContinuationPreference(
+            ship,
+            comparisonCourse,
+            enemyShips,
+            shipIdx,
+            difficulty,
+            map,
+            state.destroyedBases,
+          )
+        : { bonus: 0, tiebreak: -Infinity };
+
+      score += interceptPreference.bonus;
+      const interceptTiebreak = interceptPreference.tiebreak;
+
+      if (
+        score > bestScore + 1e-9 ||
+        (Math.abs(score - bestScore) <= 1e-9 &&
+          (interceptTiebreak > bestInterceptTiebreak + 1e-9 ||
+            (Math.abs(interceptTiebreak - bestInterceptTiebreak) <= 1e-9 &&
+              comparisonCourse.fuelSpent < bestFuelSpent)))
+      ) {
         bestScore = score;
         bestBurn = opt.burn;
         bestOverload = opt.overload;
         bestWeakGrav = bestLocalWG;
+        bestInterceptTiebreak = interceptTiebreak;
+        bestFuelSpent = comparisonCourse.fuelSpent;
       }
     }
 
