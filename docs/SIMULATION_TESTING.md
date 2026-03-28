@@ -19,27 +19,25 @@ Related docs: [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md), [SPEC](./SPEC.md), [ARC
 The current runner executes entirely in Node.js, outside the browser and Cloudflare Worker runtime.
 
 1. **Setup:** Initialize `GameState` using `createGame(SCENARIOS[name], map, ...)`.
-   The starting player follows the scenario definition — some
-   scenarios set `startingPlayer: 1` to compensate for positional
-   asymmetry.
-2. **Game Loop:** Put the engine in a `while (state.phase !== 'gameOver')` loop.
+2. **Seat randomization:** The runner randomizes `activePlayer` per game to reduce first-mover bias during aggregate balance checks.
+3. **Game Loop:** Put the engine in a `while (state.phase !== 'gameOver')` loop.
 3. **Turn Execution:**
    - **Astrogation:** If it's Player 0's turn, call `aiAstrogation(state, 0, map, 'hard')`. Same for Player 1. Pass the orders into `processAstrogation()`.
    - **Ordnance:** Call `aiOrdnance()` and pass to `processOrdnance()` (or call `skipOrdnance()`).
    - **Combat:** Call `aiCombat()` and pass to `processCombat()` (or `skipCombat()`).
-4. **Data Collection:** Track metrics like win rates (Player 0 vs Player 1), average turns to win, fuel consumed, and most common causes of death (combat vs crashes).
+4. **Data Collection:** Track metrics like win rates (Player 0 vs Player 1), draws/timeouts, average turns, crash count, and win reasons.
 
 **Implementation Details:**
 
-- Because the `game-engine.ts` has no DOM or Canvas dependencies, this runs very quickly in practice.
-- You can run Monte Carlo simulations (e.g., 10,000 runs of the 'Escape' scenario) to definitively prove if the scenario favors the escaping player or the blockading player.
+- Because `game-engine.ts` has no DOM or Canvas dependencies, this runs quickly in practice.
+- You can run Monte Carlo-style sweeps (for example many runs of `escape`) to quantify directional balance trends.
 - **Randomness:** All engine entry points (`processAstrogation`, `processCombat`, `processOrdnance`, etc.) require a mandatory `rng: () => number` parameter — there are no `Math.random` fallbacks in the turn-resolution path. Passing a seeded RNG allows completely reproducible replays when a simulation encounters a crash or an infinite loop.
 - CI balance warnings use per-scenario decided-game win-rate bands rather than one global threshold. Cooperative or race scenarios (e.g. Grand Tour) are excluded from balance checks.
 
 **Current usage:**
 
 - `npm run simulate` runs 100 headless games of the default scenario.
-- `npm run simulate -- all 25 --ci` runs 25 games per scenario across all 8 scenarios (pre-commit hook / CI path).
+- `npm run simulate -- all 25 -- --ci` runs 25 games per scenario across the current scenario roster (pre-commit hook / CI path).
 - `--ci` fails the process on engine crashes and prints balance warnings without making them fatal.
 - When using npm scripts, pass simulation arguments after `--`.
 
@@ -49,7 +47,7 @@ The current runner executes entirely in Node.js, outside the browser and Cloudfl
 
 **Goal:** Validate the Cloudflare Durable Object lifecycle, WebSocket handling, reconnection logic, and server scaling.
 
-**Approach (implemented as a first usable harness):**
+**Approach (implemented as a usable harness):**
 Use `scripts/load-test.ts` to create real rooms over HTTP,
 join both seats over WebSockets, and drive valid turns with
 the existing AI helpers.
@@ -62,7 +60,7 @@ the existing AI helpers.
    - `ordnance` launches from `aiOrdnance()` or `skipOrdnance`
    - `beginCombat` for owned asteroid hazards, then `combat` attacks from `aiCombat()` or `skipCombat`
    - `skipLogistics` for logistics
-4. **Stress Testing:** Run many concurrent matches with `--games` and `--concurrency` to exercise room creation, seat assignment, turn flow, and completion under load.
+4. **Stress Testing:** Run many concurrent matches with `--games` and `--concurrency` to exercise room creation, seat assignment, turn flow, reconnect handling, and completion under load.
 5. **Chaos Testing:** Use `--disconnect-rate` and `--reconnect-delay-ms` to force a percentage of bots to drop once and reconnect with their stored token during live play.
 
 **Current usage:**
@@ -86,5 +84,5 @@ the existing AI helpers.
 ## Summary of Progress
 
 1. **RNG Injection**: Completed. All engine entry points require mandatory `rng` parameter for deterministic simulations.
-2. **AI Runner**: Implemented. `npm run simulate` executes headless matches, and CI runs the multi-scenario `--ci` pass.
+2. **AI Runner**: Implemented. `npm run simulate` executes headless matches, and CI/verification runs the multi-scenario `--ci` pass.
 3. **Load Tester**: Implemented as a first usable websocket load / chaos harness. Future work can extend it with invalid-payload fuzzing, larger soak runs, and CI/staging automation.
