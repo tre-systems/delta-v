@@ -157,7 +157,7 @@ describe('aiAstrogation', () => {
     expect(hasSafeFollowUp).toBe(true);
   });
 
-  it('holds formation when a better passenger transfer is immediately available', () => {
+  it('uses a coordinated escape line for immediate passenger threats', () => {
     const state = createGame(
       SCENARIOS.evacuation,
       map,
@@ -171,9 +171,27 @@ describe('aiAstrogation', () => {
     const corvetteOrder = must(orders.find((order) => order.shipId === 'p0s1'));
 
     expect(transportOrder.overload).toBeNull();
-    expect(corvetteOrder.overload).toBeNull();
+    expect(transportOrder.burn).toBe(1);
+    expect(corvetteOrder.burn).toBe(1);
+  });
+
+  it('allows corrective-burn objective lines outside the emergency search case', () => {
+    const state = createGame(
+      SCENARIOS.evacuation,
+      map,
+      'PAX-CORRECT',
+      findBaseHex,
+    );
+    const enemy = must(state.ships.find((ship) => ship.id === 'p1s0'));
+
+    enemy.position = { q: 0, r: 0 };
+    enemy.velocity = { dq: 0, dr: 0 };
+    const orders = aiAstrogation(state, 0, map, 'hard');
+    const transportOrder = must(
+      orders.find((order) => order.shipId === 'p0s0'),
+    );
+
     expect(transportOrder.burn).not.toBeNull();
-    expect(corvetteOrder.burn).toBe(transportOrder.burn);
   });
 });
 describe('aiOrdnance', () => {
