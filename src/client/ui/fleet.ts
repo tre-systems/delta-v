@@ -1,8 +1,14 @@
-import { SHIP_STATS, type ShipType } from '../../shared/constants';
+import {
+  isBaseCarrierType,
+  ORBITAL_BASE_MASS,
+  SHIP_STATS,
+  type ShipType,
+} from '../../shared/constants';
 import type {
   FleetPurchase,
   FleetPurchaseOption,
   PurchasableShipType,
+  Ship,
 } from '../../shared/types/domain';
 import {
   isOrbitalBaseCargoPurchase,
@@ -29,6 +35,11 @@ export interface FleetCartView {
   items: FleetCartItemView[];
   isEmpty: boolean;
 }
+
+export type FleetExistingShip = Pick<
+  Ship,
+  'type' | 'lifecycle' | 'baseStatus' | 'cargoUsed'
+>;
 
 const isPurchasableShipType = (
   shipType: ShipType,
@@ -71,14 +82,45 @@ export const getFleetCartCost = (cart: FleetPurchase[]): number => {
   return sumBy(cart, getFleetPurchaseCost);
 };
 
+const countAvailableBaseCarrierSlots = (
+  cart: FleetPurchase[],
+  existingShips: readonly FleetExistingShip[],
+): number => {
+  let slots = existingShips.filter((ship) => {
+    if (ship.lifecycle === 'destroyed') return false;
+    if (!isBaseCarrierType(ship.type) || ship.baseStatus) return false;
+    return SHIP_STATS[ship.type].cargo - ship.cargoUsed >= ORBITAL_BASE_MASS;
+  }).length;
+
+  for (const purchase of cart) {
+    if (isShipFleetPurchase(purchase) && isBaseCarrierType(purchase.shipType)) {
+      slots++;
+      continue;
+    }
+
+    if (isOrbitalBaseCargoPurchase(purchase)) {
+      slots--;
+    }
+  }
+
+  return slots;
+};
+
 export const canAddFleetPurchase = (
   cart: FleetPurchase[],
   totalCredits: number,
   purchase: FleetPurchase,
+  existingShips: readonly FleetExistingShip[] = [],
 ): boolean => {
-  return (
-    getFleetCartCost(cart) + getFleetPurchaseCost(purchase) <= totalCredits
-  );
+  if (getFleetCartCost(cart) + getFleetPurchaseCost(purchase) > totalCredits) {
+    return false;
+  }
+
+  if (isOrbitalBaseCargoPurchase(purchase)) {
+    return countAvailableBaseCarrierSlots(cart, existingShips) > 0;
+  }
+
+  return true;
 };
 
 export const getFleetCartView = (
@@ -102,9 +144,8 @@ export const getFleetShopView = (
   cart: FleetPurchase[],
   totalCredits: number,
   availableFleetPurchases?: FleetPurchaseOption[],
+  existingShips: readonly FleetExistingShip[] = [],
 ): FleetShopItemView[] => {
-  const remainingCredits = totalCredits - getFleetCartCost(cart);
-
   return getFleetShopOptions(availableFleetPurchases).map((option) => {
     const purchase = toFleetPurchase(option);
 
@@ -114,7 +155,12 @@ export const getFleetShopView = (
         name: 'Orbital Base Cargo',
         statsText: 'Requires an available transport or packet',
         cost: SHIP_STATS.orbitalBase.cost,
-        disabled: SHIP_STATS.orbitalBase.cost > remainingCredits,
+        disabled: !canAddFleetPurchase(
+          cart,
+          totalCredits,
+          purchase,
+          existingShips,
+        ),
       };
     }
 
@@ -125,7 +171,12 @@ export const getFleetShopView = (
       name: stats.name,
       statsText: `C${stats.combat}${stats.defensiveOnly ? 'D' : ''} F${stats.fuel === Infinity ? '\u221e' : stats.fuel}${stats.cargo > 0 ? ` G${stats.cargo}` : ''}`,
       cost: stats.cost,
-      disabled: stats.cost > remainingCredits,
+      disabled: !canAddFleetPurchase(
+        cart,
+        totalCredits,
+        purchase,
+        existingShips,
+      ),
     };
   });
 };

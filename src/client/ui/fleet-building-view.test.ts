@@ -1,18 +1,49 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { FleetPurchase, GameState } from '../../shared/types/domain';
+import type {
+  FleetPurchase,
+  GameState,
+  ScenarioRules,
+  Ship,
+} from '../../shared/types/domain';
 import { createFleetBuildingView } from './fleet-building-view';
 
-const createState = (credits: number): GameState => ({
+const createShip = (overrides: Partial<Ship> = {}): Ship => ({
+  id: 'ship-0',
+  type: 'transport',
+  owner: 0,
+  originalOwner: 0,
+  position: { q: 0, r: 0 },
+  velocity: { dq: 0, dr: 0 },
+  fuel: 10,
+  cargoUsed: 0,
+  nukesLaunchedSinceResupply: 0,
+  resuppliedThisTurn: false,
+  lifecycle: 'active',
+  control: 'own',
+  heroismAvailable: false,
+  overloadUsed: false,
+  detected: true,
+  damage: { disabledTurns: 0 },
+  ...overrides,
+});
+
+const createState = (
+  credits: number,
+  overrides: {
+    scenarioRules?: ScenarioRules;
+    ships?: Ship[];
+  } = {},
+): GameState => ({
   gameId: 'FLEET',
   scenario: 'biplanetary',
-  scenarioRules: {},
+  scenarioRules: overrides.scenarioRules ?? {},
   escapeMoralVictoryAchieved: false,
   turnNumber: 1,
   phase: 'fleetBuilding',
   activePlayer: 0,
-  ships: [],
+  ships: overrides.ships ?? [],
   ordnance: [],
   pendingAstrogationOrders: null,
   pendingAsteroidHazards: [],
@@ -170,5 +201,28 @@ describe('FleetBuildingView', () => {
     expect(onFleetReady).not.toHaveBeenCalled();
     expect(document.querySelectorAll('.fleet-shop-item')).toHaveLength(0);
     expect(document.querySelectorAll('.fleet-cart-chip')).toHaveLength(0);
+  });
+
+  it('enables orbital base cargo when the player already has an eligible carrier', () => {
+    const view = createFleetBuildingView({
+      onFleetReady: vi.fn(),
+    });
+
+    view.show(
+      createState(2000, {
+        scenarioRules: {
+          availableFleetPurchases: ['orbitalBaseCargo'],
+        },
+        ships: [createShip({ type: 'packet', owner: 0 })],
+      }),
+      0,
+    );
+
+    const shopItem = Array.from(
+      document.querySelectorAll<HTMLElement>('.fleet-shop-item'),
+    ).find((item) => item.textContent?.includes('Orbital Base Cargo'));
+
+    expect(shopItem).not.toBeNull();
+    expect(shopItem?.classList.contains('disabled')).toBe(false);
   });
 });
