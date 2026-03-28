@@ -27,6 +27,16 @@ import {
   SHIP_STATS,
   type ShipType,
 } from './constants';
+import {
+  beginCombatPhase,
+  processAstrogation,
+  processCombat,
+  processLogistics,
+  processOrdnance,
+  skipCombat,
+  skipLogistics,
+  skipOrdnance,
+} from './engine/game-engine';
 import { getTransferEligiblePairs } from './engine/logistics';
 import {
   HEX_DIRECTIONS,
@@ -279,6 +289,149 @@ const scorePassengerCarrier = (
   );
 };
 
+const isPassengerEscortMission = (
+  state: GameState,
+  playerId: PlayerId,
+): boolean =>
+  !!state.scenarioRules.targetWinRequiresPassengers &&
+  !!state.players[playerId]?.targetBody;
+
+const getPrimaryPassengerCarrier = (
+  state: GameState,
+  playerId: PlayerId,
+): Ship | null =>
+  maxBy(
+    state.ships.filter(
+      (ship) =>
+        ship.owner === playerId &&
+        ship.lifecycle !== 'destroyed' &&
+        (ship.passengersAboard ?? 0) > 0,
+    ),
+    (ship) => ship.passengersAboard ?? 0,
+  ) ?? null;
+
+const getThreateningEnemies = (enemyShips: Ship[]): Ship[] =>
+  enemyShips.filter((enemy) => canAttack(enemy));
+
+const scorePassengerCarrierEvasion = (
+  ship: Ship,
+  course: CourseResult,
+  enemyShips: Ship[],
+): number => {
+  if ((ship.passengersAboard ?? 0) <= 0) {
+    return 0;
+  }
+
+  const threats = getThreateningEnemies(enemyShips);
+  const nearestThreat = minBy(threats, (enemy) =>
+    hexDistance(ship.position, enemy.position),
+  );
+
+  if (!nearestThreat) {
+    return 0;
+  }
+
+  const currentDist = hexDistance(ship.position, nearestThreat.position);
+
+  if (currentDist > 4) {
+    return 0;
+  }
+
+  const newDist = hexDistance(course.destination, nearestThreat.position);
+  const nextDriftDist = hexDistance(
+    hexAdd(course.destination, course.newVelocity),
+    nearestThreat.position,
+  );
+  let score = (newDist - currentDist) * (currentDist <= 2 ? 55 : 30);
+
+  if (newDist <= 1) {
+    score -= 220;
+  } else if (newDist === 2) {
+    score -= 90;
+  } else if (newDist === 3) {
+    score -= 30;
+  }
+
+  score += (nextDriftDist - newDist) * 20;
+  return score;
+};
+
+const scorePassengerEscortCourse = (
+  ship: Ship,
+  course: CourseResult,
+  primaryCarrier: Ship | null,
+  enemyShips: Ship[],
+): number => {
+  if (
+    primaryCarrier == null ||
+    ship.id === primaryCarrier.id ||
+    !canAttack(ship) ||
+    (ship.passengersAboard ?? 0) > 0
+  ) {
+    return 0;
+  }
+
+  const threats = getThreateningEnemies(enemyShips);
+  const primaryThreat = minBy(threats, (enemy) =>
+    hexDistance(primaryCarrier.position, enemy.position),
+  );
+
+  if (!primaryThreat) {
+    return 0;
+  }
+
+  const shipStrength = getCombatStrength([ship]);
+  const threatStrength = getCombatStrength([primaryThreat]);
+  const currentThreatDist = hexDistance(ship.position, primaryThreat.position);
+  const newThreatDist = hexDistance(course.destination, primaryThreat.position);
+  const currentCarrierDist = hexDistance(
+    ship.position,
+    primaryCarrier.position,
+  );
+  const newCarrierDist = hexDistance(
+    course.destination,
+    primaryCarrier.position,
+  );
+  const carrierThreatDist = hexDistance(
+    primaryCarrier.position,
+    primaryThreat.position,
+  );
+
+  if (carrierThreatDist > 6) {
+    return 0;
+  }
+
+  if (shipStrength >= threatStrength) {
+    let score =
+      (currentThreatDist - newThreatDist) * 32 -
+      Math.max(0, newCarrierDist - 3) * 18;
+
+    if (newThreatDist <= 2) {
+      score += 40;
+    }
+
+    if (newCarrierDist <= 2) {
+      score += 28;
+    }
+
+    return score;
+  }
+
+  let score =
+    (newThreatDist - currentThreatDist) * 12 +
+    (currentCarrierDist - newCarrierDist) * 20;
+
+  if (newThreatDist <= 1) {
+    score -= 110;
+  }
+
+  if (newCarrierDist <= 2) {
+    score += 42;
+  }
+
+  return score;
+};
+
 type LogisticsCandidate = {
   transfer: TransferOrder;
   score: number;
@@ -470,6 +623,26 @@ const getPassengerTransferFormationOrders = (
     if (targetScore <= sourceScore + 10) {
       continue;
     }
+
+    const nearestThreatDist = minBy(
+      getThreateningEnemies(enemyShips),
+      (enemy) =>
+        Math.min(
+          hexDistance(pair.source.position, enemy.position),
+          hexDistance(pair.target.position, enemy.position),
+        ),
+    );
+
+    if (
+      nearestThreatDist != null &&
+      Math.min(
+        hexDistance(pair.source.position, nearestThreatDist.position),
+        hexDistance(pair.target.position, nearestThreatDist.position),
+      ) <= 5
+    ) {
+      continue;
+    }
+
     let bestBurn: number | null = null;
     let bestScore = -Infinity;
 
@@ -542,6 +715,324 @@ const getPassengerTransferFormationOrders = (
   }
 
   return sharedOrders;
+};
+
+const getPassengerEmergencyEscortOrders = (
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+  targetHex: { q: number; r: number } | null,
+  targetBody: string,
+  escapeWins: boolean,
+  enemyShips: Ship[],
+  cfg: (typeof AI_CONFIG)[AIDifficulty],
+  difficulty: AIDifficulty,
+  enemyEscaping: boolean,
+): Map<string, AstrogationOrder> => {
+  if (!isPassengerEscortMission(state, playerId)) {
+    return new Map();
+  }
+
+  const primaryCarrier = getPrimaryPassengerCarrier(state, playerId);
+
+  if (primaryCarrier == null) {
+    return new Map();
+  }
+
+  const threats = getThreateningEnemies(enemyShips);
+  const primaryThreat = minBy(threats, (enemy) =>
+    hexDistance(primaryCarrier.position, enemy.position),
+  );
+
+  if (
+    primaryThreat == null ||
+    hexDistance(primaryCarrier.position, primaryThreat.position) > 2
+  ) {
+    return new Map();
+  }
+
+  const escort = maxBy(
+    state.ships.filter(
+      (ship) =>
+        ship.owner === playerId &&
+        ship.id !== primaryCarrier.id &&
+        ship.lifecycle !== 'destroyed' &&
+        canAttack(ship) &&
+        (ship.passengersAboard ?? 0) === 0,
+    ),
+    (ship) =>
+      getCombatStrength([ship]) * 10 -
+      hexDistance(ship.position, primaryCarrier.position),
+  );
+
+  if (!escort) {
+    return new Map();
+  }
+
+  const evaluateCandidateOutcome = (
+    carrierOrder: AstrogationOrder,
+    escortOrder: AstrogationOrder,
+  ): number => {
+    const rng = () => 0.5;
+    let simulated = structuredClone(state);
+    const myOrders = simulated.ships
+      .filter((ship) => ship.owner === playerId)
+      .map((ship) => {
+        if (ship.id === carrierOrder.shipId) {
+          return carrierOrder;
+        }
+
+        if (ship.id === escortOrder.shipId) {
+          return escortOrder;
+        }
+
+        return {
+          shipId: ship.id,
+          burn: null,
+          overload: null,
+        };
+      });
+    const firstResult = processAstrogation(
+      simulated,
+      playerId,
+      myOrders,
+      map,
+      rng,
+    );
+
+    if ('error' in firstResult) {
+      return -Infinity;
+    }
+    simulated = firstResult.state;
+
+    while (
+      simulated.phase !== 'gameOver' &&
+      simulated.turnNumber <= state.turnNumber + 1
+    ) {
+      if (
+        simulated.phase === 'astrogation' &&
+        simulated.activePlayer === playerId &&
+        simulated.turnNumber > state.turnNumber
+      ) {
+        break;
+      }
+
+      const actor = simulated.activePlayer;
+
+      if (simulated.phase === 'astrogation') {
+        const orders = aiAstrogation(simulated, actor, map, difficulty, rng);
+        const result = processAstrogation(simulated, actor, orders, map, rng);
+        if ('error' in result) {
+          return -Infinity;
+        }
+        simulated = result.state;
+        continue;
+      }
+
+      if (simulated.phase === 'ordnance') {
+        const launches = aiOrdnance(simulated, actor, map, difficulty, rng);
+        const result =
+          launches.length > 0
+            ? processOrdnance(simulated, actor, launches, map, rng)
+            : skipOrdnance(simulated, actor, map, rng);
+        if ('error' in result) {
+          return -Infinity;
+        }
+        simulated = result.state;
+        continue;
+      }
+
+      if (simulated.phase === 'logistics') {
+        const transfers = aiLogistics(simulated, actor, map, difficulty);
+        const result =
+          transfers.length > 0
+            ? processLogistics(simulated, actor, transfers, map)
+            : skipLogistics(simulated, actor, map);
+        if ('error' in result) {
+          return -Infinity;
+        }
+        simulated = result.state;
+        continue;
+      }
+
+      if (simulated.phase === 'combat') {
+        const preResult = beginCombatPhase(simulated, actor, map, rng);
+        if ('error' in preResult) {
+          return -Infinity;
+        }
+        simulated = preResult.state;
+        if (simulated.phase !== 'combat') {
+          continue;
+        }
+
+        const attacks = aiCombat(simulated, actor, map, difficulty);
+        const result =
+          attacks.length > 0
+            ? processCombat(simulated, actor, attacks, map, rng)
+            : skipCombat(simulated, actor, map, rng);
+        if ('error' in result) {
+          return -Infinity;
+        }
+        simulated = result.state;
+        continue;
+      }
+
+      break;
+    }
+
+    const simulatedCarrier = simulated.ships.find(
+      (ship) => ship.id === primaryCarrier.id,
+    );
+
+    if (!simulatedCarrier) {
+      return -Infinity;
+    }
+
+    if (
+      simulated.outcome?.winner === 1 ||
+      simulatedCarrier.lifecycle === 'destroyed'
+    ) {
+      return -10_000;
+    }
+
+    const distToTarget =
+      targetHex == null ? 0 : hexDistance(simulatedCarrier.position, targetHex);
+
+    return (
+      (simulatedCarrier.passengersAboard ?? 0) * 5 -
+      simulatedCarrier.damage.disabledTurns * 180 -
+      distToTarget * 10 +
+      (simulated.phase === 'gameOver' && simulated.outcome?.winner === playerId
+        ? 5_000
+        : 0)
+    );
+  };
+
+  const carrierBurns = [0, 1, 2, 3, 4, 5] as const;
+  const escortBurns = [null, 0, 1, 2, 3, 4, 5] as const;
+  let bestScore = -Infinity;
+  let bestCarrierOrder: AstrogationOrder | null = null;
+  let bestEscortOrder: AstrogationOrder | null = null;
+
+  for (const carrierBurn of carrierBurns) {
+    const carrierCourse = computeCourse(primaryCarrier, carrierBurn, map, {
+      destroyedBases: state.destroyedBases,
+    });
+
+    if (carrierCourse.outcome === 'crash') {
+      continue;
+    }
+
+    const projectedCarrier = projectShipAfterCourse(
+      primaryCarrier,
+      carrierCourse,
+    );
+
+    for (const escortBurn of escortBurns) {
+      const escortStats = SHIP_STATS[escort.type];
+      const escortOverloads =
+        escortBurn != null &&
+        difficulty !== 'easy' &&
+        escortStats?.canOverload &&
+        escort.fuel >= 2 &&
+        !escort.overloadUsed &&
+        !state.scenarioRules.combatDisabled
+          ? [null, 0, 1, 2, 3, 4, 5]
+          : [null];
+
+      for (const escortOverload of escortOverloads) {
+        const escortCourse = computeCourse(escort, escortBurn, map, {
+          ...(escortOverload != null ? { overload: escortOverload } : {}),
+          destroyedBases: state.destroyedBases,
+        });
+
+        if (escortCourse.outcome === 'crash') {
+          continue;
+        }
+
+        const spacing = hexDistance(
+          carrierCourse.destination,
+          escortCourse.destination,
+        );
+        const score =
+          scoreCourse({
+            ship: primaryCarrier,
+            course: carrierCourse,
+            targetHex,
+            targetBody,
+            escapeWins,
+            enemyShips,
+            cfg,
+            difficulty,
+            map,
+            isRace: false,
+            enemyEscaping,
+            shipIndex: 0,
+          }) +
+          scorePassengerCarrierEvasion(
+            primaryCarrier,
+            carrierCourse,
+            enemyShips,
+          ) +
+          scoreCourse({
+            ship: escort,
+            course: escortCourse,
+            targetHex: null,
+            targetBody: '',
+            escapeWins: false,
+            enemyShips,
+            cfg,
+            difficulty,
+            map,
+            isRace: false,
+            enemyEscaping,
+            shipIndex: 1,
+          }) +
+          scorePassengerEscortCourse(
+            escort,
+            escortCourse,
+            projectedCarrier,
+            enemyShips,
+          ) +
+          (spacing === 0 ? 220 : spacing === 1 ? 40 : -spacing * 30) +
+          evaluateCandidateOutcome(
+            {
+              shipId: primaryCarrier.id,
+              burn: carrierBurn,
+              overload: null,
+            },
+            {
+              shipId: escort.id,
+              burn: escortBurn,
+              overload: escortOverload,
+            },
+          );
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestCarrierOrder = {
+            shipId: primaryCarrier.id,
+            burn: carrierBurn,
+            overload: null,
+          };
+          bestEscortOrder = {
+            shipId: escort.id,
+            burn: escortBurn,
+            overload: escortOverload,
+          };
+        }
+      }
+    }
+  }
+
+  if (bestCarrierOrder == null || bestEscortOrder == null) {
+    return new Map();
+  }
+
+  return new Map([
+    [bestCarrierOrder.shipId, bestCarrierOrder],
+    [bestEscortOrder.shipId, bestEscortOrder],
+  ]);
 };
 
 export const aiLogistics = (
@@ -693,6 +1184,7 @@ export const aiAstrogation = (
   const orders: AstrogationOrder[] = [];
   const { targetBody, escapeWins } = state.players[playerId];
   const player = state.players[playerId];
+  const passengerEscortMission = isPassengerEscortMission(state, playerId);
   const opponentId: PlayerId = playerId === 0 ? 1 : 0;
   const enemyEscaping = state.players[opponentId]?.escapeWins === true;
   // Default navigation target (non-checkpoint scenarios)
@@ -707,6 +1199,18 @@ export const aiAstrogation = (
   const enemyShips = state.ships.filter(
     (s) => s.owner !== playerId && s.lifecycle !== 'destroyed',
   );
+  const primaryPassengerCarrier = passengerEscortMission
+    ? getPrimaryPassengerCarrier(state, playerId)
+    : null;
+  const primaryPassengerThreatDist =
+    passengerEscortMission && primaryPassengerCarrier != null
+      ? Math.min(
+          ...getThreateningEnemies(enemyShips).map((enemy) =>
+            hexDistance(primaryPassengerCarrier.position, enemy.position),
+          ),
+          Number.POSITIVE_INFINITY,
+        )
+      : Number.POSITIVE_INFINITY;
   const passengerTransferFormationOrders = getPassengerTransferFormationOrders(
     state,
     playerId,
@@ -718,6 +1222,18 @@ export const aiAstrogation = (
     cfg,
     difficulty,
     !!checkpoints,
+    enemyEscaping,
+  );
+  const passengerEmergencyEscortOrders = getPassengerEmergencyEscortOrders(
+    state,
+    playerId,
+    map,
+    defaultTargetHex,
+    targetBody,
+    escapeWins,
+    enemyShips,
+    cfg,
+    difficulty,
     enemyEscaping,
   );
   let shipIdx = 0;
@@ -745,6 +1261,13 @@ export const aiAstrogation = (
       });
       continue;
     }
+    const emergencyOrder = passengerEmergencyEscortOrders.get(ship.id);
+
+    if (emergencyOrder) {
+      orders.push(emergencyOrder);
+      shipIdx++;
+      continue;
+    }
     const formationOrder = passengerTransferFormationOrders.get(ship.id);
 
     if (formationOrder) {
@@ -756,6 +1279,18 @@ export const aiAstrogation = (
     let shipTargetHex = defaultTargetHex;
     let shipTargetBody = targetBody;
     let seekingFuel = false;
+
+    if (
+      passengerEscortMission &&
+      primaryPassengerCarrier != null &&
+      primaryPassengerThreatDist <= 5 &&
+      ship.id !== primaryPassengerCarrier.id &&
+      canAttack(ship) &&
+      (ship.passengersAboard ?? 0) === 0
+    ) {
+      shipTargetHex = null;
+      shipTargetBody = '';
+    }
 
     if (checkpoints && player.visitedBodies) {
       const nextBody =
@@ -794,6 +1329,8 @@ export const aiAstrogation = (
     let bestScore = -Infinity;
     const stats = SHIP_STATS[ship.type];
     const canBurnFuel = ship.fuel > 0;
+    const allowsCorrectiveBurnLookahead =
+      !!checkpoints || shipTargetHex != null || passengerEscortMission;
     // Easy AI never overloads; Normal/Hard can overload
     // warships with enough fuel. No overloads in
     // non-combat races — too risky near gravity wells.
@@ -845,13 +1382,14 @@ export const aiAstrogation = (
         });
 
         if (driftCourse.outcome === 'crash') {
-          if (!checkpoints) {
+          if (!allowsCorrectiveBurnLookahead) {
             // Combat scenarios: simple hard reject
             // if drifting crashes
             continue;
           }
-          // Race mode: check if any burn next turn
-          // avoids crash
+          // Objective modes: allow courses that need
+          // a corrective burn next turn if they are
+          // still actually survivable.
           if (fuelAfter <= 0) continue;
           let canSurvive = false;
           for (let d2 = 0; d2 < 6; d2++) {
@@ -910,6 +1448,17 @@ export const aiAstrogation = (
           enemyEscaping,
           shipIndex: shipIdx,
         }) + gravityRiskPenalty;
+
+      if (passengerEscortMission) {
+        score += scorePassengerCarrierEvasion(ship, course, enemyShips);
+        score += scorePassengerEscortCourse(
+          ship,
+          course,
+          primaryPassengerCarrier,
+          enemyShips,
+        );
+      }
+
       // Fuel-seeking: big bonus for landing at any
       // body (base refuel)
       if (seekingFuel && course.outcome === 'landing') {
