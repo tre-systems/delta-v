@@ -11,7 +11,7 @@ import type {
 } from '../../shared/types/domain';
 import type { ScenarioDefinition } from '../../shared/types/scenario';
 
-const AI_FLEET_PRIORITIES: Record<AIDifficulty, ShipType[]> = {
+const AI_FLEET_PRIORITIES: Record<AIDifficulty, PurchasableShipType[]> = {
   easy: ['corvette', 'corsair', 'packet'],
   normal: ['corsair', 'frigate', 'corvette'],
   hard: ['frigate', 'corsair', 'corvette'],
@@ -26,6 +26,12 @@ export interface FleetReadyDeps {
   buildAIPurchases?: typeof buildAIFleetPurchases;
 }
 
+const isPurchasableShipType = (
+  shipType: ShipType,
+): shipType is PurchasableShipType => {
+  return shipType !== 'orbitalBase';
+};
+
 export const buildAIFleetPurchases = (
   credits: number,
   availableFleetPurchases: FleetPurchaseOption[] | undefined,
@@ -34,10 +40,7 @@ export const buildAIFleetPurchases = (
   const availableShips = new Set<PurchasableShipType>(
     (
       availableFleetPurchases ??
-      (Object.keys(SHIP_STATS).filter(
-        (shipType): shipType is PurchasableShipType =>
-          shipType !== 'orbitalBase',
-      ) as PurchasableShipType[])
+      (Object.keys(SHIP_STATS) as ShipType[]).filter(isPurchasableShipType)
     ).filter(
       (purchase): purchase is PurchasableShipType =>
         purchase !== 'orbitalBaseCargo',
