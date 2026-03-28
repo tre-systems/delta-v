@@ -8,7 +8,12 @@ import {
 } from './ai';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
-import { createGame, processAstrogation } from './engine/game-engine';
+import {
+  beginCombatPhase,
+  createGame,
+  processAstrogation,
+  skipCombat,
+} from './engine/game-engine';
 import { asHexKey } from './hex';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from './map-data';
 import { computeCourse } from './movement';
@@ -186,6 +191,78 @@ describe('aiAstrogation', () => {
     );
 
     expect(hasSafeFollowUp).toBe(true);
+  });
+
+  it('shifts to a home-screening line when biplanetary defense becomes urgent', () => {
+    let state = createGame(
+      SCENARIOS.biplanetary,
+      map,
+      'BIP-DEFEND',
+      findBaseHex,
+    );
+    const rng = () => 0.5;
+
+    const p0Turn1 = aiAstrogation(state, 0, map, 'hard', rng);
+    const p0Turn1Result = processAstrogation(state, 0, p0Turn1, map, rng);
+
+    if ('error' in p0Turn1Result) {
+      expect.unreachable(String(p0Turn1Result.error));
+    }
+    state = p0Turn1Result.state;
+
+    const p1Turn1 = aiAstrogation(state, 1, map, 'hard', rng);
+    const p1Turn1Result = processAstrogation(state, 1, p1Turn1, map, rng);
+
+    if ('error' in p1Turn1Result) {
+      expect.unreachable(String(p1Turn1Result.error));
+    }
+    state = p1Turn1Result.state;
+
+    const p1CombatStart = beginCombatPhase(state, 1, map, rng);
+
+    if ('error' in p1CombatStart) {
+      expect.unreachable(String(p1CombatStart.error));
+    }
+    state = p1CombatStart.state;
+
+    if (state.phase === 'combat') {
+      const p1CombatSkip = skipCombat(state, 1, map, rng);
+
+      if ('error' in p1CombatSkip) {
+        expect.unreachable(String(p1CombatSkip.error));
+      }
+      state = p1CombatSkip.state;
+    }
+
+    const p0Turn2 = aiAstrogation(state, 0, map, 'hard', rng);
+    const p0Turn2Result = processAstrogation(state, 0, p0Turn2, map, rng);
+
+    if ('error' in p0Turn2Result) {
+      expect.unreachable(String(p0Turn2Result.error));
+    }
+    state = p0Turn2Result.state;
+
+    const p0CombatStart = beginCombatPhase(state, 0, map, rng);
+
+    if ('error' in p0CombatStart) {
+      expect.unreachable(String(p0CombatStart.error));
+    }
+    state = p0CombatStart.state;
+
+    if (state.phase === 'combat') {
+      const p0CombatSkip = skipCombat(state, 0, map, rng);
+
+      if ('error' in p0CombatSkip) {
+        expect.unreachable(String(p0CombatSkip.error));
+      }
+      state = p0CombatSkip.state;
+    }
+
+    const [order] = aiAstrogation(state, 1, map, 'hard', rng);
+
+    expect(order).toBeDefined();
+    expect(order.burn).toBe(1);
+    expect(order.overload).toBeNull();
   });
 
   it('uses a coordinated escape line for immediate passenger threats', () => {
