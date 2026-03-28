@@ -607,6 +607,47 @@ describe('processLogistics', () => {
     const result = processLogistics(state, 0, [transfer], map);
     expect('error' in result).toBe(true);
   });
+  it('rejects cumulative transfer plans that overdraw the source ship', () => {
+    const source = makeShip({
+      id: 's1',
+      type: 'tanker',
+      owner: 0,
+      originalOwner: 0,
+      fuel: 15,
+    });
+    const targetA = makeShip({
+      id: 's2',
+      type: 'corvette',
+      owner: 0,
+      originalOwner: 0,
+      fuel: 0,
+    });
+    const targetB = makeShip({
+      id: 's3',
+      type: 'corvette',
+      owner: 0,
+      originalOwner: 0,
+      fuel: 0,
+    });
+    const state = makeState([source, targetA, targetB]);
+    const transfers: TransferOrder[] = [
+      {
+        sourceShipId: 's1',
+        targetShipId: 's2',
+        transferType: 'fuel',
+        amount: 10,
+      },
+      {
+        sourceShipId: 's1',
+        targetShipId: 's3',
+        transferType: 'fuel',
+        amount: 10,
+      },
+    ];
+
+    const result = processLogistics(state, 0, transfers, map);
+    expect('error' in result).toBe(true);
+  });
   it('rejects torch fuel transfer', () => {
     const source = makeShip({
       id: 's1',

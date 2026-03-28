@@ -1,21 +1,16 @@
-import type { AIDifficulty } from '../../shared/ai';
-import { SHIP_STATS, type ShipType } from '../../shared/constants';
+import {
+  type AIDifficulty,
+  buildAIFleetPurchases as buildSharedAIFleetPurchases,
+} from '../../shared/ai';
 import { processFleetReady } from '../../shared/engine/game-engine';
 import type {
   FleetPurchase,
   FleetPurchaseOption,
   GameState,
   PlayerId,
-  PurchasableShipType,
   SolarSystemMap,
 } from '../../shared/types/domain';
 import type { ScenarioDefinition } from '../../shared/types/scenario';
-
-const AI_FLEET_PRIORITIES: Record<AIDifficulty, PurchasableShipType[]> = {
-  easy: ['corvette', 'corsair', 'packet'],
-  normal: ['corsair', 'frigate', 'corvette'],
-  hard: ['frigate', 'corsair', 'corvette'],
-};
 
 export type LocalFleetReadyResult =
   | { kind: 'error'; error: string }
@@ -26,42 +21,18 @@ export interface FleetReadyDeps {
   buildAIPurchases?: typeof buildAIFleetPurchases;
 }
 
-const isPurchasableShipType = (
-  shipType: ShipType,
-): shipType is PurchasableShipType => {
-  return shipType !== 'orbitalBase';
-};
-
 export const buildAIFleetPurchases = (
-  credits: number,
+  state: GameState,
+  playerId: PlayerId,
   availableFleetPurchases: FleetPurchaseOption[] | undefined,
   difficulty: AIDifficulty,
 ): FleetPurchase[] => {
-  const availableShips = new Set<PurchasableShipType>(
-    (
-      availableFleetPurchases ??
-      (Object.keys(SHIP_STATS) as ShipType[]).filter(isPurchasableShipType)
-    ).filter(
-      (purchase): purchase is PurchasableShipType =>
-        purchase !== 'orbitalBaseCargo',
-    ),
+  return buildSharedAIFleetPurchases(
+    state,
+    playerId,
+    difficulty,
+    availableFleetPurchases,
   );
-
-  const purchases: FleetPurchase[] = [];
-  let remaining = credits;
-
-  for (const shipType of AI_FLEET_PRIORITIES[difficulty]) {
-    if (!availableShips.has(shipType)) continue;
-
-    const cost = SHIP_STATS[shipType]?.cost ?? Infinity;
-
-    while (remaining >= cost) {
-      purchases.push({ kind: 'ship', shipType });
-      remaining -= cost;
-    }
-  }
-
-  return purchases;
 };
 
 export const resolveLocalFleetReady = (
@@ -88,7 +59,8 @@ export const resolveLocalFleetReady = (
 
   const aiPlayerId: PlayerId = playerId === 0 ? 1 : 0;
   const aiPurchases = buildAIPurchases(
-    playerResult.state.players[aiPlayerId].credits ?? 0,
+    playerResult.state,
+    aiPlayerId,
     playerResult.state.scenarioRules.availableFleetPurchases ??
       availableFleetPurchases,
     difficulty,

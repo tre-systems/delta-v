@@ -21,7 +21,13 @@ import {
   hasLineOfSight,
   hasLineOfSightToTarget,
 } from './combat';
-import { ORDNANCE_MASS, SHIP_STATS } from './constants';
+import {
+  isBaseCarrierType,
+  ORDNANCE_MASS,
+  SHIP_STATS,
+  type ShipType,
+} from './constants';
+import { getTransferEligiblePairs } from './engine/logistics';
 import {
   HEX_DIRECTIONS,
   type HexKey,
@@ -36,14 +42,48 @@ import type {
   AstrogationOrder,
   CombatAttack,
   CourseResult,
+  FleetPurchase,
+  FleetPurchaseOption,
   GameState,
   OrdnanceLaunch,
   PlayerId,
+  PurchasableShipType,
   Ship,
   SolarSystemMap,
+  TransferOrder,
 } from './types';
-import { minBy, sumBy } from './util';
+import { maxBy, minBy, sumBy } from './util';
 export type AIDifficulty = 'easy' | 'normal' | 'hard';
+
+const DEFAULT_FLEET_PURCHASES = (Object.keys(SHIP_STATS) as ShipType[]).filter(
+  (type): type is PurchasableShipType => type !== 'orbitalBase',
+);
+
+const COMBAT_FLEET_PRIORITIES: Record<
+  AIDifficulty,
+  readonly PurchasableShipType[]
+> = {
+  easy: ['corvette', 'corsair', 'packet', 'transport'],
+  normal: ['frigate', 'corsair', 'corvette', 'packet', 'transport'],
+  hard: [
+    'dreadnaught',
+    'frigate',
+    'torch',
+    'corsair',
+    'corvette',
+    'packet',
+    'transport',
+  ],
+};
+
+const OBJECTIVE_FLEET_PRIORITIES: Record<
+  AIDifficulty,
+  readonly PurchasableShipType[]
+> = {
+  easy: ['packet', 'corvette', 'transport', 'tanker'],
+  normal: ['packet', 'corsair', 'corvette', 'transport', 'tanker', 'frigate'],
+  hard: ['corsair', 'packet', 'frigate', 'transport', 'tanker', 'corvette'],
+};
 // --- Helpers ---
 const findDirectionToward = (
   from: {
@@ -125,6 +165,370 @@ const projectShipAfterCourse = (ship: Ship, course: CourseResult): Ship => ({
   pendingGravityEffects: course.enteredGravityEffects,
   lifecycle: course.outcome === 'landing' ? 'landed' : 'active',
 });
+
+const usesObjectiveFleet = (state: GameState, playerId: PlayerId): boolean => {
+  const player = state.players[playerId];
+
+  return (
+    !!player.targetBody ||
+    !!state.scenarioRules.targetWinRequiresPassengers ||
+    !!state.scenarioRules.checkpointBodies
+  );
+};
+
+const getShipPurchaseCount = (
+  purchases: FleetPurchase[],
+  shipType: PurchasableShipType,
+): number =>
+  purchases.filter(
+    (purchase) => purchase.kind === 'ship' && purchase.shipType === shipType,
+  ).length;
+
+const getFreeBaseCarrierSlots = (
+  state: GameState,
+  playerId: PlayerId,
+  purchases: FleetPurchase[],
+): number => {
+  const existingSlots = state.ships.filter(
+    (ship) =>
+      ship.owner === playerId &&
+      isBaseCarrierType(ship.type) &&
+      ship.baseStatus !== 'carryingBase',
+  ).length;
+  const plannedCarriers = purchases.filter(
+    (purchase) =>
+      purchase.kind === 'ship' && isBaseCarrierType(purchase.shipType),
+  ).length;
+  const plannedBases = purchases.filter(
+    (purchase) => purchase.kind === 'orbitalBaseCargo',
+  ).length;
+
+  return existingSlots + plannedCarriers - plannedBases;
+};
+
+const estimateDesiredFuel = (
+  ship: Ship,
+  playerId: PlayerId,
+  state: GameState,
+  map: SolarSystemMap,
+): number => {
+  const stats = SHIP_STATS[ship.type];
+
+  if (!stats || stats.fuel === Number.POSITIVE_INFINITY) {
+    return 0;
+  }
+
+  const player = state.players[playerId];
+  const targetHex = player.targetBody
+    ? (map.bodies.find((body) => body.name === player.targetBody)?.center ??
+      null)
+    : findNearestBase(ship.position, player.bases, map);
+  const reserve =
+    targetHex != null
+      ? Math.ceil((hexDistance(ship.position, targetHex) * 2) / 3) +
+        hexVecLength(ship.velocity) +
+        1
+      : Math.max(5, Math.ceil(stats.fuel * 0.6));
+
+  return Math.min(stats.fuel, reserve);
+};
+
+const freePassengerCapacity = (ship: Ship): number => {
+  const stats = SHIP_STATS[ship.type];
+
+  if (!stats) return 0;
+  if (stats.cargo === Number.POSITIVE_INFINITY) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return Math.max(
+    0,
+    stats.cargo - ship.cargoUsed - (ship.passengersAboard ?? 0),
+  );
+};
+
+const scorePassengerCarrier = (
+  ship: Ship,
+  playerId: PlayerId,
+  state: GameState,
+  map: SolarSystemMap,
+): number => {
+  const stats = SHIP_STATS[ship.type];
+
+  if (!stats) return -Infinity;
+
+  const player = state.players[playerId];
+  const targetHex = player.targetBody
+    ? (map.bodies.find((body) => body.name === player.targetBody)?.center ??
+      null)
+    : null;
+  const distancePenalty =
+    targetHex == null ? 0 : hexDistance(ship.position, targetHex) * 6;
+
+  return (
+    stats.combat * 18 +
+    (stats.canOverload ? 24 : 0) +
+    freePassengerCapacity(ship) * 2 +
+    hexVecLength(ship.velocity) * 4 +
+    ship.fuel -
+    distancePenalty -
+    (ship.damage.disabledTurns > 0 ? 180 : 0) -
+    (ship.control !== 'own' ? 220 : 0) -
+    (ship.lifecycle !== 'active' ? 40 : 0)
+  );
+};
+
+type LogisticsCandidate = {
+  transfer: TransferOrder;
+  score: number;
+};
+
+const selectLogisticsTransfer = (
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+): LogisticsCandidate | null => {
+  const player = state.players[playerId];
+  const candidates = getTransferEligiblePairs(state, playerId)
+    .map<LogisticsCandidate | null>((pair) => {
+      let bestScore = -Infinity;
+      let bestTransfer: TransferOrder | null = null;
+
+      if (pair.canTransferPassengers) {
+        const sourceValue = scorePassengerCarrier(
+          pair.source,
+          playerId,
+          state,
+          map,
+        );
+        const targetValue = scorePassengerCarrier(
+          pair.target,
+          playerId,
+          state,
+          map,
+        );
+        const passengerScore =
+          220 +
+          (targetValue - sourceValue) +
+          (pair.source.damage.disabledTurns > 0 ? 160 : 0) +
+          (pair.source.type === 'liner' || pair.source.type === 'transport'
+            ? 40
+            : 0);
+
+        if (passengerScore > bestScore) {
+          bestScore = passengerScore;
+          bestTransfer = {
+            sourceShipId: pair.source.id,
+            targetShipId: pair.target.id,
+            transferType: 'passengers',
+            amount: pair.maxPassengers,
+          };
+        }
+      }
+
+      if (pair.canTransferFuel) {
+        const desiredFuel = estimateDesiredFuel(
+          pair.target,
+          playerId,
+          state,
+          map,
+        );
+        const sourceReserve =
+          pair.source.owner === playerId
+            ? estimateDesiredFuel(pair.source, playerId, state, map)
+            : 0;
+        const usefulFuel = Math.min(
+          pair.maxFuel,
+          Math.max(0, desiredFuel - pair.target.fuel),
+          Math.max(0, pair.source.fuel - sourceReserve),
+        );
+
+        if (usefulFuel > 0) {
+          const fuelScore =
+            40 +
+            usefulFuel * 8 +
+            (pair.source.type === 'tanker' ? 35 : 0) +
+            (pair.source.owner !== playerId ? 60 : 0) +
+            (pair.target.passengersAboard != null ? 30 : 0) +
+            (player.targetBody ? 15 : 0);
+
+          if (fuelScore > bestScore) {
+            bestScore = fuelScore;
+            bestTransfer = {
+              sourceShipId: pair.source.id,
+              targetShipId: pair.target.id,
+              transferType: 'fuel',
+              amount: usefulFuel,
+            };
+          }
+        }
+      }
+
+      return bestTransfer == null
+        ? null
+        : { transfer: bestTransfer, score: bestScore };
+    })
+    .filter((candidate): candidate is LogisticsCandidate => candidate != null);
+
+  return maxBy(candidates, (candidate) => candidate.score) ?? null;
+};
+
+const applyTransferToState = (
+  state: GameState,
+  transfer: TransferOrder,
+): void => {
+  const source = state.ships.find((ship) => ship.id === transfer.sourceShipId);
+  const target = state.ships.find((ship) => ship.id === transfer.targetShipId);
+
+  if (!source || !target) return;
+
+  if (transfer.transferType === 'fuel') {
+    source.fuel -= transfer.amount;
+    target.fuel += transfer.amount;
+    return;
+  }
+
+  if (transfer.transferType === 'passengers') {
+    const nextFrom = (source.passengersAboard ?? 0) - transfer.amount;
+    source.passengersAboard = nextFrom > 0 ? nextFrom : undefined;
+    target.passengersAboard = (target.passengersAboard ?? 0) + transfer.amount;
+  }
+};
+
+export const aiLogistics = (
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+  difficulty: AIDifficulty = 'normal',
+): TransferOrder[] => {
+  if (!state.scenarioRules.logisticsEnabled) {
+    return [];
+  }
+
+  const workingState = structuredClone(state);
+  const maxTransfers =
+    difficulty === 'easy' ? 1 : difficulty === 'normal' ? 2 : 3;
+  const transfers: TransferOrder[] = [];
+
+  while (transfers.length < maxTransfers) {
+    const best = selectLogisticsTransfer(workingState, playerId, map);
+
+    if (!best || best.score <= 0) {
+      break;
+    }
+    transfers.push(best.transfer);
+    applyTransferToState(workingState, best.transfer);
+  }
+
+  return transfers;
+};
+
+export const buildAIFleetPurchases = (
+  state: GameState,
+  playerId: PlayerId,
+  difficulty: AIDifficulty,
+  availableFleetPurchases?: FleetPurchaseOption[],
+): FleetPurchase[] => {
+  const remainingPurchases =
+    availableFleetPurchases ??
+    state.scenarioRules.availableFleetPurchases ??
+    DEFAULT_FLEET_PURCHASES;
+  const available = new Set(remainingPurchases);
+  const purchases: FleetPurchase[] = [];
+  let remainingCredits = state.players[playerId].credits ?? 0;
+  const usesObjectives = usesObjectiveFleet(state, playerId);
+  const priorities = usesObjectives
+    ? OBJECTIVE_FLEET_PRIORITIES[difficulty]
+    : COMBAT_FLEET_PRIORITIES[difficulty];
+  const wantsTanker = !!state.scenarioRules.logisticsEnabled;
+
+  const getMaxCount = (shipType: PurchasableShipType): number => {
+    switch (shipType) {
+      case 'dreadnaught':
+        return difficulty === 'hard' ? 1 : 0;
+      case 'torch':
+        return difficulty === 'hard' ? 1 : 0;
+      case 'tanker':
+        return wantsTanker ? 1 : 0;
+      case 'transport':
+        return usesObjectives || available.has('orbitalBaseCargo') ? 1 : 0;
+      default:
+        return Number.POSITIVE_INFINITY;
+    }
+  };
+
+  const tryBuyShip = (shipType: PurchasableShipType): boolean => {
+    if (!available.has(shipType)) return false;
+    if (getShipPurchaseCount(purchases, shipType) >= getMaxCount(shipType)) {
+      return false;
+    }
+    const cost = SHIP_STATS[shipType].cost;
+
+    if (remainingCredits < cost) return false;
+
+    purchases.push({ kind: 'ship', shipType });
+    remainingCredits -= cost;
+    return true;
+  };
+
+  const tryBuyOrbitalBase = (): boolean => {
+    if (!available.has('orbitalBaseCargo')) return false;
+    if (remainingCredits < SHIP_STATS.orbitalBase.cost) return false;
+    if (getFreeBaseCarrierSlots(state, playerId, purchases) <= 0) return false;
+
+    purchases.push({ kind: 'orbitalBaseCargo' });
+    remainingCredits -= SHIP_STATS.orbitalBase.cost;
+    return true;
+  };
+
+  if (difficulty === 'hard' && available.has('orbitalBaseCargo')) {
+    const carrierType = available.has('transport')
+      ? 'transport'
+      : available.has('packet')
+        ? 'packet'
+        : null;
+    if (
+      carrierType != null &&
+      getFreeBaseCarrierSlots(state, playerId, purchases) === 0 &&
+      remainingCredits >=
+        SHIP_STATS.orbitalBase.cost + SHIP_STATS[carrierType].cost
+    ) {
+      tryBuyShip(carrierType);
+    }
+    tryBuyOrbitalBase();
+  }
+
+  if (wantsTanker && available.has('tanker')) {
+    const anchorType = priorities.find(
+      (shipType) =>
+        shipType !== 'tanker' &&
+        shipType !== 'transport' &&
+        available.has(shipType) &&
+        remainingCredits >= SHIP_STATS[shipType].cost + SHIP_STATS.tanker.cost,
+    );
+
+    if (anchorType) {
+      tryBuyShip(anchorType);
+      tryBuyShip('tanker');
+    }
+  }
+
+  for (const shipType of priorities) {
+    while (tryBuyShip(shipType)) {
+      // Keep orbital bases paired with the carrier purchase
+      // that makes them legal.
+      if (
+        difficulty !== 'easy' &&
+        isBaseCarrierType(shipType) &&
+        getFreeBaseCarrierSlots(state, playerId, purchases) > 0
+      ) {
+        tryBuyOrbitalBase();
+      }
+    }
+  }
+
+  return purchases;
+};
 // Generate astrogation orders for an AI player.
 // Strategy: for each ship, evaluate all 7 options
 // (6 burn directions + no burn) and pick the one that

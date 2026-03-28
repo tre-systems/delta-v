@@ -236,14 +236,16 @@ Work through **one section at a time**; each section lists scope, concrete steps
 
 Initial documentation and tooling pass **2026-03-24**: configs fixed where safe; maps and prose docs updated; **manual** follow-ups (Lighthouse/axe tab-through, legal counsel) remain for humans.
 
+Automated comprehensive review pass **2026-03-28**: `npm run verify` passed (lint, typecheck, coverage, build, e2e, a11y e2e, simulation). Follow-up work was identified for scenario balance/timeout skew and dependency audit remediation; tracked in [BACKLOG.md](./BACKLOG.md) items **18** and **19**.
+
 | #   | Area                     | Reviewed (date) | Owner | Status             | Notes / link                                                                                                     |
 | --- | ------------------------ | --------------- | ----- | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | 1   | CI / local dev friction  | 2026-03-24      | —     | partial            | `test:coverage` + `--no-file-parallelism`; pre-commit dynamic `E2E_PORT`; [CONTRIBUTING.md](./CONTRIBUTING.md) |
 | 2   | Observability            | 2026-03-24      | —     | complete           | [OBSERVABILITY.md](./OBSERVABILITY.md)                                                                           |
 | 3   | Data lifecycle           | 2026-03-24      | —     | complete           | [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do)                                                             |
 | 4   | Accessibility            | 2026-03-24      | —     | follow-up required | [A11Y.md](./A11Y.md) — automated baseline shipped; manual audit still due                                        |
-| 5   | Bundle / runtime         | 2026-03-24      | —     | partial            | [Bundle baseline](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene); Chrome profiling optional             |
-| 6   | Supply chain / release   | 2026-03-24      | —     | complete           | `npm audit` clean at review; D1 rollback in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene) |
+| 5   | Bundle / runtime         | 2026-03-28      | —     | partial            | Raw/gzip re-measured in review pass; runtime profiling still optional/manual                                      |
+| 6   | Supply chain / release   | 2026-03-28      | —     | follow-up required | `npm audit` reports high `picomatch` advisory; remediation tracked in [BACKLOG.md](./BACKLOG.md) item **19**     |
 | 7   | Protocol compatibility   | 2026-03-24      | —     | complete           | [ARCHITECTURE.md](./ARCHITECTURE.md) intro + [section 6](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts) |
 | 8   | Replay / parity          | 2026-03-24      | —     | complete           | [CODING_STANDARDS.md](./CODING_STANDARDS.md) testing guidance                                                     |
 | 9   | i18n                     | 2026-03-24      | —     | complete           | [English-only stance](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts)                                  |

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { aiAstrogation, aiCombat, aiOrdnance } from './ai';
+import { aiAstrogation, aiCombat, aiLogistics, aiOrdnance } from './ai';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
 import { createGame, processAstrogation } from './engine/game-engine';
@@ -245,6 +245,57 @@ describe('aiOrdnance', () => {
     for (const launch of launches) {
       expect(aiShipIds.has(launch.shipId)).toBe(true);
     }
+  });
+});
+describe('aiLogistics', () => {
+  it('moves passengers onto a stronger escort during rescue scenarios', () => {
+    const state = createGame(SCENARIOS.evacuation, map, 'LOG1', findBaseHex);
+    const transport = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'transport'),
+    );
+    const corvette = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'corvette'),
+    );
+
+    state.phase = 'logistics';
+    state.activePlayer = 0;
+    transport.passengersAboard = 20;
+    corvette.cargoUsed = 0;
+
+    expect(aiLogistics(state, 0, map, 'hard')).toContainEqual({
+      sourceShipId: transport.id,
+      targetShipId: corvette.id,
+      transferType: 'passengers',
+      amount: 5,
+    });
+  });
+
+  it('tops up fuel from a tanker when an escort is running short', () => {
+    const state = createGame(SCENARIOS.convoy, map, 'LOG2', findBaseHex);
+    const tanker = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'tanker'),
+    );
+    const frigate = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'frigate'),
+    );
+    const liner = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'liner'),
+    );
+
+    state.phase = 'logistics';
+    state.activePlayer = 0;
+    tanker.lifecycle = 'active';
+    frigate.fuel = 1;
+    frigate.lifecycle = 'active';
+    liner.lifecycle = 'destroyed';
+    const [transfer] = aiLogistics(state, 0, map, 'normal');
+
+    expect(transfer).toMatchObject({
+      sourceShipId: tanker.id,
+      targetShipId: frigate.id,
+      transferType: 'fuel',
+    });
+    expect(transfer?.amount).toBeGreaterThan(0);
   });
 });
 describe('aiCombat', () => {

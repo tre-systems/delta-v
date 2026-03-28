@@ -268,6 +268,7 @@ export const processLogistics = (
     } => {
   const state = structuredClone(inputState);
   const engineEvents: EngineEvent[] = [];
+  const transferEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'logistics');
 
@@ -277,16 +278,6 @@ export const processLogistics = (
     const error = validateTransfer(state, playerId, transfer);
 
     if (error) return { error };
-  }
-
-  engineEvents.push({
-    type: 'logisticsTransfersCommitted',
-    playerId,
-    transfers: structuredClone(transfers),
-  });
-
-  // Apply transfers
-  for (const transfer of transfers) {
     const source = must(
       state.ships.find((s) => s.id === transfer.sourceShipId),
     );
@@ -297,7 +288,7 @@ export const processLogistics = (
     if (transfer.transferType === 'fuel') {
       source.fuel -= transfer.amount;
       target.fuel += transfer.amount;
-      engineEvents.push({
+      transferEvents.push({
         type: 'fuelTransferred',
         fromShipId: source.id,
         toShipId: target.id,
@@ -306,7 +297,7 @@ export const processLogistics = (
     } else if (transfer.transferType === 'cargo') {
       source.cargoUsed -= transfer.amount;
       target.cargoUsed += transfer.amount;
-      engineEvents.push({
+      transferEvents.push({
         type: 'cargoTransferred',
         fromShipId: source.id,
         toShipId: target.id,
@@ -322,7 +313,7 @@ export const processLogistics = (
       }
       target.passengersAboard =
         (target.passengersAboard ?? 0) + transfer.amount;
-      engineEvents.push({
+      transferEvents.push({
         type: 'passengersTransferred',
         fromShipId: source.id,
         toShipId: target.id,
@@ -330,6 +321,13 @@ export const processLogistics = (
       });
     }
   }
+
+  engineEvents.push({
+    type: 'logisticsTransfersCommitted',
+    playerId,
+    transfers: structuredClone(transfers),
+  });
+  engineEvents.push(...transferEvents);
 
   // Continue to combat or advance turn
   if (shouldEnterCombatPhase(state, map)) {
