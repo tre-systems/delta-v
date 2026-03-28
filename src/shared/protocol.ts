@@ -300,7 +300,11 @@ const parseTransferOrders = (raw: unknown): TransferOrder[] | null => {
       return null;
     }
 
-    if (item.transferType !== 'fuel' && item.transferType !== 'cargo') {
+    if (
+      item.transferType !== 'fuel' &&
+      item.transferType !== 'cargo' &&
+      item.transferType !== 'passengers'
+    ) {
       return null;
     }
 

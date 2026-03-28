@@ -1,6 +1,7 @@
 import { applyDamage, lookupOtherDamage, rollD6 } from '../combat';
 import {
   BASE_DETECTION_RANGE,
+  isWarshipType,
   SHIP_DETECTION_RANGE,
   SHIP_STATS,
 } from '../constants';
@@ -693,7 +694,10 @@ export const checkOrbitalBaseResupply = (
       if (stats) {
         ship.fuel = stats.fuel;
         ship.cargoUsed = 0;
-        ship.nukesLaunchedSinceResupply = 0;
+        // Only warships rearm nukes via resupply.
+        if (isWarshipType(ship.type)) {
+          ship.nukesLaunchedSinceResupply = 0;
+        }
         ship.damage = { disabledTurns: 0 };
         ship.control = 'own';
         ship.resuppliedThisTurn = true;
@@ -734,7 +738,10 @@ export const applyResupply = (
   if (stats) {
     ship.fuel = stats.fuel;
     ship.cargoUsed = 0;
-    ship.nukesLaunchedSinceResupply = 0;
+    // Only warships rearm nukes via resupply.
+    if (isWarshipType(ship.type)) {
+      ship.nukesLaunchedSinceResupply = 0;
+    }
     ship.overloadUsed = false;
     ship.damage = { disabledTurns: 0 };
     ship.control = 'own';

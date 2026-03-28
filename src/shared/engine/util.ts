@@ -193,7 +193,7 @@ export const validateShipOrdnanceLaunch = (
   ) {
     return engineError(
       ErrorCode.RESOURCE_LIMIT,
-      'Non-warships may carry only one nuke between resupplies',
+      'Non-warships may launch only one nuke per match',
     );
   }
 
