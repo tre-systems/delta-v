@@ -1,11 +1,11 @@
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import { playPhaseChange } from '../audio';
 import { type ClientState, derivePhaseTransition } from './phase';
 import type { TurnTelemetryContext } from './turn-telemetry';
 
 export interface PhaseControllerDeps {
   gameState: GameState | null;
-  playerId: number;
+  playerId: PlayerId;
   lastLoggedTurn: number;
   isLocalGame: boolean;
   scenario: string;

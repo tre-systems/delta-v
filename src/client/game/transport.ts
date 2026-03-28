@@ -47,7 +47,7 @@ export interface GameTransport {
 
 export interface LocalTransportDeps {
   getState: () => GameState | null;
-  getPlayerId: () => number;
+  getPlayerId: () => PlayerId;
   getMap: () => SolarSystemMap;
   onResolution: (
     resolution: LocalResolution,
@@ -226,7 +226,7 @@ export const createLocalTransport = (
 
 export interface LocalGameTransportDeps {
   getGameState: () => GameState | null;
-  getPlayerId: () => number;
+  getPlayerId: () => PlayerId;
   getMap: () => SolarSystemMap;
   getScenario: () => string;
   getScenarioDef: () => ScenarioDefinition;

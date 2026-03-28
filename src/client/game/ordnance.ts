@@ -9,6 +9,7 @@ import type {
   OrbitalBaseEmplacement,
   OrdnanceLaunch,
   OrdnanceType,
+  PlayerId,
   Ship,
 } from '../../shared/types/domain';
 import type { PlanningState } from './planning';
@@ -61,7 +62,7 @@ const getSelectedShip = (
 
 export const getFirstLaunchableShipId = (
   state: OrdnanceState,
-  playerId: number,
+  playerId: PlayerId,
 ): string | null => {
   const allowedTypes = getAllowedOrdnanceTypes(state);
 
@@ -77,7 +78,7 @@ export const getFirstLaunchableShipId = (
 
 export const getUnambiguousLaunchableShipId = (
   state: OrdnanceState,
-  playerId: number,
+  playerId: PlayerId,
 ): string | null => {
   const allowedTypes = getAllowedOrdnanceTypes(state);
   const launchable = state.ships.filter(

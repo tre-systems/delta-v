@@ -6,6 +6,7 @@ import type {
   GameState,
   MovementEvent,
   OrdnanceMovement,
+  PlayerId,
   ShipMovement,
   SolarSystemMap,
 } from '../../shared/types/domain';
@@ -77,7 +78,7 @@ export const createRenderer = (
 
   let map: SolarSystemMap | null = null;
   let gameState: GameState | null = null;
-  let playerId = -1;
+  let playerId = 0 as PlayerId;
   let combatResults: {
     results: CombatResult[];
     showUntil: number;
@@ -409,7 +410,7 @@ export const createRenderer = (
     },
 
     setPlayerId: (id: number) => {
-      playerId = id;
+      playerId = id as PlayerId;
     },
 
     clearTrails: () => {

@@ -1,5 +1,9 @@
 import type { HexCoord } from '../../shared/hex';
-import type { GameState, SolarSystemMap } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import { createMinimapLayout } from '../game/minimap';
 import type { Camera } from './camera';
 import {
@@ -99,7 +103,7 @@ export type DrawMinimapOverlayInput = {
   ctx: CanvasRenderingContext2D;
   map: SolarSystemMap;
   state: GameState;
-  playerId: number;
+  playerId: PlayerId;
   shipTrails: Map<string, HexCoord[]>;
   camera: Camera;
   screenW: number;

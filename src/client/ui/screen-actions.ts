@@ -1,4 +1,4 @@
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 
 type ScreenMode = 'menu' | 'scenario' | 'waiting' | 'hud' | 'fleetBuilding';
 
@@ -10,7 +10,7 @@ type CreateScreenActionsInput = {
   showConnectingLobby: () => void;
   showHudLog: () => void;
   queueLayoutSync: () => void;
-  showFleetBuildingView: (state: GameState, playerId: number) => void;
+  showFleetBuildingView: (state: GameState, playerId: PlayerId) => void;
   showFleetWaitingView: () => void;
 };
 
@@ -55,7 +55,7 @@ export const createScreenActions = ({
     queueLayoutSync();
   };
 
-  const showFleetBuilding = (state: GameState, playerId: number) => {
+  const showFleetBuilding = (state: GameState, playerId: PlayerId) => {
     hideAll();
     applyScreenVisibility('fleetBuilding');
     showFleetBuildingView(state, playerId);

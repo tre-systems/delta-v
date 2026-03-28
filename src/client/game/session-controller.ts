@@ -1,5 +1,5 @@
 import type { AIDifficulty } from '../../shared/ai';
-import type { GameState, Result } from '../../shared/types/domain';
+import type { GameState, PlayerId, Result } from '../../shared/types/domain';
 import {
   resetReconnectAttempts,
   setGameCode,
@@ -35,7 +35,7 @@ export interface LocalGameSessionDeps {
   createLocalGameState: (scenario: string) => GameState;
   getScenarioName: (scenario: string) => string;
   resetTurnTelemetry: () => void;
-  setRendererPlayerId: (playerId: number) => void;
+  setRendererPlayerId: (playerId: PlayerId) => void;
   clearTrails: () => void;
   clearLog: () => void;
   setChatEnabled: (enabled: boolean) => void;

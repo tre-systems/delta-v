@@ -11,6 +11,7 @@ import type {
   CombatAttack,
   GameState,
   OrdnanceLaunch,
+  PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { hasOwnedPendingAsteroidHazards } from './local';
@@ -25,13 +26,13 @@ export type AIActionPlan =
   | { kind: 'none' }
   | {
       kind: 'astrogation';
-      aiPlayer: number;
+      aiPlayer: PlayerId;
       orders: AstrogationOrder[];
       errorPrefix: 'AI astrogation error:';
     }
   | {
       kind: 'ordnance';
-      aiPlayer: number;
+      aiPlayer: PlayerId;
       launches: OrdnanceLaunch[];
       logEntries: string[];
       skip: boolean;
@@ -39,25 +40,25 @@ export type AIActionPlan =
     }
   | {
       kind: 'beginCombat';
-      aiPlayer: number;
+      aiPlayer: PlayerId;
       errorPrefix: 'AI combat start error:';
     }
   | {
       kind: 'combat';
-      aiPlayer: number;
+      aiPlayer: PlayerId;
       attacks: CombatAttack[];
       skip: boolean;
       errorPrefix: 'AI combat error:' | 'AI skip combat error:';
     }
   | {
       kind: 'logistics';
-      aiPlayer: number;
+      aiPlayer: PlayerId;
       skip: true;
       errorPrefix: 'AI skip logistics error:';
     }
   | {
       kind: 'transition';
-      aiPlayer: number;
+      aiPlayer: PlayerId;
     };
 
 const buildAIOrdnanceLogEntries = (
@@ -77,7 +78,7 @@ const buildAIOrdnanceLogEntries = (
 
 export const deriveAIActionPlan = (
   state: GameState | null,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
   difficulty: AIDifficulty,
   generators: AIDecisionGenerators = {

@@ -1,4 +1,4 @@
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { Renderer } from '../renderer/renderer';
 import { HEX_SIZE } from '../renderer/renderer';
 import type { OverlayView } from '../ui/overlay-view';
@@ -12,7 +12,7 @@ import { setSelectedShipId } from './planning-store';
 
 export interface CameraControllerDeps {
   getGameState: () => GameState | null;
-  getPlayerId: () => number;
+  getPlayerId: () => PlayerId;
   getPlanningState: () => PlanningState;
   renderer: Renderer;
   overlay: OverlayView;

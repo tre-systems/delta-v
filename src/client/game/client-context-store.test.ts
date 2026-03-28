@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { PlayerId } from '../../shared/types/domain';
 import {
   applyWelcomeSession,
   resetReconnectAttempts,
@@ -15,9 +16,13 @@ import type { GameTransport } from './transport';
 
 describe('client-context-store', () => {
   it('applies welcome-session identity and clears reconnect attempts', () => {
-    const ctx = {
+    const ctx: {
+      playerId: PlayerId | -1;
+      gameCode: string | null;
+      reconnectAttempts: number;
+    } = {
       playerId: -1,
-      gameCode: null as string | null,
+      gameCode: null,
       reconnectAttempts: 3,
     };
 
@@ -52,12 +57,18 @@ describe('client-context-store', () => {
   });
 
   it('updates scenario, local mode, difficulty, player, and room code', () => {
-    const ctx = {
+    const ctx: {
+      scenario: string;
+      isLocalGame: boolean;
+      aiDifficulty: 'normal';
+      playerId: PlayerId | -1;
+      gameCode: string | null;
+    } = {
       scenario: 'biplanetary',
       isLocalGame: false,
-      aiDifficulty: 'normal' as const,
+      aiDifficulty: 'normal',
       playerId: -1,
-      gameCode: null as string | null,
+      gameCode: null,
     };
 
     setScenario(ctx, 'escape');

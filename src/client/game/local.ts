@@ -42,17 +42,11 @@ export type LocalResolution =
 
 export const resolveAstrogationStep = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   orders: AstrogationOrder[],
   map: SolarSystemMap,
 ): LocalResolution => {
-  const result = processAstrogation(
-    state,
-    playerId as PlayerId,
-    orders,
-    map,
-    Math.random,
-  );
+  const result = processAstrogation(state, playerId, orders, map, Math.random);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -66,17 +60,11 @@ export const resolveAstrogationStep = (
 
 export const resolveOrdnanceStep = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   launches: OrdnanceLaunch[],
   map: SolarSystemMap,
 ): LocalResolution => {
-  const result = processOrdnance(
-    state,
-    playerId as PlayerId,
-    launches,
-    map,
-    Math.random,
-  );
+  const result = processOrdnance(state, playerId, launches, map, Math.random);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -86,10 +74,10 @@ export const resolveOrdnanceStep = (
 
 export const resolveSkipOrdnanceStep = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
 ): LocalResolution => {
-  const result = skipOrdnance(state, playerId as PlayerId, map, Math.random);
+  const result = skipOrdnance(state, playerId, map, Math.random);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -103,16 +91,11 @@ export const resolveSkipOrdnanceStep = (
 
 export const resolveBeginCombatStep = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
 ): LocalResolution => {
   const previousState = structuredClone(state);
-  const result = beginCombatPhase(
-    state,
-    playerId as PlayerId,
-    map,
-    Math.random,
-  );
+  const result = beginCombatPhase(state, playerId, map, Math.random);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -132,19 +115,13 @@ export const resolveBeginCombatStep = (
 
 export const resolveCombatStep = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   attacks: CombatAttack[],
   map: SolarSystemMap,
   resetCombat = true,
 ): LocalResolution => {
   const previousState = structuredClone(state);
-  const result = processCombat(
-    state,
-    playerId as PlayerId,
-    attacks,
-    map,
-    Math.random,
-  );
+  const result = processCombat(state, playerId, attacks, map, Math.random);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -160,11 +137,11 @@ export const resolveCombatStep = (
 
 export const resolveSkipCombatStep = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
 ): LocalResolution => {
   const previousState = structuredClone(state);
-  const result = skipCombat(state, playerId as PlayerId, map, Math.random);
+  const result = skipCombat(state, playerId, map, Math.random);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -184,11 +161,11 @@ export const resolveSkipCombatStep = (
 
 export const resolveLogisticsStep = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   transfers: TransferOrder[],
   map: SolarSystemMap,
 ): LocalResolution => {
-  const result = processLogistics(state, playerId as PlayerId, transfers, map);
+  const result = processLogistics(state, playerId, transfers, map);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -202,10 +179,10 @@ export const resolveLogisticsStep = (
 
 export const resolveSkipLogisticsStep = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   map: SolarSystemMap,
 ): LocalResolution => {
-  const result = skipLogistics(state, playerId as PlayerId, map);
+  const result = skipLogistics(state, playerId, map);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };
@@ -215,7 +192,7 @@ export const resolveSkipLogisticsStep = (
 
 export const hasOwnedPendingAsteroidHazards = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
 ): boolean => {
   return state.pendingAsteroidHazards.some((hazard) => {
     const ship = state.ships.find(

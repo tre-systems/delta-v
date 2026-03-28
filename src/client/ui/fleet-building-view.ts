@@ -1,4 +1,8 @@
-import type { FleetPurchase, GameState } from '../../shared/types/domain';
+import type {
+  FleetPurchase,
+  GameState,
+  PlayerId,
+} from '../../shared/types/domain';
 import { byId, clearHTML, el, listen, renderList, text, visible } from '../dom';
 import {
   batch,
@@ -15,7 +19,7 @@ export interface FleetBuildingViewDeps {
 }
 
 export interface FleetBuildingView {
-  show: (state: GameState, playerId: number) => void;
+  show: (state: GameState, playerId: PlayerId) => void;
   showWaiting: () => void;
   dispose: () => void;
 }
@@ -35,7 +39,7 @@ export const createFleetBuildingView = (
   const clearBtn = byId('fleetClearBtn');
   const waitingEl = byId('fleetWaiting');
 
-  const showFleetBuilding = (state: GameState, playerId: number): void => {
+  const showFleetBuilding = (state: GameState, playerId: PlayerId): void => {
     const credits = state.players[playerId].credits ?? 0;
 
     batch(() => {

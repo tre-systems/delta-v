@@ -1,5 +1,5 @@
 import type { HexCoord } from '../../shared/hex';
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { AnimationState } from './animation';
 import type { Camera } from './camera';
 import {
@@ -46,7 +46,7 @@ const drawTrailWaypoints = (
 export const drawShipAndOrdnanceTrails = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   shipTrails: Map<string, HexCoord[]>,
   ordnanceTrails: Map<string, HexCoord[]>,
   hexSize: number,
@@ -87,7 +87,7 @@ export const drawShipAndOrdnanceTrails = (
 export const drawAnimatedMovementPaths = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   animState: AnimationState,
   now: number,
   hexSize: number,

@@ -23,7 +23,7 @@ import { buildShipTooltipHtml } from './tooltip';
 
 export interface HudControllerDeps {
   getGameState: () => GameState | null;
-  getPlayerId: () => number;
+  getPlayerId: () => PlayerId;
   getClientState: () => ClientState;
   getPlanningState: () => PlanningState;
   getMap: () => SolarSystemMap;
@@ -84,7 +84,7 @@ export const createHudController = (deps: HudControllerDeps) => {
     const planning = deps.getPlanningState();
     const ship = getSelectedShip(
       state,
-      deps.getPlayerId() as PlayerId,
+      deps.getPlayerId(),
       planning.selectedShipId,
     );
 
@@ -104,11 +104,7 @@ export const createHudController = (deps: HudControllerDeps) => {
 
       if (!state) return;
       const planning = deps.getPlanningState();
-      const hud = deriveHudViewModel(
-        state,
-        deps.getPlayerId() as PlayerId,
-        planning,
-      );
+      const hud = deriveHudViewModel(state, deps.getPlayerId(), planning);
 
       if (
         hud.selectedId !== null &&
@@ -173,7 +169,7 @@ export const createHudController = (deps: HudControllerDeps) => {
       if (!state) return;
       for (const entry of deriveScenarioBriefingEntries(
         state,
-        deps.getPlayerId() as PlayerId,
+        deps.getPlayerId(),
       )) {
         deps.ui.log.logText(entry.text, entry.cssClass);
       }

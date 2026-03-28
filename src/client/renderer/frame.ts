@@ -2,6 +2,7 @@ import { hexToPixel } from '../../shared/hex';
 import type {
   GameState,
   OrdnanceMovement,
+  PlayerId,
   ShipMovement,
   SolarSystemMap,
 } from '../../shared/types/domain';
@@ -38,7 +39,7 @@ export const frameCameraOnAnimatedHexes = (
 export const frameCameraOnPlayerShips = (
   camera: Camera,
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   hexSize: number,
 ): void => {
   const myShips = state.ships.filter(

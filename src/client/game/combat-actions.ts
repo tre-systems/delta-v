@@ -1,5 +1,9 @@
 import { canAttack } from '../../shared/combat';
-import type { GameState, SolarSystemMap } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import { clamp } from '../../shared/util';
 import {
   buildCurrentAttack,
@@ -21,7 +25,7 @@ import type { GameTransport } from './transport';
 export interface CombatActionDeps {
   getGameState: () => GameState | null;
   getClientState: () => string;
-  getPlayerId: () => number;
+  getPlayerId: () => PlayerId;
   getTransport: () => GameTransport | null;
   getMap: () => SolarSystemMap;
   planningState: PlanningState;

@@ -1,6 +1,8 @@
+import type { ShipType } from '../../shared/constants';
 import type {
   AstrogationOrder,
   GameState,
+  PlayerId,
   Ship,
 } from '../../shared/types/domain';
 import type { PlanningState } from './planning';
@@ -8,15 +10,15 @@ import type { PlanningState } from './planning';
 export interface ShipFate {
   id: string;
   name: string;
-  type: string;
+  type: ShipType;
   status: 'survived' | 'destroyed' | 'captured';
-  owner: number;
+  owner: PlayerId;
   deathCause?: string;
   killedBy?: string;
 }
 
 export interface GameOverStats {
-  playerId: number;
+  playerId: PlayerId;
   scenario: string;
   turns: number;
   myShipsAlive: number;
@@ -79,12 +81,12 @@ export type PlanningSnapshot = Pick<
 
 export type BuildAstrogationOrders = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: PlanningSnapshot,
 ) => AstrogationOrder[];
 
 export type DeriveHudViewModel = (
   state: GameState,
-  playerId: number,
+  playerId: PlayerId,
   planning: PlanningSnapshot,
 ) => HudViewModel;

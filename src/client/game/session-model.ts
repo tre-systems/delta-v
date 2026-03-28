@@ -1,5 +1,5 @@
 import type { AIDifficulty } from '../../shared/ai';
-import type { GameState } from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 import { createInitialPlanningState, type PlanningState } from './planning';
 import type { GameTransport } from './transport';
@@ -7,7 +7,7 @@ import type { GameTransport } from './transport';
 /** Single client-side session shape: connection, lobby, and in-match fields live here. */
 export interface ClientSession {
   state: ClientState;
-  playerId: number;
+  playerId: PlayerId | -1;
   /** True while connected as a live spectator (`?viewer=spectator`). */
   spectatorMode: boolean;
   gameCode: string | null;
