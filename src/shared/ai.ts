@@ -333,7 +333,7 @@ const scorePassengerCarrierEvasion = (
 
   const currentDist = hexDistance(ship.position, nearestThreat.position);
 
-  if (currentDist > 4) {
+  if (currentDist > 2) {
     return 0;
   }
 
@@ -342,7 +342,7 @@ const scorePassengerCarrierEvasion = (
     hexAdd(course.destination, course.newVelocity),
     nearestThreat.position,
   );
-  let score = (newDist - currentDist) * (currentDist <= 2 ? 55 : 30);
+  let score = (newDist - currentDist) * 55;
 
   if (newDist <= 1) {
     score -= 220;
@@ -1035,6 +1035,58 @@ const getPassengerEmergencyEscortOrders = (
   ]);
 };
 
+const maybeCreatePassengerFuelSupportOrder = (
+  ship: Ship,
+  state: GameState,
+  playerId: PlayerId,
+  plannedOrders: readonly AstrogationOrder[],
+  map: SolarSystemMap,
+): AstrogationOrder | null => {
+  if (
+    !isPassengerEscortMission(state, playerId) ||
+    ship.type !== 'tanker' ||
+    ship.lifecycle === 'destroyed' ||
+    ship.damage.disabledTurns > 0
+  ) {
+    return null;
+  }
+
+  const primaryCarrier = getPrimaryPassengerCarrier(state, playerId);
+
+  if (
+    primaryCarrier == null ||
+    primaryCarrier.id === ship.id ||
+    primaryCarrier.lifecycle === 'destroyed' ||
+    !hexEqual(primaryCarrier.position, ship.position) ||
+    primaryCarrier.velocity.dq !== ship.velocity.dq ||
+    primaryCarrier.velocity.dr !== ship.velocity.dr
+  ) {
+    return null;
+  }
+
+  const carrierOrder = plannedOrders.find(
+    (order) => order.shipId === primaryCarrier.id,
+  );
+
+  if (!carrierOrder) {
+    return null;
+  }
+
+  const mirroredCourse = computeCourse(ship, carrierOrder.burn, map, {
+    destroyedBases: state.destroyedBases,
+  });
+
+  if (mirroredCourse.outcome === 'crash') {
+    return null;
+  }
+
+  return {
+    shipId: ship.id,
+    burn: carrierOrder.burn,
+    overload: null,
+  };
+};
+
 export const aiLogistics = (
   state: GameState,
   playerId: PlayerId,
@@ -1272,6 +1324,19 @@ export const aiAstrogation = (
 
     if (formationOrder) {
       orders.push(formationOrder);
+      shipIdx++;
+      continue;
+    }
+    const fuelSupportOrder = maybeCreatePassengerFuelSupportOrder(
+      ship,
+      state,
+      playerId,
+      orders,
+      map,
+    );
+
+    if (fuelSupportOrder) {
+      orders.push(fuelSupportOrder);
       shipIdx++;
       continue;
     }

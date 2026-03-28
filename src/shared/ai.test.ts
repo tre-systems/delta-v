@@ -175,6 +175,17 @@ describe('aiAstrogation', () => {
     expect(corvetteOrder.burn).toBe(1);
   });
 
+  it('keeps a convoy tanker stacked with the passenger carrier for fuel support', () => {
+    const state = createGame(SCENARIOS.convoy, map, 'PAX-FUEL', findBaseHex);
+    const orders = aiAstrogation(state, 0, map, 'hard');
+    const linerOrder = must(orders.find((order) => order.shipId === 'p0s0'));
+    const tankerOrder = must(orders.find((order) => order.shipId === 'p0s1'));
+
+    expect(linerOrder.burn).not.toBeNull();
+    expect(tankerOrder.overload).toBeNull();
+    expect(tankerOrder.burn).toBe(linerOrder.burn);
+  });
+
   it('allows corrective-burn objective lines outside the emergency search case', () => {
     const state = createGame(
       SCENARIOS.evacuation,
