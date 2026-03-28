@@ -1,6 +1,9 @@
-import type { ShipType } from '../constants';
 import type { HexCoord } from '../hex';
-import type { ScenarioRules, ScenarioShip } from './domain';
+import type {
+  FleetPurchaseOption,
+  ScenarioRules,
+  ScenarioShip,
+} from './domain';
 
 // --- Scenario configuration ---
 
@@ -21,5 +24,5 @@ export interface ScenarioDefinition {
   rules?: ScenarioRules;
   startingPlayer?: 0 | 1;
   startingCredits?: number | [number, number];
-  availableShipTypes?: ShipType[];
+  availableFleetPurchases?: FleetPurchaseOption[];
 }

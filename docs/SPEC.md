@@ -577,6 +577,12 @@ type C2S =
   | { type: "ping"; t: number };
 ```
 
+```typescript
+type FleetPurchase =
+  | { kind: "ship"; shipType: PurchasableShipType }
+  | { kind: "orbitalBaseCargo" };
+```
+
 ### Server → Client (S2C)
 
 ```typescript
@@ -635,7 +641,7 @@ interface Ship {
   velocity: HexVec; // (dq, dr) displacement per turn
   fuel: number;
   cargoUsed: number; // mass of ordnance consumed
-  nukesLaunchedSinceResupply: number; // reset on resupply
+  nukesLaunchedSinceResupply: number; // tracks nuke launches since the last resupply
   resuppliedThisTurn: boolean;
   lifecycle: "active" | "landed" | "destroyed"; // mutually exclusive ship state
   control: "own" | "captured" | "surrendered"; // who controls this ship
@@ -812,7 +818,7 @@ interface ScenarioDefinition {
   rules?: ScenarioRules; // Ordnance types, escape edge, combat disabled, etc.
   startingPlayer?: 0 | 1;
   startingCredits?: number | [number, number]; // Per-player MegaCredits for fleet-building
-  availableShipTypes?: string[]; // Restricts purchasable ships
+  availableFleetPurchases?: string[]; // Restricts purchasable ships / orbital-base cargo
 }
 
 interface ScenarioPlayer {

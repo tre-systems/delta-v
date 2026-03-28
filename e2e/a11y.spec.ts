@@ -65,6 +65,12 @@ const runA11yCheck = async (
   ).toEqual([]);
 };
 
+const activeElementId = async (page: Page): Promise<string> => {
+  return page.evaluate(() => {
+    return (document.activeElement as HTMLElement | null)?.id ?? '';
+  });
+};
+
 test.describe('accessibility smoke checks', () => {
   test('menu view has no serious/critical DOM accessibility violations', async ({
     page,
@@ -91,5 +97,37 @@ test.describe('accessibility smoke checks', () => {
     await page.click('#helpBtn');
     await waitForDisplay(page, '#helpOverlay', 'flex');
     await runA11yCheck(page, ['#hud', '#helpOverlay']);
+  });
+
+  test('menu buttons are keyboard-focusable and Enter activates primary navigation', async ({
+    page,
+  }) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await waitForDisplay(page, '#menu', 'flex');
+
+    await page.keyboard.press('Tab');
+    await expect.poll(async () => activeElementId(page)).toBe('createBtn');
+
+    await page.keyboard.press('Tab');
+    await expect
+      .poll(async () => activeElementId(page))
+      .toBe('singlePlayerBtn');
+
+    await page.keyboard.press('Enter');
+    await waitForDisplay(page, '#scenarioSelect', 'flex');
+  });
+
+  test('help overlay moves focus to close and restores focus on close', async ({
+    page,
+  }) => {
+    await launchSinglePlayer(page);
+    await page.click('#helpBtn');
+
+    await waitForDisplay(page, '#helpOverlay', 'flex');
+    await expect.poll(async () => activeElementId(page)).toBe('helpCloseBtn');
+
+    await page.click('#helpCloseBtn');
+    await waitForDisplay(page, '#helpOverlay', 'none');
+    await expect.poll(async () => activeElementId(page)).toBe('helpBtn');
   });
 });

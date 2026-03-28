@@ -1,5 +1,6 @@
 import type {
   FleetPurchase,
+  FleetPurchaseOption,
   GameState,
   PlayerId,
 } from '../../shared/types/domain';
@@ -12,7 +13,11 @@ import {
   signal,
   withScope,
 } from '../reactive';
-import { canAddFleetShip, getFleetCartView, getFleetShopView } from './fleet';
+import {
+  canAddFleetPurchase,
+  getFleetCartView,
+  getFleetShopView,
+} from './fleet';
 
 export interface FleetBuildingViewDeps {
   onFleetReady: (purchases: FleetPurchase[]) => void;
@@ -29,6 +34,9 @@ export const createFleetBuildingView = (
 ): FleetBuildingView => {
   const scope = createDisposalScope();
   const cartSignal = signal<FleetPurchase[]>([]);
+  const availableFleetPurchasesSignal = signal<
+    FleetPurchaseOption[] | undefined
+  >(undefined);
   const totalCreditsSignal = signal(0);
   const waitingSignal = signal(false);
 
@@ -43,6 +51,8 @@ export const createFleetBuildingView = (
     const credits = state.players[playerId].credits ?? 0;
 
     batch(() => {
+      availableFleetPurchasesSignal.value =
+        state.scenarioRules.availableFleetPurchases;
       totalCreditsSignal.value = credits;
       cartSignal.value = [];
       waitingSignal.value = false;
@@ -73,7 +83,11 @@ export const createFleetBuildingView = (
     );
 
     const shopViewSignal = computed(() =>
-      getFleetShopView(cartSignal.value, totalCreditsSignal.value),
+      getFleetShopView(
+        cartSignal.value,
+        totalCreditsSignal.value,
+        availableFleetPurchasesSignal.value,
+      ),
     );
 
     effect(() => {
@@ -142,16 +156,13 @@ export const createFleetBuildingView = (
 
         const addShip = (): void => {
           if (
-            canAddFleetShip(
+            canAddFleetPurchase(
               cartSignal.peek(),
               totalCreditsSignal.peek(),
-              itemView.shipType,
+              itemView.purchase,
             )
           ) {
-            cartSignal.value = [
-              ...cartSignal.peek(),
-              { shipType: itemView.shipType },
-            ];
+            cartSignal.value = [...cartSignal.peek(), itemView.purchase];
           }
         };
 

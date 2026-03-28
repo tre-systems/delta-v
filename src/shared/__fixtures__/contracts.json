@@ -9,7 +9,7 @@
         "ok": true,
         "value": {
           "type": "fleetReady",
-          "purchases": [{ "shipType": "corvette" }]
+          "purchases": [{ "kind": "ship", "shipType": "corvette" }]
         }
       }
     },

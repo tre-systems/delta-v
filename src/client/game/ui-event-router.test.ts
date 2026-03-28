@@ -56,13 +56,13 @@ describe('game-client-ui-event-router', () => {
     expect(
       resolveUIEventPlan({
         type: 'fleetReady',
-        purchases: [{ shipType: 'frigate' }],
+        purchases: [{ kind: 'ship', shipType: 'frigate' }],
       }),
     ).toEqual({
       kind: 'command',
       command: {
         type: 'fleetReady',
-        purchases: [{ shipType: 'frigate' }],
+        purchases: [{ kind: 'ship', shipType: 'frigate' }],
       },
     });
 

@@ -33,16 +33,10 @@ describe('fleet building (MegaCredit economy)', () => {
       findBaseHex,
     );
     const purchases: FleetPurchase[] = [
-      { shipType: 'corvette' },
-      { shipType: 'corsair' },
+      { kind: 'ship', shipType: 'corvette' },
+      { kind: 'ship', shipType: 'corsair' },
     ];
-    const result = processFleetReady(
-      state,
-      0,
-      purchases,
-      map,
-      SCENARIOS.interplanetaryWar.availableShipTypes,
-    );
+    const result = processFleetReady(state, 0, purchases, map);
     expect('error' in result).toBe(false);
     if ('state' in result) {
       const p0Ships = result.state.ships.filter((s) => s.owner === 0);
@@ -68,9 +62,19 @@ describe('fleet building (MegaCredit economy)', () => {
       'WAR01',
       findBaseHex,
     );
-    const r1 = processFleetReady(state, 0, [{ shipType: 'corvette' }], map);
+    const r1 = processFleetReady(
+      state,
+      0,
+      [{ kind: 'ship', shipType: 'corvette' }],
+      map,
+    );
     if ('error' in r1) throw new Error(r1.error.message);
-    const r2 = processFleetReady(r1.state, 1, [{ shipType: 'corsair' }], map);
+    const r2 = processFleetReady(
+      r1.state,
+      1,
+      [{ kind: 'ship', shipType: 'corsair' }],
+      map,
+    );
     expect('error' in r2).toBe(false);
     if ('state' in r2) {
       expect(r2.state.phase).toBe('astrogation');
@@ -87,7 +91,10 @@ describe('fleet building (MegaCredit economy)', () => {
     const result = processFleetReady(
       state,
       0,
-      [{ shipType: 'dreadnaught' }, { shipType: 'torch' }],
+      [
+        { kind: 'ship', shipType: 'dreadnaught' },
+        { kind: 'ship', shipType: 'torch' },
+      ],
       map,
     );
     expect('error' in result).toBe(true);
@@ -105,7 +112,7 @@ describe('fleet building (MegaCredit economy)', () => {
     const result = processFleetReady(
       state,
       0,
-      [{ shipType: 'battlecruiser' as ShipType }],
+      [{ kind: 'ship', shipType: 'battlecruiser' as ShipType }],
       map,
     );
     expect('error' in result).toBe(true);
@@ -117,12 +124,12 @@ describe('fleet building (MegaCredit economy)', () => {
       'WAR01',
       findBaseHex,
     );
+    state.players[0].credits = 2000;
     const result = processFleetReady(
       state,
       0,
-      [{ shipType: 'orbitalBase' }],
+      [{ kind: 'orbitalBaseCargo' }],
       map,
-      SCENARIOS.interplanetaryWar.availableShipTypes,
     );
     expect('error' in result).toBe(true);
   });
@@ -133,17 +140,12 @@ describe('fleet building (MegaCredit economy)', () => {
       'WAR01',
       findBaseHex,
     );
+    state.players[0].credits = 2000;
     const purchases: FleetPurchase[] = [
-      { shipType: 'transport' },
-      { shipType: 'orbitalBase' },
+      { kind: 'ship', shipType: 'transport' },
+      { kind: 'orbitalBaseCargo' },
     ];
-    const result = processFleetReady(
-      state,
-      0,
-      purchases,
-      map,
-      SCENARIOS.interplanetaryWar.availableShipTypes,
-    );
+    const result = processFleetReady(state, 0, purchases, map);
 
     expect('error' in result).toBe(false);
     if ('state' in result) {
@@ -151,7 +153,8 @@ describe('fleet building (MegaCredit economy)', () => {
         (ship) => ship.owner === 0 && ship.type === 'transport',
       );
       expect(transport?.baseStatus).toBe('carryingBase');
-      expect((transport?.cargoUsed ?? 0) > 0).toBe(true);
+      expect(transport?.cargoUsed).toBe(50);
+      expect(result.state.players[0].credits).toBe(990);
     }
   });
   it('rejects fleet ready when not in fleetBuilding phase', () => {

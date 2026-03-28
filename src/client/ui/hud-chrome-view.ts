@@ -60,6 +60,7 @@ const cloneHUDInput = (
 export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const scope = createDisposalScope();
   let lastPhase: string | null = null;
+  let helpOverlayReturnFocusEl: HTMLElement | null = null;
   const inputSignal = signal<Omit<HUDInput, 'isMobile'> | null>(null);
   const isMobileSignal = signal(false);
   const statusOverrideSignal = signal<string | null>(null);
@@ -98,6 +99,8 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const latencyEl = byId('latencyInfo');
   const fleetStatusEl = byId('fleetStatus');
   const helpOverlayEl = byId('helpOverlay');
+  const helpBtn = byId<HTMLButtonElement>('helpBtn');
+  const helpCloseBtn = byId<HTMLButtonElement>('helpCloseBtn');
   const soundBtn = byId('soundBtn');
   const timerEl = byId('turnTimer');
   const attackBtn = byId('attackBtn');
@@ -124,7 +127,26 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   };
 
   const toggleHelpOverlay = (): void => {
+    const opening = !helpOverlayVisibleSignal.peek();
+
+    if (opening) {
+      const activeElement = document.activeElement;
+      helpOverlayReturnFocusEl =
+        activeElement instanceof HTMLElement ? activeElement : null;
+    }
+
     helpOverlayVisibleSignal.update((value) => !value);
+
+    queueMicrotask(() => {
+      if (opening) {
+        helpCloseBtn.focus();
+        return;
+      }
+
+      const restoreTarget = helpOverlayReturnFocusEl;
+      helpOverlayReturnFocusEl = null;
+      (restoreTarget ?? helpBtn).focus();
+    });
   };
 
   const updateSoundButton = (muted: boolean): void => {
