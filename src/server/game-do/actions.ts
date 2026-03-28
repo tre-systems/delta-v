@@ -74,8 +74,22 @@ export const defineGameStateActionHandler = <
   handler: GameStateActionHandler<T, Success>,
 ): GameStateActionHandler<T, Success> => handler;
 
-export const createGameStateActionHandlers = (deps: ActionDeps) =>
-  ({
+export const createGameStateActionHandlers = (deps: ActionDeps) => {
+  const publishForActor = async (
+    playerId: PlayerId,
+    result: StatefulActionSuccess,
+    primaryMessage?: import('./messages').StatefulServerMessage,
+    options?: {
+      restartTurnTimer?: boolean;
+    },
+  ) =>
+    deps.publishStateChange(result.state, primaryMessage, {
+      actor: playerId,
+      restartTurnTimer: options?.restartTurnTimer,
+      events: result.engineEvents,
+    });
+
+  return {
     fleetReady: defineGameStateActionHandler({
       run: async (
         gameState,
@@ -83,10 +97,8 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
         message: GameStateActionMessageOf<'fleetReady'>,
       ) => processFleetReady(gameState, playerId, message.purchases, deps.map),
       publish: async (playerId, result) => {
-        await deps.publishStateChange(result.state, undefined, {
-          actor: playerId,
+        await publishForActor(playerId, result, undefined, {
           restartTurnTimer: result.state.phase === 'astrogation',
-          events: result.engineEvents,
         });
       },
     }),
@@ -104,10 +116,10 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
           await deps.getActionRng(),
         ),
       publish: async (playerId, result) => {
-        await deps.publishStateChange(
-          result.state,
+        await publishForActor(
+          playerId,
+          result,
           resolveMovementBroadcast(result),
-          { actor: playerId, events: result.engineEvents },
         );
       },
     }),
@@ -118,13 +130,12 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
         message: GameStateActionMessageOf<'surrender'>,
       ) => processSurrender(gameState, playerId, message.shipIds),
       publish: async (playerId, result) => {
-        await deps.publishStateChange(
-          result.state,
+        await publishForActor(
+          playerId,
+          result,
           toStateUpdateMessage(result.state),
           {
-            actor: playerId,
             restartTurnTimer: false,
-            events: result.engineEvents,
           },
         );
       },
@@ -143,13 +154,10 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
           await deps.getActionRng(),
         ),
       publish: async (playerId, result) => {
-        await deps.publishStateChange(
-          result.state,
+        await publishForActor(
+          playerId,
+          result,
           toMovementResultMessage(result),
-          {
-            actor: playerId,
-            events: result.engineEvents,
-          },
         );
       },
     }),
@@ -161,13 +169,12 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
       ) =>
         processEmplacement(gameState, playerId, message.emplacements, deps.map),
       publish: async (playerId, result) => {
-        await deps.publishStateChange(
-          result.state,
+        await publishForActor(
+          playerId,
+          result,
           toStateUpdateMessage(result.state),
           {
-            actor: playerId,
             restartTurnTimer: false,
-            events: result.engineEvents,
           },
         );
       },
@@ -176,10 +183,10 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
       run: async (gameState, playerId) =>
         skipOrdnance(gameState, playerId, deps.map, await deps.getActionRng()),
       publish: async (playerId, result) => {
-        await deps.publishStateChange(
-          result.state,
+        await publishForActor(
+          playerId,
+          result,
           resolveMovementBroadcast(result, 'stateUpdate'),
-          { actor: playerId, events: result.engineEvents },
         );
       },
     }),
@@ -192,10 +199,10 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
           await deps.getActionRng(),
         ),
       publish: async (playerId, result) => {
-        await deps.publishStateChange(
-          result.state,
+        await publishForActor(
+          playerId,
+          result,
           resolveCombatBroadcast(result, 'stateUpdate'),
-          { actor: playerId, events: result.engineEvents },
         );
       },
     }),
@@ -213,13 +220,10 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
           await deps.getActionRng(),
         ),
       publish: async (playerId, result) => {
-        await deps.publishStateChange(
-          result.state,
+        await publishForActor(
+          playerId,
+          result,
           must(resolveCombatBroadcast(result)),
-          {
-            actor: playerId,
-            events: result.engineEvents,
-          },
         );
       },
     }),
@@ -227,14 +231,7 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
       run: async (gameState, playerId) =>
         skipCombat(gameState, playerId, deps.map, await deps.getActionRng()),
       publish: async (playerId, result) => {
-        await deps.publishStateChange(
-          result.state,
-          resolveCombatBroadcast(result),
-          {
-            actor: playerId,
-            events: result.engineEvents,
-          },
-        );
+        await publishForActor(playerId, result, resolveCombatBroadcast(result));
       },
     }),
     logistics: defineGameStateActionHandler({
@@ -244,13 +241,10 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
         message: GameStateActionMessageOf<'logistics'>,
       ) => processLogistics(gameState, playerId, message.transfers, deps.map),
       publish: async (playerId, result) => {
-        await deps.publishStateChange(
-          result.state,
+        await publishForActor(
+          playerId,
+          result,
           toStateUpdateMessage(result.state, result.engineEvents),
-          {
-            actor: playerId,
-            events: result.engineEvents,
-          },
         );
       },
     }),
@@ -258,17 +252,15 @@ export const createGameStateActionHandlers = (deps: ActionDeps) =>
       run: (gameState, playerId) =>
         skipLogistics(gameState, playerId, deps.map),
       publish: async (playerId, result) => {
-        await deps.publishStateChange(
-          result.state,
+        await publishForActor(
+          playerId,
+          result,
           toStateUpdateMessage(result.state, result.engineEvents),
-          {
-            actor: playerId,
-            events: result.engineEvents,
-          },
         );
       },
     }),
-  }) satisfies Record<GameStateActionType, unknown>;
+  } satisfies Record<GameStateActionType, unknown>;
+};
 
 interface RunActionDeps {
   getCurrentGameState: () => Promise<GameState | null>;
@@ -343,107 +335,107 @@ export const dispatchGameStateAction = async (
     onSuccess: (result: Success) => Promise<void> | void,
   ) => Promise<void>,
 ): Promise<void> => {
-  switch (message.type) {
-    case 'fleetReady':
-      await dispatchGameStateActionOfType(
+  const dispatchByType = {
+    fleetReady: (typedMessage: GameStateActionMessageOf<'fleetReady'>) =>
+      dispatchGameStateActionOfType(
         playerId,
         ws,
-        message,
+        typedMessage,
         handlers.fleetReady,
         runner,
-      );
-      return;
-    case 'astrogation':
-      await dispatchGameStateActionOfType(
+      ),
+    astrogation: (typedMessage: GameStateActionMessageOf<'astrogation'>) =>
+      dispatchGameStateActionOfType(
         playerId,
         ws,
-        message,
+        typedMessage,
         handlers.astrogation,
         runner,
-      );
-      return;
-    case 'surrender':
-      await dispatchGameStateActionOfType(
+      ),
+    surrender: (typedMessage: GameStateActionMessageOf<'surrender'>) =>
+      dispatchGameStateActionOfType(
         playerId,
         ws,
-        message,
+        typedMessage,
         handlers.surrender,
         runner,
-      );
-      return;
-    case 'ordnance':
-      await dispatchGameStateActionOfType(
+      ),
+    ordnance: (typedMessage: GameStateActionMessageOf<'ordnance'>) =>
+      dispatchGameStateActionOfType(
         playerId,
         ws,
-        message,
+        typedMessage,
         handlers.ordnance,
         runner,
-      );
-      return;
-    case 'emplaceBase':
-      await dispatchGameStateActionOfType(
+      ),
+    emplaceBase: (typedMessage: GameStateActionMessageOf<'emplaceBase'>) =>
+      dispatchGameStateActionOfType(
         playerId,
         ws,
-        message,
+        typedMessage,
         handlers.emplaceBase,
         runner,
-      );
-      return;
-    case 'skipOrdnance':
-      await dispatchGameStateActionOfType(
+      ),
+    skipOrdnance: (typedMessage: GameStateActionMessageOf<'skipOrdnance'>) =>
+      dispatchGameStateActionOfType(
         playerId,
         ws,
-        message,
+        typedMessage,
         handlers.skipOrdnance,
         runner,
-      );
-      return;
-    case 'beginCombat':
-      await dispatchGameStateActionOfType(
+      ),
+    beginCombat: (typedMessage: GameStateActionMessageOf<'beginCombat'>) =>
+      dispatchGameStateActionOfType(
         playerId,
         ws,
-        message,
+        typedMessage,
         handlers.beginCombat,
         runner,
-      );
-      return;
-    case 'combat':
-      await dispatchGameStateActionOfType(
+      ),
+    combat: (typedMessage: GameStateActionMessageOf<'combat'>) =>
+      dispatchGameStateActionOfType(
         playerId,
         ws,
-        message,
+        typedMessage,
         handlers.combat,
         runner,
-      );
-      return;
-    case 'skipCombat':
-      await dispatchGameStateActionOfType(
+      ),
+    skipCombat: (typedMessage: GameStateActionMessageOf<'skipCombat'>) =>
+      dispatchGameStateActionOfType(
         playerId,
         ws,
-        message,
+        typedMessage,
         handlers.skipCombat,
         runner,
-      );
-      return;
-    case 'logistics':
-      await dispatchGameStateActionOfType(
+      ),
+    logistics: (typedMessage: GameStateActionMessageOf<'logistics'>) =>
+      dispatchGameStateActionOfType(
         playerId,
         ws,
-        message,
+        typedMessage,
         handlers.logistics,
         runner,
-      );
-      return;
-    case 'skipLogistics':
-      await dispatchGameStateActionOfType(
+      ),
+    skipLogistics: (typedMessage: GameStateActionMessageOf<'skipLogistics'>) =>
+      dispatchGameStateActionOfType(
         playerId,
         ws,
-        message,
+        typedMessage,
         handlers.skipLogistics,
         runner,
-      );
-      return;
-  }
+      ),
+  } satisfies {
+    [T in GameStateActionType]: (
+      typedMessage: GameStateActionMessageOf<T>,
+    ) => Promise<void>;
+  };
+
+  await (
+    dispatchByType as Record<
+      GameStateActionType,
+      (typedMessage: GameStateActionMessage) => Promise<void>
+    >
+  )[message.type](message);
 };
 
 const dispatchGameStateActionOfType = async <
