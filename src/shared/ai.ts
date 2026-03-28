@@ -35,6 +35,7 @@ import { computeCourse } from './movement';
 import type {
   AstrogationOrder,
   CombatAttack,
+  CourseResult,
   GameState,
   OrdnanceLaunch,
   PlayerId,
@@ -115,6 +116,15 @@ const pickNextCheckpoint = (
   }, unvisited[0]);
   return bestBody;
 };
+
+const projectShipAfterCourse = (ship: Ship, course: CourseResult): Ship => ({
+  ...ship,
+  position: course.destination,
+  velocity: course.newVelocity,
+  fuel: Math.max(0, ship.fuel - course.fuelSpent),
+  pendingGravityEffects: course.enteredGravityEffects,
+  lifecycle: course.outcome === 'landing' ? 'landed' : 'active',
+});
 // Generate astrogation orders for an AI player.
 // Strategy: for each ship, evaluate all 7 options
 // (6 burn directions + no burn) and pick the one that
@@ -255,12 +265,7 @@ export const aiAstrogation = (
       let gravityRiskPenalty = 0;
 
       if (course.outcome !== 'landing') {
-        const simShip = {
-          ...ship,
-          position: course.destination,
-          velocity: course.newVelocity,
-          pendingGravityEffects: course.enteredGravityEffects,
-        };
+        const simShip = projectShipAfterCourse(ship, course);
         const fuelAfter = ship.fuel - course.fuelSpent;
         const driftCourse = computeCourse(simShip, null, map, {
           destroyedBases: state.destroyedBases,
@@ -285,12 +290,7 @@ export const aiAstrogation = (
             // Also check the turn after the escape
             // burn
             if (escapeResult.outcome !== 'landing' && fuelAfter > 1) {
-              const sim2 = {
-                ...simShip,
-                position: escapeResult.destination,
-                velocity: escapeResult.newVelocity,
-                pendingGravityEffects: escapeResult.enteredGravityEffects,
-              };
+              const sim2 = projectShipAfterCourse(simShip, escapeResult);
               const drift2 = computeCourse(sim2, null, map, {
                 destroyedBases: state.destroyedBases,
               });
@@ -374,12 +374,7 @@ export const aiAstrogation = (
           if (altCourse.outcome === 'crash') continue;
 
           if (altCourse.outcome !== 'landing') {
-            const simShip2 = {
-              ...ship,
-              position: altCourse.destination,
-              velocity: altCourse.newVelocity,
-              pendingGravityEffects: altCourse.enteredGravityEffects,
-            };
+            const simShip2 = projectShipAfterCourse(ship, altCourse);
             const nextAlt = computeCourse(simShip2, null, map, {
               destroyedBases: state.destroyedBases,
             });
