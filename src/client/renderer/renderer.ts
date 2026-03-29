@@ -294,34 +294,35 @@ export const createRenderer = (
         animState() !== null,
       );
       drawCourseLayers(layerCtx, gameState, map);
-      renderOrdnanceFn(
-        layerCtx,
-        gameState,
+      renderOrdnanceFn({
+        ctx: layerCtx,
+        state: gameState,
         playerId,
-        animState(),
-        HEX_SIZE,
+        animState: animState(),
+        hexSize: HEX_SIZE,
         now,
-        (path, progress) => interpolatePathFn(path, progress, HEX_SIZE),
-      );
-      renderTorpedoGuidanceFn(
-        layerCtx,
-        gameState,
+        interpolatePath: (path, progress) =>
+          interpolatePathFn(path, progress, HEX_SIZE),
+      });
+      renderTorpedoGuidanceFn({
+        ctx: layerCtx,
+        state: gameState,
         playerId,
         planningState,
-        animState() !== null,
-        HEX_SIZE,
+        isAnimating: animState() !== null,
+        hexSize: HEX_SIZE,
         now,
-      );
-      renderCombatOverlayFn(
-        layerCtx,
-        gameState,
+      });
+      renderCombatOverlayFn({
+        ctx: layerCtx,
+        state: gameState,
         playerId,
         planningState,
         map,
-        animState() !== null,
-        HEX_SIZE,
+        isAnimating: animState() !== null,
+        hexSize: HEX_SIZE,
         now,
-      );
+      });
       drawShipAndOrdnanceTrails(
         layerCtx,
         gameState,
