@@ -20,13 +20,9 @@ Each item should use: **Status**, **Remaining**, and (when useful) **Depends / F
 
 If the question is "what should we build next?" rather than "what are the broad launch/readiness risks?", start with this queue:
 
-1. `20` Client WebSocket inbound schema guard
-2. `21` Simplify game action dispatch typing surfaces (`server`)
-3. `26` Normalize client state read model (`ctx` vs mirror)
-4. `23` Align disconnect-forfeit flow with engine transition invariants
-5. `22` Decompose `GameDO` state publication pipeline
-6. `28` Preserve active game on accidental reload/navigation
-7. `29` Join-code validation and error feedback polish
+1. `22` Decompose `GameDO` state publication pipeline
+2. `24` Refactor `scenarioRules` access behind capabilities facade
+3. `25` Split `shared/engine/victory.ts` by concern
 
 These are the most actionable active engineering tasks. The numbered backlog below keeps stable IDs and still reflects the broader strategic ordering described above.
 
@@ -190,37 +186,6 @@ Husky is a **POSIX** shell script (`rm`, `export`, dynamic `E2E_PORT` via Node).
 
 **Trigger:** after AI heuristic, scenario setup, or victory-condition changes, rerun `npm run simulate -- all 100 -- --ci` and track trend.
 
-### 19. Patch high-severity `npm audit` advisory (`picomatch`)
-
-**Status:** not started; audit state needs recheck.
-
-The last recorded networked `npm audit --audit-level=moderate` run reported a **high** vulnerability in transitive `picomatch` (`GHSA-3v7f-55p6-f55p`, `GHSA-c2c7-rcm5-vvqj`).
-
-**Remaining:** rerun `npm audit --audit-level=moderate` with network access, then apply dependency updates if the advisory is still present (for example via `npm audit fix` and/or targeted transitive overrides), and finally rerun `npm run verify` to confirm no regressions in build, tests, e2e, or simulation.
-
-**Files:** `package-lock.json`, `package.json` (if overrides are needed), CI dependency policy docs if process changes
-
-**Owner:** maintainer / release owner before public release.
-
-### 20. Client WebSocket inbound schema guard
-
-**Status:** not started.
-
-**Remaining:** add a runtime parse/validate boundary for inbound WebSocket payloads before they reach client message planning/handling. Reject or ignore malformed payloads with bounded logging and no hard crash path.
-
-**Rationale:** current typing is compile-time only; runtime payload safety should be enforced at the network boundary.
-
-**Files:** `src/client/game/connection.ts`, `src/shared/protocol.ts` (or shared validator module), `src/client/game/messages.ts`, client tests
-
-### 21. Simplify game action dispatch typing surfaces (`server`)
-
-**Status:** not started.
-
-**Remaining:** converge game-action and aux-message registration toward one source of truth so adding a new C2S action does not require updates in multiple manual lists/maps.
-
-**Rationale:** reduces drift risk and lowers maintenance cost for protocol evolution.
-
-**Files:** `src/server/game-do/actions.ts`, `src/server/game-do/socket.ts`, `src/shared/types/protocol.ts`, related tests
 
 ### 22. Decompose `GameDO` state publication pipeline
 
@@ -232,15 +197,6 @@ The last recorded networked `npm audit --audit-level=moderate` run reported a **
 
 **Files:** `src/server/game-do/game-do.ts`, `src/server/game-do/archive.ts`, `src/server/game-do/telemetry.ts`, `src/server/game-do/broadcast.ts`, tests
 
-### 23. Align disconnect-forfeit flow with engine transition invariants
-
-**Status:** not started.
-
-**Remaining:** route disconnect-expiry game-over transitions through an engine-aligned helper/transition path (or equivalent canonical state transition) instead of ad hoc mutation on projected state; ensure emitted events and replay parity remain consistent.
-
-**Rationale:** keep game-over transitions consistent across action and alarm paths.
-
-**Files:** `src/server/game-do/alarm.ts`, `src/server/game-do/game-do.ts`, `src/shared/engine/`, alarm/replay tests
 
 ### 24. Refactor `scenarioRules` access behind capabilities facade
 
@@ -262,59 +218,22 @@ The last recorded networked `npm audit --audit-level=moderate` run reported a **
 
 **Files:** `src/shared/engine/victory.ts`, adjacent engine modules, `src/shared/engine/game-engine.test.ts`, targeted unit tests
 
-### 26. Normalize client state read model (`ctx` vs mirror)
+### 27. Execution order for remaining architecture simplification tasks (`22`, `24`, `25`)
 
-**Status:** not started.
+**Status:** planning note (active guidance). Items `20`, `21`, `23`, `26` shipped.
 
-**Remaining:** define and apply one canonical state read strategy for command dispatch/input/runtime paths; remove ambiguous mixed reads where possible and tighten transition ordering assumptions.
-
-**Rationale:** dual state-read surfaces make temporal reasoning harder and can hide subtle inconsistencies.
-
-**Files:** `src/client/game/client-kernel.ts`, `src/client/game/client-runtime.ts`, `src/client/game/session-signals.ts`, `src/client/game/state-transition.ts`, client tests
-
-### 27. Execution order for architecture simplification tasks (`20`-`26`)
-
-**Status:** planning note (active guidance).
-
-**Recommended order:** `20` -> `21` -> `26` -> `23` -> `22` -> `24` -> `25`.
+**Recommended order:** `22` -> `24` -> `25`.
 
 **Effort / risk:**
-- `20`: **S / low**
-- `21`: **M / medium**
-- `26`: **M / medium**
-- `23`: **M / medium-high**
 - `22`: **M-L / high**
 - `24`: **L / high**
 - `25`: **L / high**
 
 **PR slicing guidance:**
-- PR1: `20` only.
-- PR2: `21` only.
-- PR3: `26` only.
-- PR4: `23` only.
-- PR5: `22` only.
-- PR6+: `24` and `25` in small behavior-preserving slices.
+- PR1: `22` only.
+- PR2+: `24` and `25` in small behavior-preserving slices.
 
-**Test focus:** for each item, add or update characterization tests before structural refactors where ordering/semantics are sensitive (`23`, `22`, `24`, `25`).
+**Test focus:** add or update characterization tests before structural refactors where ordering/semantics are sensitive (`22`, `24`, `25`).
 
-### 28. Preserve active game on accidental reload/navigation
-
-**Status:** not started.
-
-**Remaining:** add a client-side guard for in-progress matches so accidental reload/close/back does not silently discard progress. At minimum, show a confirmation prompt when leaving with an active local/online session; optionally persist recoverable session context and attempt rejoin/resume when feasible.
-
-**Rationale:** exploratory browser testing found that reload returns users to the menu with no warning, causing unexpected progress loss.
-
-**Files:** `src/client/game/session-controller.ts`, `src/client/game/session.ts`, `src/client/game/connection.ts`, lobby/session bootstrap surfaces, client tests/e2e
-
-### 29. Join-code validation and error feedback polish
-
-**Status:** not started.
-
-**Remaining:** enforce join-code input validation in the lobby (disable or block submit on empty/invalid format) and surface explicit user-facing errors for failed joins (invalid code, missing game, expired/full room, network failure). Include clear transient UI states for pending/failed join attempts.
-
-**Rationale:** exploratory browser testing observed "no-op" join attempts for empty/invalid codes with no visible feedback.
-
-**Files:** lobby/join UI and state handling, `src/client/game/session-controller.ts`, `src/client/game/messages.ts`, `src/client/game/message-handler.ts`, related e2e tests
 
 ---
