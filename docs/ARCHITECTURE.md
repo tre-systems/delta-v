@@ -211,11 +211,14 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `movement.ts`                              | Vector movement with gravity, fuel, takeoff/landing, crash detection                                                    | Game-specific                           |
 | `combat.ts`                                | Gun combat tables, LOS, range/velocity mods, heroism, counterattack                                                     | Game-specific                           |
 | `map-data.ts`                              | Solar system bodies, gravity rings, bases, and scenario definitions                                                     | Game-specific                           |
-| `ai.ts` / `ai-config.ts` / `ai-scoring.ts` | Rule-based AI and its scoring configuration                                                                             | Game-specific                           |
+| `ai/`                                      | Rule-based AI: composable scoring, per-phase decision modules, difficulty config                                         | Game-specific                           |
+| `scenario-capabilities.ts`                 | Derived scenario capability layer (`deriveCapabilities`): defaults + feature predicates for `ScenarioRules`              | Game-specific                           |
 | `engine/game-engine.ts`                    | Barrel re-export for the public engine API                                                                              | Game-specific                           |
 | `engine/engine-events.ts`                  | `EngineEvent` discriminated union (32 granular domain event types)                                                      | Game-specific                           |
 | `engine/event-projector.ts`                | Deterministic projection from persisted `EventEnvelope` stream (+ checkpoints) to `GameState`; used by server and tests | Game-specific                           |
 | `engine/*` phase modules                   | Game creation, fleet building, astrogation, movement, combat, ordnance, logistics, victory, and shared helpers          | Game-specific                           |
+| `engine/turn-advance.ts`                   | Turn advancement: damage recovery, player rotation, reinforcement spawning, fleet conversion                            | Game-specific                           |
+| `engine/post-movement.ts`                  | Post-movement interactions: ramming, inspection, capture, resupply, detection                                           | Game-specific                           |
 
 #### Key Design Patterns
 
@@ -281,7 +284,8 @@ The backend leverages Cloudflare's edge network.
 | `game-do/turn-timeout.ts`    | Turn-timeout branch: engine outcome + `publishStateChange`                                                       | Game-specific                                             |
 | `game-do/telemetry.ts`       | Engine/projection error reporting to D1                                                                          | Generic pattern                                           |
 | `game-do/actions.ts`         | `runGameStateAction`, `dispatchGameStateAction`, per-action engine wiring                                        | Game-specific                                             |
-| `game-do/broadcast.ts`       | `broadcastFiltered`, `publishStateChange`, socket send helpers                                                   | Game-specific                                             |
+| `game-do/broadcast.ts`       | `broadcastFiltered`, `broadcastStateChange`, socket send helpers                                                 | Game-specific                                             |
+| `game-do/publication.ts`     | State publication pipeline: append events, checkpoint, parity verify, archive, timer, broadcast                  | Game-specific                                             |
 | `game-do/http-handlers.ts`   | `handleInitRequest`, `handleJoinCheckRequest`, `handleReplayRequest`, `resolveJoinAttempt`                       | **~70% generic**                                          |
 | `game-do/socket.ts`          | WebSocket message rate limit, `parseClientSocketMessage`, aux messages (chat, ping, rematch)                     | **~70% generic**                                          |
 | `game-do/projection.ts`      | Replay timeline shaping; uses `event-projector`; viewer-filtered replay entries                                  | Game-specific                                             |

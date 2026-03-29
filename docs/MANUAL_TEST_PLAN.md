@@ -377,41 +377,48 @@ detonate correctly. Launch restrictions are enforced.
 - Nukes are available; mines and torpedoes are not
 - Planetary defense is disabled
 
-### 6c. Convoy (Merchant Escort + Shared-hex Logistics)
+### 6c. Convoy (Merchant Escort + Passenger Delivery)
 
-- Merchant tanker + frigate escort vs 2 corsairs + corvette
-- **Victory:** Defenders land the merchant tanker on Venus
-- Logistics enabled — verify fuel transfer works
+- Liner + tanker + frigate escort vs 2 corsairs + corvette
+- **Victory:** Defenders land the liner on Venus with colonists
+- Logistics enabled — verify fuel and passenger transfers work
   between friendly ships at same hex/velocity
 
-### 6d. Duel (Pure Combat + Gravity Pressure)
+### 6d. Evacuation (Lunar Passenger Rescue)
+
+- Transport corvette + liner vs corsair (Luna → Terra)
+- **Victory:** Fleet elimination or passenger delivery
+- Passenger rescue enabled — verify passenger transfer UI
+  and win condition requiring passengers aboard
+
+### 6e. Duel (Pure Combat + Gravity Pressure)
 
 - 2 Frigates near Mercury
 - **Victory:** Last ship standing
 - Good test for: combat modifiers, ordnance,
   gravity combat near Mercury/Sol
 
-### 6e. Blockade Runner (Pursuit + Velocity Control)
+### 6f. Blockade Runner (Pursuit + Velocity Control)
 
 - 1 Packet (with velocity head-start) vs 1 Corvette
 - **Victory:** Packet lands on Mars
 - Packet starts moving — test high-speed gameplay
 
-### 6f. Fleet Action (Budget Fleet Construction)
+### 6g. Fleet Action (Budget Fleet Construction)
 
 - 400 MC budget, combat ships only
 - Mars vs Venus
 - Verify fleet building UI (section 8) then full
   combined-arms combat
 
-### 6g. Interplanetary War (Large-Scale Logistics + Recovery)
+### 6h. Interplanetary War (Large-Scale Logistics + Recovery)
 
 - 850 MC budget, all ship types available
 - Terra vs Mars, logistics enabled
 - Longer game — verify damage recovery, resupply,
   overload restoration, and large-fleet management
 
-### 6h. Grand Tour (Checkpoint Race + Combat Disabled)
+### 6i. Grand Tour (Checkpoint Race + Combat Disabled)
 
 - 1 Corvette each, visit 8 bodies and return home
 - **Combat disabled** — verify attack buttons are
