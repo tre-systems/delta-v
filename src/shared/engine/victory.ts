@@ -1,28 +1,12 @@
-import { applyDamage, lookupOtherDamage, rollD6 } from '../combat';
-import {
-  BASE_DETECTION_RANGE,
-  SHIP_DETECTION_RANGE,
-  SHIP_STATS,
-} from '../constants';
-import {
-  type HexCoord,
-  hexDistance,
-  hexEqual,
-  hexKey,
-  hexVecLength,
-  parseHexKey,
-} from '../hex';
-import type {
-  GameState,
-  MovementEvent,
-  PlayerId,
-  Ship,
-  SolarSystemMap,
-} from '../types';
+// Win predicates and game-end checks.
+// Post-movement interactions live in post-movement.ts;
+// turn advancement lives in turn-advance.ts (backlog #25).
+
+import { type HexCoord, hexKey, hexVecLength } from '../hex';
+import type { GameState, PlayerId, Ship, SolarSystemMap } from '../types';
 import { count } from '../util';
 import type { EngineEvent } from './engine-events';
 import {
-  getCargoUsedAfterResupply,
   getEscapeEdge,
   hasEscaped,
   hasEscapedNorth,
@@ -30,128 +14,18 @@ import {
   usesEscapeInspectionRules,
 } from './util';
 
-// Advance to the next player's turn after
-// combat/resupply. Handles damage recovery and
-// turn counter.
-export const advanceTurn = (
-  state: GameState,
-  engineEvents?: EngineEvent[],
-): void => {
-  for (const ship of state.ships) {
-    if (ship.owner !== state.activePlayer) continue;
-
-    if (ship.lifecycle === 'destroyed') continue;
-
-    ship.resuppliedThisTurn = false;
-
-    if (ship.damage.disabledTurns > 0) {
-      ship.damage.disabledTurns--;
-    }
-  }
-
-  state.activePlayer = state.activePlayer === 0 ? 1 : 0;
-
-  if (state.activePlayer === 0) {
-    state.turnNumber++;
-  }
-
-  // Spawn reinforcements scheduled for this turn
-  applyReinforcements(state);
-
-  // Apply fleet conversion if triggered
-  applyFleetConversion(state);
-
-  state.phase = 'astrogation';
-
-  engineEvents?.push({
-    type: 'turnAdvanced',
-    turn: state.turnNumber,
-    activePlayer: state.activePlayer,
-  });
-  engineEvents?.push({
-    type: 'phaseChanged',
-    phase: 'astrogation',
-    turn: state.turnNumber,
-    activePlayer: state.activePlayer,
-  });
-};
-
-const getNextShipId = (state: GameState): string => {
-  const maxId = state.ships.reduce((max, ship) => {
-    const num = parseInt(ship.id.replace(/\D/g, ''), 10);
-    return Number.isNaN(num) ? max : Math.max(max, num);
-  }, 0);
-
-  return `ship-${maxId + 1}`;
-};
-
-const applyReinforcements = (state: GameState): void => {
-  const reinforcements = state.scenarioRules.reinforcements;
-
-  if (!reinforcements) return;
-
-  for (const r of reinforcements) {
-    if (r.turn !== state.turnNumber) continue;
-
-    if (r.playerId !== state.activePlayer) continue;
-
-    for (const shipDef of r.ships) {
-      const stats = SHIP_STATS[shipDef.type];
-
-      if (!stats) continue;
-
-      const id = getNextShipId(state);
-
-      const passengersAboard =
-        shipDef.initialPassengers != null && shipDef.initialPassengers > 0
-          ? shipDef.initialPassengers
-          : undefined;
-      state.ships.push({
-        id,
-        type: shipDef.type,
-        owner: r.playerId,
-        originalOwner: r.playerId,
-        position: { ...shipDef.position },
-        velocity: { ...shipDef.velocity },
-        fuel: stats.fuel,
-        cargoUsed: 0,
-        nukesLaunchedSinceResupply: 0,
-        resuppliedThisTurn: false,
-        lifecycle: shipDef.startLanded !== false ? 'landed' : 'active',
-        control: 'own',
-        heroismAvailable: false,
-        overloadUsed: false,
-        detected: true,
-        damage: { disabledTurns: 0 },
-        ...(passengersAboard != null ? { passengersAboard } : {}),
-      });
-    }
-  }
-};
-
-const applyFleetConversion = (state: GameState): void => {
-  const conversion = state.scenarioRules.fleetConversion;
-
-  if (!conversion || conversion.turn !== state.turnNumber) {
-    return;
-  }
-
-  for (const ship of state.ships) {
-    if (ship.owner !== conversion.fromPlayer) continue;
-
-    if (ship.lifecycle === 'destroyed') continue;
-
-    if (conversion.shipTypes && !conversion.shipTypes.includes(ship.type)) {
-      continue;
-    }
-
-    ship.owner = conversion.toPlayer;
-  }
-};
+export {
+  applyDetection,
+  applyResupply,
+  checkCapture,
+  checkInspection,
+  checkOrbitalBaseResupply,
+  checkRamming,
+} from './post-movement';
+// Re-export split modules so existing consumers keep working.
+export { advanceTurn } from './turn-advance';
 
 // Update checkpoint body visits for race scenarios.
-// Checks each hex in the path for gravity or surface
-// belonging to a checkpoint body.
 export const applyCheckpoints = (
   state: GameState,
   playerId: PlayerId,
@@ -232,7 +106,6 @@ export const checkImmediateVictory = (
 ): void => {
   if (!map) return;
 
-  // Checkpoint race victory: all bodies visited + landed
   if (state.scenarioRules.checkpointBodies) {
     for (const ship of state.ships) {
       if (ship.lifecycle !== 'landed') continue;
@@ -335,8 +208,7 @@ export const checkImmediateVictory = (
 export const getFugitiveShip = (state: GameState): Ship | undefined =>
   state.ships.find((ship) => ship.identity?.hasFugitives);
 
-// Check if the game has ended (victory or all ships
-// destroyed).
+// Check if the game has ended (victory or all ships destroyed).
 export const checkGameEnd = (
   state: GameState,
   map?: SolarSystemMap,
@@ -472,329 +344,5 @@ export const applyEscapeMoralVictory = (state: GameState): void => {
     )
   ) {
     state.escapeMoralVictoryAchieved = true;
-  }
-};
-
-// Check for ramming: opposing ships on the same hex
-// after movement.
-export const checkRamming = (
-  state: GameState,
-  events: MovementEvent[],
-  rng: () => number,
-  engineEvents?: EngineEvent[],
-): void => {
-  const alive = state.ships.filter((s) => s.lifecycle !== 'destroyed');
-
-  for (let i = 0; i < alive.length; i++) {
-    for (let j = i + 1; j < alive.length; j++) {
-      const a = alive[i];
-      const b = alive[j];
-
-      if (a.owner === b.owner) continue;
-
-      if (!hexEqual(a.position, b.position)) continue;
-
-      if (a.lifecycle === 'landed' || b.lifecycle === 'landed') {
-        continue;
-      }
-
-      if (a.control === 'captured' || b.control === 'captured') {
-        continue;
-      }
-
-      for (const ship of [a, b]) {
-        if (ship.lifecycle === 'destroyed') continue;
-
-        const otherShip = ship === a ? b : a;
-        const dieRoll = rollD6(rng);
-        const result = lookupOtherDamage(dieRoll, 'ram');
-
-        events.push({
-          type: 'ramming',
-          shipId: ship.id,
-          hex: ship.position,
-          dieRoll,
-          damageType: result.type,
-          disabledTurns: result.disabledTurns,
-        });
-
-        engineEvents?.push({
-          type: 'ramming',
-          shipId: ship.id,
-          otherShipId: otherShip.id,
-          hex: ship.position,
-          roll: dieRoll,
-          damageType: result.type,
-          disabledTurns: result.disabledTurns,
-        });
-
-        applyDamage(ship, result, 'ramming', otherShip.id);
-
-        if ((ship.lifecycle as string) === 'destroyed') {
-          engineEvents?.push({
-            type: 'shipDestroyed',
-            shipId: ship.id,
-            cause: 'ramming',
-          });
-        }
-      }
-    }
-  }
-};
-
-// Reveal hidden-identity ships when an enemy matches
-// courses with them.
-export const checkInspection = (
-  state: GameState,
-  playerId: PlayerId,
-  engineEvents?: EngineEvent[],
-): void => {
-  if (!usesEscapeInspectionRules(state)) return;
-
-  const inspectingShips = state.ships.filter(
-    (ship) =>
-      ship.owner === playerId &&
-      ship.lifecycle === 'active' &&
-      ship.damage.disabledTurns === 0,
-  );
-
-  for (const inspector of inspectingShips) {
-    for (const target of state.ships) {
-      if (target.owner === playerId || target.lifecycle === 'destroyed') {
-        continue;
-      }
-
-      if (!target.identity || target.identity.revealed) {
-        continue;
-      }
-
-      if (!hexEqual(inspector.position, target.position)) {
-        continue;
-      }
-
-      if (
-        inspector.velocity.dq !== target.velocity.dq ||
-        inspector.velocity.dr !== target.velocity.dr
-      ) {
-        continue;
-      }
-
-      target.identity.revealed = true;
-      engineEvents?.push({
-        type: 'identityRevealed',
-        shipId: target.id,
-      });
-    }
-  }
-};
-
-// Check for capture: moving player's ship on same
-// hex/velocity as disabled enemy.
-export const checkCapture = (
-  state: GameState,
-  playerId: PlayerId,
-  events: MovementEvent[],
-  engineEvents?: EngineEvent[],
-): void => {
-  const playerShips = state.ships.filter(
-    (s) =>
-      s.owner === playerId &&
-      s.lifecycle === 'active' &&
-      s.damage.disabledTurns === 0,
-  );
-
-  for (const captor of playerShips) {
-    for (const target of state.ships) {
-      if (target.owner === playerId || target.lifecycle === 'destroyed') {
-        continue;
-      }
-
-      if (target.damage.disabledTurns <= 0) continue;
-
-      if (target.control === 'captured') continue;
-
-      if (!hexEqual(captor.position, target.position)) {
-        continue;
-      }
-
-      if (
-        captor.velocity.dq !== target.velocity.dq ||
-        captor.velocity.dr !== target.velocity.dr
-      ) {
-        continue;
-      }
-
-      target.control = 'captured';
-      target.owner = playerId;
-
-      if (target.identity) {
-        target.identity.revealed = true;
-      }
-
-      events.push({
-        type: 'capture',
-        shipId: target.id,
-        hex: target.position,
-        dieRoll: 0,
-        damageType: 'captured',
-        disabledTurns: 0,
-        capturedBy: captor.id,
-      });
-
-      engineEvents?.push({
-        type: 'shipCaptured',
-        shipId: target.id,
-        capturedBy: playerId,
-        capturedByShipId: captor.id,
-      });
-    }
-  }
-};
-
-// Check if any moving player's ships can resupply
-// from friendly emplaced orbital bases.
-export const checkOrbitalBaseResupply = (
-  state: GameState,
-  playerId: PlayerId,
-  engineEvents?: EngineEvent[],
-): void => {
-  const orbitalBases = state.ships.filter(
-    (s) =>
-      s.owner === playerId &&
-      s.lifecycle !== 'destroyed' &&
-      s.baseStatus === 'emplaced' &&
-      s.type === 'orbitalBase',
-  );
-
-  for (const ship of state.ships) {
-    if (
-      ship.owner !== playerId ||
-      ship.lifecycle === 'destroyed' ||
-      ship.baseStatus === 'emplaced'
-    ) {
-      continue;
-    }
-
-    if (ship.resuppliedThisTurn) continue;
-
-    for (const ob of orbitalBases) {
-      if (!hexEqual(ship.position, ob.position)) {
-        continue;
-      }
-
-      if (
-        ship.velocity.dq !== ob.velocity.dq ||
-        ship.velocity.dr !== ob.velocity.dr
-      ) {
-        continue;
-      }
-
-      const stats = SHIP_STATS[ship.type];
-
-      if (stats) {
-        ship.fuel = stats.fuel;
-        ship.cargoUsed = getCargoUsedAfterResupply(ship);
-        ship.nukesLaunchedSinceResupply = 0;
-        ship.damage = { disabledTurns: 0 };
-        ship.control = 'own';
-        ship.resuppliedThisTurn = true;
-        ob.resuppliedThisTurn = true;
-        engineEvents?.push({
-          type: 'shipResupplied',
-          shipId: ship.id,
-          source: 'orbitalBase',
-          sourceId: ob.id,
-        });
-      }
-
-      break;
-    }
-  }
-};
-
-// Resupply a ship that has landed at a base.
-export const applyResupply = (
-  ship: Ship,
-  state: GameState,
-  map: SolarSystemMap,
-  engineEvents?: EngineEvent[],
-): void => {
-  const baseKey = hexKey(ship.position);
-  const hex = map.hexes.get(baseKey);
-
-  if (!hex?.base || state.destroyedBases.includes(baseKey)) {
-    return;
-  }
-
-  if (!playerControlsBase(state, ship.owner, baseKey)) {
-    return;
-  }
-
-  const stats = SHIP_STATS[ship.type];
-
-  if (stats) {
-    ship.fuel = stats.fuel;
-    ship.cargoUsed = getCargoUsedAfterResupply(ship);
-    ship.nukesLaunchedSinceResupply = 0;
-    ship.overloadUsed = false;
-    ship.damage = { disabledTurns: 0 };
-    ship.control = 'own';
-    ship.resuppliedThisTurn = true;
-    engineEvents?.push({
-      type: 'shipResupplied',
-      shipId: ship.id,
-      source: 'base',
-    });
-  }
-};
-
-// Update detection status for all ships.
-export const applyDetection = (state: GameState, map: SolarSystemMap): void => {
-  for (const ship of state.ships) {
-    if (ship.lifecycle === 'destroyed') continue;
-
-    if (ship.lifecycle === 'landed') {
-      const key = hexKey(ship.position);
-      const hex = map.hexes.get(key);
-
-      if (
-        hex?.base &&
-        !state.destroyedBases.includes(key) &&
-        playerControlsBase(state, ship.owner, key)
-      ) {
-        ship.detected = false;
-        continue;
-      }
-    }
-
-    if (ship.detected) continue;
-
-    for (const other of state.ships) {
-      if (other.owner === ship.owner || other.lifecycle === 'destroyed') {
-        continue;
-      }
-
-      if (hexDistance(ship.position, other.position) <= SHIP_DETECTION_RANGE) {
-        ship.detected = true;
-        break;
-      }
-    }
-
-    if (ship.detected) continue;
-
-    for (const key of state.players[1 - ship.owner].bases) {
-      const hex = map.hexes.get(key);
-
-      if (!hex?.base) continue;
-
-      if (state.destroyedBases.includes(key)) continue;
-
-      const baseCoord = parseHexKey(key);
-
-      if (hexDistance(ship.position, baseCoord) <= BASE_DETECTION_RANGE) {
-        ship.detected = true;
-        break;
-      }
-    }
   }
 };
