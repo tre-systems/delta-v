@@ -1,5 +1,3 @@
-import { AI_CONFIG } from './ai-config';
-import type { AIDifficulty } from './ai-types';
 import {
   canAttack,
   computeGroupRangeMod,
@@ -9,16 +7,18 @@ import {
   getCombatStrength,
   hasLineOfSight,
   hasLineOfSightToTarget,
-} from './combat';
-import { hexDistance } from './hex';
+} from '../combat';
+import { hexDistance } from '../hex';
 import type {
   CombatAttack,
   GameState,
   PlayerId,
   Ship,
   SolarSystemMap,
-} from './types';
-import { minBy, sumBy } from './util';
+} from '../types';
+import { minBy, sumBy } from '../util';
+import { AI_CONFIG } from './config';
+import type { AIDifficulty } from './types';
 
 interface ScoredTarget {
   targetId: string;

@@ -1,21 +1,21 @@
-import type { AIDifficulty } from './ai-types';
-import { canAttack } from './combat';
+import { canAttack } from '../combat';
 import {
   HEX_DIRECTIONS,
   type HexKey,
   hexAdd,
   hexDistance,
   parseHexKey,
-} from './hex';
-import { computeCourse } from './movement';
+} from '../hex';
+import { computeCourse } from '../movement';
 import type {
   CourseResult,
   GameState,
   PlayerId,
   Ship,
   SolarSystemMap,
-} from './types';
-import { minBy } from './util';
+} from '../types';
+import { minBy } from '../util';
+import type { AIDifficulty } from './types';
 
 export const findDirectionToward = (
   from: {

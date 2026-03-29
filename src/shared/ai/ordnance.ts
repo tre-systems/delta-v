@@ -1,16 +1,16 @@
-import { findDirectionToward } from './ai-common';
-import { AI_CONFIG } from './ai-config';
-import type { AIDifficulty } from './ai-types';
-import { getCombatStrength } from './combat';
-import { ORDNANCE_MASS, SHIP_STATS } from './constants';
-import { hexDistance, hexEqual, hexVecLength } from './hex';
+import { getCombatStrength } from '../combat';
+import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
+import { hexDistance, hexEqual, hexVecLength } from '../hex';
 import type {
   GameState,
   OrdnanceLaunch,
   PlayerId,
   SolarSystemMap,
-} from './types';
-import { minBy } from './util';
+} from '../types';
+import { minBy } from '../util';
+import { findDirectionToward } from './common';
+import { AI_CONFIG } from './config';
+import type { AIDifficulty } from './types';
 
 export const aiOrdnance = (
   state: GameState,

@@ -1,12 +1,8 @@
-import { findNearestBase } from './ai-common';
-import type { AIDifficultyConfig } from './ai-config';
-import { scoreCourse } from './ai-scoring';
-import type { AIDifficulty } from './ai-types';
-import { canAttack, getCombatStrength, hasLineOfSight } from './combat';
-import { SHIP_STATS } from './constants';
-import { getTransferEligiblePairs } from './engine/logistics';
-import { hexDistance, hexEqual, hexVecLength } from './hex';
-import { computeCourse } from './movement';
+import { canAttack, getCombatStrength, hasLineOfSight } from '../combat';
+import { SHIP_STATS } from '../constants';
+import { getTransferEligiblePairs } from '../engine/logistics';
+import { hexDistance, hexEqual, hexVecLength } from '../hex';
+import { computeCourse } from '../movement';
 import type {
   AstrogationOrder,
   GameState,
@@ -14,8 +10,12 @@ import type {
   Ship,
   SolarSystemMap,
   TransferOrder,
-} from './types';
-import { maxBy, minBy } from './util';
+} from '../types';
+import { maxBy, minBy } from '../util';
+import { findNearestBase } from './common';
+import type { AIDifficultyConfig } from './config';
+import { scoreCourse } from './scoring';
+import type { AIDifficulty } from './types';
 
 const estimateDesiredFuel = (
   ship: Ship,
