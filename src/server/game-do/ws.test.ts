@@ -19,6 +19,7 @@ describe('handleGameDoWebSocketClose', () => {
         getCurrentGameState: async () =>
           ({ phase: 'astrogation' }) as GameState,
         setDisconnectMarker,
+        broadcast: vi.fn(),
       },
       {} as WebSocket,
     );
@@ -36,6 +37,7 @@ describe('handleGameDoWebSocketClose', () => {
         getCurrentGameState: async () =>
           ({ phase: 'astrogation' }) as GameState,
         setDisconnectMarker,
+        broadcast: vi.fn(),
       },
       {} as WebSocket,
     );

@@ -21,6 +21,8 @@ export interface OverlayView {
     onCancel: () => void,
   ) => void;
   hideReconnecting: () => void;
+  showOpponentDisconnected: (graceDeadlineMs: number) => void;
+  hideOpponentDisconnected: () => void;
   showToast: (message: string, type?: 'error' | 'info' | 'success') => void;
   showPhaseAlert: (phase: string, isMyTurn: boolean) => void;
   setReplayControls: (view: {
@@ -60,6 +62,8 @@ export const createOverlayView = (): OverlayView => {
   const reconnectTextEl = byId('reconnectText');
   const reconnectAttemptEl = byId('reconnectAttempt');
   const reconnectCancelBtn = byId('reconnectCancelBtn');
+  const opponentDisconnectEl = byId('opponentDisconnectOverlay');
+  const opponentDisconnectTextEl = byId('opponentDisconnectText');
   const toastContainerEl = byId('toastContainer');
   const phaseAlertEl = byId('phaseAlert');
   const phaseAlertTitleEl = phaseAlertEl.querySelector(
@@ -71,6 +75,7 @@ export const createOverlayView = (): OverlayView => {
 
   let reconnectCancelHandler: (() => void) | null = null;
   let phaseAlertTimer: ReturnType<typeof setTimeout> | null = null;
+  let opponentDisconnectTimer: ReturnType<typeof setInterval> | null = null;
   const toastTimers = new Set<ReturnType<typeof setTimeout>>();
   let nextToastId = 0;
 
@@ -105,6 +110,10 @@ export const createOverlayView = (): OverlayView => {
     visible: false,
     reconnectText: '',
     attemptText: '',
+  });
+  const opponentDisconnectSignal = signal({
+    visible: false,
+    countdownText: '',
   });
   const phaseAlertViewSignal = signal({
     active: false,
@@ -201,6 +210,33 @@ export const createOverlayView = (): OverlayView => {
     };
   };
 
+  const hideOpponentDisconnected = (): void => {
+    if (opponentDisconnectTimer !== null) {
+      clearInterval(opponentDisconnectTimer);
+      opponentDisconnectTimer = null;
+    }
+    opponentDisconnectSignal.value = { visible: false, countdownText: '' };
+  };
+
+  const showOpponentDisconnected = (graceDeadlineMs: number): void => {
+    hideOpponentDisconnected();
+    const updateCountdown = () => {
+      const remaining = Math.max(
+        0,
+        Math.ceil((graceDeadlineMs - Date.now()) / 1000),
+      );
+      opponentDisconnectSignal.value = {
+        visible: true,
+        countdownText: `Opponent disconnected. Game ends in ${remaining}s...`,
+      };
+      if (remaining <= 0) {
+        hideOpponentDisconnected();
+      }
+    };
+    updateCountdown();
+    opponentDisconnectTimer = setInterval(updateCountdown, 1000);
+  };
+
   const showReconnecting = (
     attempt: number,
     maxAttempts: number,
@@ -258,6 +294,7 @@ export const createOverlayView = (): OverlayView => {
 
   const dispose = (): void => {
     hideReconnecting();
+    hideOpponentDisconnected();
     clearPhaseAlertTimer();
     for (const timer of toastTimers) {
       clearTimeout(timer);
@@ -352,6 +389,13 @@ export const createOverlayView = (): OverlayView => {
     });
 
     effect(() => {
+      const view = opponentDisconnectSignal.value;
+
+      visible(opponentDisconnectEl, view.visible, 'flex');
+      text(opponentDisconnectTextEl, view.countdownText);
+    });
+
+    effect(() => {
       const phaseAlertView = phaseAlertViewSignal.value;
 
       text(phaseAlertTitleEl, phaseAlertView.title);
@@ -386,6 +430,8 @@ export const createOverlayView = (): OverlayView => {
     showRematchPending,
     showReconnecting,
     hideReconnecting,
+    showOpponentDisconnected,
+    hideOpponentDisconnected,
     showToast,
     showPhaseAlert,
     setReplayControls,

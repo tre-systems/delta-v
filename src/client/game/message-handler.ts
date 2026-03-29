@@ -52,6 +52,8 @@ export interface MessageHandlerDeps {
       hideReconnecting: () => void;
       showRematchPending: () => void;
       showGameOver: (won: boolean, reason: string) => void;
+      showOpponentDisconnected: (graceDeadlineMs: number) => void;
+      hideOpponentDisconnected: () => void;
     };
     updateLatency: (ms: number) => void;
   };
@@ -166,6 +168,7 @@ export const handleServerMessage = (
       break;
     }
     case 'gameOver':
+      deps.ui.overlay.hideOpponentDisconnected();
       deps.showGameOverOutcome(plan.won, plan.reason);
       break;
     case 'rematchPending':
@@ -188,6 +191,16 @@ export const handleServerMessage = (
       if (plan.latencyMs !== null) {
         setLatencyMs(deps.ctx, plan.latencyMs);
         deps.ui.updateLatency(plan.latencyMs);
+      }
+      break;
+    case 'opponentStatus':
+      if (plan.status === 'disconnected' && plan.graceDeadlineMs) {
+        deps.ui.overlay.showOpponentDisconnected(plan.graceDeadlineMs);
+      } else {
+        deps.ui.overlay.hideOpponentDisconnected();
+        if (plan.status === 'reconnected') {
+          deps.ui.overlay.showToast('Opponent reconnected', 'info');
+        }
       }
       break;
   }

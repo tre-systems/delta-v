@@ -89,4 +89,9 @@ export type S2C =
       text: string;
     }
   | { type: 'error'; message: string; code?: ErrorCode }
-  | { type: 'pong'; t: number };
+  | { type: 'pong'; t: number }
+  | {
+      type: 'opponentStatus';
+      status: 'disconnected' | 'reconnected';
+      graceDeadlineMs?: number;
+    };

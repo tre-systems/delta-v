@@ -123,6 +123,8 @@ const createDeps = (
         hideReconnecting: track('ui.overlay.hideReconnecting'),
         showRematchPending: track('ui.overlay.showRematchPending'),
         showGameOver: track('ui.overlay.showGameOver'),
+        showOpponentDisconnected: track('ui.overlay.showOpponentDisconnected'),
+        hideOpponentDisconnected: track('ui.overlay.hideOpponentDisconnected'),
       },
       updateLatency: track('ui.updateLatency'),
     },

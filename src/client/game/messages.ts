@@ -76,6 +76,11 @@ export type ClientMessagePlan =
   | {
       kind: 'pong';
       latencyMs: number | null;
+    }
+  | {
+      kind: 'opponentStatus';
+      status: 'disconnected' | 'reconnected';
+      graceDeadlineMs?: number;
     };
 
 export const deriveClientMessagePlan = (
@@ -168,6 +173,12 @@ export const deriveClientMessagePlan = (
       return {
         kind: 'pong',
         latencyMs: msg.t > 0 ? nowMs - msg.t : null,
+      };
+    case 'opponentStatus':
+      return {
+        kind: 'opponentStatus',
+        status: msg.status,
+        graceDeadlineMs: msg.graceDeadlineMs,
       };
   }
 };

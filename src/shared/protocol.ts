@@ -546,6 +546,12 @@ export const validateServerMessage = (raw: unknown): Result<S2C> => {
       }
       return ok(msg as unknown as S2C);
 
+    case 'opponentStatus':
+      if (msg.status !== 'disconnected' && msg.status !== 'reconnected') {
+        return invalid('Invalid opponentStatus payload');
+      }
+      return ok(msg as unknown as S2C);
+
     default:
       return invalid('Unknown message type');
   }

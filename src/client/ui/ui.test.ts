@@ -77,6 +77,8 @@ const installFixture = () => {
     <div id="reconnectText"></div>
     <div id="reconnectAttempt"></div>
     <button id="reconnectCancelBtn"></button>
+    <div id="opponentDisconnectOverlay"></div>
+    <div id="opponentDisconnectText"></div>
     <div id="scenarioList"></div>
     <button id="createBtn"></button>
     <button id="singlePlayerBtn"></button>

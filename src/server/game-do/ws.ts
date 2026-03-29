@@ -1,6 +1,7 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
 import type { GameStateActionMessage } from './actions';
+import { DISCONNECT_GRACE_MS } from './session';
 import { applySocketRateLimit, parseClientSocketMessage } from './socket';
 
 export type GameDoWebSocketMessageDeps = {
@@ -73,6 +74,7 @@ export type GameDoWebSocketCloseDeps = {
   getPlayerId: (ws: WebSocket) => PlayerId | null;
   getCurrentGameState: () => Promise<GameState | null>;
   setDisconnectMarker: (playerId: PlayerId) => Promise<void>;
+  broadcast: (msg: S2C) => void;
 };
 
 export const handleGameDoWebSocketClose = async (
@@ -89,5 +91,10 @@ export const handleGameDoWebSocketClose = async (
   }
   if (playerId !== null) {
     await deps.setDisconnectMarker(playerId);
+    deps.broadcast({
+      type: 'opponentStatus',
+      status: 'disconnected',
+      graceDeadlineMs: Date.now() + DISCONNECT_GRACE_MS,
+    });
   }
 };
