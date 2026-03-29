@@ -424,13 +424,23 @@ export const createRenderer = (
       onComplete: () => void,
     ) => {
       movementAnimation.start(movements, ordnanceMovements, onComplete);
-      const allHexes = collectAnimatedHexes(movements, ordnanceMovements);
+
+      // Only frame camera on ships visible to this player
+      const visibleMovements = gameState
+        ? movements.filter((m) => {
+            const ship = gameState?.ships.find((s) => s.id === m.shipId);
+            return ship && (ship.owner === playerId || ship.detected);
+          })
+        : movements;
+      const visibleOrdnance = ordnanceMovements;
+
+      const allHexes = collectAnimatedHexes(visibleMovements, visibleOrdnance);
       if (map && allHexes.length > 0) {
         frameCameraOnAnimatedHexes(
           camera,
           map,
-          movements,
-          ordnanceMovements,
+          visibleMovements,
+          visibleOrdnance,
           HEX_SIZE,
           150,
         );

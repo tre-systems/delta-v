@@ -1,4 +1,5 @@
 import { canAttack } from '../../shared/combat';
+import { hasManualCombatTargets } from '../../shared/engine/combat';
 import type {
   GameState,
   PlayerId,
@@ -145,6 +146,12 @@ export const beginCombatPhase = (deps: CombatActionDeps) => {
 export const startCombatTargetWatch = (
   deps: CombatActionDeps,
 ): (() => void) => {
+  const gameState = deps.getGameState();
+  if (gameState && !hasManualCombatTargets(gameState, deps.getMap())) {
+    sendSkipCombat(deps);
+    return () => {};
+  }
+
   let combatWatchInterval: number | null = null;
 
   if (combatWatchInterval) clearInterval(combatWatchInterval);
