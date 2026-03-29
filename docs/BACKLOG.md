@@ -16,6 +16,20 @@ Priority numbers are stable IDs and may be non-contiguous when shipped items are
 
 Each item should use: **Status**, **Remaining**, and (when useful) **Depends / Files / Owner / Trigger**.
 
+**Next engineering work**
+
+If the question is "what should we build next?" rather than "what are the broad launch/readiness risks?", start with this queue:
+
+1. `20` Client WebSocket inbound schema guard
+2. `21` Simplify game action dispatch typing surfaces (`server`)
+3. `26` Normalize client state read model (`ctx` vs mirror)
+4. `23` Align disconnect-forfeit flow with engine transition invariants
+5. `22` Decompose `GameDO` state publication pipeline
+6. `28` Preserve active game on accidental reload/navigation
+7. `29` Join-code validation and error feedback polish
+
+These are the most actionable active engineering tasks. The numbered backlog below keeps stable IDs and still reflects the broader strategic ordering described above.
+
 ---
 
 ### 1. Global edge limits for reporting (`/telemetry`, `/error`) — **optional**
