@@ -57,6 +57,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const loadingSignal = signal(false);
   const waitingCopySignal = signal(buildWaitingScreenCopy('', false));
   const copyButtonTextSignal = signal('Copy Link');
+  const copySpectateTextSignal = signal('Copy Spectate Link');
 
   const createBtn = byId<HTMLButtonElement>('createBtn');
   const singlePlayerBtn = byId('singlePlayerBtn');
@@ -68,6 +69,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const joinBtn = byId('joinBtn');
   const codeInputEl = byId<HTMLInputElement>('codeInput');
   const copyBtn = byId('copyBtn');
+  const copySpectateBtn = byId('copySpectateBtn');
   const gameCodeEl = byId('gameCode');
   const waitingStatusEl = byId('waitingStatus');
 
@@ -243,6 +245,25 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         .catch(() => {});
     });
 
+    listen(copySpectateBtn, 'click', () => {
+      const code = gameCodeEl.textContent ?? '';
+      const url = `${window.location.origin}/?code=${code}&viewer=spectator`;
+      const copyText =
+        deps.copyText ?? ((t: string) => navigator.clipboard?.writeText(t));
+      const copyPromise = copyText(url);
+
+      void copyPromise
+        ?.then(() => {
+          copySpectateTextSignal.value = 'Copied!';
+          clearCopyResetTimer();
+          copyResetTimer = window.setTimeout(() => {
+            copySpectateTextSignal.value = 'Copy Spectate Link';
+            copyResetTimer = null;
+          }, 2000);
+        })
+        .catch(() => {});
+    });
+
     effect(() => {
       const loading = loadingSignal.value;
       createBtn.disabled = loading;
@@ -265,6 +286,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     });
 
     text(copyBtn, copyButtonTextSignal);
+    text(copySpectateBtn, copySpectateTextSignal);
   });
 
   return {

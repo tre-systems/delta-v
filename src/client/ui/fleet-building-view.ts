@@ -50,13 +50,15 @@ export const createFleetBuildingView = (
   const waitingEl = byId('fleetWaiting');
 
   const showFleetBuilding = (state: GameState, playerId: PlayerId): void => {
-    const credits = state.players[playerId].credits ?? 0;
+    const isSpectator = playerId !== 0 && playerId !== 1;
+    const effectivePlayer = isSpectator ? 0 : playerId;
+    const credits = state.players[effectivePlayer]?.credits ?? 0;
 
     batch(() => {
       availableFleetPurchasesSignal.value =
         state.scenarioRules.availableFleetPurchases;
       existingShipsSignal.value = state.ships
-        .filter((ship) => ship.owner === playerId)
+        .filter((ship) => ship.owner === effectivePlayer)
         .map((ship) => ({
           type: ship.type,
           lifecycle: ship.lifecycle,
@@ -65,7 +67,7 @@ export const createFleetBuildingView = (
         }));
       totalCreditsSignal.value = credits;
       cartSignal.value = [];
-      waitingSignal.value = false;
+      waitingSignal.value = isSpectator;
     });
   };
 
