@@ -18,6 +18,7 @@ import {
   type Ship,
   type SolarSystemMap,
 } from '../types';
+import type { EngineEvent } from './engine-events';
 
 /**
  * Transition the game to a new phase, validating against the phase transition table.
@@ -347,6 +348,22 @@ export const hasEscaped = (
     pos.r < bounds.minR - margin ||
     pos.r > bounds.maxR + margin
   );
+};
+
+// Apply a disconnect-forfeit game-over transition to a game state.
+// Returns the mutated state and the engine event for replay parity.
+export const applyDisconnectForfeit = (
+  state: GameState,
+  disconnectedPlayer: PlayerId,
+): { state: GameState; events: EngineEvent[] } => {
+  const winner = (disconnectedPlayer === 0 ? 1 : 0) as PlayerId;
+  const reason = 'Opponent disconnected';
+  transitionPhase(state as GameState & { phase: Phase }, 'gameOver' as never);
+  state.outcome = { winner, reason };
+  return {
+    state,
+    events: [{ type: 'gameOver' as const, winner, reason }],
+  };
 };
 
 export const hasEscapedNorth = (
