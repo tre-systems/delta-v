@@ -4,6 +4,7 @@ Delta-V now has two established simulation layers:
 
 - **Headless Engine Simulation (AI vs AI)** is implemented and runs in CI.
 - **Network Integration Simulation (PvP Bot Stress Testing)** is implemented as a usable load/chaos harness.
+- **LLM/Agent WebSocket Player Bridge** is implemented for one-seat automation against browser or another agent.
 
 Since the core `engine/game-engine.ts` is purely functional and deterministic apart from injected RNG, high-speed simulation is practical.
 
@@ -83,8 +84,51 @@ the existing AI helpers.
 
 ---
 
+## 3. LLM / Agent WebSocket Player Bridge
+
+**Goal:** Let external model-driven agents (LLMs, custom planners, tool-using bots) play real online matches using the same room protocol as browser clients.
+
+**Implementation:** `scripts/llm-player.ts`
+
+The bridge can either:
+
+1. **Create** a game and play one seat while another player joins from browser automation or manual browser play.
+2. **Join** an existing room code and play that seat.
+
+Run two bridge processes (one create, one join) for **LLM-vs-LLM**.
+
+### Usage examples
+
+- Host with external command agent and share code with browser opponent:
+  - `npm run llm:player -- --mode create --scenario duel --agent command --agent-command "python ./tools/my_agent.py"`
+- Join existing code with HTTP agent:
+  - `npm run llm:player -- --mode join --code ABCDE --agent http --agent-url http://127.0.0.1:8080/turn`
+- Baseline fallback policy (no external agent):
+  - `npm run llm:player -- --mode create --agent builtin`
+
+### Agent interface contract
+
+The bridge sends a per-turn JSON payload to your agent (`stdin` for command mode, `POST` body for HTTP mode):
+
+- `version`
+- `gameCode`
+- `playerId`
+- `state` (authoritative `GameState`)
+- `candidates` (`C2S[]` actions generated from built-in strategies)
+- `recommendedIndex` (index into `candidates`)
+
+Agent should return JSON:
+
+- `{ "candidateIndex": 0 }` to select one candidate, **or**
+- `{ "action": { ...C2S... } }` to provide a custom action.
+
+If agent output is invalid, times out, or mismatched for the current phase, the bridge falls back to built-in policy (`--difficulty`).
+
+---
+
 ## Summary of Progress
 
 1. **RNG Injection**: Completed. All engine entry points require mandatory `rng` parameter for deterministic simulations.
 2. **AI Runner**: Implemented. `npm run simulate` executes headless matches, and CI/verification runs the multi-scenario `--ci` pass.
 3. **Load Tester**: Implemented as a first usable websocket load / chaos harness. Future work can extend it with invalid-payload fuzzing, larger soak runs, and CI/staging automation.
+4. **LLM Bridge**: Implemented as a practical one-seat websocket bridge for browser-vs-agent and agent-vs-agent workflows.
