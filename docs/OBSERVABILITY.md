@@ -92,6 +92,61 @@ These are practical defaults until formal dashboards/alerts are added.
 
 User-facing policy copy is out of scope here; align any public privacy text with this behavior.
 
+## Operational D1 queries
+
+Paste these into the Cloudflare D1 console or run via `wrangler d1 execute`.
+
+```sql
+-- Match completions by scenario (last 7 days)
+SELECT scenario, COUNT(*) AS matches,
+       AVG(turn_count) AS avg_turns,
+       AVG(duration_ms) / 1000.0 AS avg_duration_s
+FROM match_archive
+WHERE completed_at > datetime('now', '-7 days')
+GROUP BY scenario
+ORDER BY matches DESC;
+
+-- Active unique clients (last 24h, by anon_id)
+SELECT COUNT(DISTINCT anon_id) AS unique_clients
+FROM events
+WHERE ts > (strftime('%s','now') - 86400) * 1000
+  AND anon_id IS NOT NULL;
+
+-- Scenario popularity (games started, last 7 days)
+SELECT json_extract(props, '$.scenario') AS scenario, COUNT(*) AS n
+FROM events
+WHERE event = 'game_started'
+  AND ts > (strftime('%s','now') - 7 * 86400) * 1000
+GROUP BY scenario
+ORDER BY n DESC;
+
+-- Disconnects and reconnects (last 24h)
+SELECT event, COUNT(*) AS n
+FROM events
+WHERE ts > (strftime('%s','now') - 86400) * 1000
+  AND event IN ('reconnect_attempt_scheduled', 'reconnect_failed', 'ws_parse_error', 'ws_invalid_message')
+GROUP BY event
+ORDER BY n DESC;
+
+-- Top client errors by message (last 24h)
+SELECT json_extract(props, '$.message') AS error_msg, COUNT(*) AS n
+FROM events
+WHERE event = 'client_error'
+  AND ts > (strftime('%s','now') - 86400) * 1000
+GROUP BY error_msg
+ORDER BY n DESC
+LIMIT 10;
+```
+
+## Workers log filters
+
+In the Cloudflare Workers **Logs** tab, filter by:
+
+- `Engine error` — catches `console.error` from game action failures
+- `Inactivity timeout` — room cleanup events
+- `Rate limit exceeded` — WebSocket abuse
+- `projection_parity_mismatch` — replay integrity issues (critical)
+
 ## Gaps and follow-ups
 
 - No built-in **dashboards** or **alerts** — use Cloudflare + D1 exports or third-party tools; [BACKLOG.md](./BACKLOG.md) priority **10**.
