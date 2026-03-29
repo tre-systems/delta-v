@@ -12,6 +12,7 @@ import {
 } from '../engine/game-engine';
 import { hexDistance, hexKey, hexVecLength } from '../hex';
 import { computeCourse } from '../movement';
+import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   AstrogationOrder,
   GameState,
@@ -268,7 +269,7 @@ const getPassengerEmergencyEscortOrders = (
         escortStats?.canOverload &&
         escort.fuel >= 2 &&
         !escort.overloadUsed &&
-        !state.scenarioRules.combatDisabled
+        deriveCapabilities(state.scenarioRules).combatEnabled
           ? [null, 0, 1, 2, 3, 4, 5]
           : [null];
 
@@ -387,7 +388,8 @@ export const aiAstrogation = (
   } | null = targetBody
     ? (map.bodies.find((body) => body.name === targetBody)?.center ?? null)
     : null;
-  const checkpoints = state.scenarioRules.checkpointBodies;
+  const caps = deriveCapabilities(state.scenarioRules);
+  const checkpoints = caps.isCheckpointRace ? caps.checkpointBodies : null;
   const enemyShips = state.ships.filter(
     (ship) => ship.owner !== playerId && ship.lifecycle !== 'destroyed',
   );
@@ -555,7 +557,7 @@ export const aiAstrogation = (
       stats?.canOverload &&
       ship.fuel >= 2 &&
       !ship.overloadUsed &&
-      !state.scenarioRules.combatDisabled;
+      deriveCapabilities(state.scenarioRules).combatEnabled;
     type BurnOption = {
       burn: number | null;
       overload: number | null;

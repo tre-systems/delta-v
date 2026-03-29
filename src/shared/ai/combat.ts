@@ -9,6 +9,7 @@ import {
   hasLineOfSightToTarget,
 } from '../combat';
 import { hexDistance } from '../hex';
+import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   CombatAttack,
   GameState,
@@ -33,7 +34,7 @@ export const aiCombat = (
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
 ): CombatAttack[] => {
-  if (state.scenarioRules.combatDisabled) return [];
+  if (!deriveCapabilities(state.scenarioRules).combatEnabled) return [];
 
   const cfg = AI_CONFIG[difficulty];
   const myShips = state.ships.filter(
