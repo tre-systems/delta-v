@@ -278,10 +278,10 @@ export const createGameClient = () => {
 
   replayController = createReplayController({
     getClientContext: () => ({
-      state: ctx.state,
+      state: mirror.clientState.peek(),
       isLocalGame: ctx.isLocalGame,
       gameCode: ctx.gameCode,
-      gameState: ctx.gameState,
+      gameState: mirror.gameState.peek(),
     }),
     fetchReplay: (code, gameId) => sessionApi.fetchReplay(code, gameId),
     setReplayControls: (view) => ui.overlay.setReplayControls(view),
@@ -415,8 +415,8 @@ export const createGameClient = () => {
 
   const sendFleetReady = (purchases: FleetPurchase[]) => {
     if (
-      !ctx.gameState ||
-      ctx.state !== 'playing_fleetBuilding' ||
+      !mirror.gameState.peek() ||
+      mirror.clientState.peek() !== 'playing_fleetBuilding' ||
       !ctx.transport
     ) {
       return;
@@ -437,10 +437,10 @@ export const createGameClient = () => {
 
   const dispatch = (cmd: GameCommand) => {
     const commandCtx: CommandRouterSessionRead = {
-      state: ctx.state,
-      playerId: ctx.playerId,
-      gameState: ctx.gameState,
-      transport: ctx.transport,
+      getState: () => mirror.clientState.peek(),
+      getPlayerId: () => ctx.playerId as PlayerId,
+      getGameState: () => mirror.gameState.peek(),
+      getTransport: () => ctx.transport,
       planningState: ctx.planningState,
     };
     dispatchGameCommand(

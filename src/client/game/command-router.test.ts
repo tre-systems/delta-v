@@ -137,7 +137,7 @@ const createLogisticsState = (amounts: number[]): LogisticsUIState => {
 };
 
 const createDeps = (overrides?: {
-  clientState?: CommandRouterDeps['ctx']['state'];
+  clientState?: string;
   gameState?: GameState | null;
   logisticsUIState?: LogisticsUIState | null;
   transport?: (GameTransport & { calls: Record<string, unknown[][]> }) | null;
@@ -149,11 +149,14 @@ const createDeps = (overrides?: {
 } => {
   const planningState = createInitialPlanningState();
   const transport = overrides?.transport ?? mockTransport();
+  const clientState = overrides?.clientState ?? 'playing_astrogation';
+  const gameState = overrides?.gameState ?? createState();
   const ctx: CommandRouterDeps['ctx'] = {
-    state: overrides?.clientState ?? 'playing_astrogation',
-    playerId: 0,
-    gameState: overrides?.gameState ?? createState(),
-    transport,
+    getState: () =>
+      clientState as ReturnType<CommandRouterDeps['ctx']['getState']>,
+    getPlayerId: () => 0 as PlayerId,
+    getGameState: () => gameState,
+    getTransport: () => transport,
     planningState,
   };
   const showAttackButton = vi.fn<CommandRouterDeps['ui']['showAttackButton']>();
@@ -170,18 +173,18 @@ const createDeps = (overrides?: {
   const deps: CommandRouterDeps = {
     ctx,
     astrogationDeps: {
-      getGameState: () => ctx.gameState,
-      getClientState: () => ctx.state,
-      getPlayerId: () => ctx.playerId as PlayerId,
-      getTransport: () => ctx.transport,
+      getGameState: () => ctx.getGameState(),
+      getClientState: () => ctx.getState(),
+      getPlayerId: () => ctx.getPlayerId(),
+      getTransport: () => ctx.getTransport(),
       planningState: ctx.planningState,
       showToast,
     },
     combatDeps: {
-      getGameState: () => ctx.gameState,
-      getClientState: () => ctx.state,
-      getPlayerId: () => ctx.playerId as PlayerId,
-      getTransport: () => ctx.transport,
+      getGameState: () => ctx.getGameState(),
+      getClientState: () => ctx.getState(),
+      getPlayerId: () => ctx.getPlayerId(),
+      getTransport: () => ctx.getTransport(),
       getMap: () => map,
       planningState: ctx.planningState,
       showToast,
@@ -189,9 +192,9 @@ const createDeps = (overrides?: {
       showFireButton,
     },
     ordnanceDeps: {
-      getGameState: () => ctx.gameState,
-      getClientState: () => ctx.state,
-      getTransport: () => ctx.transport,
+      getGameState: () => ctx.getGameState(),
+      getClientState: () => ctx.getState(),
+      getTransport: () => ctx.getTransport(),
       planningState: ctx.planningState,
       showToast,
       logText: vi.fn<(text: string) => void>(),
