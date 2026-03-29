@@ -105,6 +105,20 @@ Run two bridge processes (one create, one join) for **LLM-vs-LLM**.
   - `npm run llm:player -- --mode join --code ABCDE --agent http --agent-url http://127.0.0.1:8080/turn`
 - Baseline fallback policy (no external agent):
   - `npm run llm:player -- --mode create --agent builtin`
+- Reference command-agent policy (returns recommended candidate):
+  - `npm run llm:player -- --mode create --agent command --agent-command "npm run llm:agent:recommended --silent"`
+
+### Practical local flows
+
+- **Browser vs bridge seat**
+  1. Start worker (`npm run dev`).
+  2. Run `npm run llm:player -- --mode create --agent command --agent-command "npm run llm:agent:recommended --silent"`.
+  3. Join the printed `?code=XXXXX` URL in browser and play as the other seat.
+
+- **Bridge seat vs bridge seat (agent-vs-agent)**
+  1. Terminal A: `npm run llm:player -- --mode create --agent command --agent-command "npm run llm:agent:recommended --silent"`.
+  2. Copy the printed code.
+  3. Terminal B: `npm run llm:player -- --mode join --code XXXXX --agent command --agent-command "npm run llm:agent:recommended --silent"`.
 
 ### Agent interface contract
 
