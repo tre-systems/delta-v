@@ -188,4 +188,99 @@ The last recorded networked `npm audit --audit-level=moderate` run reported a **
 
 **Owner:** maintainer / release owner before public release.
 
+### 20. Client WebSocket inbound schema guard
+
+**Status:** not started.
+
+**Remaining:** add a runtime parse/validate boundary for inbound WebSocket payloads before they reach client message planning/handling. Reject or ignore malformed payloads with bounded logging and no hard crash path.
+
+**Rationale:** current typing is compile-time only; runtime payload safety should be enforced at the network boundary.
+
+**Files:** `src/client/game/connection.ts`, `src/shared/protocol.ts` (or shared validator module), `src/client/game/messages.ts`, client tests
+
+### 21. Simplify game action dispatch typing surfaces (`server`)
+
+**Status:** not started.
+
+**Remaining:** converge game-action and aux-message registration toward one source of truth so adding a new C2S action does not require updates in multiple manual lists/maps.
+
+**Rationale:** reduces drift risk and lowers maintenance cost for protocol evolution.
+
+**Files:** `src/server/game-do/actions.ts`, `src/server/game-do/socket.ts`, `src/shared/types/protocol.ts`, related tests
+
+### 22. Decompose `GameDO` state publication pipeline
+
+**Status:** not started.
+
+**Remaining:** extract `publishStateChange` orchestration into named/internal steps (append events, checkpoint, parity verify, optional archive, timer handling, broadcast) while preserving ordering guarantees and behavior.
+
+**Rationale:** concentrated orchestration in one large method increases review and change risk.
+
+**Files:** `src/server/game-do/game-do.ts`, `src/server/game-do/archive.ts`, `src/server/game-do/telemetry.ts`, `src/server/game-do/broadcast.ts`, tests
+
+### 23. Align disconnect-forfeit flow with engine transition invariants
+
+**Status:** not started.
+
+**Remaining:** route disconnect-expiry game-over transitions through an engine-aligned helper/transition path (or equivalent canonical state transition) instead of ad hoc mutation on projected state; ensure emitted events and replay parity remain consistent.
+
+**Rationale:** keep game-over transitions consistent across action and alarm paths.
+
+**Files:** `src/server/game-do/alarm.ts`, `src/server/game-do/game-do.ts`, `src/shared/engine/`, alarm/replay tests
+
+### 24. Refactor `scenarioRules` access behind capabilities facade
+
+**Status:** not started.
+
+**Remaining:** add a derived scenario capability layer (single place for defaults and feature predicates), then migrate scattered `scenarioRules` branching in engine/AI to use that facade incrementally.
+
+**Rationale:** rule flags are currently read in many places; a facade lowers branch scatter and regression risk.
+
+**Files:** `src/shared/types/domain.ts`, `src/shared/engine/`, `src/shared/ai/`, scenario/engine tests
+
+### 25. Split `shared/engine/victory.ts` by concern
+
+**Status:** not started.
+
+**Remaining:** separate victory/post-movement responsibilities into smaller modules (win predicates, post-move interactions, turn-advance/resupply/detection flow) without behavior change; preserve existing execution order with characterization tests.
+
+**Rationale:** `victory.ts` is a major complexity hotspot and onboarding bottleneck.
+
+**Files:** `src/shared/engine/victory.ts`, adjacent engine modules, `src/shared/engine/game-engine.test.ts`, targeted unit tests
+
+### 26. Normalize client state read model (`ctx` vs mirror)
+
+**Status:** not started.
+
+**Remaining:** define and apply one canonical state read strategy for command dispatch/input/runtime paths; remove ambiguous mixed reads where possible and tighten transition ordering assumptions.
+
+**Rationale:** dual state-read surfaces make temporal reasoning harder and can hide subtle inconsistencies.
+
+**Files:** `src/client/game/client-kernel.ts`, `src/client/game/client-runtime.ts`, `src/client/game/session-signals.ts`, `src/client/game/state-transition.ts`, client tests
+
+### 27. Execution order for architecture simplification tasks (`20`-`26`)
+
+**Status:** planning note (active guidance).
+
+**Recommended order:** `20` -> `21` -> `26` -> `23` -> `22` -> `24` -> `25`.
+
+**Effort / risk:**
+- `20`: **S / low**
+- `21`: **M / medium**
+- `26`: **M / medium**
+- `23`: **M / medium-high**
+- `22`: **M-L / high**
+- `24`: **L / high**
+- `25`: **L / high**
+
+**PR slicing guidance:**
+- PR1: `20` only.
+- PR2: `21` only.
+- PR3: `26` only.
+- PR4: `23` only.
+- PR5: `22` only.
+- PR6+: `24` and `25` in small behavior-preserving slices.
+
+**Test focus:** for each item, add or update characterization tests before structural refactors where ordering/semantics are sensitive (`23`, `22`, `24`, `25`).
+
 ---
