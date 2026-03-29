@@ -217,9 +217,9 @@ Current examples:
   internal `applyScreenVisibility` (wired through
   `createScreenActions()` for the user-facing screen methods),
   calling `applyUIVisibility()` from `ui/visibility.ts`.
-- `GameDO.publishStateChange()` owns persistence,
-  archival append, timer reschedule, and outbound
-  state-bearing messages.
+- `runPublicationPipeline()` in `publication.ts` owns
+  the state publication pipeline: event append, checkpoint,
+  parity verify, match archive, timer, and broadcast.
 
 This pattern is a good fit here because it reduces drift
 between similar flows and gives tests a narrow seam to

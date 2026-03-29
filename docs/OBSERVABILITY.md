@@ -149,6 +149,6 @@ In the Cloudflare Workers **Logs** tab, filter by:
 
 ## Gaps and follow-ups
 
-- No built-in **dashboards** or **alerts** — use Cloudflare + D1 exports or third-party tools; [BACKLOG.md](./BACKLOG.md) priority **10**.
-- **Rate limits:** per-isolate caps on `/telemetry` and `/error` (see [SECURITY.md](./SECURITY.md)); optional global WAF — [BACKLOG.md](./BACKLOG.md) priority **1**.
+- No built-in **dashboards** or **alerts** — use Cloudflare + D1 exports or third-party tools. Operational D1 queries are documented above.
+- **Rate limits:** per-isolate caps on `/telemetry` and `/error` shipped (see [SECURITY.md](./SECURITY.md)); optional global WAF if distributed abuse is observed.
 - **Sampling** or caps can be added in `src/server/index.ts` before `insertEvent` if volume grows.
