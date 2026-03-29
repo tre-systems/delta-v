@@ -22,6 +22,7 @@
     "format": "biome format --write src scripts e2e vitest.config.ts playwright.config.ts esbuild.client.mjs",
     "simulate": "tsx scripts/simulate-ai.ts",
     "llm:player": "tsx scripts/llm-player.ts",
+    "llm:agent:recommended": "tsx scripts/llm-agent-recommended.ts",
     "load:test": "tsx scripts/load-test.ts",
     "update-deps": "npx npm-check-updates -u && npm install",
     "prepare": "husky"
