@@ -666,11 +666,11 @@ See [BACKLOG.md](./BACKLOG.md) for open work. This section captures current arch
 
 ## 7. Client bundle and release hygiene
 
-**Bundle baseline** (re-measured **2026-03-28** via `npm run build`; update after large renderer or dependency changes):
+**Bundle baseline** (re-measured **2026-03-29** via `npm run build`; update after large renderer or dependency changes):
 
 | Artifact         | Raw (approx.) | Gzip (approx.) |
 | ---------------- | ------------- | -------------- |
-| `dist/client.js` | ~596 KB       | ~123 KB        |
+| `dist/client.js` | ~601 KB       | ~124 KB        |
 
 **Supply chain:** run `npm audit` before releases; use `npm run update-deps` judiciously and run `verify` after bumps.
 

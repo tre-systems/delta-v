@@ -84,6 +84,7 @@ const installFixture = () => {
     <button id="joinBtn"></button>
     <input id="codeInput" />
     <button id="copyBtn"></button>
+    <button id="copySpectateBtn"></button>
     <div id="gameCode"></div>
     <div id="waitingStatus"></div>
     <button class="btn-difficulty active" data-difficulty="normal"></button>

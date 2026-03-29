@@ -15,6 +15,7 @@ const installFixture = () => {
     <button id="joinBtn">Join</button>
     <input id="codeInput" />
     <button id="copyBtn">Copy Link</button>
+    <button id="copySpectateBtn">Copy Spectate Link</button>
     <div id="gameCode"></div>
     <div id="waitingStatus"></div>
   `;
