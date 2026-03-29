@@ -37,6 +37,7 @@ describe('GameLogView', () => {
   });
 
   it('collapses to latest bar and expands on toggle', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 400, writable: true });
     const view = createGameLogView({ onChat: vi.fn() });
     const gameLog = document.getElementById('gameLog') as HTMLElement;
     const latestBar = document.getElementById('logLatestBar') as HTMLElement;
@@ -93,6 +94,7 @@ describe('GameLogView', () => {
   });
 
   it('closes expanded log when clicking on it', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 400, writable: true });
     const view = createGameLogView({ onChat: vi.fn() });
     const gameLog = document.getElementById('gameLog') as HTMLElement;
     const latestBar = document.getElementById('logLatestBar') as HTMLElement;
@@ -107,6 +109,7 @@ describe('GameLogView', () => {
   });
 
   it('disposes chat and toggle listeners cleanly', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 400, writable: true });
     const onChat = vi.fn<(text: string) => void>();
     const view = createGameLogView({ onChat });
     const input = document.getElementById('chatInput') as HTMLInputElement;

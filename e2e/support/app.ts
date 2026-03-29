@@ -154,7 +154,12 @@ export const createMultiplayerSession = async (
 
 export const expandDesktopLog = async (page: Page): Promise<void> => {
   await skipTutorialIfPresent(page);
-  await page.click('#logLatestBar');
+  const logAlreadyVisible = await page
+    .locator('#gameLog')
+    .evaluate((el) => getComputedStyle(el).display !== 'none');
+  if (!logAlreadyVisible) {
+    await page.click('#logLatestBar');
+  }
   await waitForDisplay(page, '#gameLog', 'flex');
 };
 
