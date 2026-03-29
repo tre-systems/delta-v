@@ -195,10 +195,10 @@ For the comprehensive ruleset detailing movement edge cases, damage tables, and 
 - [x] Event-sourced authoritative match persistence with replay/reconnect recovery from event stream plus checkpoints
 - [x] Shared rule consolidation, bounded type imports, authoritative disconnect-forfeit
 
-### Planned
+### Shipped
 
-- [x] **Passenger Rescue Mechanics**: Baseline in engine + Convoy (see `docs/BACKLOG.md` **3** for extensions)
-- [ ] **Scenario Expansion**: Lateral 7, Fleet Mutiny, Retribution
+- [x] **Passenger Rescue Mechanics**: Passengers, transfers, Convoy + Evacuation scenarios
+- [x] **All 9 Triplanetary Scenarios**: Bi-Planetary through Grand Tour
 
 ## 🔗 External References
 
