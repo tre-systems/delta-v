@@ -1895,6 +1895,34 @@ h2.game-over-defeat {
 
 /* Wide mobile: enough room for desktop-style two-column layout */
 @media (min-width: 641px) and (max-width: 760px) {
+  .hud-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem 0.8rem;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.68rem;
+  }
+
+  .hud-bar > :nth-child(1) {
+    grid-column: unset;
+  }
+
+  .hud-bar > :nth-child(3) {
+    grid-column: unset;
+    justify-self: unset;
+  }
+
+  .fleet-status,
+  .turn-timer {
+    grid-column: unset;
+  }
+
+  .objective-wrap {
+    grid-column: unset;
+  }
+
   .game-log {
     top: calc(var(--hud-top-offset) + 0.35rem);
     bottom: auto;
