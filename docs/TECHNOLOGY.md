@@ -29,7 +29,7 @@ Current chemical rockets have high thrust but terrible fuel efficiency (Specific
 ## 2. Advanced Thermal Management
 
 **How It Works:** 
-In the vacuum of space, dissipating the extreme waste heat from fusion drives and railguns is a monumental challenge. Older ship designs use bulky, fragile radiator fins. The modern Delta-V fleet uses **Liquid Droplet Radiators** (spraying a stream of hot molten coolant directly into the vacuum and catching it meters away to radiate heat) and **Micro-Channel Cooling Arrays** (pumping coolant through hair-thin channels etched directly into the hull plating).
+In the vacuum of space, dissipating the extreme waste heat from fusion drives and beam weapons is a monumental challenge. Older ship designs use bulky, fragile radiator fins. The modern Delta-V fleet uses **Liquid Droplet Radiators** (spraying a stream of hot molten coolant directly into the vacuum and catching it meters away to radiate heat) and **Micro-Channel Cooling Arrays** (pumping coolant through hair-thin channels etched directly into the hull plating).
 
 **Visual description:**
 - Sleek, flush-mounted hull panels that glow faintly cherry-red or amber under load.
@@ -38,27 +38,29 @@ In the vacuum of space, dissipating the extreme waste heat from fusion drives an
 
 ---
 
-## 3. Kinetic Weaponry (Railguns & Coilguns)
+## 3. Directed-Energy Weaponry (Particle Beams & Laser Arrays)
 
-**How It Works:** 
-Combat in Delta-V happens over vast distances, requiring extreme projectile speeds. Ship weaponry relies on electromagnetism rather than chemical explosives to accelerate solid tungsten or depleted uranium slugs to significant fractions of light speed. Firing these weapons requires massive bursts of energy, pulling directly from the ship's capacitor banks and reactor.
+**How It Works:**
+Combat in Delta-V happens at ranges of thousands of kilometers — far too great for kinetic projectiles to be practical. At these distances, only lightspeed weapons can reliably hit a target within a single engagement window. Ship weaponry uses high-energy **Neutral Particle Beam** accelerators and **Free-Electron Laser** arrays, powered by massive capacitor banks charged from the ship's fusion reactor. A particle beam strips electrons from hydrogen or deuterium atoms, accelerates the ions to near-lightspeed through a linear accelerator, then re-neutralizes them before emission — producing a focused beam of relativistic particles that delivers devastating thermal and radiation damage on impact. Laser arrays use banks of coherent emitters phase-locked together to produce a single high-energy beam at extreme range. Both weapon types strike at lightspeed, making evasion after firing effectively impossible — consistent with the instantaneous combat resolution observed at interplanetary scale.
 
 **Visual description:**
-- Extremely long, heavy, spine-mounted or turreted barrels.
-- Exposed magnetic coils spaced evenly along the length of the barrel.
-- Flanked by incredibly thick power conduits and hazard warnings due to massive electromagnetic fields.
+- Long, heavy accelerator spines mounted along the ship's keel or in turreted housings.
+- Visible linear accelerator segments with thick superconducting magnet rings along the barrel length.
+- Flanked by massive power conduits, capacitor banks, and cooling infrastructure.
+- Laser variants appear as clusters of smaller emitter lenses behind armored shutters.
+- Intense electromagnetic shielding and hazard markings around the firing axis.
 
 ---
 
-## 4. Multi-Layer Defenses (Ablative & Whipple Shields)
+## 4. Multi-Layer Defenses (Ablative Armor & Whipple Shields)
 
-**How It Works:** 
-To survive kinetic railgun impacts, deep space warships utilize layered defenses. The outermost layer is a **Whipple Shield**—a thin, sacrificial bumper designed to vaporize incoming high-velocity slugs upon impact. This spreads the kinetic energy over a much wider area so that the underlying, thick **Ablative Armor** can absorb and slowly slough off the remaining energy without the vital modules being penetrated.
+**How It Works:**
+Deep space warships face two distinct threat profiles: directed-energy beams and kinetic debris from ordnance detonations. Against beam weapons, ships use thick **Ablative Armor** — layered composite plating designed to vaporize and slough off under sustained thermal assault, carrying away energy before it reaches the hull. Against kinetic threats (torpedo fragments, mine shrapnel, micrometeorites), the outermost layer is a **Whipple Shield** — a thin, sacrificial bumper that vaporizes incoming debris on contact, spreading the impact energy over a wider area before it reaches the ablative layer beneath.
 
 **Visual description:**
 - Thick, dense, overlapping hexagonal outer plating.
 - Highly utilitarian aesthetic, commonly painted in gunmetal or navy tones.
-- Frequently marred with impact craters, scorch marks, and replaced modular segments.
+- Frequently marred with beam scoring, ablation patterns, and replaced modular segments.
 
 ---
 
