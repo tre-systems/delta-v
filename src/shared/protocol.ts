@@ -11,6 +11,7 @@ import type {
   Result,
   TransferOrder,
 } from './types';
+import type { S2C } from './types/protocol';
 import { isObject, isString } from './util';
 
 const isShipType = (value: string): value is ShipType => value in SHIP_STATS;
@@ -447,6 +448,103 @@ export const validateClientMessage = (raw: unknown): Result<C2S> => {
 
     case 'ping':
       return validatePing();
+
+    default:
+      return invalid('Unknown message type');
+  }
+};
+
+// S2C (server-to-client) runtime schema guard.
+// Validates structural shape (type + required fields with correct basic types).
+// GameState internals are not deeply validated — the server is the authority.
+
+const isPlayerId = (value: unknown): boolean => value === 0 || value === 1;
+const isFiniteNumber = (value: unknown): boolean =>
+  typeof value === 'number' && Number.isFinite(value);
+
+export const validateServerMessage = (raw: unknown): Result<S2C> => {
+  const ok = (value: S2C) => ({ ok: true as const, value });
+  const invalid = (error: string) => ({ ok: false as const, error });
+
+  if (!isObject(raw) || !isString(raw.type)) {
+    return invalid('Invalid message payload');
+  }
+
+  const msg = raw as Record<string, unknown>;
+
+  switch (msg.type) {
+    case 'welcome':
+      if (
+        !isPlayerId(msg.playerId) ||
+        !isString(msg.code) ||
+        !isString(msg.playerToken)
+      ) {
+        return invalid('Invalid welcome payload');
+      }
+      return ok(msg as unknown as S2C);
+
+    case 'spectatorWelcome':
+      if (!isString(msg.code)) {
+        return invalid('Invalid spectatorWelcome payload');
+      }
+      return ok(msg as unknown as S2C);
+
+    case 'matchFound':
+    case 'rematchPending':
+      return ok(msg as unknown as S2C);
+
+    case 'gameStart':
+      if (!isObject(msg.state)) {
+        return invalid('Invalid gameStart payload');
+      }
+      return ok(msg as unknown as S2C);
+
+    case 'movementResult':
+      if (
+        !isObject(msg.state) ||
+        !Array.isArray(msg.movements) ||
+        !Array.isArray(msg.ordnanceMovements) ||
+        !Array.isArray(msg.events)
+      ) {
+        return invalid('Invalid movementResult payload');
+      }
+      return ok(msg as unknown as S2C);
+
+    case 'combatResult':
+      if (!isObject(msg.state) || !Array.isArray(msg.results)) {
+        return invalid('Invalid combatResult payload');
+      }
+      return ok(msg as unknown as S2C);
+
+    case 'stateUpdate':
+      if (!isObject(msg.state)) {
+        return invalid('Invalid stateUpdate payload');
+      }
+      return ok(msg as unknown as S2C);
+
+    case 'gameOver':
+      if (!isPlayerId(msg.winner) || !isString(msg.reason)) {
+        return invalid('Invalid gameOver payload');
+      }
+      return ok(msg as unknown as S2C);
+
+    case 'chat':
+      if (!isPlayerId(msg.playerId) || !isString(msg.text)) {
+        return invalid('Invalid chat payload');
+      }
+      return ok(msg as unknown as S2C);
+
+    case 'error':
+      if (!isString(msg.message)) {
+        return invalid('Invalid error payload');
+      }
+      return ok(msg as unknown as S2C);
+
+    case 'pong':
+      if (!isFiniteNumber(msg.t)) {
+        return invalid('Invalid pong payload');
+      }
+      return ok(msg as unknown as S2C);
 
     default:
       return invalid('Unknown message type');
