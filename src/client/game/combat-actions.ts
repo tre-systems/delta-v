@@ -178,11 +178,15 @@ export const startCombatTargetWatch = (
   deps: CombatActionDeps,
 ): (() => void) => {
   const gameState = deps.getGameState();
+  const transport = deps.getTransport();
   if (
     gameState &&
+    transport &&
     !hasVisibleCombatTargets(gameState, deps.getPlayerId(), deps.getMap())
   ) {
-    sendSkipCombat(deps);
+    // Skip directly — sendSkipCombat checks getClientState() which
+    // may not reflect 'playing_combat' yet during state transition
+    transport.skipCombat();
     return () => {};
   }
 
