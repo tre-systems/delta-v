@@ -1,18 +1,18 @@
-import type { AIDifficulty } from './ai-types';
 import {
   isBaseCarrierType,
   isWarshipType,
   SHIP_STATS,
   type ShipType,
-} from './constants';
+} from '../constants';
 import type {
   FleetPurchase,
   FleetPurchaseOption,
   GameState,
   PlayerId,
   PurchasableShipType,
-} from './types';
-import { sumBy } from './util';
+} from '../types';
+import { sumBy } from '../util';
+import type { AIDifficulty } from './types';
 
 const DEFAULT_FLEET_PURCHASES = (Object.keys(SHIP_STATS) as ShipType[]).filter(
   (type): type is PurchasableShipType => type !== 'orbitalBase',
