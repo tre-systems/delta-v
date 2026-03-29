@@ -30,18 +30,6 @@ All architecture simplification tasks (`19`-`29`) are shipped. The remaining bac
 
 **Owner:** you + counsel.
 
-### 6. Spectator mode — UX polish
-
-**Status:** baseline shipped; UX follow-up open.
-
-**Baseline shipped:** Live spectator WebSocket upgrades: the worker proxies `GET /ws/:code?viewer=spectator` to the room DO (no player token). The DO tags sockets as `spectator`, sends `spectatorWelcome` plus optional `gameStart` using the same spectator-filtered `GameState` projection as broadcasts, and only answers `ping` on those sockets. Client: open `/?code=CODE&viewer=spectator` to spectate (`spectatorMode` session), WebSocket URL includes `viewer=spectator`, message plan handles `spectatorWelcome` with `playerId` -1, phase routing avoids seat-specific action states, game-over copy is neutral for spectators.
-
-**Remaining:** Lobby affordance (copy/share spectate link), clearer read-only treatment in the fleet builder and action surfaces, optional rate limits or abuse controls for unauthenticated spectator upgrades, any protocol tidy-ups.
-
-**Depends on:** can ship in parallel with passenger work.
-
-**Files:** `src/server/index.ts`, `src/server/game-do/fetch.ts`, `src/server/game-do/ws.ts`, `src/shared/types/protocol.ts`, `src/client/game/session-controller.ts`, `src/client/game/main-composition.ts`, `src/client/game/connection.ts`, `src/client/game/session.ts`, `src/client/game/messages.ts`, `src/client/game/message-handler.ts`, `src/client/game/phase.ts`, `src/client/game/endgame.ts`, `src/client/game/client-kernel.ts`, lobby/UI
-
 ### 7. Manual DOM accessibility audit pass — **Human**
 
 **Status:** automation shipped; manual audit follow-up open.
@@ -61,14 +49,6 @@ All architecture simplification tasks (`19`-`29`) are shipped. The remaining bac
 **Remaining:** WAF or `[[ratelimits]]` if distributed scans still wake DOs or cost too much.
 
 **Files:** `wrangler.toml`, Cloudflare dashboard; tune constants in `src/server/index.ts` if needed
-
-### 10. Observability dashboards and alerts — **Human**
-
-**Status:** not started (optional ops layer).
-
-**Remaining:** [OBSERVABILITY.md](./OBSERVABILITY.md) maps data sources but does not configure Cloudflare. Optionally add saved D1 queries, Workers log filters, or alerts on spikes in `client_error`, `engine_error`, or `projection_parity_mismatch`.
-
-**Owner:** you / ops.
 
 ### 11. `GameState` schema version and replay compatibility
 
@@ -97,18 +77,5 @@ If the product moves beyond shared short codes, implement longer opaque IDs or s
 Today markup is internal/trusted. If chat, player names, or modded scenarios ever render as HTML, add a single sanitizer boundary (e.g. DOMPurify inside `dom.ts`) per [SECURITY.md](./SECURITY.md) and [CODING_STANDARDS.md](./CODING_STANDARDS.md).
 
 **Files:** `src/client/dom.ts`, client call sites, optional dependency add
-
-### 18. Scenario balance and timeout tuning from simulation evidence
-
-**Status:** ongoing monitoring. The severe outliers found in the early 2026-03-28 review pass were materially improved by later AI tuning.
-
-**Baseline shipped:** the current full 25-game `--ci` sweep is back inside the configured scenario bands, including previously noisy cases such as `biplanetary`, `blockade`, `fleetAction`, and `interplanetaryWar`.
-
-**Remaining:** keep rerunning `npm run simulate -- all 100 -- --ci` after major AI, scenario, map, or victory-condition changes; only reopen targeted balance work if scenarios drift back out of band, produce excessive timeouts, or show obviously non-human AI behavior.
-
-**Files:** `scripts/simulate-ai.ts`, `src/shared/ai.ts`, `src/shared/ai-scoring.ts`, `src/shared/map-data.ts`, scenario-specific rules in `src/shared/engine/`
-
-**Trigger:** after AI heuristic, scenario setup, or victory-condition changes, rerun `npm run simulate -- all 100 -- --ci` and track trend.
-
 
 ---
