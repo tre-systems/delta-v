@@ -62,6 +62,8 @@ export const drawStaticSceneWithCache = (input: {
   stars: Star[];
   hexSize: number;
 }): boolean => {
+  if (input.width <= 0 || input.height <= 0) return false;
+
   const key = computeStaticSceneLayerKey({
     map: input.map,
     camera: input.camera,
