@@ -1,4 +1,5 @@
 import { must } from '../../shared/assert';
+import { validateServerMessage } from '../../shared/protocol';
 import type { GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import {
@@ -85,7 +86,21 @@ export const createConnectionManager = (
       ),
     );
     ws = socket;
-    socket.onmessage = (e) => deps.handleMessage(JSON.parse(e.data));
+    socket.onmessage = (e) => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(e.data);
+      } catch {
+        deps.trackEvent('ws_parse_error');
+        return;
+      }
+      const result = validateServerMessage(parsed);
+      if (!result.ok) {
+        deps.trackEvent('ws_invalid_message', { error: result.error });
+        return;
+      }
+      deps.handleMessage(result.value);
+    };
     socket.onclose = () => {
       if (ws === socket) {
         ws = null;
