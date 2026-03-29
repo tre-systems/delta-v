@@ -72,9 +72,20 @@ export const setupClientRuntime = ({
     showToast,
   });
 
+  const onBeforeUnload = (e: BeforeUnloadEvent) => {
+    const state = ctx.state;
+    if (ctx.gameState && state !== 'menu' && state !== 'gameOver') {
+      e.preventDefault();
+    }
+  };
+  window.addEventListener('beforeunload', onBeforeUnload);
+
   initAudio();
   renderer.start();
   autoJoinFromUrl(joinGame, spectateGame, setMenuState);
 
-  return disposeBrowserEvents;
+  return () => {
+    window.removeEventListener('beforeunload', onBeforeUnload);
+    disposeBrowserEvents();
+  };
 };
