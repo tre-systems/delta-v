@@ -24,7 +24,11 @@ export interface GameLogViewDeps {
 
 export interface GameLogView {
   setPlayerId: (id: PlayerId | -1) => void;
-  setMobile: (isMobile: boolean, hudVisible: boolean) => void;
+  setMobile: (
+    isMobile: boolean,
+    hudVisible: boolean,
+    viewportWidth?: number,
+  ) => void;
   applyScreenVisibility: (mode: UIScreenMode) => void;
   resetVisibilityState: () => void;
   showHUD: () => void;
@@ -95,9 +99,14 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
     playerId = id;
   };
 
-  const setMobile = (_isMobile: boolean, hudVisible: boolean): void => {
+  const setMobile = (
+    _isMobile: boolean,
+    hudVisible: boolean,
+    viewportWidth?: number,
+  ): void => {
     if (hudVisible) {
-      expandedSignal.value = false;
+      const width = viewportWidth ?? window.innerWidth;
+      expandedSignal.value = width >= 640;
     }
   };
 
@@ -111,7 +120,7 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
 
   const showHUD = (): void => {
     screenModeSignal.value = 'hud';
-    expandedSignal.value = false;
+    expandedSignal.value = window.innerWidth >= 640;
   };
 
   const toggle = (): void => {
