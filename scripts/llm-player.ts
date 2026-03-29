@@ -524,15 +524,15 @@ const run = async (config: Config): Promise<void> => {
 
   const scheduleAction = async (state: GameState): Promise<void> => {
     if (playerId === -1) return;
-    if (state.activePlayer !== playerId) return;
     if (state.phase === 'gameOver') return;
     if (actionInFlight) return;
+    const isSimultaneousPhase = state.phase === 'fleetBuilding';
+    if (!isSimultaneousPhase && state.activePlayer !== playerId) return;
 
     const actionKey = [
       state.gameId,
       state.turnNumber,
       state.phase,
-      state.activePlayer,
       playerId,
     ].join(':');
     if (actionKeys.has(actionKey)) return;
