@@ -18,13 +18,7 @@ Each item should use: **Status**, **Remaining**, and (when useful) **Depends / F
 
 **Next engineering work**
 
-If the question is "what should we build next?" rather than "what are the broad launch/readiness risks?", start with this queue:
-
-1. `22` Decompose `GameDO` state publication pipeline
-2. `24` Refactor `scenarioRules` access behind capabilities facade
-3. `25` Split `shared/engine/victory.ts` by concern
-
-These are the most actionable active engineering tasks. The numbered backlog below keeps stable IDs and still reflects the broader strategic ordering described above.
+All architecture simplification tasks (`19`-`29`) are shipped. The remaining backlog items are human-gated, conditional, product-dependent, or ongoing discipline. See individual items below for triggers and owners.
 
 ---
 
@@ -185,55 +179,6 @@ Husky is a **POSIX** shell script (`rm`, `export`, dynamic `E2E_PORT` via Node).
 **Files:** `scripts/simulate-ai.ts`, `src/shared/ai.ts`, `src/shared/ai-scoring.ts`, `src/shared/map-data.ts`, scenario-specific rules in `src/shared/engine/`
 
 **Trigger:** after AI heuristic, scenario setup, or victory-condition changes, rerun `npm run simulate -- all 100 -- --ci` and track trend.
-
-
-### 22. Decompose `GameDO` state publication pipeline
-
-**Status:** not started.
-
-**Remaining:** extract `publishStateChange` orchestration into named/internal steps (append events, checkpoint, parity verify, optional archive, timer handling, broadcast) while preserving ordering guarantees and behavior.
-
-**Rationale:** concentrated orchestration in one large method increases review and change risk.
-
-**Files:** `src/server/game-do/game-do.ts`, `src/server/game-do/archive.ts`, `src/server/game-do/telemetry.ts`, `src/server/game-do/broadcast.ts`, tests
-
-
-### 24. Refactor `scenarioRules` access behind capabilities facade
-
-**Status:** not started.
-
-**Remaining:** add a derived scenario capability layer (single place for defaults and feature predicates), then migrate scattered `scenarioRules` branching in engine/AI to use that facade incrementally.
-
-**Rationale:** rule flags are currently read in many places; a facade lowers branch scatter and regression risk.
-
-**Files:** `src/shared/types/domain.ts`, `src/shared/engine/`, `src/shared/ai/`, scenario/engine tests
-
-### 25. Split `shared/engine/victory.ts` by concern
-
-**Status:** not started.
-
-**Remaining:** separate victory/post-movement responsibilities into smaller modules (win predicates, post-move interactions, turn-advance/resupply/detection flow) without behavior change; preserve existing execution order with characterization tests.
-
-**Rationale:** `victory.ts` is a major complexity hotspot and onboarding bottleneck.
-
-**Files:** `src/shared/engine/victory.ts`, adjacent engine modules, `src/shared/engine/game-engine.test.ts`, targeted unit tests
-
-### 27. Execution order for remaining architecture simplification tasks (`22`, `24`, `25`)
-
-**Status:** planning note (active guidance). Items `20`, `21`, `23`, `26` shipped.
-
-**Recommended order:** `22` -> `24` -> `25`.
-
-**Effort / risk:**
-- `22`: **M-L / high**
-- `24`: **L / high**
-- `25`: **L / high**
-
-**PR slicing guidance:**
-- PR1: `22` only.
-- PR2+: `24` and `25` in small behavior-preserving slices.
-
-**Test focus:** add or update characterization tests before structural refactors where ordering/semantics are sensitive (`22`, `24`, `25`).
 
 
 ---
