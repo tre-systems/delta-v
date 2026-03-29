@@ -1,4 +1,4 @@
-import type { AIDifficulty } from './ai';
+import type { AIDifficulty } from './ai-types';
 
 export interface AIDifficultyConfig {
   // Global scoring multiplier

@@ -32,15 +32,25 @@ import {
   getOrdnancePulse,
 } from './entities';
 
-export const renderOrdnance = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  playerId: PlayerId,
-  animState: AnimationState | null,
-  hexSize: number,
-  now: number,
-  interpolatePath: (path: HexCoord[], progress: number) => PixelCoord,
-): void => {
+export interface RenderOrdnanceInput {
+  ctx: CanvasRenderingContext2D;
+  state: GameState;
+  playerId: PlayerId;
+  animState: AnimationState | null;
+  hexSize: number;
+  now: number;
+  interpolatePath: (path: HexCoord[], progress: number) => PixelCoord;
+}
+
+export const renderOrdnance = ({
+  ctx,
+  state,
+  playerId,
+  animState,
+  hexSize,
+  now,
+  interpolatePath,
+}: RenderOrdnanceInput): void => {
   if (!state.ordnance || state.ordnance.length === 0) {
     return;
   }
@@ -204,15 +214,25 @@ export const renderOrdnance = (
   }
 };
 
-export const renderTorpedoGuidance = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  playerId: PlayerId,
-  planningState: PlanningState,
-  isAnimating: boolean,
-  hexSize: number,
-  _now: number,
-): void => {
+export interface RenderTorpedoGuidanceInput {
+  ctx: CanvasRenderingContext2D;
+  state: GameState;
+  playerId: PlayerId;
+  planningState: PlanningState;
+  isAnimating: boolean;
+  hexSize: number;
+  now: number;
+}
+
+export const renderTorpedoGuidance = ({
+  ctx,
+  state,
+  playerId,
+  planningState,
+  isAnimating,
+  hexSize,
+  now: _now,
+}: RenderTorpedoGuidanceInput): void => {
   if (state.phase !== 'ordnance' || state.activePlayer !== playerId) {
     return;
   }
@@ -301,16 +321,27 @@ export const renderTorpedoGuidance = (
   }
 };
 
-export const renderCombatOverlay = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  playerId: PlayerId,
-  planningState: PlanningState,
-  map: SolarSystemMap | null,
-  isAnimating: boolean,
-  hexSize: number,
-  now: number,
-): void => {
+export interface RenderCombatOverlayInput {
+  ctx: CanvasRenderingContext2D;
+  state: GameState;
+  playerId: PlayerId;
+  planningState: PlanningState;
+  map: SolarSystemMap | null;
+  isAnimating: boolean;
+  hexSize: number;
+  now: number;
+}
+
+export const renderCombatOverlay = ({
+  ctx,
+  state,
+  playerId,
+  planningState,
+  map,
+  isAnimating,
+  hexSize,
+  now,
+}: RenderCombatOverlayInput): void => {
   if (state.phase !== 'combat' || state.activePlayer !== playerId) {
     return;
   }

@@ -111,6 +111,7 @@ and
 - Reduce duplication first. Do not split files only to satisfy a size target.
 - Keep orchestrators focused on coordination, not business logic.
 - When a file grows large, split by real responsibility boundaries.
+- When a stable public entry point grows too large, keep the entry file thin and re-export narrower domain modules instead of preserving one monolithic implementation file.
 
 ### Size heuristics
 
