@@ -349,8 +349,6 @@ export const buildAstrogationCoursePreviewViews = (
       destroyedBases: state.destroyedBases,
     });
 
-    const fromHex =
-      ship.lifecycle === 'landed' ? course.path[0] : ship.position;
     const destination = hexToPixel(course.destination, hexSize);
     const predictedDestination =
       ship.lifecycle === 'landed' ? ship.position : predictDestination(ship);
@@ -360,20 +358,19 @@ export const buildAstrogationCoursePreviewViews = (
     const hasTakeoff =
       ship.lifecycle === 'landed' &&
       burn !== null &&
-      !hexEqual(ship.position, course.path[0]);
+      course.path.length >= 2 &&
+      !hexEqual(course.path[0], course.path[1]);
 
     const takeoffSegment = hasTakeoff
       ? {
-          points: [ship.position, course.path[0]].map((hex) =>
+          points: [course.path[0], course.path[1]].map((hex) =>
             hexToPixel(hex, hexSize),
           ),
         }
       : null;
 
     // Main line starts from launch hex (not base) when taking off
-    const mainPath = hasTakeoff
-      ? course.path
-      : [fromHex, ...course.path.slice(1)];
+    const mainPath = hasTakeoff ? course.path.slice(1) : course.path;
 
     previews.push({
       shipId: ship.id,
