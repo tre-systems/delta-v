@@ -83,12 +83,15 @@ export const createUIManager = () => {
     resetLayoutMetrics();
   };
 
+  const overlay = createOverlayView();
+
   let lobbyView: LobbyView;
 
   lobbyView = createLobbyView({
     emit,
     showMenu: () => showMenu(),
     showScenarioSelect: () => showScenarioSelect(),
+    showToast: (message, type) => overlay.showToast(message, type),
   });
 
   const shipListView = createShipListView({
@@ -96,7 +99,6 @@ export const createUIManager = () => {
       emit({ type: 'selectShip', shipId });
     },
   });
-  const overlay = createOverlayView();
   const hudChromeView = createHUDChromeView({
     queueLayoutSync,
     showPhaseAlert: (phase, isMyTurn) => {

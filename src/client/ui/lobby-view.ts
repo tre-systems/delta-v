@@ -10,6 +10,7 @@ export interface LobbyViewDeps {
   emit: (event: UIEvent) => void;
   showMenu: () => void;
   showScenarioSelect: () => void;
+  showToast: (message: string, type: 'error' | 'info' | 'success') => void;
   copyText?: (text: string) => Promise<void> | undefined;
 }
 
@@ -81,10 +82,28 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     copyResetTimer = null;
   };
 
+  const isJoinInputValid = (rawValue: string): boolean => {
+    return parseJoinInput(rawValue, CODE_LENGTH) !== null;
+  };
+
+  const updateJoinButtonState = (): void => {
+    const valid = isJoinInputValid(codeInputEl.value);
+    (joinBtn as HTMLButtonElement).disabled = !valid;
+  };
+
   const submitJoin = (rawValue: string): void => {
     const parsed = parseJoinInput(rawValue, CODE_LENGTH);
 
     if (!parsed) {
+      const trimmed = rawValue.trim();
+      if (trimmed.length === 0) {
+        deps.showToast('Enter a game code to join', 'error');
+      } else {
+        deps.showToast(
+          `Invalid code \u2014 must be ${CODE_LENGTH} characters`,
+          'error',
+        );
+      }
       return;
     }
 
@@ -197,6 +216,12 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         submitJoin((event.target as HTMLInputElement).value);
       }
     });
+
+    listen(codeInputEl, 'input', () => {
+      updateJoinButtonState();
+    });
+
+    updateJoinButtonState();
 
     listen(copyBtn, 'click', () => {
       const code = gameCodeEl.textContent ?? '';
