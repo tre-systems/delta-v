@@ -283,4 +283,24 @@ The last recorded networked `npm audit --audit-level=moderate` run reported a **
 
 **Test focus:** for each item, add or update characterization tests before structural refactors where ordering/semantics are sensitive (`23`, `22`, `24`, `25`).
 
+### 28. Preserve active game on accidental reload/navigation
+
+**Status:** not started.
+
+**Remaining:** add a client-side guard for in-progress matches so accidental reload/close/back does not silently discard progress. At minimum, show a confirmation prompt when leaving with an active local/online session; optionally persist recoverable session context and attempt rejoin/resume when feasible.
+
+**Rationale:** exploratory browser testing found that reload returns users to the menu with no warning, causing unexpected progress loss.
+
+**Files:** `src/client/game/session-controller.ts`, `src/client/game/session.ts`, `src/client/game/connection.ts`, lobby/session bootstrap surfaces, client tests/e2e
+
+### 29. Join-code validation and error feedback polish
+
+**Status:** not started.
+
+**Remaining:** enforce join-code input validation in the lobby (disable or block submit on empty/invalid format) and surface explicit user-facing errors for failed joins (invalid code, missing game, expired/full room, network failure). Include clear transient UI states for pending/failed join attempts.
+
+**Rationale:** exploratory browser testing observed "no-op" join attempts for empty/invalid codes with no visible feedback.
+
+**Files:** lobby/join UI and state handling, `src/client/game/session-controller.ts`, `src/client/game/messages.ts`, `src/client/game/message-handler.ts`, related e2e tests
+
 ---
