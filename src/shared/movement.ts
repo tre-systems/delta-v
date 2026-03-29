@@ -6,6 +6,7 @@ import {
   type HexVec,
   hexAdd,
   hexDirectionToward,
+  hexEqual,
   hexKey,
   hexLineDraw,
   hexSubtract,
@@ -324,9 +325,15 @@ const computeTakeoffCourse = ({
   );
   const crash = checkCrash(finalPath, map, landedAt, bodyName ?? undefined);
 
+  // Include base hex in the path so the animation shows
+  // the ship leaving the surface
+  const fullPath = hexEqual(ship.position, finalPath[0])
+    ? finalPath
+    : [ship.position, ...finalPath];
+
   const base = {
     destination,
-    path: finalPath,
+    path: fullPath,
     newVelocity,
     fuelSpent,
     gravityEffects,
