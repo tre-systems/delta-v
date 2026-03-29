@@ -514,7 +514,10 @@ describe('computeCourse - takeoff', () => {
     expect(course.destination).toEqual(marsBase);
     expect(course.fuelSpent).toBe(0);
     expect(course.newVelocity).toEqual({ dq: 0, dr: 0 });
-    expect(course.outcome).toBe('normal');
+    expect(course.outcome).toBe('landing');
+    if (course.outcome === 'landing') {
+      expect(course.landedAt).toBe('Mars');
+    }
   });
   it('landed ship with burn takes off', () => {
     const marsBase = must(findBaseHex(map, 'Mars'));

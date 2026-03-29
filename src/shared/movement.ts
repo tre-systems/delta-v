@@ -240,6 +240,9 @@ const computeTakeoffCourse = ({
   weakGravityChoices,
   destroyedBases,
 }: ComputeCourseInput): CourseResult => {
+  const baseHex = map.hexes.get(hexKey(ship.position));
+  const bodyName = baseHex?.base?.bodyName ?? baseHex?.body?.name;
+
   if (burn === null) {
     return {
       destination: ship.position,
@@ -248,12 +251,10 @@ const computeTakeoffCourse = ({
       fuelSpent: 0,
       gravityEffects: [],
       enteredGravityEffects: [],
-      outcome: 'normal',
+      outcome: 'landing',
+      landedAt: bodyName ?? 'unknown',
     };
   }
-
-  const baseHex = map.hexes.get(hexKey(ship.position));
-  const bodyName = baseHex?.base?.bodyName ?? baseHex?.body?.name;
 
   let launchHex = ship.position;
 

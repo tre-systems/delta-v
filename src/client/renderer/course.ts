@@ -83,6 +83,7 @@ export interface CoursePreviewView {
   lineColor: string;
   lineWidth: number;
   lineDash: number[];
+  takeoffSegment: { points: PixelCoord[] } | null;
   gravityArrows: CourseArrowView[];
   ghostShip: GhostShipView | null;
   crashMarker: CourseCrashMarkerView | null;
@@ -354,23 +355,33 @@ export const buildAstrogationCoursePreviewViews = (
     const predictedDestination =
       ship.lifecycle === 'landed' ? ship.position : predictDestination(ship);
 
-    // For takeoff: show full path from
-    // base hex -> launch hex -> destination
-    const takeoffPrefix =
+    // For takeoff: separate the free booster segment (base → launch hex)
+    // from the burn segment (launch hex → destination)
+    const hasTakeoff =
       ship.lifecycle === 'landed' &&
       burn !== null &&
-      !hexEqual(ship.position, course.path[0])
-        ? [ship.position]
-        : [];
+      !hexEqual(ship.position, course.path[0]);
+
+    const takeoffSegment = hasTakeoff
+      ? {
+          points: [ship.position, course.path[0]].map((hex) =>
+            hexToPixel(hex, hexSize),
+          ),
+        }
+      : null;
+
+    // Main line starts from launch hex (not base) when taking off
+    const mainPath = hasTakeoff
+      ? course.path
+      : [fromHex, ...course.path.slice(1)];
 
     previews.push({
       shipId: ship.id,
-      linePoints: [...takeoffPrefix, fromHex, ...course.path.slice(1)].map(
-        (hex) => hexToPixel(hex, hexSize),
-      ),
+      linePoints: mainPath.map((hex) => hexToPixel(hex, hexSize)),
       lineColor: course.outcome === 'crash' ? '#ff4444' : '#4fc3f7',
       lineWidth: 2,
       lineDash: burn !== null ? [] : [6, 4],
+      takeoffSegment,
 
       gravityArrows: course.gravityEffects
         .filter((gravity) => gravity.strength !== 'weak')
