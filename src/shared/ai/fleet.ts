@@ -4,6 +4,7 @@ import {
   SHIP_STATS,
   type ShipType,
 } from '../constants';
+import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   FleetPurchase,
   FleetPurchaseOption,
@@ -47,10 +48,11 @@ const OBJECTIVE_FLEET_PRIORITIES: Record<
 const usesObjectiveFleet = (state: GameState, playerId: PlayerId): boolean => {
   const player = state.players[playerId];
 
+  const caps = deriveCapabilities(state.scenarioRules);
   return (
     !!player.targetBody ||
-    !!state.scenarioRules.targetWinRequiresPassengers ||
-    !!state.scenarioRules.checkpointBodies
+    caps.targetWinRequiresPassengers ||
+    caps.isCheckpointRace
   );
 };
 
@@ -210,7 +212,7 @@ export const buildAIFleetPurchases = (
 ): FleetPurchase[] => {
   const remainingPurchases =
     availableFleetPurchases ??
-    state.scenarioRules.availableFleetPurchases ??
+    deriveCapabilities(state.scenarioRules).availableFleetPurchases ??
     DEFAULT_FLEET_PURCHASES;
   const available = new Set(remainingPurchases);
   const purchases: FleetPurchase[] = [];
@@ -238,7 +240,7 @@ export const buildAIFleetPurchases = (
   const priorities = usesObjectives
     ? OBJECTIVE_FLEET_PRIORITIES[difficulty]
     : COMBAT_FLEET_PRIORITIES[difficulty];
-  const wantsTanker = !!state.scenarioRules.logisticsEnabled;
+  const wantsTanker = deriveCapabilities(state.scenarioRules).logisticsEnabled;
 
   const getMaxCount = (shipType: PurchasableShipType): number => {
     switch (shipType) {

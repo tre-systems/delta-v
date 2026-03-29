@@ -6,6 +6,7 @@ import {
 } from '../constants';
 import { type HexKey, parseHexKey } from '../hex';
 import { bodyHasGravity } from '../map-data';
+import { deriveCapabilities } from '../scenario-capabilities';
 import {
   type EngineError,
   ErrorCode,
@@ -74,17 +75,19 @@ export const playerControlsBase = (
   baseKey: HexKey,
 ): boolean => state.players[playerId]?.bases.includes(baseKey) ?? false;
 
+export { deriveCapabilities } from '../scenario-capabilities';
+
 export const isPlanetaryDefenseEnabled = (
   state: Pick<GameState, 'scenarioRules'>,
-): boolean => state.scenarioRules.planetaryDefenseEnabled !== false;
+): boolean => deriveCapabilities(state.scenarioRules).planetaryDefenseEnabled;
 
 export const usesEscapeInspectionRules = (
   state: Pick<GameState, 'scenarioRules'>,
-): boolean => state.scenarioRules.hiddenIdentityInspection === true;
+): boolean => deriveCapabilities(state.scenarioRules).hiddenIdentityInspection;
 
 export const getEscapeEdge = (
   state: Pick<GameState, 'scenarioRules'>,
-): 'any' | 'north' => state.scenarioRules.escapeEdge ?? 'any';
+): 'any' | 'north' => deriveCapabilities(state.scenarioRules).escapeEdge;
 
 export { parseHexKey as parseBaseKey } from '../hex';
 
@@ -110,15 +113,8 @@ export const getOwnedPlanetaryBases = (
 
 export const getAllowedOrdnanceTypes = (
   state: Pick<GameState, 'scenarioRules'>,
-): Set<Ordnance['type']> => {
-  const { allowedOrdnanceTypes: allowed } = state.scenarioRules;
-
-  if (!allowed || allowed.length === 0) {
-    return new Set(['mine', 'torpedo', 'nuke']);
-  }
-
-  return new Set(allowed);
-};
+): Set<Ordnance['type']> =>
+  new Set(deriveCapabilities(state.scenarioRules).allowedOrdnanceTypes);
 
 export const getCargoUsedAfterResupply = (
   ship: Pick<Ship, 'baseStatus'>,

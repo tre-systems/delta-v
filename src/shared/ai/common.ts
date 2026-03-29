@@ -7,6 +7,7 @@ import {
   parseHexKey,
 } from '../hex';
 import { computeCourse } from '../movement';
+import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   CourseResult,
   GameState,
@@ -61,7 +62,7 @@ export const pickNextCheckpoint = (
     visitedBodies?: string[];
     homeBody: string;
   },
-  checkpoints: string[],
+  checkpoints: readonly string[],
   map: SolarSystemMap,
   shipPos?: {
     q: number;
@@ -102,10 +103,8 @@ export const projectShipAfterCourse = (
 });
 
 const isSingleShipObjectiveDuel = (state: GameState): boolean => {
-  if (
-    state.scenarioRules.checkpointBodies != null ||
-    state.scenarioRules.targetWinRequiresPassengers
-  ) {
+  const caps = deriveCapabilities(state.scenarioRules);
+  if (caps.isCheckpointRace || caps.targetWinRequiresPassengers) {
     return false;
   }
 

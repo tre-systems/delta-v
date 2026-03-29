@@ -3,6 +3,7 @@ import { SHIP_STATS } from '../constants';
 import { getTransferEligiblePairs } from '../engine/logistics';
 import { hexDistance, hexEqual, hexVecLength } from '../hex';
 import { computeCourse } from '../movement';
+import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   AstrogationOrder,
   GameState,
@@ -93,7 +94,7 @@ export const isPassengerEscortMission = (
   state: GameState,
   playerId: PlayerId,
 ): boolean =>
-  !!state.scenarioRules.targetWinRequiresPassengers &&
+  deriveCapabilities(state.scenarioRules).targetWinRequiresPassengers &&
   !!state.players[playerId]?.targetBody;
 
 export const getPrimaryPassengerCarrier = (
@@ -255,7 +256,7 @@ const selectLogisticsTransfer = (
         const sourcePassengers = pair.source.passengersAboard ?? 0;
         const partialTransfer = pair.maxPassengers < sourcePassengers;
         const threatenedDuringCombat =
-          state.scenarioRules.targetWinRequiresPassengers &&
+          deriveCapabilities(state.scenarioRules).targetWinRequiresPassengers &&
           partialTransfer &&
           pair.source.damage.disabledTurns === 0 &&
           state.ships.some(
@@ -390,7 +391,7 @@ export const getPassengerTransferFormationOrders = (
   isRace: boolean,
   enemyEscaping: boolean,
 ): Map<string, AstrogationOrder> => {
-  if (!state.scenarioRules.targetWinRequiresPassengers) {
+  if (!deriveCapabilities(state.scenarioRules).targetWinRequiresPassengers) {
     return new Map();
   }
 
@@ -576,7 +577,7 @@ export const aiLogistics = (
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
 ): TransferOrder[] => {
-  if (!state.scenarioRules.logisticsEnabled) {
+  if (!deriveCapabilities(state.scenarioRules).logisticsEnabled) {
     return [];
   }
 
