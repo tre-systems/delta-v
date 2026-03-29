@@ -367,6 +367,7 @@ export class GameDO extends DurableObject<Env> {
         getPlayerId: (socket) => this.getPlayerId(socket),
         getCurrentGameState: () => this.getCurrentGameState(),
         setDisconnectMarker: (playerId) => this.setDisconnectMarker(playerId),
+        broadcast: (msg) => this.broadcast(msg),
       },
       ws,
     );

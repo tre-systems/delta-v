@@ -25,6 +25,8 @@ const installFixture = () => {
     <div id="reconnectText"></div>
     <div id="reconnectAttempt"></div>
     <button id="reconnectCancelBtn"></button>
+    <div id="opponentDisconnectOverlay" style="display:none"></div>
+    <div id="opponentDisconnectText"></div>
     <div id="toastContainer"></div>
     <div id="phaseAlert">
       <div class="phase-alert-title"></div>
