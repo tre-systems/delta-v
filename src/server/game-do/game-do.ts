@@ -19,11 +19,9 @@ import {
 } from './actions';
 import { runGameDoAlarm } from './alarm';
 import {
-  appendEnvelopedEvents,
   getEventStreamLength,
   getMatchSeed,
   getProjectedCurrentStateRaw,
-  saveCheckpoint,
 } from './archive';
 import {
   broadcastFilteredMessage,
@@ -40,11 +38,8 @@ import {
   resolveJoinAttempt as resolveJoinAttemptRequest,
 } from './http-handlers';
 import { handleRematchRequest, initGameSession } from './match';
-import { archiveCompletedMatch } from './match-archive';
-import {
-  resolveStateBearingMessage,
-  type StatefulServerMessage,
-} from './messages';
+import type { StatefulServerMessage } from './messages';
+import { runPublicationPipeline } from './publication';
 import {
   createDisconnectMarker,
   getNextAlarmAt,
@@ -418,52 +413,20 @@ export class GameDO extends DurableObject<Env> {
       events?: EngineEvent[];
     },
   ) {
-    const {
-      actor = null,
-      restartTurnTimer = true,
-      events = [],
-    } = options ?? {};
-    const roomCode = await this.getGameCode();
-    const replayMessage = resolveStateBearingMessage(state, primaryMessage);
-    let eventSeq = await getEventStreamLength(this.ctx.storage, state.gameId);
-
-    if (events.length > 0) {
-      await appendEnvelopedEvents(
-        this.ctx.storage,
-        state.gameId,
-        actor,
-        ...events,
-      );
-      eventSeq = await getEventStreamLength(this.ctx.storage, state.gameId);
-    }
-    // Save checkpoint at turn boundaries and game end
-    const hasTurnBoundary = events.some(
-      (e) => e.type === 'turnAdvanced' || e.type === 'gameOver',
+    await runPublicationPipeline(
+      {
+        storage: this.ctx.storage,
+        env: this.env,
+        waitUntil: (p) => this.ctx.waitUntil(p),
+        getGameCode: () => this.getGameCode(),
+        verifyProjectionParity: (s) => this.verifyProjectionParity(s),
+        broadcastStateChange: (s, msg) => this.broadcastStateChange(s, msg),
+        startTurnTimer: (s) => this.startTurnTimer(s),
+      },
+      state,
+      primaryMessage,
+      options,
     );
-
-    if (hasTurnBoundary) {
-      await saveCheckpoint(this.ctx.storage, state.gameId, state, eventSeq);
-    }
-    await this.verifyProjectionParity(state);
-    // Archive completed match to R2 for persistent analysis
-    const hasGameOver = events.some((e) => e.type === 'gameOver');
-
-    if (hasGameOver && this.env.MATCH_ARCHIVE) {
-      this.ctx.waitUntil(
-        archiveCompletedMatch(
-          this.ctx.storage,
-          this.env.MATCH_ARCHIVE,
-          this.env.DB,
-          state,
-          roomCode,
-        ),
-      );
-    }
-
-    if (restartTurnTimer) {
-      await this.startTurnTimer(state);
-    }
-    this.broadcastStateChange(state, replayMessage);
   }
 
   private async runGameStateAction<
