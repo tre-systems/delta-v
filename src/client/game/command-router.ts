@@ -1,6 +1,10 @@
 import { SHIP_STATS } from '../../shared/constants';
 import { hexKey } from '../../shared/hex';
-import type { FleetPurchase } from '../../shared/types/domain';
+import type {
+  FleetPurchase,
+  GameState,
+  PlayerId,
+} from '../../shared/types/domain';
 import { isMuted, playSelect, setMuted } from '../audio';
 import {
   type AstrogationActionDeps,
@@ -27,6 +31,7 @@ import {
   sendOrdnanceLaunch,
   sendSkipOrdnance,
 } from './ordnance-actions';
+import type { ClientState } from './phase';
 import type { PlanningState } from './planning';
 import {
   applyCombatPlanUpdate,
@@ -39,23 +44,18 @@ import {
   setShipWeakGravityChoices,
   setTorpedoAcceleration,
 } from './planning-store';
-import type { ClientSession } from './session-model';
+import type { GameTransport } from './transport';
 
-/**
- * Live session slice for one `dispatchGameCommand` call.
- *
- * **Snapshot semantics:** Shallow — `gameState`, `transport`, and nested fields share
- * the same references as `ClientSession`. There is **no** per-dispatch deep copy
- * (e.g. `structuredClone`) to avoid input-path cost; if a handler retains `ctx` or
- * `gameState` across an `await`, later session mutations may be visible through
- * those references. Copy only what you need before suspending, or re-read from
- * session after the await.
- */
-export type CommandRouterSessionRead = Readonly<
-  Pick<ClientSession, 'state' | 'playerId' | 'gameState' | 'transport'>
-> & {
+// Canonical read-only session accessors for command dispatch.
+// All reads go through getters backed by the reactive mirror to avoid
+// stale snapshots and dual-path inconsistencies (backlog #26).
+export interface CommandRouterSessionRead {
+  getState: () => ClientState;
+  getPlayerId: () => PlayerId;
+  getGameState: () => GameState | null;
+  getTransport: () => GameTransport | null;
   planningState: PlanningState;
-};
+}
 
 interface CommandRouterUI {
   showAttackButton: (visible: boolean) => void;
@@ -111,18 +111,18 @@ const undoQueuedAttack = (deps: CommandRouterDeps): void => {
 };
 
 const skipLogistics = (deps: CommandRouterDeps): void => {
-  const transport = deps.ctx.transport;
+  const transport = deps.ctx.getTransport();
 
-  if (deps.ctx.state === 'playing_logistics' && transport) {
+  if (deps.ctx.getState() === 'playing_logistics' && transport) {
     transport.skipLogistics();
   }
 };
 
 const confirmTransfers = (deps: CommandRouterDeps): void => {
-  const transport = deps.ctx.transport;
+  const transport = deps.ctx.getTransport();
 
   if (
-    deps.ctx.state !== 'playing_logistics' ||
+    deps.ctx.getState() !== 'playing_logistics' ||
     !transport ||
     !deps.logisticsUIState
   ) {
@@ -142,17 +142,16 @@ const selectShip = (
   deps: CommandRouterDeps,
   shipId: Extract<GameCommand, { type: 'selectShip' }>['shipId'],
 ): void => {
-  const ship = deps.ctx.gameState?.ships.find(
-    (candidate) => candidate.id === shipId,
-  );
+  const gameState = deps.ctx.getGameState();
+  const ship = gameState?.ships.find((candidate) => candidate.id === shipId);
 
   if (ship) {
     setSelectedShip(deps.ctx.planningState, shipId, hexKey(ship.position));
     deps.renderer.centerOnHex(ship.position);
 
-    const myAlive = deps.ctx.gameState?.ships.filter(
+    const myAlive = gameState?.ships.filter(
       (candidate) =>
-        candidate.owner === deps.ctx.playerId &&
+        candidate.owner === deps.ctx.getPlayerId() &&
         candidate.lifecycle !== 'destroyed',
     );
 
