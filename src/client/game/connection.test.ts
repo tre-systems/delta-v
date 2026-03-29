@@ -145,6 +145,30 @@ describe('game-client-connection', () => {
     expect(FakeWebSocket.instances[0]?.url).not.toContain('playerToken');
   });
 
+  it('validates inbound messages and rejects malformed payloads', () => {
+    const { deps, spies } = createDeps();
+    const manager = createConnectionManager(deps);
+
+    manager.connect('ABCDE');
+    const ws = FakeWebSocket.instances[0];
+
+    // Valid message is forwarded
+    ws.onmessage?.({ data: JSON.stringify({ type: 'pong', t: 1000 }) });
+    expect(spies.handleMessage).toHaveBeenCalledTimes(1);
+
+    // Malformed JSON is dropped
+    ws.onmessage?.({ data: 'not-json' });
+    expect(spies.handleMessage).toHaveBeenCalledTimes(1);
+    expect(spies.trackEvent).toHaveBeenCalledWith('ws_parse_error');
+
+    // Unknown message type is dropped
+    ws.onmessage?.({ data: JSON.stringify({ type: 'godMode' }) });
+    expect(spies.handleMessage).toHaveBeenCalledTimes(1);
+    expect(spies.trackEvent).toHaveBeenCalledWith('ws_invalid_message', {
+      error: 'Unknown message type',
+    });
+  });
+
   it('does not treat an intentional close as a reconnectable disconnect', () => {
     const { deps, spies } = createDeps();
     const manager = createConnectionManager(deps);

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { validateClientMessage } from './protocol';
+import { validateClientMessage, validateServerMessage } from './protocol';
 
 const sharedContractFixtures = JSON.parse(
   readFileSync(
@@ -1481,5 +1481,253 @@ describe('C2S contract fixtures', () => {
         fixture.expected,
       );
     }
+  });
+});
+
+describe('validateServerMessage', () => {
+  describe('basic validation', () => {
+    it('rejects non-object payloads', () => {
+      for (const bad of [null, 'string', 42, undefined, [], true]) {
+        expect(validateServerMessage(bad)).toEqual({
+          ok: false,
+          error: 'Invalid message payload',
+        });
+      }
+    });
+
+    it('rejects objects without a string type', () => {
+      expect(validateServerMessage({})).toEqual({
+        ok: false,
+        error: 'Invalid message payload',
+      });
+      expect(validateServerMessage({ type: 42 })).toEqual({
+        ok: false,
+        error: 'Invalid message payload',
+      });
+    });
+
+    it('rejects unknown message types', () => {
+      expect(validateServerMessage({ type: 'godMode' })).toEqual({
+        ok: false,
+        error: 'Unknown message type',
+      });
+    });
+  });
+
+  describe('welcome', () => {
+    it('accepts valid welcome', () => {
+      const msg = {
+        type: 'welcome',
+        playerId: 0,
+        code: 'ABCDE',
+        playerToken: 'tok-123',
+      };
+      const result = validateServerMessage(msg);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value.type).toBe('welcome');
+    });
+
+    it('rejects welcome with invalid playerId', () => {
+      expect(
+        validateServerMessage({
+          type: 'welcome',
+          playerId: 2,
+          code: 'ABCDE',
+          playerToken: 'tok',
+        }),
+      ).toEqual({ ok: false, error: 'Invalid welcome payload' });
+    });
+
+    it('rejects welcome with missing fields', () => {
+      expect(validateServerMessage({ type: 'welcome', playerId: 0 })).toEqual({
+        ok: false,
+        error: 'Invalid welcome payload',
+      });
+    });
+  });
+
+  describe('spectatorWelcome', () => {
+    it('accepts valid spectatorWelcome', () => {
+      const result = validateServerMessage({
+        type: 'spectatorWelcome',
+        code: 'ABCDE',
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it('rejects spectatorWelcome without code', () => {
+      expect(validateServerMessage({ type: 'spectatorWelcome' })).toEqual({
+        ok: false,
+        error: 'Invalid spectatorWelcome payload',
+      });
+    });
+  });
+
+  describe('simple types', () => {
+    it.each(['matchFound', 'rematchPending'] as const)('accepts %s', (type) => {
+      const result = validateServerMessage({ type });
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe('state-carrying messages', () => {
+    const fakeState = { gameId: 'G1', phase: 'astrogation', ships: [] };
+
+    it('accepts gameStart with state object', () => {
+      const result = validateServerMessage({
+        type: 'gameStart',
+        state: fakeState,
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it('rejects gameStart without state', () => {
+      expect(validateServerMessage({ type: 'gameStart' })).toEqual({
+        ok: false,
+        error: 'Invalid gameStart payload',
+      });
+    });
+
+    it('accepts movementResult with required arrays', () => {
+      const result = validateServerMessage({
+        type: 'movementResult',
+        state: fakeState,
+        movements: [],
+        ordnanceMovements: [],
+        events: [],
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it('rejects movementResult with missing movements', () => {
+      expect(
+        validateServerMessage({
+          type: 'movementResult',
+          state: fakeState,
+          ordnanceMovements: [],
+          events: [],
+        }),
+      ).toEqual({ ok: false, error: 'Invalid movementResult payload' });
+    });
+
+    it('accepts combatResult with state and results', () => {
+      const result = validateServerMessage({
+        type: 'combatResult',
+        state: fakeState,
+        results: [],
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it('rejects combatResult without results array', () => {
+      expect(
+        validateServerMessage({ type: 'combatResult', state: fakeState }),
+      ).toEqual({ ok: false, error: 'Invalid combatResult payload' });
+    });
+
+    it('accepts stateUpdate with state', () => {
+      const result = validateServerMessage({
+        type: 'stateUpdate',
+        state: fakeState,
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it('accepts stateUpdate with optional transferEvents', () => {
+      const result = validateServerMessage({
+        type: 'stateUpdate',
+        state: fakeState,
+        transferEvents: [
+          {
+            type: 'fuelTransferred',
+            fromShipId: 'a',
+            toShipId: 'b',
+            amount: 1,
+          },
+        ],
+      });
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe('gameOver', () => {
+    it('accepts valid gameOver', () => {
+      const result = validateServerMessage({
+        type: 'gameOver',
+        winner: 1,
+        reason: 'Fleet eliminated!',
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it('rejects gameOver with invalid winner', () => {
+      expect(
+        validateServerMessage({ type: 'gameOver', winner: 3, reason: 'x' }),
+      ).toEqual({ ok: false, error: 'Invalid gameOver payload' });
+    });
+  });
+
+  describe('chat', () => {
+    it('accepts valid chat', () => {
+      const result = validateServerMessage({
+        type: 'chat',
+        playerId: 0,
+        text: 'hello',
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it('rejects chat without playerId', () => {
+      expect(validateServerMessage({ type: 'chat', text: 'hi' })).toEqual({
+        ok: false,
+        error: 'Invalid chat payload',
+      });
+    });
+  });
+
+  describe('error', () => {
+    it('accepts error with message', () => {
+      const result = validateServerMessage({
+        type: 'error',
+        message: 'Bad request',
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it('accepts error with optional code', () => {
+      const result = validateServerMessage({
+        type: 'error',
+        message: 'Bad request',
+        code: 'INVALID_INPUT',
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it('rejects error without message', () => {
+      expect(validateServerMessage({ type: 'error' })).toEqual({
+        ok: false,
+        error: 'Invalid error payload',
+      });
+    });
+  });
+
+  describe('pong', () => {
+    it('accepts valid pong', () => {
+      const result = validateServerMessage({ type: 'pong', t: 12345 });
+      expect(result.ok).toBe(true);
+    });
+
+    it('rejects pong with non-finite t', () => {
+      expect(
+        validateServerMessage({ type: 'pong', t: Number.POSITIVE_INFINITY }),
+      ).toEqual({ ok: false, error: 'Invalid pong payload' });
+    });
+
+    it('rejects pong without t', () => {
+      expect(validateServerMessage({ type: 'pong' })).toEqual({
+        ok: false,
+        error: 'Invalid pong payload',
+      });
+    });
   });
 });
