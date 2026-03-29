@@ -38,6 +38,7 @@ describe('LobbyView', () => {
           emit: vi.fn(),
           showMenu: vi.fn(),
           showScenarioSelect: vi.fn(),
+          showToast: vi.fn(),
         }),
       ).not.toThrow();
     } finally {
@@ -53,6 +54,7 @@ describe('LobbyView', () => {
       emit,
       showMenu,
       showScenarioSelect,
+      showToast: vi.fn(),
     });
 
     document.getElementById('createBtn')?.click();
@@ -86,10 +88,12 @@ describe('LobbyView', () => {
       emit,
       showMenu,
       showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
     });
 
     const input = document.getElementById('codeInput') as HTMLInputElement;
     input.value = 'https://example.test/?code=abcde&playerToken=tok';
+    input.dispatchEvent(new Event('input'));
     document.getElementById('joinBtn')?.click();
 
     expect(emit).toHaveBeenCalledWith({
@@ -111,6 +115,7 @@ describe('LobbyView', () => {
       emit: vi.fn(),
       showMenu: vi.fn(),
       showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
       copyText,
     });
 
@@ -150,6 +155,54 @@ describe('LobbyView', () => {
     expect(document.getElementById('copyBtn')?.textContent).toBe('Copy Link');
   });
 
+  it('disables join button when input is empty or invalid and shows toast on submit', () => {
+    const showToast = vi.fn();
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast,
+    });
+
+    const input = document.getElementById('codeInput') as HTMLInputElement;
+    const joinBtn = document.getElementById('joinBtn') as HTMLButtonElement;
+
+    // Initially disabled (empty input)
+    expect(joinBtn.disabled).toBe(true);
+
+    // Still disabled with too-short code
+    input.value = 'AB';
+    input.dispatchEvent(new Event('input'));
+    expect(joinBtn.disabled).toBe(true);
+
+    // Enabled with valid 5-char code
+    input.value = 'ABCDE';
+    input.dispatchEvent(new Event('input'));
+    expect(joinBtn.disabled).toBe(false);
+
+    // Shows toast for empty submit via Enter key
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+    expect(showToast).toHaveBeenCalledWith(
+      'Enter a game code to join',
+      'error',
+    );
+
+    // Shows toast for invalid code via Enter key
+    input.value = 'AB';
+    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+    expect(showToast).toHaveBeenCalledWith(
+      'Invalid code \u2014 must be 5 characters',
+      'error',
+    );
+  });
+
   it('removes button listeners on dispose', () => {
     const emit = vi.fn();
     const showMenu = vi.fn();
@@ -158,6 +211,7 @@ describe('LobbyView', () => {
       emit,
       showMenu,
       showScenarioSelect,
+      showToast: vi.fn(),
     });
 
     view.dispose();
