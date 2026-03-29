@@ -9,11 +9,17 @@ import {
   aiOrdnance,
   buildAIFleetPurchases,
 } from '../src/shared/ai';
+import { SHIP_STATS } from '../src/shared/constants';
+import type { HexCoord, HexVec } from '../src/shared/hex';
+import { hexDistance } from '../src/shared/hex';
 import { buildSolarSystemMap, SCENARIOS } from '../src/shared/map-data';
 import type {
   AstrogationOrder,
+  CelestialBody,
   GameState,
   PlayerId,
+  Ship,
+  SolarSystemMap,
 } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
 
@@ -42,6 +48,39 @@ interface CreateGameResponse {
   playerToken: string;
 }
 
+interface LegalActionShipInfo {
+  id: string;
+  type: string;
+  position: { q: number; r: number };
+  velocity: { dq: number; dr: number };
+  fuel: number;
+  lifecycle: string;
+  canBurn: boolean;
+  canOverload: boolean;
+  canAttack: boolean;
+  canLaunchOrdnance: boolean;
+  cargoUsed: number;
+  cargoCapacity: number;
+  disabledTurns: number;
+}
+
+interface LegalActionEnemyInfo {
+  id: string;
+  type: string;
+  position: { q: number; r: number };
+  velocity: { dq: number; dr: number };
+  lifecycle: string;
+  detected: boolean;
+}
+
+interface LegalActionInfo {
+  phase: string;
+  allowedTypes: string[];
+  burnDirections: string[];
+  ownShips: LegalActionShipInfo[];
+  enemies: LegalActionEnemyInfo[];
+}
+
 interface AgentTurnInput {
   version: 1;
   gameCode: string;
@@ -49,11 +88,14 @@ interface AgentTurnInput {
   state: GameState;
   candidates: C2S[];
   recommendedIndex: number;
+  summary?: string;
+  legalActionInfo?: LegalActionInfo;
 }
 
 interface AgentTurnResponse {
   candidateIndex?: number;
   action?: C2S;
+  chat?: string;
 }
 
 const delay = (ms: number): Promise<void> =>
@@ -424,19 +466,236 @@ const runHttpAgent = async (
   }
 };
 
+const DIRECTION_NAMES = ['E', 'NE', 'NW', 'W', 'SW', 'SE'] as const;
+
+const nearestBody = (
+  pos: HexCoord,
+  bodies: CelestialBody[],
+): { name: string; distance: number } => {
+  let best = { name: 'deep space', distance: Infinity };
+  for (const body of bodies) {
+    const dist = hexDistance(pos, body.center);
+    if (dist < best.distance) {
+      best = { name: body.name, distance: dist };
+    }
+  }
+  return best;
+};
+
+const describePosition = (pos: HexCoord, bodies: CelestialBody[]): string => {
+  const closest = nearestBody(pos, bodies);
+  if (closest.distance === 0) return `on ${closest.name}`;
+  if (closest.distance <= 3)
+    return `${closest.distance} hex from ${closest.name}`;
+  return `at (${pos.q},${pos.r}), ${closest.distance} hex from ${closest.name}`;
+};
+
+const describeVelocity = (vel: HexVec): string => {
+  const speed = Math.max(
+    Math.abs(vel.dq),
+    Math.abs(vel.dr),
+    Math.abs(vel.dq + vel.dr),
+  );
+  return speed === 0 ? 'stationary' : `speed ${speed}`;
+};
+
+const describeShip = (ship: Ship, bodies: CelestialBody[]): string => {
+  const stats = SHIP_STATS[ship.type];
+  const parts = [
+    `${stats.name} "${ship.id}"`,
+    describePosition(ship.position, bodies),
+    describeVelocity(ship.velocity),
+    `fuel ${ship.fuel}/${stats.fuel === Infinity ? 'inf' : stats.fuel}`,
+  ];
+  if (ship.lifecycle === 'landed') parts.push('LANDED');
+  if (ship.lifecycle === 'destroyed') parts.push('DESTROYED');
+  if (ship.damage.disabledTurns > 0)
+    parts.push(`disabled ${ship.damage.disabledTurns}T`);
+  return parts.join(', ');
+};
+
+const describeCandidate = (action: C2S, index: number): string => {
+  const prefix = index === 0 ? `[${index}] (recommended)` : `[${index}]`;
+  switch (action.type) {
+    case 'astrogation': {
+      const burns = action.orders
+        .map((o) => {
+          if (o.burn === null) return `${o.shipId}: coast`;
+          const dir = DIRECTION_NAMES[o.burn] ?? `dir${o.burn}`;
+          const overload = o.overload !== null ? ' +overload' : '';
+          return `${o.shipId}: burn ${dir}${overload}`;
+        })
+        .join('; ');
+      return `${prefix} astrogation — ${burns}`;
+    }
+    case 'combat': {
+      const attacks = action.attacks
+        .map((a) => `${a.attackerIds.join('+')}->${a.targetId}`)
+        .join('; ');
+      return `${prefix} combat — ${attacks}`;
+    }
+    case 'ordnance': {
+      const launches = action.launches
+        .map((l) => `${l.shipId} launches ${l.ordnanceType}`)
+        .join('; ');
+      return `${prefix} ordnance — ${launches}`;
+    }
+    case 'logistics': {
+      const transfers = action.transfers
+        .map(
+          (t) =>
+            `${t.sourceShipId}->${t.targetShipId} ${t.amount} ${t.transferType}`,
+        )
+        .join('; ');
+      return `${prefix} logistics — ${transfers}`;
+    }
+    case 'fleetReady':
+      return `${prefix} fleet ready — ${action.purchases.length} purchases`;
+    default:
+      return `${prefix} ${action.type}`;
+  }
+};
+
+const buildStateSummary = (
+  state: GameState,
+  playerId: PlayerId,
+  candidates: C2S[],
+  map: SolarSystemMap,
+): string => {
+  const lines: string[] = [];
+  const bodies = map.bodies;
+  const player = state.players[playerId];
+  const opponentId = playerId === 0 ? 1 : 0;
+
+  lines.push(`Turn ${state.turnNumber}, Phase: ${state.phase}`);
+  lines.push(
+    `Active player: ${state.activePlayer === playerId ? 'YOU' : 'opponent'}`,
+  );
+  lines.push(`Objective: target=${player.targetBody}, home=${player.homeBody}`);
+
+  lines.push('');
+  lines.push('YOUR SHIPS:');
+  for (const ship of state.ships) {
+    if (ship.owner !== playerId) continue;
+    lines.push(`  ${describeShip(ship, bodies)}`);
+  }
+
+  lines.push('');
+  lines.push('ENEMY SHIPS:');
+  for (const ship of state.ships) {
+    if (ship.owner !== opponentId) continue;
+    const visibility = ship.detected ? '' : ' (undetected)';
+    lines.push(`  ${describeShip(ship, bodies)}${visibility}`);
+  }
+
+  if (state.ordnance.length > 0) {
+    lines.push('');
+    lines.push('ORDNANCE:');
+    for (const ord of state.ordnance) {
+      if (ord.lifecycle === 'destroyed') continue;
+      const owner = ord.owner === playerId ? 'yours' : 'enemy';
+      lines.push(
+        `  ${ord.type} (${owner}), ${describePosition(ord.position, bodies)}, ${ord.turnsRemaining}T left`,
+      );
+    }
+  }
+
+  lines.push('');
+  lines.push('CANDIDATES:');
+  for (let i = 0; i < candidates.length; i++) {
+    lines.push(`  ${describeCandidate(candidates[i], i)}`);
+  }
+
+  return lines.join('\n');
+};
+
+const buildLegalActionInfo = (
+  state: GameState,
+  playerId: PlayerId,
+): LegalActionInfo => {
+  const opponentId = playerId === 0 ? 1 : 0;
+  const allowedTypes = [...allowedActionTypesForPhase(state.phase)];
+
+  const ownShips: LegalActionShipInfo[] = state.ships
+    .filter((s) => s.owner === playerId && s.lifecycle !== 'destroyed')
+    .map((s) => {
+      const stats = SHIP_STATS[s.type];
+      const isActive = s.lifecycle === 'active';
+      const isOperational =
+        s.damage.disabledTurns === 0 ||
+        stats.operatesAtD1 ||
+        stats.operatesWhileDisabled;
+      return {
+        id: s.id,
+        type: s.type,
+        position: { q: s.position.q, r: s.position.r },
+        velocity: { dq: s.velocity.dq, dr: s.velocity.dr },
+        fuel: s.fuel,
+        lifecycle: s.lifecycle,
+        canBurn: isActive && s.fuel > 0,
+        canOverload:
+          isActive && stats.canOverload && !s.overloadUsed && s.fuel >= 2,
+        canAttack:
+          isActive &&
+          isOperational &&
+          !stats.defensiveOnly &&
+          !s.resuppliedThisTurn,
+        canLaunchOrdnance:
+          isActive &&
+          isOperational &&
+          !s.resuppliedThisTurn &&
+          s.cargoUsed < stats.cargo,
+        cargoUsed: s.cargoUsed,
+        cargoCapacity: stats.cargo === Infinity ? -1 : stats.cargo,
+        disabledTurns: s.damage.disabledTurns,
+      };
+    });
+
+  const enemies: LegalActionEnemyInfo[] = state.ships
+    .filter((s) => s.owner === opponentId && s.lifecycle !== 'destroyed')
+    .map((s) => ({
+      id: s.id,
+      type: s.type,
+      position: { q: s.position.q, r: s.position.r },
+      velocity: { dq: s.velocity.dq, dr: s.velocity.dr },
+      lifecycle: s.lifecycle,
+      detected: s.detected,
+    }));
+
+  return {
+    phase: state.phase,
+    allowedTypes,
+    burnDirections: [...DIRECTION_NAMES],
+    ownShips,
+    enemies,
+  };
+};
+
+interface PickActionResult {
+  action: C2S;
+  chat?: string;
+}
+
+const sanitizeChat = (raw: unknown): string | undefined => {
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim().slice(0, 200);
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
 const pickAction = async (
   config: Config,
   gameCode: string,
   playerId: PlayerId,
   state: GameState,
-): Promise<C2S> => {
+): Promise<PickActionResult> => {
+  const map = buildSolarSystemMap();
   const candidates = buildCandidates(state, playerId);
   if (candidates.length === 0) {
     throw new Error(`No candidate actions available for phase ${state.phase}`);
   }
   const recommended = candidates[0];
   if (config.agentMode === 'builtin') {
-    return recommended;
+    return { action: recommended };
   }
 
   const payload: AgentTurnInput = {
@@ -446,6 +705,8 @@ const pickAction = async (
     state,
     candidates,
     recommendedIndex: 0,
+    summary: buildStateSummary(state, playerId, candidates, map),
+    legalActionInfo: buildLegalActionInfo(state, playerId),
   };
 
   let result: AgentTurnResponse;
@@ -463,20 +724,22 @@ const pickAction = async (
     );
   }
 
+  const chat = sanitizeChat(result.chat);
+
   if (
     typeof result.candidateIndex === 'number' &&
     Number.isInteger(result.candidateIndex) &&
     result.candidateIndex >= 0 &&
     result.candidateIndex < candidates.length
   ) {
-    return candidates[result.candidateIndex];
+    return { action: candidates[result.candidateIndex], chat };
   }
 
   if (result.action) {
-    return result.action;
+    return { action: result.action, chat };
   }
 
-  return recommended;
+  return { action: recommended, chat };
 };
 
 const createGame = async (config: Config): Promise<CreateGameResponse> => {
@@ -541,7 +804,16 @@ const run = async (config: Config): Promise<void> => {
     actionInFlight = true;
     try {
       await delay(config.thinkMs);
-      const action = await pickAction(config, gameCode, playerId, state);
+      const { action, chat } = await pickAction(
+        config,
+        gameCode,
+        playerId,
+        state,
+      );
+      if (chat) {
+        send({ type: 'chat', text: chat });
+        await delay(100);
+      }
       const allowedTypes = allowedActionTypesForPhase(state.phase);
       if (!allowedTypes.has(action.type)) {
         console.warn(
