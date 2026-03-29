@@ -1,4 +1,5 @@
 import type { EngineEvent } from '../../shared/engine/engine-events';
+import { applyDisconnectForfeit } from '../../shared/engine/util';
 import type {
   GameState,
   PlayerId,
@@ -64,21 +65,11 @@ export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
         await deps.rescheduleAlarm();
         return;
       }
-      gameState.phase = 'gameOver';
-      gameState.outcome = {
-        winner: (action.playerId === 0 ? 1 : 0) as PlayerId,
-        reason: 'Opponent disconnected',
-      };
-      await deps.publishStateChange(gameState, undefined, {
+      const forfeit = applyDisconnectForfeit(gameState, action.playerId);
+      await deps.publishStateChange(forfeit.state, undefined, {
         actor: null,
         restartTurnTimer: false,
-        events: [
-          {
-            type: 'gameOver' as const,
-            winner: gameState.outcome.winner,
-            reason: gameState.outcome.reason,
-          },
-        ],
+        events: forfeit.events,
       });
       return;
     }
