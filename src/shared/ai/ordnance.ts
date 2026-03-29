@@ -1,6 +1,7 @@
 import { getCombatStrength } from '../combat';
 import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
 import { hexDistance, hexEqual, hexVecLength } from '../hex';
+import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   GameState,
   OrdnanceLaunch,
@@ -21,9 +22,8 @@ export const aiOrdnance = (
 ): OrdnanceLaunch[] => {
   const cfg = AI_CONFIG[difficulty];
   const launches: OrdnanceLaunch[] = [];
-  const allowedTypes = new Set(
-    state.scenarioRules.allowedOrdnanceTypes ?? ['mine', 'torpedo', 'nuke'],
-  );
+  const caps = deriveCapabilities(state.scenarioRules);
+  const allowedTypes = new Set(caps.allowedOrdnanceTypes);
 
   if (cfg.ordnanceSkipChance > 0 && rng() < cfg.ordnanceSkipChance) {
     return launches;
@@ -44,10 +44,7 @@ export const aiOrdnance = (
     }
 
     if (ship.damage.disabledTurns > 0) continue;
-    if (
-      state.scenarioRules.targetWinRequiresPassengers &&
-      (ship.passengersAboard ?? 0) > 0
-    ) {
+    if (caps.targetWinRequiresPassengers && (ship.passengersAboard ?? 0) > 0) {
       continue;
     }
 
