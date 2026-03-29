@@ -671,6 +671,54 @@ const buildLegalActionInfo = (
   };
 };
 
+const pickRandom = <T>(items: T[]): T =>
+  items[Math.floor(Math.random() * items.length)];
+
+const maybeChat = (probability: number, lines: string[]): string | undefined =>
+  Math.random() < probability ? pickRandom(lines) : undefined;
+
+const buildBuiltinChat = (
+  _state: GameState,
+  _playerId: PlayerId,
+  action: C2S,
+): string | undefined => {
+  switch (action.type) {
+    case 'combat':
+      return maybeChat(0.4, [
+        'Engaging hostiles!',
+        'Weapons free!',
+        'Opening fire!',
+        'Locked on target!',
+      ]);
+    case 'ordnance': {
+      const ordType = action.launches[0]?.ordnanceType;
+      if (ordType === 'torpedo')
+        return maybeChat(0.4, ['Torpedo away!', 'Fox one!']);
+      if (ordType === 'nuke')
+        return maybeChat(0.4, ['Deploying nuke!', 'Going nuclear!']);
+      if (ordType === 'mine')
+        return maybeChat(0.4, ['Mine deployed.', 'Surprise package.']);
+      return undefined;
+    }
+    case 'astrogation': {
+      const hasOverload = action.orders.some((o) => o.overload !== null);
+      if (hasOverload)
+        return maybeChat(0.4, ['Full power!', 'Pushing the engines!']);
+      return maybeChat(0.15, [
+        "You can't outrun me.",
+        'Closing the distance.',
+        'I have you now.',
+      ]);
+    }
+    case 'skipCombat':
+    case 'skipOrdnance':
+    case 'skipLogistics':
+      return maybeChat(0.1, ['Holding fire.', 'Standing by.']);
+    default:
+      return undefined;
+  }
+};
+
 interface PickActionResult {
   action: C2S;
   chat?: string;
@@ -695,7 +743,8 @@ const pickAction = async (
   }
   const recommended = candidates[0];
   if (config.agentMode === 'builtin') {
-    return { action: recommended };
+    const chat = buildBuiltinChat(state, playerId, recommended);
+    return { action: recommended, chat };
   }
 
   const payload: AgentTurnInput = {
@@ -912,6 +961,7 @@ const run = async (config: Config): Promise<void> => {
         case 'chat':
         case 'rematchPending':
         case 'pong':
+        case 'opponentStatus':
           return;
       }
     });

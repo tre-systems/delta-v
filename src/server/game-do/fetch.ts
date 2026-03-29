@@ -113,6 +113,7 @@ export const handleGameDoFetch = async (
 
   if (shouldClearDisconnectMarker(disconnectedPlayer, playerId)) {
     await deps.clearDisconnectMarker();
+    deps.broadcast({ type: 'opponentStatus', status: 'reconnected' });
   }
   deps.replacePlayerSockets(playerId);
   const pair = new WebSocketPair();
