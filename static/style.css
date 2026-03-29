@@ -1875,6 +1875,50 @@ h2.game-over-defeat {
   }
 }
 
+/* Wide mobile: enough room for desktop-style two-column layout */
+@media (min-width: 641px) and (max-width: 760px) {
+  .game-log {
+    top: calc(var(--hud-top-offset) + 0.35rem);
+    bottom: auto;
+    right: var(--hud-edge-right);
+    width: 200px;
+    max-width: none;
+    max-height: min(40vh, 300px);
+  }
+
+  .ship-list {
+    top: calc(var(--hud-top-offset) + 0.35rem);
+    bottom: auto;
+    width: min(45vw, 200px);
+    max-width: none;
+    max-height: min(40vh, 300px);
+  }
+
+  .hud-bottom {
+    max-width: 500px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+
+  .hud-bottom-buttons {
+    display: inline-flex;
+    width: auto;
+  }
+
+  .help-btn {
+    top: auto;
+    bottom: calc(4.4rem + var(--safe-bottom));
+    right: var(--hud-edge-right);
+  }
+
+  .sound-btn {
+    top: auto;
+    bottom: calc(4.4rem + var(--safe-bottom));
+    right: calc(var(--hud-edge-right) + 50px);
+  }
+}
+
 /* Fleet building */
 .fleet-building-content {
   max-width: min(28rem, calc(100vw - 2.5rem));

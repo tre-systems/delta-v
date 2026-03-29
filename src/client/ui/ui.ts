@@ -125,12 +125,15 @@ export const createUIManager = () => {
     setHudMobile: (matches) => hudChromeView.setMobile(matches),
     setLogMobile: (matches) =>
       log.setMobile(matches, hudEl.style.display !== 'none'),
-    bindViewport: (onMobileChange) => {
+    bindViewport: (onMobileChange, onResize) => {
       withScope(scope, () => {
         bindViewportEvents({
           mobileQuery,
           onMobileChange,
-          onViewportResize: queueLayoutSync,
+          onViewportResize: () => {
+            queueLayoutSync();
+            onResize();
+          },
           trackDispose: (dispose) => scope.add(dispose),
         });
       });
