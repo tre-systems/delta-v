@@ -1,28 +1,5 @@
-import { aiCombat } from './ai-combat';
-import {
-  findNearestBase,
-  getHomeDefenseThreat,
-  getInterceptContinuationPreference,
-  pickNextCheckpoint,
-  projectShipAfterCourse,
-  scoreObjectiveHomeDefenseCourse,
-} from './ai-common';
-import { AI_CONFIG } from './ai-config';
-import {
-  aiLogistics,
-  getPassengerTransferFormationOrders,
-  getPrimaryPassengerCarrier,
-  getThreateningEnemies,
-  isPassengerEscortMission,
-  maybeCreatePassengerFuelSupportOrder,
-  scorePassengerCarrierEvasion,
-  scorePassengerEscortCourse,
-} from './ai-logistics';
-import { aiOrdnance } from './ai-ordnance';
-import { scoreCourse } from './ai-scoring';
-import type { AIDifficulty } from './ai-types';
-import { canAttack, getCombatStrength } from './combat';
-import { SHIP_STATS } from './constants';
+import { canAttack, getCombatStrength } from '../combat';
+import { SHIP_STATS } from '../constants';
 import {
   beginCombatPhase,
   processAstrogation,
@@ -32,17 +9,40 @@ import {
   skipCombat,
   skipLogistics,
   skipOrdnance,
-} from './engine/game-engine';
-import { hexDistance, hexKey, hexVecLength } from './hex';
-import { computeCourse } from './movement';
+} from '../engine/game-engine';
+import { hexDistance, hexKey, hexVecLength } from '../hex';
+import { computeCourse } from '../movement';
 import type {
   AstrogationOrder,
   GameState,
   PlayerId,
   Ship,
   SolarSystemMap,
-} from './types';
-import { maxBy, minBy } from './util';
+} from '../types';
+import { maxBy, minBy } from '../util';
+import { aiCombat } from './combat';
+import {
+  findNearestBase,
+  getHomeDefenseThreat,
+  getInterceptContinuationPreference,
+  pickNextCheckpoint,
+  projectShipAfterCourse,
+  scoreObjectiveHomeDefenseCourse,
+} from './common';
+import { AI_CONFIG } from './config';
+import {
+  aiLogistics,
+  getPassengerTransferFormationOrders,
+  getPrimaryPassengerCarrier,
+  getThreateningEnemies,
+  isPassengerEscortMission,
+  maybeCreatePassengerFuelSupportOrder,
+  scorePassengerCarrierEvasion,
+  scorePassengerEscortCourse,
+} from './logistics';
+import { aiOrdnance } from './ordnance';
+import { scoreCourse } from './scoring';
+import type { AIDifficulty } from './types';
 
 const getPassengerEmergencyEscortOrders = (
   state: GameState,

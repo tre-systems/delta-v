@@ -2,13 +2,13 @@
 // evaluation. Each function scores one concern
 // independently — the combiner adds them.
 
-import type { AIDifficultyConfig } from './ai-config';
-import { must } from './assert';
-import { getCombatStrength } from './combat';
-import { hexAdd, hexDistance, hexVecLength } from './hex';
-import { applyPendingGravityEffects } from './movement';
-import type { CourseResult, Ship, SolarSystemMap } from './types';
-import { minBy } from './util';
+import { must } from '../assert';
+import { getCombatStrength } from '../combat';
+import { hexAdd, hexDistance, hexVecLength } from '../hex';
+import { applyPendingGravityEffects } from '../movement';
+import type { CourseResult, Ship, SolarSystemMap } from '../types';
+import { minBy } from '../util';
+import type { AIDifficultyConfig } from './config';
 
 // --- Individual scoring strategies ---
 
