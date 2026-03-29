@@ -112,11 +112,33 @@ const drawPreviewPolyline = (
   ctx.setLineDash([]);
 };
 
+const drawTakeoffSegment = (
+  ctx: CanvasRenderingContext2D,
+  segment: { points: { x: number; y: number }[] },
+): void => {
+  if (segment.points.length < 2) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(79, 195, 247, 0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(segment.points[0].x, segment.points[0].y);
+  for (let i = 1; i < segment.points.length; i++) {
+    ctx.lineTo(segment.points[i].x, segment.points[i].y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+};
+
 const drawSingleCoursePreview = (
   ctx: CanvasRenderingContext2D,
   preview: CoursePreviewView,
   drawShipIcon: DrawShipIconFn,
 ): void => {
+  if (preview.takeoffSegment) {
+    drawTakeoffSegment(ctx, preview.takeoffSegment);
+  }
   drawPreviewPolyline(ctx, preview);
   for (const arrow of preview.gravityArrows) {
     drawCourseArrow(ctx, arrow);
