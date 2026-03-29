@@ -55,23 +55,7 @@ export const parseClientSocketMessage = (message: string): Result<C2S> => {
 export interface AuxMessageDeps {
   ws: WebSocket;
   playerId: PlayerId;
-  msg: Exclude<
-    C2S,
-    {
-      type:
-        | 'fleetReady'
-        | 'astrogation'
-        | 'surrender'
-        | 'ordnance'
-        | 'emplaceBase'
-        | 'skipOrdnance'
-        | 'beginCombat'
-        | 'combat'
-        | 'skipCombat'
-        | 'logistics'
-        | 'skipLogistics';
-    }
-  >;
+  msg: import('./actions').AuxMessage;
   lastChatAt: Map<number, number>;
   send: (ws: WebSocket, msg: S2C) => void;
   broadcast: (msg: S2C) => void;

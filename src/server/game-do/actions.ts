@@ -32,14 +32,38 @@ export type StatefulActionSuccess = {
   state: GameState;
   engineEvents: EngineEvent[];
 };
-export type GameStateActionMessage = Exclude<
+
+// Single source of truth for which C2S message types are game-state actions.
+// Aux messages (chat, ping, rematch) are everything else.
+export const GAME_STATE_ACTION_TYPES = new Set([
+  'fleetReady',
+  'astrogation',
+  'surrender',
+  'ordnance',
+  'emplaceBase',
+  'skipOrdnance',
+  'beginCombat',
+  'combat',
+  'skipCombat',
+  'logistics',
+  'skipLogistics',
+] as const satisfies readonly C2S['type'][]);
+
+export type GameStateActionType =
+  typeof GAME_STATE_ACTION_TYPES extends Set<infer T> ? T : never;
+export type GameStateActionMessage = Extract<
   C2S,
-  { type: 'chat' } | { type: 'ping' } | { type: 'rematch' }
+  { type: GameStateActionType }
 >;
-export type GameStateActionType = GameStateActionMessage['type'];
+export type AuxMessage = Exclude<C2S, { type: GameStateActionType }>;
 export type GameStateActionMessageOf<
   T extends GameStateActionType = GameStateActionType,
 > = Extract<GameStateActionMessage, { type: T }>;
+
+export const isGameStateActionMessage = (
+  msg: C2S,
+): msg is GameStateActionMessage =>
+  GAME_STATE_ACTION_TYPES.has(msg.type as GameStateActionType);
 export type GameStateActionHandler<
   T extends GameStateActionType,
   Success extends StatefulActionSuccess = StatefulActionSuccess,
@@ -335,131 +359,13 @@ export const dispatchGameStateAction = async (
     onSuccess: (result: Success) => Promise<void> | void,
   ) => Promise<void>,
 ): Promise<void> => {
-  const dispatchByType = {
-    fleetReady: (typedMessage: GameStateActionMessageOf<'fleetReady'>) =>
-      dispatchGameStateActionOfType(
-        playerId,
-        ws,
-        typedMessage,
-        handlers.fleetReady,
-        runner,
-      ),
-    astrogation: (typedMessage: GameStateActionMessageOf<'astrogation'>) =>
-      dispatchGameStateActionOfType(
-        playerId,
-        ws,
-        typedMessage,
-        handlers.astrogation,
-        runner,
-      ),
-    surrender: (typedMessage: GameStateActionMessageOf<'surrender'>) =>
-      dispatchGameStateActionOfType(
-        playerId,
-        ws,
-        typedMessage,
-        handlers.surrender,
-        runner,
-      ),
-    ordnance: (typedMessage: GameStateActionMessageOf<'ordnance'>) =>
-      dispatchGameStateActionOfType(
-        playerId,
-        ws,
-        typedMessage,
-        handlers.ordnance,
-        runner,
-      ),
-    emplaceBase: (typedMessage: GameStateActionMessageOf<'emplaceBase'>) =>
-      dispatchGameStateActionOfType(
-        playerId,
-        ws,
-        typedMessage,
-        handlers.emplaceBase,
-        runner,
-      ),
-    skipOrdnance: (typedMessage: GameStateActionMessageOf<'skipOrdnance'>) =>
-      dispatchGameStateActionOfType(
-        playerId,
-        ws,
-        typedMessage,
-        handlers.skipOrdnance,
-        runner,
-      ),
-    beginCombat: (typedMessage: GameStateActionMessageOf<'beginCombat'>) =>
-      dispatchGameStateActionOfType(
-        playerId,
-        ws,
-        typedMessage,
-        handlers.beginCombat,
-        runner,
-      ),
-    combat: (typedMessage: GameStateActionMessageOf<'combat'>) =>
-      dispatchGameStateActionOfType(
-        playerId,
-        ws,
-        typedMessage,
-        handlers.combat,
-        runner,
-      ),
-    skipCombat: (typedMessage: GameStateActionMessageOf<'skipCombat'>) =>
-      dispatchGameStateActionOfType(
-        playerId,
-        ws,
-        typedMessage,
-        handlers.skipCombat,
-        runner,
-      ),
-    logistics: (typedMessage: GameStateActionMessageOf<'logistics'>) =>
-      dispatchGameStateActionOfType(
-        playerId,
-        ws,
-        typedMessage,
-        handlers.logistics,
-        runner,
-      ),
-    skipLogistics: (typedMessage: GameStateActionMessageOf<'skipLogistics'>) =>
-      dispatchGameStateActionOfType(
-        playerId,
-        ws,
-        typedMessage,
-        handlers.skipLogistics,
-        runner,
-      ),
-  } satisfies {
-    [T in GameStateActionType]: (
-      typedMessage: GameStateActionMessageOf<T>,
-    ) => Promise<void>;
-  };
-
-  await (
-    dispatchByType as Record<
-      GameStateActionType,
-      (typedMessage: GameStateActionMessage) => Promise<void>
-    >
-  )[message.type](message);
-};
-
-const dispatchGameStateActionOfType = async <
-  T extends GameStateActionType,
-  Success extends StatefulActionSuccess,
->(
-  playerId: PlayerId,
-  ws: WebSocket,
-  message: GameStateActionMessageOf<T>,
-  handler: GameStateActionHandler<T, Success>,
-  runner: <
-    Result extends {
-      state: GameState;
-    },
-  >(
-    ws: WebSocket,
-    action: (
-      gameState: GameState,
-    ) => Result | EngineFailure | Promise<Result | EngineFailure>,
-    onSuccess: (result: Result) => Promise<void> | void,
-  ) => Promise<void>,
-): Promise<void> =>
-  runner(
+  const handler = handlers[message.type] as GameStateActionHandler<
+    typeof message.type,
+    StatefulActionSuccess
+  >;
+  await runner(
     ws,
     (gameState) => handler.run(gameState, playerId, message),
     (result) => handler.publish(playerId, result),
   );
+};

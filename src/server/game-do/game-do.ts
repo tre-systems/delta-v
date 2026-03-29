@@ -4,7 +4,7 @@ import type { EngineEvent } from '../../shared/engine/engine-events';
 import { buildSolarSystemMap, SCENARIOS } from '../../shared/map-data';
 import { deriveActionRng } from '../../shared/prng';
 import type { GameState, PlayerId, Result } from '../../shared/types/domain';
-import type { C2S, S2C } from '../../shared/types/protocol';
+import type { S2C } from '../../shared/types/protocol';
 import {
   isValidPlayerToken,
   type RoomConfig,
@@ -14,7 +14,7 @@ import {
   createGameStateActionHandlers,
   dispatchGameStateAction,
   type EngineFailure,
-  type GameStateActionMessage,
+  isGameStateActionMessage,
   runGameStateAction,
 } from './actions';
 import { runGameDoAlarm } from './alarm';
@@ -84,12 +84,6 @@ export class GameDO extends DurableObject<Env> {
     const tag = this.ctx.getTags(ws).find((t) => t.startsWith('player:'));
     const id = tag ? parseInt(tag.split(':')[1], 10) : null;
     return id === 0 || id === 1 ? id : null;
-  }
-
-  private isGameStateActionMessage(
-    message: C2S,
-  ): message is GameStateActionMessage {
-    return message.type in this.gameStateActionHandlers;
   }
 
   private getSeatOpen(): [boolean, boolean] {
@@ -344,7 +338,7 @@ export class GameDO extends DurableObject<Env> {
           this.ctx.getTags(socket).includes('spectator'),
         touchInactivity: () => this.touchInactivity(),
         send: (socket, outbound) => this.send(socket, outbound),
-        isGameStateActionMessage: (msg) => this.isGameStateActionMessage(msg),
+        isGameStateActionMessage,
         dispatchGameStateAction: (playerId, socket, msg) =>
           dispatchGameStateAction(
             playerId,
