@@ -93,7 +93,7 @@ const resolveAntiNukeAttack = (
   };
 };
 
-const hasManualCombatTargets = (
+export const hasManualCombatTargets = (
   state: GameState,
   map: SolarSystemMap,
 ): boolean => {

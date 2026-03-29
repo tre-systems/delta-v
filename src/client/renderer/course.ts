@@ -352,7 +352,7 @@ export const buildAstrogationCoursePreviewViews = (
       ship.lifecycle === 'landed' ? course.path[0] : ship.position;
     const destination = hexToPixel(course.destination, hexSize);
     const predictedDestination =
-      ship.lifecycle === 'landed' ? course.path[0] : predictDestination(ship);
+      ship.lifecycle === 'landed' ? ship.position : predictDestination(ship);
 
     // For takeoff: show full path from
     // base hex -> launch hex -> destination
