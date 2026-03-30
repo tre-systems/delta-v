@@ -2,6 +2,8 @@
 
 This document is a **sequenced checklist** for reviewing aspects of Delta-V that are not fully covered by day-to-day feature work. Treat it as a **living, recurring review cadence** rather than a one-time audit.
 
+Use this file for recurring audits, not as a task backlog. Concrete follow-up work belongs in [BACKLOG.md](./BACKLOG.md).
+
 Work through **one section at a time**; each section lists scope, concrete steps, and what to record when done.
 
 **Related docs:** [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), [BACKLOG.md](./BACKLOG.md), [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md).

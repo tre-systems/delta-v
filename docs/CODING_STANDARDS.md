@@ -163,6 +163,7 @@ guide.
 
 - Update docs when behavior changes materially.
 - Cross-cutting decisions: record them in [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), or this file as appropriate; keep [BACKLOG.md](./BACKLOG.md) in sync for open work. Contributor workflow: [CONTRIBUTING.md](./CONTRIBUTING.md).
+- Prefer one owner doc per topic: gameplay/protocol in [SPEC.md](./SPEC.md), implementation boundaries/data flow in [ARCHITECTURE.md](./ARCHITECTURE.md), coding conventions in this file, recurring audits in [REVIEW_PLAN.md](./REVIEW_PLAN.md), and remaining actionable work in [BACKLOG.md](./BACKLOG.md).
 - Do not leave roadmap items marked as future work once they are implemented.
 - Architecture docs should describe the real join flow, validation model, and authority boundaries.
 - When a decision will be referenced from multiple places, add a short anchored subsection to the most relevant doc rather than duplicating prose.
@@ -213,10 +214,10 @@ Current examples:
   to `ctx` (and optional test `renderer`); in the full client,
   `attachRendererGameStateEffect()` drives `renderer.setGameState`
   from the reactive session state (see `docs/ARCHITECTURE.md`).
-- `createUIManager()` owns top-level screen toggling via its
-  internal `applyScreenVisibility` (wired through
-  `createScreenActions()` for the user-facing screen methods),
-  calling `applyUIVisibility()` from `ui/visibility.ts`.
+- `createUIManager()` owns top-level screen visibility via its
+  `screenModeSignal` and `applyUIVisibility()` from
+  `ui/visibility.ts`; session effects update waiting copy and
+  other durable UI state instead of scattered screen commands.
 - `runPublicationPipeline()` in `publication.ts` owns
   the state publication pipeline: event append, checkpoint,
   parity verify, match archive, timer, and broadcast.
@@ -643,17 +644,20 @@ State belongs to the coordinator that manages its lifecycle, and is passed by re
 `src/client/reactive.ts` is a small zero-dependency signals library
 providing `signal`, `computed`, `effect`, `batch`,
 `withScope`, `registerDisposer`, and `createDisposalScope()`.
-It is used in the DOM UI layer for view-local state and derived
-DOM synchronization.
+It is used in the DOM UI layer and in a few small client/session
+stores for derived synchronization and lifecycle cleanup.
 
-Use `reactive.ts` for **small, local, stateful DOM views**.
+Use `reactive.ts` for **small, explicit UI or session-state seams**.
 The "Smart Helpers" (`visible`, `text`, `cls`) in `dom.ts`
 automatically leverage signals when provided, reducing boilerplate.
 
-Do **not** use it as a general app-state store. The composition
-root in `game/client-kernel.ts`, the renderer, the transport/session layer, and
-the shared engine should remain explicit and imperative unless
-there is a clear synchronization problem being solved.
+Do **not** use it as a blanket global store. Keep transport,
+command dispatch, engine flows, and most coordination explicit.
+Use signals selectively for durable client/session/UI state when
+they remove duplicate mirrors or imperative fan-out. Current
+examples include `ClientSession` reactive fields,
+`PlanningStore.revisionSignal`, overlay/replay/timer view state,
+and DOM view models.
 
 Rules for reactive UI code:
 
@@ -663,12 +667,13 @@ Rules for reactive UI code:
 - Batch related writes. Known trade-off: diamond dependencies can emit intermediate states outside `batch()`. Wrap multi-signal updates in `batch()` when they feed the same computed or effect.
 - Avoid hidden identity contracts. If callers may reuse and mutate the same object reference, clone before writing it to a signal or pair it with a version signal.
 - Keep the boundary local. Prefer signals inside a view over passing signals through the whole client graph.
+- Separate durable UI state from one-shot events. Waiting/reconnect/game-over/replay/timer state can be signal-backed; transient toasts, sounds, and user-triggered commands can remain imperative.
 - Register teardown in one place. Timers, event listeners, and child-view disposal should be owned by the same scope where practical.
 
 The current pattern is intentionally narrow: pure functions
-still derive most game-facing state, while reactive signals
-handle repetitive DOM synchronization and lifecycle cleanup in
-the overlay layer.
+still derive most game-facing state, while reactive signals own
+durable client/session/UI state and repetitive DOM
+synchronization.
 
 For background on fine-grained reactivity, see Solid's
 [Fine-grained reactivity](https://docs.solidjs.com/advanced-concepts/fine-grained-reactivity)
@@ -765,7 +770,7 @@ Action handlers call `transport.submitAstrogation(orders)` (transport from conte
 
 ### Screen visibility
 
-The `applyScreenVisibility` pattern inside `createUIManager()` is the single choke point for screen toggling. It applies the output of the pure `buildScreenVisibility()` function. This is the one place where direct `.style.display` assignment is acceptable — everywhere else, use `show()`/`hide()`/`visible()` from `dom.ts`.
+The `screenModeSignal` + `applyUIVisibility()` pattern inside `createUIManager()` is the single choke point for screen toggling. It applies the output of the pure `buildScreenVisibility()` function. This is the one place where direct `.style.display` assignment is acceptable. Everywhere else, use `show()`/`hide()`/`visible()` from `dom.ts`.
 
 ## Linting
 

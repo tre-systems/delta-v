@@ -19,19 +19,22 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 
 ## 📚 Documentation Guide
 
-- [**SPEC.md**](./docs/SPEC.md): complete repo rules reference, protocol shapes, scenario definitions, and implementation notes; the official [Triplanetary 2018 PDF](./Triplanetary2018.pdf) takes precedence if prose drifts
-- [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md): system boundaries, data flow, Durable Object design, and the current event-sourced server model
-- [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md): coding conventions, refactoring guidance, and shared patterns
-- [**MANUAL_TEST_PLAN.md**](./docs/MANUAL_TEST_PLAN.md): comprehensive manual test plan covering all scenarios, mechanics, and edge cases
-- [**SIMULATION_TESTING.md**](./docs/SIMULATION_TESTING.md): headless AI-vs-AI coverage plus the websocket load / chaos harness
-- [**SECURITY.md**](./docs/SECURITY.md): competitive integrity, abuse and cost considerations, rate limits, and deployment hardening
-- [**BACKLOG.md**](./docs/BACKLOG.md): remaining work in **one global priority order** (cost/abuse → compliance → gameplay → ops); **Human** items need QA/counsel/ops
-- [**REVIEW_PLAN.md**](./docs/REVIEW_PLAN.md): sequenced checklist for cross-cutting reviews (CI, observability, data retention, a11y, etc.)
-- [**CONTRIBUTING.md**](./docs/CONTRIBUTING.md): pre-commit behavior, coverage, Playwright ports
-- [**OBSERVABILITY.md**](./docs/OBSERVABILITY.md): logs, D1 events, sample queries
-- [**A11Y.md**](./docs/A11Y.md): DOM accessibility checklist (Canvas limitations noted)
-- [**PRIVACY_TECHNICAL.md**](./docs/PRIVACY_TECHNICAL.md): technical privacy summary (not legal advice)
-- [**SPACESHIPS.md**](./docs/SPACESHIPS.md) and [**TECHNOLOGY.md**](./docs/TECHNOLOGY.md): visual direction and real-world technology anchors
+Use the docs by role so the same decision is not maintained in three places:
+
+- [**SPEC.md**](./docs/SPEC.md): gameplay rules, scenario behavior, protocol shapes, state concepts, and implementation status; the official [Triplanetary 2018 PDF](./Triplanetary2018.pdf) takes precedence if prose drifts
+- [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md): implementation structure, data flow, Durable Object design, replay/recovery model, and the current client reactive/session architecture
+- [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md): coding conventions, refactoring guidance, and shared implementation patterns
+- [**CONTRIBUTING.md**](./docs/CONTRIBUTING.md): contributor workflow, pre-commit behavior, verification commands, and local environment gotchas
+- [**MANUAL_TEST_PLAN.md**](./docs/MANUAL_TEST_PLAN.md): release/regression manual checks across gameplay, UX, and recovery flows
+- [**SIMULATION_TESTING.md**](./docs/SIMULATION_TESTING.md): headless AI simulation, websocket load/chaos testing, and the agent bridge
+- [**SECURITY.md**](./docs/SECURITY.md): competitive integrity, abuse/cost controls, deployment hardening, and retention/security posture
+- [**OBSERVABILITY.md**](./docs/OBSERVABILITY.md): runtime signals, D1 queries, and incident triage
+- [**A11Y.md**](./docs/A11Y.md): DOM accessibility audit checklist and manual process
+- [**PRIVACY_TECHNICAL.md**](./docs/PRIVACY_TECHNICAL.md): technical storage behavior only; not user-facing policy text
+- [**BACKLOG.md**](./docs/BACKLOG.md): remaining actionable work only, in one global priority order
+- [**REVIEW_PLAN.md**](./docs/REVIEW_PLAN.md): recurring cross-cutting review cadence; concrete follow-up work belongs in the backlog
+- [**GAME_BUILD_PLAYBOOK.md**](./docs/GAME_BUILD_PLAYBOOK.md): generic playbook for building a similar game; not the live Delta-V source of truth
+- [**SPACESHIPS.md**](./docs/SPACESHIPS.md) and [**TECHNOLOGY.md**](./docs/TECHNOLOGY.md): visual direction and hard-sci-fi reference material
 
 ## 🌟 Features
 
@@ -57,35 +60,19 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 
 ## 🛠️ Architecture
 
-Delta-V adopts an elegant, robust architecture utilizing modern web primitives:
+Delta-V has three runtime layers:
 
 ```text
 src/
-├── shared/              # Game Engine — side-effect-free (shared between client & server)
-│   ├── engine/            # Phase processors: game-creation, astrogation, combat, ordnance, etc.
-│   │   ├── engine-events.ts # EngineEvent domain event types (32 granular event types)
-│   │   ├── game-engine.ts   # Barrel re-export (public API)
-│   │   └── ...              # game-creation, fleet-building, astrogation, resolve-movement,
-│   │                        # combat, ordnance, logistics, victory, util
-│   ├── movement.ts        # Vector astrogation & gravity logic
-│   ├── combat.ts          # Odds resolution & damage tables
-│   ├── hex.ts             # Axial hex coordinate math
-│   ├── map-data.ts        # Solar system bodies, gravity, bases, scenarios
-│   ├── ai.ts              # AI opponent for single-player
-│   ├── ai-config.ts       # Per-difficulty AI tuning parameters
-│   └── ai-scoring.ts      # Composable AI course scoring strategies
-├── server/              # Cloudflare Workers Backend
-│   ├── index.ts           # HTTP entry point & WebSocket routing
-│   └── game-do/           # Durable Object: state, messages, sessions, turns, archive
-└── client/              # Browser Frontend
-    ├── main.ts            # Browser entry — bootstrap, then createGameClient()
-    ├── game/              # client-kernel (composition root), command routing, session, transport, …
-    ├── renderer/          # Canvas rendering, camera, animations, minimap
-    └── ui/                # DOM overlays (menu, HUD, game log, game over)
-scripts/                 # Automated Bot & AI Simulation tests
+├── shared/   # Side-effect-free game engine and shared types
+├── server/   # Cloudflare Worker + Durable Object authority
+├── client/   # Session orchestration, Canvas renderer, DOM UI
+└── scripts/  # Simulation, load, and agent tooling
 ```
 
-**Design Highlight:** The shared engine is side-effect-free — no DOM, no network, no storage. Turn-resolution engine functions receive inputs and return new state plus domain events (`EngineEvent[]`), making the game highly testable. Those entry points clone input state on entry (`structuredClone`) — callers' state is never mutated. The authoritative server persists versioned match events plus checkpoints and rebuilds state from that stream for replay and recovery. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details.
+The shared engine is side-effect-free. The server is authoritative and event-sourced. The client uses reactive session/UI state where it removes duplicate mirrors or imperative fan-out, while input, transport, and transient presentation events stay explicit.
+
+For module inventory, diagrams, dependency maps, and the full client/server data flow, see [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md).
 
 For project conventions and refactoring guidance, see [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md).
 
@@ -175,6 +162,8 @@ Keep Playwright additions focused on browser-only risks so the suite remains fas
 For the comprehensive ruleset detailing movement edge cases, damage tables, and specific scenario rules, refer to [SPEC.md](./docs/SPEC.md). If repo prose and the official rules ever disagree, follow [Triplanetary2018.pdf](./Triplanetary2018.pdf).
 
 ## 🗺️ Roadmap
+
+Open work lives in [**BACKLOG.md**](./docs/BACKLOG.md). This section is shipped-history context only.
 
 ### Complete
 
