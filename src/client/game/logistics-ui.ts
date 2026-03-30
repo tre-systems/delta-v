@@ -13,114 +13,220 @@ import {
   computed,
   createDisposalScope,
   effect,
+  type Signal,
   signal,
   withScope,
 } from '../reactive';
 
-export interface LogisticsUIState {
+interface LogisticsState {
+  readonly revisionSignal?: Signal<number>;
   pairs: TransferPair[];
   fuelAmounts: Map<string, number>; // pairKey -> fuel amount to transfer
   cargoAmounts: Map<string, number>; // pairKey -> cargo amount to transfer
   passengerAmounts: Map<string, number>; // pairKey -> passengers to transfer
 }
 
+type TransferType = TransferOrder['transferType'];
+
+export interface LogisticsStore extends LogisticsState {
+  readonly revisionSignal: Signal<number>;
+  getTransferAmount: (
+    transferType: TransferType,
+    sourceId: string,
+    targetId: string,
+  ) => number;
+  setTransferAmount: (
+    transferType: TransferType,
+    sourceId: string,
+    targetId: string,
+    amount: number,
+  ) => void;
+  buildTransferOrders: () => TransferOrder[];
+  hasQueuedTransfers: () => boolean;
+}
+
 const pairKey = (source: string, target: string): string =>
   `${source}->${target}`;
 
 interface TransferPanelView {
-  readonly uiState: LogisticsUIState;
+  readonly store: LogisticsStore;
   dispose(): void;
 }
 
 const panelViews = new WeakMap<HTMLElement, TransferPanelView>();
 
-export const createLogisticsUIState = (
-  state: GameState,
-  playerId: PlayerId,
-): LogisticsUIState => {
-  const pairs = getTransferEligiblePairs(state, playerId);
-  return {
+const defineHiddenLogisticsMember = <K extends keyof LogisticsStore>(
+  logisticsStore: LogisticsStore,
+  key: K,
+  value: LogisticsStore[K],
+): void => {
+  Object.defineProperty(logisticsStore, key, {
+    enumerable: false,
+    configurable: false,
+    writable: false,
+    value,
+  });
+};
+
+const getTransferAmounts = (
+  logisticsStore: LogisticsStore,
+  transferType: TransferType,
+): Map<string, number> => {
+  switch (transferType) {
+    case 'fuel':
+      return logisticsStore.fuelAmounts;
+    case 'cargo':
+      return logisticsStore.cargoAmounts;
+    case 'passengers':
+      return logisticsStore.passengerAmounts;
+  }
+};
+
+export const createLogisticsStoreFromPairs = (
+  pairs: TransferPair[],
+): LogisticsStore => {
+  const logisticsState: LogisticsState = {
     pairs,
     fuelAmounts: new Map(),
     cargoAmounts: new Map(),
     passengerAmounts: new Map(),
   };
+  const logisticsStore = logisticsState as LogisticsStore;
+
+  const notifyLogisticsChanged = (): void => {
+    logisticsStore.revisionSignal.update((n) => n + 1);
+  };
+
+  defineHiddenLogisticsMember(logisticsStore, 'revisionSignal', signal(0));
+  defineHiddenLogisticsMember(
+    logisticsStore,
+    'getTransferAmount',
+    (transferType: TransferType, sourceId: string, targetId: string): number =>
+      getTransferAmounts(logisticsStore, transferType).get(
+        pairKey(sourceId, targetId),
+      ) ?? 0,
+  );
+  defineHiddenLogisticsMember(
+    logisticsStore,
+    'setTransferAmount',
+    (
+      transferType: TransferType,
+      sourceId: string,
+      targetId: string,
+      amount: number,
+    ): void => {
+      const nextAmount = Math.max(0, amount);
+      const amounts = getTransferAmounts(logisticsStore, transferType);
+      const key = pairKey(sourceId, targetId);
+
+      if ((amounts.get(key) ?? 0) === nextAmount) {
+        return;
+      }
+
+      amounts.set(key, nextAmount);
+      notifyLogisticsChanged();
+    },
+  );
+  defineHiddenLogisticsMember(
+    logisticsStore,
+    'buildTransferOrders',
+    (): TransferOrder[] => {
+      const orders: TransferOrder[] = [];
+
+      for (const pair of logisticsStore.pairs) {
+        const fuelAmt = logisticsStore.getTransferAmount(
+          'fuel',
+          pair.source.id,
+          pair.target.id,
+        );
+        const cargoAmt = logisticsStore.getTransferAmount(
+          'cargo',
+          pair.source.id,
+          pair.target.id,
+        );
+        const passengerAmt = logisticsStore.getTransferAmount(
+          'passengers',
+          pair.source.id,
+          pair.target.id,
+        );
+
+        if (fuelAmt > 0) {
+          orders.push({
+            sourceShipId: pair.source.id,
+            targetShipId: pair.target.id,
+            transferType: 'fuel',
+            amount: fuelAmt,
+          });
+        }
+
+        if (cargoAmt > 0) {
+          orders.push({
+            sourceShipId: pair.source.id,
+            targetShipId: pair.target.id,
+            transferType: 'cargo',
+            amount: cargoAmt,
+          });
+        }
+
+        if (passengerAmt > 0) {
+          orders.push({
+            sourceShipId: pair.source.id,
+            targetShipId: pair.target.id,
+            transferType: 'passengers',
+            amount: passengerAmt,
+          });
+        }
+      }
+
+      return orders;
+    },
+  );
+  defineHiddenLogisticsMember(
+    logisticsStore,
+    'hasQueuedTransfers',
+    (): boolean => {
+      for (const amt of logisticsStore.fuelAmounts.values()) {
+        if (amt > 0) return true;
+      }
+
+      for (const amt of logisticsStore.cargoAmounts.values()) {
+        if (amt > 0) return true;
+      }
+
+      for (const amt of logisticsStore.passengerAmounts.values()) {
+        if (amt > 0) return true;
+      }
+
+      return false;
+    },
+  );
+
+  return logisticsStore;
 };
 
-export const buildTransferOrders = (
-  uiState: LogisticsUIState,
-): TransferOrder[] => {
-  const orders: TransferOrder[] = [];
-  for (const pair of uiState.pairs) {
-    const key = pairKey(pair.source.id, pair.target.id);
-    const fuelAmt = uiState.fuelAmounts.get(key) ?? 0;
-    const cargoAmt = uiState.cargoAmounts.get(key) ?? 0;
-
-    if (fuelAmt > 0) {
-      orders.push({
-        sourceShipId: pair.source.id,
-        targetShipId: pair.target.id,
-        transferType: 'fuel',
-        amount: fuelAmt,
-      });
-    }
-
-    if (cargoAmt > 0) {
-      orders.push({
-        sourceShipId: pair.source.id,
-        targetShipId: pair.target.id,
-        transferType: 'cargo',
-        amount: cargoAmt,
-      });
-    }
-    const passengerAmt = uiState.passengerAmounts.get(key) ?? 0;
-
-    if (passengerAmt > 0) {
-      orders.push({
-        sourceShipId: pair.source.id,
-        targetShipId: pair.target.id,
-        transferType: 'passengers',
-        amount: passengerAmt,
-      });
-    }
-  }
-
-  return orders;
-};
-
-export const hasQueuedTransfers = (uiState: LogisticsUIState): boolean => {
-  for (const amt of uiState.fuelAmounts.values()) {
-    if (amt > 0) return true;
-  }
-
-  for (const amt of uiState.cargoAmounts.values()) {
-    if (amt > 0) return true;
-  }
-
-  for (const amt of uiState.passengerAmounts.values()) {
-    if (amt > 0) return true;
-  }
-
-  return false;
-};
+export const createLogisticsStore = (
+  state: GameState,
+  playerId: PlayerId,
+): LogisticsStore =>
+  createLogisticsStoreFromPairs(getTransferEligiblePairs(state, playerId));
 
 const shipName = (type: ShipType): string => SHIP_STATS[type].name;
 
 export const renderTransferPanel = (
   container: HTMLElement,
-  uiState: LogisticsUIState,
+  logisticsStore: LogisticsStore,
   onChanged?: () => void,
 ): void => {
   const existing = panelViews.get(container);
 
-  if (existing?.uiState === uiState) {
+  if (existing?.store === logisticsStore) {
     return;
   }
 
   existing?.dispose();
   clearHTML(container);
 
-  if (uiState.pairs.length === 0) {
+  if (logisticsStore.pairs.length === 0) {
     container.appendChild(
       el('div', {
         class: 'transfer-empty',
@@ -128,7 +234,7 @@ export const renderTransferPanel = (
       }),
     );
     panelViews.set(container, {
-      uiState,
+      store: logisticsStore,
       dispose: () => {
         clearHTML(container);
       },
@@ -139,8 +245,7 @@ export const renderTransferPanel = (
   const scope = createDisposalScope();
 
   withScope(scope, () => {
-    for (const pair of uiState.pairs) {
-      const key = pairKey(pair.source.id, pair.target.id);
+    for (const pair of logisticsStore.pairs) {
       const isLooting = pair.source.owner !== pair.target.owner;
       const sourceLabel = `${shipName(pair.source.type)}${isLooting ? ' (enemy)' : ''}`;
       const targetLabel = shipName(pair.target.type);
@@ -158,9 +263,20 @@ export const renderTransferPanel = (
           buildAmountRow(
             'Fuel',
             pair.maxFuel,
-            signal(uiState.fuelAmounts.get(key) ?? 0),
+            signal(
+              logisticsStore.getTransferAmount(
+                'fuel',
+                pair.source.id,
+                pair.target.id,
+              ),
+            ),
             (newAmt) => {
-              uiState.fuelAmounts.set(key, newAmt);
+              logisticsStore.setTransferAmount(
+                'fuel',
+                pair.source.id,
+                pair.target.id,
+                newAmt,
+              );
               onChanged?.();
             },
           ),
@@ -172,9 +288,20 @@ export const renderTransferPanel = (
           buildAmountRow(
             'Cargo',
             pair.maxCargo,
-            signal(uiState.cargoAmounts.get(key) ?? 0),
+            signal(
+              logisticsStore.getTransferAmount(
+                'cargo',
+                pair.source.id,
+                pair.target.id,
+              ),
+            ),
             (newAmt) => {
-              uiState.cargoAmounts.set(key, newAmt);
+              logisticsStore.setTransferAmount(
+                'cargo',
+                pair.source.id,
+                pair.target.id,
+                newAmt,
+              );
               onChanged?.();
             },
           ),
@@ -186,9 +313,20 @@ export const renderTransferPanel = (
           buildAmountRow(
             'Passengers',
             pair.maxPassengers,
-            signal(uiState.passengerAmounts.get(key) ?? 0),
+            signal(
+              logisticsStore.getTransferAmount(
+                'passengers',
+                pair.source.id,
+                pair.target.id,
+              ),
+            ),
             (newAmt) => {
-              uiState.passengerAmounts.set(key, newAmt);
+              logisticsStore.setTransferAmount(
+                'passengers',
+                pair.source.id,
+                pair.target.id,
+                newAmt,
+              );
               onChanged?.();
             },
           ),
@@ -200,7 +338,7 @@ export const renderTransferPanel = (
   });
 
   panelViews.set(container, {
-    uiState,
+    store: logisticsStore,
     dispose: () => {
       scope.dispose();
       clearHTML(container);

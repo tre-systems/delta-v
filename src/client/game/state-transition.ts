@@ -1,7 +1,7 @@
 import { must } from '../../shared/assert';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { batch } from '../reactive';
-import { createLogisticsUIState } from './logistics-ui';
+import { createLogisticsStore } from './logistics-ui';
 import type { ClientState } from './phase';
 import { deriveClientStateEntryPlan } from './phase-entry';
 import { deriveClientScreenPlan } from './screen';
@@ -130,7 +130,7 @@ export const applyClientStateTransition = (
     }
 
     if (newState === 'playing_logistics' && deps.ctx.gameState) {
-      deps.ctx.logisticsState = createLogisticsUIState(
+      deps.ctx.logisticsState = createLogisticsStore(
         deps.ctx.gameState,
         deps.ctx.playerId as PlayerId,
       );

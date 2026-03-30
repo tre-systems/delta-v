@@ -202,7 +202,6 @@ const createMessageHandlerDeps = (
         showOpponentDisconnected() {},
         hideOpponentDisconnected() {},
       },
-      updateLatency() {},
     },
   };
   return deps;
