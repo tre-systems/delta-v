@@ -4,6 +4,8 @@ Delta-V is an online multiplayer space combat and racing game. This document des
 
 The authoritative server model is event-sourced: the Durable Object persists a match-scoped event stream plus checkpoints, and recovers authoritative state from checkpoint + event tail (not from a separate persisted `gameState` snapshot slot).
 
+Document boundary: gameplay rules and protocol examples live in [SPEC.md](./SPEC.md), coding conventions live in [CODING_STANDARDS.md](./CODING_STANDARDS.md), contributor workflow lives in [CONTRIBUTING.md](./CONTRIBUTING.md), and open work lives in [BACKLOG.md](./BACKLOG.md).
+
 ## Quick Navigation
 
 - [1. High-Level Architecture](#1-high-level-architecture)
@@ -366,7 +368,7 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 - **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), planning-state helpers, runtime/session helpers, phase derivation, game-state helpers, transition helpers, session helpers, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
 - **`renderer/`**: Canvas drawing layers (scene, entities, vectors, effects, overlays), camera, minimap, and animation management.
 - **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, layout metrics, and small reactive DOM view models.
-- **`reactive.ts` + `ui/ui.ts`**: The overlay layer stays framework-free, but stateful DOM views use a small signals runtime for derived copy/visibility and explicit disposal. `createUIManager()` owns long-lived view instances and their teardown; helpers such as `createScreenActions()` and `createHudActions()` compose screen/HUD behaviors. Overlay, lobby, fleet-building, ship-list, HUD chrome, game log, tutorial, and turn telemetry follow the same factory style as other client modules.
+- **`reactive.ts` + `ui/ui.ts` + `game/session-signals.ts`**: The client stays framework-free, but durable session and UI state now use a small signals runtime where it removes duplicate mirrors or imperative fan-out. `ClientSession` owns reactive `gameState`, `state`, player identity, waiting/reconnect fields, and logistics references; `createUIManager()` owns long-lived view instances and `screenModeSignal`-driven visibility; `overlay-state.ts`, replay controls, and the turn timer expose signal-backed view state; and short-lived events such as toasts remain imperative.
 - **`game/session-signals.ts` + `game/planning.ts`**: `ClientSession` owns reactive `gameStateSignal` / `stateSignal`, while `PlanningStore` owns local planning mutation methods and a `revisionSignal` that bumps after local planning changes. Session effects reconcile derived selection into planning, drive `hud.updateHUD()`, and keep `renderer.setGameState()` aligned directly, so command routing, replay, and phase entry no longer thread duplicate HUD/render callbacks through many call sites.
 - **`audio.ts`**: Handles Web Audio API interactions.
 - **Visual Polish**: Employs a premium design system with glassmorphism tokens (backdrop-filters), tactile micro-animations (recoil, scaling glows), and pulsing orbital effects for high-end UX.
