@@ -1,29 +1,23 @@
 import type { GameState } from '../../shared/types/domain';
-import {
-  type Dispose,
-  effect,
-  type ReadonlySignal,
-  type Signal,
-  signal,
-} from '../reactive';
+import { type Dispose, effect } from '../reactive';
 import type { ClientSession } from './session-model';
-
-export const createPlanningRevisionSignal = (): Signal<number> => signal(0);
 
 /**
  * Subscribes the HUD to the session's reactive state plus planning updates:
- * a single reactive pipeline from `gameState` / `state` / `planningRevision`
+ * a single reactive pipeline from `gameState` / `state` / planning revision
  * to `updateHUD`.
  */
 export const attachSessionHudEffect = (
-  session: Pick<ClientSession, 'gameStateSignal' | 'stateSignal'>,
-  planningRevision: ReadonlySignal<number>,
+  session: Pick<
+    ClientSession,
+    'gameStateSignal' | 'stateSignal' | 'planningState'
+  >,
   hud: { updateHUD: () => void },
 ): Dispose =>
   effect(() => {
     session.gameStateSignal.value;
     session.stateSignal.value;
-    planningRevision.value;
+    session.planningState.revisionSignal?.value;
     hud.updateHUD();
   });
 

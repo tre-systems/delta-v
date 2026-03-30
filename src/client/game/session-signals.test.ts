@@ -6,11 +6,11 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
+import { setSelectedShipId } from './planning-store';
 import { createInitialClientSession } from './session-model';
 import {
   attachRendererGameStateEffect,
   attachSessionHudEffect,
-  createPlanningRevisionSignal,
 } from './session-signals';
 
 describe('session-signals', () => {
@@ -37,9 +37,8 @@ describe('session-signals', () => {
 
   it('notifies HUD effect when session game or client state changes', () => {
     const session = createInitialClientSession();
-    const planningRevision = createPlanningRevisionSignal();
     const updateHUD = vi.fn();
-    const dispose = attachSessionHudEffect(session, planningRevision, {
+    const dispose = attachSessionHudEffect(session, {
       updateHUD,
     });
 
@@ -61,16 +60,15 @@ describe('session-signals', () => {
     dispose();
   });
 
-  it('notifies HUD when planning revision bumps', () => {
+  it('notifies HUD when planning changes', () => {
     const session = createInitialClientSession();
-    const planningRevision = createPlanningRevisionSignal();
     const updateHUD = vi.fn();
-    const dispose = attachSessionHudEffect(session, planningRevision, {
+    const dispose = attachSessionHudEffect(session, {
       updateHUD,
     });
     updateHUD.mockClear();
 
-    planningRevision.update((n) => n + 1);
+    setSelectedShipId(session.planningState, 'ship-1');
     expect(updateHUD).toHaveBeenCalled();
 
     dispose();

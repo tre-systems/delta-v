@@ -57,7 +57,6 @@ import {
 import type { MessageHandlerDeps } from './message-handler';
 import type { ClientState } from './phase';
 import { transitionClientPhase } from './phase-controller';
-import { setPlanningHudBump } from './planning-hud-sync';
 import {
   createReplayController,
   type ReplayController,
@@ -70,7 +69,6 @@ import {
 import {
   attachRendererGameStateEffect,
   attachSessionHudEffect,
-  createPlanningRevisionSignal,
 } from './session-signals';
 import { applyClientStateTransition } from './state-transition';
 import { createTurnTimerManager } from './timer';
@@ -91,7 +89,7 @@ export type { ClientSession, MainNetworkDeps };
  *   `gameStateSignal` then drives renderer/HUD effects.
  * - `exitToMenuSession` — clears game state via `clearClientGameState`.
  * - `hud.updateHUD` — invoked from `attachSessionHudEffect` when `gameState`,
- *   `clientState`, or `planningRevision` change; also from `hud-controller` internals
+ *   `clientState`, or planning revision change; also from `hud-controller` internals
  *   (e.g. syncing selection from the derived view model).
  * - `renderer.setGameState` — session effect (above); `clearTrails` and other renderer
  *   APIs — presentation, replay, session lifecycle.
@@ -101,10 +99,6 @@ export const createGameClient = () => {
 
   const canvas = byId<HTMLCanvasElement>('gameCanvas');
   const renderer = createRenderer(canvas, ctx.planningState);
-  const planningRevision = createPlanningRevisionSignal();
-  setPlanningHudBump(() => {
-    planningRevision.update((n) => n + 1);
-  });
   const ui = createUIManager();
   const tutorial = createTutorial();
   tutorial.onTelemetry = (evt) => track(evt);
@@ -215,11 +209,7 @@ export const createGameClient = () => {
     tooltipEl,
   });
 
-  const disposeHudSessionEffect = attachSessionHudEffect(
-    ctx,
-    planningRevision,
-    hud,
-  );
+  const disposeHudSessionEffect = attachSessionHudEffect(ctx, hud);
   const disposeRendererSessionEffect = attachRendererGameStateEffect(
     ctx,
     renderer,
@@ -536,7 +526,6 @@ export const createGameClient = () => {
     showToast,
     dispose() {
       stopCombatWatch?.();
-      setPlanningHudBump(undefined);
       disposeSessionSubscriptions?.();
       connection.close();
       turnTimer.stop();

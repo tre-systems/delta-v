@@ -1,7 +1,10 @@
 import type { HexCoord } from '../../shared/hex';
 import type { CombatAttack } from '../../shared/types/domain';
+import type { Signal } from '../reactive';
+import { signal } from '../reactive';
 
 export interface PlanningState {
+  readonly revisionSignal?: Signal<number>;
   selectedShipId: string | null;
 
   // shipId -> burn direction (or null for no burn)
@@ -33,18 +36,35 @@ export interface PlanningState {
   lastSelectedHex: string | null;
 }
 
-export const createInitialPlanningState = (): PlanningState => ({
-  selectedShipId: null,
-  burns: new Map(),
-  overloads: new Map(),
-  weakGravityChoices: new Map(),
-  torpedoAccel: null,
-  torpedoAccelSteps: null,
-  combatTargetId: null,
-  combatTargetType: null,
-  combatAttackerIds: [],
-  combatAttackStrength: null,
-  queuedAttacks: [],
-  hoverHex: null,
-  lastSelectedHex: null,
-});
+export const bumpPlanningRevision = (planningState: {
+  revisionSignal?: Signal<number>;
+}): void => {
+  planningState.revisionSignal?.update((n) => n + 1);
+};
+
+export const createInitialPlanningState = (): PlanningState => {
+  const planningState: PlanningState = {
+    selectedShipId: null,
+    burns: new Map(),
+    overloads: new Map(),
+    weakGravityChoices: new Map(),
+    torpedoAccel: null,
+    torpedoAccelSteps: null,
+    combatTargetId: null,
+    combatTargetType: null,
+    combatAttackerIds: [],
+    combatAttackStrength: null,
+    queuedAttacks: [],
+    hoverHex: null,
+    lastSelectedHex: null,
+  };
+
+  Object.defineProperty(planningState, 'revisionSignal', {
+    enumerable: false,
+    configurable: false,
+    writable: false,
+    value: signal(0),
+  });
+
+  return planningState;
+};
