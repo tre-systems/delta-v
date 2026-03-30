@@ -13,8 +13,7 @@ export interface ClientStateEntryPlan {
   clearAstrogationPlanning: boolean;
   selectedShipId: string | null | undefined;
   resetCombatState: boolean;
-  clearAttackButton: boolean;
-  startCombatTargetWatch: boolean;
+  autoSkipCombatIfNoTargets: boolean;
   tutorialPhase: 'astrogation' | 'ordnance' | 'combat' | null;
 }
 
@@ -51,8 +50,7 @@ export const deriveClientStateEntryPlan = (
         clearAstrogationPlanning: false,
         selectedShipId: undefined,
         resetCombatState: false,
-        clearAttackButton: false,
-        startCombatTargetWatch: false,
+        autoSkipCombatIfNoTargets: false,
         tutorialPhase: null,
       };
     case 'playing_astrogation':
@@ -67,8 +65,7 @@ export const deriveClientStateEntryPlan = (
         clearAstrogationPlanning: true,
         selectedShipId: getFirstActionableShipId(gameState, playerId),
         resetCombatState: false,
-        clearAttackButton: false,
-        startCombatTargetWatch: false,
+        autoSkipCombatIfNoTargets: false,
         tutorialPhase: gameState ? 'astrogation' : null,
       };
     case 'playing_ordnance':
@@ -90,8 +87,7 @@ export const deriveClientStateEntryPlan = (
           playerId,
         ),
         resetCombatState: false,
-        clearAttackButton: false,
-        startCombatTargetWatch: false,
+        autoSkipCombatIfNoTargets: false,
         tutorialPhase: gameState ? 'ordnance' : null,
       };
     case 'playing_logistics':
@@ -106,8 +102,7 @@ export const deriveClientStateEntryPlan = (
         clearAstrogationPlanning: false,
         selectedShipId: undefined,
         resetCombatState: false,
-        clearAttackButton: false,
-        startCombatTargetWatch: false,
+        autoSkipCombatIfNoTargets: false,
         tutorialPhase: null,
       };
     case 'playing_combat':
@@ -122,8 +117,7 @@ export const deriveClientStateEntryPlan = (
         clearAstrogationPlanning: false,
         selectedShipId: getFirstActionableShipId(gameState, playerId),
         resetCombatState: true,
-        clearAttackButton: true,
-        startCombatTargetWatch: true,
+        autoSkipCombatIfNoTargets: true,
         tutorialPhase: gameState ? 'combat' : null,
       };
     case 'playing_movementAnim':
@@ -138,8 +132,7 @@ export const deriveClientStateEntryPlan = (
         clearAstrogationPlanning: false,
         selectedShipId: undefined,
         resetCombatState: false,
-        clearAttackButton: false,
-        startCombatTargetWatch: false,
+        autoSkipCombatIfNoTargets: false,
         tutorialPhase: null,
       };
     case 'playing_opponentTurn':
@@ -154,8 +147,7 @@ export const deriveClientStateEntryPlan = (
         clearAstrogationPlanning: false,
         selectedShipId: undefined,
         resetCombatState: false,
-        clearAttackButton: false,
-        startCombatTargetWatch: false,
+        autoSkipCombatIfNoTargets: false,
         tutorialPhase: null,
       };
     case 'gameOver':
@@ -170,8 +162,7 @@ export const deriveClientStateEntryPlan = (
         clearAstrogationPlanning: false,
         selectedShipId: undefined,
         resetCombatState: false,
-        clearAttackButton: false,
-        startCombatTargetWatch: false,
+        autoSkipCombatIfNoTargets: false,
         tutorialPhase: null,
       };
     default:
@@ -186,8 +177,7 @@ export const deriveClientStateEntryPlan = (
         clearAstrogationPlanning: false,
         selectedShipId: undefined,
         resetCombatState: false,
-        clearAttackButton: false,
-        startCombatTargetWatch: false,
+        autoSkipCombatIfNoTargets: false,
         tutorialPhase: null,
       };
   }

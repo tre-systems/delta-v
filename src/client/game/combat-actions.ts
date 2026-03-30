@@ -26,7 +26,6 @@ export interface CombatActionDeps {
   getMap: () => SolarSystemMap;
   planningState: PlanningStore;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
-  showAttackButton: (visible: boolean) => void;
   showFireButton: (visible: boolean, count: number) => void;
 }
 
@@ -111,7 +110,6 @@ export const queueAttack = (deps: CombatActionDeps) => {
 
   const count = deps.planningState.queueCombatAttack(attack);
   clearCombatSelection(deps);
-  deps.showAttackButton(false);
 
   const remainingAttackers = countRemainingCombatAttackers(
     gameState,
@@ -166,9 +164,7 @@ export const beginCombatPhase = (deps: CombatActionDeps) => {
   transport.beginCombat();
 };
 
-export const startCombatTargetWatch = (
-  deps: CombatActionDeps,
-): (() => void) => {
+export const autoSkipCombatIfNoTargets = (deps: CombatActionDeps): void => {
   const gameState = deps.getGameState();
   const transport = deps.getTransport();
   if (
@@ -179,27 +175,7 @@ export const startCombatTargetWatch = (
     // Skip directly — sendSkipCombat checks getClientState() which
     // may not reflect 'playing_combat' yet during state transition
     transport.skipCombat();
-    return () => {};
   }
-
-  let combatWatchInterval: number | null = null;
-
-  if (combatWatchInterval) clearInterval(combatWatchInterval);
-  combatWatchInterval = window.setInterval(() => {
-    if (deps.getClientState() !== 'playing_combat') {
-      if (combatWatchInterval) clearInterval(combatWatchInterval);
-      combatWatchInterval = null;
-      return;
-    }
-    const hasTarget = deps.planningState.combatTargetId !== null;
-    deps.showAttackButton(hasTarget);
-  }, 100);
-  return () => {
-    if (combatWatchInterval) {
-      clearInterval(combatWatchInterval);
-      combatWatchInterval = null;
-    }
-  };
 };
 
 export const adjustCombatStrength = (deps: CombatActionDeps, delta: number) => {

@@ -7,9 +7,9 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import {
+  autoSkipCombatIfNoTargets,
   type CombatActionDeps,
   queueAttack,
-  startCombatTargetWatch,
 } from './combat-actions';
 import { createPlanningStore } from './planning';
 import type { GameTransport } from './transport';
@@ -104,7 +104,6 @@ const createDeps = (overrides: Partial<CombatActionDeps> = {}) => {
   const planningState = createPlanningStore();
   const state = createState();
   const showToast = vi.fn<CombatActionDeps['showToast']>();
-  const showAttackButton = vi.fn<CombatActionDeps['showAttackButton']>();
   const showFireButton = vi.fn<CombatActionDeps['showFireButton']>();
   const transport: GameTransport = {
     submitAstrogation: vi.fn(),
@@ -129,7 +128,6 @@ const createDeps = (overrides: Partial<CombatActionDeps> = {}) => {
     getMap: () => map,
     planningState,
     showToast,
-    showAttackButton,
     showFireButton,
   } satisfies CombatActionDeps;
 
@@ -143,47 +141,43 @@ const createDeps = (overrides: Partial<CombatActionDeps> = {}) => {
 describe('combat action helpers', () => {
   afterEach(() => {
     vi.useRealTimers();
-    Reflect.deleteProperty(globalThis, 'window');
   });
 
-  it('shows and hides the attack button as combat selection changes', () => {
-    vi.useFakeTimers();
-    Object.assign(globalThis, { window: globalThis });
-    const deps = createDeps();
-
-    const stopWatching = startCombatTargetWatch(deps);
-
-    vi.advanceTimersByTime(100);
-    expect(deps.showAttackButton).toHaveBeenLastCalledWith(false);
-
-    deps.planningState.combatTargetId = 'enemy-1';
-    vi.advanceTimersByTime(100);
-    expect(deps.showAttackButton).toHaveBeenLastCalledWith(true);
-
-    deps.planningState.combatTargetId = null;
-    vi.advanceTimersByTime(100);
-    expect(deps.showAttackButton).toHaveBeenLastCalledWith(false);
-
-    stopWatching();
-  });
-
-  it('stops the combat target watch after leaving the combat client state', () => {
-    vi.useFakeTimers();
-    Object.assign(globalThis, { window: globalThis });
-    let clientState = 'playing_combat';
+  it('auto-skips combat when no visible targets exist', () => {
+    const noTargetsState = createState({
+      ships: [
+        createShip({ id: 'ship-0', owner: 0, type: 'corvette' }),
+        createShip({
+          id: 'ship-1',
+          owner: 0,
+          type: 'corvette',
+          position: { q: 0, r: 1 },
+        }),
+        createShip({
+          id: 'enemy-1',
+          owner: 1,
+          originalOwner: 1,
+          type: 'transport',
+          position: { q: 4, r: 4 },
+          detected: false,
+        }),
+      ],
+    });
     const deps = createDeps({
-      getClientState: () => clientState,
+      getGameState: () => noTargetsState,
     });
 
-    startCombatTargetWatch(deps);
-    vi.advanceTimersByTime(100);
-    expect(deps.showAttackButton).toHaveBeenCalledTimes(1);
+    autoSkipCombatIfNoTargets(deps);
 
-    clientState = 'playing_opponentTurn';
-    deps.planningState.combatTargetId = 'enemy-1';
-    vi.advanceTimersByTime(300);
+    expect(deps.transport.skipCombat).toHaveBeenCalledTimes(1);
+  });
 
-    expect(deps.showAttackButton).toHaveBeenCalledTimes(1);
+  it('does not auto-skip combat when a visible target exists', () => {
+    const deps = createDeps();
+
+    autoSkipCombatIfNoTargets(deps);
+
+    expect(deps.transport.skipCombat).not.toHaveBeenCalled();
   });
 
   it('queues a selected attack and promotes fire-all once a target exists', () => {
@@ -195,7 +189,6 @@ describe('combat action helpers', () => {
 
     queueAttack(deps);
 
-    expect(deps.showAttackButton).toHaveBeenLastCalledWith(false);
     expect(deps.showFireButton).toHaveBeenLastCalledWith(true, 1);
     expect(deps.showToast).toHaveBeenLastCalledWith(
       'Attack queued (1). Click next target or press Enter to fire.',

@@ -94,7 +94,6 @@ export const createActionDeps = (args: ActionDepsArgs) => {
         getMap: args.getMap,
         planningState: args.planningState,
         showToast: (msg, type) => args.ui.overlay.showToast(msg, type),
-        showAttackButton: (v) => args.ui.showAttackButton(v),
         showFireButton: (v, c) => args.ui.showFireButton(v, c),
       };
     }
