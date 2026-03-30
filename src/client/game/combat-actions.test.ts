@@ -104,7 +104,6 @@ const createDeps = (overrides: Partial<CombatActionDeps> = {}) => {
   const planningState = createPlanningStore();
   const state = createState();
   const showToast = vi.fn<CombatActionDeps['showToast']>();
-  const showFireButton = vi.fn<CombatActionDeps['showFireButton']>();
   const transport: GameTransport = {
     submitAstrogation: vi.fn(),
     submitCombat: vi.fn(),
@@ -128,7 +127,6 @@ const createDeps = (overrides: Partial<CombatActionDeps> = {}) => {
     getMap: () => map,
     planningState,
     showToast,
-    showFireButton,
   } satisfies CombatActionDeps;
 
   return {
@@ -189,7 +187,6 @@ describe('combat action helpers', () => {
 
     queueAttack(deps);
 
-    expect(deps.showFireButton).toHaveBeenLastCalledWith(true, 1);
     expect(deps.showToast).toHaveBeenLastCalledWith(
       'Attack queued (1). Click next target or press Enter to fire.',
       'info',

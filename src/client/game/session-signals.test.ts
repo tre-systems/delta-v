@@ -9,7 +9,7 @@ import {
 import { createInitialClientSession } from './session-model';
 import {
   attachRendererGameStateEffect,
-  attachSessionCombatAttackButtonEffect,
+  attachSessionCombatButtonsEffect,
   attachSessionHudEffect,
   attachSessionPlanningSelectionEffect,
 } from './session-signals';
@@ -106,17 +106,21 @@ describe('session-signals', () => {
     dispose();
   });
 
-  it('syncs combat attack button visibility from session state and planning', () => {
+  it('syncs combat action buttons from session state and planning', () => {
     const session = createInitialClientSession();
     const showAttackButton = vi.fn();
-    const dispose = attachSessionCombatAttackButtonEffect(session, {
+    const showFireButton = vi.fn();
+    const dispose = attachSessionCombatButtonsEffect(session, {
       showAttackButton,
+      showFireButton,
     });
 
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
+    expect(showFireButton).toHaveBeenLastCalledWith(false, 0);
 
     session.state = 'playing_combat';
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
+    expect(showFireButton).toHaveBeenLastCalledWith(false, 0);
 
     session.planningState.applyCombatPlanUpdate({
       combatTargetId: 'enemy',
@@ -125,9 +129,19 @@ describe('session-signals', () => {
       combatAttackStrength: 2,
     });
     expect(showAttackButton).toHaveBeenLastCalledWith(true);
+    expect(showFireButton).toHaveBeenLastCalledWith(false, 0);
+
+    session.planningState.queueCombatAttack({
+      attackerIds: ['ship-0'],
+      targetId: 'enemy',
+      targetType: 'ship',
+      attackStrength: 2,
+    });
+    expect(showFireButton).toHaveBeenLastCalledWith(true, 1);
 
     session.planningState.clearCombatSelectionState();
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
+    expect(showFireButton).toHaveBeenLastCalledWith(true, 1);
 
     session.planningState.applyCombatPlanUpdate({
       combatTargetId: 'enemy',
@@ -137,6 +151,7 @@ describe('session-signals', () => {
     });
     session.state = 'playing_opponentTurn';
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
+    expect(showFireButton).toHaveBeenLastCalledWith(false, 1);
 
     dispose();
   });

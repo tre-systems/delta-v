@@ -68,7 +68,7 @@ import {
 } from './session-model';
 import {
   attachRendererGameStateEffect,
-  attachSessionCombatAttackButtonEffect,
+  attachSessionCombatButtonsEffect,
   attachSessionHudEffect,
   attachSessionPlanningSelectionEffect,
 } from './session-signals';
@@ -92,8 +92,8 @@ export type { ClientSession, MainNetworkDeps };
  * - `exitToMenuSession` — clears game state via `clearClientGameState`.
  * - `attachSessionPlanningSelectionEffect` — keeps `planningState.selectedShipId`
  *   aligned with the derived active ship choice.
- * - `attachSessionCombatAttackButtonEffect` — keeps the combat attack button
- *   aligned with reactive client/combat-planning state.
+ * - `attachSessionCombatButtonsEffect` — keeps combat action buttons aligned
+ *   with reactive client/combat-planning state.
  * - `hud.updateHUD` — invoked from `attachSessionHudEffect` when `gameState`,
  *   `clientState`, or planning revision change.
  * - `renderer.setGameState` — session effect (above); `clearTrails` and other renderer
@@ -214,10 +214,7 @@ export const createGameClient = () => {
 
   const disposePlanningSelectionEffect =
     attachSessionPlanningSelectionEffect(ctx);
-  const disposeCombatAttackButtonEffect = attachSessionCombatAttackButtonEffect(
-    ctx,
-    ui,
-  );
+  const disposeCombatButtonsEffect = attachSessionCombatButtonsEffect(ctx, ui);
   const disposeHudSessionEffect = attachSessionHudEffect(ctx, hud);
   const disposeRendererSessionEffect = attachRendererGameStateEffect(
     ctx,
@@ -225,7 +222,7 @@ export const createGameClient = () => {
   );
   disposeSessionSubscriptions = () => {
     disposePlanningSelectionEffect();
-    disposeCombatAttackButtonEffect();
+    disposeCombatButtonsEffect();
     disposeHudSessionEffect();
     disposeRendererSessionEffect();
   };

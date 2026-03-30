@@ -94,7 +94,6 @@ export const createActionDeps = (args: ActionDepsArgs) => {
         getMap: args.getMap,
         planningState: args.planningState,
         showToast: (msg, type) => args.ui.overlay.showToast(msg, type),
-        showFireButton: (v, c) => args.ui.showFireButton(v, c),
       };
     }
     return cachedCombat;
