@@ -43,6 +43,7 @@ export interface CommandRouterSessionRead {
   getPlayerId: () => PlayerId;
   getGameState: () => GameState | null;
   getTransport: () => GameTransport | null;
+  getLogisticsState: () => LogisticsUIState | null;
   planningState: PlanningStore;
 }
 
@@ -66,7 +67,6 @@ export interface CommandRouterDeps {
   astrogationDeps: AstrogationActionDeps;
   combatDeps: CombatActionDeps;
   ordnanceDeps: OrdnanceActionDeps;
-  logisticsUIState: LogisticsUIState | null;
   ui: CommandRouterUI;
   renderer: CommandRouterRenderer;
   getCanvasCenter: () => { x: number; y: number };
@@ -110,12 +110,18 @@ const confirmTransfers = (deps: CommandRouterDeps): void => {
   if (
     deps.ctx.getState() !== 'playing_logistics' ||
     !transport ||
-    !deps.logisticsUIState
+    !deps.ctx.getLogisticsState()
   ) {
     return;
   }
 
-  const orders = buildTransferOrders(deps.logisticsUIState);
+  const logisticsState = deps.ctx.getLogisticsState();
+
+  if (!logisticsState) {
+    return;
+  }
+
+  const orders = buildTransferOrders(logisticsState);
 
   if (orders.length > 0) {
     transport.submitLogistics(orders);

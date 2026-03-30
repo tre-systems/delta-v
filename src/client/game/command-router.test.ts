@@ -139,7 +139,7 @@ const createLogisticsState = (amounts: number[]): LogisticsUIState => {
 const createDeps = (overrides?: {
   clientState?: string;
   gameState?: GameState | null;
-  logisticsUIState?: LogisticsUIState | null;
+  logisticsState?: LogisticsUIState | null;
   transport?: (GameTransport & { calls: Record<string, unknown[][]> }) | null;
 }): {
   deps: CommandRouterDeps;
@@ -157,6 +157,7 @@ const createDeps = (overrides?: {
     getPlayerId: () => 0 as PlayerId,
     getGameState: () => gameState,
     getTransport: () => transport,
+    getLogisticsState: () => overrides?.logisticsState ?? null,
     planningState,
   };
   const showToast = vi.fn<CommandRouterDeps['ui']['overlay']['showToast']>();
@@ -195,7 +196,6 @@ const createDeps = (overrides?: {
       showToast,
       logText: vi.fn<(text: string) => void>(),
     },
-    logisticsUIState: overrides?.logisticsUIState ?? null,
     ui: {
       overlay: { showToast },
       log: { toggle: toggleLog },
@@ -303,7 +303,7 @@ describe('game-command-router', () => {
   it('submits logistics orders when transfers are queued', () => {
     const { deps, transport } = createDeps({
       clientState: 'playing_logistics',
-      logisticsUIState: createLogisticsState([3, 0]),
+      logisticsState: createLogisticsState([3, 0]),
     });
 
     dispatchGameCommand(deps, { type: 'confirmTransfers' });
@@ -326,7 +326,7 @@ describe('game-command-router', () => {
   it('falls back to skipLogistics when no transfers are queued', () => {
     const { deps, transport } = createDeps({
       clientState: 'playing_logistics',
-      logisticsUIState: createLogisticsState([0, 0]),
+      logisticsState: createLogisticsState([0, 0]),
     });
 
     dispatchGameCommand(deps, { type: 'confirmTransfers' });

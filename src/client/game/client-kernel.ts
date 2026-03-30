@@ -6,7 +6,7 @@ import type {
 } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playWarning } from '../audio';
-import { byId } from '../dom';
+import { byId, clearHTML } from '../dom';
 import { createInputHandler } from '../input';
 import type { Dispose } from '../reactive';
 import { createRenderer } from '../renderer/renderer';
@@ -40,7 +40,7 @@ import { createHudController } from './hud-controller';
 import { type InputEvent, interpretInput } from './input-events';
 import type { KeyboardAction } from './keyboard';
 import { runAITurn as runAI } from './local-game-flow';
-import { type LogisticsUIState, renderTransferPanel } from './logistics-ui';
+import { renderTransferPanel } from './logistics-ui';
 import {
   createMainMessageHandlerDeps,
   createMainPhaseTransitionDeps,
@@ -70,6 +70,7 @@ import {
   attachRendererGameStateEffect,
   attachSessionCombatButtonsEffect,
   attachSessionHudEffect,
+  attachSessionLogisticsPanelEffect,
   attachSessionPlanningSelectionEffect,
 } from './session-signals';
 import { applyClientStateTransition } from './state-transition';
@@ -94,6 +95,8 @@ export type { ClientSession, MainNetworkDeps };
  *   aligned with the derived active ship choice.
  * - `attachSessionCombatButtonsEffect` — keeps combat action buttons aligned
  *   with reactive client/combat-planning state.
+ * - `attachSessionLogisticsPanelEffect` — keeps the transfer panel aligned
+ *   with session-owned logistics state.
  * - `hud.updateHUD` — invoked from `attachSessionHudEffect` when `gameState`,
  *   `clientState`, or planning revision change.
  * - `renderer.setGameState` — session effect (above); `clearTrails` and other renderer
@@ -108,10 +111,9 @@ export const createGameClient = () => {
   const tutorial = createTutorial();
   tutorial.onTelemetry = (evt) => track(evt);
   const tooltipEl = byId('shipTooltip');
+  const transferPanelEl = byId('transferPanel');
   const map = buildSolarSystemMap();
   const turnTelemetry = createTurnTelemetryTracker();
-
-  let logisticsUIState: LogisticsUIState | null = null;
 
   const sessionHolder: { api: SessionApi | null } = { api: null };
   const networkHolder: { deps: MainNetworkDeps | null } = { deps: null };
@@ -136,12 +138,6 @@ export const createGameClient = () => {
 
   const autoSkipCombatIfNoTargets = () => {
     autoSkipCombat(actionDeps.combatDeps);
-  };
-
-  const renderLogisticsPanel = () => {
-    const panel = byId('transferPanel');
-    if (!logisticsUIState) return;
-    renderTransferPanel(panel, logisticsUIState);
   };
 
   const runAITurn = async () => {
@@ -216,6 +212,16 @@ export const createGameClient = () => {
     attachSessionPlanningSelectionEffect(ctx);
   const disposeCombatButtonsEffect = attachSessionCombatButtonsEffect(ctx, ui);
   const disposeHudSessionEffect = attachSessionHudEffect(ctx, hud);
+  const disposeLogisticsPanelEffect = attachSessionLogisticsPanelEffect(ctx, {
+    renderLogisticsPanel: (state) => {
+      if (!state) {
+        clearHTML(transferPanelEl);
+        return;
+      }
+
+      renderTransferPanel(transferPanelEl, state);
+    },
+  });
   const disposeRendererSessionEffect = attachRendererGameStateEffect(
     ctx,
     renderer,
@@ -224,6 +230,7 @@ export const createGameClient = () => {
     disposePlanningSelectionEffect();
     disposeCombatButtonsEffect();
     disposeHudSessionEffect();
+    disposeLogisticsPanelEffect();
     disposeRendererSessionEffect();
   };
 
@@ -292,10 +299,6 @@ export const createGameClient = () => {
     tooltipEl,
     resetCombatState,
     autoSkipCombatIfNoTargets,
-    setLogisticsUIState: (state) => {
-      logisticsUIState = state;
-    },
-    renderLogisticsPanel,
   });
 
   setState = (newState: ClientState) => {
@@ -428,6 +431,7 @@ export const createGameClient = () => {
       getPlayerId: () => ctx.playerId as PlayerId,
       getGameState: () => ctx.gameStateSignal.peek(),
       getTransport: () => ctx.transport,
+      getLogisticsState: () => ctx.logisticsStateSignal.peek(),
       planningState: ctx.planningState,
     };
     dispatchGameCommand(
@@ -436,7 +440,6 @@ export const createGameClient = () => {
         astrogationDeps: actionDeps.astrogationDeps,
         combatDeps: actionDeps.combatDeps,
         ordnanceDeps: actionDeps.ordnanceDeps,
-        logisticsUIState,
         ui,
         renderer,
         getCanvasCenter: () => ({

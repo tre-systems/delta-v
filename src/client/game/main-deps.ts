@@ -5,7 +5,6 @@ import type { Tutorial } from '../tutorial';
 import type { UIManager } from '../ui/ui';
 import type { ActionDeps } from './action-deps';
 import type { HudController } from './hud-controller';
-import type { LogisticsUIState } from './logistics-ui';
 import type { MessageHandlerDeps } from './message-handler';
 import type { ClientState } from './phase';
 import type { PhaseControllerDeps } from './phase-controller';
@@ -35,8 +34,6 @@ export interface MainStateTransitionDepsArgs {
   tooltipEl: HTMLElement;
   resetCombatState: () => void;
   autoSkipCombatIfNoTargets: () => void;
-  setLogisticsUIState: (state: LogisticsUIState | null) => void;
-  renderLogisticsPanel: () => void;
 }
 
 /** Built once per client; `ctx` is read via getter so transitions always see current session. */
@@ -55,8 +52,6 @@ export const createMainStateTransitionDeps = (
   hideTooltip: () => hide(args.tooltipEl),
   resetCombatState: () => args.resetCombatState(),
   autoSkipCombatIfNoTargets: () => args.autoSkipCombatIfNoTargets(),
-  setLogisticsUIState: (state) => args.setLogisticsUIState(state),
-  renderLogisticsPanel: () => args.renderLogisticsPanel(),
 });
 
 export interface MainMessageHandlerDepsArgs extends SharedMainDepsArgs {

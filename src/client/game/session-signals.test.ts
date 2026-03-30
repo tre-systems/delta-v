@@ -6,11 +6,13 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
+import { createLogisticsUIState } from './logistics-ui';
 import { createInitialClientSession } from './session-model';
 import {
   attachRendererGameStateEffect,
   attachSessionCombatButtonsEffect,
   attachSessionHudEffect,
+  attachSessionLogisticsPanelEffect,
   attachSessionPlanningSelectionEffect,
 } from './session-signals';
 
@@ -152,6 +154,29 @@ describe('session-signals', () => {
     session.state = 'playing_opponentTurn';
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
     expect(showFireButton).toHaveBeenLastCalledWith(false, 1);
+
+    dispose();
+  });
+
+  it('syncs the logistics panel from session logistics state', () => {
+    const session = createInitialClientSession();
+    const renderLogisticsPanel = vi.fn();
+    const dispose = attachSessionLogisticsPanelEffect(session, {
+      renderLogisticsPanel,
+    });
+
+    expect(renderLogisticsPanel).toHaveBeenLastCalledWith(null);
+
+    session.logisticsState = createLogisticsUIState(
+      createGame(SCENARIOS.duel, buildSolarSystemMap(), 'SIG5', findBaseHex),
+      0,
+    );
+    expect(renderLogisticsPanel).toHaveBeenLastCalledWith(
+      session.logisticsState,
+    );
+
+    session.logisticsState = null;
+    expect(renderLogisticsPanel).toHaveBeenLastCalledWith(null);
 
     dispose();
   });
