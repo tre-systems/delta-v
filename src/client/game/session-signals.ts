@@ -1,6 +1,48 @@
-import type { GameState } from '../../shared/types/domain';
+import { hexKey } from '../../shared/hex';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import { type Dispose, effect } from '../reactive';
+import { getSelectedShip } from './selection';
 import type { ClientSession } from './session-model';
+
+/**
+ * Reconciles the planning store's selected ship with the derived active
+ * selection so HUD updates can stay read-only.
+ */
+export const attachSessionPlanningSelectionEffect = (
+  session: Pick<
+    ClientSession,
+    'gameStateSignal' | 'stateSignal' | 'planningState' | 'playerId'
+  >,
+): Dispose =>
+  effect(() => {
+    session.stateSignal.value;
+    const gameState = session.gameStateSignal.value;
+    const planning = session.planningState;
+
+    planning.revisionSignal?.value;
+
+    if (!gameState) {
+      return;
+    }
+
+    const selectedShip = getSelectedShip(
+      gameState,
+      session.playerId as PlayerId,
+      planning.selectedShipId,
+    );
+    const selectedId = selectedShip?.id ?? null;
+
+    if (selectedId === planning.selectedShipId) {
+      return;
+    }
+
+    if (!selectedShip) {
+      planning.setSelectedShipId(null);
+      return;
+    }
+
+    planning.selectShip(selectedShip.id, hexKey(selectedShip.position));
+  });
 
 /**
  * Subscribes the HUD to the session's reactive state plus planning updates:

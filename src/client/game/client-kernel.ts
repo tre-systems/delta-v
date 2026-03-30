@@ -69,6 +69,7 @@ import {
 import {
   attachRendererGameStateEffect,
   attachSessionHudEffect,
+  attachSessionPlanningSelectionEffect,
 } from './session-signals';
 import { applyClientStateTransition } from './state-transition';
 import { createTurnTimerManager } from './timer';
@@ -88,9 +89,10 @@ export type { ClientSession, MainNetworkDeps };
  * - `applyGameState` — `applyClientGameState` (ctx + planning cleanup); the session's
  *   `gameStateSignal` then drives renderer/HUD effects.
  * - `exitToMenuSession` — clears game state via `clearClientGameState`.
+ * - `attachSessionPlanningSelectionEffect` — keeps `planningState.selectedShipId`
+ *   aligned with the derived active ship choice.
  * - `hud.updateHUD` — invoked from `attachSessionHudEffect` when `gameState`,
- *   `clientState`, or planning revision change; also from `hud-controller` internals
- *   (e.g. syncing selection from the derived view model).
+ *   `clientState`, or planning revision change.
  * - `renderer.setGameState` — session effect (above); `clearTrails` and other renderer
  *   APIs — presentation, replay, session lifecycle.
  */
@@ -209,12 +211,15 @@ export const createGameClient = () => {
     tooltipEl,
   });
 
+  const disposePlanningSelectionEffect =
+    attachSessionPlanningSelectionEffect(ctx);
   const disposeHudSessionEffect = attachSessionHudEffect(ctx, hud);
   const disposeRendererSessionEffect = attachRendererGameStateEffect(
     ctx,
     renderer,
   );
   disposeSessionSubscriptions = () => {
+    disposePlanningSelectionEffect();
     disposeHudSessionEffect();
     disposeRendererSessionEffect();
   };

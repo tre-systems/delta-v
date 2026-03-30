@@ -10,7 +10,7 @@ import type {
 } from '../../shared/types/domain';
 import { type CommandRouterDeps, dispatchGameCommand } from './command-router';
 import type { LogisticsUIState } from './logistics-ui';
-import { createInitialPlanningState } from './planning';
+import { createPlanningStore } from './planning';
 import type { GameTransport } from './transport';
 
 vi.mock('../audio', () => ({
@@ -147,7 +147,7 @@ const createDeps = (overrides?: {
   ui: CommandRouterDeps['ui'];
   renderer: CommandRouterDeps['renderer'];
 } => {
-  const planningState = createInitialPlanningState();
+  const planningState = createPlanningStore();
   const transport = overrides?.transport ?? mockTransport();
   const clientState = overrides?.clientState ?? 'playing_astrogation';
   const gameState = overrides?.gameState ?? createState();
