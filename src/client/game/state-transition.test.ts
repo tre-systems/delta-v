@@ -26,10 +26,8 @@ const createDeps = (
   gameState: GameState,
 ): StateTransitionDeps & {
   calls: Record<string, unknown[][]>;
-  logisticsState: unknown;
 } => {
   const calls: Record<string, unknown[][]> = {};
-  let logisticsState: unknown;
 
   const track =
     (name: string) =>
@@ -40,13 +38,13 @@ const createDeps = (
 
   const deps: StateTransitionDeps & {
     calls: Record<string, unknown[][]>;
-    logisticsState: unknown;
   } = {
     ctx: {
       state: 'menu',
       playerId: 0,
       gameCode: 'ABCDE',
       gameState,
+      logisticsState: null,
       planningState: createPlanningStore(),
       isLocalGame: false,
     },
@@ -80,14 +78,7 @@ const createDeps = (
       track('resetCombatState')();
     },
     autoSkipCombatIfNoTargets: track('autoSkipCombatIfNoTargets'),
-    setLogisticsUIState: (state) => {
-      logisticsState = state;
-      deps.logisticsState = state;
-      track('setLogisticsUIState')(state);
-    },
-    renderLogisticsPanel: track('renderLogisticsPanel'),
     calls,
-    logisticsState,
   };
 
   return deps;
@@ -123,7 +114,7 @@ describe('applyClientStateTransition', () => {
     expect(deps.ctx.planningState.burns.size).toBe(0);
     expect(deps.ctx.planningState.overloads.size).toBe(0);
     expect(deps.ctx.planningState.weakGravityChoices.size).toBe(0);
-    expect(deps.logisticsState).toBeNull();
+    expect(deps.ctx.logisticsState).toBeNull();
   });
 
   it('initializes logistics UI state when entering logistics', () => {
@@ -137,8 +128,7 @@ describe('applyClientStateTransition', () => {
     expect(deps.ctx.state).toBe('playing_logistics');
     expect(deps.calls['ui.showHUD']).toHaveLength(1);
     expect(deps.calls['turnTimer.start']).toHaveLength(1);
-    expect(deps.calls.renderLogisticsPanel).toHaveLength(1);
-    expect(deps.logisticsState).not.toBeNull();
+    expect(deps.ctx.logisticsState).not.toBeNull();
     expect(deps.calls['tutorial.onPhaseChange']).toBeUndefined();
   });
 

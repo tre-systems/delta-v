@@ -88,6 +88,17 @@ export const attachSessionHudEffect = (
     hud.updateHUD();
   });
 
+/** Keeps the logistics transfer panel aligned with the session-owned logistics state. */
+export const attachSessionLogisticsPanelEffect = (
+  session: Pick<ClientSession, 'logisticsStateSignal'>,
+  ui: {
+    renderLogisticsPanel: (state: ClientSession['logisticsState']) => void;
+  },
+): Dispose =>
+  effect(() => {
+    ui.renderLogisticsPanel(session.logisticsStateSignal.value);
+  });
+
 /** Keeps the canvas renderer aligned with `session.gameState` (including `null` on exit). */
 export const attachRendererGameStateEffect = (
   session: Pick<ClientSession, 'gameStateSignal'>,
