@@ -162,13 +162,11 @@ export const createUIManager = () => {
     screenModeSignal.value = 'scenario';
   };
 
-  const showWaiting = (code: string) => {
-    lobbyView.showWaiting(code);
+  const showWaiting = () => {
     screenModeSignal.value = 'waiting';
   };
 
   const showConnecting = () => {
-    lobbyView.showConnecting();
     screenModeSignal.value = 'waiting';
   };
 
@@ -203,6 +201,8 @@ export const createUIManager = () => {
   const sessionActions = createSessionActions({
     setPlayerId: (id) => log.setPlayerId(id),
     setMenuLoading: (loading) => lobbyView.setMenuLoading(loading),
+    setWaitingState: (code, connecting) =>
+      lobbyView.setWaitingState(code, connecting),
   });
 
   return {

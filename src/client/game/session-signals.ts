@@ -109,6 +109,23 @@ export const attachSessionPlayerIdentityEffect = (
     deps.ui.setPlayerId(playerId);
   });
 
+/** Keeps the waiting screen copy aligned with reactive session connection state. */
+export const attachSessionWaitingScreenEffect = (
+  session: Pick<ClientSession, 'stateSignal' | 'gameCodeSignal'>,
+  ui: {
+    setWaitingState: (code: string | null, connecting: boolean) => void;
+  },
+): Dispose =>
+  effect(() => {
+    const state = session.stateSignal.value;
+    const gameCode = session.gameCodeSignal.value;
+
+    ui.setWaitingState(
+      state === 'waitingForOpponent' ? gameCode : null,
+      state === 'connecting',
+    );
+  });
+
 /** Keeps latency display aligned with reactive session state instead of push-style UI calls. */
 export const attachSessionLatencyEffect = (
   session: Pick<ClientSession, 'latencyMsSignal' | 'isLocalGameSignal'>,

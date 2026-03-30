@@ -5,19 +5,19 @@ import { deriveClientScreenPlan } from './screen';
 
 describe('game-client-screen', () => {
   it('maps menu, connecting, fleet building, and game over states', () => {
-    expect(deriveClientScreenPlan('menu', null)).toEqual({
+    expect(deriveClientScreenPlan('menu')).toEqual({
       kind: 'menu',
     });
 
-    expect(deriveClientScreenPlan('connecting', null)).toEqual({
+    expect(deriveClientScreenPlan('connecting')).toEqual({
       kind: 'connecting',
     });
 
-    expect(deriveClientScreenPlan('playing_fleetBuilding', null)).toEqual({
+    expect(deriveClientScreenPlan('playing_fleetBuilding')).toEqual({
       kind: 'fleetBuilding',
     });
 
-    expect(deriveClientScreenPlan('gameOver', 'ABCDE')).toEqual({
+    expect(deriveClientScreenPlan('gameOver')).toEqual({
       kind: 'none',
     });
   });
@@ -32,21 +32,15 @@ describe('game-client-screen', () => {
     ];
 
     for (const state of states) {
-      expect(deriveClientScreenPlan(state, null)).toEqual({
+      expect(deriveClientScreenPlan(state)).toEqual({
         kind: 'hud',
       });
     }
   });
 
-  it('shows waiting screen with code', () => {
-    expect(deriveClientScreenPlan('waitingForOpponent', 'ABCDE')).toEqual({
+  it('shows waiting screen for waiting state', () => {
+    expect(deriveClientScreenPlan('waitingForOpponent')).toEqual({
       kind: 'waiting',
-      code: 'ABCDE',
-    });
-
-    expect(deriveClientScreenPlan('waitingForOpponent', null)).toEqual({
-      kind: 'waiting',
-      code: '',
     });
   });
 });

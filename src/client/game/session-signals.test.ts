@@ -17,6 +17,7 @@ import {
   attachSessionLogisticsPanelEffect,
   attachSessionPlanningSelectionEffect,
   attachSessionPlayerIdentityEffect,
+  attachSessionWaitingScreenEffect,
 } from './session-signals';
 
 describe('session-signals', () => {
@@ -25,6 +26,7 @@ describe('session-signals', () => {
 
     expect(session.stateSignal.peek()).toBe('menu');
     expect(session.playerIdSignal.peek()).toBe(-1);
+    expect(session.gameCodeSignal.peek()).toBeNull();
     expect(session.gameStateSignal.peek()).toBeNull();
     expect(session.isLocalGameSignal.peek()).toBe(false);
     expect(session.latencyMsSignal.peek()).toBe(-1);
@@ -41,9 +43,11 @@ describe('session-signals', () => {
     );
     session.gameState = gameState;
     session.playerId = 0;
+    session.gameCode = 'SIG0';
 
     expect(session.gameStateSignal.peek()).toBe(gameState);
     expect(session.playerIdSignal.peek()).toBe(0);
+    expect(session.gameCodeSignal.peek()).toBe('SIG0');
 
     session.isLocalGame = true;
     session.latencyMs = 150;
@@ -205,6 +209,25 @@ describe('session-signals', () => {
 
     session.isLocalGame = true;
     expect(updateLatency).toHaveBeenLastCalledWith(null);
+
+    dispose();
+  });
+
+  it('syncs waiting screen copy from reactive session state', () => {
+    const session = createInitialClientSession();
+    const setWaitingState = vi.fn();
+    const dispose = attachSessionWaitingScreenEffect(session, {
+      setWaitingState,
+    });
+
+    expect(setWaitingState).toHaveBeenLastCalledWith(null, false);
+
+    session.state = 'connecting';
+    expect(setWaitingState).toHaveBeenLastCalledWith(null, true);
+
+    session.gameCode = 'ROOM1';
+    session.state = 'waitingForOpponent';
+    expect(setWaitingState).toHaveBeenLastCalledWith('ROOM1', false);
 
     dispose();
   });
