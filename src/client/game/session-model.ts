@@ -2,6 +2,7 @@ import type { AIDifficulty } from '../../shared/ai';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { ReadonlySignal } from '../reactive';
 import { signal } from '../reactive';
+import type { LogisticsUIState } from './logistics-ui';
 import type { ClientState } from './phase';
 import { createPlanningStore, type PlanningStore } from './planning';
 import type { GameTransport } from './transport';
@@ -36,6 +37,8 @@ export interface ClientSession {
   scenario: string;
   gameState: GameState | null;
   readonly gameStateSignal: ReadonlySignal<GameState | null>;
+  logisticsState: LogisticsUIState | null;
+  readonly logisticsStateSignal: ReadonlySignal<LogisticsUIState | null>;
   isLocalGame: boolean;
   aiDifficulty: AIDifficulty;
   transport: GameTransport | null;
@@ -47,12 +50,19 @@ export interface ClientSession {
 export const createInitialClientSession = (): ClientSession => {
   type ClientSessionDraft = Omit<
     ClientSession,
-    'state' | 'stateSignal' | 'gameState' | 'gameStateSignal'
+    | 'state'
+    | 'stateSignal'
+    | 'gameState'
+    | 'gameStateSignal'
+    | 'logisticsState'
+    | 'logisticsStateSignal'
   > & {
     state: ClientState;
     stateSignal: ReadonlySignal<ClientState>;
     gameState: GameState | null;
     gameStateSignal: ReadonlySignal<GameState | null>;
+    logisticsState: LogisticsUIState | null;
+    logisticsStateSignal: ReadonlySignal<LogisticsUIState | null>;
   };
 
   const session = {
@@ -72,6 +82,11 @@ export const createInitialClientSession = (): ClientSession => {
   session.gameStateSignal = defineReactiveSessionProperty(
     session,
     'gameState',
+    null,
+  );
+  session.logisticsStateSignal = defineReactiveSessionProperty(
+    session,
+    'logisticsState',
     null,
   );
 
@@ -96,6 +111,7 @@ export type ClientSessionStateTransitionContext = Pick<
   | 'playerId'
   | 'gameCode'
   | 'gameState'
+  | 'logisticsState'
   | 'planningState'
   | 'isLocalGame'
 >;

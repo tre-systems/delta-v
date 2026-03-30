@@ -1,7 +1,6 @@
 import { must } from '../../shared/assert';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { batch } from '../reactive';
-import type { LogisticsUIState } from './logistics-ui';
 import { createLogisticsUIState } from './logistics-ui';
 import type { ClientState } from './phase';
 import { deriveClientStateEntryPlan } from './phase-entry';
@@ -44,8 +43,6 @@ export interface StateTransitionDeps {
   hideTooltip: () => void;
   resetCombatState: () => void;
   autoSkipCombatIfNoTargets: () => void;
-  setLogisticsUIState: (state: LogisticsUIState | null) => void;
-  renderLogisticsPanel: () => void;
 }
 
 export const applyClientStateTransition = (
@@ -133,15 +130,12 @@ export const applyClientStateTransition = (
     }
 
     if (newState === 'playing_logistics' && deps.ctx.gameState) {
-      deps.setLogisticsUIState(
-        createLogisticsUIState(
-          deps.ctx.gameState,
-          deps.ctx.playerId as PlayerId,
-        ),
+      deps.ctx.logisticsState = createLogisticsUIState(
+        deps.ctx.gameState,
+        deps.ctx.playerId as PlayerId,
       );
-      deps.renderLogisticsPanel();
     } else {
-      deps.setLogisticsUIState(null);
+      deps.ctx.logisticsState = null;
     }
   });
 };
