@@ -29,9 +29,7 @@ export interface GameLogView {
     hudVisible: boolean,
     viewportWidth?: number,
   ) => void;
-  applyScreenVisibility: (mode: UIScreenMode) => void;
-  resetVisibilityState: () => void;
-  showHUD: () => void;
+  setScreenMode: (mode: UIScreenMode) => void;
   toggle: () => void;
   clear: () => void;
   setChatEnabled: (enabled: boolean) => void;
@@ -110,17 +108,19 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
     }
   };
 
-  const applyScreenVisibility = (mode: UIScreenMode): void => {
+  const setScreenMode = (mode: UIScreenMode): void => {
+    const previousMode = screenModeSignal.peek();
+
     screenModeSignal.value = mode;
-  };
 
-  const resetVisibilityState = (): void => {
-    expandedSignal.value = false;
-  };
+    if (mode !== 'hud') {
+      expandedSignal.value = false;
+      return;
+    }
 
-  const showHUD = (): void => {
-    screenModeSignal.value = 'hud';
-    expandedSignal.value = window.innerWidth >= 640;
+    if (previousMode !== 'hud') {
+      expandedSignal.value = window.innerWidth >= 640;
+    }
   };
 
   const toggle = (): void => {
@@ -290,9 +290,7 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   return {
     setPlayerId,
     setMobile,
-    applyScreenVisibility,
-    resetVisibilityState,
-    showHUD,
+    setScreenMode,
     toggle,
     clear,
     setChatEnabled,
