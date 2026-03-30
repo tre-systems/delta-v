@@ -120,6 +120,7 @@ const createDeps = (
       },
       overlay: {
         showToast: track('ui.overlay.showToast'),
+        hideGameOver: track('ui.overlay.hideGameOver'),
         showRematchPending: track('ui.overlay.showRematchPending'),
       },
     },

@@ -57,6 +57,7 @@ export interface OverlayStateStore {
     reason: string,
     stats?: GameOverStatsLike,
   ) => void;
+  hideGameOver: () => void;
   showRematchPending: () => void;
   bindReplayControlsSignal: (next: ReadonlySignal<ReplayControlsView>) => void;
   bindReconnectStateSignal: (
@@ -183,6 +184,9 @@ export const createOverlayStateStore = (): OverlayStateStore => {
         stats,
         rematchPending: false,
       };
+    },
+    hideGameOver: () => {
+      gameOverStateSignal.value = null;
     },
     showRematchPending: () => {
       gameOverStateSignal.update((current) =>

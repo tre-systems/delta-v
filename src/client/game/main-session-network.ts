@@ -48,6 +48,7 @@ export const startLocalGameFromMain = (
   deps: MainNetworkDeps,
   scenario: string,
 ): void => {
+  deps.ui.overlay.hideGameOver();
   startLocalGameSession(
     {
       ctx: deps.ctx,

@@ -196,6 +196,7 @@ const createMessageHandlerDeps = (
       },
       overlay: {
         showToast() {},
+        hideGameOver() {},
         showRematchPending() {},
       },
     },
