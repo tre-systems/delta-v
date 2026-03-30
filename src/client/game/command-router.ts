@@ -47,7 +47,6 @@ export interface CommandRouterSessionRead {
 }
 
 interface CommandRouterUI {
-  showFireButton: (visible: boolean, count: number) => void;
   overlay: {
     showToast: (message: string, type: 'error' | 'info' | 'success') => void;
   };
@@ -91,7 +90,6 @@ const setCombatPlan = (
 const undoQueuedAttack = (deps: CommandRouterDeps): void => {
   const count = deps.ctx.planningState.popQueuedAttack();
 
-  deps.ui.showFireButton(count > 0, count);
   deps.ui.overlay.showToast(
     count > 0 ? `Undid last attack (${count} queued)` : 'Attack queue cleared',
     'info',

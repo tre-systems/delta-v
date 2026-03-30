@@ -9,6 +9,7 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { clamp } from '../../shared/util';
+import { batch } from '../reactive';
 import {
   buildCurrentAttack,
   countRemainingCombatAttackers,
@@ -26,7 +27,6 @@ export interface CombatActionDeps {
   getMap: () => SolarSystemMap;
   planningState: PlanningStore;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
-  showFireButton: (visible: boolean, count: number) => void;
 }
 
 const hasVisibleCombatTargets = (
@@ -63,7 +63,6 @@ export const clearCombatSelection = (deps: CombatActionDeps) => {
 
 export const resetCombatState = (deps: CombatActionDeps) => {
   deps.planningState.resetCombatPlanning();
-  deps.showFireButton(false, 0);
 };
 
 export const fireAllAttacks = (deps: CombatActionDeps) => {
@@ -76,7 +75,6 @@ export const fireAllAttacks = (deps: CombatActionDeps) => {
     sendSkipCombat(deps);
     return;
   }
-  deps.showFireButton(false, 0);
   transport.submitCombat(attacks);
 };
 
@@ -108,26 +106,29 @@ export const queueAttack = (deps: CombatActionDeps) => {
     return;
   }
 
-  const count = deps.planningState.queueCombatAttack(attack);
-  clearCombatSelection(deps);
+  batch(() => {
+    const count = deps.planningState.queueCombatAttack(attack);
+    clearCombatSelection(deps);
 
-  const remainingAttackers = countRemainingCombatAttackers(
-    gameState,
-    deps.getPlayerId(),
-    deps.planningState.queuedAttacks,
-  );
-
-  if (
-    remainingAttackers === 0 &&
-    !hasSplitFireOptions(
+    const remainingAttackers = countRemainingCombatAttackers(
       gameState,
       deps.getPlayerId(),
       deps.planningState.queuedAttacks,
-    )
-  ) {
-    // No more attackers available — auto-fire
-    fireAllAttacks(deps);
-  } else {
+    );
+
+    if (
+      remainingAttackers === 0 &&
+      !hasSplitFireOptions(
+        gameState,
+        deps.getPlayerId(),
+        deps.planningState.queuedAttacks,
+      )
+    ) {
+      // No more attackers available — auto-fire
+      fireAllAttacks(deps);
+      return;
+    }
+
     // Auto-advance to the next attackable ship in rotation
     const committedIds = new Set(
       deps.planningState.queuedAttacks.flatMap((a) => a.attackerIds),
@@ -152,8 +153,7 @@ export const queueAttack = (deps: CombatActionDeps) => {
       `Attack queued (${count}). Click next target or press Enter to fire.`,
       'info',
     );
-    deps.showFireButton(true, count);
-  }
+  });
 };
 
 export const beginCombatPhase = (deps: CombatActionDeps) => {

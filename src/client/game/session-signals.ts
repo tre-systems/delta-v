@@ -45,18 +45,27 @@ export const attachSessionPlanningSelectionEffect = (
   });
 
 /**
- * Keeps the combat attack button aligned with the reactive session state instead
- * of polling from combat action code.
+ * Keeps combat action buttons aligned with reactive session/planning state
+ * instead of imperative updates from combat action code.
  */
-export const attachSessionCombatAttackButtonEffect = (
+export const attachSessionCombatButtonsEffect = (
   session: Pick<ClientSession, 'stateSignal' | 'planningState'>,
-  ui: { showAttackButton: (visible: boolean) => void },
+  ui: {
+    showAttackButton: (visible: boolean) => void;
+    showFireButton: (visible: boolean, count: number) => void;
+  },
 ): Dispose =>
   effect(() => {
     const isPlayingCombat = session.stateSignal.value === 'playing_combat';
     session.planningState.revisionSignal?.value;
+    const queuedAttackCount = session.planningState.queuedAttacks.length;
+
     ui.showAttackButton(
       isPlayingCombat && session.planningState.combatTargetId !== null,
+    );
+    ui.showFireButton(
+      isPlayingCombat && queuedAttackCount > 0,
+      queuedAttackCount,
     );
   });
 

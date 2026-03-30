@@ -159,7 +159,6 @@ const createDeps = (overrides?: {
     getTransport: () => transport,
     planningState,
   };
-  const showFireButton = vi.fn<CommandRouterDeps['ui']['showFireButton']>();
   const showToast = vi.fn<CommandRouterDeps['ui']['overlay']['showToast']>();
   const toggleLog = vi.fn<CommandRouterDeps['ui']['log']['toggle']>();
   const renderer = {
@@ -187,7 +186,6 @@ const createDeps = (overrides?: {
       getMap: () => map,
       planningState: ctx.planningState,
       showToast,
-      showFireButton,
     },
     ordnanceDeps: {
       getGameState: () => ctx.getGameState(),
@@ -199,7 +197,6 @@ const createDeps = (overrides?: {
     },
     logisticsUIState: overrides?.logisticsUIState ?? null,
     ui: {
-      showFireButton,
       overlay: { showToast },
       log: { toggle: toggleLog },
     },
@@ -267,7 +264,7 @@ describe('game-command-router', () => {
     );
   });
 
-  it('undoes queued attacks and updates fire button state', () => {
+  it('undoes queued attacks and updates the combat toast', () => {
     const { deps, ui } = createDeps();
     deps.ctx.planningState.queuedAttacks = [
       {
@@ -287,7 +284,6 @@ describe('game-command-router', () => {
     dispatchGameCommand(deps, { type: 'undoQueuedAttack' });
 
     expect(deps.ctx.planningState.queuedAttacks).toHaveLength(1);
-    expect(ui.showFireButton).toHaveBeenCalledWith(true, 1);
     expect(ui.overlay.showToast).toHaveBeenCalledWith(
       'Undid last attack (1 queued)',
       'info',
