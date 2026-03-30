@@ -11,10 +11,12 @@ import { createInitialClientSession } from './session-model';
 import {
   attachRendererGameStateEffect,
   attachSessionCombatButtonsEffect,
+  attachSessionFleetPanelEffect,
   attachSessionHudEffect,
   attachSessionLatencyEffect,
   attachSessionLogisticsPanelEffect,
   attachSessionPlanningSelectionEffect,
+  attachSessionPlayerIdentityEffect,
 } from './session-signals';
 
 describe('session-signals', () => {
@@ -22,6 +24,7 @@ describe('session-signals', () => {
     const session = createInitialClientSession();
 
     expect(session.stateSignal.peek()).toBe('menu');
+    expect(session.playerIdSignal.peek()).toBe(-1);
     expect(session.gameStateSignal.peek()).toBeNull();
     expect(session.isLocalGameSignal.peek()).toBe(false);
     expect(session.latencyMsSignal.peek()).toBe(-1);
@@ -37,8 +40,10 @@ describe('session-signals', () => {
       findBaseHex,
     );
     session.gameState = gameState;
+    session.playerId = 0;
 
     expect(session.gameStateSignal.peek()).toBe(gameState);
+    expect(session.playerIdSignal.peek()).toBe(0);
 
     session.isLocalGame = true;
     session.latencyMs = 150;
@@ -117,6 +122,25 @@ describe('session-signals', () => {
     dispose();
   });
 
+  it('syncs renderer and UI identity from reactive player id', () => {
+    const session = createInitialClientSession();
+    const setRendererPlayerId = vi.fn();
+    const setUIPlayerId = vi.fn();
+    const dispose = attachSessionPlayerIdentityEffect(session, {
+      renderer: { setPlayerId: setRendererPlayerId },
+      ui: { setPlayerId: setUIPlayerId },
+    });
+
+    expect(setRendererPlayerId).toHaveBeenLastCalledWith(-1);
+    expect(setUIPlayerId).toHaveBeenLastCalledWith(-1);
+
+    session.playerId = 1;
+    expect(setRendererPlayerId).toHaveBeenLastCalledWith(1);
+    expect(setUIPlayerId).toHaveBeenLastCalledWith(1);
+
+    dispose();
+  });
+
   it('syncs combat action buttons from session state and planning', () => {
     const session = createInitialClientSession();
     const showAttackButton = vi.fn();
@@ -181,6 +205,36 @@ describe('session-signals', () => {
 
     session.isLocalGame = true;
     expect(updateLatency).toHaveBeenLastCalledWith(null);
+
+    dispose();
+  });
+
+  it('syncs fleet status and ship list from reactive session state', () => {
+    const session = createInitialClientSession();
+    const updateFleetStatus = vi.fn();
+    const updateShipList = vi.fn();
+    const dispose = attachSessionFleetPanelEffect(session, {
+      updateFleetStatus,
+      updateShipList,
+    });
+
+    expect(updateFleetStatus).toHaveBeenLastCalledWith('');
+    expect(updateShipList).toHaveBeenLastCalledWith([], null, expect.any(Map));
+
+    session.playerId = 0;
+    session.gameState = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'SIG6',
+      findBaseHex,
+    );
+
+    expect(updateFleetStatus).toHaveBeenLastCalledWith('');
+    expect(updateShipList).toHaveBeenLastCalledWith(
+      expect.arrayContaining([expect.objectContaining({ owner: 0 })]),
+      expect.any(String),
+      session.planningState.burns,
+    );
 
     dispose();
   });

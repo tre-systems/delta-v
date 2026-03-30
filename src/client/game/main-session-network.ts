@@ -60,7 +60,6 @@ export const startLocalGameFromMain = (
       getScenarioName: (selectedScenario) =>
         (SCENARIOS[selectedScenario] ?? SCENARIOS.biplanetary).name,
       resetTurnTelemetry: () => deps.turnTelemetry.reset(),
-      setRendererPlayerId: (playerId) => deps.renderer.setPlayerId(playerId),
       clearTrails: () => deps.renderer.clearTrails(),
       clearLog: () => deps.ui.log.clear(),
       setChatEnabled: (enabled) => deps.ui.log.setChatEnabled(enabled),

@@ -31,6 +31,7 @@ export interface ClientSession {
   state: ClientState;
   readonly stateSignal: ReadonlySignal<ClientState>;
   playerId: PlayerId | -1;
+  readonly playerIdSignal: ReadonlySignal<PlayerId | -1>;
   /** True while connected as a live spectator (`?viewer=spectator`). */
   spectatorMode: boolean;
   gameCode: string | null;
@@ -54,6 +55,8 @@ export const createInitialClientSession = (): ClientSession => {
     ClientSession,
     | 'state'
     | 'stateSignal'
+    | 'playerId'
+    | 'playerIdSignal'
     | 'gameState'
     | 'gameStateSignal'
     | 'logisticsState'
@@ -65,6 +68,8 @@ export const createInitialClientSession = (): ClientSession => {
   > & {
     state: ClientState;
     stateSignal: ReadonlySignal<ClientState>;
+    playerId: PlayerId | -1;
+    playerIdSignal: ReadonlySignal<PlayerId | -1>;
     gameState: GameState | null;
     gameStateSignal: ReadonlySignal<GameState | null>;
     logisticsState: LogisticsStore | null;
@@ -76,19 +81,21 @@ export const createInitialClientSession = (): ClientSession => {
   };
 
   const session = {
-    playerId: -1,
     spectatorMode: false,
     gameCode: null,
     scenario: 'biplanetary',
-    isLocalGame: false,
     aiDifficulty: 'normal',
     transport: null,
     planningState: createPlanningStore(),
-    latencyMs: -1,
     reconnectAttempts: 0,
   } as ClientSessionDraft;
 
   session.stateSignal = defineReactiveSessionProperty(session, 'state', 'menu');
+  session.playerIdSignal = defineReactiveSessionProperty(
+    session,
+    'playerId',
+    -1,
+  );
   session.gameStateSignal = defineReactiveSessionProperty(
     session,
     'gameState',
@@ -139,6 +146,14 @@ export type ClientSessionStateTransitionContext = Pick<
 /** Merge defaults for tests and focused fakes. */
 export const stubClientSession = (
   overrides: Partial<
-    Omit<ClientSession, 'stateSignal' | 'gameStateSignal'>
+    Omit<
+      ClientSession,
+      | 'stateSignal'
+      | 'playerIdSignal'
+      | 'gameStateSignal'
+      | 'logisticsStateSignal'
+      | 'isLocalGameSignal'
+      | 'latencyMsSignal'
+    >
   > = {},
 ): ClientSession => Object.assign(createInitialClientSession(), overrides);

@@ -94,7 +94,6 @@ const createLocalGameDeps = (): LocalGameSessionDeps & {
     createLocalGameState: () => state,
     getScenarioName: (scenario) => SCENARIOS[scenario]?.name ?? 'Unknown',
     resetTurnTelemetry: track('resetTurnTelemetry'),
-    setRendererPlayerId: track('setRendererPlayerId'),
     clearTrails: track('clearTrails'),
     clearLog: track('clearLog'),
     setChatEnabled: track('setChatEnabled'),
@@ -229,7 +228,6 @@ describe('session-controller', () => {
     expect(deps.ctx.playerId).toBe(0);
     expect(deps.ctx.transport).not.toBeNull();
     expect(deps.calls.resetTurnTelemetry).toHaveLength(1);
-    expect(deps.calls.setRendererPlayerId).toEqual([[0]]);
     expect(deps.calls.clearTrails).toHaveLength(1);
     expect(deps.calls.clearLog).toHaveLength(1);
     expect(deps.calls.setChatEnabled).toEqual([[false]]);
