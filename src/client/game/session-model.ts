@@ -2,7 +2,7 @@ import type { AIDifficulty } from '../../shared/ai';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { ReadonlySignal } from '../reactive';
 import { signal } from '../reactive';
-import type { LogisticsUIState } from './logistics-ui';
+import type { LogisticsStore } from './logistics-ui';
 import type { ClientState } from './phase';
 import { createPlanningStore, type PlanningStore } from './planning';
 import type { GameTransport } from './transport';
@@ -37,13 +37,15 @@ export interface ClientSession {
   scenario: string;
   gameState: GameState | null;
   readonly gameStateSignal: ReadonlySignal<GameState | null>;
-  logisticsState: LogisticsUIState | null;
-  readonly logisticsStateSignal: ReadonlySignal<LogisticsUIState | null>;
+  logisticsState: LogisticsStore | null;
+  readonly logisticsStateSignal: ReadonlySignal<LogisticsStore | null>;
   isLocalGame: boolean;
+  readonly isLocalGameSignal: ReadonlySignal<boolean>;
   aiDifficulty: AIDifficulty;
   transport: GameTransport | null;
   planningState: PlanningStore;
   latencyMs: number;
+  readonly latencyMsSignal: ReadonlySignal<number>;
   reconnectAttempts: number;
 }
 
@@ -56,13 +58,21 @@ export const createInitialClientSession = (): ClientSession => {
     | 'gameStateSignal'
     | 'logisticsState'
     | 'logisticsStateSignal'
+    | 'isLocalGame'
+    | 'isLocalGameSignal'
+    | 'latencyMs'
+    | 'latencyMsSignal'
   > & {
     state: ClientState;
     stateSignal: ReadonlySignal<ClientState>;
     gameState: GameState | null;
     gameStateSignal: ReadonlySignal<GameState | null>;
-    logisticsState: LogisticsUIState | null;
-    logisticsStateSignal: ReadonlySignal<LogisticsUIState | null>;
+    logisticsState: LogisticsStore | null;
+    logisticsStateSignal: ReadonlySignal<LogisticsStore | null>;
+    isLocalGame: boolean;
+    isLocalGameSignal: ReadonlySignal<boolean>;
+    latencyMs: number;
+    latencyMsSignal: ReadonlySignal<number>;
   };
 
   const session = {
@@ -88,6 +98,16 @@ export const createInitialClientSession = (): ClientSession => {
     session,
     'logisticsState',
     null,
+  );
+  session.isLocalGameSignal = defineReactiveSessionProperty(
+    session,
+    'isLocalGame',
+    false,
+  );
+  session.latencyMsSignal = defineReactiveSessionProperty(
+    session,
+    'latencyMs',
+    -1,
   );
 
   return session;

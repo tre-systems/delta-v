@@ -26,8 +26,6 @@ export interface HudControllerDeps {
   getClientState: () => ClientState;
   getPlanningState: () => PlanningState;
   getMap: () => SolarSystemMap;
-  getLatencyMs: () => number;
-  getIsLocalGame: () => boolean;
   ui: UIManager;
   renderer: Renderer;
   tooltipEl: HTMLElement;
@@ -114,10 +112,6 @@ export const createHudController = (deps: HudControllerDeps) => {
         ),
       );
 
-      const latencyMs = deps.getLatencyMs();
-      deps.ui.updateLatency(
-        !deps.getIsLocalGame() && latencyMs >= 0 ? latencyMs : null,
-      );
       deps.ui.updateFleetStatus(hud.fleetStatus);
       deps.ui.updateShipList(hud.myShips, hud.selectedId, planning.burns);
     },

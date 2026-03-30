@@ -88,6 +88,18 @@ export const attachSessionHudEffect = (
     hud.updateHUD();
   });
 
+/** Keeps latency display aligned with reactive session state instead of push-style UI calls. */
+export const attachSessionLatencyEffect = (
+  session: Pick<ClientSession, 'latencyMsSignal' | 'isLocalGameSignal'>,
+  ui: { updateLatency: (latencyMs: number | null) => void },
+): Dispose =>
+  effect(() => {
+    const latencyMs = session.latencyMsSignal.value;
+    const isLocalGame = session.isLocalGameSignal.value;
+
+    ui.updateLatency(!isLocalGame && latencyMs >= 0 ? latencyMs : null);
+  });
+
 /** Keeps the logistics transfer panel aligned with the session-owned logistics state. */
 export const attachSessionLogisticsPanelEffect = (
   session: Pick<ClientSession, 'logisticsStateSignal'>,

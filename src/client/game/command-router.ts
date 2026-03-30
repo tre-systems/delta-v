@@ -24,7 +24,7 @@ import {
   sendSkipCombat,
 } from './combat-actions';
 import type { GameCommand } from './commands';
-import { buildTransferOrders, type LogisticsUIState } from './logistics-ui';
+import type { LogisticsStore } from './logistics-ui';
 import {
   type OrdnanceActionDeps,
   sendEmplaceBase,
@@ -43,7 +43,7 @@ export interface CommandRouterSessionRead {
   getPlayerId: () => PlayerId;
   getGameState: () => GameState | null;
   getTransport: () => GameTransport | null;
-  getLogisticsState: () => LogisticsUIState | null;
+  getLogisticsState: () => LogisticsStore | null;
   planningState: PlanningStore;
 }
 
@@ -121,7 +121,7 @@ const confirmTransfers = (deps: CommandRouterDeps): void => {
     return;
   }
 
-  const orders = buildTransferOrders(logisticsState);
+  const orders = logisticsState.buildTransferOrders();
 
   if (orders.length > 0) {
     transport.submitLogistics(orders);

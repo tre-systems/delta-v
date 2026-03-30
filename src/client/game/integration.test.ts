@@ -126,7 +126,6 @@ const createDeps = (
         showOpponentDisconnected: track('ui.overlay.showOpponentDisconnected'),
         hideOpponentDisconnected: track('ui.overlay.hideOpponentDisconnected'),
       },
-      updateLatency: track('ui.updateLatency'),
     },
     calls,
   };
@@ -469,9 +468,7 @@ describe('client integration: latency tracking', () => {
 
     // Latency is computed as Date.now() - msg.t
     // We can't control Date.now() here but can verify
-    // the deps were called
     expect(deps.ctx.latencyMs).toBeGreaterThan(0);
-    expect(deps.calls['ui.updateLatency']).toHaveLength(1);
   });
 
   it('pong with zero timestamp does not update latency', () => {
@@ -479,7 +476,7 @@ describe('client integration: latency tracking', () => {
 
     handleServerMessage(deps, { type: 'pong', t: 0 });
 
-    expect(deps.calls['ui.updateLatency']).toBeUndefined();
+    expect(deps.ctx.latencyMs).toBe(0);
   });
 });
 

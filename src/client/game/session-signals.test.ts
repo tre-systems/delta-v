@@ -6,12 +6,13 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
-import { createLogisticsUIState } from './logistics-ui';
+import { createLogisticsStore } from './logistics-ui';
 import { createInitialClientSession } from './session-model';
 import {
   attachRendererGameStateEffect,
   attachSessionCombatButtonsEffect,
   attachSessionHudEffect,
+  attachSessionLatencyEffect,
   attachSessionLogisticsPanelEffect,
   attachSessionPlanningSelectionEffect,
 } from './session-signals';
@@ -22,6 +23,8 @@ describe('session-signals', () => {
 
     expect(session.stateSignal.peek()).toBe('menu');
     expect(session.gameStateSignal.peek()).toBeNull();
+    expect(session.isLocalGameSignal.peek()).toBe(false);
+    expect(session.latencyMsSignal.peek()).toBe(-1);
 
     session.state = 'connecting';
 
@@ -36,6 +39,12 @@ describe('session-signals', () => {
     session.gameState = gameState;
 
     expect(session.gameStateSignal.peek()).toBe(gameState);
+
+    session.isLocalGame = true;
+    session.latencyMs = 150;
+
+    expect(session.isLocalGameSignal.peek()).toBe(true);
+    expect(session.latencyMsSignal.peek()).toBe(150);
   });
 
   it('notifies HUD effect when session game or client state changes', () => {
@@ -158,6 +167,24 @@ describe('session-signals', () => {
     dispose();
   });
 
+  it('syncs latency display from reactive session state', () => {
+    const session = createInitialClientSession();
+    const updateLatency = vi.fn();
+    const dispose = attachSessionLatencyEffect(session, {
+      updateLatency,
+    });
+
+    expect(updateLatency).toHaveBeenLastCalledWith(null);
+
+    session.latencyMs = 275;
+    expect(updateLatency).toHaveBeenLastCalledWith(275);
+
+    session.isLocalGame = true;
+    expect(updateLatency).toHaveBeenLastCalledWith(null);
+
+    dispose();
+  });
+
   it('syncs the logistics panel from session logistics state', () => {
     const session = createInitialClientSession();
     const renderLogisticsPanel = vi.fn();
@@ -167,7 +194,7 @@ describe('session-signals', () => {
 
     expect(renderLogisticsPanel).toHaveBeenLastCalledWith(null);
 
-    session.logisticsState = createLogisticsUIState(
+    session.logisticsState = createLogisticsStore(
       createGame(SCENARIOS.duel, buildSolarSystemMap(), 'SIG5', findBaseHex),
       0,
     );

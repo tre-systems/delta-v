@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TransferPair } from '../../shared/engine/logistics';
 import type { Ship } from '../../shared/types/domain';
 import {
-  buildTransferOrders,
-  type LogisticsUIState,
+  createLogisticsStoreFromPairs,
+  type LogisticsStore,
   renderTransferPanel,
 } from './logistics-ui';
 
@@ -41,18 +41,19 @@ const createTransferPair = (): TransferPair => ({
 });
 
 const createLogisticsState = (
-  overrides?: Partial<LogisticsUIState>,
-): LogisticsUIState => {
+  overrides?: Partial<
+    Pick<LogisticsStore, 'fuelAmounts' | 'cargoAmounts' | 'passengerAmounts'>
+  >,
+): LogisticsStore => {
   const pair = createTransferPair();
   const key = `${pair.source.id}->${pair.target.id}`;
+  const state = createLogisticsStoreFromPairs([pair]);
 
-  return {
-    pairs: [pair],
-    fuelAmounts: new Map([[key, 0]]),
-    cargoAmounts: new Map([[key, 0]]),
-    passengerAmounts: new Map([[key, 0]]),
-    ...overrides,
-  };
+  state.fuelAmounts = overrides?.fuelAmounts ?? new Map([[key, 0]]);
+  state.cargoAmounts = overrides?.cargoAmounts ?? new Map([[key, 0]]);
+  state.passengerAmounts = overrides?.passengerAmounts ?? new Map([[key, 0]]);
+
+  return state;
 };
 
 describe('logistics-ui', () => {
@@ -104,12 +105,7 @@ describe('logistics-ui', () => {
       | HTMLButtonElement
       | undefined;
 
-    renderTransferPanel(container, {
-      pairs: [],
-      fuelAmounts: new Map(),
-      cargoAmounts: new Map(),
-      passengerAmounts: new Map(),
-    });
+    renderTransferPanel(container, createLogisticsStoreFromPairs([]));
 
     stalePlusBtn?.click();
 
@@ -121,12 +117,11 @@ describe('logistics-ui', () => {
     const pair = createTransferPair();
     const key = `${pair.source.id}->${pair.target.id}`;
     const state = createLogisticsState({
-      pairs: [pair],
       fuelAmounts: new Map([[key, 2]]),
       cargoAmounts: new Map([[key, 1]]),
     });
 
-    expect(buildTransferOrders(state)).toEqual([
+    expect(state.buildTransferOrders()).toEqual([
       {
         sourceShipId: 'ship-0',
         targetShipId: 'ship-1',
@@ -140,5 +135,6 @@ describe('logistics-ui', () => {
         amount: 1,
       },
     ]);
+    expect(state.hasQueuedTransfers()).toBe(true);
   });
 });
