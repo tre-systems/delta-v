@@ -12,8 +12,6 @@ type CreateHudActionsInput = {
   ) => void;
   toggleHelpOverlay: () => void;
   updateSoundButton: (muted: boolean) => void;
-  setTurnTimer: (text: string, className: string) => void;
-  clearTurnTimer: () => void;
   showAttackButton: (isVisible: boolean) => void;
   showFireButton: (isVisible: boolean, count: number) => void;
 };
@@ -25,8 +23,6 @@ export const createHudActions = ({
   updateShipList,
   toggleHelpOverlay,
   updateSoundButton,
-  setTurnTimer,
-  clearTurnTimer,
   showAttackButton,
   showFireButton,
 }: CreateHudActionsInput) => ({
@@ -38,8 +34,6 @@ export const createHudActions = ({
   updateShipList,
   toggleHelpOverlay,
   updateSoundButton,
-  setTurnTimer,
-  clearTurnTimer,
   showAttackButton,
   showFireButton,
 });

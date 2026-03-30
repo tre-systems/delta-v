@@ -196,7 +196,6 @@ const createMessageHandlerDeps = (
         showToast() {},
         hideReconnecting() {},
         showRematchPending() {},
-        showGameOver() {},
         showOpponentDisconnected() {},
         hideOpponentDisconnected() {},
       },

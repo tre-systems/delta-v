@@ -1,24 +1,15 @@
 import type { ReplayTimeline } from '../../shared/replay';
 import type { GameState } from '../../shared/types/domain';
+import { type ReadonlySignal, signal } from '../reactive';
+import {
+  createHiddenReplayControls,
+  type ReplayControlsView,
+} from '../ui/overlay-state';
 import type { ClientState } from './phase';
 import {
   deriveReplaySelection,
   shiftReplaySelection,
 } from './replay-selection';
-
-interface ReplayControlsView {
-  available: boolean;
-  active: boolean;
-  loading: boolean;
-  statusText: string;
-  selectedGameId: string;
-  canSelectPrevMatch: boolean;
-  canSelectNextMatch: boolean;
-  canStart: boolean;
-  canPrev: boolean;
-  canNext: boolean;
-  canEnd: boolean;
-}
 
 interface ReplayControllerDeps {
   getClientContext: () => {
@@ -28,27 +19,13 @@ interface ReplayControllerDeps {
     gameState: GameState | null;
   };
   fetchReplay: (code: string, gameId: string) => Promise<ReplayTimeline | null>;
-  setReplayControls: (view: ReplayControlsView) => void;
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
   clearTrails: () => void;
   applyGameState: (state: GameState) => void;
 }
 
-const hiddenReplayControls = (): ReplayControlsView => ({
-  available: false,
-  active: false,
-  loading: false,
-  statusText: '',
-  selectedGameId: '',
-  canSelectPrevMatch: false,
-  canSelectNextMatch: false,
-  canStart: false,
-  canPrev: false,
-  canNext: false,
-  canEnd: false,
-});
-
 export interface ReplayController {
+  readonly controlsSignal: ReadonlySignal<ReplayControlsView>;
   clearForState: (state: ClientState) => void;
   onGameOverShown: () => void;
   onGameOverMessage: () => void;
@@ -64,6 +41,7 @@ export const createReplayController = (
   let replayIndex: number | null = null;
   let replaySourceState: GameState | null = null;
   let selectedReplayGameId: string | null = null;
+  const controlsSignal = signal(createHiddenReplayControls());
 
   const buildReplayStatusText = (
     timeline: ReplayTimeline,
@@ -111,7 +89,7 @@ export const createReplayController = (
       ctx.gameState !== null;
 
     if (!available) {
-      deps.setReplayControls(hiddenReplayControls());
+      controlsSignal.value = createHiddenReplayControls();
       return;
     }
 
@@ -126,7 +104,7 @@ export const createReplayController = (
     }
 
     if (replayTimeline === null || replayIndex === null) {
-      deps.setReplayControls({
+      controlsSignal.value = {
         available: true,
         active: false,
         loading: false,
@@ -143,7 +121,7 @@ export const createReplayController = (
         canPrev: false,
         canNext: false,
         canEnd: false,
-      });
+      };
       return;
     }
 
@@ -151,7 +129,7 @@ export const createReplayController = (
     const index = replayIndex;
     const canAdvance = index < timeline.entries.length - 1;
 
-    deps.setReplayControls({
+    controlsSignal.value = {
       available: true,
       active: true,
       loading: false,
@@ -164,7 +142,7 @@ export const createReplayController = (
       canPrev: index > 0,
       canNext: canAdvance,
       canEnd: canAdvance,
-    });
+    };
   };
 
   const clearReplay = () => {
@@ -175,12 +153,14 @@ export const createReplayController = (
   };
 
   return {
+    controlsSignal,
     clearForState: (state) => {
       if (state === 'gameOver') {
         return;
       }
 
       clearReplay();
+      controlsSignal.value = createHiddenReplayControls();
     },
     onGameOverShown: () => {
       selectedReplayGameId = deps.getClientContext().gameState?.gameId ?? null;
@@ -238,7 +218,7 @@ export const createReplayController = (
         return;
       }
 
-      deps.setReplayControls({
+      controlsSignal.value = {
         available: true,
         active: false,
         loading: true,
@@ -252,7 +232,7 @@ export const createReplayController = (
         canPrev: false,
         canNext: false,
         canEnd: false,
-      });
+      };
 
       const timeline = await deps.fetchReplay(
         ctx.gameCode,
