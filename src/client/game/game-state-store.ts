@@ -1,7 +1,6 @@
 /**
  * Authoritative match state on the client lives on `ClientSession` and is written
- * only through here (`applyClientGameState` / `clearClientGameState`) plus the
- * optional mirror hooks used by `session-signals.ts`.
+ * only through here (`applyClientGameState` / `clearClientGameState`).
  *
  * **Who may call what (client shell):**
  * - `setState` / `applyClientStateTransition`: only via `createGameClient`’s
@@ -10,14 +9,15 @@
  *   `message-handler` / presentation paths that apply server or local engine state.
  * - `clearClientGameState`: `exitToMenuSession` only.
  * - `renderer.setGameState` / `clearTrails`: optional on `applyClientGameState`
- *   (unit tests); the shell syncs the canvas from `mirror.gameState` via
- *   `attachRendererGameStateMirrorEffect`. Also presentation, replay, session
+ *   (unit tests); the shell syncs the canvas from `ctx.gameStateSignal` via
+ *   `attachRendererGameStateEffect`. Also presentation, replay, session
  *   lifecycle, and `message-handler` where documented in those modules.
- * - `hud.updateHUD`: mirrored `gameState`, `clientState`, and planning revision
- *   drive `attachSessionMirrorHudEffect`; `hud-controller` may also call `updateHUD`
+ * - `hud.updateHUD`: reactive session `gameState` / `state` plus planning revision
+ *   drive `attachSessionHudEffect`; `hud-controller` may also call `updateHUD`
  *   when reconciling selection from the derived view model.
  */
 import type { GameState } from '../../shared/types/domain';
+import { batch } from '../reactive';
 import { setSelectedShipId } from './planning-store';
 
 interface PlanningStateLike {
@@ -35,38 +35,35 @@ interface GameStateStoreRenderer {
 
 export interface ApplyClientGameStateDeps {
   ctx: GameStateStoreContext;
-  /** When set, called after `ctx` is updated (e.g. tests). Omitted in the shell — mirror effect drives the renderer. */
+  /** When set, called after `ctx` is updated (e.g. tests). Omitted in the shell — session effects drive the renderer. */
   renderer?: GameStateStoreRenderer;
-  /** Optional sync after ctx/renderer (e.g. reactive mirror signals). */
-  afterApply?: (state: GameState) => void;
 }
 
 export const applyClientGameState = (
   deps: ApplyClientGameStateDeps,
   state: GameState,
 ): void => {
-  deps.ctx.gameState = state;
-  deps.renderer?.setGameState(state);
+  batch(() => {
+    deps.ctx.gameState = state;
 
-  const selectedId = deps.ctx.planningState.selectedShipId;
+    const selectedId = deps.ctx.planningState.selectedShipId;
 
-  if (!selectedId) {
-    deps.afterApply?.(state);
-    return;
-  }
+    if (selectedId) {
+      const selectedShip = state.ships.find((ship) => ship.id === selectedId);
 
-  const selectedShip = state.ships.find((ship) => ship.id === selectedId);
+      if (!selectedShip || selectedShip.lifecycle === 'destroyed') {
+        setSelectedShipId(deps.ctx.planningState, null);
+      }
+    }
 
-  if (!selectedShip || selectedShip.lifecycle === 'destroyed') {
-    setSelectedShipId(deps.ctx.planningState, null);
-  }
-  deps.afterApply?.(state);
+    deps.renderer?.setGameState(state);
+  });
 };
 
 export const clearClientGameState = (
   ctx: Pick<GameStateStoreContext, 'gameState'>,
-  afterClear?: () => void,
 ): void => {
-  ctx.gameState = null;
-  afterClear?.();
+  batch(() => {
+    ctx.gameState = null;
+  });
 };

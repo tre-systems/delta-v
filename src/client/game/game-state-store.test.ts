@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { createGame } from '../../shared/engine/game-engine';
 import {
@@ -7,11 +7,13 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import type { GameState } from '../../shared/types/domain';
+import { effect } from '../reactive';
 import {
   type ApplyClientGameStateDeps,
   applyClientGameState,
   clearClientGameState,
 } from './game-state-store';
+import { stubClientSession } from './session-model';
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
   ...createGame(SCENARIOS.duel, buildSolarSystemMap(), 'STORE1', findBaseHex),
@@ -52,7 +54,7 @@ describe('applyClientGameState', () => {
     expect(deps.rendererCalls).toEqual([state]);
   });
 
-  it('updates ctx when renderer is omitted (shell uses mirror effect)', () => {
+  it('updates ctx when renderer is omitted (shell uses session effects)', () => {
     const state = createState();
     const deps: ApplyClientGameStateDeps = {
       ctx: {
@@ -109,25 +111,20 @@ describe('applyClientGameState', () => {
     expect(deps.ctx.gameState).toBeNull();
   });
 
-  it('invokes afterApply after storing state', () => {
+  it('flushes game state subscribers after planning cleanup', () => {
     const state = createState();
-    const deps = createDeps();
-    const afterApply = vi.fn();
+    const session = stubClientSession({ gameState: null });
+    session.planningState.selectedShipId = 'missing-ship';
+    const seenSelections: (string | null)[] = [];
+    const dispose = effect(() => {
+      session.gameStateSignal.value;
+      seenSelections.push(session.planningState.selectedShipId);
+    });
 
-    applyClientGameState({ ...deps, afterApply }, state);
+    applyClientGameState({ ctx: session }, state);
 
-    expect(afterApply).toHaveBeenCalledTimes(1);
-    expect(afterApply).toHaveBeenCalledWith(state);
-  });
+    expect(seenSelections).toEqual(['missing-ship', null]);
 
-  it('invokes afterClear when clearing game state', () => {
-    const state = createState();
-    const deps = createDeps();
-    const afterClear = vi.fn();
-
-    applyClientGameState(deps, state);
-    clearClientGameState(deps.ctx, afterClear);
-
-    expect(afterClear).toHaveBeenCalledTimes(1);
+    dispose();
   });
 });

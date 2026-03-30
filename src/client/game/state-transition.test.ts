@@ -7,7 +7,9 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import type { GameState } from '../../shared/types/domain';
+import { effect } from '../reactive';
 import { createInitialPlanningState } from './planning';
+import { createInitialClientSession } from './session-model';
 import {
   applyClientStateTransition,
   type StateTransitionDeps,
@@ -201,5 +203,29 @@ describe('applyClientStateTransition', () => {
     expect(deps.ctx.planningState.combatTargetId).toBeNull();
     expect(deps.ctx.planningState.combatAttackerIds).toEqual([]);
     expect(deps.ctx.planningState.queuedAttacks).toEqual([]);
+  });
+
+  it('flushes state subscribers after entry side effects complete', () => {
+    const state = createState();
+    const deps = createDeps(state);
+    const session = createInitialClientSession();
+    session.playerId = 0;
+    session.gameCode = 'ABCDE';
+    session.gameState = state;
+    session.isLocalGame = false;
+    session.planningState.selectedShipId = 'stale';
+    deps.ctx = session;
+
+    const seenSelections: (string | null)[] = [];
+    const dispose = effect(() => {
+      session.stateSignal.value;
+      seenSelections.push(session.planningState.selectedShipId);
+    });
+
+    applyClientStateTransition(deps, 'playing_astrogation');
+
+    expect(seenSelections).toEqual(['stale', state.ships[0].id]);
+
+    dispose();
   });
 });

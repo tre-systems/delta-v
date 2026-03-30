@@ -42,7 +42,6 @@ export interface MainNetworkDeps {
   track: (event: string, props?: Record<string, unknown>) => void;
   createLocalTransport: () => import('./transport').GameTransport;
   stopTurnTimer: () => void;
-  onAfterClearGameState?: () => void;
 }
 
 export const startLocalGameFromMain = (
@@ -141,6 +140,5 @@ export const exitToMenuFromMain = (deps: MainNetworkDeps): void => {
     resetTurnTelemetry: () => deps.turnTelemetry.reset(),
     replaceRoute: (route) => history.replaceState(null, '', route),
     setState: (state) => deps.setState(state),
-    onAfterClearGameState: deps.onAfterClearGameState,
   });
 };

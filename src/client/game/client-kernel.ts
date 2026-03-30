@@ -68,9 +68,9 @@ import {
   createInitialClientSession,
 } from './session-model';
 import {
-  attachRendererGameStateMirrorEffect,
-  attachSessionMirrorHudEffect,
-  createSessionReactiveMirror,
+  attachRendererGameStateEffect,
+  attachSessionHudEffect,
+  createPlanningRevisionSignal,
 } from './session-signals';
 import { applyClientStateTransition } from './state-transition';
 import { createTurnTimerManager } from './timer';
@@ -81,19 +81,19 @@ import { resolveUIEventPlan } from './ui-event-router';
 export type { ClientSession, MainNetworkDeps };
 
 /**
- * Composition root: wires session `ctx`, reactive mirrors (`session-signals`),
+ * Composition root: wires session `ctx`, reactive session effects (`session-signals`),
  * network, HUD, and input. Prefer changing behavior in `game/*` modules rather
  * than growing this closure.
  *
  * **Effect ownership (see also `game-state-store.ts`):**
- * - `setState` — only here (drives `applyClientStateTransition` + `clientState` mirror).
- * - `applyGameState` — `applyClientGameState` (ctx + planning cleanup) then
- *   `mirror.gameState`; `attachRendererGameStateMirrorEffect` pushes that to the canvas.
- * - `exitToMenuSession` — clears game state via `clearClientGameState` + mirror hook.
- * - `hud.updateHUD` — invoked from `attachSessionMirrorHudEffect` when `gameState`,
+ * - `setState` — only here (drives `applyClientStateTransition` + reactive session state).
+ * - `applyGameState` — `applyClientGameState` (ctx + planning cleanup); the session's
+ *   `gameStateSignal` then drives renderer/HUD effects.
+ * - `exitToMenuSession` — clears game state via `clearClientGameState`.
+ * - `hud.updateHUD` — invoked from `attachSessionHudEffect` when `gameState`,
  *   `clientState`, or `planningRevision` change; also from `hud-controller` internals
  *   (e.g. syncing selection from the derived view model).
- * - `renderer.setGameState` — mirror effect (above); `clearTrails` and other renderer
+ * - `renderer.setGameState` — session effect (above); `clearTrails` and other renderer
  *   APIs — presentation, replay, session lifecycle.
  */
 export const createGameClient = () => {
@@ -101,12 +101,9 @@ export const createGameClient = () => {
 
   const canvas = byId<HTMLCanvasElement>('gameCanvas');
   const renderer = createRenderer(canvas, ctx.planningState);
-  const mirror = createSessionReactiveMirror({
-    gameState: ctx.gameState,
-    state: ctx.state,
-  });
+  const planningRevision = createPlanningRevisionSignal();
   setPlanningHudBump(() => {
-    mirror.planningRevision.update((n) => n + 1);
+    planningRevision.update((n) => n + 1);
   });
   const ui = createUIManager();
   const tutorial = createTutorial();
@@ -129,18 +126,10 @@ export const createGameClient = () => {
   let stopCombatWatch: (() => void) | null = null;
   let setState: (newState: ClientState) => void;
   let transitionToPhase: () => void;
-  let disposeMirrorSubscriptions: Dispose | undefined;
+  let disposeSessionSubscriptions: Dispose | undefined;
 
   const applyGameState = (state: GameState) => {
-    applyClientGameState(
-      {
-        ctx,
-        afterApply: (s) => {
-          mirror.gameState.value = s;
-        },
-      },
-      state,
-    );
+    applyClientGameState({ ctx }, state);
   };
 
   const resetCombatState = () => {
@@ -181,8 +170,8 @@ export const createGameClient = () => {
 
   const connection = createConnectionManager({
     getGameCode: () => ctx.gameCode,
-    getGameState: () => mirror.gameState.peek(),
-    getClientState: () => mirror.clientState.peek(),
+    getGameState: () => ctx.gameStateSignal.peek(),
+    getClientState: () => ctx.stateSignal.peek(),
     isSpectatorSession: () => ctx.spectatorMode,
     getStoredPlayerToken: (code) =>
       sessionHolder.api?.getStoredPlayerToken(code) ?? null,
@@ -214,9 +203,9 @@ export const createGameClient = () => {
   });
 
   const hud = createHudController({
-    getGameState: () => mirror.gameState.peek(),
+    getGameState: () => ctx.gameStateSignal.peek(),
     getPlayerId: () => ctx.playerId as PlayerId,
-    getClientState: () => mirror.clientState.peek(),
+    getClientState: () => ctx.stateSignal.peek(),
     getPlanningState: () => ctx.planningState,
     getMap: () => map,
     getLatencyMs: () => ctx.latencyMs,
@@ -226,18 +215,22 @@ export const createGameClient = () => {
     tooltipEl,
   });
 
-  const disposeHudMirror = attachSessionMirrorHudEffect(mirror, hud);
-  const disposeRendererMirror = attachRendererGameStateMirrorEffect(
-    mirror,
+  const disposeHudSessionEffect = attachSessionHudEffect(
+    ctx,
+    planningRevision,
+    hud,
+  );
+  const disposeRendererSessionEffect = attachRendererGameStateEffect(
+    ctx,
     renderer,
   );
-  disposeMirrorSubscriptions = () => {
-    disposeHudMirror();
-    disposeRendererMirror();
+  disposeSessionSubscriptions = () => {
+    disposeHudSessionEffect();
+    disposeRendererSessionEffect();
   };
 
   const camera = createCameraController({
-    getGameState: () => mirror.gameState.peek(),
+    getGameState: () => ctx.gameStateSignal.peek(),
     getPlayerId: () => ctx.playerId as PlayerId,
     getPlanningState: () => ctx.planningState,
     renderer,
@@ -245,8 +238,8 @@ export const createGameClient = () => {
   });
 
   actionDeps = createActionDeps({
-    getGameState: () => mirror.gameState.peek(),
-    getClientState: () => mirror.clientState.peek(),
+    getGameState: () => ctx.gameStateSignal.peek(),
+    getClientState: () => ctx.stateSignal.peek(),
     getPlayerId: () => ctx.playerId as PlayerId,
     getTransport: () => ctx.transport,
     getMap: () => map,
@@ -278,10 +271,10 @@ export const createGameClient = () => {
 
   replayController = createReplayController({
     getClientContext: () => ({
-      state: mirror.clientState.peek(),
+      state: ctx.stateSignal.peek(),
       isLocalGame: ctx.isLocalGame,
       gameCode: ctx.gameCode,
-      gameState: mirror.gameState.peek(),
+      gameState: ctx.gameStateSignal.peek(),
     }),
     fetchReplay: (code, gameId) => sessionApi.fetchReplay(code, gameId),
     setReplayControls: (view) => ui.overlay.setReplayControls(view),
@@ -310,7 +303,6 @@ export const createGameClient = () => {
   setState = (newState: ClientState) => {
     replayController.clearForState(newState);
     applyClientStateTransition(stateTransitionDeps, newState);
-    mirror.clientState.value = newState;
   };
 
   const phaseControllerDeps = createMainPhaseTransitionDeps({
@@ -354,7 +346,7 @@ export const createGameClient = () => {
       throw new Error('Game client network deps not initialized');
     }
     return createLocalGameTransport({
-      getGameState: () => mirror.gameState.peek(),
+      getGameState: () => ctx.gameStateSignal.peek(),
       getPlayerId: () => ctx.playerId as PlayerId,
       getMap: () => map,
       getScenario: () => ctx.scenario,
@@ -391,17 +383,14 @@ export const createGameClient = () => {
     track,
     createLocalTransport: () => createLocalTransport(),
     stopTurnTimer: () => turnTimer.stop(),
-    onAfterClearGameState: () => {
-      mirror.gameState.value = null;
-    },
   };
   networkHolder.deps = mainNetworkDeps;
 
   const handleInput = (event: InputEvent) => {
-    if (mirror.clientState.peek() === 'playing_movementAnim') return;
+    if (ctx.stateSignal.peek() === 'playing_movementAnim') return;
     const commands = interpretInput(
       event,
-      mirror.gameState.peek(),
+      ctx.gameStateSignal.peek(),
       map,
       ctx.playerId as PlayerId,
       ctx.planningState,
@@ -415,8 +404,8 @@ export const createGameClient = () => {
 
   const sendFleetReady = (purchases: FleetPurchase[]) => {
     if (
-      !mirror.gameState.peek() ||
-      mirror.clientState.peek() !== 'playing_fleetBuilding' ||
+      !ctx.gameStateSignal.peek() ||
+      ctx.stateSignal.peek() !== 'playing_fleetBuilding' ||
       !ctx.transport
     ) {
       return;
@@ -437,9 +426,9 @@ export const createGameClient = () => {
 
   const dispatch = (cmd: GameCommand) => {
     const commandCtx: CommandRouterSessionRead = {
-      getState: () => mirror.clientState.peek(),
+      getState: () => ctx.stateSignal.peek(),
       getPlayerId: () => ctx.playerId as PlayerId,
-      getGameState: () => mirror.gameState.peek(),
+      getGameState: () => ctx.gameStateSignal.peek(),
       getTransport: () => ctx.transport,
       planningState: ctx.planningState,
     };
@@ -548,7 +537,7 @@ export const createGameClient = () => {
     dispose() {
       stopCombatWatch?.();
       setPlanningHudBump(undefined);
-      disposeMirrorSubscriptions?.();
+      disposeSessionSubscriptions?.();
       connection.close();
       turnTimer.stop();
       disposeBrowserEvents();
