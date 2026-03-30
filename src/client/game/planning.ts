@@ -270,6 +270,3 @@ export const createPlanningStore = (): PlanningStore => {
 
   return planningStore;
 };
-
-export const createInitialPlanningState = (): PlanningStore =>
-  createPlanningStore();

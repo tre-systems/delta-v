@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameState, Ship, TransferOrder } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 import { derivePhaseTransition } from './phase';
-import { createInitialPlanningState } from './planning';
+import { createPlanningStore } from './planning';
 import type { GameTransport } from './transport';
 
 // --- Helpers ---
@@ -100,35 +100,35 @@ const mockTransport = (): GameTransport & {
 
 describe('dispatch: planning state mutations', () => {
   it('setOverloadDirection stores direction in overloads map', () => {
-    const plan = createInitialPlanningState();
+    const plan = createPlanningStore();
 
-    plan.overloads.set('ship-0', 3);
+    plan.setShipOverload('ship-0', 3);
 
     expect(plan.overloads.get('ship-0')).toBe(3);
   });
 
   it('setOverloadDirection with null clears overload', () => {
-    const plan = createInitialPlanningState();
-    plan.overloads.set('ship-0', 3);
+    const plan = createPlanningStore();
+    plan.setShipOverload('ship-0', 3);
 
-    plan.overloads.set('ship-0', null);
+    plan.setShipOverload('ship-0', null);
 
     expect(plan.overloads.get('ship-0')).toBeNull();
   });
 
   it('setWeakGravityChoices stores choices map', () => {
-    const plan = createInitialPlanningState();
+    const plan = createPlanningStore();
     const choices = { '3,4': true, '5,6': false };
 
-    plan.weakGravityChoices.set('ship-0', choices);
+    plan.setShipWeakGravityChoices('ship-0', choices);
 
     expect(plan.weakGravityChoices.get('ship-0')).toEqual(choices);
   });
 
   it('setCombatPlan assigns plan fields', () => {
-    const plan = createInitialPlanningState();
+    const plan = createPlanningStore();
 
-    Object.assign(plan, {
+    plan.applyCombatPlanUpdate({
       combatTargetId: 'enemy',
       combatTargetType: 'ship',
       combatAttackerIds: ['ship-0'],
@@ -142,116 +142,113 @@ describe('dispatch: planning state mutations', () => {
   });
 
   it('setCombatPlan can override selectedShipId', () => {
-    const plan = createInitialPlanningState();
-    plan.selectedShipId = 'ship-0';
+    const plan = createPlanningStore();
+    plan.setSelectedShipId('ship-0');
 
-    Object.assign(plan, { combatTargetId: 'enemy' });
-    plan.selectedShipId = 'ship-1';
+    plan.applyCombatPlanUpdate(
+      {
+        combatTargetId: 'enemy',
+        combatTargetType: 'ship',
+        combatAttackerIds: [],
+        combatAttackStrength: null,
+      },
+      'ship-1',
+    );
 
     expect(plan.selectedShipId).toBe('ship-1');
   });
 
   it('undoQueuedAttack pops the last attack', () => {
-    const plan = createInitialPlanningState();
-    plan.queuedAttacks = [
-      {
-        attackerIds: ['a'],
-        targetId: 'b',
-        targetType: 'ship',
-        attackStrength: 2,
-      },
-      {
-        attackerIds: ['c'],
-        targetId: 'd',
-        targetType: 'ship',
-        attackStrength: 1,
-      },
-    ];
+    const plan = createPlanningStore();
+    plan.queueCombatAttack({
+      attackerIds: ['a'],
+      targetId: 'b',
+      targetType: 'ship',
+      attackStrength: 2,
+    });
+    plan.queueCombatAttack({
+      attackerIds: ['c'],
+      targetId: 'd',
+      targetType: 'ship',
+      attackStrength: 1,
+    });
 
-    plan.queuedAttacks.pop();
+    plan.popQueuedAttack();
 
     expect(plan.queuedAttacks).toHaveLength(1);
     expect(plan.queuedAttacks[0].attackerIds).toEqual(['a']);
   });
 
   it('undoQueuedAttack on empty array is a no-op', () => {
-    const plan = createInitialPlanningState();
+    const plan = createPlanningStore();
 
-    plan.queuedAttacks.pop();
+    plan.popQueuedAttack();
 
     expect(plan.queuedAttacks).toHaveLength(0);
   });
 
   it('setTorpedoAccel stores direction and steps', () => {
-    const plan = createInitialPlanningState();
+    const plan = createPlanningStore();
 
-    plan.torpedoAccel = 2;
-    plan.torpedoAccelSteps = 1;
+    plan.setTorpedoAcceleration(2, 1);
 
     expect(plan.torpedoAccel).toBe(2);
     expect(plan.torpedoAccelSteps).toBe(1);
   });
 
   it('clearTorpedoAcceleration nulls both fields', () => {
-    const plan = createInitialPlanningState();
-    plan.torpedoAccel = 2;
-    plan.torpedoAccelSteps = 1;
+    const plan = createPlanningStore();
+    plan.setTorpedoAcceleration(2, 1);
 
-    plan.torpedoAccel = null;
-    plan.torpedoAccelSteps = null;
+    plan.clearTorpedoAcceleration();
 
     expect(plan.torpedoAccel).toBeNull();
     expect(plan.torpedoAccelSteps).toBeNull();
   });
 
   it('setHoverHex stores hex coordinate', () => {
-    const plan = createInitialPlanningState();
+    const plan = createPlanningStore();
 
-    plan.hoverHex = { q: 3, r: -1 };
+    plan.setHoverHex({ q: 3, r: -1 });
 
     expect(plan.hoverHex).toEqual({ q: 3, r: -1 });
   });
 
   it('setHoverHex with null clears hover', () => {
-    const plan = createInitialPlanningState();
-    plan.hoverHex = { q: 3, r: -1 };
+    const plan = createPlanningStore();
+    plan.setHoverHex({ q: 3, r: -1 });
 
-    plan.hoverHex = null;
+    plan.setHoverHex(null);
 
     expect(plan.hoverHex).toBeNull();
   });
 
   it('selectShip sets selectedShipId', () => {
-    const plan = createInitialPlanningState();
+    const plan = createPlanningStore();
 
-    plan.selectedShipId = 'ship-0';
+    plan.setSelectedShipId('ship-0');
 
     expect(plan.selectedShipId).toBe('ship-0');
   });
 
   it('deselectShip clears selectedShipId', () => {
-    const plan = createInitialPlanningState();
-    plan.selectedShipId = 'ship-0';
+    const plan = createPlanningStore();
+    plan.setSelectedShipId('ship-0');
 
-    plan.selectedShipId = null;
+    plan.setSelectedShipId(null);
 
     expect(plan.selectedShipId).toBeNull();
   });
 
   it('clearAstrogationPlanning resets all burn-related state', () => {
-    const plan = createInitialPlanningState();
-    plan.selectedShipId = 'ship-0';
+    const plan = createPlanningStore();
+    plan.setSelectedShipId('ship-0');
     plan.lastSelectedHex = '0,0';
-    plan.burns.set('ship-0', 3);
-    plan.overloads.set('ship-0', 1);
-    plan.weakGravityChoices.set('ship-0', { '1,2': true });
+    plan.setShipBurn('ship-0', 3);
+    plan.setShipOverload('ship-0', 1);
+    plan.setShipWeakGravityChoices('ship-0', { '1,2': true });
 
-    // This mirrors setState's clearAstrogationPlanning logic
-    plan.selectedShipId = null;
-    plan.lastSelectedHex = null;
-    plan.burns.clear();
-    plan.overloads.clear();
-    plan.weakGravityChoices.clear();
+    plan.resetAstrogationPlanning();
 
     expect(plan.selectedShipId).toBeNull();
     expect(plan.lastSelectedHex).toBeNull();
