@@ -14,7 +14,6 @@ interface TransitionUI {
   showWaiting: (code: string) => void;
   showFleetBuilding: (state: GameState, playerId: PlayerId) => void;
   showHUD: () => void;
-  showMovementStatus: () => void;
 }
 
 interface TransitionTutorial {
@@ -116,10 +115,6 @@ export const applyClientStateTransition = (
 
     if (entryPlan.resetCombatState) {
       deps.resetCombatState();
-    }
-
-    if (entryPlan.showMovementStatus) {
-      deps.ui.showMovementStatus();
     }
 
     if (entryPlan.autoSkipCombatIfNoTargets) {

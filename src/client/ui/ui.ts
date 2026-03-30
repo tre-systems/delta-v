@@ -179,7 +179,6 @@ export const createUIManager = () => {
     showAttackButton: (isVisible) => hudChromeView.showAttackButton(isVisible),
     showFireButton: (isVisible, count) =>
       hudChromeView.showFireButton(isVisible, count),
-    showMovementStatus: () => hudChromeView.showMovementStatus(),
   });
   const sessionActions = createSessionActions({
     setPlayerId: (id) => log.setPlayerId(id),

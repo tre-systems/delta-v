@@ -163,7 +163,6 @@ describe('game-client-phase-entry', () => {
     ).toMatchObject({
       stopTurnTimer: true,
       showHUD: true,
-      showMovementStatus: true,
       hideTutorial: true,
     });
   });

@@ -16,7 +16,6 @@ type CreateHudActionsInput = {
   clearTurnTimer: () => void;
   showAttackButton: (isVisible: boolean) => void;
   showFireButton: (isVisible: boolean, count: number) => void;
-  showMovementStatus: () => void;
 };
 
 export const createHudActions = ({
@@ -30,7 +29,6 @@ export const createHudActions = ({
   clearTurnTimer,
   showAttackButton,
   showFireButton,
-  showMovementStatus,
 }: CreateHudActionsInput) => ({
   updateHUD: (input: Omit<HUDInput, 'isMobile'>) => {
     update(input);
@@ -44,5 +42,4 @@ export const createHudActions = ({
   clearTurnTimer,
   showAttackButton,
   showFireButton,
-  showMovementStatus,
 });

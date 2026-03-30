@@ -142,7 +142,7 @@ describe('HUDChromeView', () => {
     expect(compass.style.transform).toBe('rotate(-30deg)');
   });
 
-  it('updates HUD chrome helpers and hides action buttons during movement', async () => {
+  it('updates HUD chrome helpers and applies movement presentation overrides', async () => {
     const queueLayoutSync = vi.fn();
     const onStatusText = vi.fn();
     const view = createHUDChromeView({
@@ -200,7 +200,13 @@ describe('HUDChromeView', () => {
       'FIRE ALL (3)',
     );
 
-    view.showMovementStatus();
+    view.update(
+      buildInput({
+        statusOverrideText: 'Ships moving...',
+        suppressActionButtons: true,
+      }),
+    );
+
     expect(onStatusText).toHaveBeenCalledWith('Ships moving...');
     for (const id of ACTION_BUTTON_IDS) {
       expect((document.getElementById(id) as HTMLElement).style.display).toBe(
