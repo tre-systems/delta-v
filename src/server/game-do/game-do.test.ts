@@ -184,11 +184,9 @@ const createMessageHandlerDeps = (
       return raw;
     },
     renderer: {
-      setPlayerId() {},
       clearTrails() {},
     },
     ui: {
-      setPlayerId() {},
       log: {
         logText() {},
         setChatEnabled() {},

@@ -111,9 +111,6 @@ export const createHudController = (deps: HudControllerDeps) => {
           deps.getClientState(),
         ),
       );
-
-      deps.ui.updateFleetStatus(hud.fleetStatus);
-      deps.ui.updateShipList(hud.myShips, hud.selectedId, planning.burns);
     },
 
     updateTooltip: (screenX: number, screenY: number) => {

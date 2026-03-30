@@ -108,11 +108,9 @@ const createDeps = (
     trackEvent: track('trackEvent'),
     deserializeState: (raw: GameState) => raw,
     renderer: {
-      setPlayerId: track('renderer.setPlayerId'),
       clearTrails: track('renderer.clearTrails'),
     },
     ui: {
-      setPlayerId: track('ui.setPlayerId'),
       log: {
         logText: track('ui.log.logText'),
         setChatEnabled: track('ui.log.setChatEnabled'),
@@ -147,8 +145,6 @@ describe('client integration: connection flow', () => {
     expect(deps.ctx.playerId).toBe(0);
     expect(deps.ctx.gameCode).toBe('ABCDE');
     expect(deps.calls.storePlayerToken).toEqual([['ABCDE', 'tok-123']]);
-    expect(deps.calls['renderer.setPlayerId']).toEqual([[0]]);
-    expect(deps.calls['ui.setPlayerId']).toEqual([[0]]);
     expect(deps.calls.setState).toEqual([['waitingForOpponent']]);
     expect(deps.calls.trackEvent).toEqual([['join_game_succeeded', {}]]);
   });
