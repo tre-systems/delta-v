@@ -1,4 +1,5 @@
 import { TURN_TIMEOUT_MS } from '../../shared/constants';
+import { type ReadonlySignal, signal } from '../reactive';
 
 export interface TurnTimerViewModel {
   text: string;
@@ -36,13 +37,15 @@ export const deriveTurnTimer = (
 };
 
 export interface TurnTimerDeps {
-  setTurnTimer: (text: string, className: string) => void;
-  clearTurnTimer: () => void;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   playWarning: () => void;
 }
 
 export interface TurnTimerManager {
+  readonly viewSignal: ReadonlySignal<Pick<
+    TurnTimerViewModel,
+    'text' | 'className'
+  > | null>;
   start: () => void;
   stop: () => void;
 }
@@ -53,13 +56,17 @@ export const createTurnTimerManager = (
   let turnStartTime = 0;
   let turnTimerInterval: number | null = null;
   let timerWarningPlayed = false;
+  const viewSignal = signal<Pick<
+    TurnTimerViewModel,
+    'text' | 'className'
+  > | null>(null);
 
   const stop = () => {
     if (turnTimerInterval !== null) {
       clearInterval(turnTimerInterval);
       turnTimerInterval = null;
     }
-    deps.clearTurnTimer();
+    viewSignal.value = null;
   };
 
   const start = () => {
@@ -72,7 +79,10 @@ export const createTurnTimerManager = (
         elapsed,
         Math.floor(TURN_TIMEOUT_MS / 1000),
       );
-      deps.setTurnTimer(timer.text, timer.className);
+      viewSignal.value = {
+        text: timer.text,
+        className: timer.className,
+      };
       // Warning at 30s remaining
       if (timer.shouldWarn && !timerWarningPlayed) {
         timerWarningPlayed = true;
@@ -82,5 +92,9 @@ export const createTurnTimerManager = (
     }, 1000);
   };
 
-  return { start, stop };
+  return {
+    viewSignal,
+    start,
+    stop,
+  };
 };

@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { signal } from '../reactive';
+import {
+  createHiddenReplayControls,
+  createOverlayStateStore,
+} from './overlay-state';
 import { createOverlayView } from './overlay-view';
 
 const installFixture = () => {
@@ -46,9 +51,10 @@ describe('OverlayView', () => {
   });
 
   it('renders game-over and rematch-pending states', () => {
-    const view = createOverlayView();
+    const state = createOverlayStateStore();
+    createOverlayView(state);
 
-    view.showGameOver(true, 'Fleet eliminated!', {
+    state.showGameOver(true, 'Fleet eliminated!', {
       turns: 12,
       myShipsAlive: 2,
       myShipsTotal: 3,
@@ -77,16 +83,17 @@ describe('OverlayView', () => {
     ) as HTMLButtonElement;
     expect(rematchBtn.disabled).toBe(false);
 
-    view.showRematchPending();
+    state.showRematchPending();
     expect(rematchBtn.textContent).toBe('Waiting...');
     expect(rematchBtn.disabled).toBe(true);
   });
 
   it('shows reconnect overlay and runs cancel handler', () => {
-    const view = createOverlayView();
+    const state = createOverlayStateStore();
+    createOverlayView(state);
     const onCancel = vi.fn();
 
-    view.showReconnecting(2, 5, onCancel);
+    state.showReconnecting(2, 5, onCancel);
 
     expect(
       (document.getElementById('reconnectOverlay') as HTMLElement).style
@@ -109,10 +116,13 @@ describe('OverlayView', () => {
   });
 
   it('shows replay controls and updates navigation state', () => {
-    const view = createOverlayView();
+    const state = createOverlayStateStore();
+    createOverlayView(state);
+    const replayControlsSignal = signal(createHiddenReplayControls());
 
-    view.showGameOver(true, 'Fleet eliminated!');
-    view.setReplayControls({
+    state.bindReplayControlsSignal(replayControlsSignal);
+    state.showGameOver(true, 'Fleet eliminated!');
+    replayControlsSignal.value = {
       available: true,
       active: true,
       loading: false,
@@ -124,7 +134,7 @@ describe('OverlayView', () => {
       canPrev: false,
       canNext: true,
       canEnd: true,
-    });
+    };
 
     expect(
       (document.getElementById('replayControls') as HTMLElement).style.display,
@@ -158,7 +168,8 @@ describe('OverlayView', () => {
   });
 
   it('shows toast and phase alert with timed cleanup', () => {
-    const view = createOverlayView();
+    const state = createOverlayStateStore();
+    const view = createOverlayView(state);
 
     view.showToast('Warning', 'error');
     expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(1);
@@ -185,10 +196,11 @@ describe('OverlayView', () => {
   });
 
   it('disposes reconnect handlers and pending timers', () => {
-    const view = createOverlayView();
+    const state = createOverlayStateStore();
+    const view = createOverlayView(state);
     const onCancel = vi.fn();
 
-    view.showReconnecting(1, 3, onCancel);
+    state.showReconnecting(1, 3, onCancel);
     view.showToast('Warning', 'error');
     view.showPhaseAlert('combat', false);
     view.dispose();
