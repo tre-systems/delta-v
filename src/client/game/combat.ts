@@ -4,7 +4,7 @@ import {
   hasLineOfSight,
   hasLineOfSightToTarget,
 } from '../../shared/combat';
-import { type HexCoord, hexEqual } from '../../shared/hex';
+import { type HexCoord, hexDistance, hexEqual } from '../../shared/hex';
 import type {
   CombatAttack,
   GameState,
@@ -357,6 +357,66 @@ export const createCombatTargetPlan = (
     combatAttackerIds: [],
     combatAttackStrength: null,
   };
+};
+
+// Find the nearest visible enemy (ship or nuke) that the given
+// attacker can target, excluding already-queued targets.
+export const findNearestTarget = (
+  state: GameState,
+  playerId: PlayerId,
+  attackerShipId: string,
+  queuedAttacks: CombatAttack[],
+  map: SolarSystemMap | null,
+): CombatTargetSelection | null => {
+  if (!map) return null;
+
+  const attacker = state.ships.find(
+    (s) => s.id === attackerShipId && canAttack(s),
+  );
+  if (!attacker) return null;
+
+  const queuedTargets = getTargetedKeys(queuedAttacks);
+
+  // Check enemy ships
+  const enemyShips = state.ships.filter(
+    (s) =>
+      s.owner !== playerId &&
+      s.lifecycle === 'active' &&
+      s.detected &&
+      !queuedTargets.has(`ship:${s.id}`) &&
+      hasLineOfSight(attacker, s, map),
+  );
+
+  // Check enemy nukes
+  const enemyNukes = state.ordnance.filter(
+    (o) =>
+      o.owner !== playerId &&
+      o.lifecycle !== 'destroyed' &&
+      o.type === 'nuke' &&
+      !queuedTargets.has(`ordnance:${o.id}`) &&
+      hasLineOfSightToTarget(attacker, o, map),
+  );
+
+  let best: CombatTargetSelection | null = null;
+  let bestDist = Infinity;
+
+  for (const ship of enemyShips) {
+    const dist = hexDistance(attacker.position, ship.position);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = { targetId: ship.id, targetType: 'ship' };
+    }
+  }
+
+  for (const nuke of enemyNukes) {
+    const dist = hexDistance(attacker.position, nuke.position);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = { targetId: nuke.id, targetType: 'ordnance' };
+    }
+  }
+
+  return best;
 };
 
 export const createClearedCombatPlan = (): CombatTargetPlan => {
