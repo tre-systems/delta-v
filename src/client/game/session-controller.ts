@@ -5,7 +5,9 @@ import {
   setGameCode,
   setIsLocalGame,
   setLatencyMs,
+  setOpponentDisconnectDeadlineMs,
   setPlayerId,
+  setReconnectOverlayState,
   setScenario,
   setSpectatorMode,
   setTransport,
@@ -51,7 +53,13 @@ export interface LocalGameSessionDeps {
 }
 
 export interface SpectateGameSessionDeps {
-  ctx: Pick<ClientSession, 'gameCode' | 'spectatorMode'>;
+  ctx: Pick<
+    ClientSession,
+    | 'gameCode'
+    | 'spectatorMode'
+    | 'reconnectOverlayState'
+    | 'opponentDisconnectDeadlineMs'
+  >;
   resetTurnTelemetry: () => void;
   replaceRoute: (route: string) => void;
   buildGameRoute: (code: string) => string;
@@ -60,7 +68,10 @@ export interface SpectateGameSessionDeps {
 }
 
 export interface JoinGameSessionDeps {
-  ctx: Pick<ClientSession, 'gameCode'>;
+  ctx: Pick<
+    ClientSession,
+    'gameCode' | 'reconnectOverlayState' | 'opponentDisconnectDeadlineMs'
+  >;
   getStoredPlayerToken: (code: string) => string | null;
   storePlayerToken: (code: string, token: string) => void;
   resetTurnTelemetry: () => void;
@@ -84,7 +95,9 @@ export interface ExitToMenuSessionDeps {
     | 'isLocalGame'
     | 'latencyMs'
     | 'playerId'
+    | 'reconnectOverlayState'
     | 'reconnectAttempts'
+    | 'opponentDisconnectDeadlineMs'
     | 'spectatorMode'
     | 'transport'
   >;
@@ -103,6 +116,8 @@ export const completeCreatedGameSession = (
   playerToken: string,
 ): void => {
   setSpectatorMode(deps.ctx as ClientSession, false);
+  setReconnectOverlayState(deps.ctx, null);
+  setOpponentDisconnectDeadlineMs(deps.ctx, null);
   setScenario(deps.ctx, scenario);
   setGameCode(deps.ctx, code);
   deps.storePlayerToken(code, playerToken);
@@ -121,6 +136,8 @@ export const startLocalGameSession = (
 ): void => {
   setSpectatorMode(deps.ctx as ClientSession, false);
   setIsLocalGame(deps.ctx, true);
+  setReconnectOverlayState(deps.ctx, null);
+  setOpponentDisconnectDeadlineMs(deps.ctx, null);
   setScenario(deps.ctx, scenario);
   setPlayerId(deps.ctx, 0);
   deps.resetTurnTelemetry();
@@ -162,6 +179,8 @@ export const beginSpectateGameSession = (
   code: string,
 ): void => {
   setSpectatorMode(deps.ctx as ClientSession, true);
+  setReconnectOverlayState(deps.ctx, null);
+  setOpponentDisconnectDeadlineMs(deps.ctx, null);
   deps.resetTurnTelemetry();
   setGameCode(deps.ctx, code);
   deps.replaceRoute(deps.buildGameRoute(code));
@@ -184,6 +203,8 @@ export const beginJoinGameSession = async (
   }
 
   setSpectatorMode(deps.ctx as ClientSession, false);
+  setReconnectOverlayState(deps.ctx, null);
+  setOpponentDisconnectDeadlineMs(deps.ctx, null);
 
   if (validation.value) {
     deps.storePlayerToken(code, validation.value);
@@ -205,6 +226,8 @@ export const exitToMenuSession = (deps: ExitToMenuSessionDeps): void => {
   setSpectatorMode(deps.ctx, false);
   setIsLocalGame(deps.ctx, false);
   setLatencyMs(deps.ctx, -1);
+  setReconnectOverlayState(deps.ctx, null);
+  setOpponentDisconnectDeadlineMs(deps.ctx, null);
   setPlayerId(deps.ctx, -1);
   resetReconnectAttempts(deps.ctx);
   setTransport(deps.ctx, null);

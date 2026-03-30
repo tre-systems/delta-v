@@ -8,6 +8,7 @@ import {
 } from './network';
 import type { ClientState } from './phase';
 import { buildWebSocketUrl } from './session';
+import type { ReconnectOverlayState } from './session-ui-state';
 import { createWebSocketTransport, type GameTransport } from './transport';
 export interface ConnectionDeps {
   getGameCode: () => string | null;
@@ -19,14 +20,9 @@ export interface ConnectionDeps {
   setReconnectAttempts: (n: number) => void;
   setTransport: (t: GameTransport) => void;
   setLatencyMs: (ms: number) => void;
+  setReconnectOverlayState: (state: ReconnectOverlayState | null) => void;
   setState: (state: ClientState) => void;
   handleMessage: (msg: S2C) => void;
-  showReconnecting: (
-    attempt: number,
-    max: number,
-    onCancel: () => void,
-  ) => void;
-  hideReconnecting: () => void;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   exitToMenu: () => void;
   trackEvent: (event: string, props?: Record<string, unknown>) => void;
@@ -127,7 +123,7 @@ export const createConnectionManager = (
       deps.trackEvent('reconnect_failed', {
         attempts: deps.getReconnectAttempts(),
       });
-      deps.hideReconnecting();
+      deps.setReconnectOverlayState(null);
       deps.showToast('Could not reconnect to game', 'error');
       deps.exitToMenu();
       return;
@@ -137,18 +133,18 @@ export const createConnectionManager = (
       attempt: must(plan.nextAttempt),
       delayMs: must(plan.delayMs),
     });
-    deps.showReconnecting(
-      must(plan.nextAttempt),
-      MAX_RECONNECT_ATTEMPTS,
-      () => {
-        // Cancel reconnection and return to menu
+    deps.setReconnectOverlayState({
+      attempt: must(plan.nextAttempt),
+      maxAttempts: MAX_RECONNECT_ATTEMPTS,
+      onCancel: () => {
         if (reconnectTimer !== null) {
           clearTimeout(reconnectTimer);
           reconnectTimer = null;
         }
+        deps.setReconnectOverlayState(null);
         deps.exitToMenu();
       },
-    );
+    });
     reconnectTimer = window.setTimeout(() => {
       reconnectTimer = null;
       connect(must(deps.getGameCode()));
@@ -188,6 +184,7 @@ export const createConnectionManager = (
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
     }
+    deps.setReconnectOverlayState(null);
     ws?.close();
     ws = null;
   };

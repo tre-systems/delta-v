@@ -5,6 +5,7 @@ import { signal } from '../reactive';
 import type { LogisticsStore } from './logistics-ui';
 import type { ClientState } from './phase';
 import { createPlanningStore, type PlanningStore } from './planning';
+import type { ReconnectOverlayState } from './session-ui-state';
 import type { GameTransport } from './transport';
 
 const defineReactiveSessionProperty = <T>(
@@ -48,6 +49,10 @@ export interface ClientSession {
   planningState: PlanningStore;
   latencyMs: number;
   readonly latencyMsSignal: ReadonlySignal<number>;
+  reconnectOverlayState: ReconnectOverlayState | null;
+  readonly reconnectOverlayStateSignal: ReadonlySignal<ReconnectOverlayState | null>;
+  opponentDisconnectDeadlineMs: number | null;
+  readonly opponentDisconnectDeadlineMsSignal: ReadonlySignal<number | null>;
   reconnectAttempts: number;
 }
 
@@ -68,6 +73,10 @@ export const createInitialClientSession = (): ClientSession => {
     | 'isLocalGameSignal'
     | 'latencyMs'
     | 'latencyMsSignal'
+    | 'reconnectOverlayState'
+    | 'reconnectOverlayStateSignal'
+    | 'opponentDisconnectDeadlineMs'
+    | 'opponentDisconnectDeadlineMsSignal'
   > & {
     state: ClientState;
     stateSignal: ReadonlySignal<ClientState>;
@@ -83,6 +92,10 @@ export const createInitialClientSession = (): ClientSession => {
     isLocalGameSignal: ReadonlySignal<boolean>;
     latencyMs: number;
     latencyMsSignal: ReadonlySignal<number>;
+    reconnectOverlayState: ReconnectOverlayState | null;
+    reconnectOverlayStateSignal: ReadonlySignal<ReconnectOverlayState | null>;
+    opponentDisconnectDeadlineMs: number | null;
+    opponentDisconnectDeadlineMsSignal: ReadonlySignal<number | null>;
   };
 
   const session = {
@@ -125,6 +138,16 @@ export const createInitialClientSession = (): ClientSession => {
     'latencyMs',
     -1,
   );
+  session.reconnectOverlayStateSignal = defineReactiveSessionProperty(
+    session,
+    'reconnectOverlayState',
+    null,
+  );
+  session.opponentDisconnectDeadlineMsSignal = defineReactiveSessionProperty(
+    session,
+    'opponentDisconnectDeadlineMs',
+    null,
+  );
 
   return session;
 };
@@ -138,6 +161,8 @@ export type ClientSessionMessageContext = Pick<
   | 'reconnectAttempts'
   | 'latencyMs'
   | 'gameState'
+  | 'reconnectOverlayState'
+  | 'opponentDisconnectDeadlineMs'
 >;
 
 /** Subset used by `applyClientStateTransition` (full `ClientSession` is assignable). */
@@ -164,6 +189,8 @@ export const stubClientSession = (
       | 'logisticsStateSignal'
       | 'isLocalGameSignal'
       | 'latencyMsSignal'
+      | 'reconnectOverlayStateSignal'
+      | 'opponentDisconnectDeadlineMsSignal'
     >
   > = {},
 ): ClientSession => Object.assign(createInitialClientSession(), overrides);

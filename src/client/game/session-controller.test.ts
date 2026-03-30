@@ -163,7 +163,13 @@ const createExitToMenuDeps = (): ExitToMenuSessionDeps & {
       gameState: createState(),
       isLocalGame: true,
       latencyMs: 250,
+      opponentDisconnectDeadlineMs: Date.now() + 30_000,
       playerId: 1,
+      reconnectOverlayState: {
+        attempt: 2,
+        maxAttempts: 5,
+        onCancel: () => {},
+      },
       reconnectAttempts: 3,
       spectatorMode: true,
       transport: { kind: 'local' } as never,
@@ -332,7 +338,9 @@ describe('session-controller', () => {
     expect(deps.ctx.gameState).toBeNull();
     expect(deps.ctx.isLocalGame).toBe(false);
     expect(deps.ctx.latencyMs).toBe(-1);
+    expect(deps.ctx.opponentDisconnectDeadlineMs).toBeNull();
     expect(deps.ctx.playerId).toBe(-1);
+    expect(deps.ctx.reconnectOverlayState).toBeNull();
     expect(deps.ctx.spectatorMode).toBe(false);
     expect(deps.ctx.reconnectAttempts).toBe(0);
     expect(deps.ctx.transport).toBeNull();
