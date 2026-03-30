@@ -12,7 +12,8 @@ import { clamp } from '../../shared/util';
 import { batch } from '../reactive';
 import {
   buildCurrentAttack,
-  countRemainingCombatAttackers,
+  createCombatTargetPlan,
+  findNearestTarget,
   getAttackStrengthForSelection,
   hasSplitFireOptions,
 } from './combat';
@@ -89,6 +90,34 @@ const sendSkipCombat = (deps: CombatActionDeps) => {
 
 export { sendSkipCombat };
 
+// Auto-select the nearest visible enemy for the currently selected
+// ship, so the player only needs to confirm (or change target).
+const autoTargetNearest = (deps: CombatActionDeps): void => {
+  const gameState = deps.getGameState();
+  const selectedId = deps.planningState.selectedShipId;
+  if (!gameState || !selectedId) return;
+
+  const target = findNearestTarget(
+    gameState,
+    deps.getPlayerId(),
+    selectedId,
+    deps.planningState.queuedAttacks,
+    deps.getMap(),
+  );
+
+  if (target) {
+    const plan = createCombatTargetPlan(
+      gameState,
+      deps.getPlayerId(),
+      deps.planningState,
+      target.targetId,
+      target.targetType,
+      deps.getMap(),
+    );
+    deps.planningState.applyCombatPlanUpdate(plan);
+  }
+};
+
 export const queueAttack = (deps: CombatActionDeps) => {
   const gameState = deps.getGameState();
 
@@ -110,25 +139,6 @@ export const queueAttack = (deps: CombatActionDeps) => {
     const count = deps.planningState.queueCombatAttack(attack);
     clearCombatSelection(deps);
 
-    const remainingAttackers = countRemainingCombatAttackers(
-      gameState,
-      deps.getPlayerId(),
-      deps.planningState.queuedAttacks,
-    );
-
-    if (
-      remainingAttackers === 0 &&
-      !hasSplitFireOptions(
-        gameState,
-        deps.getPlayerId(),
-        deps.planningState.queuedAttacks,
-      )
-    ) {
-      // No more attackers available — auto-fire
-      fireAllAttacks(deps);
-      return;
-    }
-
     // Auto-advance to the next attackable ship in rotation
     const committedIds = new Set(
       deps.planningState.queuedAttacks.flatMap((a) => a.attackerIds),
@@ -147,10 +157,21 @@ export const queueAttack = (deps: CombatActionDeps) => {
     if (myShips.length > 0) {
       const next = myShips[(currentIdx + 1) % myShips.length];
       deps.planningState.selectShip(next.id);
+      autoTargetNearest(deps);
     }
 
+    const hasMore =
+      myShips.length > 0 ||
+      hasSplitFireOptions(
+        gameState,
+        deps.getPlayerId(),
+        deps.planningState.queuedAttacks,
+      );
+
     deps.showToast(
-      `Attack queued (${count}). Click next target or press Enter to fire.`,
+      hasMore
+        ? `Attack queued (${count}). Select next target or press Enter to fire.`
+        : `Attack queued (${count}). Press Enter to fire.`,
       'info',
     );
   });
@@ -175,7 +196,11 @@ export const autoSkipCombatIfNoTargets = (deps: CombatActionDeps): void => {
     // Skip directly — sendSkipCombat checks getClientState() which
     // may not reflect 'playing_combat' yet during state transition
     transport.skipCombat();
+    return;
   }
+
+  // Targets exist — pre-select the nearest one for the selected ship
+  autoTargetNearest(deps);
 };
 
 export const adjustCombatStrength = (deps: CombatActionDeps, delta: number) => {

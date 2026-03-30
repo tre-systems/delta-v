@@ -234,7 +234,11 @@ export const deriveHudViewModel = (
       : false,
     allShipsHaveBurns: myShips
       .filter(isOrderableShip)
-      .every((s) => (planning.burns.get(s.id) ?? null) !== null),
+      .every(
+        (s) =>
+          s.damage.disabledTurns > 0 ||
+          (planning.burns.get(s.id) ?? null) !== null,
+      ),
     multipleShipsAlive: myShips.filter(isOrderableShip).length > 1,
     speed: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
     fuelToStop: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
