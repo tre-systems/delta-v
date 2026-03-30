@@ -4,20 +4,14 @@ import type { GameState, PlayerId } from '../../shared/types/domain';
 import { playConfirm, playSelect } from '../audio';
 import { deriveBurnChangePlan } from './burn';
 import { buildAstrogationOrders, findMatchVelocityPlan } from './helpers';
-import type { PlanningState } from './planning';
-import {
-  clearShipPlanning,
-  selectShip,
-  setShipBurn,
-  setShipOverload,
-} from './planning-store';
+import type { PlanningStore } from './planning';
 import type { GameTransport } from './transport';
 export interface AstrogationActionDeps {
   getGameState: () => GameState | null;
   getClientState: () => string;
   getPlayerId: () => PlayerId;
   getTransport: () => GameTransport | null;
-  planningState: PlanningState;
+  planningState: PlanningStore;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
 }
 
@@ -32,7 +26,7 @@ export const setBurnDirection = (
   if (!targetId) return;
 
   if (dir === null) {
-    clearShipPlanning(deps.planningState, targetId);
+    deps.planningState.clearShipPlanning(targetId);
     return;
   }
   const currentBurn = deps.planningState.burns.get(targetId) ?? null;
@@ -52,8 +46,7 @@ export const setBurnDirection = (
     return;
   }
 
-  setShipBurn(
-    deps.planningState,
+  deps.planningState.setShipBurn(
     plan.shipId,
     plan.nextBurn,
     plan.clearOverload,
@@ -77,7 +70,7 @@ export const setBurnDirection = (
         !deps.planningState.burns.has(next.id) &&
         next.damage.disabledTurns === 0
       ) {
-        selectShip(deps.planningState, next.id);
+        deps.planningState.selectShip(next.id);
         return;
       }
     }
@@ -90,7 +83,7 @@ export const clearSelectedBurn = (deps: AstrogationActionDeps) => {
   const shipId = deps.planningState.selectedShipId;
 
   if (!shipId) return;
-  clearShipPlanning(deps.planningState, shipId);
+  deps.planningState.clearShipPlanning(shipId);
 };
 
 export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
@@ -99,7 +92,7 @@ export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
   const shipId = deps.planningState.selectedShipId;
 
   if (shipId) {
-    clearShipPlanning(deps.planningState, shipId);
+    deps.planningState.clearShipPlanning(shipId);
   }
 };
 
@@ -124,8 +117,8 @@ export const matchVelocityWithNearbyFriendly = (
     return;
   }
 
-  setShipBurn(deps.planningState, shipId, plan.burn, true);
-  setShipOverload(deps.planningState, shipId, plan.overload);
+  deps.planningState.setShipBurn(shipId, plan.burn, true);
+  deps.planningState.setShipOverload(shipId, plan.overload);
   playSelect();
   deps.showToast(`Matching velocity with ${plan.targetShipId}`, 'success');
 };

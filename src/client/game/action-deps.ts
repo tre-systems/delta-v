@@ -13,7 +13,7 @@ import type { HudController } from './hud-controller';
 import type { LocalGameFlowDeps } from './local-game-flow';
 import type { OrdnanceActionDeps } from './ordnance-actions';
 import type { ClientState } from './phase';
-import type { PlanningState } from './planning';
+import type { PlanningStore } from './planning';
 import {
   type PresentationDeps,
   presentCombatResults as presentCombat,
@@ -34,7 +34,7 @@ export interface ActionDepsArgs {
   getAIDifficulty: () => string;
   getScenario: () => string;
   getIsLocalGame: () => boolean;
-  planningState: PlanningState;
+  planningState: PlanningStore;
   hud: HudController;
   ui: UIManager;
   renderer: Renderer;

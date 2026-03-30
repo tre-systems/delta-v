@@ -13,6 +13,7 @@ import {
   applyClientGameState,
   clearClientGameState,
 } from './game-state-store';
+import { createPlanningStore } from './planning';
 import { stubClientSession } from './session-model';
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
@@ -26,13 +27,13 @@ const createDeps = (
   rendererCalls: (GameState | null)[];
 } => {
   const rendererCalls: (GameState | null)[] = [];
+  const planningState = createPlanningStore();
+  planningState.selectedShipId = selectedShipId;
 
   return {
     ctx: {
       gameState: null,
-      planningState: {
-        selectedShipId,
-      },
+      planningState,
     },
     renderer: {
       setGameState: (state) => {
@@ -56,10 +57,11 @@ describe('applyClientGameState', () => {
 
   it('updates ctx when renderer is omitted (shell uses session effects)', () => {
     const state = createState();
+    const planningState = createPlanningStore();
     const deps: ApplyClientGameStateDeps = {
       ctx: {
         gameState: null,
-        planningState: { selectedShipId: null },
+        planningState,
       },
     };
 

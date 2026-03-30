@@ -6,7 +6,6 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
-import { setSelectedShipId } from './planning-store';
 import { createInitialClientSession } from './session-model';
 import {
   attachRendererGameStateEffect,
@@ -68,7 +67,7 @@ describe('session-signals', () => {
     });
     updateHUD.mockClear();
 
-    setSelectedShipId(session.planningState, 'ship-1');
+    session.planningState.setSelectedShipId('ship-1');
     expect(updateHUD).toHaveBeenCalled();
 
     dispose();
