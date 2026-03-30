@@ -70,6 +70,7 @@ import {
   attachRendererGameStateEffect,
   attachSessionCombatButtonsEffect,
   attachSessionHudEffect,
+  attachSessionLatencyEffect,
   attachSessionLogisticsPanelEffect,
   attachSessionPlanningSelectionEffect,
 } from './session-signals';
@@ -95,6 +96,8 @@ export type { ClientSession, MainNetworkDeps };
  *   aligned with the derived active ship choice.
  * - `attachSessionCombatButtonsEffect` — keeps combat action buttons aligned
  *   with reactive client/combat-planning state.
+ * - `attachSessionLatencyEffect` — keeps latency display aligned with reactive
+ *   session networking state.
  * - `attachSessionLogisticsPanelEffect` — keeps the transfer panel aligned
  *   with session-owned logistics state.
  * - `hud.updateHUD` — invoked from `attachSessionHudEffect` when `gameState`,
@@ -201,8 +204,6 @@ export const createGameClient = () => {
     getClientState: () => ctx.stateSignal.peek(),
     getPlanningState: () => ctx.planningState,
     getMap: () => map,
-    getLatencyMs: () => ctx.latencyMs,
-    getIsLocalGame: () => ctx.isLocalGame,
     ui,
     renderer,
     tooltipEl,
@@ -212,6 +213,7 @@ export const createGameClient = () => {
     attachSessionPlanningSelectionEffect(ctx);
   const disposeCombatButtonsEffect = attachSessionCombatButtonsEffect(ctx, ui);
   const disposeHudSessionEffect = attachSessionHudEffect(ctx, hud);
+  const disposeLatencyEffect = attachSessionLatencyEffect(ctx, ui);
   const disposeLogisticsPanelEffect = attachSessionLogisticsPanelEffect(ctx, {
     renderLogisticsPanel: (state) => {
       if (!state) {
@@ -230,6 +232,7 @@ export const createGameClient = () => {
     disposePlanningSelectionEffect();
     disposeCombatButtonsEffect();
     disposeHudSessionEffect();
+    disposeLatencyEffect();
     disposeLogisticsPanelEffect();
     disposeRendererSessionEffect();
   };

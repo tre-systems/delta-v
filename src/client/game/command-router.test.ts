@@ -9,7 +9,10 @@ import type {
   Ship,
 } from '../../shared/types/domain';
 import { type CommandRouterDeps, dispatchGameCommand } from './command-router';
-import type { LogisticsUIState } from './logistics-ui';
+import {
+  createLogisticsStoreFromPairs,
+  type LogisticsStore,
+} from './logistics-ui';
 import { createPlanningStore } from './planning';
 import type { GameTransport } from './transport';
 
@@ -124,22 +127,22 @@ const createTransferPair = (): TransferPair => ({
   maxPassengers: 0,
 });
 
-const createLogisticsState = (amounts: number[]): LogisticsUIState => {
+const createLogisticsState = (amounts: number[]): LogisticsStore => {
   const pair = createTransferPair();
   const key = `${pair.source.id}->${pair.target.id}`;
+  const state = createLogisticsStoreFromPairs([pair]);
 
-  return {
-    pairs: [pair],
-    fuelAmounts: new Map([[key, amounts[0] ?? 0]]),
-    cargoAmounts: new Map([[key, amounts[1] ?? 0]]),
-    passengerAmounts: new Map([[key, amounts[2] ?? 0]]),
-  };
+  state.fuelAmounts = new Map([[key, amounts[0] ?? 0]]);
+  state.cargoAmounts = new Map([[key, amounts[1] ?? 0]]);
+  state.passengerAmounts = new Map([[key, amounts[2] ?? 0]]);
+
+  return state;
 };
 
 const createDeps = (overrides?: {
   clientState?: string;
   gameState?: GameState | null;
-  logisticsState?: LogisticsUIState | null;
+  logisticsState?: LogisticsStore | null;
   transport?: (GameTransport & { calls: Record<string, unknown[][]> }) | null;
 }): {
   deps: CommandRouterDeps;

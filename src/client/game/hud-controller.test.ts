@@ -26,7 +26,6 @@ const createHarness = (clientState: ClientState) => {
 
   const ui = {
     updateHUD: vi.fn(),
-    updateLatency: vi.fn(),
     updateFleetStatus: vi.fn(),
     updateShipList: vi.fn(),
     updateSoundButton: vi.fn(),
@@ -47,8 +46,6 @@ const createHarness = (clientState: ClientState) => {
     getClientState: () => clientState,
     getPlanningState: () => planningState,
     getMap: () => map,
-    getLatencyMs: () => 42,
-    getIsLocalGame: () => false,
     ui,
     renderer,
     tooltipEl: {} as HTMLElement,

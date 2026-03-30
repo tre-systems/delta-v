@@ -55,7 +55,6 @@ export interface MessageHandlerDeps {
       showOpponentDisconnected: (graceDeadlineMs: number) => void;
       hideOpponentDisconnected: () => void;
     };
-    updateLatency: (ms: number) => void;
   };
 }
 
@@ -190,7 +189,6 @@ export const handleServerMessage = (
     case 'pong':
       if (plan.latencyMs !== null) {
         setLatencyMs(deps.ctx, plan.latencyMs);
-        deps.ui.updateLatency(plan.latencyMs);
       }
       break;
     case 'opponentStatus':
