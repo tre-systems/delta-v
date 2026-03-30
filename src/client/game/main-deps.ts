@@ -34,7 +34,7 @@ export interface MainStateTransitionDepsArgs {
   turnTimer: TurnTimerManager;
   tooltipEl: HTMLElement;
   resetCombatState: () => void;
-  startCombatTargetWatch: () => void;
+  autoSkipCombatIfNoTargets: () => void;
   setLogisticsUIState: (state: LogisticsUIState | null) => void;
   renderLogisticsPanel: () => void;
 }
@@ -54,7 +54,7 @@ export const createMainStateTransitionDeps = (
     args.turnTelemetry.onStateChanged(prevState, nextState),
   hideTooltip: () => hide(args.tooltipEl),
   resetCombatState: () => args.resetCombatState(),
-  startCombatTargetWatch: () => args.startCombatTargetWatch(),
+  autoSkipCombatIfNoTargets: () => args.autoSkipCombatIfNoTargets(),
   setLogisticsUIState: (state) => args.setLogisticsUIState(state),
   renderLogisticsPanel: () => args.renderLogisticsPanel(),
 });

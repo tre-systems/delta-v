@@ -9,6 +9,7 @@ import {
 import { createInitialClientSession } from './session-model';
 import {
   attachRendererGameStateEffect,
+  attachSessionCombatAttackButtonEffect,
   attachSessionHudEffect,
   attachSessionPlanningSelectionEffect,
 } from './session-signals';
@@ -101,6 +102,41 @@ describe('session-signals', () => {
 
     session.planningState.setSelectedShipId(null);
     expect(session.planningState.selectedShipId).toBe(selectedShip.id);
+
+    dispose();
+  });
+
+  it('syncs combat attack button visibility from session state and planning', () => {
+    const session = createInitialClientSession();
+    const showAttackButton = vi.fn();
+    const dispose = attachSessionCombatAttackButtonEffect(session, {
+      showAttackButton,
+    });
+
+    expect(showAttackButton).toHaveBeenLastCalledWith(false);
+
+    session.state = 'playing_combat';
+    expect(showAttackButton).toHaveBeenLastCalledWith(false);
+
+    session.planningState.applyCombatPlanUpdate({
+      combatTargetId: 'enemy',
+      combatTargetType: 'ship',
+      combatAttackerIds: ['ship-0'],
+      combatAttackStrength: 2,
+    });
+    expect(showAttackButton).toHaveBeenLastCalledWith(true);
+
+    session.planningState.clearCombatSelectionState();
+    expect(showAttackButton).toHaveBeenLastCalledWith(false);
+
+    session.planningState.applyCombatPlanUpdate({
+      combatTargetId: 'enemy',
+      combatTargetType: 'ship',
+      combatAttackerIds: ['ship-0'],
+      combatAttackStrength: 2,
+    });
+    session.state = 'playing_opponentTurn';
+    expect(showAttackButton).toHaveBeenLastCalledWith(false);
 
     dispose();
   });

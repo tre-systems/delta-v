@@ -25,9 +25,9 @@ import {
 } from './client-context-store';
 import { setupClientRuntime } from './client-runtime';
 import {
+  autoSkipCombatIfNoTargets as autoSkipCombat,
   beginCombatPhase as beginCombat,
   resetCombatState as resetCombat,
-  startCombatTargetWatch as startCombatWatch,
 } from './combat-actions';
 import {
   type CommandRouterSessionRead,
@@ -68,6 +68,7 @@ import {
 } from './session-model';
 import {
   attachRendererGameStateEffect,
+  attachSessionCombatAttackButtonEffect,
   attachSessionHudEffect,
   attachSessionPlanningSelectionEffect,
 } from './session-signals';
@@ -91,6 +92,8 @@ export type { ClientSession, MainNetworkDeps };
  * - `exitToMenuSession` — clears game state via `clearClientGameState`.
  * - `attachSessionPlanningSelectionEffect` — keeps `planningState.selectedShipId`
  *   aligned with the derived active ship choice.
+ * - `attachSessionCombatAttackButtonEffect` — keeps the combat attack button
+ *   aligned with reactive client/combat-planning state.
  * - `hud.updateHUD` — invoked from `attachSessionHudEffect` when `gameState`,
  *   `clientState`, or planning revision change.
  * - `renderer.setGameState` — session effect (above); `clearTrails` and other renderer
@@ -119,7 +122,6 @@ export const createGameClient = () => {
   let actionDeps: ActionDeps;
   let replayController: ReplayController;
 
-  let stopCombatWatch: (() => void) | null = null;
   let setState: (newState: ClientState) => void;
   let transitionToPhase: () => void;
   let disposeSessionSubscriptions: Dispose | undefined;
@@ -132,9 +134,8 @@ export const createGameClient = () => {
     resetCombat(actionDeps.combatDeps);
   };
 
-  const startCombatTargetWatch = () => {
-    stopCombatWatch?.();
-    stopCombatWatch = startCombatWatch(actionDeps.combatDeps);
+  const autoSkipCombatIfNoTargets = () => {
+    autoSkipCombat(actionDeps.combatDeps);
   };
 
   const renderLogisticsPanel = () => {
@@ -213,6 +214,10 @@ export const createGameClient = () => {
 
   const disposePlanningSelectionEffect =
     attachSessionPlanningSelectionEffect(ctx);
+  const disposeCombatAttackButtonEffect = attachSessionCombatAttackButtonEffect(
+    ctx,
+    ui,
+  );
   const disposeHudSessionEffect = attachSessionHudEffect(ctx, hud);
   const disposeRendererSessionEffect = attachRendererGameStateEffect(
     ctx,
@@ -220,6 +225,7 @@ export const createGameClient = () => {
   );
   disposeSessionSubscriptions = () => {
     disposePlanningSelectionEffect();
+    disposeCombatAttackButtonEffect();
     disposeHudSessionEffect();
     disposeRendererSessionEffect();
   };
@@ -288,7 +294,7 @@ export const createGameClient = () => {
     turnTimer,
     tooltipEl,
     resetCombatState,
-    startCombatTargetWatch,
+    autoSkipCombatIfNoTargets,
     setLogisticsUIState: (state) => {
       logisticsUIState = state;
     },
@@ -530,7 +536,6 @@ export const createGameClient = () => {
     renderer,
     showToast,
     dispose() {
-      stopCombatWatch?.();
       disposeSessionSubscriptions?.();
       connection.close();
       turnTimer.stop();

@@ -45,6 +45,22 @@ export const attachSessionPlanningSelectionEffect = (
   });
 
 /**
+ * Keeps the combat attack button aligned with the reactive session state instead
+ * of polling from combat action code.
+ */
+export const attachSessionCombatAttackButtonEffect = (
+  session: Pick<ClientSession, 'stateSignal' | 'planningState'>,
+  ui: { showAttackButton: (visible: boolean) => void },
+): Dispose =>
+  effect(() => {
+    const isPlayingCombat = session.stateSignal.value === 'playing_combat';
+    session.planningState.revisionSignal?.value;
+    ui.showAttackButton(
+      isPlayingCombat && session.planningState.combatTargetId !== null,
+    );
+  });
+
+/**
  * Subscribes the HUD to the session's reactive state plus planning updates:
  * a single reactive pipeline from `gameState` / `state` / planning revision
  * to `updateHUD`.

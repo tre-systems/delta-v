@@ -47,7 +47,6 @@ export interface CommandRouterSessionRead {
 }
 
 interface CommandRouterUI {
-  showAttackButton: (visible: boolean) => void;
   showFireButton: (visible: boolean, count: number) => void;
   overlay: {
     showToast: (message: string, type: 'error' | 'info' | 'success') => void;
@@ -200,7 +199,6 @@ export const dispatchGameCommand = (
       return;
     case 'clearCombatSelection':
       clearCombatSelection(deps.combatDeps);
-      deps.ui.showAttackButton(false);
       return;
     case 'undoQueuedAttack':
       undoQueuedAttack(deps);

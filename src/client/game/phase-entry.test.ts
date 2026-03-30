@@ -154,8 +154,7 @@ describe('game-client-phase-entry', () => {
       startTurnTimer: true,
       showHUD: true,
       resetCombatState: true,
-      clearAttackButton: true,
-      startCombatTargetWatch: true,
+      autoSkipCombatIfNoTargets: true,
       tutorialPhase: 'combat',
     });
 
