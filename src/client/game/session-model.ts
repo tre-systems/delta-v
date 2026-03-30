@@ -3,7 +3,7 @@ import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { ReadonlySignal } from '../reactive';
 import { signal } from '../reactive';
 import type { ClientState } from './phase';
-import { createInitialPlanningState, type PlanningState } from './planning';
+import { createPlanningStore, type PlanningStore } from './planning';
 import type { GameTransport } from './transport';
 
 const defineReactiveSessionProperty = <T>(
@@ -39,7 +39,7 @@ export interface ClientSession {
   isLocalGame: boolean;
   aiDifficulty: AIDifficulty;
   transport: GameTransport | null;
-  planningState: PlanningState;
+  planningState: PlanningStore;
   latencyMs: number;
   reconnectAttempts: number;
 }
@@ -63,7 +63,7 @@ export const createInitialClientSession = (): ClientSession => {
     isLocalGame: false,
     aiDifficulty: 'normal',
     transport: null,
-    planningState: createInitialPlanningState(),
+    planningState: createPlanningStore(),
     latencyMs: -1,
     reconnectAttempts: 0,
   } as ClientSessionDraft;

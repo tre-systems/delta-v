@@ -18,11 +18,12 @@
  */
 import type { GameState } from '../../shared/types/domain';
 import { batch } from '../reactive';
-import { setSelectedShipId } from './planning-store';
+import type { PlanningStore } from './planning';
 
-interface PlanningStateLike {
-  selectedShipId: string | null;
-}
+type PlanningStateLike = Pick<
+  PlanningStore,
+  'selectedShipId' | 'setSelectedShipId'
+>;
 
 interface GameStateStoreContext {
   gameState: GameState | null;
@@ -52,7 +53,7 @@ export const applyClientGameState = (
       const selectedShip = state.ships.find((ship) => ship.id === selectedId);
 
       if (!selectedShip || selectedShip.lifecycle === 'destroyed') {
-        setSelectedShipId(deps.ctx.planningState, null);
+        deps.ctx.planningState.setSelectedShipId(null);
       }
     }
 

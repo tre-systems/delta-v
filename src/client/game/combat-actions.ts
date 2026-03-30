@@ -15,15 +15,7 @@ import {
   getAttackStrengthForSelection,
   hasSplitFireOptions,
 } from './combat';
-import type { PlanningState } from './planning';
-import {
-  queueCombatAttack as appendCombatAttack,
-  clearCombatSelectionState,
-  resetCombatPlanning,
-  selectShip,
-  setCombatAttackStrength,
-  takeQueuedAttacks,
-} from './planning-store';
+import type { PlanningStore } from './planning';
 import type { GameTransport } from './transport';
 
 export interface CombatActionDeps {
@@ -32,7 +24,7 @@ export interface CombatActionDeps {
   getPlayerId: () => PlayerId;
   getTransport: () => GameTransport | null;
   getMap: () => SolarSystemMap;
-  planningState: PlanningState;
+  planningState: PlanningStore;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   showAttackButton: (visible: boolean) => void;
   showFireButton: (visible: boolean, count: number) => void;
@@ -67,11 +59,11 @@ const hasVisibleCombatTargets = (
 };
 
 export const clearCombatSelection = (deps: CombatActionDeps) => {
-  clearCombatSelectionState(deps.planningState);
+  deps.planningState.clearCombatSelectionState();
 };
 
 export const resetCombatState = (deps: CombatActionDeps) => {
-  resetCombatPlanning(deps.planningState);
+  deps.planningState.resetCombatPlanning();
   deps.showFireButton(false, 0);
 };
 
@@ -79,7 +71,7 @@ export const fireAllAttacks = (deps: CombatActionDeps) => {
   const transport = deps.getTransport();
 
   if (!transport) return;
-  const attacks = takeQueuedAttacks(deps.planningState);
+  const attacks = deps.planningState.takeQueuedAttacks();
 
   if (attacks.length === 0) {
     sendSkipCombat(deps);
@@ -117,7 +109,7 @@ export const queueAttack = (deps: CombatActionDeps) => {
     return;
   }
 
-  const count = appendCombatAttack(deps.planningState, attack);
+  const count = deps.planningState.queueCombatAttack(attack);
   clearCombatSelection(deps);
   deps.showAttackButton(false);
 
@@ -155,7 +147,7 @@ export const queueAttack = (deps: CombatActionDeps) => {
 
     if (myShips.length > 0) {
       const next = myShips[(currentIdx + 1) % myShips.length];
-      selectShip(deps.planningState, next.id);
+      deps.planningState.selectShip(next.id);
     }
 
     deps.showToast(
@@ -224,8 +216,7 @@ export const adjustCombatStrength = (deps: CombatActionDeps, delta: number) => {
   if (maxStrength <= 0) return;
 
   const current = deps.planningState.combatAttackStrength ?? maxStrength;
-  setCombatAttackStrength(
-    deps.planningState,
+  deps.planningState.setCombatAttackStrength(
     clamp(current + delta, 1, maxStrength),
   );
 };
@@ -242,6 +233,6 @@ export const resetCombatStrengthToMax = (deps: CombatActionDeps) => {
   );
 
   if (maxStrength > 0) {
-    setCombatAttackStrength(deps.planningState, maxStrength);
+    deps.planningState.setCombatAttackStrength(maxStrength);
   }
 };

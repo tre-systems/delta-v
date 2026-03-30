@@ -5,7 +5,6 @@ import type { LogisticsUIState } from './logistics-ui';
 import { createLogisticsUIState } from './logistics-ui';
 import type { ClientState } from './phase';
 import { deriveClientStateEntryPlan } from './phase-entry';
-import { resetAstrogationPlanning, setSelectedShipId } from './planning-store';
 import { deriveClientScreenPlan } from './screen';
 import type { ClientSessionStateTransitionContext } from './session-model';
 
@@ -109,11 +108,11 @@ export const applyClientStateTransition = (
     }
 
     if (entryPlan.clearAstrogationPlanning) {
-      resetAstrogationPlanning(deps.ctx.planningState);
+      deps.ctx.planningState.resetAstrogationPlanning();
     }
 
     if (entryPlan.selectedShipId !== undefined) {
-      setSelectedShipId(deps.ctx.planningState, entryPlan.selectedShipId);
+      deps.ctx.planningState.setSelectedShipId(entryPlan.selectedShipId);
     }
 
     if (entryPlan.resetCombatState) {

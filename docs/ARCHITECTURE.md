@@ -367,7 +367,7 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 - **`renderer/`**: Canvas drawing layers (scene, entities, vectors, effects, overlays), camera, minimap, and animation management.
 - **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, layout metrics, and small reactive DOM view models.
 - **`reactive.ts` + `ui/ui.ts`**: The overlay layer stays framework-free, but stateful DOM views use a small signals runtime for derived copy/visibility and explicit disposal. `createUIManager()` owns long-lived view instances and their teardown; helpers such as `createScreenActions()` and `createHudActions()` compose screen/HUD behaviors. Overlay, lobby, fleet-building, ship-list, HUD chrome, game log, tutorial, and turn telemetry follow the same factory style as other client modules.
-- **`game/session-signals.ts` + `game/planning.ts`**: `ClientSession` owns reactive `gameStateSignal` / `stateSignal`, while `PlanningState` carries a `revisionSignal` that planning-store mutators bump after local planning changes. Session effects drive `hud.updateHUD()` and `renderer.setGameState()` directly, so command routing, replay, and phase entry no longer thread duplicate HUD/render callbacks through many call sites.
+- **`game/session-signals.ts` + `game/planning.ts`**: `ClientSession` owns reactive `gameStateSignal` / `stateSignal`, while `PlanningStore` owns local planning mutation methods and a `revisionSignal` that bumps after local planning changes. Session effects drive `hud.updateHUD()` and `renderer.setGameState()` directly, so command routing, replay, and phase entry no longer thread duplicate HUD/render callbacks through many call sites.
 - **`audio.ts`**: Handles Web Audio API interactions.
 - **Visual Polish**: Employs a premium design system with glassmorphism tokens (backdrop-filters), tactile micro-animations (recoil, scaling glows), and pulsing orbital effects for high-end UX.
 
@@ -541,7 +541,7 @@ main.ts → game/client-kernel.ts (createGameClient — composition root)
   ├→ game/command-router.ts (GameCommand → state mutation or network)
   ├→ game/client-context-store.ts (apply shared runtime/session field updates)
   ├→ game/game-state-store.ts (apply/clear authoritative game state + renderer sync)
-  ├→ game/planning-store.ts (apply shared planning-state mutations)
+  ├→ game/planning.ts (planning state shape + owned store mutations)
   ├→ game/session-controller.ts (create/join/local-start/exit session lifecycle)
   ├→ game/session-api.ts (HTTP create/join + token persistence)
   ├→ game/action-deps.ts (lazy-cached deps for action handlers + presentation)
