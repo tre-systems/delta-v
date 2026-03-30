@@ -56,7 +56,6 @@ const createDeps = (
       showWaiting: track('ui.showWaiting'),
       showFleetBuilding: track('ui.showFleetBuilding'),
       showHUD: track('ui.showHUD'),
-      showAttackButton: track('ui.showAttackButton'),
       showMovementStatus: track('ui.showMovementStatus'),
     },
     tutorial: {
@@ -81,7 +80,7 @@ const createDeps = (
       deps.ctx.planningState.queuedAttacks = [];
       track('resetCombatState')();
     },
-    startCombatTargetWatch: track('startCombatTargetWatch'),
+    autoSkipCombatIfNoTargets: track('autoSkipCombatIfNoTargets'),
     setLogisticsUIState: (state) => {
       logisticsState = state;
       deps.logisticsState = state;

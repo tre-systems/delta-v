@@ -14,7 +14,6 @@ interface TransitionUI {
   showWaiting: (code: string) => void;
   showFleetBuilding: (state: GameState, playerId: PlayerId) => void;
   showHUD: () => void;
-  showAttackButton: (visible: boolean) => void;
   showMovementStatus: () => void;
 }
 
@@ -45,7 +44,7 @@ export interface StateTransitionDeps {
   onStateChanged: (prevState: ClientState, nextState: ClientState) => void;
   hideTooltip: () => void;
   resetCombatState: () => void;
-  startCombatTargetWatch: () => void;
+  autoSkipCombatIfNoTargets: () => void;
   setLogisticsUIState: (state: LogisticsUIState | null) => void;
   renderLogisticsPanel: () => void;
 }
@@ -119,16 +118,12 @@ export const applyClientStateTransition = (
       deps.resetCombatState();
     }
 
-    if (entryPlan.clearAttackButton) {
-      deps.ui.showAttackButton(false);
-    }
-
     if (entryPlan.showMovementStatus) {
       deps.ui.showMovementStatus();
     }
 
-    if (entryPlan.startCombatTargetWatch) {
-      deps.startCombatTargetWatch();
+    if (entryPlan.autoSkipCombatIfNoTargets) {
+      deps.autoSkipCombatIfNoTargets();
     }
 
     if (entryPlan.tutorialPhase && deps.ctx.gameState) {

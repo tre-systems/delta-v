@@ -159,7 +159,6 @@ const createDeps = (overrides?: {
     getTransport: () => transport,
     planningState,
   };
-  const showAttackButton = vi.fn<CommandRouterDeps['ui']['showAttackButton']>();
   const showFireButton = vi.fn<CommandRouterDeps['ui']['showFireButton']>();
   const showToast = vi.fn<CommandRouterDeps['ui']['overlay']['showToast']>();
   const toggleLog = vi.fn<CommandRouterDeps['ui']['log']['toggle']>();
@@ -188,7 +187,6 @@ const createDeps = (overrides?: {
       getMap: () => map,
       planningState: ctx.planningState,
       showToast,
-      showAttackButton,
       showFireButton,
     },
     ordnanceDeps: {
@@ -201,7 +199,6 @@ const createDeps = (overrides?: {
     },
     logisticsUIState: overrides?.logisticsUIState ?? null,
     ui: {
-      showAttackButton,
       showFireButton,
       overlay: { showToast },
       log: { toggle: toggleLog },
