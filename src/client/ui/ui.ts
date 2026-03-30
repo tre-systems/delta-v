@@ -1,4 +1,5 @@
-import { createDisposalScope, withScope } from '../reactive';
+import type { GameState, PlayerId } from '../../shared/types/domain';
+import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { bindStaticButtonEvents } from './button-events';
 import { composeDisposers } from './dispose-group';
 import { getUIElements } from './elements';
@@ -13,7 +14,6 @@ import { createLayoutSync } from './layout-sync';
 import { createLobbyView, type LobbyView } from './lobby-view';
 import { bindMobileSync } from './mobile-sync';
 import { createOverlayView } from './overlay-view';
-import { createScreenActions } from './screen-actions';
 import type { UIScreenMode } from './screens';
 import { createSessionActions } from './session-actions';
 import { createShipListView } from './ship-list-view';
@@ -37,10 +37,11 @@ export const createUIManager = () => {
 
   const eventBridge = createUIEventBridge();
   const emit = (event: UIEvent) => eventBridge.emit(event);
+  const screenModeSignal = signal<UIScreenMode>('hidden');
 
   const { reset: resetLayoutMetrics, queue: queueLayoutSync } =
     createLayoutSync({
-      isHudVisible: () => hudEl.style.display !== 'none',
+      isHudVisible: () => screenModeSignal.peek() === 'hud',
       applyMetrics: () =>
         applyHudLayoutMetrics(
           window.innerHeight,
@@ -60,28 +61,6 @@ export const createUIManager = () => {
       emit({ type: 'chat', text });
     },
   });
-
-  const applyScreenVisibility = (mode: UIScreenMode) => {
-    applyUIVisibility(
-      {
-        menuEl,
-        scenarioEl,
-        waitingEl,
-        hudEl,
-        gameOverEl,
-        shipListEl,
-        fleetBuildingEl,
-      },
-      mode,
-    );
-    log.applyScreenVisibility(mode);
-  };
-
-  const hideAll = () => {
-    applyScreenVisibility('hidden');
-    log.resetVisibilityState();
-    resetLayoutMetrics();
-  };
 
   const overlay = createOverlayView();
 
@@ -124,7 +103,7 @@ export const createUIManager = () => {
     initialMatches: mobileQuery.matches,
     setHudMobile: (matches) => hudChromeView.setMobile(matches),
     setLogMobile: (matches) =>
-      log.setMobile(matches, hudEl.style.display !== 'none'),
+      log.setMobile(matches, screenModeSignal.peek() === 'hud'),
     bindViewport: (onMobileChange, onResize) => {
       withScope(scope, () => {
         bindViewportEvents({
@@ -144,26 +123,67 @@ export const createUIManager = () => {
     bindStaticButtonEvents(emit, (dispose) => scope.add(dispose));
   });
 
-  const {
-    showMenu,
-    showScenarioSelect,
-    showWaiting,
-    showConnecting,
-    showHUD,
-    showFleetBuilding,
-    showFleetWaiting,
-  } = createScreenActions({
-    hideAll,
-    applyScreenVisibility,
-    showMenuChrome: () => lobbyView.onMenuShown(),
-    showWaitingLobby: (code) => lobbyView.showWaiting(code),
-    showConnectingLobby: () => lobbyView.showConnecting(),
-    showHudLog: () => log.showHUD(),
-    queueLayoutSync,
-    showFleetBuildingView: (state, playerId) =>
-      fleetBuildingView.show(state, playerId),
-    showFleetWaitingView: () => fleetBuildingView.showWaiting(),
+  withScope(scope, () => {
+    effect(() => {
+      const mode = screenModeSignal.value;
+
+      applyUIVisibility(
+        {
+          menuEl,
+          scenarioEl,
+          waitingEl,
+          hudEl,
+          gameOverEl,
+          shipListEl,
+          fleetBuildingEl,
+        },
+        mode,
+      );
+      log.setScreenMode(mode);
+
+      if (mode === 'hud') {
+        queueLayoutSync();
+      } else {
+        resetLayoutMetrics();
+      }
+    });
   });
+
+  const hideAll = () => {
+    screenModeSignal.value = 'hidden';
+  };
+
+  const showMenu = () => {
+    lobbyView.onMenuShown();
+    screenModeSignal.value = 'menu';
+  };
+
+  const showScenarioSelect = () => {
+    screenModeSignal.value = 'scenario';
+  };
+
+  const showWaiting = (code: string) => {
+    lobbyView.showWaiting(code);
+    screenModeSignal.value = 'waiting';
+  };
+
+  const showConnecting = () => {
+    lobbyView.showConnecting();
+    screenModeSignal.value = 'waiting';
+  };
+
+  const showHUD = () => {
+    screenModeSignal.value = 'hud';
+  };
+
+  const showFleetBuilding = (state: GameState, playerId: PlayerId) => {
+    fleetBuildingView.show(state, playerId);
+    screenModeSignal.value = 'fleetBuilding';
+  };
+
+  const showFleetWaiting = () => {
+    fleetBuildingView.showWaiting();
+  };
 
   const hudActions = createHudActions({
     update: (input) => hudChromeView.update(input),

@@ -42,7 +42,7 @@ describe('GameLogView', () => {
     const gameLog = document.getElementById('gameLog') as HTMLElement;
     const latestBar = document.getElementById('logLatestBar') as HTMLElement;
 
-    view.showHUD();
+    view.setScreenMode('hud');
     expect(gameLog.style.display).toBe('none');
     expect(latestBar.style.display).toBe('block');
 
@@ -59,7 +59,7 @@ describe('GameLogView', () => {
     const view = createGameLogView({ onChat: vi.fn() });
     const latestText = document.getElementById('logLatestText') as HTMLElement;
 
-    view.showHUD();
+    view.setScreenMode('hud');
 
     view.logTurn(1, 'You');
     view.logTurn(2, 'Opponent');
@@ -80,7 +80,7 @@ describe('GameLogView', () => {
     const view = createGameLogView({ onChat: vi.fn() });
     const latestText = document.getElementById('logLatestText') as HTMLElement;
 
-    view.showHUD();
+    view.setScreenMode('hud');
     view.logText('Ship moved', 'log-env');
     expect(latestText.textContent).toBe('Ship moved');
 
@@ -99,7 +99,7 @@ describe('GameLogView', () => {
     const gameLog = document.getElementById('gameLog') as HTMLElement;
     const latestBar = document.getElementById('logLatestBar') as HTMLElement;
 
-    view.showHUD();
+    view.setScreenMode('hud');
     view.toggle();
     expect(gameLog.style.display).toBe('flex');
 
@@ -116,7 +116,7 @@ describe('GameLogView', () => {
     const latestBar = document.getElementById('logLatestBar') as HTMLElement;
 
     view.setChatEnabled(true);
-    view.showHUD();
+    view.setScreenMode('hud');
     view.dispose();
 
     input.value = 'hello there';
