@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { signal } from '../reactive';
 import { ACTION_BUTTON_IDS } from './button-bindings';
 import type { HUDInput } from './hud';
 import { createHUDChromeView } from './hud-chrome-view';
@@ -145,11 +146,16 @@ describe('HUDChromeView', () => {
   it('updates HUD chrome helpers and applies movement presentation overrides', async () => {
     const queueLayoutSync = vi.fn();
     const onStatusText = vi.fn();
+    const turnTimerSignal = signal<{
+      text: string;
+      className: string;
+    } | null>(null);
     const view = createHUDChromeView({
       queueLayoutSync,
       showPhaseAlert: vi.fn(),
       onStatusText,
     });
+    view.bindTurnTimerSignal(turnTimerSignal);
 
     view.updateLatency(275);
     expect(document.getElementById('latencyInfo')?.textContent).toBe('275ms');
@@ -184,7 +190,10 @@ describe('HUDChromeView', () => {
     expect(soundBtn.textContent).toBe('\uD83D\uDD07');
     expect(soundBtn.classList.contains('muted')).toBe(true);
 
-    view.setTurnTimer('00:15', 'timer-warning');
+    turnTimerSignal.value = {
+      text: '00:15',
+      className: 'timer-warning',
+    };
     expect(document.getElementById('turnTimer')?.textContent).toBe('00:15');
     expect(document.getElementById('turnTimer')?.className).toBe(
       'timer-warning',
@@ -214,7 +223,7 @@ describe('HUDChromeView', () => {
       );
     }
 
-    view.clearTurnTimer();
+    turnTimerSignal.value = null;
     expect(document.getElementById('turnTimer')?.textContent).toBe('');
     expect(queueLayoutSync).toHaveBeenCalledTimes(5);
   });

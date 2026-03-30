@@ -201,11 +201,10 @@ export const createGameClient = () => {
   });
 
   const turnTimer = createTurnTimerManager({
-    setTurnTimer: (text, className) => ui.setTurnTimer(text, className),
-    clearTurnTimer: () => ui.clearTurnTimer(),
     showToast: (msg, type) => ui.overlay.showToast(msg, type),
     playWarning,
   });
+  ui.bindTurnTimerSignal(turnTimer.viewSignal);
 
   const hud = createHudController({
     getGameState: () => ctx.gameStateSignal.peek(),
@@ -303,11 +302,11 @@ export const createGameClient = () => {
       gameState: ctx.gameStateSignal.peek(),
     }),
     fetchReplay: (code, gameId) => sessionApi.fetchReplay(code, gameId),
-    setReplayControls: (view) => ui.overlay.setReplayControls(view),
     showToast: (message, type) => ui.overlay.showToast(message, type),
     clearTrails: () => renderer.clearTrails(),
     applyGameState: (state) => applyGameState(state),
   });
+  ui.overlay.bindReplayControlsSignal(replayController.controlsSignal);
 
   const stateTransitionDeps = createMainStateTransitionDeps({
     ctx,

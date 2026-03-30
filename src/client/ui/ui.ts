@@ -13,6 +13,7 @@ import { applyHudLayoutMetrics, clearHudLayoutMetrics } from './layout-metrics';
 import { createLayoutSync } from './layout-sync';
 import { createLobbyView, type LobbyView } from './lobby-view';
 import { bindMobileSync } from './mobile-sync';
+import { createOverlayStateStore } from './overlay-state';
 import { createOverlayView } from './overlay-view';
 import type { UIScreenMode } from './screens';
 import { createSessionActions } from './session-actions';
@@ -62,7 +63,8 @@ export const createUIManager = () => {
     },
   });
 
-  const overlay = createOverlayView();
+  const overlayState = createOverlayStateStore();
+  const overlay = Object.assign(overlayState, createOverlayView(overlayState));
 
   let lobbyView: LobbyView;
 
@@ -191,9 +193,6 @@ export const createUIManager = () => {
       shipListView.update(ships, selectedId, burns),
     toggleHelpOverlay: () => hudChromeView.toggleHelpOverlay(),
     updateSoundButton: (muted) => hudChromeView.updateSoundButton(muted),
-    setTurnTimer: (text, className) =>
-      hudChromeView.setTurnTimer(text, className),
-    clearTurnTimer: () => hudChromeView.clearTurnTimer(),
     showAttackButton: (isVisible) => hudChromeView.showAttackButton(isVisible),
     showFireButton: (isVisible, count) =>
       hudChromeView.showFireButton(isVisible, count),
@@ -223,6 +222,9 @@ export const createUIManager = () => {
     showHUD,
     showFleetBuilding,
     showFleetWaiting,
+    bindTurnTimerSignal: (
+      timerSignal: Parameters<typeof hudChromeView.bindTurnTimerSignal>[0],
+    ) => hudChromeView.bindTurnTimerSignal(timerSignal),
     ...hudActions,
     dispose() {
       resetLayoutMetrics();

@@ -1,47 +1,25 @@
 import { byId, clearHTML, el, listen, text, visible } from '../dom';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { getPhaseAlertCopy } from './formatters';
-import {
-  buildGameOverView,
-  buildReconnectView,
-  buildRematchPendingView,
-  type GameOverStatsLike,
-} from './screens';
+import type { OverlayStateStore } from './overlay-state';
 
 export interface OverlayView {
-  showGameOver: (
-    won: boolean,
-    reason: string,
-    stats?: GameOverStatsLike,
-  ) => void;
-  showRematchPending: () => void;
-  showReconnecting: (
-    attempt: number,
-    maxAttempts: number,
-    onCancel: () => void,
-  ) => void;
-  hideReconnecting: () => void;
-  showOpponentDisconnected: (graceDeadlineMs: number) => void;
-  hideOpponentDisconnected: () => void;
   showToast: (message: string, type?: 'error' | 'info' | 'success') => void;
   showPhaseAlert: (phase: string, isMyTurn: boolean) => void;
-  setReplayControls: (view: {
-    available: boolean;
-    active: boolean;
-    loading: boolean;
-    statusText: string;
-    selectedGameId: string;
-    canSelectPrevMatch: boolean;
-    canSelectNextMatch: boolean;
-    canStart: boolean;
-    canPrev: boolean;
-    canNext: boolean;
-    canEnd: boolean;
-  }) => void;
   dispose: () => void;
 }
 
-export const createOverlayView = (): OverlayView => {
+export const createOverlayView = (
+  state: Pick<
+    OverlayStateStore,
+    | 'gameOverViewSignal'
+    | 'replayControlsSignal'
+    | 'reconnectViewSignal'
+    | 'opponentDisconnectDeadlineSignal'
+    | 'cancelReconnect'
+    | 'hideOpponentDisconnected'
+  >,
+): OverlayView => {
   const scope = createDisposalScope();
   const gameOverEl = byId('gameOver');
   const gameOverTextEl = byId('gameOverText');
@@ -73,53 +51,21 @@ export const createOverlayView = (): OverlayView => {
     '.phase-alert-subtitle',
   ) as HTMLElement;
 
-  let reconnectCancelHandler: (() => void) | null = null;
   let phaseAlertTimer: ReturnType<typeof setTimeout> | null = null;
   let opponentDisconnectTimer: ReturnType<typeof setInterval> | null = null;
+  let gameOverWasVisible = false;
   const toastTimers = new Set<ReturnType<typeof setTimeout>>();
   let nextToastId = 0;
 
-  const gameOverViewSignal = signal({
-    visible: false,
-    titleText: '',
-    titleClass: '',
-    reasonText: '',
-    statLines: [] as GameOverStatsLike extends infer _
-      ? Array<{
-          label: string;
-          value: string;
-        }>
-      : never,
-    rematchText: 'Rematch',
-    rematchDisabled: false,
-  });
-  const replayControlsSignal = signal({
-    available: false,
-    active: false,
-    loading: false,
-    statusText: '',
-    selectedGameId: '',
-    canSelectPrevMatch: false,
-    canSelectNextMatch: false,
-    canStart: false,
-    canPrev: false,
-    canNext: false,
-    canEnd: false,
-  });
-  const reconnectViewSignal = signal({
-    visible: false,
-    reconnectText: '',
-    attemptText: '',
-  });
-  const opponentDisconnectSignal = signal({
-    visible: false,
-    countdownText: '',
-  });
   const phaseAlertViewSignal = signal({
     active: false,
     title: '',
     subtitle: '',
     subtitleColor: '',
+  });
+  const opponentDisconnectViewSignal = signal({
+    visible: false,
+    countdownText: '',
   });
   const toastsSignal = signal(
     [] as Array<{
@@ -138,119 +84,16 @@ export const createOverlayView = (): OverlayView => {
     phaseAlertTimer = null;
   };
 
-  const gameOverStatsEl = byId('gameOverStats');
-
-  const setReplayControls = (view: {
-    available: boolean;
-    active: boolean;
-    loading: boolean;
-    statusText: string;
-    selectedGameId: string;
-    canSelectPrevMatch: boolean;
-    canSelectNextMatch: boolean;
-    canStart: boolean;
-    canPrev: boolean;
-    canNext: boolean;
-    canEnd: boolean;
-  }): void => {
-    replayControlsSignal.value = view;
-  };
-
-  const showGameOver = (
-    won: boolean,
-    reason: string,
-    stats?: GameOverStatsLike,
-  ): void => {
-    const view = buildGameOverView(won, reason, stats);
-
-    gameOverViewSignal.value = {
-      visible: true,
-      titleText: view.titleText,
-      titleClass: won ? 'game-over-victory' : 'game-over-defeat',
-      reasonText: view.reasonText,
-      statLines: view.statLines,
-      rematchText: view.rematchText,
-      rematchDisabled: false,
-    };
-
-    gameOverEl.classList.remove('game-over-enter');
-    gameOverEl.style.display = 'flex';
-    void gameOverEl.offsetWidth;
-    gameOverEl.classList.add('game-over-enter');
-    setReplayControls({
-      available: false,
-      active: false,
-      loading: false,
-      statusText: '',
-      selectedGameId: '',
-      canSelectPrevMatch: false,
-      canSelectNextMatch: false,
-      canStart: false,
-      canPrev: false,
-      canNext: false,
-      canEnd: false,
-    });
-  };
-
-  const showRematchPending = (): void => {
-    const view = buildRematchPendingView();
-    gameOverViewSignal.update((current) => ({
-      ...current,
-      rematchText: view.rematchText,
-      rematchDisabled: view.rematchDisabled,
-    }));
-  };
-
-  const hideReconnecting = (): void => {
-    reconnectCancelHandler = null;
-    reconnectViewSignal.value = {
-      visible: false,
-      reconnectText: '',
-      attemptText: '',
-    };
-  };
-
-  const hideOpponentDisconnected = (): void => {
-    if (opponentDisconnectTimer !== null) {
-      clearInterval(opponentDisconnectTimer);
-      opponentDisconnectTimer = null;
+  const clearOpponentDisconnectTimer = () => {
+    if (opponentDisconnectTimer === null) {
+      return;
     }
-    opponentDisconnectSignal.value = { visible: false, countdownText: '' };
+
+    clearInterval(opponentDisconnectTimer);
+    opponentDisconnectTimer = null;
   };
 
-  const showOpponentDisconnected = (graceDeadlineMs: number): void => {
-    hideOpponentDisconnected();
-    const updateCountdown = () => {
-      const remaining = Math.max(
-        0,
-        Math.ceil((graceDeadlineMs - Date.now()) / 1000),
-      );
-      opponentDisconnectSignal.value = {
-        visible: true,
-        countdownText: `Opponent disconnected. Game ends in ${remaining}s...`,
-      };
-      if (remaining <= 0) {
-        hideOpponentDisconnected();
-      }
-    };
-    updateCountdown();
-    opponentDisconnectTimer = setInterval(updateCountdown, 1000);
-  };
-
-  const showReconnecting = (
-    attempt: number,
-    maxAttempts: number,
-    onCancel: () => void,
-  ): void => {
-    const view = buildReconnectView(attempt, maxAttempts);
-
-    reconnectCancelHandler = onCancel;
-    reconnectViewSignal.value = {
-      visible: true,
-      reconnectText: view.reconnectText,
-      attemptText: view.attemptText,
-    };
-  };
+  const gameOverStatsEl = byId('gameOverStats');
 
   const showToast = (
     message: string,
@@ -293,8 +136,7 @@ export const createOverlayView = (): OverlayView => {
   };
 
   const dispose = (): void => {
-    hideReconnecting();
-    hideOpponentDisconnected();
+    clearOpponentDisconnectTimer();
     clearPhaseAlertTimer();
     for (const timer of toastTimers) {
       clearTimeout(timer);
@@ -302,6 +144,8 @@ export const createOverlayView = (): OverlayView => {
 
     toastTimers.clear();
     scope.dispose();
+    reconnectOverlayEl.style.display = 'none';
+    opponentDisconnectEl.style.display = 'none';
   };
 
   withScope(scope, () => {
@@ -309,15 +153,15 @@ export const createOverlayView = (): OverlayView => {
       gameOverEl,
       {
         get value() {
-          return gameOverViewSignal.value.visible;
+          return state.gameOverViewSignal.value.visible;
         },
-        peek: () => gameOverViewSignal.peek().visible,
+        peek: () => state.gameOverViewSignal.peek().visible,
       },
       'flex',
     );
 
     effect(() => {
-      const gameOverView = gameOverViewSignal.value;
+      const gameOverView = state.gameOverViewSignal.value;
 
       text(gameOverTextEl, gameOverView.titleText);
       gameOverTextEl.className = gameOverView.titleClass;
@@ -342,10 +186,21 @@ export const createOverlayView = (): OverlayView => {
         );
         gameOverStatsEl.appendChild(row);
       }
+
+      if (gameOverView.visible && !gameOverWasVisible) {
+        gameOverEl.classList.remove('game-over-enter');
+        gameOverEl.style.display = 'flex';
+        void gameOverEl.offsetWidth;
+        gameOverEl.classList.add('game-over-enter');
+      } else if (!gameOverView.visible) {
+        gameOverEl.classList.remove('game-over-enter');
+      }
+
+      gameOverWasVisible = gameOverView.visible;
     });
 
     effect(() => {
-      const replayView = replayControlsSignal.value;
+      const replayView = state.replayControlsSignal.value;
 
       visible(replayControlsEl, replayView.available);
       visible(replayStatusEl, replayView.available);
@@ -381,7 +236,7 @@ export const createOverlayView = (): OverlayView => {
     });
 
     effect(() => {
-      const reconnectView = reconnectViewSignal.value;
+      const reconnectView = state.reconnectViewSignal.value;
 
       visible(reconnectOverlayEl, reconnectView.visible, 'flex');
       text(reconnectTextEl, reconnectView.reconnectText);
@@ -389,7 +244,39 @@ export const createOverlayView = (): OverlayView => {
     });
 
     effect(() => {
-      const view = opponentDisconnectSignal.value;
+      const graceDeadlineMs = state.opponentDisconnectDeadlineSignal.value;
+
+      clearOpponentDisconnectTimer();
+
+      if (graceDeadlineMs === null) {
+        opponentDisconnectViewSignal.value = {
+          visible: false,
+          countdownText: '',
+        };
+        return;
+      }
+
+      const updateCountdown = () => {
+        const remaining = Math.max(
+          0,
+          Math.ceil((graceDeadlineMs - Date.now()) / 1000),
+        );
+        opponentDisconnectViewSignal.value = {
+          visible: true,
+          countdownText: `Opponent disconnected. Game ends in ${remaining}s...`,
+        };
+
+        if (remaining <= 0) {
+          state.hideOpponentDisconnected();
+        }
+      };
+
+      updateCountdown();
+      opponentDisconnectTimer = setInterval(updateCountdown, 1000);
+    });
+
+    effect(() => {
+      const view = opponentDisconnectViewSignal.value;
 
       visible(opponentDisconnectEl, view.visible, 'flex');
       text(opponentDisconnectTextEl, view.countdownText);
@@ -419,22 +306,13 @@ export const createOverlayView = (): OverlayView => {
     });
 
     listen(reconnectCancelBtn, 'click', () => {
-      const onCancel = reconnectCancelHandler;
-      hideReconnecting();
-      onCancel?.();
+      state.cancelReconnect();
     });
   });
 
   return {
-    showGameOver,
-    showRematchPending,
-    showReconnecting,
-    hideReconnecting,
-    showOpponentDisconnected,
-    hideOpponentDisconnected,
     showToast,
     showPhaseAlert,
-    setReplayControls,
     dispose,
   };
 };

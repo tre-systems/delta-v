@@ -45,7 +45,6 @@ export interface MessageHandlerDeps {
       showToast: (message: string, type: 'error' | 'info' | 'success') => void;
       hideReconnecting: () => void;
       showRematchPending: () => void;
-      showGameOver: (won: boolean, reason: string) => void;
       showOpponentDisconnected: (graceDeadlineMs: number) => void;
       hideOpponentDisconnected: () => void;
     };

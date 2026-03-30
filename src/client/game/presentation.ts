@@ -60,19 +60,6 @@ export interface PresentationDeps {
         reason: string,
         stats?: GameOverStats,
       ) => void;
-      setReplayControls: (view: {
-        available: boolean;
-        active: boolean;
-        loading: boolean;
-        statusText: string;
-        selectedGameId: string;
-        canSelectPrevMatch: boolean;
-        canSelectNextMatch: boolean;
-        canStart: boolean;
-        canPrev: boolean;
-        canNext: boolean;
-        canEnd: boolean;
-      }) => void;
     };
   };
   onGameOverShown?: () => void;
@@ -183,19 +170,6 @@ export const showGameOverOutcome = (
 
   setTimeout(() => {
     deps.ui.overlay.showGameOver(won, reason, plan.stats);
-    deps.ui.overlay.setReplayControls({
-      available: false,
-      active: false,
-      loading: false,
-      statusText: '',
-      selectedGameId: '',
-      canSelectPrevMatch: false,
-      canSelectNextMatch: false,
-      canStart: false,
-      canPrev: false,
-      canNext: false,
-      canEnd: false,
-    });
     deps.onGameOverShown?.();
 
     if (plan.resultSound === 'victory') {

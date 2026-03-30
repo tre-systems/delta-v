@@ -75,7 +75,6 @@ const createTimeline = (gameId: string): ReplayTimeline => ({
 
 describe('replay-controller', () => {
   it('shows explicit match selection when a room has rematches', () => {
-    const views: unknown[] = [];
     const controller = createReplayController({
       getClientContext: () => ({
         state: 'gameOver',
@@ -84,9 +83,6 @@ describe('replay-controller', () => {
         gameState: createState('ABCDE-m2'),
       }),
       fetchReplay: async () => null,
-      setReplayControls: (view) => {
-        views.push(view);
-      },
       showToast: () => {},
       clearTrails: () => {},
       applyGameState: () => {},
@@ -95,7 +91,7 @@ describe('replay-controller', () => {
     controller.onGameOverShown();
     controller.selectMatch('prev');
 
-    expect(views.at(-1)).toMatchObject({
+    expect(controller.controlsSignal.value).toMatchObject({
       selectedGameId: 'ABCDE-m1',
       canSelectPrevMatch: false,
       canSelectNextMatch: true,
@@ -118,7 +114,6 @@ describe('replay-controller', () => {
         fetchArgs = [code, gameId];
         return timeline;
       },
-      setReplayControls: () => {},
       showToast: () => {},
       clearTrails: () => {},
       applyGameState: (state) => {

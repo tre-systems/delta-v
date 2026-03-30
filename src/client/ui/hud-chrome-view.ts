@@ -3,6 +3,7 @@ import {
   computed,
   createDisposalScope,
   effect,
+  type ReadonlySignal,
   signal,
   withScope,
 } from '../reactive';
@@ -27,8 +28,12 @@ export interface HUDChromeView {
   updateFleetStatus: (status: string) => void;
   toggleHelpOverlay: () => void;
   updateSoundButton: (muted: boolean) => void;
-  setTurnTimer: (text: string, className: string) => void;
-  clearTurnTimer: () => void;
+  bindTurnTimerSignal: (
+    timerSignal: ReadonlySignal<{
+      text: string;
+      className: string;
+    } | null>,
+  ) => void;
   showAttackButton: (isVisible: boolean) => void;
   showFireButton: (isVisible: boolean, count: number) => void;
   dispose: () => void;
@@ -64,10 +69,16 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const fleetStatusSignal = signal('');
   const helpOverlayVisibleSignal = signal(false);
   const soundMutedSignal = signal(false);
-  const turnTimerSignal = signal<{
+  const hiddenTurnTimerSignal = signal<{
     text: string;
     className: string;
   } | null>(null);
+  const turnTimerSourceSignal = signal<
+    ReadonlySignal<{
+      text: string;
+      className: string;
+    } | null>
+  >(hiddenTurnTimerSignal);
   const attackButtonVisibleSignal = signal(false);
   const fireButtonSignal = signal<FireButtonState>({
     isVisible: false,
@@ -144,14 +155,13 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
     soundMutedSignal.value = muted;
   };
 
-  const setTurnTimer = (text: string, className: string): void => {
-    turnTimerSignal.value = { text, className };
-    deps.queueLayoutSync();
-  };
-
-  const clearTurnTimer = (): void => {
-    turnTimerSignal.value = null;
-    deps.queueLayoutSync();
+  const bindTurnTimerSignal = (
+    timerSignal: ReadonlySignal<{
+      text: string;
+      className: string;
+    } | null>,
+  ): void => {
+    turnTimerSourceSignal.value = timerSignal;
   };
 
   const showAttackButton = (isVisible: boolean): void => {
@@ -335,10 +345,18 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
     });
 
     effect(() => {
-      const timer = turnTimerSignal.value;
+      const timer = turnTimerSourceSignal.value.value;
+      const nextText = timer?.text ?? '';
+      const nextClassName = timer?.className ?? '';
+      const didChange =
+        timerEl.textContent !== nextText || timerEl.className !== nextClassName;
 
-      text(timerEl, timer?.text ?? '');
-      timerEl.className = timer?.className ?? '';
+      text(timerEl, nextText);
+      timerEl.className = nextClassName;
+
+      if (didChange) {
+        deps.queueLayoutSync();
+      }
     });
 
     effect(() => {
@@ -367,8 +385,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
     updateFleetStatus,
     toggleHelpOverlay,
     updateSoundButton,
-    setTurnTimer,
-    clearTurnTimer,
+    bindTurnTimerSignal,
     showAttackButton,
     showFireButton,
     dispose,
