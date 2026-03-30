@@ -19,7 +19,9 @@ import { createCameraController } from './camera-controller';
 import {
   setAIDifficulty,
   setLatencyMs,
+  setOpponentDisconnectDeadlineMs,
   setReconnectAttempts,
+  setReconnectOverlayState,
   setScenario,
   setTransport,
 } from './client-context-store';
@@ -190,11 +192,11 @@ export const createGameClient = () => {
     setLatencyMs: (ms) => {
       setLatencyMs(ctx, ms);
     },
+    setReconnectOverlayState: (state) => {
+      setReconnectOverlayState(ctx, state);
+    },
     setState: (s) => setState(s),
     handleMessage,
-    showReconnecting: (attempt, max, onCancel) =>
-      ui.overlay.showReconnecting(attempt, max, onCancel),
-    hideReconnecting: () => ui.overlay.hideReconnecting(),
     showToast: (msg, type) => ui.overlay.showToast(msg, type),
     exitToMenu,
     trackEvent: (event, props) => track(event, props),
@@ -305,6 +307,13 @@ export const createGameClient = () => {
     showToast: (message, type) => ui.overlay.showToast(message, type),
     clearTrails: () => renderer.clearTrails(),
     applyGameState: (state) => applyGameState(state),
+  });
+  ui.overlay.bindReconnectStateSignal(ctx.reconnectOverlayStateSignal);
+  ui.overlay.bindOpponentDisconnectDeadlineSignal(
+    ctx.opponentDisconnectDeadlineMsSignal,
+  );
+  ui.overlay.bindHideOpponentDisconnected(() => {
+    setOpponentDisconnectDeadlineMs(ctx, null);
   });
   ui.overlay.bindReplayControlsSignal(replayController.controlsSignal);
 

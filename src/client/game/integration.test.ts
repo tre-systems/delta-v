@@ -92,6 +92,8 @@ const createDeps = (
       playerId: 0,
       gameCode: null,
       reconnectAttempts: 0,
+      reconnectOverlayState: null,
+      opponentDisconnectDeadlineMs: null,
       latencyMs: 0,
       gameState,
     },
@@ -118,10 +120,7 @@ const createDeps = (
       },
       overlay: {
         showToast: track('ui.overlay.showToast'),
-        hideReconnecting: track('ui.overlay.hideReconnecting'),
         showRematchPending: track('ui.overlay.showRematchPending'),
-        showOpponentDisconnected: track('ui.overlay.showOpponentDisconnected'),
-        hideOpponentDisconnected: track('ui.overlay.hideOpponentDisconnected'),
       },
     },
     calls,
@@ -160,7 +159,7 @@ describe('client integration: connection flow', () => {
     });
 
     expect(deps.ctx.reconnectAttempts).toBe(0);
-    expect(deps.calls['ui.overlay.hideReconnecting']).toHaveLength(1);
+    expect(deps.ctx.reconnectOverlayState).toBeNull();
     expect(deps.calls['ui.overlay.showToast']).toEqual([
       ['Reconnected!', 'success'],
     ]);
@@ -211,6 +210,28 @@ describe('client integration: connection flow', () => {
     } as S2C);
 
     expect(deps.calls.setState).toEqual([['playing_opponentTurn']]);
+  });
+
+  it('tracks opponent disconnect state on the reactive session', () => {
+    const deps = createDeps('playing_astrogation');
+
+    handleServerMessage(deps, {
+      type: 'opponentStatus',
+      status: 'disconnected',
+      graceDeadlineMs: 12345,
+    });
+
+    expect(deps.ctx.opponentDisconnectDeadlineMs).toBe(12345);
+
+    handleServerMessage(deps, {
+      type: 'opponentStatus',
+      status: 'reconnected',
+    });
+
+    expect(deps.ctx.opponentDisconnectDeadlineMs).toBeNull();
+    expect(deps.calls['ui.overlay.showToast']).toEqual([
+      ['Opponent reconnected', 'info'],
+    ]);
   });
 });
 

@@ -1,3 +1,4 @@
+import type { ReconnectOverlayState } from '../game/session-ui-state';
 import { computed, type ReadonlySignal, signal } from '../reactive';
 import {
   buildGameOverView,
@@ -25,12 +26,6 @@ interface GameOverOverlayState {
   reason: string;
   stats?: GameOverStatsLike;
   rematchPending: boolean;
-}
-
-interface ReconnectOverlayState {
-  attempt: number;
-  maxAttempts: number;
-  onCancel: () => void;
 }
 
 interface GameOverOverlayView {
@@ -64,6 +59,13 @@ export interface OverlayStateStore {
   ) => void;
   showRematchPending: () => void;
   bindReplayControlsSignal: (next: ReadonlySignal<ReplayControlsView>) => void;
+  bindReconnectStateSignal: (
+    next: ReadonlySignal<ReconnectOverlayState | null>,
+  ) => void;
+  bindOpponentDisconnectDeadlineSignal: (
+    next: ReadonlySignal<number | null>,
+  ) => void;
+  bindHideOpponentDisconnected: (hide: () => void) => void;
   showReconnecting: (
     attempt: number,
     maxAttempts: number,
@@ -111,8 +113,15 @@ export const createOverlayStateStore = (): OverlayStateStore => {
   const replayControlsSourceSignal = signal<ReadonlySignal<ReplayControlsView>>(
     hiddenReplayControlsSignal,
   );
-  const reconnectStateSignal = signal<ReconnectOverlayState | null>(null);
-  const opponentDisconnectDeadlineSignal = signal<number | null>(null);
+  const hiddenReconnectStateSignal = signal<ReconnectOverlayState | null>(null);
+  const reconnectStateSourceSignal = signal<
+    ReadonlySignal<ReconnectOverlayState | null>
+  >(hiddenReconnectStateSignal);
+  const hiddenOpponentDisconnectDeadlineSignal = signal<number | null>(null);
+  const opponentDisconnectDeadlineSourceSignal = signal<
+    ReadonlySignal<number | null>
+  >(hiddenOpponentDisconnectDeadlineSignal);
+  let hideOpponentDisconnected: (() => void) | null = null;
 
   const gameOverViewSignal = computed(() => {
     const state = gameOverStateSignal.value;
@@ -145,7 +154,7 @@ export const createOverlayStateStore = (): OverlayStateStore => {
   );
 
   const reconnectViewSignal = computed(() => {
-    const state = reconnectStateSignal.value;
+    const state = reconnectStateSourceSignal.value.value;
 
     if (!state) {
       return HIDDEN_RECONNECT_VIEW;
@@ -158,6 +167,9 @@ export const createOverlayStateStore = (): OverlayStateStore => {
       attemptText: view.attemptText,
     };
   });
+  const opponentDisconnectDeadlineSignal = computed(
+    () => opponentDisconnectDeadlineSourceSignal.value.value,
+  );
 
   return {
     gameOverViewSignal,
@@ -185,26 +197,40 @@ export const createOverlayStateStore = (): OverlayStateStore => {
     bindReplayControlsSignal: (next) => {
       replayControlsSourceSignal.value = next;
     },
+    bindReconnectStateSignal: (next) => {
+      reconnectStateSourceSignal.value = next;
+    },
+    bindOpponentDisconnectDeadlineSignal: (next) => {
+      opponentDisconnectDeadlineSourceSignal.value = next;
+    },
+    bindHideOpponentDisconnected: (hide) => {
+      hideOpponentDisconnected = hide;
+    },
     showReconnecting: (attempt, maxAttempts, onCancel) => {
-      reconnectStateSignal.value = {
+      hiddenReconnectStateSignal.value = {
         attempt,
         maxAttempts,
         onCancel,
       };
     },
     hideReconnecting: () => {
-      reconnectStateSignal.value = null;
+      hiddenReconnectStateSignal.value = null;
     },
     cancelReconnect: () => {
-      const onCancel = reconnectStateSignal.peek()?.onCancel;
-      reconnectStateSignal.value = null;
+      const onCancel = reconnectStateSourceSignal.value.peek()?.onCancel;
+      hiddenReconnectStateSignal.value = null;
       onCancel?.();
     },
     showOpponentDisconnected: (graceDeadlineMs) => {
-      opponentDisconnectDeadlineSignal.value = graceDeadlineMs;
+      hiddenOpponentDisconnectDeadlineSignal.value = graceDeadlineMs;
     },
     hideOpponentDisconnected: () => {
-      opponentDisconnectDeadlineSignal.value = null;
+      if (hideOpponentDisconnected) {
+        hideOpponentDisconnected();
+        return;
+      }
+
+      hiddenOpponentDisconnectDeadlineSignal.value = null;
     },
   };
 };

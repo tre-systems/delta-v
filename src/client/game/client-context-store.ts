@@ -1,11 +1,12 @@
 import type { AIDifficulty } from '../../shared/ai';
 import type { PlayerId } from '../../shared/types/domain';
 import type { ClientSession } from './session-model';
+import type { ReconnectOverlayState } from './session-ui-state';
 import type { GameTransport } from './transport';
 
 type PlayerIdentityState = Pick<
   ClientSession,
-  'playerId' | 'gameCode' | 'reconnectAttempts'
+  'playerId' | 'gameCode' | 'reconnectAttempts' | 'reconnectOverlayState'
 >;
 
 type ReconnectState = Pick<ClientSession, 'reconnectAttempts'>;
@@ -13,6 +14,16 @@ type ReconnectState = Pick<ClientSession, 'reconnectAttempts'>;
 type TransportState = Pick<ClientSession, 'transport'>;
 
 type LatencyState = Pick<ClientSession, 'latencyMs'>;
+
+type ReconnectOverlaySessionState = Pick<
+  ClientSession,
+  'reconnectOverlayState'
+>;
+
+type OpponentDisconnectState = Pick<
+  ClientSession,
+  'opponentDisconnectDeadlineMs'
+>;
 
 type ScenarioState = Pick<ClientSession, 'scenario'>;
 
@@ -41,6 +52,7 @@ export const applyWelcomeSession = (
   ctx.playerId = playerId;
   ctx.gameCode = gameCode;
   ctx.reconnectAttempts = 0;
+  ctx.reconnectOverlayState = null;
 };
 
 export const setReconnectAttempts = (
@@ -63,6 +75,20 @@ export const setTransport = (
 
 export const setLatencyMs = (ctx: LatencyState, latencyMs: number): void => {
   ctx.latencyMs = latencyMs;
+};
+
+export const setReconnectOverlayState = (
+  ctx: ReconnectOverlaySessionState,
+  reconnectOverlayState: ReconnectOverlayState | null,
+): void => {
+  ctx.reconnectOverlayState = reconnectOverlayState;
+};
+
+export const setOpponentDisconnectDeadlineMs = (
+  ctx: OpponentDisconnectState,
+  opponentDisconnectDeadlineMs: number | null,
+): void => {
+  ctx.opponentDisconnectDeadlineMs = opponentDisconnectDeadlineMs;
 };
 
 export const setScenario = (ctx: ScenarioState, scenario: string): void => {
