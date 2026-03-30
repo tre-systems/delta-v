@@ -1,13 +1,11 @@
-import { byId, cls, hide, text, visible } from '../dom';
+import { byId, cls, text, visible } from '../dom';
 import {
-  batch,
   computed,
   createDisposalScope,
   effect,
   signal,
   withScope,
 } from '../reactive';
-import { ACTION_BUTTON_IDS } from './button-bindings';
 import { getLatencyStatus } from './formatters';
 import { buildHUDView, type HUDInput } from './hud';
 
@@ -33,7 +31,6 @@ export interface HUDChromeView {
   clearTurnTimer: () => void;
   showAttackButton: (isVisible: boolean) => void;
   showFireButton: (isVisible: boolean, count: number) => void;
-  showMovementStatus: () => void;
   dispose: () => void;
 }
 
@@ -63,8 +60,6 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   let helpOverlayReturnFocusEl: HTMLElement | null = null;
   const inputSignal = signal<Omit<HUDInput, 'isMobile'> | null>(null);
   const isMobileSignal = signal(false);
-  const statusOverrideSignal = signal<string | null>(null);
-  const suppressActionButtonsSignal = signal(false);
   const latencySignal = signal<number | null>(null);
   const fleetStatusSignal = signal('');
   const helpOverlayVisibleSignal = signal(false);
@@ -111,11 +106,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   };
 
   const update = (input: Omit<HUDInput, 'isMobile'>): void => {
-    batch(() => {
-      statusOverrideSignal.value = null;
-      suppressActionButtonsSignal.value = false;
-      inputSignal.value = cloneHUDInput(input);
-    });
+    inputSignal.value = cloneHUDInput(input);
   };
 
   const updateLatency = (latencyMs: number | null): void => {
@@ -176,28 +167,6 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
     deps.queueLayoutSync();
   };
 
-  const showMovementStatus = (): void => {
-    const hasInput = inputSignal.peek() !== null;
-
-    batch(() => {
-      statusOverrideSignal.value = 'Ships moving...';
-      suppressActionButtonsSignal.value = true;
-      attackButtonVisibleSignal.value = false;
-      fireButtonSignal.value = {
-        isVisible: false,
-        count: 0,
-      };
-    });
-
-    for (const id of ACTION_BUTTON_IDS) {
-      hide(byId(id));
-    }
-
-    if (!hasInput) {
-      deps.queueLayoutSync();
-    }
-  };
-
   const dispose = (): void => {
     scope.dispose();
   };
@@ -216,15 +185,15 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       return {
         input,
         hudView,
-        suppressActionButtons: suppressActionButtonsSignal.value,
+        statusOverrideText: input.statusOverrideText ?? null,
+        suppressActionButtons: input.suppressActionButtons ?? false,
       };
     });
 
     const statusTextSignal = computed(() => {
-      const statusOverride = statusOverrideSignal.value;
       const state = viewSignal.value;
 
-      return statusOverride ?? state?.hudView.statusText ?? null;
+      return state?.statusOverrideText ?? state?.hudView.statusText ?? null;
     });
 
     effect(() => {
@@ -372,12 +341,18 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       timerEl.className = timer?.className ?? '';
     });
 
-    visible(attackBtn, attackButtonVisibleSignal, 'inline-block');
+    effect(() => {
+      const hideActions = viewSignal.value?.suppressActionButtons ?? false;
+      const attackVisible = attackButtonVisibleSignal.value;
+
+      visible(attackBtn, !hideActions && attackVisible, 'inline-block');
+    });
 
     effect(() => {
+      const hideActions = viewSignal.value?.suppressActionButtons ?? false;
       const fireButton = fireButtonSignal.value;
 
-      visible(fireBtn, fireButton.isVisible, 'inline-block');
+      visible(fireBtn, !hideActions && fireButton.isVisible, 'inline-block');
       text(
         fireBtn,
         fireButton.count > 0 ? `FIRE ALL (${fireButton.count})` : 'FIRE ALL',
@@ -396,7 +371,6 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
     clearTurnTimer,
     showAttackButton,
     showFireButton,
-    showMovementStatus,
     dispose,
   };
 };

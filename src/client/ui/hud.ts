@@ -152,6 +152,8 @@ export interface HUDInput {
   astrogationCtx: AstrogationContext;
   speed: number;
   fuelToStop: number;
+  statusOverrideText?: string | null;
+  suppressActionButtons?: boolean;
   isMobile: boolean;
 }
 

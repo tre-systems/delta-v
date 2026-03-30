@@ -56,7 +56,6 @@ const createDeps = (
       showWaiting: track('ui.showWaiting'),
       showFleetBuilding: track('ui.showFleetBuilding'),
       showHUD: track('ui.showHUD'),
-      showMovementStatus: track('ui.showMovementStatus'),
     },
     tutorial: {
       hideTip: track('tutorial.hideTip'),

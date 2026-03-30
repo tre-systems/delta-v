@@ -110,6 +110,7 @@ export const createHudController = (deps: HudControllerDeps) => {
           hud,
           computeCrashWarning(),
           computeObjectiveBearingDeg(),
+          deps.getClientState(),
         ),
       );
 
