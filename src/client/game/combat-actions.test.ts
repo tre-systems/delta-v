@@ -11,7 +11,7 @@ import {
   queueAttack,
   startCombatTargetWatch,
 } from './combat-actions';
-import { createInitialPlanningState } from './planning';
+import { createPlanningStore } from './planning';
 import type { GameTransport } from './transport';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
@@ -101,7 +101,7 @@ const map: SolarSystemMap = {
 };
 
 const createDeps = (overrides: Partial<CombatActionDeps> = {}) => {
-  const planningState = createInitialPlanningState();
+  const planningState = createPlanningStore();
   const state = createState();
   const showToast = vi.fn<CombatActionDeps['showToast']>();
   const showAttackButton = vi.fn<CombatActionDeps['showAttackButton']>();

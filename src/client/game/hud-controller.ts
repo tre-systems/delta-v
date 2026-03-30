@@ -1,4 +1,4 @@
-import { hexKey, pixelToHex } from '../../shared/hex';
+import { pixelToHex } from '../../shared/hex';
 import { computeCourse } from '../../shared/movement';
 import type {
   GameState,
@@ -16,7 +16,7 @@ import { getTooltipShip } from './hover';
 import { buildHudChromeInputFromViewModel } from './hud-chrome-input';
 import { getObjectiveBearingScreenDegrees } from './navigation';
 import type { ClientState } from './phase';
-import type { PlanningStore } from './planning';
+import type { PlanningState } from './planning';
 import { getSelectedShip } from './selection';
 import { buildShipTooltipHtml } from './tooltip';
 
@@ -24,7 +24,7 @@ export interface HudControllerDeps {
   getGameState: () => GameState | null;
   getPlayerId: () => PlayerId;
   getClientState: () => ClientState;
-  getPlanningState: () => PlanningStore;
+  getPlanningState: () => PlanningState;
   getMap: () => SolarSystemMap;
   getLatencyMs: () => number;
   getIsLocalGame: () => boolean;
@@ -104,18 +104,6 @@ export const createHudController = (deps: HudControllerDeps) => {
       if (!state) return;
       const planning = deps.getPlanningState();
       const hud = deriveHudViewModel(state, deps.getPlayerId(), planning);
-
-      if (
-        hud.selectedId !== null &&
-        planning.selectedShipId !== hud.selectedId
-      ) {
-        const ship = state.ships.find((s) => s.id === hud.selectedId);
-        if (ship) {
-          planning.selectShip(hud.selectedId, hexKey(ship.position));
-        } else {
-          planning.setSelectedShipId(hud.selectedId);
-        }
-      }
 
       deps.ui.updateHUD(
         buildHudChromeInputFromViewModel(

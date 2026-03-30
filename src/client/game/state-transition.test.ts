@@ -8,7 +8,7 @@ import {
 } from '../../shared/map-data';
 import type { GameState } from '../../shared/types/domain';
 import { effect } from '../reactive';
-import { createInitialPlanningState } from './planning';
+import { createPlanningStore } from './planning';
 import { createInitialClientSession } from './session-model';
 import {
   applyClientStateTransition,
@@ -47,7 +47,7 @@ const createDeps = (
       playerId: 0,
       gameCode: 'ABCDE',
       gameState,
-      planningState: createInitialPlanningState(),
+      planningState: createPlanningStore(),
       isLocalGame: false,
     },
     ui: {

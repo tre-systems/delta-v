@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-
 import { createGame } from '../../shared/engine/game-engine';
+import { hexKey } from '../../shared/hex';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -10,6 +10,7 @@ import { createInitialClientSession } from './session-model';
 import {
   attachRendererGameStateEffect,
   attachSessionHudEffect,
+  attachSessionPlanningSelectionEffect,
 } from './session-signals';
 
 describe('session-signals', () => {
@@ -69,6 +70,37 @@ describe('session-signals', () => {
 
     session.planningState.setSelectedShipId('ship-1');
     expect(updateHUD).toHaveBeenCalled();
+
+    dispose();
+  });
+
+  it('reconciles planning selection from derived session state', () => {
+    const session = createInitialClientSession();
+    session.playerId = 0;
+    session.state = 'playing_astrogation';
+    session.gameState = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'SIG4',
+      findBaseHex,
+    );
+    const selectedShip = session.gameState.ships.find(
+      (ship) => ship.owner === 0,
+    );
+
+    if (!selectedShip) {
+      throw new Error('Expected duel scenario to provide a player ship');
+    }
+
+    const dispose = attachSessionPlanningSelectionEffect(session);
+
+    expect(session.planningState.selectedShipId).toBe(selectedShip.id);
+    expect(session.planningState.lastSelectedHex).toBe(
+      hexKey(selectedShip.position),
+    );
+
+    session.planningState.setSelectedShipId(null);
+    expect(session.planningState.selectedShipId).toBe(selectedShip.id);
 
     dispose();
   });
