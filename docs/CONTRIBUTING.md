@@ -1,15 +1,18 @@
 # Contributing
 
+This file covers contributor workflow only. Use [README.md](../README.md) for project onboarding, [ARCHITECTURE.md](./ARCHITECTURE.md) for system design, and [CODING_STANDARDS.md](./CODING_STANDARDS.md) for implementation conventions.
+
 ## Pre-commit (Husky)
 
 The hook runs, in order:
 
 1. `npm run lint`
 2. `npm run typecheck:all`
-3. `rm -rf coverage` then `npm run test:coverage` (clean output dir)
-4. `npm run test:e2e` (Playwright; see below)
-5. `npm run test:e2e:a11y` (Playwright + axe baseline)
-6. `npm run simulate all 25 -- --ci`
+3. `npx wrangler d1 migrations apply delta-v-telemetry --local`
+4. `rm -rf coverage` then `npm run test:coverage` (clean output dir)
+5. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e` (Playwright; see below)
+6. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e:a11y` (Playwright + axe baseline)
+7. `npm run simulate all 25 -- --ci`
 
 ### Coverage (`test:coverage`)
 
@@ -24,6 +27,7 @@ Default Playwright port is **8787** (`playwright.config.ts`).
 - Accessibility baseline run: `npm run test:e2e:a11y`
 - **CI** runs `npm run test:e2e` without `E2E_PORT`, so the web server uses **8787**.
 - **Pre-commit** assigns a **free TCP port** via Node, sets `E2E_PORT`, and sets `DELTAV_PRE_COMMIT_E2E=1` so Playwright does **not** reuse an existing server (avoids attaching to the wrong process if a fixed port is busy).
+- **Pre-commit** also applies local D1 migrations before coverage/e2e so Wrangler's local database matches the current schema.
 - To run e2e manually while **`npm run dev`** holds **8787**: `E2E_PORT=8788 npm run test:e2e` (or any free port).
 
 If e2e fails with a port error, check nothing else is bound to the chosen port.

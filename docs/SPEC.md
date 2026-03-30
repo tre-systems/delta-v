@@ -14,11 +14,12 @@ This implementation renders the game as a smooth, continuous-space experience �
 - **Official rules truth:** when this prose disagrees with the official game, [Triplanetary2018.pdf](../Triplanetary2018.pdf) takes precedence.
 - **Protocol truth:** `src/shared/types/protocol.ts` is authoritative if an inline example drifts.
 - **Domain truth:** `src/shared/types/domain.ts` is authoritative for state shape and phase enums.
+- **Architecture truth:** [ARCHITECTURE.md](./ARCHITECTURE.md) owns module inventory, data flow, and client reactive/session design; this file keeps only the runtime context needed to understand the product.
 - **Roadmap truth:** active future work lives in [BACKLOG.md](./BACKLOG.md); milestone sections here are historical context.
 
 ## Quick Navigation
 
-- [Architecture](#architecture)
+- [Implementation Context](#implementation-context)
 - [Game Concepts](#game-concepts)
 - [Scenarios](#scenarios)
 - [Network Protocol](#network-protocol)
@@ -26,48 +27,16 @@ This implementation renders the game as a smooth, continuous-space experience �
 - [Implementation Status](#implementation-status)
 - [Design Decisions](#design-decisions)
 
-## Architecture
+## Implementation Context
 
-The project follows a modern full-stack TypeScript architecture:
+This spec is about gameplay, protocol, and shipped product behavior. For full module inventory, diagrams, dependency analysis, and client reactivity details, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-```
-src/
-  server/
-    index.ts           Cloudflare Worker — HTTP routing (/create, /join/:code, /replay/:code, /ws/:code)
-    game-do/
-      game-do.ts       Durable Object — authoritative room/session coordinator, WebSocket plumbing
-      archive.ts       Match event stream, checkpoints, replay projection
-      messages.ts      Message handling and dispatch
-      session.ts       Session management and auth
-      turns.ts         Turn processing and resolution
+The runtime assumptions relevant to this spec are:
 
-  client/
-    main.ts            Browser entry — bootstrap, then createGameClient()
-    game/              client-kernel.ts (composition root), command routing, combat/burn/ordnance helpers, …
-    input.ts           Raw browser input shell (mouse/touch/keyboard)
-    input-interaction.ts Pointer/minimap gesture helpers for the input shell
-    audio.ts           Procedural sound effects (Web Audio API)
-    tutorial.ts        Phase-based tutorial tips for new players
-    renderer/          Canvas rendering, camera, animation manager, trails, minimap
-    ui/                DOM overlays (menu, HUD, game log, game over)
-
-  shared/
-    types/             Shared domain, protocol, and scenario interfaces
-    hex.ts             Hex math (axial coords, line draw, pixel conversion)
-    movement.ts        Vector movement, gravity, crash/landing/takeoff
-    combat.ts          Gun combat, counterattack, odds, line of sight
-    constants.ts       Ship stats, ordnance mass, detection ranges, timing
-    map-data.ts        Solar system bodies, gravity rings, bases, scenarios
-    ai.ts              AI opponent (astrogation, ordnance, combat decisions)
-    engine/            Pure game logic (createGame, processAstrogation, etc.)
-
-static/
-  index.html           Single-page app shell
-  style.css            Styles
-  favicon.svg          App icon
-```
-
-**Why TypeScript instead of Rust/WASM:** The game is turn-based with no real-time simulation loop needed on the server. TypeScript runs natively on Cloudflare Workers and simplifies the stack considerably. Canvas rendering on the client is more than sufficient for animating ship movements between turns.
+- `src/shared/` contains the side-effect-free rules engine and shared types used by both client and server.
+- `src/server/` runs on Cloudflare Workers with one Durable Object room per active match; the authoritative room persists an event stream plus checkpoints for replay and recovery.
+- `src/client/` renders the map in Canvas and uses a small reactive session/UI layer for durable HUD, waiting, overlay, replay, and timer state.
+- Client and Worker ship as one version line today; staggered client/server compatibility is not a supported requirement.
 
 ### Cloudflare Components
 
