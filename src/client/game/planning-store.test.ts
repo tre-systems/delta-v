@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CombatAttack } from '../../shared/types/domain';
+import { effect } from '../reactive';
 import type { CombatTargetPlan } from './combat';
 import { createInitialPlanningState } from './planning';
 import {
@@ -147,5 +148,28 @@ describe('planning-store', () => {
     clearTorpedoAcceleration(planning);
     expect(planning.torpedoAccel).toBeNull();
     expect(planning.torpedoAccelSteps).toBeNull();
+  });
+
+  it('bumps the revision signal when planning mutates', () => {
+    const planning = createInitialPlanningState();
+    const revisionSignal = planning.revisionSignal;
+    if (!revisionSignal) {
+      throw new Error(
+        'Expected createInitialPlanningState to provide a revision signal',
+      );
+    }
+    const revisions: number[] = [];
+    const dispose = effect(() => {
+      revisions.push(revisionSignal.value);
+    });
+
+    setSelectedShipId(planning, 'ship-1');
+    planning.combatTargetId = 'enemy';
+    planning.queuedAttacks = [createAttack()];
+    resetCombatPlanning(planning);
+
+    expect(revisions).toEqual([0, 1, 2]);
+
+    dispose();
   });
 });
