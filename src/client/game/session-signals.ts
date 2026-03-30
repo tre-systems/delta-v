@@ -1,45 +1,37 @@
 import type { GameState } from '../../shared/types/domain';
-import { type Dispose, effect, type Signal, signal } from '../reactive';
-import type { ClientState } from './phase';
+import {
+  type Dispose,
+  effect,
+  type ReadonlySignal,
+  type Signal,
+  signal,
+} from '../reactive';
+import type { ClientSession } from './session-model';
 
-/** Mirrors `ClientSession.gameState` and `.state` for reactive subscribers (kept in sync with `ctx`). */
-export type SessionReactiveMirror = {
-  gameState: Signal<GameState | null>;
-  clientState: Signal<ClientState>;
-  /** Incremented from `planning-store` via `setPlanningHudBump` so HUD reflects planning without scattered `updateHUD`. */
-  planningRevision: Signal<number>;
-};
-
-export const createSessionReactiveMirror = (initial: {
-  gameState: GameState | null;
-  state: ClientState;
-}): SessionReactiveMirror => ({
-  gameState: signal(initial.gameState),
-  clientState: signal(initial.state),
-  planningRevision: signal(0),
-});
+export const createPlanningRevisionSignal = (): Signal<number> => signal(0);
 
 /**
- * Subscribes the HUD to session mirrors: a single reactive pipeline from
- * `gameState` / `clientState` / `planningRevision` to `updateHUD` (declarative
- * refresh instead of imperative calls after each command).
+ * Subscribes the HUD to the session's reactive state plus planning updates:
+ * a single reactive pipeline from `gameState` / `state` / `planningRevision`
+ * to `updateHUD`.
  */
-export const attachSessionMirrorHudEffect = (
-  mirror: SessionReactiveMirror,
+export const attachSessionHudEffect = (
+  session: Pick<ClientSession, 'gameStateSignal' | 'stateSignal'>,
+  planningRevision: ReadonlySignal<number>,
   hud: { updateHUD: () => void },
 ): Dispose =>
   effect(() => {
-    mirror.gameState.value;
-    mirror.clientState.value;
-    mirror.planningRevision.value;
+    session.gameStateSignal.value;
+    session.stateSignal.value;
+    planningRevision.value;
     hud.updateHUD();
   });
 
-/** Keeps the canvas renderer aligned with `mirror.gameState` (including `null` on exit). */
-export const attachRendererGameStateMirrorEffect = (
-  mirror: SessionReactiveMirror,
+/** Keeps the canvas renderer aligned with `session.gameState` (including `null` on exit). */
+export const attachRendererGameStateEffect = (
+  session: Pick<ClientSession, 'gameStateSignal'>,
   renderer: { setGameState: (state: GameState | null) => void },
 ): Dispose =>
   effect(() => {
-    renderer.setGameState(mirror.gameState.value);
+    renderer.setGameState(session.gameStateSignal.value);
   });

@@ -23,7 +23,7 @@ interface SharedMainDepsArgs {
   turnTelemetry: TurnTelemetryTracker;
 }
 
-/** State transitions do not touch `HudController`; HUD refresh is mirror-driven. */
+/** State transitions do not touch `HudController`; HUD refresh is session-signal-driven. */
 export interface MainStateTransitionDepsArgs {
   ctx: ClientSession;
   renderer: Renderer;

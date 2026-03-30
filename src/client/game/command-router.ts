@@ -47,7 +47,7 @@ import {
 import type { GameTransport } from './transport';
 
 // Canonical read-only session accessors for command dispatch.
-// All reads go through getters backed by the reactive mirror to avoid
+// All reads go through getters backed by reactive session state to avoid
 // stale snapshots and dual-path inconsistencies (backlog #26).
 export interface CommandRouterSessionRead {
   getState: () => ClientState;
