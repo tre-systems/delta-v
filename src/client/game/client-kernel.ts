@@ -69,10 +69,12 @@ import {
 import {
   attachRendererGameStateEffect,
   attachSessionCombatButtonsEffect,
+  attachSessionFleetPanelEffect,
   attachSessionHudEffect,
   attachSessionLatencyEffect,
   attachSessionLogisticsPanelEffect,
   attachSessionPlanningSelectionEffect,
+  attachSessionPlayerIdentityEffect,
 } from './session-signals';
 import { applyClientStateTransition } from './state-transition';
 import { createTurnTimerManager } from './timer';
@@ -94,8 +96,12 @@ export type { ClientSession, MainNetworkDeps };
  * - `exitToMenuSession` — clears game state via `clearClientGameState`.
  * - `attachSessionPlanningSelectionEffect` — keeps `planningState.selectedShipId`
  *   aligned with the derived active ship choice.
+ * - `attachSessionPlayerIdentityEffect` — keeps renderer/log identity consumers
+ *   aligned with reactive session player identity.
  * - `attachSessionCombatButtonsEffect` — keeps combat action buttons aligned
  *   with reactive client/combat-planning state.
+ * - `attachSessionFleetPanelEffect` — keeps fleet status and ship list aligned
+ *   with reactive session/planning state.
  * - `attachSessionLatencyEffect` — keeps latency display aligned with reactive
  *   session networking state.
  * - `attachSessionLogisticsPanelEffect` — keeps the transfer panel aligned
@@ -211,7 +217,12 @@ export const createGameClient = () => {
 
   const disposePlanningSelectionEffect =
     attachSessionPlanningSelectionEffect(ctx);
+  const disposePlayerIdentityEffect = attachSessionPlayerIdentityEffect(ctx, {
+    renderer,
+    ui,
+  });
   const disposeCombatButtonsEffect = attachSessionCombatButtonsEffect(ctx, ui);
+  const disposeFleetPanelEffect = attachSessionFleetPanelEffect(ctx, ui);
   const disposeHudSessionEffect = attachSessionHudEffect(ctx, hud);
   const disposeLatencyEffect = attachSessionLatencyEffect(ctx, ui);
   const disposeLogisticsPanelEffect = attachSessionLogisticsPanelEffect(ctx, {
@@ -230,7 +241,9 @@ export const createGameClient = () => {
   );
   disposeSessionSubscriptions = () => {
     disposePlanningSelectionEffect();
+    disposePlayerIdentityEffect();
     disposeCombatButtonsEffect();
+    disposeFleetPanelEffect();
     disposeHudSessionEffect();
     disposeLatencyEffect();
     disposeLogisticsPanelEffect();
