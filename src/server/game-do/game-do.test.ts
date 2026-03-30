@@ -157,6 +157,8 @@ const createMessageHandlerDeps = (
       playerId: 0,
       gameCode: null,
       reconnectAttempts: 0,
+      reconnectOverlayState: null,
+      opponentDisconnectDeadlineMs: null,
       latencyMs: 0,
       gameState: state,
     },
@@ -194,10 +196,7 @@ const createMessageHandlerDeps = (
       },
       overlay: {
         showToast() {},
-        hideReconnecting() {},
         showRematchPending() {},
-        showOpponentDisconnected() {},
-        hideOpponentDisconnected() {},
       },
     },
   };

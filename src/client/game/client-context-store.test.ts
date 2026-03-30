@@ -7,11 +7,14 @@ import {
   setGameCode,
   setIsLocalGame,
   setLatencyMs,
+  setOpponentDisconnectDeadlineMs,
   setPlayerId,
   setReconnectAttempts,
+  setReconnectOverlayState,
   setScenario,
   setTransport,
 } from './client-context-store';
+import type { ReconnectOverlayState } from './session-ui-state';
 import type { GameTransport } from './transport';
 
 describe('client-context-store', () => {
@@ -20,10 +23,16 @@ describe('client-context-store', () => {
       playerId: PlayerId | -1;
       gameCode: string | null;
       reconnectAttempts: number;
+      reconnectOverlayState: ReconnectOverlayState | null;
     } = {
       playerId: -1,
       gameCode: null,
       reconnectAttempts: 3,
+      reconnectOverlayState: {
+        attempt: 2,
+        maxAttempts: 5,
+        onCancel: () => {},
+      },
     };
 
     applyWelcomeSession(ctx, 1, 'ABCDE');
@@ -32,15 +41,23 @@ describe('client-context-store', () => {
       playerId: 1,
       gameCode: 'ABCDE',
       reconnectAttempts: 0,
+      reconnectOverlayState: null,
     });
   });
 
-  it('updates reconnect, transport, and latency runtime fields', () => {
+  it('updates reconnect, transport, latency, and session overlay runtime fields', () => {
     const transport = { kind: 'local' } as unknown as GameTransport;
+    const reconnectOverlayState: ReconnectOverlayState = {
+      attempt: 1,
+      maxAttempts: 5,
+      onCancel: () => {},
+    };
     const ctx = {
       reconnectAttempts: 0,
       transport: null as GameTransport | null,
       latencyMs: -1,
+      reconnectOverlayState: null as ReconnectOverlayState | null,
+      opponentDisconnectDeadlineMs: null as number | null,
     };
 
     setReconnectAttempts(ctx, 2);
@@ -54,6 +71,12 @@ describe('client-context-store', () => {
 
     setLatencyMs(ctx, 123);
     expect(ctx.latencyMs).toBe(123);
+
+    setReconnectOverlayState(ctx, reconnectOverlayState);
+    expect(ctx.reconnectOverlayState).toBe(reconnectOverlayState);
+
+    setOpponentDisconnectDeadlineMs(ctx, 456);
+    expect(ctx.opponentDisconnectDeadlineMs).toBe(456);
   });
 
   it('updates scenario, local mode, difficulty, player, and room code', () => {

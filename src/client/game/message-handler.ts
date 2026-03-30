@@ -4,7 +4,11 @@ import type { CombatResult, GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playPhaseChange } from '../audio';
 import { formatLogisticsTransferLogLines } from '../ui/formatters';
-import { applyWelcomeSession, setLatencyMs } from './client-context-store';
+import {
+  applyWelcomeSession,
+  setLatencyMs,
+  setOpponentDisconnectDeadlineMs,
+} from './client-context-store';
 import { deriveClientMessagePlan } from './messages';
 import type { ClientState } from './phase';
 import type { ClientSessionMessageContext } from './session-model';
@@ -43,10 +47,7 @@ export interface MessageHandlerDeps {
     };
     overlay: {
       showToast: (message: string, type: 'error' | 'info' | 'success') => void;
-      hideReconnecting: () => void;
       showRematchPending: () => void;
-      showOpponentDisconnected: (graceDeadlineMs: number) => void;
-      hideOpponentDisconnected: () => void;
     };
   };
 }
@@ -71,7 +72,6 @@ export const handleServerMessage = (
         deps.trackEvent('reconnect_succeeded', {
           attempts: reconnectAttempts,
         });
-        deps.ui.overlay.hideReconnecting();
         deps.ui.overlay.showToast('Reconnected!', 'success');
       } else if (deps.ctx.state === 'connecting') {
         deps.trackEvent('spectate_join_succeeded', {});
@@ -91,7 +91,6 @@ export const handleServerMessage = (
         deps.trackEvent('reconnect_succeeded', {
           attempts: reconnectAttempts,
         });
-        deps.ui.overlay.hideReconnecting();
         deps.ui.overlay.showToast('Reconnected!', 'success');
       } else if (deps.ctx.state === 'connecting') {
         deps.trackEvent('join_game_succeeded', {});
@@ -156,7 +155,7 @@ export const handleServerMessage = (
       break;
     }
     case 'gameOver':
-      deps.ui.overlay.hideOpponentDisconnected();
+      setOpponentDisconnectDeadlineMs(deps.ctx, null);
       deps.showGameOverOutcome(plan.won, plan.reason);
       break;
     case 'rematchPending':
@@ -182,9 +181,9 @@ export const handleServerMessage = (
       break;
     case 'opponentStatus':
       if (plan.status === 'disconnected' && plan.graceDeadlineMs) {
-        deps.ui.overlay.showOpponentDisconnected(plan.graceDeadlineMs);
+        setOpponentDisconnectDeadlineMs(deps.ctx, plan.graceDeadlineMs);
       } else {
-        deps.ui.overlay.hideOpponentDisconnected();
+        setOpponentDisconnectDeadlineMs(deps.ctx, null);
         if (plan.status === 'reconnected') {
           deps.ui.overlay.showToast('Opponent reconnected', 'info');
         }
