@@ -7,13 +7,12 @@ import {
   getNextSelectedShip,
   getOwnFleetFocusPosition,
 } from './navigation';
-import type { PlanningState } from './planning';
-import { setSelectedShipId } from './planning-store';
+import type { PlanningStore } from './planning';
 
 export interface CameraControllerDeps {
   getGameState: () => GameState | null;
   getPlayerId: () => PlayerId;
-  getPlanningState: () => PlanningState;
+  getPlanningState: () => PlanningStore;
   renderer: Renderer;
   overlay: OverlayView;
 }
@@ -31,7 +30,7 @@ export const createCameraController = (deps: CameraControllerDeps) => ({
     );
 
     if (!nextShip) return;
-    setSelectedShipId(deps.getPlanningState(), nextShip.id);
+    deps.getPlanningState().setSelectedShipId(nextShip.id);
     deps.renderer.centerOnHex(nextShip.position);
   },
 
