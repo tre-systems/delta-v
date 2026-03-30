@@ -47,6 +47,7 @@ export interface MessageHandlerDeps {
     };
     overlay: {
       showToast: (message: string, type: 'error' | 'info' | 'success') => void;
+      hideGameOver: () => void;
       showRematchPending: () => void;
     };
   };
@@ -105,6 +106,7 @@ export const handleServerMessage = (
       playPhaseChange();
       break;
     case 'gameStart':
+      deps.ui.overlay.hideGameOver();
       deps.resetTurnTelemetry();
       deps.applyGameState(deps.deserializeState(plan.state));
       deps.renderer.clearTrails();
