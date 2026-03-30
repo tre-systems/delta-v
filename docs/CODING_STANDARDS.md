@@ -211,8 +211,8 @@ Current examples:
   side effects.
 - `applyClientGameState()` owns authoritative state apply
   to `ctx` (and optional test `renderer`); in the full client,
-  `attachRendererGameStateMirrorEffect()` drives `renderer.setGameState`
-  from `mirror.gameState` (see `docs/ARCHITECTURE.md`).
+  `attachRendererGameStateEffect()` drives `renderer.setGameState`
+  from the reactive session state (see `docs/ARCHITECTURE.md`).
 - `createUIManager()` owns top-level screen toggling via its
   internal `applyScreenVisibility` (wired through
   `createScreenActions()` for the user-facing screen methods),
@@ -632,11 +632,11 @@ The shared engine is data-oriented by design. Lean into that with functional pat
 
 State belongs to the coordinator that manages its lifecycle, and is passed by reference to collaborators:
 
-- **PlanningState** is owned by the client composition root (`ctx.planningState` inside `createGameClient()` in `game/client-kernel.ts`), defined in `src/client/game/planning.ts`. It is the client-side "working memory" for the current turn — the uncommitted moves that get sent to the server on confirm. The renderer receives it when constructed via `createRenderer(canvas, planningState)` and reads the same reference each frame to draw previews. `InputHandler` (`createInputHandler()`) does not receive PlanningState — it emits raw spatial events (`InputEvent`), and `interpretInput()` receives PlanningState as a read-only argument to produce `GameCommand[]`.
+- **PlanningState** is owned by the client composition root (`ctx.planningState` inside `createGameClient()` in `game/client-kernel.ts`), defined in `src/client/game/planning.ts`. It is the client-side "working memory" for the current turn — the uncommitted moves that get sent to the server on confirm. The renderer receives it when constructed via `createRenderer(canvas, planningState)` and reads the same reference each frame to draw previews. `InputHandler` (`createInputHandler()`) does not receive PlanningState — it emits raw spatial events (`InputEvent`), and `interpretInput()` receives PlanningState as a read-only argument to produce `GameCommand[]`. Planning mutations also bump `planningState.revisionSignal`, which lets the HUD subscribe declaratively without a separate global invalidation hook.
 
   Key fields: `burns` (Map of ship → burn direction), `overloads` (Map of ship → overload direction), `queuedAttacks` (buffered combat declarations), `selectedShipId`, `hoverHex`, `combatTargetId`/`combatAttackerIds` (combat planning), `torpedoAccel` (torpedo launch direction). Reset via `createInitialPlanningState()` on phase transitions.
 
-- **GameState** lives on the same client context (`ctx.gameState`). Authoritative updates go through `applyClientGameState()` in `game/game-state-store.ts` (called from the `applyGameState` function inside `createGameClient()` and from injected deps in session/transport code). The composition root dual-writes into `session-signals` mirrors; `attachRendererGameStateMirrorEffect` keeps the canvas aligned with `mirror.gameState` (including `null` on exit). Other modules receive it as function arguments, never as stored references.
+- **GameState** lives on the same client context (`ctx.gameState`). Authoritative updates go through `applyClientGameState()` in `game/game-state-store.ts` (called from the `applyGameState` function inside `createGameClient()` and from injected deps in session/transport code). `ClientSession` exposes reactive `gameStateSignal` / `stateSignal`, and `attachRendererGameStateEffect()` keeps the canvas aligned with `ctx.gameState` (including `null` on exit). Other modules receive it as function arguments, never as stored references.
 
 ### Reactive signals (adopted selectively in UI)
 

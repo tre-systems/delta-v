@@ -1,14 +1,20 @@
 import type { HexCoord } from '../../shared/hex';
 import type { CombatAttack } from '../../shared/types/domain';
 import type { CombatTargetPlan } from './combat';
-import type { PlanningState } from './planning';
-import { notifyPlanningChanged } from './planning-hud-sync';
+import { bumpPlanningRevision, type PlanningState } from './planning';
 
-type SelectedShipState = Pick<PlanningState, 'selectedShipId'>;
-type ShipSelectionState = Pick<
-  PlanningState,
-  'selectedShipId' | 'lastSelectedHex'
->;
+type PlanningRevisionState = {
+  revisionSignal?: PlanningState['revisionSignal'];
+};
+
+type SelectedShipState = PlanningRevisionState &
+  Pick<PlanningState, 'selectedShipId'>;
+type ShipSelectionState = PlanningRevisionState &
+  Pick<PlanningState, 'selectedShipId' | 'lastSelectedHex'>;
+
+const notifyPlanningChanged = (planningState: PlanningRevisionState): void => {
+  bumpPlanningRevision(planningState);
+};
 
 export const setSelectedShipId = (
   planningState: SelectedShipState,
@@ -16,7 +22,7 @@ export const setSelectedShipId = (
 ): void => {
   if (planningState.selectedShipId === shipId) return;
   planningState.selectedShipId = shipId;
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const selectShip = (
@@ -29,7 +35,7 @@ export const selectShip = (
   if (lastSelectedHex !== undefined) {
     planningState.lastSelectedHex = lastSelectedHex;
   }
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const clearShipPlanning = (
@@ -39,7 +45,7 @@ export const clearShipPlanning = (
   planningState.burns.delete(shipId);
   planningState.overloads.delete(shipId);
   planningState.weakGravityChoices.delete(shipId);
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const resetAstrogationPlanning = (
@@ -50,7 +56,7 @@ export const resetAstrogationPlanning = (
   planningState.burns.clear();
   planningState.overloads.clear();
   planningState.weakGravityChoices.clear();
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const setShipBurn = (
@@ -64,7 +70,7 @@ export const setShipBurn = (
   if (clearOverload) {
     planningState.overloads.delete(shipId);
   }
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const setShipOverload = (
@@ -73,7 +79,7 @@ export const setShipOverload = (
   direction: number | null,
 ): void => {
   planningState.overloads.set(shipId, direction);
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const setShipWeakGravityChoices = (
@@ -82,7 +88,7 @@ export const setShipWeakGravityChoices = (
   choices: Record<string, boolean>,
 ): void => {
   planningState.weakGravityChoices.set(shipId, choices);
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const applyCombatPlanUpdate = (
@@ -95,7 +101,7 @@ export const applyCombatPlanUpdate = (
   if (selectedShipId !== undefined) {
     planningState.selectedShipId = selectedShipId;
   }
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const clearCombatSelectionState = (
@@ -105,13 +111,16 @@ export const clearCombatSelectionState = (
   planningState.combatTargetType = null;
   planningState.combatAttackerIds = [];
   planningState.combatAttackStrength = null;
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const resetCombatPlanning = (planningState: PlanningState): void => {
-  clearCombatSelectionState(planningState);
+  planningState.combatTargetId = null;
+  planningState.combatTargetType = null;
+  planningState.combatAttackerIds = [];
+  planningState.combatAttackStrength = null;
   planningState.queuedAttacks = [];
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const queueCombatAttack = (
@@ -119,13 +128,13 @@ export const queueCombatAttack = (
   attack: CombatAttack,
 ): number => {
   planningState.queuedAttacks.push(attack);
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
   return planningState.queuedAttacks.length;
 };
 
 export const popQueuedAttack = (planningState: PlanningState): number => {
   planningState.queuedAttacks.pop();
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
   return planningState.queuedAttacks.length;
 };
 
@@ -134,7 +143,7 @@ export const takeQueuedAttacks = (
 ): CombatAttack[] => {
   const attacks = [...planningState.queuedAttacks];
   planningState.queuedAttacks = [];
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
   return attacks;
 };
 
@@ -143,7 +152,7 @@ export const setCombatAttackStrength = (
   strength: number | null,
 ): void => {
   planningState.combatAttackStrength = strength;
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const setTorpedoAcceleration = (
@@ -153,7 +162,7 @@ export const setTorpedoAcceleration = (
 ): void => {
   planningState.torpedoAccel = direction;
   planningState.torpedoAccelSteps = steps;
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const clearTorpedoAcceleration = (
@@ -161,7 +170,7 @@ export const clearTorpedoAcceleration = (
 ): void => {
   planningState.torpedoAccel = null;
   planningState.torpedoAccelSteps = null;
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
 
 export const setHoverHex = (
@@ -169,5 +178,5 @@ export const setHoverHex = (
   hex: HexCoord | null,
 ): void => {
   planningState.hoverHex = hex;
-  notifyPlanningChanged();
+  notifyPlanningChanged(planningState);
 };
