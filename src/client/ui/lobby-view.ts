@@ -17,8 +17,7 @@ export interface LobbyViewDeps {
 export interface LobbyView {
   onMenuShown: () => void;
   setMenuLoading: (loading: boolean) => void;
-  showWaiting: (code: string) => void;
-  showConnecting: () => void;
+  setWaitingState: (code: string | null, connecting: boolean) => void;
   dispose: () => void;
 }
 
@@ -144,12 +143,8 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     loadingSignal.value = loading;
   };
 
-  const showWaiting = (code: string): void => {
-    waitingCopySignal.value = buildWaitingScreenCopy(code, false);
-  };
-
-  const showConnecting = (): void => {
-    waitingCopySignal.value = buildWaitingScreenCopy('', true);
+  const setWaitingState = (code: string | null, connecting: boolean): void => {
+    waitingCopySignal.value = buildWaitingScreenCopy(code ?? '', connecting);
   };
 
   const dispose = (): void => {
@@ -292,8 +287,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   return {
     onMenuShown,
     setMenuLoading,
-    showWaiting,
-    showConnecting,
+    setWaitingState,
     dispose,
   };
 };

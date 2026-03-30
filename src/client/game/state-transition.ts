@@ -10,7 +10,7 @@ import type { ClientSessionStateTransitionContext } from './session-model';
 interface TransitionUI {
   showMenu: () => void;
   showConnecting: () => void;
-  showWaiting: (code: string) => void;
+  showWaiting: () => void;
   showFleetBuilding: (state: GameState, playerId: PlayerId) => void;
   showHUD: () => void;
 }
@@ -61,7 +61,7 @@ export const applyClientStateTransition = (
       deps.ctx.playerId as PlayerId,
       deps.ctx.isLocalGame,
     );
-    const screenPlan = deriveClientScreenPlan(newState, deps.ctx.gameCode);
+    const screenPlan = deriveClientScreenPlan(newState);
 
     switch (screenPlan.kind) {
       case 'menu':
@@ -71,7 +71,7 @@ export const applyClientStateTransition = (
         deps.ui.showConnecting();
         break;
       case 'waiting':
-        deps.ui.showWaiting(screenPlan.code);
+        deps.ui.showWaiting();
         break;
       case 'fleetBuilding':
         deps.ui.showFleetBuilding(

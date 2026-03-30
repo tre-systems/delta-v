@@ -75,6 +75,7 @@ import {
   attachSessionLogisticsPanelEffect,
   attachSessionPlanningSelectionEffect,
   attachSessionPlayerIdentityEffect,
+  attachSessionWaitingScreenEffect,
 } from './session-signals';
 import { applyClientStateTransition } from './state-transition';
 import { createTurnTimerManager } from './timer';
@@ -102,6 +103,8 @@ export type { ClientSession, MainNetworkDeps };
  *   with reactive client/combat-planning state.
  * - `attachSessionFleetPanelEffect` — keeps fleet status and ship list aligned
  *   with reactive session/planning state.
+ * - `attachSessionWaitingScreenEffect` — keeps waiting-screen copy aligned with
+ *   reactive session connection state.
  * - `attachSessionLatencyEffect` — keeps latency display aligned with reactive
  *   session networking state.
  * - `attachSessionLogisticsPanelEffect` — keeps the transfer panel aligned
@@ -224,6 +227,7 @@ export const createGameClient = () => {
   const disposeCombatButtonsEffect = attachSessionCombatButtonsEffect(ctx, ui);
   const disposeFleetPanelEffect = attachSessionFleetPanelEffect(ctx, ui);
   const disposeHudSessionEffect = attachSessionHudEffect(ctx, hud);
+  const disposeWaitingScreenEffect = attachSessionWaitingScreenEffect(ctx, ui);
   const disposeLatencyEffect = attachSessionLatencyEffect(ctx, ui);
   const disposeLogisticsPanelEffect = attachSessionLogisticsPanelEffect(ctx, {
     renderLogisticsPanel: (state) => {
@@ -245,6 +249,7 @@ export const createGameClient = () => {
     disposeCombatButtonsEffect();
     disposeFleetPanelEffect();
     disposeHudSessionEffect();
+    disposeWaitingScreenEffect();
     disposeLatencyEffect();
     disposeLogisticsPanelEffect();
     disposeRendererSessionEffect();

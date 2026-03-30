@@ -128,13 +128,13 @@ describe('LobbyView', () => {
       'CREATING...',
     );
 
-    view.showWaiting('ABCDE');
+    view.setWaitingState('ABCDE', false);
     expect(document.getElementById('gameCode')?.textContent).toBe('ABCDE');
     expect(document.getElementById('waitingStatus')?.textContent).toBe(
       'Waiting for opponent...',
     );
 
-    view.showConnecting();
+    view.setWaitingState(null, true);
     expect(document.getElementById('gameCode')?.textContent).toBe('...');
     expect(document.getElementById('waitingStatus')?.textContent).toBe(
       'Connecting...',

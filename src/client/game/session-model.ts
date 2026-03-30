@@ -35,6 +35,7 @@ export interface ClientSession {
   /** True while connected as a live spectator (`?viewer=spectator`). */
   spectatorMode: boolean;
   gameCode: string | null;
+  readonly gameCodeSignal: ReadonlySignal<string | null>;
   scenario: string;
   gameState: GameState | null;
   readonly gameStateSignal: ReadonlySignal<GameState | null>;
@@ -57,6 +58,8 @@ export const createInitialClientSession = (): ClientSession => {
     | 'stateSignal'
     | 'playerId'
     | 'playerIdSignal'
+    | 'gameCode'
+    | 'gameCodeSignal'
     | 'gameState'
     | 'gameStateSignal'
     | 'logisticsState'
@@ -70,6 +73,8 @@ export const createInitialClientSession = (): ClientSession => {
     stateSignal: ReadonlySignal<ClientState>;
     playerId: PlayerId | -1;
     playerIdSignal: ReadonlySignal<PlayerId | -1>;
+    gameCode: string | null;
+    gameCodeSignal: ReadonlySignal<string | null>;
     gameState: GameState | null;
     gameStateSignal: ReadonlySignal<GameState | null>;
     logisticsState: LogisticsStore | null;
@@ -82,7 +87,6 @@ export const createInitialClientSession = (): ClientSession => {
 
   const session = {
     spectatorMode: false,
-    gameCode: null,
     scenario: 'biplanetary',
     aiDifficulty: 'normal',
     transport: null,
@@ -95,6 +99,11 @@ export const createInitialClientSession = (): ClientSession => {
     session,
     'playerId',
     -1,
+  );
+  session.gameCodeSignal = defineReactiveSessionProperty(
+    session,
+    'gameCode',
+    null,
   );
   session.gameStateSignal = defineReactiveSessionProperty(
     session,
@@ -150,6 +159,7 @@ export const stubClientSession = (
       ClientSession,
       | 'stateSignal'
       | 'playerIdSignal'
+      | 'gameCodeSignal'
       | 'gameStateSignal'
       | 'logisticsStateSignal'
       | 'isLocalGameSignal'

@@ -176,7 +176,8 @@ describe('UIManager', () => {
 
   it('showWaiting shows waiting screen with room code', () => {
     const ui = createUIManager();
-    ui.showWaiting('ABC12');
+    ui.setWaitingState('ABC12', false);
+    ui.showWaiting();
 
     expect(document.getElementById('waiting')?.style.display).toBe('flex');
     expect(document.getElementById('gameCode')?.textContent).toBe('ABC12');

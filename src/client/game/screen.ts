@@ -3,7 +3,7 @@ import type { ClientState } from './phase';
 export type ClientScreenPlan =
   | { kind: 'menu' }
   | { kind: 'connecting' }
-  | { kind: 'waiting'; code: string }
+  | { kind: 'waiting' }
   | { kind: 'fleetBuilding' }
   | { kind: 'hud' }
   | { kind: 'none' };
@@ -19,7 +19,6 @@ const HUD_STATES = new Set<ClientState>([
 
 export const deriveClientScreenPlan = (
   state: ClientState,
-  gameCode: string | null,
 ): ClientScreenPlan => {
   switch (state) {
     case 'menu':
@@ -27,10 +26,7 @@ export const deriveClientScreenPlan = (
     case 'connecting':
       return { kind: 'connecting' };
     case 'waitingForOpponent':
-      return {
-        kind: 'waiting',
-        code: gameCode ?? '',
-      };
+      return { kind: 'waiting' };
     case 'playing_fleetBuilding':
       return { kind: 'fleetBuilding' };
     case 'gameOver':
