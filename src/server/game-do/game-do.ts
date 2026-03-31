@@ -11,9 +11,11 @@ import {
   resolveSeatAssignment,
 } from '../protocol';
 import {
+  type AuxMessage,
   createGameStateActionHandlers,
   dispatchGameStateAction,
   type EngineFailure,
+  type GameStateActionMessage,
   isGameStateActionMessage,
   runGameStateAction,
 } from './actions';
@@ -440,6 +442,42 @@ export class GameDO extends DurableObject<Env> {
     };
   }
 
+  private isSpectatorSocket(socket: WebSocket): boolean {
+    return this.getTags(socket).includes('spectator');
+  }
+
+  private async dispatchSocketGameStateAction(
+    playerId: PlayerId,
+    socket: WebSocket,
+    msg: GameStateActionMessage,
+  ): Promise<void> {
+    await dispatchGameStateAction(
+      playerId,
+      socket,
+      msg,
+      this.gameStateActionHandlers,
+      (targetWs, action, onSuccess) =>
+        this.runGameStateAction(targetWs, action, onSuccess),
+    );
+  }
+
+  private async dispatchSocketAuxMessage(
+    socket: WebSocket,
+    playerId: PlayerId,
+    msg: AuxMessage,
+  ): Promise<void> {
+    await dispatchAuxMessage({
+      ws: socket,
+      playerId,
+      msg,
+      lastChatAt: this.lastChatAt,
+      send: (targetWs, outbound) => this.send(targetWs, outbound),
+      broadcast: (outbound) => this.broadcast(outbound),
+      handleRematch: (rematchPlayerId, targetWs) =>
+        this.handleRematch(rematchPlayerId, targetWs),
+    });
+  }
+
   // --- WebSocket lifecycle ---
   async fetch(request: Request): Promise<Response> {
     return handleGameDoFetch(this.createFetchDeps(), request);
@@ -449,30 +487,14 @@ export class GameDO extends DurableObject<Env> {
     return {
       msgRates: this.msgRates,
       getPlayerId: (socket) => this.getPlayerId(socket),
-      isSpectatorSocket: (socket) => this.getTags(socket).includes('spectator'),
+      isSpectatorSocket: (socket) => this.isSpectatorSocket(socket),
       touchInactivity: () => this.touchInactivity(),
       send: (socket, outbound) => this.send(socket, outbound),
       isGameStateActionMessage,
       dispatchGameStateAction: (playerId, socket, msg) =>
-        dispatchGameStateAction(
-          playerId,
-          socket,
-          msg,
-          this.gameStateActionHandlers,
-          (targetWs, action, onSuccess) =>
-            this.runGameStateAction(targetWs, action, onSuccess),
-        ),
+        this.dispatchSocketGameStateAction(playerId, socket, msg),
       dispatchAuxMessage: (socket, playerId, msg) =>
-        dispatchAuxMessage({
-          ws: socket,
-          playerId,
-          msg,
-          lastChatAt: this.lastChatAt,
-          send: (w, outbound) => this.send(w, outbound),
-          broadcast: (outbound) => this.broadcast(outbound),
-          handleRematch: (rematchPlayerId, w) =>
-            this.handleRematch(rematchPlayerId, w),
-        }),
+        this.dispatchSocketAuxMessage(socket, playerId, msg),
     };
   }
 
