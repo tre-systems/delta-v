@@ -89,4 +89,59 @@ describe('handleLocalResolution', () => {
     );
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
+
+  it('shows game over instead of advancing when single combat ends the game', () => {
+    const presentCombatResults = vi.fn();
+    const showGameOverOutcome = vi.fn();
+    const onContinue = vi.fn();
+    const previousState = {
+      phase: 'combat',
+    } as unknown as GameState;
+    const gameOverState = {
+      phase: 'gameOver',
+      outcome: { winner: 0, reason: 'Fleet eliminated!' },
+    } as unknown as GameState;
+    const result: CombatResult = {
+      attackerIds: ['attacker-1'],
+      targetId: 'target-1',
+      targetType: 'ship',
+      attackType: 'gun',
+      odds: '1:1',
+      attackStrength: 1,
+      defendStrength: 1,
+      rangeMod: 0,
+      velocityMod: 0,
+      dieRoll: 6,
+      modifiedRoll: 6,
+      damageType: 'eliminated',
+      disabledTurns: 0,
+      counterattack: null,
+    };
+    const deps = createDeps({
+      getGameState: vi.fn(() => gameOverState),
+      presentCombatResults,
+      showGameOverOutcome,
+    });
+
+    handleLocalResolution(
+      deps,
+      {
+        kind: 'combatSingle',
+        previousState,
+        state: gameOverState,
+        result,
+      },
+      onContinue,
+      'Local test:',
+    );
+
+    expect(presentCombatResults).toHaveBeenCalledWith(
+      previousState,
+      gameOverState,
+      [result],
+      false,
+    );
+    expect(showGameOverOutcome).toHaveBeenCalledWith(true, 'Fleet eliminated!');
+    expect(onContinue).not.toHaveBeenCalled();
+  });
 });
