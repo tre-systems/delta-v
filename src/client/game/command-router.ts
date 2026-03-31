@@ -158,128 +158,146 @@ const selectShip = (
   }
 };
 
-export const dispatchGameCommand = (
+type CommandType = GameCommand['type'];
+type CommandHandler<T extends CommandType = CommandType> = (
   deps: CommandRouterDeps,
-  cmd: GameCommand,
+  cmd: Extract<GameCommand, { type: T }>,
+) => void;
+
+type CommandHandlerMap = {
+  [T in CommandType]: CommandHandler<T>;
+};
+
+type PartialCommandHandlerMap<T extends CommandType> = {
+  [K in T]: CommandHandler<K>;
+};
+
+const astrogationHandlers = {
+  confirmOrders: (deps) => confirmOrders(deps.astrogationDeps),
+  undoBurn: (deps) => undoSelectedShipBurn(deps.astrogationDeps),
+  matchVelocity: (deps) =>
+    matchVelocityWithNearbyFriendly(deps.astrogationDeps),
+  setBurnDirection: (deps, cmd) =>
+    setBurnDirection(deps.astrogationDeps, cmd.direction, cmd.shipId),
+  setOverloadDirection: (deps, cmd) => {
+    deps.ctx.planningState.setShipOverload(cmd.shipId, cmd.direction);
+    playSelect();
+  },
+  setWeakGravityChoices: (deps, cmd) =>
+    deps.ctx.planningState.setShipWeakGravityChoices(cmd.shipId, cmd.choices),
+  clearSelectedBurn: (deps) => clearSelectedBurn(deps.astrogationDeps),
+} satisfies PartialCommandHandlerMap<
+  | 'confirmOrders'
+  | 'undoBurn'
+  | 'matchVelocity'
+  | 'setBurnDirection'
+  | 'setOverloadDirection'
+  | 'setWeakGravityChoices'
+  | 'clearSelectedBurn'
+>;
+
+const combatHandlers = {
+  queueAttack: (deps) => queueAttack(deps.combatDeps),
+  fireAllAttacks: (deps) => fireAllAttacks(deps.combatDeps),
+  confirmSingleAttack: (deps) => confirmSingleAttack(deps.combatDeps),
+  endCombat: (deps) => endCombatPhase(deps.combatDeps),
+  skipCombat: (deps) => sendSkipCombat(deps.combatDeps),
+  adjustCombatStrength: (deps, cmd) =>
+    adjustCombatStrength(deps.combatDeps, cmd.delta),
+  resetCombatStrength: (deps) => resetCombatStrengthToMax(deps.combatDeps),
+  setCombatPlan: (deps, cmd) => setCombatPlan(deps.ctx.planningState, cmd),
+  clearCombatSelection: (deps) => clearCombatSelection(deps.combatDeps),
+  undoQueuedAttack,
+} satisfies PartialCommandHandlerMap<
+  | 'queueAttack'
+  | 'fireAllAttacks'
+  | 'confirmSingleAttack'
+  | 'endCombat'
+  | 'skipCombat'
+  | 'adjustCombatStrength'
+  | 'resetCombatStrength'
+  | 'setCombatPlan'
+  | 'clearCombatSelection'
+  | 'undoQueuedAttack'
+>;
+
+const logisticsHandlers = {
+  skipLogistics,
+  confirmTransfers,
+} satisfies PartialCommandHandlerMap<'skipLogistics' | 'confirmTransfers'>;
+
+const ordnanceHandlers = {
+  launchOrdnance: (deps, cmd) =>
+    sendOrdnanceLaunch(deps.ordnanceDeps, cmd.ordType),
+  emplaceBase: (deps) => sendEmplaceBase(deps.ordnanceDeps),
+  skipOrdnance: (deps) => sendSkipOrdnance(deps.ordnanceDeps),
+  setTorpedoAccel: (deps, cmd) =>
+    deps.ctx.planningState.setTorpedoAcceleration(cmd.direction, cmd.steps),
+  clearTorpedoAcceleration: (deps) =>
+    deps.ctx.planningState.clearTorpedoAcceleration(),
+} satisfies PartialCommandHandlerMap<
+  | 'launchOrdnance'
+  | 'emplaceBase'
+  | 'skipOrdnance'
+  | 'setTorpedoAccel'
+  | 'clearTorpedoAcceleration'
+>;
+
+const fleetAndNavigationHandlers = {
+  fleetReady: (deps, cmd) => deps.sendFleetReady(cmd.purchases),
+  selectShip: (deps, cmd) => selectShip(deps, cmd.shipId),
+  deselectShip: (deps) => deps.ctx.planningState.setSelectedShipId(null),
+  cycleShip: (deps, cmd) => deps.cycleShip(cmd.direction),
+  focusNearestEnemy: (deps) => deps.focusNearestEnemy(),
+  focusOwnFleet: (deps) => deps.focusOwnFleet(),
+  panCamera: (deps, cmd) => deps.renderer.camera.pan(cmd.dx, cmd.dy),
+  zoomCamera: (deps, cmd) => {
+    const { x, y } = deps.getCanvasCenter();
+    deps.renderer.camera.zoomAt(x, y, cmd.factor);
+  },
+  setHoverHex: (deps, cmd) => deps.ctx.planningState.setHoverHex(cmd.hex),
+} satisfies PartialCommandHandlerMap<
+  | 'fleetReady'
+  | 'selectShip'
+  | 'deselectShip'
+  | 'cycleShip'
+  | 'focusNearestEnemy'
+  | 'focusOwnFleet'
+  | 'panCamera'
+  | 'zoomCamera'
+  | 'setHoverHex'
+>;
+
+const uiAndLifecycleHandlers = {
+  toggleLog: (deps) => deps.ui.log.toggle(),
+  toggleHelp: (deps) => deps.toggleHelp(),
+  toggleMute: (deps) => {
+    setMuted(!isMuted());
+    deps.updateSoundButton();
+  },
+  requestRematch: (deps) => deps.sendRematch(),
+  exitToMenu: (deps) => deps.exitToMenu(),
+} satisfies PartialCommandHandlerMap<
+  'toggleLog' | 'toggleHelp' | 'toggleMute' | 'requestRematch' | 'exitToMenu'
+>;
+
+const commandHandlers = {
+  ...astrogationHandlers,
+  ...combatHandlers,
+  ...logisticsHandlers,
+  ...ordnanceHandlers,
+  ...fleetAndNavigationHandlers,
+  ...uiAndLifecycleHandlers,
+} satisfies CommandHandlerMap;
+
+export const dispatchGameCommand = <T extends GameCommand>(
+  deps: CommandRouterDeps,
+  cmd: T,
 ): void => {
-  switch (cmd.type) {
-    case 'confirmOrders':
-      confirmOrders(deps.astrogationDeps);
-      return;
-    case 'undoBurn':
-      undoSelectedShipBurn(deps.astrogationDeps);
-      return;
-    case 'matchVelocity':
-      matchVelocityWithNearbyFriendly(deps.astrogationDeps);
-      return;
-    case 'setBurnDirection':
-      setBurnDirection(deps.astrogationDeps, cmd.direction, cmd.shipId);
-      return;
-    case 'setOverloadDirection':
-      deps.ctx.planningState.setShipOverload(cmd.shipId, cmd.direction);
-      playSelect();
-      return;
-    case 'setWeakGravityChoices':
-      deps.ctx.planningState.setShipWeakGravityChoices(cmd.shipId, cmd.choices);
-      return;
-    case 'clearSelectedBurn':
-      clearSelectedBurn(deps.astrogationDeps);
-      return;
-    case 'queueAttack':
-      queueAttack(deps.combatDeps);
-      return;
-    case 'fireAllAttacks':
-      fireAllAttacks(deps.combatDeps);
-      return;
-    case 'confirmSingleAttack':
-      confirmSingleAttack(deps.combatDeps);
-      return;
-    case 'endCombat':
-      endCombatPhase(deps.combatDeps);
-      return;
-    case 'skipCombat':
-      sendSkipCombat(deps.combatDeps);
-      return;
-    case 'adjustCombatStrength':
-      adjustCombatStrength(deps.combatDeps, cmd.delta);
-      return;
-    case 'resetCombatStrength':
-      resetCombatStrengthToMax(deps.combatDeps);
-      return;
-    case 'setCombatPlan':
-      setCombatPlan(deps.ctx.planningState, cmd);
-      return;
-    case 'clearCombatSelection':
-      clearCombatSelection(deps.combatDeps);
-      return;
-    case 'undoQueuedAttack':
-      undoQueuedAttack(deps);
-      return;
-    case 'launchOrdnance':
-      sendOrdnanceLaunch(deps.ordnanceDeps, cmd.ordType);
-      return;
-    case 'emplaceBase':
-      sendEmplaceBase(deps.ordnanceDeps);
-      return;
-    case 'skipOrdnance':
-      sendSkipOrdnance(deps.ordnanceDeps);
-      return;
-    case 'skipLogistics':
-      skipLogistics(deps);
-      return;
-    case 'confirmTransfers':
-      confirmTransfers(deps);
-      return;
-    case 'fleetReady':
-      deps.sendFleetReady(cmd.purchases);
-      return;
-    case 'selectShip':
-      selectShip(deps, cmd.shipId);
-      return;
-    case 'deselectShip':
-      deps.ctx.planningState.setSelectedShipId(null);
-      return;
-    case 'cycleShip':
-      deps.cycleShip(cmd.direction);
-      return;
-    case 'focusNearestEnemy':
-      deps.focusNearestEnemy();
-      return;
-    case 'focusOwnFleet':
-      deps.focusOwnFleet();
-      return;
-    case 'panCamera':
-      deps.renderer.camera.pan(cmd.dx, cmd.dy);
-      return;
-    case 'zoomCamera': {
-      const { x, y } = deps.getCanvasCenter();
-      deps.renderer.camera.zoomAt(x, y, cmd.factor);
-      return;
-    }
-    case 'toggleLog':
-      deps.ui.log.toggle();
-      return;
-    case 'toggleHelp':
-      deps.toggleHelp();
-      return;
-    case 'toggleMute':
-      setMuted(!isMuted());
-      deps.updateSoundButton();
-      return;
-    case 'setTorpedoAccel':
-      deps.ctx.planningState.setTorpedoAcceleration(cmd.direction, cmd.steps);
-      return;
-    case 'clearTorpedoAcceleration':
-      deps.ctx.planningState.clearTorpedoAcceleration();
-      return;
-    case 'setHoverHex':
-      deps.ctx.planningState.setHoverHex(cmd.hex);
-      return;
-    case 'requestRematch':
-      deps.sendRematch();
-      return;
-    case 'exitToMenu':
-      deps.exitToMenu();
-      return;
-  }
+  const handler = commandHandlers[cmd.type] as (
+    deps: CommandRouterDeps,
+    cmd: T,
+  ) => void;
+
+  handler(deps, cmd);
 };
