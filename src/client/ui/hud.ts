@@ -19,6 +19,7 @@ export interface HUDView {
   launchMine: UIButtonView;
   launchTorpedo: UIButtonView;
   launchNuke: UIButtonView;
+  landFromOrbit: UIButtonView;
   emplaceBaseVisible: boolean;
   skipOrdnanceVisible: boolean;
   skipCombatVisible: boolean;
@@ -40,6 +41,8 @@ export interface AstrogationContext {
   selectedShipLanded: boolean;
   selectedShipDisabled: boolean;
   selectedShipHasBurn: boolean;
+  selectedShipInOrbit?: boolean;
+  selectedShipLandingSet?: boolean;
   allShipsHaveBurns: boolean;
   multipleShipsAlive: boolean;
   hasSelection: boolean;
@@ -225,6 +228,18 @@ export const buildHUDView = (input: HUDInput): HUDView => {
               : null,
     undoVisible: isMyTurn && phase === 'astrogation' && hasBurns,
     confirmVisible: isMyTurn && phase === 'astrogation',
+    landFromOrbit:
+      isMyTurn && phase === 'astrogation' && astrogationCtx.selectedShipInOrbit
+        ? {
+            visible: true,
+            disabled: false,
+            opacity: astrogationCtx.selectedShipLandingSet ? '1' : '0.7',
+            title: astrogationCtx.selectedShipLandingSet
+              ? 'Landing queued \u2014 click to cancel'
+              : 'Land from orbit (1 fuel)',
+          }
+        : createHiddenButton(),
+
     matchVelocity:
       isMyTurn && phase === 'astrogation'
         ? {

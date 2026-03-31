@@ -122,6 +122,7 @@ describe('Renderer static scene cache (mocked scene)', () => {
     burns: new Map<string, number | null>(),
     overloads: new Map<string, number | null>(),
     weakGravityChoices: new Map<string, Record<string, boolean>>(),
+    landingShips: new Set<string>(),
     torpedoAccel: null as number | null,
     torpedoAccelSteps: null as 1 | 2 | null,
     ordnanceLaunches: [],

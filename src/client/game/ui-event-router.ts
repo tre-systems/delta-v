@@ -38,6 +38,8 @@ export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
       return { kind: 'command', command: { type: 'confirmOrders' } };
     case 'matchVelocity':
       return { kind: 'command', command: { type: 'matchVelocity' } };
+    case 'landFromOrbit':
+      return { kind: 'command', command: { type: 'landFromOrbit' } };
     case 'launchOrdnance':
       return {
         kind: 'command',
