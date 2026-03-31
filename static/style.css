@@ -1832,8 +1832,6 @@ h2.game-over-defeat {
   }
 
   .ship-list {
-    top: auto;
-    bottom: calc(var(--hud-bottom-offset) + 0.35rem);
     max-height: min(25vh, 140px);
     overflow-y: auto;
   }
