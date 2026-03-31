@@ -15,6 +15,41 @@ import {
   completeCreatedGameSession,
 } from './session-controller';
 
+const SESSION_REQUEST_TIMEOUT_MS = 10_000;
+
+type SessionRequestFailureKind = 'timeout' | 'network' | 'unknown';
+
+const classifySessionRequestFailure = (
+  error: unknown,
+): SessionRequestFailureKind => {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return 'timeout';
+  }
+
+  if (error instanceof TypeError) {
+    return 'network';
+  }
+
+  return 'unknown';
+};
+
+const fetchWithTimeout = async (
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+): Promise<Response> => {
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), SESSION_REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, {
+      ...(init ?? {}),
+      signal: abort.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 export interface SessionApiDeps {
   ctx: CreatedGameSessionDeps['ctx'];
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
@@ -65,15 +100,11 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     deps.setMenuLoading(true);
     try {
       deps.setScenario(scenario);
-      const abort = new AbortController();
-      const timer = setTimeout(() => abort.abort(), 10000);
-      const res = await fetch('/create', {
+      const res = await fetchWithTimeout('/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scenario }),
-        signal: abort.signal,
       });
-      clearTimeout(timer);
 
       if (!res.ok) {
         deps.track('create_game_failed', {
@@ -104,23 +135,17 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         data.playerToken,
       );
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        deps.track('create_game_failed', {
-          scenario,
-          reason: 'timeout',
-        });
+      const failureKind = classifySessionRequestFailure(err);
+      deps.track('create_game_failed', {
+        scenario,
+        reason: failureKind,
+      });
+
+      if (failureKind === 'timeout') {
         deps.showToast('Game creation timed out. Try again.', 'error');
-      } else if (err instanceof TypeError) {
-        deps.track('create_game_failed', {
-          scenario,
-          reason: 'network',
-        });
+      } else if (failureKind === 'network') {
         deps.showToast('Network error \u2014 check your connection.', 'error');
       } else {
-        deps.track('create_game_failed', {
-          scenario,
-          reason: 'unknown',
-        });
         deps.showToast('Failed to create game. Try again.', 'error');
       }
       console.error('Failed to create game:', err);
@@ -140,17 +165,10 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       | { ok: true; playerToken: string | null }
       | { ok: false; message: string; status?: number }
     > => {
-      const abort = new AbortController();
-      const timer = setTimeout(() => abort.abort(), 10000);
-
       try {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           buildJoinCheckUrl(window.location, code, token),
-          {
-            signal: abort.signal,
-          },
         );
-        clearTimeout(timer);
 
         if (response.ok) {
           return { ok: true, playerToken: token };
@@ -159,16 +177,16 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         const message = (await response.text()) || 'Could not join game';
         return { ok: false, message, status: response.status };
       } catch (err) {
-        clearTimeout(timer);
+        const failureKind = classifySessionRequestFailure(err);
 
-        if (err instanceof DOMException && err.name === 'AbortError') {
+        if (failureKind === 'timeout') {
           return {
             ok: false,
             message: 'Join check timed out. Try again.',
           };
         }
 
-        if (err instanceof TypeError) {
+        if (failureKind === 'network') {
           return {
             ok: false,
             message: 'Network error \u2014 check your connection.',
@@ -234,14 +252,11 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       return null;
     }
 
-    const abort = new AbortController();
-    const timer = setTimeout(() => abort.abort(), 10000);
     try {
       const url = new URL(`/replay/${code}`, window.location.origin);
       url.searchParams.set('playerToken', playerToken);
       url.searchParams.set('gameId', gameId);
-      const response = await fetch(url.toString(), { signal: abort.signal });
-      clearTimeout(timer);
+      const response = await fetchWithTimeout(url.toString());
 
       if (!response.ok) {
         if (response.status === 403) {
@@ -260,12 +275,9 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       });
       return (await response.json()) as import('../../shared/replay').ReplayTimeline;
     } catch (err) {
-      clearTimeout(timer);
+      const failureKind = classifySessionRequestFailure(err);
       deps.track('replay_fetch_failed', {
-        reason:
-          err instanceof DOMException && err.name === 'AbortError'
-            ? 'timeout'
-            : 'network',
+        reason: failureKind === 'timeout' ? 'timeout' : 'network',
         gameId,
       });
       return null;

@@ -76,6 +76,35 @@ describe('session-api telemetry', () => {
     });
   });
 
+  it('tracks create-game timeouts distinctly', async () => {
+    const { deps, track } = createDeps();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new DOMException('Timed out', 'AbortError');
+      }),
+    );
+
+    const api = createSessionApi(deps);
+
+    await api.createGame('duel');
+
+    expect(track).toHaveBeenNthCalledWith(1, 'create_game_attempted', {
+      scenario: 'duel',
+    });
+    expect(track).toHaveBeenNthCalledWith(2, 'create_game_failed', {
+      scenario: 'duel',
+      reason: 'timeout',
+    });
+    expect(deps.showToast).toHaveBeenLastCalledWith(
+      'Game creation timed out. Try again.',
+      'error',
+    );
+    expect(deps.setState).toHaveBeenCalledWith('menu');
+    expect(deps.setMenuLoading).toHaveBeenNthCalledWith(1, true);
+    expect(deps.setMenuLoading).toHaveBeenLastCalledWith(false);
+  });
+
   it('tracks join attempts and HTTP failures with reasons', async () => {
     const { deps, track } = createDeps();
     vi.stubGlobal(
@@ -129,5 +158,56 @@ describe('session-api telemetry', () => {
       },
     );
     expect(storage.getItem('delta-v:tokens')).toBe('{}');
+  });
+
+  it('returns a timeout error when join validation aborts', async () => {
+    const { deps, track } = createDeps();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new DOMException('Timed out', 'AbortError');
+      }),
+    );
+
+    const api = createSessionApi(deps);
+    const result = await api.validateJoin('ABCDE', null);
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'Join check timed out. Try again.',
+    });
+    expect(track).toHaveBeenNthCalledWith(1, 'join_game_attempted', {
+      hasPlayerToken: false,
+    });
+    expect(track).toHaveBeenNthCalledWith(2, 'join_game_failed', {
+      reason: 'Join check timed out. Try again.',
+      status: undefined,
+      hasPlayerToken: false,
+    });
+  });
+
+  it('tracks replay fetch timeouts as timeout failures', async () => {
+    const { deps, track } = createDeps();
+    const storage = createStorage({
+      'delta-v:tokens': JSON.stringify({
+        ABCDE: { playerToken: 'player-token', ts: Date.now() },
+      }),
+    });
+    vi.stubGlobal('localStorage', storage);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new DOMException('Timed out', 'AbortError');
+      }),
+    );
+
+    const api = createSessionApi(deps);
+    const replay = await api.fetchReplay('ABCDE', 'GAME1');
+
+    expect(replay).toBeNull();
+    expect(track).toHaveBeenCalledWith('replay_fetch_failed', {
+      reason: 'timeout',
+      gameId: 'GAME1',
+    });
   });
 });
