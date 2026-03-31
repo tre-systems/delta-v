@@ -98,37 +98,49 @@ const undoQueuedAttack = (deps: CommandRouterDeps): void => {
   );
 };
 
-const skipLogistics = (deps: CommandRouterDeps): void => {
+const getActiveLogisticsContext = (
+  deps: CommandRouterDeps,
+): {
+  transport: GameTransport;
+  logisticsState: LogisticsStore | null;
+} | null => {
+  if (deps.ctx.getState() !== 'playing_logistics') {
+    return null;
+  }
+
   const transport = deps.ctx.getTransport();
 
-  if (deps.ctx.getState() === 'playing_logistics' && transport) {
-    transport.skipLogistics();
+  if (!transport) {
+    return null;
+  }
+
+  return {
+    transport,
+    logisticsState: deps.ctx.getLogisticsState(),
+  };
+};
+
+const skipLogistics = (deps: CommandRouterDeps): void => {
+  const logisticsContext = getActiveLogisticsContext(deps);
+
+  if (logisticsContext) {
+    logisticsContext.transport.skipLogistics();
   }
 };
 
 const confirmTransfers = (deps: CommandRouterDeps): void => {
-  const transport = deps.ctx.getTransport();
+  const logisticsContext = getActiveLogisticsContext(deps);
 
-  if (
-    deps.ctx.getState() !== 'playing_logistics' ||
-    !transport ||
-    !deps.ctx.getLogisticsState()
-  ) {
+  if (!logisticsContext?.logisticsState) {
     return;
   }
 
-  const logisticsState = deps.ctx.getLogisticsState();
-
-  if (!logisticsState) {
-    return;
-  }
-
-  const orders = logisticsState.buildTransferOrders();
+  const orders = logisticsContext.logisticsState.buildTransferOrders();
 
   if (orders.length > 0) {
-    transport.submitLogistics(orders);
+    logisticsContext.transport.submitLogistics(orders);
   } else {
-    transport.skipLogistics();
+    logisticsContext.transport.skipLogistics();
   }
 };
 
