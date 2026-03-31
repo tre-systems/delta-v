@@ -8,7 +8,7 @@ import {
   hexEqual,
   hexKey,
 } from './hex';
-import { buildSolarSystemMap, findBaseHex } from './map-data';
+import { buildSolarSystemMap, findBaseHex, findBaseHexes } from './map-data';
 import { canBurn, computeCourse, predictDestination } from './movement';
 import type { Ship, SolarSystemMap } from './types';
 
@@ -440,7 +440,8 @@ describe('computeCourse - landing', () => {
       expect(course.outcome).toBe('normal');
     }
   });
-  it('planetary landing requires orbit and a 1-fuel landing burn', () => {
+
+  it('orbiting ship lands with a 1-fuel burn', () => {
     const marsBase = must(findBaseHex(map, 'Mars'));
     const ship = makeShip({
       position: { q: marsBase.q, r: marsBase.r + 1 },
@@ -455,17 +456,18 @@ describe('computeCourse - landing', () => {
         },
       ],
     });
-    const course = computeCourse(ship, 0, map);
-    expect(course.destination).toEqual(marsBase);
+    // Burn direction 0 (E) with land flag
+    const course = computeCourse(ship, 0, map, {
+      land: true,
+    });
     expect(course.fuelSpent).toBe(1);
-    if (hexEqual(course.destination, marsBase)) {
-      expect(course.outcome).toBe('landing');
-      if (course.outcome === 'landing') {
-        expect(course.landedAt).toBe('Mars');
-      }
+    expect(course.outcome).toBe('landing');
+    if (course.outcome === 'landing') {
+      expect(course.landedAt).toBe('Mars');
     }
   });
-  it('destroyed planetary bases are not legal landing targets', () => {
+
+  it('burn direction is irrelevant for orbital landing', () => {
     const marsBase = must(findBaseHex(map, 'Mars'));
     const ship = makeShip({
       position: { q: marsBase.q, r: marsBase.r + 1 },
@@ -473,6 +475,67 @@ describe('computeCourse - landing', () => {
       pendingGravityEffects: [
         {
           hex: { q: marsBase.q, r: marsBase.r + 1 },
+          direction: 3,
+          bodyName: 'Mars',
+          strength: 'full',
+          ignored: false,
+        },
+      ],
+    });
+    for (let dir = 0; dir < 6; dir++) {
+      const course = computeCourse({ ...ship }, dir, map, { land: true });
+      expect(course.outcome).toBe('landing');
+      if (course.outcome === 'landing') {
+        expect(course.landedAt).toBe('Mars');
+      }
+    }
+  });
+
+  it('orbiting ship with no burn does not land', () => {
+    const marsBase = must(findBaseHex(map, 'Mars'));
+    const ship = makeShip({
+      position: { q: marsBase.q, r: marsBase.r + 1 },
+      velocity: { dq: 0, dr: -1 },
+      pendingGravityEffects: [
+        {
+          hex: { q: marsBase.q, r: marsBase.r + 1 },
+          direction: 3,
+          bodyName: 'Mars',
+          strength: 'full',
+          ignored: false,
+        },
+      ],
+    });
+    const course = computeCourse(ship, null, map);
+    expect(course.fuelSpent).toBe(0);
+    expect(course.outcome).not.toBe('landing');
+  });
+
+  it('speed 2 ship in gravity hex does not trigger orbital landing', () => {
+    const marsBase = must(findBaseHex(map, 'Mars'));
+    const ship = makeShip({
+      position: { q: marsBase.q, r: marsBase.r + 1 },
+      velocity: { dq: 0, dr: -2 },
+    });
+    const course = computeCourse(ship, 0, map);
+    expect(course.outcome).not.toBe('landing');
+  });
+
+  it('orbital landing picks closest base', () => {
+    const bases = findBaseHexes(map, 'Mars');
+    expect(bases.length).toBeGreaterThan(1);
+
+    // Pick a base hex and orbit adjacent to it
+    const target = bases[0];
+    const ship = makeShip({
+      position: {
+        q: target.q,
+        r: target.r + 1,
+      },
+      velocity: { dq: 0, dr: -1 },
+      pendingGravityEffects: [
+        {
+          hex: { q: target.q, r: target.r + 1 },
           direction: 3,
           bodyName: 'Mars',
           strength: 'full',
@@ -481,11 +544,67 @@ describe('computeCourse - landing', () => {
       ],
     });
     const course = computeCourse(ship, 0, map, {
-      destroyedBases: [hexKey(marsBase)],
+      land: true,
     });
-    expect(course.destination).toEqual(marsBase);
+    expect(course.outcome).toBe('landing');
+  });
+
+  it('destroyed planetary bases are not landing targets', () => {
+    const bases = findBaseHexes(map, 'Mars');
+    const allDestroyed = bases.map((b) => hexKey(b));
+    const marsBase = bases[0];
+    const ship = makeShip({
+      position: { q: marsBase.q, r: marsBase.r + 1 },
+      velocity: { dq: 0, dr: -1 },
+      pendingGravityEffects: [
+        {
+          hex: {
+            q: marsBase.q,
+            r: marsBase.r + 1,
+          },
+          direction: 3,
+          bodyName: 'Mars',
+          strength: 'full',
+          ignored: false,
+        },
+      ],
+    });
+    const course = computeCourse(ship, 0, map, {
+      land: true,
+      destroyedBases: allDestroyed,
+    });
     expect(course.outcome).not.toBe('landing');
   });
+
+  it('overload burn does not trigger orbital landing', () => {
+    const marsBase = must(findBaseHex(map, 'Mars'));
+    const ship = makeShip({
+      type: 'corvette',
+      position: { q: marsBase.q, r: marsBase.r + 1 },
+      velocity: { dq: 0, dr: -1 },
+      fuel: 20,
+      pendingGravityEffects: [
+        {
+          hex: {
+            q: marsBase.q,
+            r: marsBase.r + 1,
+          },
+          direction: 3,
+          bodyName: 'Mars',
+          strength: 'full',
+          ignored: false,
+        },
+      ],
+    });
+    const course = computeCourse(ship, 0, map, {
+      overload: 1,
+    });
+    // Overload costs 2 fuel, not 1, so orbit
+    // landing should not fire
+    expect(course.fuelSpent).toBe(2);
+    expect(course.outcome).not.toBe('landing');
+  });
+
   it('asteroid landing requires stopping in the hex', () => {
     const ceresCenter = must(
       map.bodies.find((body) => body.name === 'Ceres')?.center,

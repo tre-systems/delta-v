@@ -92,6 +92,7 @@ const installFixture = () => {
     <button class="btn-difficulty active" data-difficulty="normal"></button>
     <button id="undoBtn"></button>
     <button id="confirmBtn"></button>
+    <button id="landFromOrbitBtn"></button>
     <button id="matchVelocityBtn"></button>
     <button id="launchMineBtn"></button>
     <button id="launchTorpedoBtn"></button>

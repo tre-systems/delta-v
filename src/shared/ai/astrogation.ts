@@ -11,7 +11,7 @@ import {
   skipOrdnance,
 } from '../engine/game-engine';
 import { hexDistance, hexKey, hexVecLength } from '../hex';
-import { computeCourse } from '../movement';
+import { computeCourse, detectOrbit } from '../movement';
 import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   AstrogationOrder,
@@ -540,6 +540,7 @@ export const aiAstrogation = (
 
     let bestBurn: number | null = null;
     let bestOverload: number | null = null;
+    let bestLand = false;
     let bestScore = -Infinity;
     let bestInterceptTiebreak = -Infinity;
     let bestFuelSpent = Number.POSITIVE_INFINITY;
@@ -561,9 +562,11 @@ export const aiAstrogation = (
     type BurnOption = {
       burn: number | null;
       overload: number | null;
+      land?: boolean;
       weakGravityChoices?: Record<string, boolean>;
     };
     const directions = [0, 1, 2, 3, 4, 5] as const;
+    const inOrbit = canBurnFuel && detectOrbit(ship, map) !== null;
     const options: BurnOption[] = [
       { burn: null, overload: null },
       ...(canBurnFuel
@@ -577,12 +580,17 @@ export const aiAstrogation = (
               : []),
           ])
         : []),
+      // Add a single landing option when in orbit.
+      // Burn direction is irrelevant for landing, so
+      // one candidate suffices.
+      ...(inOrbit ? [{ burn: 0, overload: null, land: true }] : []),
     ];
     let bestWeakGrav: Record<string, boolean> | undefined;
 
     for (const opt of options) {
       const courseOpts = {
         ...(opt.overload !== null ? { overload: opt.overload } : {}),
+        ...(opt.land ? { land: true } : {}),
         destroyedBases: state.destroyedBases,
       };
       const course = computeCourse(ship, opt.burn, map, courseOpts);
@@ -787,6 +795,7 @@ export const aiAstrogation = (
         bestScore = score;
         bestBurn = opt.burn;
         bestOverload = opt.overload;
+        bestLand = opt.land ?? false;
         bestWeakGrav = bestLocalWG;
         bestInterceptTiebreak = interceptTiebreak;
         bestFuelSpent = comparisonCourse.fuelSpent;
@@ -810,6 +819,7 @@ export const aiAstrogation = (
       burn: bestBurn,
       overload: bestOverload,
       weakGravityChoices: bestWeakGrav ?? undefined,
+      land: bestLand || undefined,
     });
     shipIdx++;
   }

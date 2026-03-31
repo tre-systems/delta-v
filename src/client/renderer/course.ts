@@ -20,6 +20,7 @@ export interface CoursePreviewPlanningState {
   selectedShipId: string | null;
   burns: Map<string, number | null>;
   overloads: Map<string, number | null>;
+  landingShips?: Set<string>;
   weakGravityChoices: Map<string, Record<string, boolean>>;
   hoverHex: HexCoord | null;
 }
@@ -347,6 +348,7 @@ export const buildAstrogationCoursePreviewViews = (
       overload,
       weakGravityChoices,
       destroyedBases: state.destroyedBases,
+      land: planning.landingShips?.has(ship.id),
     });
 
     const destination = hexToPixel(course.destination, hexSize);

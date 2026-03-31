@@ -14,6 +14,9 @@ export interface PlanningState {
   // shipId -> overload direction (warships only, 2 fuel total)
   overloads: Map<string, number | null>;
 
+  // ships that are attempting to land from orbit
+  landingShips: Set<string>;
+
   // shipId -> { hexKey: true to ignore }
   weakGravityChoices: Map<string, Record<string, boolean>>;
 
@@ -49,6 +52,7 @@ export interface PlanningStore extends PlanningState {
     clearOverload?: boolean,
   ) => void;
   setShipOverload: (shipId: string, direction: number | null) => void;
+  setShipLanding: (shipId: string, landing: boolean) => void;
   setShipWeakGravityChoices: (
     shipId: string,
     choices: Record<string, boolean>,
@@ -89,6 +93,7 @@ export const createPlanningStore = (): PlanningStore => {
     selectedShipId: null,
     burns: new Map(),
     overloads: new Map(),
+    landingShips: new Set(),
     weakGravityChoices: new Map(),
     torpedoAccel: null,
     torpedoAccelSteps: null,
@@ -134,6 +139,7 @@ export const createPlanningStore = (): PlanningStore => {
     (shipId: string): void => {
       planningStore.burns.delete(shipId);
       planningStore.overloads.delete(shipId);
+      planningStore.landingShips.delete(shipId);
       planningStore.weakGravityChoices.delete(shipId);
       notifyPlanningChanged();
     },
@@ -146,6 +152,7 @@ export const createPlanningStore = (): PlanningStore => {
       planningStore.lastSelectedHex = null;
       planningStore.burns.clear();
       planningStore.overloads.clear();
+      planningStore.landingShips.clear();
       planningStore.weakGravityChoices.clear();
       notifyPlanningChanged();
     },
@@ -167,6 +174,18 @@ export const createPlanningStore = (): PlanningStore => {
     'setShipOverload',
     (shipId: string, direction: number | null): void => {
       planningStore.overloads.set(shipId, direction);
+      notifyPlanningChanged();
+    },
+  );
+  defineHiddenPlanningMember(
+    planningStore,
+    'setShipLanding',
+    (shipId: string, landing: boolean): void => {
+      if (landing) {
+        planningStore.landingShips.add(shipId);
+      } else {
+        planningStore.landingShips.delete(shipId);
+      }
       notifyPlanningChanged();
     },
   );

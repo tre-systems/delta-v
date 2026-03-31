@@ -91,6 +91,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const fuelGaugeEl = byId('fuelGauge');
   const undoBtn = byId('undoBtn');
   const confirmBtn = byId('confirmBtn');
+  const landFromOrbitBtn = byId<HTMLButtonElement>('landFromOrbitBtn');
   const matchVelocityBtn = byId<HTMLButtonElement>('matchVelocityBtn');
   const launchMineBtn = byId<HTMLButtonElement>('launchMineBtn');
   const launchTorpedoBtn = byId<HTMLButtonElement>('launchTorpedoBtn');
@@ -235,6 +236,20 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
         !hideActions && hudView.confirmVisible,
         'inline-block',
       );
+      visible(
+        landFromOrbitBtn,
+        !hideActions && hudView.landFromOrbit.visible,
+        'inline-block',
+      );
+      landFromOrbitBtn.disabled = hudView.landFromOrbit.disabled;
+      landFromOrbitBtn.style.opacity = hudView.landFromOrbit.opacity;
+      landFromOrbitBtn.title = hudView.landFromOrbit.title;
+      landFromOrbitBtn.textContent = hudView.landFromOrbit.title.startsWith(
+        'Landing',
+      )
+        ? 'LANDING'
+        : 'LAND';
+
       visible(
         matchVelocityBtn,
         !hideActions && hudView.matchVelocity.visible,

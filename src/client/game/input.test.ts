@@ -84,6 +84,7 @@ const createPlanning = (
   burns: new Map(),
   overloads: new Map(),
   weakGravityChoices: new Map(),
+  landingShips: new Set<string>(),
   torpedoAccel: null,
   torpedoAccelSteps: null,
   combatTargetId: null,

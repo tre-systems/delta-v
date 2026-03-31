@@ -98,6 +98,7 @@ export const resolveMovementPhase = (
       overload,
       weakGravityChoices: order?.weakGravityChoices,
       destroyedBases: state.destroyedBases,
+      land: order?.land,
     });
 
     const movementBase = {

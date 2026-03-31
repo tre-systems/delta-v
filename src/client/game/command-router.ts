@@ -189,6 +189,19 @@ const astrogationHandlers = {
   undoBurn: (deps) => undoSelectedShipBurn(deps.astrogationDeps),
   matchVelocity: (deps) =>
     matchVelocityWithNearbyFriendly(deps.astrogationDeps),
+  landFromOrbit: (deps) => {
+    const shipId = deps.ctx.planningState.selectedShipId;
+    if (!shipId) return;
+    const current = deps.ctx.planningState.landingShips.has(shipId);
+    deps.ctx.planningState.setShipLanding(shipId, !current);
+    if (!current) {
+      // Auto-set a burn so confirm works immediately
+      const burn = deps.ctx.planningState.burns.get(shipId);
+      if (burn === undefined || burn === null) {
+        deps.ctx.planningState.setShipBurn(shipId, 0);
+      }
+    }
+  },
   setBurnDirection: (deps, cmd) =>
     setBurnDirection(deps.astrogationDeps, cmd.direction, cmd.shipId),
   setOverloadDirection: (deps, cmd) => {
@@ -202,6 +215,7 @@ const astrogationHandlers = {
   | 'confirmOrders'
   | 'undoBurn'
   | 'matchVelocity'
+  | 'landFromOrbit'
   | 'setBurnDirection'
   | 'setOverloadDirection'
   | 'setWeakGravityChoices'
