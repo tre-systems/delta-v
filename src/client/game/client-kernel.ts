@@ -9,7 +9,7 @@ import { createRenderer } from '../renderer/renderer';
 import { track } from '../telemetry';
 import { createTutorial } from '../tutorial';
 import { createUIManager } from '../ui/ui';
-import { type ActionDeps, createActionDeps } from './action-deps';
+import { createActionDeps } from './action-deps';
 import { createCameraController } from './camera-controller';
 import {
   setAIDifficulty,
@@ -96,13 +96,6 @@ export const createGameClient = () => {
     storage: localStorage,
   });
 
-  let mainNetworkDeps: MainNetworkDeps | null = null;
-  let messageHandlerDeps: MessageHandlerDeps | null = null;
-
-  let actionDeps: ActionDeps;
-  let sessionApi: SessionApi;
-  let replayController: ReplayController;
-
   let setState: (newState: ClientState) => void;
   let transitionToPhase: () => void;
 
@@ -140,16 +133,13 @@ export const createGameClient = () => {
   };
 
   const handleMessage = (msg: S2C) => {
-    if (!messageHandlerDeps) return;
     handleServerMessageFromMain(messageHandlerDeps, msg, () =>
       replayController.onGameOverMessage(),
     );
   };
 
   const exitToMenu = () => {
-    if (mainNetworkDeps) {
-      exitToMenuFromMain(mainNetworkDeps);
-    }
+    exitToMenuFromMain(networkDeps);
   };
 
   const connection = createConnectionManager({
@@ -212,7 +202,7 @@ export const createGameClient = () => {
     overlay: ui.overlay,
   });
 
-  actionDeps = createActionDeps({
+  const actionDeps = createActionDeps({
     getGameState: () => ctx.gameStateSignal.peek(),
     getClientState: () => ctx.stateSignal.peek(),
     getPlayerId: () => ctx.playerId as PlayerId,
@@ -233,7 +223,7 @@ export const createGameClient = () => {
     track,
   });
 
-  sessionApi = createSessionApi({
+  const sessionApi: SessionApi = createSessionApi({
     ctx,
     tokens: sessionTokens,
     showToast,
@@ -244,7 +234,7 @@ export const createGameClient = () => {
     track,
   });
 
-  replayController = createReplayController({
+  const replayController: ReplayController = createReplayController({
     getClientContext: () => ({
       state: ctx.stateSignal.peek(),
       isLocalGame: ctx.isLocalGame,
@@ -301,7 +291,7 @@ export const createGameClient = () => {
     transitionClientPhase(phaseControllerDeps);
   };
 
-  messageHandlerDeps = createMainMessageHandlerDeps({
+  const messageHandlerDeps: MessageHandlerDeps = createMainMessageHandlerDeps({
     ctx,
     renderer,
     ui,
@@ -320,10 +310,6 @@ export const createGameClient = () => {
   });
 
   const createLocalTransport = (): GameTransport => {
-    const networkDeps = mainNetworkDeps;
-    if (!networkDeps) {
-      throw new Error('Game client network deps not initialized');
-    }
     return createLocalGameTransport({
       getGameState: () => ctx.gameStateSignal.peek(),
       getPlayerId: () => ctx.playerId as PlayerId,
@@ -343,7 +329,7 @@ export const createGameClient = () => {
     });
   };
 
-  mainNetworkDeps = {
+  const networkDeps: MainNetworkDeps = {
     ctx,
     map,
     renderer,
@@ -365,7 +351,6 @@ export const createGameClient = () => {
     createLocalTransport: () => createLocalTransport(),
     stopTurnTimer: () => turnTimer.stop(),
   };
-  const networkDeps = mainNetworkDeps;
 
   const interactions = createMainInteractionController({
     canvas,
