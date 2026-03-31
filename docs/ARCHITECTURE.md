@@ -257,7 +257,7 @@ This design provides:
 
 Internal mutation patterns (e.g. `applyDamage()`, `ship.lifecycle = 'destroyed'`, phase transitions) remain unchanged — they operate on the cloned state.
 
-`client/game/local.ts` also captures `structuredClone(state)` before combat calls for animation diffing (`previousState`). This is redundant with clone-on-entry but harmless — it may be removed in a future cleanup.
+`client/game/local.ts` now reuses the caller's current `state` as the combat presentation `previousState`. That is safe because the engine clones on entry before mutating, so the caller-owned snapshot remains unchanged for diffing and effects.
 
 #### RNG Injection
 
