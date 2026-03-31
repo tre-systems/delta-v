@@ -46,109 +46,67 @@ export interface ActionDepsArgs {
   track: (event: string, props?: Record<string, unknown>) => void;
 }
 
+const createCachedValue = <T>(build: () => T): (() => T) => {
+  let cached: T | undefined;
+
+  return () => {
+    if (cached === undefined) {
+      cached = build();
+    }
+
+    return cached;
+  };
+};
+
 export const createActionDeps = (args: ActionDepsArgs) => {
-  let cachedPresentation: PresentationDeps | null = null;
-  let cachedAstrogation: AstrogationActionDeps | null = null;
-  let cachedCombat: CombatActionDeps | null = null;
-  let cachedOrdnance: OrdnanceActionDeps | null = null;
-  let cachedLocalFlow: LocalGameFlowDeps | null = null;
-
-  const getPresentationDeps = (): PresentationDeps => {
-    if (!cachedPresentation) {
-      cachedPresentation = {
-        applyGameState: (state) => args.applyGameState(state),
-        setState: (newState) => args.setState(newState as ClientState),
-        resetCombatState: () => args.resetCombatState(),
-        getGameState: args.getGameState,
-        getPlayerId: args.getPlayerId,
-        onGameOverShown: () => args.onGameOverShown(),
-        renderer: args.renderer,
-        ui: args.ui,
-      };
-    }
-    return cachedPresentation;
+  const showToast = (message: string, type: 'error' | 'info' | 'success') => {
+    args.ui.overlay.showToast(message, type);
   };
 
-  const getAstrogationDeps = (): AstrogationActionDeps => {
-    if (!cachedAstrogation) {
-      cachedAstrogation = {
-        getGameState: args.getGameState,
-        getClientState: args.getClientState,
-        getPlayerId: args.getPlayerId,
-        getTransport:
-          args.getTransport as AstrogationActionDeps['getTransport'],
-        planningState: args.planningState,
-        showToast: (msg, type) => args.ui.overlay.showToast(msg, type),
-      };
-    }
-    return cachedAstrogation;
+  const logText = (text: string) => {
+    args.ui.log.logText(text);
   };
 
-  const getCombatDeps = (): CombatActionDeps => {
-    if (!cachedCombat) {
-      cachedCombat = {
-        getGameState: args.getGameState,
-        getClientState: args.getClientState,
-        getPlayerId: args.getPlayerId,
-        getTransport: args.getTransport as CombatActionDeps['getTransport'],
-        getMap: args.getMap,
-        planningState: args.planningState,
-        showToast: (msg, type) => args.ui.overlay.showToast(msg, type),
-      };
-    }
-    return cachedCombat;
-  };
+  const getPresentationDeps = createCachedValue<PresentationDeps>(() => ({
+    applyGameState: args.applyGameState,
+    setState: args.setState,
+    resetCombatState: args.resetCombatState,
+    getGameState: args.getGameState,
+    getPlayerId: args.getPlayerId,
+    onGameOverShown: args.onGameOverShown,
+    renderer: args.renderer,
+    ui: args.ui,
+  }));
 
-  const getOrdnanceDeps = (): OrdnanceActionDeps => {
-    if (!cachedOrdnance) {
-      cachedOrdnance = {
-        getGameState: args.getGameState,
-        getClientState: args.getClientState,
-        getTransport: args.getTransport as OrdnanceActionDeps['getTransport'],
-        planningState: args.planningState,
-        showToast: (msg, type) => args.ui.overlay.showToast(msg, type),
-        logText: (text) => args.ui.log.logText(text),
-      };
-    }
-    return cachedOrdnance;
-  };
+  const getAstrogationDeps = createCachedValue<AstrogationActionDeps>(() => ({
+    getGameState: args.getGameState,
+    getClientState: args.getClientState,
+    getPlayerId: args.getPlayerId,
+    getTransport: args.getTransport as AstrogationActionDeps['getTransport'],
+    planningState: args.planningState,
+    showToast,
+  }));
 
-  const getLocalGameFlowDeps = (): LocalGameFlowDeps => {
-    if (!cachedLocalFlow) {
-      cachedLocalFlow = {
-        getGameState: args.getGameState,
-        getPlayerId: args.getPlayerId,
-        getMap: args.getMap,
-        getAIDifficulty:
-          args.getAIDifficulty as LocalGameFlowDeps['getAIDifficulty'],
-        applyGameState: (state) => args.applyGameState(state),
-        presentMovementResult: (
-          state,
-          movements,
-          ordnanceMovements,
-          events,
-          onComplete,
-        ) =>
-          presentMovement(
-            getPresentationDeps(),
-            state,
-            movements,
-            ordnanceMovements,
-            events,
-            onComplete,
-          ),
-        presentCombatResults: (prev, state, results, reset) =>
-          presentCombat(getPresentationDeps(), prev, state, results, reset),
-        showGameOverOutcome: (won, reason) => showGameOverOutcome(won, reason),
-        transitionToPhase: () => args.transitionToPhase(),
-        logText: (text) => args.ui.log.logText(text),
-        showToast: (message, type) => args.ui.overlay.showToast(message, type),
-      };
-    }
-    return cachedLocalFlow;
-  };
+  const getCombatDeps = createCachedValue<CombatActionDeps>(() => ({
+    getGameState: args.getGameState,
+    getClientState: args.getClientState,
+    getPlayerId: args.getPlayerId,
+    getTransport: args.getTransport as CombatActionDeps['getTransport'],
+    getMap: args.getMap,
+    planningState: args.planningState,
+    showToast,
+  }));
 
-  const presentMovementResult = (
+  const getOrdnanceDeps = createCachedValue<OrdnanceActionDeps>(() => ({
+    getGameState: args.getGameState,
+    getClientState: args.getClientState,
+    getTransport: args.getTransport as OrdnanceActionDeps['getTransport'],
+    planningState: args.planningState,
+    showToast,
+    logText,
+  }));
+
+  const presentMovementWithPresentationDeps = (
     state: GameState,
     movements: MovementResult['movements'],
     ordnanceMovements: MovementResult['ordnanceMovements'],
@@ -165,7 +123,7 @@ export const createActionDeps = (args: ActionDepsArgs) => {
     );
   };
 
-  const presentCombatResults = (
+  const presentCombatWithPresentationDeps = (
     previousState: GameState,
     state: GameState,
     results: CombatResult[],
@@ -191,6 +149,37 @@ export const createActionDeps = (args: ActionDepsArgs) => {
     showGameOver(getPresentationDeps(), won, reason);
   };
 
+  const getLocalGameFlowDeps = createCachedValue<LocalGameFlowDeps>(() => ({
+    getGameState: args.getGameState,
+    getPlayerId: args.getPlayerId,
+    getMap: args.getMap,
+    getAIDifficulty:
+      args.getAIDifficulty as LocalGameFlowDeps['getAIDifficulty'],
+    applyGameState: args.applyGameState,
+    presentMovementResult: presentMovementWithPresentationDeps,
+    presentCombatResults: presentCombatWithPresentationDeps,
+    showGameOverOutcome,
+    transitionToPhase: args.transitionToPhase,
+    logText,
+    showToast,
+  }));
+
+  const presentMovementResult = (
+    state: GameState,
+    movements: MovementResult['movements'],
+    ordnanceMovements: MovementResult['ordnanceMovements'],
+    events: MovementResult['events'],
+    onComplete: () => void,
+  ) => {
+    presentMovementWithPresentationDeps(
+      state,
+      movements,
+      ordnanceMovements,
+      events,
+      onComplete,
+    );
+  };
+
   return {
     get astrogationDeps() {
       return getAstrogationDeps();
@@ -208,7 +197,7 @@ export const createActionDeps = (args: ActionDepsArgs) => {
       return getPresentationDeps();
     },
     presentMovementResult,
-    presentCombatResults,
+    presentCombatResults: presentCombatWithPresentationDeps,
     showGameOverOutcome,
   };
 };
