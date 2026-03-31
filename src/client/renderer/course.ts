@@ -195,7 +195,7 @@ const buildBurnMarkers = (
   predictedDestination: HexCoord,
   hexSize: number,
 ): CourseMarkerView[] => {
-  if (ship.fuel <= 0) return [];
+  if (ship.fuel <= 0 || ship.damage.disabledTurns > 0) return [];
 
   return HEX_DIRECTIONS.map((_, direction) => {
     const targetHex = hexAdd(predictedDestination, HEX_DIRECTIONS[direction]);
@@ -242,7 +242,12 @@ const buildOverloadMarkers = (
 
   const stats = SHIP_STATS[ship.type];
 
-  if (!stats?.canOverload || ship.fuel < 2 || ship.overloadUsed) {
+  if (
+    !stats?.canOverload ||
+    ship.fuel < 2 ||
+    ship.overloadUsed ||
+    ship.damage.disabledTurns > 0
+  ) {
     return [];
   }
 

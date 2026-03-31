@@ -427,6 +427,10 @@ body::before {
   box-shadow: none;
 }
 
+.hud-bottom-buttons:not(:has(> .btn:not([style*="none"]))) {
+  display: none;
+}
+
 
 .scenario-title {
   color: #f7fbff;
@@ -1662,20 +1666,20 @@ h2.game-over-defeat {
     width: auto;
     max-width: none;
     transform: none;
-    align-items: stretch;
+    align-items: center;
   }
 
   .hud-bottom-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
     padding: 0.45rem;
-    width: 100%;
+    width: auto;
   }
 
   .hud-bottom .btn {
     min-height: 48px;
     min-width: 0;
-    width: 100%;
   }
 
 
