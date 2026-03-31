@@ -44,12 +44,19 @@ const createCreatedGameDeps = (): CreatedGameSessionDeps & {
   return {
     ctx: stubClientSession({
       scenario: 'biplanetary',
-      isLocalGame: false,
-      latencyMs: -1,
+      isLocalGame: true,
+      latencyMs: 123,
       playerId: -1,
-      gameCode: null,
+      gameCode: 'STALE',
       gameState: null,
-      reconnectAttempts: 0,
+      reconnectAttempts: 2,
+      reconnectOverlayState: {
+        attempt: 1,
+        maxAttempts: 5,
+        onCancel: () => {},
+      },
+      opponentDisconnectDeadlineMs: Date.now() + 10_000,
+      spectatorMode: true,
       transport: null,
       aiDifficulty: 'normal',
     }),
@@ -82,11 +89,18 @@ const createLocalGameDeps = (): LocalGameSessionDeps & {
     ctx: stubClientSession({
       scenario: 'biplanetary',
       isLocalGame: false,
-      latencyMs: -1,
+      latencyMs: 250,
       playerId: -1,
-      gameCode: null,
+      gameCode: 'REMOTE1',
       gameState: null,
-      reconnectAttempts: 0,
+      reconnectAttempts: 4,
+      reconnectOverlayState: {
+        attempt: 3,
+        maxAttempts: 5,
+        onCancel: () => {},
+      },
+      opponentDisconnectDeadlineMs: Date.now() + 15_000,
+      spectatorMode: true,
       transport: null,
       aiDifficulty: 'hard',
     }),
@@ -127,7 +141,17 @@ const createJoinGameDeps = (): JoinGameSessionDeps & {
     };
 
   return {
-    ctx: stubClientSession({ gameCode: null }),
+    ctx: stubClientSession({
+      gameCode: null,
+      isLocalGame: true,
+      spectatorMode: true,
+      reconnectOverlayState: {
+        attempt: 2,
+        maxAttempts: 5,
+        onCancel: () => {},
+      },
+      opponentDisconnectDeadlineMs: Date.now() + 20_000,
+    }),
     getStoredPlayerToken: () => null,
     storePlayerToken: track('storePlayerToken'),
     resetTurnTelemetry: track('resetTurnTelemetry'),
@@ -197,7 +221,17 @@ const createSpectateGameDeps = (): SpectateGameSessionDeps & {
     };
 
   return {
-    ctx: stubClientSession({ gameCode: null, spectatorMode: false }),
+    ctx: stubClientSession({
+      gameCode: null,
+      isLocalGame: true,
+      spectatorMode: false,
+      reconnectOverlayState: {
+        attempt: 1,
+        maxAttempts: 5,
+        onCancel: () => {},
+      },
+      opponentDisconnectDeadlineMs: Date.now() + 25_000,
+    }),
     resetTurnTelemetry: track('resetTurnTelemetry'),
     replaceRoute: track('replaceRoute'),
     buildGameRoute: (code) => `/game/${code}`,
@@ -213,6 +247,10 @@ describe('session-controller', () => {
 
     completeCreatedGameSession(deps, 'duel', 'ABCDE', 'token-1');
 
+    expect(deps.ctx.isLocalGame).toBe(false);
+    expect(deps.ctx.spectatorMode).toBe(false);
+    expect(deps.ctx.reconnectOverlayState).toBeNull();
+    expect(deps.ctx.opponentDisconnectDeadlineMs).toBeNull();
     expect(deps.ctx.scenario).toBe('duel');
     expect(deps.ctx.gameCode).toBe('ABCDE');
     expect(deps.calls.storePlayerToken).toEqual([['ABCDE', 'token-1']]);
@@ -230,8 +268,14 @@ describe('session-controller', () => {
     startLocalGameSession(deps, 'duel');
 
     expect(deps.ctx.isLocalGame).toBe(true);
+    expect(deps.ctx.spectatorMode).toBe(false);
     expect(deps.ctx.scenario).toBe('duel');
+    expect(deps.ctx.gameCode).toBeNull();
+    expect(deps.ctx.latencyMs).toBe(-1);
     expect(deps.ctx.playerId).toBe(0);
+    expect(deps.ctx.reconnectAttempts).toBe(0);
+    expect(deps.ctx.reconnectOverlayState).toBeNull();
+    expect(deps.ctx.opponentDisconnectDeadlineMs).toBeNull();
     expect(deps.ctx.transport).not.toBeNull();
     expect(deps.calls.resetTurnTelemetry).toHaveLength(1);
     expect(deps.calls.clearTrails).toHaveLength(1);
@@ -253,6 +297,10 @@ describe('session-controller', () => {
     await beginJoinGameSession(deps, 'FGHIJ', 'token-2');
 
     expect(deps.ctx.gameCode).toBe('FGHIJ');
+    expect((deps.ctx as ClientSession).isLocalGame).toBe(false);
+    expect((deps.ctx as ClientSession).spectatorMode).toBe(false);
+    expect(deps.ctx.reconnectOverlayState).toBeNull();
+    expect(deps.ctx.opponentDisconnectDeadlineMs).toBeNull();
     expect(deps.calls.storePlayerToken).toEqual([['FGHIJ', 'token-2']]);
     expect(deps.calls.resetTurnTelemetry).toHaveLength(1);
     expect(deps.calls.replaceRoute).toEqual([['/game/FGHIJ']]);
@@ -293,7 +341,10 @@ describe('session-controller', () => {
 
     beginSpectateGameSession(deps, 'ABCDE');
 
+    expect((deps.ctx as ClientSession).isLocalGame).toBe(false);
     expect(deps.ctx.spectatorMode).toBe(true);
+    expect(deps.ctx.reconnectOverlayState).toBeNull();
+    expect(deps.ctx.opponentDisconnectDeadlineMs).toBeNull();
     expect(deps.ctx.gameCode).toBe('ABCDE');
     expect(deps.calls.replaceRoute).toEqual([['/game/ABCDE']]);
     expect(deps.calls.setState).toEqual([['connecting']]);
