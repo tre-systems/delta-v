@@ -8,6 +8,7 @@ import type {
   PlayerId,
   Ship,
 } from '../../shared/types/domain';
+import { setMuted } from '../audio';
 import { type CommandRouterDeps, dispatchGameCommand } from './command-router';
 import {
   createLogisticsStoreFromPairs,
@@ -366,5 +367,32 @@ describe('game-command-router', () => {
 
     expect(deps.ctx.planningState.torpedoAccel).toBeNull();
     expect(deps.ctx.planningState.torpedoAccelSteps).toBeNull();
+  });
+
+  it('zooms the camera around the canvas center', () => {
+    const { deps, renderer } = createDeps();
+
+    dispatchGameCommand(deps, { type: 'zoomCamera', factor: 1.25 });
+
+    expect(renderer.camera.zoomAt).toHaveBeenCalledWith(400, 300, 1.25);
+  });
+
+  it('toggles mute and refreshes the sound button', () => {
+    const { deps } = createDeps();
+
+    dispatchGameCommand(deps, { type: 'toggleMute' });
+
+    expect(setMuted).toHaveBeenCalledWith(true);
+    expect(deps.updateSoundButton).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes rematch and exit commands through the session callbacks', () => {
+    const { deps } = createDeps();
+
+    dispatchGameCommand(deps, { type: 'requestRematch' });
+    dispatchGameCommand(deps, { type: 'exitToMenu' });
+
+    expect(deps.sendRematch).toHaveBeenCalledTimes(1);
+    expect(deps.exitToMenu).toHaveBeenCalledTimes(1);
   });
 });
