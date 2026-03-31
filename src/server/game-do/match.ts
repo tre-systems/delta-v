@@ -9,6 +9,7 @@ import {
   saveMatchCreatedAt,
 } from './archive';
 import { toGameStartMessage } from './messages';
+import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 
 type InitGameDeps = {
   storage: DurableObjectStorage;
@@ -82,18 +83,20 @@ export const handleRematchRequest = async (
   deps: HandleRematchDeps,
   playerId: PlayerId,
 ): Promise<void> => {
-  const requests = (await deps.storage.get<number[]>('rematchRequests')) ?? [];
+  const requests =
+    (await deps.storage.get<number[]>(GAME_DO_STORAGE_KEYS.rematchRequests)) ??
+    [];
 
   if (!requests.includes(playerId)) {
     requests.push(playerId);
   }
 
   if (requests.length >= 2) {
-    await deps.storage.delete('rematchRequests');
+    await deps.storage.delete(GAME_DO_STORAGE_KEYS.rematchRequests);
     await deps.initGame();
     return;
   }
 
-  await deps.storage.put('rematchRequests', requests);
+  await deps.storage.put(GAME_DO_STORAGE_KEYS.rematchRequests, requests);
   deps.broadcast({ type: 'rematchPending' });
 };

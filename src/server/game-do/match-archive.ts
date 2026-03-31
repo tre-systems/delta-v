@@ -93,6 +93,25 @@ export const archiveCompletedMatch = async (
   }
 };
 
+export const scheduleArchiveCompletedMatch = (
+  deps: {
+    storage: DurableObjectStorage;
+    r2: R2Bucket | undefined;
+    db: D1Database | undefined;
+    waitUntil: (promise: Promise<unknown>) => void;
+  },
+  state: GameState,
+  roomCode: string,
+): void => {
+  if (!deps.r2) {
+    return;
+  }
+
+  deps.waitUntil(
+    archiveCompletedMatch(deps.storage, deps.r2, deps.db, state, roomCode),
+  );
+};
+
 // Fetch a previously archived match from R2.
 // Returns null if R2 is not bound or the archive
 // doesn't exist.
