@@ -122,9 +122,9 @@ describe('HUDChromeView', () => {
     view.update(buildInput());
     expect(showPhaseAlert).toHaveBeenCalledTimes(1);
 
+    // Combat phase alert is suppressed (auto-skips when no targets)
     view.update(buildInput({ phase: 'combat', hasBurns: false }));
-    expect(showPhaseAlert).toHaveBeenCalledTimes(2);
-    expect(showPhaseAlert).toHaveBeenLastCalledWith('combat', true);
+    expect(showPhaseAlert).toHaveBeenCalledTimes(1);
   });
 
   it('shows and rotates the objective compass when bearing is set', () => {
