@@ -12,7 +12,6 @@ import {
   type MessageHandlerDeps,
 } from './message-handler';
 import type { ClientState } from './phase';
-import { buildGameRoute } from './session';
 import type { SessionApi } from './session-api';
 import {
   beginJoinGameSession,
@@ -24,6 +23,7 @@ import {
   type SpectateGameSessionDeps,
   startLocalGameSession,
 } from './session-controller';
+import { buildGameRoute } from './session-links';
 import type { ClientSession } from './session-model';
 import type { TurnTelemetryTracker } from './turn-telemetry';
 

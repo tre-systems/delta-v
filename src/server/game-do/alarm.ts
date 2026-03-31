@@ -6,7 +6,7 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { scheduleArchiveCompletedMatch } from './match-archive';
-import type { StatefulServerMessage } from './messages';
+import type { StatefulServerMessage } from './message-builders';
 import {
   readAlarmDeadlines,
   readDisconnectedPlayer,

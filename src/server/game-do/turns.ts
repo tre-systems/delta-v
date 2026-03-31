@@ -14,7 +14,7 @@ import {
   resolveCombatBroadcast,
   resolveMovementBroadcast,
   type StatefulServerMessage,
-} from './messages';
+} from './message-builders';
 
 export interface TurnTimeoutOutcome {
   state: GameState;

@@ -9,7 +9,10 @@ import {
   setLatencyMs,
   setOpponentDisconnectDeadlineMs,
 } from './client-context-store';
-import { type ClientMessagePlan, deriveClientMessagePlan } from './messages';
+import {
+  type ClientMessagePlan,
+  deriveClientMessagePlan,
+} from './client-message-plans';
 import type { ClientState } from './phase';
 import type { ClientSessionMessageContext } from './session-model';
 export interface MessageHandlerDeps {

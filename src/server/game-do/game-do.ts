@@ -38,7 +38,7 @@ import {
   resolveJoinAttempt as resolveJoinAttemptRequest,
 } from './http-handlers';
 import { handleRematchRequest, initGameSession } from './match';
-import type { StatefulServerMessage } from './messages';
+import type { StatefulServerMessage } from './message-builders';
 import { runPublicationPipeline } from './publication';
 import {
   createDisconnectMarker,

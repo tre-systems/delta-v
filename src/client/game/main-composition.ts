@@ -8,7 +8,7 @@ import {
 import { deriveKeyboardAction } from './keyboard';
 import type { ClientState } from './phase';
 import type { PlanningState } from './planning';
-import { buildGameRoute } from './session';
+import { buildGameRoute } from './session-links';
 
 interface BrowserBindingDeps {
   canvas: HTMLCanvasElement;

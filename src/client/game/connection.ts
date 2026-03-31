@@ -7,7 +7,7 @@ import {
   deriveReconnectAttemptPlan,
 } from './network';
 import type { ClientState } from './phase';
-import { buildWebSocketUrl } from './session';
+import { buildWebSocketUrl } from './session-links';
 import type { ReconnectOverlayState } from './session-ui-state';
 import { createWebSocketTransport, type GameTransport } from './transport';
 export interface ConnectionDeps {
