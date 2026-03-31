@@ -442,8 +442,23 @@ const computeNormalCourse = ({
   // special action that overrides normal trajectory.
   // The player must explicitly choose to land (land
   // flag) rather than continuing in orbit.
+  //
+  // We check orbit on both the current state and the
+  // post-burn state so that a ship can burn into orbit
+  // and land in the same turn (avoiding an extra turn
+  // of base defense fire).
   if (land && fuelSpent === 1) {
-    const orbitBody = detectOrbit(ship, map);
+    const dir = burn !== null ? HEX_DIRECTIONS[burn] : { dq: 0, dr: 0 };
+    const postBurnShip: Ship = {
+      ...ship,
+      position: destination,
+      velocity: {
+        dq: ship.velocity.dq + dir.dq,
+        dr: ship.velocity.dr + dir.dr,
+      },
+      pendingGravityEffects: [],
+    };
+    const orbitBody = detectOrbit(ship, map) ?? detectOrbit(postBurnShip, map);
 
     if (orbitBody) {
       const baseHex = findLandingBase(
