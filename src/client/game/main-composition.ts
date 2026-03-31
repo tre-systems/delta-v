@@ -1,4 +1,5 @@
 import { CODE_LENGTH } from '../../shared/constants';
+import { normalizePlayerToken, normalizeRoomCode } from '../../shared/ids';
 import { isMuted, setMuted } from '../audio';
 import { hide } from '../dom';
 import {
@@ -63,17 +64,16 @@ export const autoJoinFromUrl = (
   setMenuState: () => void,
 ): void => {
   const urlParams = new URLSearchParams(window.location.search);
-  const code = urlParams.get('code');
-  const playerToken = urlParams.get('playerToken');
+  const code = normalizeRoomCode(urlParams.get('code'));
+  const playerToken = normalizePlayerToken(urlParams.get('playerToken'));
   const viewer = urlParams.get('viewer');
 
   if (code && code.length === CODE_LENGTH) {
-    const normalizedCode = code.toUpperCase();
-    history.replaceState(null, '', buildGameRoute(normalizedCode));
+    history.replaceState(null, '', buildGameRoute(code));
     if (viewer === 'spectator') {
-      spectateGame(normalizedCode);
+      spectateGame(code);
     } else {
-      joinGame(normalizedCode, playerToken);
+      joinGame(code, playerToken);
     }
     return;
   }

@@ -1,3 +1,4 @@
+import type { PlayerToken, RoomCode } from '../ids';
 import type {
   AstrogationOrder,
   CombatAttack,
@@ -53,13 +54,13 @@ export type S2C =
   | {
       type: 'welcome';
       playerId: PlayerId;
-      code: string;
-      playerToken: string;
+      code: RoomCode;
+      playerToken: PlayerToken;
     }
   | {
       /** Live spectator socket handshake (no player token). */
       type: 'spectatorWelcome';
-      code: string;
+      code: RoomCode;
     }
   | { type: 'matchFound' }
   | {

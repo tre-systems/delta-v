@@ -1,3 +1,4 @@
+import type { RoomCode } from '../shared/ids';
 import { SCENARIOS } from '../shared/map-data';
 import type { Env } from './env';
 import {
@@ -6,19 +7,21 @@ import {
   parseCreatePayload,
 } from './protocol';
 
-const getRoomStub = (env: Pick<Env, 'GAME'>, code: string): DurableObjectStub =>
-  env.GAME.get(env.GAME.idFromName(code));
+const getRoomStub = (
+  env: Pick<Env, 'GAME'>,
+  code: RoomCode,
+): DurableObjectStub => env.GAME.get(env.GAME.idFromName(code));
 
 export const handleWebSocket = (
   request: Request,
   env: Pick<Env, 'GAME'>,
-  code: string,
+  code: RoomCode,
 ): Promise<Response> | Response => getRoomStub(env, code).fetch(request);
 
 export const handleJoinCheck = (
   request: Request,
   env: Pick<Env, 'GAME'>,
-  code: string,
+  code: RoomCode,
 ): Promise<Response> => {
   const url = new URL(request.url);
   const internalUrl = new URL('https://room.internal/join');
@@ -38,7 +41,7 @@ export const handleJoinCheck = (
 export const handleReplayFetch = (
   request: Request,
   env: Pick<Env, 'GAME'>,
-  code: string,
+  code: RoomCode,
 ): Promise<Response> => {
   const url = new URL(request.url);
   const internalUrl = new URL('https://room.internal/replay');

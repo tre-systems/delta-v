@@ -1,4 +1,5 @@
 import { SHIP_STATS } from '../../shared/constants';
+import { normalizePlayerToken, normalizeRoomCode } from '../../shared/ids';
 import type {
   CombatResult,
   MovementEvent,
@@ -56,19 +57,23 @@ export const parseJoinInput = (
 
   try {
     const url = new URL(trimmed);
-    const code = url.searchParams.get('code')?.toUpperCase() ?? '';
-    const playerToken = url.searchParams.get('playerToken');
+    const code = normalizeRoomCode(url.searchParams.get('code'));
+    const playerToken = normalizePlayerToken(
+      url.searchParams.get('playerToken'),
+    );
 
-    if (code.length === codeLength) {
+    if (code && code.length === codeLength) {
       return { code, playerToken };
     }
   } catch {
     // Not a URL — fall through to raw code handling.
   }
 
-  const code = trimmed.toUpperCase();
+  const code = normalizeRoomCode(trimmed);
 
-  return code.length === codeLength ? { code, playerToken: null } : null;
+  return code && code.length === codeLength
+    ? { code, playerToken: null }
+    : null;
 };
 
 export const getLatencyStatus = (latencyMs: number | null): UITextStatus => {

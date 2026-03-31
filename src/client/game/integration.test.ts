@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { asPlayerToken, asRoomCode } from '../../shared/ids';
 import type {
   CombatResult,
   GameState,
@@ -16,6 +17,9 @@ import {
 import type { ClientState } from './phase';
 
 // --- Helpers ---
+
+const roomCode = (value = 'ABCDE') => asRoomCode(value);
+const playerToken = (value = 'tok-123') => asPlayerToken(value);
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'ship-0',
@@ -138,8 +142,8 @@ describe('client integration: connection flow', () => {
     handleServerMessage(deps, {
       type: 'welcome',
       playerId: 0,
-      code: 'ABCDE',
-      playerToken: 'tok-123',
+      code: roomCode(),
+      playerToken: playerToken(),
     });
 
     expect(deps.ctx.playerId).toBe(0);
@@ -156,8 +160,8 @@ describe('client integration: connection flow', () => {
     handleServerMessage(deps, {
       type: 'welcome',
       playerId: 0,
-      code: 'ABCDE',
-      playerToken: 'tok-456',
+      code: roomCode(),
+      playerToken: playerToken('tok-456'),
     });
 
     expect(deps.ctx.reconnectAttempts).toBe(0);
@@ -177,7 +181,7 @@ describe('client integration: connection flow', () => {
 
     handleServerMessage(deps, {
       type: 'spectatorWelcome',
-      code: 'ABCDE',
+      code: roomCode(),
     });
 
     expect(deps.ctx.playerId).toBe(-1);
@@ -523,8 +527,8 @@ describe('client integration: full connection-to-game sequence', () => {
     handleServerMessage(deps, {
       type: 'welcome',
       playerId: 0,
-      code: 'GAME1',
-      playerToken: 'tok-abc',
+      code: roomCode('GAME1'),
+      playerToken: playerToken('tok-abc'),
     });
 
     expect(deps.ctx.playerId).toBe(0);
