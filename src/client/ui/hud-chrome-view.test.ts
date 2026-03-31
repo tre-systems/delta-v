@@ -187,7 +187,8 @@ describe('HUDChromeView', () => {
 
     view.updateSoundButton(true);
     const soundBtn = document.getElementById('soundBtn') as HTMLButtonElement;
-    expect(soundBtn.textContent).toBe('\uD83D\uDD07');
+    expect(soundBtn.querySelector('svg')).not.toBeNull();
+    expect(soundBtn.innerHTML).toContain('line');
     expect(soundBtn.classList.contains('muted')).toBe(true);
 
     turnTimerSignal.value = {
