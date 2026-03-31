@@ -116,6 +116,7 @@ export const presentCombatResults = (
 ) => {
   deps.applyGameState(state);
   deps.renderer.showCombatResults(results, previousState);
+  deps.ui.log.logCombatResults(results, state.ships);
 
   if (resetCombat) {
     deps.resetCombatState();
