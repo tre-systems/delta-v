@@ -50,6 +50,14 @@ export const toCombatResultMessage = (
   results,
   state,
 });
+export const toCombatSingleResultMessage = (
+  state: GameState,
+  result: CombatResult,
+): StatefulServerMessage => ({
+  type: 'combatSingleResult',
+  result,
+  state,
+});
 export const toGameStartMessage = (state: GameState): GameStartMessage => ({
   type: 'gameStart',
   state,

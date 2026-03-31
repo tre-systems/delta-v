@@ -17,6 +17,7 @@ export const advanceTurn = (
     if (ship.lifecycle === 'destroyed') continue;
 
     ship.resuppliedThisTurn = false;
+    ship.firedThisPhase = undefined;
 
     if (ship.damage.disabledTurns > 0) {
       ship.damage.disabledTurns--;
@@ -32,6 +33,7 @@ export const advanceTurn = (
   applyReinforcements(state);
   applyFleetConversion(state);
 
+  state.combatTargetedThisPhase = undefined;
   state.phase = 'astrogation';
 
   engineEvents?.push({

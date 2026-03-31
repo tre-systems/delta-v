@@ -18,6 +18,8 @@ import {
   adjustCombatStrength,
   type CombatActionDeps,
   clearCombatSelection,
+  confirmSingleAttack,
+  endCombatPhase,
   fireAllAttacks,
   queueAttack,
   resetCombatStrengthToMax,
@@ -188,6 +190,12 @@ export const dispatchGameCommand = (
       return;
     case 'fireAllAttacks':
       fireAllAttacks(deps.combatDeps);
+      return;
+    case 'confirmSingleAttack':
+      confirmSingleAttack(deps.combatDeps);
+      return;
+    case 'endCombat':
+      endCombatPhase(deps.combatDeps);
       return;
     case 'skipCombat':
       sendSkipCombat(deps.combatDeps);

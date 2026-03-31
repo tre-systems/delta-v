@@ -19,6 +19,8 @@ export type GameCommand =
   // Combat
   | { type: 'queueAttack' }
   | { type: 'fireAllAttacks' }
+  | { type: 'confirmSingleAttack' }
+  | { type: 'endCombat' }
   | { type: 'skipCombat' }
   | { type: 'adjustCombatStrength'; delta: number }
   | { type: 'resetCombatStrength' }
@@ -79,6 +81,10 @@ export const keyboardActionToCommand = (
       return { type: 'queueAttack' };
     case 'fireAllAttacks':
       return { type: 'fireAllAttacks' };
+    case 'confirmSingleAttack':
+      return { type: 'confirmSingleAttack' };
+    case 'endCombat':
+      return { type: 'endCombat' };
     case 'skipCombat':
       return { type: 'skipCombat' };
     case 'confirmTransfers':
