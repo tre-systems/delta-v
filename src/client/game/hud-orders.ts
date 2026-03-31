@@ -44,7 +44,10 @@ const getObjective = (state: GameState, playerId: PlayerId): string => {
   const facingFugitives = state.scenarioRules.hiddenIdentityInspection;
 
   if (player.escapeWins) {
-    return hasFugitiveShip ? '⬡ Escape the ★ ship' : '⬡ Escape the map';
+    const dir = state.scenarioRules.escapeEdge === 'north' ? ' north' : '';
+    return hasFugitiveShip
+      ? `⬡ Fly ★ ship off the${dir} map edge`
+      : `⬡ Escape${dir} off the map`;
   }
 
   if (facingFugitives) {

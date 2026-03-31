@@ -116,7 +116,9 @@ export const confirmSingleAttack = (deps: CombatActionDeps) => {
   );
 
   if (!attack) {
-    deps.showToast('Select an enemy to target', 'info');
+    // No target selected — end combat (the button shows
+    // "END COMBAT" in this state, so honour that label).
+    endCombatPhase(deps);
     return;
   }
 
