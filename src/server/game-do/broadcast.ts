@@ -2,7 +2,10 @@ import { must } from '../../shared/assert';
 import { filterStateForPlayer } from '../../shared/engine/game-engine';
 import type { GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
-import { type StatefulServerMessage, toStateUpdateMessage } from './messages';
+import {
+  type StatefulServerMessage,
+  toStateUpdateMessage,
+} from './message-builders';
 
 export const sendSocketMessage = (ws: WebSocket, msg: S2C) => {
   try {

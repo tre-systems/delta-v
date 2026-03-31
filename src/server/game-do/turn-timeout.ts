@@ -4,7 +4,7 @@ import type {
   PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
-import type { StatefulServerMessage } from './messages';
+import type { StatefulServerMessage } from './message-builders';
 import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 import { resolveTurnTimeoutOutcome } from './turns';
 

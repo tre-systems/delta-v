@@ -9,7 +9,7 @@ import {
   appendEnvelopedEvents,
   saveMatchCreatedAt,
 } from './archive';
-import { toGameStartMessage } from './messages';
+import { toGameStartMessage } from './message-builders';
 import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 
 type InitGameDeps = {

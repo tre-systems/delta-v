@@ -1,3 +1,9 @@
+/**
+ * Socket payload builders for the Game DO.
+ * Keep message formatting here so action/alarm/publication code only chooses
+ * which state-bearing message to send.
+ */
+
 import type { EngineEvent } from '../../shared/engine/engine-events';
 import {
   hasCombatResults,
@@ -42,6 +48,7 @@ export const toMovementResultMessage = ({
   events,
   state,
 });
+
 export const toCombatResultMessage = (
   state: GameState,
   results: CombatResult[],
@@ -50,6 +57,7 @@ export const toCombatResultMessage = (
   results,
   state,
 });
+
 export const toCombatSingleResultMessage = (
   state: GameState,
   result: CombatResult,
@@ -58,6 +66,7 @@ export const toCombatSingleResultMessage = (
   result,
   state,
 });
+
 export const toGameStartMessage = (state: GameState): GameStartMessage => ({
   type: 'gameStart',
   state,

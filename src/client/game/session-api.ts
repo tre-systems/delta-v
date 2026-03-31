@@ -1,19 +1,18 @@
 import type { Result } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 import {
-  buildGameRoute,
-  buildJoinCheckUrl,
+  type CreatedGameSessionDeps,
+  completeCreatedGameSession,
+} from './session-controller';
+import { buildGameRoute, buildJoinCheckUrl } from './session-links';
+import {
   deleteStoredPlayerToken,
   getStoredPlayerToken,
   loadTokenStore,
   pruneExpiredTokens,
   saveTokenStore,
   setStoredPlayerToken,
-} from './session';
-import {
-  type CreatedGameSessionDeps,
-  completeCreatedGameSession,
-} from './session-controller';
+} from './session-token-store';
 
 const SESSION_REQUEST_TIMEOUT_MS = 10_000;
 

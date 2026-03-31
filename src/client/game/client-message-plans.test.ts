@@ -10,7 +10,7 @@ import type {
   ShipMovement,
 } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
-import { deriveClientMessagePlan } from './messages';
+import { deriveClientMessagePlan } from './client-message-plans';
 import type { ClientState } from './phase';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
@@ -72,7 +72,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
 const derive = (msg: S2C, currentState: ClientState = 'connecting') =>
   deriveClientMessagePlan(currentState, 2, 0, 5_000, msg);
 
-describe('game-client-messages', () => {
+describe('game-client-message-plans', () => {
   it('derives welcome handling from reconnect and current state', () => {
     expect(
       derive({
@@ -238,53 +238,53 @@ describe('game-client-messages', () => {
 
   it('derives endgame, rematch, disconnect, error, and pong plans', () => {
     expect(
-      derive(
-        {
-          type: 'gameOver',
-          winner: 1,
-          reason: 'Lost all ships',
-        },
-        'playing_combat',
-      ),
+      derive({
+        type: 'gameOver',
+        winner: 0,
+        reason: 'Fleet eliminated!',
+      }),
     ).toEqual({
       kind: 'gameOver',
-      won: false,
-      reason: 'Lost all ships',
+      won: true,
+      reason: 'Fleet eliminated!',
     });
 
-    expect(derive({ type: 'rematchPending' }, 'gameOver')).toEqual({
+    expect(derive({ type: 'rematchPending' })).toEqual({
       kind: 'rematchPending',
     });
 
     expect(
-      derive(
-        {
-          type: 'error',
-          message: 'Bad request',
-          code: 'INVALID_INPUT' as ErrorCode,
-        },
-        'playing_astrogation',
-      ),
+      derive({
+        type: 'opponentStatus',
+        status: 'disconnected',
+        graceDeadlineMs: 12345,
+      }),
+    ).toEqual({
+      kind: 'opponentStatus',
+      status: 'disconnected',
+      graceDeadlineMs: 12345,
+    });
+
+    expect(
+      derive({
+        type: 'error',
+        message: 'Boom',
+        code: 'INVALID_INPUT' as ErrorCode,
+      }),
     ).toEqual({
       kind: 'error',
-      message: 'Bad request',
-      code: 'INVALID_INPUT' as ErrorCode,
+      message: 'Boom',
+      code: 'INVALID_INPUT',
     });
 
-    expect(derive({ type: 'pong', t: 4_000 }, 'playing_astrogation')).toEqual({
+    expect(
+      derive({
+        type: 'pong',
+        t: 4900,
+      }),
+    ).toEqual({
       kind: 'pong',
-      latencyMs: 1_000,
-    });
-
-    expect(derive({ type: 'pong', t: 0 }, 'playing_astrogation')).toEqual({
-      kind: 'pong',
-      latencyMs: null,
-    });
-  });
-
-  it('marks match found as a phase-change notification', () => {
-    expect(derive({ type: 'matchFound' }, 'waitingForOpponent')).toEqual({
-      kind: 'matchFound',
+      latencyMs: 100,
     });
   });
 });

@@ -25,10 +25,11 @@ import type { ScenarioDefinition } from '../../shared/types/scenario';
 import {
   resolveCombatBroadcast,
   resolveMovementBroadcast,
+  type StatefulServerMessage,
   toCombatSingleResultMessage,
   toMovementResultMessage,
   toStateUpdateMessage,
-} from './messages';
+} from './message-builders';
 
 export type EngineFailure = { error: EngineError };
 export type StatefulActionSuccess = {
@@ -87,7 +88,7 @@ interface ActionDeps {
   getActionRng: () => Promise<() => number>;
   publishStateChange: (
     state: GameState,
-    primaryMessage?: import('./messages').StatefulServerMessage,
+    primaryMessage?: StatefulServerMessage,
     options?: {
       actor?: PlayerId | null;
       restartTurnTimer?: boolean;
@@ -107,7 +108,7 @@ export const createGameStateActionHandlers = (deps: ActionDeps) => {
   const publishForActor = async (
     playerId: PlayerId,
     result: StatefulActionSuccess,
-    primaryMessage?: import('./messages').StatefulServerMessage,
+    primaryMessage?: StatefulServerMessage,
     options?: {
       restartTurnTimer?: boolean;
     },
