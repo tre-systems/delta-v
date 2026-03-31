@@ -580,6 +580,7 @@ describe('GameDO', () => {
     expect(JSON.parse(must(ws.sent[0]))).toEqual({
       type: 'error',
       message: 'Invalid combat payload',
+      code: 'INVALID_INPUT',
     });
   });
   it('registers every stateful websocket action in the declarative handler table', () => {
