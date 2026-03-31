@@ -172,6 +172,21 @@ describe('client integration: connection flow', () => {
     expect(deps.calls.setState).toBeUndefined();
   });
 
+  it('spectator welcome tracks spectate joins without storing a player token', () => {
+    const deps = createDeps('connecting');
+
+    handleServerMessage(deps, {
+      type: 'spectatorWelcome',
+      code: 'ABCDE',
+    });
+
+    expect(deps.ctx.playerId).toBe(-1);
+    expect(deps.ctx.gameCode).toBe('ABCDE');
+    expect(deps.calls.storePlayerToken).toBeUndefined();
+    expect(deps.calls.setState).toEqual([['waitingForOpponent']]);
+    expect(deps.calls.trackEvent).toEqual([['spectate_join_succeeded', {}]]);
+  });
+
   it('gameStart applies state, clears UI, and transitions to playing', () => {
     const state = createState();
     const deps = createDeps('waitingForOpponent');
@@ -375,6 +390,7 @@ describe('client integration: combat flow', () => {
 describe('client integration: game over flow', () => {
   it('gameOver shows outcome with win/loss', () => {
     const deps = createDeps('playing_combat', createState());
+    deps.ctx.opponentDisconnectDeadlineMs = 12_345;
 
     handleServerMessage(deps, {
       type: 'gameOver',
@@ -385,6 +401,7 @@ describe('client integration: game over flow', () => {
     expect(deps.calls.showGameOverOutcome).toEqual([
       [true, 'Fleet eliminated!'],
     ]);
+    expect(deps.ctx.opponentDisconnectDeadlineMs).toBeNull();
   });
 
   it('gameOver shows loss when opponent wins', () => {
