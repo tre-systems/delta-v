@@ -243,7 +243,7 @@ describe('game client helpers', () => {
       hasBurns: true,
       cargoFree: 20,
       cargoMax: 40,
-      objective: '⬡ Escape the ★ ship',
+      objective: '⬡ Fly ★ ship off the map edge',
       canOverload: true,
       canEmplaceBase: true,
       fleetStatus: '⚔ 1 vs 0 1M/1N',
