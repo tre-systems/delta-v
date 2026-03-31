@@ -48,6 +48,62 @@ export type LocalResolution =
       result: CombatResult;
     };
 
+type LocalErrorResult = {
+  error: {
+    message: string;
+  };
+};
+
+type LocalStateResult = {
+  state: GameState;
+};
+
+type LocalCombatBatchResult = LocalStateResult & {
+  results: CombatResult[];
+};
+
+const toErrorResolution = (result: LocalErrorResult): LocalResolution => ({
+  kind: 'error',
+  error: result.error.message,
+});
+
+const toStateResolution = (state: GameState): LocalResolution => ({
+  kind: 'state',
+  state,
+});
+
+const toMovementOrStateResolution = (
+  result: MovementResult | LocalStateResult,
+): LocalResolution => {
+  if (isMovementResult(result)) {
+    return { kind: 'movement', result };
+  }
+
+  return toStateResolution(result.state);
+};
+
+// Engine entry points clone on entry, so the caller's state is still a safe
+// before-snapshot for combat presentation and effects.
+const toCombatResolution = (
+  previousState: GameState,
+  result: LocalCombatBatchResult,
+  resetCombat: boolean,
+): LocalResolution => ({
+  kind: 'combat',
+  previousState,
+  state: result.state,
+  results: result.results,
+  resetCombat,
+});
+
+const toCombatTransitionResolution = (
+  previousState: GameState,
+  result: LocalStateResult | LocalCombatBatchResult,
+): LocalResolution =>
+  hasCombatResults(result)
+    ? toCombatResolution(previousState, result, false)
+    : toStateResolution(result.state);
+
 export const resolveAstrogationStep = (
   state: GameState,
   playerId: PlayerId,
@@ -57,13 +113,10 @@ export const resolveAstrogationStep = (
   const result = processAstrogation(state, playerId, orders, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error.message };
+    return toErrorResolution(result);
   }
 
-  if (isMovementResult(result)) {
-    return { kind: 'movement', result };
-  }
-  return { kind: 'state', state: result.state };
+  return toMovementOrStateResolution(result);
 };
 
 export const resolveOrdnanceStep = (
@@ -75,8 +128,9 @@ export const resolveOrdnanceStep = (
   const result = processOrdnance(state, playerId, launches, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error.message };
+    return toErrorResolution(result);
   }
+
   return { kind: 'movement', result };
 };
 
@@ -88,13 +142,10 @@ export const resolveSkipOrdnanceStep = (
   const result = skipOrdnance(state, playerId, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error.message };
+    return toErrorResolution(result);
   }
 
-  if (isMovementResult(result)) {
-    return { kind: 'movement', result };
-  }
-  return { kind: 'state', state: result.state };
+  return toMovementOrStateResolution(result);
 };
 
 export const resolveBeginCombatStep = (
@@ -102,23 +153,13 @@ export const resolveBeginCombatStep = (
   playerId: PlayerId,
   map: SolarSystemMap,
 ): LocalResolution => {
-  const previousState = structuredClone(state);
   const result = beginCombatPhase(state, playerId, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error.message };
+    return toErrorResolution(result);
   }
 
-  if (hasCombatResults(result)) {
-    return {
-      kind: 'combat',
-      previousState,
-      state: result.state,
-      results: result.results,
-      resetCombat: false,
-    };
-  }
-  return { kind: 'state', state: result.state };
+  return toCombatTransitionResolution(state, result);
 };
 
 export const resolveCombatStep = (
@@ -128,19 +169,13 @@ export const resolveCombatStep = (
   map: SolarSystemMap,
   resetCombat = true,
 ): LocalResolution => {
-  const previousState = structuredClone(state);
   const result = processCombat(state, playerId, attacks, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error.message };
+    return toErrorResolution(result);
   }
-  return {
-    kind: 'combat',
-    previousState,
-    state: result.state,
-    results: result.results,
-    resetCombat,
-  };
+
+  return toCombatResolution(state, result, resetCombat);
 };
 
 export const resolveSkipCombatStep = (
@@ -148,23 +183,13 @@ export const resolveSkipCombatStep = (
   playerId: PlayerId,
   map: SolarSystemMap,
 ): LocalResolution => {
-  const previousState = structuredClone(state);
   const result = skipCombat(state, playerId, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error.message };
+    return toErrorResolution(result);
   }
 
-  if (hasCombatResults(result)) {
-    return {
-      kind: 'combat',
-      previousState,
-      state: result.state,
-      results: result.results,
-      resetCombat: false,
-    };
-  }
-  return { kind: 'state', state: result.state };
+  return toCombatTransitionResolution(state, result);
 };
 
 export const resolveSingleCombatStep = (
@@ -173,15 +198,14 @@ export const resolveSingleCombatStep = (
   attack: CombatAttack,
   map: SolarSystemMap,
 ): LocalResolution => {
-  const previousState = structuredClone(state);
   const result = processSingleCombat(state, playerId, attack, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error.message };
+    return toErrorResolution(result);
   }
   return {
     kind: 'combatSingle',
-    previousState,
+    previousState: state,
     state: result.state,
     result: result.results[0],
   };
@@ -192,23 +216,13 @@ export const resolveEndCombatStep = (
   playerId: PlayerId,
   map: SolarSystemMap,
 ): LocalResolution => {
-  const previousState = structuredClone(state);
   const result = endCombat(state, playerId, map, Math.random);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error.message };
+    return toErrorResolution(result);
   }
 
-  if (hasCombatResults(result)) {
-    return {
-      kind: 'combat',
-      previousState,
-      state: result.state,
-      results: result.results,
-      resetCombat: false,
-    };
-  }
-  return { kind: 'state', state: result.state };
+  return toCombatTransitionResolution(state, result);
 };
 
 export const resolveLogisticsStep = (
@@ -220,7 +234,7 @@ export const resolveLogisticsStep = (
   const result = processLogistics(state, playerId, transfers, map);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error.message };
+    return toErrorResolution(result);
   }
   return {
     kind: 'logistics',
@@ -237,9 +251,10 @@ export const resolveSkipLogisticsStep = (
   const result = skipLogistics(state, playerId, map);
 
   if ('error' in result) {
-    return { kind: 'error', error: result.error.message };
+    return toErrorResolution(result);
   }
-  return { kind: 'state', state: result.state };
+
+  return toStateResolution(result.state);
 };
 
 export const hasOwnedPendingAsteroidHazards = (

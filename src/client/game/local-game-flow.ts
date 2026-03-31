@@ -73,64 +73,80 @@ export const playLocalMovementResult = (
   );
 };
 
+const continueIfGameActive = (
+  deps: LocalGameFlowDeps,
+  onContinue: () => void,
+): void => {
+  localCheckGameEnd(deps);
+
+  if (deps.getGameState()?.phase !== 'gameOver') {
+    onContinue();
+  }
+};
+
+const applyLocalStateResolution = (
+  deps: LocalGameFlowDeps,
+  resolution: Extract<
+    LocalResolution,
+    { kind: 'combat' | 'logistics' | 'state' }
+  >,
+): void => {
+  switch (resolution.kind) {
+    case 'combat':
+      deps.presentCombatResults(
+        resolution.previousState,
+        resolution.state,
+        resolution.results,
+        resolution.resetCombat,
+      );
+      return;
+    case 'logistics':
+      for (const line of formatLogisticsTransferLogLines(
+        filterLogisticsTransferLogEvents(resolution.engineEvents),
+        resolution.state.ships,
+      )) {
+        deps.logText(line);
+      }
+      deps.applyGameState(resolution.state);
+      return;
+    case 'state':
+      deps.applyGameState(resolution.state);
+      return;
+  }
+};
+
 export const handleLocalResolution = (
   deps: LocalGameFlowDeps,
   resolution: LocalResolution,
   onContinue: () => void,
   errorPrefix: string,
 ): void => {
-  if (resolution.kind === 'error') {
-    console.error(errorPrefix, resolution.error);
-    deps.showToast(resolution.error, 'error');
-    return;
-  }
-
-  if (resolution.kind === 'movement') {
-    playLocalMovementResult(deps, resolution.result, () => {
-      localCheckGameEnd(deps);
-
-      if (deps.getGameState()?.phase !== 'gameOver') {
-        onContinue();
-      }
-    });
-    return;
-  }
-
-  if (resolution.kind === 'combatSingle') {
-    deps.presentCombatResults(
-      resolution.previousState,
-      resolution.state,
-      [resolution.result],
-      false,
-    );
-    // Stay in combat phase — call onContinue to advance attacker
-    onContinue();
-    return;
-  }
-
-  if (resolution.kind === 'combat') {
-    deps.presentCombatResults(
-      resolution.previousState,
-      resolution.state,
-      resolution.results,
-      resolution.resetCombat,
-    );
-  } else if (resolution.kind === 'logistics') {
-    for (const line of formatLogisticsTransferLogLines(
-      filterLogisticsTransferLogEvents(resolution.engineEvents),
-      resolution.state.ships,
-    )) {
-      deps.logText(line);
-    }
-    deps.applyGameState(resolution.state);
-  } else {
-    deps.applyGameState(resolution.state);
-  }
-
-  localCheckGameEnd(deps);
-
-  if (deps.getGameState()?.phase !== 'gameOver') {
-    onContinue();
+  switch (resolution.kind) {
+    case 'error':
+      console.error(errorPrefix, resolution.error);
+      deps.showToast(resolution.error, 'error');
+      return;
+    case 'movement':
+      playLocalMovementResult(deps, resolution.result, () => {
+        continueIfGameActive(deps, onContinue);
+      });
+      return;
+    case 'combatSingle':
+      deps.presentCombatResults(
+        resolution.previousState,
+        resolution.state,
+        [resolution.result],
+        false,
+      );
+      // Stay in combat phase — call onContinue to advance attacker
+      onContinue();
+      return;
+    case 'combat':
+    case 'logistics':
+    case 'state':
+      applyLocalStateResolution(deps, resolution);
+      continueIfGameActive(deps, onContinue);
+      return;
   }
 };
 
