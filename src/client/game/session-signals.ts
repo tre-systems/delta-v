@@ -65,13 +65,8 @@ export const attachSessionCombatButtonsEffect = (
     session.planningState.revisionSignal?.value;
     const queuedAttackCount = session.planningState.queuedAttacks.length;
 
-    ui.showAttackButton(
-      isPlayingCombat && session.planningState.combatTargetId !== null,
-    );
-    ui.showFireButton(
-      isPlayingCombat && queuedAttackCount > 0,
-      queuedAttackCount,
-    );
+    ui.showAttackButton(false);
+    ui.showFireButton(isPlayingCombat, queuedAttackCount);
   });
 
 /**

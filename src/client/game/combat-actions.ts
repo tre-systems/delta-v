@@ -15,7 +15,6 @@ import {
   createCombatTargetPlan,
   findNearestTarget,
   getAttackStrengthForSelection,
-  hasSplitFireOptions,
 } from './combat';
 import type { PlanningStore } from './planning';
 import type { GameTransport } from './transport';
@@ -90,31 +89,59 @@ const sendSkipCombat = (deps: CombatActionDeps) => {
 
 export { sendSkipCombat };
 
-// Auto-select the nearest visible enemy for the currently selected
-// ship, so the player only needs to confirm (or change target).
-const autoTargetNearest = (deps: CombatActionDeps): void => {
+// Auto-queue attacks for all attackable ships against their nearest
+// visible enemy. Called on combat phase entry so the player just
+// needs to confirm (or adjust targets) before firing.
+const autoQueueAllAttacks = (deps: CombatActionDeps): void => {
   const gameState = deps.getGameState();
-  const selectedId = deps.planningState.selectedShipId;
-  if (!gameState || !selectedId) return;
+  if (!gameState) return;
 
-  const target = findNearestTarget(
-    gameState,
-    deps.getPlayerId(),
-    selectedId,
-    deps.planningState.queuedAttacks,
-    deps.getMap(),
+  const playerId = deps.getPlayerId();
+  const map = deps.getMap();
+
+  const attackers = gameState.ships.filter(
+    (s) => s.owner === playerId && s.lifecycle !== 'destroyed' && canAttack(s),
   );
 
-  if (target) {
+  for (const attacker of attackers) {
+    const target = findNearestTarget(
+      gameState,
+      playerId,
+      attacker.id,
+      deps.planningState.queuedAttacks,
+      map,
+    );
+
+    if (!target) continue;
+
     const plan = createCombatTargetPlan(
       gameState,
-      deps.getPlayerId(),
+      playerId,
       deps.planningState,
       target.targetId,
       target.targetType,
-      deps.getMap(),
+      map,
     );
     deps.planningState.applyCombatPlanUpdate(plan);
+    deps.planningState.selectShip(attacker.id);
+
+    const attack = buildCurrentAttack(
+      gameState,
+      playerId,
+      deps.planningState,
+      map,
+      attacker.id,
+    );
+
+    if (attack) {
+      deps.planningState.queueCombatAttack(attack);
+      clearCombatSelection(deps);
+    }
+  }
+
+  // Select the first attacker so the player can adjust if needed
+  if (attackers.length > 0) {
+    deps.planningState.selectShip(attackers[0].id);
   }
 };
 
@@ -157,23 +184,9 @@ export const queueAttack = (deps: CombatActionDeps) => {
     if (myShips.length > 0) {
       const next = myShips[(currentIdx + 1) % myShips.length];
       deps.planningState.selectShip(next.id);
-      autoTargetNearest(deps);
     }
 
-    const hasMore =
-      myShips.length > 0 ||
-      hasSplitFireOptions(
-        gameState,
-        deps.getPlayerId(),
-        deps.planningState.queuedAttacks,
-      );
-
-    deps.showToast(
-      hasMore
-        ? `Attack queued (${count}). Select next target or press Enter to fire.`
-        : `Attack queued (${count}). Press Enter to fire.`,
-      'info',
-    );
+    deps.showToast(`Attack queued (${count}). Press Enter to fire.`, 'info');
   });
 };
 
@@ -199,8 +212,8 @@ export const autoSkipCombatIfNoTargets = (deps: CombatActionDeps): void => {
     return;
   }
 
-  // Targets exist — pre-select the nearest one for the selected ship
-  autoTargetNearest(deps);
+  // Targets exist — auto-queue attacks for all ships
+  autoQueueAllAttacks(deps);
 };
 
 export const adjustCombatStrength = (deps: CombatActionDeps, delta: number) => {

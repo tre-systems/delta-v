@@ -100,16 +100,6 @@ describe('game-client-keyboard', () => {
     expect(
       actionFor('Enter', {
         state: 'playing_combat',
-        combatTargetId: 'enemy-1',
-      }),
-    ).toEqual({
-      kind: 'queueAttack',
-      preventDefault: true,
-    });
-
-    expect(
-      actionFor('Enter', {
-        state: 'playing_combat',
         queuedAttackCount: 1,
       }),
     ).toEqual({
