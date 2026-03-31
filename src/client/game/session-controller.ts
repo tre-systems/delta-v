@@ -109,15 +109,69 @@ export interface ExitToMenuSessionDeps {
   setState: (state: ClientState) => void;
 }
 
+type SessionReconnectUiState = Pick<
+  ClientSession,
+  'reconnectOverlayState' | 'opponentDisconnectDeadlineMs'
+>;
+
+type RemoteSessionPrepState = Pick<
+  ClientSession,
+  | 'spectatorMode'
+  | 'isLocalGame'
+  | 'reconnectOverlayState'
+  | 'opponentDisconnectDeadlineMs'
+>;
+
+type LocalSessionPrepState = Pick<
+  ClientSession,
+  | 'spectatorMode'
+  | 'isLocalGame'
+  | 'gameCode'
+  | 'latencyMs'
+  | 'reconnectAttempts'
+  | 'reconnectOverlayState'
+  | 'opponentDisconnectDeadlineMs'
+>;
+
+type ClearedRemoteSessionState = Pick<
+  ClientSession,
+  'gameCode' | 'latencyMs' | 'reconnectAttempts'
+>;
+
+const clearReconnectUiState = (ctx: SessionReconnectUiState): void => {
+  setReconnectOverlayState(ctx, null);
+  setOpponentDisconnectDeadlineMs(ctx, null);
+};
+
+const prepareRemoteSession = (
+  ctx: RemoteSessionPrepState,
+  spectatorMode: boolean,
+): void => {
+  setSpectatorMode(ctx as ClientSession, spectatorMode);
+  setIsLocalGame(ctx, false);
+  clearReconnectUiState(ctx);
+};
+
+const clearRemoteSessionState = (ctx: ClearedRemoteSessionState): void => {
+  setGameCode(ctx, null);
+  setLatencyMs(ctx, -1);
+  resetReconnectAttempts(ctx);
+};
+
+const prepareLocalSession = (ctx: LocalSessionPrepState): void => {
+  setSpectatorMode(ctx as ClientSession, false);
+  setIsLocalGame(ctx, true);
+  clearRemoteSessionState(ctx);
+  clearReconnectUiState(ctx);
+};
+
 export const completeCreatedGameSession = (
   deps: CreatedGameSessionDeps,
   scenario: string,
   code: string,
   playerToken: string,
 ): void => {
-  setSpectatorMode(deps.ctx as ClientSession, false);
-  setReconnectOverlayState(deps.ctx, null);
-  setOpponentDisconnectDeadlineMs(deps.ctx, null);
+  prepareRemoteSession(deps.ctx, false);
   setScenario(deps.ctx, scenario);
   setGameCode(deps.ctx, code);
   deps.storePlayerToken(code, playerToken);
@@ -134,10 +188,7 @@ export const startLocalGameSession = (
   deps: LocalGameSessionDeps,
   scenario: string,
 ): void => {
-  setSpectatorMode(deps.ctx as ClientSession, false);
-  setIsLocalGame(deps.ctx, true);
-  setReconnectOverlayState(deps.ctx, null);
-  setOpponentDisconnectDeadlineMs(deps.ctx, null);
+  prepareLocalSession(deps.ctx);
   setScenario(deps.ctx, scenario);
   setPlayerId(deps.ctx, 0);
   deps.resetTurnTelemetry();
@@ -178,9 +229,7 @@ export const beginSpectateGameSession = (
   deps: SpectateGameSessionDeps,
   code: string,
 ): void => {
-  setSpectatorMode(deps.ctx as ClientSession, true);
-  setReconnectOverlayState(deps.ctx, null);
-  setOpponentDisconnectDeadlineMs(deps.ctx, null);
+  prepareRemoteSession(deps.ctx as ClientSession, true);
   deps.resetTurnTelemetry();
   setGameCode(deps.ctx, code);
   deps.replaceRoute(deps.buildGameRoute(code));
@@ -202,9 +251,7 @@ export const beginJoinGameSession = async (
     return;
   }
 
-  setSpectatorMode(deps.ctx as ClientSession, false);
-  setReconnectOverlayState(deps.ctx, null);
-  setOpponentDisconnectDeadlineMs(deps.ctx, null);
+  prepareRemoteSession(deps.ctx as ClientSession, false);
 
   if (validation.value) {
     deps.storePlayerToken(code, validation.value);
@@ -222,14 +269,11 @@ export const exitToMenuSession = (deps: ExitToMenuSessionDeps): void => {
   deps.closeConnection();
   deps.resetTurnTelemetry();
   clearClientGameState(deps.ctx);
-  setGameCode(deps.ctx, null);
+  clearRemoteSessionState(deps.ctx);
   setSpectatorMode(deps.ctx, false);
   setIsLocalGame(deps.ctx, false);
-  setLatencyMs(deps.ctx, -1);
-  setReconnectOverlayState(deps.ctx, null);
-  setOpponentDisconnectDeadlineMs(deps.ctx, null);
+  clearReconnectUiState(deps.ctx);
   setPlayerId(deps.ctx, -1);
-  resetReconnectAttempts(deps.ctx);
   setTransport(deps.ctx, null);
   deps.replaceRoute('/');
   deps.setState('menu');
