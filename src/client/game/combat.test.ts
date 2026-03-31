@@ -13,12 +13,14 @@ import {
   countRemainingCombatAttackers,
   createClearedCombatPlan,
   createCombatTargetPlan,
+  findNearestTarget,
   getAttackStrengthForSelection,
   getCombatAttackerIdAtHex,
   getCombatTargetAtHex,
   getLegalCombatAttackers,
   getReusableCombatGroup,
   hasSplitFireOptions,
+  hasVisibleCombatTargets,
   toggleCombatAttackerSelection,
 } from './combat';
 
@@ -385,6 +387,38 @@ describe('game client combat helpers', () => {
       consumed: true,
       combatAttackerIds: ['a'],
       combatAttackStrength: 4,
+    });
+  });
+
+  it('shares target visibility logic for nearest-target and combat-visible checks', () => {
+    const state = createState({
+      ordnance: [createOrdnance({ position: { q: 0, r: 2 } })],
+    });
+
+    expect(hasVisibleCombatTargets(state, 0, map)).toBe(true);
+    expect(findNearestTarget(state, 0, 'b', [], map)).toEqual({
+      targetId: 'x',
+      targetType: 'ship',
+    });
+
+    const queuedAttacks: CombatAttack[] = [
+      {
+        attackerIds: ['b'],
+        targetId: 'x',
+        targetType: 'ship',
+        attackStrength: 2,
+      },
+      {
+        attackerIds: ['a'],
+        targetId: 'y',
+        targetType: 'ship',
+        attackStrength: 4,
+      },
+    ];
+
+    expect(findNearestTarget(state, 0, 'b', queuedAttacks, map)).toEqual({
+      targetId: 'ord-0',
+      targetType: 'ordnance',
     });
   });
 });
