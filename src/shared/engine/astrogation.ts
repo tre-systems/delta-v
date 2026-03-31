@@ -152,6 +152,7 @@ export const processAstrogation = (
     weakGravityChoices: order.weakGravityChoices
       ? { ...order.weakGravityChoices }
       : undefined,
+    land: order.land,
   }));
 
   checkGameEnd(state, map, engineEvents);

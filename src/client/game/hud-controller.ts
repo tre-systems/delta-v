@@ -101,7 +101,12 @@ export const createHudController = (deps: HudControllerDeps) => {
 
       if (!state) return;
       const planning = deps.getPlanningState();
-      const hud = deriveHudViewModel(state, deps.getPlayerId(), planning);
+      const hud = deriveHudViewModel(
+        state,
+        deps.getPlayerId(),
+        planning,
+        deps.getMap(),
+      );
 
       deps.ui.updateHUD(
         buildHudChromeInputFromViewModel(

@@ -6,11 +6,13 @@ import {
   validateOrdnanceLaunch,
 } from '../../shared/engine/util';
 import { hexVecLength } from '../../shared/hex';
+import { detectOrbit } from '../../shared/movement';
 import type {
   AstrogationOrder,
   GameState,
   Ordnance,
   PlayerId,
+  SolarSystemMap,
 } from '../../shared/types/domain';
 import { count } from '../../shared/util';
 import { findMatchVelocityPlan } from './match-velocity';
@@ -180,6 +182,10 @@ export const buildAstrogationOrders = (
       overload,
     };
 
+    if (planning.landingShips.has(ship.id)) {
+      order.land = true;
+    }
+
     if (weakGravityChoices && Object.keys(weakGravityChoices).length > 0) {
       order.weakGravityChoices = weakGravityChoices;
     }
@@ -192,6 +198,7 @@ export const deriveHudViewModel = (
   state: GameState,
   playerId: PlayerId,
   planning: PlanningSnapshot,
+  map?: SolarSystemMap | null,
 ): HudViewModel => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
 
@@ -231,6 +238,11 @@ export const deriveHudViewModel = (
     selectedShipDisabled: (selectedShip?.damage.disabledTurns ?? 0) > 0,
     selectedShipHasBurn: selectedShip
       ? (planning.burns.get(selectedShip.id) ?? null) !== null
+      : false,
+    selectedShipInOrbit:
+      selectedShip && map ? detectOrbit(selectedShip, map) !== null : false,
+    selectedShipLandingSet: selectedShip
+      ? planning.landingShips.has(selectedShip.id)
       : false,
     allShipsHaveBurns: myShips
       .filter(isOrderableShip)

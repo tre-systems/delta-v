@@ -6,13 +6,14 @@ import {
   type HexVec,
   hexAdd,
   hexDirectionToward,
+  hexDistance,
   hexEqual,
   hexKey,
   hexLineDraw,
   hexSubtract,
   hexVecLength,
 } from './hex';
-import { bodyHasGravity } from './map-data';
+import { bodyHasGravity, findBaseHexes } from './map-data';
 import type {
   CourseResult,
   GravityEffect,
@@ -24,6 +25,7 @@ export interface CourseOptions {
   overload?: number | null;
   weakGravityChoices?: Record<string, boolean>;
   destroyedBases?: string[];
+  land?: boolean;
 }
 
 // Apply pending gravity deflections entered on the
@@ -123,6 +125,59 @@ const canLandAtPlanetaryBase = (
   return (
     projectedHex?.base?.bodyName === bodyName &&
     !destroyedBases.has(hexKey(projectedDrift))
+  );
+};
+
+// Detect whether a ship is in orbit around a gravity
+// body. Orbit = speed 1, positioned in a gravity hex,
+// and natural drift (velocity + pending gravity) would
+// keep the ship near the same body. Returns the body
+// name if in orbit, null otherwise.
+export const detectOrbit = (ship: Ship, map: SolarSystemMap): string | null => {
+  if (hexVecLength(ship.velocity) !== 1) return null;
+
+  const currentHex = map.hexes.get(hexKey(ship.position));
+
+  if (!currentHex?.gravity) return null;
+
+  const { bodyName } = currentHex.gravity;
+
+  if (!bodyHasGravity(bodyName, map)) return null;
+
+  const projectedDrift = applyPendingGravityEffects(
+    hexAdd(ship.position, ship.velocity),
+    ship.pendingGravityEffects,
+  );
+  const projectedHex = map.hexes.get(hexKey(projectedDrift));
+
+  if (projectedHex?.gravity?.bodyName === bodyName) {
+    return bodyName;
+  }
+
+  if (projectedHex?.base?.bodyName === bodyName) {
+    return bodyName;
+  }
+
+  return null;
+};
+
+// Find the closest non-destroyed base hex for a body.
+const findLandingBase = (
+  bodyName: string,
+  shipPosition: HexCoord,
+  map: SolarSystemMap,
+  destroyedBases: Set<string>,
+): HexCoord | null => {
+  const bases = findBaseHexes(map, bodyName).filter(
+    (b) => !destroyedBases.has(hexKey(b)),
+  );
+
+  if (bases.length === 0) return null;
+
+  return bases.reduce((closest, b) =>
+    hexDistance(shipPosition, b) < hexDistance(shipPosition, closest)
+      ? b
+      : closest,
   );
 };
 
@@ -231,6 +286,7 @@ type ComputeCourseInput = {
   overload: number | null;
   weakGravityChoices: Record<string, boolean>;
   destroyedBases: Set<string>;
+  land: boolean;
 };
 
 const computeTakeoffCourse = ({
@@ -361,6 +417,7 @@ const computeNormalCourse = ({
   overload,
   weakGravityChoices,
   destroyedBases,
+  land,
 }: ComputeCourseInput): CourseResult => {
   let destination: HexCoord = hexAdd(ship.position, ship.velocity);
   let fuelSpent = 0;
@@ -376,6 +433,46 @@ const computeNormalCourse = ({
     if (stats?.canOverload && ship.fuel >= 2) {
       destination = hexAdd(destination, HEX_DIRECTIONS[overload]);
       fuelSpent = 2;
+    }
+  }
+
+  // Orbital landing: per Triplanetary rules, a ship in
+  // orbit that burns 1 fuel lands at the planet's base.
+  // The burn direction is irrelevant — landing is a
+  // special action that overrides normal trajectory.
+  // The player must explicitly choose to land (land
+  // flag) rather than continuing in orbit.
+  if (land && fuelSpent === 1) {
+    const orbitBody = detectOrbit(ship, map);
+
+    if (orbitBody) {
+      const baseHex = findLandingBase(
+        orbitBody,
+        ship.position,
+        map,
+        destroyedBases,
+      );
+
+      if (baseHex) {
+        const landPath = hexLineDraw(ship.position, baseHex);
+
+        return {
+          destination: baseHex,
+          path: landPath,
+          newVelocity: hexSubtract(baseHex, ship.position),
+          fuelSpent,
+          gravityEffects: (ship.pendingGravityEffects ?? []).map((e) => ({
+            ...e,
+          })),
+          enteredGravityEffects: collectEnteredGravityEffects(
+            landPath,
+            map,
+            weakGravityChoices,
+          ),
+          outcome: 'landing' as const,
+          landedAt: orbitBody,
+        };
+      }
     }
   }
 
@@ -436,6 +533,7 @@ export const computeCourse = (
     overload = null,
     weakGravityChoices = {},
     destroyedBases: destroyedBasesList = [],
+    land = false,
   } = options ?? {};
 
   const input: ComputeCourseInput = {
@@ -445,6 +543,7 @@ export const computeCourse = (
     overload,
     weakGravityChoices,
     destroyedBases: new Set(destroyedBasesList),
+    land,
   };
 
   return ship.lifecycle === 'landed'

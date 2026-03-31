@@ -198,6 +198,9 @@ export interface AstrogationOrder {
   burn: number | null;
   overload: number | null;
   weakGravityChoices?: Record<HexKey, boolean>;
+  // When true, the ship attempts to land from orbit
+  // rather than continuing normal trajectory.
+  land?: boolean;
 }
 
 interface CourseResultBase {
