@@ -343,8 +343,10 @@ export const buildAstrogationCoursePreviewViews = (
 
     const burn = planning.burns.get(ship.id) ?? null;
     const isSelected = ship.id === planning.selectedShipId;
+    const isDisabled = ship.damage.disabledTurns > 0;
 
     if (burn === null && !isSelected) continue;
+    if (isDisabled && !isSelected) continue;
 
     const overload = planning.overloads.get(ship.id) ?? null;
     const weakGravityChoices = planning.weakGravityChoices.get(ship.id) ?? {};
@@ -408,51 +410,55 @@ export const buildAstrogationCoursePreviewViews = (
           ? { position: hexToPixel(course.crashHex, hexSize) }
           : null,
 
-      burnMarkers: isSelected
-        ? buildBurnMarkers(
-            ship,
-            burn,
-            planning.hoverHex,
-            predictedDestination,
-            hexSize,
-          )
-        : [],
-
-      overloadMarkers: isSelected
-        ? buildOverloadMarkers(
-            ship,
-            burn,
-            overload,
-            planning.hoverHex,
-            predictedDestination,
-            hexSize,
-          )
-        : [],
-
-      weakGravityMarkers: isSelected
-        ? course.enteredGravityEffects
-            .filter((gravity) => gravity.strength === 'weak')
-            .map((gravity) =>
-              buildWeakGravityMarker(
-                gravity.hex,
-                weakGravityChoices[hexKey(gravity.hex)] === true,
-                hexSize,
-              ),
+      burnMarkers:
+        isSelected && !isDisabled
+          ? buildBurnMarkers(
+              ship,
+              burn,
+              planning.hoverHex,
+              predictedDestination,
+              hexSize,
             )
-        : [],
+          : [],
 
-      pendingGravityArrows: isSelected
-        ? course.enteredGravityEffects
-            .filter((gravity) => gravity.strength === 'full')
-            .map((gravity) =>
-              buildGravityArrow(
-                gravity.hex,
-                gravity.direction,
-                hexSize,
-                'rgba(100, 220, 220, 0.5)',
-              ),
+      overloadMarkers:
+        isSelected && !isDisabled
+          ? buildOverloadMarkers(
+              ship,
+              burn,
+              overload,
+              planning.hoverHex,
+              predictedDestination,
+              hexSize,
             )
-        : [],
+          : [],
+
+      weakGravityMarkers:
+        isSelected && !isDisabled
+          ? course.enteredGravityEffects
+              .filter((gravity) => gravity.strength === 'weak')
+              .map((gravity) =>
+                buildWeakGravityMarker(
+                  gravity.hex,
+                  weakGravityChoices[hexKey(gravity.hex)] === true,
+                  hexSize,
+                ),
+              )
+          : [],
+
+      pendingGravityArrows:
+        isSelected && !isDisabled
+          ? course.enteredGravityEffects
+              .filter((gravity) => gravity.strength === 'full')
+              .map((gravity) =>
+                buildGravityArrow(
+                  gravity.hex,
+                  gravity.direction,
+                  hexSize,
+                  'rgba(100, 220, 220, 0.5)',
+                ),
+              )
+          : [],
 
       fuelCostLabel:
         burn !== null
