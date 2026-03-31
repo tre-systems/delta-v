@@ -81,6 +81,7 @@ export const createRenderer = (
   let playerId = 0 as PlayerId;
   let combatResults: {
     results: CombatResult[];
+    showStart: number;
     showUntil: number;
   } | null = null;
   let combatEffects: CombatEffect[] = [];
@@ -200,6 +201,7 @@ export const createRenderer = (
           gameState,
           now,
           screenW: w,
+          showStart: combatResults.showStart,
           showUntil: combatResults.showUntil,
         });
       }
@@ -452,7 +454,11 @@ export const createRenderer = (
       previousState?: GameState | null,
     ) => {
       const now = performance.now();
-      combatResults = { results, showUntil: now + 3000 };
+      combatResults = {
+        results,
+        showStart: now,
+        showUntil: now + 3700,
+      };
       combatEffects.push(
         ...buildCombatEffectsForResults(
           results,
