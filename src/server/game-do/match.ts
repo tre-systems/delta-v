@@ -3,6 +3,7 @@ import { createGame } from '../../shared/engine/game-engine';
 import { findBaseHex } from '../../shared/map-data';
 import type { ScenarioDefinition, SolarSystemMap } from '../../shared/types';
 import type { GameState, PlayerId } from '../../shared/types/domain';
+import type { RoomConfig } from '../protocol';
 import {
   allocateMatchIdentity,
   appendEnvelopedEvents,
@@ -14,7 +15,7 @@ import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 type InitGameDeps = {
   storage: DurableObjectStorage;
   map: SolarSystemMap;
-  getRoomConfig: () => Promise<{ code: string } | null>;
+  getRoomConfig: () => Promise<RoomConfig | null>;
   getScenario: () => Promise<ScenarioDefinition>;
   getGameCode: () => Promise<string>;
   clearRoomArchivedFlag: () => Promise<void>;
