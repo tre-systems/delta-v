@@ -5,6 +5,7 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import type { StatefulServerMessage } from './messages';
+import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 import { resolveTurnTimeoutOutcome } from './turns';
 
 export type GameDoTurnTimeoutDeps = {
@@ -34,7 +35,7 @@ export type GameDoTurnTimeoutDeps = {
 export const runGameDoTurnTimeout = async (
   deps: GameDoTurnTimeoutDeps,
 ): Promise<void> => {
-  await deps.storage.delete('turnTimeoutAt');
+  await deps.storage.delete(GAME_DO_STORAGE_KEYS.turnTimeoutAt);
   const gameState = await deps.getCurrentGameState();
 
   if (!gameState || gameState.phase === 'gameOver') {

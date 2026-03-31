@@ -405,7 +405,6 @@ export const createGameClient = () => {
     turnTelemetry,
     sessionApi,
     connection,
-    setMenuState: (state: ClientState) => setState(state),
     setState: (state: ClientState) => setState(state),
     applyGameState: (state: GameState) => applyGameState(state),
     transitionToPhase: () => transitionToPhase(),

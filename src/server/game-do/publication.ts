@@ -8,7 +8,7 @@ import {
   getEventStreamLength,
   saveCheckpoint,
 } from './archive';
-import { archiveCompletedMatch } from './match-archive';
+import { scheduleArchiveCompletedMatch } from './match-archive';
 import {
   resolveStateBearingMessage,
   type StatefulServerMessage,
@@ -71,15 +71,16 @@ const archiveIfGameOver = (
   events: EngineEvent[],
 ): void => {
   const hasGameOver = events.some((e) => e.type === 'gameOver');
-  if (hasGameOver && deps.env.MATCH_ARCHIVE) {
-    deps.waitUntil(
-      archiveCompletedMatch(
-        deps.storage,
-        deps.env.MATCH_ARCHIVE,
-        deps.env.DB,
-        state,
-        roomCode,
-      ),
+  if (hasGameOver) {
+    scheduleArchiveCompletedMatch(
+      {
+        storage: deps.storage,
+        r2: deps.env.MATCH_ARCHIVE,
+        db: deps.env.DB,
+        waitUntil: deps.waitUntil,
+      },
+      state,
+      roomCode,
     );
   }
 };

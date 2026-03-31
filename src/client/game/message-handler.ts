@@ -176,6 +176,10 @@ export const handleServerMessage = (
       break;
     case 'error':
       console.error('Server error:', plan.message);
+      deps.trackEvent('server_error_received', {
+        message: plan.message,
+        code: plan.code,
+      });
       deps.ui.overlay.showToast(plan.message, 'error');
       break;
     case 'chat': {

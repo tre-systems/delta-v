@@ -5,9 +5,10 @@ import type {
   PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
-import { archiveCompletedMatch } from './match-archive';
+import { scheduleArchiveCompletedMatch } from './match-archive';
 import type { StatefulServerMessage } from './messages';
 import { normalizeDisconnectedPlayer, resolveAlarmAction } from './session';
+import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 import { runGameDoTurnTimeout } from './turn-timeout';
 
 export type GameDoAlarmEnv = {
@@ -47,14 +48,20 @@ export type GameDoAlarmDeps = {
 
 export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
   const disconnectedPlayer = normalizeDisconnectedPlayer(
-    await deps.storage.get<number>('disconnectedPlayer'),
+    await deps.storage.get<number>(GAME_DO_STORAGE_KEYS.disconnectedPlayer),
   );
   const action = resolveAlarmAction({
     now: deps.now,
     disconnectedPlayer,
-    disconnectAt: await deps.storage.get<number>('disconnectAt'),
-    turnTimeoutAt: await deps.storage.get<number>('turnTimeoutAt'),
-    inactivityAt: await deps.storage.get<number>('inactivityAt'),
+    disconnectAt: await deps.storage.get<number>(
+      GAME_DO_STORAGE_KEYS.disconnectAt,
+    ),
+    turnTimeoutAt: await deps.storage.get<number>(
+      GAME_DO_STORAGE_KEYS.turnTimeoutAt,
+    ),
+    inactivityAt: await deps.storage.get<number>(
+      GAME_DO_STORAGE_KEYS.inactivityAt,
+    ),
   });
   switch (action.type) {
     case 'disconnectExpired': {
@@ -86,21 +93,20 @@ export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
       });
       return;
     case 'inactivityTimeout': {
-      if (deps.env.MATCH_ARCHIVE) {
-        const gameState = await deps.getCurrentGameState();
+      const gameState = await deps.getCurrentGameState();
 
-        if (gameState) {
-          const code = await deps.getGameCode();
-          deps.waitUntil(
-            archiveCompletedMatch(
-              deps.storage,
-              deps.env.MATCH_ARCHIVE,
-              deps.env.DB,
-              gameState,
-              code,
-            ),
-          );
-        }
+      if (gameState) {
+        const code = await deps.getGameCode();
+        scheduleArchiveCompletedMatch(
+          {
+            storage: deps.storage,
+            r2: deps.env.MATCH_ARCHIVE,
+            db: deps.env.DB,
+            waitUntil: deps.waitUntil,
+          },
+          gameState,
+          code,
+        );
       }
       for (const ws of deps.getWebSockets()) {
         try {
