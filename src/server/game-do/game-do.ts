@@ -43,7 +43,8 @@ import { runPublicationPipeline } from './publication';
 import {
   createDisconnectMarker,
   getNextAlarmAt,
-  normalizeDisconnectedPlayer,
+  readAlarmDeadlines,
+  readDisconnectedPlayer,
 } from './session';
 import { type AuxMessageDeps, handleAuxMessage } from './socket';
 import { GAME_DO_STORAGE_KEYS } from './storage-keys';
@@ -155,16 +156,7 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async getAlarmDeadlines() {
-    const [disconnectAt, turnTimeoutAt, inactivityAt] = await Promise.all([
-      this.ctx.storage.get<number>(GAME_DO_STORAGE_KEYS.disconnectAt),
-      this.ctx.storage.get<number>(GAME_DO_STORAGE_KEYS.turnTimeoutAt),
-      this.ctx.storage.get<number>(GAME_DO_STORAGE_KEYS.inactivityAt),
-    ]);
-    return {
-      disconnectAt,
-      turnTimeoutAt,
-      inactivityAt,
-    };
+    return readAlarmDeadlines(this.ctx.storage);
   }
 
   private async isRoomArchived(): Promise<boolean> {
@@ -258,11 +250,7 @@ export class GameDO extends DurableObject<Env> {
         getRoomConfig: () => this.getRoomConfig(),
         isRoomArchived: () => this.isRoomArchived(),
         getDisconnectedPlayer: async () =>
-          normalizeDisconnectedPlayer(
-            await this.ctx.storage.get<number>(
-              GAME_DO_STORAGE_KEYS.disconnectedPlayer,
-            ),
-          ),
+          readDisconnectedPlayer(this.ctx.storage),
         getSeatOpen: () => this.getSeatOpen(),
         isValidPlayerToken,
         resolveSeatAssignment,

@@ -7,8 +7,11 @@ import type {
 } from '../../shared/types/domain';
 import { scheduleArchiveCompletedMatch } from './match-archive';
 import type { StatefulServerMessage } from './messages';
-import { normalizeDisconnectedPlayer, resolveAlarmAction } from './session';
-import { GAME_DO_STORAGE_KEYS } from './storage-keys';
+import {
+  readAlarmDeadlines,
+  readDisconnectedPlayer,
+  resolveAlarmAction,
+} from './session';
 import { runGameDoTurnTimeout } from './turn-timeout';
 
 export type GameDoAlarmEnv = {
@@ -47,21 +50,12 @@ export type GameDoAlarmDeps = {
 };
 
 export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
-  const disconnectedPlayer = normalizeDisconnectedPlayer(
-    await deps.storage.get<number>(GAME_DO_STORAGE_KEYS.disconnectedPlayer),
-  );
+  const disconnectedPlayer = await readDisconnectedPlayer(deps.storage);
+  const deadlines = await readAlarmDeadlines(deps.storage);
   const action = resolveAlarmAction({
     now: deps.now,
     disconnectedPlayer,
-    disconnectAt: await deps.storage.get<number>(
-      GAME_DO_STORAGE_KEYS.disconnectAt,
-    ),
-    turnTimeoutAt: await deps.storage.get<number>(
-      GAME_DO_STORAGE_KEYS.turnTimeoutAt,
-    ),
-    inactivityAt: await deps.storage.get<number>(
-      GAME_DO_STORAGE_KEYS.inactivityAt,
-    ),
+    ...deadlines,
   });
   switch (action.type) {
     case 'disconnectExpired': {
