@@ -180,6 +180,24 @@ describe('game-client-connection', () => {
     expect(spies.exitToMenu).not.toHaveBeenCalled();
   });
 
+  it('restarts ping without leaving duplicate intervals behind', () => {
+    vi.useFakeTimers();
+    const { deps, spies } = createDeps();
+    const manager = createConnectionManager(deps);
+
+    manager.connect('ABCDE');
+    const ws = FakeWebSocket.instances[0];
+    ws.sent.length = 0;
+    spies.setLatencyMs.mockClear();
+
+    manager.startPing();
+    vi.advanceTimersByTime(5000);
+
+    expect(spies.setLatencyMs).toHaveBeenCalledWith(-1);
+    expect(ws.sent).toHaveLength(1);
+    expect(JSON.parse(ws.sent[0] ?? 'null')).toMatchObject({ type: 'ping' });
+  });
+
   it('cancels any scheduled reconnect when closing intentionally', () => {
     vi.useFakeTimers();
     let reconnectAttempts = 0;
@@ -260,10 +278,12 @@ describe('game-client-connection', () => {
     } | null;
     expect(onCancel).not.toBeNull();
     onCancel?.onCancel();
+    vi.runAllTimers();
 
     expect(spies.exitToMenu).toHaveBeenCalledTimes(1);
     expect(spies.setReconnectOverlayState).toHaveBeenLastCalledWith(null);
     expect(spies.setState).not.toHaveBeenCalled();
+    expect(FakeWebSocket.instances).toHaveLength(0);
   });
 
   it('does not reconnect after an initial connect failure', () => {
