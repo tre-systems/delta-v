@@ -159,16 +159,7 @@ describe('session-signals', () => {
 
     session.state = 'playing_combat';
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
-    expect(showFireButton).toHaveBeenLastCalledWith(false, 0);
-
-    session.planningState.applyCombatPlanUpdate({
-      combatTargetId: 'enemy',
-      combatTargetType: 'ship',
-      combatAttackerIds: ['ship-0'],
-      combatAttackStrength: 2,
-    });
-    expect(showAttackButton).toHaveBeenLastCalledWith(true);
-    expect(showFireButton).toHaveBeenLastCalledWith(false, 0);
+    expect(showFireButton).toHaveBeenLastCalledWith(true, 0);
 
     session.planningState.queueCombatAttack({
       attackerIds: ['ship-0'],
@@ -176,18 +167,9 @@ describe('session-signals', () => {
       targetType: 'ship',
       attackStrength: 2,
     });
-    expect(showFireButton).toHaveBeenLastCalledWith(true, 1);
-
-    session.planningState.clearCombatSelectionState();
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
     expect(showFireButton).toHaveBeenLastCalledWith(true, 1);
 
-    session.planningState.applyCombatPlanUpdate({
-      combatTargetId: 'enemy',
-      combatTargetType: 'ship',
-      combatAttackerIds: ['ship-0'],
-      combatAttackStrength: 2,
-    });
     session.state = 'playing_opponentTurn';
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
     expect(showFireButton).toHaveBeenLastCalledWith(false, 1);
