@@ -74,7 +74,7 @@ export const advanceToNextAttacker = (deps: CombatActionDeps): void => {
 
 const advanceToNextAttackerImmediate = (deps: CombatActionDeps): void => {
   const gameState = deps.getGameState();
-  if (!gameState) return;
+  if (!gameState || gameState.phase === 'gameOver') return;
 
   const playerId = deps.getPlayerId();
   const nextAttacker = gameState.ships.find(
