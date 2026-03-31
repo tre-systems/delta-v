@@ -114,7 +114,9 @@ export const advanceToNextAttacker = (deps: CombatActionDeps): void => {
       autoTargetNearest(deps);
     });
   } else {
+    // No more attackers — auto-end combat
     clearCombatSelection(deps);
+    endCombatPhase(deps);
   }
 };
 

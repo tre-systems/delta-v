@@ -264,7 +264,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
 
     emplaceBaseVisible: showOrdnance && canEmplaceBase,
     skipOrdnanceVisible: showOrdnance,
-    skipCombatVisible: isMyTurn && phase === 'combat',
+    skipCombatVisible: false,
     skipLogisticsVisible: isMyTurn && phase === 'logistics',
     confirmTransfersVisible: isMyTurn && phase === 'logistics',
     showTransferPanel: isMyTurn && phase === 'logistics',

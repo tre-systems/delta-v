@@ -1730,18 +1730,6 @@ h2.game-over-defeat {
     min-width: 94px;
   }
 
-  .help-btn {
-    top: calc(var(--hud-top-offset) + 0.25rem);
-    bottom: auto;
-    right: var(--hud-edge-right);
-  }
-
-  .sound-btn {
-    top: calc(var(--hud-top-offset) + 0.25rem + 2.5rem);
-    bottom: auto;
-    right: var(--hud-edge-right);
-  }
-
   .toast-container {
     top: calc(var(--hud-top-offset) + 0.35rem);
   }
@@ -1856,18 +1844,6 @@ h2.game-over-defeat {
     max-height: min(25vh, 140px);
   }
 
-  .help-btn {
-    top: calc(var(--hud-top-offset) + 0.25rem);
-    bottom: auto;
-    right: var(--hud-edge-right);
-  }
-
-  .sound-btn {
-    top: calc(var(--hud-top-offset) + 0.25rem + 2.5rem);
-    bottom: auto;
-    right: var(--hud-edge-right);
-  }
-
   .tutorial-tip {
     bottom: calc(var(--hud-bottom-offset) + 0.4rem);
   }
@@ -1951,17 +1927,6 @@ h2.game-over-defeat {
     width: auto;
   }
 
-  .help-btn {
-    top: auto;
-    bottom: calc(4.4rem + var(--safe-bottom));
-    right: var(--hud-edge-right);
-  }
-
-  .sound-btn {
-    top: auto;
-    bottom: calc(4.4rem + 2.5rem + var(--safe-bottom));
-    right: var(--hud-edge-right);
-  }
 }
 
 /* Fleet building */
