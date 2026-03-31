@@ -118,7 +118,7 @@ export const drawCombatResultsToastOverlay = (
     const shakeX = Math.sin(elapsed * 0.03) * shake;
     const shakeY = Math.cos(elapsed * 0.04) * shake;
 
-    const dieY = 120;
+    const dieY = 160;
     drawDieFace(ctx, centerX + shakeX, dieY + shakeY, displayValue, dieSize);
 
     // "Rolling..." label
@@ -135,7 +135,7 @@ export const drawCombatResultsToastOverlay = (
     const settleProgress = Math.min((elapsed - ROLL_DURATION) / 200, 1);
     const scale = 1 + (1 - settleProgress) * 0.15;
     const dieRoll = results[0].dieRoll;
-    const dieY = 120;
+    const dieY = 160;
 
     // Draw settled die (shrinking from pop)
     ctx.save();
