@@ -93,9 +93,17 @@ const autoTargetNearest = (deps: CombatActionDeps): void => {
   }
 };
 
+// Duration to wait for the dice roll animation before advancing.
+const DICE_ROLL_DELAY = 750;
+
 // Select the first un-fired attacker and auto-target nearest enemy.
 // Called on combat entry and after each single attack resolves.
 export const advanceToNextAttacker = (deps: CombatActionDeps): void => {
+  // Delay so the dice roll animation finishes before moving on
+  setTimeout(() => advanceToNextAttackerImmediate(deps), DICE_ROLL_DELAY);
+};
+
+const advanceToNextAttackerImmediate = (deps: CombatActionDeps): void => {
   const gameState = deps.getGameState();
   if (!gameState) return;
 
