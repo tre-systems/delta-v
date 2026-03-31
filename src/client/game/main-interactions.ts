@@ -86,6 +86,17 @@ export type MainInteractionController = {
   showToast: (message: string, type?: 'error' | 'info' | 'success') => void;
 };
 
+const createCommandSessionRead = (
+  ctx: MainInteractionSession,
+): CommandRouterSessionRead => ({
+  getState: () => ctx.stateSignal.peek(),
+  getPlayerId: () => ctx.playerId as PlayerId,
+  getGameState: () => ctx.gameStateSignal.peek(),
+  getTransport: () => ctx.transport,
+  getLogisticsState: () => ctx.logisticsStateSignal.peek(),
+  planningState: ctx.planningState,
+});
+
 export const createMainInteractionController = (
   deps: MainInteractionDeps,
 ): MainInteractionController => {
@@ -112,39 +123,33 @@ export const createMainInteractionController = (
     deps.ui.toggleHelpOverlay();
   };
 
-  const dispatch = (cmd: GameCommand) => {
-    const commandCtx: CommandRouterSessionRead = {
-      getState: () => deps.ctx.stateSignal.peek(),
-      getPlayerId: () => deps.ctx.playerId as PlayerId,
-      getGameState: () => deps.ctx.gameStateSignal.peek(),
-      getTransport: () => deps.ctx.transport,
-      getLogisticsState: () => deps.ctx.logisticsStateSignal.peek(),
-      planningState: deps.ctx.planningState,
-    };
+  const commandSession = createCommandSessionRead(deps.ctx);
 
-    dispatchGameCommand(
-      {
-        ctx: commandCtx,
-        astrogationDeps: deps.actionDeps.astrogationDeps,
-        combatDeps: deps.actionDeps.combatDeps,
-        ordnanceDeps: deps.actionDeps.ordnanceDeps,
-        ui: deps.ui,
-        renderer: deps.renderer,
-        getCanvasCenter: () => ({
-          x: deps.canvas.clientWidth / 2,
-          y: deps.canvas.clientHeight / 2,
-        }),
-        cycleShip: (direction) => deps.camera.cycleShip(direction as 1 | -1),
-        focusNearestEnemy: () => deps.camera.focusNearestEnemy(),
-        focusOwnFleet: () => deps.camera.focusOwnFleet(),
-        sendFleetReady: (purchases) => sendFleetReady(purchases),
-        sendRematch: () => sendRematch(),
-        exitToMenu: () => deps.exitToMenu(),
-        toggleHelp: () => toggleHelp(),
-        updateSoundButton: () => deps.hud.updateSoundButton(),
-      },
-      cmd,
-    );
+  const createCommandRouterDeps = (): CommandRouterDeps => ({
+    ctx: commandSession,
+    astrogationDeps: deps.actionDeps.astrogationDeps,
+    combatDeps: deps.actionDeps.combatDeps,
+    ordnanceDeps: deps.actionDeps.ordnanceDeps,
+    ui: deps.ui,
+    renderer: deps.renderer,
+    getCanvasCenter: () => ({
+      x: deps.canvas.clientWidth / 2,
+      y: deps.canvas.clientHeight / 2,
+    }),
+    cycleShip: (direction) => deps.camera.cycleShip(direction as 1 | -1),
+    focusNearestEnemy: () => deps.camera.focusNearestEnemy(),
+    focusOwnFleet: () => deps.camera.focusOwnFleet(),
+    sendFleetReady: (purchases) => sendFleetReady(purchases),
+    sendRematch: () => sendRematch(),
+    exitToMenu: () => deps.exitToMenu(),
+    toggleHelp: () => toggleHelp(),
+    updateSoundButton: () => deps.hud.updateSoundButton(),
+  });
+
+  const commandRouterDeps = createCommandRouterDeps();
+
+  const dispatch = (cmd: GameCommand) => {
+    dispatchGameCommand(commandRouterDeps, cmd);
   };
 
   const handleInput = (event: InputEvent) => {
