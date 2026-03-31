@@ -116,15 +116,9 @@ describe('HUDChromeView', () => {
       (document.getElementById('matchVelocityBtn') as HTMLElement).style
         .display,
     ).toBe('inline-block');
-    expect(showPhaseAlert).toHaveBeenCalledWith('astrogation', true);
+    // Phase alerts are no longer shown — HUD top bar is sufficient
+    expect(showPhaseAlert).not.toHaveBeenCalled();
     expect(queueLayoutSync).toHaveBeenCalledTimes(1);
-
-    view.update(buildInput());
-    expect(showPhaseAlert).toHaveBeenCalledTimes(1);
-
-    // Combat phase alert is suppressed (auto-skips when no targets)
-    view.update(buildInput({ phase: 'combat', hasBurns: false }));
-    expect(showPhaseAlert).toHaveBeenCalledTimes(1);
   });
 
   it('shows and rotates the objective compass when bearing is set', () => {

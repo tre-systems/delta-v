@@ -61,7 +61,6 @@ const cloneHUDInput = (
 
 export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const scope = createDisposalScope();
-  let lastPhase: string | null = null;
   let helpOverlayReturnFocusEl: HTMLElement | null = null;
   const inputSignal = signal<Omit<HUDInput, 'isMobile'> | null>(null);
   const isMobileSignal = signal(false);
@@ -210,10 +209,8 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       const state = viewSignal.value;
 
       if (!state) return;
-      const { input, hudView } = state;
+      const { hudView } = state;
       const hideActions = state.suppressActionButtons;
-
-      const { turn, phase, isMyTurn } = input;
 
       text(turnInfoEl, hudView.turnText);
       text(phaseInfoEl, hudView.phaseText);
@@ -228,19 +225,6 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
         objectiveCompassEl.style.display = 'none';
         objectiveCompassEl.style.transform = '';
         objectiveCompassEl.title = '';
-      }
-
-      const phaseKey = `${turn}-${phase}-${isMyTurn}`;
-
-      if (lastPhase !== phaseKey) {
-        lastPhase = phaseKey;
-        if (
-          phase !== 'fleetBuilding' &&
-          phase !== 'gameOver' &&
-          phase !== 'combat'
-        ) {
-          deps.showPhaseAlert(phase, isMyTurn);
-        }
       }
 
       text(fuelGaugeEl, hudView.fuelGaugeText);
