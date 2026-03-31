@@ -46,14 +46,19 @@ import {
   readAlarmDeadlines,
   readDisconnectedPlayer,
 } from './session';
-import { type AuxMessageDeps, handleAuxMessage } from './socket';
+import { dispatchAuxMessage } from './socket';
 import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 import {
   reportGameDoEngineError,
   reportGameDoProjectionParityMismatch,
   verifyGameDoProjectionParity,
 } from './telemetry';
-import { handleGameDoWebSocketClose, handleGameDoWebSocketMessage } from './ws';
+import {
+  type GameDoWebSocketCloseDeps,
+  type GameDoWebSocketMessageDeps,
+  handleGameDoWebSocketClose,
+  handleGameDoWebSocketMessage,
+} from './ws';
 export interface Env {
   ASSETS: Fetcher;
   GAME: DurableObjectNamespace;
@@ -331,56 +336,61 @@ export class GameDO extends DurableObject<Env> {
     );
   }
 
+  private createWebSocketMessageDeps(): GameDoWebSocketMessageDeps {
+    return {
+      msgRates: this.msgRates,
+      getPlayerId: (socket) => this.getPlayerId(socket),
+      isSpectatorSocket: (socket) =>
+        this.ctx.getTags(socket).includes('spectator'),
+      touchInactivity: () => this.touchInactivity(),
+      send: (socket, outbound) => this.send(socket, outbound),
+      isGameStateActionMessage,
+      dispatchGameStateAction: (playerId, socket, msg) =>
+        dispatchGameStateAction(
+          playerId,
+          socket,
+          msg,
+          this.gameStateActionHandlers,
+          (targetWs, action, onSuccess) =>
+            this.runGameStateAction(targetWs, action, onSuccess),
+        ),
+      dispatchAuxMessage: (socket, playerId, msg) =>
+        dispatchAuxMessage({
+          ws: socket,
+          playerId,
+          msg,
+          lastChatAt: this.lastChatAt,
+          send: (w, outbound) => this.send(w, outbound),
+          broadcast: (outbound) => this.broadcast(outbound),
+          handleRematch: (rematchPlayerId, w) =>
+            this.handleRematch(rematchPlayerId, w),
+        }),
+    };
+  }
+
+  private createWebSocketCloseDeps(): GameDoWebSocketCloseDeps {
+    return {
+      consumeReplacedSocket: (socket) => this.replacedSockets.delete(socket),
+      getPlayerId: (socket) => this.getPlayerId(socket),
+      getCurrentGameState: () => this.getCurrentGameState(),
+      setDisconnectMarker: (playerId) => this.setDisconnectMarker(playerId),
+      broadcast: (msg) => this.broadcast(msg),
+    };
+  }
+
   async webSocketMessage(
     ws: WebSocket,
     message: string | ArrayBuffer,
   ): Promise<void> {
     return handleGameDoWebSocketMessage(
-      {
-        msgRates: this.msgRates,
-        getPlayerId: (socket) => this.getPlayerId(socket),
-        isSpectatorSocket: (socket) =>
-          this.ctx.getTags(socket).includes('spectator'),
-        touchInactivity: () => this.touchInactivity(),
-        send: (socket, outbound) => this.send(socket, outbound),
-        isGameStateActionMessage,
-        dispatchGameStateAction: (playerId, socket, msg) =>
-          dispatchGameStateAction(
-            playerId,
-            socket,
-            msg,
-            this.gameStateActionHandlers,
-            (targetWs, action, onSuccess) =>
-              this.runGameStateAction(targetWs, action, onSuccess),
-          ),
-        dispatchAuxMessage: (socket, playerId, msg) =>
-          handleAuxMessage({
-            ws: socket,
-            playerId,
-            msg: msg as AuxMessageDeps['msg'],
-            lastChatAt: this.lastChatAt,
-            send: (w, outbound) => this.send(w, outbound),
-            broadcast: (outbound) => this.broadcast(outbound),
-            handleRematch: (rematchPlayerId, w) =>
-              this.handleRematch(rematchPlayerId, w),
-          }),
-      },
+      this.createWebSocketMessageDeps(),
       ws,
       message,
     );
   }
 
   async webSocketClose(ws: WebSocket): Promise<void> {
-    return handleGameDoWebSocketClose(
-      {
-        consumeReplacedSocket: (socket) => this.replacedSockets.delete(socket),
-        getPlayerId: (socket) => this.getPlayerId(socket),
-        getCurrentGameState: () => this.getCurrentGameState(),
-        setDisconnectMarker: (playerId) => this.setDisconnectMarker(playerId),
-        broadcast: (msg) => this.broadcast(msg),
-      },
-      ws,
-    );
+    return handleGameDoWebSocketClose(this.createWebSocketCloseDeps(), ws);
   }
 
   async alarm(): Promise<void> {

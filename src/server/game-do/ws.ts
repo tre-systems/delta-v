@@ -1,10 +1,16 @@
+/**
+ * Durable Object WebSocket lifecycle entrypoints.
+ * Keep the hibernation callbacks here; parsed per-message helpers live in
+ * `socket.ts`, and engine/socket side effects are injected from `game-do.ts`.
+ */
+
 import {
   ErrorCode,
   type GameState,
   type PlayerId,
 } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
-import type { GameStateActionMessage } from './actions';
+import type { AuxMessage, GameStateActionMessage } from './actions';
 import { DISCONNECT_GRACE_MS } from './session';
 import { applySocketRateLimit, parseClientSocketMessage } from './socket';
 
@@ -23,8 +29,58 @@ export type GameDoWebSocketMessageDeps = {
   dispatchAuxMessage: (
     ws: WebSocket,
     playerId: PlayerId,
-    msg: C2S,
+    msg: AuxMessage,
   ) => Promise<void>;
+};
+
+const sendInvalidSocketMessageError = (
+  deps: Pick<GameDoWebSocketMessageDeps, 'send'>,
+  ws: WebSocket,
+  message: string,
+): void => {
+  deps.send(ws, {
+    type: 'error',
+    message,
+    code: ErrorCode.INVALID_INPUT,
+  });
+};
+
+const handleSpectatorSocketMessage = async (
+  deps: Pick<
+    GameDoWebSocketMessageDeps,
+    'isSpectatorSocket' | 'touchInactivity' | 'send'
+  >,
+  ws: WebSocket,
+  msg: C2S,
+): Promise<void> => {
+  if (!deps.isSpectatorSocket(ws) || msg.type !== 'ping') {
+    return;
+  }
+
+  await deps.touchInactivity();
+  deps.send(ws, { type: 'pong', t: msg.t });
+};
+
+const dispatchPlayerSocketMessage = async (
+  deps: Pick<
+    GameDoWebSocketMessageDeps,
+    | 'touchInactivity'
+    | 'isGameStateActionMessage'
+    | 'dispatchGameStateAction'
+    | 'dispatchAuxMessage'
+  >,
+  ws: WebSocket,
+  playerId: PlayerId,
+  msg: C2S,
+): Promise<void> => {
+  await deps.touchInactivity();
+
+  if (deps.isGameStateActionMessage(msg)) {
+    await deps.dispatchGameStateAction(playerId, ws, msg);
+    return;
+  }
+
+  await deps.dispatchAuxMessage(ws, playerId, msg);
 };
 
 export const handleGameDoWebSocketMessage = async (
@@ -41,30 +97,20 @@ export const handleGameDoWebSocketMessage = async (
   const parsed = parseClientSocketMessage(message);
 
   if (!parsed.ok) {
-    deps.send(ws, {
-      type: 'error',
-      message: parsed.error,
-      code: ErrorCode.INVALID_INPUT,
-    });
+    sendInvalidSocketMessageError(deps, ws, parsed.error);
     return;
   }
+
   const msg: C2S = parsed.value;
   const playerId = deps.getPlayerId(ws);
 
   if (playerId === null) {
-    if (deps.isSpectatorSocket(ws) && msg.type === 'ping') {
-      await deps.touchInactivity();
-      deps.send(ws, { type: 'pong', t: msg.t });
-    }
+    await handleSpectatorSocketMessage(deps, ws, msg);
     return;
   }
-  await deps.touchInactivity();
+
   try {
-    if (deps.isGameStateActionMessage(msg)) {
-      await deps.dispatchGameStateAction(playerId, ws, msg);
-      return;
-    }
-    await deps.dispatchAuxMessage(ws, playerId, msg);
+    await dispatchPlayerSocketMessage(deps, ws, playerId, msg);
   } catch (error) {
     console.error('Unhandled websocket message error', error);
     deps.send(ws, {

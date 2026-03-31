@@ -287,7 +287,7 @@ The backend leverages Cloudflare's edge network.
 | `protocol.ts`                | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export                            | **~85% generic** — room/token/seat logic is game-agnostic |
 | `game-do/game-do.ts`         | Durable Object class: composes fetch, WebSocket, and alarm paths                                                 | **~70% generic** — multiplayer plumbing is reusable       |
 | `game-do/fetch.ts`           | HTTP `/init`, `/join`, `/replay` and WebSocket upgrade + welcome/reconnect                                       | **~70% generic**                                          |
-| `game-do/ws.ts`              | Hibernation `webSocketMessage` / `webSocketClose` bodies                                                         | **~70% generic**                                          |
+| `game-do/ws.ts`              | Hibernation `webSocketMessage` / `webSocketClose` entrypoints; delegates parsed message handling to `socket.ts` | **~70% generic**                                          |
 | `game-do/alarm.ts`           | Alarm handler: disconnect forfeit, turn timeout, inactivity archive/close                                        | Mostly generic                                            |
 | `game-do/turn-timeout.ts`    | Turn-timeout branch: engine outcome + `publishStateChange`                                                       | Game-specific                                             |
 | `game-do/telemetry.ts`       | Engine/projection error reporting to D1                                                                          | Generic pattern                                           |
@@ -295,13 +295,13 @@ The backend leverages Cloudflare's edge network.
 | `game-do/broadcast.ts`       | `broadcastFilteredMessage`, `broadcastStateChange`, socket send helpers                                          | Game-specific                                             |
 | `game-do/publication.ts`     | State publication pipeline: append events, checkpoint, parity verify, archive, timer, broadcast                  | Game-specific                                             |
 | `game-do/http-handlers.ts`   | `handleInitRequest`, `handleJoinCheckRequest`, `handleReplayRequest`, `resolveJoinAttempt`                       | **~70% generic**                                          |
-| `game-do/socket.ts`          | WebSocket message rate limit, `parseClientSocketMessage`, aux messages (chat, ping, rematch)                     | **~70% generic**                                          |
+| `game-do/socket.ts`          | Socket helper layer: message rate limit, client parsing, aux-message dispatch map                                | **~70% generic**                                          |
 | `game-do/projection.ts`      | Replay timeline shaping; uses `event-projector`; viewer-filtered replay entries                                  | Game-specific                                             |
 | `game-do/match.ts`           | `initGameSession`, rematch handling                                                                              | Game-specific                                             |
 | `game-do/archive.ts`         | Match-scoped event envelopes (gameId/seq/ts/actor), checkpoints, replay projection helpers, match identity       | Game-specific                                             |
 | `game-do/archive-storage.ts` | Chunked event stream keys in DO storage                                                                          | Game-specific                                             |
 | `game-do/match-archive.ts`   | Persistent archival of completed matches to R2 + D1 metadata                                                     | **Fully generic**                                         |
-| `game-do/messages.ts`        | S2C message construction from engine results                                                                     | Game-specific                                             |
+| `game-do/message-builders.ts`| S2C message construction from engine results                                                                     | Game-specific                                             |
 | `game-do/session.ts`         | Disconnect grace period, alarm scheduling                                                                        | **Fully generic**                                         |
 | `game-do/turns.ts`           | Turn timeout auto-advance                                                                                        | Mostly generic                                            |
 
@@ -580,7 +580,7 @@ game-do/game-do.ts (Durable Object)
   ├→ fetch.ts, http-handlers.ts, ws.ts, socket.ts (HTTP, WS upgrade, hibernation)
   ├→ projection.ts (replay timelines; uses shared/event-projector)
   ├→ match.ts, match-archive.ts (session init, rematch, R2 archive)
-  ├→ messages.ts (S2C shapes)
+  ├→ message-builders.ts (S2C shapes)
   ├→ alarm.ts, session.ts, turns.ts, turn-timeout.ts
   ├→ telemetry.ts (D1 error reporting)
   ├→ server/protocol.ts (room codes, seat assignment)
