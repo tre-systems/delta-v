@@ -60,6 +60,47 @@ const getTargetedKeys = (queuedAttacks: CombatAttack[]): Set<string> => {
   );
 };
 
+const getAvailableCombatAttackers = (
+  state: GameState,
+  playerId: PlayerId,
+  committedAttackers: Set<string>,
+) => {
+  return state.ships.filter(
+    (ship) =>
+      ship.owner === playerId &&
+      ship.lifecycle !== 'destroyed' &&
+      canAttack(ship) &&
+      !committedAttackers.has(ship.id),
+  );
+};
+
+const getEnemyShipTarget = (
+  state: GameState,
+  playerId: PlayerId,
+  targetId: string,
+) => {
+  return state.ships.find(
+    (ship) =>
+      ship.id === targetId &&
+      ship.lifecycle !== 'destroyed' &&
+      ship.owner !== playerId,
+  );
+};
+
+const getEnemyOrdnanceTarget = (
+  state: GameState,
+  playerId: PlayerId,
+  targetId: string,
+) => {
+  return state.ordnance.find(
+    (item) =>
+      item.id === targetId &&
+      item.lifecycle !== 'destroyed' &&
+      item.owner !== playerId &&
+      item.type === 'nuke',
+  );
+};
+
 export const getReusableCombatGroup = (
   state: GameState,
   playerId: PlayerId,
@@ -287,40 +328,28 @@ export const getLegalCombatAttackers = (
   }
 
   const committedAttackers = getCommittedAttackers(queuedAttacks);
-
-  const myAttackers = state.ships.filter(
-    (ship) =>
-      ship.owner === playerId &&
-      ship.lifecycle !== 'destroyed' &&
-      canAttack(ship) &&
-      !committedAttackers.has(ship.id),
+  const availableAttackers = getAvailableCombatAttackers(
+    state,
+    playerId,
+    committedAttackers,
   );
 
   if (targetType === 'ordnance') {
-    const target = state.ordnance.find(
-      (item) =>
-        item.id === targetId &&
-        item.lifecycle !== 'destroyed' &&
-        item.owner !== playerId &&
-        item.type === 'nuke',
-    );
+    const target = getEnemyOrdnanceTarget(state, playerId, targetId);
 
     return target
-      ? myAttackers.filter((attacker) =>
+      ? availableAttackers.filter((attacker) =>
           hasLineOfSightToTarget(attacker, target, map),
         )
       : [];
   }
 
-  const target = state.ships.find(
-    (ship) =>
-      ship.id === targetId &&
-      ship.lifecycle !== 'destroyed' &&
-      ship.owner !== playerId,
-  );
+  const target = getEnemyShipTarget(state, playerId, targetId);
 
   return target
-    ? myAttackers.filter((attacker) => hasLineOfSight(attacker, target, map))
+    ? availableAttackers.filter((attacker) =>
+        hasLineOfSight(attacker, target, map),
+      )
     : [];
 };
 
@@ -507,28 +536,15 @@ export const buildCurrentAttack = (
 
   if (!targetId) return null;
 
-  const committedAttackers = getCommittedAttackers(planning.queuedAttacks);
-
   if (targetType === 'ordnance') {
-    const target = state.ordnance.find(
-      (ordnance) =>
-        ordnance.id === targetId &&
-        ordnance.lifecycle !== 'destroyed' &&
-        ordnance.owner !== playerId &&
-        ordnance.type === 'nuke',
+    const legalAttackers = getLegalCombatAttackers(
+      state,
+      playerId,
+      planning.queuedAttacks,
+      targetId,
+      targetType,
+      map,
     );
-
-    if (!target) return null;
-
-    const legalAttackers = state.ships
-      .filter(
-        (ship) =>
-          ship.owner === playerId &&
-          ship.lifecycle !== 'destroyed' &&
-          canAttack(ship) &&
-          !committedAttackers.has(ship.id),
-      )
-      .filter((ship) => hasLineOfSightToTarget(ship, target, map));
 
     const selectedAttackers = legalAttackers.filter((ship) =>
       planning.combatAttackerIds.includes(ship.id),
@@ -548,12 +564,6 @@ export const buildCurrentAttack = (
         }
       : null;
   }
-
-  const target = state.ships.find(
-    (ship) => ship.id === targetId && ship.lifecycle !== 'destroyed',
-  );
-
-  if (!target) return null;
 
   const reusableGroup = getReusableCombatGroup(
     state,
@@ -578,15 +588,14 @@ export const buildCurrentAttack = (
       : null;
   }
 
-  const legalAttackers = state.ships
-    .filter(
-      (ship) =>
-        ship.owner === playerId &&
-        ship.lifecycle !== 'destroyed' &&
-        canAttack(ship) &&
-        !committedAttackers.has(ship.id),
-    )
-    .filter((ship) => hasLineOfSight(ship, target, map));
+  const legalAttackers = getLegalCombatAttackers(
+    state,
+    playerId,
+    planning.queuedAttacks,
+    targetId,
+    targetType,
+    map,
+  );
 
   const selectedAttackers = legalAttackers.filter((ship) =>
     planning.combatAttackerIds.includes(ship.id),
