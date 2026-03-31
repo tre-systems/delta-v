@@ -162,6 +162,31 @@ describe('game client combat helpers', () => {
     });
   });
 
+  it('uses the selected ship as the ship-attack fallback before auto-drafting all legal attackers', () => {
+    const state = createState();
+
+    expect(
+      buildCurrentAttack(
+        state,
+        0,
+        {
+          combatTargetId: 'x',
+          combatTargetType: 'ship',
+          combatAttackerIds: [],
+          combatAttackStrength: null,
+          queuedAttacks: [],
+        },
+        map,
+        'b',
+      ),
+    ).toEqual({
+      attackerIds: ['b'],
+      targetId: 'x',
+      targetType: 'ship',
+      attackStrength: 2,
+    });
+  });
+
   it('builds an ordnance interception attack against an enemy nuke', () => {
     const state = createState({
       ordnance: [createOrdnance()],
