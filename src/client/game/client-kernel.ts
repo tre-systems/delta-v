@@ -69,17 +69,7 @@ import {
   type ClientSession,
   createInitialClientSession,
 } from './session-model';
-import {
-  attachRendererGameStateEffect,
-  attachSessionCombatButtonsEffect,
-  attachSessionFleetPanelEffect,
-  attachSessionHudEffect,
-  attachSessionLatencyEffect,
-  attachSessionLogisticsPanelEffect,
-  attachSessionPlanningSelectionEffect,
-  attachSessionPlayerIdentityEffect,
-  attachSessionWaitingScreenEffect,
-} from './session-signals';
+import { attachMainSessionEffects } from './session-signals';
 import { applyClientStateTransition } from './state-transition';
 import { createTurnTimerManager } from './timer';
 import { createLocalGameTransport, type GameTransport } from './transport';
@@ -98,24 +88,10 @@ export type { ClientSession, MainNetworkDeps };
  * - `applyGameState` — `applyClientGameState` (ctx + planning cleanup); the session's
  *   `gameStateSignal` then drives renderer/HUD effects.
  * - `exitToMenuSession` — clears game state via `clearClientGameState`.
- * - `attachSessionPlanningSelectionEffect` — keeps `planningState.selectedShipId`
- *   aligned with the derived active ship choice.
- * - `attachSessionPlayerIdentityEffect` — keeps renderer/log identity consumers
- *   aligned with reactive session player identity.
- * - `attachSessionCombatButtonsEffect` — keeps combat action buttons aligned
- *   with reactive client/combat-planning state.
- * - `attachSessionFleetPanelEffect` — keeps fleet status and ship list aligned
- *   with reactive session/planning state.
- * - `attachSessionWaitingScreenEffect` — keeps waiting-screen copy aligned with
- *   reactive session connection state.
- * - `attachSessionLatencyEffect` — keeps latency display aligned with reactive
- *   session networking state.
- * - `attachSessionLogisticsPanelEffect` — keeps the transfer panel aligned
- *   with session-owned logistics state.
- * - `hud.updateHUD` — invoked from `attachSessionHudEffect` when `gameState`,
- *   `clientState`, or planning revision change.
- * - `renderer.setGameState` — session effect (above); `clearTrails` and other renderer
- *   APIs — presentation, replay, session lifecycle.
+ * - `attachMainSessionEffects` — owns the grouped reactive session -> renderer/UI/HUD
+ *   subscriptions (selection, identity, combat controls, fleet panel, waiting copy,
+ *   latency, logistics panel, HUD, and renderer game state).
+ * - `clearTrails` and other renderer APIs — presentation, replay, session lifecycle.
  */
 export const createGameClient = () => {
   const ctx: ClientSession = createInitialClientSession();
@@ -220,42 +196,21 @@ export const createGameClient = () => {
     tooltipEl,
   });
 
-  const disposePlanningSelectionEffect =
-    attachSessionPlanningSelectionEffect(ctx);
-  const disposePlayerIdentityEffect = attachSessionPlayerIdentityEffect(ctx, {
+  disposeSessionSubscriptions = attachMainSessionEffects(ctx, {
     renderer,
     ui,
-  });
-  const disposeCombatButtonsEffect = attachSessionCombatButtonsEffect(ctx, ui);
-  const disposeFleetPanelEffect = attachSessionFleetPanelEffect(ctx, ui);
-  const disposeHudSessionEffect = attachSessionHudEffect(ctx, hud);
-  const disposeWaitingScreenEffect = attachSessionWaitingScreenEffect(ctx, ui);
-  const disposeLatencyEffect = attachSessionLatencyEffect(ctx, ui);
-  const disposeLogisticsPanelEffect = attachSessionLogisticsPanelEffect(ctx, {
-    renderLogisticsPanel: (state) => {
-      if (!state) {
-        clearHTML(transferPanelEl);
-        return;
-      }
+    hud,
+    logistics: {
+      renderLogisticsPanel: (state) => {
+        if (!state) {
+          clearHTML(transferPanelEl);
+          return;
+        }
 
-      renderTransferPanel(transferPanelEl, state);
+        renderTransferPanel(transferPanelEl, state);
+      },
     },
   });
-  const disposeRendererSessionEffect = attachRendererGameStateEffect(
-    ctx,
-    renderer,
-  );
-  disposeSessionSubscriptions = () => {
-    disposePlanningSelectionEffect();
-    disposePlayerIdentityEffect();
-    disposeCombatButtonsEffect();
-    disposeFleetPanelEffect();
-    disposeHudSessionEffect();
-    disposeWaitingScreenEffect();
-    disposeLatencyEffect();
-    disposeLogisticsPanelEffect();
-    disposeRendererSessionEffect();
-  };
 
   const camera = createCameraController({
     getGameState: () => ctx.gameStateSignal.peek(),

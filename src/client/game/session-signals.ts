@@ -1,9 +1,59 @@
 import { hexKey } from '../../shared/hex';
 import type { GameState, PlayerId } from '../../shared/types/domain';
-import { type Dispose, effect } from '../reactive';
+import { createDisposalScope, type Dispose, effect } from '../reactive';
 import { deriveHudViewModel } from './helpers';
 import { getSelectedShip } from './selection';
 import type { ClientSession } from './session-model';
+
+type SessionIdentityConsumers = {
+  renderer: { setPlayerId: (id: PlayerId | -1) => void };
+  ui: { setPlayerId: (id: PlayerId | -1) => void };
+};
+
+type SessionCombatButtonsUI = {
+  showAttackButton: (visible: boolean) => void;
+  showFireButton: (visible: boolean, count: number) => void;
+};
+
+type SessionHudConsumer = {
+  updateHUD: () => void;
+};
+
+type SessionWaitingScreenUI = {
+  setWaitingState: (code: string | null, connecting: boolean) => void;
+};
+
+type SessionLatencyUI = {
+  updateLatency: (latencyMs: number | null) => void;
+};
+
+type SessionFleetPanelUI = {
+  updateFleetStatus: (status: string) => void;
+  updateShipList: (
+    ships: GameState['ships'],
+    selectedId: string | null,
+    burns: Map<string, number | null>,
+  ) => void;
+};
+
+type SessionLogisticsPanelUI = {
+  renderLogisticsPanel: (state: ClientSession['logisticsState']) => void;
+};
+
+type SessionGameStateRenderer = {
+  setGameState: (state: GameState | null) => void;
+};
+
+type MainSessionEffectsDeps = {
+  renderer: SessionIdentityConsumers['renderer'] & SessionGameStateRenderer;
+  ui: SessionIdentityConsumers['ui'] &
+    SessionCombatButtonsUI &
+    SessionWaitingScreenUI &
+    SessionLatencyUI &
+    SessionFleetPanelUI;
+  hud: SessionHudConsumer;
+  logistics: SessionLogisticsPanelUI;
+};
 
 /**
  * Reconciles the planning store's selected ship with the derived active
@@ -55,10 +105,7 @@ export const attachSessionPlanningSelectionEffect = (
  */
 export const attachSessionCombatButtonsEffect = (
   session: Pick<ClientSession, 'stateSignal' | 'planningState'>,
-  ui: {
-    showAttackButton: (visible: boolean) => void;
-    showFireButton: (visible: boolean, count: number) => void;
-  },
+  ui: SessionCombatButtonsUI,
 ): Dispose =>
   effect(() => {
     const isPlayingCombat = session.stateSignal.value === 'playing_combat';
@@ -79,7 +126,7 @@ export const attachSessionHudEffect = (
     ClientSession,
     'gameStateSignal' | 'stateSignal' | 'planningState' | 'playerIdSignal'
   >,
-  hud: { updateHUD: () => void },
+  hud: SessionHudConsumer,
 ): Dispose =>
   effect(() => {
     session.gameStateSignal.value;
@@ -92,10 +139,7 @@ export const attachSessionHudEffect = (
 /** Keeps renderer and UI identity consumers aligned with the reactive session player id. */
 export const attachSessionPlayerIdentityEffect = (
   session: Pick<ClientSession, 'playerIdSignal'>,
-  deps: {
-    renderer: { setPlayerId: (id: PlayerId | -1) => void };
-    ui: { setPlayerId: (id: PlayerId | -1) => void };
-  },
+  deps: SessionIdentityConsumers,
 ): Dispose =>
   effect(() => {
     const playerId = session.playerIdSignal.value;
@@ -107,9 +151,7 @@ export const attachSessionPlayerIdentityEffect = (
 /** Keeps the waiting screen copy aligned with reactive session connection state. */
 export const attachSessionWaitingScreenEffect = (
   session: Pick<ClientSession, 'stateSignal' | 'gameCodeSignal'>,
-  ui: {
-    setWaitingState: (code: string | null, connecting: boolean) => void;
-  },
+  ui: SessionWaitingScreenUI,
 ): Dispose =>
   effect(() => {
     const state = session.stateSignal.value;
@@ -124,7 +166,7 @@ export const attachSessionWaitingScreenEffect = (
 /** Keeps latency display aligned with reactive session state instead of push-style UI calls. */
 export const attachSessionLatencyEffect = (
   session: Pick<ClientSession, 'latencyMsSignal' | 'isLocalGameSignal'>,
-  ui: { updateLatency: (latencyMs: number | null) => void },
+  ui: SessionLatencyUI,
 ): Dispose =>
   effect(() => {
     const latencyMs = session.latencyMsSignal.value;
@@ -139,14 +181,7 @@ export const attachSessionFleetPanelEffect = (
     ClientSession,
     'gameStateSignal' | 'playerIdSignal' | 'planningState'
   >,
-  ui: {
-    updateFleetStatus: (status: string) => void;
-    updateShipList: (
-      ships: GameState['ships'],
-      selectedId: string | null,
-      burns: Map<string, number | null>,
-    ) => void;
-  },
+  ui: SessionFleetPanelUI,
 ): Dispose =>
   effect(() => {
     const gameState = session.gameStateSignal.value;
@@ -169,9 +204,7 @@ export const attachSessionFleetPanelEffect = (
 /** Keeps the logistics transfer panel aligned with the session-owned logistics state. */
 export const attachSessionLogisticsPanelEffect = (
   session: Pick<ClientSession, 'logisticsStateSignal'>,
-  ui: {
-    renderLogisticsPanel: (state: ClientSession['logisticsState']) => void;
-  },
+  ui: SessionLogisticsPanelUI,
 ): Dispose =>
   effect(() => {
     ui.renderLogisticsPanel(session.logisticsStateSignal.value);
@@ -180,8 +213,36 @@ export const attachSessionLogisticsPanelEffect = (
 /** Keeps the canvas renderer aligned with `session.gameState` (including `null` on exit). */
 export const attachRendererGameStateEffect = (
   session: Pick<ClientSession, 'gameStateSignal'>,
-  renderer: { setGameState: (state: GameState | null) => void },
+  renderer: SessionGameStateRenderer,
 ): Dispose =>
   effect(() => {
     renderer.setGameState(session.gameStateSignal.value);
   });
+
+/**
+ * Composes the main client's reactive session effects so the composition root
+ * can attach the session -> renderer/UI/HUD pipelines as one lifecycle unit.
+ */
+export const attachMainSessionEffects = (
+  session: ClientSession,
+  deps: MainSessionEffectsDeps,
+): Dispose => {
+  const scope = createDisposalScope();
+
+  scope.add(attachSessionPlanningSelectionEffect(session));
+  scope.add(
+    attachSessionPlayerIdentityEffect(session, {
+      renderer: deps.renderer,
+      ui: deps.ui,
+    }),
+  );
+  scope.add(attachSessionCombatButtonsEffect(session, deps.ui));
+  scope.add(attachSessionFleetPanelEffect(session, deps.ui));
+  scope.add(attachSessionHudEffect(session, deps.hud));
+  scope.add(attachSessionWaitingScreenEffect(session, deps.ui));
+  scope.add(attachSessionLatencyEffect(session, deps.ui));
+  scope.add(attachSessionLogisticsPanelEffect(session, deps.logistics));
+  scope.add(attachRendererGameStateEffect(session, deps.renderer));
+
+  return () => scope.dispose();
+};
