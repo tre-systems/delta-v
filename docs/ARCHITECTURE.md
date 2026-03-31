@@ -42,9 +42,9 @@ Pattern references:
 Delta-V uses a full-stack TypeScript architecture built around a **shared side-effect-free engine with authoritative edge sessions**. The authoritative room persists an append-only match stream and derives current state from that stream plus optional checkpoints.
 
 ```
-shared/          → Game logic (no I/O, fully testable, side-effect-free)
-server/          → Thin Durable Object multiplayer shell
-client/          → State machine + Canvas renderer + DOM UI
+src/shared/      → Game logic (no I/O, fully testable, side-effect-free)
+src/server/      → Thin Durable Object multiplayer shell
+src/client/      → State machine + Canvas renderer + DOM UI
 ```
 
 ### Diagrams (Mermaid)
@@ -58,14 +58,14 @@ flowchart TB
   subgraph Browser
     UI[DOM UI and signals]
     CV[Canvas renderer]
-    KERNEL[game/client-kernel.ts]
+    KERNEL[src/client/game/client-kernel.ts]
     UI --> KERNEL
     CV --> KERNEL
     KERNEL --> TRANSPORT[GameTransport]
   end
   TRANSPORT -->|WebSocket| WORKER[src/server/index.ts]
   WORKER --> DO[GameDO]
-  DO --> ENGINE[shared/engine]
+  DO --> ENGINE[src/shared/engine]
   DO --> STORES[(DO storage / optional R2 / D1 telemetry)]
 ```
 
@@ -231,19 +231,20 @@ This is the heart of the project. All game rules live in a shared folder, making
 - **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [RNG Injection](#rng-injection).
 - **Domain event emission**: Turn-resolution engine entry points emit `EngineEvent[]` (32 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
 
-#### AI Strategy Design (`ai.ts`, `ai-config.ts`, `ai-scoring.ts`)
+#### AI Strategy Design (`shared/ai/*` + `shared/ai.ts`)
 
 The AI uses a **config-weighted composable scoring** architecture rather than a monolithic decision tree:
 
-- **`ai-config.ts`** defines `AIDifficultyConfig` — a flat record of about 50 numeric weights and boolean flags (currently 54 fields). Three presets (`easy`, `normal`, `hard`) tune aggression, accuracy, and capability without changing any logic. This is the [Strategy pattern](https://refactoring.guru/design-patterns/strategy) expressed as data rather than class hierarchies.
-- **`ai-scoring.ts`** contains composable scoring functions, each handling one concern: `scoreNavigation` (distance/speed toward objective), `scoreEscape` (distance from center + velocity), `scoreRaceDanger` (gravity well proximity penalty), `scoreGravityLookAhead` (deferred-gravity next-turn value), and `scoreCombatPositioning` (engagement/interception posture). Each takes a course candidate and a config, returns a number.
-- **`ai.ts`** orchestrates: for each AI ship, enumerate all 7 burn options (6 hex directions + null), compute each course via `computeCourse()`, sum scores across all strategies, pick the highest. Combat and ordnance decisions follow the same evaluate-all-options-then-pick pattern.
+- **`shared/ai/config.ts`** defines `AIDifficultyConfig` — a flat record of numeric weights and boolean flags (currently **55** fields). Three presets (`easy`, `normal`, `hard`) tune aggression, accuracy, and capability without changing any logic. This is the [Strategy pattern](https://refactoring.guru/design-patterns/strategy) expressed as data rather than class hierarchies.
+- **`shared/ai/scoring.ts`** contains composable scoring functions, each handling one concern: `scoreNavigation` (distance/speed toward objective), `scoreEscape` (distance from center + velocity), `scoreRaceDanger` (gravity well proximity penalty), `scoreGravityLookAhead` (deferred-gravity next-turn value), and `scoreCombatPositioning` (engagement/interception posture). Each takes a course candidate and a config, returns a number.
+- **`shared/ai/index.ts`** orchestrates: for each AI ship, enumerate all 7 burn options (6 hex directions + null), compute each course via `computeCourse()`, sum scores across all strategies, pick the highest. Combat and ordnance decisions follow the same evaluate-all-options-then-pick pattern.
 
 This separation means:
 
 - New scoring dimensions are added by writing a new function and a new config weight — no existing functions change.
 - Difficulty tuning is pure data: adjust weights in `AI_CONFIG` without touching scoring logic.
 - All AI functions accept `rng` for deterministic testing of decision quality.
+- `src/shared/ai.ts` remains a thin re-export barrel for stable import paths.
 
 #### Engine Mutation Model
 
@@ -269,6 +270,8 @@ The server generates a random 32-bit seed per match (via `crypto.getRandomValues
 
 Client callers (local AI play) still pass `Math.random`. Tests can pass deterministic RNGs for reproducible results. Pre-seed matches fall back to `Math.random` for backward compatibility.
 
+Current exception: server-side alarm timeout auto-advance wiring (`src/server/game-do/turns.ts`) still calls `skipOrdnance` / `skipCombat` with `Math.random` instead of the injected match-scoped RNG. This is a known consistency gap between normal action paths and timeout paths.
+
 ### B. The Server (`server/`)
 
 The backend leverages Cloudflare's edge network.
@@ -277,7 +280,10 @@ The backend leverages Cloudflare's edge network.
 
 | Module                       | Purpose                                                                                                          | Reusability                                               |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `index.ts`                   | Worker entry: `/create`, `/join/:code`, `/replay/:code`, `/ws/:code`, `/error`, `/telemetry`, static asset proxy | Generic pattern                                           |
+| `index.ts`                   | Worker entry + top-level route dispatch and static asset proxy                                                   | Generic pattern                                           |
+| `room-routes.ts`             | Room route handlers: `/create`, `/join/:code`, `/replay/:code`, `/ws/:code`                                    | **~85% generic** — room lifecycle shape is reusable      |
+| `reporting.ts`               | `/error` + `/telemetry` handlers, hashing, and rate-limit helpers                                                | Generic pattern                                           |
+| `env.ts`                     | Worker bindings/types (`GAME`, `DB`, `MATCH_ARCHIVE`, rate-limit binding)                                       | Generic pattern                                           |
 | `protocol.ts`                | Room codes, tokens, init payload parsing, seat assignment, shared-validator re-export                            | **~85% generic** — room/token/seat logic is game-agnostic |
 | `game-do/game-do.ts`         | Durable Object class: composes fetch, WebSocket, and alarm paths                                                 | **~70% generic** — multiplayer plumbing is reusable       |
 | `game-do/fetch.ts`           | HTTP `/init`, `/join`, `/replay` and WebSocket upgrade + welcome/reconnect                                       | **~70% generic**                                          |
@@ -286,7 +292,7 @@ The backend leverages Cloudflare's edge network.
 | `game-do/turn-timeout.ts`    | Turn-timeout branch: engine outcome + `publishStateChange`                                                       | Game-specific                                             |
 | `game-do/telemetry.ts`       | Engine/projection error reporting to D1                                                                          | Generic pattern                                           |
 | `game-do/actions.ts`         | `runGameStateAction`, `dispatchGameStateAction`, per-action engine wiring                                        | Game-specific                                             |
-| `game-do/broadcast.ts`       | `broadcastFiltered`, `broadcastStateChange`, socket send helpers                                                 | Game-specific                                             |
+| `game-do/broadcast.ts`       | `broadcastFilteredMessage`, `broadcastStateChange`, socket send helpers                                          | Game-specific                                             |
 | `game-do/publication.ts`     | State publication pipeline: append events, checkpoint, parity verify, archive, timer, broadcast                  | Game-specific                                             |
 | `game-do/http-handlers.ts`   | `handleInitRequest`, `handleJoinCheckRequest`, `handleReplayRequest`, `resolveJoinAttempt`                       | **~70% generic**                                          |
 | `game-do/socket.ts`          | WebSocket message rate limit, `parseClientSocketMessage`, aux messages (chat, ping, rematch)                     | **~70% generic**                                          |
@@ -370,6 +376,7 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 - **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, layout metrics, and small reactive DOM view models.
 - **`reactive.ts` + `ui/ui.ts` + `game/session-signals.ts`**: The client stays framework-free, but durable session and UI state now use a small signals runtime where it removes duplicate mirrors or imperative fan-out. `ClientSession` owns reactive `gameState`, `state`, player identity, waiting/reconnect fields, and logistics references; `createUIManager()` owns long-lived view instances and `screenModeSignal`-driven visibility; `overlay-state.ts`, replay controls, and the turn timer expose signal-backed view state; and short-lived events such as toasts remain imperative.
 - **`game/session-signals.ts` + `game/planning.ts`**: `ClientSession` owns reactive `gameStateSignal` / `stateSignal`, while `PlanningStore` owns local planning mutation methods and a `revisionSignal` that bumps after local planning changes. Session effects reconcile derived selection into planning, drive `hud.updateHUD()`, and keep `renderer.setGameState()` aligned directly, so command routing, replay, and phase entry no longer thread duplicate HUD/render callbacks through many call sites.
+- **Client session file split**: `game/session.ts` holds route/token/session-storage helpers, while `game/session-model.ts` defines the `ClientSession` aggregate shape and collaborators mutate it through focused stores/controllers (`client-context-store.ts`, `session-controller.ts`, `session-signals.ts`).
 - **`audio.ts`**: Handles Web Audio API interactions.
 - **Visual Polish**: Employs a premium design system with glassmorphism tokens (backdrop-filters), tactile micro-animations (recoil, scaling glows), and pulsing orbital effects for high-end UX.
 
@@ -495,9 +502,9 @@ dependency surface. That remains the default.
 
 ### WebSocket Protocol
 
-**Client→Server (C2S)**: `fleetReady`, `astrogation`, `ordnance`, `emplaceBase`, `skipOrdnance`, `beginCombat`, `combat`, `skipCombat`, `logistics`, `skipLogistics`, `surrender`, `rematch`, `chat`, `ping`
+**Client→Server (C2S)**: `fleetReady`, `astrogation`, `ordnance`, `emplaceBase`, `skipOrdnance`, `beginCombat`, `combat`, `combatSingle`, `endCombat`, `skipCombat`, `logistics`, `skipLogistics`, `surrender`, `rematch`, `chat`, `ping`
 
-**Server→Client (S2C)**: `welcome`, `matchFound`, `gameStart`, `movementResult`, `combatResult`, `stateUpdate`, `gameOver`, `rematchPending`, `chat`, `error`, `pong`
+**Server→Client (S2C)**: `welcome`, `spectatorWelcome`, `matchFound`, `gameStart`, `movementResult`, `combatResult`, `combatSingleResult`, `stateUpdate`, `gameOver`, `rematchPending`, `chat`, `error`, `pong`, `opponentStatus`
 
 All messages are discriminated unions validated at the protocol boundary. Chat payloads are trimmed before validation and blank post-trim messages are rejected, so non-UI clients cannot inject empty log entries. Clients never mutate authoritative state. The server persists authoritative events plus optional checkpoints, and replay/reconnect are derived from that same persisted stream.
 
@@ -568,7 +575,8 @@ renderer/renderer.ts
 game-do/game-do.ts (Durable Object)
   ├→ actions.ts (runGameStateAction, dispatch)
   ├→ archive.ts, archive-storage.ts (event stream, checkpoints)
-  ├→ broadcast.ts (publishStateChange, filtered send)
+  ├→ publication.ts (runPublicationPipeline used by publishStateChange)
+  ├→ broadcast.ts (broadcastStateChange, broadcastFilteredMessage, socket send)
   ├→ fetch.ts, http-handlers.ts, ws.ts, socket.ts (HTTP, WS upgrade, hibernation)
   ├→ projection.ts (replay timelines; uses shared/event-projector)
   ├→ match.ts, match-archive.ts (session init, rematch, R2 archive)
