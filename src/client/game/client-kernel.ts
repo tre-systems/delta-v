@@ -142,31 +142,34 @@ export const createGameClient = () => {
     exitToMenuFromMain(networkDeps);
   };
 
-  const connection = createConnectionManager({
-    getGameCode: () => ctx.gameCode,
-    getGameState: () => ctx.gameStateSignal.peek(),
-    getClientState: () => ctx.stateSignal.peek(),
-    isSpectatorSession: () => ctx.spectatorMode,
-    getStoredPlayerToken: (code) => sessionTokens.getStoredPlayerToken(code),
-    getReconnectAttempts: () => ctx.reconnectAttempts,
-    setReconnectAttempts: (n) => {
-      setReconnectAttempts(ctx, n);
-    },
-    setTransport: (t) => {
-      setTransport(ctx, t);
-    },
-    setLatencyMs: (ms) => {
-      setLatencyMs(ctx, ms);
-    },
-    setReconnectOverlayState: (state) => {
-      setReconnectOverlayState(ctx, state);
-    },
-    setState: (s) => setState(s),
-    handleMessage,
-    showToast,
-    exitToMenu,
-    trackEvent: (event, props) => track(event, props),
-  });
+  const createConnection = () =>
+    createConnectionManager({
+      getGameCode: () => ctx.gameCode,
+      getGameState: () => ctx.gameStateSignal.peek(),
+      getClientState: () => ctx.stateSignal.peek(),
+      isSpectatorSession: () => ctx.spectatorMode,
+      getStoredPlayerToken: (code) => sessionTokens.getStoredPlayerToken(code),
+      getReconnectAttempts: () => ctx.reconnectAttempts,
+      setReconnectAttempts: (n) => {
+        setReconnectAttempts(ctx, n);
+      },
+      setTransport: (t) => {
+        setTransport(ctx, t);
+      },
+      setLatencyMs: (ms) => {
+        setLatencyMs(ctx, ms);
+      },
+      setReconnectOverlayState: (state) => {
+        setReconnectOverlayState(ctx, state);
+      },
+      setState: (s) => setState(s),
+      handleMessage,
+      showToast,
+      exitToMenu,
+      trackEvent: (event, props) => track(event, props),
+    });
+
+  const connection = createConnection();
 
   const turnTimer = createTurnTimerManager({
     showToast,
@@ -223,37 +226,48 @@ export const createGameClient = () => {
     track,
   });
 
-  const sessionApi: SessionApi = createSessionApi({
-    ctx,
-    tokens: sessionTokens,
-    showToast,
-    setMenuLoading: (loading) => ui.setMenuLoading(loading),
-    setState: (s) => setState(s),
-    setScenario: (scenario) => setScenario(ctx, scenario),
-    connect: (code) => connection.connect(code),
-    track,
-  });
+  const createSessionApiService = (): SessionApi =>
+    createSessionApi({
+      ctx,
+      tokens: sessionTokens,
+      showToast,
+      setMenuLoading: (loading) => ui.setMenuLoading(loading),
+      setState: (s) => setState(s),
+      setScenario: (scenario) => setScenario(ctx, scenario),
+      connect: (code) => connection.connect(code),
+      track,
+    });
 
-  const replayController: ReplayController = createReplayController({
-    getClientContext: () => ({
-      state: ctx.stateSignal.peek(),
-      isLocalGame: ctx.isLocalGame,
-      gameCode: ctx.gameCode,
-      gameState: ctx.gameStateSignal.peek(),
-    }),
-    fetchReplay: (code, gameId) => sessionApi.fetchReplay(code, gameId),
-    showToast,
-    clearTrails: () => renderer.clearTrails(),
-    applyGameState: (state) => applyGameState(state),
-  });
-  ui.overlay.bindReconnectStateSignal(ctx.reconnectOverlayStateSignal);
-  ui.overlay.bindOpponentDisconnectDeadlineSignal(
-    ctx.opponentDisconnectDeadlineMsSignal,
-  );
-  ui.overlay.bindHideOpponentDisconnected(() => {
-    setOpponentDisconnectDeadlineMs(ctx, null);
-  });
-  ui.overlay.bindReplayControlsSignal(replayController.controlsSignal);
+  const sessionApi = createSessionApiService();
+
+  const createReplay = (): ReplayController =>
+    createReplayController({
+      getClientContext: () => ({
+        state: ctx.stateSignal.peek(),
+        isLocalGame: ctx.isLocalGame,
+        gameCode: ctx.gameCode,
+        gameState: ctx.gameStateSignal.peek(),
+      }),
+      fetchReplay: (code, gameId) => sessionApi.fetchReplay(code, gameId),
+      showToast,
+      clearTrails: () => renderer.clearTrails(),
+      applyGameState: (state) => applyGameState(state),
+    });
+
+  const replayController = createReplay();
+
+  const bindOverlaySignals = () => {
+    ui.overlay.bindReconnectStateSignal(ctx.reconnectOverlayStateSignal);
+    ui.overlay.bindOpponentDisconnectDeadlineSignal(
+      ctx.opponentDisconnectDeadlineMsSignal,
+    );
+    ui.overlay.bindHideOpponentDisconnected(() => {
+      setOpponentDisconnectDeadlineMs(ctx, null);
+    });
+    ui.overlay.bindReplayControlsSignal(replayController.controlsSignal);
+  };
+
+  bindOverlaySignals();
 
   const stateTransitionDeps = createMainStateTransitionDeps({
     ctx,
@@ -291,23 +305,26 @@ export const createGameClient = () => {
     transitionClientPhase(phaseControllerDeps);
   };
 
-  const messageHandlerDeps: MessageHandlerDeps = createMainMessageHandlerDeps({
-    ctx,
-    renderer,
-    ui,
-    hud,
-    actionDeps,
-    turnTelemetry,
-    storePlayerToken: (code, token) =>
-      sessionTokens.storePlayerToken(code, token),
-    setState: (state) => setState(state),
-    applyGameState: (state) => applyGameState(state),
-    transitionToPhase: () => transitionToPhase(),
-    onAnimationComplete: () => onAnimationComplete(),
-    advanceToNextAttacker: () => advanceToNextAttacker(actionDeps.combatDeps),
-    logScenarioBriefing: () => hud.logScenarioBriefing(),
-    trackEvent: (event, props) => track(event, props),
-  });
+  const createMessageHandlerRuntime = (): MessageHandlerDeps =>
+    createMainMessageHandlerDeps({
+      ctx,
+      renderer,
+      ui,
+      hud,
+      actionDeps,
+      turnTelemetry,
+      storePlayerToken: (code, token) =>
+        sessionTokens.storePlayerToken(code, token),
+      setState: (state) => setState(state),
+      applyGameState: (state) => applyGameState(state),
+      transitionToPhase: () => transitionToPhase(),
+      onAnimationComplete: () => onAnimationComplete(),
+      advanceToNextAttacker: () => advanceToNextAttacker(actionDeps.combatDeps),
+      logScenarioBriefing: () => hud.logScenarioBriefing(),
+      trackEvent: (event, props) => track(event, props),
+    });
+
+  const messageHandlerDeps = createMessageHandlerRuntime();
 
   const createLocalTransport = (): GameTransport => {
     return createLocalGameTransport({
@@ -329,7 +346,7 @@ export const createGameClient = () => {
     });
   };
 
-  const networkDeps: MainNetworkDeps = {
+  const createNetworkDeps = (): MainNetworkDeps => ({
     ctx,
     map,
     renderer,
@@ -350,47 +367,55 @@ export const createGameClient = () => {
     track,
     createLocalTransport: () => createLocalTransport(),
     stopTurnTimer: () => turnTimer.stop(),
-  };
-
-  const interactions = createMainInteractionController({
-    canvas,
-    map,
-    ctx,
-    actionDeps,
-    ui,
-    renderer,
-    camera,
-    hud,
-    replayController,
-    sessionApi,
-    mainNetworkDeps: networkDeps,
-    setAIDifficulty: (difficulty) => setAIDifficulty(ctx, difficulty),
-    exitToMenu,
-    trackEvent: (event) => track(event),
   });
+
+  const networkDeps = createNetworkDeps();
+
+  const createInteractions = () =>
+    createMainInteractionController({
+      canvas,
+      map,
+      ctx,
+      actionDeps,
+      ui,
+      renderer,
+      camera,
+      hud,
+      replayController,
+      sessionApi,
+      mainNetworkDeps: networkDeps,
+      setAIDifficulty: (difficulty) => setAIDifficulty(ctx, difficulty),
+      exitToMenu,
+      trackEvent: (event) => track(event),
+    });
+
+  const interactions = createInteractions();
 
   const input = createInputHandler(canvas, renderer.camera, (event) =>
     interactions.handleInput(event),
   );
 
-  const disposeBrowserEvents = setupClientRuntime({
-    canvas,
-    map,
-    tooltipEl,
-    renderer,
-    input,
-    ui,
-    ctx,
-    updateTooltip: (x, y) => hud.updateTooltip(x, y),
-    onKeyboardAction: (action) => interactions.handleKeyboardAction(action),
-    onToggleHelp: () => interactions.toggleHelp(),
-    onUpdateSoundButton: () => hud.updateSoundButton(),
-    showToast: (message, type) => interactions.showToast(message, type),
-    onUIEvent: (event) => interactions.handleUIEvent(event),
-    joinGame: (code, playerToken) => interactions.joinGame(code, playerToken),
-    spectateGame: (code) => interactions.spectateGame(code),
-    setMenuState: () => setState('menu'),
-  });
+  const createBrowserRuntime = () =>
+    setupClientRuntime({
+      canvas,
+      map,
+      tooltipEl,
+      renderer,
+      input,
+      ui,
+      ctx,
+      updateTooltip: (x, y) => hud.updateTooltip(x, y),
+      onKeyboardAction: (action) => interactions.handleKeyboardAction(action),
+      onToggleHelp: () => interactions.toggleHelp(),
+      onUpdateSoundButton: () => hud.updateSoundButton(),
+      showToast: (message, type) => interactions.showToast(message, type),
+      onUIEvent: (event) => interactions.handleUIEvent(event),
+      joinGame: (code, playerToken) => interactions.joinGame(code, playerToken),
+      spectateGame: (code) => interactions.spectateGame(code),
+      setMenuState: () => setState('menu'),
+    });
+
+  const disposeBrowserEvents = createBrowserRuntime();
 
   return {
     renderer,
