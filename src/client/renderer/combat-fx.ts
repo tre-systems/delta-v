@@ -95,26 +95,34 @@ const pushCounterattackEffects = (
   hexSize: number,
 ): void => {
   const ca = r.counterattack;
-  if (!ca || ca.damageType === 'none') return;
+  if (!ca) return;
   const counterTarget = gameState?.ships.find((s) => s.id === ca.targetId);
   if (!counterTarget) return;
   const counterPos = hexToPixel(counterTarget.position, hexSize);
+  const caColor =
+    ca.damageType === 'eliminated'
+      ? '#ff4444'
+      : ca.damageType === 'disabled'
+        ? '#ffaa00'
+        : '#88aaff';
   out.push({
     type: 'beam',
     from: targetPos,
     to: counterPos,
     startTime: now + 500,
     duration: 600,
-    color: ca.damageType === 'eliminated' ? '#ff4444' : '#ffaa00',
+    color: caColor,
   });
-  out.push({
-    type: 'explosion',
-    from: counterPos,
-    to: counterPos,
-    startTime: now + 800,
-    duration: 800,
-    color: ca.damageType === 'eliminated' ? '#ff4444' : '#ffaa00',
-  });
+  if (ca.damageType !== 'none') {
+    out.push({
+      type: 'explosion',
+      from: counterPos,
+      to: counterPos,
+      startTime: now + 800,
+      duration: 800,
+      color: caColor,
+    });
+  }
 };
 
 const effectsForOneResult = (

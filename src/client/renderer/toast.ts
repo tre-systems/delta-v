@@ -112,7 +112,7 @@ export const buildCombatResultToastLines = (
     return [
       primary,
       {
-        text: `\u21A9 ${formatCombatResult(result.counterattack, state)}`,
+        text: `Counter: ${formatCombatResult(result.counterattack, state)}`,
         color: getResultColor(result.counterattack.damageType),
         variant: 'secondary',
       },
