@@ -17,7 +17,7 @@ import {
   isGameStateActionMessage,
   runGameStateAction,
 } from './actions';
-import { runGameDoAlarm } from './alarm';
+import { type GameDoAlarmDeps, runGameDoAlarm } from './alarm';
 import {
   getEventStreamLength,
   getMatchSeed,
@@ -29,7 +29,7 @@ import {
   broadcastStateChange,
   sendSocketMessage,
 } from './broadcast';
-import { handleGameDoFetch } from './fetch';
+import { type GameDoFetchDeps, handleGameDoFetch } from './fetch';
 import {
   handleInitRequest,
   handleJoinCheckRequest,
@@ -39,7 +39,7 @@ import {
 } from './http-handlers';
 import { handleRematchRequest, initGameSession } from './match';
 import type { StatefulServerMessage } from './message-builders';
-import { runPublicationPipeline } from './publication';
+import { type PublicationDeps, runPublicationPipeline } from './publication';
 import {
   createDisconnectMarker,
   getNextAlarmAt,
@@ -309,31 +309,125 @@ export class GameDO extends DurableObject<Env> {
         this.reportProjectionParityMismatch(gameId, liveState),
     );
   }
+
+  private createFetchDeps(): GameDoFetchDeps {
+    return {
+      handleInit: (request) => this.handleInit(request),
+      handleJoinCheck: (request) => this.handleJoinCheck(request),
+      handleReplayRequest: (request) => this.handleReplayRequest(request),
+      resolveJoinAttempt: (token) => this.resolveJoinAttempt(token),
+      getConnectedSeatCountAfterJoin: (seatOpen, playerId) =>
+        this.getConnectedSeatCountAfterJoin(seatOpen, playerId),
+      saveRoomConfig: (roomConfig) => this.saveRoomConfig(roomConfig),
+      clearDisconnectMarker: () => this.clearDisconnectMarker(),
+      replacePlayerSockets: (playerId) => this.replacePlayerSockets(playerId),
+      send: (ws, msg) => this.send(ws, msg),
+      broadcast: (msg) => this.broadcast(msg),
+      getLatestGameId: () => this.getLatestGameId(),
+      storage: this.ctx.storage,
+      initGame: () => this.initGame(),
+      touchInactivity: () => this.touchInactivity(),
+      acceptWebSocket: (server, tags) => this.ctx.acceptWebSocket(server, tags),
+      getRoomConfig: () => this.getRoomConfig(),
+    };
+  }
+
+  private createAlarmDeps(): GameDoAlarmDeps {
+    return {
+      now: Date.now(),
+      storage: this.ctx.storage,
+      env: this.env,
+      waitUntil: (promise) => this.ctx.waitUntil(promise),
+      getWebSockets: () => this.ctx.getWebSockets(),
+      map: this.map,
+      getCurrentGameState: () => this.getCurrentGameState(),
+      getGameCode: () => this.getGameCode(),
+      getActionRng: () => this.getActionRng(),
+      clearDisconnectMarker: () => this.clearDisconnectMarker(),
+      rescheduleAlarm: () => this.rescheduleAlarm(),
+      publishStateChange: (state, primaryMessage, options) =>
+        this.publishStateChange(state, primaryMessage, options),
+      reportEngineError: (code, phase, turn, err) =>
+        this.reportEngineError(code, phase, turn, err),
+      archiveRoomState: () => this.archiveRoomState(),
+    };
+  }
+
+  private createPublicationDeps(): PublicationDeps {
+    return {
+      storage: this.ctx.storage,
+      env: this.env,
+      waitUntil: (promise) => this.ctx.waitUntil(promise),
+      getGameCode: () => this.getGameCode(),
+      verifyProjectionParity: (state) => this.verifyProjectionParity(state),
+      broadcastStateChange: (state, primaryMessage) =>
+        this.broadcastStateChange(state, primaryMessage),
+      startTurnTimer: (state) => this.startTurnTimer(state),
+    };
+  }
+
+  private createGameStateActionDeps(): Parameters<
+    typeof runGameStateAction
+  >[0] {
+    return {
+      getCurrentGameState: () => this.getCurrentGameState(),
+      getGameCode: () => this.getGameCode(),
+      reportEngineError: (code, phase, turn, err) =>
+        this.reportEngineError(code, phase, turn, err),
+      sendError: (socket, message, code) =>
+        this.send(socket, { type: 'error', message, code }),
+    };
+  }
+
+  private createInitRequestDeps(): Parameters<typeof handleInitRequest>[0] {
+    return {
+      getRoomConfig: () => this.getRoomConfig(),
+      saveRoomConfig: (roomConfig) => this.saveRoomConfig(roomConfig),
+      setGameCode: (code) => this.setGameCode(code),
+      touchInactivity: () => this.touchInactivity(),
+    };
+  }
+
+  private createJoinCheckDeps(): Parameters<typeof handleJoinCheckRequest>[0] {
+    return {
+      resolveJoinAttempt: (playerToken) => this.resolveJoinAttempt(playerToken),
+    };
+  }
+
+  private createReplayRequestDeps(): Parameters<typeof handleReplayRequest>[0] {
+    return {
+      storage: this.ctx.storage,
+      getRoomConfig: () => this.getRoomConfig(),
+      getLatestGameId: () => this.getLatestGameId(),
+      touchInactivity: () => this.touchInactivity(),
+    };
+  }
+
+  private createInitGameDeps(): Parameters<typeof initGameSession>[0] {
+    return {
+      storage: this.ctx.storage,
+      map: this.map,
+      getRoomConfig: () => this.getRoomConfig(),
+      getScenario: () => this.getScenario(),
+      getGameCode: () => this.getGameCode(),
+      clearRoomArchivedFlag: () => this.clearRoomArchivedFlag(),
+      verifyProjectionParity: (state) => this.verifyProjectionParity(state),
+      broadcastFiltered: (msg) => this.broadcastFiltered(msg),
+      startTurnTimer: (state) => this.startTurnTimer(state),
+    };
+  }
+
+  private createRematchDeps(): Parameters<typeof handleRematchRequest>[0] {
+    return {
+      storage: this.ctx.storage,
+      initGame: () => this.initGame(),
+      broadcast: (msg) => this.broadcast(msg),
+    };
+  }
+
   // --- WebSocket lifecycle ---
   async fetch(request: Request): Promise<Response> {
-    return handleGameDoFetch(
-      {
-        handleInit: (r) => this.handleInit(r),
-        handleJoinCheck: (r) => this.handleJoinCheck(r),
-        handleReplayRequest: (r) => this.handleReplayRequest(r),
-        resolveJoinAttempt: (token) => this.resolveJoinAttempt(token),
-        getConnectedSeatCountAfterJoin: (seatOpen, playerId) =>
-          this.getConnectedSeatCountAfterJoin(seatOpen, playerId),
-        saveRoomConfig: (roomConfig) => this.saveRoomConfig(roomConfig),
-        clearDisconnectMarker: () => this.clearDisconnectMarker(),
-        replacePlayerSockets: (playerId) => this.replacePlayerSockets(playerId),
-        send: (ws, msg) => this.send(ws, msg),
-        broadcast: (msg) => this.broadcast(msg),
-        getLatestGameId: () => this.getLatestGameId(),
-        storage: this.ctx.storage,
-        initGame: () => this.initGame(),
-        touchInactivity: () => this.touchInactivity(),
-        acceptWebSocket: (server, tags) =>
-          this.ctx.acceptWebSocket(server, tags),
-        getRoomConfig: () => this.getRoomConfig(),
-      },
-      request,
-    );
+    return handleGameDoFetch(this.createFetchDeps(), request);
   }
 
   private createWebSocketMessageDeps(): GameDoWebSocketMessageDeps {
@@ -394,24 +488,7 @@ export class GameDO extends DurableObject<Env> {
   }
 
   async alarm(): Promise<void> {
-    await runGameDoAlarm({
-      now: Date.now(),
-      storage: this.ctx.storage,
-      env: this.env,
-      waitUntil: (p) => this.ctx.waitUntil(p),
-      getWebSockets: () => this.ctx.getWebSockets(),
-      map: this.map,
-      getCurrentGameState: () => this.getCurrentGameState(),
-      getGameCode: () => this.getGameCode(),
-      getActionRng: () => this.getActionRng(),
-      clearDisconnectMarker: () => this.clearDisconnectMarker(),
-      rescheduleAlarm: () => this.rescheduleAlarm(),
-      publishStateChange: (state, primaryMessage, options) =>
-        this.publishStateChange(state, primaryMessage, options),
-      reportEngineError: (code, phase, turn, err) =>
-        this.reportEngineError(code, phase, turn, err),
-      archiveRoomState: () => this.archiveRoomState(),
-    });
+    await runGameDoAlarm(this.createAlarmDeps());
   }
 
   private async startTurnTimer(state: GameState): Promise<void> {
@@ -435,15 +512,7 @@ export class GameDO extends DurableObject<Env> {
     },
   ) {
     await runPublicationPipeline(
-      {
-        storage: this.ctx.storage,
-        env: this.env,
-        waitUntil: (p) => this.ctx.waitUntil(p),
-        getGameCode: () => this.getGameCode(),
-        verifyProjectionParity: (s) => this.verifyProjectionParity(s),
-        broadcastStateChange: (s, msg) => this.broadcastStateChange(s, msg),
-        startTurnTimer: (s) => this.startTurnTimer(s),
-      },
+      this.createPublicationDeps(),
       state,
       primaryMessage,
       options,
@@ -462,14 +531,7 @@ export class GameDO extends DurableObject<Env> {
     onSuccess: (result: Success) => Promise<void> | void,
   ): Promise<void> {
     await runGameStateAction(
-      {
-        getCurrentGameState: () => this.getCurrentGameState(),
-        getGameCode: () => this.getGameCode(),
-        reportEngineError: (code, phase, turn, err) =>
-          this.reportEngineError(code, phase, turn, err),
-        sendError: (socket, message, code) =>
-          this.send(socket, { type: 'error', message, code }),
-      },
+      this.createGameStateActionDeps(),
       ws,
       action,
       onSuccess,
@@ -478,62 +540,23 @@ export class GameDO extends DurableObject<Env> {
 
   // --- Game logic (delegates to engine) ---
   private async handleInit(request: Request): Promise<Response> {
-    return handleInitRequest(
-      {
-        getRoomConfig: () => this.getRoomConfig(),
-        saveRoomConfig: (roomConfig) => this.saveRoomConfig(roomConfig),
-        setGameCode: (code) => this.setGameCode(code),
-        touchInactivity: () => this.touchInactivity(),
-      },
-      request,
-    );
+    return handleInitRequest(this.createInitRequestDeps(), request);
   }
 
   private async handleJoinCheck(request: Request): Promise<Response> {
-    return handleJoinCheckRequest(
-      {
-        resolveJoinAttempt: (playerToken) =>
-          this.resolveJoinAttempt(playerToken),
-      },
-      request,
-    );
+    return handleJoinCheckRequest(this.createJoinCheckDeps(), request);
   }
 
   private async handleReplayRequest(request: Request): Promise<Response> {
-    return handleReplayRequest(
-      {
-        storage: this.ctx.storage,
-        getRoomConfig: () => this.getRoomConfig(),
-        getLatestGameId: () => this.getLatestGameId(),
-        touchInactivity: () => this.touchInactivity(),
-      },
-      request,
-    );
+    return handleReplayRequest(this.createReplayRequestDeps(), request);
   }
 
   private async initGame() {
-    await initGameSession({
-      storage: this.ctx.storage,
-      map: this.map,
-      getRoomConfig: () => this.getRoomConfig(),
-      getScenario: () => this.getScenario(),
-      getGameCode: () => this.getGameCode(),
-      clearRoomArchivedFlag: () => this.clearRoomArchivedFlag(),
-      verifyProjectionParity: (state) => this.verifyProjectionParity(state),
-      broadcastFiltered: (msg) => this.broadcastFiltered(msg),
-      startTurnTimer: (state) => this.startTurnTimer(state),
-    });
+    await initGameSession(this.createInitGameDeps());
   }
 
   private async handleRematch(playerId: PlayerId, _ws: WebSocket) {
-    await handleRematchRequest(
-      {
-        storage: this.ctx.storage,
-        initGame: () => this.initGame(),
-        broadcast: (msg) => this.broadcast(msg),
-      },
-      playerId,
-    );
+    await handleRematchRequest(this.createRematchDeps(), playerId);
   }
 
   private broadcastStateChange(
