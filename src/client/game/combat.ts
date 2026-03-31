@@ -9,6 +9,7 @@ import type {
   CombatAttack,
   GameState,
   PlayerId,
+  Ship,
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { clamp, filterMap } from '../../shared/util';
@@ -101,18 +102,65 @@ const getEnemyOrdnanceTarget = (
   );
 };
 
+const getFriendlyCombatShipsAtHex = (
+  state: GameState,
+  playerId: PlayerId,
+  clickHex: HexCoord,
+): Ship[] => {
+  return state.ships.filter(
+    (ship) =>
+      ship.owner === playerId &&
+      ship.lifecycle !== 'destroyed' &&
+      canAttack(ship) &&
+      hexEqual(clickHex, ship.position),
+  );
+};
+
+const getUntargetedEnemyShipsAtHex = (
+  state: GameState,
+  playerId: PlayerId,
+  clickHex: HexCoord,
+  queuedTargets: Set<string>,
+): Ship[] => {
+  return state.ships.filter(
+    (ship) =>
+      ship.owner !== playerId &&
+      ship.lifecycle === 'active' &&
+      !queuedTargets.has(`ship:${ship.id}`) &&
+      hexEqual(clickHex, ship.position),
+  );
+};
+
+const getCycledSelection = <T extends { id: string }>(
+  matches: T[],
+  currentId?: string | null,
+): T | null => {
+  if (matches.length === 0) return null;
+
+  if (matches.length === 1) return matches[0];
+
+  if (!currentId) {
+    return matches[0];
+  }
+
+  const currentIndex = matches.findIndex(
+    (candidate) => candidate.id === currentId,
+  );
+
+  if (currentIndex < 0) {
+    return matches[0];
+  }
+
+  return matches[(currentIndex + 1) % matches.length];
+};
+
 export const getReusableCombatGroup = (
   state: GameState,
   playerId: PlayerId,
   queuedAttacks: CombatAttack[],
   targetId: string,
 ): ReusableCombatGroup | null => {
-  const target = state.ships.find(
-    (ship) =>
-      ship.id === targetId &&
-      ship.lifecycle !== 'destroyed' &&
-      ship.owner !== playerId,
-  );
+  const target = getEnemyShipTarget(state, playerId, targetId);
 
   if (!target) return null;
 
@@ -181,9 +229,7 @@ export const hasSplitFireOptions = (
   for (const attack of queuedAttacks) {
     if (attack.targetType !== 'ship') continue;
 
-    const target = state.ships.find(
-      (ship) => ship.id === attack.targetId && ship.lifecycle !== 'destroyed',
-    );
+    const target = getEnemyShipTarget(state, playerId, attack.targetId);
 
     if (!target) continue;
 
@@ -227,28 +273,12 @@ export const getCombatAttackerIdAtHex = (
   clickHex: HexCoord,
   selectedShipId?: string | null,
 ): string | null => {
-  const matches = state.ships.filter(
-    (ship) =>
-      ship.owner === playerId &&
-      ship.lifecycle !== 'destroyed' &&
-      canAttack(ship) &&
-      hexEqual(clickHex, ship.position),
+  return (
+    getCycledSelection(
+      getFriendlyCombatShipsAtHex(state, playerId, clickHex),
+      selectedShipId,
+    )?.id ?? null
   );
-
-  if (matches.length === 0) return null;
-
-  if (matches.length === 1) return matches[0].id;
-
-  // Cycle: if selected ship is at this hex, pick the next one
-  if (selectedShipId) {
-    const currentIdx = matches.findIndex((s) => s.id === selectedShipId);
-
-    if (currentIdx >= 0) {
-      return matches[(currentIdx + 1) % matches.length].id;
-    }
-  }
-
-  return matches[0].id;
 };
 
 export const getCombatTargetAtHex = (
@@ -274,32 +304,12 @@ export const getCombatTargetAtHex = (
   }
 
   const queuedTargets = getTargetedKeys(queuedAttacks);
-
-  const matches = state.ships.filter(
-    (item) =>
-      item.owner !== playerId &&
-      item.lifecycle === 'active' &&
-      !queuedTargets.has(`ship:${item.id}`) &&
-      hexEqual(clickHex, item.position),
+  const target = getCycledSelection(
+    getUntargetedEnemyShipsAtHex(state, playerId, clickHex, queuedTargets),
+    currentTargetId,
   );
 
-  if (matches.length === 0) return null;
-
-  if (matches.length === 1) {
-    return { targetId: matches[0].id, targetType: 'ship' };
-  }
-
-  // Cycle through stacked targets
-  if (currentTargetId) {
-    const idx = matches.findIndex((s) => s.id === currentTargetId);
-
-    if (idx >= 0) {
-      const next = matches[(idx + 1) % matches.length];
-      return { targetId: next.id, targetType: 'ship' };
-    }
-  }
-
-  return { targetId: matches[0].id, targetType: 'ship' };
+  return target ? { targetId: target.id, targetType: 'ship' } : null;
 };
 
 export const getLegalCombatAttackers = (
