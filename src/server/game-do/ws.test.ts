@@ -47,6 +47,62 @@ describe('handleGameDoWebSocketClose', () => {
 });
 
 describe('handleGameDoWebSocketMessage', () => {
+  it('dispatches game-state actions for seated players', async () => {
+    const dispatchGameStateAction = vi.fn().mockResolvedValue(undefined);
+    const dispatchAuxMessage = vi.fn();
+    const touchInactivity = vi.fn().mockResolvedValue(undefined);
+    const ws = {} as WebSocket;
+
+    await handleGameDoWebSocketMessage(
+      {
+        msgRates: new WeakMap(),
+        getPlayerId: () => 0,
+        isSpectatorSocket: () => false,
+        touchInactivity,
+        send: vi.fn(),
+        isGameStateActionMessage: (msg): msg is GameStateActionMessage =>
+          msg.type === 'skipCombat',
+        dispatchGameStateAction,
+        dispatchAuxMessage,
+      },
+      ws,
+      JSON.stringify({ type: 'skipCombat' }),
+    );
+
+    expect(touchInactivity).toHaveBeenCalledTimes(1);
+    expect(dispatchGameStateAction).toHaveBeenCalledWith(0, ws, {
+      type: 'skipCombat',
+    });
+    expect(dispatchAuxMessage).not.toHaveBeenCalled();
+  });
+
+  it('sends invalid-input errors for malformed messages', async () => {
+    const send = vi.fn();
+
+    await handleGameDoWebSocketMessage(
+      {
+        msgRates: new WeakMap(),
+        getPlayerId: () => 0,
+        isSpectatorSocket: () => false,
+        touchInactivity: vi.fn(),
+        send,
+        isGameStateActionMessage: neverGameStateAction,
+        dispatchGameStateAction: vi.fn(),
+        dispatchAuxMessage: vi.fn(),
+      },
+      {} as WebSocket,
+      '{bad json',
+    );
+
+    expect(send).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        type: 'error',
+        code: 'INVALID_INPUT',
+      }),
+    );
+  });
+
   it('replies to ping for spectator-tagged sockets', async () => {
     const send = vi.fn();
     const touchInactivity = vi.fn().mockResolvedValue(undefined);

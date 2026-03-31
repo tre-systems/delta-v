@@ -1,6 +1,13 @@
+/**
+ * Parsed WebSocket message helpers used after the DO lifecycle entrypoints.
+ * `ws.ts` owns the hibernation callbacks; this module owns validation,
+ * per-socket throttling, and the aux-message dispatch table.
+ */
+
 import { validateClientMessage } from '../../shared/protocol';
 import type { PlayerId, Result } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
+import type { AuxMessage } from './actions';
 
 export const WS_MSG_RATE_LIMIT = 10;
 export const WS_MSG_RATE_WINDOW_MS = 1_000;
@@ -55,37 +62,53 @@ export const parseClientSocketMessage = (message: string): Result<C2S> => {
 export interface AuxMessageDeps {
   ws: WebSocket;
   playerId: PlayerId;
-  msg: import('./actions').AuxMessage;
+  msg: AuxMessage;
   lastChatAt: Map<number, number>;
   send: (ws: WebSocket, msg: S2C) => void;
   broadcast: (msg: S2C) => void;
   handleRematch: (playerId: PlayerId, ws: WebSocket) => Promise<void>;
 }
 
-export const handleAuxMessage = async (deps: AuxMessageDeps): Promise<void> => {
-  const { msg, playerId, ws } = deps;
+const AUX_MESSAGE_HANDLERS = {
+  rematch: async (
+    deps: AuxMessageDeps & { msg: Extract<AuxMessage, { type: 'rematch' }> },
+  ) => {
+    await deps.handleRematch(deps.playerId, deps.ws);
+  },
+  chat: (
+    deps: AuxMessageDeps & { msg: Extract<AuxMessage, { type: 'chat' }> },
+  ) => {
+    const chatTime = Date.now();
+    const last = deps.lastChatAt.get(deps.playerId) ?? 0;
 
-  switch (msg.type) {
-    case 'rematch':
-      await deps.handleRematch(playerId, ws);
-      return;
-    case 'chat': {
-      const chatTime = Date.now();
-      const last = deps.lastChatAt.get(playerId) ?? 0;
-
-      if (chatTime - last < CHAT_RATE_LIMIT_MS) {
-        return;
-      }
-      deps.lastChatAt.set(playerId, chatTime);
-      deps.broadcast({
-        type: 'chat',
-        playerId,
-        text: msg.text,
-      });
+    if (chatTime - last < CHAT_RATE_LIMIT_MS) {
       return;
     }
-    case 'ping':
-      deps.send(ws, { type: 'pong', t: msg.t });
-      return;
-  }
+
+    deps.lastChatAt.set(deps.playerId, chatTime);
+    deps.broadcast({
+      type: 'chat',
+      playerId: deps.playerId,
+      text: deps.msg.text,
+    });
+  },
+  ping: (
+    deps: AuxMessageDeps & { msg: Extract<AuxMessage, { type: 'ping' }> },
+  ) => {
+    deps.send(deps.ws, { type: 'pong', t: deps.msg.t });
+  },
+} satisfies {
+  [T in AuxMessage['type']]: (
+    deps: AuxMessageDeps & { msg: Extract<AuxMessage, { type: T }> },
+  ) => Promise<void> | void;
+};
+
+export const dispatchAuxMessage = async (
+  deps: AuxMessageDeps,
+): Promise<void> => {
+  const handler = AUX_MESSAGE_HANDLERS[deps.msg.type] as (
+    deps: AuxMessageDeps,
+  ) => Promise<void> | void;
+
+  await handler(deps);
 };
