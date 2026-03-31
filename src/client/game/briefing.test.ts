@@ -76,15 +76,13 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
 });
 
 describe('game-client-briefing', () => {
-  it('classifies landing and neutral briefing lines', () => {
+  it('includes fleet for standard landing scenarios', () => {
     expect(deriveScenarioBriefingEntries(createState(), 0)).toEqual([
       { text: 'Your fleet: Transport, Packet', cssClass: '' },
-      { text: 'Objective: Land on Venus', cssClass: 'log-landed' },
-      { text: 'Press ? for controls help', cssClass: '' },
     ]);
   });
 
-  it('classifies escape and hidden-identity objective variants', () => {
+  it('classifies escape and hidden-identity briefing lines', () => {
     expect(
       deriveScenarioBriefingEntries(
         createState({
@@ -96,11 +94,14 @@ describe('game-client-briefing', () => {
           ],
         }),
         0,
-      )[1],
-    ).toEqual({
-      text: 'Objective: Get the ★ ship off the map!',
-      cssClass: 'log-landed',
-    });
+      ),
+    ).toEqual([
+      { text: 'Your fleet: Transport', cssClass: '' },
+      {
+        text: 'Your \u2605 ship carries the fugitives',
+        cssClass: '',
+      },
+    ]);
 
     expect(
       deriveScenarioBriefingEntries(
@@ -112,10 +113,29 @@ describe('game-client-briefing', () => {
           ],
         }),
         0,
-      )[1],
-    ).toEqual({
-      text: 'Objective: Inspect transports, then capture or destroy the fugitives.',
-      cssClass: 'log-damage',
-    });
+      ),
+    ).toEqual([
+      { text: 'Your fleet: Transport, Packet', cssClass: '' },
+      {
+        text: 'Inspect transports to find the fugitives',
+        cssClass: '',
+      },
+    ]);
+  });
+
+  it('notes race-only for checkpoint scenarios', () => {
+    expect(
+      deriveScenarioBriefingEntries(
+        createState({
+          scenarioRules: {
+            checkpointBodies: ['Mars', 'Venus', 'Jupiter'],
+          },
+        }),
+        0,
+      ),
+    ).toEqual([
+      { text: 'Your fleet: Transport, Packet', cssClass: '' },
+      { text: 'No combat \u2014 race only', cssClass: '' },
+    ]);
   });
 });

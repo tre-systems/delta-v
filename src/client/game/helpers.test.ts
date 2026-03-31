@@ -502,8 +502,6 @@ describe('game client helpers', () => {
 
     expect(getScenarioBriefingLines(state, 0)).toEqual([
       'Your fleet: Transport, Packet',
-      'Objective: Land on Venus',
-      'Press ? for controls help',
     ]);
   });
 });

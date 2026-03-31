@@ -105,7 +105,6 @@ export const getScenarioBriefingLines = (
   playerId: PlayerId,
 ): string[] => {
   const player = state.players[playerId];
-
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
 
   const shipNames = myShips
@@ -115,37 +114,20 @@ export const getScenarioBriefingLines = (
   const lines = [`Your fleet: ${shipNames}`];
 
   if (state.scenarioRules.checkpointBodies) {
-    lines.push(
-      `Objective: Visit all ${state.scenarioRules.checkpointBodies.length} major bodies, then land on ${player.homeBody}`,
-    );
     lines.push('No combat — race only');
-
-    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 760;
-    lines.push(isMobile ? 'Tap ? for controls' : 'Press ? for controls help');
-
     return lines;
   }
 
   const hasFugitiveShip = myShips.some((ship) => ship.identity?.hasFugitives);
-
   const facingFugitives = state.scenarioRules.hiddenIdentityInspection;
 
   if (hasFugitiveShip) {
-    lines.push('Objective: Get the ★ ship off the map!');
+    lines.push('Your ★ ship carries the fugitives');
   } else if (facingFugitives) {
-    lines.push(
-      'Objective: Inspect transports, then capture or destroy the fugitives.',
-    );
+    lines.push('Inspect transports to find the fugitives');
   } else if (player.escapeWins) {
-    lines.push('Objective: Escape the solar system!');
-  } else if (player.targetBody) {
-    lines.push(`Objective: Land on ${player.targetBody}`);
-  } else {
-    lines.push('Objective: Destroy all enemy ships!');
+    lines.push('Escape the solar system to win');
   }
-
-  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 760;
-  lines.push(isMobile ? 'Tap ? for controls' : 'Press ? for controls help');
 
   return lines;
 };
