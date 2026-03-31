@@ -118,7 +118,8 @@ export const drawCombatResultsToastOverlay = (
     const shakeX = Math.sin(elapsed * 0.03) * shake;
     const shakeY = Math.cos(elapsed * 0.04) * shake;
 
-    drawDieFace(ctx, centerX + shakeX, 60 + shakeY, displayValue, dieSize);
+    const dieY = 120;
+    drawDieFace(ctx, centerX + shakeX, dieY + shakeY, displayValue, dieSize);
 
     // "Rolling..." label
     ctx.font = 'bold 11px monospace';
@@ -127,23 +128,24 @@ export const drawCombatResultsToastOverlay = (
     ctx.fillText(
       rollProgress > 0.85 ? `Rolled ${dieRoll}!` : 'Rolling...',
       centerX,
-      60 + dieSize / 2 + 16,
+      dieY + dieSize / 2 + 16,
     );
   } else {
     // Result phase — show final die + result text
     const settleProgress = Math.min((elapsed - ROLL_DURATION) / 200, 1);
     const scale = 1 + (1 - settleProgress) * 0.15;
     const dieRoll = results[0].dieRoll;
+    const dieY = 120;
 
     // Draw settled die (shrinking from pop)
     ctx.save();
-    ctx.translate(centerX, 60);
+    ctx.translate(centerX, dieY);
     ctx.scale(scale, scale);
     drawDieFace(ctx, 0, 0, dieRoll, 32);
     ctx.restore();
 
     // Result text lines below the die
-    let y = 98;
+    let y = dieY + 38;
     for (const line of buildCombatResultToastLines(results, must(gameState))) {
       const isSecondary = line.variant === 'secondary';
       ctx.font = isSecondary ? '11px monospace' : 'bold 12px monospace';
