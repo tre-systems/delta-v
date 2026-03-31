@@ -111,10 +111,6 @@ export const deriveKeyboardAction = (
     }
 
     if (context.state === 'playing_combat') {
-      if (context.combatTargetId) {
-        return { kind: 'queueAttack', preventDefault: true };
-      }
-
       if (context.queuedAttackCount > 0) {
         return { kind: 'fireAllAttacks', preventDefault: true };
       }
