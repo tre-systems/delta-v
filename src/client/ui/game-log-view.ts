@@ -24,6 +24,7 @@ export interface GameLogViewDeps {
 
 export interface GameLogView {
   setPlayerId: (id: PlayerId | -1) => void;
+  setLocalGame: (isLocal: boolean) => void;
   setMobile: (
     isMobile: boolean,
     hudVisible: boolean,
@@ -59,6 +60,7 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
 
   let lastTurnHeader: HTMLElement | null = null;
   let playerId: PlayerId | -1 = -1;
+  let localGame = false;
 
   const screenModeSignal = signal<UIScreenMode>('hidden');
   const expandedSignal = signal(false);
@@ -97,14 +99,16 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
     playerId = id;
   };
 
+  const shouldAutoExpand = (): boolean =>
+    !localGame && window.innerWidth >= 640;
+
   const setMobile = (
     _isMobile: boolean,
     hudVisible: boolean,
-    viewportWidth?: number,
+    _viewportWidth?: number,
   ): void => {
     if (hudVisible) {
-      const width = viewportWidth ?? window.innerWidth;
-      expandedSignal.value = width >= 640;
+      expandedSignal.value = shouldAutoExpand();
     }
   };
 
@@ -119,8 +123,12 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
     }
 
     if (previousMode !== 'hud') {
-      expandedSignal.value = window.innerWidth >= 640;
+      expandedSignal.value = shouldAutoExpand();
     }
+  };
+
+  const setLocalGame = (isLocal: boolean): void => {
+    localGame = isLocal;
   };
 
   const toggle = (): void => {
@@ -289,6 +297,7 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
 
   return {
     setPlayerId,
+    setLocalGame,
     setMobile,
     setScreenMode,
     toggle,

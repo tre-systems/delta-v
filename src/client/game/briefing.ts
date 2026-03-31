@@ -6,24 +6,7 @@ export interface BriefingLogEntry {
   cssClass: string;
 }
 
-const getBriefingCssClass = (line: string): string => {
-  if (
-    line.startsWith('Objective: Escape') ||
-    line.startsWith('Objective: Get') ||
-    line.startsWith('Objective: Land')
-  ) {
-    return 'log-landed';
-  }
-
-  if (
-    line.startsWith('Objective: Inspect') ||
-    line.startsWith('Objective: Destroy')
-  ) {
-    return 'log-damage';
-  }
-
-  return '';
-};
+const getBriefingCssClass = (_line: string): string => '';
 
 export const deriveScenarioBriefingEntries = (
   state: GameState,

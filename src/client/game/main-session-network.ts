@@ -49,6 +49,7 @@ export const startLocalGameFromMain = (
   scenario: string,
 ): void => {
   deps.ui.overlay.hideGameOver();
+  deps.ui.log.setLocalGame(true);
   startLocalGameSession(
     {
       ctx: deps.ctx,
@@ -97,6 +98,7 @@ export const beginJoinGameFromMain = (
   code: string,
   playerToken: string | null,
 ): void => {
+  deps.ui.log.setLocalGame(false);
   void beginJoinGameSession(
     {
       ctx: deps.ctx,

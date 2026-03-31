@@ -520,8 +520,8 @@ body::before {
 }
 
 .ship-entry {
-  min-width: 164px;
-  padding: 0.5rem 0.7rem;
+  min-width: 140px;
+  padding: 0.4rem 0.6rem;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255, 255, 255, 0.05);
   background: rgba(4, 9, 18, 0.82);
@@ -1184,44 +1184,43 @@ body::before {
 .help-btn,
 .sound-btn {
   position: fixed;
-  right: 0.9rem;
+  right: 0.75rem;
   z-index: 5;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(7, 14, 28, 0.78);
-  color: var(--muted-strong);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
   font-family: var(--font-mono);
   cursor: pointer;
   backdrop-filter: blur(14px);
-  box-shadow: var(--shadow-soft);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
 .help-btn {
   bottom: calc(4.4rem + var(--safe-bottom));
-  width: 42px;
-  height: 42px;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .sound-btn {
-  bottom: calc(4.4rem + var(--safe-bottom));
-  right: calc(0.9rem + 50px);
-  width: 42px;
-  height: 42px;
+  bottom: calc(4.4rem + 2.5rem + var(--safe-bottom));
   padding: 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
   letter-spacing: 0;
   text-transform: none;
+  line-height: 1;
 }
 
 .help-btn:hover,
 .sound-btn:hover {
-  color: var(--text);
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(12, 23, 42, 0.9);
+  color: var(--accent);
+  border-color: var(--border-strong);
+  background: var(--panel-hover);
 }
 
 .sound-btn.muted {
@@ -1738,9 +1737,9 @@ h2.game-over-defeat {
   }
 
   .sound-btn {
-    top: calc(var(--hud-top-offset) + 0.25rem);
+    top: calc(var(--hud-top-offset) + 0.25rem + 2.5rem);
     bottom: auto;
-    right: calc(var(--hud-edge-right) + 50px);
+    right: var(--hud-edge-right);
   }
 
   .toast-container {
@@ -1864,9 +1863,9 @@ h2.game-over-defeat {
   }
 
   .sound-btn {
-    top: calc(var(--hud-top-offset) + 0.25rem);
+    top: calc(var(--hud-top-offset) + 0.25rem + 2.5rem);
     bottom: auto;
-    right: calc(var(--hud-edge-right) + 50px);
+    right: var(--hud-edge-right);
   }
 
   .tutorial-tip {
@@ -1960,8 +1959,8 @@ h2.game-over-defeat {
 
   .sound-btn {
     top: auto;
-    bottom: calc(4.4rem + var(--safe-bottom));
-    right: calc(var(--hud-edge-right) + 50px);
+    bottom: calc(4.4rem + 2.5rem + var(--safe-bottom));
+    right: var(--hud-edge-right);
   }
 }
 
