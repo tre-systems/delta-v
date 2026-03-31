@@ -43,7 +43,7 @@ export const drawShipIcon = ({
   const stats = shipType ? SHIP_STATS[shipType] : undefined;
   const combat = stats?.combat ?? 2;
 
-  const size = combat >= 15 ? 12 : combat >= 8 ? 10 : combat >= 4 ? 9 : 8;
+  const size = combat >= 15 ? 14 : combat >= 8 ? 12 : combat >= 4 ? 11 : 10;
 
   ctx.save();
   ctx.translate(x, y);
@@ -99,6 +99,10 @@ export const drawShipIcon = ({
     ctx.lineTo(-size * 0.6, size * 0.5);
     ctx.closePath();
     ctx.fill();
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.stroke();
   }
 
   ctx.restore();
