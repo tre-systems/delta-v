@@ -1,8 +1,4 @@
-import {
-  canAttack,
-  hasLineOfSight,
-  hasLineOfSightToTarget,
-} from '../../shared/combat';
+import { canAttack } from '../../shared/combat';
 import type {
   GameState,
   PlayerId,
@@ -15,6 +11,7 @@ import {
   createCombatTargetPlan,
   findNearestTarget,
   getAttackStrengthForSelection,
+  hasVisibleCombatTargets,
 } from './combat';
 import type { PlanningStore } from './planning';
 import type { GameTransport } from './transport';
@@ -28,34 +25,6 @@ export interface CombatActionDeps {
   planningState: PlanningStore;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
 }
-
-const hasVisibleCombatTargets = (
-  state: GameState,
-  playerId: PlayerId,
-  map: SolarSystemMap,
-): boolean => {
-  const attackers = state.ships.filter(
-    (s) => s.owner === playerId && s.lifecycle !== 'destroyed' && canAttack(s),
-  );
-  if (attackers.length === 0) return false;
-
-  const hasShipTarget = state.ships.some(
-    (target) =>
-      target.owner !== playerId &&
-      target.lifecycle === 'active' &&
-      target.detected &&
-      attackers.some((attacker) => hasLineOfSight(attacker, target, map)),
-  );
-  if (hasShipTarget) return true;
-
-  return state.ordnance.some(
-    (ord) =>
-      ord.type === 'nuke' &&
-      ord.owner !== playerId &&
-      ord.lifecycle !== 'destroyed' &&
-      attackers.some((attacker) => hasLineOfSightToTarget(attacker, ord, map)),
-  );
-};
 
 export const clearCombatSelection = (deps: CombatActionDeps) => {
   deps.planningState.clearCombatSelectionState();
