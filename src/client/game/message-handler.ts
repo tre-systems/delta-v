@@ -30,6 +30,7 @@ export interface MessageHandlerDeps {
     results: CombatResult[],
   ) => void;
   showGameOverOutcome: (won: boolean, reason: string) => void;
+  advanceToNextAttacker: () => void;
   storePlayerToken: (code: string, token: string) => void;
   resetTurnTelemetry: () => void;
   onAnimationComplete: () => void;
@@ -137,6 +138,16 @@ export const handleServerMessage = (
       if (plan.shouldTransition) {
         deps.transitionToPhase();
       }
+      break;
+    }
+    case 'combatSingleResult': {
+      const previousCombatState = deps.ctx.gameState;
+      deps.presentCombatResults(
+        must(previousCombatState),
+        deps.deserializeState(plan.state),
+        [plan.result],
+      );
+      deps.advanceToNextAttacker();
       break;
     }
     case 'stateUpdate': {

@@ -96,6 +96,18 @@ export const handleLocalResolution = (
     return;
   }
 
+  if (resolution.kind === 'combatSingle') {
+    deps.presentCombatResults(
+      resolution.previousState,
+      resolution.state,
+      [resolution.result],
+      false,
+    );
+    // Stay in combat phase — call onContinue to advance attacker
+    onContinue();
+    return;
+  }
+
   if (resolution.kind === 'combat') {
     deps.presentCombatResults(
       resolution.previousState,

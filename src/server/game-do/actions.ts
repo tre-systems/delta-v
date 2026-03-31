@@ -2,12 +2,14 @@ import { must } from '../../shared/assert';
 import type { EngineEvent } from '../../shared/engine/engine-events';
 import {
   beginCombatPhase,
+  endCombat,
   processAstrogation,
   processCombat,
   processEmplacement,
   processFleetReady,
   processLogistics,
   processOrdnance,
+  processSingleCombat,
   processSurrender,
   skipCombat,
   skipLogistics,
@@ -23,6 +25,7 @@ import type { ScenarioDefinition } from '../../shared/types/scenario';
 import {
   resolveCombatBroadcast,
   resolveMovementBroadcast,
+  toCombatSingleResultMessage,
   toMovementResultMessage,
   toStateUpdateMessage,
 } from './messages';
@@ -44,6 +47,8 @@ export const GAME_STATE_ACTION_TYPES = new Set([
   'skipOrdnance',
   'beginCombat',
   'combat',
+  'combatSingle',
+  'endCombat',
   'skipCombat',
   'logistics',
   'skipLogistics',
@@ -249,6 +254,36 @@ export const createGameStateActionHandlers = (deps: ActionDeps) => {
           result,
           must(resolveCombatBroadcast(result)),
         );
+      },
+    }),
+    combatSingle: defineGameStateActionHandler({
+      run: async (
+        gameState,
+        playerId,
+        message: GameStateActionMessageOf<'combatSingle'>,
+      ) =>
+        processSingleCombat(
+          gameState,
+          playerId,
+          message.attack,
+          deps.map,
+          await deps.getActionRng(),
+        ),
+      publish: async (playerId, result) => {
+        const r = must(result.results?.[0]);
+        await publishForActor(
+          playerId,
+          result,
+          toCombatSingleResultMessage(result.state, r),
+          { restartTurnTimer: false },
+        );
+      },
+    }),
+    endCombat: defineGameStateActionHandler({
+      run: async (gameState, playerId) =>
+        endCombat(gameState, playerId, deps.map, await deps.getActionRng()),
+      publish: async (playerId, result) => {
+        await publishForActor(playerId, result, resolveCombatBroadcast(result));
       },
     }),
     skipCombat: defineGameStateActionHandler({

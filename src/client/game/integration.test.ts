@@ -103,6 +103,7 @@ const createDeps = (
     presentMovementResult: track('presentMovementResult'),
     presentCombatResults: track('presentCombatResults'),
     showGameOverOutcome: track('showGameOverOutcome'),
+    advanceToNextAttacker: track('advanceToNextAttacker'),
     storePlayerToken: track('storePlayerToken'),
     resetTurnTelemetry: track('resetTurnTelemetry'),
     onAnimationComplete: track('onAnimationComplete'),

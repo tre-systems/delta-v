@@ -40,6 +40,8 @@ export type C2S =
   | { type: 'skipOrdnance' }
   | { type: 'beginCombat' }
   | { type: 'combat'; attacks: CombatAttack[] }
+  | { type: 'combatSingle'; attack: CombatAttack }
+  | { type: 'endCombat' }
   | { type: 'skipCombat' }
   | { type: 'logistics'; transfers: TransferOrder[] }
   | { type: 'skipLogistics' }
@@ -74,6 +76,11 @@ export type S2C =
   | {
       type: 'combatResult';
       results: CombatResult[];
+      state: GameState;
+    }
+  | {
+      type: 'combatSingleResult';
+      result: CombatResult;
       state: GameState;
     }
   | {

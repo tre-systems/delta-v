@@ -585,6 +585,169 @@ export const processCombat = (
   return { results, state, engineEvents };
 };
 
+// Process a single combat attack for sequential resolution.
+// Does NOT advance the turn — the player calls endCombat when done.
+export const processSingleCombat = (
+  inputState: GameState,
+  playerId: PlayerId,
+  attack: CombatAttack,
+  map: SolarSystemMap,
+  rng: () => number,
+): CombatPhaseResult | { error: EngineError } => {
+  const state = structuredClone(inputState);
+  const engineEvents: EngineEvent[] = [];
+
+  const phaseError = validatePhaseAction(state, playerId, 'combat');
+  if (phaseError) return { error: phaseError };
+
+  const targeted = new Set(state.combatTargetedThisPhase ?? []);
+  const targetKey = `${attack.targetType}:${attack.targetId}`;
+
+  if (targeted.has(targetKey)) {
+    return engineFailure(
+      ErrorCode.STATE_CONFLICT,
+      'Each target may be attacked only once per combat phase',
+    );
+  }
+
+  const attackers: Ship[] = [];
+  for (const id of attack.attackerIds) {
+    const ship = state.ships.find((s) => s.id === id);
+    if (!ship || ship.owner !== playerId) {
+      return engineFailure(
+        ErrorCode.INVALID_SELECTION,
+        'Invalid attacker selection',
+      );
+    }
+    if (ship.firedThisPhase) {
+      return engineFailure(
+        ErrorCode.STATE_CONFLICT,
+        'Ship has already attacked this phase',
+      );
+    }
+    if (!canAttack(ship)) {
+      return engineFailure(ErrorCode.INVALID_SELECTION, 'Ship cannot attack');
+    }
+    attackers.push(ship);
+  }
+
+  if (attackers.length === 0) {
+    return engineFailure(ErrorCode.INVALID_SELECTION, 'No valid attackers');
+  }
+
+  const results: CombatResult[] = [];
+
+  if (attack.targetType === 'ordnance') {
+    const target = state.ordnance.find((o) => o.id === attack.targetId);
+    if (
+      !target ||
+      target.owner === playerId ||
+      target.lifecycle === 'destroyed' ||
+      target.type !== 'nuke'
+    ) {
+      return engineFailure(ErrorCode.INVALID_TARGET, 'Invalid combat target');
+    }
+    if (
+      attackers.some(
+        (attacker) => !hasLineOfSightToTarget(attacker, target, map),
+      )
+    ) {
+      return engineFailure(
+        ErrorCode.NOT_ALLOWED,
+        'Attacker lacks line of sight to target',
+      );
+    }
+    results.push(resolveAntiNukeAttack(attackers, target, rng));
+  } else {
+    const target = state.ships.find((s) => s.id === attack.targetId);
+    if (!target || target.owner === playerId || target.lifecycle !== 'active') {
+      return engineFailure(ErrorCode.INVALID_TARGET, 'Invalid combat target');
+    }
+    if (attackers.some((attacker) => !hasLineOfSight(attacker, target, map))) {
+      return engineFailure(
+        ErrorCode.NOT_ALLOWED,
+        'Attacker lacks line of sight to target',
+      );
+    }
+    const maxStrength = sumBy(
+      attackers,
+      (ship) => SHIP_STATS[ship.type]?.combat ?? 0,
+    );
+    const allocatedStrength = attack.attackStrength ?? maxStrength;
+    const resolution = resolveCombat(
+      attackers,
+      target,
+      state.ships,
+      rng,
+      map,
+      allocatedStrength,
+    );
+    results.push(toCombatResult(resolution));
+  }
+
+  // Mark attackers as fired and target as attacked
+  for (const attacker of attackers) {
+    attacker.firedThisPhase = true;
+  }
+  state.combatTargetedThisPhase = [...targeted, targetKey];
+
+  // Clean up destroyed ordnance
+  state.ordnance = state.ordnance.filter((o) => o.lifecycle !== 'destroyed');
+
+  for (const r of results) {
+    engineEvents.push(...combatResultToEvents(r, state));
+  }
+
+  applyEscapeMoralVictory(state);
+  checkGameEnd(state, map, engineEvents);
+
+  return { results, state, engineEvents };
+};
+
+// End the combat phase after sequential attacks. Resolves base
+// defense, clears per-phase tracking, and advances the turn.
+export const endCombat = (
+  inputState: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+  rng: () => number,
+):
+  | {
+      state: GameState;
+      results?: CombatResult[];
+      engineEvents: EngineEvent[];
+    }
+  | { error: EngineError } => {
+  const state = structuredClone(inputState);
+  const engineEvents: EngineEvent[] = [];
+
+  const phaseError = validatePhaseAction(state, playerId, 'combat');
+  if (phaseError) return { error: phaseError };
+
+  const results: CombatResult[] = [];
+
+  if (map && isPlanetaryDefenseEnabled(state)) {
+    const baseResults = resolveBaseDefense(state, playerId, map, rng);
+    for (const r of baseResults) {
+      engineEvents.push(...combatResultToEvents(r, state));
+    }
+    results.push(...baseResults);
+  }
+
+  state.ordnance = state.ordnance.filter((o) => o.lifecycle !== 'destroyed');
+
+  applyEscapeMoralVictory(state);
+  checkGameEnd(state, map, engineEvents);
+
+  if (state.outcome === null) {
+    advanceTurn(state, engineEvents);
+  }
+
+  return results.length > 0
+    ? { state, results, engineEvents }
+    : { state, engineEvents };
+};
+
 // Skip combat phase (player has no attacks to make).
 export const skipCombat = (
   inputState: GameState,

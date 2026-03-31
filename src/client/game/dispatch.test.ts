@@ -79,6 +79,8 @@ const mockTransport = (): GameTransport & {
   return {
     submitAstrogation: track('submitAstrogation'),
     submitCombat: track('submitCombat'),
+    submitSingleCombat: track('submitSingleCombat'),
+    endCombat: track('endCombat'),
     submitOrdnance: track('submitOrdnance'),
     submitEmplacement: track('submitEmplacement'),
     submitFleetReady: track('submitFleetReady'),
