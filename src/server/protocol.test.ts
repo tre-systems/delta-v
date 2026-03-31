@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { asPlayerToken, asRoomCode } from '../shared/ids';
 import {
   createRoomConfig,
   generatePlayerToken,
@@ -10,6 +11,9 @@ import {
   parseInitPayload,
   resolveSeatAssignment,
 } from './protocol';
+
+const roomCode = (value = 'ABCDE') => asRoomCode(value);
+const playerToken = (value = 'A'.repeat(32)) => asPlayerToken(value);
 
 describe('protocol helpers', () => {
   it('generates 5-character room codes from the allowed alphabet', () => {
@@ -128,9 +132,9 @@ describe('parseInitPayload', () => {
   const keys = ['biplanetary', 'escape'] as const;
 
   const validPayload = {
-    code: 'ABCDE',
+    code: roomCode(),
     scenario: 'escape',
-    playerToken: 'A'.repeat(32),
+    playerToken: playerToken(),
   };
 
   it('parses valid init payloads', () => {
@@ -215,9 +219,9 @@ describe('createRoomConfig', () => {
   it('builds room config from init payload', () => {
     expect(
       createRoomConfig({
-        code: 'ABCDE',
+        code: roomCode(),
         scenario: 'escape',
-        playerToken: 'A'.repeat(32),
+        playerToken: playerToken(),
       }),
     ).toEqual({
       code: 'ABCDE',
@@ -231,10 +235,10 @@ describe('seat assignment', () => {
   it('lets the creator reclaim their seat with the issued token', () => {
     expect(
       resolveSeatAssignment({
-        presentedToken: 'creator-token',
+        presentedToken: playerToken('creator-token'),
         disconnectedPlayer: null,
         seatOpen: [true, true],
-        playerTokens: ['creator-token', null],
+        playerTokens: [playerToken('creator-token'), null],
       }),
     ).toEqual({
       type: 'join',
@@ -249,7 +253,7 @@ describe('seat assignment', () => {
         presentedToken: null,
         disconnectedPlayer: null,
         seatOpen: [false, true],
-        playerTokens: ['creator-token', null],
+        playerTokens: [playerToken('creator-token'), null],
       }),
     ).toEqual({
       type: 'join',
@@ -261,10 +265,10 @@ describe('seat assignment', () => {
   it('rejects invalid tokens', () => {
     expect(
       resolveSeatAssignment({
-        presentedToken: 'bad-token',
+        presentedToken: playerToken('bad-token'),
         disconnectedPlayer: null,
         seatOpen: [true, true],
-        playerTokens: ['creator-token', null],
+        playerTokens: [playerToken('creator-token'), null],
       }),
     ).toEqual({
       type: 'reject',
@@ -279,7 +283,10 @@ describe('seat assignment', () => {
         presentedToken: null,
         disconnectedPlayer: 1,
         seatOpen: [false, true],
-        playerTokens: ['creator-token', 'guest-token'],
+        playerTokens: [
+          playerToken('creator-token'),
+          playerToken('guest-token'),
+        ],
       }),
     ).toEqual({
       type: 'reject',
@@ -289,10 +296,13 @@ describe('seat assignment', () => {
 
     expect(
       resolveSeatAssignment({
-        presentedToken: 'guest-token',
+        presentedToken: playerToken('guest-token'),
         disconnectedPlayer: 1,
         seatOpen: [false, true],
-        playerTokens: ['creator-token', 'guest-token'],
+        playerTokens: [
+          playerToken('creator-token'),
+          playerToken('guest-token'),
+        ],
       }),
     ).toEqual({
       type: 'join',
@@ -307,7 +317,10 @@ describe('seat assignment', () => {
         presentedToken: null,
         disconnectedPlayer: null,
         seatOpen: [false, false],
-        playerTokens: ['creator-token', 'guest-token'],
+        playerTokens: [
+          playerToken('creator-token'),
+          playerToken('guest-token'),
+        ],
       }),
     ).toEqual({
       type: 'reject',
@@ -319,10 +332,13 @@ describe('seat assignment', () => {
   it('rejects with invalid player token when presenting wrong token to full game', () => {
     expect(
       resolveSeatAssignment({
-        presentedToken: 'wrong-token',
+        presentedToken: playerToken('wrong-token'),
         disconnectedPlayer: null,
         seatOpen: [false, false],
-        playerTokens: ['creator-token', 'guest-token'],
+        playerTokens: [
+          playerToken('creator-token'),
+          playerToken('guest-token'),
+        ],
       }),
     ).toEqual({
       type: 'reject',
@@ -337,7 +353,10 @@ describe('seat assignment', () => {
         presentedToken: null,
         disconnectedPlayer: 1,
         seatOpen: [false, false],
-        playerTokens: ['creator-token', 'guest-token'],
+        playerTokens: [
+          playerToken('creator-token'),
+          playerToken('guest-token'),
+        ],
       }),
     ).toEqual({
       type: 'reject',
@@ -352,7 +371,7 @@ describe('seat assignment', () => {
         presentedToken: null,
         disconnectedPlayer: null,
         seatOpen: [true, true],
-        playerTokens: [null as unknown as string, null],
+        playerTokens: [null as unknown as ReturnType<typeof playerToken>, null],
       }),
     ).toEqual({
       type: 'join',
@@ -364,10 +383,10 @@ describe('seat assignment', () => {
   it('lets stored player tokens reclaim occupied seats before the old socket closes', () => {
     expect(
       resolveSeatAssignment({
-        presentedToken: 'creator-token',
+        presentedToken: playerToken('creator-token'),
         disconnectedPlayer: null,
         seatOpen: [false, true],
-        playerTokens: ['creator-token', null],
+        playerTokens: [playerToken('creator-token'), null],
       }),
     ).toEqual({
       type: 'join',

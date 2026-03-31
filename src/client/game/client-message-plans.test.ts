@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { asPlayerToken, asRoomCode } from '../../shared/ids';
 import type {
   CombatResult,
   ErrorCode,
@@ -12,6 +13,9 @@ import type {
 import type { S2C } from '../../shared/types/protocol';
 import { deriveClientMessagePlan } from './client-message-plans';
 import type { ClientState } from './phase';
+
+const roomCode = (value = 'ABCDE') => asRoomCode(value);
+const playerToken = (value = 'player-token') => asPlayerToken(value);
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'ship-0',
@@ -78,14 +82,14 @@ describe('game-client-message-plans', () => {
       derive({
         type: 'welcome',
         playerId: 1,
-        code: 'ABCDE',
-        playerToken: 'player-token',
+        code: roomCode(),
+        playerToken: playerToken(),
       }),
     ).toEqual({
       kind: 'welcome',
       playerId: 1,
-      code: 'ABCDE',
-      playerToken: 'player-token',
+      code: roomCode(),
+      playerToken: playerToken(),
       showReconnectToast: true,
       nextState: 'waitingForOpponent',
     });
@@ -95,11 +99,11 @@ describe('game-client-message-plans', () => {
     expect(
       derive({
         type: 'spectatorWelcome',
-        code: 'ABCDE',
+        code: roomCode(),
       }),
     ).toEqual({
       kind: 'spectatorWelcome',
-      code: 'ABCDE',
+      code: roomCode(),
       showReconnectToast: true,
       nextState: 'waitingForOpponent',
     });

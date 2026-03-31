@@ -1,3 +1,4 @@
+import { asRoomCode } from '../shared/ids';
 import type { Env } from './env';
 import { GameDO } from './game-do/game-do';
 
@@ -72,7 +73,7 @@ export default {
       if (isJoinReplayProbeRateLimited(ipHash)) {
         return tooManyRequests();
       }
-      return handleJoinCheck(request, env, joinMatch[1]);
+      return handleJoinCheck(request, env, asRoomCode(joinMatch[1]));
     }
 
     const replayMatch = url.pathname.match(/^\/replay\/([A-Z0-9]{5})$/);
@@ -84,7 +85,7 @@ export default {
       if (isJoinReplayProbeRateLimited(ipHash)) {
         return tooManyRequests();
       }
-      return handleReplayFetch(request, env, replayMatch[1]);
+      return handleReplayFetch(request, env, asRoomCode(replayMatch[1]));
     }
 
     // Client error reports
@@ -144,7 +145,7 @@ export default {
     const wsMatch = url.pathname.match(/^\/ws\/([A-Z0-9]{5})$/);
 
     if (wsMatch) {
-      return handleWebSocket(request, env, wsMatch[1]);
+      return handleWebSocket(request, env, asRoomCode(wsMatch[1]));
     }
 
     // Serve static assets

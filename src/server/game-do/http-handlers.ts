@@ -1,4 +1,5 @@
 import type { ViewerId } from '../../shared/engine/game-engine';
+import type { PlayerToken } from '../../shared/ids';
 import { SCENARIOS } from '../../shared/map-data';
 import type { PlayerId, Result } from '../../shared/types/domain';
 import {
@@ -25,7 +26,7 @@ type ResolveJoinDeps = {
   isRoomArchived: () => Promise<boolean>;
   getDisconnectedPlayer: () => Promise<PlayerId | null>;
   getSeatOpen: () => [boolean, boolean];
-  isValidPlayerToken: (token: string) => boolean;
+  isValidPlayerToken: (token: string) => token is PlayerToken;
   resolveSeatAssignment: (input: {
     presentedToken: SeatAssignmentInput['presentedToken'];
     disconnectedPlayer: SeatAssignmentInput['disconnectedPlayer'];
