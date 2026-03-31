@@ -78,10 +78,12 @@ const createDeps = (): MainNetworkDeps => ({
     reset: vi.fn(),
   } as unknown as MainNetworkDeps['turnTelemetry'],
   sessionApi: {
-    getStoredPlayerToken: vi.fn(() => 'stored-token'),
-    storePlayerToken: vi.fn(),
     validateJoin: vi.fn(async () => ({ ok: true, value: null })),
   } as unknown as MainNetworkDeps['sessionApi'],
+  sessionTokens: {
+    getStoredPlayerToken: vi.fn(() => 'stored-token'),
+    storePlayerToken: vi.fn(),
+  } as unknown as MainNetworkDeps['sessionTokens'],
   connection: {
     connect: vi.fn(),
     stopPing: vi.fn(),
@@ -214,8 +216,10 @@ describe('main-session-network', () => {
     joinDeps.showToast('toast', 'info');
     joinDeps.exitToMenu();
 
-    expect(deps.sessionApi.getStoredPlayerToken).toHaveBeenCalledWith('ROOM2');
-    expect(deps.sessionApi.storePlayerToken).toHaveBeenCalledWith(
+    expect(deps.sessionTokens.getStoredPlayerToken).toHaveBeenCalledWith(
+      'ROOM2',
+    );
+    expect(deps.sessionTokens.storePlayerToken).toHaveBeenCalledWith(
       'ROOM2',
       'new-token',
     );

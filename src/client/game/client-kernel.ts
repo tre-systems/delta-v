@@ -57,6 +57,7 @@ import {
   createInitialClientSession,
 } from './session-model';
 import { attachMainSessionEffects } from './session-signals';
+import { createSessionTokenService } from './session-token-service';
 import { applyClientStateTransition } from './state-transition';
 import { createTurnTimerManager } from './timer';
 import { createLocalGameTransport, type GameTransport } from './transport';
@@ -91,12 +92,15 @@ export const createGameClient = () => {
   const transferPanelEl = byId('transferPanel');
   const map = buildSolarSystemMap();
   const turnTelemetry = createTurnTelemetryTracker();
+  const sessionTokens = createSessionTokenService({
+    storage: localStorage,
+  });
 
-  let sessionApi: SessionApi | null = null;
   let mainNetworkDeps: MainNetworkDeps | null = null;
   let messageHandlerDeps: MessageHandlerDeps | null = null;
 
   let actionDeps: ActionDeps;
+  let sessionApi: SessionApi;
   let replayController: ReplayController;
 
   let setState: (newState: ClientState) => void;
@@ -153,8 +157,7 @@ export const createGameClient = () => {
     getGameState: () => ctx.gameStateSignal.peek(),
     getClientState: () => ctx.stateSignal.peek(),
     isSpectatorSession: () => ctx.spectatorMode,
-    getStoredPlayerToken: (code) =>
-      sessionApi?.getStoredPlayerToken(code) ?? null,
+    getStoredPlayerToken: (code) => sessionTokens.getStoredPlayerToken(code),
     getReconnectAttempts: () => ctx.reconnectAttempts,
     setReconnectAttempts: (n) => {
       setReconnectAttempts(ctx, n);
@@ -232,6 +235,7 @@ export const createGameClient = () => {
 
   sessionApi = createSessionApi({
     ctx,
+    tokens: sessionTokens,
     showToast,
     setMenuLoading: (loading) => ui.setMenuLoading(loading),
     setState: (s) => setState(s),
@@ -239,7 +243,6 @@ export const createGameClient = () => {
     connect: (code) => connection.connect(code),
     track,
   });
-  const mainSessionApi = sessionApi;
 
   replayController = createReplayController({
     getClientContext: () => ({
@@ -248,7 +251,7 @@ export const createGameClient = () => {
       gameCode: ctx.gameCode,
       gameState: ctx.gameStateSignal.peek(),
     }),
-    fetchReplay: (code, gameId) => mainSessionApi.fetchReplay(code, gameId),
+    fetchReplay: (code, gameId) => sessionApi.fetchReplay(code, gameId),
     showToast,
     clearTrails: () => renderer.clearTrails(),
     applyGameState: (state) => applyGameState(state),
@@ -305,7 +308,8 @@ export const createGameClient = () => {
     hud,
     actionDeps,
     turnTelemetry,
-    sessionApi: mainSessionApi,
+    storePlayerToken: (code, token) =>
+      sessionTokens.storePlayerToken(code, token),
     setState: (state) => setState(state),
     applyGameState: (state) => applyGameState(state),
     transitionToPhase: () => transitionToPhase(),
@@ -348,6 +352,7 @@ export const createGameClient = () => {
     actionDeps,
     turnTelemetry,
     sessionApi,
+    sessionTokens,
     connection,
     setState: (state: ClientState) => setState(state),
     applyGameState: (state: GameState) => applyGameState(state),
@@ -372,7 +377,7 @@ export const createGameClient = () => {
     camera,
     hud,
     replayController,
-    sessionApi: mainSessionApi,
+    sessionApi,
     mainNetworkDeps: networkDeps,
     setAIDifficulty: (difficulty) => setAIDifficulty(ctx, difficulty),
     exitToMenu,
