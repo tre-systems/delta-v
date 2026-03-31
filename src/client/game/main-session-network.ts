@@ -25,6 +25,7 @@ import {
 } from './session-controller';
 import { buildGameRoute } from './session-links';
 import type { ClientSession } from './session-model';
+import type { SessionTokenService } from './session-token-service';
 import type { TurnTelemetryTracker } from './turn-telemetry';
 
 export interface MainNetworkDeps {
@@ -35,7 +36,11 @@ export interface MainNetworkDeps {
   hud: HudController;
   actionDeps: ActionDeps;
   turnTelemetry: TurnTelemetryTracker;
-  sessionApi: SessionApi;
+  sessionApi: Pick<SessionApi, 'validateJoin'>;
+  sessionTokens: Pick<
+    SessionTokenService,
+    'getStoredPlayerToken' | 'storePlayerToken'
+  >;
   connection: ConnectionManager;
   setState: (state: ClientState) => void;
   applyGameState: (state: GameState) => void;
@@ -110,9 +115,9 @@ const createMainJoinSessionDeps = (
 ): JoinGameSessionDeps => ({
   ...createMainRemoteSessionBridge(deps),
   getStoredPlayerToken: (gameCode) =>
-    deps.sessionApi.getStoredPlayerToken(gameCode),
+    deps.sessionTokens.getStoredPlayerToken(gameCode),
   storePlayerToken: (gameCode, token) =>
-    deps.sessionApi.storePlayerToken(gameCode, token),
+    deps.sessionTokens.storePlayerToken(gameCode, token),
   validateJoin: (gameCode, token) =>
     deps.sessionApi.validateJoin(gameCode, token),
   showToast: (message, type) => deps.ui.overlay.showToast(message, type),

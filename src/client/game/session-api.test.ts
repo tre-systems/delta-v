@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createSessionApi } from './session-api';
+import { createSessionApi, type SessionApiDeps } from './session-api';
 import { stubClientSession } from './session-model';
+import { createSessionTokenService } from './session-token-service';
 
 const createStorage = (initial: Record<string, string> = {}) => {
   const data = new Map(Object.entries(initial));
@@ -24,28 +25,34 @@ const createStorage = (initial: Record<string, string> = {}) => {
 const createDeps = () => {
   const track =
     vi.fn<(event: string, props?: Record<string, unknown>) => void>();
+  const deps: SessionApiDeps = {
+    ctx: stubClientSession({
+      scenario: 'biplanetary',
+      isLocalGame: false,
+      playerId: -1,
+      gameCode: null,
+      gameState: null,
+      transport: null,
+      aiDifficulty: 'normal',
+      reconnectAttempts: 0,
+      latencyMs: -1,
+    }),
+    tokens: {
+      getStoredPlayerToken: vi.fn<(code: string) => string | null>(() => null),
+      storePlayerToken: vi.fn<(code: string, token: string) => void>(),
+      clearStoredPlayerToken: vi.fn<(code: string) => void>(),
+    },
+    showToast:
+      vi.fn<(msg: string, type: 'error' | 'info' | 'success') => void>(),
+    setMenuLoading: vi.fn<(loading: boolean) => void>(),
+    setState: vi.fn<SessionApiDeps['setState']>(),
+    setScenario: vi.fn<(scenario: string) => void>(),
+    connect: vi.fn<(code: string) => void>(),
+    track,
+  };
 
   return {
-    deps: {
-      ctx: stubClientSession({
-        scenario: 'biplanetary',
-        isLocalGame: false,
-        playerId: -1,
-        gameCode: null,
-        gameState: null,
-        transport: null,
-        aiDifficulty: 'normal',
-        reconnectAttempts: 0,
-        latencyMs: -1,
-      }),
-      showToast:
-        vi.fn<(msg: string, type: 'error' | 'info' | 'success') => void>(),
-      setMenuLoading: vi.fn<(loading: boolean) => void>(),
-      setState: vi.fn<(state: string) => void>(),
-      setScenario: vi.fn<(scenario: string) => void>(),
-      connect: vi.fn<(code: string) => void>(),
-      track,
-    },
+    deps,
     track,
   };
 };
@@ -135,7 +142,10 @@ describe('session-api telemetry', () => {
         ABCDE: { playerToken: 'stale-token', ts: Date.now() },
       }),
     });
-    vi.stubGlobal('localStorage', storage);
+    deps.tokens = createSessionTokenService({
+      storage,
+      now: () => Date.now(),
+    });
     vi.stubGlobal(
       'fetch',
       vi
@@ -193,7 +203,10 @@ describe('session-api telemetry', () => {
         ABCDE: { playerToken: 'player-token', ts: Date.now() },
       }),
     });
-    vi.stubGlobal('localStorage', storage);
+    deps.tokens = createSessionTokenService({
+      storage,
+      now: () => Date.now(),
+    });
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => {
