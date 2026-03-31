@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { createGame } from '../../shared/engine/game-engine';
+import {
+  createGame,
+  skipCombat,
+  skipOrdnance,
+} from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -49,6 +53,46 @@ const createShip = (
     damage: { disabledTurns: 0 },
     ...overrides,
   };
+};
+
+const createTimedOutOrdnanceState = (): GameState => {
+  const state = createState();
+  const activeShip = state.ships.find(
+    (ship) => ship.owner === state.activePlayer,
+  );
+  const opposingShip = state.ships.find(
+    (ship) => ship.owner !== state.activePlayer,
+  );
+
+  if (!activeShip || !opposingShip) {
+    throw new Error('Expected both active and opposing ships');
+  }
+
+  state.phase = 'ordnance';
+  activeShip.position = { q: 4, r: 4 };
+  activeShip.velocity = { dq: 0, dr: 0 };
+  opposingShip.position = { q: 4, r: 4 };
+  opposingShip.velocity = { dq: 0, dr: 0 };
+
+  return state;
+};
+
+const createTimedOutCombatState = (): GameState => {
+  const state = createState();
+  const activeShip = state.ships.find(
+    (ship) => ship.owner === state.activePlayer,
+  );
+
+  if (!activeShip) {
+    throw new Error('Expected an active-player ship');
+  }
+
+  state.phase = 'combat';
+  state.pendingAsteroidHazards = [
+    { shipId: activeShip.id, hex: { ...activeShip.position } },
+  ];
+
+  return state;
 };
 
 describe('game-do-turns', () => {
@@ -142,6 +186,42 @@ describe('game-do-turns', () => {
     // so no combatResolved event — just phaseChanged
     const types = outcome?.events.map((e) => e.type);
     expect(types).toContain('phaseChanged');
+  });
+
+  it('uses the injected rng for timed-out ordnance resolution', () => {
+    const state = createTimedOutOrdnanceState();
+    const map = buildSolarSystemMap();
+    const rng = () => 0.99;
+    const direct = skipOrdnance(state, state.activePlayer, map, rng);
+    const outcome = resolveTurnTimeoutOutcome(state, map, rng);
+
+    expect(outcome).not.toBeNull();
+    expect('error' in direct).toBe(false);
+
+    if (!outcome || 'error' in direct) {
+      return;
+    }
+
+    expect(outcome.state).toEqual(direct.state);
+    expect(outcome.events).toEqual(direct.engineEvents);
+  });
+
+  it('uses the injected rng for timed-out combat resolution', () => {
+    const state = createTimedOutCombatState();
+    const map = buildSolarSystemMap();
+    const rng = () => 0.99;
+    const direct = skipCombat(state, state.activePlayer, map, rng);
+    const outcome = resolveTurnTimeoutOutcome(state, map, rng);
+
+    expect(outcome).not.toBeNull();
+    expect('error' in direct).toBe(false);
+
+    if (!outcome || 'error' in direct) {
+      return;
+    }
+
+    expect(outcome.state).toEqual(direct.state);
+    expect(outcome.events).toEqual(direct.engineEvents);
   });
 
   it('ignores destroyed ships when auto-submitting timeout astrogation orders', () => {

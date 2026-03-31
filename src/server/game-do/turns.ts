@@ -47,7 +47,7 @@ export const resolveTurnTimeoutOutcome = (
   }
 
   if (phase === 'ordnance') {
-    const result = skipOrdnance(gameState, playerId, map, Math.random);
+    const result = skipOrdnance(gameState, playerId, map, rng);
 
     return 'error' in result
       ? null
@@ -59,7 +59,7 @@ export const resolveTurnTimeoutOutcome = (
   }
 
   if (phase === 'combat') {
-    const result = skipCombat(gameState, playerId, map, Math.random);
+    const result = skipCombat(gameState, playerId, map, rng);
 
     return 'error' in result
       ? null
