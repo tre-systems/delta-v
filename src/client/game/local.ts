@@ -10,6 +10,7 @@ import {
   processLogistics,
   processOrdnance,
   processSingleCombat,
+  type StateUpdateResult,
   skipCombat,
   skipLogistics,
   skipOrdnance,
@@ -54,7 +55,9 @@ type LocalErrorResult = {
   };
 };
 
-type LocalStateResult = {
+type LocalStateResult = Pick<StateUpdateResult, 'state'>;
+
+type LocalStateCarrier = {
   state: GameState;
 };
 
@@ -73,7 +76,7 @@ const toStateResolution = (state: GameState): LocalResolution => ({
 });
 
 const toMovementOrStateResolution = (
-  result: MovementResult | LocalStateResult,
+  result: MovementResult | StateUpdateResult,
 ): LocalResolution => {
   if (isMovementResult(result)) {
     return { kind: 'movement', result };
@@ -98,7 +101,7 @@ const toCombatResolution = (
 
 const toCombatTransitionResolution = (
   previousState: GameState,
-  result: LocalStateResult | LocalCombatBatchResult,
+  result: LocalStateCarrier | LocalCombatBatchResult,
 ): LocalResolution =>
   hasCombatResults(result)
     ? toCombatResolution(previousState, result, false)
