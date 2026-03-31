@@ -370,10 +370,10 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
     bodies,
     gravityBodies,
     bounds: {
-      minQ: minQ - 2,
-      maxQ: maxQ + 2,
-      minR: minR - 2,
-      maxR: maxR + 2,
+      minQ: minQ - 3,
+      maxQ: maxQ + 3,
+      minR: minR - 3,
+      maxR: maxR + 3,
     },
   };
 };
