@@ -81,6 +81,15 @@ export class GameDO extends DurableObject<Env> {
     publishStateChange: (state, primaryMessage, options) =>
       this.publishStateChange(state, primaryMessage, options),
   });
+
+  private get storage(): DurableObjectStorage {
+    return this.ctx.storage;
+  }
+
+  private waitUntil(promise: Promise<unknown>): void {
+    this.ctx.waitUntil(promise);
+  }
+
   // --- WebSocket tag-based player tracking ---
   private getPlayerId(ws: WebSocket): PlayerId | null {
     const tag = this.ctx.getTags(ws).find((t) => t.startsWith('player:'));
@@ -121,24 +130,23 @@ export class GameDO extends DurableObject<Env> {
       return null;
     }
 
-    return getProjectedCurrentStateRaw(this.ctx.storage, gameId);
+    return getProjectedCurrentStateRaw(this.storage, gameId);
   }
 
   private async getRoomConfig(): Promise<RoomConfig | null> {
     return (
-      (await this.ctx.storage.get<RoomConfig>(
-        GAME_DO_STORAGE_KEYS.roomConfig,
-      )) ?? null
+      (await this.storage.get<RoomConfig>(GAME_DO_STORAGE_KEYS.roomConfig)) ??
+      null
     );
   }
 
   private async saveRoomConfig(config: RoomConfig): Promise<void> {
-    await this.ctx.storage.put(GAME_DO_STORAGE_KEYS.roomConfig, config);
+    await this.storage.put(GAME_DO_STORAGE_KEYS.roomConfig, config);
   }
 
   private async getGameCode(): Promise<string> {
     return (
-      (await this.ctx.storage.get<string>(GAME_DO_STORAGE_KEYS.gameCode)) ?? ''
+      (await this.storage.get<string>(GAME_DO_STORAGE_KEYS.gameCode)) ?? ''
     );
   }
 
@@ -149,11 +157,11 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async setGameCode(code: string): Promise<void> {
-    await this.ctx.storage.put(GAME_DO_STORAGE_KEYS.gameCode, code);
+    await this.storage.put(GAME_DO_STORAGE_KEYS.gameCode, code);
   }
 
   private async touchInactivity(): Promise<void> {
-    await this.ctx.storage.put(
+    await this.storage.put(
       GAME_DO_STORAGE_KEYS.inactivityAt,
       Date.now() + INACTIVITY_TIMEOUT_MS,
     );
@@ -161,37 +169,36 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async getAlarmDeadlines() {
-    return readAlarmDeadlines(this.ctx.storage);
+    return readAlarmDeadlines(this.storage);
   }
 
   private async isRoomArchived(): Promise<boolean> {
     return (
-      (await this.ctx.storage.get<boolean>(
-        GAME_DO_STORAGE_KEYS.roomArchived,
-      )) === true
+      (await this.storage.get<boolean>(GAME_DO_STORAGE_KEYS.roomArchived)) ===
+      true
     );
   }
 
   private async archiveRoomState(): Promise<void> {
     await Promise.all([
-      this.ctx.storage.put(GAME_DO_STORAGE_KEYS.roomArchived, true),
-      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.disconnectAt),
-      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.disconnectTime),
-      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.disconnectedPlayer),
-      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.inactivityAt),
-      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.rematchRequests),
-      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.turnTimeoutAt),
+      this.storage.put(GAME_DO_STORAGE_KEYS.roomArchived, true),
+      this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectAt),
+      this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectTime),
+      this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectedPlayer),
+      this.storage.delete(GAME_DO_STORAGE_KEYS.inactivityAt),
+      this.storage.delete(GAME_DO_STORAGE_KEYS.rematchRequests),
+      this.storage.delete(GAME_DO_STORAGE_KEYS.turnTimeoutAt),
     ]);
   }
 
   private async clearRoomArchivedFlag(): Promise<void> {
-    await this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.roomArchived);
+    await this.storage.delete(GAME_DO_STORAGE_KEYS.roomArchived);
   }
 
   private async getLatestGameId(): Promise<string | null> {
     const [code, matchNumber] = await Promise.all([
       this.getGameCode(),
-      this.ctx.storage.get<number>(GAME_DO_STORAGE_KEYS.matchNumber),
+      this.storage.get<number>(GAME_DO_STORAGE_KEYS.matchNumber),
     ]);
 
     if (!code || matchNumber === undefined) {
@@ -209,8 +216,8 @@ export class GameDO extends DurableObject<Env> {
     }
 
     const [seed, seq] = await Promise.all([
-      getMatchSeed(this.ctx.storage, gameId),
-      getEventStreamLength(this.ctx.storage, gameId),
+      getMatchSeed(this.storage, gameId),
+      getEventStreamLength(this.storage, gameId),
     ]);
 
     if (seed === null) {
@@ -222,27 +229,24 @@ export class GameDO extends DurableObject<Env> {
 
   private async clearDisconnectMarker(): Promise<void> {
     await Promise.all([
-      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.disconnectedPlayer),
-      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.disconnectTime),
-      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.disconnectAt),
+      this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectedPlayer),
+      this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectTime),
+      this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectAt),
     ]);
   }
 
   private async setDisconnectMarker(playerId: PlayerId): Promise<void> {
     const marker = createDisconnectMarker(playerId, Date.now());
     await Promise.all([
-      this.ctx.storage.put(
+      this.storage.put(
         GAME_DO_STORAGE_KEYS.disconnectedPlayer,
         marker.disconnectedPlayer,
       ),
-      this.ctx.storage.put(
+      this.storage.put(
         GAME_DO_STORAGE_KEYS.disconnectTime,
         marker.disconnectTime,
       ),
-      this.ctx.storage.put(
-        GAME_DO_STORAGE_KEYS.disconnectAt,
-        marker.disconnectAt,
-      ),
+      this.storage.put(GAME_DO_STORAGE_KEYS.disconnectAt, marker.disconnectAt),
     ]);
     await this.rescheduleAlarm();
   }
@@ -254,8 +258,7 @@ export class GameDO extends DurableObject<Env> {
       {
         getRoomConfig: () => this.getRoomConfig(),
         isRoomArchived: () => this.isRoomArchived(),
-        getDisconnectedPlayer: async () =>
-          readDisconnectedPlayer(this.ctx.storage),
+        getDisconnectedPlayer: async () => readDisconnectedPlayer(this.storage),
         getSeatOpen: () => this.getSeatOpen(),
         isValidPlayerToken,
         resolveSeatAssignment,
@@ -268,7 +271,7 @@ export class GameDO extends DurableObject<Env> {
     const alarmAt = getNextAlarmAt(await this.getAlarmDeadlines());
 
     if (alarmAt !== null) {
-      await this.ctx.storage.setAlarm(alarmAt);
+      await this.storage.setAlarm(alarmAt);
     }
   }
 
@@ -280,7 +283,7 @@ export class GameDO extends DurableObject<Env> {
     err: unknown,
   ): void => {
     reportGameDoEngineError(
-      { db: this.env.DB, waitUntil: (p) => this.ctx.waitUntil(p) },
+      { db: this.env.DB, waitUntil: (promise) => this.waitUntil(promise) },
       code,
       phase,
       turn,
@@ -293,9 +296,9 @@ export class GameDO extends DurableObject<Env> {
     liveState: GameState,
   ): Promise<void> => {
     await reportGameDoProjectionParityMismatch({
-      storage: this.ctx.storage,
+      storage: this.storage,
       db: this.env.DB,
-      waitUntil: (p) => this.ctx.waitUntil(p),
+      waitUntil: (promise) => this.waitUntil(promise),
       gameId,
       liveState,
     });
@@ -303,7 +306,7 @@ export class GameDO extends DurableObject<Env> {
 
   private async verifyProjectionParity(state: GameState): Promise<void> {
     await verifyGameDoProjectionParity(
-      this.ctx.storage,
+      this.storage,
       state,
       (gameId, liveState) =>
         this.reportProjectionParityMismatch(gameId, liveState),
@@ -324,7 +327,7 @@ export class GameDO extends DurableObject<Env> {
       send: (ws, msg) => this.send(ws, msg),
       broadcast: (msg) => this.broadcast(msg),
       getLatestGameId: () => this.getLatestGameId(),
-      storage: this.ctx.storage,
+      storage: this.storage,
       initGame: () => this.initGame(),
       touchInactivity: () => this.touchInactivity(),
       acceptWebSocket: (server, tags) => this.ctx.acceptWebSocket(server, tags),
@@ -335,9 +338,9 @@ export class GameDO extends DurableObject<Env> {
   private createAlarmDeps(): GameDoAlarmDeps {
     return {
       now: Date.now(),
-      storage: this.ctx.storage,
+      storage: this.storage,
       env: this.env,
-      waitUntil: (promise) => this.ctx.waitUntil(promise),
+      waitUntil: (promise) => this.waitUntil(promise),
       getWebSockets: () => this.ctx.getWebSockets(),
       map: this.map,
       getCurrentGameState: () => this.getCurrentGameState(),
@@ -355,9 +358,9 @@ export class GameDO extends DurableObject<Env> {
 
   private createPublicationDeps(): PublicationDeps {
     return {
-      storage: this.ctx.storage,
+      storage: this.storage,
       env: this.env,
-      waitUntil: (promise) => this.ctx.waitUntil(promise),
+      waitUntil: (promise) => this.waitUntil(promise),
       getGameCode: () => this.getGameCode(),
       verifyProjectionParity: (state) => this.verifyProjectionParity(state),
       broadcastStateChange: (state, primaryMessage) =>
@@ -396,7 +399,7 @@ export class GameDO extends DurableObject<Env> {
 
   private createReplayRequestDeps(): Parameters<typeof handleReplayRequest>[0] {
     return {
-      storage: this.ctx.storage,
+      storage: this.storage,
       getRoomConfig: () => this.getRoomConfig(),
       getLatestGameId: () => this.getLatestGameId(),
       touchInactivity: () => this.touchInactivity(),
@@ -405,7 +408,7 @@ export class GameDO extends DurableObject<Env> {
 
   private createInitGameDeps(): Parameters<typeof initGameSession>[0] {
     return {
-      storage: this.ctx.storage,
+      storage: this.storage,
       map: this.map,
       getRoomConfig: () => this.getRoomConfig(),
       getScenario: () => this.getScenario(),
@@ -419,7 +422,7 @@ export class GameDO extends DurableObject<Env> {
 
   private createRematchDeps(): Parameters<typeof handleRematchRequest>[0] {
     return {
-      storage: this.ctx.storage,
+      storage: this.storage,
       initGame: () => this.initGame(),
       broadcast: (msg) => this.broadcast(msg),
     };
@@ -493,12 +496,12 @@ export class GameDO extends DurableObject<Env> {
 
   private async startTurnTimer(state: GameState): Promise<void> {
     if (state.phase === 'gameOver') {
-      await this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.turnTimeoutAt);
+      await this.storage.delete(GAME_DO_STORAGE_KEYS.turnTimeoutAt);
       await this.rescheduleAlarm();
       return;
     }
     const timeoutAt = Date.now() + TURN_TIMEOUT_MS;
-    await this.ctx.storage.put(GAME_DO_STORAGE_KEYS.turnTimeoutAt, timeoutAt);
+    await this.storage.put(GAME_DO_STORAGE_KEYS.turnTimeoutAt, timeoutAt);
     await this.rescheduleAlarm();
   }
 
