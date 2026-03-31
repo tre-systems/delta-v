@@ -1,4 +1,8 @@
-import type { GameState, PlayerId } from '../../shared/types/domain';
+import {
+  ErrorCode,
+  type GameState,
+  type PlayerId,
+} from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
 import type { GameStateActionMessage } from './actions';
 import { DISCONNECT_GRACE_MS } from './session';
@@ -40,6 +44,7 @@ export const handleGameDoWebSocketMessage = async (
     deps.send(ws, {
       type: 'error',
       message: parsed.error,
+      code: ErrorCode.INVALID_INPUT,
     });
     return;
   }
@@ -65,6 +70,7 @@ export const handleGameDoWebSocketMessage = async (
     deps.send(ws, {
       type: 'error',
       message: 'Internal server error',
+      code: ErrorCode.STATE_CONFLICT,
     });
   }
 };

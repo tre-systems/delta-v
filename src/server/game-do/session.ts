@@ -1,4 +1,5 @@
 import type { PlayerId } from '../../shared/types/domain';
+import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 
 export const DISCONNECT_GRACE_MS = 30_000;
 
@@ -29,6 +30,29 @@ export interface DisconnectMarker {
 
 export const normalizeDisconnectedPlayer = (value: unknown): PlayerId | null =>
   value === 0 || value === 1 ? value : null;
+
+export const readAlarmDeadlines = async (
+  storage: DurableObjectStorage,
+): Promise<AlarmDeadlines> => {
+  const [disconnectAt, turnTimeoutAt, inactivityAt] = await Promise.all([
+    storage.get<number>(GAME_DO_STORAGE_KEYS.disconnectAt),
+    storage.get<number>(GAME_DO_STORAGE_KEYS.turnTimeoutAt),
+    storage.get<number>(GAME_DO_STORAGE_KEYS.inactivityAt),
+  ]);
+
+  return {
+    disconnectAt,
+    turnTimeoutAt,
+    inactivityAt,
+  };
+};
+
+export const readDisconnectedPlayer = async (
+  storage: DurableObjectStorage,
+): Promise<PlayerId | null> =>
+  normalizeDisconnectedPlayer(
+    await storage.get<number>(GAME_DO_STORAGE_KEYS.disconnectedPlayer),
+  );
 
 export const createDisconnectMarker = (
   playerId: PlayerId,
