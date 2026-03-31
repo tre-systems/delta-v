@@ -18,8 +18,10 @@ import {
   resolveAstrogationStep,
   resolveBeginCombatStep,
   resolveCombatStep,
+  resolveEndCombatStep,
   resolveLogisticsStep,
   resolveOrdnanceStep,
+  resolveSingleCombatStep,
   resolveSkipCombatStep,
   resolveSkipLogisticsStep,
   resolveSkipOrdnanceStep,
@@ -32,6 +34,8 @@ import {
 export interface GameTransport {
   submitAstrogation(orders: AstrogationOrder[]): void;
   submitCombat(attacks: CombatAttack[]): void;
+  submitSingleCombat(attack: CombatAttack): void;
+  endCombat(): void;
   submitOrdnance(launches: OrdnanceLaunch[]): void;
   submitEmplacement(emplacements: OrbitalBaseEmplacement[]): void;
   submitFleetReady(purchases: FleetPurchase[]): void;
@@ -64,6 +68,7 @@ export interface LocalTransportDeps {
         }
       | { error: import('../../shared/types/domain').EngineError },
   ) => void;
+  onAdvanceToNextAttacker: () => void;
   onFleetReady: (purchases: FleetPurchase[]) => void;
   onRematch: () => void;
 }
@@ -100,6 +105,37 @@ export const createLocalTransport = (
       ),
       deps.onTransitionToPhase,
       'Local combat error:',
+    );
+  },
+
+  submitSingleCombat(attack) {
+    const state = deps.getState();
+
+    if (!state) return;
+    deps.onResolution(
+      resolveSingleCombatStep(
+        state,
+        deps.getPlayerId() as PlayerId,
+        attack,
+        deps.getMap(),
+      ),
+      () => deps.onAdvanceToNextAttacker(),
+      'Local single combat error:',
+    );
+  },
+
+  endCombat() {
+    const state = deps.getState();
+
+    if (!state) return;
+    deps.onResolution(
+      resolveEndCombatStep(
+        state,
+        deps.getPlayerId() as PlayerId,
+        deps.getMap(),
+      ),
+      deps.onTransitionToPhase,
+      'Local end combat error:',
     );
   },
 
@@ -237,6 +273,7 @@ export interface LocalGameTransportDeps {
   logScenarioBriefing: () => void;
   transitionToPhase: () => void;
   onAnimationComplete: () => void;
+  advanceToNextAttacker: () => void;
   startLocalGame: (scenario: string) => void;
 }
 
@@ -259,6 +296,7 @@ export const createLocalGameTransport = (
       ),
     onAnimationComplete: deps.onAnimationComplete,
     onTransitionToPhase: deps.transitionToPhase,
+    onAdvanceToNextAttacker: deps.advanceToNextAttacker,
     onEmplacementResult: (result) => {
       if ('error' in result) {
         deps.showToast(result.error.message, 'error');
@@ -303,6 +341,12 @@ export const createWebSocketTransport = (
   },
   submitCombat(attacks) {
     send({ type: 'combat', attacks });
+  },
+  submitSingleCombat(attack) {
+    send({ type: 'combatSingle', attack });
+  },
+  endCombat() {
+    send({ type: 'endCombat' });
   },
   submitOrdnance(launches) {
     send({ type: 'ordnance', launches });

@@ -107,6 +107,8 @@ const createDeps = (overrides: Partial<CombatActionDeps> = {}) => {
   const transport: GameTransport = {
     submitAstrogation: vi.fn(),
     submitCombat: vi.fn(),
+    submitSingleCombat: vi.fn(),
+    endCombat: vi.fn(),
     submitOrdnance: vi.fn(),
     submitEmplacement: vi.fn(),
     submitFleetReady: vi.fn(),

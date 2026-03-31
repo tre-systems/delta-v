@@ -65,6 +65,94 @@ export const resetCombatState = (deps: CombatActionDeps) => {
   deps.planningState.resetCombatPlanning();
 };
 
+// Auto-select the nearest visible enemy for the currently selected
+// ship, so the player only needs to confirm (or change target).
+const autoTargetNearest = (deps: CombatActionDeps): void => {
+  const gameState = deps.getGameState();
+  const selectedId = deps.planningState.selectedShipId;
+  if (!gameState || !selectedId) return;
+
+  const target = findNearestTarget(
+    gameState,
+    deps.getPlayerId(),
+    selectedId,
+    deps.planningState.queuedAttacks,
+    deps.getMap(),
+  );
+
+  if (target) {
+    const plan = createCombatTargetPlan(
+      gameState,
+      deps.getPlayerId(),
+      deps.planningState,
+      target.targetId,
+      target.targetType,
+      deps.getMap(),
+    );
+    deps.planningState.applyCombatPlanUpdate(plan);
+  }
+};
+
+// Select the first un-fired attacker and auto-target nearest enemy.
+// Called on combat entry and after each single attack resolves.
+export const advanceToNextAttacker = (deps: CombatActionDeps): void => {
+  const gameState = deps.getGameState();
+  if (!gameState) return;
+
+  const playerId = deps.getPlayerId();
+  const nextAttacker = gameState.ships.find(
+    (s) =>
+      s.owner === playerId &&
+      s.lifecycle !== 'destroyed' &&
+      canAttack(s) &&
+      !s.firedThisPhase,
+  );
+
+  if (nextAttacker) {
+    batch(() => {
+      deps.planningState.selectShip(nextAttacker.id);
+      autoTargetNearest(deps);
+    });
+  } else {
+    clearCombatSelection(deps);
+  }
+};
+
+// Submit the current single-ship attack. The server resolves it
+// and sends back the result; the client then calls
+// advanceToNextAttacker to continue.
+export const confirmSingleAttack = (deps: CombatActionDeps) => {
+  const gameState = deps.getGameState();
+  const transport = deps.getTransport();
+
+  if (!gameState || deps.getClientState() !== 'playing_combat' || !transport)
+    return;
+
+  const attack = buildCurrentAttack(
+    gameState,
+    deps.getPlayerId(),
+    deps.planningState,
+    deps.getMap(),
+    deps.planningState.selectedShipId,
+  );
+
+  if (!attack) {
+    deps.showToast('Select an enemy to target', 'info');
+    return;
+  }
+
+  clearCombatSelection(deps);
+  transport.submitSingleCombat(attack);
+};
+
+// End the combat phase. Resolves base defense and advances the turn.
+export const endCombatPhase = (deps: CombatActionDeps) => {
+  const transport = deps.getTransport();
+  if (!transport) return;
+  transport.endCombat();
+};
+
+// Batch fire for AI — sends all queued attacks at once.
 export const fireAllAttacks = (deps: CombatActionDeps) => {
   const transport = deps.getTransport();
 
@@ -89,62 +177,6 @@ const sendSkipCombat = (deps: CombatActionDeps) => {
 
 export { sendSkipCombat };
 
-// Auto-queue attacks for all attackable ships against their nearest
-// visible enemy. Called on combat phase entry so the player just
-// needs to confirm (or adjust targets) before firing.
-const autoQueueAllAttacks = (deps: CombatActionDeps): void => {
-  const gameState = deps.getGameState();
-  if (!gameState) return;
-
-  const playerId = deps.getPlayerId();
-  const map = deps.getMap();
-
-  const attackers = gameState.ships.filter(
-    (s) => s.owner === playerId && s.lifecycle !== 'destroyed' && canAttack(s),
-  );
-
-  for (const attacker of attackers) {
-    const target = findNearestTarget(
-      gameState,
-      playerId,
-      attacker.id,
-      deps.planningState.queuedAttacks,
-      map,
-    );
-
-    if (!target) continue;
-
-    const plan = createCombatTargetPlan(
-      gameState,
-      playerId,
-      deps.planningState,
-      target.targetId,
-      target.targetType,
-      map,
-    );
-    deps.planningState.applyCombatPlanUpdate(plan);
-    deps.planningState.selectShip(attacker.id);
-
-    const attack = buildCurrentAttack(
-      gameState,
-      playerId,
-      deps.planningState,
-      map,
-      attacker.id,
-    );
-
-    if (attack) {
-      deps.planningState.queueCombatAttack(attack);
-      clearCombatSelection(deps);
-    }
-  }
-
-  // Select the first attacker so the player can adjust if needed
-  if (attackers.length > 0) {
-    deps.planningState.selectShip(attackers[0].id);
-  }
-};
-
 export const queueAttack = (deps: CombatActionDeps) => {
   const gameState = deps.getGameState();
 
@@ -166,26 +198,6 @@ export const queueAttack = (deps: CombatActionDeps) => {
     const count = deps.planningState.queueCombatAttack(attack);
     clearCombatSelection(deps);
 
-    // Auto-advance to the next attackable ship in rotation
-    const committedIds = new Set(
-      deps.planningState.queuedAttacks.flatMap((a) => a.attackerIds),
-    );
-    const myShips = gameState.ships.filter(
-      (s) =>
-        s.owner === deps.getPlayerId() &&
-        s.lifecycle !== 'destroyed' &&
-        canAttack(s) &&
-        !committedIds.has(s.id),
-    );
-    const currentIdx = myShips.findIndex(
-      (s) => s.id === deps.planningState.selectedShipId,
-    );
-
-    if (myShips.length > 0) {
-      const next = myShips[(currentIdx + 1) % myShips.length];
-      deps.planningState.selectShip(next.id);
-    }
-
     deps.showToast(`Attack queued (${count}). Press Enter to fire.`, 'info');
   });
 };
@@ -206,14 +218,12 @@ export const autoSkipCombatIfNoTargets = (deps: CombatActionDeps): void => {
     transport &&
     !hasVisibleCombatTargets(gameState, deps.getPlayerId(), deps.getMap())
   ) {
-    // Skip directly — sendSkipCombat checks getClientState() which
-    // may not reflect 'playing_combat' yet during state transition
     transport.skipCombat();
     return;
   }
 
-  // Targets exist — auto-queue attacks for all ships
-  autoQueueAllAttacks(deps);
+  // Targets exist — select first attacker and auto-target
+  advanceToNextAttacker(deps);
 };
 
 export const adjustCombatStrength = (deps: CombatActionDeps, delta: number) => {

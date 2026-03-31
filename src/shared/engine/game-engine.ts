@@ -44,7 +44,9 @@ export {
 export type { CombatPhaseResult } from './combat';
 export {
   beginCombatPhase,
+  endCombat,
   processCombat,
+  processSingleCombat,
   skipCombat,
 } from './combat';
 export { processFleetReady } from './fleet-building';

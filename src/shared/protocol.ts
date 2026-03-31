@@ -285,6 +285,11 @@ const parseCombatAttacks = (raw: unknown): CombatAttack[] | null => {
   return attacks;
 };
 
+const parseSingleCombatAttack = (raw: unknown): CombatAttack | null => {
+  const attacks = parseCombatAttacks(Array.isArray(raw) ? raw : [raw]);
+  return attacks && attacks.length === 1 ? attacks[0] : null;
+};
+
 const parseSurrenderShipIds = (raw: unknown): string[] | null => {
   if (
     !Array.isArray(raw) ||
@@ -422,6 +427,13 @@ export const validateClientMessage = (raw: unknown): Result<C2S> => {
         'Invalid combat payload',
       );
 
+    case 'combatSingle':
+      return fromParsed(
+        parseSingleCombatAttack(message.attack),
+        (attack) => ({ type: 'combatSingle', attack }),
+        'Invalid combat payload',
+      );
+
     case 'surrender':
       return fromParsed(
         parseSurrenderShipIds(message.shipIds),
@@ -439,6 +451,7 @@ export const validateClientMessage = (raw: unknown): Result<C2S> => {
     case 'skipOrdnance':
     case 'beginCombat':
     case 'skipCombat':
+    case 'endCombat':
     case 'skipLogistics':
     case 'rematch':
       return ok({ type: message.type });

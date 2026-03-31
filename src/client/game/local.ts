@@ -1,6 +1,7 @@
 import type { EngineEvent } from '../../shared/engine/engine-events';
 import {
   beginCombatPhase,
+  endCombat,
   hasCombatResults,
   isMovementResult,
   type MovementResult,
@@ -8,6 +9,7 @@ import {
   processCombat,
   processLogistics,
   processOrdnance,
+  processSingleCombat,
   skipCombat,
   skipLogistics,
   skipOrdnance,
@@ -38,6 +40,12 @@ export type LocalResolution =
       state: GameState;
       results: CombatResult[];
       resetCombat: boolean;
+    }
+  | {
+      kind: 'combatSingle';
+      previousState: GameState;
+      state: GameState;
+      result: CombatResult;
     };
 
 export const resolveAstrogationStep = (
@@ -142,6 +150,50 @@ export const resolveSkipCombatStep = (
 ): LocalResolution => {
   const previousState = structuredClone(state);
   const result = skipCombat(state, playerId, map, Math.random);
+
+  if ('error' in result) {
+    return { kind: 'error', error: result.error.message };
+  }
+
+  if (hasCombatResults(result)) {
+    return {
+      kind: 'combat',
+      previousState,
+      state: result.state,
+      results: result.results,
+      resetCombat: false,
+    };
+  }
+  return { kind: 'state', state: result.state };
+};
+
+export const resolveSingleCombatStep = (
+  state: GameState,
+  playerId: PlayerId,
+  attack: CombatAttack,
+  map: SolarSystemMap,
+): LocalResolution => {
+  const previousState = structuredClone(state);
+  const result = processSingleCombat(state, playerId, attack, map, Math.random);
+
+  if ('error' in result) {
+    return { kind: 'error', error: result.error.message };
+  }
+  return {
+    kind: 'combatSingle',
+    previousState,
+    state: result.state,
+    result: result.results[0],
+  };
+};
+
+export const resolveEndCombatStep = (
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+): LocalResolution => {
+  const previousState = structuredClone(state);
+  const result = endCombat(state, playerId, map, Math.random);
 
   if ('error' in result) {
     return { kind: 'error', error: result.error.message };

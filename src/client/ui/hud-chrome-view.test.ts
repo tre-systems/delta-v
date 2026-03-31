@@ -206,9 +206,7 @@ describe('HUDChromeView', () => {
     ).toBe('inline-block');
 
     view.showFireButton(true, 3);
-    expect(document.getElementById('fireBtn')?.textContent).toBe(
-      'FIRE ALL (3)',
-    );
+    expect(document.getElementById('fireBtn')?.textContent).toBe('CONFIRM');
 
     view.update(
       buildInput({

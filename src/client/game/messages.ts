@@ -52,6 +52,11 @@ export type ClientMessagePlan =
       shouldTransition: true;
     }
   | {
+      kind: 'combatSingleResult';
+      state: GameState;
+      result: CombatResult;
+    }
+  | {
       kind: 'stateUpdate';
       state: GameState;
       shouldTransition: boolean;
@@ -133,6 +138,12 @@ export const deriveClientMessagePlan = (
         state: msg.state,
         results: msg.results,
         shouldTransition: true,
+      };
+    case 'combatSingleResult':
+      return {
+        kind: 'combatSingleResult',
+        state: msg.state,
+        result: msg.result,
       };
     case 'stateUpdate': {
       const shouldTransition = shouldTransitionAfterStateUpdate(currentState);

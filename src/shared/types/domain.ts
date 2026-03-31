@@ -93,6 +93,9 @@ export interface GameState {
   pendingAsteroidHazards: AsteroidHazard[];
   destroyedAsteroids: HexKey[];
   destroyedBases: HexKey[];
+  // Tracks which targets have been attacked during the current combat
+  // phase (sequential combat). Cleared by advanceTurn.
+  combatTargetedThisPhase?: string[];
   players: [PlayerState, PlayerState];
   outcome: GameOutcome | null;
 }
@@ -133,6 +136,10 @@ export interface Ship extends PositionedEntity {
   pendingGravityEffects?: GravityEffect[];
   deathCause?: string;
   killedBy?: string | null; // ship ID or label of the attacker, null for environmental deaths
+
+  // True when this ship has already attacked during the current
+  // sequential combat phase. Cleared by advanceTurn.
+  firedThisPhase?: boolean;
 
   // Damage state. Ships recover 1 disabled turn per game turn (rulebook p.6).
   // At DAMAGE_ELIMINATION_THRESHOLD cumulative turns, the ship is destroyed.

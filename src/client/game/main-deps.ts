@@ -62,6 +62,7 @@ export interface MainMessageHandlerDepsArgs extends SharedMainDepsArgs {
   applyGameState: (state: GameState) => void;
   transitionToPhase: () => void;
   onAnimationComplete: () => void;
+  advanceToNextAttacker: () => void;
   logScenarioBriefing: () => void;
   trackEvent: (event: string, props?: Record<string, unknown>) => void;
 }
@@ -91,6 +92,7 @@ export const createMainMessageHandlerDeps = (
     args.actionDeps.presentCombatResults(prev, state, results),
   showGameOverOutcome: (won, reason) =>
     args.actionDeps.showGameOverOutcome(won, reason),
+  advanceToNextAttacker: () => args.advanceToNextAttacker(),
   storePlayerToken: (code, token) =>
     args.sessionApi.storePlayerToken(code, token),
   resetTurnTelemetry: () => args.turnTelemetry.reset(),

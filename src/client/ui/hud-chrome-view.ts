@@ -373,10 +373,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       const fireButton = fireButtonSignal.value;
 
       visible(fireBtn, !hideActions && fireButton.isVisible, 'inline-block');
-      text(
-        fireBtn,
-        fireButton.count > 0 ? `FIRE ALL (${fireButton.count})` : 'SKIP COMBAT',
-      );
+      text(fireBtn, fireButton.count > 0 ? 'CONFIRM' : 'END COMBAT');
     });
   });
 

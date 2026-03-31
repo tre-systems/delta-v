@@ -39,6 +39,8 @@ export type KeyboardAction =
   | { kind: 'skipOrdnance'; preventDefault: true }
   | { kind: 'queueAttack'; preventDefault: true }
   | { kind: 'fireAllAttacks'; preventDefault: true }
+  | { kind: 'confirmSingleAttack'; preventDefault: true }
+  | { kind: 'endCombat'; preventDefault: true }
   | { kind: 'skipCombat'; preventDefault: true }
   | { kind: 'confirmTransfers'; preventDefault: true }
   | { kind: 'adjustCombatStrength'; preventDefault: true; delta: -1 | 1 }
@@ -111,10 +113,10 @@ export const deriveKeyboardAction = (
     }
 
     if (context.state === 'playing_combat') {
-      if (context.queuedAttackCount > 0) {
-        return { kind: 'fireAllAttacks', preventDefault: true };
+      if (context.combatTargetId) {
+        return { kind: 'confirmSingleAttack', preventDefault: true };
       }
-      return { kind: 'skipCombat', preventDefault: true };
+      return { kind: 'endCombat', preventDefault: true };
     }
   }
 

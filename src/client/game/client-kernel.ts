@@ -27,6 +27,7 @@ import {
 } from './client-context-store';
 import { setupClientRuntime } from './client-runtime';
 import {
+  advanceToNextAttacker,
   autoSkipCombatIfNoTargets as autoSkipCombat,
   beginCombatPhase as beginCombat,
   resetCombatState as resetCombat,
@@ -365,6 +366,7 @@ export const createGameClient = () => {
     applyGameState: (state) => applyGameState(state),
     transitionToPhase: () => transitionToPhase(),
     onAnimationComplete: () => onAnimationComplete(),
+    advanceToNextAttacker: () => advanceToNextAttacker(actionDeps.combatDeps),
     logScenarioBriefing: () => hud.logScenarioBriefing(),
     trackEvent: (event, props) => track(event, props),
   });
@@ -388,6 +390,7 @@ export const createGameClient = () => {
       logScenarioBriefing: () => hud.logScenarioBriefing(),
       transitionToPhase: () => transitionToPhase(),
       onAnimationComplete: () => onAnimationComplete(),
+      advanceToNextAttacker: () => advanceToNextAttacker(actionDeps.combatDeps),
       startLocalGame: (scenario) => startLocalGameFromMain(net, scenario),
     });
   };
