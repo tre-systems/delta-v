@@ -728,7 +728,7 @@ body::before {
   left: 50%;
   transform: translateX(-50%);
   width: fit-content;
-  max-width: calc(100% - 1rem);
+  max-width: calc(100% - 4.5rem);
   padding: 0.4rem 0.75rem;
   background: var(--panel);
   backdrop-filter: blur(24px) saturate(180%);
@@ -1657,7 +1657,7 @@ h2.game-over-defeat {
 
   .hud-bottom {
     left: var(--hud-edge-left);
-    right: var(--hud-edge-right);
+    right: calc(var(--hud-edge-right) + 3rem);
     bottom: calc(0.85rem + var(--safe-bottom));
     width: auto;
     max-width: none;
