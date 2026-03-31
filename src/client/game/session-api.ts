@@ -5,14 +5,7 @@ import {
   completeCreatedGameSession,
 } from './session-controller';
 import { buildGameRoute, buildJoinCheckUrl } from './session-links';
-import {
-  deleteStoredPlayerToken,
-  getStoredPlayerToken,
-  loadTokenStore,
-  pruneExpiredTokens,
-  saveTokenStore,
-  setStoredPlayerToken,
-} from './session-token-store';
+import type { SessionTokenService } from './session-token-service';
 
 const SESSION_REQUEST_TIMEOUT_MS = 10_000;
 
@@ -51,6 +44,10 @@ const fetchWithTimeout = async (
 
 export interface SessionApiDeps {
   ctx: CreatedGameSessionDeps['ctx'];
+  tokens: Pick<
+    SessionTokenService,
+    'clearStoredPlayerToken' | 'getStoredPlayerToken' | 'storePlayerToken'
+  >;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   setMenuLoading: (loading: boolean) => void;
   setState: (state: ClientState) => void;
@@ -60,40 +57,6 @@ export interface SessionApiDeps {
 }
 
 export const createSessionApi = (deps: SessionApiDeps) => {
-  const getTokenStore = () => {
-    const store = loadTokenStore(localStorage);
-    const prunedStore = pruneExpiredTokens(store, Date.now());
-
-    if (Object.keys(prunedStore).length !== Object.keys(store).length) {
-      saveTokenStore(localStorage, prunedStore, Date.now());
-    }
-
-    return prunedStore;
-  };
-
-  const doSaveTokenStore = (
-    store: Record<string, { playerToken?: string; ts: number }>,
-  ) => {
-    saveTokenStore(localStorage, store, Date.now());
-  };
-
-  const storePlayerToken = (code: string, token: string) => {
-    const store = setStoredPlayerToken(
-      getTokenStore(),
-      code,
-      token,
-      Date.now(),
-    );
-    doSaveTokenStore(store);
-  };
-
-  const getPlayerToken = (code: string): string | null =>
-    getStoredPlayerToken(getTokenStore(), code);
-
-  const clearPlayerToken = (code: string) => {
-    doSaveTokenStore(deleteStoredPlayerToken(getTokenStore(), code));
-  };
-
   const createGame = async (scenario: string) => {
     deps.track('create_game_attempted', { scenario });
     deps.setMenuLoading(true);
@@ -122,7 +85,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       completeCreatedGameSession(
         {
           ctx: deps.ctx,
-          storePlayerToken,
+          storePlayerToken: deps.tokens.storePlayerToken,
           replaceRoute: (route) => history.replaceState(null, '', route),
           buildGameRoute,
           connect: (code) => deps.connect(code),
@@ -211,7 +174,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       initialAttempt.status === 403 &&
       initialAttempt.message === 'Invalid player token'
     ) {
-      clearPlayerToken(code);
+      deps.tokens.clearStoredPlayerToken(code);
       const retryAttempt = await attemptJoin(null);
 
       if (retryAttempt.ok) {
@@ -241,7 +204,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     code: string,
     gameId: string,
   ): Promise<import('../../shared/replay').ReplayTimeline | null> => {
-    const playerToken = getPlayerToken(code);
+    const playerToken = deps.tokens.getStoredPlayerToken(code);
 
     if (!playerToken) {
       deps.track('replay_fetch_failed', {
@@ -259,7 +222,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
 
       if (!response.ok) {
         if (response.status === 403) {
-          clearPlayerToken(code);
+          deps.tokens.clearStoredPlayerToken(code);
         }
         deps.track('replay_fetch_failed', {
           reason: 'server',
@@ -287,8 +250,6 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     createGame,
     validateJoin,
     fetchReplay,
-    getStoredPlayerToken: getPlayerToken,
-    storePlayerToken,
   };
 };
 

@@ -55,9 +55,7 @@ export const createMainStateTransitionDeps = (
 });
 
 export interface MainMessageHandlerDepsArgs extends SharedMainDepsArgs {
-  sessionApi: {
-    storePlayerToken: (code: string, token: string) => void;
-  };
+  storePlayerToken: (code: string, token: string) => void;
   setState: (state: ClientState) => void;
   applyGameState: (state: GameState) => void;
   transitionToPhase: () => void;
@@ -93,8 +91,7 @@ export const createMainMessageHandlerDeps = (
   showGameOverOutcome: (won, reason) =>
     args.actionDeps.showGameOverOutcome(won, reason),
   advanceToNextAttacker: () => args.advanceToNextAttacker(),
-  storePlayerToken: (code, token) =>
-    args.sessionApi.storePlayerToken(code, token),
+  storePlayerToken: (code, token) => args.storePlayerToken(code, token),
   resetTurnTelemetry: () => args.turnTelemetry.reset(),
   onAnimationComplete: () => args.onAnimationComplete(),
   logScenarioBriefing: () => args.logScenarioBriefing(),
