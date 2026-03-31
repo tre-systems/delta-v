@@ -83,6 +83,7 @@ describe('LobbyView', () => {
   });
 
   it('parses join input and back navigation', () => {
+    const playerToken = 'A2345678901234567890123456789012';
     const emit = vi.fn();
     const showMenu = vi.fn();
     createLobbyView({
@@ -93,14 +94,14 @@ describe('LobbyView', () => {
     });
 
     const input = document.getElementById('codeInput') as HTMLInputElement;
-    input.value = 'https://example.test/?code=abcde&playerToken=tok';
+    input.value = `https://example.test/?code=abcde&playerToken=${playerToken}`;
     input.dispatchEvent(new Event('input'));
     document.getElementById('joinBtn')?.click();
 
     expect(emit).toHaveBeenCalledWith({
       type: 'join',
       code: 'ABCDE',
-      playerToken: 'tok',
+      playerToken,
     });
 
     document.getElementById('backBtn')?.click();

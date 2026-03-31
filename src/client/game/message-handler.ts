@@ -1,5 +1,6 @@
 import { must } from '../../shared/assert';
 import type { MovementResult } from '../../shared/engine/game-engine';
+import type { RoomCode } from '../../shared/ids';
 import type { CombatResult, GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playPhaseChange } from '../audio';
@@ -34,7 +35,7 @@ export interface MessageHandlerDeps {
   ) => void;
   showGameOverOutcome: (won: boolean, reason: string) => void;
   advanceToNextAttacker: () => void;
-  storePlayerToken: (code: string, token: string) => void;
+  storePlayerToken: (code: RoomCode, token: string) => void;
   resetTurnTelemetry: () => void;
   onAnimationComplete: () => void;
   logScenarioBriefing: () => void;

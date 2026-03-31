@@ -1,3 +1,11 @@
+import {
+  asPlayerToken,
+  asRoomCode,
+  isPlayerToken,
+  isRoomCode,
+  type PlayerToken,
+  type RoomCode,
+} from '../shared/ids';
 import type { Result } from '../shared/types/domain';
 import { isObject, isString } from '../shared/util';
 
@@ -26,14 +34,14 @@ const generateRandomString = (chars: string, length: number): string =>
 // 32 code chars ^ 5 = ~33.6M possible codes.
 // At 12 retries, collision is negligible until
 // ~thousands of concurrent active rooms.
-export const generateRoomCode = (): string =>
-  generateRandomString(CODE_CHARS, 5);
+export const generateRoomCode = (): RoomCode =>
+  asRoomCode(generateRandomString(CODE_CHARS, 5));
 
-export const generatePlayerToken = (): string =>
-  generateRandomString(TOKEN_CHARS, 32);
+export const generatePlayerToken = (): PlayerToken =>
+  asPlayerToken(generateRandomString(TOKEN_CHARS, 32));
 
-export const isValidPlayerToken = (value: unknown): value is string =>
-  typeof value === 'string' && /^[A-Za-z0-9_-]{32}$/.test(value);
+export const isValidPlayerToken = (value: unknown): value is PlayerToken =>
+  isPlayerToken(value);
 
 export const normalizeScenarioKey = (
   raw: unknown,
@@ -60,9 +68,9 @@ export const parseCreatePayload = (
 };
 
 export interface InitPayload {
-  code: string;
+  code: RoomCode;
   scenario: string;
-  playerToken: string;
+  playerToken: PlayerToken;
 }
 
 export const parseInitPayload = (
@@ -73,7 +81,7 @@ export const parseInitPayload = (
     return { ok: false, error: 'Invalid init payload' };
   }
 
-  if (typeof raw.code !== 'string' || !/^[A-Z0-9]{5}$/.test(raw.code)) {
+  if (!isRoomCode(raw.code)) {
     return { ok: false, error: 'Invalid room code' };
   }
 
@@ -99,9 +107,9 @@ export const parseInitPayload = (
 };
 
 export interface RoomConfig {
-  code: string;
+  code: RoomCode;
   scenario: string;
-  playerTokens: [string, string | null];
+  playerTokens: [PlayerToken, PlayerToken | null];
 }
 
 export const createRoomConfig = ({
@@ -115,10 +123,10 @@ export const createRoomConfig = ({
 });
 
 export interface SeatAssignmentInput {
-  presentedToken: string | null;
+  presentedToken: PlayerToken | null;
   disconnectedPlayer: number | null;
   seatOpen: [boolean, boolean];
-  playerTokens: [string, string | null];
+  playerTokens: [PlayerToken, PlayerToken | null];
 }
 
 export type SeatAssignmentDecision =

@@ -35,14 +35,16 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 
 describe('ui formatters', () => {
   it('parses room links and raw codes', () => {
+    const playerToken = 'A2345678901234567890123456789012';
+
     expect(
       parseJoinInput(
-        ' https://delta-v.example/?code=abcde&playerToken=pt-1 ',
+        ` https://delta-v.example/?code=abcde&playerToken=${playerToken} `,
         5,
       ),
     ).toEqual({
       code: 'ABCDE',
-      playerToken: 'pt-1',
+      playerToken,
     });
 
     expect(parseJoinInput('abcde', 5)).toEqual({

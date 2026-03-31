@@ -1,3 +1,4 @@
+import type { PlayerToken, RoomCode } from '../../shared/ids';
 import type {
   CombatResult,
   GameState,
@@ -21,14 +22,14 @@ export type ClientMessagePlan =
   | {
       kind: 'welcome';
       playerId: PlayerId;
-      code: string;
-      playerToken: string;
+      code: RoomCode;
+      playerToken: PlayerToken;
       showReconnectToast: boolean;
       nextState: ClientState | null;
     }
   | {
       kind: 'spectatorWelcome';
-      code: string;
+      code: RoomCode;
       showReconnectToast: boolean;
       nextState: ClientState | null;
     }
