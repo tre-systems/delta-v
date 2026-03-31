@@ -154,6 +154,66 @@ const getCycledSelection = <T extends { id: string }>(
   return matches[(currentIndex + 1) % matches.length];
 };
 
+const getSelectedLegalAttackers = (
+  legalAttackers: Ship[],
+  selectedIds: string[],
+): Ship[] => {
+  return legalAttackers.filter((ship) => selectedIds.includes(ship.id));
+};
+
+const getNextSelectedAttackerIds = (
+  legalAttackers: Ship[],
+  selectedIds: string[],
+  toggledShipId: string,
+): string[] => {
+  return selectedIds.includes(toggledShipId)
+    ? selectedIds.filter((id) => id !== toggledShipId)
+    : legalAttackers
+        .filter(
+          (ship) => selectedIds.includes(ship.id) || ship.id === toggledShipId,
+        )
+        .map((ship) => ship.id);
+};
+
+const resolveShipAttackers = (
+  legalAttackers: Ship[],
+  selectedIds: string[],
+  selectedShipId?: string | null,
+): Ship[] => {
+  const selectedAttackers = getSelectedLegalAttackers(
+    legalAttackers,
+    selectedIds,
+  );
+
+  if (selectedAttackers.length > 0) {
+    return selectedAttackers;
+  }
+
+  if (selectedShipId) {
+    const selectedShipFallback = legalAttackers.filter(
+      (ship) => ship.id === selectedShipId,
+    );
+
+    if (selectedShipFallback.length > 0) {
+      return selectedShipFallback;
+    }
+  }
+
+  return legalAttackers;
+};
+
+const resolveOrdnanceAttackers = (
+  legalAttackers: Ship[],
+  selectedIds: string[],
+): Ship[] => {
+  const selectedAttackers = getSelectedLegalAttackers(
+    legalAttackers,
+    selectedIds,
+  );
+
+  return selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
+};
+
 export const getReusableCombatGroup = (
   state: GameState,
   playerId: PlayerId,
@@ -500,12 +560,11 @@ export const toggleCombatAttackerSelection = (
   if (!legalIds.has(shipId)) return null;
 
   const selected = planning.combatAttackerIds.filter((id) => legalIds.has(id));
-
-  const nextSelected = selected.includes(shipId)
-    ? selected.filter((id) => id !== shipId)
-    : legalAttackers
-        .filter((ship) => selected.includes(ship.id) || ship.id === shipId)
-        .map((ship) => ship.id);
+  const nextSelected = getNextSelectedAttackerIds(
+    legalAttackers,
+    selected,
+    shipId,
+  );
 
   if (nextSelected.length === 0) {
     return {
@@ -527,7 +586,7 @@ export const toggleCombatAttackerSelection = (
               1,
             ),
             getCombatStrength(
-              legalAttackers.filter((ship) => nextSelected.includes(ship.id)),
+              getSelectedLegalAttackers(legalAttackers, nextSelected),
             ),
           )
         : null,
@@ -556,13 +615,10 @@ export const buildCurrentAttack = (
       map,
     );
 
-    const selectedAttackers = legalAttackers.filter((ship) =>
-      planning.combatAttackerIds.includes(ship.id),
+    const attackers = resolveOrdnanceAttackers(
+      legalAttackers,
+      planning.combatAttackerIds,
     );
-
-    // Anti-nuke interception auto-drafts all legal ships
-    const attackers =
-      selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
     const attackerIds = attackers.map((ship) => ship.id);
 
     return attackerIds.length > 0
@@ -607,23 +663,14 @@ export const buildCurrentAttack = (
     map,
   );
 
-  const selectedAttackers = legalAttackers.filter((ship) =>
-    planning.combatAttackerIds.includes(ship.id),
-  );
-
   // When no explicit attacker selection, use the currently selected ship
   // rather than drafting every legal attacker (which would auto-fire
   // immediately, preventing multi-ship attack queuing).
-  const selectedShipFallback = selectedShipId
-    ? legalAttackers.filter((ship) => ship.id === selectedShipId)
-    : [];
-
-  const attackers =
-    selectedAttackers.length > 0
-      ? selectedAttackers
-      : selectedShipFallback.length > 0
-        ? selectedShipFallback
-        : legalAttackers;
+  const attackers = resolveShipAttackers(
+    legalAttackers,
+    planning.combatAttackerIds,
+    selectedShipId,
+  );
 
   const attackStrength = clampAttackStrength(
     getCombatStrength(attackers),
@@ -645,14 +692,10 @@ export const countRemainingCombatAttackers = (
   playerId: PlayerId,
   queuedAttacks: CombatAttack[],
 ): number => {
-  const committedAttackers = getCommittedAttackers(queuedAttacks);
-
-  return state.ships.filter(
-    (ship) =>
-      ship.owner === playerId &&
-      ship.lifecycle !== 'destroyed' &&
-      canAttack(ship) &&
-      !committedAttackers.has(ship.id),
+  return getAvailableCombatAttackers(
+    state,
+    playerId,
+    getCommittedAttackers(queuedAttacks),
   ).length;
 };
 
