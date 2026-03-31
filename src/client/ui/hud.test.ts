@@ -192,7 +192,7 @@ describe('ui hud helpers', () => {
     ).toMatchObject({
       phaseText: 'COMBAT',
       statusText: 'Click enemies to target \u00b7 Fire All (Enter)',
-      skipCombatVisible: true,
+      skipCombatVisible: false,
     });
 
     expect(

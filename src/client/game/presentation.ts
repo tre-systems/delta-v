@@ -1,4 +1,3 @@
-import { SHIP_STATS } from '../../shared/constants';
 import type { MovementResult } from '../../shared/engine/game-engine';
 import type { HexCoord } from '../../shared/hex';
 import type {
@@ -118,31 +117,6 @@ export const presentCombatResults = (
   deps.applyGameState(state);
   deps.renderer.showCombatResults(results, previousState);
   deps.ui.log.logCombatResults(results, state.ships);
-  for (const [i, result] of results.entries()) {
-    const target =
-      result.targetType === 'ship'
-        ? state.ships.find((s) => s.id === result.targetId)
-        : null;
-    const targetName = target
-      ? (SHIP_STATS[target.type]?.name ?? target.type)
-      : 'nuke';
-    const outcome =
-      result.damageType === 'eliminated'
-        ? 'DESTROYED'
-        : result.damageType === 'disabled'
-          ? `Disabled ${result.disabledTurns}T`
-          : 'Miss';
-    const toastType =
-      result.damageType === 'eliminated'
-        ? 'error'
-        : result.damageType === 'disabled'
-          ? 'info'
-          : 'info';
-    setTimeout(
-      () => deps.ui.overlay.showToast(`${targetName}: ${outcome}`, toastType),
-      i * 400,
-    );
-  }
 
   if (resetCombat) {
     deps.resetCombatState();
