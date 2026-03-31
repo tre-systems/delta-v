@@ -138,8 +138,9 @@ export const handleLocalResolution = (
         [resolution.result],
         false,
       );
-      // Stay in combat phase — call onContinue to advance attacker
-      onContinue();
+      // A single attack can end the game (last enemy destroyed).
+      // Only advance to the next attacker if still playing.
+      continueIfGameActive(deps, onContinue);
       return;
     case 'combat':
     case 'logistics':

@@ -28,7 +28,8 @@ export const buildHudChromeInputFromViewModel = (
   fuelToStop: hud.fuelToStop,
   statusOverrideText:
     clientState === 'playing_movementAnim' ? 'Ships moving...' : null,
-  suppressActionButtons: clientState === 'playing_movementAnim',
+  suppressActionButtons:
+    clientState === 'playing_movementAnim' || clientState === 'gameOver',
   astrogationCtx: {
     selectedShipLanded: hud.selectedShipLanded,
     selectedShipDisabled: hud.selectedShipDisabled,
