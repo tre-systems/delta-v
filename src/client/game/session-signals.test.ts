@@ -9,6 +9,7 @@ import {
 import { createLogisticsStore } from './logistics-ui';
 import { createInitialClientSession } from './session-model';
 import {
+  attachMainSessionEffects,
   attachRendererGameStateEffect,
   attachSessionCombatButtonsEffect,
   attachSessionFleetPanelEffect,
@@ -79,6 +80,76 @@ describe('session-signals', () => {
     expect(updateHUD).toHaveBeenCalled();
 
     dispose();
+  });
+
+  it('bundles main session effects behind a single disposer', () => {
+    const session = createInitialClientSession();
+    const deps = {
+      renderer: {
+        setPlayerId: vi.fn(),
+        setGameState: vi.fn(),
+      },
+      ui: {
+        setPlayerId: vi.fn(),
+        showAttackButton: vi.fn(),
+        showFireButton: vi.fn(),
+        setWaitingState: vi.fn(),
+        updateLatency: vi.fn(),
+        updateFleetStatus: vi.fn(),
+        updateShipList: vi.fn(),
+      },
+      hud: {
+        updateHUD: vi.fn(),
+      },
+      logistics: {
+        renderLogisticsPanel: vi.fn(),
+      },
+    };
+    const dispose = attachMainSessionEffects(session, deps);
+
+    expect(deps.renderer.setPlayerId).toHaveBeenLastCalledWith(-1);
+    expect(deps.ui.setPlayerId).toHaveBeenLastCalledWith(-1);
+    expect(deps.ui.showAttackButton).toHaveBeenLastCalledWith(false);
+    expect(deps.ui.showFireButton).toHaveBeenLastCalledWith(false, 0);
+    expect(deps.ui.setWaitingState).toHaveBeenLastCalledWith(null, false);
+    expect(deps.ui.updateLatency).toHaveBeenLastCalledWith(null);
+    expect(deps.ui.updateFleetStatus).toHaveBeenLastCalledWith('');
+    expect(deps.ui.updateShipList).toHaveBeenLastCalledWith(
+      [],
+      null,
+      expect.any(Map),
+    );
+    expect(deps.logistics.renderLogisticsPanel).toHaveBeenLastCalledWith(null);
+    expect(deps.renderer.setGameState).toHaveBeenLastCalledWith(null);
+    expect(deps.hud.updateHUD).toHaveBeenCalled();
+
+    vi.clearAllMocks();
+    dispose();
+
+    session.state = 'playing_astrogation';
+    session.playerId = 0;
+    session.gameCode = 'ROOM2';
+    session.latencyMs = 90;
+    session.gameState = createGame(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      'SIG7',
+      findBaseHex,
+    );
+    session.logisticsState = createLogisticsStore(session.gameState, 0);
+
+    expect(session.planningState.selectedShipId).toBeNull();
+    expect(deps.renderer.setPlayerId).not.toHaveBeenCalled();
+    expect(deps.ui.setPlayerId).not.toHaveBeenCalled();
+    expect(deps.ui.showAttackButton).not.toHaveBeenCalled();
+    expect(deps.ui.showFireButton).not.toHaveBeenCalled();
+    expect(deps.ui.setWaitingState).not.toHaveBeenCalled();
+    expect(deps.ui.updateLatency).not.toHaveBeenCalled();
+    expect(deps.ui.updateFleetStatus).not.toHaveBeenCalled();
+    expect(deps.ui.updateShipList).not.toHaveBeenCalled();
+    expect(deps.logistics.renderLogisticsPanel).not.toHaveBeenCalled();
+    expect(deps.renderer.setGameState).not.toHaveBeenCalled();
+    expect(deps.hud.updateHUD).not.toHaveBeenCalled();
   });
 
   it('notifies HUD when planning changes', () => {
