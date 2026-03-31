@@ -141,7 +141,7 @@ stateDiagram-v2
 
 ```mermaid
 flowchart TB
-  A[Authoritative action] --> B[Engine returns next state + EngineEvent[]]
+  A[Authoritative action] --> B[Engine returns next state plus engine events]
   B --> C[Append event envelopes]
   C --> D[Checkpoint at turn boundaries/end]
 

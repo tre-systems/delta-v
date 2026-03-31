@@ -39,117 +39,144 @@ export interface ConnectionManager {
   getWs: () => WebSocket | null;
 }
 
+interface ConnectionRuntime {
+  ws: WebSocket | null;
+  pingInterval: number | null;
+  reconnectTimer: number | null;
+  suppressDisconnectHandling: boolean;
+}
+
+const PING_INTERVAL_MS = 5000;
 const MAX_RECONNECT_ATTEMPTS = 5;
+
+const clearPingInterval = (
+  runtime: Pick<ConnectionRuntime, 'pingInterval'>,
+): void => {
+  if (runtime.pingInterval !== null) {
+    clearInterval(runtime.pingInterval);
+    runtime.pingInterval = null;
+  }
+};
+
+const clearReconnectTimer = (
+  runtime: Pick<ConnectionRuntime, 'reconnectTimer'>,
+): void => {
+  if (runtime.reconnectTimer !== null) {
+    clearTimeout(runtime.reconnectTimer);
+    runtime.reconnectTimer = null;
+  }
+};
+
+const parseServerPayload = (
+  payload: string,
+  deps: Pick<ConnectionDeps, 'trackEvent'>,
+): S2C | null => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(payload);
+  } catch {
+    deps.trackEvent('ws_parse_error');
+    return null;
+  }
+  const result = validateServerMessage(parsed);
+  if (!result.ok) {
+    deps.trackEvent('ws_invalid_message', { error: result.error });
+    return null;
+  }
+  return result.value;
+};
+
 export const createConnectionManager = (
   deps: ConnectionDeps,
 ): ConnectionManager => {
-  let ws: WebSocket | null = null;
-  let pingInterval: number | null = null;
-  let lastPingSent = 0;
-  let reconnectTimer: number | null = null;
-  let suppressDisconnectHandling = false;
+  const runtime: ConnectionRuntime = {
+    ws: null,
+    pingInterval: null,
+    reconnectTimer: null,
+    suppressDisconnectHandling: false,
+  };
+
   const send = (msg: unknown) => {
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(msg));
+    if (runtime.ws?.readyState === WebSocket.OPEN) {
+      runtime.ws.send(JSON.stringify(msg));
     }
   };
+
   const stopPing = () => {
-    if (pingInterval !== null) {
-      clearInterval(pingInterval);
-      pingInterval = null;
-    }
+    clearPingInterval(runtime);
     deps.setLatencyMs(-1);
   };
+
   const startPing = () => {
     stopPing();
-    deps.setLatencyMs(-1);
-    pingInterval = window.setInterval(() => {
-      if (ws?.readyState === WebSocket.OPEN) {
-        lastPingSent = Date.now();
-        send({ type: 'ping', t: lastPingSent });
+    runtime.pingInterval = window.setInterval(() => {
+      if (runtime.ws?.readyState === WebSocket.OPEN) {
+        const sentAt = Date.now();
+        send({ type: 'ping', t: sentAt });
       }
-    }, 5000);
+    }, PING_INTERVAL_MS);
   };
-  const connect = (code: string) => {
-    suppressDisconnectHandling = false;
-    const spectator = deps.isSpectatorSession();
-    const socket = new WebSocket(
-      buildWebSocketUrl(
-        location,
-        code,
-        spectator ? null : deps.getStoredPlayerToken(code),
-        spectator ? { viewer: 'spectator' } : undefined,
-      ),
-    );
-    ws = socket;
-    socket.onmessage = (e) => {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(e.data);
-      } catch {
-        deps.trackEvent('ws_parse_error');
-        return;
-      }
-      const result = validateServerMessage(parsed);
-      if (!result.ok) {
-        deps.trackEvent('ws_invalid_message', { error: result.error });
-        return;
-      }
-      deps.handleMessage(result.value);
-    };
-    socket.onclose = () => {
-      if (ws === socket) {
-        ws = null;
-      }
-      const shouldHandleDisconnect = !suppressDisconnectHandling;
-      suppressDisconnectHandling = false;
 
-      if (shouldHandleDisconnect) {
-        handleDisconnect();
-      }
-    };
-    socket.onerror = () => {}; // onclose fires after onerror
-    deps.setTransport(createWebSocketTransport((msg) => send(msg)));
-    startPing();
+  const clearReconnectUi = () => {
+    deps.setReconnectOverlayState(null);
   };
+
+  const clearReconnectFlow = () => {
+    clearReconnectTimer(runtime);
+    clearReconnectUi();
+  };
+
+  const exitReconnectFlow = () => {
+    clearReconnectFlow();
+    deps.exitToMenu();
+  };
+
+  const handleSocketMessage = (payload: string) => {
+    const message = parseServerPayload(payload, deps);
+    if (message) {
+      deps.handleMessage(message);
+    }
+  };
+
   const attemptReconnect = () => {
+    const reconnectAttempts = deps.getReconnectAttempts();
     const plan = deriveReconnectAttemptPlan(
       deps.getGameCode(),
-      deps.getReconnectAttempts(),
+      reconnectAttempts,
       MAX_RECONNECT_ATTEMPTS,
     );
 
     if (plan.giveUp) {
       deps.trackEvent('reconnect_failed', {
-        attempts: deps.getReconnectAttempts(),
+        attempts: reconnectAttempts,
       });
-      deps.setReconnectOverlayState(null);
+      clearReconnectFlow();
       deps.showToast('Could not reconnect to game', 'error');
       deps.exitToMenu();
       return;
     }
-    deps.setReconnectAttempts(must(plan.nextAttempt));
+
+    const attempt = must(plan.nextAttempt);
+    const delayMs = must(plan.delayMs);
+
+    deps.setReconnectAttempts(attempt);
     deps.trackEvent('reconnect_attempt_scheduled', {
-      attempt: must(plan.nextAttempt),
-      delayMs: must(plan.delayMs),
+      attempt,
+      delayMs,
     });
     deps.setReconnectOverlayState({
-      attempt: must(plan.nextAttempt),
+      attempt,
       maxAttempts: MAX_RECONNECT_ATTEMPTS,
       onCancel: () => {
-        if (reconnectTimer !== null) {
-          clearTimeout(reconnectTimer);
-          reconnectTimer = null;
-        }
-        deps.setReconnectOverlayState(null);
-        deps.exitToMenu();
+        exitReconnectFlow();
       },
     });
-    reconnectTimer = window.setTimeout(() => {
-      reconnectTimer = null;
+    runtime.reconnectTimer = window.setTimeout(() => {
+      runtime.reconnectTimer = null;
       connect(must(deps.getGameCode()));
-    }, must(plan.delayMs));
+    }, delayMs);
   };
+
   const handleDisconnect = () => {
     stopPing();
     const currentState = deps.getClientState();
@@ -176,18 +203,51 @@ export const createConnectionManager = (
       deps.setState(handling.nextState);
     }
   };
-  const close = () => {
-    suppressDisconnectHandling = true;
-    stopPing();
 
-    if (reconnectTimer !== null) {
-      clearTimeout(reconnectTimer);
-      reconnectTimer = null;
+  const handleSocketClose = (socket: WebSocket) => {
+    if (runtime.ws === socket) {
+      runtime.ws = null;
     }
-    deps.setReconnectOverlayState(null);
-    ws?.close();
-    ws = null;
+
+    const shouldHandleDisconnect = !runtime.suppressDisconnectHandling;
+    runtime.suppressDisconnectHandling = false;
+
+    if (shouldHandleDisconnect) {
+      handleDisconnect();
+    }
   };
+
+  const connect = (code: string) => {
+    runtime.suppressDisconnectHandling = false;
+    const spectator = deps.isSpectatorSession();
+    const socket = new WebSocket(
+      buildWebSocketUrl(
+        location,
+        code,
+        spectator ? null : deps.getStoredPlayerToken(code),
+        spectator ? { viewer: 'spectator' } : undefined,
+      ),
+    );
+    runtime.ws = socket;
+    socket.onmessage = (e) => {
+      handleSocketMessage(e.data);
+    };
+    socket.onclose = () => {
+      handleSocketClose(socket);
+    };
+    socket.onerror = () => {}; // onclose fires after onerror
+    deps.setTransport(createWebSocketTransport((msg) => send(msg)));
+    startPing();
+  };
+
+  const close = () => {
+    runtime.suppressDisconnectHandling = true;
+    stopPing();
+    clearReconnectFlow();
+    runtime.ws?.close();
+    runtime.ws = null;
+  };
+
   return {
     connect,
     send,
@@ -196,6 +256,6 @@ export const createConnectionManager = (
     attemptReconnect,
     handleDisconnect,
     close,
-    getWs: () => ws,
+    getWs: () => runtime.ws,
   };
 };
