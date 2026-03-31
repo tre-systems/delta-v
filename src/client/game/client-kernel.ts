@@ -92,18 +92,15 @@ export const createGameClient = () => {
   const map = buildSolarSystemMap();
   const turnTelemetry = createTurnTelemetryTracker();
 
-  const sessionHolder: { api: SessionApi | null } = { api: null };
-  const networkHolder: { deps: MainNetworkDeps | null } = { deps: null };
-  const messageHandlerHolder: { deps: MessageHandlerDeps | null } = {
-    deps: null,
-  };
+  let sessionApi: SessionApi | null = null;
+  let mainNetworkDeps: MainNetworkDeps | null = null;
+  let messageHandlerDeps: MessageHandlerDeps | null = null;
 
   let actionDeps: ActionDeps;
   let replayController: ReplayController;
 
   let setState: (newState: ClientState) => void;
   let transitionToPhase: () => void;
-  let disposeSessionSubscriptions: Dispose | undefined;
 
   const applyGameState = (state: GameState) => {
     applyClientGameState({ ctx }, state);
@@ -121,21 +118,34 @@ export const createGameClient = () => {
     await runAI(actionDeps.localGameFlowDeps);
   };
 
+  const showToast = (message: string, type: 'error' | 'info' | 'success') => {
+    ui.overlay.showToast(message, type);
+  };
+
+  const renderLogisticsPanel = (state: typeof ctx.logisticsState) => {
+    if (!state) {
+      clearHTML(transferPanelEl);
+      return;
+    }
+
+    renderTransferPanel(transferPanelEl, state);
+  };
+
   const onAnimationComplete = () => {
     transitionToPhase();
   };
 
   const handleMessage = (msg: S2C) => {
-    const deps = messageHandlerHolder.deps;
-    if (!deps) return;
-    handleServerMessageFromMain(deps, msg, () =>
+    if (!messageHandlerDeps) return;
+    handleServerMessageFromMain(messageHandlerDeps, msg, () =>
       replayController.onGameOverMessage(),
     );
   };
 
   const exitToMenu = () => {
-    const d = networkHolder.deps;
-    if (d) exitToMenuFromMain(d);
+    if (mainNetworkDeps) {
+      exitToMenuFromMain(mainNetworkDeps);
+    }
   };
 
   const connection = createConnectionManager({
@@ -144,7 +154,7 @@ export const createGameClient = () => {
     getClientState: () => ctx.stateSignal.peek(),
     isSpectatorSession: () => ctx.spectatorMode,
     getStoredPlayerToken: (code) =>
-      sessionHolder.api?.getStoredPlayerToken(code) ?? null,
+      sessionApi?.getStoredPlayerToken(code) ?? null,
     getReconnectAttempts: () => ctx.reconnectAttempts,
     setReconnectAttempts: (n) => {
       setReconnectAttempts(ctx, n);
@@ -160,13 +170,13 @@ export const createGameClient = () => {
     },
     setState: (s) => setState(s),
     handleMessage,
-    showToast: (msg, type) => ui.overlay.showToast(msg, type),
+    showToast,
     exitToMenu,
     trackEvent: (event, props) => track(event, props),
   });
 
   const turnTimer = createTurnTimerManager({
-    showToast: (msg, type) => ui.overlay.showToast(msg, type),
+    showToast,
     playWarning,
   });
   ui.bindTurnTimerSignal(turnTimer.viewSignal);
@@ -182,19 +192,12 @@ export const createGameClient = () => {
     tooltipEl,
   });
 
-  disposeSessionSubscriptions = attachMainSessionEffects(ctx, {
+  const disposeSessionSubscriptions: Dispose = attachMainSessionEffects(ctx, {
     renderer,
     ui,
     hud,
     logistics: {
-      renderLogisticsPanel: (state) => {
-        if (!state) {
-          clearHTML(transferPanelEl);
-          return;
-        }
-
-        renderTransferPanel(transferPanelEl, state);
-      },
+      renderLogisticsPanel,
     },
   });
 
@@ -227,16 +230,16 @@ export const createGameClient = () => {
     track,
   });
 
-  const sessionApi = createSessionApi({
+  sessionApi = createSessionApi({
     ctx,
-    showToast: (msg, type) => ui.overlay.showToast(msg, type),
+    showToast,
     setMenuLoading: (loading) => ui.setMenuLoading(loading),
     setState: (s) => setState(s),
     setScenario: (scenario) => setScenario(ctx, scenario),
     connect: (code) => connection.connect(code),
     track,
   });
-  sessionHolder.api = sessionApi;
+  const mainSessionApi = sessionApi;
 
   replayController = createReplayController({
     getClientContext: () => ({
@@ -245,8 +248,8 @@ export const createGameClient = () => {
       gameCode: ctx.gameCode,
       gameState: ctx.gameStateSignal.peek(),
     }),
-    fetchReplay: (code, gameId) => sessionApi.fetchReplay(code, gameId),
-    showToast: (message, type) => ui.overlay.showToast(message, type),
+    fetchReplay: (code, gameId) => mainSessionApi.fetchReplay(code, gameId),
+    showToast,
     clearTrails: () => renderer.clearTrails(),
     applyGameState: (state) => applyGameState(state),
   });
@@ -295,14 +298,14 @@ export const createGameClient = () => {
     transitionClientPhase(phaseControllerDeps);
   };
 
-  const messageHandlerDeps = createMainMessageHandlerDeps({
+  messageHandlerDeps = createMainMessageHandlerDeps({
     ctx,
     renderer,
     ui,
     hud,
     actionDeps,
     turnTelemetry,
-    sessionApi,
+    sessionApi: mainSessionApi,
     setState: (state) => setState(state),
     applyGameState: (state) => applyGameState(state),
     transitionToPhase: () => transitionToPhase(),
@@ -311,11 +314,10 @@ export const createGameClient = () => {
     logScenarioBriefing: () => hud.logScenarioBriefing(),
     trackEvent: (event, props) => track(event, props),
   });
-  messageHandlerHolder.deps = messageHandlerDeps;
 
   const createLocalTransport = (): GameTransport => {
-    const net = networkHolder.deps;
-    if (!net) {
+    const networkDeps = mainNetworkDeps;
+    if (!networkDeps) {
       throw new Error('Game client network deps not initialized');
     }
     return createLocalGameTransport({
@@ -327,16 +329,17 @@ export const createGameClient = () => {
       getAIDifficulty: () => ctx.aiDifficulty,
       localGameFlowDeps: actionDeps.localGameFlowDeps,
       applyGameState: (s) => applyGameState(s),
-      showToast: (msg, type) => ui.overlay.showToast(msg, type),
+      showToast,
       logScenarioBriefing: () => hud.logScenarioBriefing(),
       transitionToPhase: () => transitionToPhase(),
       onAnimationComplete: () => onAnimationComplete(),
       advanceToNextAttacker: () => advanceToNextAttacker(actionDeps.combatDeps),
-      startLocalGame: (scenario) => startLocalGameFromMain(net, scenario),
+      startLocalGame: (scenario) =>
+        startLocalGameFromMain(networkDeps, scenario),
     });
   };
 
-  const mainNetworkDeps: MainNetworkDeps = {
+  mainNetworkDeps = {
     ctx,
     map,
     renderer,
@@ -357,7 +360,7 @@ export const createGameClient = () => {
     createLocalTransport: () => createLocalTransport(),
     stopTurnTimer: () => turnTimer.stop(),
   };
-  networkHolder.deps = mainNetworkDeps;
+  const networkDeps = mainNetworkDeps;
 
   const interactions = createMainInteractionController({
     canvas,
@@ -369,8 +372,8 @@ export const createGameClient = () => {
     camera,
     hud,
     replayController,
-    sessionApi,
-    mainNetworkDeps,
+    sessionApi: mainSessionApi,
+    mainNetworkDeps: networkDeps,
     setAIDifficulty: (difficulty) => setAIDifficulty(ctx, difficulty),
     exitToMenu,
     trackEvent: (event) => track(event),
