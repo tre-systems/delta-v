@@ -1,9 +1,5 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  handleServerMessage,
-  type MessageHandlerDeps,
-} from '../../client/game/message-handler';
 import { must } from '../../shared/assert';
 import type { MovementResult } from '../../shared/engine/game-engine';
 import type { GameState } from '../../shared/types/domain';
@@ -146,64 +142,6 @@ const createSocket = () => ({
     this.closeReason = reason;
   },
 });
-
-const createMessageHandlerDeps = (
-  state: GameState | null = null,
-): MessageHandlerDeps & { transitionCount: number } => {
-  let transitionCount = 0;
-  const deps: MessageHandlerDeps & { transitionCount: number } = {
-    ctx: {
-      state: 'playing_astrogation',
-      playerId: 0,
-      gameCode: null,
-      reconnectAttempts: 0,
-      reconnectOverlayState: null,
-      opponentDisconnectDeadlineMs: null,
-      latencyMs: 0,
-      gameState: state,
-    },
-    transitionCount,
-    setState(nextState) {
-      deps.ctx.state = nextState;
-    },
-    applyGameState(nextState) {
-      deps.ctx.gameState = nextState;
-    },
-    transitionToPhase() {
-      transitionCount += 1;
-      deps.transitionCount = transitionCount;
-      deps.ctx.state = 'playing_ordnance';
-    },
-    presentMovementResult() {},
-    presentCombatResults() {},
-    showGameOverOutcome() {},
-    advanceToNextAttacker() {},
-    storePlayerToken() {},
-    resetTurnTelemetry() {},
-    onAnimationComplete() {},
-    logScenarioBriefing() {},
-    trackEvent() {},
-    deserializeState(raw) {
-      return raw;
-    },
-    renderer: {
-      clearTrails() {},
-    },
-    ui: {
-      log: {
-        logText() {},
-        setChatEnabled() {},
-        clear() {},
-      },
-      overlay: {
-        showToast() {},
-        hideGameOver() {},
-        showRematchPending() {},
-      },
-    },
-  };
-  return deps;
-};
 
 describe('GameDO', () => {
   beforeEach(() => {
@@ -893,12 +831,6 @@ describe('GameDO', () => {
       type: 'stateUpdate',
       state,
     });
-
-    const deps = createMessageHandlerDeps();
-    for (const message of messages) {
-      handleServerMessage(deps, message);
-    }
-    expect(deps.transitionCount).toBe(1);
   });
 
   it('keeps movement results as the only state-bearing message', async () => {

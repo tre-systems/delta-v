@@ -119,6 +119,31 @@ const diffStates = (
 };
 
 describe('match-scoped event stream', () => {
+  it('migrates legacy unchunked event streams on read', async () => {
+    const storage = createMockStorage();
+    const legacyStream: EventEnvelope[] = [
+      {
+        gameId: 'LEGACY-m1',
+        seq: 1,
+        ts: 1_700_000_000_000,
+        actor: null,
+        event: {
+          type: 'gameCreated',
+          scenario: 'biplanetary',
+          turn: 1,
+          phase: 'astrogation',
+          matchSeed: 0,
+        },
+      },
+    ];
+
+    await storage.put('events:LEGACY-m1', legacyStream);
+
+    expect(await getEventStream(storage, 'LEGACY-m1')).toEqual(legacyStream);
+    expect(await storage.get('eventChunkCount:LEGACY-m1')).toBe(1);
+    expect(await storage.get('eventSeq:LEGACY-m1')).toBe(1);
+  });
+
   it('appends enveloped events with sequential seq numbers', async () => {
     const storage = createMockStorage();
 
