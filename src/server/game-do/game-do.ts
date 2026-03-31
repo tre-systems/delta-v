@@ -46,6 +46,7 @@ import {
   normalizeDisconnectedPlayer,
 } from './session';
 import { type AuxMessageDeps, handleAuxMessage } from './socket';
+import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 import {
   reportGameDoEngineError,
   reportGameDoProjectionParityMismatch,
@@ -118,15 +119,21 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async getRoomConfig(): Promise<RoomConfig | null> {
-    return (await this.ctx.storage.get<RoomConfig>('roomConfig')) ?? null;
+    return (
+      (await this.ctx.storage.get<RoomConfig>(
+        GAME_DO_STORAGE_KEYS.roomConfig,
+      )) ?? null
+    );
   }
 
   private async saveRoomConfig(config: RoomConfig): Promise<void> {
-    await this.ctx.storage.put('roomConfig', config);
+    await this.ctx.storage.put(GAME_DO_STORAGE_KEYS.roomConfig, config);
   }
 
   private async getGameCode(): Promise<string> {
-    return (await this.ctx.storage.get<string>('gameCode')) ?? '';
+    return (
+      (await this.ctx.storage.get<string>(GAME_DO_STORAGE_KEYS.gameCode)) ?? ''
+    );
   }
 
   private async getScenario() {
@@ -136,12 +143,12 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async setGameCode(code: string): Promise<void> {
-    await this.ctx.storage.put('gameCode', code);
+    await this.ctx.storage.put(GAME_DO_STORAGE_KEYS.gameCode, code);
   }
 
   private async touchInactivity(): Promise<void> {
     await this.ctx.storage.put(
-      'inactivityAt',
+      GAME_DO_STORAGE_KEYS.inactivityAt,
       Date.now() + INACTIVITY_TIMEOUT_MS,
     );
     await this.rescheduleAlarm();
@@ -149,9 +156,9 @@ export class GameDO extends DurableObject<Env> {
 
   private async getAlarmDeadlines() {
     const [disconnectAt, turnTimeoutAt, inactivityAt] = await Promise.all([
-      this.ctx.storage.get<number>('disconnectAt'),
-      this.ctx.storage.get<number>('turnTimeoutAt'),
-      this.ctx.storage.get<number>('inactivityAt'),
+      this.ctx.storage.get<number>(GAME_DO_STORAGE_KEYS.disconnectAt),
+      this.ctx.storage.get<number>(GAME_DO_STORAGE_KEYS.turnTimeoutAt),
+      this.ctx.storage.get<number>(GAME_DO_STORAGE_KEYS.inactivityAt),
     ]);
     return {
       disconnectAt,
@@ -161,29 +168,33 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async isRoomArchived(): Promise<boolean> {
-    return (await this.ctx.storage.get<boolean>('roomArchived')) === true;
+    return (
+      (await this.ctx.storage.get<boolean>(
+        GAME_DO_STORAGE_KEYS.roomArchived,
+      )) === true
+    );
   }
 
   private async archiveRoomState(): Promise<void> {
     await Promise.all([
-      this.ctx.storage.put('roomArchived', true),
-      this.ctx.storage.delete('disconnectAt'),
-      this.ctx.storage.delete('disconnectTime'),
-      this.ctx.storage.delete('disconnectedPlayer'),
-      this.ctx.storage.delete('inactivityAt'),
-      this.ctx.storage.delete('rematchRequests'),
-      this.ctx.storage.delete('turnTimeoutAt'),
+      this.ctx.storage.put(GAME_DO_STORAGE_KEYS.roomArchived, true),
+      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.disconnectAt),
+      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.disconnectTime),
+      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.disconnectedPlayer),
+      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.inactivityAt),
+      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.rematchRequests),
+      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.turnTimeoutAt),
     ]);
   }
 
   private async clearRoomArchivedFlag(): Promise<void> {
-    await this.ctx.storage.delete('roomArchived');
+    await this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.roomArchived);
   }
 
   private async getLatestGameId(): Promise<string | null> {
     const [code, matchNumber] = await Promise.all([
       this.getGameCode(),
-      this.ctx.storage.get<number>('matchNumber'),
+      this.ctx.storage.get<number>(GAME_DO_STORAGE_KEYS.matchNumber),
     ]);
 
     if (!code || matchNumber === undefined) {
@@ -214,18 +225,27 @@ export class GameDO extends DurableObject<Env> {
 
   private async clearDisconnectMarker(): Promise<void> {
     await Promise.all([
-      this.ctx.storage.delete('disconnectedPlayer'),
-      this.ctx.storage.delete('disconnectTime'),
-      this.ctx.storage.delete('disconnectAt'),
+      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.disconnectedPlayer),
+      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.disconnectTime),
+      this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.disconnectAt),
     ]);
   }
 
   private async setDisconnectMarker(playerId: PlayerId): Promise<void> {
     const marker = createDisconnectMarker(playerId, Date.now());
     await Promise.all([
-      this.ctx.storage.put('disconnectedPlayer', marker.disconnectedPlayer),
-      this.ctx.storage.put('disconnectTime', marker.disconnectTime),
-      this.ctx.storage.put('disconnectAt', marker.disconnectAt),
+      this.ctx.storage.put(
+        GAME_DO_STORAGE_KEYS.disconnectedPlayer,
+        marker.disconnectedPlayer,
+      ),
+      this.ctx.storage.put(
+        GAME_DO_STORAGE_KEYS.disconnectTime,
+        marker.disconnectTime,
+      ),
+      this.ctx.storage.put(
+        GAME_DO_STORAGE_KEYS.disconnectAt,
+        marker.disconnectAt,
+      ),
     ]);
     await this.rescheduleAlarm();
   }
@@ -239,7 +259,9 @@ export class GameDO extends DurableObject<Env> {
         isRoomArchived: () => this.isRoomArchived(),
         getDisconnectedPlayer: async () =>
           normalizeDisconnectedPlayer(
-            await this.ctx.storage.get<number>('disconnectedPlayer'),
+            await this.ctx.storage.get<number>(
+              GAME_DO_STORAGE_KEYS.disconnectedPlayer,
+            ),
           ),
         getSeatOpen: () => this.getSeatOpen(),
         isValidPlayerToken,
@@ -396,12 +418,12 @@ export class GameDO extends DurableObject<Env> {
 
   private async startTurnTimer(state: GameState): Promise<void> {
     if (state.phase === 'gameOver') {
-      await this.ctx.storage.delete('turnTimeoutAt');
+      await this.ctx.storage.delete(GAME_DO_STORAGE_KEYS.turnTimeoutAt);
       await this.rescheduleAlarm();
       return;
     }
     const timeoutAt = Date.now() + TURN_TIMEOUT_MS;
-    await this.ctx.storage.put('turnTimeoutAt', timeoutAt);
+    await this.ctx.storage.put(GAME_DO_STORAGE_KEYS.turnTimeoutAt, timeoutAt);
     await this.rescheduleAlarm();
   }
 

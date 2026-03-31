@@ -1,6 +1,8 @@
 /**
- * Authoritative match state on the client lives on `ClientSession` and is written
- * only through here (`applyClientGameState` / `clearClientGameState`).
+ * Authoritative `ClientSession.gameState` writes happen through this module
+ * (`applyClientGameState` / `clearClientGameState`).
+ * Other session-owned slices (for example `logisticsState`) are managed by
+ * their respective transition modules.
  *
  * **Who may call what (client shell):**
  * - `setState` / `applyClientStateTransition`: only via `createGameClient`’s

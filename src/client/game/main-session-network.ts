@@ -33,7 +33,6 @@ export interface MainNetworkDeps {
   turnTelemetry: TurnTelemetryTracker;
   sessionApi: SessionApi;
   connection: ConnectionManager;
-  setMenuState: (state: ClientState) => void;
   setState: (state: ClientState) => void;
   applyGameState: (state: GameState) => void;
   transitionToPhase: () => void;
@@ -87,7 +86,7 @@ export const beginSpectateGameFromMain = (
       replaceRoute: (route) => history.replaceState(null, '', route),
       buildGameRoute,
       connect: (gameCode) => deps.connection.connect(gameCode),
-      setState: (state) => deps.setMenuState(state),
+      setState: (state) => deps.setState(state),
     },
     code,
   );
@@ -110,7 +109,7 @@ export const beginJoinGameFromMain = (
       replaceRoute: (route) => history.replaceState(null, '', route),
       buildGameRoute,
       connect: (gameCode) => deps.connection.connect(gameCode),
-      setState: (state) => deps.setMenuState(state),
+      setState: (state) => deps.setState(state),
       validateJoin: (gameCode, token) =>
         deps.sessionApi.validateJoin(gameCode, token),
       showToast: (message, type) => deps.ui.overlay.showToast(message, type),

@@ -18,10 +18,11 @@ import {
 import { deriveGameOverPlan } from './endgame';
 import type { GameOverStats } from './helpers';
 import { deriveLandingLogEntries } from './landings';
+import type { ClientState } from './phase';
 
 export interface PresentationDeps {
   applyGameState: (state: GameState) => void;
-  setState: (newState: string) => void;
+  setState: (newState: ClientState) => void;
   resetCombatState: () => void;
   getGameState: () => GameState | null;
   getPlayerId: () => PlayerId;

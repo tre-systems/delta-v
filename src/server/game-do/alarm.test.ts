@@ -4,12 +4,12 @@ import { buildSolarSystemMap } from '../../shared/map-data';
 import type { GameState } from '../../shared/types/domain';
 import { runGameDoAlarm } from './alarm';
 
-const archiveCompletedMatchMock = vi.hoisted(() =>
+const scheduleArchiveCompletedMatchMock = vi.hoisted(() =>
   vi.fn(() => Promise.resolve()),
 );
 
 vi.mock('./match-archive', () => ({
-  archiveCompletedMatch: archiveCompletedMatchMock,
+  scheduleArchiveCompletedMatch: scheduleArchiveCompletedMatchMock,
 }));
 
 const map = buildSolarSystemMap();
@@ -135,11 +135,11 @@ describe('runGameDoAlarm', () => {
     expect(closeB).toHaveBeenCalledWith(1000, 'Inactivity timeout');
     expect(d.archiveRoomState).toHaveBeenCalledTimes(1);
     expect(d.rescheduleAlarm).not.toHaveBeenCalled();
-    expect(archiveCompletedMatchMock).not.toHaveBeenCalled();
+    expect(scheduleArchiveCompletedMatchMock).not.toHaveBeenCalled();
   });
 
   it('schedules match archive on inactivity when MATCH_ARCHIVE is set', async () => {
-    archiveCompletedMatchMock.mockClear();
+    scheduleArchiveCompletedMatchMock.mockClear();
     const d = minimalAlarmDeps();
     d.get.mockImplementation(async (key: string) => {
       if (key === 'inactivityAt') return 500;
@@ -155,11 +155,13 @@ describe('runGameDoAlarm', () => {
       env: { ...d.env, MATCH_ARCHIVE: bucket },
     });
 
-    expect(d.waitUntil).toHaveBeenCalled();
-    expect(archiveCompletedMatchMock).toHaveBeenCalledWith(
-      d.storage,
-      bucket,
-      d.env.DB,
+    expect(scheduleArchiveCompletedMatchMock).toHaveBeenCalledWith(
+      {
+        storage: d.storage,
+        r2: bucket,
+        db: d.env.DB,
+        waitUntil: d.waitUntil,
+      },
       gameState,
       'CODE',
     );

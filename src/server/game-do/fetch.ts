@@ -26,7 +26,7 @@ export type GameDoFetchDeps = {
   initGame: () => Promise<void>;
   touchInactivity: () => Promise<void>;
   acceptWebSocket: (server: WebSocket, tags: string[]) => void;
-  getRoomConfig: () => Promise<{ code: string } | null>;
+  getRoomConfig: () => Promise<RoomConfig | null>;
 };
 
 export const handleGameDoFetch = async (
