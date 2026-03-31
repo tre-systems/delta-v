@@ -90,17 +90,29 @@ export class GameDO extends DurableObject<Env> {
     this.ctx.waitUntil(promise);
   }
 
+  private getWebSockets(tag?: string): WebSocket[] {
+    return this.ctx.getWebSockets(tag);
+  }
+
+  private getTags(socket: WebSocket): string[] {
+    return this.ctx.getTags(socket);
+  }
+
+  private acceptWebSocket(server: WebSocket, tags: string[]): void {
+    this.ctx.acceptWebSocket(server, tags);
+  }
+
   // --- WebSocket tag-based player tracking ---
   private getPlayerId(ws: WebSocket): PlayerId | null {
-    const tag = this.ctx.getTags(ws).find((t) => t.startsWith('player:'));
+    const tag = this.getTags(ws).find((t) => t.startsWith('player:'));
     const id = tag ? parseInt(tag.split(':')[1], 10) : null;
     return id === 0 || id === 1 ? id : null;
   }
 
   private getSeatOpen(): [boolean, boolean] {
     return [
-      this.ctx.getWebSockets('player:0').length === 0,
-      this.ctx.getWebSockets('player:1').length === 0,
+      this.getWebSockets('player:0').length === 0,
+      this.getWebSockets('player:1').length === 0,
     ];
   }
 
@@ -114,7 +126,7 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private replacePlayerSockets(playerId: 0 | 1): void {
-    for (const old of this.ctx.getWebSockets(`player:${playerId}`)) {
+    for (const old of this.getWebSockets(`player:${playerId}`)) {
       try {
         this.replacedSockets.add(old);
         old.close(1000, 'Replaced by new connection');
@@ -330,7 +342,7 @@ export class GameDO extends DurableObject<Env> {
       storage: this.storage,
       initGame: () => this.initGame(),
       touchInactivity: () => this.touchInactivity(),
-      acceptWebSocket: (server, tags) => this.ctx.acceptWebSocket(server, tags),
+      acceptWebSocket: (server, tags) => this.acceptWebSocket(server, tags),
       getRoomConfig: () => this.getRoomConfig(),
     };
   }
@@ -341,7 +353,7 @@ export class GameDO extends DurableObject<Env> {
       storage: this.storage,
       env: this.env,
       waitUntil: (promise) => this.waitUntil(promise),
-      getWebSockets: () => this.ctx.getWebSockets(),
+      getWebSockets: () => this.getWebSockets(),
       map: this.map,
       getCurrentGameState: () => this.getCurrentGameState(),
       getGameCode: () => this.getGameCode(),
@@ -437,8 +449,7 @@ export class GameDO extends DurableObject<Env> {
     return {
       msgRates: this.msgRates,
       getPlayerId: (socket) => this.getPlayerId(socket),
-      isSpectatorSocket: (socket) =>
-        this.ctx.getTags(socket).includes('spectator'),
+      isSpectatorSocket: (socket) => this.getTags(socket).includes('spectator'),
       touchInactivity: () => this.touchInactivity(),
       send: (socket, outbound) => this.send(socket, outbound),
       isGameStateActionMessage,
