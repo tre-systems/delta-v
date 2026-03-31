@@ -4,18 +4,18 @@ import type {
 } from '../../shared/engine/engine-events';
 import type { ViewerId } from '../../shared/engine/game-engine';
 import { buildMatchId, type ReplayTimeline } from '../../shared/replay';
-import {
-  CURRENT_GAME_STATE_SCHEMA_VERSION,
-  type GameState,
-  type PlayerId,
-} from '../../shared/types/domain';
+import type { GameState, PlayerId } from '../../shared/types/domain';
 import { isValidPlayerToken, type RoomConfig } from '../protocol';
+import {
+  ensureArchiveStreamCompatibility,
+  normalizeArchivedGameState,
+  normalizeArchivedStateRecord,
+} from './archive-compat';
 import {
   appendEventsToChunkedStream,
   getEventStreamLength as getChunkedEventStreamLength,
   matchCreatedAtKey,
   matchSeedKey,
-  migrateLegacyEventStreamIfNeeded,
   readChunkedEventStream,
   readChunkedEventStreamTail,
 } from './archive-storage';
@@ -30,24 +30,11 @@ type Storage = DurableObjectStorage;
 
 export { projectReplayTimeline };
 
-const migrateGameState = (state: GameState): GameState => ({
-  ...state,
-  schemaVersion: state.schemaVersion ?? CURRENT_GAME_STATE_SCHEMA_VERSION,
-});
-
-const migrateCheckpoint = (checkpoint: Checkpoint | null): Checkpoint | null =>
-  checkpoint
-    ? {
-        ...checkpoint,
-        state: migrateGameState(checkpoint.state),
-      }
-    : null;
-
 export const getEventStream = async (
   storage: Storage,
   gameId: string,
 ): Promise<EventEnvelope[]> => {
-  await migrateLegacyEventStreamIfNeeded(storage, gameId);
+  await ensureArchiveStreamCompatibility(storage, gameId);
 
   const chunkedStream = await readChunkedEventStream(storage, gameId);
 
@@ -63,7 +50,7 @@ export const getEventStreamTail = async (
   gameId: string,
   afterSeqExclusive: number,
 ): Promise<EventEnvelope[]> => {
-  await migrateLegacyEventStreamIfNeeded(storage, gameId);
+  await ensureArchiveStreamCompatibility(storage, gameId);
   return readChunkedEventStreamTail(storage, gameId, afterSeqExclusive);
 };
 
@@ -78,7 +65,7 @@ export const appendEnvelopedEvents = async (
   actor: PlayerId | null,
   ...events: EngineEvent[]
 ): Promise<void> => {
-  await migrateLegacyEventStreamIfNeeded(storage, gameId);
+  await ensureArchiveStreamCompatibility(storage, gameId);
   await appendEventsToChunkedStream(storage, gameId, actor, events);
 };
 
@@ -106,7 +93,7 @@ export const saveCheckpoint = async (
     seq,
     turn: state.turnNumber,
     phase: state.phase,
-    state: migrateGameState(structuredClone(state)),
+    state: normalizeArchivedGameState(structuredClone(state)),
     savedAt: Date.now(),
   };
   await storage.put(checkpointKey(gameId), checkpoint);
@@ -116,7 +103,7 @@ export const getCheckpoint = async (
   storage: Storage,
   gameId: string,
 ): Promise<Checkpoint | null> =>
-  migrateCheckpoint(
+  normalizeArchivedStateRecord(
     (await storage.get<Checkpoint>(checkpointKey(gameId))) ?? null,
   );
 
