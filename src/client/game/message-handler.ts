@@ -9,7 +9,7 @@ import {
   setLatencyMs,
   setOpponentDisconnectDeadlineMs,
 } from './client-context-store';
-import { deriveClientMessagePlan } from './messages';
+import { type ClientMessagePlan, deriveClientMessagePlan } from './messages';
 import type { ClientState } from './phase';
 import type { ClientSessionMessageContext } from './session-model';
 export interface MessageHandlerDeps {
@@ -54,6 +54,105 @@ export interface MessageHandlerDeps {
   };
 }
 
+type WelcomePlan = Extract<
+  ClientMessagePlan,
+  { kind: 'welcome' | 'spectatorWelcome' }
+>;
+
+const applyWelcomePlan = (
+  deps: MessageHandlerDeps,
+  plan: WelcomePlan,
+): void => {
+  const reconnectAttempts = deps.ctx.reconnectAttempts;
+  const currentState = deps.ctx.state;
+
+  applyWelcomeSession(
+    deps.ctx,
+    plan.kind === 'welcome' ? plan.playerId : -1,
+    plan.code,
+  );
+
+  if (plan.kind === 'welcome') {
+    deps.storePlayerToken(plan.code, plan.playerToken);
+  }
+
+  if (plan.showReconnectToast) {
+    deps.trackEvent('reconnect_succeeded', {
+      attempts: reconnectAttempts,
+    });
+    deps.ui.overlay.showToast('Reconnected!', 'success');
+  } else if (currentState === 'connecting') {
+    deps.trackEvent(
+      plan.kind === 'welcome'
+        ? 'join_game_succeeded'
+        : 'spectate_join_succeeded',
+      {},
+    );
+  }
+
+  if (plan.nextState) {
+    deps.setState(plan.nextState);
+  }
+};
+
+const applyGameStartPlan = (
+  deps: MessageHandlerDeps,
+  plan: Extract<ClientMessagePlan, { kind: 'gameStart' }>,
+): void => {
+  deps.ui.overlay.hideGameOver();
+  deps.resetTurnTelemetry();
+  deps.applyGameState(deps.deserializeState(plan.state));
+  deps.renderer.clearTrails();
+  deps.ui.log.clear();
+  deps.ui.log.setChatEnabled(true);
+  deps.logScenarioBriefing();
+  deps.setState(plan.nextState);
+};
+
+const presentCombatPlan = (
+  deps: MessageHandlerDeps,
+  state: GameState,
+  results: CombatResult[],
+): void => {
+  deps.presentCombatResults(
+    must(deps.ctx.gameState),
+    deps.deserializeState(state),
+    results,
+  );
+};
+
+const logTransferEvents = (
+  deps: MessageHandlerDeps,
+  transferEvents: NonNullable<
+    Extract<ClientMessagePlan, { kind: 'stateUpdate' }>['transferEvents']
+  >,
+  state: GameState,
+): void => {
+  for (const line of formatLogisticsTransferLogLines(
+    transferEvents,
+    state.ships,
+  )) {
+    deps.ui.log.logText(line);
+  }
+};
+
+const applyStateUpdatePlan = (
+  deps: MessageHandlerDeps,
+  plan: Extract<ClientMessagePlan, { kind: 'stateUpdate' }>,
+): void => {
+  const nextState = deps.deserializeState(plan.state);
+
+  if (plan.transferEvents?.length) {
+    logTransferEvents(deps, plan.transferEvents, nextState);
+  }
+
+  deps.applyGameState(nextState);
+
+  if (plan.shouldTransition) {
+    deps.transitionToPhase();
+  }
+};
+
 export const handleServerMessage = (
   deps: MessageHandlerDeps,
   msg: S2C,
@@ -66,55 +165,15 @@ export const handleServerMessage = (
     msg,
   );
   switch (plan.kind) {
-    case 'spectatorWelcome': {
-      const reconnectAttempts = deps.ctx.reconnectAttempts;
-      applyWelcomeSession(deps.ctx, -1, plan.code);
-
-      if (plan.showReconnectToast) {
-        deps.trackEvent('reconnect_succeeded', {
-          attempts: reconnectAttempts,
-        });
-        deps.ui.overlay.showToast('Reconnected!', 'success');
-      } else if (deps.ctx.state === 'connecting') {
-        deps.trackEvent('spectate_join_succeeded', {});
-      }
-
-      if (plan.nextState) {
-        deps.setState(plan.nextState);
-      }
+    case 'spectatorWelcome':
+    case 'welcome':
+      applyWelcomePlan(deps, plan);
       break;
-    }
-    case 'welcome': {
-      const reconnectAttempts = deps.ctx.reconnectAttempts;
-      applyWelcomeSession(deps.ctx, plan.playerId, plan.code);
-      deps.storePlayerToken(plan.code, plan.playerToken);
-
-      if (plan.showReconnectToast) {
-        deps.trackEvent('reconnect_succeeded', {
-          attempts: reconnectAttempts,
-        });
-        deps.ui.overlay.showToast('Reconnected!', 'success');
-      } else if (deps.ctx.state === 'connecting') {
-        deps.trackEvent('join_game_succeeded', {});
-      }
-
-      if (plan.nextState) {
-        deps.setState(plan.nextState);
-      }
-      break;
-    }
     case 'matchFound':
       playPhaseChange();
       break;
     case 'gameStart':
-      deps.ui.overlay.hideGameOver();
-      deps.resetTurnTelemetry();
-      deps.applyGameState(deps.deserializeState(plan.state));
-      deps.renderer.clearTrails();
-      deps.ui.log.clear();
-      deps.ui.log.setChatEnabled(true);
-      deps.logScenarioBriefing();
-      deps.setState(plan.nextState);
+      applyGameStartPlan(deps, plan);
       break;
     case 'movementResult':
       deps.presentMovementResult(
@@ -127,46 +186,19 @@ export const handleServerMessage = (
         },
       );
       break;
-    case 'combatResult': {
-      const previousState = deps.ctx.gameState;
-      deps.presentCombatResults(
-        must(previousState),
-        deps.deserializeState(plan.state),
-        plan.results,
-      );
-
+    case 'combatResult':
+      presentCombatPlan(deps, plan.state, plan.results);
       if (plan.shouldTransition) {
         deps.transitionToPhase();
       }
       break;
-    }
-    case 'combatSingleResult': {
-      const previousCombatState = deps.ctx.gameState;
-      deps.presentCombatResults(
-        must(previousCombatState),
-        deps.deserializeState(plan.state),
-        [plan.result],
-      );
+    case 'combatSingleResult':
+      presentCombatPlan(deps, plan.state, [plan.result]);
       deps.advanceToNextAttacker();
       break;
-    }
-    case 'stateUpdate': {
-      const nextState = deps.deserializeState(plan.state);
-      if (plan.transferEvents?.length) {
-        for (const line of formatLogisticsTransferLogLines(
-          plan.transferEvents,
-          nextState.ships,
-        )) {
-          deps.ui.log.logText(line);
-        }
-      }
-      deps.applyGameState(nextState);
-
-      if (plan.shouldTransition) {
-        deps.transitionToPhase();
-      }
+    case 'stateUpdate':
+      applyStateUpdatePlan(deps, plan);
       break;
-    }
     case 'gameOver':
       setOpponentDisconnectDeadlineMs(deps.ctx, null);
       deps.showGameOverOutcome(plan.won, plan.reason);
