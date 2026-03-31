@@ -17,7 +17,11 @@ import type { SessionApi } from './session-api';
 import {
   beginJoinGameSession,
   beginSpectateGameSession,
+  type ExitToMenuSessionDeps,
   exitToMenuSession,
+  type JoinGameSessionDeps,
+  type LocalGameSessionDeps,
+  type SpectateGameSessionDeps,
   startLocalGameSession,
 } from './session-controller';
 import type { ClientSession } from './session-model';
@@ -43,53 +47,104 @@ export interface MainNetworkDeps {
   stopTurnTimer: () => void;
 }
 
+type MainRemoteSessionBridge = Pick<
+  SpectateGameSessionDeps,
+  | 'ctx'
+  | 'resetTurnTelemetry'
+  | 'replaceRoute'
+  | 'buildGameRoute'
+  | 'connect'
+  | 'setState'
+>;
+
+const replaceMainRoute = (route: string): void => {
+  history.replaceState(null, '', route);
+};
+
+const resolveScenarioDefinition = (scenario: string) => {
+  return SCENARIOS[scenario] ?? SCENARIOS.biplanetary;
+};
+
+const createMainRemoteSessionBridge = (
+  deps: Pick<
+    MainNetworkDeps,
+    'ctx' | 'turnTelemetry' | 'connection' | 'setState'
+  >,
+): MainRemoteSessionBridge => ({
+  ctx: deps.ctx,
+  resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+  replaceRoute: replaceMainRoute,
+  buildGameRoute,
+  connect: (gameCode) => deps.connection.connect(gameCode),
+  setState: deps.setState,
+});
+
+const createMainLocalSessionDeps = (
+  deps: MainNetworkDeps,
+): LocalGameSessionDeps => ({
+  ctx: deps.ctx,
+  createLocalTransport: deps.createLocalTransport,
+  createLocalGameState: (selectedScenario) =>
+    createGame(
+      resolveScenarioDefinition(selectedScenario),
+      deps.map,
+      'LOCAL',
+      findBaseHex,
+    ),
+  getScenarioName: (selectedScenario) =>
+    resolveScenarioDefinition(selectedScenario).name,
+  resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+  clearTrails: () => deps.renderer.clearTrails(),
+  clearLog: () => deps.ui.log.clear(),
+  setChatEnabled: (enabled) => deps.ui.log.setChatEnabled(enabled),
+  logText: (text) => deps.ui.log.logText(text),
+  trackGameCreated: (details) => deps.track('game_created', details),
+  applyGameState: deps.applyGameState,
+  logScenarioBriefing: () => deps.hud.logScenarioBriefing(),
+  setState: deps.setState,
+  runLocalAI: deps.runLocalAI,
+});
+
+const createMainJoinSessionDeps = (
+  deps: MainNetworkDeps,
+): JoinGameSessionDeps => ({
+  ...createMainRemoteSessionBridge(deps),
+  getStoredPlayerToken: (gameCode) =>
+    deps.sessionApi.getStoredPlayerToken(gameCode),
+  storePlayerToken: (gameCode, token) =>
+    deps.sessionApi.storePlayerToken(gameCode, token),
+  validateJoin: (gameCode, token) =>
+    deps.sessionApi.validateJoin(gameCode, token),
+  showToast: (message, type) => deps.ui.overlay.showToast(message, type),
+  exitToMenu: () => exitToMenuFromMain(deps),
+});
+
+const createMainExitSessionDeps = (
+  deps: MainNetworkDeps,
+): ExitToMenuSessionDeps => ({
+  ctx: deps.ctx,
+  stopPing: () => deps.connection.stopPing(),
+  stopTurnTimer: deps.stopTurnTimer,
+  closeConnection: () => deps.connection.close(),
+  resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+  replaceRoute: replaceMainRoute,
+  setState: deps.setState,
+});
+
 export const startLocalGameFromMain = (
   deps: MainNetworkDeps,
   scenario: string,
 ): void => {
   deps.ui.overlay.hideGameOver();
   deps.ui.log.setLocalGame(true);
-  startLocalGameSession(
-    {
-      ctx: deps.ctx,
-      createLocalTransport: () => deps.createLocalTransport(),
-      createLocalGameState: (selectedScenario) => {
-        const scenarioDef =
-          SCENARIOS[selectedScenario] ?? SCENARIOS.biplanetary;
-        return createGame(scenarioDef, deps.map, 'LOCAL', findBaseHex);
-      },
-      getScenarioName: (selectedScenario) =>
-        (SCENARIOS[selectedScenario] ?? SCENARIOS.biplanetary).name,
-      resetTurnTelemetry: () => deps.turnTelemetry.reset(),
-      clearTrails: () => deps.renderer.clearTrails(),
-      clearLog: () => deps.ui.log.clear(),
-      setChatEnabled: (enabled) => deps.ui.log.setChatEnabled(enabled),
-      logText: (text) => deps.ui.log.logText(text),
-      trackGameCreated: (details) => deps.track('game_created', details),
-      applyGameState: (state) => deps.applyGameState(state),
-      logScenarioBriefing: () => deps.hud.logScenarioBriefing(),
-      setState: (state) => deps.setState(state),
-      runLocalAI: () => deps.runLocalAI(),
-    },
-    scenario,
-  );
+  startLocalGameSession(createMainLocalSessionDeps(deps), scenario);
 };
 
 export const beginSpectateGameFromMain = (
   deps: MainNetworkDeps,
   code: string,
 ): void => {
-  beginSpectateGameSession(
-    {
-      ctx: deps.ctx,
-      resetTurnTelemetry: () => deps.turnTelemetry.reset(),
-      replaceRoute: (route) => history.replaceState(null, '', route),
-      buildGameRoute,
-      connect: (gameCode) => deps.connection.connect(gameCode),
-      setState: (state) => deps.setState(state),
-    },
-    code,
-  );
+  beginSpectateGameSession(createMainRemoteSessionBridge(deps), code);
 };
 
 export const beginJoinGameFromMain = (
@@ -98,26 +153,7 @@ export const beginJoinGameFromMain = (
   playerToken: string | null,
 ): void => {
   deps.ui.log.setLocalGame(false);
-  void beginJoinGameSession(
-    {
-      ctx: deps.ctx,
-      getStoredPlayerToken: (gameCode) =>
-        deps.sessionApi.getStoredPlayerToken(gameCode),
-      storePlayerToken: (gameCode, token) =>
-        deps.sessionApi.storePlayerToken(gameCode, token),
-      resetTurnTelemetry: () => deps.turnTelemetry.reset(),
-      replaceRoute: (route) => history.replaceState(null, '', route),
-      buildGameRoute,
-      connect: (gameCode) => deps.connection.connect(gameCode),
-      setState: (state) => deps.setState(state),
-      validateJoin: (gameCode, token) =>
-        deps.sessionApi.validateJoin(gameCode, token),
-      showToast: (message, type) => deps.ui.overlay.showToast(message, type),
-      exitToMenu: () => exitToMenuFromMain(deps),
-    },
-    code,
-    playerToken,
-  );
+  void beginJoinGameSession(createMainJoinSessionDeps(deps), code, playerToken);
 };
 
 export const handleServerMessageFromMain = (
@@ -133,13 +169,5 @@ export const handleServerMessageFromMain = (
 };
 
 export const exitToMenuFromMain = (deps: MainNetworkDeps): void => {
-  exitToMenuSession({
-    ctx: deps.ctx,
-    stopPing: () => deps.connection.stopPing(),
-    stopTurnTimer: () => deps.stopTurnTimer(),
-    closeConnection: () => deps.connection.close(),
-    resetTurnTelemetry: () => deps.turnTelemetry.reset(),
-    replaceRoute: (route) => history.replaceState(null, '', route),
-    setState: (state) => deps.setState(state),
-  });
+  exitToMenuSession(createMainExitSessionDeps(deps));
 };
