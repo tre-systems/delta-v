@@ -75,6 +75,7 @@ describe('game-client-local', () => {
     if (resolution.kind !== 'combat') {
       throw new Error('Expected combat resolution');
     }
+    expect(resolution.previousState).toBe(state);
     expect(resolution.results).toHaveLength(1);
     expect(resolution.resetCombat).toBe(false);
   });
@@ -125,6 +126,7 @@ describe('game-client-local', () => {
     if (resolution.kind !== 'combat') {
       throw new Error('Expected combat resolution');
     }
+    expect(resolution.previousState).toBe(state);
     expect(resolution.resetCombat).toBe(false);
   });
 
