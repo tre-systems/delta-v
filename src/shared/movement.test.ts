@@ -521,6 +521,31 @@ describe('computeCourse - landing', () => {
     expect(course.outcome).not.toBe('landing');
   });
 
+  it('speed 2 ship can burn into orbit and land in one turn', () => {
+    // Ship at (-7,-6) with velocity (-2, 0) burns dir 0
+    // (+1, 0). Post-burn velocity is (-1, 0) = speed 1.
+    // Destination (-8,-6) is a Mars gravity hex → orbit.
+    const ship = makeShip({
+      position: { q: -7, r: -6 },
+      velocity: { dq: -2, dr: 0 },
+    });
+    const course = computeCourse(ship, 0, map, { land: true });
+    expect(course.outcome).toBe('landing');
+    if (course.outcome === 'landing') {
+      expect(course.landedAt).toBe('Mars');
+    }
+    expect(course.fuelSpent).toBe(1);
+  });
+
+  it('speed 2 ship without land flag does not auto-land', () => {
+    const ship = makeShip({
+      position: { q: -7, r: -6 },
+      velocity: { dq: -2, dr: 0 },
+    });
+    const course = computeCourse(ship, 0, map);
+    expect(course.outcome).not.toBe('landing');
+  });
+
   it('orbital landing picks closest base', () => {
     const bases = findBaseHexes(map, 'Mars');
     expect(bases.length).toBeGreaterThan(1);

@@ -5,8 +5,8 @@ import {
   isOrderableShip,
   validateOrdnanceLaunch,
 } from '../../shared/engine/util';
-import { hexVecLength } from '../../shared/hex';
-import { detectOrbit } from '../../shared/movement';
+import { HEX_DIRECTIONS, hexAdd, hexVecLength } from '../../shared/hex';
+import { detectOrbit, predictDestination } from '../../shared/movement';
 import type {
   AstrogationOrder,
   GameState,
@@ -239,8 +239,29 @@ export const deriveHudViewModel = (
     selectedShipHasBurn: selectedShip
       ? (planning.burns.get(selectedShip.id) ?? null) !== null
       : false,
-    selectedShipInOrbit:
-      selectedShip && map ? detectOrbit(selectedShip, map) !== null : false,
+    selectedShipInOrbit: (() => {
+      if (!selectedShip || !map) return false;
+      if (detectOrbit(selectedShip, map)) return true;
+      // Also check post-burn state so the button appears
+      // when a burn would achieve orbit this turn.
+      const burn = planning.burns.get(selectedShip.id) ?? null;
+      if (burn === null || selectedShip.fuel <= 0) return false;
+      const dest = hexAdd(
+        predictDestination(selectedShip),
+        HEX_DIRECTIONS[burn],
+      );
+      const dir = HEX_DIRECTIONS[burn];
+      const postBurnShip = {
+        ...selectedShip,
+        position: dest,
+        velocity: {
+          dq: selectedShip.velocity.dq + dir.dq,
+          dr: selectedShip.velocity.dr + dir.dr,
+        },
+        pendingGravityEffects: [],
+      };
+      return detectOrbit(postBurnShip, map) !== null;
+    })(),
     selectedShipLandingSet: selectedShip
       ? planning.landingShips.has(selectedShip.id)
       : false,
