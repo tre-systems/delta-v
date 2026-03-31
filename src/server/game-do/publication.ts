@@ -12,7 +12,7 @@ import { scheduleArchiveCompletedMatch } from './match-archive';
 import {
   resolveStateBearingMessage,
   type StatefulServerMessage,
-} from './messages';
+} from './message-builders';
 
 export interface PublicationDeps {
   storage: DurableObjectStorage;

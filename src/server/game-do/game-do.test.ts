@@ -31,7 +31,10 @@ import {
   saveCheckpoint,
 } from './archive';
 import { GameDO } from './game-do';
-import { toMovementResultMessage, toStateUpdateMessage } from './messages';
+import {
+  toMovementResultMessage,
+  toStateUpdateMessage,
+} from './message-builders';
 
 const transportFixtures = JSON.parse(
   readFileSync(

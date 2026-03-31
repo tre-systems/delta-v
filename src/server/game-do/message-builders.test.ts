@@ -19,7 +19,7 @@ import {
   toGameStartMessage,
   toMovementResultMessage,
   toStateUpdateMessage,
-} from './messages';
+} from './message-builders';
 
 const transportFixtures = JSON.parse(
   readFileSync(
@@ -47,7 +47,7 @@ const normalizeStateEnvelope = (value: unknown): unknown => {
   return value;
 };
 
-describe('game-do-messages', () => {
+describe('game-do-message-builders', () => {
   it('formats movement results for broadcast', () => {
     const map = buildSolarSystemMap();
     const state = createGame(SCENARIOS.biplanetary, map, 'SRV1', findBaseHex);
@@ -152,9 +152,6 @@ describe('game-do-messages', () => {
     },
   );
 });
-
-// Event derivation tests removed — engine now
-// emits EngineEvent[] directly (Layer 3).
 
 describe('S2C state-bearing payload fixtures', () => {
   const map = buildSolarSystemMap();
@@ -282,11 +279,9 @@ describe('S2C state-bearing payload fixtures', () => {
       },
     ];
 
-    const msg = toCombatResultMessage(state, results);
-
-    expect(normalizeStateEnvelope(msg)).toEqual(
-      transportFixtures.s2c.combatResult,
-    );
+    expect(
+      normalizeStateEnvelope(toCombatResultMessage(state, results)),
+    ).toEqual(transportFixtures.s2c.combatResult);
   });
 
   it('GameState fixture includes all expected top-level fields', () => {
