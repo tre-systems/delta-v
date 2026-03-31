@@ -1,0 +1,236 @@
+import type {
+  FleetPurchase,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
+import type { UIEvent } from '../ui/events';
+import type { ActionDeps } from './action-deps';
+import {
+  type CommandRouterDeps,
+  type CommandRouterSessionRead,
+  dispatchGameCommand,
+} from './command-router';
+import { type GameCommand, keyboardActionToCommand } from './commands';
+import { type InputEvent, interpretInput } from './input-events';
+import type { KeyboardAction } from './keyboard';
+import {
+  beginJoinGameFromMain,
+  beginSpectateGameFromMain,
+  type MainNetworkDeps,
+  startLocalGameFromMain,
+} from './main-session-network';
+import type { ReplayController } from './replay-controller';
+import type { SessionApi } from './session-api';
+import type { ClientSession } from './session-model';
+import { resolveUIEventPlan } from './ui-event-router';
+
+type MainInteractionSession = Pick<
+  ClientSession,
+  | 'gameStateSignal'
+  | 'isLocalGame'
+  | 'logisticsStateSignal'
+  | 'planningState'
+  | 'playerId'
+  | 'stateSignal'
+  | 'transport'
+>;
+
+type MainInteractionUI = CommandRouterDeps['ui'] & {
+  showFleetWaiting: () => void;
+  toggleHelpOverlay: () => void;
+};
+
+type MainInteractionCamera = {
+  cycleShip: (direction: 1 | -1) => void;
+  focusNearestEnemy: () => void;
+  focusOwnFleet: () => void;
+};
+
+type MainInteractionHud = {
+  updateSoundButton: () => void;
+};
+
+type MainInteractionReplay = Pick<
+  ReplayController,
+  'selectMatch' | 'toggleReplay' | 'stepReplay'
+>;
+
+type MainInteractionDeps = {
+  canvas: Pick<HTMLCanvasElement, 'clientWidth' | 'clientHeight'>;
+  map: SolarSystemMap;
+  ctx: MainInteractionSession;
+  actionDeps: Pick<
+    ActionDeps,
+    'astrogationDeps' | 'combatDeps' | 'ordnanceDeps'
+  >;
+  ui: MainInteractionUI;
+  renderer: CommandRouterDeps['renderer'];
+  camera: MainInteractionCamera;
+  hud: MainInteractionHud;
+  replayController: MainInteractionReplay;
+  sessionApi: Pick<SessionApi, 'createGame'>;
+  mainNetworkDeps: MainNetworkDeps;
+  setAIDifficulty: (difficulty: 'easy' | 'normal' | 'hard') => void;
+  exitToMenu: () => void;
+  trackEvent: (event: string) => void;
+};
+
+export type MainInteractionController = {
+  dispatch: (cmd: GameCommand) => void;
+  handleInput: (event: InputEvent) => void;
+  handleKeyboardAction: (action: KeyboardAction) => void;
+  handleUIEvent: (event: UIEvent) => void;
+  joinGame: (code: string, playerToken?: string | null) => void;
+  spectateGame: (code: string) => void;
+  toggleHelp: () => void;
+  showToast: (message: string, type?: 'error' | 'info' | 'success') => void;
+};
+
+export const createMainInteractionController = (
+  deps: MainInteractionDeps,
+): MainInteractionController => {
+  const sendFleetReady = (purchases: FleetPurchase[]) => {
+    if (
+      !deps.ctx.gameStateSignal.peek() ||
+      deps.ctx.stateSignal.peek() !== 'playing_fleetBuilding' ||
+      !deps.ctx.transport
+    ) {
+      return;
+    }
+
+    deps.ctx.transport.submitFleetReady(purchases);
+    if (!deps.ctx.isLocalGame) {
+      deps.ui.showFleetWaiting();
+    }
+  };
+
+  const sendRematch = () => {
+    deps.ctx.transport?.requestRematch();
+  };
+
+  const toggleHelp = () => {
+    deps.ui.toggleHelpOverlay();
+  };
+
+  const dispatch = (cmd: GameCommand) => {
+    const commandCtx: CommandRouterSessionRead = {
+      getState: () => deps.ctx.stateSignal.peek(),
+      getPlayerId: () => deps.ctx.playerId as PlayerId,
+      getGameState: () => deps.ctx.gameStateSignal.peek(),
+      getTransport: () => deps.ctx.transport,
+      getLogisticsState: () => deps.ctx.logisticsStateSignal.peek(),
+      planningState: deps.ctx.planningState,
+    };
+
+    dispatchGameCommand(
+      {
+        ctx: commandCtx,
+        astrogationDeps: deps.actionDeps.astrogationDeps,
+        combatDeps: deps.actionDeps.combatDeps,
+        ordnanceDeps: deps.actionDeps.ordnanceDeps,
+        ui: deps.ui,
+        renderer: deps.renderer,
+        getCanvasCenter: () => ({
+          x: deps.canvas.clientWidth / 2,
+          y: deps.canvas.clientHeight / 2,
+        }),
+        cycleShip: (direction) => deps.camera.cycleShip(direction as 1 | -1),
+        focusNearestEnemy: () => deps.camera.focusNearestEnemy(),
+        focusOwnFleet: () => deps.camera.focusOwnFleet(),
+        sendFleetReady: (purchases) => sendFleetReady(purchases),
+        sendRematch: () => sendRematch(),
+        exitToMenu: () => deps.exitToMenu(),
+        toggleHelp: () => toggleHelp(),
+        updateSoundButton: () => deps.hud.updateSoundButton(),
+      },
+      cmd,
+    );
+  };
+
+  const handleInput = (event: InputEvent) => {
+    if (deps.ctx.stateSignal.peek() === 'playing_movementAnim') {
+      return;
+    }
+
+    const commands = interpretInput(
+      event,
+      deps.ctx.gameStateSignal.peek(),
+      deps.map,
+      deps.ctx.playerId as PlayerId,
+      deps.ctx.planningState,
+    );
+
+    for (const cmd of commands) {
+      dispatch(cmd);
+    }
+  };
+
+  const handleKeyboardAction = (action: KeyboardAction) => {
+    const cmd = keyboardActionToCommand(action);
+
+    if (cmd) {
+      dispatch(cmd);
+    }
+  };
+
+  const joinGame = (code: string, playerToken: string | null = null) => {
+    beginJoinGameFromMain(deps.mainNetworkDeps, code, playerToken);
+  };
+
+  const spectateGame = (code: string) => {
+    beginSpectateGameFromMain(deps.mainNetworkDeps, code);
+  };
+
+  const handleUIEvent = (event: UIEvent) => {
+    const plan = resolveUIEventPlan(event);
+
+    switch (plan.kind) {
+      case 'createGame':
+        deps.sessionApi.createGame(plan.scenario);
+        return;
+      case 'startSinglePlayer':
+        deps.setAIDifficulty(plan.difficulty);
+        startLocalGameFromMain(deps.mainNetworkDeps, plan.scenario);
+        return;
+      case 'joinGame':
+        joinGame(plan.code, plan.playerToken);
+        return;
+      case 'command':
+        dispatch(plan.command);
+        return;
+      case 'selectReplayMatch':
+        deps.replayController.selectMatch(plan.direction);
+        return;
+      case 'toggleReplay':
+        void deps.replayController.toggleReplay();
+        return;
+      case 'replayNav':
+        deps.replayController.stepReplay(plan.direction);
+        return;
+      case 'sendChat':
+        deps.ctx.transport?.sendChat(plan.text);
+        return;
+      case 'trackOnly':
+        deps.trackEvent(plan.event);
+        return;
+    }
+  };
+
+  const showToast = (
+    message: string,
+    type: 'error' | 'info' | 'success' = 'info',
+  ) => {
+    deps.ui.overlay.showToast(message, type);
+  };
+
+  return {
+    dispatch,
+    handleInput,
+    handleKeyboardAction,
+    handleUIEvent,
+    joinGame,
+    spectateGame,
+    toggleHelp,
+    showToast,
+  };
+};
