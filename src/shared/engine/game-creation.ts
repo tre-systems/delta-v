@@ -206,7 +206,7 @@ export const createGame = (
         control: 'own' as const,
         heroismAvailable: false,
         overloadUsed: false,
-        detected: true,
+        detected: false,
         pendingGravityEffects: initialGravity,
         damage: { disabledTurns: 0 },
         ...(passengersAboard != null ? { passengersAboard } : {}),

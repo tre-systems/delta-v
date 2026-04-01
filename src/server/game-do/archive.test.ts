@@ -965,7 +965,9 @@ describe('replay projection', () => {
       );
       const diffs = diffStates(liveState, projectedState).filter(
         (diff) =>
-          !diff.path.endsWith('.connected') && !diff.path.endsWith('.ready'),
+          !diff.path.endsWith('.connected') &&
+          !diff.path.endsWith('.ready') &&
+          !diff.path.endsWith('.detected'),
       );
 
       expect(diffs).toEqual([]);

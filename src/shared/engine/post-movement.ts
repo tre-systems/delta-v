@@ -310,7 +310,9 @@ export const applyDetection = (state: GameState, map: SolarSystemMap): void => {
       }
     }
 
-    if (ship.detected) continue;
+    // Re-evaluate detection each turn — ships can become
+    // undetected when they move out of sensor range.
+    let nowDetected = false;
 
     for (const other of state.ships) {
       if (other.owner === ship.owner || other.lifecycle === 'destroyed') {
@@ -318,26 +320,28 @@ export const applyDetection = (state: GameState, map: SolarSystemMap): void => {
       }
 
       if (hexDistance(ship.position, other.position) <= SHIP_DETECTION_RANGE) {
-        ship.detected = true;
+        nowDetected = true;
         break;
       }
     }
 
-    if (ship.detected) continue;
+    if (!nowDetected) {
+      for (const key of state.players[1 - ship.owner].bases) {
+        const hex = map.hexes.get(key);
 
-    for (const key of state.players[1 - ship.owner].bases) {
-      const hex = map.hexes.get(key);
+        if (!hex?.base) continue;
 
-      if (!hex?.base) continue;
+        if (state.destroyedBases.includes(key)) continue;
 
-      if (state.destroyedBases.includes(key)) continue;
+        const baseCoord = parseHexKey(key);
 
-      const baseCoord = parseHexKey(key);
-
-      if (hexDistance(ship.position, baseCoord) <= BASE_DETECTION_RANGE) {
-        ship.detected = true;
-        break;
+        if (hexDistance(ship.position, baseCoord) <= BASE_DETECTION_RANGE) {
+          nowDetected = true;
+          break;
+        }
       }
     }
+
+    ship.detected = nowDetected;
   }
 };
