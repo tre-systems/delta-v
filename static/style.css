@@ -1408,6 +1408,39 @@ h2.game-over-defeat {
   width: 100%;
 }
 
+.replay-bar {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(4, 9, 18, 0.82);
+  backdrop-filter: blur(14px);
+  font-size: 0.75rem;
+}
+
+.replay-bar .btn {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.75rem;
+  min-width: 0;
+}
+
+.replay-bar-status {
+  color: #9fb5c4;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 0.3rem;
+}
+
 .reconnect-overlay {
   position: fixed;
   inset: 0;

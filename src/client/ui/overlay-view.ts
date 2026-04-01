@@ -36,6 +36,12 @@ export const createOverlayView = (
   const replayPrevBtn = byId<HTMLButtonElement>('replayPrevBtn');
   const replayNextBtn = byId<HTMLButtonElement>('replayNextBtn');
   const replayEndBtn = byId<HTMLButtonElement>('replayEndBtn');
+  const replayBarEl = byId('replayBar');
+  const replayBarStatusEl = byId('replayBarStatus');
+  const replayBarStartBtn = byId<HTMLButtonElement>('replayBarStartBtn');
+  const replayBarPrevBtn = byId<HTMLButtonElement>('replayBarPrevBtn');
+  const replayBarNextBtn = byId<HTMLButtonElement>('replayBarNextBtn');
+  const replayBarEndBtn = byId<HTMLButtonElement>('replayBarEndBtn');
   const reconnectOverlayEl = byId('reconnectOverlay');
   const reconnectTextEl = byId('reconnectText');
   const reconnectAttemptEl = byId('reconnectAttempt');
@@ -204,6 +210,20 @@ export const createOverlayView = (
 
       visible(replayControlsEl, replayView.available);
       visible(replayStatusEl, replayView.available);
+
+      // When replay is active, hide the game-over overlay and show the
+      // compact bottom bar so the battlefield is fully visible.
+      if (replayView.active) {
+        gameOverEl.style.display = 'none';
+        replayBarEl.style.display = 'flex';
+        text(replayBarStatusEl, replayView.statusText);
+        replayBarStartBtn.disabled = !replayView.canStart;
+        replayBarPrevBtn.disabled = !replayView.canPrev;
+        replayBarNextBtn.disabled = !replayView.canNext;
+        replayBarEndBtn.disabled = !replayView.canEnd;
+      } else {
+        replayBarEl.style.display = 'none';
+      }
 
       if (!replayView.available) {
         return;
