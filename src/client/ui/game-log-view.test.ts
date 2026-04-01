@@ -9,6 +9,7 @@ const installFixture = () => {
     <div id="logEntries"></div>
     <div id="chatInputRow" style="display:none"></div>
     <input id="chatInput" />
+    <button id="chatSendBtn"></button>
     <div id="logLatestBar" style="display:none">
       <span id="logLatestText"></span>
     </div>

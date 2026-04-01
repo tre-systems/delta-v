@@ -49,6 +49,7 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   const logEntriesEl = byId('logEntries');
   const chatInputRow = byId('chatInputRow');
   const chatInput = byId<HTMLInputElement>('chatInput');
+  const chatSendBtn = byId('chatSendBtn');
   const logLatestBar = byId('logLatestBar');
   const logLatestText = byId('logLatestText');
   const logStatusText = el('span', {
@@ -218,18 +219,28 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   };
 
   withScope(scope, () => {
-    listen(chatInput, 'keydown', (event) => {
-      event.stopPropagation();
-      const ke = event as KeyboardEvent;
-
-      if (ke.key !== 'Enter') return;
-
+    const submitChat = () => {
       const text = chatInput.value.trim();
 
       if (!text) return;
 
       deps.onChat(text);
       chatInput.value = '';
+    };
+
+    listen(chatInput, 'keydown', (event) => {
+      event.stopPropagation();
+      const ke = event as KeyboardEvent;
+
+      if (ke.key !== 'Enter') return;
+
+      submitChat();
+    });
+
+    listen(chatSendBtn, 'click', (event) => {
+      event.stopPropagation();
+      submitChat();
+      chatInput.focus();
     });
 
     listen(logLatestBar, 'click', () => {
