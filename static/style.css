@@ -521,6 +521,7 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  width: 160px;
 }
 
 .ship-entry {
@@ -602,7 +603,7 @@ body::before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.8rem;
+  gap: 0.4rem;
 }
 
 .ship-detail-label {
