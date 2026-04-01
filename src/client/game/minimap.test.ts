@@ -21,18 +21,18 @@ describe('game client minimap helpers', () => {
   it('derives desktop and mobile minimap frames from screen size', () => {
     expect(getMinimapFrame(1024, 768)).toEqual({
       x: 12,
-      y: 616,
-      width: 140,
-      height: 140,
-      padding: 8,
+      y: 636,
+      width: 120,
+      height: 120,
+      padding: 6,
     });
 
     expect(getMinimapFrame(480, 900)).toEqual({
       x: 12,
       y: 90,
-      width: 100,
-      height: 100,
-      padding: 8,
+      width: 90,
+      height: 90,
+      padding: 6,
     });
   });
 
