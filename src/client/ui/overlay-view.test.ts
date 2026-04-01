@@ -26,6 +26,12 @@ const installFixture = () => {
     <button id="replayNextBtn"></button>
     <button id="replayEndBtn"></button>
     <button id="rematchBtn" disabled>Rematch</button>
+    <div id="replayBar" style="display:none"></div>
+    <span id="replayBarStatus"></span>
+    <button id="replayBarStartBtn"></button>
+    <button id="replayBarPrevBtn"></button>
+    <button id="replayBarNextBtn"></button>
+    <button id="replayBarEndBtn"></button>
     <div id="reconnectOverlay" style="display:none"></div>
     <div id="reconnectText"></div>
     <div id="reconnectAttempt"></div>
