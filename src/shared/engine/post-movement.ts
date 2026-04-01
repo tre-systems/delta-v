@@ -6,6 +6,7 @@ import {
   BASE_DETECTION_RANGE,
   SHIP_DETECTION_RANGE,
   SHIP_STATS,
+  WORLD_DETECTION_RANGE,
 } from '../constants';
 import { hexDistance, hexEqual, hexKey, parseHexKey } from '../hex';
 import type {
@@ -336,6 +337,16 @@ export const applyDetection = (state: GameState, map: SolarSystemMap): void => {
         const baseCoord = parseHexKey(key);
 
         if (hexDistance(ship.position, baseCoord) <= BASE_DETECTION_RANGE) {
+          nowDetected = true;
+          break;
+        }
+      }
+    }
+
+    // Worlds (planets/satellites) detect at 5 hexes (rulebook p.14).
+    if (!nowDetected) {
+      for (const body of map.bodies) {
+        if (hexDistance(ship.position, body.center) <= WORLD_DETECTION_RANGE) {
           nowDetected = true;
           break;
         }
