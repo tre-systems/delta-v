@@ -198,10 +198,10 @@ describe('renderer combat helpers', () => {
         { q: 0, r: 1 },
       ],
       label: '1:2  ATK 6/6',
-      modLabel: 'Range 1 (-1)',
+      modLabel: '-1 modifier',
       modColor: '#ffcc00',
       totalMod: -1,
-      counterattackLabel: 'CAN COUNTER / 2 SHIPS',
+      counterattackLabel: 'COUNTER',
     });
   });
 
@@ -222,7 +222,7 @@ describe('renderer combat helpers', () => {
         { q: 0, r: 1 },
       ],
       label: '2:1',
-      modLabel: 'Range 1 (-1)',
+      modLabel: '-1 modifier',
       modColor: '#ffcc00',
       totalMod: -1,
       counterattackLabel: null,

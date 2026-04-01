@@ -1,11 +1,3 @@
-import {
-  canAttack,
-  computeGroupRangeMod,
-  computeGroupVelocityMod,
-  computeOdds,
-  getCombatStrength,
-  hasLineOfSight,
-} from '../../shared/combat';
 import { SHIP_STATS } from '../../shared/constants';
 import { hexVecLength } from '../../shared/hex';
 import type {
@@ -15,43 +7,11 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 
-const getCombatSummary = (
-  state: GameState,
-  ship: Ship,
-  playerId: PlayerId,
-  map: SolarSystemMap,
-) => {
-  if (ship.owner === playerId) {
-    return '';
-  }
-
-  const attackers = state.ships
-    .filter(
-      (candidate) =>
-        candidate.owner === playerId &&
-        candidate.lifecycle !== 'destroyed' &&
-        canAttack(candidate),
-    )
-    .filter((candidate) => hasLineOfSight(candidate, ship, map));
-
-  if (attackers.length === 0) {
-    return '';
-  }
-
-  const attackStrength = getCombatStrength(attackers);
-  const defendStrength = getCombatStrength([ship]);
-  const odds = computeOdds(attackStrength, defendStrength);
-  const rangeMod = computeGroupRangeMod(attackers, ship);
-  const velocityMod = computeGroupVelocityMod(attackers, ship);
-
-  return `<div class="tt-warn">${odds} R-${rangeMod} V-${velocityMod}</div>`;
-};
-
 export const buildShipTooltipHtml = (
-  state: GameState,
+  _state: GameState,
   ship: Ship,
   playerId: PlayerId,
-  map: SolarSystemMap,
+  _map: SolarSystemMap,
 ): string => {
   const stats = SHIP_STATS[ship.type];
   const name = stats?.name ?? ship.type;
@@ -89,12 +49,6 @@ export const buildShipTooltipHtml = (
 
   if (ship.lifecycle === 'landed') {
     parts.push('<div class="tt-stat">Landed</div>');
-  }
-
-  const combatSummary = getCombatSummary(state, ship, playerId, map);
-
-  if (combatSummary) {
-    parts.push(combatSummary);
   }
 
   return parts.join('');

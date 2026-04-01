@@ -109,7 +109,6 @@ describe('buildShipTooltipHtml', () => {
 
     expect(html).toContain('Frigate');
     expect(html).toContain('Combat: 8');
-    expect(html).toContain('R-1');
-    expect(html).toContain('V-0');
+    expect(html).not.toContain('R-');
   });
 });
