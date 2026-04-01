@@ -357,13 +357,33 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
     score += scoreRaceDanger(course, map, targetHex, cfg);
   }
 
-  // Map boundary avoidance — penalize courses heading off the map
+  // Map boundary avoidance — heavily penalize courses near the edge.
+  // Ships that end their turn off the map are destroyed per the rules,
+  // so the AI must steer well clear.
   if (map && course.outcome !== 'crash') {
     const { minQ, maxQ, minR, maxR } = map.bounds;
     const d = course.destination;
     const edgeDist = Math.min(d.q - minQ, maxQ - d.q, d.r - minR, maxR - d.r);
-    if (edgeDist < 3) {
-      score -= (3 - edgeDist) * 30 * cfg.multiplier;
+    if (edgeDist < 5) {
+      // Exponential penalty: mild at 4 hexes, catastrophic at 0
+      const severity = 5 - edgeDist;
+      score -= severity * severity * 25 * cfg.multiplier;
+    }
+    // Extra penalty if velocity is pointing toward the nearest edge
+    const v = course.newVelocity;
+    const speed = hexVecLength(v);
+    if (speed > 0 && edgeDist < 8) {
+      const nextQ = d.q + v.dq;
+      const nextR = d.r + v.dr;
+      const nextEdgeDist = Math.min(
+        nextQ - minQ,
+        maxQ - nextQ,
+        nextR - minR,
+        maxR - nextR,
+      );
+      if (nextEdgeDist < edgeDist) {
+        score -= (edgeDist - nextEdgeDist) * 20 * cfg.multiplier;
+      }
     }
   }
 
