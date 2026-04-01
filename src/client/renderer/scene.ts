@@ -70,11 +70,23 @@ export const renderHexGrid = (
   ctx.lineWidth = 1;
   const size = hexSize;
   const { minQ, maxQ, minR, maxR } = map.bounds;
+
+  // Pixel y = size * (sqrt3/2 * q + sqrt3 * r), so for a given q
+  // the r range that keeps y in bounds shifts by -q/2.
+  // Use a generous q range to fill the rectangular pixel region,
+  // then clip with pixel y bounds from the central column.
+  const midQ = Math.round((minQ + maxQ) / 2);
+  const pxMinY = hexToPixel({ q: midQ, r: minR }, size).y - size;
+  const pxMaxY = hexToPixel({ q: midQ, r: maxR }, size).y + size;
+  const rPad = Math.ceil((maxQ - minQ) / 4) + 2;
+
   ctx.beginPath();
-  for (let r = minR; r <= maxR; r++) {
-    for (let q = minQ; q <= maxQ; q++) {
+  for (let q = minQ; q <= maxQ; q++) {
+    for (let r = minR - rPad; r <= maxR + rPad; r++) {
       const p = hexToPixel({ q, r }, size);
 
+      // Clip to rectangular pixel region
+      if (p.y < pxMinY || p.y > pxMaxY) continue;
       if (!isVisible(p.x, p.y)) continue;
       ctx.moveTo(
         p.x + HEX_OFFSETS[0][0] * size,
