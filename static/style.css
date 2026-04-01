@@ -696,12 +696,15 @@ body::before {
 }
 
 .chat-input-row {
+  display: flex;
+  gap: 0.35rem;
   padding: 0.45rem 0.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .chat-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 0.4rem 0.6rem;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -720,6 +723,25 @@ body::before {
   border-color: rgba(122, 215, 255, 0.3);
 }
 
+.chat-send-btn {
+  flex-shrink: 0;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(122, 215, 255, 0.1);
+  color: var(--accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.chat-send-btn:hover {
+  background: rgba(122, 215, 255, 0.2);
+}
+
+.chat-send-btn:active {
+  background: rgba(122, 215, 255, 0.3);
+}
 
 .log-entries::-webkit-scrollbar {
   width: 5px;
