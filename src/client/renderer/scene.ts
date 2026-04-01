@@ -70,24 +70,10 @@ export const renderHexGrid = (
   ctx.lineWidth = 1;
   const size = hexSize;
   const { minQ, maxQ, minR, maxR } = map.bounds;
-  const corners = [
-    hexToPixel({ q: minQ, r: minR }, size),
-    hexToPixel({ q: maxQ, r: minR }, size),
-    hexToPixel({ q: minQ, r: maxR }, size),
-    hexToPixel({ q: maxQ, r: maxR }, size),
-  ];
-  const pxMinX = Math.min(...corners.map((c) => c.x)) - size;
-  const pxMaxX = Math.max(...corners.map((c) => c.x)) + size;
-  const pxMinY = Math.min(...corners.map((c) => c.y)) - size;
-  const pxMaxY = Math.max(...corners.map((c) => c.y)) + size;
-  const qPad = Math.ceil((maxR - minR) / 2) + 2;
   ctx.beginPath();
-  for (let q = minQ - qPad; q <= maxQ + qPad; q++) {
-    for (let r = minR - qPad; r <= maxR + qPad; r++) {
+  for (let r = minR; r <= maxR; r++) {
+    for (let q = minQ; q <= maxQ; q++) {
       const p = hexToPixel({ q, r }, size);
-
-      if (p.x < pxMinX || p.x > pxMaxX || p.y < pxMinY || p.y > pxMaxY)
-        continue;
 
       if (!isVisible(p.x, p.y)) continue;
       ctx.moveTo(
