@@ -6,7 +6,6 @@ import {
   BASE_DETECTION_RANGE,
   SHIP_DETECTION_RANGE,
   SHIP_STATS,
-  WORLD_DETECTION_RANGE,
 } from '../constants';
 import { hexDistance, hexEqual, hexKey, parseHexKey } from '../hex';
 import type {
@@ -293,10 +292,13 @@ export const applyResupply = (
 };
 
 // Update detection status for all ships.
+// Once detected, a ship remains detected until it arrives
+// at a friendly base (rulebook p.8).
 export const applyDetection = (state: GameState, map: SolarSystemMap): void => {
   for (const ship of state.ships) {
     if (ship.lifecycle === 'destroyed') continue;
 
+    // Ships landed at a friendly base lose detection (rulebook p.8).
     if (ship.lifecycle === 'landed') {
       const key = hexKey(ship.position);
       const hex = map.hexes.get(key);
@@ -311,9 +313,9 @@ export const applyDetection = (state: GameState, map: SolarSystemMap): void => {
       }
     }
 
-    // Re-evaluate detection each turn — ships can become
-    // undetected when they move out of sensor range.
-    let nowDetected = false;
+    // Once detected, stay detected (rulebook p.8:
+    // "remains detected regardless of range").
+    if (ship.detected) continue;
 
     for (const other of state.ships) {
       if (other.owner === ship.owner || other.lifecycle === 'destroyed') {
@@ -321,38 +323,27 @@ export const applyDetection = (state: GameState, map: SolarSystemMap): void => {
       }
 
       if (hexDistance(ship.position, other.position) <= SHIP_DETECTION_RANGE) {
-        nowDetected = true;
+        ship.detected = true;
         break;
       }
     }
 
-    if (!nowDetected) {
-      for (const key of state.players[1 - ship.owner].bases) {
-        const hex = map.hexes.get(key);
+    if (ship.detected) continue;
 
-        if (!hex?.base) continue;
+    // Planetary bases detect at 5 hexes (rulebook p.8).
+    for (const key of state.players[1 - ship.owner].bases) {
+      const hex = map.hexes.get(key);
 
-        if (state.destroyedBases.includes(key)) continue;
+      if (!hex?.base) continue;
 
-        const baseCoord = parseHexKey(key);
+      if (state.destroyedBases.includes(key)) continue;
 
-        if (hexDistance(ship.position, baseCoord) <= BASE_DETECTION_RANGE) {
-          nowDetected = true;
-          break;
-        }
+      const baseCoord = parseHexKey(key);
+
+      if (hexDistance(ship.position, baseCoord) <= BASE_DETECTION_RANGE) {
+        ship.detected = true;
+        break;
       }
     }
-
-    // Worlds (planets/satellites) detect at 5 hexes (rulebook p.14).
-    if (!nowDetected) {
-      for (const body of map.bodies) {
-        if (hexDistance(ship.position, body.center) <= WORLD_DETECTION_RANGE) {
-          nowDetected = true;
-          break;
-        }
-      }
-    }
-
-    ship.detected = nowDetected;
   }
 };
