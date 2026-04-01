@@ -19,6 +19,14 @@ const copyStatic = () => {
     'dist/sw.js',
     swSource.replace('delta-v-v1', `delta-v-${hash}`),
   );
+
+  const indexHtml = readFileSync('dist/index.html', 'utf8');
+  writeFileSync(
+    'dist/index.html',
+    indexHtml
+      .replace('/style.css', `/style.css?v=${hash}`)
+      .replace('/client.js', `/client.js?v=${hash}`),
+  );
 };
 
 // esbuild watch mode for TypeScript
