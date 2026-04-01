@@ -193,6 +193,29 @@ export const resolveMovementPhase = (
       });
     }
 
+    // Destroy ships that drift far beyond the map boundary
+    if (ship.lifecycle !== 'destroyed') {
+      const oobMargin = 10;
+      const { minQ, maxQ, minR, maxR } = map.bounds;
+      const p = ship.position;
+      if (
+        p.q < minQ - oobMargin ||
+        p.q > maxQ + oobMargin ||
+        p.r < minR - oobMargin ||
+        p.r > maxR + oobMargin
+      ) {
+        ship.lifecycle = 'destroyed';
+        ship.deathCause = 'crash';
+        ship.velocity = { dq: 0, dr: 0 };
+        ship.pendingGravityEffects = [];
+        engineEvents.push({
+          type: 'shipDestroyed',
+          shipId: ship.id,
+          cause: 'crash',
+        });
+      }
+    }
+
     if (ship.lifecycle !== 'destroyed') {
       queueAsteroidHazards(ship, course.path, course.newVelocity, state, map);
     }
