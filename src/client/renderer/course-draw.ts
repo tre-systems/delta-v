@@ -135,6 +135,7 @@ const drawSingleCoursePreview = (
   ctx: CanvasRenderingContext2D,
   preview: CoursePreviewView,
   drawShipIcon: DrawShipIconFn,
+  playerId: PlayerId,
 ): void => {
   if (preview.takeoffSegment) {
     drawTakeoffSegment(ctx, preview.takeoffSegment);
@@ -159,6 +160,7 @@ const drawSingleCoursePreview = (
       x: g.position.x,
       y: g.position.y,
       owner: g.owner,
+      playerId,
       alpha: g.alpha,
       heading: 0,
       disabledTurns: 0,
@@ -202,6 +204,6 @@ export const drawAstrogationCoursePreviewLayer = (
     map,
     hexSize,
   )) {
-    drawSingleCoursePreview(ctx, preview, drawShipIcon);
+    drawSingleCoursePreview(ctx, preview, drawShipIcon, playerId);
   }
 };
