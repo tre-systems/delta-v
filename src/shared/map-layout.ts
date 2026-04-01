@@ -370,10 +370,10 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
     bodies,
     gravityBodies,
     bounds: {
-      minQ: minQ - 3,
-      maxQ: maxQ + 3,
-      minR: minR - 3,
-      maxR: maxR + 3,
+      minQ: -16, // 7 hexes left of Mars (q=-9)
+      maxQ: 16, // 7 hexes right of Luna (q=9)
+      minR: -25, // 7 hexes above Jupiter (r=-18)
+      maxR: 14, // 7 hexes below Venus (r=7)
     },
   };
 };
