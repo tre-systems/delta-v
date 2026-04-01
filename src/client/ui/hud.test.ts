@@ -217,8 +217,7 @@ describe('ui hud helpers', () => {
         }),
       ),
     ).toMatchObject({
-      statusText:
-        'Click a direction to burn (1 fuel) — booster takeoff is free',
+      statusText: 'Click a direction to burn (1 fuel)',
     });
   });
 
@@ -357,7 +356,7 @@ describe('ui hud helpers', () => {
           },
         }),
       ).statusText,
-    ).toBe('Tap a direction to burn (1 fuel) — booster takeoff is free');
+    ).toBe('Tap a direction to burn (1 fuel)');
 
     expect(
       buildHUDView(

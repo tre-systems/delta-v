@@ -5,9 +5,7 @@ import {
   type HexCoord,
   type HexVec,
   hexAdd,
-  hexDirectionToward,
   hexDistance,
-  hexEqual,
   hexKey,
   hexLineDraw,
   hexSubtract,
@@ -289,127 +287,6 @@ type ComputeCourseInput = {
   land: boolean;
 };
 
-const computeTakeoffCourse = ({
-  ship,
-  burn,
-  map,
-  overload,
-  weakGravityChoices,
-  destroyedBases,
-}: ComputeCourseInput): CourseResult => {
-  const baseHex = map.hexes.get(hexKey(ship.position));
-  const bodyName = baseHex?.base?.bodyName ?? baseHex?.body?.name;
-
-  if (burn === null) {
-    return {
-      destination: ship.position,
-      path: [ship.position],
-      newVelocity: { dq: 0, dr: 0 },
-      fuelSpent: 0,
-      gravityEffects: [],
-      enteredGravityEffects: [],
-      outcome: 'landing',
-      landedAt: bodyName ?? 'unknown',
-    };
-  }
-
-  let launchHex = ship.position;
-
-  if (bodyName) {
-    const body = map.bodies.find((candidate) => candidate.name === bodyName);
-
-    if (body) {
-      const awayDir = hexDirectionToward(body.center, ship.position);
-      const awayNeighbor = hexAdd(ship.position, HEX_DIRECTIONS[awayDir]);
-      const awayHex = map.hexes.get(hexKey(awayNeighbor));
-
-      if (!awayHex?.body) {
-        launchHex = awayNeighbor;
-      } else {
-        for (let d = 0; d < 6; d++) {
-          const neighbor = hexAdd(ship.position, HEX_DIRECTIONS[d]);
-          const neighborHex = map.hexes.get(hexKey(neighbor));
-
-          if (neighborHex?.gravity?.bodyName === bodyName) {
-            launchHex = neighbor;
-            break;
-          }
-
-          if (!neighborHex?.body && launchHex === ship.position) {
-            launchHex = neighbor;
-          }
-        }
-      }
-    }
-  }
-
-  let destination: HexCoord = hexAdd(launchHex, HEX_DIRECTIONS[burn]);
-  let fuelSpent = 1;
-
-  if (overload !== null) {
-    const stats = SHIP_STATS[ship.type];
-
-    if (stats?.canOverload && ship.fuel >= 2) {
-      destination = hexAdd(destination, HEX_DIRECTIONS[overload]);
-      fuelSpent = 2;
-    }
-  }
-
-  const gravityEffects = collectEnteredGravityEffects(
-    [ship.position, launchHex],
-    map,
-    weakGravityChoices,
-  );
-
-  destination = applyPendingGravityEffects(destination, gravityEffects);
-
-  const finalPath = hexLineDraw(launchHex, destination);
-  const enteredGravityEffects = collectEnteredGravityEffects(
-    finalPath,
-    map,
-    weakGravityChoices,
-  );
-  const newVelocity = hexSubtract(destination, launchHex);
-
-  const landedAt = checkLanding(
-    ship,
-    destination,
-    newVelocity,
-    fuelSpent,
-    map,
-    destroyedBases,
-  );
-  const crash = checkCrash(finalPath, map, landedAt, bodyName ?? undefined);
-
-  // Include base hex in the path so the animation shows
-  // the ship leaving the surface
-  const fullPath = hexEqual(ship.position, finalPath[0])
-    ? finalPath
-    : [ship.position, ...finalPath];
-
-  const base = {
-    destination,
-    path: fullPath,
-    newVelocity,
-    fuelSpent,
-    gravityEffects,
-    enteredGravityEffects,
-  };
-
-  if (crash) {
-    return {
-      ...base,
-      outcome: 'crash' as const,
-      crashBody: crash.crashBody,
-      crashHex: crash.crashHex,
-    };
-  }
-  if (landedAt) {
-    return { ...base, outcome: 'landing' as const, landedAt };
-  }
-  return { ...base, outcome: 'normal' as const };
-};
-
 const computeNormalCourse = ({
   ship,
   burn,
@@ -419,6 +296,22 @@ const computeNormalCourse = ({
   destroyedBases,
   land,
 }: ComputeCourseInput): CourseResult => {
+  // A landed ship with no burn stays landed
+  if (ship.lifecycle === 'landed' && burn === null) {
+    const hex = map.hexes.get(hexKey(ship.position));
+    const bodyName = hex?.base?.bodyName ?? hex?.body?.name ?? '';
+    return {
+      destination: ship.position,
+      path: [ship.position],
+      newVelocity: { dq: 0, dr: 0 },
+      fuelSpent: 0,
+      gravityEffects: [],
+      enteredGravityEffects: [],
+      outcome: 'landing',
+      landedAt: bodyName,
+    };
+  }
+
   let destination: HexCoord = hexAdd(ship.position, ship.velocity);
   let fuelSpent = 0;
 
@@ -561,9 +454,7 @@ export const computeCourse = (
     land,
   };
 
-  return ship.lifecycle === 'landed'
-    ? computeTakeoffCourse(input)
-    : computeNormalCourse(input);
+  return computeNormalCourse(input);
 };
 
 // Check if a ship can burn fuel.
