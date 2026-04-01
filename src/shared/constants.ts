@@ -232,10 +232,12 @@ export const ORDNANCE_LIFETIME = 5;
 // Cumulative disabled turns that destroy a ship (rulebook p.6: D6 = destroyed).
 export const DAMAGE_ELIMINATION_THRESHOLD = 6;
 
-// Ship detector range in hexes (rulebook p.8).
+// Ship detector range in hexes (rulebook p.14: 3 for ships and bases).
 export const SHIP_DETECTION_RANGE = 3;
-// Planetary base detector range in hexes (rulebook p.8).
-export const BASE_DETECTION_RANGE = 5;
+// Base detector range in hexes (rulebook p.14: 3 for ships and bases).
+export const BASE_DETECTION_RANGE = 3;
+// World detector range in hexes (rulebook p.14: 5 for worlds).
+export const WORLD_DETECTION_RANGE = 5;
 
 // Combat modifiers
 // Relative velocity above this threshold applies die roll penalty (rulebook p.5).
