@@ -450,29 +450,48 @@ export const renderCombatOverlay = ({
 
   ctx.textAlign = 'center';
 
-  // Odds line
+  // Build combined label: "2:1" or "2:1 / -4 modifier" or "2:1 / COUNTER"
+  let combinedParts = preview.label;
+  if (preview.modLabel) {
+    combinedParts += `  ${preview.modLabel}`;
+  }
+  if (preview.counterattackLabel) {
+    combinedParts += `  ${preview.counterattackLabel}`;
+  }
+
   ctx.font = 'bold 10px monospace';
-  const oddsW = ctx.measureText(preview.label).width;
+  const labelW = ctx.measureText(combinedParts).width;
 
   ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-  ctx.fillRect(targetPos.x - oddsW / 2 - 4, targetPos.y - 32, oddsW + 8, 16);
+  ctx.fillRect(targetPos.x - labelW / 2 - 5, targetPos.y - 32, labelW + 10, 16);
+
+  // Draw odds portion in yellow
+  const oddsText = preview.label;
+  const oddsW = ctx.measureText(oddsText).width;
+  const startX = targetPos.x - labelW / 2;
 
   ctx.fillStyle = '#ffdd57';
-  ctx.fillText(preview.label, targetPos.x, targetPos.y - 20);
+  ctx.fillText(oddsText, startX + oddsW / 2, targetPos.y - 20);
 
-  // Modifier line (Range/Velocity penalties)
-  ctx.font = '8px monospace';
-  const modW = ctx.measureText(preview.modLabel).width;
+  // Draw modifier portion in its color
+  if (preview.modLabel) {
+    const modText = `  ${preview.modLabel}`;
+    const modStartX = startX + oddsW;
+    const modW = ctx.measureText(modText).width;
+    ctx.fillStyle = preview.modColor;
+    ctx.fillText(modText, modStartX + modW / 2, targetPos.y - 20);
+  }
 
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-  ctx.fillRect(targetPos.x - modW / 2 - 4, targetPos.y - 46, modW + 8, 14);
-
-  ctx.fillStyle = preview.modColor;
-  ctx.fillText(preview.modLabel, targetPos.x, targetPos.y - 36);
-
+  // Draw counter warning in orange
   if (preview.counterattackLabel) {
-    ctx.fillStyle = 'rgba(255, 170, 0, 0.7)';
-    ctx.font = '7px monospace';
-    ctx.fillText(preview.counterattackLabel, targetPos.x, targetPos.y - 52);
+    const prefix = preview.modLabel
+      ? `${oddsText}  ${preview.modLabel}`
+      : oddsText;
+    const prefixW = ctx.measureText(prefix).width;
+    const counterText = `  ${preview.counterattackLabel}`;
+    const counterStartX = startX + prefixW;
+    const counterW = ctx.measureText(counterText).width;
+    ctx.fillStyle = 'rgba(255, 170, 0, 0.9)';
+    ctx.fillText(counterText, counterStartX + counterW / 2, targetPos.y - 20);
   }
 };
