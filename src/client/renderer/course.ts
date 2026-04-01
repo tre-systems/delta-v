@@ -359,27 +359,10 @@ export const buildAstrogationCoursePreviewViews = (
     });
 
     const destination = hexToPixel(course.destination, hexSize);
-    const predictedDestination =
-      ship.lifecycle === 'landed' ? ship.position : predictDestination(ship);
+    const predictedDestination = predictDestination(ship);
 
-    // For takeoff: separate the free booster segment (base → launch hex)
-    // from the burn segment (launch hex → destination)
-    const hasTakeoff =
-      ship.lifecycle === 'landed' &&
-      burn !== null &&
-      course.path.length >= 2 &&
-      !hexEqual(course.path[0], course.path[1]);
-
-    const takeoffSegment = hasTakeoff
-      ? {
-          points: [course.path[0], course.path[1]].map((hex) =>
-            hexToPixel(hex, hexSize),
-          ),
-        }
-      : null;
-
-    // Main line starts from launch hex (not base) when taking off
-    const mainPath = hasTakeoff ? course.path.slice(1) : course.path;
+    const takeoffSegment = null;
+    const mainPath = course.path;
 
     previews.push({
       shipId: ship.id,
