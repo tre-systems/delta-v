@@ -56,13 +56,14 @@ export const createMinimapLayout = (
 ): MinimapLayout => {
   const frame = getMinimapFrame(screenWidth, screenHeight, hudTopOffset);
 
-  const worldMinX = hexToPixel({ q: bounds.minQ, r: bounds.minR }, hexSize).x;
+  // x depends only on q, so min/max q give exact left/right edges
+  const worldMinX = hexToPixel({ q: bounds.minQ, r: 0 }, hexSize).x;
+  const worldMaxX = hexToPixel({ q: bounds.maxQ, r: 0 }, hexSize).x;
 
-  const worldMaxX = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, hexSize).x;
-
-  const worldMinY = hexToPixel({ q: bounds.minQ, r: bounds.minR }, hexSize).y;
-
-  const worldMaxY = hexToPixel({ q: bounds.maxQ, r: bounds.maxR }, hexSize).y;
+  // y depends on both q and r; use central column for a rectangular region
+  const midQ = Math.round((bounds.minQ + bounds.maxQ) / 2);
+  const worldMinY = hexToPixel({ q: midQ, r: bounds.minR }, hexSize).y;
+  const worldMaxY = hexToPixel({ q: midQ, r: bounds.maxR }, hexSize).y;
 
   const worldWidth = worldMaxX - worldMinX || 1;
   const worldHeight = worldMaxY - worldMinY || 1;

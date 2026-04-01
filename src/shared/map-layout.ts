@@ -373,7 +373,7 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
       minQ: -16, // 7 hexes left of Mars (q=-9)
       maxQ: 16, // 7 hexes right of Luna (q=9)
       minR: -25, // 7 hexes above Jupiter (r=-18)
-      maxR: 14, // 7 hexes below Venus (r=7)
+      maxR: 10, // 3 hexes below Venus gravity (r=9)
     },
   };
 };
