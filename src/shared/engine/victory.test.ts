@@ -786,4 +786,19 @@ describe('applyDetection', () => {
     applyDetection(state, map);
     expect(ship.detected).toBe(false);
   });
+  it('detected ship stays detected regardless of range (rulebook p.8)', () => {
+    const state = setupState();
+    map = buildSolarSystemMap();
+    const ship = must(state.ships.find((s) => s.owner === 0));
+    ship.detected = true;
+    ship.lifecycle = 'active';
+    ship.position = { q: 40, r: 40 }; // Far from everything
+    for (const s of state.ships) {
+      if (s.owner === 1) {
+        s.position = { q: -40, r: -40 };
+      }
+    }
+    applyDetection(state, map);
+    expect(ship.detected).toBe(true);
+  });
 });
