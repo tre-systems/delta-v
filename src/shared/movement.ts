@@ -188,6 +188,9 @@ const checkLanding = (
   map: SolarSystemMap,
   destroyedBases: Set<string>,
 ): string | null => {
+  // A ship that's currently landed must take off first —
+  // it can't hop directly to another base in the same turn
+  if (ship.lifecycle === 'landed') return null;
   const key = hexKey(destination);
   const hex = map.hexes.get(key);
 
