@@ -195,7 +195,7 @@ export const resolveMovementPhase = (
 
     // Destroy ships that drift far beyond the map boundary
     if (ship.lifecycle !== 'destroyed') {
-      const oobMargin = 10;
+      const oobMargin = 2;
       const { minQ, maxQ, minR, maxR } = map.bounds;
       const p = ship.position;
       if (
