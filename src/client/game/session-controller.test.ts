@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createGame } from '../../shared/engine/game-engine';
 import {
@@ -260,6 +260,15 @@ describe('session-controller', () => {
     ]);
     expect(deps.calls.connect).toEqual([['ABCDE']]);
     expect(deps.calls.setState).toEqual([['waitingForOpponent']]);
+  });
+
+  beforeEach(() => {
+    (globalThis as Record<string, unknown>).__DELTAV_FORCE_PLAYER_SIDE = 0;
+  });
+
+  afterEach(() => {
+    (globalThis as Record<string, unknown>).__DELTAV_FORCE_PLAYER_SIDE =
+      undefined;
   });
 
   it('starts a local game session and transitions into play', () => {
