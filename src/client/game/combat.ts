@@ -165,6 +165,7 @@ const getUntargetedEnemyShipsAtHex = (
     (ship) =>
       ship.owner !== playerId &&
       ship.lifecycle === 'active' &&
+      ship.detected &&
       !queuedTargets.has(`ship:${ship.id}`) &&
       hexEqual(clickHex, ship.position),
   );
