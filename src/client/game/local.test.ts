@@ -102,6 +102,7 @@ describe('game-client-local', () => {
     state.activePlayer = 0;
     state.ships[0].lifecycle = 'active';
     state.ships[1].lifecycle = 'active';
+    state.ships[1].detected = true;
     state.ships[0].position = { q: 20, r: 0 };
     state.ships[1].position = { q: 21, r: 0 };
     state.ships[0].velocity = { dq: 0, dr: 0 };
