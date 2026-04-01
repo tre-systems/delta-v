@@ -6,6 +6,7 @@
     "build:client": "node esbuild.client.mjs",
     "build": "npm run build:client",
     "dev": "wrangler dev",
+    "dev:watch": "node esbuild.watch.mjs & wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:tools": "tsc --noEmit -p tsconfig.tools.json",

@@ -81,7 +81,11 @@ export const autoJoinFromUrl = (
 };
 
 export const setupServiceWorkerReload = () => {
-  if ('serviceWorker' in navigator) {
+  if (
+    'serviceWorker' in navigator &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1'
+  ) {
     bindServiceWorkerControllerReload(navigator.serviceWorker, window.location);
   }
 };
