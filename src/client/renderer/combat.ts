@@ -247,13 +247,8 @@ const formatPreviewLabel = (
 
   const totalMod = -(rangeMod + velMod);
 
-  const modParts: string[] = [];
-
-  if (rangeMod > 0) modParts.push(`Range ${rangeMod} (-${rangeMod})`);
-
-  if (velMod > 0) modParts.push(`Velocity ${velMod + 2} (-${velMod})`);
-
-  const modLabel = modParts.length > 0 ? modParts.join('  ') : 'No penalty';
+  const modLabel =
+    totalMod === 0 ? '' : `${totalMod > 0 ? '+' : ''}${totalMod} modifier`;
 
   const modColor =
     totalMod <= -3 ? '#ff6b6b' : totalMod <= -1 ? '#ffcc00' : '#8bc34a';
@@ -261,7 +256,7 @@ const formatPreviewLabel = (
   const counterattackLabel =
     targetType === 'ship'
       ? getCounterattackers(target as Ship, allShips).length > 0
-        ? `CAN COUNTER${attackers.length > 1 ? ` / ${attackers.length} SHIPS` : ''}`
+        ? 'COUNTER'
         : null
       : null;
 
