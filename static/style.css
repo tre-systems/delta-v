@@ -521,11 +521,11 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  width: 160px;
+  max-width: 170px;
 }
 
 .ship-entry {
-  min-width: 0;
+  min-width: 120px;
   padding: 0.35rem 0.5rem;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255, 255, 255, 0.05);
