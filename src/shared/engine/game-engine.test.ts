@@ -1162,9 +1162,9 @@ describe('ordnance system', () => {
   });
 });
 describe('detection / fog of war', () => {
-  it('ships start as detected', () => {
+  it('ships start as undetected', () => {
     for (const ship of initialState.ships) {
-      expect(ship.detected).toBe(true);
+      expect(ship.detected).toBe(false);
     }
   });
   it('detects ships within ship detection range after movement', () => {
@@ -1220,7 +1220,7 @@ describe('detection / fog of war', () => {
     );
     expect(detectedShip.detected).toBe(false);
   });
-  it('detected status persists once set', () => {
+  it('ships become undetected when moving out of range', () => {
     const ship0 = initialState.ships[0];
     const ship1 = initialState.ships[1];
     ship0.lifecycle = 'active';
@@ -1229,7 +1229,7 @@ describe('detection / fog of war', () => {
     ship1.lifecycle = 'active';
     ship1.position = { q: 10, r: 0 }; // beyond range
     ship1.velocity = { dq: 0, dr: 0 };
-    ship1.detected = true; // already detected
+    ship1.detected = true; // was previously detected
     const orders: AstrogationOrder[] = [
       { shipId: ship0.id, burn: null, overload: null },
     ];
@@ -1241,11 +1241,11 @@ describe('detection / fog of war', () => {
       Math.random,
     );
     if ('error' in result) return;
-    // Should stay detected (persistent)
+    // Should lose detection when out of range
     const detectedShip = must(
       result.state.ships.find((s) => s.id === ship1.id),
     );
-    expect(detectedShip.detected).toBe(true);
+    expect(detectedShip.detected).toBe(false);
   });
 });
 describe('base defense fire', () => {
