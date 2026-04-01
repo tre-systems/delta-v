@@ -449,8 +449,8 @@ body::before {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding: 0.2rem;
-  margin: -0.2rem;
+  padding: 0.6rem;
+  margin: -0.6rem;
 }
 
 #scenarioList::-webkit-scrollbar {
@@ -2099,7 +2099,7 @@ h2.game-over-defeat {
 .btn:hover:not(:disabled) {
   transform: translateY(-2px) scale(1.02);
   filter: brightness(1.1);
-  box-shadow: 0 8px 24px rgba(122, 215, 255, 0.25);
+  box-shadow: 0 4px 12px rgba(122, 215, 255, 0.25);
 }
 
 .btn:active:not(:disabled) {

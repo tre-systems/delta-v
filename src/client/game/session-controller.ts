@@ -1,5 +1,5 @@
 import type { AIDifficulty } from '../../shared/ai';
-import type { GameState, Result } from '../../shared/types/domain';
+import type { GameState, PlayerId, Result } from '../../shared/types/domain';
 import {
   resetReconnectAttempts,
   setGameCode,
@@ -190,7 +190,16 @@ export const startLocalGameSession = (
 ): void => {
   prepareLocalSession(deps.ctx);
   setScenario(deps.ctx, scenario);
-  setPlayerId(deps.ctx, 0);
+  const forcedSide = (globalThis as Record<string, unknown>)
+    .__DELTAV_FORCE_PLAYER_SIDE;
+  const humanSide = (
+    forcedSide === 0 || forcedSide === 1
+      ? forcedSide
+      : Math.random() < 0.5
+        ? 0
+        : 1
+  ) as PlayerId;
+  setPlayerId(deps.ctx, humanSide);
   deps.resetTurnTelemetry();
   setTransport(deps.ctx, deps.createLocalTransport());
 
