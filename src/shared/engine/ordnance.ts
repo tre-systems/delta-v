@@ -533,7 +533,7 @@ export const moveOrdnance = (
 
     // Remove ordnance that drifts far beyond the map
     if (ord.lifecycle !== 'destroyed') {
-      const oobMargin = 10;
+      const oobMargin = 2;
       const { minQ, maxQ, minR, maxR } = map.bounds;
       const p = ord.position;
       if (

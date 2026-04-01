@@ -942,7 +942,7 @@ describe('ordnance system', () => {
     const ship = state.ships[0];
     ship.lifecycle = 'active';
     ship.velocity = { dq: 0, dr: 0 };
-    ship.position = { q: 20, r: 20 };
+    ship.position = { q: 5, r: 5 };
     const firstResult = processAstrogation(
       state,
       0,
