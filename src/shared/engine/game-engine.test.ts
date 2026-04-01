@@ -1220,7 +1220,7 @@ describe('detection / fog of war', () => {
     );
     expect(detectedShip.detected).toBe(false);
   });
-  it('ships become undetected when moving out of range', () => {
+  it('detected ships stay detected after moving out of range (rulebook p.8)', () => {
     const ship0 = initialState.ships[0];
     const ship1 = initialState.ships[1];
     ship0.lifecycle = 'active';
@@ -1241,11 +1241,11 @@ describe('detection / fog of war', () => {
       Math.random,
     );
     if ('error' in result) return;
-    // Should lose detection when out of range
+    // Remains detected regardless of range (rulebook p.8)
     const detectedShip = must(
       result.state.ships.find((s) => s.id === ship1.id),
     );
-    expect(detectedShip.detected).toBe(false);
+    expect(detectedShip.detected).toBe(true);
   });
 });
 describe('base defense fire', () => {
