@@ -38,6 +38,8 @@ interface GameStateStoreRenderer {
 
 export interface ApplyClientGameStateDeps {
   ctx: GameStateStoreContext;
+  /** When true, all ships are made visible (spectator sees everything). */
+  isSpectator?: boolean;
   /** When set, called after `ctx` is updated (e.g. tests). Omitted in the shell — session effects drive the renderer. */
   renderer?: GameStateStoreRenderer;
 }
@@ -46,6 +48,13 @@ export const applyClientGameState = (
   deps: ApplyClientGameStateDeps,
   state: GameState,
 ): void => {
+  // Spectators see all ships regardless of detection
+  if (deps.isSpectator) {
+    for (const ship of state.ships) {
+      ship.detected = true;
+    }
+  }
+
   batch(() => {
     deps.ctx.gameState = state;
 
