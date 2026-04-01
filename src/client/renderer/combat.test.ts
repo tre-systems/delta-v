@@ -198,10 +198,10 @@ describe('renderer combat helpers', () => {
         { q: 0, r: 1 },
       ],
       label: '1:2  ATK 6/6',
-      modLabel: '-1 modifier',
+      modLabel: '-1',
       modColor: '#ffcc00',
       totalMod: -1,
-      counterattackLabel: 'COUNTER',
+      canCounter: true,
     });
   });
 
@@ -222,10 +222,10 @@ describe('renderer combat helpers', () => {
         { q: 0, r: 1 },
       ],
       label: '2:1',
-      modLabel: '-1 modifier',
+      modLabel: '-1',
       modColor: '#ffcc00',
       totalMod: -1,
-      counterattackLabel: null,
+      canCounter: false,
     });
   });
 
