@@ -113,6 +113,7 @@ const drawOneShip = ({
     x: pos.x,
     y: pos.y,
     owner: ship.owner,
+    playerId,
     alpha: getShipIconAlpha(ship),
     heading,
     disabledTurns: ship.damage.disabledTurns,

@@ -17,6 +17,7 @@ export type DrawShipIconInput = {
   x: number;
   y: number;
   owner: PlayerId;
+  playerId: PlayerId;
   alpha: number;
   heading: number;
   disabledTurns?: number;
@@ -30,13 +31,14 @@ export const drawShipIcon = ({
   x,
   y,
   owner,
+  playerId,
   alpha,
   heading,
   disabledTurns = 0,
   shipType,
 }: DrawShipIconInput): void => {
   const color =
-    owner === 0
+    owner === playerId
       ? `rgba(79, 195, 247, ${alpha})`
       : `rgba(255, 152, 0, ${alpha})`;
 
