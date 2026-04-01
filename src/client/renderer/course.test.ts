@@ -124,7 +124,7 @@ describe('renderer course helpers', () => {
 
     expect(previews[0]).toMatchObject({
       lineDash: [],
-      fuelCostLabel: { text: '-1', color: '#ffcc00' },
+      fuelCostLabel: null,
     });
     expect(previews[0].overloadMarkers).toHaveLength(6);
   });
