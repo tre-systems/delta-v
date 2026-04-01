@@ -1,4 +1,4 @@
-import { computeCourse } from '../movement';
+import { computeCourse, detectOrbit } from '../movement';
 import type {
   GameState,
   MovementEvent,
@@ -94,11 +94,17 @@ export const resolveMovementPhase = (
 
     const from = { ...ship.position };
 
+    // Auto-land when orbiting the target body — no need for a
+    // manual toggle in race scenarios.
+    const targetBody = state.players[ship.owner]?.targetBody;
+    const shouldAutoLand =
+      !order?.land && targetBody && detectOrbit(ship, map) === targetBody;
+
     const course = computeCourse(ship, burn, map, {
       overload,
       weakGravityChoices: order?.weakGravityChoices,
       destroyedBases: state.destroyedBases,
-      land: order?.land,
+      land: order?.land || shouldAutoLand || undefined,
     });
 
     const movementBase = {
