@@ -539,6 +539,11 @@ export const findNearestTarget = (
   if (!attacker) return null;
 
   const queuedTargets = getTargetedKeys(queuedAttacks);
+  // Also exclude targets already attacked this phase (tracked by the engine
+  // during sequential single-combat resolution).
+  for (const key of state.combatTargetedThisPhase ?? []) {
+    queuedTargets.add(key);
+  }
   const enemyShips = getVisibleEnemyShipTargets(
     state,
     playerId,
