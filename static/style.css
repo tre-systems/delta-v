@@ -397,16 +397,6 @@ body::before {
   justify-self: end;
 }
 
-@media (min-width: 640px) {
-  .hud-bar {
-    grid-template-columns: auto 1fr auto auto;
-  }
-
-  .hud-bar > .objective-wrap {
-    grid-column: auto;
-    justify-self: auto;
-  }
-}
 
 .hud-bottom {
   position: fixed;
