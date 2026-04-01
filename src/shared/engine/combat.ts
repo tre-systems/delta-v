@@ -508,6 +508,10 @@ export const processCombat = (
       return engineFailure(ErrorCode.INVALID_TARGET, 'Invalid combat target');
     }
 
+    if (!target.detected) {
+      return engineFailure(ErrorCode.INVALID_TARGET, 'Target is not detected');
+    }
+
     const targetHexKey = hexKey(target.position);
 
     if (group.targetHexKey && group.targetHexKey !== targetHexKey) {
@@ -662,6 +666,9 @@ export const processSingleCombat = (
     const target = state.ships.find((s) => s.id === attack.targetId);
     if (!target || target.owner === playerId || target.lifecycle !== 'active') {
       return engineFailure(ErrorCode.INVALID_TARGET, 'Invalid combat target');
+    }
+    if (!target.detected) {
+      return engineFailure(ErrorCode.INVALID_TARGET, 'Target is not detected');
     }
     if (attackers.some((attacker) => !hasLineOfSight(attacker, target, map))) {
       return engineFailure(

@@ -520,6 +520,7 @@ describe('aiCombat', () => {
     enemyShip.lastMovementPath = [{ q: 1, r: 0 }];
     enemyShip.velocity = { dq: 0, dr: 0 };
     enemyShip.lifecycle = 'active';
+    enemyShip.detected = true;
     const attacks = aiCombat(state, 1, openMap);
     // At adjacent range with equal strength, AI should attack
     expect(attacks.length).toBeGreaterThanOrEqual(1);
@@ -570,6 +571,7 @@ describe('aiCombat', () => {
     pilgrim.lastMovementPath = [{ q: 1, r: 0 }];
     pilgrim.velocity = { dq: 0, dr: 0 };
     pilgrim.lifecycle = 'active';
+    pilgrim.detected = true;
     // Destroy other pilgrims
     for (const s of state.ships.filter(
       (s) => s.owner === 0 && s.id !== pilgrim.id,

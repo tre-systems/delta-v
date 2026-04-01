@@ -47,7 +47,10 @@ export const aiCombat = (
   if (myShips.length === 0) return [];
 
   const enemyShips = state.ships.filter(
-    (ship) => ship.owner !== playerId && ship.lifecycle !== 'destroyed',
+    (ship) =>
+      ship.owner !== playerId &&
+      ship.lifecycle !== 'destroyed' &&
+      ship.detected,
   );
   const enemyNukes = state.ordnance.filter(
     (ordnance) =>
