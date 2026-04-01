@@ -531,6 +531,25 @@ export const moveOrdnance = (
       });
     }
 
+    // Remove ordnance that drifts far beyond the map
+    if (ord.lifecycle !== 'destroyed') {
+      const oobMargin = 10;
+      const { minQ, maxQ, minR, maxR } = map.bounds;
+      const p = ord.position;
+      if (
+        p.q < minQ - oobMargin ||
+        p.q > maxQ + oobMargin ||
+        p.r < minR - oobMargin ||
+        p.r > maxR + oobMargin
+      ) {
+        ord.lifecycle = 'destroyed';
+        engineEvents?.push({
+          type: 'ordnanceExpired',
+          ordnanceId: ord.id,
+        });
+      }
+    }
+
     let nukeDevastated = false;
 
     for (let pi = 0; pi < finalPath.length; pi++) {

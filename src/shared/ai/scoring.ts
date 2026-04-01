@@ -357,6 +357,16 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
     score += scoreRaceDanger(course, map, targetHex, cfg);
   }
 
+  // Map boundary avoidance — penalize courses heading off the map
+  if (map && course.outcome !== 'crash') {
+    const { minQ, maxQ, minR, maxR } = map.bounds;
+    const d = course.destination;
+    const edgeDist = Math.min(d.q - minQ, maxQ - d.q, d.r - minR, maxR - d.r);
+    if (edgeDist < 3) {
+      score -= (3 - edgeDist) * 30 * cfg.multiplier;
+    }
+  }
+
   // Combat-only stay-landed penalty
   if (
     noPrimaryObjective &&
