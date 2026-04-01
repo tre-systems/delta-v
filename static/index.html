@@ -220,100 +220,106 @@
     </div>
   </div>
 
-  <!-- Controls help overlay -->
+  <!-- Help overlay -->
   <div id="helpOverlay" class="screen screen-page glass" style="display:none">
     <div class="menu-content help-content">
-      <h2 class="scenario-title">Controls</h2>
-      <div class="help-section">
-        <h3>Navigation</h3>
-        <div class="help-row"><span class="help-key">Drag</span> Pan camera</div>
-        <div class="help-row"><span class="help-key">Scroll / Pinch</span> Zoom</div>
-        <div class="help-row keyboard-only"><span class="help-key">WASD / Arrows</span> Pan camera</div>
-        <div class="help-row keyboard-only"><span class="help-key">+ / -</span> Zoom in/out</div>
-      </div>
-      <div class="help-section">
-        <h3>Astrogation</h3>
-        <div class="help-row touch-only"><span class="help-key">Tap ship</span> Select</div>
-        <div class="help-row keyboard-only"><span class="help-key">Click ship</span> Select</div>
-        <div class="help-row touch-only"><span class="help-key">Tap arrow</span> Set burn</div>
-        <div class="help-row keyboard-only"><span class="help-key">Click arrow / 1-6</span> Set burn</div>
-        <div class="help-row keyboard-only"><span class="help-key">0</span> Clear burn</div>
-        <div class="help-row keyboard-only"><span class="help-key">Tab</span> Cycle ships</div>
-        <div class="help-row keyboard-only"><span class="help-key">Enter</span> Confirm</div>
-        <div class="help-row keyboard-only"><span class="help-key">Esc</span> Deselect ship</div>
-      </div>
-      <div class="help-section keyboard-only">
-        <h3>Ordnance</h3>
-        <div class="help-row"><span class="help-key">N</span> Launch mine</div>
-        <div class="help-row"><span class="help-key">T</span> Launch torpedo</div>
-        <div class="help-row"><span class="help-key">K</span> Launch nuke</div>
-        <div class="help-row"><span class="help-key">Enter</span> Skip</div>
-      </div>
-      <div class="help-section">
-        <h3>Combat</h3>
-        <div class="help-row touch-only"><span class="help-key">Tap enemy</span> Target</div>
-        <div class="help-row keyboard-only"><span class="help-key">Click enemy</span> Target</div>
-        <div class="help-row keyboard-only"><span class="help-key">Enter</span> Attack / Skip</div>
-        <div class="help-row keyboard-only"><span class="help-key">Esc</span> Clear</div>
-      </div>
-      <div class="help-section keyboard-only">
-        <h3>Other</h3>
-        <div class="help-row"><span class="help-key">E</span> Focus nearest enemy</div>
-        <div class="help-row"><span class="help-key">H</span> Center on own fleet</div>
-        <div class="help-row"><span class="help-key">L</span> Toggle game log</div>
-        <div class="help-row"><span class="help-key">M</span> Toggle sound</div>
-        <div class="help-row"><span class="help-key">?</span> Toggle this help</div>
-      </div>
-      <div class="help-section">
-        <h3>Map visuals</h3>
-        <p class="help-legend-lead">Symbols on the tactical map:</p>
+      <h2 class="scenario-title">How to Play</h2>
+      <p class="help-intro">Tactical hex-based space combat. Plot burns, ride gravity, and outfly the enemy.</p>
+
+      <div class="help-group">
+        <h3>Map Symbols</h3>
         <ul class="help-legend" aria-label="Map symbol key">
           <li class="help-legend-item">
             <span class="help-legend-swatch help-legend-swatch-hex" aria-hidden="true"></span>
-            <span><strong>Hex grid</strong> — playfield; faint blue outlines.</span>
+            <span><strong>Hex grid</strong> — the playfield.</span>
           </li>
           <li class="help-legend-item">
             <span class="help-legend-swatch help-legend-swatch-gravity" aria-hidden="true"></span>
-            <span><strong>Gravity</strong> — short blue arrow in a hex; ships drift one step that way each turn (brighter arrow = stronger pull).</span>
+            <span><strong>Gravity</strong> — ships drift one step this way each turn. Brighter = stronger.</span>
           </li>
           <li class="help-legend-item">
             <span class="help-legend-swatch help-legend-swatch-body" aria-hidden="true"></span>
-            <span><strong>Body</strong> — sun / planet / moon; mass lens and label.</span>
+            <span><strong>Body</strong> — sun, planet, or moon.</span>
           </li>
           <li class="help-legend-item">
             <div class="help-legend-swatches" aria-hidden="true">
               <span class="help-legend-swatch help-legend-swatch-ship-own"></span>
               <span class="help-legend-swatch help-legend-swatch-ship-foe"></span>
             </div>
-            <span><strong>Ships</strong> — cyan wedge = yours; orange = detected enemy (octagon = orbital station ship).</span>
+            <span><strong>Ships</strong> — cyan = yours, orange = enemy. Octagon = orbital station.</span>
           </li>
           <li class="help-legend-item">
             <span class="help-legend-swatch help-legend-swatch-vector" aria-hidden="true"></span>
-            <span><strong>Velocity</strong> — dashed arrow from a ship; where it coasts next if you do not burn.</span>
+            <span><strong>Velocity</strong> — where a ship coasts next without burning.</span>
           </li>
           <li class="help-legend-item">
             <span class="help-legend-swatch help-legend-swatch-trail" aria-hidden="true"></span>
-            <span><strong>Movement trail</strong> — very faint path with dots; recent hexes a ship moved through (clears over time).</span>
+            <span><strong>Trail</strong> — recent movement path; fades over time.</span>
           </li>
           <li class="help-legend-item">
             <span class="help-legend-swatch help-legend-swatch-ordnance-trail" aria-hidden="true"></span>
-            <span><strong>Ordnance trail</strong> — fainter dashed line = torpedo / nuke path history.</span>
+            <span><strong>Ordnance trail</strong> — torpedo or nuke path history.</span>
           </li>
           <li class="help-legend-item">
             <span class="help-legend-swatch help-legend-swatch-base" aria-hidden="true"></span>
-            <span><strong>Station</strong> — diamond on a base tile: cyan = yours, orange = enemy, green = neutral, red X = destroyed.</span>
+            <span><strong>Station</strong> — cyan = yours, orange = enemy, green = neutral.</span>
           </li>
           <li class="help-legend-item">
             <span class="help-legend-swatch help-legend-swatch-detect" aria-hidden="true"></span>
-            <span><strong>Sensor ring</strong> — large faint dashed circle around your selected ship or friendly bases.</span>
+            <span><strong>Sensor ring</strong> — detection range around your ship or bases.</span>
           </li>
           <li class="help-legend-item">
             <span class="help-legend-swatch help-legend-swatch-threat" aria-hidden="true"></span>
-            <span><strong>Threat halo</strong> — red disks on hexes adjacent to enemy bases (dangerous approach tiles).</span>
+            <span><strong>Threat zone</strong> — hexes near enemy bases; dangerous to approach.</span>
           </li>
         </ul>
       </div>
-      <button id="helpCloseBtn" class="btn btn-secondary" style="margin-top:1rem;width:100%">Close (?)</button>
+
+      <div class="help-group">
+        <h3>Controls</h3>
+        <div class="help-section">
+          <h4>Navigation</h4>
+          <div class="help-row"><span class="help-key">Drag</span> Pan camera</div>
+          <div class="help-row"><span class="help-key">Scroll / Pinch</span> Zoom</div>
+          <div class="help-row keyboard-only"><span class="help-key">WASD / Arrows</span> Pan camera</div>
+          <div class="help-row keyboard-only"><span class="help-key">+ / -</span> Zoom in/out</div>
+        </div>
+        <div class="help-section">
+          <h4>Astrogation</h4>
+          <div class="help-row touch-only"><span class="help-key">Tap ship</span> Select</div>
+          <div class="help-row keyboard-only"><span class="help-key">Click ship</span> Select</div>
+          <div class="help-row touch-only"><span class="help-key">Tap arrow</span> Set burn</div>
+          <div class="help-row keyboard-only"><span class="help-key">Click arrow / 1-6</span> Set burn</div>
+          <div class="help-row keyboard-only"><span class="help-key">0</span> Clear burn</div>
+          <div class="help-row keyboard-only"><span class="help-key">Tab</span> Cycle ships</div>
+          <div class="help-row keyboard-only"><span class="help-key">Enter</span> Confirm turn</div>
+          <div class="help-row keyboard-only"><span class="help-key">Esc</span> Deselect</div>
+        </div>
+        <div class="help-section keyboard-only">
+          <h4>Ordnance</h4>
+          <div class="help-row"><span class="help-key">N</span> Launch mine</div>
+          <div class="help-row"><span class="help-key">T</span> Launch torpedo</div>
+          <div class="help-row"><span class="help-key">K</span> Launch nuke</div>
+          <div class="help-row"><span class="help-key">Enter</span> Skip</div>
+        </div>
+        <div class="help-section">
+          <h4>Combat</h4>
+          <div class="help-row touch-only"><span class="help-key">Tap enemy</span> Target</div>
+          <div class="help-row keyboard-only"><span class="help-key">Click enemy</span> Target</div>
+          <div class="help-row keyboard-only"><span class="help-key">Enter</span> Attack / Skip</div>
+          <div class="help-row keyboard-only"><span class="help-key">Esc</span> Clear target</div>
+        </div>
+        <div class="help-section keyboard-only">
+          <h4>Shortcuts</h4>
+          <div class="help-row"><span class="help-key">E</span> Focus nearest enemy</div>
+          <div class="help-row"><span class="help-key">H</span> Center on fleet</div>
+          <div class="help-row"><span class="help-key">L</span> Toggle game log</div>
+          <div class="help-row"><span class="help-key">M</span> Toggle sound</div>
+          <div class="help-row"><span class="help-key">?</span> Toggle this help</div>
+        </div>
+      </div>
+
+      <button id="helpCloseBtn" class="btn btn-secondary help-close-btn">Close</button>
     </div>
   </div>
 

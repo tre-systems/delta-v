@@ -942,45 +942,79 @@ body::before {
 }
 
 .help-content {
-  width: min(460px, 100%);
+  width: min(560px, 100%);
   text-align: left;
 }
 
 .help-content .scenario-title {
   text-align: center;
+  margin-bottom: 0.25rem;
 }
 
-.help-section + .help-section {
-  margin-top: 0.85rem;
+.help-intro {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0 0 1.2rem;
 }
 
-.help-section h3 {
-  margin-bottom: 0.3rem;
+.help-group {
+  margin-bottom: 1.2rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.help-group > h3 {
+  margin: 0 0 0.6rem;
   color: var(--accent);
   font-family: var(--font-mono);
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-.help-row {
-  padding: 0.14rem 0;
+.help-section + .help-section {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.help-section h4 {
+  margin-bottom: 0.25rem;
   color: var(--muted-strong);
-  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.help-row {
+  padding: 0.2rem 0;
+  color: var(--muted-strong);
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 .help-key {
   display: inline-block;
   min-width: 120px;
+  padding: 0.1rem 0.45rem;
+  margin-right: 0.3rem;
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
 }
 
-.help-legend-lead {
-  margin: 0 0 0.2rem;
-  font-size: 0.78rem;
-  color: var(--muted-strong);
+.help-close-btn {
+  margin-top: 0.6rem;
+  width: 100%;
+  min-height: 48px;
 }
 
 .help-legend {
@@ -994,11 +1028,11 @@ body::before {
   grid-template-columns: 44px 1fr;
   gap: 0.5rem 0.65rem;
   align-items: center;
-  padding: 0.32rem 0;
-  font-size: 0.76rem;
-  line-height: 1.35;
+  padding: 0.4rem 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
   color: var(--muted-strong);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .help-legend-item:last-child {
@@ -1734,6 +1768,14 @@ h2.game-over-defeat {
     min-width: 94px;
   }
 
+  .help-group {
+    padding: 0.7rem 0.75rem;
+  }
+
+  .help-close-btn {
+    min-height: 52px;
+  }
+
   .toast-container {
     top: calc(var(--hud-top-offset) + 0.35rem);
   }
@@ -1797,7 +1839,9 @@ h2.game-over-defeat {
   }
 
   .help-content {
-    width: min(360px, 100%);
+    width: 100%;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
 
   .tutorial-tip-actions {
