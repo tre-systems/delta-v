@@ -450,48 +450,49 @@ export const renderCombatOverlay = ({
 
   ctx.textAlign = 'center';
 
-  // Build combined label: "2:1" or "2:1 / -4 modifier" or "2:1 / COUNTER"
-  let combinedParts = preview.label;
-  if (preview.modLabel) {
-    combinedParts += `  ${preview.modLabel}`;
-  }
-  if (preview.counterattackLabel) {
-    combinedParts += `  ${preview.counterattackLabel}`;
-  }
-
+  // Main odds label (e.g. "1:1  ATK 2/2")
   ctx.font = 'bold 10px monospace';
-  const labelW = ctx.measureText(combinedParts).width;
+  const oddsW = ctx.measureText(preview.label).width;
 
   ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-  ctx.fillRect(targetPos.x - labelW / 2 - 5, targetPos.y - 32, labelW + 10, 16);
-
-  // Draw odds portion in yellow
-  const oddsText = preview.label;
-  const oddsW = ctx.measureText(oddsText).width;
-  const startX = targetPos.x - labelW / 2;
-
+  ctx.fillRect(targetPos.x - oddsW / 2 - 5, targetPos.y - 32, oddsW + 10, 16);
   ctx.fillStyle = '#ffdd57';
-  ctx.fillText(oddsText, startX + oddsW / 2, targetPos.y - 20);
+  ctx.fillText(preview.label, targetPos.x, targetPos.y - 20);
 
-  // Draw modifier portion in its color
-  if (preview.modLabel) {
-    const modText = `  ${preview.modLabel}`;
-    const modStartX = startX + oddsW;
-    const modW = ctx.measureText(modText).width;
-    ctx.fillStyle = preview.modColor;
-    ctx.fillText(modText, modStartX + modW / 2, targetPos.y - 20);
-  }
+  // Compact sub-label: modifier and/or counter icon
+  const hasInfo = preview.modLabel || preview.canCounter;
+  if (hasInfo) {
+    const counterIcon = preview.canCounter ? '\u2694' : '';
+    const subParts = [preview.modLabel, counterIcon].filter(Boolean).join(' ');
 
-  // Draw counter warning in orange
-  if (preview.counterattackLabel) {
-    const prefix = preview.modLabel
-      ? `${oddsText}  ${preview.modLabel}`
-      : oddsText;
-    const prefixW = ctx.measureText(prefix).width;
-    const counterText = `  ${preview.counterattackLabel}`;
-    const counterStartX = startX + prefixW;
-    const counterW = ctx.measureText(counterText).width;
-    ctx.fillStyle = 'rgba(255, 170, 0, 0.9)';
-    ctx.fillText(counterText, counterStartX + counterW / 2, targetPos.y - 20);
+    ctx.font = 'bold 9px monospace';
+    const subW = ctx.measureText(subParts).width;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(targetPos.x - subW / 2 - 4, targetPos.y - 46, subW + 8, 13);
+
+    // Draw modifier in its color, counter icon in orange
+    if (preview.modLabel && preview.canCounter) {
+      const modW = ctx.measureText(preview.modLabel).width;
+      const gap = ctx.measureText(' ').width;
+      const totalW = subW;
+      const startX = targetPos.x - totalW / 2;
+
+      ctx.fillStyle = preview.modColor;
+      ctx.fillText(preview.modLabel, startX + modW / 2, targetPos.y - 36);
+
+      ctx.fillStyle = 'rgba(255, 170, 0, 0.9)';
+      ctx.fillText(
+        counterIcon,
+        startX + modW + gap + ctx.measureText(counterIcon).width / 2,
+        targetPos.y - 36,
+      );
+    } else if (preview.modLabel) {
+      ctx.fillStyle = preview.modColor;
+      ctx.fillText(preview.modLabel, targetPos.x, targetPos.y - 36);
+    } else {
+      ctx.fillStyle = 'rgba(255, 170, 0, 0.9)';
+      ctx.fillText(counterIcon, targetPos.x, targetPos.y - 36);
+    }
   }
 };

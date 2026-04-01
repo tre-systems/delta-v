@@ -52,7 +52,7 @@ export interface CombatPreview {
   modLabel: string;
   modColor: string;
   totalMod: number;
-  counterattackLabel: string | null;
+  canCounter: boolean;
 }
 
 const getCommittedAttackers = (queuedAttacks: CombatAttack[]): Set<string> => {
@@ -216,7 +216,7 @@ const formatPreviewLabel = (
   modLabel: string;
   modColor: string;
   totalMod: number;
-  counterattackLabel: string | null;
+  canCounter: boolean;
 } => {
   let label = '';
   let rangeMod = 0;
@@ -248,24 +248,22 @@ const formatPreviewLabel = (
   const totalMod = -(rangeMod + velMod);
 
   const modLabel =
-    totalMod === 0 ? '' : `${totalMod > 0 ? '+' : ''}${totalMod} modifier`;
+    totalMod === 0 ? '' : `${totalMod > 0 ? '+' : ''}${totalMod}`;
 
   const modColor =
     totalMod <= -3 ? '#ff6b6b' : totalMod <= -1 ? '#ffcc00' : '#8bc34a';
 
-  const counterattackLabel =
+  const canCounter =
     targetType === 'ship'
       ? getCounterattackers(target as Ship, allShips).length > 0
-        ? 'COUNTER'
-        : null
-      : null;
+      : false;
 
   return {
     label,
     modLabel,
     modColor,
     totalMod,
-    counterattackLabel,
+    canCounter,
   };
 };
 
@@ -302,7 +300,7 @@ export const getCombatPreview = (
       modLabel: 'Target is blocked by a celestial body',
       modColor: '#ff6b6b',
       totalMod: 0,
-      counterattackLabel: null,
+      canCounter: false,
     };
   }
 
@@ -328,7 +326,7 @@ export const getCombatPreview = (
     modLabel: preview.modLabel,
     modColor: preview.modColor,
     totalMod: preview.totalMod,
-    counterattackLabel: preview.counterattackLabel,
+    canCounter: preview.canCounter,
   };
 };
 
