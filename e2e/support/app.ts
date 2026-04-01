@@ -36,6 +36,11 @@ const seedLocalStorage = async (
       if (tutorialDone) {
         window.localStorage.setItem(tutorialDoneKey, '1');
       }
+
+      // Force human to player 0 so E2E tests get a deterministic side
+      (
+        window as unknown as Record<string, unknown>
+      ).__DELTAV_FORCE_PLAYER_SIDE = 0;
     },
     {
       sessionSeededKey: SESSION_SEEDED_STORAGE_KEY,
