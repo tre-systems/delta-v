@@ -375,11 +375,10 @@ body::before {
   left: var(--hud-edge-left);
   right: var(--hud-edge-right);
   z-index: 5;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.45rem 1rem;
+  gap: 0.25rem 1rem;
   padding: 0.6rem 1rem;
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -391,6 +390,22 @@ body::before {
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.hud-bar > .objective-wrap {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+
+@media (min-width: 640px) {
+  .hud-bar {
+    grid-template-columns: auto 1fr auto auto;
+  }
+
+  .hud-bar > .objective-wrap {
+    grid-column: auto;
+    justify-self: auto;
+  }
 }
 
 .hud-bottom {
@@ -1643,10 +1658,8 @@ h2.game-over-defeat {
     top: calc(0.45rem + var(--safe-top));
     left: var(--hud-edge-left);
     right: var(--hud-edge-right);
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: auto 1fr auto;
     align-items: start;
-    justify-content: stretch;
     padding: 0.5rem 0.75rem 0.55rem;
     gap: 0.2rem 0.7rem;
     font-size: 0.66rem;
@@ -1656,13 +1669,12 @@ h2.game-over-defeat {
     min-width: 0;
   }
 
-  .hud-bar > :nth-child(1) {
-    grid-column: 1;
+  .hud-bar > :nth-child(3) {
+    justify-self: end;
   }
 
-  .hud-bar > :nth-child(3) {
-    grid-column: 2;
-    justify-self: end;
+  .hud-bar > .objective-wrap {
+    justify-self: start;
   }
 
   .hud-bar .hud-group {
