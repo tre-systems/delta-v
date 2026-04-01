@@ -100,7 +100,7 @@ export const createGameClient = () => {
   let transitionToPhase: () => void;
 
   const applyGameState = (state: GameState) => {
-    applyClientGameState({ ctx }, state);
+    applyClientGameState({ ctx, isSpectator: ctx.spectatorMode }, state);
   };
 
   const resetCombatState = () => {
