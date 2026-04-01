@@ -529,6 +529,12 @@ export const validateServerMessage = (raw: unknown): Result<S2C> => {
       }
       return ok(msg as unknown as S2C);
 
+    case 'combatSingleResult':
+      if (!isObject(msg.state) || !isObject(msg.result)) {
+        return invalid('Invalid combatSingleResult payload');
+      }
+      return ok(msg as unknown as S2C);
+
     case 'stateUpdate':
       if (!isObject(msg.state)) {
         return invalid('Invalid stateUpdate payload');
