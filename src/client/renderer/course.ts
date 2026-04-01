@@ -443,17 +443,7 @@ export const buildAstrogationCoursePreviewViews = (
               )
           : [],
 
-      fuelCostLabel:
-        burn !== null
-          ? {
-              position: {
-                x: destination.x,
-                y: destination.y - 16,
-              },
-              text: `-${course.fuelSpent}`,
-              color: '#ffcc00',
-            }
-          : null,
+      fuelCostLabel: null,
 
       driftSegments: isSelected
         ? buildDriftSegments(ship, course, map, hexSize)
