@@ -27,4 +27,13 @@ const hash = createHash('sha256')
 const swSource = readFileSync('dist/sw.js', 'utf8');
 writeFileSync('dist/sw.js', swSource.replace('delta-v-v1', `delta-v-${hash}`));
 
+// Cache-bust asset references in index.html
+const indexHtml = readFileSync('dist/index.html', 'utf8');
+writeFileSync(
+  'dist/index.html',
+  indexHtml
+    .replace('/style.css', `/style.css?v=${hash}`)
+    .replace('/client.js', `/client.js?v=${hash}`),
+);
+
 console.log(`Client build complete (cache: delta-v-${hash})`);
