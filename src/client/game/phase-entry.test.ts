@@ -133,6 +133,17 @@ describe('game-client-phase-entry', () => {
     expect(plan.planningPhaseEntry?.selectedShipId).toBe('ship-a');
   });
 
+  it('does not start the turn timer for local astrogation games', () => {
+    const plan = deriveClientStateEntryPlan(
+      'playing_astrogation',
+      createState([createShip()]),
+      0,
+      true,
+    );
+
+    expect(plan.startTurnTimer).toBe(false);
+  });
+
   it('returns first launchable ordnance selectedShipId when multiple ships exist', () => {
     const plan = deriveClientStateEntryPlan(
       'playing_ordnance',

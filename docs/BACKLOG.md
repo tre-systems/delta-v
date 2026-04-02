@@ -20,7 +20,7 @@ Each item should use: **Status**, **Remaining**, and (when useful) **Depends / F
 
 ### Next engineering work
 
-Core architecture work (`17`-`20`) is complete: exhaustive FSM switches, multi-ship E2E coverage, opponent-turn status feedback, and FSM-driven UI visibility. Remaining work below focuses on legal/privacy gates, accessibility, ops hardening, and spectator UX polish.
+Core architecture work (`17`-`20`) is complete: exhaustive FSM switches, multi-ship E2E coverage, opponent-turn status feedback, and FSM-driven UI visibility. Remaining work below focuses on legal/privacy gates, accessibility, ops hardening, spectator UX polish, and the smaller cleanup items still left in the client/runtime stack.
 
 ---
 
@@ -82,22 +82,6 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 
 ---
 
-### 22. Replace planning store property aliasing with plain object
-
-**Status:** not started.
-
-**Remaining:** `planning.ts` uses ~400 lines of `definePlanningAlias()` / `defineHiddenPlanningMember()` via `Object.defineProperty` to wrap a hidden `PlanningData` object. Replace with a plain object and a single `notifyPlanningChanged()` call. The property descriptor ceremony adds no safety — state is mutated throughout anyway.
-
-**Files:** `src/client/game/planning.ts`
-
-### 23. Data-driven phase dispatch tables
-
-**Status:** not started.
-
-**Remaining:** `phase-entry.ts` and `phase.ts` contain ~200 lines of switch statements returning near-identical config objects differing in 1–2 fields. Replace with lookup tables keyed by phase, merging per-phase overrides onto shared defaults.
-
-**Files:** `src/client/game/phase-entry.ts`, `src/client/game/phase.ts`
-
 ### 24. Consolidate planning snapshot types
 
 **Status:** not started.
@@ -153,6 +137,14 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 **Remaining:** `event-projector/index.ts` uses a switch with manual case grouping to route events to 3 category handlers. Replace with a registry keyed by event type to reduce fragility when adding new events.
 
 **Files:** `src/shared/engine/event-projector/index.ts`
+
+### 31. Decompose client kernel composition root
+
+**Status:** not started.
+
+**Remaining:** `client-kernel.ts` is still the main client-side coordination hotspot, mixing transition wiring, transport lifecycle, replay handling, UI orchestration, and runtime composition. Split it into smaller modules with clear ownership so state-flow changes stop requiring edits in one large file.
+
+**Files:** `src/client/game/client-kernel.ts`, `src/client/game/main-composition.ts`, `src/client/game/client-runtime.ts`
 
 ---
 ### 21. Spectator UX Hardening
