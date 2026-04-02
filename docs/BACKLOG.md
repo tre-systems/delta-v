@@ -86,7 +86,7 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 
 **Status:** not started.
 
-**Remaining:** `planning.ts` defines 23+ snapshot type aliases (`AstrogationPlanningSnapshot`, `HudPlanningSnapshot`, etc.) that are `Pick` / intersection combinations of 4–5 base types. Consolidate into fewer types or use `Pick` directly at call sites to reduce cognitive overhead and type-change ripple.
+**Remaining:** `planning.ts` defines ~6 snapshot type aliases (`AstrogationPlanningSnapshot`, `HudPlanningSnapshot`, etc.) plus ~12 supporting view/store types that are `Pick` / intersection combinations of a few base types. Consider consolidating further or using `Pick` directly at call sites to reduce cognitive overhead and type-change ripple.
 
 **Files:** `src/client/game/planning.ts`, consumers in `src/client/game/`
 
