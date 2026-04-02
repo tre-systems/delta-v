@@ -8,11 +8,12 @@ export {
   getSelectedShip,
 } from './selection';
 export type {
+  AstrogationOrdersPlanningSnapshot,
   BuildAstrogationOrders,
   DeriveHudViewModel,
   GameOverStats,
   HudViewModel,
+  HudViewPlanningSnapshot,
   OrdnanceActionState,
-  PlanningSnapshot,
   ShipFate,
 } from './types';

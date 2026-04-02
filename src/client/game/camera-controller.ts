@@ -7,12 +7,12 @@ import {
   getNextSelectedShip,
   getOwnFleetFocusPosition,
 } from './navigation';
-import type { PlanningStore } from './planning';
+import type { PlanningSelectionStore } from './planning';
 
 export interface CameraControllerDeps {
   getGameState: () => GameState | null;
   getPlayerId: () => PlayerId | -1;
-  getPlanningState: () => PlanningStore;
+  getPlanningState: () => PlanningSelectionStore;
   renderer: Renderer;
   overlay: OverlayView;
 }

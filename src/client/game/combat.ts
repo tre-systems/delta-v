@@ -14,16 +14,7 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { clamp, filterMap } from '../../shared/util';
-import type { PlanningState } from './planning';
-
-type CombatPlanningSnapshot = Pick<
-  PlanningState,
-  | 'combatTargetId'
-  | 'combatTargetType'
-  | 'combatAttackerIds'
-  | 'combatAttackStrength'
-  | 'queuedAttacks'
->;
+import type { CombatPlanningView } from './planning';
 
 export interface ReusableCombatGroup {
   attackerIds: string[];
@@ -491,7 +482,7 @@ export const getLegalCombatAttackers = (
 export const createCombatTargetPlan = (
   state: GameState,
   playerId: PlayerId,
-  planning: CombatPlanningSnapshot,
+  planning: CombatPlanningView,
   targetId: string,
   targetType: 'ship' | 'ordnance',
   _map: SolarSystemMap | null,
@@ -606,7 +597,7 @@ export const createClearedCombatPlan = (): CombatTargetPlan => {
 export const toggleCombatAttackerSelection = (
   state: GameState,
   playerId: PlayerId,
-  planning: CombatPlanningSnapshot,
+  planning: CombatPlanningView,
   map: SolarSystemMap | null,
   shipId: string,
 ): CombatAttackerToggleResult | null => {
@@ -672,7 +663,7 @@ export const toggleCombatAttackerSelection = (
 export const buildCurrentAttack = (
   state: GameState,
   playerId: PlayerId,
-  planning: CombatPlanningSnapshot,
+  planning: CombatPlanningView,
   map: SolarSystemMap,
   selectedShipId?: string | null,
 ): CombatAttack | null => {

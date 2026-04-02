@@ -13,7 +13,7 @@ import {
 } from '../game-client-browser';
 import { deriveKeyboardAction } from './keyboard';
 import type { ClientState } from './phase';
-import type { PlanningState } from './planning';
+import type { KeyboardPlanningSnapshot } from './planning';
 import { buildGameRoute } from './session-links';
 
 interface BrowserBindingDeps {
@@ -25,7 +25,7 @@ interface BrowserBindingDeps {
   getState: () => ClientState;
   hasGameState: () => boolean;
   getGameState: () => import('../../shared/types/domain').GameState | null;
-  getPlanningState: () => PlanningState;
+  getPlanningState: () => KeyboardPlanningSnapshot;
   updateTooltip: (x: number, y: number) => void;
   onKeyboardAction: (action: import('./keyboard').KeyboardAction) => void;
   onToggleHelp: () => void;

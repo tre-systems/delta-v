@@ -18,9 +18,10 @@ import type {
 import { count } from '../../shared/util';
 import { getSelectedShip } from './selection';
 import type {
+  AstrogationOrdersPlanningSnapshot,
   HudViewModel,
+  HudViewPlanningSnapshot,
   OrdnanceActionState,
-  PlanningSnapshot,
 } from './types';
 
 const getObjective = (state: GameState, playerId: PlayerId | -1): string => {
@@ -152,7 +153,7 @@ const getOrdnanceActionState = (
 export const buildAstrogationOrders = (
   state: GameState,
   playerId: PlayerId | -1,
-  planning: PlanningSnapshot,
+  planning: AstrogationOrdersPlanningSnapshot,
 ): AstrogationOrder[] => {
   if (playerId < 0) return [];
   const pid = playerId as PlayerId;
@@ -184,7 +185,7 @@ export const buildAstrogationOrders = (
 export const deriveHudViewModel = (
   state: GameState,
   playerId: PlayerId | -1,
-  planning: PlanningSnapshot,
+  planning: HudViewPlanningSnapshot,
   map?: SolarSystemMap | null,
 ): HudViewModel => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);

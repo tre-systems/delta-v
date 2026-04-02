@@ -7,7 +7,7 @@ import {
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
 } from './ordnance';
-import type { PlanningState } from './planning';
+import type { OrdnancePlanningSnapshot } from './planning';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'ship-1',
@@ -41,7 +41,10 @@ const createState = (
 
 const createPlanning = (
   overrides: Partial<
-    Pick<PlanningState, 'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'>
+    Pick<
+      OrdnancePlanningSnapshot,
+      'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'
+    >
   > = {},
 ) => ({
   selectedShipId: 'ship-1',

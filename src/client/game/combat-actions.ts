@@ -13,7 +13,7 @@ import {
   getAttackStrengthForSelection,
   hasVisibleCombatTargets,
 } from './combat';
-import type { PlanningStore } from './planning';
+import type { CombatPlanningStore, PlanningSelectionStore } from './planning';
 import type { GameTransport } from './transport';
 
 export interface CombatActionDeps {
@@ -22,7 +22,7 @@ export interface CombatActionDeps {
   getPlayerId: () => PlayerId;
   getTransport: () => GameTransport | null;
   getMap: () => SolarSystemMap;
-  planningState: PlanningStore;
+  planningState: PlanningSelectionStore & CombatPlanningStore;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
 }
 

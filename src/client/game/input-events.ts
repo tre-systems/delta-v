@@ -14,7 +14,12 @@ import {
 import type { GameCommand } from './commands';
 import { resolveAstrogationClick, resolveOrdnanceClick } from './input';
 import type { InteractionMode } from './interaction-fsm';
-import type { PlanningState } from './planning';
+import type {
+  AstrogationPlanningSnapshot,
+  CombatPlanningSnapshot,
+  InteractivePlanningSnapshot,
+  OrdnancePlanningSnapshot,
+} from './planning';
 
 export type InputEvent =
   | { type: 'clickHex'; hex: HexCoord }
@@ -25,7 +30,7 @@ const interpretCombatClick = (
   state: GameState,
   map: SolarSystemMap | null,
   playerId: PlayerId,
-  planning: PlanningState,
+  planning: CombatPlanningSnapshot,
 ): GameCommand[] => {
   // Check enemy targets first so mixed hexes prioritise
   // target selection over friendly attacker toggling.
@@ -100,7 +105,7 @@ const interpretAstrogationClick = (
   state: GameState,
   map: SolarSystemMap,
   playerId: PlayerId,
-  planning: PlanningState,
+  planning: AstrogationPlanningSnapshot,
 ): GameCommand[] => {
   const interaction = resolveAstrogationClick(
     state,
@@ -151,7 +156,7 @@ const interpretOrdnanceClick = (
   hex: HexCoord,
   state: GameState,
   playerId: PlayerId,
-  planning: PlanningState,
+  planning: OrdnancePlanningSnapshot,
 ): GameCommand[] => {
   const interaction = resolveOrdnanceClick(state, playerId, planning, hex);
 
@@ -183,7 +188,7 @@ const interpretClickHex = (
   interactionMode: InteractionMode,
   map: SolarSystemMap | null,
   playerId: PlayerId,
-  planning: PlanningState,
+  planning: InteractivePlanningSnapshot,
 ): GameCommand[] => {
   if (!state || !map) return [];
 
@@ -207,7 +212,7 @@ export const interpretInput = (
   interactionMode: InteractionMode,
   map: SolarSystemMap | null,
   playerId: PlayerId,
-  planning: PlanningState,
+  planning: InteractivePlanningSnapshot,
 ): GameCommand[] => {
   switch (event.type) {
     case 'clickHex':

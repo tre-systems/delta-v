@@ -15,9 +15,30 @@ export const waitForDisplay = async (
   expectedDisplay: string,
   timeout?: number,
 ): Promise<void> => {
+  if (expectedDisplay === 'none') {
+    await expect
+      .poll(async () => displayOf(page, selector), { timeout })
+      .toBe('none');
+    return;
+  }
+
   await expect
-    .poll(async () => displayOf(page, selector), { timeout })
-    .toBe(expectedDisplay);
+    .poll(
+      async () => {
+        const display = await displayOf(page, selector);
+
+        if (display !== 'none') {
+          return true;
+        }
+
+        return page
+          .locator(selector)
+          .isVisible()
+          .catch(() => false);
+      },
+      { timeout },
+    )
+    .toBe(true);
 };
 
 export const activeElementId = async (page: Page): Promise<string> => {

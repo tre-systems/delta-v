@@ -7,7 +7,7 @@ import type { UIEvent } from '../ui/events';
 import type { UIManager } from '../ui/ui';
 import type { KeyboardAction } from './keyboard';
 import { autoJoinFromUrl, bindMainBrowserEvents } from './main-composition';
-import type { PlanningState } from './planning';
+import type { KeyboardPlanningSnapshot } from './planning';
 import type { ClientSession } from './session-model';
 
 type BrowserToastType = 'error' | 'info' | 'success';
@@ -65,7 +65,7 @@ export const setupClientRuntime = ({
     getState: () => ctx.state,
     hasGameState: () => !!ctx.gameState,
     getGameState: () => ctx.gameState,
-    getPlanningState: (): PlanningState => ctx.planningState,
+    getPlanningState: (): KeyboardPlanningSnapshot => ctx.planningState,
     updateTooltip,
     onKeyboardAction,
     onToggleHelp,
