@@ -79,9 +79,16 @@ export const queueOrdnanceLaunch = (
     return;
   }
 
-  deps.planningState.queueOrdnanceLaunch(must(plan.launch));
-  deps.planningState.acknowledgeOrdnanceShip(must(plan.launch).shipId);
+  const launch = must(plan.launch);
+  deps.planningState.queueOrdnanceLaunch(launch);
+  deps.planningState.acknowledgeOrdnanceShip(launch.shipId);
   deps.planningState.setTorpedoAimingActive(false);
+
+  const boostHint =
+    ordType === 'torpedo' && launch.torpedoAccel !== null
+      ? ` with \u00d7${launch.torpedoAccelSteps ?? 1} boost`
+      : '';
+  deps.showToast(`${plan.shipName}: ${ordType} queued${boostHint}`, 'success');
   deps.logText(`${plan.shipName} launched ${ordType}`);
   advanceToNextOrdnanceShip(deps);
 };
