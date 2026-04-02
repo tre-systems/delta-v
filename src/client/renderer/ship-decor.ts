@@ -8,6 +8,7 @@ import {
   shouldShowLandedIndicator,
   shouldShowOrbitIndicator,
 } from './entities';
+import { scaledFont } from './text';
 
 type DrawIdentityMarkersInput = {
   ctx: CanvasRenderingContext2D;
@@ -16,6 +17,7 @@ type DrawIdentityMarkersInput = {
   state: GameState;
   pos: PixelCoord;
   animState: AnimationState | null;
+  zoom: number;
 };
 
 type DrawOrbitAndLandedRingsInput = {
@@ -35,6 +37,7 @@ type DrawShipLabelsInput = {
   labelYOffset: number;
   inGravity: boolean;
   animState: AnimationState | null;
+  zoom: number;
 };
 
 export const drawDisabledShipBadge = (
@@ -42,26 +45,28 @@ export const drawDisabledShipBadge = (
   ship: GameState['ships'][number],
   pos: PixelCoord,
   animState: AnimationState | null,
+  zoom: number,
 ): void => {
   const disabledLabel = getDisabledShipLabel(ship, animState !== null);
 
   if (!disabledLabel) return;
 
-  ctx.font = 'bold 9px Inter, sans-serif';
+  const iz = 1 / zoom;
+  ctx.font = scaledFont('bold 9px Inter, sans-serif', zoom);
   ctx.textAlign = 'left';
-  const labelX = pos.x + 12;
-  const labelY = pos.y - 12;
+  const labelX = pos.x + 12 * iz;
+  const labelY = pos.y - 12 * iz;
   const metrics = ctx.measureText(disabledLabel);
-  const pad = 3;
+  const pad = 3 * iz;
 
   ctx.fillStyle = 'rgba(180, 20, 20, 0.6)';
   ctx.beginPath();
   ctx.roundRect(
     labelX - pad,
-    labelY - 8 - pad,
+    labelY - 8 * iz - pad,
     metrics.width + pad * 2,
-    10 + pad * 2,
-    3,
+    10 * iz + pad * 2,
+    3 * iz,
   );
   ctx.fill();
   ctx.fillStyle = '#ffffff';
@@ -75,6 +80,7 @@ export const drawIdentityMarkers = ({
   state,
   pos,
   animState,
+  zoom,
 }: DrawIdentityMarkersInput): void => {
   const identityMarker = getShipIdentityMarker(
     ship,
@@ -85,27 +91,29 @@ export const drawIdentityMarkers = ({
 
   if (identityMarker === null) return;
 
+  const iz = 1 / zoom;
+
   switch (identityMarker) {
     case 'friendlyFugitive':
       ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
-      ctx.font = 'bold 9px monospace';
+      ctx.font = scaledFont('bold 9px monospace', zoom);
       ctx.textAlign = 'center';
-      ctx.fillText('\u2605', pos.x, pos.y - 14);
+      ctx.fillText('\u2605', pos.x, pos.y - 14 * iz);
       break;
 
     case 'enemyFugitive':
       ctx.textAlign = 'center';
       ctx.fillStyle = 'rgba(255, 120, 120, 0.95)';
-      ctx.font = 'bold 9px monospace';
-      ctx.fillText('\u2605', pos.x, pos.y - 14);
+      ctx.font = scaledFont('bold 9px monospace', zoom);
+      ctx.fillText('\u2605', pos.x, pos.y - 14 * iz);
       break;
 
     case 'enemyDecoy':
       ctx.textAlign = 'center';
       ctx.strokeStyle = 'rgba(220, 220, 220, 0.9)';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.5 * iz;
       ctx.beginPath();
-      ctx.arc(pos.x, pos.y - 14, 4, 0, Math.PI * 2);
+      ctx.arc(pos.x, pos.y - 14 * iz, 4 * iz, 0, Math.PI * 2);
       ctx.stroke();
       break;
   }
@@ -148,6 +156,7 @@ export const drawShipLabels = ({
   labelYOffset,
   inGravity,
   animState,
+  zoom,
 }: DrawShipLabelsInput): void => {
   const labelView = buildShipLabelView(
     ship,
@@ -158,14 +167,15 @@ export const drawShipLabels = ({
 
   if (!labelView) return;
 
+  const iz = 1 / zoom;
   ctx.textAlign = 'center';
   ctx.fillStyle = labelView.typeColor;
-  ctx.font = labelView.typeFont;
-  ctx.fillText(labelView.typeName, pos.x, pos.y + labelYOffset);
+  ctx.font = scaledFont(labelView.typeFont, zoom);
+  ctx.fillText(labelView.typeName, pos.x, pos.y + labelYOffset * iz);
 
   if (labelView.statusTag && labelView.statusColor && labelView.statusFont) {
     ctx.fillStyle = labelView.statusColor;
-    ctx.font = labelView.statusFont;
-    ctx.fillText(labelView.statusTag, pos.x, pos.y + labelYOffset + 9);
+    ctx.font = scaledFont(labelView.statusFont, zoom);
+    ctx.fillText(labelView.statusTag, pos.x, pos.y + (labelYOffset + 9) * iz);
   }
 };

@@ -156,7 +156,7 @@ export const createRenderer = (
     solarMap: SolarSystemMap,
   ): void => {
     if (animState()) return;
-    drawVelocityVectorLayer(layerCtx, state, playerId, HEX_SIZE);
+    drawVelocityVectorLayer(layerCtx, state, playerId, HEX_SIZE, camera.zoom);
     drawAstrogationCoursePreviewLayer({
       ctx: layerCtx,
       state,
@@ -165,6 +165,7 @@ export const createRenderer = (
       map: solarMap,
       hexSize: HEX_SIZE,
       drawShipIcon: drawShipIconFn,
+      zoom: camera.zoom,
     });
   };
 
@@ -266,7 +267,7 @@ export const createRenderer = (
         renderGravityIndicatorsFn(layerCtx, map, HEX_SIZE, (x, y) =>
           camera.isVisible(x, y),
         );
-        renderBodiesFn(layerCtx, map, HEX_SIZE, now);
+        renderBodiesFn(layerCtx, map, HEX_SIZE, now, camera.zoom);
       }
       if (gameState) {
         renderMapBorderFn(layerCtx, map, gameState, playerId, HEX_SIZE, now);
@@ -280,6 +281,7 @@ export const createRenderer = (
           playerId,
           HEX_SIZE,
           now,
+          camera.zoom,
         );
       }
     }
@@ -305,6 +307,7 @@ export const createRenderer = (
         now,
         interpolatePath: (path, progress) =>
           interpolatePathFn(path, progress, HEX_SIZE),
+        zoom: camera.zoom,
       });
       renderTorpedoGuidanceFn({
         ctx: layerCtx,
@@ -314,6 +317,7 @@ export const createRenderer = (
         isAnimating: animState() !== null,
         hexSize: HEX_SIZE,
         now,
+        zoom: camera.zoom,
       });
       renderCombatOverlayFn({
         ctx: layerCtx,
@@ -324,6 +328,7 @@ export const createRenderer = (
         isAnimating: animState() !== null,
         hexSize: HEX_SIZE,
         now,
+        zoom: camera.zoom,
       });
       drawShipAndOrdnanceTrails(
         layerCtx,
@@ -354,6 +359,7 @@ export const createRenderer = (
         planningSelectedShipId: planningState.selectedShipId,
         hexSize: HEX_SIZE,
         animState: animState(),
+        zoom: camera.zoom,
       });
       hexFlashes = drawHexFlashes(layerCtx, hexFlashes, now, HEX_SIZE);
       combatEffects = drawCombatEffects(layerCtx, combatEffects, now);

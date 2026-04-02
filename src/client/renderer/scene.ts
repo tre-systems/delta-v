@@ -21,6 +21,7 @@ import {
   buildLandingObjectiveView,
   buildMapBorderView,
 } from './map';
+import { scaledFont } from './text';
 import { buildDetectionRangeViews } from './vectors';
 export interface Star {
   x: number;
@@ -151,6 +152,7 @@ export const renderBodies = (
   map: SolarSystemMap,
   hexSize: number,
   now: number,
+  zoom = 1,
 ): void => {
   for (const body of map.bodies) {
     const view = buildBodyView(body, hexSize, now);
@@ -189,7 +191,7 @@ export const renderBodies = (
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '600 11px var(--font-display), sans-serif';
+    ctx.font = scaledFont('600 11px var(--font-display), sans-serif', zoom);
     ctx.textAlign = 'center';
     ctx.fillText(view.label, p.x, view.labelY);
   }
@@ -298,6 +300,7 @@ export const renderLandingTarget = (
   playerId: PlayerId,
   hexSize: number,
   now: number,
+  zoom = 1,
 ): void => {
   const objectiveView = buildLandingObjectiveView(
     state.players[playerId],
@@ -310,7 +313,7 @@ export const renderLandingTarget = (
 
   if (objectiveView.kind === 'escape') {
     ctx.fillStyle = objectiveView.color;
-    ctx.font = 'bold 9px monospace';
+    ctx.font = scaledFont('bold 9px monospace', zoom);
     ctx.textAlign = 'center';
     for (const marker of objectiveView.markers) {
       ctx.fillText(marker.text, marker.position.x, marker.position.y);
@@ -332,7 +335,7 @@ export const renderLandingTarget = (
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.fillStyle = objectiveView.labelStyle;
-  ctx.font = 'bold 8px monospace';
+  ctx.font = scaledFont('bold 8px monospace', zoom);
   ctx.textAlign = 'center';
   ctx.fillText(
     objectiveView.labelText,
