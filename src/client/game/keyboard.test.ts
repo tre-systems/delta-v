@@ -13,6 +13,7 @@ const createContext = (
     combatTargetId: null,
     queuedAttackCount: 0,
     torpedoAccelActive: false,
+    torpedoAimingActive: false,
     allShipsAcknowledged: false,
     allOrdnanceShipsAcknowledged: false,
     hasSelectedShip: false,

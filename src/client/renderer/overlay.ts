@@ -3,7 +3,6 @@
 // Pure functions extracted from Renderer — no class
 // state dependencies.
 
-import { SHIP_STATS } from '../../shared/constants';
 import {
   HEX_DIRECTIONS,
   type HexCoord,
@@ -252,9 +251,7 @@ export const renderTorpedoGuidance = ({
 
   if (!ship || ship.lifecycle !== 'active') return;
 
-  const stats = SHIP_STATS[ship.type];
-
-  if (!stats?.canOverload) return;
+  if (!planningState.torpedoAimingActive) return;
 
   const shipPos = hexToPixel(ship.position, hexSize);
   const accel = planningState.torpedoAccel;

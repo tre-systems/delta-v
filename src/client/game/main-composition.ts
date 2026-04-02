@@ -48,6 +48,7 @@ export const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
           combatTargetId: deps.getPlanningState().combatTargetId,
           queuedAttackCount: deps.getPlanningState().queuedAttacks.length,
           torpedoAccelActive: deps.getPlanningState().torpedoAccel !== null,
+          torpedoAimingActive: deps.getPlanningState().torpedoAimingActive,
           allShipsAcknowledged: (() => {
             const gs = deps.getGameState?.();
             if (!gs) return false;

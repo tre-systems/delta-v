@@ -21,6 +21,7 @@ export interface KeyboardShortcutContext {
   combatTargetId: string | null;
   queuedAttackCount: number;
   torpedoAccelActive: boolean;
+  torpedoAimingActive: boolean;
   allShipsAcknowledged: boolean;
   allOrdnanceShipsAcknowledged: boolean;
   hasSelectedShip: boolean;
@@ -116,6 +117,13 @@ export const deriveKeyboardAction = (
     }
 
     if (context.state === 'playing_ordnance') {
+      if (context.torpedoAimingActive) {
+        return {
+          kind: 'launchOrdnance',
+          preventDefault: false,
+          ordnanceType: 'torpedo' as const,
+        };
+      }
       return { kind: 'confirmOrdnance', preventDefault: true };
     }
 
