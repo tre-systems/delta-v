@@ -230,7 +230,8 @@ describe('session-signals', () => {
 
     session.state = 'playing_combat';
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
-    expect(showFireButton).toHaveBeenLastCalledWith(true, 0);
+    // No ship selected yet — fire button hidden to avoid "END COMBAT" flash
+    expect(showFireButton).toHaveBeenLastCalledWith(false, 0);
 
     session.planningState.applyCombatPlanUpdate({
       combatTargetId: 'enemy',
@@ -242,7 +243,8 @@ describe('session-signals', () => {
     expect(showFireButton).toHaveBeenLastCalledWith(true, 1);
 
     session.planningState.clearCombatSelectionState();
-    expect(showFireButton).toHaveBeenLastCalledWith(true, 0);
+    // Between attacks — button hidden during dice animation transition
+    expect(showFireButton).toHaveBeenLastCalledWith(false, 0);
 
     session.state = 'playing_opponentTurn';
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
