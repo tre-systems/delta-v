@@ -98,22 +98,6 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 
 **Files:** `src/client/game/combat.ts`
 
-### 26. Message handler registry
-
-**Status:** not started.
-
-**Remaining:** `message-handler.ts` dispatches 12+ message types via a switch with inconsistent patterns (some inline, some delegated). Replace with a handler registry mapping message kind to handler function.
-
-**Files:** `src/client/game/message-handler.ts`
-
-### 27. Break up HUD view model construction
-
-**Status:** not started.
-
-**Remaining:** `deriveHudViewModel()` in `hud-orders.ts` builds a 28-field object with inline IIFEs computing individual booleans. Extract mixed concerns (objective calculation, ordnance validation, fleet status) into smaller testable helper functions.
-
-**Files:** `src/client/game/hud-orders.ts`
-
 ### 28. Shared test factory module
 
 **Status:** not started.
@@ -121,14 +105,6 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 **Remaining:** Test files independently redefine `createShip()`, `createState()`, and similar builders with deep boilerplate. Extract a shared test factory with smart defaults to cut repetition across test files.
 
 **Files:** test files across `src/client/game/` and `src/shared/engine/`
-
-### 29. Remove helpers.ts re-export indirection
-
-**Status:** not started.
-
-**Remaining:** `helpers.ts` is a pure re-export file adding import indirection without value. Update consumers to import directly from source modules and delete the file.
-
-**Files:** `src/client/game/helpers.ts`, importing modules
 
 ### 30. Event projector handler registry
 
@@ -140,11 +116,13 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 
 ### 31. Decompose client kernel composition root
 
-**Status:** not started.
+**Status:** partially complete.
 
-**Remaining:** `client-kernel.ts` is still the main client-side coordination hotspot, mixing transition wiring, transport lifecycle, replay handling, UI orchestration, and runtime composition. Split it into smaller modules with clear ownership so state-flow changes stop requiring edits in one large file.
+**Baseline shipped:** session/network/replay wiring moved into `main-session-shell.ts`; `client-kernel.ts` is smaller and mostly composition-oriented now.
 
-**Files:** `src/client/game/client-kernel.ts`, `src/client/game/main-composition.ts`, `src/client/game/client-runtime.ts`
+**Remaining:** continue reducing coordination load in the remaining composition layers, especially reactive session wiring and HUD/runtime orchestration.
+
+**Files:** `src/client/game/client-kernel.ts`, `src/client/game/session-signals.ts`, `src/client/game/hud-controller.ts`, `src/client/game/client-runtime.ts`
 
 ---
 ### 21. Spectator UX Hardening
@@ -153,4 +131,4 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 
 **Remaining:** review and polish the "spectator" experience. Currently, spectators use a stripped-down HUD. Ensure they have clear "Spectating" status indicators, can see all ship stats without interactive controls appearing, and have a unique "Game Over" summary that reflects the global outcome rather than personal fleet stats.
 
-**Files:** `src/client/game/selection.ts`, `src/client/game/hud-orders.ts`, `src/client/ui/hud.ts`
+**Files:** `src/client/game/selection.ts`, `src/client/game/hud-view-model.ts`, `src/client/ui/hud.ts`
