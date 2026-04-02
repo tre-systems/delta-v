@@ -334,6 +334,28 @@ describe('client integration: state update flow', () => {
     expect(deps.calls.transitionToPhase).toHaveLength(1);
   });
 
+  it('state update logs logistics transfer lines before applying state', () => {
+    const nextState = createState();
+    const deps = createDeps('playing_logistics', createState());
+
+    handleServerMessage(deps, {
+      type: 'stateUpdate',
+      state: nextState,
+      transferEvents: [
+        {
+          type: 'fuelTransferred',
+          fromShipId: 'ship-0',
+          toShipId: 'enemy',
+          amount: 2,
+        },
+      ],
+    });
+
+    expect(deps.calls['ui.log.logText']).toHaveLength(1);
+    expect(deps.calls['ui.log.logText'][0][0]).toContain('Transferred 2 fuel');
+    expect(deps.calls.applyGameState).toEqual([[nextState]]);
+  });
+
   it('state update during movement animation does not transition', () => {
     const nextState = createState({ phase: 'combat' });
     const deps = createDeps('playing_movementAnim', createState());
@@ -388,6 +410,40 @@ describe('client integration: combat flow', () => {
     expect(args[1]).toEqual(nextState);
     expect(args[2]).toEqual(results);
     expect(deps.calls.transitionToPhase).toHaveLength(1);
+  });
+
+  it('combatSingleResult presents one result and advances to the next attacker', () => {
+    const prevState = createState({ phase: 'combat' });
+    const nextState = createState({ phase: 'combat' });
+    const result: CombatResult = {
+      attackerIds: ['ship-0'],
+      targetId: 'enemy',
+      targetType: 'ship',
+      attackType: 'gun',
+      odds: '3:1',
+      attackStrength: 3,
+      defendStrength: 1,
+      rangeMod: 0,
+      velocityMod: 0,
+      dieRoll: 5,
+      modifiedRoll: 5,
+      damageType: 'disabled',
+      disabledTurns: 1,
+      counterattack: null,
+    };
+
+    const deps = createDeps('playing_combat', prevState);
+
+    handleServerMessage(deps, {
+      type: 'combatSingleResult',
+      state: nextState,
+      result,
+    });
+
+    expect(deps.calls.presentCombatResults).toEqual([
+      [prevState, nextState, [result], false],
+    ]);
+    expect(deps.calls.advanceToNextAttacker).toHaveLength(1);
   });
 });
 
@@ -611,10 +667,9 @@ describe('local vs networked parity: movement resolution', () => {
     expect(nOrd).toBe(ordnanceMovements);
     expect(nEvt).toBe(events);
 
-    // The local path calls deps.presentMovementResult with the
-    // same 5-arg signature via playLocalMovementResult in
-    // local-game-flow.ts. Both converge on presentation.ts
-    // presentMovementResult which is fully source-agnostic.
+    // The local path now goes through the same authoritative-update
+    // applier before reaching presentation.ts, so presentation
+    // remains source-agnostic across local and network play.
     // This test verifies the networked half; the local half
     // is verified by local.test.ts + local-game-flow.test.ts.
   });
