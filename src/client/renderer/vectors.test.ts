@@ -153,14 +153,14 @@ describe('renderer vector helpers', () => {
     expect(views).toHaveLength(2);
 
     expect(views[0]).toMatchObject({
-      color: 'rgba(79, 195, 247, 0.45)',
+      color: 'rgba(79, 195, 247, 0.22)',
       lineDash: [4, 4],
       speedLabel: null,
     });
 
     expect(views[1].speedLabel).toMatchObject({
       text: 'v1',
-      color: 'rgba(255, 152, 0, 0.5)',
+      color: 'rgba(255, 152, 0, 0.25)',
     });
   });
 
@@ -213,16 +213,16 @@ describe('renderer vector helpers', () => {
 
     expect(shipViews).toHaveLength(2);
     expect(shipViews.map((view) => view.lineColor)).toEqual([
-      'rgba(79, 195, 247, 0.12)',
-      'rgba(255, 152, 0, 0.12)',
+      'rgba(79, 195, 247, 0.06)',
+      'rgba(255, 152, 0, 0.06)',
     ]);
 
     expect(ordViews).toHaveLength(2);
     expect(ordViews[0]).toMatchObject({
       lineDash: [2, 4],
-      lineColor: 'rgba(79, 195, 247, 0.07)',
+      lineColor: 'rgba(79, 195, 247, 0.04)',
     });
-    expect(ordViews[1].lineColor).toBe('rgba(255, 152, 0, 0.07)');
+    expect(ordViews[1].lineColor).toBe('rgba(255, 152, 0, 0.04)');
   });
 
   it('builds movement path views and passed waypoints from progress', () => {
