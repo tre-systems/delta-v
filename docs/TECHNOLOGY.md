@@ -23,6 +23,9 @@ Current chemical rockets have high thrust but terrible fuel efficiency (Specific
 - Massive, realistically scaled engine bells or exposed magnetic nozzle rings.
 - Emits a blinding, high-energy cyan or pure white exhaust plume.
 - Usually surrounded by heavy, cylindrical magnetic confinement coil rings.
+- *Image details:* For concepts, prioritize lighting where the sheer radiant intensity of the exhaust casts harsh, hard-edged shadows forward across the ship's own radiator structures.
+
+![Torch Drive](./assets/torch_drive_1775109703105.png)
 
 ---
 
@@ -35,6 +38,9 @@ In the vacuum of space, dissipating the extreme waste heat from fusion drives an
 - Sleek, flush-mounted hull panels that glow faintly cherry-red or amber under load.
 - Exposed mechanical arrays where a precise, glowing stream of liquid stretches momentarily through the vacuum between two catch-basins. 
 - *Absence* of protruding, vulnerable traditional fins.
+- *Image details:* Highlight the ambient glow of the liquid droplet streams or micro-channel radiators. The heat emission should look intense but precisely engineered, not chaotic like an uncontrolled fire.
+
+![Thermal Management](./assets/thermal_management_1775109717547.png)
 
 ---
 
@@ -50,6 +56,8 @@ Combat in Delta-V happens at ranges of thousands of kilometers — far too great
 - Laser variants appear as clusters of smaller emitter lenses behind armored shutters.
 - Intense electromagnetic shielding and hazard markings around the firing axis.
 
+![Particle Beam](./assets/particle_beam_1775109732737.png)
+
 ---
 
 ## 4. Multi-Layer Defenses (Ablative Armor & Whipple Shields)
@@ -61,6 +69,9 @@ Deep space warships face two distinct threat profiles: directed-energy beams and
 - Thick, dense, overlapping hexagonal outer plating.
 - Highly utilitarian aesthetic, commonly painted in gunmetal or navy tones.
 - Frequently marred with beam scoring, ablation patterns, and replaced modular segments.
+- *Image details:* Armor should appear deeply gouged and melted in spots rather than just clean and factory-new, showcasing the violent reality of particle beam ablative defense.
+
+![Ablative Armor](./assets/ablative_armor_1775109747165.png)
 
 ---
 
@@ -74,6 +85,8 @@ Deep space logistics requires standardized mass optimization. Fuel (liquid hydro
 - Wrapped heavily in crinkled, highly reflective metallic silver or Kapton gold foil.
 - Supported firmly by a skeletal framework of exposed, bare-metal modular trusses.
 
+![Cryogenic Fuel](./assets/cryogenic_fuel_1775109764057.png)
+
 ---
 
 ## 6. Reaction Control Systems (RCS)
@@ -85,6 +98,8 @@ While massive fusion drives handle main acceleration, ships still need to pitch,
 - Small "quad-block" thruster nozzles protruding from the corners and extremities of the hull.
 - Often feature scorch marks radiating out from the tiny bells against the plating.
 - Visually emits short, sharp, pale bursts of exhaust.
+
+![RCS Thruster](./assets/rcs_thruster_1775109778774.png)
 
 ---
 
@@ -98,6 +113,8 @@ For vessels that don't need continuous massive fusion power (like Orbital Bases)
 - Supported by delicate-looking unfolding rigid booms and trusses.
 - Highly reflective, flat, and fragile appearance compared to the armored main hull.
 
+![Solar Arrays](./assets/solar_arrays_1775109830929.png)
+
 ---
 
 ## 8. High-Gain Communication Arrays
@@ -109,6 +126,8 @@ In the vast, silent void of the solar system, communicating telemetry and target
 - Large parabolic dishes mounted on articulating mechanical gimbals.
 - Extensive wiring and complex central receiver feeds bridging the center of the dish.
 - Often clustered near the command deck or sensor booms to minimize signal delay.
+
+![Comms Dish](./assets/comms_dish_1774105476101.png)
 
 ---
 
@@ -122,17 +141,22 @@ Visual confirmation is useless at engagement ranges of thousands of kilometers. 
 - Tipped with irregular, geometric sensor heads, domed cameras, and flat phased-array radar panels.
 - Highly detailed, asymmetrical, and purely utilitarian visual clutter.
 
+![Sensor Boom](./assets/sensor_spine_1774105490297.png)
+
 ---
 
 ## 10. Point Defense Cannons (PDCs)
 
 **How It Works:** 
-Directly extrapolated from modern naval Close-In Weapon Systems (CIWS) like the Phalanx, PDCs are fast-tracking rotary cannons designed as a ship's last line of defense. They fire curtains of solid tungsten slugs or proximity-fused flak intended to physically shred incoming missiles and drones before they hit the hull.
+Directly extrapolated from modern naval Close-In Weapon Systems (CIWS) like the Phalanx, PDCs are fast-tracking rotary cannons designed as a ship's last line of defense. They fire curtains of solid tungsten slugs or proximity-fused flak intended to physically shred large, slower-moving ordnance before they hit the hull. Note: In gameplay mechanics, standard ship guns doubling as PDCs are exclusively capable of intercepting and destroying incoming Nuclear warheads; standard torpedoes and kinetic mines are generally unaffected by PDC defensive fire.
 
 **Visual description:**
 - Small, aggressively spiked multi-barreled rotary cannons housed in armored turrets.
 - Mounted on extremely fast-turning spherical or pivoting gimbals scattered across the hull to provide 360-degree overlapping fields of fire.
 - Thick, heavy ammunition feed tracks leading down into the ship's magazines.
+- *Image details:* Visually emphasize the frenetic mechanical activity of a PDC tracking a target, with brief but intense swarms of tracer fire creating a localized defensive screen.
+
+![Point Defense Cannon](./assets/rotary_cannon_1774105506192.png)
 
 ---
 
@@ -145,6 +169,11 @@ Because stealth is limited in hot-drive space combat, engagements emphasize kine
 - Deeply recessed, flush-mounted clusters of hexagonal or cylindrical launch tubes built directly into the armor plating.
 - Often glowing amber or red from internal pre-heating before a launch sequence.
 - Clean, heavy-duty armored hatch covers meant to protect unfired ordnance from glancing blows.
+- *Image details (Mines):* Simple, stealthy geometric packages (often radar-absorbent faceted shapes) that detach and remain completely inert until proximity triggers them.
+- *Image details (Torpedoes):* Slender, hyper-accelerating kinetic darts with bright initial chemical-booster plumes designed to boost 1-2 hexes off the launch rail before transitioning to primary drive.
+- *Image details (Nukes):* Heavy, bloated warheads with thick armored casings, deployed defensively or as devastating area-denial weapons capable of cratering moons and vaporizing asteroid fields.
+
+![Ordnance](./assets/missile_tubes_1774105521423.png)
 
 ---
 
@@ -162,4 +191,4 @@ These references are not one-to-one blueprints for Delta-V ships, but they are t
 
 ## Maintenance note
 
-If dedicated concept art assets are reintroduced to the repository, image embeds can be restored here. Until then, keep this document text-first and aligned with the current playable systems.
+Concept art assets have been embedded above representing a cohesive, symmetrical NASA-punk visual direction. Keep these synchronized with any gameplay revisions.
