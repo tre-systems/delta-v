@@ -20,7 +20,7 @@ export const drawCourseMarkerView = (
   ctx.shadowBlur = 0;
   if (marker.label && marker.labelColor) {
     ctx.fillStyle = marker.labelColor;
-    ctx.font = scaledFont('bold 9px monospace', zoom);
+    ctx.font = scaledFont('bold 11px monospace', zoom);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(marker.label, marker.position.x, marker.position.y);
@@ -40,7 +40,7 @@ export const drawWeakGravityMarkerView = (
   ctx.fill();
   ctx.stroke();
   ctx.fillStyle = marker.labelColor;
-  ctx.font = scaledFont('bold 8px monospace', zoom);
+  ctx.font = scaledFont('bold 10px monospace', zoom);
   ctx.textAlign = 'center';
   ctx.fillText('G', marker.position.x, marker.position.y + 3);
   if (marker.strikeFrom && marker.strikeTo) {

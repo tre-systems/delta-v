@@ -153,14 +153,14 @@ export const renderOrdnance = ({
 
       // Labels for clarity
       ctx.fillStyle = color;
-      ctx.font = scaledFont('bold 7px Inter, sans-serif', zoom);
+      ctx.font = scaledFont('bold 9px Inter, sans-serif', zoom);
       ctx.textAlign = 'center';
       const labelY = ord.type === 'mine' ? p.y - 10 : p.y - 12;
       const typeLabel = ord.type.toUpperCase();
       ctx.fillText(typeLabel, p.x, labelY);
 
       const ownershipLabel = isFriendly ? 'FRIENDLY' : 'ENEMY';
-      ctx.font = scaledFont('5px Inter, sans-serif', zoom);
+      ctx.font = scaledFont('7px Inter, sans-serif', zoom);
       ctx.fillText(ownershipLabel, p.x, labelY - 7);
     }
 
@@ -171,7 +171,7 @@ export const renderOrdnance = ({
 
     if (lifetimeView) {
       ctx.fillStyle = lifetimeView.color;
-      ctx.font = scaledFont('bold 8px monospace', zoom);
+      ctx.font = scaledFont('bold 12px monospace', zoom);
       ctx.textAlign = 'center';
       ctx.fillText(lifetimeView.text, p.x, p.y + 12);
     }
@@ -301,13 +301,13 @@ export const renderTorpedoGuidance = ({
       ctx.stroke();
 
       ctx.fillStyle = 'rgba(255, 240, 200, 0.95)';
-      ctx.font = scaledFont('bold 10px monospace', zoom);
+      ctx.font = scaledFont('bold 12px monospace', zoom);
       ctx.fillText(`\u00d7${accelSteps ?? 1}`, tp.x, tp.y + 4);
     }
   }
 
   ctx.fillStyle = 'rgba(255, 120, 60, 0.9)';
-  ctx.font = scaledFont('9px monospace', zoom);
+  ctx.font = scaledFont('11px monospace', zoom);
   ctx.textAlign = 'center';
 
   if (accel !== null) {
@@ -458,7 +458,7 @@ export const renderCombatOverlay = ({
   ctx.textAlign = 'center';
 
   // Main odds label (e.g. "1:1  ATK 2/2")
-  ctx.font = scaledFont('bold 10px monospace', zoom);
+  ctx.font = scaledFont('bold 12px monospace', zoom);
   const oddsW = ctx.measureText(preview.label).width;
 
   ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -472,7 +472,7 @@ export const renderCombatOverlay = ({
     const counterIcon = preview.canCounter ? '\u2694' : '';
     const subParts = [preview.modLabel, counterIcon].filter(Boolean).join(' ');
 
-    ctx.font = scaledFont('bold 9px monospace', zoom);
+    ctx.font = scaledFont('bold 11px monospace', zoom);
     const subW = ctx.measureText(subParts).width;
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
