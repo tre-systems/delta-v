@@ -7,6 +7,7 @@ export interface UIButtonEventBinding {
 
 export const ACTION_BUTTON_BINDINGS = [
   { id: 'undoBtn', event: { type: 'undo' } },
+  { id: 'skipShipBtn', event: { type: 'skipShip' } },
   { id: 'confirmBtn', event: { type: 'confirm' } },
   { id: 'landFromOrbitBtn', event: { type: 'landFromOrbit' } },
   { id: 'matchVelocityBtn', event: { type: 'matchVelocity' } },

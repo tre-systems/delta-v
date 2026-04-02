@@ -90,6 +90,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const objectiveEl = byId('objective');
   const fuelGaugeEl = byId('fuelGauge');
   const undoBtn = byId('undoBtn');
+  const skipShipBtn = byId('skipShipBtn');
   const confirmBtn = byId('confirmBtn');
   const landFromOrbitBtn = byId<HTMLButtonElement>('landFromOrbitBtn');
   const matchVelocityBtn = byId<HTMLButtonElement>('matchVelocityBtn');
@@ -231,6 +232,11 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       text(fuelGaugeEl, hudView.fuelGaugeText);
 
       visible(undoBtn, !hideActions && hudView.undoVisible, 'inline-block');
+      visible(
+        skipShipBtn,
+        !hideActions && hudView.skipShipVisible,
+        'inline-block',
+      );
       visible(
         confirmBtn,
         !hideActions && hudView.confirmVisible,

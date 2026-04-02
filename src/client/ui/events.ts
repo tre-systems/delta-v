@@ -9,6 +9,7 @@ export type UIEvent =
   | { type: 'join'; code: string; playerToken?: string | null }
   // In-game actions
   | { type: 'undo' }
+  | { type: 'skipShip' }
   | { type: 'confirm' }
   | { type: 'matchVelocity' }
   | { type: 'landFromOrbit' }

@@ -34,6 +34,8 @@ export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
       };
     case 'undo':
       return { kind: 'command', command: { type: 'undoBurn' } };
+    case 'skipShip':
+      return { kind: 'command', command: { type: 'skipShipBurn' } };
     case 'confirm':
       return { kind: 'command', command: { type: 'confirmOrders' } };
     case 'matchVelocity':

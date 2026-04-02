@@ -14,6 +14,7 @@ export interface HUDView {
   fuelGaugeText: string;
   statusText: string | null;
   undoVisible: boolean;
+  skipShipVisible: boolean;
   confirmVisible: boolean;
   matchVelocity: UIButtonView;
   launchMine: UIButtonView;
@@ -247,6 +248,12 @@ export const buildHUDView = (input: HUDInput): HUDView => {
                 : 'Transfer fuel/cargo or skip (Enter)'
               : null,
     undoVisible: isMyTurn && phase === 'astrogation' && hasBurns,
+    skipShipVisible:
+      isMyTurn &&
+      phase === 'astrogation' &&
+      astrogationCtx.hasSelection &&
+      !astrogationCtx.selectedShipDisabled &&
+      !astrogationCtx.allShipsAcknowledged,
     confirmVisible:
       isMyTurn &&
       phase === 'astrogation' &&

@@ -98,6 +98,7 @@ const installFixture = () => {
     <div id="waitingStatus"></div>
     <button class="btn-difficulty active" data-difficulty="normal"></button>
     <button id="undoBtn"></button>
+    <button id="skipShipBtn"></button>
     <button id="confirmBtn"></button>
     <button id="landFromOrbitBtn"></button>
     <button id="matchVelocityBtn"></button>
