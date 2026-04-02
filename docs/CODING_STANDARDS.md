@@ -214,10 +214,10 @@ Current examples:
   to `ctx` (and optional test `renderer`); in the full client,
   `attachRendererGameStateEffect()` drives `renderer.setGameState`
   from the reactive session state (see `docs/ARCHITECTURE.md`).
-- `createUIManager()` owns top-level screen visibility via its
-  `screenModeSignal` and `applyUIVisibility()` from
-  `ui/visibility.ts`; session effects update waiting copy and
-  other durable UI state instead of scattered screen commands.
+- `createUIManager()` owns top-level screen visibility via
+  `applyUIVisibility()` from `ui/visibility.ts`; session
+  effects update waiting copy and other durable UI state
+  instead of scattered screen commands.
 - `runPublicationPipeline()` in `publication.ts` owns
   the state publication pipeline: event append, checkpoint,
   parity verify, match archive, timer, and broadcast.

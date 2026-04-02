@@ -178,8 +178,8 @@ Open work lives in [**BACKLOG.md**](./docs/BACKLOG.md). This section is shipped-
 - [x] Engine decomposition into focused phase processors (game-creation, astrogation, resolve-movement, combat, etc.)
 - [x] Typed ship lifecycle/control state models that narrow invalid state combinations
 - [x] Granular engine events (32 `EngineEvent` types emitted by engine, replacing server-side derivation)
-- [x] Data-driven AI configuration (per-difficulty scoring weights in `ai-config.ts`)
-- [x] AI scoring decomposition (5 composable strategy functions in `ai-scoring.ts`)
+- [x] Data-driven AI configuration (per-difficulty scoring weights in `src/shared/ai/config.ts`)
+- [x] AI scoring decomposition (5 composable strategy functions in `src/shared/ai/scoring.ts`)
 - [x] Archive persistence extracted from Durable Object into standalone module
 - [x] Event-sourced authoritative match persistence with replay/reconnect recovery from event stream plus checkpoints
 - [x] Shared rule consolidation, bounded type imports, authoritative disconnect-forfeit
