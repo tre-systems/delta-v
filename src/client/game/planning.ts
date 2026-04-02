@@ -121,6 +121,76 @@ export interface PlanningState {
   lastSelectedHex: string | null;
 }
 
+export type ShipSelectionView = Pick<
+  PlanningState,
+  'selectedShipId' | 'lastSelectedHex'
+>;
+
+export type HoverPlanningView = Pick<PlanningState, 'hoverHex'>;
+
+export type PlanningSelectionView = ShipSelectionView & HoverPlanningView;
+
+export type AstrogationPlanningView = Pick<
+  PlanningState,
+  | 'burns'
+  | 'overloads'
+  | 'landingShips'
+  | 'weakGravityChoices'
+  | 'acknowledgedShips'
+>;
+
+export type OrdnancePlanningView = Pick<
+  PlanningState,
+  | 'torpedoAimingActive'
+  | 'torpedoAccel'
+  | 'torpedoAccelSteps'
+  | 'queuedOrdnanceLaunches'
+  | 'acknowledgedOrdnanceShips'
+>;
+
+export type CombatPlanningView = Pick<
+  PlanningState,
+  | 'combatTargetId'
+  | 'combatTargetType'
+  | 'combatAttackerIds'
+  | 'combatAttackStrength'
+  | 'queuedAttacks'
+>;
+
+export type AstrogationPlanningSnapshot = ShipSelectionView &
+  AstrogationPlanningView;
+export type OrdnancePlanningSnapshot = ShipSelectionView &
+  Pick<OrdnancePlanningView, 'torpedoAccel' | 'torpedoAccelSteps'>;
+export type CombatPlanningSnapshot = Pick<ShipSelectionView, 'selectedShipId'> &
+  CombatPlanningView;
+export type HudPlanningSnapshot = Pick<ShipSelectionView, 'selectedShipId'> &
+  Pick<
+    AstrogationPlanningView,
+    | 'burns'
+    | 'overloads'
+    | 'landingShips'
+    | 'weakGravityChoices'
+    | 'acknowledgedShips'
+  > &
+  Pick<
+    OrdnancePlanningView,
+    'queuedOrdnanceLaunches' | 'acknowledgedOrdnanceShips'
+  >;
+export type KeyboardPlanningSnapshot = Pick<
+  ShipSelectionView,
+  'selectedShipId'
+> &
+  Pick<AstrogationPlanningView, 'acknowledgedShips'> &
+  Pick<
+    OrdnancePlanningView,
+    'torpedoAimingActive' | 'torpedoAccel' | 'acknowledgedOrdnanceShips'
+  > &
+  Pick<CombatPlanningView, 'combatTargetId' | 'queuedAttacks'>;
+export type InteractivePlanningSnapshot = PlanningSelectionView &
+  AstrogationPlanningView &
+  OrdnancePlanningView &
+  CombatPlanningView;
+
 export type PlanningPhase = 'astrogation' | 'ordnance' | 'combat';
 
 export interface PlanningStore extends PlanningState {
@@ -164,6 +234,48 @@ export interface PlanningStore extends PlanningState {
   resetOrdnancePlanning: () => void;
   setHoverHex: (hex: HexCoord | null) => void;
 }
+
+export type PlanningSelectionStore = PlanningSelectionView &
+  Pick<PlanningStore, 'setSelectedShipId' | 'selectShip' | 'setHoverHex'>;
+
+export type AstrogationPlanningStore = AstrogationPlanningView &
+  Pick<
+    PlanningStore,
+    | 'enterPhase'
+    | 'clearShipPlanning'
+    | 'resetAstrogationPlanning'
+    | 'setShipBurn'
+    | 'setShipOverload'
+    | 'setShipLanding'
+    | 'setShipWeakGravityChoices'
+    | 'acknowledgeShip'
+  >;
+
+export type OrdnancePlanningStore = OrdnancePlanningView &
+  Pick<
+    PlanningStore,
+    | 'enterPhase'
+    | 'setTorpedoAimingActive'
+    | 'setTorpedoAcceleration'
+    | 'clearTorpedoAcceleration'
+    | 'queueOrdnanceLaunch'
+    | 'acknowledgeOrdnanceShip'
+    | 'takeQueuedOrdnanceLaunches'
+    | 'resetOrdnancePlanning'
+  >;
+
+export type CombatPlanningStore = CombatPlanningView &
+  Pick<
+    PlanningStore,
+    | 'enterPhase'
+    | 'applyCombatPlanUpdate'
+    | 'clearCombatSelectionState'
+    | 'resetCombatPlanning'
+    | 'queueCombatAttack'
+    | 'popQueuedAttack'
+    | 'takeQueuedAttacks'
+    | 'setCombatAttackStrength'
+  >;
 
 const defineHiddenPlanningMember = <K extends keyof PlanningStore>(
   planningStore: PlanningStore,

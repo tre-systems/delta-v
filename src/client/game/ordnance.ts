@@ -12,16 +12,11 @@ import type {
   PlayerId,
   Ship,
 } from '../../shared/types/domain';
-import type { PlanningState } from './planning';
+import type { OrdnancePlanningSnapshot } from './planning';
 
 type OrdnanceState = Pick<
   GameState,
   'ships' | 'scenarioRules' | 'pendingAstrogationOrders'
->;
-
-type OrdnancePlanning = Pick<
-  PlanningState,
-  'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'
 >;
 
 export type ClientActionError = {
@@ -93,7 +88,10 @@ export const getUnambiguousLaunchableShipId = (
 
 export const resolveOrdnanceLaunchPlan = (
   state: OrdnanceState,
-  planning: OrdnancePlanning,
+  planning: Pick<
+    OrdnancePlanningSnapshot,
+    'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'
+  >,
   ordnanceType: OrdnanceType,
 ): OrdnanceLaunchPlan => {
   if (!planning.selectedShipId) {

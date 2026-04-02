@@ -13,18 +13,10 @@ import type {
   Ship,
   SolarSystemMap,
 } from '../../shared/types/domain';
-import type { PlanningState } from './planning';
-
-type InputPlanningSnapshot = Pick<
-  PlanningState,
-  | 'selectedShipId'
-  | 'burns'
-  | 'overloads'
-  | 'weakGravityChoices'
-  | 'torpedoAccel'
-  | 'torpedoAccelSteps'
-  | 'lastSelectedHex'
->;
+import type {
+  AstrogationPlanningSnapshot,
+  OrdnancePlanningSnapshot,
+} from './planning';
 
 export type AstrogationInteraction =
   | {
@@ -109,7 +101,7 @@ const resolveWeakGravityToggle = (
   map: SolarSystemMap,
   ship: Ship,
   clickHex: HexCoord,
-  planning: InputPlanningSnapshot,
+  planning: AstrogationPlanningSnapshot,
 ) => {
   const currentBurn = planning.burns.get(ship.id) ?? null;
   const overload = planning.overloads.get(ship.id) ?? null;
@@ -148,7 +140,7 @@ const resolveWeakGravityToggle = (
 const resolveOverloadToggle = (
   ship: Ship,
   clickHex: HexCoord,
-  planning: InputPlanningSnapshot,
+  planning: AstrogationPlanningSnapshot,
 ) => {
   const currentBurn = planning.burns.get(ship.id) ?? null;
 
@@ -187,7 +179,7 @@ const resolveBurnToggle = (
   map: SolarSystemMap,
   ship: Ship,
   clickHex: HexCoord,
-  planning: InputPlanningSnapshot,
+  planning: AstrogationPlanningSnapshot,
 ) => {
   const currentBurn = planning.burns.get(ship.id) ?? null;
 
@@ -216,7 +208,7 @@ export const resolveAstrogationClick = (
   state: GameState,
   map: SolarSystemMap,
   playerId: PlayerId,
-  planning: InputPlanningSnapshot,
+  planning: AstrogationPlanningSnapshot,
   clickHex: HexCoord,
 ): AstrogationInteraction => {
   const selectedShip = getShipById(state, planning.selectedShipId);
@@ -304,7 +296,7 @@ const cycleTorpedoAcceleration = (
 export const resolveOrdnanceClick = (
   state: GameState,
   playerId: PlayerId,
-  planning: InputPlanningSnapshot,
+  planning: OrdnancePlanningSnapshot,
   clickHex: HexCoord,
 ): OrdnanceInteraction => {
   const selectedShip = getShipById(state, planning.selectedShipId);

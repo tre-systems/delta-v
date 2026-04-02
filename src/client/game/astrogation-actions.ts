@@ -4,14 +4,17 @@ import type { GameState, PlayerId } from '../../shared/types/domain';
 import { playConfirm, playSelect } from '../audio';
 import { deriveBurnChangePlan } from './burn';
 import { buildAstrogationOrders } from './helpers';
-import type { PlanningStore } from './planning';
+import type {
+  AstrogationPlanningStore,
+  PlanningSelectionStore,
+} from './planning';
 import type { GameTransport } from './transport';
 export interface AstrogationActionDeps {
   getGameState: () => GameState | null;
   getClientState: () => string;
   getPlayerId: () => PlayerId;
   getTransport: () => GameTransport | null;
-  planningState: PlanningStore;
+  planningState: PlanningSelectionStore & AstrogationPlanningStore;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
 }
 

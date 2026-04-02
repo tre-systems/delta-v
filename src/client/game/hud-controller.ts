@@ -16,7 +16,7 @@ import { getTooltipShip } from './hover';
 import { buildHudChromeInputFromViewModel } from './hud-chrome-input';
 import { getObjectiveBearingScreenDegrees } from './navigation';
 import type { ClientState } from './phase';
-import type { PlanningState } from './planning';
+import type { HudPlanningSnapshot } from './planning';
 import { getSelectedShip } from './selection';
 import { buildShipTooltipHtml } from './tooltip';
 
@@ -24,7 +24,7 @@ export interface HudControllerDeps {
   getGameState: () => GameState | null;
   getPlayerId: () => PlayerId;
   getClientState: () => ClientState;
-  getPlanningState: () => PlanningState;
+  getPlanningState: () => HudPlanningSnapshot;
   getMap: () => SolarSystemMap;
   ui: UIManager;
   renderer: Renderer;

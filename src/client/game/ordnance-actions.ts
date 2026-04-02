@@ -13,14 +13,14 @@ import {
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
 } from './ordnance';
-import type { PlanningStore } from './planning';
+import type { OrdnancePlanningStore, PlanningSelectionStore } from './planning';
 import type { GameTransport } from './transport';
 export interface OrdnanceActionDeps {
   getGameState: () => GameState | null;
   getClientState: () => string;
   getPlayerId: () => PlayerId;
   getTransport: () => GameTransport | null;
-  planningState: PlanningStore;
+  planningState: PlanningSelectionStore & OrdnancePlanningStore;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   logText: (text: string) => void;
 }
