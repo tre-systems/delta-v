@@ -6,15 +6,10 @@ import { applyInteractionEvent } from './interaction-fsm';
 import { createLogisticsStore } from './logistics-ui';
 import type { ClientState } from './phase';
 import { deriveClientStateEntryPlan } from './phase-entry';
-import { deriveClientScreenPlan } from './screen';
 import type { ClientSessionStateTransitionContext } from './session-model';
 
 interface TransitionUI {
-  showMenu: () => void;
-  showConnecting: () => void;
-  showWaiting: () => void;
   showFleetBuilding: (state: GameState, playerId: PlayerId) => void;
-  showHUD: () => void;
 }
 
 interface TransitionTutorial {
@@ -97,29 +92,12 @@ export const applyClientStateTransition = (
       deps.ctx.playerId as PlayerId,
       deps.ctx.isLocalGame,
     );
-    const screenPlan = deriveClientScreenPlan(newState);
 
-    switch (screenPlan.kind) {
-      case 'menu':
-        deps.ui.showMenu();
-        break;
-      case 'connecting':
-        deps.ui.showConnecting();
-        break;
-      case 'waiting':
-        deps.ui.showWaiting();
-        break;
-      case 'fleetBuilding':
-        deps.ui.showFleetBuilding(
-          must(deps.ctx.gameState),
-          deps.ctx.playerId as PlayerId,
-        );
-        break;
-      case 'hud':
-        deps.ui.showHUD();
-        break;
-      case 'none':
-        break;
+    if (newState === 'playing_fleetBuilding') {
+      deps.ui.showFleetBuilding(
+        must(deps.ctx.gameState),
+        deps.ctx.playerId as PlayerId,
+      );
     }
 
     if (entryPlan.hideTutorial) {

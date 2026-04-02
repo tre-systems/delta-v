@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
+import type { InteractionState } from '../game/interaction-fsm';
+import { signal } from '../reactive';
 import { createUIManager } from './ui';
 
 Object.defineProperty(window, 'matchMedia', {
@@ -128,6 +129,15 @@ const installFixture = () => {
   `;
 };
 
+const bindInteraction = (
+  ui: ReturnType<typeof createUIManager>,
+  mode: InteractionState['mode'],
+) => {
+  const s = signal<InteractionState>({ mode });
+  ui.bindInteractionSignal(s);
+  return s;
+};
+
 describe('UIManager', () => {
   beforeEach(() => {
     installFixture();
@@ -161,18 +171,18 @@ describe('UIManager', () => {
     ]);
   });
 
-  it('showMenu makes menu visible and hides HUD', () => {
+  it('shows menu when interaction mode is menu', () => {
     const ui = createUIManager();
-    ui.showMenu();
+    bindInteraction(ui, 'menu');
 
     expect(document.getElementById('menu')?.style.display).toBe('flex');
     expect(document.getElementById('hud')?.style.display).toBe('none');
     expect(document.getElementById('gameOver')?.style.display).toBe('none');
   });
 
-  it('showHUD makes HUD visible and hides menu', () => {
+  it('shows HUD when interaction mode is astrogation', () => {
     const ui = createUIManager();
-    ui.showHUD();
+    bindInteraction(ui, 'astrogation');
 
     expect(document.getElementById('hud')?.style.display).toBe('block');
     expect(document.getElementById('menu')?.style.display).toBe('none');
@@ -182,19 +192,17 @@ describe('UIManager', () => {
     expect(document.getElementById('shipList')?.style.display).toBe('flex');
   });
 
-  it('showWaiting shows waiting screen with room code', () => {
+  it('shows waiting screen when interaction mode is waiting', () => {
     const ui = createUIManager();
     ui.setWaitingState('ABC12', false);
-    ui.showWaiting();
+    bindInteraction(ui, 'waiting');
 
     expect(document.getElementById('waiting')?.style.display).toBe('flex');
     expect(document.getElementById('gameCode')?.textContent).toBe('ABC12');
   });
 
-  it('hideAll hides all screens', () => {
-    const ui = createUIManager();
-    ui.showMenu();
-    ui.hideAll();
+  it('hides all screens when interaction signal is not bound', () => {
+    createUIManager();
 
     const ids = [
       'menu',

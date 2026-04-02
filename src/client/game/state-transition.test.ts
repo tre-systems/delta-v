@@ -50,11 +50,7 @@ const createDeps = (
       interactionState: { mode: 'menu' },
     },
     ui: {
-      showMenu: track('ui.showMenu'),
-      showConnecting: track('ui.showConnecting'),
-      showWaiting: track('ui.showWaiting'),
       showFleetBuilding: track('ui.showFleetBuilding'),
-      showHUD: track('ui.showHUD'),
     },
     tutorial: {
       hideTip: track('tutorial.hideTip'),
@@ -103,7 +99,6 @@ describe('applyClientStateTransition', () => {
       ['menu', 'playing_astrogation'],
     ]);
     expect(deps.calls.hideTooltip).toHaveLength(1);
-    expect(deps.calls['ui.showHUD']).toHaveLength(1);
     expect(deps.calls['turnTimer.start']).toHaveLength(1);
     expect(deps.calls['renderer.frameOnShips']).toHaveLength(1);
     expect(deps.calls['tutorial.onPhaseChange']).toEqual([
@@ -127,7 +122,6 @@ describe('applyClientStateTransition', () => {
     applyClientStateTransition(deps, 'playing_logistics');
 
     expect(deps.ctx.state).toBe('playing_logistics');
-    expect(deps.calls['ui.showHUD']).toHaveLength(1);
     expect(deps.calls['turnTimer.start']).toHaveLength(1);
     expect(deps.ctx.logisticsState).not.toBeNull();
     expect(deps.calls['tutorial.onPhaseChange']).toBeUndefined();

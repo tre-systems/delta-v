@@ -68,6 +68,19 @@ describe('hud-controller', () => {
     );
   });
 
+  it('shows waiting status during opponent turn', () => {
+    const { controller, ui } = createHarness('playing_opponentTurn');
+
+    controller.updateHUD();
+
+    expect(ui.updateHUD).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusOverrideText: 'Waiting for opponent...',
+        suppressActionButtons: false,
+      }),
+    );
+  });
+
   it('leaves HUD presentation unsuppressed during normal turn states', () => {
     const { controller, ui } = createHarness('playing_astrogation');
 

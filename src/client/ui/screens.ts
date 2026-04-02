@@ -141,11 +141,11 @@ export const buildScreenVisibility = (
 
 export const mapInteractionModeToUIScreenMode = (
   interaction: InteractionMode,
-  legacyMode: UIScreenMode,
+  scenarioActive: boolean,
 ): UIScreenMode => {
   switch (interaction) {
     case 'menu':
-      return legacyMode === 'scenario' ? 'scenario' : 'menu';
+      return scenarioActive ? 'scenario' : 'menu';
     case 'waiting':
       return 'waiting';
     case 'fleetBuilding':

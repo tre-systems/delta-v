@@ -1,5 +1,8 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
-import type { InteractionState } from '../game/interaction-fsm';
+import type {
+  InteractionMode,
+  InteractionState,
+} from '../game/interaction-fsm';
 import type { ReadonlySignal } from '../reactive';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { bindStaticButtonEvents } from './button-events';
@@ -17,11 +20,23 @@ import { createLobbyView, type LobbyView } from './lobby-view';
 import { bindMobileSync } from './mobile-sync';
 import { createOverlayStateStore } from './overlay-state';
 import { createOverlayView } from './overlay-view';
-import { mapInteractionModeToUIScreenMode, type UIScreenMode } from './screens';
+import { mapInteractionModeToUIScreenMode } from './screens';
 import { createSessionActions } from './session-actions';
 import { createShipListView } from './ship-list-view';
 import { bindViewportEvents } from './viewport-events';
 import { applyUIVisibility } from './visibility';
+
+const HUD_MODES: ReadonlySet<InteractionMode> = new Set<InteractionMode>([
+  'astrogation',
+  'ordnance',
+  'logistics',
+  'combat',
+  'animating',
+  'opponentTurn',
+  'gameOver',
+]);
+
+const isHudMode = (mode: InteractionMode): boolean => HUD_MODES.has(mode);
 
 export const createUIManager = () => {
   const scope = createDisposalScope();
@@ -40,14 +55,20 @@ export const createUIManager = () => {
 
   const eventBridge = createUIEventBridge();
   const emit = (event: UIEvent) => eventBridge.emit(event);
-  const screenModeSignal = signal<UIScreenMode>('hidden');
+  const scenarioActiveSignal = signal(false);
   const interactionSignal = signal<ReadonlySignal<InteractionState> | null>(
     null,
   );
 
+  const peekInteractionMode = (): InteractionMode | null =>
+    interactionSignal.peek()?.peek()?.mode ?? null;
+
   const { reset: resetLayoutMetrics, queue: queueLayoutSync } =
     createLayoutSync({
-      isHudVisible: () => screenModeSignal.peek() === 'hud',
+      isHudVisible: () => {
+        const mode = peekInteractionMode();
+        return mode !== null && isHudMode(mode);
+      },
       applyMetrics: () =>
         applyHudLayoutMetrics(
           window.innerHeight,
@@ -109,8 +130,10 @@ export const createUIManager = () => {
   bindMobileSync({
     initialMatches: mobileQuery.matches,
     setHudMobile: (matches) => hudChromeView.setMobile(matches),
-    setLogMobile: (matches) =>
-      log.setMobile(matches, screenModeSignal.peek() === 'hud'),
+    setLogMobile: (matches) => {
+      const mode = peekInteractionMode();
+      log.setMobile(matches, mode !== null && isHudMode(mode));
+    },
     bindViewport: (onMobileChange, onResize) => {
       withScope(scope, () => {
         bindViewportEvents({
@@ -132,12 +155,12 @@ export const createUIManager = () => {
 
   withScope(scope, () => {
     effect(() => {
-      const mode = screenModeSignal.value;
       const interaction = interactionSignal.value?.value;
+      const scenarioActive = scenarioActiveSignal.value;
 
       const effectiveMode = interaction
-        ? mapInteractionModeToUIScreenMode(interaction.mode, mode)
-        : mode;
+        ? mapInteractionModeToUIScreenMode(interaction.mode, scenarioActive)
+        : 'hidden';
 
       applyUIVisibility(
         {
@@ -153,7 +176,7 @@ export const createUIManager = () => {
       );
       log.setScreenMode(effectiveMode);
 
-      if (mode === 'hud') {
+      if (interaction && isHudMode(interaction.mode)) {
         queueLayoutSync();
       } else {
         resetLayoutMetrics();
@@ -161,34 +184,17 @@ export const createUIManager = () => {
     });
   });
 
-  const hideAll = () => {
-    screenModeSignal.value = 'hidden';
-  };
-
   const showMenu = () => {
     lobbyView.onMenuShown();
-    screenModeSignal.value = 'menu';
+    scenarioActiveSignal.value = false;
   };
 
   const showScenarioSelect = () => {
-    screenModeSignal.value = 'scenario';
-  };
-
-  const showWaiting = () => {
-    screenModeSignal.value = 'waiting';
-  };
-
-  const showConnecting = () => {
-    screenModeSignal.value = 'waiting';
-  };
-
-  const showHUD = () => {
-    screenModeSignal.value = 'hud';
+    scenarioActiveSignal.value = true;
   };
 
   const showFleetBuilding = (state: GameState, playerId: PlayerId) => {
     fleetBuildingView.show(state, playerId);
-    screenModeSignal.value = 'fleetBuilding';
   };
 
   const showFleetWaiting = () => {
@@ -223,13 +229,9 @@ export const createUIManager = () => {
     },
     log,
     overlay,
-    hideAll,
     ...sessionActions,
     showMenu,
     showScenarioSelect,
-    showWaiting,
-    showConnecting,
-    showHUD,
     showFleetBuilding,
     showFleetWaiting,
     bindTurnTimerSignal: (
