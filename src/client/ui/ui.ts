@@ -158,6 +158,13 @@ export const createUIManager = () => {
       const interaction = interactionSignal.value?.value;
       const scenarioActive = scenarioActiveSignal.value;
 
+      // When the FSM leaves 'menu' (e.g. connecting, waiting), clear
+      // the scenario sub-state so returning to 'menu' shows the main
+      // menu rather than the stale scenario-select screen.
+      if (interaction && interaction.mode !== 'menu' && scenarioActive) {
+        scenarioActiveSignal.value = false;
+      }
+
       const effectiveMode = interaction
         ? mapInteractionModeToUIScreenMode(interaction.mode, scenarioActive)
         : 'hidden';
