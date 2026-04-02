@@ -23,6 +23,7 @@ export interface HUDView {
   emplaceBaseVisible: boolean;
   skipOrdnanceVisible: boolean;
   skipOrdnanceLabel: string;
+  queuedOrdnanceType: string | null;
   skipCombatVisible: boolean;
   skipLogisticsVisible: boolean;
   confirmTransfersVisible: boolean;
@@ -95,6 +96,14 @@ const getAstrogationStatusText = (
   return isMobile ? 'Set burn or skip (S)' : 'Set burn or skip ship (S)';
 };
 
+const getOrdnanceCapacityHint = (cargoFree: number): string => {
+  const fits: string[] = [];
+  if (cargoFree >= 10) fits.push(`${Math.floor(cargoFree / 10)}M`);
+  if (cargoFree >= 20) fits.push(`${Math.floor(cargoFree / 20)}T`);
+  if (cargoFree >= 20) fits.push(`${Math.floor(cargoFree / 20)}N`);
+  return fits.length > 0 ? ` (${fits.join(' ')})` : '';
+};
+
 const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
   const {
     launchMineState,
@@ -162,6 +171,7 @@ export interface HUDInput {
   launchTorpedoState: HUDActionState;
   launchNukeState: HUDActionState;
   allOrdnanceShipsAcknowledged: boolean;
+  queuedOrdnanceType: string | null;
   astrogationCtx: AstrogationContext;
   speed: number;
   fuelToStop: number;
@@ -215,7 +225,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     objectiveCompassDegrees,
     fuelGaugeText:
       showOrdnance && cargoMax > 0
-        ? `Cargo: ${cargoFree}/${cargoMax}`
+        ? `Cargo: ${cargoFree}/${cargoMax}${getOrdnanceCapacityHint(cargoFree)}`
         : speed > 0
           ? `Fuel: ${fuel}/${maxFuel} \u00b7 Speed ${speed} (${fuelToStop} to stop)`
           : astrogationCtx.selectedShipLanded
@@ -293,6 +303,9 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     emplaceBaseVisible: showOrdnance && canEmplaceBase,
     skipOrdnanceVisible: showOrdnance,
     skipOrdnanceLabel: input.allOrdnanceShipsAcknowledged ? 'CONFIRM' : 'SKIP',
+    queuedOrdnanceType: showOrdnance
+      ? (input.queuedOrdnanceType ?? null)
+      : null,
     skipCombatVisible: false,
     skipLogisticsVisible: isMyTurn && phase === 'logistics',
     confirmTransfersVisible: isMyTurn && phase === 'logistics',

@@ -290,6 +290,19 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       launchTorpedoBtn.disabled = hudView.launchTorpedo.disabled;
       launchNukeBtn.disabled = hudView.launchNuke.disabled;
 
+      launchMineBtn.classList.toggle(
+        'active',
+        hudView.queuedOrdnanceType === 'mine',
+      );
+      launchTorpedoBtn.classList.toggle(
+        'active',
+        hudView.queuedOrdnanceType === 'torpedo',
+      );
+      launchNukeBtn.classList.toggle(
+        'active',
+        hudView.queuedOrdnanceType === 'nuke',
+      );
+
       launchMineBtn.style.opacity = hudView.launchMine.opacity;
       launchTorpedoBtn.style.opacity = hudView.launchTorpedo.opacity;
       launchNukeBtn.style.opacity = hudView.launchNuke.opacity;

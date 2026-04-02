@@ -271,6 +271,12 @@ body::before {
   background: rgba(255, 197, 106, 0.22);
 }
 
+.btn-ordnance.active {
+  background: rgba(255, 197, 106, 0.35);
+  border-color: rgba(255, 197, 106, 0.7);
+  box-shadow: 0 0 6px rgba(255, 197, 106, 0.3);
+}
+
 .btn-nuke {
   border-color: rgba(255, 110, 110, 0.44);
   color: #ff9a9a;
@@ -279,6 +285,12 @@ body::before {
 
 .btn-nuke:hover {
   background: rgba(255, 100, 100, 0.2);
+}
+
+.btn-nuke.active {
+  background: rgba(255, 100, 100, 0.35);
+  border-color: rgba(255, 110, 110, 0.7);
+  box-shadow: 0 0 6px rgba(255, 100, 100, 0.3);
 }
 
 .divider {

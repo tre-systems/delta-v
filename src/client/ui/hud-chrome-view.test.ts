@@ -66,6 +66,7 @@ const buildInput = (
     title: 'Not enough cargo (need 20, have 6)',
   },
   allOrdnanceShipsAcknowledged: false,
+  queuedOrdnanceType: null,
   astrogationCtx: {
     selectedShipLanded: false,
     selectedShipDisabled: false,

@@ -167,6 +167,7 @@ describe('game client helpers', () => {
       landingShips: new Set<string>(),
       acknowledgedShips: new Set<string>(),
       acknowledgedOrdnanceShips: new Set<string>(),
+      queuedOrdnanceLaunches: [],
     };
 
     expect(buildAstrogationOrders(state, 0, planning)).toEqual([
@@ -235,6 +236,7 @@ describe('game client helpers', () => {
       landingShips: new Set<string>(),
       acknowledgedShips: new Set<string>(),
       acknowledgedOrdnanceShips: new Set<string>(),
+      queuedOrdnanceLaunches: [],
     };
 
     expect(deriveHudViewModel(state, 0, planning)).toMatchObject({
@@ -358,6 +360,7 @@ describe('game client helpers', () => {
       landingShips: new Set<string>(),
       acknowledgedShips: new Set<string>(),
       acknowledgedOrdnanceShips: new Set<string>(),
+      queuedOrdnanceLaunches: [],
     };
 
     expect(deriveHudViewModel(state, 0, planning).matchVelocityState).toEqual({
@@ -396,6 +399,7 @@ describe('game client helpers', () => {
       landingShips: new Set<string>(),
       acknowledgedShips: new Set<string>(),
       acknowledgedOrdnanceShips: new Set<string>(),
+      queuedOrdnanceLaunches: [],
     };
 
     expect(deriveHudViewModel(state, 0, planning)).toMatchObject({
