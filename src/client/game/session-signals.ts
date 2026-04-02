@@ -2,7 +2,7 @@ import { hexKey } from '../../shared/hex';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { ReadonlySignal } from '../reactive';
 import { createDisposalScope, type Dispose, effect } from '../reactive';
-import { deriveHudViewModel } from './helpers';
+import { deriveHudViewModel } from './hud-view-model';
 import { deriveInteractionMode } from './interaction-fsm';
 import type { ClientState } from './phase';
 import { getSelectedShip } from './selection';
