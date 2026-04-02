@@ -57,6 +57,7 @@ export interface HudViewModel {
   selectedShipLandingSet: boolean;
   allShipsAcknowledged: boolean;
   allOrdnanceShipsAcknowledged: boolean;
+  queuedOrdnanceType: string | null;
   multipleShipsAlive: boolean;
   speed: number;
   fuelToStop: number;
@@ -86,6 +87,7 @@ export type PlanningSnapshot = Pick<
   | 'weakGravityChoices'
   | 'acknowledgedShips'
   | 'acknowledgedOrdnanceShips'
+  | 'queuedOrdnanceLaunches'
 >;
 
 export type BuildAstrogationOrders = (

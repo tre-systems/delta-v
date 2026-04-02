@@ -283,6 +283,11 @@ export const deriveHudViewModel = (
           hasLaunchableOrdnanceCapacity(s, getAllowedOrdnanceTypes(state)),
       )
       .every((s) => planning.acknowledgedOrdnanceShips.has(s.id)),
+    queuedOrdnanceType: selectedShip
+      ? (planning.queuedOrdnanceLaunches.find(
+          (l) => l.shipId === selectedShip.id,
+        )?.ordnanceType ?? null)
+      : null,
     multipleShipsAlive: myShips.filter(isOrderableShip).length > 1,
     speed: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
     fuelToStop: selectedShip ? hexVecLength(selectedShip.velocity) : 0,

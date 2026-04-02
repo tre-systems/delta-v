@@ -35,6 +35,7 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   launchTorpedoState: defaultLaunchState,
   launchNukeState: defaultLaunchState,
   allOrdnanceShipsAcknowledged: false,
+  queuedOrdnanceType: null,
   astrogationCtx: defaultCtx,
   speed: 0,
   fuelToStop: 0,
@@ -129,7 +130,7 @@ describe('ui hud helpers', () => {
     expect(view).toMatchObject({
       phaseText: 'ORDNANCE',
       objectiveText: 'Hold Mars',
-      fuelGaugeText: 'Cargo: 10/20',
+      fuelGaugeText: 'Cargo: 10/20 (1M)',
       statusText: 'Launch Mine (N) \u00b7 skip ship (S)',
       emplaceBaseVisible: true,
       skipOrdnanceVisible: true,
