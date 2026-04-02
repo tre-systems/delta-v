@@ -36,6 +36,35 @@ export const transitionPhase = <P extends Phase>(
   (state as GameState).phase = next;
 };
 
+export const transitionPhaseWithEvent = (
+  state: GameState,
+  next: Phase,
+  engineEvents?: EngineEvent[],
+): void => {
+  transitionPhase(state as GameState & { phase: Phase }, next as never);
+  engineEvents?.push({
+    type: 'phaseChanged',
+    phase: state.phase,
+    turn: state.turnNumber,
+    activePlayer: state.activePlayer,
+  });
+};
+
+export const setGameOutcome = (
+  state: GameState,
+  winner: PlayerId,
+  reason: string,
+  engineEvents?: EngineEvent[],
+): void => {
+  transitionPhase(state as GameState & { phase: Phase }, 'gameOver' as never);
+  state.outcome = { winner, reason };
+  engineEvents?.push({
+    type: 'gameOver',
+    winner,
+    reason,
+  });
+};
+
 // Phase + player validation for engine entry points.
 // Returns an error string if the action is not allowed,
 // or null if validation passes.
@@ -354,8 +383,7 @@ export const applyDisconnectForfeit = (
 ): { state: GameState; events: EngineEvent[] } => {
   const winner = (disconnectedPlayer === 0 ? 1 : 0) as PlayerId;
   const reason = 'Opponent disconnected';
-  transitionPhase(state as GameState & { phase: Phase }, 'gameOver' as never);
-  state.outcome = { winner, reason };
+  setGameOutcome(state, winner, reason);
   return {
     state,
     events: [{ type: 'gameOver' as const, winner, reason }],

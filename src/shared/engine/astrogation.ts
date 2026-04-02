@@ -17,6 +17,7 @@ import {
   engineFailure,
   getNextOrdnanceId,
   isOrderableShip,
+  transitionPhaseWithEvent,
   validateOrdnanceLaunch,
   validatePhaseAction,
 } from './util';
@@ -163,13 +164,7 @@ export const processAstrogation = (
   }
 
   if (shouldEnterOrdnancePhase(state)) {
-    state.phase = 'ordnance';
-    engineEvents.push({
-      type: 'phaseChanged',
-      phase: 'ordnance',
-      turn: state.turnNumber,
-      activePlayer: state.activePlayer,
-    });
+    transitionPhaseWithEvent(state, 'ordnance', engineEvents);
     return { state, engineEvents };
   }
 

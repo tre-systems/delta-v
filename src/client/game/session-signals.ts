@@ -3,7 +3,8 @@ import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { ReadonlySignal } from '../reactive';
 import { createDisposalScope, type Dispose, effect } from '../reactive';
 import { deriveHudViewModel } from './helpers';
-import type { InteractionState } from './interaction-fsm';
+import { deriveInteractionMode } from './interaction-fsm';
+import type { ClientState } from './phase';
 import { getSelectedShip } from './selection';
 import type { ClientSession } from './session-model';
 
@@ -47,7 +48,7 @@ type SessionGameStateRenderer = {
 };
 
 type SessionInteractionUI = {
-  bindInteractionSignal: (signal: ReadonlySignal<InteractionState>) => void;
+  bindClientStateSignal: (signal: ReadonlySignal<ClientState>) => void;
 };
 
 type MainSessionEffectsDeps = {
@@ -111,11 +112,12 @@ export const attachSessionPlanningSelectionEffect = (
  * instead of imperative updates from combat action code.
  */
 export const attachSessionCombatButtonsEffect = (
-  session: Pick<ClientSession, 'interactionSignal' | 'planningState'>,
+  session: Pick<ClientSession, 'stateSignal' | 'planningState'>,
   ui: SessionCombatButtonsUI,
 ): Dispose =>
   effect(() => {
-    const isCombatMode = session.interactionSignal.value.mode === 'combat';
+    const isCombatMode =
+      deriveInteractionMode(session.stateSignal.value) === 'combat';
     session.planningState.revisionSignal?.value;
 
     ui.showAttackButton(false);
@@ -161,19 +163,15 @@ export const attachSessionPlayerIdentityEffect = (
 
 /** Keeps the waiting screen copy aligned with reactive session connection state. */
 export const attachSessionWaitingScreenEffect = (
-  session: Pick<
-    ClientSession,
-    'interactionSignal' | 'stateSignal' | 'gameCodeSignal'
-  >,
+  session: Pick<ClientSession, 'stateSignal' | 'gameCodeSignal'>,
   ui: SessionWaitingScreenUI,
 ): Dispose =>
   effect(() => {
-    const mode = session.interactionSignal.value.mode;
     const state = session.stateSignal.value;
     const gameCode = session.gameCodeSignal.value;
 
     ui.setWaitingState(
-      mode === 'waiting' ? gameCode : null,
+      deriveInteractionMode(state) === 'waiting' ? gameCode : null,
       state === 'connecting',
     );
   });
@@ -258,7 +256,7 @@ export const attachMainSessionEffects = (
   scope.add(attachSessionLatencyEffect(session, deps.ui));
   scope.add(attachSessionLogisticsPanelEffect(session, deps.logistics));
   scope.add(attachRendererGameStateEffect(session, deps.renderer));
-  deps.ui.bindInteractionSignal(session.interactionSignal);
+  deps.ui.bindClientStateSignal(session.stateSignal);
 
   return () => scope.dispose();
 };

@@ -39,9 +39,9 @@ export type Phase =
 //                                   │                              │
 //                                   ├──► ordnance ──┐              │
 //                                   │               ▼              │
-//                                   ├──► logistics ──► combat ──► advanceTurn
-//                                   │               ▲
-//                                   └──► combat ────┘
+//                                   ├────────────► combat ──► logistics ──► advanceTurn
+//                                   │
+//                                   └────────────► logistics
 //
 // Any in-game phase ──► gameOver
 export const PHASE_TRANSITIONS: Readonly<Record<Phase, readonly Phase[]>> = {
@@ -49,8 +49,8 @@ export const PHASE_TRANSITIONS: Readonly<Record<Phase, readonly Phase[]>> = {
   fleetBuilding: ['astrogation', 'gameOver'],
   astrogation: ['ordnance', 'logistics', 'combat', 'astrogation', 'gameOver'],
   ordnance: ['logistics', 'combat', 'astrogation', 'gameOver'],
-  logistics: ['combat', 'astrogation', 'gameOver'],
-  combat: ['astrogation', 'gameOver'],
+  logistics: ['astrogation', 'gameOver'],
+  combat: ['logistics', 'astrogation', 'gameOver'],
   gameOver: [],
 } as const;
 

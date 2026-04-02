@@ -33,6 +33,7 @@ import {
   getOwnedPlanetaryBases,
   hasAnyEnemyShips,
   isPlanetaryDefenseEnabled,
+  transitionPhaseWithEvent,
   validatePhaseAction,
 } from './util';
 import { advanceTurn, applyEscapeMoralVictory, checkGameEnd } from './victory';
@@ -44,13 +45,7 @@ const advanceAfterCombat = (
   engineEvents: EngineEvent[],
 ): void => {
   if (shouldEnterLogisticsPhase(state)) {
-    state.phase = 'logistics';
-    engineEvents.push({
-      type: 'phaseChanged',
-      phase: 'logistics',
-      turn: state.turnNumber,
-      activePlayer: state.activePlayer,
-    });
+    transitionPhaseWithEvent(state, 'logistics', engineEvents);
   } else {
     advanceTurn(state, engineEvents);
   }

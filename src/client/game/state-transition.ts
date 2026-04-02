@@ -1,8 +1,6 @@
 import { must } from '../../shared/assert';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { batch } from '../reactive';
-import type { InteractionEvent } from './interaction-fsm';
-import { applyInteractionEvent } from './interaction-fsm';
 import { createLogisticsStore } from './logistics-ui';
 import type { ClientState } from './phase';
 import { deriveClientStateEntryPlan } from './phase-entry';
@@ -42,32 +40,6 @@ export interface StateTransitionDeps {
   autoSkipCombatIfNoTargets: () => void;
 }
 
-const deriveInteractionEvent = (state: ClientState): InteractionEvent => {
-  switch (state) {
-    case 'menu':
-      return { type: 'ENTER_MENU' };
-    case 'connecting':
-    case 'waitingForOpponent':
-      return { type: 'ENTER_WAITING' };
-    case 'playing_fleetBuilding':
-      return { type: 'ENTER_FLEETBUILDING' };
-    case 'playing_astrogation':
-      return { type: 'ENTER_ASTROGATION' };
-    case 'playing_ordnance':
-      return { type: 'ENTER_ORDNANCE' };
-    case 'playing_logistics':
-      return { type: 'ENTER_LOGISTICS' };
-    case 'playing_combat':
-      return { type: 'ENTER_COMBAT' };
-    case 'playing_movementAnim':
-      return { type: 'ENTER_ANIMATING' };
-    case 'playing_opponentTurn':
-      return { type: 'ENTER_OPPONENT_TURN' };
-    case 'gameOver':
-      return { type: 'ENTER_GAME_OVER' };
-  }
-};
-
 export const applyClientStateTransition = (
   deps: StateTransitionDeps,
   newState: ClientState,
@@ -75,13 +47,6 @@ export const applyClientStateTransition = (
   batch(() => {
     const prevState = deps.ctx.state;
     deps.ctx.state = newState;
-
-    const interactionEvent = deriveInteractionEvent(newState);
-    const prevInteraction = deps.ctx.interactionState;
-    deps.ctx.interactionState = applyInteractionEvent(
-      prevInteraction,
-      interactionEvent,
-    );
 
     deps.onStateChanged(prevState, newState);
     deps.hideTooltip();

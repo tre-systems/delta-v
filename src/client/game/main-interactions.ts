@@ -12,6 +12,7 @@ import {
 } from './command-router';
 import { type GameCommand, keyboardActionToCommand } from './commands';
 import { type InputEvent, interpretInput } from './input-events';
+import { deriveInteractionMode } from './interaction-fsm';
 import type { KeyboardAction } from './keyboard';
 import {
   beginJoinGameFromMain,
@@ -27,7 +28,6 @@ import { resolveUIEventPlan } from './ui-event-router';
 type MainInteractionSession = Pick<
   ClientSession,
   | 'gameStateSignal'
-  | 'interactionSignal'
   | 'isLocalGame'
   | 'logisticsStateSignal'
   | 'planningState'
@@ -154,7 +154,7 @@ export const createMainInteractionController = (
   };
 
   const handleInput = (event: InputEvent) => {
-    const interactionMode = deps.ctx.interactionSignal.peek().mode;
+    const interactionMode = deriveInteractionMode(deps.ctx.stateSignal.peek());
     if (interactionMode === 'animating') {
       return;
     }
