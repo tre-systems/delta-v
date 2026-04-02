@@ -93,7 +93,6 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const skipShipBtn = byId('skipShipBtn');
   const confirmBtn = byId('confirmBtn');
   const landFromOrbitBtn = byId<HTMLButtonElement>('landFromOrbitBtn');
-  const matchVelocityBtn = byId<HTMLButtonElement>('matchVelocityBtn');
   const launchMineBtn = byId<HTMLButtonElement>('launchMineBtn');
   const launchTorpedoBtn = byId<HTMLButtonElement>('launchTorpedoBtn');
   const launchNukeBtn = byId<HTMLButtonElement>('launchNukeBtn');
@@ -255,15 +254,6 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       )
         ? 'LANDING'
         : 'LAND';
-
-      visible(
-        matchVelocityBtn,
-        !hideActions && hudView.matchVelocity.visible,
-        'inline-block',
-      );
-      matchVelocityBtn.disabled = hudView.matchVelocity.disabled;
-      matchVelocityBtn.style.opacity = hudView.matchVelocity.opacity;
-      matchVelocityBtn.title = hudView.matchVelocity.title;
 
       visible(
         launchMineBtn,

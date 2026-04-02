@@ -501,27 +501,19 @@ fleet launch all work correctly.
 
 1. Manoeuvre your tanker and frigate to the same
    hex with matching velocity.
-2. While a friendly ship is nearby during
-   astrogation, select your ship and verify the
-   **MATCH VEL** button appears when a reachable
-   velocity match exists.
-3. Click **MATCH VEL** and verify the selected
-   ship receives a burn plan that matches the
-   nearby friendly ship's velocity.
-4. The logistics phase should appear after movement.
-5. The transfer panel shows fuel transfer options
+2. The logistics phase should appear after movement.
+3. The transfer panel shows fuel transfer options
    between the two ships.
-6. Transfer fuel from the tanker to the frigate.
-7. Confirm — fuel values update for both ships.
-8. Verify **torch ships** cannot transfer fuel to
+4. Transfer fuel from the tanker to the frigate.
+5. Confirm — fuel values update for both ships.
+6. Verify **torch ships** cannot transfer fuel to
    other ships (Interplanetary War scenario if
    a torch is purchased).
-9. Verify the logistics phase is **skipped** in
+7. Verify the logistics phase is **skipped** in
    scenarios without `logisticsEnabled` (e.g.
    Bi-Planetary, Duel).
 
-**Pass:** The velocity helper appears when useful,
-fuel transfers work between matched ships, torch
+**Pass:** Fuel transfers work between matched ships, torch
 restriction is enforced, and the phase skips when
 disabled.
 

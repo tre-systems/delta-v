@@ -16,7 +16,6 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { count } from '../../shared/util';
-import { findMatchVelocityPlan } from './match-velocity';
 import { getSelectedShip } from './selection';
 import type {
   HudViewModel,
@@ -144,30 +143,6 @@ const getOrdnanceActionState = (
   };
 };
 
-const getMatchVelocityState = (
-  state: GameState,
-  playerId: PlayerId,
-  selectedShipId: string | null,
-): OrdnanceActionState => {
-  const matchVelocityPlan = findMatchVelocityPlan(
-    state,
-    playerId,
-    selectedShipId,
-  );
-
-  return matchVelocityPlan
-    ? {
-        visible: true,
-        disabled: false,
-        title: `Match velocity with ${matchVelocityPlan.targetShipId}`,
-      }
-    : {
-        visible: false,
-        disabled: true,
-        title: '',
-      };
-};
-
 export const buildAstrogationOrders = (
   state: GameState,
   playerId: PlayerId,
@@ -228,11 +203,6 @@ export const deriveHudViewModel = (
     cargoMax: stats?.cargo ?? 0,
     objective: getObjective(state, playerId),
     canOverload: stats?.canOverload ?? false,
-    matchVelocityState: getMatchVelocityState(
-      state,
-      playerId,
-      selectedShip?.id ?? null,
-    ),
     canEmplaceBase:
       selectedShip?.baseStatus === 'carryingBase' &&
       selectedShip.lifecycle !== 'destroyed' &&

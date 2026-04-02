@@ -29,7 +29,6 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   cargoMax: 0,
   objective: '',
   objectiveBearingDeg: null,
-  matchVelocityState: defaultLaunchState,
   canEmplaceBase: false,
   launchMineState: defaultLaunchState,
   launchTorpedoState: defaultLaunchState,
@@ -72,31 +71,7 @@ describe('ui hud helpers', () => {
       statusText: 'Set burn or skip ship (S)',
       undoVisible: true,
       confirmVisible: false,
-      matchVelocity: {
-        visible: false,
-      },
       skipCombatVisible: false,
-    });
-  });
-
-  it('shows the match velocity helper during astrogation when available', () => {
-    expect(
-      buildHUDView(
-        buildInput({
-          matchVelocityState: {
-            visible: true,
-            disabled: false,
-            title: 'Match velocity with escort',
-          },
-        }),
-      ),
-    ).toMatchObject({
-      matchVelocity: {
-        visible: true,
-        disabled: false,
-        opacity: '1',
-        title: 'Match velocity with escort',
-      },
     });
   });
 
