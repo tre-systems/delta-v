@@ -51,9 +51,10 @@ export const setBurnDirection = (
     plan.nextBurn,
     plan.clearOverload,
   );
+  deps.planningState.acknowledgeShip(plan.shipId);
   playSelect();
 
-  // Auto-advance to the next ship in rotation that still needs a burn
+  // Auto-advance to the next ship in rotation that still needs acknowledgment
   const gameState = deps.getGameState();
 
   if (gameState) {
@@ -67,7 +68,38 @@ export const setBurnDirection = (
       const next = orderable[(currentIdx + offset) % orderable.length];
 
       if (
-        !deps.planningState.burns.has(next.id) &&
+        !deps.planningState.acknowledgedShips.has(next.id) &&
+        next.damage.disabledTurns === 0
+      ) {
+        deps.planningState.selectShip(next.id);
+        return;
+      }
+    }
+  }
+};
+
+// Acknowledge the current ship without setting a burn (it will drift).
+// Auto-advances to the next unacknowledged ship.
+export const skipShipBurn = (deps: AstrogationActionDeps) => {
+  if (!deps.getGameState() || deps.getClientState() !== 'playing_astrogation')
+    return;
+  const shipId = deps.planningState.selectedShipId;
+  if (!shipId) return;
+
+  deps.planningState.acknowledgeShip(shipId);
+
+  const gameState = deps.getGameState();
+  if (gameState) {
+    const orderable = getOrderableShipsForPlayer(
+      gameState,
+      deps.getPlayerId() as PlayerId,
+    );
+    const currentIdx = orderable.findIndex((s) => s.id === shipId);
+
+    for (let offset = 1; offset < orderable.length; offset++) {
+      const next = orderable[(currentIdx + offset) % orderable.length];
+      if (
+        !deps.planningState.acknowledgedShips.has(next.id) &&
         next.damage.disabledTurns === 0
       ) {
         deps.planningState.selectShip(next.id);

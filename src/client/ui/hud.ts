@@ -43,7 +43,7 @@ export interface AstrogationContext {
   selectedShipHasBurn: boolean;
   selectedShipInOrbit?: boolean;
   selectedShipLandingSet?: boolean;
-  allShipsHaveBurns: boolean;
+  allShipsAcknowledged: boolean;
   multipleShipsAlive: boolean;
   hasSelection: boolean;
   anyCrashed?: boolean;
@@ -73,16 +73,16 @@ const getAstrogationStatusText = (
     return `Warning: course crashes into ${body}!`;
   }
 
-  if (ctx.allShipsHaveBurns && ctx.multipleShipsAlive) {
+  if (ctx.allShipsAcknowledged && ctx.multipleShipsAlive) {
     return isMobile
-      ? 'All burns set \u00b7 Confirm'
-      : 'All burns set \u00b7 Confirm (Enter)';
+      ? 'All ships set \u00b7 Confirm'
+      : 'All ships set \u00b7 Confirm (Enter)';
   }
 
   if (ctx.selectedShipHasBurn && ctx.multipleShipsAlive) {
     return isMobile
-      ? 'Burn set \u00b7 Select another ship or Confirm'
-      : 'Burn set \u00b7 Select another ship or Confirm (Enter)';
+      ? 'Burn set \u00b7 Select another ship'
+      : 'Burn set \u00b7 Select another ship';
   }
 
   if (ctx.selectedShipHasBurn) {
@@ -91,21 +91,30 @@ const getAstrogationStatusText = (
       : 'Burn set \u00b7 Confirm (Enter)';
   }
 
-  return isMobile
-    ? 'Tap adjacent hex to set burn direction'
-    : 'Click adjacent hex to set burn direction';
+  return isMobile ? 'Set burn or skip (S)' : 'Set burn or skip ship (S)';
 };
 
 const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
-  const { launchMineState, launchTorpedoState, launchNukeState, cargoMax } =
-    input;
+  const {
+    launchMineState,
+    launchTorpedoState,
+    launchNukeState,
+    cargoMax,
+    allOrdnanceShipsAcknowledged,
+  } = input;
+
+  if (allOrdnanceShipsAcknowledged) {
+    return isMobile
+      ? 'All ships set \u00b7 Confirm'
+      : 'All ships set \u00b7 Confirm (Enter)';
+  }
 
   const hasSelection = cargoMax > 0;
 
   if (!hasSelection) {
     return isMobile
       ? 'Select a ship to launch ordnance'
-      : 'Select a ship to launch ordnance, or skip (Enter)';
+      : 'Select a ship to launch ordnance';
   }
 
   const available: string[] = [];
@@ -118,7 +127,6 @@ const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
     available.push(isMobile ? 'Nuke' : 'Nuke (K)');
 
   if (available.length === 0) {
-    // Ship is selected but can't launch anything — find the reason
     const reason =
       launchMineState.title ||
       launchTorpedoState.title ||
@@ -126,13 +134,13 @@ const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
     const hint = reason ? ` \u2014 ${reason.toLowerCase()}` : '';
 
     return isMobile
-      ? `Cannot launch${hint}`
-      : `Cannot launch${hint} \u00b7 skip (Enter)`;
+      ? `Cannot launch${hint} \u00b7 skip (S)`
+      : `Cannot launch${hint} \u00b7 skip ship (S)`;
   }
 
   return isMobile
-    ? `Launch ${available.join(', ')} or skip`
-    : `Launch ${available.join(', ')} \u00b7 skip (Enter)`;
+    ? `Launch ${available.join(', ')} or skip (S)`
+    : `Launch ${available.join(', ')} \u00b7 skip ship (S)`;
 };
 
 export interface HUDInput {
@@ -152,6 +160,7 @@ export interface HUDInput {
   launchMineState: HUDActionState;
   launchTorpedoState: HUDActionState;
   launchNukeState: HUDActionState;
+  allOrdnanceShipsAcknowledged: boolean;
   astrogationCtx: AstrogationContext;
   speed: number;
   fuelToStop: number;
@@ -227,7 +236,10 @@ export const buildHUDView = (input: HUDInput): HUDView => {
                 : 'Transfer fuel/cargo or skip (Enter)'
               : null,
     undoVisible: isMyTurn && phase === 'astrogation' && hasBurns,
-    confirmVisible: isMyTurn && phase === 'astrogation',
+    confirmVisible:
+      isMyTurn &&
+      phase === 'astrogation' &&
+      astrogationCtx.allShipsAcknowledged,
     landFromOrbit:
       isMyTurn && phase === 'astrogation' && astrogationCtx.selectedShipInOrbit
         ? {
@@ -278,7 +290,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
       : createHiddenButton(),
 
     emplaceBaseVisible: showOrdnance && canEmplaceBase,
-    skipOrdnanceVisible: showOrdnance,
+    skipOrdnanceVisible: showOrdnance && input.allOrdnanceShipsAcknowledged,
     skipCombatVisible: false,
     skipLogisticsVisible: isMyTurn && phase === 'logistics',
     confirmTransfersVisible: isMyTurn && phase === 'logistics',

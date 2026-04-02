@@ -136,6 +136,9 @@ describe('Renderer static scene cache (mocked scene)', () => {
       targetType: 'ship' | 'ordnance';
       attackStrength: number | null;
     }[],
+    acknowledgedShips: new Set<string>(),
+    queuedOrdnanceLaunches: [] as never[],
+    acknowledgedOrdnanceShips: new Set<string>(),
     hoverHex: null as { q: number; r: number } | null,
     lastSelectedHex: null as string | null,
     baseEmplacements: [] as string[],

@@ -13,7 +13,7 @@ const defaultCtx: AstrogationContext = {
   selectedShipLanded: false,
   selectedShipDisabled: false,
   selectedShipHasBurn: false,
-  allShipsHaveBurns: false,
+  allShipsAcknowledged: false,
   multipleShipsAlive: false,
   hasSelection: true,
 };
@@ -34,6 +34,7 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   launchMineState: defaultLaunchState,
   launchTorpedoState: defaultLaunchState,
   launchNukeState: defaultLaunchState,
+  allOrdnanceShipsAcknowledged: false,
   astrogationCtx: defaultCtx,
   speed: 0,
   fuelToStop: 0,
@@ -66,9 +67,9 @@ describe('ui hud helpers', () => {
       turnText: 'Turn 3',
       phaseText: 'ASTROGATION',
       fuelGaugeText: 'Fuel: 8/10',
-      statusText: 'Click adjacent hex to set burn direction',
+      statusText: 'Set burn or skip ship (S)',
       undoVisible: true,
-      confirmVisible: true,
+      confirmVisible: false,
       matchVelocity: {
         visible: false,
       },
@@ -129,9 +130,9 @@ describe('ui hud helpers', () => {
       phaseText: 'ORDNANCE',
       objectiveText: 'Hold Mars',
       fuelGaugeText: 'Cargo: 10/20',
-      statusText: 'Launch Mine (N) \u00b7 skip (Enter)',
+      statusText: 'Launch Mine (N) \u00b7 skip ship (S)',
       emplaceBaseVisible: true,
-      skipOrdnanceVisible: true,
+      skipOrdnanceVisible: false,
     });
 
     expect(view.launchMine).toMatchObject({
@@ -245,13 +246,13 @@ describe('ui hud helpers', () => {
           astrogationCtx: {
             ...defaultCtx,
             selectedShipHasBurn: true,
-            allShipsHaveBurns: true,
+            allShipsAcknowledged: true,
             multipleShipsAlive: true,
           },
         }),
       ),
     ).toMatchObject({
-      statusText: 'All burns set · Confirm (Enter)',
+      statusText: 'All ships set · Confirm (Enter)',
     });
   });
 
@@ -263,7 +264,7 @@ describe('ui hud helpers', () => {
           astrogationCtx: {
             ...defaultCtx,
             selectedShipHasBurn: true,
-            allShipsHaveBurns: true,
+            allShipsAcknowledged: true,
             multipleShipsAlive: false,
           },
         }),
@@ -281,7 +282,7 @@ describe('ui hud helpers', () => {
           astrogationCtx: {
             ...defaultCtx,
             selectedShipHasBurn: true,
-            allShipsHaveBurns: true,
+            allShipsAcknowledged: true,
             anyCrashed: true,
             crashBody: 'Mercury',
           },
@@ -323,7 +324,7 @@ describe('ui hud helpers', () => {
       astrogationCtx: {
         ...defaultCtx,
         selectedShipHasBurn: true,
-        allShipsHaveBurns: true,
+        allShipsAcknowledged: true,
       },
     });
 
@@ -365,6 +366,6 @@ describe('ui hud helpers', () => {
           hasBurns: true,
         }),
       ).statusText,
-    ).toBe('Tap adjacent hex to set burn direction');
+    ).toBe('Set burn or skip (S)');
   });
 });

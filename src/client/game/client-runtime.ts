@@ -64,6 +64,7 @@ export const setupClientRuntime = ({
     tooltipEl,
     getState: () => ctx.state,
     hasGameState: () => !!ctx.gameState,
+    getGameState: () => ctx.gameState,
     getPlanningState: (): PlanningState => ctx.planningState,
     updateTooltip,
     onKeyboardAction,

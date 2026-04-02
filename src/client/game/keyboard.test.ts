@@ -13,6 +13,9 @@ const createContext = (
     combatTargetId: null,
     queuedAttackCount: 0,
     torpedoAccelActive: false,
+    allShipsAcknowledged: false,
+    allOrdnanceShipsAcknowledged: false,
+    hasSelectedShip: false,
     ...overrides,
   };
 };
@@ -86,14 +89,30 @@ describe('game-client-keyboard', () => {
     expect(
       actionFor('Enter', {
         state: 'playing_astrogation',
+        allShipsAcknowledged: true,
       }),
     ).toEqual({
       kind: 'confirmOrders',
       preventDefault: true,
     });
 
-    expect(actionFor(' ', { state: 'playing_ordnance' })).toEqual({
-      kind: 'skipOrdnance',
+    expect(
+      actionFor('Enter', {
+        state: 'playing_astrogation',
+        hasSelectedShip: true,
+      }),
+    ).toEqual({
+      kind: 'skipShipBurn',
+      preventDefault: true,
+    });
+
+    expect(
+      actionFor(' ', {
+        state: 'playing_ordnance',
+        allOrdnanceShipsAcknowledged: true,
+      }),
+    ).toEqual({
+      kind: 'confirmOrdnance',
       preventDefault: true,
     });
 
