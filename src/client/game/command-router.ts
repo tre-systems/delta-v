@@ -10,7 +10,6 @@ import {
   type AstrogationActionDeps,
   clearSelectedBurn,
   confirmOrders,
-  matchVelocityWithNearbyFriendly,
   setBurnDirection,
   skipShipBurn,
   undoSelectedShipBurn,
@@ -189,8 +188,6 @@ type PartialCommandHandlerMap<T extends CommandType> = {
 const astrogationHandlers = {
   confirmOrders: (deps) => confirmOrders(deps.astrogationDeps),
   undoBurn: (deps) => undoSelectedShipBurn(deps.astrogationDeps),
-  matchVelocity: (deps) =>
-    matchVelocityWithNearbyFriendly(deps.astrogationDeps),
   landFromOrbit: (deps) => {
     const shipId = deps.ctx.planningState.selectedShipId;
     if (!shipId) return;
@@ -217,7 +214,6 @@ const astrogationHandlers = {
 } satisfies PartialCommandHandlerMap<
   | 'confirmOrders'
   | 'undoBurn'
-  | 'matchVelocity'
   | 'landFromOrbit'
   | 'setBurnDirection'
   | 'setOverloadDirection'

@@ -44,11 +44,6 @@ const buildInput = (
   cargoMax: 8,
   objective: 'Hold Mars',
   objectiveBearingDeg: null,
-  matchVelocityState: {
-    visible: true,
-    disabled: false,
-    title: 'Match velocity with escort',
-  },
   canEmplaceBase: false,
   launchMineState: {
     visible: true,
@@ -115,10 +110,6 @@ describe('HUDChromeView', () => {
     expect(
       (document.getElementById('confirmBtn') as HTMLElement).style.display,
     ).toBe('none');
-    expect(
-      (document.getElementById('matchVelocityBtn') as HTMLElement).style
-        .display,
-    ).toBe('inline-block');
     // Phase alerts are no longer shown — HUD top bar is sufficient
     expect(showPhaseAlert).not.toHaveBeenCalled();
     expect(queueLayoutSync).toHaveBeenCalledTimes(1);

@@ -19,7 +19,6 @@ export const buildHudChromeInputFromViewModel = (
   cargoMax: hud.cargoMax,
   objective: hud.objective,
   objectiveBearingDeg,
-  matchVelocityState: hud.matchVelocityState,
   canEmplaceBase: hud.canEmplaceBase,
   launchMineState: hud.launchMineState,
   launchTorpedoState: hud.launchTorpedoState,

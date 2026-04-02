@@ -11,7 +11,6 @@ export type UIEvent =
   | { type: 'undo' }
   | { type: 'skipShip' }
   | { type: 'confirm' }
-  | { type: 'matchVelocity' }
   | { type: 'landFromOrbit' }
   | { type: 'launchOrdnance'; ordType: OrdnanceType }
   | { type: 'emplaceBase' }
