@@ -20,6 +20,21 @@ export interface ClientStateEntryPlan {
   tutorialPhase: 'astrogation' | 'ordnance' | 'combat' | null;
 }
 
+interface ClientStateEntryRule {
+  stopTurnTimer?: boolean;
+  startTurnTimer?: boolean | ((isLocalGame: boolean) => boolean);
+  hideTutorial?: boolean;
+  resetCamera?: boolean;
+  frameOnShips?: boolean;
+  planningPhase?: PlanningPhase;
+  deriveSelectedShipId?: (
+    gameState: GameState | null,
+    playerId: PlayerId | -1,
+  ) => string | null;
+  autoSkipCombatIfNoTargets?: boolean;
+  tutorialPhase?: PlanningPhase;
+}
+
 const getFirstActionableShipId = (
   gameState: GameState | null,
   playerId: PlayerId | -1,
@@ -35,136 +50,109 @@ const getFirstActionableShipId = (
   return actionable?.id ?? null;
 };
 
+const getFirstLaunchableShipIdForEntry = (
+  gameState: GameState | null,
+  playerId: PlayerId | -1,
+): string | null => {
+  if (playerId < 0) return null;
+  return getFirstLaunchableShipId(
+    gameState ?? {
+      ships: [],
+      scenarioRules: {},
+      pendingAstrogationOrders: null,
+    },
+    playerId as PlayerId,
+  );
+};
+
+const DEFAULT_ENTRY_PLAN: Omit<
+  ClientStateEntryPlan,
+  'planningPhaseEntry' | 'tutorialPhase'
+> = {
+  stopTurnTimer: false,
+  startTurnTimer: false,
+  hideTutorial: false,
+  resetCamera: false,
+  frameOnShips: false,
+  autoSkipCombatIfNoTargets: false,
+};
+
+const startRemoteTurnTimer = (isLocalGame: boolean): boolean => !isLocalGame;
+
+const CLIENT_STATE_ENTRY_RULES: Record<ClientState, ClientStateEntryRule> = {
+  menu: {
+    hideTutorial: true,
+    resetCamera: true,
+  },
+  connecting: {},
+  waitingForOpponent: {},
+  playing_fleetBuilding: {},
+  playing_astrogation: {
+    startTurnTimer: startRemoteTurnTimer,
+    frameOnShips: true,
+    planningPhase: 'astrogation',
+    deriveSelectedShipId: getFirstActionableShipId,
+    tutorialPhase: 'astrogation',
+  },
+  playing_ordnance: {
+    startTurnTimer: startRemoteTurnTimer,
+    planningPhase: 'ordnance',
+    deriveSelectedShipId: getFirstLaunchableShipIdForEntry,
+    tutorialPhase: 'ordnance',
+  },
+  playing_logistics: {
+    startTurnTimer: startRemoteTurnTimer,
+    hideTutorial: true,
+  },
+  playing_combat: {
+    startTurnTimer: startRemoteTurnTimer,
+    planningPhase: 'combat',
+    deriveSelectedShipId: getFirstActionableShipId,
+    autoSkipCombatIfNoTargets: true,
+    tutorialPhase: 'combat',
+  },
+  playing_movementAnim: {
+    stopTurnTimer: true,
+    hideTutorial: true,
+  },
+  playing_opponentTurn: {
+    stopTurnTimer: true,
+    frameOnShips: true,
+  },
+  gameOver: {
+    stopTurnTimer: true,
+    hideTutorial: true,
+  },
+};
+
 export const deriveClientStateEntryPlan = (
   state: ClientState,
   gameState: GameState | null,
   playerId: PlayerId | -1,
   isLocalGame = false,
 ): ClientStateEntryPlan => {
-  switch (state) {
-    case 'menu':
-      return {
-        stopTurnTimer: false,
-        startTurnTimer: false,
-        hideTutorial: true,
-        resetCamera: true,
+  const rule = CLIENT_STATE_ENTRY_RULES[state];
+  const startTurnTimer =
+    typeof rule.startTurnTimer === 'function'
+      ? rule.startTurnTimer(isLocalGame)
+      : (rule.startTurnTimer ?? DEFAULT_ENTRY_PLAN.startTurnTimer);
 
-        frameOnShips: false,
-        planningPhaseEntry: null,
-        autoSkipCombatIfNoTargets: false,
-        tutorialPhase: null,
-      };
-    case 'playing_astrogation':
-      return {
-        stopTurnTimer: false,
-        startTurnTimer: !isLocalGame,
-        hideTutorial: false,
-        resetCamera: false,
-
-        frameOnShips: true,
-        planningPhaseEntry: {
-          phase: 'astrogation',
-          selectedShipId: getFirstActionableShipId(gameState, playerId),
-        },
-        autoSkipCombatIfNoTargets: false,
-        tutorialPhase: gameState ? 'astrogation' : null,
-      };
-    case 'playing_ordnance':
-      return {
-        stopTurnTimer: false,
-        startTurnTimer: !isLocalGame,
-        hideTutorial: false,
-        resetCamera: false,
-
-        frameOnShips: false,
-        planningPhaseEntry: {
-          phase: 'ordnance',
-          selectedShipId: getFirstLaunchableShipId(
-            gameState ?? {
-              ships: [],
-              scenarioRules: {},
-              pendingAstrogationOrders: null,
-            },
-            playerId as PlayerId,
-          ),
-        },
-        autoSkipCombatIfNoTargets: false,
-        tutorialPhase: gameState ? 'ordnance' : null,
-      };
-    case 'playing_logistics':
-      return {
-        stopTurnTimer: false,
-        startTurnTimer: !isLocalGame,
-        hideTutorial: true,
-        resetCamera: false,
-
-        frameOnShips: false,
-        planningPhaseEntry: null,
-        autoSkipCombatIfNoTargets: false,
-        tutorialPhase: null,
-      };
-    case 'playing_combat':
-      return {
-        stopTurnTimer: false,
-        startTurnTimer: !isLocalGame,
-        hideTutorial: false,
-        resetCamera: false,
-
-        frameOnShips: false,
-        planningPhaseEntry: {
-          phase: 'combat',
-          selectedShipId: getFirstActionableShipId(gameState, playerId),
-        },
-        autoSkipCombatIfNoTargets: true,
-        tutorialPhase: gameState ? 'combat' : null,
-      };
-    case 'playing_movementAnim':
-      return {
-        stopTurnTimer: true,
-        startTurnTimer: false,
-        hideTutorial: true,
-        resetCamera: false,
-
-        frameOnShips: false,
-        planningPhaseEntry: null,
-        autoSkipCombatIfNoTargets: false,
-        tutorialPhase: null,
-      };
-    case 'playing_opponentTurn':
-      return {
-        stopTurnTimer: true,
-        startTurnTimer: false,
-        hideTutorial: false,
-        resetCamera: false,
-
-        frameOnShips: true,
-        planningPhaseEntry: null,
-        autoSkipCombatIfNoTargets: false,
-        tutorialPhase: null,
-      };
-    case 'gameOver':
-      return {
-        stopTurnTimer: true,
-        startTurnTimer: false,
-        hideTutorial: true,
-        resetCamera: false,
-
-        frameOnShips: false,
-        planningPhaseEntry: null,
-        autoSkipCombatIfNoTargets: false,
-        tutorialPhase: null,
-      };
-    default:
-      return {
-        stopTurnTimer: false,
-        startTurnTimer: false,
-        hideTutorial: false,
-        resetCamera: false,
-
-        frameOnShips: false,
-        planningPhaseEntry: null,
-        autoSkipCombatIfNoTargets: false,
-        tutorialPhase: null,
-      };
-  }
+  return {
+    stopTurnTimer: rule.stopTurnTimer ?? DEFAULT_ENTRY_PLAN.stopTurnTimer,
+    startTurnTimer,
+    hideTutorial: rule.hideTutorial ?? DEFAULT_ENTRY_PLAN.hideTutorial,
+    resetCamera: rule.resetCamera ?? DEFAULT_ENTRY_PLAN.resetCamera,
+    frameOnShips: rule.frameOnShips ?? DEFAULT_ENTRY_PLAN.frameOnShips,
+    planningPhaseEntry: rule.planningPhase
+      ? {
+          phase: rule.planningPhase,
+          selectedShipId:
+            rule.deriveSelectedShipId?.(gameState, playerId) ?? null,
+        }
+      : null,
+    autoSkipCombatIfNoTargets:
+      rule.autoSkipCombatIfNoTargets ??
+      DEFAULT_ENTRY_PLAN.autoSkipCombatIfNoTargets,
+    tutorialPhase: rule.tutorialPhase && gameState ? rule.tutorialPhase : null,
+  };
 };

@@ -735,6 +735,32 @@ describe('/create rate limiting', () => {
     expect(response.status).toBe(429);
     expect(response.headers.get('Retry-After')).toBe('60');
   });
+
+  it('bypasses create rate limiting for loopback requests', async () => {
+    const limiter = {
+      limit: vi.fn(async () => ({ success: false })),
+    };
+    const { env } = createEnv(undefined, {
+      CREATE_RATE_LIMITER: limiter,
+    });
+
+    for (let i = 0; i < 8; i++) {
+      const response = await worker.fetch(
+        new Request('http://127.0.0.1:8787/create', {
+          method: 'POST',
+          headers: {
+            'cf-connecting-ip': '127.0.0.1',
+          },
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+
+      expect(response.status).toBe(200);
+    }
+
+    expect(limiter.limit).not.toHaveBeenCalled();
+  });
 });
 
 describe('POST /telemetry rate limiting', () => {
