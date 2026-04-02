@@ -26,6 +26,7 @@ export const buildHudChromeInputFromViewModel = (
   launchNukeState: hud.launchNukeState,
   allOrdnanceShipsAcknowledged: hud.allOrdnanceShipsAcknowledged,
   queuedOrdnanceType: hud.queuedOrdnanceType,
+  queuedLaunchCount: hud.queuedLaunchCount,
   speed: hud.speed,
   fuelToStop: hud.fuelToStop,
   statusOverrideText:
