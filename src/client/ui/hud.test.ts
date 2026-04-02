@@ -36,6 +36,7 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   launchNukeState: defaultLaunchState,
   allOrdnanceShipsAcknowledged: false,
   queuedOrdnanceType: null,
+  queuedLaunchCount: 0,
   astrogationCtx: defaultCtx,
   speed: 0,
   fuelToStop: 0,

@@ -112,12 +112,15 @@ const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
     launchNukeState,
     cargoMax,
     allOrdnanceShipsAcknowledged,
+    queuedLaunchCount,
   } = input;
 
   if (allOrdnanceShipsAcknowledged) {
+    const queued =
+      queuedLaunchCount > 0 ? `${queuedLaunchCount} queued` : 'None queued';
     return isMobile
-      ? 'All ships set \u00b7 Confirm'
-      : 'All ships set \u00b7 Confirm (Enter)';
+      ? `${queued} \u00b7 Confirm`
+      : `${queued} \u00b7 Confirm (Enter)`;
   }
 
   const hasSelection = cargoMax > 0;
@@ -173,6 +176,7 @@ export interface HUDInput {
   launchNukeState: HUDActionState;
   allOrdnanceShipsAcknowledged: boolean;
   queuedOrdnanceType: string | null;
+  queuedLaunchCount: number;
   astrogationCtx: AstrogationContext;
   speed: number;
   fuelToStop: number;
