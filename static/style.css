@@ -293,6 +293,27 @@ body::before {
   box-shadow: 0 0 6px rgba(255, 100, 100, 0.3);
 }
 
+.btn-skip {
+  border-color: rgba(180, 180, 200, 0.25);
+  color: rgba(180, 180, 200, 0.7);
+  background: rgba(180, 180, 200, 0.06);
+}
+
+.btn-skip:hover {
+  background: rgba(180, 180, 200, 0.14);
+  color: rgba(200, 200, 220, 0.85);
+}
+
+.btn-action {
+  border-color: rgba(79, 195, 247, 0.38);
+  color: var(--accent);
+  background: rgba(79, 195, 247, 0.08);
+}
+
+.btn-action:hover {
+  background: rgba(79, 195, 247, 0.18);
+}
+
 .divider {
   display: flex;
   align-items: center;
