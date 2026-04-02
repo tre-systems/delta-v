@@ -51,21 +51,22 @@ export const drawDisabledShipBadge = (
 
   if (!disabledLabel) return;
 
-  const iz = 1 / zoom;
   ctx.font = scaledFont('bold 11px Inter, sans-serif', zoom);
   ctx.textAlign = 'left';
-  const labelX = pos.x + 12 * iz;
-  const labelY = pos.y - 12 * iz;
+  const labelX = pos.x + 12;
+  const labelY = pos.y - 12;
   const metrics = ctx.measureText(disabledLabel);
+  const iz = 1 / zoom;
   const pad = 3 * iz;
+  const textH = 10 * iz;
 
   ctx.fillStyle = 'rgba(180, 20, 20, 0.6)';
   ctx.beginPath();
   ctx.roundRect(
     labelX - pad,
-    labelY - 8 * iz - pad,
+    labelY - textH - pad,
     metrics.width + pad * 2,
-    10 * iz + pad * 2,
+    textH + pad * 2,
     3 * iz,
   );
   ctx.fill();
@@ -91,29 +92,27 @@ export const drawIdentityMarkers = ({
 
   if (identityMarker === null) return;
 
-  const iz = 1 / zoom;
-
   switch (identityMarker) {
     case 'friendlyFugitive':
       ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
       ctx.font = scaledFont('bold 11px monospace', zoom);
       ctx.textAlign = 'center';
-      ctx.fillText('\u2605', pos.x, pos.y - 14 * iz);
+      ctx.fillText('\u2605', pos.x, pos.y - 14);
       break;
 
     case 'enemyFugitive':
       ctx.textAlign = 'center';
       ctx.fillStyle = 'rgba(255, 120, 120, 0.95)';
       ctx.font = scaledFont('bold 11px monospace', zoom);
-      ctx.fillText('\u2605', pos.x, pos.y - 14 * iz);
+      ctx.fillText('\u2605', pos.x, pos.y - 14);
       break;
 
     case 'enemyDecoy':
       ctx.textAlign = 'center';
       ctx.strokeStyle = 'rgba(220, 220, 220, 0.9)';
-      ctx.lineWidth = 1.5 * iz;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(pos.x, pos.y - 14 * iz, 4 * iz, 0, Math.PI * 2);
+      ctx.arc(pos.x, pos.y - 14, 4, 0, Math.PI * 2);
       ctx.stroke();
       break;
   }
@@ -167,15 +166,14 @@ export const drawShipLabels = ({
 
   if (!labelView) return;
 
-  const iz = 1 / zoom;
   ctx.textAlign = 'center';
   ctx.fillStyle = labelView.typeColor;
   ctx.font = scaledFont(labelView.typeFont, zoom);
-  ctx.fillText(labelView.typeName, pos.x, pos.y + labelYOffset * iz);
+  ctx.fillText(labelView.typeName, pos.x, pos.y + labelYOffset);
 
   if (labelView.statusTag && labelView.statusColor && labelView.statusFont) {
     ctx.fillStyle = labelView.statusColor;
     ctx.font = scaledFont(labelView.statusFont, zoom);
-    ctx.fillText(labelView.statusTag, pos.x, pos.y + (labelYOffset + 9) * iz);
+    ctx.fillText(labelView.statusTag, pos.x, pos.y + labelYOffset + 9);
   }
 };
