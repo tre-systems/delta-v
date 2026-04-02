@@ -2,6 +2,7 @@ import type { AIDifficulty } from '../../shared/ai';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { ReadonlySignal } from '../reactive';
 import { signal } from '../reactive';
+import type { InteractionState } from './interaction-fsm';
 import type { LogisticsStore } from './logistics-ui';
 import type { ClientState } from './phase';
 import { createPlanningStore, type PlanningStore } from './planning';
@@ -31,6 +32,8 @@ const defineReactiveSessionProperty = <T>(
 export interface ClientSession {
   state: ClientState;
   readonly stateSignal: ReadonlySignal<ClientState>;
+  interactionState: InteractionState;
+  readonly interactionSignal: ReadonlySignal<InteractionState>;
   playerId: PlayerId | -1;
   readonly playerIdSignal: ReadonlySignal<PlayerId | -1>;
   /** True while connected as a live spectator (`?viewer=spectator`). */
@@ -61,6 +64,8 @@ export const createInitialClientSession = (): ClientSession => {
     ClientSession,
     | 'state'
     | 'stateSignal'
+    | 'interactionState'
+    | 'interactionSignal'
     | 'playerId'
     | 'playerIdSignal'
     | 'gameCode'
@@ -80,6 +85,8 @@ export const createInitialClientSession = (): ClientSession => {
   > & {
     state: ClientState;
     stateSignal: ReadonlySignal<ClientState>;
+    interactionState: InteractionState;
+    interactionSignal: ReadonlySignal<InteractionState>;
     playerId: PlayerId | -1;
     playerIdSignal: ReadonlySignal<PlayerId | -1>;
     gameCode: string | null;
@@ -108,6 +115,11 @@ export const createInitialClientSession = (): ClientSession => {
   } as ClientSessionDraft;
 
   session.stateSignal = defineReactiveSessionProperty(session, 'state', 'menu');
+  session.interactionSignal = defineReactiveSessionProperty(
+    session,
+    'interactionState',
+    { mode: 'menu' },
+  );
   session.playerIdSignal = defineReactiveSessionProperty(
     session,
     'playerId',
@@ -156,6 +168,7 @@ export const createInitialClientSession = (): ClientSession => {
 export type ClientSessionMessageContext = Pick<
   ClientSession,
   | 'state'
+  | 'interactionState'
   | 'playerId'
   | 'gameCode'
   | 'reconnectAttempts'
@@ -169,6 +182,7 @@ export type ClientSessionMessageContext = Pick<
 export type ClientSessionStateTransitionContext = Pick<
   ClientSession,
   | 'state'
+  | 'interactionState'
   | 'playerId'
   | 'gameCode'
   | 'gameState'
@@ -183,6 +197,7 @@ export const stubClientSession = (
     Omit<
       ClientSession,
       | 'stateSignal'
+      | 'interactionSignal'
       | 'playerIdSignal'
       | 'gameCodeSignal'
       | 'gameStateSignal'

@@ -27,6 +27,7 @@ import { resolveUIEventPlan } from './ui-event-router';
 type MainInteractionSession = Pick<
   ClientSession,
   | 'gameStateSignal'
+  | 'interactionSignal'
   | 'isLocalGame'
   | 'logisticsStateSignal'
   | 'planningState'
@@ -153,18 +154,21 @@ export const createMainInteractionController = (
   };
 
   const handleInput = (event: InputEvent) => {
-    if (deps.ctx.stateSignal.peek() === 'playing_movementAnim') {
+    const interactionMode = deps.ctx.interactionSignal.peek().mode;
+    if (interactionMode === 'animating') {
       return;
     }
 
     const commands = interpretInput(
       event,
       deps.ctx.gameStateSignal.peek(),
+      interactionMode,
       deps.map,
       deps.ctx.playerId as PlayerId,
       deps.ctx.planningState,
     );
 
+    if (!commands) return;
     for (const cmd of commands) {
       dispatch(cmd);
     }

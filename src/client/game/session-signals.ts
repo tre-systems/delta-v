@@ -1,7 +1,9 @@
 import { hexKey } from '../../shared/hex';
 import type { GameState, PlayerId } from '../../shared/types/domain';
+import type { ReadonlySignal } from '../reactive';
 import { createDisposalScope, type Dispose, effect } from '../reactive';
 import { deriveHudViewModel } from './helpers';
+import type { InteractionState } from './interaction-fsm';
 import { getSelectedShip } from './selection';
 import type { ClientSession } from './session-model';
 
@@ -44,13 +46,18 @@ type SessionGameStateRenderer = {
   setGameState: (state: GameState | null) => void;
 };
 
+type SessionInteractionUI = {
+  bindInteractionSignal: (signal: ReadonlySignal<InteractionState>) => void;
+};
+
 type MainSessionEffectsDeps = {
   renderer: SessionIdentityConsumers['renderer'] & SessionGameStateRenderer;
   ui: SessionIdentityConsumers['ui'] &
     SessionCombatButtonsUI &
     SessionWaitingScreenUI &
     SessionLatencyUI &
-    SessionFleetPanelUI;
+    SessionFleetPanelUI &
+    SessionInteractionUI;
   hud: SessionHudConsumer;
   logistics: SessionLogisticsPanelUI;
 };
@@ -104,18 +111,18 @@ export const attachSessionPlanningSelectionEffect = (
  * instead of imperative updates from combat action code.
  */
 export const attachSessionCombatButtonsEffect = (
-  session: Pick<ClientSession, 'stateSignal' | 'planningState'>,
+  session: Pick<ClientSession, 'interactionSignal' | 'planningState'>,
   ui: SessionCombatButtonsUI,
 ): Dispose =>
   effect(() => {
-    const isPlayingCombat = session.stateSignal.value === 'playing_combat';
+    const isCombatMode = session.interactionSignal.value.mode === 'combat';
     session.planningState.revisionSignal?.value;
 
     ui.showAttackButton(false);
     const hasTarget = session.planningState.combatTargetId !== null;
     const hasSelection = session.planningState.selectedShipId !== null;
     ui.showFireButton(
-      isPlayingCombat && (hasTarget || hasSelection),
+      isCombatMode && (hasTarget || hasSelection),
       hasTarget ? 1 : 0,
     );
   });
@@ -154,15 +161,19 @@ export const attachSessionPlayerIdentityEffect = (
 
 /** Keeps the waiting screen copy aligned with reactive session connection state. */
 export const attachSessionWaitingScreenEffect = (
-  session: Pick<ClientSession, 'stateSignal' | 'gameCodeSignal'>,
+  session: Pick<
+    ClientSession,
+    'interactionSignal' | 'stateSignal' | 'gameCodeSignal'
+  >,
   ui: SessionWaitingScreenUI,
 ): Dispose =>
   effect(() => {
+    const mode = session.interactionSignal.value.mode;
     const state = session.stateSignal.value;
     const gameCode = session.gameCodeSignal.value;
 
     ui.setWaitingState(
-      state === 'waitingForOpponent' ? gameCode : null,
+      mode === 'waiting' ? gameCode : null,
       state === 'connecting',
     );
   });
@@ -247,6 +258,7 @@ export const attachMainSessionEffects = (
   scope.add(attachSessionLatencyEffect(session, deps.ui));
   scope.add(attachSessionLogisticsPanelEffect(session, deps.logistics));
   scope.add(attachRendererGameStateEffect(session, deps.renderer));
+  deps.ui.bindInteractionSignal(session.interactionSignal);
 
   return () => scope.dispose();
 };
