@@ -265,7 +265,6 @@ export const createGameClient = () => {
     tutorial,
     turnTimer,
     tooltipEl,
-    resetCombatState,
     autoSkipCombatIfNoTargets,
   });
 

@@ -72,11 +72,12 @@ describe('game-client-phase-entry', () => {
 
     expect(plan).toMatchObject({
       startTurnTimer: true,
-
-      clearAstrogationPlanning: true,
-      selectedShipId: 'ship-1',
       frameOnShips: true,
       tutorialPhase: 'astrogation',
+    });
+    expect(plan.planningPhaseEntry).toEqual({
+      phase: 'astrogation',
+      selectedShipId: 'ship-1',
     });
   });
 
@@ -96,7 +97,7 @@ describe('game-client-phase-entry', () => {
       0,
     );
 
-    expect(plan.selectedShipId).toBe('launchable');
+    expect(plan.planningPhaseEntry?.selectedShipId).toBe('launchable');
     expect(plan.tutorialPhase).toBe('ordnance');
   });
 
@@ -115,7 +116,7 @@ describe('game-client-phase-entry', () => {
       0,
     );
 
-    expect(plan.selectedShipId).toBeNull();
+    expect(plan.planningPhaseEntry?.selectedShipId).toBeNull();
   });
 
   it('auto-selects the first actionable ship when multiple alive ships exist', () => {
@@ -129,7 +130,7 @@ describe('game-client-phase-entry', () => {
       0,
     );
 
-    expect(plan.selectedShipId).toBe('ship-a');
+    expect(plan.planningPhaseEntry?.selectedShipId).toBe('ship-a');
   });
 
   it('returns first launchable ordnance selectedShipId when multiple ships exist', () => {
@@ -142,7 +143,7 @@ describe('game-client-phase-entry', () => {
       0,
     );
 
-    expect(plan.selectedShipId).toBe('ship-a');
+    expect(plan.planningPhaseEntry?.selectedShipId).toBe('ship-a');
   });
 
   it('derives combat and movement animation behaviors', () => {
@@ -152,10 +153,16 @@ describe('game-client-phase-entry', () => {
       deriveClientStateEntryPlan('playing_combat', state, 0),
     ).toMatchObject({
       startTurnTimer: true,
-
-      resetCombatState: true,
       autoSkipCombatIfNoTargets: true,
       tutorialPhase: 'combat',
+    });
+    expect(
+      deriveClientStateEntryPlan('playing_combat', state, 0),
+    ).toMatchObject({
+      planningPhaseEntry: {
+        phase: 'combat',
+        selectedShipId: 'ship-1',
+      },
     });
 
     expect(

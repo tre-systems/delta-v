@@ -1,6 +1,12 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { getFirstLaunchableShipId } from './ordnance';
 import type { ClientState } from './phase';
+import type { PlanningPhase } from './planning';
+
+export interface PlanningPhaseEntry {
+  phase: PlanningPhase;
+  selectedShipId: string | null;
+}
 
 export interface ClientStateEntryPlan {
   stopTurnTimer: boolean;
@@ -9,10 +15,7 @@ export interface ClientStateEntryPlan {
   resetCamera: boolean;
 
   frameOnShips: boolean;
-  clearAstrogationPlanning: boolean;
-  resetOrdnancePlanning: boolean;
-  selectedShipId: string | null | undefined;
-  resetCombatState: boolean;
+  planningPhaseEntry: PlanningPhaseEntry | null;
   autoSkipCombatIfNoTargets: boolean;
   tutorialPhase: 'astrogation' | 'ordnance' | 'combat' | null;
 }
@@ -47,10 +50,7 @@ export const deriveClientStateEntryPlan = (
         resetCamera: true,
 
         frameOnShips: false,
-        clearAstrogationPlanning: false,
-        resetOrdnancePlanning: false,
-        selectedShipId: undefined,
-        resetCombatState: false,
+        planningPhaseEntry: null,
         autoSkipCombatIfNoTargets: false,
         tutorialPhase: null,
       };
@@ -62,10 +62,10 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
 
         frameOnShips: true,
-        clearAstrogationPlanning: true,
-        resetOrdnancePlanning: false,
-        selectedShipId: getFirstActionableShipId(gameState, playerId),
-        resetCombatState: false,
+        planningPhaseEntry: {
+          phase: 'astrogation',
+          selectedShipId: getFirstActionableShipId(gameState, playerId),
+        },
         autoSkipCombatIfNoTargets: false,
         tutorialPhase: gameState ? 'astrogation' : null,
       };
@@ -77,17 +77,17 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
 
         frameOnShips: false,
-        clearAstrogationPlanning: false,
-        resetOrdnancePlanning: true,
-        selectedShipId: getFirstLaunchableShipId(
-          gameState ?? {
-            ships: [],
-            scenarioRules: {},
-            pendingAstrogationOrders: null,
-          },
-          playerId as PlayerId,
-        ),
-        resetCombatState: false,
+        planningPhaseEntry: {
+          phase: 'ordnance',
+          selectedShipId: getFirstLaunchableShipId(
+            gameState ?? {
+              ships: [],
+              scenarioRules: {},
+              pendingAstrogationOrders: null,
+            },
+            playerId as PlayerId,
+          ),
+        },
         autoSkipCombatIfNoTargets: false,
         tutorialPhase: gameState ? 'ordnance' : null,
       };
@@ -99,10 +99,7 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
 
         frameOnShips: false,
-        clearAstrogationPlanning: false,
-        resetOrdnancePlanning: false,
-        selectedShipId: undefined,
-        resetCombatState: false,
+        planningPhaseEntry: null,
         autoSkipCombatIfNoTargets: false,
         tutorialPhase: null,
       };
@@ -114,10 +111,10 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
 
         frameOnShips: false,
-        clearAstrogationPlanning: false,
-        resetOrdnancePlanning: false,
-        selectedShipId: getFirstActionableShipId(gameState, playerId),
-        resetCombatState: true,
+        planningPhaseEntry: {
+          phase: 'combat',
+          selectedShipId: getFirstActionableShipId(gameState, playerId),
+        },
         autoSkipCombatIfNoTargets: true,
         tutorialPhase: gameState ? 'combat' : null,
       };
@@ -129,10 +126,7 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
 
         frameOnShips: false,
-        clearAstrogationPlanning: false,
-        resetOrdnancePlanning: false,
-        selectedShipId: undefined,
-        resetCombatState: false,
+        planningPhaseEntry: null,
         autoSkipCombatIfNoTargets: false,
         tutorialPhase: null,
       };
@@ -144,10 +138,7 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
 
         frameOnShips: true,
-        clearAstrogationPlanning: false,
-        resetOrdnancePlanning: false,
-        selectedShipId: undefined,
-        resetCombatState: false,
+        planningPhaseEntry: null,
         autoSkipCombatIfNoTargets: false,
         tutorialPhase: null,
       };
@@ -159,10 +150,7 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
 
         frameOnShips: false,
-        clearAstrogationPlanning: false,
-        resetOrdnancePlanning: false,
-        selectedShipId: undefined,
-        resetCombatState: false,
+        planningPhaseEntry: null,
         autoSkipCombatIfNoTargets: false,
         tutorialPhase: null,
       };
@@ -174,10 +162,7 @@ export const deriveClientStateEntryPlan = (
         resetCamera: false,
 
         frameOnShips: false,
-        clearAstrogationPlanning: false,
-        resetOrdnancePlanning: false,
-        selectedShipId: undefined,
-        resetCombatState: false,
+        planningPhaseEntry: null,
         autoSkipCombatIfNoTargets: false,
         tutorialPhase: null,
       };
