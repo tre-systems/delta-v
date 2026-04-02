@@ -116,12 +116,7 @@ export const deriveKeyboardAction = (
     }
 
     if (context.state === 'playing_ordnance') {
-      if (context.allOrdnanceShipsAcknowledged) {
-        return { kind: 'confirmOrdnance', preventDefault: true };
-      }
-      if (context.hasSelectedShip) {
-        return { kind: 'skipOrdnanceShip', preventDefault: true };
-      }
+      return { kind: 'confirmOrdnance', preventDefault: true };
     }
 
     if (context.state === 'playing_logistics') {
