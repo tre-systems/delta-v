@@ -85,28 +85,17 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 
 Exhaustive `never` checks enforce compile-time coverage across all FSM switches: `applyInteractionEvent`, `deriveClientScreenPlan`, `buildScreenVisibility`, and `mapInteractionModeToUIScreenMode`. Adding a new `ClientState` or `InteractionMode` now causes a type error until every switch is updated.
 
-### 18. Expanded E2E Multiplayer Lifecycle Coverage
+### 18. Expanded E2E Multiplayer Lifecycle Coverage — **SHIPPED**
 
-**Status:** baseline coverage in `e2e/gameplay-lifecycle.spec.ts`.
+E2E spec for multi-ship `escape` scenario verifies `acknowledgedShips` rotation and `confirmBtn`/`skipShipBtn` visibility through a full 3-ship skip-and-confirm cycle.
 
-**Remaining:** add a new E2E spec for a 3+ ship scenario (e.g. `blockadeRunner` or `escape`) to verify the `acknowledgedShips` rotation and `confirmBtn` visibility logic remains robust under complex fleet states.
+### 19. Phase Transition Status Feedback — **SHIPPED**
 
-**Files:** `e2e/gameplay-lifecycle.spec.ts`
+Status override text "Waiting for opponent..." is now shown during `playing_opponentTurn`, matching the existing "Ships moving..." pattern for `playing_movementAnim`. Uses the `statusOverrideText` → `#phaseInfo` pipeline with no new DOM or CSS.
 
-### 19. Phase Transition "Synchronizing" Overlay
+### 20. Direct UI Visibility from Interaction FSM — **SHIPPED**
 
-**Status:** not started.
-
-**Remaining:** add a subtle UI overlay (e.g. "Synchronizing...") that appears during the brief interaction gap between `movementAnim` and the next playable phase. This improves UX by explaining why inputs are temporarily disabled while the server resolves results.
-
-**Files:** `src/client/ui/ui.ts`, `src/client/ui/screens.ts`
-### 20. Direct UI visibility from Interaction FSM
-
-**Status:** plan created; synchronization pending.
-
-**Remaining:** replace the dual-signal system in `src/client/ui/ui.ts` (which uses both `screenModeSignal` and `interactionStateSignal`) with a single source of truth. The `InteractionState.mode` should directly drive the `applyUIVisibility` logic in `src/client/ui/visibility.ts`, ensuring perfect synchronization between game logic and DOM states.
-
-**Files:** `src/client/ui/ui.ts`, `src/client/ui/visibility.ts`, `src/client/game/state-transition.ts`
+Replaced the dual-signal system (`screenModeSignal` + `interactionSignal`) with `interactionSignal` as the sole source of truth for DOM visibility. The `screenModeSignal` is gone; a lightweight `scenarioActiveSignal` boolean handles the menu/scenario UI sub-state. State-transition no longer calls `showMenu`/`showHUD`/`showWaiting`/`showConnecting`; the reactive effect in `ui.ts` derives visibility directly from the FSM mode. The `showHUD` field was also removed from `ClientStateEntryPlan` since it is no longer consumed.
 
 ### 21. Spectator UX Hardening
 

@@ -1,8 +1,45 @@
 import { expect, test } from '@playwright/test';
-import { createMultiplayerSession } from './support/app';
+import {
+  createMultiplayerSession,
+  launchSinglePlayerScenario,
+} from './support/app';
 import { waitForDisplay } from './support/ui';
 
 test.describe('gameplay lifecycle', () => {
+  test('rotates through all ships before showing confirm in a multi-ship fleet', async ({
+    page,
+  }) => {
+    await launchSinglePlayerScenario(page, 'escape', {
+      tutorialDone: true,
+      skipTutorial: true,
+    });
+
+    // Escape scenario gives player 0 three transports
+    await expect(page.locator('#shipList .ship-entry')).toHaveCount(3);
+
+    // Multi-ship: confirm hidden, skip visible
+    await expect(page.locator('#confirmBtn')).toBeHidden();
+    await expect(page.locator('#skipShipBtn')).toBeVisible();
+
+    // Skip all three ships in sequence
+    for (let i = 0; i < 2; i++) {
+      await page.locator('#skipShipBtn').click();
+      // After skipping, next ship is auto-selected and skip remains visible
+      await expect(page.locator('#skipShipBtn')).toBeVisible();
+    }
+
+    // Skip the third and final ship
+    await page.locator('#skipShipBtn').click();
+
+    // All ships acknowledged: skip hidden, confirm visible
+    await expect(page.locator('#skipShipBtn')).toBeHidden();
+    await expect(page.locator('#confirmBtn')).toBeVisible();
+
+    // Confirm orders — game advances to opponent turn or next phase
+    await page.locator('#confirmBtn').click();
+    await expect(page.locator('#confirmBtn')).toBeHidden();
+  });
+
   test('strictly adheres to interaction states during phase transitions', async ({
     browser,
   }) => {

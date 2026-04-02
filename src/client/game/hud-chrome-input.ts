@@ -29,7 +29,11 @@ export const buildHudChromeInputFromViewModel = (
   speed: hud.speed,
   fuelToStop: hud.fuelToStop,
   statusOverrideText:
-    clientState === 'playing_movementAnim' ? 'Ships moving...' : null,
+    clientState === 'playing_movementAnim'
+      ? 'Ships moving...'
+      : clientState === 'playing_opponentTurn'
+        ? 'Waiting for opponent...'
+        : null,
   suppressActionButtons:
     clientState === 'playing_movementAnim' || clientState === 'gameOver',
   astrogationCtx: {
