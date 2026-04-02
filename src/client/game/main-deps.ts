@@ -86,8 +86,8 @@ export const createMainMessageHandlerDeps = (
       events,
       onComplete,
     ),
-  presentCombatResults: (prev, state, results) =>
-    args.actionDeps.presentCombatResults(prev, state, results),
+  presentCombatResults: (prev, state, results, resetCombat) =>
+    args.actionDeps.presentCombatResults(prev, state, results, resetCombat),
   showGameOverOutcome: (won, reason) =>
     args.actionDeps.showGameOverOutcome(won, reason),
   advanceToNextAttacker: () => args.advanceToNextAttacker(),

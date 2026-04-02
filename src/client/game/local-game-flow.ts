@@ -1,16 +1,18 @@
 import type { AIDifficulty } from '../../shared/ai';
 import { must } from '../../shared/assert';
 import type { MovementResult } from '../../shared/engine/game-engine';
-import { filterLogisticsTransferLogEvents } from '../../shared/engine/transfer-log-events';
 import type {
   CombatResult,
   GameState,
   PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
-import { formatLogisticsTransferLogLines } from '../ui/formatters';
 import type { AIActionPlan } from './ai-flow';
 import { deriveAIActionPlan } from './ai-flow';
+import {
+  applyAuthoritativeUpdate,
+  toLocalAuthoritativeUpdate,
+} from './authoritative-updates';
 import type { LocalResolution } from './local';
 import {
   resolveAstrogationStep,
@@ -84,37 +86,6 @@ const continueIfGameActive = (
   }
 };
 
-const applyLocalStateResolution = (
-  deps: LocalGameFlowDeps,
-  resolution: Extract<
-    LocalResolution,
-    { kind: 'combat' | 'logistics' | 'state' }
-  >,
-): void => {
-  switch (resolution.kind) {
-    case 'combat':
-      deps.presentCombatResults(
-        resolution.previousState,
-        resolution.state,
-        resolution.results,
-        resolution.resetCombat,
-      );
-      return;
-    case 'logistics':
-      for (const line of formatLogisticsTransferLogLines(
-        filterLogisticsTransferLogEvents(resolution.engineEvents),
-        resolution.state.ships,
-      )) {
-        deps.logText(line);
-      }
-      deps.applyGameState(resolution.state);
-      return;
-    case 'state':
-      deps.applyGameState(resolution.state);
-      return;
-  }
-};
-
 export const handleLocalResolution = (
   deps: LocalGameFlowDeps,
   resolution: LocalResolution,
@@ -126,27 +97,49 @@ export const handleLocalResolution = (
       console.error(errorPrefix, resolution.error);
       deps.showToast(resolution.error, 'error');
       return;
-    case 'movement':
-      playLocalMovementResult(deps, resolution.result, () => {
-        continueIfGameActive(deps, onContinue);
-      });
-      return;
-    case 'combatSingle':
-      deps.presentCombatResults(
-        resolution.previousState,
-        resolution.state,
-        [resolution.result],
-        false,
-      );
-      // A single attack can end the game (last enemy destroyed).
-      // Only advance to the next attacker if still playing.
-      continueIfGameActive(deps, onContinue);
-      return;
     case 'combat':
-    case 'logistics':
+    case 'combatSingle':
+    case 'movement':
     case 'state':
-      applyLocalStateResolution(deps, resolution);
-      continueIfGameActive(deps, onContinue);
+    case 'logistics':
+      applyAuthoritativeUpdate(
+        {
+          getCurrentGameState: () => deps.getGameState(),
+          applyGameState: (state) => deps.applyGameState(state),
+          presentMovementResult: (
+            state,
+            movements,
+            ordnanceMovements,
+            events,
+            onComplete,
+          ) =>
+            deps.presentMovementResult(
+              state,
+              movements,
+              ordnanceMovements,
+              events,
+              onComplete,
+            ),
+          presentCombatResults: (previousState, state, results, resetCombat) =>
+            deps.presentCombatResults(
+              previousState,
+              state,
+              results,
+              resetCombat ?? true,
+            ),
+          showGameOverOutcome: (won, reason) =>
+            deps.showGameOverOutcome(won, reason),
+          onMovementResultComplete: () =>
+            continueIfGameActive(deps, onContinue),
+          onCombatResultComplete: () => continueIfGameActive(deps, onContinue),
+          onCombatSingleResultComplete: () =>
+            continueIfGameActive(deps, onContinue),
+          onStateUpdateComplete: () => continueIfGameActive(deps, onContinue),
+          logText: (text) => deps.logText(text),
+          deserializeState: (state) => state,
+        },
+        toLocalAuthoritativeUpdate(resolution, deps.getPlayerId()),
+      );
       return;
   }
 };

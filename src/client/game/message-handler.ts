@@ -4,7 +4,10 @@ import type { RoomCode } from '../../shared/ids';
 import type { CombatResult, GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playPhaseChange } from '../audio';
-import { formatLogisticsTransferLogLines } from '../ui/formatters';
+import {
+  type AuthoritativeUpdateDeps,
+  applyAuthoritativeUpdate,
+} from './authoritative-updates';
 import {
   applyWelcomeSession,
   setLatencyMs,
@@ -32,6 +35,7 @@ export interface MessageHandlerDeps {
     previousState: GameState,
     state: GameState,
     results: CombatResult[],
+    resetCombat?: boolean,
   ) => void;
   showGameOverOutcome: (won: boolean, reason: string) => void;
   advanceToNextAttacker: () => void;
@@ -113,49 +117,35 @@ const applyGameStartPlan = (
   deps.setState(plan.nextState);
 };
 
-const presentCombatPlan = (
+const createAuthoritativeUpdateDeps = (
   deps: MessageHandlerDeps,
-  state: GameState,
-  results: CombatResult[],
-): void => {
-  deps.presentCombatResults(
-    must(deps.ctx.gameState),
-    deps.deserializeState(state),
-    results,
-  );
-};
-
-const logTransferEvents = (
-  deps: MessageHandlerDeps,
-  transferEvents: NonNullable<
-    Extract<ClientMessagePlan, { kind: 'stateUpdate' }>['transferEvents']
-  >,
-  state: GameState,
-): void => {
-  for (const line of formatLogisticsTransferLogLines(
-    transferEvents,
-    state.ships,
-  )) {
-    deps.ui.log.logText(line);
-  }
-};
-
-const applyStateUpdatePlan = (
-  deps: MessageHandlerDeps,
-  plan: Extract<ClientMessagePlan, { kind: 'stateUpdate' }>,
-): void => {
-  const nextState = deps.deserializeState(plan.state);
-
-  if (plan.transferEvents?.length) {
-    logTransferEvents(deps, plan.transferEvents, nextState);
-  }
-
-  deps.applyGameState(nextState);
-
-  if (plan.shouldTransition) {
-    deps.transitionToPhase();
-  }
-};
+): AuthoritativeUpdateDeps => ({
+  getCurrentGameState: () => deps.ctx.gameState,
+  applyGameState: (state) => deps.applyGameState(state),
+  presentMovementResult: (
+    state,
+    movements,
+    ordnanceMovements,
+    events,
+    onComplete,
+  ) =>
+    deps.presentMovementResult(
+      state,
+      movements,
+      ordnanceMovements,
+      events,
+      onComplete,
+    ),
+  presentCombatResults: (previousState, state, results, resetCombat) =>
+    deps.presentCombatResults(previousState, state, results, resetCombat),
+  showGameOverOutcome: (won, reason) => deps.showGameOverOutcome(won, reason),
+  onMovementResultComplete: () => deps.onAnimationComplete(),
+  onCombatResultComplete: () => deps.transitionToPhase(),
+  onCombatSingleResultComplete: () => deps.advanceToNextAttacker(),
+  onStateUpdateComplete: () => deps.transitionToPhase(),
+  logText: (text) => deps.ui.log.logText(text),
+  deserializeState: (raw) => deps.deserializeState(raw),
+});
 
 export const handleServerMessage = (
   deps: MessageHandlerDeps,
@@ -180,32 +170,46 @@ export const handleServerMessage = (
       applyGameStartPlan(deps, plan);
       break;
     case 'movementResult':
-      deps.presentMovementResult(
-        deps.deserializeState(plan.state),
-        plan.movements,
-        plan.ordnanceMovements,
-        plan.events,
-        () => {
-          deps.onAnimationComplete();
-        },
-      );
+      applyAuthoritativeUpdate(createAuthoritativeUpdateDeps(deps), {
+        kind: 'movementResult',
+        state: plan.state,
+        movements: plan.movements,
+        ordnanceMovements: plan.ordnanceMovements,
+        events: plan.events,
+      });
       break;
     case 'combatResult':
-      presentCombatPlan(deps, plan.state, plan.results);
-      if (plan.shouldTransition) {
-        deps.transitionToPhase();
-      }
+      applyAuthoritativeUpdate(createAuthoritativeUpdateDeps(deps), {
+        kind: 'combatResult',
+        previousState: must(deps.ctx.gameState),
+        state: plan.state,
+        results: plan.results,
+        shouldContinue: plan.shouldTransition,
+      });
       break;
     case 'combatSingleResult':
-      presentCombatPlan(deps, plan.state, [plan.result]);
-      deps.advanceToNextAttacker();
+      applyAuthoritativeUpdate(createAuthoritativeUpdateDeps(deps), {
+        kind: 'combatSingleResult',
+        previousState: must(deps.ctx.gameState),
+        state: plan.state,
+        result: plan.result,
+      });
       break;
     case 'stateUpdate':
-      applyStateUpdatePlan(deps, plan);
+      applyAuthoritativeUpdate(createAuthoritativeUpdateDeps(deps), {
+        kind: 'stateUpdate',
+        state: plan.state,
+        shouldContinue: plan.shouldTransition,
+        transferEvents: plan.transferEvents,
+      });
       break;
     case 'gameOver':
       setOpponentDisconnectDeadlineMs(deps.ctx, null);
-      deps.showGameOverOutcome(plan.won, plan.reason);
+      applyAuthoritativeUpdate(createAuthoritativeUpdateDeps(deps), {
+        kind: 'gameOver',
+        won: plan.won,
+        reason: plan.reason,
+      });
       break;
     case 'rematchPending':
       deps.ui.overlay.showRematchPending();
