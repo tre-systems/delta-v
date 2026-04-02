@@ -58,6 +58,7 @@ export interface HudViewModel {
   allShipsAcknowledged: boolean;
   allOrdnanceShipsAcknowledged: boolean;
   queuedOrdnanceType: string | null;
+  queuedLaunchCount: number;
   multipleShipsAlive: boolean;
   speed: number;
   fuelToStop: number;
