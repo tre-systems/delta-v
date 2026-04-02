@@ -113,7 +113,11 @@ export const attachSessionCombatButtonsEffect = (
 
     ui.showAttackButton(false);
     const hasTarget = session.planningState.combatTargetId !== null;
-    ui.showFireButton(isPlayingCombat, hasTarget ? 1 : 0);
+    const hasSelection = session.planningState.selectedShipId !== null;
+    ui.showFireButton(
+      isPlayingCombat && (hasTarget || hasSelection),
+      hasTarget ? 1 : 0,
+    );
   });
 
 /**
