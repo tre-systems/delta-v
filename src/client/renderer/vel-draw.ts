@@ -39,7 +39,7 @@ const drawVectorSpeedLabel = (
 ): void => {
   if (!vector.speedLabel) return;
   ctx.fillStyle = vector.speedLabel.color;
-  ctx.font = scaledFont('7px monospace', zoom);
+  ctx.font = scaledFont('9px monospace', zoom);
   ctx.textAlign = 'center';
   ctx.fillText(
     vector.speedLabel.text,

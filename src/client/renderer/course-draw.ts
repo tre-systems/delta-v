@@ -178,7 +178,7 @@ const drawSingleCoursePreview = (
   if (preview.fuelCostLabel) {
     const f = preview.fuelCostLabel;
     ctx.fillStyle = f.color;
-    ctx.font = scaledFont('bold 9px monospace', zoom);
+    ctx.font = scaledFont('bold 11px monospace', zoom);
     ctx.textAlign = 'center';
     ctx.fillText(f.text, f.position.x, f.position.y);
   }
