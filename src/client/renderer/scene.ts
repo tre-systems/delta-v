@@ -191,7 +191,7 @@ export const renderBodies = (
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = scaledFont('600 11px var(--font-display), sans-serif', zoom);
+    ctx.font = '600 11px var(--font-display), sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(view.label, p.x, view.labelY);
   }
@@ -313,7 +313,7 @@ export const renderLandingTarget = (
 
   if (objectiveView.kind === 'escape') {
     ctx.fillStyle = objectiveView.color;
-    ctx.font = scaledFont('bold 9px monospace', zoom);
+    ctx.font = scaledFont('bold 11px monospace', zoom);
     ctx.textAlign = 'center';
     for (const marker of objectiveView.markers) {
       ctx.fillText(marker.text, marker.position.x, marker.position.y);
@@ -335,7 +335,7 @@ export const renderLandingTarget = (
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.fillStyle = objectiveView.labelStyle;
-  ctx.font = scaledFont('bold 8px monospace', zoom);
+  ctx.font = scaledFont('bold 10px monospace', zoom);
   ctx.textAlign = 'center';
   ctx.fillText(
     objectiveView.labelText,

@@ -52,7 +52,7 @@ export const drawDisabledShipBadge = (
   if (!disabledLabel) return;
 
   const iz = 1 / zoom;
-  ctx.font = scaledFont('bold 9px Inter, sans-serif', zoom);
+  ctx.font = scaledFont('bold 11px Inter, sans-serif', zoom);
   ctx.textAlign = 'left';
   const labelX = pos.x + 12 * iz;
   const labelY = pos.y - 12 * iz;
@@ -96,7 +96,7 @@ export const drawIdentityMarkers = ({
   switch (identityMarker) {
     case 'friendlyFugitive':
       ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
-      ctx.font = scaledFont('bold 9px monospace', zoom);
+      ctx.font = scaledFont('bold 11px monospace', zoom);
       ctx.textAlign = 'center';
       ctx.fillText('\u2605', pos.x, pos.y - 14 * iz);
       break;
@@ -104,7 +104,7 @@ export const drawIdentityMarkers = ({
     case 'enemyFugitive':
       ctx.textAlign = 'center';
       ctx.fillStyle = 'rgba(255, 120, 120, 0.95)';
-      ctx.font = scaledFont('bold 9px monospace', zoom);
+      ctx.font = scaledFont('bold 11px monospace', zoom);
       ctx.fillText('\u2605', pos.x, pos.y - 14 * iz);
       break;
 
