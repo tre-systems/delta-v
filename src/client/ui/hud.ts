@@ -22,6 +22,7 @@ export interface HUDView {
   landFromOrbit: UIButtonView;
   emplaceBaseVisible: boolean;
   skipOrdnanceVisible: boolean;
+  skipOrdnanceLabel: string;
   skipCombatVisible: boolean;
   skipLogisticsVisible: boolean;
   confirmTransfersVisible: boolean;
@@ -290,7 +291,8 @@ export const buildHUDView = (input: HUDInput): HUDView => {
       : createHiddenButton(),
 
     emplaceBaseVisible: showOrdnance && canEmplaceBase,
-    skipOrdnanceVisible: showOrdnance && input.allOrdnanceShipsAcknowledged,
+    skipOrdnanceVisible: showOrdnance,
+    skipOrdnanceLabel: input.allOrdnanceShipsAcknowledged ? 'CONFIRM' : 'SKIP',
     skipCombatVisible: false,
     skipLogisticsVisible: isMyTurn && phase === 'logistics',
     confirmTransfersVisible: isMyTurn && phase === 'logistics',

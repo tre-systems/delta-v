@@ -132,7 +132,8 @@ describe('ui hud helpers', () => {
       fuelGaugeText: 'Cargo: 10/20',
       statusText: 'Launch Mine (N) \u00b7 skip ship (S)',
       emplaceBaseVisible: true,
-      skipOrdnanceVisible: false,
+      skipOrdnanceVisible: true,
+      skipOrdnanceLabel: 'SKIP',
     });
 
     expect(view.launchMine).toMatchObject({
