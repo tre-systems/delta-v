@@ -1,4 +1,5 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
+import { scaledFont } from './text';
 import { buildVelocityVectorViews, type VelocityVectorView } from './vectors';
 
 const drawVectorArrowHead = (
@@ -34,10 +35,11 @@ const drawVectorGhostDot = (
 const drawVectorSpeedLabel = (
   ctx: CanvasRenderingContext2D,
   vector: VelocityVectorView,
+  zoom: number,
 ): void => {
   if (!vector.speedLabel) return;
   ctx.fillStyle = vector.speedLabel.color;
-  ctx.font = '7px monospace';
+  ctx.font = scaledFont('7px monospace', zoom);
   ctx.textAlign = 'center';
   ctx.fillText(
     vector.speedLabel.text,
@@ -51,6 +53,7 @@ export const drawVelocityVectorLayer = (
   state: GameState,
   playerId: PlayerId,
   hexSize: number,
+  zoom: number,
 ): void => {
   for (const vector of buildVelocityVectorViews(state, playerId, hexSize)) {
     ctx.strokeStyle = vector.color;
@@ -63,6 +66,6 @@ export const drawVelocityVectorLayer = (
     ctx.setLineDash([]);
     drawVectorArrowHead(ctx, vector);
     drawVectorGhostDot(ctx, vector);
-    drawVectorSpeedLabel(ctx, vector);
+    drawVectorSpeedLabel(ctx, vector, zoom);
   }
 };

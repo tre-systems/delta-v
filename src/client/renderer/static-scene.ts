@@ -46,7 +46,7 @@ const repaintStaticLayer = (
   renderGravityIndicatorsFn(lctx, input.map, input.hexSize, (x, y) =>
     input.camera.isVisible(x, y),
   );
-  renderBodiesFn(lctx, input.map, input.hexSize, input.now);
+  renderBodiesFn(lctx, input.map, input.hexSize, input.now, input.camera.zoom);
   lctx.restore();
 };
 

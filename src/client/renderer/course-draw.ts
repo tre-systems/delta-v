@@ -12,6 +12,7 @@ import {
 } from './course';
 import type { DrawShipIconInput } from './draw';
 import { drawCourseMarkerView, drawWeakGravityMarkerView } from './markers';
+import { scaledFont } from './text';
 
 export type DrawShipIconFn = (input: DrawShipIconInput) => void;
 
@@ -136,6 +137,7 @@ const drawSingleCoursePreview = (
   preview: CoursePreviewView,
   drawShipIcon: DrawShipIconFn,
   playerId: PlayerId,
+  zoom: number,
 ): void => {
   if (preview.takeoffSegment) {
     drawTakeoffSegment(ctx, preview.takeoffSegment);
@@ -168,15 +170,15 @@ const drawSingleCoursePreview = (
     });
   }
   for (const marker of [...preview.burnMarkers, ...preview.overloadMarkers]) {
-    drawCourseMarkerView(ctx, marker);
+    drawCourseMarkerView(ctx, marker, zoom);
   }
   for (const marker of preview.weakGravityMarkers) {
-    drawWeakGravityMarkerView(ctx, marker);
+    drawWeakGravityMarkerView(ctx, marker, zoom);
   }
   if (preview.fuelCostLabel) {
     const f = preview.fuelCostLabel;
     ctx.fillStyle = f.color;
-    ctx.font = 'bold 9px monospace';
+    ctx.font = scaledFont('bold 9px monospace', zoom);
     ctx.textAlign = 'center';
     ctx.fillText(f.text, f.position.x, f.position.y);
   }
@@ -190,13 +192,22 @@ export type DrawAstrogationCoursePreviewLayerInput = {
   map: SolarSystemMap;
   hexSize: number;
   drawShipIcon: DrawShipIconFn;
+  zoom: number;
 };
 
 export const drawAstrogationCoursePreviewLayer = (
   input: DrawAstrogationCoursePreviewLayerInput,
 ): void => {
-  const { ctx, state, playerId, planningState, map, hexSize, drawShipIcon } =
-    input;
+  const {
+    ctx,
+    state,
+    playerId,
+    planningState,
+    map,
+    hexSize,
+    drawShipIcon,
+    zoom,
+  } = input;
   for (const preview of buildAstrogationCoursePreviewViews(
     state,
     playerId,
@@ -204,6 +215,6 @@ export const drawAstrogationCoursePreviewLayer = (
     map,
     hexSize,
   )) {
-    drawSingleCoursePreview(ctx, preview, drawShipIcon, playerId);
+    drawSingleCoursePreview(ctx, preview, drawShipIcon, playerId, zoom);
   }
 };

@@ -32,6 +32,7 @@ export type DrawShipsLayerInput = {
   planningSelectedShipId: string | null;
   hexSize: number;
   animState: AnimationState | null;
+  zoom: number;
 };
 
 type DrawOneShipInput = {
@@ -45,6 +46,7 @@ type DrawOneShipInput = {
   hexSize: number;
   animState: AnimationState | null;
   stackOffsets: ReturnType<typeof getShipStackOffsets> | null;
+  zoom: number;
 };
 
 type ShipScreenPlacementInput = {
@@ -65,6 +67,7 @@ export const drawShipsLayer = ({
   planningSelectedShipId,
   hexSize,
   animState,
+  zoom,
 }: DrawShipsLayerInput): void => {
   const visibleShips = getVisibleShips(state, playerId, animState !== null);
   const stackOffsets = animState ? null : getShipStackOffsets(visibleShips);
@@ -81,6 +84,7 @@ export const drawShipsLayer = ({
       hexSize,
       animState,
       stackOffsets,
+      zoom,
     });
   }
 };
@@ -96,6 +100,7 @@ const drawOneShip = ({
   hexSize,
   animState,
   stackOffsets,
+  zoom,
 }: DrawOneShipInput): void => {
   const { pos, velocity, labelYOffset } = shipScreenPlacement({
     ship,
@@ -119,8 +124,8 @@ const drawOneShip = ({
     disabledTurns: ship.damage.disabledTurns,
     shipType: ship.type,
   });
-  drawDisabledShipBadge(ctx, ship, pos, animState);
-  drawIdentityMarkers({ ctx, ship, playerId, state, pos, animState });
+  drawDisabledShipBadge(ctx, ship, pos, animState, zoom);
+  drawIdentityMarkers({ ctx, ship, playerId, state, pos, animState, zoom });
 
   const inGravity = Boolean(map?.hexes.get(hexKey(ship.position))?.gravity);
 
@@ -140,6 +145,7 @@ const drawOneShip = ({
     labelYOffset,
     inGravity,
     animState,
+    zoom,
   });
 };
 
