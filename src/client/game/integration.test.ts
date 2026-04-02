@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { asPlayerToken, asRoomCode } from '../../shared/ids';
 import type {
   CombatResult,
+  ErrorCode,
   GameState,
   MovementEvent,
   OrdnanceMovement,
@@ -541,6 +542,27 @@ describe('client integration: chat and errors', () => {
     expect(deps.calls['ui.overlay.showToast']).toEqual([
       ['Invalid action', 'error'],
     ]);
+  });
+
+  it('server error while connecting returns to menu and tracks the payload', () => {
+    const deps = createDeps('connecting');
+
+    handleServerMessage(deps, {
+      type: 'error',
+      message: 'Room not found',
+      code: 'INVALID_INPUT' as ErrorCode,
+    });
+
+    expect(deps.calls.trackEvent).toEqual([
+      [
+        'server_error_received',
+        { message: 'Room not found', code: 'INVALID_INPUT' },
+      ],
+    ]);
+    expect(deps.calls['ui.overlay.showToast']).toEqual([
+      ['Room not found', 'error'],
+    ]);
+    expect(deps.calls.setState).toEqual([['menu']]);
   });
 
   it('rematch pending shows UI', () => {
