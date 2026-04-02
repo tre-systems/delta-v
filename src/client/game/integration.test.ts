@@ -100,7 +100,6 @@ const createDeps = (
       opponentDisconnectDeadlineMs: null,
       latencyMs: 0,
       gameState,
-      interactionState: { mode: 'waiting' },
     },
     setState: track('setState'),
     applyGameState: track('applyGameState'),
