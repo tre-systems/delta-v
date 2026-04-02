@@ -171,8 +171,8 @@ export const buildVelocityVectorViews = (
     const isOwn = ship.owner === playerId;
     const speed = hexVecLength(ship.velocity);
     const color = isOwn
-      ? 'rgba(79, 195, 247, 0.45)'
-      : 'rgba(255, 152, 0, 0.45)';
+      ? 'rgba(79, 195, 247, 0.22)'
+      : 'rgba(255, 152, 0, 0.22)';
 
     views.push({
       from,
@@ -184,7 +184,7 @@ export const buildVelocityVectorViews = (
       ghostDot: isOwn
         ? {
             position: to,
-            color: 'rgba(79, 195, 247, 0.3)',
+            color: 'rgba(79, 195, 247, 0.15)',
             radius: 4,
           }
         : null,
@@ -196,7 +196,7 @@ export const buildVelocityVectorViews = (
                 x: (from.x + to.x) / 2,
                 y: (from.y + to.y) / 2 - 5,
               },
-              color: 'rgba(255, 152, 0, 0.5)',
+              color: 'rgba(255, 152, 0, 0.25)',
             }
           : null,
     });
@@ -220,7 +220,7 @@ export const buildVelocityVectorViews = (
     }
 
     const isOwn = ordnance.owner === playerId;
-    const color = isOwn ? 'rgba(79, 195, 247, 0.2)' : 'rgba(255, 152, 0, 0.2)';
+    const color = isOwn ? 'rgba(79, 195, 247, 0.1)' : 'rgba(255, 152, 0, 0.1)';
 
     views.push({
       from,
@@ -260,12 +260,12 @@ export const buildShipTrailViews = (
 
     views.push({
       points: trail.map((hex) => hexToPixel(hex, hexSize)),
-      lineColor: isOwn ? 'rgba(79, 195, 247, 0.12)' : 'rgba(255, 152, 0, 0.12)',
+      lineColor: isOwn ? 'rgba(79, 195, 247, 0.06)' : 'rgba(255, 152, 0, 0.06)',
       lineWidth: 1.25,
       lineDash: [],
       waypointColor: isOwn
-        ? 'rgba(79, 195, 247, 0.16)'
-        : 'rgba(255, 152, 0, 0.16)',
+        ? 'rgba(79, 195, 247, 0.08)'
+        : 'rgba(255, 152, 0, 0.08)',
       waypointRadius: 1.25,
     });
   }
@@ -291,7 +291,7 @@ export const buildOrdnanceTrailViews = (
 
     views.push({
       points: trail.map((hex) => hexToPixel(hex, hexSize)),
-      lineColor: isOwn ? 'rgba(79, 195, 247, 0.07)' : 'rgba(255, 152, 0, 0.07)',
+      lineColor: isOwn ? 'rgba(79, 195, 247, 0.04)' : 'rgba(255, 152, 0, 0.04)',
       lineWidth: 1,
       lineDash: [2, 4],
       waypointColor: null,
