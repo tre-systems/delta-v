@@ -5,6 +5,7 @@ import type { CombatResult, GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playPhaseChange } from '../audio';
 import {
+  type AuthoritativeUpdate,
   type AuthoritativeUpdateDeps,
   applyAuthoritativeUpdate,
 } from './authoritative-updates';
@@ -66,6 +67,14 @@ type WelcomePlan = Extract<
   ClientMessagePlan,
   { kind: 'welcome' | 'spectatorWelcome' }
 >;
+type ClientMessagePlanKind = ClientMessagePlan['kind'];
+type ClientMessagePlanHandler<K extends ClientMessagePlanKind> = (
+  deps: MessageHandlerDeps,
+  plan: Extract<ClientMessagePlan, { kind: K }>,
+) => void;
+type ClientMessagePlanHandlers = {
+  [K in ClientMessagePlanKind]: ClientMessagePlanHandler<K>;
+};
 
 const applyWelcomePlan = (
   deps: MessageHandlerDeps,
@@ -147,6 +156,157 @@ const createAuthoritativeUpdateDeps = (
   deserializeState: (raw) => deps.deserializeState(raw),
 });
 
+const applyAuthoritativePlan = (
+  deps: MessageHandlerDeps,
+  update: AuthoritativeUpdate,
+): void => {
+  applyAuthoritativeUpdate(createAuthoritativeUpdateDeps(deps), update);
+};
+
+const applyMatchFoundPlan = (): void => {
+  playPhaseChange();
+};
+
+const applyMovementResultPlan: ClientMessagePlanHandler<'movementResult'> = (
+  deps,
+  plan,
+): void => {
+  applyAuthoritativePlan(deps, {
+    kind: 'movementResult',
+    state: plan.state,
+    movements: plan.movements,
+    ordnanceMovements: plan.ordnanceMovements,
+    events: plan.events,
+  });
+};
+
+const applyCombatResultPlan: ClientMessagePlanHandler<'combatResult'> = (
+  deps,
+  plan,
+): void => {
+  applyAuthoritativePlan(deps, {
+    kind: 'combatResult',
+    previousState: must(deps.ctx.gameState),
+    state: plan.state,
+    results: plan.results,
+    shouldContinue: plan.shouldTransition,
+  });
+};
+
+const applyCombatSingleResultPlan: ClientMessagePlanHandler<
+  'combatSingleResult'
+> = (deps, plan): void => {
+  applyAuthoritativePlan(deps, {
+    kind: 'combatSingleResult',
+    previousState: must(deps.ctx.gameState),
+    state: plan.state,
+    result: plan.result,
+  });
+};
+
+const applyStateUpdatePlan: ClientMessagePlanHandler<'stateUpdate'> = (
+  deps,
+  plan,
+): void => {
+  applyAuthoritativePlan(deps, {
+    kind: 'stateUpdate',
+    state: plan.state,
+    shouldContinue: plan.shouldTransition,
+    transferEvents: plan.transferEvents,
+  });
+};
+
+const applyGameOverPlan: ClientMessagePlanHandler<'gameOver'> = (
+  deps,
+  plan,
+): void => {
+  setOpponentDisconnectDeadlineMs(deps.ctx, null);
+  applyAuthoritativePlan(deps, {
+    kind: 'gameOver',
+    won: plan.won,
+    reason: plan.reason,
+  });
+};
+
+const applyRematchPendingPlan: ClientMessagePlanHandler<'rematchPending'> = (
+  deps,
+): void => {
+  deps.ui.overlay.showRematchPending();
+};
+
+const applyErrorPlan: ClientMessagePlanHandler<'error'> = (
+  deps,
+  plan,
+): void => {
+  console.error('Server error:', plan.message);
+  deps.trackEvent('server_error_received', {
+    message: plan.message,
+    code: plan.code,
+  });
+  deps.ui.overlay.showToast(plan.message, 'error');
+  if (deps.ctx.state === 'connecting') {
+    deps.setState('menu');
+  }
+};
+
+const applyChatPlan: ClientMessagePlanHandler<'chat'> = (deps, plan): void => {
+  const isOwn = plan.playerId === deps.ctx.playerId;
+  const label = isOwn ? 'You' : 'Opponent';
+  deps.ui.log.logText(
+    `${label}: ${plan.text}`,
+    isOwn ? 'log-chat' : 'log-chat-opponent',
+  );
+};
+
+const applyPongPlan: ClientMessagePlanHandler<'pong'> = (deps, plan): void => {
+  if (plan.latencyMs !== null) {
+    setLatencyMs(deps.ctx, plan.latencyMs);
+  }
+};
+
+const applyOpponentStatusPlan: ClientMessagePlanHandler<'opponentStatus'> = (
+  deps,
+  plan,
+): void => {
+  if (plan.status === 'disconnected' && plan.graceDeadlineMs) {
+    setOpponentDisconnectDeadlineMs(deps.ctx, plan.graceDeadlineMs);
+    return;
+  }
+
+  setOpponentDisconnectDeadlineMs(deps.ctx, null);
+  if (plan.status === 'reconnected') {
+    deps.ui.overlay.showToast('Opponent reconnected', 'info');
+  }
+};
+
+const clientMessagePlanHandlers = {
+  welcome: applyWelcomePlan,
+  spectatorWelcome: applyWelcomePlan,
+  matchFound: applyMatchFoundPlan,
+  gameStart: applyGameStartPlan,
+  movementResult: applyMovementResultPlan,
+  combatResult: applyCombatResultPlan,
+  combatSingleResult: applyCombatSingleResultPlan,
+  stateUpdate: applyStateUpdatePlan,
+  gameOver: applyGameOverPlan,
+  rematchPending: applyRematchPendingPlan,
+  error: applyErrorPlan,
+  chat: applyChatPlan,
+  pong: applyPongPlan,
+  opponentStatus: applyOpponentStatusPlan,
+} satisfies ClientMessagePlanHandlers;
+
+const dispatchClientMessagePlan = (
+  deps: MessageHandlerDeps,
+  plan: ClientMessagePlan,
+): void => {
+  const handler = clientMessagePlanHandlers[plan.kind] as (
+    deps: MessageHandlerDeps,
+    plan: ClientMessagePlan,
+  ) => void;
+  handler(deps, plan);
+};
+
 export const handleServerMessage = (
   deps: MessageHandlerDeps,
   msg: S2C,
@@ -158,96 +318,5 @@ export const handleServerMessage = (
     Date.now(),
     msg,
   );
-  switch (plan.kind) {
-    case 'spectatorWelcome':
-    case 'welcome':
-      applyWelcomePlan(deps, plan);
-      break;
-    case 'matchFound':
-      playPhaseChange();
-      break;
-    case 'gameStart':
-      applyGameStartPlan(deps, plan);
-      break;
-    case 'movementResult':
-      applyAuthoritativeUpdate(createAuthoritativeUpdateDeps(deps), {
-        kind: 'movementResult',
-        state: plan.state,
-        movements: plan.movements,
-        ordnanceMovements: plan.ordnanceMovements,
-        events: plan.events,
-      });
-      break;
-    case 'combatResult':
-      applyAuthoritativeUpdate(createAuthoritativeUpdateDeps(deps), {
-        kind: 'combatResult',
-        previousState: must(deps.ctx.gameState),
-        state: plan.state,
-        results: plan.results,
-        shouldContinue: plan.shouldTransition,
-      });
-      break;
-    case 'combatSingleResult':
-      applyAuthoritativeUpdate(createAuthoritativeUpdateDeps(deps), {
-        kind: 'combatSingleResult',
-        previousState: must(deps.ctx.gameState),
-        state: plan.state,
-        result: plan.result,
-      });
-      break;
-    case 'stateUpdate':
-      applyAuthoritativeUpdate(createAuthoritativeUpdateDeps(deps), {
-        kind: 'stateUpdate',
-        state: plan.state,
-        shouldContinue: plan.shouldTransition,
-        transferEvents: plan.transferEvents,
-      });
-      break;
-    case 'gameOver':
-      setOpponentDisconnectDeadlineMs(deps.ctx, null);
-      applyAuthoritativeUpdate(createAuthoritativeUpdateDeps(deps), {
-        kind: 'gameOver',
-        won: plan.won,
-        reason: plan.reason,
-      });
-      break;
-    case 'rematchPending':
-      deps.ui.overlay.showRematchPending();
-      break;
-    case 'error':
-      console.error('Server error:', plan.message);
-      deps.trackEvent('server_error_received', {
-        message: plan.message,
-        code: plan.code,
-      });
-      deps.ui.overlay.showToast(plan.message, 'error');
-      if (deps.ctx.state === 'connecting') {
-        deps.setState('menu');
-      }
-      break;
-    case 'chat': {
-      const isOwn = plan.playerId === deps.ctx.playerId;
-      const label = isOwn ? 'You' : 'Opponent';
-      deps.ui.log.logText(
-        `${label}: ${plan.text}`,
-        isOwn ? 'log-chat' : 'log-chat-opponent',
-      );
-      break;
-    }
-    case 'pong':
-      if (plan.latencyMs !== null) {
-        setLatencyMs(deps.ctx, plan.latencyMs);
-      }
-      break;
-    case 'opponentStatus':
-      if (plan.status === 'disconnected' && plan.graceDeadlineMs) {
-        setOpponentDisconnectDeadlineMs(deps.ctx, plan.graceDeadlineMs);
-      } else {
-        setOpponentDisconnectDeadlineMs(deps.ctx, null);
-        if (plan.status === 'reconnected') {
-          deps.ui.overlay.showToast('Opponent reconnected', 'info');
-        }
-      }
-      break;
-  }
+  dispatchClientMessagePlan(deps, plan);
 };
