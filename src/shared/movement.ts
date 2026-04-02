@@ -332,7 +332,7 @@ const computeNormalCourse = ({
     }
   }
 
-  // Orbital landing: per Triplanetary rules, a ship in
+  // Orbital landing: a ship in
   // orbit that burns 1 fuel lands at the planet's base.
   // The burn direction is irrelevant — landing is a
   // special action that overrides normal trajectory.

@@ -134,7 +134,7 @@ moments.
 
 ## 2. Vector Movement
 
-**Goal:** Verify that the core Triplanetary movement
+**Goal:** Verify that the core vector movement
 model works correctly: velocity persists, burns shift
 the endpoint, gravity deflects on the following turn.
 
@@ -584,7 +584,7 @@ disabled.
   (one roll, not two).
 
 **Pass:** All edge cases resolve correctly per the
-Triplanetary rules.
+the game rules.
 
 ---
 
