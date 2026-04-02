@@ -11,7 +11,7 @@ This implementation renders the game as a smooth, continuous-space experience �
 ## How To Read This Spec
 
 - **Gameplay truth:** mechanics and constraints documented here should match `src/shared/engine/` and `src/shared/constants.ts`.
-- **Official rules truth:** when this prose disagrees with the official game, [Triplanetary2018.pdf](../Triplanetary2018.pdf) takes precedence.
+- **Official rules truth:** when this prose disagrees with the game design, SPEC.md is the canonical source.
 - **Protocol truth:** `src/shared/types/protocol.ts` is authoritative if an inline example drifts.
 - **Domain truth:** `src/shared/types/domain.ts` is authoritative for state shape and phase enums.
 - **Architecture truth:** [ARCHITECTURE.md](./ARCHITECTURE.md) owns module inventory, data flow, and client reactive/session design; this file keeps only the runtime context needed to understand the product.
@@ -377,7 +377,7 @@ Detection is most meaningful in hidden-information scenarios (implemented: Escap
 - Counterattack targets strongest attacker by default
 - Event-sourced server recovery from persisted match stream plus checkpoints
 
-**Remaining divergences** (cross-referenced against [Triplanetary2018.pdf](../Triplanetary2018.pdf)):
+**Remaining divergences:**
 
 - **Contact geometry** _(accepted — low priority):_ Mine/torpedo contact approximated by hex occupancy/path, not the stricter board geometric rule. The rulebook requires literal geometric line intersection with the printed hex area; two courses can pass through the same hex without their drawn lines touching. Hex-path intersection is a standard digital approximation. Fixing would require sub-hex geometry incompatible with axial coordinate math.
 
@@ -393,7 +393,7 @@ Detection is most meaningful in hidden-information scenarios (implemented: Escap
 
 - **Torch ship fuel transfer restriction** _(implemented):_ The rulebook (p.8) states torch ships "may not transfer fuel to other ships." Enforced in `logistics.ts` — torch ships are excluded from fuel transfer eligibility.
 
-**Unimplemented rulebook scenarios** (from [Triplanetary2018.pdf](../Triplanetary2018.pdf)):
+**Unimplemented rulebook scenarios:**
 
 | Scenario     | Type              | Key Dependencies                                                                    |
 | ------------ | ----------------- | ----------------------------------------------------------------------------------- |
