@@ -1,5 +1,5 @@
 import type { HexCoord } from '../../shared/hex';
-import type { CombatAttack } from '../../shared/types/domain';
+import type { CombatAttack, OrdnanceLaunch } from '../../shared/types/domain';
 import type { Signal } from '../reactive';
 import { signal } from '../reactive';
 import type { CombatTargetPlan } from './combat';
@@ -32,6 +32,15 @@ export interface PlanningState {
 
   // multi-target: attacks queued before sending
   queuedAttacks: CombatAttack[];
+
+  // ships explicitly acknowledged during astrogation (burn set or skipped)
+  acknowledgedShips: Set<string>;
+
+  // ordnance launches queued during ordnance phase (batch submit)
+  queuedOrdnanceLaunches: OrdnanceLaunch[];
+
+  // ships acknowledged during ordnance phase (launched or skipped)
+  acknowledgedOrdnanceShips: Set<string>;
 
   // current hex being hovered by mouse
   hoverHex: HexCoord | null;
@@ -72,6 +81,11 @@ export interface PlanningStore extends PlanningState {
     steps: 1 | 2 | null,
   ) => void;
   clearTorpedoAcceleration: () => void;
+  acknowledgeShip: (shipId: string) => void;
+  queueOrdnanceLaunch: (launch: OrdnanceLaunch) => void;
+  acknowledgeOrdnanceShip: (shipId: string) => void;
+  takeQueuedOrdnanceLaunches: () => OrdnanceLaunch[];
+  resetOrdnancePlanning: () => void;
   setHoverHex: (hex: HexCoord | null) => void;
 }
 
@@ -102,6 +116,9 @@ export const createPlanningStore = (): PlanningStore => {
     combatAttackerIds: [],
     combatAttackStrength: null,
     queuedAttacks: [],
+    acknowledgedShips: new Set(),
+    queuedOrdnanceLaunches: [],
+    acknowledgedOrdnanceShips: new Set(),
     hoverHex: null,
     lastSelectedHex: null,
   };
@@ -154,6 +171,7 @@ export const createPlanningStore = (): PlanningStore => {
       planningStore.overloads.clear();
       planningStore.landingShips.clear();
       planningStore.weakGravityChoices.clear();
+      planningStore.acknowledgedShips.clear();
       notifyPlanningChanged();
     },
   );
@@ -273,6 +291,51 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'clearTorpedoAcceleration',
     (): void => {
+      planningStore.torpedoAccel = null;
+      planningStore.torpedoAccelSteps = null;
+      notifyPlanningChanged();
+    },
+  );
+  defineHiddenPlanningMember(
+    planningStore,
+    'acknowledgeShip',
+    (shipId: string): void => {
+      planningStore.acknowledgedShips.add(shipId);
+      notifyPlanningChanged();
+    },
+  );
+  defineHiddenPlanningMember(
+    planningStore,
+    'queueOrdnanceLaunch',
+    (launch: OrdnanceLaunch): void => {
+      planningStore.queuedOrdnanceLaunches.push(launch);
+      notifyPlanningChanged();
+    },
+  );
+  defineHiddenPlanningMember(
+    planningStore,
+    'acknowledgeOrdnanceShip',
+    (shipId: string): void => {
+      planningStore.acknowledgedOrdnanceShips.add(shipId);
+      notifyPlanningChanged();
+    },
+  );
+  defineHiddenPlanningMember(
+    planningStore,
+    'takeQueuedOrdnanceLaunches',
+    (): OrdnanceLaunch[] => {
+      const launches = [...planningStore.queuedOrdnanceLaunches];
+      planningStore.queuedOrdnanceLaunches = [];
+      notifyPlanningChanged();
+      return launches;
+    },
+  );
+  defineHiddenPlanningMember(
+    planningStore,
+    'resetOrdnancePlanning',
+    (): void => {
+      planningStore.queuedOrdnanceLaunches = [];
+      planningStore.acknowledgedOrdnanceShips.clear();
       planningStore.torpedoAccel = null;
       planningStore.torpedoAccelSteps = null;
       notifyPlanningChanged();

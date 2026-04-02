@@ -10,7 +10,6 @@ import {
   type SolarSystemMap,
   type TransferOrder,
 } from '../types';
-import { shouldEnterCombatPhase } from './combat';
 import type { EngineEvent } from './engine-events';
 import { engineFailure, validatePhaseAction } from './util';
 import { advanceTurn, checkGameEnd } from './victory';
@@ -329,21 +328,10 @@ export const processLogistics = (
   });
   engineEvents.push(...transferEvents);
 
-  // Continue to combat or advance turn
-  if (shouldEnterCombatPhase(state, map)) {
-    state.phase = 'combat';
-    engineEvents.push({
-      type: 'phaseChanged',
-      phase: 'combat',
-      turn: state.turnNumber,
-      activePlayer: state.activePlayer,
-    });
-  } else {
-    checkGameEnd(state, map, engineEvents);
+  checkGameEnd(state, map, engineEvents);
 
-    if (state.outcome === null) {
-      advanceTurn(state, engineEvents);
-    }
+  if (state.outcome === null) {
+    advanceTurn(state, engineEvents);
   }
 
   return { state, engineEvents };
@@ -368,20 +356,10 @@ export const skipLogistics = (
 
   if (phaseError) return { error: phaseError };
 
-  if (shouldEnterCombatPhase(state, map)) {
-    state.phase = 'combat';
-    engineEvents.push({
-      type: 'phaseChanged',
-      phase: 'combat',
-      turn: state.turnNumber,
-      activePlayer: state.activePlayer,
-    });
-  } else {
-    checkGameEnd(state, map, engineEvents);
+  checkGameEnd(state, map, engineEvents);
 
-    if (state.outcome === null) {
-      advanceTurn(state, engineEvents);
-    }
+  if (state.outcome === null) {
+    advanceTurn(state, engineEvents);
   }
 
   return { state, engineEvents };

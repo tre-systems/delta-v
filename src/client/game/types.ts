@@ -55,7 +55,8 @@ export interface HudViewModel {
   selectedShipHasBurn: boolean;
   selectedShipInOrbit: boolean;
   selectedShipLandingSet: boolean;
-  allShipsHaveBurns: boolean;
+  allShipsAcknowledged: boolean;
+  allOrdnanceShipsAcknowledged: boolean;
   multipleShipsAlive: boolean;
   speed: number;
   fuelToStop: number;
@@ -83,6 +84,8 @@ export type PlanningSnapshot = Pick<
   | 'overloads'
   | 'landingShips'
   | 'weakGravityChoices'
+  | 'acknowledgedShips'
+  | 'acknowledgedOrdnanceShips'
 >;
 
 export type BuildAstrogationOrders = (

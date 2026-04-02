@@ -100,6 +100,7 @@ export const createActionDeps = (args: ActionDepsArgs) => {
   const getOrdnanceDeps = createCachedValue<OrdnanceActionDeps>(() => ({
     getGameState: args.getGameState,
     getClientState: args.getClientState,
+    getPlayerId: args.getPlayerId,
     getTransport: args.getTransport as OrdnanceActionDeps['getTransport'],
     planningState: args.planningState,
     showToast,

@@ -26,6 +26,7 @@ import {
 } from '../types';
 import { sumBy } from '../util';
 import type { EngineEvent } from './engine-events';
+import { shouldEnterLogisticsPhase } from './logistics';
 import { resolvePendingAsteroidHazards } from './ordnance';
 import {
   engineFailure,
@@ -35,6 +36,25 @@ import {
   validatePhaseAction,
 } from './util';
 import { advanceTurn, applyEscapeMoralVictory, checkGameEnd } from './victory';
+
+// After combat resolves, transition to logistics if eligible,
+// otherwise advance the turn directly.
+const advanceAfterCombat = (
+  state: GameState,
+  engineEvents: EngineEvent[],
+): void => {
+  if (shouldEnterLogisticsPhase(state)) {
+    state.phase = 'logistics';
+    engineEvents.push({
+      type: 'phaseChanged',
+      phase: 'logistics',
+      turn: state.turnNumber,
+      activePlayer: state.activePlayer,
+    });
+  } else {
+    advanceTurn(state, engineEvents);
+  }
+};
 
 export interface CombatPhaseResult {
   results: CombatResult[];
@@ -280,7 +300,7 @@ export const beginCombatPhase = (
   }
 
   if (!shouldRemainInCombatPhase(state, map)) {
-    advanceTurn(state, engineEvents);
+    advanceAfterCombat(state, engineEvents);
 
     return results.length > 0
       ? { results, state, engineEvents }
@@ -583,7 +603,7 @@ export const processCombat = (
   checkGameEnd(state, map, engineEvents);
 
   if (state.outcome === null) {
-    advanceTurn(state, engineEvents);
+    advanceAfterCombat(state, engineEvents);
   }
 
   return { results, state, engineEvents };
@@ -747,7 +767,7 @@ export const endCombat = (
   checkGameEnd(state, map, engineEvents);
 
   if (state.outcome === null) {
-    advanceTurn(state, engineEvents);
+    advanceAfterCombat(state, engineEvents);
   }
 
   return results.length > 0
@@ -802,7 +822,7 @@ export const skipCombat = (
   }
 
   if (state.outcome === null) {
-    advanceTurn(state, engineEvents);
+    advanceAfterCombat(state, engineEvents);
   }
 
   return results.length > 0

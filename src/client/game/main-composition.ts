@@ -1,4 +1,9 @@
 import { CODE_LENGTH } from '../../shared/constants';
+import {
+  getAllowedOrdnanceTypes,
+  getOrderableShipsForPlayer,
+  hasLaunchableOrdnanceCapacity,
+} from '../../shared/engine/util';
 import { normalizePlayerToken, normalizeRoomCode } from '../../shared/ids';
 import { isMuted, setMuted } from '../audio';
 import { hide } from '../dom';
@@ -19,6 +24,7 @@ interface BrowserBindingDeps {
   tooltipEl: HTMLElement;
   getState: () => ClientState;
   hasGameState: () => boolean;
+  getGameState: () => import('../../shared/types/domain').GameState | null;
   getPlanningState: () => PlanningState;
   updateTooltip: (x: number, y: number) => void;
   onKeyboardAction: (action: import('./keyboard').KeyboardAction) => void;
@@ -42,6 +48,29 @@ export const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
           combatTargetId: deps.getPlanningState().combatTargetId,
           queuedAttackCount: deps.getPlanningState().queuedAttacks.length,
           torpedoAccelActive: deps.getPlanningState().torpedoAccel !== null,
+          allShipsAcknowledged: (() => {
+            const gs = deps.getGameState?.();
+            if (!gs) return false;
+            const planning = deps.getPlanningState();
+            return getOrderableShipsForPlayer(gs, gs.activePlayer).every(
+              (s) =>
+                s.damage.disabledTurns > 0 ||
+                planning.acknowledgedShips.has(s.id),
+            );
+          })(),
+          allOrdnanceShipsAcknowledged: (() => {
+            const gs = deps.getGameState?.();
+            if (!gs) return true;
+            const planning = deps.getPlanningState();
+            return getOrderableShipsForPlayer(gs, gs.activePlayer)
+              .filter(
+                (s) =>
+                  s.damage.disabledTurns === 0 &&
+                  hasLaunchableOrdnanceCapacity(s, getAllowedOrdnanceTypes(gs)),
+              )
+              .every((s) => planning.acknowledgedOrdnanceShips.has(s.id));
+          })(),
+          hasSelectedShip: deps.getPlanningState().selectedShipId !== null,
         },
         { key: event.key, shiftKey: event.shiftKey },
       ),

@@ -165,6 +165,8 @@ describe('game client helpers', () => {
       overloads: new Map([['p0s0', 4]]),
       weakGravityChoices: new Map([['p0s0', { '2,1': true }]]),
       landingShips: new Set<string>(),
+      acknowledgedShips: new Set<string>(),
+      acknowledgedOrdnanceShips: new Set<string>(),
     };
 
     expect(buildAstrogationOrders(state, 0, planning)).toEqual([
@@ -231,6 +233,8 @@ describe('game client helpers', () => {
       overloads: new Map(),
       weakGravityChoices: new Map(),
       landingShips: new Set<string>(),
+      acknowledgedShips: new Set<string>(),
+      acknowledgedOrdnanceShips: new Set<string>(),
     };
 
     expect(deriveHudViewModel(state, 0, planning)).toMatchObject({
@@ -352,6 +356,8 @@ describe('game client helpers', () => {
       overloads: new Map(),
       weakGravityChoices: new Map(),
       landingShips: new Set<string>(),
+      acknowledgedShips: new Set<string>(),
+      acknowledgedOrdnanceShips: new Set<string>(),
     };
 
     expect(deriveHudViewModel(state, 0, planning).matchVelocityState).toEqual({
@@ -388,6 +394,8 @@ describe('game client helpers', () => {
       overloads: new Map(),
       weakGravityChoices: new Map(),
       landingShips: new Set<string>(),
+      acknowledgedShips: new Set<string>(),
+      acknowledgedOrdnanceShips: new Set<string>(),
     };
 
     expect(deriveHudViewModel(state, 0, planning)).toMatchObject({

@@ -284,6 +284,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
         !hideActions && hudView.skipOrdnanceVisible,
         'inline-block',
       );
+      skipOrdnanceBtn.textContent = 'CONFIRM';
 
       launchMineBtn.disabled = hudView.launchMine.disabled;
       launchTorpedoBtn.disabled = hudView.launchTorpedo.disabled;

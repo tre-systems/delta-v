@@ -148,13 +148,13 @@ Each game turn consists of one player-turn per player. The player-turn is:
    - Gravity entered earlier applies now; newly entered gravity is queued for later
    - Crashes, landings, asteroid entry, ordnance contact, and ramming positions are established
 
-4. LOGISTICS STAGE (conditional — only in scenarios with logisticsEnabled)
-   - Transfer fuel or cargo between friendly ships at the same hex and velocity
-   - Loot disabled or surrendered enemy ships
-
-5. COMBAT STAGE
+4. COMBAT STAGE
    - Resolve asteroid hazard rolls for asteroid hexes entered at speed > 1
    - Resolve gunfire, counterattacks, planetary defense, and attacks against nukes
+
+5. LOGISTICS STAGE (conditional — only in scenarios with logisticsEnabled)
+   - Transfer fuel or cargo between friendly ships at the same hex and velocity
+   - Loot disabled or surrendered enemy ships
 
 6. TURN ADVANCE / MAINTENANCE
    - Base resupply is applied automatically as part of movement-resolution outcomes when legal conditions are met
@@ -538,7 +538,8 @@ waitingForOpponent → playing_astrogation (when both connected)
 playing_astrogation   → playing_ordnance (after confirm)
 playing_ordnance      → playing_movementAnim (after movement resolves)
 playing_movementAnim  → playing_combat (animation complete)
-playing_combat        → playing_opponentTurn (after combat/skip)
+playing_combat        → playing_logistics | playing_opponentTurn (after combat/skip)
+playing_logistics     → playing_opponentTurn (after transfers/skip)
 playing_opponentTurn  → playing_astrogation (when opponent's turn completes)
 
 Any playing state → gameOver (victory/defeat condition met)
