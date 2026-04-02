@@ -34,6 +34,28 @@ export {
 } from './reporting';
 export { GameDO };
 
+const isLoopbackAddress = (value: string | null): boolean => {
+  if (!value) {
+    return false;
+  }
+
+  return (
+    value === '127.0.0.1' ||
+    value === 'localhost' ||
+    value === '::1' ||
+    value === '::ffff:127.0.0.1'
+  );
+};
+
+const isLoopbackRequest = (request: Request): boolean => {
+  const url = new URL(request.url);
+
+  return (
+    isLoopbackAddress(url.hostname) ||
+    isLoopbackAddress(request.headers.get('cf-connecting-ip'))
+  );
+};
+
 export default {
   async fetch(
     request: Request,
@@ -55,11 +77,13 @@ export default {
 
     // Create a new game
     if (url.pathname === '/create' && request.method === 'POST') {
-      const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-      const ipHash = await hashIp(ip);
+      if (!isLoopbackRequest(request)) {
+        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+        const ipHash = await hashIp(ip);
 
-      if (await isCreateRateLimited(env, ipHash)) {
-        return tooManyRequests();
+        if (await isCreateRateLimited(env, ipHash)) {
+          return tooManyRequests();
+        }
       }
       return handleCreate(request, env);
     }
