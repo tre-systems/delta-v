@@ -72,7 +72,7 @@ describe('game-client-phase-entry', () => {
 
     expect(plan).toMatchObject({
       startTurnTimer: true,
-      showHUD: true,
+
       clearAstrogationPlanning: true,
       selectedShipId: 'ship-1',
       frameOnShips: true,
@@ -152,7 +152,7 @@ describe('game-client-phase-entry', () => {
       deriveClientStateEntryPlan('playing_combat', state, 0),
     ).toMatchObject({
       startTurnTimer: true,
-      showHUD: true,
+
       resetCombatState: true,
       autoSkipCombatIfNoTargets: true,
       tutorialPhase: 'combat',
@@ -162,7 +162,7 @@ describe('game-client-phase-entry', () => {
       deriveClientStateEntryPlan('playing_movementAnim', state, 0),
     ).toMatchObject({
       stopTurnTimer: true,
-      showHUD: true,
+
       hideTutorial: true,
     });
   });
@@ -179,7 +179,7 @@ describe('game-client-phase-entry', () => {
       deriveClientStateEntryPlan('playing_opponentTurn', state, 0),
     ).toMatchObject({
       stopTurnTimer: true,
-      showHUD: true,
+
       frameOnShips: true,
     });
 

@@ -7,7 +7,7 @@ export interface ClientStateEntryPlan {
   startTurnTimer: boolean;
   hideTutorial: boolean;
   resetCamera: boolean;
-  showHUD: boolean;
+
   frameOnShips: boolean;
   clearAstrogationPlanning: boolean;
   resetOrdnancePlanning: boolean;
@@ -45,7 +45,7 @@ export const deriveClientStateEntryPlan = (
         startTurnTimer: false,
         hideTutorial: true,
         resetCamera: true,
-        showHUD: false,
+
         frameOnShips: false,
         clearAstrogationPlanning: false,
         resetOrdnancePlanning: false,
@@ -60,7 +60,7 @@ export const deriveClientStateEntryPlan = (
         startTurnTimer: !isLocalGame,
         hideTutorial: false,
         resetCamera: false,
-        showHUD: true,
+
         frameOnShips: true,
         clearAstrogationPlanning: true,
         resetOrdnancePlanning: false,
@@ -75,7 +75,7 @@ export const deriveClientStateEntryPlan = (
         startTurnTimer: !isLocalGame,
         hideTutorial: false,
         resetCamera: false,
-        showHUD: true,
+
         frameOnShips: false,
         clearAstrogationPlanning: false,
         resetOrdnancePlanning: true,
@@ -97,7 +97,7 @@ export const deriveClientStateEntryPlan = (
         startTurnTimer: !isLocalGame,
         hideTutorial: true,
         resetCamera: false,
-        showHUD: true,
+
         frameOnShips: false,
         clearAstrogationPlanning: false,
         resetOrdnancePlanning: false,
@@ -112,7 +112,7 @@ export const deriveClientStateEntryPlan = (
         startTurnTimer: !isLocalGame,
         hideTutorial: false,
         resetCamera: false,
-        showHUD: true,
+
         frameOnShips: false,
         clearAstrogationPlanning: false,
         resetOrdnancePlanning: false,
@@ -127,7 +127,7 @@ export const deriveClientStateEntryPlan = (
         startTurnTimer: false,
         hideTutorial: true,
         resetCamera: false,
-        showHUD: true,
+
         frameOnShips: false,
         clearAstrogationPlanning: false,
         resetOrdnancePlanning: false,
@@ -142,7 +142,7 @@ export const deriveClientStateEntryPlan = (
         startTurnTimer: false,
         hideTutorial: false,
         resetCamera: false,
-        showHUD: true,
+
         frameOnShips: true,
         clearAstrogationPlanning: false,
         resetOrdnancePlanning: false,
@@ -157,7 +157,7 @@ export const deriveClientStateEntryPlan = (
         startTurnTimer: false,
         hideTutorial: true,
         resetCamera: false,
-        showHUD: false,
+
         frameOnShips: false,
         clearAstrogationPlanning: false,
         resetOrdnancePlanning: false,
@@ -172,7 +172,7 @@ export const deriveClientStateEntryPlan = (
         startTurnTimer: false,
         hideTutorial: false,
         resetCamera: false,
-        showHUD: false,
+
         frameOnShips: false,
         clearAstrogationPlanning: false,
         resetOrdnancePlanning: false,
