@@ -97,6 +97,7 @@ describe('session-signals', () => {
         updateLatency: vi.fn(),
         updateFleetStatus: vi.fn(),
         updateShipList: vi.fn(),
+        bindInteractionSignal: vi.fn(),
       },
       hud: {
         updateHUD: vi.fn(),
@@ -228,6 +229,7 @@ describe('session-signals', () => {
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
     expect(showFireButton).toHaveBeenLastCalledWith(false, 0);
 
+    session.interactionState = { mode: 'combat' };
     session.state = 'playing_combat';
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
     // No ship selected yet — fire button hidden to avoid "END COMBAT" flash
@@ -246,6 +248,7 @@ describe('session-signals', () => {
     // Between attacks — button hidden during dice animation transition
     expect(showFireButton).toHaveBeenLastCalledWith(false, 0);
 
+    session.interactionState = { mode: 'opponentTurn' };
     session.state = 'playing_opponentTurn';
     expect(showAttackButton).toHaveBeenLastCalledWith(false);
     expect(showFireButton).toHaveBeenLastCalledWith(false, 0);
@@ -280,10 +283,12 @@ describe('session-signals', () => {
 
     expect(setWaitingState).toHaveBeenLastCalledWith(null, false);
 
+    session.interactionState = { mode: 'waiting' };
     session.state = 'connecting';
     expect(setWaitingState).toHaveBeenLastCalledWith(null, true);
 
     session.gameCode = 'ROOM1';
+    session.interactionState = { mode: 'waiting' };
     session.state = 'waitingForOpponent';
     expect(setWaitingState).toHaveBeenLastCalledWith('ROOM1', false);
 

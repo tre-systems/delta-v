@@ -1,4 +1,5 @@
 import { SCENARIOS } from '../../shared/map-data';
+import type { InteractionMode } from '../game/interaction-fsm';
 
 export type UIScreenMode =
   | 'hidden'
@@ -128,8 +129,39 @@ export const buildScreenVisibility = (
         soundBtn: 'flex',
       };
 
-    default:
+    case 'hidden':
       return HIDDEN_VISIBILITY;
+
+    default: {
+      const _exhaustive: never = mode;
+      return _exhaustive;
+    }
+  }
+};
+
+export const mapInteractionModeToUIScreenMode = (
+  interaction: InteractionMode,
+  legacyMode: UIScreenMode,
+): UIScreenMode => {
+  switch (interaction) {
+    case 'menu':
+      return legacyMode === 'scenario' ? 'scenario' : 'menu';
+    case 'waiting':
+      return 'waiting';
+    case 'fleetBuilding':
+      return 'fleetBuilding';
+    case 'astrogation':
+    case 'ordnance':
+    case 'logistics':
+    case 'combat':
+    case 'animating':
+    case 'opponentTurn':
+    case 'gameOver':
+      return 'hud';
+    default: {
+      const _exhaustive: never = interaction;
+      return _exhaustive;
+    }
   }
 };
 

@@ -94,6 +94,14 @@ const createController = () => {
   const mainNetworkDeps = { id: 'network-deps' } as unknown as MainNetworkDeps;
   const ctx = {
     stateSignal: { peek: vi.fn(() => currentState) },
+    interactionSignal: {
+      peek: vi.fn(() => ({
+        mode:
+          currentState === 'playing_movementAnim'
+            ? 'animating'
+            : currentState.split('_')[1] || 'menu',
+      })),
+    },
     gameStateSignal: { peek: vi.fn(() => currentGameState) },
     logisticsStateSignal: { peek: vi.fn(() => null) },
     planningState,
@@ -262,6 +270,7 @@ describe('main-interactions', () => {
     expect(mocks.interpretInput).toHaveBeenCalledWith(
       clickEvent,
       { gameId: 'GAME1' },
+      'astrogation',
       deps.map,
       0,
       deps.ctx.planningState,

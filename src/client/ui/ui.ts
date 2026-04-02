@@ -1,4 +1,6 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
+import type { InteractionState } from '../game/interaction-fsm';
+import type { ReadonlySignal } from '../reactive';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { bindStaticButtonEvents } from './button-events';
 import { composeDisposers } from './dispose-group';
@@ -15,7 +17,7 @@ import { createLobbyView, type LobbyView } from './lobby-view';
 import { bindMobileSync } from './mobile-sync';
 import { createOverlayStateStore } from './overlay-state';
 import { createOverlayView } from './overlay-view';
-import type { UIScreenMode } from './screens';
+import { mapInteractionModeToUIScreenMode, type UIScreenMode } from './screens';
 import { createSessionActions } from './session-actions';
 import { createShipListView } from './ship-list-view';
 import { bindViewportEvents } from './viewport-events';
@@ -39,6 +41,9 @@ export const createUIManager = () => {
   const eventBridge = createUIEventBridge();
   const emit = (event: UIEvent) => eventBridge.emit(event);
   const screenModeSignal = signal<UIScreenMode>('hidden');
+  const interactionSignal = signal<ReadonlySignal<InteractionState> | null>(
+    null,
+  );
 
   const { reset: resetLayoutMetrics, queue: queueLayoutSync } =
     createLayoutSync({
@@ -128,6 +133,11 @@ export const createUIManager = () => {
   withScope(scope, () => {
     effect(() => {
       const mode = screenModeSignal.value;
+      const interaction = interactionSignal.value?.value;
+
+      const effectiveMode = interaction
+        ? mapInteractionModeToUIScreenMode(interaction.mode, mode)
+        : mode;
 
       applyUIVisibility(
         {
@@ -139,9 +149,9 @@ export const createUIManager = () => {
           shipListEl,
           fleetBuildingEl,
         },
-        mode,
+        effectiveMode,
       );
-      log.setScreenMode(mode);
+      log.setScreenMode(effectiveMode);
 
       if (mode === 'hud') {
         queueLayoutSync();
@@ -225,6 +235,9 @@ export const createUIManager = () => {
     bindTurnTimerSignal: (
       timerSignal: Parameters<typeof hudChromeView.bindTurnTimerSignal>[0],
     ) => hudChromeView.bindTurnTimerSignal(timerSignal),
+    bindInteractionSignal: (signal: ReadonlySignal<InteractionState>) => {
+      interactionSignal.value = signal;
+    },
     ...hudActions,
     dispose() {
       resetLayoutMetrics();
