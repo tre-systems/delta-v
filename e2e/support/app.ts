@@ -56,6 +56,7 @@ export const openHomePage = async (
 ): Promise<void> => {
   await seedLocalStorage(page, options);
   await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await waitForDisplay(page, '#menu', 'flex');
 };
 
 export const skipTutorialIfPresent = async (page: Page): Promise<void> => {

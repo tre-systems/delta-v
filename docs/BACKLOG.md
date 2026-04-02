@@ -81,6 +81,80 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 **Files:** `src/client/dom.ts`, client call sites, optional dependency add
 
 ---
+
+### 22. Replace planning store property aliasing with plain object
+
+**Status:** not started.
+
+**Remaining:** `planning.ts` uses ~400 lines of `definePlanningAlias()` / `defineHiddenPlanningMember()` via `Object.defineProperty` to wrap a hidden `PlanningData` object. Replace with a plain object and a single `notifyPlanningChanged()` call. The property descriptor ceremony adds no safety — state is mutated throughout anyway.
+
+**Files:** `src/client/game/planning.ts`
+
+### 23. Data-driven phase dispatch tables
+
+**Status:** not started.
+
+**Remaining:** `phase-entry.ts` and `phase.ts` contain ~200 lines of switch statements returning near-identical config objects differing in 1–2 fields. Replace with lookup tables keyed by phase, merging per-phase overrides onto shared defaults.
+
+**Files:** `src/client/game/phase-entry.ts`, `src/client/game/phase.ts`
+
+### 24. Consolidate planning snapshot types
+
+**Status:** not started.
+
+**Remaining:** `planning.ts` defines 23+ snapshot type aliases (`AstrogationPlanningSnapshot`, `HudPlanningSnapshot`, etc.) that are `Pick` / intersection combinations of 4–5 base types. Consolidate into fewer types or use `Pick` directly at call sites to reduce cognitive overhead and type-change ripple.
+
+**Files:** `src/client/game/planning.ts`, consumers in `src/client/game/`
+
+### 25. Generic combat target finder
+
+**Status:** not started.
+
+**Remaining:** `combat.ts` has 7 similar filter/find functions for locating ships and ordnance targets, each differing by one predicate. Replace with a single `findTargets(state, filter)` utility.
+
+**Files:** `src/client/game/combat.ts`
+
+### 26. Message handler registry
+
+**Status:** not started.
+
+**Remaining:** `message-handler.ts` dispatches 12+ message types via a switch with inconsistent patterns (some inline, some delegated). Replace with a handler registry mapping message kind to handler function.
+
+**Files:** `src/client/game/message-handler.ts`
+
+### 27. Break up HUD view model construction
+
+**Status:** not started.
+
+**Remaining:** `deriveHudViewModel()` in `hud-orders.ts` builds a 28-field object with inline IIFEs computing individual booleans. Extract mixed concerns (objective calculation, ordnance validation, fleet status) into smaller testable helper functions.
+
+**Files:** `src/client/game/hud-orders.ts`
+
+### 28. Shared test factory module
+
+**Status:** not started.
+
+**Remaining:** Test files independently redefine `createShip()`, `createState()`, and similar builders with deep boilerplate. Extract a shared test factory with smart defaults to cut repetition across test files.
+
+**Files:** test files across `src/client/game/` and `src/shared/engine/`
+
+### 29. Remove helpers.ts re-export indirection
+
+**Status:** not started.
+
+**Remaining:** `helpers.ts` is a pure re-export file adding import indirection without value. Update consumers to import directly from source modules and delete the file.
+
+**Files:** `src/client/game/helpers.ts`, importing modules
+
+### 30. Event projector handler registry
+
+**Status:** not started.
+
+**Remaining:** `event-projector/index.ts` uses a switch with manual case grouping to route events to 3 category handlers. Replace with a registry keyed by event type to reduce fragility when adding new events.
+
+**Files:** `src/shared/engine/event-projector/index.ts`
+
+---
 ### 21. Spectator UX Hardening
 
 **Status:** baseline support shipped.
