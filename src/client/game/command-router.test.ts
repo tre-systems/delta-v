@@ -197,6 +197,7 @@ const createDeps = (overrides?: {
     ordnanceDeps: {
       getGameState: () => ctx.getGameState(),
       getClientState: () => ctx.getState(),
+      getPlayerId: () => ctx.getPlayerId(),
       getTransport: () => ctx.getTransport(),
       planningState: ctx.planningState,
       showToast,

@@ -65,11 +65,12 @@ const buildInput = (
     disabled: true,
     title: 'Not enough cargo (need 20, have 6)',
   },
+  allOrdnanceShipsAcknowledged: false,
   astrogationCtx: {
     selectedShipLanded: false,
     selectedShipDisabled: false,
     selectedShipHasBurn: true,
-    allShipsHaveBurns: false,
+    allShipsAcknowledged: false,
     multipleShipsAlive: true,
     hasSelection: true,
   },
@@ -104,14 +105,14 @@ describe('HUDChromeView', () => {
       'Fuel: 8/12',
     );
     expect(onStatusText).toHaveBeenCalledWith(
-      expect.stringContaining('Confirm'),
+      expect.stringContaining('Select another ship'),
     );
     expect(
       (document.getElementById('undoBtn') as HTMLElement).style.display,
     ).toBe('inline-block');
     expect(
       (document.getElementById('confirmBtn') as HTMLElement).style.display,
-    ).toBe('inline-block');
+    ).toBe('none');
     expect(
       (document.getElementById('matchVelocityBtn') as HTMLElement).style
         .display,
@@ -235,7 +236,7 @@ describe('HUDChromeView', () => {
           selectedShipLanded: true,
           selectedShipDisabled: false,
           selectedShipHasBurn: false,
-          allShipsHaveBurns: false,
+          allShipsAcknowledged: false,
           multipleShipsAlive: false,
           hasSelection: true,
         },
@@ -265,7 +266,7 @@ describe('HUDChromeView', () => {
         selectedShipLanded: true,
         selectedShipDisabled: false,
         selectedShipHasBurn: false,
-        allShipsHaveBurns: false,
+        allShipsAcknowledged: false,
         multipleShipsAlive: false,
         hasSelection: true,
       },
@@ -302,7 +303,7 @@ describe('HUDChromeView', () => {
           selectedShipLanded: true,
           selectedShipDisabled: false,
           selectedShipHasBurn: false,
-          allShipsHaveBurns: false,
+          allShipsAcknowledged: false,
           multipleShipsAlive: false,
           hasSelection: true,
         },

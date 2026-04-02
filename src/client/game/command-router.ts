@@ -12,6 +12,7 @@ import {
   confirmOrders,
   matchVelocityWithNearbyFriendly,
   setBurnDirection,
+  skipShipBurn,
   undoSelectedShipBurn,
 } from './astrogation-actions';
 import {
@@ -28,10 +29,11 @@ import {
 import type { GameCommand } from './commands';
 import type { LogisticsStore } from './logistics-ui';
 import {
+  confirmOrdnance,
   type OrdnanceActionDeps,
+  queueOrdnanceLaunch,
   sendEmplaceBase,
-  sendOrdnanceLaunch,
-  sendSkipOrdnance,
+  skipOrdnanceShip,
 } from './ordnance-actions';
 import type { ClientState } from './phase';
 import type { PlanningStore } from './planning';
@@ -211,6 +213,7 @@ const astrogationHandlers = {
   setWeakGravityChoices: (deps, cmd) =>
     deps.ctx.planningState.setShipWeakGravityChoices(cmd.shipId, cmd.choices),
   clearSelectedBurn: (deps) => clearSelectedBurn(deps.astrogationDeps),
+  skipShipBurn: (deps) => skipShipBurn(deps.astrogationDeps),
 } satisfies PartialCommandHandlerMap<
   | 'confirmOrders'
   | 'undoBurn'
@@ -220,6 +223,7 @@ const astrogationHandlers = {
   | 'setOverloadDirection'
   | 'setWeakGravityChoices'
   | 'clearSelectedBurn'
+  | 'skipShipBurn'
 >;
 
 const combatHandlers = {
@@ -254,9 +258,11 @@ const logisticsHandlers = {
 
 const ordnanceHandlers = {
   launchOrdnance: (deps, cmd) =>
-    sendOrdnanceLaunch(deps.ordnanceDeps, cmd.ordType),
+    queueOrdnanceLaunch(deps.ordnanceDeps, cmd.ordType),
   emplaceBase: (deps) => sendEmplaceBase(deps.ordnanceDeps),
-  skipOrdnance: (deps) => sendSkipOrdnance(deps.ordnanceDeps),
+  skipOrdnance: (deps) => confirmOrdnance(deps.ordnanceDeps),
+  confirmOrdnance: (deps) => confirmOrdnance(deps.ordnanceDeps),
+  skipOrdnanceShip: (deps) => skipOrdnanceShip(deps.ordnanceDeps),
   setTorpedoAccel: (deps, cmd) =>
     deps.ctx.planningState.setTorpedoAcceleration(cmd.direction, cmd.steps),
   clearTorpedoAcceleration: (deps) =>
@@ -265,6 +271,8 @@ const ordnanceHandlers = {
   | 'launchOrdnance'
   | 'emplaceBase'
   | 'skipOrdnance'
+  | 'confirmOrdnance'
+  | 'skipOrdnanceShip'
   | 'setTorpedoAccel'
   | 'clearTorpedoAcceleration'
 >;

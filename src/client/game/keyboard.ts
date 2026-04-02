@@ -21,6 +21,9 @@ export interface KeyboardShortcutContext {
   combatTargetId: string | null;
   queuedAttackCount: number;
   torpedoAccelActive: boolean;
+  allShipsAcknowledged: boolean;
+  allOrdnanceShipsAcknowledged: boolean;
+  hasSelectedShip: boolean;
 }
 
 export interface KeyboardShortcutInput {
@@ -51,6 +54,9 @@ export type KeyboardAction =
     }
   | { kind: 'setBurnDirection'; preventDefault: false; direction: number }
   | { kind: 'clearSelectedBurn'; preventDefault: false }
+  | { kind: 'skipShipBurn'; preventDefault: true }
+  | { kind: 'confirmOrdnance'; preventDefault: true }
+  | { kind: 'skipOrdnanceShip'; preventDefault: true }
   | { kind: 'resetCombatStrength'; preventDefault: false }
   | { kind: 'focusNearestEnemy'; preventDefault: false }
   | { kind: 'focusOwnFleet'; preventDefault: false }
@@ -101,11 +107,21 @@ export const deriveKeyboardAction = (
 
   if (input.key === 'Enter' || input.key === ' ') {
     if (context.state === 'playing_astrogation') {
-      return { kind: 'confirmOrders', preventDefault: true };
+      if (context.allShipsAcknowledged) {
+        return { kind: 'confirmOrders', preventDefault: true };
+      }
+      if (context.hasSelectedShip) {
+        return { kind: 'skipShipBurn', preventDefault: true };
+      }
     }
 
     if (context.state === 'playing_ordnance') {
-      return { kind: 'skipOrdnance', preventDefault: true };
+      if (context.allOrdnanceShipsAcknowledged) {
+        return { kind: 'confirmOrdnance', preventDefault: true };
+      }
+      if (context.hasSelectedShip) {
+        return { kind: 'skipOrdnanceShip', preventDefault: true };
+      }
     }
 
     if (context.state === 'playing_logistics') {
@@ -174,6 +190,14 @@ export const deriveKeyboardAction = (
 
   if (input.key === '0' && context.state === 'playing_astrogation') {
     return { kind: 'clearSelectedBurn', preventDefault: false };
+  }
+
+  if (lowerKey === 's' && context.state === 'playing_astrogation') {
+    return { kind: 'skipShipBurn', preventDefault: true };
+  }
+
+  if (lowerKey === 's' && context.state === 'playing_ordnance') {
+    return { kind: 'skipOrdnanceShip', preventDefault: true };
   }
 
   if (input.key === '0' && context.state === 'playing_combat') {

@@ -17,6 +17,10 @@ export type GameCommand =
       choices: Record<string, boolean>;
     }
   | { type: 'clearSelectedBurn' }
+  | { type: 'skipShipBurn' }
+  // Ordnance (batch)
+  | { type: 'confirmOrdnance' }
+  | { type: 'skipOrdnanceShip' }
   // Combat
   | { type: 'queueAttack' }
   | { type: 'fireAllAttacks' }
@@ -98,6 +102,12 @@ export const keyboardActionToCommand = (
       return { type: 'setBurnDirection', direction: action.direction };
     case 'clearSelectedBurn':
       return { type: 'clearSelectedBurn' };
+    case 'skipShipBurn':
+      return { type: 'skipShipBurn' };
+    case 'confirmOrdnance':
+      return { type: 'confirmOrdnance' };
+    case 'skipOrdnanceShip':
+      return { type: 'skipOrdnanceShip' };
     case 'resetCombatStrength':
       return { type: 'resetCombatStrength' };
     case 'focusNearestEnemy':

@@ -24,6 +24,7 @@ export const buildHudChromeInputFromViewModel = (
   launchMineState: hud.launchMineState,
   launchTorpedoState: hud.launchTorpedoState,
   launchNukeState: hud.launchNukeState,
+  allOrdnanceShipsAcknowledged: hud.allOrdnanceShipsAcknowledged,
   speed: hud.speed,
   fuelToStop: hud.fuelToStop,
   statusOverrideText:
@@ -36,7 +37,7 @@ export const buildHudChromeInputFromViewModel = (
     selectedShipHasBurn: hud.selectedShipHasBurn,
     selectedShipInOrbit: hud.selectedShipInOrbit,
     selectedShipLandingSet: hud.selectedShipLandingSet,
-    allShipsHaveBurns: hud.allShipsHaveBurns,
+    allShipsAcknowledged: hud.allShipsAcknowledged,
     multipleShipsAlive: hud.multipleShipsAlive,
     hasSelection: hud.selectedId !== null,
     anyCrashed: crashWarning.anyCrashed,

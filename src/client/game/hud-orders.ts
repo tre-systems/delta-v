@@ -2,6 +2,7 @@ import { SHIP_STATS } from '../../shared/constants';
 import {
   getAllowedOrdnanceTypes,
   getOrderableShipsForPlayer,
+  hasLaunchableOrdnanceCapacity,
   isOrderableShip,
   validateOrdnanceLaunch,
 } from '../../shared/engine/util';
@@ -268,13 +269,20 @@ export const deriveHudViewModel = (
     selectedShipLandingSet: selectedShip
       ? planning.landingShips.has(selectedShip.id)
       : false,
-    allShipsHaveBurns: myShips
+    allShipsAcknowledged: myShips
       .filter(isOrderableShip)
       .every(
         (s) =>
-          s.damage.disabledTurns > 0 ||
-          (planning.burns.get(s.id) ?? null) !== null,
+          s.damage.disabledTurns > 0 || planning.acknowledgedShips.has(s.id),
       ),
+    allOrdnanceShipsAcknowledged: myShips
+      .filter(isOrderableShip)
+      .filter(
+        (s) =>
+          s.damage.disabledTurns === 0 &&
+          hasLaunchableOrdnanceCapacity(s, getAllowedOrdnanceTypes(state)),
+      )
+      .every((s) => planning.acknowledgedOrdnanceShips.has(s.id)),
     multipleShipsAlive: myShips.filter(isOrderableShip).length > 1,
     speed: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
     fuelToStop: selectedShip ? hexVecLength(selectedShip.velocity) : 0,

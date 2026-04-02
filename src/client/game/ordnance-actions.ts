@@ -1,29 +1,60 @@
 import { must } from '../../shared/assert';
-import type { GameState, OrdnanceType } from '../../shared/types/domain';
+import {
+  getAllowedOrdnanceTypes,
+  getOrderableShipsForPlayer,
+  hasLaunchableOrdnanceCapacity,
+} from '../../shared/engine/util';
+import type {
+  GameState,
+  OrdnanceType,
+  PlayerId,
+} from '../../shared/types/domain';
 import {
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
 } from './ordnance';
-import type { PlanningState } from './planning';
+import type { PlanningStore } from './planning';
 import type { GameTransport } from './transport';
 export interface OrdnanceActionDeps {
   getGameState: () => GameState | null;
   getClientState: () => string;
+  getPlayerId: () => PlayerId;
   getTransport: () => GameTransport | null;
-  planningState: PlanningState;
+  planningState: PlanningStore;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   logText: (text: string) => void;
 }
 
-export const sendOrdnanceLaunch = (
+// Find the next ordnance-eligible ship that hasn't been acknowledged.
+const advanceToNextOrdnanceShip = (deps: OrdnanceActionDeps): void => {
+  const gameState = deps.getGameState();
+  if (!gameState) return;
+
+  const orderable = getOrderableShipsForPlayer(gameState, deps.getPlayerId());
+
+  const launchable = orderable.filter(
+    (s) =>
+      !deps.planningState.acknowledgedOrdnanceShips.has(s.id) &&
+      s.damage.disabledTurns === 0 &&
+      hasLaunchableOrdnanceCapacity(s, getAllowedOrdnanceTypes(gameState)),
+  );
+
+  if (launchable.length > 0) {
+    deps.planningState.selectShip(launchable[0].id);
+  } else {
+    deps.planningState.setSelectedShipId(null);
+  }
+};
+
+// Queue a launch locally (batch model). Acknowledges the ship and
+// auto-advances to the next launchable ship.
+export const queueOrdnanceLaunch = (
   deps: OrdnanceActionDeps,
   ordType: OrdnanceType,
 ) => {
   const gameState = deps.getGameState();
-  const transport = deps.getTransport();
 
-  if (!gameState || deps.getClientState() !== 'playing_ordnance' || !transport)
-    return;
+  if (!gameState || deps.getClientState() !== 'playing_ordnance') return;
   const plan = resolveOrdnanceLaunchPlan(
     gameState,
     deps.planningState,
@@ -36,8 +67,39 @@ export const sendOrdnanceLaunch = (
     }
     return;
   }
+
+  deps.planningState.queueOrdnanceLaunch(must(plan.launch));
+  deps.planningState.acknowledgeOrdnanceShip(must(plan.launch).shipId);
   deps.logText(`${plan.shipName} launched ${ordType}`);
-  transport.submitOrdnance([must(plan.launch)]);
+  advanceToNextOrdnanceShip(deps);
+};
+
+// Acknowledge the current ship without launching anything.
+export const skipOrdnanceShip = (deps: OrdnanceActionDeps) => {
+  const gameState = deps.getGameState();
+  if (!gameState || deps.getClientState() !== 'playing_ordnance') return;
+
+  const shipId = deps.planningState.selectedShipId;
+  if (shipId) {
+    deps.planningState.acknowledgeOrdnanceShip(shipId);
+  }
+  advanceToNextOrdnanceShip(deps);
+};
+
+// Send all queued ordnance launches to the server (or skip if none).
+export const confirmOrdnance = (deps: OrdnanceActionDeps) => {
+  const gameState = deps.getGameState();
+  const transport = deps.getTransport();
+
+  if (!gameState || deps.getClientState() !== 'playing_ordnance' || !transport)
+    return;
+
+  const launches = deps.planningState.takeQueuedOrdnanceLaunches();
+  if (launches.length > 0) {
+    transport.submitOrdnance(launches);
+  } else {
+    transport.skipOrdnance();
+  }
 };
 
 export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
@@ -60,11 +122,26 @@ export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
   transport.submitEmplacement(must(plan.emplacements));
 };
 
-export const sendSkipOrdnance = (deps: OrdnanceActionDeps) => {
+// Check if all ordnance-eligible ships have been acknowledged.
+export const allOrdnanceShipsAcknowledged = (
+  deps: OrdnanceActionDeps,
+): boolean => {
   const gameState = deps.getGameState();
-  const transport = deps.getTransport();
+  if (!gameState) return true;
 
-  if (!gameState || deps.getClientState() !== 'playing_ordnance' || !transport)
-    return;
-  transport.skipOrdnance();
+  const orderable = getOrderableShipsForPlayer(gameState, deps.getPlayerId());
+
+  return orderable
+    .filter(
+      (s) =>
+        s.damage.disabledTurns === 0 &&
+        hasLaunchableOrdnanceCapacity(s, getAllowedOrdnanceTypes(gameState)),
+    )
+    .every((s) => deps.planningState.acknowledgedOrdnanceShips.has(s.id));
+};
+
+// Enter the ordnance phase: auto-select the first launchable ship.
+export const enterOrdnancePhase = (deps: OrdnanceActionDeps): void => {
+  deps.planningState.resetOrdnancePlanning();
+  advanceToNextOrdnanceShip(deps);
 };
