@@ -109,7 +109,7 @@ export const createRoom = async (
   await page.click('#createBtn');
   await waitForDisplay(page, '#scenarioSelect', 'flex');
   await page.click(`[data-scenario="${scenario}"]`);
-  await waitForDisplay(page, '#waiting', 'flex');
+  await waitForDisplay(page, '#waiting', 'flex', 10_000);
 
   const roomCode =
     (await page.locator('#gameCode').textContent())?.trim() ?? '';
