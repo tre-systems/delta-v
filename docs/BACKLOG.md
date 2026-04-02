@@ -20,7 +20,7 @@ Each item should use: **Status**, **Remaining**, and (when useful) **Depends / F
 
 ### Next engineering work
 
-The core architecture has been formalized with a library-free **Interaction FSM** (`17`-`20`). Remaining engineering work focuses on expanding test coverage for complex fleet scenarios (`18`) and polishing phase-transition UX (`19`). See individual items below for details.
+Core architecture work (`17`-`20`) is complete: exhaustive FSM switches, multi-ship E2E coverage, opponent-turn status feedback, and FSM-driven UI visibility. Remaining work below focuses on legal/privacy gates, accessibility, ops hardening, and spectator UX polish.
 
 ---
 
@@ -81,22 +81,6 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 **Files:** `src/client/dom.ts`, client call sites, optional dependency add
 
 ---
-### 17. Interaction FSM Exhaustiveness — **SHIPPED**
-
-Exhaustive `never` checks enforce compile-time coverage across all FSM switches: `applyInteractionEvent`, `deriveClientScreenPlan`, `buildScreenVisibility`, and `mapInteractionModeToUIScreenMode`. Adding a new `ClientState` or `InteractionMode` now causes a type error until every switch is updated.
-
-### 18. Expanded E2E Multiplayer Lifecycle Coverage — **SHIPPED**
-
-E2E spec for multi-ship `escape` scenario verifies `acknowledgedShips` rotation and `confirmBtn`/`skipShipBtn` visibility through a full 3-ship skip-and-confirm cycle.
-
-### 19. Phase Transition Status Feedback — **SHIPPED**
-
-Status override text "Waiting for opponent..." is now shown during `playing_opponentTurn`, matching the existing "Ships moving..." pattern for `playing_movementAnim`. Uses the `statusOverrideText` → `#phaseInfo` pipeline with no new DOM or CSS.
-
-### 20. Direct UI Visibility from Interaction FSM — **SHIPPED**
-
-Replaced the dual-signal system (`screenModeSignal` + `interactionSignal`) with `interactionSignal` as the sole source of truth for DOM visibility. The `screenModeSignal` is gone; a lightweight `scenarioActiveSignal` boolean handles the menu/scenario UI sub-state. State-transition no longer calls `showMenu`/`showHUD`/`showWaiting`/`showConnecting`; the reactive effect in `ui.ts` derives visibility directly from the FSM mode. The `showHUD` field was also removed from `ClientStateEntryPlan` since it is no longer consumed.
-
 ### 21. Spectator UX Hardening
 
 **Status:** baseline support shipped.
