@@ -132,7 +132,7 @@ describe('game-client-phase-entry', () => {
     expect(plan.selectedShipId).toBe('ship-a');
   });
 
-  it('returns null ordnance selectedShipId when multiple launchable ships exist', () => {
+  it('returns first launchable ordnance selectedShipId when multiple ships exist', () => {
     const plan = deriveClientStateEntryPlan(
       'playing_ordnance',
       createState([
@@ -142,7 +142,7 @@ describe('game-client-phase-entry', () => {
       0,
     );
 
-    expect(plan.selectedShipId).toBeNull();
+    expect(plan.selectedShipId).toBe('ship-a');
   });
 
   it('derives combat and movement animation behaviors', () => {

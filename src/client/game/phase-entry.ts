@@ -1,5 +1,5 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
-import { getUnambiguousLaunchableShipId } from './ordnance';
+import { getFirstLaunchableShipId } from './ordnance';
 import type { ClientState } from './phase';
 
 export interface ClientStateEntryPlan {
@@ -10,6 +10,7 @@ export interface ClientStateEntryPlan {
   showHUD: boolean;
   frameOnShips: boolean;
   clearAstrogationPlanning: boolean;
+  resetOrdnancePlanning: boolean;
   selectedShipId: string | null | undefined;
   resetCombatState: boolean;
   autoSkipCombatIfNoTargets: boolean;
@@ -46,6 +47,7 @@ export const deriveClientStateEntryPlan = (
         showHUD: false,
         frameOnShips: false,
         clearAstrogationPlanning: false,
+        resetOrdnancePlanning: false,
         selectedShipId: undefined,
         resetCombatState: false,
         autoSkipCombatIfNoTargets: false,
@@ -60,6 +62,7 @@ export const deriveClientStateEntryPlan = (
         showHUD: true,
         frameOnShips: true,
         clearAstrogationPlanning: true,
+        resetOrdnancePlanning: false,
         selectedShipId: getFirstActionableShipId(gameState, playerId),
         resetCombatState: false,
         autoSkipCombatIfNoTargets: false,
@@ -74,7 +77,8 @@ export const deriveClientStateEntryPlan = (
         showHUD: true,
         frameOnShips: false,
         clearAstrogationPlanning: false,
-        selectedShipId: getUnambiguousLaunchableShipId(
+        resetOrdnancePlanning: true,
+        selectedShipId: getFirstLaunchableShipId(
           gameState ?? {
             ships: [],
             scenarioRules: {},
@@ -95,6 +99,7 @@ export const deriveClientStateEntryPlan = (
         showHUD: true,
         frameOnShips: false,
         clearAstrogationPlanning: false,
+        resetOrdnancePlanning: false,
         selectedShipId: undefined,
         resetCombatState: false,
         autoSkipCombatIfNoTargets: false,
@@ -109,6 +114,7 @@ export const deriveClientStateEntryPlan = (
         showHUD: true,
         frameOnShips: false,
         clearAstrogationPlanning: false,
+        resetOrdnancePlanning: false,
         selectedShipId: getFirstActionableShipId(gameState, playerId),
         resetCombatState: true,
         autoSkipCombatIfNoTargets: true,
@@ -123,6 +129,7 @@ export const deriveClientStateEntryPlan = (
         showHUD: true,
         frameOnShips: false,
         clearAstrogationPlanning: false,
+        resetOrdnancePlanning: false,
         selectedShipId: undefined,
         resetCombatState: false,
         autoSkipCombatIfNoTargets: false,
@@ -137,6 +144,7 @@ export const deriveClientStateEntryPlan = (
         showHUD: true,
         frameOnShips: true,
         clearAstrogationPlanning: false,
+        resetOrdnancePlanning: false,
         selectedShipId: undefined,
         resetCombatState: false,
         autoSkipCombatIfNoTargets: false,
@@ -151,6 +159,7 @@ export const deriveClientStateEntryPlan = (
         showHUD: false,
         frameOnShips: false,
         clearAstrogationPlanning: false,
+        resetOrdnancePlanning: false,
         selectedShipId: undefined,
         resetCombatState: false,
         autoSkipCombatIfNoTargets: false,
@@ -165,6 +174,7 @@ export const deriveClientStateEntryPlan = (
         showHUD: false,
         frameOnShips: false,
         clearAstrogationPlanning: false,
+        resetOrdnancePlanning: false,
         selectedShipId: undefined,
         resetCombatState: false,
         autoSkipCombatIfNoTargets: false,
