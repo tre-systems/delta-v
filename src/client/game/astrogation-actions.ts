@@ -2,8 +2,8 @@ import { must } from '../../shared/assert';
 import { getOrderableShipsForPlayer } from '../../shared/engine/util';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { playConfirm, playSelect } from '../audio';
+import { buildAstrogationOrders } from './astrogation-orders';
 import { deriveBurnChangePlan } from './burn';
-import { buildAstrogationOrders } from './helpers';
 import type {
   AstrogationPlanningStore,
   PlanningSelectionStore,

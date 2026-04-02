@@ -1,5 +1,5 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
-import { getScenarioBriefingLines } from './helpers';
+import { getScenarioBriefingLines } from './selection';
 
 export interface BriefingLogEntry {
   text: string;

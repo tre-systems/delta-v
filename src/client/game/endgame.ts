@@ -1,5 +1,6 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
-import { type GameOverStats, getGameOverStats } from './helpers';
+import { getGameOverStats } from './selection';
+import type { GameOverStats } from './types';
 
 export interface GameOverPlan {
   stats: GameOverStats | undefined;

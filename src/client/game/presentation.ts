@@ -16,9 +16,9 @@ import {
   playVictory,
 } from '../audio';
 import { deriveGameOverPlan } from './endgame';
-import type { GameOverStats } from './helpers';
 import { deriveLandingLogEntries } from './landings';
 import type { ClientState } from './phase';
+import type { GameOverStats } from './types';
 
 export interface PresentationDeps {
   applyGameState: (state: GameState) => void;

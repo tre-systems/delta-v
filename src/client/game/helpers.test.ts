@@ -7,13 +7,13 @@ import type {
   PlayerState,
   Ship,
 } from '../../shared/types/domain';
+import { buildAstrogationOrders } from './astrogation-orders';
+import { deriveHudViewModel } from './hud-view-model';
 import {
-  buildAstrogationOrders,
-  deriveHudViewModel,
   getGameOverStats,
   getScenarioBriefingLines,
   getSelectedShip,
-} from './helpers';
+} from './selection';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'ship-0',
