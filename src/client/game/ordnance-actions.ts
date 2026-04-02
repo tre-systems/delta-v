@@ -55,6 +55,14 @@ export const queueOrdnanceLaunch = (
   const gameState = deps.getGameState();
 
   if (!gameState || deps.getClientState() !== 'playing_ordnance') return;
+
+  // Torpedoes need a direction pick first
+  if (ordType === 'torpedo' && !deps.planningState.torpedoAimingActive) {
+    deps.planningState.setTorpedoAimingActive(true);
+    deps.showToast('Click a direction for torpedo boost, or Enter to skip', 'info');
+    return;
+  }
+
   const plan = resolveOrdnanceLaunchPlan(
     gameState,
     deps.planningState,
@@ -70,6 +78,7 @@ export const queueOrdnanceLaunch = (
 
   deps.planningState.queueOrdnanceLaunch(must(plan.launch));
   deps.planningState.acknowledgeOrdnanceShip(must(plan.launch).shipId);
+  deps.planningState.setTorpedoAimingActive(false);
   deps.logText(`${plan.shipName} launched ${ordType}`);
   advanceToNextOrdnanceShip(deps);
 };
