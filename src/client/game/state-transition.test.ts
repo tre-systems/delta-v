@@ -65,14 +65,6 @@ const createDeps = (
     },
     onStateChanged: track('onStateChanged'),
     hideTooltip: track('hideTooltip'),
-    resetCombatState: () => {
-      deps.ctx.planningState.combatTargetId = null;
-      deps.ctx.planningState.combatTargetType = null;
-      deps.ctx.planningState.combatAttackerIds = [];
-      deps.ctx.planningState.combatAttackStrength = null;
-      deps.ctx.planningState.queuedAttacks = [];
-      track('resetCombatState')();
-    },
     autoSkipCombatIfNoTargets: track('autoSkipCombatIfNoTargets'),
     calls,
   };
@@ -181,7 +173,6 @@ describe('applyClientStateTransition', () => {
 
     applyClientStateTransition(deps, 'playing_combat');
 
-    expect(deps.calls.resetCombatState).toHaveLength(1);
     expect(deps.ctx.planningState.combatTargetId).toBeNull();
     expect(deps.ctx.planningState.combatAttackerIds).toEqual([]);
     expect(deps.ctx.planningState.queuedAttacks).toEqual([]);

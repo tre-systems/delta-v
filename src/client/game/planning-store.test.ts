@@ -31,6 +31,25 @@ describe('planning', () => {
     expect(planning.weakGravityChoices.size).toBe(0);
   });
 
+  it('recreates the active phase plan on entry and drops stale phase state', () => {
+    const planning = createPlanningStore();
+    planning.setShipBurn('ship-0', 2);
+    planning.queueOrdnanceLaunch({
+      shipId: 'ship-0',
+      ordnanceType: 'mine',
+      torpedoAccel: null,
+      torpedoAccelSteps: null,
+    });
+    planning.queueCombatAttack(createAttack());
+
+    planning.enterPhase('combat', 'ship-1');
+
+    expect(planning.selectedShipId).toBe('ship-1');
+    expect(planning.burns.size).toBe(0);
+    expect(planning.queuedOrdnanceLaunches).toEqual([]);
+    expect(planning.queuedAttacks).toEqual([]);
+  });
+
   it('selects ships and optionally updates the last clicked hex', () => {
     const planning = createPlanningStore();
 

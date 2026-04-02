@@ -44,31 +44,44 @@ export interface ApplyClientGameStateDeps {
   renderer?: GameStateStoreRenderer;
 }
 
+const projectClientVisibleState = (
+  state: GameState,
+  isSpectator = false,
+): GameState => {
+  if (!isSpectator) {
+    return state;
+  }
+
+  return {
+    ...state,
+    ships: state.ships.map((ship) =>
+      ship.detected ? ship : { ...ship, detected: true },
+    ),
+  };
+};
+
 export const applyClientGameState = (
   deps: ApplyClientGameStateDeps,
   state: GameState,
 ): void => {
-  // Spectators see all ships regardless of detection
-  if (deps.isSpectator) {
-    for (const ship of state.ships) {
-      ship.detected = true;
-    }
-  }
+  const visibleState = projectClientVisibleState(state, deps.isSpectator);
 
   batch(() => {
-    deps.ctx.gameState = state;
+    deps.ctx.gameState = visibleState;
 
     const selectedId = deps.ctx.planningState.selectedShipId;
 
     if (selectedId) {
-      const selectedShip = state.ships.find((ship) => ship.id === selectedId);
+      const selectedShip = visibleState.ships.find(
+        (ship) => ship.id === selectedId,
+      );
 
       if (!selectedShip || selectedShip.lifecycle === 'destroyed') {
         deps.ctx.planningState.setSelectedShipId(null);
       }
     }
 
-    deps.renderer?.setGameState(state);
+    deps.renderer?.setGameState(visibleState);
   });
 };
 
