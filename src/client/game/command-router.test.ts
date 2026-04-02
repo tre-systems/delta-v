@@ -240,37 +240,6 @@ describe('game-command-router', () => {
     expect(deps.ctx.planningState.overloads.get('ship-0')).toBe(3);
   });
 
-  it('matches nearby friendly velocity', () => {
-    const { deps, ui } = createDeps({
-      gameState: createState({
-        ships: [
-          createShip({
-            id: 'ship-0',
-            type: 'packet',
-            velocity: { dq: 0, dr: 0 },
-          }),
-          createShip({
-            id: 'ship-1',
-            owner: 0,
-            position: { q: 1, r: 0 },
-            velocity: { dq: 1, dr: 0 },
-          }),
-          createShip({ id: 'enemy', owner: 1 }),
-        ],
-      }),
-    });
-    deps.ctx.planningState.selectedShipId = 'ship-0';
-
-    dispatchGameCommand(deps, { type: 'matchVelocity' });
-
-    expect(deps.ctx.planningState.burns.get('ship-0')).toBe(0);
-    expect(deps.ctx.planningState.overloads.get('ship-0')).toBeNull();
-    expect(ui.overlay.showToast).toHaveBeenCalledWith(
-      'Matching velocity with ship-1',
-      'success',
-    );
-  });
-
   it('undoes queued attacks and updates the combat toast', () => {
     const { deps, ui } = createDeps();
     deps.ctx.planningState.queuedAttacks = [

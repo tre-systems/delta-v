@@ -7,7 +7,6 @@ export type GameCommand =
   // Astrogation
   | { type: 'confirmOrders' }
   | { type: 'undoBurn' }
-  | { type: 'matchVelocity' }
   | { type: 'landFromOrbit' }
   | { type: 'setBurnDirection'; shipId?: string; direction: number | null }
   | { type: 'setOverloadDirection'; shipId: string; direction: number | null }

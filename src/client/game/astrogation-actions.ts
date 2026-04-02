@@ -3,7 +3,7 @@ import { getOrderableShipsForPlayer } from '../../shared/engine/util';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { playConfirm, playSelect } from '../audio';
 import { deriveBurnChangePlan } from './burn';
-import { buildAstrogationOrders, findMatchVelocityPlan } from './helpers';
+import { buildAstrogationOrders } from './helpers';
 import type { PlanningStore } from './planning';
 import type { GameTransport } from './transport';
 export interface AstrogationActionDeps {
@@ -126,33 +126,6 @@ export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
   if (shipId) {
     deps.planningState.clearShipPlanning(shipId);
   }
-};
-
-export const matchVelocityWithNearbyFriendly = (
-  deps: AstrogationActionDeps,
-) => {
-  const gameState = deps.getGameState();
-  const shipId = deps.planningState.selectedShipId;
-
-  if (
-    !gameState ||
-    shipId === null ||
-    deps.getClientState() !== 'playing_astrogation'
-  ) {
-    return;
-  }
-
-  const plan = findMatchVelocityPlan(gameState, deps.getPlayerId(), shipId);
-
-  if (!plan) {
-    deps.showToast('No nearby friendly velocity match available', 'info');
-    return;
-  }
-
-  deps.planningState.setShipBurn(shipId, plan.burn, true);
-  deps.planningState.setShipOverload(shipId, plan.overload);
-  playSelect();
-  deps.showToast(`Matching velocity with ${plan.targetShipId}`, 'success');
 };
 
 export const confirmOrders = (deps: AstrogationActionDeps) => {

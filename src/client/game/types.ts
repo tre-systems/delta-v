@@ -47,7 +47,6 @@ export interface HudViewModel {
   cargoMax: number;
   objective: string;
   canOverload: boolean;
-  matchVelocityState: OrdnanceActionState;
   canEmplaceBase: boolean;
   fleetStatus: string;
   selectedShipLanded: boolean;
@@ -71,12 +70,6 @@ export interface OrdnanceActionState {
   visible: boolean;
   disabled: boolean;
   title: string;
-}
-
-export interface MatchVelocityPlan {
-  targetShipId: string;
-  burn: number;
-  overload: number | null;
 }
 
 export type PlanningSnapshot = Pick<

@@ -16,7 +16,6 @@ export interface HUDView {
   undoVisible: boolean;
   skipShipVisible: boolean;
   confirmVisible: boolean;
-  matchVelocity: UIButtonView;
   launchMine: UIButtonView;
   launchTorpedo: UIButtonView;
   launchNuke: UIButtonView;
@@ -169,7 +168,6 @@ export interface HUDInput {
   objective: string;
   /** Screen bearing for HUD compass; computed in `HudController`. */
   objectiveBearingDeg: number | null;
-  matchVelocityState: HUDActionState;
   canEmplaceBase: boolean;
   launchMineState: HUDActionState;
   launchTorpedoState: HUDActionState;
@@ -203,7 +201,6 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     cargoMax,
     objective,
     objectiveBearingDeg,
-    matchVelocityState,
     canEmplaceBase,
     launchMineState,
     launchTorpedoState,
@@ -271,16 +268,6 @@ export const buildHUDView = (input: HUDInput): HUDView => {
             title: astrogationCtx.selectedShipLandingSet
               ? 'Landing queued \u2014 click to cancel'
               : 'Land from orbit (1 fuel)',
-          }
-        : createHiddenButton(),
-
-    matchVelocity:
-      isMyTurn && phase === 'astrogation'
-        ? {
-            visible: matchVelocityState.visible,
-            disabled: matchVelocityState.disabled,
-            opacity: matchVelocityState.disabled ? '0.4' : '1',
-            title: matchVelocityState.title,
           }
         : createHiddenButton(),
 

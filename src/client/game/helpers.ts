@@ -2,7 +2,6 @@ export {
   buildAstrogationOrders,
   deriveHudViewModel,
 } from './hud-orders';
-export { findMatchVelocityPlan } from './match-velocity';
 export {
   getGameOverStats,
   getScenarioBriefingLines,
@@ -13,7 +12,6 @@ export type {
   DeriveHudViewModel,
   GameOverStats,
   HudViewModel,
-  MatchVelocityPlan,
   OrdnanceActionState,
   PlanningSnapshot,
   ShipFate,
