@@ -1,8 +1,9 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
-import type {
-  InteractionMode,
-  InteractionState,
+import {
+  deriveInteractionMode,
+  type InteractionMode,
 } from '../game/interaction-fsm';
+import type { ClientState } from '../game/phase';
 import type { ReadonlySignal } from '../reactive';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { bindStaticButtonEvents } from './button-events';
@@ -56,12 +57,12 @@ export const createUIManager = () => {
   const eventBridge = createUIEventBridge();
   const emit = (event: UIEvent) => eventBridge.emit(event);
   const scenarioActiveSignal = signal(false);
-  const interactionSignal = signal<ReadonlySignal<InteractionState> | null>(
-    null,
-  );
+  const clientStateSignal = signal<ReadonlySignal<ClientState> | null>(null);
 
-  const peekInteractionMode = (): InteractionMode | null =>
-    interactionSignal.peek()?.peek()?.mode ?? null;
+  const peekInteractionMode = (): InteractionMode | null => {
+    const stateSignal = clientStateSignal.peek();
+    return stateSignal ? deriveInteractionMode(stateSignal.peek()) : null;
+  };
 
   const { reset: resetLayoutMetrics, queue: queueLayoutSync } =
     createLayoutSync({
@@ -155,18 +156,21 @@ export const createUIManager = () => {
 
   withScope(scope, () => {
     effect(() => {
-      const interaction = interactionSignal.value?.value;
+      const clientState = clientStateSignal.value?.value;
+      const interactionMode = clientState
+        ? deriveInteractionMode(clientState)
+        : null;
       const scenarioActive = scenarioActiveSignal.value;
 
       // When the FSM leaves 'menu' (e.g. connecting, waiting), clear
       // the scenario sub-state so returning to 'menu' shows the main
       // menu rather than the stale scenario-select screen.
-      if (interaction && interaction.mode !== 'menu' && scenarioActive) {
+      if (interactionMode && interactionMode !== 'menu' && scenarioActive) {
         scenarioActiveSignal.value = false;
       }
 
-      const effectiveMode = interaction
-        ? mapInteractionModeToUIScreenMode(interaction.mode, scenarioActive)
+      const effectiveMode = interactionMode
+        ? mapInteractionModeToUIScreenMode(interactionMode, scenarioActive)
         : 'hidden';
 
       applyUIVisibility(
@@ -183,7 +187,7 @@ export const createUIManager = () => {
       );
       log.setScreenMode(effectiveMode);
 
-      if (interaction && isHudMode(interaction.mode)) {
+      if (interactionMode && isHudMode(interactionMode)) {
         queueLayoutSync();
       } else {
         resetLayoutMetrics();
@@ -244,8 +248,8 @@ export const createUIManager = () => {
     bindTurnTimerSignal: (
       timerSignal: Parameters<typeof hudChromeView.bindTurnTimerSignal>[0],
     ) => hudChromeView.bindTurnTimerSignal(timerSignal),
-    bindInteractionSignal: (signal: ReadonlySignal<InteractionState>) => {
-      interactionSignal.value = signal;
+    bindClientStateSignal: (signal: ReadonlySignal<ClientState>) => {
+      clientStateSignal.value = signal;
     },
     ...hudActions,
     dispose() {

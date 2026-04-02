@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { InteractionState } from '../game/interaction-fsm';
+import type { ClientState } from '../game/phase';
 import { signal } from '../reactive';
 import { createUIManager } from './ui';
 
@@ -129,12 +129,12 @@ const installFixture = () => {
   `;
 };
 
-const bindInteraction = (
+const bindClientState = (
   ui: ReturnType<typeof createUIManager>,
-  mode: InteractionState['mode'],
+  state: ClientState,
 ) => {
-  const s = signal<InteractionState>({ mode });
-  ui.bindInteractionSignal(s);
+  const s = signal<ClientState>(state);
+  ui.bindClientStateSignal(s);
   return s;
 };
 
@@ -173,7 +173,7 @@ describe('UIManager', () => {
 
   it('shows menu when interaction mode is menu', () => {
     const ui = createUIManager();
-    bindInteraction(ui, 'menu');
+    bindClientState(ui, 'menu');
 
     expect(document.getElementById('menu')?.style.display).toBe('flex');
     expect(document.getElementById('hud')?.style.display).toBe('none');
@@ -182,7 +182,7 @@ describe('UIManager', () => {
 
   it('shows HUD when interaction mode is astrogation', () => {
     const ui = createUIManager();
-    bindInteraction(ui, 'astrogation');
+    bindClientState(ui, 'playing_astrogation');
 
     expect(document.getElementById('hud')?.style.display).toBe('block');
     expect(document.getElementById('menu')?.style.display).toBe('none');
@@ -195,7 +195,7 @@ describe('UIManager', () => {
   it('shows waiting screen when interaction mode is waiting', () => {
     const ui = createUIManager();
     ui.setWaitingState('ABC12', false);
-    bindInteraction(ui, 'waiting');
+    bindClientState(ui, 'waitingForOpponent');
 
     expect(document.getElementById('waiting')?.style.display).toBe('flex');
     expect(document.getElementById('gameCode')?.textContent).toBe('ABC12');

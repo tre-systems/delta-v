@@ -47,7 +47,6 @@ const createDeps = (
       logisticsState: null,
       planningState: createPlanningStore(),
       isLocalGame: false,
-      interactionState: { mode: 'menu' },
     },
     ui: {
       showFleetBuilding: track('ui.showFleetBuilding'),

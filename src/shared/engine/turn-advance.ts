@@ -4,6 +4,7 @@
 import { SHIP_STATS } from '../constants';
 import type { GameState, Ship } from '../types';
 import type { EngineEvent } from './engine-events';
+import { transitionPhaseWithEvent } from './util';
 
 // Advance to the next player's turn after combat/resupply.
 // Handles damage recovery and turn counter.
@@ -34,19 +35,13 @@ export const advanceTurn = (
   applyFleetConversion(state);
 
   state.combatTargetedThisPhase = undefined;
-  state.phase = 'astrogation';
 
   engineEvents?.push({
     type: 'turnAdvanced',
     turn: state.turnNumber,
     activePlayer: state.activePlayer,
   });
-  engineEvents?.push({
-    type: 'phaseChanged',
-    phase: 'astrogation',
-    turn: state.turnNumber,
-    activePlayer: state.activePlayer,
-  });
+  transitionPhaseWithEvent(state, 'astrogation', engineEvents);
 };
 
 const getNextShipId = (state: GameState): string => {

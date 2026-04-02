@@ -192,9 +192,9 @@ derivePhaseTransition(state) → PhaseTransitionPlan    // pure: what should cha
 setState(plan.nextState)                               // impure: apply it
 ```
 
-Examples: `deriveClientScreenPlan`, `deriveGameOverPlan`, `deriveClientMessagePlan`, `deriveBurnChangePlan`, `deriveHudViewModel`, `deriveKeyboardAction`, `deriveAIActionPlan`, `deriveClientStateEntryPlan`, `derivePhaseTransition`.
+Examples: `deriveGameOverPlan`, `deriveClientMessagePlan`, `deriveBurnChangePlan`, `deriveHudViewModel`, `deriveKeyboardAction`, `deriveAIActionPlan`, `deriveClientStateEntryPlan`, `derivePhaseTransition`, `deriveInteractionMode`.
 
-The `deriveClientStateEntryPlan()` function in `game/phase-entry.ts` is the most elaborate example — it returns a `ClientStateEntryPlan` with ~15 boolean/enum flags controlling camera reset, HUD visibility, timer start, tutorial triggers, and combat state on each phase entry. The `setState` function inside `createGameClient()` in `game/client-kernel.ts` delegates to `applyClientStateTransition()` in `game/state-transition.ts`, which reads that plan (and `deriveClientScreenPlan`) and applies the imperative side effects.
+The `deriveClientStateEntryPlan()` function in `game/phase-entry.ts` is the most elaborate example — it returns a `ClientStateEntryPlan` with ~15 boolean/enum flags controlling camera reset, timer start, tutorial triggers, and combat state on each phase entry. The `setState` function inside `createGameClient()` in `game/client-kernel.ts` delegates to `applyClientStateTransition()` in `game/state-transition.ts`, which reads that plan while `ui/ui.ts` derives visibility from `stateSignal` via `deriveInteractionMode()`.
 
 This is the [functional core / imperative shell](https://www.destroyallsoftware.com/talks/boundaries) pattern (Gary Bernhardt, ["Boundaries"](https://www.destroyallsoftware.com/talks/boundaries), SCNA 2012) — pure derivation in the core, side effects at the boundary. See also Mark Seemann's [dependency rejection](https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/) series for the same idea applied to functional programming.
 

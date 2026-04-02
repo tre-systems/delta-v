@@ -12,7 +12,7 @@ import type { EngineEvent } from './engine-events';
 import type { MovementResult } from './game-engine';
 import { shouldEnterLogisticsPhase } from './logistics';
 import { moveOrdnance, queueAsteroidHazards } from './ordnance';
-import { usesEscapeInspectionRules } from './util';
+import { transitionPhaseWithEvent, usesEscapeInspectionRules } from './util';
 import {
   advanceTurn,
   applyCheckpoints,
@@ -256,21 +256,9 @@ export const resolveMovementPhase = (
 
   if (state.outcome === null) {
     if (shouldEnterCombatPhase(state, map)) {
-      state.phase = 'combat';
-      engineEvents.push({
-        type: 'phaseChanged',
-        phase: 'combat',
-        turn: state.turnNumber,
-        activePlayer: state.activePlayer,
-      });
+      transitionPhaseWithEvent(state, 'combat', engineEvents);
     } else if (shouldEnterLogisticsPhase(state)) {
-      state.phase = 'logistics';
-      engineEvents.push({
-        type: 'phaseChanged',
-        phase: 'logistics',
-        turn: state.turnNumber,
-        activePlayer: state.activePlayer,
-      });
+      transitionPhaseWithEvent(state, 'logistics', engineEvents);
     } else {
       checkGameEnd(state, map, engineEvents);
 
