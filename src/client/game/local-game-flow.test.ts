@@ -144,4 +144,45 @@ describe('handleLocalResolution', () => {
     expect(showGameOverOutcome).toHaveBeenCalledWith(true, 'Fleet eliminated!');
     expect(onContinue).not.toHaveBeenCalled();
   });
+
+  it('logs logistics transfer events before continuing', () => {
+    const applyGameState = vi.fn();
+    const logText = vi.fn();
+    const onContinue = vi.fn();
+    const state = {
+      phase: 'logistics',
+      ships: [
+        { id: 'ship-a', type: 'packet' },
+        { id: 'ship-b', type: 'packet' },
+      ],
+    } as unknown as GameState;
+    const deps = createDeps({
+      getGameState: vi.fn(() => state),
+      applyGameState,
+      logText,
+    });
+
+    handleLocalResolution(
+      deps,
+      {
+        kind: 'logistics',
+        state,
+        engineEvents: [
+          {
+            type: 'fuelTransferred',
+            fromShipId: 'ship-a',
+            toShipId: 'ship-b',
+            amount: 2,
+          },
+        ],
+      },
+      onContinue,
+      'Local test:',
+    );
+
+    expect(logText).toHaveBeenCalledTimes(1);
+    expect(logText.mock.calls[0][0]).toContain('Transferred 2 fuel');
+    expect(applyGameState).toHaveBeenCalledWith(state);
+    expect(onContinue).toHaveBeenCalledTimes(1);
+  });
 });
