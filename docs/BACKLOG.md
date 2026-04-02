@@ -118,11 +118,27 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 
 **Status:** partially complete.
 
-**Baseline shipped:** session/network/replay wiring moved into `main-session-shell.ts`; `client-kernel.ts` is smaller and mostly composition-oriented now.
+**Baseline shipped:** session/network/replay wiring moved into `main-session-shell.ts`; reactive session effects split into `session-planning-effects.ts` and `session-ui-effects.ts`; `client-kernel.ts` is smaller and mostly composition-oriented now.
 
-**Remaining:** continue reducing coordination load in the remaining composition layers, especially reactive session wiring and HUD/runtime orchestration.
+**Remaining:** continue reducing coordination load in the remaining composition layers, especially runtime/bootstrap orchestration and top-level interaction wiring.
 
-**Files:** `src/client/game/client-kernel.ts`, `src/client/game/session-signals.ts`, `src/client/game/hud-controller.ts`, `src/client/game/client-runtime.ts`
+**Files:** `src/client/game/client-kernel.ts`, `src/client/game/client-runtime.ts`, `src/client/game/main-interactions.ts`
+
+### 32. Simplify runtime and input orchestration
+
+**Status:** not started.
+
+**Remaining:** `client-runtime.ts`, `main-interactions.ts`, `command-router.ts`, and `input.ts` still spread one user interaction flow across DOM event handling, keyboard translation, command routing, and gameplay side effects. Define a smaller boundary so browser/UI events become one typed action stream before game logic dispatch.
+
+**Files:** `src/client/game/client-runtime.ts`, `src/client/game/main-interactions.ts`, `src/client/game/command-router.ts`, `src/client/game/input.ts`
+
+### 33. Split logistics UI state from DOM rendering
+
+**Status:** not started.
+
+**Remaining:** `logistics-ui.ts` still mixes store creation, transfer calculations, DOM rendering, and UI event wiring in one large module. Separate the state/model layer from DOM rendering and event handling so logistics changes stop touching one file.
+
+**Files:** `src/client/game/logistics-ui.ts`, related tests
 
 ---
 ### 21. Spectator UX Hardening
