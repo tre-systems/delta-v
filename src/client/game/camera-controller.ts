@@ -11,7 +11,7 @@ import type { PlanningStore } from './planning';
 
 export interface CameraControllerDeps {
   getGameState: () => GameState | null;
-  getPlayerId: () => PlayerId;
+  getPlayerId: () => PlayerId | -1;
   getPlanningState: () => PlanningStore;
   renderer: Renderer;
   overlay: OverlayView;

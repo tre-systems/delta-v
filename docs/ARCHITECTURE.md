@@ -359,6 +359,14 @@ The frontend renders the pure hex-grid state into a smooth, continuous graphical
 - Playing substates: `fleetBuilding`, `astrogation`, `ordnance`, `logistics`, `combat`, `movementAnim`, `opponentTurn`
 - Phase-locked: input only processed when phase matches active player.
 
+#### Interaction FSM (Library-free)
+
+To prevent UI race conditions and ensure visibility is strictly synchronized with the game state, the client uses a lightweight **Interaction FSM** (`src/client/game/interaction-fsm.ts`).
+
+- **Single Source of Truth**: The `interactionState` signal in the client context is the only source of truth for UI "modes" (e.g., `astrogation`, `animating`, `waiting`).
+- **Kernel Integration**: The `applyClientStateTransition` kernel automatically derives the correct `InteractionEvent` for every `ClientState` change and applies it to the FSM.
+- **Visual Mapping**: `src/client/ui/screens.ts` maps these interaction modes to declarative DOM visibility states, ensuring buttons like `#confirmBtn` or `#fireBtn` are never visible during unauthorized transitions (like animations).
+
 #### Rendering Pipeline (per frame)
 
 1. **Scene layer** (world coords): starfield, hex grid, gravity indicators, bodies, asteroids, bases

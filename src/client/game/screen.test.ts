@@ -26,6 +26,7 @@ describe('game-client-screen', () => {
     const states: ClientState[] = [
       'playing_astrogation',
       'playing_ordnance',
+      'playing_logistics',
       'playing_combat',
       'playing_movementAnim',
       'playing_opponentTurn',

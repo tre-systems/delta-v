@@ -19,8 +19,9 @@ export interface ClientStateEntryPlan {
 
 const getFirstActionableShipId = (
   gameState: GameState | null,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
 ): string | null => {
+  if (playerId < 0) return null;
   if (!gameState) return null;
   const actionable = gameState.ships.find(
     (ship) =>
@@ -34,7 +35,7 @@ const getFirstActionableShipId = (
 export const deriveClientStateEntryPlan = (
   state: ClientState,
   gameState: GameState | null,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
   isLocalGame = false,
 ): ClientStateEntryPlan => {
   switch (state) {
@@ -84,7 +85,7 @@ export const deriveClientStateEntryPlan = (
             scenarioRules: {},
             pendingAstrogationOrders: null,
           },
-          playerId,
+          playerId as PlayerId,
         ),
         resetCombatState: false,
         autoSkipCombatIfNoTargets: false,

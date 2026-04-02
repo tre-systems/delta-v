@@ -179,7 +179,10 @@ export const visible = (
   display = '',
 ): void => {
   const apply = (on: boolean): void => {
-    element.style.display = on ? display : 'none';
+    const newDisplay = on ? display : 'none';
+    if (element.style.display !== newDisplay) {
+      element.style.display = newDisplay;
+    }
     if (on) {
       element.removeAttribute('aria-hidden');
     } else {

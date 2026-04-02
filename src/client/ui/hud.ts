@@ -254,11 +254,13 @@ export const buildHUDView = (input: HUDInput): HUDView => {
       phase === 'astrogation' &&
       astrogationCtx.hasSelection &&
       !astrogationCtx.selectedShipDisabled &&
-      !astrogationCtx.allShipsAcknowledged,
+      !astrogationCtx.allShipsAcknowledged &&
+      astrogationCtx.multipleShipsAlive,
     confirmVisible:
       isMyTurn &&
       phase === 'astrogation' &&
-      astrogationCtx.allShipsAcknowledged,
+      (astrogationCtx.allShipsAcknowledged ||
+        !astrogationCtx.multipleShipsAlive),
     landFromOrbit:
       isMyTurn && phase === 'astrogation' && astrogationCtx.selectedShipInOrbit
         ? {

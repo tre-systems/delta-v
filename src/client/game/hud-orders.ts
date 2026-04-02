@@ -23,8 +23,14 @@ import type {
   PlanningSnapshot,
 } from './types';
 
-const getObjective = (state: GameState, playerId: PlayerId): string => {
-  const player = state.players[playerId];
+const getObjective = (state: GameState, playerId: PlayerId | -1): string => {
+  if (playerId < 0) {
+    return '⬡ Spectating';
+  }
+  const player = state.players[playerId as PlayerId];
+  if (!player) {
+    return '⬡ Spectating';
+  }
 
   if (state.scenarioRules.checkpointBodies) {
     const visited = player.visitedBodies?.length ?? 0;
@@ -61,7 +67,7 @@ const getObjective = (state: GameState, playerId: PlayerId): string => {
   return '⬡ Destroy all enemies';
 };
 
-const getFleetStatus = (state: GameState, playerId: PlayerId): string => {
+const getFleetStatus = (state: GameState, playerId: PlayerId | -1): string => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
 
   const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
@@ -145,10 +151,12 @@ const getOrdnanceActionState = (
 
 export const buildAstrogationOrders = (
   state: GameState,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
   planning: PlanningSnapshot,
 ): AstrogationOrder[] => {
-  return getOrderableShipsForPlayer(state, playerId).map((ship) => {
+  if (playerId < 0) return [];
+  const pid = playerId as PlayerId;
+  return getOrderableShipsForPlayer(state, pid).map((ship) => {
     const burn = planning.burns.get(ship.id) ?? null;
 
     const overload = planning.overloads.get(ship.id) ?? null;
@@ -175,7 +183,7 @@ export const buildAstrogationOrders = (
 
 export const deriveHudViewModel = (
   state: GameState,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
   planning: PlanningSnapshot,
   map?: SolarSystemMap | null,
 ): HudViewModel => {

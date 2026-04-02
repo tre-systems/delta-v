@@ -8,15 +8,6 @@ export type ClientScreenPlan =
   | { kind: 'hud' }
   | { kind: 'none' };
 
-const HUD_STATES = new Set<ClientState>([
-  'playing_astrogation',
-  'playing_ordnance',
-  'playing_logistics',
-  'playing_combat',
-  'playing_movementAnim',
-  'playing_opponentTurn',
-]);
-
 export const deriveClientScreenPlan = (
   state: ClientState,
 ): ClientScreenPlan => {
@@ -29,12 +20,18 @@ export const deriveClientScreenPlan = (
       return { kind: 'waiting' };
     case 'playing_fleetBuilding':
       return { kind: 'fleetBuilding' };
+    case 'playing_astrogation':
+    case 'playing_ordnance':
+    case 'playing_logistics':
+    case 'playing_combat':
+    case 'playing_movementAnim':
+    case 'playing_opponentTurn':
+      return { kind: 'hud' };
     case 'gameOver':
       return { kind: 'none' };
-    default:
-      if (HUD_STATES.has(state)) {
-        return { kind: 'hud' };
-      }
-      return { kind: 'none' };
+    default: {
+      const _exhaustive: never = state;
+      return _exhaustive;
+    }
   }
 };

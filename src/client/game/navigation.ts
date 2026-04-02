@@ -8,7 +8,8 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 
-const getOwnedShips = (state: GameState, playerId: PlayerId): Ship[] => {
+const getOwnedShips = (state: GameState, playerId: PlayerId | -1): Ship[] => {
+  if (playerId < 0) return [];
   return state.ships.filter(
     (ship) => ship.owner === playerId && isOrderableShip(ship),
   );
@@ -16,7 +17,7 @@ const getOwnedShips = (state: GameState, playerId: PlayerId): Ship[] => {
 
 export const getNextSelectedShip = (
   state: GameState,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
   selectedShipId: string | null,
   direction: number,
 ): Ship | null => {
@@ -34,7 +35,7 @@ export const getNextSelectedShip = (
 
 export const getNearestEnemyPosition = (
   state: GameState,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
   cameraX: number,
   cameraY: number,
   hexSize: number,
@@ -67,7 +68,7 @@ export const getNearestEnemyPosition = (
 
 export const getOwnFleetFocusPosition = (
   state: GameState,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
   selectedShipId: string | null,
 ): HexCoord | null => {
   const ships = getOwnedShips(state, playerId);
@@ -108,20 +109,20 @@ const escapeHintHex = (
 /** Hex to aim the minimap objective arrow toward (mirrors HUD objective modes). */
 export const getObjectiveBearingTargetHex = (
   state: GameState,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
   map: SolarSystemMap,
   fromShip: Pick<Ship, 'position'> | null,
 ): HexCoord | null => {
-  if (!fromShip) {
+  if (!fromShip || playerId < 0) {
     return null;
   }
 
-  const player = state.players[playerId];
-
+  const pid = playerId as PlayerId;
+  const player = state.players[pid];
   const checkpoints = state.scenarioRules.checkpointBodies;
 
   if (checkpoints && checkpoints.length > 0) {
-    const visited = new Set(player.visitedBodies ?? []);
+    const visited = new Set(player?.visitedBodies ?? []);
     const nextName = checkpoints.find((b) => !visited.has(b));
 
     if (nextName) {
@@ -130,12 +131,12 @@ export const getObjectiveBearingTargetHex = (
       return body?.center ?? null;
     }
 
-    const home = map.bodies.find((b) => b.name === player.homeBody);
+    const home = map.bodies.find((b) => b.name === player?.homeBody);
 
     return home?.center ?? null;
   }
 
-  if (player.escapeWins) {
+  if (player?.escapeWins) {
     return escapeHintHex(fromShip.position, map.bounds, getEscapeEdge(state));
   }
 
@@ -153,7 +154,7 @@ export const getObjectiveBearingTargetHex = (
     return null;
   }
 
-  if (player.targetBody) {
+  if (player?.targetBody) {
     const body = map.bodies.find((b) => b.name === player.targetBody);
 
     return body?.center ?? null;
@@ -183,7 +184,7 @@ const MIN_OBJECTIVE_BEARING_PIXEL_DIST = 10;
 /** Degrees for CSS `rotate()` on a right-pointing arrow (→); east = 0°, clockwise positive. */
 export const getObjectiveBearingScreenDegrees = (
   state: GameState,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
   map: SolarSystemMap,
   hexSize: number,
   fromShip: Pick<Ship, 'position'> | null,

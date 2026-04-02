@@ -9,9 +9,10 @@ import type { GameOverStats, ShipFate } from './types';
 
 export const getSelectedShip = (
   state: GameState,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
   selectedId: string | null,
 ) => {
+  if (playerId < 0) return null;
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
 
   if (selectedId !== null) {
@@ -27,11 +28,31 @@ export const getSelectedShip = (
 
 export const getGameOverStats = (
   state: GameState,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
 ): GameOverStats => {
-  const myShips = state.ships.filter((ship) => ship.owner === playerId);
-  const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
-  const enemyId: PlayerId = playerId === 0 ? 1 : 0;
+  if (playerId < 0) {
+    // Basic stats for spectator
+    return {
+      playerId,
+      scenario: state.scenario,
+      turns: state.turnNumber,
+      myShipsAlive: 0,
+      myShipsTotal: 0,
+      enemyShipsAlive: 0,
+      enemyShipsTotal: 0,
+      myShipsDestroyed: 0,
+      enemyShipsDestroyed: 0,
+      myFuelSpent: 0,
+      enemyFuelSpent: 0,
+      basesDestroyed: state.destroyedBases.length,
+      ordnanceInFlight: count(state.ordnance, (o) => o.lifecycle === 'active'),
+      shipFates: [],
+    };
+  }
+  const pid = playerId as PlayerId;
+  const myShips = state.ships.filter((ship) => ship.owner === pid);
+  const enemyShips = state.ships.filter((ship) => ship.owner !== pid);
+  const enemyId = (pid === 0 ? 1 : 0) as PlayerId;
 
   const myDestroyed = count(myShips, (s) => s.lifecycle === 'destroyed');
   const enemyDestroyed = count(enemyShips, (s) => s.lifecycle === 'destroyed');
@@ -92,7 +113,7 @@ export const getGameOverStats = (
     enemyShipsTotal: enemyShips.length,
     myShipsDestroyed: myDestroyed,
     enemyShipsDestroyed: enemyDestroyed,
-    myFuelSpent: state.players[playerId]?.totalFuelSpent ?? 0,
+    myFuelSpent: state.players[pid]?.totalFuelSpent ?? 0,
     enemyFuelSpent: state.players[enemyId]?.totalFuelSpent ?? 0,
     basesDestroyed: state.destroyedBases.length,
     ordnanceInFlight: count(state.ordnance, (o) => o.lifecycle === 'active'),
@@ -102,10 +123,14 @@ export const getGameOverStats = (
 
 export const getScenarioBriefingLines = (
   state: GameState,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
 ): string[] => {
-  const player = state.players[playerId];
-  const myShips = state.ships.filter((ship) => ship.owner === playerId);
+  if (playerId < 0) {
+    return ['Spectating - watch the battle unfold!'];
+  }
+  const pid = playerId as PlayerId;
+  const player = state.players[pid];
+  const myShips = state.ships.filter((ship) => ship.owner === pid);
 
   const shipNames = myShips
     .map((ship) => SHIP_STATS[ship.type]?.name ?? ship.type)
@@ -125,7 +150,7 @@ export const getScenarioBriefingLines = (
     lines.push('Your ★ ship carries the fugitives');
   } else if (facingFugitives) {
     lines.push('Inspect transports to find the fugitives');
-  } else if (player.escapeWins) {
+  } else if (player?.escapeWins) {
     lines.push('Escape the solar system to win');
   }
 

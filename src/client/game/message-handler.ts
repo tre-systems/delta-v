@@ -217,6 +217,9 @@ export const handleServerMessage = (
         code: plan.code,
       });
       deps.ui.overlay.showToast(plan.message, 'error');
+      if (deps.ctx.state === 'connecting') {
+        deps.setState('menu');
+      }
       break;
     case 'chat': {
       const isOwn = plan.playerId === deps.ctx.playerId;

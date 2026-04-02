@@ -4,12 +4,32 @@ import { HEX_DIRECTIONS, hexAdd, hexKey } from '../../shared/hex';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type {
   GameState,
+  PlayerId,
   PlayerState,
   Ship,
   SolarSystemMap,
 } from '../../shared/types/domain';
-import { type InputEvent, interpretInput } from './input-events';
+import {
+  type InputEvent,
+  interpretInput as interpretInputOriginal,
+} from './input-events';
 import type { PlanningState } from './planning';
+
+const interpretInput = (
+  event: InputEvent,
+  state: GameState | null,
+  map: SolarSystemMap | null,
+  playerId: number,
+  planning: PlanningState,
+) =>
+  interpretInputOriginal(
+    event,
+    state,
+    state?.phase ? state.phase : 'astrogation',
+    map,
+    playerId as PlayerId,
+    planning,
+  );
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'ship-0',

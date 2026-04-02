@@ -12,13 +12,13 @@ export interface ShipFate {
   name: string;
   type: ShipType;
   status: 'survived' | 'destroyed' | 'captured';
-  owner: PlayerId;
+  owner: PlayerId | -1;
   deathCause?: string;
   killedBy?: string;
 }
 
 export interface GameOverStats {
-  playerId: PlayerId;
+  playerId: PlayerId | -1;
   scenario: string;
   turns: number;
   myShipsAlive: number;
@@ -86,12 +86,12 @@ export type PlanningSnapshot = Pick<
 
 export type BuildAstrogationOrders = (
   state: GameState,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
   planning: PlanningSnapshot,
 ) => AstrogationOrder[];
 
 export type DeriveHudViewModel = (
   state: GameState,
-  playerId: PlayerId,
+  playerId: PlayerId | -1,
   planning: PlanningSnapshot,
 ) => HudViewModel;

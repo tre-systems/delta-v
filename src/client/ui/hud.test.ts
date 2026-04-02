@@ -70,7 +70,7 @@ describe('ui hud helpers', () => {
       fuelGaugeText: 'Fuel: 8/10',
       statusText: 'Set burn or skip ship (S)',
       undoVisible: true,
-      confirmVisible: false,
+      confirmVisible: true,
       skipCombatVisible: false,
     });
   });

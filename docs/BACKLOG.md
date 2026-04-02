@@ -18,9 +18,9 @@ Priority numbers are stable IDs and may be non-contiguous when shipped items are
 
 Each item should use: **Status**, **Remaining**, and (when useful) **Depends / Files / Owner / Trigger**.
 
-**Next engineering work**
+### Next engineering work
 
-All architecture simplification tasks (`19`-`29`) are shipped. The remaining backlog items are human-gated, conditional, product-dependent, or ongoing discipline. See individual items below for triggers and owners.
+The core architecture has been formalized with a library-free **Interaction FSM** (`17`-`20`). Remaining engineering work focuses on expanding test coverage for complex fleet scenarios (`18`) and polishing phase-transition UX (`19`). See individual items below for details.
 
 ---
 
@@ -81,3 +81,37 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 **Files:** `src/client/dom.ts`, client call sites, optional dependency add
 
 ---
+### 17. Interaction FSM Exhaustiveness — **SHIPPED**
+
+Exhaustive `never` checks enforce compile-time coverage across all FSM switches: `applyInteractionEvent`, `deriveClientScreenPlan`, `buildScreenVisibility`, and `mapInteractionModeToUIScreenMode`. Adding a new `ClientState` or `InteractionMode` now causes a type error until every switch is updated.
+
+### 18. Expanded E2E Multiplayer Lifecycle Coverage
+
+**Status:** baseline coverage in `e2e/gameplay-lifecycle.spec.ts`.
+
+**Remaining:** add a new E2E spec for a 3+ ship scenario (e.g. `blockadeRunner` or `escape`) to verify the `acknowledgedShips` rotation and `confirmBtn` visibility logic remains robust under complex fleet states.
+
+**Files:** `e2e/gameplay-lifecycle.spec.ts`
+
+### 19. Phase Transition "Synchronizing" Overlay
+
+**Status:** not started.
+
+**Remaining:** add a subtle UI overlay (e.g. "Synchronizing...") that appears during the brief interaction gap between `movementAnim` and the next playable phase. This improves UX by explaining why inputs are temporarily disabled while the server resolves results.
+
+**Files:** `src/client/ui/ui.ts`, `src/client/ui/screens.ts`
+### 20. Direct UI visibility from Interaction FSM
+
+**Status:** plan created; synchronization pending.
+
+**Remaining:** replace the dual-signal system in `src/client/ui/ui.ts` (which uses both `screenModeSignal` and `interactionStateSignal`) with a single source of truth. The `InteractionState.mode` should directly drive the `applyUIVisibility` logic in `src/client/ui/visibility.ts`, ensuring perfect synchronization between game logic and DOM states.
+
+**Files:** `src/client/ui/ui.ts`, `src/client/ui/visibility.ts`, `src/client/game/state-transition.ts`
+
+### 21. Spectator UX Hardening
+
+**Status:** baseline support shipped.
+
+**Remaining:** review and polish the "spectator" experience. Currently, spectators use a stripped-down HUD. Ensure they have clear "Spectating" status indicators, can see all ship stats without interactive controls appearing, and have a unique "Game Over" summary that reflects the global outcome rather than personal fleet stats.
+
+**Files:** `src/client/game/selection.ts`, `src/client/game/hud-orders.ts`, `src/client/ui/hud.ts`

@@ -13,6 +13,7 @@ import {
 } from './combat';
 import type { GameCommand } from './commands';
 import { resolveAstrogationClick, resolveOrdnanceClick } from './input';
+import type { InteractionMode } from './interaction-fsm';
 import type { PlanningState } from './planning';
 
 export type InputEvent =
@@ -179,6 +180,7 @@ const interpretOrdnanceClick = (
 const interpretClickHex = (
   hex: HexCoord,
   state: GameState | null,
+  interactionMode: InteractionMode,
   map: SolarSystemMap | null,
   playerId: PlayerId,
   planning: PlanningState,
@@ -187,7 +189,7 @@ const interpretClickHex = (
 
   if (state.activePlayer !== playerId) return [];
 
-  switch (state.phase) {
+  switch (interactionMode) {
     case 'combat':
       return interpretCombatClick(hex, state, map, playerId, planning);
     case 'ordnance':
@@ -202,13 +204,21 @@ const interpretClickHex = (
 export const interpretInput = (
   event: InputEvent,
   state: GameState | null,
+  interactionMode: InteractionMode,
   map: SolarSystemMap | null,
   playerId: PlayerId,
   planning: PlanningState,
 ): GameCommand[] => {
   switch (event.type) {
     case 'clickHex':
-      return interpretClickHex(event.hex, state, map, playerId, planning);
+      return interpretClickHex(
+        event.hex,
+        state,
+        interactionMode,
+        map,
+        playerId,
+        planning,
+      );
     case 'hoverHex':
       if (state) return [{ type: 'setHoverHex', hex: event.hex }];
 
