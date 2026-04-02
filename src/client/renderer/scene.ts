@@ -191,7 +191,7 @@ export const renderBodies = (
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '600 11px var(--font-display), sans-serif';
+    ctx.font = scaledFont('600 13px var(--font-display), sans-serif', zoom);
     ctx.textAlign = 'center';
     ctx.fillText(view.label, p.x, view.labelY);
   }
