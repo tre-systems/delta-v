@@ -106,6 +106,10 @@ export const applyClientStateTransition = (
       deps.ctx.planningState.resetAstrogationPlanning();
     }
 
+    if (entryPlan.resetOrdnancePlanning) {
+      deps.ctx.planningState.resetOrdnancePlanning();
+    }
+
     if (entryPlan.selectedShipId !== undefined) {
       deps.ctx.planningState.setSelectedShipId(entryPlan.selectedShipId);
     }
