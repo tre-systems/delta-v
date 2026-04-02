@@ -20,6 +20,9 @@ export interface PlanningState {
   // shipId -> { hexKey: true to ignore }
   weakGravityChoices: Map<string, Record<string, boolean>>;
 
+  // torpedo aiming mode (direction picker active)
+  torpedoAimingActive: boolean;
+
   // direction for torpedo launch boost
   torpedoAccel: number | null;
   torpedoAccelSteps: 1 | 2 | null;
@@ -76,6 +79,7 @@ export interface PlanningStore extends PlanningState {
   popQueuedAttack: () => number;
   takeQueuedAttacks: () => CombatAttack[];
   setCombatAttackStrength: (strength: number | null) => void;
+  setTorpedoAimingActive: (active: boolean) => void;
   setTorpedoAcceleration: (
     direction: number | null,
     steps: 1 | 2 | null,
@@ -109,6 +113,7 @@ export const createPlanningStore = (): PlanningStore => {
     overloads: new Map(),
     landingShips: new Set(),
     weakGravityChoices: new Map(),
+    torpedoAimingActive: false,
     torpedoAccel: null,
     torpedoAccelSteps: null,
     combatTargetId: null,
@@ -280,6 +285,18 @@ export const createPlanningStore = (): PlanningStore => {
   );
   defineHiddenPlanningMember(
     planningStore,
+    'setTorpedoAimingActive',
+    (active: boolean): void => {
+      planningStore.torpedoAimingActive = active;
+      if (!active) {
+        planningStore.torpedoAccel = null;
+        planningStore.torpedoAccelSteps = null;
+      }
+      notifyPlanningChanged();
+    },
+  );
+  defineHiddenPlanningMember(
+    planningStore,
     'setTorpedoAcceleration',
     (direction: number | null, steps: 1 | 2 | null): void => {
       planningStore.torpedoAccel = direction;
@@ -336,6 +353,7 @@ export const createPlanningStore = (): PlanningStore => {
     (): void => {
       planningStore.queuedOrdnanceLaunches = [];
       planningStore.acknowledgedOrdnanceShips.clear();
+      planningStore.torpedoAimingActive = false;
       planningStore.torpedoAccel = null;
       planningStore.torpedoAccelSteps = null;
       notifyPlanningChanged();
