@@ -1,7 +1,5 @@
-export {
-  buildAstrogationOrders,
-  deriveHudViewModel,
-} from './hud-orders';
+export { buildAstrogationOrders } from './astrogation-orders';
+export { deriveHudViewModel } from './hud-view-model';
 export {
   getGameOverStats,
   getScenarioBriefingLines,

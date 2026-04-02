@@ -1,7 +1,6 @@
 import { SHIP_STATS } from '../../shared/constants';
 import {
   getAllowedOrdnanceTypes,
-  getOrderableShipsForPlayer,
   hasLaunchableOrdnanceCapacity,
   isOrderableShip,
   validateOrdnanceLaunch,
@@ -9,7 +8,6 @@ import {
 import { HEX_DIRECTIONS, hexAdd, hexVecLength } from '../../shared/hex';
 import { detectOrbit, predictDestination } from '../../shared/movement';
 import type {
-  AstrogationOrder,
   GameState,
   Ordnance,
   PlayerId,
@@ -18,7 +16,6 @@ import type {
 import { count } from '../../shared/util';
 import { getSelectedShip } from './selection';
 import type {
-  AstrogationOrdersPlanningSnapshot,
   HudViewModel,
   HudViewPlanningSnapshot,
   OrdnanceActionState,
@@ -48,8 +45,6 @@ const getObjective = (state: GameState, playerId: PlayerId | -1): string => {
     (ship) => ship.owner === playerId && ship.identity?.hasFugitives,
   );
 
-  const facingFugitives = state.scenarioRules.hiddenIdentityInspection;
-
   if (player.escapeWins) {
     const dir = state.scenarioRules.escapeEdge === 'north' ? ' north' : '';
     return hasFugitiveShip
@@ -57,7 +52,7 @@ const getObjective = (state: GameState, playerId: PlayerId | -1): string => {
       : `⬡ Escape${dir} off the map`;
   }
 
-  if (facingFugitives) {
+  if (state.scenarioRules.hiddenIdentityInspection) {
     return '⬡ Inspect, capture, or destroy fugitives';
   }
 
@@ -70,11 +65,8 @@ const getObjective = (state: GameState, playerId: PlayerId | -1): string => {
 
 const getFleetStatus = (state: GameState, playerId: PlayerId | -1): string => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
-
   const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
-
   const myAlive = count(myShips, (ship) => ship.lifecycle !== 'destroyed');
-
   const enemyAlive = count(
     enemyShips,
     (ship) => ship.lifecycle !== 'destroyed',
@@ -95,20 +87,15 @@ const getFleetStatus = (state: GameState, playerId: PlayerId | -1): string => {
   }
 
   const ordnanceParts: string[] = [];
-
   const mines = count(activeOrdnance, (ordnance) => ordnance.type === 'mine');
-
   const torpedoes = count(
     activeOrdnance,
     (ordnance) => ordnance.type === 'torpedo',
   );
-
   const nukes = count(activeOrdnance, (ordnance) => ordnance.type === 'nuke');
 
   if (mines > 0) ordnanceParts.push(`${mines}M`);
-
   if (torpedoes > 0) ordnanceParts.push(`${torpedoes}T`);
-
   if (nukes > 0) ordnanceParts.push(`${nukes}N`);
 
   statusParts.push(ordnanceParts.join('/'));
@@ -150,38 +137,6 @@ const getOrdnanceActionState = (
   };
 };
 
-export const buildAstrogationOrders = (
-  state: GameState,
-  playerId: PlayerId | -1,
-  planning: AstrogationOrdersPlanningSnapshot,
-): AstrogationOrder[] => {
-  if (playerId < 0) return [];
-  const pid = playerId as PlayerId;
-  return getOrderableShipsForPlayer(state, pid).map((ship) => {
-    const burn = planning.burns.get(ship.id) ?? null;
-
-    const overload = planning.overloads.get(ship.id) ?? null;
-
-    const weakGravityChoices = planning.weakGravityChoices.get(ship.id);
-
-    const order: AstrogationOrder = {
-      shipId: ship.id,
-      burn,
-      overload,
-    };
-
-    if (planning.landingShips.has(ship.id)) {
-      order.land = true;
-    }
-
-    if (weakGravityChoices && Object.keys(weakGravityChoices).length > 0) {
-      order.weakGravityChoices = weakGravityChoices;
-    }
-
-    return order;
-  });
-};
-
 export const deriveHudViewModel = (
   state: GameState,
   playerId: PlayerId | -1,
@@ -189,13 +144,11 @@ export const deriveHudViewModel = (
   map?: SolarSystemMap | null,
 ): HudViewModel => {
   const myShips = state.ships.filter((ship) => ship.owner === playerId);
-
   const selectedShip = getSelectedShip(
     state,
     playerId,
     planning.selectedShipId,
   );
-
   const stats = selectedShip ? SHIP_STATS[selectedShip.type] : null;
   const allowedOrdnanceTypes = getAllowedOrdnanceTypes(state);
 
@@ -225,8 +178,6 @@ export const deriveHudViewModel = (
     selectedShipInOrbit: (() => {
       if (!selectedShip || !map) return false;
       if (detectOrbit(selectedShip, map)) return true;
-      // Also check post-burn state so the button appears
-      // when a burn would achieve orbit this turn.
       const burn = planning.burns.get(selectedShip.id) ?? null;
       if (burn === null || selectedShip.fuel <= 0) return false;
       const dest = hexAdd(
@@ -251,20 +202,21 @@ export const deriveHudViewModel = (
     allShipsAcknowledged: myShips
       .filter(isOrderableShip)
       .every(
-        (s) =>
-          s.damage.disabledTurns > 0 || planning.acknowledgedShips.has(s.id),
+        (ship) =>
+          ship.damage.disabledTurns > 0 ||
+          planning.acknowledgedShips.has(ship.id),
       ),
     allOrdnanceShipsAcknowledged: myShips
       .filter(isOrderableShip)
       .filter(
-        (s) =>
-          s.damage.disabledTurns === 0 &&
-          hasLaunchableOrdnanceCapacity(s, getAllowedOrdnanceTypes(state)),
+        (ship) =>
+          ship.damage.disabledTurns === 0 &&
+          hasLaunchableOrdnanceCapacity(ship, allowedOrdnanceTypes),
       )
-      .every((s) => planning.acknowledgedOrdnanceShips.has(s.id)),
+      .every((ship) => planning.acknowledgedOrdnanceShips.has(ship.id)),
     queuedOrdnanceType: selectedShip
       ? (planning.queuedOrdnanceLaunches.find(
-          (l) => l.shipId === selectedShip.id,
+          (launch) => launch.shipId === selectedShip.id,
         )?.ordnanceType ?? null)
       : null,
     queuedLaunchCount: planning.queuedOrdnanceLaunches.length,
