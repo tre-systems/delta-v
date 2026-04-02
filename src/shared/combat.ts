@@ -29,7 +29,7 @@ export type { CombatAttack };
 // --- Damage tables ---
 
 // Gun Combat Results Table
-// (from Triplanetary 2018 rulebook p.6)
+// (see SPEC.md damage tables)
 // Rows: modified die roll (<=0 through 6+)
 // Columns: odds ratio index
 //   (0=1:4, 1=1:2, 2=1:1, 3=2:1, 4=3:1, 5=4:1)
@@ -46,7 +46,7 @@ const GUN_COMBAT_TABLE: number[][] = [
 ];
 
 // Other Damage Tables per source type
-// (from Triplanetary 2018 rulebook p.6)
+// (see SPEC.md damage tables)
 // Index: die roll 1-6
 // Values: 0 = no effect, 1-5 = disabled, 6 = eliminated
 export type OtherDamageSource = 'torpedo' | 'mine' | 'asteroid' | 'ram';
@@ -358,7 +358,7 @@ export const lookupGunCombat = (
 // Look up result on the Other Damage table
 // (asteroids, mines, torpedoes, ramming).
 // Each source type has its own damage column per
-// the Triplanetary 2018 rulebook.
+// the game rulebook.
 export const lookupOtherDamage = (
   dieRoll: number,
   source: OtherDamageSource = 'torpedo',

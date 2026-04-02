@@ -11,7 +11,7 @@
 
 ![Delta-V Tactical Map](./screenshot.png)
 
-**Delta-V** is an online turn-based multiplayer tactical space combat and racing game featuring realistic vector movement and orbital gravity mechanics across the inner Solar System, heavily inspired by the classic [Triplanetary (Steve Jackson Games)](https://www.sjgames.com/triplanetary/) board game.
+**Delta-V** is an online turn-based multiplayer tactical space combat and racing game featuring realistic vector movement and orbital gravity mechanics across the inner Solar System.
 
 Command your fleet, master astrogation trajectories, sling-shot around celestial bodies, and engage in high-stakes combat where positioning and velocity are just as crucial as firepower.
 
@@ -21,7 +21,7 @@ Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) a
 
 Use the docs by role so the same decision is not maintained in three places:
 
-- [**SPEC.md**](./docs/SPEC.md): gameplay rules, scenario behavior, protocol shapes, state concepts, and implementation status; the official [Triplanetary 2018 PDF](./Triplanetary2018.pdf) takes precedence if prose drifts
+- [**SPEC.md**](./docs/SPEC.md): gameplay rules, scenario behavior, protocol shapes, state concepts, and implementation status
 - [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md): implementation structure, data flow, Durable Object design, replay/recovery model, and the current client reactive/session architecture
 - [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md): coding conventions, refactoring guidance, and shared implementation patterns
 - [**CONTRIBUTING.md**](./docs/CONTRIBUTING.md): contributor workflow, pre-commit behavior, verification commands, and local environment gotchas
@@ -159,7 +159,7 @@ Keep Playwright additions focused on browser-only risks so the suite remains fas
 
 ## 📜 Game Rules Reference
 
-For the comprehensive ruleset detailing movement edge cases, damage tables, and specific scenario rules, refer to [SPEC.md](./docs/SPEC.md). If repo prose and the official rules ever disagree, follow [Triplanetary2018.pdf](./Triplanetary2018.pdf).
+For the comprehensive ruleset detailing movement edge cases, damage tables, and specific scenario rules, refer to [SPEC.md](./docs/SPEC.md).
 
 ## 🗺️ Roadmap
 
@@ -187,7 +187,7 @@ Open work lives in [**BACKLOG.md**](./docs/BACKLOG.md). This section is shipped-
 ### Shipped
 
 - [x] **Passenger Rescue Mechanics**: Passengers, transfers, Convoy + Evacuation scenarios
-- [x] **All 9 Triplanetary Scenarios**: Bi-Planetary through Grand Tour
+- [x] **All 9 Scenarios**: Bi-Planetary through Grand Tour
 
 ## 🔗 External References
 
@@ -195,7 +195,7 @@ Open work lives in [**BACKLOG.md**](./docs/BACKLOG.md). This section is shipped-
 - [MDN Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) and [MDN Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
 - [web.dev Learn PWA](https://web.dev/learn/pwa/)
 - [TypeScript Handbook: Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
-- [Triplanetary overview](https://www.sjgames.com/triplanetary/)
+
 
 ---
 
