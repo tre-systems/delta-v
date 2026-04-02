@@ -31,6 +31,7 @@ import {
   getOrdnanceLifetimeView,
   getOrdnancePulse,
 } from './entities';
+import { scaledFont } from './text';
 
 export interface RenderOrdnanceInput {
   ctx: CanvasRenderingContext2D;
@@ -40,6 +41,7 @@ export interface RenderOrdnanceInput {
   hexSize: number;
   now: number;
   interpolatePath: (path: HexCoord[], progress: number) => PixelCoord;
+  zoom: number;
 }
 
 export const renderOrdnance = ({
@@ -50,6 +52,7 @@ export const renderOrdnance = ({
   hexSize,
   now,
   interpolatePath,
+  zoom,
 }: RenderOrdnanceInput): void => {
   if (!state.ordnance || state.ordnance.length === 0) {
     return;
@@ -150,14 +153,14 @@ export const renderOrdnance = ({
 
       // Labels for clarity
       ctx.fillStyle = color;
-      ctx.font = 'bold 7px Inter, sans-serif';
+      ctx.font = scaledFont('bold 7px Inter, sans-serif', zoom);
       ctx.textAlign = 'center';
       const labelY = ord.type === 'mine' ? p.y - 10 : p.y - 12;
       const typeLabel = ord.type.toUpperCase();
       ctx.fillText(typeLabel, p.x, labelY);
 
       const ownershipLabel = isFriendly ? 'FRIENDLY' : 'ENEMY';
-      ctx.font = '5px Inter, sans-serif';
+      ctx.font = scaledFont('5px Inter, sans-serif', zoom);
       ctx.fillText(ownershipLabel, p.x, labelY - 7);
     }
 
@@ -168,7 +171,7 @@ export const renderOrdnance = ({
 
     if (lifetimeView) {
       ctx.fillStyle = lifetimeView.color;
-      ctx.font = 'bold 8px monospace';
+      ctx.font = scaledFont('bold 8px monospace', zoom);
       ctx.textAlign = 'center';
       ctx.fillText(lifetimeView.text, p.x, p.y + 12);
     }
@@ -222,6 +225,7 @@ export interface RenderTorpedoGuidanceInput {
   isAnimating: boolean;
   hexSize: number;
   now: number;
+  zoom: number;
 }
 
 export const renderTorpedoGuidance = ({
@@ -232,6 +236,7 @@ export const renderTorpedoGuidance = ({
   isAnimating,
   hexSize,
   now: _now,
+  zoom,
 }: RenderTorpedoGuidanceInput): void => {
   if (state.phase !== 'ordnance' || state.activePlayer !== playerId) {
     return;
@@ -296,13 +301,13 @@ export const renderTorpedoGuidance = ({
       ctx.stroke();
 
       ctx.fillStyle = 'rgba(255, 240, 200, 0.95)';
-      ctx.font = 'bold 10px monospace';
+      ctx.font = scaledFont('bold 10px monospace', zoom);
       ctx.fillText(`\u00d7${accelSteps ?? 1}`, tp.x, tp.y + 4);
     }
   }
 
   ctx.fillStyle = 'rgba(255, 120, 60, 0.9)';
-  ctx.font = '9px monospace';
+  ctx.font = scaledFont('9px monospace', zoom);
   ctx.textAlign = 'center';
 
   if (accel !== null) {
@@ -330,6 +335,7 @@ export interface RenderCombatOverlayInput {
   isAnimating: boolean;
   hexSize: number;
   now: number;
+  zoom: number;
 }
 
 export const renderCombatOverlay = ({
@@ -341,6 +347,7 @@ export const renderCombatOverlay = ({
   isAnimating,
   hexSize,
   now,
+  zoom,
 }: RenderCombatOverlayInput): void => {
   if (state.phase !== 'combat' || state.activePlayer !== playerId) {
     return;
@@ -451,7 +458,7 @@ export const renderCombatOverlay = ({
   ctx.textAlign = 'center';
 
   // Main odds label (e.g. "1:1  ATK 2/2")
-  ctx.font = 'bold 10px monospace';
+  ctx.font = scaledFont('bold 10px monospace', zoom);
   const oddsW = ctx.measureText(preview.label).width;
 
   ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -465,7 +472,7 @@ export const renderCombatOverlay = ({
     const counterIcon = preview.canCounter ? '\u2694' : '';
     const subParts = [preview.modLabel, counterIcon].filter(Boolean).join(' ');
 
-    ctx.font = 'bold 9px monospace';
+    ctx.font = scaledFont('bold 9px monospace', zoom);
     const subW = ctx.measureText(subParts).width;
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';

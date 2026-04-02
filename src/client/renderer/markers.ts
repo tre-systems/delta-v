@@ -1,8 +1,10 @@
 import type { CourseMarkerView, WeakGravityMarkerView } from './course';
+import { scaledFont } from './text';
 
 export const drawCourseMarkerView = (
   ctx: CanvasRenderingContext2D,
   marker: CourseMarkerView,
+  zoom: number,
 ): void => {
   if (marker.shadowBlur > 0 && marker.shadowColor) {
     ctx.shadowBlur = marker.shadowBlur;
@@ -18,7 +20,7 @@ export const drawCourseMarkerView = (
   ctx.shadowBlur = 0;
   if (marker.label && marker.labelColor) {
     ctx.fillStyle = marker.labelColor;
-    ctx.font = 'bold 9px monospace';
+    ctx.font = scaledFont('bold 9px monospace', zoom);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(marker.label, marker.position.x, marker.position.y);
@@ -28,6 +30,7 @@ export const drawCourseMarkerView = (
 export const drawWeakGravityMarkerView = (
   ctx: CanvasRenderingContext2D,
   marker: WeakGravityMarkerView,
+  zoom: number,
 ): void => {
   ctx.strokeStyle = marker.strokeColor;
   ctx.fillStyle = marker.fillColor;
@@ -37,7 +40,7 @@ export const drawWeakGravityMarkerView = (
   ctx.fill();
   ctx.stroke();
   ctx.fillStyle = marker.labelColor;
-  ctx.font = 'bold 8px monospace';
+  ctx.font = scaledFont('bold 8px monospace', zoom);
   ctx.textAlign = 'center';
   ctx.fillText('G', marker.position.x, marker.position.y + 3);
   if (marker.strikeFrom && marker.strikeTo) {
