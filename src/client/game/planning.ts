@@ -4,6 +4,75 @@ import type { Signal } from '../reactive';
 import { signal } from '../reactive';
 import type { CombatTargetPlan } from './combat';
 
+type CombatTargetType = 'ship' | 'ordnance' | null;
+
+interface PlanningSelectionState {
+  selectedShipId: string | null;
+  hoverHex: HexCoord | null;
+  lastSelectedHex: string | null;
+}
+
+interface AstrogationPlanningState {
+  burns: Map<string, number | null>;
+  overloads: Map<string, number | null>;
+  landingShips: Set<string>;
+  weakGravityChoices: Map<string, Record<string, boolean>>;
+  acknowledgedShips: Set<string>;
+}
+
+interface OrdnancePlanningState {
+  torpedoAimingActive: boolean;
+  torpedoAccel: number | null;
+  torpedoAccelSteps: 1 | 2 | null;
+  queuedOrdnanceLaunches: OrdnanceLaunch[];
+  acknowledgedOrdnanceShips: Set<string>;
+}
+
+interface CombatPlanningState {
+  combatTargetId: string | null;
+  combatTargetType: CombatTargetType;
+  combatAttackerIds: string[];
+  combatAttackStrength: number | null;
+  queuedAttacks: CombatAttack[];
+}
+
+interface PlanningData {
+  selection: PlanningSelectionState;
+  astrogation: AstrogationPlanningState;
+  ordnance: OrdnancePlanningState;
+  combat: CombatPlanningState;
+}
+
+const createSelectionState = (): PlanningSelectionState => ({
+  selectedShipId: null,
+  hoverHex: null,
+  lastSelectedHex: null,
+});
+
+const createAstrogationPlanningState = (): AstrogationPlanningState => ({
+  burns: new Map(),
+  overloads: new Map(),
+  landingShips: new Set(),
+  weakGravityChoices: new Map(),
+  acknowledgedShips: new Set(),
+});
+
+const createOrdnancePlanningState = (): OrdnancePlanningState => ({
+  torpedoAimingActive: false,
+  torpedoAccel: null,
+  torpedoAccelSteps: null,
+  queuedOrdnanceLaunches: [],
+  acknowledgedOrdnanceShips: new Set(),
+});
+
+const createCombatPlanningState = (): CombatPlanningState => ({
+  combatTargetId: null,
+  combatTargetType: null,
+  combatAttackerIds: [],
+  combatAttackStrength: null,
+  queuedAttacks: [],
+});
+
 export interface PlanningState {
   readonly revisionSignal?: Signal<number>;
   selectedShipId: string | null;
@@ -29,7 +98,7 @@ export interface PlanningState {
 
   // enemy ship targeted for combat
   combatTargetId: string | null;
-  combatTargetType: 'ship' | 'ordnance' | null;
+  combatTargetType: CombatTargetType;
   combatAttackerIds: string[];
   combatAttackStrength: number | null;
 
@@ -52,11 +121,14 @@ export interface PlanningState {
   lastSelectedHex: string | null;
 }
 
+export type PlanningPhase = 'astrogation' | 'ordnance' | 'combat';
+
 export interface PlanningStore extends PlanningState {
   readonly revisionSignal: Signal<number>;
   setSelectedShipId: (shipId: string | null) => void;
   selectShip: (shipId: string, lastSelectedHex?: string | null) => void;
   clearShipPlanning: (shipId: string) => void;
+  enterPhase: (phase: PlanningPhase, selectedShipId?: string | null) => void;
   resetAstrogationPlanning: () => void;
   setShipBurn: (
     shipId: string,
@@ -94,11 +166,11 @@ export interface PlanningStore extends PlanningState {
 }
 
 const defineHiddenPlanningMember = <K extends keyof PlanningStore>(
-  planningState: PlanningStore,
+  planningStore: PlanningStore,
   key: K,
   value: PlanningStore[K],
 ): void => {
-  Object.defineProperty(planningState, key, {
+  Object.defineProperty(planningStore, key, {
     enumerable: false,
     configurable: false,
     writable: false,
@@ -106,40 +178,187 @@ const defineHiddenPlanningMember = <K extends keyof PlanningStore>(
   });
 };
 
+const definePlanningAlias = <K extends keyof PlanningState>(
+  planningStore: PlanningStore,
+  key: K,
+  get: () => PlanningState[K],
+  set: (next: PlanningState[K]) => void,
+): void => {
+  Object.defineProperty(planningStore, key, {
+    enumerable: true,
+    configurable: false,
+    get,
+    set,
+  });
+};
+
 export const createPlanningStore = (): PlanningStore => {
-  const planningState: PlanningState = {
-    selectedShipId: null,
-    burns: new Map(),
-    overloads: new Map(),
-    landingShips: new Set(),
-    weakGravityChoices: new Map(),
-    torpedoAimingActive: false,
-    torpedoAccel: null,
-    torpedoAccelSteps: null,
-    combatTargetId: null,
-    combatTargetType: null,
-    combatAttackerIds: [],
-    combatAttackStrength: null,
-    queuedAttacks: [],
-    acknowledgedShips: new Set(),
-    queuedOrdnanceLaunches: [],
-    acknowledgedOrdnanceShips: new Set(),
-    hoverHex: null,
-    lastSelectedHex: null,
+  const planningStore = {} as PlanningStore;
+  const data: PlanningData = {
+    selection: createSelectionState(),
+    astrogation: createAstrogationPlanningState(),
+    ordnance: createOrdnancePlanningState(),
+    combat: createCombatPlanningState(),
   };
-  const planningStore = planningState as PlanningStore;
 
   const notifyPlanningChanged = (): void => {
     planningStore.revisionSignal.update((n) => n + 1);
   };
+
+  definePlanningAlias(
+    planningStore,
+    'selectedShipId',
+    () => data.selection.selectedShipId,
+    (next) => {
+      data.selection.selectedShipId = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'hoverHex',
+    () => data.selection.hoverHex,
+    (next) => {
+      data.selection.hoverHex = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'lastSelectedHex',
+    () => data.selection.lastSelectedHex,
+    (next) => {
+      data.selection.lastSelectedHex = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'burns',
+    () => data.astrogation.burns,
+    (next) => {
+      data.astrogation.burns = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'overloads',
+    () => data.astrogation.overloads,
+    (next) => {
+      data.astrogation.overloads = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'landingShips',
+    () => data.astrogation.landingShips,
+    (next) => {
+      data.astrogation.landingShips = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'weakGravityChoices',
+    () => data.astrogation.weakGravityChoices,
+    (next) => {
+      data.astrogation.weakGravityChoices = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'acknowledgedShips',
+    () => data.astrogation.acknowledgedShips,
+    (next) => {
+      data.astrogation.acknowledgedShips = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'torpedoAimingActive',
+    () => data.ordnance.torpedoAimingActive,
+    (next) => {
+      data.ordnance.torpedoAimingActive = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'torpedoAccel',
+    () => data.ordnance.torpedoAccel,
+    (next) => {
+      data.ordnance.torpedoAccel = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'torpedoAccelSteps',
+    () => data.ordnance.torpedoAccelSteps,
+    (next) => {
+      data.ordnance.torpedoAccelSteps = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'queuedOrdnanceLaunches',
+    () => data.ordnance.queuedOrdnanceLaunches,
+    (next) => {
+      data.ordnance.queuedOrdnanceLaunches = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'acknowledgedOrdnanceShips',
+    () => data.ordnance.acknowledgedOrdnanceShips,
+    (next) => {
+      data.ordnance.acknowledgedOrdnanceShips = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'combatTargetId',
+    () => data.combat.combatTargetId,
+    (next) => {
+      data.combat.combatTargetId = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'combatTargetType',
+    () => data.combat.combatTargetType,
+    (next) => {
+      data.combat.combatTargetType = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'combatAttackerIds',
+    () => data.combat.combatAttackerIds,
+    (next) => {
+      data.combat.combatAttackerIds = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'combatAttackStrength',
+    () => data.combat.combatAttackStrength,
+    (next) => {
+      data.combat.combatAttackStrength = next;
+    },
+  );
+  definePlanningAlias(
+    planningStore,
+    'queuedAttacks',
+    () => data.combat.queuedAttacks,
+    (next) => {
+      data.combat.queuedAttacks = next;
+    },
+  );
 
   defineHiddenPlanningMember(planningStore, 'revisionSignal', signal(0));
   defineHiddenPlanningMember(
     planningStore,
     'setSelectedShipId',
     (shipId: string | null): void => {
-      if (planningStore.selectedShipId === shipId) return;
-      planningStore.selectedShipId = shipId;
+      if (data.selection.selectedShipId === shipId) {
+        return;
+      }
+      data.selection.selectedShipId = shipId;
       notifyPlanningChanged();
     },
   );
@@ -147,10 +366,10 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'selectShip',
     (shipId: string, lastSelectedHex?: string | null): void => {
-      planningStore.selectedShipId = shipId;
+      data.selection.selectedShipId = shipId;
 
       if (lastSelectedHex !== undefined) {
-        planningStore.lastSelectedHex = lastSelectedHex;
+        data.selection.lastSelectedHex = lastSelectedHex;
       }
       notifyPlanningChanged();
     },
@@ -159,10 +378,37 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'clearShipPlanning',
     (shipId: string): void => {
-      planningStore.burns.delete(shipId);
-      planningStore.overloads.delete(shipId);
-      planningStore.landingShips.delete(shipId);
-      planningStore.weakGravityChoices.delete(shipId);
+      data.astrogation.burns.delete(shipId);
+      data.astrogation.overloads.delete(shipId);
+      data.astrogation.landingShips.delete(shipId);
+      data.astrogation.weakGravityChoices.delete(shipId);
+      notifyPlanningChanged();
+    },
+  );
+  defineHiddenPlanningMember(
+    planningStore,
+    'enterPhase',
+    (phase: PlanningPhase, selectedShipId: string | null = null): void => {
+      data.selection.selectedShipId = selectedShipId;
+      data.astrogation = createAstrogationPlanningState();
+      data.ordnance = createOrdnancePlanningState();
+      data.combat = createCombatPlanningState();
+
+      switch (phase) {
+        case 'astrogation':
+          data.selection.lastSelectedHex = null;
+          break;
+        case 'ordnance':
+          break;
+        case 'combat':
+          break;
+        default: {
+          const _exhaustive: never = phase;
+          void _exhaustive;
+          return;
+        }
+      }
+
       notifyPlanningChanged();
     },
   );
@@ -170,24 +416,17 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'resetAstrogationPlanning',
     (): void => {
-      planningStore.selectedShipId = null;
-      planningStore.lastSelectedHex = null;
-      planningStore.burns.clear();
-      planningStore.overloads.clear();
-      planningStore.landingShips.clear();
-      planningStore.weakGravityChoices.clear();
-      planningStore.acknowledgedShips.clear();
-      notifyPlanningChanged();
+      planningStore.enterPhase('astrogation', null);
     },
   );
   defineHiddenPlanningMember(
     planningStore,
     'setShipBurn',
     (shipId: string, burn: number | null, clearOverload = false): void => {
-      planningStore.burns.set(shipId, burn);
+      data.astrogation.burns.set(shipId, burn);
 
       if (clearOverload) {
-        planningStore.overloads.delete(shipId);
+        data.astrogation.overloads.delete(shipId);
       }
       notifyPlanningChanged();
     },
@@ -196,7 +435,7 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'setShipOverload',
     (shipId: string, direction: number | null): void => {
-      planningStore.overloads.set(shipId, direction);
+      data.astrogation.overloads.set(shipId, direction);
       notifyPlanningChanged();
     },
   );
@@ -205,9 +444,9 @@ export const createPlanningStore = (): PlanningStore => {
     'setShipLanding',
     (shipId: string, landing: boolean): void => {
       if (landing) {
-        planningStore.landingShips.add(shipId);
+        data.astrogation.landingShips.add(shipId);
       } else {
-        planningStore.landingShips.delete(shipId);
+        data.astrogation.landingShips.delete(shipId);
       }
       notifyPlanningChanged();
     },
@@ -216,7 +455,7 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'setShipWeakGravityChoices',
     (shipId: string, choices: Record<string, boolean>): void => {
-      planningStore.weakGravityChoices.set(shipId, choices);
+      data.astrogation.weakGravityChoices.set(shipId, choices);
       notifyPlanningChanged();
     },
   );
@@ -224,10 +463,13 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'applyCombatPlanUpdate',
     (plan: CombatTargetPlan, selectedShipId?: string): void => {
-      Object.assign(planningStore, plan);
+      data.combat.combatTargetId = plan.combatTargetId;
+      data.combat.combatTargetType = plan.combatTargetType;
+      data.combat.combatAttackerIds = [...plan.combatAttackerIds];
+      data.combat.combatAttackStrength = plan.combatAttackStrength;
 
       if (selectedShipId !== undefined) {
-        planningStore.selectedShipId = selectedShipId;
+        data.selection.selectedShipId = selectedShipId;
       }
       notifyPlanningChanged();
     },
@@ -236,41 +478,37 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'clearCombatSelectionState',
     (): void => {
-      planningStore.combatTargetId = null;
-      planningStore.combatTargetType = null;
-      planningStore.combatAttackerIds = [];
-      planningStore.combatAttackStrength = null;
+      data.combat.combatTargetId = null;
+      data.combat.combatTargetType = null;
+      data.combat.combatAttackerIds = [];
+      data.combat.combatAttackStrength = null;
       notifyPlanningChanged();
     },
   );
   defineHiddenPlanningMember(planningStore, 'resetCombatPlanning', (): void => {
-    planningStore.combatTargetId = null;
-    planningStore.combatTargetType = null;
-    planningStore.combatAttackerIds = [];
-    planningStore.combatAttackStrength = null;
-    planningStore.queuedAttacks = [];
+    data.combat = createCombatPlanningState();
     notifyPlanningChanged();
   });
   defineHiddenPlanningMember(
     planningStore,
     'queueCombatAttack',
     (attack: CombatAttack): number => {
-      planningStore.queuedAttacks.push(attack);
+      data.combat.queuedAttacks.push(attack);
       notifyPlanningChanged();
-      return planningStore.queuedAttacks.length;
+      return data.combat.queuedAttacks.length;
     },
   );
   defineHiddenPlanningMember(planningStore, 'popQueuedAttack', (): number => {
-    planningStore.queuedAttacks.pop();
+    data.combat.queuedAttacks.pop();
     notifyPlanningChanged();
-    return planningStore.queuedAttacks.length;
+    return data.combat.queuedAttacks.length;
   });
   defineHiddenPlanningMember(
     planningStore,
     'takeQueuedAttacks',
     (): CombatAttack[] => {
-      const attacks = [...planningStore.queuedAttacks];
-      planningStore.queuedAttacks = [];
+      const attacks = [...data.combat.queuedAttacks];
+      data.combat.queuedAttacks = [];
       notifyPlanningChanged();
       return attacks;
     },
@@ -279,7 +517,7 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'setCombatAttackStrength',
     (strength: number | null): void => {
-      planningStore.combatAttackStrength = strength;
+      data.combat.combatAttackStrength = strength;
       notifyPlanningChanged();
     },
   );
@@ -287,10 +525,11 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'setTorpedoAimingActive',
     (active: boolean): void => {
-      planningStore.torpedoAimingActive = active;
+      data.ordnance.torpedoAimingActive = active;
+
       if (!active) {
-        planningStore.torpedoAccel = null;
-        planningStore.torpedoAccelSteps = null;
+        data.ordnance.torpedoAccel = null;
+        data.ordnance.torpedoAccelSteps = null;
       }
       notifyPlanningChanged();
     },
@@ -299,8 +538,8 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'setTorpedoAcceleration',
     (direction: number | null, steps: 1 | 2 | null): void => {
-      planningStore.torpedoAccel = direction;
-      planningStore.torpedoAccelSteps = steps;
+      data.ordnance.torpedoAccel = direction;
+      data.ordnance.torpedoAccelSteps = steps;
       notifyPlanningChanged();
     },
   );
@@ -308,8 +547,8 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'clearTorpedoAcceleration',
     (): void => {
-      planningStore.torpedoAccel = null;
-      planningStore.torpedoAccelSteps = null;
+      data.ordnance.torpedoAccel = null;
+      data.ordnance.torpedoAccelSteps = null;
       notifyPlanningChanged();
     },
   );
@@ -317,7 +556,7 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'acknowledgeShip',
     (shipId: string): void => {
-      planningStore.acknowledgedShips.add(shipId);
+      data.astrogation.acknowledgedShips.add(shipId);
       notifyPlanningChanged();
     },
   );
@@ -325,7 +564,7 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'queueOrdnanceLaunch',
     (launch: OrdnanceLaunch): void => {
-      planningStore.queuedOrdnanceLaunches.push(launch);
+      data.ordnance.queuedOrdnanceLaunches.push(launch);
       notifyPlanningChanged();
     },
   );
@@ -333,7 +572,7 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'acknowledgeOrdnanceShip',
     (shipId: string): void => {
-      planningStore.acknowledgedOrdnanceShips.add(shipId);
+      data.ordnance.acknowledgedOrdnanceShips.add(shipId);
       notifyPlanningChanged();
     },
   );
@@ -341,8 +580,8 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'takeQueuedOrdnanceLaunches',
     (): OrdnanceLaunch[] => {
-      const launches = [...planningStore.queuedOrdnanceLaunches];
-      planningStore.queuedOrdnanceLaunches = [];
+      const launches = [...data.ordnance.queuedOrdnanceLaunches];
+      data.ordnance.queuedOrdnanceLaunches = [];
       notifyPlanningChanged();
       return launches;
     },
@@ -351,11 +590,7 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'resetOrdnancePlanning',
     (): void => {
-      planningStore.queuedOrdnanceLaunches = [];
-      planningStore.acknowledgedOrdnanceShips.clear();
-      planningStore.torpedoAimingActive = false;
-      planningStore.torpedoAccel = null;
-      planningStore.torpedoAccelSteps = null;
+      data.ordnance = createOrdnancePlanningState();
       notifyPlanningChanged();
     },
   );
@@ -363,7 +598,7 @@ export const createPlanningStore = (): PlanningStore => {
     planningStore,
     'setHoverHex',
     (hex: HexCoord | null): void => {
-      planningStore.hoverHex = hex;
+      data.selection.hoverHex = hex;
       notifyPlanningChanged();
     },
   );

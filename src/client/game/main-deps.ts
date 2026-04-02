@@ -32,7 +32,6 @@ export interface MainStateTransitionDepsArgs {
   tutorial: Tutorial;
   turnTimer: TurnTimerManager;
   tooltipEl: HTMLElement;
-  resetCombatState: () => void;
   autoSkipCombatIfNoTargets: () => void;
 }
 
@@ -50,7 +49,6 @@ export const createMainStateTransitionDeps = (
   onStateChanged: (prevState, nextState) =>
     args.turnTelemetry.onStateChanged(prevState, nextState),
   hideTooltip: () => hide(args.tooltipEl),
-  resetCombatState: () => args.resetCombatState(),
   autoSkipCombatIfNoTargets: () => args.autoSkipCombatIfNoTargets(),
 });
 

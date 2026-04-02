@@ -70,6 +70,21 @@ describe('applyClientGameState', () => {
     expect(deps.ctx.gameState).toBe(state);
   });
 
+  it('projects spectator-visible state without mutating the source object', () => {
+    const state = createState({
+      ships: createState().ships.map((ship, index) =>
+        index === 0 ? { ...ship, detected: false } : ship,
+      ),
+    });
+    const deps = createDeps();
+
+    applyClientGameState({ ...deps, isSpectator: true }, state);
+
+    expect(state.ships[0]?.detected).toBe(false);
+    expect(deps.ctx.gameState).not.toBe(state);
+    expect(deps.ctx.gameState?.ships.every((ship) => ship.detected)).toBe(true);
+  });
+
   it('keeps the selected ship when it still exists and is alive', () => {
     const state = createState();
     const selectedShipId = state.ships[0]?.id ?? null;

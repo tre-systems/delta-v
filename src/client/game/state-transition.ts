@@ -36,7 +36,6 @@ export interface StateTransitionDeps {
   turnTimer: TransitionTurnTimer;
   onStateChanged: (prevState: ClientState, nextState: ClientState) => void;
   hideTooltip: () => void;
-  resetCombatState: () => void;
   autoSkipCombatIfNoTargets: () => void;
 }
 
@@ -81,20 +80,11 @@ export const applyClientStateTransition = (
       deps.turnTimer.start();
     }
 
-    if (entryPlan.clearAstrogationPlanning) {
-      deps.ctx.planningState.resetAstrogationPlanning();
-    }
-
-    if (entryPlan.resetOrdnancePlanning) {
-      deps.ctx.planningState.resetOrdnancePlanning();
-    }
-
-    if (entryPlan.selectedShipId !== undefined) {
-      deps.ctx.planningState.setSelectedShipId(entryPlan.selectedShipId);
-    }
-
-    if (entryPlan.resetCombatState) {
-      deps.resetCombatState();
+    if (entryPlan.planningPhaseEntry) {
+      deps.ctx.planningState.enterPhase(
+        entryPlan.planningPhaseEntry.phase,
+        entryPlan.planningPhaseEntry.selectedShipId,
+      );
     }
 
     if (entryPlan.autoSkipCombatIfNoTargets) {

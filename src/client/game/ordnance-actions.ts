@@ -161,6 +161,6 @@ export const allOrdnanceShipsAcknowledged = (
 
 // Enter the ordnance phase: auto-select the first launchable ship.
 export const enterOrdnancePhase = (deps: OrdnanceActionDeps): void => {
-  deps.planningState.resetOrdnancePlanning();
+  deps.planningState.enterPhase('ordnance');
   advanceToNextOrdnanceShip(deps);
 };
