@@ -1,65 +1,138 @@
 import type { SolarSystemMap } from '../../types';
 import type { GameState, Result } from '../../types/domain';
-import type { EventEnvelope } from '../engine-events';
+import type { EngineEvent, EventEnvelope } from '../engine-events';
 import { projectConflictEvent } from './conflict';
 import { projectLifecycleEvent } from './lifecycle';
 import { projectShipEvent } from './ships';
 import { migrateGameState } from './support';
 
-const projectEvent = (
+type ProjectEventHandler<T extends EngineEvent = EngineEvent> = (
   state: GameState | null,
-  envelope: EventEnvelope,
+  event: T,
+  gameId: string,
+  map: SolarSystemMap,
+) => Result<GameState>;
+
+type ProjectEventRegistry = {
+  [K in EngineEvent['type']]: ProjectEventHandler<
+    Extract<EngineEvent, { type: K }>
+  >;
+};
+
+type LifecycleEvent = Extract<
+  EngineEvent,
+  {
+    type:
+      | 'gameCreated'
+      | 'fleetPurchased'
+      | 'astrogationOrdersCommitted'
+      | 'ordnanceLaunchesCommitted'
+      | 'logisticsTransfersCommitted'
+      | 'surrenderDeclared'
+      | 'fugitiveDesignated'
+      | 'phaseChanged'
+      | 'turnAdvanced'
+      | 'identityRevealed'
+      | 'checkpointVisited'
+      | 'gameOver';
+  }
+>;
+
+type ShipEvent = Extract<
+  EngineEvent,
+  {
+    type:
+      | 'shipMoved'
+      | 'shipLanded'
+      | 'shipCrashed'
+      | 'shipDestroyed'
+      | 'shipCaptured'
+      | 'asteroidDestroyed'
+      | 'baseDestroyed'
+      | 'shipResupplied'
+      | 'fuelTransferred'
+      | 'cargoTransferred'
+      | 'passengersTransferred'
+      | 'shipSurrendered'
+      | 'baseEmplaced';
+  }
+>;
+
+type ConflictEvent = Extract<
+  EngineEvent,
+  {
+    type:
+      | 'ordnanceLaunched'
+      | 'ordnanceMoved'
+      | 'ordnanceExpired'
+      | 'ordnanceDetonated'
+      | 'ramming'
+      | 'ordnanceDestroyed'
+      | 'combatAttack';
+  }
+>;
+
+const projectLifecycle: ProjectEventHandler<LifecycleEvent> = (
+  state,
+  event,
+  gameId,
+  map,
+) => {
+  return projectLifecycleEvent(state, event, gameId, map);
+};
+
+const projectShip: ProjectEventHandler<ShipEvent> = (state, event) => {
+  return projectShipEvent(state, event);
+};
+
+const projectConflict: ProjectEventHandler<ConflictEvent> = (state, event) => {
+  return projectConflictEvent(state, event);
+};
+
+const PROJECT_EVENT_HANDLERS = {
+  gameCreated: projectLifecycle,
+  fleetPurchased: projectLifecycle,
+  astrogationOrdersCommitted: projectLifecycle,
+  ordnanceLaunchesCommitted: projectLifecycle,
+  logisticsTransfersCommitted: projectLifecycle,
+  surrenderDeclared: projectLifecycle,
+  fugitiveDesignated: projectLifecycle,
+  phaseChanged: projectLifecycle,
+  turnAdvanced: projectLifecycle,
+  identityRevealed: projectLifecycle,
+  checkpointVisited: projectLifecycle,
+  gameOver: projectLifecycle,
+  shipMoved: projectShip,
+  shipLanded: projectShip,
+  shipCrashed: projectShip,
+  shipDestroyed: projectShip,
+  shipCaptured: projectShip,
+  asteroidDestroyed: projectShip,
+  baseDestroyed: projectShip,
+  shipResupplied: projectShip,
+  fuelTransferred: projectShip,
+  cargoTransferred: projectShip,
+  passengersTransferred: projectShip,
+  shipSurrendered: projectShip,
+  baseEmplaced: projectShip,
+  ordnanceLaunched: projectConflict,
+  ordnanceMoved: projectConflict,
+  ordnanceExpired: projectConflict,
+  ordnanceDetonated: projectConflict,
+  ramming: projectConflict,
+  ordnanceDestroyed: projectConflict,
+  combatAttack: projectConflict,
+} satisfies ProjectEventRegistry;
+
+const projectEvent = <T extends EngineEvent>(
+  state: GameState | null,
+  event: T,
+  gameId: string,
   map: SolarSystemMap,
 ): Result<GameState> => {
-  const event = envelope.event;
+  const handler = PROJECT_EVENT_HANDLERS[event.type] as ProjectEventHandler<T>;
 
-  switch (event.type) {
-    case 'gameCreated':
-    case 'fleetPurchased':
-    case 'astrogationOrdersCommitted':
-    case 'ordnanceLaunchesCommitted':
-    case 'logisticsTransfersCommitted':
-    case 'surrenderDeclared':
-    case 'fugitiveDesignated':
-    case 'phaseChanged':
-    case 'turnAdvanced':
-    case 'identityRevealed':
-    case 'checkpointVisited':
-    case 'gameOver':
-      return projectLifecycleEvent(state, event, envelope.gameId, map);
-
-    case 'shipMoved':
-    case 'shipLanded':
-    case 'shipCrashed':
-    case 'shipDestroyed':
-    case 'shipCaptured':
-    case 'asteroidDestroyed':
-    case 'baseDestroyed':
-    case 'shipResupplied':
-    case 'fuelTransferred':
-    case 'cargoTransferred':
-    case 'passengersTransferred':
-    case 'shipSurrendered':
-    case 'baseEmplaced':
-      return projectShipEvent(state, event);
-
-    case 'ordnanceLaunched':
-    case 'ordnanceMoved':
-    case 'ordnanceExpired':
-    case 'ordnanceDetonated':
-    case 'ramming':
-    case 'ordnanceDestroyed':
-    case 'combatAttack':
-      return projectConflictEvent(state, event);
-
-    default: {
-      const unreachable: never = event;
-      return {
-        ok: false,
-        error: `unsupported setup event: ${String(unreachable)}`,
-      };
-    }
-  }
+  return handler(state, event, gameId, map);
 };
 
 export const projectGameStateFromStream = (
@@ -72,7 +145,7 @@ export const projectGameStateFromStream = (
     : null;
 
   for (const envelope of events) {
-    const projected = projectEvent(state, envelope, map);
+    const projected = projectEvent(state, envelope.event, envelope.gameId, map);
 
     if (!projected.ok) {
       return projected;

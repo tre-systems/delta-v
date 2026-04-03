@@ -71,6 +71,9 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   const statusTextSignal = signal<string | null>(null);
 
   logStatusBar.style.display = 'none';
+  logStatusBar.setAttribute('role', 'status');
+  logStatusBar.setAttribute('aria-live', 'polite');
+  logStatusBar.setAttribute('aria-atomic', 'true');
   logStatusBar.appendChild(logStatusText);
   gameLogEl.insertBefore(logStatusBar, gameLogEl.firstChild);
 

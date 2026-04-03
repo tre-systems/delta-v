@@ -175,6 +175,14 @@ body::before {
   margin-bottom: 0.5rem;
 }
 
+.menu-disclosure {
+  margin-top: 0.35rem;
+  margin-bottom: 0;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
 .btn {
   -webkit-appearance: none;
   appearance: none;
@@ -1366,6 +1374,11 @@ h2.game-over-victory {
 h2.game-over-defeat {
   color: #ff6b6b;
   text-shadow: 0 0 18px rgba(255, 107, 107, 0.4);
+}
+
+h2.game-over-neutral {
+  color: #c8e7ff;
+  text-shadow: 0 0 18px rgba(122, 215, 255, 0.28);
 }
 
 #gameOverReason {

@@ -57,12 +57,15 @@ export interface GameOverStatLine {
 }
 
 export interface GameOverView {
-  titleText: 'VICTORY' | 'DEFEAT';
+  titleText: 'VICTORY' | 'DEFEAT' | 'GAME OVER';
   reasonText: string;
   statLines: GameOverStatLine[];
   rematchText: 'Rematch';
   rematchDisabled: false;
 }
+
+const isSpectatorStats = (stats: GameOverStatsLike): boolean =>
+  (stats.playerId ?? 0) < 0;
 
 export interface ReconnectView {
   reconnectText: 'Connection lost';
@@ -214,26 +217,42 @@ const buildStatLines = (stats: GameOverStatsLike): GameOverStatLine[] => {
     lines.push({ label: scenarioDef.name, value: '' });
   }
 
+  const spectator = isSpectatorStats(stats);
+
   lines.push(
     { label: 'Turns', value: String(stats.turns) },
     {
-      label: 'Your fleet',
+      label: spectator ? 'Fleet 1' : 'Your fleet',
       value: `${stats.myShipsAlive}/${stats.myShipsTotal} survived`,
     },
     {
-      label: 'Enemy fleet',
+      label: spectator ? 'Fleet 2' : 'Enemy fleet',
       value: `${stats.enemyShipsAlive}/${stats.enemyShipsTotal} survived`,
     },
   );
 
-  if (stats.enemyShipsDestroyed > 0) {
+  if (!spectator && stats.enemyShipsDestroyed > 0) {
     lines.push({
       label: 'Kills',
       value: String(stats.enemyShipsDestroyed),
     });
   }
 
-  if (stats.myFuelSpent > 0) {
+  if (spectator) {
+    if (stats.myFuelSpent > 0) {
+      lines.push({
+        label: 'Fleet 1 fuel',
+        value: String(stats.myFuelSpent),
+      });
+    }
+
+    if (stats.enemyFuelSpent > 0) {
+      lines.push({
+        label: 'Fleet 2 fuel',
+        value: String(stats.enemyFuelSpent),
+      });
+    }
+  } else if (stats.myFuelSpent > 0) {
     lines.push({
       label: 'Fuel spent',
       value: String(stats.myFuelSpent),
@@ -248,28 +267,44 @@ const buildStatLines = (stats: GameOverStatsLike): GameOverStatLine[] => {
   }
 
   if (stats.shipFates && stats.shipFates.length > 0) {
-    const pid = stats.playerId ?? 0;
-    const myFates = stats.shipFates.filter((f) => f.owner === pid);
-    const enemyFates = stats.shipFates.filter((f) => f.owner !== pid);
-
     lines.push({ label: '', value: '' }); // Spacer
-    lines.push({ label: 'YOUR SHIPS', value: '' });
+    if (spectator) {
+      const owners = Array.from(
+        new Set(stats.shipFates.map((fate) => fate.owner)),
+      ).sort((a, b) => a - b);
 
-    for (const fate of myFates) {
-      lines.push({
-        label: fate.name,
-        value: formatFateValue(fate),
-      });
-    }
+      for (const owner of owners) {
+        lines.push({ label: `FLEET ${owner + 1}`, value: '' });
+        for (const fate of stats.shipFates.filter((f) => f.owner === owner)) {
+          lines.push({
+            label: fate.name,
+            value: formatFateValue(fate),
+          });
+        }
+      }
+    } else {
+      const pid = stats.playerId ?? 0;
+      const myFates = stats.shipFates.filter((f) => f.owner === pid);
+      const enemyFates = stats.shipFates.filter((f) => f.owner !== pid);
 
-    if (enemyFates.length > 0) {
-      lines.push({ label: 'ENEMY SHIPS', value: '' });
+      lines.push({ label: 'YOUR SHIPS', value: '' });
 
-      for (const fate of enemyFates) {
+      for (const fate of myFates) {
         lines.push({
           label: fate.name,
           value: formatFateValue(fate),
         });
+      }
+
+      if (enemyFates.length > 0) {
+        lines.push({ label: 'ENEMY SHIPS', value: '' });
+
+        for (const fate of enemyFates) {
+          lines.push({
+            label: fate.name,
+            value: formatFateValue(fate),
+          });
+        }
       }
     }
   }
@@ -282,7 +317,8 @@ export const buildGameOverView = (
   reason: string,
   stats?: GameOverStatsLike,
 ): GameOverView => ({
-  titleText: won ? 'VICTORY' : 'DEFEAT',
+  titleText:
+    stats && isSpectatorStats(stats) ? 'GAME OVER' : won ? 'VICTORY' : 'DEFEAT',
   reasonText: reason,
   statLines: stats ? buildStatLines(stats) : [],
   rematchText: 'Rematch',

@@ -123,7 +123,12 @@ describe('game-client-endgame', () => {
     );
 
     expect(plan.logText).toBe('GAME OVER: Fleet eliminated!');
-    expect(plan.stats).toBeUndefined();
+    expect(plan.stats).toMatchObject({
+      playerId: -1,
+      turns: 7,
+      myShipsAlive: 1,
+      enemyShipsAlive: 1,
+    });
     expect(plan.resultSound).toBe('defeat');
   });
 });
