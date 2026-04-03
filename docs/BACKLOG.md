@@ -42,22 +42,6 @@ Core architecture work such as the major FSM cleanup, multi-ship E2E coverage, o
 
 **Files:** `src/client/game/client-kernel.ts`, `src/client/game/client-runtime.ts`, `src/client/game/main-interactions.ts`
 
-### Consolidate planning snapshot types
-
-**Status:** not started.
-
-**Remaining:** `planning.ts` still defines several snapshot aliases such as `AstrogationPlanningSnapshot` and `HudPlanningSnapshot`, plus supporting `Pick` and intersection helper types. Collapse redundant aliases where possible or use narrower `Pick`s directly at call sites to reduce type-surface churn.
-
-**Files:** `src/client/game/planning.ts`, consumers in `src/client/game/`
-
-### Extract a shared test factory module
-
-**Status:** not started.
-
-**Remaining:** test files independently redefine `createShip()`, `createState()`, and similar builders with deep boilerplate. Extract a shared test factory with smart defaults to cut repetition across client and engine tests.
-
-**Files:** test files across `src/client/game/` and `src/shared/engine/`
-
 ### Unify game initialization with the standard publication pipeline
 
 **Status:** not started.
@@ -84,16 +68,6 @@ Add corresponding fields to `AIDifficultyConfig` and route these decisions throu
 **Files:** `src/shared/ai/config.ts`, `src/shared/ai/scoring.ts`, `src/shared/ai/index.ts`
 
 **Found by:** pattern catalogue: Strategy Config Scoring
-
-### Add type-safe scenario keys
-
-**Status:** not started.
-
-**Remaining:** `SCENARIOS` still uses an open `string` key unlike `AI_CONFIG`, which uses a closed union. Add a `ScenarioKey` union for compile-time safety. Consider typed `ScenarioTag` and `BodyName` unions to replace magic strings throughout scenario and map definitions, and add an `isValidScenario` guard for network and URL inputs.
-
-**Files:** `src/shared/map-data.ts`, `src/shared/types/scenario.ts`, consumers
-
-**Found by:** pattern catalogue: Multiton Preset Registries
 
 ### Extend branded types to ship, ordnance, and game IDs
 
@@ -179,16 +153,6 @@ Add corresponding fields to `AIDifficultyConfig` and route these decisions throu
 
 **Files:** `src/shared/types/domain.ts`, `src/shared/engine/event-projector.ts`, `docs/ARCHITECTURE.md`, relevant tests
 
-### 59. Thread `matchSeed` through initial game creation and `gameCreated` projection
-
-**Status:** not started.
-
-**Remaining:** `initGameSession` allocates and stores `matchSeed`, and the `gameCreated` event carries it, but the authoritative setup path still calls `createGame(...)` without passing a seeded RNG and the lifecycle projector rebuilds `gameCreated` with `() => 0`. Use the same deterministic seed for both authoritative setup and projection so hidden-identity designation and any future setup randomness are reproducible directly from the event stream instead of being corrected by follow-up events.
-
-**Files:** `src/server/game-do/match.ts`, `src/shared/engine/event-projector/lifecycle.ts`, `src/shared/engine/game-creation.ts`, `src/shared/prng.ts`, related tests
-**Depends:** item 50 if `createGame` RNG is made mandatory first
-**Found by:** pattern catalogue: Deterministic RNG Injection; Event Sourcing; Visitor Event Projection
-
 ### 60. Emit or replay turn-advance scenario-rule mutations explicitly
 
 **Status:** not started.
@@ -198,13 +162,4 @@ Add corresponding fields to `AIDifficultyConfig` and route these decisions throu
 **Files:** `src/shared/engine/turn-advance.ts`, `src/shared/engine/engine-events.ts`, `src/shared/engine/event-projector/lifecycle.ts`, related tests
 **Trigger:** any scenario enabling `scenarioRules.reinforcements` or `scenarioRules.fleetConversion`
 **Found by:** pattern catalogue: Event Sourcing; Visitor Event Projection; Parity Check
-
-### 62. Use `ErrorCode` for client-side error handling, not just telemetry
-
-**Status:** not started.
-
-**Remaining:** incoming S2C `error` messages already carry optional `ErrorCode`, but `applyErrorPlan` in `message-handler.ts` only logs the code to telemetry and shows the raw message toast. Add code-aware handling for common cases such as invalid input, turn/phase mistakes, and state conflicts so the client can provide clearer recovery guidance without parsing strings.
-
-**Files:** `src/client/game/message-handler.ts`, `src/client/game/client-message-plans.ts`, related UI tests
-**Found by:** pattern catalogue: Error Code Enum
 
