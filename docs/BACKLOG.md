@@ -42,33 +42,6 @@ Core architecture work such as the major FSM cleanup, multi-ship E2E coverage, o
 
 **Files:** `src/client/game/client-kernel.ts`, `src/client/game/client-runtime.ts`, `src/client/game/main-interactions.ts`
 
-### Unify game initialization with the standard publication pipeline
-
-**Status:** not started.
-
-**Remaining:** `initGameSession` in `match.ts` has its own publication path calling `verifyProjectionParity` and `broadcastFiltered` directly rather than routing through `publishStateChange`. Unify it with the standard pipeline to reduce the number of state-change paths to audit.
-
-**Files:** `src/server/game-do/match.ts`, `src/server/game-do/publication.ts`
-
-**Found by:** pattern catalogue: SRP Choke Points
-
-### Move remaining AI behavior behind config
-
-**Status:** not started.
-
-**Remaining:** several AI behaviors still bypass the config-driven scoring pattern:
-- map boundary avoidance uses hardcoded constants instead of config weights
-- easy-mode random burn override uses a hardcoded probability
-- hard-mode target distribution is gated by a string check rather than a config flag
-- `combatStayLandedPenalty` is applied inline rather than via a dedicated scorer
-- passenger escort and emergency scoring still use hardcoded weights
-
-Add corresponding fields to `AIDifficultyConfig` and route these decisions through the config system.
-
-**Files:** `src/shared/ai/config.ts`, `src/shared/ai/scoring.ts`, `src/shared/ai/index.ts`
-
-**Found by:** pattern catalogue: Strategy Config Scoring
-
 ### Extend branded types to ship, ordnance, and game IDs
 
 **Status:** not started.
@@ -78,16 +51,6 @@ Add corresponding fields to `AIDifficultyConfig` and route these decisions throu
 **Files:** `src/shared/types/domain.ts`, `src/shared/hex.ts`, `src/shared/ids.ts`, consumers throughout
 
 **Found by:** pattern catalogue: Branded Types; String-Key Serialization
-
-### Enforce layer boundaries with lint rules
-
-**Status:** not started.
-
-**Remaining:** the `shared` to `server` and `shared` to `client` import boundaries are enforced mostly by convention and one test. Add lint import restriction rules to catch violations earlier, and add a sub-layer boundary test verifying `shared/engine/` imports only from other `shared/` modules.
-
-**Files:** ESLint config, boundary test files
-
-**Found by:** pattern catalogue: Layered Architecture
 
 ### Continue best-effort DOM accessibility follow-up
 
