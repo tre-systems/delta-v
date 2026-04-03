@@ -51,15 +51,30 @@ export interface GameOverStatsLike {
   }>;
 }
 
-export interface GameOverStatLine {
+export interface GameOverSummaryItem {
   label: string;
   value: string;
+  tone: 'neutral' | 'accent' | 'success' | 'warning';
+}
+
+export interface GameOverShipItem {
+  name: string;
+  outcomeText: string;
+  detailText: string | null;
+  tone: 'neutral' | 'success' | 'warning' | 'danger';
+}
+
+export interface GameOverShipGroup {
+  title: string;
+  items: GameOverShipItem[];
 }
 
 export interface GameOverView {
   titleText: 'VICTORY' | 'DEFEAT' | 'GAME OVER';
+  kickerText: string | null;
   reasonText: string;
-  statLines: GameOverStatLine[];
+  summaryItems: GameOverSummaryItem[];
+  shipGroups: GameOverShipGroup[];
   rematchText: 'Rematch';
   rematchDisabled: false;
 }
@@ -76,6 +91,8 @@ export interface RematchPendingView {
   rematchText: 'Waiting...';
   rematchDisabled: true;
 }
+
+type GameOverShipFate = NonNullable<GameOverStatsLike['shipFates']>[number];
 
 const HIDDEN_VISIBILITY: UIScreenVisibility = {
   menu: 'none',
@@ -192,124 +209,179 @@ const DEATH_CAUSE_LABELS: Record<string, string> = {
   mapExit: 'Off map',
 };
 
-const formatFateValue = (fate: {
+const formatStatusLabel = (status: string): string => {
+  const labels: Record<string, string> = {
+    survived: 'Survived',
+    destroyed: 'Destroyed',
+    landed: 'Landed',
+    captured: 'Captured',
+  };
+
+  if (labels[status]) {
+    return labels[status];
+  }
+
+  return status
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/^./, (char) => char.toUpperCase());
+};
+
+const getFateTone = (
+  fate: Pick<GameOverShipFate, 'status'>,
+): GameOverShipItem['tone'] => {
+  switch (fate.status) {
+    case 'survived':
+    case 'landed':
+      return 'success';
+    case 'captured':
+      return 'warning';
+    case 'destroyed':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+};
+
+const formatFateDetail = (fate: {
   status: string;
   deathCause?: string;
   killedBy?: string;
-}): string => {
-  const label = fate.status.toUpperCase();
-
-  if (fate.status !== 'destroyed' || !fate.deathCause) return label;
-  const cause = DEATH_CAUSE_LABELS[fate.deathCause] ?? fate.deathCause;
-  const killer = fate.killedBy ? ` by ${fate.killedBy}` : '';
-  return `${label}${killer} (${cause})`;
-};
-
-const buildStatLines = (stats: GameOverStatsLike): GameOverStatLine[] => {
-  const scenarioDef = stats.scenario
-    ? (SCENARIOS[stats.scenario] ??
-      Object.values(SCENARIOS).find((s) => s.name === stats.scenario) ??
-      null)
-    : null;
-  const lines: GameOverStatLine[] = [];
-
-  if (scenarioDef) {
-    lines.push({ label: scenarioDef.name, value: '' });
+}): string | null => {
+  if (fate.status !== 'destroyed') {
+    return null;
   }
 
-  const spectator = isSpectatorStats(stats);
+  const parts: string[] = [];
+  if (fate.deathCause) {
+    parts.push(DEATH_CAUSE_LABELS[fate.deathCause] ?? fate.deathCause);
+  }
 
-  lines.push(
-    { label: 'Turns', value: String(stats.turns) },
+  if (fate.killedBy) {
+    parts.push(fate.killedBy);
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : null;
+};
+
+const buildSummaryItems = (stats: GameOverStatsLike): GameOverSummaryItem[] => {
+  const spectator = isSpectatorStats(stats);
+  const items: GameOverSummaryItem[] = [
+    {
+      label: 'Turns',
+      value: String(stats.turns),
+      tone: 'accent',
+    },
     {
       label: spectator ? 'Fleet 1' : 'Your fleet',
       value: `${stats.myShipsAlive}/${stats.myShipsTotal} survived`,
+      tone: spectator ? 'accent' : 'success',
     },
     {
       label: spectator ? 'Fleet 2' : 'Enemy fleet',
       value: `${stats.enemyShipsAlive}/${stats.enemyShipsTotal} survived`,
+      tone: 'warning',
     },
-  );
+  ];
 
   if (!spectator && stats.enemyShipsDestroyed > 0) {
-    lines.push({
+    items.push({
       label: 'Kills',
       value: String(stats.enemyShipsDestroyed),
+      tone: 'accent',
     });
   }
 
   if (spectator) {
     if (stats.myFuelSpent > 0) {
-      lines.push({
+      items.push({
         label: 'Fleet 1 fuel',
         value: String(stats.myFuelSpent),
+        tone: 'neutral',
       });
     }
 
     if (stats.enemyFuelSpent > 0) {
-      lines.push({
+      items.push({
         label: 'Fleet 2 fuel',
         value: String(stats.enemyFuelSpent),
+        tone: 'neutral',
       });
     }
   } else if (stats.myFuelSpent > 0) {
-    lines.push({
+    items.push({
       label: 'Fuel spent',
       value: String(stats.myFuelSpent),
+      tone: 'neutral',
     });
   }
 
   if (stats.basesDestroyed > 0) {
-    lines.push({
+    items.push({
       label: 'Bases destroyed',
       value: String(stats.basesDestroyed),
+      tone: 'warning',
     });
   }
 
-  if (stats.shipFates && stats.shipFates.length > 0) {
-    lines.push({ label: '', value: '' }); // Spacer
-    if (spectator) {
-      const owners = Array.from(
-        new Set(stats.shipFates.map((fate) => fate.owner)),
-      ).sort((a, b) => a - b);
+  return items;
+};
 
-      for (const owner of owners) {
-        lines.push({ label: `FLEET ${owner + 1}`, value: '' });
-        for (const fate of stats.shipFates.filter((f) => f.owner === owner)) {
-          lines.push({
-            label: fate.name,
-            value: formatFateValue(fate),
-          });
-        }
-      }
-    } else {
-      const pid = stats.playerId ?? 0;
-      const myFates = stats.shipFates.filter((f) => f.owner === pid);
-      const enemyFates = stats.shipFates.filter((f) => f.owner !== pid);
-
-      lines.push({ label: 'YOUR SHIPS', value: '' });
-
-      for (const fate of myFates) {
-        lines.push({
-          label: fate.name,
-          value: formatFateValue(fate),
-        });
-      }
-
-      if (enemyFates.length > 0) {
-        lines.push({ label: 'ENEMY SHIPS', value: '' });
-
-        for (const fate of enemyFates) {
-          lines.push({
-            label: fate.name,
-            value: formatFateValue(fate),
-          });
-        }
-      }
-    }
+const buildShipGroups = (stats: GameOverStatsLike): GameOverShipGroup[] => {
+  if (!stats.shipFates || stats.shipFates.length === 0) {
+    return [];
   }
 
-  return lines;
+  const spectator = isSpectatorStats(stats);
+
+  const buildItems = (fates: GameOverShipFate[]): GameOverShipItem[] =>
+    fates.map((fate) => ({
+      name: fate.name,
+      outcomeText: formatStatusLabel(fate.status),
+      detailText: formatFateDetail(fate),
+      tone: getFateTone(fate),
+    }));
+
+  if (spectator) {
+    const owners = Array.from(
+      new Set(stats.shipFates.map((fate) => fate.owner)),
+    ).sort((a, b) => a - b);
+
+    return owners.map((owner) => ({
+      title: `Fleet ${owner + 1}`,
+      items: buildItems(
+        stats.shipFates?.filter((fate) => fate.owner === owner) ?? [],
+      ),
+    }));
+  }
+
+  const pid = stats.playerId ?? 0;
+  const myFates = stats.shipFates.filter((fate) => fate.owner === pid);
+  const enemyFates = stats.shipFates.filter((fate) => fate.owner !== pid);
+  const groups: GameOverShipGroup[] = [
+    {
+      title: 'Your ships',
+      items: buildItems(myFates),
+    },
+  ];
+
+  if (enemyFates.length > 0) {
+    groups.push({
+      title: 'Enemy ships',
+      items: buildItems(enemyFates),
+    });
+  }
+
+  return groups;
+};
+
+const getScenarioName = (stats: GameOverStatsLike): string | null => {
+  const scenarioDef = stats.scenario
+    ? (SCENARIOS[stats.scenario] ??
+      Object.values(SCENARIOS).find((s) => s.name === stats.scenario) ??
+      null)
+    : null;
+  return scenarioDef?.name ?? stats.scenario ?? null;
 };
 
 export const buildGameOverView = (
@@ -319,8 +391,10 @@ export const buildGameOverView = (
 ): GameOverView => ({
   titleText:
     stats && isSpectatorStats(stats) ? 'GAME OVER' : won ? 'VICTORY' : 'DEFEAT',
+  kickerText: stats ? getScenarioName(stats) : null,
   reasonText: reason,
-  statLines: stats ? buildStatLines(stats) : [],
+  summaryItems: stats ? buildSummaryItems(stats) : [],
+  shipGroups: stats ? buildShipGroups(stats) : [],
   rematchText: 'Rematch',
   rematchDisabled: false,
 });

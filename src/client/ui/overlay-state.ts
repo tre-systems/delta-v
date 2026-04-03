@@ -5,6 +5,8 @@ import {
   buildReconnectView,
   buildRematchPendingView,
   type GameOverStatsLike,
+  type GameOverShipGroup,
+  type GameOverSummaryItem,
 } from './screens';
 
 export interface ReplayControlsView {
@@ -32,11 +34,10 @@ interface GameOverOverlayView {
   visible: boolean;
   titleText: string;
   titleClass: string;
+  kickerText: string | null;
   reasonText: string;
-  statLines: Array<{
-    label: string;
-    value: string;
-  }>;
+  summaryItems: GameOverSummaryItem[];
+  shipGroups: GameOverShipGroup[];
   rematchText: string;
   rematchDisabled: boolean;
 }
@@ -96,8 +97,10 @@ const HIDDEN_GAME_OVER_VIEW: GameOverOverlayView = {
   visible: false,
   titleText: '',
   titleClass: '',
+  kickerText: null,
   reasonText: '',
-  statLines: [],
+  summaryItems: [],
+  shipGroups: [],
   rematchText: 'Rematch',
   rematchDisabled: false,
 };
@@ -148,8 +151,10 @@ export const createOverlayStateStore = (): OverlayStateStore => {
           : state.won
             ? 'game-over-victory'
             : 'game-over-defeat',
+      kickerText: view.kickerText,
       reasonText: view.reasonText,
-      statLines: view.statLines,
+      summaryItems: view.summaryItems,
+      shipGroups: view.shipGroups,
       rematchText: rematchView.rematchText,
       rematchDisabled: rematchView.rematchDisabled,
     };

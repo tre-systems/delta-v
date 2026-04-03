@@ -208,8 +208,11 @@
   <!-- Game Over overlay -->
   <div id="gameOver" class="screen screen-page glass" style="display:none" role="dialog" aria-modal="true" aria-labelledby="gameOverText" aria-describedby="gameOverReason">
     <div class="menu-content game-over-content">
-      <h2 id="gameOverText">VICTORY</h2>
-      <p id="gameOverReason"></p>
+      <div class="game-over-hero">
+        <div id="gameOverKicker" class="game-over-kicker" style="display:none"></div>
+        <h2 id="gameOverText">VICTORY</h2>
+        <p id="gameOverReason"></p>
+      </div>
       <div id="gameOverStats" class="game-over-stats"></div>
       <div id="replayStatus" class="replay-status" style="display:none"></div>
       <div id="replayControls" class="replay-controls" style="display:none">
@@ -226,8 +229,10 @@
           <button id="replayEndBtn" class="btn btn-secondary">&gt;|</button>
         </div>
       </div>
-      <button id="rematchBtn" class="btn btn-primary">Rematch</button>
-      <button id="exitBtn" class="btn btn-secondary">Exit</button>
+      <div class="game-over-actions">
+        <button id="rematchBtn" class="btn btn-primary">Rematch</button>
+        <button id="exitBtn" class="btn btn-secondary">Exit</button>
+      </div>
     </div>
   </div>
 
