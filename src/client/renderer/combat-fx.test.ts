@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -30,7 +30,7 @@ const minimalCombatResult = (
 describe('buildCombatEffectsForResults', () => {
   it('returns empty when target entity cannot be resolved', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.duel, map, 'CEFX', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'CEFX', findBaseHex);
     const r = minimalCombatResult({
       targetId: 'missing-ship',
       targetType: 'ship',
@@ -44,7 +44,7 @@ describe('buildCombatEffectsForResults', () => {
 
   it('adds beam from ship attacker and explosion on damage', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.duel, map, 'CEFY', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'CEFY', findBaseHex);
     const [a, b] = state.ships;
     const r = minimalCombatResult({
       attackerIds: [a.id],
@@ -63,7 +63,7 @@ describe('buildCombatEffectsForResults', () => {
 
   it('skips beam for asteroid hazard attacks', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.duel, map, 'CEFZ', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'CEFZ', findBaseHex);
     const [a, b] = state.ships;
     const r = minimalCombatResult({
       attackerIds: [a.id],

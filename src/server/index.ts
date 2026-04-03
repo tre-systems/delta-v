@@ -13,6 +13,7 @@ import {
   isErrorReportRateLimited,
   isJoinReplayProbeRateLimited,
   isTelemetryReportRateLimited,
+  isWsConnectRateLimited,
   tooManyRequests,
 } from './reporting';
 import {
@@ -31,6 +32,7 @@ export {
   isCreateRateLimitedInMemory,
   joinReplayProbeRateMap,
   telemetryReportRateMap,
+  wsConnectRateMap,
 } from './reporting';
 export { GameDO };
 
@@ -169,6 +171,14 @@ export default {
     const wsMatch = url.pathname.match(/^\/ws\/([A-Z0-9]{5})$/);
 
     if (wsMatch) {
+      if (!isLoopbackRequest(request)) {
+        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+        const ipHash = await hashIp(ip);
+
+        if (isWsConnectRateLimited(ipHash)) {
+          return tooManyRequests();
+        }
+      }
       return handleWebSocket(request, env, asRoomCode(wsMatch[1]));
     }
 

@@ -1,15 +1,18 @@
 import { SHIP_STATS } from '../constants';
-import { type HexKey, hexKey } from '../hex';
-import type {
-  GameState,
-  PlayerId,
-  ScenarioDefinition,
-  Ship,
-  SolarSystemMap,
+import { type HexKey, hexKey, parseHexKey } from '../hex';
+import {
+  CURRENT_GAME_STATE_SCHEMA_VERSION,
+  type EngineError,
+  ErrorCode,
+  type GameState,
+  type PlayerId,
+  type Result,
+  type ScenarioDefinition,
+  type Ship,
+  type SolarSystemMap,
 } from '../types';
-import { CURRENT_GAME_STATE_SCHEMA_VERSION } from '../types';
 import { randomChoice } from '../util';
-import { parseBaseKey } from './util';
+import { engineError } from './util';
 
 const resolveControlledBases = (
   player: ScenarioDefinition['players'][number],
@@ -61,14 +64,22 @@ const getStartingVisitedBodies = (
   return [...visited];
 };
 
-const assertScenarioPlayerCount = (scenario: ScenarioDefinition): void => {
+const validateScenarioPlayerCount = (
+  scenario: ScenarioDefinition,
+): EngineError | null => {
   if (scenario.players.length !== 2) {
-    throw new Error(
+    return engineError(
+      ErrorCode.INVALID_INPUT,
       `Scenario must define exactly 2 players, ` +
         `got ${scenario.players.length}`,
     );
   }
+  return null;
 };
+
+type PlacementResult =
+  | { position: { q: number; r: number }; lifecycle: 'active' | 'landed' }
+  | { error: EngineError };
 
 const resolveStartingPlacement = (
   def: ScenarioDefinition['players'][number]['ships'][number],
@@ -82,10 +93,7 @@ const resolveStartingPlacement = (
     q: number;
     r: number;
   } | null,
-): {
-  position: { q: number; r: number };
-  lifecycle: 'active' | 'landed';
-} => {
+): PlacementResult => {
   const shouldLand = def.startLanded !== false;
 
   if (!shouldLand) {
@@ -105,7 +113,7 @@ const resolveStartingPlacement = (
 
   if (playerBases[0]) {
     return {
-      position: parseBaseKey(playerBases[0]),
+      position: parseHexKey(playerBases[0]),
       lifecycle: 'landed',
     };
   }
@@ -121,10 +129,13 @@ const resolveStartingPlacement = (
   if (homeBase) {
     return { position: homeBase, lifecycle: 'landed' };
   }
-  throw new Error(
-    `No valid landed starting hex for ` +
-      `${player.homeBody || 'player'} ${def.type}`,
-  );
+  return {
+    error: engineError(
+      ErrorCode.INVALID_INPUT,
+      `No valid landed starting hex for ` +
+        `${player.homeBody || 'player'} ${def.type}`,
+    ),
+  };
 };
 
 // Pure game engine -- no IO, no networking,
@@ -142,8 +153,12 @@ export const createGame = (
     r: number;
   } | null,
   rng: () => number = Math.random,
-): GameState => {
-  assertScenarioPlayerCount(scenario);
+): Result<GameState, EngineError> => {
+  const playerCountError = validateScenarioPlayerCount(scenario);
+
+  if (playerCountError) {
+    return { ok: false, error: playerCountError };
+  }
   const playerBases = scenario.players.map((player) =>
     resolveControlledBases(player, map),
   );
@@ -162,17 +177,28 @@ export const createGame = (
       }
     }
   }
-  const ships: Ship[] = scenario.players.flatMap((player, p) =>
-    player.ships.map((def, s) => {
+  const ships: Ship[] = [];
+
+  for (let p = 0; p < scenario.players.length; p++) {
+    const player = scenario.players[p];
+
+    for (let s = 0; s < player.ships.length; s++) {
+      const def = player.ships[s];
       const playerIdx = p as PlayerId;
       const stats = SHIP_STATS[def.type];
-      const { position, lifecycle } = resolveStartingPlacement(
+      const placement = resolveStartingPlacement(
         def,
         player,
         playerBases[p],
         map,
         findBaseHex,
       );
+
+      if ('error' in placement) {
+        return { ok: false, error: placement.error };
+      }
+
+      const { position, lifecycle } = placement;
       const startHex = map.hexes.get(hexKey(position));
       const initialGravity =
         lifecycle === 'active' && def.startInOrbit && startHex?.gravity
@@ -190,7 +216,7 @@ export const createGame = (
         def.initialPassengers != null && def.initialPassengers > 0
           ? def.initialPassengers
           : undefined;
-      return {
+      ships.push({
         id: `p${p}s${s}`,
         type: def.type,
         owner: playerIdx,
@@ -210,9 +236,9 @@ export const createGame = (
         pendingGravityEffects: initialGravity,
         damage: { disabledTurns: 0 },
         ...(passengersAboard != null ? { passengersAboard } : {}),
-      };
-    }),
-  );
+      });
+    }
+  }
   // Assign fugitive identity for hidden-identity
   // scenarios
   for (const player of scenario.players) {
@@ -239,97 +265,118 @@ export const createGame = (
     (playerId) => (getScenarioStartingCredits(scenario, playerId) ?? 0) > 0,
   );
   return {
-    schemaVersion: CURRENT_GAME_STATE_SCHEMA_VERSION,
-    gameId: gameCode,
-    scenario: scenario.name,
-    scenarioRules: {
-      allowedOrdnanceTypes: scenario.rules?.allowedOrdnanceTypes
-        ? [...scenario.rules.allowedOrdnanceTypes]
-        : undefined,
-      availableFleetPurchases: scenario.availableFleetPurchases
-        ? [...scenario.availableFleetPurchases]
-        : undefined,
-      planetaryDefenseEnabled: scenario.rules?.planetaryDefenseEnabled ?? true,
-      hiddenIdentityInspection:
-        scenario.rules?.hiddenIdentityInspection ?? false,
-      escapeEdge: scenario.rules?.escapeEdge ?? 'any',
-      combatDisabled: scenario.rules?.combatDisabled,
-      checkpointBodies: scenario.rules?.checkpointBodies
-        ? [...scenario.rules.checkpointBodies]
-        : undefined,
-      sharedBases: scenario.rules?.sharedBases
-        ? [...scenario.rules.sharedBases]
-        : undefined,
-      logisticsEnabled: scenario.rules?.logisticsEnabled,
-      passengerRescueEnabled: scenario.rules?.passengerRescueEnabled,
-      targetWinRequiresPassengers: scenario.rules?.targetWinRequiresPassengers,
-      reinforcements: scenario.rules?.reinforcements?.map((reinforcement) => ({
-        turn: reinforcement.turn,
-        playerId: reinforcement.playerId,
-        ships: reinforcement.ships.map((ship) => ({
-          type: ship.type,
-          position: { ...ship.position },
-          velocity: { ...ship.velocity },
-          startLanded: ship.startLanded,
-          startInOrbit: ship.startInOrbit,
-          ...(ship.initialPassengers != null && ship.initialPassengers > 0
-            ? { initialPassengers: ship.initialPassengers }
+    ok: true,
+    value: {
+      schemaVersion: CURRENT_GAME_STATE_SCHEMA_VERSION,
+      gameId: gameCode,
+      scenario: scenario.name,
+      scenarioRules: {
+        allowedOrdnanceTypes: scenario.rules?.allowedOrdnanceTypes
+          ? [...scenario.rules.allowedOrdnanceTypes]
+          : undefined,
+        availableFleetPurchases: scenario.availableFleetPurchases
+          ? [...scenario.availableFleetPurchases]
+          : undefined,
+        planetaryDefenseEnabled:
+          scenario.rules?.planetaryDefenseEnabled ?? true,
+        hiddenIdentityInspection:
+          scenario.rules?.hiddenIdentityInspection ?? false,
+        escapeEdge: scenario.rules?.escapeEdge ?? 'any',
+        combatDisabled: scenario.rules?.combatDisabled,
+        checkpointBodies: scenario.rules?.checkpointBodies
+          ? [...scenario.rules.checkpointBodies]
+          : undefined,
+        sharedBases: scenario.rules?.sharedBases
+          ? [...scenario.rules.sharedBases]
+          : undefined,
+        logisticsEnabled: scenario.rules?.logisticsEnabled,
+        passengerRescueEnabled: scenario.rules?.passengerRescueEnabled,
+        targetWinRequiresPassengers:
+          scenario.rules?.targetWinRequiresPassengers,
+        reinforcements: scenario.rules?.reinforcements?.map(
+          (reinforcement) => ({
+            turn: reinforcement.turn,
+            playerId: reinforcement.playerId,
+            ships: reinforcement.ships.map((ship) => ({
+              type: ship.type,
+              position: { ...ship.position },
+              velocity: { ...ship.velocity },
+              startLanded: ship.startLanded,
+              startInOrbit: ship.startInOrbit,
+              ...(ship.initialPassengers != null && ship.initialPassengers > 0
+                ? { initialPassengers: ship.initialPassengers }
+                : {}),
+            })),
+          }),
+        ),
+        fleetConversion: scenario.rules?.fleetConversion
+          ? {
+              turn: scenario.rules.fleetConversion.turn,
+              fromPlayer: scenario.rules.fleetConversion.fromPlayer,
+              toPlayer: scenario.rules.fleetConversion.toPlayer,
+              shipTypes: scenario.rules.fleetConversion.shipTypes
+                ? [...scenario.rules.fleetConversion.shipTypes]
+                : undefined,
+            }
+          : undefined,
+      },
+      escapeMoralVictoryAchieved: false,
+      turnNumber: 1,
+      phase: hasFleetBuilding ? 'fleetBuilding' : 'astrogation',
+      activePlayer: scenario.startingPlayer ?? 0,
+      ships,
+      ordnance: [],
+      pendingAstrogationOrders: null,
+      pendingAsteroidHazards: [],
+      destroyedAsteroids: [],
+      destroyedBases: [],
+      players: [
+        {
+          connected: true,
+          ready: !hasFleetBuilding,
+          targetBody: scenario.players[0].targetBody,
+          homeBody: scenario.players[0].homeBody,
+          bases: playerBases[0],
+          escapeWins: scenario.players[0].escapeWins,
+          credits: getScenarioStartingCredits(scenario, 0),
+          ...(scenario.rules?.checkpointBodies
+            ? {
+                visitedBodies: getStartingVisitedBodies(ships, 0, map),
+                totalFuelSpent: 0,
+              }
             : {}),
-        })),
-      })),
-      fleetConversion: scenario.rules?.fleetConversion
-        ? {
-            turn: scenario.rules.fleetConversion.turn,
-            fromPlayer: scenario.rules.fleetConversion.fromPlayer,
-            toPlayer: scenario.rules.fleetConversion.toPlayer,
-            shipTypes: scenario.rules.fleetConversion.shipTypes
-              ? [...scenario.rules.fleetConversion.shipTypes]
-              : undefined,
-          }
-        : undefined,
+        },
+        {
+          connected: true,
+          ready: !hasFleetBuilding,
+          targetBody: scenario.players[1].targetBody,
+          homeBody: scenario.players[1].homeBody,
+          bases: playerBases[1],
+          escapeWins: scenario.players[1].escapeWins,
+          credits: getScenarioStartingCredits(scenario, 1),
+          ...(scenario.rules?.checkpointBodies
+            ? {
+                visitedBodies: getStartingVisitedBodies(ships, 1, map),
+                totalFuelSpent: 0,
+              }
+            : {}),
+        },
+      ],
+      outcome: null,
     },
-    escapeMoralVictoryAchieved: false,
-    turnNumber: 1,
-    phase: hasFleetBuilding ? 'fleetBuilding' : 'astrogation',
-    activePlayer: scenario.startingPlayer ?? 0,
-    ships,
-    ordnance: [],
-    pendingAstrogationOrders: null,
-    pendingAsteroidHazards: [],
-    destroyedAsteroids: [],
-    destroyedBases: [],
-    players: [
-      {
-        connected: true,
-        ready: !hasFleetBuilding,
-        targetBody: scenario.players[0].targetBody,
-        homeBody: scenario.players[0].homeBody,
-        bases: playerBases[0],
-        escapeWins: scenario.players[0].escapeWins,
-        credits: getScenarioStartingCredits(scenario, 0),
-        ...(scenario.rules?.checkpointBodies
-          ? {
-              visitedBodies: getStartingVisitedBodies(ships, 0, map),
-              totalFuelSpent: 0,
-            }
-          : {}),
-      },
-      {
-        connected: true,
-        ready: !hasFleetBuilding,
-        targetBody: scenario.players[1].targetBody,
-        homeBody: scenario.players[1].homeBody,
-        bases: playerBases[1],
-        escapeWins: scenario.players[1].escapeWins,
-        credits: getScenarioStartingCredits(scenario, 1),
-        ...(scenario.rules?.checkpointBodies
-          ? {
-              visitedBodies: getStartingVisitedBodies(ships, 1, map),
-              totalFuelSpent: 0,
-            }
-          : {}),
-      },
-    ],
-    outcome: null,
   };
+};
+
+// Convenience wrapper for tests and local play that unwraps the Result,
+// throwing on error. Production callers should use createGame directly.
+export const createGameOrThrow = (
+  ...args: Parameters<typeof createGame>
+): GameState => {
+  const result = createGame(...args);
+
+  if (!result.ok) {
+    throw new Error(result.error.message);
+  }
+
+  return result.value;
 };

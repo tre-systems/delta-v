@@ -17,7 +17,7 @@ vi.mock('cloudflare:workers', () => ({
   },
 }));
 
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -548,7 +548,7 @@ describe('GameDO', () => {
   it('stores a disconnect marker and alarm when a live player disconnects', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1000);
     const ctx = createCtx();
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       buildSolarSystemMap(),
       'DISC1-m1',
@@ -574,7 +574,7 @@ describe('GameDO', () => {
   });
   it('ignores close events for intentionally replaced sockets', async () => {
     const ctx = createCtx();
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       buildSolarSystemMap(),
       'DISC2-m1',
@@ -604,7 +604,7 @@ describe('GameDO', () => {
   it('clears an expired disconnect marker and ends game as forfeit', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(10000);
     const ctx = createCtx();
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       buildSolarSystemMap(),
       'DC01-m1',
@@ -651,7 +651,7 @@ describe('GameDO', () => {
   it('advances a timed-out turn through the alarm path', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(10000);
     const ctx = createCtx();
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       buildSolarSystemMap(),
       'TIME1-m1',
@@ -706,7 +706,7 @@ describe('GameDO', () => {
     };
     ctx.acceptWebSocket(ws, ['player:0']);
     const game = createGameDO(ctx);
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'SAVE1',
@@ -752,7 +752,7 @@ describe('GameDO', () => {
     const ws = createSocket();
     ctx.acceptWebSocket(ws, ['player:0']);
     const game = createGameDO(ctx);
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'ABCDE-m1',
@@ -799,7 +799,7 @@ describe('GameDO', () => {
     const ws = createSocket();
     ctx.acceptWebSocket(ws, ['player:0']);
     const game = createGameDO(ctx);
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'STAT1',
@@ -841,7 +841,7 @@ describe('GameDO', () => {
     const ws = createSocket();
     ctx.acceptWebSocket(ws, ['player:0']);
     const game = createGameDO(ctx);
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'MOVE1',
@@ -884,7 +884,7 @@ describe('GameDO', () => {
     const ws = createSocket();
     ctx.acceptWebSocket(ws, ['player:0']);
     const game = createGameDO(ctx);
-    const base = createGame(
+    const base = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'OVER1',
@@ -1184,7 +1184,7 @@ describe('GameDO', () => {
     const spectator = createSocket();
     ctx.acceptWebSocket(spectator, ['spectator']);
 
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.escape,
       buildSolarSystemMap(),
       'SPEC1-m1',
@@ -1244,7 +1244,7 @@ describe('GameDO', () => {
     expect(stream).toHaveLength(1);
     expect(stream[0]?.event.type).toBe('gameCreated');
 
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'ABCDE-m1',
@@ -1287,7 +1287,7 @@ describe('GameDO', () => {
   it('reports projection parity mismatches without throwing', async () => {
     const ctx = createCtx();
     const game = createGameDO(ctx);
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'PARCHK-m1',
@@ -1340,7 +1340,7 @@ describe('GameDO', () => {
     });
     await ctx.storage.put('gameCode', 'ABCDE');
     await ctx.storage.put('matchNumber', 1);
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'ABCDE-m1',
@@ -1434,7 +1434,7 @@ describe('GameDO', () => {
     await ctx.storage.put('gameCode', 'ABCDE');
     await ctx.storage.put('matchNumber', 1);
     const game = createGameDO(ctx);
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'ABCDE-m1',
@@ -1478,7 +1478,7 @@ describe('GameDO', () => {
     await ctx.storage.put('gameCode', 'SYS01');
     await ctx.storage.put('matchNumber', 1);
     const game = createGameDO(ctx);
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'SYS01-m1',

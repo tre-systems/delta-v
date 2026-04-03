@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  createGame,
+  createGameOrThrow,
   skipCombat,
   skipOrdnance,
 } from '../../shared/engine/game-engine';
@@ -14,7 +14,7 @@ import type { GameState } from '../../shared/types/domain';
 import { resolveTurnTimeoutOutcome } from './turns';
 
 const createState = (): GameState => {
-  return createGame(
+  return createGameOrThrow(
     SCENARIOS.biplanetary,
     buildSolarSystemMap(),
     'TURN1',
@@ -23,7 +23,7 @@ const createState = (): GameState => {
 };
 
 const createEscapeState = (): GameState => {
-  return createGame(
+  return createGameOrThrow(
     SCENARIOS.escape,
     buildSolarSystemMap(),
     'TURNX',

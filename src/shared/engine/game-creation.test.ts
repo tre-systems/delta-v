@@ -9,7 +9,10 @@ let map: SolarSystemMap;
 let initialState: GameState;
 beforeEach(() => {
   map = buildSolarSystemMap();
-  initialState = createGame(SCENARIOS.biplanetary, map, 'TEST1', findBaseHex);
+  const result = createGame(SCENARIOS.biplanetary, map, 'TEST1', findBaseHex);
+
+  if (!result.ok) throw new Error(result.error.message);
+  initialState = result.value;
 });
 
 describe('createGame', () => {
@@ -50,12 +53,15 @@ describe('createGame', () => {
     expect(venusHex?.base?.bodyName).toBe('Venus');
   });
   it('supports explicit split base ownership for shared worlds', () => {
-    const duelState = createGame(SCENARIOS.duel, map, 'DUEL1', findBaseHex);
-    expect(duelState.players[0].bases).toEqual(['2,3']);
-    expect(duelState.players[1].bases).toEqual(['0,3']);
+    const result = createGame(SCENARIOS.duel, map, 'DUEL1', findBaseHex);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.players[0].bases).toEqual(['2,3']);
+    expect(result.value.players[1].bases).toEqual(['0,3']);
   });
   it('copies logistics and turn-rule scenario settings into runtime state', () => {
-    const state = createGame(
+    const result = createGame(
       {
         ...SCENARIOS.convoy,
         rules: {
@@ -87,6 +93,9 @@ describe('createGame', () => {
       findBaseHex,
     );
 
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const state = result.value;
     expect(state.scenarioRules.logisticsEnabled).toBe(true);
     expect(state.scenarioRules.reinforcements).toEqual([
       {
@@ -115,11 +124,16 @@ describe('createGame', () => {
       ...SCENARIOS.duel,
       players: [SCENARIOS.duel.players[0]],
     };
-    expect(() =>
-      createGame(invalidScenario, map, 'BADPLY', findBaseHex),
-    ).toThrow('Scenario must define exactly 2 players');
+    const result = createGame(invalidScenario, map, 'BADPLY', findBaseHex);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain(
+        'Scenario must define exactly 2 players',
+      );
+    }
   });
-  it('throws when a landed ship has no valid starting hex', () => {
+  it('returns error when a landed ship has no valid starting hex', () => {
     const barrenMap: SolarSystemMap = {
       hexes: new Map(),
       bodies: [],
@@ -160,8 +174,16 @@ describe('createGame', () => {
         },
       ],
     };
-    expect(() =>
-      createGame(invalidScenario, barrenMap, 'BADHEX', findBaseHex),
-    ).toThrow('No valid landed starting hex');
+    const result = createGame(
+      invalidScenario,
+      barrenMap,
+      'BADHEX',
+      findBaseHex,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain('No valid landed starting hex');
+    }
   });
 });

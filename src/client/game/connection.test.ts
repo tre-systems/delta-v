@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -64,7 +64,7 @@ const createFakeWebSocketCtor = (): FakeWebSocketCtor => {
 const FakeWebSocket = createFakeWebSocketCtor();
 
 const createDeps = () => {
-  const state = createGame(
+  const state = createGameOrThrow(
     SCENARIOS.duel,
     buildSolarSystemMap(),
     'CONN1',

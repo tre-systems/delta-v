@@ -8,7 +8,7 @@ import type {
   EventEnvelope,
 } from '../../shared/engine/engine-events';
 import {
-  createGame,
+  createGameOrThrow,
   processAstrogation,
 } from '../../shared/engine/game-engine';
 import { processLogistics } from '../../shared/engine/logistics';
@@ -423,7 +423,12 @@ describe('checkpoint persistence', () => {
   it('saves and retrieves a checkpoint', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.biplanetary, map, 'CHK-m1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'CHK-m1',
+      findBaseHex,
+    );
 
     await saveCheckpoint(storage, 'CHK-m1', state, 5);
 
@@ -439,7 +444,12 @@ describe('checkpoint persistence', () => {
   it('checkpoint structure has expected fields', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.duel, map, 'SHAPE-m1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      'SHAPE-m1',
+      findBaseHex,
+    );
 
     await saveCheckpoint(storage, 'SHAPE-m1', state, 3);
 
@@ -453,7 +463,7 @@ describe('checkpoint persistence', () => {
   it('checkpoint state is deep-cloned from live state', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const map = buildSolarSystemMap();
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'CLONE-m1',
@@ -479,7 +489,7 @@ describe('checkpoint persistence', () => {
 describe('projection parity: replay timeline vs live state', () => {
   it('replay entries form a consistent state progression', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'PARITY-m1',
@@ -517,7 +527,7 @@ describe('projection parity: replay timeline vs live state', () => {
   it('checkpoint matches state at the sequenced point', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const map = buildSolarSystemMap();
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'CKPT-m1',
@@ -585,7 +595,7 @@ describe('replay projection', () => {
 
   it('derives current state from checkpoint plus event tail', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const checkpointState = createGame(
+    const checkpointState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'CURR-m1',
@@ -622,7 +632,12 @@ describe('replay projection', () => {
 
   it('derives raw current state for parity checks', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const state = createGame(SCENARIOS.biplanetary, map, 'RAW-m1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'RAW-m1',
+      findBaseHex,
+    );
     state.turnNumber = 5;
     state.phase = 'combat';
 
@@ -635,7 +650,7 @@ describe('replay projection', () => {
 
   it('migrates legacy checkpoints without a schema version', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'LEGACY-SCHEMA-m1',
@@ -657,7 +672,7 @@ describe('replay projection', () => {
 
   it('filters projected replay timelines per viewer', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'VIEW-m1',
@@ -704,7 +719,7 @@ describe('replay projection', () => {
 
   it('falls back to a synthetic checkpoint replay when archive is missing', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'CKREPLAY-m1',
@@ -735,7 +750,7 @@ describe('replay projection', () => {
 
   it('projects checkpoint plus tail events into a replay timeline', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const checkpointState = createGame(
+    const checkpointState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'TAILS-m1',
@@ -793,7 +808,7 @@ describe('replay projection', () => {
       },
     );
 
-    const checkpointState = createGame(
+    const checkpointState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'HISTORY-m1',
@@ -827,7 +842,7 @@ describe('replay projection', () => {
 
   it('prefers newer event-tail state over older checkpoint state', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const checkpointState = createGame(
+    const checkpointState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'STALE-m1',
@@ -868,7 +883,7 @@ describe('replay projection', () => {
 
   it('reports parity when live state matches persisted checkpoint state', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const liveState = createGame(
+    const liveState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'PARITY2-m1',
@@ -886,7 +901,7 @@ describe('replay projection', () => {
 
   it('ignores transient connection state in parity checks', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const projectedState = createGame(
+    const projectedState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'PARITY-CONN-m1',
@@ -905,7 +920,12 @@ describe('replay projection', () => {
 
   it('maintains projection parity through a complete duel flow', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    let liveState = createGame(SCENARIOS.duel, map, 'PARITY4-m1', findBaseHex);
+    let liveState = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      'PARITY4-m1',
+      findBaseHex,
+    );
 
     await appendEnvelopedEvents(storage, 'PARITY4-m1', null, {
       type: 'gameCreated',
@@ -976,7 +996,7 @@ describe('replay projection', () => {
 
   it('detects parity mismatch when live state diverges from projection', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const projectedState = createGame(
+    const projectedState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'PARITY3-m1',

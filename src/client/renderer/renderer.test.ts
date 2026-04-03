@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MOVEMENT_ANIM_DURATION } from '../../shared/constants';
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -383,7 +383,12 @@ describe('Renderer initialization and state methods', () => {
     );
 
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.biplanetary, map, 'REND1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'REND1',
+      findBaseHex,
+    );
 
     expect(() => renderer.setMap(map)).not.toThrow();
     expect(() => renderer.setPlayerId(0)).not.toThrow();

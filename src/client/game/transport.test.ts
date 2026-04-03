@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -12,7 +12,12 @@ import { createLocalTransport, createWebSocketTransport } from './transport';
 describe('createLocalTransport', () => {
   it('forwards local astrogation resolutions with the animation callback and prefix', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.biplanetary, map, 'LOCAL1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'LOCAL1',
+      findBaseHex,
+    );
     const ship = state.ships[0];
     const onResolution = vi.fn();
     const onAnimationComplete = vi.fn();

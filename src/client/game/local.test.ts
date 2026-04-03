@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -23,7 +23,12 @@ beforeEach(() => {
 
 describe('game-client-local', () => {
   it('classifies launched movement as a movement result', () => {
-    const state = createGame(SCENARIOS.biplanetary, map, 'TEST1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'TEST1',
+      findBaseHex,
+    );
     const ship = state.ships[0];
 
     const resolution = resolveAstrogationStep(
@@ -37,7 +42,7 @@ describe('game-client-local', () => {
   });
 
   it('classifies in-space astrogation as an ordnance state update', () => {
-    const state = createGame(SCENARIOS.duel, map, 'TEST2', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'TEST2', findBaseHex);
     const ship = state.ships[0];
 
     state.activePlayer = 0;
@@ -59,7 +64,12 @@ describe('game-client-local', () => {
   });
 
   it('classifies asteroid hazard resolution as combat results', () => {
-    const state = createGame(SCENARIOS.biplanetary, map, 'TEST3', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'TEST3',
+      findBaseHex,
+    );
     const ship = state.ships[0];
 
     ship.lifecycle = 'active';
@@ -81,7 +91,7 @@ describe('game-client-local', () => {
   });
 
   it('advances the turn when combat is skipped without queued results', () => {
-    const state = createGame(SCENARIOS.duel, map, 'TEST4', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'TEST4', findBaseHex);
 
     state.phase = 'combat';
     state.activePlayer = 0;
@@ -96,7 +106,7 @@ describe('game-client-local', () => {
   });
 
   it('preserves caller-controlled combat reset behavior', () => {
-    const state = createGame(SCENARIOS.duel, map, 'TEST4B', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'TEST4B', findBaseHex);
 
     state.phase = 'combat';
     state.activePlayer = 0;
@@ -132,7 +142,12 @@ describe('game-client-local', () => {
   });
 
   it('only reports pending asteroid hazards for live ships owned by the player', () => {
-    const state = createGame(SCENARIOS.biplanetary, map, 'TEST5', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'TEST5',
+      findBaseHex,
+    );
     const myShip = state.ships[0];
     const enemyShip = state.ships[1];
 

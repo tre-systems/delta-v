@@ -20,7 +20,7 @@ import type {
 } from '../types';
 import {
   beginCombatPhase,
-  createGame,
+  createGameOrThrow,
   type MovementResult,
   processAstrogation,
   processCombat,
@@ -41,7 +41,12 @@ const openMap: SolarSystemMap = {
 };
 beforeEach(() => {
   map = buildSolarSystemMap();
-  initialState = createGame(SCENARIOS.biplanetary, map, 'TEST1', findBaseHex);
+  initialState = createGameOrThrow(
+    SCENARIOS.biplanetary,
+    map,
+    'TEST1',
+    findBaseHex,
+  );
 });
 const expectMovement = (
   result: MovementResult | StateUpdateResult,
@@ -167,7 +172,7 @@ describe('processAstrogation', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       hazardMap,
       'AST01',
@@ -217,7 +222,7 @@ describe('processAstrogation', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       edgeMap,
       'ASTEDGE0',
@@ -255,7 +260,7 @@ describe('processAstrogation', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       edgeMap,
       'ASTEDGE1',
@@ -370,7 +375,12 @@ describe('processAstrogation', () => {
     expect(result.state.activePlayer).toBe(0);
   });
   it('queues movement and enters ordnance before movement for launch-capable ships', () => {
-    const escapeState = createGame(SCENARIOS.escape, map, 'ORDPH', findBaseHex);
+    const escapeState = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      'ORDPH',
+      findBaseHex,
+    );
     const ship = escapeState.ships[0];
     ship.lifecycle = 'active';
     ship.position = { q: 15, r: 0 };
@@ -603,7 +613,12 @@ describe('victory conditions', () => {
 describe('Escape scenario', () => {
   let escapeState: GameState;
   beforeEach(() => {
-    escapeState = createGame(SCENARIOS.escape, map, 'ESC01', findBaseHex);
+    escapeState = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      'ESC01',
+      findBaseHex,
+    );
   });
   it('creates correct number of ships per player', () => {
     const p0Ships = escapeState.ships.filter((s) => s.owner === 0);
@@ -731,7 +746,12 @@ describe('ordnance system', () => {
     }
   });
   it('assigns a fresh ordnance id even when earlier ids are still present', () => {
-    const state = createGame(SCENARIOS.blockade, map, 'ORD02', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.blockade,
+      map,
+      'ORD02',
+      findBaseHex,
+    );
     const ship = must(state.ships.find((s) => s.type === 'packet'));
     ship.lifecycle = 'active';
     ship.velocity = { dq: 1, dr: 0 };
@@ -812,7 +832,7 @@ describe('ordnance system', () => {
     expect('error' in result).toBe(true);
   });
   it('rejects torpedo from non-warship', () => {
-    const blockadeState = createGame(
+    const blockadeState = createGameOrThrow(
       SCENARIOS.blockade,
       map,
       'ORD01',
@@ -920,7 +940,7 @@ describe('ordnance system', () => {
       bodies: [],
       bounds: { minQ: -10, maxQ: 10, minR: -10, maxR: 10 },
     };
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       gravityMap,
       'ORDGR',
@@ -1512,7 +1532,12 @@ describe('nuke ordnance', () => {
     }
   });
   it('allows nuke from non-warship with enough cargo', () => {
-    const escState = createGame(SCENARIOS.escape, map, 'NUK01', findBaseHex);
+    const escState = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      'NUK01',
+      findBaseHex,
+    );
     const transport = escState.ships[0]; // transport
     transport.lifecycle = 'active';
     transport.position = { q: 15, r: 0 };
@@ -1532,7 +1557,12 @@ describe('nuke ordnance', () => {
     expect(result.state.ordnance[0].type).toBe('nuke');
   });
   it('rejects a second nuke launch from a non-warship without resupply', () => {
-    const escState = createGame(SCENARIOS.escape, map, 'NUK02', findBaseHex);
+    const escState = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      'NUK02',
+      findBaseHex,
+    );
     const transport = escState.ships[0];
     transport.lifecycle = 'active';
     transport.velocity = { dq: 1, dr: 0 };
@@ -1686,7 +1716,12 @@ describe('ordnance validation', () => {
     }
   });
   it('rejects reusing the same attacker across combat declarations', () => {
-    const fleetState = createGame(SCENARIOS.convoy, map, 'ATK01', findBaseHex);
+    const fleetState = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      'ATK01',
+      findBaseHex,
+    );
     fleetState.phase = 'combat';
     fleetState.activePlayer = 0;
     const attacker = must(
@@ -1737,7 +1772,12 @@ describe('ordnance validation', () => {
     }
   });
   it('allows split fire against multiple ships in the same hex when total strength is allocated legally', () => {
-    const fleetState = createGame(SCENARIOS.convoy, map, 'ATK01B', findBaseHex);
+    const fleetState = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      'ATK01B',
+      findBaseHex,
+    );
     fleetState.phase = 'combat';
     fleetState.activePlayer = 0;
     const attacker = must(
@@ -1782,7 +1822,12 @@ describe('ordnance validation', () => {
     expect(result.results.every((r) => r.attackStrength === 4)).toBe(true);
   });
   it('rejects attacking the same target more than once per combat phase', () => {
-    const fleetState = createGame(SCENARIOS.convoy, map, 'ATK02', findBaseHex);
+    const fleetState = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      'ATK02',
+      findBaseHex,
+    );
     fleetState.phase = 'combat';
     fleetState.activePlayer = 1;
     // Use P1's corsairs (all combat-capable) as attackers
@@ -1825,7 +1870,12 @@ describe('ordnance validation', () => {
     }
   });
   it('rejects attacks without line of sight through a body', () => {
-    const state = createGame(SCENARIOS.biplanetary, map, 'ATK03', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'ATK03',
+      findBaseHex,
+    );
     state.phase = 'combat';
     state.activePlayer = 0;
     const attacker = state.ships[0];
@@ -1870,7 +1920,7 @@ describe('ordnance validation', () => {
     }
   });
   it('rejects landed ships as attackers', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'ATK04',
@@ -1906,7 +1956,7 @@ describe('ordnance validation', () => {
     }
   });
   it('rejects declared attack strength above the selected ships total', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'ATK04B',
@@ -1943,7 +1993,7 @@ describe('ordnance validation', () => {
     }
   });
   it('uses declared reduced attack strength in combat resolution', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'ATK04C',
@@ -1981,7 +2031,7 @@ describe('ordnance validation', () => {
     expect(result.results[0].odds).toBe('1:1');
   });
   it('allows combat attacks against enemy nukes', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'ATK05',
@@ -2060,7 +2110,12 @@ describe('mutual destruction', () => {
 describe('Blockade Runner scenario', () => {
   let blockadeState: GameState;
   beforeEach(() => {
-    blockadeState = createGame(SCENARIOS.blockade, map, 'BLK01', findBaseHex);
+    blockadeState = createGameOrThrow(
+      SCENARIOS.blockade,
+      map,
+      'BLK01',
+      findBaseHex,
+    );
   });
   it('creates 1 ship per player', () => {
     const p0Ships = blockadeState.ships.filter((s) => s.owner === 0);
@@ -2087,7 +2142,12 @@ describe('Blockade Runner scenario', () => {
 describe('Fleet Action scenario', () => {
   let fleetState: GameState;
   beforeEach(() => {
-    fleetState = createGame(SCENARIOS.fleetAction, map, 'FLT01', findBaseHex);
+    fleetState = createGameOrThrow(
+      SCENARIOS.fleetAction,
+      map,
+      'FLT01',
+      findBaseHex,
+    );
   });
   it('starts in fleet building phase with credits', () => {
     expect(fleetState.phase).toBe('fleetBuilding');
@@ -2155,7 +2215,7 @@ describe('Edge cases', () => {
     expect('error' in result).toBe(false);
   });
   it('fleet action ends when one side is eliminated', () => {
-    const fleetState = createGame(
+    const fleetState = createGameOrThrow(
       SCENARIOS.fleetAction,
       map,
       'FLT02',
@@ -2177,7 +2237,7 @@ describe('Edge cases', () => {
     }
   });
   it('blockade runner wins by landing on Mars', () => {
-    const blockadeState = createGame(
+    const blockadeState = createGameOrThrow(
       SCENARIOS.blockade,
       map,
       'BLK02',
@@ -2210,7 +2270,7 @@ describe('Edge cases', () => {
 });
 describe('landed ship immunity', () => {
   it('rejects gun combat attacks against landed ships', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'LAND01',
@@ -2246,7 +2306,7 @@ describe('landed ship immunity', () => {
     }
   });
   it('landed ships are immune to mines', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'LAND02',
@@ -2282,7 +2342,7 @@ describe('landed ship immunity', () => {
     expect(target.damage.disabledTurns).toBe(0);
   });
   it('landed ships are NOT immune to nukes', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'LAND03',
@@ -2320,7 +2380,7 @@ describe('landed ship immunity', () => {
     expect(updatedTarget.lifecycle).toBe('destroyed');
   });
   it('landed ships are immune to ramming', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'LAND04',
@@ -2359,7 +2419,7 @@ describe('landed ship immunity', () => {
 });
 describe('resupply restrictions', () => {
   it('ships that resupply cannot attack in the same turn', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'RESUP01',
@@ -2396,7 +2456,7 @@ describe('resupply restrictions', () => {
     }
   });
   it('ships that resupply cannot launch ordnance in the same turn', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'RESUP02',
@@ -2429,7 +2489,7 @@ describe('resupply restrictions', () => {
     }
   });
   it('resupply flag is cleared on next turn', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'RESUP03',
@@ -2450,7 +2510,7 @@ describe('resupply restrictions', () => {
 });
 describe('mine launch restrictions', () => {
   it('rejects mine launch when ship has no burn committed', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'MINE01',
@@ -2487,7 +2547,7 @@ describe('mine launch restrictions', () => {
     }
   });
   it('allows mine launch when ship has a burn committed', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
       'MINE02',
@@ -2522,7 +2582,12 @@ describe('mine launch restrictions', () => {
 });
 describe('nuke planetary devastation', () => {
   it('nuke reaching a planet devastates the entry hex side', () => {
-    const state = createGame(SCENARIOS.biplanetary, map, 'NUKE01', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'NUKE01',
+      findBaseHex,
+    );
     state.activePlayer = 0;
     // Find Mercury's center and a gravity hex next to it
     const mercuryCenter = map.bodies.find((b) => b.name === 'Mercury')?.center;
@@ -2584,19 +2649,34 @@ describe('nuke planetary devastation', () => {
 });
 describe('hidden identity (Escape scenario)', () => {
   it('assigns fugitives to exactly one ship in hidden-identity scenarios', () => {
-    const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      'TEST1',
+      findBaseHex,
+    );
     const fugitiveShips = state.ships.filter((s) => s.identity?.hasFugitives);
     expect(fugitiveShips).toHaveLength(1);
     // Must be a player 0 (pilgrim) ship
     expect(fugitiveShips[0].owner).toBe(0);
   });
   it('does not assign fugitives in non-hidden-identity scenarios', () => {
-    const state = createGame(SCENARIOS.biplanetary, map, 'TEST1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'TEST1',
+      findBaseHex,
+    );
     const fugitiveShips = state.ships.filter((s) => s.identity?.hasFugitives);
     expect(fugitiveShips).toHaveLength(0);
   });
   it('reveals a hidden transport after an enforcer matches course with it', () => {
-    const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      'TEST1',
+      findBaseHex,
+    );
     const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
     const inspector = must(state.ships.find((s) => s.owner === 1));
     fugitive.lifecycle = 'active';
@@ -2620,7 +2700,12 @@ describe('hidden identity (Escape scenario)', () => {
     expect(updatedFugitive.identity?.revealed).toBe(true);
   });
   it('fugitive ship escape triggers victory', () => {
-    const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      'TEST1',
+      findBaseHex,
+    );
     const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
     fugitive.lifecycle = 'active';
     fugitive.position = { q: 0, r: map.bounds.minR - 5 };
@@ -2635,7 +2720,12 @@ describe('hidden identity (Escape scenario)', () => {
     expect(result.state.outcome?.reason).toContain('escaped beyond Jupiter');
   });
   it('non-fugitive ship escape does not trigger victory', () => {
-    const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      'TEST1',
+      findBaseHex,
+    );
     const nonFugitive = must(
       state.ships.find((s) => s.owner === 0 && !s.identity?.hasFugitives),
     );
@@ -2652,7 +2742,12 @@ describe('hidden identity (Escape scenario)', () => {
     expect(result.state.outcome).toBeNull();
   });
   it('destroying the fugitive ship triggers opponent victory', () => {
-    const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      'TEST1',
+      findBaseHex,
+    );
     const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
     fugitive.lifecycle = 'destroyed';
     state.phase = 'combat';
@@ -2663,7 +2758,12 @@ describe('hidden identity (Escape scenario)', () => {
     expect(result.state.outcome?.reason).toContain('fugitive transport');
   });
   it('returning a captured fugitive transport to base gives the enforcers a decisive victory', () => {
-    const state = createGame(SCENARIOS.escape, map, 'TEST1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      'TEST1',
+      findBaseHex,
+    );
     const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
     const enforcerBase = must(state.players[1].bases[0]);
     const [q, r] = enforcerBase.split(',').map(Number);
@@ -2954,7 +3054,7 @@ describe('capture mechanics', () => {
     expect(target.owner).toBe(1);
   });
   it('captured ships cannot receive astrogation orders', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
       'CAPT_ASTRO',
@@ -3057,7 +3157,12 @@ describe('capture mechanics', () => {
 describe('Grand Tour', () => {
   let tourState: GameState;
   beforeEach(() => {
-    tourState = createGame(SCENARIOS.grandTour, map, 'TOUR1', findBaseHex);
+    tourState = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      'TOUR1',
+      findBaseHex,
+    );
   });
   it('initializes checkpoint tracking', () => {
     expect(tourState.scenarioRules.checkpointBodies).toEqual([

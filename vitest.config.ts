@@ -18,6 +18,13 @@ export default defineConfig({
           functions: 88,
           lines: 85,
         },
+        // Prevent coverage backsliding on server + Durable Object layer
+        'src/server/**/*.ts': {
+          statements: 83,
+          branches: 78,
+          functions: 78,
+          lines: 83,
+        },
       },
     },
   },

@@ -50,7 +50,7 @@ export {
   skipCombat,
 } from './combat';
 export { processFleetReady } from './fleet-building';
-export { createGame } from './game-creation';
+export { createGame, createGameOrThrow } from './game-creation';
 export {
   processLogistics,
   processSurrender,

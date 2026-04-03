@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -23,7 +23,12 @@ import type { ClientSession } from './session-model';
 import { stubClientSession } from './session-model';
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  ...createGame(SCENARIOS.duel, buildSolarSystemMap(), 'SESSION', findBaseHex),
+  ...createGameOrThrow(
+    SCENARIOS.duel,
+    buildSolarSystemMap(),
+    'SESSION',
+    findBaseHex,
+  ),
   phase: 'astrogation',
   activePlayer: 0,
   ...overrides,
@@ -105,7 +110,7 @@ const createLocalGameDeps = (): LocalGameSessionDeps & {
       aiDifficulty: 'hard',
     }),
     createLocalTransport: () => ({ kind: 'local' }) as never,
-    createLocalGameState: () => state,
+    createLocalGameState: () => ({ ok: true, value: state }),
     getScenarioName: (scenario) => SCENARIOS[scenario]?.name ?? 'Unknown',
     resetTurnTelemetry: track('resetTurnTelemetry'),
     clearTrails: track('clearTrails'),

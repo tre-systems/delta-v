@@ -5,7 +5,7 @@ import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { GameState, SolarSystemMap } from '../types';
 import {
   beginCombatPhase,
-  createGame,
+  createGameOrThrow,
   processAstrogation,
   processCombat,
   processFleetReady,
@@ -22,7 +22,12 @@ beforeEach(() => {
   map = buildSolarSystemMap();
 });
 const makeState = (overrides: Partial<GameState> = {}): GameState => {
-  const base = createGame(SCENARIOS.biplanetary, map, 'TEST1', findBaseHex);
+  const base = createGameOrThrow(
+    SCENARIOS.biplanetary,
+    map,
+    'TEST1',
+    findBaseHex,
+  );
   return { ...base, ...overrides };
 };
 const snapshotState = (state: GameState): string => JSON.stringify(state);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -20,14 +20,19 @@ describe('game-client-network', () => {
   it('derives fleet-building and turn-based game start states', () => {
     const map = buildSolarSystemMap();
 
-    const fleetState = createGame(
+    const fleetState = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
       'NET1',
       findBaseHex,
     );
 
-    const duelState = createGame(SCENARIOS.duel, map, 'NET2', findBaseHex);
+    const duelState = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      'NET2',
+      findBaseHex,
+    );
 
     expect(deriveGameStartClientState(fleetState, 0)).toBe(
       'playing_fleetBuilding',
@@ -70,7 +75,7 @@ describe('game-client-network', () => {
 
   it('only attempts reconnects after a session has connected', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.duel, map, 'NET3', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'NET3', findBaseHex);
 
     expect(shouldAttemptReconnect('menu', 'ABCDE', state)).toBe(false);
 
@@ -95,7 +100,7 @@ describe('game-client-network', () => {
 
   it('derives disconnect handling for reconnect, menu fallback, and no-op states', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.duel, map, 'NET4', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'NET4', findBaseHex);
 
     expect(
       deriveDisconnectHandling('playing_astrogation', 'ABCDE', state),

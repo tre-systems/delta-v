@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import {
-  createGame,
+  createGameOrThrow,
   type MovementResult,
 } from '../../shared/engine/game-engine';
 import {
@@ -50,7 +50,12 @@ const normalizeStateEnvelope = (value: unknown): unknown => {
 describe('game-do-message-builders', () => {
   it('formats movement results for broadcast', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.biplanetary, map, 'SRV1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'SRV1',
+      findBaseHex,
+    );
 
     const movementResult: MovementResult = {
       state,
@@ -75,7 +80,7 @@ describe('game-do-message-builders', () => {
 
   it('emits optional state updates for non-movement resolutions', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.duel, map, 'SRV2', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'SRV2', findBaseHex);
 
     expect(
       resolveMovementBroadcast({ state, engineEvents: [] }),
@@ -88,7 +93,12 @@ describe('game-do-message-builders', () => {
 
   it('formats game start and fallback state-bearing messages', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.biplanetary, map, 'SRV2B', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'SRV2B',
+      findBaseHex,
+    );
 
     expect(toGameStartMessage(state)).toEqual({
       type: 'gameStart',
@@ -106,7 +116,7 @@ describe('game-do-message-builders', () => {
 
   it('formats combat results for broadcast', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.duel, map, 'SRV3', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'SRV3', findBaseHex);
 
     const combatResults: CombatResult[] = [
       {
@@ -142,7 +152,7 @@ describe('game-do-message-builders', () => {
     'falls back to state updates or silence' + ' for empty combat results',
     () => {
       const map = buildSolarSystemMap();
-      const state = createGame(SCENARIOS.duel, map, 'SRV4', findBaseHex);
+      const state = createGameOrThrow(SCENARIOS.duel, map, 'SRV4', findBaseHex);
 
       expect(resolveCombatBroadcast({ state, results: [] })).toBeUndefined();
 
@@ -155,7 +165,12 @@ describe('game-do-message-builders', () => {
 
 describe('S2C state-bearing payload fixtures', () => {
   const map = buildSolarSystemMap();
-  const state = createGame(SCENARIOS.biplanetary, map, 'FIX1', findBaseHex);
+  const state = createGameOrThrow(
+    SCENARIOS.biplanetary,
+    map,
+    'FIX1',
+    findBaseHex,
+  );
 
   it('gameStart payload has exactly { type, state }', () => {
     const msg = toGameStartMessage(state);

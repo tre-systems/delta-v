@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
-import { createGame, filterStateForPlayer, type ViewerId } from './game-engine';
+import {
+  createGameOrThrow,
+  filterStateForPlayer,
+  type ViewerId,
+} from './game-engine';
 
 const map = buildSolarSystemMap();
 
-const withFugitiveIdentity = (state: ReturnType<typeof createGame>) => {
+const withFugitiveIdentity = (state: ReturnType<typeof createGameOrThrow>) => {
   for (const ship of state.ships) {
     if (ship.owner === 0) {
       ship.identity = { hasFugitives: false, revealed: false };
@@ -25,7 +29,7 @@ const withFugitiveIdentity = (state: ReturnType<typeof createGame>) => {
 describe('viewer-aware state filtering', () => {
   it('player 0 sees own identity, enemy identity stripped', () => {
     const state = withFugitiveIdentity(
-      createGame(SCENARIOS.biplanetary, map, 'V01', findBaseHex),
+      createGameOrThrow(SCENARIOS.biplanetary, map, 'V01', findBaseHex),
     );
 
     const filtered = filterStateForPlayer(state, 0);
@@ -46,7 +50,7 @@ describe('viewer-aware state filtering', () => {
 
   it('player 1 sees own identity, enemy (player 0) identity stripped', () => {
     const state = withFugitiveIdentity(
-      createGame(SCENARIOS.biplanetary, map, 'V02', findBaseHex),
+      createGameOrThrow(SCENARIOS.biplanetary, map, 'V02', findBaseHex),
     );
 
     const filtered = filterStateForPlayer(state, 1);
@@ -66,7 +70,7 @@ describe('viewer-aware state filtering', () => {
 
   it('spectator sees ALL identity stripped', () => {
     const state = withFugitiveIdentity(
-      createGame(SCENARIOS.biplanetary, map, 'V03', findBaseHex),
+      createGameOrThrow(SCENARIOS.biplanetary, map, 'V03', findBaseHex),
     );
 
     const filtered = filterStateForPlayer(state, 'spectator');
@@ -87,7 +91,7 @@ describe('viewer-aware state filtering', () => {
 
   it('revealed identity is visible to all viewers', () => {
     const state = withFugitiveIdentity(
-      createGame(SCENARIOS.biplanetary, map, 'V04', findBaseHex),
+      createGameOrThrow(SCENARIOS.biplanetary, map, 'V04', findBaseHex),
     );
 
     // Reveal the fugitive's identity
@@ -107,7 +111,12 @@ describe('viewer-aware state filtering', () => {
   });
 
   it('no-op when scenario has no hidden identity rules', () => {
-    const state = createGame(SCENARIOS.biplanetary, map, 'V05', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'V05',
+      findBaseHex,
+    );
 
     // No identity fields set — filtering is a no-op
     const viewers: ViewerId[] = [0, 1, 'spectator'];
@@ -120,7 +129,7 @@ describe('viewer-aware state filtering', () => {
 
   it('consistent filtering across live, replay, and spectator paths', () => {
     const state = withFugitiveIdentity(
-      createGame(SCENARIOS.biplanetary, map, 'V06', findBaseHex),
+      createGameOrThrow(SCENARIOS.biplanetary, map, 'V06', findBaseHex),
     );
 
     // Simulate the three filtering contexts

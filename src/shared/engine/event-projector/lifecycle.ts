@@ -35,11 +35,15 @@ export const projectLifecycleEvent = (
         };
       }
 
+      const result = createGame(scenario, map, gameId, findBaseHex, () => 0);
+
+      if (!result.ok) {
+        return { ok: false, error: result.error.message };
+      }
+
       return {
         ok: true,
-        value: migrateGameState(
-          createGame(scenario, map, gameId, findBaseHex, () => 0),
-        ),
+        value: migrateGameState(result.value),
       };
     }
 
