@@ -4,77 +4,72 @@
 Client-Specific
 
 ## Intent
-Separate input handling into three distinct layers -- raw DOM events, semantic game events, and command dispatch -- so that each layer can be tested, reasoned about, and modified independently. Raw pointer/touch/keyboard events are translated into domain-meaningful actions without coupling the DOM to game logic.
+
+Keep browser input mechanics separate from gameplay interpretation and side effects. Raw events become semantic input, semantic input becomes typed commands, and only commands are allowed to trigger game/UI mutations.
 
 ## How It Works in Delta-V
 
-The pipeline has three layers:
+### Layer 1: Raw input capture
 
-### Layer 1: Raw Input Capture (`input.ts` + `input-interaction.ts`)
+`createInputHandler()` in `input.ts` binds mouse, touch, wheel, and double-click listeners. It delegates drag, pinch, hover, and click classification to `createPointerInteractionManager()` from `input-interaction.ts`.
 
-The `createInputHandler()` function binds raw DOM events (mousedown, mousemove, mouseup, touchstart, touchmove, touchend, wheel, dblclick) to the canvas. It uses the `PointerInteractionManager` from `input-interaction.ts` to handle:
+This layer knows about:
 
-- **Drag detection**: Distinguishes clicks from drags using a threshold (8px for touch, 3px for mouse).
-- **Pinch-to-zoom**: Tracks two-touch distances and computes zoom factors.
-- **Coordinate conversion**: Converts screen pixels to world coordinates via the camera, then to hex coordinates via `pixelToHex()`.
-- **Minimap click resolution**: Checks if a click falls within the minimap overlay before processing as a game hex click.
+- camera transforms
+- minimap hit-testing
+- screen-to-world conversion
+- pointer state such as drag threshold and pinch distance
 
-Raw events are distilled into two semantic `InputEvent` types: `{ type: 'clickHex', hex }` and `{ type: 'hoverHex', hex }`.
+This layer does **not** know about planning state, turn rules, or command handlers.
 
-### Layer 2: Input Interpretation (`input-events.ts`)
+### Layer 2: Input interpretation
 
-The `interpretInput()` function takes an `InputEvent` along with game state context (current `InteractionMode`, game state, map, player ID, planning snapshot) and produces an array of `GameCommand` objects.
+`interpretInput()` in `input-events.ts` converts semantic `InputEvent` values into `GameCommand[]` using only snapshots of game state, map state, player identity, and planning state. This is the pure rules layer for canvas interactions.
 
-It delegates to phase-specific interpreters:
-- `interpretAstrogationClick()` -- resolves clicks to burn toggles, overload toggles, weak gravity toggles, or ship selections.
-- `interpretOrdnanceClick()` -- resolves clicks to torpedo acceleration or ship selections.
-- `interpretCombatClick()` -- resolves clicks to target selection, attacker toggling, or selection clearing.
+### Layer 3: Command dispatch
 
-Each interpreter returns `GameCommand[]`, making the interpretation pure and testable without DOM or canvas dependencies.
+`dispatchGameCommand()` in `command-router.ts` routes each command into the domain-specific handler group that owns the side effect.
 
-### Layer 3: Command Dispatch (`command-router.ts`)
-
-The `dispatchGameCommand()` function takes a `GameCommand` and routes it to the appropriate handler via a type-safe handler map. Handlers are organized by domain:
-
-- `astrogationHandlers` -- burn/overload/gravity/confirm operations
-- `combatHandlers` -- target/attacker/strength/queue/fire operations
-- `ordnanceHandlers` -- launch/emplace/skip operations
-- `logisticsHandlers` -- skip/confirm transfers
-- `fleetAndNavigationHandlers` -- ship selection, camera control
-- `uiAndLifecycleHandlers` -- toggle log/help/mute, rematch, exit
-
-The handler map is typed with `satisfies CommandHandlerMap` to ensure exhaustive coverage of all command types at compile time.
+```mermaid
+flowchart LR
+  DOM["mouse / touch / wheel / keyboard"] --> Capture["createInputHandler"]
+  Capture --> Pointer["pointer interaction manager"]
+  Pointer --> Event["InputEvent"]
+  Event --> Interpret["interpretInput"]
+  Interpret --> Command["GameCommand[]"]
+  Command --> Dispatch["dispatchGameCommand"]
+  Dispatch --> Effects["planning updates / transport / UI / camera"]
+```
 
 ## Key Locations
 
-| File | Lines | Role |
-|------|-------|------|
-| `src/client/input.ts` | 15-208 | Layer 1: Raw input capture |
-| `src/client/input-interaction.ts` | 46-136 | Pointer interaction manager |
-| `src/client/game/input-events.ts` | 1-234 | Layer 2: Input interpretation |
-| `src/client/game/input-events.ts` | 26-27 | `InputEvent` type definition |
-| `src/client/game/command-router.ts` | 1-338 | Layer 3: Command dispatch |
-| `src/client/game/commands.ts` | 6-63 | `GameCommand` discriminated union |
-| `src/client/game/interaction-fsm.ts` | 1-43 | `InteractionMode` and `deriveInteractionMode` |
+| File | Role |
+|---|---|
+| `src/client/input.ts` | raw DOM event capture |
+| `src/client/input-interaction.ts` | drag/pinch/minimap logic |
+| `src/client/game/input-events.ts` | semantic interpretation |
+| `src/client/game/command-router.ts` | command dispatch |
+| `src/client/game/main-interactions.ts` | wires Layers 1-3 together |
+| `src/client/game/commands.ts` | `GameCommand` union and keyboard mapping |
 
 ## Code Examples
 
-Layer 1 produces semantic input events:
+Layer 1 emits semantic input:
 
 ```typescript
-// src/client/input.ts
 const handleClick = (screenX: number, screenY: number) => {
   if (handleMinimapClick(screenX, screenY)) return;
+
   const worldPos = camera.screenToWorld(screenX, screenY);
   const hex = pixelToHex(worldPos, HEX_SIZE);
+
   onInput({ type: 'clickHex', hex });
 };
 ```
 
-Layer 2 interprets events into commands (pure function):
+Layer 2 is pure interpretation:
 
 ```typescript
-// src/client/game/input-events.ts
 export const interpretInput = (
   event: InputEvent,
   state: GameState | null,
@@ -85,7 +80,14 @@ export const interpretInput = (
 ): GameCommand[] => {
   switch (event.type) {
     case 'clickHex':
-      return interpretClickHex(event.hex, state, interactionMode, map, playerId, planning);
+      return interpretClickHex(
+        event.hex,
+        state,
+        interactionMode,
+        map,
+        playerId,
+        planning,
+      );
     case 'hoverHex':
       if (state) return [{ type: 'setHoverHex', hex: event.hex }];
       if (planning.hoverHex) return [{ type: 'setHoverHex', hex: null }];
@@ -94,10 +96,9 @@ export const interpretInput = (
 };
 ```
 
-Layer 3 dispatches commands via a typed handler map:
+Layer 3 dispatches commands through a typed registry:
 
 ```typescript
-// src/client/game/command-router.ts
 const commandHandlers = {
   ...astrogationHandlers,
   ...combatHandlers,
@@ -111,53 +112,34 @@ export const dispatchGameCommand = <T extends GameCommand>(
   deps: CommandRouterDeps,
   cmd: T,
 ): void => {
-  const handler = commandHandlers[cmd.type] as (deps: CommandRouterDeps, cmd: T) => void;
+  const handler = commandHandlers[cmd.type] as (
+    deps: CommandRouterDeps,
+    cmd: T,
+  ) => void;
+
   handler(deps, cmd);
-};
-```
-
-Keyboard input also enters the pipeline at Layer 3 via `keyboardActionToCommand()`:
-
-```typescript
-// src/client/game/commands.ts
-export const keyboardActionToCommand = (action: KeyboardAction): GameCommand | null => {
-  switch (action.kind) {
-    case 'cycleShip':
-      return { type: 'cycleShip', direction: action.direction };
-    case 'confirmOrders':
-      return { type: 'confirmOrders' };
-    // ... exhaustive mapping
-  }
 };
 ```
 
 ## Consistency Analysis
 
-The layer separation is clean:
+**Strengths:**
 
-- **Layer 1** never references game state types or planning state. It only knows about cameras and hex coordinates.
-- **Layer 2** is a pure function that takes state snapshots (via `Pick` types) and returns commands. It has no DOM dependencies.
-- **Layer 3** has side effects (state mutations, network calls) but is organized into domain-specific handler groups with exhaustive type coverage.
+- DOM code stops at `InputEvent`; it does not reach directly into gameplay handlers.
+- Interpretation is pure and heavily testable because it only depends on snapshot inputs.
+- The command router centralizes side effects by concern.
 
-**Minor observations**:
-- The renderer's `start()` method (line 542) uses raw `window.addEventListener('resize', resize)` instead of `listen()`. This is a presentation infrastructure concern outside the input pipeline.
-- The `visibilitychange` listener in `renderer.ts` is also outside the pipeline, correctly -- it controls animation, not input.
-- Camera panning during drag (`input-interaction.ts`) bypasses the command pipeline and calls `camera.pan()` directly. This is appropriate since drag panning is a continuous, high-frequency operation that would flood the command system.
+**Intentional exceptions:**
+
+- Drag panning calls `camera.pan()` directly inside the pointer layer because it is continuous viewport control, not a gameplay command.
+- Keyboard shortcuts and button clicks can enter directly at Layer 3 by emitting `GameCommand` values. That is a sibling path, not a violation, because they still share the same command-dispatch sink.
 
 ## Completeness Check
 
-The pipeline handles all input paths:
-
-- **Mouse**: click, drag, double-click, wheel zoom
-- **Touch**: tap, drag, pinch zoom
-- **Keyboard**: Mapped through `keyboardActionToCommand()` into `GameCommand`
-- **UI buttons**: Emit `GameCommand` objects directly to the dispatcher
-
-No layer violations were found -- DOM code does not reach into game logic, and game logic does not manipulate the DOM.
+- The pipeline cleanly covers canvas input. Future work should keep new interactive affordances converging on `GameCommand` rather than adding one-off side-effect handlers in DOM code.
 
 ## Related Patterns
 
-- **Planning Store** (Pattern 37): Commands from Layer 3 mutate the planning store.
-- **Session Model** (Pattern 38): The command router reads session state via `CommandRouterSessionRead`.
-- **Camera/Viewport Transform** (Pattern 43): Layer 1 uses the camera for screen-to-world coordinate conversion.
-- **Disposal Scope** (Pattern 36): Layer 1 event listeners are scoped via `withScope`.
+- **Pipeline** (15) — this is the client input pipeline in concrete form.
+- **Command** (08) — Layer 2 produces the command objects consumed by Layer 3.
+- **Camera/Viewport Transform** (43) — Layer 1 uses camera transforms for coordinate conversion.
