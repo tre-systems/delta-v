@@ -34,15 +34,21 @@ export const getMinimapFrame = (
   screenHeight: number,
   hudTopOffset = 0,
   mapAspect = 1,
+  hudBottomOffset = 0,
 ): MinimapFrame => {
   const isMobile = screenWidth < 600;
   const baseWidth = isMobile ? 90 : 120;
   const width = baseWidth;
   const height = Math.round(baseWidth * Math.max(1, Math.min(mapAspect, 2)));
+  const mobileTopInset = Math.max(90, hudTopOffset + 8);
+  const mobileBottomInset = Math.max(12, hudBottomOffset + 8);
+  const mobileY = screenHeight - height - mobileBottomInset;
 
   return {
     x: 12,
-    y: isMobile ? Math.max(90, hudTopOffset + 8) : screenHeight - height - 12,
+    y: isMobile
+      ? Math.max(mobileTopInset, mobileY)
+      : screenHeight - height - 12,
     width,
     height,
     padding: 6,
@@ -55,6 +61,7 @@ export const createMinimapLayout = (
   screenHeight: number,
   hexSize: number,
   hudTopOffset = 0,
+  hudBottomOffset = 0,
 ): MinimapLayout => {
   // x depends only on q, so min/max q give exact left/right edges
   const worldMinX = hexToPixel({ q: bounds.minQ, r: 0 }, hexSize).x;
@@ -72,6 +79,7 @@ export const createMinimapLayout = (
     screenHeight,
     hudTopOffset,
     mapAspect,
+    hudBottomOffset,
   );
 
   const worldWidth = worldMaxX - worldMinX || 1;

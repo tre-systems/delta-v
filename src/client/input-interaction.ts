@@ -38,6 +38,7 @@ interface ResolveMinimapCameraTargetInput {
   screenY: number;
   hexSize: number;
   hudTopOffset: number;
+  hudBottomOffset: number;
 }
 
 const TOUCH_DRAG_THRESHOLD = 8;
@@ -160,6 +161,7 @@ export const resolveMinimapCameraTarget = ({
   screenY,
   hexSize,
   hudTopOffset,
+  hudBottomOffset,
 }: ResolveMinimapCameraTargetInput): ScreenPoint | null => {
   if (!map) {
     return null;
@@ -171,6 +173,7 @@ export const resolveMinimapCameraTarget = ({
     screenHeight,
     hexSize,
     hudTopOffset,
+    hudBottomOffset,
   );
 
   if (!isPointInMinimap(layout, { x: screenX, y: screenY })) {
