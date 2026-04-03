@@ -6,11 +6,8 @@ import { mulberry32 } from '../../shared/prng';
 import type { ScenarioDefinition, SolarSystemMap } from '../../shared/types';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { RoomConfig } from '../protocol';
-import {
-  allocateMatchIdentity,
-  appendEnvelopedEvents,
-  saveMatchCreatedAt,
-} from './archive';
+import { allocateMatchIdentity, saveMatchCreatedAt } from './archive';
+import type { StatefulServerMessage } from './message-builders';
 import { toGameStartMessage } from './message-builders';
 import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 
@@ -21,9 +18,11 @@ type InitGameDeps = {
   getScenario: () => Promise<{ def: ScenarioDefinition; key: ScenarioKey }>;
   getGameCode: () => Promise<string>;
   clearRoomArchivedFlag: () => Promise<void>;
-  verifyProjectionParity: (state: GameState) => Promise<void>;
-  broadcastFiltered: (msg: { type: 'gameStart'; state: GameState }) => void;
-  startTurnTimer: (state: GameState) => Promise<void>;
+  publishStateChange: (
+    state: GameState,
+    primaryMessage: StatefulServerMessage,
+    options: { events: EngineEvent[] },
+  ) => Promise<void>;
 };
 
 const buildInitEvents = (
@@ -78,15 +77,9 @@ export const initGameSession = async (deps: InitGameDeps): Promise<void> => {
 
   await deps.clearRoomArchivedFlag();
   await saveMatchCreatedAt(deps.storage, gameId, Date.now());
-  await appendEnvelopedEvents(
-    deps.storage,
-    gameId,
-    null,
-    ...buildInitEvents(gameState, matchSeed),
-  );
-  await deps.verifyProjectionParity(gameState);
-  deps.broadcastFiltered(gameStartMessage);
-  await deps.startTurnTimer(gameState);
+  await deps.publishStateChange(gameState, gameStartMessage, {
+    events: buildInitEvents(gameState, matchSeed),
+  });
 };
 
 type HandleRematchDeps = {

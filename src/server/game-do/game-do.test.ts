@@ -1203,14 +1203,11 @@ describe('GameDO', () => {
       };
     }
 
-    await (
+    (
       game as unknown as {
-        broadcastFiltered: (msg: Extract<S2C, { state: GameState }>) => void;
+        broadcastStateChange: (state: GameState) => void;
       }
-    ).broadcastFiltered({
-      type: 'stateUpdate',
-      state,
-    });
+    ).broadcastStateChange(state);
 
     expect(spectator.sent).toHaveLength(1);
     const message = JSON.parse(spectator.sent[0] ?? '') as Extract<
