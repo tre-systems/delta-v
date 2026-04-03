@@ -382,11 +382,10 @@ To prevent UI race conditions and ensure visibility is strictly synchronized wit
 - **`game/`**: Command routing, action handlers (astrogation/combat/ordnance), planning-state helpers, runtime/session helpers, phase derivation, game-state helpers, transition helpers, session helpers, transport abstraction, connection management, input interpretation, view-model helpers, and presentation logic. Ordnance-phase auto-selection and HUD legality are derived from shared engine rules instead of client-only cargo heuristics.
 - **`renderer/`**: Canvas drawing layers (scene, entities, vectors, effects, overlays), camera, minimap, and animation management.
 - **`ui/`**: Screen visibility, HUD view building, button bindings, game log, fleet building, ship list, formatters, layout metrics, and small reactive DOM view models.
-- **`reactive.ts` + `ui/ui.ts` + `game/session-signals.ts`**: The client stays framework-free, but durable session and UI state now use a small signals runtime where it removes duplicate mirrors or imperative fan-out. `ClientSession` owns reactive `gameState`, `state`, player identity, waiting/reconnect fields, and logistics references; `createUIManager()` owns long-lived view instances and derives DOM visibility directly from `stateSignal` via `interaction-fsm.ts` (with a lightweight `scenarioActiveSignal` for the menu/scenario UI sub-state); `overlay-state.ts`, replay controls, and the turn timer expose signal-backed view state; and short-lived events such as toasts remain imperative.
-- **`game/session-signals.ts` + `game/planning.ts`**: `ClientSession` owns reactive `gameStateSignal` / `stateSignal`, while `PlanningStore` owns local planning mutation methods and a `revisionSignal` that bumps after local planning changes. Session effects reconcile derived selection into planning, drive `hud.updateHUD()`, and keep `renderer.setGameState()` aligned directly, so command routing, replay, and phase entry no longer thread duplicate HUD/render callbacks through many call sites.
-- **Client session file split**: `game/session.ts` holds route/token/session-storage helpers, while `game/session-model.ts` defines the `ClientSession` aggregate shape and collaborators mutate it through focused stores/controllers (`client-context-store.ts`, `session-controller.ts`, `session-signals.ts`).
+- **`reactive.ts` + `ui/ui.ts` + `game/session-signals.ts`**: The client stays framework-free, but durable session and UI state now use a small signals runtime where it removes duplicate mirrors or imperative fan-out. `ClientSession` owns reactive `gameState`, `state`, player identity, waiting/reconnect fields, and logistics references; `createUIManager()` owns long-lived view instances and derives DOM visibility directly from `stateSignal` via `interaction-fsm.ts` (with a small `scenarioActiveSignal` for the menu/scenario UI sub-state); `overlay-state.ts`, replay controls, and the turn timer expose signal-backed view state; and short-lived events such as toasts remain imperative. `session-signals.ts` is the composition point for the grouped reactive session effects in `session-planning-effects.ts` and `session-ui-effects.ts`.
+- **`game/planning.ts` + derived view/order modules**: `PlanningStore` owns local planning mutation methods and a `revisionSignal` that bumps after local planning changes. Pure derivation modules such as `hud-view-model.ts`, `astrogation-orders.ts`, and `client-message-plans.ts` build HUD state, submitted orders, and message handling plans from that session/planning state instead of relying on one broad helper module.
+- **Client session file split**: `game/session-model.ts` defines the `ClientSession` aggregate shape; `session-links.ts` owns route/WebSocket URL helpers; `session-api.ts` handles create/join/replay HTTP flows; and `session-token-service.ts` plus `session-token-store.ts` own reconnect token persistence. Stores/controllers mutate the aggregate through focused collaborators (`client-context-store.ts`, `session-controller.ts`, `session-signals.ts`).
 - **`audio.ts`**: Handles Web Audio API interactions.
-- **Visual Polish**: Employs a premium design system with glassmorphism tokens (backdrop-filters), tactile micro-animations (recoil, scaling glows), and pulsing orbital effects for high-end UX.
 
 ### D. Progressive Web App (`static/sw.js`, `static/site.webmanifest`)
 
@@ -561,14 +560,17 @@ main.ts → game/client-kernel.ts (createGameClient — composition root)
   ├→ game/planning.ts (planning state shape + owned store mutations)
   ├→ game/session-controller.ts (create/join/local-start/exit session lifecycle)
   ├→ game/session-api.ts (HTTP create/join + token persistence)
+  ├→ game/main-session-shell.ts (session/network/replay orchestration)
+  ├→ game/message-handler.ts, game/client-message-plans.ts (typed S2C handling)
+  ├→ game/client-runtime.ts (browser event wiring + URL auto-join)
+  ├→ game/main-interactions.ts (UI/input/keyboard → GameCommand)
   ├→ game/action-deps.ts (lazy-cached deps for action handlers + presentation)
   ├→ game/state-transition.ts (client-state entry effects and screen changes)
-  ├→ game/network.ts, game/messages.ts (handle S2C)
   ├→ game/transport.ts (WebSocket, Local, and LocalGame transport factories)
   ├→ game/phase.ts (derive ClientState from GameState)
   ├→ game/keyboard.ts (KeyboardAction → GameCommand)
-  ├→ game/helpers.ts (derive HUD view models)
-  ├→ game/[combat|burn|ordnance]-actions.ts (phase-specific actions)
+  ├→ game/hud-view-model.ts, game/astrogation-orders.ts (derived HUD/orders)
+  ├→ game/[astrogation|combat|ordnance]-actions.ts (phase-specific actions)
   ├→ game/planning.ts (user input accumulation)
   ├→ shared/types/{domain,protocol,scenario} (bounded shared type ownership)
   ├→ shared/engine/game-engine.ts (createGame, local resolution)
@@ -688,14 +690,14 @@ See [BACKLOG.md](./BACKLOG.md) for open work. This section captures current arch
 
 ## 7. Client bundle and release hygiene
 
-**Bundle baseline** (re-measured **2026-03-29** via `npm run build`; update after large renderer or dependency changes):
+**Bundle baseline** (re-measured **2026-04-02** from the current `dist/client.js`; update after large renderer or dependency changes):
 
 | Artifact         | Raw (approx.) | Gzip (approx.) |
 | ---------------- | ------------- | -------------- |
-| `dist/client.js` | ~601 KB       | ~124 KB        |
+| `dist/client.js` | ~644 KB       | ~133 KB        |
 
 **Supply chain:** run `npm audit` before releases; use `npm run update-deps` judiciously and run `verify` after bumps.
 
 **D1 migrations:** treat as **forward-only** unless Cloudflare backup/restore is used; rollback is **redeploy previous Worker + compatible schema**, not automatic down-migration.
 
-**CI:** Node version is set in `.github/workflows/ci.yml` (Node **25** at last doc update).
+**CI:** Node **25** is pinned in `.github/workflows/ci.yml`, and `.nvmrc` matches.

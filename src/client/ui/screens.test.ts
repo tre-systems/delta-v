@@ -84,4 +84,42 @@ describe('ui-screens', () => {
       rematchDisabled: true,
     });
   });
+
+  it('builds neutral spectator game-over copy from global stats', () => {
+    const view = buildGameOverView(false, 'Fleet eliminated!', {
+      turns: 12,
+      myShipsAlive: 2,
+      myShipsTotal: 3,
+      enemyShipsAlive: 0,
+      enemyShipsTotal: 2,
+      myShipsDestroyed: 1,
+      enemyShipsDestroyed: 2,
+      myFuelSpent: 18,
+      enemyFuelSpent: 12,
+      basesDestroyed: 1,
+      ordnanceInFlight: 0,
+      playerId: -1,
+      shipFates: [
+        { name: 'Transport', status: 'survived', owner: 0 },
+        { name: 'Packet', status: 'destroyed', owner: 0 },
+        { name: 'Corsair', status: 'destroyed', owner: 1 },
+      ],
+    });
+
+    expect(view.titleText).toBe('GAME OVER');
+    expect(view.statLines).toEqual([
+      { label: 'Turns', value: '12' },
+      { label: 'Fleet 1', value: '2/3 survived' },
+      { label: 'Fleet 2', value: '0/2 survived' },
+      { label: 'Fleet 1 fuel', value: '18' },
+      { label: 'Fleet 2 fuel', value: '12' },
+      { label: 'Bases destroyed', value: '1' },
+      { label: '', value: '' },
+      { label: 'FLEET 1', value: '' },
+      { label: 'Transport', value: 'SURVIVED' },
+      { label: 'Packet', value: 'DESTROYED' },
+      { label: 'FLEET 2', value: '' },
+      { label: 'Corsair', value: 'DESTROYED' },
+    ]);
+  });
 });

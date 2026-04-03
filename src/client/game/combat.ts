@@ -28,6 +28,10 @@ export interface CombatTargetSelection {
 
 type CombatTargetType = CombatTargetSelection['targetType'];
 type CombatTarget = Ship | Ordnance;
+type CombatTargetFilter<T extends CombatTarget> = (target: T) => boolean;
+type CombatTargetByType<T extends CombatTargetType> = T extends 'ship'
+  ? Ship
+  : Ordnance;
 
 export interface CombatTargetPlan {
   combatTargetId: string | null;
@@ -70,45 +74,56 @@ const getAvailableCombatAttackers = (
   );
 };
 
-const getEnemyShipTarget = (
-  state: GameState,
-  playerId: PlayerId,
-  targetId: string,
-) => {
-  return state.ships.find(
-    (ship) =>
-      ship.id === targetId &&
-      ship.lifecycle !== 'destroyed' &&
-      ship.owner !== playerId,
+const isEnemyShipTarget = (ship: Ship, playerId: PlayerId) => {
+  return (
+    ship.lifecycle === 'active' && ship.owner !== playerId && ship.detected
   );
 };
 
-const getEnemyOrdnanceTarget = (
-  state: GameState,
-  playerId: PlayerId,
-  targetId: string,
-) => {
-  return state.ordnance.find(
-    (item) =>
-      item.id === targetId &&
-      item.lifecycle !== 'destroyed' &&
-      item.owner !== playerId &&
-      item.type === 'nuke',
+const isEnemyOrdnanceTarget = (item: Ordnance, playerId: PlayerId) => {
+  return (
+    item.owner !== playerId &&
+    item.lifecycle !== 'destroyed' &&
+    item.type === 'nuke'
   );
 };
 
-const getEnemyOrdnanceTargetAtHex = (
+const findTargets = <T extends CombatTargetType>(
   state: GameState,
   playerId: PlayerId,
-  clickHex: HexCoord,
-) => {
-  return state.ordnance.find(
-    (item) =>
-      item.owner !== playerId &&
-      item.lifecycle !== 'destroyed' &&
-      item.type === 'nuke' &&
-      hexEqual(clickHex, item.position),
+  targetType: T,
+  filter?: CombatTargetFilter<CombatTargetByType<T>>,
+): CombatTargetByType<T>[] => {
+  if (targetType === 'ship') {
+    const targets = state.ships.filter((ship) =>
+      isEnemyShipTarget(ship, playerId),
+    );
+
+    return (
+      filter
+        ? targets.filter((ship) => (filter as CombatTargetFilter<Ship>)(ship))
+        : targets
+    ) as CombatTargetByType<T>[];
+  }
+
+  const targets = state.ordnance.filter((item) =>
+    isEnemyOrdnanceTarget(item, playerId),
   );
+
+  return (
+    filter
+      ? targets.filter((item) => (filter as CombatTargetFilter<Ordnance>)(item))
+      : targets
+  ) as CombatTargetByType<T>[];
+};
+
+const findTarget = <T extends CombatTargetType>(
+  state: GameState,
+  playerId: PlayerId,
+  targetType: T,
+  filter?: CombatTargetFilter<CombatTargetByType<T>>,
+): CombatTargetByType<T> | null => {
+  return findTargets(state, playerId, targetType, filter)[0] ?? null;
 };
 
 const getEnemyCombatTarget = (
@@ -118,8 +133,8 @@ const getEnemyCombatTarget = (
   targetType: CombatTargetType,
 ): CombatTarget | null => {
   return targetType === 'ship'
-    ? (getEnemyShipTarget(state, playerId, targetId) ?? null)
-    : (getEnemyOrdnanceTarget(state, playerId, targetId) ?? null);
+    ? findTarget(state, playerId, 'ship', (ship) => ship.id === targetId)
+    : findTarget(state, playerId, 'ordnance', (item) => item.id === targetId);
 };
 
 const getAttackersByIds = (state: GameState, attackerIds: string[]): Ship[] => {
@@ -146,53 +161,23 @@ const getFriendlyCombatShipsAtHex = (
   );
 };
 
-const getUntargetedEnemyShipsAtHex = (
-  state: GameState,
-  playerId: PlayerId,
-  clickHex: HexCoord,
-  queuedTargets: Set<string>,
-): Ship[] => {
-  return state.ships.filter(
-    (ship) =>
-      ship.owner !== playerId &&
-      ship.lifecycle === 'active' &&
-      ship.detected &&
-      !queuedTargets.has(`ship:${ship.id}`) &&
-      hexEqual(clickHex, ship.position),
-  );
-};
-
-const getVisibleEnemyShipTargets = (
+const getVisibleTargets = (
   state: GameState,
   playerId: PlayerId,
   attacker: Ship,
   map: SolarSystemMap,
+  targetType: CombatTargetType,
   queuedTargets?: Set<string>,
-): Ship[] => {
-  return state.ships.filter(
-    (ship) =>
-      ship.owner !== playerId &&
-      ship.lifecycle === 'active' &&
-      ship.detected &&
-      !queuedTargets?.has(`ship:${ship.id}`) &&
-      hasLineOfSight(attacker, ship, map),
-  );
-};
-
-const getVisibleEnemyOrdnanceTargets = (
-  state: GameState,
-  playerId: PlayerId,
-  attacker: Ship,
-  map: SolarSystemMap,
-  queuedTargets?: Set<string>,
-): Ordnance[] => {
-  return state.ordnance.filter(
-    (item) =>
-      item.owner !== playerId &&
-      item.lifecycle !== 'destroyed' &&
-      item.type === 'nuke' &&
-      !queuedTargets?.has(`ordnance:${item.id}`) &&
-      hasLineOfSightToTarget(attacker, item, map),
+): CombatTarget[] => {
+  return findTargets(
+    state,
+    playerId,
+    targetType,
+    (target) =>
+      !queuedTargets?.has(`${targetType}:${target.id}`) &&
+      (targetType === 'ship'
+        ? hasLineOfSight(attacker, target as Ship, map)
+        : hasLineOfSightToTarget(attacker, target as Ordnance, map)),
   );
 };
 
@@ -302,7 +287,12 @@ export const getReusableCombatGroup = (
   queuedAttacks: CombatAttack[],
   targetId: string,
 ): ReusableCombatGroup | null => {
-  const target = getEnemyShipTarget(state, playerId, targetId);
+  const target = findTarget(
+    state,
+    playerId,
+    'ship',
+    (ship) => ship.id === targetId,
+  );
 
   if (!target) return null;
 
@@ -369,7 +359,12 @@ export const hasSplitFireOptions = (
   for (const attack of queuedAttacks) {
     if (attack.targetType !== 'ship') continue;
 
-    const target = getEnemyShipTarget(state, playerId, attack.targetId);
+    const target = findTarget(
+      state,
+      playerId,
+      'ship',
+      (ship) => ship.id === attack.targetId,
+    );
 
     if (!target) continue;
 
@@ -386,8 +381,7 @@ export const hasSplitFireOptions = (
 
     const untargetedSameHex = state.ships.some(
       (ship) =>
-        ship.owner !== playerId &&
-        ship.lifecycle === 'active' &&
+        isEnemyShipTarget(ship, playerId) &&
         hexEqual(ship.position, target.position) &&
         !queuedTargets.has(`ship:${ship.id}`),
     );
@@ -428,7 +422,9 @@ export const getCombatTargetAtHex = (
   queuedAttacks: CombatAttack[],
   currentTargetId?: string | null,
 ): CombatTargetSelection | null => {
-  const ordnance = getEnemyOrdnanceTargetAtHex(state, playerId, clickHex);
+  const ordnance = findTarget(state, playerId, 'ordnance', (item) =>
+    hexEqual(clickHex, item.position),
+  );
 
   if (ordnance) {
     return {
@@ -439,7 +435,14 @@ export const getCombatTargetAtHex = (
 
   const queuedTargets = getTargetedKeys(queuedAttacks);
   const target = getCycledSelection(
-    getUntargetedEnemyShipsAtHex(state, playerId, clickHex, queuedTargets),
+    findTargets(
+      state,
+      playerId,
+      'ship',
+      (ship) =>
+        !queuedTargets.has(`ship:${ship.id}`) &&
+        hexEqual(clickHex, ship.position),
+    ),
     currentTargetId,
   );
 
@@ -536,20 +539,18 @@ export const findNearestTarget = (
   for (const key of state.combatTargetedThisPhase ?? []) {
     queuedTargets.add(key);
   }
-  const enemyShips = getVisibleEnemyShipTargets(
-    state,
-    playerId,
-    attacker,
-    map,
-    queuedTargets,
-  );
-  const enemyNukes = getVisibleEnemyOrdnanceTargets(
-    state,
-    playerId,
-    attacker,
-    map,
-    queuedTargets,
-  );
+  const enemyShips = findTargets(state, playerId, 'ship', (ship) => {
+    return (
+      !queuedTargets.has(`ship:${ship.id}`) &&
+      hasLineOfSight(attacker, ship, map)
+    );
+  });
+  const enemyNukes = findTargets(state, playerId, 'ordnance', (item) => {
+    return (
+      !queuedTargets.has(`ordnance:${item.id}`) &&
+      hasLineOfSightToTarget(attacker, item, map)
+    );
+  });
 
   let best: CombatTargetSelection | null = null;
   let bestDist = Infinity;
@@ -580,8 +581,8 @@ export const hasVisibleCombatTargets = (
 ): boolean => {
   return getAvailableCombatAttackers(state, playerId, new Set()).some(
     (attacker) =>
-      getVisibleEnemyShipTargets(state, playerId, attacker, map).length > 0 ||
-      getVisibleEnemyOrdnanceTargets(state, playerId, attacker, map).length > 0,
+      getVisibleTargets(state, playerId, attacker, map, 'ship').length > 0 ||
+      getVisibleTargets(state, playerId, attacker, map, 'ordnance').length > 0,
   );
 };
 

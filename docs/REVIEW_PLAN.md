@@ -29,7 +29,7 @@ Work through **one section at a time**; each section lists scope, concrete steps
 
 **Scope**
 
-- Husky pre-commit: lint, `typecheck:all`, coverage, e2e, simulation.
+- Husky pre-commit: lint, `typecheck:all`, local D1 migration, coverage, browser e2e, a11y e2e, simulation.
 - Husky pre-commit includes both browser e2e paths (`test:e2e` and `test:e2e:a11y`) plus simulation.
 - Vitest coverage temp-file failures (`ENOENT` under `coverage/.tmp`).
 - Playwright vs occupied `8787` during pre-commit.

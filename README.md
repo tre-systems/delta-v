@@ -161,33 +161,7 @@ Keep Playwright additions focused on browser-only risks so the suite remains fas
 
 For the comprehensive ruleset detailing movement edge cases, damage tables, and specific scenario rules, refer to [SPEC.md](./docs/SPEC.md).
 
-## 🗺️ Roadmap
-
-Open work lives in [**BACKLOG.md**](./docs/BACKLOG.md). This section is shipped-history context only.
-
-### Complete
-
-- [x] 9 playable scenarios with AI opponent (Easy/Normal/Hard)
-- [x] Server hardening (authoritative room creation, authenticated reconnects, runtime validation)
-- [x] Hidden information (server-side state filtering for _Escape_)
-- [x] Orbital bases, core logistics, reinforcements, fleet conversion
-- [x] PWA support (installable, offline single-player)
-- [x] Engine safety (clone-on-entry, server rollback, event-sourced recovery)
-- [x] Error reporting and anonymous telemetry (D1 storage)
-- [x] 1,500+ automated tests across engine, client, and server layers, plus browser smoke coverage and scenario AI simulations
-- [x] Engine decomposition into focused phase processors (game-creation, astrogation, resolve-movement, combat, etc.)
-- [x] Typed ship lifecycle/control state models that narrow invalid state combinations
-- [x] Granular engine events (32 `EngineEvent` types emitted by engine, replacing server-side derivation)
-- [x] Data-driven AI configuration (per-difficulty scoring weights in `src/shared/ai/config.ts`)
-- [x] AI scoring decomposition (5 composable strategy functions in `src/shared/ai/scoring.ts`)
-- [x] Archive persistence extracted from Durable Object into standalone module
-- [x] Event-sourced authoritative match persistence with replay/reconnect recovery from event stream plus checkpoints
-- [x] Shared rule consolidation, bounded type imports, authoritative disconnect-forfeit
-
-### Shipped
-
-- [x] **Passenger Rescue Mechanics**: Passengers, transfers, Convoy + Evacuation scenarios
-- [x] **All 9 Scenarios**: Bi-Planetary through Grand Tour
+Open engineering work lives in [**BACKLOG.md**](./docs/BACKLOG.md).
 
 ## 🔗 External References
 

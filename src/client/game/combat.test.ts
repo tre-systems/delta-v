@@ -266,6 +266,36 @@ describe('game client combat helpers', () => {
     });
   });
 
+  it('ignores undetected ships and non-nuke ordnance when choosing combat targets', () => {
+    const state = createState({
+      ships: [
+        createShip({ id: 'a', owner: 0 }),
+        createShip({
+          id: 'b',
+          owner: 0,
+          position: { q: 0, r: 1 },
+        }),
+        createShip({
+          id: 'x',
+          owner: 1,
+          position: { q: 1, r: 0 },
+          detected: false,
+        }),
+      ],
+      ordnance: [
+        createOrdnance({
+          id: 'mine-0',
+          type: 'mine',
+          position: { q: 2, r: 0 },
+        }),
+      ],
+    });
+
+    expect(getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, [])).toBeNull();
+    expect(getCombatTargetAtHex(state, 0, { q: 2, r: 0 }, [])).toBeNull();
+    expect(hasVisibleCombatTargets(state, 0, map)).toBe(false);
+  });
+
   it('cycles through stacked combat attackers on repeated clicks', () => {
     const hex = { q: 0, r: 0 };
     const state = createState({

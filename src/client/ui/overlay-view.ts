@@ -316,12 +316,20 @@ export const createOverlayView = (
 
       clearHTML(toastContainerEl);
       for (const toast of toasts) {
-        toastContainerEl.appendChild(
-          el('div', {
-            class: `toast toast-${toast.type}`,
-            text: toast.message,
-          }),
+        const toastEl = el('div', {
+          class: `toast toast-${toast.type}`,
+          text: toast.message,
+        });
+        toastEl.setAttribute(
+          'role',
+          toast.type === 'error' ? 'alert' : 'status',
         );
+        toastEl.setAttribute(
+          'aria-live',
+          toast.type === 'error' ? 'assertive' : 'polite',
+        );
+        toastEl.setAttribute('aria-atomic', 'true');
+        toastContainerEl.appendChild(toastEl);
       }
     });
 

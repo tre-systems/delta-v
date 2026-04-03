@@ -74,7 +74,7 @@ The current playable roster includes:
 
 ## Implementation Notes
 
-- This repo currently tracks textual visual direction; concept bitmap assets are optional and may live outside source control.
+- This repo tracks the visual direction doc plus supporting concept bitmaps under `docs/assets/`; gameplay code must not depend on those assets.
 - Keep this guide synchronized with the playable ship roster in `SHIP_STATS`.
 - If a ship is added/removed in gameplay code, update this file in the same PR.
 

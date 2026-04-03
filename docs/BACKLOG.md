@@ -26,19 +26,21 @@ Core architecture work (`17`-`20`) is complete: exhaustive FSM switches, multi-s
 
 ### 2. Legal and user-facing privacy (if applicable) — **Human**
 
-**Status:** not started (human/legal gate).
+**Status:** partial.
 
-**Remaining:** [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) describes what the code stores; it is **not** a privacy policy. Before broad public launch or regulated regions, complete legal review and publish required notices/consents. Align marketing/site copy with telemetry and retention ([SECURITY.md](./SECURITY.md#data-retention-d1-r2-do)).
+**Baseline shipped:** a brief in-product operational disclosure now exists in the main menu clarifying anonymous diagnostics, completed-match archives, and the "live-only by default" chat posture.
+
+**Remaining:** [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) describes what the code stores; it is **not** a privacy policy. Before broad public launch or regulated regions, complete legal review and publish required notices/consents. Confirm the shipped UI copy is adequate for the jurisdictions and surfaces you care about, and align marketing/site copy with telemetry and retention ([SECURITY.md](./SECURITY.md#data-retention-d1-r2-do)).
 
 **Owner:** you + counsel.
 
 ### 7. Manual DOM accessibility audit pass — **Human**
 
-**Status:** automation shipped; manual audit follow-up open.
+**Status:** partial.
 
-**Baseline shipped:** automated Playwright + axe checks run in `test:e2e:a11y` and `verify`.
+**Baseline shipped:** automated Playwright + axe checks run in `test:e2e:a11y` and `verify`. A best-effort manual pass on **2026-04-03** tightened input naming, live-region semantics, and help-overlay dialog focus handling.
 
-**Remaining:** execute the manual checklist in [A11Y.md](./A11Y.md) after major UI changes: keyboard-only pass through create/join/play/game-over, focus behavior, and contrast review for DOM controls (menus, HUD chrome, fleet builder, chat input). The Canvas board remains pointer-first unless product mandates otherwise.
+**Remaining:** repeat the manual checklist in [A11Y.md](./A11Y.md) after major UI changes, with special attention to visual contrast and real-device keyboard/touch behavior for DOM controls (menus, HUD chrome, fleet builder, chat input). The Canvas board remains pointer-first unless product mandates otherwise.
 
 **Owner:** maintainer / QA. **Deliverable:** fix obvious issues or file scoped tasks; record results with the A11Y audit template.
 
@@ -90,14 +92,6 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 
 **Files:** `src/client/game/planning.ts`, consumers in `src/client/game/`
 
-### 25. Generic combat target finder
-
-**Status:** not started.
-
-**Remaining:** `combat.ts` has 7 similar filter/find functions for locating ships and ordnance targets, each differing by one predicate. Replace with a single `findTargets(state, filter)` utility.
-
-**Files:** `src/client/game/combat.ts`
-
 ### 28. Shared test factory module
 
 **Status:** not started.
@@ -105,14 +99,6 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 **Remaining:** Test files independently redefine `createShip()`, `createState()`, and similar builders with deep boilerplate. Extract a shared test factory with smart defaults to cut repetition across test files.
 
 **Files:** test files across `src/client/game/` and `src/shared/engine/`
-
-### 30. Event projector handler registry
-
-**Status:** not started.
-
-**Remaining:** `event-projector/index.ts` uses a switch with manual case grouping to route events to 3 category handlers. Replace with a registry keyed by event type to reduce fragility when adding new events.
-
-**Files:** `src/shared/engine/event-projector/index.ts`
 
 ### 31. Decompose client kernel composition root
 
@@ -139,12 +125,3 @@ Today markup is internal/trusted. If chat, player names, or modded scenarios eve
 **Remaining:** `logistics-ui.ts` still mixes store creation, transfer calculations, DOM rendering, and UI event wiring in one large module. Separate the state/model layer from DOM rendering and event handling so logistics changes stop touching one file.
 
 **Files:** `src/client/game/logistics-ui.ts`, related tests
-
----
-### 21. Spectator UX Hardening
-
-**Status:** baseline support shipped.
-
-**Remaining:** review and polish the "spectator" experience. Currently, spectators use a stripped-down HUD. Ensure they have clear "Spectating" status indicators, can see all ship stats without interactive controls appearing, and have a unique "Game Over" summary that reflects the global outcome rather than personal fleet stats.
-
-**Files:** `src/client/game/selection.ts`, `src/client/game/hud-view-model.ts`, `src/client/ui/hud.ts`

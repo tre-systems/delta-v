@@ -1,4 +1,4 @@
-import { byId, cls, text, visible } from '../dom';
+import { byId, cls, listen, text, visible } from '../dom';
 import {
   computed,
   createDisposalScope,
@@ -38,6 +38,19 @@ export interface HUDChromeView {
   showFireButton: (isVisible: boolean, count: number) => void;
   dispose: () => void;
 }
+
+const HELP_OVERLAY_FOCUSABLE =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+const getFocusableHelpElements = (container: HTMLElement): HTMLElement[] => {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(HELP_OVERLAY_FOCUSABLE),
+  ).filter(
+    (element) =>
+      !element.hasAttribute('disabled') &&
+      element.getAttribute('aria-hidden') !== 'true',
+  );
+};
 
 const cloneHUDInput = (
   input: Omit<HUDInput, 'isMobile'>,
@@ -393,6 +406,46 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       const isConfirm = fireButton.count > 0;
       text(fireBtn, isConfirm ? 'CONFIRM' : 'END COMBAT');
       fireBtn.className = isConfirm ? 'btn btn-confirm' : 'btn btn-skip';
+    });
+
+    listen(helpOverlayEl, 'keydown', (event) => {
+      if (!helpOverlayVisibleSignal.peek()) {
+        return;
+      }
+
+      const keyEvent = event as KeyboardEvent;
+
+      if (keyEvent.key === 'Escape') {
+        keyEvent.preventDefault();
+        toggleHelpOverlay();
+        return;
+      }
+
+      if (keyEvent.key !== 'Tab') {
+        return;
+      }
+
+      const focusable = getFocusableHelpElements(helpOverlayEl);
+      if (focusable.length === 0) {
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (keyEvent.shiftKey) {
+        if (active === first || !helpOverlayEl.contains(active)) {
+          keyEvent.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+
+      if (active === last) {
+        keyEvent.preventDefault();
+        first.focus();
+      }
     });
   });
 

@@ -31,6 +31,7 @@ It does not replace a privacy policy, legal review, or jurisdiction-specific com
 ## Operational note
 
 - Access to logs, D1 query surfaces, and R2 archives should be restricted to trusted maintainers/operators.
+- The product now ships a short in-app operational disclosure describing anonymous diagnostics and completed-match archives, but that disclosure is not a substitute for legal review or a jurisdiction-specific privacy policy.
 
 ## Further reading
 
