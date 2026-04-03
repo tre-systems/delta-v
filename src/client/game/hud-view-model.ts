@@ -14,12 +14,9 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { count } from '../../shared/util';
+import type { HudPlanningSnapshot } from './planning';
 import { getSelectedShip } from './selection';
-import type {
-  HudViewModel,
-  HudViewPlanningSnapshot,
-  OrdnanceActionState,
-} from './types';
+import type { HudViewModel, OrdnanceActionState } from './types';
 
 const getObjective = (state: GameState, playerId: PlayerId | -1): string => {
   if (playerId < 0) {
@@ -157,7 +154,7 @@ const getOrdnanceActionState = (
 export const deriveHudViewModel = (
   state: GameState,
   playerId: PlayerId | -1,
-  planning: HudViewPlanningSnapshot,
+  planning: HudPlanningSnapshot,
   map?: SolarSystemMap | null,
 ): HudViewModel => {
   const myShips =

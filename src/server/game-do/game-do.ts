@@ -1,7 +1,11 @@
 import { DurableObject } from 'cloudflare:workers';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../../shared/constants';
 import type { EngineEvent } from '../../shared/engine/engine-events';
-import { buildSolarSystemMap, SCENARIOS } from '../../shared/map-data';
+import {
+  buildSolarSystemMap,
+  isValidScenario,
+  SCENARIOS,
+} from '../../shared/map-data';
 import { deriveActionRng } from '../../shared/prng';
 import type { GameState, PlayerId, Result } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
@@ -78,7 +82,7 @@ export class GameDO extends DurableObject<Env> {
   private readonly lastChatAt = new Map<number, number>();
   private readonly gameStateActionHandlers = createGameStateActionHandlers({
     map: this.map,
-    getScenario: () => this.getScenario(),
+    getScenario: () => this.getScenario().then((s) => s.def),
     getActionRng: () => this.getActionRng(),
     publishStateChange: (state, primaryMessage, options) =>
       this.publishStateChange(state, primaryMessage, options),
@@ -167,7 +171,8 @@ export class GameDO extends DurableObject<Env> {
   private async getScenario() {
     const scenarioName =
       (await this.getRoomConfig())?.scenario ?? 'biplanetary';
-    return SCENARIOS[scenarioName] ?? SCENARIOS.biplanetary;
+    const key = isValidScenario(scenarioName) ? scenarioName : 'biplanetary';
+    return { def: SCENARIOS[key], key };
   }
 
   private async setGameCode(code: string): Promise<void> {

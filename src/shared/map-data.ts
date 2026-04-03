@@ -4,4 +4,5 @@ export {
   findBaseHex,
   findBaseHexes,
 } from './map-layout';
-export { SCENARIOS } from './scenario-definitions';
+export type { ScenarioKey } from './scenario-definitions';
+export { isValidScenario, SCENARIOS } from './scenario-definitions';
