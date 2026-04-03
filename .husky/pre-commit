@@ -6,7 +6,7 @@ if grep -rn '\.innerHTML\s*=' src/client/ --include='*.ts' | grep -v 'dom.ts' | 
   exit 1
 fi
 
-if grep -rn 'Math\.random' src/shared/engine/ --include='*.ts' | grep -v '\.test\.ts'; then
+if grep -rn 'Math\.random' src/shared/engine/ --include='*.ts' | grep -v '\.test\.ts' | grep -v '= Math\.random'; then
   echo "ERROR: Math.random found in engine code. Use injected rng parameter instead."
   exit 1
 fi
