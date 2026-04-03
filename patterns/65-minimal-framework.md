@@ -16,7 +16,7 @@ The architecture document explicitly states: "No heavy frameworks (React/Vue/etc
 
 | Concern | Framework approach | Delta-V approach |
 |---------|-------------------|------------------|
-| **Reactivity** | React state, MobX, Vue reactivity | Custom 214-line signals (`reactive.ts`) |
+| **Reactivity** | React state, MobX, Vue reactivity | Custom 213-line signals (`reactive.ts`) |
 | **DOM creation** | JSX, templates, virtual DOM | `el()` helper in `dom.ts` (declarative element creation) |
 | **Component model** | React components, Vue SFCs | Factory functions (`createGameClient`, `createRenderer`) |
 | **State management** | Redux, Zustand, Pinia | Signal stores (`game-state-store.ts`, `planning-store.ts`) |
@@ -29,13 +29,19 @@ The architecture document explicitly states: "No heavy frameworks (React/Vue/etc
 Instead of JSX or template strings, UI is constructed with a lightweight `el()` function:
 
 ```typescript
-el('div', { class: 'card', onClick: handler },
-  el('span', { class: 'title', text: 'Hello' }),
-  'some text',
+el(
+  'button',
+  {
+    class: 'card',
+    classList: { selected: isSelected },
+    text: 'Launch',
+    onClick: handler,
+    data: { action: 'launch' },
+  },
 )
 ```
 
-This provides declarative element creation with type-safe props, event binding, and child nesting -- the core value of JSX -- in about 80 lines of vanilla TypeScript.
+This provides declarative element creation with typed props, trusted-HTML routing, event binding, and child nesting without JSX or a virtual DOM. The helper is only one part of `dom.ts`, alongside `listen()`, `setTrustedHTML()`, `renderList()`, and visibility helpers.
 
 ### Factory-based composition
 
@@ -60,11 +66,11 @@ The renderer uses the Canvas 2D API directly rather than through a game framewor
 
 - **Service Worker**: Direct Service Worker API for offline caching, no Workbox
 - **WebSocket**: Direct WebSocket API through Cloudflare's hibernation layer
-- **DOM events**: Raw `addEventListener` with typed handlers, no synthetic event system
+- **DOM events**: A thin `listen()` wrapper over `addEventListener` with disposer registration, no synthetic event system
 
 ## Key Locations
 
-- `src/client/reactive.ts` -- custom reactive system (214 lines)
+- `src/client/reactive.ts` -- custom reactive system (213 lines)
 - `src/client/dom.ts` -- `el()` helper and DOM utilities
 - `src/client/game/client-kernel.ts` -- factory-based client composition
 - `src/client/renderer/` -- direct Canvas 2D rendering
@@ -76,6 +82,7 @@ The renderer uses the Canvas 2D API directly rather than through a game framewor
 The `el()` DOM helper:
 
 ```typescript
+// src/client/dom.ts
 export const el = (
   tag: string,
   props?: ElProps,
@@ -84,9 +91,16 @@ export const el = (
   const element = document.createElement(tag);
   if (props) {
     if (props.class) element.className = props.class;
-    if (props.onClick) element.addEventListener('click', props.onClick);
+    if (props.classList) {
+      for (const [cls, on] of Object.entries(props.classList)) {
+        element.classList.toggle(cls, on);
+      }
+    }
+    if (props.html) setTrustedHTML(element, props.html);
+    if (props.onClick) {
+      listen(element, 'click', props.onClick as EventListener);
+    }
     if (props.text) element.textContent = props.text;
-    // ...
   }
   for (const child of children) {
     element.appendChild(
@@ -126,11 +140,11 @@ The no-framework stance is applied with remarkable consistency:
 
 The architecture document, coding standards, and actual code all align on this stance. There is no "accidental framework" creeping in through dependencies.
 
-The only external runtime dependencies beyond Cloudflare platform APIs are `fast-check` (test-only) and fonts (loaded via Google Fonts CDN in `index.html`).
+There are no npm runtime UI framework dependencies at all. At runtime the app relies on platform APIs plus fonts loaded from Google Fonts in `index.html`; the package dependencies are all development-time tooling.
 
 ## Completeness Check
 
-- **Scaling concern**: As the UI grows more complex (settings screens, lobby features, chat), the `el()` helper may become verbose compared to JSX. The architecture doc acknowledges this with the "single trusted-HTML boundary" improvement note.
+- **Scaling concern**: As the UI grows more complex (settings screens, lobby features, chat), `el()` plus manual effects can become verbose compared to JSX. The architecture doc acknowledges this with the "single trusted-HTML boundary" improvement note.
 - **No component lifecycle**: There is no built-in component mounting/unmounting lifecycle. Disposal scopes serve this purpose, but they require manual wiring.
 - **No SSR**: Not needed for a game, but worth noting as a consequence of the no-framework choice.
 - **Accessibility**: Without a framework's aria tooling, accessibility attributes must be manually added. The `el()` helper supports `data` attributes but does not have first-class `aria-*` support.
