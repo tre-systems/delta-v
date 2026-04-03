@@ -30,7 +30,6 @@ import {
   getProjectedCurrentStateRaw,
 } from './archive';
 import {
-  broadcastFilteredMessage,
   broadcastMessage,
   broadcastStateChange,
   sendSocketMessage,
@@ -433,9 +432,8 @@ export class GameDO extends DurableObject<Env> {
       getScenario: () => this.getScenario(),
       getGameCode: () => this.getGameCode(),
       clearRoomArchivedFlag: () => this.clearRoomArchivedFlag(),
-      verifyProjectionParity: (state) => this.verifyProjectionParity(state),
-      broadcastFiltered: (msg) => this.broadcastFiltered(msg),
-      startTurnTimer: (state) => this.startTurnTimer(state),
+      publishStateChange: (state, primaryMessage, options) =>
+        this.publishStateChange(state, primaryMessage, options),
     };
   }
 
@@ -614,15 +612,5 @@ export class GameDO extends DurableObject<Env> {
 
   private broadcast(msg: S2C) {
     broadcastMessage(this.ctx, msg);
-  }
-
-  // Broadcast a message containing game state,
-  // filtering hidden information per player.
-  private broadcastFiltered(
-    msg: S2C & {
-      state: GameState;
-    },
-  ) {
-    broadcastFilteredMessage(this.ctx, msg);
   }
 }

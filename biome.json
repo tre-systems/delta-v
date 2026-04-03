@@ -60,6 +60,45 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/shared/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "../client": "shared/ must not import from client/ (layer boundary violation)",
+                  "../../client": "shared/ must not import from client/ (layer boundary violation)",
+                  "../server": "shared/ must not import from server/ (layer boundary violation)",
+                  "../../server": "shared/ must not import from server/ (layer boundary violation)"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/client/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "../server": "client/ must not import from server/ (layer boundary violation)",
+                  "../../server": "client/ must not import from server/ (layer boundary violation)",
+                  "../../../server": "client/ must not import from server/ (layer boundary violation)"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "files": {
