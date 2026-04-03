@@ -130,12 +130,18 @@ export const drawMinimapOverlay = (input: DrawMinimapOverlayInput): void => {
       '--hud-top-offset',
     ) || '0',
   );
+  const hudBottomOffset = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue(
+      '--hud-bottom-offset',
+    ) || '0',
+  );
   const layout = createMinimapLayout(
     map.bounds,
     screenW,
     screenH,
     hexSize,
     hudTopOffset,
+    hudBottomOffset,
   );
   const { x: mmX, y: mmY, width: mmW, height: mmH } = layout;
   ctx.save();
