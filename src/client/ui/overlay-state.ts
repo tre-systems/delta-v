@@ -4,8 +4,8 @@ import {
   buildGameOverView,
   buildReconnectView,
   buildRematchPendingView,
-  type GameOverStatsLike,
   type GameOverShipGroup,
+  type GameOverStatsLike,
   type GameOverSummaryItem,
 } from './screens';
 
