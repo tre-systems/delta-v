@@ -410,3 +410,30 @@ Also `getOwnedPlanetaryBases` in `util.ts` line ~127 widens `HexKey` to `string`
 **Files:** `src/shared/engine/turn-advance.ts`, `src/shared/engine/engine-events.ts`, `src/shared/engine/event-projector/lifecycle.ts`, related tests
 **Trigger:** any scenario enabling `scenarioRules.reinforcements` or `scenarioRules.fleetConversion`
 **Found by:** pattern catalogue: Event Sourcing; Visitor Event Projection; Parity Check
+
+### 61. Add coverage thresholds for server and client hotspots
+
+**Status:** not started.
+
+**Remaining:** `vitest.config.ts` currently enforces coverage floors only for `src/shared/**/*.ts`. Add selective thresholds for high-value non-shared paths so regressions outside the engine fail CI too. Good first candidates are `src/server/game-do/**/*.ts` and focused client modules with existing unit tests such as `src/client/game/**/*.ts` or the custom reactive / DOM helpers.
+
+**Files:** `vitest.config.ts`
+**Found by:** pattern catalogue: Coverage Thresholds
+
+### 62. Use `ErrorCode` for client-side error handling, not just telemetry
+
+**Status:** not started.
+
+**Remaining:** incoming S2C `error` messages already carry optional `ErrorCode`, but `applyErrorPlan` in `message-handler.ts` only logs the code to telemetry and shows the raw message toast. Add code-aware handling for common cases such as invalid input, turn/phase mistakes, and state conflicts so the client can provide clearer recovery guidance without parsing strings.
+
+**Files:** `src/client/game/message-handler.ts`, `src/client/game/client-message-plans.ts`, related UI tests
+**Found by:** pattern catalogue: Error Code Enum
+
+### 63. Reuse the shared `AIDifficulty` type through the UI event flow
+
+**Status:** not started.
+
+**Remaining:** the shared AI registry uses a single `AIDifficulty` union, but the UI flow weakens that by redefining the same union in `src/client/ui/events.ts` and restating it inline in `src/client/game/ui-event-router.ts` and `src/client/game/main-interactions.ts`. Import the shared alias end-to-end so difficulty keys stay coupled to the canonical registry type.
+
+**Files:** `src/client/ui/events.ts`, `src/client/game/ui-event-router.ts`, `src/client/game/main-interactions.ts`, any affected tests
+**Found by:** pattern catalogue: Multiton Preset Registries

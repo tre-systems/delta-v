@@ -220,10 +220,12 @@ event routing, and in telemetry. These are all magic strings that would break
 silently if a scenario were renamed.
 
 **AI difficulty strings are better contained.** The `AIDifficulty` type is used
-consistently in function signatures, which means misspelling a difficulty value
-causes a type error. However, the UI layer still uses inline string literals
-(`'easy' | 'normal' | 'hard'`) in some event type definitions rather than
-referencing the `AIDifficulty` type.
+consistently through the shared AI modules, which means misspelling a
+difficulty value causes a type error there. The client UI flow is a little less
+strict: `src/client/ui/events.ts` redefines `AIDifficulty`, and
+`src/client/game/ui-event-router.ts` still uses the inline union
+`'easy' | 'normal' | 'hard'` in its derived plan type instead of importing the
+shared alias.
 
 ## Completeness Check
 
@@ -239,7 +241,11 @@ referencing the `AIDifficulty` type.
    `'Combat'`, `'Speed'`, `'Epic'`, `'Fleet'`, `'Race'`, `'Escort'` are plain
    strings with no shared type. A `ScenarioTag` union type would prevent typos.
 
-3. **Body names are untyped strings throughout.** Values like `'Mars'`,
+3. **AI difficulty should have one shared alias end-to-end.** The current
+   registry itself is type-safe, but the UI layer weakens that benefit by
+   restating the difficulty union locally instead of importing the shared type.
+
+4. **Body names are untyped strings throughout.** Values like `'Mars'`,
    `'Venus'`, `'Terra'`, `'Luna'` appear in scenario definitions, rule
    configurations, and AI logic as plain strings. A `BodyName` union type
    derived from `BODY_DEFS` would add safety.

@@ -6,7 +6,7 @@ Validation & Error Handling
 
 ## Intent
 
-Categorise engine errors into a fixed set of machine-readable codes so that the server can distinguish between client bugs, player mistakes, and state conflicts -- and so that clients can handle errors programmatically rather than parsing human-readable strings.
+Categorise engine errors into a fixed set of machine-readable codes so that the server can distinguish between client bugs, player mistakes, and state conflicts, and so that clients have the option of handling errors programmatically instead of parsing human-readable strings.
 
 ## How It Works in Delta-V
 
@@ -45,6 +45,15 @@ The S2C `error` message type carries an optional `ErrorCode`:
 ```
 
 The `code` is optional because some errors (like internal server errors or rate limit violations) originate outside the engine and may not map to an `ErrorCode`.
+
+```mermaid
+flowchart LR
+  socket["socket.ts / ws.ts"] --> protocol["validateClientMessage()"]
+  protocol --> engine["engine or action runner"]
+  engine --> errorMsg["S2C error { message, code? }"]
+  errorMsg --> client["message-handler.ts"]
+  client --> ui["toast + telemetry"]
+```
 
 ## Key Locations
 
@@ -99,6 +108,20 @@ const sendInvalidSocketMessageError = (deps, ws, message: string): void => {
 };
 ```
 
+Client-side handling today only records the code; it does not branch on it:
+
+```typescript
+// src/client/game/message-handler.ts
+const applyErrorPlan = (deps, plan): void => {
+  console.error('Server error:', plan.message);
+  deps.trackEvent('server_error_received', {
+    message: plan.message,
+    code: plan.code,
+  });
+  deps.ui.overlay.showToast(plan.message, 'error');
+};
+```
+
 ## Consistency Analysis
 
 The `ErrorCode` enum is used consistently across all engine modules. Each error code maps to a clear semantic category:
@@ -112,10 +135,13 @@ The `ErrorCode` enum is used consistently across all engine modules. Each error 
 
 The server-level error path (`ws.ts`) uses `INVALID_INPUT` for malformed messages and `STATE_CONFLICT` for caught exceptions, which is a reasonable mapping.
 
+One clear inconsistency remains in the enum surface: `INVALID_PLAYER` is still defined but currently unused anywhere in the codebase.
+
 ## Completeness Check
 
 - **Missing: rate limit code**: Rate limit errors close the socket with code 1008 rather than sending an S2C error message. A dedicated `RATE_LIMITED` error code could be useful for client-side handling.
-- **Missing: client-side handling**: The client currently displays error messages as strings. It could use the `code` field to show localised or context-specific error messages.
+- **Missing: client-side handling**: The client currently tracks `plan.code` for telemetry but still displays errors purely as strings. It could use the `code` field to show context-specific messages or recovery guidance.
+- **Unused enum member**: `INVALID_PLAYER` is defined but not emitted by current validation paths.
 - **String enum**: Using string values (not numbers) is the right choice for debuggability and JSON compatibility. The TypeScript enum compiles to a plain object, keeping the bundle small.
 
 ## Related Patterns
