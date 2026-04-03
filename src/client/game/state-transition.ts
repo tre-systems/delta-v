@@ -1,7 +1,7 @@
 import { must } from '../../shared/assert';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { batch } from '../reactive';
-import { createLogisticsStore } from './logistics-ui';
+import { createLogisticsStore } from './logistics-store';
 import type { ClientState } from './phase';
 import { deriveClientStateEntryPlan } from './phase-entry';
 import type { ClientSessionStateTransitionContext } from './session-model';

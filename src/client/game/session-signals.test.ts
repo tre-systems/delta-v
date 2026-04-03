@@ -6,7 +6,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
-import { createLogisticsStore } from './logistics-ui';
+import { createLogisticsStore } from './logistics-store';
 import { createInitialClientSession } from './session-model';
 import {
   attachMainSessionEffects,

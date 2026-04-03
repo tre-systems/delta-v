@@ -1,5 +1,5 @@
 import { createGameClient, type GameClient } from './game/client-kernel';
-import { setupServiceWorkerReload } from './game/main-composition';
+import { setupServiceWorkerReload } from './game/client-runtime';
 import { installGlobalErrorHandlers } from './telemetry';
 import { installViewportSizing } from './viewport';
 
