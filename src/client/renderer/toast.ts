@@ -89,8 +89,13 @@ export const formatMovementEventToast = (
         variant: 'primary',
       };
 
-    default:
+    case 'capture':
       return null;
+    default: {
+      const _exhaustive: never = event.type;
+      void _exhaustive;
+      return null;
+    }
   }
 };
 

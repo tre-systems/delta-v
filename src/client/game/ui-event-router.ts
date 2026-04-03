@@ -100,5 +100,9 @@ export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
       return { kind: 'sendChat', text: event.text };
     case 'backToMenu':
       return { kind: 'trackOnly', event: 'scenario_browsed' };
+    default: {
+      const _exhaustive: never = event;
+      return _exhaustive;
+    }
   }
 };

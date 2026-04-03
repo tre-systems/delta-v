@@ -78,7 +78,7 @@ export interface ShipStats {
   fuelSealed: boolean;
 }
 
-export const SHIP_STATS: Record<ShipType, ShipStats> = {
+export const SHIP_STATS: Readonly<Record<ShipType, Readonly<ShipStats>>> = {
   transport: {
     name: 'Transport',
     combat: 1,
@@ -217,7 +217,7 @@ export const SHIP_STATS: Record<ShipType, ShipStats> = {
 export type OrdnanceType = 'mine' | 'torpedo' | 'nuke';
 
 // Mass in cargo units per ordnance type (rulebook p.9 equipment table).
-export const ORDNANCE_MASS: Record<OrdnanceType, number> = {
+export const ORDNANCE_MASS: Readonly<Record<OrdnanceType, number>> = {
   mine: 10,
   torpedo: 20,
   nuke: 20,

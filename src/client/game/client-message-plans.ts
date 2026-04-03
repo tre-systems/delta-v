@@ -192,5 +192,9 @@ export const deriveClientMessagePlan = (
         status: msg.status,
         graceDeadlineMs: msg.graceDeadlineMs,
       };
+    default: {
+      const _exhaustive: never = msg;
+      return _exhaustive;
+    }
   }
 };

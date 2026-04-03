@@ -77,12 +77,12 @@ describe('validateClientMessage', () => {
     it('rejects unknown message types', () => {
       expect(validateClientMessage({ type: 'godMode' })).toEqual({
         ok: false,
-        error: 'Unknown message type',
+        error: 'Unknown message type: godMode',
       });
 
       expect(validateClientMessage({ type: '' })).toEqual({
         ok: false,
-        error: 'Unknown message type',
+        error: 'Unknown message type: ',
       });
     });
   });
@@ -1509,7 +1509,7 @@ describe('validateServerMessage', () => {
     it('rejects unknown message types', () => {
       expect(validateServerMessage({ type: 'godMode' })).toEqual({
         ok: false,
-        error: 'Unknown message type',
+        error: 'Unknown message type: godMode',
       });
     });
   });

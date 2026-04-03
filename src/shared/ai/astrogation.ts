@@ -10,7 +10,7 @@ import {
   skipLogistics,
   skipOrdnance,
 } from '../engine/game-engine';
-import { hexDistance, hexKey, hexVecLength } from '../hex';
+import { type HexKey, hexDistance, hexKey, hexVecLength } from '../hex';
 import { computeCourse, detectOrbit } from '../movement';
 import { deriveCapabilities } from '../scenario-capabilities';
 import type {
@@ -563,7 +563,7 @@ export const aiAstrogation = (
       burn: number | null;
       overload: number | null;
       land?: boolean;
-      weakGravityChoices?: Record<string, boolean>;
+      weakGravityChoices?: Record<HexKey, boolean>;
     };
     const directions = [0, 1, 2, 3, 4, 5] as const;
     const inOrbit = canBurnFuel && detectOrbit(ship, map) !== null;
