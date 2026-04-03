@@ -35,10 +35,12 @@ export const createInputHandler = (
   };
 
   const handleMinimapClick = (screenX: number, screenY: number): boolean => {
+    const rootStyles = getComputedStyle(document.documentElement);
     const hudTopOffset = parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue(
-        '--hud-top-offset',
-      ) || '0',
+      rootStyles.getPropertyValue('--hud-top-offset') || '0',
+    );
+    const hudBottomOffset = parseFloat(
+      rootStyles.getPropertyValue('--hud-bottom-offset') || '0',
     );
 
     const target = resolveMinimapCameraTarget({
@@ -49,6 +51,7 @@ export const createInputHandler = (
       screenY,
       hexSize: HEX_SIZE,
       hudTopOffset,
+      hudBottomOffset,
     });
 
     if (!target) {

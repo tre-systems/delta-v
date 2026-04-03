@@ -104,6 +104,7 @@ describe('input interaction helpers', () => {
       screenY: minimapPoint.y,
       hexSize: 28,
       hudTopOffset: 0,
+      hudBottomOffset: 0,
     });
 
     expect(resolvedTarget?.x).toBeCloseTo(worldTarget.x);
@@ -117,6 +118,7 @@ describe('input interaction helpers', () => {
         screenY: layout.y - 4,
         hexSize: 28,
         hudTopOffset: 0,
+        hudBottomOffset: 0,
       }),
     ).toBeNull();
   });
