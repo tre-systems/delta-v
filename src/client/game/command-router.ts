@@ -26,7 +26,7 @@ import {
   sendSkipCombat,
 } from './combat-actions';
 import type { GameCommand } from './commands';
-import type { LogisticsStore } from './logistics-ui';
+import type { LogisticsStore } from './logistics-store';
 import {
   confirmOrdnance,
   type OrdnanceActionDeps,

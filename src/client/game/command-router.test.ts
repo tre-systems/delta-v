@@ -13,7 +13,7 @@ import { type CommandRouterDeps, dispatchGameCommand } from './command-router';
 import {
   createLogisticsStoreFromPairs,
   type LogisticsStore,
-} from './logistics-ui';
+} from './logistics-store';
 import { createPlanningStore } from './planning';
 import type { GameTransport } from './transport';
 

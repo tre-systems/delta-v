@@ -2,7 +2,7 @@ import type { AIDifficulty } from '../../shared/ai';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { ReadonlySignal } from '../reactive';
 import { signal } from '../reactive';
-import type { LogisticsStore } from './logistics-ui';
+import type { LogisticsStore } from './logistics-store';
 import type { ClientState } from './phase';
 import { createPlanningStore, type PlanningStore } from './planning';
 import type { ReconnectOverlayState } from './session-ui-state';

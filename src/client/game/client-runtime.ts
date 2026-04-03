@@ -1,16 +1,145 @@
+import { CODE_LENGTH } from '../../shared/constants';
+import {
+  getAllowedOrdnanceTypes,
+  getOrderableShipsForPlayer,
+  hasLaunchableOrdnanceCapacity,
+} from '../../shared/engine/util';
+import { normalizePlayerToken, normalizeRoomCode } from '../../shared/ids';
 import type { SolarSystemMap } from '../../shared/types/domain';
-import { initAudio } from '../audio';
-import { byId } from '../dom';
+import { initAudio, isMuted, setMuted } from '../audio';
+import { byId, hide } from '../dom';
+import {
+  bindGameClientBrowserEvents,
+  bindServiceWorkerControllerReload,
+} from '../game-client-browser';
 import type { InputHandler } from '../input';
 import type { Renderer } from '../renderer/renderer';
 import type { UIEvent } from '../ui/events';
 import type { UIManager } from '../ui/ui';
 import type { KeyboardAction } from './keyboard';
-import { autoJoinFromUrl, bindMainBrowserEvents } from './main-composition';
+import { deriveKeyboardAction } from './keyboard';
+import type { ClientState } from './phase';
 import type { KeyboardPlanningSnapshot } from './planning';
+import { buildGameRoute } from './session-links';
 import type { ClientSession } from './session-model';
 
 type BrowserToastType = 'error' | 'info' | 'success';
+
+// Deps for wiring browser-level events (keyboard, sound, tooltip, online/offline)
+type BrowserBindingDeps = {
+  canvas: HTMLCanvasElement;
+  helpCloseBtn: HTMLElement;
+  helpBtn: HTMLElement;
+  soundBtn: HTMLElement;
+  tooltipEl: HTMLElement;
+  getState: () => ClientState;
+  hasGameState: () => boolean;
+  getGameState: () => import('../../shared/types/domain').GameState | null;
+  getPlanningState: () => KeyboardPlanningSnapshot;
+  updateTooltip: (x: number, y: number) => void;
+  onKeyboardAction: (action: KeyboardAction) => void;
+  onToggleHelp: () => void;
+  onUpdateSoundButton: () => void;
+  showToast: (message: string, type: BrowserToastType) => void;
+};
+
+const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
+  bindGameClientBrowserEvents({
+    canvas: deps.canvas,
+    helpCloseBtn: deps.helpCloseBtn,
+    helpBtn: deps.helpBtn,
+    soundBtn: deps.soundBtn,
+    getKeyboardAction: (event) =>
+      deriveKeyboardAction(
+        {
+          state: deps.getState(),
+          hasGameState: deps.hasGameState(),
+          typingInInput: event.target instanceof HTMLInputElement,
+          combatTargetId: deps.getPlanningState().combatTargetId,
+          queuedAttackCount: deps.getPlanningState().queuedAttacks.length,
+          torpedoAccelActive: deps.getPlanningState().torpedoAccel !== null,
+          torpedoAimingActive: deps.getPlanningState().torpedoAimingActive,
+          allShipsAcknowledged: (() => {
+            const gs = deps.getGameState?.();
+            if (!gs) return false;
+            const planning = deps.getPlanningState();
+            return getOrderableShipsForPlayer(gs, gs.activePlayer).every(
+              (s) =>
+                s.damage.disabledTurns > 0 ||
+                planning.acknowledgedShips.has(s.id),
+            );
+          })(),
+          allOrdnanceShipsAcknowledged: (() => {
+            const gs = deps.getGameState?.();
+            if (!gs) return true;
+            const planning = deps.getPlanningState();
+            return getOrderableShipsForPlayer(gs, gs.activePlayer)
+              .filter(
+                (s) =>
+                  s.damage.disabledTurns === 0 &&
+                  hasLaunchableOrdnanceCapacity(s, getAllowedOrdnanceTypes(gs)),
+              )
+              .every((s) => planning.acknowledgedOrdnanceShips.has(s.id));
+          })(),
+          hasSelectedShip: deps.getPlanningState().selectedShipId !== null,
+        },
+        { key: event.key, shiftKey: event.shiftKey },
+      ),
+    onKeyboardAction: (action) => deps.onKeyboardAction(action),
+    onToggleHelp: () => deps.onToggleHelp(),
+    onToggleSound: () => {
+      setMuted(!isMuted());
+      deps.onUpdateSoundButton();
+    },
+    onTooltipMove: (clientX, clientY) => deps.updateTooltip(clientX, clientY),
+    onTooltipLeave: () => hide(deps.tooltipEl),
+    onOffline: () =>
+      deps.showToast("You're offline — check your connection", 'error'),
+    onOnline: () => deps.showToast('Back online', 'success'),
+  });
+
+const autoJoinFromUrl = (
+  joinGame: (code: string, playerToken: string | null) => void,
+  spectateGame: (code: string) => void,
+  setMenuState: () => void,
+): void => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = normalizeRoomCode(urlParams.get('code'));
+  const playerToken = normalizePlayerToken(urlParams.get('playerToken'));
+  const viewer = urlParams.get('viewer');
+
+  if (code && code.length === CODE_LENGTH) {
+    history.replaceState(null, '', buildGameRoute(code));
+    if (viewer === 'spectator') {
+      spectateGame(code);
+    } else {
+      joinGame(code, playerToken);
+    }
+    return;
+  }
+  setMenuState();
+};
+
+export const setupServiceWorkerReload = () => {
+  if (
+    'serviceWorker' in navigator &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1'
+  ) {
+    bindServiceWorkerControllerReload(navigator.serviceWorker, window.location);
+  }
+};
+
+// Subset of MainInteractionController that setupClientRuntime needs.
+// Avoids importing the full controller type to keep the dependency light.
+type RuntimeInteractions = {
+  handleKeyboardAction: (action: KeyboardAction) => void;
+  handleUIEvent: (event: UIEvent) => void;
+  toggleHelp: () => void;
+  showToast: (message: string, type?: BrowserToastType) => void;
+  joinGame: (code: string, playerToken?: string | null) => void;
+  spectateGame: (code: string) => void;
+};
 
 type SetupClientRuntimeInput = {
   canvas: HTMLCanvasElement;
@@ -20,14 +149,9 @@ type SetupClientRuntimeInput = {
   input: InputHandler;
   ui: UIManager;
   ctx: Pick<ClientSession, 'state' | 'gameState' | 'planningState'>;
+  interactions: RuntimeInteractions;
   updateTooltip: (x: number, y: number) => void;
-  onKeyboardAction: (action: KeyboardAction) => void;
-  onToggleHelp: () => void;
   onUpdateSoundButton: () => void;
-  showToast: (message: string, type: BrowserToastType) => void;
-  onUIEvent: (event: UIEvent) => void;
-  joinGame: (code: string, playerToken: string | null) => void;
-  spectateGame: (code: string) => void;
   setMenuState: () => void;
 };
 
@@ -39,19 +163,14 @@ export const setupClientRuntime = ({
   input,
   ui,
   ctx,
+  interactions,
   updateTooltip,
-  onKeyboardAction,
-  onToggleHelp,
   onUpdateSoundButton,
-  showToast,
-  onUIEvent,
-  joinGame,
-  spectateGame,
   setMenuState,
 }: SetupClientRuntimeInput): (() => void) => {
   renderer.setMap(map);
   input.setMap(map);
-  ui.onEvent = onUIEvent;
+  ui.onEvent = (event) => interactions.handleUIEvent(event);
 
   const soundBtn = byId('soundBtn');
   onUpdateSoundButton();
@@ -67,10 +186,10 @@ export const setupClientRuntime = ({
     getGameState: () => ctx.gameState,
     getPlanningState: (): KeyboardPlanningSnapshot => ctx.planningState,
     updateTooltip,
-    onKeyboardAction,
-    onToggleHelp,
+    onKeyboardAction: (action) => interactions.handleKeyboardAction(action),
+    onToggleHelp: () => interactions.toggleHelp(),
     onUpdateSoundButton,
-    showToast,
+    showToast: (message, type) => interactions.showToast(message, type),
   });
 
   const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -83,7 +202,11 @@ export const setupClientRuntime = ({
 
   initAudio();
   renderer.start();
-  autoJoinFromUrl(joinGame, spectateGame, setMenuState);
+  autoJoinFromUrl(
+    (code, playerToken) => interactions.joinGame(code, playerToken),
+    (code) => interactions.spectateGame(code),
+    setMenuState,
+  );
 
   return () => {
     window.removeEventListener('beforeunload', onBeforeUnload);

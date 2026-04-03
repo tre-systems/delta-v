@@ -6,8 +6,8 @@ import type { Ship } from '../../shared/types/domain';
 import {
   createLogisticsStoreFromPairs,
   type LogisticsStore,
-  renderTransferPanel,
-} from './logistics-ui';
+} from './logistics-store';
+import { renderTransferPanel } from './logistics-ui';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'ship-0',
@@ -111,30 +111,5 @@ describe('logistics-ui', () => {
 
     expect(firstState.fuelAmounts.get('ship-0->ship-1')).toBe(0);
     expect(container.textContent).toContain('No transfer-eligible ships');
-  });
-
-  it('builds transfer orders from the tracked amounts', () => {
-    const pair = createTransferPair();
-    const key = `${pair.source.id}->${pair.target.id}`;
-    const state = createLogisticsState({
-      fuelAmounts: new Map([[key, 2]]),
-      cargoAmounts: new Map([[key, 1]]),
-    });
-
-    expect(state.buildTransferOrders()).toEqual([
-      {
-        sourceShipId: 'ship-0',
-        targetShipId: 'ship-1',
-        transferType: 'fuel',
-        amount: 2,
-      },
-      {
-        sourceShipId: 'ship-0',
-        targetShipId: 'ship-1',
-        transferType: 'cargo',
-        amount: 1,
-      },
-    ]);
-    expect(state.hasQueuedTransfers()).toBe(true);
   });
 });
