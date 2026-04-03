@@ -67,6 +67,16 @@ export interface AIDifficultyConfig {
   ordnanceSkipChance: number;
   nukeStrengthRange: number;
 
+  // --- Map boundary avoidance ---
+  boundaryAvoidanceThreshold: number;
+  boundaryAvoidanceSeverityMultiplier: number;
+  boundaryVelocityThreshold: number;
+  boundaryVelocityPenalty: number;
+
+  // --- Behavioral quirks ---
+  easyRandomBurnProbability: number;
+  distributeInterceptTargets: boolean;
+
   // --- Combat targeting ---
   targetDistPenalty: number;
   targetModPenalty: number;
@@ -124,6 +134,12 @@ export const AI_CONFIG: Readonly<
     fuelSeekLandingBonus: 800,
     fuelDriftBonus: 0.5,
     fuelOverloadPenalty: 1,
+    boundaryAvoidanceThreshold: 5,
+    boundaryAvoidanceSeverityMultiplier: 25,
+    boundaryVelocityThreshold: 8,
+    boundaryVelocityPenalty: 20,
+    easyRandomBurnProbability: 0.25,
+    distributeInterceptTargets: false,
     torpedoRange: 8,
     mineRange: 4,
     ordnanceSkipChance: 0.3,
@@ -180,6 +196,12 @@ export const AI_CONFIG: Readonly<
     fuelSeekLandingBonus: 800,
     fuelDriftBonus: 0.5,
     fuelOverloadPenalty: 1,
+    boundaryAvoidanceThreshold: 5,
+    boundaryAvoidanceSeverityMultiplier: 25,
+    boundaryVelocityThreshold: 8,
+    boundaryVelocityPenalty: 20,
+    easyRandomBurnProbability: 0,
+    distributeInterceptTargets: false,
     torpedoRange: 8,
     mineRange: 4,
     ordnanceSkipChance: 0,
@@ -236,6 +258,12 @@ export const AI_CONFIG: Readonly<
     fuelSeekLandingBonus: 800,
     fuelDriftBonus: 0.5,
     fuelOverloadPenalty: 1,
+    boundaryAvoidanceThreshold: 5,
+    boundaryAvoidanceSeverityMultiplier: 25,
+    boundaryVelocityThreshold: 8,
+    boundaryVelocityPenalty: 20,
+    easyRandomBurnProbability: 0,
+    distributeInterceptTargets: true,
     torpedoRange: 12,
     mineRange: 6,
     ordnanceSkipChance: 0,

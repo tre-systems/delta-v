@@ -16,7 +16,7 @@ import type {
   SolarSystemMap,
 } from '../types';
 import { minBy } from '../util';
-import type { AIDifficulty } from './types';
+import type { AIDifficultyConfig } from './config';
 
 export const findDirectionToward = (
   from: {
@@ -219,7 +219,7 @@ export const getInterceptContinuationPreference = (
   course: CourseResult,
   enemyShips: Ship[],
   shipIndex: number,
-  difficulty: AIDifficulty,
+  cfg: AIDifficultyConfig,
   map: SolarSystemMap,
   destroyedBases: GameState['destroyedBases'],
 ): { bonus: number; tiebreak: number } => {
@@ -229,7 +229,7 @@ export const getInterceptContinuationPreference = (
 
   const focusTargets = getInterceptFocusTargets(enemyShips);
   const assignedTarget =
-    difficulty === 'hard' && focusTargets.length > 1
+    cfg.distributeInterceptTargets && focusTargets.length > 1
       ? focusTargets[shipIndex % focusTargets.length]
       : (minBy(focusTargets, (enemy) =>
           hexDistance(course.destination, enemy.position),

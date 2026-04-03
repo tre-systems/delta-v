@@ -296,7 +296,6 @@ const getPassengerEmergencyEscortOrders = (
             escapeWins,
             enemyShips,
             cfg,
-            difficulty,
             map,
             isRace: false,
             enemyEscaping,
@@ -315,7 +314,6 @@ const getPassengerEmergencyEscortOrders = (
             escapeWins: false,
             enemyShips,
             cfg,
-            difficulty,
             map,
             isRace: false,
             enemyEscaping,
@@ -660,7 +658,6 @@ export const aiAstrogation = (
           escapeWins,
           enemyShips,
           cfg,
-          difficulty,
           map,
           isRace: !!checkpoints,
           enemyEscaping,
@@ -744,7 +741,6 @@ export const aiAstrogation = (
             escapeWins,
             enemyShips,
             cfg,
-            difficulty,
             map,
             isRace: !!checkpoints,
             enemyEscaping,
@@ -776,7 +772,7 @@ export const aiAstrogation = (
             comparisonCourse,
             enemyShips,
             shipIdx,
-            difficulty,
+            cfg,
             map,
             state.destroyedBases,
           )
@@ -802,7 +798,11 @@ export const aiAstrogation = (
       }
     }
 
-    if (difficulty === 'easy' && rng() < 0.25 && canBurnFuel) {
+    if (
+      cfg.easyRandomBurnProbability > 0 &&
+      rng() < cfg.easyRandomBurnProbability &&
+      canBurnFuel
+    ) {
       const randomDir = Math.floor(rng() * 6);
       const course = computeCourse(ship, randomDir, map, {
         destroyedBases: state.destroyedBases,

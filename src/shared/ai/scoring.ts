@@ -192,7 +192,6 @@ export const scoreCombatPositioning = (
   targetHex: { q: number; r: number } | null,
   enemyEscaping: boolean,
   shipIndex: number,
-  difficulty: string,
   cfg: AIDifficultyConfig,
 ): number => {
   if (enemyShips.length === 0) return 0;
@@ -201,10 +200,10 @@ export const scoreCombatPositioning = (
   let score = 0;
   const myStrength = getCombatStrength([ship]);
   const intercepting = enemyEscaping && noPrimaryObjective;
-  // Distribute ships across targets on hard
-  // difficulty to avoid all chasing the same one
+  // Distribute ships across targets to avoid
+  // all chasing the same one (config-driven)
   const assignedTarget =
-    intercepting && difficulty === 'hard' && enemyShips.length > 1
+    intercepting && cfg.distributeInterceptTargets && enemyShips.length > 1
       ? enemyShips[shipIndex % enemyShips.length]
       : null;
 
@@ -318,7 +317,6 @@ export interface ScoreCourseParams {
   escapeWins: boolean;
   enemyShips: Ship[];
   cfg: AIDifficultyConfig;
-  difficulty: string;
   map?: SolarSystemMap;
   isRace?: boolean;
   enemyEscaping?: boolean;
@@ -336,7 +334,6 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
     escapeWins,
     enemyShips,
     cfg,
-    difficulty,
     map,
     isRace,
     enemyEscaping,
@@ -364,15 +361,19 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
     const { minQ, maxQ, minR, maxR } = map.bounds;
     const d = course.destination;
     const edgeDist = Math.min(d.q - minQ, maxQ - d.q, d.r - minR, maxR - d.r);
-    if (edgeDist < 5) {
-      // Exponential penalty: mild at 4 hexes, catastrophic at 0
-      const severity = 5 - edgeDist;
-      score -= severity * severity * 25 * cfg.multiplier;
+    if (edgeDist < cfg.boundaryAvoidanceThreshold) {
+      // Exponential penalty: mild at threshold-1 hexes, catastrophic at 0
+      const severity = cfg.boundaryAvoidanceThreshold - edgeDist;
+      score -=
+        severity *
+        severity *
+        cfg.boundaryAvoidanceSeverityMultiplier *
+        cfg.multiplier;
     }
     // Extra penalty if velocity is pointing toward the nearest edge
     const v = course.newVelocity;
     const speed = hexVecLength(v);
-    if (speed > 0 && edgeDist < 8) {
+    if (speed > 0 && edgeDist < cfg.boundaryVelocityThreshold) {
       const nextQ = d.q + v.dq;
       const nextR = d.r + v.dr;
       const nextEdgeDist = Math.min(
@@ -382,7 +383,10 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
         maxR - nextR,
       );
       if (nextEdgeDist < edgeDist) {
-        score -= (edgeDist - nextEdgeDist) * 20 * cfg.multiplier;
+        score -=
+          (edgeDist - nextEdgeDist) *
+          cfg.boundaryVelocityPenalty *
+          cfg.multiplier;
       }
     }
   }
@@ -415,7 +419,6 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
     targetHex,
     !!enemyEscaping,
     shipIndex ?? 0,
-    difficulty,
     cfg,
   );
 
