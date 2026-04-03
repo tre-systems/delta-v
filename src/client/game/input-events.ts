@@ -211,7 +211,6 @@ const interpretClickHex = (
       return interpretAstrogationClick(hex, state, map, playerId, planning);
     default:
       return [];
-
   }
 };
 

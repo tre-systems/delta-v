@@ -9,8 +9,7 @@ const CLIENT_ROOT = join(SRC_ROOT, 'client');
 const ENGINE_ROOT = join(SHARED_ROOT, 'engine');
 
 // Matches import/export-from statements and extracts the module specifier.
-const IMPORT_PATTERN =
-  /(?:from|import)\s+['"]([^'"]+)['"]/g;
+const IMPORT_PATTERN = /(?:from|import)\s+['"]([^'"]+)['"]/g;
 
 // Recursively collect all .ts files, skipping test files.
 const collectSourceFiles = (dir: string): string[] => {
@@ -44,22 +43,21 @@ const importsLayer = (specifier: string, layer: string): boolean =>
   specifier.includes(`/${layer}/`) || specifier.startsWith(`${layer}/`);
 
 // Scan files for imports that violate a boundary and return violation strings.
-const findViolations = (
-  root: string,
-  forbiddenLayers: string[],
-): string[] => {
+const findViolations = (root: string, forbiddenLayers: string[]): string[] => {
   const violations: string[] = [];
 
   for (const filePath of collectSourceFiles(root)) {
     const source = readFileSync(filePath, 'utf8');
 
     for (const match of source.matchAll(IMPORT_PATTERN)) {
-      const specifier = match[1]!;
+      const specifier = match[1] ?? '';
 
       for (const layer of forbiddenLayers) {
         if (importsLayer(specifier, layer)) {
           const rel = relative(root, filePath);
-          violations.push(`${rel} imports "${specifier}" (forbidden: ${layer})`);
+          violations.push(
+            `${rel} imports "${specifier}" (forbidden: ${layer})`,
+          );
         }
       }
     }

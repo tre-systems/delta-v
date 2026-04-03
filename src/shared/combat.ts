@@ -51,7 +51,9 @@ const GUN_COMBAT_TABLE: readonly (readonly number[])[] = [
 // Values: 0 = no effect, 1-5 = disabled, 6 = eliminated
 export type OtherDamageSource = 'torpedo' | 'mine' | 'asteroid' | 'ram';
 
-const OTHER_DAMAGE_TABLES: Readonly<Record<OtherDamageSource, readonly number[]>> = {
+const OTHER_DAMAGE_TABLES: Readonly<
+  Record<OtherDamageSource, readonly number[]>
+> = {
   torpedo: [0, 1, 1, 1, 2, 3],
   mine: [0, 0, 0, 0, 2, 2],
   asteroid: [0, 0, 0, 0, 1, 2],
