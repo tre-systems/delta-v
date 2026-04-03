@@ -16,11 +16,21 @@ src/server/   -- Cloudflare Workers runtime, Durable Objects, storage, WebSocket
 src/client/   -- Browser DOM, Canvas rendering, reactive UI, user input.
 ```
 
+```mermaid
+flowchart LR
+  client["src/client"] --> shared["src/shared"]
+  server["src/server"] --> shared["src/shared"]
+  client -. "forbidden" .-> server["src/server"]
+  server -. "forbidden" .-> client["src/client"]
+  shared -. "forbidden" .-> client
+  shared -. "forbidden" .-> server
+```
+
 **Import rules (strictly enforced):**
 
 - `shared/` NEVER imports from `client/` or `server/`. This is verified by a grep search showing zero cross-boundary imports.
-- `server/` imports from `shared/` freely (32 files import shared modules).
-- `client/` imports from `shared/` freely (157 files import shared modules).
+- `server/` imports from `shared/` freely.
+- `client/` imports from `shared/` freely.
 - `client/` NEVER imports from `server/`. This is verified by a grep search showing zero cross-boundary imports.
 - `server/` NEVER imports from `client/`. This is enforced by an automated test.
 
@@ -38,21 +48,21 @@ The `src/shared/engine/` directory contains the pure game engine:
 
 ## Key Locations
 
-| Purpose | File | Lines |
+| Purpose | File | Role |
 |---|---|---|
-| Import boundary test (server) | `src/server/import-boundary.test.ts` | 1-45 |
-| Shared engine re-exports | `src/shared/engine/game-engine.ts` | 39-61 |
-| Shared types | `src/shared/types/` | (directory) |
-| Server entry point | `src/server/index.ts` | full file |
-| Client entry point | `src/client/main.ts` | full file |
-| Shared protocol validation | `src/shared/protocol.ts` | full file |
+| Import boundary test (server) | `src/server/import-boundary.test.ts` | verifies `server/` never imports `client/` |
+| Shared engine re-exports | `src/shared/engine/game-engine.ts` | public pure-engine barrel |
+| Shared types | `src/shared/types/` | domain and protocol contracts |
+| Server entry point | `src/server/index.ts` | Worker HTTP entry |
+| Client entry point | `src/client/main.ts` | browser bootstrap |
+| Shared protocol validation | `src/shared/protocol.ts` | runtime guards at the boundary |
 
 ## Code Examples
 
 The automated import boundary test in `src/server/import-boundary.test.ts` scans all server TypeScript files for client imports:
 
 ```typescript
-// src/server/import-boundary.test.ts lines 6-45
+// src/server/import-boundary.test.ts
 const CLIENT_IMPORT_PATTERN =
   /(?:from|import)\s+['"][^'"]*\/client\/[^'"]*['"]/g;
 
@@ -76,7 +86,7 @@ describe('server import boundaries', () => {
 The shared engine barrel file exports only pure functions with no platform dependencies (`src/shared/engine/game-engine.ts`):
 
 ```typescript
-// src/shared/engine/game-engine.ts lines 39-61
+// src/shared/engine/game-engine.ts
 export {
   processAstrogation,
   processOrdnance,
@@ -105,7 +115,7 @@ export { filterStateForPlayer, type ViewerId } from './resolve-movement';
 **Strengths:**
 
 - The import boundary test provides automated enforcement for the server-to-client boundary. This runs in CI and prevents accidental violations.
-- The `shared/` layer is genuinely pure. A grep for `Date.now()`, `Math.random`, `console.`, `fetch(`, and `crypto.` in `src/shared/engine/` shows these only appear in test files, never in production engine code. The one exception is `Math.random` as a default parameter in `createGame`, but it is always overridden by callers.
+- The `shared/` layer is mostly pure in practice. A grep for `Date.now()`, `console.`, `fetch(`, and `crypto.` in `src/shared/engine/` only hits tests; the remaining determinism caveat is the default RNG parameter on `createGame`, which is tracked separately as a known gap.
 - Types flow cleanly: domain types are defined in `shared/types/`, protocol types in `shared/types/protocol.ts`, and both server and client consume them without redefinition.
 
 **Weaknesses:**

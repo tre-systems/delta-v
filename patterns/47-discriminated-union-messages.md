@@ -6,7 +6,7 @@ Protocol & Communication
 
 ## Intent
 
-Provide a single, type-safe representation of every client-to-server (C2S) and server-to-client (S2C) message so that TypeScript's exhaustive narrowing can guarantee every message type is handled. This eliminates stringly-typed dispatch and makes protocol drift impossible without a compiler error.
+Provide a single, type-safe representation of every client-to-server (C2S) and server-to-client (S2C) message so that the codebase can centralize message shapes, avoid stringly-typed dispatch, and use exhaustive handling where it opts into compile-time checks.
 
 ## How It Works in Delta-V
 
