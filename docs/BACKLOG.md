@@ -16,6 +16,52 @@ Core architecture work such as the major FSM cleanup, multi-ship E2E coverage, o
 
 ---
 
+### 55. Enable `noImplicitReturns` in tsconfig
+
+**Status:** not started.
+
+**Remaining:** TypeScript's `noImplicitReturns` flag catches switch statements that silently return `undefined` for unhandled union variants. Enabling it will surface many of the 16 exhaustiveness gaps identified in item 49 as compile errors, making `never` guards mandatory rather than optional. Enable the flag, fix any resulting errors, and verify the build passes.
+
+**Files:** `tsconfig.json`, any files that fail to compile after enabling
+**Found by:** pattern audit: enforcement gaps
+
+### 56. Add pre-commit grep checks for pattern violations
+
+**Status:** not started.
+
+**Remaining:** Add lightweight grep-based checks to `.husky/pre-commit` that catch the most impactful pattern violations before they land:
+- Ban `innerHTML` assignment in `src/client/` outside `dom.ts` (enforces trusted HTML boundary)
+- Ban `Math.random` in `src/shared/engine/` (enforces deterministic RNG injection)
+- Ban `console.log` / `console.warn` / `console.error` in `src/shared/` (enforces engine purity)
+
+These are ~5 lines of shell script per check. They complement the existing Biome lint step.
+
+**Files:** `.husky/pre-commit`
+**Found by:** pattern audit: enforcement gaps
+
+### 57. Add import boundary tests for all layer directions
+
+**Status:** not started.
+
+**Remaining:** Only the server-to-client boundary has an existing test. Add tests that verify:
+- `src/shared/` never imports from `src/client/` or `src/server/`
+- `src/shared/engine/` never imports from platform code
+- `src/client/` never imports from `src/server/`
+
+Can be implemented as a simple grep/dependency-scan test or via Biome/ESLint import restrictions. Complements the existing lint boundary rule work in the backlog.
+
+**Files:** test file (new), or lint config
+**Found by:** pattern audit: enforcement gaps
+
+### 58. Remove dead `ErrorCode.INVALID_PLAYER`
+
+**Status:** not started.
+
+**Remaining:** `ErrorCode.INVALID_PLAYER` is defined in `domain.ts` line ~64 but never used anywhere in the codebase. Remove it to keep the error code enum honest, or add it to the validation paths that should use it (e.g., `processFleetReady` which currently lacks player identity validation, see item 46).
+
+**Files:** `src/shared/types/domain.ts`
+**Found by:** pattern audit: error handling
+
 ### Simplify runtime and input orchestration
 
 **Status:** not started.
@@ -70,13 +116,7 @@ Core architecture work such as the major FSM cleanup, multi-ship E2E coverage, o
 
 ### Add exhaustive `never` guards to command routing and protocol validation
 
-**Status:** not started.
-
-**Remaining:** the event projector uses exhaustive `never` checks for compile-time safety, but `dispatchGameCommand` in `command-router.ts` and `validateClientMessage` in `protocol.ts` still rely on fallback paths. Add `never` guards so new command or message variants fail to compile until handled.
-
-**Files:** `src/client/game/command-router.ts`, `src/shared/protocol.ts`
-
-**Found by:** pattern catalogue: Discriminated Unions
+**Status:** superseded by item 49 (broader audit found 16 switches lacking guards, not just 2).
 
 ### Standardize on `engineFailure()` helper usage
 
@@ -210,6 +250,138 @@ Add corresponding fields to `AIDifficultyConfig` and route these decisions throu
 **Files:** `src/server/game-do/archive-storage.ts`
 
 **Found by:** pattern catalogue: Chunked Event Storage
+
+### 44. Renderer addEventListener leaks
+
+**Status:** not started.
+
+**Remaining:** `renderer.ts` attaches three event listeners with no cleanup path:
+- `document.addEventListener('visibilitychange', ...)` (line ~107)
+- `window.addEventListener('resize', resize)` (line ~542)
+- `window.visualViewport?.addEventListener('resize', resize)` (line ~543)
+
+If the renderer is ever torn down and recreated these will leak. Add cleanup to the renderer's dispose path or track via `listen()` helper.
+
+**Files:** `src/client/renderer/renderer.ts`
+**Found by:** pattern audit: DOM/disposal
+
+### 45. `applyDisconnectForfeit` mutates state without cloning
+
+**Status:** not started.
+
+**Remaining:** Unlike all other exported engine functions, `applyDisconnectForfeit` in `util.ts` mutates its `state` parameter directly without `structuredClone`. It is designed for external use by the server. The server caller should either clone before calling, or the function should follow the clone-on-entry convention.
+
+**Files:** `src/shared/engine/util.ts` (line ~380)
+**Found by:** pattern audit: engine purity
+
+### 46. `processFleetReady` skips standard validation and transition
+
+**Status:** not started.
+
+**Remaining:** `processFleetReady` manually checks `state.phase !== 'fleetBuilding'` instead of using `validatePhaseAction`, so it does not validate player identity. It also directly assigns `state.phase = 'astrogation'` instead of using `transitionPhase()`, bypassing the phase transition validation table.
+
+**Files:** `src/shared/engine/fleet-building.ts` (lines ~33, ~193)
+**Found by:** pattern audit: error handling / validation
+
+### 47. `createGame` throws instead of returning Result
+
+**Status:** not started.
+
+**Remaining:** Two `throw new Error(...)` calls in `game-creation.ts` (scenario player count assertion at line ~66, starting hex placement failure at line ~124) crash rather than returning a `Result`. Convert `createGame` to return `Result<GameState, EngineError>` for consistency with the rest of the engine.
+
+**Files:** `src/shared/engine/game-creation.ts`
+**Found by:** pattern audit: error handling
+
+### 48. WebSocket upgrade path has no HTTP-level rate limit
+
+**Status:** not started.
+
+**Remaining:** The `/ws/:code` endpoint at `index.ts` line ~169 forwards directly to the Durable Object with no IP-based rate check. A client could rapidly open and close WebSocket connections. The per-message rate limit only applies after establishment. Consider adding a connection-establishment rate limit alongside the existing per-message throttle.
+
+**Files:** `src/server/index.ts` (line ~169), `src/server/reporting.ts`
+**Found by:** pattern audit: rate limiting
+
+### 49. Add `never` exhaustiveness guards to 16 switch statements
+
+**Status:** not started.
+
+**Remaining:** 16 switch/dispatch sites on discriminated unions lack compile-time `never` guards. Highest priority:
+- `validateClientMessage` and `validateServerMessage` in `protocol.ts` — network boundary, silently rejects unknown types
+- `deriveClientMessagePlan` in `client-message-plans.ts` — silently returns undefined for new S2C types
+- `resolveUIEventPlan` in `ui-event-router.ts` — silently ignores new UI events
+- `formatMovementEventEntry`/`formatMovementEventToast` in `formatters.ts`/`toast.ts`
+- `runGameDoAlarm` in `alarm.ts`
+- Various input interpretation switches in `input-events.ts`
+
+Subsumes and expands backlog item 37 (which only covered command router and protocol validator). Remove item 37 in favor of this broader item.
+
+**Files:** `src/shared/protocol.ts`, `src/client/game/client-message-plans.ts`, `src/client/game/ui-event-router.ts`, `src/client/ui/formatters.ts`, `src/client/renderer/toast.ts`, `src/server/game-do/alarm.ts`, `src/client/game/input-events.ts`, `src/client/game/commands.ts`, `src/client/game/local-game-flow.ts`, `src/client/renderer/ship-decor.ts`
+**Found by:** pattern audit: discriminated unions
+
+### 50. Remove `Math.random` default parameters from shared code
+
+**Status:** not started.
+
+**Remaining:** Three exported functions in shared code have `rng: () => number = Math.random` default parameters, meaning callers can accidentally skip RNG injection and break determinism:
+- `src/shared/ai/ordnance.ts` line ~21
+- `src/shared/ai/astrogation.ts` line ~376
+- `src/shared/engine/game-creation.ts` line ~144
+
+Make `rng` mandatory (no default) to force callers to be explicit.
+
+**Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/astrogation.ts`, `src/shared/engine/game-creation.ts`
+**Found by:** pattern audit: engine purity / deterministic RNG
+
+### 51. Add `Readonly` wrappers to major lookup tables
+
+**Status:** not started.
+
+**Remaining:** Five core lookup tables are mutable at runtime despite being logically constant:
+- `SHIP_STATS` (`constants.ts`)
+- `ORDNANCE_MASS` (`constants.ts`)
+- `GUN_COMBAT_TABLE` (`combat.ts`) — should be `readonly (readonly number[])[]`
+- `OTHER_DAMAGE_TABLES` (`combat.ts`)
+- `AI_CONFIG` (`ai/config.ts`)
+
+Wrap each in `Readonly<>` or use `as const` / `Object.freeze` to prevent accidental mutation.
+
+**Files:** `src/shared/constants.ts`, `src/shared/combat.ts`, `src/shared/ai/config.ts`
+**Found by:** pattern audit: data-driven lookup tables
+
+### 52. Fix `computeBaseVelocityMod` hardcoded threshold
+
+**Status:** not started.
+
+**Remaining:** `computeBaseVelocityMod` in `combat.ts` line ~325 hardcodes the velocity modifier threshold as `2` instead of using the existing `VELOCITY_MODIFIER_THRESHOLD` constant that the sibling function `computeVelocityModToTarget` correctly uses. This is a consistency bug.
+
+**Files:** `src/shared/combat.ts`
+**Found by:** pattern audit: data-driven lookup tables
+
+### 53. Extract protocol validation magic numbers to named constants
+
+**Status:** not started.
+
+**Remaining:** Three inline magic numbers in `protocol.ts` validation should be named constants:
+- `99` — max attack strength (line ~269)
+- `9999` — max transfer amount (line ~342)
+- `200` — max chat message length (line ~382)
+
+**Files:** `src/shared/protocol.ts`
+**Found by:** pattern audit: data-driven lookup tables
+
+### 54. Widen `HexKey` branding to movement.ts parameters
+
+**Status:** not started.
+
+**Remaining:** Several parameters in `movement.ts` accept `string` or `Set<string>` where the values are hex keys:
+- `destroyedBases` parameter typed `Set<string>` (lines ~101, 167, 189, 289) — domain type is `HexKey[]`
+- `weakGravityChoices` typed `Record<string, boolean>` (lines ~24, 288) — should be `Record<HexKey, boolean>`
+- Same issue propagates to `ai/astrogation.ts` (lines ~566, 588, 707, 720)
+
+Also `getOwnedPlanetaryBases` in `util.ts` line ~127 widens `HexKey` to `string` in its return type.
+
+**Files:** `src/shared/movement.ts`, `src/shared/ai/astrogation.ts`, `src/shared/engine/util.ts`
+**Found by:** pattern audit: branded types
 
 ### Maintain `GameState` schema version and replay compatibility discipline
 
