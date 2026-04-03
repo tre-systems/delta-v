@@ -4,68 +4,75 @@
 
 ## Intent
 
-Route all instances of a cross-cutting concern through a single function (a "choke point") so that invariants, side effects, and policies are enforced uniformly. This prevents bypass paths where a caller might skip validation, event persistence, or state synchronization.
+Route each cross-cutting mutation flow through a small number of owning functions so validation, persistence, telemetry, parity checks, and UI reconciliation happen in one place instead of being reimplemented ad hoc.
 
 ## How It Works in Delta-V
 
-Delta-V has three primary choke points, each enforcing a critical invariant:
+Delta-V has three main choke points.
 
-### 1. `publishStateChange` (Server Write Choke Point)
+### 1. `publishStateChange` -> `runPublicationPipeline` (incremental server writes)
 
-Every server-side game state mutation must flow through `publishStateChange`, which delegates to `runPublicationPipeline`. This pipeline enforces six ordered steps:
+Incremental server-side game-state mutations flow through `publishStateChange`, which delegates to `runPublicationPipeline`. The pipeline appends events, checkpoints when needed, verifies projection parity, schedules archival, restarts the turn timer when requested, and broadcasts the state-bearing message.
 
-1. **Append events** to the event stream.
-2. **Checkpoint** at turn boundaries.
-3. **Verify projection parity** (event-projected state matches live state).
-4. **Archive** if the game is over.
-5. **Restart the turn timer.**
-6. **Broadcast** state to connected clients.
+This is the normal write path used by all game-state action handlers and by turn-timeout publication. The one current exception is initial game creation in `match.ts`, which still appends events, verifies parity, broadcasts, and starts the timer directly rather than routing through `publishStateChange`.
 
-No server code path bypasses this pipeline. The `GameDO` class exposes `publishStateChange` as a private method, and it is injected into the action handlers through deps. All 13 game-state action handlers call it through `publishForActor`.
+### 2. `dispatchGameStateAction` / `runGameStateAction` (server command execution)
 
-### 2. `dispatchGameStateAction` / `runGameStateAction` (Server Command Choke Point)
+All websocket game-state commands are routed through `dispatchGameStateAction`, which selects the typed handler for the message and runs it through `runGameStateAction`. That runner owns:
 
-All game-state commands from WebSocket messages flow through `dispatchGameStateAction` in `actions.ts`, which:
+1. loading the current authoritative state
+2. invoking the engine action
+3. converting thrown exceptions into telemetry + client-visible errors
+4. short-circuiting engine failures
+5. invoking the handler's `publish` callback on success
 
-1. Looks up the handler by message type from the handlers map.
-2. Calls `runGameStateAction`, which:
-   - Reads the current game state.
-   - Runs the engine function.
-   - Handles errors (logs, reports telemetry, sends error to client).
-   - On success, calls the handler's `publish` method.
+### 3. `applyClientGameState` (authoritative client state writes)
 
-This ensures that every command gets the same error handling, telemetry reporting, and state retrieval pattern.
+Authoritative `ClientSession.gameState` writes flow through `applyClientGameState` in `game-state-store.ts`. That function owns spectator visibility projection, batched reactive updates, selection cleanup when a ship disappears, and optional renderer synchronization for tests and narrow presentation paths.
 
-### 3. `applyClientGameState` (Client Write Choke Point)
+```mermaid
+flowchart LR
+  subgraph ServerCommand["Server command choke point"]
+    WS["WebSocket message"] --> Dispatch["dispatchGameStateAction"]
+    Dispatch --> Run["runGameStateAction"]
+    Run --> Handler["typed action handler"]
+    Handler --> Publish["publishStateChange"]
+  end
 
-All client-side game state writes flow through `applyClientGameState` in `game-state-store.ts`. This function:
+  subgraph Publication["Server write choke point"]
+    Publish --> Pipeline["runPublicationPipeline"]
+    Pipeline --> Append["append events"]
+    Append --> Checkpoint["checkpoint if needed"]
+    Checkpoint --> Parity["verify projection parity"]
+    Parity --> Archive["schedule archive"]
+    Archive --> Timer["restart turn timer"]
+    Timer --> Broadcast["broadcast state change"]
+  end
 
-1. Projects visibility (spectator mode reveals all ships).
-2. Batches reactive signal updates (preventing intermediate renders).
-3. Reconciles selection state (clears selection if the selected ship is destroyed).
-4. Optionally syncs the renderer.
-
-The module header comment explicitly documents the ownership contract: who may call what, and why.
+  subgraph ClientWrite["Client write choke point"]
+    Message["server/local authoritative update"] --> Apply["applyClientGameState"]
+    Apply --> Visible["viewer projection"]
+    Visible --> Batch["batch reactive writes"]
+    Batch --> Reconcile["selection reconciliation"]
+    Reconcile --> Renderer["optional renderer sync"]
+  end
+```
 
 ## Key Locations
 
-| Purpose | File | Lines |
+| Purpose | File | Role |
 |---|---|---|
-| Publication pipeline | `src/server/game-do/publication.ts` | 90-125 |
-| publishStateChange binding | `src/server/game-do/game-do.ts` | 541-556 |
-| Action handler registry | `src/server/game-do/actions.ts` | 107-323 |
-| dispatchGameStateAction | `src/server/game-do/actions.ts` | 381-407 |
-| runGameStateAction | `src/server/game-do/actions.ts` | 341-379 |
-| applyClientGameState | `src/client/game/game-state-store.ts` | 63-86 |
-| clearClientGameState | `src/client/game/game-state-store.ts` | 88-94 |
-| WebSocket command routing | `src/server/game-do/ws.ts` | 64-84 |
+| Publication runner | `src/server/game-do/publication.ts` | Ordered post-mutation pipeline |
+| Action dispatch and runner | `src/server/game-do/actions.ts` | Uniform game-state action execution |
+| DO binding | `src/server/game-do/game-do.ts` | Wires `publishStateChange` deps |
+| Match initialization | `src/server/game-do/match.ts` | Current init-time bypass path |
+| Client authoritative state writes | `src/client/game/game-state-store.ts` | `applyClientGameState` / `clearClientGameState` |
 
 ## Code Examples
 
-The server's publication choke point enforces all post-mutation invariants (`src/server/game-do/publication.ts`):
+Incremental server publication:
 
 ```typescript
-// src/server/game-do/publication.ts lines 90-125
 export const runPublicationPipeline = async (
   deps: PublicationDeps,
   state: GameState,
@@ -77,51 +84,50 @@ export const runPublicationPipeline = async (
   const roomCode = await deps.getGameCode();
   const replayMessage = resolveStateBearingMessage(state, primaryMessage);
 
-  // Step 1: Append events
   const eventSeq = await appendEvents(deps.storage, state.gameId, actor, events);
-
-  // Step 2: Checkpoint
   await checkpointIfNeeded(deps.storage, state.gameId, state, eventSeq, events);
-
-  // Step 3: Verify projection parity
   await deps.verifyProjectionParity(state);
-
-  // Step 4: Archive if game over
   archiveIfGameOver(deps, state, roomCode, events);
 
-  // Step 5: Restart turn timer
   if (restartTurnTimer) {
     await deps.startTurnTimer(state);
   }
 
-  // Step 6: Broadcast
   deps.broadcastStateChange(state, replayMessage);
 };
 ```
 
-The command dispatch choke point ensures uniform error handling (`src/server/game-do/actions.ts`):
+Uniform command execution and error handling:
 
 ```typescript
-// src/server/game-do/actions.ts lines 341-379
 export const runGameStateAction = async <
   Success extends { state: GameState },
 >(
   deps: RunActionDeps,
   ws: WebSocket,
-  action: (gameState: GameState) => Success | EngineFailure | Promise<...>,
+  action: (
+    gameState: GameState,
+  ) => Success | EngineFailure | Promise<Success | EngineFailure>,
   onSuccess: (result: Success) => Promise<void> | void,
 ): Promise<void> => {
   const gameState = await deps.getCurrentGameState();
-  if (!gameState) { return; }
+
+  if (!gameState) {
+    return;
+  }
 
   let result: Success | EngineFailure;
   try {
     result = await action(gameState);
   } catch (err) {
     const code = await deps.getGameCode();
-    console.error(`Engine error in game ${code}`, ...);
+    console.error(
+      `Engine error in game ${code}`,
+      `(phase=${gameState.phase}, turn=${gameState.turnNumber}):`,
+      err,
+    );
     deps.reportEngineError(code, gameState.phase, gameState.turnNumber, err);
-    deps.sendError(ws, 'Engine error -- action rejected, game state preserved');
+    deps.sendError(ws, 'Engine error — action rejected, game state preserved');
     return;
   }
 
@@ -129,14 +135,14 @@ export const runGameStateAction = async <
     deps.sendError(ws, result.error.message, result.error.code);
     return;
   }
+
   await onSuccess(result);
 };
 ```
 
-The client write choke point with batched reactivity (`src/client/game/game-state-store.ts`):
+Authoritative client-state writes:
 
 ```typescript
-// src/client/game/game-state-store.ts lines 63-86
 export const applyClientGameState = (
   deps: ApplyClientGameStateDeps,
   state: GameState,
@@ -147,10 +153,12 @@ export const applyClientGameState = (
     deps.ctx.gameState = visibleState;
 
     const selectedId = deps.ctx.planningState.selectedShipId;
+
     if (selectedId) {
       const selectedShip = visibleState.ships.find(
         (ship) => ship.id === selectedId,
       );
+
       if (!selectedShip || selectedShip.lifecycle === 'destroyed') {
         deps.ctx.planningState.setSelectedShipId(null);
       }
@@ -165,25 +173,24 @@ export const applyClientGameState = (
 
 **Strengths:**
 
-- The `publishStateChange` choke point is used by all 13 game-state action handlers via `publishForActor`. There are no alternative publication paths.
-- The turn timeout handler in `turns.ts` also routes through `publishStateChange` (via the alarm deps), ensuring timeout-triggered state changes get the same treatment as player-initiated ones.
-- The `applyClientGameState` function has explicit documentation of its ownership contract in the module header comment, listing every authorized caller.
-- The `runGameStateAction` choke point catches engine exceptions uniformly, preventing unhandled crashes from killing the Durable Object.
+- Incremental server mutations converge on one publication runner with explicit ordered stages.
+- Game-state websocket commands all share the same fetch-run-error-publish wrapper.
+- Client authoritative state writes have an explicit ownership contract in the module header.
+- Turn-timeout publication reuses the same server write path as player actions.
 
-**Weaknesses:**
+**Known gaps:**
 
-- The initial game creation (`initGameSession` in `match.ts`) has its own state publication path that does not go through `publishStateChange`. It calls `verifyProjectionParity` and `broadcastFiltered` directly. While this is a one-time initialization flow, it duplicates some of the publication pipeline's responsibilities.
-- The `broadcastStateChange` function in `broadcast.ts` can be called directly (bypassing the publication pipeline) if code holds a reference to the `broadcastStateChange` deps callback. Currently only `createPublicationDeps` provides this callback, but the pattern is not structurally enforced.
-- On the client side, the `clearClientGameState` function is a separate entry point for nulling game state during menu transitions. It is small and justified, but it means there are two client-side state write paths rather than one.
+- `initGameSession` in `match.ts` is still a separate initialization-time publication path.
+- `broadcastStateChange` remains available as a lower-level callback inside DO wiring, so the choke point is conventional rather than structurally impossible to bypass.
+- `clearClientGameState` is a second, intentionally tiny client write entry point for menu/session teardown.
 
 ## Completeness Check
 
-- **Consider: structural enforcement.** The choke-point pattern relies on developer discipline -- nothing prevents a new contributor from calling `appendEnvelopedEvents` directly without going through `publishStateChange`. Module-level visibility (e.g., only exporting the pipeline function) could make bypass structurally impossible.
-- **Consider: middleware/interceptor pattern.** The publication pipeline's steps are hardcoded. A middleware chain would make it easier to add cross-cutting concerns (e.g., analytics, rate limiting) without modifying the pipeline runner.
-- **Consider: unifying game init publication.** Routing initial game creation through the same publication pipeline (perhaps with a flag for "first publication") would eliminate the one known bypass path.
+- The next structural improvement is to route initial game creation through the same publication path or extract a first-publication variant of the pipeline.
+- If stronger enforcement is needed, keep lower-level publication helpers private to the owning module so new code cannot skip the choke point accidentally.
 
 ## Related Patterns
 
-- **Event Sourcing** (01) -- The publication choke point is where events are persisted.
-- **CQRS** (02) -- `publishStateChange` is the write-side choke point; `applyClientGameState` is the read-side choke point.
-- **Composition Root** (04) -- The choke-point functions receive their dependencies through the composition root.
+- **Event Sourcing** (01) — event persistence hangs off the server write choke point.
+- **Pipeline** (15) — the publication choke point is implemented as an ordered pipeline.
+- **Composition Root** (04) — choke-point dependencies are wired centrally, not resolved ad hoc.
