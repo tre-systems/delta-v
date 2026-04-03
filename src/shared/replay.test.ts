@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { createGame, filterStateForPlayer } from './engine/game-engine';
+import { createGameOrThrow, filterStateForPlayer } from './engine/game-engine';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from './map-data';
 import {
   buildMatchId,
@@ -47,7 +47,7 @@ const createTestState = (
   gameId: string,
   overrides: Partial<GameState> = {},
 ): GameState => ({
-  ...createGame(SCENARIOS.biplanetary, map, gameId, findBaseHex),
+  ...createGameOrThrow(SCENARIOS.biplanetary, map, gameId, findBaseHex),
   ...overrides,
 });
 

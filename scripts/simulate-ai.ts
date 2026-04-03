@@ -65,13 +65,13 @@ const runSingleGame = async (
   // Create an RNG local to the game for reproducible behavior later if needed
   const rng = Math.random;
 
-  let state: GameState;
-  try {
-    state = createGame(scenario, map, `sim-${Date.now()}`, findBaseHex);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to create game: ${message}`);
+  const createResult = createGame(scenario, map, `sim-${Date.now()}`, findBaseHex);
+
+  if (!createResult.ok) {
+    throw new Error(`Failed to create game: ${createResult.error.message}`);
   }
+
+  let state: GameState = createResult.value;
 
   // Randomize starting player to cancel out first-mover bias
   // across many games. Reveals true faction/position balance.

@@ -21,6 +21,9 @@ const ERROR_REPORT_RATE_LIMIT = 40;
 const JOIN_REPLAY_PROBE_WINDOW_MS = 60_000;
 const JOIN_REPLAY_PROBE_LIMIT = 100;
 
+const WS_CONNECT_WINDOW_MS = 60_000;
+const WS_CONNECT_LIMIT = 20;
+
 export const createRateMap = new Map<
   string,
   { count: number; windowStart: number }
@@ -37,6 +40,11 @@ export const errorReportRateMap = new Map<
 >();
 
 export const joinReplayProbeRateMap = new Map<
+  string,
+  { count: number; windowStart: number }
+>();
+
+export const wsConnectRateMap = new Map<
   string,
   { count: number; windowStart: number }
 >();
@@ -121,6 +129,15 @@ export const isJoinReplayProbeRateLimited = (ipHash: string): boolean =>
     JOIN_REPLAY_PROBE_LIMIT,
     JOIN_REPLAY_PROBE_WINDOW_MS,
     2000,
+  );
+
+export const isWsConnectRateLimited = (ipHash: string): boolean =>
+  checkWindowedRateLimit(
+    wsConnectRateMap,
+    ipHash,
+    WS_CONNECT_LIMIT,
+    WS_CONNECT_WINDOW_MS,
+    RATE_LIMIT_MAP_MAX_KEYS,
   );
 
 export const isErrorReportRateLimited = (ipHash: string): boolean =>

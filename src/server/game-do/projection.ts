@@ -188,12 +188,20 @@ export const projectReplayTimeline = (
   );
 };
 
+// Strip fields that legitimately diverge between projected and live state:
+// - connected / ready: session-level flags updated outside the engine
+// - detected: visibility recomputed each tick from sensor data
 const normalizeStateForParity = (state: GameState): GameState => ({
   ...state,
   players: state.players.map((player) => ({
     ...player,
     connected: false,
+    ready: false,
   })) as GameState['players'],
+  ships: state.ships.map((ship) => ({
+    ...ship,
+    detected: false,
+  })),
 });
 
 export const hasProjectedStateParity = (

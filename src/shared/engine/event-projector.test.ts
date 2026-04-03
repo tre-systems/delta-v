@@ -5,7 +5,7 @@ import type { FleetPurchase } from '../types';
 import type { EventEnvelope } from './engine-events';
 import { projectMatchSetupFromStream } from './event-projector';
 import { processFleetReady } from './fleet-building';
-import { createGame } from './game-creation';
+import { createGameOrThrow } from './game-creation';
 
 const map = buildSolarSystemMap();
 
@@ -56,7 +56,7 @@ describe('projectMatchSetupFromStream', () => {
       },
     ];
 
-    const created = createGame(
+    const created = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
       'WAR01-m1',

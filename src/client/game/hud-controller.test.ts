@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -14,7 +14,7 @@ import { createPlanningStore } from './planning';
 
 const createHarness = (clientState: ClientState) => {
   const map = buildSolarSystemMap();
-  const gameState = createGame(SCENARIOS.duel, map, 'HUD0', findBaseHex);
+  const gameState = createGameOrThrow(SCENARIOS.duel, map, 'HUD0', findBaseHex);
   const planningState = createPlanningStore();
   const selectedShip = gameState.ships.find((ship) => ship.owner === 0);
 

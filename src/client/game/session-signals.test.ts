@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import { hexKey } from '../../shared/hex';
 import {
   buildSolarSystemMap,
@@ -36,7 +36,7 @@ describe('session-signals', () => {
 
     expect(session.stateSignal.peek()).toBe('connecting');
 
-    const gameState = createGame(
+    const gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'SIG0',
@@ -71,7 +71,7 @@ describe('session-signals', () => {
     expect(updateHUD).toHaveBeenCalled();
 
     updateHUD.mockClear();
-    session.gameState = createGame(
+    session.gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'SIG1',
@@ -131,7 +131,7 @@ describe('session-signals', () => {
     session.playerId = 0;
     session.gameCode = 'ROOM2';
     session.latencyMs = 90;
-    session.gameState = createGame(
+    session.gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'SIG7',
@@ -171,7 +171,7 @@ describe('session-signals', () => {
     const session = createInitialClientSession();
     session.playerId = 0;
     session.state = 'playing_astrogation';
-    session.gameState = createGame(
+    session.gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'SIG4',
@@ -304,7 +304,7 @@ describe('session-signals', () => {
     expect(updateShipList).toHaveBeenLastCalledWith([], null, expect.any(Map));
 
     session.playerId = 0;
-    session.gameState = createGame(
+    session.gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'SIG6',
@@ -331,7 +331,12 @@ describe('session-signals', () => {
     expect(renderLogisticsPanel).toHaveBeenLastCalledWith(null);
 
     session.logisticsState = createLogisticsStore(
-      createGame(SCENARIOS.duel, buildSolarSystemMap(), 'SIG5', findBaseHex),
+      createGameOrThrow(
+        SCENARIOS.duel,
+        buildSolarSystemMap(),
+        'SIG5',
+        findBaseHex,
+      ),
       0,
     );
     expect(renderLogisticsPanel).toHaveBeenLastCalledWith(
@@ -354,7 +359,7 @@ describe('session-signals', () => {
     expect(setGameState).toHaveBeenCalledWith(null);
     setGameState.mockClear();
 
-    const gameState = createGame(
+    const gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'SIG2',
@@ -380,7 +385,7 @@ describe('session-signals', () => {
     setGameState.mockClear();
 
     dispose();
-    session.gameState = createGame(
+    session.gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
       'SIG3',

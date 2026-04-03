@@ -1,3 +1,4 @@
+import type { AIDifficulty } from '../../shared/ai/types';
 import type { UIEvent } from '../ui/events';
 import type { GameCommand } from './commands';
 
@@ -6,7 +7,7 @@ export type UIEventPlan =
   | {
       kind: 'startSinglePlayer';
       scenario: string;
-      difficulty: 'easy' | 'normal' | 'hard';
+      difficulty: AIDifficulty;
     }
   | { kind: 'joinGame'; code: string; playerToken: string | null }
   | { kind: 'command'; command: GameCommand }

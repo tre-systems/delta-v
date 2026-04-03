@@ -6,7 +6,7 @@
 // tests in renderer.test.ts that import the real renderer first.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -177,7 +177,12 @@ describe('Renderer static scene cache (mocked scene)', () => {
       createPlanningState(),
     );
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.biplanetary, map, 'REND2', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'REND2',
+      findBaseHex,
+    );
 
     renderer.setMap(map);
     renderer.setGameState(state);
@@ -219,7 +224,7 @@ describe('Renderer static scene cache (mocked scene)', () => {
 
     renderer.setMap(map);
     renderer.setGameState(
-      createGame(SCENARIOS.biplanetary, map, 'REND3', findBaseHex),
+      createGameOrThrow(SCENARIOS.biplanetary, map, 'REND3', findBaseHex),
     );
 
     renderer.renderFrameForTests(1000, 800, 600);

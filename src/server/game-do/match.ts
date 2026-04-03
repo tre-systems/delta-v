@@ -58,7 +58,13 @@ export const initGameSession = async (deps: InitGameDeps): Promise<void> => {
   ]);
   const code = roomConfig?.code ?? (await deps.getGameCode());
   const { gameId, matchSeed } = await allocateMatchIdentity(deps.storage, code);
-  const gameState = createGame(scenario, deps.map, gameId, findBaseHex);
+  const createResult = createGame(scenario, deps.map, gameId, findBaseHex);
+
+  if (!createResult.ok) {
+    throw new Error(createResult.error.message);
+  }
+
+  const gameState = createResult.value;
   const gameStartMessage = toGameStartMessage(gameState);
 
   await deps.clearRoomArchivedFlag();
