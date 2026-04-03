@@ -1,8 +1,15 @@
-const CACHE_NAME = 'delta-v-v1';
+const BUILD_HASH = '__BUILD_HASH__';
+const CACHE_NAME = `delta-v-${BUILD_HASH}`;
 const PRECACHE_URLS = [
   '/',
-  '/client.js',
-  '/style.css',
+  `/client.js?v=${BUILD_HASH}`,
+  `/style.css?v=${BUILD_HASH}`,
+  `/styles/base.css?v=${BUILD_HASH}`,
+  `/styles/menu.css?v=${BUILD_HASH}`,
+  `/styles/hud.css?v=${BUILD_HASH}`,
+  `/styles/overlays.css?v=${BUILD_HASH}`,
+  `/styles/systems.css?v=${BUILD_HASH}`,
+  `/styles/responsive.css?v=${BUILD_HASH}`,
   '/favicon.svg',
   '/site.webmanifest',
   '/icons/icon-192.png',
