@@ -16,8 +16,8 @@ beforeEach(() => {
 });
 
 describe('createGame', () => {
-  it('creates game with correct scenario name', () => {
-    expect(initialState.scenario).toBe('Bi-Planetary');
+  it('creates game with correct scenario key', () => {
+    expect(initialState.scenario).toBe('biplanetary');
   });
   it('creates 2 ships for Bi-Planetary', () => {
     expect(initialState.ships).toHaveLength(2);

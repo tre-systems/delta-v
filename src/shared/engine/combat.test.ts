@@ -54,7 +54,7 @@ const openMap: SolarSystemMap = {
 };
 const makeCombatState = (overrides: Partial<GameState> = {}): GameState => ({
   gameId: 'TEST',
-  scenario: 'Bi-Planetary',
+  scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
   turnNumber: 1,

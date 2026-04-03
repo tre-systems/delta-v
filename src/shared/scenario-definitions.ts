@@ -1,7 +1,9 @@
 import { getBodyOffset, getControlledBaseHexes } from './map-layout';
 import type { ScenarioDefinition } from './types';
 
-export const SCENARIOS: Record<string, ScenarioDefinition> = {
+// Typed as a concrete object so we can derive ScenarioKey from its keys.
+// satisfies ensures each value matches ScenarioDefinition without widening.
+const SCENARIOS_INTERNAL = {
   biplanetary: {
     name: 'Bi-Planetary',
     tags: ['Beginner'],
@@ -390,4 +392,16 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
   },
-};
+} satisfies Record<string, ScenarioDefinition>;
+
+// Union of all scenario keys, derived from the object above.
+export type ScenarioKey = keyof typeof SCENARIOS_INTERNAL;
+
+// Runtime type guard for validating untrusted scenario strings.
+export const isValidScenario = (key: string): key is ScenarioKey =>
+  Object.hasOwn(SCENARIOS_INTERNAL, key);
+
+// Public reference — typed with concrete keys so SCENARIOS.biplanetary etc. work,
+// but also indexable with ScenarioKey.
+export const SCENARIOS: { readonly [K in ScenarioKey]: ScenarioDefinition } =
+  SCENARIOS_INTERNAL;

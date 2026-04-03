@@ -119,9 +119,8 @@ export type ShipSelectionView = Pick<
   'selectedShipId' | 'lastSelectedHex'
 >;
 
-export type HoverPlanningView = Pick<PlanningState, 'hoverHex'>;
-
-export type PlanningSelectionView = ShipSelectionView & HoverPlanningView;
+export type PlanningSelectionView = ShipSelectionView &
+  Pick<PlanningState, 'hoverHex'>;
 
 export type AstrogationPlanningView = Pick<
   PlanningState,
@@ -157,14 +156,7 @@ export type OrdnancePlanningSnapshot = ShipSelectionView &
 export type CombatPlanningSnapshot = Pick<ShipSelectionView, 'selectedShipId'> &
   CombatPlanningView;
 export type HudPlanningSnapshot = Pick<ShipSelectionView, 'selectedShipId'> &
-  Pick<
-    AstrogationPlanningView,
-    | 'burns'
-    | 'overloads'
-    | 'landingShips'
-    | 'weakGravityChoices'
-    | 'acknowledgedShips'
-  > &
+  AstrogationPlanningView &
   Pick<
     OrdnancePlanningView,
     'queuedOrdnanceLaunches' | 'acknowledgedOrdnanceShips'

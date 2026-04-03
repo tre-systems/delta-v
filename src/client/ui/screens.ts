@@ -1,4 +1,4 @@
-import { SCENARIOS } from '../../shared/map-data';
+import { isValidScenario, SCENARIOS } from '../../shared/map-data';
 import type { InteractionMode } from '../game/interaction-fsm';
 
 export type UIScreenMode =
@@ -377,9 +377,10 @@ const buildShipGroups = (stats: GameOverStatsLike): GameOverShipGroup[] => {
 
 const getScenarioName = (stats: GameOverStatsLike): string | null => {
   const scenarioDef = stats.scenario
-    ? (SCENARIOS[stats.scenario] ??
-      Object.values(SCENARIOS).find((s) => s.name === stats.scenario) ??
-      null)
+    ? isValidScenario(stats.scenario)
+      ? SCENARIOS[stats.scenario]
+      : (Object.values(SCENARIOS).find((s) => s.name === stats.scenario) ??
+        null)
     : null;
   return scenarioDef?.name ?? stats.scenario ?? null;
 };

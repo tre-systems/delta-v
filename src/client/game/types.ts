@@ -5,11 +5,7 @@ import type {
   PlayerId,
   Ship,
 } from '../../shared/types/domain';
-import type {
-  AstrogationPlanningView,
-  OrdnancePlanningView,
-  PlanningSelectionView,
-} from './planning';
+import type { AstrogationPlanningView, HudPlanningSnapshot } from './planning';
 
 export interface ShipFate {
   id: string;
@@ -81,23 +77,6 @@ export type AstrogationOrdersPlanningSnapshot = Pick<
   'burns' | 'overloads' | 'landingShips' | 'weakGravityChoices'
 >;
 
-export type HudViewPlanningSnapshot = Pick<
-  PlanningSelectionView,
-  'selectedShipId'
-> &
-  Pick<
-    AstrogationPlanningView,
-    | 'burns'
-    | 'overloads'
-    | 'landingShips'
-    | 'weakGravityChoices'
-    | 'acknowledgedShips'
-  > &
-  Pick<
-    OrdnancePlanningView,
-    'acknowledgedOrdnanceShips' | 'queuedOrdnanceLaunches'
-  >;
-
 export type BuildAstrogationOrders = (
   state: GameState,
   playerId: PlayerId | -1,
@@ -107,5 +86,5 @@ export type BuildAstrogationOrders = (
 export type DeriveHudViewModel = (
   state: GameState,
   playerId: PlayerId | -1,
-  planning: HudViewPlanningSnapshot,
+  planning: HudPlanningSnapshot,
 ) => HudViewModel;

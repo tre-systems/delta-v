@@ -1,6 +1,8 @@
 import type { EngineEvent } from '../../shared/engine/engine-events';
 import { createGame } from '../../shared/engine/game-engine';
+import type { ScenarioKey } from '../../shared/map-data';
 import { findBaseHex } from '../../shared/map-data';
+import { mulberry32 } from '../../shared/prng';
 import type { ScenarioDefinition, SolarSystemMap } from '../../shared/types';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { RoomConfig } from '../protocol';
@@ -16,7 +18,7 @@ type InitGameDeps = {
   storage: DurableObjectStorage;
   map: SolarSystemMap;
   getRoomConfig: () => Promise<RoomConfig | null>;
-  getScenario: () => Promise<ScenarioDefinition>;
+  getScenario: () => Promise<{ def: ScenarioDefinition; key: ScenarioKey }>;
   getGameCode: () => Promise<string>;
   clearRoomArchivedFlag: () => Promise<void>;
   verifyProjectionParity: (state: GameState) => Promise<void>;
@@ -52,13 +54,20 @@ const buildInitEvents = (
 };
 
 export const initGameSession = async (deps: InitGameDeps): Promise<void> => {
-  const [roomConfig, scenario] = await Promise.all([
+  const [roomConfig, scenarioInfo] = await Promise.all([
     deps.getRoomConfig(),
     deps.getScenario(),
   ]);
   const code = roomConfig?.code ?? (await deps.getGameCode());
   const { gameId, matchSeed } = await allocateMatchIdentity(deps.storage, code);
-  const createResult = createGame(scenario, deps.map, gameId, findBaseHex);
+  const createResult = createGame(
+    scenarioInfo.def,
+    deps.map,
+    gameId,
+    findBaseHex,
+    mulberry32(matchSeed),
+    scenarioInfo.key,
+  );
 
   if (!createResult.ok) {
     throw new Error(createResult.error.message);

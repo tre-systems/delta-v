@@ -18,9 +18,11 @@ import {
   skipLogistics,
   skipOrdnance,
 } from '../src/shared/engine/game-engine';
+import type { ScenarioKey } from '../src/shared/map-data';
 import {
   buildSolarSystemMap,
   findBaseHex,
+  isValidScenario,
   SCENARIOS,
 } from '../src/shared/map-data';
 import type { GameState, PlayerId } from '../src/shared/types';
@@ -52,13 +54,12 @@ const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
 };
 
 const runSingleGame = async (
-  scenarioName: string,
+  scenarioName: ScenarioKey,
   p0Diff: AIDifficulty,
   p1Diff: AIDifficulty,
   randomizeStart = false,
 ) => {
   const scenario = SCENARIOS[scenarioName];
-  if (!scenario) throw new Error(`Unknown scenario: ${scenarioName}`);
 
   const map = buildSolarSystemMap();
 
@@ -70,6 +71,8 @@ const runSingleGame = async (
     map,
     `sim-${Date.now()}`,
     findBaseHex,
+    undefined,
+    scenarioName,
   );
 
   if (!createResult.ok) {
@@ -86,7 +89,6 @@ const runSingleGame = async (
 
   // Handle fleet building phase (both players submit simultaneously)
   if (state.phase === 'fleetBuilding') {
-    const scenario = SCENARIOS[scenarioName];
     for (const p of [0, 1] as PlayerId[]) {
       const diff = p === 0 ? p0Diff : p1Diff;
       const purchases = buildAIFleetPurchases(
@@ -204,7 +206,7 @@ const runSingleGame = async (
 };
 
 const runSimulation = async (
-  scenarioName: string,
+  scenarioName: ScenarioKey,
   iterations: number,
   randomizeStart = false,
 ) => {
@@ -285,17 +287,23 @@ const main = async () => {
     (a) => a !== '--ci' && a !== '--randomize-start',
   );
 
-  const scenario = filteredArgs[0] || 'biplanetary';
+  const scenarioArg = filteredArgs[0] || 'biplanetary';
   const iterations = parseInt(filteredArgs[1] || '100', 10);
 
   const allMetrics: SimulationMetrics[] = [];
 
-  if (scenario === 'all') {
+  if (scenarioArg === 'all') {
     for (const key of Object.keys(SCENARIOS)) {
+      if (!isValidScenario(key)) continue;
       allMetrics.push(await runSimulation(key, iterations, randomizeStart));
     }
+  } else if (isValidScenario(scenarioArg)) {
+    allMetrics.push(
+      await runSimulation(scenarioArg, iterations, randomizeStart),
+    );
   } else {
-    allMetrics.push(await runSimulation(scenario, iterations, randomizeStart));
+    console.error(`Unknown scenario: ${scenarioArg}`);
+    process.exit(1);
   }
 
   // Evaluate strict constraints if running in CI format

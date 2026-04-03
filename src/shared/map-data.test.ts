@@ -194,7 +194,7 @@ describe('SCENARIOS', () => {
     expect(s.rules?.escapeEdge).toBe('north');
   });
   it('fleet-building scenarios have startingCredits and empty ship lists', () => {
-    for (const name of ['interplanetaryWar', 'fleetAction']) {
+    for (const name of ['interplanetaryWar', 'fleetAction'] as const) {
       const s = SCENARIOS[name];
       expect(s.startingCredits).toBeDefined();
       expect(s.availableFleetPurchases).toBeDefined();
