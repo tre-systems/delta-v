@@ -127,7 +127,7 @@ In the vast, silent void of the solar system, communicating telemetry and target
 - Extensive wiring and complex central receiver feeds bridging the center of the dish.
 - Often clustered near the command deck or sensor booms to minimize signal delay.
 
-![Comms Dish](./assets/comms_dish_1774105476101.png)
+![Comms Dish](./assets/comms_dish_1775209977168.png)
 
 ---
 
@@ -141,7 +141,7 @@ Visual confirmation is useless at engagement ranges of thousands of kilometers. 
 - Tipped with irregular, geometric sensor heads, domed cameras, and flat phased-array radar panels.
 - Highly detailed, asymmetrical, and purely utilitarian visual clutter.
 
-![Sensor Boom](./assets/sensor_spine_1774105490297.png)
+![Sensor Boom](./assets/sensor_spine_1775209990650.png)
 
 ---
 
@@ -156,7 +156,7 @@ Directly extrapolated from modern naval Close-In Weapon Systems (CIWS) like the 
 - Thick, heavy ammunition feed tracks leading down into the ship's magazines.
 - *Image details:* Visually emphasize the frenetic mechanical activity of a PDC tracking a target, with brief but intense swarms of tracer fire creating a localized defensive screen.
 
-![Point Defense Cannon](./assets/rotary_cannon_1774105506192.png)
+![Point Defense Cannon](./assets/rotary_cannon_1775210007530.png)
 
 ---
 
@@ -173,7 +173,7 @@ Because stealth is limited in hot-drive space combat, engagements emphasize kine
 - *Image details (Torpedoes):* Slender, hyper-accelerating kinetic darts with bright initial chemical-booster plumes designed to boost 1-2 hexes off the launch rail before transitioning to primary drive.
 - *Image details (Nukes):* Heavy, bloated warheads with thick armored casings, deployed defensively or as devastating area-denial weapons capable of cratering moons and vaporizing asteroid fields.
 
-![Ordnance](./assets/missile_tubes_1774105521423.png)
+![Ordnance](./assets/missile_tubes_1775210023785.png)
 
 ---
 
