@@ -35,7 +35,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 
 const createState = (ships: Ship[]): GameState => ({
   gameId: 'LOCAL',
-  scenario: 'Bi-Planetary',
+  scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
   turnNumber: 1,

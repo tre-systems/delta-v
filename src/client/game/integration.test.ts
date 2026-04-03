@@ -560,7 +560,7 @@ describe('client integration: chat and errors', () => {
       ],
     ]);
     expect(deps.calls['ui.overlay.showToast']).toEqual([
-      ['Room not found', 'error'],
+      ['Invalid action \u2014 please try again', 'error'],
     ]);
     expect(deps.calls.setState).toEqual([['menu']]);
   });

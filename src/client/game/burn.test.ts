@@ -44,7 +44,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 
 const createState = (ship: Ship): GameState => ({
   gameId: 'BURN',
-  scenario: 'test',
+  scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
   turnNumber: 1,

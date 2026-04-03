@@ -28,7 +28,7 @@ const createState = (
   overrides: Partial<GameState> = {},
 ): GameState => ({
   gameId: 'LOCAL',
-  scenario: 'Bi-Planetary',
+  scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
   turnNumber: 3,

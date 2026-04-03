@@ -1,7 +1,11 @@
 import { must } from '../../shared/assert';
 import type { MovementResult } from '../../shared/engine/game-engine';
 import type { RoomCode } from '../../shared/ids';
-import type { CombatResult, GameState } from '../../shared/types/domain';
+import {
+  type CombatResult,
+  ErrorCode,
+  type GameState,
+} from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playPhaseChange } from '../audio';
 import {
@@ -234,6 +238,21 @@ const applyRematchPendingPlan: ClientMessagePlanHandler<'rematchPending'> = (
   deps.ui.overlay.showRematchPending();
 };
 
+// Maps known error codes to user-friendly display messages.
+// Codes not in this map fall through to the raw server message.
+const ERROR_CODE_DISPLAY: Partial<Record<ErrorCode, string>> = {
+  [ErrorCode.INVALID_PHASE]: 'Action not available in this phase',
+  [ErrorCode.NOT_YOUR_TURN]: "It's not your turn",
+  [ErrorCode.INVALID_INPUT]: 'Invalid action \u2014 please try again',
+  [ErrorCode.STATE_CONFLICT]: 'Action conflicts with current game state',
+  [ErrorCode.RESOURCE_LIMIT]: 'Insufficient resources for this action',
+  [ErrorCode.NOT_ALLOWED]: 'That action is not allowed right now',
+  [ErrorCode.INVALID_SELECTION]: 'Invalid selection \u2014 please try again',
+  [ErrorCode.INVALID_TARGET]: 'Invalid target for this action',
+  [ErrorCode.INVALID_SHIP]: 'Invalid ship for this action',
+  [ErrorCode.INVALID_PLAYER]: 'Invalid player',
+};
+
 const applyErrorPlan: ClientMessagePlanHandler<'error'> = (
   deps,
   plan,
@@ -243,7 +262,9 @@ const applyErrorPlan: ClientMessagePlanHandler<'error'> = (
     message: plan.message,
     code: plan.code,
   });
-  deps.ui.overlay.showToast(plan.message, 'error');
+  const displayMessage =
+    (plan.code && ERROR_CODE_DISPLAY[plan.code]) || plan.message;
+  deps.ui.overlay.showToast(displayMessage, 'error');
   if (deps.ctx.state === 'connecting') {
     deps.setState('menu');
   }

@@ -1,4 +1,5 @@
 import { findBaseHex } from '../../map-data';
+import { mulberry32 } from '../../prng';
 import type { SolarSystemMap } from '../../types';
 import type { GameState, Result } from '../../types/domain';
 import { processFleetReady } from '../fleet-building';
@@ -35,7 +36,13 @@ export const projectLifecycleEvent = (
         };
       }
 
-      const result = createGame(scenario, map, gameId, findBaseHex, () => 0);
+      const result = createGame(
+        scenario,
+        map,
+        gameId,
+        findBaseHex,
+        mulberry32(event.matchSeed),
+      );
 
       if (!result.ok) {
         return { ok: false, error: result.error.message };

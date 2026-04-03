@@ -1,5 +1,7 @@
 import { SHIP_STATS } from '../constants';
 import { type HexKey, hexKey, parseHexKey } from '../hex';
+import type { ScenarioKey } from '../scenario-definitions';
+import { SCENARIOS } from '../scenario-definitions';
 import {
   CURRENT_GAME_STATE_SCHEMA_VERSION,
   type EngineError,
@@ -13,6 +15,17 @@ import {
 } from '../types';
 import { randomChoice } from '../util';
 import { engineError } from './util';
+
+// Reverse-lookup: find the SCENARIOS key for a definition (by reference equality).
+// Falls back to matching by name, then casts as a last resort for ad-hoc definitions.
+const resolveScenarioKey = (scenario: ScenarioDefinition): ScenarioKey => {
+  for (const [key, def] of Object.entries(SCENARIOS)) {
+    if (def === scenario || def.name === scenario.name) {
+      return key as ScenarioKey;
+    }
+  }
+  return scenario.name as unknown as ScenarioKey;
+};
 
 const resolveControlledBases = (
   player: ScenarioDefinition['players'][number],
@@ -153,6 +166,7 @@ export const createGame = (
     r: number;
   } | null,
   rng: () => number = Math.random,
+  scenarioKey?: ScenarioKey,
 ): Result<GameState, EngineError> => {
   const playerCountError = validateScenarioPlayerCount(scenario);
 
@@ -269,7 +283,7 @@ export const createGame = (
     value: {
       schemaVersion: CURRENT_GAME_STATE_SCHEMA_VERSION,
       gameId: gameCode,
-      scenario: scenario.name,
+      scenario: scenarioKey ?? resolveScenarioKey(scenario),
       scenarioRules: {
         allowedOrdnanceTypes: scenario.rules?.allowedOrdnanceTypes
           ? [...scenario.rules.allowedOrdnanceTypes]

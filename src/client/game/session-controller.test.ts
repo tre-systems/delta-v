@@ -4,6 +4,7 @@ import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
+  isValidScenario,
   SCENARIOS,
 } from '../../shared/map-data';
 import type { GameState } from '../../shared/types/domain';
@@ -111,7 +112,8 @@ const createLocalGameDeps = (): LocalGameSessionDeps & {
     }),
     createLocalTransport: () => ({ kind: 'local' }) as never,
     createLocalGameState: () => ({ ok: true, value: state }),
-    getScenarioName: (scenario) => SCENARIOS[scenario]?.name ?? 'Unknown',
+    getScenarioName: (scenario) =>
+      isValidScenario(scenario) ? SCENARIOS[scenario].name : 'Unknown',
     resetTurnTelemetry: track('resetTurnTelemetry'),
     clearTrails: track('clearTrails'),
     clearLog: track('clearLog'),

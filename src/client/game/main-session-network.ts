@@ -1,5 +1,6 @@
 import { createGame } from '../../shared/engine/game-engine';
-import { findBaseHex, SCENARIOS } from '../../shared/map-data';
+import type { ScenarioKey } from '../../shared/map-data';
+import { findBaseHex, isValidScenario, SCENARIOS } from '../../shared/map-data';
 import type { GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import type { Renderer } from '../renderer/renderer';
@@ -66,8 +67,11 @@ const replaceMainRoute = (route: string): void => {
   history.replaceState(null, '', route);
 };
 
-const resolveScenarioDefinition = (scenario: string) => {
-  return SCENARIOS[scenario] ?? SCENARIOS.biplanetary;
+// Validates an untrusted scenario string and returns the definition + key.
+// Falls back to 'biplanetary' for unknown keys.
+const resolveScenario = (scenario: string) => {
+  const key: ScenarioKey = isValidScenario(scenario) ? scenario : 'biplanetary';
+  return { def: SCENARIOS[key], key };
 };
 
 const createMainRemoteSessionBridge = (
@@ -89,15 +93,12 @@ const createMainLocalSessionDeps = (
 ): LocalGameSessionDeps => ({
   ctx: deps.ctx,
   createLocalTransport: deps.createLocalTransport,
-  createLocalGameState: (selectedScenario) =>
-    createGame(
-      resolveScenarioDefinition(selectedScenario),
-      deps.map,
-      'LOCAL',
-      findBaseHex,
-    ),
+  createLocalGameState: (selectedScenario) => {
+    const { def, key } = resolveScenario(selectedScenario);
+    return createGame(def, deps.map, 'LOCAL', findBaseHex, undefined, key);
+  },
   getScenarioName: (selectedScenario) =>
-    resolveScenarioDefinition(selectedScenario).name,
+    resolveScenario(selectedScenario).def.name,
   resetTurnTelemetry: () => deps.turnTelemetry.reset(),
   clearTrails: () => deps.renderer.clearTrails(),
   clearLog: () => deps.ui.log.clear(),

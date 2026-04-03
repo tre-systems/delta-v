@@ -53,7 +53,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
   gameId: 'AI',
-  scenario: 'test',
+  scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
   turnNumber: 2,

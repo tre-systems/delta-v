@@ -103,7 +103,7 @@ describe('match archival', () => {
     const body = JSON.parse(r2.objects.get(r2Key) ?? '{}') as MatchArchive;
     expect(body.gameId).toBe('ARC-m1');
     expect(body.roomCode).toBe('ARCROOM');
-    expect(body.scenario).toBe('Duel');
+    expect(body.scenario).toBe('duel');
     expect(body.winner).toBe(0);
     expect(body.winReason).toBe('Fleet eliminated!');
     expect(body.turnCount).toBe(state.turnNumber);
@@ -116,7 +116,7 @@ describe('match archival', () => {
     expect(db.bind).toHaveBeenCalledWith(
       'ARC-m1',
       'ARCROOM',
-      'Duel',
+      'duel',
       0,
       'Fleet eliminated!',
       state.turnNumber,

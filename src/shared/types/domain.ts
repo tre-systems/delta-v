@@ -1,5 +1,6 @@
 import type { OrdnanceType, ShipType } from '../constants';
 import type { HexCoord, HexKey, HexVec } from '../hex';
+import type { ScenarioKey } from '../scenario-definitions';
 
 // --- Result type ---
 
@@ -81,7 +82,7 @@ export const CURRENT_GAME_STATE_SCHEMA_VERSION = 1;
 export interface GameState {
   schemaVersion?: number;
   gameId: string;
-  scenario: string;
+  scenario: ScenarioKey;
   scenarioRules: ScenarioRules;
   escapeMoralVictoryAchieved: boolean;
   turnNumber: number;

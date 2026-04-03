@@ -1,4 +1,4 @@
-import { SCENARIOS } from '../../map-data';
+import { isValidScenario, SCENARIOS } from '../../map-data';
 import type { ScenarioDefinition } from '../../types';
 import { CURRENT_GAME_STATE_SCHEMA_VERSION } from '../../types';
 import type { GameState, GravityEffect, Result } from '../../types/domain';
@@ -62,9 +62,16 @@ export const migrateGameState = (state: GameState): GameState => ({
   schemaVersion: state.schemaVersion ?? CURRENT_GAME_STATE_SCHEMA_VERSION,
 });
 
+// Resolves a scenario from either a key (e.g. "biplanetary") or a display
+// name (e.g. "Bi-Planetary") for backward-compatible replay support.
 export const resolveScenarioByName = (
   scenarioName: string,
 ): ScenarioDefinition | null => {
+  // Try key lookup first (new format).
+  if (isValidScenario(scenarioName)) {
+    return SCENARIOS[scenarioName];
+  }
+  // Fall back to name match (legacy replays).
   for (const scenario of Object.values(SCENARIOS)) {
     if (scenario.name === scenarioName) {
       return scenario;

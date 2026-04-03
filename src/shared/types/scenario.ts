@@ -5,6 +5,9 @@ import type {
   ScenarioShip,
 } from './domain';
 
+// Re-export the derived key union so consumers can import from the types barrel.
+export type { ScenarioKey } from '../scenario-definitions';
+
 // --- Scenario configuration ---
 
 export interface ScenarioPlayer {

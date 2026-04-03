@@ -67,7 +67,7 @@ describe('TurnTelemetryTracker', () => {
     });
 
     telemetry.onTurnLogged(4, {
-      scenario: 'test',
+      scenario: 'biplanetary',
       isLocalGame: true,
     });
     telemetry.onStateChanged('menu', 'playing_combat');
@@ -78,7 +78,7 @@ describe('TurnTelemetryTracker', () => {
 
     now = 50;
     telemetry.onTurnLogged(1, {
-      scenario: 'test',
+      scenario: 'biplanetary',
       isLocalGame: true,
     });
 

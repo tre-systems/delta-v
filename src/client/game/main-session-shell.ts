@@ -1,4 +1,4 @@
-import { SCENARIOS } from '../../shared/map-data';
+import { isValidScenario, SCENARIOS } from '../../shared/map-data';
 import type {
   GameState,
   PlayerId,
@@ -241,7 +241,9 @@ export const createMainSessionShell = (
       getMap: () => args.map,
       getScenario: () => args.ctx.scenario,
       getScenarioDef: () =>
-        SCENARIOS[args.ctx.scenario] ?? SCENARIOS.biplanetary,
+        isValidScenario(args.ctx.scenario)
+          ? SCENARIOS[args.ctx.scenario]
+          : SCENARIOS.biplanetary,
       getAIDifficulty: () => args.ctx.aiDifficulty,
       localGameFlowDeps: args.actionDeps.localGameFlowDeps,
       applyGameState: (state) => applyGameState(state),

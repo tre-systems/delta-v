@@ -68,7 +68,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
   gameId: 'TEST',
-  scenario: 'test',
+  scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
   turnNumber: 3,
@@ -350,7 +350,7 @@ describe('game client helpers', () => {
 
     expect(getGameOverStats(state, 0)).toEqual({
       playerId: 0,
-      scenario: 'test',
+      scenario: 'biplanetary',
       turns: 3,
       myShipsAlive: 1,
       myShipsTotal: 2,
