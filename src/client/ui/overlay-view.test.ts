@@ -11,6 +11,7 @@ import { createOverlayView } from './overlay-view';
 const installFixture = () => {
   document.body.innerHTML = `
     <div id="gameOver" style="display:none"></div>
+    <div id="gameOverKicker" style="display:none"></div>
     <div id="gameOverText"></div>
     <div id="gameOverReason"></div>
     <div id="gameOverStats"></div>

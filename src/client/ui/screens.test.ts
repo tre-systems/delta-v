@@ -63,16 +63,18 @@ describe('ui-screens', () => {
     });
 
     expect(view.titleText).toBe('VICTORY');
+    expect(view.kickerText).toBeNull();
     expect(view.reasonText).toBe('Fleet eliminated!');
     expect(view.rematchText).toBe('Rematch');
     expect(view.rematchDisabled).toBe(false);
-    expect(view.statLines).toEqual([
-      { label: 'Turns', value: '12' },
-      { label: 'Your fleet', value: '2/3 survived' },
-      { label: 'Enemy fleet', value: '0/2 survived' },
-      { label: 'Kills', value: '2' },
-      { label: 'Fuel spent', value: '18' },
+    expect(view.summaryItems).toEqual([
+      { label: 'Turns', value: '12', tone: 'accent' },
+      { label: 'Your fleet', value: '2/3 survived', tone: 'success' },
+      { label: 'Enemy fleet', value: '0/2 survived', tone: 'warning' },
+      { label: 'Kills', value: '2', tone: 'accent' },
+      { label: 'Fuel spent', value: '18', tone: 'neutral' },
     ]);
+    expect(view.shipGroups).toEqual([]);
 
     expect(buildReconnectView(2, 5)).toEqual({
       reconnectText: 'Connection lost',
@@ -107,19 +109,43 @@ describe('ui-screens', () => {
     });
 
     expect(view.titleText).toBe('GAME OVER');
-    expect(view.statLines).toEqual([
-      { label: 'Turns', value: '12' },
-      { label: 'Fleet 1', value: '2/3 survived' },
-      { label: 'Fleet 2', value: '0/2 survived' },
-      { label: 'Fleet 1 fuel', value: '18' },
-      { label: 'Fleet 2 fuel', value: '12' },
-      { label: 'Bases destroyed', value: '1' },
-      { label: '', value: '' },
-      { label: 'FLEET 1', value: '' },
-      { label: 'Transport', value: 'SURVIVED' },
-      { label: 'Packet', value: 'DESTROYED' },
-      { label: 'FLEET 2', value: '' },
-      { label: 'Corsair', value: 'DESTROYED' },
+    expect(view.summaryItems).toEqual([
+      { label: 'Turns', value: '12', tone: 'accent' },
+      { label: 'Fleet 1', value: '2/3 survived', tone: 'accent' },
+      { label: 'Fleet 2', value: '0/2 survived', tone: 'warning' },
+      { label: 'Fleet 1 fuel', value: '18', tone: 'neutral' },
+      { label: 'Fleet 2 fuel', value: '12', tone: 'neutral' },
+      { label: 'Bases destroyed', value: '1', tone: 'warning' },
+    ]);
+    expect(view.shipGroups).toEqual([
+      {
+        title: 'Fleet 1',
+        items: [
+          {
+            name: 'Transport',
+            outcomeText: 'Survived',
+            detailText: null,
+            tone: 'success',
+          },
+          {
+            name: 'Packet',
+            outcomeText: 'Destroyed',
+            detailText: null,
+            tone: 'danger',
+          },
+        ],
+      },
+      {
+        title: 'Fleet 2',
+        items: [
+          {
+            name: 'Corsair',
+            outcomeText: 'Destroyed',
+            detailText: null,
+            tone: 'danger',
+          },
+        ],
+      },
     ]);
   });
 });

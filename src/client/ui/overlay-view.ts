@@ -9,6 +9,100 @@ export interface OverlayView {
   dispose: () => void;
 }
 
+const renderGameOverStats = (
+  container: HTMLElement,
+  summaryItems: ReadonlyArray<{
+    label: string;
+    value: string;
+    tone: string;
+  }>,
+  shipGroups: ReadonlyArray<{
+    title: string;
+    items: ReadonlyArray<{
+      name: string;
+      outcomeText: string;
+      detailText: string | null;
+      tone: string;
+    }>;
+  }>,
+): void => {
+  clearHTML(container);
+
+  if (summaryItems.length > 0) {
+    const summaryGrid = el('div', { class: 'game-over-summary-grid' });
+
+    for (const item of summaryItems) {
+      summaryGrid.appendChild(
+        el(
+          'div',
+          {
+            class: `game-over-summary-card game-over-summary-card-${item.tone}`,
+          },
+          el('span', {
+            class: 'game-over-summary-label',
+            text: item.label,
+          }),
+          el('strong', {
+            class: 'game-over-summary-value',
+            text: item.value,
+          }),
+        ),
+      );
+    }
+
+    container.appendChild(summaryGrid);
+  }
+
+  if (shipGroups.length > 0) {
+    const groupsWrap = el('div', { class: 'game-over-ship-groups' });
+
+    for (const group of shipGroups) {
+      const groupEl = el(
+        'section',
+        { class: 'game-over-ship-group' },
+        el('h3', {
+          class: 'game-over-ship-group-title',
+          text: group.title,
+        }),
+      );
+
+      for (const item of group.items) {
+        const row = el('div', { class: 'game-over-fate-row' });
+        const copy = el(
+          'div',
+          { class: 'game-over-fate-copy' },
+          el('span', {
+            class: 'game-over-fate-name',
+            text: item.name,
+          }),
+        );
+
+        if (item.detailText) {
+          copy.appendChild(
+            el('span', {
+              class: 'game-over-fate-detail',
+              text: item.detailText,
+            }),
+          );
+        }
+
+        row.appendChild(copy);
+        row.appendChild(
+          el('span', {
+            class: `game-over-fate-badge game-over-fate-badge-${item.tone}`,
+            text: item.outcomeText,
+          }),
+        );
+        groupEl.appendChild(row);
+      }
+
+      groupsWrap.appendChild(groupEl);
+    }
+
+    container.appendChild(groupsWrap);
+  }
+};
+
 export const createOverlayView = (
   state: Pick<
     OverlayStateStore,
@@ -22,6 +116,7 @@ export const createOverlayView = (
 ): OverlayView => {
   const scope = createDisposalScope();
   const gameOverEl = byId('gameOver');
+  const gameOverKickerEl = byId('gameOverKicker');
   const gameOverTextEl = byId('gameOverText');
   const gameOverReasonEl = byId('gameOverReason');
   const rematchBtn = byId<HTMLButtonElement>('rematchBtn');
@@ -169,29 +264,26 @@ export const createOverlayView = (
     effect(() => {
       const gameOverView = state.gameOverViewSignal.value;
 
+      const kickerText = gameOverView.kickerText ?? '';
+      text(gameOverKickerEl, kickerText);
+      visible(gameOverKickerEl, kickerText.length > 0, 'inline-flex');
       text(gameOverTextEl, gameOverView.titleText);
       gameOverTextEl.className = gameOverView.titleClass;
       text(gameOverReasonEl, gameOverView.reasonText);
       text(rematchBtn, gameOverView.rematchText);
       rematchBtn.disabled = gameOverView.rematchDisabled;
 
-      clearHTML(gameOverStatsEl);
-      for (const line of gameOverView.statLines) {
-        const row = el('div', { class: 'stat-row' });
-        row.appendChild(
-          el('span', {
-            class: 'stat-label',
-            text: line.label,
-          }),
-        );
-        row.appendChild(
-          el('span', {
-            class: 'stat-value',
-            text: line.value,
-          }),
-        );
-        gameOverStatsEl.appendChild(row);
-      }
+      renderGameOverStats(
+        gameOverStatsEl,
+        gameOverView.summaryItems,
+        gameOverView.shipGroups,
+      );
+      visible(
+        gameOverStatsEl,
+        gameOverView.summaryItems.length > 0 ||
+          gameOverView.shipGroups.length > 0,
+        'block',
+      );
 
       if (gameOverView.visible && !gameOverWasVisible) {
         gameOverEl.classList.remove('game-over-enter');

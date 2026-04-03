@@ -61,6 +61,7 @@ const installFixture = () => {
     <div id="logLatestBar"></div>
     <div id="logLatestText"></div>
     <div id="gameOverText"></div>
+    <div id="gameOverKicker"></div>
     <div id="gameOverReason"></div>
     <div id="gameOverStats"></div>
     <div id="replayStatus"></div>
