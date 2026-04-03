@@ -192,14 +192,9 @@ export const createGameClient = () => {
     input,
     ui,
     ctx,
+    interactions,
     updateTooltip: (x, y) => hud.updateTooltip(x, y),
-    onKeyboardAction: (action) => interactions.handleKeyboardAction(action),
-    onToggleHelp: () => interactions.toggleHelp(),
     onUpdateSoundButton: () => hud.updateSoundButton(),
-    showToast: (message, type) => interactions.showToast(message, type),
-    onUIEvent: (event) => interactions.handleUIEvent(event),
-    joinGame: (code, playerToken) => interactions.joinGame(code, playerToken),
-    spectateGame: (code) => interactions.spectateGame(code),
     setMenuState: () => setState('menu'),
   });
 
