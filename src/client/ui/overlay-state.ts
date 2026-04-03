@@ -142,7 +142,12 @@ export const createOverlayStateStore = (): OverlayStateStore => {
     return {
       visible: true,
       titleText: view.titleText,
-      titleClass: state.won ? 'game-over-victory' : 'game-over-defeat',
+      titleClass:
+        state.stats && (state.stats.playerId ?? 0) < 0
+          ? 'game-over-neutral'
+          : state.won
+            ? 'game-over-victory'
+            : 'game-over-defeat',
       reasonText: view.reasonText,
       statLines: view.statLines,
       rematchText: rematchView.rematchText,

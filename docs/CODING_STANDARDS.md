@@ -53,7 +53,7 @@ in `src/client/game/client-kernel.ts`, `createInputHandler()` in `src/client/inp
 class: `createRenderer()` in `src/client/renderer/renderer.ts`
 and `createCamera()` in `src/client/renderer/camera.ts` own
 long-lived mutable browser state (animation managers, static
-scene cache, listeners). The public type is
+scene cache, and viewport state). The public type is
 `ReturnType<typeof createRenderer>` (exported as `Renderer`).
 Frame drawing is split across focused modules under
 `src/client/renderer/` (for example `scene.ts`, `ships.ts`,
@@ -688,7 +688,7 @@ For the underlying ideas, see Martin Fowler on
 and Mark Seemann on
 [Composition Root](https://blog.ploeh.dk/2011/07/28/CompositionRoot/):
 
-- **Pure functions** take only what they need as direct parameters (or a small options object when the API is naturally grouped). These are the `derive*`, `build*`, `resolve*`, `get*` functions in `game/helpers.ts`, `game/keyboard.ts`, `game/navigation.ts`, `game/burn.ts`, `game/combat.ts`, `game/messages.ts`, etc. They return values and have no side effects. Canvas drawing modules are pure at the function level but often take one typed input object for wide draw entry points, matching the options-object guideline in Core Principles.
+- **Pure functions** take only what they need as direct parameters (or a small options object when the API is naturally grouped). These are the `derive*`, `build*`, `resolve*`, `get*` functions in `game/hud-view-model.ts`, `game/astrogation-orders.ts`, `game/client-message-plans.ts`, `game/keyboard.ts`, `game/navigation.ts`, `game/burn.ts`, `game/combat.ts`, etc. They return values and have no side effects. Canvas drawing modules are pure at the function level but often take one typed input object for wide draw entry points, matching the options-object guideline in Core Principles.
 
 - **Side-effecting functions** take a `deps` object as their first parameter. The `deps` interface declares the callbacks and state accessors the function needs (e.g. `getGameState()`, `showToast()`, `getTransport()`). This avoids long parameter lists and makes testing easy via mock objects. Examples: `CombatActionDeps`, `AstrogationActionDeps`, `PresentationDeps`, `LocalGameFlowDeps`.
 

@@ -42,7 +42,7 @@ export const attachSessionPlanningSelectionEffect = (
 
     planning.revisionSignal?.value;
 
-    if (!gameState || playerId === -1) {
+    if (!gameState) {
       if (planning.selectedShipId !== null) {
         planning.setSelectedShipId(null);
       }

@@ -92,12 +92,15 @@
       </div>
       <div class="divider">or</div>
       <div class="join-row">
-        <input id="codeInput" class="code-input" maxlength="5" placeholder="CODE" autocapitalize="characters" spellcheck="false">
+        <input id="codeInput" class="code-input" maxlength="5" placeholder="CODE" autocapitalize="characters" spellcheck="false" aria-label="Game code">
         <button id="joinBtn" class="btn btn-secondary">Join</button>
       </div>
       <a href="https://ko-fi.com/N4N31DPNUS" target="_blank" rel="noopener" class="kofi-link">
         <img src="https://storage.ko-fi.com/cdn/kofi2.png?v=6" alt="Buy Me a Coffee at ko-fi.com" height="32">
       </a>
+      <p id="privacyNotice" class="menu-note menu-disclosure">
+        Operational note: Delta-V stores anonymous diagnostics and completed-match archives for reliability and replay. Chat is live-only by default; avoid sharing sensitive information.
+      </p>
     </div>
   </div>
 
@@ -184,19 +187,19 @@
 
   <!-- Game log panel -->
   <div id="gameLog" class="game-log glass" style="display:none">
-    <div id="logEntries" class="log-entries"></div>
+    <div id="logEntries" class="log-entries" role="log" aria-live="polite" aria-relevant="additions text"></div>
     <div id="chatInputRow" class="chat-input-row" style="display:none">
       <input id="chatInput" class="chat-input" type="text" maxlength="200"
-        placeholder="Chat..." autocomplete="off">
+        placeholder="Chat..." autocomplete="off" aria-label="Chat message">
       <button id="chatSendBtn" class="chat-send-btn" aria-label="Send chat message">&#10148;</button>
     </div>
   </div>
-  <div id="logLatestBar" class="log-latest-bar" style="display:none">
+  <div id="logLatestBar" class="log-latest-bar" style="display:none" role="status" aria-live="polite" aria-atomic="true">
     <span id="logLatestText" class="log-latest-text"></span>
   </div>
 
   <!-- Game Over overlay -->
-  <div id="gameOver" class="screen screen-page glass" style="display:none">
+  <div id="gameOver" class="screen screen-page glass" style="display:none" role="dialog" aria-modal="true" aria-labelledby="gameOverText" aria-describedby="gameOverReason">
     <div class="menu-content game-over-content">
       <h2 id="gameOverText">VICTORY</h2>
       <p id="gameOverReason"></p>
@@ -232,10 +235,10 @@
   </div>
 
   <!-- Help overlay -->
-  <div id="helpOverlay" class="screen screen-page glass" style="display:none">
+  <div id="helpOverlay" class="screen screen-page glass" style="display:none" role="dialog" aria-modal="true" aria-labelledby="helpTitle" aria-describedby="helpIntro">
     <div class="menu-content help-content">
-      <h2 class="scenario-title">How to Play</h2>
-      <p class="help-intro">Tactical hex-based space combat. Plot burns, ride gravity, and outfly the enemy.</p>
+      <h2 id="helpTitle" class="scenario-title">How to Play</h2>
+      <p id="helpIntro" class="help-intro">Tactical hex-based space combat. Plot burns, ride gravity, and outfly the enemy.</p>
 
       <div class="help-group">
         <h3>Map Symbols</h3>
@@ -340,7 +343,7 @@
   <button id="soundBtn" class="sound-btn" style="display:none" title="Toggle sound" aria-label="Toggle sound"></button>
 
   <!-- Reconnection overlay -->
-  <div id="reconnectOverlay" class="reconnect-overlay" style="display:none">
+  <div id="reconnectOverlay" class="reconnect-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="reconnectText" aria-describedby="reconnectAttempt">
     <div class="reconnect-content">
       <div class="reconnect-spinner"></div>
       <div id="reconnectText" class="reconnect-text">Reconnecting...</div>
@@ -350,7 +353,7 @@
   </div>
 
   <!-- Opponent disconnect banner -->
-  <div id="opponentDisconnectOverlay" class="opponent-disconnect-banner" style="display:none">
+  <div id="opponentDisconnectOverlay" class="opponent-disconnect-banner" style="display:none" role="status" aria-live="polite" aria-atomic="true">
     <div id="opponentDisconnectText"></div>
   </div>
 
@@ -365,14 +368,14 @@
   </div>
 
   <!-- Toast notifications -->
-  <div id="toastContainer" class="toast-container"></div>
+  <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
   <!-- Ship tooltip -->
   <div id="shipTooltip" class="ship-tooltip" style="display:none"></div>
 
 
     <!-- Phase Alerts -->
-    <div id="phaseAlert">
+    <div id="phaseAlert" role="status" aria-live="polite" aria-atomic="true">
       <div class="phase-alert-title">Astrogation</div>
       <div class="phase-alert-subtitle">Your Turn</div>
     </div>

@@ -64,18 +64,35 @@ const getObjective = (state: GameState, playerId: PlayerId | -1): string => {
 };
 
 const getFleetStatus = (state: GameState, playerId: PlayerId | -1): string => {
-  const myShips = state.ships.filter((ship) => ship.owner === playerId);
-  const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
-  const myAlive = count(myShips, (ship) => ship.lifecycle !== 'destroyed');
-  const enemyAlive = count(
-    enemyShips,
-    (ship) => ship.lifecycle !== 'destroyed',
-  );
-
   const statusParts: string[] = [];
 
-  if (myShips.length > 1 || enemyShips.length > 1) {
-    statusParts.push(`⚔ ${myAlive} vs ${enemyAlive}`);
+  if (playerId < 0) {
+    const fleetOne = state.ships.filter((ship) => ship.owner === 0);
+    const fleetTwo = state.ships.filter((ship) => ship.owner === 1);
+    const fleetOneAlive = count(
+      fleetOne,
+      (ship) => ship.lifecycle !== 'destroyed',
+    );
+    const fleetTwoAlive = count(
+      fleetTwo,
+      (ship) => ship.lifecycle !== 'destroyed',
+    );
+
+    if (fleetOne.length > 0 || fleetTwo.length > 0) {
+      statusParts.push(`👁 Spectating · ${fleetOneAlive} vs ${fleetTwoAlive}`);
+    }
+  } else {
+    const myShips = state.ships.filter((ship) => ship.owner === playerId);
+    const enemyShips = state.ships.filter((ship) => ship.owner !== playerId);
+    const myAlive = count(myShips, (ship) => ship.lifecycle !== 'destroyed');
+    const enemyAlive = count(
+      enemyShips,
+      (ship) => ship.lifecycle !== 'destroyed',
+    );
+
+    if (myShips.length > 1 || enemyShips.length > 1) {
+      statusParts.push(`⚔ ${myAlive} vs ${enemyAlive}`);
+    }
   }
 
   const activeOrdnance = state.ordnance.filter(
@@ -143,7 +160,10 @@ export const deriveHudViewModel = (
   planning: HudViewPlanningSnapshot,
   map?: SolarSystemMap | null,
 ): HudViewModel => {
-  const myShips = state.ships.filter((ship) => ship.owner === playerId);
+  const myShips =
+    playerId < 0
+      ? state.ships
+      : state.ships.filter((ship) => ship.owner === playerId);
   const selectedShip = getSelectedShip(
     state,
     playerId,

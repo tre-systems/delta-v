@@ -149,6 +149,12 @@ describe('getSelectedShip', () => {
 
     expect(getSelectedShip(state, 0, 'nonexistent')?.id).toBe('alive');
   });
+
+  it('lets spectators resolve a selected ship across both fleets', () => {
+    const state = createState();
+
+    expect(getSelectedShip(state, -1, 'p1s0')?.id).toBe('p1s0');
+  });
 });
 
 describe('game client helpers', () => {
@@ -385,6 +391,58 @@ describe('game client helpers', () => {
           killedBy: undefined,
         },
       ],
+    });
+  });
+
+  it('builds spectator HUD and game-over stats from the global state', () => {
+    const state = createState({
+      phase: 'gameOver',
+      ships: [
+        createShip({ id: 'p0s0', owner: 0, type: 'transport' }),
+        createShip({
+          id: 'p0s1',
+          owner: 0,
+          type: 'packet',
+          lifecycle: 'destroyed',
+        }),
+        createShip({ id: 'p1s0', owner: 1, type: 'corsair' }),
+      ],
+      players: [
+        { ...createPlayers()[0], totalFuelSpent: 7 },
+        { ...createPlayers()[1], totalFuelSpent: 11 },
+      ],
+    });
+
+    const planning = {
+      selectedShipId: 'p1s0',
+      burns: new Map(),
+      overloads: new Map(),
+      weakGravityChoices: new Map(),
+      landingShips: new Set<string>(),
+      acknowledgedShips: new Set<string>(),
+      acknowledgedOrdnanceShips: new Set<string>(),
+      queuedOrdnanceLaunches: [],
+    };
+
+    expect(deriveHudViewModel(state, -1, planning)).toMatchObject({
+      objective: '⬡ Spectating',
+      fleetStatus: '👁 Spectating · 1 vs 1',
+      myShips: [
+        expect.objectContaining({ id: 'p0s0' }),
+        expect.objectContaining({ id: 'p0s1' }),
+        expect.objectContaining({ id: 'p1s0' }),
+      ],
+      selectedId: 'p1s0',
+    });
+
+    expect(getGameOverStats(state, -1)).toMatchObject({
+      playerId: -1,
+      myShipsAlive: 1,
+      myShipsTotal: 2,
+      enemyShipsAlive: 1,
+      enemyShipsTotal: 1,
+      myFuelSpent: 7,
+      enemyFuelSpent: 11,
     });
   });
 

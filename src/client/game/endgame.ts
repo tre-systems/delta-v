@@ -17,7 +17,7 @@ export const deriveGameOverPlan = (
 ): GameOverPlan => {
   if (playerId < 0) {
     return {
-      stats: undefined,
+      stats: state ? getGameOverStats(state, -1) : undefined,
       logText: `GAME OVER: ${reason}`,
       logClass: 'log-landed',
       resultSound: 'defeat',

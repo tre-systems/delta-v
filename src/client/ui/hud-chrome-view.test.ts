@@ -21,9 +21,10 @@ const installFixture = () => {
     <div id="fuelGauge"></div>
     <div id="latencyInfo"></div>
     <div id="fleetStatus"></div>
-    <div id="helpOverlay" style="display:none"></div>
+    <div id="helpOverlay" style="display:none">
+      <button id="helpCloseBtn"></button>
+    </div>
     <button id="helpBtn"></button>
-    <button id="helpCloseBtn"></button>
     <button id="soundBtn"></button>
     <div id="turnTimer"></div>
     <div id="transferPanel" style="display:none"></div>
@@ -213,6 +214,48 @@ describe('HUDChromeView', () => {
     turnTimerSignal.value = null;
     expect(document.getElementById('turnTimer')?.textContent).toBe('');
     expect(queueLayoutSync).toHaveBeenCalledTimes(5);
+  });
+
+  it('traps focus inside the help overlay and closes it on Escape', async () => {
+    const view = createHUDChromeView({
+      queueLayoutSync: vi.fn(),
+      showPhaseAlert: vi.fn(),
+      onStatusText: vi.fn(),
+    });
+
+    const helpBtn = document.getElementById('helpBtn') as HTMLButtonElement;
+    const helpCloseBtn = document.getElementById(
+      'helpCloseBtn',
+    ) as HTMLButtonElement;
+    const helpOverlay = document.getElementById('helpOverlay') as HTMLElement;
+
+    helpBtn.focus();
+    view.toggleHelpOverlay();
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(helpCloseBtn);
+
+    const tabEvent = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      bubbles: true,
+      cancelable: true,
+    });
+    helpCloseBtn.dispatchEvent(tabEvent);
+
+    expect(tabEvent.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(helpCloseBtn);
+
+    const escapeEvent = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+    });
+    helpOverlay.dispatchEvent(escapeEvent);
+    await Promise.resolve();
+
+    expect(escapeEvent.defaultPrevented).toBe(true);
+    expect(helpOverlay.style.display).toBe('none');
+    expect(document.activeElement).toBe(helpBtn);
   });
 
   it('recomputes status text when the mobile breakpoint changes', () => {

@@ -12,16 +12,18 @@ export const getSelectedShip = (
   playerId: PlayerId | -1,
   selectedId: string | null,
 ) => {
-  if (playerId < 0) return null;
-  const myShips = state.ships.filter((ship) => ship.owner === playerId);
+  const visibleShips =
+    playerId < 0
+      ? state.ships
+      : state.ships.filter((ship) => ship.owner === playerId);
 
   if (selectedId !== null) {
-    const match = myShips.find((ship) => ship.id === selectedId);
+    const match = visibleShips.find((ship) => ship.id === selectedId);
 
     if (match) return match;
   }
 
-  const alive = myShips.filter((ship) => ship.lifecycle !== 'destroyed');
+  const alive = visibleShips.filter((ship) => ship.lifecycle !== 'destroyed');
 
   return alive.length === 1 ? alive[0] : null;
 };
@@ -30,29 +32,10 @@ export const getGameOverStats = (
   state: GameState,
   playerId: PlayerId | -1,
 ): GameOverStats => {
-  if (playerId < 0) {
-    // Basic stats for spectator
-    return {
-      playerId,
-      scenario: state.scenario,
-      turns: state.turnNumber,
-      myShipsAlive: 0,
-      myShipsTotal: 0,
-      enemyShipsAlive: 0,
-      enemyShipsTotal: 0,
-      myShipsDestroyed: 0,
-      enemyShipsDestroyed: 0,
-      myFuelSpent: 0,
-      enemyFuelSpent: 0,
-      basesDestroyed: state.destroyedBases.length,
-      ordnanceInFlight: count(state.ordnance, (o) => o.lifecycle === 'active'),
-      shipFates: [],
-    };
-  }
-  const pid = playerId as PlayerId;
+  const pid = playerId < 0 ? 0 : (playerId as PlayerId);
+  const opponentId = (pid === 0 ? 1 : 0) as PlayerId;
   const myShips = state.ships.filter((ship) => ship.owner === pid);
-  const enemyShips = state.ships.filter((ship) => ship.owner !== pid);
-  const enemyId = (pid === 0 ? 1 : 0) as PlayerId;
+  const enemyShips = state.ships.filter((ship) => ship.owner === opponentId);
 
   const myDestroyed = count(myShips, (s) => s.lifecycle === 'destroyed');
   const enemyDestroyed = count(enemyShips, (s) => s.lifecycle === 'destroyed');
@@ -114,7 +97,7 @@ export const getGameOverStats = (
     myShipsDestroyed: myDestroyed,
     enemyShipsDestroyed: enemyDestroyed,
     myFuelSpent: state.players[pid]?.totalFuelSpent ?? 0,
-    enemyFuelSpent: state.players[enemyId]?.totalFuelSpent ?? 0,
+    enemyFuelSpent: state.players[opponentId]?.totalFuelSpent ?? 0,
     basesDestroyed: state.destroyedBases.length,
     ordnanceInFlight: count(state.ordnance, (o) => o.lifecycle === 'active'),
     shipFates,
