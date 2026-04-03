@@ -35,7 +35,7 @@ export type { CombatAttack };
 //   (0=1:4, 1=1:2, 2=1:1, 3=2:1, 4=3:1, 5=4:1)
 // Values: 0 = no effect, 1-5 = disabled that many
 //   turns, 6 = eliminated
-const GUN_COMBAT_TABLE: number[][] = [
+const GUN_COMBAT_TABLE: readonly (readonly number[])[] = [
   [0, 0, 0, 0, 0, 0], // roll <= 0
   [0, 0, 0, 0, 0, 2], // roll 1
   [0, 0, 0, 0, 2, 3], // roll 2
@@ -51,7 +51,7 @@ const GUN_COMBAT_TABLE: number[][] = [
 // Values: 0 = no effect, 1-5 = disabled, 6 = eliminated
 export type OtherDamageSource = 'torpedo' | 'mine' | 'asteroid' | 'ram';
 
-const OTHER_DAMAGE_TABLES: Record<OtherDamageSource, number[]> = {
+const OTHER_DAMAGE_TABLES: Readonly<Record<OtherDamageSource, readonly number[]>> = {
   torpedo: [0, 1, 1, 1, 2, 3],
   mine: [0, 0, 0, 0, 2, 2],
   asteroid: [0, 0, 0, 0, 1, 2],
@@ -322,7 +322,7 @@ export const computeBaseVelocityMod = (
   const ds = Math.abs(-target.velocity.dq - target.velocity.dr);
   const velDiff = Math.max(dq, dr, ds);
 
-  return Math.max(0, velDiff - 2);
+  return Math.max(0, velDiff - VELOCITY_MODIFIER_THRESHOLD);
 };
 
 export const getCounterattackers = (target: Ship, allShips: Ship[]): Ship[] =>

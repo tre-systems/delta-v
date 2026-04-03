@@ -881,7 +881,7 @@ describe('computeCourse - weak gravity consecutive rule', () => {
     });
     // Try to ignore both weak gravity hexes
     const course = computeCourse(ship, null, customMap, {
-      weakGravityChoices: { '1,0': true, '2,0': true },
+      weakGravityChoices: { [asHexKey('1,0')]: true, [asHexKey('2,0')]: true },
     });
     // First weak gravity can be ignored, second consecutive one from same body cannot
     const effects = course.enteredGravityEffects;
@@ -939,7 +939,7 @@ describe('computeCourse - weak gravity consecutive rule', () => {
       velocity: { dq: 2, dr: 0 },
     });
     const course = computeCourse(ship, null, customMap, {
-      weakGravityChoices: { '1,0': true, '2,0': true },
+      weakGravityChoices: { [asHexKey('1,0')]: true, [asHexKey('2,0')]: true },
     });
     const effects = course.enteredGravityEffects;
     if (effects.length === 2) {

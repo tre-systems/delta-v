@@ -149,6 +149,10 @@ const interpretAstrogationClick = (
       ];
     case 'clearSelection':
       return [{ type: 'deselectShip' }];
+    default: {
+      const _exhaustive: never = interaction;
+      return _exhaustive;
+    }
   }
 };
 
@@ -179,6 +183,10 @@ const interpretOrdnanceClick = (
       ];
     case 'none':
       return [];
+    default: {
+      const _exhaustive: never = interaction;
+      return _exhaustive;
+    }
   }
 };
 
@@ -203,6 +211,7 @@ const interpretClickHex = (
       return interpretAstrogationClick(hex, state, map, playerId, planning);
     default:
       return [];
+
   }
 };
 
@@ -230,5 +239,9 @@ export const interpretInput = (
       if (planning.hoverHex) return [{ type: 'setHoverHex', hex: null }];
 
       return [];
+    default: {
+      const _exhaustive: never = event;
+      return _exhaustive;
+    }
   }
 };

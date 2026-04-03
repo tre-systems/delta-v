@@ -115,6 +115,10 @@ export const drawIdentityMarkers = ({
       ctx.arc(pos.x, pos.y - 14, 4, 0, Math.PI * 2);
       ctx.stroke();
       break;
+    default: {
+      const _exhaustive: never = identityMarker;
+      void _exhaustive;
+    }
   }
 };
 

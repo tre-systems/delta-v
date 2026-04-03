@@ -123,5 +123,9 @@ export const keyboardActionToCommand = (
       return { type: 'toggleHelp' };
     case 'toggleMute':
       return { type: 'toggleMute' };
+    default: {
+      const _exhaustive: never = action;
+      return _exhaustive;
+    }
   }
 };

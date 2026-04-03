@@ -113,5 +113,9 @@ export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
     case 'reschedule':
       await deps.rescheduleAlarm();
       return;
+    default: {
+      const _exhaustive: never = action;
+      return _exhaustive;
+    }
   }
 };

@@ -224,8 +224,11 @@ export const formatMovementEventEntry = (
       };
     }
 
-    default:
+    default: {
+      const _exhaustive: never = event.type;
+      void _exhaustive;
       return null;
+    }
   }
 };
 
@@ -365,6 +368,9 @@ export const formatLogisticsTransferLogLines = (
         e.toShipId,
       );
       lines.push(`Transferred ${e.amount} passengers: ${from} → ${to}`);
+    } else {
+      const _exhaustive: never = e.type;
+      void _exhaustive;
     }
   }
   return lines;
