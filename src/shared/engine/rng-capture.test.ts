@@ -3,7 +3,7 @@ import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import { deriveActionRng } from '../prng';
 import type { EngineEvent } from './engine-events';
 import {
-  createGame,
+  createGameOrThrow,
   processAstrogation,
   processOrdnance,
   skipCombat,
@@ -30,7 +30,7 @@ const collectDiceEvents = (events: EngineEvent[]) => ({
 
 describe('RNG outcome capture in EngineEvents', () => {
   it('combat events capture die roll and modified roll', () => {
-    const state = createGame(SCENARIOS.duel, map, 'RNG1', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'RNG1', findBaseHex);
 
     // Place ships adjacent with zero velocity for combat
     state.phase = 'combat';
@@ -55,7 +55,12 @@ describe('RNG outcome capture in EngineEvents', () => {
   });
 
   it('ramming events capture die roll', () => {
-    const state = createGame(SCENARIOS.biplanetary, map, 'RNG2', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'RNG2',
+      findBaseHex,
+    );
 
     // Place two ships on the same hex to trigger ramming
     // during movement resolution
@@ -91,7 +96,7 @@ describe('RNG outcome capture in EngineEvents', () => {
   });
 
   it('ordnance detonation events capture die roll', () => {
-    const state = createGame(SCENARIOS.duel, map, 'RNG3', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'RNG3', findBaseHex);
 
     // Place a mine and move enemy through it
     state.phase = 'ordnance';
@@ -126,7 +131,7 @@ describe('RNG outcome capture in EngineEvents', () => {
   });
 
   it('all combat attack events have roll and modifiedRoll fields', () => {
-    const state = createGame(SCENARIOS.duel, map, 'RNG4', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'RNG4', findBaseHex);
 
     state.phase = 'combat';
     state.activePlayer = 0;
@@ -171,7 +176,7 @@ describe('RNG outcome capture in EngineEvents', () => {
     const seq = 7;
 
     const makeState = () => {
-      const s = createGame(SCENARIOS.duel, map, 'SEED1', findBaseHex);
+      const s = createGameOrThrow(SCENARIOS.duel, map, 'SEED1', findBaseHex);
       s.phase = 'combat';
       s.activePlayer = 0;
       s.ships[0].position = { q: 10, r: 10 };

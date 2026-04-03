@@ -15,7 +15,7 @@ import {
   shouldEnterCombatPhase,
   skipCombat,
 } from './combat';
-import { createGame } from './game-engine';
+import { createGameOrThrow } from './game-engine';
 
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: 'ship0',
@@ -756,7 +756,12 @@ describe('shouldEnterCombatPhase', () => {
   });
   it('enters combat for base defense targets', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.biplanetary, map, 'BD01', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'BD01',
+      findBaseHex,
+    );
     state.phase = 'combat';
     state.activePlayer = 0;
     const p0Bases = state.players[0].bases;
@@ -1072,7 +1077,12 @@ describe('shouldRemainInCombatPhase edge cases', () => {
 describe('base defense with skipCombat', () => {
   it('resolves planetary defense during skip when enabled', () => {
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.biplanetary, map, 'BD02', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'BD02',
+      findBaseHex,
+    );
     state.phase = 'combat';
     state.activePlayer = 0;
     const p0Bases = state.players[0].bases;

@@ -1,3 +1,4 @@
+import type { AIDifficulty } from '../../shared/ai/types';
 import type {
   FleetPurchase,
   PlayerId,
@@ -71,7 +72,7 @@ type MainInteractionDeps = {
   replayController: MainInteractionReplay;
   sessionApi: Pick<SessionApi, 'createGame'>;
   mainNetworkDeps: MainNetworkDeps;
-  setAIDifficulty: (difficulty: 'easy' | 'normal' | 'hard') => void;
+  setAIDifficulty: (difficulty: AIDifficulty) => void;
   exitToMenu: () => void;
   trackEvent: (event: string) => void;
 };

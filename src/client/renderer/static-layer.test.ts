@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import { asHexKey } from '../../shared/hex';
 import {
   buildSolarSystemMap,
@@ -32,7 +32,7 @@ describe('computeStaticSceneLayerKey', () => {
     camera.x = 10;
     camera.y = 20;
     camera.zoom = 0.5;
-    const state = createGame(SCENARIOS.duel, map, 'SK1', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'SK1', findBaseHex);
     const a = computeStaticSceneLayerKey({
       map,
       camera,
@@ -59,7 +59,12 @@ describe('computeStaticSceneLayerKey', () => {
     const map = buildSolarSystemMap();
     const camera = createCamera();
     camera.update(0, 800, 600);
-    const baseState = createGame(SCENARIOS.duel, map, 'SK2', findBaseHex);
+    const baseState = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      'SK2',
+      findBaseHex,
+    );
     const s1 = {
       ...baseState,
       destroyedAsteroids: [] as typeof baseState.destroyedAsteroids,

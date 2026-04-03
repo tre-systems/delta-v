@@ -6,7 +6,7 @@ import type {
   SolarSystemMap,
 } from '../types';
 import { processFleetReady } from './fleet-building';
-import { createGame } from './game-creation';
+import { createGameOrThrow } from './game-creation';
 
 let map: SolarSystemMap;
 beforeEach(() => {
@@ -15,7 +15,7 @@ beforeEach(() => {
 
 describe('fleet building (MegaCredit economy)', () => {
   it('Interplanetary War scenario starts in fleetBuilding phase', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
       'WAR01',
@@ -29,7 +29,7 @@ describe('fleet building (MegaCredit economy)', () => {
     expect(state.ships).toHaveLength(0);
   });
   it('processFleetReady spawns purchased ships at bases', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
       'WAR01',
@@ -59,7 +59,7 @@ describe('fleet building (MegaCredit economy)', () => {
     }
   });
   it('transitions to astrogation when both players submit', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
       'WAR01',
@@ -85,7 +85,7 @@ describe('fleet building (MegaCredit economy)', () => {
     }
   });
   it('rejects purchases exceeding credits', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
       'WAR01',
@@ -106,7 +106,7 @@ describe('fleet building (MegaCredit economy)', () => {
     }
   });
   it('rejects unknown ship type', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
       'WAR01',
@@ -126,7 +126,7 @@ describe('fleet building (MegaCredit economy)', () => {
     expect('error' in result).toBe(true);
   });
   it('rejects orbital base cargo without an available carrier', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
       'WAR01',
@@ -142,7 +142,7 @@ describe('fleet building (MegaCredit economy)', () => {
     expect('error' in result).toBe(true);
   });
   it('assigns orbital base cargo to a purchased carrier', () => {
-    const state = createGame(
+    const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
       'WAR01',
@@ -166,7 +166,12 @@ describe('fleet building (MegaCredit economy)', () => {
     }
   });
   it('rejects fleet ready when not in fleetBuilding phase', () => {
-    const state = createGame(SCENARIOS.biplanetary, map, 'TEST', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      'TEST',
+      findBaseHex,
+    );
     const result = processFleetReady(state, 0, [], map);
     expect('error' in result).toBe(true);
     if ('error' in result) {

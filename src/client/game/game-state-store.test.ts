@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -17,7 +17,12 @@ import { createPlanningStore } from './planning';
 import { stubClientSession } from './session-model';
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  ...createGame(SCENARIOS.duel, buildSolarSystemMap(), 'STORE1', findBaseHex),
+  ...createGameOrThrow(
+    SCENARIOS.duel,
+    buildSolarSystemMap(),
+    'STORE1',
+    findBaseHex,
+  ),
   ...overrides,
 });
 

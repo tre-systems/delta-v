@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -16,7 +16,12 @@ import {
 } from './state-transition';
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  ...createGame(SCENARIOS.duel, buildSolarSystemMap(), 'STATE1', findBaseHex),
+  ...createGameOrThrow(
+    SCENARIOS.duel,
+    buildSolarSystemMap(),
+    'STATE1',
+    findBaseHex,
+  ),
   phase: 'astrogation',
   activePlayer: 0,
   ...overrides,

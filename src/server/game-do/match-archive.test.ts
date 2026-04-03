@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createGame } from '../../shared/engine/game-engine';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -72,7 +72,7 @@ describe('match archival', () => {
     const r2 = createMockR2();
     const db = createMockDb();
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.duel, map, 'ARC-m1', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'ARC-m1', findBaseHex);
     state.phase = 'gameOver';
     state.outcome = { winner: 0, reason: 'Fleet eliminated!' };
 
@@ -171,7 +171,12 @@ describe('match archival', () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const r2 = createMockR2();
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.duel, map, 'NODB-m1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      'NODB-m1',
+      findBaseHex,
+    );
     state.phase = 'gameOver';
 
     // Pass undefined for db — should not throw
@@ -197,7 +202,7 @@ describe('match archival', () => {
       }),
     };
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.duel, map, 'ERR-m1', findBaseHex);
+    const state = createGameOrThrow(SCENARIOS.duel, map, 'ERR-m1', findBaseHex);
     state.phase = 'gameOver';
 
     await expect(
@@ -218,7 +223,12 @@ describe('match archival', () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const r2 = createMockR2();
     const map = buildSolarSystemMap();
-    const state = createGame(SCENARIOS.duel, map, 'FALL-m1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      'FALL-m1',
+      findBaseHex,
+    );
     state.phase = 'gameOver';
 
     vi.spyOn(Date, 'now').mockReturnValue(5000);

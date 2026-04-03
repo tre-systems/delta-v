@@ -1,6 +1,7 @@
+import type { AIDifficulty } from '../../shared/ai/types';
 import type { FleetPurchase, OrdnanceType } from '../../shared/types/domain';
 
-export type AIDifficulty = 'easy' | 'normal' | 'hard';
+export type { AIDifficulty } from '../../shared/ai/types';
 
 export type UIEvent =
   // Menu / lobby

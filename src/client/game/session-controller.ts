@@ -1,5 +1,10 @@
 import type { AIDifficulty } from '../../shared/ai';
-import type { GameState, PlayerId, Result } from '../../shared/types/domain';
+import type {
+  EngineError,
+  GameState,
+  PlayerId,
+  Result,
+} from '../../shared/types/domain';
 import {
   resetReconnectAttempts,
   setGameCode,
@@ -34,7 +39,7 @@ export interface CreatedGameSessionDeps {
 export interface LocalGameSessionDeps {
   ctx: ClientSession;
   createLocalTransport: () => GameTransport;
-  createLocalGameState: (scenario: string) => GameState;
+  createLocalGameState: (scenario: string) => Result<GameState, EngineError>;
   getScenarioName: (scenario: string) => string;
   resetTurnTelemetry: () => void;
   clearTrails: () => void;
@@ -203,7 +208,13 @@ export const startLocalGameSession = (
   deps.resetTurnTelemetry();
   setTransport(deps.ctx, deps.createLocalTransport());
 
-  const state = deps.createLocalGameState(scenario);
+  const result = deps.createLocalGameState(scenario);
+
+  if (!result.ok) {
+    throw new Error(result.error.message);
+  }
+
+  const state = result.value;
 
   deps.clearTrails();
   deps.clearLog();
