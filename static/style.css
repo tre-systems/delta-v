@@ -184,7 +184,8 @@ body::before {
 }
 
 #menu {
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   align-items: center;
   background:
     radial-gradient(circle at 18% 12%, rgba(122, 215, 255, 0.28), transparent 24%),
