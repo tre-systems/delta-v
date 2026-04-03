@@ -1,0 +1,271 @@
+/* Fleet building */
+.fleet-building-content {
+  max-width: min(28rem, calc(100vw - 2.5rem));
+}
+
+.fleet-credits {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #4af;
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.fleet-shop-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.fleet-shop-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.4rem;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background 0.15s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  font-size: 0.8rem;
+}
+
+.fleet-shop-item:hover {
+  background: rgba(68, 170, 255, 0.15);
+  border-color: rgba(68, 170, 255, 0.4);
+}
+
+.fleet-shop-item.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.fleet-shop-name {
+  font-weight: 500;
+  color: #dde;
+}
+
+.fleet-shop-stats {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  color: #889;
+}
+
+.fleet-shop-cost {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  color: #4af;
+  white-space: nowrap;
+}
+
+.fleet-cart-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #889;
+  margin-bottom: 0.3rem;
+}
+
+.fleet-cart {
+  min-height: 2rem;
+  padding: 0.4rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.4rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.fleet-cart-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(68, 170, 255, 0.15);
+  border: 1px solid rgba(68, 170, 255, 0.3);
+  border-radius: 0.3rem;
+  font-size: 0.75rem;
+  color: #cde;
+  cursor: pointer;
+}
+
+.fleet-cart-chip:hover {
+  background: rgba(255, 80, 80, 0.2);
+  border-color: rgba(255, 80, 80, 0.4);
+}
+
+.fleet-cart-chip .chip-remove {
+  color: #f66;
+  font-weight: 700;
+}
+
+.fleet-building-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.fleet-building-actions .btn {
+  flex: 1;
+}
+
+.fleet-waiting {
+  text-align: center;
+  color: #889;
+  margin-top: 0.5rem;
+}
+
+/* Phase Alert Overlay */
+#phaseAlert {
+  position: fixed;
+  top: calc(var(--hud-top-offset) + 0.6rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  pointer-events: none;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+  padding: 0.5rem 1.5rem;
+  border-radius: var(--radius);
+  background: rgba(7, 14, 28, 0.75);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(122, 215, 255, 0.15);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+}
+
+#phaseAlert.active {
+  opacity: 1;
+}
+
+.phase-alert-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  text-shadow: 0 0 12px rgba(122, 215, 255, 0.4);
+  text-transform: uppercase;
+  margin-bottom: 0.2rem;
+}
+
+.phase-alert-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.8rem;
+  display: inline-block;
+}
+
+/* Micro-interactions & Juice */
+
+.fleet-shop-item:hover {
+  transform: translateX(4px);
+  border-color: var(--accent);
+  box-shadow: -4px 0 0 var(--accent);
+}
+
+.fleet-cart-chip {
+  animation: chip-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes chip-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.recoil-anim {
+  animation: recoil 0.2s ease-out;
+}
+
+@keyframes recoil {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* Logistics Transfer Panel */
+.transfer-panel {
+  padding: 6px 10px;
+  max-height: min(180px, 35vh);
+  overflow-y: auto;
+}
+.transfer-pair {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+}
+.transfer-header {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.transfer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.transfer-label {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 42px;
+}
+.transfer-amount {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  min-width: 40px;
+  text-align: center;
+}
+.btn-transfer-adj {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 22px;
+}
+.btn-transfer-adj:hover { background: rgba(255, 255, 255, 0.12); }
+.btn-transfer-max {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  cursor: pointer;
+}
+.btn-transfer-max:hover { background: rgba(255, 255, 255, 0.12); }
+.transfer-empty {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  padding: 8px;
+}
+
+/* Logging Color Refinement */
+.log-enemy { color: var(--danger); }
+.log-env { color: var(--accent); }
+.log-obj { color: var(--warning); }

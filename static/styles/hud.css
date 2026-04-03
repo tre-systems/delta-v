@@ -1,0 +1,489 @@
+.hud-bar {
+  position: fixed;
+  top: calc(0.8rem + var(--safe-top));
+  left: var(--hud-edge-left);
+  right: var(--hud-edge-right);
+  z-index: 5;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(4, 9, 18, 0.88);
+  backdrop-filter: blur(28px);
+  box-shadow: none;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hud-bar > .objective-wrap {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+
+
+.hud-bottom {
+  position: fixed;
+  left: 50%;
+  bottom: calc(1rem + var(--safe-bottom));
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  transform: translateX(-50%);
+  max-width: min(
+    calc(100vw - var(--hud-edge-left) - var(--hud-edge-right)),
+    760px
+  );
+  pointer-events: none;
+}
+
+.hud-bottom > * {
+  pointer-events: auto;
+}
+
+.hud-bar,
+.hud-bottom-buttons,
+.ship-entry,
+.game-log {
+  --hud-surface-bg: var(--chrome-surface);
+  --hud-surface-border: var(--chrome-border-soft);
+  border: 1px solid var(--hud-surface-border);
+  background: var(--hud-surface-bg);
+  backdrop-filter: var(--chrome-blur);
+  box-shadow: none;
+}
+
+.hud-bar {
+  --hud-surface-bg: var(--chrome-surface-strong);
+}
+
+.ship-entry,
+.game-log {
+  --hud-surface-bg: var(--chrome-surface-soft);
+  --hud-surface-border: var(--chrome-border-faint);
+}
+
+.hud-bottom-buttons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.5rem;
+  border-radius: 20px;
+}
+
+.hud-bottom-buttons:not(:has(> .btn:not([style*="none"]))) {
+  display: none;
+}
+
+
+.ship-list {
+  position: fixed;
+  top: var(--hud-top-offset);
+  left: var(--hud-edge-left);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: 170px;
+}
+
+.ship-entry {
+  min-width: 120px;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  transition: opacity 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.ship-entry:hover {
+  background: var(--chrome-surface-hover);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.ship-entry.active {
+  border-color: rgba(122, 215, 255, 0.42);
+  background: rgba(10, 24, 44, 0.88);
+}
+
+.ship-entry.destroyed {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.ship-entry.destroyed .ship-name {
+  text-decoration: line-through;
+}
+
+.ship-name {
+  flex: 1;
+  color: var(--text);
+}
+
+.ship-status {
+  color: var(--warning);
+  font-size: 0.62rem;
+}
+
+.ship-fuel {
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.burn-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 2px;
+  border-radius: 50%;
+  background: var(--success);
+  vertical-align: middle;
+}
+
+.ship-details {
+  width: 100%;
+  min-width: 0;
+  margin-top: 0.3rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  color: var(--muted);
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+.ship-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ship-detail-label {
+  color: rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
+}
+
+.ship-detail-value {
+  color: var(--muted-strong);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-log {
+  position: fixed;
+  top: var(--hud-top-offset);
+  right: var(--hud-edge-right);
+  bottom: var(--hud-bottom-offset);
+  width: 230px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius);
+}
+
+
+.log-status-bar {
+  padding: 0.4rem 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--muted);
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.log-entries {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.65rem 0.8rem;
+  color: var(--muted-strong);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.6;
+}
+
+.log-entry {
+  padding: 0.15rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.log-turn {
+  margin-top: 0.35rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.log-damage {
+  color: var(--warning);
+}
+
+.log-eliminated {
+  color: var(--danger);
+}
+
+.log-landed {
+  color: var(--success);
+}
+
+.log-chat {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.log-chat-opponent {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.45rem 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(4, 9, 18, 0.6);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  outline: none;
+}
+
+.chat-input::placeholder {
+  color: rgba(144, 160, 186, 0.4);
+}
+
+.chat-input:focus {
+  border-color: rgba(122, 215, 255, 0.3);
+}
+
+.chat-send-btn {
+  flex-shrink: 0;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(122, 215, 255, 0.1);
+  color: var(--accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.chat-send-btn:hover {
+  background: rgba(122, 215, 255, 0.2);
+}
+
+.chat-send-btn:active {
+  background: rgba(122, 215, 255, 0.3);
+}
+
+.log-entries::-webkit-scrollbar {
+  width: 5px;
+}
+
+.log-entries::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.log-entries::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-pill);
+}
+
+/* Collapsed log bar — shows last message or status */
+.log-latest-bar {
+  position: fixed;
+  bottom: calc(var(--hud-bottom-offset) + 0.1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: fit-content;
+  max-width: calc(100% - 4.5rem);
+  padding: 0.4rem 0.75rem;
+  background: var(--panel);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  z-index: 20;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--muted-strong);
+  line-height: 1.4;
+}
+
+.log-latest-text {
+  pointer-events: none;
+}
+
+/* Color classes inherited from log entries */
+.log-latest-text.log-turn { color: var(--accent); }
+.log-latest-text.log-damage { color: var(--warning); }
+.log-latest-text.log-eliminated { color: var(--danger); }
+.log-latest-text.log-landed { color: var(--success); }
+.log-latest-text.log-enemy { color: var(--danger); }
+.log-latest-text.log-env { color: var(--accent); }
+.log-latest-text.log-obj { color: var(--warning); }
+.log-latest-text.log-status { color: var(--muted); }
+
+.ship-tooltip {
+  position: fixed;
+  z-index: 20;
+  min-width: 110px;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(7, 14, 28, 0.92);
+  backdrop-filter: blur(14px);
+  color: var(--muted-strong);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1.55;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.ship-tooltip .tt-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ship-tooltip .tt-enemy {
+  color: #ffab91;
+}
+
+.ship-tooltip .tt-stat {
+  color: var(--muted);
+}
+
+.ship-tooltip .tt-warn {
+  color: var(--warning);
+}
+
+.hud-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.hud-sep {
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.85rem;
+}
+
+.hud-fuel {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.fleet-status,
+.turn-timer {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.latency-text {
+  position: fixed;
+  bottom: calc(0.4rem + var(--safe-bottom));
+  left: var(--hud-edge-left);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  opacity: 0.5;
+  z-index: 2;
+}
+
+.objective-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: min(42ch, 100%);
+  min-width: 0;
+}
+
+.objective-compass {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: #ffe082;
+  transform-origin: 50% 50%;
+  text-shadow: 0 0 6px rgba(255, 224, 130, 0.35);
+}
+
+.objective-text {
+  color: var(--success);
+  font-size: 0.7rem;
+  font-weight: 500;
+  max-width: 42ch;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.turn-timer-active {
+  color: #ced9e8;
+}
+
+.turn-timer-slow {
+  color: var(--warning);
+}
+
+.turn-timer-urgent {
+  color: #ff908f;
+  animation: timer-pulse 520ms ease-in-out infinite alternate;
+}
+
+@keyframes timer-pulse {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0.5;
+  }
+}
+
+.latency-good {
+  color: var(--success);
+}
+
+.latency-ok {
+  color: var(--warning);
+}
+
+.latency-bad {
+  color: var(--danger);
+}
