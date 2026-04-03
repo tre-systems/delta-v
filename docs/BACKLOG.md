@@ -390,3 +390,23 @@ Also `getOwnedPlanetaryBases` in `util.ts` line ~127 widens `HexKey` to `string`
 **Remaining:** whenever `GameState.schemaVersion` changes, document the migration path, replay compatibility, projector behavior, and any client assumptions. Extend tests around `event-projector` and recovery paths as part of the same change.
 
 **Files:** `src/shared/types/domain.ts`, `src/shared/engine/event-projector.ts`, `docs/ARCHITECTURE.md`, relevant tests
+
+### 59. Thread `matchSeed` through initial game creation and `gameCreated` projection
+
+**Status:** not started.
+
+**Remaining:** `initGameSession` allocates and stores `matchSeed`, and the `gameCreated` event carries it, but the authoritative setup path still calls `createGame(...)` without passing a seeded RNG and the lifecycle projector rebuilds `gameCreated` with `() => 0`. Use the same deterministic seed for both authoritative setup and projection so hidden-identity designation and any future setup randomness are reproducible directly from the event stream instead of being corrected by follow-up events.
+
+**Files:** `src/server/game-do/match.ts`, `src/shared/engine/event-projector/lifecycle.ts`, `src/shared/engine/game-creation.ts`, `src/shared/prng.ts`, related tests
+**Depends:** item 50 if `createGame` RNG is made mandatory first
+**Found by:** pattern catalogue: Deterministic RNG Injection; Event Sourcing; Visitor Event Projection
+
+### 60. Emit or replay turn-advance scenario-rule mutations explicitly
+
+**Status:** not started.
+
+**Remaining:** `advanceTurn()` applies reinforcements and fleet conversion in memory, but the event stream only records `turnAdvanced`, and the lifecycle projector only replays player rotation and damage recovery. Either emit dedicated events for reinforcement arrival and fleet conversion, or refactor the projector to share the same turn-advance mutation logic, so replay and parity remain correct once those scenario rules are used.
+
+**Files:** `src/shared/engine/turn-advance.ts`, `src/shared/engine/engine-events.ts`, `src/shared/engine/event-projector/lifecycle.ts`, related tests
+**Trigger:** any scenario enabling `scenarioRules.reinforcements` or `scenarioRules.fleetConversion`
+**Found by:** pattern catalogue: Event Sourcing; Visitor Event Projection; Parity Check

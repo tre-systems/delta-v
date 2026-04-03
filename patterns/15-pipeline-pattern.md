@@ -6,98 +6,100 @@ Behavioral
 
 ## Intent
 
-Structure complex multi-step operations as ordered sequences of independent stages, where each stage transforms or acts on data before passing it to the next. This makes each stage independently testable, allows stages to be added or reordered, and makes the overall flow visible as a named sequence of steps.
+Express multi-step flows as explicit ordered stages so each stage has a narrow responsibility, the overall sequence is visible in one place, and cross-cutting work can be inserted without smearing logic across the codebase.
 
 ## How It Works in Delta-V
 
-Delta-V uses the pipeline pattern in three major areas:
+Delta-V uses pipeline-style sequencing in four important places.
 
-### 1. Publication Pipeline (Server)
+### 1. Publication Pipeline (server)
 
-The most explicitly named pipeline in the codebase. `runPublicationPipeline` in `publication.ts` executes six named steps every time game state changes on the server:
+`runPublicationPipeline` is the clearest named pipeline in the repo. For each incremental state change it performs:
 
-1. **Append events** -- Write engine events to the event stream
-2. **Checkpoint** -- Save a state checkpoint at turn boundaries or game end
-3. **Verify projection parity** -- Re-project events and compare with authoritative state
-4. **Archive** -- Schedule R2 archival if the match ended
-5. **Restart turn timer** -- Reset the turn timer for the next player
-6. **Broadcast** -- Send state change to all connected clients
+1. append events
+2. checkpoint when a turn boundary or game-over event was produced
+3. verify projection parity
+4. schedule archival if the match ended
+5. restart the turn timer when requested
+6. broadcast the resolved state-bearing message
 
-Each step is extracted as a named function (`appendEvents`, `checkpointIfNeeded`, `archiveIfGameOver`). The runner calls them in order, threading shared context (`deps`, `state`, `events`).
+### 2. Input Pipeline (client)
 
-### 2. Input Pipeline (Client)
+The pointer and keyboard path is layered:
 
-User input flows through a chain of transformations:
+1. raw DOM events in `input.ts`
+2. stateful pointer interpretation in `input-interaction.ts`
+3. semantic `InputEvent` values (`clickHex`, `hoverHex`)
+4. pure interpretation in `interpretInput`
+5. `GameCommand` dispatch in `dispatchGameCommand`
+6. domain-specific handler side effects
 
-1. **DOM events** (`input.ts`) -- Raw mouse/touch/keyboard events captured via `listen()`
-2. **Pointer interaction** (`input-interaction.ts`) -- Drag detection, pinch zoom, click classification
-3. **Hex resolution** -- Screen coordinates converted to hex coordinates via `pixelToHex`
-4. **Input events** -- Typed `InputEvent` values (`clickHex`, `hoverHex`)
-5. **Command interpretation** (`input-events.ts`) -- `interpretInput` maps input events + interaction mode to `GameCommand[]`
-6. **Command dispatch** (`command-router.ts`) -- `dispatchGameCommand` routes to domain handlers
-7. **Domain action** -- Handler mutates state, sends network message, or updates UI
+UI buttons are a sibling path: they skip Layers 1-4 and emit `GameCommand` values directly into the same dispatch layer.
 
-For keyboard: DOM `keydown` -> `deriveKeyboardAction` -> `keyboardActionToCommand` -> `dispatchGameCommand`.
+### 3. Client Message Pipeline (client)
 
-### 3. Render Pipeline (Client)
+Incoming websocket messages flow through:
 
-Each frame follows a fixed rendering order in `scene.ts` and the renderer:
+1. raw typed `S2C` message
+2. pure `deriveClientMessagePlan`
+3. plan dispatch in `message-handler.ts`
+4. authoritative update application and presentation
 
-1. **Clear canvas**
-2. **Stars** (`renderStars`) -- Background star field
-3. **Hex grid** (`renderHexGrid`) -- Grid overlay
-4. **Gravity indicators** (`renderGravityIndicators`) -- Directional arrows
-5. **Bodies** (`renderBodies`) -- Celestial bodies with glow effects
-6. **Asteroids** (`renderAsteroids`) -- Asteroid debris
-7. **Base markers** (`renderBaseMarkers`) -- Friendly/enemy base indicators
-8. **Map border** (`renderMapBorder`) -- Boundary rectangle
-9. **Landing targets** (`renderLandingTarget`) -- Objective markers
-10. **Detection ranges** (`renderDetectionRanges`) -- Circle overlays
-11. **Trails** -- Ship and ordnance movement trails
-12. **Velocity vectors** -- Ship velocity arrows
-13. **Ships/ordnance** -- Entity sprites and labels
-14. **Course previews** -- Burn direction previews
-15. **Combat effects** -- Attack animations
-16. **Minimap** -- Picture-in-picture overview
-17. **Toasts/overlays** -- Transient notifications
+### 4. Render Pipeline (client)
 
-Each stage uses `build*` functions to construct view data, then Canvas drawing functions to render it. The ordering is critical: later stages draw on top of earlier ones.
+Each frame follows a stable draw order:
 
-### 4. Server Message Pipeline (Client)
+1. clear screen / background fill
+2. static scene cache or static scene draw (`stars`, `hex grid`, `asteroids`, `gravity`, `bodies`)
+3. map border, base markers, landing targets
+4. gameplay overlays (`base threat zones`, `detection ranges`, `course layers`)
+5. ordnance, torpedo guidance, combat overlay
+6. trails and animated movement paths
+7. ships, flashes, combat effects
+8. screen-space overlays (`screen flash`, `toasts`, `minimap`)
 
-Incoming server messages flow through:
+```mermaid
+flowchart TD
+  subgraph Server["Server publication"]
+    P1["append events"] --> P2["checkpoint"]
+    P2 --> P3["verify parity"]
+    P3 --> P4["schedule archive"]
+    P4 --> P5["restart timer"]
+    P5 --> P6["broadcast"]
+  end
 
-1. **WebSocket receive** -- Raw JSON message
-2. **Protocol parsing** -- Typed `S2C` message
-3. **Plan derivation** (`deriveClientMessagePlan`) -- Pure function producing a `ClientMessagePlan`
-4. **Plan execution** -- Switch on plan kind, calling state updates, UI changes, sound effects
+  subgraph Input["Client input"]
+    I1["DOM event"] --> I2["pointer interaction"]
+    I2 --> I3["InputEvent"]
+    I3 --> I4["interpretInput"]
+    I4 --> I5["GameCommand"]
+    I5 --> I6["dispatchGameCommand"]
+  end
 
-### 5. Authoritative Update Pipeline (Client)
-
-Game state updates from server or local engine:
-
-1. **Resolution** -- Engine produces `MovementResult` or `StateUpdateResult`
-2. **Conversion** (`toLocalAuthoritativeUpdate`) -- Map to `AuthoritativeUpdate` union
-3. **Application** (`applyAuthoritativeUpdate`) -- Switch on kind, calling presenters and state writers
-4. **Continuation** -- Check for game over, trigger phase transition
+  subgraph Message["Client message handling"]
+    M1["S2C message"] --> M2["deriveClientMessagePlan"]
+    M2 --> M3["dispatchClientMessagePlan"]
+    M3 --> M4["applyAuthoritativeUpdate / UI actions"]
+  end
+```
 
 ## Key Locations
 
 | File | Pipeline | Role |
 |------|----------|------|
-| `src/server/game-do/publication.ts` | Publication | `runPublicationPipeline` with named steps |
-| `src/client/input.ts` | Input | DOM -> pointer interaction -> hex -> input events |
-| `src/client/input-interaction.ts` | Input | Pointer state machine (drag, pinch, click) |
-| `src/client/game/input-events.ts` | Input | `interpretInput` -> `GameCommand[]` |
-| `src/client/game/command-router.ts` | Input | `dispatchGameCommand` |
-| `src/client/game/keyboard.ts` | Input | `deriveKeyboardAction` |
-| `src/client/renderer/scene.ts` | Render | Scene-level rendering functions |
-| `src/client/game/client-message-plans.ts` | Server message | `deriveClientMessagePlan` |
-| `src/client/game/authoritative-updates.ts` | Auth update | `applyAuthoritativeUpdate` |
+| `src/server/game-do/publication.ts` | Publication | Ordered post-mutation runner |
+| `src/client/input.ts` | Input | DOM capture and semantic event emission |
+| `src/client/input-interaction.ts` | Input | Drag/pinch/minimap interpretation |
+| `src/client/game/input-events.ts` | Input | `InputEvent` -> `GameCommand[]` |
+| `src/client/game/command-router.ts` | Input | `GameCommand` -> handler |
+| `src/client/game/client-message-plans.ts` | Message | `S2C` -> `ClientMessagePlan` |
+| `src/client/game/message-handler.ts` | Message | Plan dispatch |
+| `src/client/game/authoritative-updates.ts` | Message | Authoritative state/presentation pipeline |
+| `src/client/renderer/renderer.ts` | Render | Frame order and scene layering |
 
 ## Code Examples
 
-Publication pipeline (`publication.ts`):
+Publication pipeline:
 
 ```typescript
 export const runPublicationPipeline = async (
@@ -110,118 +112,107 @@ export const runPublicationPipeline = async (
   const roomCode = await deps.getGameCode();
   const replayMessage = resolveStateBearingMessage(state, primaryMessage);
 
-  // Step 1: Append events
   const eventSeq = await appendEvents(deps.storage, state.gameId, actor, events);
-
-  // Step 2: Checkpoint
   await checkpointIfNeeded(deps.storage, state.gameId, state, eventSeq, events);
-
-  // Step 3: Verify projection parity
   await deps.verifyProjectionParity(state);
-
-  // Step 4: Archive if game over
   archiveIfGameOver(deps, state, roomCode, events);
 
-  // Step 5: Restart turn timer
   if (restartTurnTimer) {
     await deps.startTurnTimer(state);
   }
 
-  // Step 6: Broadcast
   deps.broadcastStateChange(state, replayMessage);
 };
 ```
 
-Input pipeline (composing stages in `main-interactions.ts`):
+Input interpretation and dispatch:
 
 ```typescript
-// Stage 5-6: interpret input event and dispatch resulting commands
-handleInput(event: InputEvent) {
+const handleInput = (event: InputEvent) => {
+  const interactionMode = deriveInteractionMode(deps.ctx.stateSignal.peek());
+  if (interactionMode === 'animating') {
+    return;
+  }
+
   const commands = interpretInput(
     event,
-    ctx.gameStateSignal.peek(),
-    deriveInteractionMode(ctx.stateSignal.peek()),
-    map,
-    ctx.playerId as PlayerId,
-    ctx.planningState.getInteractiveSnapshot(),
+    deps.ctx.gameStateSignal.peek(),
+    interactionMode,
+    deps.map,
+    deps.ctx.playerId as PlayerId,
+    deps.ctx.planningState,
   );
+
   for (const cmd of commands) {
     dispatchGameCommand(commandRouterDeps, cmd);
   }
-}
+};
 ```
 
-Authoritative update pipeline (`authoritative-updates.ts`):
+Message planning before imperative handling:
 
 ```typescript
-export const applyAuthoritativeUpdate = (
-  deps: AuthoritativeUpdateDeps,
-  update: AuthoritativeUpdate,
+export const handleServerMessage = (
+  deps: MessageHandlerDeps,
+  msg: S2C,
 ): void => {
-  switch (update.kind) {
-    case 'movementResult': {
-      const state = deps.deserializeState(update.state);
-      deps.presentMovementResult(state, update.movements, /* ... */, () =>
-        showImmediateGameOverOrContinue(deps, update.kind, update.gameOver),
-      );
-      return;
-    }
-    case 'stateUpdate': {
-      const state = deps.deserializeState(update.state);
-      if (update.transferEvents?.length) {
-        logTransferEvents(deps, update.transferEvents, state);
-      }
-      deps.applyGameState(state);
-      if (update.gameOver) {
-        deps.showGameOverOutcome(update.gameOver.won, update.gameOver.reason);
-        return;
-      }
-      if (update.shouldContinue !== false) deps.onStateUpdateComplete();
-      return;
-    }
-    // ...
-  }
+  const plan = deriveClientMessagePlan(
+    deps.ctx.state,
+    deps.ctx.reconnectAttempts,
+    deps.ctx.playerId,
+    Date.now(),
+    msg,
+  );
+
+  dispatchClientMessagePlan(deps, plan);
 };
+```
+
+Render ordering inside the frame loop:
+
+```typescript
+if (map) {
+  if (!renderedStatic) {
+    renderStarsFn(layerCtx, stars, camera.zoom);
+    renderHexGridFn(layerCtx, map, HEX_SIZE, (x, y) => camera.isVisible(x, y));
+    renderAsteroidsFn(layerCtx, map, gameState?.destroyedAsteroids ?? [], HEX_SIZE, (x, y) =>
+      camera.isVisible(x, y),
+    );
+    renderGravityIndicatorsFn(layerCtx, map, HEX_SIZE, (x, y) =>
+      camera.isVisible(x, y),
+    );
+    renderBodiesFn(layerCtx, map, HEX_SIZE, now, camera.zoom);
+  }
+
+  if (gameState) {
+    renderMapBorderFn(layerCtx, map, gameState, playerId, HEX_SIZE, now);
+  }
+
+  renderBaseMarkersFn(layerCtx, map, gameState, playerId, HEX_SIZE);
+}
 ```
 
 ## Consistency Analysis
 
 **Strengths:**
 
-- The publication pipeline is the most explicit: named steps with comments, a clear runner function, and dependency injection for testability.
-- The input pipeline has clean stage boundaries: each stage has a well-defined input/output type (`DOM event -> InputEvent -> GameCommand[]`).
-- The render pipeline maintains strict ordering (background to foreground), with each render function independent of others.
-- The authoritative update pipeline handles all update variants exhaustively with a `never` guard.
+- Publication is explicit and named; the stage order is easy to audit.
+- Input and message flows both converge on typed intermediate values before side effects.
+- The renderer keeps a stable layer order and cleanly separates world-space and screen-space drawing.
 
-**Composability:**
+**Nuances and current gaps:**
 
-- Publication pipeline stages are independently callable and testable. Adding a new step (e.g., analytics) just means adding another function call in the runner.
-- Input pipeline stages are loosely coupled: `interpretInput` does not know about keyboard vs. mouse origin. Both feed into the same `GameCommand` interface.
-- Render pipeline stages share only the Canvas context and camera state. Any stage can be skipped (e.g., `renderDetectionRanges` returns early during animation).
-
-**Tightly coupled stages:**
-
-- In the input pipeline, `createPointerInteractionManager` is a stateful stage (tracking drag state, pinch distance) rather than a pure transformation. This is necessary for drag detection but makes the stage harder to test in isolation.
-- The render pipeline's ordering is implicit (sequential function calls) rather than explicit (a stage array). Reordering requires editing the render function body.
-- The publication pipeline's `archiveIfGameOver` runs in the background (`waitUntil`) rather than blocking, which means Step 4 may not complete before Step 6. This is by design but could cause issues if the archive depends on the broadcast.
-
-**Recommendations:**
-
-- Consider expressing the render pipeline as an array of render functions that are called in order, making the ordering explicit and overridable.
-- The publication pipeline could be made more composable by having each step return data for the next, rather than all steps reading from shared closure variables.
+- Drag panning intentionally bypasses command dispatch and calls `camera.pan()` directly because it is a continuous high-frequency interaction, not a gameplay command.
+- The renderer mixes an explicit draw order with a static-scene cache; the stage order is still stable, but part of the pipeline can be memoized away on a frame.
+- Initial game creation in `match.ts` still uses its own direct publication path rather than the standard publication pipeline.
 
 ## Completeness Check
 
-- **Publication pipeline**: All 6 steps are extracted and named. The pipeline handles both normal state changes and game-over scenarios.
-- **Input pipeline**: Covers mouse, touch, and keyboard. All paths converge on `GameCommand` dispatch.
-- **Render pipeline**: Covers all visual layers from background to foreground. Each layer has corresponding `build*` and `render*` functions.
-- **Server message pipeline**: All `S2C` message types produce plans via `deriveClientMessagePlan`.
-- **Authoritative update pipeline**: All update kinds (`movementResult`, `combatResult`, `combatSingleResult`, `stateUpdate`, `gameOver`) are handled.
+- If the render order needs to become more configurable, it could be expressed as an explicit stage array rather than sequential calls in `renderer.ts`.
+- The input path is well layered for canvas interactions; UI button flows already reuse the same command-dispatch sink, which is the right compromise.
 
 ## Related Patterns
 
-- **Command** (08) -- The input pipeline terminates in command dispatch.
-- **Visitor** (14) -- The publication pipeline's event appending feeds the event projection system.
-- **Builder** (13) -- Render pipeline stages use builders (`build*`) to construct view data before drawing.
-- **State Machine** (09) -- The input pipeline's `interpretInput` function reads the interaction mode (derived from the state machine) to determine which commands a click produces.
-- **Derive/Plan** (12) -- The server message pipeline uses `deriveClientMessagePlan` as its planning stage.
+- **Command** (08) — the input pipeline terminates in `GameCommand` dispatch.
+- **Derive/Plan** (12) — the client message path derives a pure plan before execution.
+- **SRP Choke Points** (06) — the publication pipeline is also the server write choke point.
