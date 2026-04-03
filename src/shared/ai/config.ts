@@ -78,7 +78,7 @@ export interface AIDifficultyConfig {
   singleAttackOnly: boolean;
 }
 
-export const AI_CONFIG: Record<AIDifficulty, AIDifficultyConfig> = {
+export const AI_CONFIG: Readonly<Record<AIDifficulty, Readonly<AIDifficultyConfig>>> = {
   easy: {
     multiplier: 0.7,
     escapeDistWeight: 10,

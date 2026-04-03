@@ -369,7 +369,7 @@ export const validateClientMessage = (raw: unknown): Result<C2S> => {
   }
 
   const message = raw as Record<string, unknown> & {
-    type: C2S['type'] | string;
+    type: C2S['type'];
   };
 
   const validateChat = () => {
@@ -462,8 +462,10 @@ export const validateClientMessage = (raw: unknown): Result<C2S> => {
     case 'ping':
       return validatePing();
 
-    default:
-      return invalid('Unknown message type');
+    default: {
+      const _exhaustive: never = message.type;
+      return invalid(`Unknown message type: ${_exhaustive}`);
+    }
   }
 };
 
@@ -483,7 +485,7 @@ export const validateServerMessage = (raw: unknown): Result<S2C> => {
     return invalid('Invalid message payload');
   }
 
-  const msg = raw as Record<string, unknown>;
+  const msg = raw as Record<string, unknown> & { type: S2C['type'] };
 
   switch (msg.type) {
     case 'welcome':
@@ -571,7 +573,9 @@ export const validateServerMessage = (raw: unknown): Result<S2C> => {
       }
       return ok(msg as unknown as S2C);
 
-    default:
-      return invalid('Unknown message type');
+    default: {
+      const _exhaustive: never = msg.type;
+      return invalid(`Unknown message type: ${_exhaustive}`);
+    }
   }
 };

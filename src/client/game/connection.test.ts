@@ -163,7 +163,7 @@ describe('game-client-connection', () => {
     ws.onmessage?.({ data: JSON.stringify({ type: 'godMode' }) });
     expect(spies.handleMessage).toHaveBeenCalledTimes(1);
     expect(spies.trackEvent).toHaveBeenCalledWith('ws_invalid_message', {
-      error: 'Unknown message type',
+      error: 'Unknown message type: godMode',
     });
   });
 

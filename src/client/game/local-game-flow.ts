@@ -141,6 +141,11 @@ export const handleLocalResolution = (
         toLocalAuthoritativeUpdate(resolution, deps.getPlayerId()),
       );
       return;
+    default: {
+      const _exhaustive: never = resolution;
+      void _exhaustive;
+      return;
+    }
   }
 };
 
@@ -167,8 +172,13 @@ export const resolveAIPlan = (
       return plan.skip
         ? resolveSkipLogisticsStep(gameState, plan.aiPlayer, map)
         : resolveLogisticsStep(gameState, plan.aiPlayer, plan.transfers, map);
-    default:
+    case 'none':
+    case 'transition':
       return { kind: 'error', error: 'Unexpected AI plan kind' };
+    default: {
+      const _exhaustive: never = plan;
+      return _exhaustive;
+    }
   }
 };
 

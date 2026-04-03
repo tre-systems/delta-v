@@ -1,4 +1,21 @@
 npm run lint
+
+# Grep-based boundary checks
+if grep -rn '\.innerHTML\s*=' src/client/ --include='*.ts' | grep -v 'dom.ts' | grep -v '\.test\.ts'; then
+  echo "ERROR: Direct innerHTML assignment found outside dom.ts. Use setTrustedHTML() instead."
+  exit 1
+fi
+
+if grep -rn 'Math\.random' src/shared/engine/ --include='*.ts' | grep -v '\.test\.ts'; then
+  echo "ERROR: Math.random found in engine code. Use injected rng parameter instead."
+  exit 1
+fi
+
+if grep -rn 'console\.\(log\|warn\|error\)' src/shared/ --include='*.ts' | grep -v '\.test\.ts'; then
+  echo "ERROR: console methods found in shared code. Shared layer must be side-effect free."
+  exit 1
+fi
+
 npm run typecheck:all
 # Local D1 for wrangler dev during e2e (idempotent if already applied).
 npx wrangler d1 migrations apply delta-v-telemetry --local

@@ -13,7 +13,7 @@ import {
 } from '../types';
 import type { EngineEvent } from './engine-events';
 import type { StateUpdateResult } from './game-engine';
-import { engineFailure, getOwnedPlanetaryBases } from './util';
+import { engineFailure, getOwnedPlanetaryBases, transitionPhase } from './util';
 
 // Process fleet purchases for a player during
 // the fleet-building phase.
@@ -29,6 +29,13 @@ export const processFleetReady = (
     } => {
   const state = structuredClone(inputState);
   const engineEvents: EngineEvent[] = [];
+
+  if (playerId !== 0 && playerId !== 1) {
+    return engineFailure(
+      ErrorCode.INVALID_PLAYER,
+      `Invalid player id: ${playerId}`,
+    );
+  }
 
   if (state.phase !== 'fleetBuilding') {
     return engineFailure(
@@ -190,7 +197,10 @@ export const processFleetReady = (
   const otherPlayer = state.players[playerId === 0 ? 1 : 0];
 
   if (otherPlayer.ready) {
-    state.phase = 'astrogation';
+    transitionPhase(
+      state as GameState & { phase: 'fleetBuilding' },
+      'astrogation',
+    );
   }
 
   engineEvents.push({

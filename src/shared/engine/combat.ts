@@ -366,24 +366,19 @@ export const processCombat = (
 
     for (const id of attack.attackerIds) {
       if (attackSeen.has(id)) {
-        return {
-          error: {
-            code: ErrorCode.INVALID_INPUT,
-            message:
-              'Each ship may appear at most once in an attack declaration',
-          },
-        };
+        return engineFailure(
+          ErrorCode.INVALID_INPUT,
+          'Each ship may appear at most once in an attack declaration',
+        );
       }
 
       const existingGroup = committedAttackers.get(id);
 
       if (existingGroup && existingGroup !== groupKey) {
-        return {
-          error: {
-            code: ErrorCode.STATE_CONFLICT,
-            message: 'Each ship may attack only once per combat phase',
-          },
-        };
+        return engineFailure(
+          ErrorCode.STATE_CONFLICT,
+          'Each ship may attack only once per combat phase',
+        );
       }
 
       const ship = state.ships.find((s) => s.id === id);
@@ -422,12 +417,10 @@ export const processCombat = (
     );
 
     if (committedTargets.has(targetKey)) {
-      return {
-        error: {
-          code: ErrorCode.STATE_CONFLICT,
-          message: 'Each ship may be attacked only once per combat phase',
-        },
-      };
+      return engineFailure(
+        ErrorCode.STATE_CONFLICT,
+        'Each ship may be attacked only once per combat phase',
+      );
     }
 
     let group = attackGroups.get(groupKey);
@@ -445,37 +438,29 @@ export const processCombat = (
       };
       attackGroups.set(groupKey, group);
     } else if (group.targetType !== targetType) {
-      return {
-        error: {
-          code: ErrorCode.INVALID_INPUT,
-          message:
-            'An attacking group cannot split fire between ship and ordnance targets',
-        },
-      };
+      return engineFailure(
+        ErrorCode.INVALID_INPUT,
+        'An attacking group cannot split fire between ship and ordnance targets',
+      );
     }
 
     const remainingStrength = group.maxStrength - group.allocatedStrength;
 
     if (remainingStrength <= 0) {
-      return {
-        error: {
-          code: ErrorCode.RESOURCE_LIMIT,
-          message: 'Attack group has no strength remaining to allocate',
-        },
-      };
+      return engineFailure(
+        ErrorCode.RESOURCE_LIMIT,
+        'Attack group has no strength remaining to allocate',
+      );
     }
 
     committedTargets.add(targetKey);
 
     if (targetType === 'ordnance') {
       if (group.allocatedStrength > 0) {
-        return {
-          error: {
-            code: ErrorCode.INVALID_INPUT,
-            message:
-              'Split fire is only supported against ships in the same hex',
-          },
-        };
+        return engineFailure(
+          ErrorCode.INVALID_INPUT,
+          'Split fire is only supported against ships in the same hex',
+        );
       }
 
       if (attack.attackStrength != null) {
@@ -502,12 +487,10 @@ export const processCombat = (
           (attacker) => !hasLineOfSightToTarget(attacker, target, map),
         )
       ) {
-        return {
-          error: {
-            code: ErrorCode.NOT_ALLOWED,
-            message: 'Attacker lacks line of sight to target',
-          },
-        };
+        return engineFailure(
+          ErrorCode.NOT_ALLOWED,
+          'Attacker lacks line of sight to target',
+        );
       }
 
       group.allocatedStrength = group.maxStrength;
@@ -530,12 +513,10 @@ export const processCombat = (
     const targetHexKey = hexKey(target.position);
 
     if (group.targetHexKey && group.targetHexKey !== targetHexKey) {
-      return {
-        error: {
-          code: ErrorCode.INVALID_INPUT,
-          message: 'Split fire may only target ships in the same hex',
-        },
-      };
+      return engineFailure(
+        ErrorCode.INVALID_INPUT,
+        'Split fire may only target ships in the same hex',
+      );
     }
 
     if (attack.attackStrength != null) {
@@ -544,12 +525,10 @@ export const processCombat = (
         attack.attackStrength < 1 ||
         attack.attackStrength > remainingStrength
       ) {
-        return {
-          error: {
-            code: ErrorCode.INVALID_INPUT,
-            message: 'Invalid declared attack strength',
-          },
-        };
+        return engineFailure(
+          ErrorCode.INVALID_INPUT,
+          'Invalid declared attack strength',
+        );
       }
     }
 
@@ -557,12 +536,10 @@ export const processCombat = (
       map &&
       attackers.some((attacker) => !hasLineOfSight(attacker, target, map))
     ) {
-      return {
-        error: {
-          code: ErrorCode.NOT_ALLOWED,
-          message: 'Attacker lacks line of sight to target',
-        },
-      };
+      return engineFailure(
+        ErrorCode.NOT_ALLOWED,
+        'Attacker lacks line of sight to target',
+      );
     }
 
     const allocatedStrength = attack.attackStrength ?? remainingStrength;

@@ -104,12 +104,14 @@ export const createRenderer = (
   const ordnanceTrails = (): Map<string, HexCoord[]> =>
     movementAnimation.getOrdnanceTrails();
 
-  document.addEventListener('visibilitychange', () => {
+  const onVisibilityChange = (): void => {
     movementAnimation.handleVisibilityChange(
       document.visibilityState,
       performance.now(),
     );
-  });
+  };
+
+  document.addEventListener('visibilitychange', onVisibilityChange);
 
   const invalidateStatic = (): void => {
     invalidateStaticSceneLayer(staticLayerRef.layer);
@@ -545,7 +547,13 @@ export const createRenderer = (
       requestAnimationFrame(loop);
     },
 
-    /** @internal Used by tests — full canvas paint for one frame. */
+    stop: () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('resize', resize);
+      window.visualViewport?.removeEventListener('resize', resize);
+    },
+
+    // @internal Used by tests — full canvas paint for one frame.
     renderFrameForTests: (now: number, width?: number, height?: number) => {
       renderFrame(now, width, height);
     },

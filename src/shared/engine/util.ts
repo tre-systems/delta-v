@@ -376,11 +376,12 @@ export const hasEscaped = (
 };
 
 // Apply a disconnect-forfeit game-over transition to a game state.
-// Returns the mutated state and the engine event for replay parity.
+// Returns a new (cloned) state and the engine event for replay parity.
 export const applyDisconnectForfeit = (
-  state: GameState,
+  inputState: GameState,
   disconnectedPlayer: PlayerId,
 ): { state: GameState; events: EngineEvent[] } => {
+  const state = structuredClone(inputState);
   const winner = (disconnectedPlayer === 0 ? 1 : 0) as PlayerId;
   const reason = 'Opponent disconnected';
   setGameOutcome(state, winner, reason);

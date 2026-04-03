@@ -3,6 +3,7 @@ import {
   analyzeHexLine,
   HEX_DIRECTIONS,
   type HexCoord,
+  type HexKey,
   type HexVec,
   hexAdd,
   hexDistance,
@@ -21,8 +22,8 @@ import type {
 
 export interface CourseOptions {
   overload?: number | null;
-  weakGravityChoices?: Record<string, boolean>;
-  destroyedBases?: string[];
+  weakGravityChoices?: Record<HexKey, boolean>;
+  destroyedBases?: HexKey[];
   land?: boolean;
 }
 
@@ -51,7 +52,7 @@ export const applyPendingGravityEffects = (
 export const collectEnteredGravityEffects = (
   path: HexCoord[],
   map: SolarSystemMap,
-  weakGravityChoices: Record<string, boolean> = {},
+  weakGravityChoices: Record<HexKey, boolean> = {},
 ): GravityEffect[] => {
   const effects: GravityEffect[] = [];
   let prevWeakBody: string | null = null;
@@ -98,7 +99,7 @@ const canLandAtPlanetaryBase = (
   bodyName: string,
   fuelSpent: number,
   map: SolarSystemMap,
-  destroyedBases: Set<string>,
+  destroyedBases: Set<HexKey>,
 ): boolean => {
   if (fuelSpent !== 1) return false;
 
@@ -164,7 +165,7 @@ const findLandingBase = (
   bodyName: string,
   shipPosition: HexCoord,
   map: SolarSystemMap,
-  destroyedBases: Set<string>,
+  destroyedBases: Set<HexKey>,
 ): HexCoord | null => {
   const bases = findBaseHexes(map, bodyName).filter(
     (b) => !destroyedBases.has(hexKey(b)),
@@ -186,7 +187,7 @@ const checkLanding = (
   newVelocity: HexVec,
   fuelSpent: number,
   map: SolarSystemMap,
-  destroyedBases: Set<string>,
+  destroyedBases: Set<HexKey>,
 ): string | null => {
   // A ship that's currently landed must take off first —
   // it can't hop directly to another base in the same turn
@@ -285,8 +286,8 @@ type ComputeCourseInput = {
   burn: number | null;
   map: SolarSystemMap;
   overload: number | null;
-  weakGravityChoices: Record<string, boolean>;
-  destroyedBases: Set<string>;
+  weakGravityChoices: Record<HexKey, boolean>;
+  destroyedBases: Set<HexKey>;
   land: boolean;
 };
 
