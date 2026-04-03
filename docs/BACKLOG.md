@@ -68,16 +68,6 @@ Core architecture work such as the major FSM cleanup, multi-ship E2E coverage, o
 
 **Found by:** pattern catalogue: SRP Choke Points
 
-### Align parity normalization with the actual fields that diverge
-
-**Status:** not started.
-
-**Remaining:** `normalizeStateForParity` in production only strips the `connected` field, but the test suite also filters `ready` and `detected`. If those fields legitimately diverge between live and projected state, extend the production normalizer to match. Consider structured field-level diff logging on mismatch instead of only logging turn and phase.
-
-**Files:** `src/server/game-do/publication.ts`, related tests
-
-**Found by:** pattern catalogue: Parity Check
-
 ### Move remaining AI behavior behind config
 
 **Status:** not started.
@@ -181,33 +171,6 @@ Add corresponding fields to `AIDifficultyConfig` and route these decisions throu
 
 **Found by:** pattern catalogue: Chunked Event Storage
 
-### 47. `createGame` throws instead of returning Result
-
-**Status:** not started.
-
-**Remaining:** Two `throw new Error(...)` calls in `game-creation.ts` (scenario player count assertion at line ~66, starting hex placement failure at line ~124) crash rather than returning a `Result`. Convert `createGame` to return `Result<GameState, EngineError>` for consistency with the rest of the engine.
-
-**Files:** `src/shared/engine/game-creation.ts`
-**Found by:** pattern audit: error handling
-
-### 48. WebSocket upgrade path has no HTTP-level rate limit
-
-**Status:** not started.
-
-**Remaining:** The `/ws/:code` endpoint at `index.ts` line ~169 forwards directly to the Durable Object with no IP-based rate check. A client could rapidly open and close WebSocket connections. The per-message rate limit only applies after establishment. Consider adding a connection-establishment rate limit alongside the existing per-message throttle.
-
-**Files:** `src/server/index.ts` (line ~169), `src/server/reporting.ts`
-**Found by:** pattern audit: rate limiting
-
-### 50. Remove `Math.random` default parameters from shared code
-
-**Status:** scoped. Engine defaults removed; AI defaults retained intentionally.
-
-**Remaining:** The AI functions in `src/shared/ai/` retain `Math.random` defaults intentionally since they are used in ~50+ test call sites and local play. The pre-commit grep check (item 56) enforces the no-`Math.random` pattern in `src/shared/engine/` where determinism is critical. `game-creation.ts` default was removed when RNG was made mandatory there.
-
-**Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/astrogation.ts`
-**Found by:** pattern audit: engine purity / deterministic RNG
-
 ### Maintain `GameState` schema version and replay compatibility discipline
 
 **Status:** ongoing discipline. Required on schema bumps.
@@ -236,15 +199,6 @@ Add corresponding fields to `AIDifficultyConfig` and route these decisions throu
 **Trigger:** any scenario enabling `scenarioRules.reinforcements` or `scenarioRules.fleetConversion`
 **Found by:** pattern catalogue: Event Sourcing; Visitor Event Projection; Parity Check
 
-### 61. Add coverage thresholds for server and client hotspots
-
-**Status:** not started.
-
-**Remaining:** `vitest.config.ts` currently enforces coverage floors only for `src/shared/**/*.ts`. Add selective thresholds for high-value non-shared paths so regressions outside the engine fail CI too. Good first candidates are `src/server/game-do/**/*.ts` and focused client modules with existing unit tests such as `src/client/game/**/*.ts` or the custom reactive / DOM helpers.
-
-**Files:** `vitest.config.ts`
-**Found by:** pattern catalogue: Coverage Thresholds
-
 ### 62. Use `ErrorCode` for client-side error handling, not just telemetry
 
 **Status:** not started.
@@ -254,11 +208,3 @@ Add corresponding fields to `AIDifficultyConfig` and route these decisions throu
 **Files:** `src/client/game/message-handler.ts`, `src/client/game/client-message-plans.ts`, related UI tests
 **Found by:** pattern catalogue: Error Code Enum
 
-### 63. Reuse the shared `AIDifficulty` type through the UI event flow
-
-**Status:** not started.
-
-**Remaining:** the shared AI registry uses a single `AIDifficulty` union, but the UI flow weakens that by redefining the same union in `src/client/ui/events.ts` and restating it inline in `src/client/game/ui-event-router.ts` and `src/client/game/main-interactions.ts`. Import the shared alias end-to-end so difficulty keys stay coupled to the canonical registry type.
-
-**Files:** `src/client/ui/events.ts`, `src/client/game/ui-event-router.ts`, `src/client/game/main-interactions.ts`, any affected tests
-**Found by:** pattern catalogue: Multiton Preset Registries
