@@ -74,26 +74,33 @@
 
   <!-- Menu screen -->
   <div id="menu" class="screen screen-page">
-    <div class="menu-content">
-      <div class="menu-eyebrow">Tactical Space Combat</div>
-      <h1 class="title">DELTA-V</h1>
-      <p class="menu-note">Plot burns, ride gravity, and outfly the other commander.</p>
-      <button id="createBtn" class="btn btn-primary">Create Game</button>
-      <div id="aiSection" class="ai-section">
-        <button id="singlePlayerBtn" class="btn btn-secondary btn-ai">Play vs AI</button>
-        <div class="difficulty-group">
-          <div class="difficulty-label">Difficulty</div>
-          <div id="difficultySelect" class="difficulty-select">
-            <button class="btn btn-difficulty" data-difficulty="easy">Easy</button>
-            <button class="btn btn-difficulty active" data-difficulty="normal">Normal</button>
-            <button class="btn btn-difficulty" data-difficulty="hard">Hard</button>
+    <div class="menu-content menu-home-shell">
+      <div class="menu-hero">
+        <img src="/favicon.svg" alt="" class="menu-logo" aria-hidden="true">
+        <div class="menu-eyebrow">Tactical Space Combat</div>
+        <h1 class="title">DELTA-V</h1>
+        <p class="menu-note">Plot burns, ride gravity, and outfly the other commander.</p>
+      </div>
+      <div class="menu-surface menu-surface-primary">
+        <button id="createBtn" class="btn btn-primary">Create Game</button>
+        <div id="aiSection" class="ai-section">
+          <button id="singlePlayerBtn" class="btn btn-secondary btn-ai">Play vs AI</button>
+          <div class="difficulty-group">
+            <div class="difficulty-label">Difficulty</div>
+            <div id="difficultySelect" class="difficulty-select">
+              <button class="btn btn-difficulty" data-difficulty="easy">Easy</button>
+              <button class="btn btn-difficulty active" data-difficulty="normal">Normal</button>
+              <button class="btn btn-difficulty" data-difficulty="hard">Hard</button>
+            </div>
           </div>
         </div>
       </div>
       <div class="divider">or</div>
-      <div class="join-row">
-        <input id="codeInput" class="code-input" maxlength="5" placeholder="CODE" autocapitalize="characters" spellcheck="false" aria-label="Game code">
-        <button id="joinBtn" class="btn btn-secondary">Join</button>
+      <div class="menu-surface menu-surface-join">
+        <div class="join-row">
+          <input id="codeInput" class="code-input" maxlength="5" placeholder="CODE" autocapitalize="characters" spellcheck="false" aria-label="Game code">
+          <button id="joinBtn" class="btn btn-secondary">Join</button>
+        </div>
       </div>
       <a href="https://ko-fi.com/N4N31DPNUS" target="_blank" rel="noopener" class="kofi-link">
         <img src="https://storage.ko-fi.com/cdn/kofi2.png?v=6" alt="Buy Me a Coffee at ko-fi.com" height="32">
