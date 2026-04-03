@@ -65,7 +65,12 @@ const runSingleGame = async (
   // Create an RNG local to the game for reproducible behavior later if needed
   const rng = Math.random;
 
-  const createResult = createGame(scenario, map, `sim-${Date.now()}`, findBaseHex);
+  const createResult = createGame(
+    scenario,
+    map,
+    `sim-${Date.now()}`,
+    findBaseHex,
+  );
 
   if (!createResult.ok) {
     throw new Error(`Failed to create game: ${createResult.error.message}`);
