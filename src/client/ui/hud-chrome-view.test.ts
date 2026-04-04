@@ -22,13 +22,13 @@ const installFixture = () => {
     <div id="latencyInfo"></div>
     <div id="fleetStatus"></div>
     <div id="hudBottomButtons" class="hud-bottom-buttons is-empty"></div>
-    <div id="helpOverlay" style="display:none">
+    <div id="helpOverlay" hidden>
       <button id="helpCloseBtn"></button>
     </div>
     <button id="helpBtn"></button>
     <button id="soundBtn"></button>
     <div id="turnTimer"></div>
-    <div id="transferPanel" style="display:none"></div>
+    <div id="transferPanel" hidden></div>
     <div id="actionButtonFixture">${actionButtons}</div>
   `;
 };
@@ -106,12 +106,11 @@ describe('HUDChromeView', () => {
     expect(onStatusText).toHaveBeenCalledWith(
       expect.stringContaining('Select another ship'),
     );
-    expect(
-      (document.getElementById('undoBtn') as HTMLElement).style.display,
-    ).toBe('inline-block');
-    expect(
-      (document.getElementById('confirmBtn') as HTMLElement).style.display,
-    ).toBe('none');
+    const undoBtn = document.getElementById('undoBtn') as HTMLElement;
+    const confirmBtn = document.getElementById('confirmBtn') as HTMLElement;
+    expect(undoBtn.hasAttribute('hidden')).toBe(false);
+    expect(undoBtn.style.display).toBe('inline-block');
+    expect(confirmBtn.hasAttribute('hidden')).toBe(true);
     // Phase alerts are no longer shown — HUD top bar is sufficient
     expect(showPhaseAlert).not.toHaveBeenCalled();
     expect(queueLayoutSync).toHaveBeenCalled();
@@ -131,9 +130,10 @@ describe('HUDChromeView', () => {
 
     view.update(buildInput());
     const compass = document.getElementById('objectiveCompass') as HTMLElement;
-    expect(compass.style.display).toBe('none');
+    expect(compass.hasAttribute('hidden')).toBe(true);
 
     view.update(buildInput({ objectiveBearingDeg: -30 }));
+    expect(compass.hasAttribute('hidden')).toBe(false);
     expect(compass.style.display).toBe('inline-flex');
     expect(compass.style.transform).toBe('rotate(-30deg)');
   });
@@ -167,17 +167,15 @@ describe('HUDChromeView', () => {
     helpBtn.focus();
     view.toggleHelpOverlay();
     await Promise.resolve();
-    expect(
-      (document.getElementById('helpOverlay') as HTMLElement).style.display,
-    ).toBe('flex');
+    const helpOverlay = document.getElementById('helpOverlay') as HTMLElement;
+    expect(helpOverlay.hasAttribute('hidden')).toBe(false);
+    expect(helpOverlay.style.display).toBe('flex');
     expect(document.activeElement).toBe(
       document.getElementById('helpCloseBtn'),
     );
     view.toggleHelpOverlay();
     await Promise.resolve();
-    expect(
-      (document.getElementById('helpOverlay') as HTMLElement).style.display,
-    ).toBe('none');
+    expect(helpOverlay.hasAttribute('hidden')).toBe(true);
     expect(document.activeElement).toBe(helpBtn);
 
     view.updateSoundButton(true);
@@ -196,9 +194,9 @@ describe('HUDChromeView', () => {
     );
 
     view.showAttackButton(true);
-    expect(
-      (document.getElementById('attackBtn') as HTMLElement).style.display,
-    ).toBe('inline-block');
+    const attackBtn = document.getElementById('attackBtn') as HTMLElement;
+    expect(attackBtn.hasAttribute('hidden')).toBe(false);
+    expect(attackBtn.style.display).toBe('inline-block');
 
     view.showFireButton(true, 3);
     expect(document.getElementById('fireBtn')?.textContent).toBe('CONFIRM');
@@ -212,9 +210,9 @@ describe('HUDChromeView', () => {
 
     expect(onStatusText).toHaveBeenCalledWith('Ships moving...');
     for (const id of ACTION_BUTTON_IDS) {
-      expect((document.getElementById(id) as HTMLElement).style.display).toBe(
-        'none',
-      );
+      expect(
+        (document.getElementById(id) as HTMLElement).hasAttribute('hidden'),
+      ).toBe(true);
     }
 
     turnTimerSignal.value = null;
@@ -265,7 +263,7 @@ describe('HUDChromeView', () => {
     await Promise.resolve();
 
     expect(escapeEvent.defaultPrevented).toBe(true);
-    expect(helpOverlay.style.display).toBe('none');
+    expect(helpOverlay.hasAttribute('hidden')).toBe(true);
     expect(document.activeElement).toBe(helpBtn);
   });
 

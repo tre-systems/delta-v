@@ -4,7 +4,7 @@ import type {
   PlayerId,
   Ship,
 } from '../../shared/types/domain';
-import { byId, clearHTML, el, listen, text, visible } from '../dom';
+import { byId, clearHTML, el, hide, listen, text, visible } from '../dom';
 import {
   computed,
   createDisposalScope,
@@ -72,7 +72,7 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   const mobileSignal = signal(false);
   const viewportWidthSignal = signal(window.innerWidth);
 
-  logStatusBar.style.display = 'none';
+  hide(logStatusBar);
   logStatusBar.setAttribute('role', 'status');
   logStatusBar.setAttribute('aria-live', 'polite');
   logStatusBar.setAttribute('aria-atomic', 'true');

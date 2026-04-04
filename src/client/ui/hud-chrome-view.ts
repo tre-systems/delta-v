@@ -1,4 +1,13 @@
-import { byId, cls, listen, setTrustedHTML, text, visible } from '../dom';
+import {
+  byId,
+  cls,
+  hide,
+  listen,
+  setTrustedHTML,
+  show,
+  text,
+  visible,
+} from '../dom';
 import {
   computed,
   createDisposalScope,
@@ -233,11 +242,11 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
 
       const compassDeg = hudView.objectiveCompassDegrees;
       if (compassDeg !== null) {
-        objectiveCompassEl.style.display = 'inline-flex';
+        show(objectiveCompassEl, 'inline-flex');
         objectiveCompassEl.style.transform = `rotate(${compassDeg}deg)`;
         objectiveCompassEl.title = 'Direction to objective (map)';
       } else {
-        objectiveCompassEl.style.display = 'none';
+        hide(objectiveCompassEl);
         objectiveCompassEl.style.transform = '';
         objectiveCompassEl.title = '';
       }

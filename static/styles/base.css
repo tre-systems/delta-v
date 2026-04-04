@@ -1,6 +1,10 @@
 /**
  * Design tokens and global reset. Component styles are in components.css, hud.css, etc.
  * Chrome HUD surfaces: --chrome-*; generic panels: --panel / --panel-strong.
+ *
+ * Z-index ladder (low → high): game canvas 0; latency 2; HUD / ship list / log 5;
+ * reconnect + opponent banner 15; replay bar / latest log bar / tutorial / tooltip 20;
+ * toasts + expanded game log 25; phase alert 28; full-screen .screen overlays 30.
  */
 :root {
   --bg: #040b16;
@@ -51,6 +55,11 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* Native `hidden` + app visibility toggles (see hide/show/visible in dom.ts) */
+[hidden] {
+  display: none !important;
 }
 
 html {
