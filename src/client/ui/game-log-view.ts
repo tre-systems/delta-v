@@ -246,8 +246,19 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
       chatInput.focus();
     });
 
+    logLatestBar.setAttribute('role', 'button');
+    logLatestBar.tabIndex = 0;
+    logLatestBar.setAttribute('aria-label', 'Expand game log');
+
     listen(logLatestBar, 'click', () => {
       expand();
+    });
+    listen(logLatestBar, 'keydown', (event) => {
+      const key = (event as KeyboardEvent).key;
+      if (key === 'Enter' || key === ' ') {
+        event.preventDefault();
+        expand();
+      }
     });
 
     listen(gameLogEl, 'click', (event) => {

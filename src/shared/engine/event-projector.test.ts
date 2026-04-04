@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { SHIP_STATS } from '../constants';
 import { asHexKey } from '../hex';
 import { asGameId, asOrdnanceId, asShipId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { FleetPurchase } from '../types';
 import type { EventEnvelope } from './engine-events';
-import { projectMatchSetupFromStream } from './event-projector';
+import {
+  projectGameStateFromStream,
+  projectMatchSetupFromStream,
+} from './event-projector';
 import { processFleetReady } from './fleet-building';
 import { createGameOrThrow } from './game-creation';
 
@@ -1120,5 +1124,214 @@ describe('projectMatchSetupFromStream', () => {
       projected.value.ships.find((ship) => ship.id === 'p0s0')?.damage
         .disabledTurns,
     ).toBe(1);
+  });
+
+  it('spawns reinforcement ships when projecting turnAdvanced', () => {
+    const baseResult = projectMatchSetupFromStream(
+      [
+        {
+          gameId: asGameId('BIPLA-r1'),
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Bi-Planetary',
+            turn: 1,
+            phase: 'astrogation',
+            matchSeed: 0,
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(baseResult.ok).toBe(true);
+    if (!baseResult.ok) return;
+
+    const state = baseResult.value;
+
+    // Inject reinforcements: a corvette for player 1 arriving on turn 2.
+    state.scenarioRules.reinforcements = [
+      {
+        turn: 2,
+        playerId: 1,
+        ships: [
+          {
+            type: 'corvette',
+            position: { q: 3, r: 3 },
+            velocity: { dq: 0, dr: 0 },
+          },
+        ],
+      },
+    ];
+    state.activePlayer = 0;
+    state.turnNumber = 1;
+
+    const shipsBefore = state.ships.length;
+
+    // Project a turnAdvanced event from the seeded initial state.
+    const projected = projectGameStateFromStream(
+      [
+        {
+          gameId: asGameId('BIPLA-r1'),
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'turnAdvanced',
+            turn: 2,
+            activePlayer: 1,
+          },
+        },
+      ],
+      map,
+      state,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) return;
+
+    expect(projected.value.ships.length).toBe(shipsBefore + 1);
+    const newShip = projected.value.ships[projected.value.ships.length - 1];
+    expect(newShip.type).toBe('corvette');
+    expect(newShip.owner).toBe(1);
+    expect(newShip.position).toEqual({ q: 3, r: 3 });
+    expect(newShip.fuel).toBe(SHIP_STATS.corvette.fuel);
+  });
+
+  it('applies fleet conversion when projecting turnAdvanced', () => {
+    const baseResult = projectMatchSetupFromStream(
+      [
+        {
+          gameId: asGameId('BIPLA-fc'),
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Bi-Planetary',
+            turn: 1,
+            phase: 'astrogation',
+            matchSeed: 0,
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(baseResult.ok).toBe(true);
+    if (!baseResult.ok) return;
+
+    const state = baseResult.value;
+
+    // On turn 3, player 1's ships become player 0's.
+    state.scenarioRules.fleetConversion = {
+      turn: 3,
+      fromPlayer: 1,
+      toPlayer: 0,
+    };
+    state.activePlayer = 1;
+    state.turnNumber = 2;
+
+    const p1ShipIds = state.ships
+      .filter((s) => s.owner === 1 && s.lifecycle !== 'destroyed')
+      .map((s) => s.id);
+
+    expect(p1ShipIds.length).toBeGreaterThan(0);
+
+    const projected = projectGameStateFromStream(
+      [
+        {
+          gameId: asGameId('BIPLA-fc'),
+          seq: 2,
+          ts: 2,
+          actor: 1,
+          event: {
+            type: 'turnAdvanced',
+            turn: 3,
+            activePlayer: 0,
+          },
+        },
+      ],
+      map,
+      state,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) return;
+
+    // All previously-player-1 ships should now belong to player 0.
+    for (const id of p1ShipIds) {
+      const ship = projected.value.ships.find((s) => s.id === id);
+      expect(ship?.owner).toBe(0);
+    }
+  });
+
+  it('does not spawn reinforcements when turn does not match', () => {
+    const baseResult = projectMatchSetupFromStream(
+      [
+        {
+          gameId: asGameId('BIPLA-r2'),
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Bi-Planetary',
+            turn: 1,
+            phase: 'astrogation',
+            matchSeed: 0,
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(baseResult.ok).toBe(true);
+    if (!baseResult.ok) return;
+
+    const state = baseResult.value;
+    state.scenarioRules.reinforcements = [
+      {
+        turn: 5,
+        playerId: 1,
+        ships: [
+          {
+            type: 'corvette',
+            position: { q: 3, r: 3 },
+            velocity: { dq: 0, dr: 0 },
+          },
+        ],
+      },
+    ];
+    state.activePlayer = 0;
+    state.turnNumber = 1;
+
+    const shipsBefore = state.ships.length;
+
+    const projected = projectGameStateFromStream(
+      [
+        {
+          gameId: asGameId('BIPLA-r2'),
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'turnAdvanced',
+            turn: 2,
+            activePlayer: 1,
+          },
+        },
+      ],
+      map,
+      state,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) return;
+
+    // No new ships should have been spawned.
+    expect(projected.value.ships.length).toBe(shipsBefore);
   });
 });

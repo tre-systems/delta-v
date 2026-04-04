@@ -116,8 +116,17 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
         }
 
         if (ship.lifecycle !== 'destroyed') {
+          entry.tabIndex = 0;
+
           listen(entry, 'click', () => {
             deps.onSelectShip(ship.id);
+          });
+          listen(entry, 'keydown', (e: Event) => {
+            const key = (e as KeyboardEvent).key;
+            if (key === 'Enter' || key === ' ') {
+              e.preventDefault();
+              deps.onSelectShip(ship.id);
+            }
           });
         }
 
