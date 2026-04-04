@@ -565,7 +565,7 @@ describe('client integration: chat and errors', () => {
       ],
     ]);
     expect(deps.calls['ui.overlay.showToast']).toEqual([
-      ['Invalid action \u2014 please try again', 'error'],
+      ['Invalid action \u2014 please try again: Room not found', 'error'],
     ]);
     expect(deps.calls.setState).toEqual([['menu']]);
   });

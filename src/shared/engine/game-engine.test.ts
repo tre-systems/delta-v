@@ -2303,7 +2303,7 @@ describe('landed ship immunity', () => {
     );
     expect('error' in result).toBe(true);
     if ('error' in result) {
-      expect(getErrorMessage(result.error)).toContain('Invalid combat target');
+      expect(getErrorMessage(result.error)).toContain('Target not active');
     }
   });
   it('landed ships are immune to mines', () => {
