@@ -60,6 +60,11 @@ describe('ShipListView', () => {
 
     expect(entries).toHaveLength(2);
     expect(entries[0]?.classList.contains('active')).toBe(true);
+    expect(
+      document
+        .querySelector('#shipList')
+        ?.classList.contains('ship-list--compact'),
+    ).toBe(false);
     expect(entries[0]?.querySelector('.ship-details')?.textContent).toContain(
       'Landed',
     );
@@ -67,6 +72,35 @@ describe('ShipListView', () => {
 
     entries[1]?.click();
     expect(onSelectShip).toHaveBeenCalledWith('burning');
+  });
+
+  it('uses compact list chrome and fewer stats on mobile', () => {
+    const onSelectShip = vi.fn<(shipId: string) => void>();
+    const view = createShipListView({ onSelectShip });
+    view.setMobile(true);
+
+    view.update(
+      [
+        createShip({
+          id: asShipId('selected'),
+          type: 'packet',
+          cargoUsed: 20,
+          lifecycle: 'landed',
+        }),
+      ],
+      'selected',
+      new Map(),
+    );
+
+    expect(
+      document
+        .querySelector('#shipList')
+        ?.classList.contains('ship-list--compact'),
+    ).toBe(true);
+    const details =
+      document.querySelector('#shipList .ship-details')?.textContent ?? '';
+    expect(details).toContain('Landed');
+    expect(details).not.toContain('Cargo');
   });
 
   it('marks destroyed ships and does not emit clicks for them', () => {

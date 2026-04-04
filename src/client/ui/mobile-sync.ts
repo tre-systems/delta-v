@@ -1,6 +1,7 @@
 type BindMobileSyncInput = {
   initialMatches: boolean;
   setHudMobile: (matches: boolean) => void;
+  setShipListMobile: (matches: boolean) => void;
   setLogMobile: (matches: boolean, viewportWidth: number) => void;
   bindViewport: (
     onMobileChange: (matches: boolean) => void,
@@ -11,6 +12,7 @@ type BindMobileSyncInput = {
 export const bindMobileSync = ({
   initialMatches,
   setHudMobile,
+  setShipListMobile,
   setLogMobile,
   bindViewport,
 }: BindMobileSyncInput) => {
@@ -19,6 +21,7 @@ export const bindMobileSync = ({
   const apply = (matches: boolean) => {
     isMobile = matches;
     setHudMobile(matches);
+    setShipListMobile(matches);
     setLogMobile(matches, window.innerWidth);
   };
 

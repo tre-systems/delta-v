@@ -62,6 +62,7 @@ const getVelocityLabel = (ship: Ship): string => {
 const getShipDetailRows = (
   ship: Ship,
   isSelected: boolean,
+  compact: boolean,
 ): ShipDetailRowView[] => {
   const stats = SHIP_STATS[ship.type];
 
@@ -69,12 +70,59 @@ const getShipDetailRows = (
     return [];
   }
 
+  const combatRow: ShipDetailRowView = {
+    label: 'Combat',
+    value: `${stats.combat}${stats.defensiveOnly ? ' (def)' : ''}${ship.heroismAvailable ? ' \u2605' : ''}`,
+    tone: null,
+  };
+
+  const velocityRow: ShipDetailRowView = {
+    label: 'Velocity',
+    value: getVelocityLabel(ship),
+    tone: null,
+  };
+
+  const exceptionalRows = (
+    [
+      ship.damage.disabledTurns > 0
+        ? {
+            label: 'Disabled',
+            value: `${ship.damage.disabledTurns} turns`,
+            tone: 'warning' as const,
+          }
+        : null,
+      ship.control === 'captured'
+        ? {
+            label: 'Status',
+            value: 'Captured',
+            tone: 'danger' as const,
+          }
+        : null,
+      ship.control !== 'captured' && ship.lifecycle === 'landed'
+        ? {
+            label: 'Status',
+            value: 'Landed',
+            tone: 'success' as const,
+          }
+        : null,
+    ] as (ShipDetailRowView | null)[]
+  ).filter((row): row is ShipDetailRowView => row !== null);
+
+  if (compact) {
+    const speed = Math.abs(ship.velocity.dq) + Math.abs(ship.velocity.dr);
+    const rows: ShipDetailRowView[] = [combatRow];
+
+    if (speed > 0) {
+      rows.push(velocityRow);
+    }
+
+    rows.push(...exceptionalRows);
+
+    return rows;
+  }
+
   return [
-    {
-      label: 'Combat',
-      value: `${stats.combat}${stats.defensiveOnly ? ' (def)' : ''}${ship.heroismAvailable ? ' \u2605' : ''}`,
-      tone: null,
-    },
+    combatRow,
     stats.cargo > 0
       ? {
           label: 'Cargo',
@@ -82,32 +130,8 @@ const getShipDetailRows = (
           tone: null,
         }
       : null,
-    {
-      label: 'Velocity',
-      value: getVelocityLabel(ship),
-      tone: null,
-    },
-    ship.damage.disabledTurns > 0
-      ? {
-          label: 'Disabled',
-          value: `${ship.damage.disabledTurns} turns`,
-          tone: 'warning' as const,
-        }
-      : null,
-    ship.control === 'captured'
-      ? {
-          label: 'Status',
-          value: 'Captured',
-          tone: 'danger' as const,
-        }
-      : null,
-    ship.control !== 'captured' && ship.lifecycle === 'landed'
-      ? {
-          label: 'Status',
-          value: 'Landed',
-          tone: 'success' as const,
-        }
-      : null,
+    velocityRow,
+    ...exceptionalRows,
   ].filter((row): row is ShipDetailRowView => row !== null);
 };
 
@@ -115,6 +139,7 @@ export const buildShipListView = (
   ships: Ship[],
   selectedId: string | null,
   burns: Map<string, number | null>,
+  compact = false,
 ): ShipListEntryView[] => {
   const displayNames = getDisplayNames(ships);
 
@@ -129,6 +154,6 @@ export const buildShipListView = (
       ship.lifecycle === 'destroyed'
         ? ''
         : `${ship.fuel}/${SHIP_STATS[ship.type]?.fuel ?? '?'}`,
-    detailRows: getShipDetailRows(ship, ship.id === selectedId),
+    detailRows: getShipDetailRows(ship, ship.id === selectedId, compact),
   }));
 };
