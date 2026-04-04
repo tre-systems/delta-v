@@ -1096,20 +1096,3 @@ fast enough to run routinely, so it is not the place for full
 scenario walkthroughs, long-session UX checks, or detailed
 rule validation already covered by Vitest and simulation.
 
----
-
-## What Manual Tests Don't Cover
-
-- **WebSocket synchronisation edge cases** — race
-  conditions between simultaneous messages
-- **Server alarm / timeout exactness** — turn timer,
-  reconnect grace, and inactivity cleanup under real
-  clock manipulation or tab suspension
-- **Load / soak testing** — many concurrent games or
-  very long-running sessions
-- **Device performance profiling** — FPS, battery,
-  thermal throttling, and memory pressure on older
-  hardware
-- **Formal accessibility audit** — screen readers,
-  measured colour contrast, reduced-motion
-  preferences, and assistive-tech compatibility
