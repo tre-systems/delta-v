@@ -42,7 +42,7 @@
     min-width: 0;
   }
 
-  .hud-bar > :nth-child(3) {
+  .hud-fuel-group {
     justify-self: end;
   }
 
@@ -199,12 +199,12 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
-  .hud-bar > :nth-child(1) {
+  .hud-turn-phase-group {
     grid-column: 1 / 2;
     min-width: 0;
   }
 
-  .hud-bar > :nth-child(3) {
+  .hud-fuel-group {
     grid-column: 2 / 3;
     justify-self: end;
     align-self: start;
@@ -554,11 +554,11 @@
     font-size: 0.68rem;
   }
 
-  .hud-bar > :nth-child(1) {
+  .hud-turn-phase-group {
     grid-column: unset;
   }
 
-  .hud-bar > :nth-child(3) {
+  .hud-fuel-group {
     grid-column: unset;
     justify-self: unset;
   }
@@ -602,4 +602,3 @@
   }
 
 }
-

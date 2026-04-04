@@ -79,7 +79,7 @@
   border-radius: 20px;
 }
 
-.hud-bottom-buttons:not(:has(> .btn:not([style*="none"]))) {
+.hud-bottom-buttons.is-empty {
   display: none;
 }
 

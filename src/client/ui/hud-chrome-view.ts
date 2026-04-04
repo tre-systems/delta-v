@@ -115,6 +115,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const skipLogisticsBtn = byId('skipLogisticsBtn');
   const confirmTransfersBtn = byId('confirmTransfersBtn');
   const transferPanelEl = byId('transferPanel');
+  const hudBottomButtonsEl = byId('hudBottomButtons');
   const latencyEl = byId('latencyInfo');
   const fleetStatusEl = byId('fleetStatus');
   const helpOverlayEl = byId('helpOverlay');
@@ -346,6 +347,35 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       );
 
       deps.queueLayoutSync();
+    });
+
+    effect(() => {
+      const state = viewSignal.value;
+      const attackVisible = attackButtonVisibleSignal.value;
+      const fireVisible = fireButtonSignal.value.isVisible;
+      const hasButtons =
+        !!state &&
+        !state.suppressActionButtons &&
+        (state.hudView.undoVisible ||
+          state.hudView.skipShipVisible ||
+          state.hudView.confirmVisible ||
+          state.hudView.landFromOrbit.visible ||
+          state.hudView.launchMine.visible ||
+          state.hudView.launchTorpedo.visible ||
+          state.hudView.launchNuke.visible ||
+          state.hudView.emplaceBaseVisible ||
+          state.hudView.skipOrdnanceVisible ||
+          state.hudView.skipCombatVisible ||
+          state.hudView.skipLogisticsVisible ||
+          state.hudView.confirmTransfersVisible ||
+          attackVisible ||
+          fireVisible);
+      const isEmpty = !hasButtons;
+
+      if (hudBottomButtonsEl.classList.contains('is-empty') !== isEmpty) {
+        hudBottomButtonsEl.classList.toggle('is-empty', isEmpty);
+        deps.queueLayoutSync();
+      }
     });
 
     effect(() => {
