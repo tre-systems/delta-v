@@ -262,8 +262,10 @@ const applyErrorPlan: ClientMessagePlanHandler<'error'> = (
     message: plan.message,
     code: plan.code,
   });
-  const displayMessage =
-    (plan.code && ERROR_CODE_DISPLAY[plan.code]) || plan.message;
+  const friendlyMessage = plan.code && ERROR_CODE_DISPLAY[plan.code];
+  const displayMessage = friendlyMessage
+    ? `${friendlyMessage}: ${plan.message}`
+    : plan.message;
   deps.ui.overlay.showToast(displayMessage, 'error');
   if (deps.ctx.state === 'connecting') {
     deps.setState('menu');

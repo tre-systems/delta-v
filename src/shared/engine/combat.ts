@@ -503,8 +503,17 @@ export const processCombat = (
 
     const target = state.ships.find((s) => s.id === attack.targetId);
 
-    if (!target || target.owner === playerId || target.lifecycle !== 'active') {
-      return engineFailure(ErrorCode.INVALID_TARGET, 'Invalid combat target');
+    if (!target) {
+      return engineFailure(ErrorCode.INVALID_TARGET, 'Target ship not found');
+    }
+    if (target.owner === playerId) {
+      return engineFailure(ErrorCode.INVALID_TARGET, 'Cannot target own ship');
+    }
+    if (target.lifecycle !== 'active') {
+      return engineFailure(
+        ErrorCode.INVALID_TARGET,
+        `Target not active (${target.lifecycle})`,
+      );
     }
 
     if (!target.detected) {
@@ -657,8 +666,17 @@ export const processSingleCombat = (
     results.push(resolveAntiNukeAttack(attackers, target, rng));
   } else {
     const target = state.ships.find((s) => s.id === attack.targetId);
-    if (!target || target.owner === playerId || target.lifecycle !== 'active') {
-      return engineFailure(ErrorCode.INVALID_TARGET, 'Invalid combat target');
+    if (!target) {
+      return engineFailure(ErrorCode.INVALID_TARGET, 'Target ship not found');
+    }
+    if (target.owner === playerId) {
+      return engineFailure(ErrorCode.INVALID_TARGET, 'Cannot target own ship');
+    }
+    if (target.lifecycle !== 'active') {
+      return engineFailure(
+        ErrorCode.INVALID_TARGET,
+        `Target not active (${target.lifecycle})`,
+      );
     }
     if (!target.detected) {
       return engineFailure(ErrorCode.INVALID_TARGET, 'Target is not detected');
