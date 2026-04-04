@@ -726,7 +726,7 @@ describe('projectMatchSetupFromStream', () => {
           actor: 0,
           event: {
             type: 'combatAttack',
-            attackerIds: [asShipId('p0s1')],
+            attackerIds: [asShipId('p0s0')],
             targetId: asOrdnanceId('ord1'),
             targetType: 'ordnance',
             attackType: 'antiNuke',
