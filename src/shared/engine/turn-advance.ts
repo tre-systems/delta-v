@@ -32,10 +32,7 @@ export const advanceTurn = (
     state.turnNumber++;
   }
 
-  applyReinforcements(state);
-  applyFleetConversion(state);
-
-  state.combatTargetedThisPhase = undefined;
+  applyTurnAdvanceMutations(state);
 
   engineEvents?.push({
     type: 'turnAdvanced',
@@ -43,6 +40,14 @@ export const advanceTurn = (
     activePlayer: state.activePlayer,
   });
   transitionPhaseWithEvent(state, 'astrogation', engineEvents);
+};
+
+// Shared helper so the event projector can replay reinforcement/conversion
+// mutations without duplicating the logic.
+export const applyTurnAdvanceMutations = (state: GameState): void => {
+  applyReinforcements(state);
+  applyFleetConversion(state);
+  state.combatTargetedThisPhase = undefined;
 };
 
 const getNextShipId = (state: GameState) => {

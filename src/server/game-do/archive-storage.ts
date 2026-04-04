@@ -86,13 +86,13 @@ export const readChunkedEventStream = async (
     return [];
   }
 
-  const stream: EventEnvelope[] = [];
+  const chunks = await Promise.all(
+    Array.from({ length: chunkCount }, (_, i) =>
+      getEventChunk(storage, gameId, i),
+    ),
+  );
 
-  for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
-    stream.push(...(await getEventChunk(storage, gameId, chunkIndex)));
-  }
-
-  return stream;
+  return chunks.flat();
 };
 
 export const readChunkedEventStreamTail = async (

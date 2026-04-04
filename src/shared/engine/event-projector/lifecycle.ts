@@ -5,6 +5,7 @@ import type { SolarSystemMap } from '../../types';
 import type { GameState, Result } from '../../types/domain';
 import { processFleetReady } from '../fleet-building';
 import { createGame } from '../game-creation';
+import { applyTurnAdvanceMutations } from '../turn-advance';
 import type { LifecycleProjectionEvent } from './support';
 import {
   migrateGameState,
@@ -166,6 +167,7 @@ export const projectLifecycleEvent = (
         if (ship.lifecycle === 'destroyed') continue;
 
         ship.resuppliedThisTurn = false;
+        ship.firedThisPhase = undefined;
 
         if (ship.damage.disabledTurns > 0) {
           ship.damage.disabledTurns--;
@@ -175,6 +177,11 @@ export const projectLifecycleEvent = (
       state.pendingAstrogationOrders = null;
       state.turnNumber = event.turn;
       state.activePlayer = event.activePlayer;
+
+      // Apply scenario-rule mutations (reinforcements, fleet conversion)
+      // that advanceTurn() performs in-memory but are not recorded as
+      // separate events in the stream.
+      applyTurnAdvanceMutations(state);
 
       return {
         ok: true,

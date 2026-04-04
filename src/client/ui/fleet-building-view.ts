@@ -131,10 +131,23 @@ export const createFleetBuildingView = (
           el('span', { class: 'chip-remove', text: '×' }),
         );
 
-        listen(chip, 'click', () => {
+        chip.setAttribute('role', 'button');
+        chip.tabIndex = 0;
+        chip.setAttribute('aria-label', `Remove ${itemView.label}`);
+
+        const removeShip = (): void => {
           const newCart = [...cartSignal.peek()];
           newCart.splice(index, 1);
           cartSignal.value = newCart;
+        };
+
+        listen(chip, 'click', removeShip);
+        listen(chip, 'keydown', (e: Event) => {
+          const key = (e as KeyboardEvent).key;
+          if (key === 'Enter' || key === ' ') {
+            e.preventDefault();
+            removeShip();
+          }
         });
 
         return chip;
