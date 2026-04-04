@@ -45,6 +45,8 @@
   --hud-edge-right: max(0.8rem, calc(var(--safe-right) + 0.5rem));
   --hud-top-offset: calc(4.5rem + var(--safe-top));
   --hud-bottom-offset: calc(5rem + var(--safe-bottom));
+  /* Horizontal space reserved for canvas minimap; keep in sync with getMinimapFrame (x=12, mobile width=90). */
+  --hud-minimap-gutter: calc(12px + 90px + 0.75rem);
   --font-display: 'Space Grotesk', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
   --app-width: 100vw;

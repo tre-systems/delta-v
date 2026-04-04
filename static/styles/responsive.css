@@ -36,12 +36,15 @@
 
   .hud-bottom {
     left: var(--hud-edge-left);
-    right: calc(var(--hud-edge-right) + 3rem);
+    right: var(--hud-edge-right);
     bottom: calc(0.85rem + var(--safe-bottom));
     width: auto;
     max-width: none;
     transform: none;
     align-items: center;
+    box-sizing: border-box;
+    padding-left: var(--hud-minimap-gutter);
+    padding-right: 3.5rem;
   }
 
   .hud-bottom-buttons {
@@ -124,6 +127,11 @@
 
   .help-close-btn {
     min-height: 52px;
+  }
+
+  .sound-btn,
+  .help-btn {
+    right: calc(var(--hud-edge-right) + 2.1rem);
   }
 
   .toast-container {
@@ -479,10 +487,18 @@
   }
 
   .hud-bottom {
-    max-width: 500px;
-    left: 50%;
+    max-width: min(
+      500px,
+      calc(
+        100vw - var(--hud-minimap-gutter) - var(--hud-edge-right) - 3.75rem
+      )
+    );
+    left: calc(50% + var(--hud-minimap-gutter) / 2);
     right: auto;
     transform: translateX(-50%);
+    padding-left: 0;
+    padding-right: 0;
+    box-sizing: border-box;
   }
 
   .hud-bottom-buttons {
