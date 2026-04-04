@@ -7,12 +7,16 @@ This file covers contributor workflow only. Use [README.md](../README.md) for pr
 The hook runs, in order:
 
 1. `npm run lint`
-2. `npm run typecheck:all`
-3. `npx wrangler d1 migrations apply delta-v-telemetry --local`
-4. `rm -rf coverage` then `npm run test:coverage` (clean output dir)
-5. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e` (Playwright; see below)
-6. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e:a11y` (Playwright + axe baseline)
-7. `npm run simulate all 25 -- --ci`
+2. Grep-based boundary checks (fail the commit if any match):
+   - `innerHTML` assignment outside `dom.ts` (use `setTrustedHTML()`)
+   - `Math.random` in `src/shared/engine/` (use injected RNG)
+   - `console.log/warn/error` in `src/shared/` (shared layer must be side-effect free)
+3. `npm run typecheck:all`
+4. `npx wrangler d1 migrations apply delta-v-telemetry --local`
+5. `rm -rf coverage` then `npm run test:coverage` (clean output dir)
+6. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e` (Playwright; see below)
+7. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e:a11y` (Playwright + axe baseline)
+8. `npm run simulate all 25 -- --ci`
 
 ### Coverage (`test:coverage`)
 
