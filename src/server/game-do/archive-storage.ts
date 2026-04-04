@@ -2,39 +2,40 @@ import type {
   EngineEvent,
   EventEnvelope,
 } from '../../shared/engine/engine-events';
+import type { GameId } from '../../shared/ids';
 import type { PlayerId } from '../../shared/types/domain';
 
 type Storage = DurableObjectStorage;
 
-const eventStreamKey = (gameId: string): string => `events:${gameId}`;
-const eventChunkKey = (gameId: string, chunkIndex: number): string =>
+const eventStreamKey = (gameId: GameId): string => `events:${gameId}`;
+const eventChunkKey = (gameId: GameId, chunkIndex: number): string =>
   `events:${gameId}:chunk:${chunkIndex}`;
-const eventChunkCountKey = (gameId: string): string =>
+const eventChunkCountKey = (gameId: GameId): string =>
   `eventChunkCount:${gameId}`;
-const eventSeqKey = (gameId: string): string => `eventSeq:${gameId}`;
+const eventSeqKey = (gameId: GameId): string => `eventSeq:${gameId}`;
 
-export const matchCreatedAtKey = (gameId: string): string =>
+export const matchCreatedAtKey = (gameId: GameId): string =>
   `matchCreatedAt:${gameId}`;
-export const matchSeedKey = (gameId: string): string => `matchSeed:${gameId}`;
+export const matchSeedKey = (gameId: GameId): string => `matchSeed:${gameId}`;
 
 const EVENT_CHUNK_SIZE = 64;
 
 const getEventChunkCount = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
 ): Promise<number> =>
   (await storage.get<number>(eventChunkCountKey(gameId))) ?? 0;
 
 const getEventChunk = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
   chunkIndex: number,
 ): Promise<EventEnvelope[]> =>
   (await storage.get<EventEnvelope[]>(eventChunkKey(gameId, chunkIndex))) ?? [];
 
 const writeChunkedEventStream = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
   stream: EventEnvelope[],
 ): Promise<void> => {
   const chunkCount =
@@ -56,7 +57,7 @@ const writeChunkedEventStream = async (
 
 export const migrateLegacyEventStreamIfNeeded = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
 ): Promise<void> => {
   const chunkCount = await getEventChunkCount(storage, gameId);
 
@@ -77,7 +78,7 @@ export const migrateLegacyEventStreamIfNeeded = async (
 
 export const readChunkedEventStream = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
 ): Promise<EventEnvelope[]> => {
   const chunkCount = await getEventChunkCount(storage, gameId);
 
@@ -96,7 +97,7 @@ export const readChunkedEventStream = async (
 
 export const readChunkedEventStreamTail = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
   afterSeqExclusive: number,
 ): Promise<EventEnvelope[]> => {
   const chunkCount = await getEventChunkCount(storage, gameId);
@@ -127,12 +128,12 @@ export const readChunkedEventStreamTail = async (
 
 export const getEventStreamLength = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
 ): Promise<number> => (await storage.get<number>(eventSeqKey(gameId))) ?? 0;
 
 export const appendEventsToChunkedStream = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
   actor: PlayerId | null,
   events: EngineEvent[],
 ): Promise<void> => {

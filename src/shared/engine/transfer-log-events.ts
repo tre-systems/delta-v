@@ -1,3 +1,4 @@
+import type { ShipId } from '../ids';
 import type { LogisticsTransferLogEvent } from '../types/protocol';
 import type { EngineEvent } from './engine-events';
 
@@ -7,7 +8,7 @@ const TRANSFER_TYPES: ReadonlySet<string> = new Set([
   'passengersTransferred',
 ]);
 
-/** Strip to the subset safe to send on `stateUpdate` for client game-log lines. */
+// Strip to the subset safe to send on `stateUpdate` for client game-log lines.
 export const filterLogisticsTransferLogEvents = (
   events: readonly EngineEvent[],
 ): LogisticsTransferLogEvent[] => {
@@ -16,8 +17,8 @@ export const filterLogisticsTransferLogEvents = (
   for (const e of events) {
     if (TRANSFER_TYPES.has(e.type)) {
       const te = e as EngineEvent & {
-        fromShipId: string;
-        toShipId: string;
+        fromShipId: ShipId;
+        toShipId: ShipId;
         amount: number;
       };
       out.push({

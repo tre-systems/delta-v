@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { asHexKey } from '../../shared/hex';
+import { asGameId, asOrdnanceId, asShipId } from '../../shared/ids';
 import type {
   GameState,
   Ordnance,
@@ -16,7 +17,7 @@ import {
 } from './selection';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'transport',
   owner: 0,
   originalOwner: 0,
@@ -36,7 +37,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 
 const createOrdnance = (overrides: Partial<Ordnance> = {}): Ordnance => ({
-  id: 'ord-0',
+  id: asOrdnanceId('ord-0'),
   type: 'mine',
   owner: 0,
   sourceShipId: null,
@@ -67,7 +68,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'TEST',
+  gameId: asGameId('TEST'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -76,18 +77,18 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   activePlayer: 0,
   ships: [
     createShip({
-      id: 'p0s0',
+      id: asShipId('p0s0'),
       type: 'packet',
       cargoUsed: 10,
     }),
     createShip({
-      id: 'p0s1',
+      id: asShipId('p0s1'),
       type: 'transport',
       owner: 0,
       position: { q: 1, r: 0 },
     }),
     createShip({
-      id: 'p1s0',
+      id: asShipId('p1s0'),
       type: 'corsair',
       owner: 1,
       position: { q: 5, r: 0 },
@@ -114,8 +115,8 @@ describe('getSelectedShip', () => {
   it('auto-selects when exactly one alive ship and selectedId is null', () => {
     const state = createState({
       ships: [
-        createShip({ id: 'sole', owner: 0 }),
-        createShip({ id: 'enemy', owner: 1 }),
+        createShip({ id: asShipId('sole'), owner: 0 }),
+        createShip({ id: asShipId('enemy'), owner: 1 }),
       ],
     });
 
@@ -137,13 +138,13 @@ describe('getSelectedShip', () => {
   it('auto-selects when selectedId is stale and exactly one alive ship', () => {
     const state = createState({
       ships: [
-        createShip({ id: 'alive', owner: 0 }),
+        createShip({ id: asShipId('alive'), owner: 0 }),
         createShip({
-          id: 'dead',
+          id: asShipId('dead'),
           owner: 0,
           lifecycle: 'destroyed',
         }),
-        createShip({ id: 'enemy', owner: 1 }),
+        createShip({ id: asShipId('enemy'), owner: 1 }),
       ],
     });
 
@@ -177,13 +178,13 @@ describe('game client helpers', () => {
 
     expect(buildAstrogationOrders(state, 0, planning)).toEqual([
       {
-        shipId: 'p0s0',
+        shipId: asShipId('p0s0'),
         burn: 2,
         overload: 4,
         weakGravityChoices: { '2,1': true },
       },
       {
-        shipId: 'p0s1',
+        shipId: asShipId('p0s1'),
         burn: null,
         overload: null,
       },
@@ -195,7 +196,7 @@ describe('game client helpers', () => {
       phase: 'ordnance',
       ships: [
         createShip({
-          id: 'p0s0',
+          id: asShipId('p0s0'),
           type: 'frigate',
           fuel: 14,
           cargoUsed: 20,
@@ -203,13 +204,13 @@ describe('game client helpers', () => {
           identity: { hasFugitives: true, revealed: false },
         }),
         createShip({
-          id: 'p0s1',
+          id: asShipId('p0s1'),
           type: 'packet',
           owner: 0,
           lifecycle: 'destroyed',
         }),
         createShip({
-          id: 'p1s0',
+          id: asShipId('p1s0'),
           type: 'corsair',
           owner: 1,
           lifecycle: 'destroyed',
@@ -218,7 +219,7 @@ describe('game client helpers', () => {
       ordnance: [
         createOrdnance({ type: 'mine' }),
         createOrdnance({
-          id: 'ord-1',
+          id: asOrdnanceId('ord-1'),
           type: 'nuke',
           owner: 1,
         }),
@@ -230,7 +231,9 @@ describe('game client helpers', () => {
         },
         createPlayers()[1],
       ],
-      pendingAstrogationOrders: [{ shipId: 'p0s0', burn: 1, overload: null }],
+      pendingAstrogationOrders: [
+        { shipId: asShipId('p0s0'), burn: 1, overload: null },
+      ],
     });
 
     const planning = {
@@ -284,12 +287,12 @@ describe('game client helpers', () => {
       },
       ships: [
         createShip({
-          id: 'p0s0',
+          id: asShipId('p0s0'),
           type: 'corsair',
           cargoUsed: 0,
         }),
         createShip({
-          id: 'p1s0',
+          id: asShipId('p1s0'),
           type: 'corsair',
           owner: 1,
           lifecycle: 'destroyed',
@@ -332,16 +335,16 @@ describe('game client helpers', () => {
       phase: 'gameOver',
       ships: [
         createShip({
-          id: 'p0s0',
+          id: asShipId('p0s0'),
           owner: 0,
         }),
         createShip({
-          id: 'p0s1',
+          id: asShipId('p0s1'),
           owner: 0,
           lifecycle: 'destroyed',
         }),
         createShip({
-          id: 'p1s0',
+          id: asShipId('p1s0'),
           owner: 1,
           lifecycle: 'destroyed',
         }),
@@ -364,7 +367,7 @@ describe('game client helpers', () => {
       ordnanceInFlight: 0,
       shipFates: [
         {
-          id: 'p0s0',
+          id: asShipId('p0s0'),
           name: 'Transport 1',
           type: 'transport',
           status: 'survived',
@@ -373,7 +376,7 @@ describe('game client helpers', () => {
           killedBy: undefined,
         },
         {
-          id: 'p0s1',
+          id: asShipId('p0s1'),
           name: 'Transport 2',
           type: 'transport',
           status: 'destroyed',
@@ -382,7 +385,7 @@ describe('game client helpers', () => {
           killedBy: undefined,
         },
         {
-          id: 'p1s0',
+          id: asShipId('p1s0'),
           name: 'Transport',
           type: 'transport',
           status: 'destroyed',
@@ -398,14 +401,14 @@ describe('game client helpers', () => {
     const state = createState({
       phase: 'gameOver',
       ships: [
-        createShip({ id: 'p0s0', owner: 0, type: 'transport' }),
+        createShip({ id: asShipId('p0s0'), owner: 0, type: 'transport' }),
         createShip({
-          id: 'p0s1',
+          id: asShipId('p0s1'),
           owner: 0,
           type: 'packet',
           lifecycle: 'destroyed',
         }),
-        createShip({ id: 'p1s0', owner: 1, type: 'corsair' }),
+        createShip({ id: asShipId('p1s0'), owner: 1, type: 'corsair' }),
       ],
       players: [
         { ...createPlayers()[0], totalFuelSpent: 7 },
@@ -450,17 +453,17 @@ describe('game client helpers', () => {
     const state = createState({
       ships: [
         createShip({
-          id: 'p0s0',
+          id: asShipId('p0s0'),
           owner: 0,
           type: 'transport',
         }),
         createShip({
-          id: 'p0s1',
+          id: asShipId('p0s1'),
           owner: 0,
           type: 'packet',
         }),
         createShip({
-          id: 'p1s0',
+          id: asShipId('p1s0'),
           owner: 1,
           type: 'corsair',
         }),

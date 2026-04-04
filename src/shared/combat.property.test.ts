@@ -21,10 +21,11 @@ import {
   type ShipStats,
   type ShipType,
 } from './constants';
+import { asShipId } from './ids';
 import type { Ship } from './types';
 
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'test',
+  id: asShipId('test'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,
@@ -324,7 +325,9 @@ describe('getCombatStrength properties', () => {
       fc.property(
         fc.array(arbShipType(), { minLength: 0, maxLength: 5 }),
         (types) => {
-          const ships = types.map((t, i) => makeShip({ id: `s${i}`, type: t }));
+          const ships = types.map((t, i) =>
+            makeShip({ id: asShipId(`s${i}`), type: t }),
+          );
 
           expect(getCombatStrength(ships)).toBeGreaterThanOrEqual(0);
         },
@@ -337,7 +340,9 @@ describe('getCombatStrength properties', () => {
       fc.property(
         fc.array(arbShipType(), { minLength: 1, maxLength: 5 }),
         (types) => {
-          const ships = types.map((t, i) => makeShip({ id: `s${i}`, type: t }));
+          const ships = types.map((t, i) =>
+            makeShip({ id: asShipId(`s${i}`), type: t }),
+          );
           const totalStrength = getCombatStrength(ships);
           const expectedSum = types.reduce(
             (sum, t) => sum + (SHIP_STATS[t]?.combat ?? 0),
@@ -601,14 +606,14 @@ describe('resolveCombat properties', () => {
 
           const attackers = [
             makeShip({
-              id: 'a1',
+              id: asShipId('a1'),
               type: 'corvette',
               owner: 0,
               originalOwner: 0,
             }),
           ];
           const target = makeShip({
-            id: 't1',
+            id: asShipId('t1'),
             type: 'corvette',
             owner: 1,
             originalOwner: 0,

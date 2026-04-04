@@ -1,5 +1,6 @@
 import { SHIP_STATS, type ShipType } from './constants';
 import type { HexKey } from './hex';
+import { asShipId, type OrdnanceId, type ShipId } from './ids';
 import type {
   AstrogationOrder,
   C2S,
@@ -142,7 +143,7 @@ const parseAstrogationOrders = (raw: unknown): AstrogationOrder[] | null => {
     }
 
     orders.push({
-      shipId: item.shipId,
+      shipId: asShipId(item.shipId),
       burn: item.burn,
       overload: item.overload === undefined ? null : item.overload,
       weakGravityChoices,
@@ -185,7 +186,7 @@ const parseOrdnanceLaunches = (raw: unknown): OrdnanceLaunch[] | null => {
     }
 
     launches.push({
-      shipId: item.shipId,
+      shipId: asShipId(item.shipId),
       ordnanceType: item.ordnanceType,
       torpedoAccel: item.torpedoAccel === undefined ? null : item.torpedoAccel,
       torpedoAccelSteps:
@@ -210,7 +211,7 @@ const parseBaseEmplacements = (
       return null;
     }
 
-    emplacements.push({ shipId: item.shipId });
+    emplacements.push({ shipId: asShipId(item.shipId) });
   }
 
   return emplacements;
@@ -240,14 +241,14 @@ const parseCombatAttacks = (raw: unknown): CombatAttack[] | null => {
       return null;
     }
 
-    const attackerIds: string[] = [];
+    const attackerIds: ShipId[] = [];
 
     for (const attackerId of item.attackerIds) {
       if (!isString(attackerId) || attackerId.length === 0) {
         return null;
       }
 
-      attackerIds.push(attackerId);
+      attackerIds.push(asShipId(attackerId));
     }
 
     if (
@@ -276,7 +277,7 @@ const parseCombatAttacks = (raw: unknown): CombatAttack[] | null => {
 
     attacks.push({
       attackerIds,
-      targetId: item.targetId,
+      targetId: item.targetId as string as ShipId | OrdnanceId,
       targetType: item.targetType ?? 'ship',
       attackStrength,
     });
@@ -290,7 +291,7 @@ const parseSingleCombatAttack = (raw: unknown): CombatAttack | null => {
   return attacks && attacks.length === 1 ? attacks[0] : null;
 };
 
-const parseSurrenderShipIds = (raw: unknown): string[] | null => {
+const parseSurrenderShipIds = (raw: unknown): ShipId[] | null => {
   if (
     !Array.isArray(raw) ||
     raw.length === 0 ||
@@ -299,11 +300,11 @@ const parseSurrenderShipIds = (raw: unknown): string[] | null => {
     return null;
   }
 
-  const ids: string[] = [];
+  const ids: ShipId[] = [];
 
   for (const item of raw) {
     if (!isString(item) || item.length === 0) return null;
-    ids.push(item);
+    ids.push(asShipId(item));
   }
 
   return ids;
@@ -345,8 +346,8 @@ const parseTransferOrders = (raw: unknown): TransferOrder[] | null => {
     }
 
     transfers.push({
-      sourceShipId: item.sourceShipId,
-      targetShipId: item.targetShipId,
+      sourceShipId: asShipId(item.sourceShipId),
+      targetShipId: asShipId(item.targetShipId),
       transferType: item.transferType,
       amount: item.amount,
     });

@@ -18,10 +18,11 @@ import {
   rollD6,
 } from './combat';
 import { asHexKey } from './hex';
+import { asShipId } from './ids';
 import type { Ship, SolarSystemMap } from './types';
 
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'test',
+  id: asShipId('test'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,
@@ -144,7 +145,7 @@ describe('getCombatStrength', () => {
   });
 
   it('sums combat values of multiple ships', () => {
-    const ships = [makeShip(), makeShip({ id: 's2' })];
+    const ships = [makeShip(), makeShip({ id: asShipId('s2') })];
 
     expect(getCombatStrength(ships)).toBe(4);
   });
@@ -263,16 +264,16 @@ describe('canCounterattack', () => {
 describe('group combat helpers', () => {
   it('uses the worst range modifier across multiple attackers', () => {
     const close = makeShip({
-      id: 'close',
+      id: asShipId('close'),
       position: { q: 0, r: 0 },
     });
     const far = makeShip({
-      id: 'far',
+      id: asShipId('far'),
       position: { q: 6, r: 0 },
       lastMovementPath: [{ q: 6, r: 0 }],
     });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       position: { q: 1, r: 0 },
     });
 
@@ -281,15 +282,15 @@ describe('group combat helpers', () => {
 
   it('uses the worst velocity modifier across multiple attackers', () => {
     const slow = makeShip({
-      id: 'slow',
+      id: asShipId('slow'),
       velocity: { dq: 2, dr: 0 },
     });
     const fast = makeShip({
-      id: 'fast',
+      id: asShipId('fast'),
       velocity: { dq: 6, dr: 0 },
     });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       velocity: { dq: 0, dr: 0 },
     });
 
@@ -322,14 +323,14 @@ describe('line of sight', () => {
 describe('counterattack groups', () => {
   it('includes same-hex same-course allied ships in the counterattack', () => {
     const target = makeShip({
-      id: 'target',
+      id: asShipId('target'),
       owner: 1,
       originalOwner: 0,
       position: { q: 1, r: 0 },
       velocity: { dq: 1, dr: 0 },
     });
     const escort = makeShip({
-      id: 'escort',
+      id: asShipId('escort'),
       owner: 1,
       originalOwner: 0,
       type: 'packet',
@@ -337,7 +338,7 @@ describe('counterattack groups', () => {
       velocity: { dq: 1, dr: 0 },
     });
     const outsider = makeShip({
-      id: 'outsider',
+      id: asShipId('outsider'),
       owner: 1,
       originalOwner: 0,
       position: { q: 2, r: 0 },
@@ -537,13 +538,13 @@ describe('rollD6', () => {
 describe('resolveCombat', () => {
   it('resolves attack with deterministic RNG', () => {
     const attacker = makeShip({
-      id: 'a',
+      id: asShipId('a'),
       owner: 0,
       originalOwner: 0,
       position: { q: 0, r: 0 },
     });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       owner: 1,
       originalOwner: 0,
       position: { q: 1, r: 0 },
@@ -568,13 +569,13 @@ describe('resolveCombat', () => {
 
   it('counterattack when target survives undamaged', () => {
     const attacker = makeShip({
-      id: 'a',
+      id: asShipId('a'),
       owner: 0,
       originalOwner: 0,
       position: { q: 0, r: 0 },
     });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       owner: 1,
       originalOwner: 0,
       position: { q: 1, r: 0 },
@@ -591,13 +592,13 @@ describe('resolveCombat', () => {
 
   it('target still counterattacks even if the attack destroys it', () => {
     const attacker = makeShip({
-      id: 'a',
+      id: asShipId('a'),
       owner: 0,
       originalOwner: 0,
       type: 'dreadnaught',
     });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       owner: 1,
       originalOwner: 0,
       position: { q: 0, r: 0 },
@@ -613,9 +614,9 @@ describe('resolveCombat', () => {
   });
 
   it('defensive-only ships do not counterattack', () => {
-    const attacker = makeShip({ id: 'a', owner: 0 });
+    const attacker = makeShip({ id: asShipId('a'), owner: 0 });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       owner: 1,
       originalOwner: 0,
       type: 'transport',
@@ -628,10 +629,10 @@ describe('resolveCombat', () => {
   });
 
   it('multiple attackers combine strength', () => {
-    const a1 = makeShip({ id: 'a1', owner: 0 });
-    const a2 = makeShip({ id: 'a2', owner: 0 });
+    const a1 = makeShip({ id: asShipId('a1'), owner: 0 });
+    const a2 = makeShip({ id: asShipId('a2'), owner: 0 });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       owner: 1,
       originalOwner: 0,
       position: { q: 1, r: 0 },
@@ -647,13 +648,13 @@ describe('resolveCombat', () => {
 
   it('supports declared reduced-strength attacks', () => {
     const attacker = makeShip({
-      id: 'a',
+      id: asShipId('a'),
       owner: 0,
       originalOwner: 0,
       type: 'dreadnaught',
     });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       owner: 1,
       originalOwner: 0,
       position: { q: 0, r: 0 },
@@ -675,13 +676,13 @@ describe('resolveCombat', () => {
 
   it('uses the full attacking group strength as the defender value for counterattacks', () => {
     const attacker = makeShip({
-      id: 'a',
+      id: asShipId('a'),
       owner: 0,
       originalOwner: 0,
       type: 'dreadnaught',
     });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       owner: 1,
       originalOwner: 0,
       position: { q: 0, r: 0 },
@@ -725,14 +726,14 @@ describe('capture mechanics', () => {
 describe('heroism', () => {
   it('grants heroism to an underdog attacker that achieves D2 or better', () => {
     const attacker = makeShip({
-      id: 'a',
+      id: asShipId('a'),
       owner: 0,
       originalOwner: 0,
       type: 'corvette',
       position: { q: 0, r: 0 },
     });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       owner: 1,
       originalOwner: 0,
       type: 'corsair',
@@ -747,14 +748,14 @@ describe('heroism', () => {
 
   it('does not grant heroism at even odds', () => {
     const attacker = makeShip({
-      id: 'a',
+      id: asShipId('a'),
       owner: 0,
       originalOwner: 0,
       type: 'corvette',
       position: { q: 0, r: 0 },
     });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       owner: 1,
       originalOwner: 0,
       type: 'corvette',
@@ -769,7 +770,7 @@ describe('heroism', () => {
 
   it('applies +1 heroism bonus to attack roll', () => {
     const attacker = makeShip({
-      id: 'a',
+      id: asShipId('a'),
       owner: 0,
       originalOwner: 0,
       type: 'corvette',
@@ -777,7 +778,7 @@ describe('heroism', () => {
       heroismAvailable: true,
     });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       owner: 1,
       originalOwner: 0,
       type: 'corvette',
@@ -798,7 +799,7 @@ describe('heroism', () => {
 
   it('heroism persists after use', () => {
     const attacker = makeShip({
-      id: 'a',
+      id: asShipId('a'),
       owner: 0,
       originalOwner: 0,
       type: 'corvette',
@@ -806,7 +807,7 @@ describe('heroism', () => {
       heroismAvailable: true,
     });
     const target = makeShip({
-      id: 't',
+      id: asShipId('t'),
       owner: 1,
       originalOwner: 0,
       type: 'corvette',

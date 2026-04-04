@@ -4,6 +4,7 @@ import {
   hasLaunchableOrdnanceCapacity,
   validateOrdnanceLaunch,
 } from '../../shared/engine/util';
+import { asShipId } from '../../shared/ids';
 import type {
   GameState,
   OrbitalBaseEmplacement,
@@ -158,6 +159,6 @@ export const resolveBaseEmplacementPlan = (
 
   return {
     ok: true,
-    emplacements: [{ shipId: selectedShipId }],
+    emplacements: [{ shipId: asShipId(selectedShipId) }],
   };
 };

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { asGameId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type {
   FleetPurchase,
@@ -18,7 +19,7 @@ describe('fleet building (MegaCredit economy)', () => {
     const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
-      'WAR01',
+      asGameId('WAR01'),
       findBaseHex,
     );
     expect(state.phase).toBe('fleetBuilding');
@@ -32,7 +33,7 @@ describe('fleet building (MegaCredit economy)', () => {
     const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
-      'WAR01',
+      asGameId('WAR01'),
       findBaseHex,
     );
     const purchases: FleetPurchase[] = [
@@ -62,7 +63,7 @@ describe('fleet building (MegaCredit economy)', () => {
     const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
-      'WAR01',
+      asGameId('WAR01'),
       findBaseHex,
     );
     const r1 = processFleetReady(
@@ -88,7 +89,7 @@ describe('fleet building (MegaCredit economy)', () => {
     const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
-      'WAR01',
+      asGameId('WAR01'),
       findBaseHex,
     );
     const result = processFleetReady(
@@ -109,7 +110,7 @@ describe('fleet building (MegaCredit economy)', () => {
     const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
-      'WAR01',
+      asGameId('WAR01'),
       findBaseHex,
     );
     const result = processFleetReady(
@@ -129,7 +130,7 @@ describe('fleet building (MegaCredit economy)', () => {
     const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
-      'WAR01',
+      asGameId('WAR01'),
       findBaseHex,
     );
     state.players[0].credits = 2000;
@@ -145,7 +146,7 @@ describe('fleet building (MegaCredit economy)', () => {
     const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
-      'WAR01',
+      asGameId('WAR01'),
       findBaseHex,
     );
     state.players[0].credits = 2000;
@@ -169,7 +170,7 @@ describe('fleet building (MegaCredit economy)', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'TEST',
+      asGameId('TEST'),
       findBaseHex,
     );
     const result = processFleetReady(state, 0, [], map);

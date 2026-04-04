@@ -8,13 +8,14 @@ import {
   hexEqual,
   hexKey,
 } from './hex';
+import { asShipId } from './ids';
 import { buildSolarSystemMap, findBaseHex, findBaseHexes } from './map-data';
 import { canBurn, computeCourse, predictDestination } from './movement';
 import type { Ship, SolarSystemMap } from './types';
 
 let map: SolarSystemMap;
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'test',
+  id: asShipId('test'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,

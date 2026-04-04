@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { asShipId } from '../../shared/ids';
 import type { GameState, Ship } from '../../shared/types/domain';
 import {
   getFirstLaunchableShipId,
@@ -10,7 +10,7 @@ import {
 import type { OrdnancePlanningSnapshot } from './planning';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-1',
+  id: asShipId('ship-1'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -56,13 +56,13 @@ const createPlanning = (
 describe('game-client-ordnance', () => {
   it('finds the first launchable ship for the active player', () => {
     const state = createState([
-      createShip({ id: 'blocked', cargoUsed: 50 }),
+      createShip({ id: asShipId('blocked'), cargoUsed: 50 }),
       createShip({
-        id: 'disabled',
+        id: asShipId('disabled'),
         damage: { disabledTurns: 1 },
       }),
-      createShip({ id: 'enemy', owner: 1 }),
-      createShip({ id: 'launchable' }),
+      createShip({ id: asShipId('enemy'), owner: 1 }),
+      createShip({ id: asShipId('launchable') }),
     ]);
 
     expect(getFirstLaunchableShipId(state, 0)).toBe('launchable');
@@ -74,15 +74,15 @@ describe('game-client-ordnance', () => {
     const state = createState(
       [
         createShip({
-          id: 'corsair',
+          id: asShipId('corsair'),
           type: 'corsair',
         }),
         createShip({
-          id: 'packet',
+          id: asShipId('packet'),
           type: 'packet',
         }),
         createShip({
-          id: 'resupplied',
+          id: asShipId('resupplied'),
           type: 'packet',
           resuppliedThisTurn: true,
         }),
@@ -105,7 +105,7 @@ describe('game-client-ordnance', () => {
       ok: true,
       shipName: 'Frigate',
       launch: {
-        shipId: 'ship-1',
+        shipId: asShipId('ship-1'),
         ordnanceType: 'torpedo',
         torpedoAccel: 2,
         torpedoAccelSteps: 2,
@@ -143,7 +143,7 @@ describe('game-client-ordnance', () => {
     expect(
       resolveOrdnanceLaunchPlan(
         createState([createShip({ type: 'frigate' })], {}, [
-          { shipId: 'ship-1', burn: null, overload: null },
+          { shipId: asShipId('ship-1'), burn: null, overload: null },
         ]),
         createPlanning(),
         'mine',
@@ -249,7 +249,7 @@ describe('game-client-ordnance', () => {
 
     expect(resolveBaseEmplacementPlan(state, 'ship-1')).toEqual({
       ok: true,
-      emplacements: [{ shipId: 'ship-1' }],
+      emplacements: [{ shipId: asShipId('ship-1') }],
     });
 
     expect(resolveBaseEmplacementPlan(state, null)).toEqual({

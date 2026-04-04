@@ -1,6 +1,7 @@
 import { must } from '../assert';
 import { SHIP_STATS } from '../constants';
 import { hexEqual } from '../hex';
+import type { ShipId } from '../ids';
 import {
   type EngineError,
   ErrorCode,
@@ -369,7 +370,7 @@ export const skipLogistics = (
 export const processSurrender = (
   inputState: GameState,
   playerId: PlayerId,
-  shipIds: string[],
+  shipIds: ShipId[],
 ):
   | {
       state: GameState;

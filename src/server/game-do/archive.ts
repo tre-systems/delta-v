@@ -3,6 +3,7 @@ import type {
   EventEnvelope,
 } from '../../shared/engine/engine-events';
 import type { ViewerId } from '../../shared/engine/game-engine';
+import type { GameId } from '../../shared/ids';
 import { buildMatchId, type ReplayTimeline } from '../../shared/replay';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { isValidPlayerToken, type RoomConfig } from '../protocol';
@@ -32,7 +33,7 @@ export { projectReplayTimeline };
 
 export const getEventStream = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
 ): Promise<EventEnvelope[]> => {
   await ensureArchiveStreamCompatibility(storage, gameId);
 
@@ -47,7 +48,7 @@ export const getEventStream = async (
 
 export const getEventStreamTail = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
   afterSeqExclusive: number,
 ): Promise<EventEnvelope[]> => {
   await ensureArchiveStreamCompatibility(storage, gameId);
@@ -56,12 +57,12 @@ export const getEventStreamTail = async (
 
 export const getEventStreamLength = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
 ): Promise<number> => getChunkedEventStreamLength(storage, gameId);
 
 export const appendEnvelopedEvents = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
   actor: PlayerId | null,
   ...events: EngineEvent[]
 ): Promise<void> => {
@@ -71,10 +72,10 @@ export const appendEnvelopedEvents = async (
 
 // --- Checkpoints ---
 
-const checkpointKey = (gameId: string): string => `checkpoint:${gameId}`;
+const checkpointKey = (gameId: GameId): string => `checkpoint:${gameId}`;
 
 export interface Checkpoint {
-  gameId: string;
+  gameId: GameId;
   seq: number;
   turn: number;
   phase: string;
@@ -84,7 +85,7 @@ export interface Checkpoint {
 
 export const saveCheckpoint = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
   state: import('../../shared/types/domain').GameState,
   seq: number,
 ): Promise<void> => {
@@ -101,7 +102,7 @@ export const saveCheckpoint = async (
 
 export const getCheckpoint = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
 ): Promise<Checkpoint | null> =>
   normalizeArchivedStateRecord(
     (await storage.get<Checkpoint>(checkpointKey(gameId))) ?? null,
@@ -109,7 +110,7 @@ export const getCheckpoint = async (
 
 export const saveMatchCreatedAt = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
   createdAt: number,
 ): Promise<void> => {
   await storage.put(matchCreatedAtKey(gameId), createdAt);
@@ -117,13 +118,13 @@ export const saveMatchCreatedAt = async (
 
 export const getMatchCreatedAt = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
 ): Promise<number | null> =>
   (await storage.get<number>(matchCreatedAtKey(gameId))) ?? null;
 
 export const getMatchSeed = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
 ): Promise<number | null> =>
   (await storage.get<number>(matchSeedKey(gameId))) ?? null;
 
@@ -151,7 +152,7 @@ export const getReplayViewerId = (
 
 export const getProjectedCurrentState = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
   viewerId: ViewerId,
 ): Promise<import('../../shared/types/domain').GameState | null> => {
   const checkpoint = await getCheckpoint(storage, gameId);
@@ -170,7 +171,7 @@ export const getProjectedCurrentState = async (
 
 export const getProjectedCurrentStateRaw = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
 ): Promise<import('../../shared/types/domain').GameState | null> => {
   const checkpoint = await getCheckpoint(storage, gameId);
   const eventStreamTail = await getEventStreamTail(
@@ -184,7 +185,7 @@ export const getProjectedCurrentStateRaw = async (
 
 export const getProjectedReplayTimeline = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
   viewerId: ViewerId,
 ): Promise<ReplayTimeline | null> => {
   const [checkpoint, createdAt] = await Promise.all([
@@ -198,7 +199,7 @@ export const getProjectedReplayTimeline = async (
 
 export const hasProjectionParity = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
   liveState: import('../../shared/types/domain').GameState,
 ): Promise<boolean> => {
   const projectedState = await getProjectedCurrentStateRaw(storage, gameId);
@@ -211,7 +212,7 @@ export const allocateMatchIdentity = async (
   storage: Storage,
   code: string,
 ): Promise<{
-  gameId: string;
+  gameId: GameId;
   matchNumber: number;
   matchSeed: number;
 }> => {

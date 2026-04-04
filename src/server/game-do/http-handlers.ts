@@ -159,7 +159,7 @@ export const handleJoinCheckRequest = async (
 type HandleReplayDeps = {
   storage: Storage;
   getRoomConfig: () => Promise<RoomConfig | null>;
-  getLatestGameId: () => Promise<string | null>;
+  getLatestGameId: () => Promise<import('../../shared/ids').GameId | null>;
   touchInactivity: () => Promise<void>;
 };
 
@@ -195,7 +195,9 @@ export const handleReplayRequest = async (
   }
 
   const gameId =
-    requestUrl.searchParams.get('gameId') ?? (await deps.getLatestGameId());
+    (requestUrl.searchParams.get('gameId') as
+      | import('../../shared/ids').GameId
+      | null) ?? (await deps.getLatestGameId());
 
   if (!gameId) {
     return new Response('Replay not found', {

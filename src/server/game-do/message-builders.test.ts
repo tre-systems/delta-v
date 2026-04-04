@@ -5,6 +5,7 @@ import {
   createGameOrThrow,
   type MovementResult,
 } from '../../shared/engine/game-engine';
+import { asGameId, asOrdnanceId, asShipId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -53,7 +54,7 @@ describe('game-do-message-builders', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'SRV1',
+      asGameId('SRV1'),
       findBaseHex,
     );
 
@@ -80,7 +81,12 @@ describe('game-do-message-builders', () => {
 
   it('emits optional state updates for non-movement resolutions', () => {
     const map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.duel, map, 'SRV2', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('SRV2'),
+      findBaseHex,
+    );
 
     expect(
       resolveMovementBroadcast({ state, engineEvents: [] }),
@@ -96,7 +102,7 @@ describe('game-do-message-builders', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'SRV2B',
+      asGameId('SRV2B'),
       findBaseHex,
     );
 
@@ -116,12 +122,17 @@ describe('game-do-message-builders', () => {
 
   it('formats combat results for broadcast', () => {
     const map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.duel, map, 'SRV3', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('SRV3'),
+      findBaseHex,
+    );
 
     const combatResults: CombatResult[] = [
       {
-        attackerIds: ['p0s0'],
-        targetId: 'p1s0',
+        attackerIds: [asShipId('p0s0')],
+        targetId: asShipId('p1s0'),
         targetType: 'ship',
         attackType: 'gun',
         odds: '1:1',
@@ -152,7 +163,12 @@ describe('game-do-message-builders', () => {
     'falls back to state updates or silence' + ' for empty combat results',
     () => {
       const map = buildSolarSystemMap();
-      const state = createGameOrThrow(SCENARIOS.duel, map, 'SRV4', findBaseHex);
+      const state = createGameOrThrow(
+        SCENARIOS.duel,
+        map,
+        asGameId('SRV4'),
+        findBaseHex,
+      );
 
       expect(resolveCombatBroadcast({ state, results: [] })).toBeUndefined();
 
@@ -168,7 +184,7 @@ describe('S2C state-bearing payload fixtures', () => {
   const state = createGameOrThrow(
     SCENARIOS.biplanetary,
     map,
-    'FIX1',
+    asGameId('FIX1'),
     findBaseHex,
   );
 
@@ -192,8 +208,8 @@ describe('S2C state-bearing payload fixtures', () => {
     const msg = toStateUpdateMessage(state, [
       {
         type: 'fuelTransferred',
-        fromShipId: 's0',
-        toShipId: 's1',
+        fromShipId: asShipId('s0'),
+        toShipId: asShipId('s1'),
         amount: 4,
       },
     ]);
@@ -214,7 +230,7 @@ describe('S2C state-bearing payload fixtures', () => {
     const msg = toMovementResultMessage({
       movements: [
         {
-          shipId: 'p0s0',
+          shipId: asShipId('p0s0'),
           from: { q: 5, r: 10 },
           to: { q: 6, r: 9 },
           path: [
@@ -229,7 +245,7 @@ describe('S2C state-bearing payload fixtures', () => {
       ],
       ordnanceMovements: [
         {
-          ordnanceId: 'torp-1',
+          ordnanceId: asOrdnanceId('torp-1'),
           from: { q: 10, r: 15 },
           to: { q: 12, r: 14 },
           path: [
@@ -243,7 +259,7 @@ describe('S2C state-bearing payload fixtures', () => {
       events: [
         {
           type: 'crash',
-          shipId: 'p0s0',
+          shipId: asShipId('p0s0'),
           hex: { q: 6, r: 9 },
           dieRoll: 0,
           damageType: 'eliminated',
@@ -262,8 +278,8 @@ describe('S2C state-bearing payload fixtures', () => {
   it('combatResult payload has exactly { type, results, state }', () => {
     const results: CombatResult[] = [
       {
-        attackerIds: ['p0s0'],
-        targetId: 'p1s0',
+        attackerIds: [asShipId('p0s0')],
+        targetId: asShipId('p1s0'),
         targetType: 'ship',
         attackType: 'gun',
         odds: '2-1',
@@ -276,8 +292,8 @@ describe('S2C state-bearing payload fixtures', () => {
         damageType: 'eliminated',
         disabledTurns: 0,
         counterattack: {
-          attackerIds: ['p1s0'],
-          targetId: 'p0s0',
+          attackerIds: [asShipId('p1s0')],
+          targetId: asShipId('p0s0'),
           targetType: 'ship',
           attackType: 'gun',
           odds: '1-2',

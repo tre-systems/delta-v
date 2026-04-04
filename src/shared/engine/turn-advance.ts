@@ -2,6 +2,7 @@
 // spawning, and fleet conversion. Extracted from victory.ts (backlog #25).
 
 import { SHIP_STATS } from '../constants';
+import { asShipId } from '../ids';
 import type { GameState, Ship } from '../types';
 import type { EngineEvent } from './engine-events';
 import { transitionPhaseWithEvent } from './util';
@@ -44,13 +45,13 @@ export const advanceTurn = (
   transitionPhaseWithEvent(state, 'astrogation', engineEvents);
 };
 
-const getNextShipId = (state: GameState): string => {
+const getNextShipId = (state: GameState) => {
   const maxId = state.ships.reduce((max, ship: Ship) => {
     const num = parseInt(ship.id.replace(/\D/g, ''), 10);
     return Number.isNaN(num) ? max : Math.max(max, num);
   }, 0);
 
-  return `ship-${maxId + 1}`;
+  return asShipId(`ship-${maxId + 1}`);
 };
 
 const applyReinforcements = (state: GameState): void => {

@@ -3,6 +3,7 @@ import { must } from '../assert';
 import { resolveBaseDefense } from '../combat';
 import { ORDNANCE_MASS, SHIP_STATS, type ShipType } from '../constants';
 import { asHexKey, hexDistance, hexEqual, hexKey } from '../hex';
+import { asGameId, asOrdnanceId, asShipId } from '../ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -44,7 +45,7 @@ beforeEach(() => {
   initialState = createGameOrThrow(
     SCENARIOS.biplanetary,
     map,
-    'TEST1',
+    asGameId('TEST1'),
     findBaseHex,
   );
 });
@@ -175,7 +176,7 @@ describe('processAstrogation', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       hazardMap,
-      'AST01',
+      asGameId('AST01'),
       findBaseHex,
     );
     const ship = state.ships[0];
@@ -225,7 +226,7 @@ describe('processAstrogation', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       edgeMap,
-      'ASTEDGE0',
+      asGameId('ASTEDGE0'),
       findBaseHex,
     );
     const ship = state.ships[0];
@@ -263,7 +264,7 @@ describe('processAstrogation', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       edgeMap,
-      'ASTEDGE1',
+      asGameId('ASTEDGE1'),
       findBaseHex,
     );
     const ship = state.ships[0];
@@ -378,7 +379,7 @@ describe('processAstrogation', () => {
     const escapeState = createGameOrThrow(
       SCENARIOS.escape,
       map,
-      'ORDPH',
+      asGameId('ORDPH'),
       findBaseHex,
     );
     const ship = escapeState.ships[0];
@@ -616,7 +617,7 @@ describe('Escape scenario', () => {
     escapeState = createGameOrThrow(
       SCENARIOS.escape,
       map,
-      'ESC01',
+      asGameId('ESC01'),
       findBaseHex,
     );
   });
@@ -749,7 +750,7 @@ describe('ordnance system', () => {
     const state = createGameOrThrow(
       SCENARIOS.blockade,
       map,
-      'ORD02',
+      asGameId('ORD02'),
       findBaseHex,
     );
     const ship = must(state.ships.find((s) => s.type === 'packet'));
@@ -763,7 +764,7 @@ describe('ordnance system', () => {
     ];
     state.ordnance = [
       {
-        id: 'ord0',
+        id: asOrdnanceId('ord0'),
         type: 'torpedo',
         owner: 0,
         sourceShipId: null,
@@ -773,7 +774,7 @@ describe('ordnance system', () => {
         lifecycle: 'active' as const,
       },
       {
-        id: 'ord3',
+        id: asOrdnanceId('ord3'),
         type: 'nuke',
         owner: 1,
         sourceShipId: null,
@@ -835,7 +836,7 @@ describe('ordnance system', () => {
     const blockadeState = createGameOrThrow(
       SCENARIOS.blockade,
       map,
-      'ORD01',
+      asGameId('ORD01'),
       findBaseHex,
     );
     const transport = must(
@@ -898,7 +899,7 @@ describe('ordnance system', () => {
   it('ordnance moves with gravity and self-destructs after 5 turns', () => {
     initialState.ordnance = [
       {
-        id: 'ord0',
+        id: asOrdnanceId('ord0'),
         type: 'mine',
         owner: 0,
         sourceShipId: null,
@@ -943,12 +944,12 @@ describe('ordnance system', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       gravityMap,
-      'ORDGR',
+      asGameId('ORDGR'),
       findBaseHex,
     );
     state.ordnance = [
       {
-        id: 'ord0',
+        id: asOrdnanceId('ord0'),
         type: 'mine',
         owner: 0,
         sourceShipId: null,
@@ -1023,7 +1024,7 @@ describe('ordnance system', () => {
     ship.velocity = { dq: 1, dr: 0 };
     initialState.phase = 'ordnance';
     initialState.ships.push({
-      id: 'friendly-target',
+      id: asShipId('friendly-target'),
       type: 'packet',
       owner: 0,
       originalOwner: 0,
@@ -1291,7 +1292,7 @@ describe('base defense fire', () => {
     const state = {
       ships: [
         {
-          id: 'enemy',
+          id: asShipId('enemy'),
           type: 'corvette' as ShipType,
           owner: 1 as PlayerId,
           originalOwner: 1 as PlayerId,
@@ -1328,7 +1329,7 @@ describe('base defense fire', () => {
     const state = {
       ships: [
         {
-          id: 'enemy',
+          id: asShipId('enemy'),
           type: 'corvette' as ShipType,
           owner: 1 as PlayerId,
           originalOwner: 1 as PlayerId,
@@ -1374,7 +1375,7 @@ describe('base defense fire', () => {
       {
         ships: [
           {
-            id: 'enemy',
+            id: asShipId('enemy'),
             type: 'corvette',
             owner: 1,
             originalOwner: 1,
@@ -1410,7 +1411,7 @@ describe('base defense fire', () => {
     const defenseState = {
       ships: [
         {
-          id: 'enemy-east',
+          id: asShipId('enemy-east'),
           type: 'corvette' as ShipType,
           owner: 1 as PlayerId,
           originalOwner: 1 as PlayerId,
@@ -1445,7 +1446,7 @@ describe('base defense fire', () => {
       ships: [],
       ordnance: [
         {
-          id: 'enemy-nuke',
+          id: asOrdnanceId('enemy-nuke'),
           type: 'nuke',
           owner: 1,
           sourceShipId: null,
@@ -1535,7 +1536,7 @@ describe('nuke ordnance', () => {
     const escState = createGameOrThrow(
       SCENARIOS.escape,
       map,
-      'NUK01',
+      asGameId('NUK01'),
       findBaseHex,
     );
     const transport = escState.ships[0]; // transport
@@ -1560,7 +1561,7 @@ describe('nuke ordnance', () => {
     const escState = createGameOrThrow(
       SCENARIOS.escape,
       map,
-      'NUK02',
+      asGameId('NUK02'),
       findBaseHex,
     );
     const transport = escState.ships[0];
@@ -1653,7 +1654,7 @@ describe('nuke ordnance', () => {
       {
         ships: [
           {
-            id: 'enemy',
+            id: asShipId('enemy'),
             type: 'corvette',
             owner: 1,
             originalOwner: 1,
@@ -1719,7 +1720,7 @@ describe('ordnance validation', () => {
     const fleetState = createGameOrThrow(
       SCENARIOS.convoy,
       map,
-      'ATK01',
+      asGameId('ATK01'),
       findBaseHex,
     );
     fleetState.phase = 'combat';
@@ -1775,7 +1776,7 @@ describe('ordnance validation', () => {
     const fleetState = createGameOrThrow(
       SCENARIOS.convoy,
       map,
-      'ATK01B',
+      asGameId('ATK01B'),
       findBaseHex,
     );
     fleetState.phase = 'combat';
@@ -1825,7 +1826,7 @@ describe('ordnance validation', () => {
     const fleetState = createGameOrThrow(
       SCENARIOS.convoy,
       map,
-      'ATK02',
+      asGameId('ATK02'),
       findBaseHex,
     );
     fleetState.phase = 'combat';
@@ -1873,7 +1874,7 @@ describe('ordnance validation', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'ATK03',
+      asGameId('ATK03'),
       findBaseHex,
     );
     state.phase = 'combat';
@@ -1923,7 +1924,7 @@ describe('ordnance validation', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'ATK04',
+      asGameId('ATK04'),
       findBaseHex,
     );
     state.phase = 'combat';
@@ -1959,7 +1960,7 @@ describe('ordnance validation', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'ATK04B',
+      asGameId('ATK04B'),
       findBaseHex,
     );
     state.phase = 'combat';
@@ -1996,7 +1997,7 @@ describe('ordnance validation', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'ATK04C',
+      asGameId('ATK04C'),
       findBaseHex,
     );
     state.phase = 'combat';
@@ -2034,7 +2035,7 @@ describe('ordnance validation', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'ATK05',
+      asGameId('ATK05'),
       findBaseHex,
     );
     state.phase = 'combat';
@@ -2045,7 +2046,7 @@ describe('ordnance validation', () => {
     attacker.lastMovementPath = [{ q: 0, r: 0 }];
     attacker.velocity = { dq: 0, dr: 0 };
     state.ordnance.push({
-      id: 'enemy-nuke',
+      id: asOrdnanceId('enemy-nuke'),
       type: 'nuke',
       owner: 1,
       sourceShipId: null,
@@ -2061,7 +2062,7 @@ describe('ordnance validation', () => {
       [
         {
           attackerIds: [attacker.id],
-          targetId: 'enemy-nuke',
+          targetId: asOrdnanceId('enemy-nuke'),
           targetType: 'ordnance',
           attackStrength: null,
         },
@@ -2113,7 +2114,7 @@ describe('Blockade Runner scenario', () => {
     blockadeState = createGameOrThrow(
       SCENARIOS.blockade,
       map,
-      'BLK01',
+      asGameId('BLK01'),
       findBaseHex,
     );
   });
@@ -2145,7 +2146,7 @@ describe('Fleet Action scenario', () => {
     fleetState = createGameOrThrow(
       SCENARIOS.fleetAction,
       map,
-      'FLT01',
+      asGameId('FLT01'),
       findBaseHex,
     );
   });
@@ -2218,7 +2219,7 @@ describe('Edge cases', () => {
     const fleetState = createGameOrThrow(
       SCENARIOS.fleetAction,
       map,
-      'FLT02',
+      asGameId('FLT02'),
       findBaseHex,
     );
     // Destroy all of player 1's ships
@@ -2240,7 +2241,7 @@ describe('Edge cases', () => {
     const blockadeState = createGameOrThrow(
       SCENARIOS.blockade,
       map,
-      'BLK02',
+      asGameId('BLK02'),
       findBaseHex,
     );
     blockadeState.activePlayer = 0;
@@ -2273,7 +2274,7 @@ describe('landed ship immunity', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'LAND01',
+      asGameId('LAND01'),
       findBaseHex,
     );
     state.phase = 'combat';
@@ -2309,7 +2310,7 @@ describe('landed ship immunity', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'LAND02',
+      asGameId('LAND02'),
       findBaseHex,
     );
     state.activePlayer = 0;
@@ -2319,7 +2320,7 @@ describe('landed ship immunity', () => {
     target.lastMovementPath = [{ q: 5, r: 0 }];
     // Place a mine that will move through the landed ship's hex
     state.ordnance.push({
-      id: 'mine1',
+      id: asOrdnanceId('mine1'),
       type: 'mine',
       owner: 0,
       sourceShipId: null,
@@ -2345,7 +2346,7 @@ describe('landed ship immunity', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'LAND03',
+      asGameId('LAND03'),
       findBaseHex,
     );
     state.activePlayer = 0;
@@ -2355,7 +2356,7 @@ describe('landed ship immunity', () => {
     target.lastMovementPath = [{ q: 5, r: 0 }];
     // Place a nuke that will move through the landed ship's hex
     state.ordnance.push({
-      id: 'nuke1',
+      id: asOrdnanceId('nuke1'),
       type: 'nuke',
       owner: 0,
       sourceShipId: null,
@@ -2383,7 +2384,7 @@ describe('landed ship immunity', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'LAND04',
+      asGameId('LAND04'),
       findBaseHex,
     );
     state.phase = 'combat';
@@ -2422,7 +2423,7 @@ describe('resupply restrictions', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'RESUP01',
+      asGameId('RESUP01'),
       findBaseHex,
     );
     state.phase = 'combat';
@@ -2459,7 +2460,7 @@ describe('resupply restrictions', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'RESUP02',
+      asGameId('RESUP02'),
       findBaseHex,
     );
     state.phase = 'ordnance';
@@ -2492,7 +2493,7 @@ describe('resupply restrictions', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'RESUP03',
+      asGameId('RESUP03'),
       findBaseHex,
     );
     state.phase = 'combat';
@@ -2513,7 +2514,7 @@ describe('mine launch restrictions', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'MINE01',
+      asGameId('MINE01'),
       findBaseHex,
     );
     state.phase = 'ordnance';
@@ -2550,7 +2551,7 @@ describe('mine launch restrictions', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       openMap,
-      'MINE02',
+      asGameId('MINE02'),
       findBaseHex,
     );
     state.phase = 'ordnance';
@@ -2585,7 +2586,7 @@ describe('nuke planetary devastation', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'NUKE01',
+      asGameId('NUKE01'),
       findBaseHex,
     );
     state.activePlayer = 0;
@@ -2610,7 +2611,7 @@ describe('nuke planetary devastation', () => {
       dr: must(mercuryCenter).r - must(gravHex).r,
     };
     state.ordnance.push({
-      id: 'nuke-planet',
+      id: asOrdnanceId('nuke-planet'),
       type: 'nuke',
       owner: 0,
       sourceShipId: null,
@@ -2652,7 +2653,7 @@ describe('hidden identity (Escape scenario)', () => {
     const state = createGameOrThrow(
       SCENARIOS.escape,
       map,
-      'TEST1',
+      asGameId('TEST1'),
       findBaseHex,
     );
     const fugitiveShips = state.ships.filter((s) => s.identity?.hasFugitives);
@@ -2664,7 +2665,7 @@ describe('hidden identity (Escape scenario)', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'TEST1',
+      asGameId('TEST1'),
       findBaseHex,
     );
     const fugitiveShips = state.ships.filter((s) => s.identity?.hasFugitives);
@@ -2674,7 +2675,7 @@ describe('hidden identity (Escape scenario)', () => {
     const state = createGameOrThrow(
       SCENARIOS.escape,
       map,
-      'TEST1',
+      asGameId('TEST1'),
       findBaseHex,
     );
     const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
@@ -2703,7 +2704,7 @@ describe('hidden identity (Escape scenario)', () => {
     const state = createGameOrThrow(
       SCENARIOS.escape,
       map,
-      'TEST1',
+      asGameId('TEST1'),
       findBaseHex,
     );
     const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
@@ -2723,7 +2724,7 @@ describe('hidden identity (Escape scenario)', () => {
     const state = createGameOrThrow(
       SCENARIOS.escape,
       map,
-      'TEST1',
+      asGameId('TEST1'),
       findBaseHex,
     );
     const nonFugitive = must(
@@ -2745,7 +2746,7 @@ describe('hidden identity (Escape scenario)', () => {
     const state = createGameOrThrow(
       SCENARIOS.escape,
       map,
-      'TEST1',
+      asGameId('TEST1'),
       findBaseHex,
     );
     const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
@@ -2761,7 +2762,7 @@ describe('hidden identity (Escape scenario)', () => {
     const state = createGameOrThrow(
       SCENARIOS.escape,
       map,
-      'TEST1',
+      asGameId('TEST1'),
       findBaseHex,
     );
     const fugitive = must(state.ships.find((s) => s.identity?.hasFugitives));
@@ -2782,7 +2783,7 @@ describe('hidden identity (Escape scenario)', () => {
 describe('capture mechanics', () => {
   it('captures a disabled enemy ship when matching position and velocity', () => {
     const state: GameState = {
-      gameId: 'TEST',
+      gameId: asGameId('TEST'),
       scenario: 'duel',
       scenarioRules: {},
       escapeMoralVictoryAchieved: false,
@@ -2791,7 +2792,7 @@ describe('capture mechanics', () => {
       activePlayer: 0,
       ships: [
         {
-          id: 'captor',
+          id: asShipId('captor'),
           type: 'corvette',
           owner: 0,
           originalOwner: 0,
@@ -2810,7 +2811,7 @@ describe('capture mechanics', () => {
           pendingGravityEffects: [],
         },
         {
-          id: 'target',
+          id: asShipId('target'),
           type: 'corvette',
           owner: 1,
           originalOwner: 1,
@@ -2863,7 +2864,7 @@ describe('capture mechanics', () => {
     const result = processAstrogation(
       state,
       0,
-      [{ shipId: 'captor', burn: null, overload: null }],
+      [{ shipId: asShipId('captor'), burn: null, overload: null }],
       openMap,
       Math.random,
     );
@@ -2883,7 +2884,7 @@ describe('capture mechanics', () => {
   });
   it('does not capture a non-disabled ship', () => {
     const state: GameState = {
-      gameId: 'TEST',
+      gameId: asGameId('TEST'),
       scenario: 'duel',
       scenarioRules: {},
       escapeMoralVictoryAchieved: false,
@@ -2892,7 +2893,7 @@ describe('capture mechanics', () => {
       activePlayer: 0,
       ships: [
         {
-          id: 'captor',
+          id: asShipId('captor'),
           type: 'corvette',
           owner: 0,
           originalOwner: 0,
@@ -2911,7 +2912,7 @@ describe('capture mechanics', () => {
           pendingGravityEffects: [],
         },
         {
-          id: 'target',
+          id: asShipId('target'),
           type: 'corvette',
           owner: 1,
           originalOwner: 1,
@@ -2958,7 +2959,7 @@ describe('capture mechanics', () => {
     const result = processAstrogation(
       state,
       0,
-      [{ shipId: 'captor', burn: null, overload: null }],
+      [{ shipId: asShipId('captor'), burn: null, overload: null }],
       openMap,
       Math.random,
     );
@@ -2969,7 +2970,7 @@ describe('capture mechanics', () => {
   });
   it('does not capture with mismatched velocity', () => {
     const state: GameState = {
-      gameId: 'TEST',
+      gameId: asGameId('TEST'),
       scenario: 'duel',
       scenarioRules: {},
       escapeMoralVictoryAchieved: false,
@@ -2978,7 +2979,7 @@ describe('capture mechanics', () => {
       activePlayer: 0,
       ships: [
         {
-          id: 'captor',
+          id: asShipId('captor'),
           type: 'corvette',
           owner: 0,
           originalOwner: 0,
@@ -2997,7 +2998,7 @@ describe('capture mechanics', () => {
           pendingGravityEffects: [],
         },
         {
-          id: 'target',
+          id: asShipId('target'),
           type: 'corvette',
           owner: 1,
           originalOwner: 1,
@@ -3044,7 +3045,7 @@ describe('capture mechanics', () => {
     const result = processAstrogation(
       state,
       0,
-      [{ shipId: 'captor', burn: null, overload: null }],
+      [{ shipId: asShipId('captor'), burn: null, overload: null }],
       openMap,
       Math.random,
     );
@@ -3057,7 +3058,7 @@ describe('capture mechanics', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'CAPT_ASTRO',
+      asGameId('CAPT_ASTRO'),
       findBaseHex,
     );
     const ship = must(state.ships.find((s) => s.owner === 0));
@@ -3078,7 +3079,7 @@ describe('capture mechanics', () => {
   });
   it('captured ships cannot launch ordnance', () => {
     const state: GameState = {
-      gameId: 'TEST',
+      gameId: asGameId('TEST'),
       scenario: 'duel',
       scenarioRules: {},
       escapeMoralVictoryAchieved: false,
@@ -3087,7 +3088,7 @@ describe('capture mechanics', () => {
       activePlayer: 0,
       ships: [
         {
-          id: 'captured',
+          id: asShipId('captured'),
           type: 'corvette',
           owner: 0,
           originalOwner: 1,
@@ -3108,7 +3109,7 @@ describe('capture mechanics', () => {
       ],
       ordnance: [],
       pendingAstrogationOrders: [
-        { shipId: 'captured', burn: null, overload: null },
+        { shipId: asShipId('captured'), burn: null, overload: null },
       ],
       pendingAsteroidHazards: [],
       destroyedAsteroids: [],
@@ -3138,7 +3139,7 @@ describe('capture mechanics', () => {
       0,
       [
         {
-          shipId: 'captured',
+          shipId: asShipId('captured'),
           ordnanceType: 'mine',
           torpedoAccel: null,
           torpedoAccelSteps: null,
@@ -3160,7 +3161,7 @@ describe('Grand Tour', () => {
     tourState = createGameOrThrow(
       SCENARIOS.grandTour,
       map,
-      'TOUR1',
+      asGameId('TOUR1'),
       findBaseHex,
     );
   });

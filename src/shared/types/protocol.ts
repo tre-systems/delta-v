@@ -1,4 +1,4 @@
-import type { PlayerToken, RoomCode } from '../ids';
+import type { PlayerToken, RoomCode, ShipId } from '../ids';
 import type {
   AstrogationOrder,
   CombatAttack,
@@ -15,10 +15,10 @@ import type {
   TransferOrder,
 } from './domain';
 
-/** Common fields shared by all logistics transfer events. */
+// Common fields shared by all logistics transfer events.
 export interface TransferLogFields {
-  fromShipId: string;
-  toShipId: string;
+  fromShipId: ShipId;
+  toShipId: ShipId;
   amount: number;
 }
 
@@ -32,7 +32,7 @@ export type LogisticsTransferLogEvent = TransferLogFields & {
 export type C2S =
   | { type: 'fleetReady'; purchases: FleetPurchase[] }
   | { type: 'astrogation'; orders: AstrogationOrder[] }
-  | { type: 'surrender'; shipIds: string[] }
+  | { type: 'surrender'; shipIds: ShipId[] }
   | { type: 'ordnance'; launches: OrdnanceLaunch[] }
   | {
       type: 'emplaceBase';

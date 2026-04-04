@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
+import { asGameId } from '../../shared/ids';
 import { createSessionApi, type SessionApiDeps } from './session-api';
 import { stubClientSession } from './session-model';
 import { createSessionTokenService } from './session-token-service';
@@ -220,7 +220,7 @@ describe('session-api telemetry', () => {
     expect(replay).toBeNull();
     expect(track).toHaveBeenCalledWith('replay_fetch_failed', {
       reason: 'timeout',
-      gameId: 'GAME1',
+      gameId: asGameId('GAME1'),
     });
   });
 });

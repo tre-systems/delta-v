@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
+import { asOrdnanceId, asShipId } from '../../shared/ids';
 import type { OrdnanceMovement, ShipMovement } from '../../shared/types/domain';
 import {
   type AnimationState,
@@ -9,7 +9,7 @@ import {
 } from './animation';
 
 const shipMovement: ShipMovement = {
-  shipId: 'ship-1',
+  shipId: asShipId('ship-1'),
   from: { q: 0, r: 0 },
   to: { q: 2, r: -1 },
   path: [
@@ -24,7 +24,7 @@ const shipMovement: ShipMovement = {
 };
 
 const ordnanceMovement: OrdnanceMovement = {
-  ordnanceId: 'ord-1',
+  ordnanceId: asOrdnanceId('ord-1'),
   from: { q: 1, r: 1 },
   to: { q: 2, r: 1 },
   path: [

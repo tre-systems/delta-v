@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { HexKey } from '../../shared/hex';
 import { asHexKey } from '../../shared/hex';
+import { asGameId, asOrdnanceId, asShipId } from '../../shared/ids';
 import type {
   GameState,
   MapHex,
@@ -17,7 +18,7 @@ import {
 } from './vectors';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-1',
+  id: asShipId('ship-1'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -37,7 +38,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 
 const createState = (): GameState => ({
-  gameId: 'LOCAL',
+  gameId: asGameId('LOCAL'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -46,20 +47,20 @@ const createState = (): GameState => ({
   activePlayer: 0,
   ships: [
     createShip({
-      id: 'selected',
+      id: asShipId('selected'),
       owner: 0,
       position: { q: 0, r: 0 },
       velocity: { dq: 1, dr: 0 },
     }),
     createShip({
-      id: 'enemy-visible',
+      id: asShipId('enemy-visible'),
       owner: 1,
       position: { q: 2, r: -1 },
       velocity: { dq: 0, dr: 1 },
       detected: true,
     }),
     createShip({
-      id: 'enemy-hidden',
+      id: asShipId('enemy-hidden'),
       owner: 1,
       position: { q: 3, r: -2 },
       velocity: { dq: 1, dr: -1 },
@@ -68,7 +69,7 @@ const createState = (): GameState => ({
   ],
   ordnance: [
     {
-      id: 'mine-1',
+      id: asOrdnanceId('mine-1'),
       type: 'mine',
       owner: 0,
       sourceShipId: null,
@@ -227,7 +228,7 @@ describe('renderer vector helpers', () => {
 
   it('builds movement path views and passed waypoints from progress', () => {
     const movement: ShipMovement = {
-      shipId: 'selected',
+      shipId: asShipId('selected'),
       from: { q: 0, r: 0 },
       to: { q: 2, r: 0 },
       path: [

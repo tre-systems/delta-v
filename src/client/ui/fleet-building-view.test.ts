@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type {
   FleetPurchase,
   GameState,
@@ -10,7 +10,7 @@ import type {
 import { createFleetBuildingView } from './fleet-building-view';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'transport',
   owner: 0,
   originalOwner: 0,
@@ -36,7 +36,7 @@ const createState = (
     ships?: Ship[];
   } = {},
 ): GameState => ({
-  gameId: 'FLEET',
+  gameId: asGameId('FLEET'),
   scenario: 'biplanetary',
   scenarioRules: overrides.scenarioRules ?? {},
   escapeMoralVictoryAchieved: false,

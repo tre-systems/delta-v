@@ -1,5 +1,6 @@
 import { ORDNANCE_LIFETIME, ORDNANCE_MASS, SHIP_STATS } from '../constants';
 import { HEX_DIRECTIONS } from '../hex';
+import { asOrdnanceId } from '../ids';
 import {
   type AstrogationOrder,
   type EngineError,
@@ -277,7 +278,7 @@ export const processOrdnance = (
           })()
         : baseVelocity;
 
-    const ordId = `ord${nextOrdId++}`;
+    const ordId = asOrdnanceId(`ord${nextOrdId++}`);
 
     state.ordnance.push({
       id: ordId,

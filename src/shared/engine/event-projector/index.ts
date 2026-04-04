@@ -1,3 +1,4 @@
+import type { GameId } from '../../ids';
 import type { SolarSystemMap } from '../../types';
 import type { GameState, Result } from '../../types/domain';
 import type { EngineEvent, EventEnvelope } from '../engine-events';
@@ -9,7 +10,7 @@ import { migrateGameState } from './support';
 type ProjectEventHandler<T extends EngineEvent = EngineEvent> = (
   state: GameState | null,
   event: T,
-  gameId: string,
+  gameId: GameId,
   map: SolarSystemMap,
 ) => Result<GameState>;
 
@@ -127,7 +128,7 @@ const PROJECT_EVENT_HANDLERS = {
 const projectEvent = <T extends EngineEvent>(
   state: GameState | null,
   event: T,
-  gameId: string,
+  gameId: GameId,
   map: SolarSystemMap,
 ): Result<GameState> => {
   const handler = PROJECT_EVENT_HANDLERS[event.type] as ProjectEventHandler<T>;

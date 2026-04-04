@@ -1,5 +1,6 @@
 import type { ShipType } from '../constants';
 import type { HexCoord, HexVec } from '../hex';
+import type { GameId, OrdnanceId, ShipId } from '../ids';
 import type { Phase } from '../types';
 import type {
   AstrogationOrder,
@@ -62,7 +63,7 @@ export type EngineEvent =
   // Ship movement
   | {
       type: 'shipMoved';
-      shipId: string;
+      shipId: ShipId;
       from: HexCoord;
       to: HexCoord;
       path: HexCoord[];
@@ -75,28 +76,28 @@ export type EngineEvent =
     }
   | {
       type: 'shipLanded';
-      shipId: string;
+      shipId: ShipId;
     }
   | {
       type: 'shipCrashed';
-      shipId: string;
+      shipId: ShipId;
       hex: HexCoord;
     }
   | {
       type: 'shipResupplied';
-      shipId: string;
+      shipId: ShipId;
       source: 'base' | 'orbitalBase';
-      sourceId?: string;
+      sourceId?: ShipId;
     }
   | {
       type: 'shipCaptured';
-      shipId: string;
+      shipId: ShipId;
       capturedBy: PlayerId;
-      capturedByShipId: string;
+      capturedByShipId: ShipId;
     }
   | {
       type: 'shipDestroyed';
-      shipId: string;
+      shipId: ShipId;
       cause: string;
     }
   | {
@@ -111,8 +112,8 @@ export type EngineEvent =
   // Ramming
   | {
       type: 'ramming';
-      shipId: string;
-      otherShipId: string;
+      shipId: ShipId;
+      otherShipId: ShipId;
       hex: HexCoord;
       roll: number;
       damageType: DamageType;
@@ -122,10 +123,10 @@ export type EngineEvent =
   // Ordnance
   | {
       type: 'ordnanceLaunched';
-      ordnanceId: string;
+      ordnanceId: OrdnanceId;
       ordnanceType: OrdnanceType;
       owner: PlayerId;
-      sourceShipId: string;
+      sourceShipId: ShipId;
       position: HexCoord;
       velocity: HexVec;
       turnsRemaining: number;
@@ -133,7 +134,7 @@ export type EngineEvent =
     }
   | {
       type: 'ordnanceMoved';
-      ordnanceId: string;
+      ordnanceId: OrdnanceId;
       position: HexCoord;
       velocity: HexVec;
       turnsRemaining: number;
@@ -141,29 +142,29 @@ export type EngineEvent =
     }
   | {
       type: 'ordnanceDetonated';
-      ordnanceId: string;
+      ordnanceId: OrdnanceId;
       ordnanceType: OrdnanceType;
       hex: HexCoord;
-      targetShipId?: string;
+      targetShipId?: ShipId;
       roll: number;
       damageType: DamageType;
       disabledTurns: number;
     }
   | {
       type: 'ordnanceDestroyed';
-      ordnanceId: string;
+      ordnanceId: OrdnanceId;
       cause: string;
     }
   | {
       type: 'ordnanceExpired';
-      ordnanceId: string;
+      ordnanceId: OrdnanceId;
     }
 
   // Combat
   | {
       type: 'combatAttack';
-      attackerIds: string[];
-      targetId: string;
+      attackerIds: ShipId[];
+      targetId: ShipId | OrdnanceId;
       targetType: 'ship' | 'ordnance';
       attackType: AttackType;
       roll: number;
@@ -175,25 +176,25 @@ export type EngineEvent =
   // Logistics
   | {
       type: 'fuelTransferred';
-      fromShipId: string;
-      toShipId: string;
+      fromShipId: ShipId;
+      toShipId: ShipId;
       amount: number;
     }
   | {
       type: 'cargoTransferred';
-      fromShipId: string;
-      toShipId: string;
+      fromShipId: ShipId;
+      toShipId: ShipId;
       amount: number;
     }
   | {
       type: 'passengersTransferred';
-      fromShipId: string;
-      toShipId: string;
+      fromShipId: ShipId;
+      toShipId: ShipId;
       amount: number;
     }
   | {
       type: 'shipSurrendered';
-      shipId: string;
+      shipId: ShipId;
     }
   | {
       type: 'logisticsTransfersCommitted';
@@ -203,12 +204,12 @@ export type EngineEvent =
   | {
       type: 'surrenderDeclared';
       playerId: PlayerId;
-      shipIds: string[];
+      shipIds: ShipId[];
     }
   | {
       type: 'baseEmplaced';
-      shipId: string;
-      sourceShipId: string;
+      shipId: ShipId;
+      sourceShipId: ShipId;
       owner: PlayerId;
       position: HexCoord;
       velocity: HexVec;
@@ -217,12 +218,12 @@ export type EngineEvent =
   // Hidden identity / race
   | {
       type: 'fugitiveDesignated';
-      shipId: string;
+      shipId: ShipId;
       playerId: PlayerId;
     }
   | {
       type: 'identityRevealed';
-      shipId: string;
+      shipId: ShipId;
     }
   | {
       type: 'checkpointVisited';
@@ -232,7 +233,7 @@ export type EngineEvent =
 
 // Versioned event envelope for match-scoped persistence.
 export interface EventEnvelope {
-  gameId: string;
+  gameId: GameId;
   seq: number;
   ts: number;
   actor: PlayerId | null;

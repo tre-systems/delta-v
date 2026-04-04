@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, Ship } from '../../shared/types/domain';
 import {
   buildShipLabelView,
@@ -14,7 +14,7 @@ import {
 } from './entities';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-1',
+  id: asShipId('ship-1'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -34,7 +34,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 
 const createState = (ships: Ship[]): GameState => ({
-  gameId: 'LOCAL',
+  gameId: asGameId('LOCAL'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -71,11 +71,11 @@ const createState = (ships: Ship[]): GameState => ({
 describe('renderer entity helpers', () => {
   it('filters visible ships by ownership, detection, and animation state', () => {
     const state = createState([
-      createShip({ id: 'mine', owner: 0, detected: false }),
-      createShip({ id: 'enemy-visible', owner: 1, detected: true }),
-      createShip({ id: 'enemy-hidden', owner: 1, detected: false }),
+      createShip({ id: asShipId('mine'), owner: 0, detected: false }),
+      createShip({ id: asShipId('enemy-visible'), owner: 1, detected: true }),
+      createShip({ id: asShipId('enemy-hidden'), owner: 1, detected: false }),
       createShip({
-        id: 'destroyed',
+        id: asShipId('destroyed'),
         owner: 0,
         lifecycle: 'destroyed',
       }),
@@ -95,9 +95,9 @@ describe('renderer entity helpers', () => {
 
   it('builds stack offsets for ships sharing a hex', () => {
     const offsets = getShipStackOffsets([
-      createShip({ id: 'a' }),
-      createShip({ id: 'b' }),
-      createShip({ id: 'c' }),
+      createShip({ id: asShipId('a') }),
+      createShip({ id: asShipId('b') }),
+      createShip({ id: asShipId('c') }),
     ]);
 
     expect(offsets.get('a')).toEqual({ xOffset: -16, labelYOffset: 24 });

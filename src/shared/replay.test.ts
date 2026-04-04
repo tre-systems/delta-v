@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { createGameOrThrow, filterStateForPlayer } from './engine/game-engine';
+import { asGameId, type GameId } from './ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from './map-data';
 import {
   buildMatchId,
@@ -44,7 +45,7 @@ const normalizeReplayShape = (value: unknown): unknown => {
 };
 
 const createTestState = (
-  gameId: string,
+  gameId: GameId,
   overrides: Partial<GameState> = {},
 ): GameState => ({
   ...createGameOrThrow(SCENARIOS.biplanetary, map, gameId, findBaseHex),
@@ -70,7 +71,7 @@ describe('replay shape fixtures', () => {
   });
 
   it('ReplayEntry has the expected wire shape', () => {
-    const state = createTestState('ENTRY-m1');
+    const state = createTestState(asGameId('ENTRY-m1'));
     const message: ReplayMessage = {
       type: 'gameStart',
       state,
@@ -84,7 +85,7 @@ describe('replay shape fixtures', () => {
   });
 
   it('ReplayEntry deep-clones the message', () => {
-    const state = createTestState('CLONE-m1');
+    const state = createTestState(asGameId('CLONE-m1'));
     const message: ReplayMessage = {
       type: 'gameStart',
       state,
@@ -97,9 +98,9 @@ describe('replay shape fixtures', () => {
   });
 
   it('ReplayTimeline has the expected wire shape', () => {
-    const state = createTestState('ARCHV-m1');
+    const state = createTestState(asGameId('ARCHV-m1'));
     const timeline: ReplayTimeline = {
-      gameId: 'ARCHV-m1',
+      gameId: asGameId('ARCHV-m1'),
       roomCode: 'ARCHV',
       matchNumber: 1,
       scenario: 'Bi-Planetary',
@@ -121,15 +122,15 @@ describe('replay shape fixtures', () => {
   });
 
   it('ReplayTimeline entries grow with subsequent messages', () => {
-    const state1 = createTestState('GROW-m1');
-    const state2 = createTestState('GROW-m1', {
+    const state1 = createTestState(asGameId('GROW-m1'));
+    const state2 = createTestState(asGameId('GROW-m1'), {
       turnNumber: 2,
       phase: 'astrogation',
       activePlayer: 1,
     });
 
     const timeline: ReplayTimeline = {
-      gameId: 'GROW-m1',
+      gameId: asGameId('GROW-m1'),
       roomCode: 'GROW',
       matchNumber: 1,
       scenario: state1.scenario,
@@ -152,7 +153,7 @@ describe('replay shape fixtures', () => {
   });
 
   it('replay response filtered for player strips hidden state', () => {
-    const state = createTestState('FILT-m1');
+    const state = createTestState(asGameId('FILT-m1'));
 
     state.ships[0].identity = {
       hasFugitives: true,
@@ -174,7 +175,7 @@ describe('replay shape fixtures', () => {
   });
 
   it('all state-bearing S2C types qualify as ReplayMessage', () => {
-    const state = createTestState('TYPES-m1');
+    const state = createTestState(asGameId('TYPES-m1'));
 
     const messages: ReplayMessage[] = [
       { type: 'gameStart', state },
@@ -209,7 +210,7 @@ describe('replay shape fixtures', () => {
     ] as const;
 
     for (const phase of phases) {
-      const state = createTestState('PHASE-m1', {
+      const state = createTestState(asGameId('PHASE-m1'), {
         turnNumber: seq,
         phase,
       });

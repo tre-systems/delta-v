@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
 import { getTooltipShip } from './hover';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -43,7 +43,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (ships: Ship[]): GameState => ({
-  gameId: 'HOVER',
+  gameId: asGameId('HOVER'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -81,7 +81,7 @@ describe('game-client-hover', () => {
   it('returns visible friendly and detected enemy ships at the hover hex', () => {
     const friendly = createShip();
     const enemy = createShip({
-      id: 'enemy',
+      id: asShipId('enemy'),
       owner: 1,
       originalOwner: 0,
       position: { q: 1, r: 0 },
@@ -100,7 +100,7 @@ describe('game-client-hover', () => {
   it('ignores destroyed and undetected enemy ships', () => {
     const destroyed = createShip({ lifecycle: 'destroyed' });
     const hiddenEnemy = createShip({
-      id: 'enemy',
+      id: asShipId('enemy'),
       owner: 1,
       originalOwner: 0,
       detected: false,

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
 import { deriveScenarioBriefingEntries } from './briefing';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'transport',
   owner: 0,
   originalOwner: 0,
@@ -43,7 +43,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'BRIEF',
+  gameId: asGameId('BRIEF'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -51,14 +51,14 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   phase: 'astrogation',
   activePlayer: 0,
   ships: [
-    createShip({ id: 'transport', type: 'transport' }),
+    createShip({ id: asShipId('transport'), type: 'transport' }),
     createShip({
-      id: 'packet',
+      id: asShipId('packet'),
       type: 'packet',
       position: { q: 1, r: 0 },
     }),
     createShip({
-      id: 'enemy',
+      id: asShipId('enemy'),
       owner: 1,
       originalOwner: 0,
       type: 'corsair',
@@ -90,7 +90,7 @@ describe('game-client-briefing', () => {
             createShip({
               identity: { hasFugitives: true, revealed: false },
             }),
-            createShip({ id: 'enemy', owner: 1 }),
+            createShip({ id: asShipId('enemy'), owner: 1 }),
           ],
         }),
         0,

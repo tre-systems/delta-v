@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { TransferPair } from '../../shared/engine/logistics';
+import { asShipId } from '../../shared/ids';
 import type { Ship } from '../../shared/types/domain';
 import {
   createLogisticsStoreFromPairs,
@@ -8,7 +9,7 @@ import {
 } from './logistics-store';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -29,7 +30,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 
 const createTransferPair = (): TransferPair => ({
   source: createShip(),
-  target: createShip({ id: 'ship-1' }),
+  target: createShip({ id: asShipId('ship-1') }),
   canTransferFuel: true,
   canTransferCargo: true,
   canTransferPassengers: false,
@@ -65,13 +66,13 @@ describe('logistics-store', () => {
 
     expect(state.buildTransferOrders()).toEqual([
       {
-        sourceShipId: 'ship-0',
+        sourceShipId: asShipId('ship-0'),
         targetShipId: 'ship-1',
         transferType: 'fuel',
         amount: 2,
       },
       {
-        sourceShipId: 'ship-0',
+        sourceShipId: asShipId('ship-0'),
         targetShipId: 'ship-1',
         transferType: 'cargo',
         amount: 1,

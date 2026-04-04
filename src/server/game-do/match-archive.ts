@@ -1,4 +1,5 @@
 import type { EventEnvelope } from '../../shared/engine/engine-events';
+import type { GameId } from '../../shared/ids';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import {
   type Checkpoint,
@@ -10,7 +11,7 @@ import {
 
 // Persistent archive of a completed match.
 export interface MatchArchive {
-  gameId: string;
+  gameId: GameId;
   roomCode: string;
   scenario: string;
   winner: PlayerId | null;
@@ -23,7 +24,7 @@ export interface MatchArchive {
   matchSeed: number | null;
 }
 
-const r2Key = (gameId: string): string => `matches/${gameId}.json`;
+const r2Key = (gameId: GameId): string => `matches/${gameId}.json`;
 
 // Archive a completed match to R2 and insert metadata
 // into D1. Fire-and-forget — errors are logged but
@@ -117,7 +118,7 @@ export const scheduleArchiveCompletedMatch = (
 // doesn't exist.
 export const fetchArchivedMatch = async (
   r2: R2Bucket | undefined,
-  gameId: string,
+  gameId: GameId,
 ): Promise<MatchArchive | null> => {
   if (!r2) return null;
 

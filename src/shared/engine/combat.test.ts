@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { must } from '../assert';
 import { asHexKey, hexKey } from '../hex';
+import { asGameId, asOrdnanceId, asShipId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type {
   EngineError,
@@ -18,7 +19,7 @@ import {
 import { createGameOrThrow } from './game-engine';
 
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship0',
+  id: asShipId('ship0'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,
@@ -37,7 +38,7 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
   ...overrides,
 });
 const makeOrdnance = (overrides: Partial<Ordnance> = {}): Ordnance => ({
-  id: 'ord0',
+  id: asOrdnanceId('ord0'),
   type: 'nuke',
   owner: 1,
   sourceShipId: null,
@@ -53,7 +54,7 @@ const openMap: SolarSystemMap = {
   bounds: { minQ: -50, maxQ: 50, minR: -50, maxR: 50 },
 };
 const makeCombatState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'TEST',
+  gameId: asGameId('TEST'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -62,13 +63,13 @@ const makeCombatState = (overrides: Partial<GameState> = {}): GameState => ({
   activePlayer: 0,
   ships: [
     makeShip({
-      id: 'a0',
+      id: asShipId('a0'),
       owner: 0,
       position: { q: 0, r: 0 },
       lastMovementPath: [{ q: 0, r: 0 }],
     }),
     makeShip({
-      id: 'e0',
+      id: asShipId('e0'),
       owner: 1,
       position: { q: 2, r: 0 },
       lastMovementPath: [{ q: 2, r: 0 }],
@@ -166,8 +167,8 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'e0',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: null,
         },
@@ -186,8 +187,8 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0', 'a0'],
-          targetId: 'e0',
+          attackerIds: [asShipId('a0'), asShipId('a0')],
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: null,
         },
@@ -206,8 +207,8 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['e0'],
-          targetId: 'a0',
+          attackerIds: [asShipId('e0')],
+          targetId: asShipId('a0'),
           targetType: 'ship',
           attackStrength: null,
         },
@@ -227,7 +228,7 @@ describe('processCombat', () => {
       [
         {
           attackerIds: [],
-          targetId: 'e0',
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: null,
         },
@@ -247,8 +248,8 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'e0',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: null,
         },
@@ -264,20 +265,20 @@ describe('processCombat', () => {
     const state = makeCombatState();
     state.ships = [
       makeShip({
-        id: 'a0',
+        id: asShipId('a0'),
         type: 'frigate',
         owner: 0,
         position: { q: 0, r: 0 },
         lastMovementPath: [{ q: 0, r: 0 }],
       }),
       makeShip({
-        id: 'e0',
+        id: asShipId('e0'),
         owner: 1,
         position: { q: 2, r: 0 },
         lastMovementPath: [{ q: 2, r: 0 }],
       }),
       makeShip({
-        id: 'e1',
+        id: asShipId('e1'),
         owner: 1,
         position: { q: 3, r: 0 },
         lastMovementPath: [{ q: 3, r: 0 }],
@@ -288,14 +289,14 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'e0',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: 2,
         },
         {
-          attackerIds: ['a0'],
-          targetId: 'e1',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e1'),
           targetType: 'ship',
           attackStrength: 2,
         },
@@ -314,8 +315,8 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'e0',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: 99,
         },
@@ -331,26 +332,26 @@ describe('processCombat', () => {
     const state = makeCombatState();
     state.ships = [
       makeShip({
-        id: 'a0',
+        id: asShipId('a0'),
         type: 'corvette',
         owner: 0,
         position: { q: 0, r: 0 },
         lastMovementPath: [{ q: 0, r: 0 }],
       }),
       makeShip({
-        id: 'e0',
+        id: asShipId('e0'),
         owner: 1,
         position: { q: 2, r: 0 },
         lastMovementPath: [{ q: 2, r: 0 }],
       }),
       makeShip({
-        id: 'e1',
+        id: asShipId('e1'),
         owner: 1,
         position: { q: 2, r: 0 },
         lastMovementPath: [{ q: 2, r: 0 }],
       }),
       makeShip({
-        id: 'e2',
+        id: asShipId('e2'),
         owner: 1,
         position: { q: 2, r: 0 },
         lastMovementPath: [{ q: 2, r: 0 }],
@@ -361,20 +362,20 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'e0',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: 2,
         },
         {
-          attackerIds: ['a0'],
-          targetId: 'e1',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e1'),
           targetType: 'ship',
           attackStrength: 2,
         },
         {
-          attackerIds: ['a0'],
-          targetId: 'e2',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e2'),
           targetType: 'ship',
           attackStrength: 1,
         },
@@ -390,21 +391,21 @@ describe('processCombat', () => {
     const state = makeCombatState();
     state.ordnance = [
       makeOrdnance({
-        id: 'ord0',
+        id: asOrdnanceId('ord0'),
         owner: 1,
         position: { q: 2, r: 0 },
       }),
     ];
     state.ships = [
       makeShip({
-        id: 'a0',
+        id: asShipId('a0'),
         type: 'frigate',
         owner: 0,
         position: { q: 0, r: 0 },
         lastMovementPath: [{ q: 0, r: 0 }],
       }),
       makeShip({
-        id: 'e0',
+        id: asShipId('e0'),
         owner: 1,
         position: { q: 2, r: 0 },
         lastMovementPath: [{ q: 2, r: 0 }],
@@ -415,14 +416,14 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'e0',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: 2,
         },
         {
-          attackerIds: ['a0'],
-          targetId: 'ord0',
+          attackerIds: [asShipId('a0')],
+          targetId: asOrdnanceId('ord0'),
           targetType: 'ordnance',
           attackStrength: null,
         },
@@ -438,7 +439,7 @@ describe('processCombat', () => {
     const state = makeCombatState();
     state.ordnance = [
       makeOrdnance({
-        id: 'ord0',
+        id: asOrdnanceId('ord0'),
         owner: 1,
         position: { q: 2, r: 0 },
         lifecycle: 'destroyed',
@@ -449,8 +450,8 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'ord0',
+          attackerIds: [asShipId('a0')],
+          targetId: asOrdnanceId('ord0'),
           targetType: 'ordnance',
           attackStrength: null,
         },
@@ -466,7 +467,7 @@ describe('processCombat', () => {
     const state = makeCombatState();
     state.ordnance = [
       makeOrdnance({
-        id: 'ord0',
+        id: asOrdnanceId('ord0'),
         owner: 1,
         position: { q: 2, r: 0 },
       }),
@@ -476,8 +477,8 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'ord0',
+          attackerIds: [asShipId('a0')],
+          targetId: asOrdnanceId('ord0'),
           targetType: 'ordnance',
           attackStrength: 2,
         },
@@ -493,7 +494,7 @@ describe('processCombat', () => {
     const state = makeCombatState();
     state.ordnance = [
       makeOrdnance({
-        id: 'ord0',
+        id: asOrdnanceId('ord0'),
         owner: 0,
         position: { q: 2, r: 0 },
       }),
@@ -503,8 +504,8 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'ord0',
+          attackerIds: [asShipId('a0')],
+          targetId: asOrdnanceId('ord0'),
           targetType: 'ordnance',
           attackStrength: null,
         },
@@ -520,7 +521,7 @@ describe('processCombat', () => {
     const state = makeCombatState();
     state.ordnance = [
       makeOrdnance({
-        id: 'ord0',
+        id: asOrdnanceId('ord0'),
         type: 'mine',
         owner: 1,
         position: { q: 2, r: 0 },
@@ -531,8 +532,8 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'ord0',
+          attackerIds: [asShipId('a0')],
+          targetId: asOrdnanceId('ord0'),
           targetType: 'ordnance',
           attackStrength: null,
         },
@@ -548,7 +549,7 @@ describe('processCombat', () => {
     const state = makeCombatState();
     state.ordnance = [
       makeOrdnance({
-        id: 'ord0',
+        id: asOrdnanceId('ord0'),
         owner: 1,
         position: { q: 2, r: 0 },
       }),
@@ -558,8 +559,8 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'ord0',
+          attackerIds: [asShipId('a0')],
+          targetId: asOrdnanceId('ord0'),
           targetType: 'ordnance',
           attackStrength: null,
         },
@@ -579,7 +580,7 @@ describe('processCombat', () => {
     const state = makeCombatState();
     state.ordnance = [
       makeOrdnance({
-        id: 'ord0',
+        id: asOrdnanceId('ord0'),
         owner: 1,
         position: { q: 2, r: 0 },
       }),
@@ -589,8 +590,8 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'ord0',
+          attackerIds: [asShipId('a0')],
+          targetId: asOrdnanceId('ord0'),
           targetType: 'ordnance',
           attackStrength: null,
         },
@@ -605,8 +606,8 @@ describe('processCombat', () => {
       expect(antiNuke?.damageType).toBe('eliminated');
       expect(result.engineEvents).toContainEqual({
         type: 'combatAttack',
-        attackerIds: ['a0'],
-        targetId: 'ord0',
+        attackerIds: [asShipId('a0')],
+        targetId: asOrdnanceId('ord0'),
         targetType: 'ordnance',
         attackType: 'antiNuke',
         roll: 6,
@@ -625,13 +626,13 @@ describe('processCombat', () => {
     const state = makeCombatState({
       ships: [
         makeShip({
-          id: 'a0',
+          id: asShipId('a0'),
           owner: 0,
           position: { q: 0, r: 0 },
           lastMovementPath: [{ q: 0, r: 0 }],
         }),
         makeShip({
-          id: 'e0',
+          id: asShipId('e0'),
           owner: 1,
           position: { q: 1, r: 0 },
           lastMovementPath: [{ q: 1, r: 0 }],
@@ -643,8 +644,8 @@ describe('processCombat', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'e0',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: null,
         },
@@ -661,8 +662,8 @@ describe('processCombat', () => {
       result.engineEvents.filter((event) => event.type === 'combatAttack'),
     ).toContainEqual({
       type: 'combatAttack',
-      attackerIds: ['a0'],
-      targetId: 'e0',
+      attackerIds: [asShipId('a0')],
+      targetId: asShipId('e0'),
       targetType: 'ship',
       attackType: 'gun',
       roll: 5,
@@ -674,8 +675,8 @@ describe('processCombat', () => {
       result.engineEvents.filter((event) => event.type === 'combatAttack'),
     ).toContainEqual({
       type: 'combatAttack',
-      attackerIds: ['e0'],
-      targetId: 'a0',
+      attackerIds: [asShipId('e0')],
+      targetId: asShipId('a0'),
       targetType: 'ship',
       attackType: 'gun',
       roll: 5,
@@ -731,7 +732,9 @@ describe('skipCombat', () => {
 describe('shouldEnterCombatPhase', () => {
   it('returns true when active player has pending asteroid hazards', () => {
     const state = makeCombatState({ phase: 'astrogation' });
-    state.pendingAsteroidHazards = [{ shipId: 'a0', hex: { q: 5, r: 5 } }];
+    state.pendingAsteroidHazards = [
+      { shipId: asShipId('a0'), hex: { q: 5, r: 5 } },
+    ];
     expect(shouldEnterCombatPhase(state, openMap)).toBe(true);
   });
   it('returns false when combatDisabled even with targets', () => {
@@ -759,7 +762,7 @@ describe('shouldEnterCombatPhase', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'BD01',
+      asGameId('BD01'),
       findBaseHex,
     );
     state.phase = 'combat';
@@ -786,7 +789,7 @@ describe('shouldEnterCombatPhase', () => {
     const state = makeCombatState();
     state.ordnance = [
       makeOrdnance({
-        id: 'ord0',
+        id: asOrdnanceId('ord0'),
         owner: 1,
         position: { q: 2, r: 0 },
       }),
@@ -800,21 +803,21 @@ describe('processCombat -- additional edge cases', () => {
     const state = makeCombatState();
     state.ships = [
       makeShip({
-        id: 'a0',
+        id: asShipId('a0'),
         type: 'frigate',
         owner: 0,
         position: { q: 0, r: 0 },
         lastMovementPath: [{ q: 0, r: 0 }],
       }),
       makeShip({
-        id: 'a1',
+        id: asShipId('a1'),
         type: 'corvette',
         owner: 0,
         position: { q: 0, r: 0 },
         lastMovementPath: [{ q: 0, r: 0 }],
       }),
       makeShip({
-        id: 'e0',
+        id: asShipId('e0'),
         owner: 1,
         position: { q: 2, r: 0 },
         lastMovementPath: [{ q: 2, r: 0 }],
@@ -825,14 +828,14 @@ describe('processCombat -- additional edge cases', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'e0',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: null,
         },
         {
-          attackerIds: ['a1'],
-          targetId: 'e0',
+          attackerIds: [asShipId('a1')],
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: null,
         },
@@ -848,26 +851,26 @@ describe('processCombat -- additional edge cases', () => {
     const state = makeCombatState();
     state.ordnance = [
       makeOrdnance({
-        id: 'nuke0',
+        id: asOrdnanceId('nuke0'),
         owner: 1,
         position: { q: 2, r: 0 },
       }),
       makeOrdnance({
-        id: 'nuke1',
+        id: asOrdnanceId('nuke1'),
         owner: 1,
         position: { q: 2, r: 0 },
       }),
     ];
     state.ships = [
       makeShip({
-        id: 'a0',
+        id: asShipId('a0'),
         type: 'frigate',
         owner: 0,
         position: { q: 0, r: 0 },
         lastMovementPath: [{ q: 0, r: 0 }],
       }),
       makeShip({
-        id: 'e0',
+        id: asShipId('e0'),
         owner: 1,
         position: { q: 10, r: 0 },
         lastMovementPath: [{ q: 10, r: 0 }],
@@ -878,14 +881,14 @@ describe('processCombat -- additional edge cases', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'nuke0',
+          attackerIds: [asShipId('a0')],
+          targetId: asOrdnanceId('nuke0'),
           targetType: 'ordnance',
           attackStrength: null,
         },
         {
-          attackerIds: ['a0'],
-          targetId: 'nuke1',
+          attackerIds: [asShipId('a0')],
+          targetId: asOrdnanceId('nuke1'),
           targetType: 'ordnance',
           attackStrength: null,
         },
@@ -922,20 +925,20 @@ describe('processCombat -- additional edge cases', () => {
     const state = makeCombatState();
     state.ordnance = [
       makeOrdnance({
-        id: 'nuke0',
+        id: asOrdnanceId('nuke0'),
         owner: 1,
         position: { q: 2, r: 0 },
       }),
     ];
     state.ships = [
       makeShip({
-        id: 'a0',
+        id: asShipId('a0'),
         owner: 0,
         position: { q: 0, r: 0 },
         lastMovementPath: [{ q: 0, r: 0 }],
       }),
       makeShip({
-        id: 'e0',
+        id: asShipId('e0'),
         owner: 1,
         position: { q: 10, r: 0 },
         lastMovementPath: [{ q: 10, r: 0 }],
@@ -946,8 +949,8 @@ describe('processCombat -- additional edge cases', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'nuke0',
+          attackerIds: [asShipId('a0')],
+          targetId: asOrdnanceId('nuke0'),
           targetType: 'ordnance',
           attackStrength: null,
         },
@@ -984,13 +987,13 @@ describe('processCombat -- additional edge cases', () => {
     const state = makeCombatState();
     state.ships = [
       makeShip({
-        id: 'a0',
+        id: asShipId('a0'),
         owner: 0,
         position: { q: 0, r: 0 },
         lastMovementPath: [{ q: 0, r: 0 }],
       }),
       makeShip({
-        id: 'e0',
+        id: asShipId('e0'),
         owner: 1,
         position: { q: 2, r: 0 },
         lastMovementPath: [{ q: 2, r: 0 }],
@@ -1001,8 +1004,8 @@ describe('processCombat -- additional edge cases', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'e0',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: null,
         },
@@ -1021,8 +1024,8 @@ describe('processCombat -- additional edge cases', () => {
       0,
       [
         {
-          attackerIds: ['a0'],
-          targetId: 'e0',
+          attackerIds: [asShipId('a0')],
+          targetId: asShipId('e0'),
           targetType: 'ship',
           attackStrength: null,
         },
@@ -1044,12 +1047,14 @@ describe('shouldRemainInCombatPhase edge cases', () => {
     const state = makeCombatState();
     state.ships = [
       makeShip({
-        id: 'a0',
+        id: asShipId('a0'),
         owner: 0,
         position: { q: 0, r: 0 },
       }),
     ];
-    state.pendingAsteroidHazards = [{ shipId: 'a0', hex: { q: 0, r: 0 } }];
+    state.pendingAsteroidHazards = [
+      { shipId: asShipId('a0'), hex: { q: 0, r: 0 } },
+    ];
     const result = beginCombatPhase(state, 0, openMap, () => 0.99);
     expect('error' in result).toBe(false);
     if ('results' in result) {
@@ -1080,7 +1085,7 @@ describe('base defense with skipCombat', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'BD02',
+      asGameId('BD02'),
       findBaseHex,
     );
     state.phase = 'combat';

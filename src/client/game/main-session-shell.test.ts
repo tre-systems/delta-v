@@ -119,6 +119,7 @@ vi.mock('./transport', () => ({
   createLocalGameTransport: mocks.createLocalGameTransport,
 }));
 
+import { asGameId } from '../../shared/ids';
 import { createMainSessionShell } from './main-session-shell';
 
 const createSignal = <T>(value: T) => ({
@@ -134,7 +135,7 @@ const createArgs = () => {
     scenario: 'duel',
     aiDifficulty: 'normal',
     isLocalGame: false,
-    gameStateSignal: createSignal({ gameId: 'GAME' }),
+    gameStateSignal: createSignal({ gameId: asGameId('GAME') }),
     stateSignal: createSignal('menu'),
     reconnectOverlayStateSignal: createSignal(null),
     opponentDisconnectDeadlineMsSignal: createSignal(null),
@@ -315,7 +316,7 @@ describe('main-session-shell', () => {
   it('applies client game state through the shared projection helper', () => {
     const args = createArgs();
     const shell = createMainSessionShell(args);
-    const state = { gameId: 'NEXT' } as GameState;
+    const state = { gameId: asGameId('NEXT') } as GameState;
 
     shell.applyGameState(state);
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { asHexKey } from '../hex';
+import { asShipId } from '../ids';
 import type { GameState, Ordnance, Ship } from '../types';
 import {
   canLaunchOrdnance,
@@ -39,7 +40,7 @@ const makeScenarioRulesState = (
 });
 
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'test',
+  id: asShipId('test'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,
@@ -304,11 +305,11 @@ describe('validateOrdnanceLaunch', () => {
   });
 
   it('rejects mine launch without a committed burn or overload', () => {
-    const ship = makeShip({ id: 's1', type: 'frigate' });
+    const ship = makeShip({ id: asShipId('s1'), type: 'frigate' });
     expect(
       validateOrdnanceLaunch(
         makeScenarioRulesState({}, [
-          { shipId: 's1', burn: null, overload: null },
+          { shipId: asShipId('s1'), burn: null, overload: null },
         ]),
         ship,
         'mine',
@@ -321,8 +322,10 @@ describe('validateOrdnanceLaunch', () => {
   it('allows mine launch when pending astrogation includes a burn', () => {
     expect(
       validateOrdnanceLaunch(
-        makeScenarioRulesState({}, [{ shipId: 's1', burn: 2, overload: null }]),
-        makeShip({ id: 's1', type: 'frigate' }),
+        makeScenarioRulesState({}, [
+          { shipId: asShipId('s1'), burn: 2, overload: null },
+        ]),
+        makeShip({ id: asShipId('s1'), type: 'frigate' }),
         'mine',
       ),
     ).toBeNull();

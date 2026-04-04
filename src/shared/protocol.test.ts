@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asOrdnanceId, asShipId } from './ids';
 import { validateClientMessage, validateServerMessage } from './protocol';
 
 const sharedContractFixtures = JSON.parse(
@@ -336,7 +336,7 @@ describe('validateClientMessage', () => {
         type: 'astrogation',
         orders: [
           {
-            shipId: 'p0s0',
+            shipId: asShipId('p0s0'),
             burn: 1,
             overload: null,
             weakGravityChoices: { '0,1': true },
@@ -350,7 +350,7 @@ describe('validateClientMessage', () => {
           type: 'astrogation',
           orders: [
             {
-              shipId: 'p0s0',
+              shipId: asShipId('p0s0'),
               burn: 1,
               overload: null,
               weakGravityChoices: { '0,1': true },
@@ -363,7 +363,7 @@ describe('validateClientMessage', () => {
     it('accepts orders with undefined overload (defaults to null)', () => {
       const result = validateClientMessage({
         type: 'astrogation',
-        orders: [{ shipId: 'p0s0', burn: 0 }],
+        orders: [{ shipId: asShipId('p0s0'), burn: 0 }],
       });
 
       expect(result).toEqual({
@@ -372,7 +372,7 @@ describe('validateClientMessage', () => {
           type: 'astrogation',
           orders: [
             {
-              shipId: 'p0s0',
+              shipId: asShipId('p0s0'),
               burn: 0,
               overload: null,
               weakGravityChoices: undefined,
@@ -386,7 +386,7 @@ describe('validateClientMessage', () => {
       for (const overload of [null, 0, 1, 2, 3, 4, 5]) {
         const result = validateClientMessage({
           type: 'astrogation',
-          orders: [{ shipId: 'p0s0', burn: 1, overload }],
+          orders: [{ shipId: asShipId('p0s0'), burn: 1, overload }],
         });
 
         expect(result.ok).toBe(true);
@@ -419,7 +419,7 @@ describe('validateClientMessage', () => {
 
     it('rejects orders exceeding max count', () => {
       const orders = Array.from({ length: 65 }, () => ({
-        shipId: 'p0s0',
+        shipId: asShipId('p0s0'),
         burn: 0,
       }));
 
@@ -443,7 +443,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'astrogation',
-          orders: [{ shipId: '', burn: 0 }],
+          orders: [{ shipId: asShipId(''), burn: 0 }],
         }),
       ).toEqual({
         ok: false,
@@ -455,7 +455,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'astrogation',
-          orders: [{ shipId: 'p0s0', burn: -1 }],
+          orders: [{ shipId: asShipId('p0s0'), burn: -1 }],
         }),
       ).toEqual({
         ok: false,
@@ -465,7 +465,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'astrogation',
-          orders: [{ shipId: 'p0s0', burn: 6 }],
+          orders: [{ shipId: asShipId('p0s0'), burn: 6 }],
         }),
       ).toEqual({
         ok: false,
@@ -475,7 +475,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'astrogation',
-          orders: [{ shipId: 'p0s0', burn: 1.5 }],
+          orders: [{ shipId: asShipId('p0s0'), burn: 1.5 }],
         }),
       ).toEqual({
         ok: false,
@@ -485,7 +485,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'astrogation',
-          orders: [{ shipId: 'p0s0', burn: 'fast' }],
+          orders: [{ shipId: asShipId('p0s0'), burn: 'fast' }],
         }),
       ).toEqual({
         ok: false,
@@ -497,7 +497,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'astrogation',
-          orders: [{ shipId: 'p0s0', burn: 1, overload: -1 }],
+          orders: [{ shipId: asShipId('p0s0'), burn: 1, overload: -1 }],
         }),
       ).toEqual({
         ok: false,
@@ -507,7 +507,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'astrogation',
-          orders: [{ shipId: 'p0s0', burn: 1, overload: 6 }],
+          orders: [{ shipId: asShipId('p0s0'), burn: 1, overload: 6 }],
         }),
       ).toEqual({
         ok: false,
@@ -517,7 +517,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'astrogation',
-          orders: [{ shipId: 'p0s0', burn: 1, overload: 'max' }],
+          orders: [{ shipId: asShipId('p0s0'), burn: 1, overload: 'max' }],
         }),
       ).toEqual({
         ok: false,
@@ -531,7 +531,7 @@ describe('validateClientMessage', () => {
           type: 'astrogation',
           orders: [
             {
-              shipId: 'p0s0',
+              shipId: asShipId('p0s0'),
               burn: 1,
               weakGravityChoices: 'bad',
             },
@@ -547,7 +547,7 @@ describe('validateClientMessage', () => {
           type: 'astrogation',
           orders: [
             {
-              shipId: 'p0s0',
+              shipId: asShipId('p0s0'),
               burn: 1,
               weakGravityChoices: { key: 'not-boolean' },
             },
@@ -568,7 +568,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'astrogation',
-          orders: [{ shipId: 'p0s0', burn: 1, weakGravityChoices }],
+          orders: [{ shipId: asShipId('p0s0'), burn: 1, weakGravityChoices }],
         }),
       ).toEqual({
         ok: false,
@@ -585,7 +585,7 @@ describe('validateClientMessage', () => {
     ] as const)('accepts valid %s launch', (ordnanceType) => {
       const result = validateClientMessage({
         type: 'ordnance',
-        launches: [{ shipId: 'p0s0', ordnanceType }],
+        launches: [{ shipId: asShipId('p0s0'), ordnanceType }],
       });
 
       expect(result).toEqual({
@@ -594,7 +594,7 @@ describe('validateClientMessage', () => {
           type: 'ordnance',
           launches: [
             {
-              shipId: 'p0s0',
+              shipId: asShipId('p0s0'),
               ordnanceType,
               torpedoAccel: null,
               torpedoAccelSteps: null,
@@ -609,7 +609,7 @@ describe('validateClientMessage', () => {
         type: 'ordnance',
         launches: [
           {
-            shipId: 'p0s0',
+            shipId: asShipId('p0s0'),
             ordnanceType: 'torpedo',
             torpedoAccel: 3,
             torpedoAccelSteps: 2,
@@ -623,7 +623,7 @@ describe('validateClientMessage', () => {
           type: 'ordnance',
           launches: [
             {
-              shipId: 'p0s0',
+              shipId: asShipId('p0s0'),
               ordnanceType: 'torpedo',
               torpedoAccel: 3,
               torpedoAccelSteps: 2,
@@ -656,7 +656,7 @@ describe('validateClientMessage', () => {
 
     it('rejects launches exceeding max count', () => {
       const launches = Array.from({ length: 65 }, () => ({
-        shipId: 'p0s0',
+        shipId: asShipId('p0s0'),
         ordnanceType: 'mine',
       }));
 
@@ -670,7 +670,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'ordnance',
-          launches: [{ shipId: 'p0s0', ordnanceType: 'laser' }],
+          launches: [{ shipId: asShipId('p0s0'), ordnanceType: 'laser' }],
         }),
       ).toEqual({
         ok: false,
@@ -680,7 +680,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'ordnance',
-          launches: [{ shipId: 'p0s0', ordnanceType: 42 }],
+          launches: [{ shipId: asShipId('p0s0'), ordnanceType: 42 }],
         }),
       ).toEqual({
         ok: false,
@@ -702,7 +702,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'ordnance',
-          launches: [{ shipId: '', ordnanceType: 'mine' }],
+          launches: [{ shipId: asShipId(''), ordnanceType: 'mine' }],
         }),
       ).toEqual({
         ok: false,
@@ -726,7 +726,7 @@ describe('validateClientMessage', () => {
           type: 'ordnance',
           launches: [
             {
-              shipId: 'p0s0',
+              shipId: asShipId('p0s0'),
               ordnanceType: 'torpedo',
               torpedoAccel: 7,
             },
@@ -742,7 +742,7 @@ describe('validateClientMessage', () => {
           type: 'ordnance',
           launches: [
             {
-              shipId: 'p0s0',
+              shipId: asShipId('p0s0'),
               ordnanceType: 'torpedo',
               torpedoAccel: -1,
             },
@@ -760,7 +760,7 @@ describe('validateClientMessage', () => {
           type: 'ordnance',
           launches: [
             {
-              shipId: 'p0s0',
+              shipId: asShipId('p0s0'),
               ordnanceType: 'torpedo',
               torpedoAccelSteps: 3,
             },
@@ -776,7 +776,7 @@ describe('validateClientMessage', () => {
           type: 'ordnance',
           launches: [
             {
-              shipId: 'p0s0',
+              shipId: asShipId('p0s0'),
               ordnanceType: 'torpedo',
               torpedoAccelSteps: 0,
             },
@@ -792,7 +792,7 @@ describe('validateClientMessage', () => {
           type: 'ordnance',
           launches: [
             {
-              shipId: 'p0s0',
+              shipId: asShipId('p0s0'),
               ordnanceType: 'torpedo',
               torpedoAccelSteps: 'two',
             },
@@ -809,7 +809,7 @@ describe('validateClientMessage', () => {
         type: 'ordnance',
         launches: [
           {
-            shipId: 'p0s0',
+            shipId: asShipId('p0s0'),
             ordnanceType: 'torpedo',
             torpedoAccelSteps: null,
           },
@@ -825,13 +825,13 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'emplaceBase',
-          emplacements: [{ shipId: 'p0s0' }],
+          emplacements: [{ shipId: asShipId('p0s0') }],
         }),
       ).toEqual({
         ok: true,
         value: {
           type: 'emplaceBase',
-          emplacements: [{ shipId: 'p0s0' }],
+          emplacements: [{ shipId: asShipId('p0s0') }],
         },
       });
     });
@@ -862,7 +862,7 @@ describe('validateClientMessage', () => {
 
     it('rejects emplacements exceeding max count', () => {
       const emplacements = Array.from({ length: 33 }, () => ({
-        shipId: 'p0s0',
+        shipId: asShipId('p0s0'),
       }));
 
       expect(
@@ -890,7 +890,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'emplaceBase',
-          emplacements: [{ shipId: '' }],
+          emplacements: [{ shipId: asShipId('') }],
         }),
       ).toEqual({
         ok: false,
@@ -913,7 +913,9 @@ describe('validateClientMessage', () => {
     it('accepts valid combat attacks', () => {
       const result = validateClientMessage({
         type: 'combat',
-        attacks: [{ attackerIds: ['p0s0'], targetId: 'p1s0' }],
+        attacks: [
+          { attackerIds: [asShipId('p0s0')], targetId: asShipId('p1s0') },
+        ],
       });
 
       expect(result).toEqual({
@@ -922,8 +924,8 @@ describe('validateClientMessage', () => {
           type: 'combat',
           attacks: [
             {
-              attackerIds: ['p0s0'],
-              targetId: 'p1s0',
+              attackerIds: [asShipId('p0s0')],
+              targetId: asShipId('p1s0'),
               targetType: 'ship',
               attackStrength: null,
             },
@@ -937,8 +939,8 @@ describe('validateClientMessage', () => {
         type: 'combat',
         attacks: [
           {
-            attackerIds: ['p0s0', 'p0s1'],
-            targetId: 'p1s0',
+            attackerIds: [asShipId('p0s0'), asShipId('p0s1')],
+            targetId: asShipId('p1s0'),
             targetType: 'ship',
             attackStrength: 5,
           },
@@ -951,8 +953,8 @@ describe('validateClientMessage', () => {
           type: 'combat',
           attacks: [
             {
-              attackerIds: ['p0s0', 'p0s1'],
-              targetId: 'p1s0',
+              attackerIds: [asShipId('p0s0'), asShipId('p0s1')],
+              targetId: asShipId('p1s0'),
               targetType: 'ship',
               attackStrength: 5,
             },
@@ -966,8 +968,8 @@ describe('validateClientMessage', () => {
         type: 'combat',
         attacks: [
           {
-            attackerIds: ['p0s0'],
-            targetId: 'nuke1',
+            attackerIds: [asShipId('p0s0')],
+            targetId: asOrdnanceId('nuke1'),
             targetType: 'ordnance',
           },
         ],
@@ -979,8 +981,8 @@ describe('validateClientMessage', () => {
           type: 'combat',
           attacks: [
             {
-              attackerIds: ['p0s0'],
-              targetId: 'nuke1',
+              attackerIds: [asShipId('p0s0')],
+              targetId: asOrdnanceId('nuke1'),
               targetType: 'ordnance',
               attackStrength: null,
             },
@@ -1015,8 +1017,8 @@ describe('validateClientMessage', () => {
 
     it('rejects attacks exceeding max count', () => {
       const attacks = Array.from({ length: 65 }, () => ({
-        attackerIds: ['p0s0'],
-        targetId: 'p1s0',
+        attackerIds: [asShipId('p0s0')],
+        targetId: asShipId('p1s0'),
       }));
 
       expect(validateClientMessage({ type: 'combat', attacks })).toEqual({
@@ -1029,7 +1031,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds: 'p0s0', targetId: 'p1s0' }],
+          attacks: [{ attackerIds: 'p0s0', targetId: asShipId('p1s0') }],
         }),
       ).toEqual({
         ok: false,
@@ -1041,7 +1043,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds: [], targetId: 'p1s0' }],
+          attacks: [{ attackerIds: [], targetId: asShipId('p1s0') }],
         }),
       ).toEqual({
         ok: false,
@@ -1055,7 +1057,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds, targetId: 'p1s0' }],
+          attacks: [{ attackerIds, targetId: asShipId('p1s0') }],
         }),
       ).toEqual({
         ok: false,
@@ -1067,7 +1069,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds: [42], targetId: 'p1s0' }],
+          attacks: [{ attackerIds: [42], targetId: asShipId('p1s0') }],
         }),
       ).toEqual({
         ok: false,
@@ -1077,7 +1079,9 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds: [''], targetId: 'p1s0' }],
+          attacks: [
+            { attackerIds: [asShipId('')], targetId: asShipId('p1s0') },
+          ],
         }),
       ).toEqual({
         ok: false,
@@ -1089,7 +1093,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds: ['p0s0'] }],
+          attacks: [{ attackerIds: [asShipId('p0s0')] }],
         }),
       ).toEqual({
         ok: false,
@@ -1099,7 +1103,9 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds: ['p0s0'], targetId: '' }],
+          attacks: [
+            { attackerIds: [asShipId('p0s0')], targetId: asShipId('') },
+          ],
         }),
       ).toEqual({
         ok: false,
@@ -1109,7 +1115,7 @@ describe('validateClientMessage', () => {
       expect(
         validateClientMessage({
           type: 'combat',
-          attacks: [{ attackerIds: ['p0s0'], targetId: 42 }],
+          attacks: [{ attackerIds: [asShipId('p0s0')], targetId: 42 }],
         }),
       ).toEqual({
         ok: false,
@@ -1123,8 +1129,8 @@ describe('validateClientMessage', () => {
           type: 'combat',
           attacks: [
             {
-              attackerIds: ['p0s0'],
-              targetId: 'p1s0',
+              attackerIds: [asShipId('p0s0')],
+              targetId: asShipId('p1s0'),
               targetType: 'base',
             },
           ],
@@ -1141,8 +1147,8 @@ describe('validateClientMessage', () => {
           type: 'combat',
           attacks: [
             {
-              attackerIds: ['p0s0'],
-              targetId: 'p1s0',
+              attackerIds: [asShipId('p0s0')],
+              targetId: asShipId('p1s0'),
               attackStrength: 0,
             },
           ],
@@ -1157,8 +1163,8 @@ describe('validateClientMessage', () => {
           type: 'combat',
           attacks: [
             {
-              attackerIds: ['p0s0'],
-              targetId: 'p1s0',
+              attackerIds: [asShipId('p0s0')],
+              targetId: asShipId('p1s0'),
               attackStrength: 100,
             },
           ],
@@ -1173,8 +1179,8 @@ describe('validateClientMessage', () => {
           type: 'combat',
           attacks: [
             {
-              attackerIds: ['p0s0'],
-              targetId: 'p1s0',
+              attackerIds: [asShipId('p0s0')],
+              targetId: asShipId('p1s0'),
               attackStrength: 1.5,
             },
           ],
@@ -1189,8 +1195,8 @@ describe('validateClientMessage', () => {
           type: 'combat',
           attacks: [
             {
-              attackerIds: ['p0s0'],
-              targetId: 'p1s0',
+              attackerIds: [asShipId('p0s0')],
+              targetId: asShipId('p1s0'),
               attackStrength: 'max',
             },
           ],
@@ -1206,8 +1212,8 @@ describe('validateClientMessage', () => {
         type: 'combat',
         attacks: [
           {
-            attackerIds: ['p0s0'],
-            targetId: 'p1s0',
+            attackerIds: [asShipId('p0s0')],
+            targetId: asShipId('p1s0'),
             attackStrength: null,
           },
         ],
@@ -1228,8 +1234,8 @@ describe('validateClientMessage', () => {
         type: 'combat',
         attacks: [
           {
-            attackerIds: ['p0s0'],
-            targetId: 'p1s0',
+            attackerIds: [asShipId('p0s0')],
+            targetId: asShipId('p1s0'),
             attackStrength: 1,
           },
         ],
@@ -1239,8 +1245,8 @@ describe('validateClientMessage', () => {
         type: 'combat',
         attacks: [
           {
-            attackerIds: ['p0s0'],
-            targetId: 'p1s0',
+            attackerIds: [asShipId('p0s0')],
+            targetId: asShipId('p1s0'),
             attackStrength: 99,
           },
         ],
@@ -1273,7 +1279,7 @@ describe('C2S contract fixtures', () => {
       type: 'astrogation',
       orders: [
         {
-          shipId: 'p0s0',
+          shipId: asShipId('p0s0'),
           burn: 2,
           overload: 1,
           weakGravityChoices: { q3r5: true },
@@ -1287,7 +1293,7 @@ describe('C2S contract fixtures', () => {
         type: 'astrogation',
         orders: [
           {
-            shipId: 'p0s0',
+            shipId: asShipId('p0s0'),
             burn: 2,
             overload: 1,
             weakGravityChoices: { q3r5: true },
@@ -1300,7 +1306,7 @@ describe('C2S contract fixtures', () => {
   it('astrogation wire shape with null burn (drift)', () => {
     const result = validateClientMessage({
       type: 'astrogation',
-      orders: [{ shipId: 'p0s0', burn: null }],
+      orders: [{ shipId: asShipId('p0s0'), burn: null }],
     });
 
     expect(result).toEqual({
@@ -1309,7 +1315,7 @@ describe('C2S contract fixtures', () => {
         type: 'astrogation',
         orders: [
           {
-            shipId: 'p0s0',
+            shipId: asShipId('p0s0'),
             burn: null,
             overload: null,
             weakGravityChoices: undefined,
@@ -1324,7 +1330,7 @@ describe('C2S contract fixtures', () => {
       type: 'ordnance',
       launches: [
         {
-          shipId: 'p0s0',
+          shipId: asShipId('p0s0'),
           ordnanceType: 'torpedo',
           torpedoAccel: 3,
           torpedoAccelSteps: 2,
@@ -1338,7 +1344,7 @@ describe('C2S contract fixtures', () => {
         type: 'ordnance',
         launches: [
           {
-            shipId: 'p0s0',
+            shipId: asShipId('p0s0'),
             ordnanceType: 'torpedo',
             torpedoAccel: 3,
             torpedoAccelSteps: 2,
@@ -1353,8 +1359,8 @@ describe('C2S contract fixtures', () => {
       type: 'combat',
       attacks: [
         {
-          attackerIds: ['p0s0', 'p0s1'],
-          targetId: 'p1s0',
+          attackerIds: [asShipId('p0s0'), asShipId('p0s1')],
+          targetId: asShipId('p1s0'),
           targetType: 'ship',
           attackStrength: 4,
         },
@@ -1367,8 +1373,8 @@ describe('C2S contract fixtures', () => {
         type: 'combat',
         attacks: [
           {
-            attackerIds: ['p0s0', 'p0s1'],
-            targetId: 'p1s0',
+            attackerIds: [asShipId('p0s0'), asShipId('p0s1')],
+            targetId: asShipId('p1s0'),
             targetType: 'ship',
             attackStrength: 4,
           },
@@ -1382,7 +1388,7 @@ describe('C2S contract fixtures', () => {
       type: 'logistics',
       transfers: [
         {
-          sourceShipId: 'p0s0',
+          sourceShipId: asShipId('p0s0'),
           targetShipId: 'p0s1',
           transferType: 'fuel',
           amount: 3,
@@ -1396,7 +1402,7 @@ describe('C2S contract fixtures', () => {
         type: 'logistics',
         transfers: [
           {
-            sourceShipId: 'p0s0',
+            sourceShipId: asShipId('p0s0'),
             targetShipId: 'p0s1',
             transferType: 'fuel',
             amount: 3,
@@ -1409,14 +1415,14 @@ describe('C2S contract fixtures', () => {
   it('emplaceBase wire shape', () => {
     const result = validateClientMessage({
       type: 'emplaceBase',
-      emplacements: [{ shipId: 'p0s0' }],
+      emplacements: [{ shipId: asShipId('p0s0') }],
     });
 
     expect(result).toEqual({
       ok: true,
       value: {
         type: 'emplaceBase',
-        emplacements: [{ shipId: 'p0s0' }],
+        emplacements: [{ shipId: asShipId('p0s0') }],
       },
     });
   });
@@ -1571,7 +1577,11 @@ describe('validateServerMessage', () => {
   });
 
   describe('state-carrying messages', () => {
-    const fakeState = { gameId: 'G1', phase: 'astrogation', ships: [] };
+    const fakeState = {
+      gameId: asGameId('G1'),
+      phase: 'astrogation',
+      ships: [],
+    };
 
     it('accepts gameStart with state object', () => {
       const result = validateServerMessage({

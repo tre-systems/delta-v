@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createGameOrThrow } from '../../shared/engine/game-engine';
+import { asGameId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -27,7 +28,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   ...createGameOrThrow(
     SCENARIOS.duel,
     buildSolarSystemMap(),
-    'SESSION',
+    asGameId('SESSION'),
     findBaseHex,
   ),
   phase: 'astrogation',

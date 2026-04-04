@@ -52,6 +52,8 @@ vi.mock('./scene', async (importOriginal) => {
   };
 });
 
+import { asGameId } from '../../shared/ids';
+import type { CombatAttack } from '../../shared/types/domain';
 import { createRenderer } from './renderer';
 
 describe('Renderer static scene cache (mocked scene)', () => {
@@ -131,12 +133,7 @@ describe('Renderer static scene cache (mocked scene)', () => {
     combatTargetType: null as 'ship' | 'ordnance' | null,
     combatAttackerIds: [] as string[],
     combatAttackStrength: null as number | null,
-    queuedAttacks: [] as {
-      attackerIds: string[];
-      targetId: string;
-      targetType: 'ship' | 'ordnance';
-      attackStrength: number | null;
-    }[],
+    queuedAttacks: [] as CombatAttack[],
     acknowledgedShips: new Set<string>(),
     queuedOrdnanceLaunches: [] as never[],
     acknowledgedOrdnanceShips: new Set<string>(),
@@ -180,7 +177,7 @@ describe('Renderer static scene cache (mocked scene)', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'REND2',
+      asGameId('REND2'),
       findBaseHex,
     );
 
@@ -224,7 +221,12 @@ describe('Renderer static scene cache (mocked scene)', () => {
 
     renderer.setMap(map);
     renderer.setGameState(
-      createGameOrThrow(SCENARIOS.biplanetary, map, 'REND3', findBaseHex),
+      createGameOrThrow(
+        SCENARIOS.biplanetary,
+        map,
+        asGameId('REND3'),
+        findBaseHex,
+      ),
     );
 
     renderer.renderFrameForTests(1000, 800, 600);

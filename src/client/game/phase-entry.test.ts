@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, Ship } from '../../shared/types/domain';
 import { deriveClientStateEntryPlan } from './phase-entry';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-1',
+  id: asShipId('ship-1'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -27,7 +27,7 @@ const createState = (
   ships: Ship[],
   overrides: Partial<GameState> = {},
 ): GameState => ({
-  gameId: 'LOCAL',
+  gameId: asGameId('LOCAL'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -66,7 +66,10 @@ describe('game-client-phase-entry', () => {
   it('derives astrogation entry behavior', () => {
     const plan = deriveClientStateEntryPlan(
       'playing_astrogation',
-      createState([createShip(), createShip({ id: 'enemy', owner: 1 })]),
+      createState([
+        createShip(),
+        createShip({ id: asShipId('enemy'), owner: 1 }),
+      ]),
       0,
     );
 
@@ -87,10 +90,10 @@ describe('game-client-phase-entry', () => {
       createState(
         [
           createShip({
-            id: 'restricted',
+            id: asShipId('restricted'),
             type: 'corsair',
           }),
-          createShip({ id: 'launchable', type: 'packet' }),
+          createShip({ id: asShipId('launchable'), type: 'packet' }),
         ],
         { scenarioRules: { allowedOrdnanceTypes: ['nuke'] } },
       ),
@@ -107,7 +110,7 @@ describe('game-client-phase-entry', () => {
       createState(
         [
           createShip({
-            id: 'restricted',
+            id: asShipId('restricted'),
             type: 'corsair',
           }),
         ],
@@ -123,9 +126,9 @@ describe('game-client-phase-entry', () => {
     const plan = deriveClientStateEntryPlan(
       'playing_astrogation',
       createState([
-        createShip({ id: 'ship-a', owner: 0 }),
-        createShip({ id: 'ship-b', owner: 0 }),
-        createShip({ id: 'enemy', owner: 1 }),
+        createShip({ id: asShipId('ship-a'), owner: 0 }),
+        createShip({ id: asShipId('ship-b'), owner: 0 }),
+        createShip({ id: asShipId('enemy'), owner: 1 }),
       ]),
       0,
     );
@@ -148,8 +151,8 @@ describe('game-client-phase-entry', () => {
     const plan = deriveClientStateEntryPlan(
       'playing_ordnance',
       createState([
-        createShip({ id: 'ship-a', owner: 0 }),
-        createShip({ id: 'ship-b', owner: 0 }),
+        createShip({ id: asShipId('ship-a'), owner: 0 }),
+        createShip({ id: asShipId('ship-b'), owner: 0 }),
       ]),
       0,
     );

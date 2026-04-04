@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { asShipId } from '../../shared/ids';
 import type {
   CombatResult,
   MovementEvent,
@@ -14,7 +14,7 @@ import {
 } from './formatters';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'corsair',
   owner: 0,
   originalOwner: 0,
@@ -75,23 +75,23 @@ describe('ui formatters', () => {
 
   it('formats movement event entries including captures', () => {
     const ships = [
-      createShip({ id: 'a', type: 'corsair' }),
-      createShip({ id: 'b', type: 'corvette', owner: 1 }),
+      createShip({ id: asShipId('a'), type: 'corsair' }),
+      createShip({ id: asShipId('b'), type: 'corvette', owner: 1 }),
     ];
 
     const capture: MovementEvent = {
       type: 'capture',
-      shipId: 'b',
+      shipId: asShipId('b'),
       hex: { q: 0, r: 0 },
       dieRoll: 0,
       damageType: 'captured',
       disabledTurns: 0,
-      capturedBy: 'a',
+      capturedBy: asShipId('a'),
     };
 
     const asteroid: MovementEvent = {
       type: 'asteroidHit',
-      shipId: 'a',
+      shipId: asShipId('a'),
       hex: { q: 1, r: 0 },
       dieRoll: 5,
       damageType: 'disabled',
@@ -111,14 +111,14 @@ describe('ui formatters', () => {
 
   it('formats combat results and counterattacks for the game log', () => {
     const ships = [
-      createShip({ id: 'a', type: 'corsair', owner: 0 }),
-      createShip({ id: 'b', type: 'corvette', owner: 0 }),
-      createShip({ id: 'x', type: 'frigate', owner: 1 }),
+      createShip({ id: asShipId('a'), type: 'corsair', owner: 0 }),
+      createShip({ id: asShipId('b'), type: 'corvette', owner: 0 }),
+      createShip({ id: asShipId('x'), type: 'frigate', owner: 1 }),
     ];
 
     const result: CombatResult = {
-      attackerIds: ['a', 'b'],
-      targetId: 'x',
+      attackerIds: [asShipId('a'), asShipId('b')],
+      targetId: asShipId('x'),
       targetType: 'ship',
       attackType: 'gun',
       odds: '1:1',
@@ -131,8 +131,8 @@ describe('ui formatters', () => {
       damageType: 'disabled',
       disabledTurns: 2,
       counterattack: {
-        attackerIds: ['x'],
-        targetId: 'a',
+        attackerIds: [asShipId('x')],
+        targetId: asShipId('a'),
         targetType: 'ship',
         attackType: 'gun',
         odds: '2:1',
@@ -161,11 +161,11 @@ describe('ui formatters', () => {
   });
 
   it('formats asteroid hazard combat entries as environmental events', () => {
-    const ships = [createShip({ id: 'x', type: 'packet', owner: 1 })];
+    const ships = [createShip({ id: asShipId('x'), type: 'packet', owner: 1 })];
 
     const result: CombatResult = {
       attackerIds: [],
-      targetId: 'x',
+      targetId: asShipId('x'),
       targetType: 'ship',
       attackType: 'asteroidHazard',
       odds: '1:1',

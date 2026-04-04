@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createGameOrThrow } from '../../shared/engine/game-engine';
 import { hexKey } from '../../shared/hex';
+import { asGameId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -39,7 +40,7 @@ describe('session-signals', () => {
     const gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'SIG0',
+      asGameId('SIG0'),
       findBaseHex,
     );
     session.gameState = gameState;
@@ -74,7 +75,7 @@ describe('session-signals', () => {
     session.gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'SIG1',
+      asGameId('SIG1'),
       findBaseHex,
     );
     expect(updateHUD).toHaveBeenCalled();
@@ -134,7 +135,7 @@ describe('session-signals', () => {
     session.gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'SIG7',
+      asGameId('SIG7'),
       findBaseHex,
     );
     session.logisticsState = createLogisticsStore(session.gameState, 0);
@@ -174,7 +175,7 @@ describe('session-signals', () => {
     session.gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'SIG4',
+      asGameId('SIG4'),
       findBaseHex,
     );
     const selectedShip = session.gameState.ships.find(
@@ -307,7 +308,7 @@ describe('session-signals', () => {
     session.gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'SIG6',
+      asGameId('SIG6'),
       findBaseHex,
     );
 
@@ -334,7 +335,7 @@ describe('session-signals', () => {
       createGameOrThrow(
         SCENARIOS.duel,
         buildSolarSystemMap(),
-        'SIG5',
+        asGameId('SIG5'),
         findBaseHex,
       ),
       0,
@@ -362,7 +363,7 @@ describe('session-signals', () => {
     const gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'SIG2',
+      asGameId('SIG2'),
       findBaseHex,
     );
     session.gameState = gameState;
@@ -388,7 +389,7 @@ describe('session-signals', () => {
     session.gameState = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'SIG3',
+      asGameId('SIG3'),
       findBaseHex,
     );
     expect(setGameState).not.toHaveBeenCalled();

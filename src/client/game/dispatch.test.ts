@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, Ship, TransferOrder } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 import { derivePhaseTransition } from './phase';
@@ -9,7 +9,7 @@ import type { GameTransport } from './transport';
 // --- Helpers ---
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -29,14 +29,14 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'DSP',
+  gameId: asGameId('DSP'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
   turnNumber: 1,
   phase: 'astrogation',
   activePlayer: 0,
-  ships: [createShip(), createShip({ id: 'enemy', owner: 1 })],
+  ships: [createShip(), createShip({ id: asShipId('enemy'), owner: 1 })],
   ordnance: [],
   pendingAstrogationOrders: null,
   pendingAsteroidHazards: [],
@@ -163,14 +163,14 @@ describe('dispatch: planning state mutations', () => {
   it('undoQueuedAttack pops the last attack', () => {
     const plan = createPlanningStore();
     plan.queueCombatAttack({
-      attackerIds: ['a'],
-      targetId: 'b',
+      attackerIds: [asShipId('a')],
+      targetId: asShipId('b'),
       targetType: 'ship',
       attackStrength: 2,
     });
     plan.queueCombatAttack({
-      attackerIds: ['c'],
-      targetId: 'd',
+      attackerIds: [asShipId('c')],
+      targetId: asShipId('d'),
       targetType: 'ship',
       attackStrength: 1,
     });
@@ -294,8 +294,8 @@ describe('dispatch: logistics transport guards', () => {
     // Simulate having transfer orders
     const orders: TransferOrder[] = [
       {
-        sourceShipId: 'ship-0',
-        targetShipId: 'ship-1',
+        sourceShipId: asShipId('ship-0'),
+        targetShipId: asShipId('ship-1'),
         transferType: 'fuel',
         amount: 3,
       },
@@ -367,7 +367,9 @@ describe('dispatch: phase transition outputs', () => {
     const state = createState({
       phase: 'combat',
       activePlayer: 0,
-      pendingAsteroidHazards: [{ shipId: 'ship-0', hex: { q: 1, r: 2 } }],
+      pendingAsteroidHazards: [
+        { shipId: asShipId('ship-0'), hex: { q: 1, r: 2 } },
+      ],
     });
 
     const plan = derivePhaseTransition(state, 0, -1, false);

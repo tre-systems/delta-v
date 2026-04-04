@@ -12,6 +12,7 @@ import {
   processAstrogation,
 } from '../../shared/engine/game-engine';
 import { processLogistics } from '../../shared/engine/logistics';
+import { asGameId, asShipId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -123,7 +124,7 @@ describe('match-scoped event stream', () => {
     const storage = createMockStorage();
     const legacyStream: EventEnvelope[] = [
       {
-        gameId: 'LEGACY-m1',
+        gameId: asGameId('LEGACY-m1'),
         seq: 1,
         ts: 1_700_000_000_000,
         actor: null,
@@ -139,7 +140,9 @@ describe('match-scoped event stream', () => {
 
     await storage.put('events:LEGACY-m1', legacyStream);
 
-    expect(await getEventStream(storage, 'LEGACY-m1')).toEqual(legacyStream);
+    expect(await getEventStream(storage, asGameId('LEGACY-m1'))).toEqual(
+      legacyStream,
+    );
     expect(await storage.get('eventChunkCount:LEGACY-m1')).toBe(1);
     expect(await storage.get('eventSeq:LEGACY-m1')).toBe(1);
   });
@@ -147,9 +150,9 @@ describe('match-scoped event stream', () => {
   it('appends enveloped events with sequential seq numbers', async () => {
     const storage = createMockStorage();
 
-    await appendEnvelopedEvents(storage, 'ROOM1-m1', 0, {
+    await appendEnvelopedEvents(storage, asGameId('ROOM1-m1'), 0, {
       type: 'shipMoved',
-      shipId: 'p0s0',
+      shipId: asShipId('p0s0'),
       from: { q: 0, r: 0 },
       to: { q: 1, r: 0 },
       path: [
@@ -164,9 +167,9 @@ describe('match-scoped event stream', () => {
       pendingGravityEffects: [],
     });
 
-    await appendEnvelopedEvents(storage, 'ROOM1-m1', 1, {
+    await appendEnvelopedEvents(storage, asGameId('ROOM1-m1'), 1, {
       type: 'shipMoved',
-      shipId: 'p1s0',
+      shipId: asShipId('p1s0'),
       from: { q: 10, r: 10 },
       to: { q: 9, r: 10 },
       path: [
@@ -181,7 +184,7 @@ describe('match-scoped event stream', () => {
       pendingGravityEffects: [],
     });
 
-    const stream = await getEventStream(storage, 'ROOM1-m1');
+    const stream = await getEventStream(storage, asGameId('ROOM1-m1'));
     expect(stream).toHaveLength(2);
     expect(stream[0].seq).toBe(1);
     expect(stream[1].seq).toBe(2);
@@ -195,7 +198,7 @@ describe('match-scoped event stream', () => {
     const storage = createMockStorage();
     const putSpy = vi.spyOn(storage, 'put');
 
-    await appendEnvelopedEvents(storage, 'BATCH-m1', 0, {
+    await appendEnvelopedEvents(storage, asGameId('BATCH-m1'), 0, {
       type: 'phaseChanged',
       phase: 'combat',
       turn: 2,
@@ -216,7 +219,7 @@ describe('match-scoped event stream', () => {
     const storage = createMockStorage();
     vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
 
-    await appendEnvelopedEvents(storage, 'TS-m1', null, {
+    await appendEnvelopedEvents(storage, asGameId('TS-m1'), null, {
       type: 'gameCreated',
       scenario: 'biplanetary',
       turn: 1,
@@ -224,7 +227,7 @@ describe('match-scoped event stream', () => {
       matchSeed: 0,
     });
 
-    const stream = await getEventStream(storage, 'TS-m1');
+    const stream = await getEventStream(storage, asGameId('TS-m1'));
     expect(stream[0].ts).toBe(1700000000000);
 
     vi.restoreAllMocks();
@@ -233,11 +236,11 @@ describe('match-scoped event stream', () => {
   it('tracks stream length via sequence counter', async () => {
     const storage = createMockStorage();
 
-    expect(await getEventStreamLength(storage, 'LEN-m1')).toBe(0);
+    expect(await getEventStreamLength(storage, asGameId('LEN-m1'))).toBe(0);
 
-    await appendEnvelopedEvents(storage, 'LEN-m1', 0, {
+    await appendEnvelopedEvents(storage, asGameId('LEN-m1'), 0, {
       type: 'shipMoved',
-      shipId: 's1',
+      shipId: asShipId('s1'),
       from: { q: 0, r: 0 },
       to: { q: 1, r: 0 },
       path: [
@@ -252,23 +255,23 @@ describe('match-scoped event stream', () => {
       pendingGravityEffects: [],
     });
 
-    expect(await getEventStreamLength(storage, 'LEN-m1')).toBe(1);
+    expect(await getEventStreamLength(storage, asGameId('LEN-m1'))).toBe(1);
 
     await appendEnvelopedEvents(
       storage,
-      'LEN-m1',
+      asGameId('LEN-m1'),
       0,
-      { type: 'shipLanded', shipId: 's1' },
-      { type: 'shipResupplied', shipId: 's1', source: 'base' },
+      { type: 'shipLanded', shipId: asShipId('s1') },
+      { type: 'shipResupplied', shipId: asShipId('s1'), source: 'base' },
     );
 
-    expect(await getEventStreamLength(storage, 'LEN-m1')).toBe(3);
+    expect(await getEventStreamLength(storage, asGameId('LEN-m1'))).toBe(3);
   });
 
   it('isolates event streams across rematches', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
 
-    await appendEnvelopedEvents(storage, 'ISO-m1', null, {
+    await appendEnvelopedEvents(storage, asGameId('ISO-m1'), null, {
       type: 'gameCreated',
       scenario: 'duel',
       turn: 1,
@@ -276,7 +279,7 @@ describe('match-scoped event stream', () => {
       matchSeed: 0,
     });
 
-    await appendEnvelopedEvents(storage, 'ISO-m2', null, {
+    await appendEnvelopedEvents(storage, asGameId('ISO-m2'), null, {
       type: 'gameCreated',
       scenario: 'duel',
       turn: 1,
@@ -284,8 +287,8 @@ describe('match-scoped event stream', () => {
       matchSeed: 0,
     });
 
-    const m1 = await getEventStream(storage, 'ISO-m1');
-    const m2 = await getEventStream(storage, 'ISO-m2');
+    const m1 = await getEventStream(storage, asGameId('ISO-m1'));
+    const m2 = await getEventStream(storage, asGameId('ISO-m2'));
 
     expect(m1).toHaveLength(1);
     expect(m2).toHaveLength(1);
@@ -298,22 +301,22 @@ describe('match-scoped event stream', () => {
   it('skips append for empty event arrays', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
 
-    await appendEnvelopedEvents(storage, 'EMPTY-m1', 0);
+    await appendEnvelopedEvents(storage, asGameId('EMPTY-m1'), 0);
 
-    expect(await getEventStream(storage, 'EMPTY-m1')).toEqual([]);
-    expect(await getEventStreamLength(storage, 'EMPTY-m1')).toBe(0);
+    expect(await getEventStream(storage, asGameId('EMPTY-m1'))).toEqual([]);
+    expect(await getEventStreamLength(storage, asGameId('EMPTY-m1'))).toBe(0);
   });
 
   it('preserves system actor as null', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
 
-    await appendEnvelopedEvents(storage, 'SYS-m1', null, {
+    await appendEnvelopedEvents(storage, asGameId('SYS-m1'), null, {
       type: 'gameOver',
       winner: 0,
       reason: 'Fleet eliminated!',
     });
 
-    const stream = await getEventStream(storage, 'SYS-m1');
+    const stream = await getEventStream(storage, asGameId('SYS-m1'));
     expect(stream[0].actor).toBeNull();
   });
 
@@ -322,22 +325,22 @@ describe('match-scoped event stream', () => {
 
     await appendEnvelopedEvents(
       storage,
-      'CHUNK-m1',
+      asGameId('CHUNK-m1'),
       0,
       ...Array.from({ length: 70 }, (_, index) => ({
         type: 'shipLanded' as const,
-        shipId: `s${index}`,
+        shipId: asShipId(`s${index}`),
       })),
     );
 
-    const stream = await getEventStream(storage, 'CHUNK-m1');
+    const stream = await getEventStream(storage, asGameId('CHUNK-m1'));
 
     expect(stream).toHaveLength(70);
     expect(stream[0].seq).toBe(1);
     expect(stream[63].seq).toBe(64);
     expect(stream[64].seq).toBe(65);
     expect(stream[69].seq).toBe(70);
-    expect(await getEventStreamLength(storage, 'CHUNK-m1')).toBe(70);
+    expect(await getEventStreamLength(storage, asGameId('CHUNK-m1'))).toBe(70);
   });
 
   it('reads only the requested tail from chunked storage', async () => {
@@ -345,15 +348,19 @@ describe('match-scoped event stream', () => {
 
     await appendEnvelopedEvents(
       storage,
-      'TAIL-READ-m1',
+      asGameId('TAIL-READ-m1'),
       0,
       ...Array.from({ length: 70 }, (_, index) => ({
         type: 'shipLanded' as const,
-        shipId: `tail-${index}`,
+        shipId: asShipId(`tail-${index}`),
       })),
     );
 
-    const tail = await getEventStreamTail(storage, 'TAIL-READ-m1', 64);
+    const tail = await getEventStreamTail(
+      storage,
+      asGameId('TAIL-READ-m1'),
+      64,
+    );
 
     expect(tail).toHaveLength(6);
     expect(tail[0].seq).toBe(65);
@@ -365,7 +372,7 @@ describe('match-scoped event stream', () => {
 
     await storage.put<EventEnvelope[]>('events:LEGACY-m1', [
       {
-        gameId: 'LEGACY-m1',
+        gameId: asGameId('LEGACY-m1'),
         seq: 1,
         ts: 1000,
         actor: null,
@@ -379,17 +386,17 @@ describe('match-scoped event stream', () => {
       },
     ]);
 
-    await appendEnvelopedEvents(storage, 'LEGACY-m1', 0, {
+    await appendEnvelopedEvents(storage, asGameId('LEGACY-m1'), 0, {
       type: 'shipLanded',
-      shipId: 'legacy-ship',
+      shipId: asShipId('legacy-ship'),
     });
 
-    const stream = await getEventStream(storage, 'LEGACY-m1');
+    const stream = await getEventStream(storage, asGameId('LEGACY-m1'));
 
     expect(stream).toHaveLength(2);
     expect(stream[0].seq).toBe(1);
     expect(stream[1].seq).toBe(2);
-    expect(await getEventStreamLength(storage, 'LEGACY-m1')).toBe(2);
+    expect(await getEventStreamLength(storage, asGameId('LEGACY-m1'))).toBe(2);
   });
 
   it('envelope structure matches EventEnvelope interface', async () => {
@@ -397,8 +404,8 @@ describe('match-scoped event stream', () => {
 
     const event: EngineEvent = {
       type: 'combatAttack',
-      attackerIds: ['p0s0'],
-      targetId: 'p1s0',
+      attackerIds: [asShipId('p0s0')],
+      targetId: asShipId('p1s0'),
       targetType: 'ship',
       attackType: 'gun',
       roll: 4,
@@ -407,9 +414,9 @@ describe('match-scoped event stream', () => {
       disabledTurns: 1,
     };
 
-    await appendEnvelopedEvents(storage, 'SHAPE-m1', 0, event);
+    await appendEnvelopedEvents(storage, asGameId('SHAPE-m1'), 0, event);
 
-    const stream = await getEventStream(storage, 'SHAPE-m1');
+    const stream = await getEventStream(storage, asGameId('SHAPE-m1'));
     const envelope = stream[0];
 
     expect(Object.keys(envelope).sort()).toEqual(
@@ -426,13 +433,13 @@ describe('checkpoint persistence', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'CHK-m1',
+      asGameId('CHK-m1'),
       findBaseHex,
     );
 
-    await saveCheckpoint(storage, 'CHK-m1', state, 5);
+    await saveCheckpoint(storage, asGameId('CHK-m1'), state, 5);
 
-    const checkpoint = await getCheckpoint(storage, 'CHK-m1');
+    const checkpoint = await getCheckpoint(storage, asGameId('CHK-m1'));
     expect(checkpoint).not.toBeNull();
     expect(checkpoint?.gameId).toBe('CHK-m1');
     expect(checkpoint?.seq).toBe(5);
@@ -447,13 +454,13 @@ describe('checkpoint persistence', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
       map,
-      'SHAPE-m1',
+      asGameId('SHAPE-m1'),
       findBaseHex,
     );
 
-    await saveCheckpoint(storage, 'SHAPE-m1', state, 3);
+    await saveCheckpoint(storage, asGameId('SHAPE-m1'), state, 3);
 
-    const checkpoint = await getCheckpoint(storage, 'SHAPE-m1');
+    const checkpoint = await getCheckpoint(storage, asGameId('SHAPE-m1'));
     expect(checkpoint).not.toBeNull();
     expect(Object.keys(checkpoint ?? {}).sort()).toEqual(
       ['gameId', 'phase', 'savedAt', 'seq', 'state', 'turn'].sort(),
@@ -466,22 +473,22 @@ describe('checkpoint persistence', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'CLONE-m1',
+      asGameId('CLONE-m1'),
       findBaseHex,
     );
 
-    await saveCheckpoint(storage, 'CLONE-m1', state, 1);
+    await saveCheckpoint(storage, asGameId('CLONE-m1'), state, 1);
 
     // Mutate original state
     state.turnNumber = 999;
 
-    const checkpoint = await getCheckpoint(storage, 'CLONE-m1');
+    const checkpoint = await getCheckpoint(storage, asGameId('CLONE-m1'));
     expect(checkpoint?.state.turnNumber).not.toBe(999);
   });
 
   it('returns null for non-existent checkpoint', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    const result = await getCheckpoint(storage, 'NONE-m1');
+    const result = await getCheckpoint(storage, asGameId('NONE-m1'));
     expect(result).toBeNull();
   });
 });
@@ -492,7 +499,7 @@ describe('projection parity: replay timeline vs live state', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'PARITY-m1',
+      asGameId('PARITY-m1'),
       findBaseHex,
     );
 
@@ -530,7 +537,7 @@ describe('projection parity: replay timeline vs live state', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'CKPT-m1',
+      asGameId('CKPT-m1'),
       findBaseHex,
     );
 
@@ -547,19 +554,24 @@ describe('projection parity: replay timeline vs live state', () => {
     if ('error' in astro) return;
 
     // Append events and save checkpoint
-    await appendEnvelopedEvents(storage, 'CKPT-m1', 0, ...astro.engineEvents);
+    await appendEnvelopedEvents(
+      storage,
+      asGameId('CKPT-m1'),
+      0,
+      ...astro.engineEvents,
+    );
 
-    const seq = await getEventStreamLength(storage, 'CKPT-m1');
-    await saveCheckpoint(storage, 'CKPT-m1', astro.state, seq);
+    const seq = await getEventStreamLength(storage, asGameId('CKPT-m1'));
+    await saveCheckpoint(storage, asGameId('CKPT-m1'), astro.state, seq);
 
     // Verify checkpoint matches
-    const checkpoint = await getCheckpoint(storage, 'CKPT-m1');
+    const checkpoint = await getCheckpoint(storage, asGameId('CKPT-m1'));
     expect(checkpoint?.seq).toBe(seq);
     expect(checkpoint?.state.turnNumber).toBe(astro.state.turnNumber);
     expect(checkpoint?.state.phase).toBe(astro.state.phase);
 
     // Event stream should have events up to the seq
-    const stream = await getEventStream(storage, 'CKPT-m1');
+    const stream = await getEventStream(storage, asGameId('CKPT-m1'));
     expect(stream.length).toBe(seq);
     expect(stream[stream.length - 1].seq).toBe(seq);
   });
@@ -570,7 +582,7 @@ describe('replay projection', () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     await appendEnvelopedEvents(
       storage,
-      'FRAME-m1',
+      asGameId('FRAME-m1'),
       null,
       {
         type: 'gameCreated',
@@ -586,7 +598,11 @@ describe('replay projection', () => {
       },
     );
 
-    const projected = await getProjectedReplayTimeline(storage, 'FRAME-m1', 0);
+    const projected = await getProjectedReplayTimeline(
+      storage,
+      asGameId('FRAME-m1'),
+      0,
+    );
 
     expect(projected?.entries).toHaveLength(2);
     expect(projected?.entries[0]?.message.type).toBe('gameStart');
@@ -598,13 +614,13 @@ describe('replay projection', () => {
     const checkpointState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'CURR-m1',
+      asGameId('CURR-m1'),
       findBaseHex,
     );
-    await saveCheckpoint(storage, 'CURR-m1', checkpointState, 1);
+    await saveCheckpoint(storage, asGameId('CURR-m1'), checkpointState, 1);
     await appendEnvelopedEvents(
       storage,
-      'CURR-m1',
+      asGameId('CURR-m1'),
       0,
       {
         type: 'turnAdvanced',
@@ -621,7 +637,7 @@ describe('replay projection', () => {
 
     const projectedState = await getProjectedCurrentState(
       storage,
-      'CURR-m1',
+      asGameId('CURR-m1'),
       0,
     );
 
@@ -635,15 +651,18 @@ describe('replay projection', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'RAW-m1',
+      asGameId('RAW-m1'),
       findBaseHex,
     );
     state.turnNumber = 5;
     state.phase = 'combat';
 
-    await saveCheckpoint(storage, 'RAW-m1', state, 11);
+    await saveCheckpoint(storage, asGameId('RAW-m1'), state, 11);
 
-    const projectedState = await getProjectedCurrentStateRaw(storage, 'RAW-m1');
+    const projectedState = await getProjectedCurrentStateRaw(
+      storage,
+      asGameId('RAW-m1'),
+    );
 
     expect(projectedState).toEqual(state);
   });
@@ -653,17 +672,20 @@ describe('replay projection', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'LEGACY-SCHEMA-m1',
+      asGameId('LEGACY-SCHEMA-m1'),
       findBaseHex,
     );
     state.schemaVersion = undefined;
 
-    await saveCheckpoint(storage, 'LEGACY-SCHEMA-m1', state, 11);
+    await saveCheckpoint(storage, asGameId('LEGACY-SCHEMA-m1'), state, 11);
 
-    const checkpoint = await getCheckpoint(storage, 'LEGACY-SCHEMA-m1');
+    const checkpoint = await getCheckpoint(
+      storage,
+      asGameId('LEGACY-SCHEMA-m1'),
+    );
     const projectedState = await getProjectedCurrentStateRaw(
       storage,
-      'LEGACY-SCHEMA-m1',
+      asGameId('LEGACY-SCHEMA-m1'),
     );
 
     expect(checkpoint?.state.schemaVersion).toBe(1);
@@ -675,7 +697,7 @@ describe('replay projection', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'VIEW-m1',
+      asGameId('VIEW-m1'),
       findBaseHex,
     );
     state.ships[0].identity = {
@@ -687,9 +709,13 @@ describe('replay projection', () => {
       hiddenIdentityInspection: true,
     };
 
-    await saveCheckpoint(storage, 'VIEW-m1', state, 1);
+    await saveCheckpoint(storage, asGameId('VIEW-m1'), state, 1);
 
-    const projected = await getProjectedReplayTimeline(storage, 'VIEW-m1', 1);
+    const projected = await getProjectedReplayTimeline(
+      storage,
+      asGameId('VIEW-m1'),
+      1,
+    );
 
     expect(projected).not.toBeNull();
     const projectedState = projected?.entries[0]?.message.state;
@@ -700,8 +726,8 @@ describe('replay projection', () => {
 
   it('derives replay metadata from match identity and event stream', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
-    await saveMatchCreatedAt(storage, 'META1-m1', 1234);
-    await appendEnvelopedEvents(storage, 'META1-m1', null, {
+    await saveMatchCreatedAt(storage, asGameId('META1-m1'), 1234);
+    await appendEnvelopedEvents(storage, asGameId('META1-m1'), null, {
       type: 'gameCreated',
       scenario: 'Bi-Planetary',
       turn: 1,
@@ -709,7 +735,11 @@ describe('replay projection', () => {
       matchSeed: 0,
     });
 
-    const projected = await getProjectedReplayTimeline(storage, 'META1-m1', 0);
+    const projected = await getProjectedReplayTimeline(
+      storage,
+      asGameId('META1-m1'),
+      0,
+    );
 
     expect(projected?.roomCode).toBe('META1');
     expect(projected?.matchNumber).toBe(1);
@@ -722,17 +752,17 @@ describe('replay projection', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'CKREPLAY-m1',
+      asGameId('CKREPLAY-m1'),
       findBaseHex,
     );
     state.turnNumber = 4;
     state.phase = 'combat';
 
-    await saveCheckpoint(storage, 'CKREPLAY-m1', state, 12);
+    await saveCheckpoint(storage, asGameId('CKREPLAY-m1'), state, 12);
 
     const projected = await getProjectedReplayTimeline(
       storage,
-      'CKREPLAY-m1',
+      asGameId('CKREPLAY-m1'),
       0,
     );
 
@@ -753,15 +783,15 @@ describe('replay projection', () => {
     const checkpointState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'TAILS-m1',
+      asGameId('TAILS-m1'),
       findBaseHex,
     );
     checkpointState.turnNumber = 2;
     checkpointState.phase = 'ordnance';
-    await saveCheckpoint(storage, 'TAILS-m1', checkpointState, 0);
+    await saveCheckpoint(storage, asGameId('TAILS-m1'), checkpointState, 0);
     await appendEnvelopedEvents(
       storage,
-      'TAILS-m1',
+      asGameId('TAILS-m1'),
       0,
       {
         type: 'turnAdvanced',
@@ -776,7 +806,11 @@ describe('replay projection', () => {
       },
     );
 
-    const projected = await getProjectedReplayTimeline(storage, 'TAILS-m1', 0);
+    const projected = await getProjectedReplayTimeline(
+      storage,
+      asGameId('TAILS-m1'),
+      0,
+    );
 
     expect(projected).not.toBeNull();
     expect(projected?.entries).toHaveLength(3);
@@ -792,7 +826,7 @@ describe('replay projection', () => {
 
     await appendEnvelopedEvents(
       storage,
-      'HISTORY-m1',
+      asGameId('HISTORY-m1'),
       null,
       {
         type: 'gameCreated',
@@ -811,14 +845,14 @@ describe('replay projection', () => {
     const checkpointState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'HISTORY-m1',
+      asGameId('HISTORY-m1'),
       findBaseHex,
     );
     checkpointState.turnNumber = 2;
     checkpointState.activePlayer = 1;
 
-    await saveCheckpoint(storage, 'HISTORY-m1', checkpointState, 2);
-    await appendEnvelopedEvents(storage, 'HISTORY-m1', 1, {
+    await saveCheckpoint(storage, asGameId('HISTORY-m1'), checkpointState, 2);
+    await appendEnvelopedEvents(storage, asGameId('HISTORY-m1'), 1, {
       type: 'phaseChanged',
       phase: 'combat',
       turn: 2,
@@ -827,7 +861,7 @@ describe('replay projection', () => {
 
     const projected = await getProjectedReplayTimeline(
       storage,
-      'HISTORY-m1',
+      asGameId('HISTORY-m1'),
       0,
     );
 
@@ -845,15 +879,15 @@ describe('replay projection', () => {
     const checkpointState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'STALE-m1',
+      asGameId('STALE-m1'),
       findBaseHex,
     );
     checkpointState.turnNumber = 1;
 
-    await saveCheckpoint(storage, 'STALE-m1', checkpointState, 1);
+    await saveCheckpoint(storage, asGameId('STALE-m1'), checkpointState, 1);
     await appendEnvelopedEvents(
       storage,
-      'STALE-m1',
+      asGameId('STALE-m1'),
       0,
       {
         type: 'turnAdvanced',
@@ -869,11 +903,11 @@ describe('replay projection', () => {
     );
     const projectedState = await getProjectedCurrentStateRaw(
       storage,
-      'STALE-m1',
+      asGameId('STALE-m1'),
     );
     const projectedTimeline = await getProjectedReplayTimeline(
       storage,
-      'STALE-m1',
+      asGameId('STALE-m1'),
       0,
     );
 
@@ -886,17 +920,17 @@ describe('replay projection', () => {
     const liveState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'PARITY2-m1',
+      asGameId('PARITY2-m1'),
       findBaseHex,
     );
     liveState.turnNumber = 2;
     liveState.phase = 'ordnance';
 
-    await saveCheckpoint(storage, 'PARITY2-m1', liveState, 4);
+    await saveCheckpoint(storage, asGameId('PARITY2-m1'), liveState, 4);
 
-    expect(await hasProjectionParity(storage, 'PARITY2-m1', liveState)).toBe(
-      true,
-    );
+    expect(
+      await hasProjectionParity(storage, asGameId('PARITY2-m1'), liveState),
+    ).toBe(true);
   });
 
   it('ignores transient connection state in parity checks', async () => {
@@ -904,17 +938,22 @@ describe('replay projection', () => {
     const projectedState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'PARITY-CONN-m1',
+      asGameId('PARITY-CONN-m1'),
       findBaseHex,
     );
     const liveState = structuredClone(projectedState);
     liveState.players[0].connected = true;
     liveState.players[1].connected = true;
 
-    await saveCheckpoint(storage, 'PARITY-CONN-m1', projectedState, 1);
+    await saveCheckpoint(
+      storage,
+      asGameId('PARITY-CONN-m1'),
+      projectedState,
+      1,
+    );
 
     expect(
-      await hasProjectionParity(storage, 'PARITY-CONN-m1', liveState),
+      await hasProjectionParity(storage, asGameId('PARITY-CONN-m1'), liveState),
     ).toBe(true);
   });
 
@@ -923,11 +962,11 @@ describe('replay projection', () => {
     let liveState = createGameOrThrow(
       SCENARIOS.duel,
       map,
-      'PARITY4-m1',
+      asGameId('PARITY4-m1'),
       findBaseHex,
     );
 
-    await appendEnvelopedEvents(storage, 'PARITY4-m1', null, {
+    await appendEnvelopedEvents(storage, asGameId('PARITY4-m1'), null, {
       type: 'gameCreated',
       scenario: liveState.scenario,
       turn: liveState.turnNumber,
@@ -999,13 +1038,13 @@ describe('replay projection', () => {
     const projectedState = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'PARITY3-m1',
+      asGameId('PARITY3-m1'),
       findBaseHex,
     );
     const liveState = structuredClone(projectedState);
     liveState.turnNumber = projectedState.turnNumber + 1;
 
-    await appendEnvelopedEvents(storage, 'PARITY3-m1', null, {
+    await appendEnvelopedEvents(storage, asGameId('PARITY3-m1'), null, {
       type: 'gameCreated',
       scenario: projectedState.scenario,
       turn: projectedState.turnNumber,
@@ -1013,8 +1052,8 @@ describe('replay projection', () => {
       matchSeed: 0,
     });
 
-    expect(await hasProjectionParity(storage, 'PARITY3-m1', liveState)).toBe(
-      false,
-    );
+    expect(
+      await hasProjectionParity(storage, asGameId('PARITY3-m1'), liveState),
+    ).toBe(false);
   });
 });

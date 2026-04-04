@@ -2,11 +2,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MOVEMENT_ANIM_DURATION } from '../../shared/constants';
 import { createGameOrThrow } from '../../shared/engine/game-engine';
+import { asGameId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
+import type { CombatAttack } from '../../shared/types/domain';
 
 // Tests for the animation fallback timer in the Renderer.
 //
@@ -336,12 +338,7 @@ describe('Renderer initialization and state methods', () => {
     combatTargetType: null as 'ship' | 'ordnance' | null,
     combatAttackerIds: [] as string[],
     combatAttackStrength: null as number | null,
-    queuedAttacks: [] as {
-      attackerIds: string[];
-      targetId: string;
-      targetType: 'ship' | 'ordnance';
-      attackStrength: number | null;
-    }[],
+    queuedAttacks: [] as CombatAttack[],
     acknowledgedShips: new Set<string>(),
     queuedOrdnanceLaunches: [] as never[],
     acknowledgedOrdnanceShips: new Set<string>(),
@@ -386,7 +383,7 @@ describe('Renderer initialization and state methods', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'REND1',
+      asGameId('REND1'),
       findBaseHex,
     );
 

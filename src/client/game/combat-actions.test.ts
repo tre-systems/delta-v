@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type {
   GameState,
   PlayerState,
@@ -15,7 +15,7 @@ import { createPlanningStore } from './planning';
 import type { GameTransport } from './transport';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,
@@ -54,7 +54,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'TEST',
+  gameId: asGameId('TEST'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -62,22 +62,22 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   phase: 'combat',
   activePlayer: 0,
   ships: [
-    createShip({ id: 'ship-0', owner: 0, type: 'corvette' }),
+    createShip({ id: asShipId('ship-0'), owner: 0, type: 'corvette' }),
     createShip({
-      id: 'ship-1',
+      id: asShipId('ship-1'),
       owner: 0,
       type: 'corvette',
       position: { q: 0, r: 1 },
     }),
     createShip({
-      id: 'enemy-1',
+      id: asShipId('enemy-1'),
       owner: 1,
       originalOwner: 1,
       type: 'transport',
       position: { q: 1, r: 0 },
     }),
     createShip({
-      id: 'enemy-2',
+      id: asShipId('enemy-2'),
       owner: 1,
       originalOwner: 1,
       type: 'transport',
@@ -146,15 +146,15 @@ describe('combat action helpers', () => {
   it('auto-skips combat when no visible targets exist', () => {
     const noTargetsState = createState({
       ships: [
-        createShip({ id: 'ship-0', owner: 0, type: 'corvette' }),
+        createShip({ id: asShipId('ship-0'), owner: 0, type: 'corvette' }),
         createShip({
-          id: 'ship-1',
+          id: asShipId('ship-1'),
           owner: 0,
           type: 'corvette',
           position: { q: 0, r: 1 },
         }),
         createShip({
-          id: 'enemy-1',
+          id: asShipId('enemy-1'),
           owner: 1,
           originalOwner: 1,
           type: 'transport',

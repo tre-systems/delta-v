@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
+import { asShipId } from '../../shared/ids';
 import type { Ship } from '../../shared/types/domain';
 import { createShipListView } from './ship-list-view';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'transport',
   owner: 0,
   originalOwner: 0,
@@ -40,13 +40,13 @@ describe('ShipListView', () => {
     view.update(
       [
         createShip({
-          id: 'selected',
+          id: asShipId('selected'),
           type: 'packet',
           cargoUsed: 15,
           lifecycle: 'landed',
         }),
         createShip({
-          id: 'burning',
+          id: asShipId('burning'),
           type: 'corvette',
         }),
       ],
@@ -76,7 +76,7 @@ describe('ShipListView', () => {
     view.update(
       [
         createShip({
-          id: 'destroyed',
+          id: asShipId('destroyed'),
           lifecycle: 'destroyed',
         }),
       ],
@@ -95,14 +95,14 @@ describe('ShipListView', () => {
     const onSelectShip = vi.fn<(shipId: string) => void>();
     const view = createShipListView({ onSelectShip });
 
-    view.update([createShip({ id: 'ship-0' })], null, new Map());
+    view.update([createShip({ id: asShipId('ship-0') })], null, new Map());
 
     const staleEntry = document.querySelector<HTMLElement>(
       '#shipList .ship-entry',
     ) as HTMLElement;
     const removeSpy = vi.spyOn(staleEntry, 'removeEventListener');
 
-    view.update([createShip({ id: 'ship-1' })], null, new Map());
+    view.update([createShip({ id: asShipId('ship-1') })], null, new Map());
 
     expect(removeSpy).toHaveBeenCalledWith(
       'click',
@@ -122,7 +122,7 @@ describe('ShipListView', () => {
     expect(document.querySelectorAll('#shipList .ship-entry')).toHaveLength(1);
 
     view.dispose();
-    view.update([createShip({ id: 'ship-1' })], 'ship-1', new Map());
+    view.update([createShip({ id: asShipId('ship-1') })], 'ship-1', new Map());
 
     expect(document.querySelectorAll('#shipList .ship-entry')).toHaveLength(0);
   });

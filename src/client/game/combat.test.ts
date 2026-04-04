@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asOrdnanceId, asShipId } from '../../shared/ids';
 import type {
   CombatAttack,
   GameState,
@@ -25,7 +25,7 @@ import {
 } from './combat';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'corsair',
   owner: 0,
   originalOwner: 0,
@@ -45,7 +45,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 
 const createOrdnance = (overrides: Partial<Ordnance> = {}): Ordnance => ({
-  id: 'ord-0',
+  id: asOrdnanceId('ord-0'),
   type: 'nuke',
   owner: 1,
   sourceShipId: null,
@@ -76,7 +76,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'TEST',
+  gameId: asGameId('TEST'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -84,21 +84,21 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   phase: 'combat',
   activePlayer: 0,
   ships: [
-    createShip({ id: 'a', owner: 0, type: 'corsair' }),
+    createShip({ id: asShipId('a'), owner: 0, type: 'corsair' }),
     createShip({
-      id: 'b',
+      id: asShipId('b'),
       owner: 0,
       type: 'corvette',
       position: { q: 0, r: 1 },
     }),
     createShip({
-      id: 'x',
+      id: asShipId('x'),
       owner: 1,
       type: 'frigate',
       position: { q: 1, r: 0 },
     }),
     createShip({
-      id: 'y',
+      id: asShipId('y'),
       owner: 1,
       type: 'packet',
       position: { q: 1, r: 0 },
@@ -125,15 +125,15 @@ describe('game client combat helpers', () => {
     const state = createState();
     const queuedAttacks: CombatAttack[] = [
       {
-        attackerIds: ['a', 'b'],
-        targetId: 'x',
+        attackerIds: [asShipId('a'), asShipId('b')],
+        targetId: asShipId('x'),
         targetType: 'ship',
         attackStrength: 3,
       },
     ];
 
     expect(getReusableCombatGroup(state, 0, queuedAttacks, 'y')).toEqual({
-      attackerIds: ['a', 'b'],
+      attackerIds: [asShipId('a'), asShipId('b')],
       remainingStrength: 3,
     });
 
@@ -157,8 +157,8 @@ describe('game client combat helpers', () => {
         map,
       ),
     ).toEqual({
-      attackerIds: ['a'],
-      targetId: 'x',
+      attackerIds: [asShipId('a')],
+      targetId: asShipId('x'),
       targetType: 'ship',
       attackStrength: 4,
     });
@@ -182,8 +182,8 @@ describe('game client combat helpers', () => {
         'b',
       ),
     ).toEqual({
-      attackerIds: ['b'],
-      targetId: 'x',
+      attackerIds: [asShipId('b')],
+      targetId: asShipId('x'),
       targetType: 'ship',
       attackStrength: 2,
     });
@@ -208,8 +208,8 @@ describe('game client combat helpers', () => {
         map,
       ),
     ).toEqual({
-      attackerIds: ['a', 'b'],
-      targetId: 'ord-0',
+      attackerIds: [asShipId('a'), asShipId('b')],
+      targetId: asOrdnanceId('ord-0'),
       targetType: 'ordnance',
       attackStrength: null,
     });
@@ -219,8 +219,8 @@ describe('game client combat helpers', () => {
     const state = createState();
     const queuedAttacks: CombatAttack[] = [
       {
-        attackerIds: ['a'],
-        targetId: 'x',
+        attackerIds: [asShipId('a')],
+        targetId: asShipId('x'),
         targetType: 'ship',
         attackStrength: 4,
       },
@@ -237,8 +237,8 @@ describe('game client combat helpers', () => {
     });
     const queuedAttacks: CombatAttack[] = [
       {
-        attackerIds: ['a'],
-        targetId: 'x',
+        attackerIds: [asShipId('a')],
+        targetId: asShipId('x'),
         targetType: 'ship',
         attackStrength: 4,
       },
@@ -249,19 +249,19 @@ describe('game client combat helpers', () => {
     expect(
       getCombatTargetAtHex(state, 0, { q: 2, r: 0 }, queuedAttacks),
     ).toEqual({
-      targetId: 'ord-0',
+      targetId: asOrdnanceId('ord-0'),
       targetType: 'ordnance',
     });
 
     expect(getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, [])).toEqual({
-      targetId: 'x',
+      targetId: asShipId('x'),
       targetType: 'ship',
     });
 
     expect(
       getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, queuedAttacks),
     ).not.toEqual({
-      targetId: 'x',
+      targetId: asShipId('x'),
       targetType: 'ship',
     });
   });
@@ -269,14 +269,14 @@ describe('game client combat helpers', () => {
   it('ignores undetected ships and non-nuke ordnance when choosing combat targets', () => {
     const state = createState({
       ships: [
-        createShip({ id: 'a', owner: 0 }),
+        createShip({ id: asShipId('a'), owner: 0 }),
         createShip({
-          id: 'b',
+          id: asShipId('b'),
           owner: 0,
           position: { q: 0, r: 1 },
         }),
         createShip({
-          id: 'x',
+          id: asShipId('x'),
           owner: 1,
           position: { q: 1, r: 0 },
           detected: false,
@@ -284,7 +284,7 @@ describe('game client combat helpers', () => {
       ],
       ordnance: [
         createOrdnance({
-          id: 'mine-0',
+          id: asOrdnanceId('mine-0'),
           type: 'mine',
           position: { q: 2, r: 0 },
         }),
@@ -301,19 +301,19 @@ describe('game client combat helpers', () => {
     const state = createState({
       ships: [
         createShip({
-          id: 'a',
+          id: asShipId('a'),
           owner: 0,
           type: 'corsair',
           position: hex,
         }),
         createShip({
-          id: 'b',
+          id: asShipId('b'),
           owner: 0,
           type: 'corvette',
           position: hex,
         }),
         createShip({
-          id: 'x',
+          id: asShipId('x'),
           owner: 1,
           type: 'frigate',
           position: { q: 1, r: 0 },
@@ -335,8 +335,8 @@ describe('game client combat helpers', () => {
     const state = createState();
     const queuedAttacks: CombatAttack[] = [
       {
-        attackerIds: ['a', 'b'],
-        targetId: 'x',
+        attackerIds: [asShipId('a'), asShipId('b')],
+        targetId: asShipId('x'),
         targetType: 'ship',
         attackStrength: 3,
       },
@@ -393,13 +393,13 @@ describe('game client combat helpers', () => {
       ).map((ship) => ship.id),
     ).toEqual(['a', 'b']);
 
-    expect(toggleCombatAttackerSelection(state, 0, planning, map, 'b')).toEqual(
-      {
-        consumed: true,
-        combatAttackerIds: ['a'],
-        combatAttackStrength: 4,
-      },
-    );
+    expect(
+      toggleCombatAttackerSelection(state, 0, planning, map, asShipId('b')),
+    ).toEqual({
+      consumed: true,
+      combatAttackerIds: ['a'],
+      combatAttackStrength: 4,
+    });
 
     expect(
       toggleCombatAttackerSelection(
@@ -411,7 +411,7 @@ describe('game client combat helpers', () => {
           combatAttackStrength: 4,
         },
         map,
-        'a',
+        asShipId('a'),
       ),
     ).toEqual({
       consumed: true,
@@ -427,27 +427,27 @@ describe('game client combat helpers', () => {
 
     expect(hasVisibleCombatTargets(state, 0, map)).toBe(true);
     expect(findNearestTarget(state, 0, 'b', [], map)).toEqual({
-      targetId: 'x',
+      targetId: asShipId('x'),
       targetType: 'ship',
     });
 
     const queuedAttacks: CombatAttack[] = [
       {
-        attackerIds: ['b'],
-        targetId: 'x',
+        attackerIds: [asShipId('b')],
+        targetId: asShipId('x'),
         targetType: 'ship',
         attackStrength: 2,
       },
       {
-        attackerIds: ['a'],
-        targetId: 'y',
+        attackerIds: [asShipId('a')],
+        targetId: asShipId('y'),
         targetType: 'ship',
         attackStrength: 4,
       },
     ];
 
     expect(findNearestTarget(state, 0, 'b', queuedAttacks, map)).toEqual({
-      targetId: 'ord-0',
+      targetId: asOrdnanceId('ord-0'),
       targetType: 'ordnance',
     });
   });

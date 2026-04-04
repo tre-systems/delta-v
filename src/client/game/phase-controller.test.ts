@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 import {
@@ -8,7 +8,7 @@ import {
 } from './phase-controller';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -47,14 +47,14 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'PHASE',
+  gameId: asGameId('PHASE'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
   turnNumber: 2,
   phase: 'astrogation',
   activePlayer: 0,
-  ships: [createShip(), createShip({ id: 'enemy', owner: 1 })],
+  ships: [createShip(), createShip({ id: asShipId('enemy'), owner: 1 })],
   ordnance: [],
   pendingAstrogationOrders: null,
   pendingAsteroidHazards: [],
@@ -147,7 +147,9 @@ describe('transitionClientPhase', () => {
       gameState: createState({
         phase: 'combat',
         activePlayer: 0,
-        pendingAsteroidHazards: [{ shipId: 'ship-0', hex: { q: 1, r: 1 } }],
+        pendingAsteroidHazards: [
+          { shipId: asShipId('ship-0'), hex: { q: 1, r: 1 } },
+        ],
       }),
       lastLoggedTurn: 2,
     });

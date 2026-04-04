@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type {
   AstrogationOrder,
@@ -13,7 +13,7 @@ import type {
 import { deriveAIActionPlan } from './ai-flow';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-1',
+  id: asShipId('ship-1'),
   type: 'packet',
   owner: 1,
   originalOwner: 0,
@@ -52,7 +52,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'AI',
+  gameId: asGameId('AI'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -61,12 +61,12 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   activePlayer: 1,
   ships: [
     createShip({
-      id: 'player-ship',
+      id: asShipId('player-ship'),
       owner: 0,
       originalOwner: 0,
       position: { q: 3, r: 0 },
     }),
-    createShip({ id: 'ai-ship', owner: 1 }),
+    createShip({ id: asShipId('ai-ship'), owner: 1 }),
   ],
   ordnance: [],
   pendingAstrogationOrders: null,
@@ -98,7 +98,7 @@ describe('game-client-ai-flow', () => {
   it('derives astrogation actions from the injected generator', () => {
     const map = buildSolarSystemMap();
     const orders: AstrogationOrder[] = [
-      { shipId: 'ai-ship', burn: 2, overload: null },
+      { shipId: asShipId('ai-ship'), burn: 2, overload: null },
     ];
     const astrogation = vi.fn(() => orders);
 
@@ -127,7 +127,7 @@ describe('game-client-ai-flow', () => {
     const map = buildSolarSystemMap();
     const launches: OrdnanceLaunch[] = [
       {
-        shipId: 'ai-ship',
+        shipId: asShipId('ai-ship'),
         ordnanceType: 'mine',
         torpedoAccel: null,
         torpedoAccelSteps: null,
@@ -171,8 +171,8 @@ describe('game-client-ai-flow', () => {
     const map = buildSolarSystemMap();
     const attacks: CombatAttack[] = [
       {
-        attackerIds: ['ai-ship'],
-        targetId: 'player-ship',
+        attackerIds: [asShipId('ai-ship')],
+        targetId: asShipId('player-ship'),
         targetType: 'ship',
         attackStrength: null,
       },
@@ -182,7 +182,9 @@ describe('game-client-ai-flow', () => {
       deriveAIActionPlan(
         createState({
           phase: 'combat',
-          pendingAsteroidHazards: [{ shipId: 'ai-ship', hex: { q: 0, r: 0 } }],
+          pendingAsteroidHazards: [
+            { shipId: asShipId('ai-ship'), hex: { q: 0, r: 0 } },
+          ],
         }),
         0,
         map,
@@ -245,8 +247,8 @@ describe('game-client-ai-flow', () => {
     const map = buildSolarSystemMap();
     const transfers: TransferOrder[] = [
       {
-        sourceShipId: 'ai-ship',
-        targetShipId: 'player-ship',
+        sourceShipId: asShipId('ai-ship'),
+        targetShipId: asShipId('player-ship'),
         transferType: 'fuel',
         amount: 3,
       },

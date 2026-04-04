@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import {
   createGameOrThrow,
@@ -29,7 +29,12 @@ const withFugitiveIdentity = (state: ReturnType<typeof createGameOrThrow>) => {
 describe('viewer-aware state filtering', () => {
   it('player 0 sees own identity, enemy identity stripped', () => {
     const state = withFugitiveIdentity(
-      createGameOrThrow(SCENARIOS.biplanetary, map, 'V01', findBaseHex),
+      createGameOrThrow(
+        SCENARIOS.biplanetary,
+        map,
+        asGameId('V01'),
+        findBaseHex,
+      ),
     );
 
     const filtered = filterStateForPlayer(state, 0);
@@ -50,7 +55,12 @@ describe('viewer-aware state filtering', () => {
 
   it('player 1 sees own identity, enemy (player 0) identity stripped', () => {
     const state = withFugitiveIdentity(
-      createGameOrThrow(SCENARIOS.biplanetary, map, 'V02', findBaseHex),
+      createGameOrThrow(
+        SCENARIOS.biplanetary,
+        map,
+        asGameId('V02'),
+        findBaseHex,
+      ),
     );
 
     const filtered = filterStateForPlayer(state, 1);
@@ -70,7 +80,12 @@ describe('viewer-aware state filtering', () => {
 
   it('spectator sees ALL identity stripped', () => {
     const state = withFugitiveIdentity(
-      createGameOrThrow(SCENARIOS.biplanetary, map, 'V03', findBaseHex),
+      createGameOrThrow(
+        SCENARIOS.biplanetary,
+        map,
+        asGameId('V03'),
+        findBaseHex,
+      ),
     );
 
     const filtered = filterStateForPlayer(state, 'spectator');
@@ -91,7 +106,12 @@ describe('viewer-aware state filtering', () => {
 
   it('revealed identity is visible to all viewers', () => {
     const state = withFugitiveIdentity(
-      createGameOrThrow(SCENARIOS.biplanetary, map, 'V04', findBaseHex),
+      createGameOrThrow(
+        SCENARIOS.biplanetary,
+        map,
+        asGameId('V04'),
+        findBaseHex,
+      ),
     );
 
     // Reveal the fugitive's identity
@@ -114,7 +134,7 @@ describe('viewer-aware state filtering', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'V05',
+      asGameId('V05'),
       findBaseHex,
     );
 
@@ -129,7 +149,12 @@ describe('viewer-aware state filtering', () => {
 
   it('consistent filtering across live, replay, and spectator paths', () => {
     const state = withFugitiveIdentity(
-      createGameOrThrow(SCENARIOS.biplanetary, map, 'V06', findBaseHex),
+      createGameOrThrow(
+        SCENARIOS.biplanetary,
+        map,
+        asGameId('V06'),
+        findBaseHex,
+      ),
     );
 
     // Simulate the three filtering contexts

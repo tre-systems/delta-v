@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
+import { asGameId } from '../../shared/ids';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type { GameCommand } from './commands';
 import { createMainInteractionController } from './main-interactions';
@@ -88,7 +88,7 @@ const createController = () => {
     | 'playing_astrogation'
     | 'playing_fleetBuilding'
     | 'playing_movementAnim' = 'playing_astrogation';
-  let currentGameState = { gameId: 'GAME1' } as object | null;
+  let currentGameState = { gameId: asGameId('GAME1') } as object | null;
   const transport = createTransport();
   const planningState = { id: 'planning-state' };
   const mainNetworkDeps = { id: 'network-deps' } as unknown as MainNetworkDeps;
@@ -216,7 +216,9 @@ describe('main-interactions', () => {
     expect(routerDeps.ctx.getState()).toBe('playing_astrogation');
     setState('playing_fleetBuilding');
     expect(routerDeps.ctx.getState()).toBe('playing_fleetBuilding');
-    expect(routerDeps.ctx.getGameState()).toEqual({ gameId: 'GAME1' });
+    expect(routerDeps.ctx.getGameState()).toEqual({
+      gameId: asGameId('GAME1'),
+    });
     expect(routerDeps.ctx.getPlayerId()).toBe(0);
     expect(routerDeps.ctx.getTransport()).toBe(transport);
     expect(routerDeps.ctx.planningState).toBe(planningState);
@@ -261,7 +263,7 @@ describe('main-interactions', () => {
 
     expect(mocks.interpretInput).toHaveBeenCalledWith(
       clickEvent,
-      { gameId: 'GAME1' },
+      { gameId: asGameId('GAME1') },
       'astrogation',
       deps.map,
       0,

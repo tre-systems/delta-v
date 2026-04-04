@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-
+import { asShipId } from '../../shared/ids';
 import type { Ship } from '../../shared/types/domain';
 import { buildShipListView } from './ship-list';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'transport',
   owner: 0,
   originalOwner: 0,
@@ -27,9 +27,9 @@ describe('ui ship list helpers', () => {
   it('numbers repeated ship types and preserves unique names', () => {
     const view = buildShipListView(
       [
-        createShip({ id: 'a', type: 'transport' }),
-        createShip({ id: 'b', type: 'transport' }),
-        createShip({ id: 'c', type: 'corvette' }),
+        createShip({ id: asShipId('a'), type: 'transport' }),
+        createShip({ id: asShipId('b'), type: 'transport' }),
+        createShip({ id: asShipId('c'), type: 'corvette' }),
       ],
       null,
       new Map(),
@@ -46,17 +46,17 @@ describe('ui ship list helpers', () => {
     const view = buildShipListView(
       [
         createShip({
-          id: 'a',
+          id: asShipId('a'),
           type: 'corvette',
           heroismAvailable: true,
           damage: { disabledTurns: 2 },
         }),
         createShip({
-          id: 'b',
+          id: asShipId('b'),
           control: 'captured',
         }),
         createShip({
-          id: 'c',
+          id: asShipId('c'),
           lifecycle: 'destroyed',
         }),
       ],
@@ -86,14 +86,14 @@ describe('ui ship list helpers', () => {
     const view = buildShipListView(
       [
         createShip({
-          id: 'a',
+          id: asShipId('a'),
           type: 'packet',
           cargoUsed: 15,
           velocity: { dq: 2, dr: -1 },
           heroismAvailable: true,
           lifecycle: 'landed',
         }),
-        createShip({ id: 'b' }),
+        createShip({ id: asShipId('b') }),
       ],
       'a',
       new Map(),
@@ -113,7 +113,7 @@ describe('ui ship list helpers', () => {
     const view = buildShipListView(
       [
         createShip({
-          id: 'a',
+          id: asShipId('a'),
           control: 'captured',
           damage: { disabledTurns: 3 },
         }),

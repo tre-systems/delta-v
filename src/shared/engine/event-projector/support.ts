@@ -1,3 +1,4 @@
+import type { OrdnanceId, ShipId } from '../../ids';
 import { isValidScenario, SCENARIOS } from '../../map-data';
 import type { ScenarioDefinition } from '../../types';
 import { CURRENT_GAME_STATE_SCHEMA_VERSION } from '../../types';
@@ -91,7 +92,7 @@ export const requireState = (
 
 export const requireShip = (
   state: GameState,
-  shipId: string,
+  shipId: ShipId,
 ): Result<GameState['ships'][number]> => {
   const ship = state.ships.find((candidate) => candidate.id === shipId);
 
@@ -102,7 +103,7 @@ export const requireShip = (
 
 export const requireOrdnance = (
   state: GameState,
-  ordnanceId: string,
+  ordnanceId: OrdnanceId,
 ): Result<GameState['ordnance'][number]> => {
   const ordnance = state.ordnance.find(
     (candidate) => candidate.id === ordnanceId,

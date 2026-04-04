@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { must } from '../../shared/assert';
+import { asGameId, asShipId } from '../../shared/ids';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
 import {
@@ -12,7 +13,7 @@ import {
 } from './navigation';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'transport',
   owner: 0,
   originalOwner: 0,
@@ -51,7 +52,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (ships: Ship[]): GameState => ({
-  gameId: 'TEST',
+  gameId: asGameId('TEST'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -71,14 +72,14 @@ const createState = (ships: Ship[]): GameState => ({
 describe('game client navigation helpers', () => {
   it('cycles to the next available owned ship and wraps around', () => {
     const state = createState([
-      createShip({ id: 'a', owner: 0 }),
+      createShip({ id: asShipId('a'), owner: 0 }),
       createShip({
-        id: 'b',
+        id: asShipId('b'),
         owner: 0,
         originalOwner: 0,
         position: { q: 1, r: 0 },
       }),
-      createShip({ id: 'c', owner: 1 }),
+      createShip({ id: asShipId('c'), owner: 1 }),
     ]);
 
     expect(getNextSelectedShip(state, 0, 'b', 1)?.id).toBe('a');
@@ -86,15 +87,15 @@ describe('game client navigation helpers', () => {
 
   it('finds the nearest detected enemy to the camera center', () => {
     const state = createState([
-      createShip({ id: 'self', owner: 0 }),
+      createShip({ id: asShipId('self'), owner: 0 }),
       createShip({
-        id: 'far',
+        id: asShipId('far'),
         owner: 1,
         originalOwner: 0,
         position: { q: 6, r: 0 },
       }),
       createShip({
-        id: 'near',
+        id: asShipId('near'),
         owner: 1,
         originalOwner: 0,
         position: { q: 1, r: 0 },
@@ -107,18 +108,18 @@ describe('game client navigation helpers', () => {
   it('focuses the selected ship first, then falls back to the first alive ship', () => {
     const state = createState([
       createShip({
-        id: 'a',
+        id: asShipId('a'),
         owner: 0,
         originalOwner: 0,
         position: { q: 3, r: 0 },
       }),
       createShip({
-        id: 'b',
+        id: asShipId('b'),
         owner: 0,
         originalOwner: 0,
         position: { q: 1, r: 2 },
       }),
-      createShip({ id: 'enemy', owner: 1 }),
+      createShip({ id: asShipId('enemy'), owner: 1 }),
     ]);
 
     expect(getOwnFleetFocusPosition(state, 0, 'b')).toEqual({ q: 1, r: 2 });
@@ -133,7 +134,7 @@ describe('game client navigation helpers', () => {
       'test map has Mars',
     );
 
-    const state = createState([createShip({ id: 'me', owner: 0 })]);
+    const state = createState([createShip({ id: asShipId('me'), owner: 0 })]);
     state.players[0].targetBody = 'Mars';
 
     expect(
@@ -145,7 +146,7 @@ describe('game client navigation helpers', () => {
     const map = buildSolarSystemMap();
     const state = createState([
       createShip({
-        id: 'me',
+        id: asShipId('me'),
         owner: 0,
         position: { q: 0, r: 0 },
       }),

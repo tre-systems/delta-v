@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { HEX_DIRECTIONS, hexAdd, hexKey } from '../../shared/hex';
+import { asGameId, asShipId } from '../../shared/ids';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type {
   GameState,
@@ -12,7 +13,7 @@ import { resolveAstrogationClick, resolveOrdnanceClick } from './input';
 import type { PlanningState } from './planning';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,
@@ -51,7 +52,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'TEST',
+  gameId: asGameId('TEST'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -61,7 +62,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   ships: [
     createShip(),
     createShip({
-      id: 'ship-1',
+      id: asShipId('ship-1'),
       owner: 1,
       originalOwner: 0,
       position: { q: 2, r: 0 },
@@ -118,7 +119,7 @@ describe('game client input helpers', () => {
       }),
     ).toEqual({
       type: 'selectShip',
-      shipId: 'ship-0',
+      shipId: asShipId('ship-0'),
     });
   });
 
@@ -150,7 +151,7 @@ describe('game client input helpers', () => {
       ),
     ).toEqual({
       type: 'burnToggle',
-      shipId: 'ship-0',
+      shipId: asShipId('ship-0'),
       direction: 0,
       clearOverload: true,
     });
@@ -174,7 +175,7 @@ describe('game client input helpers', () => {
       ),
     ).toEqual({
       type: 'overloadToggle',
-      shipId: 'ship-0',
+      shipId: asShipId('ship-0'),
       direction: 1,
     });
   });
@@ -201,7 +202,7 @@ describe('game client input helpers', () => {
 
     expect(interaction).toEqual({
       type: 'weakGravityToggle',
-      shipId: 'ship-0',
+      shipId: asShipId('ship-0'),
       choices: { [hexKey(weakHex)]: true },
     });
   });
@@ -256,7 +257,7 @@ describe('game client input helpers', () => {
       ),
     ).toEqual({
       type: 'selectShip',
-      shipId: 'ship-0',
+      shipId: asShipId('ship-0'),
       clearTorpedoAccel: true,
     });
   });
@@ -277,19 +278,19 @@ describe('game client input helpers', () => {
     const state = createState({
       ships: [
         createShip({
-          id: 'ship-a',
+          id: asShipId('ship-a'),
           owner: 0,
           originalOwner: 0,
           position: hex,
         }),
         createShip({
-          id: 'ship-b',
+          id: asShipId('ship-b'),
           owner: 0,
           originalOwner: 0,
           position: hex,
         }),
         createShip({
-          id: 'enemy',
+          id: asShipId('enemy'),
           owner: 1,
           originalOwner: 0,
           position: { q: 5, r: 0 },
@@ -302,7 +303,7 @@ describe('game client input helpers', () => {
       resolveAstrogationClick(state, simpleMap, 0, createPlanning(), hex),
     ).toEqual({
       type: 'selectShip',
-      shipId: 'ship-a',
+      shipId: asShipId('ship-a'),
     });
 
     // Second click with ship-a selected at same hex cycles to ship-b
@@ -319,7 +320,7 @@ describe('game client input helpers', () => {
       ),
     ).toEqual({
       type: 'selectShip',
-      shipId: 'ship-b',
+      shipId: asShipId('ship-b'),
     });
 
     // Third click cycles back to ship-a
@@ -336,7 +337,7 @@ describe('game client input helpers', () => {
       ),
     ).toEqual({
       type: 'selectShip',
-      shipId: 'ship-a',
+      shipId: asShipId('ship-a'),
     });
   });
 });
