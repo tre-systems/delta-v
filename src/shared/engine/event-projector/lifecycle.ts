@@ -175,6 +175,7 @@ export const projectLifecycleEvent = (
       }
 
       state.pendingAstrogationOrders = null;
+      state.combatTargetedThisPhase = undefined;
       state.turnNumber = event.turn;
       state.activePlayer = event.activePlayer;
 

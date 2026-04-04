@@ -381,8 +381,45 @@ describe('projectConflictEvent', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(
+      must(result.value.ships.find((s) => s.id === 's1')).firedThisPhase,
+    ).toBe(true);
+    expect(result.value.combatTargetedThisPhase).toEqual(['ship:s2']);
+    expect(
       must(result.value.ships.find((s) => s.id === 's2')).damage.disabledTurns,
     ).toBe(0);
+  });
+
+  it('marks all combat attackers as fired when replaying combatAttack', () => {
+    const state = createTestState({
+      ships: [
+        createTestShip({ id: asShipId('s1'), owner: 0 }),
+        createTestShip({ id: asShipId('s3'), owner: 0 }),
+        createTestShip({ id: asShipId('s2'), owner: 1 }),
+      ],
+    });
+    const event: ConflictProjectionEvent = {
+      type: 'combatAttack',
+      attackerIds: [asShipId('s1'), asShipId('s3')],
+      targetId: asShipId('s2'),
+      targetType: 'ship',
+      attackType: 'gun',
+      roll: 4,
+      modifiedRoll: 4,
+      damageType: 'disabled',
+      disabledTurns: 1,
+    };
+
+    const result = projectConflictEvent(state, event);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(
+      must(result.value.ships.find((s) => s.id === 's1')).firedThisPhase,
+    ).toBe(true);
+    expect(
+      must(result.value.ships.find((s) => s.id === 's3')).firedThisPhase,
+    ).toBe(true);
+    expect(result.value.combatTargetedThisPhase).toEqual(['ship:s2']);
   });
 
   it('destroys ship on combatAttack with eliminated damage', () => {
