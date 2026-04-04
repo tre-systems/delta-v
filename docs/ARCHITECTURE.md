@@ -16,7 +16,7 @@ Document boundary: gameplay rules and protocol examples live in [SPEC.md](./SPEC
 - [6. Current Decisions and Planned Shifts](#6-current-decisions-and-planned-shifts)
 - [7. Client bundle and release hygiene](#7-client-bundle-and-release-hygiene)
 
-**Deployment assumption:** Client and Worker ship as a **single version line** (one deploy updates Worker + static assets). Staggered “old client / new server” is **not** a supported requirement today. Breaking protocol changes need a **coordinated deploy** and, if needed, force reload / cache-bust the SPA; prefer **additive** JSON fields. There is no feature-flag protocol negotiation in the client today. When bumping **`GameState.schemaVersion`**, follow [BACKLOG.md](./BACKLOG.md) priority **11** (projector, replay, recovery tests).
+**Deployment assumption:** Client and Worker ship as a **single version line** (one deploy updates Worker + static assets). Staggered “old client / new server” is **not** a supported requirement today. Breaking protocol changes need a **coordinated deploy** and, if needed, force reload / cache-bust the SPA; prefer **additive** JSON fields. There is no feature-flag protocol negotiation in the client today. When bumping **`GameState.schemaVersion`**, extend projector / replay / recovery coverage and track any remaining work in [BACKLOG.md](./BACKLOG.md).
 
 Platform references:
 
@@ -270,7 +270,7 @@ The server generates a random 32-bit seed per match (via `crypto.getRandomValues
 
 Client callers (local AI play) still pass `Math.random`. Tests can pass deterministic RNGs for reproducible results. Pre-seed matches fall back to `Math.random` for backward compatibility.
 
-Current exception: server-side alarm timeout auto-advance wiring (`src/server/game-do/turns.ts`) still calls `skipOrdnance` / `skipCombat` with `Math.random` instead of the injected match-scoped RNG. This is a known consistency gap between normal action paths and timeout paths.
+Turn-timeout auto-advance now uses the same injected match-scoped RNG path as normal server actions (`runGameDoTurnTimeout()` -> `resolveTurnTimeoutOutcome()`), so timeout resolution no longer depends on `Math.random`.
 
 ### B. The Server (`server/`)
 
@@ -326,7 +326,7 @@ The backend leverages Cloudflare's edge network.
 - **WebSocket throttle**: A per-socket message counter (in-memory `WeakMap`) limits clients to 10 messages per second. Connections exceeding this are closed with code 1008. This prevents garbage-message floods from spiking DO CPU or I/O.
 
 - **Room creation rate limit**: The Worker hashes the client IP and checks `POST /create` against the checked-in Cloudflare `[[ratelimits]]` binding in `wrangler.toml` (5 requests per IP per 60s window, 429 with `Retry-After`). Lower environments can still run against Wrangler's local simulation or intentionally omit the binding, in which case the Worker falls back to an in-memory per-isolate limiter.
-- **Reporting endpoints (`/error`, `/telemetry`)**: JSON bodies only, max **4KB**, **204** responses; rows go to D1 asynchronously. Per-isolate per-IP windows (**120** telemetry / **40** error per 60s, hashed IP) — see [SECURITY.md](./SECURITY.md). Optional cross-edge WAF / `[[ratelimits]]`: [BACKLOG.md](./BACKLOG.md) priority **1**.
+- **Reporting endpoints (`/error`, `/telemetry`)**: JSON bodies only, max **4KB**, **204** responses; rows go to D1 asynchronously. Per-isolate per-IP windows (**120** telemetry / **40** error per 60s, hashed IP) — see [SECURITY.md](./SECURITY.md). Optional cross-edge WAF / `[[ratelimits]]` remains follow-up work only if the shipped limits prove insufficient.
 
 - **Match archive binding**: Production config also binds `MATCH_ARCHIVE` to R2 so completed rooms can persist replay/support data after the Durable Object goes inactive. That keeps replay/debug history available in production without forcing lower environments to use remote storage during local development.
 

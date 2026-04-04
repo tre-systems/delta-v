@@ -25,7 +25,8 @@ The current runner executes entirely in Node.js, outside the browser and Cloudfl
 4. **Turn Execution:**
    - **Astrogation:** If it's Player 0's turn, call `aiAstrogation(state, 0, map, 'hard')`. Same for Player 1. Pass the orders into `processAstrogation()`.
    - **Ordnance:** Call `aiOrdnance()` and pass to `processOrdnance()` (or call `skipOrdnance()`).
-   - **Combat:** Call `aiCombat()` and pass to `processCombat()` (or `skipCombat()`).
+   - **Logistics:** Call `aiLogistics()` and pass to `processLogistics()` (or `skipLogistics()`).
+   - **Combat:** First call `beginCombatPhase()` so asteroid hazards and other automatic pre-combat effects resolve, then call `aiCombat()` and pass the attacks to `processCombat()` (or `skipCombat()`).
 5. **Data Collection:** Track metrics like win rates (Player 0 vs Player 1), draws/timeouts, average turns, crash count, and win reasons.
 
 **Implementation Details:**
