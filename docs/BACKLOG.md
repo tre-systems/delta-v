@@ -8,13 +8,29 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-### 1. Complete supply-chain release review
+### 1. Stabilize `npm run verify` coverage output
 
-**Source:** [REVIEW_PLAN.md](./REVIEW_PLAN.md) section 7 follow-up.
+**Source:** [REVIEW_PLAN.md](./REVIEW_PLAN.md) section 1 review on 2026-04-04.
 
-Run networked `npm audit` and `npm outdated`, then either clear the review as `pass` or document accepted risk / concrete upgrade work here.
+`npm run verify` still fails intermittently in `test:coverage` with `ENOENT` on `coverage/.tmp/coverage-*.json` after prior coverage runs. Pre-commit already works around this by removing `coverage/` first; `verify` should be made equally robust so the primary local/CI gate does not require manual cleanup.
 
-**Files / commands:** `package.json`, `package-lock.json`, `.nvmrc`, `.github/workflows/ci.yml`, `npm audit`, `npm outdated`
+**Files:** `package.json`, `.husky/pre-commit`, `vitest.config.ts`
+
+### 2. Harden Durable Object alarm error handling
+
+**Source:** [REVIEW_PLAN.md](./REVIEW_PLAN.md) section 5 review on 2026-04-04.
+
+`runGameDoTurnTimeout()` catches engine failures and reschedules, but `runGameDoAlarm()` still lets unexpected errors in the `disconnectExpired` and `inactivityTimeout` branches bubble out of `GameDO.alarm()`. Add top-level catch/reschedule coverage so alarm failures do not skip cleanup, forfeit handling, or the next alarm.
+
+**Files:** `src/server/game-do/alarm.ts`, `src/server/game-do/game-do.ts`, `src/server/game-do/alarm.test.ts`
+
+### 3. Raise engine coverage below the review threshold
+
+**Source:** [REVIEW_PLAN.md](./REVIEW_PLAN.md) section 4 review on 2026-04-04.
+
+The latest clean coverage run still leaves executable engine modules below the review floor of 80% line coverage, notably `src/shared/engine/combat.ts` (73.59%) and `src/shared/engine/event-projector/conflict.ts` (70.58%). Add targeted tests for the uncovered branches or lower the risk another way with explicit justification.
+
+**Files:** `src/shared/engine/combat.ts`, `src/shared/engine/event-projector/conflict.ts`, related `*.test.ts`
 
 ---
 

@@ -20,6 +20,7 @@ Delta-V now has a materially stronger authoritative-server boundary than the ori
 - After a WebSocket is accepted, **per-socket message rate limiting** (10 messages per second, then close with code 1008) caps garbage traffic to the Durable Object. Chat is also throttled in-memory (minimum 500ms between accepted chat messages per player).
 - Room codes are generated from a cryptographically strong RNG rather than `Math.random()` (see `generateRoomCode` in `src/server/protocol.ts`).
 - `GET /join/:code` and `GET /replay/:code` have combined hashed-IP probe throttling in the Worker (100 requests / 60s, per isolate), reducing casual room-scan and replay-probe abuse.
+- `GET /ws/:code` WebSocket upgrades have a hashed-IP in-memory cap (20 upgrades / 60s, per isolate), reducing repeated socket-churn abuse in lower environments.
 - `POST /telemetry` and `POST /error` are JSON-only with a 4KB cap and hashed-IP window limits, limiting abuse and D1 write amplification in the default path.
 
 These changes make private multiplayer substantially safer than before, especially for host-seat integrity, reconnect safety, and server authority.
@@ -53,7 +54,7 @@ Current status: **acceptable for friendly matches, weak for public matchmaking**
 
 ### 3. Rate limiting architecture
 
-The worker enforces a two-tier rate limit on `POST /create`:
+The worker enforces a two-tier rate limit on `POST /create`, plus per-isolate in-memory limits for WebSocket upgrades and reporting endpoints:
 
 **Tier 1 — Cloudflare edge binding (production):**
 The checked-in production `wrangler.toml` binds
@@ -88,7 +89,7 @@ When no binding is configured, the worker uses a per-isolate in-memory map (5 cr
 | Control                                 | In-memory fallback                                                                  | Edge binding                                               |
 | --------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | Per-IP create throttle                  | per-isolate only                                                                    | global                                                     |
-| WebSocket **connection** / join storm   | not app-rate-limited                                                                | not app-rate-limited (two seats cap abuse impact per room) |
+| WebSocket **connection** / join storm   | **20** upgrades per hashed IP per 60s (per isolate)                                | same app limit; no extra global edge binding by default    |
 | WebSocket **messages** (after connect)  | 10 msg/s per socket (DO)                                                            | same                                                       |
 | `POST /telemetry` and `POST /error`     | **120** / **40** posts per hashed IP per 60s (per isolate); body capped at 4KB JSON | add **WAF** or `[[ratelimits]]` for global / stricter caps |
 | Bot challenge (Turnstile)               | not present                                                                         | configurable via CF dashboard                              |
@@ -104,12 +105,12 @@ storage. Lower environments may still choose local
 simulation or intentionally omit remote resources, but
 public-facing production should keep the rate-limit and
 archive bindings enabled. **Cloudflare WAF** (or extra `[[ratelimits]]` namespaces) can still cap
-`POST /telemetry`, `POST /error`, and join/replay probes **across all edge
+`POST /telemetry`, `POST /error`, join/replay probes, and WebSocket upgrades **across all edge
 isolates** if per-isolate limits are not enough. Add a **Turnstile** challenge
-on `/create` if automated room creation becomes a problem. WebSocket **upgrades** are not
-message-throttled at the edge; abuse is partly mitigated
-by two seats per room and by **per-socket message** limits
-once connected.
+on `/create` if automated room creation becomes a problem. WebSocket **upgrades** already have a
+per-isolate hashed-IP window in application code, but they are not globally
+message-throttled at the edge; abuse is further mitigated by two seats per room and by
+**per-socket message** limits once connected.
 
 ### 4. Bot challenge protection (optional)
 
@@ -168,7 +169,7 @@ Current assessment:
 - **Host-seat integrity:** good
 - **Guest-seat integrity:** acceptable for friendly matches (room-code model is deliberate)
 - **Match availability under hostile payloads:** good
-- **Rate limiting:** good for `/create` in the checked-in production config, per-isolate only in lower environments without the binding; WebSocket **message** flood capped per socket; **telemetry/error** and **join/replay** HTTP probes have per-isolate hashed-IP windows (see table above); optional WAF for global caps
+- **Rate limiting:** good for `/create` in the checked-in production config, per-isolate only in lower environments without the binding; WebSocket **upgrades** have a per-isolate hashed-IP window, WebSocket **message** flood is capped per socket, and **telemetry/error** plus **join/replay** HTTP probes have per-isolate hashed-IP windows (see table above); optional WAF for global caps
 - **XSS posture:** good (trusted HTML boundary, no user-generated content)
 - **Room secrecy / public matchmaking readiness:** weak (short codes; default join/replay throttles are per-isolate, not global)
 
@@ -186,9 +187,9 @@ If the product scope expands beyond friendly matches:
 - Turnstile integration on `/create` for bot protection
 - Account binding for organized competitive play
 - Stronger join / replay HTTP throttling if room-code guessing or DO wake abuse becomes measurable (global controls, not just per-isolate windows)
-- Optional **global** (cross-edge) rate limits via WAF / `[[ratelimits]]` for reporting and join/replay if needed (see [BACKLOG.md](./BACKLOG.md) priority **8**)
+- Optional **global** (cross-edge) rate limits via WAF / `[[ratelimits]]` for reporting, join/replay, or WebSocket upgrades if needed
 
-Concrete abuse-hardening follow-ups: [BACKLOG.md](./BACKLOG.md) priorities **8** (optional edge), **15** (product-shaped).
+Concrete abuse-hardening follow-ups belong in [BACKLOG.md](./BACKLOG.md) when the current per-isolate limits stop being sufficient for the product shape.
 
 ## Data retention (D1, R2, DO)
 

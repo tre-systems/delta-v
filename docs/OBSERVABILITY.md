@@ -18,11 +18,34 @@ From `migrations/0001_create_events.sql`:
 
 - `ts`, `anon_id`, `event`, `props` (JSON string), `ip_hash` (hashed `cf-connecting-ip` for client posts; literal `'server'` for DO inserts), `ua`, `created`.
 
-**Typical `event` values**
+**Current `event` values**
 
-- From client **`/telemetry`**: whatever `track('eventName', props)` sends (`event` column + merged props).
-- From client **`/error`**: `client_error` plus payload fields.
-- From **`game-do/telemetry.ts`**: `engine_error`, `projection_parity_mismatch` (server-side; `anon_id` null, `ip_hash` `'server'`).
+- From client **`/telemetry`**:
+  - `create_game_attempted` with `{ scenario }`
+  - `create_game_failed` with `{ scenario, reason, status? }`
+  - `game_created` with `{ scenario, mode, difficulty? }`
+  - `join_game_attempted` with `{ hasPlayerToken }`
+  - `join_game_succeeded` with no additional props
+  - `join_game_retried_without_token` with `{ reason }`
+  - `join_game_failed` with `{ reason, status?, hasPlayerToken }`
+  - `spectate_join_succeeded` with no additional props
+  - `reconnect_attempt_scheduled` with `{ attempt, delayMs }`
+  - `reconnect_succeeded` with `{ attempts }`
+  - `reconnect_failed` with `{ attempts }`
+  - `replay_fetch_failed` with `{ reason, gameId, status? }`
+  - `replay_fetch_succeeded` with `{ gameId }`
+  - `game_over` with `{ won, reason, scenario, mode, turn? }`
+  - `server_error_received` with `{ message, code? }`
+  - `ws_parse_error` with no additional props
+  - `ws_invalid_message` with `{ error }`
+  - `turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
+  - `first_turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
+  - `scenario_browsed` with no additional props
+  - `tutorial_started` with no additional props
+  - `tutorial_completed` with no additional props
+  - `tutorial_skipped` with no additional props
+- From client **`/error`**: `client_error` with `{ error, url, ua, ...context }`; current global handlers add either `{ source, line, col }` or `{ type: 'unhandledrejection' }`.
+- From **`game-do/telemetry.ts`**: `engine_error` with `{ code, phase, turn, message, stack? }` and `projection_parity_mismatch` with `{ gameId, liveTurn, livePhase, projectedTurn, projectedPhase }` (server-side; `anon_id` null, `ip_hash` `'server'`).
 
 ## Sample D1 queries
 
@@ -99,10 +122,10 @@ Paste these into the Cloudflare D1 console or run via `wrangler d1 execute`.
 ```sql
 -- Match completions by scenario (last 7 days)
 SELECT scenario, COUNT(*) AS matches,
-       AVG(turn_count) AS avg_turns,
-       AVG(duration_ms) / 1000.0 AS avg_duration_s
+       AVG(turns) AS avg_turns,
+       AVG(completed_at - created_at) / 1000.0 AS avg_duration_s
 FROM match_archive
-WHERE completed_at > datetime('now', '-7 days')
+WHERE completed_at > (strftime('%s','now') - 7 * 86400) * 1000
 GROUP BY scenario
 ORDER BY matches DESC;
 
@@ -112,10 +135,10 @@ FROM events
 WHERE ts > (strftime('%s','now') - 86400) * 1000
   AND anon_id IS NOT NULL;
 
--- Scenario popularity (games started, last 7 days)
+-- Scenario popularity (games created, last 7 days)
 SELECT json_extract(props, '$.scenario') AS scenario, COUNT(*) AS n
 FROM events
-WHERE event = 'game_started'
+WHERE event = 'game_created'
   AND ts > (strftime('%s','now') - 7 * 86400) * 1000
 GROUP BY scenario
 ORDER BY n DESC;
