@@ -112,7 +112,7 @@
   </div>
 
   <!-- Scenario selection -->
-  <div id="scenarioSelect" class="screen screen-page" style="display:none">
+  <div id="scenarioSelect" class="screen screen-page" hidden>
     <div class="menu-content">
       <h2 class="scenario-title">Select Scenario</h2>
       <div id="scenarioList"></div>
@@ -121,7 +121,7 @@
   </div>
 
   <!-- Waiting for opponent -->
-  <div id="waiting" class="screen screen-page" style="display:none">
+  <div id="waiting" class="screen screen-page" hidden>
     <div class="menu-content">
       <h2>Game Created</h2>
       <div id="gameCode" class="game-code">-----</div>
@@ -132,7 +132,7 @@
   </div>
 
   <!-- Game HUD -->
-  <div id="hud" style="display:none">
+  <div id="hud" hidden>
     <div id="topBar" class="hud-bar">
       <div class="hud-group hud-turn-phase-group">
         <span id="turnInfo">Turn 1</span>
@@ -154,27 +154,27 @@
     </div>
     <div id="bottomBar" class="hud-bottom">
       <div id="hudBottomButtons" class="hud-bottom-buttons is-empty">
-        <button id="undoBtn" class="btn btn-secondary" style="display:none">UNDO</button>
-        <button id="skipShipBtn" class="btn btn-skip" style="display:none">SKIP SHIP</button>
-        <button id="confirmBtn" class="btn btn-confirm" style="display:none">CONFIRM</button>
-        <button id="landFromOrbitBtn" class="btn btn-action" style="display:none">LAND</button>
-        <button id="launchMineBtn" class="btn btn-ordnance" style="display:none">MINE</button>
-        <button id="launchTorpedoBtn" class="btn btn-ordnance" style="display:none">TORPEDO</button>
-        <button id="launchNukeBtn" class="btn btn-ordnance btn-nuke" style="display:none">NUKE</button>
-        <button id="emplaceBaseBtn" class="btn btn-ordnance" style="display:none">EMPLACE BASE</button>
-        <button id="skipOrdnanceBtn" class="btn btn-confirm" style="display:none">SKIP</button>
-        <button id="attackBtn" class="btn btn-attack" style="display:none">ATTACK</button>
-        <button id="fireBtn" class="btn btn-attack" style="display:none">FIRE ALL</button>
-        <button id="skipCombatBtn" class="btn btn-skip" style="display:none">SKIP COMBAT</button>
-        <button id="skipLogisticsBtn" class="btn btn-skip" style="display:none">SKIP TRANSFERS</button>
-        <button id="confirmTransfersBtn" class="btn btn-confirm" style="display:none">CONFIRM TRANSFERS</button>
+        <button id="undoBtn" class="btn btn-secondary" hidden>UNDO</button>
+        <button id="skipShipBtn" class="btn btn-skip" hidden>SKIP SHIP</button>
+        <button id="confirmBtn" class="btn btn-confirm" hidden>CONFIRM</button>
+        <button id="landFromOrbitBtn" class="btn btn-action" hidden>LAND</button>
+        <button id="launchMineBtn" class="btn btn-ordnance" hidden>MINE</button>
+        <button id="launchTorpedoBtn" class="btn btn-ordnance" hidden>TORPEDO</button>
+        <button id="launchNukeBtn" class="btn btn-ordnance btn-nuke" hidden>NUKE</button>
+        <button id="emplaceBaseBtn" class="btn btn-ordnance" hidden>EMPLACE BASE</button>
+        <button id="skipOrdnanceBtn" class="btn btn-confirm" hidden>SKIP</button>
+        <button id="attackBtn" class="btn btn-attack" hidden>ATTACK</button>
+        <button id="fireBtn" class="btn btn-attack" hidden>FIRE ALL</button>
+        <button id="skipCombatBtn" class="btn btn-skip" hidden>SKIP COMBAT</button>
+        <button id="skipLogisticsBtn" class="btn btn-skip" hidden>SKIP TRANSFERS</button>
+        <button id="confirmTransfersBtn" class="btn btn-confirm" hidden>CONFIRM TRANSFERS</button>
       </div>
-      <div id="transferPanel" class="transfer-panel" style="display:none"></div>
+      <div id="transferPanel" class="transfer-panel" hidden></div>
     </div>
   </div>
 
   <!-- Fleet building overlay -->
-  <div id="fleetBuilding" class="screen screen-page" style="display:none">
+  <div id="fleetBuilding" class="screen screen-page" hidden>
     <div class="menu-content fleet-building-content">
       <h2 class="scenario-title">Build Your Fleet</h2>
       <div id="fleetCredits" class="fleet-credits">800 MC</div>
@@ -185,44 +185,44 @@
         <button id="fleetReadyBtn" class="btn btn-confirm">LAUNCH FLEET</button>
         <button id="fleetClearBtn" class="btn btn-secondary">CLEAR</button>
       </div>
-      <div id="fleetWaiting" class="fleet-waiting" style="display:none">Waiting for opponent...</div>
+      <div id="fleetWaiting" class="fleet-waiting" hidden>Waiting for opponent...</div>
     </div>
   </div>
 
   <!-- Ship list panel -->
-  <div id="shipList" class="ship-list" style="display:none"></div>
+  <div id="shipList" class="ship-list" hidden></div>
 
   <!-- Game log panel -->
-  <div id="gameLog" class="game-log" style="display:none">
+  <div id="gameLog" class="game-log" hidden>
     <div id="logEntries" class="log-entries" role="log" aria-live="polite" aria-relevant="additions text"></div>
-    <div id="chatInputRow" class="chat-input-row" style="display:none">
+    <div id="chatInputRow" class="chat-input-row" hidden>
       <input id="chatInput" class="chat-input" type="text" maxlength="200"
         placeholder="Chat..." autocomplete="off" aria-label="Chat message">
       <button id="chatSendBtn" class="chat-send-btn" aria-label="Send chat message">&#10148;</button>
     </div>
   </div>
-  <div id="logLatestBar" class="log-latest-bar" style="display:none" role="status" aria-live="polite" aria-atomic="true">
+  <div id="logLatestBar" class="log-latest-bar" hidden role="status" aria-live="polite" aria-atomic="true">
     <span id="logLatestText" class="log-latest-text"></span>
   </div>
 
   <!-- Game Over overlay -->
-  <div id="gameOver" class="screen screen-page" style="display:none" role="dialog" aria-modal="true" aria-labelledby="gameOverText" aria-describedby="gameOverReason">
+  <div id="gameOver" class="screen screen-page" hidden role="dialog" aria-modal="true" aria-labelledby="gameOverText" aria-describedby="gameOverReason">
     <div class="menu-content game-over-content overlay-panel">
       <div class="game-over-hero">
-        <div id="gameOverKicker" class="game-over-kicker" style="display:none"></div>
+        <div id="gameOverKicker" class="game-over-kicker" hidden></div>
         <h2 id="gameOverText">VICTORY</h2>
         <p id="gameOverReason"></p>
       </div>
       <div id="gameOverStats" class="game-over-stats"></div>
-      <div id="replayStatus" class="replay-status" style="display:none"></div>
-      <div id="replayControls" class="replay-controls overlay-section-panel" style="display:none">
+      <div id="replayStatus" class="replay-status" hidden></div>
+      <div id="replayControls" class="replay-controls overlay-section-panel" hidden>
         <div class="replay-match-selector">
           <button id="replayMatchPrevBtn" class="btn btn-secondary">&lt;</button>
           <span id="replayMatchLabel" class="replay-match-label"></span>
           <button id="replayMatchNextBtn" class="btn btn-secondary">&gt;</button>
         </div>
         <button id="replayToggleBtn" class="btn btn-secondary">View Replay</button>
-        <div id="replayNav" class="replay-nav" style="display:none">
+        <div id="replayNav" class="replay-nav" hidden>
           <button id="replayStartBtn" class="btn btn-secondary">|&lt;</button>
           <button id="replayPrevBtn" class="btn btn-secondary">&lt;</button>
           <button id="replayNextBtn" class="btn btn-secondary">&gt;</button>
@@ -237,7 +237,7 @@
   </div>
 
   <!-- Replay bottom bar (shown during active replay, replaces game-over overlay) -->
-  <div id="replayBar" class="replay-bar overlay-panel" style="display:none">
+  <div id="replayBar" class="replay-bar overlay-panel" hidden>
     <button id="replayBarStartBtn" class="btn btn-secondary">|&lt;</button>
     <button id="replayBarPrevBtn" class="btn btn-secondary">&lt;</button>
     <span id="replayBarStatus" class="replay-bar-status"></span>
@@ -247,7 +247,7 @@
   </div>
 
   <!-- Help overlay -->
-  <div id="helpOverlay" class="screen screen-page" style="display:none" role="dialog" aria-modal="true" aria-labelledby="helpTitle" aria-describedby="helpIntro">
+  <div id="helpOverlay" class="screen screen-page" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle" aria-describedby="helpIntro">
     <div class="menu-content help-content">
       <h2 id="helpTitle" class="scenario-title">How to Play</h2>
       <p id="helpIntro" class="help-intro">Tactical hex-based space combat. Plot burns, ride gravity, and outfly the enemy.</p>
@@ -350,12 +350,12 @@
   </div>
 
   <!-- Help button -->
-  <button id="helpBtn" class="help-btn" style="display:none" aria-label="Show controls">?</button>
+  <button id="helpBtn" class="help-btn" hidden aria-label="Show controls">?</button>
   <!-- Sound toggle button -->
-  <button id="soundBtn" class="sound-btn" style="display:none" title="Toggle sound" aria-label="Toggle sound"></button>
+  <button id="soundBtn" class="sound-btn" hidden title="Toggle sound" aria-label="Toggle sound"></button>
 
   <!-- Reconnection overlay -->
-  <div id="reconnectOverlay" class="reconnect-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="reconnectText" aria-describedby="reconnectAttempt">
+  <div id="reconnectOverlay" class="reconnect-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="reconnectText" aria-describedby="reconnectAttempt">
     <div class="reconnect-content overlay-panel">
       <div class="reconnect-spinner"></div>
       <div id="reconnectText" class="reconnect-text">Reconnecting...</div>
@@ -365,12 +365,12 @@
   </div>
 
   <!-- Opponent disconnect banner -->
-  <div id="opponentDisconnectOverlay" class="opponent-disconnect-banner" style="display:none" role="status" aria-live="polite" aria-atomic="true">
+  <div id="opponentDisconnectOverlay" class="opponent-disconnect-banner" hidden role="status" aria-live="polite" aria-atomic="true">
     <div id="opponentDisconnectText"></div>
   </div>
 
   <!-- Tutorial tooltip -->
-  <div id="tutorialTip" class="tutorial-tip" style="display:none">
+  <div id="tutorialTip" class="tutorial-tip" hidden>
     <div id="tutorialTipText" class="tutorial-tip-text"></div>
     <div class="tutorial-tip-actions">
       <button id="tutorialNextBtn" class="btn btn-tutorial">Got it</button>
@@ -383,7 +383,7 @@
   <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
   <!-- Ship tooltip -->
-  <div id="shipTooltip" class="ship-tooltip" style="display:none"></div>
+  <div id="shipTooltip" class="ship-tooltip" hidden></div>
 
 
     <!-- Phase Alerts -->

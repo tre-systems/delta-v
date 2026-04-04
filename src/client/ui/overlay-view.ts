@@ -1,5 +1,11 @@
-import { byId, clearHTML, el, listen, text, visible } from '../dom';
-import { createDisposalScope, effect, signal, withScope } from '../reactive';
+import { byId, clearHTML, el, hide, listen, show, text, visible } from '../dom';
+import {
+  computed,
+  createDisposalScope,
+  effect,
+  signal,
+  withScope,
+} from '../reactive';
 import { getPhaseAlertCopy } from './formatters';
 import type { OverlayStateStore } from './overlay-state';
 
@@ -154,7 +160,7 @@ export const createOverlayView = (
 
   let phaseAlertTimer: ReturnType<typeof setTimeout> | null = null;
   let opponentDisconnectTimer: ReturnType<typeof setInterval> | null = null;
-  let gameOverWasVisible = false;
+  let gameOverShellWasVisible = false;
   const toastTimers = new Set<ReturnType<typeof setTimeout>>();
   let nextToastId = 0;
 
@@ -245,24 +251,23 @@ export const createOverlayView = (
 
     toastTimers.clear();
     scope.dispose();
-    reconnectOverlayEl.style.display = 'none';
-    opponentDisconnectEl.style.display = 'none';
+    hide(reconnectOverlayEl);
+    hide(opponentDisconnectEl);
   };
 
   withScope(scope, () => {
-    visible(
-      gameOverEl,
-      {
-        get value() {
-          return state.gameOverViewSignal.value.visible;
-        },
-        peek: () => state.gameOverViewSignal.peek().visible,
-      },
-      'flex',
+    const gameOverShellVisible = computed(
+      () =>
+        state.gameOverViewSignal.value.visible &&
+        !state.replayControlsSignal.value.active,
     );
+
+    visible(gameOverEl, gameOverShellVisible, 'flex');
 
     effect(() => {
       const gameOverView = state.gameOverViewSignal.value;
+      const replayActive = state.replayControlsSignal.value.active;
+      const shellVisible = gameOverView.visible && !replayActive;
 
       const kickerText = gameOverView.kickerText ?? '';
       text(gameOverKickerEl, kickerText);
@@ -285,16 +290,16 @@ export const createOverlayView = (
         'block',
       );
 
-      if (gameOverView.visible && !gameOverWasVisible) {
+      if (shellVisible && !gameOverShellWasVisible) {
         gameOverEl.classList.remove('game-over-enter');
-        gameOverEl.style.display = 'flex';
+        show(gameOverEl, 'flex');
         void gameOverEl.offsetWidth;
         gameOverEl.classList.add('game-over-enter');
-      } else if (!gameOverView.visible) {
+      } else if (!shellVisible) {
         gameOverEl.classList.remove('game-over-enter');
       }
 
-      gameOverWasVisible = gameOverView.visible;
+      gameOverShellWasVisible = shellVisible;
     });
 
     effect(() => {
@@ -303,18 +308,17 @@ export const createOverlayView = (
       visible(replayControlsEl, replayView.available);
       visible(replayStatusEl, replayView.available);
 
-      // When replay is active, hide the game-over overlay and show the
-      // compact bottom bar so the battlefield is fully visible.
+      // When replay is active, game-over shell visibility is handled by
+      // gameOverShellVisible; show the compact bottom bar only.
       if (replayView.active) {
-        gameOverEl.style.display = 'none';
-        replayBarEl.style.display = 'flex';
+        show(replayBarEl, 'flex');
         text(replayBarStatusEl, replayView.statusText);
         replayBarStartBtn.disabled = !replayView.canStart;
         replayBarPrevBtn.disabled = !replayView.canPrev;
         replayBarNextBtn.disabled = !replayView.canNext;
         replayBarEndBtn.disabled = !replayView.canEnd;
       } else {
-        replayBarEl.style.display = 'none';
+        hide(replayBarEl);
       }
 
       if (!replayView.available) {

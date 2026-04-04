@@ -178,21 +178,28 @@ describe('UIManager', () => {
     const ui = createUIManager();
     bindClientState(ui, 'menu');
 
-    expect(document.getElementById('menu')?.style.display).toBe('flex');
-    expect(document.getElementById('hud')?.style.display).toBe('none');
-    expect(document.getElementById('gameOver')?.style.display).toBe('none');
+    const menu = document.getElementById('menu') as HTMLElement;
+    const hud = document.getElementById('hud') as HTMLElement;
+    const gameOver = document.getElementById('gameOver') as HTMLElement;
+    expect(menu.style.display).toBe('flex');
+    expect(menu.hasAttribute('hidden')).toBe(false);
+    expect(hud.hasAttribute('hidden')).toBe(true);
+    expect(gameOver.hasAttribute('hidden')).toBe(true);
   });
 
   it('shows HUD when interaction mode is astrogation', () => {
     const ui = createUIManager();
     bindClientState(ui, 'playing_astrogation');
 
-    expect(document.getElementById('hud')?.style.display).toBe('block');
-    expect(document.getElementById('menu')?.style.display).toBe('none');
-    expect(document.getElementById('menu')?.getAttribute('aria-hidden')).toBe(
-      'true',
-    );
-    expect(document.getElementById('shipList')?.style.display).toBe('flex');
+    const hudPlaying = document.getElementById('hud') as HTMLElement;
+    const menuPlaying = document.getElementById('menu') as HTMLElement;
+    const shipList = document.getElementById('shipList') as HTMLElement;
+    expect(hudPlaying.style.display).toBe('block');
+    expect(hudPlaying.hasAttribute('hidden')).toBe(false);
+    expect(menuPlaying.hasAttribute('hidden')).toBe(true);
+    expect(menuPlaying.getAttribute('aria-hidden')).toBe('true');
+    expect(shipList.style.display).toBe('flex');
+    expect(shipList.hasAttribute('hidden')).toBe(false);
   });
 
   it('shows waiting screen when interaction mode is waiting', () => {
@@ -200,7 +207,9 @@ describe('UIManager', () => {
     ui.setWaitingState('ABC12', false);
     bindClientState(ui, 'waitingForOpponent');
 
-    expect(document.getElementById('waiting')?.style.display).toBe('flex');
+    const waiting = document.getElementById('waiting') as HTMLElement;
+    expect(waiting.style.display).toBe('flex');
+    expect(waiting.hasAttribute('hidden')).toBe(false);
     expect(document.getElementById('gameCode')?.textContent).toBe('ABC12');
   });
 
@@ -218,7 +227,8 @@ describe('UIManager', () => {
     ];
 
     for (const id of ids) {
-      expect(document.getElementById(id)?.style.display).toBe('none');
+      const el = document.getElementById(id) as HTMLElement;
+      expect(el.hasAttribute('hidden')).toBe(true);
     }
   });
 

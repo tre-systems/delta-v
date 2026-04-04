@@ -10,34 +10,34 @@ import { createOverlayView } from './overlay-view';
 
 const installFixture = () => {
   document.body.innerHTML = `
-    <div id="gameOver" style="display:none"></div>
-    <div id="gameOverKicker" style="display:none"></div>
+    <div id="gameOver" hidden></div>
+    <div id="gameOverKicker" hidden></div>
     <div id="gameOverText"></div>
     <div id="gameOverReason"></div>
     <div id="gameOverStats"></div>
-    <div id="replayStatus" style="display:none"></div>
-    <div id="replayControls" style="display:none"></div>
+    <div id="replayStatus" hidden></div>
+    <div id="replayControls" hidden></div>
     <button id="replayMatchPrevBtn"></button>
     <span id="replayMatchLabel"></span>
     <button id="replayMatchNextBtn"></button>
     <button id="replayToggleBtn"></button>
-    <div id="replayNav" style="display:none"></div>
+    <div id="replayNav" hidden></div>
     <button id="replayStartBtn"></button>
     <button id="replayPrevBtn"></button>
     <button id="replayNextBtn"></button>
     <button id="replayEndBtn"></button>
     <button id="rematchBtn" disabled>Rematch</button>
-    <div id="replayBar" style="display:none"></div>
+    <div id="replayBar" hidden></div>
     <span id="replayBarStatus"></span>
     <button id="replayBarStartBtn"></button>
     <button id="replayBarPrevBtn"></button>
     <button id="replayBarNextBtn"></button>
     <button id="replayBarEndBtn"></button>
-    <div id="reconnectOverlay" style="display:none"></div>
+    <div id="reconnectOverlay" hidden></div>
     <div id="reconnectText"></div>
     <div id="reconnectAttempt"></div>
     <button id="reconnectCancelBtn"></button>
-    <div id="opponentDisconnectOverlay" style="display:none"></div>
+    <div id="opponentDisconnectOverlay" hidden></div>
     <div id="opponentDisconnectText"></div>
     <div id="toastContainer"></div>
     <div id="phaseAlert">
@@ -75,9 +75,9 @@ describe('OverlayView', () => {
       ordnanceInFlight: 0,
     });
 
-    expect(
-      (document.getElementById('gameOver') as HTMLElement).style.display,
-    ).toBe('flex');
+    const gameOverEl = document.getElementById('gameOver') as HTMLElement;
+    expect(gameOverEl.hasAttribute('hidden')).toBe(false);
+    expect(gameOverEl.style.display).toBe('flex');
     expect(document.getElementById('gameOverText')?.textContent).toBe(
       'VICTORY',
     );
@@ -102,10 +102,11 @@ describe('OverlayView', () => {
 
     state.showReconnecting(2, 5, onCancel);
 
-    expect(
-      (document.getElementById('reconnectOverlay') as HTMLElement).style
-        .display,
-    ).toBe('flex');
+    const reconnectEl = document.getElementById(
+      'reconnectOverlay',
+    ) as HTMLElement;
+    expect(reconnectEl.hasAttribute('hidden')).toBe(false);
+    expect(reconnectEl.style.display).toBe('flex');
     expect(document.getElementById('reconnectText')?.textContent).toBe(
       'Connection lost',
     );
@@ -117,9 +118,10 @@ describe('OverlayView', () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(
-      (document.getElementById('reconnectOverlay') as HTMLElement).style
-        .display,
-    ).toBe('none');
+      (document.getElementById('reconnectOverlay') as HTMLElement).hasAttribute(
+        'hidden',
+      ),
+    ).toBe(true);
   });
 
   it('shows replay controls and updates navigation state', () => {
@@ -144,11 +146,16 @@ describe('OverlayView', () => {
     };
 
     expect(
-      (document.getElementById('replayControls') as HTMLElement).style.display,
-    ).not.toBe('none');
-    expect(
-      (document.getElementById('replayNav') as HTMLElement).style.display,
-    ).not.toBe('none');
+      (document.getElementById('gameOver') as HTMLElement).hasAttribute(
+        'hidden',
+      ),
+    ).toBe(true);
+    const replayControls = document.getElementById(
+      'replayControls',
+    ) as HTMLElement;
+    const replayNav = document.getElementById('replayNav') as HTMLElement;
+    expect(replayControls.hasAttribute('hidden')).toBe(false);
+    expect(replayNav.hasAttribute('hidden')).toBe(false);
     expect(document.getElementById('replayStatus')?.textContent).toContain(
       'ABCDE-m1',
     );
@@ -217,9 +224,10 @@ describe('OverlayView', () => {
 
     expect(onCancel).not.toHaveBeenCalled();
     expect(
-      (document.getElementById('reconnectOverlay') as HTMLElement).style
-        .display,
-    ).toBe('none');
+      (document.getElementById('reconnectOverlay') as HTMLElement).hasAttribute(
+        'hidden',
+      ),
+    ).toBe(true);
     expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(1);
   });
 });

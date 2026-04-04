@@ -241,12 +241,13 @@ describe('show', () => {
 });
 
 describe('hide', () => {
-  it('sets display to none', () => {
+  it('sets the hidden attribute and clears inline display', () => {
     const div = document.createElement('div');
 
     hide(div);
 
-    expect(div.style.display).toBe('none');
+    expect(div.hasAttribute('hidden')).toBe(true);
+    expect(div.style.display).toBe('');
   });
 });
 
@@ -266,7 +267,8 @@ describe('visible', () => {
 
     visible(div, false);
 
-    expect(div.style.display).toBe('none');
+    expect(div.hasAttribute('hidden')).toBe(true);
+    expect(div.style.display).toBe('');
     expect(div.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -287,7 +289,8 @@ describe('visible', () => {
     expect(div.getAttribute('aria-hidden')).toBeNull();
 
     visible(div, false);
-    expect(div.style.display).toBe('none');
+    expect(div.hasAttribute('hidden')).toBe(true);
+    expect(div.style.display).toBe('');
     expect(div.getAttribute('aria-hidden')).toBe('true');
 
     visible(div, true, 'flex');
@@ -301,13 +304,15 @@ describe('visible', () => {
 
     visible(div, s, 'flex');
 
-    expect(div.style.display).toBe('none');
+    expect(div.hasAttribute('hidden')).toBe(true);
     expect(div.getAttribute('aria-hidden')).toBe('true');
     s.value = true;
+    expect(div.hasAttribute('hidden')).toBe(false);
     expect(div.style.display).toBe('flex');
     expect(div.getAttribute('aria-hidden')).toBeNull();
     s.value = false;
-    expect(div.style.display).toBe('none');
+    expect(div.hasAttribute('hidden')).toBe(true);
+    expect(div.style.display).toBe('');
     expect(div.getAttribute('aria-hidden')).toBe('true');
   });
 });

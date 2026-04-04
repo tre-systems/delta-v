@@ -162,13 +162,15 @@ export const renderList = <T>(
 
 // --- Visibility ---
 
-// Hide an element by setting display to 'none'.
+// Hide an element (HTML `hidden` + clear inline display; CSS applies display:none).
 export const hide = (element: HTMLElement): void => {
-  element.style.display = 'none';
+  element.setAttribute('hidden', '');
+  element.style.display = '';
 };
 
-// Show an element by restoring its display value.
+// Show an element by clearing `hidden` and optionally setting `display`.
 export const show = (element: HTMLElement, display = ''): void => {
+  element.removeAttribute('hidden');
   element.style.display = display;
 };
 
@@ -179,9 +181,20 @@ export const visible = (
   display = '',
 ): void => {
   const apply = (on: boolean): void => {
-    const newDisplay = on ? display : 'none';
-    if (element.style.display !== newDisplay) {
-      element.style.display = newDisplay;
+    if (on) {
+      if (element.hasAttribute('hidden')) {
+        element.removeAttribute('hidden');
+      }
+      if (element.style.display !== display) {
+        element.style.display = display;
+      }
+    } else {
+      if (!element.hasAttribute('hidden')) {
+        element.setAttribute('hidden', '');
+      }
+      if (element.style.display !== '') {
+        element.style.display = '';
+      }
     }
     if (on) {
       element.removeAttribute('aria-hidden');
