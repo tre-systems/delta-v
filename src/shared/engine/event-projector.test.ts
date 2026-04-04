@@ -1335,3 +1335,64 @@ describe('projectMatchSetupFromStream', () => {
     expect(projected.value.ships.length).toBe(shipsBefore);
   });
 });
+
+describe('projectGameStateFromStream derived visibility', () => {
+  it('runs applyDetection after shipMoved so sensor range matches live engine state', () => {
+    const base = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('DETECT-m1'),
+      findBaseHex,
+      () => 0,
+    );
+    const ship0 = base.ships.find((s) => s.owner === 0);
+    const ship1 = base.ships.find((s) => s.owner === 1);
+    if (!ship0 || !ship1) {
+      throw new Error('expected one ship per player');
+    }
+
+    ship0.lifecycle = 'active';
+    ship1.lifecycle = 'active';
+    ship0.position = { q: 0, r: 0 };
+    ship0.velocity = { dq: 0, dr: 0 };
+    ship1.velocity = { dq: 0, dr: 0 };
+    const from1 = { q: 5, r: 5 };
+    ship1.position = { ...from1 };
+    ship0.detected = false;
+    ship1.detected = false;
+
+    const to1 = { q: 2, r: 0 };
+    const projected = projectGameStateFromStream(
+      [
+        {
+          gameId: asGameId('DETECT-m1'),
+          seq: 1,
+          ts: 1,
+          actor: 1,
+          event: {
+            type: 'shipMoved',
+            shipId: ship1.id,
+            from: from1,
+            to: to1,
+            path: [from1, to1],
+            fuelSpent: 0,
+            fuelRemaining: ship1.fuel,
+            newVelocity: { dq: 0, dr: 0 },
+            lifecycle: 'active',
+            overloadUsed: false,
+            pendingGravityEffects: [],
+          },
+        },
+      ],
+      map,
+      base,
+    );
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) return;
+
+    const a = projected.value.ships.find((s) => s.id === ship0.id);
+    const b = projected.value.ships.find((s) => s.id === ship1.id);
+    expect(a?.detected).toBe(true);
+    expect(b?.detected).toBe(true);
+  });
+});
