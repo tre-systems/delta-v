@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createGameOrThrow } from '../../shared/engine/game-engine';
+import { asGameId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -16,7 +17,7 @@ describe('game-client-fleet', () => {
     const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
-      'FLEET-AI',
+      asGameId('FLEET-AI'),
       findBaseHex,
     );
 
@@ -59,7 +60,12 @@ describe('game-client-fleet', () => {
   it('returns an error when the local player purchases are invalid', () => {
     const map = buildSolarSystemMap();
     const scenario = SCENARIOS.interplanetaryWar;
-    const state = createGameOrThrow(scenario, map, 'LOCAL', findBaseHex);
+    const state = createGameOrThrow(
+      scenario,
+      map,
+      asGameId('LOCAL'),
+      findBaseHex,
+    );
     state.players[0].credits = 2000;
 
     expect(
@@ -80,7 +86,12 @@ describe('game-client-fleet', () => {
   it('resolves the local fleet-ready flow through both player submissions', () => {
     const map = buildSolarSystemMap();
     const scenario = SCENARIOS.interplanetaryWar;
-    const state = createGameOrThrow(scenario, map, 'LOCAL', findBaseHex);
+    const state = createGameOrThrow(
+      scenario,
+      map,
+      asGameId('LOCAL'),
+      findBaseHex,
+    );
 
     const initialPlayerShips = state.ships.filter(
       (ship) => ship.owner === 0,
@@ -121,7 +132,12 @@ describe('game-client-fleet', () => {
       ...SCENARIOS.interplanetaryWar,
       availableFleetPurchases: ['corvette', 'corsair'],
     };
-    const state = createGameOrThrow(scenario, map, 'LOCAL', findBaseHex);
+    const state = createGameOrThrow(
+      scenario,
+      map,
+      asGameId('LOCAL'),
+      findBaseHex,
+    );
 
     const processReady = vi
       .fn()
@@ -178,7 +194,7 @@ describe('game-client-fleet', () => {
     const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
-      'SUPPORT-AI',
+      asGameId('SUPPORT-AI'),
       findBaseHex,
     );
 

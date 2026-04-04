@@ -18,6 +18,7 @@ vi.mock('cloudflare:workers', () => ({
 }));
 
 import { createGameOrThrow } from '../../shared/engine/game-engine';
+import { asGameId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -448,13 +449,13 @@ describe('GameDO', () => {
 
     const state = await getProjectedCurrentStateRaw(
       ctx.storage as unknown as DurableObjectStorage,
-      'ABCDE-m1',
+      asGameId('ABCDE-m1'),
     );
     expect(must(state).gameId).toBe('ABCDE-m1');
 
     const eventStream = await getEventStream(
       ctx.storage as unknown as DurableObjectStorage,
-      'ABCDE-m1',
+      asGameId('ABCDE-m1'),
     );
     expect(eventStream[0]?.event.type).toBe('gameCreated');
     expect(await ctx.storage.get('matchCreatedAt:ABCDE-m1')).toEqual(
@@ -480,13 +481,13 @@ describe('GameDO', () => {
     await initGame();
     const firstState = await getProjectedCurrentStateRaw(
       ctx.storage as unknown as DurableObjectStorage,
-      'ABCDE-m1',
+      asGameId('ABCDE-m1'),
     );
 
     await initGame();
     const secondState = await getProjectedCurrentStateRaw(
       ctx.storage as unknown as DurableObjectStorage,
-      'ABCDE-m2',
+      asGameId('ABCDE-m2'),
     );
 
     expect(must(firstState).gameId).toBe('ABCDE-m1');
@@ -494,13 +495,13 @@ describe('GameDO', () => {
     expect(
       await getEventStream(
         ctx.storage as unknown as DurableObjectStorage,
-        'ABCDE-m1',
+        asGameId('ABCDE-m1'),
       ),
     ).toHaveLength(1);
     expect(
       await getEventStream(
         ctx.storage as unknown as DurableObjectStorage,
-        'ABCDE-m2',
+        asGameId('ABCDE-m2'),
       ),
     ).toHaveLength(1);
   });
@@ -551,14 +552,14 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       buildSolarSystemMap(),
-      'DISC1-m1',
+      asGameId('DISC1-m1'),
       findBaseHex,
     );
     await ctx.storage.put('gameCode', 'DISC1');
     await ctx.storage.put('matchNumber', 1);
     await saveCheckpoint(
       ctx.storage as unknown as DurableObjectStorage,
-      'DISC1-m1',
+      asGameId('DISC1-m1'),
       state,
       0,
     );
@@ -577,14 +578,14 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       buildSolarSystemMap(),
-      'DISC2-m1',
+      asGameId('DISC2-m1'),
       findBaseHex,
     );
     await ctx.storage.put('gameCode', 'DISC2');
     await ctx.storage.put('matchNumber', 1);
     await saveCheckpoint(
       ctx.storage as unknown as DurableObjectStorage,
-      'DISC2-m1',
+      asGameId('DISC2-m1'),
       state,
       0,
     );
@@ -607,7 +608,7 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       buildSolarSystemMap(),
-      'DC01-m1',
+      asGameId('DC01-m1'),
       findBaseHex,
     );
     state.phase = 'astrogation';
@@ -615,7 +616,7 @@ describe('GameDO', () => {
     await ctx.storage.put('matchNumber', 1);
     await saveCheckpoint(
       ctx.storage as unknown as DurableObjectStorage,
-      'DC01-m1',
+      asGameId('DC01-m1'),
       state,
       0,
     );
@@ -635,7 +636,7 @@ describe('GameDO', () => {
     expect(await ctx.storage.get('disconnectedPlayer')).toBeUndefined();
     const saved = await getProjectedCurrentStateRaw(
       ctx.storage as unknown as DurableObjectStorage,
-      'DC01-m1',
+      asGameId('DC01-m1'),
     );
     expect(saved?.phase).toBe('gameOver');
     expect(saved?.outcome?.winner).toBe(1);
@@ -654,14 +655,14 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       buildSolarSystemMap(),
-      'TIME1-m1',
+      asGameId('TIME1-m1'),
       findBaseHex,
     );
     await ctx.storage.put('gameCode', 'TIME1');
     await ctx.storage.put('matchNumber', 1);
     await saveCheckpoint(
       ctx.storage as unknown as DurableObjectStorage,
-      'TIME1-m1',
+      asGameId('TIME1-m1'),
       state,
       0,
     );
@@ -671,7 +672,7 @@ describe('GameDO', () => {
     await game.alarm();
     const nextState = await getProjectedCurrentStateRaw(
       ctx.storage as unknown as DurableObjectStorage,
-      'TIME1-m1',
+      asGameId('TIME1-m1'),
     );
     expect(must(nextState).activePlayer).toBe(1);
     expect(await ctx.storage.get('turnTimeoutAt')).toBeGreaterThan(10000);
@@ -709,7 +710,7 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'SAVE1',
+      asGameId('SAVE1'),
       findBaseHex,
     );
 
@@ -740,7 +741,7 @@ describe('GameDO', () => {
     expect(
       await getProjectedCurrentStateRaw(
         ctx.storage as unknown as DurableObjectStorage,
-        'SAVE1',
+        asGameId('SAVE1'),
       ),
     ).toEqual(state);
   });
@@ -755,7 +756,7 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'ABCDE-m1',
+      asGameId('ABCDE-m1'),
       findBaseHex,
     );
 
@@ -782,7 +783,7 @@ describe('GameDO', () => {
 
     const stream = await getEventStream(
       ctx.storage as unknown as DurableObjectStorage,
-      'ABCDE-m1',
+      asGameId('ABCDE-m1'),
     );
     expect(stream).toHaveLength(1);
     expect(stream[0]?.event).toEqual({
@@ -802,7 +803,7 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'STAT1',
+      asGameId('STAT1'),
       findBaseHex,
     );
 
@@ -844,7 +845,7 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'MOVE1',
+      asGameId('MOVE1'),
       findBaseHex,
     );
     const movementResult: MovementResult = {
@@ -887,7 +888,7 @@ describe('GameDO', () => {
     const base = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'OVER1',
+      asGameId('OVER1'),
       findBaseHex,
     );
     const state: GameState = {
@@ -1063,7 +1064,7 @@ describe('GameDO', () => {
     // Game state should be persisted in astrogation
     const gameState = await getProjectedCurrentStateRaw(
       ctx.storage as unknown as DurableObjectStorage,
-      'HAPPY-m1',
+      asGameId('HAPPY-m1'),
     );
     expect(gameState).toBeDefined();
     expect(must(gameState).phase).toBe('astrogation');
@@ -1094,7 +1095,7 @@ describe('GameDO', () => {
     // 6. Game state should have advanced past the first player
     const nextState = await getProjectedCurrentStateRaw(
       ctx.storage as unknown as DurableObjectStorage,
-      'HAPPY-m1',
+      asGameId('HAPPY-m1'),
     );
     expect(nextState).toBeDefined();
     expect(must(nextState).turnNumber).toBeGreaterThanOrEqual(
@@ -1187,7 +1188,7 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.escape,
       buildSolarSystemMap(),
-      'SPEC1-m1',
+      asGameId('SPEC1-m1'),
       findBaseHex,
     );
     state.scenarioRules = {
@@ -1236,7 +1237,7 @@ describe('GameDO', () => {
 
     let stream = await getEventStream(
       ctx.storage as unknown as DurableObjectStorage,
-      'ABCDE-m1',
+      asGameId('ABCDE-m1'),
     );
     expect(stream).toHaveLength(1);
     expect(stream[0]?.event.type).toBe('gameCreated');
@@ -1244,7 +1245,7 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'ABCDE-m1',
+      asGameId('ABCDE-m1'),
       findBaseHex,
     );
     state.turnNumber = 2;
@@ -1275,7 +1276,7 @@ describe('GameDO', () => {
 
     stream = await getEventStream(
       ctx.storage as unknown as DurableObjectStorage,
-      'ABCDE-m1',
+      asGameId('ABCDE-m1'),
     );
     expect(stream).toHaveLength(2);
     expect(stream[1]?.event.type).toBe('turnAdvanced');
@@ -1287,7 +1288,7 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'PARCHK-m1',
+      asGameId('PARCHK-m1'),
       findBaseHex,
     );
     const projected = structuredClone(state);
@@ -1296,7 +1297,7 @@ describe('GameDO', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await appendEnvelopedEvents(
       ctx.storage as unknown as DurableObjectStorage,
-      'PARCHK-m1',
+      asGameId('PARCHK-m1'),
       null,
       {
         type: 'gameCreated',
@@ -1321,7 +1322,7 @@ describe('GameDO', () => {
     expect(errorSpy).toHaveBeenCalledWith(
       '[projection parity mismatch]',
       expect.objectContaining({
-        gameId: 'PARCHK-m1',
+        gameId: asGameId('PARCHK-m1'),
         liveTurn: state.turnNumber,
         projectedTurn: projected.turnNumber,
       }),
@@ -1340,14 +1341,14 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'ABCDE-m1',
+      asGameId('ABCDE-m1'),
       findBaseHex,
     );
     state.turnNumber = 3;
     state.phase = 'combat';
     await saveCheckpoint(
       ctx.storage as unknown as DurableObjectStorage,
-      'ABCDE-m1',
+      asGameId('ABCDE-m1'),
       state,
       9,
     );
@@ -1434,7 +1435,7 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'ABCDE-m1',
+      asGameId('ABCDE-m1'),
       findBaseHex,
     );
     state.activePlayer = 1;
@@ -1465,7 +1466,7 @@ describe('GameDO', () => {
 
     const stream = await getEventStream(
       ctx.storage as unknown as DurableObjectStorage,
-      'ABCDE-m1',
+      asGameId('ABCDE-m1'),
     );
     expect(stream[0]?.actor).toBe(0);
   });
@@ -1478,7 +1479,7 @@ describe('GameDO', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
       buildSolarSystemMap(),
-      'SYS01-m1',
+      asGameId('SYS01-m1'),
       findBaseHex,
     );
     state.phase = 'gameOver';
@@ -1510,7 +1511,7 @@ describe('GameDO', () => {
 
     const stream = await getEventStream(
       ctx.storage as unknown as DurableObjectStorage,
-      'SYS01-m1',
+      asGameId('SYS01-m1'),
     );
     expect(stream[0]?.actor).toBeNull();
   });

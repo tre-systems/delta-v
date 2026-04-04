@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createGameOrThrow } from '../../shared/engine/game-engine';
+import { asGameId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -72,20 +73,25 @@ describe('match archival', () => {
     const r2 = createMockR2();
     const db = createMockDb();
     const map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.duel, map, 'ARC-m1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('ARC-m1'),
+      findBaseHex,
+    );
     state.phase = 'gameOver';
     state.outcome = { winner: 0, reason: 'Fleet eliminated!' };
 
     // Populate event stream and checkpoint
-    await appendEnvelopedEvents(storage, 'ARC-m1', null, {
+    await appendEnvelopedEvents(storage, asGameId('ARC-m1'), null, {
       type: 'gameCreated',
       scenario: 'Duel',
       turn: 1,
       phase: 'astrogation',
       matchSeed: 0,
     });
-    await saveMatchCreatedAt(storage, 'ARC-m1', 1234);
-    await saveCheckpoint(storage, 'ARC-m1', state, 1);
+    await saveMatchCreatedAt(storage, asGameId('ARC-m1'), 1234);
+    await saveCheckpoint(storage, asGameId('ARC-m1'), state, 1);
 
     await archiveCompletedMatch(
       storage,
@@ -128,7 +134,7 @@ describe('match archival', () => {
   it('fetches archived match from R2', async () => {
     const r2 = createMockR2();
     const archive: MatchArchive = {
-      gameId: 'FETCH-m1',
+      gameId: asGameId('FETCH-m1'),
       roomCode: 'FETCH',
       scenario: 'Bi-Planetary',
       winner: 1,
@@ -145,7 +151,7 @@ describe('match archival', () => {
 
     const result = await fetchArchivedMatch(
       r2 as unknown as R2Bucket,
-      'FETCH-m1',
+      asGameId('FETCH-m1'),
     );
 
     expect(result).not.toBeNull();
@@ -154,7 +160,7 @@ describe('match archival', () => {
   });
 
   it('returns null when R2 is not bound', async () => {
-    const result = await fetchArchivedMatch(undefined, 'NONE-m1');
+    const result = await fetchArchivedMatch(undefined, asGameId('NONE-m1'));
     expect(result).toBeNull();
   });
 
@@ -162,7 +168,7 @@ describe('match archival', () => {
     const r2 = createMockR2();
     const result = await fetchArchivedMatch(
       r2 as unknown as R2Bucket,
-      'MISSING-m1',
+      asGameId('MISSING-m1'),
     );
     expect(result).toBeNull();
   });
@@ -174,7 +180,7 @@ describe('match archival', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
       map,
-      'NODB-m1',
+      asGameId('NODB-m1'),
       findBaseHex,
     );
     state.phase = 'gameOver';
@@ -202,7 +208,12 @@ describe('match archival', () => {
       }),
     };
     const map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.duel, map, 'ERR-m1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('ERR-m1'),
+      findBaseHex,
+    );
     state.phase = 'gameOver';
 
     await expect(
@@ -226,13 +237,13 @@ describe('match archival', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
       map,
-      'FALL-m1',
+      asGameId('FALL-m1'),
       findBaseHex,
     );
     state.phase = 'gameOver';
 
     vi.spyOn(Date, 'now').mockReturnValue(5000);
-    await saveCheckpoint(storage, 'FALL-m1', state, 1);
+    await saveCheckpoint(storage, asGameId('FALL-m1'), state, 1);
     vi.spyOn(Date, 'now').mockReturnValue(9000);
 
     await archiveCompletedMatch(

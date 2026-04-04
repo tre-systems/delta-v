@@ -1,5 +1,8 @@
 declare const __roomCodeBrand: unique symbol;
 declare const __playerTokenBrand: unique symbol;
+declare const __shipIdBrand: unique symbol;
+declare const __ordnanceIdBrand: unique symbol;
+declare const __gameIdBrand: unique symbol;
 
 export type RoomCode = string & { readonly [__roomCodeBrand]: never };
 export type PlayerToken = string & { readonly [__playerTokenBrand]: never };
@@ -29,3 +32,12 @@ export const isPlayerToken = (value: unknown): value is PlayerToken =>
 
 export const normalizePlayerToken = (value: unknown): PlayerToken | null =>
   isPlayerToken(value) ? value : null;
+
+export type ShipId = string & { readonly [__shipIdBrand]: never };
+export const asShipId = (value: string): ShipId => value as ShipId;
+
+export type OrdnanceId = string & { readonly [__ordnanceIdBrand]: never };
+export const asOrdnanceId = (value: string): OrdnanceId => value as OrdnanceId;
+
+export type GameId = string & { readonly [__gameIdBrand]: never };
+export const asGameId = (value: string): GameId => value as GameId;

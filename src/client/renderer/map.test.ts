@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { asHexKey } from '../../shared/hex';
+import { asGameId } from '../../shared/ids';
 import type {
   GameState,
   PlayerState,
@@ -29,7 +30,7 @@ const createPlayer = (overrides: Partial<PlayerState> = {}): PlayerState => {
 
 const createState = (): GameState => {
   return {
-    gameId: 'LOCAL',
+    gameId: asGameId('LOCAL'),
     scenario: 'biplanetary',
     scenarioRules: {},
     escapeMoralVictoryAchieved: false,

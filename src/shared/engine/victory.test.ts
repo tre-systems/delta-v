@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { must } from '../assert';
 import { ORBITAL_BASE_MASS, SHIP_STATS } from '../constants';
+import { asGameId, asShipId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { GameState, MovementEvent, Ship, SolarSystemMap } from '../types';
 import type { EngineEvent } from './engine-events';
@@ -20,7 +21,7 @@ import {
 
 let map: SolarSystemMap;
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'test-ship',
+  id: asShipId('test-ship'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,
@@ -41,7 +42,12 @@ const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 const setupState = (): GameState => {
   map = buildSolarSystemMap();
-  return createGameOrThrow(SCENARIOS.biplanetary, map, 'VTEST', findBaseHex);
+  return createGameOrThrow(
+    SCENARIOS.biplanetary,
+    map,
+    asGameId('VTEST'),
+    findBaseHex,
+  );
 };
 describe('advanceTurn', () => {
   it('decrements disabled turns for active player ships', () => {
@@ -159,7 +165,7 @@ describe('advanceTurn', () => {
     const state = setupState();
     state.ships.push(
       makeShip({
-        id: 'extra-frigate',
+        id: asShipId('extra-frigate'),
         type: 'frigate',
         owner: 1,
         originalOwner: 0,
@@ -191,7 +197,7 @@ describe('applyCheckpoints', () => {
     const state = createGameOrThrow(
       SCENARIOS.grandTour,
       map,
-      'CP01',
+      asGameId('CP01'),
       findBaseHex,
     );
     const player = state.players[0];
@@ -207,7 +213,7 @@ describe('applyCheckpoints', () => {
     const state = createGameOrThrow(
       SCENARIOS.grandTour,
       map,
-      'CP02',
+      asGameId('CP02'),
       findBaseHex,
     );
     const solHex = must(map.bodies.find((b) => b.name === 'Sol')?.center);
@@ -228,7 +234,7 @@ describe('applyCheckpoints', () => {
     const state = createGameOrThrow(
       SCENARIOS.grandTour,
       map,
-      'CP03',
+      asGameId('CP03'),
       findBaseHex,
     );
     // Find a gravity hex for Mars
@@ -259,7 +265,7 @@ describe('checkImmediateVictory', () => {
     const state = createGameOrThrow(
       SCENARIOS.grandTour,
       map,
-      'GT01',
+      asGameId('GT01'),
       findBaseHex,
     );
     const ship = must(state.ships.find((s) => s.owner === 0));
@@ -281,7 +287,7 @@ describe('checkImmediateVictory', () => {
     const state = createGameOrThrow(
       SCENARIOS.grandTour,
       map,
-      'GT02',
+      asGameId('GT02'),
       findBaseHex,
     );
     const ship = must(state.ships.find((s) => s.owner === 0));
@@ -294,7 +300,12 @@ describe('checkImmediateVictory', () => {
   });
   it('awards escape victory with decisive win when fugitive has spare fuel', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.escape, map, 'ESC1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('ESC1'),
+      findBaseHex,
+    );
     const fugitive = state.ships.find(
       (s) => s.owner === 0 && s.identity?.hasFugitives,
     );
@@ -310,7 +321,12 @@ describe('checkImmediateVictory', () => {
   });
   it('awards escape victory with marginal win when fugitive has low fuel', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.escape, map, 'ESC2', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('ESC2'),
+      findBaseHex,
+    );
     const fugitive = state.ships.find(
       (s) => s.owner === 0 && s.identity?.hasFugitives,
     );
@@ -325,7 +341,12 @@ describe('checkImmediateVictory', () => {
   });
   it('does not award escape to non-fugitive ship when fugitive scenario exists', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.escape, map, 'ESC3', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('ESC3'),
+      findBaseHex,
+    );
     const nonFugitive = state.ships.find(
       (s) => s.owner === 0 && !s.identity?.hasFugitives,
     );
@@ -340,7 +361,12 @@ describe('checkImmediateVictory', () => {
   });
   it('with targetWinRequiresPassengers, ignores target landing without passengers', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.convoy, map, 'PW01', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('PW01'),
+      findBaseHex,
+    );
     expect(state.scenarioRules.targetWinRequiresPassengers).toBe(true);
     const venusHex = must(findBaseHex(map, 'Venus'));
     const ship = must(
@@ -354,7 +380,12 @@ describe('checkImmediateVictory', () => {
   });
   it('with targetWinRequiresPassengers, awards win when landing with passengers', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.convoy, map, 'PW02', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('PW02'),
+      findBaseHex,
+    );
     const venusHex = must(findBaseHex(map, 'Venus'));
     const ship = must(
       state.ships.find((s) => s.owner === 0 && s.type === 'liner'),
@@ -371,7 +402,12 @@ describe('checkImmediateVictory', () => {
 describe('checkGameEnd', () => {
   it('awards enforcer victory when fugitive is destroyed (no moral victory)', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.escape, map, 'GE01', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('GE01'),
+      findBaseHex,
+    );
     const fugitive = state.ships.find((s) => s.identity?.hasFugitives);
     if (fugitive) {
       fugitive.lifecycle = 'destroyed';
@@ -383,7 +419,12 @@ describe('checkGameEnd', () => {
   });
   it('awards pilgrim moral victory when fugitive destroyed but enforcer was disabled', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.escape, map, 'GE02', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('GE02'),
+      findBaseHex,
+    );
     const fugitive = state.ships.find((s) => s.identity?.hasFugitives);
     if (fugitive) {
       fugitive.lifecycle = 'destroyed';
@@ -425,7 +466,12 @@ describe('checkGameEnd', () => {
 describe('applyEscapeMoralVictory', () => {
   it('sets moral victory when an enforcer ship is destroyed', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.escape, map, 'MV01', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('MV01'),
+      findBaseHex,
+    );
     state.escapeMoralVictoryAchieved = false;
     // Destroy an enforcer ship
     const enforcer = must(state.ships.find((s) => s.owner === 1));
@@ -435,7 +481,12 @@ describe('applyEscapeMoralVictory', () => {
   });
   it('sets moral victory when an enforcer ship is disabled', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.escape, map, 'MV02', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('MV02'),
+      findBaseHex,
+    );
     state.escapeMoralVictoryAchieved = false;
     const enforcer = must(state.ships.find((s) => s.owner === 1));
     enforcer.damage.disabledTurns = 3;
@@ -444,14 +495,24 @@ describe('applyEscapeMoralVictory', () => {
   });
   it('does not set moral victory when no enforcers damaged', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.escape, map, 'MV03', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('MV03'),
+      findBaseHex,
+    );
     state.escapeMoralVictoryAchieved = false;
     applyEscapeMoralVictory(state);
     expect(state.escapeMoralVictoryAchieved).toBe(false);
   });
   it('is a no-op when already achieved', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.escape, map, 'MV04', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('MV04'),
+      findBaseHex,
+    );
     state.escapeMoralVictoryAchieved = true;
     applyEscapeMoralVictory(state);
     expect(state.escapeMoralVictoryAchieved).toBe(true);
@@ -485,7 +546,7 @@ describe('checkRamming', () => {
     // Add a second player-0 ship
     state.ships.push(
       makeShip({
-        id: 'p0s1',
+        id: asShipId('p0s1'),
         owner: 0,
         originalOwner: 0,
         position: { q: 5, r: 5 },
@@ -526,7 +587,12 @@ describe('checkRamming', () => {
 describe('checkInspection', () => {
   it('reveals hidden identity when ships share position and velocity', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.escape, map, 'INS1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('INS1'),
+      findBaseHex,
+    );
     const enforcer = must(state.ships.find((s) => s.owner === 1));
     const pilgrim = must(state.ships.find((s) => s.owner === 0));
     enforcer.position = { q: 5, r: 5 };
@@ -541,7 +607,12 @@ describe('checkInspection', () => {
   });
   it('does not reveal when velocities differ', () => {
     map = buildSolarSystemMap();
-    const state = createGameOrThrow(SCENARIOS.escape, map, 'INS2', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('INS2'),
+      findBaseHex,
+    );
     const enforcer = must(state.ships.find((s) => s.owner === 1));
     const pilgrim = must(state.ships.find((s) => s.owner === 0));
     enforcer.position = { q: 5, r: 5 };
@@ -632,7 +703,7 @@ describe('checkOrbitalBaseResupply', () => {
     // Add an orbital base at the same position/velocity
     state.ships.push(
       makeShip({
-        id: 'ob-1',
+        id: asShipId('ob-1'),
         type: 'orbitalBase',
         owner: 0,
         originalOwner: 0,
@@ -664,7 +735,7 @@ describe('checkOrbitalBaseResupply', () => {
     ship.lifecycle = 'active';
     state.ships.push(
       makeShip({
-        id: 'ob-2',
+        id: asShipId('ob-2'),
         type: 'orbitalBase',
         owner: 0,
         originalOwner: 0,
@@ -685,7 +756,7 @@ describe('checkOrbitalBaseResupply', () => {
     ship.lifecycle = 'active';
     state.ships.push(
       makeShip({
-        id: 'ob-3',
+        id: asShipId('ob-3'),
         type: 'orbitalBase',
         owner: 0,
         originalOwner: 0,
@@ -707,7 +778,7 @@ describe('checkOrbitalBaseResupply', () => {
     ship.lifecycle = 'active';
     state.ships.push(
       makeShip({
-        id: 'ob-4',
+        id: asShipId('ob-4'),
         type: 'orbitalBase',
         owner: 0,
         originalOwner: 0,
@@ -733,7 +804,7 @@ describe('checkOrbitalBaseResupply', () => {
     ship.lifecycle = 'active';
     state.ships.push(
       makeShip({
-        id: 'ob-5',
+        id: asShipId('ob-5'),
         type: 'orbitalBase',
         owner: 0,
         originalOwner: 0,

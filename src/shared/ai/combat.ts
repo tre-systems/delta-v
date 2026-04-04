@@ -9,6 +9,7 @@ import {
   hasLineOfSightToTarget,
 } from '../combat';
 import { hexDistance } from '../hex';
+import type { OrdnanceId, ShipId } from '../ids';
 import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   CombatAttack,
@@ -22,7 +23,7 @@ import { AI_CONFIG } from './config';
 import type { AIDifficulty } from './types';
 
 interface ScoredTarget {
-  targetId: string;
+  targetId: ShipId | OrdnanceId;
   targetType: 'ship' | 'ordnance';
   attackers: Ship[];
   score: number;

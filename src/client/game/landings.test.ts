@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { asHexKey } from '../../shared/hex';
+import { asGameId, asShipId } from '../../shared/ids';
 import type {
   GameState,
   PlayerState,
@@ -10,7 +11,7 @@ import type {
 import { deriveLandingLogEntries } from './landings';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -49,7 +50,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'LAND',
+  gameId: asGameId('LAND'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -59,7 +60,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   ships: [
     createShip(),
     createShip({
-      id: 'enemy',
+      id: asShipId('enemy'),
       owner: 1,
       originalOwner: 0,
       type: 'corsair',
@@ -79,7 +80,7 @@ describe('game-client-landings', () => {
   it('builds landing log entries and resupply text from completed landings', () => {
     const movements: ShipMovement[] = [
       {
-        shipId: 'ship-0',
+        shipId: asShipId('ship-0'),
         from: { q: 0, r: 0 },
         to: { q: 1, r: 0 },
         path: [],
@@ -90,7 +91,7 @@ describe('game-client-landings', () => {
         landedAt: 'Mars',
       },
       {
-        shipId: 'enemy',
+        shipId: asShipId('enemy'),
         from: { q: 2, r: 0 },
         to: { q: 2, r: 1 },
         path: [],
@@ -121,7 +122,7 @@ describe('game-client-landings', () => {
   it('ignores missing state, non-landings, and missing ships', () => {
     const movements: ShipMovement[] = [
       {
-        shipId: 'missing',
+        shipId: asShipId('missing'),
         from: { q: 0, r: 0 },
         to: { q: 1, r: 0 },
         path: [],
@@ -132,7 +133,7 @@ describe('game-client-landings', () => {
         landedAt: 'Mars',
       },
       {
-        shipId: 'ship-0',
+        shipId: asShipId('ship-0'),
         from: { q: 0, r: 0 },
         to: { q: 1, r: 0 },
         path: [],

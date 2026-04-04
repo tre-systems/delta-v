@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { asShipId } from '../ids';
 import { filterLogisticsTransferLogEvents } from './transfer-log-events';
 
 describe('filterLogisticsTransferLogEvents', () => {
@@ -9,20 +9,20 @@ describe('filterLogisticsTransferLogEvents', () => {
         { type: 'turnAdvanced', turn: 2, activePlayer: 1 },
         {
           type: 'fuelTransferred',
-          fromShipId: 'a',
-          toShipId: 'b',
+          fromShipId: asShipId('a'),
+          toShipId: asShipId('b'),
           amount: 3,
         },
         {
           type: 'cargoTransferred',
-          fromShipId: 'a',
-          toShipId: 'b',
+          fromShipId: asShipId('a'),
+          toShipId: asShipId('b'),
           amount: 2,
         },
         {
           type: 'passengersTransferred',
-          fromShipId: 'a',
-          toShipId: 'b',
+          fromShipId: asShipId('a'),
+          toShipId: asShipId('b'),
           amount: 1,
         },
       ]),

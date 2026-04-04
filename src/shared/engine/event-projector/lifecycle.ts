@@ -1,3 +1,4 @@
+import type { GameId } from '../../ids';
 import { findBaseHex } from '../../map-data';
 import { mulberry32 } from '../../prng';
 import type { SolarSystemMap } from '../../types';
@@ -15,7 +16,7 @@ import {
 export const projectLifecycleEvent = (
   state: GameState | null,
   event: LifecycleProjectionEvent,
-  gameId: string,
+  gameId: GameId,
   map: SolarSystemMap,
 ): Result<GameState> => {
   switch (event.type) {

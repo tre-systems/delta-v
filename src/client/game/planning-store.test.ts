@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-
+import { asShipId } from '../../shared/ids';
 import type { CombatAttack } from '../../shared/types/domain';
 import { effect } from '../reactive';
 import type { CombatTargetPlan } from './combat';
 import { createPlanningStore } from './planning';
 
 const createAttack = (overrides: Partial<CombatAttack> = {}): CombatAttack => ({
-  attackerIds: ['ship-0'],
-  targetId: 'enemy',
+  attackerIds: [asShipId('ship-0')],
+  targetId: asShipId('enemy'),
   targetType: 'ship',
   attackStrength: 2,
   ...overrides,
@@ -35,7 +35,7 @@ describe('planning', () => {
     const planning = createPlanningStore();
     planning.setShipBurn('ship-0', 2);
     planning.queueOrdnanceLaunch({
-      shipId: 'ship-0',
+      shipId: asShipId('ship-0'),
       ordnanceType: 'mine',
       torpedoAccel: null,
       torpedoAccelSteps: null,
@@ -118,7 +118,9 @@ describe('planning', () => {
 
     expect(planning.queueCombatAttack(createAttack())).toBe(1);
     expect(
-      planning.queueCombatAttack(createAttack({ targetId: 'enemy-2' })),
+      planning.queueCombatAttack(
+        createAttack({ targetId: asShipId('enemy-2') }),
+      ),
     ).toBe(2);
     expect(planning.popQueuedAttack()).toBe(1);
 

@@ -1,4 +1,5 @@
 import { migrateGameState } from '../../shared/engine/event-projector/support';
+import type { GameId } from '../../shared/ids';
 import type { GameState } from '../../shared/types/domain';
 import { migrateLegacyEventStreamIfNeeded } from './archive-storage';
 
@@ -19,7 +20,7 @@ export const normalizeArchivedStateRecord = <T extends { state: GameState }>(
 
 export const ensureArchiveStreamCompatibility = async (
   storage: Storage,
-  gameId: string,
+  gameId: GameId,
 ): Promise<void> => {
   await migrateLegacyEventStreamIfNeeded(storage, gameId);
 };

@@ -9,6 +9,7 @@ import {
   hexSubtract,
   hexVecLength,
 } from '../hex';
+import { asShipId } from '../ids';
 import {
   applyPendingGravityEffects,
   collectEnteredGravityEffects,
@@ -139,7 +140,7 @@ export const processEmplacement = (
       );
     }
 
-    const baseId = `ob${state.ships.length}`;
+    const baseId = asShipId(`ob${state.ships.length}`);
 
     const newBase: Ship = {
       id: baseId,
@@ -226,7 +227,7 @@ const pushDestroyedBase = (
 };
 
 const pushDestroyedOrdnance = (
-  ordnanceId: string,
+  ordnanceId: import('../ids').OrdnanceId,
   cause: string,
   engineEvents?: EngineEvent[],
 ): void => {
@@ -576,7 +577,7 @@ export const moveOrdnance = (
             ) {
               ship.lifecycle = 'destroyed';
               ship.deathCause = 'nuke';
-              ship.killedBy = ord.id;
+              ship.killedBy = asShipId(ord.id);
               ship.velocity = { dq: 0, dr: 0 };
 
               events.push({

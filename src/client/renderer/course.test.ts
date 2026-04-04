@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { must } from '../../shared/assert';
 import { hexKey } from '../../shared/hex';
+import { asGameId, asShipId } from '../../shared/ids';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type {
   GameState,
@@ -15,7 +16,7 @@ import {
 } from './course';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,
@@ -54,7 +55,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (ships: Ship[]): GameState => ({
-  gameId: 'TEST',
+  gameId: asGameId('TEST'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -97,7 +98,7 @@ describe('renderer course helpers', () => {
 
     expect(previews).toHaveLength(1);
     expect(previews[0]).toMatchObject({
-      shipId: 'ship-0',
+      shipId: asShipId('ship-0'),
       lineColor: '#4fc3f7',
       lineDash: [6, 4],
       ghostShip: { shipType: 'corvette', owner: 0, alpha: 0.4 },

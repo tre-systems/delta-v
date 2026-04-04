@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-
+import { asShipId } from '../../shared/ids';
 import type { CombatResult, GameState } from '../../shared/types/domain';
 import type { LocalGameFlowDeps } from './local-game-flow';
 import { handleLocalResolution } from './local-game-flow';
@@ -49,8 +49,8 @@ describe('handleLocalResolution', () => {
       phase: 'combat',
     } as unknown as GameState;
     const result: CombatResult = {
-      attackerIds: ['attacker-1'],
-      targetId: 'target-1',
+      attackerIds: [asShipId('attacker-1')],
+      targetId: asShipId('target-1'),
       targetType: 'ship',
       attackType: 'gun',
       odds: '1:1',
@@ -102,8 +102,8 @@ describe('handleLocalResolution', () => {
       outcome: { winner: 0, reason: 'Fleet eliminated!' },
     } as unknown as GameState;
     const result: CombatResult = {
-      attackerIds: ['attacker-1'],
-      targetId: 'target-1',
+      attackerIds: [asShipId('attacker-1')],
+      targetId: asShipId('target-1'),
       targetType: 'ship',
       attackType: 'gun',
       odds: '1:1',
@@ -170,8 +170,8 @@ describe('handleLocalResolution', () => {
         engineEvents: [
           {
             type: 'fuelTransferred',
-            fromShipId: 'ship-a',
-            toShipId: 'ship-b',
+            fromShipId: asShipId('ship-a'),
+            toShipId: asShipId('ship-b'),
             amount: 2,
           },
         ],

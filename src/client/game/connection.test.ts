@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createGameOrThrow } from '../../shared/engine/game-engine';
+import { asGameId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -67,7 +68,7 @@ const createDeps = () => {
   const state = createGameOrThrow(
     SCENARIOS.duel,
     buildSolarSystemMap(),
-    'CONN1',
+    asGameId('CONN1'),
     findBaseHex,
   );
   let clientState: ConnectionDeps['getClientState'] extends () => infer T

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
 import { deriveBurnChangePlan } from './burn';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -43,7 +43,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (ship: Ship): GameState => ({
-  gameId: 'BURN',
+  gameId: asGameId('BURN'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -127,7 +127,7 @@ describe('game-client-burn', () => {
       deriveBurnChangePlan(createState(createShip()), 'ship-0', 2, null),
     ).toEqual({
       kind: 'update',
-      shipId: 'ship-0',
+      shipId: asShipId('ship-0'),
       nextBurn: 2,
       clearOverload: true,
     });
@@ -136,7 +136,7 @@ describe('game-client-burn', () => {
       deriveBurnChangePlan(createState(createShip()), 'ship-0', 2, 2),
     ).toEqual({
       kind: 'update',
-      shipId: 'ship-0',
+      shipId: asShipId('ship-0'),
       nextBurn: null,
       clearOverload: false,
     });

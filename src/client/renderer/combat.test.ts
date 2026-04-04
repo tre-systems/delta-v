@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asOrdnanceId, asShipId } from '../../shared/ids';
 import type {
   CombatAttack,
   CombatResult,
@@ -19,7 +19,7 @@ import {
 } from './combat';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'corsair',
   owner: 0,
   originalOwner: 0,
@@ -39,7 +39,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 
 const createOrdnance = (overrides: Partial<Ordnance> = {}): Ordnance => ({
-  id: 'ord-0',
+  id: asOrdnanceId('ord-0'),
   type: 'nuke',
   owner: 1,
   sourceShipId: null,
@@ -70,7 +70,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'TEST',
+  gameId: asGameId('TEST'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -78,21 +78,21 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   phase: 'combat',
   activePlayer: 0,
   ships: [
-    createShip({ id: 'a', owner: 0, type: 'corsair' }),
+    createShip({ id: asShipId('a'), owner: 0, type: 'corsair' }),
     createShip({
-      id: 'b',
+      id: asShipId('b'),
       owner: 0,
       type: 'corvette',
       position: { q: 0, r: 1 },
     }),
     createShip({
-      id: 'x',
+      id: asShipId('x'),
       owner: 1,
       type: 'frigate',
       position: { q: 1, r: 0 },
     }),
     createShip({
-      id: 'y',
+      id: asShipId('y'),
       owner: 1,
       type: 'packet',
       position: { q: 1, r: 1 },
@@ -133,14 +133,14 @@ describe('renderer combat helpers', () => {
 
     const queuedAttacks: CombatAttack[] = [
       {
-        attackerIds: ['a', 'missing'],
-        targetId: 'x',
+        attackerIds: [asShipId('a'), asShipId('missing')],
+        targetId: asShipId('x'),
         targetType: 'ship',
         attackStrength: 4,
       },
       {
-        attackerIds: ['b'],
-        targetId: 'ord-0',
+        attackerIds: [asShipId('b')],
+        targetId: asOrdnanceId('ord-0'),
         targetType: 'ordnance',
         attackStrength: null,
       },
@@ -168,8 +168,8 @@ describe('renderer combat helpers', () => {
       combatTargetType: 'ordnance',
       queuedAttacks: [
         {
-          attackerIds: ['a'],
-          targetId: 'x',
+          attackerIds: [asShipId('a')],
+          targetId: asShipId('x'),
           targetType: 'ship',
           attackStrength: 4,
         },
@@ -232,8 +232,8 @@ describe('renderer combat helpers', () => {
   it('formats combat results and falls back to the previous state for target lookup', () => {
     const state = createState({
       ships: [
-        createShip({ id: 'a', owner: 0 }),
-        createShip({ id: 'b', owner: 0, position: { q: 0, r: 1 } }),
+        createShip({ id: asShipId('a'), owner: 0 }),
+        createShip({ id: asShipId('b'), owner: 0, position: { q: 0, r: 1 } }),
       ],
       ordnance: [createOrdnance()],
     });
@@ -242,7 +242,7 @@ describe('renderer combat helpers', () => {
 
     const asteroidResult: CombatResult = {
       attackerIds: [],
-      targetId: 'x',
+      targetId: asShipId('x'),
       targetType: 'ship',
       attackType: 'asteroidHazard',
       odds: '1:1',
@@ -258,8 +258,8 @@ describe('renderer combat helpers', () => {
     };
 
     const antiNukeResult: CombatResult = {
-      attackerIds: ['a'],
-      targetId: 'ord-0',
+      attackerIds: [asShipId('a')],
+      targetId: asOrdnanceId('ord-0'),
       targetType: 'ordnance',
       attackType: 'antiNuke',
       odds: '2:1',

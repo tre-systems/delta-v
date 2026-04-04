@@ -1,3 +1,4 @@
+import type { GameId } from '../../shared/ids';
 import type { GameState, Result } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { generatePlayerToken, type RoomConfig } from '../protocol';
@@ -21,7 +22,7 @@ export type GameDoFetchDeps = {
   replacePlayerSockets: (playerId: 0 | 1) => void;
   send: (ws: WebSocket, msg: S2C) => void;
   broadcast: (msg: S2C) => void;
-  getLatestGameId: () => Promise<string | null>;
+  getLatestGameId: () => Promise<GameId | null>;
   storage: DurableObjectStorage;
   initGame: () => Promise<void>;
   touchInactivity: () => Promise<void>;

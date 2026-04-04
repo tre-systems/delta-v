@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { asPlayerToken, asRoomCode } from '../../shared/ids';
+import {
+  asGameId,
+  asPlayerToken,
+  asRoomCode,
+  asShipId,
+} from '../../shared/ids';
 import type {
   CombatResult,
   ErrorCode,
@@ -18,7 +23,7 @@ const roomCode = (value = 'ABCDE') => asRoomCode(value);
 const playerToken = (value = 'player-token') => asPlayerToken(value);
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -38,14 +43,14 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'MSG',
+  gameId: asGameId('MSG'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
   turnNumber: 4,
   phase: 'astrogation',
   activePlayer: 0,
-  ships: [createShip(), createShip({ id: 'enemy', owner: 1 })],
+  ships: [createShip(), createShip({ id: asShipId('enemy'), owner: 1 })],
   ordnance: [],
   pendingAstrogationOrders: null,
   pendingAsteroidHazards: [],
@@ -114,7 +119,7 @@ describe('game-client-message-plans', () => {
 
     const movements: ShipMovement[] = [
       {
-        shipId: 'ship-0',
+        shipId: asShipId('ship-0'),
         from: { q: 0, r: 0 },
         to: { q: 1, r: 0 },
         path: [],
@@ -129,8 +134,8 @@ describe('game-client-message-plans', () => {
 
     const results: CombatResult[] = [
       {
-        attackerIds: ['ship-0'],
-        targetId: 'enemy',
+        attackerIds: [asShipId('ship-0')],
+        targetId: asShipId('enemy'),
         targetType: 'ship',
         attackType: 'gun',
         odds: '1-1',
@@ -217,8 +222,8 @@ describe('game-client-message-plans', () => {
           transferEvents: [
             {
               type: 'fuelTransferred',
-              fromShipId: 'a',
-              toShipId: 'b',
+              fromShipId: asShipId('a'),
+              toShipId: asShipId('b'),
               amount: 2,
             },
           ],

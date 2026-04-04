@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { TransferPair } from '../../shared/engine/logistics';
+import { asGameId, asShipId } from '../../shared/ids';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type {
   FleetPurchase,
@@ -26,7 +27,7 @@ vi.mock('../audio', () => ({
 const map = buildSolarSystemMap();
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -46,7 +47,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'CMD',
+  gameId: asGameId('CMD'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -55,8 +56,8 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   activePlayer: 0,
   ships: [
     createShip(),
-    createShip({ id: 'ship-1', position: { q: 0, r: 0 } }),
-    createShip({ id: 'enemy', owner: 1 }),
+    createShip({ id: asShipId('ship-1'), position: { q: 0, r: 0 } }),
+    createShip({ id: asShipId('enemy'), owner: 1 }),
   ],
   ordnance: [],
   pendingAstrogationOrders: null,
@@ -121,7 +122,7 @@ const mockTransport = (): GameTransport & {
 
 const createTransferPair = (): TransferPair => ({
   source: createShip(),
-  target: createShip({ id: 'ship-1', position: { q: 0, r: 0 } }),
+  target: createShip({ id: asShipId('ship-1'), position: { q: 0, r: 0 } }),
   canTransferFuel: true,
   canTransferCargo: false,
   canTransferPassengers: false,
@@ -233,7 +234,7 @@ describe('game-command-router', () => {
 
     dispatchGameCommand(deps, {
       type: 'setOverloadDirection',
-      shipId: 'ship-0',
+      shipId: asShipId('ship-0'),
       direction: 3,
     });
 
@@ -244,14 +245,14 @@ describe('game-command-router', () => {
     const { deps, ui } = createDeps();
     deps.ctx.planningState.queuedAttacks = [
       {
-        attackerIds: ['ship-0'],
-        targetId: 'enemy',
+        attackerIds: [asShipId('ship-0')],
+        targetId: asShipId('enemy'),
         targetType: 'ship',
         attackStrength: 2,
       },
       {
-        attackerIds: ['ship-1'],
-        targetId: 'enemy',
+        attackerIds: [asShipId('ship-1')],
+        targetId: asShipId('enemy'),
         targetType: 'ship',
         attackStrength: 1,
       },
@@ -288,7 +289,7 @@ describe('game-command-router', () => {
       [
         [
           {
-            sourceShipId: 'ship-0',
+            sourceShipId: asShipId('ship-0'),
             targetShipId: 'ship-1',
             transferType: 'fuel',
             amount: 3,
@@ -316,7 +317,7 @@ describe('game-command-router', () => {
 
     dispatchGameCommand(deps, {
       type: 'selectShip',
-      shipId: 'ship-1',
+      shipId: asShipId('ship-1'),
     });
 
     expect(deps.ctx.planningState.selectedShipId).toBe('ship-1');

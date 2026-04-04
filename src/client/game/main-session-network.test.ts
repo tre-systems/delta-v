@@ -23,6 +23,7 @@ vi.mock('./message-handler', () => ({
   handleServerMessage: mocks.handleServerMessage,
 }));
 
+import { asGameId } from '../../shared/ids';
 import {
   beginJoinGameFromMain,
   beginSpectateGameFromMain,
@@ -137,7 +138,7 @@ describe('main-session-network', () => {
       mode: 'local',
       difficulty: 'normal',
     });
-    localDeps.applyGameState({ gameId: 'GAME' });
+    localDeps.applyGameState({ gameId: asGameId('GAME') });
     localDeps.logScenarioBriefing();
     localDeps.setState('playing_astrogation');
     localDeps.runLocalAI();
@@ -152,7 +153,9 @@ describe('main-session-network', () => {
       mode: 'local',
       difficulty: 'normal',
     });
-    expect(deps.applyGameState).toHaveBeenCalledWith({ gameId: 'GAME' });
+    expect(deps.applyGameState).toHaveBeenCalledWith({
+      gameId: asGameId('GAME'),
+    });
     expect(deps.hud.logScenarioBriefing).toHaveBeenCalledOnce();
     expect(deps.setState).toHaveBeenCalledWith('playing_astrogation');
     expect(deps.runLocalAI).toHaveBeenCalledOnce();

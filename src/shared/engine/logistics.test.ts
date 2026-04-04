@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { must } from '../assert';
+import { asGameId, asShipId } from '../ids';
 import { buildSolarSystemMap } from '../map-data';
 import type { GameState, Ship, TransferOrder } from '../types';
 import {
@@ -11,7 +12,7 @@ import {
 } from './logistics';
 
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'test',
+  id: asShipId('test'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,
@@ -33,7 +34,7 @@ const makeState = (
   ships: Ship[],
   overrides: Partial<GameState> = {},
 ): GameState => ({
-  gameId: 'test',
+  gameId: asGameId('test'),
   scenario: 'biplanetary',
   scenarioRules: { logisticsEnabled: true },
   escapeMoralVictoryAchieved: false,
@@ -70,12 +71,12 @@ const makeState = (
 const map = buildSolarSystemMap();
 describe('processSurrender', () => {
   it('marks ship as surrendered', () => {
-    const ship = makeShip({ id: 's1', owner: 0 });
+    const ship = makeShip({ id: asShipId('s1'), owner: 0 });
     const state = makeState([ship], {
       phase: 'astrogation',
       activePlayer: 0,
     });
-    const result = processSurrender(state, 0, ['s1']);
+    const result = processSurrender(state, 0, [asShipId('s1')]);
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
       const s = must(result.state.ships.find((s) => s.id === 's1'));
@@ -88,17 +89,17 @@ describe('processSurrender', () => {
     }
   });
   it('rejects surrender of enemy ship', () => {
-    const ship = makeShip({ id: 's1', owner: 1 });
+    const ship = makeShip({ id: asShipId('s1'), owner: 1 });
     const state = makeState([ship], {
       phase: 'astrogation',
       activePlayer: 0,
     });
-    const result = processSurrender(state, 0, ['s1']);
+    const result = processSurrender(state, 0, [asShipId('s1')]);
     expect('error' in result).toBe(true);
   });
   it('rejects surrender of destroyed ship', () => {
     const ship = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       owner: 0,
       originalOwner: 0,
       lifecycle: 'destroyed',
@@ -107,12 +108,12 @@ describe('processSurrender', () => {
       phase: 'astrogation',
       activePlayer: 0,
     });
-    const result = processSurrender(state, 0, ['s1']);
+    const result = processSurrender(state, 0, [asShipId('s1')]);
     expect('error' in result).toBe(true);
   });
   it('rejects surrender of already surrendered ship', () => {
     const ship = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       owner: 0,
       originalOwner: 0,
       control: 'surrendered',
@@ -121,36 +122,36 @@ describe('processSurrender', () => {
       phase: 'astrogation',
       activePlayer: 0,
     });
-    const result = processSurrender(state, 0, ['s1']);
+    const result = processSurrender(state, 0, [asShipId('s1')]);
     expect('error' in result).toBe(true);
   });
   it('rejects surrender when not in astrogation phase', () => {
-    const ship = makeShip({ id: 's1', owner: 0 });
+    const ship = makeShip({ id: asShipId('s1'), owner: 0 });
     const state = makeState([ship], {
       phase: 'combat',
       activePlayer: 0,
     });
-    const result = processSurrender(state, 0, ['s1']);
+    const result = processSurrender(state, 0, [asShipId('s1')]);
     expect('error' in result).toBe(true);
   });
   it('rejects surrender when logistics not enabled', () => {
-    const ship = makeShip({ id: 's1', owner: 0 });
+    const ship = makeShip({ id: asShipId('s1'), owner: 0 });
     const state = makeState([ship], {
       phase: 'astrogation',
       activePlayer: 0,
       scenarioRules: {},
     });
-    const result = processSurrender(state, 0, ['s1']);
+    const result = processSurrender(state, 0, [asShipId('s1')]);
     expect('error' in result).toBe(true);
   });
   it('surrenders multiple ships', () => {
-    const s1 = makeShip({ id: 's1', owner: 0 });
-    const s2 = makeShip({ id: 's2', owner: 0 });
+    const s1 = makeShip({ id: asShipId('s1'), owner: 0 });
+    const s2 = makeShip({ id: asShipId('s2'), owner: 0 });
     const state = makeState([s1, s2], {
       phase: 'astrogation',
       activePlayer: 0,
     });
-    const result = processSurrender(state, 0, ['s1', 's2']);
+    const result = processSurrender(state, 0, [asShipId('s1'), asShipId('s2')]);
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
       expect(result.state.ships.find((s) => s.id === 's1')?.control).toBe(
@@ -165,14 +166,14 @@ describe('processSurrender', () => {
 describe('getTransferEligiblePairs', () => {
   it('finds friendly ship pairs at same hex+velocity', () => {
     const source = makeShip({
-      id: 'tanker',
+      id: asShipId('tanker'),
       type: 'tanker',
       owner: 0,
       originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
-      id: 'corvette',
+      id: asShipId('corvette'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -186,14 +187,14 @@ describe('getTransferEligiblePairs', () => {
   });
   it('offers passenger transfers when scenario enables rescue', () => {
     const source = makeShip({
-      id: 'lin',
+      id: asShipId('lin'),
       type: 'liner',
       owner: 0,
       originalOwner: 0,
       passengersAboard: 30,
     });
     const target = makeShip({
-      id: 'frig',
+      id: asShipId('frig'),
       type: 'frigate',
       owner: 0,
       originalOwner: 0,
@@ -211,14 +212,14 @@ describe('getTransferEligiblePairs', () => {
   });
   it('excludes pairs at different hexes', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'tanker',
       owner: 0,
       originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -230,14 +231,14 @@ describe('getTransferEligiblePairs', () => {
   });
   it('excludes pairs with different velocity', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'tanker',
       owner: 0,
       originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -249,14 +250,14 @@ describe('getTransferEligiblePairs', () => {
   });
   it('torch ships cannot transfer fuel', () => {
     const source = makeShip({
-      id: 'torch',
+      id: asShipId('torch'),
       type: 'torch',
       owner: 0,
       originalOwner: 0,
       fuel: Infinity,
     });
     const target = makeShip({
-      id: 'corvette',
+      id: asShipId('corvette'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -271,7 +272,7 @@ describe('getTransferEligiblePairs', () => {
   });
   it('allows looting disabled enemy ships', () => {
     const enemy = makeShip({
-      id: 'enemy',
+      id: asShipId('enemy'),
       type: 'frigate',
       owner: 1,
       originalOwner: 0,
@@ -279,7 +280,7 @@ describe('getTransferEligiblePairs', () => {
       damage: { disabledTurns: 2 },
     });
     const friendly = makeShip({
-      id: 'friendly',
+      id: asShipId('friendly'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -293,7 +294,7 @@ describe('getTransferEligiblePairs', () => {
   });
   it('allows looting surrendered enemy ships', () => {
     const enemy = makeShip({
-      id: 'enemy',
+      id: asShipId('enemy'),
       type: 'frigate',
       owner: 1,
       originalOwner: 0,
@@ -301,7 +302,7 @@ describe('getTransferEligiblePairs', () => {
       control: 'surrendered',
     });
     const friendly = makeShip({
-      id: 'friendly',
+      id: asShipId('friendly'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -313,14 +314,14 @@ describe('getTransferEligiblePairs', () => {
   });
   it('blocks looting operational enemy ships', () => {
     const enemy = makeShip({
-      id: 'enemy',
+      id: asShipId('enemy'),
       type: 'frigate',
       owner: 1,
       originalOwner: 0,
       fuel: 15,
     });
     const friendly = makeShip({
-      id: 'friendly',
+      id: asShipId('friendly'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -331,7 +332,7 @@ describe('getTransferEligiblePairs', () => {
   });
   it('excludes destroyed ships', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'tanker',
       owner: 0,
       originalOwner: 0,
@@ -339,7 +340,7 @@ describe('getTransferEligiblePairs', () => {
       lifecycle: 'destroyed',
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -352,14 +353,14 @@ describe('getTransferEligiblePairs', () => {
 describe('shouldEnterLogisticsPhase', () => {
   it('returns false when logistics disabled', () => {
     const s1 = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'tanker',
       owner: 0,
       originalOwner: 0,
       fuel: 50,
     });
     const s2 = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -370,7 +371,7 @@ describe('shouldEnterLogisticsPhase', () => {
   });
   it('returns false when no eligible pairs', () => {
     const s1 = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -381,14 +382,14 @@ describe('shouldEnterLogisticsPhase', () => {
   });
   it('returns true when eligible pairs exist', () => {
     const s1 = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'tanker',
       owner: 0,
       originalOwner: 0,
       fuel: 50,
     });
     const s2 = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -401,14 +402,14 @@ describe('shouldEnterLogisticsPhase', () => {
 describe('processLogistics', () => {
   it('transfers fuel between ships', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'tanker',
       owner: 0,
       originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -416,8 +417,8 @@ describe('processLogistics', () => {
     });
     const state = makeState([source, target]);
     const transfer: TransferOrder = {
-      sourceShipId: 's1',
-      targetShipId: 's2',
+      sourceShipId: asShipId('s1'),
+      targetShipId: asShipId('s2'),
       transferType: 'fuel',
       amount: 10,
     };
@@ -437,14 +438,14 @@ describe('processLogistics', () => {
   });
   it('transfers cargo between ships', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'frigate',
       owner: 0,
       originalOwner: 0,
       cargoUsed: 5,
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -452,8 +453,8 @@ describe('processLogistics', () => {
     });
     const state = makeState([source, target]);
     const transfer: TransferOrder = {
-      sourceShipId: 's1',
-      targetShipId: 's2',
+      sourceShipId: asShipId('s1'),
+      targetShipId: asShipId('s2'),
       transferType: 'cargo',
       amount: 2,
     };
@@ -468,14 +469,14 @@ describe('processLogistics', () => {
   });
   it('transfers passengers when passenger rescue is enabled', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'liner',
       owner: 0,
       originalOwner: 0,
       passengersAboard: 50,
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'frigate',
       owner: 0,
       originalOwner: 0,
@@ -487,8 +488,8 @@ describe('processLogistics', () => {
       },
     });
     const transfer: TransferOrder = {
-      sourceShipId: 's1',
-      targetShipId: 's2',
+      sourceShipId: asShipId('s1'),
+      targetShipId: asShipId('s2'),
       transferType: 'passengers',
       amount: 15,
     };
@@ -509,22 +510,22 @@ describe('processLogistics', () => {
   });
   it('rejects passenger transfer when rescue is not enabled', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'liner',
       owner: 0,
       originalOwner: 0,
       passengersAboard: 10,
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'frigate',
       owner: 0,
       originalOwner: 0,
     });
     const state = makeState([source, target]);
     const transfer: TransferOrder = {
-      sourceShipId: 's1',
-      targetShipId: 's2',
+      sourceShipId: asShipId('s1'),
+      targetShipId: asShipId('s2'),
       transferType: 'passengers',
       amount: 5,
     };
@@ -533,14 +534,14 @@ describe('processLogistics', () => {
   });
   it('counts passengers toward target cargo capacity for cargo transfers', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'frigate',
       owner: 0,
       originalOwner: 0,
       cargoUsed: 10,
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -549,8 +550,8 @@ describe('processLogistics', () => {
     });
     const state = makeState([source, target]);
     const transfer: TransferOrder = {
-      sourceShipId: 's1',
-      targetShipId: 's2',
+      sourceShipId: asShipId('s1'),
+      targetShipId: asShipId('s2'),
       transferType: 'cargo',
       amount: 2,
     };
@@ -559,14 +560,14 @@ describe('processLogistics', () => {
   });
   it('rejects transfer exceeding source fuel', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'tanker',
       owner: 0,
       originalOwner: 0,
       fuel: 5,
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -574,8 +575,8 @@ describe('processLogistics', () => {
     });
     const state = makeState([source, target]);
     const transfer: TransferOrder = {
-      sourceShipId: 's1',
-      targetShipId: 's2',
+      sourceShipId: asShipId('s1'),
+      targetShipId: asShipId('s2'),
       transferType: 'fuel',
       amount: 10,
     };
@@ -584,14 +585,14 @@ describe('processLogistics', () => {
   });
   it('rejects transfer exceeding target fuel capacity', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'tanker',
       owner: 0,
       originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -599,8 +600,8 @@ describe('processLogistics', () => {
     });
     const state = makeState([source, target]);
     const transfer: TransferOrder = {
-      sourceShipId: 's1',
-      targetShipId: 's2',
+      sourceShipId: asShipId('s1'),
+      targetShipId: asShipId('s2'),
       transferType: 'fuel',
       amount: 5,
     };
@@ -609,21 +610,21 @@ describe('processLogistics', () => {
   });
   it('rejects cumulative transfer plans that overdraw the source ship', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'tanker',
       owner: 0,
       originalOwner: 0,
       fuel: 15,
     });
     const targetA = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
       fuel: 0,
     });
     const targetB = makeShip({
-      id: 's3',
+      id: asShipId('s3'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -632,14 +633,14 @@ describe('processLogistics', () => {
     const state = makeState([source, targetA, targetB]);
     const transfers: TransferOrder[] = [
       {
-        sourceShipId: 's1',
-        targetShipId: 's2',
+        sourceShipId: asShipId('s1'),
+        targetShipId: asShipId('s2'),
         transferType: 'fuel',
         amount: 10,
       },
       {
-        sourceShipId: 's1',
-        targetShipId: 's3',
+        sourceShipId: asShipId('s1'),
+        targetShipId: asShipId('s3'),
         transferType: 'fuel',
         amount: 10,
       },
@@ -650,13 +651,13 @@ describe('processLogistics', () => {
   });
   it('rejects torch fuel transfer', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'torch',
       owner: 0,
       originalOwner: 0,
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -664,8 +665,8 @@ describe('processLogistics', () => {
     });
     const state = makeState([source, target]);
     const transfer: TransferOrder = {
-      sourceShipId: 's1',
-      targetShipId: 's2',
+      sourceShipId: asShipId('s1'),
+      targetShipId: asShipId('s2'),
       transferType: 'fuel',
       amount: 5,
     };
@@ -674,14 +675,14 @@ describe('processLogistics', () => {
   });
   it('rejects when not in logistics phase', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'tanker',
       owner: 0,
       originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -691,8 +692,8 @@ describe('processLogistics', () => {
       phase: 'astrogation',
     });
     const transfer: TransferOrder = {
-      sourceShipId: 's1',
-      targetShipId: 's2',
+      sourceShipId: asShipId('s1'),
+      targetShipId: asShipId('s2'),
       transferType: 'fuel',
       amount: 5,
     };
@@ -701,14 +702,14 @@ describe('processLogistics', () => {
   });
   it('rejects ships at different positions', () => {
     const source = makeShip({
-      id: 's1',
+      id: asShipId('s1'),
       type: 'tanker',
       owner: 0,
       originalOwner: 0,
       fuel: 50,
     });
     const target = makeShip({
-      id: 's2',
+      id: asShipId('s2'),
       type: 'corvette',
       owner: 0,
       originalOwner: 0,
@@ -717,8 +718,8 @@ describe('processLogistics', () => {
     });
     const state = makeState([source, target]);
     const transfer: TransferOrder = {
-      sourceShipId: 's1',
-      targetShipId: 's2',
+      sourceShipId: asShipId('s1'),
+      targetShipId: asShipId('s2'),
       transferType: 'fuel',
       amount: 5,
     };

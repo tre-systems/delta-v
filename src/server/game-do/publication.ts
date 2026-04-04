@@ -2,6 +2,7 @@
 // Each step is independently testable; the pipeline runner preserves ordering.
 
 import type { EngineEvent } from '../../shared/engine/engine-events';
+import type { GameId } from '../../shared/ids';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import {
   appendEnvelopedEvents,
@@ -36,7 +37,7 @@ export interface PublicationOptions {
 // Step 1: Append engine events to the event stream.
 const appendEvents = async (
   storage: DurableObjectStorage,
-  gameId: string,
+  gameId: GameId,
   actor: PlayerId | null,
   events: EngineEvent[],
 ): Promise<number> => {
@@ -50,7 +51,7 @@ const appendEvents = async (
 // Step 2: Save a checkpoint at turn boundaries or game end.
 const checkpointIfNeeded = async (
   storage: DurableObjectStorage,
-  gameId: string,
+  gameId: GameId,
   state: GameState,
   eventSeq: number,
   events: EngineEvent[],

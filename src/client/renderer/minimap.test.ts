@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asOrdnanceId, asShipId } from '../../shared/ids';
 import type {
   GameState,
   Ship,
@@ -9,7 +9,7 @@ import { createMinimapLayout } from '../game/minimap';
 import { buildMinimapSceneView } from './minimap';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-1',
+  id: asShipId('ship-1'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -50,7 +50,7 @@ const createMap = (): SolarSystemMap => ({
 });
 
 const createState = (): GameState => ({
-  gameId: 'LOCAL',
+  gameId: asGameId('LOCAL'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -59,31 +59,31 @@ const createState = (): GameState => ({
   activePlayer: 0,
   ships: [
     createShip({
-      id: 'friendly',
+      id: asShipId('friendly'),
       owner: 0,
       position: { q: 0, r: 0 },
     }),
     createShip({
-      id: 'enemy-visible',
+      id: asShipId('enemy-visible'),
       owner: 1,
       position: { q: 2, r: -1 },
       detected: true,
     }),
     createShip({
-      id: 'enemy-hidden',
+      id: asShipId('enemy-hidden'),
       owner: 1,
       position: { q: 3, r: -2 },
       detected: false,
     }),
     createShip({
-      id: 'destroyed',
+      id: asShipId('destroyed'),
       owner: 0,
       lifecycle: 'destroyed',
     }),
   ],
   ordnance: [
     {
-      id: 'nuke',
+      id: asOrdnanceId('nuke'),
       type: 'nuke',
       owner: 0,
       sourceShipId: null,
@@ -93,7 +93,7 @@ const createState = (): GameState => ({
       lifecycle: 'active' as const,
     },
     {
-      id: 'mine',
+      id: asOrdnanceId('mine'),
       type: 'mine',
       owner: 1,
       sourceShipId: null,
@@ -103,7 +103,7 @@ const createState = (): GameState => ({
       lifecycle: 'active' as const,
     },
     {
-      id: 'gone',
+      id: asOrdnanceId('gone'),
       type: 'torpedo',
       owner: 1,
       sourceShipId: null,
