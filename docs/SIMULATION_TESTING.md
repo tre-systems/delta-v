@@ -1,6 +1,6 @@
 # Delta-V Simulation Testing Strategy
 
-Delta-V now has two established simulation layers:
+Delta-V has three complementary simulation layers:
 
 - **Headless Engine Simulation (AI vs AI)** is implemented and runs in CI.
 - **Network Integration Simulation (PvP Bot Stress Testing)** is implemented as a usable load/chaos harness.
@@ -56,7 +56,7 @@ Use `scripts/load-test.ts` to create real rooms over HTTP,
 join both seats over WebSockets, and drive valid turns with
 the existing AI helpers.
 
-1. **Lobby Creation:** The script makes an HTTP POST request to `/create` to get a 5-letter game code.
+1. **Lobby Creation:** The script makes an HTTP POST request to `/create` to get a 5-character room code (letters and digits, excluding ambiguous `I`/`O`/`0`/`1` — see `CODE_CHARS` in `src/server/protocol.ts`).
 2. **Seat-aware Connections:** The host joins with the creator token returned by `/create`; the guest joins tokenless, receives its `welcome.playerToken`, and reuses that token on reconnect.
 3. **Bot Logic:** Each seat is a `createBotClient()` instance (closure state, `connect` / `disconnect`). On each state-bearing `S2C` message, the active player waits a short randomized think delay and sends a valid `C2S` action:
    - `fleetReady` purchases for fleet-building scenarios
