@@ -178,14 +178,18 @@ export const projectConflictEvent = (
       state = baseState.value;
       const targetKey = `${event.targetType}:${event.targetId}`;
 
-      for (const attackerId of event.attackerIds) {
-        const projectedAttacker = requireShip(state, attackerId);
+      if (event.attackType !== 'baseDefense') {
+        for (const attackerId of event.attackerIds) {
+          const projectedAttacker = requireShip(state, attackerId);
 
-        if (!projectedAttacker.ok) {
-          return projectedAttacker;
+          if (!projectedAttacker.ok) {
+            return projectedAttacker;
+          }
+
+          if (projectedAttacker.value.owner === state.activePlayer) {
+            projectedAttacker.value.firedThisPhase = true;
+          }
         }
-
-        projectedAttacker.value.firedThisPhase = true;
       }
 
       state.combatTargetedThisPhase = [
