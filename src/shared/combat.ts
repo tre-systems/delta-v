@@ -479,8 +479,14 @@ export const resolveCombat = (
       ? (() => {
           const counterStrength = getCombatStrength(counterattackers);
           const counterOdds = computeOdds(counterStrength, maxAttackStrength);
-          const counterRange = rangeMod;
-          const counterVelMod = velocityMod;
+          const counterRange = computeGroupRangeMod(
+            counterattackers,
+            primaryAttacker,
+          );
+          const counterVelMod = computeGroupVelocityMod(
+            counterattackers,
+            primaryAttacker,
+          );
           const counterHeroism = counterattackers.some(
             (ship) => ship.heroismAvailable,
           )
