@@ -111,6 +111,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
 const createPlanning = (
   overrides: Partial<CombatOverlayPlanningState> = {},
 ): CombatOverlayPlanningState => ({
+  selectedShipId: null,
   combatTargetId: null,
   combatTargetType: null,
   combatAttackerIds: [],
@@ -186,6 +187,7 @@ describe('renderer combat helpers', () => {
     const state = createState();
 
     const planning = createPlanning({
+      selectedShipId: 'a',
       combatTargetId: 'x',
       combatTargetType: 'ship',
       combatAttackerIds: ['a', 'b'],
@@ -205,12 +207,33 @@ describe('renderer combat helpers', () => {
     });
   });
 
+  it('uses the selected ship for single-attack combat preview by default', () => {
+    const state = createState();
+
+    const planning = createPlanning({
+      selectedShipId: 'a',
+      combatTargetId: 'x',
+      combatTargetType: 'ship',
+    });
+
+    expect(getCombatPreview(state, 0, planning, map)).toEqual({
+      targetPosition: { q: 1, r: 0 },
+      attackerPositions: [{ q: 0, r: 0 }],
+      label: '1:2 · STR 4/4',
+      modLabel: 'MOD -1',
+      modColor: '#ffcc00',
+      totalMod: -1,
+      canCounter: true,
+    });
+  });
+
   it('builds an ordnance interception preview without a counterattack label', () => {
     const state = createState({
       ordnance: [createOrdnance()],
     });
 
     const planning = createPlanning({
+      selectedShipId: 'a',
       combatTargetId: 'ord-0',
       combatTargetType: 'ordnance',
     });

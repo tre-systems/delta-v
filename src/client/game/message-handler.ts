@@ -8,6 +8,7 @@ import {
 } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playPhaseChange } from '../audio';
+import { batch } from '../reactive';
 import {
   type AuthoritativeUpdate,
   type AuthoritativeUpdateDeps,
@@ -122,12 +123,19 @@ const applyGameStartPlan = (
 ): void => {
   deps.ui.overlay.hideGameOver();
   deps.resetTurnTelemetry();
-  deps.applyGameState(deps.deserializeState(plan.state));
   deps.renderer.clearTrails();
   deps.ui.log.clear();
   deps.ui.log.setChatEnabled(true);
   deps.logScenarioBriefing();
-  deps.setState(plan.nextState);
+
+  // Batch the game-state write and the FSM transition together so that
+  // reactive effects (renderer update, UI visibility) fire only once,
+  // after both values are set.  Without this, the renderer would briefly
+  // show the game board before the fleet-building overlay appears.
+  batch(() => {
+    deps.applyGameState(deps.deserializeState(plan.state));
+    deps.setState(plan.nextState);
+  });
 };
 
 const createAuthoritativeUpdateDeps = (
