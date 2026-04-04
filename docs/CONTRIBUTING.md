@@ -34,7 +34,7 @@ If e2e fails with a port error, check nothing else is bound to the chosen port.
 
 ### Windows
 
-Pre-commit is a POSIX shell script (`rm`, `export`, subshell). Use **Git Bash**, **WSL**, or similar. If you need **CMD** support, track [BACKLOG.md](./BACKLOG.md) “Windows-friendly pre-commit” or add `cross-env` locally.
+Pre-commit is a POSIX shell script (`rm`, `export`, subshell). Use **Git Bash**, **WSL**, or similar. If you need **CMD** support, add a concrete follow-up item to [BACKLOG.md](./BACKLOG.md) or add `cross-env` locally.
 
 ### Skipping hooks (emergency only)
 

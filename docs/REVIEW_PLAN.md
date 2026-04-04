@@ -33,16 +33,16 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 **Goal:** know what is stored, how long it lives, and whether implementation matches docs.
 
-**Key files:** `src/server/index.ts` (`insertEvent`), `migrations/`, `src/client/telemetry.ts`, `src/server/game-do/match-archive.ts`, [OBSERVABILITY.md](./OBSERVABILITY.md), [SECURITY.md](./SECURITY.md), [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md).
+**Key files:** `src/server/reporting.ts` (`insertEvent`), `migrations/`, `src/client/telemetry.ts`, `src/server/game-do/match-archive.ts`, [OBSERVABILITY.md](./OBSERVABILITY.md), [SECURITY.md](./SECURITY.md), [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md).
 
 **Scope:** D1 (`events`, `match_archive`), R2 (`matches/{gameId}.json`), DO ephemeral storage, client telemetry, `anonId`/`ip_hash`/UA, chat text.
 
 **Steps**
 
-1. Read `insertEvent` and `migrations/`; list every event type written to D1. Cross-check against [OBSERVABILITY.md](./OBSERVABILITY.md). **Pass:** doc lists all event types. **Fail:** update the doc.
+1. Read `insertEvent` in `src/server/reporting.ts` and `migrations/`; list every event type written to D1. Cross-check against [OBSERVABILITY.md](./OBSERVABILITY.md). **Pass:** doc lists all event types. **Fail:** update the doc.
 2. Read `telemetry.ts`; list every client telemetry payload shape. Cross-check against [OBSERVABILITY.md](./OBSERVABILITY.md). **Pass:** doc lists all payloads. **Fail:** update the doc.
 3. Read `match-archive.ts`; confirm R2 key pattern and what data is stored. Cross-check against [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do). **Pass:** retention policy matches implementation. **Fail:** update the doc or file BACKLOG item.
-4. Grep for `anonId`, `ip_hash`, `user_agent`, `chat` across `src/`; list where PII or user-generated content is persisted. Cross-check against [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md). **Pass:** no undocumented PII storage. **Fail:** update the doc.
+4. Grep for `anonId`, `ip_hash`, `ua`, `user-agent`, and `chat` across `src/`; list where PII or user-generated content is persisted. Cross-check against [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md). **Pass:** no undocumented PII storage. **Fail:** update the doc.
 
 ---
 
@@ -54,7 +54,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 **Steps**
 
-1. Read rate-limit constants in `socket.ts` (`WS_MSG_RATE_LIMIT`, `CHAT_RATE_LIMIT_MS`) and `index.ts` (create/join/replay limits). Cross-check values against [SECURITY.md](./SECURITY.md). **Pass:** all values match. **Fail:** update the doc or the code.
+1. Read rate-limit constants in `socket.ts` (`WS_MSG_RATE_LIMIT`, `CHAT_RATE_LIMIT_MS`) and `src/server/reporting.ts` (`CREATE_RATE_LIMIT`, `JOIN_REPLAY_PROBE_LIMIT`, `WS_CONNECT_LIMIT`, `TELEMETRY_RATE_LIMIT`, `ERROR_REPORT_RATE_LIMIT`). Cross-check values against [SECURITY.md](./SECURITY.md). **Pass:** all values match. **Fail:** update the doc or the code.
 2. Read `validateClientMessage()` in `src/shared/protocol.ts`. Confirm every C2S message type has validation. **Pass:** no unvalidated message types. **Fail:** add validation or file BACKLOG item.
 3. Grep for `innerHTML` usage outside `src/client/dom.ts`. **Pass:** zero hits (pre-commit hook also checks this). **Fail:** move to `setTrustedHTML()`.
 4. Grep for `Math.random` in `src/shared/engine/`, excluding tests and injected default RNG fallbacks (`= Math.random`) to match the pre-commit boundary. **Pass:** no remaining hits. **Fail:** replace with injected RNG or narrow the exception intentionally.
@@ -73,7 +73,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 1. Run `npm run simulate all 100 -- --ci`. **Pass:** exits 0, no engine errors in output. **Fail:** investigate error details, file BACKLOG item.
 2. Read the current rule-owning engine modules (`astrogation.ts`, `combat.ts`, `logistics.ts`, `ordnance.ts`, `resolve-movement.ts`, `post-movement.ts`, `turn-advance.ts`, `victory.ts`; include `fleet-building.ts` / `game-creation.ts` when scenario setup rules changed). Cross-check phase transitions, post-movement resolution, and victory logic against [SPEC.md](./SPEC.md). **Pass:** no contradictions. **Fail:** file BACKLOG item noting spec vs implementation discrepancy.
-3. Run `npm run test:coverage`. Check coverage for `src/shared/engine/` files. **Pass:** no engine file below 80% line coverage. **Fail:** identify untested branches, file BACKLOG item.
+3. Run `npm run test:coverage`. Check coverage for executable `src/shared/engine/` modules (ignore type-only / re-export shims such as `engine-events.ts` and `event-projector.ts`). **Pass:** no executable engine module below 80% line coverage. **Fail:** identify untested branches, file BACKLOG item.
 
 ---
 
@@ -89,7 +89,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 2. Read `match-archive.ts`. Confirm R2 put/get and D1 insert failures are caught and don't block gameplay. **Pass:** fire-and-forget with logging. **Fail:** add error handling.
 3. Read `ws.ts` and `socket.ts`. Confirm: invalid JSON is caught, rate-limited sockets are closed cleanly (code 1008), unhandled message errors return typed errors to the client. **Pass:** all three hold. **Fail:** add handling.
 4. Read disconnect/reconnect logic (`handleGameDoWebSocketClose`, grace period). Confirm a disconnected player can rejoin within the grace window and resume. **Pass:** state is preserved and resent. **Fail:** file BACKLOG item.
-5. Run `npm run test -- --reporter=verbose` for `game-do` test files. **Pass:** all pass. **Fail:** investigate.
+5. Run `npm run test -- src/server/game-do --reporter=verbose`. **Pass:** all pass. **Fail:** investigate.
 
 ---
 
@@ -102,7 +102,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 **Steps**
 
 1. Run `npm run build`. Record `dist/client.js` size: `ls -la dist/client.js` and `gzip -c dist/client.js | wc -c`. **Pass:** gzip size within 20% of baseline in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene). **Fail:** investigate new dependencies or dead code; file BACKLOG item.
-2. Check for obvious heavy imports: `grep -r "import.*from" src/client/ | sort` — flag any new large dependencies not in `package.json` at last review. **Pass:** no unexpected additions. **Fail:** evaluate if dependency is justified.
+2. Check for obvious runtime package imports: `rg -n "^import .* from '[^./]" src/client --glob '!**/*.test.ts'` and compare any bare-package hits against `package.json` / lockfile changes since the last review. **Pass:** no unexpected new runtime dependencies in the client bundle path. **Fail:** evaluate if the dependency is justified.
 
 **`[Human]`** Chrome DevTools heap snapshot after 20+ turns — check for unbounded growth. This requires a running game in a browser.
 
@@ -126,13 +126,13 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 | #   | Area                        | Reviewed   | Status             | Notes                                                                                            |
 | --- | --------------------------- | ---------- | ------------------ | ------------------------------------------------------------------------------------------------ |
-| 1   | CI / local dev friction     | 2026-03-24 | partial            | coverage fix + dynamic e2e port shipped; [CONTRIBUTING.md](./CONTRIBUTING.md)                    |
-| 2   | Observability / data / privacy | 2026-03-24 | pass            | [OBSERVABILITY.md](./OBSERVABILITY.md), [SECURITY.md](./SECURITY.md), [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) |
-| 3   | Security posture            | —          | —                  | new section — not yet reviewed                                                                   |
-| 4   | Game engine correctness     | —          | —                  | new section — not yet reviewed                                                                   |
-| 5   | Error handling / resilience | —          | —                  | new section — not yet reviewed                                                                   |
-| 6   | Bundle / runtime            | 2026-03-28 | partial            | ~596 KB raw / ~123 KB gzip; runtime profiling is `[Human]`                                       |
-| 7   | Supply chain / release      | 2026-03-28 | fail — [BACKLOG item] | networked `npm audit` still needed; see [BACKLOG.md](./BACKLOG.md)                              |
+| 1   | CI / local dev friction     | 2026-04-04 | fail — [BACKLOG item] | `npm run verify` still hits `coverage/.tmp/*.json` `ENOENT`; pre-commit passed with a dev server already on `8787` |
+| 2   | Observability / data / privacy | 2026-04-04 | pass            | docs synced to current D1 event names, payload shapes, retention notes, and sample queries        |
+| 3   | Security posture            | 2026-04-04 | pass               | validation/grep checks pass; docs synced to current WS upgrade + reporting rate limits           |
+| 4   | Game engine correctness     | 2026-04-04 | fail — [BACKLOG item] | `simulate all 100 -- --ci` passed with 0 engine crashes; coverage is still below floor in `combat.ts` and `event-projector/conflict.ts` |
+| 5   | Error handling / resilience | 2026-04-04 | fail — [BACKLOG item] | `game-do` tests pass, but alarm handling still lacks top-level catch/reschedule hardening        |
+| 6   | Bundle / runtime            | 2026-04-04 | partial            | `dist/client.js` is 655279 bytes raw / 135767 bytes gzip; runtime heap profiling remains `[Human]` |
+| 7   | Supply chain / release      | 2026-04-04 | pass               | `npm audit` found 0 vulnerabilities; `npm outdated` found no dependencies more than 2 major versions behind |
 
 **Decisions already recorded elsewhere (no recurring review needed):**
 - **i18n:** English-only — [ARCHITECTURE.md](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts).
