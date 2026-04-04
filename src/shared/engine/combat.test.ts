@@ -260,7 +260,7 @@ describe('processCombat', () => {
       Math.random,
     );
     expect('error' in result && getErrorMessage(result.error)).toContain(
-      'Invalid combat target',
+      'Target not active',
     );
   });
   it('rejects split fire across different hexes', () => {
