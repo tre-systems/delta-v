@@ -881,3 +881,9 @@ h2.game-over-neutral {
 }
 
 .btn[disabled]:hover {
+  transform: none;
+  border-color: var(--btn-border);
+  background: var(--btn-bg);
+  box-shadow: var(--btn-shadow);
+  filter: none;
+}
