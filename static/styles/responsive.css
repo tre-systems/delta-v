@@ -76,6 +76,15 @@
     padding: 0.42rem 0.72rem 0.42rem 0.64rem;
   }
 
+  .ship-list.ship-list--compact {
+    width: min(32vw, 142px);
+    gap: 0.28rem;
+  }
+
+  .ship-list.ship-list--compact .ship-entry {
+    padding: 0.3rem 0.48rem 0.3rem 0.44rem;
+  }
+
   .game-log {
     top: auto;
     right: var(--hud-edge-right);
@@ -143,12 +152,17 @@
 
   .ship-list {
     top: calc(var(--hud-top-offset) + 0.45rem);
-    width: min(64vw, 252px);
+    width: min(40vw, 186px);
     max-width: calc(
-      100vw - var(--hud-edge-left) - var(--hud-edge-right) - 2.6rem
+      (100vw - var(--hud-edge-left) - var(--hud-edge-right) - 0.7rem) / 2
     );
     max-height: min(31vh, 250px);
     gap: 0.45rem;
+  }
+
+  .ship-list.ship-list--compact {
+    width: min(30vw, 128px);
+    gap: 0.32rem;
   }
 
   .ship-entry {
@@ -211,6 +225,46 @@
   .ship-detail-label,
   .ship-detail-value {
     min-width: 0;
+  }
+
+  .ship-list.ship-list--compact .ship-entry {
+    padding: 0.38rem 0.46rem;
+    gap: 0.12rem 0.32rem;
+  }
+
+  .ship-list.ship-list--compact .ship-name {
+    font-size: 0.66rem;
+  }
+
+  .ship-list.ship-list--compact .ship-fuel {
+    font-size: 0.57rem;
+  }
+
+  .ship-list.ship-list--compact .ship-status {
+    min-height: 0;
+    font-size: 0.55rem;
+  }
+
+  .ship-list.ship-list--compact .ship-details {
+    grid-template-columns: 1fr;
+    gap: 0.12rem 0;
+    margin-top: 0.04rem;
+    padding-top: 0.26rem;
+  }
+
+  .ship-list.ship-list--compact .ship-detail-label,
+  .ship-list.ship-list--compact .ship-detail-value {
+    font-size: 0.56rem;
+  }
+
+  .ship-entry.ship-entry--quiet {
+    grid-template-areas:
+      'name fuel'
+      'details details';
+  }
+
+  .ship-entry.ship-entry--quiet:not(:has(.ship-details)) {
+    grid-template-areas: 'name fuel';
   }
 
   .hud-bottom-buttons {
@@ -316,10 +370,14 @@
   }
 
   .ship-list {
-    width: min(68vw, 236px);
+    width: min(40vw, 176px);
     max-width: calc(
-      100vw - var(--hud-edge-left) - var(--hud-edge-right) - 2.2rem
+      (100vw - var(--hud-edge-left) - var(--hud-edge-right) - 0.7rem) / 2
     );
+  }
+
+  .ship-list.ship-list--compact {
+    width: min(28vw, 118px);
   }
 
   .help-content {
@@ -414,6 +472,10 @@
     width: min(45vw, 200px);
     max-width: none;
     max-height: min(40vh, 300px);
+  }
+
+  .ship-list.ship-list--compact {
+    width: min(32vw, 152px);
   }
 
   .hud-bottom {

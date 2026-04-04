@@ -19,6 +19,7 @@ export interface ShipListView {
     selectedId: string | null,
     burns: Map<string, number | null>,
   ) => void;
+  setMobile: (isMobile: boolean) => void;
   dispose: () => void;
 }
 
@@ -30,6 +31,7 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
     selectedId: string | null;
     burns: Map<string, number | null>;
   } | null>(null);
+  const mobileCompactSignal = signal(false);
 
   const update = (
     ships: Ship[],
@@ -44,6 +46,10 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
     clearHTML(shipListEl);
   };
 
+  const setMobile = (isMobile: boolean): void => {
+    mobileCompactSignal.value = isMobile;
+  };
+
   withScope(scope, () => {
     const listSignal = computed(() => {
       const input = inputSignal.value;
@@ -52,9 +58,17 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
         return null;
       }
 
+      const compact = mobileCompactSignal.value;
+
       return {
         input,
-        view: buildShipListView(input.ships, input.selectedId, input.burns),
+        compact,
+        view: buildShipListView(
+          input.ships,
+          input.selectedId,
+          input.burns,
+          compact,
+        ),
       };
     });
 
@@ -65,16 +79,26 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
         return;
       }
 
-      const { input, view } = state;
+      const { input, view, compact } = state;
+
+      shipListEl.classList.toggle('ship-list--compact', compact);
 
       renderList(shipListEl, input.ships, (ship, index) => {
         const entryView = view[index];
         const entry = document.createElement('div');
         entry.className = 'ship-entry';
         entry.setAttribute('role', 'button');
+        const statusLine =
+          `${entryView.statusText.replace(/\s+/g, ' ').trim()}${entryView.hasBurn ? ' burn' : ''}`.trim();
         entry.setAttribute(
           'aria-label',
-          `${entryView.displayName}, ${entryView.statusText.replace(/\s+/g, ' ').trim()}`,
+          [
+            entryView.displayName,
+            entryView.fuelText && `fuel ${entryView.fuelText}`,
+            statusLine,
+          ]
+            .filter(Boolean)
+            .join(', '),
         );
         entry.setAttribute('aria-pressed', String(entryView.isSelected));
 
@@ -89,14 +113,22 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
           entry.removeAttribute('aria-disabled');
         }
 
+        const hasStatusRow =
+          !compact || Boolean(entryView.statusText) || entryView.hasBurn;
+
+        if (!hasStatusRow) {
+          entry.classList.add('ship-entry--quiet');
+        }
+
+        const statusHtml = hasStatusRow
+          ? `<span class="ship-status">${entryView.statusText}${entryView.hasBurn ? '<span class="burn-dot"></span>' : ''}</span>`
+          : '';
+
         setTrustedHTML(
           entry,
           `
           <span class="ship-name">${entryView.displayName}</span>
-          <span class="ship-status">
-            ${entryView.statusText}
-            ${entryView.hasBurn ? '<span class="burn-dot"></span>' : ''}
-          </span>
+          ${statusHtml}
           <span class="ship-fuel">${entryView.fuelText}</span>
         `,
         );
@@ -137,6 +169,7 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
 
   return {
     update,
+    setMobile,
     dispose,
   };
 };

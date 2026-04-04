@@ -109,6 +109,48 @@ describe('ui ship list helpers', () => {
     expect(view[1].detailRows).toEqual([]);
   });
 
+  it('uses minimal detail rows when compact (mobile)', () => {
+    const view = buildShipListView(
+      [
+        createShip({
+          id: asShipId('a'),
+          type: 'packet',
+          cargoUsed: 15,
+          velocity: { dq: 0, dr: 0 },
+          lifecycle: 'landed',
+        }),
+      ],
+      'a',
+      new Map(),
+      true,
+    );
+
+    expect(view[0].detailRows).toEqual([
+      { label: 'Combat', value: '2', tone: null },
+      { label: 'Status', value: 'Landed', tone: 'success' },
+    ]);
+  });
+
+  it('includes velocity in compact mode only when moving', () => {
+    const view = buildShipListView(
+      [
+        createShip({
+          id: asShipId('a'),
+          type: 'corvette',
+          velocity: { dq: 1, dr: -1 },
+        }),
+      ],
+      'a',
+      new Map(),
+      true,
+    );
+
+    expect(view[0].detailRows).toEqual([
+      { label: 'Combat', value: '2', tone: null },
+      { label: 'Velocity', value: '1, -1', tone: null },
+    ]);
+  });
+
   it('shows disabled and captured detail rows for selected ships', () => {
     const view = buildShipListView(
       [
