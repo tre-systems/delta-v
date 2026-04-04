@@ -13,6 +13,7 @@ export interface ReplayControlsView {
   available: boolean;
   active: boolean;
   loading: boolean;
+  playing: boolean;
   statusText: string;
   selectedGameId: string;
   canSelectPrevMatch: boolean;
@@ -83,6 +84,7 @@ export const createHiddenReplayControls = (): ReplayControlsView => ({
   available: false,
   active: false,
   loading: false,
+  playing: false,
   statusText: '',
   selectedGameId: '',
   canSelectPrevMatch: false,

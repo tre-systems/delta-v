@@ -2,6 +2,7 @@ import type { GameId } from '../../ids';
 import type { SolarSystemMap } from '../../types';
 import type { GameState, Result } from '../../types/domain';
 import type { EngineEvent, EventEnvelope } from '../engine-events';
+import { applyDetection } from '../post-movement';
 import { projectConflictEvent } from './conflict';
 import { projectLifecycleEvent } from './lifecycle';
 import { projectShipEvent } from './ships';
@@ -72,6 +73,15 @@ type ConflictEvent = Extract<
       | 'combatAttack';
   }
 >;
+
+// `detected` is not stored on events; the live engine runs `applyDetection`
+// only after movement resolution. Recompute on the same boundaries so
+// multiplayer DO state matches broadcasts (avoid combat rejecting valid targets).
+const DETECTION_RECOMPUTE_AFTER: ReadonlySet<EngineEvent['type']> = new Set([
+  'shipMoved',
+  'shipLanded',
+  'shipCrashed',
+]);
 
 const projectLifecycle: ProjectEventHandler<LifecycleEvent> = (
   state,
@@ -153,6 +163,13 @@ export const projectGameStateFromStream = (
     }
 
     state = projected.value;
+  }
+
+  if (
+    state !== null &&
+    events.some((env) => DETECTION_RECOMPUTE_AFTER.has(env.event.type))
+  ) {
+    applyDetection(state, map);
   }
 
   return state === null

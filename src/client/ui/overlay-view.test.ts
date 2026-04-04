@@ -135,6 +135,7 @@ describe('OverlayView', () => {
       available: true,
       active: true,
       loading: false,
+      playing: false,
       statusText: 'ABCDE-m1 • Turn 2',
       selectedGameId: 'ABCDE-m1',
       canSelectPrevMatch: false,
