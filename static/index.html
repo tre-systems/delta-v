@@ -134,13 +134,13 @@
   <!-- Game HUD -->
   <div id="hud" style="display:none">
     <div id="topBar" class="hud-bar">
-      <div class="hud-group">
+      <div class="hud-group hud-turn-phase-group">
         <span id="turnInfo">Turn 1</span>
         <span class="hud-sep">·</span>
         <span id="phaseInfo">ASTROGATION</span>
       </div>
       <span id="fleetStatus" class="fleet-status"></span>
-      <div class="hud-group">
+      <div class="hud-group hud-fuel-group">
         <span id="fuelGauge" class="hud-fuel">Fuel: 20/20</span>
       </div>
       <span id="objectiveWrap" class="objective-wrap">
@@ -153,7 +153,7 @@
       <span id="latencyInfo" class="latency-text"></span>
     </div>
     <div id="bottomBar" class="hud-bottom">
-      <div class="hud-bottom-buttons">
+      <div id="hudBottomButtons" class="hud-bottom-buttons is-empty">
         <button id="undoBtn" class="btn btn-secondary" style="display:none">UNDO</button>
         <button id="skipShipBtn" class="btn btn-skip" style="display:none">SKIP SHIP</button>
         <button id="confirmBtn" class="btn btn-confirm" style="display:none">CONFIRM</button>
@@ -193,7 +193,7 @@
   <div id="shipList" class="ship-list" style="display:none"></div>
 
   <!-- Game log panel -->
-  <div id="gameLog" class="game-log glass" style="display:none">
+  <div id="gameLog" class="game-log" style="display:none">
     <div id="logEntries" class="log-entries" role="log" aria-live="polite" aria-relevant="additions text"></div>
     <div id="chatInputRow" class="chat-input-row" style="display:none">
       <input id="chatInput" class="chat-input" type="text" maxlength="200"
@@ -206,8 +206,8 @@
   </div>
 
   <!-- Game Over overlay -->
-  <div id="gameOver" class="screen screen-page glass" style="display:none" role="dialog" aria-modal="true" aria-labelledby="gameOverText" aria-describedby="gameOverReason">
-    <div class="menu-content game-over-content">
+  <div id="gameOver" class="screen screen-page" style="display:none" role="dialog" aria-modal="true" aria-labelledby="gameOverText" aria-describedby="gameOverReason">
+    <div class="menu-content game-over-content overlay-panel">
       <div class="game-over-hero">
         <div id="gameOverKicker" class="game-over-kicker" style="display:none"></div>
         <h2 id="gameOverText">VICTORY</h2>
@@ -215,7 +215,7 @@
       </div>
       <div id="gameOverStats" class="game-over-stats"></div>
       <div id="replayStatus" class="replay-status" style="display:none"></div>
-      <div id="replayControls" class="replay-controls" style="display:none">
+      <div id="replayControls" class="replay-controls overlay-section-panel" style="display:none">
         <div class="replay-match-selector">
           <button id="replayMatchPrevBtn" class="btn btn-secondary">&lt;</button>
           <span id="replayMatchLabel" class="replay-match-label"></span>
@@ -237,7 +237,7 @@
   </div>
 
   <!-- Replay bottom bar (shown during active replay, replaces game-over overlay) -->
-  <div id="replayBar" class="replay-bar" style="display:none">
+  <div id="replayBar" class="replay-bar overlay-panel" style="display:none">
     <button id="replayBarStartBtn" class="btn btn-secondary">|&lt;</button>
     <button id="replayBarPrevBtn" class="btn btn-secondary">&lt;</button>
     <span id="replayBarStatus" class="replay-bar-status"></span>
@@ -247,7 +247,7 @@
   </div>
 
   <!-- Help overlay -->
-  <div id="helpOverlay" class="screen screen-page glass" style="display:none" role="dialog" aria-modal="true" aria-labelledby="helpTitle" aria-describedby="helpIntro">
+  <div id="helpOverlay" class="screen screen-page" style="display:none" role="dialog" aria-modal="true" aria-labelledby="helpTitle" aria-describedby="helpIntro">
     <div class="menu-content help-content">
       <h2 id="helpTitle" class="scenario-title">How to Play</h2>
       <p id="helpIntro" class="help-intro">Tactical hex-based space combat. Plot burns, ride gravity, and outfly the enemy.</p>
@@ -356,11 +356,11 @@
 
   <!-- Reconnection overlay -->
   <div id="reconnectOverlay" class="reconnect-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="reconnectText" aria-describedby="reconnectAttempt">
-    <div class="reconnect-content">
+    <div class="reconnect-content overlay-panel">
       <div class="reconnect-spinner"></div>
       <div id="reconnectText" class="reconnect-text">Reconnecting...</div>
       <div id="reconnectAttempt" class="reconnect-attempt">Attempt 1 of 5</div>
-      <button id="reconnectCancelBtn" class="btn btn-secondary" style="margin-top:1rem">Return to Menu</button>
+      <button id="reconnectCancelBtn" class="btn btn-secondary reconnect-cancel-btn">Return to Menu</button>
     </div>
   </div>
 
