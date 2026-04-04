@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { must } from '../../assert';
 import { DAMAGE_ELIMINATION_THRESHOLD } from '../../constants';
 import { asOrdnanceId, asShipId } from '../../ids';
 import {
@@ -62,7 +63,9 @@ describe('projectConflictEvent', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.ordnance).toHaveLength(2);
-    expect(result.value.ships.find((s) => s.id === 's1')!.cargoUsed).toBe(20);
+    expect(must(result.value.ships.find((s) => s.id === 's1')).cargoUsed).toBe(
+      20,
+    );
   });
 
   it('increments nukesLaunchedSinceResupply for nuke launches', () => {
@@ -81,7 +84,7 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const ship = result.value.ships.find((s) => s.id === 's1')!;
+    const ship = must(result.value.ships.find((s) => s.id === 's1'));
     expect(ship.nukesLaunchedSinceResupply).toBe(1);
   });
 
@@ -117,7 +120,7 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const ord = result.value.ordnance.find((o) => o.id === 'ord1')!;
+    const ord = must(result.value.ordnance.find((o) => o.id === 'ord1'));
     expect(ord.position).toEqual({ q: 5, r: 5 });
     expect(ord.velocity).toEqual({ dq: 1, dr: -1 });
     expect(ord.turnsRemaining).toBe(2);
@@ -226,7 +229,9 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.ships.find((s) => s.id === 's1')!.damage.disabledTurns).toBe(0);
+    expect(
+      must(result.value.ships.find((s) => s.id === 's1')).damage.disabledTurns,
+    ).toBe(0);
   });
 
   it('adds disabledTurns on ordnanceDetonated with disabled damage', () => {
@@ -244,7 +249,9 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.ships.find((s) => s.id === 's1')!.damage.disabledTurns).toBe(3);
+    expect(
+      must(result.value.ships.find((s) => s.id === 's1')).damage.disabledTurns,
+    ).toBe(3);
   });
 
   it('returns error for missing target ship on ordnanceDetonated', () => {
@@ -279,7 +286,9 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.ships.find((s) => s.id === 's1')!.damage.disabledTurns).toBe(0);
+    expect(
+      must(result.value.ships.find((s) => s.id === 's1')).damage.disabledTurns,
+    ).toBe(0);
   });
 
   it('does nothing on ramming with damageType eliminated', () => {
@@ -297,7 +306,9 @@ describe('projectConflictEvent', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     // Ship should not be modified (eliminated handled elsewhere)
-    expect(result.value.ships.find((s) => s.id === 's1')!.lifecycle).toBe('active');
+    expect(must(result.value.ships.find((s) => s.id === 's1')).lifecycle).toBe(
+      'active',
+    );
   });
 
   it('adds disabledTurns on ramming with disabled damage', () => {
@@ -314,7 +325,9 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.ships.find((s) => s.id === 's1')!.damage.disabledTurns).toBe(2);
+    expect(
+      must(result.value.ships.find((s) => s.id === 's1')).damage.disabledTurns,
+    ).toBe(2);
   });
 
   it('returns error for missing ship on ramming', () => {
@@ -367,7 +380,9 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.ships.find((s) => s.id === 's2')!.damage.disabledTurns).toBe(0);
+    expect(
+      must(result.value.ships.find((s) => s.id === 's2')).damage.disabledTurns,
+    ).toBe(0);
   });
 
   it('destroys ship on combatAttack with eliminated damage', () => {
@@ -386,7 +401,7 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const ship = result.value.ships.find((s) => s.id === 's2')!;
+    const ship = must(result.value.ships.find((s) => s.id === 's2'));
     expect(ship.lifecycle).toBe('destroyed');
     expect(ship.deathCause).toBe('gun');
     expect(ship.killedBy).toBe('s1');
@@ -409,7 +424,7 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const ship = result.value.ships.find((s) => s.id === 's2')!;
+    const ship = must(result.value.ships.find((s) => s.id === 's2'));
     expect(ship.killedBy).toBeNull();
   });
 
@@ -429,13 +444,15 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.ships.find((s) => s.id === 's2')!.damage.disabledTurns).toBe(2);
+    expect(
+      must(result.value.ships.find((s) => s.id === 's2')).damage.disabledTurns,
+    ).toBe(2);
   });
 
   it('destroys ship when cumulative disabledTurns reaches threshold', () => {
     const state = baseState();
     // Pre-load the ship with damage just below the threshold
-    const targetShip = state.ships.find((s) => s.id === 's2')!;
+    const targetShip = must(state.ships.find((s) => s.id === 's2'));
     targetShip.damage.disabledTurns = DAMAGE_ELIMINATION_THRESHOLD - 1;
 
     const event: ConflictProjectionEvent = {
@@ -452,7 +469,7 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const ship = result.value.ships.find((s) => s.id === 's2')!;
+    const ship = must(result.value.ships.find((s) => s.id === 's2'));
     expect(ship.lifecycle).toBe('destroyed');
     expect(ship.deathCause).toBe('gun');
     expect(ship.killedBy).toBe('s1');
@@ -462,7 +479,7 @@ describe('projectConflictEvent', () => {
 
   it('destroys ship when cumulative disabledTurns exceeds threshold', () => {
     const state = baseState();
-    const targetShip = state.ships.find((s) => s.id === 's2')!;
+    const targetShip = must(state.ships.find((s) => s.id === 's2'));
     targetShip.damage.disabledTurns = DAMAGE_ELIMINATION_THRESHOLD - 2;
 
     const event: ConflictProjectionEvent = {
@@ -479,14 +496,14 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const ship = result.value.ships.find((s) => s.id === 's2')!;
+    const ship = must(result.value.ships.find((s) => s.id === 's2'));
     expect(ship.lifecycle).toBe('destroyed');
     expect(ship.deathCause).toBe('gun');
   });
 
   it('does not destroy ship when disabledTurns stays below threshold', () => {
     const state = baseState();
-    const targetShip = state.ships.find((s) => s.id === 's2')!;
+    const targetShip = must(state.ships.find((s) => s.id === 's2'));
     targetShip.damage.disabledTurns = 1;
 
     const event: ConflictProjectionEvent = {
@@ -503,7 +520,7 @@ describe('projectConflictEvent', () => {
     const result = projectConflictEvent(state, event);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const ship = result.value.ships.find((s) => s.id === 's2')!;
+    const ship = must(result.value.ships.find((s) => s.id === 's2'));
     expect(ship.lifecycle).toBe('active');
     expect(ship.damage.disabledTurns).toBe(2);
   });
@@ -513,7 +530,9 @@ describe('projectConflictEvent', () => {
     const event: ConflictProjectionEvent = {
       type: 'combatAttack',
       attackerIds: [asShipId('s1')],
-      targetId: asShipId('nonexistent') as any,
+      targetId: asShipId(
+        'nonexistent',
+      ) as unknown as import('../../ids').OrdnanceId,
       targetType: 'ship',
       attackType: 'gun',
       roll: 4,
