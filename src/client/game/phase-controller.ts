@@ -5,6 +5,7 @@ import type { TurnTelemetryContext } from './turn-telemetry';
 
 export interface PhaseControllerDeps {
   gameState: GameState | null;
+  currentState: ClientState;
   playerId: PlayerId;
   lastLoggedTurn: number;
   isLocalGame: boolean;
@@ -43,6 +44,10 @@ export const transitionClientPhase = (deps: PhaseControllerDeps): void => {
   }
 
   if (!transition.nextState) {
+    return;
+  }
+
+  if (transition.nextState === deps.currentState) {
     return;
   }
 
