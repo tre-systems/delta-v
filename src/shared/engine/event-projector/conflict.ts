@@ -176,6 +176,22 @@ export const projectConflictEvent = (
       }
 
       state = baseState.value;
+      const targetKey = `${event.targetType}:${event.targetId}`;
+
+      for (const attackerId of event.attackerIds) {
+        const projectedAttacker = requireShip(state, attackerId);
+
+        if (!projectedAttacker.ok) {
+          return projectedAttacker;
+        }
+
+        projectedAttacker.value.firedThisPhase = true;
+      }
+
+      state.combatTargetedThisPhase = [
+        ...(state.combatTargetedThisPhase ?? []),
+        targetKey,
+      ];
 
       if (event.targetType === 'ordnance' || event.damageType === 'none') {
         return {
