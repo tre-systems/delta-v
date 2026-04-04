@@ -8,21 +8,7 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-### 1. Harden Durable Object alarm error handling
-
-**Source:** [REVIEW_PLAN.md](./REVIEW_PLAN.md) section 5 review on 2026-04-04.
-
-`runGameDoTurnTimeout()` catches engine failures and reschedules, but `runGameDoAlarm()` still lets unexpected errors in the `disconnectExpired` and `inactivityTimeout` branches bubble out of `GameDO.alarm()`. Add top-level catch/reschedule coverage so alarm failures do not skip cleanup, forfeit handling, or the next alarm.
-
-**Files:** `src/server/game-do/alarm.ts`, `src/server/game-do/game-do.ts`, `src/server/game-do/alarm.test.ts`
-
-### 2. Raise engine coverage below the review threshold
-
-**Source:** [REVIEW_PLAN.md](./REVIEW_PLAN.md) section 4 review on 2026-04-04.
-
-The latest clean coverage run still leaves executable engine modules below the review floor of 80% line coverage, notably `src/shared/engine/combat.ts` (73.59%) and `src/shared/engine/event-projector/conflict.ts` (70.58%). Add targeted tests for the uncovered branches or lower the risk another way with explicit justification.
-
-**Files:** `src/shared/engine/combat.ts`, `src/shared/engine/event-projector/conflict.ts`, related `*.test.ts`
+No active items.
 
 ---
 

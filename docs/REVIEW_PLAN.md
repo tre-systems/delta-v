@@ -129,8 +129,8 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 | 1   | CI / local dev friction     | 2026-04-04 | pass               | `npm run verify` exits 0; pre-commit dynamic port logic confirmed; CONTRIBUTING.md updated to document grep-based boundary checks |
 | 2   | Observability / data / privacy | 2026-04-04 | pass            | docs synced to current D1 event names, payload shapes, retention notes, and sample queries        |
 | 3   | Security posture            | 2026-04-04 | pass               | all 6 checks pass: rate limits match docs, validation exhaustive, no innerHTML/Math.random leaks, crypto RNG for room codes |
-| 4   | Game engine correctness     | 2026-04-04 | fail — [BACKLOG #2] | `simulate all 100 --ci` 0 crashes; spec cross-check clean; coverage below 80% in `combat.ts` (73.59%) and `event-projector/conflict.ts` (70.58%) |
-| 5   | Error handling / resilience | 2026-04-04 | fail — [BACKLOG #1] | `game-do` 134 tests pass; `match-archive` error isolation good; `runGameDoAlarm` still lacks top-level catch/reschedule |
+| 4   | Game engine correctness     | 2026-04-04 | pass               | `simulate all 100 --ci` 0 crashes; spec cross-check clean; `combat.ts` 94.01%, `conflict.ts` 91.76% — both above 80% |
+| 5   | Error handling / resilience | 2026-04-04 | pass               | `game-do` 134 tests pass; `runGameDoAlarm` now has top-level try-catch with reschedule; 5 error-handling tests added |
 | 6   | Bundle / runtime            | 2026-04-04 | partial            | `dist/client.js` 655337 bytes raw / 135583 bytes gzip (~132 KB, within baseline); runtime heap profiling remains `[Human]` |
 | 7   | Supply chain / release      | 2026-04-04 | pass               | `npm audit` 0 vulnerabilities; `npm outdated` no packages 2+ major versions behind; Node 25 consistent across `.nvmrc` and CI |
 
