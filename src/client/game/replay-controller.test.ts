@@ -88,6 +88,7 @@ describe('replay-controller', () => {
       showToast: () => {},
       clearTrails: () => {},
       applyGameState: () => {},
+      frameOnActivePlayer: () => {},
     });
 
     controller.onGameOverShown();
@@ -121,6 +122,7 @@ describe('replay-controller', () => {
       applyGameState: (state) => {
         appliedStates.push(state.gameId);
       },
+      frameOnActivePlayer: () => {},
     });
 
     controller.onGameOverShown();

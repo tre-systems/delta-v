@@ -11,7 +11,7 @@ import {
   shiftReplaySelection,
 } from './replay-selection';
 
-const PLAY_INTERVAL_MS = 1200;
+const PLAY_INTERVAL_MS = 600;
 
 interface ReplayControllerDeps {
   getClientContext: () => {
@@ -24,6 +24,7 @@ interface ReplayControllerDeps {
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
   clearTrails: () => void;
   applyGameState: (state: GameState) => void;
+  frameOnActivePlayer: (state: GameState) => void;
 }
 
 export interface ReplayController {
@@ -175,6 +176,7 @@ export const createReplayController = (
     if (!entry) return;
     deps.clearTrails();
     deps.applyGameState(entry.message.state);
+    deps.frameOnActivePlayer(entry.message.state);
   };
 
   const stepForward = () => {

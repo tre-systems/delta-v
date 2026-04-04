@@ -167,6 +167,7 @@ export const createMainSessionShell = (
     showToast: args.showToast,
     clearTrails: () => args.renderer.clearTrails(),
     applyGameState: (state) => applyGameState(state),
+    frameOnActivePlayer: (state) => args.renderer.frameOnActivePlayer(state),
   });
 
   args.ui.overlay.bindReconnectStateSignal(
