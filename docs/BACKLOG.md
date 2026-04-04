@@ -16,16 +16,6 @@ Core architecture work such as the major FSM cleanup, multi-ship E2E coverage, o
 
 ---
 
-### Extend branded types to ship, ordnance, and game IDs
-
-**Status:** not started.
-
-**Remaining:** ship IDs, ordnance IDs, and game IDs are still plain `string` throughout the codebase. Brand these, similar to `HexKey`, `RoomCode`, and `PlayerToken`, to prevent accidental mixing. Also add an `isHexKey` runtime validation guard for parsing boundaries, and change `lastSelectedHex` from `string` to `HexKey`.
-
-**Files:** `src/shared/types/domain.ts`, `src/shared/hex.ts`, `src/shared/ids.ts`, consumers throughout
-
-**Found by:** pattern catalogue: Branded Types; String-Key Serialization
-
 ### Continue best-effort DOM accessibility follow-up
 
 **Status:** partial.
