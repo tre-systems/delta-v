@@ -8,15 +8,7 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-### 1. Stabilize `npm run verify` coverage output
-
-**Source:** [REVIEW_PLAN.md](./REVIEW_PLAN.md) section 1 review on 2026-04-04.
-
-`npm run verify` still fails intermittently in `test:coverage` with `ENOENT` on `coverage/.tmp/coverage-*.json` after prior coverage runs. Pre-commit already works around this by removing `coverage/` first; `verify` should be made equally robust so the primary local/CI gate does not require manual cleanup.
-
-**Files:** `package.json`, `.husky/pre-commit`, `vitest.config.ts`
-
-### 2. Harden Durable Object alarm error handling
+### 1. Harden Durable Object alarm error handling
 
 **Source:** [REVIEW_PLAN.md](./REVIEW_PLAN.md) section 5 review on 2026-04-04.
 
@@ -24,7 +16,7 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 **Files:** `src/server/game-do/alarm.ts`, `src/server/game-do/game-do.ts`, `src/server/game-do/alarm.test.ts`
 
-### 3. Raise engine coverage below the review threshold
+### 2. Raise engine coverage below the review threshold
 
 **Source:** [REVIEW_PLAN.md](./REVIEW_PLAN.md) section 4 review on 2026-04-04.
 
