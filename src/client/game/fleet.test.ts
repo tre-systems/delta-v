@@ -72,7 +72,7 @@ describe('game-client-fleet', () => {
       resolveLocalFleetReady(
         state,
         0,
-        [{ kind: 'orbitalBaseCargo' }],
+        [{ kind: 'ship', shipType: 'frigate' }, { kind: 'orbitalBaseCargo' }],
         map,
         scenario,
         'normal',
