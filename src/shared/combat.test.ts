@@ -17,6 +17,7 @@ import {
   resolveCombat,
   rollD6,
 } from './combat';
+import { SHIP_STATS } from './constants';
 import { asHexKey } from './hex';
 import { asShipId } from './ids';
 import type { Ship, SolarSystemMap } from './types';
@@ -141,6 +142,37 @@ describe('getCombatStrength', () => {
   it('returns 0 for disabled ship', () => {
     expect(
       getCombatStrength([makeShip({ damage: { disabledTurns: 1 } })]),
+    ).toBe(0);
+  });
+
+  it('returns combat value for disabled dreadnaught', () => {
+    expect(
+      getCombatStrength([
+        makeShip({
+          type: 'dreadnaught',
+          damage: { disabledTurns: 2 },
+        }),
+      ]),
+    ).toBe(SHIP_STATS.dreadnaught.combat);
+  });
+
+  it('returns combat value for D1-disabled orbital base only', () => {
+    expect(
+      getCombatStrength([
+        makeShip({
+          type: 'orbitalBase',
+          damage: { disabledTurns: 1 },
+        }),
+      ]),
+    ).toBe(SHIP_STATS.orbitalBase.combat);
+
+    expect(
+      getCombatStrength([
+        makeShip({
+          type: 'orbitalBase',
+          damage: { disabledTurns: 2 },
+        }),
+      ]),
     ).toBe(0);
   });
 

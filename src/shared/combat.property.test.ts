@@ -301,10 +301,16 @@ describe('getCombatStrength properties', () => {
     );
   });
 
-  it('disabled ships contribute 0 strength', () => {
+  it('disabled normal ships contribute 0 strength', () => {
+    const normalTypes = (Object.entries(SHIP_STATS) as [ShipType, ShipStats][])
+      .filter(
+        ([, stats]) => !stats.operatesWhileDisabled && !stats.operatesAtD1,
+      )
+      .map(([type]) => type);
+
     fc.assert(
       fc.property(
-        arbShipType(),
+        fc.constantFrom(...normalTypes),
         fc.integer({ min: 1, max: 5 }),
         (shipType, turns) => {
           const ships = [
@@ -317,6 +323,40 @@ describe('getCombatStrength properties', () => {
           expect(getCombatStrength(ships)).toBe(0);
         },
       ),
+    );
+  });
+
+  it('disabled dreadnaughts retain full combat strength', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 5 }), (turns) => {
+        const ships = [
+          makeShip({
+            type: 'dreadnaught',
+            damage: { disabledTurns: turns },
+          }),
+        ];
+
+        expect(getCombatStrength(ships)).toBe(SHIP_STATS.dreadnaught.combat);
+      }),
+    );
+  });
+
+  it('D1-disabled orbital bases retain combat strength, D2+ do not', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 5 }), (turns) => {
+        const ships = [
+          makeShip({
+            type: 'orbitalBase',
+            damage: { disabledTurns: turns },
+          }),
+        ];
+
+        if (turns <= 1) {
+          expect(getCombatStrength(ships)).toBe(SHIP_STATS.orbitalBase.combat);
+        } else {
+          expect(getCombatStrength(ships)).toBe(0);
+        }
+      }),
     );
   });
 
