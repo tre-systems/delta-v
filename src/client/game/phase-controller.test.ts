@@ -100,6 +100,7 @@ const createDeps = (
 
   const deps: PhaseControllerDeps = {
     gameState: createState(),
+    currentState: 'menu',
     playerId: 0,
     lastLoggedTurn: -1,
     isLocalGame: false,
@@ -198,5 +199,18 @@ describe('transitionClientPhase', () => {
     expect(controller.onTurnLogged).not.toHaveBeenCalled();
     expect(controller.setState).not.toHaveBeenCalled();
     expect(controller.beginCombat).not.toHaveBeenCalled();
+  });
+
+  it('does not re-enter the same client state on in-phase updates', () => {
+    const controller = createDeps({
+      gameState: createState({ phase: 'astrogation', activePlayer: 0 }),
+      currentState: 'playing_astrogation',
+      lastLoggedTurn: 2,
+    });
+
+    transitionClientPhase(controller.deps);
+
+    expect(controller.setState).not.toHaveBeenCalled();
+    expect(controller.playPhaseSound).not.toHaveBeenCalled();
   });
 });
