@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
 import { derivePhaseTransition } from './phase';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'transport',
   owner: 0,
   originalOwner: 0,
@@ -43,14 +43,14 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'TEST',
+  gameId: asGameId('TEST'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
   turnNumber: 2,
   phase: 'astrogation',
   activePlayer: 0,
-  ships: [createShip(), createShip({ id: 'ship-1', owner: 1 })],
+  ships: [createShip(), createShip({ id: asShipId('ship-1'), owner: 1 })],
   ordnance: [],
   pendingAstrogationOrders: null,
   pendingAsteroidHazards: [],
@@ -96,7 +96,9 @@ describe('derivePhaseTransition', () => {
     const state = createState({
       phase: 'combat',
       activePlayer: 0,
-      pendingAsteroidHazards: [{ shipId: 'ship-0', hex: { q: 1, r: 1 } }],
+      pendingAsteroidHazards: [
+        { shipId: asShipId('ship-0'), hex: { q: 1, r: 1 } },
+      ],
     });
 
     expect(derivePhaseTransition(state, 0, 2, false)).toMatchObject({

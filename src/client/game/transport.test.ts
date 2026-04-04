@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createGameOrThrow } from '../../shared/engine/game-engine';
+import { asGameId, asShipId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -15,7 +16,7 @@ describe('createLocalTransport', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'LOCAL1',
+      asGameId('LOCAL1'),
       findBaseHex,
     );
     const ship = state.ships[0];
@@ -82,11 +83,11 @@ describe('createWebSocketTransport', () => {
       'submitAstrogation',
       (transport) =>
         transport.submitAstrogation([
-          { shipId: 's1', burn: 0, overload: null },
+          { shipId: asShipId('s1'), burn: 0, overload: null },
         ]),
       {
         type: 'astrogation',
-        orders: [{ shipId: 's1', burn: 0, overload: null }],
+        orders: [{ shipId: asShipId('s1'), burn: 0, overload: null }],
       },
     ],
     [
@@ -94,8 +95,8 @@ describe('createWebSocketTransport', () => {
       (transport) =>
         transport.submitCombat([
           {
-            attackerIds: ['s1'],
-            targetId: 's2',
+            attackerIds: [asShipId('s1')],
+            targetId: asShipId('s2'),
             targetType: 'ship',
             attackStrength: null,
           },
@@ -104,8 +105,8 @@ describe('createWebSocketTransport', () => {
         type: 'combat',
         attacks: [
           {
-            attackerIds: ['s1'],
-            targetId: 's2',
+            attackerIds: [asShipId('s1')],
+            targetId: asShipId('s2'),
             targetType: 'ship',
             attackStrength: null,
           },
@@ -116,16 +117,16 @@ describe('createWebSocketTransport', () => {
       'submitSingleCombat',
       (transport) =>
         transport.submitSingleCombat({
-          attackerIds: ['s1'],
-          targetId: 's2',
+          attackerIds: [asShipId('s1')],
+          targetId: asShipId('s2'),
           targetType: 'ship',
           attackStrength: 1,
         }),
       {
         type: 'combatSingle',
         attack: {
-          attackerIds: ['s1'],
-          targetId: 's2',
+          attackerIds: [asShipId('s1')],
+          targetId: asShipId('s2'),
           targetType: 'ship',
           attackStrength: 1,
         },
@@ -137,7 +138,7 @@ describe('createWebSocketTransport', () => {
       (transport) =>
         transport.submitOrdnance([
           {
-            shipId: 's1',
+            shipId: asShipId('s1'),
             ordnanceType: 'torpedo',
             torpedoAccel: 1,
             torpedoAccelSteps: 1,
@@ -147,7 +148,7 @@ describe('createWebSocketTransport', () => {
         type: 'ordnance',
         launches: [
           {
-            shipId: 's1',
+            shipId: asShipId('s1'),
             ordnanceType: 'torpedo',
             torpedoAccel: 1,
             torpedoAccelSteps: 1,
@@ -157,8 +158,8 @@ describe('createWebSocketTransport', () => {
     ],
     [
       'submitEmplacement',
-      (transport) => transport.submitEmplacement([{ shipId: 's1' }]),
-      { type: 'emplaceBase', emplacements: [{ shipId: 's1' }] },
+      (transport) => transport.submitEmplacement([{ shipId: asShipId('s1') }]),
+      { type: 'emplaceBase', emplacements: [{ shipId: asShipId('s1') }] },
     ],
     [
       'submitFleetReady',
@@ -174,8 +175,8 @@ describe('createWebSocketTransport', () => {
       (transport) =>
         transport.submitLogistics([
           {
-            sourceShipId: 's1',
-            targetShipId: 's2',
+            sourceShipId: asShipId('s1'),
+            targetShipId: asShipId('s2'),
             transferType: 'cargo',
             amount: 1,
           },
@@ -184,7 +185,7 @@ describe('createWebSocketTransport', () => {
         type: 'logistics',
         transfers: [
           {
-            sourceShipId: 's1',
+            sourceShipId: asShipId('s1'),
             targetShipId: 's2',
             transferType: 'cargo',
             amount: 1,

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
 import { deriveGameOverPlan } from './endgame';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -43,7 +43,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'END',
+  gameId: asGameId('END'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -51,15 +51,15 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   phase: 'gameOver',
   activePlayer: 0,
   ships: [
-    createShip({ id: 'p0a', owner: 0 }),
+    createShip({ id: asShipId('p0a'), owner: 0 }),
     createShip({
-      id: 'p0b',
+      id: asShipId('p0b'),
       owner: 0,
       lifecycle: 'destroyed',
     }),
-    createShip({ id: 'p1a', owner: 1 }),
+    createShip({ id: asShipId('p1a'), owner: 1 }),
     createShip({
-      id: 'p1b',
+      id: asShipId('p1b'),
       owner: 1,
       lifecycle: 'destroyed',
     }),

@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { TransferPair } from '../../shared/engine/logistics';
+import { asShipId } from '../../shared/ids';
 import type { Ship } from '../../shared/types/domain';
 import {
   createLogisticsStoreFromPairs,
@@ -10,7 +11,7 @@ import {
 import { renderTransferPanel } from './logistics-ui';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -31,7 +32,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 
 const createTransferPair = (): TransferPair => ({
   source: createShip(),
-  target: createShip({ id: 'ship-1' }),
+  target: createShip({ id: asShipId('ship-1') }),
   canTransferFuel: true,
   canTransferCargo: true,
   canTransferPassengers: false,

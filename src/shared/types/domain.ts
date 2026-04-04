@@ -1,5 +1,6 @@
 import type { OrdnanceType, ShipType } from '../constants';
 import type { HexCoord, HexKey, HexVec } from '../hex';
+import type { GameId, OrdnanceId, ShipId } from '../ids';
 import type { ScenarioKey } from '../scenario-definitions';
 
 // --- Result type ---
@@ -81,7 +82,7 @@ export const CURRENT_GAME_STATE_SCHEMA_VERSION = 1;
 
 export interface GameState {
   schemaVersion?: number;
-  gameId: string;
+  gameId: GameId;
   scenario: ScenarioKey;
   scenarioRules: ScenarioRules;
   escapeMoralVictoryAchieved: boolean;
@@ -110,7 +111,7 @@ export interface PositionedEntity {
 }
 
 export interface Ship extends PositionedEntity {
-  id: string;
+  id: ShipId;
   type: ShipType;
   owner: PlayerId;
   originalOwner: PlayerId;
@@ -136,7 +137,7 @@ export interface Ship extends PositionedEntity {
   passengersAboard?: number;
   pendingGravityEffects?: GravityEffect[];
   deathCause?: string;
-  killedBy?: string | null; // ship ID or label of the attacker, null for environmental deaths
+  killedBy?: ShipId | null; // ship ID or label of the attacker, null for environmental deaths
 
   // True when this ship has already attacked during the current
   // sequential combat phase. Cleared by advanceTurn.
@@ -171,10 +172,10 @@ export const isDestroyed = (ship: Ship): ship is DestroyedShip =>
 export type OrdnanceLifecycle = 'active' | 'destroyed';
 
 export interface Ordnance extends PositionedEntity {
-  id: string;
+  id: OrdnanceId;
   type: OrdnanceType;
   owner: PlayerId;
-  sourceShipId: string | null;
+  sourceShipId: ShipId | null;
   turnsRemaining: number;
   lifecycle: OrdnanceLifecycle;
   pendingGravityEffects?: GravityEffect[];
@@ -195,7 +196,7 @@ export interface PlayerState {
 // --- Movement ---
 
 export interface AstrogationOrder {
-  shipId: string;
+  shipId: ShipId;
   burn: number | null;
   overload: number | null;
   weakGravityChoices?: Record<HexKey, boolean>;
@@ -232,12 +233,12 @@ export interface GravityEffect extends GravityInfo {
 }
 
 export interface AsteroidHazard {
-  shipId: string;
+  shipId: ShipId;
   hex: HexCoord;
 }
 
 export interface OrdnanceLaunch {
-  shipId: string;
+  shipId: ShipId;
   ordnanceType: OrdnanceType;
   torpedoAccel: number | null;
   torpedoAccelSteps: 1 | 2 | null;
@@ -250,12 +251,12 @@ export interface PathSegment {
 }
 
 export interface OrdnanceMovement extends PathSegment {
-  ordnanceId: string;
+  ordnanceId: OrdnanceId;
   detonated: boolean;
 }
 
 interface ShipMovementBase extends PathSegment {
-  shipId: string;
+  shipId: ShipId;
   newVelocity: HexVec;
   fuelSpent: number;
   gravityEffects: GravityEffect[];
@@ -309,8 +310,8 @@ export interface SolarSystemMap {
 // --- Combat ---
 
 export interface CombatAttack {
-  attackerIds: string[];
-  targetId: string;
+  attackerIds: ShipId[];
+  targetId: ShipId | OrdnanceId;
   targetType: 'ship' | 'ordnance';
   attackStrength: number | null;
 }
@@ -319,8 +320,8 @@ export type DamageType = 'none' | 'disabled' | 'eliminated';
 export type AttackType = 'gun' | 'baseDefense' | 'asteroidHazard' | 'antiNuke';
 
 export interface CombatResult {
-  attackerIds: string[];
-  targetId: string;
+  attackerIds: ShipId[];
+  targetId: ShipId | OrdnanceId;
   targetType: 'ship' | 'ordnance';
   attackType: AttackType;
   odds: string;
@@ -346,19 +347,19 @@ export interface MovementEvent {
     | 'torpedoHit'
     | 'nukeDetonation'
     | 'capture';
-  shipId: string;
+  shipId: ShipId;
   hex: HexCoord;
   dieRoll: number;
   damageType: 'none' | 'disabled' | 'eliminated' | 'captured';
   disabledTurns: number;
-  ordnanceId?: string;
-  capturedBy?: string;
+  ordnanceId?: OrdnanceId;
+  capturedBy?: ShipId;
 }
 
 // --- Actions ---
 
 export interface OrbitalBaseEmplacement {
-  shipId: string;
+  shipId: ShipId;
 }
 
 export type PurchasableShipType = Exclude<ShipType, 'orbitalBase'>;
@@ -390,8 +391,8 @@ export const getFleetPurchaseOption = (
   isShipFleetPurchase(purchase) ? purchase.shipType : 'orbitalBaseCargo';
 
 export interface TransferOrder {
-  sourceShipId: string;
-  targetShipId: string;
+  sourceShipId: ShipId;
+  targetShipId: ShipId;
   transferType: 'fuel' | 'cargo' | 'passengers';
   amount: number;
 }

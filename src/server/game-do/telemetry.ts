@@ -1,3 +1,4 @@
+import type { GameId } from '../../shared/ids';
 import type { GameState } from '../../shared/types/domain';
 import { getProjectedCurrentStateRaw, hasProjectionParity } from './archive';
 
@@ -47,7 +48,7 @@ export const reportGameDoProjectionParityMismatch = async (deps: {
   storage: DurableObjectStorage;
   db: D1Database | undefined;
   waitUntil: (promise: Promise<unknown>) => void;
-  gameId: string;
+  gameId: GameId;
   liveState: GameState;
 }): Promise<void> => {
   const projectedState = await getProjectedCurrentStateRaw(
@@ -98,7 +99,7 @@ export const reportGameDoProjectionParityMismatch = async (deps: {
 export const verifyGameDoProjectionParity = async (
   storage: DurableObjectStorage,
   state: GameState,
-  onMismatch: (gameId: string, liveState: GameState) => Promise<void>,
+  onMismatch: (gameId: GameId, liveState: GameState) => Promise<void>,
 ): Promise<void> => {
   const hasParity = await hasProjectionParity(storage, state.gameId, state);
   if (!hasParity) {

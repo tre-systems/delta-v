@@ -2,7 +2,10 @@
 // Provides helpers with sensible defaults for constructing Ship, GameState,
 // and other domain objects in tests, eliminating repeated deep object literals.
 
+import { asGameId, asOrdnanceId, asShipId } from './ids';
 import type { GameState, Ordnance, PlayerState, Ship } from './types';
+
+export { asGameId, asOrdnanceId, asShipId };
 
 // Merges top-level fields and also merges the nested `damage` object so
 // callers can write `createTestShip({ damage: { disabledTurns: 2 } })`
@@ -25,7 +28,7 @@ const DEFAULT_PLAYER: PlayerState = {
 export const createTestShip = (overrides: ShipOverrides = {}): Ship => {
   const { damage: damageOverrides, ...rest } = overrides;
   return {
-    id: 'test-ship',
+    id: asShipId('test-ship'),
     type: 'corvette',
     owner: 0,
     originalOwner: 0,
@@ -52,7 +55,7 @@ export const createTestShip = (overrides: ShipOverrides = {}): Ship => {
 export const createTestOrdnance = (
   overrides: Partial<Ordnance> = {},
 ): Ordnance => ({
-  id: 'test-ordnance',
+  id: asOrdnanceId('test-ordnance'),
   type: 'nuke',
   owner: 0,
   sourceShipId: null,
@@ -86,7 +89,7 @@ export const createTestState = (
   };
 
   return {
-    gameId: 'TEST',
+    gameId: asGameId('TEST'),
     scenario: 'biplanetary',
     scenarioRules: {},
     escapeMoralVictoryAchieved: false,

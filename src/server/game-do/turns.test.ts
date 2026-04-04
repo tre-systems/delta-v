@@ -5,6 +5,7 @@ import {
   skipCombat,
   skipOrdnance,
 } from '../../shared/engine/game-engine';
+import { asGameId, asShipId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -17,7 +18,7 @@ const createState = (): GameState => {
   return createGameOrThrow(
     SCENARIOS.biplanetary,
     buildSolarSystemMap(),
-    'TURN1',
+    asGameId('TURN1'),
     findBaseHex,
   );
 };
@@ -26,7 +27,7 @@ const createEscapeState = (): GameState => {
   return createGameOrThrow(
     SCENARIOS.escape,
     buildSolarSystemMap(),
-    'TURNX',
+    asGameId('TURNX'),
     findBaseHex,
   );
 };
@@ -35,7 +36,7 @@ const createShip = (
   overrides: Partial<GameState['ships'][number]> = {},
 ): GameState['ships'][number] => {
   return {
-    id: 'extra-ship',
+    id: asShipId('extra-ship'),
     type: 'transport',
     owner: 0,
     originalOwner: 0,
@@ -271,7 +272,9 @@ describe('game-do-turns', () => {
     state.ships[0].lifecycle = 'destroyed';
     state.ships[1].control = 'captured';
     state.ships[2].baseStatus = 'emplaced';
-    state.ships.push(createShip({ id: 'survivor', position: { q: 1, r: 0 } }));
+    state.ships.push(
+      createShip({ id: asShipId('survivor'), position: { q: 1, r: 0 } }),
+    );
 
     const outcome = resolveTurnTimeoutOutcome(
       state,

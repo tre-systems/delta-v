@@ -13,6 +13,7 @@ import {
 } from '../combat';
 import { ANTI_NUKE_ODDS, SHIP_STATS } from '../constants';
 import { hexDistance, hexKey } from '../hex';
+import type { OrdnanceId, ShipId } from '../ids';
 import {
   type CombatAttack,
   type CombatResult,
@@ -239,14 +240,14 @@ const combatResultToEvents = (
     if (r.damageType === 'eliminated' || target?.lifecycle === 'destroyed') {
       events.push({
         type: 'shipDestroyed',
-        shipId: r.targetId,
+        shipId: r.targetId as ShipId,
         cause: r.attackType,
       });
     }
   } else if (r.damageType === 'eliminated') {
     events.push({
       type: 'ordnanceDestroyed',
-      ordnanceId: r.targetId,
+      ordnanceId: r.targetId as OrdnanceId,
       cause: r.attackType,
     });
   }

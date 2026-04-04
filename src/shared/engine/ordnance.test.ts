@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { must } from '../assert';
 import { ORBITAL_BASE_MASS } from '../constants';
 import { asHexKey, hexKey } from '../hex';
+import { asGameId, asShipId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { GameState, PlayerId, Ship, SolarSystemMap } from '../types';
 import { createGameOrThrow } from './game-engine';
@@ -14,7 +15,7 @@ import {
 
 let map: SolarSystemMap;
 const createConvoyGame = (): GameState =>
-  createGameOrThrow(SCENARIOS.convoy, map, 'TEST', findBaseHex);
+  createGameOrThrow(SCENARIOS.convoy, map, asGameId('TEST'), findBaseHex);
 const makeTransportWithBase = (
   state: GameState,
   playerId: PlayerId,
@@ -28,7 +29,7 @@ const makeTransportWithBase = (
   },
 ): Ship => {
   const ship: Ship = {
-    id: `test-transport-${state.ships.length}`,
+    id: asShipId(`test-transport-${state.ships.length}`),
     type: 'transport',
     owner: playerId,
     originalOwner: playerId,
@@ -54,7 +55,7 @@ beforeEach(() => {
   map = buildSolarSystemMap();
 });
 const makeTestShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'test-ship',
+  id: asShipId('test-ship'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,
@@ -75,7 +76,7 @@ const makeTestShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 const makeMinimalState = (overrides: Partial<GameState> = {}): GameState =>
   ({
-    gameId: 'test',
+    gameId: asGameId('test'),
     scenario: 'biplanetary',
     scenarioRules: {},
     escapeMoralVictoryAchieved: false,

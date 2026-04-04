@@ -13,6 +13,7 @@ import {
   hexLineDraw,
   parseHexKey,
 } from './hex';
+import { asShipId, type ShipId } from './ids';
 import { bodyHasGravity } from './map-data';
 import type {
   CombatAttack,
@@ -68,8 +69,8 @@ export type OddsRatio = (typeof ODDS_RATIOS)[number];
 // --- Combat computation ---
 
 export interface CombatResolution {
-  attackerIds: string[];
-  targetId: string;
+  attackerIds: ShipId[];
+  targetId: ShipId;
   odds: OddsRatio;
   attackStrength: number;
   defendStrength: number;
@@ -389,10 +390,13 @@ export const applyDamage = (
 ): boolean => {
   if (result.type === 'none') return false;
 
+  // killedBy may be a ShipId, OrdnanceId, or base label
+  const killedByShipId = killedBy as ShipId | null;
+
   if (result.type === 'eliminated') {
     ship.lifecycle = 'destroyed';
     ship.deathCause = cause;
-    ship.killedBy = killedBy;
+    ship.killedBy = killedByShipId;
     ship.velocity = { dq: 0, dr: 0 };
 
     return true;
@@ -404,7 +408,7 @@ export const applyDamage = (
   if (ship.damage.disabledTurns >= DAMAGE_ELIMINATION_THRESHOLD) {
     ship.lifecycle = 'destroyed';
     ship.deathCause = cause;
-    ship.killedBy = killedBy;
+    ship.killedBy = killedByShipId;
     ship.velocity = { dq: 0, dr: 0 };
 
     return true;
@@ -605,7 +609,7 @@ export const resolveBaseDefense = (
       applyDamage(ship, damageResult, 'baseDefense', `base:${key}`);
 
       results.push({
-        attackerIds: [`base:${key}`],
+        attackerIds: [asShipId(`base:${key}`)],
         targetId: ship.id,
         targetType: 'ship',
         attackType: 'baseDefense',
@@ -642,7 +646,7 @@ export const resolveBaseDefense = (
       }
 
       results.push({
-        attackerIds: [`base:${key}`],
+        attackerIds: [asShipId(`base:${key}`)],
         targetId: ord.id,
         targetType: 'ordnance',
         attackType: 'baseDefense',

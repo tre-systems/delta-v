@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { HexCoord, HexVec } from './hex';
 import { HEX_DIRECTIONS, hexDistance, hexEqual, hexSubtract } from './hex';
+import { asShipId } from './ids';
 import { buildSolarSystemMap } from './map-data';
 import { computeCourse } from './movement';
 import type { Ship, SolarSystemMap } from './types';
@@ -10,7 +11,7 @@ import type { Ship, SolarSystemMap } from './types';
 let map: SolarSystemMap;
 
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'prop-test',
+  id: asShipId('prop-test'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,

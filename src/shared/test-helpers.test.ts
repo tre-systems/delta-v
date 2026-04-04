@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { asShipId } from './ids';
 import {
   createTestOrdnance,
   createTestShip,
@@ -17,7 +18,11 @@ describe('createTestShip', () => {
   });
 
   it('applies top-level overrides', () => {
-    const ship = createTestShip({ id: 'custom', type: 'frigate', fuel: 5 });
+    const ship = createTestShip({
+      id: asShipId('custom'),
+      type: 'frigate',
+      fuel: 5,
+    });
     expect(ship.id).toBe('custom');
     expect(ship.type).toBe('frigate');
     expect(ship.fuel).toBe(5);
@@ -72,8 +77,8 @@ describe('createTestState', () => {
 
   it('applies top-level overrides', () => {
     const ships = [
-      createTestShip({ id: 'a' }),
-      createTestShip({ id: 'b', owner: 1 }),
+      createTestShip({ id: asShipId('a') }),
+      createTestShip({ id: asShipId('b'), owner: 1 }),
     ];
     const state = createTestState({
       turnNumber: 5,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type {
   CombatResult,
   GameState,
@@ -13,7 +13,7 @@ import {
 } from './toast';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-1',
+  id: asShipId('ship-1'),
   type: 'packet',
   owner: 0,
   originalOwner: 0,
@@ -33,7 +33,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 
 const createState = (): GameState => ({
-  gameId: 'LOCAL',
+  gameId: asGameId('LOCAL'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -42,7 +42,7 @@ const createState = (): GameState => ({
   activePlayer: 0,
   ships: [
     createShip(),
-    createShip({ id: 'enemy', owner: 1, type: 'corvette' }),
+    createShip({ id: asShipId('enemy'), owner: 1, type: 'corvette' }),
   ],
   ordnance: [],
   pendingAstrogationOrders: null,
@@ -74,7 +74,7 @@ const createMovementEvent = (
   overrides: Partial<MovementEvent> = {},
 ): MovementEvent => ({
   type: 'asteroidHit',
-  shipId: 'ship-1',
+  shipId: asShipId('ship-1'),
   hex: { q: 0, r: 0 },
   dieRoll: 4,
   damageType: 'none',
@@ -85,8 +85,8 @@ const createMovementEvent = (
 const createCombatResult = (
   overrides: Partial<CombatResult> = {},
 ): CombatResult => ({
-  attackerIds: ['ship-1'],
-  targetId: 'enemy',
+  attackerIds: [asShipId('ship-1')],
+  targetId: asShipId('enemy'),
   targetType: 'ship',
   attackType: 'gun',
   odds: '2:1',
@@ -151,7 +151,7 @@ describe('renderer toast helpers', () => {
         createCombatResult({
           damageType: 'disabled',
           counterattack: createCombatResult({
-            targetId: 'ship-1',
+            targetId: asShipId('ship-1'),
             damageType: 'eliminated',
           }),
         }),

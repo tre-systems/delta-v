@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createGameOrThrow } from '../../shared/engine/game-engine';
+import { asGameId, asShipId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -19,7 +20,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   ...createGameOrThrow(
     SCENARIOS.duel,
     buildSolarSystemMap(),
-    'STATE1',
+    asGameId('STATE1'),
     findBaseHex,
   ),
   phase: 'astrogation',
@@ -131,20 +132,20 @@ describe('applyClientStateTransition', () => {
       ships: [
         {
           ...baseState.ships[0],
-          id: 'restricted',
+          id: asShipId('restricted'),
           type: 'packet',
           owner: 0,
           nukesLaunchedSinceResupply: 1,
         },
         {
           ...baseState.ships[0],
-          id: 'launchable',
+          id: asShipId('launchable'),
           type: 'packet',
           owner: 0,
         },
         {
           ...baseState.ships[1],
-          id: 'enemy',
+          id: asShipId('enemy'),
           owner: 1,
         },
       ],
@@ -169,8 +170,8 @@ describe('applyClientStateTransition', () => {
     deps.ctx.planningState.combatAttackStrength = 3;
     deps.ctx.planningState.queuedAttacks = [
       {
-        attackerIds: ['p0s0'],
-        targetId: 'enemy',
+        attackerIds: [asShipId('p0s0')],
+        targetId: asShipId('enemy'),
         targetType: 'ship',
         attackStrength: null,
       },

@@ -1,4 +1,5 @@
 import { isBaseCarrierType, ORBITAL_BASE_MASS, SHIP_STATS } from '../constants';
+import { asShipId } from '../ids';
 import {
   type EngineError,
   ErrorCode,
@@ -120,7 +121,7 @@ export const processFleetReady = (
     const stats = SHIP_STATS[purchase.shipType];
     const base = bases[spawnedCount % bases.length];
     const ship: Ship = {
-      id: `p${playerId}s${existingCount + spawnedCount}`,
+      id: asShipId(`p${playerId}s${existingCount + spawnedCount}`),
       type: purchase.shipType,
       owner: playerId,
       originalOwner: playerId,

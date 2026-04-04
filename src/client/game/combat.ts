@@ -5,6 +5,7 @@ import {
   hasLineOfSightToTarget,
 } from '../../shared/combat';
 import { type HexCoord, hexDistance, hexEqual } from '../../shared/hex';
+import { asShipId, type OrdnanceId, type ShipId } from '../../shared/ids';
 import type {
   CombatAttack,
   GameState,
@@ -22,7 +23,7 @@ export interface ReusableCombatGroup {
 }
 
 export interface CombatTargetSelection {
-  targetId: string;
+  targetId: ShipId | OrdnanceId;
   targetType: 'ship' | 'ordnance';
 }
 
@@ -406,7 +407,7 @@ export const getCombatAttackerIdAtHex = (
   playerId: PlayerId,
   clickHex: HexCoord,
   selectedShipId?: string | null,
-): string | null => {
+): ShipId | null => {
   return (
     getCycledSelection(
       getFriendlyCombatShipsAtHex(state, playerId, clickHex),
@@ -600,7 +601,7 @@ export const toggleCombatAttackerSelection = (
   playerId: PlayerId,
   planning: CombatPlanningView,
   map: SolarSystemMap | null,
-  shipId: string,
+  shipId: ShipId,
 ): CombatAttackerToggleResult | null => {
   const targetId = planning.combatTargetId;
   const targetType = planning.combatTargetType;
@@ -627,7 +628,9 @@ export const toggleCombatAttackerSelection = (
 
   if (!legalIds.has(shipId)) return null;
 
-  const selected = planning.combatAttackerIds.filter((id) => legalIds.has(id));
+  const selected = planning.combatAttackerIds.filter((id) =>
+    legalIds.has(id as ShipId),
+  );
   const nextSelected = getNextSelectedAttackerIds(
     legalAttackers,
     selected,
@@ -668,10 +671,13 @@ export const buildCurrentAttack = (
   map: SolarSystemMap,
   selectedShipId?: string | null,
 ): CombatAttack | null => {
-  const targetId = planning.combatTargetId;
+  const rawTargetId = planning.combatTargetId;
   const targetType = planning.combatTargetType ?? 'ship';
 
-  if (!targetId) return null;
+  if (!rawTargetId) return null;
+
+  // Cast from planning string to branded ID for CombatAttack
+  const targetId = rawTargetId as ShipId | OrdnanceId;
 
   if (targetType === 'ordnance') {
     const legalAttackers = getLegalCombatAttackers(
@@ -714,7 +720,7 @@ export const buildCurrentAttack = (
 
     return attackStrength
       ? {
-          attackerIds: [...reusableGroup.attackerIds],
+          attackerIds: reusableGroup.attackerIds.map(asShipId),
           targetId,
           targetType,
           attackStrength,

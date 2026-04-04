@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
+import { asGameId, asShipId } from '../../shared/ids';
 import type {
   GameState,
   Ship,
@@ -8,7 +8,7 @@ import type {
 import { buildShipTooltipHtml } from './tooltip';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'transport',
   owner: 0,
   originalOwner: 0,
@@ -28,7 +28,7 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
 });
 
 const createState = (ships: Ship[]): GameState => ({
-  gameId: 'TEST',
+  gameId: asGameId('TEST'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -86,14 +86,14 @@ describe('buildShipTooltipHtml', () => {
 
   it('shows combat odds for visible enemy ships', () => {
     const attacker = createShip({
-      id: 'p0s0',
+      id: asShipId('p0s0'),
       type: 'corsair',
       owner: 0,
       originalOwner: 0,
       position: { q: 0, r: 0 },
     });
     const target = createShip({
-      id: 'p1s0',
+      id: asShipId('p1s0'),
       type: 'frigate',
       owner: 1,
       originalOwner: 0,

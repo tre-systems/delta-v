@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { must } from '../assert';
 import { asHexKey } from '../hex';
+import { asGameId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { GameState, SolarSystemMap } from '../types';
 import {
@@ -25,7 +26,7 @@ const makeState = (overrides: Partial<GameState> = {}): GameState => {
   const base = createGameOrThrow(
     SCENARIOS.biplanetary,
     map,
-    'TEST1',
+    asGameId('TEST1'),
     findBaseHex,
   );
   return { ...base, ...overrides };

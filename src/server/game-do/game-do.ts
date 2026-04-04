@@ -213,7 +213,9 @@ export class GameDO extends DurableObject<Env> {
     await this.storage.delete(GAME_DO_STORAGE_KEYS.roomArchived);
   }
 
-  private async getLatestGameId(): Promise<string | null> {
+  private async getLatestGameId(): Promise<
+    import('../../shared/ids').GameId | null
+  > {
     const [code, matchNumber] = await Promise.all([
       this.getGameCode(),
       this.storage.get<number>(GAME_DO_STORAGE_KEYS.matchNumber),
@@ -223,7 +225,7 @@ export class GameDO extends DurableObject<Env> {
       return null;
     }
 
-    return `${code}-m${matchNumber}`;
+    return `${code}-m${matchNumber}` as import('../../shared/ids').GameId;
   }
 
   private async getActionRng(): Promise<() => number> {
@@ -310,7 +312,7 @@ export class GameDO extends DurableObject<Env> {
   };
 
   private reportProjectionParityMismatch = async (
-    gameId: string,
+    gameId: import('../../shared/ids').GameId,
     liveState: GameState,
   ): Promise<void> => {
     await reportGameDoProjectionParityMismatch({

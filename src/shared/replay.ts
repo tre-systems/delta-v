@@ -1,3 +1,4 @@
+import type { GameId } from './ids';
 import type { GameState, Phase } from './types/domain';
 import type { S2C } from './types/protocol';
 
@@ -17,7 +18,7 @@ export interface ReplayEntry {
 }
 
 export interface ReplayTimeline {
-  gameId: string;
+  gameId: GameId;
   roomCode: string;
   matchNumber: number;
   scenario: string;
@@ -25,8 +26,8 @@ export interface ReplayTimeline {
   entries: ReplayEntry[];
 }
 
-export const buildMatchId = (roomCode: string, matchNumber: number): string =>
-  `${roomCode}-m${matchNumber}`;
+export const buildMatchId = (roomCode: string, matchNumber: number): GameId =>
+  `${roomCode}-m${matchNumber}` as GameId;
 
 export const parseMatchId = (
   gameId: string,

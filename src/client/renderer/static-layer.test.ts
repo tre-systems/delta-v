@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGameOrThrow } from '../../shared/engine/game-engine';
 import { asHexKey } from '../../shared/hex';
+import { asGameId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -32,7 +33,12 @@ describe('computeStaticSceneLayerKey', () => {
     camera.x = 10;
     camera.y = 20;
     camera.zoom = 0.5;
-    const state = createGameOrThrow(SCENARIOS.duel, map, 'SK1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('SK1'),
+      findBaseHex,
+    );
     const a = computeStaticSceneLayerKey({
       map,
       camera,
@@ -62,7 +68,7 @@ describe('computeStaticSceneLayerKey', () => {
     const baseState = createGameOrThrow(
       SCENARIOS.duel,
       map,
-      'SK2',
+      asGameId('SK2'),
       findBaseHex,
     );
     const s1 = {

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import type { GameId } from '../../shared/ids';
+import { asGameId } from '../../shared/ids';
 import type { ReplayTimeline } from '../../shared/replay';
 import type { GameState } from '../../shared/types/domain';
 import { createReplayController } from './replay-controller';
 
-const createState = (gameId: string): GameState => ({
+const createState = (gameId: GameId): GameState => ({
   gameId,
   scenario: 'duel',
   scenarioRules: {},
@@ -39,7 +41,7 @@ const createState = (gameId: string): GameState => ({
   outcome: null,
 });
 
-const createTimeline = (gameId: string): ReplayTimeline => ({
+const createTimeline = (gameId: GameId): ReplayTimeline => ({
   gameId,
   roomCode: 'ABCDE',
   matchNumber: Number(gameId.split('-m')[1] ?? 1),
@@ -80,7 +82,7 @@ describe('replay-controller', () => {
         state: 'gameOver',
         isLocalGame: false,
         gameCode: 'ABCDE',
-        gameState: createState('ABCDE-m2'),
+        gameState: createState(asGameId('ABCDE-m2')),
       }),
       fetchReplay: async () => null,
       showToast: () => {},
@@ -101,14 +103,14 @@ describe('replay-controller', () => {
 
   it('loads a selected replay and restores the live state on exit', async () => {
     const appliedStates: string[] = [];
-    const timeline = createTimeline('ABCDE-m1');
+    const timeline = createTimeline(asGameId('ABCDE-m1'));
     let fetchArgs: [string, string] | null = null;
     const controller = createReplayController({
       getClientContext: () => ({
         state: 'gameOver',
         isLocalGame: false,
         gameCode: 'ABCDE',
-        gameState: createState('ABCDE-m2'),
+        gameState: createState(asGameId('ABCDE-m2')),
       }),
       fetchReplay: async (code, gameId) => {
         fetchArgs = [code, gameId];

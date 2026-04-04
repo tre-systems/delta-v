@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { asHexKey } from '../hex';
+import { asGameId, asOrdnanceId, asShipId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { FleetPurchase } from '../types';
 import type { EventEnvelope } from './engine-events';
@@ -18,7 +19,7 @@ describe('projectMatchSetupFromStream', () => {
     const purchases1: FleetPurchase[] = [{ kind: 'ship', shipType: 'frigate' }];
     const events: EventEnvelope[] = [
       {
-        gameId: 'WAR01-m1',
+        gameId: asGameId('WAR01-m1'),
         seq: 1,
         ts: 1,
         actor: null,
@@ -31,7 +32,7 @@ describe('projectMatchSetupFromStream', () => {
         },
       },
       {
-        gameId: 'WAR01-m1',
+        gameId: asGameId('WAR01-m1'),
         seq: 2,
         ts: 2,
         actor: 0,
@@ -43,7 +44,7 @@ describe('projectMatchSetupFromStream', () => {
         },
       },
       {
-        gameId: 'WAR01-m1',
+        gameId: asGameId('WAR01-m1'),
         seq: 3,
         ts: 3,
         actor: 1,
@@ -59,7 +60,7 @@ describe('projectMatchSetupFromStream', () => {
     const created = createGameOrThrow(
       SCENARIOS.interplanetaryWar,
       map,
-      'WAR01-m1',
+      asGameId('WAR01-m1'),
       findBaseHex,
       () => 0,
     );
@@ -86,7 +87,7 @@ describe('projectMatchSetupFromStream', () => {
   it('rebuilds deterministic fugitive designation from the stream', () => {
     const events: EventEnvelope[] = [
       {
-        gameId: 'ESCAP-m1',
+        gameId: asGameId('ESCAP-m1'),
         seq: 1,
         ts: 1,
         actor: null,
@@ -99,13 +100,13 @@ describe('projectMatchSetupFromStream', () => {
         },
       },
       {
-        gameId: 'ESCAP-m1',
+        gameId: asGameId('ESCAP-m1'),
         seq: 2,
         ts: 2,
         actor: null,
         event: {
           type: 'fugitiveDesignated',
-          shipId: 'p0s0',
+          shipId: asShipId('p0s0'),
           playerId: 0,
         },
       },
@@ -130,7 +131,7 @@ describe('projectMatchSetupFromStream', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'WAR01-m1',
+          gameId: asGameId('WAR01-m1'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -143,7 +144,7 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'WAR01-m1',
+          gameId: asGameId('WAR01-m1'),
           seq: 2,
           ts: 2,
           actor: 0,
@@ -169,7 +170,7 @@ describe('projectMatchSetupFromStream', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'WAR01-m1',
+          gameId: asGameId('WAR01-m1'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -182,7 +183,7 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'WAR01-m1',
+          gameId: asGameId('WAR01-m1'),
           seq: 2,
           ts: 2,
           actor: 1,
@@ -193,7 +194,7 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'WAR01-m1',
+          gameId: asGameId('WAR01-m1'),
           seq: 3,
           ts: 3,
           actor: 1,
@@ -222,7 +223,7 @@ describe('projectMatchSetupFromStream', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'BIPLA-m2',
+          gameId: asGameId('BIPLA-m2'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -235,7 +236,7 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m2',
+          gameId: asGameId('BIPLA-m2'),
           seq: 2,
           ts: 2,
           actor: 0,
@@ -244,7 +245,7 @@ describe('projectMatchSetupFromStream', () => {
             playerId: 0,
             orders: [
               {
-                shipId: 'p0s0',
+                shipId: asShipId('p0s0'),
                 burn: 2,
                 overload: null,
                 weakGravityChoices: { [asHexKey('Io')]: true },
@@ -263,7 +264,7 @@ describe('projectMatchSetupFromStream', () => {
 
     expect(projected.value.pendingAstrogationOrders).toEqual([
       {
-        shipId: 'p0s0',
+        shipId: asShipId('p0s0'),
         burn: 2,
         overload: null,
         weakGravityChoices: { Io: true },
@@ -275,7 +276,7 @@ describe('projectMatchSetupFromStream', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -288,13 +289,13 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 2,
           ts: 2,
           actor: 0,
           event: {
             type: 'shipMoved',
-            shipId: 'p0s0',
+            shipId: asShipId('p0s0'),
             from: { q: -9, r: -4 },
             to: { q: -9, r: -4 },
             path: [{ q: -9, r: -4 }],
@@ -307,34 +308,34 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 3,
           ts: 3,
           actor: 0,
           event: {
             type: 'shipLanded',
-            shipId: 'p0s0',
+            shipId: asShipId('p0s0'),
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 4,
           ts: 4,
           actor: 0,
           event: {
             type: 'shipResupplied',
-            shipId: 'p0s0',
+            shipId: asShipId('p0s0'),
             source: 'base',
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 5,
           ts: 5,
           actor: 1,
           event: {
             type: 'shipMoved',
-            shipId: 'p1s0',
+            shipId: asShipId('p1s0'),
             from: { q: 10, r: -7 },
             to: { q: 9, r: -7 },
             path: [
@@ -350,13 +351,13 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 6,
           ts: 6,
           actor: 1,
           event: {
             type: 'shipCrashed',
-            shipId: 'p1s0',
+            shipId: asShipId('p1s0'),
             hex: { q: 9, r: -7 },
           },
         },
@@ -390,7 +391,7 @@ describe('projectMatchSetupFromStream', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -403,16 +404,16 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 2,
           ts: 2,
           actor: 0,
           event: {
             type: 'ordnanceLaunched',
-            ordnanceId: 'ord1',
+            ordnanceId: asOrdnanceId('ord1'),
             ordnanceType: 'mine',
             owner: 0,
-            sourceShipId: 'p0s0',
+            sourceShipId: asShipId('p0s0'),
             position: { q: -9, r: -4 },
             velocity: { dq: 0, dr: 0 },
             turnsRemaining: 5,
@@ -420,13 +421,13 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 3,
           ts: 3,
           actor: 0,
           event: {
             type: 'ordnanceExpired',
-            ordnanceId: 'ord1',
+            ordnanceId: asOrdnanceId('ord1'),
           },
         },
       ],
@@ -452,7 +453,7 @@ describe('projectMatchSetupFromStream', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'BIPLA-m3',
+          gameId: asGameId('BIPLA-m3'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -465,27 +466,27 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m3',
+          gameId: asGameId('BIPLA-m3'),
           seq: 2,
           ts: 2,
           actor: 0,
           event: {
             type: 'astrogationOrdersCommitted',
             playerId: 0,
-            orders: [{ shipId: 'p0s0', burn: 0, overload: null }],
+            orders: [{ shipId: asShipId('p0s0'), burn: 0, overload: null }],
           },
         },
         {
-          gameId: 'BIPLA-m3',
+          gameId: asGameId('BIPLA-m3'),
           seq: 3,
           ts: 3,
           actor: 0,
           event: {
             type: 'ordnanceLaunched',
-            ordnanceId: 'ord1',
+            ordnanceId: asOrdnanceId('ord1'),
             ordnanceType: 'nuke',
             owner: 0,
-            sourceShipId: 'p0s0',
+            sourceShipId: asShipId('p0s0'),
             position: { q: -9, r: -4 },
             velocity: { dq: 1, dr: 0 },
             turnsRemaining: 5,
@@ -493,13 +494,13 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m3',
+          gameId: asGameId('BIPLA-m3'),
           seq: 4,
           ts: 4,
           actor: 0,
           event: {
             type: 'ordnanceMoved',
-            ordnanceId: 'ord1',
+            ordnanceId: asOrdnanceId('ord1'),
             position: { q: -8, r: -4 },
             velocity: { dq: 1, dr: 0 },
             turnsRemaining: 4,
@@ -525,10 +526,10 @@ describe('projectMatchSetupFromStream', () => {
     ).toBe(1);
     expect(projected.value.ordnance).toEqual([
       {
-        id: 'ord1',
+        id: asOrdnanceId('ord1'),
         type: 'nuke',
         owner: 0,
-        sourceShipId: 'p0s0',
+        sourceShipId: asShipId('p0s0'),
         position: { q: -8, r: -4 },
         velocity: { dq: 1, dr: 0 },
         turnsRemaining: 4,
@@ -542,7 +543,7 @@ describe('projectMatchSetupFromStream', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -555,16 +556,16 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 2,
           ts: 2,
           actor: 0,
           event: {
             type: 'ordnanceLaunched',
-            ordnanceId: 'ord1',
+            ordnanceId: asOrdnanceId('ord1'),
             ordnanceType: 'mine',
             owner: 0,
-            sourceShipId: 'p0s0',
+            sourceShipId: asShipId('p0s0'),
             position: { q: -9, r: -4 },
             velocity: { dq: 0, dr: 0 },
             turnsRemaining: 5,
@@ -572,16 +573,16 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 3,
           ts: 3,
           actor: 1,
           event: {
             type: 'ordnanceLaunched',
-            ordnanceId: 'ord2',
+            ordnanceId: asOrdnanceId('ord2'),
             ordnanceType: 'torpedo',
             owner: 1,
-            sourceShipId: 'p1s0',
+            sourceShipId: asShipId('p1s0'),
             position: { q: -9, r: -4 },
             velocity: { dq: 1, dr: 0 },
             turnsRemaining: 4,
@@ -589,45 +590,45 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 4,
           ts: 4,
           actor: 0,
           event: {
             type: 'ordnanceDetonated',
-            ordnanceId: 'ord1',
+            ordnanceId: asOrdnanceId('ord1'),
             ordnanceType: 'mine',
             hex: { q: -9, r: -4 },
-            targetShipId: 'p1s0',
+            targetShipId: asShipId('p1s0'),
             roll: 5,
             damageType: 'disabled',
             disabledTurns: 2,
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 5,
           ts: 5,
           actor: 0,
           event: {
             type: 'ordnanceDestroyed',
-            ordnanceId: 'ord1',
+            ordnanceId: asOrdnanceId('ord1'),
             cause: 'mine',
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 6,
           ts: 6,
           actor: 0,
           event: {
             type: 'ordnanceDestroyed',
-            ordnanceId: 'ord2',
+            ordnanceId: asOrdnanceId('ord2'),
             cause: 'mine',
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 7,
           ts: 7,
           actor: 0,
@@ -637,7 +638,7 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 8,
           ts: 8,
           actor: 0,
@@ -668,7 +669,7 @@ describe('projectMatchSetupFromStream', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -681,16 +682,16 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 2,
           ts: 2,
           actor: 0,
           event: {
             type: 'ordnanceLaunched',
-            ordnanceId: 'ord1',
+            ordnanceId: asOrdnanceId('ord1'),
             ordnanceType: 'nuke',
             owner: 1,
-            sourceShipId: 'p1s0',
+            sourceShipId: asShipId('p1s0'),
             position: { q: 9, r: -7 },
             velocity: { dq: -1, dr: 0 },
             turnsRemaining: 3,
@@ -698,14 +699,14 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 3,
           ts: 3,
           actor: 0,
           event: {
             type: 'combatAttack',
-            attackerIds: ['p0s0'],
-            targetId: 'p1s0',
+            attackerIds: [asShipId('p0s0')],
+            targetId: asShipId('p1s0'),
             targetType: 'ship',
             attackType: 'gun',
             roll: 4,
@@ -715,14 +716,14 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 4,
           ts: 4,
           actor: 0,
           event: {
             type: 'combatAttack',
-            attackerIds: ['p0s1'],
-            targetId: 'ord1',
+            attackerIds: [asShipId('p0s1')],
+            targetId: asOrdnanceId('ord1'),
             targetType: 'ordnance',
             attackType: 'antiNuke',
             roll: 6,
@@ -732,13 +733,13 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m1',
+          gameId: asGameId('BIPLA-m1'),
           seq: 5,
           ts: 5,
           actor: 0,
           event: {
             type: 'ordnanceDestroyed',
-            ordnanceId: 'ord1',
+            ordnanceId: asOrdnanceId('ord1'),
             cause: 'antiNuke',
           },
         },
@@ -762,7 +763,7 @@ describe('projectMatchSetupFromStream', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'CONV-m1',
+          gameId: asGameId('CONV-m1'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -775,55 +776,55 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'CONV-m1',
+          gameId: asGameId('CONV-m1'),
           seq: 2,
           ts: 2,
           actor: 0,
           event: {
             type: 'fuelTransferred',
-            fromShipId: 'p0s1',
-            toShipId: 'p0s2',
+            fromShipId: asShipId('p0s1'),
+            toShipId: asShipId('p0s2'),
             amount: 2,
           },
         },
         {
-          gameId: 'CONV-m1',
+          gameId: asGameId('CONV-m1'),
           seq: 3,
           ts: 3,
           actor: 0,
           event: {
             type: 'passengersTransferred',
-            fromShipId: 'p0s0',
-            toShipId: 'p0s2',
+            fromShipId: asShipId('p0s0'),
+            toShipId: asShipId('p0s2'),
             amount: 5,
           },
         },
         {
-          gameId: 'CONV-m1',
+          gameId: asGameId('CONV-m1'),
           seq: 4,
           ts: 4,
           actor: 0,
           event: {
             type: 'shipSurrendered',
-            shipId: 'p0s2',
+            shipId: asShipId('p0s2'),
           },
         },
         {
-          gameId: 'CONV-m1',
+          gameId: asGameId('CONV-m1'),
           seq: 5,
           ts: 5,
           actor: 0,
           event: {
             type: 'baseEmplaced',
-            shipId: 'ob9',
-            sourceShipId: 'p0s0',
+            shipId: asShipId('ob9'),
+            sourceShipId: asShipId('p0s0'),
             owner: 0,
             position: { q: -9, r: -6 },
             velocity: { dq: 1, dr: 0 },
           },
         },
         {
-          gameId: 'CONV-m1',
+          gameId: asGameId('CONV-m1'),
           seq: 6,
           ts: 6,
           actor: null,
@@ -863,7 +864,7 @@ describe('projectMatchSetupFromStream', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'TOUR-m1',
+          gameId: asGameId('TOUR-m1'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -876,7 +877,7 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'TOUR-m1',
+          gameId: asGameId('TOUR-m1'),
           seq: 2,
           ts: 2,
           actor: 0,
@@ -900,7 +901,7 @@ describe('projectMatchSetupFromStream', () => {
     const escapeProjected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'ESCAP-m2',
+          gameId: asGameId('ESCAP-m2'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -913,13 +914,13 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'ESCAP-m2',
+          gameId: asGameId('ESCAP-m2'),
           seq: 2,
           ts: 2,
           actor: 1,
           event: {
             type: 'identityRevealed',
-            shipId: 'p0s0',
+            shipId: asShipId('p0s0'),
           },
         },
       ],
@@ -941,7 +942,7 @@ describe('projectMatchSetupFromStream', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'ESCAP-m3',
+          gameId: asGameId('ESCAP-m3'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -954,18 +955,18 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'ESCAP-m3',
+          gameId: asGameId('ESCAP-m3'),
           seq: 2,
           ts: 2,
           actor: 0,
           event: {
             type: 'astrogationOrdersCommitted',
             playerId: 0,
-            orders: [{ shipId: 'p0s0', burn: null, overload: null }],
+            orders: [{ shipId: asShipId('p0s0'), burn: null, overload: null }],
           },
         },
         {
-          gameId: 'ESCAP-m3',
+          gameId: asGameId('ESCAP-m3'),
           seq: 3,
           ts: 3,
           actor: 0,
@@ -974,7 +975,7 @@ describe('projectMatchSetupFromStream', () => {
             playerId: 0,
             launches: [
               {
-                shipId: 'p0s0',
+                shipId: asShipId('p0s0'),
                 ordnanceType: 'mine',
                 torpedoAccel: null,
                 torpedoAccelSteps: null,
@@ -983,14 +984,14 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'ESCAP-m3',
+          gameId: asGameId('ESCAP-m3'),
           seq: 4,
           ts: 4,
           actor: 0,
           event: {
             type: 'ramming',
-            shipId: 'p0s0',
-            otherShipId: 'p1s0',
+            shipId: asShipId('p0s0'),
+            otherShipId: asShipId('p1s0'),
             hex: { q: 0, r: 0 },
             roll: 5,
             damageType: 'disabled',
@@ -998,26 +999,26 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'ESCAP-m3',
+          gameId: asGameId('ESCAP-m3'),
           seq: 5,
           ts: 5,
           actor: 0,
           event: {
             type: 'shipCaptured',
-            shipId: 'p0s0',
+            shipId: asShipId('p0s0'),
             capturedBy: 1,
-            capturedByShipId: 'p1s0',
+            capturedByShipId: asShipId('p1s0'),
           },
         },
         {
-          gameId: 'ESCAP-m3',
+          gameId: asGameId('ESCAP-m3'),
           seq: 6,
           ts: 6,
           actor: 1,
           event: {
             type: 'surrenderDeclared',
             playerId: 1,
-            shipIds: ['p1s0'],
+            shipIds: [asShipId('p1s0')],
           },
         },
       ],
@@ -1049,7 +1050,7 @@ describe('projectMatchSetupFromStream', () => {
     const projected = projectMatchSetupFromStream(
       [
         {
-          gameId: 'BIPLA-m4',
+          gameId: asGameId('BIPLA-m4'),
           seq: 1,
           ts: 1,
           actor: null,
@@ -1062,25 +1063,25 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m4',
+          gameId: asGameId('BIPLA-m4'),
           seq: 2,
           ts: 2,
           actor: 0,
           event: {
             type: 'shipResupplied',
-            shipId: 'p0s0',
+            shipId: asShipId('p0s0'),
             source: 'base',
           },
         },
         {
-          gameId: 'BIPLA-m4',
+          gameId: asGameId('BIPLA-m4'),
           seq: 3,
           ts: 3,
           actor: 1,
           event: {
             type: 'combatAttack',
-            attackerIds: ['p1s0'],
-            targetId: 'p0s0',
+            attackerIds: [asShipId('p1s0')],
+            targetId: asShipId('p0s0'),
             targetType: 'ship',
             attackType: 'gun',
             roll: 5,
@@ -1090,7 +1091,7 @@ describe('projectMatchSetupFromStream', () => {
           },
         },
         {
-          gameId: 'BIPLA-m4',
+          gameId: asGameId('BIPLA-m4'),
           seq: 4,
           ts: 4,
           actor: 0,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { asGameId, asShipId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import { deriveActionRng } from '../prng';
 import type { EngineEvent } from './engine-events';
@@ -30,7 +31,12 @@ const collectDiceEvents = (events: EngineEvent[]) => ({
 
 describe('RNG outcome capture in EngineEvents', () => {
   it('combat events capture die roll and modified roll', () => {
-    const state = createGameOrThrow(SCENARIOS.duel, map, 'RNG1', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('RNG1'),
+      findBaseHex,
+    );
 
     // Place ships adjacent with zero velocity for combat
     state.phase = 'combat';
@@ -58,7 +64,7 @@ describe('RNG outcome capture in EngineEvents', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
       map,
-      'RNG2',
+      asGameId('RNG2'),
       findBaseHex,
     );
 
@@ -96,7 +102,12 @@ describe('RNG outcome capture in EngineEvents', () => {
   });
 
   it('ordnance detonation events capture die roll', () => {
-    const state = createGameOrThrow(SCENARIOS.duel, map, 'RNG3', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('RNG3'),
+      findBaseHex,
+    );
 
     // Place a mine and move enemy through it
     state.phase = 'ordnance';
@@ -131,7 +142,12 @@ describe('RNG outcome capture in EngineEvents', () => {
   });
 
   it('all combat attack events have roll and modifiedRoll fields', () => {
-    const state = createGameOrThrow(SCENARIOS.duel, map, 'RNG4', findBaseHex);
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('RNG4'),
+      findBaseHex,
+    );
 
     state.phase = 'combat';
     state.activePlayer = 0;
@@ -164,7 +180,7 @@ describe('RNG outcome capture in EngineEvents', () => {
     // Verify the event type compiles
     const event: EngineEvent = {
       type: 'fugitiveDesignated',
-      shipId: 'p0s0',
+      shipId: asShipId('p0s0'),
       playerId: 0,
     };
 
@@ -176,7 +192,12 @@ describe('RNG outcome capture in EngineEvents', () => {
     const seq = 7;
 
     const makeState = () => {
-      const s = createGameOrThrow(SCENARIOS.duel, map, 'SEED1', findBaseHex);
+      const s = createGameOrThrow(
+        SCENARIOS.duel,
+        map,
+        asGameId('SEED1'),
+        findBaseHex,
+      );
       s.phase = 'combat';
       s.activePlayer = 0;
       s.ships[0].position = { q: 10, r: 10 };

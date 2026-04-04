@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SHIP_STATS } from '../constants';
 import { hexKey } from '../hex';
+import { asGameId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type { GameState, ScenarioDefinition, SolarSystemMap } from '../types';
 import { createGame } from './game-creation';
@@ -9,7 +10,12 @@ let map: SolarSystemMap;
 let initialState: GameState;
 beforeEach(() => {
   map = buildSolarSystemMap();
-  const result = createGame(SCENARIOS.biplanetary, map, 'TEST1', findBaseHex);
+  const result = createGame(
+    SCENARIOS.biplanetary,
+    map,
+    asGameId('TEST1'),
+    findBaseHex,
+  );
 
   if (!result.ok) throw new Error(result.error.message);
   initialState = result.value;
@@ -53,7 +59,12 @@ describe('createGame', () => {
     expect(venusHex?.base?.bodyName).toBe('Venus');
   });
   it('supports explicit split base ownership for shared worlds', () => {
-    const result = createGame(SCENARIOS.duel, map, 'DUEL1', findBaseHex);
+    const result = createGame(
+      SCENARIOS.duel,
+      map,
+      asGameId('DUEL1'),
+      findBaseHex,
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -89,7 +100,7 @@ describe('createGame', () => {
         },
       },
       map,
-      'RULES1',
+      asGameId('RULES1'),
       findBaseHex,
     );
 
@@ -124,7 +135,12 @@ describe('createGame', () => {
       ...SCENARIOS.duel,
       players: [SCENARIOS.duel.players[0]],
     };
-    const result = createGame(invalidScenario, map, 'BADPLY', findBaseHex);
+    const result = createGame(
+      invalidScenario,
+      map,
+      asGameId('BADPLY'),
+      findBaseHex,
+    );
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -177,7 +193,7 @@ describe('createGame', () => {
     const result = createGame(
       invalidScenario,
       barrenMap,
-      'BADHEX',
+      asGameId('BADHEX'),
       findBaseHex,
     );
 

@@ -1,4 +1,5 @@
 import { createGame } from '../../shared/engine/game-engine';
+import { asGameId } from '../../shared/ids';
 import type { ScenarioKey } from '../../shared/map-data';
 import { findBaseHex, isValidScenario, SCENARIOS } from '../../shared/map-data';
 import type { GameState } from '../../shared/types/domain';
@@ -95,7 +96,14 @@ const createMainLocalSessionDeps = (
   createLocalTransport: deps.createLocalTransport,
   createLocalGameState: (selectedScenario) => {
     const { def, key } = resolveScenario(selectedScenario);
-    return createGame(def, deps.map, 'LOCAL', findBaseHex, undefined, key);
+    return createGame(
+      def,
+      deps.map,
+      asGameId('LOCAL'),
+      findBaseHex,
+      undefined,
+      key,
+    );
   },
   getScenarioName: (selectedScenario) =>
     resolveScenario(selectedScenario).def.name,

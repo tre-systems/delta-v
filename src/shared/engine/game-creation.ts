@@ -1,5 +1,6 @@
 import { SHIP_STATS } from '../constants';
 import { type HexKey, hexKey, parseHexKey } from '../hex';
+import { asShipId, type GameId } from '../ids';
 import type { ScenarioKey } from '../scenario-definitions';
 import { SCENARIOS } from '../scenario-definitions';
 import {
@@ -157,7 +158,7 @@ const resolveStartingPlacement = (
 export const createGame = (
   scenario: ScenarioDefinition,
   map: SolarSystemMap,
-  gameCode: string,
+  gameCode: GameId,
   findBaseHex: (
     map: SolarSystemMap,
     bodyName: string,
@@ -231,7 +232,7 @@ export const createGame = (
           ? def.initialPassengers
           : undefined;
       ships.push({
-        id: `p${p}s${s}`,
+        id: asShipId(`p${p}s${s}`),
         type: def.type,
         owner: playerIdx,
         originalOwner: playerIdx,

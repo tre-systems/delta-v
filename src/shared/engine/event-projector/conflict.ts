@@ -1,4 +1,5 @@
 import { DAMAGE_ELIMINATION_THRESHOLD, ORDNANCE_MASS } from '../../constants';
+import type { ShipId } from '../../ids';
 import type { GameState, Result } from '../../types/domain';
 import type { ConflictProjectionEvent } from './support';
 import {
@@ -183,7 +184,8 @@ export const projectConflictEvent = (
         };
       }
 
-      const projectedShip = requireShip(state, event.targetId);
+      // After the ordnance guard above, targetId is a ShipId
+      const projectedShip = requireShip(state, event.targetId as ShipId);
 
       if (!projectedShip.ok) {
         return projectedShip;

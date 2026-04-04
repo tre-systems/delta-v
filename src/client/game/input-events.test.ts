@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { HEX_DIRECTIONS, hexAdd, hexKey } from '../../shared/hex';
+import { asGameId, asShipId } from '../../shared/ids';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type {
   GameState,
@@ -32,7 +33,7 @@ const interpretInput = (
   );
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
-  id: 'ship-0',
+  id: asShipId('ship-0'),
   type: 'corvette',
   owner: 0,
   originalOwner: 0,
@@ -71,7 +72,7 @@ const createPlayers = (): [PlayerState, PlayerState] => [
 ];
 
 const createState = (overrides: Partial<GameState> = {}): GameState => ({
-  gameId: 'TEST',
+  gameId: asGameId('TEST'),
   scenario: 'biplanetary',
   scenarioRules: {},
   escapeMoralVictoryAchieved: false,
@@ -81,7 +82,7 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   ships: [
     createShip(),
     createShip({
-      id: 'ship-1',
+      id: asShipId('ship-1'),
       owner: 1,
       originalOwner: 0,
       position: { q: 2, r: 0 },
@@ -178,7 +179,9 @@ describe('interpretInput', () => {
         createPlanning(),
       );
 
-      expect(cmds).toEqual([{ type: 'selectShip', shipId: 'ship-0' }]);
+      expect(cmds).toEqual([
+        { type: 'selectShip', shipId: asShipId('ship-0') },
+      ]);
     });
 
     it('deselects when clicking empty space', () => {
@@ -210,7 +213,7 @@ describe('interpretInput', () => {
       expect(cmds).toEqual([
         {
           type: 'setBurnDirection',
-          shipId: 'ship-0',
+          shipId: asShipId('ship-0'),
           direction: 0,
         },
       ]);
@@ -235,7 +238,7 @@ describe('interpretInput', () => {
       expect(cmds).toEqual([
         {
           type: 'setOverloadDirection',
-          shipId: 'ship-0',
+          shipId: asShipId('ship-0'),
           direction: 1,
         },
       ]);
@@ -267,7 +270,7 @@ describe('interpretInput', () => {
       expect(cmds).toEqual([
         {
           type: 'setWeakGravityChoices',
-          shipId: 'ship-0',
+          shipId: asShipId('ship-0'),
           choices: { [hexKey(weakHex)]: true },
         },
       ]);
@@ -307,7 +310,7 @@ describe('interpretInput', () => {
       );
 
       expect(cmds).toEqual([
-        { type: 'selectShip', shipId: 'ship-0' },
+        { type: 'selectShip', shipId: asShipId('ship-0') },
         { type: 'clearTorpedoAcceleration' },
       ]);
     });
@@ -337,7 +340,7 @@ describe('interpretInput', () => {
         ships: [
           createShip({ position: { q: 0, r: 0 } }),
           createShip({
-            id: 'ship-1',
+            id: asShipId('ship-1'),
             owner: 1,
             originalOwner: 0,
             position: { q: 1, r: 0 },
@@ -438,12 +441,12 @@ describe('interpretInput', () => {
         phase: 'combat',
         ships: [
           createShip({
-            id: 'friendly',
+            id: asShipId('friendly'),
             owner: 0,
             position: { q: 1, r: 0 },
           }),
           createShip({
-            id: 'enemy',
+            id: asShipId('enemy'),
             owner: 1,
             originalOwner: 1,
             position: { q: 1, r: 0 },

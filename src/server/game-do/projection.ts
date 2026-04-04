@@ -4,6 +4,7 @@ import {
   filterStateForPlayer,
   type ViewerId,
 } from '../../shared/engine/game-engine';
+import { asGameId, type GameId } from '../../shared/ids';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import {
   parseMatchId,
@@ -129,7 +130,7 @@ const toReplayEntriesFromStream = (
 };
 
 const createProjectedTimelineMetadata = (
-  gameId: string,
+  gameId: GameId,
   eventStream: EventEnvelope[],
   checkpoint: Checkpoint | null,
   createdAt: number | null,
@@ -169,7 +170,7 @@ export const projectReplayTimeline = (
   createdAt: number | null = null,
 ): ReplayTimeline | null => {
   const metadata = createProjectedTimelineMetadata(
-    checkpoint?.gameId ?? eventStream[0]?.gameId ?? '',
+    checkpoint?.gameId ?? eventStream[0]?.gameId ?? asGameId(''),
     eventStream,
     checkpoint,
     createdAt,
