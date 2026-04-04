@@ -108,6 +108,7 @@ export const createReplayController = (
         available: true,
         active: false,
         loading: false,
+        playing: false,
         statusText:
           replaySelection.latestMatchNumber > 1
             ? `Selected ${replaySelection.selectedGameId} for replay`
@@ -133,6 +134,7 @@ export const createReplayController = (
       available: true,
       active: true,
       loading: false,
+      playing: false,
       statusText: buildReplayStatusText(timeline, index),
       selectedGameId: replaySelection.selectedGameId,
       canSelectPrevMatch: replaySelection.selectedMatchNumber > 1,
@@ -222,6 +224,7 @@ export const createReplayController = (
         available: true,
         active: false,
         loading: true,
+        playing: false,
         statusText: `Loading ${replaySelection.selectedGameId}...`,
         selectedGameId: replaySelection.selectedGameId,
         canSelectPrevMatch: replaySelection.selectedMatchNumber > 1,
