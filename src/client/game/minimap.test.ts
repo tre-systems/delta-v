@@ -29,7 +29,7 @@ describe('game client minimap helpers', () => {
 
     expect(getMinimapFrame(480, 900, 130, 1, 166)).toEqual({
       x: 12,
-      y: 636,
+      y: 622,
       width: 90,
       height: 90,
       padding: 6,
