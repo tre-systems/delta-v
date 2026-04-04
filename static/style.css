@@ -1,5 +1,14 @@
+/**
+ * Layer order (bundled into one file at build — see scripts/bundle-style-css.mjs):
+ * 1. base — tokens, reset, canvas, shared screen shell
+ * 2. components — buttons, inputs, scenario list, menu chrome
+ * 3. hud — in-game chrome, ship list, game log
+ * 4. overlays — help, game over, reconnect, toasts, tutorial
+ * 5. systems — fleet building, transfers, phase alert
+ * 6. responsive — breakpoints
+ */
 @import url('/styles/base.css?v=__BUILD_HASH__');
-@import url('/styles/menu.css?v=__BUILD_HASH__');
+@import url('/styles/components.css?v=__BUILD_HASH__');
 @import url('/styles/hud.css?v=__BUILD_HASH__');
 @import url('/styles/overlays.css?v=__BUILD_HASH__');
 @import url('/styles/systems.css?v=__BUILD_HASH__');
