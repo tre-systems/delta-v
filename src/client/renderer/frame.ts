@@ -36,6 +36,31 @@ export const frameCameraOnAnimatedHexes = (
   camera.frameBounds(minX, maxX, minY, maxY, padding);
 };
 
+const frameOnShips = (
+  camera: Camera,
+  ships: GameState['ships'],
+  hexSize: number,
+  padding: number,
+): void => {
+  if (ships.length === 0) return;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const s of ships) {
+    const p = hexToPixel(s.position, hexSize);
+    minX = Math.min(minX, p.x);
+    maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y);
+    maxY = Math.max(maxY, p.y);
+  }
+  camera.frameBounds(minX, maxX, minY, maxY, padding);
+  camera.targetZoom = Math.max(
+    MIN_FRAME_ZOOM,
+    Math.min(MAX_FRAME_ZOOM, camera.targetZoom),
+  );
+};
+
 export const frameCameraOnPlayerShips = (
   camera: Camera,
   state: GameState,
@@ -45,21 +70,16 @@ export const frameCameraOnPlayerShips = (
   const myShips = state.ships.filter(
     (s) => s.owner === playerId && s.lifecycle !== 'destroyed',
   );
-  if (myShips.length === 0) return;
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
-  for (const s of myShips) {
-    const p = hexToPixel(s.position, hexSize);
-    minX = Math.min(minX, p.x);
-    maxX = Math.max(maxX, p.x);
-    minY = Math.min(minY, p.y);
-    maxY = Math.max(maxY, p.y);
-  }
-  camera.frameBounds(minX, maxX, minY, maxY, 200);
-  camera.targetZoom = Math.max(
-    MIN_FRAME_ZOOM,
-    Math.min(MAX_FRAME_ZOOM, camera.targetZoom),
+  frameOnShips(camera, myShips, hexSize, 200);
+};
+
+export const frameCameraOnActivePlayer = (
+  camera: Camera,
+  state: GameState,
+  hexSize: number,
+): void => {
+  const activeShips = state.ships.filter(
+    (s) => s.owner === state.activePlayer && s.lifecycle !== 'destroyed',
   );
+  frameOnShips(camera, activeShips, hexSize, 200);
 };
