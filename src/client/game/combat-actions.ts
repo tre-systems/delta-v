@@ -9,7 +9,7 @@ import { batch } from '../reactive';
 import {
   buildCurrentAttack,
   createCombatTargetPlan,
-  findNearestTarget,
+  findPreferredTarget,
   getAttackStrengthForSelection,
   hasVisibleCombatTargets,
 } from './combat';
@@ -41,7 +41,7 @@ const autoTargetNearest = (deps: CombatActionDeps): void => {
   const selectedId = deps.planningState.selectedShipId;
   if (!gameState || !selectedId) return;
 
-  const target = findNearestTarget(
+  const target = findPreferredTarget(
     gameState,
     deps.getPlayerId(),
     selectedId,

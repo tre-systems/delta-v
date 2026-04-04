@@ -13,7 +13,7 @@ import {
   countRemainingCombatAttackers,
   createClearedCombatPlan,
   createCombatTargetPlan,
-  findNearestTarget,
+  findPreferredTarget,
   getAttackStrengthForSelection,
   getCombatAttackerIdAtHex,
   getCombatTargetAtHex,
@@ -420,17 +420,18 @@ describe('game client combat helpers', () => {
     });
   });
 
-  it('shares target visibility logic for nearest-target and combat-visible checks', () => {
-    const state = createState({
-      ordnance: [createOrdnance({ position: { q: 0, r: 2 } })],
-    });
+  it('shares target visibility logic for preferred-target and combat-visible checks', () => {
+    const state = createState();
 
     expect(hasVisibleCombatTargets(state, 0, map)).toBe(true);
-    expect(findNearestTarget(state, 0, 'b', [], map)).toEqual({
-      targetId: asShipId('x'),
+    expect(findPreferredTarget(state, 0, 'b', [], map)).toEqual({
+      targetId: asShipId('y'),
       targetType: 'ship',
     });
 
+    const stateWithNuke = createState({
+      ordnance: [createOrdnance({ position: { q: 0, r: 2 } })],
+    });
     const queuedAttacks: CombatAttack[] = [
       {
         attackerIds: [asShipId('b')],
@@ -446,9 +447,45 @@ describe('game client combat helpers', () => {
       },
     ];
 
-    expect(findNearestTarget(state, 0, 'b', queuedAttacks, map)).toEqual({
+    expect(
+      findPreferredTarget(stateWithNuke, 0, 'b', queuedAttacks, map),
+    ).toEqual({
       targetId: asOrdnanceId('ord-0'),
       targetType: 'ordnance',
+    });
+  });
+
+  it('prefers the most hittable target over the nearest one', () => {
+    const state = createState({
+      ships: [
+        createShip({
+          id: asShipId('a'),
+          owner: 0,
+          type: 'frigate',
+          position: { q: 0, r: 0 },
+          velocity: { dq: 0, dr: 0 },
+        }),
+        createShip({
+          id: asShipId('x'),
+          owner: 1,
+          type: 'corvette',
+          position: { q: 1, r: 0 },
+          velocity: { dq: 8, dr: 0 },
+        }),
+        createShip({
+          id: asShipId('y'),
+          owner: 1,
+          type: 'corvette',
+          position: { q: 2, r: 0 },
+          velocity: { dq: 0, dr: 0 },
+        }),
+      ],
+      ordnance: [],
+    });
+
+    expect(findPreferredTarget(state, 0, 'a', [], map)).toEqual({
+      targetId: asShipId('y'),
+      targetType: 'ship',
     });
   });
 });
