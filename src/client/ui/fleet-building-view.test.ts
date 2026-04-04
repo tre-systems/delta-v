@@ -142,7 +142,9 @@ describe('FleetBuildingView', () => {
       onFleetReady: vi.fn(),
     });
     const state = createState(25);
-    const readyBtn = document.getElementById('fleetReadyBtn') as HTMLElement;
+    const readyBtn = document.getElementById(
+      'fleetReadyBtn',
+    ) as HTMLButtonElement;
     const clearBtn = document.getElementById('fleetClearBtn') as HTMLElement;
     const waitingEl = document.getElementById('fleetWaiting') as HTMLElement;
 
@@ -157,8 +159,45 @@ describe('FleetBuildingView', () => {
     view.show(state, 0);
 
     expect(readyBtn.hasAttribute('hidden')).toBe(false);
+    expect(readyBtn.disabled).toBe(true);
     expect(clearBtn.hasAttribute('hidden')).toBe(false);
     expect(waitingEl.hasAttribute('hidden')).toBe(true);
+  });
+
+  it('keeps ready disabled until the resulting fleet contains a ship', () => {
+    const onFleetReady = vi.fn<(purchases: FleetPurchase[]) => void>();
+    const view = createFleetBuildingView({
+      onFleetReady,
+    });
+    const readyBtn = document.getElementById(
+      'fleetReadyBtn',
+    ) as HTMLButtonElement;
+
+    view.show(
+      createState(400, {
+        scenarioRules: { availableFleetPurchases: [] },
+      }),
+      0,
+    );
+
+    expect(readyBtn.disabled).toBe(true);
+
+    readyBtn.click();
+
+    expect(onFleetReady).not.toHaveBeenCalled();
+  });
+
+  it('enables ready immediately when the player already has a ship', () => {
+    const view = createFleetBuildingView({
+      onFleetReady: vi.fn(),
+    });
+    const readyBtn = document.getElementById(
+      'fleetReadyBtn',
+    ) as HTMLButtonElement;
+
+    view.show(createState(0, { ships: [createShip({ owner: 0 })] }), 0);
+
+    expect(readyBtn.disabled).toBe(false);
   });
 
   it('removes stale cart listeners when the cart rerenders', () => {

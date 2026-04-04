@@ -82,6 +82,16 @@ export const getFleetCartCost = (cart: FleetPurchase[]): number => {
   return sumBy(cart, getFleetPurchaseCost);
 };
 
+export const hasFleetShipsAfterPurchases = (
+  cart: FleetPurchase[],
+  existingShips: readonly FleetExistingShip[] = [],
+): boolean => {
+  return (
+    existingShips.some((ship) => ship.lifecycle !== 'destroyed') ||
+    cart.some(isShipFleetPurchase)
+  );
+};
+
 const countAvailableBaseCarrierSlots = (
   cart: FleetPurchase[],
   existingShips: readonly FleetExistingShip[],

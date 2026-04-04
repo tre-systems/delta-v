@@ -466,7 +466,7 @@ export const renderCombatOverlay = ({
   // Compact sub-label: modifier and/or counter icon
   const hasInfo = preview.modLabel || preview.canCounter;
   if (hasInfo) {
-    const counterIcon = preview.canCounter ? '\u2694' : '';
+    const counterIcon = preview.canCounter ? '\u2694 COUNTER' : '';
     const subParts = [preview.modLabel, counterIcon].filter(Boolean).join(' ');
 
     ctx.font = scaledFont('bold 11px monospace', zoom);

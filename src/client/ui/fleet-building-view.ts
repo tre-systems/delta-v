@@ -18,6 +18,7 @@ import {
   type FleetExistingShip,
   getFleetCartView,
   getFleetShopView,
+  hasFleetShipsAfterPurchases,
 } from './fleet';
 
 export interface FleetBuildingViewDeps {
@@ -45,7 +46,7 @@ export const createFleetBuildingView = (
   const shopEl = byId('fleetShopList');
   const cartEl = byId('fleetCart');
   const creditsEl = byId('fleetCredits');
-  const readyBtn = byId('fleetReadyBtn');
+  const readyBtn = byId<HTMLButtonElement>('fleetReadyBtn');
   const clearBtn = byId('fleetClearBtn');
   const waitingEl = byId('fleetWaiting');
 
@@ -101,6 +102,14 @@ export const createFleetBuildingView = (
         availableFleetPurchasesSignal.value,
         existingShipsSignal.value,
       ),
+    );
+    const canReadySignal = computed(
+      () =>
+        !waitingSignal.value &&
+        hasFleetShipsAfterPurchases(
+          cartSignal.value,
+          existingShipsSignal.value,
+        ),
     );
 
     effect(() => {
@@ -221,6 +230,10 @@ export const createFleetBuildingView = (
       visible(readyBtn, !waiting);
       visible(clearBtn, !waiting);
       visible(waitingEl, waiting, 'block');
+    });
+
+    effect(() => {
+      readyBtn.disabled = !canReadySignal.value;
     });
   });
 
