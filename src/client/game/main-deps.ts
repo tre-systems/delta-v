@@ -112,6 +112,9 @@ export const createMainPhaseTransitionDeps = (
   get gameState() {
     return args.ctx.gameState;
   },
+  get currentState() {
+    return args.ctx.state;
+  },
   get playerId() {
     return args.ctx.playerId as PlayerId;
   },
