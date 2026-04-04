@@ -18,6 +18,7 @@ import {
   skipLogistics,
   skipOrdnance,
 } from '../src/shared/engine/game-engine';
+import { asGameId } from '../src/shared/ids';
 import type { ScenarioKey } from '../src/shared/map-data';
 import {
   buildSolarSystemMap,
@@ -69,7 +70,7 @@ const runSingleGame = async (
   const createResult = createGame(
     scenario,
     map,
-    `sim-${Date.now()}`,
+    asGameId(`sim-${Date.now()}`),
     findBaseHex,
     undefined,
     scenarioName,
