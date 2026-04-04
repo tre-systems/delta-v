@@ -1,7 +1,7 @@
 type BindMobileSyncInput = {
   initialMatches: boolean;
   setHudMobile: (matches: boolean) => void;
-  setLogMobile: (matches: boolean) => void;
+  setLogMobile: (matches: boolean, viewportWidth: number) => void;
   bindViewport: (
     onMobileChange: (matches: boolean) => void,
     onResize: () => void,
@@ -19,12 +19,12 @@ export const bindMobileSync = ({
   const apply = (matches: boolean) => {
     isMobile = matches;
     setHudMobile(matches);
-    setLogMobile(matches);
+    setLogMobile(matches, window.innerWidth);
   };
 
   const onResize = () => {
     if (isMobile) {
-      setLogMobile(true);
+      setLogMobile(true, window.innerWidth);
     }
   };
 

@@ -25,7 +25,9 @@ const installFixture = () => {
     <div id="waiting"></div>
     <div id="hud"></div>
     <div id="topBar"></div>
-    <div id="bottomBar"></div>
+    <div id="bottomBar">
+      <div id="hudBottomButtons" class="hud-bottom-buttons is-empty"></div>
+    </div>
     <div id="gameOver">
       <div id="gameOverTitle"></div>
       <div id="gameOverReason"></div>

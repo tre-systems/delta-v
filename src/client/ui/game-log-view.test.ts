@@ -50,10 +50,24 @@ describe('GameLogView', () => {
     view.toggle();
     expect(gameLog.style.display).toBe('flex');
     expect(latestBar.style.display).toBe('none');
+    expect(gameLog.classList.contains('mobile-expanded')).toBe(false);
 
     view.toggle();
     expect(gameLog.style.display).toBe('none');
     expect(latestBar.style.display).toBe('block');
+  });
+
+  it('applies the mobile-expanded class when the compact log opens on narrow screens', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 400, writable: true });
+    const view = createGameLogView({ onChat: vi.fn() });
+    const gameLog = document.getElementById('gameLog') as HTMLElement;
+
+    view.setMobile(true, true, 400);
+    view.setScreenMode('hud');
+    expect(gameLog.classList.contains('mobile-expanded')).toBe(false);
+
+    view.toggle();
+    expect(gameLog.classList.contains('mobile-expanded')).toBe(true);
   });
 
   it('shows log entries and updates latest bar', () => {

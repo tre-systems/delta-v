@@ -69,6 +69,8 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   const lastLogTextSignal = signal('');
   const lastLogClassSignal = signal('');
   const statusTextSignal = signal<string | null>(null);
+  const mobileSignal = signal(false);
+  const viewportWidthSignal = signal(window.innerWidth);
 
   logStatusBar.style.display = 'none';
   logStatusBar.setAttribute('role', 'status');
@@ -103,16 +105,20 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
     playerId = id;
   };
 
-  const shouldAutoExpand = (): boolean =>
-    !localGame && window.innerWidth >= 640;
+  const shouldAutoExpand = (
+    viewportWidth = viewportWidthSignal.peek(),
+  ): boolean => !localGame && viewportWidth >= 640;
 
   const setMobile = (
-    _isMobile: boolean,
+    isMobile: boolean,
     hudVisible: boolean,
-    _viewportWidth?: number,
+    viewportWidth = window.innerWidth,
   ): void => {
+    mobileSignal.value = isMobile;
+    viewportWidthSignal.value = viewportWidth;
+
     if (hudVisible) {
-      expandedSignal.value = shouldAutoExpand();
+      expandedSignal.value = shouldAutoExpand(viewportWidth);
     }
   };
 
@@ -309,6 +315,16 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
       const v = visibilitySignal.value;
       visible(gameLogEl, v.gameLog !== 'none', v.gameLog);
       visible(logLatestBar, v.latestBar !== 'none', v.latestBar);
+    });
+
+    effect(() => {
+      const isMobileExpanded =
+        screenModeSignal.value === 'hud' &&
+        expandedSignal.value &&
+        mobileSignal.value &&
+        viewportWidthSignal.value < 640;
+
+      gameLogEl.classList.toggle('mobile-expanded', isMobileExpanded);
     });
 
     effect(() => {

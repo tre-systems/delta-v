@@ -131,9 +131,9 @@ export const createUIManager = () => {
   bindMobileSync({
     initialMatches: mobileQuery.matches,
     setHudMobile: (matches) => hudChromeView.setMobile(matches),
-    setLogMobile: (matches) => {
+    setLogMobile: (matches, viewportWidth) => {
       const mode = peekInteractionMode();
-      log.setMobile(matches, mode !== null && isHudMode(mode));
+      log.setMobile(matches, mode !== null && isHudMode(mode), viewportWidth);
     },
     bindViewport: (onMobileChange, onResize) => {
       withScope(scope, () => {

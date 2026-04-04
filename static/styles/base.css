@@ -122,14 +122,6 @@ body::before {
   backdrop-filter: blur(20px);
 }
 
-.glass {
-  background: var(--panel) !important;
-  backdrop-filter: blur(24px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-  border: 1px solid var(--border-strong) !important;
-  box-shadow: var(--shadow-soft) !important;
-}
-
 .menu-content {
   width: min(420px, 100%);
   margin: auto;

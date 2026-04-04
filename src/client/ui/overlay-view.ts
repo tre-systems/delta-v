@@ -59,7 +59,7 @@ const renderGameOverStats = (
     for (const group of shipGroups) {
       const groupEl = el(
         'section',
-        { class: 'game-over-ship-group' },
+        { class: 'game-over-ship-group overlay-section-panel' },
         el('h3', {
           class: 'game-over-ship-group-title',
           text: group.title,

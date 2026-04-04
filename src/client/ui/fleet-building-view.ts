@@ -112,11 +112,7 @@ export const createFleetBuildingView = (
         clearHTML(cartEl);
         cartEl.appendChild(
           el('span', {
-            style: {
-              color: '#556',
-              fontSize: '0.75rem',
-              padding: '0.2rem',
-            },
+            class: 'fleet-cart-empty',
             text: 'Click ships above to add',
           }),
         );

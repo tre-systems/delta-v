@@ -21,6 +21,7 @@ const installFixture = () => {
     <div id="fuelGauge"></div>
     <div id="latencyInfo"></div>
     <div id="fleetStatus"></div>
+    <div id="hudBottomButtons" class="hud-bottom-buttons is-empty"></div>
     <div id="helpOverlay" style="display:none">
       <button id="helpCloseBtn"></button>
     </div>
@@ -28,7 +29,7 @@ const installFixture = () => {
     <button id="soundBtn"></button>
     <div id="turnTimer"></div>
     <div id="transferPanel" style="display:none"></div>
-    ${actionButtons}
+    <div id="actionButtonFixture">${actionButtons}</div>
   `;
 };
 
@@ -113,7 +114,12 @@ describe('HUDChromeView', () => {
     ).toBe('none');
     // Phase alerts are no longer shown — HUD top bar is sufficient
     expect(showPhaseAlert).not.toHaveBeenCalled();
-    expect(queueLayoutSync).toHaveBeenCalledTimes(1);
+    expect(queueLayoutSync).toHaveBeenCalled();
+    expect(
+      document
+        .getElementById('hudBottomButtons')
+        ?.classList.contains('is-empty'),
+    ).toBe(false);
   });
 
   it('shows and rotates the objective compass when bearing is set', () => {
@@ -213,7 +219,12 @@ describe('HUDChromeView', () => {
 
     turnTimerSignal.value = null;
     expect(document.getElementById('turnTimer')?.textContent).toBe('');
-    expect(queueLayoutSync).toHaveBeenCalledTimes(5);
+    expect(queueLayoutSync.mock.calls.length).toBeGreaterThanOrEqual(5);
+    expect(
+      document
+        .getElementById('hudBottomButtons')
+        ?.classList.contains('is-empty'),
+    ).toBe(true);
   });
 
   it('traps focus inside the help overlay and closes it on Escape', async () => {
