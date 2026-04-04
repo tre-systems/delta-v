@@ -12,7 +12,9 @@ import type {
 } from '../types';
 import {
   beginCombatPhase,
+  endCombat,
   processCombat,
+  processSingleCombat,
   shouldEnterCombatPhase,
   skipCombat,
 } from './combat';
@@ -1114,5 +1116,216 @@ describe('base defense with skipCombat', () => {
         }
       }
     }
+  });
+});
+describe('endCombat', () => {
+  it('rejects when not in combat phase', () => {
+    const state = makeCombatState({ phase: 'astrogation' });
+    const result = endCombat(state, 0, openMap, Math.random);
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'phase',
+    );
+  });
+  it('rejects when not active player', () => {
+    const state = makeCombatState({ activePlayer: 1 });
+    const result = endCombat(state, 0, openMap, Math.random);
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'turn',
+    );
+  });
+  it('advances after combat when no base defense', () => {
+    const state = makeCombatState();
+    state.ships[1].lifecycle = 'destroyed';
+    const result = endCombat(state, 0, openMap, Math.random);
+    expect('error' in result).toBe(false);
+    if ('state' in result) {
+      expect(result.state.phase).not.toBe('combat');
+    }
+  });
+  it('returns state without results when no base defense fires', () => {
+    const state = makeCombatState();
+    state.ships[1].lifecycle = 'destroyed';
+    const result = endCombat(state, 0, openMap, Math.random);
+    expect('error' in result).toBe(false);
+    if ('state' in result) {
+      expect(result.results).toBeUndefined();
+    }
+  });
+  it('resolves base defense during endCombat when enabled', () => {
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('BD03'),
+      findBaseHex,
+    );
+    state.phase = 'combat';
+    state.activePlayer = 0;
+    const p0Bases = state.players[0].bases;
+    if (p0Bases.length > 0) {
+      const [bq, br] = p0Bases[0].split(',').map(Number);
+      const baseHex = map.hexes.get(p0Bases[0]);
+      const bodyName = baseHex?.base?.bodyName;
+      if (bodyName) {
+        const enemy = must(state.ships.find((s) => s.owner === 1));
+        enemy.lifecycle = 'active';
+        enemy.position = { q: bq + 1, r: br };
+        enemy.lastMovementPath = [enemy.position];
+        const adjKey = hexKey(enemy.position);
+        const adjHex = map.hexes.get(adjKey);
+        if (adjHex?.gravity?.bodyName === bodyName) {
+          const result = endCombat(state, 0, map, () => 0.99);
+          expect('error' in result).toBe(false);
+          if ('results' in result && result.results) {
+            const baseDef = result.results.find(
+              (r) => r.attackType === 'baseDefense',
+            );
+            expect(baseDef).toBeDefined();
+          }
+        }
+      }
+    }
+  });
+  it('cleans up destroyed ordnance after combat', () => {
+    const state = makeCombatState();
+    state.ordnance = [
+      makeOrdnance({ lifecycle: 'destroyed' }),
+    ];
+    const result = endCombat(state, 0, openMap, Math.random);
+    expect('error' in result).toBe(false);
+    if ('state' in result) {
+      expect(result.state.ordnance.length).toBe(0);
+    }
+  });
+  it('returns game over when outcome is set during combat end', () => {
+    const state = makeCombatState();
+    // All enemy ships destroyed means game ends
+    state.ships = [
+      makeShip({ id: asShipId('a0'), owner: 0, position: { q: 0, r: 0 } }),
+    ];
+    const result = endCombat(state, 0, openMap, Math.random);
+    expect('error' in result).toBe(false);
+    if ('state' in result) {
+      expect(result.state.outcome).not.toBeNull();
+    }
+  });
+});
+describe('processSingleCombat', () => {
+  it('rejects when not in combat phase', () => {
+    const state = makeCombatState({ phase: 'astrogation' });
+    const result = processSingleCombat(
+      state,
+      0,
+      {
+        attackerIds: [asShipId('a0')],
+        targetId: asShipId('e0'),
+        targetType: 'ship',
+        attackStrength: null,
+      },
+      openMap,
+      Math.random,
+    );
+    expect('error' in result).toBe(true);
+  });
+  it('rejects duplicate target already attacked this phase', () => {
+    const state = makeCombatState();
+    state.combatTargetedThisPhase = ['ship:e0'];
+    const result = processSingleCombat(
+      state,
+      0,
+      {
+        attackerIds: [asShipId('a0')],
+        targetId: asShipId('e0'),
+        targetType: 'ship',
+        attackStrength: null,
+      },
+      openMap,
+      Math.random,
+    );
+    expect('error' in result && result.error.message).toContain('once');
+  });
+  it('rejects attacker that already fired this phase', () => {
+    const state = makeCombatState();
+    state.ships[0].firedThisPhase = true;
+    const result = processSingleCombat(
+      state,
+      0,
+      {
+        attackerIds: [asShipId('a0')],
+        targetId: asShipId('e0'),
+        targetType: 'ship',
+        attackStrength: null,
+      },
+      openMap,
+      Math.random,
+    );
+    expect('error' in result && result.error.message).toContain('already attacked');
+  });
+  it('resolves a successful ship attack', () => {
+    const state = makeCombatState();
+    const result = processSingleCombat(
+      state,
+      0,
+      {
+        attackerIds: [asShipId('a0')],
+        targetId: asShipId('e0'),
+        targetType: 'ship',
+        attackStrength: null,
+      },
+      openMap,
+      () => 0.99,
+    );
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      expect(result.results.length).toBeGreaterThanOrEqual(1);
+      expect(result.state.combatTargetedThisPhase).toContain('ship:e0');
+      const attacker = result.state.ships.find((s) => s.id === 'a0');
+      expect(attacker?.firedThisPhase).toBe(true);
+    }
+  });
+  it('resolves anti-nuke attack against enemy nuke', () => {
+    const state = makeCombatState();
+    state.ordnance = [
+      makeOrdnance({
+        id: asOrdnanceId('nuke0'),
+        owner: 1,
+        type: 'nuke',
+        position: { q: 1, r: 0 },
+      }),
+    ];
+    const result = processSingleCombat(
+      state,
+      0,
+      {
+        attackerIds: [asShipId('a0')],
+        targetId: asOrdnanceId('nuke0'),
+        targetType: 'ordnance',
+        attackStrength: null,
+      },
+      openMap,
+      () => 0.01,
+    );
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      expect(result.results.length).toBe(1);
+      expect(result.results[0].attackType).toBe('antiNuke');
+    }
+  });
+  it('rejects attacking undetected target', () => {
+    const state = makeCombatState();
+    state.ships[1].detected = false;
+    const result = processSingleCombat(
+      state,
+      0,
+      {
+        attackerIds: [asShipId('a0')],
+        targetId: asShipId('e0'),
+        targetType: 'ship',
+        attackStrength: null,
+      },
+      openMap,
+      Math.random,
+    );
+    expect('error' in result && result.error.message).toContain('detected');
   });
 });

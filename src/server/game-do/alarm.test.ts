@@ -167,4 +167,84 @@ describe('runGameDoAlarm', () => {
     );
     expect(d.archiveRoomState).toHaveBeenCalledTimes(1);
   });
+
+  describe('error handling', () => {
+    it('reschedules when publishStateChange throws during disconnectExpired', async () => {
+      const d = minimalAlarmDeps();
+      d.get.mockImplementation(async (key: string) => {
+        if (key === 'disconnectedPlayer') return 0;
+        if (key === 'disconnectAt') return 1000;
+        return undefined;
+      });
+      const gameState = {
+        phase: 'astrogation',
+        turnNumber: 3,
+        outcome: null,
+      } as GameState;
+      d.getCurrentGameState = vi.fn().mockResolvedValue(gameState);
+      d.publishStateChange.mockRejectedValueOnce(new Error('publish failed'));
+
+      await runAlarm(d, { now: 50_000 });
+
+      expect(d.rescheduleAlarm).toHaveBeenCalledTimes(1);
+    });
+
+    it('reschedules when clearDisconnectMarker throws during disconnectExpired', async () => {
+      const d = minimalAlarmDeps();
+      d.get.mockImplementation(async (key: string) => {
+        if (key === 'disconnectedPlayer') return 0;
+        if (key === 'disconnectAt') return 1000;
+        return undefined;
+      });
+      d.clearDisconnectMarker.mockRejectedValueOnce(
+        new Error('clear marker failed'),
+      );
+
+      await runAlarm(d, { now: 50_000 });
+
+      expect(d.rescheduleAlarm).toHaveBeenCalledTimes(1);
+    });
+
+    it('reschedules when archiveRoomState throws during inactivityTimeout', async () => {
+      const d = minimalAlarmDeps();
+      d.get.mockImplementation(async (key: string) => {
+        if (key === 'inactivityAt') return 1000;
+        return undefined;
+      });
+      d.archiveRoomState.mockRejectedValueOnce(new Error('archive failed'));
+
+      await runAlarm(d, { now: 20_000 });
+
+      expect(d.rescheduleAlarm).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not throw when both the alarm handler and reschedule fail', async () => {
+      const d = minimalAlarmDeps();
+      d.get.mockImplementation(async (key: string) => {
+        if (key === 'disconnectedPlayer') return 0;
+        if (key === 'disconnectAt') return 1000;
+        return undefined;
+      });
+      d.clearDisconnectMarker.mockRejectedValueOnce(new Error('boom'));
+      d.rescheduleAlarm.mockRejectedValueOnce(new Error('reschedule boom'));
+
+      // Should not throw even when reschedule also fails
+      await expect(runAlarm(d, { now: 50_000 })).resolves.toBeUndefined();
+    });
+
+    it('reschedules when getCurrentGameState throws during inactivityTimeout', async () => {
+      const d = minimalAlarmDeps();
+      d.get.mockImplementation(async (key: string) => {
+        if (key === 'inactivityAt') return 1000;
+        return undefined;
+      });
+      d.getCurrentGameState = vi
+        .fn()
+        .mockRejectedValue(new Error('state read failed'));
+
+      await runAlarm(d, { now: 20_000 });
+
+      expect(d.rescheduleAlarm).toHaveBeenCalledTimes(1);
+    });
+  });
 });

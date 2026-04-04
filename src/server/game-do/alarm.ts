@@ -50,72 +50,81 @@ export type GameDoAlarmDeps = {
 };
 
 export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
-  const disconnectedPlayer = await readDisconnectedPlayer(deps.storage);
-  const deadlines = await readAlarmDeadlines(deps.storage);
-  const action = resolveAlarmAction({
-    now: deps.now,
-    disconnectedPlayer,
-    ...deadlines,
-  });
-  switch (action.type) {
-    case 'disconnectExpired': {
-      await deps.clearDisconnectMarker();
-      const gameState = await deps.getCurrentGameState();
+  try {
+    const disconnectedPlayer = await readDisconnectedPlayer(deps.storage);
+    const deadlines = await readAlarmDeadlines(deps.storage);
+    const action = resolveAlarmAction({
+      now: deps.now,
+      disconnectedPlayer,
+      ...deadlines,
+    });
+    switch (action.type) {
+      case 'disconnectExpired': {
+        await deps.clearDisconnectMarker();
+        const gameState = await deps.getCurrentGameState();
 
-      if (!gameState || gameState.phase === 'gameOver') {
-        await deps.rescheduleAlarm();
+        if (!gameState || gameState.phase === 'gameOver') {
+          await deps.rescheduleAlarm();
+          return;
+        }
+        const forfeit = applyDisconnectForfeit(gameState, action.playerId);
+        await deps.publishStateChange(forfeit.state, undefined, {
+          actor: null,
+          restartTurnTimer: false,
+          events: forfeit.events,
+        });
         return;
       }
-      const forfeit = applyDisconnectForfeit(gameState, action.playerId);
-      await deps.publishStateChange(forfeit.state, undefined, {
-        actor: null,
-        restartTurnTimer: false,
-        events: forfeit.events,
-      });
-      return;
-    }
-    case 'turnTimeout':
-      await runGameDoTurnTimeout({
-        storage: deps.storage,
-        map: deps.map,
-        getCurrentGameState: deps.getCurrentGameState,
-        getActionRng: deps.getActionRng,
-        getGameCode: deps.getGameCode,
-        reportEngineError: deps.reportEngineError,
-        publishStateChange: deps.publishStateChange,
-        rescheduleAlarm: deps.rescheduleAlarm,
-      });
-      return;
-    case 'inactivityTimeout': {
-      const gameState = await deps.getCurrentGameState();
+      case 'turnTimeout':
+        await runGameDoTurnTimeout({
+          storage: deps.storage,
+          map: deps.map,
+          getCurrentGameState: deps.getCurrentGameState,
+          getActionRng: deps.getActionRng,
+          getGameCode: deps.getGameCode,
+          reportEngineError: deps.reportEngineError,
+          publishStateChange: deps.publishStateChange,
+          rescheduleAlarm: deps.rescheduleAlarm,
+        });
+        return;
+      case 'inactivityTimeout': {
+        const gameState = await deps.getCurrentGameState();
 
-      if (gameState) {
-        const code = await deps.getGameCode();
-        scheduleArchiveCompletedMatch(
-          {
-            storage: deps.storage,
-            r2: deps.env.MATCH_ARCHIVE,
-            db: deps.env.DB,
-            waitUntil: deps.waitUntil,
-          },
-          gameState,
-          code,
-        );
+        if (gameState) {
+          const code = await deps.getGameCode();
+          scheduleArchiveCompletedMatch(
+            {
+              storage: deps.storage,
+              r2: deps.env.MATCH_ARCHIVE,
+              db: deps.env.DB,
+              waitUntil: deps.waitUntil,
+            },
+            gameState,
+            code,
+          );
+        }
+        for (const ws of deps.getWebSockets()) {
+          try {
+            ws.close(1000, 'Inactivity timeout');
+          } catch {}
+        }
+        await deps.archiveRoomState();
+        return;
       }
-      for (const ws of deps.getWebSockets()) {
-        try {
-          ws.close(1000, 'Inactivity timeout');
-        } catch {}
+      case 'reschedule':
+        await deps.rescheduleAlarm();
+        return;
+      default: {
+        const _exhaustive: never = action;
+        return _exhaustive;
       }
-      await deps.archiveRoomState();
-      return;
     }
-    case 'reschedule':
+  } catch (err) {
+    console.error('Alarm handler failed, rescheduling:', err);
+    try {
       await deps.rescheduleAlarm();
-      return;
-    default: {
-      const _exhaustive: never = action;
-      return _exhaustive;
+    } catch (rescheduleErr) {
+      console.error('Failed to reschedule alarm after error:', rescheduleErr);
     }
   }
 };
