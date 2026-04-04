@@ -1,3 +1,6 @@
+/**
+ * Shared UI primitives (buttons, inputs, scenario list) plus #menu-specific chrome.
+ */
 #menu {
   overflow-x: hidden;
   overflow-y: auto;

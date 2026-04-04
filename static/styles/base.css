@@ -1,3 +1,7 @@
+/**
+ * Design tokens and global reset. Component styles are in components.css, hud.css, etc.
+ * Chrome HUD surfaces: --chrome-*; generic panels: --panel / --panel-strong.
+ */
 :root {
   --bg: #040b16;
   --bg-soft: rgba(8, 16, 30, 0.82);
