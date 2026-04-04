@@ -46,7 +46,7 @@ Pre-commit is a POSIX shell script (`rm`, `export`, subshell). Use **Git Bash**,
 git commit --no-verify
 ```
 
-Prefer fixing the underlying issue; **CI** still runs lint/typecheck/coverage/build/e2e/simulation (and local hooks run `test:e2e:a11y` as well).
+Prefer fixing the underlying issue. **CI** runs lint, typecheck (app + tools), coverage, build, browser smoke (`test:e2e`), and the multi-scenario simulation pass. It does **not** currently run `test:e2e:a11y`. **Pre-commit** and **`npm run verify`** additionally run the Playwright + axe accessibility baseline.
 
 ## Full verification
 
