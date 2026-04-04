@@ -11,6 +11,8 @@ import {
   shiftReplaySelection,
 } from './replay-selection';
 
+const PLAY_INTERVAL_MS = 1200;
+
 interface ReplayControllerDeps {
   getClientContext: () => {
     state: ClientState;
@@ -31,6 +33,7 @@ export interface ReplayController {
   onGameOverMessage: () => void;
   selectMatch: (direction: 'prev' | 'next') => void;
   toggleReplay: () => Promise<void>;
+  togglePlay: () => void;
   stepReplay: (direction: 'start' | 'prev' | 'next' | 'end') => void;
 }
 
@@ -41,7 +44,17 @@ export const createReplayController = (
   let replayIndex: number | null = null;
   let replaySourceState: GameState | null = null;
   let selectedReplayGameId: string | null = null;
+  let playIntervalId: ReturnType<typeof setInterval> | null = null;
   const controlsSignal = signal(createHiddenReplayControls());
+
+  const isPlaying = () => playIntervalId !== null;
+
+  const stopPlay = () => {
+    if (playIntervalId !== null) {
+      clearInterval(playIntervalId);
+      playIntervalId = null;
+    }
+  };
 
   const buildReplayStatusText = (
     timeline: ReplayTimeline,
@@ -53,7 +66,8 @@ export const createReplayController = (
       return timeline.gameId;
     }
 
-    return `${timeline.gameId} • Turn ${entry.turn} • ${entry.phase.toUpperCase()} • ${index + 1}/${timeline.entries.length}`;
+    const player = `P${entry.message.state.activePlayer + 1}`;
+    return `Turn ${entry.turn} · ${player} ${entry.phase.toUpperCase()} · ${index + 1}/${timeline.entries.length}`;
   };
 
   const getReplaySelection = () => {
@@ -134,7 +148,7 @@ export const createReplayController = (
       available: true,
       active: true,
       loading: false,
-      playing: false,
+      playing: isPlaying(),
       statusText: buildReplayStatusText(timeline, index),
       selectedGameId: replaySelection.selectedGameId,
       canSelectPrevMatch: replaySelection.selectedMatchNumber > 1,
@@ -148,10 +162,32 @@ export const createReplayController = (
   };
 
   const clearReplay = () => {
+    stopPlay();
     replayTimeline = null;
     replayIndex = null;
     replaySourceState = null;
     selectedReplayGameId = null;
+  };
+
+  const applyReplayEntry = (index: number) => {
+    if (!replayTimeline) return;
+    const entry = replayTimeline.entries[index];
+    if (!entry) return;
+    deps.clearTrails();
+    deps.applyGameState(entry.message.state);
+  };
+
+  const stepForward = () => {
+    if (!replayTimeline || replayIndex === null) return;
+    const maxIndex = replayTimeline.entries.length - 1;
+    if (replayIndex >= maxIndex) {
+      stopPlay();
+      updateOverlay();
+      return;
+    }
+    replayIndex = replayIndex + 1;
+    applyReplayEntry(replayIndex);
+    updateOverlay();
   };
 
   return {
@@ -193,6 +229,7 @@ export const createReplayController = (
     },
     toggleReplay: async () => {
       if (replayTimeline && replayIndex !== null) {
+        stopPlay();
         if (replaySourceState) {
           deps.clearTrails();
           deps.applyGameState(replaySourceState);
@@ -250,15 +287,35 @@ export const createReplayController = (
 
       replaySourceState = structuredClone(ctx.gameState);
       replayTimeline = timeline;
-      replayIndex = timeline.entries.length - 1;
-      deps.clearTrails();
-      deps.applyGameState(timeline.entries[replayIndex].message.state);
+      replayIndex = 0;
+      applyReplayEntry(replayIndex);
+      updateOverlay();
+    },
+    togglePlay: () => {
+      if (!replayTimeline || replayIndex === null) return;
+
+      if (isPlaying()) {
+        stopPlay();
+        updateOverlay();
+        return;
+      }
+
+      // If at the end, restart from the beginning
+      const maxIndex = replayTimeline.entries.length - 1;
+      if (replayIndex >= maxIndex) {
+        replayIndex = 0;
+        applyReplayEntry(replayIndex);
+      }
+
+      playIntervalId = setInterval(stepForward, PLAY_INTERVAL_MS);
       updateOverlay();
     },
     stepReplay: (direction) => {
       if (!replayTimeline || replayIndex === null) {
         return;
       }
+
+      stopPlay();
 
       const maxIndex = replayTimeline.entries.length - 1;
 
@@ -277,14 +334,7 @@ export const createReplayController = (
           break;
       }
 
-      const entry = replayTimeline.entries[replayIndex];
-
-      if (!entry) {
-        return;
-      }
-
-      deps.clearTrails();
-      deps.applyGameState(entry.message.state);
+      applyReplayEntry(replayIndex);
       updateOverlay();
     },
   };
