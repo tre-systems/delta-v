@@ -4,16 +4,12 @@
   left: var(--hud-edge-left);
   right: var(--hud-edge-right);
   z-index: 5;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem 1rem;
   padding: 0.6rem 1rem;
   border-radius: var(--radius);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(4, 9, 18, 0.88);
-  backdrop-filter: blur(28px);
-  box-shadow: none;
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 0.72rem;
@@ -21,9 +17,8 @@
   text-transform: uppercase;
 }
 
-.hud-bar > .objective-wrap {
-  grid-column: 1 / -1;
-  justify-self: end;
+.hud-bar > * {
+  min-width: 0;
 }
 
 
@@ -404,7 +399,12 @@
   font-weight: 500;
 }
 
-.fleet-status,
+.fleet-status {
+  flex: 1;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
 .turn-timer {
   color: var(--muted);
   font-size: 0.68rem;
