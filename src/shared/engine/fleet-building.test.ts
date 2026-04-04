@@ -179,4 +179,45 @@ describe('fleet building (MegaCredit economy)', () => {
       expect(result.error.message).toContain('Not in fleet building');
     }
   });
+
+  it('rejects fleet ready when the resulting fleet would have no ships', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.fleetAction,
+      map,
+      asGameId('FLT-EMPTY'),
+      findBaseHex,
+    );
+
+    const result = processFleetReady(state, 0, [], map);
+
+    expect('error' in result).toBe(true);
+    if ('error' in result) {
+      expect(result.error.message).toBe('Fleet must contain at least one ship');
+    }
+  });
+
+  it('allows ready with no new purchases when the player already has ships', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('BIP-KEEP'),
+      findBaseHex,
+    );
+
+    state.phase = 'fleetBuilding';
+    state.players[0].ready = false;
+    state.players[1].ready = false;
+    state.players[0].credits = 0;
+    state.players[1].credits = 0;
+
+    const result = processFleetReady(state, 0, [], map);
+
+    expect('error' in result).toBe(false);
+    if ('state' in result) {
+      expect(result.state.players[0].ready).toBe(true);
+      expect(
+        result.state.ships.filter((ship) => ship.owner === 0),
+      ).toHaveLength(1);
+    }
+  });
 });

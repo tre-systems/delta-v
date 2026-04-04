@@ -242,13 +242,13 @@ const formatPreviewLabel = (
     rangeMod = computeGroupRangeMod(attackers, shipTarget);
     velMod = computeGroupVelocityMod(attackers, shipTarget);
 
-    label = `${odds}  ATK ${attackStrength}/${maxAttackStrength}`;
+    label = `${odds} · STR ${attackStrength}/${maxAttackStrength}`;
   }
 
   const totalMod = -(rangeMod + velMod);
 
-  const modLabel =
-    totalMod === 0 ? '' : `${totalMod > 0 ? '+' : ''}${totalMod}`;
+  const modSign = totalMod > 0 ? '+' : '';
+  const modLabel = totalMod === 0 ? '' : `MOD ${modSign}${totalMod}`;
 
   const modColor =
     totalMod <= -3 ? '#ff6b6b' : totalMod <= -1 ? '#ffcc00' : '#8bc34a';
