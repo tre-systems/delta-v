@@ -733,6 +733,47 @@ describe('resolveCombat', () => {
     expect(result.counterattack?.defendStrength).toBe(15);
     expect(result.counterattack?.odds).toBe('1:4');
   });
+
+  it('recomputes range and velocity modifiers for counterattacks', () => {
+    const strongAttacker = makeShip({
+      id: asShipId('a-strong'),
+      owner: 0,
+      originalOwner: 0,
+      type: 'dreadnaught',
+      position: { q: 1, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+    });
+    const weakAttacker = makeShip({
+      id: asShipId('a-weak'),
+      owner: 0,
+      originalOwner: 0,
+      type: 'corvette',
+      position: { q: 4, r: 0 },
+      velocity: { dq: 6, dr: 0 },
+    });
+    const target = makeShip({
+      id: asShipId('t'),
+      owner: 1,
+      originalOwner: 1,
+      type: 'frigate',
+      position: { q: 0, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+    });
+
+    const result = resolveCombat(
+      [strongAttacker, weakAttacker],
+      target,
+      [strongAttacker, weakAttacker, target],
+      () => 0.5,
+    );
+
+    expect(result.rangeMod).toBe(4);
+    expect(result.velocityMod).toBe(4);
+    expect(result.counterattack).not.toBeNull();
+    expect(result.counterattack?.targetId).toBe('a-strong');
+    expect(result.counterattack?.rangeMod).toBe(1);
+    expect(result.counterattack?.velocityMod).toBe(0);
+  });
 });
 
 describe('capture mechanics', () => {
