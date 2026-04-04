@@ -1188,9 +1188,7 @@ describe('endCombat', () => {
   });
   it('cleans up destroyed ordnance after combat', () => {
     const state = makeCombatState();
-    state.ordnance = [
-      makeOrdnance({ lifecycle: 'destroyed' }),
-    ];
+    state.ordnance = [makeOrdnance({ lifecycle: 'destroyed' })];
     const result = endCombat(state, 0, openMap, Math.random);
     expect('error' in result).toBe(false);
     if ('state' in result) {
@@ -1259,7 +1257,9 @@ describe('processSingleCombat', () => {
       openMap,
       Math.random,
     );
-    expect('error' in result && result.error.message).toContain('already attacked');
+    expect('error' in result && result.error.message).toContain(
+      'already attacked',
+    );
   });
   it('resolves a successful ship attack', () => {
     const state = makeCombatState();
