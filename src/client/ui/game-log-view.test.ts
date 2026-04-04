@@ -5,12 +5,12 @@ import { createGameLogView } from './game-log-view';
 
 const installFixture = () => {
   document.body.innerHTML = `
-    <div id="gameLog" style="display:none"></div>
+    <div id="gameLog" hidden></div>
     <div id="logEntries"></div>
-    <div id="chatInputRow" style="display:none"></div>
+    <div id="chatInputRow" hidden></div>
     <input id="chatInput" />
     <button id="chatSendBtn"></button>
-    <div id="logLatestBar" style="display:none">
+    <div id="logLatestBar" hidden>
       <span id="logLatestText"></span>
     </div>
   `;
@@ -32,9 +32,8 @@ describe('GameLogView', () => {
 
     expect(onChat).toHaveBeenCalledWith('hello there');
     expect(input.value).toBe('');
-    expect(
-      (document.getElementById('chatInputRow') as HTMLElement).style.display,
-    ).toBe('');
+    const chatRow = document.getElementById('chatInputRow') as HTMLElement;
+    expect(chatRow.hasAttribute('hidden')).toBe(false);
   });
 
   it('collapses to latest bar and expands on toggle', () => {
@@ -44,16 +43,19 @@ describe('GameLogView', () => {
     const latestBar = document.getElementById('logLatestBar') as HTMLElement;
 
     view.setScreenMode('hud');
-    expect(gameLog.style.display).toBe('none');
+    expect(gameLog.hasAttribute('hidden')).toBe(true);
+    expect(latestBar.hasAttribute('hidden')).toBe(false);
     expect(latestBar.style.display).toBe('block');
 
     view.toggle();
+    expect(gameLog.hasAttribute('hidden')).toBe(false);
     expect(gameLog.style.display).toBe('flex');
-    expect(latestBar.style.display).toBe('none');
+    expect(latestBar.hasAttribute('hidden')).toBe(true);
     expect(gameLog.classList.contains('mobile-expanded')).toBe(false);
 
     view.toggle();
-    expect(gameLog.style.display).toBe('none');
+    expect(gameLog.hasAttribute('hidden')).toBe(true);
+    expect(latestBar.hasAttribute('hidden')).toBe(false);
     expect(latestBar.style.display).toBe('block');
   });
 
@@ -116,10 +118,12 @@ describe('GameLogView', () => {
 
     view.setScreenMode('hud');
     view.toggle();
+    expect(gameLog.hasAttribute('hidden')).toBe(false);
     expect(gameLog.style.display).toBe('flex');
 
     gameLog.click();
-    expect(gameLog.style.display).toBe('none');
+    expect(gameLog.hasAttribute('hidden')).toBe(true);
+    expect(latestBar.hasAttribute('hidden')).toBe(false);
     expect(latestBar.style.display).toBe('block');
   });
 
@@ -140,7 +144,9 @@ describe('GameLogView', () => {
 
     expect(onChat).not.toHaveBeenCalled();
     expect(
-      (document.getElementById('gameLog') as HTMLElement).style.display,
-    ).toBe('none');
+      (document.getElementById('gameLog') as HTMLElement).hasAttribute(
+        'hidden',
+      ),
+    ).toBe(true);
   });
 });

@@ -79,7 +79,7 @@ const installFixture = () => {
     <div id="fleetCredits"></div>
     <button id="fleetReadyBtn">Ready</button>
     <button id="fleetClearBtn">Clear</button>
-    <div id="fleetWaiting" style="display:none">Waiting...</div>
+    <div id="fleetWaiting" hidden>Waiting...</div>
   `;
 };
 
@@ -149,15 +149,16 @@ describe('FleetBuildingView', () => {
     view.show(state, 0);
     view.showWaiting();
 
-    expect(readyBtn.style.display).toBe('none');
-    expect(clearBtn.style.display).toBe('none');
+    expect(readyBtn.hasAttribute('hidden')).toBe(true);
+    expect(clearBtn.hasAttribute('hidden')).toBe(true);
+    expect(waitingEl.hasAttribute('hidden')).toBe(false);
     expect(waitingEl.style.display).toBe('block');
 
     view.show(state, 0);
 
-    expect(readyBtn.style.display).toBe('');
-    expect(clearBtn.style.display).toBe('');
-    expect(waitingEl.style.display).toBe('none');
+    expect(readyBtn.hasAttribute('hidden')).toBe(false);
+    expect(clearBtn.hasAttribute('hidden')).toBe(false);
+    expect(waitingEl.hasAttribute('hidden')).toBe(true);
   });
 
   it('removes stale cart listeners when the cart rerenders', () => {
