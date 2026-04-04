@@ -50,15 +50,15 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 **Goal:** rate limiting, input validation, and trust boundaries match what [SECURITY.md](./SECURITY.md) claims.
 
-**Key files:** `src/server/index.ts`, `src/server/game-do/socket.ts`, `src/server/reporting.ts`, `src/shared/protocol.ts`, `src/client/dom.ts`, [SECURITY.md](./SECURITY.md).
+**Key files:** `src/server/index.ts`, `src/server/game-do/socket.ts`, `src/server/game-do/actions.ts`, `src/server/reporting.ts`, `src/shared/protocol.ts`, `src/client/dom.ts`, [SECURITY.md](./SECURITY.md).
 
 **Steps**
 
 1. Read rate-limit constants in `socket.ts` (`WS_MSG_RATE_LIMIT`, `CHAT_RATE_LIMIT_MS`) and `index.ts` (create/join/replay limits). Cross-check values against [SECURITY.md](./SECURITY.md). **Pass:** all values match. **Fail:** update the doc or the code.
 2. Read `validateClientMessage()` in `src/shared/protocol.ts`. Confirm every C2S message type has validation. **Pass:** no unvalidated message types. **Fail:** add validation or file BACKLOG item.
 3. Grep for `innerHTML` usage outside `src/client/dom.ts`. **Pass:** zero hits (pre-commit hook also checks this). **Fail:** move to `setTrustedHTML()`.
-4. Grep for `Math.random()` in `src/shared/`. **Pass:** zero hits (pre-commit hook also checks this). **Fail:** replace with injected RNG.
-5. Read `src/shared/protocol.ts` input-limit constants (`MAX_FLEET_PURCHASES`, `MAX_ASTROGATION_ORDERS`, `MAX_ORDNANCE_LAUNCHES`, `MAX_COMBAT_ATTACKS`). Confirm they are enforced in the corresponding engine handlers. **Pass:** all limits checked before processing. **Fail:** add enforcement.
+4. Grep for `Math.random` in `src/shared/engine/`, excluding tests and injected default RNG fallbacks (`= Math.random`) to match the pre-commit boundary. **Pass:** no remaining hits. **Fail:** replace with injected RNG or narrow the exception intentionally.
+5. Read `src/shared/protocol.ts` input-limit constants (`MAX_FLEET_PURCHASES`, `MAX_ASTROGATION_ORDERS`, `MAX_ORDNANCE_LAUNCHES`, `MAX_COMBAT_ATTACKS`). Confirm they are enforced in runtime message validation before engine dispatch (`validateClientMessage()` / DO socket path). **Pass:** all limits are checked before any engine handler runs. **Fail:** add the missing validation or file BACKLOG item.
 6. Check room code generation in `src/server/` — confirm it uses crypto RNG, not `Math.random()`. **Pass:** uses `crypto.getRandomValues` or equivalent. **Fail:** fix.
 
 ---
@@ -72,7 +72,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 **Steps**
 
 1. Run `npm run simulate all 100 -- --ci`. **Pass:** exits 0, no engine errors in output. **Fail:** investigate error details, file BACKLOG item.
-2. Read each engine handler (`astrogation.ts`, `combat.ts`, `logistics.ts`, `ordnance.ts`, `turn-advance.ts`, `victory.ts`). Cross-check phase transitions and resolution logic against [SPEC.md](./SPEC.md). **Pass:** no contradictions. **Fail:** file BACKLOG item noting spec vs implementation discrepancy.
+2. Read the current rule-owning engine modules (`astrogation.ts`, `combat.ts`, `logistics.ts`, `ordnance.ts`, `resolve-movement.ts`, `post-movement.ts`, `turn-advance.ts`, `victory.ts`; include `fleet-building.ts` / `game-creation.ts` when scenario setup rules changed). Cross-check phase transitions, post-movement resolution, and victory logic against [SPEC.md](./SPEC.md). **Pass:** no contradictions. **Fail:** file BACKLOG item noting spec vs implementation discrepancy.
 3. Run `npm run test:coverage`. Check coverage for `src/shared/engine/` files. **Pass:** no engine file below 80% line coverage. **Fail:** identify untested branches, file BACKLOG item.
 
 ---
@@ -127,12 +127,12 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 | #   | Area                        | Reviewed   | Status             | Notes                                                                                            |
 | --- | --------------------------- | ---------- | ------------------ | ------------------------------------------------------------------------------------------------ |
 | 1   | CI / local dev friction     | 2026-03-24 | partial            | coverage fix + dynamic e2e port shipped; [CONTRIBUTING.md](./CONTRIBUTING.md)                    |
-| 2   | Observability / data / privacy | 2026-03-24 | complete        | [OBSERVABILITY.md](./OBSERVABILITY.md), [SECURITY.md](./SECURITY.md), [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) |
+| 2   | Observability / data / privacy | 2026-03-24 | pass            | [OBSERVABILITY.md](./OBSERVABILITY.md), [SECURITY.md](./SECURITY.md), [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) |
 | 3   | Security posture            | —          | —                  | new section — not yet reviewed                                                                   |
 | 4   | Game engine correctness     | —          | —                  | new section — not yet reviewed                                                                   |
 | 5   | Error handling / resilience | —          | —                  | new section — not yet reviewed                                                                   |
 | 6   | Bundle / runtime            | 2026-03-28 | partial            | ~596 KB raw / ~123 KB gzip; runtime profiling is `[Human]`                                       |
-| 7   | Supply chain / release      | 2026-03-28 | follow-up required | networked `npm audit` still needed                                                               |
+| 7   | Supply chain / release      | 2026-03-28 | fail — [BACKLOG item] | networked `npm audit` still needed; see [BACKLOG.md](./BACKLOG.md)                              |
 
 **Decisions already recorded elsewhere (no recurring review needed):**
 - **i18n:** English-only — [ARCHITECTURE.md](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts).

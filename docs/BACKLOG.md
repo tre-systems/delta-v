@@ -1,8 +1,20 @@
 # Delta-V Backlog
 
-No active work items. All actionable tasks have been completed.
+Active work items are listed below in one global priority order.
 
 Use this file for unfinished actionable work only. Do not duplicate shipped history, recurring review procedures, or long-form architecture rationale here; keep those in git history, [REVIEW_PLAN.md](./REVIEW_PLAN.md), and [ARCHITECTURE.md](./ARCHITECTURE.md) respectively.
+
+---
+
+## Active work
+
+### 1. Complete supply-chain release review
+
+**Source:** [REVIEW_PLAN.md](./REVIEW_PLAN.md) section 7 follow-up.
+
+Run networked `npm audit` and `npm outdated`, then either clear the review as `pass` or document accepted risk / concrete upgrade work here.
+
+**Files / commands:** `package.json`, `package-lock.json`, `.nvmrc`, `.github/workflows/ci.yml`, `npm audit`, `npm outdated`
 
 ---
 
