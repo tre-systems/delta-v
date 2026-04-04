@@ -388,6 +388,9 @@
 
   .game-over-content {
     padding: 1rem;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .game-over-summary-grid {
