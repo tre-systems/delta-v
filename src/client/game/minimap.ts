@@ -41,7 +41,10 @@ export const getMinimapFrame = (
   const width = baseWidth;
   const height = Math.round(baseWidth * Math.max(1, Math.min(mapAspect, 2)));
   const mobileTopInset = Math.max(90, hudTopOffset + 8);
-  const mobileBottomInset = Math.max(12, hudBottomOffset + 8);
+  const mobileBottomInset = Math.max(
+    12,
+    hudBottomOffset + 8 + (isMobile ? 14 : 0),
+  );
   const mobileY = screenHeight - height - mobileBottomInset;
 
   return {
