@@ -141,6 +141,9 @@ export const createOverlayView = (
   const replayBarStatusEl = byId('replayBarStatus');
   const replayBarStartBtn = byId<HTMLButtonElement>('replayBarStartBtn');
   const replayBarPrevBtn = byId<HTMLButtonElement>('replayBarPrevBtn');
+  const replayBarPlayBtn = byId<HTMLButtonElement>('replayBarPlayBtn');
+  const replayPlayIcon = byId('replayPlayIcon');
+  const replayPauseIcon = byId('replayPauseIcon');
   const replayBarNextBtn = byId<HTMLButtonElement>('replayBarNextBtn');
   const replayBarEndBtn = byId<HTMLButtonElement>('replayBarEndBtn');
   const reconnectOverlayEl = byId('reconnectOverlay');
@@ -317,6 +320,16 @@ export const createOverlayView = (
         replayBarPrevBtn.disabled = !replayView.canPrev;
         replayBarNextBtn.disabled = !replayView.canNext;
         replayBarEndBtn.disabled = !replayView.canEnd;
+
+        if (replayView.playing) {
+          hide(replayPlayIcon);
+          show(replayPauseIcon, 'inline');
+          replayBarPlayBtn.setAttribute('aria-label', 'Pause');
+        } else {
+          show(replayPlayIcon, 'inline');
+          hide(replayPauseIcon);
+          replayBarPlayBtn.setAttribute('aria-label', 'Play');
+        }
       } else {
         hide(replayBarEl);
       }

@@ -238,12 +238,26 @@
 
   <!-- Replay bottom bar (shown during active replay, replaces game-over overlay) -->
   <div id="replayBar" class="replay-bar overlay-panel" hidden>
-    <button id="replayBarStartBtn" class="btn btn-secondary">|&lt;</button>
-    <button id="replayBarPrevBtn" class="btn btn-secondary">&lt;</button>
+    <div class="replay-bar-nav">
+      <button id="replayBarStartBtn" class="replay-btn" aria-label="First">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="5" x2="5" y2="19"/><polyline points="19 5 9 12 19 19"/></svg>
+      </button>
+      <button id="replayBarPrevBtn" class="replay-btn" aria-label="Previous">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="19 5 9 12 19 19"/></svg>
+      </button>
+      <button id="replayBarPlayBtn" class="replay-btn replay-btn-play" aria-label="Play">
+        <svg id="replayPlayIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6,4 20,12 6,20"/></svg>
+        <svg id="replayPauseIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" hidden><rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/></svg>
+      </button>
+      <button id="replayBarNextBtn" class="replay-btn" aria-label="Next">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 5 15 12 5 19"/></svg>
+      </button>
+      <button id="replayBarEndBtn" class="replay-btn" aria-label="Last">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 5 15 12 5 19"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+      </button>
+    </div>
     <span id="replayBarStatus" class="replay-bar-status"></span>
-    <button id="replayBarNextBtn" class="btn btn-secondary">&gt;</button>
-    <button id="replayBarEndBtn" class="btn btn-secondary">&gt;|</button>
-    <button id="replayBarExitBtn" class="btn btn-secondary">Exit</button>
+    <button id="replayBarExitBtn" class="replay-btn replay-btn-exit" aria-label="Exit replay">EXIT</button>
   </div>
 
   <!-- Help overlay -->

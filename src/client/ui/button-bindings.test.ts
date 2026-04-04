@@ -14,7 +14,7 @@ describe('ui-button-bindings', () => {
   });
 
   it('includes replay, rematch, and exit in the static button binding set', () => {
-    expect(STATIC_BUTTON_BINDINGS.slice(-14)).toEqual([
+    expect(STATIC_BUTTON_BINDINGS.slice(-15)).toEqual([
       { id: 'rematchBtn', event: { type: 'rematch' } },
       { id: 'replayMatchPrevBtn', event: { type: 'replayMatchPrev' } },
       { id: 'replayMatchNextBtn', event: { type: 'replayMatchNext' } },
@@ -25,6 +25,7 @@ describe('ui-button-bindings', () => {
       { id: 'replayEndBtn', event: { type: 'replayEnd' } },
       { id: 'replayBarStartBtn', event: { type: 'replayStart' } },
       { id: 'replayBarPrevBtn', event: { type: 'replayPrev' } },
+      { id: 'replayBarPlayBtn', event: { type: 'replayPlayPause' } },
       { id: 'replayBarNextBtn', event: { type: 'replayNext' } },
       { id: 'replayBarEndBtn', event: { type: 'replayEnd' } },
       { id: 'replayBarExitBtn', event: { type: 'toggleReplay' } },
