@@ -117,6 +117,7 @@ const CLIENT_STATE_ENTRY_RULES: Record<ClientState, ClientStateEntryRule> = {
   },
   playing_opponentTurn: {
     stopTurnTimer: true,
+    hideTutorial: true,
     frameOnShips: true,
   },
   gameOver: {
