@@ -15,7 +15,7 @@
 
 Command your fleet, master astrogation trajectories, sling-shot around celestial bodies, and engage in high-stakes combat where positioning and velocity are just as crucial as firepower.
 
-Check out our [**Ship Aesthetics & Visual Style Guide**](./docs/SPACESHIPS.md) and [**Technology & Lore Guide**](./docs/TECHNOLOGY.md) for visual direction and hard-sci-fi technology grounding.
+Check out our [**Lore & Visual Direction Guide**](./docs/LORE.md) for ship aesthetics and hard-sci-fi technology grounding.
 
 ## 📚 Documentation Guide
 
@@ -33,8 +33,7 @@ Use the docs by role so the same decision is not maintained in three places:
 - [**PRIVACY_TECHNICAL.md**](./docs/PRIVACY_TECHNICAL.md): technical storage behavior only; not user-facing policy text
 - [**BACKLOG.md**](./docs/BACKLOG.md): remaining actionable work only, in one global priority order
 - [**REVIEW_PLAN.md**](./docs/REVIEW_PLAN.md): recurring cross-cutting review cadence; concrete follow-up work belongs in the backlog
-- [**GAME_BUILD_PLAYBOOK.md**](./docs/GAME_BUILD_PLAYBOOK.md): generic playbook for building a similar game; not the live Delta-V source of truth
-- [**SPACESHIPS.md**](./docs/SPACESHIPS.md) and [**TECHNOLOGY.md**](./docs/TECHNOLOGY.md): visual direction and hard-sci-fi reference material
+- [**LORE.md**](./docs/LORE.md): ship aesthetics, technology pillars, concept art, and colour direction
 
 ## 🌟 Features
 
