@@ -50,6 +50,18 @@ export const processFleetReady = (
   const availableFleetPurchases = state.scenarioRules.availableFleetPurchases
     ? new Set(state.scenarioRules.availableFleetPurchases)
     : null;
+  const existingShipCount = state.ships.filter(
+    (ship) => ship.owner === playerId && ship.lifecycle !== 'destroyed',
+  ).length;
+  const purchasedShipCount = purchases.filter(isShipFleetPurchase).length;
+
+  if (existingShipCount + purchasedShipCount === 0) {
+    return engineFailure(
+      ErrorCode.NOT_ALLOWED,
+      'Fleet must contain at least one ship',
+    );
+  }
+
   const totalCostOrError = purchases.reduce<
     { cost: number } | { error: EngineError }
   >(
