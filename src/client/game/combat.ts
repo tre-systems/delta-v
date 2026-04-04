@@ -1,9 +1,14 @@
 import {
   canAttack,
+  computeOdds,
+  computeRangeModToTarget,
+  computeVelocityModToTarget,
   getCombatStrength,
   hasLineOfSight,
   hasLineOfSightToTarget,
+  lookupGunCombat,
 } from '../../shared/combat';
+import { ANTI_NUKE_ODDS } from '../../shared/constants';
 import { type HexCoord, hexDistance, hexEqual } from '../../shared/hex';
 import { asShipId, type OrdnanceId, type ShipId } from '../../shared/ids';
 import type {
@@ -518,9 +523,88 @@ export const createCombatTargetPlan = (
   };
 };
 
-// Find the nearest visible enemy (ship or nuke) that the given
+const getDamageChance = (
+  odds: ReturnType<typeof computeOdds>,
+  totalMod: number,
+) => {
+  let damagingRolls = 0;
+
+  for (let dieRoll = 1; dieRoll <= 6; dieRoll++) {
+    if (lookupGunCombat(odds, dieRoll - totalMod).type !== 'none') {
+      damagingRolls += 1;
+    }
+  }
+
+  return damagingRolls / 6;
+};
+
+type ScoredCombatTarget = CombatTargetSelection & {
+  chance: number;
+  totalMod: number;
+  distance: number;
+};
+
+const compareTargets = (
+  left: ScoredCombatTarget,
+  right: ScoredCombatTarget,
+): number => {
+  if (left.chance !== right.chance) {
+    return right.chance - left.chance;
+  }
+
+  if (left.totalMod !== right.totalMod) {
+    return left.totalMod - right.totalMod;
+  }
+
+  if (left.distance !== right.distance) {
+    return left.distance - right.distance;
+  }
+
+  if (left.targetType !== right.targetType) {
+    return left.targetType === 'ship' ? -1 : 1;
+  }
+
+  return 0;
+};
+
+const scoreShipTarget = (attacker: Ship, target: Ship): ScoredCombatTarget => {
+  const rangeMod = computeRangeModToTarget(attacker, target);
+  const velocityMod = computeVelocityModToTarget(attacker, target);
+  const totalMod = rangeMod + velocityMod;
+  const odds = computeOdds(
+    getCombatStrength([attacker]),
+    getCombatStrength([target]),
+  );
+
+  return {
+    targetId: target.id,
+    targetType: 'ship',
+    chance: getDamageChance(odds, totalMod),
+    totalMod,
+    distance: hexDistance(attacker.position, target.position),
+  };
+};
+
+const scoreOrdnanceTarget = (
+  attacker: Ship,
+  target: Ordnance,
+): ScoredCombatTarget => {
+  const rangeMod = computeRangeModToTarget(attacker, target);
+  const velocityMod = computeVelocityModToTarget(attacker, target);
+  const totalMod = rangeMod + velocityMod;
+
+  return {
+    targetId: target.id,
+    targetType: 'ordnance',
+    chance: getDamageChance(ANTI_NUKE_ODDS, totalMod),
+    totalMod,
+    distance: hexDistance(attacker.position, target.position),
+  };
+};
+
+// Find the best visible enemy (ship or nuke) that the given
 // attacker can target, excluding already-queued targets.
-export const findNearestTarget = (
+export const findPreferredTarget = (
   state: GameState,
   playerId: PlayerId,
   attackerShipId: string,
@@ -553,26 +637,30 @@ export const findNearestTarget = (
     );
   });
 
-  let best: CombatTargetSelection | null = null;
-  let bestDist = Infinity;
+  let best: ScoredCombatTarget | null = null;
 
   for (const ship of enemyShips) {
-    const dist = hexDistance(attacker.position, ship.position);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = { targetId: ship.id, targetType: 'ship' };
+    const scored = scoreShipTarget(attacker, ship);
+
+    if (best === null || compareTargets(scored, best) < 0) {
+      best = scored;
     }
   }
 
   for (const nuke of enemyNukes) {
-    const dist = hexDistance(attacker.position, nuke.position);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = { targetId: nuke.id, targetType: 'ordnance' };
+    const scored = scoreOrdnanceTarget(attacker, nuke);
+
+    if (best === null || compareTargets(scored, best) < 0) {
+      best = scored;
     }
   }
 
-  return best;
+  return best
+    ? {
+        targetId: best.targetId,
+        targetType: best.targetType,
+      }
+    : null;
 };
 
 export const hasVisibleCombatTargets = (
