@@ -23,6 +23,7 @@ import type {
 import { clamp, filterMap } from '../../shared/util';
 
 export interface CombatOverlayPlanningState {
+  selectedShipId: string | null;
   combatTargetId: string | null;
   combatTargetType: 'ship' | 'ordnance' | null;
   combatAttackerIds: string[];
@@ -205,6 +206,32 @@ const getLegalPreviewAttackers = (
   );
 };
 
+const resolvePreviewAttackers = (
+  legalAttackers: Ship[],
+  planning: CombatOverlayPlanningState,
+  targetType: 'ship' | 'ordnance',
+): Ship[] => {
+  const selectedAttackers = legalAttackers.filter((ship) =>
+    planning.combatAttackerIds.includes(ship.id),
+  );
+
+  if (selectedAttackers.length > 0) {
+    return selectedAttackers;
+  }
+
+  if (targetType === 'ship' && planning.selectedShipId) {
+    const selectedShip = legalAttackers.find(
+      (ship) => ship.id === planning.selectedShipId,
+    );
+
+    if (selectedShip) {
+      return [selectedShip];
+    }
+  }
+
+  return legalAttackers;
+};
+
 const formatPreviewLabel = (
   target: Ship | Ordnance,
   targetType: 'ship' | 'ordnance',
@@ -304,12 +331,11 @@ export const getCombatPreview = (
     };
   }
 
-  const selectedAttackers = legalAttackers.filter((ship) =>
-    planning.combatAttackerIds.includes(ship.id),
+  const activeAttackers = resolvePreviewAttackers(
+    legalAttackers,
+    planning,
+    targetInfo.targetType,
   );
-
-  const activeAttackers =
-    selectedAttackers.length > 0 ? selectedAttackers : legalAttackers;
 
   const preview = formatPreviewLabel(
     targetInfo.target,
