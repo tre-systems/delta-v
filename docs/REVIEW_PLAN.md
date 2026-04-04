@@ -1,284 +1,148 @@
 # Cross-Cutting Review Plan
 
-This document is a **sequenced checklist** for reviewing aspects of Delta-V that are not fully covered by day-to-day feature work. Treat it as a **living, recurring review cadence** rather than a one-time audit.
+A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to-day feature work. Concrete follow-up work belongs in [BACKLOG.md](./BACKLOG.md).
 
-Use this file for recurring audits, not as a task backlog. Concrete follow-up work belongs in [BACKLOG.md](./BACKLOG.md).
+**How to use:** pick a section, run the steps, update the [review log](#review-log) with date and status (**pass**, **fail — [BACKLOG item]**, or **partial**).
 
-Work through **one section at a time**; each section lists scope, concrete steps, and what to record when done.
+**When to run:** after major architecture/protocol/deployment changes, before release candidates, or on a periodic cadence (monthly/quarterly).
+
+**Parallel execution:** all sections are independent and self-contained. They can be run concurrently by separate agents — no ordering dependencies between them.
+
+**Human-only items** are marked with a `[Human]` tag. Everything else is agent-executable.
 
 **Related docs:** [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), [BACKLOG.md](./BACKLOG.md), [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md).
-
-**How to use**
-
-1. Pick the next numbered review (order below is **recommended**, not mandatory).
-2. Complete the steps; capture findings in [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), or other `docs/` files as appropriate, and update [BACKLOG.md](./BACKLOG.md) when new work is identified.
-3. For each section, set an explicit outcome in the review log: **complete**, **partial**, or **follow-up required**.
-4. Mark the section with date and owner in the review log table at the bottom of this file (or in your tracker).
-
-**When to run this plan**
-
-- After major architecture, protocol, telemetry, or deployment changes.
-- Before release candidates or broad public testing.
-- On a periodic ops cadence (for example monthly or quarterly), even without major feature changes.
 
 ---
 
 ## 1. CI and local development friction
 
-**Goal:** Reliable pre-commit and CI without skipping hooks; clear expectations for contributors.
+**Goal:** pre-commit and CI run cleanly; no hooks need skipping.
 
-**Scope**
-
-- Husky pre-commit: lint, `typecheck:all`, local D1 migration, coverage, browser e2e, a11y e2e, simulation.
-- Husky pre-commit includes both browser e2e paths (`test:e2e` and `test:e2e:a11y`) plus simulation.
-- Vitest coverage temp-file failures (`ENOENT` under `coverage/.tmp`).
-- Playwright vs occupied `8787` during pre-commit.
+**Key files:** `.husky/pre-commit`, `vitest.config.ts`, `playwright.config.ts`, `.github/workflows/ci.yml`, [CONTRIBUTING.md](./CONTRIBUTING.md), [README.md](../README.md).
 
 **Steps**
 
-1. Reproduce coverage failure locally (`npm run test:coverage` repeatedly; clean `coverage/` between runs).
-2. Check Vitest/coverage provider version and open issues; consider `coverage.clean` or stable `reportsDirectory` options.
-3. Document options: run e2e only in CI; use `reuseExistingServer`; or document “stop dev server before commit.”
-4. Align [README.md](../README.md) “Quick start” / contributor note with the chosen policy.
-
-**Deliverables**
-
-- Short note in [CONTRIBUTING.md](./CONTRIBUTING.md) or README: **when hooks run, what to do if they fail**.
-- Optional BACKLOG item if a code/config fix is needed.
+1. Run `npm run verify` end-to-end. **Pass:** exits 0. **Fail:** file a BACKLOG item with the failing step and error.
+2. Run `npm run test:coverage` three times in a row. **Pass:** no `ENOENT` or stale-merge failures. **Fail:** check Vitest/coverage provider versions for known issues; consider `coverage.clean` or stable `reportsDirectory`.
+3. Run pre-commit with a dev server on port 8787. **Pass:** e2e uses dynamic port, no conflict. **Fail:** check `DELTAV_PRE_COMMIT_E2E` dynamic port logic in `.husky/pre-commit`.
+4. Check that [CONTRIBUTING.md](./CONTRIBUTING.md) documents: what the pre-commit hook runs, what to do when it fails, and the `npm run verify` command. **Pass:** all three are covered. **Fail:** update the doc.
 
 ---
 
-## 2. Observability end-to-end
+## 2. Observability, data lifecycle, and privacy
 
-**Goal:** Understand what you can know in production and whether it is enough for incidents and balance.
+**Goal:** know what is stored, how long it lives, and whether implementation matches docs.
 
-**Scope**
+**Key files:** `src/server/index.ts` (`insertEvent`), `migrations/`, `src/client/telemetry.ts`, `src/server/game-do/match-archive.ts`, [OBSERVABILITY.md](./OBSERVABILITY.md), [SECURITY.md](./SECURITY.md), [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md).
 
-- Worker / DO logs, D1 `events` schema and queries, client telemetry payload shapes.
-- `anonId`, `ip_hash`, UA storage — fit to any stated privacy posture.
+**Scope:** D1 (`events`, `match_archive`), R2 (`matches/{gameId}.json`), DO ephemeral storage, client telemetry, `anonId`/`ip_hash`/UA, chat text.
 
 **Steps**
 
-1. Read `src/server/index.ts` (`insertEvent`), `migrations/`, and client `telemetry.ts`.
-2. List **event types** written today and sample queries you’d run for “error spike” or “join failures.”
-3. Check Cloudflare dashboard: Workers analytics, log search, D1 usage.
-4. Decide gaps: alerts, sampling, extra dimensions (room code hash only, never raw code, etc.).
-
-**Deliverables**
-
-- One-page **“Observability map”** ([OBSERVABILITY.md](./OBSERVABILITY.md) or adjacent `docs/` note): sources, retention, PII stance, recommended dashboards.
+1. Read `insertEvent` and `migrations/`; list every event type written to D1. Cross-check against [OBSERVABILITY.md](./OBSERVABILITY.md). **Pass:** doc lists all event types. **Fail:** update the doc.
+2. Read `telemetry.ts`; list every client telemetry payload shape. Cross-check against [OBSERVABILITY.md](./OBSERVABILITY.md). **Pass:** doc lists all payloads. **Fail:** update the doc.
+3. Read `match-archive.ts`; confirm R2 key pattern and what data is stored. Cross-check against [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do). **Pass:** retention policy matches implementation. **Fail:** update the doc or file BACKLOG item.
+4. Grep for `anonId`, `ip_hash`, `user_agent`, `chat` across `src/`; list where PII or user-generated content is persisted. Cross-check against [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md). **Pass:** no undocumented PII storage. **Fail:** update the doc.
 
 ---
 
-## 3. Data lifecycle and retention
+## 3. Security posture
 
-**Goal:** D1 and R2 growth are bounded by policy, not accident.
+**Goal:** rate limiting, input validation, and trust boundaries match what [SECURITY.md](./SECURITY.md) claims.
 
-**Scope**
-
-- D1 `events` and `match_archive` tables.
-- R2 `matches/{gameId}.json` objects.
-- DO storage (ephemeral vs long-lived keys).
+**Key files:** `src/server/index.ts`, `src/server/game-do/socket.ts`, `src/server/reporting.ts`, `src/shared/protocol.ts`, `src/client/dom.ts`, [SECURITY.md](./SECURITY.md).
 
 **Steps**
 
-1. Inventory tables and R2 key patterns from `migrations/` and `match-archive.ts`.
-2. Estimate growth (rows per active user per day, average match archive size).
-3. Define policy: retain forever, time-based purge, or manual ops playbook.
-4. If purge is needed: Workers cron, D1 `DELETE` batches, R2 lifecycle rules.
-
-**Deliverables**
-
-- **Retention and deletion** in [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do); update if user data commitments change.
+1. Read rate-limit constants in `socket.ts` (`WS_MSG_RATE_LIMIT`, `CHAT_RATE_LIMIT_MS`) and `index.ts` (create/join/replay limits). Cross-check values against [SECURITY.md](./SECURITY.md). **Pass:** all values match. **Fail:** update the doc or the code.
+2. Read `validateClientMessage()` in `src/shared/protocol.ts`. Confirm every C2S message type has validation. **Pass:** no unvalidated message types. **Fail:** add validation or file BACKLOG item.
+3. Grep for `innerHTML` usage outside `src/client/dom.ts`. **Pass:** zero hits (pre-commit hook also checks this). **Fail:** move to `setTrustedHTML()`.
+4. Grep for `Math.random()` in `src/shared/`. **Pass:** zero hits (pre-commit hook also checks this). **Fail:** replace with injected RNG.
+5. Read `src/shared/protocol.ts` input-limit constants (`MAX_FLEET_PURCHASES`, `MAX_ASTROGATION_ORDERS`, `MAX_ORDNANCE_LAUNCHES`, `MAX_COMBAT_ATTACKS`). Confirm they are enforced in the corresponding engine handlers. **Pass:** all limits checked before processing. **Fail:** add enforcement.
+6. Check room code generation in `src/server/` — confirm it uses crypto RNG, not `Math.random()`. **Pass:** uses `crypto.getRandomValues` or equivalent. **Fail:** fix.
 
 ---
 
-## 4. Accessibility (DOM surfaces)
+## 4. Game engine correctness
 
-**Goal:** Menus, HUD, fleet builder, chat, and critical flows are usable with keyboard and assistive tech where feasible.
+**Goal:** engine rules match the spec; simulation doesn't surface logic errors.
 
-**Scope**
-
-- `src/client/ui/`, `dom.ts`, focusable controls; not full Canvas gameboard (note limitations).
+**Key files:** `src/shared/engine/` (all files), `src/shared/types/domain.ts`, [SPEC.md](./SPEC.md), [SIMULATION_TESTING.md](./SIMULATION_TESTING.md).
 
 **Steps**
 
-1. Tab through create/join/play/game-over without a mouse.
-2. Run automated baseline checks (`npm run test:e2e:a11y`) and confirm pass/fail output is actionable.
-3. Run manual checks from [A11Y.md](./A11Y.md) (keyboard flow, focus behavior, contrast review for DOM controls).
-4. File concrete fixes: missing `label`, `button` vs `div`, focus trap in modals, live regions for toasts if needed.
-
-**Deliverables**
-
-- BACKLOG tasks per major gap; update [A11Y.md](./A11Y.md) audit notes/results after each manual pass.
+1. Run `npm run simulate all 100 -- --ci`. **Pass:** exits 0, no engine errors in output. **Fail:** investigate error details, file BACKLOG item.
+2. Read each engine handler (`astrogation.ts`, `combat.ts`, `logistics.ts`, `ordnance.ts`, `turn-advance.ts`, `victory.ts`). Cross-check phase transitions and resolution logic against [SPEC.md](./SPEC.md). **Pass:** no contradictions. **Fail:** file BACKLOG item noting spec vs implementation discrepancy.
+3. Run `npm run test:coverage`. Check coverage for `src/shared/engine/` files. **Pass:** no engine file below 80% line coverage. **Fail:** identify untested branches, file BACKLOG item.
 
 ---
 
-## 5. Bundle weight and client runtime
+## 5. Error handling and resilience
 
-**Goal:** Know cost of load and long sessions; avoid surprise regressions.
+**Goal:** disconnects, DO alarm failures, and D1/R2 errors don't crash games or lose state.
 
-**Scope**
-
-- `esbuild.client.mjs` output, main chunk size, optional breakdown.
-- Long-session memory (devtools heap snapshot after many turns).
+**Key files:** `src/server/game-do/ws.ts`, `src/server/game-do/socket.ts`, `src/server/game-do/alarm.ts`, `src/server/game-do/turn-timeout.ts`, `src/server/game-do/match-archive.ts`.
 
 **Steps**
 
-1. Run production build; record **main bundle KB** (gzip/brotli if available).
-2. Chrome Performance: one cold load + one mid-game interaction window.
-3. Compare after large renderer or dependency changes.
-
-**Deliverables**
-
-- Baseline numbers in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene) (bundle table); ties to [BACKLOG.md](./BACKLOG.md) priority **13** (renderer baseline).
+1. Read `alarm.ts` and `turn-timeout.ts`. Confirm every alarm handler has try-catch and reschedules on error rather than crashing. **Pass:** all paths wrapped. **Fail:** add error handling.
+2. Read `match-archive.ts`. Confirm R2 put/get and D1 insert failures are caught and don't block gameplay. **Pass:** fire-and-forget with logging. **Fail:** add error handling.
+3. Read `ws.ts` and `socket.ts`. Confirm: invalid JSON is caught, rate-limited sockets are closed cleanly (code 1008), unhandled message errors return typed errors to the client. **Pass:** all three hold. **Fail:** add handling.
+4. Read disconnect/reconnect logic (`handleGameDoWebSocketClose`, grace period). Confirm a disconnected player can rejoin within the grace window and resume. **Pass:** state is preserved and resent. **Fail:** file BACKLOG item.
+5. Run `npm run test -- --reporter=verbose` for `game-do` test files. **Pass:** all pass. **Fail:** investigate.
 
 ---
 
-## 6. Supply chain and release hygiene
+## 6. Bundle weight and client runtime
 
-**Goal:** Predictable upgrades and vulnerability response.
+**Goal:** know cost of load; avoid surprise regressions.
 
-**Scope**
-
-- `package.json` / lockfile, `npm audit`, Wrangler and Node versions.
+**Key files:** `esbuild.client.mjs`, `dist/client.js` (build output), [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene).
 
 **Steps**
 
-1. `npm audit` (document accept vs fix policy).
-2. Confirm local and CI Node versions match [README.md](../README.md), [`.nvmrc`](../.nvmrc), and `.github/workflows/ci.yml`.
-3. Document **D1 migration rollback** story (restore from backup vs forward-only fixes).
+1. Run `npm run build`. Record `dist/client.js` size: `ls -la dist/client.js` and `gzip -c dist/client.js | wc -c`. **Pass:** gzip size within 20% of baseline in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene). **Fail:** investigate new dependencies or dead code; file BACKLOG item.
+2. Check for obvious heavy imports: `grep -r "import.*from" src/client/ | sort` — flag any new large dependencies not in `package.json` at last review. **Pass:** no unexpected additions. **Fail:** evaluate if dependency is justified.
 
-**Deliverables**
-
-- Short **dependency & upgrade policy** in [CODING_STANDARDS.md](./CODING_STANDARDS.md) or [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene).
+**`[Human]`** Chrome DevTools heap snapshot after 20+ turns — check for unbounded growth. This requires a running game in a browser.
 
 ---
 
-## 7. Protocol and client compatibility
+## 7. Supply chain and release hygiene
 
-**Goal:** Safe evolution of C2S/S2C when server and client deploy at different times.
+**Goal:** predictable upgrades and vulnerability response.
 
-**Scope**
-
-- `shared/types/protocol.ts`, `shared/protocol.ts` validation, feature flags if any.
+**Key files:** `package.json`, `package-lock.json`, `.nvmrc`, `.github/workflows/ci.yml`.
 
 **Steps**
 
-1. Sketch **single-version** assumption today (SPA + Workers deploy together).
-2. If you ever split deploys: additive fields, `unknown` message handling, min client version header or build hash.
-3. Align with `GameState.schemaVersion` playbook in [BACKLOG.md](./BACKLOG.md) priority **11**.
-
-**Deliverables**
-
-- If you commit to **staggered deploys**, document explicitly in [ARCHITECTURE.md](./ARCHITECTURE.md); today the doc states **same-version deploy** (coordinated Worker + SPA).
-
----
-
-## 8. Replay and projection parity
-
-**Goal:** After engine or archive changes, replay stays trustworthy.
-
-**Scope**
-
-- `event-projector`, `archive.ts`, `projection.ts`, existing parity tests.
-
-**Steps**
-
-1. Read existing tests (`game-do` parity, `event-projector` tests).
-2. Define **when** to run full parity (e.g. every engine PR touching persistence, or nightly).
-3. After large refactors, run simulation + targeted replay fixtures.
-
-**Deliverables**
-
-- Note in CODING_STANDARDS or ARCHITECTURE: **“Engine/archive changes require … tests.”**
-
----
-
-## 9. Internationalization (i18n)
-
-**Goal:** Know the cost if you localize.
-
-**Scope**
-
-- All user-visible strings in client UI, errors surfaced from server messages.
-
-**Steps**
-
-1. Grep / inventory string literals in `client/ui`, `client/game`, toast copy.
-2. Decide: **explicit non-goal** vs **extract to message map** vs full i18n library later.
-
-**Deliverables**
-
-- [ARCHITECTURE.md](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts) (i18n stance) and/or [BACKLOG.md](./BACKLOG.md): **non-goal** vs **phase 1 string extraction** when priorities change.
-
----
-
-## 10. Privacy, compliance, and trust
-
-**Goal:** Public statements match implementation (telemetry, tokens, chat).
-
-**Scope**
-
-- What is stored (D1, logs, R2), cookie/PWA behavior, user-generated chat text.
-
-**Steps**
-
-1. Cross-check implementation vs any public privacy copy (site, repo).
-2. If EU or other strict regions matter: legal review of telemetry and retention.
-3. Ensure [SECURITY.md](./SECURITY.md) remains the technical source of truth; add user-facing FAQ if needed.
-
-**Deliverables**
-
-- Privacy policy / in-app notice updates **outside** this repo as required; technical appendix can reference SECURITY.
+1. Run `npm audit`. **Pass:** no high/critical vulnerabilities. **Fail:** fix or document accepted risk in BACKLOG.
+2. Compare Node version across `.nvmrc`, `package.json` engines (if set), and `.github/workflows/ci.yml`. **Pass:** all match. **Fail:** align them.
+3. Run `npm outdated`. Flag any dependencies more than 2 major versions behind. **Pass:** nothing critically outdated. **Fail:** file BACKLOG item for upgrade.
 
 ---
 
 ## Review log
 
-Initial documentation and tooling pass **2026-03-24**: configs fixed where safe; maps and prose docs updated; **manual** follow-ups (Lighthouse/axe tab-through, legal counsel) remain for humans.
+| #   | Area                        | Reviewed   | Status             | Notes                                                                                            |
+| --- | --------------------------- | ---------- | ------------------ | ------------------------------------------------------------------------------------------------ |
+| 1   | CI / local dev friction     | 2026-03-24 | partial            | coverage fix + dynamic e2e port shipped; [CONTRIBUTING.md](./CONTRIBUTING.md)                    |
+| 2   | Observability / data / privacy | 2026-03-24 | complete        | [OBSERVABILITY.md](./OBSERVABILITY.md), [SECURITY.md](./SECURITY.md), [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) |
+| 3   | Security posture            | —          | —                  | new section — not yet reviewed                                                                   |
+| 4   | Game engine correctness     | —          | —                  | new section — not yet reviewed                                                                   |
+| 5   | Error handling / resilience | —          | —                  | new section — not yet reviewed                                                                   |
+| 6   | Bundle / runtime            | 2026-03-28 | partial            | ~596 KB raw / ~123 KB gzip; runtime profiling is `[Human]`                                       |
+| 7   | Supply chain / release      | 2026-03-28 | follow-up required | networked `npm audit` still needed                                                               |
 
-Automated comprehensive review pass **2026-03-28**: `npm run verify` passed (lint, typecheck, coverage, build, e2e, a11y e2e, simulation). Follow-up work was identified for scenario balance/timeout skew and dependency audit remediation; later AI passes materially reduced the gameplay outliers, so [BACKLOG.md](./BACKLOG.md) item **18** is now ongoing monitoring rather than an active severe defect. Dependency audit follow-up remains in item **19**.
-
-Documentation consistency pass **2026-03-28**: README, spec, architecture, simulation, backlog, and review docs were realigned with the current codebase; internal markdown links were rechecked; key external references were spot-checked. Supply-chain audit status still requires a networked `npm audit` run.
-
-| #   | Area                     | Reviewed (date) | Owner | Status             | Notes / link                                                                                                     |
-| --- | ------------------------ | --------------- | ----- | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| 1   | CI / local dev friction  | 2026-03-24      | —     | partial            | `test:coverage` + `--no-file-parallelism`; pre-commit dynamic `E2E_PORT`; [CONTRIBUTING.md](./CONTRIBUTING.md) |
-| 2   | Observability            | 2026-03-24      | —     | complete           | [OBSERVABILITY.md](./OBSERVABILITY.md)                                                                           |
-| 3   | Data lifecycle           | 2026-03-24      | —     | complete           | [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do)                                                             |
-| 4   | Accessibility            | 2026-03-24      | —     | follow-up required | [A11Y.md](./A11Y.md) — automated baseline shipped; manual audit still due                                        |
-| 5   | Bundle / runtime         | 2026-03-28      | —     | partial            | `dist/client.js` re-measured at ~596 KB raw / ~123 KB gzip; runtime profiling still optional/manual             |
-| 6   | Supply chain / release   | 2026-03-28      | —     | follow-up required | dependency audit status still needs a networked `npm audit`; remediation remains tracked in [BACKLOG.md](./BACKLOG.md) item **19** |
-| 7   | Protocol compatibility   | 2026-03-24      | —     | complete           | [ARCHITECTURE.md](./ARCHITECTURE.md) intro + [section 6](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts) |
-| 8   | Replay / parity          | 2026-03-24      | —     | complete           | [CODING_STANDARDS.md](./CODING_STANDARDS.md) testing guidance                                                     |
-| 9   | i18n                     | 2026-03-24      | —     | complete           | [English-only stance](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts)                                  |
-| 10  | Privacy / compliance     | 2026-03-24      | —     | follow-up required | [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) — legal review out of band                                        |
+**Decisions already recorded elsewhere (no recurring review needed):**
+- **i18n:** English-only — [ARCHITECTURE.md](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts).
+- **Protocol compatibility:** same-version deploy — [ARCHITECTURE.md](./ARCHITECTURE.md) sections 1 + 6.
+- **Replay/parity:** covered by coding standard — [CODING_STANDARDS.md](./CODING_STANDARDS.md).
+- **Accessibility:** `[Human]` — manual keyboard/screen-reader audit per [A11Y.md](./A11Y.md); automated checks via `npm run test:e2e:a11y`.
 
 ---
 
-## Suggested order (summary)
+## Caveats
 
-1. CI / local dev — removes daily friction.
-2. Observability — informs everything operational.
-3. Data lifecycle — cost and compliance foundation.
-4. Accessibility — user impact and risk reduction.
-5. Bundle / runtime — performance baseline.
-6. Supply chain / release — security and deploy confidence.
-7. Protocol compatibility — only urgent before split deploys.
-8. Replay / parity — ongoing with engine changes.
-9. i18n — product decision.
-10. Privacy / compliance — legal calendar, can parallelize with 2–3.
-
-Open follow-up tasks from each review area are tracked in [BACKLOG.md](./BACKLOG.md) (items marked **Human**, and the numbered list overall).
-
-## What this review pass does *not* guarantee
-
-- **Completeness:** The backlog captures major, agreed themes — not every possible bug, edge case, or future product idea.
-- **Permanent factual truth:** Numbers in [ARCHITECTURE.md](./ARCHITECTURE.md) (bundle table, Node version) and similar are **baselines**; they go stale until someone updates them after meaningful changes.
-- **Legal or compliance sign-off:** Technical docs (including [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md)) are not policies; counsel and public notices stay outside this repo unless you add them.
-- **Manual QA:** DOM accessibility and keyboard flows still need a human pass per [A11Y.md](./A11Y.md) and [BACKLOG.md](./BACKLOG.md).
-
-When behavior or ops reality changes, update the relevant `docs/` file in the same PR as the code when practical.
-
-A link to this file is in [README.md](../README.md) under the documentation guide.
+- Numbers in docs (bundle size, Node version) are baselines that go stale — update them alongside meaningful changes.
+- Technical docs are not legal or compliance sign-off; counsel and public notices stay outside this repo.
