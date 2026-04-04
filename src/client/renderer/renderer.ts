@@ -30,7 +30,11 @@ import {
   drawHexFlashes,
   type HexFlash,
 } from './effects';
-import { frameCameraOnAnimatedHexes, frameCameraOnPlayerShips } from './frame';
+import {
+  frameCameraOnActivePlayer,
+  frameCameraOnAnimatedHexes,
+  frameCameraOnPlayerShips,
+} from './frame';
 import { drawMinimapOverlay } from './minimap-draw';
 import {
   renderCombatOverlay as renderCombatOverlayFn,
@@ -537,6 +541,10 @@ export const createRenderer = (
     frameOnShips: () => {
       if (!gameState) return;
       frameCameraOnPlayerShips(camera, gameState, playerId, HEX_SIZE);
+    },
+
+    frameOnActivePlayer: (state: GameState) => {
+      frameCameraOnActivePlayer(camera, state, HEX_SIZE);
     },
 
     start: () => {
