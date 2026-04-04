@@ -628,33 +628,84 @@ h2.game-over-neutral {
 
 .replay-bar {
   position: fixed;
-  bottom: 1rem;
+  bottom: calc(1rem + var(--safe-bottom));
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.6rem;
-  border-radius: 18px;
-  backdrop-filter: blur(14px);
-  font-size: 0.75rem;
+  gap: 0.65rem;
+  padding: 0.45rem 0.55rem 0.45rem 0.45rem;
+  border-radius: 22px;
 }
 
-.replay-bar .btn {
-  padding: 0.3rem 0.55rem;
-  font-size: 0.75rem;
-  min-width: 0;
+.replay-bar-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.replay-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(200, 215, 235, 0.85);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.replay-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(122, 215, 255, 0.25);
+  color: #eef4ff;
+}
+
+.replay-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.replay-btn-play {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-color: rgba(122, 215, 255, 0.2);
+  background: rgba(122, 215, 255, 0.08);
+  color: #7bcbff;
+}
+
+.replay-btn-play:hover:not(:disabled) {
+  background: rgba(122, 215, 255, 0.18);
+  border-color: rgba(122, 215, 255, 0.35);
+  color: #a8e0ff;
+}
+
+.replay-btn-exit {
+  width: auto;
+  border-radius: var(--radius-pill);
+  padding: 0 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
 }
 
 .replay-bar-status {
+  flex: 1;
+  min-width: 0;
   color: rgba(159, 181, 196, 0.9);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
-  padding: 0 0.3rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .reconnect-overlay {

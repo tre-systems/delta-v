@@ -43,6 +43,7 @@ export const STATIC_BUTTON_BINDINGS = [
   { id: 'replayEndBtn', event: { type: 'replayEnd' } },
   { id: 'replayBarStartBtn', event: { type: 'replayStart' } },
   { id: 'replayBarPrevBtn', event: { type: 'replayPrev' } },
+  { id: 'replayBarPlayBtn', event: { type: 'replayPlayPause' } },
   { id: 'replayBarNextBtn', event: { type: 'replayNext' } },
   { id: 'replayBarEndBtn', event: { type: 'replayEnd' } },
   { id: 'replayBarExitBtn', event: { type: 'toggleReplay' } },

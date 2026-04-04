@@ -13,6 +13,7 @@ export type UIEventPlan =
   | { kind: 'command'; command: GameCommand }
   | { kind: 'selectReplayMatch'; direction: 'prev' | 'next' }
   | { kind: 'toggleReplay' }
+  | { kind: 'replayPlayPause' }
   | { kind: 'replayNav'; direction: 'start' | 'prev' | 'next' | 'end' }
   | { kind: 'sendChat'; text: string }
   | { kind: 'trackOnly'; event: 'scenario_browsed' };
@@ -79,6 +80,8 @@ export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
       return { kind: 'selectReplayMatch', direction: 'next' };
     case 'toggleReplay':
       return { kind: 'toggleReplay' };
+    case 'replayPlayPause':
+      return { kind: 'replayPlayPause' };
     case 'replayStart':
       return { kind: 'replayNav', direction: 'start' };
     case 'replayPrev':

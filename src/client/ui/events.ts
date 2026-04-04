@@ -26,6 +26,7 @@ export type UIEvent =
   | { type: 'replayMatchPrev' }
   | { type: 'replayMatchNext' }
   | { type: 'toggleReplay' }
+  | { type: 'replayPlayPause' }
   | { type: 'replayStart' }
   | { type: 'replayPrev' }
   | { type: 'replayNext' }
