@@ -112,10 +112,14 @@ export const computeOdds = (
   return '1:4';
 };
 
-// Get total combat strength for a group of attackers.
+// Get total combat strength for a group of ships.
 export const getCombatStrength = (ships: Ship[]): number =>
   sumBy(ships, (ship) => {
-    if (ship.lifecycle === 'destroyed' || ship.damage.disabledTurns > 0) {
+    if (ship.lifecycle === 'destroyed') {
+      return 0;
+    }
+
+    if (ship.damage.disabledTurns > 0 && !canOperateWhileDisabled(ship)) {
       return 0;
     }
 
