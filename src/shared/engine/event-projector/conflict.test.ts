@@ -422,6 +422,30 @@ describe('projectConflictEvent', () => {
     expect(result.value.combatTargetedThisPhase).toEqual(['ship:s2']);
   });
 
+  it('does not mark opposing counterattackers as fired', () => {
+    const state = baseState();
+    const event: ConflictProjectionEvent = {
+      type: 'combatAttack',
+      attackerIds: [asShipId('s2')],
+      targetId: asShipId('s1'),
+      targetType: 'ship',
+      attackType: 'gun',
+      roll: 4,
+      modifiedRoll: 4,
+      damageType: 'none',
+      disabledTurns: 0,
+    };
+
+    const result = projectConflictEvent(state, event);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(
+      must(result.value.ships.find((s) => s.id === 's2')).firedThisPhase,
+    ).toBeUndefined();
+    expect(result.value.combatTargetedThisPhase).toEqual(['ship:s1']);
+  });
+
   it('destroys ship on combatAttack with eliminated damage', () => {
     const state = baseState();
     const event: ConflictProjectionEvent = {
