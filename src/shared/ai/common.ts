@@ -76,18 +76,102 @@ export const pickNextCheckpoint = (
 
   if (!shipPos) return unvisited[0];
 
-  return unvisited.reduce((best, name) => {
-    const body = map.bodies.find((candidate) => candidate.name === name);
+  const bodyCenters = new Map(
+    map.bodies.map((body) => [body.name, body.center] as const),
+  );
+  const homeCenter = bodyCenters.get(player.homeBody);
+  const routeBodies = unvisited.filter((body) => bodyCenters.has(body));
 
-    if (!body) return best;
-    const dist = hexDistance(shipPos, body.center);
-    const bestBody = map.bodies.find((candidate) => candidate.name === best);
-    const bestDist = bestBody
-      ? hexDistance(shipPos, bestBody.center)
-      : Infinity;
+  if (!homeCenter || routeBodies.length === 0) {
+    return unvisited.reduce((best, name) => {
+      const body = bodyCenters.get(name);
+      const bestBody = bodyCenters.get(best);
 
-    return dist < bestDist ? name : best;
-  }, unvisited[0]);
+      if (!body) return best;
+
+      return hexDistance(shipPos, body) < hexDistance(shipPos, bestBody ?? shipPos)
+        ? name
+        : best;
+    }, unvisited[0]);
+  }
+
+  const memo = new Map<string, number>();
+  const getRemainingTourCost = (fromBody: string, remainingMask: number): number => {
+    const cacheKey = `${fromBody}|${remainingMask}`;
+    const cached = memo.get(cacheKey);
+
+    if (cached != null) {
+      return cached;
+    }
+
+    const fromCenter = bodyCenters.get(fromBody);
+
+    if (!fromCenter) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    if (remainingMask === 0) {
+      const finalLeg = hexDistance(fromCenter, homeCenter);
+
+      memo.set(cacheKey, finalLeg);
+      return finalLeg;
+    }
+
+    let bestCost = Number.POSITIVE_INFINITY;
+
+    for (let i = 0; i < routeBodies.length; i++) {
+      if ((remainingMask & (1 << i)) === 0) {
+        continue;
+      }
+
+      const nextBody = routeBodies[i];
+      const nextCenter = bodyCenters.get(nextBody);
+
+      if (!nextCenter) {
+        continue;
+      }
+
+      const candidateCost =
+        hexDistance(fromCenter, nextCenter) +
+        getRemainingTourCost(nextBody, remainingMask ^ (1 << i));
+
+      if (candidateCost < bestCost) {
+        bestCost = candidateCost;
+      }
+    }
+
+    memo.set(cacheKey, bestCost);
+    return bestCost;
+  };
+
+  let bestBody = routeBodies[0];
+  let bestCost = Number.POSITIVE_INFINITY;
+  let bestDirectDist = Number.POSITIVE_INFINITY;
+  const fullMask = (1 << routeBodies.length) - 1;
+
+  for (let i = 0; i < routeBodies.length; i++) {
+    const nextBody = routeBodies[i];
+    const nextCenter = bodyCenters.get(nextBody);
+
+    if (!nextCenter) {
+      continue;
+    }
+
+    const directDist = hexDistance(shipPos, nextCenter);
+    const totalCost =
+      directDist + getRemainingTourCost(nextBody, fullMask ^ (1 << i));
+
+    if (
+      totalCost < bestCost ||
+      (totalCost === bestCost && directDist < bestDirectDist)
+    ) {
+      bestBody = nextBody;
+      bestCost = totalCost;
+      bestDirectDist = directDist;
+    }
+  }
+
+  return bestBody;
 };
 
 export const projectShipAfterCourse = (
