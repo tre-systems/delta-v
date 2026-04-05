@@ -133,7 +133,7 @@ const SCENARIOS_INTERNAL = {
         ships: [
           {
             type: 'corsair',
-            position: getBodyOffset('Terra', 1, -1),
+            position: getBodyOffset('Terra', -1, -1),
             velocity: { dq: 0, dr: 0 },
             startLanded: false,
           },
@@ -322,7 +322,7 @@ const SCENARIOS_INTERNAL = {
     description: 'Build your fleet and clash ' + '— Mars vs Venus',
     rules: { logisticsEnabled: true },
     startingPlayer: 1,
-    startingCredits: 400,
+    startingCredits: [600, 400],
     availableFleetPurchases: [
       'corvette',
       'corsair',

@@ -5,8 +5,8 @@ import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   GameState,
   OrdnanceLaunch,
-  Ship,
   PlayerId,
+  Ship,
   SolarSystemMap,
 } from '../types';
 import { maxBy, minBy } from '../util';

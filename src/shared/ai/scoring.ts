@@ -368,7 +368,10 @@ export const scoreCombatPositioning = (
       const objectiveContested = targetHex
         ? (() => {
             const predictedEnemy = hexAdd(enemy.position, enemy.velocity);
-            const currentTargetDist = hexDistance(course.destination, targetHex);
+            const currentTargetDist = hexDistance(
+              course.destination,
+              targetHex,
+            );
             const enemyTargetDist = Math.min(
               hexDistance(enemy.position, targetHex),
               hexDistance(predictedEnemy, targetHex),
@@ -477,7 +480,11 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
           cfg.multiplier;
       }
 
-      if (!escapeWins && isRace && nextEdgeDist < cfg.boundaryAvoidanceThreshold) {
+      if (
+        !escapeWins &&
+        isRace &&
+        nextEdgeDist < cfg.boundaryAvoidanceThreshold
+      ) {
         const projectedSeverity =
           cfg.boundaryAvoidanceThreshold - nextEdgeDist + 1;
         score -=
