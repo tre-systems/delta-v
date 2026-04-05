@@ -294,6 +294,7 @@ const getPassengerEmergencyEscortOrders = (
             targetHex,
             targetBody,
             escapeWins,
+            escapeEdge: state.scenarioRules.escapeEdge ?? 'any',
             enemyShips,
             cfg,
             map,
@@ -312,6 +313,7 @@ const getPassengerEmergencyEscortOrders = (
             targetHex: null,
             targetBody: '',
             escapeWins: false,
+            escapeEdge: state.scenarioRules.escapeEdge ?? 'any',
             enemyShips,
             cfg,
             map,
@@ -546,6 +548,11 @@ export const aiAstrogation = (
     const canBurnFuel = ship.fuel > 0;
     const interceptingEnemy =
       enemyEscaping && !escapeWins && shipTargetHex == null;
+    const nearbyEnemy = enemyShips.some(
+      (enemy) => hexDistance(ship.position, enemy.position) <= 4,
+    );
+    const objectiveDriveDiscipline =
+      shipTargetHex != null && !passengerEscortMission && !checkpoints;
     const allowsCorrectiveBurnLookahead =
       !!checkpoints ||
       shipTargetHex != null ||
@@ -556,7 +563,8 @@ export const aiAstrogation = (
       stats?.canOverload &&
       ship.fuel >= 2 &&
       !ship.overloadUsed &&
-      deriveCapabilities(state.scenarioRules).combatEnabled;
+      deriveCapabilities(state.scenarioRules).combatEnabled &&
+      (!objectiveDriveDiscipline || nearbyEnemy);
     type BurnOption = {
       burn: number | null;
       overload: number | null;
@@ -656,6 +664,7 @@ export const aiAstrogation = (
           targetHex: shipTargetHex,
           targetBody: shipTargetBody,
           escapeWins,
+          escapeEdge: caps.escapeEdge,
           enemyShips,
           cfg,
           map,
@@ -698,7 +707,11 @@ export const aiAstrogation = (
           score += cfg.fuelDriftBonus;
         }
       } else if (opt.overload !== null) {
-        score -= cfg.fuelOverloadPenalty;
+        const overloadPenalty =
+          cfg.fuelOverloadPenalty +
+          (shipTargetHex != null ? (checkpoints ? 8 : 4) : 0) +
+          (passengerEscortMission ? 2 : 0);
+        score -= overloadPenalty * cfg.multiplier;
       }
 
       let bestLocalWG: Record<string, boolean> | undefined;
@@ -739,6 +752,7 @@ export const aiAstrogation = (
             targetHex: shipTargetHex,
             targetBody: shipTargetBody,
             escapeWins,
+            escapeEdge: caps.escapeEdge,
             enemyShips,
             cfg,
             map,
