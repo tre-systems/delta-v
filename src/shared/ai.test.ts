@@ -188,10 +188,14 @@ describe('aiAstrogation', () => {
       findBaseHex,
     );
     const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemyShip = must(state.ships.find((s) => s.owner === 0));
     aiShip.lifecycle = 'active';
-    aiShip.position = { q: 10, r: 0 };
+    aiShip.position = { q: 0, r: 0 };
     aiShip.velocity = { dq: 0, dr: 0 };
     aiShip.fuel = 10;
+    enemyShip.lifecycle = 'active';
+    enemyShip.position = { q: 4, r: 0 };
+    enemyShip.velocity = { dq: 0, dr: 0 };
     const withAllowance = aiAstrogation(state, 1, map, 'hard');
     expect(withAllowance[0].overload).not.toBeNull();
     aiShip.overloadUsed = true;
@@ -518,6 +522,28 @@ describe('buildAIFleetPurchases', () => {
           purchase.kind === 'ship' && purchase.shipType === 'corvette',
       ),
     ).toBe(true);
+  });
+  it('avoids over-investing in capitals for logistics fleet battles', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.interplanetaryWar,
+      map,
+      asGameId('FLEET-LOGISTICS'),
+      findBaseHex,
+    );
+    const purchases = buildAIFleetPurchases(
+      state,
+      0,
+      'hard',
+      SCENARIOS.interplanetaryWar.availableFleetPurchases,
+    );
+
+    expect(
+      purchases.some(
+        (purchase) =>
+          purchase.kind === 'ship' && purchase.shipType === 'dreadnaught',
+      ),
+    ).toBe(false);
+    expect(purchases.length).toBeGreaterThanOrEqual(6);
   });
 });
 describe('aiLogistics', () => {
@@ -885,7 +911,7 @@ describe('AI scenario handling', () => {
   });
 });
 describe('aiAstrogation — escape strategy', () => {
-  it('escape AI prefers directions that increase distance from center', () => {
+  it('escape AI prefers directions that make progress toward escape', () => {
     const state = createGameOrThrow(
       SCENARIOS.escape,
       map,
@@ -901,6 +927,36 @@ describe('aiAstrogation — escape strategy', () => {
     expect(order).toBeDefined();
     // Should burn, not drift
     expect(order?.burn).not.toBeNull();
+  });
+  it('escape AI respects the north-edge objective', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('ESC-NORTH'),
+      findBaseHex,
+    );
+    const pilgrim = must(state.ships.find((s) => s.owner === 0));
+
+    pilgrim.lifecycle = 'active';
+    pilgrim.position = { q: 0, r: -6 };
+    pilgrim.velocity = { dq: 2, dr: 0 };
+    pilgrim.fuel = 10;
+
+    const order = must(
+      aiAstrogation(state, 0, map, 'hard').find((o) => o.shipId === pilgrim.id),
+    );
+    const course = computeCourse(pilgrim, order.burn, map, {
+      ...(order.overload != null ? { overload: order.overload } : {}),
+      ...(order.land ? { land: true } : {}),
+      ...(order.weakGravityChoices
+        ? { weakGravityChoices: order.weakGravityChoices }
+        : {}),
+      destroyedBases: state.destroyedBases,
+    });
+
+    expect(course.destination.r + course.newVelocity.dr).toBeLessThan(
+      pilgrim.position.r,
+    );
   });
   it('escape AI penalizes staying landed', () => {
     const state = createGameOrThrow(

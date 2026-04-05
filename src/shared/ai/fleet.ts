@@ -26,13 +26,13 @@ const COMBAT_FLEET_PRIORITIES: Record<
   easy: ['corvette', 'corsair', 'packet', 'transport'],
   normal: ['frigate', 'corsair', 'corvette', 'packet', 'transport'],
   hard: [
-    'dreadnaught',
     'frigate',
-    'torch',
     'corsair',
     'corvette',
     'packet',
     'transport',
+    'dreadnaught',
+    'torch',
   ],
 };
 
@@ -86,14 +86,14 @@ const scoreCombatFleetPlan = (purchases: FleetPurchase[]): number => {
   const torchCount = shipTypes.filter((type) => type === 'torch').length;
 
   let score =
-    totalCombat * 28 +
-    hullCount * 18 +
-    totalCargo * 0.7 +
-    totalFuel * 0.4 +
-    overloadCount * 10;
+    totalCombat * 24 +
+    hullCount * 30 +
+    totalCargo * 0.4 +
+    totalFuel * 0.3 +
+    overloadCount * 12;
 
-  if (hullCount < 3) {
-    score -= (3 - hullCount) * 60;
+  if (hullCount < 5) {
+    score -= (5 - hullCount) * 75;
   }
 
   if (frigateCount > 0 && corsairCount + corvetteCount > 0) {
@@ -102,6 +102,10 @@ const scoreCombatFleetPlan = (purchases: FleetPurchase[]): number => {
 
   if (corsairCount >= 3) {
     score += 15;
+  }
+
+  if (corvetteCount >= 6) {
+    score += 30;
   }
 
   if (torchCount > 0 && hullCount === 1) {
@@ -115,6 +119,7 @@ const buildOptimizedCombatFleetPurchases = (
   availableShipTypes: readonly PurchasableShipType[],
   difficulty: AIDifficulty,
   credits: number,
+  getMaxCountOverride?: (shipType: PurchasableShipType) => number,
 ): FleetPurchase[] => {
   const purchasableTypes = [...availableShipTypes].sort(
     (left, right) => SHIP_STATS[right].cost - SHIP_STATS[left].cost,
@@ -123,6 +128,10 @@ const buildOptimizedCombatFleetPurchases = (
   let bestScore = -Infinity;
 
   const getMaxCount = (shipType: PurchasableShipType): number => {
+    if (getMaxCountOverride) {
+      return getMaxCountOverride(shipType);
+    }
+
     switch (shipType) {
       case 'dreadnaught':
         return difficulty === 'hard' ? 1 : 0;
@@ -229,25 +238,24 @@ export const buildAIFleetPurchases = (
     availableShipTypes.length > 0 &&
     availableShipTypes.every((shipType) => isWarshipType(shipType));
 
-  if (warshipOnlyCombatFleet) {
-    return buildOptimizedCombatFleetPurchases(
-      availableShipTypes,
-      difficulty,
-      remainingCredits,
-    );
-  }
-
   const priorities = usesObjectives
     ? OBJECTIVE_FLEET_PRIORITIES[difficulty]
     : COMBAT_FLEET_PRIORITIES[difficulty];
   const wantsTanker = deriveCapabilities(state.scenarioRules).logisticsEnabled;
+  const heavyCapitalFriendlyBattle =
+    !wantsTanker && !available.has('orbitalBaseCargo');
+  const shouldUseCombatOptimizer =
+    !usesObjectives &&
+    (warshipOnlyCombatFleet ||
+      remainingCredits >= 600 ||
+      available.has('orbitalBaseCargo'));
 
   const getMaxCount = (shipType: PurchasableShipType): number => {
     switch (shipType) {
       case 'dreadnaught':
-        return difficulty === 'hard' ? 1 : 0;
+        return difficulty === 'hard' && heavyCapitalFriendlyBattle ? 1 : 0;
       case 'torch':
-        return difficulty === 'hard' ? 1 : 0;
+        return difficulty === 'hard' && heavyCapitalFriendlyBattle ? 1 : 0;
       case 'tanker':
         return wantsTanker ? 1 : 0;
       case 'transport':
@@ -256,6 +264,28 @@ export const buildAIFleetPurchases = (
         return Number.POSITIVE_INFINITY;
     }
   };
+
+  if (shouldUseCombatOptimizer) {
+    return buildOptimizedCombatFleetPurchases(
+      availableShipTypes,
+      difficulty,
+      remainingCredits,
+      (shipType) => {
+        switch (shipType) {
+          case 'corvette':
+            return 12;
+          case 'corsair':
+            return 8;
+          case 'frigate':
+            return 6;
+          case 'packet':
+            return available.has('orbitalBaseCargo') ? 1 : 0;
+          default:
+            return getMaxCount(shipType);
+        }
+      },
+    );
+  }
 
   const tryBuyShip = (shipType: PurchasableShipType): boolean => {
     if (!available.has(shipType)) return false;

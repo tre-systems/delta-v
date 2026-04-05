@@ -26,6 +26,7 @@ import {
   isValidScenario,
   SCENARIOS,
 } from '../src/shared/map-data';
+import { mulberry32 } from '../src/shared/prng';
 import type { GameState, PlayerId } from '../src/shared/types';
 
 interface SimulationMetrics {
@@ -36,7 +37,17 @@ interface SimulationMetrics {
   draws: number;
   totalTurns: number;
   crashes: number; // Internal engine errors during simulation
+  crashSeeds: number[];
   reasons: Record<string, number>;
+}
+
+interface SimulationOptions {
+  p0Diff: AIDifficulty;
+  p1Diff: AIDifficulty;
+  randomizeStart: boolean;
+  forcedStart: PlayerId | null;
+  baseSeed: number;
+  json: boolean;
 }
 
 // Per-scenario P0 decided-game rate thresholds (min, max).
@@ -54,25 +65,44 @@ const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
   grandTour: null, // Cooperative race
 };
 
+const parseDifficulty = (value: string): AIDifficulty => {
+  if (value === 'easy' || value === 'normal' || value === 'hard') {
+    return value;
+  }
+
+  throw new Error(
+    `Invalid difficulty "${value}" (expected easy, normal, or hard)`,
+  );
+};
+
+const deriveGameSeed = (baseSeed: number, gameIndex: number): number =>
+  (baseSeed + Math.imul(gameIndex + 1, 0x9e3779b9)) | 0;
+
 const runSingleGame = async (
   scenarioName: ScenarioKey,
   p0Diff: AIDifficulty,
   p1Diff: AIDifficulty,
-  randomizeStart = false,
+  {
+    randomizeStart,
+    forcedStart,
+    gameSeed,
+  }: {
+    randomizeStart: boolean;
+    forcedStart: PlayerId | null;
+    gameSeed: number;
+  },
 ) => {
   const scenario = SCENARIOS[scenarioName];
 
   const map = buildSolarSystemMap();
-
-  // Create an RNG local to the game for reproducible behavior later if needed
-  const rng = Math.random;
+  const rng = mulberry32(gameSeed);
 
   const createResult = createGame(
     scenario,
     map,
-    asGameId(`sim-${Date.now()}`),
+    asGameId(`sim-${scenarioName}-${gameSeed >>> 0}`),
     findBaseHex,
-    undefined,
+    rng,
     scenarioName,
   );
 
@@ -84,7 +114,9 @@ const runSingleGame = async (
 
   // Randomize starting player to cancel out first-mover bias
   // across many games. Reveals true faction/position balance.
-  if (randomizeStart) {
+  if (forcedStart !== null) {
+    state.activePlayer = forcedStart;
+  } else if (randomizeStart) {
     state.activePlayer = rng() < 0.5 ? 0 : 1;
   }
 
@@ -113,7 +145,7 @@ const runSingleGame = async (
 
     try {
       if (state.phase === 'astrogation') {
-        const orders = aiAstrogation(state, activePlayer, map, difficulty);
+        const orders = aiAstrogation(state, activePlayer, map, difficulty, rng);
         const result = processAstrogation(
           state,
           activePlayer,
@@ -125,7 +157,7 @@ const runSingleGame = async (
           throw new Error(`Astrogation Error: ${result.error}`);
         state = result.state;
       } else if (state.phase === 'ordnance') {
-        const launches = aiOrdnance(state, activePlayer, map, difficulty);
+        const launches = aiOrdnance(state, activePlayer, map, difficulty, rng);
 
         if (launches.length > 0) {
           const result = processOrdnance(
@@ -209,10 +241,13 @@ const runSingleGame = async (
 const runSimulation = async (
   scenarioName: ScenarioKey,
   iterations: number,
-  randomizeStart = false,
+  options: SimulationOptions,
 ) => {
   console.log(
-    `\n=== Starting Simulation: ${scenarioName} (${iterations} iterations) ===\n`,
+    `\n=== Starting Simulation: ${scenarioName} (${iterations} iterations, ` +
+      `P0=${options.p0Diff}, P1=${options.p1Diff}, seed=${options.baseSeed}` +
+      `${options.forcedStart !== null ? `, forcedStart=${options.forcedStart}` : ''}` +
+      `${options.randomizeStart ? ', randomizeStart=true' : ''}) ===\n`,
   );
 
   const metrics: SimulationMetrics = {
@@ -223,19 +258,21 @@ const runSimulation = async (
     draws: 0,
     totalTurns: 0,
     crashes: 0,
+    crashSeeds: [],
     reasons: {},
   };
 
   const startTime = Date.now();
 
   for (let i = 0; i < iterations; i++) {
+    const gameSeed = deriveGameSeed(options.baseSeed, i);
+
     try {
-      const result = await runSingleGame(
-        scenarioName,
-        'hard',
-        'hard',
-        randomizeStart,
-      );
+      const result = await runSingleGame(scenarioName, options.p0Diff, options.p1Diff, {
+        randomizeStart: options.randomizeStart,
+        forcedStart: options.forcedStart,
+        gameSeed,
+      });
       metrics.totalGames++;
       metrics.totalTurns += result.turns;
 
@@ -252,6 +289,9 @@ const runSimulation = async (
       }
     } catch (_err) {
       metrics.crashes++;
+      if (metrics.crashSeeds.length < 5) {
+        metrics.crashSeeds.push(gameSeed >>> 0);
+      }
     }
   }
 
@@ -271,6 +311,9 @@ const runSimulation = async (
     `Average Turns: ${(metrics.totalTurns / metrics.totalGames).toFixed(1)}`,
   );
   console.log(`Engine Crashes: ${metrics.crashes}`);
+  if (metrics.crashSeeds.length > 0) {
+    console.log(`Crash Seeds: ${metrics.crashSeeds.join(', ')}`);
+  }
 
   console.log(`\nWin Reasons:`);
   for (const [reason, count] of Object.entries(metrics.reasons)) {
@@ -282,26 +325,68 @@ const runSimulation = async (
 
 const main = async () => {
   const args = process.argv.slice(2);
-  const isCiMode = args.includes('--ci');
-  const randomizeStart = args.includes('--randomize-start');
-  const filteredArgs = args.filter(
-    (a) => a !== '--ci' && a !== '--randomize-start',
-  );
+  let isCiMode = false;
+  const options: SimulationOptions = {
+    p0Diff: 'hard',
+    p1Diff: 'hard',
+    randomizeStart: false,
+    forcedStart: null,
+    baseSeed: Date.now() | 0,
+    json: false,
+  };
+  const positionals: string[] = [];
 
-  const scenarioArg = filteredArgs[0] || 'biplanetary';
-  const iterations = parseInt(filteredArgs[1] || '100', 10);
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    switch (arg) {
+      case '--ci':
+        isCiMode = true;
+        break;
+      case '--randomize-start':
+        options.randomizeStart = true;
+        break;
+      case '--p0':
+        options.p0Diff = parseDifficulty(args[++i] ?? '');
+        break;
+      case '--p1':
+        options.p1Diff = parseDifficulty(args[++i] ?? '');
+        break;
+      case '--seed':
+        options.baseSeed = Number.parseInt(args[++i] ?? '', 10) | 0;
+        break;
+      case '--forced-start': {
+        const value = args[++i];
+
+        if (value !== '0' && value !== '1') {
+          throw new Error(
+            `Invalid forced start "${value}" (expected 0 or 1)`,
+          );
+        }
+        options.forcedStart = Number.parseInt(value, 10) as PlayerId;
+        break;
+      }
+      case '--json':
+        options.json = true;
+        break;
+      default:
+        positionals.push(arg);
+        break;
+    }
+  }
+
+  const scenarioArg = positionals[0] || 'biplanetary';
+  const iterations = parseInt(positionals[1] || '100', 10);
 
   const allMetrics: SimulationMetrics[] = [];
 
   if (scenarioArg === 'all') {
     for (const key of Object.keys(SCENARIOS)) {
       if (!isValidScenario(key)) continue;
-      allMetrics.push(await runSimulation(key, iterations, randomizeStart));
+      allMetrics.push(await runSimulation(key, iterations, options));
     }
   } else if (isValidScenario(scenarioArg)) {
-    allMetrics.push(
-      await runSimulation(scenarioArg, iterations, randomizeStart),
-    );
+    allMetrics.push(await runSimulation(scenarioArg, iterations, options));
   } else {
     console.error(`Unknown scenario: ${scenarioArg}`);
     process.exit(1);
@@ -310,6 +395,7 @@ const main = async () => {
   // Evaluate strict constraints if running in CI format
   if (isCiMode) {
     let failed = false;
+    let balanceWarnings = 0;
     for (const metrics of allMetrics) {
       if (metrics.crashes > 0) {
         console.error(
@@ -327,6 +413,7 @@ const main = async () => {
       const p0Rate = metrics.player0Wins / decidedGames;
       const [lo, hi] = threshold;
       if (p0Rate < lo || p0Rate > hi) {
+        balanceWarnings++;
         console.warn(
           `⚠️  ${metrics.scenario}: P0 decided rate ` +
             `${(p0Rate * 100).toFixed(1)}% outside ` +
@@ -338,9 +425,28 @@ const main = async () => {
     if (failed) {
       console.error('\n🚨 CI Constraints Failed. Exiting with code 1.');
       process.exit(1);
+    } else if (balanceWarnings > 0) {
+      console.log(
+        '\n✅ CI stability checks passed. Balance warnings above are non-fatal.',
+      );
     } else {
       console.log('\n✅ CI Constraints Passed. Engine is stable and balanced.');
     }
+  }
+
+  if (options.json) {
+    console.log(
+      JSON.stringify(
+        {
+          scenario: scenarioArg,
+          iterations,
+          options,
+          metrics: allMetrics,
+        },
+        null,
+        2,
+      ),
+    );
   }
 };
 

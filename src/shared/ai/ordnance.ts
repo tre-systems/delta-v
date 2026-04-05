@@ -1,22 +1,81 @@
-import { getCombatStrength } from '../combat';
+import { canAttack, getCombatStrength } from '../combat';
 import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
-import { hexDistance, hexEqual, hexVecLength } from '../hex';
+import { hexAdd, hexDistance, hexEqual, hexVecLength } from '../hex';
 import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   GameState,
   OrdnanceLaunch,
+  Ship,
   PlayerId,
   SolarSystemMap,
 } from '../types';
-import { minBy } from '../util';
+import { maxBy, minBy } from '../util';
 import { findDirectionToward } from './common';
 import { AI_CONFIG } from './config';
 import type { AIDifficulty } from './types';
 
+interface ScoredEnemyTarget {
+  enemy: Ship;
+  currentDistance: number;
+  predictedDistance: number;
+  predictedPosition: { q: number; r: number };
+  score: number;
+}
+
+const scoreEnemyTarget = (
+  ship: Ship,
+  enemy: Ship,
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+): ScoredEnemyTarget => {
+  const player = state.players[playerId];
+  const predictedPosition = hexAdd(enemy.position, enemy.velocity);
+  const currentDistance = hexDistance(ship.position, enemy.position);
+  const predictedDistance = hexDistance(ship.position, predictedPosition);
+  const targetHex = player.targetBody
+    ? (map.bodies.find((body) => body.name === player.targetBody)?.center ??
+      null)
+    : null;
+  const targetThreat =
+    targetHex == null
+      ? 0
+      : Math.max(
+          0,
+          8 -
+            Math.min(
+              hexDistance(enemy.position, targetHex),
+              hexDistance(predictedPosition, targetHex),
+            ),
+        ) * 10;
+  const escapeThreat = player.escapeWins
+    ? Math.max(0, 8 - currentDistance) * 8
+    : 0;
+  const passengerThreat = (enemy.passengersAboard ?? 0) > 0 ? 30 : 0;
+  const combatThreat = canAttack(enemy) ? 24 : 6;
+  const strengthThreat = getCombatStrength([enemy]) * 8;
+
+  return {
+    enemy,
+    currentDistance,
+    predictedDistance,
+    predictedPosition,
+    score:
+      strengthThreat +
+      combatThreat +
+      targetThreat +
+      escapeThreat +
+      passengerThreat -
+      predictedDistance * 6 -
+      currentDistance * 2 +
+      enemy.damage.disabledTurns * 4,
+  };
+};
+
 export const aiOrdnance = (
   state: GameState,
   playerId: PlayerId,
-  _map: SolarSystemMap,
+  map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
   rng: () => number = Math.random,
 ): OrdnanceLaunch[] => {
@@ -63,10 +122,19 @@ export const aiOrdnance = (
     const nearestEnemy = minBy(enemyShips, (enemy) =>
       hexDistance(ship.position, enemy.position),
     );
+    const bestEnemyTarget = maxBy(
+      enemyShips.map((enemy) =>
+        scoreEnemyTarget(ship, enemy, state, playerId, map),
+      ),
+      (target) => target.score,
+    );
 
-    if (!nearestEnemy) continue;
+    if (!nearestEnemy || !bestEnemyTarget) continue;
 
     const nearestDist = hexDistance(ship.position, nearestEnemy.position);
+    const bestEnemy = bestEnemyTarget.enemy;
+    const bestEnemyCurrentDist = bestEnemyTarget.currentDistance;
+    const bestEnemyPredictedDist = bestEnemyTarget.predictedDistance;
     const canLaunchNuke =
       (stats.canOverload || ship.nukesLaunchedSinceResupply < 1) &&
       !hasFriendlyLaunchStack &&
@@ -75,14 +143,20 @@ export const aiOrdnance = (
     if (
       allowedTypes.has('nuke') &&
       difficulty === 'hard' &&
-      nearestDist <= torpedoRange &&
+      Math.min(bestEnemyCurrentDist, bestEnemyPredictedDist) <= torpedoRange &&
       cargoFree >= ORDNANCE_MASS.nuke &&
       canLaunchNuke
     ) {
-      const enemyStrength = getCombatStrength([nearestEnemy]);
+      const enemyStrength = getCombatStrength([bestEnemy]);
       const myStrength = getCombatStrength([ship]);
+      const shouldUseNuke =
+        bestEnemyTarget.score >= 70 ||
+        (enemyStrength >= myStrength &&
+          bestEnemyCurrentDist <= cfg.nukeStrengthRange) ||
+        ((bestEnemy.passengersAboard ?? 0) > 0 &&
+          bestEnemyCurrentDist <= cfg.nukeStrengthRange);
 
-      if (enemyStrength >= myStrength && nearestDist <= cfg.nukeStrengthRange) {
+      if (shouldUseNuke && bestEnemyCurrentDist <= cfg.nukeStrengthRange) {
         launches.push({
           shipId: ship.id,
           ordnanceType: 'nuke',
@@ -95,16 +169,22 @@ export const aiOrdnance = (
 
     if (
       allowedTypes.has('torpedo') &&
-      nearestDist <= torpedoRange &&
+      Math.min(bestEnemyCurrentDist, bestEnemyPredictedDist) <= torpedoRange &&
       stats.canOverload &&
       cargoFree >= ORDNANCE_MASS.torpedo
     ) {
-      const bestDir = findDirectionToward(ship.position, nearestEnemy.position);
+      const bestDir = findDirectionToward(
+        ship.position,
+        bestEnemyTarget.predictedPosition,
+      );
       launches.push({
         shipId: ship.id,
         ordnanceType: 'torpedo',
         torpedoAccel: bestDir,
-        torpedoAccelSteps: nearestDist > 4 ? 2 : 1,
+        torpedoAccelSteps:
+          bestEnemyPredictedDist > 4 || hexVecLength(bestEnemy.velocity) > 1
+            ? 2
+            : 1,
       });
       continue;
     }

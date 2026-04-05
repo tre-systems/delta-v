@@ -10,20 +10,70 @@ import type { CourseResult, Ship, SolarSystemMap } from '../types';
 import { minBy } from '../util';
 import type { AIDifficultyConfig } from './config';
 
+const ESCAPE_MARGIN = 4;
+
+const getEscapeDistance = (
+  pos: { q: number; r: number },
+  bounds: SolarSystemMap['bounds'],
+  escapeEdge: 'any' | 'north',
+): number => {
+  if (escapeEdge === 'north') {
+    return pos.r - (bounds.minR - ESCAPE_MARGIN);
+  }
+
+  return Math.min(
+    pos.q - (bounds.minQ - ESCAPE_MARGIN),
+    bounds.maxQ + ESCAPE_MARGIN - pos.q,
+    pos.r - (bounds.minR - ESCAPE_MARGIN),
+    bounds.maxR + ESCAPE_MARGIN - pos.r,
+  );
+};
+
 // --- Individual scoring strategies ---
 
-// Maximize distance from center + velocity.
+// Push escape ships toward the scenario's actual escape edge.
 export const scoreEscape = (
   ship: Ship,
   course: CourseResult,
   cfg: AIDifficultyConfig,
+  map?: SolarSystemMap,
+  escapeEdge: 'any' | 'north' = 'any',
 ): number => {
   const mult = cfg.multiplier;
   let score = 0;
-  const distFromCenter = hexDistance(course.destination, { q: 0, r: 0 });
-  score += distFromCenter * cfg.escapeDistWeight * mult;
-  const speed = hexVecLength(course.newVelocity);
-  score += speed * cfg.escapeSpeedWeight * mult;
+
+  if (map) {
+    const currentEscapeDist = getEscapeDistance(
+      ship.position,
+      map.bounds,
+      escapeEdge,
+    );
+    const newEscapeDist = getEscapeDistance(
+      course.destination,
+      map.bounds,
+      escapeEdge,
+    );
+    const driftEscapeDist = getEscapeDistance(
+      hexAdd(course.destination, course.newVelocity),
+      map.bounds,
+      escapeEdge,
+    );
+
+    score +=
+      (currentEscapeDist - newEscapeDist) * cfg.escapeDistWeight * mult * 4;
+    score +=
+      (newEscapeDist - driftEscapeDist) * cfg.escapeSpeedWeight * mult * 3;
+
+    if (escapeEdge === 'north' && course.newVelocity.dr > 0) {
+      score -= course.newVelocity.dr * cfg.escapeSpeedWeight * mult * 4;
+    }
+  } else {
+    const distFromCenter = hexDistance(course.destination, { q: 0, r: 0 });
+    score += distFromCenter * cfg.escapeDistWeight * mult;
+    const speed = hexVecLength(course.newVelocity);
+    score += speed * cfg.escapeSpeedWeight * mult;
+  }
+
   // Never stay landed when trying to escape
   if (
     ship.lifecycle === 'landed' &&
@@ -79,6 +129,16 @@ export const scoreNavigation = (
     targetHex,
   );
   score -= velDist * cfg.navVelocityAlignWeight * mult;
+  const nextTurnDist = hexDistance(
+    hexAdd(course.destination, course.newVelocity),
+    targetHex,
+  );
+  score += (newDist - nextTurnDist) * cfg.navVelocityAlignWeight * mult;
+
+  if (newDist > currentDist && nextTurnDist > currentDist) {
+    score -= (nextTurnDist - currentDist) * cfg.navDistWeight * mult;
+  }
+
   // Penalty for overshooting (velocity too high
   // near target)
   if (newDist < cfg.navOvershootRange) {
@@ -296,6 +356,23 @@ export const scoreCombatPositioning = (
       }
     } else if (myStrength > 0) {
       // Has objective but also can fight
+      const objectiveContested = targetHex
+        ? (() => {
+            const predictedEnemy = hexAdd(enemy.position, enemy.velocity);
+            const currentTargetDist = hexDistance(course.destination, targetHex);
+            const enemyTargetDist = Math.min(
+              hexDistance(enemy.position, targetHex),
+              hexDistance(predictedEnemy, targetHex),
+            );
+
+            return enemyTargetDist <= currentTargetDist + 2 || dist <= 4;
+          })()
+        : true;
+
+      if (!objectiveContested) {
+        continue;
+      }
+
       if (myStrength >= enemyStr) {
         score += Math.max(0, 10 - dist) * cfg.objectiveStrongWeight * mult;
       } else {
@@ -315,6 +392,7 @@ export interface ScoreCourseParams {
   targetHex: { q: number; r: number } | null;
   targetBody: string;
   escapeWins: boolean;
+  escapeEdge?: 'any' | 'north';
   enemyShips: Ship[];
   cfg: AIDifficultyConfig;
   map?: SolarSystemMap;
@@ -332,6 +410,7 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
     targetHex,
     targetBody,
     escapeWins,
+    escapeEdge,
     enemyShips,
     cfg,
     map,
@@ -344,7 +423,7 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
 
   // Primary strategy
   if (escapeWins) {
-    score += scoreEscape(ship, course, cfg);
+    score += scoreEscape(ship, course, cfg, map, escapeEdge);
   } else if (targetHex) {
     score += scoreNavigation(ship, course, targetHex, targetBody, cfg);
   }
