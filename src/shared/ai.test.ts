@@ -517,13 +517,20 @@ describe('buildAIFleetPurchases', () => {
       SCENARIOS.fleetAction.availableFleetPurchases,
     );
 
-    expect(purchases).toHaveLength(10);
+    expect(purchases).toHaveLength(13);
     expect(
       purchases.every(
         (purchase) =>
-          purchase.kind === 'ship' && purchase.shipType === 'corvette',
+          purchase.kind === 'ship' &&
+          ['corvette', 'corsair'].includes(purchase.shipType),
       ),
     ).toBe(true);
+    expect(
+      purchases.filter(
+        (purchase) =>
+          purchase.kind === 'ship' && purchase.shipType === 'corsair',
+      ),
+    ).toHaveLength(2);
   });
   it('avoids over-investing in capitals for logistics fleet battles', () => {
     const state = createGameOrThrow(
@@ -588,9 +595,22 @@ describe('aiLogistics', () => {
       asGameId('LOG1B'),
       findBaseHex,
     );
+    const transport = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'transport'),
+    );
+    const corvette = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'corvette'),
+    );
+    const enemy = must(state.ships.find((ship) => ship.owner === 1));
 
     state.phase = 'logistics';
     state.activePlayer = 0;
+    transport.position = { q: 0, r: 0 };
+    corvette.position = { q: 0, r: 0 };
+    transport.velocity = { dq: 0, dr: 0 };
+    corvette.velocity = { dq: 0, dr: 0 };
+    enemy.position = { q: 2, r: 0 };
+    enemy.velocity = { dq: 0, dr: 0 };
 
     expect(aiLogistics(state, 0, map, 'hard')).toEqual([]);
   });

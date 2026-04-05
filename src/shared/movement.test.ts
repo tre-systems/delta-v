@@ -512,6 +512,22 @@ describe('computeCourse - landing', () => {
     expect(course.outcome).not.toBe('landing');
   });
 
+  it('stationary active ship already on a planetary base completes landing', () => {
+    const marsBase = must(findBaseHex(map, 'Mars'));
+    const ship = makeShip({
+      position: marsBase,
+      velocity: { dq: 0, dr: 0 },
+      lifecycle: 'active',
+    });
+
+    const course = computeCourse(ship, null, map);
+
+    expect(course.outcome).toBe('landing');
+    if (course.outcome === 'landing') {
+      expect(course.landedAt).toBe('Mars');
+    }
+  });
+
   it('speed 2 ship in gravity hex does not trigger orbital landing', () => {
     const marsBase = must(findBaseHex(map, 'Mars'));
     const ship = makeShip({
