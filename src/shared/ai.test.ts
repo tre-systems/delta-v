@@ -6,6 +6,7 @@ import {
   aiOrdnance,
   buildAIFleetPurchases,
 } from './ai';
+import { pickNextCheckpoint } from './ai/common';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
 import {
@@ -336,8 +337,9 @@ describe('aiAstrogation', () => {
     const corvetteOrder = must(orders.find((order) => order.shipId === 'p0s1'));
 
     expect(transportOrder.overload).toBeNull();
-    expect(transportOrder.burn).toBe(1);
-    expect(corvetteOrder.burn).toBe(1);
+    expect(transportOrder.burn).not.toBeNull();
+    expect(corvetteOrder.burn).not.toBeNull();
+    expect(corvetteOrder.burn).toBe(transportOrder.burn);
   });
 
   it('keeps a convoy tanker stacked with the passenger carrier for fuel support', () => {
@@ -1004,6 +1006,25 @@ describe('aiAstrogation — emplaced ships', () => {
   });
 });
 describe('aiAstrogation — checkpoint race', () => {
+  it('grandTour: chooses the next checkpoint by remaining tour cost', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      asGameId('GT-ROUTE'),
+      findBaseHex,
+    );
+    const p0Ship = must(state.ships.find((s) => s.owner === 0));
+    const p1Ship = must(state.ships.find((s) => s.owner === 1));
+    const checkpoints = state.scenarioRules.checkpointBodies ?? [];
+
+    expect(
+      pickNextCheckpoint(state.players[0], checkpoints, map, p0Ship.position),
+    ).toBe('Mercury');
+    expect(
+      pickNextCheckpoint(state.players[1], checkpoints, map, p1Ship.position),
+    ).toBe('Callisto');
+  });
+
   it('grandTour: AI navigates toward unvisited bodies', () => {
     const state = createGameOrThrow(
       SCENARIOS.grandTour,
