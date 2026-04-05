@@ -268,11 +268,16 @@ const runSimulation = async (
     const gameSeed = deriveGameSeed(options.baseSeed, i);
 
     try {
-      const result = await runSingleGame(scenarioName, options.p0Diff, options.p1Diff, {
-        randomizeStart: options.randomizeStart,
-        forcedStart: options.forcedStart,
-        gameSeed,
-      });
+      const result = await runSingleGame(
+        scenarioName,
+        options.p0Diff,
+        options.p1Diff,
+        {
+          randomizeStart: options.randomizeStart,
+          forcedStart: options.forcedStart,
+          gameSeed,
+        },
+      );
       metrics.totalGames++;
       metrics.totalTurns += result.turns;
 
@@ -359,9 +364,7 @@ const main = async () => {
         const value = args[++i];
 
         if (value !== '0' && value !== '1') {
-          throw new Error(
-            `Invalid forced start "${value}" (expected 0 or 1)`,
-          );
+          throw new Error(`Invalid forced start "${value}" (expected 0 or 1)`);
         }
         options.forcedStart = Number.parseInt(value, 10) as PlayerId;
         break;

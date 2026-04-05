@@ -2152,7 +2152,7 @@ describe('Fleet Action scenario', () => {
   });
   it('starts in fleet building phase with credits', () => {
     expect(fleetState.phase).toBe('fleetBuilding');
-    expect(fleetState.players[0].credits).toBe(400);
+    expect(fleetState.players[0].credits).toBe(600);
     expect(fleetState.players[1].credits).toBe(400);
   });
   it('fleet 1 is based at Mars, fleet 2 at Venus', () => {

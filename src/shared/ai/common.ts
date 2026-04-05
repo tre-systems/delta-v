@@ -89,14 +89,18 @@ export const pickNextCheckpoint = (
 
       if (!body) return best;
 
-      return hexDistance(shipPos, body) < hexDistance(shipPos, bestBody ?? shipPos)
+      return hexDistance(shipPos, body) <
+        hexDistance(shipPos, bestBody ?? shipPos)
         ? name
         : best;
     }, unvisited[0]);
   }
 
   const memo = new Map<string, number>();
-  const getRemainingTourCost = (fromBody: string, remainingMask: number): number => {
+  const getRemainingTourCost = (
+    fromBody: string,
+    remainingMask: number,
+  ): number => {
     const cacheKey = `${fromBody}|${remainingMask}`;
     const cached = memo.get(cacheKey);
 

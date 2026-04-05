@@ -197,6 +197,15 @@ const checkLanding = (
 
   if (hex?.base && !destroyedBases.has(key)) {
     if (bodyHasGravity(hex.base.bodyName, map)) {
+      const alreadyStationaryOnBase =
+        fuelSpent === 0 &&
+        hexVecLength(newVelocity) === 0 &&
+        hexKey(ship.position) === key;
+
+      if (alreadyStationaryOnBase) {
+        return hex.base.bodyName;
+      }
+
       return canLandAtPlanetaryBase(
         ship,
         hex.base.bodyName,
