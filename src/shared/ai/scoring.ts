@@ -178,9 +178,18 @@ export const scoreRaceDanger = (
   // Must be nearly stopped to land
   if (targetHex) {
     const newDist = hexDistance(course.destination, targetHex);
+    const nextTurnDist = hexDistance(
+      hexAdd(course.destination, course.newVelocity),
+      targetHex,
+    );
 
     if (newDist < 3 && speed > 1) {
       score -= speed * cfg.navBrakingPenalty;
+    }
+
+    if (nextTurnDist < 5 && speed > 1) {
+      score -=
+        (5 - nextTurnDist) * Math.max(0, speed - 1) * cfg.navBrakingPenalty;
     }
   }
   return score;
@@ -466,6 +475,17 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
           (edgeDist - nextEdgeDist) *
           cfg.boundaryVelocityPenalty *
           cfg.multiplier;
+      }
+
+      if (!escapeWins && isRace && nextEdgeDist < cfg.boundaryAvoidanceThreshold) {
+        const projectedSeverity =
+          cfg.boundaryAvoidanceThreshold - nextEdgeDist + 1;
+        score -=
+          projectedSeverity *
+          projectedSeverity *
+          cfg.boundaryAvoidanceSeverityMultiplier *
+          cfg.multiplier *
+          2;
       }
     }
   }
