@@ -54,10 +54,20 @@ describe('OverlayView', () => {
   beforeEach(() => {
     installFixture();
     vi.useFakeTimers();
+    delete (
+      globalThis as typeof globalThis & {
+        __DELTA_V_FEATURE_FLAGS?: unknown;
+      }
+    ).__DELTA_V_FEATURE_FLAGS;
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    delete (
+      globalThis as typeof globalThis & {
+        __DELTA_V_FEATURE_FLAGS?: unknown;
+      }
+    ).__DELTA_V_FEATURE_FLAGS;
   });
 
   it('renders game-over and rematch-pending states', () => {
@@ -128,6 +138,11 @@ describe('OverlayView', () => {
   });
 
   it('shows replay controls and updates navigation state', () => {
+    (
+      globalThis as typeof globalThis & {
+        __DELTA_V_FEATURE_FLAGS?: { replayControls?: boolean };
+      }
+    ).__DELTA_V_FEATURE_FLAGS = { replayControls: true };
     const state = createOverlayStateStore();
     createOverlayView(state);
     const replayControlsSignal = signal(createHiddenReplayControls());
