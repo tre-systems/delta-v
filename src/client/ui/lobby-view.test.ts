@@ -25,10 +25,20 @@ describe('LobbyView', () => {
   beforeEach(() => {
     installFixture();
     vi.useFakeTimers();
+    delete (
+      globalThis as typeof globalThis & {
+        __DELTA_V_FEATURE_FLAGS?: unknown;
+      }
+    ).__DELTA_V_FEATURE_FLAGS;
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    delete (
+      globalThis as typeof globalThis & {
+        __DELTA_V_FEATURE_FLAGS?: unknown;
+      }
+    ).__DELTA_V_FEATURE_FLAGS;
   });
 
   it('does not throw when global localStorage lacks Storage methods (uses window)', () => {
@@ -155,6 +165,21 @@ describe('LobbyView', () => {
 
     vi.advanceTimersByTime(2000);
     expect(document.getElementById('copyBtn')?.textContent).toBe('Copy Link');
+  });
+
+  it('hides spectator link controls when feature is disabled', () => {
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+    });
+
+    expect(
+      (document.getElementById('copySpectateBtn') as HTMLElement).hasAttribute(
+        'hidden',
+      ),
+    ).toBe(true);
   });
 
   it('disables join button when input is empty or invalid and shows toast on submit', () => {

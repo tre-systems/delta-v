@@ -1,4 +1,5 @@
 import { byId, clearHTML, el, hide, listen, show, text, visible } from '../dom';
+import { isClientFeatureEnabled } from '../feature-flags';
 import {
   computed,
   createDisposalScope,
@@ -120,6 +121,7 @@ export const createOverlayView = (
     | 'hideOpponentDisconnected'
   >,
 ): OverlayView => {
+  const replayControlsEnabled = isClientFeatureEnabled('replayControls');
   const scope = createDisposalScope();
   const gameOverEl = byId('gameOver');
   const gameOverKickerEl = byId('gameOverKicker');
@@ -307,13 +309,14 @@ export const createOverlayView = (
 
     effect(() => {
       const replayView = state.replayControlsSignal.value;
+      const replayAvailable = replayControlsEnabled && replayView.available;
 
-      visible(replayControlsEl, replayView.available);
-      visible(replayStatusEl, replayView.available);
+      visible(replayControlsEl, replayAvailable);
+      visible(replayStatusEl, replayAvailable);
 
       // When replay is active, game-over shell visibility is handled by
       // gameOverShellVisible; show the compact bottom bar only.
-      if (replayView.active) {
+      if (replayControlsEnabled && replayView.active) {
         show(replayBarEl, 'flex');
         text(replayBarStatusEl, replayView.statusText);
         replayBarStartBtn.disabled = !replayView.canStart;
@@ -334,7 +337,7 @@ export const createOverlayView = (
         hide(replayBarEl);
       }
 
-      if (!replayView.available) {
+      if (!replayAvailable) {
         return;
       }
 

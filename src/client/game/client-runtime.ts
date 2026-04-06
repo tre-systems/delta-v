@@ -8,6 +8,7 @@ import { normalizePlayerToken, normalizeRoomCode } from '../../shared/ids';
 import type { SolarSystemMap } from '../../shared/types/domain';
 import { initAudio, isMuted, setMuted } from '../audio';
 import { byId, hide } from '../dom';
+import { isClientFeatureEnabled } from '../feature-flags';
 import {
   bindGameClientBrowserEvents,
   bindServiceWorkerControllerReload,
@@ -111,6 +112,10 @@ const autoJoinFromUrl = (
   if (code && code.length === CODE_LENGTH) {
     history.replaceState(null, '', buildGameRoute(code));
     if (viewer === 'spectator') {
+      if (!isClientFeatureEnabled('spectatorMode')) {
+        setMenuState();
+        return;
+      }
       spectateGame(code);
     } else {
       joinGame(code, playerToken);
