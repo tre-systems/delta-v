@@ -1,6 +1,7 @@
 import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
-import { byId, cls, listen, setTrustedHTML, text } from '../dom';
+import { isClientFeatureEnabled } from '../feature-flags';
+import { byId, cls, hide, listen, setTrustedHTML, text } from '../dom';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import type { AIDifficulty, UIEvent } from './events';
 import { parseJoinInput } from './formatters';
@@ -73,6 +74,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const waitingStatusEl = byId('waitingStatus');
 
   let copyResetTimer: number | null = null;
+  const spectatorModeEnabled = isClientFeatureEnabled('spectatorMode');
 
   const clearCopyResetTimer = () => {
     if (copyResetTimer === null) {
@@ -240,24 +242,28 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         .catch(() => {});
     });
 
-    listen(copySpectateBtn, 'click', () => {
-      const code = gameCodeEl.textContent ?? '';
-      const url = `${window.location.origin}/?code=${code}&viewer=spectator`;
-      const copyText =
-        deps.copyText ?? ((t: string) => navigator.clipboard?.writeText(t));
-      const copyPromise = copyText(url);
+    if (spectatorModeEnabled) {
+      listen(copySpectateBtn, 'click', () => {
+        const code = gameCodeEl.textContent ?? '';
+        const url = `${window.location.origin}/?code=${code}&viewer=spectator`;
+        const copyText =
+          deps.copyText ?? ((t: string) => navigator.clipboard?.writeText(t));
+        const copyPromise = copyText(url);
 
-      void copyPromise
-        ?.then(() => {
-          copySpectateTextSignal.value = 'Copied!';
-          clearCopyResetTimer();
-          copyResetTimer = window.setTimeout(() => {
-            copySpectateTextSignal.value = 'Copy Spectate Link';
-            copyResetTimer = null;
-          }, 2000);
-        })
-        .catch(() => {});
-    });
+        void copyPromise
+          ?.then(() => {
+            copySpectateTextSignal.value = 'Copied!';
+            clearCopyResetTimer();
+            copyResetTimer = window.setTimeout(() => {
+              copySpectateTextSignal.value = 'Copy Spectate Link';
+              copyResetTimer = null;
+            }, 2000);
+          })
+          .catch(() => {});
+      });
+    } else {
+      hide(copySpectateBtn);
+    }
 
     effect(() => {
       const loading = loadingSignal.value;
@@ -281,7 +287,9 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     });
 
     text(copyBtn, copyButtonTextSignal);
-    text(copySpectateBtn, copySpectateTextSignal);
+    if (spectatorModeEnabled) {
+      text(copySpectateBtn, copySpectateTextSignal);
+    }
   });
 
   return {
