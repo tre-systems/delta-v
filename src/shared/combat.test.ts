@@ -350,6 +350,42 @@ describe('line of sight', () => {
 
     expect(hasLineOfSight(attacker, target, map)).toBe(false);
   });
+
+  it('treats edge-grazing body hexes as non-blocking in both directions', () => {
+    const attacker = makeShip({ position: { q: -3, r: -3 } });
+    const target = makeShip({
+      id: asShipId('target'),
+      owner: 1,
+      originalOwner: 1,
+      position: { q: 0, r: -2 },
+    });
+    const reverseAttacker = makeShip({
+      id: asShipId('reverse-attacker'),
+      owner: 1,
+      originalOwner: 1,
+      position: target.position,
+    });
+    const reverseTarget = makeShip({
+      id: asShipId('reverse-target'),
+      position: attacker.position,
+    });
+    const map: SolarSystemMap = {
+      hexes: new Map([
+        [
+          asHexKey('-1,-3'),
+          {
+            terrain: 'planetSurface',
+            body: { name: 'Graze', destructive: false },
+          },
+        ],
+      ]),
+      bodies: [],
+      bounds: { minQ: -5, maxQ: 5, minR: -5, maxR: 5 },
+    };
+
+    expect(hasLineOfSight(attacker, target, map)).toBe(true);
+    expect(hasLineOfSight(reverseAttacker, reverseTarget, map)).toBe(true);
+  });
 });
 
 describe('counterattack groups', () => {

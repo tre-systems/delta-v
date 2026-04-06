@@ -6,11 +6,11 @@ import {
   VELOCITY_MODIFIER_THRESHOLD,
 } from './constants';
 import {
+  analyzeHexLine,
   type HexKey,
   hexDistance,
   hexEqual,
   hexKey,
-  hexLineDraw,
   parseHexKey,
 } from './hex';
 import { asShipId, type ShipId } from './ids';
@@ -295,9 +295,11 @@ export const hasLineOfSightToTarget = (
   map: SolarSystemMap,
 ): boolean => {
   const from = getClosestApproachHex(attacker, target);
-  const path = hexLineDraw(from, target.position);
+  const line = analyzeHexLine(from, target.position);
 
-  return !path.slice(1, -1).some((hex) => map.hexes.get(hexKey(hex))?.body);
+  return !line.definite
+    .slice(1, -1)
+    .some((hex) => map.hexes.get(hexKey(hex))?.body);
 };
 
 export const hasLineOfSight = (
@@ -311,9 +313,11 @@ export const hasBaseLineOfSight = (
   target: Pick<Ship | Ordnance, 'position'>,
   map: SolarSystemMap,
 ): boolean => {
-  const path = hexLineDraw(baseCoord, target.position);
+  const line = analyzeHexLine(baseCoord, target.position);
 
-  return !path.slice(1, -1).some((hex) => map.hexes.get(hexKey(hex))?.body);
+  return !line.definite
+    .slice(1, -1)
+    .some((hex) => map.hexes.get(hexKey(hex))?.body);
 };
 
 export const computeBaseRangeMod = (
