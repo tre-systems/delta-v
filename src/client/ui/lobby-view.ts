@@ -1,7 +1,7 @@
 import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
-import { isClientFeatureEnabled } from '../feature-flags';
 import { byId, cls, hide, listen, setTrustedHTML, text } from '../dom';
+import { isClientFeatureEnabled } from '../feature-flags';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import type { AIDifficulty, UIEvent } from './events';
 import { parseJoinInput } from './formatters';
