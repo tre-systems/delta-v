@@ -1,10 +1,11 @@
 export type ClientFeatureFlag = 'spectatorMode' | 'replayControls';
 
-const DEFAULT_CLIENT_FEATURE_FLAGS: Readonly<Record<ClientFeatureFlag, boolean>> =
-  {
-    spectatorMode: false,
-    replayControls: false,
-  };
+const DEFAULT_CLIENT_FEATURE_FLAGS: Readonly<
+  Record<ClientFeatureFlag, boolean>
+> = {
+  spectatorMode: false,
+  replayControls: false,
+};
 
 const FEATURE_STORAGE_PREFIX = 'delta-v:feature:';
 
@@ -46,7 +47,9 @@ const readStorageOverride = (flag: ClientFeatureFlag): boolean | null => {
   }
 
   try {
-    const raw = window.localStorage?.getItem(`${FEATURE_STORAGE_PREFIX}${flag}`);
+    const raw = window.localStorage?.getItem(
+      `${FEATURE_STORAGE_PREFIX}${flag}`,
+    );
     return parseFlagOverride(raw ?? null);
   } catch {
     return null;

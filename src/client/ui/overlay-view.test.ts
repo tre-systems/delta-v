@@ -54,20 +54,20 @@ describe('OverlayView', () => {
   beforeEach(() => {
     installFixture();
     vi.useFakeTimers();
-    delete (
+    (
       globalThis as typeof globalThis & {
         __DELTA_V_FEATURE_FLAGS?: unknown;
       }
-    ).__DELTA_V_FEATURE_FLAGS;
+    ).__DELTA_V_FEATURE_FLAGS = undefined;
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    delete (
+    (
       globalThis as typeof globalThis & {
         __DELTA_V_FEATURE_FLAGS?: unknown;
       }
-    ).__DELTA_V_FEATURE_FLAGS;
+    ).__DELTA_V_FEATURE_FLAGS = undefined;
   });
 
   it('renders game-over and rematch-pending states', () => {
