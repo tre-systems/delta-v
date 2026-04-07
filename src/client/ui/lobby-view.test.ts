@@ -25,20 +25,20 @@ describe('LobbyView', () => {
   beforeEach(() => {
     installFixture();
     vi.useFakeTimers();
-    delete (
+    (
       globalThis as typeof globalThis & {
         __DELTA_V_FEATURE_FLAGS?: unknown;
       }
-    ).__DELTA_V_FEATURE_FLAGS;
+    ).__DELTA_V_FEATURE_FLAGS = undefined;
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    delete (
+    (
       globalThis as typeof globalThis & {
         __DELTA_V_FEATURE_FLAGS?: unknown;
       }
-    ).__DELTA_V_FEATURE_FLAGS;
+    ).__DELTA_V_FEATURE_FLAGS = undefined;
   });
 
   it('does not throw when global localStorage lacks Storage methods (uses window)', () => {
