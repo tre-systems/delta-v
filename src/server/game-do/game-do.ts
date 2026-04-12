@@ -29,6 +29,7 @@ import {
   getMatchSeed,
   getProjectedCurrentStateRaw,
 } from './archive';
+import { BOT_THINK_TIME_MS, buildBotAction } from './bot';
 import {
   broadcastMessage,
   broadcastStateChange,
@@ -158,6 +159,18 @@ export class GameDO extends DurableObject<Env> {
     );
   }
 
+  private async isAgentSeat(playerId: 0 | 1): Promise<boolean> {
+    const roomConfig = await this.getRoomConfig();
+    return roomConfig?.players?.[playerId]?.kind === 'agent';
+  }
+
+  private async shouldTrackDisconnectForPlayer(
+    playerId: PlayerId,
+  ): Promise<boolean> {
+    const opponentId = playerId === 0 ? 1 : 0;
+    return !(await this.isAgentSeat(opponentId as 0 | 1));
+  }
+
   private async saveRoomConfig(config: RoomConfig): Promise<void> {
     await this.storage.put(GAME_DO_STORAGE_KEYS.roomConfig, config);
   }
@@ -201,6 +214,7 @@ export class GameDO extends DurableObject<Env> {
   private async archiveRoomState(): Promise<void> {
     await Promise.all([
       this.storage.put(GAME_DO_STORAGE_KEYS.roomArchived, true),
+      this.storage.delete(GAME_DO_STORAGE_KEYS.botTurnAt),
       this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectAt),
       this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectTime),
       this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectedPlayer),
@@ -254,6 +268,27 @@ export class GameDO extends DurableObject<Env> {
       this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectTime),
       this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectAt),
     ]);
+  }
+
+  private async clearBotTurnMarker(): Promise<void> {
+    await this.storage.delete(GAME_DO_STORAGE_KEYS.botTurnAt);
+  }
+
+  private async scheduleBotTurnIfNeeded(state: GameState): Promise<void> {
+    if (
+      state.phase === 'gameOver' ||
+      !(await this.isAgentSeat(state.activePlayer as 0 | 1))
+    ) {
+      await this.clearBotTurnMarker();
+      await this.rescheduleAlarm();
+      return;
+    }
+
+    await this.storage.put(
+      GAME_DO_STORAGE_KEYS.botTurnAt,
+      Date.now() + BOT_THINK_TIME_MS,
+    );
+    await this.rescheduleAlarm();
   }
 
   private async setDisconnectMarker(playerId: PlayerId): Promise<void> {
@@ -355,6 +390,7 @@ export class GameDO extends DurableObject<Env> {
       resolveJoinAttempt: (token) => this.resolveJoinAttempt(token),
       getConnectedSeatCountAfterJoin: (seatOpen, playerId) =>
         this.getConnectedSeatCountAfterJoin(seatOpen, playerId),
+      isAgentSeat: (playerId) => this.isAgentSeat(playerId),
       saveRoomConfig: (roomConfig) => this.saveRoomConfig(roomConfig),
       clearDisconnectMarker: () => this.clearDisconnectMarker(),
       replacePlayerSockets: (playerId) => this.replacePlayerSockets(playerId),
@@ -380,6 +416,7 @@ export class GameDO extends DurableObject<Env> {
       getCurrentGameState: () => this.getCurrentGameState(),
       getGameCode: () => this.getGameCode(),
       getActionRng: () => this.getActionRng(),
+      runBotTurn: () => this.runBotTurn(),
       clearDisconnectMarker: () => this.clearDisconnectMarker(),
       rescheduleAlarm: () => this.rescheduleAlarm(),
       publishStateChange: (state, primaryMessage, options) =>
@@ -523,6 +560,8 @@ export class GameDO extends DurableObject<Env> {
       consumeReplacedSocket: (socket) => this.replacedSockets.delete(socket),
       getPlayerId: (socket) => this.getPlayerId(socket),
       getCurrentGameState: () => this.getCurrentGameState(),
+      shouldTrackDisconnectForPlayer: (playerId) =>
+        this.shouldTrackDisconnectForPlayer(playerId),
       setDisconnectMarker: (playerId) => this.setDisconnectMarker(playerId),
       broadcast: (msg) => this.broadcast(msg),
     };
@@ -573,6 +612,55 @@ export class GameDO extends DurableObject<Env> {
       primaryMessage,
       options,
     );
+    await this.scheduleBotTurnIfNeeded(state);
+  }
+
+  private async runBotTurn(): Promise<void> {
+    await this.clearBotTurnMarker();
+    const gameState = await this.getCurrentGameState();
+
+    if (!gameState || gameState.phase === 'gameOver') {
+      await this.rescheduleAlarm();
+      return;
+    }
+
+    const playerId = gameState.activePlayer;
+
+    if (!(await this.isAgentSeat(playerId as 0 | 1))) {
+      await this.rescheduleAlarm();
+      return;
+    }
+
+    const action = buildBotAction(gameState, playerId, this.map);
+
+    if (!action) {
+      await this.rescheduleAlarm();
+      return;
+    }
+
+    const handler = this.gameStateActionHandlers[action.type];
+
+    try {
+      const result = await handler.run(gameState, playerId, action as never);
+
+      if ('error' in result) {
+        const code = await this.getGameCode();
+        this.reportEngineError(
+          code,
+          gameState.phase,
+          gameState.turnNumber,
+          result.error,
+        );
+        await this.rescheduleAlarm();
+        return;
+      }
+
+      await handler.publish(playerId, result as never);
+    } catch (err) {
+      const code = await this.getGameCode();
+      this.reportEngineError(code, gameState.phase, gameState.turnNumber, err);
+      await this.rescheduleAlarm();
+    }
   }
 
   private async runGameStateAction<

@@ -4,6 +4,10 @@ import { resolveUIEventPlan } from './ui-event-router';
 
 describe('game-client-ui-event-router', () => {
   it('routes menu events to lifecycle plans', () => {
+    expect(resolveUIEventPlan({ type: 'quickMatch' })).toEqual({
+      kind: 'quickMatch',
+    });
+
     expect(
       resolveUIEventPlan({
         type: 'selectScenario',

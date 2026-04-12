@@ -1,6 +1,7 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { ReadonlySignal } from '../reactive';
 import { type Dispose, effect } from '../reactive';
+import type { WaitingScreenState } from '../ui/screens';
 import { deriveInteractionMode } from './interaction-fsm';
 import type { ClientState } from './phase';
 import type { ClientSession } from './session-model';
@@ -11,7 +12,7 @@ export type SessionIdentityConsumers = {
 };
 
 export type SessionWaitingScreenUI = {
-  setWaitingState: (code: string | null, connecting: boolean) => void;
+  setWaitingState: (state: WaitingScreenState | null) => void;
 };
 
 export type SessionLatencyUI = {
@@ -44,16 +45,16 @@ export const attachSessionPlayerIdentityEffect = (
 
 /** Keeps the waiting screen copy aligned with reactive session connection state. */
 export const attachSessionWaitingScreenEffect = (
-  session: Pick<ClientSession, 'stateSignal' | 'gameCodeSignal'>,
+  session: Pick<ClientSession, 'stateSignal' | 'waitingScreenStateSignal'>,
   ui: SessionWaitingScreenUI,
 ): Dispose =>
   effect(() => {
     const state = session.stateSignal.value;
-    const gameCode = session.gameCodeSignal.value;
 
     ui.setWaitingState(
-      deriveInteractionMode(state) === 'waiting' ? gameCode : null,
-      state === 'connecting',
+      deriveInteractionMode(state) === 'waiting'
+        ? session.waitingScreenStateSignal.value
+        : null,
     );
   });
 

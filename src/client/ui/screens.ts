@@ -24,9 +24,22 @@ export interface UIScreenVisibility {
 }
 
 export interface WaitingScreenCopy {
+  titleText: string;
   codeText: string;
   statusText: string;
+  showCopyActions: boolean;
 }
+
+export type WaitingScreenState =
+  | {
+      kind: 'private';
+      code: string;
+      connecting: boolean;
+    }
+  | {
+      kind: 'quickMatch';
+      statusText: string;
+    };
 
 export interface GameOverStatsLike {
   scenario?: string;
@@ -186,14 +199,29 @@ export const mapInteractionModeToUIScreenMode = (
 };
 
 export const buildWaitingScreenCopy = (
-  code: string,
-  connecting: boolean,
+  state: WaitingScreenState,
 ): WaitingScreenCopy => {
-  return connecting
-    ? { codeText: '...', statusText: 'Connecting...' }
+  if (state.kind === 'quickMatch') {
+    return {
+      titleText: 'Quick Match',
+      codeText: 'SEARCHING',
+      statusText: state.statusText,
+      showCopyActions: false,
+    };
+  }
+
+  return state.connecting
+    ? {
+        titleText: 'Game Created',
+        codeText: state.code || '...',
+        statusText: 'Connecting...',
+        showCopyActions: true,
+      }
     : {
-        codeText: code,
+        titleText: 'Game Created',
+        codeText: state.code,
         statusText: 'Waiting for opponent...',
+        showCopyActions: true,
       };
 };
 

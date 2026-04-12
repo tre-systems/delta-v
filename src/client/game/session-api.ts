@@ -1,5 +1,11 @@
+import {
+  QUICK_MATCH_SCENARIO,
+  type QuickMatchResponse,
+} from '../../shared/matchmaking';
 import type { Result } from '../../shared/types/domain';
+import type { WaitingScreenState } from '../ui/screens';
 import type { ClientState } from './phase';
+import type { PlayerProfileService } from './player-profile-service';
 import {
   type CreatedGameSessionDeps,
   completeCreatedGameSession,
@@ -8,6 +14,7 @@ import { buildGameRoute, buildJoinCheckUrl } from './session-links';
 import type { SessionTokenService } from './session-token-service';
 
 const SESSION_REQUEST_TIMEOUT_MS = 10_000;
+const QUICK_MATCH_POLL_INTERVAL_MS = 2_000;
 
 type SessionRequestFailureKind = 'timeout' | 'network' | 'unknown';
 
@@ -44,22 +51,102 @@ const fetchWithTimeout = async (
 
 export interface SessionApiDeps {
   ctx: CreatedGameSessionDeps['ctx'];
+  playerProfile: Pick<PlayerProfileService, 'getProfile'>;
   tokens: Pick<
     SessionTokenService,
     'clearStoredPlayerToken' | 'getStoredPlayerToken' | 'storePlayerToken'
   >;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
-  setMenuLoading: (loading: boolean) => void;
+  setMenuLoading: (loading: boolean, kind?: 'create' | 'quickMatch') => void;
+  setWaitingScreenState: (state: WaitingScreenState | null) => void;
   setState: (state: ClientState) => void;
   setScenario: (scenario: string) => void;
   connect: (code: string) => void;
   track: (event: string, props?: Record<string, unknown>) => void;
 }
 
+const delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
 export const createSessionApi = (deps: SessionApiDeps) => {
+  let quickMatchTicket: string | null = null;
+
+  const connectQuickMatch = (
+    match: Extract<QuickMatchResponse, { status: 'matched' }>,
+  ): void => {
+    quickMatchTicket = null;
+    deps.setScenario(match.scenario);
+    deps.setWaitingScreenState({
+      kind: 'quickMatch',
+      statusText: 'Match found. Connecting...',
+    });
+    deps.tokens.storePlayerToken(match.code, match.playerToken);
+    history.replaceState(null, '', buildGameRoute(match.code));
+    deps.track('quick_match_found', {
+      scenario: match.scenario,
+    });
+    deps.setState('connecting');
+    deps.connect(match.code);
+  };
+
+  const pollQuickMatch = async (ticket: string): Promise<void> => {
+    while (quickMatchTicket === ticket) {
+      await delay(QUICK_MATCH_POLL_INTERVAL_MS);
+
+      if (
+        quickMatchTicket !== ticket ||
+        deps.ctx.state !== 'waitingForOpponent'
+      ) {
+        if (quickMatchTicket === ticket) {
+          quickMatchTicket = null;
+        }
+        return;
+      }
+
+      try {
+        const response = await fetchWithTimeout(`/quick-match/${ticket}`, {
+          method: 'GET',
+        });
+        const payload = (await response.json()) as QuickMatchResponse;
+
+        if (payload.status === 'matched') {
+          connectQuickMatch(payload);
+          return;
+        }
+
+        if (payload.status === 'expired') {
+          quickMatchTicket = null;
+          deps.track('quick_match_expired', {
+            scenario: payload.scenario,
+            reason: payload.reason,
+          });
+          deps.showToast('Quick Match expired. Try again.', 'error');
+          deps.setState('menu');
+          return;
+        }
+
+        deps.setWaitingScreenState({
+          kind: 'quickMatch',
+          statusText: 'Searching for an opponent...',
+        });
+      } catch (err) {
+        quickMatchTicket = null;
+        const failureKind = classifySessionRequestFailure(err);
+        deps.track('quick_match_failed', {
+          scenario: QUICK_MATCH_SCENARIO,
+          reason: failureKind,
+        });
+        deps.showToast('Quick Match lost connection. Try again.', 'error');
+        deps.setState('menu');
+        return;
+      }
+    }
+  };
+
   const createGame = async (scenario: string) => {
+    quickMatchTicket = null;
     deps.track('create_game_attempted', { scenario });
-    deps.setMenuLoading(true);
+    deps.setMenuLoading(true, 'create');
     try {
       deps.setScenario(scenario);
       const res = await fetchWithTimeout('/create', {
@@ -89,6 +176,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           replaceRoute: (route) => history.replaceState(null, '', route),
           buildGameRoute,
           connect: (code) => deps.connect(code),
+          setWaitingScreenState: (state) => deps.setWaitingScreenState(state),
           setState: (state) => deps.setState(state),
           trackGameCreated: (details) => deps.track('game_created', details),
         },
@@ -111,6 +199,75 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         deps.showToast('Failed to create game. Try again.', 'error');
       }
       console.error('Failed to create game:', err);
+      deps.setState('menu');
+    } finally {
+      deps.setMenuLoading(false);
+    }
+  };
+
+  const startQuickMatch = async (): Promise<void> => {
+    quickMatchTicket = null;
+    deps.track('quick_match_attempted', {
+      scenario: QUICK_MATCH_SCENARIO,
+    });
+    deps.setMenuLoading(true, 'quickMatch');
+
+    try {
+      deps.setScenario(QUICK_MATCH_SCENARIO);
+      const response = await fetchWithTimeout('/quick-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: QUICK_MATCH_SCENARIO,
+          player: deps.playerProfile.getProfile(),
+        }),
+      });
+
+      if (!response.ok) {
+        deps.track('quick_match_failed', {
+          scenario: QUICK_MATCH_SCENARIO,
+          reason: 'server',
+          status: response.status,
+        });
+        deps.showToast('Quick Match is unavailable right now.', 'error');
+        deps.setState('menu');
+        return;
+      }
+
+      const payload = (await response.json()) as QuickMatchResponse;
+
+      if (payload.status === 'matched') {
+        connectQuickMatch(payload);
+        return;
+      }
+
+      if (payload.status === 'expired') {
+        deps.track('quick_match_failed', {
+          scenario: payload.scenario,
+          reason: payload.reason,
+        });
+        deps.showToast('Quick Match expired. Try again.', 'error');
+        deps.setState('menu');
+        return;
+      }
+
+      quickMatchTicket = payload.ticket;
+      deps.setWaitingScreenState({
+        kind: 'quickMatch',
+        statusText: 'Searching for an opponent...',
+      });
+      deps.track('quick_match_queued', {
+        scenario: payload.scenario,
+      });
+      deps.setState('waitingForOpponent');
+      void pollQuickMatch(payload.ticket);
+    } catch (err) {
+      const failureKind = classifySessionRequestFailure(err);
+      deps.track('quick_match_failed', {
+        scenario: QUICK_MATCH_SCENARIO,
+        reason: failureKind,
+      });
+      deps.showToast('Failed to enter Quick Match. Try again.', 'error');
       deps.setState('menu');
     } finally {
       deps.setMenuLoading(false);
@@ -248,6 +405,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
 
   return {
     createGame,
+    startQuickMatch,
     validateJoin,
     fetchReplay,
   };

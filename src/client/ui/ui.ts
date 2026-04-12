@@ -4,6 +4,7 @@ import {
   type InteractionMode,
 } from '../game/interaction-fsm';
 import type { ClientState } from '../game/phase';
+import type { PlayerProfileService } from '../game/player-profile-service';
 import type { ReadonlySignal } from '../reactive';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { bindStaticButtonEvents } from './button-events';
@@ -39,7 +40,11 @@ const HUD_MODES: ReadonlySet<InteractionMode> = new Set<InteractionMode>([
 
 const isHudMode = (mode: InteractionMode): boolean => HUD_MODES.has(mode);
 
-export const createUIManager = () => {
+export interface UIManagerDeps {
+  playerProfile: Pick<PlayerProfileService, 'getProfile' | 'setUsername'>;
+}
+
+export const createUIManager = (deps: UIManagerDeps) => {
   const scope = createDisposalScope();
   const {
     menuEl,
@@ -100,6 +105,8 @@ export const createUIManager = () => {
     showMenu: () => showMenu(),
     showScenarioSelect: () => showScenarioSelect(),
     showToast: (message, type) => overlay.showToast(message, type),
+    getPlayerName: () => deps.playerProfile.getProfile().username,
+    setPlayerName: (name) => deps.playerProfile.setUsername(name).username,
   });
 
   const shipListView = createShipListView({
@@ -227,9 +234,8 @@ export const createUIManager = () => {
   });
   const sessionActions = createSessionActions({
     setPlayerId: (id) => log.setPlayerId(id),
-    setMenuLoading: (loading) => lobbyView.setMenuLoading(loading),
-    setWaitingState: (code, connecting) =>
-      lobbyView.setWaitingState(code, connecting),
+    setMenuLoading: (loading, kind) => lobbyView.setMenuLoading(loading, kind),
+    setWaitingState: (state) => lobbyView.setWaitingState(state),
   });
 
   return {

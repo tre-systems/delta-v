@@ -18,6 +18,7 @@ describe('handleGameDoWebSocketClose', () => {
         getPlayerId: () => 0,
         getCurrentGameState: async () =>
           ({ phase: 'astrogation' }) as GameState,
+        shouldTrackDisconnectForPlayer: async () => true,
         setDisconnectMarker,
         broadcast: vi.fn(),
       },
@@ -36,6 +37,7 @@ describe('handleGameDoWebSocketClose', () => {
         getPlayerId: () => null,
         getCurrentGameState: async () =>
           ({ phase: 'astrogation' }) as GameState,
+        shouldTrackDisconnectForPlayer: async () => true,
         setDisconnectMarker,
         broadcast: vi.fn(),
       },

@@ -19,6 +19,7 @@ import { createMainInteractionController } from './main-interactions';
 import type { MainNetworkDeps } from './main-session-network';
 import { createMainSessionShell } from './main-session-shell';
 import type { ClientState } from './phase';
+import { createPlayerProfileService } from './player-profile-service';
 import type { ReplayController } from './replay-controller';
 import {
   type ClientSession,
@@ -46,10 +47,15 @@ export type { ClientSession, MainNetworkDeps };
  */
 export const createGameClient = () => {
   const ctx: ClientSession = createInitialClientSession();
+  const playerProfile = createPlayerProfileService({
+    storage: localStorage,
+  });
 
   const canvas = byId<HTMLCanvasElement>('gameCanvas');
   const renderer = createRenderer(canvas, ctx.planningState);
-  const ui = createUIManager();
+  const ui = createUIManager({
+    playerProfile,
+  });
   const tutorial = createTutorial();
   tutorial.onTelemetry = (evt, props) => track(evt, props);
   const tooltipEl = byId('shipTooltip');
@@ -145,6 +151,7 @@ export const createGameClient = () => {
     hud,
     actionDeps,
     turnTelemetry,
+    playerProfile,
     sessionTokens,
     turnTimer,
     tutorial,

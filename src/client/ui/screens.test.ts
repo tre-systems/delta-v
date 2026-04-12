@@ -36,14 +36,29 @@ describe('ui-screens', () => {
   });
 
   it('builds waiting-screen copy for both waiting modes', () => {
-    expect(buildWaitingScreenCopy('ABCDE', false)).toEqual({
+    expect(
+      buildWaitingScreenCopy({
+        kind: 'private',
+        code: 'ABCDE',
+        connecting: false,
+      }),
+    ).toEqual({
+      titleText: 'Game Created',
       codeText: 'ABCDE',
       statusText: 'Waiting for opponent...',
+      showCopyActions: true,
     });
 
-    expect(buildWaitingScreenCopy('ABCDE', true)).toEqual({
-      codeText: '...',
-      statusText: 'Connecting...',
+    expect(
+      buildWaitingScreenCopy({
+        kind: 'quickMatch',
+        statusText: 'Searching for an opponent...',
+      }),
+    ).toEqual({
+      titleText: 'Quick Match',
+      codeText: 'SEARCHING',
+      statusText: 'Searching for an opponent...',
+      showCopyActions: false,
     });
   });
 

@@ -140,7 +140,25 @@ describe('parseInitPayload', () => {
   it('parses valid init payloads', () => {
     const result = parseInitPayload(validPayload, keys);
 
-    expect(result).toEqual({ ok: true, value: validPayload });
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        ...validPayload,
+        guestPlayerToken: null,
+        players: [
+          {
+            playerKey: 'seat0',
+            username: 'Player 1',
+            kind: 'human',
+          },
+          {
+            playerKey: 'seat1',
+            username: 'Player 2',
+            kind: 'human',
+          },
+        ],
+      },
+    });
   });
 
   it('rejects non-object payloads', () => {
@@ -222,11 +240,36 @@ describe('createRoomConfig', () => {
         code: roomCode(),
         scenario: 'escape',
         playerToken: playerToken(),
+        guestPlayerToken: null,
+        players: [
+          {
+            playerKey: 'seat0',
+            username: 'Player 1',
+            kind: 'human',
+          },
+          {
+            playerKey: 'seat1',
+            username: 'Player 2',
+            kind: 'human',
+          },
+        ],
       }),
     ).toEqual({
       code: 'ABCDE',
       scenario: 'escape',
       playerTokens: ['A'.repeat(32), null],
+      players: [
+        {
+          playerKey: 'seat0',
+          username: 'Player 1',
+          kind: 'human',
+        },
+        {
+          playerKey: 'seat1',
+          username: 'Player 2',
+          kind: 'human',
+        },
+      ],
     });
   });
 });

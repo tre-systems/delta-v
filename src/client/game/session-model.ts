@@ -2,6 +2,7 @@ import type { AIDifficulty } from '../../shared/ai';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { ReadonlySignal } from '../reactive';
 import { signal } from '../reactive';
+import type { WaitingScreenState } from '../ui/screens';
 import type { LogisticsStore } from './logistics-store';
 import type { ClientState } from './phase';
 import { createPlanningStore, type PlanningStore } from './planning';
@@ -53,6 +54,8 @@ export interface ClientSession {
   readonly reconnectOverlayStateSignal: ReadonlySignal<ReconnectOverlayState | null>;
   opponentDisconnectDeadlineMs: number | null;
   readonly opponentDisconnectDeadlineMsSignal: ReadonlySignal<number | null>;
+  waitingScreenState: WaitingScreenState | null;
+  readonly waitingScreenStateSignal: ReadonlySignal<WaitingScreenState | null>;
   reconnectAttempts: number;
 }
 
@@ -77,6 +80,8 @@ export const createInitialClientSession = (): ClientSession => {
     | 'reconnectOverlayStateSignal'
     | 'opponentDisconnectDeadlineMs'
     | 'opponentDisconnectDeadlineMsSignal'
+    | 'waitingScreenState'
+    | 'waitingScreenStateSignal'
   > & {
     state: ClientState;
     stateSignal: ReadonlySignal<ClientState>;
@@ -96,6 +101,8 @@ export const createInitialClientSession = (): ClientSession => {
     reconnectOverlayStateSignal: ReadonlySignal<ReconnectOverlayState | null>;
     opponentDisconnectDeadlineMs: number | null;
     opponentDisconnectDeadlineMsSignal: ReadonlySignal<number | null>;
+    waitingScreenState: WaitingScreenState | null;
+    waitingScreenStateSignal: ReadonlySignal<WaitingScreenState | null>;
   };
 
   const session = {
@@ -148,6 +155,11 @@ export const createInitialClientSession = (): ClientSession => {
     'opponentDisconnectDeadlineMs',
     null,
   );
+  session.waitingScreenStateSignal = defineReactiveSessionProperty(
+    session,
+    'waitingScreenState',
+    null,
+  );
 
   return session;
 };
@@ -191,6 +203,7 @@ export const stubClientSession = (
       | 'latencyMsSignal'
       | 'reconnectOverlayStateSignal'
       | 'opponentDisconnectDeadlineMsSignal'
+      | 'waitingScreenStateSignal'
     >
   > = {},
 ): ClientSession => Object.assign(createInitialClientSession(), overrides);

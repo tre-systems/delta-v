@@ -16,6 +16,7 @@ import {
   setReconnectOverlayState,
   setScenario,
   setTransport,
+  setWaitingScreenState,
 } from './client-context-store';
 import {
   advanceToNextAttacker,
@@ -40,6 +41,7 @@ import {
 import type { MessageHandlerDeps } from './message-handler';
 import type { ClientState } from './phase';
 import { transitionClientPhase } from './phase-controller';
+import type { PlayerProfileService } from './player-profile-service';
 import {
   createReplayController,
   type ReplayController,
@@ -62,6 +64,7 @@ export interface MainSessionShellDeps {
   hud: HudController;
   actionDeps: ActionDeps;
   turnTelemetry: TurnTelemetryTracker;
+  playerProfile: Pick<PlayerProfileService, 'getProfile'>;
   sessionTokens: Pick<
     SessionTokenService,
     'clearStoredPlayerToken' | 'getStoredPlayerToken' | 'storePlayerToken'
@@ -147,9 +150,11 @@ export const createMainSessionShell = (
 
   const sessionApi = createSessionApi({
     ctx: args.ctx,
+    playerProfile: args.playerProfile,
     tokens: args.sessionTokens,
     showToast: args.showToast,
     setMenuLoading: (loading) => args.ui.setMenuLoading(loading),
+    setWaitingScreenState: (state) => setWaitingScreenState(args.ctx, state),
     setState: (state) => setState(state),
     setScenario: (scenario) => setScenario(args.ctx, scenario),
     connect: (code) => connection.connect(code),

@@ -181,6 +181,18 @@ describe('GameDO', () => {
       code: 'ABCDE',
       scenario: 'escape',
       playerTokens: ['A'.repeat(32), null],
+      players: [
+        {
+          playerKey: 'seat0',
+          username: 'Player 1',
+          kind: 'human',
+        },
+        {
+          playerKey: 'seat1',
+          username: 'Player 2',
+          kind: 'human',
+        },
+      ],
     });
     const inactivityAt = await ctx.storage.get<number>('inactivityAt');
     expect(typeof inactivityAt).toBe('number');

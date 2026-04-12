@@ -1,6 +1,7 @@
 import { asRoomCode } from '../shared/ids';
 import type { Env } from './env';
 import { GameDO } from './game-do/game-do';
+import { MatchmakerDO } from './matchmaker-do';
 
 export type { CreateRateLimiterBinding, Env } from './env';
 
@@ -34,7 +35,7 @@ export {
   telemetryReportRateMap,
   wsConnectRateMap,
 } from './reporting';
-export { GameDO };
+export { GameDO, MatchmakerDO };
 
 const isLoopbackAddress = (value: string | null): boolean => {
   if (!value) {
@@ -88,6 +89,52 @@ export default {
         }
       }
       return handleCreate(request, env);
+    }
+
+    if (url.pathname === '/quick-match' && request.method === 'POST') {
+      if (!isLoopbackRequest(request)) {
+        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+        const ipHash = await hashIp(ip);
+
+        if (await isCreateRateLimited(env, ipHash)) {
+          return tooManyRequests();
+        }
+      }
+
+      const body = await request.text();
+
+      return env.MATCHMAKER.get(env.MATCHMAKER.idFromName('global')).fetch(
+        new Request('https://matchmaker.internal/enqueue', {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              request.headers.get('content-type') ?? 'application/json',
+          },
+          body,
+        }),
+      );
+    }
+
+    const quickMatchTicketMatch = url.pathname.match(
+      /^\/quick-match\/([A-Za-z0-9]+)$/,
+    );
+
+    if (quickMatchTicketMatch && request.method === 'GET') {
+      const ipHash = await hashIp(
+        request.headers.get('cf-connecting-ip') ?? 'unknown',
+      );
+      if (isJoinReplayProbeRateLimited(ipHash)) {
+        return tooManyRequests();
+      }
+
+      return env.MATCHMAKER.get(env.MATCHMAKER.idFromName('global')).fetch(
+        new Request(
+          `https://matchmaker.internal/ticket/${quickMatchTicketMatch[1]}`,
+          {
+            method: 'GET',
+          },
+        ),
+      );
     }
 
     const joinMatch = url.pathname.match(/^\/join\/([A-Z0-9]{5})$/);

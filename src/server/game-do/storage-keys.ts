@@ -6,6 +6,7 @@ export const GAME_DO_STORAGE_KEYS = {
   disconnectedPlayer: 'disconnectedPlayer',
   disconnectTime: 'disconnectTime',
   disconnectAt: 'disconnectAt',
+  botTurnAt: 'botTurnAt',
   turnTimeoutAt: 'turnTimeoutAt',
   inactivityAt: 'inactivityAt',
   rematchRequests: 'rematchRequests',
