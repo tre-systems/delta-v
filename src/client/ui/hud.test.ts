@@ -227,7 +227,8 @@ describe('ui hud helpers', () => {
       buildHUDView(buildInput({ turn: 5, phase: 'combat' })),
     ).toMatchObject({
       phaseText: 'COMBAT',
-      statusText: 'Click enemies to target \u00b7 Fire All (Enter)',
+      statusText:
+        'Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done',
       skipCombatVisible: false,
     });
 
@@ -380,7 +381,9 @@ describe('ui hud helpers', () => {
 
     expect(
       buildHUDView(buildInput({ isMobile: true, phase: 'combat' })).statusText,
-    ).toBe('Tap enemies to target \u00b7 Fire All to attack');
+    ).toBe(
+      'Tap highlighted enemies to target \u00b7 ATTACK fires \u00b7 END COMBAT when done',
+    );
 
     expect(
       buildHUDView(buildInput({ isMobile: true, phase: 'logistics' }))

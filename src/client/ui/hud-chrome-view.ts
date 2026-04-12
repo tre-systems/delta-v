@@ -463,9 +463,8 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       const fireButton = fireButtonSignal.value;
 
       visible(fireBtn, !hideActions && fireButton.isVisible, 'inline-block');
-      const isConfirm = fireButton.count > 0;
-      text(fireBtn, isConfirm ? 'CONFIRM' : 'END COMBAT');
-      fireBtn.className = isConfirm ? 'btn btn-confirm' : 'btn btn-skip';
+      text(fireBtn, 'END COMBAT');
+      fireBtn.className = 'btn btn-skip';
     });
 
     listen(helpOverlayEl, 'keydown', (event) => {

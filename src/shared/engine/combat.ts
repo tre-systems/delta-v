@@ -617,7 +617,14 @@ export const processSingleCombat = (
   }
 
   const attackers: Ship[] = [];
+  const attackSeen = new Set<string>();
   for (const id of attack.attackerIds) {
+    if (attackSeen.has(id)) {
+      return engineFailure(
+        ErrorCode.INVALID_INPUT,
+        'Each ship may appear at most once in an attack declaration',
+      );
+    }
     const ship = state.ships.find((s) => s.id === id);
     if (!ship || ship.owner !== playerId) {
       return engineFailure(
@@ -634,6 +641,7 @@ export const processSingleCombat = (
     if (!canAttack(ship)) {
       return engineFailure(ErrorCode.INVALID_SELECTION, 'Ship cannot attack');
     }
+    attackSeen.add(id);
     attackers.push(ship);
   }
 
@@ -644,6 +652,12 @@ export const processSingleCombat = (
   const results: CombatResult[] = [];
 
   if (attack.targetType === 'ordnance') {
+    if (attack.attackStrength != null) {
+      return engineFailure(
+        ErrorCode.INVALID_INPUT,
+        'Reduced-strength attacks are only supported against ships',
+      );
+    }
     const target = state.ordnance.find((o) => o.id === attack.targetId);
     if (
       !target ||
@@ -691,6 +705,17 @@ export const processSingleCombat = (
       attackers,
       (ship) => SHIP_STATS[ship.type]?.combat ?? 0,
     );
+    if (
+      attack.attackStrength != null &&
+      (!Number.isInteger(attack.attackStrength) ||
+        attack.attackStrength < 1 ||
+        attack.attackStrength > maxStrength)
+    ) {
+      return engineFailure(
+        ErrorCode.INVALID_INPUT,
+        'Invalid declared attack strength',
+      );
+    }
     const allocatedStrength = attack.attackStrength ?? maxStrength;
     const resolution = resolveCombat(
       attackers,

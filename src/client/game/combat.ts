@@ -20,7 +20,7 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { clamp, filterMap } from '../../shared/util';
-import type { CombatPlanningView } from './planning';
+import type { CombatPlanningSnapshot, CombatPlanningView } from './planning';
 
 export interface ReusableCombatGroup {
   attackerIds: string[];
@@ -425,11 +425,34 @@ export const getCombatTargetAtHex = (
   state: GameState,
   playerId: PlayerId,
   clickHex: HexCoord,
+  map: SolarSystemMap | null,
   queuedAttacks: CombatAttack[],
   currentTargetId?: string | null,
 ): CombatTargetSelection | null => {
-  const ordnance = findTarget(state, playerId, 'ordnance', (item) =>
-    hexEqual(clickHex, item.position),
+  if (map === null) {
+    return null;
+  }
+
+  const committedAttackers = getCommittedAttackers(queuedAttacks);
+  const availableAttackers = getAvailableCombatAttackers(
+    state,
+    playerId,
+    committedAttackers,
+  );
+
+  if (availableAttackers.length === 0) {
+    return null;
+  }
+
+  const ordnance = findTarget(
+    state,
+    playerId,
+    'ordnance',
+    (item) =>
+      hexEqual(clickHex, item.position) &&
+      availableAttackers.some((attacker) =>
+        hasLineOfSightToTarget(attacker, item, map),
+      ),
   );
 
   if (ordnance) {
@@ -447,7 +470,10 @@ export const getCombatTargetAtHex = (
       'ship',
       (ship) =>
         !queuedTargets.has(`ship:${ship.id}`) &&
-        hexEqual(clickHex, ship.position),
+        hexEqual(clickHex, ship.position) &&
+        availableAttackers.some((attacker) =>
+          hasLineOfSight(attacker, ship, map),
+        ),
     ),
     currentTargetId,
   );
@@ -491,10 +517,10 @@ export const getLegalCombatAttackers = (
 export const createCombatTargetPlan = (
   state: GameState,
   playerId: PlayerId,
-  planning: CombatPlanningView,
+  planning: CombatPlanningSnapshot,
   targetId: string,
   targetType: 'ship' | 'ordnance',
-  _map: SolarSystemMap | null,
+  map: SolarSystemMap | null,
 ): CombatTargetPlan => {
   const reusableGroup =
     targetType === 'ship'
@@ -515,11 +541,29 @@ export const createCombatTargetPlan = (
     };
   }
 
+  const legalAttackers = getLegalCombatAttackers(
+    state,
+    playerId,
+    planning.queuedAttacks,
+    targetId,
+    targetType,
+    map,
+  );
+  const defaultAttacker =
+    (planning.selectedShipId
+      ? legalAttackers.find((ship) => ship.id === planning.selectedShipId)
+      : null) ??
+    legalAttackers[0] ??
+    null;
+
   return {
     combatTargetId: targetId,
     combatTargetType: targetType,
-    combatAttackerIds: [],
-    combatAttackStrength: null,
+    combatAttackerIds: defaultAttacker ? [defaultAttacker.id] : [],
+    combatAttackStrength:
+      targetType === 'ship' && defaultAttacker
+        ? getCombatStrength([defaultAttacker])
+        : null,
   };
 };
 
