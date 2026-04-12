@@ -318,8 +318,12 @@ export const buildHUDView = (input: HUDInput): HUDView => {
           ? getOrdnanceStatusText(input, isMobile)
           : phase === 'combat'
             ? isMobile
-              ? 'Tap enemies to target \u00b7 Fire All to attack'
-              : 'Click enemies to target \u00b7 Fire All (Enter)'
+              ? astrogationCtx.hasSelection
+                ? 'Tap highlighted enemies to target \u00b7 ATTACK fires \u00b7 END COMBAT when done'
+                : 'Select a ship or tap a highlighted enemy'
+              : astrogationCtx.hasSelection
+                ? 'Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done'
+                : 'Select a ship or click a highlighted enemy'
             : phase === 'logistics'
               ? isMobile
                 ? 'Transfer fuel/cargo or skip'

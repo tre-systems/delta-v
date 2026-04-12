@@ -59,9 +59,9 @@ export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
     case 'confirmOrdnance':
       return { kind: 'command', command: { type: 'confirmOrdnance' } };
     case 'attack':
-      return { kind: 'command', command: { type: 'queueAttack' } };
-    case 'fireAll':
       return { kind: 'command', command: { type: 'confirmSingleAttack' } };
+    case 'fireAll':
+      return { kind: 'command', command: { type: 'fireAllAttacks' } };
     case 'skipCombat':
       return { kind: 'command', command: { type: 'endCombat' } };
     case 'skipLogistics':
