@@ -323,45 +323,112 @@
   border-color: rgba(255, 138, 138, 0.26);
 }
 
-/* Game over entrance animation */
-@keyframes gameOverFadeIn {
+/* ── Game over: keyframes ── */
+
+@keyframes goTitleIn {
   0% {
     opacity: 0;
-    transform: scale(1.1);
+    transform: translateY(20px) scale(1.05);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
-#gameOver.game-over-enter .menu-content {
-  animation: gameOverFadeIn 0.5s ease-out both;
+@keyframes goDividerIn {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
 }
+
+@keyframes goFadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes goBackdropPulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ── Game over: outcome theming ── */
 
 #gameOver {
-  background:
-    radial-gradient(circle at 50% 10%, rgba(122, 215, 255, 0.18), transparent 26%),
-    radial-gradient(circle at 18% 78%, rgba(255, 197, 106, 0.08), transparent 24%),
-    rgba(4, 9, 18, 0.64);
+  --go-glow: rgba(122, 215, 255, 0.15);
+  --go-accent: #c8e7ff;
+  --go-accent-border: rgba(122, 215, 255, 0.16);
+  background: rgba(4, 9, 18, 0.7);
 }
 
+#gameOver.game-over--victory {
+  --go-glow: rgba(122, 203, 255, 0.25);
+  --go-accent: #7bcbff;
+  --go-accent-border: rgba(122, 203, 255, 0.22);
+}
+
+#gameOver.game-over--defeat {
+  --go-glow: rgba(255, 107, 107, 0.2);
+  --go-accent: #ff6b6b;
+  --go-accent-border: rgba(255, 107, 107, 0.18);
+}
+
+#gameOver.game-over--neutral {
+  --go-glow: rgba(122, 215, 255, 0.15);
+  --go-accent: #c8e7ff;
+  --go-accent-border: rgba(122, 215, 255, 0.16);
+}
+
+/* ── Game over: backdrop ── */
+
+.game-over-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 15%, var(--go-glow), transparent),
+    radial-gradient(circle at 18% 78%, rgba(255, 197, 106, 0.05), transparent 24%);
+  animation: goBackdropPulse 4s ease-in-out infinite;
+}
+
+/* ── Game over: content panel ── */
+
 .game-over-content {
-  width: min(420px, 100%);
-  max-width: 420px;
-  gap: 0.9rem;
-  padding: 1.2rem;
+  width: min(480px, 100%);
+  max-width: 480px;
+  gap: 1rem;
+  padding: 1.6rem 1.4rem;
 }
 
 .overlay-panel {
-  border: 1px solid rgba(122, 215, 255, 0.16);
+  border: 1px solid var(--go-accent-border);
   background:
-    radial-gradient(circle at 50% 0%, rgba(122, 215, 255, 0.12), transparent 34%),
-    linear-gradient(180deg, rgba(11, 19, 35, 0.96), rgba(6, 12, 24, 0.94));
+    radial-gradient(circle at 50% 0%, rgba(122, 215, 255, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(11, 19, 35, 0.94), rgba(6, 12, 24, 0.92));
+  backdrop-filter: blur(20px);
   box-shadow:
     0 24px 72px rgba(0, 0, 0, 0.34),
+    0 0 40px rgba(0, 0, 0, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
+
+/* ── Game over: hero section ── */
 
 .game-over-hero {
   display: flex;
@@ -388,9 +455,9 @@
 }
 
 #gameOver h2 {
-  font-size: clamp(2.05rem, 8vw, 2.8rem);
+  font-size: clamp(2.8rem, 10vw, 4.2rem);
   font-weight: 700;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.28em;
   line-height: 0.95;
   text-transform: uppercase;
   margin: 0;
@@ -398,17 +465,37 @@
 
 h2.game-over-victory {
   color: #7bcbff;
-  text-shadow: 0 0 22px rgba(122, 203, 255, 0.5);
+  text-shadow:
+    0 0 16px rgba(122, 203, 255, 0.6),
+    0 0 48px rgba(122, 203, 255, 0.25);
 }
 
 h2.game-over-defeat {
   color: #ff6b6b;
-  text-shadow: 0 0 22px rgba(255, 107, 107, 0.4);
+  text-shadow:
+    0 0 16px rgba(255, 107, 107, 0.5),
+    0 0 48px rgba(255, 107, 107, 0.2);
 }
 
 h2.game-over-neutral {
   color: #c8e7ff;
-  text-shadow: 0 0 22px rgba(122, 215, 255, 0.3);
+  text-shadow:
+    0 0 16px rgba(122, 215, 255, 0.4),
+    0 0 48px rgba(122, 215, 255, 0.15);
+}
+
+.game-over-divider {
+  width: 60%;
+  height: 2px;
+  margin: 0.15rem 0;
+  border-radius: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--go-accent),
+    transparent
+  );
+  opacity: 0.5;
 }
 
 #gameOverReason {
@@ -419,63 +506,58 @@ h2.game-over-neutral {
   margin: 0;
 }
 
+/* ── Game over: stats container ── */
+
 .game-over-stats {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
 }
 
-.game-over-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
+/* ── Game over: scoreboard pills ── */
+
+.game-over-scoreboard {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45rem;
 }
 
-.game-over-summary-card {
+.go-stat-pill {
   display: flex;
   flex-direction: column;
-  gap: 0.28rem;
-  padding: 0.75rem 0.85rem;
-  border-radius: 16px;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-pill);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background:
-    linear-gradient(180deg, rgba(17, 29, 49, 0.84), rgba(9, 17, 31, 0.72));
-  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.game-over-summary-card-accent {
-  border-color: rgba(122, 215, 255, 0.18);
-}
-
-.game-over-summary-card-success {
-  border-color: rgba(149, 214, 135, 0.18);
-}
-
-.game-over-summary-card-warning {
-  border-color: rgba(255, 197, 106, 0.18);
-}
-
-.game-over-summary-label {
-  color: rgba(159, 181, 196, 0.82);
+.go-stat-label {
+  color: rgba(159, 181, 196, 0.72);
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.56rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.game-over-summary-value {
+.go-stat-value {
   color: #eef4ff;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
+
+/* ── Game over: ship fate cards ── */
 
 .game-over-ship-groups {
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
-  margin-top: 0.3rem;
 }
 
 .overlay-section-panel {
@@ -489,93 +571,106 @@ h2.game-over-neutral {
 .game-over-ship-group {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  padding: 0.8rem 0.85rem;
+  gap: 0.45rem;
+  padding: 0.7rem 0.75rem;
   text-align: left;
 }
 
 .game-over-ship-group-title {
   color: rgba(199, 212, 234, 0.76);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  margin-bottom: 0.1rem;
 }
 
-.game-over-fate-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.7rem;
+.fate-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.35rem;
 }
 
-.game-over-fate-row + .game-over-fate-row {
-  padding-top: 0.55rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+.fate-card {
+  display: grid;
+  grid-template-columns: 3px 1fr auto;
+  align-items: center;
+  gap: 0 0.55rem;
+  padding: 0.5rem 0.65rem 0.5rem 0;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.02);
 }
 
-.game-over-fate-copy {
+.fate-card-bar {
+  width: 3px;
+  height: 100%;
+  border-radius: 3px 0 0 3px;
+  background: rgba(215, 227, 246, 0.3);
+}
+
+.fate-card[data-tone="success"] .fate-card-bar {
+  background: #7bc87b;
+}
+
+.fate-card[data-tone="danger"] .fate-card-bar {
+  background: #ff6b6b;
+}
+
+.fate-card[data-tone="warning"] .fate-card-bar {
+  background: #ffc36a;
+}
+
+.fate-card-body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.18rem;
+  gap: 0.1rem;
 }
 
-.game-over-fate-name {
+.fate-card-name {
   color: #eef4ff;
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   font-weight: 500;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.fate-card-detail {
+  color: rgba(159, 181, 196, 0.7);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
-.game-over-fate-detail {
-  color: rgba(159, 181, 196, 0.82);
-  font-family: var(--font-mono);
-  font-size: 0.64rem;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.game-over-fate-badge {
+.fate-card-status {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 1.7rem;
-  padding: 0.24rem 0.56rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.08);
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.56rem;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-.game-over-fate-badge-success {
+.fate-card[data-tone="success"] .fate-card-status {
   color: #bce8b2;
-  border-color: rgba(149, 214, 135, 0.2);
-  background: rgba(38, 74, 31, 0.28);
 }
 
-.game-over-fate-badge-warning {
-  color: #ffd697;
-  border-color: rgba(255, 197, 106, 0.2);
-  background: rgba(84, 57, 17, 0.3);
-}
-
-.game-over-fate-badge-danger {
+.fate-card[data-tone="danger"] .fate-card-status {
   color: #ffc1c1;
-  border-color: rgba(255, 138, 138, 0.18);
-  background: rgba(90, 28, 28, 0.28);
 }
 
-.game-over-fate-badge-neutral {
-  color: #d7e3f6;
-  background: rgba(255, 255, 255, 0.04);
+.fate-card[data-tone="warning"] .fate-card-status {
+  color: #ffd697;
 }
+
+.fate-card[data-tone="neutral"] .fate-card-status {
+  color: #d7e3f6;
+}
+
+/* ── Game over: replay controls ── */
 
 .replay-status {
   margin-top: 0.05rem;
@@ -614,16 +709,59 @@ h2.game-over-neutral {
   gap: 0.45rem;
 }
 
+/* ── Game over: action buttons ── */
+
 .game-over-actions {
   display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-  margin-top: 0.15rem;
+  flex-direction: row;
+  gap: 0.6rem;
+  margin-top: 0.2rem;
 }
 
 #gameOver .btn {
   display: block;
   width: 100%;
+}
+
+#gameOver .btn-primary {
+  flex: 1.4;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 20px rgba(122, 203, 255, 0.12);
+}
+
+#gameOver .btn-secondary {
+  flex: 1;
+}
+
+/* ── Game over: entrance animation ── */
+
+#gameOver.game-over-enter .game-over-backdrop {
+  animation: goFadeUp 0.8s ease-out both;
+}
+
+#gameOver.game-over-enter .game-over-kicker {
+  animation: goFadeUp 0.4s ease-out 100ms both;
+}
+
+#gameOver.game-over-enter h2 {
+  animation: goTitleIn 0.6s ease-out 200ms both;
+}
+
+#gameOver.game-over-enter .game-over-divider {
+  animation: goDividerIn 0.4s ease-out 500ms both;
+}
+
+#gameOver.game-over-enter #gameOverReason {
+  animation: goFadeUp 0.4s ease-out 400ms both;
+}
+
+#gameOver.game-over-enter .game-over-stats {
+  animation: goFadeUp 0.4s ease-out 600ms both;
+}
+
+#gameOver.game-over-enter .game-over-actions {
+  animation: goFadeUp 0.4s ease-out 1000ms both;
 }
 
 .replay-bar {
