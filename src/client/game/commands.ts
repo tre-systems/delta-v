@@ -40,6 +40,7 @@ export type GameCommand =
   | { type: 'skipOrdnance' }
   // Fleet building
   | { type: 'fleetReady'; purchases: FleetPurchase[] }
+  | { type: 'surrender'; shipIds: string[] }
   // Navigation / camera
   | { type: 'selectShip'; shipId: string }
   | { type: 'deselectShip' }

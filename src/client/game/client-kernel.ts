@@ -51,7 +51,7 @@ export const createGameClient = () => {
   const renderer = createRenderer(canvas, ctx.planningState);
   const ui = createUIManager();
   const tutorial = createTutorial();
-  tutorial.onTelemetry = (evt) => track(evt);
+  tutorial.onTelemetry = (evt, props) => track(evt, props);
   const tooltipEl = byId('shipTooltip');
   const transferPanelEl = byId('transferPanel');
   const map = buildSolarSystemMap();
@@ -177,7 +177,7 @@ export const createGameClient = () => {
     mainNetworkDeps: networkDeps,
     setAIDifficulty: (difficulty) => setAIDifficulty(ctx, difficulty),
     exitToMenu,
-    trackEvent: (event) => track(event),
+    trackEvent: (event, props) => track(event, props),
   });
 
   const input = createInputHandler(canvas, renderer.camera, (event) =>

@@ -78,6 +78,7 @@ export interface CommandRouterDeps {
   focusNearestEnemy: () => void;
   focusOwnFleet: () => void;
   sendFleetReady: (purchases: FleetPurchase[]) => void;
+  sendSurrender: (shipIds: string[]) => void;
   sendRematch: () => void;
   exitToMenu: () => void;
   toggleHelp: () => void;
@@ -279,6 +280,7 @@ const ordnanceHandlers = {
 
 const fleetAndNavigationHandlers = {
   fleetReady: (deps, cmd) => deps.sendFleetReady(cmd.purchases),
+  surrender: (deps, cmd) => deps.sendSurrender(cmd.shipIds),
   selectShip: (deps, cmd) => selectShip(deps, cmd.shipId),
   deselectShip: (deps) => deps.ctx.planningState.setSelectedShipId(null),
   cycleShip: (deps, cmd) => deps.cycleShip(cmd.direction),
@@ -292,6 +294,7 @@ const fleetAndNavigationHandlers = {
   setHoverHex: (deps, cmd) => deps.ctx.planningState.setHoverHex(cmd.hex),
 } satisfies PartialCommandHandlerMap<
   | 'fleetReady'
+  | 'surrender'
   | 'selectShip'
   | 'deselectShip'
   | 'cycleShip'
