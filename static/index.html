@@ -71,6 +71,7 @@
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+  <div id="jsRequiredMsg" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0c1220;color:#7ad7ff;font-family:monospace;font-size:1rem;padding:2rem;text-align:center;">JavaScript is required to play Delta-V.</div>
 
   <!-- Menu screen -->
   <div id="menu" class="screen screen-page">
@@ -98,8 +99,8 @@
       <div class="divider">or</div>
       <div class="menu-surface menu-surface-join">
         <div class="join-row">
-          <input id="codeInput" class="code-input" maxlength="5" placeholder="CODE" autocapitalize="characters" spellcheck="false" aria-label="Game code">
-          <button id="joinBtn" class="btn btn-secondary">Join</button>
+          <input id="codeInput" class="code-input" maxlength="5" placeholder="GAME CODE" autocapitalize="characters" spellcheck="false" aria-label="Game code">
+          <button id="joinBtn" class="btn btn-secondary" title="Enter a game code to join" disabled>Join</button>
         </div>
       </div>
       <button id="menuHowToPlayBtn" class="menu-rules-btn">How to Play</button>
@@ -126,10 +127,12 @@
   <div id="waiting" class="screen screen-page" hidden>
     <div class="menu-content">
       <h2>Game Created</h2>
+      <p id="waitingScenario" class="status-text" hidden></p>
       <div id="gameCode" class="game-code">-----</div>
+      <p class="status-text waiting-share-hint">Share this code with your opponent to start</p>
       <button id="copyBtn" class="btn btn-secondary">Copy Link</button>
-      <button id="copySpectateBtn" class="btn btn-secondary">Copy Spectate Link</button>
-      <p id="waitingStatus" class="status-text">Waiting for opponent...</p>
+      <button id="copySpectateBtn" class="btn btn-secondary">Copy Observer Link (view-only)</button>
+      <p id="waitingStatus" class="status-text waiting-status-pulse">Waiting for opponent...</p>
     </div>
   </div>
 
@@ -180,6 +183,7 @@
   <div id="fleetBuilding" class="screen screen-page" hidden>
     <div class="menu-content fleet-building-content">
       <h2 class="scenario-title">Build Your Fleet</h2>
+      <p id="fleetBuildingScenario" class="status-text" hidden></p>
       <div id="fleetCredits" class="fleet-credits">800 MC</div>
       <div id="fleetShopList" class="fleet-shop-list"></div>
       <div class="fleet-cart-header">Your Fleet</div>

@@ -77,6 +77,7 @@ const installFixture = () => {
     <div id="fleetShopList"></div>
     <div id="fleetCart"></div>
     <div id="fleetCredits"></div>
+    <p id="fleetBuildingScenario" hidden></p>
     <button id="fleetReadyBtn">Ready</button>
     <button id="fleetClearBtn">Clear</button>
     <div id="fleetWaiting" hidden>Waiting...</div>
@@ -101,14 +102,14 @@ describe('FleetBuildingView', () => {
     );
     expect(shopItem).not.toBeNull();
     expect(document.getElementById('fleetCredits')?.textContent).toBe(
-      '25 MC remaining',
+      '25 MC (MegaCredits) remaining',
     );
 
     shopItem?.click();
 
     expect(document.querySelectorAll('.fleet-cart-chip')).toHaveLength(1);
     expect(document.getElementById('fleetCredits')?.textContent).not.toBe(
-      '25 MC remaining',
+      '25 MC (MegaCredits) remaining',
     );
 
     document.getElementById('fleetReadyBtn')?.click();
@@ -133,7 +134,7 @@ describe('FleetBuildingView', () => {
       'Click ships above to add',
     );
     expect(document.getElementById('fleetCredits')?.textContent).toBe(
-      '25 MC remaining',
+      '25 MC (MegaCredits) remaining',
     );
   });
 

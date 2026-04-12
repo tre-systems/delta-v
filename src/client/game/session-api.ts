@@ -1,4 +1,4 @@
-import type { Result } from '../../shared/types/domain';
+import { ErrorCode, type Result } from '../../shared/types/domain';
 import type { ClientState } from './phase';
 import {
   type CreatedGameSessionDeps,
@@ -8,6 +8,29 @@ import { buildGameRoute, buildJoinCheckUrl } from './session-links';
 import type { SessionTokenService } from './session-token-service';
 
 const SESSION_REQUEST_TIMEOUT_MS = 10_000;
+
+const JOIN_ERROR_MESSAGES: Partial<Record<ErrorCode, string>> = {
+  [ErrorCode.ROOM_NOT_FOUND]: 'No game found with that code',
+  [ErrorCode.ROOM_FULL]: 'That game is already full',
+  [ErrorCode.GAME_IN_PROGRESS]: 'That game has already started',
+};
+
+const parseJoinErrorResponse = async (
+  response: Response,
+): Promise<{ message: string; code: ErrorCode | undefined }> => {
+  const raw = await response.text();
+  try {
+    const parsed = JSON.parse(raw) as { code?: string; message?: string };
+    const code = parsed.code as ErrorCode | undefined;
+    const friendly = code && JOIN_ERROR_MESSAGES[code];
+    return {
+      message: friendly ?? parsed.message ?? 'Could not join game',
+      code,
+    };
+  } catch {
+    return { message: raw || 'Could not join game', code: undefined };
+  }
+};
 
 type SessionRequestFailureKind = 'timeout' | 'network' | 'unknown';
 
@@ -136,7 +159,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           return { ok: true, playerToken: token };
         }
 
-        const message = (await response.text()) || 'Could not join game';
+        const { message } = await parseJoinErrorResponse(response);
         return { ok: false, message, status: response.status };
       } catch (err) {
         const failureKind = classifySessionRequestFailure(err);
@@ -169,11 +192,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       return { ok: true, value: initialAttempt.playerToken };
     }
 
-    if (
-      playerToken &&
-      initialAttempt.status === 403 &&
-      initialAttempt.message === 'Invalid player token'
-    ) {
+    if (playerToken && initialAttempt.status === 403) {
       deps.tokens.clearStoredPlayerToken(code);
       const retryAttempt = await attemptJoin(null);
 

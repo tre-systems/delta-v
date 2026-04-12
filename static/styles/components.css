@@ -549,6 +549,19 @@
   line-height: 1.5;
 }
 
+.waiting-share-hint {
+  margin-top: 0.4rem;
+}
+
+@keyframes waiting-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.waiting-status-pulse {
+  animation: waiting-pulse 2s ease-in-out infinite;
+}
+
 .scenario-title {
   color: #f7fbff;
   font-size: 1.2rem;

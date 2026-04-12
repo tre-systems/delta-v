@@ -137,6 +137,7 @@ const createMainJoinSessionDeps = (
     deps.sessionApi.validateJoin(gameCode, token),
   showToast: (message, type) => deps.ui.overlay.showToast(message, type),
   exitToMenu: () => exitToMenuFromMain(deps),
+  selectCodeInput: () => deps.ui.selectCodeInput(),
 });
 
 const createMainExitSessionDeps = (

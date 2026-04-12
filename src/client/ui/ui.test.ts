@@ -35,6 +35,7 @@ const installFixture = () => {
     <div id="shipList"></div>
     <div id="fleetBuilding">
       <div id="fleetCredits"></div>
+      <p id="fleetBuildingScenario" hidden></p>
       <div id="fleetCart"></div>
       <div id="fleetShopList"></div>
       <button id="fleetReadyBtn"></button>
@@ -102,6 +103,7 @@ const installFixture = () => {
     <button id="copyBtn"></button>
     <button id="copySpectateBtn"></button>
     <div id="gameCode"></div>
+    <p id="waitingScenario" hidden></p>
     <div id="waitingStatus"></div>
     <button class="btn-difficulty active" data-difficulty="normal"></button>
     <button id="undoBtn"></button>
