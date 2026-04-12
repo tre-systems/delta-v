@@ -113,9 +113,9 @@ describe('ui hud helpers', () => {
       phaseText: 'ORDNANCE',
       objectiveText: 'Hold Mars',
       fuelGaugeText: 'Cargo: 10/20 (1M)',
-      statusText: 'Choose Mine (N), Emplace Base, or Next Ship (S)',
+      statusText: 'Choose Mine (N), Emplace Base, or Skip (S)',
       skipOrdnanceVisible: true,
-      skipOrdnanceLabel: 'NEXT SHIP',
+      skipOrdnanceLabel: 'SKIP',
       skipOrdnanceIsConfirm: false,
     });
 
@@ -210,7 +210,7 @@ describe('ui hud helpers', () => {
         }),
       ),
     ).toMatchObject({
-      statusText: 'No legal ordnance — needs a course change · Next Ship (S)',
+      statusText: 'No legal ordnance — needs a course change · Skip (S)',
     });
   });
 

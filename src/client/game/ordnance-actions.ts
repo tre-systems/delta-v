@@ -105,9 +105,14 @@ export const queueOrdnanceLaunch = (
   deps.showToast(`${plan.shipName}: ${ordType} queued${boostHint}`, 'success');
   deps.logText(`${plan.shipName} launched ${ordType}`);
   advanceToNextOrdnanceShip(deps);
+
+  if (allOrdnanceShipsAcknowledged(deps)) {
+    confirmOrdnance(deps);
+  }
 };
 
 // Acknowledge the current ship without launching anything.
+// Auto-confirms the phase when all ships have been acknowledged.
 export const skipOrdnanceShip = (deps: OrdnanceActionDeps) => {
   const gameState = deps.getGameState();
   if (!gameState || deps.getClientState() !== 'playing_ordnance') return;
@@ -117,6 +122,10 @@ export const skipOrdnanceShip = (deps: OrdnanceActionDeps) => {
     deps.planningState.acknowledgeOrdnanceShip(shipId);
   }
   advanceToNextOrdnanceShip(deps);
+
+  if (allOrdnanceShipsAcknowledged(deps)) {
+    confirmOrdnance(deps);
+  }
 };
 
 // Send all queued ordnance launches to the server (or skip if none).
