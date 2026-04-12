@@ -453,6 +453,49 @@ describe('aiOrdnance', () => {
       expect(launches[0].torpedoAccel).toBeLessThanOrEqual(5);
     }
   });
+  it('does not propose ordnance from ships that resupplied this turn', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('TEST'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemyShip = must(state.ships.find((s) => s.owner === 0));
+    aiShip.position = { q: 0, r: 0 };
+    aiShip.lifecycle = 'active';
+    aiShip.resuppliedThisTurn = true;
+    enemyShip.position = { q: 3, r: 0 };
+    enemyShip.lifecycle = 'active';
+
+    expect(aiOrdnance(state, 1, map)).toEqual([]);
+  });
+
+  it('launches torpedoes from orbital bases when they have a valid shot', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('BASE-TORP'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemyShip = must(state.ships.find((s) => s.owner === 0));
+    aiShip.type = 'orbitalBase';
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: 0, r: 0 };
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.cargoUsed = 0;
+    enemyShip.lifecycle = 'active';
+    enemyShip.position = { q: 3, r: 0 };
+    enemyShip.velocity = { dq: 0, dr: 0 };
+
+    expect(aiOrdnance(state, 1, map)).toEqual([
+      expect.objectContaining({
+        shipId: aiShip.id,
+        ordnanceType: 'torpedo',
+      }),
+    ]);
+  });
   it('hard AI launches nuke against stronger enemy', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,
