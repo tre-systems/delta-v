@@ -1,3 +1,4 @@
+import { showErrorScreen } from './error-screen';
 import { createGameClient, type GameClient } from './game/client-kernel';
 import { setupServiceWorkerReload } from './game/client-runtime';
 import { installGlobalErrorHandlers } from './telemetry';
@@ -10,5 +11,9 @@ installGlobalErrorHandlers();
 installViewportSizing();
 setupServiceWorkerReload();
 
-const game = createGameClient();
-(window as Window & { game?: GameClient }).game = game;
+try {
+  const game = createGameClient();
+  (window as Window & { game?: GameClient }).game = game;
+} catch (error) {
+  showErrorScreen(error);
+}
