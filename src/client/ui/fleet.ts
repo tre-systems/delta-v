@@ -141,7 +141,7 @@ export const getFleetCartView = (
 
   return {
     remainingCredits,
-    remainingLabel: `${remainingCredits} MC remaining`,
+    remainingLabel: `${remainingCredits} MC (MegaCredits) remaining`,
     items: cart.map((purchase) => ({
       purchase,
       label: getFleetPurchaseLabel(purchase),
@@ -179,7 +179,11 @@ export const getFleetShopView = (
     return {
       purchase,
       name: stats.name,
-      statsText: `C${stats.combat}${stats.defensiveOnly ? 'D' : ''} F${stats.fuel === Infinity ? '\u221e' : stats.fuel}${stats.cargo > 0 ? ` G${stats.cargo}` : ''}`,
+      statsText: [
+        `Combat: ${stats.combat}${stats.defensiveOnly ? ' (def)' : ''}`,
+        `Fuel: ${stats.fuel === Infinity ? '\u221e' : stats.fuel}`,
+        ...(stats.cargo > 0 ? [`Cargo: ${stats.cargo}`] : []),
+      ].join(' \u00b7 '),
       cost: stats.cost,
       disabled: !canAddFleetPurchase(
         cart,

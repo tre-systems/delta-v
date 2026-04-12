@@ -19,6 +19,7 @@ export interface LobbyView {
   onMenuShown: () => void;
   setMenuLoading: (loading: boolean) => void;
   setWaitingState: (code: string | null, connecting: boolean) => void;
+  selectCodeInput: () => void;
   dispose: () => void;
 }
 
@@ -57,7 +58,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const loadingSignal = signal(false);
   const waitingCopySignal = signal(buildWaitingScreenCopy('', false));
   const copyButtonTextSignal = signal('Copy Link');
-  const copySpectateTextSignal = signal('Copy Spectate Link');
+  const copySpectateTextSignal = signal('Copy Observer Link (view-only)');
 
   const createBtn = byId<HTMLButtonElement>('createBtn');
   const singlePlayerBtn = byId('singlePlayerBtn');
@@ -75,6 +76,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const copySpectateBtn = byId('copySpectateBtn');
   const gameCodeEl = byId('gameCode');
   const waitingStatusEl = byId('waitingStatus');
+  const waitingScenarioEl = byId('waitingScenario');
 
   let copyResetTimer: number | null = null;
   const spectatorModeEnabled = isClientFeatureEnabled('spectatorMode');
@@ -95,6 +97,11 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const updateJoinButtonState = (): void => {
     const valid = isJoinInputValid(codeInputEl.value);
     (joinBtn as HTMLButtonElement).disabled = !valid;
+    if (valid) {
+      joinBtn.removeAttribute('title');
+    } else {
+      joinBtn.title = 'Enter a game code to join';
+    }
   };
 
   const submitJoin = (rawValue: string): void => {
@@ -148,8 +155,16 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     loadingSignal.value = loading;
   };
 
-  const setWaitingState = (code: string | null, connecting: boolean): void => {
-    waitingCopySignal.value = buildWaitingScreenCopy(code ?? '', connecting);
+  const setWaitingState = (
+    code: string | null,
+    connecting: boolean,
+    scenarioName?: string | null,
+  ): void => {
+    waitingCopySignal.value = buildWaitingScreenCopy(
+      code ?? '',
+      connecting,
+      scenarioName,
+    );
   };
 
   const dispose = (): void => {
@@ -268,7 +283,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
             copySpectateTextSignal.value = 'Copied!';
             clearCopyResetTimer();
             copyResetTimer = window.setTimeout(() => {
-              copySpectateTextSignal.value = 'Copy Spectate Link';
+              copySpectateTextSignal.value = 'Copy Observer Link (view-only)';
               copyResetTimer = null;
             }, 2000);
           })
@@ -297,6 +312,13 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
 
       text(gameCodeEl, copy.codeText);
       text(waitingStatusEl, copy.statusText);
+
+      if (copy.scenarioText) {
+        text(waitingScenarioEl, copy.scenarioText);
+        show(waitingScenarioEl);
+      } else {
+        hide(waitingScenarioEl);
+      }
     });
 
     text(copyBtn, copyButtonTextSignal);
@@ -305,10 +327,15 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     }
   });
 
+  const selectCodeInput = (): void => {
+    codeInputEl.select();
+  };
+
   return {
     onMenuShown,
     setMenuLoading,
     setWaitingState,
+    selectCodeInput,
     dispose,
   };
 };

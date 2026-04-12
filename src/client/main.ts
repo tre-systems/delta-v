@@ -7,6 +7,7 @@ import { installViewportSizing } from './viewport';
 export type { GameClient };
 
 // --- Bootstrap ---
+document.getElementById('jsRequiredMsg')?.remove();
 installGlobalErrorHandlers();
 installViewportSizing();
 setupServiceWorkerReload();

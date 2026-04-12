@@ -90,6 +90,7 @@ export interface JoinGameSessionDeps {
   ) => Promise<Result<string | null>>;
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
   exitToMenu: () => void;
+  selectCodeInput?: () => void;
 }
 
 export interface ExitToMenuSessionDeps {
@@ -267,6 +268,7 @@ export const beginJoinGameSession = async (
 
   if (!validation.ok) {
     deps.showToast(validation.error, 'error');
+    deps.selectCodeInput?.();
     deps.exitToMenu();
     return;
   }
