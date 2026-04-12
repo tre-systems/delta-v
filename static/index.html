@@ -102,6 +102,7 @@
           <button id="joinBtn" class="btn btn-secondary">Join</button>
         </div>
       </div>
+      <button id="menuHowToPlayBtn" class="menu-rules-btn">How to Play</button>
       <a href="https://ko-fi.com/N4N31DPNUS" target="_blank" rel="noopener" class="kofi-link">
         <img src="https://storage.ko-fi.com/cdn/kofi2.png?v=6" alt="Buy Me a Coffee at ko-fi.com" height="32">
       </a>
@@ -271,6 +272,133 @@
       <p id="helpIntro" class="help-intro">Tactical hex-based space combat. Plot burns, ride gravity, and outfly the enemy.</p>
 
       <div class="help-group">
+        <h3>Turn Phases</h3>
+        <div class="help-section">
+          <div class="help-row"><span class="help-phase-badge">1</span><span><strong>Astrogation</strong> — plot fuel burns for your ships</span></div>
+          <div class="help-row"><span class="help-phase-badge">2</span><span><strong>Ordnance</strong> — launch mines, torpedoes, or nukes (one item per ship)</span></div>
+          <div class="help-row"><span class="help-phase-badge">3</span><span><strong>Movement</strong> — ships move simultaneously; gravity from last turn applies now</span></div>
+          <div class="help-row"><span class="help-phase-badge">4</span><span><strong>Combat</strong> — gun attacks, counterattacks, and planetary defense resolve</span></div>
+          <div class="help-row"><span class="help-phase-badge">5</span><span><strong>Transfers</strong> — (optional) exchange fuel or cargo between ships at the same hex</span></div>
+        </div>
+        <div class="help-note-row">Both players complete their full turn sequence before a new game turn begins.</div>
+      </div>
+
+      <div class="help-group">
+        <h3>Movement &amp; Fuel</h3>
+        <div class="help-section">
+          <div class="help-row">Ships maintain <strong>velocity</strong> — they drift in the same direction every turn unless you burn.</div>
+          <div class="help-row">A <strong>burn</strong> costs 1 fuel and shifts velocity by 1 hex in any of 6 directions. Click/tap the arrow around your ship to set it.</div>
+          <div class="help-row">Warships can <strong>overload</strong>: spend 2 fuel total for a 2-hex velocity change in one turn (once per stopover).</div>
+          <div class="help-row">Out of fuel? You still drift — you just can't change course.</div>
+          <div class="help-row">Ships that drift off the map are <strong>eliminated</strong>.</div>
+        </div>
+        <div class="help-screenshot" aria-label="Screenshot placeholder">[Screenshot: A ship with its cyan velocity arrow pointing ahead, and burn arrows around it showing the 6 possible acceleration directions]</div>
+      </div>
+
+      <div class="help-group">
+        <h3>Gravity &amp; Landing</h3>
+        <div class="help-section">
+          <div class="help-row">Gravity hexes show an arrow toward their planet. A ship entering a gravity hex has its velocity deflected by 1 hex — but the deflection applies on the <em>next</em> turn.</div>
+          <div class="help-row"><strong>Weak gravity</strong> (moons — Luna, Io, Callisto, Ganymede): you may choose to ignore a single weak-gravity hex. Two consecutive weak-gravity hexes of the same body make the second deflection mandatory.</div>
+          <div class="help-row"><strong>Orbit</strong> is not a special state — it emerges naturally from a speed-1 course looping around the gravity ring.</div>
+          <div class="help-row">To <strong>land</strong>: achieve orbit, then spend 1 fuel to touch down. Landing at a friendly base repairs all damage, restores fuel, and resupplies ordnance.</div>
+          <div class="help-row">Any other contact with a planet or moon is a <strong>crash</strong> (eliminated).</div>
+        </div>
+        <div class="help-screenshot" aria-label="Screenshot placeholder">[Screenshot: A gravity well around a planet with an arrow showing how a ship's course bends into orbit on the next turn]</div>
+      </div>
+
+      <div class="help-group">
+        <h3>Combat</h3>
+        <div class="help-section">
+          <div class="help-row">Compare combined attacker combat factors vs. defender to get odds. Roll 1d6 and apply modifiers.</div>
+          <div class="help-row"><span class="help-key">Range penalty</span>−1 per hex of distance (closest approach to target)</div>
+          <div class="help-row"><span class="help-key">Velocity penalty</span>−1 per hex of relative speed above 2</div>
+          <div class="help-row">The <strong>defender counterattacks first</strong> — before taking damage. Ships at the same hex sharing the same course may join the counterattack.</div>
+        </div>
+        <div class="help-section">
+          <h4>Gun Combat Results Table</h4>
+          <div class="help-table-wrap" role="region" aria-label="Gun combat results">
+            <table class="help-table">
+              <thead>
+                <tr><th>Roll</th><th>1:4</th><th>1:2</th><th>1:1</th><th>2:1</th><th>3:1</th><th>4:1</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>≤0</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+                <tr><td>1</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="dmg-d">D2</td></tr>
+                <tr><td>2</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="dmg-d">D2</td><td class="dmg-d">D3</td></tr>
+                <tr><td>3</td><td>—</td><td>—</td><td>—</td><td class="dmg-d">D2</td><td class="dmg-d">D3</td><td class="dmg-d">D4</td></tr>
+                <tr><td>4</td><td>—</td><td>—</td><td class="dmg-d">D2</td><td class="dmg-d">D3</td><td class="dmg-d">D4</td><td class="dmg-d">D5</td></tr>
+                <tr><td>5</td><td>—</td><td class="dmg-d">D2</td><td class="dmg-d">D3</td><td class="dmg-d">D4</td><td class="dmg-d">D5</td><td class="dmg-el">EL</td></tr>
+                <tr><td>6+</td><td class="dmg-d1">D1</td><td class="dmg-d">D3</td><td class="dmg-d">D4</td><td class="dmg-d">D5</td><td class="dmg-el">EL</td><td class="dmg-el">EL</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="help-note-row">D1–D5 = disabled that many turns · <strong>EL</strong> = eliminated · cumulative D6+ = eliminated</div>
+        </div>
+        <div class="help-section">
+          <h4>Damage Rules</h4>
+          <div class="help-row">Disabled ships drift and cannot maneuver, attack, or launch ordnance.</div>
+          <div class="help-row">Damage is <strong>cumulative</strong> — 6 or more total disabled turns = eliminated.</div>
+          <div class="help-row">Each ship repairs 1 disabled turn at the end of each of its own turns.</div>
+          <div class="help-row"><strong>Dreadnaughts</strong> may still fire even when fully disabled. <strong>Orbital Bases</strong> may fire at D1 damage only.</div>
+        </div>
+        <div class="help-screenshot" aria-label="Screenshot placeholder">[Screenshot: The combat result popup showing attacker vs defender odds, die roll, modifiers, and the resulting D3 damage outcome]</div>
+      </div>
+
+      <div class="help-group">
+        <h3>Ships</h3>
+        <div class="help-table-wrap" role="region" aria-label="Ship statistics">
+          <table class="help-table help-ships-table">
+            <thead>
+              <tr><th>Ship</th><th>Combat</th><th>Fuel</th><th>Cargo</th><th>Cost</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr class="ship-row-civilian"><td>Transport</td><td>1D</td><td>10</td><td>50</td><td>10</td><td>Carries orbital bases</td></tr>
+              <tr class="ship-row-civilian"><td>Packet</td><td>2</td><td>10</td><td>50</td><td>20</td><td>Armed; carries bases</td></tr>
+              <tr class="ship-row-civilian"><td>Tanker</td><td>1D</td><td>50</td><td>0</td><td>10</td><td>Fuel carrier</td></tr>
+              <tr class="ship-row-civilian"><td>Liner</td><td>2D</td><td>10</td><td>0</td><td>50</td><td>Passenger ship</td></tr>
+              <tr><td>Corvette</td><td>2</td><td>20</td><td>5</td><td>40</td><td>Warship</td></tr>
+              <tr><td>Corsair</td><td>4</td><td>20</td><td>10</td><td>80</td><td>Warship</td></tr>
+              <tr><td>Frigate</td><td>8</td><td>20</td><td>40</td><td>150</td><td>Warship</td></tr>
+              <tr><td>Dreadnaught</td><td>15</td><td>15</td><td>50</td><td>600</td><td>Fires when disabled</td></tr>
+              <tr><td>Torch</td><td>8</td><td>∞</td><td>10</td><td>400</td><td>Sealed fuel; can't transfer</td></tr>
+              <tr class="ship-row-base"><td>Orbital Base</td><td>16</td><td>∞</td><td>∞</td><td>1000</td><td>Stationary; fires at D1</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="help-note-row"><strong>D suffix</strong> = defensive only, cannot attack or counterattack · Cost in MC (MegaCredits) · Warships may overload and launch torpedoes</div>
+        <div class="help-screenshot" aria-label="Screenshot placeholder">[Screenshot: The fleet building screen showing the ship shop, credits remaining, and a cart with selected ships ready to launch]</div>
+      </div>
+
+      <div class="help-group">
+        <h3>Ordnance</h3>
+        <div class="help-section">
+          <h4>Mines <span class="help-tag">mass 10</span></h4>
+          <div class="help-row">Inherit the launching ship's velocity. The launching ship must immediately change course to leave the mine hex. Active for 5 turns. Cannot be shot down. Detonate when any ship or ordnance passes through.</div>
+        </div>
+        <div class="help-section">
+          <h4>Torpedoes <span class="help-tag">mass 20</span></h4>
+          <div class="help-row">Warships only. Inherit launch ship's velocity then may accelerate 1–2 hexes on the launch turn. Hit one target then continue moving if they miss. Active for 5 turns.</div>
+        </div>
+        <div class="help-section">
+          <h4>Nukes <span class="help-tag">mass 20</span></h4>
+          <div class="help-row">Inherit launch ship's velocity. Destroy <em>everything</em> in the detonated hex automatically. Guns and planetary defense may intercept at 2:1 odds — any disabling result destroys the nuke. Active for 5 turns.</div>
+        </div>
+        <div class="help-screenshot" aria-label="Screenshot placeholder">[Screenshot: A mine and torpedo on the map with their dashed trails, showing an enemy ship approaching the mine field]</div>
+      </div>
+
+      <div class="help-group">
+        <h3>Win Conditions</h3>
+        <div class="help-section">
+          <div class="help-row"><span class="help-key">Fleet wiped out</span>Eliminate all enemy ships — used in most combat scenarios</div>
+          <div class="help-row"><span class="help-key">Land on target</span>Reach and land on the designated planet (Bi-Planetary, Blockade Runner)</div>
+          <div class="help-row"><span class="help-key">Escort</span>Land on the target planet with passengers aboard (Convoy, Evacuation)</div>
+          <div class="help-row"><span class="help-key">Escape</span>Pilgrim transports flee past Jupiter — Enforcers win by capturing or destroying the fugitive ship (Escape)</div>
+          <div class="help-row"><span class="help-key">Grand Tour</span>Visit Sol, Mercury, Venus, Terra, Mars, Jupiter, Io, and Callisto then return home first (no combat)</div>
+        </div>
+      </div>
+
+      <div class="help-group">
         <h3>Map Symbols</h3>
         <ul class="help-legend" aria-label="Map symbol key">
           <li class="help-legend-item">
@@ -321,6 +449,7 @@
 
       <div class="help-group">
         <h3>Controls</h3>
+        <div class="help-screenshot" aria-label="Screenshot placeholder">[Screenshot: The in-game HUD with labels pointing to the turn/phase indicator, fuel gauge, fleet status, objective, and the confirm button]</div>
         <div class="help-section">
           <h4>Navigation</h4>
           <div class="help-row"><span class="help-key">Drag</span> Pan camera</div>
