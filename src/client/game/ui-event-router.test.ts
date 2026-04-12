@@ -76,6 +76,16 @@ describe('game-client-ui-event-router', () => {
       text: 'hello',
     });
 
+    expect(resolveUIEventPlan({ type: 'skipOrdnanceShip' })).toEqual({
+      kind: 'command',
+      command: { type: 'skipOrdnanceShip' },
+    });
+
+    expect(resolveUIEventPlan({ type: 'confirmOrdnance' })).toEqual({
+      kind: 'command',
+      command: { type: 'confirmOrdnance' },
+    });
+
     expect(resolveUIEventPlan({ type: 'backToMenu' })).toEqual({
       kind: 'trackOnly',
       event: 'scenario_browsed',

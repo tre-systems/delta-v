@@ -5,6 +5,11 @@ export interface UIButtonView {
   title: string;
 }
 
+export interface UILabelButtonView extends UIButtonView {
+  label: string;
+  className: string;
+}
+
 export interface HUDView {
   turnText: string;
   phaseText: string;
@@ -21,9 +26,8 @@ export interface HUDView {
   launchNuke: UIButtonView;
   landFromOrbit: UIButtonView;
   emplaceBase: UIButtonView;
-  skipOrdnanceVisible: boolean;
-  skipOrdnanceLabel: string;
-  skipOrdnanceIsConfirm: boolean;
+  nextOrdnance: UILabelButtonView;
+  confirmOrdnance: UILabelButtonView;
   queuedOrdnanceType: string | null;
   skipCombatVisible: boolean;
   skipLogisticsVisible: boolean;
@@ -37,6 +41,14 @@ const createHiddenButton = (): UIButtonView => {
     disabled: false,
     opacity: '1',
     title: '',
+  };
+};
+
+const createHiddenLabelButton = (): UILabelButtonView => {
+  return {
+    ...createHiddenButton(),
+    label: '',
+    className: 'btn',
   };
 };
 
@@ -112,109 +124,111 @@ const getOrdnanceCapacityHint = (cargoFree: number): string => {
 const lowerFirst = (text: string): string =>
   text.length > 0 ? text[0].toLowerCase() + text.slice(1) : text;
 
-const joinActionList = (actions: string[]): string => {
-  if (actions.length === 0) return '';
-  if (actions.length === 1) return actions[0];
-  if (actions.length === 2) return `${actions[0]} or ${actions[1]}`;
-  return `${actions.slice(0, -1).join(', ')}, or ${actions.at(-1)}`;
-};
+const collectOrdnanceSummary = (
+  input: HUDInput,
+): {
+  ready: string[];
+  blocked: string[];
+} => {
+  const ready: string[] = [];
+  const blocked: string[] = [];
+  const pushSummary = (
+    label: string,
+    state: HUDActionState,
+    blockedPrefix = `${label}: `,
+  ) => {
+    if (!state.visible) return;
+    if (!state.disabled) {
+      ready.push(label);
+      return;
+    }
 
-const getPrimaryDisabledReason = (input: HUDInput): string | null => {
-  const reasons = [
-    input.launchMineState.visible && input.launchMineState.disabled
-      ? input.launchMineState.title
-      : '',
-    input.launchTorpedoState.visible && input.launchTorpedoState.disabled
-      ? input.launchTorpedoState.title
-      : '',
-    input.launchNukeState.visible && input.launchNukeState.disabled
-      ? input.launchNukeState.title
-      : '',
-    input.emplaceBaseState.visible && input.emplaceBaseState.disabled
-      ? input.emplaceBaseState.title
-      : '',
-  ].filter(Boolean);
+    if (state.title) {
+      blocked.push(`${blockedPrefix}${lowerFirst(state.title)}`);
+    }
+  };
 
-  return reasons[0] ?? null;
+  pushSummary('Mine', input.launchMineState);
+  pushSummary('Torpedo', input.launchTorpedoState);
+  pushSummary('Nuke', input.launchNukeState);
+  pushSummary('Base', input.emplaceBaseState);
+
+  return { ready, blocked };
 };
 
 const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
   const {
-    emplaceBaseState,
-    launchMineState,
     launchTorpedoState,
-    launchNukeState,
     torpedoAimingActive,
     torpedoAccelSteps,
     allOrdnanceShipsAcknowledged,
     queuedLaunchCount,
   } = input;
-  const multiShip = input.astrogationCtx.multipleShipsAlive;
-  const skipLabel = multiShip
-    ? isMobile
-      ? 'Next Ship'
-      : 'Next Ship (S)'
-    : isMobile
-      ? 'Skip'
-      : 'Skip (S)';
 
   if (allOrdnanceShipsAcknowledged) {
     const queued =
       queuedLaunchCount > 0 ? `${queuedLaunchCount} queued` : 'None queued';
     return isMobile
-      ? `${queued} \u00b7 Confirm Phase`
-      : `${queued} \u00b7 Confirm Phase (Enter)`;
+      ? `${queued} \u00b7 Ready to confirm phase`
+      : `${queued} \u00b7 Ready to confirm phase (Enter)`;
   }
 
   const hasSelection = input.astrogationCtx.hasSelection;
 
   if (!hasSelection) {
-    return 'Select a ship to choose ordnance';
+    return 'Select a ship to review ordnance options';
   }
 
   if (torpedoAimingActive) {
     if (torpedoAccelSteps === 2) {
       return isMobile
         ? 'Torpedo \u00d72 selected \u00b7 Tap TORPEDO to queue, or tap the same hex to clear'
-        : 'Torpedo \u00d72 selected \u00b7 Press Enter to queue, or click the same hex to clear';
+        : 'Torpedo \u00d72 selected \u00b7 Tap TORPEDO or press Enter to queue, or click the same hex to clear';
     }
 
     if (torpedoAccelSteps === 1) {
       return isMobile
         ? 'Torpedo \u00d71 selected \u00b7 Tap the same hex for \u00d72, or tap TORPEDO to queue'
-        : 'Torpedo \u00d71 selected \u00b7 Click the same hex for \u00d72, or press Enter to queue';
+        : 'Torpedo \u00d71 selected \u00b7 Click the same hex for \u00d72, or tap TORPEDO / press Enter to queue';
     }
 
     return isMobile
       ? 'Torpedo aiming \u00b7 Tap adjacent hex for boost, or tap TORPEDO again for straight'
-      : 'Torpedo aiming \u00b7 Click adjacent hex for boost, or press Enter for straight';
+      : 'Torpedo aiming \u00b7 Click adjacent hex for boost, or tap TORPEDO / press Enter for straight';
   }
 
-  const available: string[] = [];
+  const summary = collectOrdnanceSummary(input);
+  const segments: string[] = [];
 
-  if (launchMineState.visible && !launchMineState.disabled)
-    available.push(isMobile ? 'Mine' : 'Mine (N)');
-  if (launchTorpedoState.visible && !launchTorpedoState.disabled)
-    available.push(isMobile ? 'Torpedo' : 'Torpedo (T)');
-  if (launchNukeState.visible && !launchNukeState.disabled)
-    available.push(isMobile ? 'Nuke' : 'Nuke (K)');
-  if (emplaceBaseState.visible && !emplaceBaseState.disabled)
-    available.push('Emplace Base');
-
-  if (available.length === 0) {
-    const reason = getPrimaryDisabledReason(input);
-    const hint = reason ? ` \u2014 ${lowerFirst(reason)}` : '';
-
-    return `No legal ordnance${hint} \u00b7 ${skipLabel}`;
+  if (queuedLaunchCount > 0) {
+    segments.push(`${queuedLaunchCount} queued`);
   }
 
-  const prompt = `Choose ${joinActionList([...available, skipLabel])}`;
-
-  if (launchTorpedoState.visible && !launchTorpedoState.disabled) {
-    return `${prompt} \u00b7 Torpedo boost uses an adjacent hex`;
+  if (summary.ready.length > 0) {
+    segments.push(`Ready: ${summary.ready.join(', ')}`);
   }
 
-  return prompt;
+  if (summary.blocked.length > 0) {
+    segments.push(`Blocked: ${summary.blocked.join('; ')}`);
+  }
+
+  if (summary.ready.length === 0 && summary.blocked.length === 0) {
+    return isMobile
+      ? 'No ordnance actions available'
+      : 'No ordnance actions available \u00b7 Use Skip Ship (S)';
+  }
+
+  if (summary.ready.length === 0) {
+    segments.push(isMobile ? 'Use SKIP SHIP' : 'Use Skip Ship (S)');
+  } else if (
+    !isMobile &&
+    launchTorpedoState.visible &&
+    !launchTorpedoState.disabled
+  ) {
+    segments.push('Torpedo boost uses an adjacent hex');
+  }
+
+  return segments.join(' \u00b7 ');
 };
 
 export interface HUDInput {
@@ -371,13 +385,30 @@ export const buildHUDView = (input: HUDInput): HUDView => {
           title: emplaceBaseState.title,
         }
       : createHiddenButton(),
-    skipOrdnanceVisible: showOrdnance,
-    skipOrdnanceLabel: input.allOrdnanceShipsAcknowledged
-      ? 'CONFIRM PHASE'
-      : input.astrogationCtx.multipleShipsAlive
-        ? 'NEXT SHIP'
-        : 'SKIP',
-    skipOrdnanceIsConfirm: input.allOrdnanceShipsAcknowledged,
+    nextOrdnance: showOrdnance
+      ? {
+          visible: !input.allOrdnanceShipsAcknowledged,
+          disabled: !input.astrogationCtx.hasSelection,
+          opacity: input.astrogationCtx.hasSelection ? '1' : '0.4',
+          title: input.astrogationCtx.hasSelection
+            ? 'Acknowledge this ship and move on'
+            : 'Select a ship first',
+          label: 'SKIP SHIP',
+          className: 'btn btn-skip',
+        }
+      : createHiddenLabelButton(),
+    confirmOrdnance: showOrdnance
+      ? {
+          visible: true,
+          disabled: !input.allOrdnanceShipsAcknowledged,
+          opacity: input.allOrdnanceShipsAcknowledged ? '1' : '0.4',
+          title: input.allOrdnanceShipsAcknowledged
+            ? 'Submit queued launches and end ordnance'
+            : 'Acknowledge every actionable ship first',
+          label: 'CONFIRM PHASE',
+          className: 'btn btn-confirm',
+        }
+      : createHiddenLabelButton(),
     queuedOrdnanceType: showOrdnance
       ? (input.queuedOrdnanceType ?? null)
       : null,

@@ -113,10 +113,18 @@ describe('ui hud helpers', () => {
       phaseText: 'ORDNANCE',
       objectiveText: 'Hold Mars',
       fuelGaugeText: 'Cargo: 10/20 (1M)',
-      statusText: 'Choose Mine (N), Emplace Base, or Skip (S)',
-      skipOrdnanceVisible: true,
-      skipOrdnanceLabel: 'SKIP',
-      skipOrdnanceIsConfirm: false,
+      statusText:
+        'Ready: Mine, Base · Blocked: Torpedo: warships or bases only; Nuke: not enough cargo (need 20, have 10)',
+      nextOrdnance: {
+        visible: true,
+        disabled: false,
+        label: 'SKIP SHIP',
+      },
+      confirmOrdnance: {
+        visible: true,
+        disabled: true,
+        label: 'CONFIRM PHASE',
+      },
     });
 
     expect(view.launchMine).toMatchObject({
@@ -192,7 +200,7 @@ describe('ui hud helpers', () => {
       ),
     ).toMatchObject({
       statusText:
-        'Torpedo ×1 selected · Click the same hex for ×2, or press Enter to queue',
+        'Torpedo ×1 selected · Click the same hex for ×2, or tap TORPEDO / press Enter to queue',
     });
   });
 
@@ -210,7 +218,7 @@ describe('ui hud helpers', () => {
         }),
       ),
     ).toMatchObject({
-      statusText: 'No legal ordnance — needs a course change · Skip (S)',
+      statusText: 'Blocked: Mine: needs a course change · Use Skip Ship (S)',
     });
   });
 
@@ -368,7 +376,7 @@ describe('ui hud helpers', () => {
           },
         }),
       ).statusText,
-    ).toBe('Select a ship to choose ordnance');
+    ).toBe('Select a ship to review ordnance options');
 
     expect(
       buildHUDView(buildInput({ isMobile: true, phase: 'combat' })).statusText,

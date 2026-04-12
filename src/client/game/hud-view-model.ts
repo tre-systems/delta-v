@@ -146,14 +146,16 @@ const getOrdnanceActionState = (
       ? 'Warships or bases only'
       : error?.message === 'Ship must change course when launching a mine'
         ? 'Needs a course change'
-        : error?.message === 'Cannot launch ordnance while landed'
-          ? 'Cannot launch while landed'
-          : error?.message ===
-              'Ships cannot launch ordnance during a turn in which they resupply'
-            ? 'Resupplied this turn'
-            : error?.message === 'Ship is disabled'
-              ? 'Ship disabled'
-              : (error?.message ?? '');
+        : error?.message?.startsWith('Not enough cargo')
+          ? 'Not enough cargo'
+          : error?.message === 'Cannot launch ordnance while landed'
+            ? 'Cannot launch while landed'
+            : error?.message ===
+                'Ships cannot launch ordnance during a turn in which they resupply'
+              ? 'Resupplied this turn'
+              : error?.message === 'Ship is disabled'
+                ? 'Ship disabled'
+                : (error?.message ?? '');
 
   return {
     visible: true,
