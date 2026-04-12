@@ -1,5 +1,9 @@
 import { applyDamage, lookupOtherDamage, rollD6 } from '../combat';
-import { isBaseCarrierType, ORBITAL_BASE_MASS } from '../constants';
+import {
+  isBaseCarrierType,
+  ORBITAL_BASE_MASS,
+  ORDNANCE_LIFETIME,
+} from '../constants';
 import {
   analyzeHexLine,
   hexAdd,
@@ -30,26 +34,122 @@ import {
 } from '../types';
 import type { EngineEvent } from './engine-events';
 import {
+  engineError,
   engineFailure,
   getAllowedOrdnanceTypes,
-  hasLaunchableOrdnanceCapacity,
+  hasValidOrdnanceLaunch,
   shuffle,
   validatePhaseAction,
 } from './util';
 
+const isWorldSideUnoccupiedForEmplacement = (
+  state: Pick<GameState, 'ships'>,
+  ship: Ship,
+  map: SolarSystemMap,
+): boolean => {
+  const hex = map.hexes.get(hexKey(ship.position));
+
+  if (!hex?.gravity || hex.base) {
+    return false;
+  }
+
+  return !state.ships.some(
+    (other) =>
+      other.id !== ship.id &&
+      other.lifecycle !== 'destroyed' &&
+      hexEqual(other.position, ship.position) &&
+      (other.lifecycle === 'landed' || other.baseStatus === 'emplaced'),
+  );
+};
+
+const canEmplaceBaseFromCurrentPosition = (
+  state: Pick<GameState, 'ships'>,
+  ship: Ship,
+  map: SolarSystemMap,
+): boolean => {
+  const hex = map.hexes.get(hexKey(ship.position));
+
+  if (!hex?.gravity) {
+    return false;
+  }
+
+  if (ship.lifecycle === 'landed') {
+    return isWorldSideUnoccupiedForEmplacement(state, ship, map);
+  }
+
+  return hexVecLength(ship.velocity) === 1;
+};
+
+export const validateBaseEmplacement = (
+  state: Pick<GameState, 'ships'>,
+  ship: Ship,
+  map: SolarSystemMap,
+): EngineError | null => {
+  if (ship.lifecycle === 'destroyed') {
+    return engineError(
+      ErrorCode.STATE_CONFLICT,
+      'Destroyed ships cannot emplace orbital bases',
+    );
+  }
+
+  if (ship.baseStatus !== 'carryingBase') {
+    return engineError(
+      ErrorCode.STATE_CONFLICT,
+      'Ship is not carrying an orbital base',
+    );
+  }
+
+  if (!isBaseCarrierType(ship.type)) {
+    return engineError(
+      ErrorCode.NOT_ALLOWED,
+      'Only transports and packets can carry orbital bases',
+    );
+  }
+
+  if (ship.control === 'captured') {
+    return engineError(
+      ErrorCode.NOT_ALLOWED,
+      'Captured ships cannot emplace orbital bases',
+    );
+  }
+
+  if (ship.resuppliedThisTurn) {
+    return engineError(
+      ErrorCode.NOT_ALLOWED,
+      'Cannot emplace during a resupply turn',
+    );
+  }
+
+  if (ship.damage.disabledTurns > 0) {
+    return engineError(
+      ErrorCode.STATE_CONFLICT,
+      'Disabled ships cannot emplace orbital bases',
+    );
+  }
+
+  if (!canEmplaceBaseFromCurrentPosition(state, ship, map)) {
+    return engineError(
+      ErrorCode.NOT_ALLOWED,
+      'Must be in orbit or on an open world hex side to emplace an orbital base',
+    );
+  }
+
+  return null;
+};
+
 // Determine whether the active player should receive
 // an ordnance phase this turn.
-export const shouldEnterOrdnancePhase = (state: GameState): boolean => {
-  const hasEmplaceableBase = state.ships.some(
-    (ship) =>
-      ship.owner === state.activePlayer &&
-      ship.lifecycle === 'active' &&
-      ship.damage.disabledTurns === 0 &&
-      ship.control !== 'captured' &&
-      !ship.resuppliedThisTurn &&
-      isBaseCarrierType(ship.type) &&
-      ship.baseStatus === 'carryingBase',
-  );
+export const shouldEnterOrdnancePhase = (
+  state: GameState,
+  map: SolarSystemMap,
+): boolean => {
+  const hasEmplaceableBase = state.ships.some((ship) => {
+    if (ship.owner !== state.activePlayer) {
+      return false;
+    }
+
+    return validateBaseEmplacement(state, ship, map) === null;
+  });
 
   if (hasEmplaceableBase) {
     return true;
@@ -68,7 +168,7 @@ export const shouldEnterOrdnancePhase = (state: GameState): boolean => {
       s.damage.disabledTurns === 0 &&
       !s.resuppliedThisTurn &&
       s.control !== 'captured' &&
-      hasLaunchableOrdnanceCapacity(s, allowedOrdnanceTypes),
+      hasValidOrdnanceLaunch(state, s, allowedOrdnanceTypes),
   );
 };
 
@@ -99,46 +199,10 @@ export const processEmplacement = (
       );
     }
 
-    if (ship.baseStatus !== 'carryingBase') {
-      return engineFailure(
-        ErrorCode.STATE_CONFLICT,
-        'Ship is not carrying an orbital base',
-      );
-    }
+    const emplacementError = validateBaseEmplacement(state, ship, map);
 
-    if (!isBaseCarrierType(ship.type)) {
-      return engineFailure(
-        ErrorCode.NOT_ALLOWED,
-        'Only transports and packets can carry orbital bases',
-      );
-    }
-
-    if (ship.resuppliedThisTurn) {
-      return engineFailure(
-        ErrorCode.NOT_ALLOWED,
-        'Cannot emplace during a resupply turn',
-      );
-    }
-
-    if (ship.damage.disabledTurns > 0) {
-      return engineFailure(
-        ErrorCode.STATE_CONFLICT,
-        'Disabled ships cannot emplace orbital bases',
-      );
-    }
-
-    const posKey = hexKey(ship.position);
-    const hex = map.hexes.get(posKey);
-    const speed = hexVecLength(ship.velocity);
-    const inOrbit = hex?.gravity && speed === 1;
-    const onWorldSide = hex?.gravity && ship.lifecycle === 'landed';
-
-    if (!inOrbit && !onWorldSide) {
-      return engineFailure(
-        ErrorCode.NOT_ALLOWED,
-        'Must be in orbit or on a world hex side' +
-          ' to emplace an orbital base',
-      );
+    if (emplacementError) {
+      return engineFailure(emplacementError.code, emplacementError.message);
     }
 
     const baseId = asShipId(`ob${state.ships.length}`);
@@ -485,13 +549,15 @@ const checkOrdnanceDetonation = (
   map: SolarSystemMap,
   rng: () => number,
   engineEvents?: EngineEvent[],
-): boolean => {
+): { q: number; r: number } | null => {
   for (let i = 0; i < path.length; i++) {
     const pathHex = path[i];
-    const isLaunchHex = i === 0;
+    const isStartHex = i === 0;
+    const sourceShipProtectedThisTurn =
+      ord.sourceShipId !== null && ord.turnsRemaining === ORDNANCE_LIFETIME - 1;
     const key = hexKey(pathHex);
     const mapHex = map.hexes.get(key);
-    let forcedDetonation = false;
+    let forcedDetonationHex: { q: number; r: number } | null = null;
 
     if (isAsteroidHex(state, map, pathHex)) {
       if (ord.type === 'nuke') {
@@ -506,10 +572,10 @@ const checkOrdnanceDetonation = (
           disabledTurns: 0,
         });
         pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
-        forcedDetonation = true;
+        forcedDetonationHex = pathHex;
       } else {
         pushDestroyedOrdnance(ord.id, 'asteroidCollision', engineEvents);
-        return true;
+        return pathHex;
       }
     }
 
@@ -526,18 +592,18 @@ const checkOrdnanceDetonation = (
           disabledTurns: 0,
         });
         pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
-        forcedDetonation = true;
+        forcedDetonationHex = pathHex;
       } else {
         pushDestroyedOrdnance(ord.id, 'baseCollision', engineEvents);
-        return true;
+        return pathHex;
       }
     }
 
     const contactedShips = state.ships.filter(
       (ship) =>
         ship.lifecycle !== 'destroyed' &&
-        ship.id !== ord.sourceShipId &&
-        (!isLaunchHex || ship.owner !== ord.owner) &&
+        !(sourceShipProtectedThisTurn && ship.id === ord.sourceShipId) &&
+        (!isStartHex || ship.owner !== ord.owner) &&
         shipOccupiesHexForOrdnance(ship, pathHex, shipPathsById, false) &&
         (ship.lifecycle !== 'landed' || ord.type === 'nuke'),
     );
@@ -546,7 +612,7 @@ const checkOrdnanceDetonation = (
       (other) =>
         other.id !== ord.id &&
         other.lifecycle !== 'destroyed' &&
-        (!isLaunchHex || other.owner !== ord.owner) &&
+        (!isStartHex || other.owner !== ord.owner) &&
         hexEqual(other.position, pathHex),
     );
 
@@ -560,13 +626,22 @@ const checkOrdnanceDetonation = (
         rng,
         engineEvents,
       ) ||
-      forcedDetonation
+      forcedDetonationHex
     ) {
-      return true;
+      return forcedDetonationHex ?? pathHex;
     }
   }
 
-  return false;
+  return null;
+};
+
+const truncatePathAtHex = (
+  path: { q: number; r: number }[],
+  hex: { q: number; r: number },
+): { q: number; r: number }[] => {
+  const index = path.findIndex((coord) => hexEqual(coord, hex));
+
+  return index >= 0 ? path.slice(0, index + 1) : path;
 };
 
 // Move all ordnance, then check for detonations
@@ -586,14 +661,13 @@ export const moveOrdnance = (
   );
 
   for (const ord of state.ordnance) {
-    if (ord.lifecycle === 'destroyed' || ord.owner === movingPlayerId) {
+    if (ord.lifecycle === 'destroyed') {
       continue;
     }
 
     const contactedShips = state.ships.filter(
       (ship) =>
         ship.lifecycle !== 'destroyed' &&
-        ship.id !== ord.sourceShipId &&
         shipOccupiesHexForOrdnance(ship, ord.position, shipPathsById, true) &&
         (ship.lifecycle !== 'landed' || ord.type === 'nuke'),
     );
@@ -610,6 +684,15 @@ export const moveOrdnance = (
         engineEvents,
       )
     ) {
+      ordnanceMovements.push({
+        ordnanceId: ord.id,
+        owner: ord.owner,
+        ordnanceType: ord.type,
+        from: { ...ord.position },
+        to: { ...ord.position },
+        path: [{ ...ord.position }],
+        detonated: true,
+      });
       ord.lifecycle = 'destroyed';
     }
   }
@@ -642,44 +725,16 @@ export const moveOrdnance = (
       })),
     });
 
-    if (ord.turnsRemaining <= 0) {
-      ord.lifecycle = 'destroyed';
-      engineEvents?.push({
-        type: 'ordnanceExpired',
-        ordnanceId: ord.id,
-      });
-    }
-
-    // Remove ordnance that drifts far beyond the map
-    if (ord.lifecycle !== 'destroyed') {
-      const oobMargin = 2;
-      const { minQ, maxQ, minR, maxR } = map.bounds;
-      const p = ord.position;
-      if (
-        p.q < minQ - oobMargin ||
-        p.q > maxQ + oobMargin ||
-        p.r < minR - oobMargin ||
-        p.r > maxR + oobMargin
-      ) {
-        ord.lifecycle = 'destroyed';
-        engineEvents?.push({
-          type: 'ordnanceExpired',
-          ordnanceId: ord.id,
-        });
-      }
-    }
-
-    let nukeDevastated = false;
+    let detonationHex: { q: number; r: number } | null = null;
 
     for (let pi = 0; pi < finalPath.length; pi++) {
       const hex = map.hexes.get(hexKey(finalPath[pi]));
 
       if (hex?.body) {
         if (ord.type === 'nuke') {
-          nukeDevastated = true;
-
           const entryHex = pi > 0 ? finalPath[pi - 1] : finalPath[pi];
           const entryKey = hexKey(entryHex);
+          detonationHex = entryHex;
 
           if (
             map.hexes.get(entryKey)?.base &&
@@ -759,6 +814,7 @@ export const moveOrdnance = (
         }
 
         if (ord.type !== 'nuke') {
+          detonationHex = finalPath[pi];
           pushDestroyedOrdnance(ord.id, 'bodyCollision', engineEvents);
         }
         ord.lifecycle = 'destroyed';
@@ -766,32 +822,63 @@ export const moveOrdnance = (
       }
     }
 
-    const detonated =
-      nukeDevastated ||
-      (ord.lifecycle !== 'destroyed' &&
-        checkOrdnanceDetonation(
-          ord,
-          state,
-          shipPathsById,
-          finalPath,
-          events,
-          map,
-          rng,
-          engineEvents,
-        ));
+    if (detonationHex === null && ord.lifecycle !== 'destroyed') {
+      detonationHex = checkOrdnanceDetonation(
+        ord,
+        state,
+        shipPathsById,
+        finalPath,
+        events,
+        map,
+        rng,
+        engineEvents,
+      );
+    }
+
+    const detonated = detonationHex !== null;
+    const movementPath = detonationHex
+      ? truncatePathAtHex(finalPath, detonationHex)
+      : finalPath;
+    const movementTo = detonationHex ?? finalDest;
 
     ordnanceMovements.push({
       ordnanceId: ord.id,
       owner: ord.owner,
       ordnanceType: ord.type,
       from,
-      to: finalDest,
-      path: finalPath,
+      to: movementTo,
+      path: movementPath,
       detonated,
     });
 
     if (detonated) {
       ord.lifecycle = 'destroyed';
+      continue;
+    }
+
+    if (ord.turnsRemaining <= 0) {
+      ord.lifecycle = 'destroyed';
+      engineEvents?.push({
+        type: 'ordnanceExpired',
+        ordnanceId: ord.id,
+      });
+      continue;
+    }
+
+    const oobMargin = 2;
+    const { minQ, maxQ, minR, maxR } = map.bounds;
+    const p = ord.position;
+    if (
+      p.q < minQ - oobMargin ||
+      p.q > maxQ + oobMargin ||
+      p.r < minR - oobMargin ||
+      p.r > maxR + oobMargin
+    ) {
+      ord.lifecycle = 'destroyed';
+      engineEvents?.push({
+        type: 'ordnanceExpired',
+        ordnanceId: ord.id,
+      });
     }
   }
 

@@ -263,12 +263,8 @@ const ordnanceHandlers = {
       : skipOrdnanceShip(deps.ordnanceDeps),
   confirmOrdnance: (deps) => confirmOrdnance(deps.ordnanceDeps),
   skipOrdnanceShip: (deps) => skipOrdnanceShip(deps.ordnanceDeps),
-  setTorpedoAccel: (deps, cmd) => {
-    deps.ctx.planningState.setTorpedoAcceleration(cmd.direction, cmd.steps);
-    if (deps.ctx.planningState.torpedoAimingActive) {
-      queueOrdnanceLaunch(deps.ordnanceDeps, 'torpedo');
-    }
-  },
+  setTorpedoAccel: (deps, cmd) =>
+    deps.ctx.planningState.setTorpedoAcceleration(cmd.direction, cmd.steps),
   clearTorpedoAcceleration: (deps) =>
     deps.ctx.planningState.clearTorpedoAcceleration(),
 } satisfies PartialCommandHandlerMap<

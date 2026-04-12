@@ -29,10 +29,12 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   cargoMax: 0,
   objective: '',
   objectiveBearingDeg: null,
-  canEmplaceBase: false,
+  emplaceBaseState: defaultLaunchState,
   launchMineState: defaultLaunchState,
   launchTorpedoState: defaultLaunchState,
   launchNukeState: defaultLaunchState,
+  torpedoAimingActive: false,
+  torpedoAccelSteps: null,
   allOrdnanceShipsAcknowledged: false,
   queuedOrdnanceType: null,
   queuedLaunchCount: 0,
@@ -84,7 +86,11 @@ describe('ui hud helpers', () => {
         cargoFree: 10,
         cargoMax: 20,
         objective: 'Hold Mars',
-        canEmplaceBase: true,
+        emplaceBaseState: {
+          visible: true,
+          disabled: false,
+          title: '',
+        },
         launchMineState: {
           visible: true,
           disabled: false,
@@ -93,7 +99,7 @@ describe('ui hud helpers', () => {
         launchTorpedoState: {
           visible: true,
           disabled: true,
-          title: 'Warships only',
+          title: 'Warships or bases only',
         },
         launchNukeState: {
           visible: true,
@@ -107,10 +113,10 @@ describe('ui hud helpers', () => {
       phaseText: 'ORDNANCE',
       objectiveText: 'Hold Mars',
       fuelGaugeText: 'Cargo: 10/20 (1M)',
-      statusText: 'Launch Mine (N) \u00b7 skip ship (S)',
-      emplaceBaseVisible: true,
+      statusText: 'Choose Mine (N), Emplace Base, or Next Ship (S)',
       skipOrdnanceVisible: true,
-      skipOrdnanceLabel: 'SKIP',
+      skipOrdnanceLabel: 'NEXT SHIP',
+      skipOrdnanceIsConfirm: false,
     });
 
     expect(view.launchMine).toMatchObject({
@@ -123,7 +129,7 @@ describe('ui hud helpers', () => {
       visible: true,
       disabled: true,
       opacity: '0.4',
-      title: 'Warships only',
+      title: 'Warships or bases only',
     });
 
     expect(view.launchNuke).toMatchObject({
@@ -131,6 +137,11 @@ describe('ui hud helpers', () => {
       disabled: true,
       opacity: '0.4',
       title: 'Not enough cargo (need 20, have 10)',
+    });
+    expect(view.emplaceBase).toMatchObject({
+      visible: true,
+      disabled: false,
+      opacity: '1',
     });
   });
 
@@ -162,6 +173,44 @@ describe('ui hud helpers', () => {
       visible: true,
       disabled: false,
       opacity: '1',
+    });
+  });
+
+  it('shows torpedo aiming guidance while boost selection is active', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          phase: 'ordnance',
+          torpedoAimingActive: true,
+          torpedoAccelSteps: 1,
+          launchTorpedoState: {
+            visible: true,
+            disabled: false,
+            title: '',
+          },
+        }),
+      ),
+    ).toMatchObject({
+      statusText:
+        'Torpedo ×1 selected · Click the same hex for ×2, or press Enter to queue',
+    });
+  });
+
+  it('shows disabled ordnance reasons when the selected ship has no legal actions', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          phase: 'ordnance',
+          cargoMax: 20,
+          launchMineState: {
+            visible: true,
+            disabled: true,
+            title: 'Needs a course change',
+          },
+        }),
+      ),
+    ).toMatchObject({
+      statusText: 'No legal ordnance — needs a course change · Next Ship (S)',
     });
   });
 
@@ -309,9 +358,17 @@ describe('ui hud helpers', () => {
     expect(buildHUDView(mobile).statusText).toBe('Burn set \u00b7 Confirm');
 
     expect(
-      buildHUDView(buildInput({ isMobile: true, phase: 'ordnance' }))
-        .statusText,
-    ).toBe('Select a ship to launch ordnance');
+      buildHUDView(
+        buildInput({
+          isMobile: true,
+          phase: 'ordnance',
+          astrogationCtx: {
+            ...defaultCtx,
+            hasSelection: false,
+          },
+        }),
+      ).statusText,
+    ).toBe('Select a ship to choose ordnance');
 
     expect(
       buildHUDView(buildInput({ isMobile: true, phase: 'combat' })).statusText,

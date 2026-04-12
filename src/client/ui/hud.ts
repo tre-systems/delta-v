@@ -20,9 +20,10 @@ export interface HUDView {
   launchTorpedo: UIButtonView;
   launchNuke: UIButtonView;
   landFromOrbit: UIButtonView;
-  emplaceBaseVisible: boolean;
+  emplaceBase: UIButtonView;
   skipOrdnanceVisible: boolean;
   skipOrdnanceLabel: string;
+  skipOrdnanceIsConfirm: boolean;
   queuedOrdnanceType: string | null;
   skipCombatVisible: boolean;
   skipLogisticsVisible: boolean;
@@ -104,30 +105,78 @@ const getOrdnanceCapacityHint = (cargoFree: number): string => {
   return fits.length > 0 ? ` (${fits.join(' ')})` : '';
 };
 
+const lowerFirst = (text: string): string =>
+  text.length > 0 ? text[0].toLowerCase() + text.slice(1) : text;
+
+const joinActionList = (actions: string[]): string => {
+  if (actions.length === 0) return '';
+  if (actions.length === 1) return actions[0];
+  if (actions.length === 2) return `${actions[0]} or ${actions[1]}`;
+  return `${actions.slice(0, -1).join(', ')}, or ${actions.at(-1)}`;
+};
+
+const getPrimaryDisabledReason = (input: HUDInput): string | null => {
+  const reasons = [
+    input.launchMineState.visible && input.launchMineState.disabled
+      ? input.launchMineState.title
+      : '',
+    input.launchTorpedoState.visible && input.launchTorpedoState.disabled
+      ? input.launchTorpedoState.title
+      : '',
+    input.launchNukeState.visible && input.launchNukeState.disabled
+      ? input.launchNukeState.title
+      : '',
+    input.emplaceBaseState.visible && input.emplaceBaseState.disabled
+      ? input.emplaceBaseState.title
+      : '',
+  ].filter(Boolean);
+
+  return reasons[0] ?? null;
+};
+
 const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
   const {
+    emplaceBaseState,
     launchMineState,
     launchTorpedoState,
     launchNukeState,
-    cargoMax,
+    torpedoAimingActive,
+    torpedoAccelSteps,
     allOrdnanceShipsAcknowledged,
     queuedLaunchCount,
   } = input;
+  const nextShipLabel = isMobile ? 'Next Ship' : 'Next Ship (S)';
 
   if (allOrdnanceShipsAcknowledged) {
     const queued =
       queuedLaunchCount > 0 ? `${queuedLaunchCount} queued` : 'None queued';
     return isMobile
-      ? `${queued} \u00b7 Confirm`
-      : `${queued} \u00b7 Confirm (Enter)`;
+      ? `${queued} \u00b7 Confirm Phase`
+      : `${queued} \u00b7 Confirm Phase (Enter)`;
   }
 
-  const hasSelection = cargoMax > 0;
+  const hasSelection = input.astrogationCtx.hasSelection;
 
   if (!hasSelection) {
+    return 'Select a ship to choose ordnance';
+  }
+
+  if (torpedoAimingActive) {
+    if (torpedoAccelSteps === 2) {
+      return isMobile
+        ? 'Torpedo \u00d72 selected \u00b7 Tap TORPEDO to queue, or tap the same hex to clear'
+        : 'Torpedo \u00d72 selected \u00b7 Press Enter to queue, or click the same hex to clear';
+    }
+
+    if (torpedoAccelSteps === 1) {
+      return isMobile
+        ? 'Torpedo \u00d71 selected \u00b7 Tap the same hex for \u00d72, or tap TORPEDO to queue'
+        : 'Torpedo \u00d71 selected \u00b7 Click the same hex for \u00d72, or press Enter to queue';
+    }
+
     return isMobile
-      ? 'Select a ship to launch ordnance'
-      : 'Select a ship to launch ordnance';
+      ? 'Torpedo aiming \u00b7 Tap adjacent hex for boost, or tap TORPEDO again for straight'
+      : 'Torpedo aiming \u00b7 Click adjacent hex for boost, or press Enter for straight';
   }
 
   const available: string[] = [];
@@ -138,22 +187,23 @@ const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
     available.push(isMobile ? 'Torpedo' : 'Torpedo (T)');
   if (launchNukeState.visible && !launchNukeState.disabled)
     available.push(isMobile ? 'Nuke' : 'Nuke (K)');
+  if (emplaceBaseState.visible && !emplaceBaseState.disabled)
+    available.push('Emplace Base');
 
   if (available.length === 0) {
-    const reason =
-      launchMineState.title ||
-      launchTorpedoState.title ||
-      launchNukeState.title;
-    const hint = reason ? ` \u2014 ${reason.toLowerCase()}` : '';
+    const reason = getPrimaryDisabledReason(input);
+    const hint = reason ? ` \u2014 ${lowerFirst(reason)}` : '';
 
-    return isMobile
-      ? `Cannot launch${hint} \u00b7 skip (S)`
-      : `Cannot launch${hint} \u00b7 skip ship (S)`;
+    return `No legal ordnance${hint} \u00b7 ${nextShipLabel}`;
   }
 
-  return isMobile
-    ? `Launch ${available.join(', ')} or skip (S)`
-    : `Launch ${available.join(', ')} \u00b7 skip ship (S)`;
+  const prompt = `Choose ${joinActionList([...available, nextShipLabel])}`;
+
+  if (launchTorpedoState.visible && !launchTorpedoState.disabled) {
+    return `${prompt} \u00b7 Torpedo boost uses an adjacent hex`;
+  }
+
+  return prompt;
 };
 
 export interface HUDInput {
@@ -168,10 +218,12 @@ export interface HUDInput {
   objective: string;
   /** Screen bearing for HUD compass; computed in `HudController`. */
   objectiveBearingDeg: number | null;
-  canEmplaceBase: boolean;
+  emplaceBaseState: HUDActionState;
   launchMineState: HUDActionState;
   launchTorpedoState: HUDActionState;
   launchNukeState: HUDActionState;
+  torpedoAimingActive: boolean;
+  torpedoAccelSteps: 1 | 2 | null;
   allOrdnanceShipsAcknowledged: boolean;
   queuedOrdnanceType: string | null;
   queuedLaunchCount: number;
@@ -201,7 +253,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     cargoMax,
     objective,
     objectiveBearingDeg,
-    canEmplaceBase,
+    emplaceBaseState,
     launchMineState,
     launchTorpedoState,
     launchNukeState,
@@ -300,9 +352,19 @@ export const buildHUDView = (input: HUDInput): HUDView => {
         }
       : createHiddenButton(),
 
-    emplaceBaseVisible: showOrdnance && canEmplaceBase,
+    emplaceBase: showOrdnance
+      ? {
+          visible: emplaceBaseState.visible,
+          disabled: emplaceBaseState.disabled,
+          opacity: emplaceBaseState.disabled ? '0.4' : '1',
+          title: emplaceBaseState.title,
+        }
+      : createHiddenButton(),
     skipOrdnanceVisible: showOrdnance,
-    skipOrdnanceLabel: input.allOrdnanceShipsAcknowledged ? 'CONFIRM' : 'SKIP',
+    skipOrdnanceLabel: input.allOrdnanceShipsAcknowledged
+      ? 'CONFIRM PHASE'
+      : 'NEXT SHIP',
+    skipOrdnanceIsConfirm: input.allOrdnanceShipsAcknowledged,
     queuedOrdnanceType: showOrdnance
       ? (input.queuedOrdnanceType ?? null)
       : null,

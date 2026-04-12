@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { asShipId } from '../../shared/ids';
+import { buildSolarSystemMap } from '../../shared/map-data';
 import type { GameState, Ship } from '../../shared/types/domain';
 import {
   getFirstLaunchableShipId,
+  getFirstOrdnanceActionableShipId,
   getUnambiguousLaunchableShipId,
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
 } from './ordnance';
 import type { OrdnancePlanningSnapshot } from './planning';
+
+const map = buildSolarSystemMap();
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: asShipId('ship-1'),
@@ -92,6 +96,73 @@ describe('game-client-ordnance', () => {
 
     expect(getFirstLaunchableShipId(state, 0)).toBe('packet');
     expect(getUnambiguousLaunchableShipId(state, 0)).toBe('packet');
+  });
+
+  it('skips mine carriers without a committed burn when choosing launchable ships', () => {
+    const state = createState(
+      [
+        createShip({
+          id: asShipId('needs-burn'),
+          type: 'frigate',
+        }),
+        createShip({
+          id: asShipId('burn-committed'),
+          type: 'frigate',
+        }),
+      ],
+      { allowedOrdnanceTypes: ['mine'] },
+      [{ shipId: asShipId('burn-committed'), burn: 0, overload: null }],
+    );
+
+    expect(getFirstLaunchableShipId(state, 0)).toBe('burn-committed');
+    expect(getUnambiguousLaunchableShipId(state, 0)).toBe('burn-committed');
+  });
+
+  it('falls back to a base carrier when ordnance phase is for emplacement only', () => {
+    const state = createState(
+      [
+        createShip({
+          id: asShipId('base-carrier'),
+          type: 'transport',
+          position: { q: -9, r: -6 },
+          velocity: { dq: 1, dr: 0 },
+          cargoUsed: 50,
+          baseStatus: 'carryingBase',
+        }),
+      ],
+      { allowedOrdnanceTypes: [] },
+    );
+
+    expect(getFirstLaunchableShipId(state, 0)).toBeNull();
+    expect(getFirstOrdnanceActionableShipId(state, 0, map)).toBe(
+      'base-carrier',
+    );
+  });
+
+  it('skips invalid base carriers when choosing the first emplacement ship', () => {
+    const state = createState(
+      [
+        createShip({
+          id: asShipId('invalid-base-carrier'),
+          type: 'transport',
+          cargoUsed: 50,
+          baseStatus: 'carryingBase',
+        }),
+        createShip({
+          id: asShipId('valid-base-carrier'),
+          type: 'transport',
+          position: { q: -9, r: -6 },
+          velocity: { dq: 1, dr: 0 },
+          cargoUsed: 50,
+          baseStatus: 'carryingBase',
+        }),
+      ],
+      { allowedOrdnanceTypes: [] },
+    );
+
+    expect(getFirstOrdnanceActionableShipId(state, 0, map)).toBe(
+      'valid-base-carrier',
+    );
   });
 
   it('builds a launch plan for torpedoes', () => {
@@ -245,24 +316,48 @@ describe('game-client-ordnance', () => {
   });
 
   it('builds and validates orbital base emplacement plans', () => {
-    const state = createState([createShip({ baseStatus: 'carryingBase' })]);
+    const state = createState([
+      createShip({
+        baseStatus: 'carryingBase',
+        position: { q: -9, r: -6 },
+        velocity: { dq: 1, dr: 0 },
+      }),
+    ]);
 
-    expect(resolveBaseEmplacementPlan(state, 'ship-1')).toEqual({
+    expect(resolveBaseEmplacementPlan(state, 'ship-1', map)).toEqual({
       ok: true,
       emplacements: [{ shipId: asShipId('ship-1') }],
     });
 
-    expect(resolveBaseEmplacementPlan(state, null)).toEqual({
+    expect(resolveBaseEmplacementPlan(state, null, map)).toEqual({
       ok: false,
       message: 'Select a ship first',
       level: 'info',
     });
 
     expect(
-      resolveBaseEmplacementPlan(createState([createShip()]), 'ship-1'),
+      resolveBaseEmplacementPlan(createState([createShip()]), 'ship-1', map),
     ).toEqual({
       ok: false,
       message: 'Ship is not carrying an orbital base',
+      level: 'error',
+    });
+
+    expect(
+      resolveBaseEmplacementPlan(
+        createState([
+          createShip({
+            baseStatus: 'carryingBase',
+            type: 'transport',
+          }),
+        ]),
+        'ship-1',
+        map,
+      ),
+    ).toEqual({
+      ok: false,
+      message:
+        'Must be in orbit or on an open world hex side to emplace an orbital base',
       level: 'error',
     });
   });

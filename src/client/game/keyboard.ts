@@ -100,7 +100,7 @@ export const deriveKeyboardAction = (
       return { kind: 'undoQueuedAttack', preventDefault: false };
     }
 
-    if (context.torpedoAccelActive) {
+    if (context.torpedoAccelActive || context.torpedoAimingActive) {
       return { kind: 'clearTorpedoAcceleration', preventDefault: false };
     }
     return { kind: 'deselectShip', preventDefault: false };

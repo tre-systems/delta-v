@@ -1,15 +1,16 @@
 import { must } from '../../shared/assert';
 import {
-  getAllowedOrdnanceTypes,
   getOrderableShipsForPlayer,
-  hasLaunchableOrdnanceCapacity,
+  hasValidOrdnanceLaunch,
 } from '../../shared/engine/util';
 import type {
   GameState,
   OrdnanceType,
   PlayerId,
+  SolarSystemMap,
 } from '../../shared/types/domain';
 import {
+  getFirstBaseEmplacementShipId,
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
 } from './ordnance';
@@ -19,6 +20,7 @@ export interface OrdnanceActionDeps {
   getGameState: () => GameState | null;
   getClientState: () => string;
   getPlayerId: () => PlayerId;
+  getMap: () => SolarSystemMap;
   getTransport: () => GameTransport | null;
   planningState: PlanningSelectionStore & OrdnancePlanningStore;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
@@ -29,19 +31,30 @@ export interface OrdnanceActionDeps {
 const advanceToNextOrdnanceShip = (deps: OrdnanceActionDeps): void => {
   const gameState = deps.getGameState();
   if (!gameState) return;
+  deps.planningState.setTorpedoAimingActive(false);
 
   const orderable = getOrderableShipsForPlayer(gameState, deps.getPlayerId());
 
   const launchable = orderable.filter(
     (s) =>
       !deps.planningState.acknowledgedOrdnanceShips.has(s.id) &&
-      s.damage.disabledTurns === 0 &&
-      hasLaunchableOrdnanceCapacity(s, getAllowedOrdnanceTypes(gameState)),
+      hasValidOrdnanceLaunch(gameState, s),
   );
 
   if (launchable.length > 0) {
     deps.planningState.selectShip(launchable[0].id);
   } else {
+    const actionableShipId = getFirstBaseEmplacementShipId(
+      gameState,
+      deps.getPlayerId(),
+      deps.getMap(),
+    );
+
+    if (actionableShipId) {
+      deps.planningState.selectShip(actionableShipId);
+      return;
+    }
+
     deps.planningState.setSelectedShipId(null);
   }
 };
@@ -61,7 +74,7 @@ export const queueOrdnanceLaunch = (
     deps.planningState.clearTorpedoAcceleration();
     deps.planningState.setTorpedoAimingActive(true);
     deps.showToast(
-      'Click a direction for torpedo boost, or Enter to skip',
+      'Torpedo aiming: choose an adjacent hex for boost, or queue again for a straight shot',
       'info',
     );
     return;
@@ -131,6 +144,7 @@ export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
   const plan = resolveBaseEmplacementPlan(
     gameState,
     must(deps.planningState.selectedShipId),
+    deps.getMap(),
   );
 
   if (!plan.ok) {
@@ -152,11 +166,7 @@ export const allOrdnanceShipsAcknowledged = (
   const orderable = getOrderableShipsForPlayer(gameState, deps.getPlayerId());
 
   return orderable
-    .filter(
-      (s) =>
-        s.damage.disabledTurns === 0 &&
-        hasLaunchableOrdnanceCapacity(s, getAllowedOrdnanceTypes(gameState)),
-    )
+    .filter((s) => hasValidOrdnanceLaunch(gameState, s))
     .every((s) => deps.planningState.acknowledgedOrdnanceShips.has(s.id));
 };
 

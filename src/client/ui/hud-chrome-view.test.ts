@@ -46,7 +46,11 @@ const buildInput = (
   cargoMax: 8,
   objective: 'Hold Mars',
   objectiveBearingDeg: null,
-  canEmplaceBase: false,
+  emplaceBaseState: {
+    visible: false,
+    disabled: true,
+    title: '',
+  },
   launchMineState: {
     visible: true,
     disabled: false,
@@ -62,6 +66,8 @@ const buildInput = (
     disabled: true,
     title: 'Not enough cargo (need 20, have 6)',
   },
+  torpedoAimingActive: false,
+  torpedoAccelSteps: null,
   allOrdnanceShipsAcknowledged: false,
   queuedOrdnanceType: null,
   queuedLaunchCount: 0,

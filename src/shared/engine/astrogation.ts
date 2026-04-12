@@ -164,7 +164,7 @@ export const processAstrogation = (
     return { state, engineEvents };
   }
 
-  if (shouldEnterOrdnancePhase(state)) {
+  if (shouldEnterOrdnancePhase(state, map)) {
     transitionPhaseWithEvent(state, 'ordnance', engineEvents);
     return { state, engineEvents };
   }

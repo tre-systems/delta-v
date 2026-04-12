@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { asHexKey } from '../../shared/hex';
 import { asGameId, asOrdnanceId, asShipId } from '../../shared/ids';
+import { buildSolarSystemMap } from '../../shared/map-data';
 import type {
   GameState,
   Ordnance,
@@ -15,6 +16,8 @@ import {
   getScenarioBriefingLines,
   getSelectedShip,
 } from './selection';
+
+const map = buildSolarSystemMap();
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: asShipId('ship-0'),
@@ -171,6 +174,8 @@ describe('game client helpers', () => {
       overloads: new Map([['p0s0', 4]]),
       weakGravityChoices: new Map([['p0s0', { '2,1': true }]]),
       landingShips: new Set<string>(),
+      torpedoAimingActive: false,
+      torpedoAccelSteps: null,
       acknowledgedShips: new Set<string>(),
       acknowledgedOrdnanceShips: new Set<string>(),
       queuedOrdnanceLaunches: [],
@@ -242,6 +247,8 @@ describe('game client helpers', () => {
       overloads: new Map(),
       weakGravityChoices: new Map(),
       landingShips: new Set<string>(),
+      torpedoAimingActive: false,
+      torpedoAccelSteps: null,
       acknowledgedShips: new Set<string>(),
       acknowledgedOrdnanceShips: new Set<string>(),
       queuedOrdnanceLaunches: [],
@@ -259,7 +266,11 @@ describe('game client helpers', () => {
       cargoMax: 40,
       objective: '⬡ Fly ★ ship off the map edge',
       canOverload: true,
-      canEmplaceBase: true,
+      emplaceBaseState: {
+        visible: true,
+        disabled: false,
+        title: '',
+      },
       fleetStatus: '⚔ 1 vs 0 1M/1N',
       launchMineState: {
         visible: true,
@@ -306,6 +317,8 @@ describe('game client helpers', () => {
       overloads: new Map(),
       weakGravityChoices: new Map(),
       landingShips: new Set<string>(),
+      torpedoAimingActive: false,
+      torpedoAccelSteps: null,
       acknowledgedShips: new Set<string>(),
       acknowledgedOrdnanceShips: new Set<string>(),
       queuedOrdnanceLaunches: [],
@@ -326,6 +339,39 @@ describe('game client helpers', () => {
         visible: true,
         disabled: true,
         title: 'Not enough cargo (need 20, have 10)',
+      },
+    });
+  });
+
+  it('disables base emplacement in the HUD when the carrier is not in a legal emplacement position', () => {
+    const state = createState({
+      phase: 'ordnance',
+      ships: [
+        createShip({
+          id: asShipId('p0s0'),
+          type: 'transport',
+          baseStatus: 'carryingBase',
+        }),
+      ],
+    });
+    const planning = {
+      selectedShipId: 'p0s0',
+      burns: new Map(),
+      overloads: new Map(),
+      weakGravityChoices: new Map(),
+      landingShips: new Set<string>(),
+      torpedoAimingActive: false,
+      torpedoAccelSteps: null,
+      acknowledgedShips: new Set<string>(),
+      acknowledgedOrdnanceShips: new Set<string>(),
+      queuedOrdnanceLaunches: [],
+    };
+
+    expect(deriveHudViewModel(state, 0, planning, map)).toMatchObject({
+      emplaceBaseState: {
+        visible: true,
+        disabled: true,
+        title: 'Need orbit or open world side',
       },
     });
   });
@@ -422,6 +468,8 @@ describe('game client helpers', () => {
       overloads: new Map(),
       weakGravityChoices: new Map(),
       landingShips: new Set<string>(),
+      torpedoAimingActive: false,
+      torpedoAccelSteps: null,
       acknowledgedShips: new Set<string>(),
       acknowledgedOrdnanceShips: new Set<string>(),
       queuedOrdnanceLaunches: [],

@@ -1,7 +1,7 @@
 import { SHIP_STATS } from '../../shared/constants';
+import { validateBaseEmplacement } from '../../shared/engine/ordnance';
 import {
-  getAllowedOrdnanceTypes,
-  hasLaunchableOrdnanceCapacity,
+  hasValidOrdnanceLaunch,
   validateOrdnanceLaunch,
 } from '../../shared/engine/util';
 import { asShipId } from '../../shared/ids';
@@ -12,6 +12,7 @@ import type {
   OrdnanceType,
   PlayerId,
   Ship,
+  SolarSystemMap,
 } from '../../shared/types/domain';
 import type { OrdnancePlanningSnapshot } from './planning';
 
@@ -45,6 +46,28 @@ const getShipName = (ship: Ship): string => {
   return SHIP_STATS[ship.type]?.name ?? ship.type;
 };
 
+const isPotentialBaseEmplacementShip = (ship: Ship): boolean => {
+  return (
+    ship.baseStatus === 'carryingBase' &&
+    ship.lifecycle !== 'destroyed' &&
+    ship.control !== 'captured' &&
+    ship.damage.disabledTurns === 0 &&
+    !ship.resuppliedThisTurn
+  );
+};
+
+const canEmplaceBaseExactly = (
+  state: OrdnanceState,
+  ship: Ship,
+  map?: SolarSystemMap | null,
+): boolean => {
+  if (!isPotentialBaseEmplacementShip(ship)) {
+    return false;
+  }
+
+  return map ? validateBaseEmplacement(state, ship, map) === null : true;
+};
+
 const getSelectedShip = (
   state: OrdnanceState,
   selectedShipId: string | null,
@@ -60,14 +83,34 @@ export const getFirstLaunchableShipId = (
   state: OrdnanceState,
   playerId: PlayerId,
 ): string | null => {
-  const allowedTypes = getAllowedOrdnanceTypes(state);
+  return (
+    state.ships.find(
+      (ship) => ship.owner === playerId && hasValidOrdnanceLaunch(state, ship),
+    )?.id ?? null
+  );
+};
 
+export const getFirstOrdnanceActionableShipId = (
+  state: OrdnanceState,
+  playerId: PlayerId,
+  map?: SolarSystemMap | null,
+): string | null => {
+  return (
+    getFirstLaunchableShipId(state, playerId) ??
+    getFirstBaseEmplacementShipId(state, playerId, map) ??
+    null
+  );
+};
+
+export const getFirstBaseEmplacementShipId = (
+  state: OrdnanceState,
+  playerId: PlayerId,
+  map?: SolarSystemMap | null,
+): string | null => {
   return (
     state.ships.find(
       (ship) =>
-        ship.owner === playerId &&
-        !ship.resuppliedThisTurn &&
-        hasLaunchableOrdnanceCapacity(ship, allowedTypes),
+        ship.owner === playerId && canEmplaceBaseExactly(state, ship, map),
     )?.id ?? null
   );
 };
@@ -76,12 +119,8 @@ export const getUnambiguousLaunchableShipId = (
   state: OrdnanceState,
   playerId: PlayerId,
 ): string | null => {
-  const allowedTypes = getAllowedOrdnanceTypes(state);
   const launchable = state.ships.filter(
-    (ship) =>
-      ship.owner === playerId &&
-      !ship.resuppliedThisTurn &&
-      hasLaunchableOrdnanceCapacity(ship, allowedTypes),
+    (ship) => ship.owner === playerId && hasValidOrdnanceLaunch(state, ship),
   );
 
   return launchable.length === 1 ? launchable[0].id : null;
@@ -134,6 +173,7 @@ export const resolveOrdnanceLaunchPlan = (
 export const resolveBaseEmplacementPlan = (
   state: OrdnanceState,
   selectedShipId: string | null,
+  map?: SolarSystemMap | null,
 ): BaseEmplacementPlan => {
   if (!selectedShipId) {
     return {
@@ -155,6 +195,18 @@ export const resolveBaseEmplacementPlan = (
       message: 'Ship is not carrying an orbital base',
       level: 'error',
     };
+  }
+
+  if (map) {
+    const error = validateBaseEmplacement(state, ship, map);
+
+    if (error) {
+      return {
+        ok: false,
+        message: error.message,
+        level: 'error',
+      };
+    }
   }
 
   return {
