@@ -227,7 +227,7 @@ describe('GameDO', () => {
       }),
     );
     expect(response.status).toBe(404);
-    expect(await response.text()).toContain('Game not found');
+    expect(await response.text()).toContain('ROOM_NOT_FOUND');
   });
   it('rejects malformed player tokens before websocket upgrade', async () => {
     const ctx = createCtx();
@@ -1424,7 +1424,7 @@ describe('GameDO', () => {
     );
 
     expect(response.status).toBe(410);
-    expect(await response.text()).toContain('Game archived');
+    expect(await response.text()).toContain('GAME_IN_PROGRESS');
   });
 
   it('stores the acting player on enveloped events even after the turn advances', async () => {

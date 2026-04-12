@@ -113,7 +113,11 @@ describe('session-signals', () => {
     expect(deps.ui.setPlayerId).toHaveBeenLastCalledWith(-1);
     expect(deps.ui.showAttackButton).toHaveBeenLastCalledWith(false);
     expect(deps.ui.showFireButton).toHaveBeenLastCalledWith(false, 0);
-    expect(deps.ui.setWaitingState).toHaveBeenLastCalledWith(null, false);
+    expect(deps.ui.setWaitingState).toHaveBeenLastCalledWith(
+      null,
+      false,
+      'biplanetary',
+    );
     expect(deps.ui.updateLatency).toHaveBeenLastCalledWith(null);
     expect(deps.ui.updateFleetStatus).toHaveBeenLastCalledWith('');
     expect(deps.ui.updateShipList).toHaveBeenLastCalledWith(
@@ -280,14 +284,22 @@ describe('session-signals', () => {
       setWaitingState,
     });
 
-    expect(setWaitingState).toHaveBeenLastCalledWith(null, false);
+    expect(setWaitingState).toHaveBeenLastCalledWith(
+      null,
+      false,
+      'biplanetary',
+    );
 
     session.state = 'connecting';
-    expect(setWaitingState).toHaveBeenLastCalledWith(null, true);
+    expect(setWaitingState).toHaveBeenLastCalledWith(null, true, 'biplanetary');
 
     session.gameCode = 'ROOM1';
     session.state = 'waitingForOpponent';
-    expect(setWaitingState).toHaveBeenLastCalledWith('ROOM1', false);
+    expect(setWaitingState).toHaveBeenLastCalledWith(
+      'ROOM1',
+      false,
+      'biplanetary',
+    );
 
     dispose();
   });

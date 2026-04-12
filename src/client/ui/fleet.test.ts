@@ -37,7 +37,7 @@ describe('ui fleet helpers', () => {
 
     expect(cartView).toMatchObject({
       remainingCredits: 15,
-      remainingLabel: '15 MC remaining',
+      remainingLabel: '15 MC (MegaCredits) remaining',
       isEmpty: false,
     });
 
@@ -60,7 +60,7 @@ describe('ui fleet helpers', () => {
       ),
     ).toMatchObject({
       disabled: false,
-      statsText: 'C1D F10 G50',
+      statsText: 'Combat: 1 (def) \u00b7 Fuel: 10 \u00b7 Cargo: 50',
     });
 
     expect(
