@@ -338,7 +338,7 @@ describe('game client helpers', () => {
       launchNukeState: {
         visible: true,
         disabled: true,
-        title: 'Not enough cargo (need 20, have 10)',
+        title: 'Not enough cargo',
       },
     });
   });
