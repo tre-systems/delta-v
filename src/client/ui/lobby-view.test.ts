@@ -17,6 +17,7 @@ const installFixture = () => {
     <button id="copyBtn">Copy Link</button>
     <button id="copySpectateBtn">Copy Spectate Link</button>
     <div id="gameCode"></div>
+    <p id="waitingScenario" hidden></p>
     <div id="waitingStatus"></div>
     <button id="menuHowToPlayBtn">How to Play</button>
     <div id="helpOverlay"></div>

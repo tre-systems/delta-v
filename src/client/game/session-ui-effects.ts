@@ -11,7 +11,11 @@ export type SessionIdentityConsumers = {
 };
 
 export type SessionWaitingScreenUI = {
-  setWaitingState: (code: string | null, connecting: boolean) => void;
+  setWaitingState: (
+    code: string | null,
+    connecting: boolean,
+    scenarioName?: string | null,
+  ) => void;
 };
 
 export type SessionLatencyUI = {
@@ -44,7 +48,7 @@ export const attachSessionPlayerIdentityEffect = (
 
 /** Keeps the waiting screen copy aligned with reactive session connection state. */
 export const attachSessionWaitingScreenEffect = (
-  session: Pick<ClientSession, 'stateSignal' | 'gameCodeSignal'>,
+  session: Pick<ClientSession, 'stateSignal' | 'gameCodeSignal' | 'scenario'>,
   ui: SessionWaitingScreenUI,
 ): Dispose =>
   effect(() => {
@@ -54,6 +58,7 @@ export const attachSessionWaitingScreenEffect = (
     ui.setWaitingState(
       deriveInteractionMode(state) === 'waiting' ? gameCode : null,
       state === 'connecting',
+      session.scenario,
     );
   });
 

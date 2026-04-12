@@ -259,6 +259,9 @@ const ERROR_CODE_DISPLAY: Partial<Record<ErrorCode, string>> = {
   [ErrorCode.INVALID_TARGET]: 'Invalid target for this action',
   [ErrorCode.INVALID_SHIP]: 'Invalid ship for this action',
   [ErrorCode.INVALID_PLAYER]: 'Invalid player',
+  [ErrorCode.ROOM_NOT_FOUND]: 'No game found with that code',
+  [ErrorCode.ROOM_FULL]: 'That game is already full',
+  [ErrorCode.GAME_IN_PROGRESS]: 'That game has already started',
 };
 
 const applyErrorPlan: ClientMessagePlanHandler<'error'> = (

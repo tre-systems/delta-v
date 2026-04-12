@@ -1,7 +1,11 @@
 import type { ViewerId } from '../../shared/engine/game-engine';
 import type { PlayerToken } from '../../shared/ids';
 import { SCENARIOS } from '../../shared/map-data';
-import type { PlayerId, Result } from '../../shared/types/domain';
+import {
+  ErrorCode,
+  type PlayerId,
+  type Result,
+} from '../../shared/types/domain';
 import {
   createRoomConfig,
   parseInitPayload,
@@ -44,7 +48,10 @@ export const resolveJoinAttempt = async (
   if (!roomConfig) {
     return {
       ok: false,
-      error: new Response('Game not found', { status: 404 }),
+      error: Response.json(
+        { code: ErrorCode.ROOM_NOT_FOUND, message: 'Game not found' },
+        { status: 404 },
+      ),
     };
   }
 
@@ -61,7 +68,10 @@ export const resolveJoinAttempt = async (
   if (await deps.isRoomArchived()) {
     return {
       ok: false,
-      error: new Response('Game archived', { status: 410 }),
+      error: Response.json(
+        { code: ErrorCode.GAME_IN_PROGRESS, message: 'Game not available' },
+        { status: 410 },
+      ),
     };
   }
 
@@ -75,11 +85,18 @@ export const resolveJoinAttempt = async (
   });
 
   if (seatDecision.type === 'reject') {
+    const code = seatDecision.status === 409 ? ErrorCode.ROOM_FULL : undefined;
     return {
       ok: false,
-      error: new Response(seatDecision.message, {
-        status: seatDecision.status,
-      }),
+      error:
+        code !== undefined
+          ? Response.json(
+              { code, message: seatDecision.message },
+              { status: seatDecision.status },
+            )
+          : new Response(seatDecision.message, {
+              status: seatDecision.status,
+            }),
     };
   }
 

@@ -1,10 +1,21 @@
+import { SCENARIOS } from '../../shared/map-data';
 import type {
   FleetPurchase,
   FleetPurchaseOption,
   GameState,
   PlayerId,
 } from '../../shared/types/domain';
-import { byId, clearHTML, el, listen, renderList, text, visible } from '../dom';
+import {
+  byId,
+  clearHTML,
+  el,
+  hide,
+  listen,
+  renderList,
+  show,
+  text,
+  visible,
+} from '../dom';
 import {
   batch,
   computed,
@@ -49,11 +60,23 @@ export const createFleetBuildingView = (
   const readyBtn = byId<HTMLButtonElement>('fleetReadyBtn');
   const clearBtn = byId('fleetClearBtn');
   const waitingEl = byId('fleetWaiting');
+  const scenarioEl = byId('fleetBuildingScenario');
 
   const showFleetBuilding = (state: GameState, playerId: PlayerId): void => {
     const isSpectator = playerId !== 0 && playerId !== 1;
     const effectivePlayer = isSpectator ? 0 : playerId;
     const credits = state.players[effectivePlayer]?.credits ?? 0;
+    const scenarioDef =
+      state.scenario in SCENARIOS
+        ? SCENARIOS[state.scenario as keyof typeof SCENARIOS]
+        : null;
+
+    if (scenarioDef) {
+      text(scenarioEl, scenarioDef.name);
+      show(scenarioEl);
+    } else {
+      hide(scenarioEl);
+    }
 
     batch(() => {
       availableFleetPurchasesSignal.value =
@@ -233,7 +256,13 @@ export const createFleetBuildingView = (
     });
 
     effect(() => {
-      readyBtn.disabled = !canReadySignal.value;
+      const canReady = canReadySignal.value;
+      readyBtn.disabled = !canReady;
+      if (canReady) {
+        readyBtn.removeAttribute('title');
+      } else {
+        readyBtn.title = 'Add at least one ship to launch';
+      }
     });
   });
 
