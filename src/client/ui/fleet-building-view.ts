@@ -5,7 +5,17 @@ import type {
   GameState,
   PlayerId,
 } from '../../shared/types/domain';
-import { byId, clearHTML, el, hide, listen, renderList, show, text, visible } from '../dom';
+import {
+  byId,
+  clearHTML,
+  el,
+  hide,
+  listen,
+  renderList,
+  show,
+  text,
+  visible,
+} from '../dom';
 import {
   batch,
   computed,
