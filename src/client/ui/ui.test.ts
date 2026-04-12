@@ -121,6 +121,7 @@ const installFixture = () => {
     <button id="confirmTransfersBtn"></button>
     <button id="rematchBtn"></button>
     <button id="exitBtn"></button>
+    <button id="menuHowToPlayBtn"></button>
     <button id="helpBtn"></button>
     <button id="helpCloseBtn"></button>
     <button id="soundBtn"></button>

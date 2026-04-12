@@ -1,6 +1,6 @@
 import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
-import { byId, cls, hide, listen, setTrustedHTML, text } from '../dom';
+import { byId, cls, hide, listen, setTrustedHTML, show, text } from '../dom';
 import { isClientFeatureEnabled } from '../feature-flags';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import type { AIDifficulty, UIEvent } from './events';
@@ -68,6 +68,9 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   );
   const joinBtn = byId('joinBtn');
   const codeInputEl = byId<HTMLInputElement>('codeInput');
+  const menuHowToPlayBtn = byId('menuHowToPlayBtn');
+  const helpOverlayEl = byId('helpOverlay');
+  const helpCloseBtnEl = byId<HTMLButtonElement>('helpCloseBtn');
   const copyBtn = byId('copyBtn');
   const copySpectateBtn = byId('copySpectateBtn');
   const gameCodeEl = byId('gameCode');
@@ -181,6 +184,16 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         type: 'selectScenario',
         scenario,
       });
+    });
+
+    listen(menuHowToPlayBtn, 'click', () => {
+      show(helpOverlayEl, 'flex');
+      helpCloseBtnEl.focus();
+    });
+
+    listen(helpCloseBtnEl, 'click', () => {
+      hide(helpOverlayEl);
+      menuHowToPlayBtn.focus();
     });
 
     listen(createBtn, 'click', () => {

@@ -276,6 +276,192 @@
   border: 1px solid rgba(255, 80, 60, 0.42);
 }
 
+/* ── How to Play: phase badges ── */
+
+.help-phase-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  border: 1px solid rgba(122, 215, 255, 0.28);
+  background: rgba(122, 215, 255, 0.08);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.help-row:has(.help-phase-badge) {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+/* ── How to Play: note rows and tags ── */
+
+.help-note-row {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+.help-tag {
+  display: inline-block;
+  padding: 0.05rem 0.35rem;
+  margin-left: 0.35rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+}
+
+/* ── How to Play: tables ── */
+
+.help-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0.5rem 0 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.help-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.help-table th {
+  padding: 0.35rem 0.6rem;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  background: rgba(122, 215, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.help-table th:first-child {
+  text-align: left;
+}
+
+.help-table td {
+  padding: 0.3rem 0.6rem;
+  color: var(--muted-strong);
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.help-table td:first-child {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text);
+}
+
+.help-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.help-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Combat table: damage result cell colours */
+
+.dmg-d {
+  color: var(--warning);
+}
+
+.dmg-d1 {
+  color: rgba(255, 197, 106, 0.6);
+}
+
+.dmg-el {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* Ships table: civilian row tint */
+
+.ship-row-civilian td {
+  color: rgba(180, 192, 215, 0.7);
+}
+
+.ship-row-civilian td:first-child {
+  color: var(--muted-strong);
+}
+
+.ship-row-base td {
+  color: var(--accent);
+}
+
+/* Ships table: notes column can wrap */
+
+.help-ships-table td:last-child {
+  white-space: normal;
+  min-width: 90px;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+/* ── How to Play: screenshot placeholders ── */
+
+.help-screenshot {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed rgba(122, 215, 255, 0.2);
+  background: rgba(122, 215, 255, 0.03);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  text-align: center;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Menu: How to Play link-button ── */
+
+.menu-rules-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s;
+  align-self: center;
+}
+
+.menu-rules-btn:hover {
+  color: var(--accent);
+}
+
 .help-btn,
 .sound-btn {
   position: fixed;
