@@ -308,17 +308,12 @@
     box-shadow: none;
   }
 
-  .game-over-summary-grid {
+  .fate-card-grid {
     grid-template-columns: 1fr;
   }
 
-  .game-over-fate-row {
+  .game-over-actions {
     flex-direction: column;
-    gap: 0.4rem;
-  }
-
-  .game-over-fate-badge {
-    align-self: flex-start;
   }
 
   #menu .menu-content {
