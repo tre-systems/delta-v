@@ -94,7 +94,11 @@ const getAstrogationStatusText = (
       : 'Burn set \u00b7 Confirm (Enter)';
   }
 
-  return isMobile ? 'Set burn or skip (S)' : 'Set burn or skip ship (S)';
+  if (ctx.multipleShipsAlive) {
+    return isMobile ? 'Set burn or skip (S)' : 'Set burn or skip ship (S)';
+  }
+
+  return isMobile ? 'Set burn' : 'Set burn or confirm (Enter)';
 };
 
 const getOrdnanceCapacityHint = (cargoFree: number): string => {
