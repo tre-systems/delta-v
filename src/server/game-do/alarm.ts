@@ -46,6 +46,13 @@ export type GameDoAlarmDeps = {
     turn: number,
     err: unknown,
   ) => void;
+  reportGameAbandoned: (props: {
+    gameId: string;
+    turn: number;
+    phase: string;
+    reason: string;
+    scenario: string;
+  }) => void;
   archiveRoomState: () => Promise<void>;
 };
 
@@ -91,6 +98,15 @@ export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
         const gameState = await deps.getCurrentGameState();
 
         if (gameState) {
+          if (gameState.phase !== 'gameOver') {
+            deps.reportGameAbandoned({
+              gameId: String(gameState.gameId),
+              turn: gameState.turnNumber,
+              phase: gameState.phase,
+              reason: 'inactivity',
+              scenario: gameState.scenario,
+            });
+          }
           const code = await deps.getGameCode();
           scheduleArchiveCompletedMatch(
             {
