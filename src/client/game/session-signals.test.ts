@@ -241,8 +241,8 @@ describe('session-signals', () => {
       combatAttackerIds: ['ship-0'],
       combatAttackStrength: 2,
     });
-    expect(showAttackButton).toHaveBeenLastCalledWith(false);
-    expect(showFireButton).toHaveBeenLastCalledWith(true, 1);
+    expect(showAttackButton).toHaveBeenLastCalledWith(true);
+    expect(showFireButton).toHaveBeenLastCalledWith(true, 0);
 
     session.planningState.clearCombatSelectionState();
     // Between attacks — button hidden during dice animation transition

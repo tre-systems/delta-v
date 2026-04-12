@@ -26,7 +26,7 @@ export const ACTION_BUTTON_BINDINGS = [
   { id: 'nextOrdnanceBtn', event: { type: 'skipOrdnanceShip' } },
   { id: 'confirmOrdnanceBtn', event: { type: 'confirmOrdnance' } },
   { id: 'attackBtn', event: { type: 'attack' } },
-  { id: 'fireBtn', event: { type: 'fireAll' } },
+  { id: 'fireBtn', event: { type: 'skipCombat' } },
   { id: 'skipCombatBtn', event: { type: 'skipCombat' } },
   { id: 'skipLogisticsBtn', event: { type: 'skipLogistics' } },
   { id: 'confirmTransfersBtn', event: { type: 'confirmTransfers' } },

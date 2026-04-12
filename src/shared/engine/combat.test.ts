@@ -1261,6 +1261,40 @@ describe('processSingleCombat', () => {
       'already attacked',
     );
   });
+  it('rejects duplicate attacker ids inside a single declaration', () => {
+    const state = makeCombatState();
+    const result = processSingleCombat(
+      state,
+      0,
+      {
+        attackerIds: [asShipId('a0'), asShipId('a0')],
+        targetId: asShipId('e0'),
+        targetType: 'ship',
+        attackStrength: null,
+      },
+      openMap,
+      Math.random,
+    );
+    expect('error' in result && result.error.message).toContain('at most once');
+  });
+  it('rejects invalid declared ship strength', () => {
+    const state = makeCombatState();
+    const result = processSingleCombat(
+      state,
+      0,
+      {
+        attackerIds: [asShipId('a0')],
+        targetId: asShipId('e0'),
+        targetType: 'ship',
+        attackStrength: 999,
+      },
+      openMap,
+      Math.random,
+    );
+    expect('error' in result && result.error.message).toContain(
+      'Invalid declared attack strength',
+    );
+  });
   it('resolves a successful ship attack', () => {
     const state = makeCombatState();
     const result = processSingleCombat(
@@ -1310,6 +1344,32 @@ describe('processSingleCombat', () => {
       expect(result.results.length).toBe(1);
       expect(result.results[0].attackType).toBe('antiNuke');
     }
+  });
+  it('rejects reduced-strength anti-nuke declarations', () => {
+    const state = makeCombatState();
+    state.ordnance = [
+      makeOrdnance({
+        id: asOrdnanceId('nuke0'),
+        owner: 1,
+        type: 'nuke',
+        position: { q: 1, r: 0 },
+      }),
+    ];
+    const result = processSingleCombat(
+      state,
+      0,
+      {
+        attackerIds: [asShipId('a0')],
+        targetId: asOrdnanceId('nuke0'),
+        targetType: 'ordnance',
+        attackStrength: 1,
+      },
+      openMap,
+      Math.random,
+    );
+    expect('error' in result && result.error.message).toContain(
+      'Reduced-strength attacks are only supported against ships',
+    );
   });
   it('rejects attacking undetected target', () => {
     const state = makeCombatState();

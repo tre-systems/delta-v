@@ -86,6 +86,21 @@ describe('game-client-ui-event-router', () => {
       command: { type: 'confirmOrdnance' },
     });
 
+    expect(resolveUIEventPlan({ type: 'attack' })).toEqual({
+      kind: 'command',
+      command: { type: 'confirmSingleAttack' },
+    });
+
+    expect(resolveUIEventPlan({ type: 'fireAll' })).toEqual({
+      kind: 'command',
+      command: { type: 'fireAllAttacks' },
+    });
+
+    expect(resolveUIEventPlan({ type: 'skipCombat' })).toEqual({
+      kind: 'command',
+      command: { type: 'endCombat' },
+    });
+
     expect(resolveUIEventPlan({ type: 'backToMenu' })).toEqual({
       kind: 'trackOnly',
       event: 'scenario_browsed',

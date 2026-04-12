@@ -253,7 +253,7 @@ describe('HUDChromeView', () => {
     expect(attackBtn.style.display).toBe('inline-block');
 
     view.showFireButton(true, 3);
-    expect(document.getElementById('fireBtn')?.textContent).toBe('CONFIRM');
+    expect(document.getElementById('fireBtn')?.textContent).toBe('END COMBAT');
 
     view.update(
       buildInput({

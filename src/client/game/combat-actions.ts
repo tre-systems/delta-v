@@ -62,6 +62,38 @@ const autoTargetNearest = (deps: CombatActionDeps): void => {
   }
 };
 
+const findNextAttackerWithTarget = (
+  deps: CombatActionDeps,
+):
+  | NonNullable<ReturnType<CombatActionDeps['getGameState']>>['ships'][number]
+  | null => {
+  const gameState = deps.getGameState();
+
+  if (!gameState) {
+    return null;
+  }
+
+  const playerId = deps.getPlayerId();
+  const map = deps.getMap();
+
+  return (
+    gameState.ships.find(
+      (ship) =>
+        ship.owner === playerId &&
+        ship.lifecycle !== 'destroyed' &&
+        canAttack(ship) &&
+        !ship.firedThisPhase &&
+        findPreferredTarget(
+          gameState,
+          playerId,
+          ship.id,
+          deps.planningState.queuedAttacks,
+          map,
+        ) !== null,
+    ) ?? null
+  );
+};
+
 // Duration to wait for the dice roll animation before advancing.
 const DICE_ROLL_DELAY = 750;
 
@@ -76,14 +108,7 @@ const advanceToNextAttackerImmediate = (deps: CombatActionDeps): void => {
   const gameState = deps.getGameState();
   if (!gameState || gameState.phase === 'gameOver') return;
 
-  const playerId = deps.getPlayerId();
-  const nextAttacker = gameState.ships.find(
-    (s) =>
-      s.owner === playerId &&
-      s.lifecycle !== 'destroyed' &&
-      canAttack(s) &&
-      !s.firedThisPhase,
-  );
+  const nextAttacker = findNextAttackerWithTarget(deps);
 
   if (nextAttacker) {
     batch(() => {
@@ -116,9 +141,15 @@ export const confirmSingleAttack = (deps: CombatActionDeps) => {
   );
 
   if (!attack) {
-    // No target selected — end combat (the button shows
-    // "END COMBAT" in this state, so honour that label).
-    endCombatPhase(deps);
+    if (deps.planningState.combatTargetId === null) {
+      endCombatPhase(deps);
+      return;
+    }
+
+    deps.showToast(
+      'Selected target is blocked or has no legal attackers',
+      'error',
+    );
     return;
   }
 

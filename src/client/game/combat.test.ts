@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { hexKey } from '../../shared/hex';
 import { asGameId, asOrdnanceId, asShipId } from '../../shared/ids';
 import type {
   CombatAttack,
@@ -247,19 +248,19 @@ describe('game client combat helpers', () => {
     expect(getCombatAttackerIdAtHex(state, 0, { q: 0, r: 1 })).toBe('b');
 
     expect(
-      getCombatTargetAtHex(state, 0, { q: 2, r: 0 }, queuedAttacks),
+      getCombatTargetAtHex(state, 0, { q: 2, r: 0 }, map, queuedAttacks),
     ).toEqual({
       targetId: asOrdnanceId('ord-0'),
       targetType: 'ordnance',
     });
 
-    expect(getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, [])).toEqual({
+    expect(getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, map, [])).toEqual({
       targetId: asShipId('x'),
       targetType: 'ship',
     });
 
     expect(
-      getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, queuedAttacks),
+      getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, map, queuedAttacks),
     ).not.toEqual({
       targetId: asShipId('x'),
       targetType: 'ship',
@@ -291,9 +292,47 @@ describe('game client combat helpers', () => {
       ],
     });
 
-    expect(getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, [])).toBeNull();
-    expect(getCombatTargetAtHex(state, 0, { q: 2, r: 0 }, [])).toBeNull();
+    expect(getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, map, [])).toBeNull();
+    expect(getCombatTargetAtHex(state, 0, { q: 2, r: 0 }, map, [])).toBeNull();
     expect(hasVisibleCombatTargets(state, 0, map)).toBe(false);
+  });
+
+  it('does not select blocked combat targets that no attacker can shoot', () => {
+    const blockedMap: SolarSystemMap = {
+      ...map,
+      hexes: new Map([
+        [
+          hexKey({ q: 1, r: 0 }),
+          {
+            terrain: 'planetSurface',
+            body: {
+              name: 'Mars',
+              destructive: true,
+            },
+          },
+        ],
+      ]),
+    };
+    const state = createState({
+      ships: [
+        createShip({ id: asShipId('a'), owner: 0, position: { q: 0, r: 0 } }),
+        createShip({
+          id: asShipId('x'),
+          owner: 1,
+          position: { q: 2, r: 0 },
+        }),
+      ],
+      ordnance: [
+        createOrdnance({
+          id: asOrdnanceId('ord-blocked'),
+          position: { q: 2, r: 0 },
+        }),
+      ],
+    });
+
+    expect(
+      getCombatTargetAtHex(state, 0, { q: 2, r: 0 }, blockedMap, []),
+    ).toBeNull();
   });
 
   it('cycles through stacked combat attackers on repeated clicks', () => {
@@ -347,6 +386,7 @@ describe('game client combat helpers', () => {
         state,
         0,
         {
+          selectedShipId: null,
           combatTargetId: null,
           combatTargetType: null,
           combatAttackerIds: [],
@@ -495,25 +535,26 @@ describe('getCombatTargetAtHex — stacked cycling', () => {
     const state = createState();
 
     // Default state has enemy 'x' and 'y' at (1,0)
-    const first = getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, []);
+    const first = getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, map, []);
     expect(first?.targetId).toBe('x');
 
-    const second = getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, [], 'x');
+    const second = getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, map, [], 'x');
     expect(second?.targetId).toBe('y');
 
-    const wrap = getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, [], 'y');
+    const wrap = getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, map, [], 'y');
     expect(wrap?.targetId).toBe('x');
   });
 });
 
 describe('createCombatTargetPlan — explicit attacker selection', () => {
-  it('starts with empty attackers instead of auto-drafting', () => {
+  it('defaults to the selected legal attacker instead of drafting everyone', () => {
     const state = createState();
 
     const plan = createCombatTargetPlan(
       state,
       0,
       {
+        selectedShipId: 'b',
         combatTargetId: null,
         combatTargetType: null,
         combatAttackerIds: [],
@@ -522,10 +563,10 @@ describe('createCombatTargetPlan — explicit attacker selection', () => {
       },
       'x',
       'ship',
-      null,
+      map,
     );
 
-    expect(plan.combatAttackerIds).toEqual([]);
-    expect(plan.combatAttackStrength).toBeNull();
+    expect(plan.combatAttackerIds).toEqual(['b']);
+    expect(plan.combatAttackStrength).toBe(2);
   });
 });

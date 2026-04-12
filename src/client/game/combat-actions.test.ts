@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { hexKey } from '../../shared/hex';
 import { asGameId, asShipId } from '../../shared/ids';
 import type {
   GameState,
@@ -7,8 +8,10 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import {
+  advanceToNextAttacker,
   autoSkipCombatIfNoTargets,
   type CombatActionDeps,
+  confirmSingleAttack,
   queueAttack,
 } from './combat-actions';
 import { createPlanningStore } from './planning';
@@ -178,6 +181,104 @@ describe('combat action helpers', () => {
     autoSkipCombatIfNoTargets(deps);
 
     expect(deps.transport.skipCombat).not.toHaveBeenCalled();
+  });
+
+  it('advances to the next attacker that actually has a visible target', () => {
+    vi.useFakeTimers();
+    const blockedMap: SolarSystemMap = {
+      ...map,
+      hexes: new Map([
+        [
+          hexKey({ q: 1, r: 0 }),
+          {
+            terrain: 'planetSurface',
+            body: {
+              name: 'Mars',
+              destructive: true,
+            },
+          },
+        ],
+      ]),
+    };
+    const state = createState({
+      ships: [
+        createShip({
+          id: asShipId('ship-0'),
+          owner: 0,
+          position: { q: 0, r: 0 },
+        }),
+        createShip({
+          id: asShipId('ship-1'),
+          owner: 0,
+          position: { q: 0, r: 1 },
+        }),
+        createShip({
+          id: asShipId('enemy-1'),
+          owner: 1,
+          originalOwner: 1,
+          position: { q: 2, r: 0 },
+        }),
+      ],
+    });
+    const deps = createDeps({
+      getGameState: () => state,
+      getMap: () => blockedMap,
+    });
+
+    advanceToNextAttacker(deps);
+    vi.runAllTimers();
+
+    expect(deps.planningState.selectedShipId).toBe('ship-1');
+    expect(deps.planningState.combatTargetId).toBe('enemy-1');
+  });
+
+  it('does not end combat when confirm is pressed on a blocked target', () => {
+    const blockedMap: SolarSystemMap = {
+      ...map,
+      hexes: new Map([
+        [
+          hexKey({ q: 1, r: 0 }),
+          {
+            terrain: 'planetSurface',
+            body: {
+              name: 'Mars',
+              destructive: true,
+            },
+          },
+        ],
+      ]),
+    };
+    const state = createState({
+      ships: [
+        createShip({
+          id: asShipId('ship-0'),
+          owner: 0,
+          position: { q: 0, r: 0 },
+        }),
+        createShip({
+          id: asShipId('enemy-1'),
+          owner: 1,
+          originalOwner: 1,
+          position: { q: 2, r: 0 },
+        }),
+      ],
+    });
+    const deps = createDeps({
+      getGameState: () => state,
+      getMap: () => blockedMap,
+    });
+    deps.planningState.selectedShipId = 'ship-0';
+    deps.planningState.combatTargetId = 'enemy-1';
+    deps.planningState.combatTargetType = 'ship';
+
+    confirmSingleAttack(deps);
+
+    expect(deps.transport.endCombat).not.toHaveBeenCalled();
+    expect(deps.transport.submitSingleCombat).not.toHaveBeenCalled();
+    expect(deps.showToast).toHaveBeenLastCalledWith(
+      'Selected target is blocked or has no legal attackers',
+      'error',
+    );
   });
 
   it('queues a selected attack and promotes fire-all once a target exists', () => {

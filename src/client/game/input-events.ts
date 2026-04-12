@@ -38,6 +38,7 @@ const interpretCombatClick = (
     state,
     playerId,
     hex,
+    map,
     planning.queuedAttacks,
     planning.combatTargetId,
   );

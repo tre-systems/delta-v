@@ -81,13 +81,10 @@ export const attachSessionCombatButtonsEffect = (
       deriveInteractionMode(session.stateSignal.value) === 'combat';
     session.planningState.revisionSignal?.value;
 
-    ui.showAttackButton(false);
     const hasTarget = session.planningState.combatTargetId !== null;
     const hasSelection = session.planningState.selectedShipId !== null;
-    ui.showFireButton(
-      isCombatMode && (hasTarget || hasSelection),
-      hasTarget ? 1 : 0,
-    );
+    ui.showAttackButton(isCombatMode && hasTarget);
+    ui.showFireButton(isCombatMode && (hasTarget || hasSelection), 0);
   });
 
 /**
