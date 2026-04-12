@@ -70,7 +70,7 @@ describe('ui hud helpers', () => {
       turnText: 'Turn 3',
       phaseText: 'ASTROGATION',
       fuelGaugeText: 'Fuel: 8/10',
-      statusText: 'Set burn or skip ship (S)',
+      statusText: 'Set burn or confirm (Enter)',
       undoVisible: true,
       confirmVisible: true,
       skipCombatVisible: false,
@@ -401,6 +401,6 @@ describe('ui hud helpers', () => {
           hasBurns: true,
         }),
       ).statusText,
-    ).toBe('Set burn or skip (S)');
+    ).toBe('Set burn');
   });
 });
