@@ -54,6 +54,7 @@ import {
 import { dispatchAuxMessage } from './socket';
 import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 import {
+  reportGameAbandoned,
   reportGameDoEngineError,
   reportGameDoProjectionParityMismatch,
   verifyGameDoProjectionParity,
@@ -311,6 +312,19 @@ export class GameDO extends DurableObject<Env> {
     );
   };
 
+  private reportGameAbandoned = (props: {
+    gameId: string;
+    turn: number;
+    phase: string;
+    reason: string;
+    scenario: string;
+  }): void => {
+    reportGameAbandoned(
+      { db: this.env.DB, waitUntil: (promise) => this.waitUntil(promise) },
+      props,
+    );
+  };
+
   private reportProjectionParityMismatch = async (
     gameId: import('../../shared/ids').GameId,
     liveState: GameState,
@@ -372,6 +386,7 @@ export class GameDO extends DurableObject<Env> {
         this.publishStateChange(state, primaryMessage, options),
       reportEngineError: (code, phase, turn, err) =>
         this.reportEngineError(code, phase, turn, err),
+      reportGameAbandoned: (props) => this.reportGameAbandoned(props),
       archiveRoomState: () => this.archiveRoomState(),
     };
   }

@@ -1,9 +1,11 @@
 import type { AIDifficulty } from '../../shared/ai/types';
+import { SHIP_STATS } from '../../shared/constants';
 import type {
   FleetPurchase,
   PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
+import { isShipFleetPurchase } from '../../shared/types/domain';
 import type { UIEvent } from '../ui/events';
 import type { ActionDeps } from './action-deps';
 import {
@@ -74,7 +76,7 @@ type MainInteractionDeps = {
   mainNetworkDeps: MainNetworkDeps;
   setAIDifficulty: (difficulty: AIDifficulty) => void;
   exitToMenu: () => void;
-  trackEvent: (event: string) => void;
+  trackEvent: (event: string, props?: Record<string, unknown>) => void;
 };
 
 export type MainInteractionController = {
@@ -103,18 +105,45 @@ export const createMainInteractionController = (
   deps: MainInteractionDeps,
 ): MainInteractionController => {
   const sendFleetReady = (purchases: FleetPurchase[]) => {
+    const gameState = deps.ctx.gameStateSignal.peek();
     if (
-      !deps.ctx.gameStateSignal.peek() ||
+      !gameState ||
       deps.ctx.stateSignal.peek() !== 'playing_fleetBuilding' ||
       !deps.ctx.transport
     ) {
       return;
     }
 
+    const shipTypes: Record<string, number> = {};
+    let totalCost = 0;
+    for (const p of purchases) {
+      if (isShipFleetPurchase(p)) {
+        shipTypes[p.shipType] = (shipTypes[p.shipType] ?? 0) + 1;
+        totalCost += SHIP_STATS[p.shipType].cost;
+      }
+    }
+    deps.trackEvent('fleet_ready_submitted', {
+      scenario: gameState.scenario,
+      shipCount: purchases.filter(isShipFleetPurchase).length,
+      totalCost,
+      shipTypes,
+    });
+
     deps.ctx.transport.submitFleetReady(purchases);
     if (!deps.ctx.isLocalGame) {
       deps.ui.showFleetWaiting();
     }
+  };
+
+  const sendSurrender = (shipIds: string[]) => {
+    const gameState = deps.ctx.gameStateSignal.peek();
+    if (!gameState || !deps.ctx.transport) return;
+    deps.trackEvent('surrender_submitted', {
+      turn: gameState.turnNumber,
+      scenario: gameState.scenario,
+      mode: deps.ctx.isLocalGame ? 'local' : 'multiplayer',
+    });
+    deps.ctx.transport.submitSurrender(shipIds);
   };
 
   const sendRematch = () => {
@@ -142,6 +171,7 @@ export const createMainInteractionController = (
     focusNearestEnemy: () => deps.camera.focusNearestEnemy(),
     focusOwnFleet: () => deps.camera.focusOwnFleet(),
     sendFleetReady: (purchases) => sendFleetReady(purchases),
+    sendSurrender: (shipIds) => sendSurrender(shipIds),
     sendRematch: () => sendRematch(),
     exitToMenu: () => deps.exitToMenu(),
     toggleHelp: () => toggleHelp(),

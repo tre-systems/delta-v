@@ -215,6 +215,7 @@ const createDeps = (overrides?: {
     focusNearestEnemy: vi.fn<() => void>(),
     focusOwnFleet: vi.fn<() => void>(),
     sendFleetReady: vi.fn<(purchases: FleetPurchase[]) => void>(),
+    sendSurrender: vi.fn<(shipIds: string[]) => void>(),
     sendRematch: vi.fn<() => void>(),
     exitToMenu: vi.fn<() => void>(),
     toggleHelp: vi.fn<() => void>(),

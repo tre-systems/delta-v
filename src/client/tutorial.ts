@@ -22,7 +22,7 @@ interface TutorialStep {
 }
 
 export interface Tutorial {
-  onTelemetry: ((event: string) => void) | null;
+  onTelemetry: ((event: string, props?: Record<string, unknown>) => void) | null;
   isActive: () => boolean;
   onPhaseChange: (phase: string, turn: number) => void;
   hideTip: () => void;
@@ -82,10 +82,11 @@ export const createTutorial = (): Tutorial => {
   let completed = localStorage.getItem(STORAGE_KEY) === '1';
   let shownSteps = new Set<string>();
   let activeStepId: string | null = null;
-  let telemetryHandler: ((event: string) => void) | null = null;
+  let telemetryHandler: ((event: string, props?: Record<string, unknown>) => void) | null = null;
+  let tutorialStartTime: number | null = null;
 
-  const emitTelemetry = (event: string): void => {
-    telemetryHandler?.(event);
+  const emitTelemetry = (event: string, props?: Record<string, unknown>): void => {
+    telemetryHandler?.(event, props);
   };
 
   const hideTip = (): void => {
@@ -100,7 +101,8 @@ export const createTutorial = (): Tutorial => {
 
   const showStep = (step: TutorialStep): void => {
     if (shownSteps.size === 0) {
-      emitTelemetry('tutorial_started');
+      tutorialStartTime = Date.now();
+      emitTelemetry('tutorial_started', { step: step.id });
     }
 
     activeStepId = step.id;
@@ -134,7 +136,9 @@ export const createTutorial = (): Tutorial => {
     }
 
     if (shownSteps.size >= STEPS.length) {
-      emitTelemetry('tutorial_completed');
+      emitTelemetry('tutorial_completed', {
+        totalTimeMs: tutorialStartTime !== null ? Date.now() - tutorialStartTime : undefined,
+      });
       complete();
     }
 
@@ -142,7 +146,7 @@ export const createTutorial = (): Tutorial => {
   };
 
   const skip = (): void => {
-    emitTelemetry('tutorial_skipped');
+    emitTelemetry('tutorial_skipped', { step: activeStepId ?? undefined });
     complete();
     hideTip();
   };
