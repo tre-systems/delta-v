@@ -246,6 +246,7 @@ export const createUIManager = () => {
     showScenarioSelect,
     showFleetBuilding,
     showFleetWaiting,
+    selectCodeInput: () => lobbyView.selectCodeInput(),
     bindTurnTimerSignal: (
       timerSignal: Parameters<typeof hudChromeView.bindTurnTimerSignal>[0],
     ) => hudChromeView.bindTurnTimerSignal(timerSignal),

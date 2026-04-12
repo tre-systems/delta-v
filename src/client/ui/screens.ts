@@ -26,6 +26,7 @@ export interface UIScreenVisibility {
 export interface WaitingScreenCopy {
   codeText: string;
   statusText: string;
+  scenarioText: string | null;
 }
 
 export interface GameOverStatsLike {
@@ -188,12 +189,14 @@ export const mapInteractionModeToUIScreenMode = (
 export const buildWaitingScreenCopy = (
   code: string,
   connecting: boolean,
+  scenarioName?: string | null,
 ): WaitingScreenCopy => {
   return connecting
-    ? { codeText: '...', statusText: 'Connecting...' }
+    ? { codeText: '...', statusText: 'Connecting...', scenarioText: null }
     : {
         codeText: code,
         statusText: 'Waiting for opponent...',
+        scenarioText: scenarioName ?? null,
       };
 };
 
