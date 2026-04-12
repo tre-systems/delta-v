@@ -22,7 +22,9 @@ interface TutorialStep {
 }
 
 export interface Tutorial {
-  onTelemetry: ((event: string, props?: Record<string, unknown>) => void) | null;
+  onTelemetry:
+    | ((event: string, props?: Record<string, unknown>) => void)
+    | null;
   isActive: () => boolean;
   onPhaseChange: (phase: string, turn: number) => void;
   hideTip: () => void;
@@ -82,10 +84,15 @@ export const createTutorial = (): Tutorial => {
   let completed = localStorage.getItem(STORAGE_KEY) === '1';
   let shownSteps = new Set<string>();
   let activeStepId: string | null = null;
-  let telemetryHandler: ((event: string, props?: Record<string, unknown>) => void) | null = null;
+  let telemetryHandler:
+    | ((event: string, props?: Record<string, unknown>) => void)
+    | null = null;
   let tutorialStartTime: number | null = null;
 
-  const emitTelemetry = (event: string, props?: Record<string, unknown>): void => {
+  const emitTelemetry = (
+    event: string,
+    props?: Record<string, unknown>,
+  ): void => {
     telemetryHandler?.(event, props);
   };
 
@@ -137,7 +144,10 @@ export const createTutorial = (): Tutorial => {
 
     if (shownSteps.size >= STEPS.length) {
       emitTelemetry('tutorial_completed', {
-        totalTimeMs: tutorialStartTime !== null ? Date.now() - tutorialStartTime : undefined,
+        totalTimeMs:
+          tutorialStartTime !== null
+            ? Date.now() - tutorialStartTime
+            : undefined,
       });
       complete();
     }
