@@ -145,7 +145,14 @@ const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
     allOrdnanceShipsAcknowledged,
     queuedLaunchCount,
   } = input;
-  const nextShipLabel = isMobile ? 'Next Ship' : 'Next Ship (S)';
+  const multiShip = input.astrogationCtx.multipleShipsAlive;
+  const skipLabel = multiShip
+    ? isMobile
+      ? 'Next Ship'
+      : 'Next Ship (S)'
+    : isMobile
+      ? 'Skip'
+      : 'Skip (S)';
 
   if (allOrdnanceShipsAcknowledged) {
     const queued =
@@ -194,10 +201,10 @@ const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
     const reason = getPrimaryDisabledReason(input);
     const hint = reason ? ` \u2014 ${lowerFirst(reason)}` : '';
 
-    return `No legal ordnance${hint} \u00b7 ${nextShipLabel}`;
+    return `No legal ordnance${hint} \u00b7 ${skipLabel}`;
   }
 
-  const prompt = `Choose ${joinActionList([...available, nextShipLabel])}`;
+  const prompt = `Choose ${joinActionList([...available, skipLabel])}`;
 
   if (launchTorpedoState.visible && !launchTorpedoState.disabled) {
     return `${prompt} \u00b7 Torpedo boost uses an adjacent hex`;
@@ -363,7 +370,9 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     skipOrdnanceVisible: showOrdnance,
     skipOrdnanceLabel: input.allOrdnanceShipsAcknowledged
       ? 'CONFIRM PHASE'
-      : 'NEXT SHIP',
+      : input.astrogationCtx.multipleShipsAlive
+        ? 'NEXT SHIP'
+        : 'SKIP',
     skipOrdnanceIsConfirm: input.allOrdnanceShipsAcknowledged,
     queuedOrdnanceType: showOrdnance
       ? (input.queuedOrdnanceType ?? null)
