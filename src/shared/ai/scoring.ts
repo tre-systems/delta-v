@@ -262,13 +262,15 @@ export const scoreCombatPositioning = (
   enemyEscaping: boolean,
   shipIndex: number,
   cfg: AIDifficultyConfig,
+  enemyHasPassengerObjective = false,
 ): number => {
   if (enemyShips.length === 0) return 0;
   const mult = cfg.multiplier;
   const noPrimaryObjective = !escapeWins && !targetHex;
   let score = 0;
   const myStrength = getCombatStrength([ship]);
-  const intercepting = enemyEscaping && noPrimaryObjective;
+  const intercepting =
+    (enemyEscaping || enemyHasPassengerObjective) && noPrimaryObjective;
   // Distribute ships across targets to avoid
   // all chasing the same one (config-driven)
   const assignedTarget =
@@ -410,6 +412,7 @@ export interface ScoreCourseParams {
   map?: SolarSystemMap;
   isRace?: boolean;
   enemyEscaping?: boolean;
+  enemyHasPassengerObjective?: boolean;
   shipIndex?: number;
 }
 
@@ -526,6 +529,7 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
     !!enemyEscaping,
     shipIndex ?? 0,
     cfg,
+    !!p.enemyHasPassengerObjective,
   );
 
   return score;

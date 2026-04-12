@@ -479,7 +479,7 @@ describe('applyEscapeMoralVictory', () => {
     applyEscapeMoralVictory(state);
     expect(state.escapeMoralVictoryAchieved).toBe(true);
   });
-  it('sets moral victory when an enforcer ship is disabled', () => {
+  it('sets moral victory when an enforcer ship is heavily disabled (D2+)', () => {
     map = buildSolarSystemMap();
     const state = createGameOrThrow(
       SCENARIOS.escape,
@@ -492,6 +492,20 @@ describe('applyEscapeMoralVictory', () => {
     enforcer.damage.disabledTurns = 3;
     applyEscapeMoralVictory(state);
     expect(state.escapeMoralVictoryAchieved).toBe(true);
+  });
+  it('does not set moral victory when an enforcer has only D1 damage', () => {
+    map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.escape,
+      map,
+      asGameId('MV04'),
+      findBaseHex,
+    );
+    state.escapeMoralVictoryAchieved = false;
+    const enforcer = must(state.ships.find((s) => s.owner === 1));
+    enforcer.damage.disabledTurns = 1;
+    applyEscapeMoralVictory(state);
+    expect(state.escapeMoralVictoryAchieved).toBe(false);
   });
   it('does not set moral victory when no enforcers damaged', () => {
     map = buildSolarSystemMap();
