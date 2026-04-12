@@ -199,6 +199,7 @@ const createDeps = (overrides?: {
       getGameState: () => ctx.getGameState(),
       getClientState: () => ctx.getState(),
       getPlayerId: () => ctx.getPlayerId(),
+      getMap: () => map,
       getTransport: () => ctx.getTransport(),
       planningState: ctx.planningState,
       showToast,
@@ -331,13 +332,33 @@ describe('game-command-router', () => {
 
   it('clears torpedo acceleration', () => {
     const { deps } = createDeps();
+    deps.ctx.planningState.torpedoAimingActive = true;
     deps.ctx.planningState.torpedoAccel = 2;
     deps.ctx.planningState.torpedoAccelSteps = 1;
 
     dispatchGameCommand(deps, { type: 'clearTorpedoAcceleration' });
 
+    expect(deps.ctx.planningState.torpedoAimingActive).toBe(false);
     expect(deps.ctx.planningState.torpedoAccel).toBeNull();
     expect(deps.ctx.planningState.torpedoAccelSteps).toBeNull();
+  });
+
+  it('stores torpedo boost selection without auto-queueing the launch', () => {
+    const { deps, transport } = createDeps({
+      clientState: 'playing_ordnance',
+      gameState: createState({ phase: 'ordnance' }),
+    });
+    deps.ctx.planningState.torpedoAimingActive = true;
+
+    dispatchGameCommand(deps, {
+      type: 'setTorpedoAccel',
+      direction: 2,
+      steps: 1,
+    });
+
+    expect(deps.ctx.planningState.torpedoAccel).toBe(2);
+    expect(deps.ctx.planningState.torpedoAccelSteps).toBe(1);
+    expect(transport.calls.submitOrdnance).toBeUndefined();
   });
 
   it('treats skipOrdnance as skip-ship until all ships are acknowledged', () => {

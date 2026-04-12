@@ -162,7 +162,10 @@ export type HudPlanningSnapshot = Pick<ShipSelectionView, 'selectedShipId'> &
   AstrogationPlanningView &
   Pick<
     OrdnancePlanningView,
-    'queuedOrdnanceLaunches' | 'acknowledgedOrdnanceShips'
+    | 'torpedoAimingActive'
+    | 'torpedoAccelSteps'
+    | 'queuedOrdnanceLaunches'
+    | 'acknowledgedOrdnanceShips'
   >;
 export type KeyboardPlanningSnapshot = Pick<
   ShipSelectionView,
@@ -421,6 +424,7 @@ export const createPlanningStore = (): PlanningStore => {
       notifyPlanningChanged();
     },
     clearTorpedoAcceleration: (): void => {
+      planningStore.torpedoAimingActive = false;
       planningStore.torpedoAccel = null;
       planningStore.torpedoAccelSteps = null;
       notifyPlanningChanged();

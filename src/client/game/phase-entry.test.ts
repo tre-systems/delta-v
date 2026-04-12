@@ -122,6 +122,23 @@ describe('game-client-phase-entry', () => {
     expect(plan.planningPhaseEntry?.selectedShipId).toBeNull();
   });
 
+  it('selects a carrying-base ship when ordnance phase is for emplacement only', () => {
+    const plan = deriveClientStateEntryPlan(
+      'playing_ordnance',
+      createState([
+        createShip({
+          id: asShipId('base-carrier'),
+          type: 'transport',
+          lifecycle: 'landed',
+          baseStatus: 'carryingBase',
+        }),
+      ]),
+      0,
+    );
+
+    expect(plan.planningPhaseEntry?.selectedShipId).toBe('base-carrier');
+  });
+
   it('auto-selects the first actionable ship when multiple alive ships exist', () => {
     const plan = deriveClientStateEntryPlan(
       'playing_astrogation',

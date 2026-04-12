@@ -139,6 +139,7 @@ describe('planning', () => {
     const planning = createPlanningStore();
 
     planning.setCombatAttackStrength(4);
+    planning.setTorpedoAimingActive(true);
     planning.setTorpedoAcceleration(2, 1);
     planning.setHoverHex({ q: 1, r: -1 });
 
@@ -148,6 +149,7 @@ describe('planning', () => {
     expect(planning.hoverHex).toEqual({ q: 1, r: -1 });
 
     planning.clearTorpedoAcceleration();
+    expect(planning.torpedoAimingActive).toBe(false);
     expect(planning.torpedoAccel).toBeNull();
     expect(planning.torpedoAccelSteps).toBeNull();
   });

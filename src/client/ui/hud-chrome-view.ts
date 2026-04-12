@@ -78,6 +78,9 @@ const cloneHUDInput = (
     launchNukeState: {
       ...input.launchNukeState,
     },
+    emplaceBaseState: {
+      ...input.emplaceBaseState,
+    },
   };
 };
 
@@ -295,7 +298,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       );
       visible(
         emplaceBaseBtn,
-        !hideActions && hudView.emplaceBaseVisible,
+        !hideActions && hudView.emplaceBase.visible,
         'inline-block',
       );
       visible(
@@ -304,14 +307,14 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
         'inline-block',
       );
       skipOrdnanceBtn.textContent = hudView.skipOrdnanceLabel;
-      skipOrdnanceBtn.className =
-        hudView.skipOrdnanceLabel === 'CONFIRM'
-          ? 'btn btn-confirm'
-          : 'btn btn-skip';
+      skipOrdnanceBtn.className = hudView.skipOrdnanceIsConfirm
+        ? 'btn btn-confirm'
+        : 'btn btn-skip';
 
       launchMineBtn.disabled = hudView.launchMine.disabled;
       launchTorpedoBtn.disabled = hudView.launchTorpedo.disabled;
       launchNukeBtn.disabled = hudView.launchNuke.disabled;
+      emplaceBaseBtn.disabled = hudView.emplaceBase.disabled;
 
       launchMineBtn.classList.toggle(
         'active',
@@ -329,10 +332,12 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       launchMineBtn.style.opacity = hudView.launchMine.opacity;
       launchTorpedoBtn.style.opacity = hudView.launchTorpedo.opacity;
       launchNukeBtn.style.opacity = hudView.launchNuke.opacity;
+      emplaceBaseBtn.style.opacity = hudView.emplaceBase.opacity;
 
       launchMineBtn.title = hudView.launchMine.title;
       launchTorpedoBtn.title = hudView.launchTorpedo.title;
       launchNukeBtn.title = hudView.launchNuke.title;
+      emplaceBaseBtn.title = hudView.emplaceBase.title;
 
       visible(
         skipCombatBtn,
@@ -372,7 +377,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
           state.hudView.launchMine.visible ||
           state.hudView.launchTorpedo.visible ||
           state.hudView.launchNuke.visible ||
-          state.hudView.emplaceBaseVisible ||
+          state.hudView.emplaceBase.visible ||
           state.hudView.skipOrdnanceVisible ||
           state.hudView.skipCombatVisible ||
           state.hudView.skipLogisticsVisible ||

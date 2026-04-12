@@ -47,13 +47,15 @@ export interface HudViewModel {
   cargoMax: number;
   objective: string;
   canOverload: boolean;
-  canEmplaceBase: boolean;
+  emplaceBaseState: OrdnanceActionState;
   fleetStatus: string;
   selectedShipLanded: boolean;
   selectedShipDisabled: boolean;
   selectedShipHasBurn: boolean;
   selectedShipInOrbit: boolean;
   selectedShipLandingSet: boolean;
+  torpedoAimingActive: boolean;
+  torpedoAccelSteps: 1 | 2 | null;
   allShipsAcknowledged: boolean;
   allOrdnanceShipsAcknowledged: boolean;
   queuedOrdnanceType: string | null;

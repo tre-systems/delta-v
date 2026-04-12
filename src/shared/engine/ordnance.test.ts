@@ -4,18 +4,42 @@ import { ORBITAL_BASE_MASS } from '../constants';
 import { asHexKey, hexKey } from '../hex';
 import { asGameId, asShipId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
-import type { GameState, PlayerId, Ship, SolarSystemMap } from '../types';
+import type {
+  GameState,
+  MapHex,
+  PlayerId,
+  Ship,
+  SolarSystemMap,
+} from '../types';
 import { createGameOrThrow } from './game-engine';
 import {
   isAsteroidHex,
   processEmplacement,
   queueAsteroidHazards,
   resolvePendingAsteroidHazards,
+  shouldEnterOrdnancePhase,
 } from './ordnance';
 
 let map: SolarSystemMap;
 const createConvoyGame = (): GameState =>
   createGameOrThrow(SCENARIOS.convoy, map, asGameId('TEST'), findBaseHex);
+const findWorldSideHex = (
+  predicate: (hex: MapHex) => boolean,
+): {
+  q: number;
+  r: number;
+} => {
+  const entry = Array.from(map.hexes.entries()).find(
+    ([, hex]) => !!hex.gravity && predicate(hex),
+  );
+
+  if (!entry) {
+    throw new Error('Expected matching world-side gravity hex');
+  }
+
+  const [q, r] = entry[0].split(',').map(Number);
+  return { q, r };
+};
 const makeTransportWithBase = (
   state: GameState,
   playerId: PlayerId,
@@ -110,6 +134,81 @@ const makeMinimalState = (overrides: Partial<GameState> = {}): GameState =>
     outcome: null,
     ...overrides,
   }) as GameState;
+describe('shouldEnterOrdnancePhase', () => {
+  it('does not enter ordnance when a ship only has mine capacity without a committed burn', () => {
+    const state = makeMinimalState({
+      activePlayer: 0,
+      scenarioRules: { allowedOrdnanceTypes: ['mine'] },
+      ships: [
+        makeTestShip({
+          id: asShipId('mine-layer'),
+          type: 'frigate',
+          velocity: { dq: 0, dr: 0 },
+        }),
+      ],
+    });
+
+    expect(shouldEnterOrdnancePhase(state, map)).toBe(false);
+  });
+
+  it('enters ordnance for a landed base carrier on a world hex side', () => {
+    const openWorldSide = findWorldSideHex((hex) => !hex.base);
+    const state = makeMinimalState({
+      activePlayer: 0,
+      ships: [
+        makeTestShip({
+          id: asShipId('base-carrier'),
+          type: 'transport',
+          position: openWorldSide,
+          velocity: { dq: 0, dr: 0 },
+          lifecycle: 'landed',
+          baseStatus: 'carryingBase',
+          cargoUsed: ORBITAL_BASE_MASS,
+        }),
+      ],
+    });
+
+    expect(shouldEnterOrdnancePhase(state, map)).toBe(true);
+  });
+
+  it('does not enter ordnance for a base carrier that cannot emplace this turn', () => {
+    const state = makeMinimalState({
+      activePlayer: 0,
+      ships: [
+        makeTestShip({
+          id: asShipId('drifting-carrier'),
+          type: 'transport',
+          position: { q: 0, r: 0 },
+          velocity: { dq: 0, dr: 0 },
+          baseStatus: 'carryingBase',
+          cargoUsed: ORBITAL_BASE_MASS,
+        }),
+      ],
+    });
+
+    expect(shouldEnterOrdnancePhase(state, map)).toBe(false);
+  });
+
+  it('does not enter ordnance for a landed base carrier on an occupied base side', () => {
+    const occupiedWorldSide = findWorldSideHex((hex) => !!hex.base);
+    const state = makeMinimalState({
+      activePlayer: 0,
+      ships: [
+        makeTestShip({
+          id: asShipId('occupied-carrier'),
+          type: 'transport',
+          position: occupiedWorldSide,
+          velocity: { dq: 0, dr: 0 },
+          lifecycle: 'landed',
+          baseStatus: 'carryingBase',
+          cargoUsed: ORBITAL_BASE_MASS,
+        }),
+      ],
+    });
+
+    expect(shouldEnterOrdnancePhase(state, map)).toBe(false);
+  });
+});
 describe('queueAsteroidHazards', () => {
   it('queues hazard when path crosses an asteroid hex', () => {
     const asteroidMap: SolarSystemMap = {
@@ -490,14 +589,66 @@ describe('processEmplacement', () => {
     const state = createConvoyGame();
     state.phase = 'ordnance';
     state.activePlayer = 0;
-    const marsGravityHex = { q: -9, r: -6 };
-    const ship = makeTransportWithBase(state, 0, marsGravityHex, {
+    const openWorldSide = findWorldSideHex((hex) => !hex.base);
+    const ship = makeTransportWithBase(state, 0, openWorldSide, {
       dq: 0,
       dr: 0,
     });
     ship.lifecycle = 'landed';
     const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
     expect('error' in result).toBe(false);
+  });
+  it('rejects emplacement on an occupied world hex side', () => {
+    const state = createConvoyGame();
+    state.phase = 'ordnance';
+    state.activePlayer = 0;
+    const occupiedWorldSide = findWorldSideHex((hex) => !!hex.base);
+    const ship = makeTransportWithBase(state, 0, occupiedWorldSide, {
+      dq: 0,
+      dr: 0,
+    });
+    ship.lifecycle = 'landed';
+    const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
+    expect('error' in result).toBe(true);
+  });
+  it('rejects emplacement on a world hex side occupied by another landed ship', () => {
+    const state = createConvoyGame();
+    state.phase = 'ordnance';
+    state.activePlayer = 0;
+    const openWorldSide = findWorldSideHex((hex) => !hex.base);
+    const ship = makeTransportWithBase(state, 0, openWorldSide, {
+      dq: 0,
+      dr: 0,
+    });
+    ship.lifecycle = 'landed';
+    state.ships.push(
+      makeTestShip({
+        id: asShipId('blocking-lander'),
+        owner: 1,
+        position: openWorldSide,
+        velocity: { dq: 0, dr: 0 },
+        lifecycle: 'landed',
+      }),
+    );
+
+    const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
+
+    expect('error' in result).toBe(true);
+  });
+  it('rejects emplacement by a captured carrier', () => {
+    const state = createConvoyGame();
+    state.phase = 'ordnance';
+    state.activePlayer = 0;
+    const marsGravityHex = { q: -9, r: -6 };
+    const ship = makeTransportWithBase(state, 0, marsGravityHex, {
+      dq: 1,
+      dr: 0,
+    });
+    ship.control = 'captured';
+
+    const result = processEmplacement(state, 0, [{ shipId: ship.id }], map);
+
+    expect('error' in result).toBe(true);
   });
   it('rejects non-transport/packet ship types', () => {
     const state = createConvoyGame();
