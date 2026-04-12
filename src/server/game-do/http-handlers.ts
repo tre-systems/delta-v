@@ -1,7 +1,11 @@
 import type { ViewerId } from '../../shared/engine/game-engine';
 import type { PlayerToken } from '../../shared/ids';
 import { SCENARIOS } from '../../shared/map-data';
-import { ErrorCode, type PlayerId, type Result } from '../../shared/types/domain';
+import {
+  ErrorCode,
+  type PlayerId,
+  type Result,
+} from '../../shared/types/domain';
 import {
   createRoomConfig,
   parseInitPayload,
@@ -81,8 +85,7 @@ export const resolveJoinAttempt = async (
   });
 
   if (seatDecision.type === 'reject') {
-    const code =
-      seatDecision.status === 409 ? ErrorCode.ROOM_FULL : undefined;
+    const code = seatDecision.status === 409 ? ErrorCode.ROOM_FULL : undefined;
     return {
       ok: false,
       error:
