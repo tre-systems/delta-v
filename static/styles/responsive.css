@@ -301,11 +301,70 @@
     padding: 1rem;
   }
 
+  /* Issue 1: Remove screen padding so panel spans full width, no floating-panel "border" */
+  #gameOver {
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  /* Issues 1+2+5: Edge-to-edge panel, top-aligned, tighter vertical gaps */
   .game-over-content {
-    padding: 1rem;
+    padding: max(0.85rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
     border: none;
     border-radius: 0;
     box-shadow: none;
+    gap: 0.85rem;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Override .screen-page > .menu-content { margin: auto } which centers vertically */
+  #gameOver .game-over-content {
+    margin-top: 0;
+    margin-bottom: auto;
+  }
+
+  /* Issue 2: Compress hero section gap */
+  .game-over-hero {
+    gap: 0.3rem;
+  }
+
+  .game-over-divider {
+    margin: 0.05rem 0;
+  }
+
+  /* Issue 3: Larger, more readable stat pills */
+  .go-stat-pill {
+    padding: 0.5rem 0.9rem;
+  }
+
+  .go-stat-label {
+    font-size: 0.68rem;
+  }
+
+  .go-stat-value {
+    font-size: 0.95rem;
+  }
+
+  /* Issue 4: Tighter ship group card padding */
+  .game-over-ship-group {
+    padding: 0.45rem 0.55rem;
+    gap: 0.3rem;
+  }
+
+  .fate-card {
+    padding: 0.28rem 0.45rem 0.28rem 0;
+  }
+
+  /* Issue 5: Reduce vertical section gaps */
+  .game-over-stats {
+    gap: 0.8rem;
+  }
+
+  .game-over-ship-groups {
+    gap: 0.4rem;
   }
 
   .fate-card-grid {
@@ -314,6 +373,7 @@
 
   .game-over-actions {
     flex-direction: column;
+    margin-top: 0;
   }
 
   #menu .menu-content {
