@@ -7,6 +7,7 @@ import {
   HEX_DIRECTIONS,
   type HexCoord,
   hexAdd,
+  hexSubtract,
   hexToPixel,
   type PixelCoord,
 } from '../../shared/hex';
@@ -53,37 +54,30 @@ export const renderOrdnance = ({
   interpolatePath,
   zoom,
 }: RenderOrdnanceInput): void => {
-  if (!state.ordnance || state.ordnance.length === 0) {
+  if (
+    (!state.ordnance || state.ordnance.length === 0) &&
+    (!animState || animState.ordnanceMovements.length === 0)
+  ) {
     return;
   }
 
-  for (const ord of state.ordnance) {
-    if (ord.lifecycle === 'destroyed') continue;
+  const animationProgress =
+    animState !== null
+      ? Math.min((now - animState.startTime) / animState.duration, 1)
+      : null;
 
-    const p: PixelCoord = (() => {
-      if (animState) {
-        const om = animState.ordnanceMovements.find(
-          (m) => m.ordnanceId === ord.id,
-        );
-
-        if (om) {
-          const progress = Math.min(
-            (now - animState.startTime) / animState.duration,
-            1,
-          );
-
-          return interpolatePath(om.path, progress);
-        }
-      }
-
-      return hexToPixel(ord.position, hexSize);
-    })();
-
-    const color = getOrdnanceColor(ord.owner, playerId);
+  const drawOrdnanceSprite = (
+    ordType: GameState['ordnance'][number]['type'],
+    owner: PlayerId,
+    position: HexCoord,
+    velocity: { dq: number; dr: number },
+    p: PixelCoord,
+  ): void => {
+    const color = getOrdnanceColor(owner, playerId);
     const pulse = getOrdnancePulse(now);
-    const isFriendly = ord.owner === playerId;
+    const isFriendly = owner === playerId;
 
-    if (ord.type === 'nuke') {
+    if (ordType === 'nuke') {
       const s = 7;
       const nukeColor = '#ff4444';
 
@@ -101,7 +95,7 @@ export const renderOrdnance = ({
       ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.globalAlpha = 1;
-    } else if (ord.type === 'mine') {
+    } else if (ordType === 'mine') {
       const s = 5;
       const mineColor = isFriendly ? '#4fc3f7' : '#ff9800';
 
@@ -123,7 +117,7 @@ export const renderOrdnance = ({
       ctx.fill();
       ctx.globalAlpha = 1;
     } else {
-      const heading = getOrdnanceHeading(ord.position, ord.velocity, hexSize);
+      const heading = getOrdnanceHeading(position, velocity, hexSize);
       const s = 6;
 
       ctx.save();
@@ -146,8 +140,34 @@ export const renderOrdnance = ({
       ctx.globalAlpha = 1;
       ctx.restore();
     }
+  };
+
+  const renderedOrdnanceIds = new Set<string>();
+
+  for (const ord of state.ordnance) {
+    if (ord.lifecycle === 'destroyed') continue;
+
+    const p: PixelCoord = (() => {
+      if (animState) {
+        const om = animState.ordnanceMovements.find(
+          (movement) => movement.ordnanceId === ord.id,
+        );
+
+        if (om && animationProgress !== null) {
+          return interpolatePath(om.path, animationProgress);
+        }
+      }
+
+      return hexToPixel(ord.position, hexSize);
+    })();
+
+    drawOrdnanceSprite(ord.type, ord.owner, ord.position, ord.velocity, p);
+    renderedOrdnanceIds.add(ord.id);
 
     if (!animState) {
+      const color = getOrdnanceColor(ord.owner, playerId);
+      const isFriendly = ord.owner === playerId;
+
       drawOrdnanceVelocity(ctx, ord.position, ord.velocity, p, color, hexSize);
 
       // Labels for clarity
@@ -177,20 +197,30 @@ export const renderOrdnance = ({
   }
 
   if (animState) {
-    const progress = Math.min(
-      (now - animState.startTime) / animState.duration,
-      1,
-    );
+    for (const om of animState.ordnanceMovements) {
+      if (
+        renderedOrdnanceIds.has(om.ordnanceId) ||
+        om.owner == null ||
+        om.ordnanceType == null
+      ) {
+        continue;
+      }
+
+      const velocity = hexSubtract(om.to, om.from);
+      const p = interpolatePath(om.path, animationProgress ?? 1);
+
+      drawOrdnanceSprite(om.ordnanceType, om.owner, om.from, velocity, p);
+    }
 
     for (const om of animState.ordnanceMovements) {
       if (!om.detonated) continue;
 
-      const overlay = getDetonatedOrdnanceOverlay(progress);
+      const overlay = getDetonatedOrdnanceOverlay(animationProgress ?? 1);
 
       if (!overlay) continue;
 
       if (overlay.kind === 'diamond') {
-        const p = interpolatePath(om.path, progress);
+        const p = interpolatePath(om.path, animationProgress ?? 1);
 
         ctx.fillStyle = overlay.color;
         ctx.globalAlpha = overlay.alpha;

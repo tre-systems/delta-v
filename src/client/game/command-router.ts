@@ -28,6 +28,7 @@ import {
 import type { GameCommand } from './commands';
 import type { LogisticsStore } from './logistics-store';
 import {
+  allOrdnanceShipsAcknowledged,
   confirmOrdnance,
   type OrdnanceActionDeps,
   queueOrdnanceLaunch,
@@ -256,7 +257,10 @@ const ordnanceHandlers = {
   launchOrdnance: (deps, cmd) =>
     queueOrdnanceLaunch(deps.ordnanceDeps, cmd.ordType),
   emplaceBase: (deps) => sendEmplaceBase(deps.ordnanceDeps),
-  skipOrdnance: (deps) => confirmOrdnance(deps.ordnanceDeps),
+  skipOrdnance: (deps) =>
+    allOrdnanceShipsAcknowledged(deps.ordnanceDeps)
+      ? confirmOrdnance(deps.ordnanceDeps)
+      : skipOrdnanceShip(deps.ordnanceDeps),
   confirmOrdnance: (deps) => confirmOrdnance(deps.ordnanceDeps),
   skipOrdnanceShip: (deps) => skipOrdnanceShip(deps.ordnanceDeps),
   setTorpedoAccel: (deps, cmd) => {

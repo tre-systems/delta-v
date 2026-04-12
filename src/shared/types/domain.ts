@@ -252,6 +252,8 @@ export interface PathSegment {
 
 export interface OrdnanceMovement extends PathSegment {
   ordnanceId: OrdnanceId;
+  owner?: PlayerId;
+  ordnanceType?: OrdnanceType;
   detonated: boolean;
 }
 

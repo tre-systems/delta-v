@@ -215,7 +215,10 @@ describe('game client input helpers', () => {
       resolveOrdnanceClick(
         state,
         0,
-        createPlanning({ selectedShipId: 'ship-0' }),
+        createPlanning({
+          selectedShipId: 'ship-0',
+          torpedoAimingActive: true,
+        }),
         clickHex,
       ),
     ).toEqual({
@@ -230,6 +233,7 @@ describe('game client input helpers', () => {
         0,
         createPlanning({
           selectedShipId: 'ship-0',
+          torpedoAimingActive: true,
           torpedoAccel: 0,
           torpedoAccelSteps: 1,
         }),
@@ -240,6 +244,20 @@ describe('game client input helpers', () => {
       torpedoAccel: 0,
       torpedoAccelSteps: 2,
     });
+  });
+
+  it('ignores adjacent torpedo-aim clicks until aiming mode is active', () => {
+    const state = createState({ phase: 'ordnance' });
+    const clickHex = hexAdd({ q: 0, r: 0 }, HEX_DIRECTIONS[0]);
+
+    expect(
+      resolveOrdnanceClick(
+        state,
+        0,
+        createPlanning({ selectedShipId: 'ship-0' }),
+        clickHex,
+      ),
+    ).toEqual({ type: 'none' });
   });
 
   it('selects an operational ship during ordnance and clears pending torpedo accel', () => {

@@ -340,6 +340,36 @@ describe('game-command-router', () => {
     expect(deps.ctx.planningState.torpedoAccelSteps).toBeNull();
   });
 
+  it('treats skipOrdnance as skip-ship until all ships are acknowledged', () => {
+    const { deps, transport } = createDeps({
+      clientState: 'playing_ordnance',
+      gameState: createState({ phase: 'ordnance' }),
+    });
+    deps.ctx.planningState.selectedShipId = 'ship-0';
+
+    dispatchGameCommand(deps, { type: 'skipOrdnance' });
+
+    expect(deps.ctx.planningState.acknowledgedOrdnanceShips.has('ship-0')).toBe(
+      true,
+    );
+    expect(deps.ctx.planningState.selectedShipId).toBe('ship-1');
+    expect(transport.calls.submitOrdnance).toBeUndefined();
+    expect(transport.calls.skipOrdnance).toBeUndefined();
+  });
+
+  it('treats skipOrdnance as confirm once all ships are acknowledged', () => {
+    const { deps, transport } = createDeps({
+      clientState: 'playing_ordnance',
+      gameState: createState({ phase: 'ordnance' }),
+    });
+    deps.ctx.planningState.acknowledgedOrdnanceShips.add('ship-0');
+    deps.ctx.planningState.acknowledgedOrdnanceShips.add('ship-1');
+
+    dispatchGameCommand(deps, { type: 'skipOrdnance' });
+
+    expect(transport.calls.skipOrdnance).toHaveLength(1);
+  });
+
   it('zooms the camera around the canvas center', () => {
     const { deps, renderer } = createDeps();
 

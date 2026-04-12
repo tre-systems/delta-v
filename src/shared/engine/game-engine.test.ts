@@ -896,6 +896,32 @@ describe('ordnance system', () => {
       expect(result.state.phase).not.toBe('ordnance');
     }
   });
+  it("does not move enemy ordnance during the active player's movement phase", () => {
+    initialState.phase = 'ordnance';
+    initialState.ordnance = [
+      {
+        id: asOrdnanceId('enemy-mine'),
+        type: 'mine',
+        owner: 1,
+        sourceShipId: null,
+        position: { q: 0, r: 0 },
+        velocity: { dq: 1, dr: 0 },
+        turnsRemaining: 5,
+        lifecycle: 'active' as const,
+        pendingGravityEffects: [],
+      },
+    ];
+    const result = skipOrdnance(initialState, 0, openMap, Math.random);
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+    expect(result.state.ordnance).toEqual([
+      expect.objectContaining({
+        id: asOrdnanceId('enemy-mine'),
+        position: { q: 0, r: 0 },
+        turnsRemaining: 5,
+      }),
+    ]);
+  });
   it('ordnance moves with gravity and self-destructs after 5 turns', () => {
     initialState.ordnance = [
       {
@@ -926,6 +952,56 @@ describe('ordnance system', () => {
     if ('error' in result) return;
     // Ordnance should have been removed (self-destructed)
     expect(result.state.ordnance).toHaveLength(0);
+  });
+  it('detonates a stationary mine when a ship passes through its hex', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      openMap,
+      asGameId('MINEPATH'),
+      findBaseHex,
+    );
+    const ship = state.ships[0];
+    ship.lifecycle = 'active';
+    ship.position = { q: -1, r: 0 };
+    ship.velocity = { dq: 2, dr: 0 };
+    state.ordnance.push({
+      id: asOrdnanceId('mine-path'),
+      type: 'mine',
+      owner: 1,
+      sourceShipId: null,
+      position: { q: 0, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      turnsRemaining: 5,
+      lifecycle: 'active' as const,
+      pendingGravityEffects: [],
+    });
+
+    const first = processAstrogation(
+      state,
+      0,
+      [{ shipId: ship.id, burn: null, overload: null }],
+      openMap,
+      Math.random,
+    );
+    expect('error' in first).toBe(false);
+    if ('error' in first) return;
+
+    const result =
+      'movements' in first
+        ? first
+        : skipOrdnance(first.state, 0, openMap, Math.random);
+
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+    const movement = expectMovement(result);
+
+    expect(
+      movement.events.some(
+        (event) =>
+          event.type === 'mineDetonation' && event.ordnanceId === 'mine-path',
+      ),
+    ).toBe(true);
+    expect(movement.state.ordnance).toHaveLength(0);
   });
   it('ordnance defers gravity until the turn after entry', () => {
     const gravityMap: SolarSystemMap = {
