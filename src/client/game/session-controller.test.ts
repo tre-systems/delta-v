@@ -329,13 +329,13 @@ describe('session-controller', () => {
     const deps = createJoinGameDeps();
     deps.validateJoin = async () => ({
       ok: false,
-      error: 'Game is full',
+      error: 'That game is already full',
     });
 
     await beginJoinGameSession(deps, 'FGHIJ', 'token-2');
 
     expect(deps.ctx.gameCode).toBeNull();
-    expect(deps.calls.showToast).toEqual([['Game is full', 'error']]);
+    expect(deps.calls.showToast).toEqual([['That game is already full', 'error']]);
     expect(deps.calls.exitToMenu).toHaveLength(1);
     expect(deps.calls.storePlayerToken).toBeUndefined();
     expect(deps.calls.resetTurnTelemetry).toBeUndefined();

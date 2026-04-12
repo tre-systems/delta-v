@@ -291,7 +291,7 @@ describe('seat assignment', () => {
     ).toEqual({
       type: 'reject',
       status: 409,
-      message: 'Game is full',
+      message: 'That game is already full',
     });
 
     expect(
@@ -325,7 +325,7 @@ describe('seat assignment', () => {
     ).toEqual({
       type: 'reject',
       status: 409,
-      message: 'Game is full',
+      message: 'That game is already full',
     });
   });
 
@@ -361,7 +361,7 @@ describe('seat assignment', () => {
     ).toEqual({
       type: 'reject',
       status: 409,
-      message: 'Game is full',
+      message: 'That game is already full',
     });
   });
 
