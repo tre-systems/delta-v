@@ -1,8 +1,26 @@
-import { describe, expect, it, vi } from 'vitest';
-import { asShipId } from '../../shared/ids';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('./ai-flow', () => ({
+  deriveAIActionPlan: vi.fn(),
+}));
+
+import { must } from '../../shared/assert';
+import { createGameOrThrow } from '../../shared/engine/game-engine';
+import { asGameId, asShipId } from '../../shared/ids';
+import {
+  buildSolarSystemMap,
+  findBaseHex,
+  SCENARIOS,
+} from '../../shared/map-data';
 import type { CombatResult, GameState } from '../../shared/types/domain';
+import { deriveAIActionPlan } from './ai-flow';
 import type { LocalGameFlowDeps } from './local-game-flow';
-import { handleLocalResolution } from './local-game-flow';
+import { handleLocalResolution, runAITurn } from './local-game-flow';
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.clearAllMocks();
+});
 
 const createDeps = (
   overrides: Partial<LocalGameFlowDeps> = {},
@@ -184,5 +202,55 @@ describe('handleLocalResolution', () => {
     expect(logText.mock.calls[0][0]).toContain('Transferred 2 fuel');
     expect(applyGameState).toHaveBeenCalledWith(state);
     expect(onContinue).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('runAITurn', () => {
+  it('returns after an AI ordnance resolution error instead of hanging', async () => {
+    vi.useFakeTimers();
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('AI-ERROR'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((ship) => ship.owner === 1));
+    state.phase = 'ordnance';
+    state.activePlayer = 1;
+    aiShip.lifecycle = 'active';
+    aiShip.resuppliedThisTurn = true;
+
+    vi.mocked(deriveAIActionPlan).mockReturnValue({
+      kind: 'ordnance',
+      aiPlayer: 1,
+      launches: [
+        {
+          shipId: aiShip.id,
+          ordnanceType: 'nuke',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
+        },
+      ],
+      logEntries: [],
+      skip: false,
+      errorPrefix: 'AI ordnance error:',
+    });
+
+    const showToast = vi.fn();
+    const deps = createDeps({
+      getGameState: vi.fn(() => state),
+      getMap: vi.fn(() => map),
+      getAIDifficulty: vi.fn(() => 'normal' as const),
+      showToast,
+    });
+
+    const turnPromise = runAITurn(deps);
+    await vi.advanceTimersByTimeAsync(500);
+    await expect(turnPromise).resolves.toBeUndefined();
+    expect(showToast).toHaveBeenCalledWith(
+      'Ships cannot launch ordnance during a turn in which they resupply',
+      'error',
+    );
   });
 });

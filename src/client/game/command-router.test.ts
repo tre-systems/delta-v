@@ -391,6 +391,35 @@ describe('game-command-router', () => {
     expect(transport.calls.skipOrdnance).toHaveLength(1);
   });
 
+  it('keeps ordnance phase open while a legal base emplacement remains', () => {
+    const { deps, transport } = createDeps({
+      clientState: 'playing_ordnance',
+      gameState: createState({
+        phase: 'ordnance',
+        scenarioRules: { allowedOrdnanceTypes: ['nuke'] },
+        ships: [
+          createShip({ id: asShipId('launchable'), type: 'packet' }),
+          createShip({
+            id: asShipId('base-carrier'),
+            type: 'transport',
+            position: { q: -9, r: -6 },
+            velocity: { dq: 1, dr: 0 },
+            cargoUsed: 50,
+            baseStatus: 'carryingBase',
+          }),
+          createShip({ id: asShipId('enemy'), owner: 1 }),
+        ],
+      }),
+    });
+    deps.ctx.planningState.selectedShipId = 'launchable';
+
+    dispatchGameCommand(deps, { type: 'launchOrdnance', ordType: 'nuke' });
+
+    expect(deps.ctx.planningState.selectedShipId).toBe('base-carrier');
+    expect(transport.calls.submitOrdnance).toBeUndefined();
+    expect(transport.calls.skipOrdnance).toBeUndefined();
+  });
+
   it('zooms the camera around the canvas center', () => {
     const { deps, renderer } = createDeps();
 

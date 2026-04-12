@@ -1,5 +1,6 @@
 import { canAttack, getCombatStrength } from '../combat';
-import { ORDNANCE_MASS, SHIP_STATS } from '../constants';
+import { SHIP_STATS } from '../constants';
+import { validateOrdnanceLaunch } from '../engine/util';
 import { hexAdd, hexDistance, hexEqual, hexVecLength } from '../hex';
 import { deriveCapabilities } from '../scenario-capabilities';
 import type {
@@ -82,7 +83,6 @@ export const aiOrdnance = (
   const cfg = AI_CONFIG[difficulty];
   const launches: OrdnanceLaunch[] = [];
   const caps = deriveCapabilities(state.scenarioRules);
-  const allowedTypes = new Set(caps.allowedOrdnanceTypes);
 
   if (cfg.ordnanceSkipChance > 0 && rng() < cfg.ordnanceSkipChance) {
     return launches;
@@ -107,11 +107,8 @@ export const aiOrdnance = (
       continue;
     }
 
-    const stats = SHIP_STATS[ship.type];
+    if (!SHIP_STATS[ship.type]) continue;
 
-    if (!stats) continue;
-
-    const cargoFree = stats.cargo - ship.cargoUsed;
     const hasFriendlyLaunchStack = state.ships.some(
       (other) =>
         other.id !== ship.id &&
@@ -136,15 +133,16 @@ export const aiOrdnance = (
     const bestEnemyCurrentDist = bestEnemyTarget.currentDistance;
     const bestEnemyPredictedDist = bestEnemyTarget.predictedDistance;
     const canLaunchNuke =
-      (stats.canOverload || ship.nukesLaunchedSinceResupply < 1) &&
+      validateOrdnanceLaunch(state, ship, 'nuke') === null &&
       !hasFriendlyLaunchStack &&
       (ship.passengersAboard ?? 0) === 0;
+    const canLaunchTorpedo =
+      validateOrdnanceLaunch(state, ship, 'torpedo') === null;
+    const canLaunchMine = validateOrdnanceLaunch(state, ship, 'mine') === null;
 
     if (
-      allowedTypes.has('nuke') &&
       difficulty === 'hard' &&
       Math.min(bestEnemyCurrentDist, bestEnemyPredictedDist) <= torpedoRange &&
-      cargoFree >= ORDNANCE_MASS.nuke &&
       canLaunchNuke
     ) {
       const enemyStrength = getCombatStrength([bestEnemy]);
@@ -168,10 +166,8 @@ export const aiOrdnance = (
     }
 
     if (
-      allowedTypes.has('torpedo') &&
       Math.min(bestEnemyCurrentDist, bestEnemyPredictedDist) <= torpedoRange &&
-      stats.canOverload &&
-      cargoFree >= ORDNANCE_MASS.torpedo
+      canLaunchTorpedo
     ) {
       const bestDir = findDirectionToward(
         ship.position,
@@ -189,53 +185,28 @@ export const aiOrdnance = (
       continue;
     }
 
-    if (
-      allowedTypes.has('mine') &&
-      nearestDist <= mineRange &&
-      cargoFree >= ORDNANCE_MASS.mine
-    ) {
-      const pendingOrder = (state.pendingAstrogationOrders ?? []).find(
-        (order) => order.shipId === ship.id,
-      );
-      const hasBurn =
-        pendingOrder?.burn != null || pendingOrder?.overload != null;
+    if (nearestDist <= mineRange && canLaunchMine) {
+      launches.push({
+        shipId: ship.id,
+        ordnanceType: 'mine',
+        torpedoAccel: null,
+        torpedoAccelSteps: null,
+      });
+      continue;
+    }
 
-      if (hasBurn) {
+    const player = state.players[playerId];
+
+    if (player?.escapeWins && nearestDist <= 8 && canLaunchMine) {
+      const speed = hexVecLength(ship.velocity);
+
+      if (speed >= 2 && difficulty !== 'easy') {
         launches.push({
           shipId: ship.id,
           ordnanceType: 'mine',
           torpedoAccel: null,
           torpedoAccelSteps: null,
         });
-        continue;
-      }
-    }
-
-    const player = state.players[playerId];
-
-    if (
-      allowedTypes.has('mine') &&
-      player?.escapeWins &&
-      nearestDist <= 8 &&
-      cargoFree >= ORDNANCE_MASS.mine
-    ) {
-      const speed = hexVecLength(ship.velocity);
-
-      if (speed >= 2 && difficulty !== 'easy') {
-        const pendingOrder = (state.pendingAstrogationOrders ?? []).find(
-          (order) => order.shipId === ship.id,
-        );
-        const hasBurn =
-          pendingOrder?.burn != null || pendingOrder?.overload != null;
-
-        if (hasBurn) {
-          launches.push({
-            shipId: ship.id,
-            ordnanceType: 'mine',
-            torpedoAccel: null,
-            torpedoAccelSteps: null,
-          });
-        }
       }
     }
   }

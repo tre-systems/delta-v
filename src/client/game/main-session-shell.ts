@@ -183,6 +183,7 @@ export const createMainSessionShell = (
 
   const stateTransitionDeps = createMainStateTransitionDeps({
     ctx: args.ctx,
+    getMap: () => args.map,
     renderer: args.renderer,
     ui: args.ui,
     actionDeps: args.actionDeps,
