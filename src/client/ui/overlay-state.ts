@@ -35,6 +35,7 @@ interface GameOverOverlayView {
   visible: boolean;
   titleText: string;
   titleClass: string;
+  outcomeClass: string;
   kickerText: string | null;
   reasonText: string;
   summaryItems: GameOverSummaryItem[];
@@ -99,6 +100,7 @@ const HIDDEN_GAME_OVER_VIEW: GameOverOverlayView = {
   visible: false,
   titleText: '',
   titleClass: '',
+  outcomeClass: '',
   kickerText: null,
   reasonText: '',
   summaryItems: [],
@@ -144,15 +146,23 @@ export const createOverlayStateStore = (): OverlayStateStore => {
           rematchDisabled: view.rematchDisabled,
         };
 
+    const isSpectator = state.stats && (state.stats.playerId ?? 0) < 0;
+    const titleClass = isSpectator
+      ? 'game-over-neutral'
+      : state.won
+        ? 'game-over-victory'
+        : 'game-over-defeat';
+    const outcomeClass = isSpectator
+      ? 'game-over--neutral'
+      : state.won
+        ? 'game-over--victory'
+        : 'game-over--defeat';
+
     return {
       visible: true,
       titleText: view.titleText,
-      titleClass:
-        state.stats && (state.stats.playerId ?? 0) < 0
-          ? 'game-over-neutral'
-          : state.won
-            ? 'game-over-victory'
-            : 'game-over-defeat',
+      titleClass,
+      outcomeClass,
       kickerText: view.kickerText,
       reasonText: view.reasonText,
       summaryItems: view.summaryItems,

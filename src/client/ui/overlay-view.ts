@@ -36,28 +36,20 @@ const renderGameOverStats = (
   clearHTML(container);
 
   if (summaryItems.length > 0) {
-    const summaryGrid = el('div', { class: 'game-over-summary-grid' });
+    const scoreboard = el('div', { class: 'game-over-scoreboard' });
 
     for (const item of summaryItems) {
-      summaryGrid.appendChild(
+      scoreboard.appendChild(
         el(
           'div',
-          {
-            class: `game-over-summary-card game-over-summary-card-${item.tone}`,
-          },
-          el('span', {
-            class: 'game-over-summary-label',
-            text: item.label,
-          }),
-          el('strong', {
-            class: 'game-over-summary-value',
-            text: item.value,
-          }),
+          { class: 'go-stat-pill' },
+          el('span', { class: 'go-stat-label', text: item.label }),
+          el('span', { class: 'go-stat-value', text: item.value }),
         ),
       );
     }
 
-    container.appendChild(summaryGrid);
+    container.appendChild(scoreboard);
   }
 
   if (shipGroups.length > 0) {
@@ -73,36 +65,35 @@ const renderGameOverStats = (
         }),
       );
 
+      const grid = el('div', { class: 'fate-card-grid' });
+
       for (const item of group.items) {
-        const row = el('div', { class: 'game-over-fate-row' });
-        const copy = el(
+        const body = el(
           'div',
-          { class: 'game-over-fate-copy' },
-          el('span', {
-            class: 'game-over-fate-name',
-            text: item.name,
-          }),
+          { class: 'fate-card-body' },
+          el('span', { class: 'fate-card-name', text: item.name }),
         );
 
         if (item.detailText) {
-          copy.appendChild(
-            el('span', {
-              class: 'game-over-fate-detail',
-              text: item.detailText,
-            }),
+          body.appendChild(
+            el('span', { class: 'fate-card-detail', text: item.detailText }),
           );
         }
 
-        row.appendChild(copy);
-        row.appendChild(
+        const card = el('div', { class: 'fate-card' });
+        card.dataset.tone = item.tone;
+        card.appendChild(el('div', { class: 'fate-card-bar' }));
+        card.appendChild(body);
+        card.appendChild(
           el('span', {
-            class: `game-over-fate-badge game-over-fate-badge-${item.tone}`,
+            class: 'fate-card-status',
             text: item.outcomeText,
           }),
         );
-        groupEl.appendChild(row);
+        grid.appendChild(card);
       }
 
+      groupEl.appendChild(grid);
       groupsWrap.appendChild(groupEl);
     }
 
@@ -282,6 +273,16 @@ export const createOverlayView = (
       text(gameOverReasonEl, gameOverView.reasonText);
       text(rematchBtn, gameOverView.rematchText);
       rematchBtn.disabled = gameOverView.rematchDisabled;
+
+      // Apply outcome theme to the overlay root
+      gameOverEl.classList.remove(
+        'game-over--victory',
+        'game-over--defeat',
+        'game-over--neutral',
+      );
+      if (gameOverView.outcomeClass) {
+        gameOverEl.classList.add(gameOverView.outcomeClass);
+      }
 
       renderGameOverStats(
         gameOverStatsEl,
