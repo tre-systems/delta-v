@@ -335,7 +335,9 @@ describe('session-controller', () => {
     await beginJoinGameSession(deps, 'FGHIJ', 'token-2');
 
     expect(deps.ctx.gameCode).toBeNull();
-    expect(deps.calls.showToast).toEqual([['That game is already full', 'error']]);
+    expect(deps.calls.showToast).toEqual([
+      ['That game is already full', 'error'],
+    ]);
     expect(deps.calls.exitToMenu).toHaveLength(1);
     expect(deps.calls.storePlayerToken).toBeUndefined();
     expect(deps.calls.resetTurnTelemetry).toBeUndefined();
