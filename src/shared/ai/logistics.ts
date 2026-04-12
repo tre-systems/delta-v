@@ -390,6 +390,7 @@ export const getPassengerTransferFormationOrders = (
   _difficulty: AIDifficulty,
   isRace: boolean,
   enemyEscaping: boolean,
+  enemyHasPassengerObjective: boolean,
 ): Map<string, AstrogationOrder> => {
   if (!deriveCapabilities(state.scenarioRules).targetWinRequiresPassengers) {
     return new Map();
@@ -476,6 +477,7 @@ export const getPassengerTransferFormationOrders = (
           map,
           isRace,
           enemyEscaping,
+          enemyHasPassengerObjective,
           shipIndex: 0,
         }) +
         scoreCourse({
@@ -490,6 +492,7 @@ export const getPassengerTransferFormationOrders = (
           map,
           isRace,
           enemyEscaping,
+          enemyHasPassengerObjective,
           shipIndex: 1,
         }) +
         120;
