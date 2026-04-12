@@ -185,6 +185,6 @@ export const resolveSeatAssignment = (
   return {
     type: 'reject',
     status: 409,
-    message: 'Game is full',
+    message: 'That game is already full',
   };
 };

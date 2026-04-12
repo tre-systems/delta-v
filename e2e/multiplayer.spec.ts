@@ -71,7 +71,7 @@ test.describe('multiplayer smoke tests', () => {
       await openHomePage(intruder, { tutorialDone: true });
       await submitRoomJoin(intruder, session.roomCode);
       await expect(intruder.locator('#toastContainer')).toContainText(
-        'Game is full',
+        'That game is already full',
       );
       await waitForDisplay(intruder, '#menu', 'flex');
     } finally {
