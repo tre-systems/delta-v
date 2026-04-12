@@ -58,6 +58,7 @@ export const queueOrdnanceLaunch = (
 
   // Torpedoes need a direction pick first
   if (ordType === 'torpedo' && !deps.planningState.torpedoAimingActive) {
+    deps.planningState.clearTorpedoAcceleration();
     deps.planningState.setTorpedoAimingActive(true);
     deps.showToast(
       'Click a direction for torpedo boost, or Enter to skip',

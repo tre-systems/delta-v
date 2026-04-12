@@ -25,6 +25,7 @@ import {
   type OrdnanceMovement,
   type PlayerId,
   type Ship,
+  type ShipMovement,
   type SolarSystemMap,
 } from '../types';
 import type { EngineEvent } from './engine-events';
@@ -334,9 +335,151 @@ const resolveTorpedoDetonation = (
   return false;
 };
 
+const pathEntersHex = (
+  path: { q: number; r: number }[],
+  hex: { q: number; r: number },
+): boolean => {
+  return path.some((coord, index) => index > 0 && hexEqual(coord, hex));
+};
+
+const pathOccupiesHexAfterMovement = (
+  path: { q: number; r: number }[],
+  hex: { q: number; r: number },
+): boolean => {
+  if (path.length <= 1) {
+    return path.length === 1 && hexEqual(path[0], hex);
+  }
+
+  return pathEntersHex(path, hex);
+};
+
+const hasOrdnanceDetonationEvent = (
+  ordnanceId: import('../ids').OrdnanceId,
+  engineEvents?: EngineEvent[],
+): boolean => {
+  return (
+    engineEvents?.some(
+      (event) =>
+        event.type === 'ordnanceDetonated' && event.ordnanceId === ordnanceId,
+    ) ?? false
+  );
+};
+
+const resolveOrdnanceContactAtHex = (
+  ord: Ordnance,
+  ships: Ship[],
+  contactedOrdnance: Ordnance[],
+  hex: { q: number; r: number },
+  events: MovementEvent[],
+  rng: () => number,
+  engineEvents?: EngineEvent[],
+): boolean => {
+  if (ord.type === 'torpedo') {
+    return resolveTorpedoDetonation(
+      ord,
+      ships,
+      contactedOrdnance,
+      hex,
+      events,
+      rng,
+      engineEvents,
+    );
+  }
+
+  let hitSomething = false;
+
+  for (const ship of ships) {
+    const dieRoll = ord.type === 'nuke' ? 0 : rollD6(rng);
+
+    const result =
+      ord.type === 'nuke'
+        ? {
+            type: 'eliminated' as const,
+            disabledTurns: 0,
+          }
+        : lookupOtherDamage(dieRoll, 'mine');
+
+    events.push({
+      type: ord.type === 'nuke' ? 'nukeDetonation' : 'mineDetonation',
+      shipId: ship.id,
+      hex,
+      dieRoll,
+      damageType: result.type,
+      disabledTurns: result.disabledTurns,
+      ordnanceId: ord.id,
+    });
+
+    engineEvents?.push({
+      type: 'ordnanceDetonated',
+      ordnanceId: ord.id,
+      ordnanceType: ord.type,
+      hex,
+      targetShipId: ship.id,
+      roll: dieRoll,
+      damageType: result.type,
+      disabledTurns: result.disabledTurns,
+    });
+
+    applyDamage(ship, result, ord.type, ord.id);
+
+    if (ship.lifecycle === 'destroyed') {
+      engineEvents?.push({
+        type: 'shipDestroyed',
+        shipId: ship.id,
+        cause: ord.type,
+      });
+    }
+
+    hitSomething = true;
+  }
+
+  for (const other of contactedOrdnance) {
+    other.lifecycle = 'destroyed';
+    pushDestroyedOrdnance(other.id, ord.type, engineEvents);
+    hitSomething = true;
+  }
+
+  if (!hitSomething) {
+    return false;
+  }
+
+  if (!hasOrdnanceDetonationEvent(ord.id, engineEvents)) {
+    engineEvents?.push({
+      type: 'ordnanceDetonated',
+      ordnanceId: ord.id,
+      ordnanceType: ord.type,
+      hex,
+      roll: 0,
+      damageType: 'none',
+      disabledTurns: 0,
+    });
+  }
+
+  pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
+  return true;
+};
+
+const shipOccupiesHexForOrdnance = (
+  ship: Ship,
+  hex: { q: number; r: number },
+  shipPathsById: ReadonlyMap<string, { q: number; r: number }[]>,
+  requireEntry: boolean,
+): boolean => {
+  const path = shipPathsById.get(ship.id);
+
+  if (!path) {
+    return !requireEntry && hexEqual(ship.position, hex);
+  }
+
+  return requireEntry
+    ? pathEntersHex(path, hex)
+    : pathOccupiesHexAfterMovement(path, hex);
+};
+
 const checkOrdnanceDetonation = (
   ord: Ordnance,
   state: GameState,
+  shipPathsById: ReadonlyMap<string, { q: number; r: number }[]>,
   path: { q: number; r: number }[],
   events: MovementEvent[],
   map: SolarSystemMap,
@@ -395,7 +538,7 @@ const checkOrdnanceDetonation = (
         ship.lifecycle !== 'destroyed' &&
         ship.id !== ord.sourceShipId &&
         (!isLaunchHex || ship.owner !== ord.owner) &&
-        hexEqual(ship.position, pathHex) &&
+        shipOccupiesHexForOrdnance(ship, pathHex, shipPathsById, false) &&
         (ship.lifecycle !== 'landed' || ord.type === 'nuke'),
     );
 
@@ -407,78 +550,18 @@ const checkOrdnanceDetonation = (
         hexEqual(other.position, pathHex),
     );
 
-    if (ord.type === 'torpedo') {
-      if (
-        resolveTorpedoDetonation(
-          ord,
-          contactedShips,
-          contactedOrdnance,
-          pathHex,
-          events,
-          rng,
-          engineEvents,
-        )
-      ) {
-        return true;
-      }
-      continue;
-    }
-
-    let hitSomething = false;
-
-    for (const ship of contactedShips) {
-      const dieRoll = ord.type === 'nuke' ? 0 : rollD6(rng);
-
-      const result =
-        ord.type === 'nuke'
-          ? {
-              type: 'eliminated' as const,
-              disabledTurns: 0,
-            }
-          : lookupOtherDamage(dieRoll, 'mine');
-
-      events.push({
-        type: ord.type === 'nuke' ? 'nukeDetonation' : 'mineDetonation',
-        shipId: ship.id,
-        hex: pathHex,
-        dieRoll,
-        damageType: result.type,
-        disabledTurns: result.disabledTurns,
-        ordnanceId: ord.id,
-      });
-
-      engineEvents?.push({
-        type: 'ordnanceDetonated',
-        ordnanceId: ord.id,
-        ordnanceType: ord.type,
-        hex: pathHex,
-        targetShipId: ship.id,
-        roll: dieRoll,
-        damageType: result.type,
-        disabledTurns: result.disabledTurns,
-      });
-      pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
-
-      applyDamage(ship, result, ord.type, ord.id);
-
-      if (ship.lifecycle === 'destroyed') {
-        engineEvents?.push({
-          type: 'shipDestroyed',
-          shipId: ship.id,
-          cause: ord.type,
-        });
-      }
-
-      hitSomething = true;
-    }
-
-    for (const other of contactedOrdnance) {
-      other.lifecycle = 'destroyed';
-      pushDestroyedOrdnance(other.id, ord.type, engineEvents);
-      hitSomething = true;
-    }
-
-    if (hitSomething || forcedDetonation) {
+    if (
+      resolveOrdnanceContactAtHex(
+        ord,
+        contactedShips,
+        contactedOrdnance,
+        pathHex,
+        events,
+        rng,
+        engineEvents,
+      ) ||
+      forcedDetonation
+    ) {
       return true;
     }
   }
@@ -490,14 +573,49 @@ const checkOrdnanceDetonation = (
 // against ships and other ordnance.
 export const moveOrdnance = (
   state: GameState,
+  movingPlayerId: PlayerId,
   map: SolarSystemMap,
+  shipMovements: ShipMovement[],
   ordnanceMovements: OrdnanceMovement[],
   events: MovementEvent[],
   rng: () => number,
   engineEvents?: EngineEvent[],
 ): void => {
+  const shipPathsById = new Map(
+    shipMovements.map((movement) => [movement.shipId, movement.path] as const),
+  );
+
   for (const ord of state.ordnance) {
-    if (ord.lifecycle === 'destroyed') continue;
+    if (ord.lifecycle === 'destroyed' || ord.owner === movingPlayerId) {
+      continue;
+    }
+
+    const contactedShips = state.ships.filter(
+      (ship) =>
+        ship.lifecycle !== 'destroyed' &&
+        ship.id !== ord.sourceShipId &&
+        shipOccupiesHexForOrdnance(ship, ord.position, shipPathsById, true) &&
+        (ship.lifecycle !== 'landed' || ord.type === 'nuke'),
+    );
+
+    if (
+      contactedShips.length > 0 &&
+      resolveOrdnanceContactAtHex(
+        ord,
+        contactedShips,
+        [],
+        ord.position,
+        events,
+        rng,
+        engineEvents,
+      )
+    ) {
+      ord.lifecycle = 'destroyed';
+    }
+  }
+
+  for (const ord of state.ordnance) {
+    if (ord.lifecycle === 'destroyed' || ord.owner !== movingPlayerId) continue;
 
     const from = { ...ord.position };
     const dest = hexAdd(ord.position, ord.velocity);
@@ -654,6 +772,7 @@ export const moveOrdnance = (
         checkOrdnanceDetonation(
           ord,
           state,
+          shipPathsById,
           finalPath,
           events,
           map,
@@ -663,6 +782,8 @@ export const moveOrdnance = (
 
     ordnanceMovements.push({
       ordnanceId: ord.id,
+      owner: ord.owner,
+      ordnanceType: ord.type,
       from,
       to: finalDest,
       path: finalPath,

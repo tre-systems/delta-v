@@ -249,7 +249,16 @@ export const resolveMovementPhase = (
   checkInspection(state, playerId, engineEvents);
   checkCapture(state, playerId, events, engineEvents);
   checkRamming(state, events, rng, engineEvents);
-  moveOrdnance(state, map, ordnanceMovements, events, rng, engineEvents);
+  moveOrdnance(
+    state,
+    playerId,
+    map,
+    movements,
+    ordnanceMovements,
+    events,
+    rng,
+    engineEvents,
+  );
   applyDetection(state, map);
   applyEscapeMoralVictory(state);
   checkImmediateVictory(state, map, engineEvents);

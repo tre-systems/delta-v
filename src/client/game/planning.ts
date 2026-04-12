@@ -152,7 +152,10 @@ export type CombatPlanningView = Pick<
 export type AstrogationPlanningSnapshot = ShipSelectionView &
   AstrogationPlanningView;
 export type OrdnancePlanningSnapshot = ShipSelectionView &
-  Pick<OrdnancePlanningView, 'torpedoAccel' | 'torpedoAccelSteps'>;
+  Pick<
+    OrdnancePlanningView,
+    'torpedoAimingActive' | 'torpedoAccel' | 'torpedoAccelSteps'
+  >;
 export type CombatPlanningSnapshot = Pick<ShipSelectionView, 'selectedShipId'> &
   CombatPlanningView;
 export type HudPlanningSnapshot = Pick<ShipSelectionView, 'selectedShipId'> &

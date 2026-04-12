@@ -283,6 +283,7 @@ describe('interpretInput', () => {
       const torpHex = hexAdd({ q: 0, r: 0 }, HEX_DIRECTIONS[0]);
       const planning = createPlanning({
         selectedShipId: 'ship-0',
+        torpedoAimingActive: true,
       });
 
       const cmds = interpretInput(
@@ -296,6 +297,21 @@ describe('interpretInput', () => {
       expect(cmds).toEqual([
         { type: 'setTorpedoAccel', direction: 0, steps: 1 },
       ]);
+    });
+
+    it('does not arm torpedo acceleration until aiming mode is active', () => {
+      const state = createState({ phase: 'ordnance' });
+      const torpHex = hexAdd({ q: 0, r: 0 }, HEX_DIRECTIONS[0]);
+
+      const cmds = interpretInput(
+        { type: 'clickHex', hex: torpHex },
+        state,
+        simpleMap,
+        0,
+        createPlanning({ selectedShipId: 'ship-0' }),
+      );
+
+      expect(cmds).toEqual([]);
     });
 
     it('selects ship and clears torpedo accel', () => {
