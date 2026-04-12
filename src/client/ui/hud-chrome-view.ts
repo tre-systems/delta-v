@@ -122,7 +122,8 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const launchTorpedoBtn = byId<HTMLButtonElement>('launchTorpedoBtn');
   const launchNukeBtn = byId<HTMLButtonElement>('launchNukeBtn');
   const emplaceBaseBtn = byId<HTMLButtonElement>('emplaceBaseBtn');
-  const skipOrdnanceBtn = byId('skipOrdnanceBtn');
+  const nextOrdnanceBtn = byId<HTMLButtonElement>('nextOrdnanceBtn');
+  const confirmOrdnanceBtn = byId<HTMLButtonElement>('confirmOrdnanceBtn');
   const skipCombatBtn = byId('skipCombatBtn');
   const skipLogisticsBtn = byId('skipLogisticsBtn');
   const confirmTransfersBtn = byId('confirmTransfersBtn');
@@ -302,14 +303,25 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
         'inline-block',
       );
       visible(
-        skipOrdnanceBtn,
-        !hideActions && hudView.skipOrdnanceVisible,
+        nextOrdnanceBtn,
+        !hideActions && hudView.nextOrdnance.visible,
         'inline-block',
       );
-      skipOrdnanceBtn.textContent = hudView.skipOrdnanceLabel;
-      skipOrdnanceBtn.className = hudView.skipOrdnanceIsConfirm
-        ? 'btn btn-confirm'
-        : 'btn btn-skip';
+      visible(
+        confirmOrdnanceBtn,
+        !hideActions && hudView.confirmOrdnance.visible,
+        'inline-block',
+      );
+      nextOrdnanceBtn.textContent = hudView.nextOrdnance.label;
+      nextOrdnanceBtn.className = hudView.nextOrdnance.className;
+      nextOrdnanceBtn.disabled = hudView.nextOrdnance.disabled;
+      nextOrdnanceBtn.style.opacity = hudView.nextOrdnance.opacity;
+      nextOrdnanceBtn.title = hudView.nextOrdnance.title;
+      confirmOrdnanceBtn.textContent = hudView.confirmOrdnance.label;
+      confirmOrdnanceBtn.className = hudView.confirmOrdnance.className;
+      confirmOrdnanceBtn.disabled = hudView.confirmOrdnance.disabled;
+      confirmOrdnanceBtn.style.opacity = hudView.confirmOrdnance.opacity;
+      confirmOrdnanceBtn.title = hudView.confirmOrdnance.title;
 
       launchMineBtn.disabled = hudView.launchMine.disabled;
       launchTorpedoBtn.disabled = hudView.launchTorpedo.disabled;
@@ -378,7 +390,8 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
           state.hudView.launchTorpedo.visible ||
           state.hudView.launchNuke.visible ||
           state.hudView.emplaceBase.visible ||
-          state.hudView.skipOrdnanceVisible ||
+          state.hudView.nextOrdnance.visible ||
+          state.hudView.confirmOrdnance.visible ||
           state.hudView.skipCombatVisible ||
           state.hudView.skipLogisticsVisible ||
           state.hudView.confirmTransfersVisible ||

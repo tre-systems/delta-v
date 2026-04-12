@@ -112,7 +112,8 @@ const installFixture = () => {
     <button id="launchTorpedoBtn"></button>
     <button id="launchNukeBtn"></button>
     <button id="emplaceBaseBtn"></button>
-    <button id="skipOrdnanceBtn"></button>
+    <button id="nextOrdnanceBtn"></button>
+    <button id="confirmOrdnanceBtn"></button>
     <button id="attackBtn"></button>
     <button id="fireBtn"></button>
     <button id="skipCombatBtn"></button>
@@ -165,12 +166,16 @@ describe('UIManager', () => {
     ui.onEvent = (e) => events.push(e);
 
     document.getElementById('confirmBtn')?.click();
+    document.getElementById('nextOrdnanceBtn')?.click();
+    document.getElementById('confirmOrdnanceBtn')?.click();
     document.getElementById('undoBtn')?.click();
     document.getElementById('rematchBtn')?.click();
     document.getElementById('replayToggleBtn')?.click();
 
     expect(events).toEqual([
       { type: 'confirm' },
+      { type: 'skipOrdnanceShip' },
+      { type: 'confirmOrdnance' },
       { type: 'undo' },
       { type: 'rematch' },
       { type: 'toggleReplay' },

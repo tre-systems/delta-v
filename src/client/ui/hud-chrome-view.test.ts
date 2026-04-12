@@ -144,6 +144,54 @@ describe('HUDChromeView', () => {
     expect(compass.style.transform).toBe('rotate(-30deg)');
   });
 
+  it('renders separate ordnance skip and confirm buttons', () => {
+    const view = createHUDChromeView({
+      queueLayoutSync: vi.fn(),
+      showPhaseAlert: vi.fn(),
+      onStatusText: vi.fn(),
+    });
+
+    view.update(
+      buildInput({
+        phase: 'ordnance',
+        launchMineState: {
+          visible: true,
+          disabled: false,
+          title: '',
+        },
+      }),
+    );
+
+    const nextBtn = document.getElementById(
+      'nextOrdnanceBtn',
+    ) as HTMLButtonElement;
+    const confirmBtn = document.getElementById(
+      'confirmOrdnanceBtn',
+    ) as HTMLButtonElement;
+
+    expect(nextBtn.hasAttribute('hidden')).toBe(false);
+    expect(nextBtn.textContent).toBe('SKIP SHIP');
+    expect(nextBtn.disabled).toBe(false);
+    expect(confirmBtn.hasAttribute('hidden')).toBe(false);
+    expect(confirmBtn.textContent).toBe('CONFIRM PHASE');
+    expect(confirmBtn.disabled).toBe(true);
+
+    view.update(
+      buildInput({
+        phase: 'ordnance',
+        allOrdnanceShipsAcknowledged: true,
+        launchMineState: {
+          visible: true,
+          disabled: false,
+          title: '',
+        },
+      }),
+    );
+
+    expect(nextBtn.hasAttribute('hidden')).toBe(true);
+    expect(confirmBtn.disabled).toBe(false);
+  });
+
   it('updates HUD chrome helpers and applies movement presentation overrides', async () => {
     const queueLayoutSync = vi.fn();
     const onStatusText = vi.fn();
