@@ -1,5 +1,6 @@
 import type { AIDifficulty } from '../../shared/ai';
 import type { PlayerId } from '../../shared/types/domain';
+import type { WaitingScreenState } from '../ui/screens';
 import type { ClientSession } from './session-model';
 import type { ReconnectOverlayState } from './session-ui-state';
 import type { GameTransport } from './transport';
@@ -36,6 +37,7 @@ type PlayerState = Pick<ClientSession, 'playerId'>;
 type GameCodeState = Pick<ClientSession, 'gameCode'>;
 
 type SpectatorModeState = Pick<ClientSession, 'spectatorMode'>;
+type WaitingScreenSessionState = Pick<ClientSession, 'waitingScreenState'>;
 
 export const setSpectatorMode = (
   ctx: SpectatorModeState,
@@ -121,4 +123,11 @@ export const setGameCode = (
   gameCode: string | null,
 ): void => {
   ctx.gameCode = gameCode;
+};
+
+export const setWaitingScreenState = (
+  ctx: WaitingScreenSessionState,
+  waitingScreenState: WaitingScreenState | null,
+): void => {
+  ctx.waitingScreenState = waitingScreenState;
 };

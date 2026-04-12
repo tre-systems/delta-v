@@ -125,6 +125,7 @@ export type GameDoWebSocketCloseDeps = {
   consumeReplacedSocket: (ws: WebSocket) => boolean;
   getPlayerId: (ws: WebSocket) => PlayerId | null;
   getCurrentGameState: () => Promise<GameState | null>;
+  shouldTrackDisconnectForPlayer: (playerId: PlayerId) => Promise<boolean>;
   setDisconnectMarker: (playerId: PlayerId) => Promise<void>;
   broadcast: (msg: S2C) => void;
 };
@@ -142,6 +143,9 @@ export const handleGameDoWebSocketClose = async (
     return;
   }
   if (playerId !== null) {
+    if (!(await deps.shouldTrackDisconnectForPlayer(playerId))) {
+      return;
+    }
     await deps.setDisconnectMarker(playerId);
     deps.broadcast({
       type: 'opponentStatus',
