@@ -301,7 +301,7 @@ export const resolveOrdnanceClick = (
 ): OrdnanceInteraction => {
   const selectedShip = getShipById(state, planning.selectedShipId);
 
-  if (selectedShip) {
+  if (selectedShip && planning.torpedoAimingActive) {
     const clickedDirection = getClickedTorpedoDirection(selectedShip, clickHex);
 
     if (clickedDirection !== null) {
