@@ -39,11 +39,13 @@ describe('ui-screens', () => {
     expect(buildWaitingScreenCopy('ABCDE', false)).toEqual({
       codeText: 'ABCDE',
       statusText: 'Waiting for opponent...',
+      scenarioText: null,
     });
 
     expect(buildWaitingScreenCopy('ABCDE', true)).toEqual({
       codeText: '...',
       statusText: 'Connecting...',
+      scenarioText: null,
     });
   });
 
