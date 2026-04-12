@@ -112,7 +112,13 @@ const createMainLocalSessionDeps = (
   clearLog: () => deps.ui.log.clear(),
   setChatEnabled: (enabled) => deps.ui.log.setChatEnabled(enabled),
   logText: (text) => deps.ui.log.logText(text),
-  trackGameCreated: (details) => deps.track('game_created', details),
+  trackGameCreated: (details) => {
+    deps.track('game_created', details);
+    deps.track('ai_game_started', {
+      scenario: details.scenario,
+      difficulty: details.difficulty,
+    });
+  },
   applyGameState: deps.applyGameState,
   logScenarioBriefing: () => deps.hud.logScenarioBriefing(),
   setState: deps.setState,

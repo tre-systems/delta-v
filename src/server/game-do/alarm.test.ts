@@ -32,6 +32,7 @@ const minimalAlarmDeps = () => {
     rescheduleAlarm: vi.fn().mockResolvedValue(undefined),
     publishStateChange: vi.fn().mockResolvedValue(undefined),
     reportEngineError: vi.fn(),
+    reportGameAbandoned: vi.fn(),
     archiveRoomState: vi.fn().mockResolvedValue(undefined),
     env: { DB: {} as D1Database },
   };
@@ -60,6 +61,7 @@ const runAlarm = async (
     rescheduleAlarm: d.rescheduleAlarm,
     publishStateChange: d.publishStateChange,
     reportEngineError: d.reportEngineError,
+    reportGameAbandoned: d.reportGameAbandoned,
     archiveRoomState: d.archiveRoomState,
   });
 };
