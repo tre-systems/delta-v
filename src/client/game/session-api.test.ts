@@ -116,14 +116,19 @@ describe('session-api telemetry', () => {
     const { deps, track } = createDeps();
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => new Response('That game is already full', { status: 409 })),
+      vi.fn(
+        async () => new Response('That game is already full', { status: 409 }),
+      ),
     );
 
     const api = createSessionApi(deps);
     const result = await api.validateJoin('ABCDE', 'token');
 
     expect(result).toEqual(
-      expect.objectContaining({ ok: false, error: 'That game is already full' }),
+      expect.objectContaining({
+        ok: false,
+        error: 'That game is already full',
+      }),
     );
     expect(track).toHaveBeenNthCalledWith(1, 'join_game_attempted', {
       hasPlayerToken: true,
