@@ -16,6 +16,8 @@ export type UIEvent =
   | { type: 'launchOrdnance'; ordType: OrdnanceType }
   | { type: 'emplaceBase' }
   | { type: 'skipOrdnance' }
+  | { type: 'skipOrdnanceShip' }
+  | { type: 'confirmOrdnance' }
   | { type: 'attack' }
   | { type: 'fireAll' }
   | { type: 'skipCombat' }
