@@ -101,6 +101,7 @@ export const createActionDeps = (args: ActionDepsArgs) => {
     getGameState: args.getGameState,
     getClientState: args.getClientState,
     getPlayerId: args.getPlayerId,
+    getMap: args.getMap,
     getTransport: args.getTransport as OrdnanceActionDeps['getTransport'],
     planningState: args.planningState,
     showToast,

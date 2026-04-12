@@ -1,5 +1,5 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
-import { getFirstLaunchableShipId } from './ordnance';
+import { getFirstOrdnanceActionableShipId } from './ordnance';
 import type { ClientState } from './phase';
 import type { PlanningPhase } from './planning';
 
@@ -50,12 +50,12 @@ const getFirstActionableShipId = (
   return actionable?.id ?? null;
 };
 
-const getFirstLaunchableShipIdForEntry = (
+const getFirstOrdnanceActionableShipIdForEntry = (
   gameState: GameState | null,
   playerId: PlayerId | -1,
 ): string | null => {
   if (playerId < 0) return null;
-  return getFirstLaunchableShipId(
+  return getFirstOrdnanceActionableShipId(
     gameState ?? {
       ships: [],
       scenarioRules: {},
@@ -97,7 +97,7 @@ const CLIENT_STATE_ENTRY_RULES: Record<ClientState, ClientStateEntryRule> = {
   playing_ordnance: {
     startTurnTimer: startRemoteTurnTimer,
     planningPhase: 'ordnance',
-    deriveSelectedShipId: getFirstLaunchableShipIdForEntry,
+    deriveSelectedShipId: getFirstOrdnanceActionableShipIdForEntry,
     tutorialPhase: 'ordnance',
   },
   playing_logistics: {

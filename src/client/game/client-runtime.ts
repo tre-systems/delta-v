@@ -1,8 +1,7 @@
 import { CODE_LENGTH } from '../../shared/constants';
 import {
-  getAllowedOrdnanceTypes,
   getOrderableShipsForPlayer,
-  hasLaunchableOrdnanceCapacity,
+  hasValidOrdnanceLaunch,
 } from '../../shared/engine/util';
 import { normalizePlayerToken, normalizeRoomCode } from '../../shared/ids';
 import type { SolarSystemMap } from '../../shared/types/domain';
@@ -75,11 +74,7 @@ const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
             if (!gs) return true;
             const planning = deps.getPlanningState();
             return getOrderableShipsForPlayer(gs, gs.activePlayer)
-              .filter(
-                (s) =>
-                  s.damage.disabledTurns === 0 &&
-                  hasLaunchableOrdnanceCapacity(s, getAllowedOrdnanceTypes(gs)),
-              )
+              .filter((s) => hasValidOrdnanceLaunch(gs, s))
               .every((s) => planning.acknowledgedOrdnanceShips.has(s.id));
           })(),
           hasSelectedShip: deps.getPlanningState().selectedShipId !== null,

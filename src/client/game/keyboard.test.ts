@@ -64,7 +64,7 @@ describe('game-client-keyboard', () => {
     }
   });
 
-  it('prioritizes combat target, queued attacks, and torpedo accel on escape', () => {
+  it('prioritizes combat target, queued attacks, and torpedo cancel on escape', () => {
     expect(actionFor('Escape', { combatTargetId: 'enemy-1' })).toEqual({
       kind: 'clearCombatSelection',
       preventDefault: false,
@@ -76,6 +76,11 @@ describe('game-client-keyboard', () => {
     });
 
     expect(actionFor('Escape', { torpedoAccelActive: true })).toEqual({
+      kind: 'clearTorpedoAcceleration',
+      preventDefault: false,
+    });
+
+    expect(actionFor('Escape', { torpedoAimingActive: true })).toEqual({
       kind: 'clearTorpedoAcceleration',
       preventDefault: false,
     });

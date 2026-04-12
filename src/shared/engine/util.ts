@@ -293,6 +293,20 @@ export const validateOrdnanceLaunch = (
   return null;
 };
 
+export const hasValidOrdnanceLaunch = (
+  state: Pick<GameState, 'scenarioRules' | 'pendingAstrogationOrders'>,
+  ship: Ship,
+  allowedTypes = getAllowedOrdnanceTypes(state),
+): boolean => {
+  for (const ordnanceType of allowedTypes) {
+    if (validateOrdnanceLaunch(state, ship, ordnanceType) === null) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 // Quick boolean: can this ship launch any ordnance at all?
 // Checks ship status and minimum cargo capacity.
 export const canLaunchOrdnance = (ship: Ship): boolean => {

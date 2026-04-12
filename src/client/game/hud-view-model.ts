@@ -1,7 +1,8 @@
 import { SHIP_STATS } from '../../shared/constants';
+import { validateBaseEmplacement } from '../../shared/engine/ordnance';
 import {
   getAllowedOrdnanceTypes,
-  hasLaunchableOrdnanceCapacity,
+  hasValidOrdnanceLaunch,
   isOrderableShip,
   validateOrdnanceLaunch,
 } from '../../shared/engine/util';
@@ -140,14 +141,65 @@ const getOrdnanceActionState = (
   }
 
   const error = validateOrdnanceLaunch(state, selectedShip, ordnanceType);
+  const condensedTitle =
+    error?.message === 'Only warships and orbital bases can launch torpedoes'
+      ? 'Warships or bases only'
+      : error?.message === 'Ship must change course when launching a mine'
+        ? 'Needs a course change'
+        : error?.message === 'Cannot launch ordnance while landed'
+          ? 'Cannot launch while landed'
+          : error?.message ===
+              'Ships cannot launch ordnance during a turn in which they resupply'
+            ? 'Resupplied this turn'
+            : error?.message === 'Ship is disabled'
+              ? 'Ship disabled'
+              : (error?.message ?? '');
 
   return {
     visible: true,
     disabled: error !== null,
-    title:
-      error?.message === 'Only warships and orbital bases can launch torpedoes'
-        ? 'Warships only'
-        : (error?.message ?? ''),
+    title: condensedTitle,
+  };
+};
+
+const getBaseEmplacementActionState = (
+  state: GameState,
+  selectedShip: ReturnType<typeof getSelectedShip>,
+  map?: SolarSystemMap | null,
+): OrdnanceActionState => {
+  if (!selectedShip || selectedShip.baseStatus !== 'carryingBase') {
+    return {
+      visible: false,
+      disabled: true,
+      title: '',
+    };
+  }
+
+  if (!map) {
+    return {
+      visible: true,
+      disabled: false,
+      title: '',
+    };
+  }
+
+  const error = validateBaseEmplacement(state, selectedShip, map);
+  const condensedTitle =
+    error?.message ===
+    'Must be in orbit or on an open world hex side to emplace an orbital base'
+      ? 'Need orbit or open world side'
+      : error?.message === 'Cannot emplace during a resupply turn'
+        ? 'Resupplied this turn'
+        : error?.message === 'Disabled ships cannot emplace orbital bases'
+          ? 'Ship disabled'
+          : error?.message === 'Captured ships cannot emplace orbital bases'
+            ? 'Captured ship'
+            : (error?.message ?? '');
+
+  return {
+    visible: true,
+    disabled: error !== null,
+    title: condensedTitle,
   };
 };
 
@@ -168,6 +220,11 @@ export const deriveHudViewModel = (
   );
   const stats = selectedShip ? SHIP_STATS[selectedShip.type] : null;
   const allowedOrdnanceTypes = getAllowedOrdnanceTypes(state);
+  const emplaceBaseState = getBaseEmplacementActionState(
+    state,
+    selectedShip,
+    map,
+  );
 
   return {
     turn: state.turnNumber,
@@ -182,10 +239,7 @@ export const deriveHudViewModel = (
     cargoMax: stats?.cargo ?? 0,
     objective: getObjective(state, playerId),
     canOverload: stats?.canOverload ?? false,
-    canEmplaceBase:
-      selectedShip?.baseStatus === 'carryingBase' &&
-      selectedShip.lifecycle !== 'destroyed' &&
-      !selectedShip.resuppliedThisTurn,
+    emplaceBaseState,
     fleetStatus: getFleetStatus(state, playerId),
     selectedShipLanded: selectedShip?.lifecycle === 'landed',
     selectedShipDisabled: (selectedShip?.damage.disabledTurns ?? 0) > 0,
@@ -216,6 +270,8 @@ export const deriveHudViewModel = (
     selectedShipLandingSet: selectedShip
       ? planning.landingShips.has(selectedShip.id)
       : false,
+    torpedoAimingActive: planning.torpedoAimingActive,
+    torpedoAccelSteps: planning.torpedoAccelSteps,
     allShipsAcknowledged: myShips
       .filter(isOrderableShip)
       .every(
@@ -225,10 +281,8 @@ export const deriveHudViewModel = (
       ),
     allOrdnanceShipsAcknowledged: myShips
       .filter(isOrderableShip)
-      .filter(
-        (ship) =>
-          ship.damage.disabledTurns === 0 &&
-          hasLaunchableOrdnanceCapacity(ship, allowedOrdnanceTypes),
+      .filter((ship) =>
+        hasValidOrdnanceLaunch(state, ship, allowedOrdnanceTypes),
       )
       .every((ship) => planning.acknowledgedOrdnanceShips.has(ship.id)),
     queuedOrdnanceType: selectedShip

@@ -1003,6 +1003,139 @@ describe('ordnance system', () => {
     ).toBe(true);
     expect(movement.state.ordnance).toHaveLength(0);
   });
+  it('detonates a friendly mine when its source ship re-enters the mine hex', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      openMap,
+      asGameId('MINEOWN'),
+      findBaseHex,
+    );
+    const ship = state.ships[0];
+    ship.lifecycle = 'active';
+    ship.position = { q: -1, r: 0 };
+    ship.velocity = { dq: 2, dr: 0 };
+    state.ordnance.push({
+      id: asOrdnanceId('mine-own'),
+      type: 'mine',
+      owner: 0,
+      sourceShipId: ship.id,
+      position: { q: 0, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      turnsRemaining: 4,
+      lifecycle: 'active' as const,
+      pendingGravityEffects: [],
+    });
+
+    const first = processAstrogation(
+      state,
+      0,
+      [{ shipId: ship.id, burn: null, overload: null }],
+      openMap,
+      Math.random,
+    );
+    expect('error' in first).toBe(false);
+    if ('error' in first) return;
+
+    const result =
+      'movements' in first
+        ? first
+        : skipOrdnance(first.state, 0, openMap, Math.random);
+
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+    const movement = expectMovement(result);
+
+    expect(
+      movement.events.some(
+        (event) =>
+          event.type === 'mineDetonation' && event.ordnanceId === 'mine-own',
+      ),
+    ).toBe(true);
+    expect(movement.ordnanceMovements).toContainEqual(
+      expect.objectContaining({
+        ordnanceId: 'mine-own',
+        from: { q: 0, r: 0 },
+        to: { q: 0, r: 0 },
+        path: [{ q: 0, r: 0 }],
+        detonated: true,
+      }),
+    );
+    expect(movement.state.ordnance).toHaveLength(0);
+  });
+  it('detonates ordnance on its final turn before expiry and stops animation at impact', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      openMap,
+      asGameId('MINELAST'),
+      findBaseHex,
+    );
+    const mover = state.ships[0];
+    mover.lifecycle = 'active';
+    mover.position = { q: -10, r: 0 };
+    mover.velocity = { dq: 0, dr: 0 };
+    const target = state.ships[1];
+    target.lifecycle = 'active';
+    target.position = { q: 1, r: 0 };
+    target.velocity = { dq: 0, dr: 0 };
+    state.ordnance.push({
+      id: asOrdnanceId('mine-last-turn'),
+      type: 'mine',
+      owner: 0,
+      sourceShipId: null,
+      position: { q: 0, r: 0 },
+      velocity: { dq: 2, dr: 0 },
+      turnsRemaining: 1,
+      lifecycle: 'active' as const,
+      pendingGravityEffects: [],
+    });
+
+    const first = processAstrogation(
+      state,
+      0,
+      [{ shipId: mover.id, burn: null, overload: null }],
+      openMap,
+      Math.random,
+    );
+    expect('error' in first).toBe(false);
+    if ('error' in first) return;
+
+    const result =
+      'movements' in first
+        ? first
+        : skipOrdnance(first.state, 0, openMap, Math.random);
+
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+    const movement = expectMovement(result);
+    const ordnanceMove = movement.ordnanceMovements.find(
+      (entry) => entry.ordnanceId === 'mine-last-turn',
+    );
+
+    expect(
+      movement.events.some(
+        (event) =>
+          event.type === 'mineDetonation' &&
+          event.ordnanceId === 'mine-last-turn' &&
+          event.shipId === target.id,
+      ),
+    ).toBe(true);
+    expect(
+      movement.engineEvents.some(
+        (event) =>
+          event.type === 'ordnanceExpired' &&
+          event.ordnanceId === 'mine-last-turn',
+      ),
+    ).toBe(false);
+    expect(ordnanceMove).toMatchObject({
+      to: { q: 1, r: 0 },
+      path: [
+        { q: 0, r: 0 },
+        { q: 1, r: 0 },
+      ],
+      detonated: true,
+    });
+    expect(movement.state.ordnance).toHaveLength(0);
+  });
   it('ordnance defers gravity until the turn after entry', () => {
     const gravityMap: SolarSystemMap = {
       hexes: new Map([
