@@ -398,7 +398,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
             ? 'Acknowledge this ship and move on'
             : 'Select a ship first',
           label: 'SKIP SHIP',
-          className: 'btn btn-skip',
+          className: 'btn btn-secondary',
         }
       : createHiddenLabelButton(),
     confirmOrdnance: showOrdnance
