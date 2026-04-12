@@ -5,20 +5,22 @@ import { isClientFeatureEnabled } from '../feature-flags';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import type { AIDifficulty, UIEvent } from './events';
 import { parseJoinInput } from './formatters';
-import { buildWaitingScreenCopy } from './screens';
+import { buildWaitingScreenCopy, type WaitingScreenState } from './screens';
 
 export interface LobbyViewDeps {
   emit: (event: UIEvent) => void;
   showMenu: () => void;
   showScenarioSelect: () => void;
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
+  getPlayerName: () => string;
+  setPlayerName: (name: string) => string;
   copyText?: (text: string) => Promise<void> | undefined;
 }
 
 export interface LobbyView {
   onMenuShown: () => void;
-  setMenuLoading: (loading: boolean) => void;
-  setWaitingState: (code: string | null, connecting: boolean) => void;
+  setMenuLoading: (loading: boolean, kind?: 'create' | 'quickMatch') => void;
+  setWaitingState: (state: WaitingScreenState | null) => void;
   dispose: () => void;
 }
 
@@ -54,25 +56,34 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     (ls?.getItem('aiDifficulty') as AIDifficulty | null) ?? 'normal';
   const aiDifficultySignal = signal<AIDifficulty>(storedDifficulty);
   const pendingAIGameSignal = signal(false);
-  const loadingSignal = signal(false);
-  const waitingCopySignal = signal(buildWaitingScreenCopy('', false));
+  const loadingSignal = signal<'create' | 'quickMatch' | null>(null);
+  const waitingCopySignal = signal(
+    buildWaitingScreenCopy({
+      kind: 'private',
+      code: '',
+      connecting: false,
+    }),
+  );
   const copyButtonTextSignal = signal('Copy Link');
   const copySpectateTextSignal = signal('Copy Spectate Link');
 
   const createBtn = byId<HTMLButtonElement>('createBtn');
+  const quickMatchBtn = byId<HTMLButtonElement>('quickMatchBtn');
   const singlePlayerBtn = byId('singlePlayerBtn');
+  const playerNameInput = byId<HTMLInputElement>('playerNameInput');
   const backBtn = byId('backBtn');
   const scenarioListEl = byId('scenarioList');
   const difficultyButtons = Array.from(
     document.querySelectorAll<HTMLElement>('.btn-difficulty'),
   );
-  const joinBtn = byId('joinBtn');
+  const joinBtn = byId<HTMLButtonElement>('joinBtn');
   const codeInputEl = byId<HTMLInputElement>('codeInput');
   const menuHowToPlayBtn = byId('menuHowToPlayBtn');
   const helpOverlayEl = byId('helpOverlay');
   const helpCloseBtnEl = byId<HTMLButtonElement>('helpCloseBtn');
   const copyBtn = byId('copyBtn');
   const copySpectateBtn = byId('copySpectateBtn');
+  const waitingTitleEl = byId('waitingTitle');
   const gameCodeEl = byId('gameCode');
   const waitingStatusEl = byId('waitingStatus');
 
@@ -144,12 +155,21 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     pendingAIGameSignal.value = false;
   };
 
-  const setMenuLoading = (loading: boolean): void => {
-    loadingSignal.value = loading;
+  const setMenuLoading = (
+    loading: boolean,
+    kind: 'create' | 'quickMatch' = 'create',
+  ): void => {
+    loadingSignal.value = loading ? kind : null;
   };
 
-  const setWaitingState = (code: string | null, connecting: boolean): void => {
-    waitingCopySignal.value = buildWaitingScreenCopy(code ?? '', connecting);
+  const setWaitingState = (state: WaitingScreenState | null): void => {
+    waitingCopySignal.value = buildWaitingScreenCopy(
+      state ?? {
+        kind: 'private',
+        code: '',
+        connecting: false,
+      },
+    );
   };
 
   const dispose = (): void => {
@@ -158,6 +178,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   };
 
   bindScenarioList();
+  playerNameInput.value = deps.getPlayerName();
 
   withScope(scope, () => {
     listen(scenarioListEl, 'click', (event) => {
@@ -200,6 +221,10 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       deps.showScenarioSelect();
     });
 
+    listen(quickMatchBtn, 'click', () => {
+      deps.emit({ type: 'quickMatch' });
+    });
+
     listen(singlePlayerBtn, 'click', () => {
       pendingAIGameSignal.value = true;
       deps.showScenarioSelect();
@@ -231,6 +256,20 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
 
     listen(codeInputEl, 'input', () => {
       updateJoinButtonState();
+    });
+
+    const commitPlayerName = () => {
+      playerNameInput.value = deps.setPlayerName(playerNameInput.value);
+    };
+
+    listen(playerNameInput, 'blur', () => {
+      commitPlayerName();
+    });
+
+    listen(playerNameInput, 'keydown', (event) => {
+      if ((event as KeyboardEvent).key === 'Enter') {
+        playerNameInput.blur();
+      }
     });
 
     updateJoinButtonState();
@@ -279,9 +318,19 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     }
 
     effect(() => {
-      const loading = loadingSignal.value;
+      const loadingKind = loadingSignal.value;
+      const loading = loadingKind !== null;
       createBtn.disabled = loading;
-      text(createBtn, loading ? 'CREATING...' : 'Create Game');
+      quickMatchBtn.disabled = loading;
+      joinBtn.disabled = loading || !isJoinInputValid(codeInputEl.value);
+      text(
+        createBtn,
+        loadingKind === 'create' ? 'CREATING...' : 'Create Private Match',
+      );
+      text(
+        quickMatchBtn,
+        loadingKind === 'quickMatch' ? 'SEARCHING...' : 'Quick Match',
+      );
     });
 
     effect(() => {
@@ -295,8 +344,18 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     effect(() => {
       const copy = waitingCopySignal.value;
 
+      text(waitingTitleEl, copy.titleText);
       text(gameCodeEl, copy.codeText);
       text(waitingStatusEl, copy.statusText);
+      if (copy.showCopyActions) {
+        show(copyBtn, 'inline-flex');
+        if (spectatorModeEnabled) {
+          show(copySpectateBtn, 'inline-flex');
+        }
+      } else {
+        hide(copyBtn);
+        hide(copySpectateBtn);
+      }
     });
 
     text(copyBtn, copyButtonTextSignal);

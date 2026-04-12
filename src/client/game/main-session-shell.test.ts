@@ -172,6 +172,12 @@ const createArgs = () => {
       localGameFlowDeps: { tag: 'local-deps' },
     } as unknown as ActionDeps,
     turnTelemetry: {} as TurnTelemetryTracker,
+    playerProfile: {
+      getProfile: vi.fn(() => ({
+        playerKey: 'playerkey1',
+        username: 'Pilot 1',
+      })),
+    },
     sessionTokens: {
       clearStoredPlayerToken: vi.fn(),
       getStoredPlayerToken: vi.fn(),

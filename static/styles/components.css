@@ -143,6 +143,52 @@
     linear-gradient(180deg, rgba(22, 35, 59, 0.9), rgba(11, 19, 35, 0.82));
 }
 
+.menu-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.menu-profile-label,
+.menu-surface-note {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.menu-profile-label {
+  color: rgba(199, 212, 234, 0.72);
+}
+
+.menu-profile-input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0.95rem 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(142, 176, 235, 0.18);
+  background: rgba(8, 16, 30, 0.84);
+  color: #f2f7ff;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.menu-profile-input::placeholder {
+  color: rgba(199, 212, 234, 0.38);
+}
+
+.menu-profile-input:focus {
+  outline: none;
+  border-color: rgba(122, 215, 255, 0.52);
+  box-shadow: 0 0 0 3px rgba(122, 215, 255, 0.14);
+}
+
+.menu-surface-note {
+  color: rgba(199, 212, 234, 0.54);
+}
+
 .menu-surface-join {
   --menu-surface-bg: linear-gradient(
     180deg,

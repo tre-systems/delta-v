@@ -94,13 +94,16 @@ const installFixture = () => {
     <div id="opponentDisconnectOverlay"></div>
     <div id="opponentDisconnectText"></div>
     <div id="scenarioList"></div>
+    <button id="quickMatchBtn"></button>
     <button id="createBtn"></button>
     <button id="singlePlayerBtn"></button>
+    <input id="playerNameInput" />
     <button id="backBtn"></button>
     <button id="joinBtn"></button>
     <input id="codeInput" />
     <button id="copyBtn"></button>
     <button id="copySpectateBtn"></button>
+    <div id="waitingTitle"></div>
     <div id="gameCode"></div>
     <div id="waitingStatus"></div>
     <button class="btn-difficulty active" data-difficulty="normal"></button>
@@ -146,6 +149,20 @@ const bindClientState = (
   return s;
 };
 
+const createTestUIManager = () =>
+  createUIManager({
+    playerProfile: {
+      getProfile: () => ({
+        playerKey: 'playerkey1',
+        username: 'Pilot 1',
+      }),
+      setUsername: (username: string) => ({
+        playerKey: 'playerkey1',
+        username,
+      }),
+    },
+  });
+
 describe('UIManager', () => {
   beforeEach(() => {
     installFixture();
@@ -156,13 +173,13 @@ describe('UIManager', () => {
   });
 
   it('constructs without throwing and wires subviews', () => {
-    const ui = createUIManager();
+    const ui = createTestUIManager();
     expect(ui).toBeDefined();
     expect(ui.onEvent).toBeNull();
   });
 
   it('routes static button clicks through onEvent', () => {
-    const ui = createUIManager();
+    const ui = createTestUIManager();
     const events: unknown[] = [];
     ui.onEvent = (e) => events.push(e);
 
@@ -184,7 +201,7 @@ describe('UIManager', () => {
   });
 
   it('shows menu when interaction mode is menu', () => {
-    const ui = createUIManager();
+    const ui = createTestUIManager();
     bindClientState(ui, 'menu');
 
     const menu = document.getElementById('menu') as HTMLElement;
@@ -197,7 +214,7 @@ describe('UIManager', () => {
   });
 
   it('shows HUD when interaction mode is astrogation', () => {
-    const ui = createUIManager();
+    const ui = createTestUIManager();
     bindClientState(ui, 'playing_astrogation');
 
     const hudPlaying = document.getElementById('hud') as HTMLElement;
@@ -212,8 +229,12 @@ describe('UIManager', () => {
   });
 
   it('shows waiting screen when interaction mode is waiting', () => {
-    const ui = createUIManager();
-    ui.setWaitingState('ABC12', false);
+    const ui = createTestUIManager();
+    ui.setWaitingState({
+      kind: 'private',
+      code: 'ABC12',
+      connecting: false,
+    });
     bindClientState(ui, 'waitingForOpponent');
 
     const waiting = document.getElementById('waiting') as HTMLElement;
@@ -223,7 +244,7 @@ describe('UIManager', () => {
   });
 
   it('hides all screens when interaction signal is not bound', () => {
-    createUIManager();
+    createTestUIManager();
 
     const ids = [
       'menu',
@@ -242,7 +263,7 @@ describe('UIManager', () => {
   });
 
   it('dispose removes event listeners cleanly', () => {
-    const ui = createUIManager();
+    const ui = createTestUIManager();
     const events: unknown[] = [];
     ui.onEvent = (e) => events.push(e);
 
