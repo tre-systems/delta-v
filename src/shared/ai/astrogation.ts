@@ -55,6 +55,7 @@ const getPassengerEmergencyEscortOrders = (
   enemyShips: Ship[],
   difficulty: AIDifficulty,
   enemyEscaping: boolean,
+  enemyHasPassengerObjective: boolean,
 ): Map<string, AstrogationOrder> => {
   if (!isPassengerEscortMission(state, playerId)) {
     return new Map();
@@ -300,6 +301,7 @@ const getPassengerEmergencyEscortOrders = (
             map,
             isRace: false,
             enemyEscaping,
+            enemyHasPassengerObjective,
             shipIndex: 0,
           }) +
           scorePassengerCarrierEvasion(
@@ -319,6 +321,7 @@ const getPassengerEmergencyEscortOrders = (
             map,
             isRace: false,
             enemyEscaping,
+            enemyHasPassengerObjective,
             shipIndex: 1,
           }) +
           scorePassengerEscortCourse(
@@ -382,6 +385,14 @@ export const aiAstrogation = (
   const passengerEscortMission = isPassengerEscortMission(state, playerId);
   const opponentId: PlayerId = playerId === 0 ? 1 : 0;
   const enemyEscaping = state.players[opponentId]?.escapeWins === true;
+  const enemyHasPassengerObjective =
+    !!state.players[opponentId]?.targetBody &&
+    state.ships.some(
+      (ship) =>
+        ship.owner === opponentId &&
+        ship.lifecycle !== 'destroyed' &&
+        (ship.passengersAboard ?? 0) > 0,
+    );
   const defaultTargetHex: {
     q: number;
     r: number;
@@ -426,6 +437,7 @@ export const aiAstrogation = (
     difficulty,
     !!checkpoints,
     enemyEscaping,
+    enemyHasPassengerObjective,
   );
   const passengerEmergencyEscortOrders = getPassengerEmergencyEscortOrders(
     state,
@@ -437,6 +449,7 @@ export const aiAstrogation = (
     enemyShips,
     difficulty,
     enemyEscaping,
+    enemyHasPassengerObjective,
   );
   let shipIdx = 0;
 
@@ -547,7 +560,9 @@ export const aiAstrogation = (
     const stats = SHIP_STATS[ship.type];
     const canBurnFuel = ship.fuel > 0;
     const interceptingEnemy =
-      enemyEscaping && !escapeWins && shipTargetHex == null;
+      (enemyEscaping || enemyHasPassengerObjective) &&
+      !escapeWins &&
+      shipTargetHex == null;
     const nearbyEnemy = enemyShips.some(
       (enemy) => hexDistance(ship.position, enemy.position) <= 4,
     );
@@ -670,6 +685,7 @@ export const aiAstrogation = (
           map,
           isRace: !!checkpoints,
           enemyEscaping,
+          enemyHasPassengerObjective,
           shipIndex: shipIdx,
         }) + gravityRiskPenalty;
 
@@ -758,6 +774,7 @@ export const aiAstrogation = (
             map,
             isRace: !!checkpoints,
             enemyEscaping,
+            enemyHasPassengerObjective,
             shipIndex: shipIdx,
           });
           const altDefenseScore =

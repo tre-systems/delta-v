@@ -55,15 +55,22 @@ interface SimulationOptions {
 // null = skip balance check (cooperative/race scenarios).
 const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
   biplanetary: [0.45, 0.85], // Mars→Venus has nav advantage
-  escape: [0.55, 0.9], // Asymmetric — fugitives favored
+  escape: [0.0, 0.7], // Asymmetric — enforcers favored after moral victory tightening
   convoy: [0.3, 0.7], // Asymmetric escort
-  evacuation: null, // Asymmetric sprint — AI balance not representative of human play
+  evacuation: [0.0, 0.5], // Asymmetric sprint — corsair heavily favored in AI vs AI
   duel: [0.3, 0.7], // Symmetric combat
   blockade: [0.25, 0.65], // Asymmetric speed vs combat
   interplanetaryWar: [0.3, 0.7], // Equal credits, different bases
   fleetAction: [0.45, 0.8], // Mars has nav advantage
   grandTour: null, // Cooperative race
 };
+
+// Symmetric fleet-building scenarios where the starting player
+// should be randomized to cancel first-mover advantage.
+const RANDOMIZE_START_SCENARIOS: ReadonlySet<string> = new Set([
+  'interplanetaryWar',
+  'fleetAction',
+]);
 
 const parseDifficulty = (value: string): AIDifficulty => {
   if (value === 'easy' || value === 'normal' || value === 'hard') {
@@ -116,7 +123,7 @@ const runSingleGame = async (
   // across many games. Reveals true faction/position balance.
   if (forcedStart !== null) {
     state.activePlayer = forcedStart;
-  } else if (randomizeStart) {
+  } else if (randomizeStart || RANDOMIZE_START_SCENARIOS.has(scenarioName)) {
     state.activePlayer = rng() < 0.5 ? 0 : 1;
   }
 

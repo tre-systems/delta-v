@@ -215,7 +215,7 @@ export const checkGameEnd = (
         setGameOutcome(
           state,
           fugitive.owner,
-          'Pilgrims moral victory — the fugitives were lost, but they disabled an Enforcer ship.',
+          'Pilgrims moral victory — the fugitives were lost, but they crippled an Enforcer ship.',
           engineEvents,
         );
       } else {
@@ -237,7 +237,7 @@ export const checkGameEnd = (
         setGameOutcome(
           state,
           fugitiveOriginalOwner,
-          'Pilgrims moral victory — the fugitives were captured, but they disabled an Enforcer ship.',
+          'Pilgrims moral victory — the fugitives were captured, but they crippled an Enforcer ship.',
           engineEvents,
         );
       } else {
@@ -303,7 +303,7 @@ export const applyEscapeMoralVictory = (state: GameState): void => {
     state.ships.some(
       (ship) =>
         ship.owner === enforcerOwner &&
-        (ship.lifecycle === 'destroyed' || ship.damage.disabledTurns > 0),
+        (ship.lifecycle === 'destroyed' || ship.damage.disabledTurns >= 2),
     )
   ) {
     state.escapeMoralVictoryAchieved = true;
