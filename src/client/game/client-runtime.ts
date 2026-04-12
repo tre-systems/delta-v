@@ -1,8 +1,5 @@
 import { CODE_LENGTH } from '../../shared/constants';
-import {
-  getOrderableShipsForPlayer,
-  hasValidOrdnanceLaunch,
-} from '../../shared/engine/util';
+import { getOrderableShipsForPlayer } from '../../shared/engine/util';
 import { normalizePlayerToken, normalizeRoomCode } from '../../shared/ids';
 import type { SolarSystemMap } from '../../shared/types/domain';
 import { initAudio, isMuted, setMuted } from '../audio';
@@ -18,6 +15,7 @@ import type { UIEvent } from '../ui/events';
 import type { UIManager } from '../ui/ui';
 import type { KeyboardAction } from './keyboard';
 import { deriveKeyboardAction } from './keyboard';
+import { getOrdnanceActionableShipIds } from './ordnance';
 import type { ClientState } from './phase';
 import type { KeyboardPlanningSnapshot } from './planning';
 import { buildGameRoute } from './session-links';
@@ -33,6 +31,7 @@ type BrowserBindingDeps = {
   soundBtn: HTMLElement;
   tooltipEl: HTMLElement;
   getState: () => ClientState;
+  getMap: () => SolarSystemMap;
   hasGameState: () => boolean;
   getGameState: () => import('../../shared/types/domain').GameState | null;
   getPlanningState: () => KeyboardPlanningSnapshot;
@@ -73,9 +72,11 @@ const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
             const gs = deps.getGameState?.();
             if (!gs) return true;
             const planning = deps.getPlanningState();
-            return getOrderableShipsForPlayer(gs, gs.activePlayer)
-              .filter((s) => hasValidOrdnanceLaunch(gs, s))
-              .every((s) => planning.acknowledgedOrdnanceShips.has(s.id));
+            return getOrdnanceActionableShipIds(
+              gs,
+              gs.activePlayer,
+              deps.getMap(),
+            ).every((shipId) => planning.acknowledgedOrdnanceShips.has(shipId));
           })(),
           hasSelectedShip: deps.getPlanningState().selectedShipId !== null,
         },
@@ -182,6 +183,7 @@ export const setupClientRuntime = ({
     soundBtn,
     tooltipEl,
     getState: () => ctx.state,
+    getMap: () => map,
     hasGameState: () => !!ctx.gameState,
     getGameState: () => ctx.gameState,
     getPlanningState: (): KeyboardPlanningSnapshot => ctx.planningState,

@@ -1,5 +1,9 @@
 import { must } from '../../shared/assert';
-import type { GameState, PlayerId } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import { batch } from '../reactive';
 import { createLogisticsStore } from './logistics-store';
 import type { ClientState } from './phase';
@@ -30,6 +34,7 @@ interface TransitionTurnTimer {
 
 export interface StateTransitionDeps {
   ctx: ClientSessionStateTransitionContext;
+  getMap: () => SolarSystemMap;
   ui: TransitionUI;
   tutorial: TransitionTutorial;
   renderer: TransitionRenderer;
@@ -55,6 +60,7 @@ export const applyClientStateTransition = (
       deps.ctx.gameState,
       deps.ctx.playerId as PlayerId,
       deps.ctx.isLocalGame,
+      deps.getMap(),
     );
 
     if (newState === 'playing_fleetBuilding') {

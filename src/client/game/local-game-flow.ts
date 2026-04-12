@@ -212,6 +212,11 @@ export const runAITurn = async (deps: LocalGameFlowDeps): Promise<void> => {
       }
     }
     const resolution = resolveAIPlan(deps, plan);
+    if (resolution.kind === 'error') {
+      handleLocalResolution(deps, resolution, () => {}, plan.errorPrefix);
+      return;
+    }
+
     const isCombatEnd = plan.kind === 'combat';
     await new Promise<void>((resolve) => {
       handleLocalResolution(

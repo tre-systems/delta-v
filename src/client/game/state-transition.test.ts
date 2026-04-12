@@ -54,6 +54,7 @@ const createDeps = (
       planningState: createPlanningStore(),
       isLocalGame: false,
     },
+    getMap: () => buildSolarSystemMap(),
     ui: {
       showFleetBuilding: track('ui.showFleetBuilding'),
     },

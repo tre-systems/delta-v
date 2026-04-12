@@ -2,7 +2,6 @@ import { SHIP_STATS } from '../../shared/constants';
 import { validateBaseEmplacement } from '../../shared/engine/ordnance';
 import {
   getAllowedOrdnanceTypes,
-  hasValidOrdnanceLaunch,
   isOrderableShip,
   validateOrdnanceLaunch,
 } from '../../shared/engine/util';
@@ -15,6 +14,7 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { count } from '../../shared/util';
+import { getOrdnanceActionableShipIds } from './ordnance';
 import type { HudPlanningSnapshot } from './planning';
 import { getSelectedShip } from './selection';
 import type { HudViewModel, OrdnanceActionState } from './types';
@@ -225,6 +225,12 @@ export const deriveHudViewModel = (
     selectedShip,
     map,
   );
+  const actionableOrdnanceShipIds: string[] = [];
+  if (playerId >= 0) {
+    actionableOrdnanceShipIds.push(
+      ...getOrdnanceActionableShipIds(state, playerId as PlayerId, map),
+    );
+  }
 
   return {
     turn: state.turnNumber,
@@ -279,12 +285,9 @@ export const deriveHudViewModel = (
           ship.damage.disabledTurns > 0 ||
           planning.acknowledgedShips.has(ship.id),
       ),
-    allOrdnanceShipsAcknowledged: myShips
-      .filter(isOrderableShip)
-      .filter((ship) =>
-        hasValidOrdnanceLaunch(state, ship, allowedOrdnanceTypes),
-      )
-      .every((ship) => planning.acknowledgedOrdnanceShips.has(ship.id)),
+    allOrdnanceShipsAcknowledged: actionableOrdnanceShipIds.every((shipId) =>
+      planning.acknowledgedOrdnanceShips.has(shipId),
+    ),
     queuedOrdnanceType: selectedShip
       ? (planning.queuedOrdnanceLaunches.find(
           (launch) => launch.shipId === selectedShip.id,

@@ -1,4 +1,8 @@
-import type { GameState, PlayerId } from '../../shared/types/domain';
+import type {
+  GameState,
+  PlayerId,
+  SolarSystemMap,
+} from '../../shared/types/domain';
 import { getFirstOrdnanceActionableShipId } from './ordnance';
 import type { ClientState } from './phase';
 import type { PlanningPhase } from './planning';
@@ -30,6 +34,7 @@ interface ClientStateEntryRule {
   deriveSelectedShipId?: (
     gameState: GameState | null,
     playerId: PlayerId | -1,
+    map?: SolarSystemMap | null,
   ) => string | null;
   autoSkipCombatIfNoTargets?: boolean;
   tutorialPhase?: PlanningPhase;
@@ -38,6 +43,7 @@ interface ClientStateEntryRule {
 const getFirstActionableShipId = (
   gameState: GameState | null,
   playerId: PlayerId | -1,
+  _map?: SolarSystemMap | null,
 ): string | null => {
   if (playerId < 0) return null;
   if (!gameState) return null;
@@ -53,16 +59,11 @@ const getFirstActionableShipId = (
 const getFirstOrdnanceActionableShipIdForEntry = (
   gameState: GameState | null,
   playerId: PlayerId | -1,
+  map?: SolarSystemMap | null,
 ): string | null => {
   if (playerId < 0) return null;
-  return getFirstOrdnanceActionableShipId(
-    gameState ?? {
-      ships: [],
-      scenarioRules: {},
-      pendingAstrogationOrders: null,
-    },
-    playerId as PlayerId,
-  );
+  if (!gameState) return null;
+  return getFirstOrdnanceActionableShipId(gameState, playerId as PlayerId, map);
 };
 
 const DEFAULT_ENTRY_PLAN: Omit<
@@ -131,6 +132,7 @@ export const deriveClientStateEntryPlan = (
   gameState: GameState | null,
   playerId: PlayerId | -1,
   isLocalGame = false,
+  map?: SolarSystemMap | null,
 ): ClientStateEntryPlan => {
   const rule = CLIENT_STATE_ENTRY_RULES[state];
   const startTurnTimer =
@@ -148,7 +150,7 @@ export const deriveClientStateEntryPlan = (
       ? {
           phase: rule.planningPhase,
           selectedShipId:
-            rule.deriveSelectedShipId?.(gameState, playerId) ?? null,
+            rule.deriveSelectedShipId?.(gameState, playerId, map) ?? null,
         }
       : null,
     autoSkipCombatIfNoTargets:

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { asGameId, asShipId } from '../../shared/ids';
+import { buildSolarSystemMap } from '../../shared/map-data';
 import type { GameState, Ship } from '../../shared/types/domain';
 import { deriveClientStateEntryPlan } from './phase-entry';
+
+const map = buildSolarSystemMap();
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: asShipId('ship-1'),
@@ -129,14 +132,45 @@ describe('game-client-phase-entry', () => {
         createShip({
           id: asShipId('base-carrier'),
           type: 'transport',
-          lifecycle: 'landed',
+          position: { q: -9, r: -6 },
+          velocity: { dq: 1, dr: 0 },
+          cargoUsed: 50,
           baseStatus: 'carryingBase',
         }),
       ]),
       0,
+      false,
+      map,
     );
 
     expect(plan.planningPhaseEntry?.selectedShipId).toBe('base-carrier');
+  });
+
+  it('skips invalid base carriers when choosing ordnance entry selection', () => {
+    const plan = deriveClientStateEntryPlan(
+      'playing_ordnance',
+      createState([
+        createShip({
+          id: asShipId('invalid-base-carrier'),
+          type: 'transport',
+          cargoUsed: 50,
+          baseStatus: 'carryingBase',
+        }),
+        createShip({
+          id: asShipId('valid-base-carrier'),
+          type: 'transport',
+          position: { q: -9, r: -6 },
+          velocity: { dq: 1, dr: 0 },
+          cargoUsed: 50,
+          baseStatus: 'carryingBase',
+        }),
+      ]),
+      0,
+      false,
+      map,
+    );
+
+    expect(plan.planningPhaseEntry?.selectedShipId).toBe('valid-base-carrier');
   });
 
   it('auto-selects the first actionable ship when multiple alive ships exist', () => {

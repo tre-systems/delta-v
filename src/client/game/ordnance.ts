@@ -1,6 +1,7 @@
 import { SHIP_STATS } from '../../shared/constants';
 import { validateBaseEmplacement } from '../../shared/engine/ordnance';
 import {
+  getOrderableShipsForPlayer,
   hasValidOrdnanceLaunch,
   validateOrdnanceLaunch,
 } from '../../shared/engine/util';
@@ -65,7 +66,7 @@ const canEmplaceBaseExactly = (
     return false;
   }
 
-  return map ? validateBaseEmplacement(state, ship, map) === null : true;
+  return map ? validateBaseEmplacement(state, ship, map) === null : false;
 };
 
 const getSelectedShip = (
@@ -84,9 +85,43 @@ export const getFirstLaunchableShipId = (
   playerId: PlayerId,
 ): string | null => {
   return (
-    state.ships.find(
-      (ship) => ship.owner === playerId && hasValidOrdnanceLaunch(state, ship),
+    getOrderableShipsForPlayer(state, playerId).find((ship) =>
+      hasValidOrdnanceLaunch(state, ship),
     )?.id ?? null
+  );
+};
+
+export const getOrdnanceActionableShipIds = (
+  state: OrdnanceState,
+  playerId: PlayerId,
+  map?: SolarSystemMap | null,
+): string[] => {
+  const orderableShips = getOrderableShipsForPlayer(state, playerId);
+  const launchableShips = orderableShips.filter((ship) =>
+    hasValidOrdnanceLaunch(state, ship),
+  );
+  const launchableIds = new Set(launchableShips.map((ship) => ship.id));
+  const emplacementShips = orderableShips.filter(
+    (ship) =>
+      !launchableIds.has(ship.id) && canEmplaceBaseExactly(state, ship, map),
+  );
+
+  return [
+    ...launchableShips.map((ship) => ship.id),
+    ...emplacementShips.map((ship) => ship.id),
+  ];
+};
+
+export const getFirstUnacknowledgedOrdnanceActionableShipId = (
+  state: OrdnanceState,
+  playerId: PlayerId,
+  acknowledgedShipIds: ReadonlySet<string>,
+  map?: SolarSystemMap | null,
+): string | null => {
+  return (
+    getOrdnanceActionableShipIds(state, playerId, map).find(
+      (shipId) => !acknowledgedShipIds.has(shipId),
+    ) ?? null
   );
 };
 
@@ -95,11 +130,7 @@ export const getFirstOrdnanceActionableShipId = (
   playerId: PlayerId,
   map?: SolarSystemMap | null,
 ): string | null => {
-  return (
-    getFirstLaunchableShipId(state, playerId) ??
-    getFirstBaseEmplacementShipId(state, playerId, map) ??
-    null
-  );
+  return getOrdnanceActionableShipIds(state, playerId, map)[0] ?? null;
 };
 
 export const getFirstBaseEmplacementShipId = (

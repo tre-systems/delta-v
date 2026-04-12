@@ -1,8 +1,4 @@
 import { must } from '../../shared/assert';
-import {
-  getOrderableShipsForPlayer,
-  hasValidOrdnanceLaunch,
-} from '../../shared/engine/util';
 import type {
   GameState,
   OrdnanceType,
@@ -10,7 +6,8 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import {
-  getFirstBaseEmplacementShipId,
+  getFirstUnacknowledgedOrdnanceActionableShipId,
+  getOrdnanceActionableShipIds,
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
 } from './ordnance';
@@ -33,30 +30,19 @@ const advanceToNextOrdnanceShip = (deps: OrdnanceActionDeps): void => {
   if (!gameState) return;
   deps.planningState.setTorpedoAimingActive(false);
 
-  const orderable = getOrderableShipsForPlayer(gameState, deps.getPlayerId());
-
-  const launchable = orderable.filter(
-    (s) =>
-      !deps.planningState.acknowledgedOrdnanceShips.has(s.id) &&
-      hasValidOrdnanceLaunch(gameState, s),
+  const actionableShipId = getFirstUnacknowledgedOrdnanceActionableShipId(
+    gameState,
+    deps.getPlayerId(),
+    deps.planningState.acknowledgedOrdnanceShips,
+    deps.getMap(),
   );
 
-  if (launchable.length > 0) {
-    deps.planningState.selectShip(launchable[0].id);
-  } else {
-    const actionableShipId = getFirstBaseEmplacementShipId(
-      gameState,
-      deps.getPlayerId(),
-      deps.getMap(),
-    );
-
-    if (actionableShipId) {
-      deps.planningState.selectShip(actionableShipId);
-      return;
-    }
-
-    deps.planningState.setSelectedShipId(null);
+  if (actionableShipId) {
+    deps.planningState.selectShip(actionableShipId);
+    return;
   }
+
+  deps.planningState.setSelectedShipId(null);
 };
 
 // Queue a launch locally (batch model). Acknowledges the ship and
@@ -172,11 +158,11 @@ export const allOrdnanceShipsAcknowledged = (
   const gameState = deps.getGameState();
   if (!gameState) return true;
 
-  const orderable = getOrderableShipsForPlayer(gameState, deps.getPlayerId());
-
-  return orderable
-    .filter((s) => hasValidOrdnanceLaunch(gameState, s))
-    .every((s) => deps.planningState.acknowledgedOrdnanceShips.has(s.id));
+  return getOrdnanceActionableShipIds(
+    gameState,
+    deps.getPlayerId(),
+    deps.getMap(),
+  ).every((shipId) => deps.planningState.acknowledgedOrdnanceShips.has(shipId));
 };
 
 // Enter the ordnance phase: auto-select the first launchable ship.

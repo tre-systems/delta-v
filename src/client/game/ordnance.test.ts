@@ -5,6 +5,7 @@ import type { GameState, Ship } from '../../shared/types/domain';
 import {
   getFirstLaunchableShipId,
   getFirstOrdnanceActionableShipId,
+  getOrdnanceActionableShipIds,
   getUnambiguousLaunchableShipId,
   resolveBaseEmplacementPlan,
   resolveOrdnanceLaunchPlan,
@@ -137,6 +138,47 @@ describe('game-client-ordnance', () => {
     expect(getFirstOrdnanceActionableShipId(state, 0, map)).toBe(
       'base-carrier',
     );
+  });
+
+  it('does not treat base carriers as actionable without map context', () => {
+    const state = createState([
+      createShip({
+        id: asShipId('base-carrier'),
+        type: 'transport',
+        position: { q: -9, r: -6 },
+        velocity: { dq: 1, dr: 0 },
+        cargoUsed: 50,
+        baseStatus: 'carryingBase',
+      }),
+    ]);
+
+    expect(getOrdnanceActionableShipIds(state, 0)).toEqual([]);
+    expect(getFirstOrdnanceActionableShipId(state, 0)).toBeNull();
+  });
+
+  it('lists launchers before base-only carriers in ordnance selection order', () => {
+    const state = createState(
+      [
+        createShip({
+          id: asShipId('base-carrier'),
+          type: 'transport',
+          position: { q: -9, r: -6 },
+          velocity: { dq: 1, dr: 0 },
+          cargoUsed: 50,
+          baseStatus: 'carryingBase',
+        }),
+        createShip({
+          id: asShipId('launchable'),
+          type: 'packet',
+        }),
+      ],
+      { allowedOrdnanceTypes: ['nuke'] },
+    );
+
+    expect(getOrdnanceActionableShipIds(state, 0, map)).toEqual([
+      'launchable',
+      'base-carrier',
+    ]);
   });
 
   it('skips invalid base carriers when choosing the first emplacement ship', () => {

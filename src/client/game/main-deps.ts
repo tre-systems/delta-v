@@ -25,6 +25,7 @@ interface SharedMainDepsArgs {
 /** State transitions do not touch `HudController`; HUD refresh is session-signal-driven. */
 export interface MainStateTransitionDepsArgs {
   ctx: ClientSession;
+  getMap: () => import('../../shared/types/domain').SolarSystemMap;
   renderer: Renderer;
   ui: UIManager;
   actionDeps: ActionDeps;
@@ -42,6 +43,7 @@ export const createMainStateTransitionDeps = (
   get ctx() {
     return args.ctx;
   },
+  getMap: () => args.getMap(),
   ui: args.ui,
   tutorial: args.tutorial,
   renderer: args.renderer,
