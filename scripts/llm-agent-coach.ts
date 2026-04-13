@@ -517,6 +517,102 @@ const isAggressiveAlternative = (action: C2S): boolean =>
   action.type === 'ordnance' ||
   action.type === 'beginCombat';
 
+const scoreCandidate = (
+  input: AgentTurnInput,
+  memory: AgentMemory,
+  digest: StateDigest,
+  candidate: C2S,
+  index: number,
+  recommendedIndex: number,
+): number => {
+  let score = index === recommendedIndex ? 1 : 0;
+
+  switch (candidate.type) {
+    case 'ordnance': {
+      const hasNuke = candidate.launches.some(
+        (launch) => launch.ordnanceType === 'nuke',
+      );
+      const hasTorpedo = candidate.launches.some(
+        (launch) => launch.ordnanceType === 'torpedo',
+      );
+      const hasMine = candidate.launches.some(
+        (launch) => launch.ordnanceType === 'mine',
+      );
+
+      if (hasNuke) {
+        // Base caution: one bad nuke can lose tempo and material.
+        score -= 10;
+
+        // Strongly avoid opening-turn nukes unless there is point-blank pressure.
+        if (input.state.turnNumber <= 2) score -= 12;
+        if (digest.ownOperationalShips <= 1) score -= 10;
+        if (digest.materialEdge <= 0) score -= 4;
+
+        const nearest = digest.nearestEnemyDistance;
+        if (nearest === null || nearest > 2) score -= 8;
+        if (nearest !== null && nearest <= 1) score += 8;
+        if (digest.materialEdge > 0 && nearest !== null && nearest <= 2) {
+          score += 3;
+        }
+      }
+
+      if (hasTorpedo) {
+        const nearest = digest.nearestEnemyDistance;
+        if (nearest !== null && nearest <= 3) score += 3;
+        if (nearest !== null && nearest > 5) score -= 1;
+      }
+
+      if (hasMine) {
+        const nearest = digest.nearestEnemyDistance;
+        if (nearest !== null && nearest <= 2) score += 2;
+      }
+
+      if (memory.style.aggressionBias > memory.style.cautionBias) {
+        score += 1;
+      }
+      break;
+    }
+
+    case 'skipOrdnance': {
+      const nearest = digest.nearestEnemyDistance;
+      if (nearest !== null && nearest <= 2 && digest.materialEdge >= 0)
+        score -= 2;
+      if (digest.ownOperationalShips <= 1 && input.state.turnNumber <= 2)
+        score += 2;
+      if (memory.style.cautionBias >= memory.style.aggressionBias) score += 1;
+      break;
+    }
+
+    case 'combat':
+      if (digest.materialEdge >= 0) score += 2;
+      if (digest.materialEdge < 0) score -= 1;
+      break;
+
+    case 'skipCombat':
+      if (digest.materialEdge < 0) score += 2;
+      break;
+
+    case 'astrogation': {
+      const hasBurn = candidate.orders.some(
+        (order) => order.burn !== null || order.overload !== null,
+      );
+      if (
+        !hasBurn &&
+        digest.nearestEnemyDistance !== null &&
+        digest.nearestEnemyDistance > 4
+      ) {
+        score -= 1;
+      }
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  return score;
+};
+
 const chooseCandidateIndex = (
   input: AgentTurnInput,
   memory: AgentMemory,
@@ -529,8 +625,32 @@ const chooseCandidateIndex = (
       ? input.recommendedIndex
       : 0;
 
+  let bestIndex = recommendedIndex;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  for (let index = 0; index < input.candidates.length; index += 1) {
+    const score = scoreCandidate(
+      input,
+      memory,
+      digest,
+      input.candidates[index],
+      index,
+      recommendedIndex,
+    );
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+      continue;
+    }
+    if (score === bestScore && index === recommendedIndex) {
+      bestIndex = index;
+    }
+  }
+
+  const selectedCandidate = input.candidates[bestIndex];
   const recommendedType = getActionType(input.candidates[recommendedIndex]);
   if (
+    bestIndex === recommendedIndex &&
     digest.materialEdge < 0 &&
     (recommendedType === 'skipCombat' || recommendedType === 'skipOrdnance') &&
     memory.style.aggressionBias >= memory.style.cautionBias - 1
@@ -538,12 +658,26 @@ const chooseCandidateIndex = (
     const aggressiveIndex = input.candidates.findIndex((candidate) =>
       isAggressiveAlternative(candidate),
     );
-    if (aggressiveIndex >= 0) {
-      return aggressiveIndex;
-    }
+    if (aggressiveIndex >= 0) return aggressiveIndex;
   }
 
-  return recommendedIndex;
+  if (
+    selectedCandidate.type === 'ordnance' &&
+    selectedCandidate.launches.some(
+      (launch) => launch.ordnanceType === 'nuke',
+    ) &&
+    input.state.turnNumber <= 2
+  ) {
+    const saferIndex = input.candidates.findIndex(
+      (candidate) =>
+        candidate.type === 'skipOrdnance' ||
+        (candidate.type === 'ordnance' &&
+          candidate.launches.every((launch) => launch.ordnanceType !== 'nuke')),
+    );
+    if (saferIndex >= 0) return saferIndex;
+  }
+
+  return bestIndex;
 };
 
 const buildChat = (

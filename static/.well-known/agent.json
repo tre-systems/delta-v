@@ -5,6 +5,7 @@
   "baseUrl": "https://delta-v.tre.systems",
   "documentation": "https://delta-v.tre.systems/agents",
   "agentManifest": "https://delta-v.tre.systems/.well-known/agent.json",
+  "agentPlaybook": "https://delta-v.tre.systems/agent-playbook.json",
 
   "scenarios": [
     { "id": "duel",        "description": "Classic 1v1 skirmish in open space" },
@@ -133,6 +134,17 @@
       "chat": "string (optional, max 200 chars)"
     },
     "fallback": "On timeout or invalid response the bridge uses recommendedIndex"
+  },
+
+  "autonomousLoop": {
+    "description": "Recommended high-level turn loop for autonomous agents.",
+    "steps": [
+      "Queue with POST /quick-match and a stable player.playerKey prefixed by agent_",
+      "Poll GET /quick-match/{ticket} until status=matched",
+      "Connect websocket /ws/{code}?playerToken=...",
+      "On each state message, act only when phase + activePlayer permit",
+      "Send one legal C2S action for the exact current phase"
+    ]
   },
 
   "quickStart": {
