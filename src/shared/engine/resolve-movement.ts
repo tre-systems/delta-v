@@ -165,11 +165,11 @@ export const resolveMovementPhase = (
 
     if (course.outcome === 'landing') {
       ship.velocity = { dq: 0, dr: 0 };
-      applyResupply(ship, state, map, engineEvents);
       engineEvents.push({
         type: 'shipLanded',
         shipId: ship.id,
       });
+      applyResupply(ship, state, map, engineEvents);
     }
 
     if (course.outcome === 'crash') {
