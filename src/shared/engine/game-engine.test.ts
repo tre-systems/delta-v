@@ -530,6 +530,15 @@ describe('resupply on landing', () => {
     const stats = SHIP_STATS[landedShip.type];
     expect(landedShip.fuel).toBe(stats.fuel);
     expect(landedShip.damage.disabledTurns).toBe(0);
+    const landedIndex = landResult.engineEvents.findIndex(
+      (event) => event.type === 'shipLanded' && event.shipId === landedShip.id,
+    );
+    const resupplyIndex = landResult.engineEvents.findIndex(
+      (event) =>
+        event.type === 'shipResupplied' && event.shipId === landedShip.id,
+    );
+    expect(landedIndex).toBeGreaterThan(-1);
+    expect(resupplyIndex).toBeGreaterThan(landedIndex);
   });
   it('does not resupply when landing at an unowned base', () => {
     const ship = initialState.ships[0];
