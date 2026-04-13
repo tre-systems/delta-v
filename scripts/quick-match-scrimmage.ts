@@ -73,7 +73,7 @@ interface AgentReportInput {
 
 interface AgentReportResponse {
   summary: string;
-  recentChats?: string[];
+  recentChats: string[];
   strengths: string[];
   mistakes: string[];
   lessons: string[];
