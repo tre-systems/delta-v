@@ -26,6 +26,7 @@ export interface UIScreenVisibility {
 export interface WaitingScreenCopy {
   titleText: string;
   codeText: string;
+  codeVariant: 'roomCode' | 'statusWord';
   statusText: string;
   showCopyActions: boolean;
 }
@@ -205,6 +206,7 @@ export const buildWaitingScreenCopy = (
     return {
       titleText: 'Quick Match',
       codeText: 'SEARCHING',
+      codeVariant: 'statusWord',
       statusText: state.statusText,
       showCopyActions: false,
     };
@@ -214,12 +216,14 @@ export const buildWaitingScreenCopy = (
     ? {
         titleText: 'Game Created',
         codeText: state.code || '...',
+        codeVariant: 'roomCode',
         statusText: 'Connecting...',
         showCopyActions: true,
       }
     : {
         titleText: 'Game Created',
         codeText: state.code,
+        codeVariant: 'roomCode',
         statusText: 'Waiting for opponent...',
         showCopyActions: true,
       };

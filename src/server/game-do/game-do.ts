@@ -43,7 +43,11 @@ import {
   type JoinAttemptSuccess,
   resolveJoinAttempt as resolveJoinAttemptRequest,
 } from './http-handlers';
-import { handleRematchRequest, initGameSession } from './match';
+import {
+  getRequiredRematchVotes,
+  handleRematchRequest,
+  initGameSession,
+} from './match';
 import type { StatefulServerMessage } from './message-builders';
 import { type PublicationDeps, runPublicationPipeline } from './publication';
 import {
@@ -496,6 +500,8 @@ export class GameDO extends DurableObject<Env> {
       storage: this.storage,
       initGame: () => this.initGame(),
       broadcast: (msg) => this.broadcast(msg),
+      getRequiredVotes: async () =>
+        getRequiredRematchVotes(await this.getRoomConfig()),
     };
   }
 

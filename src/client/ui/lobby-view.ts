@@ -346,6 +346,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
 
       text(waitingTitleEl, copy.titleText);
       text(gameCodeEl, copy.codeText);
+      gameCodeEl.dataset.variant = copy.codeVariant;
       text(waitingStatusEl, copy.statusText);
       if (copy.showCopyActions) {
         show(copyBtn, 'inline-flex');

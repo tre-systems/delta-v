@@ -746,6 +746,10 @@ h2.game-over-neutral {
   gap: 0.85rem;
 }
 
+.game-over-stats > .game-over-ship-groups {
+  margin-top: 0.35rem;
+}
+
 .overlay-section-panel {
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.06);
