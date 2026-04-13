@@ -84,6 +84,29 @@ STRATEGY TIPS:
 - Ordnance is powerful but limited — save for high-value targets.
 `.trim();
 
+const SUBMIT_ACTION_TOOL: Anthropic.Tool = {
+  name: 'submit_action',
+  description:
+    'Submit your chosen action for this turn. Pick the candidate index that best achieves your tactical goals.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      candidateIndex: {
+        type: 'integer',
+        description:
+          'Index into the candidates array (0-based). Candidate 0 is the built-in AI recommendation.',
+      },
+      chat: {
+        type: 'string',
+        description:
+          'Optional short message or taunt shown to your opponent (max 100 chars). Only include if you have something memorable to say.',
+        maxLength: 100,
+      },
+    },
+    required: ['candidateIndex'],
+  },
+};
+
 const buildPrompt = (input: AgentTurnInput): string => {
   const lines: string[] = [];
 
@@ -142,10 +165,7 @@ const buildPrompt = (input: AgentTurnInput): string => {
   );
   lines.push('');
   lines.push(
-    'Choose the best candidate index (0-based) by calling the choose_action tool.',
-  );
-  lines.push(
-    'The chat field is optional — only include it if you have something memorable to say (max 100 chars).',
+    'Choose the best candidate index and call submit_action with your decision.',
   );
 
   return lines.join('\n');
@@ -196,67 +216,40 @@ const main = async (): Promise<void> => {
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 256,
-      tools: [
-        {
-          name: 'choose_action',
-          description:
-            'Choose which candidate action to take and optionally send a chat message.',
-          input_schema: {
-            type: 'object',
-            properties: {
-              candidateIndex: {
-                type: 'integer',
-                minimum: 0,
-                description: 'Zero-based index into the candidates array.',
-              },
-              chat: {
-                type: 'string',
-                description: 'Optional short taunt or comment (max 100 chars).',
-              },
-            },
-            required: ['candidateIndex'],
-          },
-        },
-      ],
-      tool_choice: { type: 'tool', name: 'choose_action' },
+      tools: [SUBMIT_ACTION_TOOL],
+      tool_choice: { type: 'auto' },
       messages: [{ role: 'user', content: prompt }],
     });
 
+    // Extract the tool_use block
     const toolUse = message.content.find(
       (c: { type: string }) => c.type === 'tool_use',
-    );
+    ) as
+      | { type: 'tool_use'; input: { candidateIndex?: number; chat?: string } }
+      | undefined;
 
-    if (!toolUse || toolUse.type !== 'tool_use') {
-      process.stdout.write(JSON.stringify({ candidateIndex: recommended }));
-      return;
+    if (toolUse) {
+      const { candidateIndex, chat } = toolUse.input;
+
+      if (
+        typeof candidateIndex === 'number' &&
+        Number.isInteger(candidateIndex) &&
+        candidateIndex >= 0 &&
+        candidateIndex < input.candidates.length
+      ) {
+        const trimmedChat =
+          typeof chat === 'string' && chat.trim()
+            ? chat.trim().slice(0, 200)
+            : undefined;
+        process.stdout.write(
+          JSON.stringify({ candidateIndex, chat: trimmedChat }),
+        );
+        return;
+      }
     }
 
-    const toolInput = toolUse.input as {
-      candidateIndex?: unknown;
-      chat?: unknown;
-    };
-
-    const rawIndex = toolInput.candidateIndex;
-    if (
-      typeof rawIndex !== 'number' ||
-      !Number.isInteger(rawIndex) ||
-      rawIndex < 0
-    ) {
-      process.stdout.write(JSON.stringify({ candidateIndex: recommended }));
-      return;
-    }
-
-    const clampedIndex =
-      rawIndex < input.candidates.length ? rawIndex : recommended;
-
-    const chat =
-      typeof toolInput.chat === 'string' && toolInput.chat.trim()
-        ? toolInput.chat.trim().slice(0, 200)
-        : undefined;
-
-    process.stdout.write(
-      JSON.stringify({ candidateIndex: clampedIndex, chat }),
-    );
+    // Fallback: no valid tool call
+    process.stdout.write(JSON.stringify({ candidateIndex: recommended }));
   } catch (error) {
     process.stderr.write(
       `Claude API error, falling back to recommended: ${error instanceof Error ? error.message : String(error)}\n`,
