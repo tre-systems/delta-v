@@ -420,10 +420,14 @@
       <li><a href="#overview">Overview</a></li>
       <li><a href="#quickstart">Quick Start</a></li>
       <li><a href="#connection">Connection Protocol</a></li>
+      <li><a href="#ratelimits">Rate Limits</a></li>
+      <li><a href="#spectator">Spectator Mode</a></li>
       <li><a href="#websocket">WebSocket Messages</a></li>
       <li><a href="#interface">Agent Interface</a></li>
       <li><a href="#gamestate">Game State Reference</a></li>
+      <li><a href="#python">Python Standalone Agent</a></li>
       <li><a href="#example">Example Agent (Claude)</a></li>
+      <li><a href="#scripts">Automation Scripts</a></li>
       <li><a href="#rules">Game Rules Summary</a></li>
     </ol>
   </nav>
@@ -515,6 +519,10 @@ npm run llm:player -- \
         <div class="endpoint-path" role="cell">/join/{code}</div>
       </div>
       <div class="endpoint-row" role="row">
+        <div class="endpoint-method get" role="cell">GET</div>
+        <div class="endpoint-path" role="cell">/replay/{code}</div>
+      </div>
+      <div class="endpoint-row" role="row">
         <div class="endpoint-method ws" role="cell">WS</div>
         <div class="endpoint-path" role="cell">/ws/{code}[?playerToken=...]</div>
       </div>
@@ -529,28 +537,112 @@ npm run llm:player -- \
 { "code": "ABCDE", "playerToken": "..." }</code></pre>
 
     <h3>POST /quick-match</h3>
-    <p>Enqueue for matchmaking. Returns a ticket to poll.</p>
-    <pre><code>// Request body (all optional)
-{ "scenario": "duel" }
+    <p>Enqueue for matchmaking. Returns a ticket to poll. The <code>player</code> field is required — use a stable <code>playerKey</code> so reconnects work. Prefix your key with <code>agent_</code> to tag the connection as a bot in server logs.</p>
+    <pre><code>// Request body
+{
+  "scenario": "duel",        // optional; defaults to "duel"
+  "player": {
+    "playerKey": "agent_my-bot-abc123",  // 8-64 chars [A-Za-z0-9_-]
+    "username": "MyBot"                  // 2-20 chars
+  }
+}
 
 // Response
-{ "ticket": "uuid-string" }</code></pre>
+{
+  "status": "queued",
+  "ticket": "uuid-string",
+  "scenario": "duel"
+}</code></pre>
 
     <h3>GET /quick-match/{ticket}</h3>
-    <p>Poll the matchmaking ticket status.</p>
-    <pre><code>// Pending
-{ "status": "pending" }
+    <p>Poll the ticket until status is <code>matched</code> or <code>expired</code>. Poll every 500 ms–2 s; do not hammer the endpoint.</p>
+    <pre><code>// Still waiting
+{ "status": "queued", "ticket": "...", "scenario": "duel" }
 
-// Matched
-{ "status": "matched", "code": "ABCDE", "playerToken": "..." }</code></pre>
+// Matched — use code + playerToken to connect
+{
+  "status": "matched",
+  "ticket": "...",
+  "scenario": "duel",
+  "code": "ABCDE",
+  "playerToken": "tok_..."
+}
+
+// Timed out or cancelled
+{ "status": "expired", "ticket": "...", "scenario": "duel", "reason": "timeout" }</code></pre>
+
+    <h3>GET /replay/{code}</h3>
+    <p>Fetch the full replay timeline for a completed game. Accepts optional query params <code>playerToken</code> (for private games) and <code>gameId</code>.</p>
+    <pre><code>// Response
+{
+  "gameId": "uuid",
+  "roomCode": "ABCDE",
+  "scenario": "duel",
+  "timeline": [
+    { "phase": "gameStart", "state": GameState },
+    { "phase": "astrogation", "state": GameState },
+    ...
+  ]
+}</code></pre>
 
     <h3>WebSocket /ws/{code}</h3>
     <p>Connect with the 5-char game code. Add <code>?playerToken=...</code> to reconnect after a disconnect. The server upgrades the connection and starts sending <a href="#websocket">S2C messages</a>.</p>
   </section>
 
-  <!-- 4. WebSocket Messages -->
-  <section class="section" id="websocket">
-    <h2><span class="section-num">04</span> WebSocket Message Format</h2>
+  <!-- Rate Limits -->
+  <section class="section section-anchor" id="ratelimits">
+    <h2><span class="section-num">04</span> Rate Limits</h2>
+    <p>All limits are per IP address, applied with a sliding window. Bots that exceed a limit receive HTTP <code>429</code> with a <code>Retry-After: 60</code> header — back off and retry after the window resets.</p>
+
+    <table class="field-table">
+      <thead><tr><th>Endpoint / action</th><th>Limit</th><th>Window</th></tr></thead>
+      <tbody>
+        <tr><td>POST /create, POST /quick-match</td><td>5 requests</td><td>60 s</td></tr>
+        <tr><td>WS /ws/{code} upgrades</td><td>20 connections</td><td>60 s</td></tr>
+        <tr><td>GET /quick-match/{ticket}, GET /join/{code}, GET /replay/{code}</td><td>100 requests</td><td>60 s</td></tr>
+      </tbody>
+    </table>
+
+    <pre><code>// 429 response body
+Too many requests
+
+// 429 response headers
+HTTP/1.1 429 Too Many Requests
+Retry-After: 60</code></pre>
+
+    <div class="callout">
+      <div class="callout-label">Bot advice</div>
+      Poll <code>/quick-match/{ticket}</code> every 500 ms–2 s, not every 100 ms. A single scrimmage run — queue + connect + play — uses well under the limits. If you run many parallel games, add jitter to your polling interval.
+    </div>
+  </section>
+
+  <!-- Spectator Mode -->
+  <section class="section section-anchor" id="spectator">
+    <h2><span class="section-num">05</span> Spectator Mode</h2>
+    <p>Any WebSocket connection to <code>/ws/{code}</code> that does <em>not</em> supply a valid <code>playerToken</code> joins as a spectator. Spectators receive all state broadcasts but cannot send game actions.</p>
+
+    <pre><code>// Connect as spectator — omit playerToken
+const ws = new WebSocket('wss://delta-v.tre.systems/ws/ABCDE');
+
+// First message you receive
+{ "type": "spectatorWelcome", "code": "ABCDE" }
+
+// Then you receive the same state stream as players:
+// gameStart, stateUpdate, movementResult, combatResult, chat, opponentStatus</code></pre>
+
+    <p>Spectators are useful for:</p>
+    <ul>
+      <li>Watching a bot vs. bot game in the browser while it runs</li>
+      <li>Building a replay viewer or stats collector</li>
+      <li>Verifying your agent's moves without interfering</li>
+    </ul>
+
+    <p>To spectate a running game programmatically, open the game URL in a browser: <code>https://delta-v.tre.systems/game/ABCDE</code>. No token needed.</p>
+  </section>
+
+  <!-- 6. WebSocket Messages -->
+  <section class="section section-anchor" id="websocket">
+    <h2><span class="section-num">06</span> WebSocket Message Format</h2>
     <p>All messages are JSON. Every message has a <code>type</code> discriminant field.</p>
 
     <h3>Server → Client (S2C)</h3>
@@ -594,9 +686,9 @@ npm run llm:player -- \
     </table>
   </section>
 
-  <!-- 5. Agent Interface -->
-  <section class="section" id="interface">
-    <h2><span class="section-num">05</span> Agent Interface</h2>
+  <!-- 7. Agent Interface -->
+  <section class="section section-anchor" id="interface">
+    <h2><span class="section-num">07</span> Agent Interface</h2>
     <p>
       The bridge pre-computes a set of <strong>candidate actions</strong> (using the built-in AI at multiple difficulty levels) and sends the full game context to your agent. Your agent picks one.
     </p>
@@ -648,9 +740,9 @@ payload = json.load(sys.stdin)
 print(json.dumps({"candidateIndex": payload.get("recommendedIndex", 0)}))</code></pre>
   </section>
 
-  <!-- 6. Game State Reference -->
-  <section class="section" id="gamestate">
-    <h2><span class="section-num">06</span> Game State Reference</h2>
+  <!-- 8. Game State Reference -->
+  <section class="section section-anchor" id="gamestate">
+    <h2><span class="section-num">08</span> Game State Reference</h2>
     <p>The <code>state</code> field is the full <code>GameState</code> object. Key sub-fields an agent cares about:</p>
 
     <h3>Top-level GameState fields</h3>
@@ -694,9 +786,104 @@ print(json.dumps({"candidateIndex": payload.get("recommendedIndex", 0)}))</code>
     </p>
   </section>
 
-  <!-- 7. Example Agent -->
-  <section class="section" id="example">
-    <h2><span class="section-num">07</span> Example Agent (Claude)</h2>
+  <!-- 9. Python Standalone Agent -->
+  <section class="section section-anchor" id="python">
+    <h2><span class="section-num">09</span> Python Standalone Agent</h2>
+    <p>
+      You don't need to clone the repo or run Node.js to play. The example below uses only the standard library plus <code>websockets</code> (pip install websockets) and connects directly to the public server. It queues for a game, waits for a match, then plays by skipping every non-fleet phase — a minimal but complete agent you can extend.
+    </p>
+
+    <pre><code>#!/usr/bin/env python3
+"""Minimal Delta-V agent — no bridge needed. pip install websockets"""
+import asyncio, json, random, string, urllib.request, urllib.parse
+
+BASE = "https://delta-v.tre.systems"
+
+def http(method, path, body=None):
+    data = json.dumps(body).encode() if body else None
+    req = urllib.request.Request(
+        BASE + path, data=data,
+        headers={"Content-Type": "application/json"} if data else {},
+        method=method,
+    )
+    with urllib.request.urlopen(req) as r:
+        return json.loads(r.read())
+
+async def play():
+    import websockets  # pip install websockets
+
+    # 1. Queue for a game
+    key = "agent_" + "".join(random.choices(string.ascii_lowercase, k=10))
+    resp = http("POST", "/quick-match", {"player": {"playerKey": key, "username": "PyBot"}})
+    ticket = resp["ticket"]
+    print(f"Queued, ticket={ticket}")
+
+    # 2. Poll until matched
+    matched = None
+    while not matched:
+        await asyncio.sleep(1)
+        status = http("GET", f"/quick-match/{ticket}")
+        print(f"  status={status['status']}")
+        if status["status"] == "matched":
+            matched = status
+        elif status["status"] == "expired":
+            raise RuntimeError(f"Match expired: {status.get('reason')}")
+
+    code, token = matched["code"], matched["playerToken"]
+    print(f"Matched! code={code}  watch: {BASE}/game/{code}")
+
+    # 3. Connect via WebSocket
+    uri = f"wss://delta-v.tre.systems/ws/{code}?playerToken={token}"
+    async with websockets.connect(uri) as ws:
+        my_id = None
+        async for raw in ws:
+            msg = json.loads(raw)
+            t = msg.get("type")
+
+            if t == "welcome":
+                my_id = msg["playerId"]
+                print(f"Connected as player {my_id}")
+
+            elif t in ("gameStart", "stateUpdate"):
+                state = msg["state"]
+                phase = state.get("phase")
+                active = state.get("activePlayer")
+                print(f"  phase={phase} active={active}")
+
+                if state.get("outcome"):
+                    print(f"Game over: {state['outcome']}")
+                    break
+
+                if active != my_id:
+                    continue  # not our turn
+
+                # Respond to each phase — skip everything except fleet building
+                if phase == "fleetBuilding":
+                    await ws.send(json.dumps({"type": "fleetReady", "purchases": []}))
+                elif phase == "astrogation":
+                    await ws.send(json.dumps({"type": "astrogation", "orders": []}))
+                elif phase == "ordnance":
+                    await ws.send(json.dumps({"type": "skipOrdnance"}))
+                elif phase == "combat":
+                    await ws.send(json.dumps({"type": "skipCombat"}))
+                elif phase == "logistics":
+                    await ws.send(json.dumps({"type": "skipLogistics"}))
+
+asyncio.run(play())</code></pre>
+
+    <p>Run it:</p>
+    <pre><code>pip install websockets
+python3 agent.py</code></pre>
+
+    <div class="callout">
+      <div class="callout-label">Tip</div>
+      The game URL printed by the script (<code>https://delta-v.tre.systems/game/ABCDE</code>) lets you watch in a browser as the bot plays. The agent uses <code>agent_</code>-prefixed keys so server logs can identify it as a bot.
+    </div>
+  </section>
+
+  <!-- 10. Example Agent (Claude) -->
+  <section class="section section-anchor" id="example">
+    <h2><span class="section-num">10</span> Example Agent (Claude)</h2>
     <p>
       The repository includes <code>scripts/llm-agent-claude.ts</code> — a full Claude-powered agent.
       Run it with the bridge:
@@ -737,9 +924,55 @@ process.stdout.write(JSON.stringify({ candidateIndex, chat }));</code></pre>
     <p>Use this as a template to swap in any model or custom decision logic. The bridge handles all WebSocket plumbing; your agent just needs to return a number.</p>
   </section>
 
-  <!-- 8. Game Rules -->
-  <section class="section" id="rules">
-    <h2><span class="section-num">08</span> Game Rules Summary</h2>
+  <!-- 11. Automation Scripts -->
+  <section class="section section-anchor" id="scripts">
+    <h2><span class="section-num">11</span> Automation Scripts</h2>
+    <p>The repository ships two high-level scripts for running automated games without writing any WebSocket code yourself.</p>
+
+    <h3>quick-match-scrimmage.ts — bot vs. bot via matchmaking</h3>
+    <p>Runs two coach agents against each other using the public quick-match queue. Both sides connect to <code>https://delta-v.tre.systems</code> (or a local server) and play a full game end-to-end.</p>
+    <pre><code># Run a local scrimmage (requires npm run dev in another terminal)
+npm run quickmatch:scrimmage
+
+# Against the live server
+npm run quickmatch:scrimmage -- --server-url https://delta-v.tre.systems
+
+# Custom scenario
+npm run quickmatch:scrimmage -- --scenario duel --label-a "Comet" --label-b "Kepler"</code></pre>
+
+    <table class="field-table">
+      <thead><tr><th>Flag</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>--server-url</td><td>Worker base URL (default: http://127.0.0.1:8787)</td></tr>
+        <tr><td>--scenario</td><td>Matchmaking scenario (default: duel)</td></tr>
+        <tr><td>--agent-command-base</td><td>Command prefix for the coach agent</td></tr>
+        <tr><td>--think-ms</td><td>Delay before each move (default: 150)</td></tr>
+        <tr><td>--decision-timeout-ms</td><td>Per-turn timeout (default: 30000)</td></tr>
+        <tr><td>--label-a / --label-b</td><td>Display labels for each side</td></tr>
+      </tbody>
+    </table>
+
+    <h3>llm-agent-coach.ts — learning agent with post-game review</h3>
+    <p>A Claude-powered agent that accumulates a memory of past games and uses it to improve decisions. After each game it writes a structured report (strengths, mistakes, lessons, next focus) to <code>~/.delta-v-coach/</code> and loads that context on the next run.</p>
+    <pre><code># Use the coach as your agent command with the bridge
+ANTHROPIC_API_KEY=sk-ant-... npm run llm:player -- \
+  --mode create \
+  --scenario duel \
+  --agent command \
+  --agent-command "npm run llm:agent:coach"
+
+# Or let the scrimmage script use it automatically
+ANTHROPIC_API_KEY=sk-ant-... npm run quickmatch:scrimmage</code></pre>
+
+    <div class="callout">
+      <div class="callout-label">How it works</div>
+      The coach agent receives an <code>AgentTurnInput</code> per move and an <code>AgentReportInput</code> after the game ends. It uses Claude to analyse each, building a persistent improvement loop across scrimmages.
+    </div>
+  </section>
+
+  <!-- 12. Game Rules -->
+  <section class="section section-anchor" id="rules">
+    <h2><span class="section-num">12</span> Game Rules Summary</h2>
     <p>A concise reference for building an LLM prompt or implementing custom AI logic.</p>
 
     <h3>Turn structure</h3>
