@@ -7,6 +7,11 @@ import type { WaitingScreenState } from '../ui/screens';
 import type { ClientState } from './phase';
 import type { PlayerProfileService } from './player-profile-service';
 import {
+  createQuickMatchLock,
+  type QuickMatchLock,
+  type QuickMatchLockStorageLike,
+} from './quick-match-lock';
+import {
   type CreatedGameSessionDeps,
   completeCreatedGameSession,
 } from './session-controller';
@@ -52,6 +57,7 @@ const fetchWithTimeout = async (
 export interface SessionApiDeps {
   ctx: CreatedGameSessionDeps['ctx'];
   playerProfile: Pick<PlayerProfileService, 'getProfile'>;
+  quickMatchLock?: Pick<QuickMatchLock, 'claim' | 'heartbeat' | 'release'>;
   tokens: Pick<
     SessionTokenService,
     'clearStoredPlayerToken' | 'getStoredPlayerToken' | 'storePlayerToken'
@@ -68,13 +74,68 @@ export interface SessionApiDeps {
 const delay = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+const webStorage = (
+  key: 'localStorage' | 'sessionStorage',
+): QuickMatchLockStorageLike | null => {
+  try {
+    const g = globalThis as typeof globalThis & {
+      localStorage?: unknown;
+      sessionStorage?: unknown;
+      window?: {
+        localStorage?: unknown;
+        sessionStorage?: unknown;
+      };
+    };
+    const candidates = [g[key], g.window?.[key]];
+
+    for (const storage of candidates) {
+      if (
+        storage !== null &&
+        storage !== undefined &&
+        typeof storage === 'object' &&
+        typeof (storage as QuickMatchLockStorageLike).getItem === 'function' &&
+        typeof (storage as QuickMatchLockStorageLike).setItem === 'function' &&
+        typeof (storage as QuickMatchLockStorageLike).removeItem === 'function'
+      ) {
+        return storage as QuickMatchLockStorageLike;
+      }
+    }
+  } catch {
+    /* private mode / no storage */
+  }
+
+  return null;
+};
+
 export const createSessionApi = (deps: SessionApiDeps) => {
   let quickMatchTicket: string | null = null;
+  let quickMatchPlayerKey: string | null = null;
+  const quickMatchLock =
+    deps.quickMatchLock ??
+    (() => {
+      const localStorage = webStorage('localStorage');
+      const sessionStorage = webStorage('sessionStorage');
+
+      if (!localStorage || !sessionStorage) {
+        return null;
+      }
+
+      return createQuickMatchLock({
+        localStorage,
+        sessionStorage,
+      });
+    })();
+
+  const releaseQuickMatch = (): void => {
+    quickMatchTicket = null;
+    quickMatchPlayerKey = null;
+    quickMatchLock?.release();
+  };
 
   const connectQuickMatch = (
     match: Extract<QuickMatchResponse, { status: 'matched' }>,
   ): void => {
-    quickMatchTicket = null;
+    releaseQuickMatch();
     deps.setScenario(match.scenario);
     deps.setWaitingScreenState({
       kind: 'quickMatch',
@@ -98,12 +159,15 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         deps.ctx.state !== 'waitingForOpponent'
       ) {
         if (quickMatchTicket === ticket) {
-          quickMatchTicket = null;
+          releaseQuickMatch();
         }
         return;
       }
 
       try {
+        if (quickMatchPlayerKey) {
+          quickMatchLock?.heartbeat(quickMatchPlayerKey, ticket);
+        }
         const response = await fetchWithTimeout(`/quick-match/${ticket}`, {
           method: 'GET',
         });
@@ -115,7 +179,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         }
 
         if (payload.status === 'expired') {
-          quickMatchTicket = null;
+          releaseQuickMatch();
           deps.track('quick_match_expired', {
             scenario: payload.scenario,
             reason: payload.reason,
@@ -130,7 +194,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           statusText: 'Searching for an opponent...',
         });
       } catch (err) {
-        quickMatchTicket = null;
+        releaseQuickMatch();
         const failureKind = classifySessionRequestFailure(err);
         deps.track('quick_match_failed', {
           scenario: QUICK_MATCH_SCENARIO,
@@ -144,7 +208,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
   };
 
   const createGame = async (scenario: string) => {
-    quickMatchTicket = null;
+    releaseQuickMatch();
     deps.track('create_game_attempted', { scenario });
     deps.setMenuLoading(true, 'create');
     try {
@@ -206,24 +270,42 @@ export const createSessionApi = (deps: SessionApiDeps) => {
   };
 
   const startQuickMatch = async (): Promise<void> => {
-    quickMatchTicket = null;
+    releaseQuickMatch();
     deps.track('quick_match_attempted', {
       scenario: QUICK_MATCH_SCENARIO,
     });
     deps.setMenuLoading(true, 'quickMatch');
 
     try {
+      const player = deps.playerProfile.getProfile();
+      const lockClaim = quickMatchLock?.claim(player.playerKey);
+
+      if (lockClaim && !lockClaim.ok) {
+        deps.track('quick_match_failed', {
+          scenario: QUICK_MATCH_SCENARIO,
+          reason: 'active_in_other_tab',
+        });
+        deps.showToast(
+          'Quick Match is already active in another tab. Use a private window to join as a second local player.',
+          'error',
+        );
+        deps.setState('menu');
+        return;
+      }
+
+      quickMatchPlayerKey = player.playerKey;
       deps.setScenario(QUICK_MATCH_SCENARIO);
       const response = await fetchWithTimeout('/quick-match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           scenario: QUICK_MATCH_SCENARIO,
-          player: deps.playerProfile.getProfile(),
+          player,
         }),
       });
 
       if (!response.ok) {
+        releaseQuickMatch();
         deps.track('quick_match_failed', {
           scenario: QUICK_MATCH_SCENARIO,
           reason: 'server',
@@ -242,6 +324,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       }
 
       if (payload.status === 'expired') {
+        releaseQuickMatch();
         deps.track('quick_match_failed', {
           scenario: payload.scenario,
           reason: payload.reason,
@@ -252,6 +335,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       }
 
       quickMatchTicket = payload.ticket;
+      quickMatchLock?.heartbeat(player.playerKey, payload.ticket);
       deps.setWaitingScreenState({
         kind: 'quickMatch',
         statusText: 'Searching for an opponent...',
@@ -262,6 +346,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       deps.setState('waitingForOpponent');
       void pollQuickMatch(payload.ticket);
     } catch (err) {
+      releaseQuickMatch();
       const failureKind = classifySessionRequestFailure(err);
       deps.track('quick_match_failed', {
         scenario: QUICK_MATCH_SCENARIO,

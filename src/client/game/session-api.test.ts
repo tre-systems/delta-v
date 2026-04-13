@@ -231,4 +231,35 @@ describe('session-api telemetry', () => {
       gameId: asGameId('GAME1'),
     });
   });
+
+  it('blocks quick match when another tab already holds the queue lock', async () => {
+    const { deps, track } = createDeps();
+    const fetchMock = vi.fn();
+    deps.quickMatchLock = {
+      claim: vi.fn(() => ({ ok: false })),
+      heartbeat: vi.fn(),
+      release: vi.fn(),
+    };
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createSessionApi(deps);
+
+    await api.startQuickMatch();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(track).toHaveBeenNthCalledWith(1, 'quick_match_attempted', {
+      scenario: 'duel',
+    });
+    expect(track).toHaveBeenNthCalledWith(2, 'quick_match_failed', {
+      scenario: 'duel',
+      reason: 'active_in_other_tab',
+    });
+    expect(deps.showToast).toHaveBeenCalledWith(
+      'Quick Match is already active in another tab. Use a private window to join as a second local player.',
+      'error',
+    );
+    expect(deps.setState).toHaveBeenCalledWith('menu');
+    expect(deps.setMenuLoading).toHaveBeenNthCalledWith(1, true, 'quickMatch');
+    expect(deps.setMenuLoading).toHaveBeenLastCalledWith(false);
+  });
 });

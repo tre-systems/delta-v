@@ -42,8 +42,8 @@ const createCtx = () => ({
 });
 
 const createMatchmaker = () => {
-  const initFetch = vi.fn(async () =>
-    Response.json({ ok: true }, { status: 201 }),
+  const initFetch = vi.fn<(request: Request) => Promise<Response>>(
+    async (_request) => Response.json({ ok: true }, { status: 201 }),
   );
   const ctx = createCtx();
   const gameStub = {
@@ -140,7 +140,12 @@ describe('MatchmakerDO', () => {
       playerToken: expect.any(String),
     });
     expect(initFetch).toHaveBeenCalledTimes(1);
-    await expect(initFetch.mock.calls[0]?.[0]?.json()).resolves.toMatchObject({
+    const firstInitRequest = initFetch.mock.calls[0]?.[0];
+    expect(firstInitRequest).toBeInstanceOf(Request);
+    if (!firstInitRequest) {
+      throw new Error('Expected first init request');
+    }
+    await expect(firstInitRequest.json()).resolves.toMatchObject({
       scenario: 'duel',
       players: [
         expect.objectContaining({
@@ -192,7 +197,12 @@ describe('MatchmakerDO', () => {
       code: expect.any(String),
       playerToken: expect.any(String),
     });
-    await expect(initFetch.mock.calls[0]?.[0]?.json()).resolves.toMatchObject({
+    const firstInitRequest = initFetch.mock.calls[0]?.[0];
+    expect(firstInitRequest).toBeInstanceOf(Request);
+    if (!firstInitRequest) {
+      throw new Error('Expected first init request');
+    }
+    await expect(firstInitRequest.json()).resolves.toMatchObject({
       players: [
         expect.objectContaining({
           playerKey: 'playerkey1',

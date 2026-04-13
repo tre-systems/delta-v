@@ -162,6 +162,9 @@ describe('LobbyView', () => {
       'Game Created',
     );
     expect(document.getElementById('gameCode')?.textContent).toBe('ABCDE');
+    expect(document.getElementById('gameCode')?.dataset.variant).toBe(
+      'roomCode',
+    );
     expect(document.getElementById('waitingStatus')?.textContent).toBe(
       'Waiting for opponent...',
     );
@@ -174,6 +177,9 @@ describe('LobbyView', () => {
       'Quick Match',
     );
     expect(document.getElementById('gameCode')?.textContent).toBe('SEARCHING');
+    expect(document.getElementById('gameCode')?.dataset.variant).toBe(
+      'statusWord',
+    );
     expect(document.getElementById('waitingStatus')?.textContent).toBe(
       'Searching for an opponent...',
     );
