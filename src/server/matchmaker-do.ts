@@ -31,15 +31,6 @@ interface Env {
 const MATCHMAKER_STORAGE_KEY = 'quickMatchQueue';
 const HEARTBEAT_TTL_MS = 15_000;
 const MATCH_RESULT_TTL_MS = 60_000;
-const BOT_FILL_DELAY_MS = 10_000;
-const BOT_NAMES = [
-  'Rowan Vale',
-  'Mira Sol',
-  'Jonah Kade',
-  'Ari Mercer',
-  'Tessa Quill',
-  'Nico Stern',
-] as const;
 
 const isActiveQueueEntry = (entry: QueueEntry, now: number): boolean =>
   entry.status === 'queued' && now - entry.lastSeenAt <= HEARTBEAT_TTL_MS;
@@ -88,16 +79,6 @@ const normalizeQuickMatchRequest = (
 
 const ticketFromEntropy = (): string =>
   generatePlayerToken().replace(/_/g, 'A').replace(/-/g, 'B');
-
-const buildBotProfile = (seed: string): PublicPlayerProfile => {
-  const name = BOT_NAMES[seed.charCodeAt(0) % BOT_NAMES.length] ?? BOT_NAMES[0];
-  const suffix = seed.slice(0, 10).toLowerCase();
-
-  return {
-    playerKey: `agent_${suffix}`,
-    username: name,
-  };
-};
 
 export class MatchmakerDO extends DurableObject<Env> {
   private get storage(): DurableObjectStorage {
@@ -193,18 +174,11 @@ export class MatchmakerDO extends DurableObject<Env> {
     entries: QueueEntry[],
     leftIndex: number,
     rightIndex: number,
-    rightPlayerOverride?: PublicPlayerProfile,
   ): Promise<QueueEntry[] | null> {
     const left = entries[leftIndex];
-    const right = rightPlayerOverride
-      ? {
-          ticket: entries[leftIndex]?.ticket ?? ticketFromEntropy(),
-          scenario: left.scenario,
-          player: rightPlayerOverride,
-        }
-      : entries[rightIndex];
+    const right = entries[rightIndex];
 
-    if (!left) {
+    if (!left || !right) {
       return null;
     }
 
@@ -227,20 +201,17 @@ export class MatchmakerDO extends DurableObject<Env> {
       ),
     };
 
-    if (!rightPlayerOverride && entries[rightIndex]) {
-      const existing = entries[rightIndex];
-      entries[rightIndex] = {
-        ...existing,
-        status: 'matched',
-        lastSeenAt: now,
-        matched: this.buildMatchedResponse(
-          existing.ticket,
-          existing.scenario,
-          room.code,
-          room.playerTokens[1],
-        ),
-      };
-    }
+    entries[rightIndex] = {
+      ...right,
+      status: 'matched',
+      lastSeenAt: now,
+      matched: this.buildMatchedResponse(
+        right.ticket,
+        right.scenario,
+        room.code,
+        room.playerTokens[1],
+      ),
+    };
 
     return entries;
   }
@@ -334,7 +305,7 @@ export class MatchmakerDO extends DurableObject<Env> {
 
   private async handleStatus(ticket: string): Promise<Response> {
     const now = Date.now();
-    let entries = this.pruneQueue(await this.readQueue(), now);
+    const entries = this.pruneQueue(await this.readQueue(), now);
     const index = entries.findIndex((entry) => entry.ticket === ticket);
 
     if (index < 0) {
@@ -366,20 +337,25 @@ export class MatchmakerDO extends DurableObject<Env> {
       lastSeenAt: now,
     };
 
-    if (now - current.queuedAt >= BOT_FILL_DELAY_MS) {
-      const matchedEntries = await this.matchEntries(
-        entries,
-        index,
-        index,
-        buildBotProfile(ticket),
-      );
-
-      if (!matchedEntries) {
-        return new Response('Failed to allocate quick match', { status: 503 });
-      }
-
-      entries = matchedEntries;
-    }
+    // Intentionally disabled for now: quick match should wait for another
+    // real queued player rather than silently filling with a heuristic bot.
+    // Previous behavior:
+    // if (now - current.queuedAt >= 10_000) {
+    //   const matchedEntries = await this.matchEntries(
+    //     entries,
+    //     index,
+    //     index,
+    //     buildBotProfile(ticket),
+    //   );
+    //
+    //   if (!matchedEntries) {
+    //     return new Response('Failed to allocate quick match', {
+    //       status: 503,
+    //     });
+    //   }
+    //
+    //   entries = matchedEntries;
+    // }
 
     await this.writeQueue(entries);
 

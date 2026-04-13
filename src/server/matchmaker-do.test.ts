@@ -162,7 +162,7 @@ describe('MatchmakerDO', () => {
     });
   });
 
-  it('fills from a bot after the queue wait threshold', async () => {
+  it('keeps waiting for another queued player after the old bot-fill threshold', async () => {
     const now = vi.spyOn(Date, 'now');
     now.mockReturnValue(1_000);
     const { matchmaker, initFetch } = createMatchmaker();
@@ -193,26 +193,10 @@ describe('MatchmakerDO', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      status: 'matched',
-      code: expect.any(String),
-      playerToken: expect.any(String),
+      status: 'queued',
+      ticket: queuedPayload.ticket,
+      scenario: 'duel',
     });
-    const firstInitRequest = initFetch.mock.calls[0]?.[0];
-    expect(firstInitRequest).toBeInstanceOf(Request);
-    if (!firstInitRequest) {
-      throw new Error('Expected first init request');
-    }
-    await expect(firstInitRequest.json()).resolves.toMatchObject({
-      players: [
-        expect.objectContaining({
-          playerKey: 'playerkey1',
-          username: 'Pilot One',
-          kind: 'human',
-        }),
-        expect.objectContaining({
-          kind: 'agent',
-        }),
-      ],
-    });
+    expect(initFetch).not.toHaveBeenCalled();
   });
 });
