@@ -24,11 +24,13 @@
     "simulate": "tsx scripts/simulate-ai.ts",
     "llm:player": "tsx scripts/llm-player.ts",
     "llm:agent:recommended": "tsx scripts/llm-agent-recommended.ts",
+    "llm:agent:claude": "npx tsx scripts/llm-agent-claude.ts",
     "load:test": "tsx scripts/load-test.ts",
     "update-deps": "npx npm-check-updates -u && npm install",
     "prepare": "husky"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.88.0",
     "@axe-core/playwright": "^4.11.1",
     "@biomejs/biome": "2.4.8",
     "@cloudflare/workers-types": "^4.20260317.1",

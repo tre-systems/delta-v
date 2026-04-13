@@ -229,6 +229,13 @@ export default {
       return handleWebSocket(request, env, asRoomCode(wsMatch[1]));
     }
 
+    // /agents → serve agents.html
+    if (url.pathname === '/agents' || url.pathname === '/agents/') {
+      const agentsUrl = new URL(request.url);
+      agentsUrl.pathname = '/agents.html';
+      return env.ASSETS.fetch(new Request(agentsUrl.toString(), request));
+    }
+
     // Serve static assets
     return env.ASSETS.fetch(request);
   },
