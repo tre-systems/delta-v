@@ -5,8 +5,10 @@ import { createLobbyView } from './lobby-view';
 
 const installFixture = () => {
   document.body.innerHTML = `
+    <button id="quickMatchBtn">Quick Match</button>
     <button id="createBtn">Create Game</button>
     <button id="singlePlayerBtn">Single Player</button>
+    <input id="playerNameInput" />
     <button id="backBtn">Back</button>
     <div id="scenarioList"></div>
     <button class="btn-difficulty" data-difficulty="easy">Easy</button>
@@ -16,6 +18,7 @@ const installFixture = () => {
     <input id="codeInput" />
     <button id="copyBtn">Copy Link</button>
     <button id="copySpectateBtn">Copy Spectate Link</button>
+    <div id="waitingTitle"></div>
     <div id="gameCode"></div>
     <p id="waitingScenario" hidden></p>
     <div id="waitingStatus"></div>
@@ -54,6 +57,8 @@ describe('LobbyView', () => {
           showMenu: vi.fn(),
           showScenarioSelect: vi.fn(),
           showToast: vi.fn(),
+          getPlayerName: () => 'Pilot 1',
+          setPlayerName: (name) => name,
         }),
       ).not.toThrow();
     } finally {
@@ -70,6 +75,8 @@ describe('LobbyView', () => {
       showMenu,
       showScenarioSelect,
       showToast: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name,
     });
 
     document.getElementById('createBtn')?.click();
@@ -105,6 +112,8 @@ describe('LobbyView', () => {
       showMenu,
       showScenarioSelect: vi.fn(),
       showToast: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name,
     });
 
     const input = document.getElementById('codeInput') as HTMLInputElement;
@@ -132,10 +141,12 @@ describe('LobbyView', () => {
       showMenu: vi.fn(),
       showScenarioSelect: vi.fn(),
       showToast: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name,
       copyText,
     });
 
-    view.setMenuLoading(true);
+    view.setMenuLoading(true, 'create');
     expect(
       (document.getElementById('createBtn') as HTMLButtonElement).disabled,
     ).toBe(true);
@@ -143,16 +154,35 @@ describe('LobbyView', () => {
       'CREATING...',
     );
 
-    view.setWaitingState('ABCDE', false);
+    view.setWaitingState({
+      kind: 'private',
+      code: 'ABCDE',
+      connecting: false,
+    });
+    expect(document.getElementById('waitingTitle')?.textContent).toBe(
+      'Game Created',
+    );
     expect(document.getElementById('gameCode')?.textContent).toBe('ABCDE');
+    expect(document.getElementById('gameCode')?.dataset.variant).toBe(
+      'roomCode',
+    );
     expect(document.getElementById('waitingStatus')?.textContent).toBe(
       'Waiting for opponent...',
     );
 
-    view.setWaitingState(null, true);
-    expect(document.getElementById('gameCode')?.textContent).toBe('...');
+    view.setWaitingState({
+      kind: 'quickMatch',
+      statusText: 'Searching for an opponent...',
+    });
+    expect(document.getElementById('waitingTitle')?.textContent).toBe(
+      'Quick Match',
+    );
+    expect(document.getElementById('gameCode')?.textContent).toBe('SEARCHING');
+    expect(document.getElementById('gameCode')?.dataset.variant).toBe(
+      'statusWord',
+    );
     expect(document.getElementById('waitingStatus')?.textContent).toBe(
-      'Connecting...',
+      'Searching for an opponent...',
     );
 
     const gameCode = document.getElementById('gameCode');
@@ -177,6 +207,8 @@ describe('LobbyView', () => {
       showMenu: vi.fn(),
       showScenarioSelect: vi.fn(),
       showToast: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name,
     });
 
     expect(
@@ -193,6 +225,8 @@ describe('LobbyView', () => {
       showMenu: vi.fn(),
       showScenarioSelect: vi.fn(),
       showToast,
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name,
     });
 
     const input = document.getElementById('codeInput') as HTMLInputElement;
@@ -243,6 +277,8 @@ describe('LobbyView', () => {
       showMenu,
       showScenarioSelect,
       showToast: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name,
     });
 
     view.dispose();

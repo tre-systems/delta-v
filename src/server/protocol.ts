@@ -6,6 +6,11 @@ import {
   type PlayerToken,
   type RoomCode,
 } from '../shared/ids';
+import {
+  normalizePlayerKey,
+  normalizeUsername,
+  type PublicPlayerProfile,
+} from '../shared/player';
 import type { Result } from '../shared/types/domain';
 import { isObject, isString } from '../shared/util';
 
@@ -71,7 +76,48 @@ export interface InitPayload {
   code: RoomCode;
   scenario: string;
   playerToken: PlayerToken;
+  guestPlayerToken: PlayerToken | null;
+  players: [RoomPlayerProfile, RoomPlayerProfile];
 }
+
+export type RoomParticipantKind = 'human' | 'agent';
+
+export interface RoomPlayerProfile extends PublicPlayerProfile {
+  kind: RoomParticipantKind;
+}
+
+const DEFAULT_ROOM_PLAYERS: [RoomPlayerProfile, RoomPlayerProfile] = [
+  {
+    playerKey: 'seat0',
+    username: 'Player 1',
+    kind: 'human',
+  },
+  {
+    playerKey: 'seat1',
+    username: 'Player 2',
+    kind: 'human',
+  },
+];
+
+const normalizeRoomPlayerProfile = (
+  raw: unknown,
+  fallback: RoomPlayerProfile,
+): RoomPlayerProfile => {
+  if (!isObject(raw)) {
+    return fallback;
+  }
+
+  const playerKey = normalizePlayerKey(raw.playerKey) ?? fallback.playerKey;
+  const username = normalizeUsername(raw.username) ?? fallback.username;
+  const kind: RoomParticipantKind =
+    raw.kind === 'agent' || raw.kind === 'human' ? raw.kind : fallback.kind;
+
+  return {
+    playerKey,
+    username,
+    kind,
+  };
+};
 
 export const parseInitPayload = (
   raw: unknown,
@@ -96,12 +142,31 @@ export const parseInitPayload = (
     return { ok: false, error: 'Invalid player token' };
   }
 
+  const guestPlayerToken =
+    raw.guestPlayerToken === null || raw.guestPlayerToken === undefined
+      ? null
+      : isValidPlayerToken(raw.guestPlayerToken)
+        ? raw.guestPlayerToken
+        : null;
+
+  if (raw.guestPlayerToken !== undefined && guestPlayerToken === null) {
+    return { ok: false, error: 'Invalid guest player token' };
+  }
+
+  const playersRaw = Array.isArray(raw.players) ? raw.players : null;
+  const players: [RoomPlayerProfile, RoomPlayerProfile] = [
+    normalizeRoomPlayerProfile(playersRaw?.[0], DEFAULT_ROOM_PLAYERS[0]),
+    normalizeRoomPlayerProfile(playersRaw?.[1], DEFAULT_ROOM_PLAYERS[1]),
+  ];
+
   return {
     ok: true,
     value: {
       code: raw.code,
       scenario: raw.scenario,
       playerToken: raw.playerToken,
+      guestPlayerToken,
+      players,
     },
   };
 };
@@ -110,16 +175,20 @@ export interface RoomConfig {
   code: RoomCode;
   scenario: string;
   playerTokens: [PlayerToken, PlayerToken | null];
+  players: [RoomPlayerProfile, RoomPlayerProfile];
 }
 
 export const createRoomConfig = ({
   code,
   scenario,
   playerToken,
+  guestPlayerToken,
+  players,
 }: InitPayload): RoomConfig => ({
   code,
   scenario,
-  playerTokens: [playerToken, null],
+  playerTokens: [playerToken, guestPlayerToken],
+  players,
 });
 
 export interface SeatAssignmentInput {

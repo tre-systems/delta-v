@@ -14,7 +14,10 @@ binding = "ASSETS"
 html_handling = "auto-trailing-slash"
 
 [durable_objects]
-bindings = [{ name = "GAME", class_name = "GameDO" }]
+bindings = [
+  { name = "GAME", class_name = "GameDO" },
+  { name = "MATCHMAKER", class_name = "MatchmakerDO" }
+]
 
 [[d1_databases]]
 binding = "DB"
@@ -41,3 +44,7 @@ invocation_logs = true
 [[migrations]]
 tag = "v1"
 new_classes = ["GameDO"]
+
+[[migrations]]
+tag = "v2"
+new_classes = ["MatchmakerDO"]
