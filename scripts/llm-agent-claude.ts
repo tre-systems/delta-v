@@ -44,11 +44,6 @@ interface AgentTurnInput {
   };
 }
 
-interface AgentTurnResponse {
-  candidateIndex: number;
-  chat?: string;
-}
-
 const GAME_RULES = `
 Delta-V is a 2-player tactical space combat game played on a hex grid.
 
@@ -88,6 +83,29 @@ STRATEGY TIPS:
 - Don't overcommit to combat if you can win on objectives.
 - Ordnance is powerful but limited — save for high-value targets.
 `.trim();
+
+const SUBMIT_ACTION_TOOL: Anthropic.Tool = {
+  name: 'submit_action',
+  description:
+    'Submit your chosen action for this turn. Pick the candidate index that best achieves your tactical goals.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      candidateIndex: {
+        type: 'integer',
+        description:
+          'Index into the candidates array (0-based). Candidate 0 is the built-in AI recommendation.',
+      },
+      chat: {
+        type: 'string',
+        description:
+          'Optional short message or taunt shown to your opponent (max 100 chars). Only include if you have something memorable to say.',
+        maxLength: 100,
+      },
+    },
+    required: ['candidateIndex'],
+  },
+};
 
 const buildPrompt = (input: AgentTurnInput): string => {
   const lines: string[] = [];
@@ -147,82 +165,10 @@ const buildPrompt = (input: AgentTurnInput): string => {
   );
   lines.push('');
   lines.push(
-    'Choose the best candidate index (0-based). Respond with JSON only:',
-  );
-  lines.push(
-    '{"candidateIndex": <number>, "chat": "<optional short taunt/comment max 100 chars>"}',
-  );
-  lines.push('');
-  lines.push(
-    'No markdown, no explanation outside the JSON. The chat field is optional — only include it if you have something memorable to say.',
+    'Choose the best candidate index and call submit_action with your decision.',
   );
 
   return lines.join('\n');
-};
-
-const extractResponse = (
-  content: string,
-  fallback: number,
-): AgentTurnResponse => {
-  const trimmed = content.trim();
-
-  // Try to parse the whole response as JSON
-  try {
-    const parsed = JSON.parse(trimmed) as {
-      candidateIndex?: number;
-      chat?: string;
-    };
-    if (
-      typeof parsed.candidateIndex === 'number' &&
-      Number.isInteger(parsed.candidateIndex) &&
-      parsed.candidateIndex >= 0
-    ) {
-      return {
-        candidateIndex: parsed.candidateIndex,
-        chat:
-          typeof parsed.chat === 'string' && parsed.chat.trim()
-            ? parsed.chat.trim().slice(0, 200)
-            : undefined,
-      };
-    }
-  } catch {
-    // fall through
-  }
-
-  // Try to find a JSON block in the response
-  const jsonMatch = trimmed.match(
-    /\{[^{}]*"candidateIndex"\s*:\s*(\d+)[^{}]*\}/,
-  );
-  if (jsonMatch) {
-    try {
-      const parsed = JSON.parse(jsonMatch[0]) as {
-        candidateIndex?: number;
-        chat?: string;
-      };
-      if (
-        typeof parsed.candidateIndex === 'number' &&
-        parsed.candidateIndex >= 0
-      ) {
-        return {
-          candidateIndex: parsed.candidateIndex,
-          chat:
-            typeof parsed.chat === 'string' && parsed.chat.trim()
-              ? parsed.chat.trim().slice(0, 200)
-              : undefined,
-        };
-      }
-    } catch {
-      // fall through
-    }
-  }
-
-  // Try to find just a number
-  const numMatch = trimmed.match(/\b(\d+)\b/);
-  if (numMatch) {
-    return { candidateIndex: Number.parseInt(numMatch[1], 10) };
-  }
-
-  return { candidateIndex: fallback };
 };
 
 const main = async (): Promise<void> => {
@@ -270,29 +216,40 @@ const main = async (): Promise<void> => {
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 256,
+      tools: [SUBMIT_ACTION_TOOL],
+      tool_choice: { type: 'auto' },
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const textContent = message.content.find(
-      (c: { type: string }) => c.type === 'text',
-    );
-    if (!textContent || textContent.type !== 'text') {
-      process.stdout.write(JSON.stringify({ candidateIndex: recommended }));
-      return;
+    // Extract the tool_use block
+    const toolUse = message.content.find(
+      (c: { type: string }) => c.type === 'tool_use',
+    ) as
+      | { type: 'tool_use'; input: { candidateIndex?: number; chat?: string } }
+      | undefined;
+
+    if (toolUse) {
+      const { candidateIndex, chat } = toolUse.input;
+
+      if (
+        typeof candidateIndex === 'number' &&
+        Number.isInteger(candidateIndex) &&
+        candidateIndex >= 0 &&
+        candidateIndex < input.candidates.length
+      ) {
+        const trimmedChat =
+          typeof chat === 'string' && chat.trim()
+            ? chat.trim().slice(0, 200)
+            : undefined;
+        process.stdout.write(
+          JSON.stringify({ candidateIndex, chat: trimmedChat }),
+        );
+        return;
+      }
     }
 
-    const response = extractResponse(textContent.text, recommended);
-
-    // Clamp to valid range
-    const clampedIndex =
-      response.candidateIndex >= 0 &&
-      response.candidateIndex < input.candidates.length
-        ? response.candidateIndex
-        : recommended;
-
-    process.stdout.write(
-      JSON.stringify({ candidateIndex: clampedIndex, chat: response.chat }),
-    );
+    // Fallback: no valid tool call
+    process.stdout.write(JSON.stringify({ candidateIndex: recommended }));
   } catch (error) {
     process.stderr.write(
       `Claude API error, falling back to recommended: ${error instanceof Error ? error.message : String(error)}\n`,
