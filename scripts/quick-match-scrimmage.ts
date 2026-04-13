@@ -1,0 +1,753 @@
+import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import process from 'node:process';
+
+import { hexDistance } from '../src/shared/hex';
+import type { QuickMatchResponse } from '../src/shared/matchmaking';
+import type { ReplayTimeline } from '../src/shared/replay';
+import type { GameState, PlayerId, Ship } from '../src/shared/types/domain';
+
+const DEFAULT_SERVER_URL = process.env.SERVER_URL || 'http://127.0.0.1:8787';
+const DEFAULT_SCENARIO = 'duel';
+const DEFAULT_AGENT_COMMAND_BASE = 'npm run llm:agent:coach --silent --';
+
+interface Config {
+  serverUrl: string;
+  scenario: string;
+  agentCommandBase: string;
+  thinkMs: number;
+  decisionTimeoutMs: number;
+  reportTimeoutMs: number;
+  pollMs: number;
+  shutdownGraceMs: number;
+  labelA: string;
+  labelB: string;
+}
+
+interface QueuePlayer {
+  label: string;
+  profile: string;
+  username: string;
+  playerKey: string;
+  agentCommand: string;
+  ticket: string | null;
+  matched: Extract<QuickMatchResponse, { status: 'matched' }> | null;
+  playerId: PlayerId | null;
+  logs: string[];
+}
+
+interface TurnSummary {
+  turnNumber: number;
+  endingPhase: string;
+  ownOperationalShips: number;
+  enemyOperationalShips: number;
+  ownFuel: number;
+  enemyFuel: number;
+  nearestEnemyDistance: number | null;
+}
+
+interface ReplaySummary {
+  gameId: string;
+  roomCode: string;
+  matchNumber: number;
+  scenario: string;
+  entries: number;
+  finalTurn: number | null;
+  finalPhase: string | null;
+  winner: PlayerId | null;
+  reason: string | null;
+  activeShipsByOwner: Record<string, number>;
+  phaseCounts: Record<string, number>;
+}
+
+interface AgentReportInput {
+  kind: 'report';
+  version: 1;
+  gameCode: string;
+  playerId: PlayerId;
+  replaySummary: ReplaySummary;
+  turnSummaries: TurnSummary[];
+  finalState: GameState;
+  timeline?: ReplayTimeline;
+}
+
+interface AgentReportResponse {
+  summary: string;
+  recentChats?: string[];
+  strengths: string[];
+  mistakes: string[];
+  lessons: string[];
+  nextFocus: string[];
+  record: {
+    gamesPlayed: number;
+    wins: number;
+    losses: number;
+    draws: number;
+    winRate: number;
+  };
+}
+
+interface PlayerRunResult {
+  code: number | null;
+  signal: NodeJS.Signals | null;
+}
+
+const delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+const parseIntegerFlag = (
+  value: string | undefined,
+  fallback: number,
+): number => {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const parseArgs = (argv: string[]): Config => {
+  const args = [...argv];
+  const getFlag = (name: string): string | undefined => {
+    const index = args.indexOf(name);
+    return index >= 0 ? args[index + 1] : undefined;
+  };
+
+  if (args.includes('--help')) {
+    console.log(`Quick-match scrimmage runner
+
+Examples:
+  npm run quickmatch:scrimmage
+  npm run quickmatch:scrimmage -- --server-url https://delta-v.tre.systems
+
+Flags:
+  --server-url             Worker base URL (default: ${DEFAULT_SERVER_URL})
+  --scenario               Queue scenario (default: ${DEFAULT_SCENARIO})
+  --agent-command-base     Command prefix for the coach agent
+  --think-ms               Delay before each move (default: 150)
+  --decision-timeout-ms    Decision timeout for llm-player (default: 30000)
+  --report-timeout-ms      Timeout for post-game reports (default: 15000)
+  --poll-ms                Queue/replay poll interval (default: 500)
+  --shutdown-grace-ms      Wait after game over before stopping clients (default: 1200)
+  --label-a                Display label for player A (default: Comet)
+  --label-b                Display label for player B (default: Kepler)
+`);
+    process.exit(0);
+  }
+
+  return {
+    serverUrl: getFlag('--server-url') ?? DEFAULT_SERVER_URL,
+    scenario: getFlag('--scenario') ?? DEFAULT_SCENARIO,
+    agentCommandBase:
+      getFlag('--agent-command-base') ?? DEFAULT_AGENT_COMMAND_BASE,
+    thinkMs: Math.max(0, parseIntegerFlag(getFlag('--think-ms'), 150)),
+    decisionTimeoutMs: Math.max(
+      1_000,
+      parseIntegerFlag(getFlag('--decision-timeout-ms'), 30_000),
+    ),
+    reportTimeoutMs: Math.max(
+      1_000,
+      parseIntegerFlag(getFlag('--report-timeout-ms'), 15_000),
+    ),
+    pollMs: Math.max(100, parseIntegerFlag(getFlag('--poll-ms'), 500)),
+    shutdownGraceMs: Math.max(
+      100,
+      parseIntegerFlag(getFlag('--shutdown-grace-ms'), 1_200),
+    ),
+    labelA: getFlag('--label-a') ?? 'Comet',
+    labelB: getFlag('--label-b') ?? 'Kepler',
+  };
+};
+
+const slugify = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'pilot';
+
+const buildAgentCommand = (base: string, profile: string): string =>
+  `${base} --profile ${profile}`;
+
+const createQueuePlayer = (
+  label: string,
+  agentCommandBase: string,
+): QueuePlayer => {
+  const profile = slugify(label);
+  const suffix = randomUUID().replace(/-/g, '').slice(0, 8);
+  return {
+    label,
+    profile,
+    username:
+      label
+        .replace(/[^A-Za-z0-9 _-]/g, ' ')
+        .trim()
+        .slice(0, 20) || label,
+    playerKey: `scrim_${profile}_${suffix}`.slice(0, 64),
+    agentCommand: buildAgentCommand(agentCommandBase, profile),
+    ticket: null,
+    matched: null,
+    playerId: null,
+    logs: [],
+  };
+};
+
+const parseJsonFromOutput = <T>(raw: string): T => {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error('output was empty');
+  }
+
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch {
+    const lines = trimmed.split(/\r?\n/);
+    for (let index = lines.length - 1; index >= 0; index -= 1) {
+      try {
+        return JSON.parse(lines[index]) as T;
+      } catch {
+        // keep scanning
+      }
+    }
+  }
+
+  throw new Error('output did not contain valid JSON');
+};
+
+const runJsonCommand = async <T>(
+  command: string,
+  payload: unknown,
+  timeoutMs: number,
+): Promise<T> =>
+  await new Promise<T>((resolve, reject) => {
+    const child = spawn('zsh', ['-lc', command], {
+      cwd: process.cwd(),
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+
+    const settle = (fn: () => void) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      fn();
+    };
+
+    const timeout = setTimeout(() => {
+      settle(() => {
+        child.kill('SIGKILL');
+        reject(new Error(`command timed out after ${timeoutMs}ms`));
+      });
+    }, timeoutMs);
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    child.on('error', (error) => {
+      clearTimeout(timeout);
+      settle(() => reject(error));
+    });
+    child.on('close', (code) => {
+      clearTimeout(timeout);
+      settle(() => {
+        if (code !== 0) {
+          reject(
+            new Error(
+              `command exited with code ${code}. stderr: ${stderr.trim() || '(none)'}`,
+            ),
+          );
+          return;
+        }
+
+        try {
+          resolve(parseJsonFromOutput<T>(stdout));
+        } catch (error) {
+          reject(
+            new Error(
+              `failed to parse command JSON: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            ),
+          );
+        }
+      });
+    });
+
+    child.stdin.write(JSON.stringify(payload));
+    child.stdin.end();
+  });
+
+const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
+  const response = await fetch(url, init);
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${raw || 'request failed'}`);
+  }
+
+  return JSON.parse(raw) as T;
+};
+
+const enqueueQuickMatch = async (
+  config: Config,
+  player: QueuePlayer,
+): Promise<QuickMatchResponse> =>
+  await fetchJson<QuickMatchResponse>(`${config.serverUrl}/quick-match`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      scenario: config.scenario,
+      player: {
+        playerKey: player.playerKey,
+        username: player.username,
+      },
+    }),
+  });
+
+const pollQuickMatch = async (
+  config: Config,
+  ticket: string,
+): Promise<QuickMatchResponse> => {
+  while (true) {
+    const response = await fetch(`${config.serverUrl}/quick-match/${ticket}`);
+    const raw = await response.text();
+    const parsed = JSON.parse(raw) as QuickMatchResponse;
+    if (response.ok) {
+      if (parsed.status === 'matched') {
+        return parsed;
+      }
+      if (parsed.status === 'queued') {
+        await delay(config.pollMs);
+        continue;
+      }
+    }
+
+    if (response.status === 410 && parsed.status === 'expired') {
+      throw new Error(`queue ticket expired: ${parsed.reason}`);
+    }
+
+    throw new Error(
+      `unexpected quick-match response: HTTP ${response.status} ${raw}`,
+    );
+  }
+};
+
+const resolveMatch = async (
+  config: Config,
+  player: QueuePlayer,
+): Promise<Extract<QuickMatchResponse, { status: 'matched' }>> => {
+  const response = await enqueueQuickMatch(config, player);
+  if (response.status === 'matched') {
+    player.matched = response;
+    return response;
+  }
+
+  if (response.status !== 'queued') {
+    throw new Error(`unexpected enqueue status: ${response.status}`);
+  }
+
+  player.ticket = response.ticket;
+  const matched = await pollQuickMatch(config, response.ticket);
+  if (matched.status !== 'matched') {
+    throw new Error(`expected matched response for ${player.label}`);
+  }
+
+  player.matched = matched;
+  return matched;
+};
+
+const terminateProcess = (child: ReturnType<typeof spawn>): void => {
+  if (child.killed || child.exitCode !== null) {
+    return;
+  }
+
+  child.kill('SIGTERM');
+  setTimeout(() => {
+    if (!child.killed && child.exitCode === null) {
+      child.kill('SIGKILL');
+    }
+  }, 500).unref();
+};
+
+const runPlayerClient = (
+  config: Config,
+  player: QueuePlayer,
+  code: string,
+  playerToken: string,
+  onGameOver: () => void,
+): {
+  child: ReturnType<typeof spawn>;
+  done: Promise<PlayerRunResult>;
+} => {
+  const child = spawn(
+    'npm',
+    [
+      'run',
+      'llm:player',
+      '--',
+      '--server-url',
+      config.serverUrl,
+      '--mode',
+      'join',
+      '--code',
+      code,
+      '--player-token',
+      playerToken,
+      '--agent',
+      'command',
+      '--agent-command',
+      player.agentCommand,
+      '--think-ms',
+      String(config.thinkMs),
+      '--decision-timeout-ms',
+      String(config.decisionTimeoutMs),
+    ],
+    {
+      cwd: process.cwd(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
+
+  let stdoutBuffer = '';
+  let stderrBuffer = '';
+  let reportedGameOver = false;
+
+  const handleLine = (stream: 'stdout' | 'stderr', rawLine: string): void => {
+    const line = rawLine.trim();
+    if (!line) {
+      return;
+    }
+
+    player.logs.push(`[${player.label} ${stream}] ${line}`);
+
+    const seatMatch = /^seat assigned: player ([01]), code ([A-Z0-9]{5})$/.exec(
+      line,
+    );
+    if (seatMatch) {
+      player.playerId = Number.parseInt(seatMatch[1], 10) as PlayerId;
+    }
+
+    if (!reportedGameOver && /^game over: winner=([01]|draw) /.test(line)) {
+      reportedGameOver = true;
+      onGameOver();
+    }
+  };
+
+  const flushBuffer = (stream: 'stdout' | 'stderr', chunk: string): string => {
+    const combined = chunk;
+    const lines = combined.split(/\r?\n/);
+    const remainder = lines.pop() ?? '';
+    for (const line of lines) {
+      handleLine(stream, line);
+    }
+    return remainder;
+  };
+
+  child.stdout.on('data', (chunk: Buffer) => {
+    stdoutBuffer = flushBuffer('stdout', `${stdoutBuffer}${chunk.toString()}`);
+  });
+  child.stderr.on('data', (chunk: Buffer) => {
+    stderrBuffer = flushBuffer('stderr', `${stderrBuffer}${chunk.toString()}`);
+  });
+
+  const done = new Promise<PlayerRunResult>((resolve, reject) => {
+    child.on('error', (error) => reject(error));
+    child.on('close', (code, signal) => {
+      if (stdoutBuffer.trim()) {
+        handleLine('stdout', stdoutBuffer);
+      }
+      if (stderrBuffer.trim()) {
+        handleLine('stderr', stderrBuffer);
+      }
+      resolve({ code, signal });
+    });
+  });
+
+  return { child, done };
+};
+
+const waitForReplay = async (
+  config: Config,
+  code: string,
+  playerToken: string,
+): Promise<ReplayTimeline> => {
+  const url = `${config.serverUrl}/replay/${code}?playerToken=${encodeURIComponent(playerToken)}`;
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const timeline = await fetchJson<ReplayTimeline>(url);
+    const finalState = timeline.entries.at(-1)?.message.state;
+    if (finalState?.outcome) {
+      return timeline;
+    }
+    await delay(config.pollMs);
+  }
+
+  throw new Error('replay did not reach a final outcome in time');
+};
+
+const getOperationalShips = (state: GameState, owner: PlayerId): Ship[] =>
+  state.ships.filter(
+    (ship) => ship.owner === owner && ship.lifecycle !== 'destroyed',
+  );
+
+const getNearestEnemyDistance = (
+  state: GameState,
+  playerId: PlayerId,
+): number | null => {
+  const ownShips = getOperationalShips(state, playerId);
+  const enemyShips = getOperationalShips(state, playerId === 0 ? 1 : 0);
+  let best: number | null = null;
+
+  for (const ownShip of ownShips) {
+    for (const enemyShip of enemyShips) {
+      const distance = hexDistance(ownShip.position, enemyShip.position);
+      best = best === null ? distance : Math.min(best, distance);
+    }
+  }
+
+  return best;
+};
+
+const buildReplaySummary = (timeline: ReplayTimeline): ReplaySummary => {
+  const finalState = timeline.entries.at(-1)?.message.state ?? null;
+  const phaseCounts: Record<string, number> = {};
+
+  for (const entry of timeline.entries) {
+    phaseCounts[entry.phase] = (phaseCounts[entry.phase] ?? 0) + 1;
+  }
+
+  const activeShipsByOwner: Record<string, number> = {};
+  for (const ship of finalState?.ships ?? []) {
+    if (ship.lifecycle === 'destroyed') {
+      continue;
+    }
+    activeShipsByOwner[String(ship.owner)] =
+      (activeShipsByOwner[String(ship.owner)] ?? 0) + 1;
+  }
+
+  return {
+    gameId: timeline.gameId,
+    roomCode: timeline.roomCode,
+    matchNumber: timeline.matchNumber,
+    scenario: timeline.scenario,
+    entries: timeline.entries.length,
+    finalTurn: finalState?.turnNumber ?? null,
+    finalPhase: finalState?.phase ?? null,
+    winner: finalState?.outcome?.winner ?? null,
+    reason: finalState?.outcome?.reason ?? null,
+    activeShipsByOwner,
+    phaseCounts,
+  };
+};
+
+const buildTurnSummaries = (
+  timeline: ReplayTimeline,
+  playerId: PlayerId,
+): TurnSummary[] => {
+  const snapshots = new Map<string, TurnSummary>();
+  const order: string[] = [];
+
+  for (const entry of timeline.entries) {
+    const state = entry.message.state;
+    const ownShips = getOperationalShips(state, playerId);
+    const enemyShips = getOperationalShips(state, playerId === 0 ? 1 : 0);
+    const key = `${state.turnNumber}:${state.phase}`;
+    if (!snapshots.has(key)) {
+      order.push(key);
+    }
+    snapshots.set(key, {
+      turnNumber: state.turnNumber,
+      endingPhase: state.phase,
+      ownOperationalShips: ownShips.length,
+      enemyOperationalShips: enemyShips.length,
+      ownFuel: ownShips.reduce((sum, ship) => sum + ship.fuel, 0),
+      enemyFuel: enemyShips.reduce((sum, ship) => sum + ship.fuel, 0),
+      nearestEnemyDistance: getNearestEnemyDistance(state, playerId),
+    });
+  }
+
+  return order
+    .map((key) => snapshots.get(key))
+    .filter((value): value is TurnSummary => value !== undefined);
+};
+
+const printSection = (title: string, values: string[]): void => {
+  if (values.length === 0) {
+    return;
+  }
+
+  console.log(`${title}:`);
+  for (const value of values) {
+    console.log(`- ${value}`);
+  }
+};
+
+const main = async (): Promise<void> => {
+  const config = parseArgs(process.argv.slice(2));
+  const left = createQueuePlayer(config.labelA, config.agentCommandBase);
+  const right = createQueuePlayer(config.labelB, config.agentCommandBase);
+
+  console.log(
+    `Queueing ${left.label} and ${right.label} on ${config.serverUrl} quick match...`,
+  );
+
+  const [leftMatch, rightMatch] = await Promise.all([
+    resolveMatch(config, left),
+    resolveMatch(config, right),
+  ]);
+
+  if (leftMatch.code !== rightMatch.code) {
+    throw new Error(
+      `players matched into different rooms (${leftMatch.code} vs ${rightMatch.code})`,
+    );
+  }
+
+  const code = leftMatch.code;
+  console.log(`Matched in room ${code}. Launching player clients...`);
+
+  let shutdownScheduled = false;
+  const runners: Array<ReturnType<typeof runPlayerClient>> = [];
+  const scheduleShutdown = (): void => {
+    if (shutdownScheduled) {
+      return;
+    }
+    shutdownScheduled = true;
+    setTimeout(() => {
+      for (const runner of runners) {
+        terminateProcess(runner.child);
+      }
+    }, config.shutdownGraceMs).unref();
+  };
+
+  runners.push(
+    runPlayerClient(
+      config,
+      left,
+      code,
+      leftMatch.playerToken,
+      scheduleShutdown,
+    ),
+  );
+  runners.push(
+    runPlayerClient(
+      config,
+      right,
+      code,
+      rightMatch.playerToken,
+      scheduleShutdown,
+    ),
+  );
+
+  const results = await Promise.all(runners.map((runner) => runner.done));
+  const failedRuns = results
+    .map((result, index) => ({
+      result,
+      player: index === 0 ? left : right,
+    }))
+    .filter(
+      ({ result }) =>
+        result.code !== 0 &&
+        result.code !== 143 &&
+        result.code !== 137 &&
+        result.signal !== 'SIGTERM' &&
+        result.signal !== 'SIGKILL',
+    );
+  if (failedRuns.length > 0) {
+    throw new Error(
+      failedRuns
+        .map(
+          ({ player, result }) =>
+            `${player.label} exited with code ${result.code ?? 'null'} signal ${result.signal ?? 'none'}\n${player.logs
+              .slice(-20)
+              .join('\n')}`,
+        )
+        .join('\n\n'),
+    );
+  }
+
+  if (left.playerId === null || right.playerId === null) {
+    throw new Error('failed to determine player seats from llm-player output');
+  }
+
+  const timeline = await waitForReplay(config, code, leftMatch.playerToken);
+  const replaySummary = buildReplaySummary(timeline);
+  const finalState = timeline.entries.at(-1)?.message.state;
+  if (!finalState) {
+    throw new Error('replay did not include a final state');
+  }
+
+  const leftReport = await runJsonCommand<AgentReportResponse>(
+    left.agentCommand,
+    {
+      kind: 'report',
+      version: 1,
+      gameCode: code,
+      playerId: left.playerId,
+      replaySummary,
+      turnSummaries: buildTurnSummaries(timeline, left.playerId),
+      finalState,
+      timeline,
+    } satisfies AgentReportInput,
+    config.reportTimeoutMs,
+  );
+  const rightReport = await runJsonCommand<AgentReportResponse>(
+    right.agentCommand,
+    {
+      kind: 'report',
+      version: 1,
+      gameCode: code,
+      playerId: right.playerId,
+      replaySummary,
+      turnSummaries: buildTurnSummaries(timeline, right.playerId),
+      finalState,
+      timeline,
+    } satisfies AgentReportInput,
+    config.reportTimeoutMs,
+  );
+
+  console.log('');
+  console.log('Scrimmage report');
+  console.log(`Room: ${replaySummary.roomCode}`);
+  console.log(`Game: ${replaySummary.gameId}`);
+  console.log(`Winner: ${replaySummary.winner ?? 'draw'}`);
+  console.log(`Reason: ${replaySummary.reason ?? 'unknown'}`);
+  console.log(
+    `Turns: ${replaySummary.finalTurn ?? '?'} | Replay entries: ${replaySummary.entries}`,
+  );
+  console.log(
+    `Phase counts: ${Object.entries(replaySummary.phaseCounts)
+      .map(([phase, count]) => `${phase}=${count}`)
+      .join(', ')}`,
+  );
+
+  for (const [player, report] of [
+    [left, leftReport],
+    [right, rightReport],
+  ] as const) {
+    console.log('');
+    console.log(`${player.label} (player ${player.playerId})`);
+    console.log(report.summary);
+    printSection('Recent chat', report.recentChats ?? []);
+    printSection('Strengths', report.strengths);
+    printSection('Mistakes', report.mistakes);
+    printSection('Lessons', report.lessons);
+    printSection('Next focus', report.nextFocus);
+    console.log(
+      `Record: ${report.record.wins}-${report.record.losses}-${report.record.draws} in ${report.record.gamesPlayed} game(s), win rate ${report.record.winRate}%`,
+    );
+  }
+};
+
+void main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(message);
+  process.exitCode = 1;
+});
