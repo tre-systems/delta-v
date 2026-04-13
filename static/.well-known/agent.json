@@ -1,0 +1,52 @@
+{
+  "name": "Delta-V",
+  "description": "2-player tactical space combat on a hex grid. Ships move with realistic inertia; win by landing on objectives or destroying the enemy fleet.",
+  "version": "1",
+  "homepage": "https://delta-v.tre.systems/agents",
+  "repository": "https://github.com/rgilks/delta-v",
+  "protocol": "websocket+http",
+  "endpoints": {
+    "base": "https://delta-v.tre.systems",
+    "createGame": "POST /create",
+    "quickMatch": "POST /quick-match",
+    "pollTicket": "GET /quick-match/{ticket}",
+    "joinCheck": "GET /join/{code}",
+    "websocket": "WS /ws/{code}",
+    "replay": "GET /replay/{code}"
+  },
+  "scenarios": [
+    { "id": "duel", "description": "1v1 classic scenario — two planets, two fleets" },
+    { "id": "biplanetary", "description": "Extended map with multiple objective bodies" }
+  ],
+  "playerProfile": {
+    "playerKey": {
+      "pattern": "^[A-Za-z0-9_-]{8,64}$",
+      "convention": "Prefix bot keys with agent_ (e.g. agent_mybot_a1b2c3d4)"
+    },
+    "username": {
+      "pattern": "^[A-Za-z0-9 _-]{2,20}$"
+    }
+  },
+  "agentInterface": {
+    "version": 1,
+    "modes": ["command", "http"],
+    "bridgeScript": "scripts/llm-player.ts",
+    "inputType": "AgentTurnInput",
+    "outputType": "AgentTurnResponse",
+    "inputDescription": "JSON object with game state, pre-computed candidate actions, recommended index, and human-readable summary",
+    "outputDescription": "JSON object with candidateIndex (integer) and optional chat string"
+  },
+  "rateLimits": {
+    "createGame": { "limit": 5, "windowSeconds": 60 },
+    "quickMatch": { "limit": 5, "windowSeconds": 60 },
+    "pollTicket": { "limit": 100, "windowSeconds": 60 },
+    "websocketConnect": { "limit": 20, "windowSeconds": 60 }
+  },
+  "examples": {
+    "minimalPython": "scripts/llm-agent-recommended.ts",
+    "claudeAgent": "scripts/llm-agent-claude.ts",
+    "coachAgent": "scripts/llm-agent-coach.ts",
+    "scrimmage": "scripts/quick-match-scrimmage.ts",
+    "quickStart": "scripts/quick-start-agent.sh"
+  }
+}

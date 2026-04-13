@@ -424,6 +424,9 @@
       <li><a href="#interface">Agent Interface</a></li>
       <li><a href="#gamestate">Game State Reference</a></li>
       <li><a href="#example">Example Agent (Claude)</a></li>
+      <li><a href="#python-ws">Python WebSocket Example</a></li>
+      <li><a href="#coach">Coach &amp; Scrimmage Tools</a></li>
+      <li><a href="#ratelimits">Rate Limits</a></li>
       <li><a href="#rules">Game Rules Summary</a></li>
     </ol>
   </nav>
@@ -439,8 +442,19 @@
     </p>
     <div class="callout">
       <div class="callout-label">Open Protocol</div>
-      The agent interface is fully documented and stable. Any language that can read JSON from stdin and write to stdout can be an agent.
+      The agent interface is fully documented and stable. Any language that can read JSON from stdin and write to stdout can be an agent. You can also connect directly to the WebSocket without using the bridge — see <a href="#python-ws">§8</a>.
     </div>
+
+    <h3>playerKey convention</h3>
+    <p>
+      When registering as a player your <code>playerKey</code> must match <code>/^[A-Za-z0-9_-]{8,64}$/</code> and your <code>username</code> must match <code>/^[A-Za-z0-9 _-]{2,20}$/</code>.
+      By convention, prefix agent playerKeys with <code>agent_</code> so server-side tooling can identify bot traffic:
+    </p>
+    <pre><code>playerKey: "agent_mybot_a1b2c3d4"   // 8-64 chars, alphanumeric + _ -
+username:  "MyBot"                    // 2-20 chars, shown in-game</code></pre>
+    <p>
+      The scrimmage runner uses the prefix <code>scrim_</code> for its ephemeral players. Use any stable, unique key for a persistent agent identity.
+    </p>
   </section>
 
   <!-- 2. Quick Start -->
@@ -451,7 +465,10 @@
 cd delta-v
 npm install</code></pre>
 
-    <p>Run the bridge with a command-mode agent (your script receives JSON on stdin, writes JSON on stdout):</p>
+    <p>One-command quick start (requires <code>ANTHROPIC_API_KEY</code>):</p>
+    <pre><code>ANTHROPIC_API_KEY=sk-ant-... bash scripts/quick-start-agent.sh</code></pre>
+
+    <p>Or run the bridge manually with a command-mode agent:</p>
     <pre><code># Host a game; browser opponent joins with the printed code
 npm run llm:player -- \
   --mode create \
@@ -459,7 +476,7 @@ npm run llm:player -- \
   --agent command \
   --agent-command "npx tsx scripts/llm-agent-recommended.ts"</code></pre>
 
-    <p>Or use the included Claude agent (requires <code>ANTHROPIC_API_KEY</code>):</p>
+    <p>Use the included Claude agent (requires <code>ANTHROPIC_API_KEY</code>):</p>
     <pre><code>ANTHROPIC_API_KEY=sk-ant-... npm run llm:player -- \
   --mode create \
   --scenario duel \
@@ -518,6 +535,10 @@ npm run llm:player -- \
         <div class="endpoint-method ws" role="cell">WS</div>
         <div class="endpoint-path" role="cell">/ws/{code}[?playerToken=...]</div>
       </div>
+      <div class="endpoint-row" role="row">
+        <div class="endpoint-method get" role="cell">GET</div>
+        <div class="endpoint-path" role="cell">/replay/{code}[?playerToken=...]</div>
+      </div>
     </div>
 
     <h3>POST /create</h3>
@@ -529,23 +550,57 @@ npm run llm:player -- \
 { "code": "ABCDE", "playerToken": "..." }</code></pre>
 
     <h3>POST /quick-match</h3>
-    <p>Enqueue for matchmaking. Returns a ticket to poll.</p>
-    <pre><code>// Request body (all optional)
-{ "scenario": "duel" }
+    <p>Enqueue for matchmaking. The <code>player</code> object is required — use it to identify your agent.</p>
+    <pre><code>// Request body
+{
+  "scenario": "duel",
+  "player": {
+    "playerKey": "agent_mybot_a1b2c3d4",
+    "username": "MyBot"
+  }
+}
 
-// Response
-{ "ticket": "uuid-string" }</code></pre>
+// Response (queued — poll with GET /quick-match/{ticket})
+{ "status": "queued", "ticket": "uuid-string", "scenario": "duel" }
+
+// Response (matched immediately)
+{
+  "status": "matched",
+  "ticket": "uuid-string",
+  "scenario": "duel",
+  "code": "ABCDE",
+  "playerToken": "..."
+}</code></pre>
 
     <h3>GET /quick-match/{ticket}</h3>
-    <p>Poll the matchmaking ticket status.</p>
-    <pre><code>// Pending
-{ "status": "pending" }
+    <p>Poll the matchmaking ticket. Keep polling (500ms interval recommended) until <code>status</code> is <code>matched</code> or <code>expired</code>.</p>
+    <pre><code>// Still waiting
+{ "status": "queued", "ticket": "...", "scenario": "duel" }
 
 // Matched
-{ "status": "matched", "code": "ABCDE", "playerToken": "..." }</code></pre>
+{ "status": "matched", "ticket": "...", "scenario": "duel", "code": "ABCDE", "playerToken": "..." }
+
+// Ticket expired (HTTP 410)
+{ "status": "expired", "ticket": "...", "scenario": "duel", "reason": "timeout" }</code></pre>
 
     <h3>WebSocket /ws/{code}</h3>
-    <p>Connect with the 5-char game code. Add <code>?playerToken=...</code> to reconnect after a disconnect. The server upgrades the connection and starts sending <a href="#websocket">S2C messages</a>.</p>
+    <p>Connect with the 5-char game code. Add <code>?playerToken=...</code> to identify as a player (or reconnect after a disconnect). Connecting <em>without</em> a playerToken joins as a <strong>spectator</strong> — you receive all S2C state messages but cannot send actions.</p>
+
+    <h3>GET /replay/{code}</h3>
+    <p>Fetch the full replay timeline for a completed game. Pass <code>?playerToken=...</code> (from either player) to authenticate. Returns a <code>ReplayTimeline</code> JSON object containing the full move history and final state. Returns 404 until the game has ended, then becomes available (with brief propagation delay).</p>
+    <pre><code>GET /replay/ABCDE?playerToken=...
+
+// Response
+{
+  "gameId": "uuid",
+  "roomCode": "ABCDE",
+  "matchNumber": 1,
+  "scenario": "duel",
+  "entries": [ { "phase": "astrogation", "message": { "type": "stateUpdate", "state": {...} } }, ... ]
+}</code></pre>
+
+    <h3>Spectator mode</h3>
+    <p>Connect to <code>/ws/{code}</code> without a <code>playerToken</code> to spectate any live game. You will receive a <code>spectatorWelcome</code> message followed by all subsequent <code>stateUpdate</code>, <code>movementResult</code>, <code>combatResult</code>, and <code>chat</code> messages in real time. Useful for building observer bots or dashboards.</p>
   </section>
 
   <!-- 4. WebSocket Messages -->
@@ -694,11 +749,11 @@ print(json.dumps({"candidateIndex": payload.get("recommendedIndex", 0)}))</code>
     </p>
   </section>
 
-  <!-- 7. Example Agent -->
+  <!-- 7. Example Agent (Claude) -->
   <section class="section" id="example">
     <h2><span class="section-num">07</span> Example Agent (Claude)</h2>
     <p>
-      The repository includes <code>scripts/llm-agent-claude.ts</code> — a full Claude-powered agent.
+      The repository includes <code>scripts/llm-agent-claude.ts</code> — a full Claude-powered agent using the Anthropic SDK's <strong>tool_use</strong> API for structured, reliable output.
       Run it with the bridge:
     </p>
     <pre><code>ANTHROPIC_API_KEY=sk-ant-... npm run llm:player -- \
@@ -710,12 +765,13 @@ print(json.dumps({"candidateIndex": payload.get("recommendedIndex", 0)}))</code>
     <p>The agent:</p>
     <ol>
       <li>Reads <code>AgentTurnInput</code> from stdin</li>
-      <li>Builds a prompt with the game rules summary, current state, and candidate list</li>
-      <li>Calls <code>claude-haiku-4-5</code> via the Anthropic SDK</li>
-      <li>Parses the JSON response to extract <code>candidateIndex</code> and an optional chat message</li>
+      <li>Builds a prompt with game rules, current state, and candidate list</li>
+      <li>Calls <code>claude-haiku-4-5</code> via the Anthropic SDK using <strong>tool_use</strong></li>
+      <li>Extracts <code>candidateIndex</code> and optional chat from the tool call result</li>
       <li>Falls back to <code>recommendedIndex</code> if the API call fails or times out</li>
     </ol>
 
+    <p>Using tool_use instead of text parsing eliminates the need for regex fallbacks — Claude is constrained to return a valid integer index:</p>
     <pre><code>// scripts/llm-agent-claude.ts (simplified)
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -725,21 +781,183 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const message = await client.messages.create({
   model: 'claude-haiku-4-5-20251001',
   max_tokens: 256,
-  messages: [{
-    role: 'user',
-    content: buildPrompt(input) // rules + state summary + candidates
-  }]
+  tools: [{
+    name: 'choose_action',
+    description: 'Choose a candidate action index',
+    input_schema: {
+      type: 'object',
+      properties: {
+        candidateIndex: { type: 'integer', minimum: 0 },
+        chat: { type: 'string', maxLength: 200 }
+      },
+      required: ['candidateIndex']
+    }
+  }],
+  tool_choice: { type: 'tool', name: 'choose_action' },
+  messages: [{ role: 'user', content: buildPrompt(input) }]
 });
 
-const { candidateIndex, chat } = parseResponse(message.content[0].text);
+const toolUse = message.content.find(c => c.type === 'tool_use');
+const { candidateIndex, chat } = toolUse.input;
 process.stdout.write(JSON.stringify({ candidateIndex, chat }));</code></pre>
 
     <p>Use this as a template to swap in any model or custom decision logic. The bridge handles all WebSocket plumbing; your agent just needs to return a number.</p>
   </section>
 
-  <!-- 8. Game Rules -->
+  <!-- 8. Python WebSocket Example -->
+  <section class="section" id="python-ws">
+    <h2><span class="section-num">08</span> Python WebSocket Example</h2>
+    <p>
+      This example connects directly to the game server WebSocket — no bridge required. It creates a game, waits for an opponent, then plays by coasting through astrogation and skipping all other phases.
+      Requires <code>pip install websockets</code>.
+    </p>
+    <pre><code>#!/usr/bin/env python3
+"""Direct WebSocket agent. pip install websockets"""
+import asyncio, json, os, sys, urllib.request
+
+SERVER = os.getenv("SERVER_URL", "http://127.0.0.1:8787")
+WS = SERVER.replace("http://", "ws://").replace("https://", "wss://")
+PLAYER_KEY = "agent_pyexample_" + os.urandom(4).hex()
+
+def http_post(path, body):
+    req = urllib.request.Request(
+        SERVER + path,
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    return json.loads(urllib.request.urlopen(req).read())
+
+async def play():
+    try:
+        import websockets
+    except ImportError:
+        sys.exit("pip install websockets")
+
+    data = http_post("/create", {"scenario": "duel"})
+    code, token = data["code"], data["playerToken"]
+    print(f"Game: {SERVER}/?code={code}   (open in browser or share with opponent)")
+
+    async with websockets.connect(f"{WS}/ws/{code}?playerToken={token}") as ws:
+        player_id = None
+        async for raw in ws:
+            msg = json.loads(raw)
+            t = msg["type"]
+
+            if t == "welcome":
+                player_id = msg["playerId"]
+                print(f"Seat: player {player_id}")
+
+            elif t in ("gameStart", "stateUpdate", "movementResult", "combatResult"):
+                state = msg["state"]
+                phase, active = state["phase"], state.get("activePlayer")
+
+                if phase == "gameOver":
+                    o = state.get("outcome") or {}
+                    print(f"Game over — winner={o.get('winner')}, reason={o.get('reason')}")
+                    break
+
+                elif phase == "fleetBuilding" and active == player_id:
+                    await ws.send(json.dumps({"type": "fleetReady", "purchases": [
+                        {"type": "frigate"}, {"type": "frigate"}, {"type": "destroyer"},
+                    ]}))
+
+                elif phase == "astrogation":
+                    # Coast all ships (burn=None means no burn, keep current velocity)
+                    ships = [s for s in state["ships"]
+                             if s["owner"] == player_id and s["lifecycle"] == "active"]
+                    orders = [{"shipId": s["id"], "burn": None} for s in ships]
+                    await ws.send(json.dumps({"type": "astrogation", "orders": orders}))
+
+                elif phase in ("ordnance", "combat", "logistics") and active == player_id:
+                    skip_type = "skip" + phase[0].upper() + phase[1:]
+                    await ws.send(json.dumps({"type": skip_type}))
+
+asyncio.run(play())</code></pre>
+
+    <div class="callout">
+      <div class="callout-label">Note</div>
+      When connecting directly you receive raw C2S/S2C messages and must implement your own decision logic. The bridge (<code>scripts/llm-player.ts</code>) adds candidate pre-computation, timeouts, and the structured <code>AgentTurnInput</code> payload — which makes it much easier to plug in an LLM.
+    </div>
+  </section>
+
+  <!-- 9. Coach & Scrimmage Tools -->
+  <section class="section" id="coach">
+    <h2><span class="section-num">09</span> Coach &amp; Scrimmage Tools</h2>
+    <p>The repository includes two higher-level scripts for autonomous agent training and evaluation.</p>
+
+    <h3>LLM Coach (<code>scripts/llm-agent-coach.ts</code>)</h3>
+    <p>
+      A self-improving Claude-powered agent that maintains a persistent JSON profile on disk. After each game it receives a detailed post-game report (replay timeline, turn summaries, outcome) and updates its own strategy notes — strengths, mistakes, lessons, and focus areas for the next game. Profiles persist between sessions so the agent improves over time.
+    </p>
+    <pre><code># Run a single game with the coach agent (creates/updates ~/.delta-v/profiles/myagent.json)
+ANTHROPIC_API_KEY=sk-ant-... npm run llm:player -- \
+  --mode create \
+  --scenario duel \
+  --agent command \
+  --agent-command "npm run llm:agent:coach -- --profile myagent"</code></pre>
+
+    <h3>Quick-match scrimmage (<code>scripts/quick-match-scrimmage.ts</code>)</h3>
+    <p>
+      Runs a fully automated scrimmage between two agents through the quick-match queue. Both agents queue independently, wait to be paired in the same room, then play the game to completion. Afterward both receive a post-game report and print a summary with win/loss records.
+    </p>
+    <pre><code># Two coach agents scrimmage each other
+ANTHROPIC_API_KEY=sk-ant-... npm run quickmatch:scrimmage
+
+# Custom labels, remote server, custom scenario
+npm run quickmatch:scrimmage -- \
+  --server-url https://delta-v.tre.systems \
+  --scenario biplanetary \
+  --label-a "Alpha" \
+  --label-b "Bravo"</code></pre>
+
+    <table class="field-table">
+      <thead><tr><th>Flag</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>--server-url</td><td>Worker base URL (default: <code>http://127.0.0.1:8787</code>)</td></tr>
+        <tr><td>--scenario</td><td>Queue scenario (default: <code>duel</code>)</td></tr>
+        <tr><td>--agent-command-base</td><td>Command prefix for the coach agent</td></tr>
+        <tr><td>--label-a / --label-b</td><td>Display labels for each side (default: Comet / Kepler)</td></tr>
+        <tr><td>--think-ms</td><td>Delay before each move (default: 150ms)</td></tr>
+        <tr><td>--decision-timeout-ms</td><td>Per-turn agent timeout (default: 30000ms)</td></tr>
+        <tr><td>--report-timeout-ms</td><td>Post-game report timeout (default: 15000ms)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <div class="callout-label">How scrimmage queuing works</div>
+      The scrimmage runner queues both players simultaneously via <code>POST /quick-match</code> with different <code>playerKey</code> values (prefixed <code>scrim_</code>). The matchmaker pairs them into the same room, then each player independently calls <code>npm run llm:player -- --mode join</code> with its assigned <code>playerToken</code>.
+    </div>
+  </section>
+
+  <!-- 10. Rate Limits -->
+  <section class="section" id="ratelimits">
+    <h2><span class="section-num">10</span> Rate Limits</h2>
+    <p>All limits are per-IP (hashed). Exceeding a limit returns HTTP 429 with a <code>Retry-After: 60</code> header.</p>
+
+    <table class="field-table">
+      <thead><tr><th>Endpoint</th><th>Limit</th><th>Window</th></tr></thead>
+      <tbody>
+        <tr><td>POST /create</td><td>5 requests</td><td>60 seconds</td></tr>
+        <tr><td>POST /quick-match</td><td>5 requests</td><td>60 seconds</td></tr>
+        <tr><td>GET /quick-match/{ticket}</td><td>100 requests</td><td>60 seconds</td></tr>
+        <tr><td>GET /join/{code}</td><td>100 requests</td><td>60 seconds</td></tr>
+        <tr><td>GET /replay/{code}</td><td>100 requests</td><td>60 seconds</td></tr>
+        <tr><td>WS /ws/{code}</td><td>20 connections</td><td>60 seconds</td></tr>
+      </tbody>
+    </table>
+
+    <p>Recommended polling interval for <code>GET /quick-match/{ticket}</code> is 500ms. At that rate you can poll for up to 50 seconds before hitting the limit.</p>
+
+    <div class="callout">
+      <div class="callout-label">Agents in loops</div>
+      If you run automated scrimmages or continuous training loops, use a local dev server (<code>npm run dev</code>) to avoid hitting production rate limits. The loopback address (<code>127.0.0.1</code> / <code>localhost</code>) bypasses rate limiting entirely.
+    </div>
+  </section>
+
+  <!-- 11. Game Rules -->
   <section class="section" id="rules">
-    <h2><span class="section-num">08</span> Game Rules Summary</h2>
+    <h2><span class="section-num">11</span> Game Rules Summary</h2>
     <p>A concise reference for building an LLM prompt or implementing custom AI logic.</p>
 
     <h3>Turn structure</h3>

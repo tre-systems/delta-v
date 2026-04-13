@@ -44,11 +44,6 @@ interface AgentTurnInput {
   };
 }
 
-interface AgentTurnResponse {
-  candidateIndex: number;
-  chat?: string;
-}
-
 const GAME_RULES = `
 Delta-V is a 2-player tactical space combat game played on a hex grid.
 
@@ -147,82 +142,13 @@ const buildPrompt = (input: AgentTurnInput): string => {
   );
   lines.push('');
   lines.push(
-    'Choose the best candidate index (0-based). Respond with JSON only:',
+    'Choose the best candidate index (0-based) by calling the choose_action tool.',
   );
   lines.push(
-    '{"candidateIndex": <number>, "chat": "<optional short taunt/comment max 100 chars>"}',
-  );
-  lines.push('');
-  lines.push(
-    'No markdown, no explanation outside the JSON. The chat field is optional — only include it if you have something memorable to say.',
+    'The chat field is optional — only include it if you have something memorable to say (max 100 chars).',
   );
 
   return lines.join('\n');
-};
-
-const extractResponse = (
-  content: string,
-  fallback: number,
-): AgentTurnResponse => {
-  const trimmed = content.trim();
-
-  // Try to parse the whole response as JSON
-  try {
-    const parsed = JSON.parse(trimmed) as {
-      candidateIndex?: number;
-      chat?: string;
-    };
-    if (
-      typeof parsed.candidateIndex === 'number' &&
-      Number.isInteger(parsed.candidateIndex) &&
-      parsed.candidateIndex >= 0
-    ) {
-      return {
-        candidateIndex: parsed.candidateIndex,
-        chat:
-          typeof parsed.chat === 'string' && parsed.chat.trim()
-            ? parsed.chat.trim().slice(0, 200)
-            : undefined,
-      };
-    }
-  } catch {
-    // fall through
-  }
-
-  // Try to find a JSON block in the response
-  const jsonMatch = trimmed.match(
-    /\{[^{}]*"candidateIndex"\s*:\s*(\d+)[^{}]*\}/,
-  );
-  if (jsonMatch) {
-    try {
-      const parsed = JSON.parse(jsonMatch[0]) as {
-        candidateIndex?: number;
-        chat?: string;
-      };
-      if (
-        typeof parsed.candidateIndex === 'number' &&
-        parsed.candidateIndex >= 0
-      ) {
-        return {
-          candidateIndex: parsed.candidateIndex,
-          chat:
-            typeof parsed.chat === 'string' && parsed.chat.trim()
-              ? parsed.chat.trim().slice(0, 200)
-              : undefined,
-        };
-      }
-    } catch {
-      // fall through
-    }
-  }
-
-  // Try to find just a number
-  const numMatch = trimmed.match(/\b(\d+)\b/);
-  if (numMatch) {
-    return { candidateIndex: Number.parseInt(numMatch[1], 10) };
-  }
-
-  return { candidateIndex: fallback };
 };
 
 const main = async (): Promise<void> => {
@@ -270,28 +196,66 @@ const main = async (): Promise<void> => {
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 256,
+      tools: [
+        {
+          name: 'choose_action',
+          description:
+            'Choose which candidate action to take and optionally send a chat message.',
+          input_schema: {
+            type: 'object',
+            properties: {
+              candidateIndex: {
+                type: 'integer',
+                minimum: 0,
+                description: 'Zero-based index into the candidates array.',
+              },
+              chat: {
+                type: 'string',
+                description: 'Optional short taunt or comment (max 100 chars).',
+              },
+            },
+            required: ['candidateIndex'],
+          },
+        },
+      ],
+      tool_choice: { type: 'tool', name: 'choose_action' },
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const textContent = message.content.find(
-      (c: { type: string }) => c.type === 'text',
+    const toolUse = message.content.find(
+      (c: { type: string }) => c.type === 'tool_use',
     );
-    if (!textContent || textContent.type !== 'text') {
+
+    if (!toolUse || toolUse.type !== 'tool_use') {
       process.stdout.write(JSON.stringify({ candidateIndex: recommended }));
       return;
     }
 
-    const response = extractResponse(textContent.text, recommended);
+    const toolInput = toolUse.input as {
+      candidateIndex?: unknown;
+      chat?: unknown;
+    };
 
-    // Clamp to valid range
+    const rawIndex = toolInput.candidateIndex;
+    if (
+      typeof rawIndex !== 'number' ||
+      !Number.isInteger(rawIndex) ||
+      rawIndex < 0
+    ) {
+      process.stdout.write(JSON.stringify({ candidateIndex: recommended }));
+      return;
+    }
+
     const clampedIndex =
-      response.candidateIndex >= 0 &&
-      response.candidateIndex < input.candidates.length
-        ? response.candidateIndex
-        : recommended;
+      rawIndex < input.candidates.length ? rawIndex : recommended;
+
+    const chat =
+      typeof toolInput.chat === 'string' && toolInput.chat.trim()
+        ? toolInput.chat.trim().slice(0, 200)
+        : undefined;
 
     process.stdout.write(
-      JSON.stringify({ candidateIndex: clampedIndex, chat: response.chat }),
+      JSON.stringify({ candidateIndex: clampedIndex, chat }),
     );
   } catch (error) {
     process.stderr.write(

@@ -229,6 +229,23 @@ export default {
       return handleWebSocket(request, env, asRoomCode(wsMatch[1]));
     }
 
+    // /.well-known/agent.json — machine-readable agent manifest
+    if (url.pathname === '/.well-known/agent.json') {
+      const manifestUrl = new URL(request.url);
+      manifestUrl.pathname = '/.well-known/agent.json';
+      const manifestResponse = await env.ASSETS.fetch(
+        new Request(manifestUrl.toString(), request),
+      );
+      const headers = new Headers(manifestResponse.headers);
+      headers.set('Content-Type', 'application/json');
+      headers.set('Cache-Control', 'public, max-age=3600');
+      headers.set('Access-Control-Allow-Origin', '*');
+      return new Response(manifestResponse.body, {
+        status: manifestResponse.status,
+        headers,
+      });
+    }
+
     // /agents → serve agents.html
     if (url.pathname === '/agents' || url.pathname === '/agents/') {
       const agentsUrl = new URL(request.url);
