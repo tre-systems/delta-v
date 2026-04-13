@@ -45,6 +45,7 @@ describe('ui-screens', () => {
     ).toEqual({
       titleText: 'Game Created',
       codeText: 'ABCDE',
+      codeVariant: 'roomCode',
       statusText: 'Waiting for opponent...',
       showCopyActions: true,
     });
@@ -57,6 +58,7 @@ describe('ui-screens', () => {
     ).toEqual({
       titleText: 'Quick Match',
       codeText: 'SEARCHING',
+      codeVariant: 'statusWord',
       statusText: 'Searching for an opponent...',
       showCopyActions: false,
     });
