@@ -148,7 +148,9 @@ const buildPrompt = (input: AgentTurnInput): string => {
   lines.push(
     'Choose the best candidate index (0-based). Respond with JSON only:',
   );
-  lines.push('{"candidateIndex": <number>, "chat": "<optional short taunt/comment max 100 chars>"}');
+  lines.push(
+    '{"candidateIndex": <number>, "chat": "<optional short taunt/comment max 100 chars>"}',
+  );
   lines.push('');
   lines.push(
     'No markdown, no explanation outside the JSON. The chat field is optional — only include it if you have something memorable to say.',
@@ -165,11 +167,21 @@ const extractResponse = (
 
   // Try to parse the whole response as JSON
   try {
-    const parsed = JSON.parse(trimmed) as { candidateIndex?: number; chat?: string };
-    if (typeof parsed.candidateIndex === 'number' && Number.isInteger(parsed.candidateIndex) && parsed.candidateIndex >= 0) {
+    const parsed = JSON.parse(trimmed) as {
+      candidateIndex?: number;
+      chat?: string;
+    };
+    if (
+      typeof parsed.candidateIndex === 'number' &&
+      Number.isInteger(parsed.candidateIndex) &&
+      parsed.candidateIndex >= 0
+    ) {
       return {
         candidateIndex: parsed.candidateIndex,
-        chat: typeof parsed.chat === 'string' && parsed.chat.trim() ? parsed.chat.trim().slice(0, 200) : undefined,
+        chat:
+          typeof parsed.chat === 'string' && parsed.chat.trim()
+            ? parsed.chat.trim().slice(0, 200)
+            : undefined,
       };
     }
   } catch {
@@ -177,14 +189,25 @@ const extractResponse = (
   }
 
   // Try to find a JSON block in the response
-  const jsonMatch = trimmed.match(/\{[^{}]*"candidateIndex"\s*:\s*(\d+)[^{}]*\}/);
+  const jsonMatch = trimmed.match(
+    /\{[^{}]*"candidateIndex"\s*:\s*(\d+)[^{}]*\}/,
+  );
   if (jsonMatch) {
     try {
-      const parsed = JSON.parse(jsonMatch[0]) as { candidateIndex?: number; chat?: string };
-      if (typeof parsed.candidateIndex === 'number' && parsed.candidateIndex >= 0) {
+      const parsed = JSON.parse(jsonMatch[0]) as {
+        candidateIndex?: number;
+        chat?: string;
+      };
+      if (
+        typeof parsed.candidateIndex === 'number' &&
+        parsed.candidateIndex >= 0
+      ) {
         return {
           candidateIndex: parsed.candidateIndex,
-          chat: typeof parsed.chat === 'string' && parsed.chat.trim() ? parsed.chat.trim().slice(0, 200) : undefined,
+          chat:
+            typeof parsed.chat === 'string' && parsed.chat.trim()
+              ? parsed.chat.trim().slice(0, 200)
+              : undefined,
         };
       }
     } catch {
@@ -232,7 +255,9 @@ const main = async (): Promise<void> => {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    process.stderr.write('ANTHROPIC_API_KEY not set, falling back to recommended\n');
+    process.stderr.write(
+      'ANTHROPIC_API_KEY not set, falling back to recommended\n',
+    );
     process.stdout.write(JSON.stringify({ candidateIndex: recommended }));
     return;
   }
