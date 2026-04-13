@@ -253,6 +253,20 @@ export default {
       return env.ASSETS.fetch(new Request(agentsUrl.toString(), request));
     }
 
+    // /.well-known/agent.json → machine-readable agent manifest
+    if (url.pathname === '/.well-known/agent.json') {
+      const manifestUrl = new URL(request.url);
+      manifestUrl.pathname = '/.well-known/agent.json';
+      const response = await env.ASSETS.fetch(
+        new Request(manifestUrl.toString(), request),
+      );
+      const headers = new Headers(response.headers);
+      headers.set('Content-Type', 'application/json');
+      headers.set('Access-Control-Allow-Origin', '*');
+      headers.set('Cache-Control', 'public, max-age=3600');
+      return new Response(response.body, { status: response.status, headers });
+    }
+
     // Serve static assets
     return env.ASSETS.fetch(request);
   },
